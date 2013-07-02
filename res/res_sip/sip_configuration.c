@@ -281,6 +281,11 @@ static int timers_handler(const struct aco_option *opt, struct ast_variable *var
 static void destroy_auths(const char **auths, size_t num_auths)
 {
 	int i;
+
+	if (!auths) {
+		return;
+	}
+
 	for (i = 0; i < num_auths; ++i) {
 		ast_free((char *) auths[i]);
 	}
@@ -679,6 +684,13 @@ int ast_res_sip_initialize_configuration(void)
 
 	if (ast_sip_initialize_sorcery_domain_alias(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP domain aliases support with sorcery\n");
+		ast_sorcery_unref(sip_sorcery);
+		sip_sorcery = NULL;
+		return -1;
+	}
+
+	if (ast_sip_initialize_sorcery_security(sip_sorcery)) {
+		ast_log(LOG_ERROR, "Failed to register SIP security support\n");
 		ast_sorcery_unref(sip_sorcery);
 		sip_sorcery = NULL;
 		return -1;

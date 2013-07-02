@@ -53,6 +53,8 @@
 		LINKER_SYMBOL_PREFIXast_sip_retrieve_auths;
 		LINKER_SYMBOL_PREFIXast_sip_cleanup_auths;
 		LINKER_SYMBOL_PREFIXast_sip_is_content_type;
+		LINKER_SYMBOL_PREFIXast_sip_get_artificial_endpoint;
+		LINKER_SYMBOL_PREFIXast_sip_get_artificial_auth;
 		LINKER_SYMBOL_PREFIXast_sip_report_invalid_endpoint;
 		LINKER_SYMBOL_PREFIXast_sip_report_failed_acl;
 		LINKER_SYMBOL_PREFIXast_sip_report_auth_failed_challenge_response;

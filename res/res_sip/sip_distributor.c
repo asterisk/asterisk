@@ -59,7 +59,7 @@ void ast_sip_dialog_set_serializer(pjsip_dialog *dlg, struct ast_taskprocessor *
 {
 	struct distributor_dialog_data *dist;
 	SCOPED_LOCK(lock, dlg, pjsip_dlg_inc_lock, pjsip_dlg_dec_lock);
-	
+
 	dist = pjsip_dlg_get_mod_data(dlg, distributor_mod.id);
 	if (!dist) {
 		dist = distributor_dialog_data_alloc(dlg);
@@ -71,7 +71,7 @@ void ast_sip_dialog_set_endpoint(pjsip_dialog *dlg, struct ast_sip_endpoint *end
 {
 	struct distributor_dialog_data *dist;
 	SCOPED_LOCK(lock, dlg, pjsip_dlg_inc_lock, pjsip_dlg_dec_lock);
-	
+
 	dist = pjsip_dlg_get_mod_data(dlg, distributor_mod.id);
 	if (!dist) {
 		dist = distributor_dialog_data_alloc(dlg);
@@ -125,6 +125,48 @@ static pjsip_module endpoint_mod = {
 	.on_rx_request = endpoint_lookup,
 };
 
+static struct ast_sip_auth *artificial_auth;
+
+static int create_artificial_auth(void)
+{
+	if (!(artificial_auth = ast_sorcery_alloc(
+		      ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, "artificial"))) {
+		ast_log(LOG_ERROR, "Unable to create artificial auth\n");
+		return -1;
+	}
+
+	ast_string_field_set(artificial_auth, realm, "asterisk");
+	ast_string_field_set(artificial_auth, auth_user, "");
+	ast_string_field_set(artificial_auth, auth_pass, "");
+	artificial_auth->type = AST_SIP_AUTH_TYPE_ARTIFICIAL;
+	return 0;
+}
+
+struct ast_sip_auth *ast_sip_get_artificial_auth(void)
+{
+	ao2_ref(artificial_auth, +1);
+	return artificial_auth;
+}
+
+static struct ast_sip_endpoint *artificial_endpoint;
+
+static int create_artificial_endpoint(void)
+{
+	if (!(artificial_endpoint = ast_sorcery_alloc(
+		      ast_sip_get_sorcery(), "endpoint", NULL))) {
+		return -1;
+	}
+
+	artificial_endpoint->num_inbound_auths = 1;
+	return 0;
+}
+
+struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void)
+{
+	ao2_ref(artificial_endpoint, +1);
+	return artificial_endpoint;
+}
+
 static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 {
 	struct ast_sip_endpoint *endpoint;
@@ -143,11 +185,12 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 		char name[AST_UUID_STR_LEN] = "";
 		pjsip_uri *from = rdata->msg_info.from->uri;
 
-		/* XXX When we do an alwaysauthreject-like option, we'll need to take that into account
-		 * for this response. Either that, or have a pseudo-endpoint to pass along so that authentication
-		 * will fail
-		 */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		/* always use an artificial endpoint - per discussion no reason
+		   to have "alwaysauthreject" as an option.  It is felt using it
+		   was a bug fix and it is not needed since we are not worried about
+		   breaking old stuff and we really don't want to enable the discovery
+		   of SIP accounts */
+		endpoint = ast_sip_get_artificial_endpoint();
 
 		if (PJSIP_URI_SCHEME_IS_SIP(from) || PJSIP_URI_SCHEME_IS_SIPS(from)) {
 			pjsip_sip_uri *sip_from = pjsip_uri_get_uri(from);
@@ -155,7 +198,6 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 		}
 
 		ast_sip_report_invalid_endpoint(name, rdata);
-		return PJ_TRUE;
 	}
 	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
 	return PJ_FALSE;
@@ -183,8 +225,7 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 			return PJ_FALSE;
 		case AST_SIP_AUTHENTICATION_FAILED:
 			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
-			pjsip_tx_data_dec_ref(tdata);
-			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_ERROR:
 			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
@@ -240,6 +281,10 @@ struct ast_sip_endpoint *ast_pjsip_rdata_get_endpoint(pjsip_rx_data *rdata)
 
 int ast_sip_initialize_distributor(void)
 {
+	if (create_artificial_endpoint() || create_artificial_auth()) {
+		return -1;
+	}
+
 	if (ast_sip_register_service(&distributor_mod)) {
 		return -1;
 	}
@@ -249,5 +294,16 @@ int ast_sip_initialize_distributor(void)
 	if (ast_sip_register_service(&auth_mod)) {
 		return -1;
 	}
+
 	return 0;
+}
+
+void ast_sip_destroy_distributor(void)
+{
+	ast_sip_unregister_service(&distributor_mod);
+	ast_sip_unregister_service(&endpoint_mod);
+	ast_sip_unregister_service(&auth_mod);
+
+	ao2_cleanup(artificial_auth);
+	ao2_cleanup(artificial_endpoint);
 }

@@ -87,6 +87,8 @@ static int auth_apply(const struct ast_sorcery *sorcery, void *obj)
 			res = -1;
 		}
 		break;
+	case AST_SIP_AUTH_TYPE_ARTIFICIAL:
+		break;
 	}
 
 	return res;

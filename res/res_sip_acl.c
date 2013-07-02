@@ -77,18 +77,12 @@
 					<synopsis>List of IP-domains to allow access from</synopsis>
 				</configOption>
 				<configOption name="type">
-					<synopsis>Must be of type 'acl'.</synopsis>
+					<synopsis>Must be of type 'security'.</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
  ***/
-
-struct sip_acl {
-	SORCERY_OBJECT(details);
-	struct ast_acl_list *acl;
-	struct ast_acl_list *contact_acl;
-};
 
 static int apply_acl(pjsip_rx_data *rdata, struct ast_acl_list *acl)
 {
@@ -161,10 +155,11 @@ static int apply_contact_acl(pjsip_rx_data *rdata, struct ast_acl_list *contact_
 
 static int check_acls(void *obj, void *arg, int flags)
 {
-	struct sip_acl *acl = obj;
+	struct ast_sip_security *security = obj;
 	pjsip_rx_data *rdata = arg;
 
-	if (apply_acl(rdata, acl->acl) || apply_contact_acl(rdata, acl->contact_acl)) {
+	if (apply_acl(rdata, security->acl) ||
+	    apply_contact_acl(rdata, security->contact_acl)) {
 		return CMP_MATCH | CMP_STOP;
 	}
 	return 0;
@@ -172,22 +167,17 @@ static int check_acls(void *obj, void *arg, int flags)
 
 static pj_bool_t acl_on_rx_msg(pjsip_rx_data *rdata)
 {
-	int forbidden = 0;
-	struct ao2_container *acls = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "acl", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-	struct sip_acl *matched_acl;
+	RAII_VAR(struct ao2_container *, acls, ast_sorcery_retrieve_by_fields(
+			 ast_sip_get_sorcery(), SIP_SORCERY_SECURITY_TYPE,
+			 AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL), ao2_cleanup);
+	RAII_VAR(struct ast_sip_security *, matched_acl, NULL, ao2_cleanup);
+
 	if (!acls) {
 		ast_log(LOG_ERROR, "Unable to retrieve ACL sorcery data\n");
 		return PJ_FALSE;
 	}
 
-	matched_acl = ao2_callback(acls, 0, check_acls, rdata);
-	if (matched_acl) {
-		forbidden = 1;
-		ao2_ref(matched_acl, -1);
-	}
-	ao2_ref(acls, -1);
-
-	if (forbidden) {
+	if ((matched_acl = ao2_callback(acls, 0, check_acls, rdata))) {
 		if (rdata->msg_info.msg->line.req.method.id != PJSIP_ACK_METHOD) {
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 		}
@@ -204,60 +194,8 @@ static pjsip_module acl_module = {
 	.on_rx_request = acl_on_rx_msg,
 };
 
-static int acl_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
-{
-	struct sip_acl *acl = obj;
-	int error;
-	int ignore;
-	if (!strncmp(var->name, "contact", 7)) {
-		ast_append_acl(var->name + 7, var->value, &acl->contact_acl, &error, &ignore);
-	} else {
-		ast_append_acl(var->name, var->value, &acl->acl, &error, &ignore);
-	}
-	return error;
-}
-
-static void sip_acl_destructor(void *obj)
-{
-	struct sip_acl *acl = obj;
-	acl->acl = ast_free_acl_list(acl->acl);
-	acl->contact_acl = ast_free_acl_list(acl->contact_acl);
-}
-
-static void *sip_acl_alloc(const char *name)
-{
-	struct sip_acl *acl = ast_sorcery_generic_alloc(sizeof(*acl), sip_acl_destructor);
-	if (!acl) {
-		return NULL;
-	}
-	return acl;
-}
-
-static int load_acls(void)
-{
-	ast_sorcery_apply_default(ast_sip_get_sorcery(), "acl", "config", "res_sip.conf,criteria=type=acl");
-	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "acl", sip_acl_alloc, NULL, NULL)) {
-		ast_log(LOG_ERROR, "Failed to register SIP ACL object with sorcery\n");
-		return -1;
-	}
-	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "acl", "type", "", OPT_NOOP_T, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "acl", "permit", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "acl", "deny", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "acl", "acl", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "acl", "contactpermit", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "acl", "contactdeny", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "acl", "contactacl", "", acl_handler, NULL, 0, 0);
-
-	/* XXX Is there a more selective way to do this? (i.e. Just reload a specific object type?) */
-	ast_sorcery_reload(ast_sip_get_sorcery());
-	return 0;
-}
-
 static int load_module(void)
 {
-	if (load_acls()) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
 	ast_sip_register_service(&acl_module);
 	return AST_MODULE_LOAD_SUCCESS;
 }

@@ -1519,6 +1519,7 @@ static int load_module(void)
 return AST_MODULE_LOAD_SUCCESS;
 
 error:
+	ast_sip_destroy_distributor();
 	ast_res_sip_destroy_configuration();
 	if (monitor_thread) {
 		stop_monitor_thread();
@@ -1561,6 +1562,7 @@ static int unload_pjsip(void *data)
 
 static int unload_module(void)
 {
+	ast_sip_destroy_distributor();
 	ast_res_sip_destroy_configuration();
 	if (monitor_thread) {
 		stop_monitor_thread();

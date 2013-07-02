@@ -149,6 +149,10 @@ static pj_status_t digest_lookup(pj_pool_t *pool, const pj_str_t *realm,
 		return PJSIP_SC_FORBIDDEN;
 	}
 
+	if (auth->type == AST_SIP_AUTH_TYPE_ARTIFICIAL) {
+		return PJSIP_SC_FORBIDDEN;
+	}
+
 	if (pj_strcmp2(realm, auth->realm)) {
 		return PJSIP_SC_FORBIDDEN;
 	}
@@ -268,12 +272,12 @@ static int find_challenge(const pjsip_rx_data *rdata, const struct ast_sip_auth 
 /*!
  * \brief Common code for initializing a pjsip_auth_srv
  */
-static void setup_auth_srv(pj_pool_t *pool, pjsip_auth_srv *auth_server, const struct ast_sip_auth *auth)
+static void setup_auth_srv(pj_pool_t *pool, pjsip_auth_srv *auth_server, const char *realm)
 {
-	pj_str_t realm;
-	pj_cstr(&realm, auth->realm);
+	pj_str_t realm_str;
+	pj_cstr(&realm_str, realm);
 
-	pjsip_auth_srv_init(pool, auth_server, &realm, digest_lookup, 0);
+	pjsip_auth_srv_init(pool, auth_server, &realm_str, digest_lookup, 0);
 }
 
 /*!
@@ -311,7 +315,7 @@ static int verify(struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool_t *po
 		stale = 1;
 	}
 
-	setup_auth_srv(pool, &auth_server, auth);
+	setup_auth_srv(pool, &auth_server, auth->realm);
 
 	store_auth(auth);
 
@@ -332,12 +336,12 @@ static int verify(struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool_t *po
 /*!
  * \brief astobj2 callback for adding digest challenges to responses
  *
- * \param auth The ast_aip_auth to build a challenge from
+ * \param realm An auth's realm to build a challenge from
  * \param tdata The response to add the challenge to
  * \param rdata The request the challenge is in response to
  * \param is_stale Indicates whether nonce on incoming request was stale
  */
-static void challenge(const struct ast_sip_auth *auth, pjsip_tx_data *tdata, const pjsip_rx_data *rdata, int is_stale)
+static void challenge(const char *realm, pjsip_tx_data *tdata, const pjsip_rx_data *rdata, int is_stale)
 {
 	pj_str_t qop;
 	pj_str_t pj_nonce;
@@ -347,9 +351,9 @@ static void challenge(const struct ast_sip_auth *auth, pjsip_tx_data *tdata, con
 	time_t timestamp = time(NULL);
 	snprintf(time_buf, sizeof(time_buf), "%d", (int) timestamp);
 
-	build_nonce(&nonce, time_buf, rdata, auth->realm);
+	build_nonce(&nonce, time_buf, rdata, realm);
 
-	setup_auth_srv(tdata->pool, &auth_server, auth);
+	setup_auth_srv(tdata->pool, &auth_server, realm);
 
 	pj_cstr(&pj_nonce, ast_str_buffer(nonce));
 	pj_cstr(&qop, "auth");
@@ -362,22 +366,30 @@ static void challenge(const struct ast_sip_auth *auth, pjsip_tx_data *tdata, con
  * This function will check an incoming message against configured authentication
  * options. If \b any of the incoming Authorization headers result in successful
  * authentication, then authentication is considered successful.
- * 
+ *
  * \see ast_sip_check_authentication
  */
 static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint *endpoint,
 		pjsip_rx_data *rdata, pjsip_tx_data *tdata)
 {
-	struct ast_sip_auth **auths = ast_alloca(endpoint->num_inbound_auths * sizeof(*auths));
-	enum digest_verify_result *verify_res = ast_alloca(endpoint->num_inbound_auths * sizeof(*verify_res));
+	struct ast_sip_auth **auths;
+	enum digest_verify_result *verify_res;
 	enum ast_sip_check_auth_result res;
 	int i;
+
+	RAII_VAR(struct ast_sip_endpoint *, artificial_endpoint,
+		 ast_sip_get_artificial_endpoint(), ao2_cleanup);
+
+	auths = ast_alloca(endpoint->num_inbound_auths * sizeof(*auths));
+	verify_res = ast_alloca(endpoint->num_inbound_auths * sizeof(*verify_res));
 
 	if (!auths) {
 		return AST_SIP_AUTHENTICATION_ERROR;
 	}
 
-	if (ast_sip_retrieve_auths(endpoint->sip_inbound_auths, endpoint->num_inbound_auths, auths)) {
+	if (endpoint == artificial_endpoint) {
+		auths[0] = ast_sip_get_artificial_auth();
+	} else if (ast_sip_retrieve_auths(endpoint->sip_inbound_auths, endpoint->num_inbound_auths, auths)) {
 		res = AST_SIP_AUTHENTICATION_ERROR;
 		goto cleanup;
 	}
@@ -391,9 +403,9 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	}
 
 	for (i = 0; i < endpoint->num_inbound_auths; ++i) {
-		challenge(auths[i], tdata, rdata, verify_res[i] == AUTH_STALE);
+		challenge(auths[i]->realm, tdata, rdata, verify_res[i] == AUTH_STALE);
 	}
-	
+
 	res = AST_SIP_AUTHENTICATION_CHALLENGE;
 
 cleanup:

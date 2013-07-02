@@ -237,6 +237,8 @@ enum ast_sip_auth_type {
 	AST_SIP_AUTH_TYPE_USER_PASS,
 	/*! Credentials stored as an MD5 sum */
 	AST_SIP_AUTH_TYPE_MD5,
+	/*! Credentials not stored this is a fake auth */
+	AST_SIP_AUTH_TYPE_ARTIFICIAL
 };
 
 #define SIP_SORCERY_AUTH_TYPE "auth"
@@ -479,6 +481,17 @@ struct ast_sip_endpoint_identifier {
      * See ast_sip_identify_endpoint for more details
      */
     struct ast_sip_endpoint *(*identify_endpoint)(pjsip_rx_data *rdata);
+};
+
+#define SIP_SORCERY_SECURITY_TYPE "security"
+
+/*!
+ * \brief SIP security details and configuration.
+ */
+struct ast_sip_security {
+	SORCERY_OBJECT(details);
+	struct ast_acl_list *acl;
+	struct ast_acl_list *contact_acl;
 };
 
 /*!
@@ -778,6 +791,16 @@ int ast_sip_initialize_sorcery_domain_alias(struct ast_sorcery *sorcery);
 int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery);
 
 /*!
+ * \brief Initialize security support on a sorcery instance
+ *
+ * \param sorcery The sorcery instance
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_initialize_sorcery_security(struct ast_sorcery *sorcery);
+
+/*!
  * \brief Callback called when an outbound request with authentication credentials is to be sent in dialog
  *
  * This callback will have the created request on it. The callback's purpose is to do any extra
@@ -824,6 +847,27 @@ int ast_sip_dialog_setup_outbound_authentication(pjsip_dialog *dlg, const struct
  * \retval 0 Success
  */
 int ast_sip_initialize_distributor(void);
+
+/*!
+ * \brief Destruct the distributor module.
+ *
+ * Unregisters pjsip modules and cleans up any allocated resources.
+ */
+void ast_sip_destroy_distributor(void);
+
+/*!
+ * \brief Retrieves a reference to the artificial auth.
+ *
+ * \retval The artificial auth
+ */
+struct ast_sip_auth *ast_sip_get_artificial_auth(void);
+
+/*!
+ * \brief Retrieves a reference to the artificial endpoint.
+ *
+ * \retval The artificial endpoint
+ */
+struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
 
 /*!
  * \page Threading model for SIP
