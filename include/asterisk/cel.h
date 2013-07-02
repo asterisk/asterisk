@@ -263,6 +263,68 @@ void ast_cel_publish_event(struct ast_channel *chan,
  */
 struct stasis_topic *ast_cel_topic(void);
 
+/*! \brief A structure to hold CEL global configuration options */
+struct ast_cel_general_config {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(date_format); /*!< The desired date format for logging */
+	);
+	int enable;			/*!< Whether CEL is enabled */
+	int64_t events;			/*!< The events to be logged */
+	/*! The apps for which to log app start and end events. This is
+	 * ast_str_container_alloc()ed and filled with ao2-allocated
+	 * char* which are all-lowercase application names. */
+	struct ao2_container *apps;
+};
+
+/*!
+ * \brief Allocate a CEL configuration object
+ *
+ * \retval NULL on error
+ * \retval The new CEL configuration object
+ */
+void *ast_cel_general_config_alloc(void);
+
+/*!
+ * \since 12
+ * \brief Obtain the current CEL configuration
+ *
+ * The configuration is a ref counted object. The caller of this function must
+ * decrement the ref count when finished with the configuration.
+ *
+ * \retval NULL on error
+ * \retval The current CEL configuration
+ */
+struct ast_cel_general_config *ast_cel_get_config(void);
+
+/*!
+ * \since 12
+ * \brief Set the current CEL configuration
+ *
+ * \param config The new CEL configuration
+ */
+void ast_cel_set_config(struct ast_cel_general_config *config);
+
+struct ast_channel_snapshot;
+/*!
+ * \brief Allocate and populate a CEL event structure
+ *
+ * \param snapshot An ast_channel_snapshot of the primary channel associated
+ *        with this channel event.
+ * \param event_type The type of call event being reported.
+ * \param userdefevname Custom name for the call event. (optional)
+ * \param extra An opaque field that will go into the "CEL_EXTRA" information
+ *        element of the call event. (optional)
+ * \param peer_name The peer name to be placed into the event. (optional)
+ *
+ * \since 12
+ *
+ * \retval The created ast_event structure
+ * \retval NULL on failure
+ */
+struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
+		enum ast_cel_event_type event_type, const char *userdefevname,
+		const char *extra, const char *peer_name);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

@@ -180,28 +180,18 @@ static struct ao2_container *cel_dialstatus_store;
  */
 static struct ao2_container *linkedids;
 
-/*! \brief A structure to hold global configuration-related options */
-struct cel_general_config {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(date_format); /*!< The desired date format for logging */
-	);
-	int enable;			/*!< Whether CEL is enabled */
-	int64_t events;			/*!< The events to be logged */
-	struct ao2_container *apps;	/*!< The apps for which to log app start and end events */
-};
-
 /*! \brief Destructor for cel_config */
 static void cel_general_config_dtor(void *obj)
 {
-	struct cel_general_config *cfg = obj;
+	struct ast_cel_general_config *cfg = obj;
 	ast_string_field_free_memory(cfg);
 	ao2_cleanup(cfg->apps);
 	cfg->apps = NULL;
 }
 
-static void *cel_general_config_alloc(void)
+void *ast_cel_general_config_alloc(void)
 {
-	RAII_VAR(struct cel_general_config *, cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_cel_general_config *, cfg, NULL, ao2_cleanup);
 
 	if (!(cfg = ao2_alloc(sizeof(*cfg), cel_general_config_dtor))) {
 		return NULL;
@@ -221,7 +211,7 @@ static void *cel_general_config_alloc(void)
 
 /*! \brief A container that holds all config-related information */
 struct cel_config {
-	struct cel_general_config *general;
+	struct ast_cel_general_config *general;
 };
 
 
@@ -243,7 +233,7 @@ static void *cel_config_alloc(void)
 		return NULL;
 	}
 
-	if (!(cfg->general = cel_general_config_alloc())) {
+	if (!(cfg->general = ast_cel_general_config_alloc())) {
 		return NULL;
 	}
 
@@ -251,7 +241,7 @@ static void *cel_config_alloc(void)
 	return cfg;
 }
 
-/*! \brief An aco_type structure to link the "general" category to the cel_general_config type */
+/*! \brief An aco_type structure to link the "general" category to the ast_cel_general_config type */
 static struct aco_type general_option = {
 	.type = ACO_GLOBAL,
 	.name = "general",
@@ -559,7 +549,7 @@ static int ast_cel_track_event(enum ast_cel_event_type et)
 
 static int events_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
-	struct cel_general_config *cfg = obj;
+	struct ast_cel_general_config *cfg = obj;
 	char *events = ast_strdupa(var->value);
 	char *cur_event;
 
@@ -589,7 +579,7 @@ static int events_handler(const struct aco_option *opt, struct ast_variable *var
 
 static int apps_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
-	struct cel_general_config *cfg = obj;
+	struct ast_cel_general_config *cfg = obj;
 	char *apps = ast_strdupa(var->value);
 	char *cur_app;
 
@@ -642,11 +632,41 @@ static int cel_track_app(const char *const_app)
 }
 
 static int cel_linkedid_ref(const char *linkedid);
+struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
+		enum ast_cel_event_type event_type, const char *userdefevname,
+		const char *extra, const char *peer_name)
+{
+	struct timeval eventtime = ast_tvnow();
+	return ast_event_new(AST_EVENT_CEL,
+		AST_EVENT_IE_CEL_EVENT_TYPE, AST_EVENT_IE_PLTYPE_UINT, event_type,
+		AST_EVENT_IE_CEL_EVENT_TIME, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_sec,
+		AST_EVENT_IE_CEL_EVENT_TIME_USEC, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_usec,
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_STR, S_OR(userdefevname, ""),
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_name,
+		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_number,
+		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_ani,
+		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_rdnis,
+		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_dnid,
+		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, snapshot->exten,
+		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, snapshot->context,
+		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->name,
+		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->appl,
+		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, snapshot->data,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, snapshot->amaflags,
+		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, snapshot->accountcode,
+		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, snapshot->peeraccount,
+		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, snapshot->uniqueid,
+		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, snapshot->linkedid,
+		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, snapshot->userfield,
+		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, S_OR(extra, ""),
+		AST_EVENT_IE_CEL_PEER, AST_EVENT_IE_PLTYPE_STR, S_OR(peer_name, ""),
+		AST_EVENT_IE_END);
+}
+
 static int report_event_snapshot(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
 		const char *extra, const char *peer2_name)
 {
-	struct timeval eventtime;
 	struct ast_event *ev;
 	char *linkedid = ast_strdupa(snapshot->linkedid);
 	const char *peer_name = peer2_name;
@@ -685,33 +705,7 @@ static int report_event_snapshot(struct ast_channel_snapshot *snapshot,
 		return 0;
 	}
 
-	eventtime = ast_tvnow();
-
-	ev = ast_event_new(AST_EVENT_CEL,
-		AST_EVENT_IE_CEL_EVENT_TYPE, AST_EVENT_IE_PLTYPE_UINT, event_type,
-		AST_EVENT_IE_CEL_EVENT_TIME, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_sec,
-		AST_EVENT_IE_CEL_EVENT_TIME_USEC, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_usec,
-		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_STR, S_OR(userdefevname, ""),
-		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_name,
-		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_number,
-		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_ani,
-		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_rdnis,
-		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR, snapshot->caller_dnid,
-		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, snapshot->exten,
-		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, snapshot->context,
-		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->name,
-		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, snapshot->appl,
-		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, snapshot->data,
-		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, snapshot->amaflags,
-		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, snapshot->accountcode,
-		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, snapshot->peeraccount,
-		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, snapshot->uniqueid,
-		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, snapshot->linkedid,
-		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, snapshot->userfield,
-		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, S_OR(extra, ""),
-		AST_EVENT_IE_CEL_PEER, AST_EVENT_IE_PLTYPE_STR, S_OR(peer_name, ""),
-		AST_EVENT_IE_END);
-
+	ev = ast_cel_create_event(snapshot, event_type, userdefevname, extra, peer_name);
 	if (ev && ast_event_queue(ev)) {
 		ast_event_destroy(ev);
 		return -1;
@@ -1216,11 +1210,8 @@ static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
 			cel_channel_monitors[i](old_snapshot, new_snapshot);
 		}
 	} else if (ast_bridge_snapshot_type() == update->type) {
-		RAII_VAR(struct bridge_assoc *, assoc, NULL, ao2_cleanup);
 		struct ast_bridge_snapshot *old_snapshot;
 		struct ast_bridge_snapshot *new_snapshot;
-
-		update = stasis_message_data(message);
 
 		old_snapshot = stasis_message_data(update->old_snapshot);
 		new_snapshot = stasis_message_data(update->new_snapshot);
@@ -1231,62 +1222,6 @@ static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
 
 		if (!new_snapshot) {
 			clear_bridge_primary(old_snapshot->uniqueid);
-			return;
-		}
-
-		if (old_snapshot->capabilities == new_snapshot->capabilities) {
-			return;
-		}
-
-		/* handle 1:1/native -> multimix */
-		if ((old_snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE))
-			&& (new_snapshot->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX)) {
-			assoc = find_bridge_primary_by_bridge_id(new_snapshot->uniqueid);
-			if (!assoc) {
-				ast_log(LOG_ERROR, "No association found for bridge %s\n", new_snapshot->uniqueid);
-				return;
-			}
-
-			/* this bridge will no longer be treated like a bridge, so mark the bridge_assoc as such */
-			assoc->track_as_conf = 1;
-			report_event_snapshot(assoc->primary_snapshot, AST_CEL_BRIDGE_TO_CONF, NULL, NULL, assoc->secondary_name);
-			return;
-		}
-
-		/* handle multimix -> 1:1/native */
-		if ((old_snapshot->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX)
-			&& (new_snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE))) {
-			struct ao2_iterator i;
-			RAII_VAR(char *, channel_id, NULL, ao2_cleanup);
-			RAII_VAR(struct ast_channel_snapshot *, chan_snapshot, NULL, ao2_cleanup);
-
-			assoc = find_bridge_primary_by_bridge_id(new_snapshot->uniqueid);
-			if (assoc) {
-				assoc->track_as_conf = 1;
-				return;
-			}
-
-			/* get the first item in the container */
-			i = ao2_iterator_init(new_snapshot->channels, 0);
-			while ((channel_id = ao2_iterator_next(&i))) {
-				break;
-			}
-			ao2_iterator_destroy(&i);
-
-			/* create a bridge_assoc for this bridge and mark it as being tracked appropriately */
-			chan_snapshot = ast_channel_snapshot_get_latest(channel_id);
-			if (!chan_snapshot) {
-				return;
-			}
-
-			ast_assert(chan_snapshot != NULL);
-			assoc = bridge_assoc_alloc(chan_snapshot, new_snapshot->uniqueid, chan_snapshot->name);
-			if (!assoc) {
-				return;
-			}
-			assoc->track_as_conf = 1;
-
-			ao2_link(bridge_primaries, assoc);
 			return;
 		}
 	}
@@ -1300,9 +1235,9 @@ static void cel_bridge_enter_cb(
 	struct ast_bridge_blob *blob = stasis_message_data(message);
 	struct ast_bridge_snapshot *snapshot = blob->bridge;
 	struct ast_channel_snapshot *chan_snapshot = blob->channel;
+	RAII_VAR(struct bridge_assoc *, assoc, find_bridge_primary_by_bridge_id(snapshot->uniqueid), ao2_cleanup);
 
 	if (snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE)) {
-		RAII_VAR(struct bridge_assoc *, assoc, find_bridge_primary_by_bridge_id(snapshot->uniqueid), ao2_cleanup);
 		if (assoc && assoc->track_as_conf) {
 			report_event_snapshot(chan_snapshot, AST_CEL_CONF_ENTER, NULL, NULL, NULL);
 			return;
@@ -1331,8 +1266,25 @@ static void cel_bridge_enter_cb(
 
 			add_bridge_primary(latest_primary, snapshot->uniqueid, chan_snapshot->name);
 			report_event_snapshot(latest_primary, AST_CEL_BRIDGE_START, NULL, NULL, chan_snapshot->name);
+		} else if (ao2_container_count(snapshot->channels) > 2) {
+			if (!assoc) {
+				ast_log(LOG_ERROR, "No association found for bridge %s\n", snapshot->uniqueid);
+				return;
+			}
+
+			/* this bridge will no longer be treated like a bridge, so mark the bridge_assoc as such */
+			if (!assoc->track_as_conf) {
+				assoc->track_as_conf = 1;
+				report_event_snapshot(assoc->primary_snapshot, AST_CEL_BRIDGE_TO_CONF, NULL,
+					chan_snapshot->name, assoc->secondary_name);
+				ast_string_field_set(assoc, secondary_name, "");
+			}
 		}
 	} else if (snapshot->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX) {
+		if (!assoc) {
+			add_bridge_primary(chan_snapshot, snapshot->uniqueid, "");
+			return;
+		}
 		report_event_snapshot(chan_snapshot, AST_CEL_CONF_ENTER, NULL, NULL, NULL);
 	}
 }
@@ -1585,8 +1537,8 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
-	aco_option_register(&cel_cfg_info, "enable", ACO_EXACT, general_options, "no", OPT_BOOL_T, 1, FLDSET(struct cel_general_config, enable));
-	aco_option_register(&cel_cfg_info, "dateformat", ACO_EXACT, general_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct cel_general_config, date_format));
+	aco_option_register(&cel_cfg_info, "enable", ACO_EXACT, general_options, "no", OPT_BOOL_T, 1, FLDSET(struct ast_cel_general_config, enable));
+	aco_option_register(&cel_cfg_info, "dateformat", ACO_EXACT, general_options, "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_cel_general_config, date_format));
 	aco_option_register_custom(&cel_cfg_info, "apps", ACO_EXACT, general_options, "", apps_handler, 0);
 	aco_option_register_custom(&cel_cfg_info, "events", ACO_EXACT, general_options, "", events_handler, 0);
 
@@ -1623,3 +1575,19 @@ struct stasis_topic *ast_cel_topic(void)
 {
 	return cel_topic;
 }
+
+struct ast_cel_general_config *ast_cel_get_config(void)
+{
+	RAII_VAR(struct cel_config *, mod_cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+	ao2_ref(mod_cfg->general, +1);
+	return mod_cfg->general;
+}
+
+void ast_cel_set_config(struct ast_cel_general_config *config)
+{
+	RAII_VAR(struct cel_config *, mod_cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+	ao2_cleanup(mod_cfg->general);
+	mod_cfg->general = config;
+	ao2_ref(mod_cfg->general, +1);
+}
+
