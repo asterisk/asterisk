@@ -196,8 +196,8 @@ AMI (Asterisk Manager Interface)
    event, the various ChanVariable fields will contain a suffix that specifies
    which channel they correspond to.
 
-* The NewPeerAccount AMI event is no longer raised. The NewAccountCode AMI
-  event always conveys the AMI event for a particular channel.
+ * The NewPeerAccount AMI event is no longer raised. The NewAccountCode AMI
+   event always conveys the AMI event for a particular channel.
 
  * All "Reload" events have been consolidated into a single event type. This
    event will always contain a Module field specifying the name of the module
@@ -251,6 +251,8 @@ AMI (Asterisk Manager Interface)
    renamed "DAHDIChannel" since it does not convey an Asterisk channel name.
 
  * "ChannelUpdate" events have been removed.
+
+ * AMI events now contain a SystemName field, if available.
 
 AGI (Asterisk Gateway Interface)
 ------------------

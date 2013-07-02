@@ -5962,6 +5962,11 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 		ast_str_append(&buf, 0,
 				"File: %s\r\nLine: %d\r\nFunc: %s\r\n", file, line, func);
 	}
+	if (!ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
+		ast_str_append(&buf, 0,
+				"SystemName: %s\r\n",
+				 ast_config_AST_SYSTEM_NAME);
+	}
 
 	va_start(ap, fmt);
 	ast_str_append_va(&buf, 0, fmt, ap);
