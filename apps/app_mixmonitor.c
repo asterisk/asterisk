@@ -810,7 +810,9 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 				*p2 = '$';
 			}
 		}
+		ast_channel_lock(chan);
 		pbx_substitute_variables_helper(chan, p1, postprocess2, sizeof(postprocess2) - 1);
+		ast_channel_unlock(chan);
 	}
 
 	/* Pre-allocate mixmonitor structure and spy */
@@ -1144,17 +1146,14 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 		return CLI_SUCCESS;
 	}
 
-	ast_channel_lock(chan);
-
 	if (!strcasecmp(a->argv[1], "start")) {
 		mixmonitor_exec(chan, (a->argc >= 4) ? a->argv[3] : "");
-		ast_channel_unlock(chan);
 	} else if (!strcasecmp(a->argv[1], "stop")){
-		ast_channel_unlock(chan);
 		stop_mixmonitor_exec(chan, (a->argc >= 4) ? a->argv[3] : "");
 	} else if (!strcasecmp(a->argv[1], "list")) {
 		ast_cli(a->fd, "MixMonitor ID\tFile\tReceive File\tTransmit File\n");
 		ast_cli(a->fd, "=========================================================================\n");
+		ast_channel_lock(chan);
 		AST_LIST_TRAVERSE(ast_channel_datastores(chan), datastore, entry) {
 			if (datastore->info == &mixmonitor_ds_info) {
 				char *filename = "";
@@ -1172,7 +1171,6 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 		}
 		ast_channel_unlock(chan);
 	} else {
-		ast_channel_unlock(chan);
 		chan = ast_channel_unref(chan);
 		return CLI_SHOWUSAGE;
 	}
@@ -1254,7 +1252,6 @@ static int start_mixmonitor_callback(struct ast_channel *chan, const char *filen
 	char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
 	struct ast_flags flags = { 0 };
 	char args[PATH_MAX] = "";
-	int res;
 
 	if (!ast_strlen_zero(options)) {
 		ast_app_parse_options(mixmonitor_opts, &flags, opts, ast_strdupa(options));
@@ -1262,11 +1259,7 @@ static int start_mixmonitor_callback(struct ast_channel *chan, const char *filen
 
 	snprintf(args, sizeof(args), "%s,%s", filename, options);
 
-	ast_channel_lock(chan);
-	res = mixmonitor_exec(chan, args);
-	ast_channel_unlock(chan);
-
-	return res;
+	return mixmonitor_exec(chan, args);
 }
 
 static int stop_mixmonitor_callback(struct ast_channel *chan, const char *mixmonitor_id)
@@ -1307,14 +1300,15 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 
 	snprintf(args, sizeof(args), "%s,%s", file, options);
 
-	ast_channel_lock(c);
 	res = mixmonitor_exec(c, args);
 
 	if (ast_test_flag(&flags, MUXFLAG_UID)) {
 		uid_channel_var = opts[OPT_ARG_UID];
+		ast_channel_lock(c);
 		mixmonitor_id = pbx_builtin_getvar_helper(c, uid_channel_var);
+		mixmonitor_id = ast_strdupa(S_OR(mixmonitor_id, ""));
+		ast_channel_unlock(c);
 	}
-	ast_channel_unlock(c);
 
 	if (res) {
 		c = ast_channel_unref(c);
