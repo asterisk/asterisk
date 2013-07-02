@@ -945,7 +945,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	char *filename_read = NULL;
 	char *filename_write = NULL;
 	char filename_buffer[1024] = "";
-        char *uid_channel_var = NULL;
+	char *uid_channel_var = NULL;
 
 	struct ast_flags flags = { 0 };
 	char *recipients = NULL;
@@ -1070,9 +1070,10 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 
 	ast_channel_lock(chan);
 
-	if (!(datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, args.mixmonid))) {
+	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, args.mixmonid);
+	if (!datastore) {
 		ast_channel_unlock(chan);
-                return -1;
+		return -1;
 	}
 	mixmonitor_ds = datastore->data;
 
@@ -1183,15 +1184,12 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 /*! \brief  Mute / unmute  a MixMonitor channel */
 static int manager_mute_mixmonitor(struct mansession *s, const struct message *m)
 {
-	struct ast_channel *c = NULL;
-
+	struct ast_channel *c;
 	const char *name = astman_get_header(m, "Channel");
 	const char *id = astman_get_header(m, "ActionID");
 	const char *state = astman_get_header(m, "State");
 	const char *direction = astman_get_header(m,"Direction");
-
 	int clearmute = 1;
-
 	enum ast_audiohook_flags flag;
 
 	if (ast_strlen_zero(direction)) {
@@ -1221,15 +1219,15 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 	}
 
 	clearmute = ast_false(state);
-	c = ast_channel_get_by_name(name);
 
+	c = ast_channel_get_by_name(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return AMI_SUCCESS;
 	}
 
 	if (ast_audiohook_set_mute(c, mixmonitor_spy_type, flag, clearmute)) {
-		c = ast_channel_unref(c);
+		ast_channel_unref(c);
 		astman_send_error(s, m, "Cannot set mute flag");
 		return AMI_SUCCESS;
 	}
@@ -1242,7 +1240,7 @@ static int manager_mute_mixmonitor(struct mansession *s, const struct message *m
 
 	astman_append(s, "\r\n");
 
-	c = ast_channel_unref(c);
+	ast_channel_unref(c);
 
 	return AMI_SUCCESS;
 }
@@ -1267,8 +1265,7 @@ static int stop_mixmonitor_callback(struct ast_channel *chan, const char *mixmon
 
 static int manager_mixmonitor(struct mansession *s, const struct message *m)
 {
-	struct ast_channel *c = NULL;
-
+	struct ast_channel *c;
 	const char *name = astman_get_header(m, "Channel");
 	const char *id = astman_get_header(m, "ActionID");
 	const char *file = astman_get_header(m, "File");
@@ -1277,16 +1274,15 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 	struct ast_flags flags = { 0 };
 	char *uid_channel_var = NULL;
 	const char *mixmonitor_id = NULL;
-
 	int res;
-	char args[PATH_MAX] = "";
+	char args[PATH_MAX];
+
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return AMI_SUCCESS;
 	}
 
 	c = ast_channel_get_by_name(name);
-
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return AMI_SUCCESS;
@@ -1309,7 +1305,7 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 	}
 
 	if (res) {
-		c = ast_channel_unref(c);
+		ast_channel_unref(c);
 		astman_send_error(s, m, "Could not start monitoring channel");
 		return AMI_SUCCESS;
 	}
@@ -1326,34 +1322,31 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 
 	astman_append(s, "\r\n");
 
-	c = ast_channel_unref(c);
+	ast_channel_unref(c);
 
 	return AMI_SUCCESS;
 }
 
 static int manager_stop_mixmonitor(struct mansession *s, const struct message *m)
 {
-	struct ast_channel *c = NULL;
-
+	struct ast_channel *c;
 	const char *name = astman_get_header(m, "Channel");
 	const char *id = astman_get_header(m, "ActionID");
 	const char *mixmonitor_id = astman_get_header(m, "MixMonitorID");
-
 	int res;
+
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return AMI_SUCCESS;
 	}
 
 	c = ast_channel_get_by_name(name);
-
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return AMI_SUCCESS;
 	}
 
 	res = stop_mixmonitor_full(c, mixmonitor_id);
-
 	if (res) {
 		ast_channel_unref(c);
 		astman_send_error(s, m, "Could not stop monitoring channel");
@@ -1368,7 +1361,7 @@ static int manager_stop_mixmonitor(struct mansession *s, const struct message *m
 
 	astman_append(s, "\r\n");
 
-	c = ast_channel_unref(c);
+	ast_channel_unref(c);
 
 	return AMI_SUCCESS;
 }
