@@ -3292,12 +3292,11 @@ static void key_call(struct unistimsession *pte, char keycode)
 		}
 		break;
 	case KEY_FUNC2:
+		if (ast_channel_state(sub->owner) == AST_STATE_RING) {
+			transfer_cancel_step2(pte);
+		}
 		if (ast_channel_state(sub->owner) == AST_STATE_UP) {
-			if (get_sub(pte->device, SUB_THREEWAY)) {
-				transfer_cancel_step2(pte);
-			} else {
-				transfer_call_step1(pte);
-			}
+			transfer_call_step1(pte);
 		}
 		break;
 	case KEY_HANGUP:
@@ -4815,7 +4814,6 @@ static int unistim_hangup(struct ast_channel *ast)
 				continue;
 			}
 			if (d->ssub[i] != NULL) { /* Found other subchannel active other then hangup'ed one */
-				ast_log(LOG_WARNING, "There is not only one call here %p %p %i\n",d->ssub[i], sub, i);
 				end_call = 0;
 			}
 		}
