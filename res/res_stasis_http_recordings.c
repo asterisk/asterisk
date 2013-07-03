@@ -91,7 +91,7 @@ static void stasis_http_get_stored_recordings_cb(
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/stored/{recordingId}.
+ * \brief Parameter parsing callback for /recordings/stored/{recordingName}.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -110,8 +110,8 @@ static void stasis_http_get_stored_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -128,20 +128,20 @@ static void stasis_http_get_stored_recording_cb(
 			is_valid = ari_validate_stored_recording(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored/{recordingId}\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored/{recordingName}\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingId}\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingName}\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/stored/{recordingId}.
+ * \brief Parameter parsing callback for /recordings/stored/{recordingName}.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -160,8 +160,8 @@ static void stasis_http_delete_stored_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -178,13 +178,13 @@ static void stasis_http_delete_stored_recording_cb(
 			is_valid = ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored/{recordingId}\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored/{recordingName}\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingId}\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingName}\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -233,7 +233,7 @@ static void stasis_http_get_live_recordings_cb(
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/live/{recordingId}.
+ * \brief Parameter parsing callback for /recordings/live/{recordingName}.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -252,8 +252,8 @@ static void stasis_http_get_live_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -270,20 +270,20 @@ static void stasis_http_get_live_recording_cb(
 			is_valid = ari_validate_live_recording(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingName}\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingName}\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/live/{recordingId}.
+ * \brief Parameter parsing callback for /recordings/live/{recordingName}.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -302,8 +302,8 @@ static void stasis_http_cancel_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -320,20 +320,20 @@ static void stasis_http_cancel_recording_cb(
 			is_valid = ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingName}\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingName}\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/live/{recordingId}/stop.
+ * \brief Parameter parsing callback for /recordings/live/{recordingName}/stop.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -352,8 +352,8 @@ static void stasis_http_stop_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -370,20 +370,20 @@ static void stasis_http_stop_recording_cb(
 			is_valid = ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/stop\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingName}/stop\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/stop\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingName}/stop\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/live/{recordingId}/pause.
+ * \brief Parameter parsing callback for /recordings/live/{recordingName}/pause.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -402,8 +402,8 @@ static void stasis_http_pause_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -420,20 +420,20 @@ static void stasis_http_pause_recording_cb(
 			is_valid = ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/pause\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingName}/pause\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/pause\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingName}/pause\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/live/{recordingId}/unpause.
+ * \brief Parameter parsing callback for /recordings/live/{recordingName}/unpause.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -452,8 +452,8 @@ static void stasis_http_unpause_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -470,20 +470,20 @@ static void stasis_http_unpause_recording_cb(
 			is_valid = ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/unpause\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingName}/unpause\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/unpause\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingName}/unpause\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/live/{recordingId}/mute.
+ * \brief Parameter parsing callback for /recordings/live/{recordingName}/mute.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -502,8 +502,8 @@ static void stasis_http_mute_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -520,20 +520,20 @@ static void stasis_http_mute_recording_cb(
 			is_valid = ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/mute\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingName}/mute\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/mute\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingName}/mute\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
 }
 /*!
- * \brief Parameter parsing callback for /recordings/live/{recordingId}/unmute.
+ * \brief Parameter parsing callback for /recordings/live/{recordingName}/unmute.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -552,8 +552,8 @@ static void stasis_http_unmute_recording_cb(
 	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
-		if (strcmp(i->name, "recordingId") == 0) {
-			args.recording_id = (i->value);
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
 		} else
 		{}
 	}
@@ -570,13 +570,13 @@ static void stasis_http_unmute_recording_cb(
 			is_valid = ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/unmute\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingName}/unmute\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/unmute\n");
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingName}/unmute\n");
 		stasis_http_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -584,8 +584,8 @@ static void stasis_http_unmute_recording_cb(
 }
 
 /*! \brief REST handler for /api-docs/recordings.{format} */
-static struct stasis_rest_handlers recordings_stored_recordingId = {
-	.path_segment = "recordingId",
+static struct stasis_rest_handlers recordings_stored_recordingName = {
+	.path_segment = "recordingName",
 	.is_wildcard = 1,
 	.callbacks = {
 		[AST_HTTP_GET] = stasis_http_get_stored_recording_cb,
@@ -601,10 +601,10 @@ static struct stasis_rest_handlers recordings_stored = {
 		[AST_HTTP_GET] = stasis_http_get_stored_recordings_cb,
 	},
 	.num_children = 1,
-	.children = { &recordings_stored_recordingId, }
+	.children = { &recordings_stored_recordingName, }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
-static struct stasis_rest_handlers recordings_live_recordingId_stop = {
+static struct stasis_rest_handlers recordings_live_recordingName_stop = {
 	.path_segment = "stop",
 	.callbacks = {
 		[AST_HTTP_POST] = stasis_http_stop_recording_cb,
@@ -613,7 +613,7 @@ static struct stasis_rest_handlers recordings_live_recordingId_stop = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
-static struct stasis_rest_handlers recordings_live_recordingId_pause = {
+static struct stasis_rest_handlers recordings_live_recordingName_pause = {
 	.path_segment = "pause",
 	.callbacks = {
 		[AST_HTTP_POST] = stasis_http_pause_recording_cb,
@@ -622,7 +622,7 @@ static struct stasis_rest_handlers recordings_live_recordingId_pause = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
-static struct stasis_rest_handlers recordings_live_recordingId_unpause = {
+static struct stasis_rest_handlers recordings_live_recordingName_unpause = {
 	.path_segment = "unpause",
 	.callbacks = {
 		[AST_HTTP_POST] = stasis_http_unpause_recording_cb,
@@ -631,7 +631,7 @@ static struct stasis_rest_handlers recordings_live_recordingId_unpause = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
-static struct stasis_rest_handlers recordings_live_recordingId_mute = {
+static struct stasis_rest_handlers recordings_live_recordingName_mute = {
 	.path_segment = "mute",
 	.callbacks = {
 		[AST_HTTP_POST] = stasis_http_mute_recording_cb,
@@ -640,7 +640,7 @@ static struct stasis_rest_handlers recordings_live_recordingId_mute = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
-static struct stasis_rest_handlers recordings_live_recordingId_unmute = {
+static struct stasis_rest_handlers recordings_live_recordingName_unmute = {
 	.path_segment = "unmute",
 	.callbacks = {
 		[AST_HTTP_POST] = stasis_http_unmute_recording_cb,
@@ -649,15 +649,15 @@ static struct stasis_rest_handlers recordings_live_recordingId_unmute = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
-static struct stasis_rest_handlers recordings_live_recordingId = {
-	.path_segment = "recordingId",
+static struct stasis_rest_handlers recordings_live_recordingName = {
+	.path_segment = "recordingName",
 	.is_wildcard = 1,
 	.callbacks = {
 		[AST_HTTP_GET] = stasis_http_get_live_recording_cb,
 		[AST_HTTP_DELETE] = stasis_http_cancel_recording_cb,
 	},
 	.num_children = 5,
-	.children = { &recordings_live_recordingId_stop,&recordings_live_recordingId_pause,&recordings_live_recordingId_unpause,&recordings_live_recordingId_mute,&recordings_live_recordingId_unmute, }
+	.children = { &recordings_live_recordingName_stop,&recordings_live_recordingName_pause,&recordings_live_recordingName_unpause,&recordings_live_recordingName_mute,&recordings_live_recordingName_unmute, }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
 static struct stasis_rest_handlers recordings_live = {
@@ -666,7 +666,7 @@ static struct stasis_rest_handlers recordings_live = {
 		[AST_HTTP_GET] = stasis_http_get_live_recordings_cb,
 	},
 	.num_children = 1,
-	.children = { &recordings_live_recordingId, }
+	.children = { &recordings_live_recordingName, }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
 static struct stasis_rest_handlers recordings = {

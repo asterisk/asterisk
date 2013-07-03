@@ -1604,6 +1604,18 @@ void ast_channel_setwhentohangup_tv(struct ast_channel *chan, struct timeval off
 int ast_answer(struct ast_channel *chan);
 
 /*!
+ * \brief Answer a channel, if it's not already answered.
+ *
+ * \param chan channel to answer
+ *
+ * \details See ast_answer()
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
+ */
+int ast_auto_answer(struct ast_channel *chan);
+
+/*!
  * \brief Answer a channel
  *
  * \param chan channel to answer

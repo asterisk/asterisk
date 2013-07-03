@@ -765,11 +765,11 @@ static void stasis_http_record_channel_cb(
 		if (strcmp(i->name, "maxSilenceSeconds") == 0) {
 			args.max_silence_seconds = atoi(i->value);
 		} else
-		if (strcmp(i->name, "append") == 0) {
-			args.append = atoi(i->value);
+		if (strcmp(i->name, "ifExists") == 0) {
+			args.if_exists = (i->value);
 		} else
 		if (strcmp(i->name, "beep") == 0) {
-			args.beep = atoi(i->value);
+			args.beep = ast_true(i->value);
 		} else
 		if (strcmp(i->name, "terminateOn") == 0) {
 			args.terminate_on = (i->value);
@@ -788,8 +788,9 @@ static void stasis_http_record_channel_cb(
 
 	switch (code) {
 	case 500: /* Internal server error */
+	case 400: /* Invalid parameters */
 	case 404: /* Channel not found */
-	case 409: /* Channel is not in a Stasis application, or the channel is currently bridged with other channels. */
+	case 409: /* Channel is not in a Stasis application; the channel is currently bridged with other channels; A recording with the same name is currently in progress. */
 		is_valid = 1;
 		break;
 	default:

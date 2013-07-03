@@ -565,7 +565,11 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "int",
-							"defaultValue": 0
+							"defaultValue": 0,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
 						},
 						{
 							"name": "maxSilenceSeconds",
@@ -574,16 +578,28 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "int",
-							"defaultValue": 0
+							"defaultValue": 0,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
 						},
 						{
-							"name": "append",
-							"description": "If true, and recording already exists, append to recording",
+							"name": "ifExists",
+							"description": "Action to take if a recording with the same name already exists.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
-							"dataType": "boolean",
-							"defaultValue": false
+							"dataType": "string",
+							"defaultValue": "fail",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"fail",
+									"overwrite",
+									"append"
+								]
+							}
 						},
 						{
 							"name": "beep",
@@ -615,12 +631,16 @@
 					],
 					"errorResponses": [
 						{
+							"code": 400,
+							"reason": "Invalid parameters"
+						},
+						{
 							"code": 404,
 							"reason": "Channel not found"
 						},
 						{
 							"code": 409,
-							"reason": "Channel is not in a Stasis application, or the channel is currently bridged with other channels."
+							"reason": "Channel is not in a Stasis application; the channel is currently bridged with other channels; A recording with the same name is currently in progress."
 						}
 					]
 				}

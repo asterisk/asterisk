@@ -1674,7 +1674,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
 			if (ast_test_flag(vmu, MVM_OPERATOR))
 				canceldtmf = "0";
-			cmd = ast_play_and_record_full(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, global_silencethreshold, global_maxsilence, unlockdir, acceptdtmf, canceldtmf);
+			cmd = ast_play_and_record_full(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, global_silencethreshold, global_maxsilence, unlockdir, acceptdtmf, canceldtmf, 0, AST_RECORD_IF_EXISTS_OVERWRITE);
 			if (record_gain)
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
 			if (cmd == -1) /* User has hung up, no options to give */

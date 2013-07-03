@@ -373,6 +373,7 @@ struct _cfg_paths {
 	char module_dir[PATH_MAX];
 	char spool_dir[PATH_MAX];
 	char monitor_dir[PATH_MAX];
+	char recording_dir[PATH_MAX];
 	char var_dir[PATH_MAX];
 	char data_dir[PATH_MAX];
 	char log_dir[PATH_MAX];
@@ -397,6 +398,7 @@ const char *ast_config_AST_CONFIG_FILE	= cfg_paths.config_file;
 const char *ast_config_AST_MODULE_DIR	= cfg_paths.module_dir;
 const char *ast_config_AST_SPOOL_DIR	= cfg_paths.spool_dir;
 const char *ast_config_AST_MONITOR_DIR	= cfg_paths.monitor_dir;
+const char *ast_config_AST_RECORDING_DIR	= cfg_paths.recording_dir;
 const char *ast_config_AST_VAR_DIR	= cfg_paths.var_dir;
 const char *ast_config_AST_DATA_DIR	= cfg_paths.data_dir;
 const char *ast_config_AST_LOG_DIR	= cfg_paths.log_dir;
@@ -3306,6 +3308,7 @@ static void ast_readconfig(void)
 	ast_copy_string(cfg_paths.spool_dir, DEFAULT_SPOOL_DIR, sizeof(cfg_paths.spool_dir));
 	ast_copy_string(cfg_paths.module_dir, DEFAULT_MODULE_DIR, sizeof(cfg_paths.module_dir));
 	snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir), "%s/monitor", cfg_paths.spool_dir);
+	snprintf(cfg_paths.recording_dir, sizeof(cfg_paths.recording_dir), "%s/recording", cfg_paths.spool_dir);
 	ast_copy_string(cfg_paths.var_dir, DEFAULT_VAR_DIR, sizeof(cfg_paths.var_dir));
 	ast_copy_string(cfg_paths.data_dir, DEFAULT_DATA_DIR, sizeof(cfg_paths.data_dir));
 	ast_copy_string(cfg_paths.log_dir, DEFAULT_LOG_DIR, sizeof(cfg_paths.log_dir));
@@ -3341,6 +3344,7 @@ static void ast_readconfig(void)
 		} else if (!strcasecmp(v->name, "astspooldir")) {
 			ast_copy_string(cfg_paths.spool_dir, v->value, sizeof(cfg_paths.spool_dir));
 			snprintf(cfg_paths.monitor_dir, sizeof(cfg_paths.monitor_dir), "%s/monitor", v->value);
+			snprintf(cfg_paths.recording_dir, sizeof(cfg_paths.recording_dir), "%s/recording", v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
 			ast_copy_string(cfg_paths.var_dir, v->value, sizeof(cfg_paths.var_dir));
 			if (!found.dbdir)

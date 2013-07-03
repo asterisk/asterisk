@@ -3029,6 +3029,15 @@ int ast_answer(struct ast_channel *chan)
 	return __ast_answer(chan, 0);
 }
 
+inline int ast_auto_answer(struct ast_channel *chan)
+{
+	if (ast_channel_state(chan) == AST_STATE_UP) {
+		/* Already answered */
+		return 0;
+	}
+	return ast_answer(chan);
+}
+
 int ast_channel_get_duration(struct ast_channel *chan)
 {
 	ast_assert(NULL != chan);

@@ -20,7 +20,7 @@
 			]
 		},
 		{
-			"path": "/recordings/stored/{recordingId}",
+			"path": "/recordings/stored/{recordingName}",
 			"description": "Individual recording",
 			"operations": [
 				{
@@ -30,8 +30,8 @@
 					"responseClass": "StoredRecording",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -46,8 +46,8 @@
 					"responseClass": "void",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -70,7 +70,7 @@
 			]
 		},
 		{
-			"path": "/recordings/live/{recordingId}",
+			"path": "/recordings/live/{recordingName}",
 			"description": "A recording that is in progress",
 			"operations": [
 				{
@@ -80,8 +80,8 @@
 					"responseClass": "LiveRecording",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -96,8 +96,8 @@
 					"responseClass": "void",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -108,7 +108,7 @@
 			]
 		},
 		{
-			"path": "/recordings/live/{recordingId}/stop",
+			"path": "/recordings/live/{recordingName}/stop",
 			"operations": [
 				{
 					"httpMethod": "POST",
@@ -117,8 +117,8 @@
 					"responseClass": "void",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -129,17 +129,18 @@
 			]
 		},
 		{
-			"path": "/recordings/live/{recordingId}/pause",
+			"path": "/recordings/live/{recordingName}/pause",
 			"operations": [
 				{
 					"httpMethod": "POST",
 					"summary": "Pause a live recording.",
+					"notes": "Pausing a recording suspends silence detection, which will be restarted when the recording is unpaused.",
 					"nickname": "pauseRecording",
 					"responseClass": "void",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -150,7 +151,7 @@
 			]
 		},
 		{
-			"path": "/recordings/live/{recordingId}/unpause",
+			"path": "/recordings/live/{recordingName}/unpause",
 			"operations": [
 				{
 					"httpMethod": "POST",
@@ -159,8 +160,8 @@
 					"responseClass": "void",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -171,17 +172,18 @@
 			]
 		},
 		{
-			"path": "/recordings/live/{recordingId}/mute",
+			"path": "/recordings/live/{recordingName}/mute",
 			"operations": [
 				{
 					"httpMethod": "POST",
 					"summary": "Mute a live recording.",
+					"notes": "Muting a recording suspends silence detection, which will be restarted when the recording is unmuted.",
 					"nickname": "muteRecording",
 					"responseClass": "void",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,
@@ -192,7 +194,7 @@
 			]
 		},
 		{
-			"path": "/recordings/live/{recordingId}/unmute",
+			"path": "/recordings/live/{recordingName}/unmute",
 			"operations": [
 				{
 					"httpMethod": "POST",
@@ -201,8 +203,8 @@
 					"responseClass": "void",
 					"parameters": [
 						{
-							"name": "recordingId",
-							"description": "Recording's id",
+							"name": "recordingName",
+							"description": "The name of the recording",
 							"paramType": "path",
 							"required": true,
 							"allowMultiple": false,

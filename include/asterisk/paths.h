@@ -23,6 +23,7 @@ extern const char *ast_config_AST_CONFIG_FILE;
 extern const char *ast_config_AST_MODULE_DIR;
 extern const char *ast_config_AST_SPOOL_DIR;
 extern const char *ast_config_AST_MONITOR_DIR;
+extern const char *ast_config_AST_RECORDING_DIR;
 extern const char *ast_config_AST_VAR_DIR;
 extern const char *ast_config_AST_DATA_DIR;
 extern const char *ast_config_AST_LOG_DIR;

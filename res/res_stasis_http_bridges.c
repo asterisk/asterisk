@@ -387,10 +387,10 @@ static void stasis_http_record_bridge_cb(
 			args.max_silence_seconds = atoi(i->value);
 		} else
 		if (strcmp(i->name, "append") == 0) {
-			args.append = atoi(i->value);
+			args.append = ast_true(i->value);
 		} else
 		if (strcmp(i->name, "beep") == 0) {
-			args.beep = atoi(i->value);
+			args.beep = ast_true(i->value);
 		} else
 		if (strcmp(i->name, "terminateOn") == 0) {
 			args.terminate_on = (i->value);

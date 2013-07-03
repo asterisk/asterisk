@@ -718,6 +718,19 @@ void ast_enable_packet_fragmentation(int sock);
  */
 int ast_mkdir(const char *path, int mode);
 
+/*!
+ * \brief Recursively create directory path, but only if it resolves within
+ * the given \a base_path.
+ *
+ * If \a base_path does not exist, it will not be created and this function
+ * returns \c EPERM.
+ *
+ * \param path The directory path to create
+ * \param mode The permissions with which to try to create the directory
+ * \return 0 on success or an error code otherwise
+ */
+int ast_safe_mkdir(const char *base_path, const char *path, int mode);
+
 #define ARRAY_LEN(a) (size_t) (sizeof(a) / sizeof(0[a]))
 
 

@@ -536,7 +536,8 @@ OLDHEADERS=$(filter-out $(NEWHEADERS) $(notdir $(DESTDIR)$(ASTHEADERDIR)),$(notd
 INSTALLDIRS="$(ASTLIBDIR)" "$(ASTMODDIR)" "$(ASTSBINDIR)" "$(ASTETCDIR)" "$(ASTVARRUNDIR)" \
 	"$(ASTSPOOLDIR)" "$(ASTSPOOLDIR)/dictate" "$(ASTSPOOLDIR)/meetme" \
 	"$(ASTSPOOLDIR)/monitor" "$(ASTSPOOLDIR)/system" "$(ASTSPOOLDIR)/tmp" \
-	"$(ASTSPOOLDIR)/voicemail" "$(ASTHEADERDIR)" "$(ASTHEADERDIR)/doxygen" \
+	"$(ASTSPOOLDIR)/voicemail" "$(ASTSPOOLDIR)/recording" \
+	"$(ASTHEADERDIR)" "$(ASTHEADERDIR)/doxygen" \
 	"$(ASTLOGDIR)" "$(ASTLOGDIR)/cdr-csv" "$(ASTLOGDIR)/cdr-custom" \
 	"$(ASTLOGDIR)/cel-custom" "$(ASTDATADIR)" "$(ASTDATADIR)/documentation" \
 	"$(ASTDATADIR)/documentation/thirdparty" "$(ASTDATADIR)/firmware" \

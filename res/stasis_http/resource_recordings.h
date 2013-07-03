@@ -52,8 +52,8 @@ struct ast_get_stored_recordings_args {
 void stasis_http_get_stored_recordings(struct ast_variable *headers, struct ast_get_stored_recordings_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_get_stored_recording() */
 struct ast_get_stored_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Get a stored recording's details.
@@ -65,8 +65,8 @@ struct ast_get_stored_recording_args {
 void stasis_http_get_stored_recording(struct ast_variable *headers, struct ast_get_stored_recording_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_delete_stored_recording() */
 struct ast_delete_stored_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Delete a stored recording.
@@ -89,8 +89,8 @@ struct ast_get_live_recordings_args {
 void stasis_http_get_live_recordings(struct ast_variable *headers, struct ast_get_live_recordings_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_get_live_recording() */
 struct ast_get_live_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief List live recordings.
@@ -102,8 +102,8 @@ struct ast_get_live_recording_args {
 void stasis_http_get_live_recording(struct ast_variable *headers, struct ast_get_live_recording_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_cancel_recording() */
 struct ast_cancel_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Stop a live recording and discard it.
@@ -115,8 +115,8 @@ struct ast_cancel_recording_args {
 void stasis_http_cancel_recording(struct ast_variable *headers, struct ast_cancel_recording_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_stop_recording() */
 struct ast_stop_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Stop a live recording and store it.
@@ -128,11 +128,13 @@ struct ast_stop_recording_args {
 void stasis_http_stop_recording(struct ast_variable *headers, struct ast_stop_recording_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_pause_recording() */
 struct ast_pause_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Pause a live recording.
+ *
+ * Pausing a recording suspends silence detection, which will be restarted when the recording is unpaused.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters
@@ -141,8 +143,8 @@ struct ast_pause_recording_args {
 void stasis_http_pause_recording(struct ast_variable *headers, struct ast_pause_recording_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_unpause_recording() */
 struct ast_unpause_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Unpause a live recording.
@@ -154,11 +156,13 @@ struct ast_unpause_recording_args {
 void stasis_http_unpause_recording(struct ast_variable *headers, struct ast_unpause_recording_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_mute_recording() */
 struct ast_mute_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Mute a live recording.
+ *
+ * Muting a recording suspends silence detection, which will be restarted when the recording is unmuted.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters
@@ -167,8 +171,8 @@ struct ast_mute_recording_args {
 void stasis_http_mute_recording(struct ast_variable *headers, struct ast_mute_recording_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_unmute_recording() */
 struct ast_unmute_recording_args {
-	/*! \brief Recording's id */
-	const char *recording_id;
+	/*! \brief The name of the recording */
+	const char *recording_name;
 };
 /*!
  * \brief Unmute a live recording.

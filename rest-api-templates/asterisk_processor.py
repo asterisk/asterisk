@@ -139,10 +139,11 @@ class AsteriskProcessor(SwaggerPostProcessor):
 
     #: String conversion functions for string to C type.
     convert_mapping = {
-        'const char *': '',
+        'string': '',
         'int': 'atoi',
         'long': 'atol',
         'double': 'atof',
+        'boolean': 'ast_true',
     }
 
     def __init__(self, wiki_prefix):
@@ -194,7 +195,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
         # Parameter names are camelcase, Asterisk convention is snake case
         parameter.c_name = snakify(parameter.name)
         parameter.c_data_type = self.type_mapping[parameter.data_type]
-        parameter.c_convert = self.convert_mapping[parameter.c_data_type]
+        parameter.c_convert = self.convert_mapping[parameter.data_type]
         # You shouldn't put a space between 'char *' and the variable
         if parameter.c_data_type.endswith('*'):
             parameter.c_space = ''

@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
+#include "asterisk/paths.h"
 #include "asterisk/stasis_app_impl.h"
 #include "asterisk/stasis_app_playback.h"
 #include "asterisk/stasis_channels.h"
@@ -195,7 +196,7 @@ static void *play_uri(struct stasis_app_control *control,
 	RAII_VAR(struct stasis_app_playback *, playback, NULL,
 		playback_cleanup);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
-	const char *file;
+	RAII_VAR(char *, file, NULL, ast_free);
 	int res;
 	long offsetms;
 
@@ -225,13 +226,24 @@ static void *play_uri(struct stasis_app_control *control,
 
 	if (ast_begins_with(playback->media, SOUND_URI_SCHEME)) {
 		/* Play sound */
-		file = playback->media + strlen(SOUND_URI_SCHEME);
+		file = ast_strdup(playback->media + strlen(SOUND_URI_SCHEME));
 	} else if (ast_begins_with(playback->media, RECORDING_URI_SCHEME)) {
 		/* Play recording */
-		file = playback->media + strlen(RECORDING_URI_SCHEME);
+		const char *relname =
+			playback->media + strlen(RECORDING_URI_SCHEME);
+		if (relname[0] == '/') {
+			file = ast_strdup(relname);
+		} else {
+			ast_asprintf(&file, "%s/%s",
+				ast_config_AST_RECORDING_DIR, relname);
+		}
 	} else {
 		/* Play URL */
 		ast_log(LOG_ERROR, "Unimplemented\n");
+		return NULL;
+	}
+
+	if (!file) {
 		return NULL;
 	}
 

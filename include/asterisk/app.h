@@ -691,8 +691,22 @@ int ast_control_streamfile_w_cb(struct ast_channel *chan,
 int ast_play_and_wait(struct ast_channel *chan, const char *fn);
 
 /*!
+ * Possible actions to take if a recording already exists
+ * \since 12
+ */
+enum ast_record_if_exists {
+	/*! Fail the recording. */
+	AST_RECORD_IF_EXISTS_FAIL,
+	/*! Overwrite the existing recording. */
+	AST_RECORD_IF_EXISTS_OVERWRITE,
+	/*! Append to the existing recording. */
+	AST_RECORD_IF_EXISTS_APPEND,
+};
+
+/*!
  * \brief Record a file based on input from a channel
- *        This function will play "auth-thankyou" upon successful recording.
+ *        This function will play "auth-thankyou" upon successful recording if
+ *        skip_confirmation_sound is false.
  *
  * \param chan the channel being recorded
  * \param playfile Filename of sound to play before recording begins
@@ -706,13 +720,15 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn);
  * \param path Optional filesystem path to unlock
  * \param acceptdtmf Character of DTMF to end and accept the recording
  * \param canceldtmf Character of DTMF to end and cancel the recording
+ * \param skip_confirmation_sound If true, don't play auth-thankyou at end. Nice for custom recording prompts in apps.
+ * \param if_exists Action to take if recording already exists.
  *
  * \retval -1 failure or hangup
  * \retval 'S' Recording ended from silence timeout
  * \retval 't' Recording ended from the message exceeding the maximum duration
  * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
  */
-int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf);
+int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound, enum ast_record_if_exists if_exists);
 
 /*!
  * \brief Record a file based on input from a channel. Use default accept and cancel DTMF.

@@ -27,6 +27,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/stasis_app_recording.h"
 #include "resource_recordings.h"
 
 void stasis_http_get_stored_recordings(struct ast_variable *headers, struct ast_get_stored_recordings_args *args, struct stasis_http_response *response)
@@ -45,10 +46,31 @@ void stasis_http_get_live_recordings(struct ast_variable *headers, struct ast_ge
 {
 	ast_log(LOG_ERROR, "TODO: stasis_http_get_live_recordings\n");
 }
-void stasis_http_get_live_recording(struct ast_variable *headers, struct ast_get_live_recording_args *args, struct stasis_http_response *response)
+
+void stasis_http_get_live_recording(struct ast_variable *headers,
+	struct ast_get_live_recording_args *args,
+	struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_get_live_recording\n");
+	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+
+	recording = stasis_app_recording_find_by_name(args->recording_name);
+	if (recording == NULL) {
+		stasis_http_response_error(response, 404, "Not Found",
+			"Recording not found");
+		return;
+	}
+
+	json = stasis_app_recording_to_json(recording);
+	if (json == NULL) {
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Error building response");
+		return;
+	}
+
+	stasis_http_response_ok(response, ast_json_ref(json));
 }
+
 void stasis_http_cancel_recording(struct ast_variable *headers, struct ast_cancel_recording_args *args, struct stasis_http_response *response)
 {
 	ast_log(LOG_ERROR, "TODO: stasis_http_cancel_recording\n");

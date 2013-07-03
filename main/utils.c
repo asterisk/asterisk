@@ -2105,6 +2105,100 @@ int ast_mkdir(const char *path, int mode)
 	return 0;
 }
 
+static int safe_mkdir(const char *base_path, char *path, int mode)
+{
+	RAII_VAR(char *, absolute_path, NULL, free);
+
+	absolute_path = realpath(path, NULL);
+
+	if (absolute_path) {
+		/* Path exists, but is it in the right place? */
+		if (!ast_begins_with(absolute_path, base_path)) {
+			return EPERM;
+		}
+
+		/* It is in the right place! */
+		return 0;
+	} else {
+		/* Path doesn't exist. */
+
+		/* The slash terminating the subpath we're checking */
+		char *path_term = strchr(path, '/');
+		/* True indicates the parent path is within base_path */
+		int parent_is_safe = 0;
+		int res;
+
+		while (path_term) {
+			RAII_VAR(char *, absolute_subpath, NULL, free);
+
+			/* Truncate the path one past the slash */
+			char c = *(path_term + 1);
+			*(path_term + 1) = '\0';
+			absolute_subpath = realpath(path, NULL);
+
+			if (absolute_subpath) {
+				/* Subpath exists, but is it safe? */
+				parent_is_safe = ast_begins_with(
+					absolute_subpath, base_path);
+			} else if (parent_is_safe) {
+				/* Subpath does not exist, but parent is safe
+				 * Create it */
+				res = mkdir(path, mode);
+				if (res != 0) {
+					ast_assert(errno != EEXIST);
+					return errno;
+				}
+			} else {
+				/* Subpath did not exist, parent was not safe
+				 * Fail! */
+				errno = EPERM;
+				return errno;
+			}
+			/* Restore the path */
+			*(path_term + 1) = c;
+			/* Move on to the next slash */
+			path_term = strchr(path_term + 1, '/');
+		}
+
+		/* Now to build the final path, but only if it's safe */
+		if (!parent_is_safe) {
+			errno = EPERM;
+			return errno;
+		}
+
+		res = mkdir(path, mode);
+		if (res != 0 && errno != EEXIST) {
+			return errno;
+		}
+
+		return 0;
+	}
+}
+
+int ast_safe_mkdir(const char *base_path, const char *path, int mode)
+{
+	RAII_VAR(char *, absolute_base_path, NULL, free);
+	RAII_VAR(char *, p, NULL, ast_free);
+
+	if (base_path == NULL || path == NULL) {
+		errno = EFAULT;
+		return errno;
+	}
+
+	p = ast_strdup(path);
+	if (p == NULL) {
+		errno = ENOMEM;
+		return errno;
+	}
+
+	absolute_base_path = realpath(base_path, NULL);
+	if (absolute_base_path == NULL) {
+		return errno;
+	}
+
+	return safe_mkdir(absolute_base_path, p, mode);
+}
+
 int ast_utils_init(void)
 {
 	dev_urandom_fd = open("/dev/urandom", O_RDONLY);

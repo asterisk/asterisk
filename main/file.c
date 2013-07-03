@@ -1020,6 +1020,9 @@ int ast_closestream(struct ast_filestream *f)
 	 * We close the stream in order to quit queuing frames now, because we might
 	 * change the writeformat, which could result in a subsequent write error, if
 	 * the format is different. */
+	if (f == NULL) {
+		return 0;
+	}
 	filestream_close(f);
 	ao2_ref(f, -1);
 	return 0;

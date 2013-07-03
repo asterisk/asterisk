@@ -246,11 +246,9 @@ def load_allowable_values(json, context):
     value_type = json['valueType']
 
     if value_type == 'RANGE':
-        if not 'min' in json:
-            raise SwaggerError("Missing field min", context)
-        if not 'max' in json:
-            raise SwaggerError("Missing field max", context)
-        return AllowableRange(json['min'], json['max'])
+        if not 'min' in json and not 'max' in json:
+            raise SwaggerError("Missing fields min/max", context)
+        return AllowableRange(json.get('min'), json.get('max'))
     if value_type == 'LIST':
         if not 'values' in json:
             raise SwaggerError("Missing field values", context)

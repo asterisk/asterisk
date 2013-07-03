@@ -247,8 +247,8 @@ struct ast_record_channel_args {
 	int max_duration_seconds;
 	/*! \brief Maximum duration of silence, in seconds. 0 for no limit */
 	int max_silence_seconds;
-	/*! \brief If true, and recording already exists, append to recording */
-	int append;
+	/*! \brief Action to take if a recording with the same name already exists. */
+	const char *if_exists;
 	/*! \brief Play beep when recording begins */
 	int beep;
 	/*! \brief DTMF input to terminate recording */

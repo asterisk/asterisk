@@ -1,4 +1,4 @@
-/* -*- C -*-
+/*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2012 - 2013, Digium, Inc.
@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/stasis_app.h"
 #include "asterisk/stasis_app_playback.h"
+#include "asterisk/stasis_app_recording.h"
 #include "asterisk/stasis_channels.h"
 #include "resource_channels.h"
 
@@ -249,10 +250,139 @@ void stasis_http_play_on_channel(struct ast_variable *headers,
 
 	stasis_http_response_created(response, playback_url, json);
 }
-void stasis_http_record_channel(struct ast_variable *headers, struct ast_record_channel_args *args, struct stasis_http_response *response)
+
+void stasis_http_record_channel(struct ast_variable *headers,
+	struct ast_record_channel_args *args,
+	struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_record_channel\n");
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
+	RAII_VAR(char *, recording_url, NULL, ast_free);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_app_recording_options *, options, NULL,
+		ao2_cleanup);
+	RAII_VAR(char *, uri_encoded_name, NULL, ast_free);
+	size_t uri_name_maxlen;
+
+	ast_assert(response != NULL);
+
+	if (args->max_duration_seconds < 0) {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"max_duration_seconds cannot be negative");
+		return;
+	}
+
+	if (args->max_silence_seconds < 0) {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"max_silence_seconds cannot be negative");
+		return;
+	}
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	options = stasis_app_recording_options_create(args->name, args->format);
+	if (options == NULL) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"Out of memory");
+	}
+	options->max_silence_seconds = args->max_silence_seconds;
+	options->max_duration_seconds = args->max_duration_seconds;
+	options->terminate_on =
+		stasis_app_recording_termination_parse(args->terminate_on);
+	options->if_exists =
+		stasis_app_recording_if_exists_parse(args->if_exists);
+	options->beep = args->beep;
+
+	if (options->terminate_on == STASIS_APP_RECORDING_TERMINATE_INVALID) {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"terminateOn invalid");
+		return;
+	}
+
+	if (options->if_exists == -1) {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"ifExists invalid");
+		return;
+	}
+
+	recording = stasis_app_control_record(control, options);
+	if (recording == NULL) {
+		switch(errno) {
+		case EINVAL:
+			/* While the arguments are invalid, we should have
+			 * caught them prior to calling record.
+			 */
+			stasis_http_response_error(
+				response, 500, "Internal Server Error",
+				"Error parsing request");
+			break;
+		case EEXIST:
+			stasis_http_response_error(response, 409, "Conflict",
+				"Recording '%s' already in progress",
+				args->name);
+			break;
+		case ENOMEM:
+			stasis_http_response_error(
+				response, 500, "Internal Server Error",
+				"Out of memory");
+			break;
+		case EPERM:
+			stasis_http_response_error(
+				response, 400, "Bad Request",
+				"Recording name invalid");
+			break;
+		default:
+			ast_log(LOG_WARNING,
+				"Unrecognized recording error: %s\n",
+				strerror(errno));
+			stasis_http_response_error(
+				response, 500, "Internal Server Error",
+				"Internal Server Error");
+			break;
+		}
+		return;
+	}
+
+	uri_name_maxlen = strlen(args->name) * 3;
+	uri_encoded_name = ast_malloc(uri_name_maxlen);
+	if (!uri_encoded_name) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"Out of memory");
+		return;
+	}
+	ast_uri_encode(args->name, uri_encoded_name, uri_name_maxlen,
+		ast_uri_http);
+
+	ast_asprintf(&recording_url, "/recordings/live/%s", uri_encoded_name);
+	if (!recording_url) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"Out of memory");
+		return;
+	}
+
+	json = stasis_app_recording_to_json(recording);
+	if (!json) {
+		stasis_http_response_error(
+			response, 500, "Internal Server Error",
+			"Out of memory");
+		return;
+	}
+
+	stasis_http_response_created(response, recording_url, json);
 }
+
 void stasis_http_get_channel(struct ast_variable *headers,
 			     struct ast_get_channel_args *args,
 			     struct stasis_http_response *response)

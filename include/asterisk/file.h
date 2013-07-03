@@ -64,8 +64,8 @@ enum ast_waitstream_fr_cb_values {
  */
 typedef void (ast_waitstream_fr_cb)(struct ast_channel *chan, long ms, enum ast_waitstream_fr_cb_values val);
 
-/*! 
- * \brief Streams a file 
+/*!
+ * \brief Streams a file
  * \param c channel to stream the file to
  * \param filename the name of the file you wish to stream, minus the extension
  * \param preflang the preferred language you wish to have the file streamed to you in
@@ -86,12 +86,12 @@ int ast_streamfile(struct ast_channel *c, const char *filename, const char *pref
  */
 int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *digits);
 
-/*! 
- * \brief Stops a stream 
+/*!
+ * \brief Stops a stream
  *
  * \param c The channel you wish to stop playback on
  *
- * Stop playback of a stream 
+ * Stop playback of a stream
  *
  * \retval 0 always
  *
