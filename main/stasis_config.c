@@ -150,13 +150,20 @@ void stasis_config_get_threadpool_options(
 /*! \brief Load (or reload) configuration. */
 static int process_config(int reload)
 {
-        switch (aco_process_config(&cfg_info, reload)) {
-        case ACO_PROCESS_ERROR:
-                return -1;
-        case ACO_PROCESS_OK:
-        case ACO_PROCESS_UNCHANGED:
-                break;
-        }
+	RAII_VAR(struct stasis_conf *, conf, conf_alloc(), ao2_cleanup);
+
+		switch (aco_process_config(&cfg_info, reload)) {
+		case ACO_PROCESS_ERROR:
+			if (conf && !reload && !aco_set_defaults(&threadpool_option, "threadpool", conf->threadpool)) {
+				ast_log(AST_LOG_NOTICE, "Failed to process Stasis configuration; using defaults\n");
+				ao2_global_obj_replace(confs, conf);
+				return 0;
+			}
+			return -1;
+		case ACO_PROCESS_OK:
+		case ACO_PROCESS_UNCHANGED:
+			break;
+		}
 
 	return 0;
 }
