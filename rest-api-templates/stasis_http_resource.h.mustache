@@ -49,6 +49,7 @@ struct ast_{{c_nickname}}_args {
 	{{c_data_type}}{{c_space}}{{c_name}};
 {{/parameters}}
 };
+{{#is_req}}
 /*!
  * \brief {{summary}}
 {{#notes}}
@@ -61,6 +62,21 @@ struct ast_{{c_nickname}}_args {
  * \param[out] response HTTP response
  */
 void stasis_http_{{c_nickname}}(struct ast_variable *headers, struct ast_{{c_nickname}}_args *args, struct stasis_http_response *response);
+{{/is_req}}
+{{#is_websocket}}
+/*!
+ * \brief {{summary}}
+{{#notes}}
+ *
+ * {{{notes}}}
+{{/notes}}
+ *
+ * \param session ARI WebSocket.
+ * \param headers HTTP headers.
+ * \param args Swagger parameters.
+ */
+void ari_websocket_{{c_nickname}}(struct ari_websocket_session *session, struct ast_variable *headers, struct ast_{{c_nickname}}_args *args);
+{{/is_websocket}}
 {{/operations}}
 {{/apis}}
 

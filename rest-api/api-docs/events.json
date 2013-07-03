@@ -13,6 +13,8 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
+					"upgrade": "websocket",
+					"websocketProtocol": "ari",
 					"summary": "WebSocket connection for events.",
 					"nickname": "eventWebsocket",
 					"responseClass": "Event",
@@ -24,19 +26,6 @@
 							"required": true,
 							"allowMultiple": true,
 							"dataType": "string"
-						},
-						{
-							"name": "Upgrade",
-							"description": "RFC6455 header for upgrading a connection to a websocket.",
-							"paramType": "header",
-							"required": true,
-							"dataType": "string",
-							"allowableValues": {
-								"valueType": "LIST",
-								"values": [
-									"websocket"
-								]
-							}
 						}
 					]
 				}

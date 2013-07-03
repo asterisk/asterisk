@@ -80,5 +80,8 @@ clean::
 $(if $(filter res_parking,$(EMBEDDED_MODS)),modules.link,res_parking.so): $(subst .c,.o,$(wildcard parking/*.c))
 $(subst .c,.o,$(wildcard parking/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_parking)
 
+res_stasis_http.so: stasis_http/ari_websockets.o
+stasis_http/ari_websockets.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_http_asterisk)
+
 # Dependencies for res_stasis_http_*.so are generated, so they're in this file
 include stasis_http.make

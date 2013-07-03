@@ -282,7 +282,7 @@ void AST_OPTIONAL_API_NAME(ast_websocket_ref)(struct ast_websocket *session)
 
 void AST_OPTIONAL_API_NAME(ast_websocket_unref)(struct ast_websocket *session)
 {
-	ao2_ref(session, -1);
+	ao2_cleanup(session);
 }
 
 int AST_OPTIONAL_API_NAME(ast_websocket_fd)(struct ast_websocket *session)
@@ -497,6 +497,21 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 	return 0;
 }
 
+/*!
+ * \brief If the server has exactly one configured protocol, return it.
+ */
+static struct websocket_protocol *one_protocol(
+	struct ast_websocket_server *server)
+{
+	SCOPED_AO2LOCK(lock, server->protocols);
+
+	if (ao2_container_count(server->protocols) != 1) {
+		return NULL;
+	}
+
+	return ao2_callback(server->protocols, OBJ_NOLOCK, NULL, NULL);
+}
+
 int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
 	struct ast_variable *v;
@@ -541,11 +556,18 @@ int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct a
 		ast_http_error(ser, 426, "Upgrade Required", NULL);
 		return -1;
 	} else if (ast_strlen_zero(requested_protocols)) {
-		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - no protocols requested\n",
-			ast_sockaddr_stringify(&ser->remote_address));
-		fputs("HTTP/1.1 400 Bad Request\r\n"
-		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
-		return -1;
+		/* If there's only a single protocol registered, and the
+		 * client doesn't specify what protocol it's using, go ahead
+		 * and accept the connection */
+		protocol_handler = one_protocol(server);
+		if (!protocol_handler) {
+			/* Multiple registered subprotocols; client must specify */
+			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - no protocols requested\n",
+				ast_sockaddr_stringify(&ser->remote_address));
+			fputs("HTTP/1.1 400 Bad Request\r\n"
+				"Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+			return -1;
+		}
 	} else if (key1 && key2) {
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76 and
 		 * http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-00 -- not currently supported*/
@@ -557,10 +579,8 @@ int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct a
 	}
 
 	/* Iterate through the requested protocols trying to find one that we have a handler for */
-	while ((protocol = strsep(&requested_protocols, ","))) {
-		if ((protocol_handler = ao2_find(server->protocols, ast_strip(protocol), OBJ_KEY))) {
-			break;
-		}
+	while (!protocol_handler && (protocol = strsep(&requested_protocols, ","))) {
+		protocol_handler = ao2_find(server->protocols, ast_strip(protocol), OBJ_KEY);
 	}
 
 	/* If no protocol handler exists bump this back to the requester */

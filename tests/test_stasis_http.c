@@ -223,7 +223,7 @@ AST_TEST_DEFINE(get_docs)
 	basePathJson = ast_json_object_get(response->message, "basePath");
 	ast_test_validate(test, NULL != basePathJson);
 	basePath = ast_json_string_get(basePathJson);
-	ast_test_validate(test, 0 == strcmp("http://stasis.asterisk.org/stasis", basePath));
+	ast_test_validate(test, 0 == strcmp("http://stasis.asterisk.org/ari", basePath));
 
 	return AST_TEST_PASS;
 }
@@ -343,7 +343,7 @@ AST_TEST_DEFINE(invoke_get)
 				 "head2", "head-two",
 				 "path_vars");
 
-	stasis_http_invoke("foo", AST_HTTP_GET, get_params, headers, response);
+	stasis_http_invoke(NULL, "foo", AST_HTTP_GET, get_params, headers, response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 200 == response->response_code);
@@ -380,7 +380,7 @@ AST_TEST_DEFINE(invoke_wildcard)
 				 "path_vars",
 				 "bam", "foshizzle");
 
-	stasis_http_invoke("foo/foshizzle", AST_HTTP_GET, get_params, headers, response);
+	stasis_http_invoke(NULL, "foo/foshizzle", AST_HTTP_GET, get_params, headers, response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 200 == response->response_code);
@@ -417,7 +417,7 @@ AST_TEST_DEFINE(invoke_delete)
 				 "path_vars",
 				 "bam", "foshizzle");
 
-	stasis_http_invoke("foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers, response);
+	stasis_http_invoke(NULL, "foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers, response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 204 == response->response_code);
@@ -467,7 +467,7 @@ AST_TEST_DEFINE(invoke_post)
 				 "head2", "head-two",
 				 "path_vars");
 
-	stasis_http_invoke("foo/bar", AST_HTTP_POST, get_params, headers, response);
+	stasis_http_invoke(NULL, "foo/bar", AST_HTTP_POST, get_params, headers, response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 200 == response->response_code);
@@ -496,7 +496,7 @@ AST_TEST_DEFINE(invoke_bad_post)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	stasis_http_invoke("foo", AST_HTTP_POST, get_params, headers, response);
+	stasis_http_invoke(NULL, "foo", AST_HTTP_POST, get_params, headers, response);
 
 	ast_test_validate(test, 0 == invocation_count);
 	ast_test_validate(test, 405 == response->response_code);
@@ -524,7 +524,7 @@ AST_TEST_DEFINE(invoke_not_found)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	stasis_http_invoke("foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers, response);
+	stasis_http_invoke(NULL, "foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers, response);
 
 	ast_test_validate(test, 0 == invocation_count);
 	ast_test_validate(test, 404 == response->response_code);

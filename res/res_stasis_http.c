@@ -72,6 +72,7 @@
  */
 
 /*** MODULEINFO
+	<depend type="module">res_http_websocket</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -211,7 +212,12 @@ static ast_mutex_t root_handler_lock;
 static struct stasis_rest_handlers *root_handler;
 
 /*! Pre-defined message for allocation failures. */
-static struct ast_json *alloc_failed_message;
+static struct ast_json *oom_json;
+
+struct ast_json *ari_oom_json(void)
+{
+	return oom_json;
+}
 
 int stasis_http_add_handler(struct stasis_rest_handlers *handler)
 {
@@ -286,7 +292,7 @@ static struct stasis_rest_handlers *root_handler_create(void)
 	if (!handler) {
 		return NULL;
 	}
-	handler->path_segment = "stasis";
+	handler->path_segment = "ari";
 
 	ao2_ref(handler, +1);
 	return handler;
@@ -325,7 +331,7 @@ void stasis_http_response_no_content(struct stasis_http_response *response)
 
 void stasis_http_response_alloc_failed(struct stasis_http_response *response)
 {
-	response->message = ast_json_ref(alloc_failed_message);
+	response->message = ast_json_ref(oom_json);
 	response->response_code = 500;
 	response->response_text = "Internal Server Error";
 }
@@ -495,11 +501,10 @@ static void handle_options(struct stasis_rest_handlers *handler,
 	}
 }
 
-void stasis_http_invoke(const char *uri,
-			enum ast_http_method method,
-			struct ast_variable *get_params,
-			struct ast_variable *headers,
-			struct stasis_http_response *response)
+void stasis_http_invoke(struct ast_tcptls_session_instance *ser,
+	const char *uri, enum ast_http_method method,
+	struct ast_variable *get_params, struct ast_variable *headers,
+	struct stasis_http_response *response)
 {
 	RAII_VAR(char *, response_text, NULL, ast_free);
 	RAII_VAR(struct stasis_rest_handlers *, root, NULL, ao2_cleanup);
@@ -556,6 +561,19 @@ void stasis_http_invoke(const char *uri,
 		stasis_http_response_error(
 			response, 405, "Method Not Allowed",
 			"Invalid method");
+		return;
+	}
+
+	if (handler->ws_server && method == AST_HTTP_GET) {
+		/* WebSocket! */
+		struct ast_http_uri fake_urih = {
+			.data = handler->ws_server,
+		};
+		ast_websocket_uri_cb(ser, &fake_urih, uri, method, get_params,
+			headers);
+		/* Since the WebSocket code handles the connection, we shouldn't
+		 * do anything else; setting no_response */
+		response->no_response = 1;
 		return;
 	}
 
@@ -686,7 +704,7 @@ void stasis_http_get_docs(const char *uri, struct ast_variable *headers,
 		if (host != NULL) {
 			ast_json_object_set(
 				obj, "basePath",
-				ast_json_stringf("http://%s/stasis", host->value));
+				ast_json_stringf("http://%s/ari", host->value));
 		} else {
 			/* Without the host, we don't have the basePath */
 			ast_json_object_del(obj, "basePath");
@@ -719,7 +737,7 @@ static void remove_trailing_slash(const char *uri,
 	 * is probably our best bet.
 	 */
 	stasis_http_response_error(response, 404, "Not Found",
-		"ARI URLs do not end with a slash. Try /%s", slashless);
+		"ARI URLs do not end with a slash. Try /ari/%s", slashless);
 }
 
 /*!
@@ -831,7 +849,14 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 		}
 	} else {
 		/* Other RESTful resources */
-		stasis_http_invoke(uri, method, get_params, headers, &response);
+		stasis_http_invoke(ser, uri, method, get_params, headers,
+			&response);
+	}
+
+	if (response.no_response) {
+		/* The handler indicates no further response is necessary.
+		 * Probably because it already handled it */
+		return 0;
 	}
 
 	/* Leaving message unset is only allowed for 204 (No Content).
@@ -873,7 +898,7 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 static struct ast_http_uri http_uri = {
 	.callback = stasis_http_callback,
 	.description = "Asterisk RESTful API",
-	.uri = "stasis",
+	.uri = "ari",
 
 	.has_subtree = 1,
 	.data = NULL,
@@ -883,6 +908,14 @@ static struct ast_http_uri http_uri = {
 
 static int load_module(void)
 {
+	oom_json = ast_json_pack(
+		"{s: s}", "error", "AllocationFailed");
+
+	if (!oom_json) {
+		/* Ironic */
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	ast_mutex_init(&root_handler_lock);
 
 	root_handler = root_handler_create();
@@ -905,9 +938,6 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	alloc_failed_message = ast_json_pack(
-		"{s: s}", "message", "Allocation failed");
-
 	if (is_enabled()) {
 		ast_http_uri_link(&http_uri);
 	}
@@ -917,8 +947,8 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_json_unref(alloc_failed_message);
-	alloc_failed_message = NULL;
+	ast_json_unref(oom_json);
+	oom_json = NULL;
 
 	if (is_enabled()) {
 		ast_http_uri_unlink(&http_uri);
@@ -951,9 +981,10 @@ static int reload_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Stasis HTTP bindings",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Asterisk RESTful Interface",
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload_module,
+	.nonoptreq = "res_stasis,res_http_websocket",
 	.load_pri = AST_MODPRI_APP_DEPEND,
 	);

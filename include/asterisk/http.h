@@ -112,6 +112,26 @@ struct ast_http_uri {
 /*! \brief Get cookie from Request headers */
 struct ast_variable *ast_http_get_cookies(struct ast_variable *headers);
 
+/*! \brief HTTP authentication information. */
+struct ast_http_auth {
+	/*! Provided userid. */
+	char *userid;
+	/*! For Basic auth, the provided password. */
+	char *password;
+};
+
+/*!
+ * \brief Get HTTP authentication information from headers.
+ *
+ * The returned object is AO2 managed, so clean up with ao2_cleanup().
+ *
+ * \param headers HTTP request headers.
+ * \return HTTP auth structure.
+ * \return \c NULL if no supported HTTP auth headers present.
+ * \since 12
+ */
+struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers);
+
 /*! \brief Register a URI handler */
 int ast_http_uri_link(struct ast_http_uri *urihandler);
 

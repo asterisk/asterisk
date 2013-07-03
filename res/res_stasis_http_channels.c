@@ -528,8 +528,10 @@ static struct stasis_rest_handlers channels = {
 
 static int load_module(void)
 {
+	int res = 0;
 	stasis_app_ref();
-	return stasis_http_add_handler(&channels);
+	res |= stasis_http_add_handler(&channels);
+	return res;
 }
 
 static int unload_module(void)

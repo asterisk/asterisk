@@ -144,6 +144,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
                 segment = resource_api.root_path.get_child(api.path.split('/'))
                 for operation in api.operations:
                     segment.operations.append(operation)
+                api.full_name = segment.full_name
             resource_api.api_declaration.has_events = False
             for model in resource_api.api_declaration.models:
                 if model.id == "Event":

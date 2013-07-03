@@ -218,6 +218,16 @@ class Operation(Stringify):
         self.http_method = op_json.get('httpMethod')
         self.nickname = op_json.get('nickname')
         self.response_class = op_json.get('responseClass')
+        # Specifying WebSocket URL's is our own extension
+        self.is_websocket = op_json.get('upgrade') == 'websocket'
+        self.is_req = not self.is_websocket
+
+        if self.is_websocket:
+            self.websocket_protocol = op_json.get('websocketProtocol')
+            if self.http_method != 'GET':
+                raise ValueError(
+                    "upgrade: websocket is only valid on GET operations")
+
         params_json = op_json.get('parameters') or []
         self.parameters = [
             Parameter().load(j, processor, context) for j in params_json]
@@ -262,6 +272,8 @@ class Api(Stringify):
         op_json = api_json.get('operations')
         self.operations = [
             Operation().load(j, processor, context) for j in op_json]
+        self.has_websocket = \
+            filter(lambda op: op.is_websocket, self.operations) != []
         return self
 
 
@@ -353,7 +365,8 @@ class ApiDeclaration(Stringify):
             .replace(".json", ".{format}")
 
         if self.resource_path != expected_resource_path:
-            print "%s != %s" % (self.resource_path, expected_resource_path)
+            print >> sys.stderr, \
+                "%s != %s" % (self.resource_path, expected_resource_path)
             raise SwaggerError("resourcePath has incorrect value", context)
 
         return self

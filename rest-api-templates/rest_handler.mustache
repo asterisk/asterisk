@@ -1,4 +1,4 @@
-{{! -*- C -*-
+{{!
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2013, Digium, Inc.
@@ -30,7 +30,9 @@ static struct stasis_rest_handlers {{full_name}} = {
 {{/is_wildcard}}
 	.callbacks = {
 {{#operations}}
+{{#is_req}}
 		[{{c_http_method}}] = stasis_http_{{c_nickname}}_cb,
+{{/is_req}}
 {{/operations}}
 	},
 	.num_children = {{num_children}},

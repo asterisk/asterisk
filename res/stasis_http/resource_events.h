@@ -43,16 +43,14 @@
 struct ast_event_websocket_args {
 	/*! \brief Comma seperated list of applications to subscribe to. */
 	const char *app;
-	/*! \brief RFC6455 header for upgrading a connection to a websocket. */
-	const char *upgrade;
 };
 /*!
  * \brief WebSocket connection for events.
  *
- * \param headers HTTP headers
- * \param args Swagger parameters
- * \param[out] response HTTP response
+ * \param session ARI WebSocket.
+ * \param headers HTTP headers.
+ * \param args Swagger parameters.
  */
-void stasis_http_event_websocket(struct ast_variable *headers, struct ast_event_websocket_args *args, struct stasis_http_response *response);
+void ari_websocket_event_websocket(struct ari_websocket_session *session, struct ast_variable *headers, struct ast_event_websocket_args *args);
 
 #endif /* _ASTERISK_RESOURCE_EVENTS_H */

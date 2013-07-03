@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 {{#apis}}
 {{#operations}}
+{{#is_req}}
 /*!
  * \brief Parameter parsing callback for {{path}}.
  * \param get_params GET parameters in the HTTP request.
@@ -63,33 +64,31 @@ static void stasis_http_{{c_nickname}}_cb(
     struct ast_variable *get_params, struct ast_variable *path_vars,
     struct ast_variable *headers, struct stasis_http_response *response)
 {
-	struct ast_{{c_nickname}}_args args = {};
-{{#has_parameters}}
-	struct ast_variable *i;
-
-{{#has_query_parameters}}
-	for (i = get_params; i; i = i->next) {
-{{#query_parameters}}
-		if (strcmp(i->name, "{{name}}") == 0) {
-			args.{{c_name}} = {{c_convert}}(i->value);
-		} else
-{{/query_parameters}}
-		{}
-	}
-{{/has_query_parameters}}
-{{#has_path_parameters}}
-	for (i = path_vars; i; i = i->next) {
-{{#path_parameters}}
-		if (strcmp(i->name, "{{name}}") == 0) {
-			args.{{c_name}} = {{c_convert}}(i->value);
-		} else
-{{/path_parameters}}
-		{}
-	}
-{{/has_path_parameters}}
-{{/has_parameters}}
+{{> param_parsing}}
 	stasis_http_{{c_nickname}}(headers, &args, response);
 }
+{{/is_req}}
+{{#is_websocket}}
+static void stasis_http_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
+	struct ast_variable *get_params, struct ast_variable *headers)
+{
+	RAII_VAR(struct ast_websocket *, s, ws_session, ast_websocket_unref);
+	RAII_VAR(struct ari_websocket_session *, session, NULL, ao2_cleanup);
+{{#has_path_parameters}}
+	/* TODO: It's not immediately obvious how to pass path params through
+	 * the websocket code to this callback. Not needed right now, so we'll
+	 * just punt. */
+	struct ast_variable *path_vars = NULL;
+{{/has_path_parameters}}
+{{> param_parsing}}
+	session = ari_websocket_session_create(ws_session);
+	if (!session) {
+		ast_log(LOG_ERROR, "Failed to create ARI session\n");
+		return;
+	}
+	ari_websocket_{{c_nickname}}(session, headers, &args);
+}
+{{/is_websocket}}
 {{/operations}}
 {{/apis}}
 
@@ -100,13 +99,35 @@ static void stasis_http_{{c_nickname}}_cb(
 
 static int load_module(void)
 {
+	int res = 0;
+{{#apis}}
+{{#has_websocket}}
+	{{full_name}}.ws_server = ast_websocket_server_create();
+	if (!{{full_name}}.ws_server) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+{{/has_websocket}}
+{{#operations}}
+{{#is_websocket}}
+	res |= ast_websocket_server_add_protocol({{full_name}}.ws_server,
+		"{{websocket_protocol}}", stasis_http_{{c_nickname}}_ws_cb);
+{{/is_websocket}}
+{{/operations}}
+{{/apis}}
 	stasis_app_ref();
-	return stasis_http_add_handler(&{{root_full_name}});
+	res |= stasis_http_add_handler(&{{root_full_name}});
+	return res;
 }
 
 static int unload_module(void)
 {
 	stasis_http_remove_handler(&{{root_full_name}});
+{{#apis}}
+{{#has_websocket}}
+	ao2_cleanup({{full_name}}.ws_server);
+	{{full_name}}.ws_server = NULL;
+{{/has_websocket}}
+{{/apis}}
 	stasis_app_unref();
 	return 0;
 }

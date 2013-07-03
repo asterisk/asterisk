@@ -388,6 +388,7 @@ AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([COROSYNC], [Corosync], [cpg])
 AST_EXT_LIB_SETUP_OPTIONAL([COROSYNC_CFG_STATE_TRACK], [A callback only in corosync 1.x], [COROSYNC], [cfg])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
+AST_EXT_LIB_SETUP([CRYPT], [password and data encryption], [crypt])
 AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography], [crypto])
 AST_EXT_LIB_SETUP_OPTIONAL([OPENSSL_SRTP], [OpenSSL SRTP Extension Support], [CRYPTO], [crypto])
 AST_EXT_LIB_SETUP([DAHDI], [DAHDI], [dahdi])
@@ -2147,6 +2148,29 @@ if test "${PBX_SQLITE3}" != 1; then
 	AC_MSG_WARN(*** Please install the SQLite3 development package.)
 	exit 1
 fi
+
+# Find crypt support
+# * -lcrypt on *NIX
+# * in libsystem on OS X
+AST_EXT_LIB_CHECK([LIBCRYPT], [crypt], [crypt], [crypt.h])
+AC_CHECK_FUNC([crypt], [SYSCRYPT=true], [SYSCRYPT=""])
+
+if test "x$LIBCRYPT_LIB" != "x" ; then
+    CRYPT_LIB="$LIBCRYPT_LIB"
+    CRYPT_INCLUDE="$LIBCRYPT_INCLUDE"
+    AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the `crypt' function.])
+elif test "x$SYSCRYPT" != "x" ; then
+    CRYPT_LIB=""
+    CRYPT_INCLUDE=""
+    AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the `crypt' function.])
+fi
+
+AC_SUBST(CRYPT_LIB)
+AC_SUBST(CRYPT_INCLUDE)
+
+# Find crypt_r support
+AC_CHECK_LIB([crypt], [crypt_r],
+    [AC_DEFINE([HAVE_CRYPT_R], [1], [Define to 1 if you have the `crypt_r' function.])])
 
 AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
 

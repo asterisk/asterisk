@@ -13,6 +13,10 @@
 		LINKER_SYMBOL_PREFIX*ast_websocket_remote_address;
 		LINKER_SYMBOL_PREFIX*ast_websocket_is_secure;
 		LINKER_SYMBOL_PREFIX*ast_websocket_set_nonblock;
+		LINKER_SYMBOL_PREFIX*ast_websocket_uri_cb;
+		LINKER_SYMBOL_PREFIX*ast_websocket_server_create;
+		LINKER_SYMBOL_PREFIX*ast_websocket_server_add_protocol;
+		LINKER_SYMBOL_PREFIX*ast_websocket_server_remove_protocol;
 	local:
 		*;
 };

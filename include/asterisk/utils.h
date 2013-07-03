@@ -938,4 +938,43 @@ char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size);
     void _dtor_ ## varname (vartype * v) { dtor(*v); } \
     vartype varname __attribute__((cleanup(_dtor_ ## varname))) = (initval)
 
+/*!
+ * \brief Asterisk wrapper around crypt(3).
+ *
+ * The interpretation of the salt (which determines the password hashing
+ * algorithm) is system specific. Application code should prefer to use
+ * ast_crypt_encrypt() or ast_crypt_validate().
+ *
+ * The returned string is heap allocated, and should be freed with ast_free().
+ *
+ * \param key User's password to crypt.
+ * \param salt Salt to crypt with.
+ * \return Crypted password.
+ * \return \c NULL on error.
+ */
+char *ast_crypt(const char *key, const char *salt);
+
+/*
+ * \brief Asterisk wrapper around crypt(3) for encrypting passwords.
+ *
+ * This function will generate a random salt and encrypt the given password.
+ *
+ * The returned string is heap allocated, and should be freed with ast_free().
+ *
+ * \param key User's password to crypt.
+ * \return Crypted password.
+ * \return \c NULL on error.
+ */
+char *ast_crypt_encrypt(const char *key);
+
+/*
+ * \brief Asterisk wrapper around crypt(3) for validating passwords.
+ *
+ * \param key User's password to validate.
+ * \param expected Expected result from crypt.
+ * \return True (non-zero) if \a key matches \a expected.
+ * \return False (zero) if \a key doesn't match.
+ */
+int ast_crypt_validate(const char *key, const char *expected);
+
 #endif /* _ASTERISK_UTILS_H */

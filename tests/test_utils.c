@@ -421,6 +421,42 @@ AST_TEST_DEFINE(agi_loaded_test)
 	return res;
 }
 
+AST_TEST_DEFINE(crypt_test)
+{
+	RAII_VAR(char *, password_crypted, NULL, ast_free);
+	RAII_VAR(char *, blank_crypted, NULL, ast_free);
+	const char *password = "Passw0rd";
+	const char *not_a_password = "not-a-password";
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "crypt_test";
+		info->category = "/main/utils/";
+		info->summary = "Test ast_crypt wrappers";
+		info->description = "Verifies that the ast_crypt wrappers work as expected.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	password_crypted = ast_crypt_encrypt(password);
+	ast_test_validate(test, NULL != password_crypted);
+	ast_test_validate(test, 0 != strcmp(password, password_crypted));
+	ast_test_validate(test, ast_crypt_validate(password, password_crypted));
+	ast_test_validate(test,
+		!ast_crypt_validate(not_a_password, password_crypted));
+
+	blank_crypted = ast_crypt_encrypt("");
+	ast_test_validate(test, NULL != blank_crypted);
+	ast_test_validate(test, 0 != strcmp(blank_crypted, ""));
+	ast_test_validate(test, ast_crypt_validate("", blank_crypted));
+	ast_test_validate(test,
+		!ast_crypt_validate(not_a_password, blank_crypted));
+
+	return AST_TEST_PASS;
+}
+
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(uri_encode_decode_test);
@@ -431,6 +467,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(crypto_loaded_test);
 	AST_TEST_UNREGISTER(adsi_loaded_test);
 	AST_TEST_UNREGISTER(agi_loaded_test);
+	AST_TEST_UNREGISTER(crypt_test);
 	return 0;
 }
 
@@ -444,6 +481,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(crypto_loaded_test);
 	AST_TEST_REGISTER(adsi_loaded_test);
 	AST_TEST_REGISTER(agi_loaded_test);
+	AST_TEST_REGISTER(crypt_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

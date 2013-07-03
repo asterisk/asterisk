@@ -115,8 +115,10 @@ static struct stasis_rest_handlers sounds = {
 
 static int load_module(void)
 {
+	int res = 0;
 	stasis_app_ref();
-	return stasis_http_add_handler(&sounds);
+	res |= stasis_http_add_handler(&sounds);
+	return res;
 }
 
 static int unload_module(void)

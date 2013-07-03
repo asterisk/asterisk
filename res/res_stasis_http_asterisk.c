@@ -88,8 +88,10 @@ static struct stasis_rest_handlers asterisk = {
 
 static int load_module(void)
 {
+	int res = 0;
 	stasis_app_ref();
-	return stasis_http_add_handler(&asterisk);
+	res |= stasis_http_add_handler(&asterisk);
+	return res;
 }
 
 static int unload_module(void)

@@ -45,17 +45,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_events.h"
 
-/*!
- * \brief Parameter parsing callback for /events.
- * \param get_params GET parameters in the HTTP request.
- * \param path_vars Path variables extracted from the request.
- * \param headers HTTP headers.
- * \param[out] response Response to the HTTP request.
- */
-static void stasis_http_event_websocket_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+static void stasis_http_event_websocket_ws_cb(struct ast_websocket *ws_session,
+	struct ast_variable *get_params, struct ast_variable *headers)
 {
+	RAII_VAR(struct ast_websocket *, s, ws_session, ast_websocket_unref);
+	RAII_VAR(struct ari_websocket_session *, session, NULL, ao2_cleanup);
 	struct ast_event_websocket_args args = {};
 	struct ast_variable *i;
 
@@ -65,14 +59,18 @@ static void stasis_http_event_websocket_cb(
 		} else
 		{}
 	}
-	stasis_http_event_websocket(headers, &args, response);
+	session = ari_websocket_session_create(ws_session);
+	if (!session) {
+		ast_log(LOG_ERROR, "Failed to create ARI session\n");
+		return;
+	}
+	ari_websocket_event_websocket(session, headers, &args);
 }
 
 /*! \brief REST handler for /api-docs/events.{format} */
 static struct stasis_rest_handlers events = {
 	.path_segment = "events",
 	.callbacks = {
-		[AST_HTTP_GET] = stasis_http_event_websocket_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -80,13 +78,23 @@ static struct stasis_rest_handlers events = {
 
 static int load_module(void)
 {
+	int res = 0;
+	events.ws_server = ast_websocket_server_create();
+	if (!events.ws_server) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	res |= ast_websocket_server_add_protocol(events.ws_server,
+		"ari", stasis_http_event_websocket_ws_cb);
 	stasis_app_ref();
-	return stasis_http_add_handler(&events);
+	res |= stasis_http_add_handler(&events);
+	return res;
 }
 
 static int unload_module(void)
 {
 	stasis_http_remove_handler(&events);
+	ao2_cleanup(events.ws_server);
+	events.ws_server = NULL;
 	stasis_app_unref();
 	return 0;
 }

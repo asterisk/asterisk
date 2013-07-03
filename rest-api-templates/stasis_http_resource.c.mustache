@@ -32,10 +32,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 {{#apis}}
 {{#operations}}
-void stasis_http_{{c_nickname}}(struct ast_variable *headers, struct ast_{{c_nickname}}_args *args, struct stasis_http_response *response)
+{{#is_req}}
+void stasis_http_{{c_nickname}}(struct ast_variable *headers,
+	struct ast_{{c_nickname}}_args *args,
+	struct stasis_http_response *response)
 {
 	ast_log(LOG_ERROR, "TODO: stasis_http_{{c_nickname}}\n");
 }
+{{/is_req}}
+{{#is_websocket}}
+void ari_websocket_{{c_nickname}}(struct ari_websocket_session *session,
+	struct ast_variable *headers,
+	struct ast_{{c_nickname}}_args *args)
+{
+	ast_log(LOG_ERROR, "TODO: ari_websocket_{{c_nickname}}\n");
+}
+{{/is_websocket}}
 {{/operations}}
 {{/apis}}
 {{/api_declaration}}

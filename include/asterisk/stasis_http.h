@@ -53,13 +53,17 @@ typedef void (*stasis_rest_callback)(struct ast_variable *get_params,
 struct stasis_rest_handlers {
 	/*! Path segement to handle */
 	const char *path_segment;
-	/*! If true (non-zero), path_segment is a wildcard, and will match all values.
+	/*! If true (non-zero), path_segment is a wildcard, and will match all
+	 * values.
 	 *
-	 * Value of the segement will be passed into the \a path_vars parameter of the callback.
+	 * Value of the segement will be passed into the \a path_vars parameter
+	 * of the callback.
 	 */
 	int is_wildcard;
 	/*! Callbacks for all handled HTTP methods. */
 	stasis_rest_callback callbacks[AST_HTTP_MAX_METHOD];
+	/*! WebSocket server for handling WebSocket upgrades. */
+	struct ast_websocket_server *ws_server;
 	/*! Number of children in the children array */
 	size_t num_children;
 	/*! Handlers for sub-paths */
@@ -78,7 +82,9 @@ struct stasis_http_response {
 	 * See http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html */
 	int response_code;
 	/*! Corresponding text for the response code */
-	const char *response_text; // Shouldn't http.c handle this?
+	const char *response_text; /* Shouldn't http.c handle this? */
+	/*! Flag to indicate that no further response is needed */
+	int no_response:1;
 };
 
 /*!
@@ -104,14 +110,17 @@ int stasis_http_remove_handler(struct stasis_rest_handlers *handler);
  * Only call from res_stasis_http and test_stasis_http. Only public to allow
  * for unit testing.
  *
+ * \param ser TCP/TLS connection.
  * \param uri HTTP URI, relative to the API path.
  * \param method HTTP method.
  * \param get_params HTTP \c GET parameters.
  * \param headers HTTP headers.
  * \param[out] response RESTful HTTP response.
  */
-void stasis_http_invoke(const char *uri, enum ast_http_method method, struct ast_variable *get_params,
-			struct ast_variable *headers, struct stasis_http_response *response);
+void stasis_http_invoke(struct ast_tcptls_session_instance *ser,
+	const char *uri, enum ast_http_method method,
+	struct ast_variable *get_params, struct ast_variable *headers,
+	struct stasis_http_response *response);
 
 /*!
  * \internal
@@ -126,14 +135,49 @@ void stasis_http_invoke(const char *uri, enum ast_http_method method, struct ast
  */
 void stasis_http_get_docs(const char *uri, struct ast_variable *headers, struct stasis_http_response *response);
 
+/*! \brief Abstraction for reading/writing JSON to a WebSocket */
+struct ari_websocket_session;
+
 /*!
- * \internal
- * \brief Stasis WebSocket connection handler
- * \param session WebSocket session.
- * \param parameters HTTP \c GET parameters.
- * \param headers HTTP headers.
+ * \brief Create an ARI WebSocket session.
+ *
+ * \param ws_session Underlying WebSocket session.
+ * \return New ARI WebSocket session.
+ * \return \c NULL on error.
  */
-void stasis_websocket_callback(struct ast_websocket *session, struct ast_variable *parameters, struct ast_variable *headers);
+struct ari_websocket_session *ari_websocket_session_create(
+	struct ast_websocket *ws_session);
+
+/*!
+ * \brief Read a message from an ARI WebSocket.
+ *
+ * \param session Session to read from.
+ * \return Message received.
+ * \return \c NULL if WebSocket could not be read.
+ */
+struct ast_json *ari_websocket_session_read(
+	struct ari_websocket_session *session);
+
+/*!
+ * \brief Send a message to an ARI WebSocket.
+ *
+ * \param session Session to write to.
+ * \param message Message to send.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int ari_websocket_session_write(struct ari_websocket_session *session,
+	struct ast_json *message);
+
+/*!
+ * \brief The stock message to return when out of memory.
+ *
+ * The refcount is NOT bumped on this object, so ast_json_ref() if you want to
+ * keep the reference.
+ *
+ * \return JSON message specifying an out-of-memory error.
+ */
+struct ast_json *ari_oom_json(void);
 
 /*!
  * \brief Fill in an error \a stasis_http_response.
