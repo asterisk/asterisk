@@ -867,6 +867,93 @@ struct ast_variable *ast_http_get_cookies(struct ast_variable *headers)
 	return cookies;
 }
 
+static struct ast_http_auth *auth_create(const char *userid,
+	const char *password)
+{
+	RAII_VAR(struct ast_http_auth *, auth, NULL, ao2_cleanup);
+	size_t userid_len;
+	size_t password_len;
+
+	if (!userid || !password) {
+		ast_log(LOG_ERROR, "Invalid userid/password\n");
+		return NULL;
+	}
+
+	userid_len = strlen(userid) + 1;
+	password_len = strlen(password) + 1;
+
+	/* Allocate enough room to store everything in one memory block */
+	auth = ao2_alloc(sizeof(*auth) + userid_len + password_len, NULL);
+	if (!auth) {
+		return NULL;
+	}
+
+	/* Put the userid right after the struct */
+	auth->userid = (char *)(auth + 1);
+	strcpy(auth->userid, userid);
+
+	/* Put the password right after the userid */
+	auth->password = auth->userid + userid_len;
+	strcpy(auth->password, password);
+
+	ao2_ref(auth, +1);
+	return auth;
+}
+
+#define BASIC_PREFIX "Basic "
+#define BASIC_LEN 6 /*!< strlen(BASIC_PREFIX) */
+
+struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers)
+{
+	struct ast_variable *v;
+
+	for (v = headers; v; v = v->next) {
+		const char *base64;
+		char decoded[256] = {};
+		char *username;
+		char *password;
+		int cnt;
+
+		if (strcasecmp("Authorization", v->name) != 0) {
+			continue;
+		}
+
+		if (!ast_begins_with(v->value, BASIC_PREFIX)) {
+			ast_log(LOG_DEBUG,
+				"Unsupported Authorization scheme\n");
+			continue;
+		}
+
+		/* Basic auth header parsing. RFC 2617, section 2.
+		 *   credentials = "Basic" basic-credentials
+		 *   basic-credentials = base64-user-pass
+		 *   base64-user-pass  = <base64 encoding of user-pass,
+		 *                        except not limited to 76 char/line>
+		 *   user-pass   = userid ":" password
+		 */
+
+		base64 = v->value + BASIC_LEN;
+
+		/* This will truncate "userid:password" lines to
+		 * sizeof(decoded). The array is long enough that this shouldn't
+		 * be a problem */
+		cnt = ast_base64decode((unsigned char*)decoded, base64,
+			sizeof(decoded) - 1);
+		ast_assert(cnt < sizeof(decoded));
+
+		/* Split the string at the colon */
+		password = decoded;
+		username = strsep(&password, ":");
+		if (!password) {
+			ast_log(LOG_WARNING, "Invalid Authorization header\n");
+			return NULL;
+		}
+
+		return auth_create(username, password);
+	}
+
+	return NULL;
+}
 
 static void *httpd_helper_thread(void *data)
 {

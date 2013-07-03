@@ -80,8 +80,8 @@ clean::
 $(if $(filter res_parking,$(EMBEDDED_MODS)),modules.link,res_parking.so): $(subst .c,.o,$(wildcard parking/*.c))
 $(subst .c,.o,$(wildcard parking/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_parking)
 
-res_stasis_http.so: stasis_http/ari_websockets.o
-stasis_http/ari_websockets.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_http_asterisk)
+res_stasis_http.so: stasis_http/cli.o stasis_http/config.o stasis_http/ari_websockets.o
+stasis_http/cli.o stasis_http/config.o stasis_http/ari_websockets.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_http)
 
 res_ari_model.so: stasis_http/ari_model_validators.o
 stasis_http/ari_model_validators.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_model)

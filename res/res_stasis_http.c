@@ -79,14 +79,30 @@
 /*** DOCUMENTATION
 	<configInfo name="res_stasis_http" language="en_US">
 		<synopsis>HTTP binding for the Stasis API</synopsis>
-		<configFile name="stasis_http.conf">
-			<configObject name="global">
-				<synopsis>Global configuration settings</synopsis>
+		<configFile name="ari.conf">
+			<configObject name="general">
+				<synopsis>General configuration settings</synopsis>
 				<configOption name="enabled">
 					<synopsis>Enable/disable the stasis-http module</synopsis>
 				</configOption>
 				<configOption name="pretty">
 					<synopsis>Responses from stasis-http are formatted to be human readable</synopsis>
+				</configOption>
+				<configOption name="auth_realm">
+					<synopsis>Realm to use for authentication. Defaults to Asterisk REST Interface.</synopsis>
+				</configOption>
+			</configObject>
+
+			<configObject name="user">
+				<synopsis>Per-user configuration settings</synopsis>
+				<configOption name="read_only">
+					<synopsis>When set to yes, user is only authorized for read-only requests</synopsis>
+				</configOption>
+				<configOption name="password">
+					<synopsis>Crypted or plaintext password (see password_format)</synopsis>
+				</configOption>
+				<configOption name="password_format">
+					<synopsis>password_format may be set to plain (the default) or crypt. When set to crypt, crypt(3) is used to validate the password. A crypted password can be generated using mkpasswd -m sha-512. When set to plain, the password is in plaintext</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
@@ -97,112 +113,21 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/astobj2.h"
 #include "asterisk/module.h"
 #include "asterisk/paths.h"
 #include "asterisk/stasis_http.h"
-#include "asterisk/config_options.h"
+#include "stasis_http/internal.h"
 
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-/*! \brief Global configuration options for stasis http. */
-struct conf_global_options {
-	/*! Enabled by default, disabled if false. */
-	int enabled:1;
-	/*! Encoding format used during output (default compact). */
-	enum ast_json_encoding_format format;
-};
-
-/*! \brief All configuration options for stasis http. */
-struct conf {
-	/*! The general section configuration options. */
-	struct conf_global_options *global;
-};
-
-/*! \brief Locking container for safe configuration access. */
-static AO2_GLOBAL_OBJ_STATIC(confs);
-
-/*! \brief Mapping of the stasis http conf struct's globals to the
- *         general context in the config file. */
-static struct aco_type global_option = {
-	.type = ACO_GLOBAL,
-	.name = "global",
-	.item_offset = offsetof(struct conf, global),
-	.category = "^general$",
-	.category_match = ACO_WHITELIST
-};
-
-static struct aco_type *global_options[] = ACO_TYPES(&global_option);
-
-/*! \brief Disposes of the stasis http conf object */
-static void conf_destructor(void *obj)
-{
-    struct conf *cfg = obj;
-    ao2_cleanup(cfg->global);
-}
-
-/*! \brief Creates the statis http conf object. */
-static void *conf_alloc(void)
-{
-    struct conf *cfg;
-
-    if (!(cfg = ao2_alloc(sizeof(*cfg), conf_destructor))) {
-        return NULL;
-    }
-
-    if (!(cfg->global = ao2_alloc(sizeof(*cfg->global), NULL))) {
-        ao2_ref(cfg, -1);
-        return NULL;
-    }
-    return cfg;
-}
-
-/*! \brief The conf file that's processed for the module. */
-static struct aco_file conf_file = {
-	/*! The config file name. */
-	.filename = "stasis_http.conf",
-	/*! The mapping object types to be processed. */
-	.types = ACO_TYPES(&global_option),
-};
-
-CONFIG_INFO_STANDARD(cfg_info, confs, conf_alloc,
-		     .files = ACO_FILES(&conf_file));
-
-/*! \brief Bitfield handler since it is not possible to take address. */
-static int conf_bitfield_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
-{
-	struct conf_global_options *global = obj;
-
-	if (!strcasecmp(var->name, "enabled")) {
-		global->enabled = ast_true(var->value);
-	} else {
-		return -1;
-	}
-
-	return 0;
-}
-
-/*! \brief Encoding format handler converts from boolean to enum. */
-static int encoding_format_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
-{
-	struct conf_global_options *global = obj;
-
-	if (!strcasecmp(var->name, "pretty")) {
-		global->format = ast_true(var->value) ? AST_JSON_PRETTY : AST_JSON_COMPACT;
-	} else {
-		return -1;
-	}
-
-	return 0;
-}
-
 /*! \brief Helper function to check if module is enabled. */
-static char is_enabled(void)
+static int is_enabled(void)
 {
-	RAII_VAR(struct conf *, cfg, ao2_global_obj_ref(confs), ao2_cleanup);
-
-	return cfg->global->enabled;
+	RAII_VAR(struct ari_conf *, cfg, ari_config_get(), ao2_cleanup);
+	return cfg && cfg->general && cfg->general->enabled;
 }
 
 /*! Lock for \ref root_handler */
@@ -797,8 +722,67 @@ static void process_cors_request(struct ast_variable *headers,
 
 enum ast_json_encoding_format stasis_http_json_format(void)
 {
-	RAII_VAR(struct conf *, cfg, ao2_global_obj_ref(confs), ao2_cleanup);
-	return cfg->global->format;
+	RAII_VAR(struct ari_conf *, cfg, NULL, ao2_cleanup);
+	cfg = ari_config_get();
+	return cfg->general->format;
+}
+
+/*!
+ * \brief Authenticate a <code>?api_key=userid:password</code>
+ *
+ * \param api_key API key query parameter
+ * \return User object for the authenticated user.
+ * \return \c NULL if authentication failed.
+ */
+static struct ari_conf_user *authenticate_api_key(const char *api_key)
+{
+	RAII_VAR(char *, copy, NULL, ast_free);
+	char *username;
+	char *password;
+
+	password = copy = ast_strdup(api_key);
+	if (!copy) {
+		return NULL;
+	}
+
+	username = strsep(&password, ":");
+	if (!password) {
+		ast_log(LOG_WARNING, "Invalid api_key\n");
+		return NULL;
+	}
+
+	return ari_config_validate_user(username, password);
+}
+
+/*!
+ * \brief Authenticate an HTTP request.
+ *
+ * \param get_params GET parameters of the request.
+ * \param header HTTP headers.
+ * \return User object for the authenticated user.
+ * \return \c NULL if authentication failed.
+ */
+static struct ari_conf_user *authenticate_user(struct ast_variable *get_params,
+	struct ast_variable *headers)
+{
+	RAII_VAR(struct ast_http_auth *, http_auth, NULL, ao2_cleanup);
+	struct ast_variable *v;
+
+	/* HTTP Basic authentication */
+	http_auth = ast_http_get_auth(headers);
+	if (http_auth) {
+		return ari_config_validate_user(http_auth->userid,
+			http_auth->password);
+	}
+
+	/* ?api_key authentication */
+	for (v = get_params; v; v = v->next) {
+		if (strcasecmp("api_key", v->name) == 0) {
+			return authenticate_api_key(v->value);
+		}
+	}
+
+	return NULL;
 }
 
 /*!
@@ -822,8 +806,10 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 				struct ast_variable *get_params,
 				struct ast_variable *headers)
 {
+	RAII_VAR(struct ari_conf *, conf, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_str *, response_headers, ast_str_create(40), ast_free);
 	RAII_VAR(struct ast_str *, response_body, ast_str_create(256), ast_free);
+	RAII_VAR(struct ari_conf_user *, user, NULL, ao2_cleanup);
 	struct stasis_http_response response = {};
 	int ret = 0;
 
@@ -832,10 +818,45 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 	}
 
 	response.headers = ast_str_create(40);
+	if (!response.headers) {
+		return -1;
+	}
+
+	conf = ari_config_get();
+	if (!conf || !conf->general) {
+		return -1;
+	}
 
 	process_cors_request(headers, &response);
 
-	if (ast_ends_with(uri, "/")) {
+	user = authenticate_user(get_params, headers);
+	if (!user) {
+		/* Per RFC 2617, section 1.2: The 401 (Unauthorized) response
+		 * message is used by an origin server to challenge the
+		 * authorization of a user agent. This response MUST include a
+		 * WWW-Authenticate header field containing at least one
+		 * challenge applicable to the requested resource.
+		 */
+		response.response_code = 401;
+		response.response_text = "Unauthorized";
+
+		/* Section 1.2:
+		 *   realm       = "realm" "=" realm-value
+		 *   realm-value = quoted-string
+		 * Section 2:
+		 *   challenge   = "Basic" realm
+		 */
+		ast_str_append(&response.headers, 0,
+			"WWW-Authenticate: Basic realm=\"%s\"\r\n",
+			conf->general->auth_realm);
+		response.message = ast_json_pack("{s: s}",
+			"error", "Authentication required");
+	} else if (user->read_only && method != AST_HTTP_GET && method != AST_HTTP_OPTIONS) {
+		response.message = ast_json_pack("{s: s}",
+			"error", "Write access denied");
+		response.response_code = 403;
+		response.response_text = "Forbidden";
+	} else if (ast_ends_with(uri, "/")) {
 		remove_trailing_slash(uri, &response);
 	} else if (ast_begins_with(uri, "api-docs/")) {
 		/* Serving up API docs */
@@ -875,7 +896,8 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 	if (response.message && !ast_json_is_null(response.message)) {
 		ast_str_append(&response_headers, 0,
 			       "Content-type: application/json\r\n");
-		if (ast_json_dump_str_format(response.message, &response_body, stasis_http_json_format()) != 0) {
+		if (ast_json_dump_str_format(response.message, &response_body,
+				conf->general->format) != 0) {
 			/* Error encoding response */
 			response.response_code = 500;
 			response.response_text = "Internal Server Error";
@@ -909,38 +931,39 @@ static struct ast_http_uri http_uri = {
 
 static int load_module(void)
 {
-	oom_json = ast_json_pack(
-		"{s: s}", "error", "AllocationFailed");
+	ast_mutex_init(&root_handler_lock);
 
+	/* root_handler may have been built during a declined load */
+	if (!root_handler) {
+		root_handler = root_handler_create();
+	}
+	if (!root_handler) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	/* oom_json may have been built during a declined load */
+	if (!oom_json) {
+		oom_json = ast_json_pack(
+			"{s: s}", "error", "Allocation failed");
+	}
 	if (!oom_json) {
 		/* Ironic */
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	ast_mutex_init(&root_handler_lock);
-
-	root_handler = root_handler_create();
-	if (!root_handler) {
-		return AST_MODULE_LOAD_FAILURE;
-	}
-
-	if (aco_info_init(&cfg_info)) {
-		aco_info_destroy(&cfg_info);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	aco_option_register_custom(&cfg_info, "enabled", ACO_EXACT, global_options,
-				   "yes", conf_bitfield_handler, 0);
-	aco_option_register_custom(&cfg_info, "pretty", ACO_EXACT, global_options,
-				   "no",  encoding_format_handler, 0);
-
-	if (aco_process_config(&cfg_info, 0)) {
-		aco_info_destroy(&cfg_info);
+	if (ari_config_init() != 0) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (is_enabled()) {
+		ast_debug(3, "ARI enabled\n");
 		ast_http_uri_link(&http_uri);
+	} else {
+		ast_debug(3, "ARI disabled\n");
+	}
+
+	if (ari_cli_register() != 0) {
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
@@ -948,19 +971,21 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_json_unref(oom_json);
-	oom_json = NULL;
+	ari_cli_unregister();
 
 	if (is_enabled()) {
+		ast_debug(3, "Disabling ARI\n");
 		ast_http_uri_unlink(&http_uri);
 	}
 
-	aco_info_destroy(&cfg_info);
-	ao2_global_obj_release(confs);
+	ari_config_destroy();
 
 	ao2_cleanup(root_handler);
 	root_handler = NULL;
 	ast_mutex_destroy(&root_handler_lock);
+
+	ast_json_unref(oom_json);
+	oom_json = NULL;
 
 	return 0;
 }
@@ -969,13 +994,15 @@ static int reload_module(void)
 {
 	char was_enabled = is_enabled();
 
-	if (aco_process_config(&cfg_info, 1)) {
+	if (ari_config_reload() != 0) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (was_enabled && !is_enabled()) {
+		ast_debug(3, "Disabling ARI\n");
 		ast_http_uri_unlink(&http_uri);
 	} else if (!was_enabled && is_enabled()) {
+		ast_debug(3, "Enabling ARI\n");
 		ast_http_uri_link(&http_uri);
 	}
 
