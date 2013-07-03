@@ -76,7 +76,7 @@ static void stasis_http_get_stored_recordings_cb(
 	default:
 		if (200 <= code && code <= 299) {
 			is_valid = ari_validate_list(response->message,
-				ari_validate_stored_recording);
+				ari_validate_stored_recording_fn());
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored\n", code);
 			is_valid = 0;
@@ -218,7 +218,7 @@ static void stasis_http_get_live_recordings_cb(
 	default:
 		if (200 <= code && code <= 299) {
 			is_valid = ari_validate_list(response->message,
-				ari_validate_live_recording);
+				ari_validate_live_recording_fn());
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live\n", code);
 			is_valid = 0;

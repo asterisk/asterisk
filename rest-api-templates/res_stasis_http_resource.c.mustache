@@ -89,7 +89,7 @@ static void stasis_http_{{c_nickname}}_cb(
 {{#response_class}}
 {{#is_list}}
 			is_valid = ari_validate_list(response->message,
-				ari_validate_{{c_singular_name}});
+				ari_validate_{{c_singular_name}}_fn());
 {{/is_list}}
 {{^is_list}}
 			is_valid = ari_validate_{{c_name}}(
@@ -125,7 +125,7 @@ static void stasis_http_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
 {{> param_parsing}}
 #if defined(AST_DEVMODE)
 	session = ari_websocket_session_create(ws_session,
-		ari_validate_{{response_class.c_name}});
+		ari_validate_{{response_class.c_name}}_fn());
 #else
 	session = ari_websocket_session_create(ws_session, NULL);
 #endif

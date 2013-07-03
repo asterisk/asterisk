@@ -112,6 +112,11 @@ int ari_validate_{{c_id}}(struct ast_json *json)
 {{/properties}}
 	return res;
 }
+
+ari_validator ari_validate_{{c_id}}_fn(void)
+{
+	return ari_validate_{{c_id}};
+}
 {{/models}}
 {{/api_declaration}}
 {{/apis}}

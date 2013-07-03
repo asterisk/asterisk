@@ -17,6 +17,17 @@
 /*! \file
  *
  * \brief Generated file - Build validators for ARI model objects.
+ *
+ * In addition to the normal validation functions one would normally expect,
+ * each validator has a ari_validate_{id}_fn() companion function that returns
+ * the validator's function pointer.
+ *
+ * The reason for this seamingly useless indirection is the way function
+ * pointers interfere with module loading. Asterisk attempts to dlopen() each
+ * module using \c RTLD_LAZY in order to read some metadata from the module.
+ * Unfortunately, if you take the address of a function, the function has to be
+ * resolvable at load time, even if \c RTLD_LAZY is specified. By moving the
+ * function-address-taking into this module, we can once again be lazy.
  */
 
  /*
@@ -124,6 +135,11 @@ int ari_validate_date(struct ast_json *json);
 int ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *));
 
 /*! @} */
+
+/*!
+ * \brief Function type for validator functions. Allows for 
+ */
+typedef int (*ari_validator)(struct ast_json *json);
 {{#apis}}
 {{#api_declaration}}
 {{#models}}
@@ -138,6 +154,13 @@ int ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *));
  * \returns False (zero) if invalid.
  */
 int ari_validate_{{c_id}}(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_{{c_id}}().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_{{c_id}}_fn(void);
 {{/models}}
 {{/api_declaration}}
 {{/apis}}

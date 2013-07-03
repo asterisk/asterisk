@@ -76,7 +76,7 @@ static void stasis_http_get_channels_cb(
 	default:
 		if (200 <= code && code <= 299) {
 			is_valid = ari_validate_list(response->message,
-				ari_validate_channel);
+				ari_validate_channel_fn());
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /channels\n", code);
 			is_valid = 0;

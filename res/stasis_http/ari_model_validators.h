@@ -17,6 +17,17 @@
 /*! \file
  *
  * \brief Generated file - Build validators for ARI model objects.
+ *
+ * In addition to the normal validation functions one would normally expect,
+ * each validator has a ari_validate_{id}_fn() companion function that returns
+ * the validator's function pointer.
+ *
+ * The reason for this seamingly useless indirection is the way function
+ * pointers interfere with module loading. Asterisk attempts to dlopen() each
+ * module using \c RTLD_LAZY in order to read some metadata from the module.
+ * Unfortunately, if you take the address of a function, the function has to be
+ * resolvable at load time, even if \c RTLD_LAZY is specified. By moving the
+ * function-address-taking into this module, we can once again be lazy.
  */
 
  /*
@@ -128,6 +139,11 @@ int ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *));
 /*! @} */
 
 /*!
+ * \brief Function type for validator functions. Allows for 
+ */
+typedef int (*ari_validator)(struct ast_json *json);
+
+/*!
  * \brief Validator for AsteriskInfo.
  *
  * Asterisk system information
@@ -137,6 +153,13 @@ int ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *));
  * \returns False (zero) if invalid.
  */
 int ari_validate_asterisk_info(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_asterisk_info().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_asterisk_info_fn(void);
 
 /*!
  * \brief Validator for Endpoint.
@@ -152,6 +175,13 @@ int ari_validate_asterisk_info(struct ast_json *json);
 int ari_validate_endpoint(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_endpoint().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_endpoint_fn(void);
+
+/*!
  * \brief Validator for CallerID.
  *
  * Caller identification
@@ -161,6 +191,13 @@ int ari_validate_endpoint(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_caller_id(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_caller_id().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_caller_id_fn(void);
 
 /*!
  * \brief Validator for Channel.
@@ -174,6 +211,13 @@ int ari_validate_caller_id(struct ast_json *json);
 int ari_validate_channel(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_channel().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_fn(void);
+
+/*!
  * \brief Validator for Dialed.
  *
  * Dialed channel information.
@@ -185,6 +229,13 @@ int ari_validate_channel(struct ast_json *json);
 int ari_validate_dialed(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_dialed().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_dialed_fn(void);
+
+/*!
  * \brief Validator for DialplanCEP.
  *
  * Dialplan location (context/extension/priority)
@@ -194,6 +245,13 @@ int ari_validate_dialed(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_dialplan_cep(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_dialplan_cep().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_dialplan_cep_fn(void);
 
 /*!
  * \brief Validator for Bridge.
@@ -209,6 +267,13 @@ int ari_validate_dialplan_cep(struct ast_json *json);
 int ari_validate_bridge(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_bridge().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_bridge_fn(void);
+
+/*!
  * \brief Validator for LiveRecording.
  *
  * A recording that is in progress
@@ -218,6 +283,13 @@ int ari_validate_bridge(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_live_recording(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_live_recording().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_live_recording_fn(void);
 
 /*!
  * \brief Validator for StoredRecording.
@@ -231,6 +303,13 @@ int ari_validate_live_recording(struct ast_json *json);
 int ari_validate_stored_recording(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_stored_recording().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_stored_recording_fn(void);
+
+/*!
  * \brief Validator for FormatLangPair.
  *
  * Identifies the format and language of a sound file
@@ -240,6 +319,13 @@ int ari_validate_stored_recording(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_format_lang_pair(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_format_lang_pair().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_format_lang_pair_fn(void);
 
 /*!
  * \brief Validator for Sound.
@@ -253,6 +339,13 @@ int ari_validate_format_lang_pair(struct ast_json *json);
 int ari_validate_sound(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_sound().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_sound_fn(void);
+
+/*!
  * \brief Validator for Playback.
  *
  * Object representing the playback of media to a channel
@@ -262,6 +355,13 @@ int ari_validate_sound(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_playback(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_playback().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_playback_fn(void);
 
 /*!
  * \brief Validator for ApplicationReplaced.
@@ -277,6 +377,13 @@ int ari_validate_playback(struct ast_json *json);
 int ari_validate_application_replaced(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_application_replaced().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_application_replaced_fn(void);
+
+/*!
  * \brief Validator for BridgeCreated.
  *
  * Notification that a bridge has been created.
@@ -286,6 +393,13 @@ int ari_validate_application_replaced(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_bridge_created(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_bridge_created().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_bridge_created_fn(void);
 
 /*!
  * \brief Validator for BridgeDestroyed.
@@ -299,6 +413,13 @@ int ari_validate_bridge_created(struct ast_json *json);
 int ari_validate_bridge_destroyed(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_bridge_destroyed().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_bridge_destroyed_fn(void);
+
+/*!
  * \brief Validator for BridgeMerged.
  *
  * Notification that one bridge has merged into another.
@@ -308,6 +429,13 @@ int ari_validate_bridge_destroyed(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_bridge_merged(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_bridge_merged().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_bridge_merged_fn(void);
 
 /*!
  * \brief Validator for ChannelCallerId.
@@ -321,6 +449,13 @@ int ari_validate_bridge_merged(struct ast_json *json);
 int ari_validate_channel_caller_id(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_channel_caller_id().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_caller_id_fn(void);
+
+/*!
  * \brief Validator for ChannelCreated.
  *
  * Notification that a channel has been created.
@@ -330,6 +465,13 @@ int ari_validate_channel_caller_id(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_channel_created(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_channel_created().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_created_fn(void);
 
 /*!
  * \brief Validator for ChannelDestroyed.
@@ -343,6 +485,13 @@ int ari_validate_channel_created(struct ast_json *json);
 int ari_validate_channel_destroyed(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_channel_destroyed().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_destroyed_fn(void);
+
+/*!
  * \brief Validator for ChannelDialplan.
  *
  * Channel changed location in the dialplan.
@@ -352,6 +501,13 @@ int ari_validate_channel_destroyed(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_channel_dialplan(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_channel_dialplan().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_dialplan_fn(void);
 
 /*!
  * \brief Validator for ChannelDtmfReceived.
@@ -367,6 +523,13 @@ int ari_validate_channel_dialplan(struct ast_json *json);
 int ari_validate_channel_dtmf_received(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_channel_dtmf_received().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_dtmf_received_fn(void);
+
+/*!
  * \brief Validator for ChannelEnteredBridge.
  *
  * Notification that a channel has entered a bridge.
@@ -376,6 +539,13 @@ int ari_validate_channel_dtmf_received(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_channel_entered_bridge(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_channel_entered_bridge().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_entered_bridge_fn(void);
 
 /*!
  * \brief Validator for ChannelHangupRequest.
@@ -389,6 +559,13 @@ int ari_validate_channel_entered_bridge(struct ast_json *json);
 int ari_validate_channel_hangup_request(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_channel_hangup_request().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_hangup_request_fn(void);
+
+/*!
  * \brief Validator for ChannelLeftBridge.
  *
  * Notification that a channel has left a bridge.
@@ -398,6 +575,13 @@ int ari_validate_channel_hangup_request(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_channel_left_bridge(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_channel_left_bridge().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_left_bridge_fn(void);
 
 /*!
  * \brief Validator for ChannelStateChange.
@@ -411,6 +595,13 @@ int ari_validate_channel_left_bridge(struct ast_json *json);
 int ari_validate_channel_state_change(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_channel_state_change().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_state_change_fn(void);
+
+/*!
  * \brief Validator for ChannelUserevent.
  *
  * User-generated event with additional user-defined fields in the object.
@@ -420,6 +611,13 @@ int ari_validate_channel_state_change(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_channel_userevent(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_channel_userevent().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_userevent_fn(void);
 
 /*!
  * \brief Validator for ChannelVarset.
@@ -433,6 +631,13 @@ int ari_validate_channel_userevent(struct ast_json *json);
 int ari_validate_channel_varset(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_channel_varset().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_channel_varset_fn(void);
+
+/*!
  * \brief Validator for Event.
  *
  * Base type for asynchronous events from Asterisk.
@@ -442,6 +647,13 @@ int ari_validate_channel_varset(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_event(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_event().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_event_fn(void);
 
 /*!
  * \brief Validator for PlaybackFinished.
@@ -455,6 +667,13 @@ int ari_validate_event(struct ast_json *json);
 int ari_validate_playback_finished(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_playback_finished().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_playback_finished_fn(void);
+
+/*!
  * \brief Validator for PlaybackStarted.
  *
  * Event showing the start of a media playback operation.
@@ -464,6 +683,13 @@ int ari_validate_playback_finished(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_playback_started(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_playback_started().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_playback_started_fn(void);
 
 /*!
  * \brief Validator for StasisEnd.
@@ -477,6 +703,13 @@ int ari_validate_playback_started(struct ast_json *json);
 int ari_validate_stasis_end(struct ast_json *json);
 
 /*!
+ * \brief Function pointer to ari_validate_stasis_end().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_stasis_end_fn(void);
+
+/*!
  * \brief Validator for StasisStart.
  *
  * Notification that a channel has entered a Stasis appliction.
@@ -486,6 +719,13 @@ int ari_validate_stasis_end(struct ast_json *json);
  * \returns False (zero) if invalid.
  */
 int ari_validate_stasis_start(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_stasis_start().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_stasis_start_fn(void);
 
 /*
  * JSON models

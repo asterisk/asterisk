@@ -76,7 +76,7 @@ static void stasis_http_get_endpoints_cb(
 	default:
 		if (200 <= code && code <= 299) {
 			is_valid = ari_validate_list(response->message,
-				ari_validate_endpoint);
+				ari_validate_endpoint_fn());
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /endpoints\n", code);
 			is_valid = 0;
@@ -126,7 +126,7 @@ static void stasis_http_get_endpoints_by_tech_cb(
 	default:
 		if (200 <= code && code <= 299) {
 			is_valid = ari_validate_list(response->message,
-				ari_validate_endpoint);
+				ari_validate_endpoint_fn());
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /endpoints/{tech}\n", code);
 			is_valid = 0;

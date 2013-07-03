@@ -52,6 +52,11 @@ int ari_validate_asterisk_info(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_asterisk_info_fn(void)
+{
+	return ari_validate_asterisk_info;
+}
+
 int ari_validate_endpoint(struct ast_json *json)
 {
 	int res = 1;
@@ -127,6 +132,11 @@ int ari_validate_endpoint(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_endpoint_fn(void)
+{
+	return ari_validate_endpoint;
+}
+
 int ari_validate_caller_id(struct ast_json *json)
 {
 	int res = 1;
@@ -174,6 +184,11 @@ int ari_validate_caller_id(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_caller_id_fn(void)
+{
+	return ari_validate_caller_id;
 }
 
 int ari_validate_channel(struct ast_json *json)
@@ -321,6 +336,11 @@ int ari_validate_channel(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_channel_fn(void)
+{
+	return ari_validate_channel;
+}
+
 int ari_validate_dialed(struct ast_json *json)
 {
 	int res = 1;
@@ -336,6 +356,11 @@ int ari_validate_dialed(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_dialed_fn(void)
+{
+	return ari_validate_dialed;
 }
 
 int ari_validate_dialplan_cep(struct ast_json *json)
@@ -401,6 +426,11 @@ int ari_validate_dialplan_cep(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_dialplan_cep_fn(void)
+{
+	return ari_validate_dialplan_cep;
 }
 
 int ari_validate_bridge(struct ast_json *json)
@@ -501,6 +531,11 @@ int ari_validate_bridge(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_bridge_fn(void)
+{
+	return ari_validate_bridge;
+}
+
 int ari_validate_live_recording(struct ast_json *json)
 {
 	int res = 1;
@@ -532,6 +567,11 @@ int ari_validate_live_recording(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_live_recording_fn(void)
+{
+	return ari_validate_live_recording;
 }
 
 int ari_validate_stored_recording(struct ast_json *json)
@@ -602,6 +642,11 @@ int ari_validate_stored_recording(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_stored_recording_fn(void)
+{
+	return ari_validate_stored_recording;
+}
+
 int ari_validate_format_lang_pair(struct ast_json *json)
 {
 	int res = 1;
@@ -649,6 +694,11 @@ int ari_validate_format_lang_pair(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_format_lang_pair_fn(void)
+{
+	return ari_validate_format_lang_pair;
 }
 
 int ari_validate_sound(struct ast_json *json)
@@ -708,6 +758,11 @@ int ari_validate_sound(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_sound_fn(void)
+{
+	return ari_validate_sound;
 }
 
 int ari_validate_playback(struct ast_json *json)
@@ -800,6 +855,11 @@ int ari_validate_playback(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_playback_fn(void)
+{
+	return ari_validate_playback;
+}
+
 int ari_validate_application_replaced(struct ast_json *json)
 {
 	int res = 1;
@@ -856,6 +916,11 @@ int ari_validate_application_replaced(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_application_replaced_fn(void)
+{
+	return ari_validate_application_replaced;
 }
 
 int ari_validate_bridge_created(struct ast_json *json)
@@ -932,6 +997,11 @@ int ari_validate_bridge_created(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_bridge_created_fn(void)
+{
+	return ari_validate_bridge_created;
+}
+
 int ari_validate_bridge_destroyed(struct ast_json *json)
 {
 	int res = 1;
@@ -1004,6 +1074,11 @@ int ari_validate_bridge_destroyed(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_bridge_destroyed_fn(void)
+{
+	return ari_validate_bridge_destroyed;
 }
 
 int ari_validate_bridge_merged(struct ast_json *json)
@@ -1094,6 +1169,11 @@ int ari_validate_bridge_merged(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_bridge_merged_fn(void)
+{
+	return ari_validate_bridge_merged;
 }
 
 int ari_validate_channel_caller_id(struct ast_json *json)
@@ -1202,6 +1282,11 @@ int ari_validate_channel_caller_id(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_channel_caller_id_fn(void)
+{
+	return ari_validate_channel_caller_id;
+}
+
 int ari_validate_channel_created(struct ast_json *json)
 {
 	int res = 1;
@@ -1274,6 +1359,11 @@ int ari_validate_channel_created(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_channel_created_fn(void)
+{
+	return ari_validate_channel_created;
 }
 
 int ari_validate_channel_destroyed(struct ast_json *json)
@@ -1382,6 +1472,11 @@ int ari_validate_channel_destroyed(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_channel_destroyed_fn(void)
+{
+	return ari_validate_channel_destroyed;
+}
+
 int ari_validate_channel_dialplan(struct ast_json *json)
 {
 	int res = 1;
@@ -1486,6 +1581,11 @@ int ari_validate_channel_dialplan(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_channel_dialplan_fn(void)
+{
+	return ari_validate_channel_dialplan;
 }
 
 int ari_validate_channel_dtmf_received(struct ast_json *json)
@@ -1594,6 +1694,11 @@ int ari_validate_channel_dtmf_received(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_channel_dtmf_received_fn(void)
+{
+	return ari_validate_channel_dtmf_received;
+}
+
 int ari_validate_channel_entered_bridge(struct ast_json *json)
 {
 	int res = 1;
@@ -1675,6 +1780,11 @@ int ari_validate_channel_entered_bridge(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_channel_entered_bridge_fn(void)
+{
+	return ari_validate_channel_entered_bridge;
 }
 
 int ari_validate_channel_hangup_request(struct ast_json *json)
@@ -1769,6 +1879,11 @@ int ari_validate_channel_hangup_request(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_channel_hangup_request_fn(void)
+{
+	return ari_validate_channel_hangup_request;
+}
+
 int ari_validate_channel_left_bridge(struct ast_json *json)
 {
 	int res = 1;
@@ -1859,6 +1974,11 @@ int ari_validate_channel_left_bridge(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_channel_left_bridge_fn(void)
+{
+	return ari_validate_channel_left_bridge;
+}
+
 int ari_validate_channel_state_change(struct ast_json *json)
 {
 	int res = 1;
@@ -1931,6 +2051,11 @@ int ari_validate_channel_state_change(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_channel_state_change_fn(void)
+{
+	return ari_validate_channel_state_change;
 }
 
 int ari_validate_channel_userevent(struct ast_json *json)
@@ -2021,6 +2146,11 @@ int ari_validate_channel_userevent(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_channel_userevent_fn(void)
+{
+	return ari_validate_channel_userevent;
 }
 
 int ari_validate_channel_varset(struct ast_json *json)
@@ -2120,6 +2250,11 @@ int ari_validate_channel_varset(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_channel_varset_fn(void)
+{
+	return ari_validate_channel_varset;
 }
 
 int ari_validate_event(struct ast_json *json)
@@ -2253,6 +2388,11 @@ int ari_validate_event(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_event_fn(void)
+{
+	return ari_validate_event;
+}
+
 int ari_validate_playback_finished(struct ast_json *json)
 {
 	int res = 1;
@@ -2325,6 +2465,11 @@ int ari_validate_playback_finished(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_playback_finished_fn(void)
+{
+	return ari_validate_playback_finished;
 }
 
 int ari_validate_playback_started(struct ast_json *json)
@@ -2401,6 +2546,11 @@ int ari_validate_playback_started(struct ast_json *json)
 	return res;
 }
 
+ari_validator ari_validate_playback_started_fn(void)
+{
+	return ari_validate_playback_started;
+}
+
 int ari_validate_stasis_end(struct ast_json *json)
 {
 	int res = 1;
@@ -2473,6 +2623,11 @@ int ari_validate_stasis_end(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_stasis_end_fn(void)
+{
+	return ari_validate_stasis_end;
 }
 
 int ari_validate_stasis_start(struct ast_json *json)
@@ -2564,4 +2719,9 @@ int ari_validate_stasis_start(struct ast_json *json)
 	}
 
 	return res;
+}
+
+ari_validator ari_validate_stasis_start_fn(void)
+{
+	return ari_validate_stasis_start;
 }

@@ -76,7 +76,7 @@ static void stasis_http_get_bridges_cb(
 	default:
 		if (200 <= code && code <= 299) {
 			is_valid = ari_validate_list(response->message,
-				ari_validate_bridge);
+				ari_validate_bridge_fn());
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /bridges\n", code);
 			is_valid = 0;
