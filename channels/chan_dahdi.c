@@ -15617,6 +15617,7 @@ static int dahdi_restart(void)
 	dahdi_softhangup_all();
 	ast_verb(4, "Final softhangup of all DAHDI channels complete.\n");
 	destroy_all_channels();
+	memset(round_robin, 0, sizeof(round_robin));
 	ast_debug(1, "Channels destroyed. Now re-reading config. %d active channels remaining.\n", ast_active_channels());
 
 	ast_mutex_unlock(&monlock);
