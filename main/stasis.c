@@ -642,24 +642,25 @@ int stasis_init(void)
 {
 	int cache_init;
 
-	/* XXX Should this be configurable? */
-	struct ast_threadpool_options opts = {
-		.version = AST_THREADPOOL_OPTIONS_VERSION,
-		.idle_timeout = 20,
-		.auto_increment = 1,
-		.initial_size = 0,
-		.max_size = 200
-	};
+	struct ast_threadpool_options opts;
 
 	/* Be sure the types are cleaned up after the message bus */
 	ast_register_cleanup(stasis_cleanup);
 	ast_register_atexit(stasis_exit);
+
+	if (stasis_config_init() != 0) {
+		ast_log(LOG_ERROR, "Stasis configuration failed\n");
+		return -1;
+	}
 
 	if (pool) {
 		ast_log(LOG_ERROR, "Stasis double-initialized\n");
 		return -1;
 	}
 
+	stasis_config_get_threadpool_options(&opts);
+	ast_debug(3, "Creating Stasis threadpool: initial_size = %d, max_size = %d, idle_timeout_secs = %d\n",
+		opts.initial_size, opts.max_size, opts.idle_timeout);
 	pool = ast_threadpool_create("stasis-core", NULL, &opts);
 	if (!pool) {
 		ast_log(LOG_ERROR, "Stasis threadpool allocation failed\n");

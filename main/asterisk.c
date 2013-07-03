@@ -4202,6 +4202,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+#ifdef AST_XML_DOCS
+	/* Load XML documentation. */
+	ast_xmldoc_load_documentation();
+#endif
+
+	aco_init();
+
 	if (stasis_init()) {
 		printf("Stasis initialization failed.\n%s", term_quit());
 		exit(1);
@@ -4260,13 +4267,6 @@ int main(int argc, char *argv[])
 		printf("%s", term_quit());
 		exit(1);
 	}
-
-#ifdef AST_XML_DOCS
-	/* Load XML documentation. */
-	ast_xmldoc_load_documentation();
-#endif
-
-	aco_init();
 
 	if (app_init()) {
 		printf("App core initialization failed.\n%s", term_quit());

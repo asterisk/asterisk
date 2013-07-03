@@ -809,21 +809,44 @@ void stasis_log_bad_type_access(const char *name);
 /*! @{ */
 
 /*!
- * \brief Initialize the Stasis subsystem
+ * \brief Initialize the Stasis subsystem.
  * \return 0 on success.
  * \return Non-zero on error.
  * \since 12
  */
 int stasis_init(void);
 
+/*! @} */
+
+/*! @{ */
+
 /*!
- * \private
+ * \internal
  * \brief called by stasis_init() for cache initialization.
  * \return 0 on success.
  * \return Non-zero on error.
  * \since 12
  */
 int stasis_cache_init(void);
+
+/*!
+ * \internal
+ * \brief called by stasis_init for config initialization.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ * \since 12
+ */
+int stasis_config_init(void);
+
+struct ast_threadpool_options;
+
+/*!
+ * \internal
+ * \brief Retrieves the Stasis threadpool configuration.
+ * \param[out] threadpool_options Filled with Stasis threadpool options.
+ */
+void stasis_config_get_threadpool_options(
+	struct ast_threadpool_options *threadpool_options);
 
 /*! @} */
 
