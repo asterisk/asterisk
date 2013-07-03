@@ -422,22 +422,6 @@ struct stasis_message_type *ast_channel_monitor_start_type(void);
 struct stasis_message_type *ast_channel_monitor_stop_type(void);
 
 /*!
- * \since 12.0.0
- * \brief Message type for agent login on a channel
- *
- * \retval A stasis message type
- */
-struct stasis_message_type *ast_channel_agent_login_type(void);
-
-/*!
- * \since 12.0.0
- * \brief Message type for agent logoff on a channel
- *
- * \retval A stasis message type
- */
-struct stasis_message_type *ast_channel_agent_logoff_type(void);
-
-/*!
  * \since 12
  * \brief Message type for starting music on hold on a channel
  *

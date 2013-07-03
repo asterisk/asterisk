@@ -461,7 +461,7 @@ enum aco_process_status {
 /*! \brief Process a config info via the options registered with an aco_info
  *
  * \param info The config_options_info to be used for handling the config
- * \param reload Non-zero if this is for a reload.
+ * \param reload Whether or not this is a reload
  *
  * \retval ACO_PROCESS_OK Success
  * \retval ACO_PROCESS_ERROR Failure

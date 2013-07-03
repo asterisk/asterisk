@@ -543,7 +543,18 @@ monitor-type = MixMonitor
 ;member => DAHDI/1
 ;member => DAHDI/2,10
 ;member => DAHDI/3,10,Bob Johnson
-;member => Local/1001@agents,0,May Flowers,Agent:1001
-;member => Local/1002@agents,0,John Doe,Agent:1002
+;member => Agent/1001
+;member => Agent/1002
 ;member => Local/1000@default,0,John Smith,SIP/1000
 ;member => Local/2000@default,0,Lorem Ipsum,SIP/2000,no
+
+;
+; Note that using agent groups is probably not what you want.  Strategies do
+; not propagate down to the Agent system so if you want round robin, least
+; recent, etc, you should list all the agents in this file individually and not
+; use agent groups.
+;
+;member => Agent/@1		; Any agent in group 1
+;member => Agent/:1,1		; Any agent in group 1, wait for first
+                                ; available, but consider with penalty
+

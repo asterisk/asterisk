@@ -598,12 +598,6 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 		return ACO_PROCESS_ERROR;
 	}
 
-/*
- * BUGBUG must fix config framework loading of multiple files.
- *
- * A reload with multiple files must reload all files if any
- * file has been touched.
- */
 	while (res != ACO_PROCESS_ERROR && (file = info->files[x++])) {
 		const char *filename = file->filename;
 try_alias:

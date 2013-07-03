@@ -1,68 +1,102 @@
 ;
-; Agent pool configuration
+; Agent configuration
 ;
 
 [general]
-; The general section of this config is not currently used, but reserved
-; for future use.
 
-;[agent-id]
-; Define ackcall to require the agent to give a DTMF acknowledgement
-; when the agent receives a call.
-; The channel variable AGENTACKCALL overrides on agent login.
-; Default is "no".
-;ackcall=no
+[agents]
 ;
-; Set what DTMF key sequence the agent should use to acknowledge a call.
-; The channel variable AGENTACCEPTDTMF overrides on agent login.
-; Default is "#".
-;acceptdtmf=##
+; Define maxlogintries to allow agent to try max logins before
+; failed.
+; default to 3
 ;
-; Set how many seconds a call for the agent has to wait for the agent to
-; acknowledge the call before the agent is automatically logged off.  If
-; set to zero then the call will wait forever for the agent to acknowledge.
-; The channel variable AGENTAUTOLOGOFF overrides on agent login.
-; Default is 0.
+;maxlogintries=5
+;
+;
+; Define autologoff times if appropriate.  This is how long
+; the phone has to ring with no answer before the agent is
+; automatically logged off (in seconds)
+;
 ;autologoff=15
 ;
-; Set the minimum amount of time after disconnecting a call before
-; the agent can receive a new call in milliseconds.
-; The channel variable AGENTWRAPUPTIME overrides on agent login.
-; Default is 0.
+; Define autologoffunavail to have agents automatically logged
+; out when the extension that they are at returns a CHANUNAVAIL
+; status when a call is attempted to be sent there.
+; Default is "no".
+;
+;autologoffunavail=yes
+;
+; Define ackcall to require a DTMF acknowledgement when
+; a logged-in agent receives a call.  Default is "no".
+; Use the acceptdtmf option to configure what DTMF key
+; press should be used to acknowledge the call. The
+; default is '#'.
+;
+;ackcall=no
+;acceptdtmf=#
+;
+; Define endcall to allow an agent to hangup a call with a
+; DTMF keypress. Default is "yes". Use the enddtmf option to
+; configure which DTMF key will end a call. The default is
+; '*'.
+;
+;endcall=yes
+;enddtmf=*
+;
+; Define wrapuptime.  This is the minimum amount of time when
+; after disconnecting before the caller can receive a new call
+; note this is in milliseconds.
+;
 ;wrapuptime=5000
 ;
-; Set the musiconhold class for the agent.
-; Default is "default".
-;musiconhold=default
+; Define the default musiconhold for agents
+; musiconhold => music_class
 ;
-; Enable recording calls the agent takes automatically by invoking the
-; DTMF automixmon feature when the agent connects to a caller.
-; See features.conf.sample for information about the automixmon feature.
-; Default is "no".
+;musiconhold => default
+;
+; Define the default good bye sound file for agents
+; default to vm-goodbye
+;
+;goodbye => goodbye_file
+;
+; Define updatecdr. This is whether or not to change the source
+; channel in the CDR record for this call to agent/agent_id so
+; that we know which agent generates the call
+;
+;updatecdr=no
+;
+; Group memberships for agents (may change in mid-file)
+;
+;group=3
+;group=1,2
+;group=
+;
+; --------------------------------------------------
+; This section is devoted to recording agent's calls
+; The keywords are global to the chan_agent channel driver
+;
+; Enable recording calls addressed to agents. It's turned off by default.
 ;recordagentcalls=yes
 ;
-; The sound file played to alert the agent when a call is present.
-; Default is "beep".
-;custom_beep=beep
+; The format to be used to record the calls: wav, gsm, wav49.
+; By default its "wav".
+;recordformat=gsm
 ;
-; A friendly name for the agent used in log messages.
-; Default is "".
-;fullname=Mark Spencer
+; The text to be added to the name of the recording. Allows forming a url link.
+;urlprefix=http://localhost/calls/
+;
+; The optional directory to save the conversations in. The default is
+; /var/spool/asterisk/monitor
+;savecallsin=/var/calls
+;
+; An optional custom beep sound file to play to always-connected agents.
+;custom_beep=beep
 ;
 ; --------------------------------------------------
 ;
-; This section contains example agent definitions:
+; This section contains the agent definitions, in the form:
 ;
-; Define a template called my-agents:
-;[my-agents](!)
-;autologoff=15
-;ackcall=yes
-;acceptdtmf=##
+; agent => agentid,agentpassword,name
 ;
-; Define agent 1001 using the my-agents template:
-;[1001](my-agents)
-;fullname=Mark Spencer
-;
-; Define agent 1002 using the my-agents template:
-;[1002](my-agents)
-;fullname=Will Meadows
+;agent => 1001,4321,Mark Spencer
+;agent => 1002,4321,Will Meadows
