@@ -53,6 +53,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="AgentLogin">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when an Agent has logged in.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Agent">
+					<para>The name of the agent.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">AgentLogin</ref>
+				<ref type="managerEvent">Agentlogoff</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AgentLogoff">
+		<managerEventInstance class="EVENT_FLAG_AGENT">
+			<synopsis>Raised when an Agent has logged off.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AgentLogin']/managerEventInstance/syntax/parameter)" />
+				<parameter name="Logintime">
+					<para>The number of seconds the agent was logged in.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">AgentLogin</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 ***/
 
 #define NUM_MULTI_CHANNEL_BLOB_BUCKETS 7
@@ -590,6 +619,44 @@ static struct ast_manager_event_blob *varset_to_ami(struct stasis_message *msg)
 		ast_str_buffer(channel_event_string), variable, value);
 }
 
+static struct ast_manager_event_blob *agent_login_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, party_string, ast_str_create(256), ast_free);
+	struct ast_channel_blob *obj = stasis_message_data(msg);
+	const char *agent = ast_json_string_get(ast_json_object_get(obj->blob, "agent"));
+
+	channel_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_string) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_AGENT, "AgentLogin",
+		"%s"
+		"Agent: %s\r\n",
+		ast_str_buffer(channel_string), agent);
+}
+
+static struct ast_manager_event_blob *agent_logoff_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, party_string, ast_str_create(256), ast_free);
+	struct ast_channel_blob *obj = stasis_message_data(msg);
+	const char *agent = ast_json_string_get(ast_json_object_get(obj->blob, "agent"));
+	long logintime = ast_json_integer_get(ast_json_object_get(obj->blob, "logintime"));
+
+	channel_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_string) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_AGENT, "AgentLogoff",
+		"%s"
+		"Agent: %s\r\n"
+		"Logintime: %ld\r\n",
+		ast_str_buffer(channel_string), agent, logintime);
+}
+
 void ast_publish_channel_state(struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
@@ -790,6 +857,12 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_start_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_moh_stop_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_start_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_monitor_stop_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_agent_login_type,
+	.to_ami = agent_login_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_agent_logoff_type,
+	.to_ami = agent_logoff_to_ami,
+	);
 
 /*! @} */
 
@@ -816,6 +889,8 @@ static void stasis_channels_cleanup(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_moh_stop_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_monitor_start_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_monitor_stop_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_agent_login_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_agent_logoff_type);
 }
 
 void ast_stasis_channels_init(void)
@@ -839,6 +914,8 @@ void ast_stasis_channels_init(void)
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_moh_stop_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_start_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_channel_monitor_stop_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_login_type);
+	STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_logoff_type);
 
 	channel_topic_all = stasis_topic_create("ast_channel_topic_all");
 	channel_topic_all_cached = stasis_caching_topic_create(channel_topic_all, channel_snapshot_get_id);

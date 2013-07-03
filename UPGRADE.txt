@@ -24,6 +24,8 @@
 AgentMonitorOutgoing
  - The 'c' option has been removed. It is not possible to modify the name of a
    channel involved in a CDR.
+ - Application removed.  It was a holdover from when AgentCallbackLogin was
+   removed.
 
 NoCDR:
  - This application is deprecated. Please use the CDR_PROP function instead.
@@ -124,6 +126,15 @@ chan_agent:
    and pretending otherwise helps no one.
  - The AGENTUPDATECDR channel variable has also been removed, for the same
    reason as the updatecdr option.
+ - chan_agent is removed and replaced with AgentLogin and AgentRequest dialplan
+   applications.  Agents are connected with callers using the new AgentRequest
+   dialplan application.  The Agents:<agent-id> device state is available to
+   monitor the status of an agent.  See agents.conf.sample for valid
+   configuration options.
+
+chan_bridge
+ - chan_bridge is removed and its functionality is incorporated into ConfBridge
+   itself.
 
 chan_dahdi:
  - Analog port dialing and deferred DTMF dialing for PRI now distinguishes
