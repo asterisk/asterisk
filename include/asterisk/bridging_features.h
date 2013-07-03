@@ -267,6 +267,25 @@ struct ast_bridge_features_attended_transfer {
 	char complete[MAXIMUM_DTMF_FEATURE_STRING];
 };
 
+enum ast_bridge_features_monitor {
+	/*! Toggle start/stop of Monitor/MixMonitor. */
+	AUTO_MONITOR_TOGGLE,
+	/*! Start Monitor/MixMonitor if not already started. */
+	AUTO_MONITOR_START,
+	/*! Stop Monitor/MixMonitor if not already stopped. */
+	AUTO_MONITOR_STOP,
+};
+
+struct ast_bridge_features_automonitor {
+	/*! Start/Stop behavior. */
+	enum ast_bridge_features_monitor start_stop;
+};
+
+struct ast_bridge_features_automixmonitor {
+	/*! Start/Stop behavior. */
+	enum ast_bridge_features_monitor start_stop;
+};
+
 /*!
  * \brief Structure that contains configuration information for the limits feature
  */
@@ -328,6 +347,26 @@ int ast_bridge_features_register(enum ast_bridge_builtin_feature feature, ast_br
  * This unregisters the function that is handling the built in attended transfer feature.
  */
 int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
+
+/*!
+ * \brief Invoke a built in feature hook now.
+ *
+ * \param feature The feature to invoke
+ *
+ * \note This API call is only meant to be used by bridge
+ * subclasses and hook callbacks to request a builtin feature
+ * hook to be executed.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ *
+ * Example usage:
+ *
+ * \code
+ * ast_bridge_features_do(AST_BRIDGE_BUILTIN_ATTENDED_TRANSFER, bridge, bridge_channel, hook_pvt);
+ * \endcode
+ */
+int ast_bridge_features_do(enum ast_bridge_builtin_feature feature, struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt);
 
 /*!
  * \brief Attach interval hooks to a bridge features structure

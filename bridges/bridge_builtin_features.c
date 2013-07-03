@@ -466,15 +466,57 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	return 0;
 }
 
-static void stop_automonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg)
+enum set_touch_variables_res {
+	SET_TOUCH_SUCCESS,
+	SET_TOUCH_UNSET,
+	SET_TOUCH_ALLOC_FAILURE,
+};
+
+static void set_touch_variable(enum set_touch_variables_res *res, struct ast_channel *chan, const char *var_name, char **touch)
 {
-	const char *stop_message;
+	const char *c_touch;
 
-	ast_channel_lock(bridge_channel->chan);
-	stop_message = pbx_builtin_getvar_helper(bridge_channel->chan, "TOUCH_MONITOR_MESSAGE_STOP");
-	stop_message = ast_strdupa(S_OR(stop_message, ""));
-	ast_channel_unlock(bridge_channel->chan);
+	if (*res == SET_TOUCH_ALLOC_FAILURE) {
+		return;
+	}
+	c_touch = pbx_builtin_getvar_helper(chan, var_name);
+	if (!ast_strlen_zero(c_touch)) {
+		*touch = ast_strdup(c_touch);
+		if (!*touch) {
+			*res = SET_TOUCH_ALLOC_FAILURE;
+		} else {
+			*res = SET_TOUCH_SUCCESS;
+		}
+	}
+}
 
+static enum set_touch_variables_res set_touch_variables(struct ast_channel *chan, int is_mixmonitor, char **touch_format, char **touch_monitor, char **touch_monitor_prefix)
+{
+	enum set_touch_variables_res res = SET_TOUCH_UNSET;
+	const char *var_format;
+	const char *var_monitor;
+	const char *var_prefix;
+
+	SCOPED_CHANNELLOCK(lock, chan);
+
+	if (is_mixmonitor) {
+		var_format = "TOUCH_MIXMONITOR_FORMAT";
+		var_monitor = "TOUCH_MIXMONITOR";
+		var_prefix = "TOUCH_MIXMONITOR_PREFIX";
+	} else {
+		var_format = "TOUCH_MONITOR_FORMAT";
+		var_monitor = "TOUCH_MONITOR";
+		var_prefix = "TOUCH_MONITOR_PREFIX";
+	}
+	set_touch_variable(&res, chan, var_format, touch_format);
+	set_touch_variable(&res, chan, var_monitor, touch_monitor);
+	set_touch_variable(&res, chan, var_prefix, touch_monitor_prefix);
+
+	return res;
+}
+
+static void stop_automonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg, const char *stop_message)
+{
 	ast_verb(3, "AutoMonitor used to stop recording call.\n");
 
 	ast_channel_lock(peer_chan);
@@ -506,54 +548,10 @@ static void stop_automonitor(struct ast_bridge_channel *bridge_channel, struct a
 	}
 }
 
-enum set_touch_variables_res {
-	SET_TOUCH_SUCCESS = 0,
-	SET_TOUCH_UNSET,
-	SET_TOUCH_ALLOC_FAILURE,
-};
-
-static int set_touch_variables(struct ast_channel *chan, int is_mixmonitor, char **touch_format, char **touch_monitor, char **touch_monitor_prefix)
+static void start_automonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg, const char *start_message)
 {
-	enum set_touch_variables_res res = SET_TOUCH_UNSET;
-	const char *c_touch_format, *c_touch_monitor, *c_touch_monitor_prefix;
-
-	SCOPED_CHANNELLOCK(lock, chan);
-
-	c_touch_format = pbx_builtin_getvar_helper(chan, is_mixmonitor ? "TOUCH_MIXMONITOR_FORMAT" : "TOUCH_MONITOR_FORMAT");
-
-	if (!ast_strlen_zero(c_touch_format)) {
-		if (!(*touch_format = ast_strdup(c_touch_format))) {
-			return SET_TOUCH_ALLOC_FAILURE;
-		}
-		res = SET_TOUCH_SUCCESS;
-	}
-
-	c_touch_monitor = pbx_builtin_getvar_helper(chan, is_mixmonitor ? "TOUCH_MIXMONITOR" : "TOUCH_MONITOR");
-
-	if (!ast_strlen_zero(c_touch_monitor)) {
-		if (!(*touch_monitor = ast_strdup(c_touch_monitor))) {
-			return SET_TOUCH_ALLOC_FAILURE;
-		}
-		res = SET_TOUCH_SUCCESS;
-	}
-
-	c_touch_monitor_prefix = pbx_builtin_getvar_helper(chan, is_mixmonitor ? "TOUCH_MIXMONITOR_PREFIX" : "TOUCH_MONITOR_PREFIX");
-
-	if (!ast_strlen_zero(c_touch_monitor_prefix)) {
-		if (!(*touch_monitor_prefix = ast_strdup(c_touch_monitor_prefix))) {
-			return SET_TOUCH_ALLOC_FAILURE;
-		}
-		res = SET_TOUCH_SUCCESS;
-	}
-
-	return res;
-}
-
-static int feature_automonitor(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
-{
-	char *caller_chan_id = NULL, *peer_chan_id = NULL, *touch_filename = NULL;
+	char *touch_filename;
 	size_t len;
-	const char *automon_message;
 	int x;
 	enum set_touch_variables_res set_touch_res;
 
@@ -561,49 +559,47 @@ static int feature_automonitor(struct ast_bridge *bridge, struct ast_bridge_chan
 	RAII_VAR(char *, touch_monitor, NULL, ast_free);
 	RAII_VAR(char *, touch_monitor_prefix, NULL, ast_free);
 
-	RAII_VAR(struct ast_channel *, peer_chan, NULL, ast_channel_cleanup);
-	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
-
-	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
-	peer_chan = ast_bridge_peer(bridge, bridge_channel->chan);
-
-	if (!peer_chan) {
-		ast_verb(3, "Cannot start AutoMonitor for %s - can not determine peer in bridge.\n", ast_channel_name(bridge_channel->chan));
-		if (features_cfg && !(ast_strlen_zero(features_cfg->recordingfailsound))) {
-			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
-		}
-		return 0;
-	}
-
-	if (ast_channel_monitor(peer_chan)) {
-		stop_automonitor(bridge_channel, peer_chan, features_cfg);
-		return 0;
-	}
-
-	if ((set_touch_res = set_touch_variables(bridge_channel->chan, 0, &touch_format, &touch_monitor, &touch_monitor_prefix))) {
+	set_touch_res = set_touch_variables(bridge_channel->chan, 0, &touch_format,
+		&touch_monitor, &touch_monitor_prefix);
+	switch (set_touch_res) {
+	case SET_TOUCH_SUCCESS:
+		break;
+	case SET_TOUCH_UNSET:
+		set_touch_res = set_touch_variables(peer_chan, 0, &touch_format, &touch_monitor,
+			&touch_monitor_prefix);
 		if (set_touch_res == SET_TOUCH_ALLOC_FAILURE) {
-			return 0;
+			return;
 		}
-		if (set_touch_variables(peer_chan, 0, &touch_format, &touch_monitor, &touch_monitor_prefix) == SET_TOUCH_ALLOC_FAILURE) {
-			return 0;
-		}
+		break;
+	case SET_TOUCH_ALLOC_FAILURE:
+		return;
 	}
 
 	if (!ast_strlen_zero(touch_monitor)) {
 		len = strlen(touch_monitor) + 50;
 		touch_filename = ast_alloca(len);
-		snprintf(touch_filename, len, "%s-%ld-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor);
+		snprintf(touch_filename, len, "%s-%ld-%s",
+			S_OR(touch_monitor_prefix, "auto"),
+			(long) time(NULL),
+			touch_monitor);
 	} else {
+		char *caller_chan_id;
+		char *peer_chan_id;
+
 		caller_chan_id = ast_strdupa(S_COR(ast_channel_caller(bridge_channel->chan)->id.number.valid,
 			ast_channel_caller(bridge_channel->chan)->id.number.str, ast_channel_name(bridge_channel->chan)));
 		peer_chan_id = ast_strdupa(S_COR(ast_channel_caller(peer_chan)->id.number.valid,
 			ast_channel_caller(peer_chan)->id.number.str, ast_channel_name(peer_chan)));
 		len = strlen(caller_chan_id) + strlen(peer_chan_id) + 50;
 		touch_filename = ast_alloca(len);
-		snprintf(touch_filename, len, "%s-%ld-%s-%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), caller_chan_id, peer_chan_id);
+		snprintf(touch_filename, len, "%s-%ld-%s-%s",
+			S_OR(touch_monitor_prefix, "auto"),
+			(long) time(NULL),
+			caller_chan_id,
+			peer_chan_id);
 	}
 
-	for ( x = 0; x < strlen(touch_filename); x++) {
+	for (x = 0; x < strlen(touch_filename); x++) {
 		if (touch_filename[x] == '/') {
 			touch_filename[x] = '-';
 		}
@@ -612,40 +608,102 @@ static int feature_automonitor(struct ast_bridge *bridge, struct ast_bridge_chan
 	ast_verb(3, "AutoMonitor used to record call. Filename: %s\n", touch_filename);
 
 	if (ast_monitor_start(peer_chan, touch_format, touch_filename, 1, X_REC_IN | X_REC_OUT)) {
-		ast_verb(3, "automon feature was tried by '%s' but monitor failed to start.\n", ast_channel_name(bridge_channel->chan));
-		return 0;
+		ast_verb(3, "automon feature was tried by '%s' but monitor failed to start.\n",
+			ast_channel_name(bridge_channel->chan));
+		return;
 	}
 
-	ast_channel_lock(bridge_channel->chan);
-	if ((automon_message = pbx_builtin_getvar_helper(bridge_channel->chan, "TOUCH_MONITOR_MESSAGE_START"))) {
-		automon_message = ast_strdupa(automon_message);
-	}
-	ast_channel_unlock(bridge_channel->chan);
-
-	if ((features_cfg = ast_get_chan_features_general_config(bridge_channel->chan)) && !(ast_strlen_zero(features_cfg->courtesytone))) {
+	if (features_cfg && !ast_strlen_zero(features_cfg->courtesytone)) {
 		ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
 		ast_bridge_channel_write_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
 	}
 
-	if (!ast_strlen_zero(automon_message)) {
-		ast_bridge_channel_queue_playfile(bridge_channel, NULL, automon_message, NULL);
-		ast_bridge_channel_write_playfile(bridge_channel, NULL, automon_message, NULL);
+	if (!ast_strlen_zero(start_message)) {
+		ast_bridge_channel_queue_playfile(bridge_channel, NULL, start_message, NULL);
+		ast_bridge_channel_write_playfile(bridge_channel, NULL, start_message, NULL);
 	}
 
 	pbx_builtin_setvar_helper(peer_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
-
-	return 0;
 }
 
-static void stop_automixmonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg)
+static int feature_automonitor(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
+	const char *start_message;
 	const char *stop_message;
+	struct ast_bridge_features_automonitor *options = hook_pvt;
+	enum ast_bridge_features_monitor start_stop = options ? options->start_stop : AUTO_MONITOR_TOGGLE;
+	int is_monitoring;
+
+	RAII_VAR(struct ast_channel *, peer_chan, NULL, ast_channel_cleanup);
+	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
+
+	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
+	peer_chan = ast_bridge_peer(bridge, bridge_channel->chan);
+
+	if (!peer_chan) {
+		ast_verb(3, "Cannot start AutoMonitor for %s - can not determine peer in bridge.\n",
+			ast_channel_name(bridge_channel->chan));
+		if (features_cfg && !ast_strlen_zero(features_cfg->recordingfailsound)) {
+			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
+		}
+		return 0;
+	}
 
 	ast_channel_lock(bridge_channel->chan);
-	stop_message = pbx_builtin_getvar_helper(bridge_channel->chan, "TOUCH_MIXMONITOR_MESSAGE_STOP");
+	start_message = pbx_builtin_getvar_helper(bridge_channel->chan,
+		"TOUCH_MONITOR_MESSAGE_START");
+	start_message = ast_strdupa(S_OR(start_message, ""));
+	stop_message = pbx_builtin_getvar_helper(bridge_channel->chan,
+		"TOUCH_MONITOR_MESSAGE_STOP");
 	stop_message = ast_strdupa(S_OR(stop_message, ""));
 	ast_channel_unlock(bridge_channel->chan);
 
+	is_monitoring = ast_channel_monitor(peer_chan) != NULL;
+	switch (start_stop) {
+	case AUTO_MONITOR_TOGGLE:
+		if (is_monitoring) {
+			stop_automonitor(bridge_channel, peer_chan, features_cfg, stop_message);
+		} else {
+			start_automonitor(bridge_channel, peer_chan, features_cfg, start_message);
+		}
+		return 0;
+	case AUTO_MONITOR_START:
+		if (!is_monitoring) {
+			start_automonitor(bridge_channel, peer_chan, features_cfg, start_message);
+			return 0;
+		}
+		ast_verb(3, "AutoMonitor already recording call.\n");
+		break;
+	case AUTO_MONITOR_STOP:
+		if (is_monitoring) {
+			stop_automonitor(bridge_channel, peer_chan, features_cfg, stop_message);
+			return 0;
+		}
+		ast_verb(3, "AutoMonitor already not recording call.\n");
+		break;
+	}
+
+	/*
+	 * Fake start/stop to invoker so will think it did something but
+	 * was already in that mode.
+	 */
+	if (features_cfg && !ast_strlen_zero(features_cfg->courtesytone)) {
+		ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
+	}
+	if (is_monitoring) {
+		if (!ast_strlen_zero(start_message)) {
+			ast_bridge_channel_queue_playfile(bridge_channel, NULL, start_message, NULL);
+		}
+	} else {
+		if (!ast_strlen_zero(stop_message)) {
+			ast_bridge_channel_queue_playfile(bridge_channel, NULL, stop_message, NULL);
+		}
+	}
+	return 0;
+}
+
+static void stop_automixmonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg, const char *stop_message)
+{
 	ast_verb(3, "AutoMixMonitor used to stop recording call.\n");
 
 	if (ast_stop_mixmonitor(peer_chan, NULL)) {
@@ -656,7 +714,7 @@ static void stop_automixmonitor(struct ast_bridge_channel *bridge_channel, struc
 		return;
 	}
 
-	if (features_cfg && !(ast_strlen_zero(features_cfg->courtesytone))) {
+	if (features_cfg && !ast_strlen_zero(features_cfg->courtesytone)) {
 		ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
 		ast_bridge_channel_write_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
 	}
@@ -665,67 +723,62 @@ static void stop_automixmonitor(struct ast_bridge_channel *bridge_channel, struc
 		ast_bridge_channel_queue_playfile(bridge_channel, NULL, stop_message, NULL);
 		ast_bridge_channel_write_playfile(bridge_channel, NULL, stop_message, NULL);
 	}
-
 }
 
-static int feature_automixmonitor(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg, const char *start_message)
 {
-	char *caller_chan_id = NULL, *peer_chan_id = NULL, *touch_filename = NULL;
+	char *touch_filename;
 	size_t len;
-	const char *automon_message;
-	static char *mixmonitor_spy_type = "MixMonitor";
-	int count, x;
+	int x;
 	enum set_touch_variables_res set_touch_res;
 
 	RAII_VAR(char *, touch_format, NULL, ast_free);
 	RAII_VAR(char *, touch_monitor, NULL, ast_free);
 	RAII_VAR(char *, touch_monitor_prefix, NULL, ast_free);
 
-	RAII_VAR(struct ast_channel *, peer_chan, NULL, ast_channel_cleanup);
-	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
-
-	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
-
-	peer_chan = ast_bridge_peer(bridge, bridge_channel->chan);
-
-	if (!peer_chan) {
-		ast_verb(3, "Cannot start AutoMixMonitor for %s - can not determine peer in bridge.\n", ast_channel_name(bridge_channel->chan));
-		if (features_cfg && !(ast_strlen_zero(features_cfg->recordingfailsound))) {
-			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
-		}
-		return 0;
-	}
-
-	count = ast_channel_audiohook_count_by_source(peer_chan, mixmonitor_spy_type, AST_AUDIOHOOK_TYPE_SPY);
-	if (count > 0) {
-		stop_automixmonitor(bridge_channel, peer_chan, features_cfg);
-		return 0;
-	}
-
-	if ((set_touch_res = set_touch_variables(bridge_channel->chan, 1, &touch_format, &touch_monitor, &touch_monitor_prefix))) {
+	set_touch_res = set_touch_variables(bridge_channel->chan, 1, &touch_format,
+		&touch_monitor, &touch_monitor_prefix);
+	switch (set_touch_res) {
+	case SET_TOUCH_SUCCESS:
+		break;
+	case SET_TOUCH_UNSET:
+		set_touch_res = set_touch_variables(peer_chan, 1, &touch_format, &touch_monitor,
+			&touch_monitor_prefix);
 		if (set_touch_res == SET_TOUCH_ALLOC_FAILURE) {
-			return 0;
+			return;
 		}
-		if (set_touch_variables(peer_chan, 1, &touch_format, &touch_monitor, &touch_monitor_prefix) == SET_TOUCH_ALLOC_FAILURE) {
-			return 0;
-		}
+		break;
+	case SET_TOUCH_ALLOC_FAILURE:
+		return;
 	}
 
 	if (!ast_strlen_zero(touch_monitor)) {
 		len = strlen(touch_monitor) + 50;
 		touch_filename = ast_alloca(len);
-		snprintf(touch_filename, len, "%s-%ld-%s.%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), touch_monitor, S_OR(touch_format, "wav"));
+		snprintf(touch_filename, len, "%s-%ld-%s.%s",
+			S_OR(touch_monitor_prefix, "auto"),
+			(long) time(NULL),
+			touch_monitor,
+			S_OR(touch_format, "wav"));
 	} else {
+		char *caller_chan_id;
+		char *peer_chan_id;
+
 		caller_chan_id = ast_strdupa(S_COR(ast_channel_caller(bridge_channel->chan)->id.number.valid,
 			ast_channel_caller(bridge_channel->chan)->id.number.str, ast_channel_name(bridge_channel->chan)));
 		peer_chan_id = ast_strdupa(S_COR(ast_channel_caller(peer_chan)->id.number.valid,
 			ast_channel_caller(peer_chan)->id.number.str, ast_channel_name(peer_chan)));
 		len = strlen(caller_chan_id) + strlen(peer_chan_id) + 50;
 		touch_filename = ast_alloca(len);
-		snprintf(touch_filename, len, "%s-%ld-%s-%s.%s", S_OR(touch_monitor_prefix, "auto"), (long)time(NULL), caller_chan_id, peer_chan_id, S_OR(touch_format, "wav"));
+		snprintf(touch_filename, len, "%s-%ld-%s-%s.%s",
+			S_OR(touch_monitor_prefix, "auto"),
+			(long) time(NULL),
+			caller_chan_id,
+			peer_chan_id,
+			S_OR(touch_format, "wav"));
 	}
 
-	for ( x = 0; x < strlen(touch_filename); x++) {
+	for (x = 0; x < strlen(touch_filename); x++) {
 		if (touch_filename[x] == '/') {
 			touch_filename[x] = '-';
 		}
@@ -734,33 +787,103 @@ static int feature_automixmonitor(struct ast_bridge *bridge, struct ast_bridge_c
 	ast_verb(3, "AutoMixMonitor used to record call. Filename: %s\n", touch_filename);
 
 	if (ast_start_mixmonitor(peer_chan, touch_filename, "b")) {
-		ast_verb(3, "automixmon feature was tried by '%s' but mixmonitor failed to start.\n", ast_channel_name(bridge_channel->chan));
+		ast_verb(3, "automixmon feature was tried by '%s' but mixmonitor failed to start.\n",
+			ast_channel_name(bridge_channel->chan));
 
 		if (features_cfg && !ast_strlen_zero(features_cfg->recordingfailsound)) {
 			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
 		}
-
-		return 0;
+		return;
 	}
 
-	ast_channel_lock(bridge_channel->chan);
-	if ((automon_message = pbx_builtin_getvar_helper(bridge_channel->chan, "TOUCH_MIXMONITOR_MESSAGE_START"))) {
-		automon_message = ast_strdupa(automon_message);
-	}
-	ast_channel_unlock(bridge_channel->chan);
-
-	if ((features_cfg = ast_get_chan_features_general_config(bridge_channel->chan)) && !(ast_strlen_zero(features_cfg->courtesytone))) {
+	if (features_cfg && !ast_strlen_zero(features_cfg->courtesytone)) {
 		ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
 		ast_bridge_channel_write_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
 	}
 
-	if (!ast_strlen_zero(automon_message)) {
-		ast_bridge_channel_queue_playfile(bridge_channel, NULL, automon_message, NULL);
-		ast_bridge_channel_write_playfile(bridge_channel, NULL, automon_message, NULL);
+	if (!ast_strlen_zero(start_message)) {
+		ast_bridge_channel_queue_playfile(bridge_channel, NULL, start_message, NULL);
+		ast_bridge_channel_write_playfile(bridge_channel, NULL, start_message, NULL);
 	}
 
 	pbx_builtin_setvar_helper(peer_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
+}
 
+static int feature_automixmonitor(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	static const char *mixmonitor_spy_type = "MixMonitor";
+	const char *stop_message;
+	const char *start_message;
+	struct ast_bridge_features_automixmonitor *options = hook_pvt;
+	enum ast_bridge_features_monitor start_stop = options ? options->start_stop : AUTO_MONITOR_TOGGLE;
+	int is_monitoring;
+
+	RAII_VAR(struct ast_channel *, peer_chan, NULL, ast_channel_cleanup);
+	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
+
+	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
+	peer_chan = ast_bridge_peer(bridge, bridge_channel->chan);
+
+	if (!peer_chan) {
+		ast_verb(3, "Cannot do AutoMixMonitor for %s - cannot determine peer in bridge.\n",
+			ast_channel_name(bridge_channel->chan));
+		if (features_cfg && !ast_strlen_zero(features_cfg->recordingfailsound)) {
+			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
+		}
+		return 0;
+	}
+
+	ast_channel_lock(bridge_channel->chan);
+	start_message = pbx_builtin_getvar_helper(bridge_channel->chan,
+		"TOUCH_MIXMONITOR_MESSAGE_START");
+	start_message = ast_strdupa(S_OR(start_message, ""));
+	stop_message = pbx_builtin_getvar_helper(bridge_channel->chan,
+		"TOUCH_MIXMONITOR_MESSAGE_STOP");
+	stop_message = ast_strdupa(S_OR(stop_message, ""));
+	ast_channel_unlock(bridge_channel->chan);
+
+	is_monitoring =
+		0 < ast_channel_audiohook_count_by_source(peer_chan, mixmonitor_spy_type, AST_AUDIOHOOK_TYPE_SPY);
+	switch (start_stop) {
+	case AUTO_MONITOR_TOGGLE:
+		if (is_monitoring) {
+			stop_automixmonitor(bridge_channel, peer_chan, features_cfg, stop_message);
+		} else {
+			start_automixmonitor(bridge_channel, peer_chan, features_cfg, start_message);
+		}
+		return 0;
+	case AUTO_MONITOR_START:
+		if (!is_monitoring) {
+			start_automixmonitor(bridge_channel, peer_chan, features_cfg, start_message);
+			return 0;
+		}
+		ast_verb(3, "AutoMixMonitor already recording call.\n");
+		break;
+	case AUTO_MONITOR_STOP:
+		if (is_monitoring) {
+			stop_automixmonitor(bridge_channel, peer_chan, features_cfg, stop_message);
+			return 0;
+		}
+		ast_verb(3, "AutoMixMonitor already not recording call.\n");
+		break;
+	}
+
+	/*
+	 * Fake start/stop to invoker so will think it did something but
+	 * was already in that mode.
+	 */
+	if (features_cfg && !ast_strlen_zero(features_cfg->courtesytone)) {
+		ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->courtesytone, NULL);
+	}
+	if (is_monitoring) {
+		if (!ast_strlen_zero(start_message)) {
+			ast_bridge_channel_queue_playfile(bridge_channel, NULL, start_message, NULL);
+		}
+	} else {
+		if (!ast_strlen_zero(stop_message)) {
+			ast_bridge_channel_queue_playfile(bridge_channel, NULL, stop_message, NULL);
+		}
+	}
 	return 0;
 }
 
