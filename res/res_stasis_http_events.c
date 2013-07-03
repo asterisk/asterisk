@@ -44,6 +44,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_events.h"
+#if defined(AST_DEVMODE)
+#include "stasis_http/ari_model_validators.h"
+#endif
 
 static void stasis_http_event_websocket_ws_cb(struct ast_websocket *ws_session,
 	struct ast_variable *get_params, struct ast_variable *headers)
@@ -59,7 +62,12 @@ static void stasis_http_event_websocket_ws_cb(struct ast_websocket *ws_session,
 		} else
 		{}
 	}
-	session = ari_websocket_session_create(ws_session);
+#if defined(AST_DEVMODE)
+	session = ari_websocket_session_create(ws_session,
+		ari_validate_event);
+#else
+	session = ari_websocket_session_create(ws_session, NULL);
+#endif
 	if (!session) {
 		ast_log(LOG_ERROR, "Failed to create ARI session\n");
 		return;

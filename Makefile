@@ -416,6 +416,7 @@ _clean:
 	rm -f main/version.c
 	rm -f doc/core-en_US.xml
 	rm -f doc/full-en_US.xml
+	rm -f docs/rest-api/*.wiki
 	@$(MAKE) -C menuselect clean
 	cp -f .cleancount .lastclean
 
@@ -963,15 +964,15 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 
 # We don't want to require Python or Pystache for every build, so this is its
 # own target.
-stasis-stubs:
+ari-stubs:
 ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
-	@echo "---        Please install python to build Stasis HTTP stubs            ---"
+	@echo "---        Please install python to build ARI stubs            ---"
 	@echo "--------------------------------------------------------------------------"
 	@false
 else
-	$(PYTHON) rest-api-templates/make_stasis_http_stubs.py \
-		rest-api/resources.json res/
+	$(PYTHON) rest-api-templates/make_ari_stubs.py \
+		rest-api/resources.json .
 endif
 
 .PHONY: menuselect
@@ -993,7 +994,7 @@ endif
 .PHONY: installdirs
 .PHONY: validate-docs
 .PHONY: _clean
-.PHONY: stasis-stubs
+.PHONY: ari-stubs
 .PHONY: $(SUBDIRS_INSTALL)
 .PHONY: $(SUBDIRS_DIST_CLEAN)
 .PHONY: $(SUBDIRS_CLEAN)

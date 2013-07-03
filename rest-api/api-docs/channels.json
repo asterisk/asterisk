@@ -286,6 +286,10 @@
 						{
 							"code": 404,
 							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
 						}
 					]
 				}
@@ -616,11 +620,7 @@
 						},
 						{
 							"code": 409,
-							"reason": "Channel is not in a Stasis application."
-						},
-						{
-							"code": 409,
-							"reason": "The channel is currently bridged with other channels."
+							"reason": "Channel is not in a Stasis application, or the channel is currently bridged with other channels."
 						}
 					]
 				}
@@ -630,10 +630,12 @@
 	"models": {
 		"Dialed": {
 			"id": "Dialed",
+			"description": "Dialed channel information.",
 			"properties": {}
 		},
 		"DialplanCEP": {
 			"id": "DialplanCEP",
+			"description": "Dialplan location (context/extension/priority)",
 			"properties": {
 				"context": {
 					"required": true,
@@ -654,6 +656,7 @@
 		},
 		"CallerID": {
 			"id": "CallerID",
+			"description": "Caller identification",
 			"properties": {
 				"name": {
 					"required": true,
@@ -667,11 +670,12 @@
 		},
 		"Channel": {
 			"id": "Channel",
+			"description": "A specific communication connection between Asterisk and an Endpoint.",
 			"properties": {
-				"uniqueid": {
+				"id": {
 					"required": true,
 					"type": "string",
-					"description": "Unique identifier of the channel"
+					"description": "Unique identifier of the channel.\n\nThis is the same as the Uniqueid field in AMI."
 				},
 				"name": {
 					"required": true,
@@ -680,46 +684,23 @@
 				},
 				"state": {
 					"required": true,
-					"type": "string"
-				},
-				"accountcode": {
-					"required": true,
-					"type": "string"
-				},
-				"peeraccount": {
-					"required": true,
-					"type": "string"
-				},
-				"userfield": {
-					"required": true,
-					"type": "string"
-				},
-				"linkedid": {
-					"required": true,
-					"type": "string"
-				},
-				"parkinglot": {
-					"required": true,
-					"type": "string"
-				},
-				"hangupsource": {
-					"required": true,
-					"type": "string"
-				},
-				"appl": {
-					"required": true,
 					"type": "string",
-					"description": "Currently executing dialplan application"
-				},
-				"data": {
-					"required": true,
-					"type": "string",
-					"description": "Arguments passed to appl"
-				},
-				"dialplan": {
-					"required": true,
-					"type": "DialplanCEP",
-					"description": "Current location in the dialplan"
+					"allowableValues": {
+						"valueType": "LIST",
+						"values": [
+							"Down",
+							"Rsrved",
+							"OffHook",
+							"Dialing",
+							"Ring",
+							"Ringing",
+							"Up",
+							"Busy",
+							"Dialing Offhook",
+							"Pre-ring",
+							"Unknown"
+						]
+					}
 				},
 				"caller": {
 					"required": true,
@@ -729,48 +710,19 @@
 					"required": true,
 					"type": "CallerID"
 				},
+				"accountcode": {
+					"required": true,
+					"type": "string"
+				},
+				"dialplan": {
+					"required": true,
+					"type": "DialplanCEP",
+					"description": "Current location in the dialplan"
+				},
 				"creationtime": {
 					"required": true,
 					"type": "Date",
 					"description": "Timestamp when channel was created"
-				}
-			}
-		},
-		"Playback": {
-			"id": "Playback",
-			"description": "Object representing the playback of media to a channel",
-			"properties": {
-				"id": {
-					"type": "string",
-					"description": "ID for this playback operation",
-					"required": true
-				},
-				"media_uri": {
-					"type": "string",
-					"description": "URI for the media to play back.",
-					"required": true
-				},
-				"target_uri": {
-					"type": "string",
-					"description": "URI for the channel or bridge to play the media on",
-					"required": true
-				},
-				"language": {
-					"type": "string",
-					"description": "For media types that support multiple languages, the language requested for playback."
-				},
-				"state": {
-					"type": "string",
-					"description": "Current state of the playback operation.",
-					"required": true,
-					"allowableValues": {
-						"valueType": "LIST",
-						"values": [
-							"queued",
-							"playing",
-							"complete"
-						]
-					}
 				}
 			}
 		}

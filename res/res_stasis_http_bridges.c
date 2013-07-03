@@ -44,6 +44,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_bridges.h"
+#if defined(AST_DEVMODE)
+#include "stasis_http/ari_model_validators.h"
+#endif
 
 /*!
  * \brief Parameter parsing callback for /bridges.
@@ -53,11 +56,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_bridges_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_bridges_args args = {};
 	stasis_http_get_bridges(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_list(response->message,
+				ari_validate_bridge);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /bridges.
@@ -67,9 +98,14 @@ static void stasis_http_get_bridges_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_new_bridge_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_new_bridge_args args = {};
 	struct ast_variable *i;
 
@@ -80,6 +116,29 @@ static void stasis_http_new_bridge_cb(
 		{}
 	}
 	stasis_http_new_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_bridge(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}.
@@ -89,9 +148,14 @@ static void stasis_http_new_bridge_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_bridge_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_bridge_args args = {};
 	struct ast_variable *i;
 
@@ -102,6 +166,30 @@ static void stasis_http_get_bridge_cb(
 		{}
 	}
 	stasis_http_get_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Bridge not found */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_bridge(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}.
@@ -111,9 +199,14 @@ static void stasis_http_get_bridge_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_delete_bridge_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_delete_bridge_args args = {};
 	struct ast_variable *i;
 
@@ -124,6 +217,30 @@ static void stasis_http_delete_bridge_cb(
 		{}
 	}
 	stasis_http_delete_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Bridge not found */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/addChannel.
@@ -133,9 +250,14 @@ static void stasis_http_delete_bridge_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_add_channel_to_bridge_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_add_channel_to_bridge_args args = {};
 	struct ast_variable *i;
 
@@ -152,6 +274,32 @@ static void stasis_http_add_channel_to_bridge_cb(
 		{}
 	}
 	stasis_http_add_channel_to_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in Stasis application */
+	case 422: /* Channel not found, or not in Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/addChannel\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/addChannel\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/removeChannel.
@@ -161,9 +309,14 @@ static void stasis_http_add_channel_to_bridge_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_remove_channel_from_bridge_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_remove_channel_from_bridge_args args = {};
 	struct ast_variable *i;
 
@@ -180,6 +333,29 @@ static void stasis_http_remove_channel_from_bridge_cb(
 		{}
 	}
 	stasis_http_remove_channel_from_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/removeChannel\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/removeChannel\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/record.
@@ -189,9 +365,14 @@ static void stasis_http_remove_channel_from_bridge_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_record_bridge_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_record_bridge_args args = {};
 	struct ast_variable *i;
 
@@ -223,6 +404,29 @@ static void stasis_http_record_bridge_cb(
 		{}
 	}
 	stasis_http_record_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_live_recording(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/record\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/record\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 
 /*! \brief REST handler for /api-docs/bridges.{format} */

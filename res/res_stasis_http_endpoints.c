@@ -44,6 +44,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_endpoints.h"
+#if defined(AST_DEVMODE)
+#include "stasis_http/ari_model_validators.h"
+#endif
 
 /*!
  * \brief Parameter parsing callback for /endpoints.
@@ -53,11 +56,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_endpoints_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_endpoints_args args = {};
 	stasis_http_get_endpoints(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_list(response->message,
+				ari_validate_endpoint);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /endpoints\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /endpoints\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /endpoints/{tech}.
@@ -67,9 +98,14 @@ static void stasis_http_get_endpoints_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_endpoints_by_tech_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_endpoints_by_tech_args args = {};
 	struct ast_variable *i;
 
@@ -80,6 +116,29 @@ static void stasis_http_get_endpoints_by_tech_cb(
 		{}
 	}
 	stasis_http_get_endpoints_by_tech(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_list(response->message,
+				ari_validate_endpoint);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /endpoints/{tech}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /endpoints/{tech}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /endpoints/{tech}/{resource}.
@@ -89,9 +148,14 @@ static void stasis_http_get_endpoints_by_tech_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_endpoint_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_endpoint_args args = {};
 	struct ast_variable *i;
 
@@ -105,6 +169,29 @@ static void stasis_http_get_endpoint_cb(
 		{}
 	}
 	stasis_http_get_endpoint(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_endpoint(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /endpoints/{tech}/{resource}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /endpoints/{tech}/{resource}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 
 /*! \brief REST handler for /api-docs/endpoints.{format} */

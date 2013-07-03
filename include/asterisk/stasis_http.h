@@ -33,6 +33,12 @@
 #include "asterisk/json.h"
 #include "asterisk/http_websocket.h"
 
+/*!
+ * \brief Configured encoding format for JSON output.
+ * \return JSON output encoding (compact, pretty, etc.)
+ */
+enum ast_json_encoding_format stasis_http_json_format(void);
+
 struct stasis_http_response;
 
 /*!
@@ -141,12 +147,16 @@ struct ari_websocket_session;
 /*!
  * \brief Create an ARI WebSocket session.
  *
+ * If \c NULL is given for the validator function, no validation will be
+ * performed.
+ *
  * \param ws_session Underlying WebSocket session.
+ * \param validator Function to validate outgoing messages.
  * \return New ARI WebSocket session.
  * \return \c NULL on error.
  */
 struct ari_websocket_session *ari_websocket_session_create(
-	struct ast_websocket *ws_session);
+	struct ast_websocket *ws_session, int (*validator)(struct ast_json *));
 
 /*!
  * \brief Read a message from an ARI WebSocket.

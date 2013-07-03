@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct ari_websocket_session {
 	struct ast_websocket *ws_session;
+	int (*validator)(struct ast_json *);
 };
 
 static void websocket_session_dtor(void *obj)
@@ -41,13 +42,25 @@ static void websocket_session_dtor(void *obj)
 	session->ws_session = NULL;
 }
 
+/*!
+ * \brief Validator that always succeeds.
+ */
+static int null_validator(struct ast_json *json)
+{
+	return 1;
+}
+
 struct ari_websocket_session *ari_websocket_session_create(
-	struct ast_websocket *ws_session)
+	struct ast_websocket *ws_session, int (*validator)(struct ast_json *))
 {
 	RAII_VAR(struct ari_websocket_session *, session, NULL, ao2_cleanup);
 
 	if (ws_session == NULL) {
 		return NULL;
+	}
+
+	if (validator == NULL) {
+		validator = null_validator;
 	}
 
 	if (ast_websocket_set_nonblock(ws_session) != 0) {
@@ -63,6 +76,7 @@ struct ari_websocket_session *ari_websocket_session_create(
 
 	ao2_ref(ws_session, +1);
 	session->ws_session = ws_session;
+	session->validator = validator;
 
 	ao2_ref(session, +1);
 	return session;
@@ -109,10 +123,24 @@ struct ast_json *ari_websocket_session_read(
 	return ast_json_ref(message);
 }
 
+#define VALIDATION_FAILED					\
+	"{ \"error\": \"Outgoing message failed validation\" }"
+
 int ari_websocket_session_write(struct ari_websocket_session *session,
 	struct ast_json *message)
 {
-	RAII_VAR(char *, str, ast_json_dump_string(message), ast_free);
+	RAII_VAR(char *, str, NULL, ast_free);
+
+#ifdef AST_DEVMODE
+	if (!session->validator(message)) {
+		ast_log(LOG_ERROR, "Outgoing message failed validation\n");
+		return ast_websocket_write(session->ws_session,
+			AST_WEBSOCKET_OPCODE_TEXT, VALIDATION_FAILED,
+			strlen(VALIDATION_FAILED));
+	}
+#endif
+
+	str = ast_json_dump_string_format(message, stasis_http_json_format());
 
 	if (str == NULL) {
 		ast_log(LOG_ERROR, "Failed to encode JSON object\n");

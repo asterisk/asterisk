@@ -44,6 +44,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_sounds.h"
+#if defined(AST_DEVMODE)
+#include "stasis_http/ari_model_validators.h"
+#endif
 
 /*!
  * \brief Parameter parsing callback for /sounds.
@@ -53,9 +56,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_sounds_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_sounds_args args = {};
 	struct ast_variable *i;
 
@@ -69,6 +77,29 @@ static void stasis_http_get_sounds_cb(
 		{}
 	}
 	stasis_http_get_sounds(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_list(response->message,
+				ari_validate_sound);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /sounds\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /sounds\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /sounds/{soundId}.
@@ -78,9 +109,14 @@ static void stasis_http_get_sounds_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_stored_sound_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_stored_sound_args args = {};
 	struct ast_variable *i;
 
@@ -91,6 +127,29 @@ static void stasis_http_get_stored_sound_cb(
 		{}
 	}
 	stasis_http_get_stored_sound(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_sound(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /sounds/{soundId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /sounds/{soundId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 
 /*! \brief REST handler for /api-docs/sounds.{format} */

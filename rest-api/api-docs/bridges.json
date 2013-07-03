@@ -31,8 +31,8 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string",
-							"allowedValues": {
-								"type": "LIST",
+							"allowableValues": {
+								"valueType": "LIST",
 								"values": [
 									"mixing",
 									"holding"
@@ -61,6 +61,12 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						}
 					]
 				},
 				{
@@ -77,6 +83,12 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
 						}
 					]
 				}
@@ -107,6 +119,20 @@
 							"required": true,
 							"allowMultiple": true,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in Stasis application"
+						},
+						{
+							"code": 422,
+							"reason": "Channel not found, or not in Stasis application"
 						}
 					]
 				}
@@ -231,18 +257,34 @@
 	"models": {
 		"Bridge": {
 			"id": "Bridge",
+			"description": "The merging of media from one or more channels.\n\nEveryone on the bridge receives the same audio.",
 			"properties": {
-				"bridgeType": {
+				"id": {
+					"type": "string",
+					"description": "Unique identifier for this bridge",
+					"required": true
+				},
+				"technology": {
+					"type": "string",
+					"description": "Name of the current bridging technology",
+					"required": true
+				},
+				"bridge_type": {
 					"type": "string",
 					"description": "Type of bridge technology",
 					"required": true,
-					"allowedValues": {
-						"type": "LIST",
+					"allowableValues": {
+						"valueType": "LIST",
 						"values": [
 							"mixing",
 							"holding"
 						]
 					}
+				},
+				"bridge_class": {
+					"type": "string",
+					"description": "Bridging class",
+					"required": true
 				},
 				"channels": {
 					"type": "List[string]",

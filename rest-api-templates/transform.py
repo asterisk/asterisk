@@ -16,8 +16,11 @@
 # at the top of the source tree.
 #
 
+import filecmp
 import os.path
 import pystache
+import shutil
+import tempfile
 
 
 class Transform(object):
@@ -46,8 +49,14 @@ class Transform(object):
         """
         dest_file = pystache.render(self.dest_file_template, model)
         dest_file = os.path.join(dest_dir, dest_file)
-        if os.path.exists(dest_file) and not self.overwrite:
+        dest_exists = os.path.exists(dest_file)
+        if dest_exists and not self.overwrite:
             return
-        print "Rendering %s" % dest_file
-        with open(dest_file, "w") as out:
+        tmp_file = tempfile.mkstemp()
+        with tempfile.NamedTemporaryFile() as out:
             out.write(renderer.render(self.template, model))
+            out.flush()
+
+            if not dest_exists or not filecmp.cmp(out.name, dest_file):
+                print "Writing %s" % dest_file
+                shutil.copyfile(out.name, dest_file)

@@ -39,17 +39,6 @@
 
 #include "asterisk/stasis_http.h"
 
-/*! \brief Argument struct for stasis_http_get_recordings() */
-struct ast_get_recordings_args {
-};
-/*!
- * \brief List all recordings.
- *
- * \param headers HTTP headers
- * \param args Swagger parameters
- * \param[out] response HTTP response
- */
-void stasis_http_get_recordings(struct ast_variable *headers, struct ast_get_recordings_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_get_stored_recordings() */
 struct ast_get_stored_recordings_args {
 };

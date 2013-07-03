@@ -324,7 +324,7 @@ void stasis_http_response_ok(struct stasis_http_response *response,
 
 void stasis_http_response_no_content(struct stasis_http_response *response)
 {
-	response->message = NULL;
+	response->message = ast_json_null();
 	response->response_code = 204;
 	response->response_text = "No Content";
 }
@@ -386,9 +386,7 @@ static void handle_options(struct stasis_rest_handlers *handler,
 
 	/* Regular OPTIONS response */
 	add_allow_header(handler, response);
-	response->response_code = 204;
-	response->response_text = "No Content";
-	response->message = NULL;
+	stasis_http_response_no_content(response);
 
 	/* Parse CORS headers */
 	for (header = headers; header != NULL; header = header->next) {
@@ -797,6 +795,11 @@ static void process_cors_request(struct ast_variable *headers,
 	 */
 }
 
+enum ast_json_encoding_format stasis_http_json_format(void)
+{
+	RAII_VAR(struct conf *, cfg, ao2_global_obj_ref(confs), ao2_cleanup);
+	return cfg->global->format;
+}
 
 /*!
  * \internal
@@ -819,7 +822,6 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 				struct ast_variable *get_params,
 				struct ast_variable *headers)
 {
-	RAII_VAR(struct conf *, cfg, ao2_global_obj_ref(confs), ao2_cleanup);
 	RAII_VAR(struct ast_str *, response_headers, ast_str_create(40), ast_free);
 	RAII_VAR(struct ast_str *, response_body, ast_str_create(256), ast_free);
 	struct stasis_http_response response = {};
@@ -859,11 +861,10 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 		return 0;
 	}
 
-	/* Leaving message unset is only allowed for 204 (No Content).
-	 * If you explicitly want to have no content for a different return
-	 * code, set message to ast_json_null().
+	/* If you explicitly want to have no content, set message to
+	 * ast_json_null().
 	 */
-	ast_assert(response.response_code == 204 || response.message != NULL);
+	ast_assert(response.message != NULL);
 	ast_assert(response.response_code > 0);
 
 	ast_str_append(&response_headers, 0, "%s", ast_str_buffer(response.headers));
@@ -874,7 +875,7 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 	if (response.message && !ast_json_is_null(response.message)) {
 		ast_str_append(&response_headers, 0,
 			       "Content-type: application/json\r\n");
-		if (ast_json_dump_str_format(response.message, &response_body, cfg->global->format) != 0) {
+		if (ast_json_dump_str_format(response.message, &response_body, stasis_http_json_format()) != 0) {
 			/* Error encoding response */
 			response.response_code = 500;
 			response.response_text = "Internal Server Error";

@@ -69,7 +69,7 @@
 	"models": {
 		"Endpoint": {
 			"id": "Endpoint",
-			"description": "A snapshot of an endpoint. Unlike most resources, which have a single unique identifier, an endpoint is uniquely identified by the technology/resource pair.",
+			"description": "An external device that may offer/accept calls to/from Asterisk.\n\nUnlike most resources, which have a single unique identifier, an endpoint is uniquely identified by the technology/resource pair.",
 			"properties": {
 				"technology": {
 					"type": "string",
@@ -79,6 +79,24 @@
 				"resource": {
 					"type": "string",
 					"description": "Identifier of the endpoint, specific to the given technology.",
+					"required": true
+				},
+				"state": {
+					"type": "string",
+					"description": "Endpoint's state",
+					"required": false,
+					"allowableValues": {
+						"valueType": "LIST",
+						"values": [
+							"unknown",
+							"offline",
+							"online"
+						]
+					}
+				},
+				"channel_ids": {
+					"type": "List[string]",
+					"description": "Id's of channels associated with this endpoint",
 					"required": true
 				}
 			}

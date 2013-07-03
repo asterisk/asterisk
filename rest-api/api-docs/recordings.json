@@ -8,18 +8,6 @@
 	"resourcePath": "/api-docs/recordings.{format}",
 	"apis": [
 		{
-			"path": "/recordings",
-			"description": "Recordings",
-			"operations": [
-				{
-					"httpMethod": "GET",
-					"summary": "List all recordings.",
-					"nickname": "getRecordings",
-					"responseClass": "List[Recording]"
-				}
-			]
-		},
-		{
 			"path": "/recordings/stored",
 			"description": "Recordings",
 			"operations": [
@@ -226,17 +214,9 @@
 		}
 	],
 	"models": {
-		"Recording": {
-			"id": "Recording",
-			"properties": {
-				"id": {
-					"required": true,
-					"type": "string"
-				}
-			}
-		},
 		"StoredRecording": {
 			"id": "StoredRecording",
+			"description": "A past recording that may be played back.",
 			"properties": {
 				"id": {
 					"required": true,
@@ -246,7 +226,7 @@
 					"required": true,
 					"type": "List[string]"
 				},
-				"durationSeconds": {
+				"duration_seconds": {
 					"required": false,
 					"type": "int"
 				},
@@ -259,6 +239,7 @@
 		},
 		"LiveRecording": {
 			"id": "LiveRecording",
+			"description": "A recording that is in progress",
 			"properties": {
 				"id": {
 					"required": true,

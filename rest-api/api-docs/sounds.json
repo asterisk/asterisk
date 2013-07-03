@@ -60,6 +60,7 @@
 	"models": {
 		"FormatLangPair": {
 			"id": "FormatLangPair",
+			"description": "Identifies the format and language of a sound file",
 			"properties": {
 				"language": {
 					"required": true,
@@ -73,6 +74,7 @@
 		},
 		"Sound": {
 			"id": "Sound",
+			"description": "A media file that may be played back.",
 			"properties": {
 				"id": {
 					"required": true,

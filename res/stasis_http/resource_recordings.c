@@ -29,10 +29,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "resource_recordings.h"
 
-void stasis_http_get_recordings(struct ast_variable *headers, struct ast_get_recordings_args *args, struct stasis_http_response *response)
-{
-	ast_log(LOG_ERROR, "TODO: stasis_http_get_recordings\n");
-}
 void stasis_http_get_stored_recordings(struct ast_variable *headers, struct ast_get_stored_recordings_args *args, struct stasis_http_response *response)
 {
 	ast_log(LOG_ERROR, "TODO: stasis_http_get_stored_recordings\n");

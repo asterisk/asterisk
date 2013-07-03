@@ -32,10 +32,11 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/stasis.h"
 #include "asterisk/astobj2.h"
-#include "asterisk/stasis_channels.h"
+#include "asterisk/json.h"
 #include "asterisk/pbx.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="VarSet">
@@ -621,25 +622,25 @@ struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot 
 		return NULL;
 	}
 
-	json_chan = ast_json_pack("{ s: s, s: s, s: s, s: s, s: s, s: s, s: s,"
-				  "  s: s, s: s, s: s, s: s, s: o, s: o, s: o,"
-				  "  s: o"
-				  "}",
-				  "name", snapshot->name,
-				  "state", ast_state2str(snapshot->state),
-				  "accountcode", snapshot->accountcode,
-				  "peeraccount", snapshot->peeraccount,
-				  "userfield", snapshot->userfield,
-				  "uniqueid", snapshot->uniqueid,
-				  "linkedid", snapshot->linkedid,
-				  "parkinglot", snapshot->parkinglot,
-				  "hangupsource", snapshot->hangupsource,
-				  "appl", snapshot->appl,
-				  "data", snapshot->data,
-				  "dialplan", ast_json_dialplan_cep(snapshot->context, snapshot->exten, snapshot->priority),
-				  "caller", ast_json_name_number(snapshot->caller_name, snapshot->caller_number),
-				  "connected", ast_json_name_number(snapshot->connected_name, snapshot->connected_number),
-				  "creationtime", ast_json_timeval(snapshot->creationtime, NULL));
+	json_chan = ast_json_pack(
+		/* Broken up into groups of three for readability */
+		"{ s: s, s: s, s: s,"
+		"  s: o, s: o, s: s,"
+		"  s: o, s: o }",
+		/* First line */
+		"id", snapshot->uniqueid,
+		"name", snapshot->name,
+		"state", ast_state2str(snapshot->state),
+		/* Second line */
+		"caller", ast_json_name_number(
+			snapshot->caller_name, snapshot->caller_number),
+		"connected", ast_json_name_number(
+			snapshot->connected_name, snapshot->connected_number),
+		"accountcode", snapshot->accountcode,
+		/* Third line */
+		"dialplan", ast_json_dialplan_cep(
+			snapshot->context, snapshot->exten, snapshot->priority),
+		"creationtime", ast_json_timeval(snapshot->creationtime, NULL));
 
 	return ast_json_ref(json_chan);
 }
@@ -675,6 +676,91 @@ int ast_channel_snapshot_caller_id_equal(
 		strcmp(old_snapshot->caller_name, new_snapshot->caller_name) == 0;
 }
 
+static struct ast_json *channel_blob_to_json(struct stasis_message *message,
+	const char *type)
+{
+	RAII_VAR(struct ast_json *, out, NULL, ast_json_unref);
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_json *blob = channel_blob->blob;
+	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
+	const struct timeval *tv = stasis_message_timestamp(message);
+	int res = 0;
+
+	if (blob == NULL || ast_json_is_null(blob)) {
+		out = ast_json_object_create();
+	} else {
+		/* blobs are immutable, so shallow copies are fine */
+		out = ast_json_copy(blob);
+	}
+
+	if (!out) {
+		return NULL;
+	}
+
+	res |= ast_json_object_set(out, "type", ast_json_string_create(type));
+	res |= ast_json_object_set(out, "timestamp",
+		ast_json_timeval(*tv, NULL));
+
+	/* For global channel messages, the snapshot is optional */
+	if (snapshot) {
+		res |= ast_json_object_set(out, "channel",
+			ast_channel_snapshot_to_json(snapshot));
+	}
+
+	if (res != 0) {
+		return NULL;
+	}
+
+	return ast_json_ref(out);
+}
+
+static struct ast_json *dtmf_end_to_json(struct stasis_message *message)
+{
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_json *blob = channel_blob->blob;
+	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
+	const char *direction =
+		ast_json_string_get(ast_json_object_get(blob, "direction"));
+	const struct timeval *tv = stasis_message_timestamp(message);
+
+	/* Only present received DTMF end events as JSON */
+	if (strcasecmp("Received", direction) != 0) {
+		return NULL;
+	}
+
+	return ast_json_pack("{s: s, s: o, s: O, s: O, s: o}",
+		"type", "ChannelDtmfReceived",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"digit", ast_json_object_get(blob, "digit"),
+		"duration_ms", ast_json_object_get(blob, "duration_ms"),
+		"channel", ast_channel_snapshot_to_json(snapshot));
+}
+
+static struct ast_json *user_event_to_json(struct stasis_message *message)
+{
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_json *blob = channel_blob->blob;
+	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
+	const struct timeval *tv = stasis_message_timestamp(message);
+
+	return ast_json_pack("{s: s, s: o, s: O, s: O, s: o}",
+		"type", "ChannelUserevent",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"eventname", ast_json_object_get(blob, "eventname"),
+		"userevent", blob,
+		"channel", ast_channel_snapshot_to_json(snapshot));
+}
+
+static struct ast_json *varset_to_json(struct stasis_message *message)
+{
+	return channel_blob_to_json(message, "ChannelVarset");
+}
+
+static struct ast_json *hangup_request_to_json(struct stasis_message *message)
+{
+	return channel_blob_to_json(message, "ChannelHangupRequest");
+}
+
 /*!
  * @{ \brief Define channel message types.
  */
@@ -682,11 +768,18 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_snapshot_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dial_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_varset_type,
 	.to_ami = varset_to_ami,
+	.to_json = varset_to_json,
 	);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_user_event_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_user_event_type,
+	.to_json = user_event_to_json,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hangup_request_type,
+	.to_json = hangup_request_to_json,
+	);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type,
+	.to_json = dtmf_end_to_json,
+	);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_hold_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_unhold_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_start_type);

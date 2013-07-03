@@ -158,6 +158,15 @@ enum ast_json_type
  */
 enum ast_json_type ast_json_typeof(const struct ast_json *value);
 
+/*!
+ * \brief Get the string name for the given type.
+ * \since 12.0.0
+ * \param type Type to convert to string.
+ * \return Simple string for the type name (object, array, string, etc.)
+ * \return \c "?" for invalid types.
+ */
+const char *ast_json_typename(enum ast_json_type type);
+
 /*!@}*/
 
 /*!@{*/

@@ -44,6 +44,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_channels.h"
+#if defined(AST_DEVMODE)
+#include "stasis_http/ari_model_validators.h"
+#endif
 
 /*!
  * \brief Parameter parsing callback for /channels.
@@ -53,11 +56,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_channels_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_channels_args args = {};
 	stasis_http_get_channels(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_list(response->message,
+				ari_validate_channel);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels.
@@ -67,9 +98,14 @@ static void stasis_http_get_channels_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_originate_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_originate_args args = {};
 	struct ast_variable *i;
 
@@ -101,6 +137,29 @@ static void stasis_http_originate_cb(
 		{}
 	}
 	stasis_http_originate(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}.
@@ -110,9 +169,14 @@ static void stasis_http_originate_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_channel_args args = {};
 	struct ast_variable *i;
 
@@ -123,6 +187,30 @@ static void stasis_http_get_channel_cb(
 		{}
 	}
 	stasis_http_get_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_channel(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}.
@@ -132,9 +220,14 @@ static void stasis_http_get_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_delete_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_delete_channel_args args = {};
 	struct ast_variable *i;
 
@@ -145,6 +238,30 @@ static void stasis_http_delete_channel_cb(
 		{}
 	}
 	stasis_http_delete_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/dial.
@@ -154,9 +271,14 @@ static void stasis_http_delete_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_dial_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_dial_args args = {};
 	struct ast_variable *i;
 
@@ -182,6 +304,31 @@ static void stasis_http_dial_cb(
 		{}
 	}
 	stasis_http_dial(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_dialed(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/dial\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/dial\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/continue.
@@ -191,9 +338,14 @@ static void stasis_http_dial_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_continue_in_dialplan_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_continue_in_dialplan_args args = {};
 	struct ast_variable *i;
 
@@ -216,6 +368,31 @@ static void stasis_http_continue_in_dialplan_cb(
 		{}
 	}
 	stasis_http_continue_in_dialplan(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/continue\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/continue\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/answer.
@@ -225,9 +402,14 @@ static void stasis_http_continue_in_dialplan_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_answer_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_answer_channel_args args = {};
 	struct ast_variable *i;
 
@@ -238,6 +420,31 @@ static void stasis_http_answer_channel_cb(
 		{}
 	}
 	stasis_http_answer_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/answer\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/answer\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/mute.
@@ -247,9 +454,14 @@ static void stasis_http_answer_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_mute_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_mute_channel_args args = {};
 	struct ast_variable *i;
 
@@ -266,6 +478,31 @@ static void stasis_http_mute_channel_cb(
 		{}
 	}
 	stasis_http_mute_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/mute\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/mute\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/unmute.
@@ -275,9 +512,14 @@ static void stasis_http_mute_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_unmute_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_unmute_channel_args args = {};
 	struct ast_variable *i;
 
@@ -294,6 +536,31 @@ static void stasis_http_unmute_channel_cb(
 		{}
 	}
 	stasis_http_unmute_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/unmute\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/unmute\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/hold.
@@ -303,9 +570,14 @@ static void stasis_http_unmute_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_hold_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_hold_channel_args args = {};
 	struct ast_variable *i;
 
@@ -316,6 +588,31 @@ static void stasis_http_hold_channel_cb(
 		{}
 	}
 	stasis_http_hold_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/hold\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/hold\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/unhold.
@@ -325,9 +622,14 @@ static void stasis_http_hold_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_unhold_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_unhold_channel_args args = {};
 	struct ast_variable *i;
 
@@ -338,6 +640,31 @@ static void stasis_http_unhold_channel_cb(
 		{}
 	}
 	stasis_http_unhold_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/unhold\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/unhold\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/play.
@@ -347,9 +674,14 @@ static void stasis_http_unhold_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_play_on_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_play_on_channel_args args = {};
 	struct ast_variable *i;
 
@@ -375,6 +707,31 @@ static void stasis_http_play_on_channel_cb(
 		{}
 	}
 	stasis_http_play_on_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_playback(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/play\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/play\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/record.
@@ -384,9 +741,14 @@ static void stasis_http_play_on_channel_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_record_channel_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_record_channel_args args = {};
 	struct ast_variable *i;
 
@@ -421,6 +783,31 @@ static void stasis_http_record_channel_cb(
 		{}
 	}
 	stasis_http_record_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel is not in a Stasis application, or the channel is currently bridged with other channels. */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/record\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/record\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 
 /*! \brief REST handler for /api-docs/channels.{format} */

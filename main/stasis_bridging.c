@@ -657,10 +657,10 @@ struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *s
 	}
 
 	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: o}",
-		"bridgeUniqueid", snapshot->uniqueid,
-		"bridgeTechnology", snapshot->technology,
-		"bridgeType", capability2str(snapshot->capabilities),
-		"bridgeClass", snapshot->subclass,
+		"id", snapshot->uniqueid,
+		"technology", snapshot->technology,
+		"bridge_type", capability2str(snapshot->capabilities),
+		"bridge_class", snapshot->subclass,
 		"channels", json_channels);
 	if (!json_bridge) {
 		return NULL;

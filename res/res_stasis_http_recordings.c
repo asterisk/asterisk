@@ -44,21 +44,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "stasis_http/resource_recordings.h"
+#if defined(AST_DEVMODE)
+#include "stasis_http/ari_model_validators.h"
+#endif
 
-/*!
- * \brief Parameter parsing callback for /recordings.
- * \param get_params GET parameters in the HTTP request.
- * \param path_vars Path variables extracted from the request.
- * \param headers HTTP headers.
- * \param[out] response Response to the HTTP request.
- */
-static void stasis_http_get_recordings_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
-{
-	struct ast_get_recordings_args args = {};
-	stasis_http_get_recordings(headers, &args, response);
-}
 /*!
  * \brief Parameter parsing callback for /recordings/stored.
  * \param get_params GET parameters in the HTTP request.
@@ -67,11 +56,39 @@ static void stasis_http_get_recordings_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_stored_recordings_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_stored_recordings_args args = {};
 	stasis_http_get_stored_recordings(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_list(response->message,
+				ari_validate_stored_recording);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/stored/{recordingId}.
@@ -81,9 +98,14 @@ static void stasis_http_get_stored_recordings_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_stored_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_stored_recording_args args = {};
 	struct ast_variable *i;
 
@@ -94,6 +116,29 @@ static void stasis_http_get_stored_recording_cb(
 		{}
 	}
 	stasis_http_get_stored_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_stored_recording(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored/{recordingId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/stored/{recordingId}.
@@ -103,9 +148,14 @@ static void stasis_http_get_stored_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_delete_stored_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_delete_stored_recording_args args = {};
 	struct ast_variable *i;
 
@@ -116,6 +166,29 @@ static void stasis_http_delete_stored_recording_cb(
 		{}
 	}
 	stasis_http_delete_stored_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored/{recordingId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live.
@@ -125,11 +198,39 @@ static void stasis_http_delete_stored_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_live_recordings_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_live_recordings_args args = {};
 	stasis_http_get_live_recordings(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_list(response->message,
+				ari_validate_live_recording);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingId}.
@@ -139,9 +240,14 @@ static void stasis_http_get_live_recordings_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_live_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_live_recording_args args = {};
 	struct ast_variable *i;
 
@@ -152,6 +258,29 @@ static void stasis_http_get_live_recording_cb(
 		{}
 	}
 	stasis_http_get_live_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_live_recording(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingId}.
@@ -161,9 +290,14 @@ static void stasis_http_get_live_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_cancel_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_cancel_recording_args args = {};
 	struct ast_variable *i;
 
@@ -174,6 +308,29 @@ static void stasis_http_cancel_recording_cb(
 		{}
 	}
 	stasis_http_cancel_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingId}/stop.
@@ -183,9 +340,14 @@ static void stasis_http_cancel_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_stop_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_stop_recording_args args = {};
 	struct ast_variable *i;
 
@@ -196,6 +358,29 @@ static void stasis_http_stop_recording_cb(
 		{}
 	}
 	stasis_http_stop_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/stop\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/stop\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingId}/pause.
@@ -205,9 +390,14 @@ static void stasis_http_stop_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_pause_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_pause_recording_args args = {};
 	struct ast_variable *i;
 
@@ -218,6 +408,29 @@ static void stasis_http_pause_recording_cb(
 		{}
 	}
 	stasis_http_pause_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/pause\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/pause\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingId}/unpause.
@@ -227,9 +440,14 @@ static void stasis_http_pause_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_unpause_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_unpause_recording_args args = {};
 	struct ast_variable *i;
 
@@ -240,6 +458,29 @@ static void stasis_http_unpause_recording_cb(
 		{}
 	}
 	stasis_http_unpause_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/unpause\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/unpause\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingId}/mute.
@@ -249,9 +490,14 @@ static void stasis_http_unpause_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_mute_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_mute_recording_args args = {};
 	struct ast_variable *i;
 
@@ -262,6 +508,29 @@ static void stasis_http_mute_recording_cb(
 		{}
 	}
 	stasis_http_mute_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/mute\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/mute\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingId}/unmute.
@@ -271,9 +540,14 @@ static void stasis_http_mute_recording_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_unmute_recording_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_unmute_recording_args args = {};
 	struct ast_variable *i;
 
@@ -284,6 +558,29 @@ static void stasis_http_unmute_recording_cb(
 		{}
 	}
 	stasis_http_unmute_recording(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live/{recordingId}/unmute\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/live/{recordingId}/unmute\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 
 /*! \brief REST handler for /api-docs/recordings.{format} */
@@ -375,7 +672,6 @@ static struct stasis_rest_handlers recordings_live = {
 static struct stasis_rest_handlers recordings = {
 	.path_segment = "recordings",
 	.callbacks = {
-		[AST_HTTP_GET] = stasis_http_get_recordings_cb,
 	},
 	.num_children = 2,
 	.children = { &recordings_stored,&recordings_live, }

@@ -22,7 +22,6 @@ except ImportError:
     print >> sys.stderr, "Pystache required. Please sudo pip install pystache."
 
 import os.path
-import pystache
 import sys
 
 from asterisk_processor import AsteriskProcessor
@@ -40,23 +39,27 @@ def rel(file):
     """
     return os.path.join(TOPDIR, file)
 
+WIKI_PREFIX = 'Asterisk 12'
+
 API_TRANSFORMS = [
+    Transform(rel('api.wiki.mustache'),
+              'doc/rest-api/%s {{name_title}} REST API.wiki' % WIKI_PREFIX),
     Transform(rel('res_stasis_http_resource.c.mustache'),
-              'res_stasis_http_{{name}}.c'),
+              'res/res_stasis_http_{{name}}.c'),
     Transform(rel('stasis_http_resource.h.mustache'),
-              'stasis_http/resource_{{name}}.h'),
+              'res/stasis_http/resource_{{name}}.h'),
     Transform(rel('stasis_http_resource.c.mustache'),
-              'stasis_http/resource_{{name}}.c', False),
-    Transform(rel('res_stasis_json_resource.c.mustache'),
-              'res_stasis_json_{{name}}.c'),
-    Transform(rel('res_stasis_json_resource.exports.mustache'),
-              'res_stasis_json_{{name}}.exports.in'),
-    Transform(rel('stasis_json_resource.h.mustache'),
-              'stasis_json/resource_{{name}}.h'),
+              'res/stasis_http/resource_{{name}}.c', overwrite=False),
 ]
 
 RESOURCES_TRANSFORMS = [
-    Transform(rel('stasis_http.make.mustache'), 'stasis_http.make'),
+    Transform(rel('models.wiki.mustache'),
+              'doc/rest-api/%s REST Data Models.wiki' % WIKI_PREFIX),
+    Transform(rel('stasis_http.make.mustache'), 'res/stasis_http.make'),
+    Transform(rel('ari_model_validators.h.mustache'),
+              'res/stasis_http/ari_model_validators.h'),
+    Transform(rel('ari_model_validators.c.mustache'),
+              'res/stasis_http/ari_model_validators.c'),
 ]
 
 
@@ -71,7 +74,7 @@ def main(argv):
     source = args[1]
     dest_dir = args[2]
     renderer = pystache.Renderer(search_dirs=[TOPDIR], missing_tags='strict')
-    processor = AsteriskProcessor()
+    processor = AsteriskProcessor(wiki_prefix=WIKI_PREFIX)
 
     # Build the models
     base_dir = os.path.dirname(source)

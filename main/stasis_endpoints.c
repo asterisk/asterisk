@@ -239,7 +239,7 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 		"technology", snapshot->tech,
 		"resource", snapshot->resource,
 		"state", ast_endpoint_state_to_string(snapshot->state),
-		"channels");
+		"channel_ids");
 
 	if (json == NULL) {
 		return NULL;
@@ -253,7 +253,7 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 		}
 	}
 
-	channel_array = ast_json_object_get(json, "channels");
+	channel_array = ast_json_object_get(json, "channel_ids");
 	ast_assert(channel_array != NULL);
 	for (i = 0; i < snapshot->num_channels; ++i) {
 		int res = ast_json_array_append(channel_array,

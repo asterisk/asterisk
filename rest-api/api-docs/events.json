@@ -3,7 +3,7 @@
 	"_author": "David M. Lee, II <dlee@digium.com>",
 	"_svn_revision": "$Revision$",
 	"apiVersion": "0.0.1",
-	"swaggerVersion": "1.1",
+	"swaggerVersion": "1.3",
 	"basePath": "http://localhost:8088/stasis",
 	"resourcePath": "/api-docs/events.{format}",
 	"apis": [
@@ -35,37 +35,29 @@
 	"models": {
 		"Event": {
 			"id": "Event",
-			"description": "Asynchronous events from Asterisk. The non-required fields of this object are mutually exclusive.",
+			"description": "Base type for asynchronous events from Asterisk.",
+			"discriminator": "type",
 			"properties": {
+				"type": {
+					"type": "string",
+					"required": true,
+					"description": "Indicates the type of this event."
+				},
 				"application": {
 					"type": "string",
 					"description": "Name of the application receiving the event.",
 					"required": true
 				},
-				"application_replaced": { "type": "ApplicationReplaced" },
-				"bridge_created": { "type": "BridgeCreated" },
-				"bridge_destroyed": { "type": "BridgeDestroyed" },
-				"bridge_merged": { "type": "BridgeMerged" },
-				"channel_created": { "type": "ChannelCreated" },
-				"channel_destroyed": { "type": "ChannelDestroyed" },
-				"channel_snapshot": { "type": "ChannelSnapshot" },
-				"channel_entered_bridge": { "type": "ChannelEnteredBridge" },
-				"channel_left_bridge": { "type": "ChannelLeftBridge" },
-				"channel_state_change": { "type": "ChannelStateChange" },
-				"channel_dtmf_received": { "type": "ChannelDtmfReceived" },
-				"channel_dialplan": { "type": "ChannelDialplan" },
-				"channel_caller_id": { "type": "ChannelCallerId" },
-				"channel_userevent": { "type": "ChannelUserevent" },
-				"channel_hangup_request": { "type": "ChannelHangupRequest" },
-				"channel_varset": { "type": "ChannelVarset" },
-				"stasis_end": { "type": "StasisEnd" },
-				"stasis_start": { "type": "StasisStart" },
-				"playback_started": { "type": "PlaybackStarted" },
-				"playback_finished": { "type": "PlaybackFinished" }
+				"timestamp": {
+					"type": "Date",
+					"description": "Time at which this event was created.",
+					"required": false
+				}
 			}
 		},
 		"PlaybackStarted": {
 			"id": "PlaybackStarted",
+			"extends": "Event",
 			"description": "Event showing the start of a media playback operation.",
 			"properties": {
 				"playback": {
@@ -77,6 +69,7 @@
 		},
 		"PlaybackFinished": {
 			"id": "PlaybackFinished",
+			"extends": "Event",
 			"description": "Event showing the completion of a media playback operation.",
 			"properties": {
 				"playback": {
@@ -88,17 +81,13 @@
 		},
 		"ApplicationReplaced": {
 			"id": "ApplicationReplaced",
-			"description": "Notification that another WebSocket has taken over for an application.",
-			"notes": "An application may only be subscribed to by a single WebSocket at a time. If multiple WebSockets attempt to subscribe to the same application, the newer WebSocket wins, and the older one receives this event.",
-			"properties": {
-				"application": {
-					"required": true,
-					"type": "string"
-				}
-			}
+			"extends": "Event",
+			"description": "Notification that another WebSocket has taken over for an application.\n\nAn application may only be subscribed to by a single WebSocket at a time. If multiple WebSockets attempt to subscribe to the same application, the newer WebSocket wins, and the older one receives this event.",
+			"properties": {}
 		},
 		"BridgeCreated": {
 			"id": "BridgeCreated",
+			"extends": "Event",
 			"description": "Notification that a bridge has been created.",
 			"properties": {
 				"bridge": {
@@ -109,6 +98,7 @@
 		},
 		"BridgeDestroyed": {
 			"id": "BridgeDestroyed",
+			"extends": "Event",
 			"description": "Notification that a bridge has been destroyed.",
 			"properties": {
 				"bridge": {
@@ -119,6 +109,7 @@
 		},
 		"BridgeMerged": {
 			"id": "BridgeMerged",
+			"extends": "Event",
 			"description": "Notification that one bridge has merged into another.",
 			"properties": {
 				"bridge": {
@@ -133,17 +124,8 @@
 		},
 		"ChannelCreated": {
 			"id": "ChannelCreated",
+			"extends": "Event",
 			"description": "Notification that a channel has been created.",
-			"properties": {
-				"channel": {
-					"required": true,
-					"type": "Channel"
-				}
-			}
-		},
-		"ChannelSnapshot": {
-			"id": "ChannelSnapshot",
-			"description": "Some part of channel state changed.",
 			"properties": {
 				"channel": {
 					"required": true,
@@ -153,12 +135,13 @@
 		},
 		"ChannelDestroyed": {
 			"id": "ChannelDestroyed",
+			"extends": "Event",
 			"description": "Notification that a channel has been destroyed.",
 			"properties": {
 				"cause": {
 					"required": true,
 					"description": "Integer representation of the cause of the hangup",
-					"type": "integer"
+					"type": "int"
 				},
 				"cause_txt": {
 					"required": true,
@@ -173,6 +156,7 @@
 		},
 		"ChannelEnteredBridge": {
 			"id": "ChannelEnteredBridge",
+			"extends": "Event",
 			"description": "Notification that a channel has entered a bridge.",
 			"properties": {
 				"bridge": {
@@ -186,6 +170,7 @@
 		},
 		"ChannelLeftBridge": {
 			"id": "ChannelLeftBridge",
+			"extends": "Event",
 			"description": "Notification that a channel has left a bridge.",
 			"properties": {
 				"bridge": {
@@ -200,6 +185,7 @@
 		},
 		"ChannelStateChange": {
 			"id": "ChannelStateChange",
+			"extends": "Event",
 			"description": "Notification of a channel's state change.",
 			"properties": {
 				"channel": {
@@ -210,13 +196,18 @@
 		},
 		"ChannelDtmfReceived": {
 			"id": "ChannelDtmfReceived",
-			"description": "DTMF received on a channel.",
-			"notes": "This event is sent when the DTMF ends. There is no notification about the start of DTMF",
+			"extends": "Event",
+			"description": "DTMF received on a channel.\n\nThis event is sent when the DTMF ends. There is no notification about the start of DTMF",
 			"properties": {
 				"digit": {
 					"required": true,
 					"type": "string",
 					"description": "DTMF digit received (0-9, A-E, # or *)"
+				},
+				"duration_ms": {
+					"required": true,
+					"type": "int",
+					"description": "Number of milliseconds DTMF was received"
 				},
 				"channel": {
 					"required": true,
@@ -227,32 +218,34 @@
 		},
 		"ChannelDialplan": {
 			"id": "ChannelDialplan",
+			"extends": "Event",
 			"description": "Channel changed location in the dialplan.",
 			"properties": {
-				"application": {
-					"required": true,
-					"type": "string",
-					"description": "The application that the channel is currently in."
-				},
-				"application_data": {
-					"required": true,
-					"type": "string",
-					"description": "The data that was passed to the application when it was invoked."
-				},
 				"channel": {
 					"required": true,
 					"type": "Channel",
 					"description": "The channel that changed dialplan location."
+				},
+				"dialplan_app": {
+					"required": true,
+					"type": "string",
+					"description": "The application about to be executed."
+				},
+				"dialplan_app_data": {
+					"required": true,
+					"type": "string",
+					"description": "The data to be passed to the application."
 				}
 			}
 		},
 		"ChannelCallerId": {
 			"id": "ChannelCallerId",
+			"extends": "Event",
 			"description": "Channel changed Caller ID.",
 			"properties": {
 				"caller_presentation": {
 					"required": true,
-					"type": "integer",
+					"type": "int",
 					"description": "The integer representation of the Caller Presentation value."
 				},
 				"caller_presentation_txt": {
@@ -269,6 +262,7 @@
 		},
 		"ChannelUserevent": {
 			"id": "ChannelUserevent",
+			"extends": "Event",
 			"description": "User-generated event with additional user-defined fields in the object.",
 			"properties": {
 				"eventname": {
@@ -285,10 +279,11 @@
 		},
 		"ChannelHangupRequest": {
 			"id": "ChannelHangupRequest",
+			"extends": "Event",
 			"description": "A hangup was requested on the channel.",
 			"properties": {
 				"cause": {
-					"type": "integer",
+					"type": "int",
 					"description": "Integer representation of the cause of the hangup."
 				},
 				"soft": {
@@ -304,6 +299,7 @@
 		},
 		"ChannelVarset": {
 			"id": "ChannelVarset",
+			"extends": "Event",
 			"description": "Channel variable changed.",
 			"properties": {
 				"variable": {
@@ -317,14 +313,15 @@
 					"description": "The new value of the variable."
 				},
 				"channel": {
-					"required": true,
+					"required": false,
 					"type": "Channel",
-					"description": "The channel on which the variable was set."
+					"description": "The channel on which the variable was set.\n\nIf missing, the variable is a global variable."
 				}
 			}
 		},
 		"StasisEnd": {
 			"id": "StasisEnd",
+			"extends": "Event",
 			"description": "Notification that a channel has left a Stasis appliction.",
 			"properties": {
 				"channel": {
@@ -335,6 +332,7 @@
 		},
 		"StasisStart": {
 			"id": "StasisStart",
+			"extends": "Event",
 			"description": "Notification that a channel has entered a Stasis appliction.",
 			"properties": {
 				"args": {

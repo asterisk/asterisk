@@ -29,16 +29,101 @@ See https://github.com/wordnik/swagger-core/wiki/API-Declaration for the spec.
 import json
 import os.path
 import pprint
+import re
 import sys
 import traceback
 
-try:
-    from collections import OrderedDict
-except ImportError:
-    from odict import OrderedDict
+# I'm not quite sure what was in Swagger 1.2, but apparently I missed it
+SWAGGER_VERSIONS = ["1.1", "1.3"]
+
+SWAGGER_PRIMITIVES = [
+    'void',
+    'string',
+    'boolean',
+    'number',
+    'int',
+    'long',
+    'double',
+    'float',
+    'Date',
+]
 
 
-SWAGGER_VERSION = "1.1"
+class Stringify(object):
+    """Simple mix-in to make the repr of the model classes more meaningful.
+    """
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__, pprint.saferepr(self.__dict__))
+
+
+def compare_versions(lhs, rhs):
+    '''Performs a lexicographical comparison between two version numbers.
+
+    This properly handles simple major.minor.whatever.sure.why.not version
+    numbers, but fails miserably if there's any letters in there.
+
+    For reference:
+      1.0 == 1.0
+      1.0 < 1.0.1
+      1.2 < 1.10
+
+    @param lhs Left hand side of the comparison
+    @param rhs Right hand side of the comparison
+    @return  < 0 if lhs  < rhs
+    @return == 0 if lhs == rhs
+    @return  > 0 if lhs  > rhs
+    '''
+    lhs = [int(v) for v in lhs.split('.')]
+    rhs = [int(v) for v in rhs.split('.')]
+    return cmp(lhs, rhs)
+
+
+class ParsingContext(object):
+    """Context information for parsing.
+
+    This object is immutable. To change contexts (like adding an item to the
+    stack), use the next() and next_stack() functions to build a new one.
+    """
+
+    def __init__(self, swagger_version, stack):
+        self.__swagger_version = swagger_version
+        self.__stack = stack
+
+    def __repr__(self):
+        return "ParsingContext(swagger_version=%s, stack=%s)" % (
+            self.swagger_version, self.stack)
+
+    def get_swagger_version(self):
+        return self.__swagger_version
+
+    def get_stack(self):
+        return self.__stack
+
+    swagger_version = property(get_swagger_version)
+
+    stack = property(get_stack)
+
+    def version_less_than(self, ver):
+        return compare_versions(self.swagger_version, ver) < 0
+
+    def next_stack(self, json, id_field):
+        """Returns a new item pushed to the stack.
+
+        @param json: Current JSON object.
+        @param id_field: Field identifying this object.
+        @return New context with additional item in the stack.
+        """
+        if not id_field in json:
+            raise SwaggerError("Missing id_field: %s" % id_field, self)
+        new_stack = self.stack + ['%s=%s' % (id_field, str(json[id_field]))]
+        return ParsingContext(self.swagger_version, new_stack)
+
+    def next(self, version=None, stack=None):
+        if version is None:
+            version = self.version
+        if stack is None:
+            stack = self.stack
+        return ParsingContext(version, stack)
 
 
 class SwaggerError(Exception):
@@ -50,7 +135,7 @@ class SwaggerError(Exception):
         """Ctor.
 
         @param msg: String message for the error.
-        @param context: Array of strings for current context in the API.
+        @param context: ParsingContext object
         @param cause: Optional exception that caused this one.
         """
         super(Exception, self).__init__(msg, context, cause)
@@ -61,10 +146,18 @@ class SwaggerPostProcessor(object):
     fields to model objects for additional information to use in the
     templates.
     """
-    def process_api(self, resource_api, context):
+    def process_resource_api(self, resource_api, context):
         """Post process a ResourceApi object.
 
         @param resource_api: ResourceApi object.
+        @param context: Current context in the API.
+        """
+        pass
+
+    def process_api(self, api, context):
+        """Post process an Api object.
+
+        @param api: Api object.
         @param context: Current context in the API.
         """
         pass
@@ -85,12 +178,37 @@ class SwaggerPostProcessor(object):
         """
         pass
 
+    def process_model(self, model, context):
+        """Post process a Model object.
 
-class Stringify(object):
-    """Simple mix-in to make the repr of the model classes more meaningful.
-    """
-    def __repr__(self):
-        return "%s(%s)" % (self.__class__, pprint.saferepr(self.__dict__))
+        @param model: Model object.
+        @param context: Current context in the API.
+        """
+        pass
+
+    def process_property(self, property, context):
+        """Post process a Property object.
+
+        @param property: Property object.
+        @param context: Current context in the API.
+        """
+        pass
+
+    def process_type(self, swagger_type, context):
+        """Post process a SwaggerType object.
+
+        @param swagger_type: ResourceListing object.
+        @param context: Current context in the API.
+        """
+        pass
+
+    def process_resource_listing(self, resource_listing, context):
+        """Post process the overall ResourceListing object.
+
+        @param resource_listing: ResourceListing object.
+        @param context: Current context in the API.
+        """
+        pass
 
 
 class AllowableRange(Stringify):
@@ -158,17 +276,22 @@ class Parameter(Stringify):
         self.allow_multiple = None
 
     def load(self, parameter_json, processor, context):
-        context = add_context(context, parameter_json, 'name')
+        context = context.next_stack(parameter_json, 'name')
         validate_required_fields(parameter_json, self.required_fields, context)
         self.name = parameter_json.get('name')
         self.param_type = parameter_json.get('paramType')
         self.description = parameter_json.get('description') or ''
         self.data_type = parameter_json.get('dataType')
         self.required = parameter_json.get('required') or False
+        self.default_value = parameter_json.get('defaultValue')
         self.allowable_values = load_allowable_values(
             parameter_json.get('allowableValues'), context)
         self.allow_multiple = parameter_json.get('allowMultiple') or False
         processor.process_parameter(self, context)
+        if parameter_json.get('allowedValues'):
+            raise SwaggerError(
+                "Field 'allowedValues' invalid; use 'allowableValues'",
+                context)
         return self
 
     def is_type(self, other_type):
@@ -188,10 +311,38 @@ class ErrorResponse(Stringify):
         self.reason = None
 
     def load(self, err_json, processor, context):
-        context = add_context(context, err_json, 'code')
+        context = context.next_stack(err_json, 'code')
         validate_required_fields(err_json, self.required_fields, context)
         self.code = err_json.get('code')
         self.reason = err_json.get('reason')
+        return self
+
+
+class SwaggerType(Stringify):
+    """Model of a data type.
+    """
+
+    def __init__(self):
+        self.name = None
+        self.is_discriminator = None
+        self.is_list = None
+        self.singular_name = None
+        self.is_primitive = None
+
+    def load(self, type_name, processor, context):
+        # Some common errors
+        if type_name == 'integer':
+            raise SwaggerError("The type for integer should be 'int'", context)
+
+        self.name = type_name
+        type_param = get_list_parameter_type(self.name)
+        self.is_list = type_param is not None
+        if self.is_list:
+            self.singular_name = type_param
+        else:
+            self.singular_name = self.name
+        self.is_primitive = self.singular_name in SWAGGER_PRIMITIVES
+        processor.process_type(self, context)
         return self
 
 
@@ -213,11 +364,14 @@ class Operation(Stringify):
         self.error_responses = []
 
     def load(self, op_json, processor, context):
-        context = add_context(context, op_json, 'nickname')
+        context = context.next_stack(op_json, 'nickname')
         validate_required_fields(op_json, self.required_fields, context)
         self.http_method = op_json.get('httpMethod')
         self.nickname = op_json.get('nickname')
-        self.response_class = op_json.get('responseClass')
+        response_class = op_json.get('responseClass')
+        self.response_class = response_class and SwaggerType().load(
+            response_class, processor, context)
+
         # Specifying WebSocket URL's is our own extension
         self.is_websocket = op_json.get('upgrade') == 'websocket'
         self.is_req = not self.is_websocket
@@ -247,6 +401,7 @@ class Operation(Stringify):
         err_json = op_json.get('errorResponses') or []
         self.error_responses = [
             ErrorResponse().load(j, processor, context) for j in err_json]
+        self.has_error_responses = self.error_responses != []
         processor.process_operation(self, context)
         return self
 
@@ -265,7 +420,7 @@ class Api(Stringify):
         self.operations = []
 
     def load(self, api_json, processor, context):
-        context = add_context(context, api_json, 'path')
+        context = context.next_stack(api_json, 'path')
         validate_required_fields(api_json, self.required_fields, context)
         self.path = api_json.get('path')
         self.description = api_json.get('description')
@@ -274,7 +429,18 @@ class Api(Stringify):
             Operation().load(j, processor, context) for j in op_json]
         self.has_websocket = \
             filter(lambda op: op.is_websocket, self.operations) != []
+        processor.process_api(self, context)
         return self
+
+
+def get_list_parameter_type(type_string):
+    """Returns the type parameter if the given type_string is List[].
+
+    @param type_string: Type string to parse
+    @returns Type parameter of the list, or None if not a List.
+    """
+    list_match = re.match('^List\[(.*)\]$', type_string)
+    return list_match and list_match.group(1)
 
 
 class Property(Stringify):
@@ -293,9 +459,15 @@ class Property(Stringify):
 
     def load(self, property_json, processor, context):
         validate_required_fields(property_json, self.required_fields, context)
-        self.type = property_json.get('type')
+        # Bit of a hack, but properties do not self-identify
+        context = context.next_stack({'name': self.name}, 'name')
         self.description = property_json.get('description') or ''
         self.required = property_json.get('required') or False
+
+        type = property_json.get('type')
+        self.type = type and SwaggerType().load(type, processor, context)
+
+        processor.process_property(self, context)
         return self
 
 
@@ -305,23 +477,94 @@ class Model(Stringify):
     See https://github.com/wordnik/swagger-core/wiki/datatypes
     """
 
+    required_fields = ['description', 'properties']
+
     def __init__(self):
         self.id = None
+        self.extends = None
+        self.extends_type = None
         self.notes = None
         self.description = None
-        self.properties = None
+        self.__properties = None
+        self.__discriminator = None
+        self.__subtypes = []
 
     def load(self, id, model_json, processor, context):
-        context = add_context(context, model_json, 'id')
-        # This arrangement is required by the Swagger API spec
+        context = context.next_stack(model_json, 'id')
+        validate_required_fields(model_json, self.required_fields, context)
+        # The duplication of the model's id is required by the Swagger spec.
         self.id = model_json.get('id')
         if id != self.id:
-            raise SwaggerError("Model id doesn't match name", c)
+            raise SwaggerError("Model id doesn't match name", context)
+        self.extends = model_json.get('extends')
+        if self.extends and context.version_less_than("1.3"):
+            raise SwaggerError("Type extension support added in Swagger 1.3",
+                               context)
         self.description = model_json.get('description')
         props = model_json.get('properties').items() or []
-        self.properties = [
+        self.__properties = [
             Property(k).load(j, processor, context) for (k, j) in props]
+        self.__properties = sorted(self.__properties, key=lambda p: p.name)
+
+        discriminator = model_json.get('discriminator')
+
+        if discriminator:
+            if context.version_less_than("1.3"):
+                raise SwaggerError("Discriminator support added in Swagger 1.3",
+                                   context)
+
+            discr_props = [p for p in self.__properties if p.name == discriminator]
+            if not discr_props:
+                raise SwaggerError(
+                    "Discriminator '%s' does not name a property of '%s'" % (
+                        discriminator, self.id),
+                    context)
+
+            self.__discriminator = discr_props[0]
+
+        self.model_json = json.dumps(model_json,
+                                     indent=2, separators=(',', ': '))
+
+        processor.process_model(self, context)
         return self
+
+    def add_subtype(self, subtype):
+        """Add subtype to this model.
+
+        @param subtype: Model instance for the subtype.
+        """
+        self.__subtypes.append(subtype)
+
+    def set_extends_type(self, extends_type):
+        self.extends_type = extends_type
+
+    def discriminator(self):
+        """Returns the discriminator, digging through base types if needed.
+        """
+        return self.__discriminator or \
+            self.extends_type and self.extends_type.discriminator()
+
+    def properties(self):
+        base_props = []
+        if self.extends_type:
+            base_props = self.extends_type.properties()
+        return base_props + self.__properties
+
+    def has_properties(self):
+        return len(self.properties()) > 0
+
+    def subtypes(self):
+        """Returns the full list of all subtypes.
+        """
+        res = self.__subtypes + \
+            [subsubtypes for subtype in self.__subtypes
+             for subsubtypes in subtype.subtypes()]
+        return sorted(res, key=lambda m: m.id)
+
+    def has_subtypes(self):
+        """Returns True if type has any subtypes.
+        """
+        return len(self.subtypes()) > 0
 
 
 class ApiDeclaration(Stringify):
@@ -345,8 +588,8 @@ class ApiDeclaration(Stringify):
         self.apis = []
         self.models = []
 
-    def load_file(self, api_declaration_file, processor, context=[]):
-        context = context + [api_declaration_file]
+    def load_file(self, api_declaration_file, processor):
+        context = ParsingContext(None, [api_declaration_file])
         try:
             return self.__load_file(api_declaration_file, processor, context)
         except SwaggerError:
@@ -376,9 +619,10 @@ class ApiDeclaration(Stringify):
         """
         # If the version doesn't match, all bets are off.
         self.swagger_version = api_decl_json.get('swaggerVersion')
-        if self.swagger_version != SWAGGER_VERSION:
+        context = context.next(version=self.swagger_version)
+        if not self.swagger_version in SWAGGER_VERSIONS:
             raise SwaggerError(
-                "Unsupported Swagger version %s" % swagger_version, context)
+                "Unsupported Swagger version %s" % self.swagger_version, context)
 
         validate_required_fields(api_decl_json, self.required_fields, context)
 
@@ -391,9 +635,19 @@ class ApiDeclaration(Stringify):
         self.apis = [
             Api().load(j, processor, context) for j in api_json]
         models = api_decl_json.get('models').items() or []
-        self.models = [
-            Model().load(k, j, processor, context) for (k, j) in models]
-
+        self.models = [Model().load(id, json, processor, context)
+                       for (id, json) in models]
+        self.models = sorted(self.models, key=lambda m: m.id)
+        # Now link all base/extended types
+        model_dict = dict((m.id, m) for m in self.models)
+        for m in self.models:
+            if m.extends:
+                extends_type = model_dict.get(m.extends)
+                if not extends_type:
+                    raise SwaggerError("%s extends non-existing model %s",
+                                       m.id, m.extends)
+                extends_type.add_subtype(m)
+                m.set_extends_type(extends_type)
         return self
 
 
@@ -409,20 +663,20 @@ class ResourceApi(Stringify):
         self.api_declaration = None
 
     def load(self, api_json, processor, context):
-        context = add_context(context, api_json, 'path')
+        context = context.next_stack(api_json, 'path')
         validate_required_fields(api_json, self.required_fields, context)
         self.path = api_json['path']
         self.description = api_json['description']
 
         if not self.path or self.path[0] != '/':
             raise SwaggerError("Path must start with /", context)
-        processor.process_api(self, context)
+        processor.process_resource_api(self, context)
         return self
 
     def load_api_declaration(self, base_dir, processor):
         self.file = (base_dir + self.path).replace('{format}', 'json')
         self.api_declaration = ApiDeclaration().load_file(self.file, processor)
-        processor.process_api(self, [self.file])
+        processor.process_resource_api(self, [self.file])
 
 
 class ResourceListing(Stringify):
@@ -438,7 +692,7 @@ class ResourceListing(Stringify):
         self.apis = None
 
     def load_file(self, resource_file, processor):
-        context = [resource_file]
+        context = ParsingContext(None, [resource_file])
         try:
             return self.__load_file(resource_file, processor, context)
         except SwaggerError:
@@ -455,7 +709,7 @@ class ResourceListing(Stringify):
     def load(self, resources_json, processor, context):
         # If the version doesn't match, all bets are off.
         self.swagger_version = resources_json.get('swaggerVersion')
-        if self.swagger_version != SWAGGER_VERSION:
+        if not self.swagger_version in SWAGGER_VERSIONS:
             raise SwaggerError(
                 "Unsupported Swagger version %s" % swagger_version, context)
 
@@ -465,6 +719,7 @@ class ResourceListing(Stringify):
         apis_json = resources_json['apis']
         self.apis = [
             ResourceApi().load(j, processor, context) for j in apis_json]
+        processor.process_resource_listing(self, context)
         return self
 
 
@@ -482,16 +737,3 @@ def validate_required_fields(json, required_fields, context):
     if missing_fields:
         raise SwaggerError(
             "Missing fields: %s" % ', '.join(missing_fields), context)
-
-
-def add_context(context, json, id_field):
-    """Returns a new context with a new item added to it.
-
-    @param context: Old context.
-    @param json: Current JSON object.
-    @param id_field: Field identifying this object.
-    @return New context with additional item.
-    """
-    if not id_field in json:
-        raise SwaggerError("Missing id_field: %s" % id_field, context)
-    return context + ['%s=%s' % (id_field, str(json[id_field]))]

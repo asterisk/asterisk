@@ -41,6 +41,7 @@
 	"models": {
 		"AsteriskInfo": {
 			"id": "AsteriskInfo",
+			"description": "Asterisk system information",
 			"properties": {}
 		}
 	}

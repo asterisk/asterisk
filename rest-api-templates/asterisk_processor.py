@@ -24,6 +24,11 @@ import re
 
 from swagger_model import *
 
+try:
+    from collections import OrderedDict
+except ImportError:
+    from odict import OrderedDict
+
 
 def simple_name(name):
     """Removes the {markers} from a path segement.
@@ -33,6 +38,14 @@ def simple_name(name):
     if name.startswith('{') and name.endswith('}'):
         return name[1:-1]
     return name
+
+
+def wikify(str):
+    """Escapes a string for the wiki.
+
+    @param str: String to escape
+    """
+    return re.sub(r'([{}\[\]])', r'\\\1', str)
 
 
 def snakify(name):
@@ -107,6 +120,7 @@ class PathSegment(Stringify):
         """
         return len(self.__children)
 
+
 class AsteriskProcessor(SwaggerPostProcessor):
     """A SwaggerPostProcessor which adds fields needed to generate Asterisk
     RESTful HTTP binding code.
@@ -131,12 +145,17 @@ class AsteriskProcessor(SwaggerPostProcessor):
         'double': 'atof',
     }
 
-    def process_api(self, resource_api, context):
+    def __init__(self, wiki_prefix):
+        self.wiki_prefix = wiki_prefix
+
+    def process_resource_api(self, resource_api, context):
+        resource_api.wiki_prefix = self.wiki_prefix
         # Derive a resource name from the API declaration's filename
         resource_api.name = re.sub('\..*', '',
                                    os.path.basename(resource_api.path))
-        # Now in all caps, from include guard
+        # Now in all caps, for include guard
         resource_api.name_caps = resource_api.name.upper()
+        resource_api.name_title = resource_api.name.capitalize()
         # Construct the PathSegement tree for the API.
         if resource_api.api_declaration:
             resource_api.root_path = PathSegment('', None)
@@ -145,17 +164,6 @@ class AsteriskProcessor(SwaggerPostProcessor):
                 for operation in api.operations:
                     segment.operations.append(operation)
                 api.full_name = segment.full_name
-            resource_api.api_declaration.has_events = False
-            for model in resource_api.api_declaration.models:
-                if model.id == "Event":
-                    resource_api.api_declaration.has_events = True
-                    break
-            if resource_api.api_declaration.has_events:
-                resource_api.api_declaration.events = \
-                    [self.process_model(model, context) for model in \
-                        resource_api.api_declaration.models if model.id != "Event"]
-            else:
-                resource_api.api_declaration.events = []
 
             # Since every API path should start with /[resource], root should
             # have exactly one child.
@@ -169,6 +177,9 @@ class AsteriskProcessor(SwaggerPostProcessor):
                     "API declaration name should match", context)
             resource_api.root_full_name = resource_api.root_path.full_name
 
+    def process_api(self, api, context):
+        api.wiki_path = wikify(api.path)
+
     def process_operation(self, operation, context):
         # Nicknames are camelcase, Asterisk coding is snake case
         operation.c_nickname = snakify(operation.nickname)
@@ -179,7 +190,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
     def process_parameter(self, parameter, context):
         if not parameter.data_type in self.type_mapping:
             raise SwaggerError(
-                "Invalid parameter type %s" % paramter.data_type, context)
+                "Invalid parameter type %s" % parameter.data_type, context)
         # Parameter names are camelcase, Asterisk convention is snake case
         parameter.c_name = snakify(parameter.name)
         parameter.c_data_type = self.type_mapping[parameter.data_type]
@@ -191,41 +202,19 @@ class AsteriskProcessor(SwaggerPostProcessor):
             parameter.c_space = ' '
 
     def process_model(self, model, context):
+        model.description_dox = model.description.replace('\n', '\n * ')
+        model.description_dox = re.sub(' *\n', '\n', model.description_dox)
         model.c_id = snakify(model.id)
-        model.channel = False
-        model.channel_desc = ""
-        model.bridge = False
-        model.bridge_desc = ""
-        model.properties = [self.process_property(model, prop, context) for prop in model.properties]
-        model.properties = [prop for prop in model.properties if prop]
-	model.has_properties = (len(model.properties) != 0)
         return model
 
-    def process_property(self, model, prop, context):
-        # process channel separately since it will be pulled out
-        if prop.name == 'channel' and prop.type == 'Channel':
-            model.channel = True
-            model.channel_desc = prop.description or ""
-            return None
+    def process_property(self, prop, context):
+        if "-" in prop.name:
+            raise SwaggerError("Property names cannot have dashes", context)
+        if prop.name != prop.name.lower():
+            raise SwaggerError("Property name should be all lowercase",
+                               context)
 
-        # process bridge separately since it will be pulled out
-        if prop.name == 'bridge' and prop.type == 'Bridge':
-            model.bridge = True
-            model.bridge_desc = prop.description or ""
-            return None
-
-	prop.c_name = snakify(prop.name)
-        if prop.type in self.type_mapping:
-            prop.c_type = self.type_mapping[prop.type]
-            prop.c_convert = self.convert_mapping[prop.c_type]
-        else:
-            prop.c_type = "Property type %s not mappable to a C type" % (prop.type)
-            prop.c_convert = "Property type %s not mappable to a C conversion" % (prop.type)
-            #raise SwaggerError(
-            #    "Invalid property type %s" % prop.type, context)
-        # You shouldn't put a space between 'char *' and the variable
-        if prop.c_type.endswith('*'):
-            prop.c_space = ''
-        else:
-            prop.c_space = ' '
-        return prop
+    def process_type(self, swagger_type, context):
+        swagger_type.c_name = snakify(swagger_type.name)
+        swagger_type.c_singular_name = snakify(swagger_type.singular_name)
+        swagger_type.wiki_name = wikify(swagger_type.name)

@@ -83,5 +83,8 @@ $(subst .c,.o,$(wildcard parking/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_par
 res_stasis_http.so: stasis_http/ari_websockets.o
 stasis_http/ari_websockets.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_http_asterisk)
 
+res_ari_model.so: stasis_http/ari_model_validators.o
+stasis_http/ari_model_validators.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_model)
+
 # Dependencies for res_stasis_http_*.so are generated, so they're in this file
 include stasis_http.make

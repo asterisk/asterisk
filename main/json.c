@@ -103,6 +103,23 @@ enum ast_json_type ast_json_typeof(const struct ast_json *json)
 	return r;
 }
 
+const char *ast_json_typename(enum ast_json_type type)
+{
+	switch (type) {
+	case AST_JSON_OBJECT: return "object";
+	case AST_JSON_ARRAY: return "array";
+	case AST_JSON_STRING: return "string";
+	case AST_JSON_INTEGER: return "integer";
+	case AST_JSON_REAL: return "real";
+	case AST_JSON_TRUE: return "boolean";
+	case AST_JSON_FALSE: return "boolean";
+	case AST_JSON_NULL: return "null";
+	}
+	ast_assert(0);
+	return "?";
+}
+
+
 struct ast_json *ast_json_true(void)
 {
 	return (struct ast_json *)json_true();
