@@ -710,12 +710,10 @@ static int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 	bridge_channel->just_joined = 1;
 	AST_LIST_INSERT_TAIL(&bridge->channels, bridge_channel, entry);
 	++bridge->num_channels;
-
-	ast_bridge_publish_enter(bridge, bridge_channel->chan);
-
 	if (!bridge_channel->suspended) {
 		++bridge->num_active;
 	}
+	ast_bridge_publish_enter(bridge, bridge_channel->chan);
 	if (swap) {
 		ast_bridge_change_state(swap, AST_BRIDGE_CHANNEL_STATE_HANGUP);
 		bridge_channel_pull(swap);
