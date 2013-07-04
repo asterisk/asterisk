@@ -118,7 +118,7 @@ int ari_validate_boolean(struct ast_json *json)
 int ari_validate_int(struct ast_json *json)
 {
 	/* Swagger int's are 32-bit */
-	return check_range(-2147483648, 2147483647, json);
+	return check_range(-2147483648LL, 2147483647LL, json);
 }
 
 int ari_validate_long(struct ast_json *json)
