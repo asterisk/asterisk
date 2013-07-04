@@ -147,7 +147,7 @@ AST_TEST_DEFINE(validate_int)
 		break;
 	}
 
-	uut = ast_json_integer_create(-2147483648);
+	uut = ast_json_integer_create(-2147483648LL);
 	ast_test_validate(test, NULL != uut);
 	ast_test_validate(test, ari_validate_int(uut));
 
@@ -155,7 +155,7 @@ AST_TEST_DEFINE(validate_int)
 	ast_test_validate(test, 0 == res);
 	ast_test_validate(test, ari_validate_int(uut));
 
-	res = ast_json_integer_set(uut, 2147483647);
+	res = ast_json_integer_set(uut, 2147483647LL);
 	ast_test_validate(test, 0 == res);
 	ast_test_validate(test, ari_validate_int(uut));
 
