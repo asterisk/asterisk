@@ -140,6 +140,9 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
 	/* Who is transferring the call. */
 	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", ast_channel_name(caller));
 
+	/* To work as an analog to BLINDTRANSFER */
+	pbx_builtin_setvar_helper(chan, "ATTENDEDTRANSFER", ast_channel_name(caller));
+
 	/* Before we actually dial out let's inherit appropriate information. */
 	copy_caller_data(chan, caller);
 

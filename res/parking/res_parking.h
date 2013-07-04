@@ -100,12 +100,11 @@ struct parking_lot {
 
 struct parked_user {
 	struct ast_channel *chan;                 /*!< Parked channel */
-	struct ast_channel_snapshot *parker;      /*!< Snapshot of the channel that parked the call at the time of parking */
 	struct ast_channel_snapshot *retriever;   /*!< Snapshot of the channel that retrieves a parked call */
 	struct timeval start;                     /*!< When the call was parked */
 	int parking_space;                        /*!< Which parking space is used */
 	char comeback[AST_MAX_CONTEXT];           /*!< Where to go on parking timeout */
-	char blindtransfer[AST_CHANNEL_NAME];     /*!< What the BLINDTRANSFER variable was at the time of entry */
+	char *parker_dial_string;                 /*!< dialstring to call back with comebacktoorigin. Used timeout extension generation and call control */
 	unsigned int time_limit;                  /*!< How long this specific channel may remain in the parking lot before timing out */
 	struct parking_lot *lot;                  /*!< Which parking lot the user is parked to */
 	enum park_call_resolution resolution;     /*!< How did the parking session end? If the call is in a bridge, lock parked_user before checking/setting */
@@ -285,11 +284,11 @@ const char *find_channel_parking_lot_name(struct ast_channel *chan);
 
 /*!
  * \since 12.0.0
- * \brief Flattens a peer name so that it can be written to/found from PBX extensions
+ * \brief Flattens a dial string so that it can be written to/found from PBX extensions
  *
- * \param peername unflattened peer name. This will be flattened in place, so expect it to change.
+ * \param peername unflattened dial string. This will be flattened in place.
  */
-void flatten_peername(char *peername);
+void flatten_dial_string(char *dialstring);
 
 /*!
  * \since 12.0.0
@@ -370,7 +369,7 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
  *        channel.
  *
  * \param parkee The channel being preparred for parking
- * \param parker The channel initiating the park; may be the parkee as well
+ * \param parker The channel initiating the park; may be the parkee as well. May be NULL.
  * \param app_data arguments supplied to the Park application. May be NULL.
  * \param silence_announcements optional pointer to an integer where we want to store the silence option flag
  *        this value should be initialized to 0 prior to calling park_common_setup.
@@ -385,6 +384,7 @@ struct ast_bridge *park_application_setup(struct ast_channel *parkee, struct ast
 
 struct park_common_datastore {
 	char *parker_uuid;           /*!< Unique ID of the channel parking the call. */
+	char *parker_dial_string;    /*!< Dial string that we would attempt to call when timing out when comebacktoorigin=yes */
 	char *comeback_override;     /*!< Optional goto string for where to send the call after we are done */
 	int randomize;               /*!< Pick a parking space to enter on at random */
 	int time_limit;              /*!< time limit override. -1 values don't override, 0 for unlimited time, >0 for custom time limit in seconds */
@@ -393,19 +393,22 @@ struct park_common_datastore {
 
 /*!
  * \since 12.0.0
- * \brief Function that pulls data from the park common datastore on a channel in order to apply it to
- *        the parked user struct upon bridging.
+ * \brief Get a copy of the park_common_datastore from a channel that is being parked
  *
  * \param parkee The channel entering parking with the datastore we are checking
- * \param parker_uuid pointer to a string pointer for placing the name of the channel that parked parkee
- * \param comeback_override pointer to a string pointer for placing the comeback_override option
- * \param randomize integer pointer to an integer for placing the randomize option
- * \param time_limit integer pointer to an integer for placing the time limit option
- * \param silence_announce pointer to an integer for placing the silence_announcements option
+ *
+ * \retval Pointer to a copy of the park common datastore for parkee if it could be cloned. This needs to be free'd with park_common_datastore free.
+ * \retval NULL if the park_common_datastore could not be copied off of the channel.
  */
-void get_park_common_datastore_data(struct ast_channel *parkee,
-		char **parker_uuid, char **comeback_override,
-		int *randomize, int *time_limit, int *silence_announce);
+struct park_common_datastore *get_park_common_datastore_copy(struct ast_channel *parkee);
+
+/*!
+ * \since 12.0.0
+ * \brief Free a park common datastore struct
+ *
+ * \param datastore The park_common_datastore being free'd. (NULL tolerant)
+ */
+void park_common_datastore_free(struct park_common_datastore *datastore);
 
 /*!
  * \since 12.0.0

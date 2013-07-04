@@ -220,22 +220,14 @@ void parked_call_retrieve_enable_features(struct ast_channel *chan, struct parki
 	return;
 }
 
-void flatten_peername(char *peername)
+void flatten_dial_string(char *dialstring)
 {
 	int i;
-	char *dash;
 
-	/* Truncate after the dash */
-	dash = strrchr(peername, '-');
-	if (dash) {
-		*dash = '\0';
-	}
-
-	/* Replace slashes with underscores since slashes are reserved characters for extension matching */
-	for (i = 0; peername[i]; i++) {
-		if (peername[i] == '/') {
+	for (i = 0; dialstring[i]; i++) {
+		if (dialstring[i] == '/') {
 			/* The underscore is the flattest character of all. */
-			peername[i] = '_';
+			dialstring[i] = '_';
 		}
 	}
 }
@@ -243,39 +235,37 @@ void flatten_peername(char *peername)
 int comeback_goto(struct parked_user *pu, struct parking_lot *lot)
 {
 	struct ast_channel *chan = pu->chan;
-	char *peername;
-
-	peername = ast_strdupa(S_OR(pu->blindtransfer, pu->parker->name));
+	char *peername_flat = ast_strdupa(pu->parker_dial_string);
 
 	/* Flatten the peername so that it can be used for performing the timeout PBX operations */
-	flatten_peername(peername);
+	flatten_dial_string(peername_flat);
 
 	if (lot->cfg->comebacktoorigin) {
-		if (ast_exists_extension(chan, PARK_DIAL_CONTEXT, peername, 1, NULL)) {
-			ast_async_goto(chan, PARK_DIAL_CONTEXT, peername, 1);
+		if (ast_exists_extension(chan, PARK_DIAL_CONTEXT, peername_flat, 1, NULL)) {
+			ast_async_goto(chan, PARK_DIAL_CONTEXT, peername_flat, 1);
 			return 0;
 		} else {
 			ast_log(LOG_ERROR, "Can not start %s at %s,%s,1 because extension does not exist. Terminating call.\n",
-				ast_channel_name(chan), PARK_DIAL_CONTEXT, peername);
+				ast_channel_name(chan), PARK_DIAL_CONTEXT, peername_flat);
 			return -1;
 		}
 	}
 
-	if (ast_exists_extension(chan, lot->cfg->comebackcontext, peername, 1, NULL)) {
-		ast_async_goto(chan, lot->cfg->comebackcontext, peername, 1);
+	if (ast_exists_extension(chan, lot->cfg->comebackcontext, peername_flat, 1, NULL)) {
+		ast_async_goto(chan, lot->cfg->comebackcontext, peername_flat, 1);
 		return 0;
 	}
 
 	if (ast_exists_extension(chan, lot->cfg->comebackcontext, "s", 1, NULL)) {
 		ast_verb(2, "Could not start %s at %s,%s,1. Using 's@%s' instead.\n", ast_channel_name(chan),
-			lot->cfg->comebackcontext, peername, lot->cfg->comebackcontext);
+			lot->cfg->comebackcontext, peername_flat, lot->cfg->comebackcontext);
 		ast_async_goto(chan, lot->cfg->comebackcontext, "s", 1);
 		return 0;
 	}
 
 	ast_verb(2, "Can not start %s at %s,%s,1 and exten 's@%s' does not exist. Using 's@default'\n",
 		ast_channel_name(chan),
-		lot->cfg->comebackcontext, peername, lot->cfg->comebackcontext);
+		lot->cfg->comebackcontext, peername_flat, lot->cfg->comebackcontext);
 	ast_async_goto(chan, "default", "s", 1);
 
 	return 0;

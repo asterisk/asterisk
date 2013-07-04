@@ -66,8 +66,23 @@ static void destroy_parked_user(void *obj)
 	struct parked_user *pu = obj;
 
 	ao2_cleanup(pu->lot);
-	ao2_cleanup(pu->parker);
 	ao2_cleanup(pu->retriever);
+	ast_free(pu->parker_dial_string);
+}
+
+/* Only call this on a parked user that hasn't had its parker_dial_string set already */
+static int parked_user_set_parker_dial_string(struct parked_user *pu, struct ast_channel *parker)
+{
+	char *dial_string = ast_strdupa(ast_channel_name(parker));
+
+	ast_channel_name_to_dial_string(dial_string);
+	pu->parker_dial_string = ast_strdup(dial_string);
+
+	if (!pu->parker_dial_string) {
+		return -1;
+	}
+
+	return 0;
 }
 
 /*!
@@ -78,6 +93,7 @@ static void destroy_parked_user(void *obj)
  * \param lot The parking lot we are assigning the user to
  * \param parkee The channel being parked
  * \param parker The channel performing the park operation (may be the same channel)
+ * \param parker_dial_string Takes priority over parker for setting the parker dial string if included
  * \param use_random_space if true, prioritize using a random parking space instead
  *        of ${PARKINGEXTEN} and/or automatic assignment from the parking lot
  * \param time_limit If using a custom timeout, this should be supplied so that the
@@ -89,7 +105,7 @@ static void destroy_parked_user(void *obj)
  *
  * \note ao2_cleanup this reference when you are done using it or you'll cause leaks.
  */
-static struct parked_user *generate_parked_user(struct parking_lot *lot, struct ast_channel *chan, struct ast_channel *parker, int use_random_space, int time_limit)
+static struct parked_user *generate_parked_user(struct parking_lot *lot, struct ast_channel *chan, struct ast_channel *parker, const char *parker_dial_string, int use_random_space, int time_limit)
 {
 	struct parked_user *new_parked_user;
 	int preferred_space = -1; /* Initialize to use parking lot defaults */
@@ -105,10 +121,6 @@ static struct parked_user *generate_parked_user(struct parking_lot *lot, struct 
 	if (!new_parked_user) {
 		return NULL;
 	}
-
-	ast_channel_lock(chan);
-	ast_copy_string(new_parked_user->blindtransfer, S_OR(pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"), ""), AST_CHANNEL_NAME);
-	ast_channel_unlock(chan);
 
 	if (use_random_space) {
 		preferred_space = ast_random() % (lot->cfg->parking_stop - lot->cfg->parking_start + 1);
@@ -150,8 +162,18 @@ static struct parked_user *generate_parked_user(struct parking_lot *lot, struct 
 
 	new_parked_user->start = ast_tvnow();
 	new_parked_user->time_limit = (time_limit >= 0) ? time_limit : lot->cfg->parkingtime;
-	new_parked_user->parker = ast_channel_snapshot_create(parker);
-	if (!new_parked_user->parker) {
+
+	if (parker_dial_string) {
+		new_parked_user->parker_dial_string = ast_strdup(parker_dial_string);
+	} else {
+		if (parked_user_set_parker_dial_string(new_parked_user, parker)) {
+			ao2_ref(new_parked_user, -1);
+			ao2_unlock(lot);
+			return NULL;
+		}
+	}
+
+	if (!new_parked_user->parker_dial_string) {
 		ao2_ref(new_parked_user, -1);
 		ao2_unlock(lot);
 		return NULL;
@@ -183,13 +205,9 @@ static struct parked_user *generate_parked_user(struct parking_lot *lot, struct 
 static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
 	struct parked_user *pu;
-	int randomize = 0;
-	int time_limit = -1;
-	int silence = 0;
 	const char *blind_transfer;
-	RAII_VAR(struct ast_channel *, parker, NULL, ao2_cleanup);
-	RAII_VAR(char *, parker_uuid, NULL, ast_free);
-	RAII_VAR(char *, comeback_override, NULL, ast_free);
+	RAII_VAR(struct ast_channel *, parker, NULL, ao2_cleanup); /* XXX replace with ast_channel_cleanup when available */
+	RAII_VAR(struct park_common_datastore *, park_datastore, NULL, park_common_datastore_free);
 
 	ast_bridge_base_v_table.push(&self->base, bridge_channel, swap);
 
@@ -231,11 +249,14 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 		return 0;
 	}
 
-	get_park_common_datastore_data(bridge_channel->chan, &parker_uuid, &comeback_override, &randomize, &time_limit, &silence);
-	parker = ast_channel_get_by_name(parker_uuid);
+	if (!(park_datastore = get_park_common_datastore_copy(bridge_channel->chan))) {
+		/* There was either a failure to apply the datastore when performing park common setup or else we had alloc failures while cloning. Abort. */
+		return -1;
+	}
+	parker = ast_channel_get_by_name(park_datastore->parker_uuid);
 
 	/* If the parker and the parkee are the same channel pointer, then the channel entered using
-	 * the park application. It's possible the the blindtransfer channel is still alive (particularly
+	 * the park application. It's possible that the channel that transferred it is still alive (particularly
 	 * when a multichannel bridge is parked), so try to get the real parker if possible. */
 	ast_channel_lock(bridge_channel->chan);
 	blind_transfer = S_OR(pbx_builtin_getvar_helper(bridge_channel->chan, "BLINDTRANSFER"),
@@ -253,19 +274,17 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 		}
 	}
 
-	if (!parker) {
-		return -1;
-	}
+	pu = generate_parked_user(self->lot, bridge_channel->chan, parker,
+		park_datastore->parker_dial_string, park_datastore->randomize, park_datastore->time_limit);
 
-	pu = generate_parked_user(self->lot, bridge_channel->chan, parker, randomize, time_limit);
 	if (!pu) {
 		publish_parked_call_failure(bridge_channel->chan);
 		return -1;
 	}
 
 	/* If a comeback_override was provided, set it for the parked user's comeback string. */
-	if (comeback_override) {
-		strncpy(pu->comeback, comeback_override, sizeof(pu->comeback));
+	if (park_datastore->comeback_override) {
+		strncpy(pu->comeback, park_datastore->comeback_override, sizeof(pu->comeback));
 		pu->comeback[sizeof(pu->comeback) - 1] = '\0';
 	}
 
@@ -273,7 +292,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	publish_parked_call(pu, PARKED_CALL);
 
 	/* If the parkee and the parker are the same and silence_announce isn't set, play the announcement to the parkee */
-	if (!strcmp(blind_transfer, ast_channel_name(bridge_channel->chan)) && !silence) {
+	if (!strcmp(blind_transfer, ast_channel_name(bridge_channel->chan)) && !park_datastore->silence_announce) {
 		char saynum_buf[16];
 		snprintf(saynum_buf, sizeof(saynum_buf), "%u %u", 0, pu->parking_space);
 		ast_bridge_channel_queue_playfile(bridge_channel, say_parking_space, saynum_buf, NULL);

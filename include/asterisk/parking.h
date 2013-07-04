@@ -45,14 +45,14 @@ enum ast_parked_call_event_type {
  */
 struct ast_parked_call_payload {
 	struct ast_channel_snapshot *parkee;             /*!< Snapshot of the channel that is parked */
-	struct ast_channel_snapshot *parker;             /*!< Snapshot of the channel that parked the call */
-	struct ast_channel_snapshot *retriever;          /*!< Snapshot of the channel that retrieved the call */
+	struct ast_channel_snapshot *retriever;          /*!< Snapshot of the channel that retrieved the call (may be NULL) */
 	enum ast_parked_call_event_type event_type;      /*!< Reason for issuing the parked call message */
 	long unsigned int timeout;                       /*!< Time remaining before the call times out (seconds ) */
 	long unsigned int duration;                      /*!< How long the parkee has been parked (seconds) */
 	unsigned int parkingspace;                       /*!< Which Parking Space the parkee occupies */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(parkinglot);                /*!< Name of the parking lot used to park the parkee */
+		AST_STRING_FIELD(parker_dial_string);          /*!< The device string used for call control on parking timeout */
 	);
 };
 
@@ -64,7 +64,7 @@ struct ast_exten;
  *
  * \param event_type What kind of parked call event is happening
  * \param parkee_snapshot channel snapshot of the parkee
- * \param parker_snapshot channel snapshot of the parker
+ * \param parker_dial_string dialstring used when the call times out
  * \param retriever_snapshot channel snapshot of the retriever (NULL allowed)
  * \param parkinglot name of the parking lot where the parked call is parked
  * \param parkingspace what numerical parking space the parked call is parked in
@@ -75,7 +75,7 @@ struct ast_exten;
  * \retval reference to a newly created parked call payload
  */
 struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_call_event_type event_type,
-		struct ast_channel_snapshot *parkee_snapshot, struct ast_channel_snapshot *parker_snapshot,
+		struct ast_channel_snapshot *parkee_snapshot, const char *parker_dial_string,
 		struct ast_channel_snapshot *retriever_snapshot, const char *parkinglot,
 		unsigned int parkingspace, unsigned long int timeout, unsigned long int duration);
 

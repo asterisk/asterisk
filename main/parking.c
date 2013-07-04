@@ -79,13 +79,12 @@ static void parked_call_payload_destructor(void *obj)
 	struct ast_parked_call_payload *park_obj = obj;
 
 	ao2_cleanup(park_obj->parkee);
-	ao2_cleanup(park_obj->parker);
 	ao2_cleanup(park_obj->retriever);
 	ast_string_field_free_memory(park_obj);
 }
 
 struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_call_event_type event_type,
-		struct ast_channel_snapshot *parkee_snapshot, struct ast_channel_snapshot *parker_snapshot,
+		struct ast_channel_snapshot *parkee_snapshot, const char *parker_dial_string,
 		struct ast_channel_snapshot *retriever_snapshot, const char *parkinglot,
 		unsigned int parkingspace, unsigned long int timeout,
 		unsigned long int duration)
@@ -106,11 +105,6 @@ struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_c
 	ao2_ref(parkee_snapshot, +1);
 	payload->parkee = parkee_snapshot;
 
-	if (parker_snapshot) {
-		ao2_ref(parker_snapshot, +1);
-		payload->parker = parker_snapshot;
-	}
-
 	if (retriever_snapshot) {
 		ao2_ref(retriever_snapshot, +1);
 		payload->retriever = retriever_snapshot;
@@ -118,6 +112,10 @@ struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_c
 
 	if (parkinglot) {
 		ast_string_field_set(payload, parkinglot, parkinglot);
+	}
+
+	if (parker_dial_string) {
+		ast_string_field_set(payload, parker_dial_string, parker_dial_string);
 	}
 
 	payload->parkingspace = parkingspace;

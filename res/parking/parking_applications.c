@@ -284,12 +284,22 @@ static int park_app_parse_data(const char *data, int *disable_announce, int *use
 	return 0;
 }
 
+void park_common_datastore_free(struct park_common_datastore *datastore)
+{
+	if (!datastore) {
+		return;
+	}
+
+	ast_free(datastore->parker_uuid);
+	ast_free(datastore->parker_dial_string);
+	ast_free(datastore->comeback_override);
+	ast_free(datastore);
+}
+
 static void park_common_datastore_destroy(void *data)
 {
 	struct park_common_datastore *datastore = data;
-	ast_free(datastore->parker_uuid);
-	ast_free(datastore->comeback_override);
-	ast_free(datastore);
+	park_common_datastore_free(datastore);
 }
 
 static const struct ast_datastore_info park_common_info = {
@@ -314,6 +324,9 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 {
 	struct ast_datastore *datastore = NULL;
 	struct park_common_datastore *park_datastore;
+	const char *attended_transfer;
+	const char *blind_transfer;
+	char *parker_dial_string = NULL;
 
 	wipe_park_common_datastore(parkee);
 
@@ -326,7 +339,27 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 		return -1;
 	}
 
-	park_datastore->parker_uuid = ast_strdup(parker_uuid);
+	if (parker_uuid) {
+		park_datastore->parker_uuid = ast_strdup(parker_uuid);
+	}
+
+	ast_channel_lock(parkee);
+
+	attended_transfer = pbx_builtin_getvar_helper(parkee, "ATTENDEDTRANSFER");
+	blind_transfer = pbx_builtin_getvar_helper(parkee, "BLINDTRANSFER");
+
+	if (attended_transfer || blind_transfer) {
+		parker_dial_string = ast_strdupa(S_OR(attended_transfer, blind_transfer));
+	}
+
+	ast_channel_unlock(parkee);
+
+	if (!ast_strlen_zero(parker_dial_string)) {
+		ast_channel_name_to_dial_string(parker_dial_string);
+		ast_verb(5, "Setting dial string to %s from %s value", parker_dial_string, attended_transfer ? "ATTENDEDTRANSFER" : "BLINDTRANSFER");
+		park_datastore->parker_dial_string = ast_strdup(parker_dial_string);
+	}
+
 	park_datastore->randomize = randomize;
 	park_datastore->time_limit = time_limit;
 	park_datastore->silence_announce = silence_announce;
@@ -344,16 +377,15 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 	return 0;
 }
 
-void get_park_common_datastore_data(struct ast_channel *parkee, char **parker_uuid, char **comeback_override,
-		int *randomize, int *time_limit, int *silence_announce)
+struct park_common_datastore *get_park_common_datastore_copy(struct ast_channel *parkee)
 {
 	struct ast_datastore *datastore;
 	struct park_common_datastore *data;
+	struct park_common_datastore *data_copy;
 
-	ast_channel_lock(parkee);
+	SCOPED_CHANNELLOCK(lock, parkee);
 	if (!(datastore = ast_channel_datastore_find(parkee, &park_common_info, NULL))) {
-		ast_channel_unlock(parkee);
-		return;
+		return NULL;
 	}
 
 	data = datastore->data;
@@ -363,16 +395,37 @@ void get_park_common_datastore_data(struct ast_channel *parkee, char **parker_uu
 		ast_assert(0);
 	}
 
-	*parker_uuid = ast_strdup(data->parker_uuid);
-	*randomize = data->randomize;
-	*time_limit = data->time_limit;
-	*silence_announce = data->silence_announce;
-
-	if (data->comeback_override) {
-		*comeback_override = ast_strdup(data->comeback_override);
+	data_copy = ast_calloc(1, sizeof(*data_copy));
+	if (!data_copy) {
+		return NULL;
 	}
 
-	ast_channel_unlock(parkee);
+	if (!(data_copy->parker_uuid = ast_strdup(data->parker_uuid))) {
+		park_common_datastore_free(data_copy);
+		return NULL;
+	}
+
+	data_copy->randomize = data->randomize;
+	data_copy->time_limit = data->time_limit;
+	data_copy->silence_announce = data->silence_announce;
+
+	if (data->comeback_override) {
+		data_copy->comeback_override = ast_strdup(data->comeback_override);
+		if (!data_copy->comeback_override) {
+			park_common_datastore_free(data_copy);
+			return NULL;
+		}
+	}
+
+	if (data->parker_dial_string) {
+		data_copy->parker_dial_string = ast_strdup(data->parker_dial_string);
+		if (!data_copy->parker_dial_string) {
+			park_common_datastore_free(data_copy);
+			return NULL;
+		}
+	}
+
+	return data_copy;
 }
 
 struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_channel *parker,
@@ -381,6 +434,10 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
 {
 	struct ast_bridge *parking_bridge;
 	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
+
+	if (!parker) {
+		parker = parkee;
+	}
 
 	/* If the name of the parking lot isn't specified in the arguments, find it based on the channel. */
 	if (ast_strlen_zero(lot_name)) {
@@ -433,18 +490,6 @@ struct ast_bridge *park_application_setup(struct ast_channel *parkee, struct ast
 
 }
 
-/* XXX BUGBUG - determining the parker when transferred to deep park priority
- *     Currently all parking by the park application is treated as calls parking themselves.
- *     However, it's possible for calls to be transferred here when the Park application is
- *     set after the first priority of an extension. In that case, there used to be a variable
- *     (BLINDTRANSFER) set indicating which channel placed that call here.
- *
- *     If BLINDTRANSFER is set, this channel name will need to be referenced in Park events
- *     generated by stasis. Ideally we would get a whole channel snapshot and use that for the
- *     parker, but that would likely require applying the channel snapshot to a channel datastore
- *     on all transfers. Alternatively just the name of the parking channel could be applied along
- *     with an indication that it's dead.
- */
 int park_app_exec(struct ast_channel *chan, const char *data)
 {
 	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
@@ -452,7 +497,7 @@ int park_app_exec(struct ast_channel *chan, const char *data)
 	struct ast_bridge_features chan_features;
 	int res;
 	int silence_announcements = 0;
-	const char *blind_transfer;
+	const char *transferer;
 
 	/* Answer the channel if needed */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
@@ -460,14 +505,15 @@ int park_app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	ast_channel_lock(chan);
-	if ((blind_transfer = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"))) {
-		blind_transfer = ast_strdupa(blind_transfer);
+	if (!(transferer = pbx_builtin_getvar_helper(chan, "ATTENDEDTRANSFER"))) {
+		transferer = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER");
 	}
+	transferer = ast_strdupa(S_OR(transferer, ""));
 	ast_channel_unlock(chan);
 
 	/* Handle the common parking setup stuff */
-	if (!(parking_bridge = park_application_setup(chan, chan, data, &silence_announcements))) {
-		if (!silence_announcements && !blind_transfer) {
+	if (!(parking_bridge = park_application_setup(chan, NULL, data, &silence_announcements))) {
+		if (!silence_announcements && !transferer) {
 			ast_stream_and_wait(chan, "pbx-parkingfailed", "");
 		}
 		return 0;
@@ -767,7 +813,7 @@ int park_and_announce_app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Handle the common parking setup stuff */
-	if (!(parking_bridge = park_application_setup(chan, chan, data, &silence_announcements))) {
+	if (!(parking_bridge = park_application_setup(chan, NULL, data, &silence_announcements))) {
 		return 0;
 	}
 

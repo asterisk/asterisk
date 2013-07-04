@@ -1333,7 +1333,7 @@ static void cel_parking_cb(
 	case PARKED_CALL:
 		report_event_snapshot(parked_payload->parkee, AST_CEL_PARK_START, NULL,
 			parked_payload->parkinglot,
-			S_COR(parked_payload->parker, parked_payload->parker->name, NULL));
+			parked_payload->parker_dial_string);
 		break;
 	case PARKED_CALL_TIMEOUT:
 		report_event_snapshot(parked_payload->parkee, AST_CEL_PARK_END, NULL, "ParkedCallTimeOut", NULL);

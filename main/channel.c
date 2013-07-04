@@ -6565,6 +6565,17 @@ const char *ast_channel_oldest_linkedid(const char *a, const char *b)
 	}
 }
 
+void ast_channel_name_to_dial_string(char *channel_name)
+{
+	char *dash;
+
+	/* Truncate after the dash */
+	dash = strrchr(channel_name, '-');
+	if (dash) {
+		*dash = '\0';
+	}
+}
+
 /*!
  * \internal
  * \brief Transfer COLP between target and transferee channels.

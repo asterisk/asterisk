@@ -282,46 +282,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Bridge together two channels already in the PBX.</para>
 		</description>
 	</manager>
-	<managerEvent language="en_US" name="ParkedCallTimeOut">
-		<managerEventInstance class="EVENT_FLAG_CALL">
-			<synopsis>Raised when a parked call times out.</synopsis>
-			<syntax>
-				<parameter name="Exten">
-					<para>The parking lot extension.</para>
-				</parameter>
-				<parameter name="Channel"/>
-				<parameter name="Parkinglot">
-					<para>The name of the parking lot.</para>
-				</parameter>
-				<parameter name="CallerIDNum"/>
-				<parameter name="CallerIDName"/>
-				<parameter name="ConnectedLineNum"/>
-				<parameter name="ConnectedLineName"/>
-				<parameter name="UniqueID"/>
-			</syntax>
-			<see-also>
-				<ref type="managerEvent">ParkedCall</ref>
-			</see-also>
-		</managerEventInstance>
-	</managerEvent>
-	<managerEvent language="en_US" name="ParkedCallGiveUp">
-		<managerEventInstance class="EVENT_FLAG_CALL">
-			<synopsis>Raised when a parked call hangs up while in the parking lot.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCallTimeOut']/managerEventInstance/syntax/parameter[@name='Exten'])" />
-				<parameter name="Channel"/>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCallTimeOut']/managerEventInstance/syntax/parameter[@name='Parkinglot'])" />
-				<parameter name="CallerIDNum"/>
-				<parameter name="CallerIDName"/>
-				<parameter name="ConnectedLineNum"/>
-				<parameter name="ConnectedLineName"/>
-				<parameter name="UniqueID"/>
-			</syntax>
-			<see-also>
-				<ref type="managerEvent">ParkedCall</ref>
-			</see-also>
-		</managerEventInstance>
-	</managerEvent>
 	<managerEvent language="en_US" name="Pickup">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a call pickup occurs.</synopsis>

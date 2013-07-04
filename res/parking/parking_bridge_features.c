@@ -367,23 +367,6 @@ static void parking_duration_cb_destroyer(void *hook_pvt)
 	ao2_ref(user, -1);
 }
 
-/*!
- * \brief Removes the identification information from a channel name string
- * \since 12.0
- *
- * \param channel name string that you wish to turn into a dial string. This will be edited in place.
- */
-static void channel_name_to_dial_string(char *peername)
-{
-	char *dash;
-
-	/* Truncate after the dash */
-	dash = strrchr(peername, '-');
-	if (dash) {
-		*dash = '\0';
-	}
-}
-
 /*! \internal
  * \brief Interval hook. Pulls a parked call from the parking bridge after the timeout is passed and sets the resolution to timeout.
  *
@@ -396,8 +379,8 @@ static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridg
 	struct parked_user *user = hook_pvt;
 	struct ast_channel *chan = user->chan;
 	struct ast_context *park_dial_context;
-	char *peername;
-	char *peername_flat;
+	const char *dial_string;
+	char *dial_string_flat;
 	char parking_space[AST_MAX_EXTENSION];
 
 	char returnexten[AST_MAX_EXTENSION];
@@ -426,14 +409,12 @@ static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridg
 	pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parking_space); /* Deprecated version of PARKING_SPACE */
 	pbx_builtin_setvar_helper(chan, "PARKEDLOT", user->lot->name);
 
-	peername = ast_strdupa(S_OR(user->blindtransfer, user->parker->name));
-	channel_name_to_dial_string(peername);
+	dial_string = user->parker_dial_string;
+	dial_string_flat = ast_strdupa(dial_string);
+	flatten_dial_string(dial_string_flat);
 
-	peername_flat = ast_strdupa(user->parker->name);
-	flatten_peername(peername_flat);
-
-	pbx_builtin_setvar_helper(chan, "PARKER", peername);
-	pbx_builtin_setvar_helper(chan, "PARKER_FLAT", peername_flat);
+	pbx_builtin_setvar_helper(chan, "PARKER", dial_string);
+	pbx_builtin_setvar_helper(chan, "PARKER_FLAT", dial_string_flat);
 
 	/* Dialplan generation for park-dial extensions */
 
@@ -462,26 +443,26 @@ static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridg
 		ast_assert(0);
 	}
 
-	snprintf(returnexten, sizeof(returnexten), "%s,%u", peername,
+	snprintf(returnexten, sizeof(returnexten), "%s,%u", dial_string,
 		user->lot->cfg->comebackdialtime);
 
 	duplicate_returnexten = ast_strdup(returnexten);
 
 	if (!duplicate_returnexten) {
 		ast_log(LOG_ERROR, "Failed to create parking redial parker extension %s@%s - Dial(%s)\n",
-			peername_flat, PARK_DIAL_CONTEXT, returnexten);
+			dial_string_flat, PARK_DIAL_CONTEXT, returnexten);
 	}
 
 	/* If an extension already exists here because we registered it for another parked call timing out, then we may overwrite it. */
-	if ((existing_exten = pbx_find_extension(NULL, NULL, &pbx_finder, PARK_DIAL_CONTEXT, peername_flat, 1, NULL, NULL, E_MATCH)) &&
+	if ((existing_exten = pbx_find_extension(NULL, NULL, &pbx_finder, PARK_DIAL_CONTEXT, dial_string_flat, 1, NULL, NULL, E_MATCH)) &&
 	    (strcmp(ast_get_extension_registrar(existing_exten), BASE_REGISTRAR))) {
 		ast_debug(3, "An extension for '%s@%s' was already registered by another registrar '%s'\n",
-			peername_flat, PARK_DIAL_CONTEXT, ast_get_extension_registrar(existing_exten));
-	} else if (ast_add_extension2_nolock(park_dial_context, 1, peername_flat, 1, NULL, NULL,
+			dial_string_flat, PARK_DIAL_CONTEXT, ast_get_extension_registrar(existing_exten));
+	} else if (ast_add_extension2_nolock(park_dial_context, 1, dial_string_flat, 1, NULL, NULL,
 			"Dial", duplicate_returnexten, ast_free_ptr, BASE_REGISTRAR)) {
 			ast_free(duplicate_returnexten);
 		ast_log(LOG_ERROR, "Failed to create parking redial parker extension %s@%s - Dial(%s)\n",
-			peername_flat, PARK_DIAL_CONTEXT, returnexten);
+			dial_string_flat, PARK_DIAL_CONTEXT, returnexten);
 	}
 
 	if (ast_unlock_context(park_dial_context)) {

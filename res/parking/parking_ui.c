@@ -40,9 +40,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static void display_parked_call(struct parked_user *user, int fd)
 {
-	ast_cli(fd, "  Space: %d\n", user->parking_space);
-	ast_cli(fd, "  Channel: %s\n", ast_channel_name(user->chan));
-	ast_cli(fd, "  Parker: %s\n", user->parker ? user->parker->name : "<unknown>");
+	ast_cli(fd, "  Space               :  %d\n", user->parking_space);
+	ast_cli(fd, "  Channel             :  %s\n", ast_channel_name(user->chan));
+	ast_cli(fd, "  Parker Dial String  :  %s\n", user->parker_dial_string);
 	ast_cli(fd, "\n");
 }
 

@@ -75,6 +75,22 @@ AMI:
    - Channels no longer swap Uniqueid's as a result of the masquerade.
    - Instead of a shell game of renames, there's now a single rename, appending
      <ZOMBIE> to the name of the original channel.
+ - The AMI events 'ParkedCall', 'ParkedCallTimeOut', 'ParkedCallGiveUp', and
+   'UnParkedCall' have changed significantly in the new res_parking module.
+   - The 'Channel' and 'From' headers are gone. For the channel that was parked
+     or is coming out of parking, a 'Parkee' channel snapshot is issued and it
+     has a number of fields associated with it. The old 'Channel' header relayed
+     the same data as the new 'ParkeeChannel' header.
+   - The 'From' field was ambiguous and changed meaning depending on the event.
+     for most of these, it was the name of the channel that parked the call
+     (the 'Parker'). There is no longer a header that provides this channel name,
+     however the 'ParkerDialString' will contain a dialstring to redial the
+     device that parked the call.
+   - On UnParkedCall events, the 'From' header would instead represent the
+     channel responsible for retrieving the parkee. It receives a channel
+     snapshot labeled 'Retriever'. The 'from' field is is replaced with
+     'RetrieverChannel'.
+   - Lastly, the 'Exten' field has been replaced with 'ParkingSpace'.
 
 CEL:
  - The Uniqueid field for a channel is now a stable identifier, and will not

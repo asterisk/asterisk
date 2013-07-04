@@ -134,43 +134,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<parameter name="ParkeeUniqueid">
 				</parameter>
-				<parameter name="ParkerChannel">
-				</parameter>
-				<parameter name="ParkerChannelState">
-				<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="ParkerChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="ParkerCallerIDNum">
-				</parameter>
-				<parameter name="ParkerCallerIDName">
-				</parameter>
-				<parameter name="ParkerConnectedLineNum">
-				</parameter>
-				<parameter name="ParkerConnectedLineName">
-				</parameter>
-				<parameter name="ParkerAccountCode">
-				</parameter>
-				<parameter name="ParkerContext">
-				</parameter>
-				<parameter name="ParkerExten">
-				</parameter>
-				<parameter name="ParkerPriority">
-				</parameter>
-				<parameter name="ParkerUniqueid">
+				<parameter name="ParkerDialString">
+					<para>Dial String that can be used to call back the parker on ParkingTimeout.</para>
 				</parameter>
 				<parameter name="Parkinglot">
 					<para>Name of the parking lot that the parkee is parked in</para>
@@ -276,10 +241,6 @@ static struct ast_parked_call_payload *parked_call_payload_from_parked_user(stru
 	struct timeval now = ast_tvnow();
 	const char *lot_name = pu->lot->name;
 
-	if (!pu->parker) {
-		return NULL;
-	}
-
 	parkee_snapshot = ast_channel_snapshot_create(pu->chan);
 
 	if (!parkee_snapshot) {
@@ -289,7 +250,7 @@ static struct ast_parked_call_payload *parked_call_payload_from_parked_user(stru
 	timeout = pu->start.tv_sec + (long) pu->time_limit - now.tv_sec;
 	duration = now.tv_sec - pu->start.tv_sec;
 
-	return ast_parked_call_payload_create(event_type, parkee_snapshot, pu->parker, pu->retriever, lot_name, pu->parking_space, timeout, duration);
+	return ast_parked_call_payload_create(event_type, parkee_snapshot, pu->parker_dial_string, pu->retriever, lot_name, pu->parking_space, timeout, duration);
 
 }
 
@@ -298,7 +259,6 @@ static struct ast_str *manager_build_parked_call_string(const struct ast_parked_
 {
 	struct ast_str *out = ast_str_create(1024);
 	RAII_VAR(struct ast_str *, parkee_string, NULL, ast_free);
-	RAII_VAR(struct ast_str *, parker_string, NULL, ast_free);
 	RAII_VAR(struct ast_str *, retriever_string, NULL, ast_free);
 
 	if (!out) {
@@ -307,26 +267,22 @@ static struct ast_str *manager_build_parked_call_string(const struct ast_parked_
 
 	parkee_string = ast_manager_build_channel_state_string_prefix(payload->parkee, "Parkee");
 
-	if (payload->parker) {
-		parker_string = ast_manager_build_channel_state_string_prefix(payload->parker, "Parker");
-	}
-
 	if (payload->retriever) {
 		retriever_string = ast_manager_build_channel_state_string_prefix(payload->retriever, "Retriever");
 	}
 
 	ast_str_set(&out, 0,
 		"%s" /* parkee channel state */
-		"%s" /* parker channel state */
 		"%s" /* retriever channel state (when available) */
+		"ParkerDialString: %s\r\n"
 		"Parkinglot: %s\r\n"
 		"ParkingSpace: %u\r\n"
 		"ParkingTimeout: %lu\r\n"
 		"ParkingDuration: %lu\r\n",
 
 		ast_str_buffer(parkee_string),
-		parker_string ? ast_str_buffer(parker_string) : "",
 		retriever_string ? ast_str_buffer(retriever_string) : "",
+		payload->parker_dial_string,
 		payload->parkinglot,
 		payload->parkingspace,
 		payload->timeout,

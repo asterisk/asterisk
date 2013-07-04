@@ -4375,5 +4375,13 @@ int ast_channel_forward_endpoint(struct ast_channel *chan, struct ast_endpoint *
 */
 const char *ast_channel_oldest_linkedid(const char *a, const char *b);
 
+/*!
+ * \brief Removes the trailing identifiers from a channel name string
+ * \since 12.0.0
+ *
+ * \param channel_name string that you wish to turn into a dial string.
+ *                     This string will be edited in place.
+ */
+void ast_channel_name_to_dial_string(char *channel_name);
 
 #endif /* _ASTERISK_CHANNEL_H */
