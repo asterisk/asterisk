@@ -851,6 +851,11 @@ static int stasis_http_callback(struct ast_tcptls_session_instance *ser,
 			conf->general->auth_realm);
 		response.message = ast_json_pack("{s: s}",
 			"error", "Authentication required");
+	} else if (!ast_fully_booted) {
+		response.response_code = 503;
+		response.response_text = "Service Unavailable";
+		response.message = ast_json_pack("{s: s}",
+			"error", "Asterisk not booted");
 	} else if (user->read_only && method != AST_HTTP_GET && method != AST_HTTP_OPTIONS) {
 		response.message = ast_json_pack("{s: s}",
 			"error", "Write access denied");
