@@ -4994,6 +4994,23 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature)
 	return 0;
 }
 
+int ast_bridge_features_do(enum ast_bridge_builtin_feature feature, struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	ast_bridge_hook_callback callback;
+
+	if (ARRAY_LEN(builtin_features_handlers) <= feature) {
+		return -1;
+	}
+
+	callback = builtin_features_handlers[feature];
+	if (!callback) {
+		return -1;
+	}
+	callback(bridge, bridge_channel, hook_pvt);
+
+	return 0;
+}
+
 int ast_bridge_interval_register(enum ast_bridge_builtin_interval interval, ast_bridge_builtin_set_limits_fn callback)
 {
 	if (ARRAY_LEN(builtin_interval_handlers) <= interval
