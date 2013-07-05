@@ -44,7 +44,6 @@ struct ast_channel_snapshot {
 		AST_STRING_FIELD(userfield);        /*!< Userfield for CEL billing */
 		AST_STRING_FIELD(uniqueid);         /*!< Unique Channel Identifier */
 		AST_STRING_FIELD(linkedid);         /*!< Linked Channel Identifier -- gets propagated by linkage */
-		AST_STRING_FIELD(parkinglot);       /*!< Default parking lot, if empty, default parking lot */
 		AST_STRING_FIELD(hangupsource);     /*!< Who is responsible for hanging up this channel */
 		AST_STRING_FIELD(appl);             /*!< Current application */
 		AST_STRING_FIELD(data);             /*!< Data passed to current application */

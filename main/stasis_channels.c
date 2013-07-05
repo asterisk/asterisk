@@ -145,7 +145,6 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	ast_string_field_set(snapshot, userfield, ast_channel_userfield(chan));
 	ast_string_field_set(snapshot, uniqueid, ast_channel_uniqueid(chan));
 	ast_string_field_set(snapshot, linkedid, ast_channel_linkedid(chan));
-	ast_string_field_set(snapshot, parkinglot, ast_channel_parkinglot(chan));
 	ast_string_field_set(snapshot, hangupsource, ast_channel_hangupsource(chan));
 	if (ast_channel_appl(chan)) {
 		ast_string_field_set(snapshot, appl, ast_channel_appl(chan));
