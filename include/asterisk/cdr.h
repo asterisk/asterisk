@@ -330,11 +330,10 @@ struct ast_cdr {
 	char peeraccount[AST_MAX_ACCOUNT_CODE];
 	/*! flags */
 	unsigned int flags;
-	/*! Unique Channel Identifier
-	 * 150 = 127 (max systemname) + "-" + 10 (epoch timestamp) + "." + 10 (monotonically incrementing integer) + NULL */
-	char uniqueid[150];
+	/*! Unique Channel Identifier */
+	char uniqueid[AST_MAX_UNIQUEID];
 	/* Linked group Identifier */
-	char linkedid[32];
+	char linkedid[AST_MAX_UNIQUEID];
 	/*! User field */
 	char userfield[AST_MAX_USER_FIELD];
 	/*! Sequence field */

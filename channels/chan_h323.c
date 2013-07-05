@@ -250,6 +250,8 @@ static void delete_users(void);
 static void delete_aliases(void);
 static void prune_peers(void);
 
+static void oh323_set_owner(struct oh323_pvt *pvt, struct ast_channel *c);
+
 static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
 static int oh323_digit_begin(struct ast_channel *c, char digit);
 static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int duration);
@@ -719,7 +721,7 @@ static int oh323_hangup(struct ast_channel *c)
 		return 0;
 	}
 
-	pvt->owner = NULL;
+	oh323_set_owner(pvt, NULL);
 	ast_channel_tech_pvt_set(c, NULL);
 
 	if (ast_channel_hangupcause(c)) {
@@ -974,7 +976,7 @@ static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, pvt->owner);
 		return -1;
 	}
-	pvt->owner = newchan;
+	oh323_set_owner(p, newchan);
 	ast_mutex_unlock(&pvt->lock);
 	return 0;
 }
@@ -1007,6 +1009,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 		ast_debug(1, "Created RTP channel\n");
 
 	ast_rtp_instance_set_qos(pvt->rtp, tos, cos, "H323 RTP");
+	ast_rtp_instance_set_channel_id(pvt->rtp, pvt->owner ? ast_channel_uniqueid(pvt->owner), "");
 
 	if (h323debug)
 		ast_debug(1, "Setting NAT on RTP to %d\n", pvt->options.nat);
@@ -1100,7 +1103,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		/* Register channel functions. */
 		ast_channel_tech_pvt_set(ch, pvt);
 		/* Set the owner of this channel */
-		pvt->owner = ch;
+		oh323_set_owner(pvt, ch);
 
 		ast_channel_context_set(ch, pvt->context);
 		ast_channel_exten_set(ch, pvt->exten);
@@ -1187,6 +1190,14 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	iflist = pvt;
 	ast_mutex_unlock(&iflock);
 	return pvt;
+}
+
+static void oh323_set_owner(struct oh323_pvt *pvt, struct ast_channel *chan)
+{
+	pvt->owner = chan;
+	if (pvt->rtp) {
+		ast_rtp_instance_set_channel_id(pvt, chan ? ast_channel_uniqueid(chan) : "");
+	}
 }
 
 static struct oh323_pvt *find_call_locked(int call_reference, const char *token)

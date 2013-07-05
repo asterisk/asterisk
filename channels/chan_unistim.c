@@ -675,6 +675,7 @@ static int load_module(void);
 static int reload(void);
 static int unload_module(void);
 static int reload_config(void);
+static void unistim_set_owner(struct unistim_subchannel *sub, struct ast_channel *chan);
 static void show_main_page(struct unistimsession *pte);
 static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor,
 	const char *dest, int *cause);
@@ -2749,6 +2750,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 		return;
 	}
 	ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_RTCP, 1);
+	ast_rtp_instance_set_channel_id(sub->rtp, ast_channel_uniqueid(sub->owner));
 	ast_channel_internal_fd_set(sub->owner, 0, ast_rtp_instance_fd(sub->rtp, 0));
 	ast_channel_internal_fd_set(sub->owner, 1, ast_rtp_instance_fd(sub->rtp, 1));
 	ast_rtp_instance_set_qos(sub->rtp, qos.tos_audio, qos.cos_audio, "UNISTIM RTP");
@@ -4736,7 +4738,7 @@ static int unistim_call(struct ast_channel *ast, const char *dest, int timeout)
 static int unistim_hangup_clean(struct ast_channel *ast, struct unistim_subchannel *sub) {
 	ast_mutex_lock(&sub->lock);
 	ast_channel_tech_pvt_set(ast, NULL);
-	sub->owner = NULL;
+	unistim_set_owner(sub, NULL);
 	sub->alreadygone = 0;
 	ast_mutex_unlock(&sub->lock);
 	if (sub->rtp) {
@@ -5072,7 +5074,7 @@ static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newcha
 		return -1;
 	}
 
-	p->owner = newchan;
+	unistim_set_owner(p, newchan);
 
 	ast_mutex_unlock(&p->lock);
 
@@ -5589,7 +5591,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	if (!ast_strlen_zero(l->parent->language)) {
 		ast_channel_language_set(tmp, l->parent->language);
 	}
-	sub->owner = tmp;
+	unistim_set_owner(sub, tmp);
 	ast_update_use_count();
 	ast_channel_callgroup_set(tmp, l->callgroup);
 	ast_channel_pickupgroup_set(tmp, l->pickupgroup);
@@ -5621,6 +5623,14 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	}
 
 	return tmp;
+}
+
+static void unistim_set_owner(struct unistim_subchannel *sub, struct ast_channel *chan)
+{
+	sub->owner = chan;
+	if (sub->rtp) {
+		ast_rtp_instance_set_channel_id(sub->rtp, sub->owner ? ast_channel_uniqueid(sub->owner) : "");
+	}
 }
 
 static void *do_monitor(void *data)

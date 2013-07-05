@@ -330,6 +330,34 @@ intmax_t ast_json_integer_get(const struct ast_json *integer);
  */
 int ast_json_integer_set(struct ast_json *integer, intmax_t value);
 
+/*!
+ * \brief Create a JSON real number.
+ * \since 12.0.0
+ * \param value Value of the new JSON real number.
+ * \return Newly allocated real number.
+ * \return \c NULL on error.
+ */
+struct ast_json *ast_json_real_create(double value);
+
+/*!
+ * \brief Get the value from a JSON real number.
+ * \since 12.0.0
+ * \param real JSON real number.
+ * \return Value of a JSON real number.
+ * \return 0 if \a real is not a JSON real number.
+ */
+double ast_json_real_get(const struct ast_json *real);
+
+/*!
+ * \brief Set the value of a JSON real number.
+ * \since 12.0.0
+ * \param integer JSON real number to modify.
+ * \param value New value for \a real.
+ * \return 0 on success.
+ * \return -1 on error.
+ */
+int ast_json_real_set(struct ast_json *real, double value);
+
 /*!@}*/
 
 /*!@{*/

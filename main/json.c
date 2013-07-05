@@ -214,6 +214,20 @@ int ast_json_integer_set(struct ast_json *integer, intmax_t value)
 	return json_integer_set((json_t *)integer, value);
 }
 
+struct ast_json *ast_json_real_create(double value)
+{
+	return (struct ast_json *)json_real(value);
+}
+
+double ast_json_real_get(const struct ast_json *real)
+{
+	return json_real_value((json_t *)real);
+}
+
+int ast_json_real_set(struct ast_json *real, double value)
+{
+	return json_real_set((json_t *)real, value);
+}
 
 int ast_json_equal(const struct ast_json *lhs, const struct ast_json *rhs)
 {

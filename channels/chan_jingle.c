@@ -196,6 +196,7 @@ static int jingle_sendhtml(struct ast_channel *ast, int subclass, const char *da
 static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, const char *sid);
 static char *jingle_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *jingle_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static void jingle_set_owner(struct jingle_pvt *pvt, struct ast_channel *chan);
 
 /*! \brief PBX interface structure for channel registration */
 static struct ast_channel_tech jingle_tech = {
@@ -833,6 +834,17 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 	return tmp;
 }
 
+static void jingle_set_owner(struct jingle_pvt *pvt, struct ast_channel *chan)
+{
+	pvt->owner = chan;
+	if (pvt->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->rtp, pvt->owner ? ast_channel_uniqueid(pvt->owner) : "");
+	}
+	if (pvt->vrtp) {
+		ast_rtp_instance_set_channel_id(pvt->vrtp, pvt->owner ? ast_channel_uniqueid(pvt->owner) : "");
+	}
+}
+
 /*! \brief Start new jingle channel */
 static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *i, int state, const char *title, const char *linkedid)
 {
@@ -908,7 +920,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		ast_channel_language_set(tmp, client->language);
 	if (!ast_strlen_zero(client->musicclass))
 		ast_channel_musicclass_set(tmp, client->musicclass);
-	i->owner = tmp;
+	jingle_set_owner(i, tmp);
 	ast_channel_context_set(tmp, client->context);
 	ast_channel_exten_set(tmp, i->exten);
 	/* Don't use ast_set_callerid() here because it will
@@ -1321,8 +1333,9 @@ static int jingle_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
-	if (p->owner == oldchan)
-		p->owner = newchan;
+	if (p->owner == oldchan) {
+		jingle_set_owner(p, newchan);
+	}
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
@@ -1540,7 +1553,7 @@ static int jingle_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	client = p->parent;
-	p->owner = NULL;
+	jingle_set_owner(p, NULL);
 	ast_channel_tech_pvt_set(ast, NULL);
 	if (!p->alreadygone)
 		jingle_action(client, p, JINGLE_TERMINATE);

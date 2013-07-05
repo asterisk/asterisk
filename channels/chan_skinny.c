@@ -1638,6 +1638,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 static int skinny_dialer_cb(const void *data);
 static int skinny_reload(void);
 
+static void skinny_set_owner(struct skinny_subchannel* sub, struct ast_channel* chan);
 static void setsubstate(struct skinny_subchannel *sub, int state);
 static void dumpsub(struct skinny_subchannel *sub, int forcehangup);
 static void activatesub(struct skinny_subchannel *sub, int state);
@@ -4797,10 +4798,12 @@ static void start_rtp(struct skinny_subchannel *sub)
 	}
 
 	if (sub->rtp && sub->owner) {
+		ast_rtp_instance_set_channel_id(sub->rtp, ast_channel_uniqueid(sub->owner));
 		ast_channel_set_fd(sub->owner, 0, ast_rtp_instance_fd(sub->rtp, 0));
 		ast_channel_set_fd(sub->owner, 1, ast_rtp_instance_fd(sub->rtp, 1));
 	}
 	if (hasvideo && sub->vrtp && sub->owner) {
+		ast_rtp_instance_set_channel_id(sub->vrtp, ast_channel_uniqueid(sub->owner));
 		ast_channel_set_fd(sub->owner, 2, ast_rtp_instance_fd(sub->vrtp, 0));
 		ast_channel_set_fd(sub->owner, 3, ast_rtp_instance_fd(sub->vrtp, 1));
 	}
@@ -5009,7 +5012,7 @@ static int skinny_hangup(struct ast_channel *ast)
 	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Destroying\n", sub->callid);
 
 	ast_mutex_lock(&sub->lock);
-	sub->owner = NULL;
+	skinny_set_owner(sub, NULL);
 	ast_channel_tech_pvt_set(ast, NULL);
 	destroy_rtp(sub);
 	ast_free(sub->origtonum);
@@ -5133,7 +5136,7 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
 		return -1;
 	}
-	sub->owner = newchan;
+	skinny_set_owner(sub, newchan);
 	return 0;
 }
 
@@ -5361,6 +5364,17 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	return 0;
 }
 
+static void skinny_set_owner(struct skinny_subchannel* sub, struct ast_channel* chan)
+{
+	sub->owner = chan;
+	if (sub->rtp) {
+		ast_rtp_instance_set_channel_id(sub->rtp, sub->owner ? ast_channel_uniqueid(sub->owner) : "");
+	}
+	if (sub->vrtp) {
+		ast_rtp_instance_set_channel_id(sub->vrtp, sub->owner ? ast_channel_uniqueid(sub->owner) : "");
+	}
+}
+
 static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subline *subline, int state, const char *linkedid, int direction)
 {
 	struct ast_channel *tmp;
@@ -5386,7 +5400,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		} else {
 			ast_mutex_init(&sub->lock);
 
-			sub->owner = tmp;
+			skinny_set_owner(sub, tmp);
 			sub->callid = callnums++;
 			d->lastlineinstance = l->instance;
 			d->lastcallreference = sub->callid;

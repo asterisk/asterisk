@@ -153,7 +153,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		ast_rtp_instance_destroy(instance);
 		goto failure;
 	}
-
+	ast_rtp_instance_set_channel_id(instance, ast_channel_uniqueid(chan));
 	ast_rtp_instance_set_remote_address(instance, &destination_address);
 
 	ast_channel_tech_set(chan, &multicast_rtp_tech);

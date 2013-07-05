@@ -429,7 +429,7 @@ static int direct_media_mitigate_glare(struct ast_sip_session *session)
 {
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
 
-	if (session->endpoint->direct_media_glare_mitigation == 
+	if (session->endpoint->direct_media_glare_mitigation ==
 			AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_NONE) {
 		return 0;
 	}
@@ -563,6 +563,13 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 	pvt->media[SIP_MEDIA_AUDIO] = ao2_find(session->media, "audio", OBJ_KEY);
 	pvt->media[SIP_MEDIA_VIDEO] = ao2_find(session->media, "video", OBJ_KEY);
 	ast_channel_tech_pvt_set(chan, pvt);
+	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(chan));
+	}
+	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(chan));
+	}
+
 
 	if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->codecs)) {
 		ast_format_cap_copy(ast_channel_nativeformats(chan), session->endpoint->codecs);
@@ -742,8 +749,15 @@ struct fixup_data {
 static int fixup(void *data)
 {
 	struct fixup_data *fix_data = data;
+	struct gulp_pvt *pvt = ast_channel_tech_pvt(fix_data->chan);
 
 	fix_data->session->channel = fix_data->chan;
+	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(fix_data->chan));
+	}
+	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(fix_data->chan));
+	}
 
 	return 0;
 }
@@ -1434,6 +1448,19 @@ static struct hangup_data *hangup_data_alloc(int cause, struct ast_channel *chan
 	return h_data;
 }
 
+/*! \brief Clear a channel from a session along with its PVT */
+static void clear_session_and_channel(struct ast_sip_session *session, struct ast_channel *ast, struct gulp_pvt *pvt)
+{
+	session->channel = NULL;
+	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, "");
+	}
+	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, "");
+	}
+	ast_channel_tech_pvt_set(ast, NULL);
+}
+
 static int hangup(void *data)
 {
 	pj_status_t status;
@@ -1453,9 +1480,7 @@ static int hangup(void *data)
 		}
 	}
 
-	session->channel = NULL;
-	ast_channel_tech_pvt_set(ast, NULL);
-
+	clear_session_and_channel(session, ast, pvt);
 	ao2_cleanup(pvt);
 	ao2_cleanup(h_data);
 
@@ -1485,11 +1510,9 @@ failure:
 	/* Go ahead and do our cleanup of the session and channel even if we're not going
 	 * to be able to send our SIP request/response
 	 */
-	ao2_cleanup(h_data);
-	session->channel = NULL;
-	ast_channel_tech_pvt_set(ast, NULL);
-
+	clear_session_and_channel(session, ast, pvt);
 	ao2_cleanup(pvt);
+	ao2_cleanup(h_data);
 
 	return -1;
 }
@@ -1859,8 +1882,8 @@ static int gulp_incoming_ack(struct ast_sip_session *session, struct pjsip_rx_da
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

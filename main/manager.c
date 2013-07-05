@@ -98,6 +98,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/json.h"
 #include "asterisk/bridging.h"
 #include "asterisk/features_config.h"
+#include "asterisk/rtp_engine.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -1070,6 +1071,9 @@ static struct stasis_topic *manager_topic;
 
 /*! \brief The \ref stasis_message_router for all \ref stasis messages */
 static struct stasis_message_router *stasis_router;
+
+/*! \brief The \ref stasis_subscription for forwarding the RTP topic to the AMI topic */
+static struct stasis_subscription *rtp_topic_forwarder;
 
 #define MGR_SHOW_TERMINAL_WIDTH 80
 
@@ -7775,6 +7779,11 @@ static int manager_subscriptions_init(void)
 	if (!manager_topic) {
 		return -1;
 	}
+	rtp_topic_forwarder = stasis_forward_all(ast_rtp_topic(), manager_topic);
+	if (!rtp_topic_forwarder) {
+		return -1;
+	}
+
 	stasis_router = stasis_message_router_create(manager_topic);
 	if (!stasis_router) {
 		return -1;

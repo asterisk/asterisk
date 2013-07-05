@@ -1240,6 +1240,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 static int get_sip_pvt_from_replaces(const char *callid, const char *totag, const char *fromtag,
 		struct sip_pvt **out_pvt, struct ast_channel **out_chan);
 static void check_pendings(struct sip_pvt *p);
+static void sip_set_owner(struct sip_pvt *p, struct ast_channel *chan);
 
 static void *sip_pickup_thread(void *stuff);
 static int sip_pickup(struct ast_channel *chan);
@@ -3494,7 +3495,7 @@ void dialog_unlink_all(struct sip_pvt *dialog)
 		ast_channel_tech_pvt_set(owner, dialog_unref(ast_channel_tech_pvt(owner), "resetting channel dialog ptr in unlink_all"));
 		ast_channel_unlock(owner);
 		ast_channel_unref(owner);
-		dialog->owner = NULL;
+		sip_set_owner(dialog, NULL);
 	}
 	sip_pvt_unlock(dialog);
 
@@ -7183,7 +7184,7 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		ast_channel_tech_pvt_set(p->owner, dialog_unref(ast_channel_tech_pvt(p->owner), "unref p->owner->tech_pvt"));
 		sip_pvt_lock(p);
-		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
+		sip_set_owner(p, NULL); /* Owner will be gone after we return, so take it away */
 		sip_pvt_unlock(p);
 		ast_module_unref(ast_module_info->self);
 		return 0;
@@ -7218,7 +7219,7 @@ static int sip_hangup(struct ast_channel *ast)
 	/* Disconnect */
 	disable_dsp_detect(p);
 
-	p->owner = NULL;
+	sip_set_owner(p, NULL);
 	ast_channel_tech_pvt_set(ast, dialog_unref(ast_channel_tech_pvt(ast), "unref ast->tech_pvt"));
 
 	ast_module_unref(ast_module_info->self);
@@ -7544,7 +7545,7 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	if (p->owner != oldchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 	else {
-		p->owner = newchan;
+		sip_set_owner(p, newchan);
 		/* Re-invite RTP back to Asterisk. Needed if channel is masqueraded out of a native
 		   RTP bridge (i.e., RTP not going through Asterisk): RTP bridge code might not be
 		   able to do this if the masquerade happens before the bridge breaks (e.g., AMI
@@ -8190,7 +8191,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		}
 		ast_channel_zone_set(tmp, zone);
 	}
-	i->owner = tmp;
+	sip_set_owner(i, tmp);
 	ast_module_ref(ast_module_info->self);
 	ast_channel_context_set(tmp, i->context);
 	/*Since it is valid to have extensions in the dialplan that have unescaped characters in them
@@ -9250,6 +9251,21 @@ static struct ast_channel *sip_pvt_lock_full(struct sip_pvt *pvt)
 
 	/* If owner exists, it is locked and reffed */
 	return pvt->owner;
+}
+
+/*! \brief Set the owning channel on the \ref sip_pvt object */
+static void sip_set_owner(struct sip_pvt *p, struct ast_channel *chan)
+{
+	p->owner = chan;
+	if (p->rtp) {
+		ast_rtp_instance_set_channel_id(p->rtp, p->owner ? ast_channel_uniqueid(p->owner) : "");
+	}
+	if (p->vrtp) {
+		ast_rtp_instance_set_channel_id(p->vrtp, p->owner ? ast_channel_uniqueid(p->owner) : "");
+	}
+	if (p->trtp) {
+		ast_rtp_instance_set_channel_id(p->trtp, p->owner ? ast_channel_uniqueid(p->owner) : "");
+	}
 }
 
 /*! \brief find or create a dialog structure for an incoming SIP message.

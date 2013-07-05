@@ -85,8 +85,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TURN_ALLOCATION_WAIT_TIME 2000
 
 #define RTCP_PT_FUR     192
-#define RTCP_PT_SR      200
-#define RTCP_PT_RR      201
+#define RTCP_PT_SR      AST_RTP_RTCP_SR
+#define RTCP_PT_RR      AST_RTP_RTCP_RR
 #define RTCP_PT_SDES    202
 #define RTCP_PT_BYE     203
 #define RTCP_PT_APP     204
@@ -2182,52 +2182,46 @@ static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
 	*lsw = frac;
 }
 
-/*! \brief Send RTCP recipient's report */
-static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
+static void ntp2timeval(unsigned int msw, unsigned int lsw, struct timeval *tv)
 {
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	int res;
-	int len = 32;
-	unsigned int lost;
-	unsigned int extended;
-	unsigned int expected;
+	tv->tv_sec = msw - 2208988800u;
+	tv->tv_usec = ((lsw << 6) / 3650) - (lsw >> 12) - (lsw >> 8);
+}
+
+static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
+		unsigned int *lost_packets,
+		int *fraction_lost)
+{
+	unsigned int extended_seq_no;
+	unsigned int expected_packets;
 	unsigned int expected_interval;
 	unsigned int received_interval;
-	int lost_interval;
-	struct timeval now;
-	unsigned int *rtcpheader;
-	char bdata[1024];
-	struct timeval dlsr;
-	int fraction;
-	int rate = rtp_get_rate(&rtp->f.subclass.format);
-	int ice;
 	double rxlost_current;
-	struct ast_sockaddr remote_address = { {0,} };
+	int lost_interval;
 
-	if (!rtp || !rtp->rtcp) {
-		return 0;
+	/* Compute statistics */
+	extended_seq_no = rtp->cycles + rtp->lastrxseqno;
+	expected_packets = extended_seq_no - rtp->seedrxseqno + 1;
+	if (rtp->rxcount > expected_packets) {
+		expected_packets += rtp->rxcount - expected_packets;
 	}
-
-	if (ast_sockaddr_isnull(&rtp->rtcp->them)) {
-		/*
-		 * RTCP was stopped.
-		 */
-		return 0;
-	}
-
-	extended = rtp->cycles + rtp->lastrxseqno;
-	expected = extended - rtp->seedrxseqno + 1;
-	lost = expected - rtp->rxcount;
-	expected_interval = expected - rtp->rtcp->expected_prior;
-	rtp->rtcp->expected_prior = expected;
+	*lost_packets = expected_packets - rtp->rxcount;
+	expected_interval = expected_packets - rtp->rtcp->expected_prior;
 	received_interval = rtp->rxcount - rtp->rtcp->received_prior;
-	rtp->rtcp->received_prior = rtp->rxcount;
 	lost_interval = expected_interval - received_interval;
+	if (expected_interval == 0 || lost_interval <= 0) {
+		*fraction_lost = 0;
+	} else {
+		*fraction_lost = (lost_interval << 8) / expected_interval;
+	}
 
+	/* Update RTCP statistics */
+	rtp->rtcp->received_prior = rtp->rxcount;
+	rtp->rtcp->expected_prior = expected_packets;
 	if (lost_interval <= 0) {
 		rtp->rtcp->rxlost = 0;
 	} else {
-		rtp->rtcp->rxlost = rtp->rtcp->rxlost;
+		rtp->rtcp->rxlost = lost_interval;
 	}
 	if (rtp->rtcp->rxlost_count == 0) {
 		rtp->rtcp->minrxlost = rtp->rtcp->rxlost;
@@ -2238,200 +2232,162 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 	if (lost_interval > rtp->rtcp->maxrxlost) {
 		rtp->rtcp->maxrxlost = rtp->rtcp->rxlost;
 	}
-
-	rxlost_current = normdev_compute(rtp->rtcp->normdev_rxlost, rtp->rtcp->rxlost, rtp->rtcp->rxlost_count);
-	rtp->rtcp->stdev_rxlost = stddev_compute(rtp->rtcp->stdev_rxlost, rtp->rtcp->rxlost, rtp->rtcp->normdev_rxlost, rxlost_current, rtp->rtcp->rxlost_count);
+	rxlost_current = normdev_compute(rtp->rtcp->normdev_rxlost,
+			rtp->rtcp->rxlost,
+			rtp->rtcp->rxlost_count);
+	rtp->rtcp->stdev_rxlost = stddev_compute(rtp->rtcp->stdev_rxlost,
+			rtp->rtcp->rxlost,
+			rtp->rtcp->normdev_rxlost,
+			rxlost_current,
+			rtp->rtcp->rxlost_count);
 	rtp->rtcp->normdev_rxlost = rxlost_current;
 	rtp->rtcp->rxlost_count++;
-
-	if (expected_interval == 0 || lost_interval <= 0) {
-		fraction = 0;
-	} else {
-		fraction = (lost_interval << 8) / expected_interval;
-	}
-	gettimeofday(&now, NULL);
-	timersub(&now, &rtp->rtcp->rxlsr, &dlsr);
-	rtcpheader = (unsigned int *)bdata;
-	rtcpheader[0] = htonl((2 << 30) | (1 << 24) | (RTCP_PT_RR << 16) | ((len/4)-1));
-	rtcpheader[1] = htonl(rtp->ssrc);
-	rtcpheader[2] = htonl(rtp->themssrc);
-	rtcpheader[3] = htonl(((fraction & 0xff) << 24) | (lost & 0xffffff));
-	rtcpheader[4] = htonl((rtp->cycles) | ((rtp->lastrxseqno & 0xffff)));
-	rtcpheader[5] = htonl((unsigned int)(rtp->rxjitter * rate));
-	rtcpheader[6] = htonl(rtp->rtcp->themrxlsr);
-	rtcpheader[7] = htonl((((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000);
-
-	/*! \note Insert SDES here. Probably should make SDES text equal to mimetypes[code].type (not subtype 'cos
-	  it can change mid call, and SDES can't) */
-	rtcpheader[len/4]     = htonl((2 << 30) | (1 << 24) | (RTCP_PT_SDES << 16) | 2);
-	rtcpheader[(len/4)+1] = htonl(rtp->ssrc);               /* Our SSRC */
-	rtcpheader[(len/4)+2] = htonl(0x01 << 24);              /* Empty for the moment */
-	len += 12;
-
-	ast_sockaddr_copy(&remote_address, &rtp->rtcp->them);
-
-	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, &remote_address, &ice);
-
-	if (res < 0) {
-		ast_log(LOG_ERROR, "RTCP RR transmission error, rtcp halted: %s\n",strerror(errno));
-		return 0;
-	}
-
-	rtp->rtcp->rr_count++;
-
-	update_address_with_ice_candidate(rtp, COMPONENT_RTCP, &remote_address);
-
-	if (rtcp_debug_test_addr(&remote_address)) {
-		ast_verbose("\n* Sending RTCP RR to %s%s\n"
-			"  Our SSRC: %u\nTheir SSRC: %u\niFraction lost: %d\nCumulative loss: %u\n"
-			"  IA jitter: %.4f\n"
-			"  Their last SR: %u\n"
-			    "  DLSR: %4.4f (sec)\n\n",
-			    ast_sockaddr_stringify(&remote_address),
-			    ice ? " (via ICE)" : "",
-			    rtp->ssrc, rtp->themssrc, fraction, lost,
-			    rtp->rxjitter,
-			    rtp->rtcp->themrxlsr,
-			    (double)(ntohl(rtcpheader[7])/65536.0));
-	}
-
-	return res;
 }
 
-/*! \brief Send RTCP sender's report */
-static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
+/*! \brief Send RTCP SR or RR report */
+static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	RAII_VAR(struct ast_json *, message_blob, NULL, ast_json_unref);
 	int res;
 	int len = 0;
 	struct timeval now;
 	unsigned int now_lsw;
 	unsigned int now_msw;
 	unsigned int *rtcpheader;
-	unsigned int lost;
-	unsigned int extended;
-	unsigned int expected;
-	unsigned int expected_interval;
-	unsigned int received_interval;
-	int lost_interval;
-	int fraction;
-	struct timeval dlsr;
+	unsigned int lost_packets;
+	int fraction_lost;
+	struct timeval dlsr = { 0, };
 	char bdata[512];
 	int rate = rtp_get_rate(&rtp->f.subclass.format);
 	int ice;
+	int header_offset = 0;
 	struct ast_sockaddr remote_address = { {0,} };
+	struct ast_rtp_rtcp_report_block *report_block;
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
+			ast_rtp_rtcp_report_alloc(1),
+			ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp) {
 		return 0;
 	}
 
 	if (ast_sockaddr_isnull(&rtp->rtcp->them)) {  /* This'll stop rtcp for this rtp session */
-		/*
-		 * RTCP was stopped.
-		 */
+		/* RTCP was stopped. */
 		return 0;
 	}
 
+	if (!rtcp_report) {
+		return 1;
+	}
+
+	report_block = ast_calloc(1, sizeof(*report_block));
+	if (!report_block) {
+		return 1;
+	}
+
+	/* Compute statistics */
+	calculate_lost_packet_statistics(rtp, &lost_packets, &fraction_lost);
+
 	gettimeofday(&now, NULL);
-	timeval2ntp(now, &now_msw, &now_lsw); /* fill thses ones in from utils.c*/
+	rtcp_report->reception_report_count = 1;
+	rtcp_report->ssrc = rtp->ssrc;
+	rtcp_report->type = sr ? RTCP_PT_SR : RTCP_PT_RR;
+	if (sr) {
+		rtcp_report->sender_information.ntp_timestamp = now;
+		rtcp_report->sender_information.rtp_timestamp = rtp->lastts;
+		rtcp_report->sender_information.packet_count = rtp->txcount;
+		rtcp_report->sender_information.octet_count = rtp->txoctetcount;
+	}
+	rtcp_report->report_block[0] = report_block;
+	report_block->source_ssrc = rtp->themssrc;
+	report_block->lost_count.fraction = (fraction_lost & 0xff);
+	report_block->lost_count.packets = (lost_packets & 0xffffff);
+	report_block->highest_seq_no = (rtp->cycles | (rtp->lastrxseqno & 0xffff));
+	report_block->ia_jitter = (unsigned int)(rtp->rxjitter * rate);
+	report_block->lsr = rtp->rtcp->themrxlsr;
+	/* If we haven't received an SR report, DLSR should be 0 */
+	if (!ast_tvzero(rtp->rtcp->rxlsr)) {
+		timersub(&now, &rtp->rtcp->rxlsr, &dlsr);
+		report_block->dlsr = (((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000;
+	}
+	timeval2ntp(rtcp_report->sender_information.ntp_timestamp, &now_msw, &now_lsw);
 	rtcpheader = (unsigned int *)bdata;
-	rtcpheader[1] = htonl(rtp->ssrc);               /* Our SSRC */
-	rtcpheader[2] = htonl(now_msw);                 /* now, MSW. gettimeofday() + SEC_BETWEEN_1900_AND_1970*/
-	rtcpheader[3] = htonl(now_lsw);                 /* now, LSW */
-	rtcpheader[4] = htonl(rtp->lastts);             /* FIXME shouldn't be that, it should be now */
-	rtcpheader[5] = htonl(rtp->txcount);            /* No. packets sent */
-	rtcpheader[6] = htonl(rtp->txoctetcount);       /* No. bytes sent */
-	len += 28;
-
-	extended = rtp->cycles + rtp->lastrxseqno;
-	expected = extended - rtp->seedrxseqno + 1;
-	if (rtp->rxcount > expected) {
-		expected += rtp->rxcount - expected;
+	rtcpheader[1] = htonl(rtcp_report->ssrc);            /* Our SSRC */
+	len += 8;
+	if (sr) {
+		header_offset = 5;
+		rtcpheader[2] = htonl(now_msw);                 /* now, MSW. gettimeofday() + SEC_BETWEEN_1900_AND_1970*/
+		rtcpheader[3] = htonl(now_lsw);                 /* now, LSW */
+		rtcpheader[4] = htonl(rtcp_report->sender_information.rtp_timestamp);
+		rtcpheader[5] = htonl(rtcp_report->sender_information.packet_count);
+		rtcpheader[6] = htonl(rtcp_report->sender_information.octet_count);
+		len += 20;
 	}
-	lost = expected - rtp->rxcount;
-	expected_interval = expected - rtp->rtcp->expected_prior;
-	rtp->rtcp->expected_prior = expected;
-	received_interval = rtp->rxcount - rtp->rtcp->received_prior;
-	rtp->rtcp->received_prior = rtp->rxcount;
-	lost_interval = expected_interval - received_interval;
-	if (expected_interval == 0 || lost_interval <= 0) {
-		fraction = 0;
-	} else {
-		fraction = (lost_interval << 8) / expected_interval;
-	}
-	timersub(&now, &rtp->rtcp->rxlsr, &dlsr);
-	rtcpheader[7] = htonl(rtp->themssrc);
-	rtcpheader[8] = htonl(((fraction & 0xff) << 24) | (lost & 0xffffff));
-	rtcpheader[9] = htonl((rtp->cycles) | ((rtp->lastrxseqno & 0xffff)));
-	rtcpheader[10] = htonl((unsigned int)(rtp->rxjitter * rate));
-	rtcpheader[11] = htonl(rtp->rtcp->themrxlsr);
-	rtcpheader[12] = htonl((((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000);
+	rtcpheader[2 + header_offset] = htonl(report_block->source_ssrc);     /* Their SSRC */
+	rtcpheader[3 + header_offset] = htonl((report_block->lost_count.fraction << 24) | report_block->lost_count.packets);
+	rtcpheader[4 + header_offset] = htonl(report_block->highest_seq_no);
+	rtcpheader[5 + header_offset] = htonl(report_block->ia_jitter);
+	rtcpheader[6 + header_offset] = htonl(report_block->lsr);
+	rtcpheader[7 + header_offset] = htonl(report_block->dlsr);
 	len += 24;
-
-	rtcpheader[0] = htonl((2 << 30) | (1 << 24) | (RTCP_PT_SR << 16) | ((len/4)-1));
+	rtcpheader[0] = htonl((2 << 30) | (1 << 24) | ((sr ? RTCP_PT_SR : RTCP_PT_RR) << 16) | ((len/4)-1));
 
 	/* Insert SDES here. Probably should make SDES text equal to mimetypes[code].type (not subtype 'cos */
 	/* it can change mid call, and SDES can't) */
 	rtcpheader[len/4]     = htonl((2 << 30) | (1 << 24) | (RTCP_PT_SDES << 16) | 2);
-	rtcpheader[(len/4)+1] = htonl(rtp->ssrc);               /* Our SSRC */
-	rtcpheader[(len/4)+2] = htonl(0x01 << 24);                    /* Empty for the moment */
+	rtcpheader[(len/4)+1] = htonl(rtcp_report->ssrc);
+	rtcpheader[(len/4)+2] = htonl(0x01 << 24);
 	len += 12;
 
 	ast_sockaddr_copy(&remote_address, &rtp->rtcp->them);
-
 	res = rtcp_sendto(instance, (unsigned int *)rtcpheader, len, 0, &remote_address, &ice);
 	if (res < 0) {
-		ast_log(LOG_ERROR, "RTCP SR transmission error to %s, rtcp halted %s\n",
+		ast_log(LOG_ERROR, "RTCP %s transmission error to %s, rtcp halted %s\n",
+			sr ? "SR" : "RR",
 			ast_sockaddr_stringify(&rtp->rtcp->them),
 			strerror(errno));
 		return 0;
 	}
 
-	/* FIXME Don't need to get a new one */
-	gettimeofday(&rtp->rtcp->txlsr, NULL);
-	rtp->rtcp->sr_count++;
-
-	rtp->rtcp->lastsrtxcount = rtp->txcount;
+	/* Update RTCP SR/RR statistics */
+	if (sr) {
+		rtp->rtcp->txlsr = rtcp_report->sender_information.ntp_timestamp;
+		rtp->rtcp->sr_count++;
+		rtp->rtcp->lastsrtxcount = rtp->txcount;
+	} else {
+		rtp->rtcp->rr_count++;
+	}
 
 	update_address_with_ice_candidate(rtp, COMPONENT_RTCP, &remote_address);
 
 	if (rtcp_debug_test_addr(&rtp->rtcp->them)) {
-		ast_verbose("* Sent RTCP SR to %s%s\n", ast_sockaddr_stringify(&remote_address), ice ? " (via ICE)" : "");
-		ast_verbose("  Our SSRC: %u\n", rtp->ssrc);
-		ast_verbose("  Sent(NTP): %u.%010u\n", (unsigned int)now.tv_sec, (unsigned int)now.tv_usec*4096);
-		ast_verbose("  Sent(RTP): %u\n", rtp->lastts);
-		ast_verbose("  Sent packets: %u\n", rtp->txcount);
-		ast_verbose("  Sent octets: %u\n", rtp->txoctetcount);
+		ast_verbose("* Sent RTCP %s to %s%s\n", sr ? "SR" : "RR",
+				ast_sockaddr_stringify(&remote_address), ice ? " (via ICE)" : "");
+		ast_verbose("  Our SSRC: %u\n", rtcp_report->ssrc);
+		if (sr) {
+			ast_verbose("  Sent(NTP): %u.%010u\n",
+				(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_sec,
+				(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_usec * 4096);
+			ast_verbose("  Sent(RTP): %u\n", rtcp_report->sender_information.rtp_timestamp);
+			ast_verbose("  Sent packets: %u\n", rtcp_report->sender_information.packet_count);
+			ast_verbose("  Sent octets: %u\n", rtcp_report->sender_information.octet_count);
+		}
 		ast_verbose("  Report block:\n");
-		ast_verbose("  Fraction lost: %u\n", fraction);
-		ast_verbose("  Cumulative loss: %u\n", lost);
-		ast_verbose("  IA jitter: %.4f\n", rtp->rxjitter);
-		ast_verbose("  Their last SR: %u\n", rtp->rtcp->themrxlsr);
-		ast_verbose("  DLSR: %4.4f (sec)\n\n", (double)(ntohl(rtcpheader[12])/65536.0));
+		ast_verbose("    Their SSRC: %u\n", report_block->source_ssrc);
+		ast_verbose("    Fraction lost: %u\n", report_block->lost_count.fraction);
+		ast_verbose("    Cumulative loss: %u\n", report_block->lost_count.packets);
+		ast_verbose("    Highest seq no: %u\n", report_block->highest_seq_no);
+		ast_verbose("    IA jitter: %.4f\n", (double)report_block->ia_jitter / rate);
+		ast_verbose("    Their last SR: %u\n", report_block->lsr);
+		ast_verbose("    DLSR: %4.4f (sec)\n\n", (double)(report_block->dlsr / 65536.0));
 	}
-	manager_event(EVENT_FLAG_REPORTING, "RTCPSent", "To: %s\r\n"
-					    "OurSSRC: %u\r\n"
-					    "SentNTP: %u.%010u\r\n"
-					    "SentRTP: %u\r\n"
-					    "SentPackets: %u\r\n"
-					    "SentOctets: %u\r\n"
-					    "ReportBlock:\r\n"
-					    "FractionLost: %u\r\n"
-					    "CumulativeLoss: %u\r\n"
-					    "IAJitter: %.4f\r\n"
-					    "TheirLastSR: %u\r\n"
-		      "DLSR: %4.4f (sec)\r\n",
-		      ast_sockaddr_stringify(&remote_address),
-		      rtp->ssrc,
-		      (unsigned int)now.tv_sec, (unsigned int)now.tv_usec*4096,
-		      rtp->lastts,
-		      rtp->txcount,
-		      rtp->txoctetcount,
-		      fraction,
-		      lost,
-		      rtp->rxjitter,
-		      rtp->rtcp->themrxlsr,
-		      (double)(ntohl(rtcpheader[12])/65536.0));
+
+	message_blob = ast_json_pack("{s: s}",
+			"to", ast_sockaddr_stringify(&remote_address));
+	ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_sent_type(),
+			rtcp_report,
+			message_blob);
 	return res;
 }
 
@@ -2450,9 +2406,11 @@ static int ast_rtcp_write(const void *data)
 	}
 
 	if (rtp->txcount > rtp->rtcp->lastsrtxcount) {
-		res = ast_rtcp_write_sr(instance);
+		/* Send an SR */
+		res = ast_rtcp_write_report(instance, 1);
 	} else {
-		res = ast_rtcp_write_rr(instance);
+		/* Send an RR */
+		res = ast_rtcp_write_report(instance, 0);
 	}
 
 	if (!res) {
@@ -2791,7 +2749,6 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 		d=-d;
 	}
 	rtp->rxjitter += (1./16.) * (d - rtp->rxjitter);
-
 	if (rtp->rtcp) {
 		if (rtp->rxjitter > rtp->rtcp->maxrxjitter)
 			rtp->rtcp->maxrxjitter = rtp->rxjitter;
@@ -3100,6 +3057,98 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 	return &rtp->f;
 }
 
+static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int dlsr)
+{
+	struct timeval now;
+	struct timeval rtt_tv;
+	unsigned int msw;
+	unsigned int lsw;
+	unsigned int rtt_msw;
+	unsigned int rtt_lsw;
+	unsigned int lsr_a;
+	unsigned int rtt;
+	double normdevrtt_current;
+
+	gettimeofday(&now, NULL);
+	timeval2ntp(now, &msw, &lsw);
+
+	lsr_a = ((msw & 0x0000ffff) << 16) | ((lsw & 0xffff0000) >> 16);
+	rtt = lsr_a - lsr - dlsr;
+	rtt_msw = (rtt & 0xffff0000) >> 16;
+	rtt_lsw = (rtt & 0x0000ffff) << 16;
+	rtt_tv.tv_sec = rtt_msw;
+	rtt_tv.tv_usec = ((rtt_lsw << 6) / 3650) - (rtt_lsw >> 12) - (rtt_lsw >> 8);
+	rtp->rtcp->rtt = (double)rtt_tv.tv_sec + ((double)rtt_tv.tv_usec / 1000000);
+	if (lsr_a - dlsr < lsr) {
+		return 1;
+	}
+
+	rtp->rtcp->accumulated_transit += rtp->rtcp->rtt;
+	if (rtp->rtcp->rtt_count == 0 || rtp->rtcp->minrtt > rtp->rtcp->rtt) {
+		rtp->rtcp->minrtt = rtp->rtcp->rtt;
+	}
+	if (rtp->rtcp->maxrtt < rtp->rtcp->rtt) {
+		rtp->rtcp->maxrtt = rtp->rtcp->rtt;
+	}
+
+	normdevrtt_current = normdev_compute(rtp->rtcp->normdevrtt,
+			rtp->rtcp->rtt,
+			rtp->rtcp->rtt_count);
+	rtp->rtcp->stdevrtt = stddev_compute(rtp->rtcp->stdevrtt,
+			rtp->rtcp->rtt,
+			rtp->rtcp->normdevrtt,
+			normdevrtt_current,
+			rtp->rtcp->rtt_count);
+	rtp->rtcp->normdevrtt = normdevrtt_current;
+	rtp->rtcp->rtt_count++;
+
+	return 0;
+}
+
+/*! \internal \brief Update RTCP interarrival jitter stats */
+static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
+{
+	double reported_jitter;
+	double reported_normdev_jitter_current;
+
+	rtp->rtcp->reported_jitter = ia_jitter;
+	reported_jitter = (double) rtp->rtcp->reported_jitter;
+	if (rtp->rtcp->reported_jitter_count == 0) {
+		rtp->rtcp->reported_minjitter = reported_jitter;
+	}
+	if (reported_jitter < rtp->rtcp->reported_minjitter) {
+		rtp->rtcp->reported_minjitter = reported_jitter;
+	}
+	if (reported_jitter > rtp->rtcp->reported_maxjitter) {
+		rtp->rtcp->reported_maxjitter = reported_jitter;
+	}
+	reported_normdev_jitter_current = normdev_compute(rtp->rtcp->reported_normdev_jitter, reported_jitter, rtp->rtcp->reported_jitter_count);
+	rtp->rtcp->reported_stdev_jitter = stddev_compute(rtp->rtcp->reported_stdev_jitter, reported_jitter, rtp->rtcp->reported_normdev_jitter, reported_normdev_jitter_current, rtp->rtcp->reported_jitter_count);
+	rtp->rtcp->reported_normdev_jitter = reported_normdev_jitter_current;
+}
+
+/*! \internal \brief Update RTCP lost packet stats */
+static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
+{
+	double reported_lost;
+	double reported_normdev_lost_current;
+
+	rtp->rtcp->reported_lost = lost_packets;
+	reported_lost = (double)rtp->rtcp->reported_lost;
+	if (rtp->rtcp->reported_jitter_count == 0) {
+		rtp->rtcp->reported_minlost = reported_lost;
+	}
+	if (reported_lost < rtp->rtcp->reported_minlost) {
+		rtp->rtcp->reported_minlost = reported_lost;
+	}
+	if (reported_lost > rtp->rtcp->reported_maxlost) {
+		rtp->rtcp->reported_maxlost = reported_lost;
+	}
+	reported_normdev_lost_current = normdev_compute(rtp->rtcp->reported_normdev_lost, reported_lost, rtp->rtcp->reported_jitter_count);
+	rtp->rtcp->reported_stdev_lost = stddev_compute(rtp->rtcp->reported_stdev_lost, reported_lost, rtp->rtcp->reported_normdev_lost, reported_normdev_lost_current, rtp->rtcp->reported_jitter_count);
+	rtp->rtcp->reported_normdev_lost = reported_normdev_lost_current;
+}
+
 static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -3107,6 +3156,12 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 	unsigned char rtcpdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int *rtcpheader = (unsigned int *)(rtcpdata + AST_FRIENDLY_OFFSET);
 	int res, packetwords, position = 0;
+	int report_counter = 0;
+	struct ast_rtp_rtcp_report_block *report_block;
+	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
+			NULL,
+			ao2_cleanup);
+	RAII_VAR(struct ast_json *, message_blob, NULL, ast_json_unref);
 	struct ast_frame *f = &ast_null_frame;
 
 	/* Read in RTCP data from the socket */
@@ -3166,16 +3221,20 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 
 	while (position < packetwords) {
 		int i, pt, rc;
-		unsigned int length, dlsr, lsr, msw, lsw, comp;
-		struct timeval now;
-		double rttsec, reported_jitter, reported_normdev_jitter_current, normdevrtt_current, reported_lost, reported_normdev_lost_current;
-		uint64_t rtt = 0;
+		unsigned int length;
 
 		i = position;
 		length = ntohl(rtcpheader[i]);
 		pt = (length & 0xff0000) >> 16;
 		rc = (length & 0x1f000000) >> 24;
 		length &= 0xffff;
+
+		rtcp_report = ast_rtp_rtcp_report_alloc(rc);
+		if (!rtcp_report) {
+			return &ast_null_frame;
+		}
+		rtcp_report->reception_report_count = rc;
+		rtcp_report->ssrc = ntohl(rtcpheader[i + 1]);
 
 		if ((i + length) > packetwords) {
 			if (rtpdebug) {
@@ -3187,28 +3246,41 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		if (rtcp_debug_test_addr(&addr)) {
 			ast_verbose("\n\nGot RTCP from %s\n",
 				    ast_sockaddr_stringify(&addr));
-			ast_verbose("PT: %d(%s)\n", pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown");
+			ast_verbose("PT: %d(%s)\n", pt, (pt == RTCP_PT_SR) ? "Sender Report" :
+							(pt == RTCP_PT_RR) ? "Receiver Report" :
+							(pt == RTCP_PT_FUR) ? "H.261 FUR" : "Unknown");
 			ast_verbose("Reception reports: %d\n", rc);
-			ast_verbose("SSRC of sender: %u\n", rtcpheader[i + 1]);
+			ast_verbose("SSRC of sender: %u\n", rtcp_report->ssrc);
 		}
 
 		i += 2; /* Advance past header and ssrc */
-		if (rc == 0 && pt == RTCP_PT_RR) {      /* We're receiving a receiver report with no reports, which is ok */
+		if (rc == 0 && pt == RTCP_PT_RR) {
+			/* We're receiving a receiver report with no reports, which is ok */
 			position += (length + 1);
 			continue;
 		}
-
 		switch (pt) {
 		case RTCP_PT_SR:
-			gettimeofday(&rtp->rtcp->rxlsr,NULL); /* To be able to populate the dlsr */
-			rtp->rtcp->spc = ntohl(rtcpheader[i+3]);
+			gettimeofday(&rtp->rtcp->rxlsr, NULL);
+			rtp->rtcp->themrxlsr = ((ntohl(rtcpheader[i]) & 0x0000ffff) << 16) | ((ntohl(rtcpheader[i + 1]) & 0xffff0000) >> 16);
+			rtp->rtcp->spc = ntohl(rtcpheader[i + 3]);
 			rtp->rtcp->soc = ntohl(rtcpheader[i + 4]);
-			rtp->rtcp->themrxlsr = ((ntohl(rtcpheader[i]) & 0x0000ffff) << 16) | ((ntohl(rtcpheader[i + 1]) & 0xffff0000) >> 16); /* Going to LSR in RR*/
 
+			rtcp_report->type = RTCP_PT_SR;
+			rtcp_report->sender_information.packet_count = rtp->rtcp->spc;
+			rtcp_report->sender_information.octet_count = rtp->rtcp->soc;
+			ntp2timeval((unsigned int)ntohl(rtcpheader[i]),
+					(unsigned int)ntohl(rtcpheader[i + 1]),
+					&rtcp_report->sender_information.ntp_timestamp);
+			rtcp_report->sender_information.rtp_timestamp = ntohl(rtcpheader[i + 2]);
 			if (rtcp_debug_test_addr(&addr)) {
-				ast_verbose("NTP timestamp: %lu.%010lu\n", (unsigned long) ntohl(rtcpheader[i]), (unsigned long) ntohl(rtcpheader[i + 1]) * 4096);
-				ast_verbose("RTP timestamp: %lu\n", (unsigned long) ntohl(rtcpheader[i + 2]));
-				ast_verbose("SPC: %lu\tSOC: %lu\n", (unsigned long) ntohl(rtcpheader[i + 3]), (unsigned long) ntohl(rtcpheader[i + 4]));
+				ast_verbose("NTP timestamp: %u.%010u\n",
+						(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_sec,
+						(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_usec * 4096);
+				ast_verbose("RTP timestamp: %u\n", rtcp_report->sender_information.rtp_timestamp);
+				ast_verbose("SPC: %u\tSOC: %u\n",
+						rtcp_report->sender_information.packet_count,
+						rtcp_report->sender_information.octet_count);
 			}
 			i += 5;
 			if (rc < 1) {
@@ -3216,166 +3288,63 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			}
 			/* Intentional fall through */
 		case RTCP_PT_RR:
+			if (rtcp_report->type != RTCP_PT_SR) {
+				rtcp_report->type = RTCP_PT_RR;
+			}
+
 			/* Don't handle multiple reception reports (rc > 1) yet */
-			/* Calculate RTT per RFC */
-			gettimeofday(&now, NULL);
-			timeval2ntp(now, &msw, &lsw);
-			if (ntohl(rtcpheader[i + 4]) && ntohl(rtcpheader[i + 5])) { /* We must have the LSR && DLSR */
-				comp = ((msw & 0xffff) << 16) | ((lsw & 0xffff0000) >> 16);
-				lsr = ntohl(rtcpheader[i + 4]);
-				dlsr = ntohl(rtcpheader[i + 5]);
-				rtt = comp - lsr - dlsr;
-
-				/* Convert end to end delay to usec (keeping the calculation in 64bit space)
-				   sess->ee_delay = (eedelay * 1000) / 65536; */
-				if (rtt < 4294) {
-					rtt = (rtt * 1000000) >> 16;
-				} else {
-					rtt = (rtt * 1000) >> 16;
-					rtt *= 1000;
-				}
-				rtt = rtt / 1000.;
-				rttsec = rtt / 1000.;
-				rtp->rtcp->rtt = rttsec;
-
-				if (comp - dlsr >= lsr) {
-					rtp->rtcp->accumulated_transit += rttsec;
-
-					if (rtp->rtcp->rtt_count == 0) {
-						rtp->rtcp->minrtt = rttsec;
-					}
-
-					if (rtp->rtcp->maxrtt<rttsec) {
-						rtp->rtcp->maxrtt = rttsec;
-					}
-					if (rtp->rtcp->minrtt>rttsec) {
-						rtp->rtcp->minrtt = rttsec;
-					}
-
-					normdevrtt_current = normdev_compute(rtp->rtcp->normdevrtt, rttsec, rtp->rtcp->rtt_count);
-
-					rtp->rtcp->stdevrtt = stddev_compute(rtp->rtcp->stdevrtt, rttsec, rtp->rtcp->normdevrtt, normdevrtt_current, rtp->rtcp->rtt_count);
-
-					rtp->rtcp->normdevrtt = normdevrtt_current;
-
-					rtp->rtcp->rtt_count++;
-				} else if (rtcp_debug_test_addr(&addr)) {
-					ast_verbose("Internal RTCP NTP clock skew detected: "
-							   "lsr=%u, now=%u, dlsr=%u (%d:%03dms), "
-						    "diff=%d\n",
-						    lsr, comp, dlsr, dlsr / 65536,
-						    (dlsr % 65536) * 1000 / 65536,
-						    dlsr - (comp - lsr));
-				}
+			report_block = ast_calloc(1, sizeof(*report_block));
+			if (!report_block) {
+				return &ast_null_frame;
 			}
-
-			rtp->rtcp->reported_jitter = ntohl(rtcpheader[i + 3]);
-			reported_jitter = (double) rtp->rtcp->reported_jitter;
-
-			if (rtp->rtcp->reported_jitter_count == 0) {
-				rtp->rtcp->reported_minjitter = reported_jitter;
+			rtcp_report->report_block[report_counter] = report_block;
+			report_block->source_ssrc = ntohl(rtcpheader[i]);
+			report_block->lost_count.packets = ntohl(rtcpheader[i + 1]) & 0x00ffffff;
+			report_block->lost_count.fraction = ((ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24);
+			report_block->highest_seq_no = ntohl(rtcpheader[i + 2]);
+			report_block->ia_jitter =  ntohl(rtcpheader[i + 3]);
+			report_block->lsr = ntohl(rtcpheader[i + 4]);
+			report_block->dlsr = ntohl(rtcpheader[i + 5]);
+			if (report_block->lsr
+				&& update_rtt_stats(rtp, report_block->lsr, report_block->dlsr)
+				&& rtcp_debug_test_addr(&addr)) {
+				struct timeval now;
+				unsigned int lsr_now, lsw, msw;
+				gettimeofday(&now, NULL);
+				timeval2ntp(now, &msw, &lsw);
+				lsr_now = (((msw & 0xffff) << 16) | ((lsw & 0xffff0000) >> 16));
+				ast_verbose("Internal RTCP NTP clock skew detected: "
+						   "lsr=%u, now=%u, dlsr=%u (%d:%03dms), "
+						"diff=%d\n",
+						report_block->lsr, lsr_now, report_block->dlsr, report_block->dlsr / 65536,
+						(report_block->dlsr % 65536) * 1000 / 65536,
+						report_block->dlsr - (lsr_now - report_block->lsr));
 			}
-
-			if (reported_jitter < rtp->rtcp->reported_minjitter) {
-				rtp->rtcp->reported_minjitter = reported_jitter;
-			}
-
-			if (reported_jitter > rtp->rtcp->reported_maxjitter) {
-				rtp->rtcp->reported_maxjitter = reported_jitter;
-			}
-
-			reported_normdev_jitter_current = normdev_compute(rtp->rtcp->reported_normdev_jitter, reported_jitter, rtp->rtcp->reported_jitter_count);
-
-			rtp->rtcp->reported_stdev_jitter = stddev_compute(rtp->rtcp->reported_stdev_jitter, reported_jitter, rtp->rtcp->reported_normdev_jitter, reported_normdev_jitter_current, rtp->rtcp->reported_jitter_count);
-
-			rtp->rtcp->reported_normdev_jitter = reported_normdev_jitter_current;
-
-			rtp->rtcp->reported_lost = ntohl(rtcpheader[i + 1]) & 0xffffff;
-
-			reported_lost = (double) rtp->rtcp->reported_lost;
-
-			/* using same counter as for jitter */
-			if (rtp->rtcp->reported_jitter_count == 0) {
-				rtp->rtcp->reported_minlost = reported_lost;
-			}
-
-			if (reported_lost < rtp->rtcp->reported_minlost) {
-				rtp->rtcp->reported_minlost = reported_lost;
-			}
-
-			if (reported_lost > rtp->rtcp->reported_maxlost) {
-				rtp->rtcp->reported_maxlost = reported_lost;
-			}
-			reported_normdev_lost_current = normdev_compute(rtp->rtcp->reported_normdev_lost, reported_lost, rtp->rtcp->reported_jitter_count);
-
-			rtp->rtcp->reported_stdev_lost = stddev_compute(rtp->rtcp->reported_stdev_lost, reported_lost, rtp->rtcp->reported_normdev_lost, reported_normdev_lost_current, rtp->rtcp->reported_jitter_count);
-
-			rtp->rtcp->reported_normdev_lost = reported_normdev_lost_current;
-
+			update_jitter_stats(rtp, report_block->ia_jitter);
+			update_lost_stats(rtp, report_block->lost_count.packets);
 			rtp->rtcp->reported_jitter_count++;
 
 			if (rtcp_debug_test_addr(&addr)) {
-				ast_verbose("  Fraction lost: %ld\n", (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24));
-				ast_verbose("  Packets lost so far: %d\n", rtp->rtcp->reported_lost);
-				ast_verbose("  Highest sequence number: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff));
-				ast_verbose("  Sequence number cycles: %ld\n", (long) (ntohl(rtcpheader[i + 2])) >> 16);
-				ast_verbose("  Interarrival jitter: %u\n", rtp->rtcp->reported_jitter);
-				ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long) ntohl(rtcpheader[i + 4]) >> 16,((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096);
-				ast_verbose("  DLSR: %4.4f (sec)\n",ntohl(rtcpheader[i + 5])/65536.0);
-				if (rtt) {
-					ast_verbose("  RTT: %lu(sec)\n", (unsigned long) rtt);
-				}
+			ast_verbose("  Fraction lost: %u\n", report_block->lost_count.fraction);
+				ast_verbose("  Packets lost so far: %u\n", report_block->lost_count.packets);
+				ast_verbose("  Highest sequence number: %u\n", report_block->highest_seq_no & 0x0000ffff);
+				ast_verbose("  Sequence number cycles: %u\n", report_block->highest_seq_no >> 16);
+				ast_verbose("  Interarrival jitter: %u\n", report_block->ia_jitter);
+				ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long)(report_block->lsr) >> 16,((unsigned long)(report_block->lsr) << 16) * 4096);
+				ast_verbose("  DLSR: %4.4f (sec)\n",(double)report_block->dlsr / 65536.0);
+				ast_verbose("  RTT: %4.4f(sec)\n", rtp->rtcp->rtt);
 			}
-			if (rtt) {
-				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From: %s\r\n"
-								    "PT: %d(%s)\r\n"
-								    "ReceptionReports: %d\r\n"
-								    "SenderSSRC: %u\r\n"
-								    "FractionLost: %ld\r\n"
-								    "PacketsLost: %d\r\n"
-								    "HighestSequence: %ld\r\n"
-								    "SequenceNumberCycles: %ld\r\n"
-								    "IAJitter: %u\r\n"
-								    "LastSR: %lu.%010lu\r\n"
-								    "DLSR: %4.4f(sec)\r\n"
-					      "RTT: %llu(sec)\r\n",
-					      ast_sockaddr_stringify(&addr),
-					      pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
-					      rc,
-					      rtcpheader[i + 1],
-					      (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24),
-					      rtp->rtcp->reported_lost,
-					      (long) (ntohl(rtcpheader[i + 2]) & 0xffff),
-					      (long) (ntohl(rtcpheader[i + 2])) >> 16,
-					      rtp->rtcp->reported_jitter,
-					      (unsigned long) ntohl(rtcpheader[i + 4]) >> 16, ((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096,
-					      ntohl(rtcpheader[i + 5])/65536.0,
-					      (unsigned long long)rtt);
-			} else {
-				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From: %s\r\n"
-								    "PT: %d(%s)\r\n"
-								    "ReceptionReports: %d\r\n"
-								    "SenderSSRC: %u\r\n"
-								    "FractionLost: %ld\r\n"
-								    "PacketsLost: %d\r\n"
-								    "HighestSequence: %ld\r\n"
-								    "SequenceNumberCycles: %ld\r\n"
-								    "IAJitter: %u\r\n"
-								    "LastSR: %lu.%010lu\r\n"
-					      "DLSR: %4.4f(sec)\r\n",
-					      ast_sockaddr_stringify(&addr),
-					      pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
-					      rc,
-					      rtcpheader[i + 1],
-					      (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24),
-					      rtp->rtcp->reported_lost,
-					      (long) (ntohl(rtcpheader[i + 2]) & 0xffff),
-					      (long) (ntohl(rtcpheader[i + 2])) >> 16,
-					      rtp->rtcp->reported_jitter,
-					      (unsigned long) ntohl(rtcpheader[i + 4]) >> 16,
-					      ((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096,
-					      ntohl(rtcpheader[i + 5])/65536.0);
-			}
+			report_counter++;
+
+			/* If and when we handle more than one report block, this should occur outside
+			 * this loop.
+			 */
+			message_blob = ast_json_pack("{s: s, s: f}",
+					"from", ast_sockaddr_stringify(&addr),
+					"rtt", rtp->rtcp->rtt);
+			ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_received_type(),
+					rtcp_report,
+					message_blob);
 			break;
 		case RTCP_PT_FUR:
 			if (rtcp_debug_test_addr(&addr)) {
@@ -3408,7 +3377,6 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		}
 		position += (length + 1);
 	}
-
 	rtp->rtcp->rtcp_info = 1;
 
 	return f;
@@ -4111,6 +4079,7 @@ static int ast_rtp_get_stat(struct ast_rtp_instance *instance, struct ast_rtp_in
 
 	AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_LOCAL_SSRC, -1, stats->local_ssrc, rtp->ssrc);
 	AST_RTP_STAT_SET(AST_RTP_INSTANCE_STAT_REMOTE_SSRC, -1, stats->remote_ssrc, rtp->themssrc);
+	AST_RTP_STAT_STRCPY(AST_RTP_INSTANCE_STAT_CHANNEL_UNIQUEID, -1, stats->channel_uniqueid, ast_rtp_instance_get_channel_id(instance));
 
 	return 0;
 }

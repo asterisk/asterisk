@@ -210,6 +210,7 @@ static char *gtalk_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cl
 static int gtalk_update_externip(void);
 static int gtalk_parser(void *data, ikspak *pak);
 static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, char *sid, char *from, char *to);
+static void gtalk_set_owner(struct gtalk_pvt *p, struct ast_channel *chan);
 
 /*! \brief PBX interface structure for channel registration */
 static struct ast_channel_tech gtalk_tech = {
@@ -1007,6 +1008,17 @@ safeout:
 	return 1;
 }
 
+static void gtalk_set_owner(struct gtalk_pvt *p, struct ast_channel *chan)
+{
+	p->owner = chan;
+	if (p->rtp) {
+		ast_rtp_instance_set_channel_id(p->rtp, chan ? ast_channel_uniqueid(chan) : "");
+	}
+	if (p->vrtp) {
+		ast_rtp_instance_set_channel_id(p->vrtp, chan ? ast_channel_uniqueid(chan) : "");
+	}
+}
+
 static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const char *them, const char *sid)
 {
 	struct gtalk_pvt *tmp = NULL;
@@ -1198,7 +1210,7 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		ast_channel_musicclass_set(tmp, client->musicclass);
 	if (!ast_strlen_zero(client->parkinglot))
 		ast_channel_parkinglot_set(tmp, client->parkinglot);
-	i->owner = tmp;
+	gtalk_set_owner(i, tmp);
 	ast_module_ref(ast_module_info->self);
 	ast_channel_context_set(tmp, client->context);
 	ast_channel_exten_set(tmp, i->exten);
@@ -1712,8 +1724,9 @@ static int gtalk_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
-	if (p->owner == oldchan)
-		p->owner = newchan;
+	if (p->owner == oldchan) {
+		gtalk_set_owner(p, newchan);
+	}
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
@@ -1889,7 +1902,7 @@ static int gtalk_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	client = p->parent;
-	p->owner = NULL;
+	gtalk_set_owner(p, NULL);
 	ast_channel_tech_pvt_set(ast, NULL);
 	if (!p->alreadygone) {
 		gtalk_action(client, p, "terminate");

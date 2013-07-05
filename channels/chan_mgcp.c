@@ -431,6 +431,7 @@ static int mgcpsock  = -1;
 
 static struct sockaddr_in bindaddr;
 
+static void mgcp_set_owner(struct mgcp_subchannel *sub, struct ast_channel *chan);
 static struct ast_frame  *mgcp_read(struct ast_channel *ast);
 static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp_request *req, char *msgrest);
 static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone);
@@ -528,7 +529,7 @@ static int unalloc_sub(struct mgcp_subchannel *sub)
 	}
 	ast_debug(1, "Released sub %d of channel %s@%s\n", sub->id, p->name, p->parent->name);
 
-	sub->owner = NULL;
+	mgcp_set_owner(sub, NULL);
 	if (!ast_strlen_zero(sub->cxident)) {
 		transmit_connection_del(sub);
 	}
@@ -945,7 +946,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 		}
 	}
 
-	sub->owner = NULL;
+	mgcp_set_owner(sub, NULL);
 
 	/* for deleting gate */
 	if (p->pktcgatealloc && sub->gate) {
@@ -1225,6 +1226,13 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 	return f;
 }
 
+static void mgcp_set_owner(struct mgcp_subchannel *sub, struct ast_channel *chan)
+{
+	sub->owner = chan;
+	if (sub->rtp) {
+		ast_rtp_instance_set_channel_id(sub->rtp, sub->owner ? ast_channel_uniqueid(chan) : "");
+	}
+}
 
 static struct ast_frame *mgcp_read(struct ast_channel *ast)
 {
@@ -1288,7 +1296,7 @@ static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, sub->owner);
 		return -1;
 	}
-	sub->owner = newchan;
+	mgcp_set_owner(sub, newchan);
 	ast_mutex_unlock(&sub->lock);
 	return 0;
 }
@@ -1529,7 +1537,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 			ast_channel_accountcode_set(tmp, i->accountcode);
 		if (i->amaflags)
 			ast_channel_amaflags_set(tmp, i->amaflags);
-		sub->owner = tmp;
+		mgcp_set_owner(sub, tmp);
 		ast_module_ref(ast_module_info->self);
 		ast_channel_callgroup_set(tmp, i->callgroup);
 		ast_channel_pickupgroup_set(tmp, i->pickupgroup);

@@ -74,6 +74,7 @@ extern "C" {
 #include "asterisk/netsock2.h"
 #include "asterisk/sched.h"
 #include "asterisk/res_srtp.h"
+#include "asterisk/stasis.h"
 
 /* Maximum number of payloads supported */
 #if defined(LOW_MEMORY)
@@ -84,6 +85,12 @@ extern "C" {
 
 /* Maximum number of generations */
 #define AST_RED_MAX_GENERATION 5
+
+/* Maximum size of an Asterisk channel unique ID. Should match AST_MAX_UNIQUEID.
+ * Note that we don't use that defined value directly here to avoid a hard dependency
+ * on channel.h
+ */
+#define MAX_CHANNEL_ID 150
 
 struct ast_rtp_instance;
 struct ast_rtp_glue;
@@ -215,6 +222,8 @@ enum ast_rtp_instance_stat {
 	AST_RTP_INSTANCE_STAT_LOCAL_SSRC,
 	/*! Retrieve remote SSRC */
 	AST_RTP_INSTANCE_STAT_REMOTE_SSRC,
+	/*! Retrieve channel unique ID */
+	AST_RTP_INSTANCE_STAT_CHANNEL_UNIQUEID,
 };
 
 /* Codes for RTP-specific data - not defined by our AST_FORMAT codes */
@@ -238,6 +247,46 @@ struct ast_rtp_payload_type {
 	int rtp_code;
 	/*! Actual payload number */
 	int payload;
+};
+
+/* Common RTCP report types */
+/*! Sender Report */
+#define AST_RTP_RTCP_SR 200
+/*! Receiver Report */
+#define AST_RTP_RTCP_RR 201
+
+/*!
+ * \since 12
+ * \brief A report block within a SR/RR report */
+struct ast_rtp_rtcp_report_block {
+	unsigned int source_ssrc;         /*< The SSRC of the source for this report block */
+	struct {
+		unsigned short fraction;      /*< The fraction of packets lost since last SR/RR */
+		unsigned int packets;         /*< The cumulative packets since the beginning */
+	} lost_count;                     /*< Statistics regarding missed packets */
+	unsigned int highest_seq_no;      /*< Extended highest sequence number received */
+	unsigned int ia_jitter;           /*< Calculated interarrival jitter */
+	unsigned int lsr;                 /*< The time the last SR report was received */
+	unsigned int dlsr;                /*< Delay in sending this report */
+};
+
+/*!
+ * \since 12
+ * \brief An object that represents data sent during a SR/RR RTCP report */
+struct ast_rtp_rtcp_report {
+	unsigned short reception_report_count;     /*< The number of report blocks */
+	unsigned int ssrc;                         /*< Our SSRC */
+	unsigned int type;                         /*< The type of report. 200=SR; 201=RR */
+	struct {
+		struct timeval ntp_timestamp;          /*< Our NTP timestamp */
+		unsigned int rtp_timestamp;            /*< Our last RTP timestamp */
+		unsigned int packet_count;             /*< Number of packets sent */
+		unsigned int octet_count;              /*< Number of bytes sent */
+	} sender_information;                      /*< Sender information for SR */
+	/*! A dynamic array of report blocks. The number of elements is given by
+	 * \c reception_report_count.
+	 */
+	struct ast_rtp_rtcp_report_block *report_block[0];
 };
 
 /*! Structure that represents statistics from an RTP instance */
@@ -300,6 +349,8 @@ struct ast_rtp_instance_stats {
 	unsigned int local_ssrc;
 	/*! Their SSRC */
 	unsigned int remote_ssrc;
+	/*! The Asterisk channel's unique ID that owns this instance */
+	char channel_uniqueid[MAX_CHANNEL_ID];
 };
 
 #define AST_RTP_STAT_SET(current_stat, combined, placement, value) \
@@ -308,6 +359,14 @@ placement = value; \
 if (stat == current_stat) { \
 return 0; \
 } \
+}
+
+#define AST_RTP_STAT_STRCPY(current_stat, combined, placement, value) \
+if (stat == current_stat || stat == AST_RTP_INSTANCE_STAT_ALL || (combined >= 0 && combined == current_stat)) { \
+	ast_copy_string(placement, value, sizeof(placement)); \
+	if (stat == current_stat) { \
+		return 0; \
+	} \
 }
 
 #define AST_RTP_STAT_TERMINATOR(combined) \
@@ -1541,6 +1600,30 @@ int ast_rtp_instance_fd(struct ast_rtp_instance *instance, int rtcp);
 struct ast_rtp_glue *ast_rtp_instance_get_glue(const char *type);
 
 /*!
+ * \brief Get the unique ID of the channel that owns this RTP instance
+ *
+ * Note that this should remain valid for the lifetime of the RTP instance.
+ *
+ * \param instance The RTP instance
+ *
+ * \retval The unique ID of the channel
+ * \retval Empty string if no channel owns this RTP instance
+ *
+ * \since 12
+ */
+const char *ast_rtp_instance_get_channel_id(struct ast_rtp_instance *instance);
+
+/*!
+ * \brief Set the channel that owns this RTP instance
+ *
+ * \param instance The RTP instance
+ * \param uniqueid The uniqueid of the channel
+ *
+ * \since 12
+ */
+void ast_rtp_instance_set_channel_id(struct ast_rtp_instance *instance, const char *uniqueid);
+
+/*!
  * \brief Get the other RTP instance that an instance is bridged to
  *
  * \param instance The RTP instance that we want
@@ -1965,27 +2048,6 @@ struct ast_rtp_engine *ast_rtp_instance_get_engine(struct ast_rtp_instance *inst
 struct ast_rtp_glue *ast_rtp_instance_get_active_glue(struct ast_rtp_instance *instance);
 
 /*!
- * \brief Get the channel that is associated with an RTP instance while in a bridge
- *
- * \param instance The RTP instance
- *
- * \retval pointer to the channel
- *
- * Example:
- *
- * \code
- * struct ast_channel *chan = ast_rtp_instance_get_chan(instance);
- * \endcode
- *
- * This gets the channel associated with the RTP instance pointed to by 'instance'.
- *
- * \note This will only return a channel while in a local or remote bridge.
- *
- * \since 1.8
- */
-struct ast_channel *ast_rtp_instance_get_chan(struct ast_rtp_instance *instance);
-
-/*!
  * \brief Send a comfort noise packet to the RTP instance
  *
  * \param instance The RTP instance
@@ -2072,6 +2134,62 @@ void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rt
  * \param dtls_cfg a DTLS configuration structure
  */
 void ast_rtp_dtls_cfg_free(struct ast_rtp_dtls_cfg *dtls_cfg);
+
+struct ast_json;
+
+/*!
+ * \brief Allocate an ao2 ref counted instance of \ref ast_rtp_rtcp_report
+ *
+ * \param report_blocks The number of report blocks to allocate
+ * \retval An ao2 ref counted \ref ast_rtp_rtcp_report object on success
+ * \retval NULL on error
+ */
+struct ast_rtp_rtcp_report *ast_rtp_rtcp_report_alloc(unsigned int report_blocks);
+
+/*!
+ * \since 12
+ * \brief Publish an RTCP message to \ref stasis
+ *
+ * \param rtp The rtp instance object
+ * \param message_type The RTP message type to publish
+ * \param report The RTCP report object to publish. This should be an ao2 ref counted
+ *  object. This routine will increase the reference count of the object.
+ * \param blob Additional JSON objects to publish along with the RTCP information
+ */
+void ast_rtp_publish_rtcp_message(struct ast_rtp_instance *rtp,
+		struct stasis_message_type *message_type,
+		struct ast_rtp_rtcp_report *report,
+		struct ast_json *blob);
+
+/*! \addtogroup StasisTopicsAndMessages
+ * @{
+ */
+
+/*!
+ * \since 12
+ * \brief Message type for an RTCP message sent from this Asterisk instance
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_rtp_rtcp_sent_type(void);
+
+/*!
+ * \since 12
+ * \brief Message type for an RTCP message received from some external source
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_rtp_rtcp_received_type(void);
+
+/*!
+ * \since 12
+ * \brief \ref stasis topic for RTP and RTCP related messages
+ *
+ * \retval A \ref stasis topic
+ */
+struct stasis_topic *ast_rtp_topic(void);
+
+/* }@ */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

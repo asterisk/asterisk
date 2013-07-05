@@ -27,7 +27,7 @@
  * internals of the Asterisk software. This documentation contains basic
  * examples, developer documentation, support information, and information
  * for upgrading.
- * 
+ *
  * \section community Community
  * Asterisk is a big project and has a busy community. Look at the
  * resources for questions and stick around to help answer questions.
@@ -120,7 +120,7 @@
  * \par
  * Use http://www.freenode.net IRC server to connect with Asterisk
  * developers and users in realtime.
- * 
+ *
  * \li \verbatim #asterisk \endverbatim Asterisk Users Room
  * \li \verbatim #asterisk-dev \endverbatim Asterisk Developers Room
  *
@@ -4217,6 +4217,7 @@ int main(int argc, char *argv[])
 		printf("Stasis initialization failed.\n%s", term_quit());
 		exit(1);
 	}
+
 	if (stasis_system_topic_init()) {
 		printf("Stasis system-level information initialization failed.\n%s", term_quit());
 		exit(1);
@@ -4258,7 +4259,10 @@ int main(int argc, char *argv[])
 
 	ast_format_attr_init();
 	ast_format_list_init();
-	ast_rtp_engine_init();
+	if (ast_rtp_engine_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
 
 	ast_autoservice_init();
 

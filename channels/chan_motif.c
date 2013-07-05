@@ -656,6 +656,18 @@ static struct ast_rtp_glue jingle_rtp_glue = {
 	.update_peer = jingle_set_rtp_peer,
 };
 
+/*! \brief Set the channel owner on the \ref jingle_session object and related objects */
+static void jingle_set_owner(struct jingle_session *session, struct ast_channel *chan)
+{
+	session->owner = chan;
+	if (session->rtp) {
+		ast_rtp_instance_set_channel_id(session->rtp, session->owner ? ast_channel_uniqueid(session->owner) : "");
+	}
+	if (session->vrtp) {
+		ast_rtp_instance_set_channel_id(session->vrtp, session->owner ? ast_channel_uniqueid(session->owner) : "");
+	}
+}
+
 /*! \brief Internal helper function which enables video support on a sesson if possible */
 static void jingle_enable_video(struct jingle_session *session)
 {
@@ -679,7 +691,7 @@ static void jingle_enable_video(struct jingle_session *session)
 	}
 
 	ast_rtp_instance_set_prop(session->vrtp, AST_RTP_PROPERTY_RTCP, 1);
-
+	ast_rtp_instance_set_channel_id(session->vrtp, ast_channel_uniqueid(session->owner));
 	ast_channel_set_fd(session->owner, 2, ast_rtp_instance_fd(session->vrtp, 0));
 	ast_channel_set_fd(session->owner, 3, ast_rtp_instance_fd(session->vrtp, 1));
 	ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(session->vrtp), session->vrtp, &session->prefs);
@@ -775,7 +787,7 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 
 	ast_channel_tech_set(chan, &jingle_tech);
 	ast_channel_tech_pvt_set(chan, session);
-	session->owner = chan;
+	jingle_set_owner(session, chan);
 
 	ast_channel_callid_set(chan, session->callid);
 
@@ -1712,7 +1724,7 @@ static int jingle_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 
 	ao2_lock(session);
 
-	session->owner = newchan;
+	jingle_set_owner(session, newchan);
 
 	ao2_unlock(session);
 
@@ -1862,7 +1874,7 @@ static int jingle_hangup(struct ast_channel *ast)
 	}
 
 	ast_channel_tech_pvt_set(ast, NULL);
-	session->owner = NULL;
+	jingle_set_owner(session, NULL);
 
 	ao2_unlink(session->state->sessions, session);
 	ao2_ref(session->state, -1);
