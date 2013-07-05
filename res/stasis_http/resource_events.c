@@ -182,8 +182,8 @@ void ari_websocket_event_websocket(struct ari_websocket_session *ws_session,
 		RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
 
 		msg = ast_json_pack("{s: s, s: [s]}",
-				    "error", "MissingParams",
-				    "params", "app");
+			"type", "MissingParams",
+			"params", "app");
 		if (!msg) {
 			msg = ast_json_ref(ari_oom_json());
 		}

@@ -64,7 +64,7 @@ static void stasis_http_event_websocket_ws_cb(struct ast_websocket *ws_session,
 	}
 #if defined(AST_DEVMODE)
 	session = ari_websocket_session_create(ws_session,
-		ari_validate_event_fn());
+		ari_validate_message_fn());
 #else
 	session = ari_websocket_session_create(ws_session, NULL);
 #endif

@@ -656,6 +656,42 @@ int ari_validate_event(struct ast_json *json);
 ari_validator ari_validate_event_fn(void);
 
 /*!
+ * \brief Validator for Message.
+ *
+ * Base type for errors and events
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ari_validate_message(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_message().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_message_fn(void);
+
+/*!
+ * \brief Validator for MissingParams.
+ *
+ * Error event sent when required params are missing.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ari_validate_missing_params(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_missing_params().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_missing_params_fn(void);
+
+/*!
  * \brief Validator for PlaybackFinished.
  *
  * Event showing the completion of a media playback operation.
@@ -780,118 +816,123 @@ ari_validator ari_validate_stasis_start_fn(void);
  * - state: string (required)
  * - target_uri: string (required)
  * ApplicationReplaced
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * BridgeCreated
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - bridge: Bridge (required)
  * BridgeDestroyed
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - bridge: Bridge (required)
  * BridgeMerged
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - bridge: Bridge (required)
  * - bridge_from: Bridge (required)
  * ChannelCallerId
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - caller_presentation: int (required)
  * - caller_presentation_txt: string (required)
  * - channel: Channel (required)
  * ChannelCreated
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - channel: Channel (required)
  * ChannelDestroyed
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - cause: int (required)
  * - cause_txt: string (required)
  * - channel: Channel (required)
  * ChannelDialplan
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - channel: Channel (required)
  * - dialplan_app: string (required)
  * - dialplan_app_data: string (required)
  * ChannelDtmfReceived
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - channel: Channel (required)
  * - digit: string (required)
  * - duration_ms: int (required)
  * ChannelEnteredBridge
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - bridge: Bridge (required)
  * - channel: Channel
  * ChannelHangupRequest
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - cause: int
  * - channel: Channel (required)
  * - soft: boolean
  * ChannelLeftBridge
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - bridge: Bridge (required)
  * - channel: Channel (required)
  * ChannelStateChange
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - channel: Channel (required)
  * ChannelUserevent
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - channel: Channel (required)
  * - eventname: string (required)
  * ChannelVarset
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - channel: Channel
  * - value: string (required)
  * - variable: string (required)
  * Event
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
+ * Message
  * - type: string (required)
+ * MissingParams
+ * - type: string (required)
+ * - params: List[string] (required)
  * PlaybackFinished
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - playback: Playback (required)
  * PlaybackStarted
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - playback: Playback (required)
  * StasisEnd
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - channel: Channel (required)
  * StasisStart
+ * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - type: string (required)
  * - args: List[string] (required)
  * - channel: Channel (required)
  */

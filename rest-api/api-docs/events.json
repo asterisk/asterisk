@@ -17,7 +17,7 @@
 					"websocketProtocol": "ari",
 					"summary": "WebSocket connection for events.",
 					"nickname": "eventWebsocket",
-					"responseClass": "Event",
+					"responseClass": "Message",
 					"parameters": [
 						{
 							"name": "app",
@@ -33,16 +33,35 @@
 		}
 	],
 	"models": {
-		"Event": {
-			"id": "Event",
-			"description": "Base type for asynchronous events from Asterisk.",
+		"Message": {
+			"id": "Message",
+			"description": "Base type for errors and events",
 			"discriminator": "type",
 			"properties": {
 				"type": {
 					"type": "string",
 					"required": true,
-					"description": "Indicates the type of this event."
-				},
+					"description": "Indicates the type of this message."
+				}
+			}
+		},
+		"MissingParams": {
+			"id": "MissingParams",
+			"extends": "Message",
+			"description": "Error event sent when required params are missing.",
+			"properties": {
+				"params": {
+					"required": true,
+					"type": "List[string]",
+					"description": "A list of the missing parameters"
+				}
+			}
+		},
+		"Event": {
+			"id": "Event",
+			"extends": "Message",
+			"description": "Base type for asynchronous events from Asterisk.",
+			"properties": {
 				"application": {
 					"type": "string",
 					"description": "Name of the application receiving the event.",
