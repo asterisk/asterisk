@@ -65,7 +65,8 @@ struct ari_websocket_session *ari_websocket_session_create(
 
 	if (ast_websocket_set_nonblock(ws_session) != 0) {
 		ast_log(LOG_ERROR,
-			"Stasis web socket failed to set nonblock; closing\n");
+			"ARI web socket failed to set nonblock; closing: %s\n",
+			strerror(errno));
 		return NULL;
 	}
 
