@@ -603,8 +603,8 @@ static struct ast_manager_event_blob *channel_state_change(
 			EVENT_FLAG_CALL, "Newchannel", NO_EXTRA_FIELDS);
 	}
 
-	was_hungup = ast_test_flag(&old_snapshot->flags, AST_FLAG_ZOMBIE) ? 1 : 0;
-	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_ZOMBIE) ? 1 : 0;
+	was_hungup = ast_test_flag(&old_snapshot->flags, AST_FLAG_DEAD) ? 1 : 0;
+	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_DEAD) ? 1 : 0;
 
 	if (!was_hungup && is_hungup) {
 		return ast_manager_event_blob_create(
@@ -639,7 +639,7 @@ static struct ast_manager_event_blob *channel_newexten(
 	}
 
 	/* Ignore any updates if we're hungup */
-	if (ast_test_flag(&new_snapshot->flags, AST_FLAG_ZOMBIE)) {
+	if (ast_test_flag(&new_snapshot->flags, AST_FLAG_DEAD)) {
 		return NULL;
 	}
 

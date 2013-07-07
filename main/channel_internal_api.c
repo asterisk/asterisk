@@ -276,6 +276,9 @@ static void channel_data_add_flags(struct ast_data *tree,
 	ast_data_add_bool(tree, "BRIDGE_HANGUP_RUN", ast_test_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_HANGUP_RUN));
 	ast_data_add_bool(tree, "DISABLE_WORKAROUNDS", ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS));
 	ast_data_add_bool(tree, "DISABLE_DEVSTATE_CACHE", ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE));
+	ast_data_add_bool(tree, "BRIDGE_DUAL_REDIRECT_WAIT", ast_test_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT));
+	ast_data_add_bool(tree, "ORIGINATED", ast_test_flag(ast_channel_flags(chan), AST_FLAG_ORIGINATED));
+	ast_data_add_bool(tree, "DEAD", ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEAD));
 }
 
 int ast_channel_data_add_structure(struct ast_data *tree,

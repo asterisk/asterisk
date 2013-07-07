@@ -927,6 +927,12 @@ enum {
 	 * This flag indicates that the channel was originated.
 	 */
 	AST_FLAG_ORIGINATED = (1 << 23),
+	/*!
+	 * The channel is well and truly dead. Once this is set and published, no further
+	 * actions should be taken upon the channel, and no further publications should
+	 * occur.
+	 */
+	AST_FLAG_DEAD = (1 << 24),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -1018,8 +1024,12 @@ enum {
 	 * instead of actually hanging up.
 	 */
 	AST_SOFTHANGUP_UNBRIDGE =  (1 << 6),
-
-
+	/*!
+	 * Used to indicate that the channel is currently executing hangup
+	 * logic in the dialplan. The channel has been hungup when this is
+	 * set.
+	 */
+	AST_SOFTHANGUP_HANGUP_EXEC = (1 << 7),
 	/*!
 	 * \brief All softhangup flags.
 	 *

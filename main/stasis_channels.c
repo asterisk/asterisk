@@ -185,8 +185,9 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	snapshot->priority = ast_channel_priority(chan);
 	snapshot->amaflags = ast_channel_amaflags(chan);
 	snapshot->hangupcause = ast_channel_hangupcause(chan);
-	snapshot->flags = *ast_channel_flags(chan);
+	ast_copy_flags(&snapshot->flags, ast_channel_flags(chan), 0xFFFFFFFF);
 	snapshot->caller_pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
+	ast_set_flag(&snapshot->softhangup_flags, ast_channel_softhangup_internal_flag(chan));
 
 	snapshot->manager_vars = ast_channel_get_manager_vars(chan);
 

@@ -68,6 +68,7 @@ struct ast_channel_snapshot {
 	int hangupcause;                        /*!< Why is the channel hanged up. See causes.h */
 	int caller_pres;                        /*!< Caller ID presentation. */
 	struct ast_flags flags;                 /*!< channel flags of AST_FLAG_ type */
+	struct ast_flags softhangup_flags;      /*!< softhangup channel flags */
 	struct varshead *manager_vars;          /*!< Variables to be appended to manager events */
 };
 

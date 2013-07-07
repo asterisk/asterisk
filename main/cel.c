@@ -1084,8 +1084,8 @@ static void cel_channel_state_change(
 		return;
 	}
 
-	was_hungup = ast_test_flag(&old_snapshot->flags, AST_FLAG_ZOMBIE) ? 1 : 0;
-	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_ZOMBIE) ? 1 : 0;
+	was_hungup = ast_test_flag(&old_snapshot->flags, AST_FLAG_DEAD) ? 1 : 0;
+	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_DEAD) ? 1 : 0;
 
 	if (!was_hungup && is_hungup) {
 		RAII_VAR(struct ast_str *, extra_str, ast_str_create(128), ast_free);

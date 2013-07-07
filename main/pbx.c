@@ -5692,7 +5692,7 @@ void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context)
 	 * Make sure that the channel is marked as hungup since we are
 	 * going to run the h exten on it.
 	 */
-	ast_softhangup_nolock(chan, AST_SOFTHANGUP_APPUNLOAD);
+	ast_softhangup_nolock(chan, AST_SOFTHANGUP_HANGUP_EXEC);
 
 	/* Save autoloop flag */
 	autoloopflag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
@@ -5765,7 +5765,7 @@ int ast_pbx_hangup_handler_run(struct ast_channel *chan)
 	 * Make sure that the channel is marked as hungup since we are
 	 * going to run the hangup handlers on it.
 	 */
-	ast_softhangup_nolock(chan, AST_SOFTHANGUP_APPUNLOAD);
+	ast_softhangup_nolock(chan, AST_SOFTHANGUP_HANGUP_EXEC);
 
 	for (;;) {
 		handlers = ast_channel_hangup_handlers(chan);

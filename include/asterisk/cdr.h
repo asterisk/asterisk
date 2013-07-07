@@ -178,7 +178,7 @@
  *
  * The following transitions can occur while in the Bridge state:
  * \li If a \ref ast_bridge_blob_type message indicating a leave is received,
- * the state transitions to the Pending state
+ * the state transitions to the Finalized state.
  *
  * \par Parked
  *
@@ -203,27 +203,7 @@
  *
  * The following transitions can occur while in the Parked state:
  * \li If a \ref ast_bridge_blob_type message indicating a leave is received,
- * the state transitions to the Pending state
- *
- * \par Pending
- *
- * After a channel leaves a bridge, we often don't know what's going to happen
- * to it. It can enter another bridge; it can be hung up; it can continue on
- * in the dialplan. It can even enter into limbo! Pending holds the state of the
- * CDR until we get a subsequent Stasis message telling us what should happen.
- *
- * The following transitions can occur while in the Pending state:
- * \li If a \ref ast_bridge_blob_type message is received, a new CDR is created
- * and it is transitioned to the Bridge state
- * \li If a \ref ast_channel_dial_type indicating a Dial Begin is received, a
- * new CDR is created and it is transitioned to the Dial state
- * \li If a \ref ast_channel_cache_update is received indicating a change in
- * Context/Extension/Priority, a new CDR is created and transitioned to the
- * Single state. If the update indicates that the party has been hung up, the
- * CDR is transitioned to the Finalized state.
- * \li If a \ref ast_bridge_blob_type message indicating an entrance to a
- * holding bridge with a subclass type of "parking" is received, the CDR is
- * transitioned to the Parked state.
+ * the state transitions to the Finalized state
  *
  * \par Finalized
  *

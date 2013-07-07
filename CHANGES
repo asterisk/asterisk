@@ -286,8 +286,11 @@ CDR (Call Detail Records)
  * CDRs will now be created between all participants in a bridge. For each
    pair of channels in a bridge, a CDR is created to represent the path of
    communication between those two endpoints. This lets an end user choose who
-   to bill for what during multi-party bridges or bridge operations during
-   transfer scenarios.
+   to bill for what during bridge operations with multiple parties.
+
+ * The duration, billsec, start, answer, and end times now reflect the times
+   associated with the current CDR for the channel, as opposed to a cumulative
+   measurement of all CDRs for that channel.
 
  * When a CDR is dispatched, user defined CDR variables from both parties are
    included in the resulting CDR. If both parties have the same variable, only

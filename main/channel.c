@@ -2360,6 +2360,8 @@ static void ast_channel_destructor(void *obj)
 	char device_name[AST_CHANNEL_NAME];
 	struct ast_callid *callid;
 
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEAD);
+	ast_channel_publish_snapshot(chan);
 	publish_cache_clear(chan);
 
 	ast_pbx_hangup_handler_destroy(chan);
@@ -2865,8 +2867,6 @@ int ast_hangup(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 
 	ast_cc_offer(chan);
-
-	ast_channel_publish_snapshot(chan);
 
 	ast_channel_unref(chan);
 
