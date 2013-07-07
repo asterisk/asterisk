@@ -2360,11 +2360,22 @@ static void ast_channel_destructor(void *obj)
 	char device_name[AST_CHANNEL_NAME];
 	struct ast_callid *callid;
 
+	/* Stop monitoring */
+	if (ast_channel_monitor(chan)) {
+		ast_channel_monitor(chan)->stop(chan, 0);
+	}
+
+	/* If there is native format music-on-hold state, free it */
+	if (ast_channel_music_state(chan)) {
+		ast_moh_cleanup(chan);
+	}
+
+	ast_pbx_hangup_handler_destroy(chan);
+
+	/* Things that may possibly raise Stasis messages shouldn't occur after this point */
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEAD);
 	ast_channel_publish_snapshot(chan);
 	publish_cache_clear(chan);
-
-	ast_pbx_hangup_handler_destroy(chan);
 
 	ast_channel_lock(chan);
 
@@ -2403,14 +2414,6 @@ static void ast_channel_destructor(void *obj)
 	} else {
 		device_name[0] = '\0';
 	}
-
-	/* Stop monitoring */
-	if (ast_channel_monitor(chan))
-		ast_channel_monitor(chan)->stop( chan, 0 );
-
-	/* If there is native format music-on-hold state, free it */
-	if (ast_channel_music_state(chan))
-		ast_moh_cleanup(chan);
 
 	/* Free translators */
 	if (ast_channel_readtrans(chan))
