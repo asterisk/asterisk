@@ -124,8 +124,11 @@ struct ast_json *ari_websocket_session_read(
 	return ast_json_ref(message);
 }
 
-#define VALIDATION_FAILED					\
-	"{ \"error\": \"Outgoing message failed validation\" }"
+#define VALIDATION_FAILED				\
+	"{"						\
+	"  \"error\": \"InvalidMessage\","		\
+	"  \"message\": \"Message validation failed\""	\
+	"}" 
 
 int ari_websocket_session_write(struct ari_websocket_session *session,
 	struct ast_json *message)
