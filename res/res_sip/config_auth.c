@@ -85,6 +85,11 @@ static int auth_apply(const struct ast_sorcery *sorcery, void *obj)
 			ast_log(LOG_ERROR, "'md5' authentication specified but no md5_cred"
 					"specified for auth '%s'\n", ast_sorcery_object_get_id(auth));
 			res = -1;
+		} else if (strlen(auth->md5_creds) != PJSIP_MD5STRLEN) {
+			ast_log(LOG_ERROR, "'md5' authentication requires digest of '%d', but"
+				"digest is of '%d' for auth '%s'\n", PJSIP_MD5STRLEN, (int)strlen(auth->md5_creds),
+				ast_sorcery_object_get_id(auth));
+			res = -1;
 		}
 		break;
 	case AST_SIP_AUTH_TYPE_ARTIFICIAL:
