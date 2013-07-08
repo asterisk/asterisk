@@ -810,6 +810,65 @@ static void stasis_http_record_channel_cb(
 	}
 #endif /* AST_DEVMODE */
 }
+/*!
+ * \brief Parameter parsing callback for /channels/{channelId}/variable.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_get_channel_var_cb(
+    struct ast_variable *get_params, struct ast_variable *path_vars,
+    struct ast_variable *headers, struct stasis_http_response *response)
+{
+	struct ast_get_channel_var_args args = {};
+	struct ast_variable *i;
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "variable") == 0) {
+			args.variable = (i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "channelId") == 0) {
+			args.channel_id = (i->value);
+		} else
+		{}
+	}
+	stasis_http_get_channel_var(headers, &args, response);
+}
+/*!
+ * \brief Parameter parsing callback for /channels/{channelId}/variable.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_set_channel_var_cb(
+    struct ast_variable *get_params, struct ast_variable *path_vars,
+    struct ast_variable *headers, struct stasis_http_response *response)
+{
+	struct ast_set_channel_var_args args = {};
+	struct ast_variable *i;
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "variable") == 0) {
+			args.variable = (i->value);
+		} else
+		if (strcmp(i->name, "value") == 0) {
+			args.value = (i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "channelId") == 0) {
+			args.channel_id = (i->value);
+		} else
+		{}
+	}
+	stasis_http_set_channel_var(headers, &args, response);
+}
 
 /*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels_channelId_dial = {
@@ -893,6 +952,16 @@ static struct stasis_rest_handlers channels_channelId_record = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/channels.{format} */
+static struct stasis_rest_handlers channels_channelId_variable = {
+	.path_segment = "variable",
+	.callbacks = {
+		[AST_HTTP_GET] = stasis_http_get_channel_var_cb,
+		[AST_HTTP_POST] = stasis_http_set_channel_var_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels_channelId = {
 	.path_segment = "channelId",
 	.is_wildcard = 1,
@@ -900,8 +969,8 @@ static struct stasis_rest_handlers channels_channelId = {
 		[AST_HTTP_GET] = stasis_http_get_channel_cb,
 		[AST_HTTP_DELETE] = stasis_http_delete_channel_cb,
 	},
-	.num_children = 9,
-	.children = { &channels_channelId_dial,&channels_channelId_continue,&channels_channelId_answer,&channels_channelId_mute,&channels_channelId_unmute,&channels_channelId_hold,&channels_channelId_unhold,&channels_channelId_play,&channels_channelId_record, }
+	.num_children = 10,
+	.children = { &channels_channelId_dial,&channels_channelId_continue,&channels_channelId_answer,&channels_channelId_mute,&channels_channelId_unmute,&channels_channelId_hold,&channels_channelId_unhold,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable, }
 };
 /*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels = {

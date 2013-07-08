@@ -52,5 +52,33 @@ struct ast_get_asterisk_info_args {
  * \param[out] response HTTP response
  */
 void stasis_http_get_asterisk_info(struct ast_variable *headers, struct ast_get_asterisk_info_args *args, struct stasis_http_response *response);
+/*! \brief Argument struct for stasis_http_get_global_var() */
+struct ast_get_global_var_args {
+	/*! \brief The variable to get */
+	const char *variable;
+};
+/*!
+ * \brief Get the value of a global variable.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void stasis_http_get_global_var(struct ast_variable *headers, struct ast_get_global_var_args *args, struct stasis_http_response *response);
+/*! \brief Argument struct for stasis_http_set_global_var() */
+struct ast_set_global_var_args {
+	/*! \brief The variable to set */
+	const char *variable;
+	/*! \brief The value to set the variable to */
+	const char *value;
+};
+/*!
+ * \brief Set the value of a global variable.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void stasis_http_set_global_var(struct ast_variable *headers, struct ast_set_global_var_args *args, struct stasis_http_response *response);
 
 #endif /* _ASTERISK_RESOURCE_ASTERISK_H */

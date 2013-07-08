@@ -561,3 +561,55 @@ void stasis_http_originate(struct ast_variable *headers,
 
 	stasis_http_response_no_content(response);
 }
+
+void stasis_http_get_channel_var(struct ast_variable *headers, struct ast_get_channel_var_args *args, struct stasis_http_response *response)
+{
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(char *, value, NULL, ast_free);
+
+	ast_assert(response != NULL);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	value = stasis_app_control_get_channel_var(control, args->variable);
+
+	if (!(json = ast_json_pack("{s: s}", "value", S_OR(value, "")))) {
+		stasis_http_response_alloc_failed(response);
+		return;
+	}
+
+	stasis_http_response_ok(response, ast_json_ref(json));
+}
+
+void stasis_http_set_channel_var(struct ast_variable *headers, struct ast_set_channel_var_args *args, struct stasis_http_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	ast_assert(response != NULL);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	if (ast_strlen_zero(args->variable)) {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"Variable name is required");
+		return;
+	}
+
+	if (stasis_app_control_set_channel_var(control, args->variable, args->value)) {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"Failed to execute function");
+		return;
+	}
+
+	stasis_http_response_no_content(response);
+}
+

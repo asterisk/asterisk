@@ -207,6 +207,34 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 	return 0;
 }
 
+char *stasis_app_control_get_channel_var(struct stasis_app_control *control, const char *variable)
+{
+	SCOPED_CHANNELLOCK(lockvar, control->channel);
+
+	RAII_VAR(struct ast_str *, tmp, ast_str_create(32), ast_free);
+
+	if (!tmp) {
+		return NULL;
+	}
+
+	if (variable[strlen(variable) - 1] == ')') {
+		if (ast_func_read2(control->channel, variable, &tmp, 0)) {
+			return NULL;
+		}
+	} else {
+		if (!ast_str_retrieve_variable(&tmp, 0, control->channel, NULL, variable)) {
+			return NULL;
+		}
+	}
+
+	return ast_strdup(ast_str_buffer(tmp));
+}
+
+int stasis_app_control_set_channel_var(struct stasis_app_control *control, const char *variable, const char *value)
+{
+	return pbx_builtin_setvar_helper(control->channel, variable, value);
+}
+
 static void *app_control_hold(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {

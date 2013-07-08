@@ -36,6 +36,52 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/asterisk/variable",
+			"description": "Global variables",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Get the value of a global variable.",
+					"nickname": "getGlobalVar",
+					"responseClass": "Variable",
+					"parameters": [
+						{
+							"name": "variable",
+							"description": "The variable to get",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				},
+				{
+					"httpMethod": "POST",
+					"summary": "Set the value of a global variable.",
+					"nickname": "setGlobalVar",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "variable",
+							"description": "The variable to set",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "value",
+							"description": "The value to set the variable to",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
@@ -43,6 +89,16 @@
 			"id": "AsteriskInfo",
 			"description": "Asterisk system information",
 			"properties": {}
+		},
+		"Variable": {
+			"id": "Variable",
+			"properties": {
+				"variable": {
+					"required": true,
+					"type": "string",
+					"description": "The value of the variable requested"
+				}
+			}
 		}
 	}
 }

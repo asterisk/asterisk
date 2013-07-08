@@ -98,6 +98,53 @@ static void stasis_http_get_asterisk_info_cb(
 	}
 #endif /* AST_DEVMODE */
 }
+/*!
+ * \brief Parameter parsing callback for /asterisk/variable.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_get_global_var_cb(
+    struct ast_variable *get_params, struct ast_variable *path_vars,
+    struct ast_variable *headers, struct stasis_http_response *response)
+{
+	struct ast_get_global_var_args args = {};
+	struct ast_variable *i;
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "variable") == 0) {
+			args.variable = (i->value);
+		} else
+		{}
+	}
+	stasis_http_get_global_var(headers, &args, response);
+}
+/*!
+ * \brief Parameter parsing callback for /asterisk/variable.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_set_global_var_cb(
+    struct ast_variable *get_params, struct ast_variable *path_vars,
+    struct ast_variable *headers, struct stasis_http_response *response)
+{
+	struct ast_set_global_var_args args = {};
+	struct ast_variable *i;
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "variable") == 0) {
+			args.variable = (i->value);
+		} else
+		if (strcmp(i->name, "value") == 0) {
+			args.value = (i->value);
+		} else
+		{}
+	}
+	stasis_http_set_global_var(headers, &args, response);
+}
 
 /*! \brief REST handler for /api-docs/asterisk.{format} */
 static struct stasis_rest_handlers asterisk_info = {
@@ -109,12 +156,22 @@ static struct stasis_rest_handlers asterisk_info = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/asterisk.{format} */
+static struct stasis_rest_handlers asterisk_variable = {
+	.path_segment = "variable",
+	.callbacks = {
+		[AST_HTTP_GET] = stasis_http_get_global_var_cb,
+		[AST_HTTP_POST] = stasis_http_set_global_var_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/asterisk.{format} */
 static struct stasis_rest_handlers asterisk = {
 	.path_segment = "asterisk",
 	.callbacks = {
 	},
-	.num_children = 1,
-	.children = { &asterisk_info, }
+	.num_children = 2,
+	.children = { &asterisk_info,&asterisk_variable, }
 };
 
 static int load_module(void)

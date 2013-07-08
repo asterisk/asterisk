@@ -174,6 +174,25 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 int stasis_app_control_answer(struct stasis_app_control *control);
 
 /*!
+ * \brief Get the value of a variable on the channel associated with this control.
+ * \param control Control for \c res_stasis.
+ * \param variable The name of the variable.
+ * \return The value of the variable.  The returned variable must be freed.
+ */
+char *stasis_app_control_get_channel_var(struct stasis_app_control *control, const char *variable);
+
+/*!
+ * \brief Set a variable on the channel associated with this control to value.
+ * \param control Control for \c res_stasis.
+ * \param variable The name of the variable
+ * \param value The value to set the variable to
+ *
+ * \return 0 for success.
+ * \return -1 for error.
+ */
+int stasis_app_control_set_channel_var(struct stasis_app_control *control, const char *variable, const char *value);
+
+/*!
  * \brief Place the channel associated with the control on hold.
  * \param control Control for \c res_stasis.
  */
