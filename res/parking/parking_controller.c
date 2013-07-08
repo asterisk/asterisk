@@ -54,17 +54,28 @@ struct ast_bridge *parking_lot_get_bridge(struct parking_lot *lot)
 	return lot_bridge;
 }
 
-void parking_channel_set_roles(struct ast_channel *chan, struct parking_lot *lot, int force_ringing)
+int parking_channel_set_roles(struct ast_channel *chan, struct parking_lot *lot, int force_ringing)
 {
-	ast_channel_add_bridge_role(chan, "holding_participant");
+	if (ast_channel_add_bridge_role(chan, "holding_participant")) {
+		return -1;
+	}
+
 	if (force_ringing) {
-		ast_channel_set_bridge_role_option(chan, "holding_participant", "idle_mode", "ringing");
+		if (ast_channel_set_bridge_role_option(chan, "holding_participant", "idle_mode", "ringing")) {
+			return -1;
+		}
 	} else {
-		ast_channel_set_bridge_role_option(chan, "holding_participant", "idle_mode", "musiconhold");
+		if (ast_channel_set_bridge_role_option(chan, "holding_participant", "idle_mode", "musiconhold")) {
+			return -1;
+		}
 		if (!ast_strlen_zero(lot->cfg->mohclass)) {
-			ast_channel_set_bridge_role_option(chan, "holding_participant", "moh_class", lot->cfg->mohclass);
+			if (ast_channel_set_bridge_role_option(chan, "holding_participant", "moh_class", lot->cfg->mohclass)) {
+				return -1;
+			}
 		}
 	}
+
+	return 0;
 }
 
 struct parking_limits_pvt {

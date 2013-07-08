@@ -219,6 +219,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	}
 
 	if (swap) {
+		int use_ringing = 0;
 		ao2_lock(swap);
 		pu = swap->bridge_pvt;
 		if (!pu) {
@@ -236,15 +237,21 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 
 		/* TODO Add a parked call swap message type to relay information about parked channel swaps */
 
+		if (ast_bridge_channel_has_role(swap, "holding_participant")) {
+			const char *idle_mode = ast_bridge_channel_get_role_option(swap, "holding_participant", "idle_mode");
+			if (!ast_strlen_zero(idle_mode) && !strcmp(idle_mode, "ringing")) {
+				use_ringing = 1;
+			}
+		}
+
 		ao2_unlock(swap);
 
 		parking_set_duration(bridge_channel->features, pu);
 
-		/* BUGBUG Adding back local channel swapping made us not hear music on hold for the channel that got swapped
-		 * into the parking lot. Setting the roels back up gets around that, but we still need to deal with the ringing option
-		 * to the park application here somehow.
-		 */
-		parking_channel_set_roles(bridge_channel->chan, self->lot, 0);
+		if (parking_channel_set_roles(bridge_channel->chan, self->lot, use_ringing)) {
+			ast_log(LOG_WARNING, "Failed to apply holding bridge roles to %s while joining the parking lot.\n",
+				ast_channel_name(bridge_channel->chan));
+		}
 
 		return 0;
 	}

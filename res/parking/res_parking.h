@@ -214,8 +214,11 @@ void parked_call_retrieve_enable_features(struct ast_channel *chan, struct parki
  * \param chan Entering channel
  * \param lot The parking lot the channel will be entering
  * \param force_ringing Use ringing instead of music on hold
+ *
+ * \retval 0 on success
+ * \retval non-zero on failure
  */
-void parking_channel_set_roles(struct ast_channel *chan, struct parking_lot *lot, int force_ringing);
+int parking_channel_set_roles(struct ast_channel *chan, struct parking_lot *lot, int force_ringing);
 
 /*!
  * \since 12.0.0

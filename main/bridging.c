@@ -1015,7 +1015,9 @@ void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_
 	 * playing the announcment.
 	 *
 	 * XXX We have no idea what MOH class was in use before playing
-	 * the file.
+	 * the file. This method also fails to restore ringing indications.
+	 * the proposed solution is to create a resume_entertainment callback
+	 * for the bridge technology and execute it here.
 	 */
 	if (ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_MOH)) {
 		ast_moh_start(bridge_channel->chan, NULL, NULL);
