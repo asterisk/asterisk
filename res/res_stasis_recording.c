@@ -436,8 +436,7 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS,
-	"Stasis application recording support",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis application recording support",
 	.load = load_module,
 	.unload = unload_module,
 	.nonoptreq = "res_stasis");
