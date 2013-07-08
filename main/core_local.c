@@ -46,6 +46,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/core_local.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/_private.h"
 #include "asterisk/stasis_channels.h"
 
@@ -161,6 +163,34 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="LocalOptimizationBegin">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when two halves of a Local Channel begin to optimize
+			themselves out of the media path.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalOne')])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalTwo')])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">LocalOptimizationEnd</ref>
+				<ref type="manager">LocalOptimizeAway</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="LocalOptimizationEnd">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when two halves of a Local Channel have finished optimizing
+			themselves out of the media path.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalOne')])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalTwo')])" />
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">LocalOptimizationBegin</ref>
+				<ref type="manager">LocalOptimizeAway</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 static const char tdesc[] = "Local Proxy Channel Driver";
@@ -171,6 +201,30 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 static int local_call(struct ast_channel *ast, const char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_devicestate(const char *data);
+static void local_optimization_started_cb(struct ast_unreal_pvt *base);
+static void local_optimization_finished_cb(struct ast_unreal_pvt *base);
+
+static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message *msg);
+
+/*!
+ * @{ \brief Define local channel message types.
+ */
+STASIS_MESSAGE_TYPE_DEFN(ast_local_bridge_type,
+	.to_ami = local_message_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_local_optimization_begin_type,
+	.to_ami = local_message_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_local_optimization_end_type,
+	.to_ami = local_message_to_ami,
+	);
+/*! @} */
+
+/*! \brief Callbacks from the unreal core when channel optimization occurs */
+struct ast_unreal_pvt_callbacks local_unreal_callbacks = {
+	.optimization_started = local_optimization_started_cb,
+	.optimization_finished = local_optimization_finished_cb,
+};
 
 /* PBX interface structure for channel registration */
 static struct ast_channel_tech local_tech = {
@@ -326,59 +380,115 @@ static int local_devicestate(const char *data)
 	return res;
 }
 
-static struct ast_manager_event_blob *local_bridge_to_ami(struct stasis_message *msg)
+static void publish_local_optimization(struct local_pvt *p, int complete)
 {
-	RAII_VAR(struct ast_str *, channel_one_string, NULL, ast_free);
-	RAII_VAR(struct ast_str *, channel_two_string, NULL, ast_free);
-	struct ast_multi_channel_blob *obj = stasis_message_data(msg);
-	struct ast_json *blob, *context, *exten, *optimize;
-	struct ast_channel_snapshot *chan_one, *chan_two;
+	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, blob, ast_json_null(), ast_json_unref);
+	RAII_VAR(struct ast_channel_snapshot *, local_one_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, local_two_snapshot, NULL, ao2_cleanup);
 
-	chan_one = ast_multi_channel_blob_get_channel(obj, "1");
-	chan_two = ast_multi_channel_blob_get_channel(obj, "2");
-	blob = ast_multi_channel_blob_get_json(obj);
-
-	channel_one_string = ast_manager_build_channel_state_string_prefix(chan_one, "LocalOne");
-	if (!channel_one_string) {
-		return NULL;
+	if (!blob) {
+		return;
 	}
 
-	channel_two_string = ast_manager_build_channel_state_string_prefix(chan_two, "LocalTwo");
-	if (!channel_two_string) {
-		return NULL;
+	local_one_snapshot = ast_channel_snapshot_create(p->base.owner);
+	if (!local_one_snapshot) {
+		return;
 	}
 
-	context = ast_json_object_get(blob, "context");
-	exten = ast_json_object_get(blob, "exten");
-	optimize = ast_json_object_get(blob, "optimize");
+	local_two_snapshot = ast_channel_snapshot_create(p->base.chan);
+	if (!local_two_snapshot) {
+		return;
+	}
 
-	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "LocalBridge",
-		"%s"
-		"%s"
-		"Context: %s\r\n"
-		"Exten: %s\r\n"
-		"LocalOptimization: %s\r\n",
-		ast_str_buffer(channel_one_string),
-		ast_str_buffer(channel_two_string),
-		ast_json_string_get(context),
-		ast_json_string_get(exten),
-		ast_json_is_true(optimize) ? "Yes" : "No");
+	payload = ast_multi_channel_blob_create(blob);
+	if (!payload) {
+		return;
+	}
+	ast_multi_channel_blob_add_channel(payload, "1", local_one_snapshot);
+	ast_multi_channel_blob_add_channel(payload, "2", local_two_snapshot);
+
+	msg = stasis_message_create(
+			complete ? ast_local_optimization_end_type() : ast_local_optimization_begin_type(),
+			payload);
+	if (!msg) {
+		return;
+	}
+
+	stasis_publish(ast_channel_topic(p->base.owner), msg);
+
 }
 
-STASIS_MESSAGE_TYPE_DEFN_LOCAL(local_bridge_type,
-	.to_ami = local_bridge_to_ami,
-	);
+/*! \brief Callback for \ref ast_unreal_pvt_callbacks \ref optimization_started_cb */
+static void local_optimization_started_cb(struct ast_unreal_pvt *base)
+{
+	struct local_pvt *p = (struct local_pvt *)base;
+	publish_local_optimization(p, 0);
+}
+
+/*! \brief Callback for \ref ast_unreal_pvt_callbacks \ref optimization_finished_cb */
+static void local_optimization_finished_cb(struct ast_unreal_pvt *base)
+{
+	struct local_pvt *p = (struct local_pvt *)base;
+	publish_local_optimization(p, 1);
+}
+
+static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message *message)
+{
+	struct ast_multi_channel_blob *obj = stasis_message_data(message);
+	struct ast_json *blob = ast_multi_channel_blob_get_json(obj);
+	struct ast_channel_snapshot *local_snapshot_one;
+	struct ast_channel_snapshot *local_snapshot_two;
+	RAII_VAR(struct ast_str *, local_channel_one, NULL, ast_free);
+	RAII_VAR(struct ast_str *, local_channel_two, NULL, ast_free);
+	struct ast_str *event_buffer = ast_str_alloca(128);
+	const char *event;
+
+	local_snapshot_one = ast_multi_channel_blob_get_channel(obj, "1");
+	local_snapshot_two = ast_multi_channel_blob_get_channel(obj, "2");
+	if (!local_snapshot_one || !local_snapshot_two) {
+		return NULL;
+	}
+
+	local_channel_one = ast_manager_build_channel_state_string_prefix(local_snapshot_one, "LocalOne");
+	local_channel_two = ast_manager_build_channel_state_string_prefix(local_snapshot_two, "LocalTwo");
+	if (!local_channel_one || !local_channel_two) {
+		return NULL;
+	}
+
+	if (stasis_message_type(message) == ast_local_optimization_begin_type()) {
+		event = "LocalOptimizationBegin";
+	} else if (stasis_message_type(message) == ast_local_optimization_end_type()) {
+		event = "LocalOptimizationEnd";
+	} else if (stasis_message_type(message) == ast_local_bridge_type()) {
+		event = "LocalBridge";
+		ast_str_append(&event_buffer, 0, "Context: %s\r\n", ast_json_string_get(ast_json_object_get(blob, "context")));
+		ast_str_append(&event_buffer, 0, "Exten: %s\r\n", ast_json_string_get(ast_json_object_get(blob, "exten")));
+		ast_str_append(&event_buffer, 0, "LocalOptimization: %s\r\n", ast_json_is_true(ast_json_object_get(blob, "can_optimize")) ? "Yes" : "No");
+	} else {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CALL, event,
+		"%s"
+		"%s"
+		"%s",
+		ast_str_buffer(local_channel_one),
+		ast_str_buffer(local_channel_two),
+		ast_str_buffer(event_buffer));
+}
 
 /*!
  * \internal
- * \brief Post the LocalBridge AMI event.
+ * \brief Post the \ref ast_local_bridge_type \ref stasis message
  * \since 12.0.0
  *
- * \param p local_pvt to raise the bridge event.
+ * \param p local_pvt to raise the local bridge message
  *
  * \return Nothing
  */
-static void local_bridge_event(struct local_pvt *p)
+static void publish_local_bridge_message(struct local_pvt *p)
 {
 	RAII_VAR(struct ast_multi_channel_blob *, multi_blob, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
@@ -390,7 +500,7 @@ static void local_bridge_event(struct local_pvt *p)
 	blob = ast_json_pack("{s: s, s: s, s: b}",
 		"context", p->context,
 		"exten", p->exten,
-		"optimize", ast_test_flag(&p->base, AST_UNREAL_NO_OPTIMIZATION));
+		"can_optimize", !ast_test_flag(&p->base, AST_UNREAL_NO_OPTIMIZATION));
 	if (!blob) {
 		return;
 	}
@@ -413,7 +523,7 @@ static void local_bridge_event(struct local_pvt *p)
 	ast_multi_channel_blob_add_channel(multi_blob, "1", one_snapshot);
 	ast_multi_channel_blob_add_channel(multi_blob, "2", two_snapshot);
 
-	msg = stasis_message_create(local_bridge_type(), multi_blob);
+	msg = stasis_message_create(ast_local_bridge_type(), multi_blob);
 	if (!msg) {
 		return;
 	}
@@ -564,14 +674,14 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 			ast_log(LOG_NOTICE, "No such extension/context %s@%s while calling Local channel\n",
 				p->exten, p->context);
 		} else {
-			local_bridge_event(p);
+			publish_local_bridge_message(p);
 
 			/* Start switch on sub channel */
 			res = ast_pbx_start(chan);
 		}
 		break;
 	case LOCAL_CALL_ACTION_BRIDGE:
-		local_bridge_event(p);
+		publish_local_bridge_message(p);
 		ast_answer(chan);
 		res = ast_bridge_impart(p->action.bridge.join, chan, p->action.bridge.swap,
 			p->action.bridge.features, 1);
@@ -582,7 +692,7 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 		p->action.bridge.features = NULL;
 		break;
 	case LOCAL_CALL_ACTION_MASQUERADE:
-		local_bridge_event(p);
+		publish_local_bridge_message(p);
 		ast_answer(chan);
 		res = ast_channel_move(p->action.masq, chan);
 		if (!res) {
@@ -699,6 +809,7 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 	if (!pvt) {
 		return NULL;
 	}
+	pvt->base.callbacks = &local_unreal_callbacks;
 
 	parse = ast_strdupa(data);
 
@@ -883,12 +994,24 @@ static void local_shutdown(void)
 	locals = NULL;
 
 	ast_format_cap_destroy(local_tech.capabilities);
-	STASIS_MESSAGE_TYPE_CLEANUP(local_bridge_type);
+
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_local_optimization_begin_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_local_optimization_end_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_local_bridge_type);
 }
 
 int ast_local_init(void)
 {
-	if (STASIS_MESSAGE_TYPE_INIT(local_bridge_type)) {
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_local_optimization_begin_type)) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_local_optimization_end_type)) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_local_bridge_type)) {
 		return -1;
 	}
 

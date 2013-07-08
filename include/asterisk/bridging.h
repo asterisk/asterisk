@@ -870,19 +870,23 @@ int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan);
  */
 int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
 
+struct ast_unreal_pvt;
+
 /*!
  * \brief Check and optimize out the unreal channels between bridges.
  * \since 12.0.0
  *
  * \param chan Unreal channel writing a frame into the channel driver.
  * \param peer Other unreal channel in the pair.
+ * \param pvt Private data provided by an implementation of the unreal driver that
+ * contains the callbacks that should be called when optimization begins/ends
  *
  * \note It is assumed that chan is already locked.
  *
  * \retval 0 if unreal channels were not optimized out.
  * \retval non-zero if unreal channels were optimized out.
  */
-int ast_bridge_unreal_optimized_out(struct ast_channel *chan, struct ast_channel *peer);
+int ast_bridge_unreal_optimize_out(struct ast_channel *chan, struct ast_channel *peer, struct ast_unreal_pvt *pvt);
 
 /*!
  * \brief Tells, if optimization is allowed, how the optimization would be performed

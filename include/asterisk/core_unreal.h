@@ -43,6 +43,30 @@ struct ast_callid;
 
 /* ------------------------------------------------------------------- */
 
+struct ast_unreal_pvt;
+
+/*!
+ * \brief Callbacks that can be provided by concrete implementations of the unreal
+ * channel driver that will be called when events occur in the unreal layer
+ */
+struct ast_unreal_pvt_callbacks {
+	/*!
+	 * \brief Called when an optimization attempt has started
+	 * \note p is locked when this callback is called
+	 * \param p The \ref ast_unreal_pvt object
+	 */
+	void (* const optimization_started)(struct ast_unreal_pvt *p);
+
+	/*!
+	 * \brief Called when an optimization attempt completed successfully
+	 * \note p is locked when this callback is called
+	 * \param p The \ref ast_unreal_pvt object
+	 * \param success Non-zero if the optimization succeeded, zero if the optimization
+	 * met with fatal and permanent error
+	 */
+	void (* const optimization_finished)(struct ast_unreal_pvt *p);
+};
+
 /*!
  * \brief The base pvt structure for local channel derivatives.
  *
@@ -51,11 +75,12 @@ struct ast_callid;
  * ast_chan owner -> ast_unreal_pvt -> ast_chan chan
  */
 struct ast_unreal_pvt {
-	struct ast_channel *owner;      /*!< Master Channel - ;1 side */
-	struct ast_channel *chan;       /*!< Outbound channel - ;2 side */
-	struct ast_format_cap *reqcap;  /*!< Requested format capabilities */
-	struct ast_jb_conf jb_conf;     /*!< jitterbuffer configuration */
-	unsigned int flags;             /*!< Private option flags */
+	struct ast_unreal_pvt_callbacks *callbacks; /*!< Event callbacks */
+	struct ast_channel *owner;                  /*!< Master Channel - ;1 side */
+	struct ast_channel *chan;                   /*!< Outbound channel - ;2 side */
+	struct ast_format_cap *reqcap;              /*!< Requested format capabilities */
+	struct ast_jb_conf jb_conf;                 /*!< jitterbuffer configuration */
+	unsigned int flags;                         /*!< Private option flags */
 	/*! Base name of the unreal channels.  exten@context or other name. */
 	char name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
 };
@@ -65,6 +90,7 @@ struct ast_unreal_pvt {
 #define AST_UNREAL_CARETAKER_THREAD (1 << 0) /*!< The ;2 side launched a PBX, was pushed into a bridge, or was masqueraded into an application. */
 #define AST_UNREAL_NO_OPTIMIZATION  (1 << 1) /*!< Do not optimize out the unreal channels */
 #define AST_UNREAL_MOH_INTERCEPT    (1 << 2) /*!< Intercept and act on hold/unhold control frames */
+#define AST_UNREAL_OPTIMIZE_BEGUN   (1 << 3) /*!< Indicates that an optimization attempt has been started */
 
 /*!
  * \brief Send an unreal pvt in with no locks held and get all locks

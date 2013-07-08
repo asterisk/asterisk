@@ -270,6 +270,17 @@ AMI (Asterisk Manager Interface)
 
  * AMI events now contain a SystemName field, if available.
 
+ * Local channel optimization is now conveyed in two events:
+   LocalOptimizationBegin and LocalOptimizationEnd. The Begin event is sent
+   when the Local channel driver begins attempting to optimize itself out of
+   the media path; the End event is sent after the channel halves have
+   successfully optimized themselves out of the media path.
+
+ * Local channel information in events is now prefixed with "LocalOne" and
+   "LocalTwo". This replaces the suffix of "1" and "2" for the two halves of
+   the Local channel. This affects the LocalBridge, LocalOptimizationBegin,
+   and LocalOptimizationEnd events.
+
 AGI (Asterisk Gateway Interface)
 ------------------
  * The manager event AGIExec has been split into AGIExecStart and AGIExecEnd.

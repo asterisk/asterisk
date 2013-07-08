@@ -281,18 +281,20 @@ int ast_unreal_answer(struct ast_channel *ast)
  */
 static int got_optimized_out(struct ast_channel *ast, struct ast_unreal_pvt *p)
 {
+	int res = 0;
+
 	/* Do a few conditional checks early on just to see if this optimization is possible */
 	if (ast_test_flag(p, AST_UNREAL_NO_OPTIMIZATION) || !p->chan || !p->owner) {
-		return 0;
+		return res;
 	}
+
 	if (ast == p->owner) {
-		return ast_bridge_unreal_optimized_out(p->owner, p->chan);
+		res = ast_bridge_unreal_optimize_out(p->owner, p->chan, p);
+	} else if (ast == p->chan) {
+		res = ast_bridge_unreal_optimize_out(p->chan, p->owner, p);
 	}
-	if (ast == p->chan) {
-		return ast_bridge_unreal_optimized_out(p->chan, p->owner);
-	}
-	/* ast is not valid to optimize. */
-	return 0;
+
+	return res;
 }
 
 struct ast_frame  *ast_unreal_read(struct ast_channel *ast)

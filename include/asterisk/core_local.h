@@ -37,6 +37,7 @@ extern "C" {
 struct ast_channel;
 struct ast_bridge;
 struct ast_bridge_features;
+struct stasis_message_type;
 
 /* ------------------------------------------------------------------- */
 
@@ -90,6 +91,44 @@ int ast_local_setup_bridge(struct ast_channel *ast, struct ast_bridge *bridge, s
 int ast_local_setup_masquerade(struct ast_channel *ast, struct ast_channel *masq);
 
 /* ------------------------------------------------------------------- */
+
+/*!
+ * \brief Message type for when two local channel halves are bridged together
+ * \since 12.0.0
+ *
+ * \note Payloads for the \ref ast_local_bridge_type are a \ref ast_multi_channel_blob.
+ * Roles for the channels in the \ref ast_multi_channel_blob are "1" and "2", reflecting
+ * the two halves. Unlike most other bridges, the 'bridge' between two local channels is
+ * not part of the bridge framework; as such, the message simply references the two local
+ * channel halves that are now bridged.
+ *
+ * \retval A \ref stasis message type
+ */
+struct stasis_message_type *ast_local_bridge_type(void);
+
+/*!
+ * \brief Message type for when a local channel optimization begins
+ * \since 12.0.0
+ *
+ * \note Payloads for the \ref ast_local_optimization_begin_type are a
+ * \ref ast_multi_channel_blob. Roles for the channels in the \ref ast_multi_channel_blob
+ * are "1" and "2", reflecting the two halves.
+ *
+ * \retval A \ref stasis message type
+ */
+struct stasis_message_type *ast_local_optimization_begin_type(void);
+
+/*!
+ * \brief Message type for when a local channel optimization completes
+ * \since 12.0.0
+ *
+ * \note Payloads for the \ref ast_local_optimization_end_type are a
+ * \ref ast_multi_channel_blob. Roles for the channels in the \ref ast_multi_channel_blob
+ * are "1" and "2", reflecting the two halves.
+ *
+ * \retval A \ref stasis message type
+ */
+struct stasis_message_type *ast_local_optimization_end_type(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/parking.h"
 #include "asterisk/core_local.h"
+#include "asterisk/core_unreal.h"
 #include "asterisk/features_config.h"
 
 /*! All bridges container. */
@@ -628,6 +629,12 @@ static void bridge_channel_pull(struct ast_bridge_channel *bridge_channel)
 	ast_debug(1, "Bridge %s: pulling %p(%s)\n",
 		bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
 
+	ast_verb(3, "Channel %s left '%s' %s-bridge <%s>\n",
+		ast_channel_name(bridge_channel->chan),
+		bridge->technology->name,
+		bridge->v_table->name,
+		bridge->uniqueid);
+
 /* BUGBUG This is where incoming HOLD/UNHOLD memory should write UNHOLD into bridge. (if not local optimizing) */
 /* BUGBUG This is where incoming DTMF begin/end memory should write DTMF end into bridge. (if not local optimizing) */
 	if (!bridge_channel->just_joined) {
@@ -713,6 +720,16 @@ static int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 	if (!bridge_channel->suspended) {
 		++bridge->num_active;
 	}
+
+	ast_verb(3, "Channel %s %s%s%s '%s' %s-bridge <%s>\n",
+		ast_channel_name(bridge_channel->chan),
+		swap ? "swapped with " : "joined",
+		swap ? ast_channel_name(swap->chan) : "",
+		swap ? " into" : "",
+		bridge->technology->name,
+		bridge->v_table->name,
+		bridge->uniqueid);
+
 	ast_bridge_publish_enter(bridge, bridge_channel->chan);
 	if (swap) {
 		ast_bridge_change_state(swap, AST_BRIDGE_CHANNEL_STATE_HANGUP);
@@ -1895,7 +1912,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 	 * must not release the bridge lock until we have installed the
 	 * new bridge technology.
 	 */
-	ast_debug(1, "Bridge %s: switching %s technology to %s\n",
+	ast_verb(4, "Bridge %s: switching from %s technology to %s\n",
 		bridge->uniqueid, old_technology->name, new_technology->name);
 
 	/*
@@ -4644,14 +4661,17 @@ static enum bridge_allow_swap bridges_allow_swap_optimization(struct ast_bridge 
  * \param chan_bridge_channel
  * \param peer_bridge
  * \param peer_bridge_channel
+ * \param pvt Unreal data containing callbacks to call if the optimization actually
+ * happens
  *
  * \retval 1 if unreal channels failed to optimize out.
  * \retval 0 if unreal channels were not optimized out.
  * \retval -1 if unreal channels were optimized out.
  */
-static int check_swap_optimize_out(struct ast_bridge *chan_bridge,
+static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 	struct ast_bridge_channel *chan_bridge_channel, struct ast_bridge *peer_bridge,
-	struct ast_bridge_channel *peer_bridge_channel)
+	struct ast_bridge_channel *peer_bridge_channel,
+	struct ast_unreal_pvt *pvt)
 {
 	struct ast_bridge *dst_bridge;
 	struct ast_bridge_channel *dst_bridge_channel;
@@ -4696,10 +4716,18 @@ static int check_swap_optimize_out(struct ast_bridge *chan_bridge,
 			ast_channel_name(dst_bridge_channel->chan),
 			ast_channel_name(other->chan));
 
+		if (pvt && !ast_test_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN) && pvt->callbacks
+				&& pvt->callbacks->optimization_started) {
+			pvt->callbacks->optimization_started(pvt);
+			ast_set_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN);
+		}
 		other->swap = dst_bridge_channel->chan;
 		if (!bridge_move_do(dst_bridge, other, 1)) {
 			ast_bridge_change_state(src_bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
 			res = -1;
+			if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
+				pvt->callbacks->optimization_finished(pvt);
+			}
 		}
 	}
 	return res;
@@ -4761,13 +4789,16 @@ static enum bridge_allow_merge bridges_allow_merge_optimization(struct ast_bridg
  * \param chan_bridge_channel
  * \param peer_bridge
  * \param peer_bridge_channel
+ * \param pvt Unreal data containing callbacks to call if the optimization actually
+ * happens
  *
  * \retval 0 if unreal channels were not optimized out.
  * \retval -1 if unreal channels were optimized out.
  */
-static int check_merge_optimize_out(struct ast_bridge *chan_bridge,
+static int try_merge_optimize_out(struct ast_bridge *chan_bridge,
 	struct ast_bridge_channel *chan_bridge_channel, struct ast_bridge *peer_bridge,
-	struct ast_bridge_channel *peer_bridge_channel)
+	struct ast_bridge_channel *peer_bridge_channel,
+	struct ast_unreal_pvt *pvt)
 {
 	struct merge_direction merge;
 	struct ast_bridge_channel *kick_me[] = {
@@ -4798,12 +4829,20 @@ static int check_merge_optimize_out(struct ast_bridge *chan_bridge,
 		ast_channel_name(chan_bridge_channel->chan),
 		ast_channel_name(peer_bridge_channel->chan));
 
+	if (pvt && !ast_test_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN) && pvt->callbacks
+			&& pvt->callbacks->optimization_started) {
+		pvt->callbacks->optimization_started(pvt);
+		ast_set_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN);
+	}
 	bridge_merge_do(merge.dest, merge.src, kick_me, ARRAY_LEN(kick_me));
+	if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
+		pvt->callbacks->optimization_finished(pvt);
+	}
 
 	return -1;
 }
 
-int ast_bridge_unreal_optimized_out(struct ast_channel *chan, struct ast_channel *peer)
+int ast_bridge_unreal_optimize_out(struct ast_channel *chan, struct ast_channel *peer, struct ast_unreal_pvt *pvt)
 {
 	struct ast_bridge *chan_bridge;
 	struct ast_bridge *peer_bridge;
@@ -4821,11 +4860,11 @@ int ast_bridge_unreal_optimized_out(struct ast_channel *chan, struct ast_channel
 	if (peer_bridge) {
 		peer_bridge_channel = ast_channel_internal_bridge_channel(peer);
 
-		res = check_swap_optimize_out(chan_bridge, chan_bridge_channel,
-			peer_bridge, peer_bridge_channel);
+		res = try_swap_optimize_out(chan_bridge, chan_bridge_channel,
+			peer_bridge, peer_bridge_channel, pvt);
 		if (!res) {
-			res = check_merge_optimize_out(chan_bridge, chan_bridge_channel,
-				peer_bridge, peer_bridge_channel);
+			res = try_merge_optimize_out(chan_bridge, chan_bridge_channel,
+				peer_bridge, peer_bridge_channel, pvt);
 		} else if (0 < res) {
 			res = 0;
 		}
