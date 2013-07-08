@@ -36,6 +36,7 @@
 #include "asterisk/cli.h"
 #include "asterisk/_private.h"
 #include "asterisk/stasis_message_router.h"
+#include "asterisk/stasis_system.h"
 
 /*** MODULEINFO
 	<support_level>core</support_level>

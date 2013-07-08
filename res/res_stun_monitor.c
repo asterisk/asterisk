@@ -39,8 +39,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/acl.h"
 #include "asterisk/cli.h"
-#include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_system.h"
 #include "asterisk/astobj2.h"
 
 #include <fcntl.h>

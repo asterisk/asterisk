@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/stasis_system.h"
 
 /*! \brief
  * The following variable controls the layout of localized sound files.

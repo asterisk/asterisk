@@ -7827,6 +7827,10 @@ static int __init_manager(int reload, int by_external_config)
 			ast_log(AST_LOG_ERROR, "Failed to initialize manager subscriptions\n");
 			return -1;
 		}
+		if (manager_system_init()) {
+			ast_log(AST_LOG_ERROR, "Failed to initialize manager system handling\n");
+			return -1;
+		}
 		if (manager_channels_init()) {
 			ast_log(AST_LOG_ERROR, "Failed to initialize manager channel handling\n");
 			return -1;

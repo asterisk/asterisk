@@ -103,6 +103,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/security_events.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/bridging.h"
+#include "asterisk/stasis.h"
+#include "asterisk/stasis_system.h"
 
 #include "iax2/include/iax2.h"
 #include "iax2/include/firmware.h"
@@ -8376,6 +8378,11 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	return 0;
 }
 
+static void iax2_publish_registry(const char *username, const char *domain, const char *status, const char *cause)
+{
+	ast_system_publish_registry("IAX2", username, domain, status, cause);
+}
+
 /*! \brief Acknowledgment received for OUR registration */
 static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int callno)
 {
@@ -8437,7 +8444,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		}
 		snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
 		ast_verb(3, "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(sin->sin_addr), ourip, msgstatus);
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", ast_inet_ntoa(sin->sin_addr));
+		iax2_publish_registry(reg->username, ast_inet_ntoa(sin->sin_addr), "Registered", NULL);
 	}
 	reg->regstate = REG_STATE_REGISTERED;
 	return 0;
@@ -11179,8 +11186,8 @@ immediatedial:
 				if (iaxs[fr->callno]->reg) {
 					if (authdebug) {
 						ast_log(LOG_NOTICE, "Registration of '%s' rejected: '%s' from: '%s'\n", iaxs[fr->callno]->reg->username, ies.cause ? ies.cause : "<unknown>", ast_inet_ntoa(sin.sin_addr));
-						manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: IAX2\r\nUsername: %s\r\nStatus: Rejected\r\nCause: %s\r\n", iaxs[fr->callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
 					}
+					iax2_publish_registry(iaxs[fr->callno]->reg->username, ast_inet_ntoa(sin.sin_addr), "Rejected", S_OR(ies.cause, "<unknown>"));
 					iaxs[fr->callno]->reg->regstate = REG_STATE_REJECTED;
 				}
 				/* Send ack immediately, before we destroy */

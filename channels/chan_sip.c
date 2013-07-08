@@ -294,7 +294,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sip_api.h"
 #include "asterisk/app.h"
 #include "asterisk/bridging.h"
+#include "asterisk/stasis.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/stasis_system.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/features_config.h"
 
@@ -15076,6 +15078,11 @@ static const char *regstate2str(enum sipregistrystate regstate)
 	return map_x_s(regstatestrings, regstate, "Unknown");
 }
 
+static void sip_publish_registry(const char *username, const char *domain, const char *status)
+{
+	ast_system_publish_registry("SIP", username, domain, status, NULL);
+}
+
 /*! \brief Update registration with SIP Proxy.
  * Called from the scheduler when the previous registration expires,
  * so we don't have to cancel the pending event.
@@ -15176,7 +15183,7 @@ static int sip_reg_timeout(const void *data)
 		transmit_register(r, SIP_REGISTER, NULL, NULL);
 		ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts);
 	}
-	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+	sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 	registry_unref(r, "unreffing registry_unref r");
 	return 0;
 }
@@ -23692,7 +23699,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			r->regstate = REG_STATE_UNREGISTERED;
 			transmit_register(r, SIP_REGISTER, NULL, NULL);
 		}
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 		break;
 	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
 		ast_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username, p->registry->hostname);
@@ -23711,7 +23718,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 
 		r->regstate = REG_STATE_REGISTERED;
 		r->regtime = ast_tvnow();		/* Reset time of last successful registration */
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_debug(1, "Registration successful\n");
 		if (r->timeout > -1) {

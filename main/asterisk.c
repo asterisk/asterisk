@@ -243,6 +243,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/stasis_system.h"
 #include "asterisk/security_events.h"
 
 #include "../defaults.h"
@@ -448,21 +449,12 @@ static struct {
 	 unsigned int need_quit_handler:1;
 } sig_flags;
 
-/*! \brief The \ref stasis topic for system level changes */
-static struct stasis_topic *system_topic;
-
-/*!\ brief The \ref stasis_message_type for network changes */
-STASIS_MESSAGE_TYPE_DEFN(ast_network_change_type);
-
 #if !defined(LOW_MEMORY)
 struct file_version {
 	AST_RWLIST_ENTRY(file_version) list;
 	const char *file;
 	char *version;
 };
-
-/*! \brief The \ref stasis topic for system level changes */
-static struct stasis_topic *system_topic;
 
 static AST_RWLIST_HEAD_STATIC(file_versions, file_version);
 
@@ -1097,36 +1089,6 @@ static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct 
 }
 
 #endif /* ! LOW_MEMORY */
-
-struct stasis_topic *ast_system_topic(void)
-{
-	return system_topic;
-}
-
-/*! \brief Cleanup the \ref stasis system level items */
-static void stasis_system_topic_cleanup(void)
-{
-	ao2_cleanup(system_topic);
-	system_topic = NULL;
-	STASIS_MESSAGE_TYPE_CLEANUP(ast_network_change_type);
-}
-
-/*! \brief Initialize the system level items for \ref stasis */
-static int stasis_system_topic_init(void)
-{
-	ast_register_cleanup(stasis_system_topic_cleanup);
-
-	system_topic = stasis_topic_create("ast_system");
-	if (!system_topic) {
-		return 1;
-	}
-
-	if (STASIS_MESSAGE_TYPE_INIT(ast_network_change_type) != 0) {
-		return -1;
-	}
-
-	return 0;
-}
 
 static void publish_fully_booted(void)
 {
@@ -4218,7 +4180,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (stasis_system_topic_init()) {
+	if (ast_stasis_system_init()) {
 		printf("Stasis system-level information initialization failed.\n%s", term_quit());
 		exit(1);
 	}

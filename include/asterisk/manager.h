@@ -440,6 +440,14 @@ ast_manager_event_blob_create(
 #define NO_EXTRA_FIELDS "%s", ""
 
 /*!
+ * \since 12
+ * \brief Initialize support for AMI system events.
+ * \retval 0 on success
+ * \retval non-zero on error
+ */
+int manager_system_init(void);
+
+/*!
  * \brief Initialize support for AMI channel events.
  * \retval 0 on success.
  * \retval non-zero on error.
