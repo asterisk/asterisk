@@ -101,6 +101,11 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		return -1;
 	}
 
+	if (transport->host.addr.sa_family != PJ_AF_INET && transport->host.addr.sa_family != PJ_AF_INET6) {
+		ast_log(LOG_ERROR, "Transport '%s' could not be started as binding not specified\n", ast_sorcery_object_get_id(obj));
+		return -1;
+	}
+
 	/* Set default port if not present */
 	if (!pj_sockaddr_get_port(&transport->host)) {
 		pj_sockaddr_set_port(&transport->host, (transport->type == AST_TRANSPORT_TLS) ? 5061 : 5060);
