@@ -646,9 +646,9 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 
 	connected_id = ast_channel_connected_effective_id(session->channel);
 	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED &&
-			session->endpoint->trust_id_outbound &&
-			(connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
-			(connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			(session->endpoint->trust_id_outbound ||
+			((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
+			(connected_id.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED))) {
 		/* Only change the From header on the initial outbound INVITE. Switching it
 		 * mid-call might confuse some UAs.
 		 */
