@@ -209,9 +209,8 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 
 char *stasis_app_control_get_channel_var(struct stasis_app_control *control, const char *variable)
 {
-	SCOPED_CHANNELLOCK(lockvar, control->channel);
-
 	RAII_VAR(struct ast_str *, tmp, ast_str_create(32), ast_free);
+	SCOPED_CHANNELLOCK(lockvar, control->channel);
 
 	if (!tmp) {
 		return NULL;
