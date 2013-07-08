@@ -92,8 +92,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/presencestate.h"
-#include "asterisk/stasis.h"
 #include "asterisk/stasis_message_router.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_bridging.h"
 #include "asterisk/test.h"
 #include "asterisk/json.h"
 #include "asterisk/bridging.h"
@@ -221,6 +222,106 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			value for the specified channel variables.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="Status">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a Status command.</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<parameter name="Channel">
+					<para>Name of the channel</para>
+				</parameter>
+				<parameter name="Type">
+					<para>Type of channel</para>
+				</parameter>
+				<parameter name="DNID">
+					<para>Dialed number identifier</para>
+				</parameter>
+				<parameter name="ChannelState">
+					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
+				</parameter>
+				<parameter name="ChannelStateDesc">
+					<para>Name for the channel's current state</para>
+					<enumlist>
+						<enum name="Down"/>
+						<enum name="Rsrvd"/>
+						<enum name="OffHook"/>
+						<enum name="Dialing"/>
+						<enum name="Ring"/>
+						<enum name="Ringing"/>
+						<enum name="Up"/>
+						<enum name="Busy"/>
+						<enum name="Dialing Offhook"/>
+						<enum name="Pre-ring"/>
+						<enum name="Unknown"/>
+					</enumlist>
+				</parameter>
+				<parameter name="CallerIDNum">
+				</parameter>
+				<parameter name="CallerIDName">
+				</parameter>
+				<parameter name="ConnectedLineNum">
+				</parameter>
+				<parameter name="ConnectedLineName">
+				</parameter>
+				<parameter name="EffectiveConnectedLineNum">
+				</parameter>
+				<parameter name="EffectiveConnectedLineName">
+				</parameter>
+				<parameter name="AccountCode">
+				</parameter>
+				<parameter name="Context">
+				</parameter>
+				<parameter name="Exten">
+				</parameter>
+				<parameter name="Priority">
+				</parameter>
+				<parameter name="Uniqueid">
+					<para>Unique identifier for the channel</para>
+				</parameter>
+				<parameter name="TimeToHangup">
+					<para>Absolute lifetime of the channel</para>
+				</parameter>
+				<parameter name="BridgeID">
+					<para>Identifier of the bridge the channel is in, may be empty if not in one</para>
+				</parameter>
+				<parameter name="Linkedid">
+				</parameter>
+				<parameter name="Application">
+					<para>Application currently executing on the channel</para>
+				</parameter>
+				<parameter name="Data">
+					<para>Data given to the currently executing channel</para>
+				</parameter>
+				<parameter name="Nativeformats">
+					<para>Media formats the connected party is willing to send or receive</para>
+				</parameter>
+				<parameter name="Readformat">
+					<para>Media formats that frames from the channel are received in</para>
+				</parameter>
+				<parameter name="Readtrans">
+					<para>Translation path for media received in native formats</para>
+				</parameter>
+				<parameter name="Writeformat">
+					<para>Media formats that frames to the channel are accepted in</para>
+				</parameter>
+				<parameter name="Writetrans">
+					<para>Translation path for media sent to the connected party</para>
+				</parameter>
+				<parameter name="Callgroup">
+					<para>Configured call group on the channel</para>
+				</parameter>
+				<parameter name="Pickupgroup">
+					<para>Configured pickup group on the channel</para>
+				</parameter>
+				<parameter name="Seconds">
+					<para>Number of seconds the channel has been active</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">Status</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="Setvar" language="en_US">
 		<synopsis>
 			Set a channel variable.
@@ -3745,11 +3846,8 @@ static int action_status(struct mansession *s, const struct message *m)
 	const char *name = astman_get_header(m, "Channel");
 	const char *cvariables = astman_get_header(m, "Variables");
 	char *variables = ast_strdupa(S_OR(cvariables, ""));
-	struct ast_channel *c;
-	struct ast_bridge *bridge;
-	char bridge_text[256];
-	struct timeval now = ast_tvnow();
-	long elapsed_seconds = 0;
+	RAII_VAR(struct ao2_container *, cached_channels, NULL, ao2_cleanup);
+	struct stasis_message *msg;
 	int channels = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 	const char *id = astman_get_header(m, "ActionID");
@@ -3758,7 +3856,8 @@ static int action_status(struct mansession *s, const struct message *m)
 		AST_APP_ARG(name)[100];
 	);
 	struct ast_str *str = ast_str_create(1000);
-	struct ast_channel_iterator *iter = NULL;
+	struct ao2_iterator it_chans;
+	struct timeval now = ast_tvnow();
 
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
@@ -3772,14 +3871,15 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 
 	if (all) {
-		if (!(iter = ast_channel_iterator_all_new())) {
+		if (!(cached_channels = stasis_cache_dump(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type()))) {
 			ast_free(str);
 			astman_send_error(s, m, "Memory Allocation Failure");
 			return 1;
 		}
-		c = ast_channel_iterator_next(iter);
+		it_chans = ao2_iterator_init(cached_channels, 0);
+		msg = ao2_iterator_next(&it_chans);
 	} else {
-		if (!(c = ast_channel_get_by_name(name))) {
+		if (!(msg = stasis_cache_get(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type(), name))) {
 			astman_send_error(s, m, "No such channel");
 			ast_free(str);
 			return 0;
@@ -3793,10 +3893,17 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 
 	/* if we look by name, we break after the first iteration */
-	for (; c; c = ast_channel_iterator_next(iter)) {
-		ast_channel_lock(c);
+	for (; msg; ao2_ref(msg, -1), msg = ao2_iterator_next(&it_chans)) {
+		struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
+		struct ast_channel *c;
+		struct ast_str *built = ast_manager_build_channel_state_string_prefix(snapshot, "");
+		long elapsed_seconds = 0;
 
-		if (!ast_strlen_zero(cvariables)) {
+		if (!built) {
+			continue;
+		}
+
+		if (!ast_strlen_zero(cvariables) && (c = ast_channel_get_by_name(snapshot->name))) {
 			int i;
 			ast_str_reset(str);
 			for (i = 0; i < vars.argc; i++) {
@@ -3813,94 +3920,70 @@ static int action_status(struct mansession *s, const struct message *m)
 
 				ast_str_append(&str, 0, "Variable: %s=%s\r\n", vars.name[i], ret);
 			}
+			ast_channel_unref(c);
 		}
 
 		channels++;
-		bridge = ast_channel_get_bridge(c);
-		if (bridge) {
-			snprintf(bridge_text, sizeof(bridge_text), "BridgeID: %s\r\n",
-				bridge->uniqueid);
-			ao2_ref(bridge, -1);
-		} else {
-			bridge_text[0] = '\0';
-		}
-		if (ast_channel_pbx(c)) {
-			if (!ast_tvzero(ast_channel_creationtime(c))) {
-				elapsed_seconds = now.tv_sec - ast_channel_creationtime(c).tv_sec;
-			}
-			astman_append(s,
-				"Event: Status\r\n"
-				"Privilege: Call\r\n"
-				"Channel: %s\r\n"
-				"CallerIDNum: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"ConnectedLineNum: %s\r\n"
-				"ConnectedLineName: %s\r\n"
-				"Accountcode: %s\r\n"
-				"ChannelState: %d\r\n"
-				"ChannelStateDesc: %s\r\n"
-				"Context: %s\r\n"
-				"Extension: %s\r\n"
-				"Priority: %d\r\n"
-				"Seconds: %ld\r\n"
-				"%s"
-				"Uniqueid: %s\r\n"
-				"%s"
-				"%s"
-				"\r\n",
-				ast_channel_name(c),
-				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<unknown>"),
-				S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "<unknown>"),
-				S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "<unknown>"),
-				S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "<unknown>"),
-				ast_channel_accountcode(c),
-				ast_channel_state(c),
-				ast_state2str(ast_channel_state(c)),
-				ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c),
-				(long) elapsed_seconds,
-				bridge_text,
-				ast_channel_uniqueid(c),
-				ast_str_buffer(str),
-				idText);
-		} else {
-			astman_append(s,
-				"Event: Status\r\n"
-				"Privilege: Call\r\n"
-				"Channel: %s\r\n"
-				"CallerIDNum: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"ConnectedLineNum: %s\r\n"
-				"ConnectedLineName: %s\r\n"
-				"Account: %s\r\n"
-				"State: %s\r\n"
-				"%s"
-				"Uniqueid: %s\r\n"
-				"%s"
-				"%s"
-				"\r\n",
-				ast_channel_name(c),
-				S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "<unknown>"),
-				S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "<unknown>"),
-				S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "<unknown>"),
-				S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "<unknown>"),
-				ast_channel_accountcode(c),
-				ast_state2str(ast_channel_state(c)),
-				bridge_text,
-				ast_channel_uniqueid(c),
-				ast_str_buffer(str),
-				idText);
+
+
+		if (!ast_tvzero(snapshot->creationtime)) {
+			elapsed_seconds = now.tv_sec - snapshot->creationtime.tv_sec;
 		}
 
-		ast_channel_unlock(c);
-		c = ast_channel_unref(c);
+		astman_append(s,
+			"Event: Status\r\n"
+			"Privilege: Call\r\n"
+			"Type: %s\r\n"
+			"DNID: %s\r\n"
+			"EffectiveConnectedLineNum: %s\r\n"
+			"EffectiveConnectedLineName: %s\r\n"
+			"TimeToHangup: %ld\r\n"
+			"BridgeID: %s\r\n"
+			"Linkedid: %s\r\n"
+			"Application: %s\r\n"
+			"Data: %s\r\n"
+			"Nativeformats: %s\r\n"
+			"Readformat: %s\r\n"
+			"Readtrans: %s\r\n"
+			"Writeformat: %s\r\n"
+			"Writetrans: %s\r\n"
+			"Callgroup: %llu\r\n"
+			"Pickupgroup: %llu\r\n"
+			"Seconds: %ld\r\n"
+			"%s"
+			"%s"
+			"%s"
+			"\r\n",
+			snapshot->type,
+			snapshot->caller_dnid,
+			S_OR(snapshot->effective_number, "<unknown>"),
+			S_OR(snapshot->effective_name, "<unknown>"),
+			snapshot->hanguptime.tv_sec,
+			snapshot->bridgeid,
+			snapshot->linkedid,
+			snapshot->appl,
+			snapshot->data,
+			snapshot->nativeformats,
+			snapshot->readformat,
+			snapshot->readtrans,
+			snapshot->writeformat,
+			snapshot->writetrans,
+			snapshot->callgroup,
+			snapshot->pickupgroup,
+			(long) elapsed_seconds,
+			ast_str_buffer(built),
+			ast_str_buffer(str),
+			idText);
+
+		ast_free(built);
 
 		if (!all) {
 			break;
 		}
 	}
 
-	if (iter) {
-		ast_channel_iterator_destroy(iter);
+	if (all) {
+		ao2_iterator_destroy(&it_chans);
 	}
 
 	astman_append(s,
@@ -5259,10 +5342,10 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 {
 	const char *actionid = astman_get_header(m, "ActionID");
 	char idText[256];
-	struct ast_channel *c = NULL;
 	int numchans = 0;
-	int duration, durh, durm, durs;
-	struct ast_channel_iterator *iter;
+	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
+	struct ao2_iterator it_chans;
+	struct stasis_message *msg;
 
 	if (!ast_strlen_zero(actionid)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
@@ -5270,60 +5353,35 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		idText[0] = '\0';
 	}
 
-	if (!(iter = ast_channel_iterator_all_new())) {
-		astman_send_error(s, m, "Memory Allocation Failure");
-		return 1;
+	if (!(channels = stasis_cache_dump(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type()))) {
+		astman_send_error(s, m, "Could not get cached channels");
+		return 0;
 	}
 
 	astman_send_listack(s, m, "Channels will follow", "start");
 
-	for (; (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
-		struct ast_channel *bc;
-		char durbuf[10] = "";
+	it_chans = ao2_iterator_init(channels, 0);
+	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {
+		struct ast_channel_snapshot *cs = stasis_message_data(msg);
+		struct ast_str *built = ast_manager_build_channel_state_string_prefix(cs, "");
 
-		ast_channel_lock(c);
-
-		bc = ast_bridged_channel(c);
-		if (!ast_tvzero(ast_channel_creationtime(c))) {
-			duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_creationtime(c)) / 1000);
-			durh = duration / 3600;
-			durm = (duration % 3600) / 60;
-			durs = duration % 60;
-			snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
+		if (!built) {
+			continue;
 		}
 
 		astman_append(s,
 			"Event: CoreShowChannel\r\n"
 			"%s"
-			"Channel: %s\r\n"
-			"UniqueID: %s\r\n"
-			"Context: %s\r\n"
-			"Extension: %s\r\n"
-			"Priority: %d\r\n"
-			"ChannelState: %d\r\n"
-			"ChannelStateDesc: %s\r\n"
-			"Application: %s\r\n"
-			"ApplicationData: %s\r\n"
-			"CallerIDnum: %s\r\n"
-			"CallerIDname: %s\r\n"
-			"ConnectedLineNum: %s\r\n"
-			"ConnectedLineName: %s\r\n"
-			"Duration: %s\r\n"
-			"AccountCode: %s\r\n"
-			"BridgedChannel: %s\r\n"
-			"BridgedUniqueID: %s\r\n"
-			"\r\n", idText, ast_channel_name(c), ast_channel_uniqueid(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_channel_state(c),
-			ast_state2str(ast_channel_state(c)), ast_channel_appl(c) ? ast_channel_appl(c) : "", ast_channel_data(c) ? S_OR(ast_channel_data(c), "") : "",
-			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, ""),
-			S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, ""),
-			S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, ""),
-			S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, ""),
-			durbuf, S_OR(ast_channel_accountcode(c), ""), bc ? ast_channel_name(bc) : "", bc ? ast_channel_uniqueid(bc) : "");
-
-		ast_channel_unlock(c);
+			"%s"
+			"\r\n",
+			idText,
+			ast_str_buffer(built));
 
 		numchans++;
+
+		ast_free(built);
 	}
+	ao2_iterator_destroy(&it_chans);
 
 	astman_append(s,
 		"Event: CoreShowChannelsComplete\r\n"
@@ -5331,8 +5389,6 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		"ListItems: %d\r\n"
 		"%s"
 		"\r\n", numchans, idText);
-
-	ast_channel_iterator_destroy(iter);
 
 	return 0;
 }

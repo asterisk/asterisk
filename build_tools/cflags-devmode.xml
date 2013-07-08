@@ -24,9 +24,6 @@
 		<member name="THREAD_CRASH" displayname="Crash on mutex errors">
 			<support_level>extended</support_level>
 		</member>
-		<member name="CHANNEL_TRACE" displayname="Enable CHANNEL(trace) function">
-			<support_level>extended</support_level>
-		</member>
 		<member name="TEST_FRAMEWORK" displayname="Enable Test Framework API">
 			<support_level>extended</support_level>
 		</member>

@@ -1420,39 +1420,6 @@ void ast_channel_unregister(const struct ast_channel_tech *tech);
  */
 const struct ast_channel_tech *ast_get_channel_tech(const char *name);
 
-#ifdef CHANNEL_TRACE
-/*!
- * \brief Update the context backtrace if tracing is enabled
- * \return Returns 0 on success, -1 on failure
- */
-int ast_channel_trace_update(struct ast_channel *chan);
-
-/*!
- * \brief Enable context tracing in the channel
- * \return Returns 0 on success, -1 on failure
- */
-int ast_channel_trace_enable(struct ast_channel *chan);
-
-/*!
- * \brief Disable context tracing in the channel.
- * \note Does not remove current trace entries
- * \return Returns 0 on success, -1 on failure
- */
-int ast_channel_trace_disable(struct ast_channel *chan);
-
-/*!
- * \brief Whether or not context tracing is enabled
- * \return Returns -1 when the trace is enabled. 0 if not.
- */
-int ast_channel_trace_is_enabled(struct ast_channel *chan);
-
-/*!
- * \brief Put the channel backtrace in a string
- * \return Returns the amount of lines in the backtrace. -1 on error.
- */
-int ast_channel_trace_serialize(struct ast_channel *chan, struct ast_str **out);
-#endif
-
 /*!
  * \brief Hang up a channel
  * \note Absolutely _NO_ channel locks should be held before calling this function.
@@ -4227,6 +4194,18 @@ void ast_channel_set_manager_vars(size_t varc, char **vars);
  * \return \c NULL on error
  */
 struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
+
+/*!
+ * \since 12
+ * \brief Gets the variables for a given channel, as set using pbx_builtin_setvar_helper().
+ *
+ * The returned variable list is an AO2 object, so ao2_cleanup() to free it.
+ *
+ * \param chan Channel to get variables for
+ * \return List of channel variables.
+ * \return \c NULL on error
+ */
+struct varshead *ast_channel_get_vars(struct ast_channel *chan);
 
 /*!
  * \since 12

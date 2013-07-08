@@ -41,9 +41,16 @@ static struct stasis_message_router *bridge_state_router;
 			<synopsis>Raised when a bridge is created.</synopsis>
 			<syntax>
 				<parameter name="BridgeUniqueid">
+					<para>The unique identifier of the bridge</para>
 				</parameter>
 				<parameter name="BridgeType">
 					<para>The type of bridge</para>
+				</parameter>
+				<parameter name="BridgeTechnology">
+					<para>Technology in use by the bridge</para>
+				</parameter>
+				<parameter name="BridgeNumChannels">
+					<para>Number of channels in the bridge</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
@@ -124,9 +131,13 @@ struct ast_str *ast_manager_build_bridge_state_string(
 	}
 	res = ast_str_set(&out, 0,
 		"BridgeUniqueid%s: %s\r\n"
-		"BridgeType%s: %s\r\n",
+		"BridgeType%s: %s\r\n"
+		"BridgeTechnology%s: %s\r\n"
+		"BridgeNumChannels%s: %d\r\n",
 		suffix, snapshot->uniqueid,
-		suffix, snapshot->technology);
+		suffix, snapshot->subclass,
+		suffix, snapshot->technology,
+		suffix, snapshot->num_channels);
 
 	if (!res) {
 		return NULL;

@@ -4643,9 +4643,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				ast_channel_exten_set(c, exten);
 			ast_channel_priority_set(c, priority);
 			pbx_substitute_variables(passdata, sizeof(passdata), c, e);
-#ifdef CHANNEL_TRACE
-			ast_channel_trace_update(c);
-#endif
 			ast_debug(1, "Launching '%s'\n", app->name);
 			{
 				ast_verb(3, "Executing [%s@%s:%d] " COLORIZE_FMT "(\"" COLORIZE_FMT "\", \"" COLORIZE_FMT "\") %s\n",
@@ -8028,8 +8025,9 @@ static char *handle_show_device2extenstate(struct ast_cli_entry *e, int cmd, str
 /*! \brief CLI support for listing chanvar's variables in a parseable way */
 static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_channel *chan = NULL;
-	struct ast_str *vars = ast_str_alloca(BUFSIZ * 4); /* XXX large because we might have lots of channel vars */
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
+	struct ast_var_t *var;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -8045,18 +8043,15 @@ static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc != e->args + 1)
 		return CLI_SHOWUSAGE;
 
-	if (!(chan = ast_channel_get_by_name(a->argv[e->args]))) {
+	if (!(msg = stasis_cache_get(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
 		ast_cli(a->fd, "Channel '%s' not found\n", a->argv[e->args]);
 		return CLI_FAILURE;
 	}
+	snapshot = stasis_message_data(msg);
 
-	pbx_builtin_serialize_variables(chan, &vars);
-
-	if (ast_str_strlen(vars)) {
-		ast_cli(a->fd, "\nVariables for channel %s:\n%s\n", a->argv[e->args], ast_str_buffer(vars));
+	AST_LIST_TRAVERSE(snapshot->channel_vars, var, entries) {
+		ast_cli(a->fd, "%s=%s\n", ast_var_name(var), ast_var_value(var));
 	}
-
-	chan = ast_channel_unref(chan);
 
 	return CLI_SUCCESS;
 }
@@ -10985,6 +10980,10 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		ast_channel_publish_varset(chan, name, value);
+
+		if (headp != &globals) {
+			ast_channel_publish_snapshot(chan);
+		}
 	}
 
 	if (chan)

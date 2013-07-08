@@ -127,22 +127,6 @@ struct chanlist {
 	AST_LIST_ENTRY(chanlist) list;
 };
 
-#ifdef CHANNEL_TRACE
-/*! \brief Structure to hold channel context backtrace data */
-struct ast_chan_trace_data {
-	int enabled;
-	AST_LIST_HEAD_NOLOCK(, ast_chan_trace) trace;
-};
-
-/*! \brief Structure to save contexts where an ast_chan has been into */
-struct ast_chan_trace {
-	char context[AST_MAX_CONTEXT];
-	char exten[AST_MAX_EXTENSION];
-	int priority;
-	AST_LIST_ENTRY(ast_chan_trace) entry;
-};
-#endif
-
 /*! \brief the list of registered channel types */
 static AST_RWLIST_HEAD_STATIC(backends, chanlist);
 
@@ -471,132 +455,6 @@ const struct ast_channel_tech ast_kill_tech = {
 	.fixup = kill_fixup,
 	.hangup = kill_hangup,
 };
-
-#ifdef CHANNEL_TRACE
-/*! \brief Destructor for the channel trace datastore */
-static void ast_chan_trace_destroy_cb(void *data)
-{
-	struct ast_chan_trace *trace;
-	struct ast_chan_trace_data *traced = data;
-	while ((trace = AST_LIST_REMOVE_HEAD(&traced->trace, entry))) {
-		ast_free(trace);
-	}
-	ast_free(traced);
-}
-
-/*! \brief Datastore to put the linked list of ast_chan_trace and trace status */
-static const struct ast_datastore_info ast_chan_trace_datastore_info = {
-	.type = "ChanTrace",
-	.destroy = ast_chan_trace_destroy_cb
-};
-
-/*! \brief Put the channel backtrace in a string */
-int ast_channel_trace_serialize(struct ast_channel *chan, struct ast_str **buf)
-{
-	int total = 0;
-	struct ast_chan_trace *trace;
-	struct ast_chan_trace_data *traced;
-	struct ast_datastore *store;
-
-	ast_channel_lock(chan);
-	store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
-	if (!store) {
-		ast_channel_unlock(chan);
-		return total;
-	}
-	traced = store->data;
-	ast_str_reset(*buf);
-	AST_LIST_TRAVERSE(&traced->trace, trace, entry) {
-		if (ast_str_append(buf, 0, "[%d] => %s, %s, %d\n", total, trace->context, trace->exten, trace->priority) < 0) {
-			ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
-			total = -1;
-			break;
-		}
-		total++;
-	}
-	ast_channel_unlock(chan);
-	return total;
-}
-
-/* !\brief Whether or not context tracing is enabled */
-int ast_channel_trace_is_enabled(struct ast_channel *chan)
-{
-	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
-	if (!store)
-		return 0;
-	return ((struct ast_chan_trace_data *)store->data)->enabled;
-}
-
-/*! \brief Update the context backtrace data if tracing is enabled */
-static int ast_channel_trace_data_update(struct ast_channel *chan, struct ast_chan_trace_data *traced)
-{
-	struct ast_chan_trace *trace;
-	if (!traced->enabled)
-		return 0;
-	/* If the last saved context does not match the current one
-	   OR we have not saved any context so far, then save the current context */
-	if ((!AST_LIST_EMPTY(&traced->trace) && strcasecmp(AST_LIST_FIRST(&traced->trace)->context, ast_channel_context(chan))) ||
-	    (AST_LIST_EMPTY(&traced->trace))) {
-		/* Just do some debug logging */
-		if (AST_LIST_EMPTY(&traced->trace))
-			ast_debug(1, "Setting initial trace context to %s\n", ast_channel_context(chan));
-		else
-			ast_debug(1, "Changing trace context from %s to %s\n", AST_LIST_FIRST(&traced->trace)->context, ast_channel_context(chan));
-		/* alloc or bail out */
-		trace = ast_malloc(sizeof(*trace));
-		if (!trace)
-			return -1;
-		/* save the current location and store it in the trace list */
-		ast_copy_string(trace->context, ast_channel_context(chan), sizeof(trace->context));
-		ast_copy_string(trace->exten, ast_channel_exten(chan), sizeof(trace->exten));
-		trace->priority = ast_channel_priority(chan);
-		AST_LIST_INSERT_HEAD(&traced->trace, trace, entry);
-	}
-	return 0;
-}
-
-/*! \brief Update the context backtrace if tracing is enabled */
-int ast_channel_trace_update(struct ast_channel *chan)
-{
-	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
-	if (!store)
-		return 0;
-	return ast_channel_trace_data_update(chan, store->data);
-}
-
-/*! \brief Enable context tracing in the channel */
-int ast_channel_trace_enable(struct ast_channel *chan)
-{
-	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
-	struct ast_chan_trace_data *traced;
-	if (!store) {
-		store = ast_datastore_alloc(&ast_chan_trace_datastore_info, "ChanTrace");
-		if (!store)
-			return -1;
-		traced = ast_calloc(1, sizeof(*traced));
-		if (!traced) {
-			ast_datastore_free(store);
-			return -1;
-		}
-		store->data = traced;
-		AST_LIST_HEAD_INIT_NOLOCK(&traced->trace);
-		ast_channel_datastore_add(chan, store);
-	}
-	((struct ast_chan_trace_data *)store->data)->enabled = 1;
-	ast_channel_trace_data_update(chan, store->data);
-	return 0;
-}
-
-/*! \brief Disable context tracing in the channel */
-int ast_channel_trace_disable(struct ast_channel *chan)
-{
-	struct ast_datastore *store = ast_channel_datastore_find(chan, &ast_chan_trace_datastore_info, NULL);
-	if (!store)
-		return 0;
-	((struct ast_chan_trace_data *)store->data)->enabled = 0;
-	return 0;
-}
-#endif /* CHANNEL_TRACE */
 
 /*! \brief Checks to see if a channel is needing hang up */
 int ast_check_hangup(struct ast_channel *chan)
@@ -5357,6 +5215,9 @@ static int set_format(struct ast_channel *chan,
 		if (direction && ast_channel_generatordata(chan)) {
 			generator_write_format_change(chan);
 		}
+
+		ast_channel_publish_snapshot(chan);
+
 		return 0;
 	}
 
@@ -5429,6 +5290,9 @@ static int set_format(struct ast_channel *chan,
 	if (direction && ast_channel_generatordata(chan)) {
 		generator_write_format_change(chan);
 	}
+
+	ast_channel_publish_snapshot(chan);
+
 	return res;
 }
 
@@ -7782,7 +7646,7 @@ void ast_channel_set_manager_vars(size_t varc, char **vars)
 }
 
 /*!
- * \brief Destructor for the return value from ast_channel_get_manager_vars().
+ * \brief Destructor for lists of variables.
  * \param obj AO2 object.
  */
 static void varshead_dtor(void *obj)
@@ -7793,6 +7657,31 @@ static void varshead_dtor(void *obj)
 	while ((var = AST_RWLIST_REMOVE_HEAD(head, entries))) {
 		ast_var_delete(var);
 	}
+}
+
+struct varshead *ast_channel_get_vars(struct ast_channel *chan)
+{
+	RAII_VAR(struct varshead *, ret, NULL, ao2_cleanup);
+	struct ast_var_t *cv;
+
+	ret = ao2_alloc(sizeof(*ret), varshead_dtor);
+
+	if (!ret) {
+		return NULL;
+	}
+
+	AST_LIST_TRAVERSE(ast_channel_varshead(chan), cv, entries) {
+		struct ast_var_t *var = ast_var_assign(ast_var_name(cv), ast_var_value(cv));
+
+		if (!var) {
+			return NULL;
+		}
+
+		AST_LIST_INSERT_TAIL(ret, var, entries);
+	}
+
+	ao2_ref(ret, +1);
+	return ret;
 }
 
 struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)

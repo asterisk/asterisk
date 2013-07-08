@@ -6885,38 +6885,29 @@ static int bridge_sort_cmp(const void *obj_left, const void *obj_right, int flag
 	return cmp;
 }
 
-struct bridge_complete {
-	/*! Nth match to return. */
-	int state;
-	/*! Which match currently on. */
-	int which;
-};
-
-static int complete_bridge_search(void *obj, void *arg, void *data, int flags)
-{
-	struct bridge_complete *search = data;
-
-	if (++search->which > search->state) {
-		return CMP_MATCH;
-	}
-	return 0;
-}
-
 static char *complete_bridge(const char *word, int state)
 {
-	char *ret;
-	struct ast_bridge *bridge;
-	struct bridge_complete search = {
-		.state = state,
-		};
+	char *ret = NULL;
+	int wordlen = strlen(word), which = 0;
+	RAII_VAR(struct ao2_container *, cached_bridges, NULL, ao2_cleanup);
+	struct ao2_iterator iter;
+	struct stasis_message *msg;
 
-	bridge = ao2_callback_data(bridges, ast_strlen_zero(word) ? 0 : OBJ_PARTIAL_KEY,
-		complete_bridge_search, (char *) word, &search);
-	if (!bridge) {
+	if (!(cached_bridges = stasis_cache_dump(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type()))) {
 		return NULL;
 	}
-	ret = ast_strdup(bridge->uniqueid);
-	ao2_ref(bridge, -1);
+
+	iter = ao2_iterator_init(cached_bridges, 0);
+	for (; (msg = ao2_iterator_next(&iter)); ao2_ref(msg, -1)) {
+		struct ast_bridge_snapshot *snapshot = stasis_message_data(msg);
+
+		if (!strncasecmp(word, snapshot->uniqueid, wordlen) && (++which > state)) {
+			ret = ast_strdup(snapshot->uniqueid);
+			break;
+		}
+	}
+	ao2_iterator_destroy(&iter);
+
 	return ret;
 }
 
@@ -6925,8 +6916,9 @@ static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast
 #define FORMAT_HDR "%-36s %5s %-15s %s\n"
 #define FORMAT_ROW "%-36s %5u %-15s %s\n"
 
+	RAII_VAR(struct ao2_container *, cached_bridges, NULL, ao2_cleanup);
 	struct ao2_iterator iter;
-	struct ast_bridge *bridge;
+	struct stasis_message *msg;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -6939,17 +6931,22 @@ static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast
 		return NULL;
 	}
 
-/* BUGBUG this command may need to be changed to look at the stasis cache. */
+	if (!(cached_bridges = stasis_cache_dump(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type()))) {
+		ast_cli(a->fd, "Failed to retrieve cached bridges\n");
+		return CLI_SUCCESS;
+	}
+
 	ast_cli(a->fd, FORMAT_HDR, "Bridge-ID", "Chans", "Type", "Technology");
-	iter = ao2_iterator_init(bridges, 0);
-	for (; (bridge = ao2_iterator_next(&iter)); ao2_ref(bridge, -1)) {
-		ast_bridge_lock(bridge);
+
+	iter = ao2_iterator_init(cached_bridges, 0);
+	for (; (msg = ao2_iterator_next(&iter)); ao2_ref(msg, -1)) {
+		struct ast_bridge_snapshot *snapshot = stasis_message_data(msg);
+
 		ast_cli(a->fd, FORMAT_ROW,
-			bridge->uniqueid,
-			bridge->num_channels,
-			bridge->v_table ? bridge->v_table->name : "<unknown>",
-			bridge->technology ? bridge->technology->name : "<unknown>");
-		ast_bridge_unlock(bridge);
+			snapshot->uniqueid,
+			snapshot->num_channels,
+			S_OR(snapshot->subclass, "<unknown>"),
+			S_OR(snapshot->technology, "<unknown>"));
 	}
 	ao2_iterator_destroy(&iter);
 	return CLI_SUCCESS;
@@ -6958,10 +6955,28 @@ static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast
 #undef FORMAT_ROW
 }
 
+/*! \brief Internal callback function for sending channels in a bridge to the CLI */
+static int bridge_show_specific_print_channel(void *obj, void *arg, int flags)
+{
+	const char *uniqueid = obj;
+	struct ast_cli_args *a = arg;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
+
+	if (!(msg = stasis_cache_get(ast_channel_topic_all_cached(), ast_channel_snapshot_type(), uniqueid))) {
+		return 0;
+	}
+	snapshot = stasis_message_data(msg);
+
+	ast_cli(a->fd, "Channel: %s\n", snapshot->name);
+
+	return 0;
+}
+
 static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_bridge *bridge;
-	struct ast_bridge_channel *bridge_channel;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_bridge_snapshot *snapshot;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -6977,28 +6992,22 @@ static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struc
 		return NULL;
 	}
 
-/* BUGBUG this command may need to be changed to look at the stasis cache. */
 	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
 	}
 
-	bridge = ao2_find(bridges, a->argv[2], OBJ_KEY);
-	if (!bridge) {
+	msg = stasis_cache_get(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type(), a->argv[2]);
+	if (!msg) {
 		ast_cli(a->fd, "Bridge '%s' not found\n", a->argv[2]);
 		return CLI_SUCCESS;
 	}
 
-	ast_bridge_lock(bridge);
-	ast_cli(a->fd, "Id: %s\n", bridge->uniqueid);
-	ast_cli(a->fd, "Type: %s\n", bridge->v_table ? bridge->v_table->name : "<unknown>");
-	ast_cli(a->fd, "Technology: %s\n",
-		bridge->technology ? bridge->technology->name : "<unknown>");
-	ast_cli(a->fd, "Num-Channels: %u\n", bridge->num_channels);
-	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		ast_cli(a->fd, "Channel: %s\n", ast_channel_name(bridge_channel->chan));
-	}
-	ast_bridge_unlock(bridge);
-	ao2_ref(bridge, -1);
+	snapshot = stasis_message_data(msg);
+	ast_cli(a->fd, "Id: %s\n", snapshot->uniqueid);
+	ast_cli(a->fd, "Type: %s\n", S_OR(snapshot->subclass, "<unknown>"));
+	ast_cli(a->fd, "Technology: %s\n", S_OR(snapshot->technology, "<unknown>"));
+	ast_cli(a->fd, "Num-Channels: %u\n", snapshot->num_channels);
+	ao2_callback(snapshot->channels, OBJ_NODATA, bridge_show_specific_print_channel, a);
 
 	return CLI_SUCCESS;
 }

@@ -43,11 +43,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when a new channel is created.</synopsis>
 			<syntax>
 				<parameter name="Channel">
+					<para>Name of the channel</para>
 				</parameter>
 				<parameter name="ChannelState">
 					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
 				</parameter>
 				<parameter name="ChannelStateDesc">
+					<para>Name for the channel's current state</para>
 					<enumlist>
 						<enum name="Down"/>
 						<enum name="Rsrvd"/>
@@ -79,6 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Priority">
 				</parameter>
 				<parameter name="Uniqueid">
+					<para>Unique identifier for the channel</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
@@ -525,9 +528,11 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 {
 	struct ast_str *out = ast_str_create(1024);
 	int res = 0;
+
 	if (!out) {
 		return NULL;
 	}
+
 	res = ast_str_set(&out, 0,
 		"%sChannel: %s\r\n"
 		"%sChannelState: %d\r\n"

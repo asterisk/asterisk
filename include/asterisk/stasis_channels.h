@@ -39,6 +39,7 @@
 struct ast_channel_snapshot {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(name);             /*!< ASCII unique channel name */
+		AST_STRING_FIELD(type);             /*!< Type of channel technology */
 		AST_STRING_FIELD(accountcode);      /*!< Account code for billing */
 		AST_STRING_FIELD(peeraccount);      /*!< Peer account code for billing */
 		AST_STRING_FIELD(userfield);        /*!< Userfield for CEL billing */
@@ -58,18 +59,31 @@ struct ast_channel_snapshot {
 		AST_STRING_FIELD(dialed_subaddr);   /*!< Dialed subaddress */
 		AST_STRING_FIELD(connected_name);   /*!< Connected Line Name */
 		AST_STRING_FIELD(connected_number); /*!< Connected Line Number */
+		AST_STRING_FIELD(effective_name);   /*!< Effective Connected Line Name */
+		AST_STRING_FIELD(effective_number); /*!< Effective Connected Line Number */
 		AST_STRING_FIELD(language);         /*!< The default spoken language for the channel */
+		AST_STRING_FIELD(bridgeid);         /*!< Unique Bridge Identifier */
+		AST_STRING_FIELD(nativeformats);    /*!< Native formats on the channel */
+		AST_STRING_FIELD(readformat);       /*!< The current read format */
+		AST_STRING_FIELD(writeformat);      /*!< The current write format */
+		AST_STRING_FIELD(writetrans);       /*!< The current write translation path */
+		AST_STRING_FIELD(readtrans);        /*!< The current read translation path */
 	);
 
+	char callid[AST_CALLID_BUFFER_LENGTH];  /*!< Callid for the channel */
 	struct timeval creationtime;            /*!< The time of channel creation */
+	struct timeval hanguptime;              /*!< When the channel should hang up */
 	enum ast_channel_state state;           /*!< State of line */
 	int priority;                           /*!< Dialplan: Current extension priority */
 	int amaflags;                           /*!< AMA flags for billing */
 	int hangupcause;                        /*!< Why is the channel hanged up. See causes.h */
 	int caller_pres;                        /*!< Caller ID presentation. */
 	struct ast_flags flags;                 /*!< channel flags of AST_FLAG_ type */
+	ast_group_t callgroup;                  /*!< Call group */
+	ast_group_t pickupgroup;                /*!< Pickup group */
 	struct ast_flags softhangup_flags;      /*!< softhangup channel flags */
 	struct varshead *manager_vars;          /*!< Variables to be appended to manager events */
+	struct varshead *channel_vars;          /*!< Variables set on the channel */
 };
 
 /*!

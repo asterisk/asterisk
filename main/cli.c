@@ -61,6 +61,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
 #include "asterisk/bridging.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_bridging.h"
 
 /*!
  * \brief List of restrictions per user.
@@ -877,9 +879,10 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-11.11s %-20.20s\n"
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-11.11s %-20.20s\n"
 
-	struct ast_channel *c = NULL;
+	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
+	struct ao2_iterator it_chans;
+	struct stasis_message *msg;
 	int numchans = 0, concise = 0, verbose = 0, count = 0;
-	struct ast_channel_iterator *iter = NULL;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -911,6 +914,12 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	} else if (a->argc != e->args - 1)
 		return CLI_SHOWUSAGE;
 
+
+	if (!(channels = stasis_cache_dump(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type()))) {
+		ast_cli(a->fd, "Failed to retrieve cached channels\n");
+		return CLI_SUCCESS;
+	}
+
 	if (!count) {
 		if (!concise && !verbose)
 			ast_cli(a->fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
@@ -919,21 +928,14 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				"CallerID", "Duration", "Accountcode", "PeerAccount", "BridgeID");
 	}
 
-	if (!count && !(iter = ast_channel_iterator_all_new())) {
-		return CLI_FAILURE;
-	}
-
-	for (; iter && (c = ast_channel_iterator_next(iter)); ast_channel_unref(c)) {
-		struct ast_bridge *bridge;
+	it_chans = ao2_iterator_init(channels, 0);
+	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {
+		struct ast_channel_snapshot *cs = stasis_message_data(msg);
 		char durbuf[10] = "-";
 
-		ast_channel_lock(c);
-
-		bridge = ast_channel_get_bridge(c);
-
 		if (!count) {
-			if ((concise || verbose)  && !ast_tvzero(ast_channel_creationtime(c))) {
-				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), ast_channel_creationtime(c)) / 1000);
+			if ((concise || verbose)  && !ast_tvzero(cs->creationtime)) {
+				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), cs->creationtime) / 1000);
 				if (verbose) {
 					int durh = duration / 3600;
 					int durm = (duration % 3600) / 60;
@@ -944,43 +946,38 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				}
 			}
 			if (concise) {
-				ast_cli(a->fd, CONCISE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_state2str(ast_channel_state(c)),
-					ast_channel_appl(c) ? ast_channel_appl(c) : "(None)",
-					S_OR(ast_channel_data(c), ""),	/* XXX different from verbose ? */
-					S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, ""),
-					S_OR(ast_channel_accountcode(c), ""),
-					S_OR(ast_channel_peeraccount(c), ""),
-					ast_channel_amaflags(c),
+				ast_cli(a->fd, CONCISE_FORMAT_STRING, cs->name, cs->context, cs->exten, cs->priority, ast_state2str(cs->state),
+					S_OR(cs->appl, "(None)"),
+					cs->data,
+					cs->caller_number,
+					cs->accountcode,
+					cs->peeraccount,
+					cs->amaflags,
 					durbuf,
-					bridge ? bridge->uniqueid : "(Not bridged)",
-					ast_channel_uniqueid(c));
+					cs->bridgeid,
+					cs->uniqueid);
 			} else if (verbose) {
-				ast_cli(a->fd, VERBOSE_FORMAT_STRING, ast_channel_name(c), ast_channel_context(c), ast_channel_exten(c), ast_channel_priority(c), ast_state2str(ast_channel_state(c)),
-					ast_channel_appl(c) ? ast_channel_appl(c) : "(None)",
-					ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)" ): "(None)",
-					S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, ""),
+				ast_cli(a->fd, VERBOSE_FORMAT_STRING, cs->name, cs->context, cs->exten, cs->priority, ast_state2str(cs->state),
+					S_OR(cs->appl, "(None)"),
+					S_OR(cs->data, "(Empty)"),
+					cs->caller_number,
 					durbuf,
-					S_OR(ast_channel_accountcode(c), ""),
-					S_OR(ast_channel_peeraccount(c), ""),
-					bridge ? bridge->uniqueid : "(Not bridged)");
+					cs->accountcode,
+					cs->peeraccount,
+					cs->bridgeid);
 			} else {
 				char locbuf[40] = "(None)";
 				char appdata[40] = "(None)";
 
-				if (!ast_strlen_zero(ast_channel_context(c)) && !ast_strlen_zero(ast_channel_exten(c)))
-					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", ast_channel_exten(c), ast_channel_context(c), ast_channel_priority(c));
-				if (ast_channel_appl(c))
-					snprintf(appdata, sizeof(appdata), "%s(%s)", ast_channel_appl(c), S_OR(ast_channel_data(c), ""));
-				ast_cli(a->fd, FORMAT_STRING, ast_channel_name(c), locbuf, ast_state2str(ast_channel_state(c)), appdata);
+				if (!cs->context && !cs->exten)
+					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", cs->exten, cs->context, cs->priority);
+				if (cs->appl)
+					snprintf(appdata, sizeof(appdata), "%s(%s)", cs->appl, S_OR(cs->data, ""));
+				ast_cli(a->fd, FORMAT_STRING, cs->name, locbuf, ast_state2str(cs->state), appdata);
 			}
 		}
-		ast_channel_unlock(c);
-		ao2_cleanup(bridge);
 	}
-
-	if (iter) {
-		ast_channel_iterator_destroy(iter);
-	}
+	ao2_iterator_destroy(&it_chans);
 
 	if (!concise) {
 		numchans = ast_active_channels();
@@ -1414,23 +1411,15 @@ static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, str
 
 static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_channel *c=NULL;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
 	struct timeval now;
 	char cdrtime[256];
-	char nf[256];
-	struct ast_str *write_transpath = ast_str_alloca(256);
-	struct ast_str *read_transpath = ast_str_alloca(256);
-	struct ast_str *obuf;/*!< Buffer for variable, CDR variable, and trace output. */
+	struct ast_str *obuf;/*!< Buffer for CDR variables. */
 	struct ast_str *output;/*!< Accumulation buffer for all output. */
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
-	struct ast_callid *callid;
-	char call_identifier_str[AST_CALLID_BUFFER_LENGTH] = "";
-	struct ast_party_id effective_connected_id;
-#ifdef CHANNEL_TRACE
-	int trace_enabled;
-#endif
-	struct ast_bridge *bridge;
+	struct ast_var_t *var;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1449,10 +1438,11 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	now = ast_tvnow();
 
-	if (!(c = ast_channel_get_by_name(a->argv[3]))) {
+	if (!(msg = stasis_cache_get(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
 		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
 		return CLI_SUCCESS;
 	}
+	snapshot = stasis_message_data(msg);
 
 	obuf = ast_str_thread_get(&ast_str_thread_global_buf, 16);
 	if (!obuf) {
@@ -1463,10 +1453,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_FAILURE;
 	}
 
-	ast_channel_lock(c);
-
-	if (!ast_tvzero(ast_channel_creationtime(c))) {
-		elapsed_seconds = now.tv_sec - ast_channel_creationtime(c).tv_sec;
+	if (!ast_tvzero(snapshot->creationtime)) {
+		elapsed_seconds = now.tv_sec - snapshot->creationtime.tv_sec;
 		hour = elapsed_seconds / 3600;
 		min = (elapsed_seconds % 3600) / 60;
 		sec = elapsed_seconds % 60;
@@ -1474,15 +1462,6 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	} else {
 		strcpy(cdrtime, "N/A");
 	}
-
-	/* Construct the call identifier string based on the status of the channel's call identifier */
-	if ((callid = ast_channel_callid(c))) {
-		ast_callid_strnprint(call_identifier_str, sizeof(call_identifier_str), callid);
-		ast_callid_unref(callid);
-	}
-
-	effective_connected_id = ast_channel_connected_effective_id(c);
-	bridge = ast_channel_get_bridge(c);
 
 	ast_str_append(&output, 0,
 		" -- General --\n"
@@ -1499,15 +1478,11 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"    DNID Digits: %s\n"
 		"       Language: %s\n"
 		"          State: %s (%d)\n"
-		"          Rings: %d\n"
 		"  NativeFormats: %s\n"
 		"    WriteFormat: %s\n"
 		"     ReadFormat: %s\n"
 		" WriteTranscode: %s %s\n"
 		"  ReadTranscode: %s %s\n"
-		"1st File Descriptor: %d\n"
-		"      Frames in: %d%s\n"
-		"     Frames out: %d%s\n"
 		" Time to Hangup: %ld\n"
 		"   Elapsed Time: %s\n"
 		"      Bridge ID: %s\n"
@@ -1519,68 +1494,49 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"   Pickup Group: %llu\n"
 		"    Application: %s\n"
 		"           Data: %s\n"
-		"    Blocking in: %s\n"
 		" Call Identifer: %s\n",
-		ast_channel_name(c),
-		ast_channel_tech(c)->type,
-		ast_channel_uniqueid(c),
-		ast_channel_linkedid(c),
-		S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, "(N/A)"),
-		S_COR(ast_channel_caller(c)->id.name.valid, ast_channel_caller(c)->id.name.str, "(N/A)"),
-		S_COR(ast_channel_connected(c)->id.number.valid, ast_channel_connected(c)->id.number.str, "(N/A)"),
-		S_COR(ast_channel_connected(c)->id.name.valid, ast_channel_connected(c)->id.name.str, "(N/A)"),
-		S_COR(effective_connected_id.number.valid, effective_connected_id.number.str, "(N/A)"),
-		S_COR(effective_connected_id.name.valid, effective_connected_id.name.str, "(N/A)"),
-		S_OR(ast_channel_dialed(c)->number.str, "(N/A)"),
-		ast_channel_language(c),
-		ast_state2str(ast_channel_state(c)),
-		ast_channel_state(c),
-		ast_channel_rings(c),
-		ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(c)),
-		ast_getformatname(ast_channel_writeformat(c)),
-		ast_getformatname(ast_channel_readformat(c)),
-		ast_channel_writetrans(c) ? "Yes" : "No",
-		ast_translate_path_to_str(ast_channel_writetrans(c), &write_transpath),
-		ast_channel_readtrans(c) ? "Yes" : "No",
-		ast_translate_path_to_str(ast_channel_readtrans(c), &read_transpath),
-		ast_channel_fd(c, 0),
-		ast_channel_fin(c) & ~DEBUGCHAN_FLAG,
-		(ast_channel_fin(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-		ast_channel_fout(c) & ~DEBUGCHAN_FLAG,
-		(ast_channel_fout(c) & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
-		(long) ast_channel_whentohangup(c)->tv_sec,
+		snapshot->name,
+		snapshot->type,
+		snapshot->uniqueid,
+		snapshot->linkedid,
+		S_OR(snapshot->caller_number, "(N/A)"),
+		S_OR(snapshot->caller_name, "(N/A)"),
+		S_OR(snapshot->connected_number, "(N/A)"),
+		S_OR(snapshot->connected_name, "(N/A)"),
+		S_OR(snapshot->effective_number, "(N/A)"),
+		S_OR(snapshot->effective_name, "(N/A)"),
+		S_OR(snapshot->caller_dnid, "(N/A)"),
+		snapshot->language,
+		ast_state2str(snapshot->state),
+		snapshot->state,
+		snapshot->nativeformats,
+		snapshot->writeformat,
+		snapshot->readformat,
+		!ast_strlen_zero(snapshot->writetrans) ? "Yes" : "No",
+		snapshot->writetrans,
+		!ast_strlen_zero(snapshot->readtrans) ? "Yes" : "No",
+		snapshot->readtrans,
+		(long) snapshot->hanguptime.tv_sec,
 		cdrtime,
-		bridge ? bridge->uniqueid : "(Not bridged)",
-		ast_channel_context(c),
-		ast_channel_exten(c),
-		ast_channel_priority(c),
-		ast_channel_callgroup(c),
-		ast_channel_pickupgroup(c),
-		(ast_channel_appl(c) ? ast_channel_appl(c) : "(N/A)" ),
-		(ast_channel_data(c) ? S_OR(ast_channel_data(c), "(Empty)") : "(None)"),
-		(ast_test_flag(ast_channel_flags(c), AST_FLAG_BLOCKING) ? ast_channel_blockproc(c) : "(Not Blocking)"),
-		S_OR(call_identifier_str, "(None)"));
+		S_OR(snapshot->bridgeid, "(Not bridged)"),
+		snapshot->context,
+		snapshot->exten,
+		snapshot->priority,
+		snapshot->callgroup,
+		snapshot->pickupgroup,
+		S_OR(snapshot->appl, "(N/A)"),
+		S_OR(snapshot->data, "(Empty)"),
+		S_OR(snapshot->callid, "(None)"));
 
-	if (pbx_builtin_serialize_variables(c, &obuf)) {
-		ast_str_append(&output, 0, "      Variables:\n%s\n", ast_str_buffer(obuf));
+	ast_str_append(&output, 0, "      Variables:\n");
+
+	AST_LIST_TRAVERSE(snapshot->channel_vars, var, entries) {
+		ast_str_append(&output, 0, "%s=%s\n", ast_var_name(var), ast_var_value(var));
 	}
 
-	if (ast_cdr_serialize_variables(ast_channel_name(c), &obuf, '=', '\n')) {
+	if (ast_cdr_serialize_variables(snapshot->name, &obuf, '=', '\n')) {
 		ast_str_append(&output, 0, "  CDR Variables:\n%s\n", ast_str_buffer(obuf));
 	}
-
-#ifdef CHANNEL_TRACE
-	trace_enabled = ast_channel_trace_is_enabled(c);
-	ast_str_append(&output, 0, "  Context Trace: %s\n",
-		trace_enabled ? "Enabled" : "Disabled");
-	if (trace_enabled && ast_channel_trace_serialize(c, &obuf)) {
-		ast_str_append(&output, 0, "          Trace:\n%s\n", ast_str_buffer(obuf));
-	}
-#endif
-
-	ast_channel_unlock(c);
-	c = ast_channel_unref(c);
-	ao2_cleanup(bridge);
 
 	ast_cli(a->fd, "%s", ast_str_buffer(output));
 	ast_free(output);
@@ -1605,38 +1561,32 @@ char *ast_cli_complete(const char *word, const char * const choices[], int state
 
 char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos)
 {
-	struct ast_channel *c = NULL;
-	int which = 0;
-	char notfound = '\0';
-	char *ret = &notfound; /* so NULL can break the loop */
-	struct ast_channel_iterator *iter;
+	int wordlen = strlen(word), which = 0;
+	RAII_VAR(struct ao2_container *, cached_channels, NULL, ao2_cleanup);
+	char *ret = NULL;
+	struct ao2_iterator iter;
+	struct stasis_message *msg;
 
 	if (pos != rpos) {
 		return NULL;
 	}
 
-	if (ast_strlen_zero(word)) {
-		iter = ast_channel_iterator_all_new();
-	} else {
-		iter = ast_channel_iterator_by_name_new(word, strlen(word));
-	}
-
-	if (!iter) {
+	if (!(cached_channels = stasis_cache_dump(ast_channel_topic_all_cached(), ast_channel_snapshot_type()))) {
 		return NULL;
 	}
 
-	while (ret == &notfound && (c = ast_channel_iterator_next(iter))) {
-		if (++which > state) {
-			ast_channel_lock(c);
-			ret = ast_strdup(ast_channel_name(c));
-			ast_channel_unlock(c);
+	iter = ao2_iterator_init(cached_channels, 0);
+	for (; (msg = ao2_iterator_next(&iter)); ao2_ref(msg, -1)) {
+		struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
+
+		if (!strncasecmp(word, snapshot->name, wordlen) && (++which > state)) {
+			ret = ast_strdup(snapshot->name);
+			break;
 		}
-		ast_channel_unref(c);
 	}
+	ao2_iterator_destroy(&iter);
 
-	ast_channel_iterator_destroy(iter);
-
-	return ret == &notfound ? NULL : ret;
+	return ret;
 }
 
 static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -2037,7 +1987,7 @@ static char *is_prefix(const char *word, const char *token,
  * \param cmds
  * \param match_type has 3 possible values:
  *      0       returns if the search key is equal or longer than the entry.
- *		            note that trailing optional arguments are skipped.
+ *			    note that trailing optional arguments are skipped.
  *      -1      true if the mismatch is on the last word XXX not true!
  *      1       true only on complete, exact match.
  *
