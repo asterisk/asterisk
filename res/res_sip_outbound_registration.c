@@ -568,13 +568,69 @@ static int can_reuse_registration(struct sip_outbound_registration *existing, st
 	return 1;
 }
 
+/*! \brief Helper function that allocates a pjsip registration client and configures it */
+static int sip_outbound_registration_regc_alloc(void *data)
+{
+	struct sip_outbound_registration *registration = data;
+	pj_str_t server_uri, client_uri, contact_uri;
+	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+
+	if (!ast_strlen_zero(registration->transport)) {
+		RAII_VAR(struct ast_sip_transport *, transport, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", registration->transport), ao2_cleanup);
+
+		if (!transport || !transport->state) {
+			return -1;
+		}
+
+		if (transport->state->transport) {
+			selector.type = PJSIP_TPSELECTOR_TRANSPORT;
+			selector.u.transport = transport->state->transport;
+		} else if (transport->state->factory) {
+			selector.type = PJSIP_TPSELECTOR_LISTENER;
+			selector.u.listener = transport->state->factory;
+		} else {
+			return -1;
+		}
+	}
+
+	pjsip_regc_set_transport(registration->state->client_state->client, &selector);
+
+	if (!ast_strlen_zero(registration->outbound_proxy)) {
+		pjsip_route_hdr route_set, *route;
+		static const pj_str_t ROUTE_HNAME = { "Route", 5 };
+		pj_str_t tmp;
+
+		pj_list_init(&route_set);
+
+		pj_strdup2_with_null(pjsip_regc_get_pool(registration->state->client_state->client), &tmp, registration->outbound_proxy);
+		if (!(route = pjsip_parse_hdr(pjsip_regc_get_pool(registration->state->client_state->client), &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL))) {
+			return -1;
+		}
+		pj_list_push_back(&route_set, route);
+
+		pjsip_regc_set_route_set(registration->state->client_state->client, &route_set);
+	}
+
+	pj_cstr(&server_uri, registration->server_uri);
+
+	if (sip_dialog_create_contact(pjsip_regc_get_pool(registration->state->client_state->client), &contact_uri, S_OR(registration->contact_user, "s"), &server_uri, &selector)) {
+		return -1;
+	}
+
+	pj_cstr(&client_uri, registration->client_uri);
+
+	if (pjsip_regc_init(registration->state->client_state->client, &server_uri, &client_uri, &client_uri, 1, &contact_uri, registration->expiration) != PJ_SUCCESS) {
+		return -1;
+	}
+
+	return 0;
+}
+
 /*! \brief Apply function which finds or allocates a state structure */
 static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, void *obj)
 {
 	RAII_VAR(struct sip_outbound_registration *, existing, ast_sorcery_retrieve_by_id(sorcery, "registration", ast_sorcery_object_get_id(obj)), ao2_cleanup);
 	struct sip_outbound_registration *applied = obj;
-	pj_str_t server_uri, client_uri, contact_uri;
-	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
 	if (!existing) {
 		/* If no existing registration exists we can just start fresh easily */
@@ -593,61 +649,13 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 		return -1;
 	}
 
-	if (!ast_strlen_zero(applied->transport)) {
-		RAII_VAR(struct ast_sip_transport *, transport, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", applied->transport), ao2_cleanup);
-
-		if (!transport || !transport->state) {
-			return -1;
-		}
-
-		if (transport->state->transport) {
-			selector.type = PJSIP_TPSELECTOR_TRANSPORT;
-			selector.u.transport = transport->state->transport;
-		} else if (transport->state->factory) {
-			selector.type = PJSIP_TPSELECTOR_LISTENER;
-			selector.u.listener = transport->state->factory;
-		} else {
-			return -1;
-		}
-	}
-
-	pjsip_regc_set_transport(applied->state->client_state->client, &selector);
-
-	if (!ast_strlen_zero(applied->outbound_proxy)) {
-		pjsip_route_hdr route_set, *route;
-		static const pj_str_t ROUTE_HNAME = { "Route", 5 };
-		pj_str_t tmp;
-
-		pj_list_init(&route_set);
-
-		pj_strdup2_with_null(pjsip_regc_get_pool(applied->state->client_state->client), &tmp, applied->outbound_proxy);
-		if (!(route = pjsip_parse_hdr(pjsip_regc_get_pool(applied->state->client_state->client), &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL))) {
-			return -1;
-		}
-		pj_list_push_back(&route_set, route);
-
-		pjsip_regc_set_route_set(applied->state->client_state->client, &route_set);
-	}
-
-	pj_cstr(&server_uri, applied->server_uri);
-
-	if (sip_dialog_create_contact(pjsip_regc_get_pool(applied->state->client_state->client), &contact_uri, S_OR(applied->contact_user, "s"), &server_uri, &selector)) {
-		return -1;
-	}
-
-	pj_cstr(&client_uri, applied->client_uri);
-
-	if (pjsip_regc_init(applied->state->client_state->client, &server_uri, &client_uri, &client_uri, 1, &contact_uri, applied->expiration) != PJ_SUCCESS) {
-		return -1;
-	}
-
-	return 0;
+	return ast_sip_push_task_synchronous(NULL, sip_outbound_registration_regc_alloc, applied);
 }
 
 /*! \brief Helper function which performs a single registration */
-static int sip_outbound_registration_perform(void *obj, void *arg, int flags)
+static int sip_outbound_registration_perform(void *data)
 {
-	struct sip_outbound_registration *registration = obj;
+	RAII_VAR(struct sip_outbound_registration *, registration, data, ao2_cleanup);
 	size_t i;
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
@@ -675,12 +683,21 @@ static int sip_outbound_registration_perform(void *obj, void *arg, int flags)
 static void sip_outbound_registration_perform_all(void)
 {
 	RAII_VAR(struct ao2_container *, registrations, ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "registration", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL), ao2_cleanup);
+	struct ao2_iterator i;
+	struct sip_outbound_registration *registration;
 
 	if (!registrations) {
 		return;
 	}
 
-	ao2_callback(registrations, OBJ_NODATA, sip_outbound_registration_perform, NULL);
+	i = ao2_iterator_init(registrations, 0);
+	while ((registration = ao2_iterator_next(&i))) {
+		if (ast_sip_push_task(registration->state->client_state->serializer, sip_outbound_registration_perform, registration)) {
+			ast_log(LOG_ERROR, "Failed to perform outbound registration on '%s'\n", ast_sorcery_object_get_id(registration));
+			ao2_ref(registration, -1);
+		}
+	}
+	ao2_iterator_destroy(&i);
 }
 
 #define AUTH_INCREMENT 4
