@@ -1181,8 +1181,8 @@ static char *xmldoc_get_syntax_config_option(struct ast_xml_node *fixnode, const
 	ast_str_set(&syntax, 0, "%s = [%s] (Default: %s) (Regex: %s)\n",
 		name,
 		type,
-		default_value,
-		regex ? regex : "False");
+		default_value ?: "n/a",
+		regex ?: "False");
 
 	ast_xml_free_attr(type);
 	ast_xml_free_attr(default_value);
