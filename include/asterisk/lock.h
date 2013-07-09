@@ -600,9 +600,7 @@ static void  __attribute__((destructor)) fini_##rwlock(void) \
  * \param unlockfunc The function to call to unlock the lock
  */
 #define SCOPED_LOCK(varname, lock, lockfunc, unlockfunc) \
-	auto void _dtor_ ## varname (typeof((lock)) * v); \
-	auto void _dtor_ ## varname (typeof((lock)) * v) { unlockfunc(*v); } \
-	typeof((lock)) varname __attribute__((cleanup(_dtor_ ## varname))) = lock; lockfunc((lock))
+	RAII_VAR(typeof((lock)), varname, ({lockfunc((lock)); (lock); }), unlockfunc)
 
 /*!
  * \brief scoped lock specialization for mutexes
