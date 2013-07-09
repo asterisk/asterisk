@@ -53,7 +53,7 @@ struct ast_channel_snapshot {
 		AST_STRING_FIELD(caller_name);      /*!< Caller ID Name */
 		AST_STRING_FIELD(caller_number);    /*!< Caller ID Number */
 		AST_STRING_FIELD(caller_dnid);      /*!< Dialed ID Number */
-		AST_STRING_FIELD(caller_ani);       /*< Caller ID ANI Number */
+		AST_STRING_FIELD(caller_ani);       /*!< Caller ID ANI Number */
 		AST_STRING_FIELD(caller_rdnis);     /*!< Caller ID RDNIS Number */
 		AST_STRING_FIELD(caller_subaddr);   /*!< Caller subaddress */
 		AST_STRING_FIELD(dialed_subaddr);   /*!< Dialed subaddress */

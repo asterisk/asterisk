@@ -340,14 +340,14 @@ struct ast_channel_snapshot;
  *
  * \param snapshot the channel snapshot for which to generate an AMI message
  *                 body
- * \param suffix the suffix to append to the channel fields
+ * \param prefix What to prepend to the channel fields
  *
  * \retval NULL on error
  * \retval ast_str* on success (must be ast_freed by caller)
  */
 struct ast_str *ast_manager_build_channel_state_string_prefix(
 		const struct ast_channel_snapshot *snapshot,
-		const char *suffix);
+		const char *prefix);
 
 /*!
  * \brief Generate the AMI message body from a channel snapshot
