@@ -106,9 +106,14 @@ static void stasis_http_get_asterisk_info_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_get_global_var_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_get_global_var_args args = {};
 	struct ast_variable *i;
 
@@ -119,6 +124,29 @@ static void stasis_http_get_global_var_cb(
 		{}
 	}
 	stasis_http_get_global_var(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_variable(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /asterisk/variable\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /asterisk/variable\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 /*!
  * \brief Parameter parsing callback for /asterisk/variable.
@@ -128,9 +156,14 @@ static void stasis_http_get_global_var_cb(
  * \param[out] response Response to the HTTP request.
  */
 static void stasis_http_set_global_var_cb(
-    struct ast_variable *get_params, struct ast_variable *path_vars,
-    struct ast_variable *headers, struct stasis_http_response *response)
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
 {
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
 	struct ast_set_global_var_args args = {};
 	struct ast_variable *i;
 
@@ -144,6 +177,29 @@ static void stasis_http_set_global_var_cb(
 		{}
 	}
 	stasis_http_set_global_var(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /asterisk/variable\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /asterisk/variable\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
 }
 
 /*! \brief REST handler for /api-docs/asterisk.{format} */

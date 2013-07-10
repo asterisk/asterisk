@@ -92,8 +92,9 @@
 		},
 		"Variable": {
 			"id": "Variable",
+			"description": "The value of a channel variable",
 			"properties": {
-				"variable": {
+				"value": {
 					"required": true,
 					"type": "string",
 					"description": "The value of the variable requested"

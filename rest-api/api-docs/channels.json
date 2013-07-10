@@ -654,7 +654,7 @@
 					"httpMethod": "GET",
 					"summary": "Get the value of a channel variable or function.",
 					"nickname": "getChannelVar",
-					"responseClass": "ChannelVariable",
+					"responseClass": "Variable",
 					"parameters": [
 						{
 							"name": "channelId",
@@ -825,16 +825,6 @@
 					"required": true,
 					"type": "Date",
 					"description": "Timestamp when channel was created"
-				}
-			}
-		},
-		"Variable": {
-			"id": "Variable",
-			"properties": {
-				"variable": {
-					"required": true,
-					"type": "string",
-					"description": "The value of the variable requested"
 				}
 			}
 		}

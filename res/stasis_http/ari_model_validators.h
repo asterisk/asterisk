@@ -162,6 +162,24 @@ int ari_validate_asterisk_info(struct ast_json *json);
 ari_validator ari_validate_asterisk_info_fn(void);
 
 /*!
+ * \brief Validator for Variable.
+ *
+ * The value of a channel variable
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ari_validate_variable(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ari_validate_variable().
+ *
+ * See \ref ari_model_validators.h for more details.
+ */
+ari_validator ari_validate_variable_fn(void);
+
+/*!
  * \brief Validator for Endpoint.
  *
  * An external device that may offer/accept calls to/from Asterisk.
@@ -767,6 +785,8 @@ ari_validator ari_validate_stasis_start_fn(void);
  * JSON models
  *
  * AsteriskInfo
+ * Variable
+ * - value: string (required)
  * Endpoint
  * - channel_ids: List[string] (required)
  * - resource: string (required)
