@@ -296,7 +296,10 @@ static void registration_response_destroy(void *obj)
 {
 	struct registration_response *response = obj;
 
-	pjsip_rx_data_free_cloned(response->rdata);
+	if (response->rdata) {
+		pjsip_rx_data_free_cloned(response->rdata);
+	}
+
 	ao2_cleanup(response->client_state);
 }
 
@@ -390,14 +393,19 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 {
 	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, param->token, ao2_cleanup);
 	struct registration_response *response = ao2_alloc(sizeof(*response), registration_response_destroy);
-	struct pjsip_retry_after_hdr *retry_after = pjsip_msg_find_hdr(param->rdata->msg_info.msg, PJSIP_H_RETRY_AFTER, NULL);
 
 	response->code = param->code;
 	response->expiration = param->expiration;
-	response->retry_after = retry_after ? retry_after->ivalue : 0;
 	response->client_state = client_state;
-	response->tsx = pjsip_rdata_get_tsx(param->rdata);
-	pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
+
+	if (param->rdata) {
+		struct pjsip_retry_after_hdr *retry_after = pjsip_msg_find_hdr(param->rdata->msg_info.msg, PJSIP_H_RETRY_AFTER, NULL);
+
+		response->retry_after = retry_after ? retry_after->ivalue : 0;
+		response->tsx = pjsip_rdata_get_tsx(param->rdata);
+		pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
+	}
+
 	ao2_ref(response->client_state, +1);
 
 	if (ast_sip_push_task(client_state->serializer, handle_registration_response, response)) {
