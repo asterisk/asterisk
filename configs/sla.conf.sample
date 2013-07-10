@@ -15,6 +15,17 @@
 ; -------------------------------------
 
 
+; ********************************
+; **** Configuration Ordering ****
+; ********************************
+
+; Note that SLA configuration processing assumes that *all* trunk declarations are
+; listed in the configuration file before any stations.
+
+; ********************************
+; ********************************
+
+
 ; ---- Trunk Declarations -------------
 ;
 ;[line1]                    ; Provide a name for this trunk.
