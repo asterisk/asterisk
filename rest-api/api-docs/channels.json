@@ -88,6 +88,12 @@
 							"dataType": "int",
 							"defaultValue": 30
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Invalid parameters for originating a channel."
+						}
 					]
 				}
 			]

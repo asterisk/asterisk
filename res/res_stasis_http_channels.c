@@ -142,6 +142,7 @@ static void stasis_http_originate_cb(
 
 	switch (code) {
 	case 500: /* Internal server error */
+	case 400: /* Invalid parameters for originating a channel. */
 		is_valid = 1;
 		break;
 	default:
