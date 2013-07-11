@@ -452,8 +452,9 @@ static struct ast_sip_subscription *new_subscribe(struct ast_sip_endpoint *endpo
 	if ((exten_state_sub->id = ast_extension_state_add_destroy_extended(
 		     exten_state_sub->context, exten_state_sub->exten,
 		     state_changed, state_changed_destroy, exten_state_sub)) < 0) {
-		ast_log(LOG_WARNING, "Unable to subscribe extension %s\n",
-			exten_state_sub->exten);
+		ast_log(LOG_WARNING, "Unable to subscribe endpoint '%s' to extension '%s@%s'\n",
+			ast_sorcery_object_get_id(endpoint), exten_state_sub->exten,
+			exten_state_sub->context);
 		pjsip_evsub_terminate(ast_sip_subscription_get_evsub(exten_state_sub->sip_sub), PJ_FALSE);
 		return NULL;
 	}
