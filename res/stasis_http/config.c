@@ -187,6 +187,7 @@ static void *conf_alloc(void)
 	if (!cfg->general) {
 		return NULL;
 	}
+	aco_set_defaults(&general_option, "general", cfg->general);
 
 	cfg->users = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, user_sort_cmp, NULL);
