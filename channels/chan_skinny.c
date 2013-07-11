@@ -8658,7 +8658,7 @@ static int unload_module(void)
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
 	struct ast_context *con;
-	int tempthread;
+	pthread_t tempthread;
 
 	ast_rtp_glue_unregister(&skinny_rtp_glue);
 	ast_channel_unregister(&skinny_tech);
