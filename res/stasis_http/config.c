@@ -89,16 +89,8 @@ static void user_dtor(void *obj)
 static void *user_alloc(const char *cat)
 {
 	RAII_VAR(struct ari_conf_user *, user, NULL, ao2_cleanup);
-	const char *username;
 
 	if (!cat) {
-		return NULL;
-	}
-
-	username = strchr(cat, '-') + 1;
-
-	if (!username) {
-		ast_log(LOG_ERROR, "Invalid user category '%s'\n", cat);
 		return NULL;
 	}
 
@@ -110,7 +102,7 @@ static void *user_alloc(const char *cat)
 		return NULL;
 	}
 
-	user->username = ast_strdup(username);
+	user->username = ast_strdup(cat);
 	if (!user->username) {
 		return NULL;
 	}
@@ -141,21 +133,20 @@ static int user_sort_cmp(const void *obj_left, const void *obj_right, int flags)
 /*! \brief \ref aco_type item_find function */
 static void *user_find(struct ao2_container *tmp_container, const char *cat)
 {
-	const char *username;
-
 	if (!cat) {
 		return NULL;
 	}
 
-	username = strchr(cat, '-') + 1;
-	return ao2_find(tmp_container, username, OBJ_KEY);
+	return ao2_find(tmp_container, cat, OBJ_KEY);
 }
 
 static struct aco_type user_option = {
 	.type = ACO_ITEM,
 	.name = "user",
-	.category_match = ACO_WHITELIST,
-	.category = "^user-.+$",
+	.category_match = ACO_BLACKLIST,
+	.category = "^general$",
+	.matchfield = "type",
+	.matchvalue = "user",
 	.item_alloc = user_alloc,
 	.item_find = user_find,
 	.item_offset = offsetof(struct ari_conf, users),
@@ -318,6 +309,8 @@ int ari_config_init(void)
 		FLDSET(struct ari_conf_general, auth_realm),
 		ARI_AUTH_REALM_LEN);
 
+	aco_option_register(&cfg_info, "type", ACO_EXACT, user, NULL,
+		OPT_NOOP_T, 0, 0);
 	aco_option_register(&cfg_info, "read_only", ACO_EXACT, user,
 		"no", OPT_BOOL_T, 1,
 		FLDSET(struct ari_conf_user, read_only));

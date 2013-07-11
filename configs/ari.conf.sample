@@ -8,7 +8,8 @@ enabled = yes		; When set to no, stasis-http support is disabled.
 ;auth_realm =		; Realm to use for authentication. Defaults to Asterisk
 ;			; REST Interface.
 
-;[user-username]
+;[username]
+;type = user		; Specifies user configuration
 ;read_only = no		; When set to yes, user is only authorized for
 ;			; read-only requests.
 ;

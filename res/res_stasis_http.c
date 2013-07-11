@@ -95,6 +95,14 @@
 
 			<configObject name="user">
 				<synopsis>Per-user configuration settings</synopsis>
+				<configOption name="type">
+					<synopsis>Define this configuration section as a user.</synopsis>
+					<description>
+						<enumlist>
+							<enum name="user"><para>Configure this section as a <replaceable>user</replaceable></para></enum>
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="read_only">
 					<synopsis>When set to yes, user is only authorized for read-only requests</synopsis>
 				</configOption>
