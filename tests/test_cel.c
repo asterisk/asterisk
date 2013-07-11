@@ -1335,9 +1335,6 @@ static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test
 	ast_event_unsubscribe(event_sub);
 	event_sub = NULL;
 
-	cel_expected_events = NULL;
-	cel_received_events = NULL;
-
 	/* check events */
 	ast_test_validate(test, !check_events(local_expected, local_received));
 
@@ -1415,11 +1412,6 @@ static int load_module(void)
 	cel_test_config->events |= 1<<AST_CEL_CONF_ENTER;
 	cel_test_config->events |= 1<<AST_CEL_CONF_EXIT;
 
-	ast_test_register_init(TEST_CATEGORY, test_cel_init_cb);
-
-	/* Verify received vs expected events and clean things up after every test */
-	ast_test_register_cleanup(TEST_CATEGORY, cel_verify_and_cleanup_cb);
-
 	ast_channel_register(&test_cel_chan_tech);
 
 	AST_TEST_REGISTER(test_cel_channel_creation);
@@ -1443,6 +1435,11 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_cel_dial_answer_twoparty_bridge_a);
 	AST_TEST_REGISTER(test_cel_dial_answer_twoparty_bridge_b);
 	AST_TEST_REGISTER(test_cel_dial_answer_multiparty);
+
+	/* ast_test_register_* has to happen after AST_TEST_REGISTER */
+	/* Verify received vs expected events and clean things up after every test */
+	ast_test_register_init(TEST_CATEGORY, test_cel_init_cb);
+	ast_test_register_cleanup(TEST_CATEGORY, cel_verify_and_cleanup_cb);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
