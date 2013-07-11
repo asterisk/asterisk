@@ -154,6 +154,7 @@ char dbgsub_buf[256];
 #define DEBUG_TEMPLATE	(1 << 6)
 #define DEBUG_THREAD	(1 << 7)
 #define DEBUG_HINT	(1 << 8)
+#define DEBUG_KEEPALIVE (1 << 9)
 #define SKINNY_DEBUG(type, verb_level, text, ...)						\
 	do{											\
 		if (skinnydebug & (type)) {							\
@@ -1211,9 +1212,9 @@ union skinny_data {
 
 /* packet composition */
 struct skinny_req {
-	int len;
-	int res;
-	int e;
+	uint32_t len;
+	uint32_t res;
+	uint32_t e;
 	union skinny_data data;
 };
 
@@ -1612,13 +1613,17 @@ static AST_LIST_HEAD_STATIC(devices, skinny_device);
 struct skinnysession {
 	pthread_t t;
 	ast_mutex_t lock;
-	time_t start;
+	struct timeval start;
 	struct sockaddr_in sin;
 	int fd;
-	char inbuf[SKINNY_MAX_PACKET];
 	char outbuf[SKINNY_MAX_PACKET];
 	struct skinny_device *device;
 	AST_LIST_ENTRY(skinnysession) list;
+	int lockstate; /* Only for use in the skinny_session thread */
+	int auth_timeout_sched;
+	int keepalive_timeout_sched;
+	struct timeval last_keepalive;
+	int keepalive_count;
 };
 
 static struct ast_channel *skinny_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
@@ -1643,6 +1648,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state);
 static void dumpsub(struct skinny_subchannel *sub, int forcehangup);
 static void activatesub(struct skinny_subchannel *sub, int state);
 static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
+static int skinny_nokeepalive_cb(const void *data);
 
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -2246,6 +2252,11 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	socklen_t slen;
 	int instance;
 
+	if (s->auth_timeout_sched && ast_sched_del(sched, s->auth_timeout_sched)) {
+		return 0;
+	}
+	s->auth_timeout_sched = 0;
+
 	AST_LIST_LOCK(&devices);
 	AST_LIST_TRAVERSE(&devices, d, list){
 		struct ast_sockaddr addr;
@@ -2309,38 +2320,9 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	return 1;
 }
 
-static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
+static void end_session(struct skinnysession *s)
 {
-	struct skinny_device *d;
-	struct skinny_line *l;
-	struct skinny_speeddial *sd;
-
-	d = s->device;
-
-	if (d) {
-		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-		d->session = NULL;
-
-		AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
-			if (sd->stateid > -1)
-				ast_extension_state_del(sd->stateid, NULL);
-		}
-		AST_LIST_TRAVERSE(&d->lines, l, list) {
-			if (l->device == d) {
-				ast_format_cap_remove_all(l->cap);
-				ast_parse_allow_disallow(&l->prefs, l->cap, "all", 0);
-				l->instance = 0;
-				unregister_exten(l);
-				ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
-			}
-		}
-
-		ast_endpoint_set_state(d->endpoint, AST_ENDPOINT_OFFLINE);
-		blob = ast_json_pack("{s: s}", "peer_status", "Unregistered");
-		ast_endpoint_blob_publish(d->endpoint, ast_endpoint_state_type(), blob);
-	}
-
-	return -1; /* main loop will destroy the session */
+	pthread_cancel(s->t);
 }
 
 #ifdef AST_DEVMODE
@@ -2406,7 +2388,7 @@ static int transmit_response_bysession(struct skinnysession *s, struct skinny_re
 		ast_log(LOG_WARNING, "Transmit: write only sent %d out of %d bytes: %s\n", res, letohl(req->len)+8, strerror(errno));
 		if (res == -1) {
 			ast_log(LOG_WARNING, "Transmit: Skinny Client was lost, unregistering\n");
-			skinny_unregister(NULL, s);
+			end_session(s);
 		}
 
 	}
@@ -3313,15 +3295,16 @@ static void transmit_reset(struct skinny_device *d, int fullrestart)
 	transmit_response(d, req);
 }
 
-static void transmit_keepaliveack(struct skinny_device *d)
+static void transmit_keepaliveack(struct skinnysession *s)
 {
 	struct skinny_req *req;
+	struct skinny_device *d = s->device;
 
 	if (!(req = req_alloc(0, KEEP_ALIVE_ACK_MESSAGE)))
 		return;
 
-	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting KEEP_ALIVE_ACK_MESSAGE to %s\n", d->name);
-	transmit_response(d, req);
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting KEEP_ALIVE_ACK_MESSAGE to %s\n", (d ? d->name : "unregistered"));
+	transmit_response_bysession(s, req);
 }
 
 static void transmit_registerack(struct skinny_device *d)
@@ -3737,6 +3720,11 @@ static char *skinny_debugs(void)
 		posn += 5;
 		ptr += 5;
 	}
+	if (skinnydebug & DEBUG_KEEPALIVE) {
+		strncpy(ptr, "keepalive ", 10);
+		posn += 10;
+		ptr += 10;
+	}
 	if (posn > 0) {
 		strncpy(--ptr, "\0", 1);
 	}
@@ -3745,7 +3733,7 @@ static char *skinny_debugs(void)
 
 static char *complete_skinny_debug(const char *line, const char *word, int pos, int state)
 {
-	const char *debugOpts[]={ "all","audio","hint","lock","off","packet","show","sub","template","thread",NULL };
+	const char *debugOpts[]={ "all","audio","hint","keepalive","lock","off","packet","show","sub","template","thread",NULL };
 	char *wordptr = (char *)word;
 	char buf[32];
 	char *bufptr = buf;
@@ -3785,7 +3773,7 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 	case CLI_INIT:
 		e->command = "skinny debug";
 		e->usage =
-			"Usage: skinny debug {audio|hint|lock|off|packet|show|sub|template|thread}\n"
+			"Usage: skinny debug {audio|hint|keepalive|lock|off|packet|show|sub|template|thread}\n"
 			"       Enables/Disables various Skinny debugging messages\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -3811,7 +3799,7 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 		}
 
 		if (!strncasecmp(arg, "all", 3)) {
-			skinnydebug = DEBUG_GENERAL|DEBUG_SUB|DEBUG_PACKET|DEBUG_AUDIO|DEBUG_LOCK|DEBUG_TEMPLATE|DEBUG_THREAD|DEBUG_HINT;
+			skinnydebug = DEBUG_GENERAL|DEBUG_SUB|DEBUG_PACKET|DEBUG_AUDIO|DEBUG_LOCK|DEBUG_TEMPLATE|DEBUG_THREAD|DEBUG_HINT|DEBUG_KEEPALIVE;
 			continue;
 		}
 
@@ -3841,6 +3829,8 @@ static char *handle_skinny_set_debug(struct ast_cli_entry *e, int cmd, struct as
 			bitmask = DEBUG_THREAD;
 		} else if (!strncasecmp(arg, "hint", 4)) {
 			bitmask = DEBUG_HINT;
+		} else if (!strncasecmp(arg, "keepalive", 9)) {
+			bitmask = DEBUG_KEEPALIVE;
 		} else {
 			ast_cli(a->fd, "Skinny Debugging - option '%s' unknown\n", a->argv[i]);
 			result--;
@@ -6176,6 +6166,30 @@ static int handle_ip_port_message(struct skinny_req *req, struct skinnysession *
 	return 1;
 }
 
+static void handle_keepalive_message(struct skinny_req *req, struct skinnysession *s)
+{
+	if (ast_sched_del(sched, s->keepalive_timeout_sched)) {
+		return;
+	}
+
+#ifdef AST_DEVMODE
+	{
+		long keepalive_diff;
+		keepalive_diff = (long) ast_tvdiff_ms(ast_tvnow(), ast_tvadd(s->last_keepalive, ast_tv(keep_alive, 0)));
+		SKINNY_DEBUG(DEBUG_PACKET|DEBUG_KEEPALIVE, 3,
+			"Keep_alive %d on %s, %.3fs %s\n",
+				++s->keepalive_count,
+				(s->device ? s->device->name : "unregistered"),
+				(float) labs(keepalive_diff) / 1000,
+				(keepalive_diff > 0 ? "late" : "early"));
+	}
+#endif
+
+	s->keepalive_timeout_sched = ast_sched_add(sched, keep_alive*3000, skinny_nokeepalive_cb, s);
+	s->last_keepalive = ast_tvnow();
+	transmit_keepaliveack(s);
+}
+
 static int handle_keypad_button_message(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_subchannel *sub = NULL;
@@ -7212,16 +7226,15 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	struct skinny_speeddial *sd;
 	struct skinny_device *d = s->device;
 
-	if ((!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
+	if (!d && !(letohl(req->e) == REGISTER_MESSAGE || letohl(req->e) == ALARM_MESSAGE || letohl(req->e) == KEEP_ALIVE_MESSAGE)) {
 		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
-		ast_free(req);
 		return 0;
 	}
 
 	switch(letohl(req->e)) {
 	case KEEP_ALIVE_MESSAGE:
-		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received KEEP_ALIVE_MESSAGE from %s\n", d->name);
-		transmit_keepaliveack(s->device);
+		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received KEEP_ALIVE_MESSAGE from %s\n", (d ? d->name : "unregistered"));
+		handle_keepalive_message(req, s);
 		break;
 	case REGISTER_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received REGISTER_MESSAGE from %s, name %s, type %d, protovers %d\n",
@@ -7233,7 +7246,6 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 			transmit_capabilitiesreq(s->device);
 		} else {
 			transmit_registerrej(s);
-			ast_free(req);
 			return -1;
 		}
 	case IP_PORT_MESSAGE:
@@ -7317,7 +7329,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		break;
 	case UNREGISTER_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received UNREGISTER_MESSAGE from %s\n", d->name);
-		res = skinny_unregister(req, s);
+		end_session(s);
 		break;
 	case SOFT_KEY_TEMPLATE_REQ_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFT_KEY_TEMPLATE_REQ_MESSAGE from %s\n", d->name);
@@ -7339,194 +7351,221 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received UNKNOWN_MESSAGE(%x) from %s\n", letohl(req->e), d->name);
 		break;
 	}
-	if (res >= 0 && req)
-		ast_free(req);
 	return res;
 }
 
 static void destroy_session(struct skinnysession *s)
 {
-	struct skinnysession *cur;
-	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, cur, list) {
-		if (cur == s) {
-			AST_LIST_REMOVE_CURRENT(list);
-			if (s->fd > -1) {
-				close(s->fd);
-			}
-
-			if (s->device) {
-				s->device->session = NULL;
-			} else {
- 				ast_atomic_fetchadd_int(&unauth_sessions, -1);
-			}
-
-			ast_mutex_destroy(&s->lock);
-
-			ast_free(s);
-
-			break;
-		}
+	ast_mutex_lock(&s->lock);
+	if (s->fd > -1) {
+		close(s->fd);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&sessions);
+
+	if (s->device) {
+		s->device->session = NULL;
+	} else {
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
+	}
+	ast_mutex_unlock(&s->lock);
+	ast_mutex_destroy(&s->lock);
+	ast_free(s);
 }
 
-static int get_input(struct skinnysession *s)
+static int skinny_noauth_cb(const void *data)
 {
-	int res;
-	int dlen = 0;
-	int timeout = keep_alive * 1100;
-	time_t now;
-	int *bufaddr;
-	struct pollfd fds[1];
-
-	if (!s->device) {
-		if(time(&now) == -1) {
-			ast_log(LOG_ERROR, "error executing time(): %s\n", strerror(errno));
-			return -1;
-		}
-
-		timeout = (auth_timeout - (now - s->start)) * 1000;
-		if (timeout < 0) {
-			/* we have timed out */
-			ast_log(LOG_WARNING, "Skinny Client failed to authenticate in %d seconds\n", auth_timeout);
-			return -1;
-		}
-	}
-
-	fds[0].fd = s->fd;
-	fds[0].events = POLLIN;
-	fds[0].revents = 0;
-	res = ast_poll(fds, 1, timeout); /* If nothing has happen, client is dead */
-						 /* we add 10% to the keep_alive to deal */
-						 /* with network delays, etc */
-	if (res < 0) {
-		if (errno != EINTR) {
-			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
-			return res;
-		}
-	} else if (res == 0) {
-		if (s->device) {
-			ast_log(LOG_WARNING, "Skinny Client was lost, unregistering\n");
-		} else {
-			ast_log(LOG_WARNING, "Skinny Client failed to authenticate in %d seconds\n", auth_timeout);
-		}
-		skinny_unregister(NULL, s);
-		return -1;
-	}
-
-	if (fds[0].revents) {
-		ast_mutex_lock(&s->lock);
-		memset(s->inbuf, 0, sizeof(s->inbuf));
-		res = read(s->fd, s->inbuf, 4);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "read() returned error: %s\n", strerror(errno));
-
-			ast_log(LOG_WARNING, "Skinny Client was lost, unregistering\n");
-
-			skinny_unregister(NULL, s);
-			ast_mutex_unlock(&s->lock);
-			return res;
-		} else if (res != 4) {
-			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.  Expected 4 but got %d.\n", res);
-			ast_mutex_unlock(&s->lock);
-
-			if (res == 0) {
-				ast_log(LOG_WARNING, "Skinny Client was lost, unregistering\n");
-				skinny_unregister(NULL, s);
-			}
-
-			return -1;
-		}
-
-		bufaddr = (int *)s->inbuf;
-		dlen = letohl(*bufaddr);
-		if (dlen < 4) {
-			ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
-			ast_mutex_unlock(&s->lock);
-			return -1;
-		}
-		if (dlen+8 > sizeof(s->inbuf)) {
-			ast_log(LOG_WARNING, "Skinny packet too large (%d bytes), max length(%d bytes)\n", dlen+8, SKINNY_MAX_PACKET);
-			dlen = sizeof(s->inbuf) - 8;
-		}
-		*bufaddr = htolel(dlen);
-
-		res = read(s->fd, s->inbuf+4, dlen+4);
-		ast_mutex_unlock(&s->lock);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "read() returned error: %s\n", strerror(errno));
-			return res;
-		} else if (res != (dlen+4)) {
-			ast_log(LOG_WARNING, "Skinny Client sent less data than expected.\n");
-			return -1;
-		}
-		return res;
-	}
+	struct skinnysession *s = (struct skinnysession *)data;
+	ast_log(LOG_WARNING, "Skinny Client failed to authenticate in %d seconds (SCHED %d)\n", auth_timeout, s->auth_timeout_sched);
+	s->auth_timeout_sched = 0;
+	end_session(s);
 	return 0;
 }
 
-static struct skinny_req *skinny_req_parse(struct skinnysession *s)
+static int skinny_nokeepalive_cb(const void *data)
 {
-	struct skinny_req *req;
-	int *bufaddr;
+	struct skinnysession *s = (struct skinnysession *)data;
+	ast_log(LOG_WARNING, "Skinny Client failed to send keepalive in last %d seconds (SCHED %d)\n", keep_alive*3, s->keepalive_timeout_sched);
+	s->keepalive_timeout_sched = 0;
+	end_session(s);
+	return 0;
+}
 
-	if (!(req = ast_calloc(1, SKINNY_MAX_PACKET)))
-		return NULL;
+static void skinny_session_cleanup(void *data)
+{
+	struct skinnysession *s = (struct skinnysession *)data;
+	struct skinny_device *d = s->device;
+	struct skinny_line *l;
+	struct skinny_speeddial *sd;
 
-	ast_mutex_lock(&s->lock);
-	memcpy(req, s->inbuf, skinny_header_size);
-	bufaddr = (int *)(s->inbuf);
-	memcpy(&req->data, s->inbuf+skinny_header_size, letohl(*bufaddr)-4);
+	ast_verb(3, "Ending Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 
-	ast_mutex_unlock(&s->lock);
-
-	if (letohl(req->e) < 0) {
-		ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
-		ast_free(req);
-		return NULL;
+	if (s->lockstate) {
+		ast_mutex_unlock(&s->lock);
 	}
 
-	return req;
+	if (s->auth_timeout_sched && !ast_sched_del(sched, s->auth_timeout_sched)) {
+		s->auth_timeout_sched = 0;
+	}
+	if (s->keepalive_timeout_sched && !ast_sched_del(sched, s->keepalive_timeout_sched)) {
+		s->keepalive_timeout_sched = 0;
+	}
+
+	if (d) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+		d->session = NULL;
+
+		AST_LIST_TRAVERSE(&d->speeddials, sd, list) {
+			if (sd->stateid > -1)
+				ast_extension_state_del(sd->stateid, NULL);
+		}
+		AST_LIST_TRAVERSE(&d->lines, l, list) {
+			if (l->device != d) {
+				continue;
+			}
+			ast_format_cap_remove_all(l->cap);
+			ast_parse_allow_disallow(&l->prefs, l->cap, "all", 0);
+			l->instance = 0;
+			unregister_exten(l);
+			ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "Skinny/%s", l->name);
+		}
+		ast_endpoint_set_state(d->endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s}", "peer_status", "Unregistered");
+		ast_endpoint_blob_publish(d->endpoint, ast_endpoint_state_type(), blob);
+	}
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_REMOVE(&sessions, s, list);
+	AST_LIST_UNLOCK(&sessions);
+
+	destroy_session(s);
 }
 
 static void *skinny_session(void *data)
 {
 	int res;
-	struct skinny_req *req;
+	struct skinny_req *req = NULL;
 	struct skinnysession *s = data;
+
+	int dlen = 0;
+	struct pollfd fds[1];
+
+	if (!s) {
+		ast_verb(3, "Bad Skinny Session\n");
+		return 0;
+	}
 
 	ast_verb(3, "Starting Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 
+	pthread_cleanup_push(skinny_session_cleanup, s);
+
+	s->start = ast_tvnow();
+	s->last_keepalive = ast_tvnow();
+	s->keepalive_count = 0;
+	s->lockstate = 0;
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_INSERT_HEAD(&sessions, s, list);
+	AST_LIST_UNLOCK(&sessions);
+
+	s->auth_timeout_sched = ast_sched_add(sched, auth_timeout*1000, skinny_noauth_cb, s);
+	s->keepalive_timeout_sched = ast_sched_add(sched, keep_alive*3000, skinny_nokeepalive_cb, s);
+
 	for (;;) {
-		res = get_input(s);
+
+		fds[0].fd = s->fd;
+		fds[0].events = POLLIN;
+		fds[0].revents = 0;
+		res = ast_poll(fds, 1, -1); /* block */
 		if (res < 0) {
-			ast_verb(3, "Ending Skinny session from %s (bad input)\n", ast_inet_ntoa(s->sin.sin_addr));
-			destroy_session(s);
-			return NULL;
+			if (errno != EINTR) {
+				ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+				ast_verb(3, "Ending Skinny session from %s (bad input)\n", ast_inet_ntoa(s->sin.sin_addr));
+				break;
+			}
 		}
 
-		if (res > 0)
-		{
-			if (!(req = skinny_req_parse(s))) {
-				ast_verb(3, "Ending Skinny session from %s (failed parse)\n", ast_inet_ntoa(s->sin.sin_addr));
-				destroy_session(s);
-				return NULL;
+		if (fds[0].revents) {
+
+			if (!(req = ast_calloc(1, SKINNY_MAX_PACKET))) {
+				ast_log(LOG_WARNING, "Unable to allocated memorey for skinny_req.\n");
+				break;
 			}
 
+			ast_mutex_lock(&s->lock);
+			s->lockstate = 1;
+
+			if ((res = read(s->fd, req, skinny_header_size)) != skinny_header_size) {
+				if (res < 0) {
+					ast_log(LOG_WARNING, "Header read() returned error: %s\n", strerror(errno));
+				} else {
+					ast_log(LOG_WARNING, "Unable to read header. Only found %d bytes.\n", res);
+				}
+				break;
+			}
+
+			if (letohl(req->e) < 0) {
+				ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
+				break;
+			}
+
+			dlen = letohl(req->len) - 4;
+			if (dlen < 0) {
+				ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
+				break;
+			}
+			if (dlen > (SKINNY_MAX_PACKET - skinny_header_size)) {
+				ast_log(LOG_WARNING, "Skinny packet too large (%d bytes), max length(%d bytes)\n", dlen+8, SKINNY_MAX_PACKET);
+				break;
+			}
+
+			res = 0;
+			while (1) {
+				int bytesread = res;
+				if ((res = read(s->fd, &req->data+bytesread, dlen-bytesread)) < 0) {
+					break;
+				}
+				res += bytesread;
+				if (res >= dlen) {
+					break;
+				}
+				ast_log(LOG_WARNING, "Partial data received, waiting\n");
+				if (sched_yield() < 0) {
+					ast_log(LOG_WARNING, "Data yield() returned error: %s\n", strerror(errno));
+					break;
+				}
+			}
+			if (res < 0) {
+				ast_log(LOG_WARNING, "Data read() returned error: %s\n", strerror(errno));
+				break;
+			}
+			if (res != dlen) {
+				ast_log(LOG_WARNING, "Client sent wrong amount of data (%d), expected (%d).\n", res, dlen);
+				break;
+			}
+
+			s->lockstate = 0;
+			ast_mutex_unlock(&s->lock);
+
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 			res = handle_message(req, s);
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 			if (res < 0) {
 				ast_verb(3, "Ending Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
-				destroy_session(s);
-				return NULL;
+				break;
 			}
 		}
-	}
-	ast_debug(3, "Skinny Session returned: %s\n", strerror(errno));
 
-	if (s)
-		destroy_session(s);
+		if (req) {
+			ast_free(req);
+			req = NULL;
+		}
+	}
+
+	ast_debug(3, "Skinny Session returned: %s\n", strerror(errno));
+	if (req) {
+		ast_free(req);
+	}
+
+	pthread_cleanup_pop(1);
 
 	return 0;
 }
@@ -7566,19 +7605,9 @@ static void *accept_thread(void *ignore)
 			continue;
 		}
 
-		memcpy(&s->sin, &sin, sizeof(sin));
 		ast_mutex_init(&s->lock);
+		memcpy(&s->sin, &sin, sizeof(sin));
 		s->fd = as;
-
-		if(time(&s->start) == -1) {
-			ast_log(LOG_ERROR, "error executing time(): %s; disconnecting client\n", strerror(errno));
-			destroy_session(s);
-			continue;
-		}
-
-		AST_LIST_LOCK(&sessions);
-		AST_LIST_INSERT_HEAD(&sessions, s, list);
-		AST_LIST_UNLOCK(&sessions);
 
 		if (ast_pthread_create(&s->t, NULL, skinny_session, s)) {
 			destroy_session(s);
@@ -8629,6 +8658,7 @@ static int unload_module(void)
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
 	struct ast_context *con;
+	int tempthread;
 
 	ast_rtp_glue_unregister(&skinny_rtp_glue);
 	ast_channel_unregister(&skinny_tech);
@@ -8639,11 +8669,21 @@ static int unload_module(void)
 	ast_manager_unregister("SKINNYlines");
 	ast_manager_unregister("SKINNYshowline");
 
+	ast_mutex_lock(&netlock);
+	if (accept_t && (accept_t != AST_PTHREADT_STOP)) {
+		pthread_cancel(accept_t);
+		pthread_kill(accept_t, SIGURG);
+		pthread_join(accept_t, NULL);
+	}
+	accept_t = AST_PTHREADT_STOP;
+	ast_mutex_unlock(&netlock);
+
 	AST_LIST_LOCK(&sessions);
 	/* Destroy all the interfaces and free their memory */
 	while((s = AST_LIST_REMOVE_HEAD(&sessions, list))) {
 		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
+		AST_LIST_UNLOCK(&sessions);
 		d = s->device;
 		AST_LIST_TRAVERSE(&d->lines, l, list){
 			ast_mutex_lock(&l->lock);
@@ -8663,25 +8703,14 @@ static int unload_module(void)
 		ast_endpoint_set_state(d->endpoint, AST_ENDPOINT_OFFLINE);
 		blob = ast_json_pack("{s: s}", "peer_status", "Unregistered");
 		ast_endpoint_blob_publish(d->endpoint, ast_endpoint_state_type(), blob);
-		if (s->fd > -1)
-			close(s->fd);
-		pthread_cancel(s->t);
-		pthread_kill(s->t, SIGURG);
-		pthread_join(s->t, NULL);
-		free(s);
+		tempthread = s->t;
+		pthread_cancel(tempthread);
+		pthread_join(tempthread, NULL);
+		AST_LIST_LOCK(&sessions);
 	}
 	AST_LIST_UNLOCK(&sessions);
 
 	delete_devices();
-
-	ast_mutex_lock(&netlock);
-	if (accept_t && (accept_t != AST_PTHREADT_STOP)) {
-		pthread_cancel(accept_t);
-		pthread_kill(accept_t, SIGURG);
-		pthread_join(accept_t, NULL);
-	}
-	accept_t = AST_PTHREADT_STOP;
-	ast_mutex_unlock(&netlock);
 
 	close(skinnysock);
 	if (sched) {
