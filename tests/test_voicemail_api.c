@@ -87,7 +87,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * object is test_mbox_snapshot
  */
 #define VM_API_STRING_FIELD_VERIFY(expected, actual) do { \
-	if (strncmp((expected), (actual), sizeof((expected)))) { \
+	if (strcmp((expected), (actual))) { \
 		ast_test_status_update(test, "Test failed for parameter %s: Expected [%s], Actual [%s]\n", #actual, expected, actual); \
 		VM_API_SNAPSHOT_TEST_CLEANUP; \
 		return AST_TEST_FAIL; \
