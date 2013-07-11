@@ -131,7 +131,7 @@ struct ast_bridge_technology {
 	 *
 	 * \note On entry, bridge is already locked.
 	 */
-	int (*write)(struct ast_bridge *bridge, struct ast_bridge_channel *bridged_channel, struct ast_frame *frame);
+	int (*write)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame);
 	/*! Formats that the bridge technology supports */
 	struct ast_format_cap *format_capabilities;
 	/*! TRUE if the bridge technology is currently suspended. */
