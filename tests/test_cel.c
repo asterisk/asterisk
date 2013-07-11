@@ -1335,6 +1335,10 @@ static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test
 	ast_event_unsubscribe(event_sub);
 	event_sub = NULL;
 
+	/* cleaned up by RAII_VAR's */
+	cel_expected_events = NULL;
+	cel_received_events = NULL;
+
 	/* check events */
 	ast_test_validate(test, !check_events(local_expected, local_received));
 
@@ -1343,11 +1347,7 @@ static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test
 	ao2_cleanup(saved_config);
 	saved_config = NULL;
 
-	/* get rid of events */
-	ao2_cleanup(cel_received_events);
-	cel_received_events = NULL;
-	ao2_cleanup(cel_expected_events);
-	cel_expected_events = NULL;
+	/* clean up the locks */
 	ast_mutex_destroy(&sync_lock);
 	ast_cond_destroy(&sync_out);
 	return 0;
