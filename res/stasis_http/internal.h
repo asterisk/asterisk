@@ -67,6 +67,10 @@ struct ari_conf_general {
 	enum ast_json_encoding_format format;
 	/*! Authentication realm */
 	char auth_realm[ARI_AUTH_REALM_LEN];
+
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(allowed_origins);
+	);
 };
 
 /*! \brief Password format */

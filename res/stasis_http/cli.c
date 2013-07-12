@@ -71,6 +71,7 @@ static char *ari_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 	}
 	ast_cli(a->fd, "\n");
 	ast_cli(a->fd, "Auth realm: %s\n", conf->general->auth_realm);
+	ast_cli(a->fd, "Allowed Origins: %s\n", conf->general->allowed_origins);
 	ast_cli(a->fd, "User count: %d\n", ao2_container_count(conf->users));
 	return CLI_SUCCESS;
 }

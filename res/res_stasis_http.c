@@ -293,6 +293,26 @@ static void add_allow_header(struct stasis_rest_handlers *handler,
 	ast_str_append(&response->headers, 0, "\r\n");
 }
 
+static int origin_allowed(const char *origin)
+{
+	RAII_VAR(struct ari_conf *, cfg, ari_config_get(), ao2_cleanup);
+
+	char *allowed = ast_strdupa(cfg->general->allowed_origins);
+	char *current;
+
+	while ((current = strsep(&allowed, ","))) {
+		if (!strcmp(current, "*")) {
+			return 1;
+		}
+
+		if (!strcmp(current, origin)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 #define ACR_METHOD "Access-Control-Request-Method"
 #define ACR_HEADERS "Access-Control-Request-Headers"
 #define ACA_METHODS "Access-Control-Allow-Methods"
@@ -333,7 +353,7 @@ static void handle_options(struct stasis_rest_handlers *handler,
 	}
 
 	/* CORS 6.2, #1 - "If the Origin header is not present terminate this
-	 * set of steps.
+	 * set of steps."
 	 */
 	if (origin == NULL) {
 		return;
@@ -343,14 +363,16 @@ static void handle_options(struct stasis_rest_handlers *handler,
 	 * case-sensitive match for any of the values in list of origins do not
 	 * set any additional headers and terminate this set of steps.
 	 *
-	 * "Always matching is acceptable since the list of origins can be
+	 * Always matching is acceptable since the list of origins can be
 	 * unbounded.
 	 *
-	 * "The Origin header can only contain a single origin as the user agent
-	 * will not follow redirects.
-	 *
-	 * TODO - pull list of allowed origins from config
+	 * The Origin header can only contain a single origin as the user agent
+	 * will not follow redirects."
 	 */
+	if (!origin_allowed(origin)) {
+		ast_log(LOG_NOTICE, "Origin header '%s' does not match an allowed origin.\n", origin);
+		return;
+	}
 
 	/* CORS 6.2, #3 - "If there is no Access-Control-Request-Method header
 	 * or if parsing failed, do not set any additional headers and terminate
@@ -397,7 +419,7 @@ static void handle_options(struct stasis_rest_handlers *handler,
 	 * case-insensitive match for any of the values in list of headers do
 	 * not set any additional headers and terminate this set of steps.
 	 *
-	 * "Note: Always matching is acceptable since the list of headers can be
+	 * Note: Always matching is acceptable since the list of headers can be
 	 * unbounded."
 	 */
 
@@ -423,7 +445,7 @@ static void handle_options(struct stasis_rest_handlers *handler,
 	/* CORS 6.2, #10 - "Add one or more Access-Control-Allow-Headers headers
 	 * consisting of (a subset of) the list of headers.
 	 *
-	 * "Since the list of headers can be unbounded simply returning headers
+	 * Since the list of headers can be unbounded simply returning headers
 	 * can be enough."
 	 */
 	if (!ast_strlen_zero(acr_headers)) {
@@ -700,25 +722,26 @@ static void process_cors_request(struct ast_variable *headers,
 	 * case-sensitive match for any of the values in list of origins, do not
 	 * set any additional headers and terminate this set of steps.
 	 *
-	 * "Note: Always matching is acceptable since the list of origins can be
+	 * Note: Always matching is acceptable since the list of origins can be
 	 * unbounded."
-	 *
-	 * TODO - pull list of allowed origins from config
 	 */
+	if (!origin_allowed(origin)) {
+		ast_log(LOG_NOTICE, "Origin header '%s' does not match an allowed origin.\n", origin);
+		return;
+	}
 
 	/* CORS 6.1, #3 - "If the resource supports credentials add a single
 	 * Access-Control-Allow-Origin header, with the value of the Origin
 	 * header as value, and add a single Access-Control-Allow-Credentials
 	 * header with the case-sensitive string "true" as value.
 	 *
-	 * "Otherwise, add a single Access-Control-Allow-Origin header, with
+	 * Otherwise, add a single Access-Control-Allow-Origin header, with
 	 * either the value of the Origin header or the string "*" as value."
-	 *
-	 * TODO - when we add authentication, this will change to
-	 * Access-Control-Allow-Credentials.
 	 */
 	ast_str_append(&response->headers, 0,
 		       "Access-Control-Allow-Origin: %s\r\n", origin);
+	ast_str_append(&response->headers, 0,
+		       "Access-Control-Allow-Credentials: true\r\n");
 
 	/* CORS 6.1, #4 - "If the list of exposed headers is not empty add one
 	 * or more Access-Control-Expose-Headers headers, with as values the

@@ -158,6 +158,9 @@ static struct aco_type *user[] = ACO_TYPES(&user_option);
 static void conf_destructor(void *obj)
 {
 	struct ari_conf *cfg = obj;
+
+	ast_string_field_free_memory(cfg->general);
+
 	ao2_cleanup(cfg->general);
 	ao2_cleanup(cfg->users);
 }
@@ -179,6 +182,10 @@ static void *conf_alloc(void)
 		return NULL;
 	}
 	aco_set_defaults(&general_option, "general", cfg->general);
+
+	if (ast_string_field_init(cfg->general, 64)) {
+		return NULL;
+	}
 
 	cfg->users = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, user_sort_cmp, NULL);
@@ -308,6 +315,9 @@ int ari_config_init(void)
 		"Asterisk REST Interface", OPT_CHAR_ARRAY_T, 0,
 		FLDSET(struct ari_conf_general, auth_realm),
 		ARI_AUTH_REALM_LEN);
+	aco_option_register(&cfg_info, "allowed_origins", ACO_EXACT, general_options,
+		"", OPT_STRINGFIELD_T, 0,
+		STRFLDSET(struct ari_conf_general, allowed_origins));
 
 	aco_option_register(&cfg_info, "type", ACO_EXACT, user, NULL,
 		OPT_NOOP_T, 0, 0);
