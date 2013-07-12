@@ -1,3 +1,13 @@
+2013-07-12  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.23.0-rc2 Released.
+
+	* Properly lock and safely handle a transfer failure in IAX2
+
+	  When touching the bridgecallno, we need to lock it - otherwise a
+	  race condition can occur. This patch does the proper locking
+	  of the bridgecallno before modifying its state.
+
 2013-06-10  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.23.0-rc1 Released.
