@@ -608,6 +608,52 @@ static void bridge_dissolve_check_stolen(struct ast_bridge *bridge, struct ast_b
 
 /*!
  * \internal
+ * \brief Update connected line information after a bridge has been reconfigured.
+ *
+ * \param bridge The bridge itself.
+ *
+ * \return Nothing
+ */
+static void bridge_reconfigured_connected_line_update(struct ast_bridge *bridge)
+{
+	struct ast_party_connected_line connected;
+	struct ast_bridge_channel *bridge_channel = AST_LIST_FIRST(&bridge->channels), *peer;
+	unsigned char data[1024];
+	size_t datalen;
+
+	if (!bridge_channel ||
+		!(bridge->technology->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE)) ||
+		!(peer = ast_bridge_channel_peer(bridge_channel)) ||
+		ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_ZOMBIE) ||
+		ast_test_flag(ast_channel_flags(peer->chan), AST_FLAG_ZOMBIE) ||
+		ast_check_hangup_locked(bridge_channel->chan) ||
+		ast_check_hangup_locked(peer->chan)) {
+		return;
+	}
+
+	ast_party_connected_line_init(&connected);
+
+	ast_channel_lock(bridge_channel->chan);
+	ast_connected_line_copy_from_caller(&connected, ast_channel_caller(bridge_channel->chan));
+	ast_channel_unlock(bridge_channel->chan);
+
+	if ((datalen = ast_connected_line_build_data(data, sizeof(data), &connected, NULL)) != (size_t) -1) {
+		ast_bridge_channel_queue_control_data(peer, AST_CONTROL_CONNECTED_LINE, data, datalen);
+	}
+
+	ast_channel_lock(peer->chan);
+	ast_connected_line_copy_from_caller(&connected, ast_channel_caller(peer->chan));
+	ast_channel_unlock(peer->chan);
+
+	if ((datalen = ast_connected_line_build_data(data, sizeof(data), &connected, NULL)) != (size_t) -1) {
+		ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_CONNECTED_LINE, data, datalen);
+	}
+
+	ast_party_connected_line_free(&connected);
+}
+
+/*!
+ * \internal
  * \brief Pull the bridge channel out of its current bridge.
  * \since 12.0.0
  *
@@ -1239,8 +1285,6 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 	default:
 		break;
 	}
-
-/* BUGBUG bridge join or impart needs to do CONNECTED_LINE updates if the channels are being swapped and it is a 1-1 bridge. */
 
 	/* Simply write the frame out to the bridge technology. */
 /* BUGBUG The tech is where AST_CONTROL_ANSWER hook should go. (early bridge) */
@@ -2241,6 +2285,7 @@ static void set_bridge_peer_vars(struct ast_bridge *bridge)
  * \since 12.0.0
  *
  * \param bridge Reconfigured bridge.
+ * \param colp_update Whether to perform COLP updates.
  *
  * \details
  * After a series of bridge_channel_push and
@@ -2252,7 +2297,7 @@ static void set_bridge_peer_vars(struct ast_bridge *bridge)
  *
  * \return Nothing
  */
-static void bridge_reconfigured(struct ast_bridge *bridge)
+static void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update)
 {
 	if (!bridge->reconfigured) {
 		return;
@@ -2272,6 +2317,10 @@ static void bridge_reconfigured(struct ast_bridge *bridge)
 	check_bridge_play_sounds(bridge);
 	set_bridge_peer_vars(bridge);
 	ast_bridge_publish_state(bridge);
+
+	if (colp_update) {
+		bridge_reconfigured_connected_line_update(bridge);
+	}
 }
 
 /*!
@@ -2562,10 +2611,37 @@ static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_chan
 static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *data)
 {
 	RAII_VAR(struct ast_channel *, chan_target, data, ao2_cleanup);
+	struct ast_party_connected_line connected_target;
+	unsigned char connected_line_data[1024];
+	int payload_size;
+
+	ast_party_connected_line_init(&connected_target);
+
+	ast_channel_lock(chan_target);
+	ast_party_connected_line_copy(&connected_target, ast_channel_connected(chan_target));
+	ast_channel_unlock(chan_target);
+	ast_party_id_reset(&connected_target.priv);
 
 	if (ast_channel_move(chan_target, chan_bridged)) {
 		ast_softhangup(chan_target, AST_SOFTHANGUP_DEV);
+		ast_party_connected_line_free(&connected_target);
+		return;
 	}
+
+	if ((payload_size = ast_connected_line_build_data(connected_line_data,
+		sizeof(connected_line_data), &connected_target, NULL)) != -1) {
+		struct ast_control_read_action_payload *frame_payload;
+		int frame_size;
+
+		frame_size = payload_size + sizeof(*frame_payload);
+		frame_payload = ast_alloca(frame_size);
+		frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
+		frame_payload->payload_size = payload_size;
+		memcpy(frame_payload->payload, connected_line_data, payload_size);
+		ast_queue_control_data(chan_target, AST_CONTROL_READ_ACTION, frame_payload, frame_size);
+	}
+
+	ast_party_connected_line_free(&connected_target);
 }
 
 static void after_bridge_move_channel_fail(enum ast_after_bridge_cb_reason reason, void *data)
@@ -2891,7 +2967,7 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 			ast_channel_clear_softhangup(bridge_channel->chan, AST_SOFTHANGUP_UNBRIDGE);
 			ast_bridge_channel_lock_bridge(bridge_channel);
 			bridge_channel->bridge->reconfigured = 1;
-			bridge_reconfigured(bridge_channel->bridge);
+			bridge_reconfigured(bridge_channel->bridge, 0);
 			ast_bridge_unlock(bridge_channel->bridge);
 		}
 		ast_bridge_channel_lock(bridge_channel);
@@ -3008,7 +3084,7 @@ static void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 	if (bridge_channel_push(bridge_channel)) {
 		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
 	}
-	bridge_reconfigured(bridge_channel->bridge);
+	bridge_reconfigured(bridge_channel->bridge, 1);
 
 	if (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
 		/*
@@ -3032,7 +3108,7 @@ static void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 	}
 
 	bridge_channel_pull(bridge_channel);
-	bridge_reconfigured(bridge_channel->bridge);
+	bridge_reconfigured(bridge_channel->bridge, 1);
 
 	ast_bridge_unlock(bridge_channel->bridge);
 
@@ -3692,7 +3768,7 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan)
 /* BUGBUG this needs more work.  The channels need to be made compatible again if the formats change. The bridge_channel thread needs to monitor for this case. */
 		/* The channel we want to notify is still in a bridge. */
 		bridge->v_table->notify_masquerade(bridge, bridge_channel);
-		bridge_reconfigured(bridge);
+		bridge_reconfigured(bridge, 1);
 	}
 	ast_bridge_unlock(bridge);
 	ao2_ref(bridge_channel, -1);
@@ -3990,7 +4066,8 @@ static void bridge_channel_change_bridge(struct ast_bridge_channel *bridge_chann
  * This moves the channels in src_bridge into the bridge pointed
  * to by dst_bridge.
  */
-static void bridge_merge_do(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, struct ast_bridge_channel **kick_me, unsigned int num_kick)
+static void bridge_merge_do(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, struct ast_bridge_channel **kick_me, unsigned int num_kick,
+	unsigned int optimized)
 {
 	struct ast_bridge_channel *bridge_channel;
 	unsigned int idx;
@@ -4061,8 +4138,8 @@ static void bridge_merge_do(struct ast_bridge *dst_bridge, struct ast_bridge *sr
 		}
 	}
 
-	bridge_reconfigured(dst_bridge);
-	bridge_reconfigured(src_bridge);
+	bridge_reconfigured(dst_bridge, !optimized);
+	bridge_reconfigured(src_bridge, !optimized);
 
 	ast_debug(1, "Merged bridge %s into bridge %s\n",
 		src_bridge->uniqueid, dst_bridge->uniqueid);
@@ -4230,7 +4307,7 @@ static int bridge_merge_locked(struct ast_bridge *dst_bridge, struct ast_bridge 
 		}
 	}
 
-	bridge_merge_do(merge.dest, merge.src, kick_them, num_kick);
+	bridge_merge_do(merge.dest, merge.src, kick_them, num_kick, 0);
 	return 0;
 }
 
@@ -4262,7 +4339,8 @@ int ast_bridge_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
  * \retval 0 on success.
  * \retval -1 on failure.
  */
-static int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bridge_channel, int attempt_recovery)
+static int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bridge_channel, int attempt_recovery,
+	unsigned int optimized)
 {
 	struct ast_bridge *orig_bridge;
 	int was_in_bridge;
@@ -4287,7 +4365,7 @@ static int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_chann
 		 * The channel died as a result of being pulled.  Leave it
 		 * pointing to the original bridge.
 		 */
-		bridge_reconfigured(orig_bridge);
+		bridge_reconfigured(orig_bridge, 0);
 		return -1;
 	}
 
@@ -4310,8 +4388,8 @@ static int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_chann
 		res = -1;
 	}
 
-	bridge_reconfigured(dst_bridge);
-	bridge_reconfigured(orig_bridge);
+	bridge_reconfigured(dst_bridge, !optimized);
+	bridge_reconfigured(orig_bridge, !optimized);
 	ao2_ref(orig_bridge, -1);
 	return res;
 }
@@ -4390,7 +4468,7 @@ static int bridge_move_locked(struct ast_bridge *dst_bridge, struct ast_bridge *
 	}
 
 	bridge_channel->swap = swap;
-	return bridge_move_do(dst_bridge, bridge_channel, attempt_recovery);
+	return bridge_move_do(dst_bridge, bridge_channel, attempt_recovery, 0);
 }
 
 int ast_bridge_move(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, struct ast_channel *chan, struct ast_channel *swap, int attempt_recovery)
@@ -4724,7 +4802,7 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 			ast_set_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN);
 		}
 		other->swap = dst_bridge_channel->chan;
-		if (!bridge_move_do(dst_bridge, other, 1)) {
+		if (!bridge_move_do(dst_bridge, other, 1, 1)) {
 			ast_bridge_change_state(src_bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
 			res = -1;
 			if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
@@ -4836,7 +4914,7 @@ static int try_merge_optimize_out(struct ast_bridge *chan_bridge,
 		pvt->callbacks->optimization_started(pvt);
 		ast_set_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN);
 	}
-	bridge_merge_do(merge.dest, merge.src, kick_me, ARRAY_LEN(kick_me));
+	bridge_merge_do(merge.dest, merge.src, kick_me, ARRAY_LEN(kick_me), 1);
 	if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
 		pvt->callbacks->optimization_finished(pvt);
 	}
@@ -6481,7 +6559,7 @@ static enum ast_transfer_result bridge_swap_attended_transfer(struct ast_bridge 
 		&& !ast_test_flag(&bridged_to_source->features->feature_flags,
 			AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE)) {
 		bridged_to_source->swap = swap_channel;
-		if (bridge_move_do(dest_bridge, bridged_to_source, 1)) {
+		if (bridge_move_do(dest_bridge, bridged_to_source, 1, 0)) {
 			return AST_BRIDGE_TRANSFER_FAIL;
 		}
 		/* Must kick the source channel out of its bridge. */
@@ -6537,12 +6615,12 @@ static enum ast_transfer_result two_bridge_attended_transfer(struct ast_channel 
 		goto end;
 	case AST_BRIDGE_OPTIMIZE_MERGE_TO_CHAN_BRIDGE:
 		final_bridge = to_transferee_bridge;
-		bridge_merge_do(to_transferee_bridge, to_target_bridge, kick_me, ARRAY_LEN(kick_me));
+		bridge_merge_do(to_transferee_bridge, to_target_bridge, kick_me, ARRAY_LEN(kick_me), 0);
 		res = AST_BRIDGE_TRANSFER_SUCCESS;
 		goto end;
 	case AST_BRIDGE_OPTIMIZE_MERGE_TO_PEER_BRIDGE:
 		final_bridge = to_target_bridge;
-		bridge_merge_do(to_target_bridge, to_transferee_bridge, kick_me, ARRAY_LEN(kick_me));
+		bridge_merge_do(to_target_bridge, to_transferee_bridge, kick_me, ARRAY_LEN(kick_me), 0);
 		res = AST_BRIDGE_TRANSFER_SUCCESS;
 		goto end;
 	case AST_BRIDGE_OPTIMIZE_PROHIBITED:

@@ -134,6 +134,11 @@ struct ast_channel {
 	 */
 	struct ast_party_connected_line connected;
 
+	/*!
+	 * \brief Channel Connected Line ID information that was last indicated.
+	 */
+	struct ast_party_connected_line connected_indicated;
+
 	/*! \brief Redirecting/Diversion information */
 	struct ast_party_redirecting redirecting;
 
@@ -971,6 +976,10 @@ struct ast_party_caller *ast_channel_caller(struct ast_channel *chan)
 struct ast_party_connected_line *ast_channel_connected(struct ast_channel *chan)
 {
 	return &chan->connected;
+}
+struct ast_party_connected_line *ast_channel_connected_indicated(struct ast_channel *chan)
+{
+	return &chan->connected_indicated;
 }
 struct ast_party_id ast_channel_connected_effective_id(struct ast_channel *chan)
 {

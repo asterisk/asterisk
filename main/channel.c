@@ -892,6 +892,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_party_dialed_init(ast_channel_dialed(tmp));
 	ast_party_caller_init(ast_channel_caller(tmp));
 	ast_party_connected_line_init(ast_channel_connected(tmp));
+	ast_party_connected_line_init(ast_channel_connected_indicated(tmp));
 	ast_party_redirecting_init(ast_channel_redirecting(tmp));
 
 	if (cid_name) {
@@ -2284,6 +2285,7 @@ static void ast_channel_destructor(void *obj)
 	ast_party_dialed_free(ast_channel_dialed(chan));
 	ast_party_caller_free(ast_channel_caller(chan));
 	ast_party_connected_line_free(ast_channel_connected(chan));
+	ast_party_connected_line_free(ast_channel_connected_indicated(chan));
 	ast_party_redirecting_free(ast_channel_redirecting(chan));
 
 	/* Close pipes if appropriate */
@@ -2366,6 +2368,7 @@ static void ast_dummy_channel_destructor(void *obj)
 	ast_party_dialed_free(ast_channel_dialed(chan));
 	ast_party_caller_free(ast_channel_caller(chan));
 	ast_party_connected_line_free(ast_channel_connected(chan));
+	ast_party_connected_line_free(ast_channel_connected_indicated(chan));
 	ast_party_redirecting_free(ast_channel_redirecting(chan));
 
 	/* loop over the variables list, freeing all data and deleting list items */
@@ -2648,7 +2651,7 @@ int ast_hangup(struct ast_channel *chan)
 	 *
 	 * NOTE: We must hold the channel lock after testing for a
 	 * pending masquerade and setting the channel as a zombie to
-	 * prevent __ast_channel_masquerade() from setting up a
+	 * prevent ast_channel_masquerade() from setting up a
 	 * masquerade with a dead channel.
 	 */
 	while (ast_channel_masq(chan)) {
@@ -4404,6 +4407,8 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_CONNECTED_LINE:
 		{
 			struct ast_party_connected_line connected;
+			unsigned char current[1024], proposed[1024];
+			int current_size, proposed_size;
 
 			ast_party_connected_line_set_init(&connected, ast_channel_connected(chan));
 			res = ast_connected_line_parse_data(data, datalen, &connected);
@@ -4411,6 +4416,23 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 				ast_channel_set_connected_line(chan, &connected, NULL);
 			}
 			ast_party_connected_line_free(&connected);
+
+			current_size = ast_connected_line_build_data(current, sizeof(current),
+				ast_channel_connected_indicated(chan), NULL);
+			proposed_size = ast_connected_line_build_data(proposed, sizeof(proposed),
+				ast_channel_connected(chan), NULL);
+
+			if (current_size == -1 || proposed_size == -1) {
+				goto indicate_cleanup;
+			}
+
+			if (!res && current_size == proposed_size &&
+				!memcmp(current, proposed, current_size)) {
+				goto indicate_cleanup;
+			}
+
+			ast_party_connected_line_copy(ast_channel_connected_indicated(chan),
+				ast_channel_connected(chan));
 		}
 		break;
 
@@ -6114,7 +6136,7 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	return rc;
 }
 
-static int __ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clonechan, struct ast_datastore *xfer_ds)
+int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clonechan)
 {
 	int res = -1;
 
@@ -6143,9 +6165,6 @@ static int __ast_channel_masquerade(struct ast_channel *original, struct ast_cha
 	if (!ast_channel_masqr(original) && !ast_channel_masq(original) && !ast_channel_masq(clonechan) && !ast_channel_masqr(clonechan)) {
 		ast_channel_masq_set(original, clonechan);
 		ast_channel_masqr_set(clonechan, original);
-		if (xfer_ds) {
-			ast_channel_datastore_add(original, xfer_ds);
-		}
 		ast_queue_frame(original, &ast_null_frame);
 		ast_queue_frame(clonechan, &ast_null_frame);
 		ast_debug(1, "Done planning to masquerade channel %s into the structure of %s\n", ast_channel_name(clonechan), ast_channel_name(original));
@@ -6168,121 +6187,6 @@ static int __ast_channel_masquerade(struct ast_channel *original, struct ast_cha
 	ast_channel_unlock(clonechan);
 	ast_channel_unlock(original);
 
-	return res;
-}
-
-int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
-{
-	return __ast_channel_masquerade(original, clone, NULL);
-}
-
-/*!
- * \internal
- * \brief Copy the source connected line information to the destination for a transfer.
- * \since 1.8
- *
- * \param dest Destination connected line
- * \param src Source connected line
- *
- * \return Nothing
- */
-static void party_connected_line_copy_transfer(struct ast_party_connected_line *dest, const struct ast_party_connected_line *src)
-{
-	struct ast_party_connected_line connected;
-
-	connected = *((struct ast_party_connected_line *) src);
-	connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_TRANSFER;
-
-	/* Make sure empty strings will be erased. */
-	if (!connected.id.name.str) {
-		connected.id.name.str = "";
-	}
-	if (!connected.id.number.str) {
-		connected.id.number.str = "";
-	}
-	if (!connected.id.subaddress.str) {
-		connected.id.subaddress.str = "";
-	}
-	if (!connected.id.tag) {
-		connected.id.tag = "";
-	}
-
-	ast_party_connected_line_copy(dest, &connected);
-}
-
-/*! Transfer masquerade connected line exchange data. */
-struct xfer_masquerade_ds {
-	/*! New ID for the target of the transfer (Masquerade original channel) */
-	struct ast_party_connected_line target_id;
-	/*! New ID for the transferee of the transfer (Masquerade clone channel) */
-	struct ast_party_connected_line transferee_id;
-	/*! TRUE if the target call is held. (Masquerade original channel) */
-	int target_held;
-	/*! TRUE if the transferee call is held. (Masquerade clone channel) */
-	int transferee_held;
-};
-
-/*!
- * \internal
- * \brief Destroy the transfer connected line exchange datastore information.
- * \since 1.8
- *
- * \param data The datastore payload to destroy.
- *
- * \return Nothing
- */
-static void xfer_ds_destroy(void *data)
-{
-	struct xfer_masquerade_ds *ds = data;
-
-	ast_party_connected_line_free(&ds->target_id);
-	ast_party_connected_line_free(&ds->transferee_id);
-	ast_free(ds);
-}
-
-static const struct ast_datastore_info xfer_ds_info = {
-	.type = "xfer_colp",
-	.destroy = xfer_ds_destroy,
-};
-
-/*
- * BUGBUG ast_channel_transfer_masquerade() can be deleted when bridging COLP has been reimplemented.
- *
- * ast_bridge_transfer_attended() will need to do something like
- * this when it has to do a masquerade into an application.
- */
-int ast_channel_transfer_masquerade(
-	struct ast_channel *target_chan,
-	const struct ast_party_connected_line *target_id,
-	int target_held,
-	struct ast_channel *transferee_chan,
-	const struct ast_party_connected_line *transferee_id,
-	int transferee_held)
-{
-	struct ast_datastore *xfer_ds;
-	struct xfer_masquerade_ds *xfer_colp;
-	int res;
-
-	xfer_ds = ast_datastore_alloc(&xfer_ds_info, NULL);
-	if (!xfer_ds) {
-		return -1;
-	}
-
-	xfer_colp = ast_calloc(1, sizeof(*xfer_colp));
-	if (!xfer_colp) {
-		ast_datastore_free(xfer_ds);
-		return -1;
-	}
-	party_connected_line_copy_transfer(&xfer_colp->target_id, target_id);
-	xfer_colp->target_held = target_held;
-	party_connected_line_copy_transfer(&xfer_colp->transferee_id, transferee_id);
-	xfer_colp->transferee_held = transferee_held;
-	xfer_ds->data = xfer_colp;
-
-	res = __ast_channel_masquerade(target_chan, transferee_chan, xfer_ds);
-	if (res) {
-		ast_datastore_free(xfer_ds);
-	}
 	return res;
 }
 
@@ -6444,62 +6348,6 @@ void ast_channel_name_to_dial_string(char *channel_name)
 }
 
 /*!
- * \internal
- * \brief Transfer COLP between target and transferee channels.
- * \since 1.8
- *
- * \param transferee Transferee channel to exchange connected line information.
- * \param colp Connected line information to exchange.
- *
- * \return Nothing
- */
-static void masquerade_colp_transfer(struct ast_channel *transferee, struct xfer_masquerade_ds *colp)
-{
-	struct ast_control_read_action_payload *frame_payload;
-	int payload_size;
-	int frame_size;
-	unsigned char connected_line_data[1024];
-
-	/* Release any hold on the target. */
-	if (colp->target_held) {
-		ast_queue_unhold(transferee);
-	}
-
-	/*
-	 * Since transferee may not actually be bridged to another channel,
-	 * there is no way for us to queue a frame so that its connected
-	 * line status will be updated.  Instead, we use the somewhat
-	 * hackish approach of using a special control frame type that
-	 * instructs ast_read() to perform a specific action.  In this
-	 * case, the frame we queue tells ast_read() to call the
-	 * connected line interception macro configured for transferee.
-	 */
-
-	/* Reset any earlier private connected id representation */
-	ast_party_id_reset(&colp->target_id.priv);
-	ast_party_id_reset(&colp->transferee_id.priv);
-
-	payload_size = ast_connected_line_build_data(connected_line_data,
-		sizeof(connected_line_data), &colp->target_id, NULL);
-	if (payload_size != -1) {
-		frame_size = payload_size + sizeof(*frame_payload);
-		frame_payload = ast_alloca(frame_size);
-		frame_payload->action = AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO;
-		frame_payload->payload_size = payload_size;
-		memcpy(frame_payload->payload, connected_line_data, payload_size);
-		ast_queue_control_data(transferee, AST_CONTROL_READ_ACTION, frame_payload,
-			frame_size);
-	}
-	/*
-	 * In addition to queueing the read action frame so that the
-	 * connected line info on transferee will be updated, we also are
-	 * going to queue a plain old connected line update on transferee to
-	 * update the target.
-	 */
-	ast_channel_queue_connected_line_update(transferee, &colp->transferee_id, NULL);
-}
-
-/*!
  * \brief Masquerade a channel
  *
  * \note Assumes _NO_ channels and _NO_ channel pvt's are locked.  If a channel is locked while calling
@@ -6524,8 +6372,6 @@ void ast_do_masquerade(struct ast_channel *original)
 	} exchange;
 	struct ast_channel *clonechan, *chans[2];
 	struct ast_channel *bridged;
-	struct ast_datastore *xfer_ds;
-	struct xfer_masquerade_ds *xfer_colp;
 	struct ast_format rformat;
 	struct ast_format wformat;
 	struct ast_format tmp_format;
@@ -6593,15 +6439,6 @@ void ast_do_masquerade(struct ast_channel *original)
 	ao2_unlink(channels, original);
 	ao2_unlink(channels, clonechan);
 
-	/* Get any transfer masquerade connected line exchange data. */
-	xfer_ds = ast_channel_datastore_find(original, &xfer_ds_info, NULL);
-	if (xfer_ds) {
-		ast_channel_datastore_remove(original, xfer_ds);
-		xfer_colp = xfer_ds->data;
-	} else {
-		xfer_colp = NULL;
-	}
-
 	/*
 	 * Stop any visible indication on the original channel so we can
 	 * transfer it to the clonechan taking the original's place.
@@ -6609,14 +6446,6 @@ void ast_do_masquerade(struct ast_channel *original)
 	visible_indication = ast_channel_visible_indication(original);
 	ast_channel_unlock(original);
 	ast_indicate(original, -1);
-
-	/*
-	 * Release any hold on the transferee channel before going any
-	 * further with the masquerade.
-	 */
-	if (xfer_colp && xfer_colp->transferee_held) {
-		ast_indicate(clonechan, AST_CONTROL_UNHOLD);
-	}
 
 	/* Start the masquerade channel contents rearangement. */
 	ast_channel_lock_both(original, clonechan);
@@ -6947,19 +6776,6 @@ void ast_do_masquerade(struct ast_channel *original)
 		ast_channel_unlock(original);
 	}
 	ast_indicate(original, AST_CONTROL_SRCCHANGE);
-
-	if (xfer_colp) {
-		/*
-		 * After the masquerade, the original channel pointer actually
-		 * points to the new transferee channel and the bridged channel
-		 * is still the intended transfer target party.
-		 */
-		masquerade_colp_transfer(original, xfer_colp);
-	}
-
-	if (xfer_ds) {
-		ast_datastore_free(xfer_ds);
-	}
 
 	if (!clone_was_zombie) {
 		ao2_link(channels, clonechan);
