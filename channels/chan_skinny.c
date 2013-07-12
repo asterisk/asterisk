@@ -3298,12 +3298,16 @@ static void transmit_reset(struct skinny_device *d, int fullrestart)
 static void transmit_keepaliveack(struct skinnysession *s)
 {
 	struct skinny_req *req;
-	struct skinny_device *d = s->device;
 
 	if (!(req = req_alloc(0, KEEP_ALIVE_ACK_MESSAGE)))
 		return;
 
+#ifdef AST_DEVMODE
+	{
+	struct skinny_device *d = s->device;
 	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting KEEP_ALIVE_ACK_MESSAGE to %s\n", (d ? d->name : "unregistered"));
+	}
+#endif
 	transmit_response_bysession(s, req);
 }
 
