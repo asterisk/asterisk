@@ -918,8 +918,15 @@ static int snapshot_cep_changed(struct ast_channel_snapshot *old_snapshot,
 
 	if (strcmp(new_snapshot->context, old_snapshot->context)
 		|| strcmp(new_snapshot->exten, old_snapshot->exten)
-		|| new_snapshot->priority != old_snapshot->priority
-		|| strcmp(new_snapshot->appl, old_snapshot->appl)) {
+		|| new_snapshot->priority != old_snapshot->priority) {
+		return 1;
+	}
+
+	/* When Party A is originated to an application and the application exits, the stack
+	 * will attempt to clear the application and restore the dummy originate application
+	 * of "AppDialX". Ignore application changes to AppDialX as a result.
+	 */
+	if (strcmp(new_snapshot->appl, old_snapshot->appl) && strncasecmp(new_snapshot->appl, "appdial", 7)) {
 		return 1;
 	}
 
@@ -1784,15 +1791,10 @@ static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_ch
 static void handle_dial_message(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-	RAII_VAR(struct cdr_object *, cdr_caller, NULL, ao2_cleanup);
-	RAII_VAR(struct cdr_object *, cdr_peer, NULL, ao2_cleanup);
 	struct cdr_object *cdr;
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *caller;
 	struct ast_channel_snapshot *peer;
-	struct ast_channel_snapshot *party_a_snapshot;
-	struct ast_channel_snapshot *party_b_snapshot;
-	struct cdr_object_snapshot *party_a;
 	struct cdr_object *it_cdr;
 	struct ast_json *dial_status_blob;
 	const char *dial_status = NULL;
@@ -1817,32 +1819,9 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 	/* Figure out who is running this show */
 	if (caller) {
-		cdr_caller = ao2_find(active_cdrs_by_channel, caller->name, OBJ_KEY);
-	}
-	if (peer) {
-		cdr_peer = ao2_find(active_cdrs_by_channel, peer->name, OBJ_KEY);
-	}
-	if (cdr_caller && cdr_peer) {
-		party_a = cdr_object_pick_party_a(&cdr_caller->last->party_a, &cdr_peer->last->party_a);
-		if (!strcmp(party_a->snapshot->name, cdr_caller->last->party_a.snapshot->name)) {
-			cdr = cdr_caller;
-			party_a_snapshot = caller;
-			party_b_snapshot = peer;
-		} else {
-			cdr = cdr_peer;
-			party_a_snapshot = peer;
-			party_b_snapshot = caller;
-		}
-	} else if (cdr_caller) {
-		cdr = cdr_caller;
-		party_a_snapshot = caller;
-		party_b_snapshot = NULL;
-	} else if (cdr_peer) {
-		cdr = cdr_peer;
-		party_a_snapshot = NULL;
-		party_b_snapshot = peer;
+		cdr = ao2_find(active_cdrs_by_channel, caller->name, OBJ_KEY);
 	} else {
-		return;
+		cdr = ao2_find(active_cdrs_by_channel, peer->name, OBJ_KEY);
 	}
 
 	ao2_lock(cdr);
@@ -1853,22 +1832,22 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			}
 			CDR_DEBUG(mod_cfg, "%p - Processing Dial Begin message for channel %s, peer %s\n",
 					cdr,
-					party_a_snapshot ? party_a_snapshot->name : "(none)",
-					party_b_snapshot ? party_b_snapshot->name : "(none)");
+					caller ? caller->name : "(none)",
+					peer ? peer->name : "(none)");
 			res &= it_cdr->fn_table->process_dial_begin(it_cdr,
-					party_a_snapshot,
-					party_b_snapshot);
+					caller,
+					peer);
 		} else {
 			if (!it_cdr->fn_table->process_dial_end) {
 				continue;
 			}
 			CDR_DEBUG(mod_cfg, "%p - Processing Dial End message for channel %s, peer %s\n",
 					cdr,
-					party_a_snapshot ? party_a_snapshot->name : "(none)",
-					party_b_snapshot ? party_b_snapshot->name : "(none)");
+					caller ? caller->name : "(none)",
+					peer ? peer->name : "(none)");
 			it_cdr->fn_table->process_dial_end(it_cdr,
-					party_a_snapshot,
-					party_b_snapshot,
+					caller,
+					peer,
 					dial_status);
 		}
 	}
@@ -1882,8 +1861,8 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			return;
 		}
 		new_cdr->fn_table->process_dial_begin(new_cdr,
-				party_a_snapshot,
-				party_b_snapshot);
+				caller,
+				peer);
 	}
 	ao2_unlock(cdr);
 }

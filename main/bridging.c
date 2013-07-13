@@ -707,7 +707,8 @@ static void bridge_channel_pull(struct ast_bridge_channel *bridge_channel)
 	 * outgoing channel, clear the outgoing flag.
 	 */
 	if (ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING)
-			&& (!ast_check_hangup(bridge_channel->chan))) {
+			&& (ast_channel_softhangup_internal_flag(bridge_channel->chan) &
+				(AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE))) {
 		ast_clear_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING);
 	}
 
