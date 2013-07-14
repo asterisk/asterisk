@@ -165,6 +165,10 @@ AST_THREADSTORAGE(tmp_buf);
 			<para>Literally returns the given <replaceable>string</replaceable>.  The intent is to permit
 			other dialplan functions which take a variable name as an argument to be able to take a literal
 			string, instead.</para>
+			<note><para>The functions which take a variable name need to be passed var and not
+			${var}.  Similarly, use PASSTHRU() and not ${PASSTHRU()}.</para></note>
+			<para>Example: ${CHANNEL} contains SIP/321-1</para>
+			<para>         ${CUT(PASSTHRU(${CUT(CHANNEL,-,1)}),/,2)}) will return 321</para>
 		</description>
 	</function>
 	<function name="REGEX" language="en_US">
