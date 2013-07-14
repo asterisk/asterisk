@@ -225,11 +225,7 @@ static int dns_parse_answer(void *context,
 		answer += sizeof(struct dn_answer);
 		len -= sizeof(struct dn_answer);
 		if (len < 0) {
-			ast_log(LOG_WARNING, "Strange result size\n");
-			return -1;
-		}
-		if (len < 0) {
-			ast_log(LOG_WARNING, "Length exceeds frame\n");
+			ast_log(LOG_WARNING, "Length of DNS answer exceeds frame\n");
 			return -1;
 		}
 
