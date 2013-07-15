@@ -14,10 +14,17 @@
 Applications
 ------------------
 
+AgentLogin
+------------------
+ * The application no longer does agent authentication.  The dialplan needs to
+   perform this function before running AgentLogin.  If the agent is already
+   logged in, dialplan will continue with the AGENT_STATUS channel variable
+   set to ALREADY_LOGGED_IN.
+
 AgentMonitorOutgoing
 ------------------
- * The 'c' option has been removed. It is not possible to modify the name of a
-   channel involved in a CDR.
+ * Application removed.  It was a holdover from when AgentCallbackLogin was
+   removed.
 
 ForkCDR
 ------------------
@@ -260,8 +267,8 @@ AMI (Asterisk Manager Interface)
    of "CallerID" and "ConnectedID" to avoid confusion with similarly named
    parameters in the channel snapshot.
 
- * The "Agentlogin" and "Agentlogoff" events have been renamed "AgentLogin" and
-   "AgentLogoff" respectively.
+ * The AMI events "Agentlogin" and "Agentlogoff" have been renamed
+   "AgentLogin" and "AgentLogoff" respectively.
 
  * The "Channel" key used in the "AlarmClear", "Alarm", and "DNDState" has been
    renamed "DAHDIChannel" since it does not convey an Asterisk channel name.
@@ -453,6 +460,21 @@ chan_agent
    and pretending otherwise helps no one.
  * The AGENTUPDATECDR channel variable has also been removed, for the same
    reason as the updatecdr option.
+ * The driver is no longer a Data retrieval API data provider for the
+   AMI DataGet action.
+ * The endcall and enddtmf configuration options are removed.  Use the
+   dialplan function CHANNEL(dtmf-features) to set DTMF features on the agent
+   channel before calling AgentLogin.
+ * chan_agent is removed and replaced with AgentLogin and AgentRequest dialplan
+   applications.  Agents are connected with callers using the new AgentRequest
+   dialplan application.  The Agents:<agent-id> device state is available to
+   monitor the status of an agent.  See agents.conf.sample for valid
+   configuration options.
+
+chan_bridge
+------------------
+ * chan_bridge is removed and its functionality is incorporated into ConfBridge
+   itself.
 
 chan_local
 ------------------

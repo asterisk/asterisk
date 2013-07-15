@@ -1651,7 +1651,7 @@ void ast_after_bridge_goto_read(struct ast_channel *chan, char *buffer, size_t b
 
 /*! Reason the the after bridge callback will not be called. */
 enum ast_after_bridge_cb_reason {
-	/*! The datastore is being destroyed.  Likely due to hangup. */
+	/*! The datastore is being destroyed.  Likely due to hangup. (Enum value must be zero.) */
 	AST_AFTER_BRIDGE_CB_REASON_DESTROY,
 	/*! Something else replaced the callback with another. */
 	AST_AFTER_BRIDGE_CB_REASON_REPLACED,
@@ -1669,6 +1669,9 @@ enum ast_after_bridge_cb_reason {
  *
  * \param reason Reason callback is failing.
  * \param data Extra data what setup the callback wanted to pass.
+ *
+ * \note Called when the channel leaves the bridging system or
+ * is destroyed.
  *
  * \return Nothing
  */
@@ -1708,6 +1711,9 @@ void ast_after_bridge_callback_discard(struct ast_channel *chan, enum ast_after_
  * \param data Extra data to pass with the callback.
  *
  * \note chan is locked by this function.
+ *
+ * \note failed is called when the channel leaves the bridging
+ * system or is destroyed.
  *
  * \retval 0 on success.
  * \retval -1 on error.
