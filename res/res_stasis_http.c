@@ -91,6 +91,9 @@
 				<configOption name="auth_realm">
 					<synopsis>Realm to use for authentication. Defaults to Asterisk REST Interface.</synopsis>
 				</configOption>
+				<configOption name="allowed_origins">
+					<synopsis>Comma separated list of allowed origins, for Cross-Origin Resource Sharing. May be set to * to allow all origins.</synopsis>
+				</configOption>
 			</configObject>
 
 			<configObject name="user">
