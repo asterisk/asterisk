@@ -590,23 +590,6 @@ void ast_sip_session_remove_datastore(struct ast_sip_session *session, const cha
 	ao2_callback(session->datastores, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, NULL, (void *) name);
 }
 
-int ast_sip_session_get_identity(struct pjsip_rx_data *rdata, struct ast_party_id *id)
-{
-	/* XXX STUB
-	 * This is low-priority as far as getting SIP working is concerned, so this
-	 * will be addressed later.
-	 *
-	 * The idea here will be that the rdata will be examined for headers such as
-	 * P-Asserted-Identity, Remote-Party-ID, and From in order to determine Identity
-	 * information.
-	 *
-	 * For reference, Asterisk SCF code does something very similar to this, except in
-	 * C++ and using its version of the ast_party_id struct, so using it as a basis
-	 * would be a smart idea here.
-	 */
-	return 0;
-}
-
 /*!
  * \brief Structure used for sending delayed requests
  *
@@ -773,19 +756,11 @@ void ast_sip_session_send_response(struct ast_sip_session *session, pjsip_tx_dat
 	return;
 }
 
-static pj_status_t session_load(pjsip_endpoint *endpt);
-static pj_status_t session_start(void);
-static pj_status_t session_stop(void);
-static pj_status_t session_unload(void);
 static pj_bool_t session_on_rx_request(pjsip_rx_data *rdata);
 
 static pjsip_module session_module = {
 	.name = {"Session Module", 14},
 	.priority = PJSIP_MOD_PRIORITY_APPLICATION,
-	.load = session_load,
-	.unload = session_unload,
-	.start = session_start,
-	.stop = session_stop,
 	.on_rx_request = session_on_rx_request,
 };
 
@@ -825,50 +800,6 @@ int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data
 		return -1;
 	}
 	return 0;
-}
-
-/*!
- * \brief Called when the PJSIP core loads us
- *
- * Since we already have Asterisk's fine module load/unload framework
- * in use, we don't need to do anything special here.
- */
-static pj_status_t session_load(pjsip_endpoint *endpt)
-{
-	return PJ_SUCCESS;
-}
-
-/*!
- * \brief Called when the PJSIP core starts us
- *
- * Since we already have Asterisk's fine module load/unload framework
- * in use, we don't need to do anything special here.
- */
-static pj_status_t session_start(void)
-{
-	return PJ_SUCCESS;
-}
-
-/*!
- * \brief Called when the PJSIP core stops us
- *
- * Since we already have Asterisk's fine module load/unload framework
- * in use, we don't need to do anything special here.
- */
-static pj_status_t session_stop(void)
-{
-	return PJ_SUCCESS;
-}
-
-/*!
- * \brief Called when the PJSIP core unloads us
- *
- * Since we already have Asterisk's fine module load/unload framework
- * in use, we don't need to do anything special here.
- */
-static pj_status_t session_unload(void)
-{
-	return PJ_SUCCESS;
 }
 
 static int datastore_hash(const void *obj, int flags)

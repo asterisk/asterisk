@@ -411,20 +411,6 @@ struct ast_datastore *ast_sip_session_get_datastore(struct ast_sip_session *sess
 void ast_sip_session_remove_datastore(struct ast_sip_session *session, const char *name);
 
 /*!
- * \brief Retrieve identifying information from an incoming request
- *
- * This will retrieve identifying information and place it in the
- * id parameter. The caller of the function can then apply this to
- * caller ID, connected line, or whatever else may be proper.
- *
- * \param rdata The incoming request or response
- * \param[out] id The collected identity information
- * \retval 0 Successfully found identifying information
- * \retval -1 Identifying information could not be found
- */
-int ast_sip_session_get_identity(struct pjsip_rx_data *rdata, struct ast_party_id *id);
-
-/*!
  * \brief Send a reinvite or UPDATE on a session
  *
  * This method will inspect the session in order to construct an appropriate
