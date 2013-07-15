@@ -145,7 +145,7 @@ struct stasis_message_type *ast_channel_snapshot_type(void);
  *
  * \param chan The channel from which to generate a snapshot
  *
- * \retval pointer on success (must be ast_freed)
+ * \retval pointer on success (must be unreffed)
  * \retval NULL on error
  */
 struct ast_channel_snapshot *ast_channel_snapshot_create(
