@@ -6069,12 +6069,6 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	struct ast_format best_dst_fmt;
 	int use_slin;
 
-	/* See if the channel driver can natively make these two channels compatible */
-	if (ast_channel_tech(from)->bridge && ast_channel_tech(from)->bridge == ast_channel_tech(to)->bridge &&
-	    !ast_channel_setoption(from, AST_OPTION_MAKE_COMPATIBLE, to, sizeof(struct ast_channel *), 0)) {
-		return 0;
-	}
-
 	if ((ast_format_cmp(ast_channel_readformat(from), ast_channel_writeformat(to)) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		(ast_format_cmp(ast_channel_readformat(to), ast_channel_writeformat(from)) != AST_FORMAT_CMP_NOT_EQUAL)) {
 		/* Already compatible!  Moving on ... */

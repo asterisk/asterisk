@@ -4958,11 +4958,6 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 			res = ast_rtp_instance_set_write_format(p->rtp, (struct ast_format *) data);
 		}
 		break;
-	case AST_OPTION_MAKE_COMPATIBLE:
-		if (p->rtp) {
-			res = ast_rtp_instance_make_compatible(chan, p->rtp, (struct ast_channel *) data);
-		}
-		break;
 	case AST_OPTION_DIGIT_DETECT:
 		if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) ||
 		    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO)) {
