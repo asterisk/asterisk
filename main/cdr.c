@@ -3854,10 +3854,12 @@ static int cdr_object_dispatch_all_cb(void *obj, void *arg, int flags)
 	struct cdr_object *cdr = obj;
 	struct cdr_object *it_cdr;
 
+	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		cdr_object_transition_state(it_cdr, &finalized_state_fn_table);
 	}
 	cdr_object_dispatch(cdr);
+	ao2_unlock(cdr);
 
 	return 0;
 }
@@ -3919,6 +3921,14 @@ static int process_config(int reload)
 	return 0;
 }
 
+static void cdr_engine_cleanup(void)
+{
+	channel_subscription = stasis_unsubscribe_and_join(channel_subscription);
+	bridge_subscription = stasis_unsubscribe_and_join(bridge_subscription);
+	parking_subscription = stasis_unsubscribe_and_join(parking_subscription);
+	stasis_message_router_unsubscribe_and_join(stasis_router);
+}
+
 static void cdr_engine_shutdown(void)
 {
 	ao2_callback(active_cdrs_by_channel, OBJ_NODATA, cdr_object_dispatch_all_cb,
@@ -3930,10 +3940,6 @@ static void cdr_engine_shutdown(void)
 	ast_free(batch);
 	batch = NULL;
 
-	channel_subscription = stasis_unsubscribe_and_join(channel_subscription);
-	bridge_subscription = stasis_unsubscribe_and_join(bridge_subscription);
-	parking_subscription = stasis_unsubscribe_and_join(parking_subscription);
-	stasis_message_router_unsubscribe_and_join(stasis_router);
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(module_configs);
 
@@ -4035,6 +4041,7 @@ int ast_cdr_engine_init(void)
 	}
 
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
+	ast_register_cleanup(cdr_engine_cleanup);
 	ast_register_atexit(cdr_engine_shutdown);
 
 	mod_cfg = ao2_global_obj_ref(module_configs);
