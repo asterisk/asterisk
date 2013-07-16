@@ -99,6 +99,8 @@ struct ast_json *ari_websocket_session_read(
 			ast_websocket_fd(session->ws_session), -1);
 
 		if (res <= 0) {
+			ast_log(LOG_WARNING, "WebSocket poll error: %s\n",
+				strerror(errno));
 			return NULL;
 		}
 
@@ -106,14 +108,21 @@ struct ast_json *ari_websocket_session_read(
 			&payload_len, &opcode, &fragmented);
 
 		if (res != 0) {
+			ast_log(LOG_WARNING, "WebSocket read error: %s\n",
+				strerror(errno));
 			return NULL;
 		}
 
 		switch (opcode) {
 		case AST_WEBSOCKET_OPCODE_CLOSE:
+			ast_debug(1, "WebSocket closed by peer\n");
 			return NULL;
 		case AST_WEBSOCKET_OPCODE_TEXT:
 			message = ast_json_load_buf(payload, payload_len, NULL);
+			if (message == NULL) {
+				ast_log(LOG_WARNING,
+					"WebSocket input failed to parse\n");
+			}
 			break;
 		default:
 			/* Ignore all other message types */
