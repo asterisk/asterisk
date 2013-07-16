@@ -1051,7 +1051,9 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 		}
 		break;
 	case AST_CONTROL_UPDATE_RTP_PEER:
+		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
+		res = -1;
 		break;
 	case AST_CONTROL_HOLD:
 		ast_moh_start(ast, data, NULL);
