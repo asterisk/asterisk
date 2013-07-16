@@ -50,19 +50,14 @@ static int simple_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chann
 	struct ast_channel *c0 = AST_LIST_FIRST(&bridge->channels)->chan;
 	struct ast_channel *c1 = AST_LIST_LAST(&bridge->channels)->chan;
 
-	/* If this is the first channel we can't make it compatible... unless we make it compatible with itself O.o */
-	if (AST_LIST_FIRST(&bridge->channels) == AST_LIST_LAST(&bridge->channels)) {
+	/*
+	 * If this is the first channel we can't make it compatible...
+	 * unless we make it compatible with itself.  O.o
+	 */
+	if (c0 == c1) {
 		return 0;
 	}
 
-	/* See if we need to make these compatible */
-	if ((ast_format_cmp(ast_channel_writeformat(c0), ast_channel_readformat(c1)) == AST_FORMAT_CMP_EQUAL) &&
-		(ast_format_cmp(ast_channel_readformat(c0), ast_channel_writeformat(c1)) == AST_FORMAT_CMP_EQUAL) &&
-		(ast_format_cap_identical(ast_channel_nativeformats(c0), ast_channel_nativeformats(c1)))) {
-		return 0;
-	}
-
-	/* BOOM! We do. */
 	return ast_channel_make_compatible(c0, c1);
 }
 
