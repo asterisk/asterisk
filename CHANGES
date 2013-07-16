@@ -26,6 +26,12 @@ AgentMonitorOutgoing
  * Application removed.  It was a holdover from when AgentCallbackLogin was
    removed.
 
+ConfBridge
+------------------
+ * All participants in a bridge can now be kicked out of a conference room
+   by specifying the channel parameter as 'all' in the ConfBridge kick CLI
+   command, i.e., "confbridge kick <conference> all"
+
 ForkCDR
 ------------------
  * ForkCDR no longer automatically resets the forked CDR. See the 'r' option

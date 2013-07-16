@@ -2069,6 +2069,7 @@ int conf_handle_dtmf(struct ast_bridge_channel *bridge_channel,
 
 static int kick_conference_participant(struct confbridge_conference *conference, const char *channel)
 {
+	int res = -1;
 	struct confbridge_user *user = NULL;
 
 	SCOPED_AO2LOCK(bridge_lock, conference);
@@ -2077,6 +2078,10 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 			user->kicked = 1;
 			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
+		} else if (!strcasecmp("all", channel)) {
+			user->kicked = 1;
+			ast_bridge_remove(conference->bridge, user->chan);
+			res = 0;
 		}
 	}
 	AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
@@ -2084,10 +2089,14 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 			user->kicked = 1;
 			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
+		} else if (!strcasecmp("all", channel)) {
+			user->kicked = 1;
+			ast_bridge_remove(conference->bridge, user->chan);
+			res = 0;
 		}
 	}
 
-	return -1;
+	return res;
 }
 
 static char *complete_confbridge_name(const char *line, const char *word, int pos, int state)
