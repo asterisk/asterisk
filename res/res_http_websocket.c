@@ -653,7 +653,7 @@ int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct a
 		return 0;
 	}
 
-	ast_verb(2, "WebSocket connection from '%s' for protocol '%s' accepted using version '%d'\n", ast_sockaddr_stringify(&ser->remote_address), protocol, version);
+	ast_verb(2, "WebSocket connection from '%s' for protocol '%s' accepted using version '%d'\n", ast_sockaddr_stringify(&ser->remote_address), protocol ? : "", version);
 
 	/* Populate the session with all the needed details */
 	session->f = ser->f;
