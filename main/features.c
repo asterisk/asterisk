@@ -3216,13 +3216,11 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 		/* Add atxfer and blind transfer. */
 		if (!builtin_feature_get_exten(chan, "blindxfer", dtmf, sizeof(dtmf))
 				&& !ast_strlen_zero(dtmf)) {
-/* BUGBUG need to supply a blind transfer structure and destructor to use other than defaults */
 			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_BLINDTRANSFER, dtmf,
 					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
 		if (!builtin_feature_get_exten(chan, "atxfer", dtmf, sizeof(dtmf)) &&
 				!ast_strlen_zero(dtmf)) {
-/* BUGBUG need to supply an attended transfer structure and destructor to use other than defaults */
 			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, dtmf,
 					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		}
@@ -3252,11 +3250,7 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 	}
 
-#if 0	/* BUGBUG don't report errors untill all of the builtin features are supported. */
 	return res ? -1 : 0;
-#else
-	return 0;
-#endif
 }
 
 struct dynamic_dtmf_hook_run {
