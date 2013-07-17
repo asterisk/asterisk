@@ -15130,14 +15130,14 @@ static char *handle_pri_destroy_span(struct ast_cli_entry *e, int cmd,
 			a->argv[3], 1, NUM_SPANS);
 		return CLI_SUCCESS;
 	}
-	if (!pris[span-1].pri.pri) {
+	if (!pris[span - 1].pri.pri) {
 		ast_cli(a->fd, "No PRI running on span %d\n", span);
 		return CLI_SUCCESS;
 	}
 
 	for (i = 0; i < pris[span - 1].pri.numchans; i++) {
 		int channel;
-		struct sig_pri_chan *pvt = pris[span-1].pri.pvts[i];
+		struct sig_pri_chan *pvt = pris[span - 1].pri.pvts[i];
 
 		if (!pvt) {
 			continue;
@@ -15147,7 +15147,7 @@ static char *handle_pri_destroy_span(struct ast_cli_entry *e, int cmd,
 		dahdi_destroy_channel_bynum(channel);
 	}
 	ast_debug(2, "About to destroy D-channel of span %d.\n", span);
-	pri_destroy_dchan(&pris[span-1].pri);
+	pri_destroy_dchan(&pris[span - 1].pri);
 
 	return CLI_SUCCESS;
 }
