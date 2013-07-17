@@ -158,9 +158,6 @@ void conf_announce_channel_depart(struct ast_channel *chan)
 	}
 	ast_clear_flag(&p->base, AST_UNREAL_CARETAKER_THREAD);
 	chan = p->base.chan;
-	if (chan) {
-		ast_channel_ref(chan);
-	}
 	ao2_unlock(p);
 	ao2_ref(p, -1);
 	if (chan) {
