@@ -3371,6 +3371,8 @@ static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
+static int pri_destroy_dchan(struct sig_pri_span *pri);
+
 static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 {
 	int x;
@@ -3397,6 +3399,9 @@ static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 		break;
 	case DAHDI_EVENT_NOALARM:
 		pri_event_noalarm(pri, index, 0);
+		break;
+	case DAHDI_EVENT_REMOVED:
+		pri_destroy_dchan(pri);
 		break;
 	default:
 		break;
@@ -15059,6 +15064,97 @@ static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
+#define container_of(ptr, type, member) \
+	((type *)((char *)(ptr) - offsetof(type, member)))
+/*!
+ * \internal
+ * \brief Destroy a D-Channel of a PRI span
+ * \since 12
+ *
+ * \param pri the pri span
+ *
+ * \return TRUE if the span was valid and we attempted destroying.
+ *
+ * Shuts down a span and destroys its D-Channel. Further destruction
+ * of the B-channels using dahdi_destroy_channel() would probably be required
+ * for the B-Channels.
+ */
+static int pri_destroy_dchan(struct sig_pri_span *pri)
+{
+	int i;
+	struct dahdi_pri* dahdi_pri;
+
+	if (!pri->master || (pri->master == AST_PTHREADT_NULL)) {
+		return 0;
+	}
+	pthread_cancel(pri->master);
+	pthread_join(pri->master, NULL);
+
+	/* The 'struct dahdi_pri' that contains our 'struct sig_pri_span' */
+	dahdi_pri = container_of(pri, struct dahdi_pri, pri);
+	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
+		ast_debug(4, "closing pri_fd %d\n", i);
+		dahdi_close_pri_fd(dahdi_pri, i);
+	}
+	pri->pri = NULL;
+	ast_debug(1, "PRI span %d destroyed\n", pri->span);
+	return 1;
+}
+
+static char *handle_pri_destroy_span(struct ast_cli_entry *e, int cmd,
+		struct ast_cli_args *a)
+{
+	int span;
+	int i;
+	int res;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri destroy span";
+		e->usage =
+			"Usage: pri destroy span <span>\n"
+			"       Destorys D-channel of span and its B-channels.\n"
+			"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_span_4(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+	res = sscanf(a->argv[3], "%30d", &span);
+	if ((res != 1) || span < 1 || span > NUM_SPANS) {
+		ast_cli(a->fd,
+			"Invalid span '%s'.  Should be a number from %d to %d\n",
+			a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+	if (!pris[span-1].pri.pri) {
+		ast_cli(a->fd, "No PRI running on span %d\n", span);
+		return CLI_SUCCESS;
+	}
+
+	for (i = 0; i < pris[span - 1].pri.numchans; i++) {
+		int channel;
+		struct sig_pri_chan *pvt = pris[span-1].pri.pvts[i];
+
+		if (!pvt) {
+			continue;
+		}
+		channel = pvt->channel;
+		ast_debug(2, "About to destroy B-channel %d.\n", channel);
+		dahdi_destroy_channel_bynum(channel);
+	}
+	ast_debug(2, "About to destroy D-channel of span %d.\n", span);
+	pri_destroy_dchan(&pris[span-1].pri);
+
+	return CLI_SUCCESS;
+}
+
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
 static char *handle_pri_show_span(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
@@ -15164,6 +15260,7 @@ static struct ast_cli_entry dahdi_pri_cli[] = {
 	AST_CLI_DEFINE(handle_pri_show_channels, "Displays PRI channel information"),
 	AST_CLI_DEFINE(handle_pri_show_spans, "Displays PRI span information"),
 	AST_CLI_DEFINE(handle_pri_show_span, "Displays PRI span information"),
+	AST_CLI_DEFINE(handle_pri_destroy_span, "Destroy a PRI span"),
 	AST_CLI_DEFINE(handle_pri_show_debug, "Displays current PRI debug settings"),
 	AST_CLI_DEFINE(handle_pri_set_debug_file, "Sends PRI debug output to the specified file"),
 	AST_CLI_DEFINE(handle_pri_version, "Displays libpri version"),
