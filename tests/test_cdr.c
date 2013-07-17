@@ -278,11 +278,12 @@ static void clear_mock_cdr_backend(void)
 	} while (0)
 
 /*! \brief Hang up a test channel safely */
-#define HANGUP_CHANNEL(channel, cause) do { \
-	ast_channel_hangupcause_set((channel), (cause)); \
-	if (!ast_hangup((channel))) { \
+#define HANGUP_CHANNEL(channel, cause) \
+	do { \
+		ast_channel_hangupcause_set((channel), (cause)); \
+		ast_hangup(channel); \
 		channel = NULL; \
-	} } while (0)
+	} while (0)
 
 static enum ast_test_result_state verify_mock_cdr_record(struct ast_test *test, struct ast_cdr *expected, int record)
 {
@@ -2201,9 +2202,8 @@ AST_TEST_DEFINE(test_cdr_fields)
 
 	/* Hang up and verify */
 	ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL);
-	if (!ast_hangup(chan)) {
-		chan = NULL;
-	}
+	ast_hangup(chan);
+	chan = NULL;
 	result = verify_mock_cdr_record(test, expected, 3);
 
 	return result;
@@ -2272,9 +2272,8 @@ AST_TEST_DEFINE(test_cdr_no_reset_cdr)
 	ast_test_validate(test, ast_cdr_fork(ast_channel_name(chan), &fork_options) == 0);
 
 	ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL);
-	if (!ast_hangup(chan)) {
-		chan = NULL;
-	}
+	ast_hangup(chan);
+	chan = NULL;
 	result = verify_mock_cdr_record(test, &expected, 1);
 
 	return result;
@@ -2395,9 +2394,8 @@ AST_TEST_DEFINE(test_cdr_fork_cdr)
 	ast_test_validate(test, strcmp(fork_answer_time, answer_time) != 0);
 
 	ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL);
-	if (!ast_hangup(chan)) {
-		chan = NULL;
-	}
+	ast_hangup(chan);
+	chan = NULL;
 	result = verify_mock_cdr_record(test, expected, 3);
 
 	return result;

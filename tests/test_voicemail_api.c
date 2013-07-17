@@ -229,9 +229,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define VM_API_PLAYBACK_MESSAGE(channel, mailbox, context, folder, message, callback_fn) do { \
 	if (ast_vm_msg_play((channel), (mailbox), (context), (folder), (message), (callback_fn))) { \
 		ast_test_status_update(test, "Failed nominal playback message test\n"); \
-		if (test_channel) { \
-			ast_hangup(test_channel); \
-		} \
+		ast_hangup(test_channel); \
 		VM_API_TEST_CLEANUP; \
 		return AST_TEST_FAIL; \
 	} } while (0)
@@ -241,9 +239,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define VM_API_PLAYBACK_MESSAGE_OFF_NOMINAL(channel, mailbox, context, folder, message, callback_fn) do { \
 	if (!ast_vm_msg_play((channel), (mailbox), (context), (folder), (message), (callback_fn))) { \
 		ast_test_status_update(test, "Succeeded in playing back of message when expected result was to fail\n"); \
-		if (test_channel) { \
-			ast_hangup(test_channel); \
-		} \
+		ast_hangup(test_channel); \
 		VM_API_TEST_CLEANUP; \
 		return AST_TEST_FAIL; \
 	} } while (0)
@@ -1322,9 +1318,7 @@ AST_TEST_DEFINE(voicemail_api_nominal_msg_playback)
 	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 2);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
-	if (test_channel) {
-		ast_hangup(test_channel);
-	}
+	ast_hangup(test_channel);
 	VM_API_TEST_CLEANUP;
 
 	return AST_TEST_PASS;
@@ -1382,9 +1376,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_msg_playback)
 
 	ast_test_status_update(test, "Playing back message with NULL message specifier\n");
 	VM_API_PLAYBACK_MESSAGE_OFF_NOMINAL(test_channel, "test_vm_api_1234", "default", "INBOX", NULL, NULL);
-	if (test_channel) {
-		ast_hangup(test_channel);
-	}
+	ast_hangup(test_channel);
 	VM_API_TEST_CLEANUP;
 
 	return AST_TEST_PASS;

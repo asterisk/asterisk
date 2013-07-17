@@ -139,23 +139,17 @@ static void do_sleep(void)
 	} while (0)
 
 /*! \brief Hang up a test channel safely */
-#define HANGUP_CHANNEL(channel, cause, hangup_extra) do { \
-	ast_channel_hangupcause_set((channel), (cause)); \
-	ao2_ref(channel, +1); \
-	if (!ast_hangup((channel))) { \
+#define HANGUP_CHANNEL(channel, cause, hangup_extra) \
+	do { \
+		ast_channel_hangupcause_set((channel), (cause)); \
+		ao2_ref(channel, +1); \
+		ast_hangup(channel); \
 		APPEND_EVENT(channel, AST_CEL_HANGUP, NULL, hangup_extra, NULL); \
 		APPEND_EVENT(channel, AST_CEL_CHANNEL_END, NULL, NULL, NULL); \
 		ao2_cleanup(stasis_cache_get_extended(ast_channel_topic_all_cached(), \
 			ast_channel_snapshot_type(), ast_channel_uniqueid(channel), 1)); \
 		ao2_cleanup(channel); \
 		channel = NULL; \
-	} else { \
-		APPEND_EVENT(channel, AST_CEL_HANGUP, NULL, hangup_extra, NULL); \
-		APPEND_EVENT(channel, AST_CEL_CHANNEL_END, NULL, NULL, NULL); \
-		ao2_cleanup(stasis_cache_get_extended(ast_channel_topic_all_cached(), \
-			ast_channel_snapshot_type(), ast_channel_uniqueid(channel), 1)); \
-		ao2_cleanup(channel); \
-	} \
 	} while (0)
 
 static int append_expected_event(

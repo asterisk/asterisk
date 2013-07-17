@@ -1339,9 +1339,7 @@ static int mbl_queue_hangup(struct mbl_pvt *pvt)
 
 static int mbl_ast_hangup(struct mbl_pvt *pvt)
 {
-	if (pvt->owner) {
-		ast_hangup(pvt->owner);
-	}
+	ast_hangup(pvt->owner);
 	return 0;
 }
 

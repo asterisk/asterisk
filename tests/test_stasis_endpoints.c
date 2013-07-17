@@ -45,14 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char *test_category = "/stasis/endpoints/";
 
-static void safe_channel_hangup(struct ast_channel *chan)
-{
-	if (!chan) {
-		return;
-	}
-	ast_hangup(chan);
-}
-
 /*! \brief Message matcher looking for cache update messages */
 static int cache_update(struct stasis_message *msg, const void *data) {
 	struct stasis_cache_update *update;
@@ -79,7 +71,7 @@ static int cache_update(struct stasis_message *msg, const void *data) {
 AST_TEST_DEFINE(state_changes)
 {
 	RAII_VAR(struct ast_endpoint *, uut, NULL, ast_endpoint_shutdown);
-	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_hangup);
+	RAII_VAR(struct ast_channel *, chan, NULL, ast_hangup);
 	RAII_VAR(struct stasis_message_sink *, sink, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 	struct stasis_message *msg;
@@ -135,7 +127,7 @@ AST_TEST_DEFINE(state_changes)
 AST_TEST_DEFINE(cache_clear)
 {
 	RAII_VAR(struct ast_endpoint *, uut, NULL, ast_endpoint_shutdown);
-	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_hangup);
+	RAII_VAR(struct ast_channel *, chan, NULL, ast_hangup);
 	RAII_VAR(struct stasis_message_sink *, sink, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 	struct stasis_message *msg;
@@ -211,7 +203,7 @@ AST_TEST_DEFINE(cache_clear)
 AST_TEST_DEFINE(channel_messages)
 {
 	RAII_VAR(struct ast_endpoint *, uut, NULL, ast_endpoint_shutdown);
-	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_hangup);
+	RAII_VAR(struct ast_channel *, chan, NULL, ast_hangup);
 	RAII_VAR(struct stasis_message_sink *, sink, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 	struct stasis_message *msg;
@@ -261,7 +253,7 @@ AST_TEST_DEFINE(channel_messages)
 	actual_snapshot = stasis_message_data(msg);
 	ast_test_validate(test, 1 == actual_snapshot->num_channels);
 
-	safe_channel_hangup(chan);
+	ast_hangup(chan);
 	chan = NULL;
 
 	actual_count = stasis_message_sink_wait_for_count(sink, 5,

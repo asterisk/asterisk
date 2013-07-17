@@ -2640,8 +2640,13 @@ static void destroy_hooks(struct ast_channel *chan)
 }
 
 /*! \brief Hangup a channel */
-int ast_hangup(struct ast_channel *chan)
+void ast_hangup(struct ast_channel *chan)
 {
+	/* Be NULL safe for RAII_VAR() usage. */
+	if (!chan) {
+		return;
+	}
+
 	ast_autoservice_stop(chan);
 
 	ast_channel_lock(chan);
@@ -2669,7 +2674,7 @@ int ast_hangup(struct ast_channel *chan)
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE);
 		destroy_hooks(chan);
 		ast_channel_unlock(chan);
-		return 0;
+		return;
 	}
 
 	/* Mark as a zombie so a masquerade cannot be setup on this channel. */
@@ -2733,8 +2738,6 @@ int ast_hangup(struct ast_channel *chan)
 	ast_cc_offer(chan);
 
 	ast_channel_unref(chan);
-
-	return 0;
 }
 
 int ast_raw_answer(struct ast_channel *chan)

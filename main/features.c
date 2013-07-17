@@ -2547,9 +2547,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		 * is up, hang it up as it has no one to talk to.
 		 */
 		ast_debug(1, "Everyone is hungup.\n");
-		if (newchan) {
-			ast_hangup(newchan);
-		}
+		ast_hangup(newchan);
 		ast_party_connected_line_free(&connected_line);
 		return -1;
 	}
@@ -5586,18 +5584,14 @@ AST_TEST_DEFINE(features_test)
 	/* find the real channel */
 	parked_chan = ast_channel_get_by_name("TestChannel1");
 	if (unpark_test_channel(parked_chan, &args)) {
-		if (parked_chan) {
-			ast_hangup(parked_chan);
-		}
+		ast_hangup(parked_chan);
 		res = -1;
 	}
 
 
 exit_features_test:
 
-	if (test_channel1) {
-		ast_hangup(test_channel1);
-	}
+	ast_hangup(test_channel1);
 
 	force_reload_load = 1;
 	ast_features_reload();

@@ -13780,9 +13780,7 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 
 exit_vmsayname_test:
 
-	if (test_channel1) {
-		ast_hangup(test_channel1);
-	}
+	ast_hangup(test_channel1);
 
 	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }

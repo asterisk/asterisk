@@ -1427,9 +1427,9 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name);
  * performs all stream stopping, etc, on the channel that needs to end.
  * chan is no longer valid after this call.
  * \param chan channel to hang up
- * \return Returns 0 on success, -1 on failure.
+ * \return Nothing
  */
-int ast_hangup(struct ast_channel *chan);
+void ast_hangup(struct ast_channel *chan);
 
 /*!
  * \brief Softly hangup up a channel

@@ -2368,10 +2368,8 @@ static int conf_free(struct ast_conference *conf)
 
 	if (conf->origframe)
 		ast_frfree(conf->origframe);
-	if (conf->lchan)
-		ast_hangup(conf->lchan);
-	if (conf->chan)
-		ast_hangup(conf->chan);
+	ast_hangup(conf->lchan);
+	ast_hangup(conf->chan);
 	if (conf->fd >= 0)
 		close(conf->fd);
 	if (conf->recordingfilename) {

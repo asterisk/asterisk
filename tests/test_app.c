@@ -212,18 +212,10 @@ AST_TEST_DEFINE(app_group)
 	}
 
 exit_group_test:
-	if (test_channel1) {
-		ast_hangup(test_channel1);
-	}
-	if (test_channel2) {
-		ast_hangup(test_channel2);
-	}
-	if (test_channel3) {
-		ast_hangup(test_channel3);
-	}
-	if (test_channel4) {
-		ast_hangup(test_channel4);
-	}
+	ast_hangup(test_channel1);
+	ast_hangup(test_channel2);
+	ast_hangup(test_channel3);
+	ast_hangup(test_channel4);
 	return res;
 }
 

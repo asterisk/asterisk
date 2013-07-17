@@ -942,10 +942,8 @@ void ast_dial_hangup(struct ast_dial *dial)
 
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-		if (channel->owner) {
-			ast_hangup(channel->owner);
-			channel->owner = NULL;
-		}
+		ast_hangup(channel->owner);
+		channel->owner = NULL;
 	}
 	AST_LIST_UNLOCK(&dial->channels);
 
@@ -976,11 +974,11 @@ int ast_dial_destroy(struct ast_dial *dial)
 				option_types[i].disable(channel->options[i]);
 			channel->options[i] = NULL;
 		}
+
 		/* Hang up channel if need be */
-		if (channel->owner) {
-			ast_hangup(channel->owner);
-			channel->owner = NULL;
-		}
+		ast_hangup(channel->owner);
+		channel->owner = NULL;
+
 		/* Free structure */
 		ast_free(channel->tech);
 		ast_free(channel->device);
