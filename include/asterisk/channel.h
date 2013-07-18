@@ -1426,7 +1426,7 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name);
  * \note This function performs a hard hangup on a channel.  Unlike the soft-hangup, this function
  * performs all stream stopping, etc, on the channel that needs to end.
  * chan is no longer valid after this call.
- * \param chan channel to hang up
+ * \param chan channel to hang up (NULL tolerant)
  * \return Nothing
  */
 void ast_hangup(struct ast_channel *chan);
