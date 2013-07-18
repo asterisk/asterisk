@@ -76,9 +76,19 @@ struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *cachi
 struct stasis_caching_topic *stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic)
 {
 	if (caching_topic) {
+		RAII_VAR(struct stasis_caching_topic *, hold_ref, NULL,
+			ao2_cleanup);
+
+		/* The subscription may hold the last reference to this caching
+		 * topic, but we want to make sure the unsubscribe finishes
+		 * before kicking of the caching topic's dtor.
+		 */
+		ao2_ref(caching_topic, +1);
+		hold_ref = caching_topic;
+
 		if (stasis_subscription_is_subscribed(caching_topic->sub)) {
 			/* Increment the reference to hold on to it past the
-			 * unsubscribe */
+			 * unsubscribe. Will be cleaned up in dtor. */
 			ao2_ref(caching_topic->sub, +1);
 			stasis_unsubscribe(caching_topic->sub);
 		} else {
@@ -389,6 +399,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 	struct stasis_caching_topic *caching_topic = data;
 	const char *id = NULL;
 
+	ast_assert(caching_topic != NULL);
 	ast_assert(caching_topic->topic != NULL);
 	ast_assert(caching_topic->id_fn != NULL);
 
@@ -451,10 +462,6 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 
 		stasis_publish(caching_topic->topic, update);
 	}
-
-	if (stasis_subscription_final_message(sub, message)) {
-		ao2_cleanup(caching_topic);
-	}
 }
 
 struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *original_topic, snapshot_get_id id_fn)
@@ -499,7 +506,7 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 	ao2_ref(caching_topic, +1);
 	caching_topic->sub = sub;
 
-	ao2_ref(caching_topic, +1);
+	/* The subscription holds the reference, so no additional ref bump. */
 	return caching_topic;
 }
 
