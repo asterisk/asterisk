@@ -371,9 +371,7 @@ int ast_channel_set_bridge_role_option(struct ast_channel *channel, const char *
 		return 0;
 	}
 
-	setup_bridge_role_option(role, option, value);
-
-	return 0;
+	return setup_bridge_role_option(role, option, value);
 }
 
 int ast_bridge_channel_has_role(struct ast_bridge_channel *bridge_channel, const char *role_name)

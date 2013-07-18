@@ -54,18 +54,18 @@ enum role_flags {
 	HOLDING_ROLE_ANNOUNCER = (1 << 1),
 };
 
-/* BUGBUG Add IDLE_MODE_HOLD option to put channel on hold using AST_CONTROL_HOLD/AST_CONTROL_UNHOLD while in bridge */
-/* BUGBUG Add IDLE_MODE_SILENCE to send silence media frames to channel while in bridge (uses a silence generator) */
-/* BUGBUG A channel without the holding_participant role will assume IDLE_MODE_MOH with the default music class. */
 enum idle_modes {
 	IDLE_MODE_NONE = 0,
 	IDLE_MODE_MOH,
 	IDLE_MODE_RINGING,
+	IDLE_MODE_SILENCE,
+	IDLE_MODE_HOLD,
 };
 
 /*! \brief Structure which contains per-channel role information */
 struct holding_channel {
 	struct ast_flags holding_roles;
+	struct ast_silence_generator *silence_generator;
 	enum idle_modes idle_mode;
 };
 
@@ -85,6 +85,15 @@ static void participant_stop_hold_audio(struct ast_bridge_channel *bridge_channe
 		break;
 	case IDLE_MODE_NONE:
 		break;
+	case IDLE_MODE_SILENCE:
+		if (hc->silence_generator) {
+			ast_channel_stop_silence_generator(bridge_channel->chan, hc->silence_generator);
+			hc->silence_generator = NULL;
+		}
+		break;
+	case IDLE_MODE_HOLD:
+		ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
+		break;
 	}
 }
 
@@ -103,6 +112,7 @@ static void participant_start_hold_audio(struct ast_bridge_channel *bridge_chann
 {
 	struct holding_channel *hc = bridge_channel->tech_pvt;
 	const char *moh_class;
+	size_t moh_length;
 
 	if (!hc) {
 		return;
@@ -117,6 +127,14 @@ static void participant_start_hold_audio(struct ast_bridge_channel *bridge_chann
 		ast_indicate(bridge_channel->chan, AST_CONTROL_RINGING);
 		break;
 	case IDLE_MODE_NONE:
+		break;
+	case IDLE_MODE_SILENCE:
+		hc->silence_generator = ast_channel_start_silence_generator(bridge_channel->chan);
+		break;
+	case IDLE_MODE_HOLD:
+		moh_class = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "moh_class");
+		moh_length = moh_class ? strlen(moh_class + 1) : 0;
+		ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_HOLD, moh_class, moh_length);
 		break;
 	}
 }
@@ -133,11 +151,17 @@ static void handle_participant_join(struct ast_bridge_channel *bridge_channel, s
 	}
 
 	if (ast_strlen_zero(idle_mode)) {
-		hc->idle_mode = IDLE_MODE_NONE;
+		hc->idle_mode = IDLE_MODE_MOH;
 	} else if (!strcmp(idle_mode, "musiconhold")) {
 		hc->idle_mode = IDLE_MODE_MOH;
 	} else if (!strcmp(idle_mode, "ringing")) {
 		hc->idle_mode = IDLE_MODE_RINGING;
+	} else if (!strcmp(idle_mode, "none")) {
+		hc->idle_mode = IDLE_MODE_NONE;
+	} else if (!strcmp(idle_mode, "silence")) {
+		hc->idle_mode = IDLE_MODE_SILENCE;
+	} else if (!strcmp(idle_mode, "hold")) {
+		hc->idle_mode = IDLE_MODE_HOLD;
 	} else {
 		ast_debug(2, "channel %s idle mode '%s' doesn't match any expected idle mode\n", ast_channel_name(us), idle_mode);
 	}
