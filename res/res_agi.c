@@ -2162,8 +2162,8 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 	}
 
 	if (!(fs = ast_openstream(chan, argv[2], ast_channel_language(chan)))) {
-		ast_agi_send(agi->fd, chan, "200 result=%d endpos=%ld\n", 0, sample_offset);
-		return RESULT_SUCCESS;
+		ast_agi_send(agi->fd, chan, "200 result=-1 endpos=%ld\n", sample_offset);
+		return RESULT_FAILURE;
 	}
 
 	if ((vfs = ast_openvstream(chan, argv[2], ast_channel_language(chan)))) {
@@ -2222,9 +2222,9 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, const 
 	}
 
 	if (!(fs = ast_openstream(chan, argv[2], ast_channel_language(chan)))) {
-		ast_agi_send(agi->fd, chan, "200 result=%d endpos=%ld\n", 0, sample_offset);
+		ast_agi_send(agi->fd, chan, "200 result=-1 endpos=%ld\n", sample_offset);
 		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
-		return RESULT_SUCCESS;
+		return RESULT_FAILURE;
 	}
 
 	if ((vfs = ast_openvstream(chan, argv[2], ast_channel_language(chan))))
