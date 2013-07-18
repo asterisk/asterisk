@@ -55,4 +55,20 @@ int ast_res_sip_init_contact_transports(void);
  */
 int ast_sip_initialize_outbound_authentication(void);
 
+/*!
+ * \brief Initialize system configuration
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_initialize_system(void);
+
+/*!
+ * \brief Initialize global configuration
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_initialize_global(void);
+
 #endif /* RES_SIP_PRIVATE_H_ */

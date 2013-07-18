@@ -281,6 +281,14 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 		return 0;
 	}
 
+	if (!ast_strlen_zero(endpoint->mwi_from)) {
+		pjsip_fromto_hdr *from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, NULL);
+		pjsip_name_addr *from_name_addr = (pjsip_name_addr *) from->uri;
+		pjsip_sip_uri *from_uri = pjsip_uri_get_uri(from_name_addr->uri);
+
+		pj_strdup2(tdata->pool, &from_uri->user, endpoint->mwi_from);
+	}
+
 	switch (state) {
 	case PJSIP_EVSUB_STATE_ACTIVE:
 		state_name = "active";

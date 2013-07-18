@@ -108,7 +108,8 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 {
 	struct ast_rtp_engine_ice *ice;
 
-	if (!(session_media->rtp = ast_rtp_instance_new("asterisk", sched, ipv6 ? &address_ipv6 : &address_ipv4, NULL))) {
+	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->rtp_engine, sched, ipv6 ? &address_ipv6 : &address_ipv4, NULL))) {
+		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n", session->endpoint->rtp_engine);
 		return -1;
 	}
 
@@ -130,6 +131,16 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
 	} else if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
+	}
+
+	if (!strcmp(session_media->stream_type, STR_AUDIO) &&
+			(session->endpoint->tos_audio || session->endpoint->cos_video)) {
+		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->tos_audio,
+				session->endpoint->cos_audio, "SIP RTP Audio");
+	} else if (!strcmp(session_media->stream_type, STR_VIDEO) &&
+			(session->endpoint->tos_video || session->endpoint->cos_video)) {
+		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->tos_video,
+				session->endpoint->cos_video, "SIP RTP Video");
 	}
 
 	return 0;

@@ -115,6 +115,10 @@ struct ast_sip_transport {
 	struct ast_sockaddr external_address;
 	/*! Transport state information */
 	struct ast_sip_transport_state *state;
+	/*! QOS DSCP TOS bits */
+	unsigned int tos;
+	/*! QOS COS value */
+	unsigned int cos;
 };
 
 /*!
@@ -323,6 +327,26 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(external_media_address);
 		/*! Configured voicemail boxes for this endpoint. Used for MWI */
 		AST_STRING_FIELD(mailboxes);
+		/*! Configured RTP engine for this endpoint. */
+		AST_STRING_FIELD(rtp_engine);
+		/*! Configured tone zone for this endpoint. */
+		AST_STRING_FIELD(zone);
+		/*! Configured language for this endpoint. */
+		AST_STRING_FIELD(language);
+		/*! Feature to enact when one-touch recording INFO with Record: On is received */
+		AST_STRING_FIELD(recordonfeature);
+		/*! Feature to enact when one-touch recording INFO with Record: Off is received */
+		AST_STRING_FIELD(recordofffeature);
+		/*! SDP origin username */
+		AST_STRING_FIELD(sdpowner);
+		/*! SDP session name */
+		AST_STRING_FIELD(sdpsession);
+		/*! Default username to place in From header */
+		AST_STRING_FIELD(fromuser);
+		/*! Domain to place in From header */
+		AST_STRING_FIELD(fromdomain);
+		/*! Username to use when sending MWI NOTIFYs to this endpoint */
+		AST_STRING_FIELD(mwi_from);
 	);
 	/*! Identification information for this endpoint */
 	struct ast_party_id id;
@@ -408,6 +432,20 @@ struct ast_sip_endpoint {
 	struct ast_endpoint *persistent;
 	/*! The number of channels at which busy device state is returned */
 	unsigned int devicestate_busy_at;
+	/*! Determines if transfers (using REFER) are allowed by this endpoint */
+	unsigned int allowtransfer;
+	/*! DSCP TOS bits for audio streams */
+	unsigned int tos_audio;
+	/*! Priority for audio streams */
+	unsigned int cos_audio;
+	/*! DSCP TOS bits for video streams */
+	unsigned int tos_video;
+	/*! Priority for video streams */
+	unsigned int cos_video;
+	/*! Indicates if endpoint is allowed to initiate subscriptions */
+	unsigned int allowsubscribe;
+	/*! The minimum allowed expiration for subscriptions from endpoint */
+	unsigned int subminexpiry;
 };
 
 /*!
@@ -1057,13 +1095,15 @@ struct ast_sip_body {
  * \param endpoint Optional. If specified, the request will be created out-of-dialog
  * to the endpoint.
  * \param uri Optional. If specified, the request will be sent to this URI rather
+ * this value.
  * than one configured for the endpoint.
  * \param[out] tdata The newly-created request
  * \retval 0 Success
  * \retval -1 Failure
  */
 int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
-		struct ast_sip_endpoint *endpoint, const char *uri, pjsip_tx_data **tdata);
+		struct ast_sip_endpoint *endpoint, const char *uri,
+		pjsip_tx_data **tdata);
 
 /*!
  * \brief General purpose method for sending a SIP request
@@ -1307,5 +1347,13 @@ void ast_sip_report_auth_success(struct ast_sip_endpoint *endpoint, pjsip_rx_dat
  * \param tdata Sent message
  */
 void ast_sip_report_auth_challenge_sent(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pjsip_tx_data *tdata);
+
+void ast_sip_initialize_global_headers(void);
+void ast_sip_destroy_global_headers(void);
+
+int ast_sip_add_global_request_header(const char *name, const char *value, int replace);
+int ast_sip_add_global_response_header(const char *name, const char *value, int replace);
+
+int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery);
 
 #endif /* _RES_SIP_H */

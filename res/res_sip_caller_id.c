@@ -398,7 +398,9 @@ static void modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr, const st
 		pj_strdup2(pool, &id_name_addr->display, id->name.str);
 	}
 
-	pj_strdup2(pool, &id_uri->user, id->number.str);
+	if (id->number.valid) {
+		pj_strdup2(pool, &id_uri->user, id->number.str);
+	}
 }
 
 /*!

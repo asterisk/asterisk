@@ -51,12 +51,22 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 	pjsip_generic_string_hdr *record;
 	int feature_res;
 	char feature_code[AST_FEATURE_MAX_LEN];
+	const char *feature;
 	char *digit;
 
 	record = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &rec_str, NULL);
 
 	/* If we don't have Record header, we have nothing to do */
-	if (!record || (pj_stricmp2(&record->hvalue, "on") && pj_stricmp2(&record->hvalue, "off"))) {
+	if (!record) {
+		return 0;
+	}
+
+	if (!pj_stricmp2(&record->hvalue, "on")) {
+		feature = session->endpoint->recordonfeature;
+	} else if (!pj_stricmp2(&record->hvalue, "off")) {
+		feature = session->endpoint->recordofffeature;
+	} else {
+		/* Don't send response because another module may handle this */
 		return 0;
 	}
 
@@ -66,13 +76,13 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 	}
 
 	/* Is this endpoint configured with One Touch Recording? */
-	if (!session->endpoint->one_touch_recording) {
+	if (!session->endpoint->one_touch_recording || ast_strlen_zero(feature)) {
 		send_response(session, 403, rdata);
 		return 0;
 	}
 
 	ast_channel_lock(session->channel);
-	feature_res = ast_get_builtin_feature(session->channel, "automixmon", feature_code, sizeof(feature_code));
+	feature_res = ast_get_feature(session->channel, feature, feature_code, sizeof(feature_code));
 	ast_channel_unlock(session->channel);
 
 	if (feature_res || ast_strlen_zero(feature_code)) {

@@ -1684,7 +1684,6 @@ static int add_sdp_streams(void *obj, void *arg, void *data, int flags)
 static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, struct ast_sip_session *session, const pjmedia_sdp_session *offer)
 {
 	RAII_VAR(struct ao2_iterator *, successful, NULL, ao2_iterator_cleanup);
-	static const pj_str_t STR_ASTERISK = { "Asterisk", 8 };
 	static const pj_str_t STR_IN = { "IN", 2 };
 	static const pj_str_t STR_IP4 = { "IP4", 3 };
 	static const pj_str_t STR_IP6 = { "IP6", 3 };
@@ -1701,11 +1700,11 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 		local->origin.id = offer->origin.id;
 	}
 
-	local->origin.user = STR_ASTERISK;
+	pj_strdup2(inv->pool, &local->origin.user, session->endpoint->sdpowner);
 	local->origin.net_type = STR_IN;
 	local->origin.addr_type = session->endpoint->rtp_ipv6 ? STR_IP6 : STR_IP4;
 	local->origin.addr = *pj_gethostname();
-	local->name = local->origin.user;
+	pj_strdup2(inv->pool, &local->name, session->endpoint->sdpsession);
 
 	/* Now let the handlers add streams of various types, pjmedia will automatically reorder the media streams for us */
 	successful = ao2_callback_data(session->media, OBJ_MULTIPLE, add_sdp_streams, local, session);

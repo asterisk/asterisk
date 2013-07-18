@@ -60,6 +60,11 @@
 		LINKER_SYMBOL_PREFIXast_sip_report_auth_failed_challenge_response;
 		LINKER_SYMBOL_PREFIXast_sip_report_auth_success;
 		LINKER_SYMBOL_PREFIXast_sip_report_auth_challenge_sent;
+		LINKER_SYMBOL_PREFIXast_sip_initialize_global_headers;
+		LINKER_SYMBOL_PREFIXast_sip_destroy_global_headers;
+		LINKER_SYMBOL_PREFIXast_sip_add_global_request_header;
+		LINKER_SYMBOL_PREFIXast_sip_add_global_response_header;
+		LINKER_SYMBOL_PREFIXast_sip_initialize_sorcery_global;
 	local:
 		*;
 };

@@ -386,6 +386,96 @@
 						Gulp channel driver will return busy as the device state instead of in use.
 					</para></description>
 				</configOption>
+				<configOption name="tonezone">
+					<synopsis>Set which country's indications to use for channels created for this endpoint.</synopsis>
+				</configOption>
+				<configOption name="language">
+					<synopsis>Set the default language to use for channels created for this endpoint.</synopsis>
+				</configOption>
+				<configOption name="one_touch_recording" default="no">
+					<synopsis>Determines whether one-touch recording is allowed for this endpoint.</synopsis>
+					<see-also>
+						<ref type="configOption">recordonfeature</ref>
+						<ref type="configOption">recordofffeature</ref>
+					</see-also>
+				</configOption>
+				<configOption name="recordonfeature" default="automixmon">
+					<synopsis>The feature to enact when one-touch recording is turned on.</synopsis>
+					<description>
+						<para>When an INFO request for one-touch recording arrives with a Record header set to "on", this
+						feature will be enabled for the channel. The feature designated here can be any built-in
+						or dynamic feature defined in features.conf.</para>
+						<note><para>This setting has no effect if the endpoint's one_touch_recording option is disabled</para></note>
+					</description>
+					<see-also>
+						<ref type="configOption">one_touch_recording</ref>
+						<ref type="configOption">recordofffeature</ref>
+					</see-also>
+				</configOption>
+				<configOption name="recordofffeature" default="automixmon">
+					<synopsis>The feature to enact when one-touch recording is turned off.</synopsis>
+					<description>
+						<para>When an INFO request for one-touch recording arrives with a Record header set to "off", this
+						feature will be enabled for the channel. The feature designated here can be any built-in
+						or dynamic feature defined in features.conf.</para>
+						<note><para>This setting has no effect if the endpoint's one_touch_recording option is disabled</para></note>
+					</description>
+					<see-also>
+						<ref type="configOption">one_touch_recording</ref>
+						<ref type="configOption">recordonfeature</ref>
+					</see-also>
+				</configOption>
+				<configOption name="rtpengine" default="asterisk">
+					<synopsis>Name of the RTP engine to use for channels created for this endpoint</synopsis>
+				</configOption>
+				<configOption name="allowtransfer" default="yes">
+					<synopsis>Determines whether SIP REFER transfers are allowed for this endpoint</synopsis>
+				</configOption>
+				<configOption name="sdpowner" default="-">
+					<synopsis>String placed as the username portion of an SDP origin (o=) line.</synopsis>
+				</configOption>
+				<configOption name="sdpsession" default="Asterisk">
+					<synopsis>String used for the SDP session (s=) line.</synopsis>
+				</configOption>
+				<configOption name="tos_audio">
+					<synopsis>DSCP TOS bits for audio streams</synopsis>
+					<description><para>
+						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+					</para></description>
+				</configOption>
+				<configOption name="tos_video">
+					<synopsis>DSCP TOS bits for video streams</synopsis>
+					<description><para>
+						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+					</para></description>
+				</configOption>
+				<configOption name="cos_audio">
+					<synopsis>Priority for audio streams</synopsis>
+					<description><para>
+						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+					</para></description>
+				</configOption>
+				<configOption name="cos_video">
+					<synopsis>Priority for video streams</synopsis>
+					<description><para>
+						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
+					</para></description>
+				</configOption>
+				<configOption name="allowsubscribe" default="no">
+					<synopsis>Determines if endpoint is allowed to initiate subscriptions with Asterisk.</synopsis>
+				</configOption>
+				<configOption name="subminexpiry" default="60">
+					<synopsis>The minimum allowed expiry time for subscriptions initiated by the endpoint.</synopsis>
+				</configOption>
+				<configOption name="fromuser">
+					<synopsis>Username to use in From header for requests to this endpoint.</synopsis>
+				</configOption>
+				<configOption name="mwifromuser">
+					<synopsis>Username to use in From header for unsolicited MWI NOTIFYs to this endpoint.</synopsis>
+				</configOption>
+				<configOption name="fromdomain">
+					<synopsis>Domain to user in From header for requests to this endpoint.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
@@ -674,6 +764,48 @@
 					</para></description>
 				</configOption>
 			</configObject>
+			<configObject name="system">
+				<synopsis>Options that apply to the SIP stack as well as other system-wide settings</synopsis>
+				<description><para>
+					The settings in this section are global. In addition to being global, the values will
+					not be re-evaluated when a reload is performed. This is because the values must be set
+					before the SIP stack is initialized. The only way to reset these values is to either 
+					restart Asterisk, or unload res_sip.so and then load it again.
+				</para></description>
+				<configOption name="timert1" default="500">
+					<synopsis>Set transaction timer T1 value (milliseconds).</synopsis>
+					<description><para>
+						Timer T1 is the base for determining how long to wait before retransmitting
+						requests that receive no response when using an unreliable transport (e.g. UDP).
+						For more information on this timer, see RFC 3261, Section 17.1.1.1.
+					</para></description>
+				</configOption>
+				<configOption name="timerb" default="32000">
+					<synopsis>Set transaction timer B value (milliseconds).</synopsis>
+					<description><para>
+						Timer B determines the maximum amount of time to wait after sending an INVITE
+						request before terminating the transaction. It is recommended that this be set
+						to 64 * Timer T1, but it may be set higher if desired. For more information on
+						this timer, see RFC 3261, Section 17.1.1.1.
+					</para></description>
+				</configOption>
+				<configOption name="compactheaders" default="no">
+					<synopsis>Use the short forms of common SIP header names.</synopsis>
+				</configOption>
+			</configObject>
+			<configObject name="global">
+				<synopsis>Options that apply globally to all SIP communications</synopsis>
+				<description><para>
+					The settings in this section are global. Unlike options in the <literal>system</literal>
+					section, these options can be refreshed by performing a reload.
+				</para></description>
+				<configOption name="maxforwards" default="70">
+					<synopsis>Value used in Max-Forwards header for SIP requests.</synopsis>
+				</configOption>
+				<configOption name="useragent" default="Asterisk &lt;Asterisk Version&gt;">
+					<synopsis>Value used in User-Agent header for SIP requests and Server header for SIP responses.</synopsis>
+				</configOption>
+			</configObject>
 		</configFile>
 	</configInfo>
  ***/
@@ -865,7 +997,7 @@ pjsip_endpoint *ast_sip_get_pjsip_endpoint(void)
 	return ast_pjsip_endpoint;
 }
 
-static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *user, const pj_str_t *target, pjsip_tpselector *selector)
+static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *user, const char *domain, const pj_str_t *target, pjsip_tpselector *selector)
 {
 	pj_str_t tmp, local_addr;
 	pjsip_uri *uri;
@@ -874,7 +1006,7 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	int local_port;
 	char uuid_str[AST_UUID_STR_LEN];
 
-	if (!user) {
+	if (ast_strlen_zero(user)) {
 		RAII_VAR(struct ast_uuid *, uuid, ast_uuid_generate(), ast_free_ptr);
 		if (!uuid) {
 			return -1;
@@ -908,6 +1040,18 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	/* If the host is IPv6 turn the transport into an IPv6 version */
 	if (pj_strchr(&sip_uri->host, ':') && type < PJSIP_TRANSPORT_START_OTHER) {
 		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
+	}
+
+	if (!ast_strlen_zero(domain)) {
+		from->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
+		from->slen = pj_ansi_snprintf(from->ptr, PJSIP_MAX_URL_SIZE,
+				"<%s:%s@%s%s%s>",
+				(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
+				user,
+				domain,
+				(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
+				(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
+		return 0;
 	}
 
 	/* Get the local bound address for the transport that will be used when communicating with the provided URI */
@@ -1000,7 +1144,7 @@ pjsip_dialog *ast_sip_create_dialog(const struct ast_sip_endpoint *endpoint, con
 		return NULL;
 	}
 
-	if (sip_dialog_create_from(dlg->pool, &local_uri, NULL, &remote_uri, &selector)) {
+	if (sip_dialog_create_from(dlg->pool, &local_uri, endpoint->fromuser, endpoint->fromdomain, &remote_uri, &selector)) {
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -1127,7 +1271,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		return -1;
 	}
 
-	if (sip_dialog_create_from(pool, &from, NULL, &remote_uri, &selector)) {
+	if (sip_dialog_create_from(pool, &from, endpoint ? endpoint->fromuser : NULL,
+				endpoint ? endpoint->fromdomain : NULL, &remote_uri, &selector)) {
 		ast_log(LOG_ERROR, "Unable to create From header for %.*s request to endpoint %s\n",
 				(int) pj_strlen(&method->name), pj_strbuf(&method->name), ast_sorcery_object_get_id(endpoint));
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
@@ -1150,7 +1295,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 }
 
 int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
-		struct ast_sip_endpoint *endpoint, const char *uri, pjsip_tx_data **tdata)
+		struct ast_sip_endpoint *endpoint, const char *uri,
+		pjsip_tx_data **tdata)
 {
 	const pjsip_method *pmethod = get_pjsip_method(method);
 
@@ -1443,6 +1589,18 @@ int ast_sip_thread_is_servant(void)
 	return *servant_id == SIP_SERVANT_ID;
 }
 
+static void remove_request_headers(pjsip_endpoint *endpt)
+{
+	const pjsip_hdr *request_headers = pjsip_endpt_get_request_headers(endpt);
+	pjsip_hdr *iter = request_headers->next;
+
+	while (iter != request_headers) {
+		pjsip_hdr *to_erase = iter;
+		iter = iter->next;
+		pj_list_erase(to_erase);
+	}
+}
+
 static int load_module(void)
 {
     /* The third parameter is just copied from
@@ -1480,9 +1638,20 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Failed to create PJSIP endpoint structure. Aborting load\n");
 		goto error;
 	}
+
+	/* PJSIP will automatically try to add a Max-Forwards header. Since we want to control that,
+	 * we need to stop PJSIP from doing it automatically
+	 */
+	remove_request_headers(ast_pjsip_endpoint);
+
 	memory_pool = pj_pool_create(&caching_pool.factory, "SIP", 1024, 1024, NULL);
 	if (!memory_pool) {
 		ast_log(LOG_ERROR, "Failed to create memory pool for SIP. Aborting load\n");
+		goto error;
+	}
+
+	if (ast_sip_initialize_system()) {
+		ast_log(LOG_ERROR, "Failed to initialize SIP system configuration. Aborting load\n");
 		goto error;
 	}
 
@@ -1496,6 +1665,8 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Failed to start SIP monitor thread. Aborting load\n");
 		goto error;
 	}
+
+	ast_sip_initialize_global_headers();
 
 	if (ast_res_sip_initialize_configuration()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
@@ -1521,6 +1692,7 @@ return AST_MODULE_LOAD_SUCCESS;
 error:
 	ast_sip_destroy_distributor();
 	ast_res_sip_destroy_configuration();
+	ast_sip_destroy_global_headers();
 	if (monitor_thread) {
 		stop_monitor_thread();
 	}
@@ -1564,6 +1736,7 @@ static int unload_module(void)
 {
 	ast_sip_destroy_distributor();
 	ast_res_sip_destroy_configuration();
+	ast_sip_destroy_global_headers();
 	if (monitor_thread) {
 		stop_monitor_thread();
 	}

@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/indications.h"
 
 #include "asterisk/res_sip.h"
 #include "asterisk/res_sip_session.h"
@@ -600,6 +601,18 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 
 	ast_channel_named_callgroups_set(chan, session->endpoint->named_callgroups);
 	ast_channel_named_pickupgroups_set(chan, session->endpoint->named_pickupgroups);
+
+	if (!ast_strlen_zero(session->endpoint->language)) {
+		ast_channel_language_set(chan, session->endpoint->language);
+	}
+
+	if (!ast_strlen_zero(session->endpoint->zone)) {
+		struct ast_tone_zone *zone = ast_get_indication_zone(session->endpoint->zone);
+		if (!zone) {
+			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", session->endpoint->zone);
+		}
+		ast_channel_zone_set(chan, zone);
+	}
 
 	ast_endpoint_add_channel(session->endpoint->persistent, chan);
 

@@ -658,6 +658,24 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedcallgroup", "", named_groups_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedpickupgroup", "", named_groups_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "devicestate_busy_at", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, devicestate_busy_at));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtpengine", "asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, rtp_engine));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tonezone", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, zone));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "language", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, language));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "recordonfeature", "automixmon", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, recordonfeature));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "recordofffeature", "automixmon", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, recordofffeature));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowtransfer", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allowtransfer));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdpowner", "-", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, sdpowner));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdpsession", "Asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, sdpsession));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, tos_audio));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, tos_video));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, cos_audio));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, cos_video));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowsubscribe", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allowsubscribe));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpiry", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subminexpiry));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpirey", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subminexpiry));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromuser));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromdomain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromdomain));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwifromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, mwi_from));
 
 	if (ast_sip_initialize_sorcery_transport(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -691,6 +709,13 @@ int ast_res_sip_initialize_configuration(void)
 
 	if (ast_sip_initialize_sorcery_security(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP security support\n");
+		ast_sorcery_unref(sip_sorcery);
+		sip_sorcery = NULL;
+		return -1;
+	}
+
+	if (ast_sip_initialize_sorcery_global(sip_sorcery)) {
+		ast_log(LOG_ERROR, "Failed to register SIP Global support\n");
 		ast_sorcery_unref(sip_sorcery);
 		sip_sorcery = NULL;
 		return -1;

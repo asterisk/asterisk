@@ -79,6 +79,18 @@ static void *transport_alloc(const char *name)
 	return transport;
 }
 
+static void set_qos(struct ast_sip_transport *transport, pj_qos_params *qos)
+{
+	if (transport->tos) {
+		qos->flags |= PJ_QOS_PARAM_HAS_DSCP;
+		qos->dscp_val = transport->tos;
+	}
+	if (transport->cos) {
+		qos->flags |= PJ_QOS_PARAM_HAS_SO_PRIO;
+		qos->so_prio = transport->cos;
+	}
+}
+
 /*! \brief Apply handler for transports */
 static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 {
@@ -135,12 +147,23 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		} else if (transport->host.addr.sa_family == pj_AF_INET6()) {
 			res = pjsip_udp_transport_start6(ast_sip_get_pjsip_endpoint(), &transport->host.ipv6, NULL, transport->async_operations, &transport->state->transport);
 		}
+
+		if (res == PJ_SUCCESS && (transport->tos || transport->cos)) {
+			pj_sock_t sock;
+			pj_qos_params qos_params;
+
+			sock = pjsip_udp_transport_get_socket(transport->state->transport);
+			pj_sock_get_qos_params(sock, &qos_params);
+			set_qos(transport, &qos_params);
+			pj_sock_set_qos_params(sock, &qos_params);
+		}
 	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
 
 		pjsip_tcp_transport_cfg_default(&cfg, transport->host.addr.sa_family);
 		cfg.bind_addr = transport->host;
 		cfg.async_cnt = transport->async_operations;
+		set_qos(transport, &cfg.qos_params);
 
 		res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg, &transport->state->factory);
 	} else if (transport->type == AST_TRANSPORT_TLS) {
@@ -148,9 +171,13 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		transport->tls.cert_file = pj_str((char*)transport->cert_file);
 		transport->tls.privkey_file = pj_str((char*)transport->privkey_file);
 		transport->tls.password = pj_str((char*)transport->password);
+		set_qos(transport, &transport->tls.qos_params);
 
 		res = pjsip_tls_transport_start2(ast_sip_get_pjsip_endpoint(), &transport->tls, &transport->host, NULL, transport->async_operations, &transport->state->factory);
 	} else if ((transport->type == AST_TRANSPORT_WS) || (transport->type == AST_TRANSPORT_WSS)) {
+		if (transport->cos || transport->tos) {
+			ast_log(LOG_WARNING, "TOS and COS values ignored for websocket transport\n");
+		}
 		res = PJ_SUCCESS;
 	}
 
@@ -304,6 +331,8 @@ int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "method", "", transport_tls_method_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "cipher", "", transport_tls_cipher_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "localnet", "", transport_localnet_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "transport", "tos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, tos));
+	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 
 	return 0;
 }

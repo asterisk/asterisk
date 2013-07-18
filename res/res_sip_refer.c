@@ -732,6 +732,13 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 	pjsip_param *replaces;
 	int response;
 
+	if (!session->endpoint->allowtransfer) {
+		pjsip_dlg_respond(session->inv_session->dlg, rdata, 603, NULL, NULL, NULL);
+		ast_log(LOG_WARNING, "Endpoint %s transfer attempt blocked due to configuration\n",
+				ast_sorcery_object_get_id(session->endpoint));
+		return 0;
+	}
+
 	/* A Refer-To header is required */
 	if (!(refer_to = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_refer_to, NULL))) {
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 400, NULL, NULL, NULL);
