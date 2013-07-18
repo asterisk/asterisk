@@ -4334,4 +4334,35 @@ const char *ast_channel_oldest_linkedid(const char *a, const char *b);
  */
 void ast_channel_name_to_dial_string(char *channel_name);
 
+#define AST_MUTE_DIRECTION_READ (1 << 0)
+#define AST_MUTE_DIRECTION_WRITE (1 << 1)
+
+/*!
+ * \brief Suppress passing of a frame type on a channel
+ *
+ * \note The channel should be locked before calling this function.
+ *
+ * \param chan The channel to suppress
+ * \param direction The direction in which to suppress
+ * \param frametype The type of frame (AST_FRAME_VOICE, etc) to suppress
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum ast_frame_type frametype);
+
+/*!
+ * \brief Stop suppressing of a frame type on a channel
+ *
+ * \note The channel should be locked before calling this function.
+ *
+ * \param chan The channel to stop suppressing
+ * \param direction The direction in which to stop suppressing
+ * \param frametype The type of frame (AST_FRAME_VOICE, etc) to stop suppressing
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_channel_unsuppress(struct ast_channel *chan, unsigned int direction, enum ast_frame_type frametype);
+
 #endif /* _ASTERISK_CHANNEL_H */

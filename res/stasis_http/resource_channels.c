@@ -143,12 +143,62 @@ void stasis_http_answer_channel(struct ast_variable *headers,
 
 void stasis_http_mute_channel(struct ast_variable *headers, struct ast_mute_channel_args *args, struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_mute_channel\n");
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	unsigned int direction = 0;
+	enum ast_frame_type frametype = AST_FRAME_VOICE;
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	if (!strcmp(args->direction, "in")) {
+		direction = AST_MUTE_DIRECTION_READ;
+	} else if (!strcmp(args->direction, "out")) {
+		direction = AST_MUTE_DIRECTION_WRITE;
+	} else if (!strcmp(args->direction, "both")) {
+		direction = AST_MUTE_DIRECTION_READ | AST_MUTE_DIRECTION_WRITE;
+	} else {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"Invalid direction specified");
+		return;
+	}
+
+	stasis_app_control_mute(control, direction, frametype);
+
+	stasis_http_response_no_content(response);
 }
+
 void stasis_http_unmute_channel(struct ast_variable *headers, struct ast_unmute_channel_args *args, struct stasis_http_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: stasis_http_unmute_channel\n");
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	unsigned int direction = 0;
+	enum ast_frame_type frametype = AST_FRAME_VOICE;
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	if (!strcmp(args->direction, "in")) {
+		direction = AST_MUTE_DIRECTION_READ;
+	} else if (!strcmp(args->direction, "out")) {
+		direction = AST_MUTE_DIRECTION_WRITE;
+	} else if (!strcmp(args->direction, "both")) {
+		direction = AST_MUTE_DIRECTION_READ | AST_MUTE_DIRECTION_WRITE;
+	} else {
+		stasis_http_response_error(
+			response, 400, "Bad Request",
+			"Invalid direction specified");
+		return;
+	}
+
+	stasis_app_control_unmute(control, direction, frametype);
+
+	stasis_http_response_no_content(response);
 }
+
 void stasis_http_hold_channel(struct ast_variable *headers, struct ast_hold_channel_args *args, struct stasis_http_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);

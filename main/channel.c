@@ -10248,3 +10248,159 @@ int ast_channel_move(struct ast_channel *dest, struct ast_channel *source)
 	ast_do_masquerade(dest);
 	return 0;
 }
+
+static void suppress_datastore_destroy_cb(void *data)
+{
+	ao2_cleanup(data);
+}
+
+static const struct ast_datastore_info suppress_datastore_voice = {
+	.type = "suppressvoice",
+	.destroy = suppress_datastore_destroy_cb
+};
+
+static void suppress_framehook_destroy_cb(void *data)
+{
+	ao2_cleanup(data);
+}
+
+struct suppress_data {
+	enum ast_frame_type frametype;
+	unsigned int direction;
+	int framehook_id;
+};
+
+static struct ast_frame *suppress_framehook_event_cb(struct ast_channel *chan, struct ast_frame *frame, enum ast_framehook_event event, void *data)
+{
+	struct suppress_data *suppress = data;
+	int suppress_frame = 0;
+
+	if (!frame) {
+		return NULL;
+	}
+
+	if (frame->frametype != suppress->frametype) {
+		return frame;
+	}
+
+	if (event == AST_FRAMEHOOK_EVENT_READ && (suppress->direction & AST_MUTE_DIRECTION_READ)) {
+		suppress_frame = 1;
+	} else if (event == AST_FRAMEHOOK_EVENT_WRITE && (suppress->direction & AST_MUTE_DIRECTION_WRITE)) {
+		suppress_frame = 1;
+	}
+
+	if (suppress_frame) {
+		switch (frame->frametype) {
+		case AST_FRAME_VOICE:
+			frame = &ast_null_frame;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return frame;
+}
+
+static const struct ast_datastore_info *suppress_get_datastore_information(enum ast_frame_type frametype)
+{
+	switch (frametype) {
+	case AST_FRAME_VOICE:
+		return &suppress_datastore_voice;
+	default:
+		return NULL;
+	}
+}
+
+int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum ast_frame_type frametype)
+{
+	RAII_VAR(struct suppress_data *, suppress, NULL, ao2_cleanup);
+	const struct ast_datastore_info *datastore_info = NULL;
+	struct ast_datastore *datastore = NULL;
+	struct ast_framehook_interface interface = {
+		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
+		.event_cb = suppress_framehook_event_cb,
+		.destroy_cb = suppress_framehook_destroy_cb,
+	};
+	int framehook_id;
+
+	if (!(datastore_info = suppress_get_datastore_information(frametype))) {
+		ast_log(LOG_WARNING, "Attempted to suppress an unsupported frame type (%d).\n", frametype);
+		return -1;
+	}
+
+	if ((datastore = ast_channel_datastore_find(chan, datastore_info, NULL))) {
+		suppress = datastore->data;
+		ao2_ref(suppress, +1);
+
+		suppress->direction |= direction;
+
+		return 0;
+	}
+
+	if (!(suppress = ao2_alloc(sizeof(*suppress), NULL))) {
+		ast_log(LOG_WARNING, "Failed to allocate data while attempting to suppress a stream.\n");
+		return -1;
+	}
+
+	suppress->frametype = frametype;
+	suppress->direction |= direction;
+
+	interface.data = suppress;
+
+	framehook_id = ast_framehook_attach(chan, &interface);
+	if (framehook_id < 0) {
+		/* Hook attach failed.  Get rid of the evidence. */
+		ast_log(LOG_WARNING, "Failed to attach framehook while attempting to suppress a stream.\n");
+		return -1;
+	}
+
+	/* One ref for the framehook */
+	ao2_ref(suppress, +1);
+
+	suppress->framehook_id = framehook_id;
+
+	if (!(datastore = ast_datastore_alloc(datastore_info, NULL))) {
+		ast_log(LOG_WARNING, "Failed to allocate datastore while attempting to suppress a stream.\n");
+		ast_framehook_detach(chan, framehook_id);
+		return -1;
+	}
+
+	datastore->data = suppress;
+
+	ast_channel_datastore_add(chan, datastore);
+
+	/* and another ref for the datastore */
+	ao2_ref(suppress, +1);
+
+	return 0;
+}
+
+int ast_channel_unsuppress(struct ast_channel *chan, unsigned int direction, enum ast_frame_type frametype)
+{
+	const struct ast_datastore_info *datastore_info = NULL;
+	struct ast_datastore *datastore = NULL;
+	struct suppress_data *suppress;
+
+	if (!(datastore_info = suppress_get_datastore_information(frametype))) {
+		ast_log(LOG_WARNING, "Attempted to unsuppress an unsupported frame type (%d).\n", frametype);
+		return -1;
+	}
+
+	if (!(datastore = ast_channel_datastore_find(chan, datastore_info, NULL))) {
+		/* Nothing to do! */
+		return 0;
+	}
+
+	suppress = datastore->data;
+
+	suppress->direction &= ~(direction);
+
+	if (suppress->direction == 0) {
+		/* Nothing left to suppress.  Bye! */
+		ast_framehook_detach(chan, suppress->framehook_id);
+		ast_channel_datastore_remove(chan, datastore);
+	}
+
+	return 0;
+}

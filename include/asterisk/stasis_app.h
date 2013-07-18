@@ -166,6 +166,30 @@ int stasis_app_control_dial(struct stasis_app_control *control, const char *endp
 int stasis_app_control_continue(struct stasis_app_control *control, const char *context, const char *extension, int priority);
 
 /*!
+ * \brief Mute the channel associated with this control.
+ *
+ * \param control Control for \c res_stasis.
+ * \param direction The direction in which the audio should be muted.
+ * \param frametype The type of stream that should be muted.
+ *
+ * \return 0 for success
+ * \return -1 for error.
+ */
+int stasis_app_control_mute(struct stasis_app_control *control, unsigned int direction, enum ast_frame_type frametype);
+
+/*!
+ * \brief Unmute the channel associated with this control.
+ *
+ * \param control Control for \c res_stasis.
+ * \param direction The direction in which the audio should be unmuted.
+ * \param frametype The type of stream that should be unmuted.
+ *
+ * \return 0 for success
+ * \return -1 for error.
+ */
+int stasis_app_control_unmute(struct stasis_app_control *control, unsigned int direction, enum ast_frame_type frametype);
+
+/*!
  * \brief Answer the channel associated with this control.
  * \param control Control for \c res_stasis.
  * \return 0 for success.

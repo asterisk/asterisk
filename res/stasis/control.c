@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_basic.h"
 #include "asterisk/bridging_features.h"
+#include "asterisk/frame.h"
 #include "asterisk/pbx.h"
 
 struct stasis_app_control {
@@ -203,6 +204,65 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 	}
 
 	stasis_app_send_command_async(control, app_control_continue, continue_data);
+
+	return 0;
+}
+
+struct stasis_app_control_mute_data {
+	enum ast_frame_type frametype;
+	unsigned int direction;
+};
+
+static void *app_control_mute(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	RAII_VAR(struct stasis_app_control_mute_data *, mute_data, data, ast_free);
+	SCOPED_CHANNELLOCK(lockvar, chan);
+
+	ast_channel_suppress(control->channel, mute_data->direction, mute_data->frametype);
+
+	return NULL;
+}
+
+int stasis_app_control_mute(struct stasis_app_control *control, unsigned int direction, enum ast_frame_type frametype)
+{
+	struct stasis_app_control_mute_data *mute_data;
+
+	if (!(mute_data = ast_calloc(1, sizeof(*mute_data)))) {
+		return -1;
+	}
+
+	mute_data->direction = direction;
+	mute_data->frametype = frametype;
+
+	stasis_app_send_command_async(control, app_control_mute, mute_data);
+
+	return 0;
+}
+
+static void *app_control_unmute(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	RAII_VAR(struct stasis_app_control_mute_data *, mute_data, data, ast_free);
+	SCOPED_CHANNELLOCK(lockvar, chan);
+
+	ast_channel_unsuppress(control->channel, mute_data->direction, mute_data->frametype);
+
+	return NULL;
+}
+
+int stasis_app_control_unmute(struct stasis_app_control *control, unsigned int direction, enum ast_frame_type frametype)
+{
+	struct stasis_app_control_mute_data *mute_data;
+
+	if (!(mute_data = ast_calloc(1, sizeof(*mute_data)))) {
+		return -1;
+	}
+
+	mute_data->direction = direction;
+	mute_data->frametype = frametype;
+
+	stasis_app_send_command_async(control, app_control_unmute, mute_data);
 
 	return 0;
 }
