@@ -676,7 +676,7 @@ struct ast_variable *ast_http_get_post_vars(
 			prev = v;
 		}
 	}
-	
+
 done:
 	ast_free(buf);
 	return post_vars;
@@ -741,9 +741,9 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 		/* scan registered uris to see if we match one. */
 		AST_RWLIST_RDLOCK(&uris);
 		AST_RWLIST_TRAVERSE(&uris, urih, entry) {
-			ast_debug(2, "match request [%s] with handler [%s] len %d\n", uri, urih->uri, l);
 			l = strlen(urih->uri);
 			c = uri + l;	/* candidate */
+			ast_debug(2, "match request [%s] with handler [%s] len %d\n", uri, urih->uri, l);
 			if (strncasecmp(urih->uri, uri, l) /* no match */
 			    || (*c && *c != '/')) { /* substring */
 				continue;
@@ -759,11 +759,13 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 		AST_RWLIST_UNLOCK(&uris);
 	}
 	if (urih) {
+		ast_debug(1, "Match made with [%s]\n", urih->uri);
 		if (!urih->no_decode_uri) {
 			ast_uri_decode(uri, ast_uri_http_legacy);
 		}
 		res = urih->callback(ser, urih, uri, method, get_vars, headers);
 	} else {
+		ast_debug(1, "Requested URI [%s] has no handler\n", uri);
 		ast_http_error(ser, 404, "Not Found", "The requested URL was not found on this server.");
 	}
 
