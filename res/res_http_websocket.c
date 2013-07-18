@@ -630,7 +630,7 @@ int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct a
 			"Sec-WebSocket-Protocol: %s\r\n\r\n",
 			upgrade,
 			base64,
-			protocol);
+			protocol_handler->name);
 	} else {
 
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75 or completely unknown */
