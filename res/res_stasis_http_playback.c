@@ -192,7 +192,7 @@ static void stasis_http_control_playback_cb(
 		break;
 	default:
 		if (200 <= code && code <= 299) {
-			is_valid = ari_validate_playback(
+			is_valid = ari_validate_void(
 				response->message);
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /playback/{playbackId}/control\n", code);

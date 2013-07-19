@@ -65,6 +65,11 @@ struct stasis_app_control *control_create(struct ast_channel *channel)
 	control->command_queue = ao2_container_alloc_list(
 		AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
 
+	if (!control->command_queue) {
+		ao2_cleanup(control);
+		return NULL;
+	}
+
 	control->channel = channel;
 
 	return control;

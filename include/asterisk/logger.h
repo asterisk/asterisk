@@ -281,7 +281,16 @@ struct ast_callid *ast_read_threadstorage_callid(void);
  *
  * \retval NULL always
  */
-#define ast_callid_unref(c) ({ ao2_ref(c, -1); (NULL); })
+#define ast_callid_unref(c) ({ ao2_ref(c, -1); (struct ast_callid *) (NULL); })
+
+/*!
+ * \brief Cleanup a callid reference (NULL safe ao2 unreference)
+ *
+ * \param c the ast_callid
+ *
+ * \retval NULL always
+ */
+#define ast_callid_cleanup(c) ({ ao2_cleanup(c); (struct ast_callid *) (NULL); })
 
 /*!
  * \brief Sets what is stored in the thread storage to the given

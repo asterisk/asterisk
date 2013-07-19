@@ -816,7 +816,9 @@ ari_validator ari_validate_stasis_start_fn(void);
  * - id: string (required)
  * - technology: string (required)
  * LiveRecording
- * - id: string (required)
+ * - format: string (required)
+ * - name: string (required)
+ * - state: string (required)
  * StoredRecording
  * - duration_seconds: int
  * - formats: List[string] (required)

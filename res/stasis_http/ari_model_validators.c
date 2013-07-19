@@ -578,16 +578,38 @@ int ari_validate_live_recording(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
-	int has_id = 0;
+	int has_format = 0;
+	int has_name = 0;
+	int has_state = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
-		if (strcmp("id", ast_json_object_iter_key(iter)) == 0) {
+		if (strcmp("format", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
-			has_id = 1;
+			has_format = 1;
 			prop_is_valid = ari_validate_string(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI LiveRecording field id failed validation\n");
+				ast_log(LOG_ERROR, "ARI LiveRecording field format failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LiveRecording field name failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("state", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_state = 1;
+			prop_is_valid = ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LiveRecording field state failed validation\n");
 				res = 0;
 			}
 		} else
@@ -599,8 +621,18 @@ int ari_validate_live_recording(struct ast_json *json)
 		}
 	}
 
-	if (!has_id) {
-		ast_log(LOG_ERROR, "ARI LiveRecording missing required field id\n");
+	if (!has_format) {
+		ast_log(LOG_ERROR, "ARI LiveRecording missing required field format\n");
+		res = 0;
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI LiveRecording missing required field name\n");
+		res = 0;
+	}
+
+	if (!has_state) {
+		ast_log(LOG_ERROR, "ARI LiveRecording missing required field state\n");
 		res = 0;
 	}
 

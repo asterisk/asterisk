@@ -668,6 +668,96 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
 	ast_channel_datastore_inherit(semi1, semi2);
 }
 
+int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge *bridge)
+{
+	struct ast_bridge_features *features;
+	struct ast_channel *chan;
+	struct ast_channel *owner;
+	RAII_VAR(struct ast_unreal_pvt *, p, NULL, ao2_cleanup);
+
+	RAII_VAR(struct ast_callid *, bridge_callid, NULL, ast_callid_cleanup);
+
+	ast_bridge_lock(bridge);
+	bridge_callid = bridge->callid ? ast_callid_ref(bridge->callid) : NULL;
+	ast_bridge_unlock(bridge);
+
+	{
+		SCOPED_CHANNELLOCK(lock, ast);
+		p = ast_channel_tech_pvt(ast);
+		if (!p) {
+			return -1;
+		}
+		ao2_ref(p, +1);
+	}
+
+	{
+		SCOPED_AO2LOCK(lock, p);
+		chan = p->chan;
+		if (!chan) {
+			return -1;
+		}
+
+		owner = p->owner;
+		if (!owner) {
+			return -1;
+		}
+
+		ast_channel_ref(chan);
+		ast_channel_ref(owner);
+	}
+
+	if (bridge_callid) {
+		struct ast_callid *chan_callid;
+		struct ast_callid *owner_callid;
+
+		/* chan side call ID setting */
+		ast_channel_lock(chan);
+
+		chan_callid = ast_channel_callid(chan);
+		if (!chan_callid) {
+			ast_channel_callid_set(chan, bridge_callid);
+		}
+		ast_channel_unlock(chan);
+		ast_callid_cleanup(chan_callid);
+
+		/* owner side call ID setting */
+		ast_channel_lock(owner);
+
+		owner_callid = ast_channel_callid(owner);
+		if (!owner_callid) {
+			ast_channel_callid_set(owner, bridge_callid);
+		}
+
+		ast_channel_unlock(owner);
+		ast_callid_cleanup(owner_callid);
+	}
+
+	/* We are done with the owner now that its call ID matches the bridge */
+	ast_channel_unref(owner);
+	owner = NULL;
+
+	features = ast_bridge_features_new();
+	if (!features) {
+		ast_channel_unref(chan);
+		return -1;
+	}
+	ast_set_flag(&features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE);
+
+	/* Impart the semi2 channel into the bridge */
+	if (ast_bridge_impart(bridge, chan, NULL, features, 1)) {
+		ast_bridge_features_destroy(features);
+		ast_channel_unref(chan);
+		return -1;
+	}
+
+	ao2_lock(p);
+	ast_set_flag(p, AST_UNREAL_CARETAKER_THREAD);
+	ao2_unlock(p);
+	ast_channel_unref(chan);
+
+	return 0;
+}
+
 int ast_unreal_hangup(struct ast_unreal_pvt *p, struct ast_channel *ast)
 {
 	int hangup_chan = 0;

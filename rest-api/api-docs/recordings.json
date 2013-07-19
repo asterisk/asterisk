@@ -243,7 +243,15 @@
 			"id": "LiveRecording",
 			"description": "A recording that is in progress",
 			"properties": {
-				"id": {
+				"name": {
+					"required": true,
+					"type": "string"
+				},
+				"state": {
+					"required": true,
+					"type": "string"
+				},
+				"format": {
 					"required": true,
 					"type": "string"
 				}

@@ -123,18 +123,43 @@ struct ast_remove_channel_from_bridge_args {
  * \param[out] response HTTP response
  */
 void stasis_http_remove_channel_from_bridge(struct ast_variable *headers, struct ast_remove_channel_from_bridge_args *args, struct stasis_http_response *response);
+/*! \brief Argument struct for stasis_http_play_on_bridge() */
+struct ast_play_on_bridge_args {
+	/*! \brief Bridge's id */
+	const char *bridge_id;
+	/*! \brief Media's URI to play. */
+	const char *media;
+	/*! \brief For sounds, selects language for sound. */
+	const char *lang;
+	/*! \brief Number of media to skip before playing. */
+	int offsetms;
+	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	int skipms;
+};
+/*!
+ * \brief Start playback of media on a bridge.
+ *
+ * The media URI may be any of a number of URI's. You may use http: and https: URI's, as well as sound: and recording: URI's. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void stasis_http_play_on_bridge(struct ast_variable *headers, struct ast_play_on_bridge_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_record_bridge() */
 struct ast_record_bridge_args {
 	/*! \brief Bridge's id */
 	const char *bridge_id;
 	/*! \brief Recording's filename */
 	const char *name;
+	/*! \brief Format to encode audio in */
+	const char *format;
 	/*! \brief Maximum duration of the recording, in seconds. 0 for no limit. */
 	int max_duration_seconds;
 	/*! \brief Maximum duration of silence, in seconds. 0 for no limit. */
 	int max_silence_seconds;
-	/*! \brief If true, and recording already exists, append to recording. */
-	int append;
+	/*! \brief Action to take if a recording with the same name already exists. */
+	const char *if_exists;
 	/*! \brief Play beep when recording begins */
 	int beep;
 	/*! \brief DTMF input to terminate recording. */

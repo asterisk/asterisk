@@ -53,7 +53,7 @@
 					"httpMethod": "POST",
 					"summary": "Get a playback's details.",
 					"nickname": "controlPlayback",
-					"responseClass": "Playback",
+					"responseClass": "void",
 					"parameters": [
 						{
 							"name": "playbackId",

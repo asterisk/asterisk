@@ -146,6 +146,11 @@ static int control_compare(void *lhs, void *rhs, int flags)
 	}
 }
 
+struct stasis_app_control *stasis_app_control_create(struct ast_channel *chan)
+{
+	return control_create(chan);
+}
+
 struct stasis_app_control *stasis_app_control_find_by_channel(
 	const struct ast_channel *chan)
 {
@@ -531,6 +536,16 @@ int app_send_end_msg(struct app *app, struct ast_channel *chan)
 	return 0;
 }
 
+void stasis_app_control_execute_until_exhausted(struct ast_channel *chan, struct stasis_app_control *control)
+{
+	while (!control_is_done(control)) {
+		int command_count = control_dispatch_all(control, chan);
+		if (command_count == 0 || ast_channel_fdno(chan) == -1) {
+			break;
+		}
+	}
+}
+
 /*! /brief Stasis dialplan application callback */
 int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		    char *argv[])
@@ -750,7 +765,7 @@ static struct ast_json *simple_bridge_channel_event(
 	struct ast_channel_snapshot *channel_snapshot,
 	const struct timeval *tv)
 {
-	return ast_json_pack("{s: s, s: o, s: o}",
+	return ast_json_pack("{s: s, s: o, s: o, s: o}",
 		"type", type,
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"bridge", ast_bridge_snapshot_to_json(bridge_snapshot),

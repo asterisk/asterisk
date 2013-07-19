@@ -69,6 +69,13 @@ enum stasis_app_playback_media_operation {
 	STASIS_PLAYBACK_MEDIA_OP_MAX,
 };
 
+enum stasis_app_playback_target_type {
+	/*! The target is a channel */
+	STASIS_PLAYBACK_TARGET_CHANNEL = 0,
+	/*! The target is a bridge */
+	STASIS_PLAYBACK_TARGET_BRIDGE,
+};
+
 /*!
  * \brief Play a file to the control's channel.
  *
@@ -79,6 +86,8 @@ enum stasis_app_playback_media_operation {
  * \param control Control for \c res_stasis.
  * \param file Base filename for the file to play.
  * \param language Selects the file based on language.
+ * \param target_id ID of the target bridge or channel.
+ * \param target_type What the target type is
  * \param skipms Number of milliseconds to skip for forward/reverse operations.
  * \param offsetms Number of milliseconds to skip before playing.
  * \return Playback control object.
@@ -86,7 +95,9 @@ enum stasis_app_playback_media_operation {
  */
 struct stasis_app_playback *stasis_app_control_play_uri(
 	struct stasis_app_control *control, const char *file,
-	const char *language, int skipms, long offsetms);
+	const char *language, const char *target_id,
+	enum stasis_app_playback_target_type target_type,
+	int skipms, long offsetms);
 
 /*!
  * \brief Gets the current state of a playback operation.

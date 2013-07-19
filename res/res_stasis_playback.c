@@ -64,6 +64,7 @@ struct stasis_app_playback {
 		AST_STRING_FIELD(id);	/*!< Playback unique id */
 		AST_STRING_FIELD(media);	/*!< Playback media uri */
 		AST_STRING_FIELD(language);	/*!< Preferred language */
+		AST_STRING_FIELD(target);       /*!< Playback device uri */
 		);
 	/*! Control object for the channel we're playing back to */
 	struct stasis_app_control *control;
@@ -263,9 +264,31 @@ static void playback_dtor(void *obj)
 	ast_string_field_free_memory(playback);
 }
 
+static void set_target_uri(
+	struct stasis_app_playback *playback,
+	enum stasis_app_playback_target_type target_type,
+	const char *target_id)
+{
+	const char *type = NULL;
+	switch (target_type) {
+	case STASIS_PLAYBACK_TARGET_CHANNEL:
+		type = "channel";
+		break;
+	case STASIS_PLAYBACK_TARGET_BRIDGE:
+		type = "bridge";
+		break;
+	}
+
+	ast_assert(type != NULL);
+
+	ast_string_field_build(playback, target, "%s:%s", type, target_id);
+}
+
 struct stasis_app_playback *stasis_app_control_play_uri(
 	struct stasis_app_control *control, const char *uri,
-	const char *language, int skipms, long offsetms)
+	const char *language, const char *target_id,
+	enum stasis_app_playback_target_type target_type,
+	int skipms, long offsetms)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
 	char id[AST_UUID_STR_LEN];
@@ -290,6 +313,7 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 	ast_string_field_set(playback, id, id);
 	ast_string_field_set(playback, media, uri);
 	ast_string_field_set(playback, language, language);
+	set_target_uri(playback, target_type, target_id);
 	playback->control = control;
 	playback->skipms = skipms;
 	playback->offsetms = offsetms;
@@ -342,9 +366,10 @@ struct ast_json *stasis_app_playback_to_json(
 		return NULL;
 	}
 
-	json = ast_json_pack("{s: s, s: s, s: s, s: s}",
+	json = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
 		"id", playback->id,
 		"media_uri", playback->media,
+		"target_uri", playback->target,
 		"language", playback->language,
 		"state", state_to_string(playback->state));
 

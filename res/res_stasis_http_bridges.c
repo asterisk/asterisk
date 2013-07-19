@@ -358,6 +358,73 @@ static void stasis_http_remove_channel_from_bridge_cb(
 #endif /* AST_DEVMODE */
 }
 /*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/play.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_play_on_bridge_cb(
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
+{
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	struct ast_play_on_bridge_args args = {};
+	struct ast_variable *i;
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "media") == 0) {
+			args.media = (i->value);
+		} else
+		if (strcmp(i->name, "lang") == 0) {
+			args.lang = (i->value);
+		} else
+		if (strcmp(i->name, "offsetms") == 0) {
+			args.offsetms = atoi(i->value);
+		} else
+		if (strcmp(i->name, "skipms") == 0) {
+			args.skipms = atoi(i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		{}
+	}
+	stasis_http_play_on_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_playback(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/play\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/play\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+}
+/*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/record.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
@@ -380,14 +447,17 @@ static void stasis_http_record_bridge_cb(
 		if (strcmp(i->name, "name") == 0) {
 			args.name = (i->value);
 		} else
+		if (strcmp(i->name, "format") == 0) {
+			args.format = (i->value);
+		} else
 		if (strcmp(i->name, "maxDurationSeconds") == 0) {
 			args.max_duration_seconds = atoi(i->value);
 		} else
 		if (strcmp(i->name, "maxSilenceSeconds") == 0) {
 			args.max_silence_seconds = atoi(i->value);
 		} else
-		if (strcmp(i->name, "append") == 0) {
-			args.append = ast_true(i->value);
+		if (strcmp(i->name, "ifExists") == 0) {
+			args.if_exists = (i->value);
 		} else
 		if (strcmp(i->name, "beep") == 0) {
 			args.beep = ast_true(i->value);
@@ -448,6 +518,15 @@ static struct stasis_rest_handlers bridges_bridgeId_removeChannel = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
+static struct stasis_rest_handlers bridges_bridgeId_play = {
+	.path_segment = "play",
+	.callbacks = {
+		[AST_HTTP_POST] = stasis_http_play_on_bridge_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/bridges.{format} */
 static struct stasis_rest_handlers bridges_bridgeId_record = {
 	.path_segment = "record",
 	.callbacks = {
@@ -464,8 +543,8 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 		[AST_HTTP_GET] = stasis_http_get_bridge_cb,
 		[AST_HTTP_DELETE] = stasis_http_delete_bridge_cb,
 	},
-	.num_children = 3,
-	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_record, }
+	.num_children = 4,
+	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_play,&bridges_bridgeId_record, }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
 static struct stasis_rest_handlers bridges = {

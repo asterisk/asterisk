@@ -796,7 +796,7 @@ static void stasis_http_record_channel_cb(
 		break;
 	default:
 		if (200 <= code && code <= 299) {
-			is_valid = ari_validate_void(
+			is_valid = ari_validate_live_recording(
 				response->message);
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/record\n", code);

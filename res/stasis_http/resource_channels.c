@@ -273,7 +273,7 @@ void stasis_http_play_on_channel(struct ast_variable *headers,
 	language = S_OR(args->lang, snapshot->language);
 
 	playback = stasis_app_control_play_uri(control, args->media, language,
-		args->skipms, args->offsetms);
+		args->channel_id, STASIS_PLAYBACK_TARGET_CHANNEL, args->skipms, args->offsetms);
 	if (!playback) {
 		stasis_http_response_error(
 			response, 500, "Internal Server Error",

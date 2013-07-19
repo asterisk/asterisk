@@ -169,6 +169,83 @@
 			]
 		},
 		{
+			"path": "/bridges/{bridgeId}/play",
+			"description": "Play media to the participants of a bridge",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Start playback of media on a bridge.",
+					"notes": "The media URI may be any of a number of URI's. You may use http: and https: URI's, as well as sound: and recording: URI's. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
+					"nickname": "playOnBridge",
+					"responseClass": "Playback",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "media",
+							"description": "Media's URI to play.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "lang",
+							"description": "For sounds, selects language for sound.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "offsetms",
+							"description": "Number of media to skip before playing.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 0,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
+
+						},
+						{
+							"name": "skipms",
+							"description": "Number of milliseconds to skip for forward/reverse operations.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 3000,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
+
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/bridges/{bridgeId}/record",
 			"description": "Record audio on a bridge",
 			"operations": [
@@ -196,13 +273,25 @@
 							"dataType": "string"
 						},
 						{
+							"name": "format",
+							"description": "Format to encode audio in",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": true,
+							"dataType": "string"
+						},
+						{
 							"name": "maxDurationSeconds",
 							"description": "Maximum duration of the recording, in seconds. 0 for no limit.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "int",
-							"defaultValue": 0
+							"defaultValue": 0,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
 						},
 						{
 							"name": "maxSilenceSeconds",
@@ -211,16 +300,28 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "int",
-							"defaultValue": 0
+							"defaultValue": 0,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
 						},
 						{
-							"name": "append",
-							"description": "If true, and recording already exists, append to recording.",
+							"name": "ifExists",
+							"description": "Action to take if a recording with the same name already exists.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
-							"dataType": "boolean",
-							"defaultValue": false
+							"dataType": "string",
+							"defaultValue": "fail",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"fail",
+									"overwrite",
+									"append"
+								]
+							}
 						},
 						{
 							"name": "beep",

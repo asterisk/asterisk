@@ -538,7 +538,7 @@
 					"summary": "Start a recording.",
 					"notes": "Record audio from a channel. Note that this will not capture audio sent to the channel. The bridge itself has a record feature if that's what you want.",
 					"nickname": "recordChannel",
-					"responseClass": "void",
+					"responseClass": "LiveRecording",
 					"parameters": [
 						{
 							"name": "channelId",

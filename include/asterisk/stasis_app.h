@@ -127,6 +127,29 @@ struct stasis_app_control *stasis_app_control_find_by_channel_id(
 	const char *channel_id);
 
 /*!
+ * \brief Creates a control handler for a channel that isn't in a stasis app.
+ * \since 12.0.0
+ *
+ * \param chan Channel to create controller handle for
+ *
+ * \return NULL on failure to create the handle
+ * \return Pointer to \c res_stasis handler.
+ */
+struct stasis_app_control *stasis_app_control_create(
+	struct ast_channel *chan);
+
+/*!
+ * \brief Act on a stasis app control queue until it is empty
+ * \since 12.0.0
+ *
+ * \param chan Channel to handle
+ * \param control Control object to execute
+ */
+void stasis_app_control_execute_until_exhausted(
+	struct ast_channel *chan,
+	struct stasis_app_control *control);
+
+/*!
  * \brief Returns the uniqueid of the channel associated with this control
  *
  * \param control Control object.
