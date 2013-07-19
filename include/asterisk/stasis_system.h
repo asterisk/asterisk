@@ -62,6 +62,66 @@ struct stasis_message_type *ast_network_change_type(void);
 struct stasis_message_type *ast_system_registry_type(void);
 
 /*!
+ * \brief A \ref stasis_message_type for CCSS Available messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_available_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Offer Timer Start messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_offertimerstart_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Requested messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_requested_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Request Acknowledged messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_requestacknowledged_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Caller Stop Monitoring messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_callerstopmonitoring_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Caller Start Monitoring messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_callerstartmonitoring_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Caller Recalling messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_callerrecalling_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Recall Complete messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_recallcomplete_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Failure messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_failure_type(void);
+
+/*!
+ * \brief A \ref stasis_message_type for CCSS Monitor Failed messages.
+ * \since 12
+ */
+struct stasis_message_type *ast_cc_monitorfailed_type(void);
+
+/*!
  * \brief Initialize the stasis system topic and message types
  * \retval 0 on success
  * \retval -1 on failure

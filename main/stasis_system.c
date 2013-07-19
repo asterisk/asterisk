@@ -70,10 +70,50 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static struct stasis_topic *system_topic;
 
 static struct ast_manager_event_blob *system_registry_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_available_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_offertimerstart_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_requested_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_requestacknowledged_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_callerstopmonitoring_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_callerstartmonitoring_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_callerrecalling_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_recallcomplete_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_failure_to_ami(struct stasis_message *message);
+static struct ast_manager_event_blob *cc_monitorfailed_to_ami(struct stasis_message *message);
 
 STASIS_MESSAGE_TYPE_DEFN(ast_network_change_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_system_registry_type,
 	.to_ami = system_registry_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_available_type,
+	.to_ami = cc_available_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_offertimerstart_type,
+	.to_ami = cc_offertimerstart_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_requested_type,
+	.to_ami = cc_requested_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_requestacknowledged_type,
+	.to_ami = cc_requestacknowledged_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_callerstopmonitoring_type,
+	.to_ami = cc_callerstopmonitoring_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_callerstartmonitoring_type,
+	.to_ami = cc_callerstartmonitoring_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_callerrecalling_type,
+	.to_ami = cc_callerrecalling_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_recallcomplete_type,
+	.to_ami = cc_recallcomplete_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_failure_type,
+	.to_ami = cc_failure_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_cc_monitorfailed_type,
+	.to_ami = cc_monitorfailed_to_ami,
 	);
 
 void ast_system_publish_registry(const char *channeltype, const char *username, const char *domain, const char *status, const char *cause)
@@ -134,6 +174,168 @@ static struct ast_manager_event_blob *system_registry_to_ami(struct stasis_messa
 		channeltype, username, domain, status, ast_str_buffer(cause_string));
 }
 
+static struct ast_manager_event_blob *cc_available_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *callee;
+	const char *service;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	callee = ast_json_string_get(ast_json_object_get(payload->json, "callee"));
+	service = ast_json_string_get(ast_json_object_get(payload->json, "service"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCAvailable",
+		"CoreID: %d\r\n"
+		"Callee: %s\r\n"
+		"Service: %s\r\n",
+		core_id, callee, service);
+}
+
+static struct ast_manager_event_blob *cc_offertimerstart_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+	unsigned int expires;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+	expires = ast_json_integer_get(ast_json_object_get(payload->json, "expires"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCOfferTimerStart",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n"
+		"Expires: %u\r\n",
+		core_id, caller, expires);
+}
+
+static struct ast_manager_event_blob *cc_requested_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+	const char *callee;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+	callee = ast_json_string_get(ast_json_object_get(payload->json, "callee"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCRequested",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n"
+		"Callee: %s\r\n",
+		core_id, caller, callee);
+}
+
+static struct ast_manager_event_blob *cc_requestacknowledged_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCRequestAcknowledged",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n",
+		core_id, caller);
+}
+
+static struct ast_manager_event_blob *cc_callerstopmonitoring_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCCallerStopMonitoring",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n",
+		core_id, caller);
+}
+
+static struct ast_manager_event_blob *cc_callerstartmonitoring_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCCallerStartMonitoring",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n",
+		core_id, caller);
+}
+
+static struct ast_manager_event_blob *cc_callerrecalling_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCCallerRecalling",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n",
+		core_id, caller);
+}
+
+static struct ast_manager_event_blob *cc_recallcomplete_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCRecallComplete",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n",
+		core_id, caller);
+}
+
+static struct ast_manager_event_blob *cc_failure_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *caller;
+	const char *reason;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	caller = ast_json_string_get(ast_json_object_get(payload->json, "caller"));
+	reason = ast_json_string_get(ast_json_object_get(payload->json, "reason"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCFailure",
+		"CoreID: %d\r\n"
+		"Caller: %s\r\n"
+		"Reason: %s\r\n",
+		core_id, caller, reason);
+}
+
+static struct ast_manager_event_blob *cc_monitorfailed_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+	int core_id;
+	const char *callee;
+
+	core_id = ast_json_integer_get(ast_json_object_get(payload->json, "core_id"));
+	callee = ast_json_string_get(ast_json_object_get(payload->json, "callee"));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CC, "CCMonitorFailed",
+		"CoreID: %d\r\n"
+		"Callee: %s\r\n",
+		core_id, callee);
+}
+
 struct stasis_topic *ast_system_topic(void)
 {
 	return system_topic;
@@ -146,6 +348,16 @@ static void stasis_system_cleanup(void)
 	system_topic = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_network_change_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_system_registry_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_available_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_offertimerstart_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_requested_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_requestacknowledged_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_callerstopmonitoring_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_callerstartmonitoring_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_callerrecalling_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_recallcomplete_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_failure_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_cc_monitorfailed_type);
 }
 
 /*! \brief Initialize the system level items for \ref stasis */
@@ -163,6 +375,46 @@ int ast_stasis_system_init(void)
 	}
 
 	if (STASIS_MESSAGE_TYPE_INIT(ast_system_registry_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_available_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_offertimerstart_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_requested_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_requestacknowledged_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_callerstopmonitoring_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_callerstartmonitoring_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_callerrecalling_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_recallcomplete_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_failure_type) != 0) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(ast_cc_monitorfailed_type) != 0) {
 		return -1;
 	}
 

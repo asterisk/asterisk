@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
 #include "asterisk/causes.h"
+#include "asterisk/stasis_system.h"
 
 /*** DOCUMENTATION
 	<application name="CallCompletionRequest" language="en_US">
@@ -1023,6 +1024,136 @@ void ast_set_cc_callback_sub(struct ast_cc_config_params *config, const char * c
 	} else {
 		ast_copy_string(config->cc_callback_sub, value, sizeof(config->cc_callback_sub));
 	}
+}
+
+static int cc_publish(struct stasis_message_type *message_type, int core_id, struct ast_json *extras)
+{
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	blob = ast_json_pack("{s: i}",
+		"core_id", core_id);
+
+	if (extras) {
+		ast_json_object_update(blob, extras);
+	}
+
+	if (!(payload = ast_json_payload_create(blob))) {
+		return -1;
+	}
+
+	if (!(message = stasis_message_create(message_type, payload))) {
+		return -1;
+	}
+
+	stasis_publish(ast_system_topic(), message);
+
+	return 0;
+}
+
+static void cc_publish_available(int core_id, const char *callee, const char *service)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s, s: s}",
+		"callee", callee,
+		"service", service);
+
+	cc_publish(ast_cc_available_type(), core_id, extras);
+}
+
+static void cc_publish_offertimerstart(int core_id, const char *caller, unsigned int expires)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s, s: i}",
+		"caller", caller,
+		"expires", expires);
+
+	cc_publish(ast_cc_offertimerstart_type(), core_id, extras);
+}
+
+static void cc_publish_requested(int core_id, const char *caller, const char *callee)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s, s: s}",
+		"caller", caller,
+		"callee", callee);
+
+	cc_publish(ast_cc_requested_type(), core_id, extras);
+}
+
+static void cc_publish_requestacknowledged(int core_id, const char *caller)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s}",
+		"caller", caller);
+
+	cc_publish(ast_cc_requestacknowledged_type(), core_id, extras);
+}
+
+static void cc_publish_callerstopmonitoring(int core_id, const char *caller)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s}",
+		"caller", caller);
+
+	cc_publish(ast_cc_callerstopmonitoring_type(), core_id, extras);
+}
+
+static void cc_publish_callerstartmonitoring(int core_id, const char *caller)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s}",
+		"caller", caller);
+
+	cc_publish(ast_cc_callerstartmonitoring_type(), core_id, extras);
+}
+
+static void cc_publish_callerrecalling(int core_id, const char *caller)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s}",
+		"caller", caller);
+
+	cc_publish(ast_cc_callerrecalling_type(), core_id, extras);
+}
+
+static void cc_publish_recallcomplete(int core_id, const char *caller)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s}",
+		"caller", caller);
+
+	cc_publish(ast_cc_recallcomplete_type(), core_id, extras);
+}
+
+static void cc_publish_failure(int core_id, const char *caller, const char *reason)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s, s: s}",
+		"caller", caller,
+		"reason", reason);
+
+	cc_publish(ast_cc_failure_type(), core_id, extras);
+}
+
+static void cc_publish_monitorfailed(int core_id, const char *callee)
+{
+	RAII_VAR(struct ast_json *, extras, NULL, ast_json_unref);
+
+	extras = ast_json_pack("{s: s}",
+		"callee", callee);
+
+	cc_publish(ast_cc_monitorfailed_type(), core_id, extras);
 }
 
 struct cc_monitor_backend {
@@ -2262,12 +2393,7 @@ void ast_handle_cc_control_frame(struct ast_channel *inbound, struct ast_channel
 
 	cc_extension_monitor_change_is_valid(core_instance, monitor->parent_id, monitor->interface->device_name, 0);
 
-	manager_event(EVENT_FLAG_CC, "CCAvailable",
-		"CoreID: %d\r\n"
-		"Callee: %s\r\n"
-		"Service: %s\r\n",
-		cc_interfaces->core_id, device_name, cc_service_to_string(cc_data->service)
-	);
+	cc_publish_available(cc_interfaces->core_id, device_name, cc_service_to_string(cc_data->service));
 
 	cc_unref(core_instance, "Done with core_instance after handling CC control frame");
 	cc_unref(monitor, "Unref reference from allocating monitor");
@@ -2933,11 +3059,7 @@ static int cc_caller_offered(struct cc_core_instance *core_instance, struct cc_s
 				core_instance->agent->device_name);
 		return -1;
 	}
-	manager_event(EVENT_FLAG_CC, "CCOfferTimerStart",
-		"CoreID: %d\r\n"
-		"Caller: %s\r\n"
-		"Expires: %u\r\n",
-		core_instance->core_id, core_instance->agent->device_name, core_instance->agent->cc_params->cc_offer_timer);
+	cc_publish_offertimerstart(core_instance->core_id, core_instance->agent->device_name, core_instance->agent->cc_params->cc_offer_timer);
 	ast_log_dynamic_level(cc_logger_level, "Core %d: Started the offer timer for the agent %s!\n",
 			core_instance->core_id, core_instance->agent->device_name);
 	return 0;
@@ -2986,11 +3108,7 @@ static void request_cc(struct cc_core_instance *core_instance)
 						monitor_iter->interface->device_name, 1);
 				cc_unref(monitor_iter, "request_cc failed. Unref list's reference to monitor");
 			} else {
-				manager_event(EVENT_FLAG_CC, "CCRequested",
-					"CoreID: %d\r\n"
-					"Caller: %s\r\n"
-					"Callee: %s\r\n",
-					core_instance->core_id, core_instance->agent->device_name, monitor_iter->interface->device_name);
+				cc_publish_requested(core_instance->core_id, core_instance->agent->device_name, monitor_iter->interface->device_name);
 			}
 		}
 	}
@@ -3048,15 +3166,9 @@ static int cc_active(struct cc_core_instance *core_instance, struct cc_state_cha
 	if (previous_state == CC_CALLER_REQUESTED) {
 		core_instance->agent->callbacks->respond(core_instance->agent,
 			AST_CC_AGENT_RESPONSE_SUCCESS);
-		manager_event(EVENT_FLAG_CC, "CCRequestAcknowledged",
-			"CoreID: %d\r\n"
-			"Caller: %s\r\n",
-			core_instance->core_id, core_instance->agent->device_name);
+		cc_publish_requestacknowledged(core_instance->core_id, core_instance->agent->device_name);
 	} else if (previous_state == CC_CALLER_BUSY) {
-		manager_event(EVENT_FLAG_CC, "CCCallerStopMonitoring",
-			"CoreID: %d\r\n"
-			"Caller: %s\r\n",
-			core_instance->core_id, core_instance->agent->device_name);
+		cc_publish_callerstopmonitoring(core_instance->core_id, core_instance->agent->device_name);
 		unsuspend(core_instance);
 	}
 	/* Not possible for previous_state to be anything else due to the is_state_change_valid check at the beginning */
@@ -3098,10 +3210,7 @@ static int cc_caller_busy(struct cc_core_instance *core_instance, struct cc_stat
 	 */
 	suspend(core_instance);
 	core_instance->agent->callbacks->start_monitoring(core_instance->agent);
-	manager_event(EVENT_FLAG_CC, "CCCallerStartMonitoring",
-		"CoreID: %d\r\n"
-		"Caller: %s\r\n",
-		core_instance->core_id, core_instance->agent->device_name);
+	cc_publish_callerstartmonitoring(core_instance->core_id, core_instance->agent->device_name);
 	return 0;
 }
 
@@ -3132,10 +3241,7 @@ static int cc_recalling(struct cc_core_instance *core_instance, struct cc_state_
 	/* Both caller and callee are available, call agent's recall callback
 	 */
 	cancel_available_timer(core_instance);
-	manager_event(EVENT_FLAG_CC, "CCCallerRecalling",
-		"CoreID: %d\r\n"
-		"Caller: %s\r\n",
-		core_instance->core_id, core_instance->agent->device_name);
+	cc_publish_callerrecalling(core_instance->core_id, core_instance->agent->device_name);
 	return 0;
 }
 
@@ -3143,21 +3249,14 @@ static int cc_complete(struct cc_core_instance *core_instance, struct cc_state_c
 {
 	/* Recall has made progress, call agent and monitor destructor functions
 	 */
-	manager_event(EVENT_FLAG_CC, "CCRecallComplete",
-		"CoreID: %d\r\n"
-		"Caller: %s\r\n",
-		core_instance->core_id, core_instance->agent->device_name);
+	cc_publish_recallcomplete(core_instance->core_id, core_instance->agent->device_name);
 	ao2_t_unlink(cc_core_instances, core_instance, "Unlink core instance since CC recall has completed");
 	return 0;
 }
 
 static int cc_failed(struct cc_core_instance *core_instance, struct cc_state_change_args *args, enum cc_state previous_state)
 {
-	manager_event(EVENT_FLAG_CC, "CCFailure",
-		"CoreID: %d\r\n"
-		"Caller: %s\r\n"
-		"Reason: %s\r\n",
-		core_instance->core_id, core_instance->agent->device_name, args->debug);
+	cc_publish_failure(core_instance->core_id, core_instance->agent->device_name, args->debug);
 	ao2_t_unlink(cc_core_instances, core_instance, "Unlink core instance since CC failed");
 	return 0;
 }
@@ -3811,10 +3910,7 @@ static int cc_monitor_failed(void *data)
 				cc_extension_monitor_change_is_valid(core_instance, monitor_iter->parent_id,
 						monitor_iter->interface->device_name, 1);
 				monitor_iter->callbacks->cancel_available_timer(monitor_iter, &monitor_iter->available_timer_id);
-				manager_event(EVENT_FLAG_CC, "CCMonitorFailed",
-					"CoreID: %d\r\n"
-					"Callee: %s\r\n",
-					monitor_iter->core_id, monitor_iter->interface->device_name);
+				cc_publish_monitorfailed(monitor_iter->core_id, monitor_iter->interface->device_name);
 				cc_unref(monitor_iter, "Monitor reported failure. Unref list's reference.");
 			}
 		}
