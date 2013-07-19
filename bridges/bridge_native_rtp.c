@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging_technology.h"
 #include "asterisk/frame.h"
 #include "asterisk/rtp_engine.h"
-#include "asterisk/audiohook.h"
 
 /*! \brief Forward declarations for frame hook usage */
 static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
@@ -85,13 +84,7 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct a
 /*! \brief Internal helper function which checks whether the channels are compatible with our native bridging */
 static int native_rtp_bridge_capable(struct ast_channel *chan)
 {
-	if (ast_channel_monitor(chan) || (ast_channel_audiohooks(chan) &&
-		!ast_audiohook_write_list_empty(ast_channel_audiohooks(chan))) ||
-		!ast_framehook_list_contains_no_active(ast_channel_framehooks(chan))) {
-		return 0;
-	} else {
-		return 1;
-	}
+	return ast_channel_has_audio_frame_or_monitor(chan);
 }
 
 /*! \brief Internal helper function which gets all RTP information (glue and instances) relating to the given channels */

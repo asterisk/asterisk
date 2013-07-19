@@ -4336,6 +4336,16 @@ int ast_channel_forward_endpoint(struct ast_channel *chan, struct ast_endpoint *
 const char *ast_channel_oldest_linkedid(const char *a, const char *b);
 
 /*!
+ * \brief Check if the channel has active audiohooks, active framehooks, or a monitor.
+ * \since 12.0.0
+ *
+ * \param chan The channel to check.
+ *
+ * \retval non-zero if channel has active audiohooks, framehooks, or monitor.
+ */
+int ast_channel_has_audio_frame_or_monitor(struct ast_channel *chan);
+
+/*!
  * \brief Removes the trailing identifiers from a channel name string
  * \since 12.0.0
  *
