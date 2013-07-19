@@ -8044,7 +8044,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		return NULL;
 	}
 
-	if (i->relatedpeer) {
+	if (i->relatedpeer && i->relatedpeer->endpoint) {
 		if (ast_endpoint_add_channel(i->relatedpeer->endpoint, tmp)) {
 			ast_channel_unref(tmp);
 			sip_pvt_lock(i);
@@ -15744,7 +15744,6 @@ static void set_socket_transport(struct sip_socket *socket, int transport)
 static int expire_register(const void *data)
 {
 	struct sip_peer *peer = (struct sip_peer *)data;
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	if (!peer) {		/* Hmmm. We have no peer. Weird. */
 		return 0;
@@ -15764,11 +15763,14 @@ static int expire_register(const void *data)
 		peer->socket.ws_session = NULL;
 	}
 
-	ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
-	blob = ast_json_pack("{s: s, s: s}",
-		"peer_status", "Unregistered",
-		"cause", "Expired");
-	ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+	if (peer->endpoint) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s, s: s}",
+			"peer_status", "Unregistered",
+			"cause", "Expired");
+		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+	}
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "SIP/%s", peer->name);
 
@@ -16013,7 +16015,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	int start = 0;
 	int wildcard_found = 0;
 	int single_binding_found = 0;
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	ast_copy_string(contact, __get_header(req, "Contact", &start), sizeof(contact));
 
@@ -16201,11 +16202,14 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_db_put("SIP/Registry", peer->name, data);
 	}
 
-	ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
-	blob = ast_json_pack("{s: s, s: s}",
-		"peer_status", "Registered",
-		"address", ast_sockaddr_stringify(&peer->addr));
-	ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+	if (peer->endpoint) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+		blob = ast_json_pack("{s: s, s: s}",
+			"peer_status", "Registered",
+			"address", ast_sockaddr_stringify(&peer->addr));
+		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+	}
 
 	/* Is this a new IP address for us? */
 	if (ast_sockaddr_cmp(&peer->addr, &oldsin)) {
@@ -17209,7 +17213,6 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 		/* Create peer if we have autocreate mode enabled */
 		peer = temp_peer(name);
 		if (peer) {
-			RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 			ao2_t_link(peers, peer, "link peer into peer table");
 			if (!ast_sockaddr_isnull(&peer->addr)) {
 				ao2_t_link(peers_by_ip, peer, "link peer into peers-by-ip table");
@@ -17238,11 +17241,14 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 				ast_string_field_set(p, fullcontact, peer->fullcontact);
 				/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
-				ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
-				blob = ast_json_pack("{s: s, s: s}",
-					"peer_status", "Registered",
-					"address", ast_sockaddr_stringify(addr));
-				ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+				if (peer->endpoint) {
+					RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+					ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+					blob = ast_json_pack("{s: s, s: s}",
+						"peer_status", "Registered",
+						"address", ast_sockaddr_stringify(addr));
+					ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+				}
 				send_mwi = 1;
 				res = 0;
 				break;
@@ -17332,7 +17338,9 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			break;
 		}
 
-		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+		if (peer->endpoint) {
+			ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+		}
 	}
 	if (peer) {
 		sip_unref_peer(peer, "register_verify: sip_unref_peer: tossing stack peer pointer at end of func");
@@ -23815,7 +23823,6 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 	if (statechanged) {
 		const char *s = is_reachable ? "Reachable" : "Lagged";
 		char str_lastms[20];
-		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 		snprintf(str_lastms, sizeof(str_lastms), "%d", pingtime);
 
@@ -23825,13 +23832,18 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		if (sip_cfg.peer_rtupdate) {
 			ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", str_lastms, SENTINEL);
 		}
-		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
-		blob = ast_json_pack("{s: s, s: i}",
-			"peer_status", s,
-			"time", pingtime);
-		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
-		if (is_reachable && sip_cfg.regextenonqualify)
+		if (peer->endpoint) {
+			RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+			ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_ONLINE);
+			blob = ast_json_pack("{s: s, s: i}",
+				"peer_status", s,
+				"time", pingtime);
+			ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+		}
+
+		if (is_reachable && sip_cfg.regextenonqualify) {
 			register_peer_exten(peer, TRUE);
+		}
 	}
 
 	pvt_set_needdestroy(p, "got OPTIONS response");
@@ -29143,17 +29155,21 @@ static int sip_poke_noanswer(const void *data)
 	peer->pokeexpire = -1;
 
 	if (peer->lastms > -1) {
-		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
 		if (sip_cfg.peer_rtupdate) {
 			ast_update_realtime(ast_check_realtime("sipregs") ? "sipregs" : "sippeers", "name", peer->name, "lastms", "-1", SENTINEL);
 		}
-		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
-		blob = ast_json_pack("{s: s, s: s}",
-			"peer_status", "Unreachable",
-			"time", "-1");
-		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+
+		if (peer->endpoint) {
+			RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+			ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
+			blob = ast_json_pack("{s: s, s: s}",
+				"peer_status", "Unreachable",
+				"time", "-1");
+			ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
+		}
+
 		if (sip_cfg.regextenonqualify) {
 			register_peer_exten(peer, FALSE);
 		}
