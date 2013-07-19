@@ -464,6 +464,79 @@
 			]
 		},
 		{
+			"path": "/channels/{channelId}/mohstart",
+			"description": "Play music on hold to a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Play music on hold to a channel.",
+					"notes": "Using media operations such as playOnChannel on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.",
+					"nickname": "mohStartChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "mohClass",
+							"description": "Music on hold class to use",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/mohstop",
+			"description": "Stop playing music on hold to a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Stop playing music on hold to a channel.",
+					"nickname": "mohStopChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/channels/{channelId}/play",
 			"description": "Play media to a channel",
 			"operations": [

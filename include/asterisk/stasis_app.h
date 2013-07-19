@@ -252,6 +252,19 @@ void stasis_app_control_hold(struct stasis_app_control *control);
 void stasis_app_control_unhold(struct stasis_app_control *control);
 
 /*!
+ * \brief Play music on hold to a channel (does not affect hold status)
+ * \param control Control for \c res_stasis.
+ * \param moh_class class of music on hold to play (NULL allowed)
+ */
+void stasis_app_control_moh_start(struct stasis_app_control *control, const char *moh_class);
+
+/*!
+ * \brief Stop playing music on hold to a channel (does not affect hold status)
+ * \param control Control for \c res_stasis.
+ */
+void stasis_app_control_moh_stop(struct stasis_app_control *control);
+
+/*!
  * \brief Returns the most recent snapshot for the associated channel.
  *
  * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.

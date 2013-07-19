@@ -229,6 +229,34 @@ void stasis_http_unhold_channel(struct ast_variable *headers, struct ast_unhold_
 	stasis_http_response_no_content(response);
 }
 
+void stasis_http_moh_start_channel(struct ast_variable *headers, struct ast_moh_start_channel_args *args, struct stasis_http_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	stasis_app_control_moh_start(control, args->moh_class);
+	stasis_http_response_no_content(response);
+}
+
+void stasis_http_moh_stop_channel(struct ast_variable *headers, struct ast_moh_stop_channel_args *args, struct stasis_http_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	stasis_app_control_moh_stop(control);
+	stasis_http_response_no_content(response);
+}
+
 void stasis_http_play_on_channel(struct ast_variable *headers,
 	struct ast_play_on_channel_args *args,
 	struct stasis_http_response *response)

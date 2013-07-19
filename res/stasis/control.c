@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging_features.h"
 #include "asterisk/frame.h"
 #include "asterisk/pbx.h"
+#include "asterisk/musiconhold.h"
 
 struct stasis_app_control {
 	/*! Queue of commands to dispatch on the channel */
@@ -323,6 +324,40 @@ static void *app_control_unhold(struct stasis_app_control *control,
 void stasis_app_control_unhold(struct stasis_app_control *control)
 {
 	stasis_app_send_command_async(control, app_control_unhold, NULL);
+}
+
+static void *app_control_moh_start(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	char *moh_class = data;
+
+	ast_moh_start(chan, moh_class, NULL);
+
+	ast_free(moh_class);
+	return NULL;
+}
+
+void stasis_app_control_moh_start(struct stasis_app_control *control, const char *moh_class)
+{
+	char *data = NULL;
+
+	if (!ast_strlen_zero(moh_class)) {
+		data = ast_strdup(moh_class);
+	}
+
+	stasis_app_send_command_async(control, app_control_moh_start, data);
+}
+
+static void *app_control_moh_stop(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	ast_moh_stop(chan);
+	return NULL;
+}
+
+void stasis_app_control_moh_stop(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_moh_stop, NULL);
 }
 
 struct ast_channel_snapshot *stasis_app_control_get_snapshot(

@@ -212,6 +212,36 @@ struct ast_unhold_channel_args {
  * \param[out] response HTTP response
  */
 void stasis_http_unhold_channel(struct ast_variable *headers, struct ast_unhold_channel_args *args, struct stasis_http_response *response);
+/*! \brief Argument struct for stasis_http_moh_start_channel() */
+struct ast_moh_start_channel_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+	/*! \brief Music on hold class to use */
+	const char *moh_class;
+};
+/*!
+ * \brief Play music on hold to a channel.
+ *
+ * Using media operations such as playOnChannel on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void stasis_http_moh_start_channel(struct ast_variable *headers, struct ast_moh_start_channel_args *args, struct stasis_http_response *response);
+/*! \brief Argument struct for stasis_http_moh_stop_channel() */
+struct ast_moh_stop_channel_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+};
+/*!
+ * \brief Stop playing music on hold to a channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void stasis_http_moh_stop_channel(struct ast_variable *headers, struct ast_moh_stop_channel_args *args, struct stasis_http_response *response);
 /*! \brief Argument struct for stasis_http_play_on_channel() */
 struct ast_play_on_channel_args {
 	/*! \brief Channel's id */

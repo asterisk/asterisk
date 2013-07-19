@@ -668,6 +668,116 @@ static void stasis_http_unhold_channel_cb(
 #endif /* AST_DEVMODE */
 }
 /*!
+ * \brief Parameter parsing callback for /channels/{channelId}/mohstart.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_moh_start_channel_cb(
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
+{
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	struct ast_moh_start_channel_args args = {};
+	struct ast_variable *i;
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "mohClass") == 0) {
+			args.moh_class = (i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "channelId") == 0) {
+			args.channel_id = (i->value);
+		} else
+		{}
+	}
+	stasis_http_moh_start_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/mohstart\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/mohstart\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+}
+/*!
+ * \brief Parameter parsing callback for /channels/{channelId}/mohstop.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void stasis_http_moh_stop_channel_cb(
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct stasis_http_response *response)
+{
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	struct ast_moh_stop_channel_args args = {};
+	struct ast_variable *i;
+
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "channelId") == 0) {
+			args.channel_id = (i->value);
+		} else
+		{}
+	}
+	stasis_http_moh_stop_channel(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 500: /* Internal server error */
+	case 404: /* Channel not found */
+	case 409: /* Channel not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/mohstop\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/mohstop\n");
+		stasis_http_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+}
+/*!
  * \brief Parameter parsing callback for /channels/{channelId}/play.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
@@ -995,6 +1105,24 @@ static struct stasis_rest_handlers channels_channelId_unhold = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/channels.{format} */
+static struct stasis_rest_handlers channels_channelId_mohstart = {
+	.path_segment = "mohstart",
+	.callbacks = {
+		[AST_HTTP_POST] = stasis_http_moh_start_channel_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/channels.{format} */
+static struct stasis_rest_handlers channels_channelId_mohstop = {
+	.path_segment = "mohstop",
+	.callbacks = {
+		[AST_HTTP_POST] = stasis_http_moh_stop_channel_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels_channelId_play = {
 	.path_segment = "play",
 	.callbacks = {
@@ -1030,8 +1158,8 @@ static struct stasis_rest_handlers channels_channelId = {
 		[AST_HTTP_GET] = stasis_http_get_channel_cb,
 		[AST_HTTP_DELETE] = stasis_http_delete_channel_cb,
 	},
-	.num_children = 10,
-	.children = { &channels_channelId_dial,&channels_channelId_continue,&channels_channelId_answer,&channels_channelId_mute,&channels_channelId_unmute,&channels_channelId_hold,&channels_channelId_unhold,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable, }
+	.num_children = 12,
+	.children = { &channels_channelId_dial,&channels_channelId_continue,&channels_channelId_answer,&channels_channelId_mute,&channels_channelId_unmute,&channels_channelId_hold,&channels_channelId_unhold,&channels_channelId_mohstart,&channels_channelId_mohstop,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable, }
 };
 /*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels = {
