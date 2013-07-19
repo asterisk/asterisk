@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/core_local.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/features_config.h"
+#include "asterisk/audiohook.h"
 
 /*! All bridges container. */
 static struct ao2_container *bridges;
@@ -4721,6 +4722,13 @@ static struct ast_bridge *optimize_lock_chan_stack(struct ast_channel *chan)
 	if (!AST_LIST_EMPTY(ast_channel_readq(chan))) {
 		return NULL;
 	}
+	if (ast_channel_monitor(chan)
+		|| (ast_channel_audiohooks(chan)
+			&& !ast_audiohook_write_list_empty(ast_channel_audiohooks(chan)))
+		|| !ast_framehook_list_contains_no_active(ast_channel_framehooks(chan))) {
+		/* Channel has an active monitor, audiohook, or framehook. */
+		return NULL;
+	}
 	bridge_channel = ast_channel_internal_bridge_channel(chan);
 	if (!bridge_channel || ast_bridge_channel_trylock(bridge_channel)) {
 		return NULL;
@@ -4760,6 +4768,14 @@ static struct ast_bridge *optimize_lock_peer_stack(struct ast_channel *peer)
 		return NULL;
 	}
 	if (!AST_LIST_EMPTY(ast_channel_readq(peer))) {
+		ast_channel_unlock(peer);
+		return NULL;
+	}
+	if (ast_channel_monitor(peer)
+		|| (ast_channel_audiohooks(peer)
+			&& !ast_audiohook_write_list_empty(ast_channel_audiohooks(peer)))
+		|| !ast_framehook_list_contains_no_active(ast_channel_framehooks(peer))) {
+		/* Peer has an active monitor, audiohook, or framehook. */
 		ast_channel_unlock(peer);
 		return NULL;
 	}
