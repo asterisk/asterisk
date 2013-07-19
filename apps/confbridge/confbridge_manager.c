@@ -195,13 +195,16 @@ static void confbridge_publish_manager_event(
 {
 	struct ast_bridge_blob *blob = stasis_message_data(message);
 	const char *conference_name;
-	RAII_VAR(struct ast_str *, bridge_text,
-		ast_manager_build_bridge_state_string(blob->bridge, ""),
-		ast_free);
+	RAII_VAR(struct ast_str *, bridge_text, NULL, ast_free);
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
 
 	ast_assert(blob != NULL);
 	ast_assert(event != NULL);
+
+	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
+	if (!bridge_text) {
+		return;
+	}
 
 	conference_name = ast_json_string_get(ast_json_object_get(blob->blob, "conference"));
 	ast_assert(conference_name != NULL);

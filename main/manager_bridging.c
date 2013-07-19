@@ -140,6 +140,7 @@ struct ast_str *ast_manager_build_bridge_state_string(
 		suffix, snapshot->num_channels);
 
 	if (!res) {
+		ast_free(out);
 		return NULL;
 	}
 
@@ -239,6 +240,9 @@ static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
 
 	to_text = ast_manager_build_bridge_state_string(merge_msg->to, "");
 	from_text = ast_manager_build_bridge_state_string(merge_msg->from, "From");
+	if (!to_text || !from_text) {
+		return;
+	}
 
 	/*** DOCUMENTATION
 		<managerEventInstance>
@@ -271,6 +275,9 @@ static void channel_enter_cb(void *data, struct stasis_subscription *sub,
 
 	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
 	channel_text = ast_manager_build_channel_state_string(blob->channel);
+	if (!bridge_text || !channel_text) {
+		return;
+	}
 
 	manager_event(EVENT_FLAG_CALL, "BridgeEnter",
 		"%s"
@@ -289,6 +296,9 @@ static void channel_leave_cb(void *data, struct stasis_subscription *sub,
 
 	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
 	channel_text = ast_manager_build_channel_state_string(blob->channel);
+	if (!bridge_text || !channel_text) {
+		return;
+	}
 
 	manager_event(EVENT_FLAG_CALL, "BridgeLeave",
 		"%s"
@@ -311,6 +321,10 @@ static int send_bridge_list_item_cb(void *obj, void *arg, void *data, int flags)
 	struct mansession *s = arg;
 	char *id_text = data;
 	RAII_VAR(struct ast_str *, bridge_info, ast_manager_build_bridge_state_string(snapshot, ""), ast_free);
+
+	if (!bridge_info) {
+		return 0;
+	}
 
 	astman_append(s,
 		"Event: BridgeListItem\r\n"
@@ -367,6 +381,19 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 	char *uniqueid = obj;
 	struct mansession *s = arg;
 	char *id_text = data;
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
+	msg = stasis_cache_get(ast_channel_topic_all_cached(),
+		ast_channel_snapshot_type(), uniqueid);
+
+	if (!msg) {
+		return 0;
+	}
+
+	snapshot = stasis_message_data(msg);
+	if (snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER)) {
+		return 0;
+	}
 
 	astman_append(s,
 		"Event: BridgeInfoChannel\r\n"
@@ -419,7 +446,7 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 		"%s"
 		"%s"
 		"\r\n",
-		ast_str_buffer(bridge_info),
+		S_COR(bridge_info, ast_str_buffer(bridge_info), ""),
 		ast_str_buffer(id_text));
 
 	return 0;

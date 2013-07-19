@@ -256,6 +256,7 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 
 	snapshot->manager_vars = ast_channel_get_manager_vars(chan);
 	snapshot->channel_vars = ast_channel_get_vars(chan);
+	snapshot->tech_properties = ast_channel_tech(chan)->properties;
 
 	ao2_ref(snapshot, +1);
 	return snapshot;

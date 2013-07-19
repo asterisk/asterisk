@@ -533,6 +533,11 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		return NULL;
 	}
 
+	if (snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER)) {
+		ast_free(out);
+		return NULL;
+	}
+
 	res = ast_str_set(&out, 0,
 		"%sChannel: %s\r\n"
 		"%sChannelState: %d\r\n"
@@ -560,6 +565,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		prefix, snapshot->uniqueid);
 
 	if (!res) {
+		ast_free(out);
 		return NULL;
 	}
 
@@ -1209,6 +1215,9 @@ static void channel_hold_cb(void *data, struct stasis_subscription *sub,
 	}
 
 	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
 
 	if (obj->blob) {
 		musicclass = ast_json_string_get(ast_json_object_get(obj->blob, "musicclass"));
@@ -1232,6 +1241,9 @@ static void channel_unhold_cb(void *data, struct stasis_subscription *sub,
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 
 	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
+	if (!channel_event_string) {
+		return;
+	}
 
 	manager_event(EVENT_FLAG_CALL, "Unhold",
 		"%s",

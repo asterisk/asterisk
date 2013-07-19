@@ -1902,11 +1902,7 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 /*! \internal \brief Filter channel snapshots by technology */
 static int filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 {
-	if (!strncmp(snapshot->name, "CBAnn", 5) ||
-		!strncmp(snapshot->name, "CBRec", 5)) {
-		return 1;
-	}
-	return 0;
+	return snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER);
 }
 
 /*! \internal \brief Filter a channel cache update */

@@ -1196,6 +1196,14 @@ static void clear_bridge_primary(const char *bridge_id)
 	ao2_callback(bridge_primaries, OBJ_KEY | OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, bridge_match_cb, dup_id);
 }
 
+static int cel_filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
+{
+	if (!snapshot) {
+		return 0;
+	}
+	return snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER);
+}
+
 static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_topic *topic,
 	struct stasis_message *message)
@@ -1208,6 +1216,10 @@ static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
 
 		old_snapshot = stasis_message_data(update->old_snapshot);
 		new_snapshot = stasis_message_data(update->new_snapshot);
+
+		if (cel_filter_channel_snapshot(old_snapshot) || cel_filter_channel_snapshot(new_snapshot)) {
+			return;
+		}
 
 		update_bridge_primary(new_snapshot);
 
@@ -1241,6 +1253,10 @@ static void cel_bridge_enter_cb(
 	struct ast_bridge_snapshot *snapshot = blob->bridge;
 	struct ast_channel_snapshot *chan_snapshot = blob->channel;
 	RAII_VAR(struct bridge_assoc *, assoc, find_bridge_primary_by_bridge_id(snapshot->uniqueid), ao2_cleanup);
+
+	if (cel_filter_channel_snapshot(chan_snapshot)) {
+		return;
+	}
 
 	if (snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE)) {
 		if (assoc && assoc->track_as_conf) {
@@ -1302,6 +1318,10 @@ static void cel_bridge_leave_cb(
 	struct ast_bridge_blob *blob = stasis_message_data(message);
 	struct ast_bridge_snapshot *snapshot = blob->bridge;
 	struct ast_channel_snapshot *chan_snapshot = blob->channel;
+
+	if (cel_filter_channel_snapshot(chan_snapshot)) {
+		return;
+	}
 
 	if (snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE)) {
 		RAII_VAR(struct bridge_assoc *, assoc,
@@ -1365,6 +1385,10 @@ static void cel_dial_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct ast_multi_channel_blob *blob = stasis_message_data(message);
+
+	if (cel_filter_channel_snapshot(ast_multi_channel_blob_get_channel(blob, "caller"))) {
+		return;
+	}
 
 	if (!get_caller_uniqueid(blob)) {
 		return;

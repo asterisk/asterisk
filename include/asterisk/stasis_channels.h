@@ -84,6 +84,7 @@ struct ast_channel_snapshot {
 	struct ast_flags softhangup_flags;      /*!< softhangup channel flags */
 	struct varshead *manager_vars;          /*!< Variables to be appended to manager events */
 	struct varshead *channel_vars;          /*!< Variables set on the channel */
+	int tech_properties;                    /*!< Properties of the channel's technology */
 };
 
 /*!

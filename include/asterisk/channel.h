@@ -854,15 +854,25 @@ struct ast_channel;
 /*! \brief ast_channel_tech Properties */
 enum {
 	/*!
-     * \brief Channels have this property if they can accept input with jitter;
+	 * \brief Channels have this property if they can accept input with jitter;
 	 * i.e. most VoIP channels
 	 */
 	AST_CHAN_TP_WANTSJITTER = (1 << 0),
 	/*!
-     * \brief Channels have this property if they can create jitter;
+	 * \brief Channels have this property if they can create jitter;
 	 * i.e. most VoIP channels
 	 */
 	AST_CHAN_TP_CREATESJITTER = (1 << 1),
+	/*!
+	 * \brief Channels have this property if they are an implementation detail
+	 * used for announcing messages; i.e. to a bridge
+	 */
+	AST_CHAN_TP_ANNOUNCER = (1 << 2),
+	/*!
+	 * \brief Channels have this property if they are an implementation detail
+	 * used for recording audio; i.e. from a bridge
+	 */
+	AST_CHAN_TP_RECORDER = (1 << 3),
 };
 
 /*! \brief ast_channel flags */

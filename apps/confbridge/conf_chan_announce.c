@@ -134,6 +134,7 @@ static struct ast_channel_tech announce_tech = {
 	.send_text = ast_unreal_sendtext,
 	.queryoption = ast_unreal_queryoption,
 	.setoption = ast_unreal_setoption,
+	.properties = AST_CHAN_TP_ANNOUNCER,
 };
 
 struct ast_channel_tech *conf_announce_get_tech(void)
