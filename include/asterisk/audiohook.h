@@ -175,11 +175,12 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
  */
 int ast_audiohook_detach(struct ast_audiohook *audiohook);
 
-/*! \brief Detach audiohooks from list and destroy said list
- * \param audiohook_list List of audiohooks
- * \return Returns 0 on success, -1 on failure
+/*!
+ * \brief Detach audiohooks from list and destroy said list
+ * \param audiohook_list List of audiohooks (NULL tolerant)
+ * \return Nothing
  */
-int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list);
+void ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list);
 
 /*! \brief Move an audiohook from one channel to a new one
  *
@@ -221,7 +222,9 @@ int ast_audiohook_detach_source(struct ast_channel *chan, const char *source);
 int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audiohook);
 
 /*!
- * \brief determines if a audiohook_list is empty or not.
+ * \brief Determine if a audiohook_list is empty or not.
+ *
+ * \param audiohook Audiohook to check.  (NULL also means empty)
  *
  * retval 0 false, 1 true
  */

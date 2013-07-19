@@ -512,14 +512,14 @@ int ast_audiohook_detach(struct ast_audiohook *audiohook)
 	return 0;
 }
 
-/*! \brief Detach audiohooks from list and destroy said list
- * \param audiohook_list List of audiohooks
- * \return Returns 0 on success, -1 on failure
- */
-int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
+void ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 {
-	int i = 0;
-	struct ast_audiohook *audiohook = NULL;
+	int i;
+	struct ast_audiohook *audiohook;
+
+	if (!audiohook_list) {
+		return;
+	}
 
 	/* Drop any spies */
 	while ((audiohook = AST_LIST_REMOVE_HEAD(&audiohook_list->spy_list, list))) {
@@ -547,8 +547,6 @@ int ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 
 	/* Free ourselves */
 	ast_free(audiohook_list);
-
-	return 0;
 }
 
 /*! \brief find an audiohook based on its source
@@ -899,13 +897,10 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 
 int ast_audiohook_write_list_empty(struct ast_audiohook_list *audiohook_list)
 {
-	if (AST_LIST_EMPTY(&audiohook_list->spy_list) &&
-		AST_LIST_EMPTY(&audiohook_list->whisper_list) &&
-		AST_LIST_EMPTY(&audiohook_list->manipulate_list)) {
-
-		return 1;
-	}
-	return 0;
+	return !audiohook_list
+		|| (AST_LIST_EMPTY(&audiohook_list->spy_list)
+			&& AST_LIST_EMPTY(&audiohook_list->whisper_list)
+			&& AST_LIST_EMPTY(&audiohook_list->manipulate_list));
 }
 
 /*! \brief Pass a frame off to be handled by the audiohook core
