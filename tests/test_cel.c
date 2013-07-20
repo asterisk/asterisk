@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_bridging.h"
 #include "asterisk/json.h"
 #include "asterisk/features.h"
+#include "asterisk/core_local.h"
 
 #define TEST_CATEGORY "/main/cel/"
 
@@ -1496,6 +1497,63 @@ AST_TEST_DEFINE(test_cel_dial_pickup)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(test_cel_local_optimize)
+{
+	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
+	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
+	struct ast_party_caller alice_caller = ALICE_CALLERID;
+	struct ast_party_caller bob_caller = BOB_CALLERID;
+	RAII_VAR(struct ast_multi_channel_blob *, mc_blob, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, alice_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, bob_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, local_opt_begin, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, local_opt_end, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = TEST_CATEGORY;
+		info->summary = "Test local channel optimization record generation";
+		info->description =
+			"Test CEL records for two local channels being optimized\n"
+			"out by sending a messages indicating local optimization\n"
+			"begin and end\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	mc_blob = ast_multi_channel_blob_create(ast_json_null());
+	ast_test_validate(test, mc_blob != NULL);
+
+	CREATE_ALICE_CHANNEL(chan_alice, &alice_caller);
+	CREATE_BOB_CHANNEL(chan_bob, &bob_caller);
+
+	alice_snapshot = ast_channel_snapshot_create(chan_alice);
+	ast_test_validate(test, alice_snapshot != NULL);
+
+	bob_snapshot = ast_channel_snapshot_create(chan_bob);
+	ast_test_validate(test, bob_snapshot != NULL);
+
+	ast_multi_channel_blob_add_channel(mc_blob, "1", alice_snapshot);
+	ast_multi_channel_blob_add_channel(mc_blob, "2", bob_snapshot);
+
+	local_opt_begin = stasis_message_create(ast_local_optimization_begin_type(), mc_blob);
+	ast_test_validate(test, local_opt_begin != NULL);
+
+	local_opt_end = stasis_message_create(ast_local_optimization_end_type(), mc_blob);
+	ast_test_validate(test, local_opt_end != NULL);
+
+	stasis_publish(ast_channel_topic(chan_alice), local_opt_begin);
+	stasis_publish(ast_channel_topic(chan_alice), local_opt_end);
+	APPEND_EVENT_SNAPSHOT(alice_snapshot, AST_CEL_LOCAL_OPTIMIZE, NULL, NULL, bob_snapshot->name);
+
+	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
+	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
+
+	return AST_TEST_PASS;
+}
+
 /*! Subscription for CEL events */
 static struct ast_event_sub *event_sub = NULL;
 
@@ -1909,6 +1967,8 @@ static int unload_module(void)
 
 	AST_TEST_UNREGISTER(test_cel_dial_pickup);
 
+	AST_TEST_UNREGISTER(test_cel_local_optimize);
+
 	ast_channel_unregister(&test_cel_chan_tech);
 
 	ao2_cleanup(cel_test_config);
@@ -1947,6 +2007,7 @@ static int load_module(void)
 	cel_test_config->events |= 1<<AST_CEL_BLINDTRANSFER;
 	cel_test_config->events |= 1<<AST_CEL_ATTENDEDTRANSFER;
 	cel_test_config->events |= 1<<AST_CEL_PICKUP;
+	cel_test_config->events |= 1<<AST_CEL_LOCAL_OPTIMIZE;
 
 	ast_channel_register(&test_cel_chan_tech);
 
@@ -1978,6 +2039,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_link);
 
 	AST_TEST_REGISTER(test_cel_dial_pickup);
+
+	AST_TEST_REGISTER(test_cel_local_optimize);
 
 	/* ast_test_register_* has to happen after AST_TEST_REGISTER */
 	/* Verify received vs expected events and clean things up after every test */

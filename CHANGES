@@ -337,6 +337,10 @@ CEL (Channel Event Logging)
    and a channel running an app, the 'extra' JSON blob contains the primary
    bridge unique identifier, the secondary channel name, and the app name.
 
+ * AST_CEL_LOCAL_OPTIMIZE events have been added to convey local channel
+   optimizations with the record occurring for the semi-one channel and
+   the semi-two channel name in the peer field.
+
 Features
 -------------------
  * The BRIDGE_FEATURES channel variable would previously only set features for

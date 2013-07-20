@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging.h"
 #include "asterisk/parking.h"
 #include "asterisk/features.h"
+#include "asterisk/core_local.h"
 
 /*** DOCUMENTATION
 	<configInfo name="cel" language="en_US">
@@ -113,7 +114,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="3WAY_END"/>
 						<enum name="HOOKFLASH"/>
 						<enum name="LINKEDID_END"/>
-
+						<enum name="LOCAL_OPTIMIZE"/>
 					</enumlist>
 					</description>
 				</configOption>
@@ -319,6 +320,7 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[AST_CEL_3WAY_END]         = "3WAY_END",
 	[AST_CEL_HOOKFLASH]        = "HOOKFLASH",
 	[AST_CEL_LINKEDID_END]     = "LINKEDID_END",
+	[AST_CEL_LOCAL_OPTIMIZE]   = "LOCAL_OPTIMIZE",
 };
 
 struct bridge_assoc {
@@ -1473,6 +1475,22 @@ static void cel_pickup_cb(
 	cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, channel->name);
 }
 
+static void cel_local_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_multi_channel_blob *obj = stasis_message_data(message);
+	struct ast_channel_snapshot *localone = ast_multi_channel_blob_get_channel(obj, "1");
+	struct ast_channel_snapshot *localtwo = ast_multi_channel_blob_get_channel(obj, "2");
+
+	if (!localone || !localtwo) {
+		return;
+	}
+
+	cel_report_event(localone, AST_CEL_LOCAL_OPTIMIZE, NULL, NULL, localtwo->name);
+}
+
 static void ast_cel_engine_term(void)
 {
 	aco_info_destroy(&cel_cfg_info);
@@ -1607,6 +1625,11 @@ int ast_cel_engine_init(void)
 	ret |= stasis_message_router_add(cel_state_router,
 		ast_call_pickup_type(),
 		cel_pickup_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_local_optimization_end_type(),
+		cel_local_cb,
 		NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
