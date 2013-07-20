@@ -41,7 +41,6 @@
 #include "asterisk/manager.h"
 #include "asterisk/astdb.h"
 #include "asterisk/features.h"
-#include "asterisk/cel.h"
 #include "asterisk/causes.h"
 #include "asterisk/features_config.h"
 #include "asterisk/bridging.h"

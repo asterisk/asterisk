@@ -320,6 +320,23 @@ CDR (Call Detail Records)
    included in the resulting CDR. If both parties have the same variable, only
    the Party A value is provided.
 
+CEL (Channel Event Logging)
+------------------
+ * The 'extra' field of all CEL events that use it now consists of a JSON blob
+   with key/value pairs which are defined in the Asterisk 12 CEL documentation.
+
+ * AST_CEL_BLINDTRANSFER events now report the transferee bridge unique
+   identifier, extension, and context in a JSON blob as the extra string
+   instead of the transferee channel name as the peer.
+
+ * AST_CEL_ATTENDEDTRANSFER events now report the peer as NULL and additional
+   information in the 'extra' string as a JSON blob. For transfers that occur
+   between two bridged channels, the 'extra' JSON blob contains the primary
+   bridge unique identifier, the secondary channel name, and the secondary
+   bridge unique identifier. For transfers that occur between a bridged channel
+   and a channel running an app, the 'extra' JSON blob contains the primary
+   bridge unique identifier, the secondary channel name, and the app name.
+
 Features
 -------------------
  * The BRIDGE_FEATURES channel variable would previously only set features for

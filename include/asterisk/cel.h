@@ -67,8 +67,6 @@ enum ast_cel_event_type {
 	AST_CEL_BLINDTRANSFER = 13,
 	/*! \brief a transfer occurs */
 	AST_CEL_ATTENDEDTRANSFER = 14,
-	/*! \brief a transfer occurs */
-	AST_CEL_TRANSFER = 15,
 	/*! \brief a 3-way conference, usually part of a transfer */
 	AST_CEL_HOOKFLASH = 16,
 	/*! \brief a 3-way conference, usually part of a transfer */
@@ -166,31 +164,6 @@ enum ast_cel_event_type ast_cel_str_to_event_type(const char *name);
  *       some point.
  */
 struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event *event);
-
-/*!
- * \brief Report a channel event
- *
- * \param chan This argument is required.  This is the primary channel associated with
- *        this channel event.
- * \param event_type This is the type of call event being reported.
- * \param userdefevname This is an optional custom name for the call event.
- * \param extra This is an optional opaque field that will go into the "CEL_EXTRA"
- *        information element of the call event.
- * \param peer2 All CEL events contain a "peer name" information element.  The first
- *        place the code will look to get a peer name is from the bridged channel to
- *        chan.  If chan has no bridged channel and peer2 is specified, then the name
- *        of peer2 will go into the "peer name" field.  If neither are available, the
- *        peer name field will be blank.
- *
- * \since 1.8
- *
- * \pre chan and peer2 are both unlocked
- *
- * \retval 0 success
- * \retval non-zero failure
- */
-int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event_type,
-		const char *userdefevname, const char *extra, struct ast_channel *peer2);
 
 /*!
  * \brief Helper struct for getting the fields out of a CEL event
@@ -312,8 +285,8 @@ struct ast_channel_snapshot;
  *        with this channel event.
  * \param event_type The type of call event being reported.
  * \param userdefevname Custom name for the call event. (optional)
- * \param extra An opaque field that will go into the "CEL_EXTRA" information
- *        element of the call event. (optional)
+ * \param extra An event-specific opaque JSON blob to be rendered and placed
+ *        in the "CEL_EXTRA" information element of the call event. (optional)
  * \param peer_name The peer name to be placed into the event. (optional)
  *
  * \since 12
@@ -323,7 +296,7 @@ struct ast_channel_snapshot;
  */
 struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
-		const char *extra, const char *peer_name);
+		struct ast_json *extra, const char *peer_name);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

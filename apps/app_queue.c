@@ -103,7 +103,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/taskprocessor.h"
 #include "asterisk/aoc.h"
 #include "asterisk/callerid.h"
-#include "asterisk/cel.h"
 #include "asterisk/data.h"
 #include "asterisk/term.h"
 #include "asterisk/dial.h"

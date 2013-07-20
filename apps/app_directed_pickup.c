@@ -46,7 +46,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/manager.h"
 #include "asterisk/callerid.h"
-#include "asterisk/cel.h"
 
 #define PICKUPMARK "PICKUPMARK"
 

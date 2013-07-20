@@ -70,7 +70,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/audiohook.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/astobj2.h"
-#include "asterisk/cel.h"
 #include "asterisk/test.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_basic.h"
@@ -2553,8 +2552,6 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	}
 
 	/* Initiate the channel transfer of party A to party C (or recalled party B). */
-	ast_cel_report_event(transferee, AST_CEL_ATTENDEDTRANSFER, NULL, NULL, newchan);
-
 	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", ast_channel_linkedid(transferee), 0, "Transfered/%s", ast_channel_name(transferee));
 	if (!xferchan) {
 		ast_autoservice_chan_hangup_peer(transferee, newchan);
@@ -4738,8 +4735,6 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(chan));
 	ast_channel_unlock(chan);
 	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-
-	ast_cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, chan);
 
 	if (ast_answer(chan)) {
 		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan_name);

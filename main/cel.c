@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_bridging.h"
 #include "asterisk/bridging.h"
 #include "asterisk/parking.h"
+#include "asterisk/features.h"
 
 /*** DOCUMENTATION
 	<configInfo name="cel" language="en_US">
@@ -101,7 +102,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="CONF_END"/>
 						<enum name="PARK_START"/>
 						<enum name="PARK_END"/>
-						<enum name="TRANSFER"/>
 						<enum name="USER_DEFINED"/>
 						<enum name="CONF_ENTER"/>
 						<enum name="CONF_EXIT"/>
@@ -308,7 +308,6 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[AST_CEL_CONF_END]         = "CONF_END",
 	[AST_CEL_PARK_START]       = "PARK_START",
 	[AST_CEL_PARK_END]         = "PARK_END",
-	[AST_CEL_TRANSFER]         = "TRANSFER",
 	[AST_CEL_USER_DEFINED]     = "USER_DEFINED",
 	[AST_CEL_CONF_ENTER]       = "CONF_ENTER",
 	[AST_CEL_CONF_EXIT]        = "CONF_EXIT",
@@ -634,9 +633,13 @@ static int cel_track_app(const char *const_app)
 static int cel_linkedid_ref(const char *linkedid);
 struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
-		const char *extra, const char *peer_name)
+		struct ast_json *extra, const char *peer_name)
 {
 	struct timeval eventtime = ast_tvnow();
+	RAII_VAR(char *, extra_txt, NULL, ast_free);
+	if (extra) {
+		extra_txt = ast_json_dump_string(extra);
+	}
 	return ast_event_new(AST_EVENT_CEL,
 		AST_EVENT_IE_CEL_EVENT_TYPE, AST_EVENT_IE_PLTYPE_UINT, event_type,
 		AST_EVENT_IE_CEL_EVENT_TIME, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_sec,
@@ -658,14 +661,14 @@ struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, snapshot->uniqueid,
 		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, snapshot->linkedid,
 		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, snapshot->userfield,
-		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, S_OR(extra, ""),
+		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, S_OR(extra_txt, ""),
 		AST_EVENT_IE_CEL_PEER, AST_EVENT_IE_PLTYPE_STR, S_OR(peer_name, ""),
 		AST_EVENT_IE_END);
 }
 
-static int report_event_snapshot(struct ast_channel_snapshot *snapshot,
+static int cel_report_event(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
-		const char *extra, const char *peer2_name)
+		struct ast_json *extra, const char *peer2_name)
 {
 	struct ast_event *ev;
 	char *linkedid = ast_strdupa(snapshot->linkedid);
@@ -735,7 +738,7 @@ static void check_retire_linkedid(struct ast_channel_snapshot *snapshot)
 	 * before unreffing the channel we have a refcount of 3, we're done. Unlink and report. */
 	if (ao2_ref(lid, -1) == 3) {
 		ast_str_container_remove(linkedids, lid);
-		report_event_snapshot(snapshot, AST_CEL_LINKEDID_END, NULL, NULL, NULL);
+		cel_report_event(snapshot, AST_CEL_LINKEDID_END, NULL, NULL, NULL);
 	}
 	ao2_ref(lid, -1);
 }
@@ -895,109 +898,6 @@ static int cel_linkedid_ref(const char *linkedid)
 	return 0;
 }
 
-int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event_type,
-		const char *userdefevname, const char *extra, struct ast_channel *peer2)
-{
-	struct timeval eventtime;
-	struct ast_event *ev;
-	const char *peername = "";
-	struct ast_channel *peer;
-	char *linkedid = ast_strdupa(ast_channel_linkedid(chan));
-
-	if (!ast_cel_check_enabled()) {
-		return 0;
-	}
-
-	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
-	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
-	if (ast_cel_track_event(AST_CEL_LINKEDID_END) && event_type == AST_CEL_CHANNEL_START && linkedid) {
-		if (cel_linkedid_ref(linkedid)) {
-			return -1;
-		}
-	}
-
-	if (!ast_cel_track_event(event_type)) {
-		return 0;
-	}
-
-	if ((event_type == AST_CEL_APP_START || event_type == AST_CEL_APP_END)
-		&& !cel_track_app(ast_channel_appl(chan))) {
-		return 0;
-	}
-
-	ast_channel_lock(chan);
-	peer = ast_bridged_channel(chan);
-	if (peer) {
-		ast_channel_ref(peer);
-	}
-	ast_channel_unlock(chan);
-
-	if (peer) {
-		ast_channel_lock(peer);
-		peername = ast_strdupa(ast_channel_name(peer));
-		ast_channel_unlock(peer);
-	} else if (peer2) {
-		ast_channel_lock(peer2);
-		peername = ast_strdupa(ast_channel_name(peer2));
-		ast_channel_unlock(peer2);
-	}
-
-	if (!userdefevname) {
-		userdefevname = "";
-	}
-
-	if (!extra) {
-		extra = "";
-	}
-
-	eventtime = ast_tvnow();
-
-	ast_channel_lock(chan);
-
-	ev = ast_event_new(AST_EVENT_CEL,
-		AST_EVENT_IE_CEL_EVENT_TYPE, AST_EVENT_IE_PLTYPE_UINT, event_type,
-		AST_EVENT_IE_CEL_EVENT_TIME, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_sec,
-		AST_EVENT_IE_CEL_EVENT_TIME_USEC, AST_EVENT_IE_PLTYPE_UINT, eventtime.tv_usec,
-		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_STR, userdefevname,
-		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""),
-		AST_EVENT_IE_CEL_CIDNUM, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""),
-		AST_EVENT_IE_CEL_CIDANI, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, ""),
-		AST_EVENT_IE_CEL_CIDRDNIS, AST_EVENT_IE_PLTYPE_STR,
-			S_COR(ast_channel_redirecting(chan)->from.number.valid, ast_channel_redirecting(chan)->from.number.str, ""),
-		AST_EVENT_IE_CEL_CIDDNID, AST_EVENT_IE_PLTYPE_STR,
-			S_OR(ast_channel_dialed(chan)->number.str, ""),
-		AST_EVENT_IE_CEL_EXTEN, AST_EVENT_IE_PLTYPE_STR, ast_channel_exten(chan),
-		AST_EVENT_IE_CEL_CONTEXT, AST_EVENT_IE_PLTYPE_STR, ast_channel_context(chan),
-		AST_EVENT_IE_CEL_CHANNAME, AST_EVENT_IE_PLTYPE_STR, ast_channel_name(chan),
-		AST_EVENT_IE_CEL_APPNAME, AST_EVENT_IE_PLTYPE_STR, S_OR(ast_channel_appl(chan), ""),
-		AST_EVENT_IE_CEL_APPDATA, AST_EVENT_IE_PLTYPE_STR, S_OR(ast_channel_data(chan), ""),
-		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, ast_channel_amaflags(chan),
-		AST_EVENT_IE_CEL_ACCTCODE, AST_EVENT_IE_PLTYPE_STR, ast_channel_accountcode(chan),
-		AST_EVENT_IE_CEL_PEERACCT, AST_EVENT_IE_PLTYPE_STR, ast_channel_peeraccount(chan),
-		AST_EVENT_IE_CEL_UNIQUEID, AST_EVENT_IE_PLTYPE_STR, ast_channel_uniqueid(chan),
-		AST_EVENT_IE_CEL_LINKEDID, AST_EVENT_IE_PLTYPE_STR, ast_channel_linkedid(chan),
-		AST_EVENT_IE_CEL_USERFIELD, AST_EVENT_IE_PLTYPE_STR, ast_channel_userfield(chan),
-		AST_EVENT_IE_CEL_EXTRA, AST_EVENT_IE_PLTYPE_STR, extra,
-		AST_EVENT_IE_CEL_PEER, AST_EVENT_IE_PLTYPE_STR, peername,
-		AST_EVENT_IE_END);
-
-	ast_channel_unlock(chan);
-
-	if (peer) {
-		peer = ast_channel_unref(peer);
-	}
-
-	if (ev && ast_event_queue(ev)) {
-		ast_event_destroy(ev);
-		return -1;
-	}
-
-	return 0;
-}
-
 int ast_cel_fill_record(const struct ast_event *e, struct ast_cel_event_record *r)
 {
 	if (r->version != AST_CEL_EVENT_RECORD_VERSION) {
@@ -1074,13 +974,13 @@ static void cel_channel_state_change(
 	int is_hungup, was_hungup;
 
 	if (!new_snapshot) {
-		report_event_snapshot(old_snapshot, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
+		cel_report_event(old_snapshot, AST_CEL_CHANNEL_END, NULL, NULL, NULL);
 		check_retire_linkedid(old_snapshot);
 		return;
 	}
 
 	if (!old_snapshot) {
-		report_event_snapshot(new_snapshot, AST_CEL_CHANNEL_START, NULL, NULL, NULL);
+		cel_report_event(new_snapshot, AST_CEL_CHANNEL_START, NULL, NULL, NULL);
 		return;
 	}
 
@@ -1088,22 +988,22 @@ static void cel_channel_state_change(
 	is_hungup = ast_test_flag(&new_snapshot->flags, AST_FLAG_DEAD) ? 1 : 0;
 
 	if (!was_hungup && is_hungup) {
-		RAII_VAR(struct ast_str *, extra_str, ast_str_create(128), ast_free);
+		RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 		RAII_VAR(struct ast_multi_channel_blob *, blob, get_dialstatus_blob(new_snapshot->uniqueid), ao2_cleanup);
 		const char *dialstatus = "";
 		if (blob && !ast_strlen_zero(get_blob_variable(blob, "dialstatus"))) {
 			dialstatus = get_blob_variable(blob, "dialstatus");
 		}
-		ast_str_set(&extra_str, 0, "%d,%s,%s",
-			new_snapshot->hangupcause,
-			new_snapshot->hangupsource,
-			dialstatus);
-		report_event_snapshot(new_snapshot, AST_CEL_HANGUP, NULL, ast_str_buffer(extra_str), NULL);
+		extra = ast_json_pack("{s: i, s: s, s: s}",
+			"hangupcause", new_snapshot->hangupcause,
+			"hangupsource", new_snapshot->hangupsource,
+			"dialstatus", dialstatus);
+		cel_report_event(new_snapshot, AST_CEL_HANGUP, NULL, extra, NULL);
 		return;
 	}
 
 	if (old_snapshot->state != new_snapshot->state && new_snapshot->state == AST_STATE_UP) {
-		report_event_snapshot(new_snapshot, AST_CEL_ANSWER, NULL, NULL, NULL);
+		cel_report_event(new_snapshot, AST_CEL_ANSWER, NULL, NULL, NULL);
 		return;
 	}
 }
@@ -1136,12 +1036,12 @@ static void cel_channel_app_change(
 
 	/* old snapshot has an application, end it */
 	if (old_snapshot && !ast_strlen_zero(old_snapshot->appl)) {
-		report_event_snapshot(old_snapshot, AST_CEL_APP_END, NULL, NULL, NULL);
+		cel_report_event(old_snapshot, AST_CEL_APP_END, NULL, NULL, NULL);
 	}
 
 	/* new snapshot has an application, start it */
 	if (new_snapshot && !ast_strlen_zero(new_snapshot->appl)) {
-		report_event_snapshot(new_snapshot, AST_CEL_APP_START, NULL, NULL, NULL);
+		cel_report_event(new_snapshot, AST_CEL_APP_START, NULL, NULL, NULL);
 	}
 }
 
@@ -1260,7 +1160,11 @@ static void cel_bridge_enter_cb(
 
 	if (snapshot->capabilities & (AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE)) {
 		if (assoc && assoc->track_as_conf) {
-			report_event_snapshot(chan_snapshot, AST_CEL_CONF_ENTER, NULL, NULL, NULL);
+			RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
+			extra = ast_json_pack("{s: s}", "bridge_id", snapshot->uniqueid);
+			if (extra) {
+				cel_report_event(chan_snapshot, AST_CEL_CONF_ENTER, NULL, extra, NULL);
+			}
 			return;
 		}
 
@@ -1286,7 +1190,7 @@ static void cel_bridge_enter_cb(
 			}
 
 			add_bridge_primary(latest_primary, snapshot->uniqueid, chan_snapshot->name);
-			report_event_snapshot(latest_primary, AST_CEL_BRIDGE_START, NULL, NULL, chan_snapshot->name);
+			cel_report_event(latest_primary, AST_CEL_BRIDGE_START, NULL, NULL, chan_snapshot->name);
 		} else if (ao2_container_count(snapshot->channels) > 2) {
 			if (!assoc) {
 				ast_log(LOG_ERROR, "No association found for bridge %s\n", snapshot->uniqueid);
@@ -1295,18 +1199,31 @@ static void cel_bridge_enter_cb(
 
 			/* this bridge will no longer be treated like a bridge, so mark the bridge_assoc as such */
 			if (!assoc->track_as_conf) {
+				RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 				assoc->track_as_conf = 1;
-				report_event_snapshot(assoc->primary_snapshot, AST_CEL_BRIDGE_TO_CONF, NULL,
-					chan_snapshot->name, assoc->secondary_name);
+
+				extra = ast_json_pack("{s: s, s: s}",
+					"channel_name", chan_snapshot->name,
+					"bridge_id", snapshot->uniqueid);
+
+				if (extra) {
+					cel_report_event(assoc->primary_snapshot, AST_CEL_BRIDGE_TO_CONF, NULL,
+						extra, assoc->secondary_name);
+				}
+
 				ast_string_field_set(assoc, secondary_name, "");
 			}
 		}
 	} else if (snapshot->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX) {
+		RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 		if (!assoc) {
 			add_bridge_primary(chan_snapshot, snapshot->uniqueid, "");
 			return;
 		}
-		report_event_snapshot(chan_snapshot, AST_CEL_CONF_ENTER, NULL, NULL, NULL);
+		extra = ast_json_pack("{s: s}", "bridge_id", snapshot->uniqueid);
+		if (extra) {
+			cel_report_event(chan_snapshot, AST_CEL_CONF_ENTER, NULL, extra, NULL);
+		}
 	}
 }
 
@@ -1333,17 +1250,25 @@ static void cel_bridge_leave_cb(
 		}
 
 		if (assoc->track_as_conf) {
-			report_event_snapshot(chan_snapshot, AST_CEL_CONF_EXIT, NULL, NULL, NULL);
+			RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
+			extra = ast_json_pack("{s: s}", "bridge_id", snapshot->uniqueid);
+			if (extra) {
+				cel_report_event(chan_snapshot, AST_CEL_CONF_EXIT, NULL, extra, NULL);
+			}
 			return;
 		}
 
 		if (ao2_container_count(snapshot->channels) == 1) {
-			report_event_snapshot(assoc->primary_snapshot, AST_CEL_BRIDGE_END, NULL, NULL, assoc->secondary_name);
+			cel_report_event(assoc->primary_snapshot, AST_CEL_BRIDGE_END, NULL, NULL, assoc->secondary_name);
 			remove_bridge_primary(assoc->primary_snapshot->uniqueid);
 			return;
 		}
 	} else if (snapshot->capabilities & AST_BRIDGE_CAPABILITY_MULTIMIX) {
-		report_event_snapshot(chan_snapshot, AST_CEL_CONF_EXIT, NULL, NULL, NULL);
+		RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
+		extra = ast_json_pack("{s: s}", "bridge_id", snapshot->uniqueid);
+		if (extra) {
+			cel_report_event(chan_snapshot, AST_CEL_CONF_EXIT, NULL, extra, NULL);
+		}
 	}
 }
 
@@ -1353,25 +1278,35 @@ static void cel_parking_cb(
 	struct stasis_message *message)
 {
 	struct ast_parked_call_payload *parked_payload = stasis_message_data(message);
+	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
+	const char *reason = NULL;
 
 	switch (parked_payload->event_type) {
 	case PARKED_CALL:
-		report_event_snapshot(parked_payload->parkee, AST_CEL_PARK_START, NULL,
-			parked_payload->parkinglot,
-			parked_payload->parker_dial_string);
-		break;
+		extra = ast_json_pack("{s: s, s: s}",
+			"parker_dial_string", parked_payload->parker_dial_string,
+			"parking_lot", parked_payload->parkinglot);
+		if (extra) {
+			cel_report_event(parked_payload->parkee, AST_CEL_PARK_START, NULL, extra, NULL);
+		}
+		return;
 	case PARKED_CALL_TIMEOUT:
-		report_event_snapshot(parked_payload->parkee, AST_CEL_PARK_END, NULL, "ParkedCallTimeOut", NULL);
+		reason = "ParkedCallTimeOut";
 		break;
 	case PARKED_CALL_GIVEUP:
-		report_event_snapshot(parked_payload->parkee, AST_CEL_PARK_END, NULL, "ParkedCallGiveUp", NULL);
+		reason = "ParkedCallGiveUp";
 		break;
 	case PARKED_CALL_UNPARKED:
-		report_event_snapshot(parked_payload->parkee, AST_CEL_PARK_END, NULL, "ParkedCallUnparked", NULL);
+		reason = "ParkedCallUnparked";
 		break;
 	case PARKED_CALL_FAILED:
-		report_event_snapshot(parked_payload->parkee, AST_CEL_PARK_END, NULL, "ParkedCallFailed", NULL);
+		reason = "ParkedCallFailed";
 		break;
+	}
+
+	extra = ast_json_pack("{s: s}", "reason", reason);
+	if (extra) {
+		cel_report_event(parked_payload->parkee, AST_CEL_PARK_END, NULL, extra, NULL);
 	}
 }
 
@@ -1396,11 +1331,15 @@ static void cel_dial_cb(void *data, struct stasis_subscription *sub,
 
 	if (!ast_strlen_zero(get_blob_variable(blob, "forward"))) {
 		struct ast_channel_snapshot *caller = ast_multi_channel_blob_get_channel(blob, "caller");
+		RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 		if (!caller) {
 			return;
 		}
 
-		report_event_snapshot(caller, AST_CEL_FORWARD, NULL, get_blob_variable(blob, "forward"), NULL);
+		extra = ast_json_pack("{s: s}", "forward", get_blob_variable(blob, "forward"));
+		if (extra) {
+			cel_report_event(caller, AST_CEL_FORWARD, NULL, extra, NULL);
+		}
 	}
 
 	if (ast_strlen_zero(get_blob_variable(blob, "dialstatus"))) {
@@ -1423,14 +1362,115 @@ static void cel_generic_cb(
 	case AST_CEL_USER_DEFINED:
 		{
 			const char *event = ast_json_string_get(ast_json_object_get(event_details, "event"));
-			const char *extra = ast_json_string_get(ast_json_object_get(event_details, "extra"));
-			report_event_snapshot(obj->snapshot, event_type, event, extra, NULL);
+			struct ast_json *extra = ast_json_object_get(event_details, "extra");
+			cel_report_event(obj->snapshot, event_type, event, extra, NULL);
 			break;
 		}
 	default:
 		ast_log(LOG_ERROR, "Unhandled %s event blob\n", ast_cel_get_type_name(event_type));
 		break;
 	}
+}
+
+static void cel_blind_transfer_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_bridge_blob *obj = stasis_message_data(message);
+	struct ast_channel_snapshot *chan_snapshot = obj->channel;
+	struct ast_bridge_snapshot *bridge_snapshot = obj->bridge;
+	struct ast_json *blob = obj->blob;
+	struct ast_json *json_exten = ast_json_object_get(blob, "exten");
+	struct ast_json *json_context = ast_json_object_get(blob, "context");
+	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
+	const char *exten, *context;
+
+	if (!json_exten || !json_context) {
+		return;
+	}
+
+	exten = ast_json_string_get(json_exten);
+	context = ast_json_string_get(json_context);
+	if (!exten || !context) {
+		return;
+	}
+	extra = ast_json_pack("{s: s, s: s, s: s}",
+		"extension", exten,
+		"context", context,
+		"bridge_id", bridge_snapshot->uniqueid);
+
+	if (extra) {
+		cel_report_event(chan_snapshot, AST_CEL_BLINDTRANSFER, NULL, extra, NULL);
+	}
+}
+
+static void cel_attended_transfer_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_attended_transfer_message *xfer = stasis_message_data(message);
+	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
+	struct ast_bridge_snapshot *bridge1, *bridge2;
+	struct ast_channel_snapshot *channel1, *channel2;
+
+	/* Make sure bridge1 is always non-NULL */
+	if (!xfer->to_transferee.bridge_snapshot) {
+		bridge1 = xfer->to_transfer_target.bridge_snapshot;
+		bridge2 = xfer->to_transferee.bridge_snapshot;
+		channel1 = xfer->to_transfer_target.channel_snapshot;
+		channel2 = xfer->to_transferee.channel_snapshot;
+	} else {
+		bridge1 = xfer->to_transferee.bridge_snapshot;
+		bridge2 = xfer->to_transfer_target.bridge_snapshot;
+		channel1 = xfer->to_transferee.channel_snapshot;
+		channel2 = xfer->to_transfer_target.channel_snapshot;
+	}
+
+	switch (xfer->dest_type) {
+	case AST_ATTENDED_TRANSFER_DEST_FAIL:
+		return;
+		/* handle these two the same */
+	case AST_ATTENDED_TRANSFER_DEST_BRIDGE_MERGE:
+	case AST_ATTENDED_TRANSFER_DEST_LINK:
+		extra = ast_json_pack("{s: s, s: s, s: s}",
+			"bridge1_id", bridge1->uniqueid,
+			"channel2_name", channel2->name,
+			"bridge2_id", bridge2->uniqueid);
+
+		if (!extra) {
+			return;
+		}
+		break;
+	case AST_ATTENDED_TRANSFER_DEST_APP:
+		extra = ast_json_pack("{s: s, s: s, s: s}",
+			"bridge1_id", bridge1->uniqueid,
+			"channel2_name", channel2->name,
+			"app", xfer->dest.app);
+
+		if (!extra) {
+			return;
+		}
+		break;
+	}
+	cel_report_event(channel1, AST_CEL_ATTENDEDTRANSFER, NULL, extra, NULL);
+}
+
+static void cel_pickup_cb(
+	void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic,
+	struct stasis_message *message)
+{
+	struct ast_multi_channel_blob *obj = stasis_message_data(message);
+	struct ast_channel_snapshot *channel = ast_multi_channel_blob_get_channel(obj, "channel");
+	struct ast_channel_snapshot *target = ast_multi_channel_blob_get_channel(obj, "target");
+
+	if (!channel || !target) {
+		return;
+	}
+
+	cel_report_event(target, AST_CEL_PICKUP, NULL, NULL, channel->name);
 }
 
 static void ast_cel_engine_term(void)
@@ -1552,6 +1592,21 @@ int ast_cel_engine_init(void)
 	ret |= stasis_message_router_add(cel_state_router,
 		cel_generic_type(),
 		cel_generic_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_blind_transfer_type(),
+		cel_blind_transfer_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_attended_transfer_type(),
+		cel_attended_transfer_cb,
+		NULL);
+
+	ret |= stasis_message_router_add(cel_state_router,
+		ast_call_pickup_type(),
+		cel_pickup_cb,
 		NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
