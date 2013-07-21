@@ -604,6 +604,16 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"TXFER  ",
 		"CNLINE ",
 		"REDIR  ",
+		"T38PARM",
+		"CONTRCC",
+		"SRCCHG ",
+		"READACT",
+		"AOC    ",
+		"ENDOFQ ",
+		"INCOMPL",
+		"MCID   ",
+		"UPDRTPP",
+		"PCAUSEC",
 	};
 	struct ast_iax2_full_hdr *fh;
 	char retries[20];
