@@ -608,6 +608,15 @@ description=Demo System At Digium    ; Description of this peer, as listed by
 ; IPs can also optionally be given but are not required.  Caller*ID can be
 ; suggested to the other side as well if it is for example a phone instead of
 ; another PBX.
+;connectedline=yes ; Set how connected line information is handled for this
+;                  ; peer. If set to "yes", both sending and receiving
+;                  ; connected line information will be enabled. If set to
+;                  ; "send", this peer will send connected line information
+;                  ; but will not process connected line updates. If set to
+;                  ; "receive", connected line updates will be processed
+;                  ; but not sent. If set to "no", connected line updates
+;                  ; will be disabled. Default is "no".
+
 
 ;[dynamichost]
 ;host=dynamic
