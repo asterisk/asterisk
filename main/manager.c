@@ -1316,6 +1316,7 @@ struct ast_manager_user {
 	int writeperm;			/*!< Authorization for writing */
 	int writetimeout;		/*!< Per user Timeout for ast_carefulwrite() */
 	int displayconnects;		/*!< XXX unused */
+	int allowmultiplelogin; /*!< Per user option*/
 	int keep;			/*!< mark entries created on a reload */
 	struct ao2_container *whitefilters; /*!< Manager event filters - white list */
 	struct ao2_container *blackfilters; /*!< Manager event filters - black list */
@@ -2072,19 +2073,21 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	ast_cli(a->fd, "\n");
 	ast_cli(a->fd,
-		"       username: %s\n"
-		"         secret: %s\n"
-		"            ACL: %s\n"
-		"      read perm: %s\n"
-		"     write perm: %s\n"
-		"displayconnects: %s\n",
+		"          username: %s\n"
+		"            secret: %s\n"
+		"               ACL: %s\n"
+		"         read perm: %s\n"
+		"        write perm: %s\n"
+		"   displayconnects: %s\n"
+		"allowmultiplelogin: %s\n",
 		(user->username ? user->username : "(N/A)"),
 		(user->secret ? "<Set>" : "(N/A)"),
 		((user->acl && !ast_acl_list_is_empty(user->acl)) ? "yes" : "no"),
 		user_authority_to_str(user->readperm, &rauthority),
 		user_authority_to_str(user->writeperm, &wauthority),
-		(user->displayconnects ? "yes" : "no"));
-	ast_cli(a->fd, "      Variables: \n");
+		(user->displayconnects ? "yes" : "no"),
+		(user->allowmultiplelogin ? "yes" : "no"));
+	ast_cli(a->fd, "         Variables: \n");
 		for (v = user->chanvars ; v ; v = v->next) {
 			ast_cli(a->fd, "                 %s = %s\n", v->name, v->value);
 		}
@@ -5500,7 +5503,8 @@ static int process_message(struct mansession *s, const struct message *m)
 {
 	int ret = 0;
 	struct manager_action *act_found;
-	const char *user;
+	struct ast_manager_user *user = NULL;
+	const char *username;
 	const char *action;
 
 	action = __astman_get_header(m, "Action", GET_HEADER_SKIP_EMPTY);
@@ -5525,19 +5529,24 @@ static int process_message(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	if (!allowmultiplelogin
-		&& !s->session->authenticated
+	if (!s->session->authenticated
 		&& (!strcasecmp(action, "Login")
 			|| !strcasecmp(action, "Challenge"))) {
-		user = astman_get_header(m, "Username");
+		username = astman_get_header(m, "Username");
 
-		if (!ast_strlen_zero(user) && check_manager_session_inuse(user)) {
-			report_session_limit(s);
-			sleep(1);
-			mansession_lock(s);
-			astman_send_error(s, m, "Login Already In Use");
-			mansession_unlock(s);
-			return -1;
+		if (!ast_strlen_zero(username) && check_manager_session_inuse(username)) {
+			AST_RWLIST_WRLOCK(&users);
+			user = get_manager_by_name_locked(username);
+			if (user && !user->allowmultiplelogin) {
+				AST_RWLIST_UNLOCK(&users);
+				report_session_limit(s);
+				sleep(1);
+				mansession_lock(s);
+				astman_send_error(s, m, "Login Already In Use");
+				mansession_unlock(s);
+				return -1;
+			}
+			AST_RWLIST_UNLOCK(&users);
 		}
 	}
 
@@ -8127,6 +8136,7 @@ static int __init_manager(int reload, int by_external_config)
 				const char *user_read = ast_variable_retrieve(ucfg, cat, "read");
 				const char *user_write = ast_variable_retrieve(ucfg, cat, "write");
 				const char *user_displayconnects = ast_variable_retrieve(ucfg, cat, "displayconnects");
+				const char *user_allowmultiplelogin = ast_variable_retrieve(ucfg, cat, "allowmultiplelogin");
 				const char *user_writetimeout = ast_variable_retrieve(ucfg, cat, "writetimeout");
 
 				/* Look for an existing entry,
@@ -8147,6 +8157,8 @@ static int __init_manager(int reload, int by_external_config)
 					user->writeperm = -1;
 					/* Default displayconnect from [general] */
 					user->displayconnects = displayconnects;
+					/* Default allowmultiplelogin from [general] */
+					user->allowmultiplelogin = allowmultiplelogin;
 					user->writetimeout = 100;
 				}
 
@@ -8161,6 +8173,9 @@ static int __init_manager(int reload, int by_external_config)
 				}
 				if (!user_displayconnects) {
 					user_displayconnects = ast_variable_retrieve(ucfg, "general", "displayconnects");
+				}
+				if (!user_allowmultiplelogin) {
+					user_allowmultiplelogin = ast_variable_retrieve(ucfg, "general", "allowmultiplelogin");
 				}
 				if (!user_writetimeout) {
 					user_writetimeout = ast_variable_retrieve(ucfg, "general", "writetimeout");
@@ -8181,6 +8196,9 @@ static int __init_manager(int reload, int by_external_config)
 				}
 				if (user_displayconnects) {
 					user->displayconnects = ast_true(user_displayconnects);
+				}
+				if (user_allowmultiplelogin) {
+					user->allowmultiplelogin = ast_true(user_allowmultiplelogin);
 				}
 				if (user_writetimeout) {
 					int value = atoi(user_writetimeout);
@@ -8217,6 +8235,8 @@ static int __init_manager(int reload, int by_external_config)
 			user->writeperm = 0;
 			/* Default displayconnect from [general] */
 			user->displayconnects = displayconnects;
+			/* Default allowmultiplelogin from [general] */
+			user->allowmultiplelogin = allowmultiplelogin;
 			user->writetimeout = 100;
 			user->whitefilters = ao2_container_alloc(1, NULL, NULL);
 			user->blackfilters = ao2_container_alloc(1, NULL, NULL);
@@ -8251,6 +8271,8 @@ static int __init_manager(int reload, int by_external_config)
 				user->writeperm = get_perm(var->value);
 			}  else if (!strcasecmp(var->name, "displayconnects") ) {
 				user->displayconnects = ast_true(var->value);
+			}  else if (!strcasecmp(var->name, "allowmultiplelogin") ) {
+				user->allowmultiplelogin = ast_true(var->value);
 			} else if (!strcasecmp(var->name, "writetimeout")) {
 				int value = atoi(var->value);
 				if (value < 100) {
