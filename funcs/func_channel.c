@@ -20,7 +20,7 @@
  *
  * \author Kevin P. Fleming <kpfleming@digium.com>
  * \author Ben Winslow
- * 
+ *
  * \ingroup functions
  */
 
@@ -260,15 +260,34 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>     <literal>audio</literal>             Get audio destination</para>
 						<para>     <literal>video</literal>             Get video destination</para>
 						<para>     <literal>text</literal>              Get text destination</para>
+						<para>   Defaults to <literal>audio</literal> if unspecified.</para>
+					</enum>
+					<enum name="rtpsource">
+						<para>R/O Get source RTP destination information.</para>
+						<para>   This option takes one additional argument:</para>
+						<para>    Argument 1:</para>
+						<para>     <literal>audio</literal>             Get audio destination</para>
+						<para>     <literal>video</literal>             Get video destination</para>
+						<para>     <literal>text</literal>              Get text destination</para>
+						<para>   Defaults to <literal>audio</literal> if unspecified.</para>
 					</enum>
 				</enumlist>
 				<para><emphasis>chan_iax2</emphasis> provides the following additional options:</para>
 				<enumlist>
+					<enum name="osptoken">
+						<para>R/O Get the peer's osptoken.</para>
+					</enum>
 					<enum name="peerip">
 						<para>R/O Get the peer's ip address.</para>
 					</enum>
 					<enum name="peername">
 						<para>R/O Get the peer's username.</para>
+					</enum>
+					<enum name="secure_signaling">
+						<para>R/O Get the if the IAX channel is secured.</para>
+					</enum>
+					<enum name="secure_media">
+						<para>R/O Get the if the IAX channel is secured.</para>
 					</enum>
 				</enumlist>
 				<para><emphasis>chan_dahdi</emphasis> provides the following additional options:</para>
@@ -327,17 +346,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para><emphasis>chan_ooh323</emphasis> provides the following additional options:</para>
 				<enumlist>
 					<enum name="faxdetect">
-						<para>Fax Detect [R/W]</para>
+						<para>R/W Fax Detect</para>
 						<para>Returns 0 or 1</para>
 						<para>Write yes or no</para>
 					</enum>
 					<enum name="t38support">
-						<para>t38support [R/W]</para>
+						<para>R/W t38support</para>
 						<para>Returns 0 or 1</para>
 						<para>Write yes or no</para>
 					</enum>
-					<enum name="h323id">
-						<para>Returns h323id [R]</para>
+					<enum name="h323id_url">
+						<para>R/0 Returns caller URL</para>
+ 					</enum>
+					<enum name="caller_h323id">
+						<para>R/0 Returns caller h323id</para>
+					</enum>
+					<enum name="caller_dialeddigits">
+						<para>R/0 Returns caller dialed digits</para>
+					</enum>
+					<enum name="caller_email">
+						<para>R/0 Returns caller email</para>
+					</enum>
+					<enum name="callee_email">
+						<para>R/0 Returns callee email</para>
+					</enum>
+					<enum name="callee_dialeddigits">
+						<para>R/0 Returns callee dialed digits</para>
+					</enum>
+					<enum name="caller_url">
+						<para>R/0 Returns caller URL</para>
 					</enum>
 				</enumlist>
 			</parameter>
@@ -553,7 +590,7 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 #ifdef CHANNEL_TRACE
 	else if (!strcasecmp(data, "trace")) {
 		ast_channel_lock(chan);
-		if (ast_true(value)) 
+		if (ast_true(value))
 			ret = ast_channel_trace_enable(chan);
 		else if (ast_false(value))
 			ret = ast_channel_trace_disable(chan);
@@ -568,7 +605,7 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 		struct ast_tone_zone *new_zone;
 		if (!(new_zone = ast_get_indication_zone(value))) {
 			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", value);
-			ret = -1;	
+			ret = -1;
 		} else {
 			ast_channel_lock(chan);
 			if (ast_channel_zone(chan)) {
