@@ -685,7 +685,7 @@ struct ast_variable *ast_http_get_post_vars(
 			prev = v;
 		}
 	}
-	
+
 done:
 	ast_free(buf);
 	return post_vars;
@@ -862,7 +862,7 @@ struct ast_variable *ast_http_get_cookies(struct ast_variable *headers)
 	struct ast_variable *v, *cookies=NULL;
 
 	for (v = headers; v; v = v->next) {
-		if (!strncasecmp(v->name, "Cookie", 6)) {
+		if (!strcasecmp(v->name, "Cookie")) {
 			char *tmp = ast_strdupa(v->value);
 			if (cookies) {
 				ast_variables_destroy(cookies);
