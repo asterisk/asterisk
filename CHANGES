@@ -581,6 +581,18 @@ XMPP
    to be unavailable.
 
 
+Scripts
+------------------
+
+safe_asterisk
+------------------
+ * The safe_asterisk script will now install over previously installations.
+   In previous versions of Asterisk, once installed a 'make install' would
+   skip over safe_asterisk if it was already installed.
+ * Certain options in safe_asterisk can now be configured from the
+   safe_asterisk.conf file. A sample version of this is located in the
+   configs/ folder.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------

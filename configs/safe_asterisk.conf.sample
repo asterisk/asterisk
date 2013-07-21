@@ -1,0 +1,20 @@
+Used by safe_asterisk startup script
+
+# comment this line out to have this script _not_ kill all mpg123 processes when
+# asterisk exits
+KILLALLMPG123=1
+
+# run asterisk with this priority
+PRIORITY=0
+
+# set system filemax on supported OSes if this variable is set
+# SYSMAXFILES=262144
+
+# Asterisk allows full permissions by default, so set a umask, if you want
+# restricted permissions.
+# UMASK=022
+
+# set max files open with ulimit. On linux systems, this will be automatically
+# set to the system's maximum files open devided by two, if not set here.
+# MAXFILES=32768
+
