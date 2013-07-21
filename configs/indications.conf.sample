@@ -434,7 +434,7 @@ description = Malaysia
 ringcadence = 2000,4000
 dial = 425
 busy = 425/500,0/500
-ring = 425/400,0/200
+ring = 425/400,0/200,425/400,0/2000
 congestion = 425/500,0/500
 
 [nl]
