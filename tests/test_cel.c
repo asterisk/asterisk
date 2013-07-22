@@ -1094,6 +1094,7 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
+	struct ast_bridge_channel_pair pair;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1123,13 +1124,16 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	do_sleep();
 	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
 
+	pair.bridge = bridge;
+	pair.channel = chan_alice;
+	ast_bridge_publish_blind_transfer(1, AST_BRIDGE_TRANSFER_SUCCESS,
+		&pair, "transfer_context", "transfer_extension");
 	BLINDTRANSFER_EVENT(chan_alice, bridge, "transfer_extension", "transfer_context");
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_alice));
 
-	ast_bridge_transfer_blind(1, chan_alice, "transfer_extension", "transfer_context", NULL, NULL);
+	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_alice));
+	ast_test_validate(test, 0 == ast_bridge_depart(chan_alice));
 
 	ast_test_validate(test, 0 == ast_bridge_depart(chan_bob));
-
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
