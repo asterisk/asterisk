@@ -5788,45 +5788,46 @@ struct ast_bridge_features *ast_bridge_features_new(void)
 void ast_bridge_set_mixing_interval(struct ast_bridge *bridge, unsigned int mixing_interval)
 {
 	ast_bridge_lock(bridge);
-	bridge->internal_mixing_interval = mixing_interval;
+	bridge->softmix.internal_mixing_interval = mixing_interval;
 	ast_bridge_unlock(bridge);
 }
 
 void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int sample_rate)
 {
 	ast_bridge_lock(bridge);
-	bridge->internal_sample_rate = sample_rate;
+	bridge->softmix.internal_sample_rate = sample_rate;
 	ast_bridge_unlock(bridge);
 }
 
 static void cleanup_video_mode(struct ast_bridge *bridge)
 {
-	switch (bridge->video_mode.mode) {
+	switch (bridge->softmix.video_mode.mode) {
 	case AST_BRIDGE_VIDEO_MODE_NONE:
 		break;
 	case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
-		if (bridge->video_mode.mode_data.single_src_data.chan_vsrc) {
-			ast_channel_unref(bridge->video_mode.mode_data.single_src_data.chan_vsrc);
+		if (bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc) {
+			ast_channel_unref(bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc);
 		}
 		break;
 	case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
-		if (bridge->video_mode.mode_data.talker_src_data.chan_vsrc) {
-			ast_channel_unref(bridge->video_mode.mode_data.talker_src_data.chan_vsrc);
+		if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc) {
+			ast_channel_unref(bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc);
 		}
-		if (bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc) {
-			ast_channel_unref(bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc);
+		if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc) {
+			ast_channel_unref(bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc);
 		}
 	}
-	memset(&bridge->video_mode, 0, sizeof(bridge->video_mode));
+	memset(&bridge->softmix.video_mode, 0, sizeof(bridge->softmix.video_mode));
 }
 
 void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_channel *video_src_chan)
 {
 	ast_bridge_lock(bridge);
 	cleanup_video_mode(bridge);
-	bridge->video_mode.mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
-	bridge->video_mode.mode_data.single_src_data.chan_vsrc = ast_channel_ref(video_src_chan);
-	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %d\r\nVideo Channel: %s", bridge->video_mode.mode, ast_channel_name(video_src_chan));
+	bridge->softmix.video_mode.mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
+	bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc = ast_channel_ref(video_src_chan);
+	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %d\r\nVideo Channel: %s",
+		bridge->softmix.video_mode.mode, ast_channel_name(video_src_chan));
 	ast_indicate(video_src_chan, AST_CONTROL_VIDUPDATE);
 	ast_bridge_unlock(bridge);
 }
@@ -5835,21 +5836,23 @@ void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge)
 {
 	ast_bridge_lock(bridge);
 	cleanup_video_mode(bridge);
-	bridge->video_mode.mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
-	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to talker source\r\nVideo Mode: %d", bridge->video_mode.mode);
+	bridge->softmix.video_mode.mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
+	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to talker source\r\nVideo Mode: %d",
+		bridge->softmix.video_mode.mode);
 	ast_bridge_unlock(bridge);
 }
 
 void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct ast_channel *chan, int talker_energy, int is_keyframe)
 {
 	struct ast_bridge_video_talker_src_data *data;
+
 	/* If the channel doesn't support video, we don't care about it */
 	if (!ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_VIDEO)) {
 		return;
 	}
 
 	ast_bridge_lock(bridge);
-	data = &bridge->video_mode.mode_data.talker_src_data;
+	data = &bridge->softmix.video_mode.mode_data.talker_src_data;
 
 	if (data->chan_vsrc == chan) {
 		data->average_talking_energy = talker_energy;
@@ -5884,19 +5887,19 @@ int ast_bridge_number_video_src(struct ast_bridge *bridge)
 	int res = 0;
 
 	ast_bridge_lock(bridge);
-	switch (bridge->video_mode.mode) {
+	switch (bridge->softmix.video_mode.mode) {
 	case AST_BRIDGE_VIDEO_MODE_NONE:
 		break;
 	case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
-		if (bridge->video_mode.mode_data.single_src_data.chan_vsrc) {
+		if (bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc) {
 			res = 1;
 		}
 		break;
 	case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
-		if (bridge->video_mode.mode_data.talker_src_data.chan_vsrc) {
+		if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc) {
 			res++;
 		}
-		if (bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc) {
+		if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc) {
 			res++;
 		}
 	}
@@ -5909,18 +5912,18 @@ int ast_bridge_is_video_src(struct ast_bridge *bridge, struct ast_channel *chan)
 	int res = 0;
 
 	ast_bridge_lock(bridge);
-	switch (bridge->video_mode.mode) {
+	switch (bridge->softmix.video_mode.mode) {
 	case AST_BRIDGE_VIDEO_MODE_NONE:
 		break;
 	case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
-		if (bridge->video_mode.mode_data.single_src_data.chan_vsrc == chan) {
+		if (bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc == chan) {
 			res = 1;
 		}
 		break;
 	case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
-		if (bridge->video_mode.mode_data.talker_src_data.chan_vsrc == chan) {
+		if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc == chan) {
 			res = 1;
-		} else if (bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc == chan) {
+		} else if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc == chan) {
 			res = 2;
 		}
 
@@ -5932,30 +5935,30 @@ int ast_bridge_is_video_src(struct ast_bridge *bridge, struct ast_channel *chan)
 void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	ast_bridge_lock(bridge);
-	switch (bridge->video_mode.mode) {
+	switch (bridge->softmix.video_mode.mode) {
 	case AST_BRIDGE_VIDEO_MODE_NONE:
 		break;
 	case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
-		if (bridge->video_mode.mode_data.single_src_data.chan_vsrc == chan) {
-			if (bridge->video_mode.mode_data.single_src_data.chan_vsrc) {
-				ast_channel_unref(bridge->video_mode.mode_data.single_src_data.chan_vsrc);
+		if (bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc == chan) {
+			if (bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc) {
+				ast_channel_unref(bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc);
 			}
-			bridge->video_mode.mode_data.single_src_data.chan_vsrc = NULL;
+			bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc = NULL;
 		}
 		break;
 	case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
-		if (bridge->video_mode.mode_data.talker_src_data.chan_vsrc == chan) {
-			if (bridge->video_mode.mode_data.talker_src_data.chan_vsrc) {
-				ast_channel_unref(bridge->video_mode.mode_data.talker_src_data.chan_vsrc);
+		if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc == chan) {
+			if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc) {
+				ast_channel_unref(bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc);
 			}
-			bridge->video_mode.mode_data.talker_src_data.chan_vsrc = NULL;
-			bridge->video_mode.mode_data.talker_src_data.average_talking_energy = 0;
+			bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc = NULL;
+			bridge->softmix.video_mode.mode_data.talker_src_data.average_talking_energy = 0;
 		}
-		if (bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc == chan) {
-			if (bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc) {
-				ast_channel_unref(bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc);
+		if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc == chan) {
+			if (bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc) {
+				ast_channel_unref(bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc);
 			}
-			bridge->video_mode.mode_data.talker_src_data.chan_old_vsrc = NULL;
+			bridge->softmix.video_mode.mode_data.talker_src_data.chan_old_vsrc = NULL;
 		}
 	}
 	ast_bridge_unlock(bridge);

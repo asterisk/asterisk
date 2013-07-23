@@ -390,6 +390,26 @@ struct ast_bridge_methods {
 	ast_bridge_merge_priority_fn get_merge_priority;
 };
 
+/*! Softmix technology parameters. */
+struct ast_bridge_softmix {
+	/*! The video mode softmix is using */
+	struct ast_bridge_video_mode video_mode;
+	/*!
+	 * \brief The internal sample rate softmix uses to mix channels.
+	 *
+	 * \note If this value is 0, the sofmix may auto adjust the mixing rate.
+	 */
+	unsigned int internal_sample_rate;
+	/*!
+	 * \brief The mixing interval indicates how quickly softmix
+	 * mixing should occur to mix audio.
+	 *
+	 * \note When set to 0, softmix must choose a default interval
+	 * for itself.
+	 */
+	unsigned int internal_mixing_interval;
+};
+
 /*!
  * \brief Structure that contains information about a bridge
  */
@@ -398,8 +418,6 @@ struct ast_bridge {
 	const struct ast_bridge_methods *v_table;
 	/*! "Personality" currently exhibited by bridge subclass */
 	void *personality;
-	/*! Immutable bridge UUID. */
-	char uniqueid[AST_UUID_STR_LEN];
 	/*! Bridge technology that is handling the bridge */
 	struct ast_bridge_technology *technology;
 	/*! Private information unique to the bridge technology */
@@ -410,8 +428,8 @@ struct ast_bridge {
 	AST_LIST_HEAD_NOLOCK(, ast_bridge_channel) channels;
 	/*! Queue of actions to perform on the bridge. */
 	AST_LIST_HEAD_NOLOCK(, ast_frame) action_queue;
-	/*! The video mode this bridge is using */
-	struct ast_bridge_video_mode video_mode;
+	/*! Softmix technology parameters. */
+	struct ast_bridge_softmix softmix;
 	/*! Bridge flags to tweak behavior */
 	struct ast_flags feature_flags;
 	/*! Allowed bridge technology capabilities when AST_BRIDGE_FLAG_SMART enabled. */
@@ -427,19 +445,14 @@ struct ast_bridge {
 	 * \note Temporary as in try again in a moment.
 	 */
 	unsigned int inhibit_merge;
-	/*! The internal sample rate this bridge is mixed at when multiple channels are being mixed.
-	 *  If this value is 0, the bridge technology may auto adjust the internal mixing rate. */
-	unsigned int internal_sample_rate;
-	/*! The mixing interval indicates how quickly the bridges internal mixing should occur
-	 * for bridge technologies that mix audio. When set to 0, the bridge tech must choose a
-	 * default interval for itself. */
-	unsigned int internal_mixing_interval;
 	/*! TRUE if the bridge was reconfigured. */
 	unsigned int reconfigured:1;
 	/*! TRUE if the bridge has been dissolved.  Any channel that now tries to join is immediately ejected. */
 	unsigned int dissolved:1;
 	/*! TRUE if the bridge construction was completed. */
 	unsigned int construction_completed:1;
+	/*! Immutable bridge UUID. */
+	char uniqueid[AST_UUID_STR_LEN];
 };
 
 /*!

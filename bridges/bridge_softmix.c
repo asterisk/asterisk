@@ -477,7 +477,7 @@ static void softmix_bridge_write_video(struct ast_bridge *bridge, struct ast_bri
 	int video_src_priority;
 
 	/* Determine if the video frame should be distributed or not */
-	switch (bridge->video_mode.mode) {
+	switch (bridge->softmix.video_mode.mode) {
 	case AST_BRIDGE_VIDEO_MODE_NONE:
 		break;
 	case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
@@ -533,7 +533,7 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 	ast_mutex_lock(&sc->lock);
 	ast_dsp_silence_with_energy(sc->dsp, frame, &totalsilence, &cur_energy);
 
-	if (bridge->video_mode.mode == AST_BRIDGE_VIDEO_MODE_TALKER_SRC) {
+	if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_TALKER_SRC) {
 		int cur_slot = sc->video_talker.energy_history_cur_slot;
 
 		sc->video_talker.energy_accum -= sc->video_talker.energy_history[cur_slot];
@@ -851,7 +851,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		/* These variables help determine if a rate change is required */
 		if (!stat_iteration_counter) {
 			memset(&stats, 0, sizeof(stats));
-			stats.locked_rate = bridge->internal_sample_rate;
+			stats.locked_rate = bridge->softmix.internal_sample_rate;
 		}
 
 		/* If the sample rate has changed, update the translator helper */
@@ -942,8 +942,9 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		ast_bridge_lock(bridge);
 
 		/* make sure to detect mixing interval changes if they occur. */
-		if (bridge->internal_mixing_interval && (bridge->internal_mixing_interval != softmix_data->internal_mixing_interval)) {
-			softmix_data->internal_mixing_interval = bridge->internal_mixing_interval;
+		if (bridge->softmix.internal_mixing_interval
+			&& (bridge->softmix.internal_mixing_interval != softmix_data->internal_mixing_interval)) {
+			softmix_data->internal_mixing_interval = bridge->softmix.internal_mixing_interval;
 			ast_timer_set_rate(timer, (1000 / softmix_data->internal_mixing_interval));
 			update_all_rates = 1; /* if the interval changes, the rates must be adjusted as well just to be notified new interval.*/
 		}
