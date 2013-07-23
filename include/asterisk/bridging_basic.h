@@ -36,15 +36,41 @@ extern "C" {
 /* ------------------------------------------------------------------- */
 
 /*!
+ * \brief Sets the features a channel will use upon being bridged.
+ * \since 12.0.0
+ *
+ * \param chan Which channel to set features for
+ * \param features Which feature codes to set for the channel
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_bridge_features_ds_set_string(struct ast_channel *chan, const char *features);
+
+/*!
+ * \brief writes a channel's DTMF features to a buffer string
+ * \since 12.0.0
+ *
+ * \param chan channel whose feature flags should be checked
+ * \param buffer pointer string buffer where the output should be stored
+ * \param buf_size size of the provided buffer (ideally enough for all features, 6+)
+ *
+ * \retval 0 on successful write
+ * \retval -1 on failure
+ */
+int ast_bridge_features_ds_get_string(struct ast_channel *chan, char *buffer, size_t buf_size);
+
+/*!
  * \brief Get DTMF feature flags from the channel.
  * \since 12.0.0
  *
  * \param chan Channel to get DTMF features datastore.
  *
  * \note The channel should be locked before calling this function.
+ * \note The channel must remain locked until the flags returned have been consumed.
  *
  * \retval flags on success.
- * \retval NULL on error.
+ * \retval NULL if the datastore does not exist.
  */
 struct ast_flags *ast_bridge_features_ds_get(struct ast_channel *chan);
 

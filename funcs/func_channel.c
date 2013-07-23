@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
+#include "asterisk/bridging_basic.h"
 
 /*** DOCUMENTATION
 	<function name="CHANNELS" language="en_US">
@@ -100,6 +101,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</enum>
 					<enum name="audiowriteformat">
 						<para>R/O format currently being written.</para>
+					</enum>
+					<enum name="dtmf_features">
+						<para>R/W The channel's DTMF bridge features.
+						May include one or more of 'T' 'K' 'H' 'W' and 'X' in a similar manner to options
+						in the <literal>Dial</literal> application. When setting it, the features string
+						must be all upper case.</para>
 					</enum>
 					<enum name="callgroup">
 						<para>R/W numeric call pickup groups that this channel is a member.</para>
@@ -436,9 +443,13 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		ast_copy_string(buf, ast_channel_trace_is_enabled(chan) ? "1" : "0", len);
 		ast_channel_unlock(chan);
 #endif
-	} else if (!strcasecmp(data, "tonezone") && ast_channel_zone(chan))
+	} else if (!strcasecmp(data, "tonezone") && ast_channel_zone(chan)) {
 		locked_copy_string(chan, buf, ast_channel_zone(chan)->country, len);
-	else if (!strcasecmp(data, "language"))
+	} else if (!strcasecmp(data, "dtmf_features")) {
+		if (ast_bridge_features_ds_get_string(chan, buf, len)) {
+			buf[0] = '\0';
+		}
+	} else if (!strcasecmp(data, "language"))
 		locked_copy_string(chan, buf, ast_channel_language(chan), len);
 	else if (!strcasecmp(data, "musicclass"))
 		locked_copy_string(chan, buf, ast_channel_musicclass(chan), len);
@@ -615,6 +626,8 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 			ast_channel_unlock(chan);
 			new_zone = ast_tone_zone_unref(new_zone);
 		}
+	} else if (!strcasecmp(data, "dtmf_features")) {
+		ret = ast_bridge_features_ds_set_string(chan, value);
 	} else if (!strcasecmp(data, "callgroup")) {
 		ast_channel_lock(chan);
 		ast_channel_callgroup_set(chan, ast_get_group(value));

@@ -82,6 +82,143 @@ static const struct ast_datastore_info dtmf_features_info = {
 	.destroy = ast_free_ptr,
 };
 
+/*!
+ * \internal
+ * \since 12.0.0
+ * \brief read a feature code character and set it on for the give feature_flags struct
+ *
+ * \param feature_flags flags being modifed
+ * \param feature feature code provided - should be an uppercase letter
+ *
+ * \retval 0 if the feature was set successfully
+ * \retval -1 failure because the requested feature code isn't handled by this function
+ */
+static int set_feature_flag_from_char(struct ast_flags *feature_flags, char feature)
+{
+	switch (feature) {
+	case 'T':
+		ast_set_flag(feature_flags, AST_FEATURE_REDIRECT);
+		return 0;
+	case 'K':
+		ast_set_flag(feature_flags, AST_FEATURE_PARKCALL);
+		return 0;
+	case 'H':
+		ast_set_flag(feature_flags, AST_FEATURE_DISCONNECT);
+		return 0;
+	case 'W':
+		ast_set_flag(feature_flags, AST_FEATURE_AUTOMON);
+		return 0;
+	case 'X':
+		ast_set_flag(feature_flags, AST_FEATURE_AUTOMIXMON);
+		return 0;
+	default:
+		return -1;
+	}
+}
+
+/*!
+ * \internal
+ * \since 12.0.0
+ * \brief Write a features string to a string buffer based on the feature flags provided
+ *
+ * \param feature_flags pointer to the feature flags to write from.
+ * \param buffer pointer to a string buffer to write the features
+ * \param buffer_size size of the buffer provided (should be able to fit all feature codes)
+ *
+ * \retval 0 on successful write
+ * \retval -1 failure due to running out of buffer space
+ */
+static int dtmf_features_flags_to_string(struct ast_flags *feature_flags, char *buffer, size_t buffer_size)
+{
+	size_t buffer_expended = 0;
+	unsigned int cur_feature;
+	static const struct {
+		char letter;
+		unsigned int flag;
+	} associations[] = {
+		{ 'T', AST_FEATURE_REDIRECT },
+		{ 'K', AST_FEATURE_PARKCALL },
+		{ 'H', AST_FEATURE_DISCONNECT },
+		{ 'W', AST_FEATURE_AUTOMON },
+		{ 'X', AST_FEATURE_AUTOMIXMON },
+	};
+
+	for (cur_feature = 0; cur_feature < ARRAY_LEN(associations); cur_feature++) {
+		if (ast_test_flag(feature_flags, associations[cur_feature].flag)) {
+			if (buffer_expended == buffer_size - 1) {
+				buffer[buffer_expended] = '\0';
+				return -1;
+			}
+			buffer[buffer_expended++] = associations[cur_feature].letter;
+		}
+	}
+
+	buffer[buffer_expended] = '\0';
+	return 0;
+}
+
+static int build_dtmf_features(struct ast_flags *flags, const char *features)
+{
+	const char *feature;
+
+	char missing_features[strlen(features) + 1];
+	size_t number_of_missing_features = 0;
+
+	for (feature = features; *feature; feature++) {
+		if (!isupper(*feature)) {
+			ast_log(LOG_ERROR, "Features string '%s' rejected because it contains non-uppercase feature.\n", features);
+			return -1;
+		}
+
+		if (set_feature_flag_from_char(flags, *feature)) {
+			missing_features[number_of_missing_features++] = *feature;
+		}
+	}
+
+	missing_features[number_of_missing_features] = '\0';
+
+	if (number_of_missing_features) {
+		ast_log(LOG_WARNING, "Features '%s' from features string '%s' can not be applied.\n", missing_features, features);
+	}
+
+	return 0;
+}
+
+int ast_bridge_features_ds_set_string(struct ast_channel *chan, const char *features)
+{
+	struct ast_flags flags = {0};
+
+	if (build_dtmf_features(&flags, features)) {
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (ast_bridge_features_ds_set(chan, &flags)) {
+		ast_channel_unlock(chan);
+		ast_log(LOG_ERROR, "Failed to apply features datastore for '%s' to channel '%s'\n", features, ast_channel_name(chan));
+		return -1;
+	}
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
+int ast_bridge_features_ds_get_string(struct ast_channel *chan, char *buffer, size_t buf_size)
+{
+	struct ast_flags *channel_flags;
+	struct ast_flags held_copy;
+
+	ast_channel_lock(chan);
+	if (!(channel_flags = ast_bridge_features_ds_get(chan))) {
+		ast_channel_unlock(chan);
+		return -1;
+	}
+	held_copy = *channel_flags;
+	ast_channel_unlock(chan);
+
+	return dtmf_features_flags_to_string(&held_copy, buffer, buf_size);
+}
+
 int ast_bridge_features_ds_set(struct ast_channel *chan, struct ast_flags *flags)
 {
 	struct ast_datastore *datastore;
