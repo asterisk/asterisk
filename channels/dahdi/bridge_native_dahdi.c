@@ -156,16 +156,16 @@ static void native_stop(struct ast_bridge *bridge)
 
 		ast_mutex_lock(&chan_tech_pvt->pvt->lock);
 		if (chan_tech_pvt->pvt == ast_channel_tech_pvt(cur->chan)) {
-			dahdi_enable_ec(chan_tech_pvt->pvt);
+			dahdi_ec_enable(chan_tech_pvt->pvt);
 		}
 		if (chan_tech_pvt->index == SUB_REAL) {
-			enable_dtmf_detect(chan_tech_pvt->pvt);
+			dahdi_dtmf_detect_enable(chan_tech_pvt->pvt);
 		}
 		ast_mutex_unlock(&chan_tech_pvt->pvt->lock);
 	}
 
 	bridge_tech_pvt = bridge->tech_pvt;
-	dahdi_unlink(bridge_tech_pvt->slave, bridge_tech_pvt->master, 1);
+	dahdi_master_slave_unlink(bridge_tech_pvt->slave, bridge_tech_pvt->master, 1);
 
 	ast_debug(2, "Stop native bridging %s and %s\n",
 		ast_channel_name(AST_LIST_FIRST(&bridge->channels)->chan),
@@ -404,19 +404,19 @@ static int native_start(struct ast_bridge *bridge)
 		if (npc0->index == SUB_REAL && npc1->index == SUB_REAL) {
 			if (!p0->echocanbridged || !p1->echocanbridged) {
 				/* Disable echo cancellation if appropriate */
-				dahdi_disable_ec(p0);
-				dahdi_disable_ec(p1);
+				dahdi_ec_disable(p0);
+				dahdi_ec_disable(p1);
 			}
 		}
-		dahdi_link(slave, master);
+		dahdi_master_slave_link(slave, master);
 		master->inconference = inconf;
 	} else if (!nothing_ok) {
 		ast_log(LOG_WARNING, "Can't link %d/%s with %d/%s\n",
 			p0->channel, subnames[npc0->index],
 			p1->channel, subnames[npc1->index]);
 	}
-	update_conf(p0);
-	update_conf(p1);
+	dahdi_conf_update(p0);
+	dahdi_conf_update(p1);
 
 	ast_channel_unlock(c0);
 	ast_channel_unlock(c1);
@@ -429,10 +429,10 @@ static int native_start(struct ast_bridge *bridge)
 	}
 
 	if (npc0->index == SUB_REAL) {
-		disable_dtmf_detect(p0);
+		dahdi_dtmf_detect_disable(p0);
 	}
 	if (npc1->index == SUB_REAL) {
-		disable_dtmf_detect(p1);
+		dahdi_dtmf_detect_disable(p1);
 	}
 
 	ast_mutex_unlock(&p0->lock);

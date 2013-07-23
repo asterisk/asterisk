@@ -745,7 +745,7 @@ static inline int dahdi_sig_pri_lib_handles(int signaling)
 	return handles;
 }
 
-static inline int analog_lib_handles(int signalling, int radio, int oprmode)
+static inline int dahdi_analog_lib_handles(int signalling, int radio, int oprmode)
 {
 	switch (signalling) {
 	case SIG_FXOLS:
@@ -789,15 +789,15 @@ static inline int analog_lib_handles(int signalling, int radio, int oprmode)
 #define dahdi_get_index(ast, p, nullok)	_dahdi_get_index(ast, p, nullok, __PRETTY_FUNCTION__, __LINE__)
 int _dahdi_get_index(struct ast_channel *ast, struct dahdi_pvt *p, int nullok, const char *fname, unsigned long line);
 
-void disable_dtmf_detect(struct dahdi_pvt *p);
-void enable_dtmf_detect(struct dahdi_pvt *p);
+void dahdi_dtmf_detect_disable(struct dahdi_pvt *p);
+void dahdi_dtmf_detect_enable(struct dahdi_pvt *p);
 
-void dahdi_enable_ec(struct dahdi_pvt *p);
-void dahdi_disable_ec(struct dahdi_pvt *p);
+void dahdi_ec_enable(struct dahdi_pvt *p);
+void dahdi_ec_disable(struct dahdi_pvt *p);
 
-void update_conf(struct dahdi_pvt *p);
-void dahdi_link(struct dahdi_pvt *slave, struct dahdi_pvt *master);
-void dahdi_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needlock);
+void dahdi_conf_update(struct dahdi_pvt *p);
+void dahdi_master_slave_link(struct dahdi_pvt *slave, struct dahdi_pvt *master);
+void dahdi_master_slave_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needlock);
 
 /* ------------------------------------------------------------------- */
 

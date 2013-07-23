@@ -3049,7 +3049,6 @@ static void *mgcp_ss(void *data)
 						p->hidecallerid ? "" : p->cid_name,
 						ast_channel_caller(chan)->ani.number.valid ? NULL : p->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
-					/*dahdi_enable_ec(p);*/
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {
 						p->dtmfmode |= MGCP_DTMF_INBAND;
 						ast_indicate(chan, -1);

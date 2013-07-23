@@ -1744,7 +1744,7 @@ static void *my_get_sigpvt_bridged_channel(struct ast_channel *chan)
 	if (bridged && ast_channel_tech(bridged) == &dahdi_tech) {
 		struct dahdi_pvt *p = ast_channel_tech_pvt(bridged);
 
-		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+		if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 			return p->sig_pvt;
 		}
 	}
@@ -2429,9 +2429,9 @@ static int my_set_echocanceller(void *pvt, int enable)
 	struct dahdi_pvt *p = pvt;
 
 	if (enable)
-		dahdi_enable_ec(p);
+		dahdi_ec_enable(p);
 	else
-		dahdi_disable_ec(p);
+		dahdi_ec_disable(p);
 
 	return 0;
 }
@@ -3578,7 +3578,7 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 	struct ast_callid *callid = NULL;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 	p = openr2_chan_get_client_data(r2chan);
-	dahdi_enable_ec(p);
+	dahdi_ec_enable(p);
 	p->mfcr2_call_accepted = 1;
 	/* if it's an incoming call ... */
 	if (OR2_DIR_BACKWARD == openr2_chan_get_direction(r2chan)) {
@@ -4364,7 +4364,7 @@ static int reset_conf(struct dahdi_pvt *p)
 	return 0;
 }
 
-void update_conf(struct dahdi_pvt *p)
+void dahdi_conf_update(struct dahdi_pvt *p)
 {
 	int needconf = 0;
 	int x;
@@ -4419,7 +4419,7 @@ void update_conf(struct dahdi_pvt *p)
 	ast_debug(1, "Updated conferencing on %d, with %d conference users\n", p->channel, needconf);
 }
 
-void dahdi_enable_ec(struct dahdi_pvt *p)
+void dahdi_ec_enable(struct dahdi_pvt *p)
 {
 	int res;
 	if (!p)
@@ -4491,7 +4491,7 @@ static void dahdi_train_ec(struct dahdi_pvt *p)
 	}
 }
 
-void dahdi_disable_ec(struct dahdi_pvt *p)
+void dahdi_ec_disable(struct dahdi_pvt *p)
 {
 	int res;
 
@@ -4993,7 +4993,7 @@ static int dahdi_call(struct ast_channel *ast, const char *rdest, int timeout)
 #endif	/* defined(HAVE_SS7) */
 
 	/* If this is analog signalling we can exit here */
-	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		p->callwaitrings = 0;
 		res = analog_call(p->sig_pvt, ast, rdest, timeout);
 		ast_mutex_unlock(&p->lock);
@@ -5344,7 +5344,7 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 	}
 
 	if (p->sig_pvt) {
-		if (analog_lib_handles(p->sig, 0, 0)) {
+		if (dahdi_analog_lib_handles(p->sig, 0, 0)) {
 			analog_delete(p->sig_pvt);
 		}
 		switch (p->sig) {
@@ -5747,7 +5747,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	p->exten[0] = '\0';
-	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		dahdi_confmute(p, 0);
 		restore_gains(p);
 		p->ignoredtmf = 0;
@@ -5805,14 +5805,14 @@ static int dahdi_hangup(struct ast_channel *ast)
 		sig_pri_hangup(p->sig_pvt, ast);
 
 		tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
-		dahdi_disable_ec(p);
+		dahdi_ec_disable(p);
 
 		x = 0;
 		ast_channel_setoption(ast, AST_OPTION_TDD, &x, sizeof(char), 0);
 		p->didtdd = 0;/* Probably not used in this mode. Reset anyway. */
 
 		p->rdnis[0] = '\0';
-		update_conf(p);
+		dahdi_conf_update(p);
 		reset_conf(p);
 
 		/* Restore data mode */
@@ -5867,13 +5867,13 @@ static int dahdi_hangup(struct ast_channel *ast)
 		sig_ss7_hangup(p->sig_pvt, ast);
 
 		tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
-		dahdi_disable_ec(p);
+		dahdi_ec_disable(p);
 
 		x = 0;
 		ast_channel_setoption(ast, AST_OPTION_TDD, &x, sizeof(char), 0);
 		p->didtdd = 0;/* Probably not used in this mode. Reset anyway. */
 
-		update_conf(p);
+		dahdi_conf_update(p);
 		reset_conf(p);
 
 		/* Restore data mode */
@@ -6094,7 +6094,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 			break;
 		}
 		if (p->sig)
-			dahdi_disable_ec(p);
+			dahdi_ec_disable(p);
 		x = 0;
 		ast_channel_setoption(ast,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		ast_channel_setoption(ast,AST_OPTION_TDD,&x,sizeof(char),0);
@@ -6105,7 +6105,7 @@ static int dahdi_hangup(struct ast_channel *ast)
 		p->waitingfordt.tv_sec = 0;
 		p->dialing = 0;
 		p->rdnis[0] = '\0';
-		update_conf(p);
+		dahdi_conf_update(p);
 		reset_conf(p);
 		/* Restore data mode */
 		switch (p->sig) {
@@ -6163,7 +6163,7 @@ static int dahdi_answer(struct ast_channel *ast)
 		return 0;
 	}
 
-	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		res = analog_answer(p->sig_pvt, ast);
 		ast_mutex_unlock(&p->lock);
 		return res;
@@ -6211,7 +6211,7 @@ static int dahdi_answer(struct ast_channel *ast)
 	return res;
 }
 
-void disable_dtmf_detect(struct dahdi_pvt *p)
+void dahdi_dtmf_detect_disable(struct dahdi_pvt *p)
 {
 	int val = 0;
 
@@ -6225,7 +6225,7 @@ void disable_dtmf_detect(struct dahdi_pvt *p)
 	}
 }
 
-void enable_dtmf_detect(struct dahdi_pvt *p)
+void dahdi_dtmf_detect_enable(struct dahdi_pvt *p)
 {
 	int val = DAHDI_TONEDETECT_ON | DAHDI_TONEDETECT_MUTE;
 
@@ -6350,7 +6350,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		}
 		ast_debug(1, "Set option TDD MODE, value: %s(%d) on %s\n",
 			(*cp == 2) ? "MATE" : "ON", (int) *cp, ast_channel_name(chan));
-		dahdi_disable_ec(p);
+		dahdi_ec_disable(p);
 		/* otherwise, turn it on */
 		if (!p->didtdd) { /* if havent done it yet */
 			unsigned char mybuf[41000];/*! \todo XXX This is an abuse of the stack!! */
@@ -6432,7 +6432,7 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		if (!*cp) {
 			ast_debug(1, "Set option AUDIO MODE, value: OFF(0) on %s\n", ast_channel_name(chan));
 			x = 0;
-			dahdi_disable_ec(p);
+			dahdi_ec_disable(p);
 		} else {
 			ast_debug(1, "Set option AUDIO MODE, value: ON(1) on %s\n", ast_channel_name(chan));
 			x = 1;
@@ -6467,19 +6467,19 @@ static int dahdi_setoption(struct ast_channel *chan, int option, void *data, int
 		cp = (char *) data;
 		if (*cp) {
 			ast_debug(1, "Enabling echo cancellation on %s\n", ast_channel_name(chan));
-			dahdi_enable_ec(p);
+			dahdi_ec_enable(p);
 		} else {
 			ast_debug(1, "Disabling echo cancellation on %s\n", ast_channel_name(chan));
-			dahdi_disable_ec(p);
+			dahdi_ec_disable(p);
 		}
 		break;
 	case AST_OPTION_DIGIT_DETECT:
 		cp = (char *) data;
 		ast_debug(1, "%sabling digit detection on %s\n", *cp ? "En" : "Dis", ast_channel_name(chan));
 		if (*cp) {
-			enable_dtmf_detect(p);
+			dahdi_dtmf_detect_enable(p);
 		} else {
-			disable_dtmf_detect(p);
+			dahdi_dtmf_detect_disable(p);
 		}
 		break;
 	case AST_OPTION_FAX_DETECT:
@@ -6674,11 +6674,11 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 	} else if (!strcasecmp(data, "echocan_mode")) {
 		if (!strcasecmp(value, "on")) {
 			ast_mutex_lock(&p->lock);
-			dahdi_enable_ec(p);
+			dahdi_ec_enable(p);
 			ast_mutex_unlock(&p->lock);
 		} else if (!strcasecmp(value, "off")) {
 			ast_mutex_lock(&p->lock);
-			dahdi_disable_ec(p);
+			dahdi_ec_disable(p);
 			ast_mutex_unlock(&p->lock);
 #ifdef HAVE_DAHDI_ECHOCANCEL_FAX_MODE
 		} else if (!strcasecmp(value, "fax")) {
@@ -6686,7 +6686,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 
 			ast_mutex_lock(&p->lock);
 			if (!p->echocanon) {
-				dahdi_enable_ec(p);
+				dahdi_ec_enable(p);
 			}
 			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_FAX_MODE, &blah)) {
 				ast_log(LOG_WARNING, "Unable to place echocan into fax mode on channel %d: %s\n", p->channel, strerror(errno));
@@ -6697,7 +6697,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 
 			ast_mutex_lock(&p->lock);
 			if (!p->echocanon) {
-				dahdi_enable_ec(p);
+				dahdi_ec_enable(p);
 			}
 			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_ECHOCANCEL_FAX_MODE, &blah)) {
 				ast_log(LOG_WARNING, "Unable to place echocan into voice mode on channel %d: %s\n", p->channel, strerror(errno));
@@ -6715,7 +6715,7 @@ static int dahdi_func_write(struct ast_channel *chan, const char *function, char
 	return res;
 }
 
-void dahdi_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needlock)
+void dahdi_master_slave_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needlock)
 {
 	/* Unlink a specific slave or all slaves/masters from a given master */
 	int x;
@@ -6763,7 +6763,7 @@ void dahdi_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needloc
 		}
 		master->master = NULL;
 	}
-	update_conf(master);
+	dahdi_conf_update(master);
 	if (needlock) {
 		if (slave)
 			ast_mutex_unlock(&slave->lock);
@@ -6771,7 +6771,7 @@ void dahdi_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needloc
 	}
 }
 
-void dahdi_link(struct dahdi_pvt *slave, struct dahdi_pvt *master)
+void dahdi_master_slave_link(struct dahdi_pvt *slave, struct dahdi_pvt *master)
 {
 	int x;
 	if (!slave || !master) {
@@ -6809,12 +6809,12 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	for (x = 0; x < 3; x++) {
 		if (p->subs[x].owner == oldchan) {
 			if (!x) {
-				dahdi_unlink(NULL, p, 0);
+				dahdi_master_slave_unlink(NULL, p, 0);
 			}
 			p->subs[x].owner = newchan;
 		}
 	}
-	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		analog_fixup(oldchan, newchan, p->sig_pvt);
 #if defined(HAVE_PRI)
 	} else if (dahdi_sig_pri_lib_handles(p->sig)) {
@@ -6825,7 +6825,7 @@ static int dahdi_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		sig_ss7_fixup(oldchan, newchan, p->sig_pvt);
 #endif	/* defined(HAVE_SS7) */
 	}
-	update_conf(p);
+	dahdi_conf_update(p);
 
 	ast_mutex_unlock(&p->lock);
 
@@ -7268,7 +7268,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			return NULL;
 		}
 		if (!x) { /* if not still dialing in driver */
-			dahdi_enable_ec(p);
+			dahdi_ec_enable(p);
 			if (p->echobreak) {
 				dahdi_train_ec(p);
 				ast_copy_string(p->dop.dialstr, p->echorest, sizeof(p->dop.dialstr));
@@ -7463,7 +7463,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 			}
 			/* Fall through */
 		default:
-			dahdi_disable_ec(p);
+			dahdi_ec_disable(p);
 			return NULL;
 		}
 		break;
@@ -7518,7 +7518,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 		case SIG_FXOKS:
 			switch (ast_channel_state(ast)) {
 			case AST_STATE_RINGING:
-				dahdi_enable_ec(p);
+				dahdi_ec_enable(p);
 				dahdi_train_ec(p);
 				p->subs[idx].f.frametype = AST_FRAME_CONTROL;
 				p->subs[idx].f.subclass.integer = AST_CONTROL_ANSWER;
@@ -7786,7 +7786,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					/* Swap things around between the three-way and real call */
 					swap_subs(p, SUB_THREEWAY, SUB_REAL);
 					/* Disable echo canceller for better dialing */
-					dahdi_disable_ec(p);
+					dahdi_ec_disable(p);
 					res = tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_DIALRECALL);
 					if (res)
 						ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
@@ -7796,7 +7796,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					} else if (ast_pthread_create_detached(&threadid, NULL, analog_ss_thread, chan)) {
 						ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 						res = tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_CONGESTION);
-						dahdi_enable_ec(p);
+						dahdi_ec_enable(p);
 						ast_hangup(chan);
 					} else {
 						ast_verb(3, "Started three way call on channel %d\n", p->channel);
@@ -7853,12 +7853,12 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 							ast_queue_unhold(p->subs[SUB_REAL].owner);
 						}
 						p->subs[SUB_REAL].needunhold = 1;
-						dahdi_enable_ec(p);
+						dahdi_ec_enable(p);
 					}
 				}
 			}
 winkflashdone:
-			update_conf(p);
+			dahdi_conf_update(p);
 			break;
 		case SIG_EM:
 		case SIG_EM_E1:
@@ -8051,7 +8051,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 		}
 		switch (res) {
 		case DAHDI_EVENT_ONHOOK:
-			dahdi_disable_ec(p);
+			dahdi_ec_disable(p);
 			if (p->owner) {
 				ast_verb(3, "Channel %s still has call, ringing phone\n", ast_channel_name(p->owner));
 				dahdi_ring_phone(p);
@@ -8060,10 +8060,10 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 				p->cid_suppress_expire = 0;
 			} else
 				ast_log(LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
-			update_conf(p);
+			dahdi_conf_update(p);
 			break;
 		case DAHDI_EVENT_RINGOFFHOOK:
-			dahdi_enable_ec(p);
+			dahdi_ec_enable(p);
 			dahdi_set_hook(p->subs[SUB_REAL].dfd, DAHDI_OFFHOOK);
 			if (p->owner && (ast_channel_state(p->owner) == AST_STATE_RINGING)) {
 				p->subs[SUB_REAL].needanswer = 1;
@@ -8094,7 +8094,7 @@ static struct ast_frame *__dahdi_exception(struct ast_channel *ast)
 				p->subs[SUB_REAL].needunhold = 1;
 			} else
 				ast_log(LOG_WARNING, "Absorbed on hook, but nobody is left!?!?\n");
-			update_conf(p);
+			dahdi_conf_update(p);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to absorb event %s\n", event2str(res));
@@ -8132,7 +8132,7 @@ static struct ast_frame *dahdi_exception(struct ast_channel *ast)
 	struct dahdi_pvt *p = ast_channel_tech_pvt(ast);
 	struct ast_frame *f;
 	ast_mutex_lock(&p->lock);
-	if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 		struct analog_pvt *analog_p = p->sig_pvt;
 		f = analog_exception(analog_p, ast);
 	} else {
@@ -8329,7 +8329,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	 * if this channel owns the private.
 	 */
 	if (p->fake_event && p->owner == ast) {
-		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+		if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 			struct analog_pvt *analog_p = p->sig_pvt;
 
 			f = analog_exception(analog_p, ast);
@@ -8373,7 +8373,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 				ast_mutex_unlock(&p->lock);
 				return &p->subs[idx].f;
 			} else if (errno == ELAST) {
-				if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+				if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 					struct analog_pvt *analog_p = p->sig_pvt;
 					f = analog_exception(analog_p, ast);
 				} else {
@@ -8387,7 +8387,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	}
 	if (res != (p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE)) {
 		ast_debug(1, "Short read (%d/%d), must be an event...\n", res, p->subs[idx].linear ? READ_SIZE * 2 : READ_SIZE);
-		if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+		if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 			struct analog_pvt *analog_p = p->sig_pvt;
 			f = analog_exception(analog_p, ast);
 		} else {
@@ -8565,7 +8565,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		switch (f->frametype) {
 		case AST_FRAME_DTMF_BEGIN:
 		case AST_FRAME_DTMF_END:
-			if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+			if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 				analog_handle_dtmf(p->sig_pvt, ast, idx, &f);
 			} else {
 				dahdi_handle_dtmf(ast, idx, &f);
@@ -9013,7 +9013,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		ast_channel_amaflags_set(tmp, i->amaflags);
 	i->subs[idx].owner = tmp;
 	ast_channel_context_set(tmp, i->context);
-	if (!analog_lib_handles(i->sig, i->radio, i->oprmode)) {
+	if (!dahdi_analog_lib_handles(i->sig, i->radio, i->oprmode)) {
 		ast_channel_call_forward_set(tmp, i->call_forward);
 	}
 	/* If we've been told "no ADSI" then enforce it */
@@ -9157,7 +9157,7 @@ static void publish_dnd_state(int channel, const char *status)
  */
 static int dahdi_dnd(struct dahdi_pvt *dahdichan, int flag)
 {
-	if (analog_lib_handles(dahdichan->sig, dahdichan->radio, dahdichan->oprmode)) {
+	if (dahdi_analog_lib_handles(dahdichan->sig, dahdichan->radio, dahdichan->oprmode)) {
 		return analog_dnd(dahdichan->sig_pvt, flag);
 	}
 
@@ -9494,7 +9494,7 @@ static void *analog_ss_thread(void *data)
 				goto quit;
 			}
 		}
-		dahdi_enable_ec(p);
+		dahdi_ec_enable(p);
 		if (NEED_MFDETECT(p)) {
 			if (p->dsp) {
 				if (!p->hardwaredtmf)
@@ -9593,7 +9593,7 @@ static void *analog_ss_thread(void *data)
 								ast_set_callerid(chan, NULL, p->cid_name, NULL);
 						}
 						ast_setstate(chan, AST_STATE_RING);
-						dahdi_enable_ec(p);
+						dahdi_ec_enable(p);
 						res = ast_pbx_run(chan);
 						if (res) {
 							ast_log(LOG_WARNING, "PBX exited non-zero\n");
@@ -9640,7 +9640,7 @@ static void *analog_ss_thread(void *data)
 						swap_subs(p, SUB_CALLWAIT, SUB_THREEWAY);
 						unalloc_sub(p, SUB_THREEWAY);
 					}
-					dahdi_enable_ec(p);
+					dahdi_ec_enable(p);
 					if (ast_pickup_call(chan)) {
 						ast_debug(1, "No call pickup possible...\n");
 						res = tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_CONGESTION);
@@ -10424,7 +10424,7 @@ static void *mwi_thread(void *data)
 			case DAHDI_EVENT_BITSCHANGED:
 				break;
 			case DAHDI_EVENT_NOALARM:
-				if (analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
+				if (dahdi_analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
 					struct analog_pvt *analog_p = mtd->pvt->sig_pvt;
 
 					analog_p->inalarm = 0;
@@ -10433,7 +10433,7 @@ static void *mwi_thread(void *data)
 				handle_clear_alarms(mtd->pvt);
 				break;
 			case DAHDI_EVENT_ALARM:
-				if (analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
+				if (dahdi_analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
 					struct analog_pvt *analog_p = mtd->pvt->sig_pvt;
 
 					analog_p->inalarm = 1;
@@ -10453,7 +10453,7 @@ static void *mwi_thread(void *data)
 				if ((chan = dahdi_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, NULL, callid))) {
 					int result;
 
-					if (analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
+					if (dahdi_analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
 						result = analog_ss_thread_start(mtd->pvt->sig_pvt, chan);
 					} else {
 						result = ast_pthread_create_detached(&threadid, NULL, analog_ss_thread, chan);
@@ -10780,7 +10780,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 			restore_conference(i);
 
 			if (i->immediate) {
-				dahdi_enable_ec(i);
+				dahdi_ec_enable(i);
 				/* The channel is immediately up.  Start right away */
 				res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
 				chan = dahdi_new(i, AST_STATE_RING, 1, SUB_REAL, 0, NULL, callid);
@@ -10929,7 +10929,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 		case SIG_FXSGS:
 		case SIG_FXSKS:
 		case SIG_FXOKS:
-			dahdi_disable_ec(i);
+			dahdi_ec_disable(i);
 			/* Diddle the battery for the zhone */
 #ifdef ZHONE_HACK
 			dahdi_set_hook(i->subs[SUB_REAL].dfd, DAHDI_OFFHOOK);
@@ -10940,7 +10940,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 			break;
 		case SIG_SS7:
 		case SIG_PRI_LIB_HANDLE_CASES:
-			dahdi_disable_ec(i);
+			dahdi_ec_disable(i);
 			res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, -1);
 			break;
 		default:
@@ -11048,7 +11048,7 @@ static void *do_monitor(void *data)
 		for (i = iflist; i; i = i->next) {
 			ast_mutex_lock(&i->lock);
 			if (pfds && (i->subs[SUB_REAL].dfd > -1) && i->sig && (!i->radio) && !(i->sig & SIG_MFCR2)) {
-				if (analog_lib_handles(i->sig, i->radio, i->oprmode)) {
+				if (dahdi_analog_lib_handles(i->sig, i->radio, i->oprmode)) {
 					struct analog_pvt *p = i->sig_pvt;
 
 					if (!p) {
@@ -11162,7 +11162,7 @@ static void *do_monitor(void *data)
 						ast_debug(1, "Monitor doohicky got event %s on radio channel %d\n", event2str(res), i->channel);
 						/* Don't hold iflock while handling init events */
 						ast_mutex_unlock(&iflock);
-						if (analog_lib_handles(i->sig, i->radio, i->oprmode))
+						if (dahdi_analog_lib_handles(i->sig, i->radio, i->oprmode))
 							doomed = (struct dahdi_pvt *) analog_handle_init_event(i->sig_pvt, dahdievent_to_analogevent(res));
 						else
 							doomed = handle_init_event(i, res);
@@ -11228,7 +11228,7 @@ static void *do_monitor(void *data)
 									pthread_t threadid;
 									struct ast_channel *chan;
 									ast_mutex_unlock(&iflock);
-									if (analog_lib_handles(i->sig, i->radio, i->oprmode)) {
+									if (dahdi_analog_lib_handles(i->sig, i->radio, i->oprmode)) {
 										/* just in case this event changes or somehow destroys a channel, set doomed here too */
 										doomed = analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);  
 										i->dtmfcid_holdoff_state = 1;
@@ -11273,7 +11273,7 @@ static void *do_monitor(void *data)
 					/* Don't hold iflock while handling init events */
 					ast_mutex_unlock(&iflock);
 					if (0 == i->mwisendactive || 0 == mwi_send_process_event(i, res)) {
-						if (analog_lib_handles(i->sig, i->radio, i->oprmode))
+						if (dahdi_analog_lib_handles(i->sig, i->radio, i->oprmode))
 							doomed = (struct dahdi_pvt *) analog_handle_init_event(i->sig_pvt, dahdievent_to_analogevent(res));
 						else
 							doomed = handle_init_event(i, res);
@@ -11742,7 +11742,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			tmp->sig = chan_sig;
 			tmp->outsigmod = conf->chan.outsigmod;
 
-			if (analog_lib_handles(chan_sig, tmp->radio, tmp->oprmode)) {
+			if (dahdi_analog_lib_handles(chan_sig, tmp->radio, tmp->oprmode)) {
 				analog_p = analog_new(dahdisig_to_analogsig(chan_sig), tmp);
 				if (!analog_p) {
 					destroy_dahdi_pvt(tmp);
@@ -12256,7 +12256,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		ast_copy_string(tmp->description, conf->chan.description, sizeof(tmp->description));
 		ast_copy_string(tmp->parkinglot, conf->chan.parkinglot, sizeof(tmp->parkinglot));
 		tmp->cid_ton = 0;
-		if (analog_lib_handles(tmp->sig, tmp->radio, tmp->oprmode)) {
+		if (dahdi_analog_lib_handles(tmp->sig, tmp->radio, tmp->oprmode)) {
 			ast_copy_string(tmp->cid_num, conf->chan.cid_num, sizeof(tmp->cid_num));
 			ast_copy_string(tmp->cid_name, conf->chan.cid_name, sizeof(tmp->cid_name));
 		} else {
@@ -12322,7 +12322,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 			set_actual_gain(tmp->subs[SUB_REAL].dfd, tmp->rxgain, tmp->txgain, tmp->rxdrc, tmp->txdrc, tmp->law);
 			if (tmp->dsp)
 				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
-			update_conf(tmp);
+			dahdi_conf_update(tmp);
 			if (!here) {
 				switch (chan_sig) {
 				case SIG_PRI_LIB_HANDLE_CASES:
@@ -12582,7 +12582,7 @@ static int available(struct dahdi_pvt **pvt, int is_specific_channel)
 	if (p->inalarm)
 		return 0;
 
-	if (analog_lib_handles(p->sig, p->radio, p->oprmode))
+	if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode))
 		return analog_available(p->sig_pvt);
 
 	switch (p->sig) {
@@ -13088,7 +13088,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 			}
 
 			p->outgoing = 1;
-			if (analog_lib_handles(p->sig, p->radio, p->oprmode)) {
+			if (dahdi_analog_lib_handles(p->sig, p->radio, p->oprmode)) {
 				tmp = analog_request(p->sig_pvt, &callwait, requestor);
 #ifdef HAVE_PRI
 			} else if (dahdi_sig_pri_lib_handles(p->sig)) {
@@ -15432,7 +15432,7 @@ static int action_transfer(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	if (!analog_lib_handles(p->sig, 0, 0)) {
+	if (!dahdi_analog_lib_handles(p->sig, 0, 0)) {
 		astman_send_error(s, m, "Channel signaling is not analog");
 		return 0;
 	}
@@ -15455,7 +15455,7 @@ static int action_transferhangup(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "No such channel");
 		return 0;
 	}
-	if (!analog_lib_handles(p->sig, 0, 0)) {
+	if (!dahdi_analog_lib_handles(p->sig, 0, 0)) {
 		astman_send_error(s, m, "Channel signaling is not analog");
 		return 0;
 	}
