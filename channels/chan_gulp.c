@@ -114,7 +114,6 @@ enum sip_session_media_position {
 };
 
 struct gulp_pvt {
-	struct ast_sip_session *session;
 	struct ast_sip_session_media *media[SIP_MEDIA_SIZE];
 };
 
@@ -122,9 +121,6 @@ static void gulp_pvt_dtor(void *obj)
 {
 	struct gulp_pvt *pvt = obj;
 	int i;
-
-	ao2_cleanup(pvt->session);
-	pvt->session = NULL;
 
 	for (i = 0; i < SIP_MEDIA_SIZE; ++i) {
 		ao2_cleanup(pvt->media[i]);
@@ -336,12 +332,12 @@ static int media_offer_write_av(void *obj)
 
 static int media_offer_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 
 	if (!strcmp(data, "audio")) {
-		return media_offer_read_av(pvt->session, buf, len, AST_FORMAT_TYPE_AUDIO);
+		return media_offer_read_av(channel->session, buf, len, AST_FORMAT_TYPE_AUDIO);
 	} else if (!strcmp(data, "video")) {
-		return media_offer_read_av(pvt->session, buf, len, AST_FORMAT_TYPE_VIDEO);
+		return media_offer_read_av(channel->session, buf, len, AST_FORMAT_TYPE_VIDEO);
 	}
 
 	return 0;
@@ -349,10 +345,10 @@ static int media_offer_read(struct ast_channel *chan, const char *cmd, char *dat
 
 static int media_offer_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 
 	struct media_offer_data mdata = {
-		.session = pvt->session,
+		.session = channel->session,
 		.value = value
 	};
 
@@ -362,7 +358,7 @@ static int media_offer_write(struct ast_channel *chan, const char *cmd, char *da
 		mdata.media_type = AST_FORMAT_TYPE_VIDEO;
 	}
 
-	return ast_sip_push_task_synchronous(pvt->session->serializer, media_offer_write_av, &mdata);
+	return ast_sip_push_task_synchronous(channel->session->serializer, media_offer_write_av, &mdata);
 }
 
 static struct ast_custom_function media_offer_function = {
@@ -374,14 +370,15 @@ static struct ast_custom_function media_offer_function = {
 /*! \brief Function called by RTP engine to get local audio RTP peer */
 static enum ast_rtp_glue_result gulp_get_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct gulp_pvt *pvt = channel->pvt;
 	struct ast_sip_endpoint *endpoint;
 
-	if (!pvt || !pvt->session || !pvt->media[SIP_MEDIA_AUDIO]->rtp) {
+	if (!pvt || !channel->session || !pvt->media[SIP_MEDIA_AUDIO]->rtp) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-	endpoint = pvt->session->endpoint;
+	endpoint = channel->session->endpoint;
 
 	*instance = pvt->media[SIP_MEDIA_AUDIO]->rtp;
 	ao2_ref(*instance, +1);
@@ -397,9 +394,10 @@ static enum ast_rtp_glue_result gulp_get_rtp_peer(struct ast_channel *chan, stru
 /*! \brief Function called by RTP engine to get local video RTP peer */
 static enum ast_rtp_glue_result gulp_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp_instance **instance)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct gulp_pvt *pvt = channel->pvt;
 
-	if (!pvt || !pvt->session || !pvt->media[SIP_MEDIA_VIDEO]->rtp) {
+	if (!pvt || !channel->session || !pvt->media[SIP_MEDIA_VIDEO]->rtp) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -412,9 +410,9 @@ static enum ast_rtp_glue_result gulp_get_vrtp_peer(struct ast_channel *chan, str
 /*! \brief Function called by RTP engine to get peer capabilities */
 static void gulp_get_codec(struct ast_channel *chan, struct ast_format_cap *result)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 
-	ast_format_cap_copy(result, pvt->session->endpoint->codecs);
+	ast_format_cap_copy(result, channel->session->endpoint->codecs);
 }
 
 static int send_direct_media_request(void *data)
@@ -486,8 +484,9 @@ static int gulp_set_rtp_peer(struct ast_channel *chan,
 		const struct ast_format_cap *cap,
 		int nat_active)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct gulp_pvt *pvt = channel->pvt;
+	struct ast_sip_session *session = channel->session;
 	int changed = 0;
 	struct ast_channel *bridge_peer;
 
@@ -544,7 +543,8 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 {
 	struct ast_channel *chan;
 	struct ast_format fmt;
-	struct gulp_pvt *pvt;
+	RAII_VAR(struct gulp_pvt *, pvt, NULL, ao2_cleanup);
+	struct ast_sip_channel_pvt *channel;
 
 	if (!(pvt = ao2_alloc(sizeof(*pvt), gulp_pvt_dtor))) {
 		return NULL;
@@ -552,27 +552,28 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 
 	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), "", "", "", linkedid, 0, "Gulp/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
 		ast_atomic_fetchadd_int((int *)&chan_idx, +1)))) {
-		ao2_cleanup(pvt);
 		return NULL;
 	}
 
 	ast_channel_tech_set(chan, &gulp_tech);
 
-	ao2_ref(session, +1);
-	pvt->session = session;
+	if (!(channel = ast_sip_channel_pvt_alloc(pvt, session))) {
+		ast_hangup(chan);
+		return NULL;
+	}
+
 	/* If res_sip_session is ever updated to create/destroy ast_sip_session_media
 	 * during a call such as if multiple same-type stream support is introduced,
 	 * these will need to be recaptured as well */
 	pvt->media[SIP_MEDIA_AUDIO] = ao2_find(session->media, "audio", OBJ_KEY);
 	pvt->media[SIP_MEDIA_VIDEO] = ao2_find(session->media, "video", OBJ_KEY);
-	ast_channel_tech_pvt_set(chan, pvt);
+	ast_channel_tech_pvt_set(chan, channel);
 	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
 		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(chan));
 	}
 	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
 		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(chan));
 	}
-
 
 	if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->codecs)) {
 		ast_format_cap_copy(ast_channel_nativeformats(chan), session->endpoint->codecs);
@@ -637,8 +638,7 @@ static int answer(void *data)
 /*! \brief Function called by core when we should answer a Gulp session */
 static int gulp_answer(struct ast_channel *ast)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 
 	if (ast_channel_state(ast) == AST_STATE_UP) {
 		return 0;
@@ -646,10 +646,10 @@ static int gulp_answer(struct ast_channel *ast)
 
 	ast_setstate(ast, AST_STATE_UP);
 
-	ao2_ref(session, +1);
-	if (ast_sip_push_task(session->serializer, answer, session)) {
+	ao2_ref(channel->session, +1);
+	if (ast_sip_push_task(channel->session->serializer, answer, channel->session)) {
 		ast_log(LOG_WARNING, "Unable to push answer task to the threadpool. Cannot answer call\n");
-		ao2_cleanup(session);
+		ao2_cleanup(channel->session);
 		return -1;
 	}
 
@@ -659,8 +659,8 @@ static int gulp_answer(struct ast_channel *ast)
 /*! \brief Function called by core to read any waiting frames */
 static struct ast_frame *gulp_read(struct ast_channel *ast)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct gulp_pvt *pvt = channel->pvt;
 	struct ast_frame *f;
 	struct ast_sip_session_media *media = NULL;
 	int rtcp = 0;
@@ -702,8 +702,8 @@ static struct ast_frame *gulp_read(struct ast_channel *ast)
 		ast_set_write_format(ast, ast_channel_writeformat(ast));
 	}
 
-	if (session->dsp) {
-		f = ast_dsp_process(ast, session->dsp, f);
+	if (channel->session->dsp) {
+		f = ast_dsp_process(ast, channel->session->dsp, f);
 
 		if (f && (f->frametype == AST_FRAME_DTMF)) {
 			ast_debug(3, "* Detected inband DTMF '%c' on '%s'\n", f->subclass.integer,
@@ -717,7 +717,8 @@ static struct ast_frame *gulp_read(struct ast_channel *ast)
 /*! \brief Function called by core to write frames */
 static int gulp_write(struct ast_channel *ast, struct ast_frame *frame)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct gulp_pvt *pvt = channel->pvt;
 	struct ast_sip_session_media *media;
 	int res = 0;
 
@@ -764,9 +765,10 @@ struct fixup_data {
 static int fixup(void *data)
 {
 	struct fixup_data *fix_data = data;
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(fix_data->chan);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(fix_data->chan);
+	struct gulp_pvt *pvt = channel->pvt;
 
-	fix_data->session->channel = fix_data->chan;
+	channel->session->channel = fix_data->chan;
 	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
 		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(fix_data->chan));
 	}
@@ -780,18 +782,17 @@ static int fixup(void *data)
 /*! \brief Function called by core to change the underlying owner channel */
 static int gulp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(newchan);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(newchan);
 	struct fixup_data fix_data;
 
-	fix_data.session = session;
+	fix_data.session = channel->session;
 	fix_data.chan = newchan;
 
-	if (session->channel != oldchan) {
+	if (channel->session->channel != oldchan) {
 		return -1;
 	}
 
-	if (ast_sip_push_task_synchronous(session->serializer, fixup, &fix_data)) {
+	if (ast_sip_push_task_synchronous(channel->session->serializer, fixup, &fix_data)) {
 		ast_log(LOG_WARNING, "Unable to perform channel fixup\n");
 		return -1;
 	}
@@ -990,8 +991,8 @@ static int update_connected_line_information(void *data)
 /*! \brief Function called by core to ask the channel to indicate some sort of condition */
 static int gulp_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct gulp_pvt *pvt = channel->pvt;
 	struct ast_sip_session_media *media;
 	int response_code = 0;
 	int res = 0;
@@ -999,7 +1000,7 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 	switch (condition) {
 	case AST_CONTROL_RINGING:
 		if (ast_channel_state(ast) == AST_STATE_RING) {
-			if (session->endpoint->inband_progress) {
+			if (channel->session->endpoint->inband_progress) {
 				response_code = 183;
 				res = -1;
 			} else {
@@ -1008,7 +1009,7 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 		} else {
 			res = -1;
 		}
-		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "Gulp/%s", ast_sorcery_object_get_id(session->endpoint));
+		ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "Gulp/%s", ast_sorcery_object_get_id(channel->session->endpoint));
 		break;
 	case AST_CONTROL_BUSY:
 		if (ast_channel_state(ast) != AST_STATE_UP) {
@@ -1048,19 +1049,19 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 	case AST_CONTROL_VIDUPDATE:
 		media = pvt->media[SIP_MEDIA_VIDEO];
 		if (media && media->rtp) {
-			ao2_ref(session, +1);
+			ao2_ref(channel->session, +1);
 
-			if (ast_sip_push_task(session->serializer, transmit_info_with_vidupdate, session)) {
-				ao2_cleanup(session);
+			if (ast_sip_push_task(channel->session->serializer, transmit_info_with_vidupdate, channel->session)) {
+				ao2_cleanup(channel->session);
 			}
 		} else {
 			res = -1;
 		}
 		break;
 	case AST_CONTROL_CONNECTED_LINE:
-		ao2_ref(session, +1);
-		if (ast_sip_push_task(session->serializer, update_connected_line_information, session)) {
-			ao2_cleanup(session);
+		ao2_ref(channel->session, +1);
+		if (ast_sip_push_task(channel->session->serializer, update_connected_line_information, channel->session)) {
+			ao2_cleanup(channel->session);
 		}
 		break;
 	case AST_CONTROL_UPDATE_RTP_PEER:
@@ -1095,10 +1096,10 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 	}
 
 	if (response_code) {
-		struct indicate_data *ind_data = indicate_data_alloc(session, condition, response_code, data, datalen);
-		if (!ind_data || ast_sip_push_task(session->serializer, indicate, ind_data)) {
+		struct indicate_data *ind_data = indicate_data_alloc(channel->session, condition, response_code, data, datalen);
+		if (!ind_data || ast_sip_push_task(channel->session->serializer, indicate, ind_data)) {
 			ast_log(LOG_NOTICE, "Cannot send response code %d to endpoint %s. Could not queue task properly\n",
-					response_code, ast_sorcery_object_get_id(session->endpoint));
+					response_code, ast_sorcery_object_get_id(channel->session->endpoint));
 			ao2_cleanup(ind_data);
 			res = -1;
 		}
@@ -1214,15 +1215,14 @@ static int transfer(void *data)
 /*! \brief Function called by core for Asterisk initiated transfer */
 static int gulp_transfer(struct ast_channel *chan, const char *target)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
-	struct ast_sip_session *session = pvt->session;
-	struct transfer_data *trnf_data = transfer_data_alloc(session, target);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct transfer_data *trnf_data = transfer_data_alloc(channel->session, target);
 
 	if (!trnf_data) {
 		return -1;
 	}
 
-	if (ast_sip_push_task(session->serializer, transfer, trnf_data)) {
+	if (ast_sip_push_task(channel->session->serializer, transfer, trnf_data)) {
 		ast_log(LOG_WARNING, "Error requesting transfer\n");
 		ao2_cleanup(trnf_data);
 		return -1;
@@ -1234,12 +1234,12 @@ static int gulp_transfer(struct ast_channel *chan, const char *target)
 /*! \brief Function called by core to start a DTMF digit */
 static int gulp_digit_begin(struct ast_channel *chan, char digit)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(chan);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct gulp_pvt *pvt = channel->pvt;
 	struct ast_sip_session_media *media = pvt->media[SIP_MEDIA_AUDIO];
 	int res = 0;
 
-	switch (session->endpoint->dtmf) {
+	switch (channel->session->endpoint->dtmf) {
 	case AST_SIP_DTMF_RFC_4733:
 		if (!media || !media->rtp) {
 			return -1;
@@ -1322,21 +1322,21 @@ static int transmit_info_dtmf(void *data)
 /*! \brief Function called by core to stop a DTMF digit */
 static int gulp_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct gulp_pvt *pvt = channel->pvt;
 	struct ast_sip_session_media *media = pvt->media[SIP_MEDIA_AUDIO];
 	int res = 0;
 
-	switch (session->endpoint->dtmf) {
+	switch (channel->session->endpoint->dtmf) {
 	case AST_SIP_DTMF_INFO:
 	{
-		struct info_dtmf_data *dtmf_data = info_dtmf_data_alloc(session, digit, duration);
+		struct info_dtmf_data *dtmf_data = info_dtmf_data_alloc(channel->session, digit, duration);
 
 		if (!dtmf_data) {
 			return -1;
 		}
 
-		if (ast_sip_push_task(session->serializer, transmit_info_dtmf, dtmf_data)) {
+		if (ast_sip_push_task(channel->session->serializer, transmit_info_dtmf, dtmf_data)) {
 			ast_log(LOG_WARNING, "Error sending DTMF via INFO.\n");
 			ao2_cleanup(dtmf_data);
 			return -1;
@@ -1378,13 +1378,12 @@ static int call(void *data)
 /*! \brief Function called by core to actually start calling a remote party */
 static int gulp_call(struct ast_channel *ast, const char *dest, int timeout)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 
-	ao2_ref(session, +1);
-	if (ast_sip_push_task(session->serializer, call, session)) {
+	ao2_ref(channel->session, +1);
+	if (ast_sip_push_task(channel->session->serializer, call, channel->session)) {
 		ast_log(LOG_WARNING, "Error attempting to place outbound call to call '%s'\n", dest);
-		ao2_cleanup(session);
+		ao2_cleanup(channel->session);
 		return -1;
 	}
 
@@ -1484,8 +1483,9 @@ static int hangup(void *data)
 	pjsip_tx_data *packet = NULL;
 	struct hangup_data *h_data = data;
 	struct ast_channel *ast = h_data->chan;
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = pvt->session;
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct gulp_pvt *pvt = channel->pvt;
+	struct ast_sip_session *session = channel->session;
 	int cause = h_data->cause;
 
 	if (!session->defer_terminate &&
@@ -1507,16 +1507,16 @@ static int hangup(void *data)
 /*! \brief Function called by core to hang up a Gulp session */
 static int gulp_hangup(struct ast_channel *ast)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct ast_sip_session *session = pvt->session;
-	int cause = hangup_cause2sip(ast_channel_hangupcause(session->channel));
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct gulp_pvt *pvt = channel->pvt;
+	int cause = hangup_cause2sip(ast_channel_hangupcause(channel->session->channel));
 	struct hangup_data *h_data = hangup_data_alloc(cause, ast);
 
 	if (!h_data) {
 		goto failure;
 	}
 
-	if (ast_sip_push_task(session->serializer, hangup, h_data)) {
+	if (ast_sip_push_task(channel->session->serializer, hangup, h_data)) {
 		ast_log(LOG_WARNING, "Unable to push hangup task to the threadpool. Expect bad things\n");
 		goto failure;
 	}
@@ -1527,7 +1527,7 @@ failure:
 	/* Go ahead and do our cleanup of the session and channel even if we're not going
 	 * to be able to send our SIP request/response
 	 */
-	clear_session_and_channel(session, ast, pvt);
+	clear_session_and_channel(channel->session, ast, pvt);
 	ao2_cleanup(pvt);
 	ao2_cleanup(h_data);
 
@@ -1665,10 +1665,10 @@ static int sendtext(void *obj)
 /*! \brief Function called by core to send text on Gulp session */
 static int gulp_sendtext(struct ast_channel *ast, const char *text)
 {
-	struct gulp_pvt *pvt = ast_channel_tech_pvt(ast);
-	struct sendtext_data *data = sendtext_data_create(pvt->session, text);
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct sendtext_data *data = sendtext_data_create(channel->session, text);
 
-	if (!data || ast_sip_push_task(pvt->session->serializer, sendtext, data)) {
+	if (!data || ast_sip_push_task(channel->session->serializer, sendtext, data)) {
 		ao2_ref(data, -1);
 		return -1;
 	}

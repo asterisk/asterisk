@@ -16,6 +16,7 @@
 		LINKER_SYMBOL_PREFIXast_sip_session_create_invite;
 		LINKER_SYMBOL_PREFIXast_sip_session_create_outgoing;
 		LINKER_SYMBOL_PREFIXast_sip_dialog_get_session;
+		LINKER_SYMBOL_PREFIXast_sip_channel_pvt_alloc;
 	local:
 		*;
 };

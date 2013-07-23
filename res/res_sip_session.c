@@ -901,6 +901,31 @@ static int add_session_media(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*! \brief Destructor for SIP channel */
+static void sip_channel_destroy(void *obj)
+{
+	struct ast_sip_channel_pvt *channel = obj;
+
+	ao2_cleanup(channel->pvt);
+	ao2_cleanup(channel->session);
+}
+
+struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_session *session)
+{
+	struct ast_sip_channel_pvt *channel = ao2_alloc(sizeof(*channel), sip_channel_destroy);
+
+	if (!channel) {
+		return NULL;
+	}
+
+	ao2_ref(pvt, +1);
+	channel->pvt = pvt;
+	ao2_ref(session, +1);
+	channel->session = session;
+
+	return channel;
+}
+
 struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint, pjsip_inv_session *inv_session)
 {
 	RAII_VAR(struct ast_sip_session *, session, ao2_alloc(sizeof(*session), session_destructor), ao2_cleanup);

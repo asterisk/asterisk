@@ -273,6 +273,27 @@ struct ast_sip_session_sdp_handler {
 };
 
 /*!
+ * \brief A structure which contains a channel implementation and session
+ */
+struct ast_sip_channel_pvt {
+	/*! \brief Pointer to channel specific implementation information, must be ao2 object */
+	void *pvt;
+	/*! \brief Pointer to session */
+	struct ast_sip_session *session;
+};
+
+/*!
+ * \brief Allocate a new SIP channel pvt structure
+ *
+ * \param pvt Pointer to channel specific implementation
+ * \param session Pointer to SIP session
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_session *session);
+
+/*!
  * \brief Allocate a new SIP session
  *
  * This will take care of allocating the datastores container on the session as well
