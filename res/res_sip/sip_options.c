@@ -614,7 +614,7 @@ static void cli_qualify_contacts(struct ast_cli_args *a, const char *endpoint_na
 			continue;
 		}
 
-		ast_cli(a->fd, "Sending qualify to endpoint %s", endpoint_name);
+		ast_cli(a->fd, "Sending qualify to endpoint %s\n", endpoint_name);
 		ao2_callback(contacts, OBJ_NODATA, cli_on_contact, a);
 	}
 }
