@@ -196,9 +196,7 @@ static void bridge_snapshot_update(void *data, struct stasis_subscription *sub,
 
 	update = stasis_message_data(message);
 
-	if (ast_bridge_snapshot_type() != update->type) {
-		return;
-	}
+	ast_assert(ast_bridge_snapshot_type() == update->type);
 
 	old_snapshot = stasis_message_data(update->old_snapshot);
 	new_snapshot = stasis_message_data(update->new_snapshot);
@@ -495,35 +493,22 @@ int manager_bridging_init(void)
 		return -1;
 	}
 
-	/* BUGBUG - This should really route off of the manager_router, but
-	 * can't b/c manager_channels is already routing the
-	 * stasis_cache_update_type() messages. Having a separate router can
-	 * cause some message ordering issues with bridge and channel messages.
-	 */
-	bridge_state_router = stasis_message_router_create(bridge_topic);
+	bridge_state_router = ast_manager_get_message_router();
 	if (!bridge_state_router) {
 		return -1;
 	}
 
-	ret |= stasis_message_router_add(bridge_state_router,
-					 stasis_cache_update_type(),
-					 bridge_snapshot_update,
-					 NULL);
+	ret |= stasis_message_router_add_cache_update(bridge_state_router,
+		ast_bridge_snapshot_type(), bridge_snapshot_update, NULL);
 
 	ret |= stasis_message_router_add(bridge_state_router,
-					 ast_bridge_merge_message_type(),
-					 bridge_merge_cb,
-					 NULL);
+		ast_bridge_merge_message_type(), bridge_merge_cb, NULL);
 
 	ret |= stasis_message_router_add(bridge_state_router,
-					 ast_channel_entered_bridge_type(),
-					 channel_enter_cb,
-					 NULL);
+		ast_channel_entered_bridge_type(), channel_enter_cb, NULL);
 
 	ret |= stasis_message_router_add(bridge_state_router,
-					 ast_channel_left_bridge_type(),
-					 channel_leave_cb,
-					 NULL);
+		ast_channel_left_bridge_type(), channel_leave_cb, NULL);
 
 	ret |= ast_manager_register_xml_core("BridgeList", 0, manager_bridges_list);
 	ret |= ast_manager_register_xml_core("BridgeInfo", 0, manager_bridge_info);

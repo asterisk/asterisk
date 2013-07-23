@@ -95,6 +95,11 @@ int stasis_message_router_is_done(struct stasis_message_router *router);
 /*!
  * \brief Add a route to a message router.
  *
+ * A particular \a message_type may have at most one route per \a router. If
+ * you route \ref stasis_cache_update messages, the callback will only receive
+ * updates for types not handled by routes added with
+ * stasis_message_router_add_cache_update().
+ *
  * \param router Router to add the route to.
  * \param message_type Type of message to route.
  * \param callback Callback to forard messages of \a message_type to.
@@ -106,9 +111,29 @@ int stasis_message_router_is_done(struct stasis_message_router *router);
  * \since 12
  */
 int stasis_message_router_add(struct stasis_message_router *router,
-			      struct stasis_message_type *message_type,
-			      stasis_subscription_cb callback,
-			      void *data);
+	struct stasis_message_type *message_type,
+	stasis_subscription_cb callback, void *data);
+
+/*!
+ * \brief Add a route for \ref stasis_cache_update messages to a message router.
+ *
+ * A particular \a message_type may have at most one cache route per \a router.
+ * These are distinct from regular routes, so one could have both a regular
+ * route and a cache route for the same \a message_type.
+ *
+ * \param router Router to add the route to.
+ * \param message_type Subtype of cache update to route.
+ * \param callback Callback to forard messages of \a message_type to.
+ * \param data Data pointer to pass to \a callback.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ *
+ * \since 12
+ */
+int stasis_message_router_add_cache_update(struct stasis_message_router *router,
+	struct stasis_message_type *message_type,
+	stasis_subscription_cb callback, void *data);
 
 /*!
  * \brief Remove a route from a message router.
@@ -119,7 +144,19 @@ int stasis_message_router_add(struct stasis_message_router *router,
  * \since 12
  */
 void stasis_message_router_remove(struct stasis_message_router *router,
-			      struct stasis_message_type *message_type);
+	struct stasis_message_type *message_type);
+
+/*!
+ * \brief Remove a cache route from a message router.
+ *
+ * \param router Router to remove the route from.
+ * \param message_type Type of message to route.
+ *
+ * \since 12
+ */
+void stasis_message_router_remove_cache_update(
+	struct stasis_message_router *router,
+	struct stasis_message_type *message_type);
 
 /*!
  * \brief Sets the default route of a router.

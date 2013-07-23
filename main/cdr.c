@@ -1967,9 +1967,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 	struct cdr_object *it_cdr;
 
 	ast_assert(update != NULL);
-	if (ast_channel_snapshot_type() != update->type) {
-		return;
-	}
+	ast_assert(ast_channel_snapshot_type() == update->type);
 
 	old_snapshot = stasis_message_data(update->old_snapshot);
 	new_snapshot = stasis_message_data(update->new_snapshot);
@@ -4024,7 +4022,7 @@ int ast_cdr_engine_init(void)
 	if (!stasis_router) {
 		return -1;
 	}
-	stasis_message_router_add(stasis_router, stasis_cache_update_type(), handle_channel_cache_message, NULL);
+	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);

@@ -726,9 +726,7 @@ static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
 
 	update = stasis_message_data(message);
 
-	if (ast_channel_snapshot_type() != update->type) {
-		return;
-	}
+	ast_assert(ast_channel_snapshot_type() == update->type);
 
 	old_snapshot = stasis_message_data(update->old_snapshot);
 	new_snapshot = stasis_message_data(update->new_snapshot);
@@ -1283,85 +1281,57 @@ int manager_channels_init(void)
 
 	ast_register_atexit(manager_channels_shutdown);
 
-	ret |= stasis_message_router_add(message_router,
-					 stasis_cache_update_type(),
-					 channel_snapshot_update,
-					 NULL);
+	ret |= stasis_message_router_add_cache_update(message_router,
+		ast_channel_snapshot_type(), channel_snapshot_update, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_user_event_type(),
-					 channel_user_event_cb,
-					 NULL);
+		ast_channel_user_event_type(), channel_user_event_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_dtmf_begin_type(),
-					 channel_dtmf_begin_cb,
-					 NULL);
+		ast_channel_dtmf_begin_type(), channel_dtmf_begin_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_dtmf_end_type(),
-					 channel_dtmf_end_cb,
-					 NULL);
+		ast_channel_dtmf_end_type(), channel_dtmf_end_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_hangup_request_type(),
-					 channel_hangup_request_cb,
-					 NULL);
+		ast_channel_hangup_request_type(), channel_hangup_request_cb,
+		NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_dial_type(),
-					 channel_dial_cb,
-					 NULL);
+		ast_channel_dial_type(), channel_dial_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_hold_type(),
-					 channel_hold_cb,
-					 NULL);
+		ast_channel_hold_type(), channel_hold_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_unhold_type(),
-					 channel_unhold_cb,
-					 NULL);
+		ast_channel_unhold_type(), channel_unhold_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_fax_type(),
-					 channel_fax_cb,
-					 NULL);
+		ast_channel_fax_type(), channel_fax_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_chanspy_start_type(),
-					 channel_chanspy_start_cb,
-					 NULL);
+		ast_channel_chanspy_start_type(), channel_chanspy_start_cb,
+		NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_chanspy_stop_type(),
-					 channel_chanspy_stop_cb,
-					 NULL);
+		ast_channel_chanspy_stop_type(), channel_chanspy_stop_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_hangup_handler_type(),
-					 channel_hangup_handler_cb,
-					 NULL);
+		ast_channel_hangup_handler_type(), channel_hangup_handler_cb,
+		NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_moh_start_type(),
-					 channel_moh_start_cb,
-					 NULL);
+		ast_channel_moh_start_type(), channel_moh_start_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_moh_stop_type(),
-					 channel_moh_stop_cb,
-					 NULL);
+		ast_channel_moh_stop_type(), channel_moh_stop_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_monitor_start_type(),
-					 channel_monitor_start_cb,
-					 NULL);
+		ast_channel_monitor_start_type(), channel_monitor_start_cb,
+		NULL);
 
 	ret |= stasis_message_router_add(message_router,
-					 ast_channel_monitor_stop_type(),
-					 channel_monitor_stop_cb,
-					 NULL);
+		ast_channel_monitor_stop_type(), channel_monitor_stop_cb, NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
 	 * thing and fail it.
