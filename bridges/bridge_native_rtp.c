@@ -249,7 +249,7 @@ static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_
 	ast_channel_lock(bridge_channel->chan);
 	data->id = ast_framehook_attach(bridge_channel->chan, &hook);
 	ast_channel_unlock(bridge_channel->chan);
-	if (!data->id < 0) {
+	if (data->id < 0) {
 		ao2_cleanup(data);
 		return -1;
 	}
