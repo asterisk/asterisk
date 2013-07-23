@@ -1510,7 +1510,7 @@ static int hangup(void *data)
 	}
 
 	clear_session_and_channel(session, ast, pvt);
-	ao2_cleanup(pvt);
+	ao2_cleanup(channel);
 	ao2_cleanup(h_data);
 
 	return 0;
@@ -1540,7 +1540,7 @@ failure:
 	 * to be able to send our SIP request/response
 	 */
 	clear_session_and_channel(channel->session, ast, pvt);
-	ao2_cleanup(pvt);
+	ao2_cleanup(channel);
 	ao2_cleanup(h_data);
 
 	return -1;
