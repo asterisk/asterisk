@@ -221,12 +221,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="Bridge"><para>The transfer was accomplished by merging two bridges into one.</para></enum>
 						<enum name="App"><para>The transfer was accomplished by having a channel or bridge run a dialplan application.</para></enum>
 						<enum name="Link"><para>The transfer was accomplished by linking two bridges together using a local channel pair.</para></enum>
+						<enum name="Threeway"><para>The transfer was accomplished by placing all parties into a threeway call.</para></enum>
 						<enum name="Fail"><para>The transfer failed.</para></enum>
 					</enumlist>
 				</parameter>
 				<parameter name="DestBridgeUniqueid">
 					<para>Indicates the surviving bridge when bridges were merged to complete the transfer</para>
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Bridge</literal></para></note>
+					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Bridge</literal> or <literal>Threeway</literal></para></note>
 				</parameter>
 				<parameter name="DestApp">
 					<para>Indicates the application that is running when the transfer completes</para>
@@ -332,6 +333,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<parameter name="LocalTwoUniqueid">
 					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
+				</parameter>
+				<parameter name="DestTransfererChannel">
+					<para>The name of the surviving transferer channel when a transfer results in a threeway call</para>
+					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Threeway</literal></para></note>
 				</parameter>
 			</syntax>
 			<description>
@@ -835,6 +840,11 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 		ast_str_append(&variable_data, 0, "%s", ast_str_buffer(local1_state));
 		ast_str_append(&variable_data, 0, "%s", ast_str_buffer(local2_state));
 		break;
+	case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
+		ast_str_append(&variable_data, 0, "DestType: Threeway\r\n");
+		ast_str_append(&variable_data, 0, "DestBridgeUniqueid: %s\r\n", transfer_msg->dest.threeway.bridge_snapshot->uniqueid);
+		ast_str_append(&variable_data, 0, "DestTransfererChannel: %s\r\n", transfer_msg->dest.threeway.channel_snapshot->name);
+		break;
 	case AST_ATTENDED_TRANSFER_DEST_FAIL:
 		ast_str_append(&variable_data, 0, "DestType: Fail\r\n");
 		break;
@@ -932,6 +942,39 @@ void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast
 	transfer_msg->dest_type = AST_ATTENDED_TRANSFER_DEST_BRIDGE_MERGE;
 	ast_copy_string(transfer_msg->dest.bridge, final_bridge->uniqueid,
 			sizeof(transfer_msg->dest.bridge));
+
+	msg = stasis_message_create(ast_attended_transfer_type(), transfer_msg);
+	if (!msg) {
+		return;
+	}
+
+	stasis_publish(ast_bridge_topic_all(), msg);
+}
+
+void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_transfer_result result,
+		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
+		struct ast_bridge_channel_pair *final_pair)
+{
+	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
+	if (!transfer_msg) {
+		return;
+	}
+
+	transfer_msg->dest_type = AST_ATTENDED_TRANSFER_DEST_THREEWAY;
+	if (final_pair->channel == transferee->channel) {
+		transfer_msg->dest.threeway.channel_snapshot = transfer_msg->to_transferee.channel_snapshot;
+	} else {
+		transfer_msg->dest.threeway.channel_snapshot = transfer_msg->to_transfer_target.channel_snapshot;
+	}
+
+	if (final_pair->bridge == transferee->bridge) {
+		transfer_msg->dest.threeway.bridge_snapshot = transfer_msg->to_transferee.bridge_snapshot;
+	} else {
+		transfer_msg->dest.threeway.bridge_snapshot = transfer_msg->to_transfer_target.bridge_snapshot;
+	}
 
 	msg = stasis_message_create(ast_attended_transfer_type(), transfer_msg);
 	if (!msg) {

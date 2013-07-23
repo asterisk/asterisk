@@ -37,6 +37,43 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_basic.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/features_config.h"
+#include "asterisk/pbx.h"
+#include "asterisk/file.h"
+#include "asterisk/app.h"
+#include "asterisk/bridging_internal.h"
+#include "asterisk/dial.h"
+#include "asterisk/stasis_bridging.h"
+
+#define NORMAL_FLAGS	(AST_BRIDGE_FLAG_DISSOLVE_HANGUP | AST_BRIDGE_FLAG_DISSOLVE_EMPTY \
+			| AST_BRIDGE_FLAG_SMART)
+
+#define TRANSFER_FLAGS AST_BRIDGE_FLAG_SMART
+#define TRANSFERER_ROLE_NAME "transferer"
+
+struct attended_transfer_properties;
+
+enum bridge_basic_personality_type {
+	/*! Index for "normal" basic bridge personality */
+	BRIDGE_BASIC_PERSONALITY_NORMAL,
+	/*! Index for attended transfer basic bridge personality */
+	BRIDGE_BASIC_PERSONALITY_ATXFER,
+	/*! Indicates end of enum. Must always remain the last element */
+	BRIDGE_BASIC_PERSONALITY_END,
+};
+
+/*!
+ * \brief Change basic bridge personality
+ *
+ * Changing personalities allows for the bridge to remain in use but have
+ * properties such as its v_table and its flags change.
+ *
+ * \param bridge The bridge
+ * \param type The personality to change the bridge to
+ * \user_data Private data to attach to the personality.
+ */
+static void bridge_basic_change_personality(struct ast_bridge *bridge,
+		enum bridge_basic_personality_type type, void *user_data);
 
 /* ------------------------------------------------------------------- */
 
@@ -117,6 +154,37 @@ static int basic_hangup_hook(struct ast_bridge *bridge, struct ast_bridge_channe
 }
 
 /*!
+ * \brief Details for specific basic bridge personalities
+ */
+struct personality_details {
+	/*! The v_table to use for this personality */
+	struct ast_bridge_methods *v_table;
+	/*! Flags to set on this type of bridge */
+	unsigned int bridge_flags;
+	/*! User data for this personality. If used, must be an ao2 object */
+	void *pvt;
+	/*! Callback to be called when changing to the personality */
+	void (*on_personality_change)(struct ast_bridge *bridge);
+};
+
+/*!
+ * \brief structure that organizes different personalities for basic bridges.
+ */
+struct bridge_basic_personality {
+	/*! The current bridge personality in use */
+	enum bridge_basic_personality_type current;
+	/*! Array of details for the types of bridge personalities supported */
+	struct personality_details details[BRIDGE_BASIC_PERSONALITY_END];
+};
+
+static int add_normal_hooks(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
+{
+	return ast_bridge_hangup_hook(bridge_channel->features, basic_hangup_hook,
+			NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL)
+		|| ast_bridge_channel_setup_features(bridge_channel);
+}
+
+/*!
  * \internal
  * \brief ast_bridge basic push method.
  * \since 12.0.0
@@ -130,31 +198,2576 @@ static int basic_hangup_hook(struct ast_bridge *bridge, struct ast_bridge_channe
  * \retval 0 on success
  * \retval -1 on failure
  */
-static int bridge_basic_push(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+static int bridge_personality_normal_push(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
-	if (ast_bridge_hangup_hook(bridge_channel->features, basic_hangup_hook, NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL)
-		|| ast_bridge_channel_setup_features(bridge_channel)) {
+	if (add_normal_hooks(self, bridge_channel)) {
 		return -1;
 	}
 
 	ast_bridge_update_accountcodes(self, bridge_channel, swap);
 	ast_bridge_update_linkedids(self, bridge_channel, swap);
+	return 0;
+}
+
+static int bridge_basic_push(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+{
+	struct bridge_basic_personality *personality = self->personality;
+
+	ast_assert(personality != NULL);
+
+	if (personality->details[personality->current].v_table->push(self, bridge_channel, swap)) {
+		return -1;
+	}
 
 	return ast_bridge_base_v_table.push(self, bridge_channel, swap);
 }
 
+static void bridge_basic_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel)
+{
+	struct bridge_basic_personality *personality = self->personality;
+
+	ast_assert(personality != NULL);
+
+	if (personality->details[personality->current].v_table->pull) {
+		personality->details[personality->current].v_table->pull(self, bridge_channel);
+	}
+
+	ast_bridge_base_v_table.pull(self, bridge_channel);
+}
+
+static void bridge_basic_destroy(struct ast_bridge *self)
+{
+	struct bridge_basic_personality *personality = self->personality;
+
+	ao2_cleanup(personality);
+
+	ast_bridge_base_v_table.destroy(self);
+}
+
+/*!
+ * \brief Remove appropriate hooks when basic bridge personality changes
+ *
+ * Hooks that have the AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE flag
+ * set will be removed from all bridge channels in the bridge.
+ *
+ * \param bridge Basic bridge undergoing personality change
+ */
+static void remove_hooks_on_personality_change(struct ast_bridge *bridge)
+{
+	struct ast_bridge_channel *iter;
+
+	AST_LIST_TRAVERSE(&bridge->channels, iter, entry) {
+		SCOPED_LOCK(lock, iter, ast_bridge_channel_lock, ast_bridge_channel_unlock);
+		ast_bridge_features_remove(iter->features, AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
+	}
+}
+
+/*!
+ * \brief Attended transfer superstates.
+ *
+ * An attended transfer's progress is facilitated by a state machine.
+ * The individual states of the state machine fall into the realm of
+ * one of two superstates.
+ */
+enum attended_transfer_superstate {
+	/*!
+	 * \brief Transfer superstate
+	 *
+	 * The attended transfer state machine begins in this superstate. The
+	 * goal of this state is for a transferer channel to facilitate a
+	 * transfer from a transferee to a transfer target.
+	 *
+	 * There are two bridges used in this superstate. The transferee bridge is
+	 * the bridge that the transferer and transferee channels originally
+	 * communicate in, and the target bridge is the bridge where the transfer
+	 * target is being dialed.
+	 *
+	 * The transferer channel is capable of moving between the bridges using
+	 * the DTMF swap sequence.
+	 */
+	SUPERSTATE_TRANSFER,
+	/*!
+	 * \brief Recall superstate
+	 *
+	 * The attended transfer state machine moves to this superstate if
+	 * atxferdropcall is set to "no" and the transferer channel hangs up
+	 * during a transfer. The goal in this superstate is to call back either
+	 * the transfer target or transferer and rebridge with the transferee
+	 * channel(s).
+	 *
+	 * In this superstate, there is only a single bridge used, the original
+	 * transferee bridge. Rather than distinguishing between a transferer
+	 * and transfer target, all outbound calls are toward a "recall_target"
+	 * channel.
+	 */
+	SUPERSTATE_RECALL,
+};
+
+/*!
+ * The states in the attended transfer state machine.
+ */
+enum attended_transfer_state {
+	/*!
+	 * \brief Calling Target state
+	 *
+	 * This state describes the initial state of a transfer. The transferer
+	 * waits in the transfer target's bridge for the transfer target to answer.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transfer target is RINGING
+	 * 2) Transferer is in transferee bridge
+	 * 3) Transferee is on hold
+	 *
+	 * Transitions to TRANSFER_CALLING_TARGET:
+	 * 1) This is the initial state for an attended transfer.
+	 * 2) TRANSFER_HESITANT: Transferer presses DTMF swap sequence
+	 *
+	 * State operation:
+	 * The transferer is moved from the transferee bridge into the transfer
+	 * target bridge.
+	 *
+	 * Transitions from TRANSFER_CALLING_TARGET:
+	 * 1) TRANSFER_FAIL: Transferee hangs up.
+	 * 2) TRANSFER_BLOND: Transferer hangs up or presses DTMF swap sequence
+	 * and configured atxferdropcall setting is yes.
+	 * 3) TRANSFER_BLOND_NONFINAL: Transferer hangs up or presses DTMF swap
+	 * sequence and configured atxferdroppcall setting is no.
+	 * 4) TRANSFER_CONSULTING: Transfer target answers the call.
+	 * 5) TRANSFER_REBRIDGE: Transfer target hangs up, call to transfer target
+	 * times out, or transferer presses DTMF abort sequence.
+	 * 6) TRANSFER_THREEWAY: Transferer presses DTMF threeway sequence.
+	 * 7) TRANSFER_HESITANT: Transferer presses DTMF swap sequence.
+	 */
+	TRANSFER_CALLING_TARGET,
+	/*!
+	 * \brief Hesitant state
+	 *
+	 * This state only arises if when waiting for the transfer target to
+	 * answer, the transferer presses the DTMF swap sequence. This will
+	 * cause the transferer to be rebridged with the transferee temporarily.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transfer target is in ringing state
+	 * 2) Transferer is in transfer target bridge
+	 * 3) Transferee is on hold
+	 *
+	 * Transitions to TRANSFER_HESITANT:
+	 * 1) TRANSFER_CALLING_TARGET: Transferer presses DTMF swap sequence.
+	 *
+	 * State operation:
+	 * The transferer is moved from the transfer target bridge into the
+	 * transferee bridge, and the transferee is taken off hold.
+	 *
+	 * Transitions from TRANSFER_HESITANT:
+	 * 1) TRANSFER_FAIL: Transferee hangs up
+	 * 2) TRANSFER_BLOND: Transferer hangs up or presses DTMF swap sequence
+	 * and configured atxferdropcall setting is yes.
+	 * 3) TRANSFER_BLOND_NONFINAL: Transferer hangs up or presses DTMF swap
+	 * sequence and configured atxferdroppcall setting is no.
+	 * 4) TRANSFER_DOUBLECHECKING: Transfer target answers the call
+	 * 5) TRANSFER_RESUME: Transfer target hangs up, call to transfer target
+	 * times out, or transferer presses DTMF abort sequence.
+	 * 6) TRANSFER_THREEWAY: Transferer presses DTMF threeway sequence.
+	 * 7) TRANSFER_CALLING_TARGET: Transferer presses DTMF swap sequence.
+	 */
+	TRANSFER_HESITANT,
+	/*!
+	 * \brief Rebridge state
+	 *
+	 * This is a terminal state that indicates that the transferer needs
+	 * to move back to the transferee's bridge. This is a failed attended
+	 * transfer result.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transferer is in transfer target bridge
+	 * 2) Transferee is on hold
+	 *
+	 * Transitions to TRANSFER_REBRIDGE:
+	 * 1) TRANSFER_CALLING_TARGET: Transfer target hangs up, call to transfer target
+	 * times out, or transferer presses DTMF abort sequence.
+	 * 2) TRANSFER_STATE_CONSULTING: Transfer target hangs up, or transferer presses
+	 * DTMF abort sequence.
+	 *
+	 * State operation:
+	 * The transferer channel is moved from the transfer target bridge to the
+	 * transferee bridge. The transferee is taken off hold. A stasis transfer
+	 * message is published indicating a failed attended transfer.
+	 *
+	 * Transitions from TRANSFER_REBRIDGE:
+	 * None
+	 */
+	TRANSFER_REBRIDGE,
+	/*!
+	 * \brief Resume state
+	 *
+	 * This is a terminal state that indicates that the party bridged with the
+	 * transferee is the final party to be bridged with that transferee. This state
+	 * may come about due to a successful recall or due to a failed transfer.
+	 *
+	 * Superstate: Transfer or Recall
+	 *
+	 * Preconditions:
+	 * In Transfer Superstate:
+	 * 1) Transferer is in transferee bridge
+	 * 2) Transferee is not on hold
+	 * In Recall Superstate:
+	 * 1) The recall target is in the transferee bridge
+	 * 2) Transferee is not on hold
+	 *
+	 * Transitions to TRANSFER_RESUME:
+	 * TRANSFER_HESITANT: Transfer target hangs up, call to transfer target times out,
+	 * or transferer presses DTMF abort sequence.
+	 * TRANSFER_DOUBLECHECKING: Transfer target hangs up or transferer presses DTMF
+	 * abort sequence.
+	 * TRANSFER_BLOND_NONFINAL: Recall target answers
+	 * TRANSFER_RECALLING: Recall target answers
+	 * TRANSFER_RETRANSFER: Recall target answers
+	 *
+	 * State operations:
+	 * None
+	 *
+	 * Transitions from TRANSFER_RESUME:
+	 * None
+	 */
+	TRANSFER_RESUME,
+	/*!
+	 * \brief Threeway state
+	 *
+	 * This state results when the transferer wishes to have all parties involved
+	 * in a transfer to be in the same bridge together.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transfer target state is either RINGING or UP
+	 * 2) Transferer is in either bridge
+	 * 3) Transferee is not on hold
+	 *
+	 * Transitions to TRANSFER_THREEWAY:
+	 * 1) TRANSFER_CALLING_TARGET: Transferer presses DTMF threeway sequence.
+	 * 2) TRANSFER_HESITANT: Transferer presses DTMF threeway sequence.
+	 * 3) TRANSFER_CONSULTING: Transferer presses DTMF threeway sequence.
+	 * 4) TRANSFER_DOUBLECHECKING: Transferer presses DTMF threeway sequence.
+	 *
+	 * State operation:
+	 * The transfer target bridge is merged into the transferee bridge.
+	 *
+	 * Transitions from TRANSFER_THREEWAY:
+	 * None.
+	 */
+	TRANSFER_THREEWAY,
+	/*!
+	 * \brief Consulting state
+	 *
+	 * This state describes the case where the transferer and transfer target
+	 * are able to converse in the transfer target's bridge prior to completing
+	 * the transfer.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transfer target is UP
+	 * 2) Transferer is in target bridge
+	 * 3) Transferee is on hold
+	 *
+	 * Transitions to TRANSFER_CONSULTING:
+	 * 1) TRANSFER_CALLING_TARGET: Transfer target answers.
+	 * 2) TRANSFER_DOUBLECHECKING: Transferer presses DTMF swap sequence.
+	 *
+	 * State operations:
+	 * None.
+	 *
+	 * Transitions from TRANSFER_CONSULTING:
+	 * TRANSFER_COMPLETE: Transferer hangs up or transferer presses DTMF complete sequence.
+	 * TRANSFER_REBRIDGE: Transfer target hangs up or transferer presses DTMF abort sequence.
+	 * TRANSFER_THREEWAY: Transferer presses DTMF threeway sequence.
+	 * TRANSFER_DOUBLECHECKING: Transferer presses DTMF swap sequence.
+	 */
+	TRANSFER_CONSULTING,
+	/*!
+	 * \brief Double-checking state
+	 *
+	 * This state describes the case where the transferer and transferee are
+	 * able to converse in the transferee's bridge prior to completing the transfer. The
+	 * difference between this and TRANSFER_HESITANT is that the transfer target is
+	 * UP in this case.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transfer target is UP and on hold
+	 * 2) Transferer is in transferee bridge
+	 * 3) Transferee is off hold
+	 *
+	 * Transitions to TRANSFER_DOUBLECHECKING:
+	 * 1) TRANSFER_HESITANT: Transfer target answers.
+	 * 2) TRANSFER_CONSULTING: Transferer presses DTMF swap sequence.
+	 *
+	 * State operations:
+	 * None.
+	 *
+	 * Transitions from TRANSFER_DOUBLECHECKING:
+	 * 1) TRANSFER_FAIL: Transferee hangs up.
+	 * 2) TRANSFER_COMPLETE: Transferer hangs up or presses DTMF complete sequence.
+	 * 3) TRANSFER_RESUME: Transfer target hangs up or transferer presses DTMF abort sequence.
+	 * 4) TRANSFER_THREEWAY: Transferer presses DTMF threeway sequence.
+	 * 5) TRANSFER_CONSULTING: Transferer presses the DTMF swap sequence.
+	 */
+	TRANSFER_DOUBLECHECKING,
+	/*!
+	 * \brief Complete state
+	 *
+	 * This is a terminal state where a transferer has successfully completed an attended
+	 * transfer. This state's goal is to get the transfer target and transferee into
+	 * the same bridge and the transferer off the call.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transfer target is UP and off hold.
+	 * 2) Transferer is in either bridge.
+	 * 3) Transferee is off hold.
+	 *
+	 * Transitions to TRANSFER_COMPLETE:
+	 * 1) TRANSFER_CONSULTING: transferer hangs up or presses the DTMF complete sequence.
+	 * 2) TRANSFER_DOUBLECHECKING: transferer hangs up or presses the DTMF complete sequence.
+	 *
+	 * State operation:
+	 * The transfer target bridge is merged into the transferee bridge. The transferer
+	 * channel is kicked out of the bridges as part of the merge.
+	 *
+	 * State operations:
+	 * 1) Merge the transfer target bridge into the transferee bridge,
+	 * excluding the transferer channel from the merge.
+	 * 2) Publish a stasis transfer message.
+	 *
+	 * Exit operations:
+	 * This is a terminal state, so there are no exit operations.
+	 */
+	TRANSFER_COMPLETE,
+	/*!
+	 * \brief Blond state
+	 *
+	 * This is a terminal state where a transferer has completed an attended transfer prior
+	 * to the transfer target answering. This state is only entered if atxferdropcall
+	 * is set to 'yes'. This is considered to be a successful attended transfer.
+	 *
+	 * Superstate: Transfer
+	 *
+	 * Preconditions:
+	 * 1) Transfer target is RINGING.
+	 * 2) Transferer is in either bridge.
+	 * 3) Transferee is off hold.
+	 *
+	 * Transitions to TRANSFER_BLOND:
+	 * 1) TRANSFER_CALLING_TARGET: Transferer hangs up or presses the DTMF complete sequence.
+	 *    atxferdropcall is set to 'yes'.
+	 * 2) TRANSFER_HESITANT: Transferer hangs up or presses the DTMF complete sequence.
+	 *    atxferdropcall is set to 'yes'.
+	 *
+	 * State operations:
+	 * The transfer target bridge is merged into the transferee bridge. The transferer
+	 * channel is kicked out of the bridges as part of the merge. A stasis transfer
+	 * publication is sent indicating a successful transfer.
+	 *
+	 * Transitions from TRANSFER_BLOND:
+	 * None
+	 */
+	TRANSFER_BLOND,
+	/*!
+	 * \brief Blond non-final state
+	 *
+	 * This state is very similar to the TRANSFER_BLOND state, except that
+	 * this state is entered when atxferdropcall is set to 'no'. This is the
+	 * initial state of the Recall superstate, so state operations mainly involve
+	 * moving to the Recall superstate. This means that the transfer target, that
+	 * is currently ringing is now known as the recall target.
+	 *
+	 * Superstate: Recall
+	 *
+	 * Preconditions:
+	 * 1) Recall target is RINGING.
+	 * 2) Transferee is off hold.
+	 *
+	 * Transitions to TRANSFER_BLOND_NONFINAL:
+	 * 1) TRANSFER_CALLING_TARGET: Transferer hangs up or presses the DTMF complete sequence.
+	 *    atxferdropcall is set to 'no'.
+	 * 2) TRANSFER_HESITANT: Transferer hangs up or presses the DTMF complete sequence.
+	 *    atxferdropcall is set to 'no'.
+	 *
+	 * State operation:
+	 * The superstate of the attended transfer is changed from Transfer to Recall.
+	 * The transfer target bridge is merged into the transferee bridge. The transferer
+	 * channel is kicked out of the bridges as part of the merge.
+	 *
+	 * Transitions from TRANSFER_BLOND_NONFINAL:
+	 * 1) TRANSFER_FAIL: Transferee hangs up
+	 * 2) TRANSFER_RESUME: Recall target answers
+	 * 3) TRANSFER_RECALLING: Recall target hangs up or time expires.
+	 */
+	TRANSFER_BLOND_NONFINAL,
+	/*!
+	 * \brief Recalling state
+	 *
+	 * This state is entered if the recall target from the TRANSFER_BLOND_NONFINAL
+	 * or TRANSFER_RETRANSFER states hangs up or does not answer. The goal of this
+	 * state is to call back the original transferer in an attempt to recover the
+	 * original call.
+	 *
+	 * Superstate: Recall
+	 *
+	 * Preconditions:
+	 * 1) Recall target is down.
+	 * 2) Transferee is off hold.
+	 *
+	 * Transitions to TRANSFER_RECALLING:
+	 * 1) TRANSFER_BLOND_NONFINAL: Recall target hangs up or time expires.
+	 * 2) TRANSFER_RETRANSFER: Recall target hangs up or time expires.
+	 *    atxferloopdelay is non-zero.
+	 * 3) TRANSFER_WAIT_TO_RECALL: Time expires.
+	 *
+	 * State operation:
+	 * The original transferer becomes the recall target and is called using the Dialing API.
+	 * Ringing is indicated to the transferee.
+	 *
+	 * Transitions from TRANSFER_RECALLING:
+	 * 1) TRANSFER_FAIL:
+	 *    a) Transferee hangs up.
+	 *    b) Recall target hangs up or time expires, and number of recall attempts exceeds atxfercallbackretries
+	 * 2) TRANSFER_WAIT_TO_RETRANSFER: Recall target hangs up or time expires.
+	 *    atxferloopdelay is non-zero.
+	 * 3) TRANSFER_RETRANSFER: Recall target hangs up or time expires.
+	 *    atxferloopdelay is zero.
+	 * 4) TRANSFER_RESUME: Recall target answers.
+	 */
+	TRANSFER_RECALLING,
+	/*!
+	 * \brief Wait to Retransfer state
+	 *
+	 * This state is used simply to give a bit of breathing room between attempting
+	 * to call back the original transferer and attempting to call back the original
+	 * transfer target. The transferee hears music on hold during this state as an
+	 * auditory clue that no one is currently being dialed.
+	 *
+	 * Superstate: Recall
+	 *
+	 * Preconditions:
+	 * 1) Recall target is down.
+	 * 2) Transferee is off hold.
+	 *
+	 * Transitions to TRANSFER_WAIT_TO_RETRANSFER:
+	 * 1) TRANSFER_RECALLING: Recall target hangs up or time expires.
+	 *    atxferloopdelay is non-zero.
+	 *
+	 * State operation:
+	 * The transferee is placed on hold.
+	 *
+	 * Transitions from TRANSFER_WAIT_TO_RETRANSFER:
+	 * 1) TRANSFER_FAIL: Transferee hangs up.
+	 * 2) TRANSFER_RETRANSFER: Time expires.
+	 */
+	TRANSFER_WAIT_TO_RETRANSFER,
+	/*!
+	 * \brief Retransfer state
+	 *
+	 * This state is used in order to attempt to call back the original
+	 * transfer target channel from the transfer. The transferee hears
+	 * ringing during this state as an auditory cue that a party is being
+	 * dialed.
+	 *
+	 * Superstate: Recall
+	 *
+	 * Preconditions:
+	 * 1) Recall target is down.
+	 * 2) Transferee is off hold.
+	 *
+	 * Transitions to TRANSFER_RETRANSFER:
+	 * 1) TRANSFER_RECALLING: Recall target hangs up or time expires.
+	 *    atxferloopdelay is zero.
+	 * 2) TRANSFER_WAIT_TO_RETRANSFER: Time expires.
+	 *
+	 * State operation:
+	 * The original transfer target is requested and is set as the recall target.
+	 * The recall target is called and placed into the transferee bridge.
+	 *
+	 * Transitions from TRANSFER_RETRANSFER:
+	 * 1) TRANSFER_FAIL: Transferee hangs up.
+	 * 2) TRANSFER_WAIT_TO_RECALL: Recall target hangs up or time expires.
+	 *    atxferloopdelay is non-zero.
+	 * 3) TRANSFER_RECALLING: Recall target hangs up or time expires.
+	 *    atxferloopdelay is zero.
+	 */
+	TRANSFER_RETRANSFER,
+	/*!
+	 * \brief Wait to recall state
+	 *
+	 * This state is used simply to give a bit of breathing room between attempting
+	 * to call back the original transfer target and attempting to call back the
+	 * original transferer. The transferee hears music on hold during this state as an
+	 * auditory clue that no one is currently being dialed.
+	 *
+	 * Superstate: Recall
+	 *
+	 * Preconditions:
+	 * 1) Recall target is down.
+	 * 2) Transferee is off hold.
+	 *
+	 * Transitions to TRANSFER_WAIT_TO_RECALL:
+	 * 1) TRANSFER_RETRANSFER: Recall target hangs up or time expires.
+	 *    atxferloopdelay is non-zero.
+	 *
+	 * State operation:
+	 * Transferee is placed on hold.
+	 *
+	 * Transitions from TRANSFER_WAIT_TO_RECALL:
+	 * 1) TRANSFER_FAIL: Transferee hangs up
+	 * 2) TRANSFER_RECALLING: Time expires
+	 */
+	TRANSFER_WAIT_TO_RECALL,
+	/*!
+	 * \brief Fail state
+	 *
+	 * This state indicates that something occurred during the transfer that
+	 * makes a graceful completion impossible. The most common stimulus for this
+	 * state is when the transferee hangs up.
+	 *
+	 * Superstate: Transfer and Recall
+	 *
+	 * Preconditions:
+	 * None
+	 *
+	 * Transitions to TRANSFER_FAIL:
+	 * 1) TRANSFER_CALLING_TARGET: Transferee hangs up.
+	 * 2) TRANSFER_HESITANT: Transferee hangs up.
+	 * 3) TRANSFER_DOUBLECHECKING: Transferee hangs up.
+	 * 4) TRANSFER_BLOND_NONFINAL: Transferee hangs up.
+	 * 5) TRANSFER_RECALLING:
+	 *    a) Transferee hangs up.
+	 *    b) Recall target hangs up or time expires, and number of
+	 *       recall attempts exceeds atxfercallbackretries.
+	 * 6) TRANSFER_WAIT_TO_RETRANSFER: Transferee hangs up.
+	 * 7) TRANSFER_RETRANSFER: Transferee hangs up.
+	 * 8) TRANSFER_WAIT_TO_RECALL: Transferee hangs up.
+	 *
+	 * State operation:
+	 * A transfer stasis publication is made indicating a failed transfer.
+	 * The transferee bridge is destroyed.
+	 *
+	 * Transitions from TRANSFER_FAIL:
+	 * None.
+	 */
+	TRANSFER_FAIL,
+};
+
+/*!
+ * \brief Stimuli that can cause transfer state changes
+ */
+enum attended_transfer_stimulus {
+	/*! No stimulus. This literally can never happen. */
+	STIMULUS_NONE,
+	/*! All of the transferee channels have been hung up. */
+	STIMULUS_TRANSFEREE_HANGUP,
+	/*! The transferer has hung up. */
+	STIMULUS_TRANSFERER_HANGUP,
+	/*! The transfer target channel has hung up. */
+	STIMULUS_TRANSFER_TARGET_HANGUP,
+	/*! The transfer target channel has answered. */
+	STIMULUS_TRANSFER_TARGET_ANSWER,
+	/*! The recall target channel has hung up. */
+	STIMULUS_RECALL_TARGET_HANGUP,
+	/*! The recall target channel has answered. */
+	STIMULUS_RECALL_TARGET_ANSWER,
+	/*! The current state's timer has expired. */
+	STIMULUS_TIMEOUT,
+	/*! The transferer pressed the abort DTMF sequence. */
+	STIMULUS_DTMF_ATXFER_ABORT,
+	/*! The transferer pressed the complete DTMF sequence. */
+	STIMULUS_DTMF_ATXFER_COMPLETE,
+	/*! The transferer pressed the three-way DTMF sequence. */
+	STIMULUS_DTMF_ATXFER_THREEWAY,
+	/*! The transferer pressed the swap DTMF sequence. */
+	STIMULUS_DTMF_ATXFER_SWAP,
+};
+
+/*!
+ * \brief String representations of the various stimuli
+ *
+ * Used for debugging purposes
+ */
+const char *stimulus_strs[] = {
+	[STIMULUS_NONE] = "None",
+	[STIMULUS_TRANSFEREE_HANGUP] = "Transferee Hangup",
+	[STIMULUS_TRANSFERER_HANGUP] = "Transferer Hangup",
+	[STIMULUS_TRANSFER_TARGET_HANGUP] = "Transfer Target Hangup",
+	[STIMULUS_TRANSFER_TARGET_ANSWER] = "Transfer Target Answer",
+	[STIMULUS_RECALL_TARGET_HANGUP] = "Recall Target Hangup",
+	[STIMULUS_RECALL_TARGET_ANSWER] = "Recall Target Answer",
+	[STIMULUS_TIMEOUT] = "Timeout",
+	[STIMULUS_DTMF_ATXFER_ABORT] = "DTMF Abort",
+	[STIMULUS_DTMF_ATXFER_COMPLETE] = "DTMF Complete",
+	[STIMULUS_DTMF_ATXFER_THREEWAY] = "DTMF Threeway",
+	[STIMULUS_DTMF_ATXFER_SWAP] = "DTMF Swap",
+};
+
+struct stimulus_list {
+	enum attended_transfer_stimulus stimulus;
+	AST_LIST_ENTRY(stimulus_list) next;
+};
+
+/*!
+ * \brief Collection of data related to an attended transfer attempt
+ */
+struct attended_transfer_properties {
+	AST_DECLARE_STRING_FIELDS (
+		/*! Extension of transfer target */
+		AST_STRING_FIELD(exten);
+		/*! Context of transfer target */
+		AST_STRING_FIELD(context);
+		/*! Sound to play on failure */
+		AST_STRING_FIELD(failsound);
+		/*! Sound to play when transfer completes */
+		AST_STRING_FIELD(xfersound);
+		/*! The channel technology of the transferer channel */
+		AST_STRING_FIELD(transferer_type);
+		/*! The transferer channel address */
+		AST_STRING_FIELD(transferer_addr);
+	);
+	/*! Condition used to synchronize when stimuli are reported to the monitor thread */
+	ast_cond_t cond;
+	/*! The bridge where the transferee resides. This bridge is also the bridge that
+	 * survives a successful attended transfer.
+	 */
+	struct ast_bridge *transferee_bridge;
+	/*! The bridge used to place an outbound call to the transfer target. This
+	 * bridge is merged with the transferee_bridge on a successful transfer.
+	 */
+	struct ast_bridge *target_bridge;
+	/*! The party that performs the attended transfer. */
+	struct ast_channel *transferer;
+	/*! The local channel dialed to reach the transfer target. */
+	struct ast_channel *transfer_target;
+	/*! The party that is currently being recalled. Depending on
+	 * the current state, this may be either the party that originally
+	 * was the transferer or the original transfer target
+	 */
+	struct ast_channel *recall_target;
+	/*! The absolute starting time for running timers */
+	struct timeval start;
+	AST_LIST_HEAD_NOLOCK(,stimulus_list) stimulus_queue;
+	/*! The current state of the attended transfer */
+	enum attended_transfer_state state;
+	/*! The current superstate of the attended transfer */
+	enum attended_transfer_superstate superstate;
+	/*! Configured atxferdropcall from features.conf */
+	int atxferdropcall;
+	/*! Configured atxfercallbackretries from features.conf */
+	int atxfercallbackretries;
+	/*! Configured atxferloopdelay from features.conf */
+	int atxferloopdelay;
+	/*! Configured atxfernoanswertimeout from features.conf */
+	int atxfernoanswertimeout;
+	/*! Count of the number of times that recalls have been attempted */
+	int retry_attempts;
+	/*! Framehook ID for outbounc call to transfer target or recall target */
+	int target_framehook_id;
+	/*! Dial structure used when recalling transferer channel */
+	struct ast_dial *dial;
+	/*! The bridging features the transferer has available */
+	struct ast_flags transferer_features;
+};
+
+static void attended_transfer_properties_destructor(void *obj)
+{
+	struct attended_transfer_properties *props = obj;
+
+	ast_debug(1, "Destroy attended transfer properties %p\n", props);
+
+	ao2_cleanup(props->target_bridge);
+	ao2_cleanup(props->transferee_bridge);
+	/* Use ast_channel_cleanup() instead of ast_channel_unref() for channels since they may be NULL */
+	ast_channel_cleanup(props->transferer);
+	ast_channel_cleanup(props->transfer_target);
+	ast_channel_cleanup(props->recall_target);
+	ast_string_field_free_memory(props);
+	ast_cond_destroy(&props->cond);
+}
+
+/*!
+ * \internal
+ * \brief Determine the transfer context to use.
+ * \since 12.0.0
+ *
+ * \param transferer Channel initiating the transfer.
+ * \param context User supplied context if available.  May be NULL.
+ *
+ * \return The context to use for the transfer.
+ */
+static const char *get_transfer_context(struct ast_channel *transferer, const char *context)
+{
+	if (!ast_strlen_zero(context)) {
+		return context;
+	}
+	context = pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT");
+	if (!ast_strlen_zero(context)) {
+		return context;
+	}
+	context = ast_channel_macrocontext(transferer);
+	if (!ast_strlen_zero(context)) {
+		return context;
+	}
+	context = ast_channel_context(transferer);
+	if (!ast_strlen_zero(context)) {
+		return context;
+	}
+	return "default";
+}
+
+/*!
+ * \brief Allocate and initialize attended transfer properties
+ *
+ * \param transferee_bridge The bridge where the transfer was initiated
+ * \param transferer The channel performing the attended transfer
+ * \param context Suggestion for what context the transfer target extension can be found in
+ *
+ * \retval NULL Failure to allocate or initialize
+ * \retval non-NULL Newly allocated properties
+ */
+static struct attended_transfer_properties *attended_transfer_properties_alloc(
+		struct ast_bridge *transferee_bridge, struct ast_channel *transferer,
+		const char *context)
+{
+	struct attended_transfer_properties *props;
+	char *tech;
+	char *addr;
+	char *serial;
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+	struct ast_flags *transferer_features;
+
+	props = ao2_alloc(sizeof(*props), attended_transfer_properties_destructor);
+	if (!props || ast_string_field_init(props, 64)) {
+		return NULL;
+	}
+
+	ast_cond_init(&props->cond, NULL);
+
+	props->target_framehook_id = -1;
+	props->transferer = ast_channel_ref(transferer);
+
+	ast_channel_lock(props->transferer);
+	xfer_cfg = ast_get_chan_features_xfer_config(props->transferer);
+	if (!xfer_cfg) {
+		ast_log(LOG_ERROR, "Unable to get transfer configuration from channel %s\n", ast_channel_name(props->transferer));
+		ao2_ref(props, -1);
+		return NULL;
+	}
+	transferer_features = ast_bridge_features_ds_get(props->transferer);
+	if (transferer_features) {
+		props->transferer_features = *transferer_features;
+	}
+	props->atxferdropcall = xfer_cfg->atxferdropcall;
+	props->atxfercallbackretries = xfer_cfg->atxfercallbackretries;
+	props->atxfernoanswertimeout = xfer_cfg->atxfernoanswertimeout;
+	props->atxferloopdelay = xfer_cfg->atxferloopdelay;
+	ast_string_field_set(props, context, get_transfer_context(transferer, context));
+	ast_string_field_set(props, failsound, xfer_cfg->xferfailsound);
+	ast_string_field_set(props, xfersound, xfer_cfg->xfersound);
+
+	tech = ast_strdupa(ast_channel_name(props->transferer));
+	addr = strchr(tech, '/');
+	if (!addr) {
+		ast_log(LOG_ERROR, "Transferer channel name does not follow typical channel naming format (tech/address)\n");
+		ast_channel_unref(props->transferer);
+		return NULL;
+	}
+	*addr++ = '\0';
+	serial = strrchr(addr, '-');
+	if (serial) {
+		*serial = '\0';
+	}
+	ast_string_field_set(props, transferer_type, tech);
+	ast_string_field_set(props, transferer_addr, addr);
+
+	ast_channel_unlock(props->transferer);
+
+	ast_debug(1, "Allocated attended transfer properties %p for transfer from %s\n",
+			props, ast_channel_name(props->transferer));
+	return props;
+}
+
+/*!
+ * \brief Free backlog of stimuli in the queue
+ */
+static void clear_stimulus_queue(struct attended_transfer_properties *props)
+{
+	struct stimulus_list *list;
+	SCOPED_AO2LOCK(lock, props);
+
+	while ((list = AST_LIST_REMOVE_HEAD(&props->stimulus_queue, next))) {
+		ast_free(list);
+	}
+}
+
+/*!
+ * \brief Initiate shutdown of attended transfer properties
+ *
+ * Calling this indicates that the attended transfer properties are no longer needed
+ * because the transfer operation has concluded.
+ */
+static void attended_transfer_properties_shutdown(struct attended_transfer_properties *props)
+{
+	ast_debug(1, "Shutting down attended transfer %p\n", props);
+
+	if (props->transferee_bridge) {
+		ast_bridge_merge_inhibit(props->transferee_bridge, -1);
+		bridge_basic_change_personality(props->transferee_bridge,
+				BRIDGE_BASIC_PERSONALITY_NORMAL, NULL);
+	}
+
+	if (props->target_bridge) {
+		ast_bridge_destroy(props->target_bridge);
+		props->target_bridge = NULL;
+	}
+
+	if (props->transferer) {
+		ast_channel_remove_bridge_role(props->transferer, TRANSFERER_ROLE_NAME);
+	}
+
+	clear_stimulus_queue(props);
+
+	ao2_cleanup(props);
+}
+
+static void stimulate_attended_transfer(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	struct stimulus_list *list;
+
+	list = ast_calloc(1, sizeof(*list));
+	if (!list) {
+		ast_log(LOG_ERROR, "Unable to push event to attended transfer queue. Expect transfer to fail\n");
+		return;
+	}
+
+	list->stimulus = stimulus;
+	ao2_lock(props);
+	AST_LIST_INSERT_TAIL(&props->stimulus_queue, list, next);
+	ast_cond_signal(&props->cond);
+	ao2_unlock(props);
+}
+
+/*!
+ * \brief Send a stasis publication for a successful attended transfer
+ */
+static void publish_transfer_success(struct attended_transfer_properties *props)
+{
+	struct ast_bridge_channel_pair transferee = {
+		.channel = props->transferer,
+		.bridge = props->transferee_bridge,
+	};
+	struct ast_bridge_channel_pair transfer_target = {
+		.channel = props->transferer,
+		.bridge = props->target_bridge,
+	};
+
+	ast_bridge_publish_attended_transfer_bridge_merge(0, AST_BRIDGE_TRANSFER_SUCCESS,
+			&transferee, &transfer_target, props->transferee_bridge);
+}
+
+/*!
+ * \brief Send a stasis publication for an attended transfer that ends in a threeway call
+ */
+static void publish_transfer_threeway(struct attended_transfer_properties *props)
+{
+	struct ast_bridge_channel_pair transferee = {
+		.channel = props->transferer,
+		.bridge = props->transferee_bridge,
+	};
+	struct ast_bridge_channel_pair transfer_target = {
+		.channel = props->transferer,
+		.bridge = props->target_bridge,
+	};
+	struct ast_bridge_channel_pair threeway = {
+		.channel = props->transferer,
+		.bridge = props->transferee_bridge,
+	};
+
+	ast_bridge_publish_attended_transfer_threeway(0, AST_BRIDGE_TRANSFER_SUCCESS,
+			&transferee, &transfer_target, &threeway);
+}
+
+/*!
+ * \brief Send a stasis publication for a failed attended transfer
+ */
+static void publish_transfer_fail(struct attended_transfer_properties *props)
+{
+	struct ast_bridge_channel_pair transferee = {
+		.channel = props->transferer,
+		.bridge = props->transferee_bridge,
+	};
+	struct ast_bridge_channel_pair transfer_target = {
+		.channel = props->transferer,
+		.bridge = props->target_bridge,
+	};
+
+	ast_bridge_publish_attended_transfer_fail(0, AST_BRIDGE_TRANSFER_FAIL,
+			&transferee, &transfer_target);
+}
+
+/*!
+ * \brief Helper method to play a sound on a channel in a bridge
+ *
+ * \param chan The channel to play the sound to
+ * \param sound The sound to play
+ */
+static void play_sound(struct ast_channel *chan, const char *sound)
+{
+	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+
+	ast_channel_lock(chan);
+	bridge_channel = ast_channel_get_bridge_channel(chan);
+	ast_channel_unlock(chan);
+
+	if (!bridge_channel) {
+		return;
+	}
+
+	ast_bridge_channel_queue_playfile(bridge_channel, NULL, sound, NULL);
+}
+
+/*!
+ * \brief Helper method to place a channel in a bridge on hold
+ */
+static void hold(struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+
+	if (chan) {
+		ast_channel_lock(chan);
+		bridge_channel = ast_channel_get_bridge_channel(chan);
+		ast_channel_unlock(chan);
+
+		ast_assert(bridge_channel != NULL);
+
+		ast_bridge_channel_write_hold(bridge_channel, NULL);
+	}
+}
+
+/*!
+ * \brief Helper method to take a channel in a bridge off hold
+ */
+static void unhold(struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+
+	ast_channel_lock(chan);
+	bridge_channel = ast_channel_get_bridge_channel(chan);
+	ast_channel_unlock(chan);
+
+	ast_assert(bridge_channel != NULL);
+
+	ast_bridge_channel_write_unhold(bridge_channel);
+}
+
+/*!
+ * \brief Helper method to send a ringing indication to a channel in a bridge
+ */
+static void ringing(struct ast_channel *chan)
+{
+	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+
+	ast_channel_lock(chan);
+	bridge_channel = ast_channel_get_bridge_channel(chan);
+	ast_channel_unlock(chan);
+
+	ast_assert(bridge_channel != NULL);
+
+	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_RINGING, NULL, 0);
+}
+
+/*!
+ * \brief Helper method to send a ringing indication to all channels in a bridge
+ */
+static void bridge_ringing(struct ast_bridge *bridge)
+{
+	struct ast_frame ringing = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_RINGING,
+	};
+
+	ast_bridge_queue_everyone_else(bridge, NULL, &ringing);
+}
+
+/*!
+ * \brief Helper method to send a hold frame to all channels in a bridge
+ */
+static void bridge_hold(struct ast_bridge *bridge)
+{
+	struct ast_frame hold = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_HOLD,
+	};
+
+	ast_bridge_queue_everyone_else(bridge, NULL, &hold);
+}
+
+/*!
+ * \brief Helper method to send an unhold frame to all channels in a bridge
+ */
+static void bridge_unhold(struct ast_bridge *bridge)
+{
+	struct ast_frame unhold = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_UNHOLD,
+	};
+
+	ast_bridge_queue_everyone_else(bridge, NULL, &unhold);
+}
+
+/*!
+ * \brief Wrapper for \ref bridge_move_do
+ */
+static int bridge_move(struct ast_bridge *dest, struct ast_bridge *src, struct ast_channel *channel, struct ast_channel *swap)
+{
+	int res;
+	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+
+	ast_bridge_lock_both(src, dest);
+
+	ast_channel_lock(channel);
+	bridge_channel = ast_channel_get_bridge_channel(channel);
+	ast_channel_unlock(channel);
+
+	ast_assert(bridge_channel != NULL);
+
+	ao2_lock(bridge_channel);
+	bridge_channel->swap = swap;
+	ao2_unlock(bridge_channel);
+
+	res = bridge_move_do(dest, bridge_channel, 1, 0);
+
+	ast_bridge_unlock(dest);
+	ast_bridge_unlock(src);
+
+	return res;
+}
+
+/*!
+ * \brief Wrapper for \ref bridge_merge_do
+ */
+static void bridge_merge(struct ast_bridge *dest, struct ast_bridge *src, struct ast_channel **kick_channels, unsigned int num_channels)
+{
+	struct ast_bridge_channel **kick_bridge_channels = num_channels ?
+		ast_alloca(num_channels * sizeof(*kick_bridge_channels)) : NULL;
+	int i;
+	int num_bridge_channels = 0;
+
+	ast_bridge_lock_both(dest, src);
+
+	for (i = 0; i < num_channels; ++i) {
+		struct ast_bridge_channel *kick_bridge_channel;
+
+		kick_bridge_channel = find_bridge_channel(src, kick_channels[i]);
+		if (!kick_bridge_channel) {
+			kick_bridge_channel = find_bridge_channel(dest, kick_channels[i]);
+		}
+
+		/* It's possible (and fine) for the bridge channel to be NULL at this point if the
+		 * channel has hung up already. If that happens, we can just remove it from the list
+		 * of bridge channels to kick from the bridge
+		 */
+		if (!kick_bridge_channel) {
+			continue;
+		}
+
+		kick_bridge_channels[num_bridge_channels++] = kick_bridge_channel;
+	}
+
+	bridge_merge_do(dest, src, kick_bridge_channels, num_bridge_channels, 0);
+	ast_bridge_unlock(dest);
+	ast_bridge_unlock(src);
+}
+
+/*!
+ * \brief Flags that indicate properties of attended transfer states
+ */
+enum attended_transfer_state_flags {
+	/*! This state requires that the timer be reset when entering the state */
+	TRANSFER_STATE_FLAG_TIMER_RESET = (1 << 0),
+	/*! This state's timer uses atxferloopdelay */
+	TRANSFER_STATE_FLAG_TIMER_LOOP_DELAY = (1 << 1),
+	/*! This state's timer uses atxfernoanswertimeout */
+	TRANSFER_STATE_FLAG_ATXFER_NO_ANSWER = (1 << 2),
+	/*! This state has a time limit associated with it */
+	TRANSFER_STATE_FLAG_TIMED = (TRANSFER_STATE_FLAG_TIMER_RESET |
+			TRANSFER_STATE_FLAG_TIMER_LOOP_DELAY | TRANSFER_STATE_FLAG_ATXFER_NO_ANSWER),
+	/*! This state does not transition to any other states */
+	TRANSFER_STATE_FLAG_TERMINAL = (1 << 3),
+};
+
+static int calling_target_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state calling_target_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int hesitant_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state hesitant_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int rebridge_enter(struct attended_transfer_properties *props);
+
+static int resume_enter(struct attended_transfer_properties *props);
+
+static int threeway_enter(struct attended_transfer_properties *props);
+
+static int consulting_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state consulting_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int double_checking_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state double_checking_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int complete_enter(struct attended_transfer_properties *props);
+
+static int blond_enter(struct attended_transfer_properties *props);
+
+static int blond_nonfinal_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state blond_nonfinal_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int recalling_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state recalling_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int wait_to_retransfer_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state wait_to_retransfer_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int retransfer_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state retransfer_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int wait_to_recall_enter(struct attended_transfer_properties *props);
+static enum attended_transfer_state wait_to_recall_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus);
+
+static int fail_enter(struct attended_transfer_properties *props);
+
+/*!
+ * \brief Properties of an attended transfer state
+ */
+struct attended_transfer_state_properties {
+	/*! The name of the state. Used for debugging */
+	const char *state_name;
+	/*! Function used to enter a state */
+	int (*enter)(struct attended_transfer_properties *props);
+	/*!
+	 * Function used to exit a state
+	 * This is used both to determine what the next state
+	 * to transition to will be and to perform any cleanup
+	 * necessary before exiting the current state.
+	 */
+	enum attended_transfer_state (*exit)(struct attended_transfer_properties *props,
+			enum attended_transfer_stimulus stimulus);
+	/*! Flags associated with this state */
+	enum attended_transfer_state_flags flags;
+};
+
+static const struct attended_transfer_state_properties state_properties[] = {
+	[TRANSFER_CALLING_TARGET] = {
+		.state_name = "Calling Target",
+		.enter = calling_target_enter,
+		.exit = calling_target_exit,
+		.flags = TRANSFER_STATE_FLAG_ATXFER_NO_ANSWER | TRANSFER_STATE_FLAG_TIMER_RESET,
+	},
+	[TRANSFER_HESITANT] = {
+		.state_name = "Hesitant",
+		.enter = hesitant_enter,
+		.exit = hesitant_exit,
+		.flags = TRANSFER_STATE_FLAG_ATXFER_NO_ANSWER,
+	},
+	[TRANSFER_REBRIDGE] = {
+		.state_name = "Rebridge",
+		.enter = rebridge_enter,
+		.flags = TRANSFER_STATE_FLAG_TERMINAL,
+	},
+	[TRANSFER_RESUME] = {
+		.state_name = "Resume",
+		.enter = resume_enter,
+		.flags = TRANSFER_STATE_FLAG_TERMINAL,
+	},
+	[TRANSFER_THREEWAY] = {
+		.state_name = "Threeway",
+		.enter = threeway_enter,
+		.flags = TRANSFER_STATE_FLAG_TERMINAL,
+	},
+	[TRANSFER_CONSULTING] = {
+		.state_name = "Consulting",
+		.enter = consulting_enter,
+		.exit = consulting_exit,
+	},
+	[TRANSFER_DOUBLECHECKING] = {
+		.state_name = "Double Checking",
+		.enter = double_checking_enter,
+		.exit = double_checking_exit,
+	},
+	[TRANSFER_COMPLETE] = {
+		.state_name = "Complete",
+		.enter = complete_enter,
+		.flags = TRANSFER_STATE_FLAG_TERMINAL,
+	},
+	[TRANSFER_BLOND] = {
+		.state_name = "Blond",
+		.enter = blond_enter,
+		.flags = TRANSFER_STATE_FLAG_TERMINAL,
+	},
+	[TRANSFER_BLOND_NONFINAL] = {
+		.state_name = "Blond Non-Final",
+		.enter = blond_nonfinal_enter,
+		.exit = blond_nonfinal_exit,
+		.flags = TRANSFER_STATE_FLAG_ATXFER_NO_ANSWER,
+	},
+	[TRANSFER_RECALLING] = {
+		.state_name = "Recalling",
+		.enter = recalling_enter,
+		.exit = recalling_exit,
+		.flags = TRANSFER_STATE_FLAG_ATXFER_NO_ANSWER | TRANSFER_STATE_FLAG_TIMER_RESET,
+	},
+	[TRANSFER_WAIT_TO_RETRANSFER] = {
+		.state_name = "Wait to Retransfer",
+		.enter = wait_to_retransfer_enter,
+		.exit = wait_to_retransfer_exit,
+		.flags = TRANSFER_STATE_FLAG_TIMER_RESET | TRANSFER_STATE_FLAG_TIMER_LOOP_DELAY,
+	},
+	[TRANSFER_RETRANSFER] = {
+		.state_name = "Retransfer",
+		.enter = retransfer_enter,
+		.exit = retransfer_exit,
+		.flags = TRANSFER_STATE_FLAG_ATXFER_NO_ANSWER | TRANSFER_STATE_FLAG_TIMER_RESET,
+	},
+	[TRANSFER_WAIT_TO_RECALL] = {
+		.state_name = "Wait to Recall",
+		.enter = wait_to_recall_enter,
+		.exit = wait_to_recall_exit,
+		.flags = TRANSFER_STATE_FLAG_TIMER_RESET | TRANSFER_STATE_FLAG_TIMER_LOOP_DELAY,
+	},
+	[TRANSFER_FAIL] = {
+		.state_name = "Fail",
+		.enter = fail_enter,
+		.flags = TRANSFER_STATE_FLAG_TERMINAL,
+	},
+};
+
+static int calling_target_enter(struct attended_transfer_properties *props)
+{
+	return bridge_move(props->target_bridge, props->transferee_bridge, props->transferer, NULL);
+}
+
+static enum attended_transfer_state calling_target_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		play_sound(props->transferer, props->failsound);
+		publish_transfer_fail(props);
+		return TRANSFER_FAIL;
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+	case STIMULUS_TRANSFERER_HANGUP:
+		bridge_unhold(props->transferee_bridge);
+		return props->atxferdropcall ? TRANSFER_BLOND : TRANSFER_BLOND_NONFINAL;
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+		return TRANSFER_CONSULTING;
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_TIMEOUT:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+		play_sound(props->transferer, props->failsound);
+		return TRANSFER_REBRIDGE;
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+		bridge_unhold(props->transferee_bridge);
+		return TRANSFER_THREEWAY;
+	case STIMULUS_DTMF_ATXFER_SWAP:
+		return TRANSFER_HESITANT;
+	case STIMULUS_NONE:
+	case STIMULUS_RECALL_TARGET_ANSWER:
+	case STIMULUS_RECALL_TARGET_HANGUP:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int hesitant_enter(struct attended_transfer_properties *props)
+{
+	if (bridge_move(props->transferee_bridge, props->target_bridge, props->transferer, NULL)) {
+		return -1;
+	}
+
+	unhold(props->transferer);
+	return 0;
+}
+
+static enum attended_transfer_state hesitant_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		play_sound(props->transferer, props->failsound);
+		publish_transfer_fail(props);
+		return TRANSFER_FAIL;
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+	case STIMULUS_TRANSFERER_HANGUP:
+		return props->atxferdropcall ? TRANSFER_BLOND : TRANSFER_BLOND_NONFINAL;
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+		return TRANSFER_DOUBLECHECKING;
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_TIMEOUT:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+		play_sound(props->transferer, props->failsound);
+		return TRANSFER_RESUME;
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+		return TRANSFER_THREEWAY;
+	case STIMULUS_DTMF_ATXFER_SWAP:
+		hold(props->transferer);
+		return TRANSFER_CALLING_TARGET;
+	case STIMULUS_NONE:
+	case STIMULUS_RECALL_TARGET_HANGUP:
+	case STIMULUS_RECALL_TARGET_ANSWER:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int rebridge_enter(struct attended_transfer_properties *props)
+{
+	if (bridge_move(props->transferee_bridge, props->target_bridge,
+			props->transferer, NULL)) {
+		return -1;
+	}
+
+	unhold(props->transferer);
+	return 0;
+}
+
+static int resume_enter(struct attended_transfer_properties *props)
+{
+	return 0;
+}
+
+static int threeway_enter(struct attended_transfer_properties *props)
+{
+	bridge_merge(props->transferee_bridge, props->target_bridge, NULL, 0);
+	play_sound(props->transfer_target, props->xfersound);
+	play_sound(props->transferer, props->xfersound);
+	publish_transfer_threeway(props);
+
+	return 0;
+}
+
+static int consulting_enter(struct attended_transfer_properties *props)
+{
+	return 0;
+}
+
+static enum attended_transfer_state consulting_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		/* This is a one-of-a-kind event. The transferer and transfer target are talking in
+		 * one bridge, and the transferee has hung up in a separate bridge. In this case, we
+		 * will change the personality of the transfer target bridge back to normal, and play
+		 * a sound to the transferer to indicate the transferee is gone.
+		 */
+		bridge_basic_change_personality(props->target_bridge, BRIDGE_BASIC_PERSONALITY_NORMAL, NULL);
+		play_sound(props->transferer, props->failsound);
+		ast_bridge_merge_inhibit(props->target_bridge, -1);
+		/* These next two lines are here to ensure that our reference to the target bridge
+		 * is cleaned up properly and that the target bridge is not destroyed when the
+		 * monitor thread exits
+		 */
+		ao2_ref(props->target_bridge, -1);
+		props->target_bridge = NULL;
+		return TRANSFER_FAIL;
+	case STIMULUS_TRANSFERER_HANGUP:
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+		/* We know the transferer is in the target_bridge, so take the other bridge off hold */
+		bridge_unhold(props->transferee_bridge);
+		return TRANSFER_COMPLETE;
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+		play_sound(props->transferer, props->failsound);
+		return TRANSFER_REBRIDGE;
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+		bridge_unhold(props->transferee_bridge);
+		return TRANSFER_THREEWAY;
+	case STIMULUS_DTMF_ATXFER_SWAP:
+		hold(props->transferer);
+		bridge_move(props->transferee_bridge, props->target_bridge, props->transferer, NULL);
+		unhold(props->transferer);
+		return TRANSFER_DOUBLECHECKING;
+	case STIMULUS_NONE:
+	case STIMULUS_TIMEOUT:
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+	case STIMULUS_RECALL_TARGET_HANGUP:
+	case STIMULUS_RECALL_TARGET_ANSWER:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int double_checking_enter(struct attended_transfer_properties *props)
+{
+	return 0;
+}
+
+static enum attended_transfer_state double_checking_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		play_sound(props->transferer, props->failsound);
+		publish_transfer_fail(props);
+		return TRANSFER_FAIL;
+	case STIMULUS_TRANSFERER_HANGUP:
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+		/* We know the transferer is in the transferee, so take the other bridge off hold */
+		bridge_unhold(props->target_bridge);
+		return TRANSFER_COMPLETE;
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+		play_sound(props->transferer, props->failsound);
+		return TRANSFER_RESUME;
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+		bridge_unhold(props->target_bridge);
+		return TRANSFER_THREEWAY;
+	case STIMULUS_DTMF_ATXFER_SWAP:
+		hold(props->transferer);
+		bridge_move(props->target_bridge, props->transferee_bridge, props->transferer, NULL);
+		unhold(props->transferer);
+		return TRANSFER_CONSULTING;
+	case STIMULUS_NONE:
+	case STIMULUS_TIMEOUT:
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+	case STIMULUS_RECALL_TARGET_HANGUP:
+	case STIMULUS_RECALL_TARGET_ANSWER:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int complete_enter(struct attended_transfer_properties *props)
+{
+	bridge_merge(props->transferee_bridge, props->target_bridge, &props->transferer, 1);
+	play_sound(props->transfer_target, props->xfersound);
+	publish_transfer_success(props);
+	return 0;
+}
+
+static int blond_enter(struct attended_transfer_properties *props)
+{
+	bridge_merge(props->transferee_bridge, props->target_bridge, &props->transferer, 1);
+	ringing(props->transfer_target);
+	publish_transfer_success(props);
+	return 0;
+}
+
+static int blond_nonfinal_enter(struct attended_transfer_properties *props)
+{
+	int res;
+	props->superstate = SUPERSTATE_RECALL;
+	props->recall_target = ast_channel_ref(props->transfer_target);
+	res = blond_enter(props);
+	props->transfer_target = ast_channel_unref(props->transfer_target);
+	return res;
+}
+
+static enum attended_transfer_state blond_nonfinal_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		return TRANSFER_FAIL;
+	case STIMULUS_RECALL_TARGET_ANSWER:
+		return TRANSFER_RESUME;
+	case STIMULUS_TIMEOUT:
+		ast_softhangup(props->recall_target, AST_SOFTHANGUP_EXPLICIT);
+		props->recall_target = ast_channel_unref(props->recall_target);
+	case STIMULUS_RECALL_TARGET_HANGUP:
+		return TRANSFER_RECALLING;
+	case STIMULUS_NONE:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+	case STIMULUS_DTMF_ATXFER_SWAP:
+	case STIMULUS_TRANSFERER_HANGUP:
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+/*!
+ * \brief Dial callback when attempting to recall the original transferer channel
+ *
+ * This is how we can monitor if the recall target has answered or has hung up.
+ * If one of the two is detected, then an appropriate stimulus is sent to the
+ * attended transfer monitor thread.
+ */
+static void recall_callback(struct ast_dial *dial)
+{
+	struct attended_transfer_properties *props = ast_dial_get_user_data(dial);
+
+	switch (ast_dial_state(dial)) {
+	default:
+	case AST_DIAL_RESULT_INVALID:
+	case AST_DIAL_RESULT_FAILED:
+	case AST_DIAL_RESULT_TIMEOUT:
+	case AST_DIAL_RESULT_HANGUP:
+	case AST_DIAL_RESULT_UNANSWERED:
+		/* Failure cases */
+		stimulate_attended_transfer(props, STIMULUS_RECALL_TARGET_HANGUP);
+		break;
+	case AST_DIAL_RESULT_RINGING:
+	case AST_DIAL_RESULT_PROGRESS:
+	case AST_DIAL_RESULT_PROCEEDING:
+	case AST_DIAL_RESULT_TRYING:
+		/* Don't care about these cases */
+		break;
+	case AST_DIAL_RESULT_ANSWERED:
+		/* We struck gold! */
+		props->recall_target = ast_dial_answered_steal(dial);
+		stimulate_attended_transfer(props, STIMULUS_RECALL_TARGET_ANSWER);
+		break;
+	}
+}
+
+
+static int recalling_enter(struct attended_transfer_properties *props)
+{
+	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
+	struct ast_format fmt;
+
+	if (!cap) {
+		return -1;
+	}
+
+	ast_format_cap_add(cap, ast_format_set(&fmt, AST_FORMAT_SLINEAR, 0));
+
+	/* When we dial the transfer target, since we are communicating
+	 * with a local channel, we can place the local channel in a bridge
+	 * and then call out to it. When recalling the transferer, though, we
+	 * have to use the dialing API because the channel is not local.
+	 */
+	props->dial = ast_dial_create();
+	if (!props->dial) {
+		return -1;
+	}
+
+	if (ast_dial_append(props->dial, props->transferer_type, props->transferer_addr)) {
+		return -1;
+	}
+
+	if (ast_dial_prerun(props->dial, NULL, cap)) {
+		return -1;
+	}
+
+	ast_dial_set_state_callback(props->dial, &recall_callback);
+
+	ao2_ref(props, +1);
+	ast_dial_set_user_data(props->dial, props);
+
+	if (ast_dial_run(props->dial, NULL, 1) == AST_DIAL_RESULT_FAILED) {
+		ao2_ref(props, -1);
+		return -1;
+	}
+
+	bridge_ringing(props->transferee_bridge);
+	return 0;
+}
+
+static enum attended_transfer_state recalling_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	/* No matter what the outcome was, we need to kill off the dial */
+	ast_dial_join(props->dial);
+	ast_dial_destroy(props->dial);
+	props->dial = NULL;
+	/* This reference is the one we incremented for the dial state callback (recall_callback) to use */
+	ao2_ref(props, -1);
+
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		return TRANSFER_FAIL;
+	case STIMULUS_TIMEOUT:
+	case STIMULUS_RECALL_TARGET_HANGUP:
+		++props->retry_attempts;
+		if (props->retry_attempts >= props->atxfercallbackretries) {
+			return TRANSFER_FAIL;
+		}
+		if (props->atxferloopdelay) {
+			return TRANSFER_WAIT_TO_RETRANSFER;
+		}
+		return TRANSFER_RETRANSFER;
+	case STIMULUS_RECALL_TARGET_ANSWER:
+		/* Setting this datastore up will allow the transferer to have all of his
+		 * call features set up automatically when the bridge changes back to a
+		 * normal personality
+		 */
+		ast_bridge_features_ds_set(props->recall_target, &props->transferer_features);
+		ast_channel_ref(props->recall_target);
+		if (ast_bridge_impart(props->transferee_bridge, props->recall_target, NULL, NULL, 1)) {
+			ast_hangup(props->recall_target);
+			return TRANSFER_FAIL;
+		}
+		return TRANSFER_RESUME;
+	case STIMULUS_NONE:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+	case STIMULUS_DTMF_ATXFER_SWAP:
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+	case STIMULUS_TRANSFERER_HANGUP:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int wait_to_retransfer_enter(struct attended_transfer_properties *props)
+{
+	bridge_hold(props->transferee_bridge);
+	return 0;
+}
+
+static enum attended_transfer_state wait_to_retransfer_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	bridge_unhold(props->transferee_bridge);
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		return TRANSFER_FAIL;
+	case STIMULUS_TIMEOUT:
+		return TRANSFER_RETRANSFER;
+	case STIMULUS_NONE:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+	case STIMULUS_DTMF_ATXFER_SWAP:
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+	case STIMULUS_TRANSFERER_HANGUP:
+	case STIMULUS_RECALL_TARGET_HANGUP:
+	case STIMULUS_RECALL_TARGET_ANSWER:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int attach_framehook(struct attended_transfer_properties *props, struct ast_channel *channel);
+
+static int retransfer_enter(struct attended_transfer_properties *props)
+{
+	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
+	struct ast_format fmt;
+	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
+	int cause;
+
+	if (!cap) {
+		return -1;
+	}
+
+	snprintf(destination, sizeof(destination), "%s@%s", props->exten, props->context);
+
+	ast_format_cap_add(cap, ast_format_set(&fmt, AST_FORMAT_SLINEAR, 0));
+
+	/* Get a channel that is the destination we wish to call */
+	props->recall_target = ast_request("Local", cap, NULL, destination, &cause);
+	if (!props->recall_target) {
+		ast_log(LOG_ERROR, "Unable to request outbound channel for recall target\n");
+		return -1;
+	}
+
+	if (attach_framehook(props, props->recall_target)) {
+		ast_log(LOG_ERROR, "Unable to attach framehook to recall target\n");
+		ast_hangup(props->recall_target);
+		props->recall_target = NULL;
+		return -1;
+	}
+
+	if (ast_call(props->recall_target, destination, 0)) {
+		ast_log(LOG_ERROR, "Unable to place outbound call to recall target\n");
+		ast_hangup(props->recall_target);
+		props->recall_target = NULL;
+		return -1;
+	}
+
+	ast_channel_ref(props->recall_target);
+	if (ast_bridge_impart(props->transferee_bridge, props->recall_target, NULL, NULL, 1)) {
+		ast_log(LOG_ERROR, "Unable to place recall target into bridge\n");
+		ast_hangup(props->recall_target);
+		return -1;
+	}
+
+	return 0;
+}
+
+static enum attended_transfer_state retransfer_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		return TRANSFER_FAIL;
+	case STIMULUS_TIMEOUT:
+		ast_softhangup(props->recall_target, AST_SOFTHANGUP_EXPLICIT);
+	case STIMULUS_RECALL_TARGET_HANGUP:
+		props->recall_target = ast_channel_unref(props->recall_target);
+		if (props->atxferloopdelay) {
+			return TRANSFER_WAIT_TO_RECALL;
+		}
+		return TRANSFER_RECALLING;
+	case STIMULUS_RECALL_TARGET_ANSWER:
+		return TRANSFER_RESUME;
+	case STIMULUS_NONE:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+	case STIMULUS_DTMF_ATXFER_SWAP:
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+	case STIMULUS_TRANSFERER_HANGUP:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int wait_to_recall_enter(struct attended_transfer_properties *props)
+{
+	bridge_hold(props->transferee_bridge);
+	return 0;
+}
+
+static enum attended_transfer_state wait_to_recall_exit(struct attended_transfer_properties *props,
+		enum attended_transfer_stimulus stimulus)
+{
+	bridge_unhold(props->transferee_bridge);
+	switch (stimulus) {
+	case STIMULUS_TRANSFEREE_HANGUP:
+		return TRANSFER_FAIL;
+	case STIMULUS_TIMEOUT:
+		return TRANSFER_RECALLING;
+	case STIMULUS_NONE:
+	case STIMULUS_DTMF_ATXFER_ABORT:
+	case STIMULUS_DTMF_ATXFER_COMPLETE:
+	case STIMULUS_DTMF_ATXFER_THREEWAY:
+	case STIMULUS_DTMF_ATXFER_SWAP:
+	case STIMULUS_TRANSFER_TARGET_HANGUP:
+	case STIMULUS_TRANSFER_TARGET_ANSWER:
+	case STIMULUS_TRANSFERER_HANGUP:
+	case STIMULUS_RECALL_TARGET_HANGUP:
+	case STIMULUS_RECALL_TARGET_ANSWER:
+	default:
+		ast_log(LOG_WARNING, "Unexpected stimulus '%s' received in attended transfer state '%s'\n",
+				stimulus_strs[stimulus], state_properties[props->state].state_name);
+		return props->state;
+	}
+}
+
+static int fail_enter(struct attended_transfer_properties *props)
+{
+	if (props->transferee_bridge) {
+		ast_bridge_destroy(props->transferee_bridge);
+		props->transferee_bridge = NULL;
+	}
+	return 0;
+}
+
+/*!
+ * \brief DTMF hook when transferer presses abort sequence.
+ *
+ * Sends a stimulus to the attended transfer monitor thread that the abort sequence has been pressed
+ */
+static int atxfer_abort(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	struct attended_transfer_properties *props = hook_pvt;
+
+	ast_debug(1, "Transferer on attended transfer %p pressed abort sequence\n", props);
+	stimulate_attended_transfer(props, STIMULUS_DTMF_ATXFER_ABORT);
+	return 0;
+}
+
+/*!
+ * \brief DTMF hook when transferer presses complete sequence.
+ *
+ * Sends a stimulus to the attended transfer monitor thread that the complete sequence has been pressed
+ */
+static int atxfer_complete(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	struct attended_transfer_properties *props = hook_pvt;
+
+	ast_debug(1, "Transferer on attended transfer %p pressed complete sequence\n", props);
+	stimulate_attended_transfer(props, STIMULUS_DTMF_ATXFER_COMPLETE);
+	return 0;
+}
+
+/*!
+ * \brief DTMF hook when transferer presses threeway sequence.
+ *
+ * Sends a stimulus to the attended transfer monitor thread that the threeway sequence has been pressed
+ */
+static int atxfer_threeway(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	struct attended_transfer_properties *props = hook_pvt;
+
+	ast_debug(1, "Transferer on attended transfer %p pressed threeway sequence\n", props);
+	stimulate_attended_transfer(props, STIMULUS_DTMF_ATXFER_THREEWAY);
+	return 0;
+}
+
+/*!
+ * \brief DTMF hook when transferer presses swap sequence.
+ *
+ * Sends a stimulus to the attended transfer monitor thread that the swap sequence has been pressed
+ */
+static int atxfer_swap(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	struct attended_transfer_properties *props = hook_pvt;
+
+	ast_debug(1, "Transferer on attended transfer %p pressed swap sequence\n", props);
+	stimulate_attended_transfer(props, STIMULUS_DTMF_ATXFER_SWAP);
+	return 0;
+}
+
+/*!
+ * \brief Hangup hook for transferer channel.
+ *
+ * Sends a stimulus to the attended transfer monitor thread that the transferer has hung up.
+ */
+static int atxfer_transferer_hangup(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	struct attended_transfer_properties *props = hook_pvt;
+
+	ast_debug(1, "Transferer on attended transfer %p hung up\n", props);
+	stimulate_attended_transfer(props, STIMULUS_TRANSFERER_HANGUP);
+	return 0;
+}
+
+/*!
+ * \brief Frame hook for transfer target channel
+ *
+ * This is used to determine if the transfer target or recall target has answered
+ * the outgoing call.
+ *
+ * When an answer is detected, a stimulus is sent to the attended transfer monitor
+ * thread to indicate that the transfer target or recall target has answered.
+ *
+ * \param chan The channel the framehook is attached to.
+ * \param frame The frame being read or written.
+ * \param event What is being done with the frame.
+ * \param data The attended transfer properties.
+ */
+static struct ast_frame *transfer_target_framehook_cb(struct ast_channel *chan,
+		struct ast_frame *frame, enum ast_framehook_event event, void *data)
+{
+	struct attended_transfer_properties *props = data;
+
+	if (event == AST_FRAMEHOOK_EVENT_READ &&
+			frame && frame->frametype == AST_FRAME_CONTROL &&
+			frame->subclass.integer == AST_CONTROL_ANSWER) {
+
+		ast_debug(1, "Detected an answer for recall attempt on attended transfer %p\n", props);
+		if (props->superstate == SUPERSTATE_TRANSFER) {
+			stimulate_attended_transfer(props, STIMULUS_TRANSFER_TARGET_ANSWER);
+		} else {
+			stimulate_attended_transfer(props, STIMULUS_RECALL_TARGET_ANSWER);
+		}
+		ast_framehook_detach(chan, props->target_framehook_id);
+		props->target_framehook_id = -1;
+	}
+
+	return frame;
+}
+
+static void transfer_target_framehook_destroy_cb(void *data)
+{
+	struct attended_transfer_properties *props = data;
+	ao2_cleanup(props);
+}
+
+static int bridge_personality_atxfer_push(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+{
+	const char *abort_dtmf;
+	const char *complete_dtmf;
+	const char *threeway_dtmf;
+	const char *swap_dtmf;
+	struct bridge_basic_personality *personality = self->personality;
+
+	if (!ast_channel_has_role(bridge_channel->chan, TRANSFERER_ROLE_NAME)) {
+		return 0;
+	}
+
+	abort_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "abort");
+	complete_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "complete");
+	threeway_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "threeway");
+	swap_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "swap");
+
+	if (!ast_strlen_zero(abort_dtmf) && ast_bridge_dtmf_hook(bridge_channel->features,
+			abort_dtmf, atxfer_abort, personality->details[personality->current].pvt, NULL,
+			AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE | AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+		return -1;
+	}
+	if (!ast_strlen_zero(complete_dtmf) && ast_bridge_dtmf_hook(bridge_channel->features,
+			complete_dtmf, atxfer_complete, personality->details[personality->current].pvt, NULL,
+			AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE | AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+		return -1;
+	}
+	if (!ast_strlen_zero(threeway_dtmf) && ast_bridge_dtmf_hook(bridge_channel->features,
+			threeway_dtmf, atxfer_threeway, personality->details[personality->current].pvt, NULL,
+			AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE | AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+		return -1;
+	}
+	if (!ast_strlen_zero(swap_dtmf) && ast_bridge_dtmf_hook(bridge_channel->features,
+			swap_dtmf, atxfer_swap, personality->details[personality->current].pvt, NULL,
+			AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE | AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+		return -1;
+	}
+	if (ast_bridge_hangup_hook(bridge_channel->features, atxfer_transferer_hangup,
+			personality->details[personality->current].pvt, NULL,
+			AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE | AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static void transfer_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct attended_transfer_properties *props)
+{
+	if (self->num_channels > 1 || bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+		return;
+	}
+
+	if (self->num_channels == 1) {
+		RAII_VAR(struct ast_bridge_channel *, transferer_bridge_channel, NULL, ao2_cleanup);
+
+		ast_channel_lock(props->transferer);
+		transferer_bridge_channel = ast_channel_get_bridge_channel(props->transferer);
+		ast_channel_unlock(props->transferer);
+
+		if (!transferer_bridge_channel) {
+			return;
+		}
+
+		if (AST_LIST_FIRST(&self->channels) != transferer_bridge_channel) {
+			return;
+		}
+	}
+
+	/* Reaching this point means that either
+	 * 1) The bridge has no channels in it
+	 * 2) The bridge has one channel, and it's the transferer
+	 * In either case, it indicates that the non-transferer parties
+	 * are no longer in the bridge.
+	 */
+	if (self == props->transferee_bridge) {
+		stimulate_attended_transfer(props, STIMULUS_TRANSFEREE_HANGUP);
+	} else {
+		stimulate_attended_transfer(props, STIMULUS_TRANSFER_TARGET_HANGUP);
+	}
+}
+
+static void recall_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct attended_transfer_properties *props)
+{
+	if (self == props->target_bridge) {
+		/* Once we're in the recall superstate, we no longer care about this bridge */
+		return;
+	}
+
+	if (bridge_channel->chan == props->recall_target) {
+		stimulate_attended_transfer(props, STIMULUS_RECALL_TARGET_HANGUP);
+		return;
+	}
+
+	if (self->num_channels == 0) {
+		/* Empty bridge means all transferees are gone for sure */
+		stimulate_attended_transfer(props, STIMULUS_TRANSFEREE_HANGUP);
+		return;
+	}
+
+	if (self->num_channels == 1) {
+		RAII_VAR(struct ast_bridge_channel *, target_bridge_channel, NULL, ao2_cleanup);
+		if (!props->recall_target) {
+			/* No recall target means that the pull happened on a transferee. If there's still
+			 * a channel left in the bridge, we don't need to send a stimulus
+			 */
+			return;
+		}
+
+		ast_channel_lock(props->recall_target);
+		target_bridge_channel = ast_channel_get_bridge_channel(props->recall_target);
+		ast_channel_unlock(props->recall_target);
+
+		if (!target_bridge_channel) {
+			return;
+		}
+
+		if (AST_LIST_FIRST(&self->channels) == target_bridge_channel) {
+			stimulate_attended_transfer(props, STIMULUS_TRANSFEREE_HANGUP);
+		}
+	}
+}
+
+static void bridge_personality_atxfer_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel)
+{
+	struct bridge_basic_personality *personality = self->personality;
+	struct attended_transfer_properties *props = personality->details[personality->current].pvt;
+
+	switch (props->superstate) {
+	case SUPERSTATE_TRANSFER:
+		transfer_pull(self, bridge_channel, props);
+		break;
+	case SUPERSTATE_RECALL:
+		recall_pull(self, bridge_channel, props);
+		break;
+	}
+}
+
+static enum attended_transfer_stimulus wait_for_stimulus(struct attended_transfer_properties *props)
+{
+	RAII_VAR(struct stimulus_list *, list, NULL, ast_free_ptr);
+	SCOPED_MUTEX(lock, ao2_object_get_lockaddr(props));
+
+	while (!(list = AST_LIST_REMOVE_HEAD(&props->stimulus_queue, next))) {
+		if (!(state_properties[props->state].flags & TRANSFER_STATE_FLAG_TIMED)) {
+			ast_cond_wait(&props->cond, lock);
+		} else {
+			struct timeval relative_timeout;
+			struct timeval absolute_timeout;
+			struct timespec timeout_arg;
+
+			if (state_properties[props->state].flags & TRANSFER_STATE_FLAG_TIMER_RESET) {
+				props->start = ast_tvnow();
+			}
+
+			if (state_properties[props->state].flags & TRANSFER_STATE_FLAG_TIMER_LOOP_DELAY) {
+				relative_timeout = ast_samp2tv(props->atxferloopdelay, 1000);
+			} else {
+				/* Implied TRANSFER_STATE_FLAG_TIMER_ATXFER_NO_ANSWER */
+				relative_timeout = ast_samp2tv(props->atxfernoanswertimeout, 1000);
+			}
+
+			absolute_timeout = ast_tvadd(props->start, relative_timeout);
+			timeout_arg.tv_sec = absolute_timeout.tv_sec;
+			timeout_arg.tv_nsec = absolute_timeout.tv_usec * 1000;
+
+			if (ast_cond_timedwait(&props->cond, lock, &timeout_arg) == ETIMEDOUT) {
+				return STIMULUS_TIMEOUT;
+			}
+		}
+	}
+	return list->stimulus;
+}
+
+/*!
+ * \brief The main loop for the attended transfer monitor thread.
+ *
+ * This loop runs continuously until the attended transfer reaches
+ * a terminal state. Stimuli for changes in the attended transfer
+ * state are handled in this thread so that all factors in an
+ * attended transfer can be handled in an orderly fashion.
+ *
+ * \param data The attended transfer properties
+ */
+static void *attended_transfer_monitor_thread(void *data)
+{
+	struct attended_transfer_properties *props = data;
+
+	for (;;) {
+		enum attended_transfer_stimulus stimulus;
+
+		ast_debug(1, "About to enter state %s for attended transfer %p\n", state_properties[props->state].state_name, props);
+
+		if (state_properties[props->state].enter &&
+				state_properties[props->state].enter(props)) {
+			ast_log(LOG_ERROR, "State %s enter function returned an error for attended transfer %p\n",
+					state_properties[props->state].state_name, props);
+			break;
+		}
+
+		if (state_properties[props->state].flags & TRANSFER_STATE_FLAG_TERMINAL) {
+			ast_debug(1, "State %s is a terminal state. Ending attended transfer %p\n",
+					state_properties[props->state].state_name, props);
+			break;
+		}
+
+		stimulus = wait_for_stimulus(props);
+
+		ast_debug(1, "Received stimulus %s on attended transfer %p\n", stimulus_strs[stimulus], props);
+
+		ast_assert(state_properties[props->state].exit != NULL);
+
+		props->state = state_properties[props->state].exit(props, stimulus);
+
+		ast_debug(1, "Told to enter state %s exit on attended transfer %p\n", state_properties[props->state].state_name, props);
+	}
+
+	attended_transfer_properties_shutdown(props);
+
+	return NULL;
+}
+
+static int attach_framehook(struct attended_transfer_properties *props, struct ast_channel *channel)
+{
+	struct ast_framehook_interface target_interface = {
+		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
+		.event_cb = transfer_target_framehook_cb,
+		.destroy_cb = transfer_target_framehook_destroy_cb,
+	};
+
+	ao2_ref(props, +1);
+	target_interface.data = props;
+
+	props->target_framehook_id = ast_framehook_attach(channel, &target_interface);
+	if (props->target_framehook_id == -1) {
+		ao2_ref(props, -1);
+		return -1;
+	}
+	return 0;
+}
+
+static int add_transferer_role(struct ast_channel *chan, struct ast_bridge_features_attended_transfer *attended_transfer)
+{
+	const char *atxfer_abort;
+	const char *atxfer_threeway;
+	const char *atxfer_complete;
+	const char *atxfer_swap;
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+	SCOPED_CHANNELLOCK(lock, chan);
+
+	xfer_cfg = ast_get_chan_features_xfer_config(chan);
+	if (!xfer_cfg) {
+		return -1;
+	}
+	if (attended_transfer) {
+		atxfer_abort = ast_strdupa(S_OR(attended_transfer->abort, xfer_cfg->atxferabort));
+		atxfer_threeway = ast_strdupa(S_OR(attended_transfer->threeway, xfer_cfg->atxferthreeway));
+		atxfer_complete = ast_strdupa(S_OR(attended_transfer->complete, xfer_cfg->atxfercomplete));
+		atxfer_swap = ast_strdupa(S_OR(attended_transfer->swap, xfer_cfg->atxferswap));
+	} else {
+		atxfer_abort = ast_strdupa(xfer_cfg->atxferabort);
+		atxfer_threeway = ast_strdupa(xfer_cfg->atxferthreeway);
+		atxfer_complete = ast_strdupa(xfer_cfg->atxfercomplete);
+		atxfer_swap = ast_strdupa(xfer_cfg->atxferswap);
+	}
+
+	return ast_channel_add_bridge_role(chan, TRANSFERER_ROLE_NAME) ||
+		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "abort", atxfer_abort) ||
+		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "complete", atxfer_complete) ||
+		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "threeway", atxfer_threeway) ||
+		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "swap", atxfer_swap);
+}
+
+/*!
+ * \brief Helper function that presents dialtone and grabs extension
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len, const char *context)
+{
+	int res;
+	int digit_timeout;
+	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+
+	ast_channel_lock(chan);
+	xfer_cfg = ast_get_chan_features_xfer_config(chan);
+	if (!xfer_cfg) {
+		ast_log(LOG_ERROR, "Unable to get transfer configuration\n");
+		ast_channel_unlock(chan);
+		return -1;
+	}
+	digit_timeout = xfer_cfg->transferdigittimeout;
+	ast_channel_unlock(chan);
+
+	/* Play the simple "transfer" prompt out and wait */
+	res = ast_stream_and_wait(chan, "pbx-transfer", AST_DIGIT_ANY);
+	ast_stopstream(chan);
+	if (res < 0) {
+		/* Hangup or error */
+		return -1;
+	}
+	if (res) {
+		/* Store the DTMF digit that interrupted playback of the file. */
+		exten[0] = res;
+	}
+
+	/* Drop to dialtone so they can enter the extension they want to transfer to */
+	res = ast_app_dtget(chan, context, exten, exten_len, exten_len - 1, digit_timeout);
+	if (res < 0) {
+		/* Hangup or error */
+		res = -1;
+	} else if (!res) {
+		/* 0 for invalid extension dialed. */
+		if (ast_strlen_zero(exten)) {
+			ast_debug(1, "%s dialed no digits.\n", ast_channel_name(chan));
+		} else {
+			ast_debug(1, "%s dialed '%s@%s' does not exist.\n",
+				ast_channel_name(chan), exten, context);
+		}
+		ast_stream_and_wait(chan, "pbx-invalid", AST_DIGIT_NONE);
+		res = -1;
+	} else {
+		/* Dialed extension is valid. */
+		res = 0;
+	}
+	return res;
+}
+
+static void copy_caller_data(struct ast_channel *dest, struct ast_channel *caller)
+{
+	ast_channel_lock_both(caller, dest);
+	ast_connected_line_copy_from_caller(ast_channel_connected(dest), ast_channel_caller(caller));
+	ast_channel_inherit_variables(caller, dest);
+	ast_channel_datastore_inherit(caller, dest);
+	ast_channel_unlock(dest);
+	ast_channel_unlock(caller);
+}
+
+/*! \brief Helper function that creates an outgoing channel and returns it immediately */
+static struct ast_channel *dial_transfer(struct ast_channel *caller, const char *destination)
+{
+	struct ast_channel *chan;
+	int cause;
+
+	/* Now we request a local channel to prepare to call the destination */
+	chan = ast_request("Local", ast_channel_nativeformats(caller), caller, destination,
+		&cause);
+	if (!chan) {
+		return NULL;
+	}
+
+	/* Who is transferring the call. */
+	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", ast_channel_name(caller));
+
+	/* To work as an analog to BLINDTRANSFER */
+	pbx_builtin_setvar_helper(chan, "ATTENDEDTRANSFER", ast_channel_name(caller));
+
+	/* Before we actually dial out let's inherit appropriate information. */
+	copy_caller_data(chan, caller);
+
+	return chan;
+}
+
+/*!
+ * \brief Internal built in feature for attended transfers
+ *
+ * This hook will set up a thread for monitoring the progress of
+ * an attended transfer. For more information about attended transfer
+ * progress, see documentation on the transfer state machine.
+ *
+ * \param bridge Bridge where attended transfer DTMF sequence was entered
+ * \param bridge_channel The channel that pressed the attended transfer DTMF sequence
+ * \param hook_pvt Structure with further information about the attended transfer
+ */
+static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	struct ast_bridge_features_attended_transfer *attended_transfer = hook_pvt;
+	struct attended_transfer_properties *props;
+	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 1];
+	char exten[AST_MAX_EXTENSION] = "";
+	pthread_t thread;
+
+	if (strcmp(bridge->v_table->name, "basic")) {
+		ast_log(LOG_ERROR, "Attended transfer attempted on unsupported bridge type '%s'\n", bridge->v_table->name);
+		return 0;
+	}
+
+	if (bridge->inhibit_merge) {
+		ast_log(LOG_ERROR, "Unable to perform attended transfer since bridge '%s' does not permit merging.\n", bridge->uniqueid);
+		return 0;
+	}
+
+	props = attended_transfer_properties_alloc(bridge, bridge_channel->chan,
+			attended_transfer ? attended_transfer->context : NULL);
+
+	if (!props) {
+		ast_log(LOG_ERROR, "Unable to allocate control structure for performing attended transfer\n");
+		return 0;
+	}
+
+	if (add_transferer_role(props->transferer, attended_transfer)) {
+		ast_log(LOG_ERROR, "Unable to set transferer bridge role properly\n");
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+
+	ast_bridge_channel_write_hold(bridge_channel, NULL);
+	props->transferee_bridge = ast_bridge_channel_merge_inhibit(bridge_channel, +1);
+
+	/* Grab the extension to transfer to */
+	if (grab_transfer(bridge_channel->chan, exten, sizeof(exten), props->context)) {
+		ast_log(LOG_WARNING, "Unable to acquire target extension for attended transfer\n");
+		ast_bridge_channel_write_unhold(bridge_channel);
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+
+	ast_string_field_set(props, exten, exten);
+
+	/* Fill the variable with the extension and context we want to call */
+	snprintf(destination, sizeof(destination), "%s@%s", props->exten, props->context);
+
+	ast_debug(1, "Attended transfer to '%s'\n", destination);
+
+	/* Get a channel that is the destination we wish to call */
+	props->transfer_target = dial_transfer(bridge_channel->chan, destination);
+	if (!props->transfer_target) {
+		ast_log(LOG_ERROR, "Unable to request outbound channel for attended transfer target\n");
+		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
+		ast_bridge_channel_write_unhold(bridge_channel);
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+
+
+	/* Create a bridge to use to talk to the person we are calling */
+	props->target_bridge = ast_bridge_basic_new();
+	if (!props->target_bridge) {
+		ast_log(LOG_ERROR, "Unable to create bridge for attended transfer target\n");
+		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
+		ast_bridge_channel_write_unhold(bridge_channel);
+		ast_hangup(props->transfer_target);
+		props->transfer_target = NULL;
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+	ast_bridge_merge_inhibit(props->target_bridge, +1);
+
+	if (attach_framehook(props, props->transfer_target)) {
+		ast_log(LOG_ERROR, "Unable to attach framehook to transfer target\n");
+		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
+		ast_bridge_channel_write_unhold(bridge_channel);
+		ast_hangup(props->transfer_target);
+		props->transfer_target = NULL;
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+
+	bridge_basic_change_personality(props->target_bridge,
+			BRIDGE_BASIC_PERSONALITY_ATXFER, props);
+	bridge_basic_change_personality(bridge,
+			BRIDGE_BASIC_PERSONALITY_ATXFER, props);
+
+	if (ast_call(props->transfer_target, destination, 0)) {
+		ast_log(LOG_ERROR, "Unable to place outbound call to transfer target\n");
+		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
+		ast_bridge_channel_write_unhold(bridge_channel);
+		ast_hangup(props->transfer_target);
+		props->transfer_target = NULL;
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+
+	/* We increase the refcount of the transfer target because ast_bridge_impart() will
+	 * steal the reference we already have. We need to keep a reference, so the only
+	 * choice is to give it a bump
+	 */
+	ast_channel_ref(props->transfer_target);
+	if (ast_bridge_impart(props->target_bridge, props->transfer_target, NULL, NULL, 1)) {
+		ast_log(LOG_ERROR, "Unable to place transfer target into bridge\n");
+		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
+		ast_bridge_channel_write_unhold(bridge_channel);
+		ast_hangup(props->transfer_target);
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+
+	if (ast_pthread_create_detached(&thread, NULL, attended_transfer_monitor_thread, props)) {
+		ast_log(LOG_ERROR, "Unable to create monitoring thread for attended transfer\n");
+		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
+		ast_bridge_channel_write_unhold(bridge_channel);
+		attended_transfer_properties_shutdown(props);
+		return 0;
+	}
+
+	/* Once the monitoring thread has been created, it is responsible for destroying all
+	 * of the necessary components.
+	 */
+	return 0;
+}
+
+static void blind_transfer_cb(struct ast_channel *new_channel, void *user_data,
+		enum ast_transfer_type transfer_type)
+{
+	struct ast_channel *transferer_channel = user_data;
+
+	if (transfer_type == AST_BRIDGE_TRANSFER_MULTI_PARTY) {
+		copy_caller_data(new_channel, transferer_channel);
+	}
+}
+
+/*! \brief Internal built in feature for blind transfers */
+static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	char exten[AST_MAX_EXTENSION] = "";
+	struct ast_bridge_features_blind_transfer *blind_transfer = hook_pvt;
+	const char *context;
+	char *goto_on_blindxfr;
+
+	if (strcmp(bridge->v_table->name, "basic")) {
+		ast_log(LOG_ERROR, "Blind transfer attempted on unsupported bridge type '%s'\n", bridge->v_table->name);
+		return 0;
+	}
+
+	ast_bridge_channel_write_hold(bridge_channel, NULL);
+
+	ast_channel_lock(bridge_channel->chan);
+	context = ast_strdupa(get_transfer_context(bridge_channel->chan,
+		blind_transfer ? blind_transfer->context : NULL));
+	goto_on_blindxfr = ast_strdupa(S_OR(pbx_builtin_getvar_helper(bridge_channel->chan,
+		"GOTO_ON_BLINDXFR"), ""));
+	ast_channel_unlock(bridge_channel->chan);
+
+	/* Grab the extension to transfer to */
+	if (grab_transfer(bridge_channel->chan, exten, sizeof(exten), context)) {
+		ast_bridge_channel_write_unhold(bridge_channel);
+		return 0;
+	}
+
+	if (!ast_strlen_zero(goto_on_blindxfr)) {
+		ast_debug(1, "After transfer, transferer %s goes to %s\n",
+				ast_channel_name(bridge_channel->chan), goto_on_blindxfr);
+		ast_after_bridge_set_go_on(bridge_channel->chan, NULL, NULL, 0, goto_on_blindxfr);
+	}
+
+	if (ast_bridge_transfer_blind(0, bridge_channel->chan, exten, context, blind_transfer_cb,
+			bridge_channel->chan) != AST_BRIDGE_TRANSFER_SUCCESS &&
+			!ast_strlen_zero(goto_on_blindxfr)) {
+		ast_after_bridge_goto_discard(bridge_channel->chan);
+	}
+
+	return 0;
+}
+
 struct ast_bridge_methods ast_bridge_basic_v_table;
+struct ast_bridge_methods personality_normal_v_table;
+struct ast_bridge_methods personality_atxfer_v_table;
+
+static void bridge_basic_change_personality(struct ast_bridge *bridge,
+		enum bridge_basic_personality_type type, void *user_data)
+{
+	struct bridge_basic_personality *personality = bridge->personality;
+	SCOPED_LOCK(lock, bridge, ast_bridge_lock, ast_bridge_unlock);
+
+	remove_hooks_on_personality_change(bridge);
+
+	ao2_cleanup(personality->details[personality->current].pvt);
+	personality->details[personality->current].pvt = NULL;
+	ast_clear_flag(&bridge->feature_flags, AST_FLAGS_ALL);
+
+	personality->current = type;
+	if (user_data) {
+		ao2_ref(user_data, +1);
+	}
+	personality->details[personality->current].pvt = user_data;
+	ast_set_flag(&bridge->feature_flags, personality->details[personality->current].bridge_flags);
+	if (personality->details[personality->current].on_personality_change) {
+		personality->details[personality->current].on_personality_change(bridge);
+	}
+}
+
+static void personality_destructor(void *obj)
+{
+	struct bridge_basic_personality *personality = obj;
+	int i;
+
+	for (i = 0; i < BRIDGE_BASIC_PERSONALITY_END; ++i) {
+		ao2_cleanup(personality->details[i].pvt);
+	}
+}
+
+static void on_personality_change_normal(struct ast_bridge *bridge)
+{
+	struct ast_bridge_channel *iter;
+
+	AST_LIST_TRAVERSE(&bridge->channels, iter, entry) {
+		if (add_normal_hooks(bridge, iter)) {
+			ast_log(LOG_WARNING, "Unable to set up bridge hooks for channel %s. Features may not work properly\n",
+					ast_channel_name(iter->chan));
+		}
+	}
+}
+
+static void init_details(struct personality_details *details,
+		enum bridge_basic_personality_type type)
+{
+	switch (type) {
+	case BRIDGE_BASIC_PERSONALITY_NORMAL:
+		details->v_table = &personality_normal_v_table;
+		details->bridge_flags = NORMAL_FLAGS;
+		details->on_personality_change = on_personality_change_normal;
+		break;
+	case BRIDGE_BASIC_PERSONALITY_ATXFER:
+		details->v_table = &personality_atxfer_v_table;
+		details->bridge_flags = TRANSFER_FLAGS;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Asked to initialize unexpected basic bridge personality type.\n");
+		break;
+	}
+}
+
+static struct ast_bridge *bridge_basic_personality_alloc(struct ast_bridge *bridge)
+{
+	struct bridge_basic_personality *personality;
+	int i;
+
+	if (!bridge) {
+		return NULL;
+	}
+
+	personality = ao2_alloc(sizeof(*personality), personality_destructor);
+	if (!personality) {
+		ao2_ref(bridge, -1);
+		return NULL;
+	}
+	for (i = 0; i < BRIDGE_BASIC_PERSONALITY_END; ++i) {
+		init_details(&personality->details[i], i);
+	}
+	personality->current = BRIDGE_BASIC_PERSONALITY_NORMAL;
+	bridge->personality = personality;
+
+	return bridge;
+}
 
 struct ast_bridge *ast_bridge_basic_new(void)
 {
-	void *bridge;
+	struct ast_bridge *bridge;
 
 	bridge = ast_bridge_alloc(sizeof(struct ast_bridge), &ast_bridge_basic_v_table);
 	bridge = ast_bridge_base_init(bridge,
 		AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_1TO1MIX
-			| AST_BRIDGE_CAPABILITY_MULTIMIX,
-		AST_BRIDGE_FLAG_DISSOLVE_HANGUP | AST_BRIDGE_FLAG_DISSOLVE_EMPTY
-			| AST_BRIDGE_FLAG_SMART);
+			| AST_BRIDGE_CAPABILITY_MULTIMIX, NORMAL_FLAGS);
+	bridge = bridge_basic_personality_alloc(bridge);
 	bridge = ast_bridge_register(bridge);
 	return bridge;
 }
@@ -165,4 +2778,19 @@ void ast_bridging_init_basic(void)
 	ast_bridge_basic_v_table = ast_bridge_base_v_table;
 	ast_bridge_basic_v_table.name = "basic";
 	ast_bridge_basic_v_table.push = bridge_basic_push;
+	ast_bridge_basic_v_table.pull = bridge_basic_pull;
+	ast_bridge_basic_v_table.destroy = bridge_basic_destroy;
+
+	personality_normal_v_table = ast_bridge_base_v_table;
+	personality_normal_v_table.name = "normal";
+	personality_normal_v_table.push = bridge_personality_normal_push;
+
+	personality_atxfer_v_table = ast_bridge_base_v_table;
+	personality_atxfer_v_table.name = "attended transfer";
+	personality_atxfer_v_table.push = bridge_personality_atxfer_push;
+	personality_atxfer_v_table.pull = bridge_personality_atxfer_pull;
+
+	ast_bridge_features_register(AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, feature_attended_transfer, NULL);
+	ast_bridge_features_register(AST_BRIDGE_BUILTIN_BLINDTRANSFER, feature_blind_transfer, NULL);
 }
+

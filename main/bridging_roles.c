@@ -374,6 +374,26 @@ int ast_channel_set_bridge_role_option(struct ast_channel *channel, const char *
 	return setup_bridge_role_option(role, option, value);
 }
 
+int ast_channel_has_role(struct ast_channel *channel, const char *role_name)
+{
+	return get_role_from_channel(channel, role_name) ? 1 : 0;
+}
+
+const char *ast_channel_get_role_option(struct ast_channel *channel, const char *role_name, const char *option)
+{
+	struct bridge_role *role;
+	struct bridge_role_option *role_option;
+
+	role = get_role_from_channel(channel, role_name);
+	if (!role) {
+		return NULL;
+	}
+
+	role_option = get_role_option(role, option);
+
+	return role_option ? role_option->value : NULL;
+}
+
 int ast_bridge_channel_has_role(struct ast_bridge_channel *bridge_channel, const char *role_name)
 {
 	if (!bridge_channel->bridge_roles) {

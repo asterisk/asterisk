@@ -256,6 +256,8 @@ enum ast_attended_transfer_dest_type {
 	AST_ATTENDED_TRANSFER_DEST_APP,
 	/*! The transfer results in both bridges remaining with a local channel linking them */
 	AST_ATTENDED_TRANSFER_DEST_LINK,
+	/*! The transfer results in a threeway call between transferer, transferee, and transfer target */
+	AST_ATTENDED_TRANSFER_DEST_THREEWAY,
 };
 
 /*!
@@ -279,6 +281,8 @@ struct ast_attended_transfer_message {
 		char app[AST_MAX_APP];
 		/*! Pair of local channels linking the bridges. Applicable for AST_ATTENDED_TRANSFER_DEST_LINK */
 		struct ast_channel_snapshot *links[2];
+		/*! Transferer channel and bridge that survived the transition to a threeway call. Applicable for AST_ATTENDED_TRANSFER_DEST_THREEWAY */
+		struct ast_bridge_channel_snapshot_pair threeway;
 	} dest;
 };
 
@@ -327,6 +331,25 @@ void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfe
 void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
 		struct ast_bridge *final_bridge);
+
+/*!
+ * \since 12
+ * \brief Publish an attended transfer that results in a threeway call.
+ *
+ * Publish an \ref ast_attended_transfer_message with the dest_type set to
+ * \c AST_ATTENDED_TRANSFER_DEST_THREEWAY. Like with \ref ast_bridge_publish_attended_transfer_bridge_merge,
+ * this results from merging two bridges together. The difference is that a
+ * transferer channel survives the bridge merge
+ *
+ * \param is_external Indicates if the transfer was initiated externally
+ * \param result The result of the transfer.
+ * \param transferee The bridge between the transferer and transferees as well as the transferer channel from that bridge
+ * \param target The bridge between the transferer and transfer targets as well as the transferer channel from that bridge
+ * \param final_pair The bridge that the parties end up in, and the transferer channel that is in this bridge.
+ */
+void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_transfer_result result,
+		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
+		struct ast_bridge_channel_pair *final_pair);
 
 /*!
  * \since 12

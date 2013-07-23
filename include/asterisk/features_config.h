@@ -66,6 +66,8 @@ struct ast_features_xfer_config {
 		AST_STRING_FIELD(atxfercomplete);
 		/*! DTMF sequence used to turn an attempted atxfer into a three-way call */
 		AST_STRING_FIELD(atxferthreeway);
+		/*! DTMF sequence used to swap which party the transferer is talking to */
+		AST_STRING_FIELD(atxferswap);
 	);
 	/*! Milliseconds allowed between digit presses when dialing transfer destination */
 	unsigned int transferdigittimeout;

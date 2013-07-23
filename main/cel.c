@@ -1433,9 +1433,10 @@ static void cel_attended_transfer_cb(
 	switch (xfer->dest_type) {
 	case AST_ATTENDED_TRANSFER_DEST_FAIL:
 		return;
-		/* handle these two the same */
+		/* handle these three the same */
 	case AST_ATTENDED_TRANSFER_DEST_BRIDGE_MERGE:
 	case AST_ATTENDED_TRANSFER_DEST_LINK:
+	case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
 		extra = ast_json_pack("{s: s, s: s, s: s}",
 			"bridge1_id", bridge1->uniqueid,
 			"channel2_name", channel2->name,

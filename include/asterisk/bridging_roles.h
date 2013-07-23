@@ -64,6 +64,37 @@ void ast_channel_remove_bridge_role(struct ast_channel *chan, const char *role_n
 int ast_channel_set_bridge_role_option(struct ast_channel *channel, const char *role_name, const char *option, const char *value);
 
 /*!
+ * \brief Check if a role exists on a channel
+ *
+ * \param channel The channel to check
+ * \param role_name The name of the role to search for
+ *
+ * \retval 0 The requested role does not exist on the channel
+ * \retval 1 The requested role exists on the channel
+ *
+ * This is an alternative to \ref ast_bridge_channel_has_role that is useful if bridge
+ * roles have not yet been established on a channel's bridge_channel. A possible example of
+ * when this could be used is in a bridge v_table's push() callback.
+ */
+int ast_channel_has_role(struct ast_channel *channel, const char *role_name);
+
+/*!
+ * \brief Retrieve the value of a requested role option from a channel
+ *
+ * \param channel The channel to retrieve the requested option from
+ * \param role_name The role to which the option belongs
+ * \param option The name of the option to retrieve
+ *
+ * \retval NULL The option does not exist
+ * \retval non-NULL The value of the option
+ *
+ * This is an alternative to \ref ast_bridge_channel_get_role_option that is useful if bridge
+ * roles have not yet been esstablished on a channel's bridge_channel. A possible example of
+ * when this could be used is in a bridge v_table's push() callback.
+ */
+const char *ast_channel_get_role_option(struct ast_channel *channel, const char *role_name, const char *option);
+
+/*!
  * \brief Check to see if a bridge channel inherited a specific role from its channel
  *
  * \param bridge_channel The bridge channel being checked
@@ -72,7 +103,7 @@ int ast_channel_set_bridge_role_option(struct ast_channel *channel, const char *
  * \retval 0 The bridge channel does not have the requested role
  * \retval 1 The bridge channel does have the requested role
  *
- * \note Before a bridge_channel can effectively check roles against a bridge, ast_bridge_roles_bridge_channel_establish_roles
+ * \note Before a bridge_channel can effectively check roles against a bridge, ast_bridge_channel_establish_roles
  *       should be called on the bridge_channel so that roles and their respective role options can be copied from the channel
  *       datastore into the bridge_channel roles list. Otherwise this function will just return 0 because the list will be NULL.
  */
@@ -88,10 +119,10 @@ int ast_bridge_channel_has_role(struct ast_bridge_channel *bridge_channel, const
  * \retval NULL If either the role does not exist on the bridge_channel or the role does exist but the option has not been set
  * \retval The value of the option
  *
- * \note See ast_bridge_roles_channel_set_role_option note about the need to call ast_bridge_roles_bridge_channel_establish_roles.
+ * \note See ast_channel_set_role_option note about the need to call ast_bridge_channel_establish_roles.
  *
  * \note The returned character pointer is only valid as long as the bridge_channel is guaranteed to be alive and hasn't had
- *       ast_bridge_roles_bridge_channel_clear_roles called against it (as this will free all roles and role options in the bridge
+ *       ast_bridge_channel_clear_roles called against it (as this will free all roles and role options in the bridge
  *       channel). If you need this value after one of these destruction events occurs, you must make a local copy while it is
  *       still valid.
  */
@@ -119,12 +150,12 @@ int ast_bridge_channel_establish_roles(struct ast_bridge_channel *bridge_channel
  * \param bridge_channel the bridge channel that we are scrubbing
  *
  * \details
- * If roles are already established on a bridge channel, ast_bridge_roles_bridge_channel_establish_roles will fail unconditionally
+ * If roles are already established on a bridge channel, ast_bridge_channel_establish_roles will fail unconditionally
  * without changing any roles. In order to update a bridge channel's roles, they must first be cleared from the bridge channel using
  * this function.
  *
  * \note
- * ast_bridge_roles_bridge_channel_clear_roles also serves as the destructor for the role list of a bridge channel.
+ * ast_bridge_channel_clear_roles also serves as the destructor for the role list of a bridge channel.
  */
 void ast_bridge_channel_clear_roles(struct ast_bridge_channel *bridge_channel);
 

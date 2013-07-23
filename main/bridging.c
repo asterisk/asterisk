@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/core_local.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/features_config.h"
+#include "asterisk/bridging_internal.h"
 
 /*! All bridges container. */
 static struct ao2_container *bridges;
@@ -77,7 +78,6 @@ static AST_RWLIST_HEAD_STATIC(bridge_technologies, ast_bridge_technology);
 
 static void cleanup_video_mode(struct ast_bridge *bridge);
 static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
-static void bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags remove_flags);
 
 /*! Default DTMF keys for built in features */
 static char builtin_features_dtmf[AST_BRIDGE_BUILTIN_END][MAXIMUM_DTMF_FEATURE_STRING];
@@ -463,19 +463,7 @@ void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channe
 	}
 }
 
-/*!
- * \internal
- * \brief Helper function to find a bridge channel given a channel.
- *
- * \param bridge What to search
- * \param chan What to search for.
- *
- * \note On entry, bridge is already locked.
- *
- * \retval bridge_channel if channel is in the bridge.
- * \retval NULL if not in bridge.
- */
-static struct ast_bridge_channel *find_bridge_channel(struct ast_bridge *bridge, struct ast_channel *chan)
+struct ast_bridge_channel *find_bridge_channel(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	struct ast_bridge_channel *bridge_channel;
 
@@ -757,7 +745,7 @@ static int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 		|| ast_bridge_channel_establish_roles(bridge_channel)) {
 		ast_debug(1, "Bridge %s: pushing %p(%s) into bridge failed\n",
 			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
-		bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+		ast_bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		return -1;
 	}
 	bridge_channel->in_bridge = 1;
@@ -1719,7 +1707,7 @@ static int bridge_base_push(struct ast_bridge *self, struct ast_bridge_channel *
  */
 static void bridge_base_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel)
 {
-	bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+	ast_bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 }
 
 /*!
@@ -4164,24 +4152,7 @@ static void bridge_channel_change_bridge(struct ast_bridge_channel *bridge_chann
 	ao2_ref(old_bridge, -1);
 }
 
-/*!
- * \internal
- * \brief Do the merge of two bridges.
- * \since 12.0.0
- *
- * \param dst_bridge Destination bridge of merge.
- * \param src_bridge Source bridge of merge.
- * \param kick_me Array of channels to kick from the bridges.
- * \param num_kick Number of channels in the kick_me array.
- *
- * \return Nothing
- *
- * \note The two bridges are assumed already locked.
- *
- * This moves the channels in src_bridge into the bridge pointed
- * to by dst_bridge.
- */
-static void bridge_merge_do(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, struct ast_bridge_channel **kick_me, unsigned int num_kick,
+void bridge_merge_do(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, struct ast_bridge_channel **kick_me, unsigned int num_kick,
 	unsigned int optimized)
 {
 	struct ast_bridge_channel *bridge_channel;
@@ -4440,21 +4411,7 @@ int ast_bridge_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 	return res;
 }
 
-/*!
- * \internal
- * \brief Move a bridge channel from one bridge to another.
- * \since 12.0.0
- *
- * \param dst_bridge Destination bridge of bridge channel move.
- * \param bridge_channel Channel moving from one bridge to another.
- * \param attempt_recovery TRUE if failure attempts to push channel back into original bridge.
- *
- * \note The dst_bridge and bridge_channel->bridge are assumed already locked.
- *
- * \retval 0 on success.
- * \retval -1 on failure.
- */
-static int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bridge_channel, int attempt_recovery,
+int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bridge_channel, int attempt_recovery,
 	unsigned int optimized)
 {
 	struct ast_bridge *orig_bridge;
@@ -5646,17 +5603,7 @@ static void hooks_remove_heap(struct ast_heap *hooks, enum ast_bridge_hook_remov
 	ast_heap_unlock(hooks);
 }
 
-/*!
- * \internal
- * \brief Remove marked bridge channel feature hooks.
- * \since 12.0.0
- *
- * \param features Bridge features structure
- * \param remove_flags Determinator for whether hook is removed.
- *
- * \return Nothing
- */
-static void bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags remove_flags)
+void ast_bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags remove_flags)
 {
 	hooks_remove_container(features->dtmf_hooks, remove_flags);
 	hooks_remove_container(features->hangup_hooks, remove_flags);

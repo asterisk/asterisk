@@ -106,6 +106,16 @@
 						the transferees, and the transfer target all being in a single bridge together.</para>
 					</description>
 				</configOption>
+				<configOption name="atxferswap" default="*4">
+					<synopsis>Digits to dial to toggle who the transferrer is currently bridged to during an attended transfer</synopsis>
+					<description>
+						<para>This option is only available to the transferrer during an attended
+						transfer operation. Pressing this DTMF sequence will result in the transferrer swapping
+						which party he is bridged with. For instance, if the transferrer is currently bridged with
+						the transfer target, then pressing this DTMF sequence will cause the transferrer to be
+						bridged with the transferees.</para>
+					</description>
+				</configOption>
 				<configOption name="pickupexten" default="*8">
 					<synopsis>Digits used for picking up ringing calls</synopsis>
 					<description>
@@ -355,6 +365,7 @@
 #define DEFAULT_ATXFER_ABORT                        "*1"
 #define DEFAULT_ATXFER_COMPLETE                     "*2"
 #define DEFAULT_ATXFER_THREEWAY                     "*3"
+#define DEFAULT_ATXFER_SWAP                         "*4"
 
 /*! Default pickup options */
 #define DEFAULT_PICKUPEXTEN                         "*8"
@@ -846,6 +857,8 @@ static int xfer_set(struct ast_features_xfer_config *xfer, const char *name,
 		ast_string_field_set(xfer, atxfercomplete, value);
 	} else if (!strcasecmp(name, "atxferthreeway")) {
 		ast_string_field_set(xfer, atxferthreeway, value);
+	} else if (!strcasecmp(name, "atxferswap")) {
+		ast_string_field_set(xfer, atxferswap, value);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -879,6 +892,8 @@ static int xfer_get(struct ast_features_xfer_config *xfer, const char *field,
 		ast_copy_string(buf, xfer->atxfercomplete, len);
 	} else if (!strcasecmp(field, "atxferthreeway")) {
 		ast_copy_string(buf, xfer->atxferthreeway, len);
+	} else if (!strcasecmp(field, "atxferswap")) {
+		ast_copy_string(buf, xfer->atxferswap, len);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -1629,6 +1644,8 @@ static int load_config(void)
 			DEFAULT_ATXFER_COMPLETE, xfer_handler, 0);
 	aco_option_register_custom(&cfg_info, "atxferthreeway", ACO_EXACT, global_options,
 			DEFAULT_ATXFER_THREEWAY, xfer_handler, 0);
+	aco_option_register_custom(&cfg_info, "atxferswap", ACO_EXACT, global_options,
+			DEFAULT_ATXFER_SWAP, xfer_handler, 0);
 
 	aco_option_register_custom(&cfg_info, "pickupexten", ACO_EXACT, global_options,
 			DEFAULT_PICKUPEXTEN, pickup_handler, 0);

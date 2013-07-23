@@ -396,6 +396,8 @@ struct ast_bridge_methods {
 struct ast_bridge {
 	/*! Bridge virtual method table. */
 	const struct ast_bridge_methods *v_table;
+	/*! "Personality" currently exhibited by bridge subclass */
+	void *personality;
 	/*! Immutable bridge UUID. */
 	char uniqueid[AST_UUID_STR_LEN];
 	/*! Bridge technology that is handling the bridge */
@@ -1785,6 +1787,16 @@ struct ast_channel *ast_bridge_peer_nolock(struct ast_bridge *bridge, struct ast
  */
 struct ast_channel *ast_bridge_peer(struct ast_bridge *bridge, struct ast_channel *chan);
 
+/*!
+ * \brief Remove marked bridge channel feature hooks.
+ * \since 12.0.0
+ *
+ * \param features Bridge features structure
+ * \param flags Determinator for whether hook is removed.
+ *
+ * \return Nothing
+ */
+void ast_bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags flags);
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

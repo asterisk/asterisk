@@ -183,6 +183,8 @@ struct ast_bridge_hook_timer {
 enum ast_bridge_hook_remove_flags {
 	/*! The hook is removed when the channel is pulled from the bridge. */
 	AST_BRIDGE_HOOK_REMOVE_ON_PULL = (1 << 0),
+	/*! The hook is removed when the bridge's personality changes. */
+	AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE = (1 << 1),
 };
 
 /* BUGBUG Need to be able to selectively remove DTMF, hangup, and interval hooks. */
@@ -265,6 +267,8 @@ struct ast_bridge_features_attended_transfer {
 	char threeway[MAXIMUM_DTMF_FEATURE_STRING];
 	/*! DTMF string used to complete the transfer (If not empty.) */
 	char complete[MAXIMUM_DTMF_FEATURE_STRING];
+	/*! DTMF string used to swap bridged targets (If not empty.) */
+	char swap[MAXIMUM_DTMF_FEATURE_STRING];
 };
 
 enum ast_bridge_features_monitor {

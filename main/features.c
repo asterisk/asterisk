@@ -3212,37 +3212,37 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 		if (!builtin_feature_get_exten(chan, "blindxfer", dtmf, sizeof(dtmf))
 				&& !ast_strlen_zero(dtmf)) {
 			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_BLINDTRANSFER, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
 		}
 		if (!builtin_feature_get_exten(chan, "atxfer", dtmf, sizeof(dtmf)) &&
 				!ast_strlen_zero(dtmf)) {
 			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
 		}
 	}
 	if (ast_test_flag(flags, AST_FEATURE_DISCONNECT) &&
 			!builtin_feature_get_exten(chan, "disconnect", dtmf, sizeof(dtmf)) &&
 			!ast_strlen_zero(dtmf)) {
 		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_HANGUP, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
 	}
 	if (ast_test_flag(flags, AST_FEATURE_PARKCALL) &&
 			!builtin_feature_get_exten(chan, "parkcall", dtmf, sizeof(dtmf)) &&
 			!ast_strlen_zero(dtmf)) {
 		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_PARKCALL, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
 	}
 	if (ast_test_flag(flags, AST_FEATURE_AUTOMON) &&
 			!builtin_feature_get_exten(chan, "automon", dtmf, sizeof(dtmf)) &&
 			!ast_strlen_zero(dtmf)) {
 		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMON, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
 	}
 	if (ast_test_flag(flags, AST_FEATURE_AUTOMIXMON) &&
 			!builtin_feature_get_exten(chan, "automixmon", dtmf, sizeof(dtmf)) &&
 			!ast_strlen_zero(dtmf)) {
 		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMIXMON, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
 	}
 
 	return res ? -1 : 0;
