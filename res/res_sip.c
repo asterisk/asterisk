@@ -336,6 +336,9 @@
 								transport should be used in conjunction with this option to prevent
 								exposure of media encryption keys.
 							</para></enum>
+							<enum name="dtls"><para>
+								res_sip will offer DTLS-SRTP setup.
+							</para></enum>
 						</enumlist>
 					</description>
 				</configOption>
@@ -475,6 +478,87 @@
 				</configOption>
 				<configOption name="fromdomain">
 					<synopsis>Domain to user in From header for requests to this endpoint.</synopsis>
+				</configOption>
+				<configOption name="dtlsverify">
+					<synopsis>Verify that the provided peer certificate is valid</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>dtls</literal>.
+					</para></description>
+				</configOption>
+				<configOption name="dtlsrekey">
+					<synopsis>Interval at which to renegotiate the TLS session and rekey the SRTP session</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>dtls</literal>.
+					</para><para>
+						If this is not set or the value provided is 0 rekeying will be disabled.
+					</para></description>
+				</configOption>
+				<configOption name="dtlscertfile">
+					<synopsis>Path to certificate file to present to peer</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>dtls</literal>.
+					</para></description>
+				</configOption>
+				<configOption name="dtlsprivatekey">
+					<synopsis>Path to private key for certificate file</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>dtls</literal>.
+					</para></description>
+				</configOption>
+				<configOption name="dtlscipher">
+					<synopsis>Cipher to use for DTLS negotiation</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>dtls</literal>.
+					</para><para>
+						Many options for acceptable ciphers. See link for more:
+						http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+					</para></description>
+				</configOption>
+				<configOption name="dtlscafile">
+					<synopsis>Path to certificate authority certificate</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>dtls</literal>.
+					</para></description>
+				</configOption>
+				<configOption name="dtlscapath">
+					<synopsis>Path to a directory containing certificate authority certificates</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>dtls</literal>.
+					</para></description>
+				</configOption>
+				<configOption name="dtlssetup">
+					<synopsis>Whether we are willing to accept connections, connect to the other party, or both.</synopsis>
+					<description>
+						<para>
+							This option only applies if <replaceable>media_encryption</replaceable> is
+							set to <literal>dtls</literal>.
+						</para>
+						<enumlist>
+							<enum name="active"><para>
+								res_sip will make a connection to the peer.
+							</para></enum>
+							<enum name="passive"><para>
+								res_sip will accept connections from the peer.
+							</para></enum>
+							<enum name="actpass"><para>
+								res_sip will offer and accept connections from the peer.
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="srtp_tag_32">
+					<synopsis>Determines whether 32 byte tags should be used instead of 80 byte tags.</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>sdes</literal> or <literal>dtls</literal>.
+					</para></description>
 				</configOption>
 			</configObject>
 			<configObject name="auth">

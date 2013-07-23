@@ -10193,6 +10193,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				} else if (!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) {
 					secure_audio = 1;
 
+					processed_crypto = 1;
 					if (p->srtp) {
 						ast_set_flag(p->srtp, AST_SRTP_CRYPTO_OFFER_OK);
 					}
@@ -10275,6 +10276,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				} else if (!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) {
 					secure_video = 1;
 
+					processed_crypto = 1;
 					if (p->vsrtp || (p->vsrtp = ast_sdp_srtp_alloc())) {
 						ast_set_flag(p->vsrtp, AST_SRTP_CRYPTO_OFFER_OK);
 					}
@@ -13036,13 +13038,17 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 static char *crypto_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled, int default_taglen_32)
 {
 	char *a_crypto;
-	char *orig_crypto;
+	const char *orig_crypto;
 
-	if (!srtp) {
+	if (!srtp || dtls_enabled) {
 		return NULL;
 	}
 
-	orig_crypto = ast_strdupa(ast_sdp_srtp_get_attrib(srtp, dtls_enabled, default_taglen_32));
+	orig_crypto = ast_sdp_srtp_get_attrib(srtp, dtls_enabled, default_taglen_32);
+	if (ast_strlen_zero(orig_crypto)) {
+		return NULL;
+	}
+
 	if (ast_asprintf(&a_crypto, "a=crypto:%s\r\n", orig_crypto) == -1) {
 		return NULL;
 	}

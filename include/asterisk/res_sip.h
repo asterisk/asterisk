@@ -34,6 +34,8 @@
 #include "asterisk/endpoints.h"
 /* Needed for pj_sockaddr */
 #include <pjlib.h>
+/* Needed for ast_rtp_dtls_cfg struct */
+#include "asterisk/rtp_engine.h"
 
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
@@ -446,6 +448,10 @@ struct ast_sip_endpoint {
 	unsigned int allowsubscribe;
 	/*! The minimum allowed expiration for subscriptions from endpoint */
 	unsigned int subminexpiry;
+	/*! \brief DTLS-SRTP configuration information */
+	struct ast_rtp_dtls_cfg dtls_cfg;
+	/*! Should SRTP use a 32 byte tag instead of an 80 byte tag? */
+	unsigned int srtp_tag_32;
 };
 
 /*!

@@ -854,6 +854,7 @@ static void session_destructor(void *obj)
 	ast_taskprocessor_unreference(session->serializer);
 	ao2_cleanup(session->datastores);
 	ao2_cleanup(session->media);
+
 	AST_LIST_HEAD_DESTROY(&session->supplements);
 	while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
 		ast_free(delay);

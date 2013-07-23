@@ -467,8 +467,9 @@ static int media_encryption_handler(const struct aco_option *opt, struct ast_var
 		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
 	} else if (!strcasecmp("sdes", var->value)) {
 		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_SDES;
-	/*} else if (!strcasecmp("dtls", var->value)) {
-		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;*/
+	} else if (!strcasecmp("dtls", var->value)) {
+		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;
+		ast_rtp_dtls_cfg_parse(&endpoint->dtls_cfg, "dtlsenable", "yes");
 	} else {
 		return -1;
 	}
@@ -516,6 +517,14 @@ static int named_groups_handler(const struct aco_option *opt,
 	}
 
 	return 0;
+}
+
+static int dtls_handler(const struct aco_option *opt,
+			 struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	return ast_rtp_dtls_cfg_parse(&endpoint->dtls_cfg, var->name, var->value);
 }
 
 static void *sip_nat_hook_alloc(const char *name)
@@ -676,6 +685,15 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromuser));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromdomain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromdomain));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwifromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, mwi_from));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlsverify", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlsrekey", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscertfile", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlsprivatekey", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscipher", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscafile", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscapath", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlssetup", "", dtls_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "srtp_tag_32", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, srtp_tag_32));
 
 	if (ast_sip_initialize_sorcery_transport(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");

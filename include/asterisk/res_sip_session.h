@@ -26,7 +26,7 @@
 #include "asterisk/channel.h"
 /* Needed for ast_sockaddr struct */
 #include "asterisk/netsock.h"
-/* Neeed for ast_sdp_srtp struct */
+/* Needed for ast_sdp_srtp struct */
 #include "asterisk/sdp_srtp.h"
 
 /* Forward declarations */
@@ -42,7 +42,6 @@ struct pjsip_rx_data;
 struct ast_party_id;
 struct pjmedia_sdp_media;
 struct pjmedia_sdp_session;
-struct ast_rtp_instance;
 struct ast_dsp;
 
 struct ast_sip_session_sdp_handler;

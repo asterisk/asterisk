@@ -384,6 +384,10 @@ static enum ast_rtp_glue_result gulp_get_rtp_peer(struct ast_channel *chan, stru
 	ao2_ref(*instance, +1);
 
 	ast_assert(endpoint != NULL);
+	if (endpoint->media_encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
 	if (endpoint->direct_media) {
 		return AST_RTP_GLUE_RESULT_REMOTE;
 	}
@@ -396,13 +400,21 @@ static enum ast_rtp_glue_result gulp_get_vrtp_peer(struct ast_channel *chan, str
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 	struct gulp_pvt *pvt = channel->pvt;
+	struct ast_sip_endpoint *endpoint;
 
 	if (!pvt || !channel->session || !pvt->media[SIP_MEDIA_VIDEO]->rtp) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
+	endpoint = channel->session->endpoint;
+
 	*instance = pvt->media[SIP_MEDIA_VIDEO]->rtp;
 	ao2_ref(*instance, +1);
+
+	ast_assert(endpoint != NULL);
+	if (endpoint->media_encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
 
 	return AST_RTP_GLUE_RESULT_LOCAL;
 }
