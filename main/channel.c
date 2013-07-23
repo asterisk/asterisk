@@ -6519,10 +6519,6 @@ void ast_do_masquerade(struct ast_channel *original)
 	ast_channel_name_set(clonechan, ast_channel_name(original));
 	ast_channel_name_set(original, tmp_name);
 
-	/* Now zombify the clonechan. This gets a real rename event. */
-	snprintf(tmp_name, sizeof(tmp_name), "%s<ZOMBIE>", ast_channel_name(clonechan)); /* quick, hide the brains! */
-	__ast_change_name_nolink(clonechan, tmp_name);
-
 	/* Swap the technologies */
 	t = ast_channel_tech(original);
 	ast_channel_tech_set(original, ast_channel_tech(clonechan));
