@@ -545,9 +545,10 @@ void stasis_http_invoke(struct ast_tcptls_session_instance *ser,
 	callback(get_params, path_vars, headers, response);
 	if (response->message == NULL && response->response_code == 0) {
 		/* Really should not happen */
-		ast_assert(0);
+		ast_log(LOG_ERROR, "ARI %s %s not implemented\n",
+			ast_get_http_method(method), uri);
 		stasis_http_response_error(
-			response, 418, "I'm a teapot",
+			response, 501, "Not Implemented",
 			"Method not implemented");
 	}
 }

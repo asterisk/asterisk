@@ -70,7 +70,11 @@ static void stasis_http_get_stored_recordings_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -120,7 +124,11 @@ static void stasis_http_get_stored_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -170,7 +178,11 @@ static void stasis_http_delete_stored_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -212,7 +224,11 @@ static void stasis_http_get_live_recordings_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -262,7 +278,11 @@ static void stasis_http_get_live_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -312,7 +332,11 @@ static void stasis_http_cancel_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -362,7 +386,11 @@ static void stasis_http_stop_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -412,7 +440,11 @@ static void stasis_http_pause_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -462,7 +494,11 @@ static void stasis_http_unpause_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -512,7 +548,11 @@ static void stasis_http_mute_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -562,7 +602,11 @@ static void stasis_http_unmute_recording_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:

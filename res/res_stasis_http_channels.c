@@ -70,7 +70,11 @@ static void stasis_http_get_channels_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -141,7 +145,11 @@ static void stasis_http_originate_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 400: /* Invalid parameters for originating a channel. */
 		is_valid = 1;
 		break;
@@ -192,7 +200,11 @@ static void stasis_http_get_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 		is_valid = 1;
 		break;
@@ -243,7 +255,11 @@ static void stasis_http_delete_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 		is_valid = 1;
 		break;
@@ -309,7 +325,11 @@ static void stasis_http_dial_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -373,7 +393,11 @@ static void stasis_http_continue_in_dialplan_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -425,7 +449,11 @@ static void stasis_http_answer_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -483,7 +511,11 @@ static void stasis_http_mute_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -541,7 +573,11 @@ static void stasis_http_unmute_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -593,7 +629,11 @@ static void stasis_http_hold_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -645,7 +685,11 @@ static void stasis_http_unhold_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -703,7 +747,11 @@ static void stasis_http_moh_start_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -755,7 +803,11 @@ static void stasis_http_moh_stop_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -822,7 +874,11 @@ static void stasis_http_play_on_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -898,7 +954,11 @@ static void stasis_http_record_channel_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 400: /* Invalid parameters */
 	case 404: /* Channel not found */
 	case 409: /* Channel is not in a Stasis application; the channel is currently bridged with other channels; A recording with the same name is currently in progress. */
@@ -957,7 +1017,11 @@ static void stasis_http_get_channel_var_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -1018,7 +1082,11 @@ static void stasis_http_set_channel_var_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;

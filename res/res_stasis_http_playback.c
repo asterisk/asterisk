@@ -78,7 +78,11 @@ static void stasis_http_get_playback_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -128,7 +132,11 @@ static void stasis_http_stop_playback_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -184,7 +192,11 @@ static void stasis_http_control_playback_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 400: /* The provided operation parameter was invalid */
 	case 404: /* The playback cannot be found */
 	case 409: /* The operation cannot be performed in the playback's current state */

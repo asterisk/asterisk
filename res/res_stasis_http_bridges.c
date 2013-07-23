@@ -70,7 +70,11 @@ static void stasis_http_get_bridges_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -120,7 +124,11 @@ static void stasis_http_new_bridge_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -170,7 +178,11 @@ static void stasis_http_get_bridge_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Bridge not found */
 		is_valid = 1;
 		break;
@@ -221,7 +233,11 @@ static void stasis_http_delete_bridge_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Bridge not found */
 		is_valid = 1;
 		break;
@@ -278,7 +294,11 @@ static void stasis_http_add_channel_to_bridge_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Bridge not found */
 	case 409: /* Bridge not in Stasis application */
 	case 422: /* Channel not found, or not in Stasis application */
@@ -337,7 +357,11 @@ static void stasis_http_remove_channel_from_bridge_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -402,7 +426,11 @@ static void stasis_http_play_on_bridge_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 	case 404: /* Bridge not found */
 	case 409: /* Bridge not in a Stasis application */
 		is_valid = 1;
@@ -478,7 +506,11 @@ static void stasis_http_record_bridge_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:

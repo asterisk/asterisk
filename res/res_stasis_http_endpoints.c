@@ -70,7 +70,11 @@ static void stasis_http_get_endpoints_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -120,7 +124,11 @@ static void stasis_http_get_endpoints_by_tech_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
@@ -173,7 +181,11 @@ static void stasis_http_get_endpoint_cb(
 	code = response->response_code;
 
 	switch (code) {
-	case 500: /* Internal server error */
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
 		is_valid = 1;
 		break;
 	default:
