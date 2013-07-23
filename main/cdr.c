@@ -3054,7 +3054,7 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 			total++;
 		}
 	}
-
+	ao2_unlock(cdr);
 	return total;
 }
 
