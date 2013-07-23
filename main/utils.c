@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #if defined(__APPLE__)

@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #else
 #include <sys/signal.h>
 #endif
+#include <sys/stat.h>
 #include <math.h>
 
 #include "sig_analog.h"
