@@ -623,6 +623,9 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 	}
 
 	switch (frame->frametype) {
+	case AST_FRAME_NULL:
+		/* "Accept" the frame and discard it. */
+		break;
 	case AST_FRAME_DTMF_BEGIN:
 	case AST_FRAME_DTMF_END:
 		res = ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);

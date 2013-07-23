@@ -1,6 +1,6 @@
 #
 # Asterisk -- An open source telephony toolkit.
-# 
+#
 # Makefile for channel drivers
 #
 # Copyright (C) 1999-2006, Digium, Inc.
@@ -72,10 +72,19 @@ dist-clean::
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): $(subst .c,.o,$(wildcard iax2/*.c))
 $(subst .c,.o,$(wildcard iax2/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_iax2)
+
 $(if $(filter chan_sip,$(EMBEDDED_MODS)),modules.link,chan_sip.so): $(subst .c,.o,$(wildcard sip/*.c))
 $(subst .c,.o,$(wildcard sip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_sip)
-$(if $(filter chan_dahdi,$(EMBEDDED_MODS)),modules.link,chan_dahdi.so): sig_analog.o sig_pri.o sig_ss7.o
-sig_analog.o sig_pri.o sig_ss7.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_dahdi)
+
+# Additional objects to combine with chan_dahdi.so
+CHAN_DAHDI_OBJS= \
+	$(subst .c,.o,$(wildcard dahdi/*.c))	\
+	sig_analog.o	\
+	sig_pri.o	\
+	sig_ss7.o	\
+
+$(if $(filter chan_dahdi,$(EMBEDDED_MODS)),modules.link,chan_dahdi.so): $(CHAN_DAHDI_OBJS)
+$(CHAN_DAHDI_OBJS): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_dahdi)
 
 ifneq ($(filter chan_h323,$(EMBEDDED_MODS)),)
 modules.link: h323/libchanh323.a

@@ -375,6 +375,10 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 		/* Drop non-deferable frames when suspended. */
 		return 0;
 	}
+	if (fr->frametype == AST_FRAME_NULL) {
+		/* "Accept" the frame and discard it. */
+		return 0;
+	}
 
 	dup = ast_frdup(fr);
 	if (!dup) {
@@ -426,6 +430,11 @@ int ast_bridge_queue_everyone_else(struct ast_bridge *bridge, struct ast_bridge_
 {
 	struct ast_bridge_channel *cur;
 	int not_written = -1;
+
+	if (frame->frametype == AST_FRAME_NULL) {
+		/* "Accept" the frame and discard it. */
+		return 0;
+	}
 
 	AST_LIST_TRAVERSE(&bridge->channels, cur, entry) {
 		if (cur == bridge_channel) {
@@ -1243,10 +1252,6 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 		return;
 	}
 	switch (frame->frametype) {
-	case AST_FRAME_NULL:
-		/* Just discard it. */
-		ast_frfree(frame);
-		return;
 	case AST_FRAME_CONTROL:
 		switch (frame->subclass.integer) {
 		case AST_CONTROL_HANGUP:
