@@ -84,7 +84,7 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct a
 /*! \brief Internal helper function which checks whether the channels are compatible with our native bridging */
 static int native_rtp_bridge_capable(struct ast_channel *chan)
 {
-	return ast_channel_has_audio_frame_or_monitor(chan);
+	return !ast_channel_has_audio_frame_or_monitor(chan);
 }
 
 /*! \brief Internal helper function which gets all RTP information (glue and instances) relating to the given channels */
