@@ -77,6 +77,8 @@ struct app *app_create(const char *name, stasis_app_cb handler, void *data)
 	ast_assert(name != NULL);
 	ast_assert(handler != NULL);
 
+	ast_verb(1, "Creating Stasis app '%s'\n", name);
+
 	size = sizeof(*app) + strlen(name) + 1;
 	app = ao2_alloc_options(size, app_dtor, AO2_ALLOC_OPT_LOCK_MUTEX);
 
@@ -105,9 +107,16 @@ struct app *app_create(const char *name, stasis_app_cb handler, void *data)
 
 int app_add_channel(struct app *app, const struct ast_channel *chan)
 {
+	SCOPED_AO2LOCK(lock, app);
 	const char *uniqueid;
-	ast_assert(chan != NULL);
+
 	ast_assert(app != NULL);
+	ast_assert(chan != NULL);
+
+	/* Don't accept new channels in an inactive application */
+	if (!app->handler) {
+		return -1;
+	}
 
 	uniqueid = ast_channel_uniqueid(chan);
 	return ast_str_container_add(app->channels, uniqueid) ? -1 : 0;
@@ -115,24 +124,35 @@ int app_add_channel(struct app *app, const struct ast_channel *chan)
 
 void app_remove_channel(struct app* app, const struct ast_channel *chan)
 {
-	ast_assert(chan != NULL);
+	SCOPED_AO2LOCK(lock, app);
+
 	ast_assert(app != NULL);
+	ast_assert(chan != NULL);
 
 	ao2_find(app->channels, ast_channel_uniqueid(chan), OBJ_KEY | OBJ_NODATA | OBJ_UNLINK);
 }
 
 int app_add_bridge(struct app *app, const char *uniqueid)
 {
-	ast_assert(uniqueid != NULL);
+	SCOPED_AO2LOCK(lock, app);
+
 	ast_assert(app != NULL);
+	ast_assert(uniqueid != NULL);
+
+	/* Don't accept new bridges in an inactive application */
+	if (!app->handler) {
+		return -1;
+	}
 
 	return ast_str_container_add(app->bridges, uniqueid) ? -1 : 0;
 }
 
 void app_remove_bridge(struct app* app, const char *uniqueid)
 {
-	ast_assert(uniqueid != NULL);
+	SCOPED_AO2LOCK(lock, app);
+
 	ast_assert(app != NULL);
+	ast_assert(uniqueid != NULL);
 
 	ao2_find(app->bridges, uniqueid, OBJ_KEY | OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE);
 }
@@ -144,16 +164,77 @@ void app_remove_bridge(struct app* app, const char *uniqueid)
  */
 void app_send(struct app *app, struct ast_json *message)
 {
-	app->handler(app->data, app->name, message);
+	stasis_app_cb handler;
+	RAII_VAR(void *, data, NULL, ao2_cleanup);
+
+	/* Copy off mutable state with lock held */
+	{
+		SCOPED_AO2LOCK(lock, app);
+		handler = app->handler;
+		if (app->data) {
+			ao2_ref(app->data, +1);
+			data = app->data;
+		}
+		/* Name is immutable; no need to copy */
+	}
+
+	if (!handler) {
+		ast_verb(3,
+			"Inactive Stasis app '%s' missed message\n", app->name);
+		return;
+	}
+
+	handler(data, app->name, message);
+}
+
+void app_deactivate(struct app *app)
+{
+	SCOPED_AO2LOCK(lock, app);
+	ast_verb(1, "Deactivating Stasis app '%s'\n", app->name);
+	app->handler = NULL;
+	ao2_cleanup(app->data);
+	app->data = NULL;
+}
+
+int app_is_active(struct app *app)
+{
+	SCOPED_AO2LOCK(lock, app);
+	return app->handler != NULL;
+}
+
+int app_is_finished(struct app *app)
+{
+	SCOPED_AO2LOCK(lock, app);
+
+	return app->handler == NULL &&
+		ao2_container_count(app->channels) == 0;
 }
 
 void app_update(struct app *app, stasis_app_cb handler, void *data)
 {
 	SCOPED_AO2LOCK(lock, app);
 
+	if (app->handler) {
+		RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
+
+		ast_verb(1, "Replacing Stasis app '%s'\n", app->name);
+
+		msg = ast_json_pack("{s: s, s: s}",
+			"type", "ApplicationReplaced",
+			"application", app_name);
+		if (msg) {
+			app_send(app, msg);
+		}
+	} else {
+		ast_verb(1, "Activating Stasis app '%s'\n", app->name);
+	}
+
+
 	app->handler = handler;
 	ao2_cleanup(app->data);
-	ao2_ref(data, +1);
+	if (data) {
+		ao2_ref(data, +1);
+	}
 	app->data = data;
 }
 

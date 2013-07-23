@@ -48,7 +48,37 @@ struct app;
 struct app *app_create(const char *name, stasis_app_cb handler, void *data);
 
 /*!
+ * \brief Deactivates an application.
+ *
+ * Any channels currently in the application remain active (since the app might
+ * come back), but new channels are rejected.
+ *
+ * \param app Application to deactivate.
+ */
+void app_deactivate(struct app *app);
+
+/*!
+ * \brief Checks whether an app is active.
+ *
+ * \param app Application to check.
+ * \return True (non-zero) if app is active.
+ * \return False (zero) if app has been deactivated.
+ */
+int app_is_active(struct app *app);
+
+/*!
+ * \brief Checks whether a deactivated app has no channels.
+ *
+ * \param app Application to check.
+ * \param True (non-zero) if app is deactivated, and has no associated channels.
+ * \param False (zero) otherwise.
+ */
+int app_is_finished(struct app *app);
+
+/*!
  * \brief Update the handler and data for a \c res_stasis application.
+ *
+ * If app has been deactivated, this will reactivate it.
  *
  * \param app Application to update.
  * \param handler New application callback.

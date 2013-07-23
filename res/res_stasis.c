@@ -564,6 +564,11 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 			"Stasis app '%s' not registered\n", app_name);
 		return -1;
 	}
+	if (!app_is_active(app)) {
+		ast_log(LOG_ERROR,
+			"Stasis app '%s' not active\n", app_name);
+		return -1;
+	}
 
 	control = control_create(chan);
 	if (!control) {
@@ -575,7 +580,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	res = app_send_start_msg(app, chan, argc, argv);
 	if (res != 0) {
 		ast_log(LOG_ERROR,
-			"Error sending start message to %s\n", app_name);
+			"Error sending start message to '%s'\n", app_name);
 		return res;
 	}
 
@@ -662,6 +667,29 @@ int stasis_app_send(const char *app_name, struct ast_json *message)
 	return 0;
 }
 
+static int cleanup_cb(void *obj, void *arg, int flags)
+{
+	struct app *app = obj;
+
+	if (!app_is_finished(app)) {
+		return 0;
+	}
+
+	ast_verb(1, "Cleaning up application '%s'\n", app_name(app));
+
+	return CMP_MATCH;
+
+}
+
+/*!
+ * \brief Clean up any old apps that we don't need any more.
+ */
+static void cleanup(void)
+{
+	ao2_callback(apps_registry, OBJ_MULTIPLE | OBJ_NODATA | OBJ_UNLINK,
+		cleanup_cb, NULL);
+}
+
 int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 {
 	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
@@ -671,15 +699,6 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 	app = ao2_find(apps_registry, app_name, OBJ_KEY | OBJ_NOLOCK);
 
 	if (app) {
-		RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
-
-		msg = ast_json_pack("{s: s, s: s}",
-			"type", "ApplicationReplaced",
-			"application", app_name);
-		if (msg) {
-			app_send(app, msg);
-		}
-
 		app_update(app, handler, data);
 	} else {
 		app = app_create(app_name, handler, data);
@@ -690,15 +709,34 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 		}
 	}
 
+	/* We lazily clean up the apps_registry, because it's good enough to
+	 * prevent memory leaks, and we're lazy.
+	 */
+	cleanup();
 	return 0;
 }
 
 void stasis_app_unregister(const char *app_name)
 {
-	if (app_name) {
-		ao2_cleanup(ao2_find(
-				apps_registry, app_name, OBJ_KEY | OBJ_UNLINK));
+	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
+
+	if (!app_name) {
+		return;
 	}
+
+	app = ao2_find(apps_registry, app_name, OBJ_KEY);
+	if (!app) {
+		ast_log(LOG_ERROR,
+			"Stasis app '%s' not registered\n", app_name);
+		return;
+	}
+
+	app_deactivate(app);
+
+	/* There's a decent chance that app is ready for cleanup. Go ahead
+	 * and clean up, just in case
+	 */
+	cleanup();
 }
 
 void stasis_app_ref(void)
