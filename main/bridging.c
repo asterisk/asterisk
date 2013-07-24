@@ -3641,14 +3641,6 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 		return -1;
 	}
 
-	if (!features->interval_timer) {
-		if (!(features->interval_timer = ast_timer_open())) {
-			ast_log(LOG_ERROR, "Failed to open a timer when adding a timed bridging feature.\n");
-			return -1;
-		}
-		ast_timer_set_rate(features->interval_timer, BRIDGE_FEATURES_INTERVAL_RATE);
-	}
-
 	/* Allocate new hook and setup it's various variables */
 	hook = (struct ast_bridge_hook_timer *) bridge_hook_generic(sizeof(*hook), callback,
 		hook_pvt, destructor, remove_flags);
@@ -3920,11 +3912,6 @@ void ast_bridge_features_cleanup(struct ast_bridge_features *features)
 			ao2_ref(hook, -1);
 		}
 		features->interval_hooks = ast_heap_destroy(features->interval_hooks);
-	}
-
-	if (features->interval_timer) {
-		ast_timer_close(features->interval_timer);
-		features->interval_timer = NULL;
 	}
 
 	/* If the features contains a limits pvt, destroy that as well. */

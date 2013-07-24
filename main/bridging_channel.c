@@ -698,20 +698,6 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
 		bridge_channel, parkee_uuid, parker_uuid, app_data);
 }
 
-static int bridge_channel_interval_ready(struct ast_bridge_channel *bridge_channel)
-{
-	struct ast_bridge_features *features = bridge_channel->features;
-	struct ast_bridge_hook_timer *hook;
-	int ready;
-
-	ast_heap_wrlock(features->interval_hooks);
-	hook = ast_heap_peek(features->interval_hooks, 1);
-	ready = hook && ast_tvdiff_ms(hook->timer.trip_time, ast_tvnow()) <= 0;
-	ast_heap_unlock(features->interval_hooks);
-
-	return ready;
-}
-
 int ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking)
 {
 	struct ast_frame action = {
@@ -833,15 +819,26 @@ static void bridge_channel_unsuspend(struct ast_bridge_channel *bridge_channel)
 	ast_bridge_unlock(bridge_channel->bridge);
 }
 
-/*! \brief Internal function that activates interval hooks on a bridge channel */
-static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
+/*!
+ * \internal
+ * \brief Handle bridge channel interval expiration.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel to run expired intervals on.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_channel)
 {
+	struct ast_heap *interval_hooks;
 	struct ast_bridge_hook_timer *hook;
 	struct timeval start;
+	int hook_run = 0;
 
-	ast_heap_wrlock(bridge_channel->features->interval_hooks);
+	interval_hooks = bridge_channel->features->interval_hooks;
+	ast_heap_wrlock(interval_hooks);
 	start = ast_tvnow();
-	while ((hook = ast_heap_peek(bridge_channel->features->interval_hooks, 1))) {
+	while ((hook = ast_heap_peek(interval_hooks, 1))) {
 		int interval;
 		unsigned int execution_time;
 
@@ -851,17 +848,22 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 			break;
 		}
 		ao2_ref(hook, +1);
-		ast_heap_unlock(bridge_channel->features->interval_hooks);
+		ast_heap_unlock(interval_hooks);
+
+		if (!hook_run) {
+			hook_run = 1;
+			bridge_channel_suspend(bridge_channel);
+			ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+		}
 
 		ast_debug(1, "Executing hook %p on %p(%s)\n",
 			hook, bridge_channel, ast_channel_name(bridge_channel->chan));
 		interval = hook->generic.callback(bridge_channel->bridge, bridge_channel,
 			hook->generic.hook_pvt);
 
-		ast_heap_wrlock(bridge_channel->features->interval_hooks);
-		if (ast_heap_peek(bridge_channel->features->interval_hooks,
-			hook->timer.heap_index) != hook
-			|| !ast_heap_remove(bridge_channel->features->interval_hooks, hook)) {
+		ast_heap_wrlock(interval_hooks);
+		if (ast_heap_peek(interval_hooks, hook->timer.heap_index) != hook
+			|| !ast_heap_remove(interval_hooks, hook)) {
 			/* Interval hook is already removed from the bridge_channel. */
 			ao2_ref(hook, -1);
 			continue;
@@ -898,12 +900,17 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 		hook->timer.trip_time = ast_tvadd(start, ast_samp2tv(hook->timer.interval - execution_time, 1000));
 		hook->timer.seqno = ast_atomic_fetchadd_int((int *) &bridge_channel->features->interval_sequence, +1);
 
-		if (ast_heap_push(bridge_channel->features->interval_hooks, hook)) {
+		if (ast_heap_push(interval_hooks, hook)) {
 			/* Could not push the hook back onto the heap. */
 			ao2_ref(hook, -1);
 		}
 	}
-	ast_heap_unlock(bridge_channel->features->interval_hooks);
+	ast_heap_unlock(interval_hooks);
+
+	if (hook_run) {
+		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+		bridge_channel_unsuspend(bridge_channel);
+	}
 }
 
 static int bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_channel, const char *dtmf)
@@ -1138,13 +1145,6 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_channel, struct ast_frame *action)
 {
 	switch (action->subclass.integer) {
-	case BRIDGE_CHANNEL_ACTION_INTERVAL:
-		bridge_channel_suspend(bridge_channel);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		bridge_channel_interval(bridge_channel);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		bridge_channel_unsuspend(bridge_channel);
-		break;
 	case BRIDGE_CHANNEL_ACTION_FEATURE:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
@@ -1381,6 +1381,9 @@ int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 	pbx_builtin_setvar_helper(bridge_channel->chan, "BLINDTRANSFER", NULL);
 	pbx_builtin_setvar_helper(bridge_channel->chan, "ATTENDEDTRANSFER", NULL);
 
+	/* Wake up the bridge channel thread to reevaluate any interval timers. */
+	ast_queue_frame(bridge_channel->chan, &ast_null_frame);
+
 	bridge->reconfigured = 1;
 	return 0;
 }
@@ -1521,36 +1524,6 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 	ast_frfree(fr);
 }
 
-/*!
- * \internal
- * \brief Handle bridge channel interval expiration.
- * \since 12.0.0
- *
- * \param bridge_channel Channel to check interval on.
- *
- * \return Nothing
- */
-static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_channel)
-{
-	struct ast_timer *interval_timer;
-
-	interval_timer = bridge_channel->features->interval_timer;
-	if (interval_timer) {
-		if (ast_wait_for_input(ast_timer_fd(interval_timer), 0) == 1) {
-			ast_timer_ack(interval_timer, 1);
-			if (bridge_channel_interval_ready(bridge_channel)) {
-/* BUGBUG since this is now only run by the channel thread, there is no need to queue the action once this intervals become a first class wait item in bridge_channel_wait(). */
-				struct ast_frame interval_action = {
-					.frametype = AST_FRAME_BRIDGE_ACTION,
-					.subclass.integer = BRIDGE_CHANNEL_ACTION_INTERVAL,
-				};
-
-				ast_bridge_channel_queue_frame(bridge_channel, &interval_action);
-			}
-		}
-	}
-}
-
 /*! \brief Internal function to handle DTMF from a channel */
 static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
@@ -1638,6 +1611,39 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 
 /*!
  * \internal
+ * \brief Determine how long till the next timer interval.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel to determine how long can wait.
+ *
+ * \retval ms Number of milliseconds to wait.
+ * \retval -1 to wait forever.
+ */
+static int bridge_channel_next_interval(struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_heap *interval_hooks = bridge_channel->features->interval_hooks;
+	struct ast_bridge_hook_timer *hook;
+	int ms;
+
+	ast_heap_wrlock(interval_hooks);
+	hook = ast_heap_peek(interval_hooks, 1);
+	if (hook) {
+		ms = ast_tvdiff_ms(hook->timer.trip_time, ast_tvnow());
+		if (ms < 0) {
+			/* Expire immediately.  An interval hook is ready to run. */
+			ms = 0;
+		}
+	} else {
+		/* No hook so wait forever. */
+		ms = -1;
+	}
+	ast_heap_unlock(interval_hooks);
+
+	return ms;
+}
+
+/*!
+ * \internal
  * \brief Wait for something to happen on the bridge channel and handle it.
  * \since 12.0.0
  *
@@ -1649,7 +1655,7 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
  */
 static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 {
-	int ms = -1;
+	int ms;
 	int outfd;
 	struct ast_channel *chan;
 
@@ -1669,7 +1675,7 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 		bridge_channel->waiting = 1;
 		ast_bridge_channel_unlock(bridge_channel);
 		outfd = -1;
-/* BUGBUG need to make the next expiring active interval setup ms timeout rather than holding up the chan reads. */
+		ms = bridge_channel_next_interval(bridge_channel);
 		chan = ast_waitfor_nandfds(&bridge_channel->chan, 1,
 			&bridge_channel->alert_pipe[0], 1, NULL, &outfd, &ms);
 		bridge_channel->waiting = 0;
@@ -1686,10 +1692,12 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 		if (!bridge_channel->suspended
 			&& bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
 			if (chan) {
-				bridge_channel_handle_interval(bridge_channel);
 				bridge_handle_trip(bridge_channel);
 			} else if (-1 < outfd) {
 				bridge_channel_handle_write(bridge_channel);
+			} else if (ms == 0) {
+				/* An interval expired. */
+				bridge_channel_handle_interval(bridge_channel);
 			}
 		}
 		bridge_channel->activity = AST_BRIDGE_CHANNEL_THREAD_IDLE;

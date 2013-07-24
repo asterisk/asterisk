@@ -226,8 +226,6 @@ struct ast_bridge_hook_timer {
 	struct ast_bridge_hook_timer_parms timer;
 };
 
-#define BRIDGE_FEATURES_INTERVAL_RATE 10
-
 /*!
  * \brief Structure that contains features information
  */
@@ -238,8 +236,6 @@ struct ast_bridge_features {
 	struct ao2_container *other_hooks;
 	/*! Attached interval hooks */
 	struct ast_heap *interval_hooks;
-	/*! Used to determine when interval based features should be checked */
-	struct ast_timer *interval_timer;
 	/*! Limits feature data */
 	struct ast_bridge_features_limits *limits;
 	/*! Feature flags that are enabled */

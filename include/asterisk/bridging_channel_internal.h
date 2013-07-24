@@ -40,8 +40,6 @@
 enum bridge_channel_action_type {
 	/*! Bridged channel is to detect a feature hook */
 	BRIDGE_CHANNEL_ACTION_FEATURE,
-	/*! Bridged channel is to act on an interval hook */
-	BRIDGE_CHANNEL_ACTION_INTERVAL,
 	/*! Bridged channel is to send a DTMF stream out */
 	BRIDGE_CHANNEL_ACTION_DTMF_STREAM,
 	/*! Bridged channel is to indicate talking start */
