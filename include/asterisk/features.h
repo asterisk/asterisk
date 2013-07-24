@@ -146,24 +146,12 @@ int ast_masq_park_call(struct ast_channel *park_me, struct ast_channel *parker, 
  */
 int ast_masq_park_call_exten(struct ast_channel *park_me, struct ast_channel *parker, const char *park_exten, const char *park_context, int timeout, int *extout);
 
-/*! 
+/*!
  * \brief Determine if parking extension exists in a given context
  * \retval 0 if extension does not exist
  * \retval 1 if extension does exist
 */
 int ast_parking_ext_valid(const char *exten_str, struct ast_channel *chan, const char *context);
-
-/*!
- * \brief Simulate a DTMF end on a broken bridge channel.
- *
- * \param chan Channel sending DTMF that has not ended.
- * \param digit DTMF digit to stop.
- * \param start DTMF digit start time.
- * \param why Reason bridge broken.
- *
- * \return Nothing
- */
-void ast_bridge_end_dtmf(struct ast_channel *chan, char digit, struct timeval start, const char *why);
 
 /*! \brief Bridge a call, optionally allowing redirection */
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);

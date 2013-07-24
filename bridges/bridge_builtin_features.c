@@ -483,7 +483,7 @@ static int feature_hangup(struct ast_bridge *bridge, struct ast_bridge_channel *
 	 * bridge_channel to force the channel out of the bridge and the
 	 * core takes care of the rest.
 	 */
-	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge(bridge_channel);
 	return 0;
 }
 

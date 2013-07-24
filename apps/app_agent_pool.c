@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/bridging.h"
+#include "asterisk/bridging_internal.h"
 #include "asterisk/bridging_basic.h"
 #include "asterisk/config_options.h"
 #include "asterisk/features_config.h"
@@ -1054,7 +1055,7 @@ static void agent_connect_caller(struct ast_bridge_channel *bridge_channel, stru
 
 	if (!caller_bridge) {
 		/* Reset agent. */
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel);
 		return;
 	}
 	res = ast_bridge_move(caller_bridge, bridge_channel->bridge, bridge_channel->chan,
@@ -1062,7 +1063,7 @@ static void agent_connect_caller(struct ast_bridge_channel *bridge_channel, stru
 	if (res) {
 		/* Reset agent. */
 		ast_bridge_destroy(caller_bridge);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel);
 		return;
 	}
 	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_ANSWER, NULL, 0);
@@ -1158,13 +1159,13 @@ static int bridge_agent_hold_heartbeat(struct ast_bridge *bridge, struct ast_bri
 
 	if (deferred_logoff) {
 		ast_debug(1, "Agent %s: Deferred logoff.\n", agent->username);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel);
 	} else if (probation_timedout) {
 		ast_debug(1, "Agent %s: Login complete.\n", agent->username);
 		agent_devstate_changed(agent->username);
 	} else if (ack_timedout) {
 		ast_debug(1, "Agent %s: Ack call timeout.\n", agent->username);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel);
 	} else if (wrapup_timedout) {
 		ast_debug(1, "Agent %s: Wrapup timeout. Ready for new call.\n", agent->username);
 		agent_devstate_changed(agent->username);
@@ -1269,7 +1270,7 @@ static int bridge_agent_hold_push(struct ast_bridge *self, struct ast_bridge_cha
 		 * agent will have some slightly different behavior in corner
 		 * cases.
 		 */
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel);
 		return 0;
 	}
 
@@ -1393,11 +1394,11 @@ static struct ast_bridge *bridge_agent_hold_new(void)
 {
 	struct ast_bridge *bridge;
 
-	bridge = ast_bridge_alloc(sizeof(struct ast_bridge), &bridge_agent_hold_v_table);
-	bridge = ast_bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_HOLDING,
+	bridge = bridge_alloc(sizeof(struct ast_bridge), &bridge_agent_hold_v_table);
+	bridge = bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_HOLDING,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
 			| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED);
-	bridge = ast_bridge_register(bridge);
+	bridge = bridge_register(bridge);
 	return bridge;
 }
 
@@ -1703,7 +1704,7 @@ static void caller_abort_agent(struct agent_pvt *agent)
 	}
 
 	/* Kick the agent out of the holding bridge to reset it. */
-	ast_bridge_change_state_nolock(logged, AST_BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge_nolock(logged);
 	ast_bridge_channel_unlock(logged);
 }
 
@@ -1713,7 +1714,7 @@ static int caller_safety_timeout(struct ast_bridge *bridge, struct ast_bridge_ch
 
 	if (agent->state == AGENT_STATE_CALL_PRESENT) {
 		ast_verb(3, "Agent '%s' did not respond.  Safety timeout.\n", agent->username);
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel);
 		caller_abort_agent(agent);
 	}
 

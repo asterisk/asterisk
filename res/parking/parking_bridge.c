@@ -24,12 +24,13 @@
  */
 
 #include "asterisk.h"
-#include "asterisk/logger.h"
 #include "res_parking.h"
 #include "asterisk/astobj2.h"
-#include "asterisk/features.h"
+#include "asterisk/logger.h"
 #include "asterisk/say.h"
 #include "asterisk/term.h"
+#include "asterisk/features.h"
+#include "asterisk/bridging_internal.h"
 
 struct ast_bridge_parking
 {
@@ -447,11 +448,11 @@ struct ast_bridge *bridge_parking_new(struct parking_lot *bridge_lot)
 {
 	void *bridge;
 
-	bridge = ast_bridge_alloc(sizeof(struct ast_bridge_parking), &ast_bridge_parking_v_table);
-	bridge = ast_bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_HOLDING,
+	bridge = bridge_alloc(sizeof(struct ast_bridge_parking), &ast_bridge_parking_v_table);
+	bridge = bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_HOLDING,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM);
 	bridge = ast_bridge_parking_init(bridge, bridge_lot);
-	bridge = ast_bridge_register(bridge);
+	bridge = bridge_register(bridge);
 	return bridge;
 }

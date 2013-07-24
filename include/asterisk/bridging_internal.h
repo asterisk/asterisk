@@ -20,6 +20,11 @@
  * \file
  * \brief Private Bridging API
  *
+ * Functions in this file are intended to be used by the Bridging API,
+ * bridge mixing technologies, and bridge sub-classes. Users of bridges
+ * that do not fit those three categories should *not* use the API
+ * defined in this file.
+ *
  * \author Mark Michelson <mmichelson@digium.com>
  *
  * See Also:
@@ -31,6 +36,72 @@
 
 struct ast_bridge;
 struct ast_bridge_channel;
+
+/*!
+ * \brief Register the new bridge with the system.
+ * \since 12.0.0
+ *
+ * \param bridge What to register. (Tolerates a NULL pointer)
+ *
+ * \code
+ * struct ast_bridge *ast_bridge_basic_new(uint32_t capabilities, int flags, uint32 dtmf_features)
+ * {
+ *     void *bridge;
+ *
+ *     bridge = bridge_alloc(sizeof(struct ast_bridge_basic), &ast_bridge_basic_v_table);
+ *     bridge = bridge_base_init(bridge, capabilities, flags);
+ *     bridge = ast_bridge_basic_init(bridge, dtmf_features);
+ *     bridge = bridge_register(bridge);
+ *     return bridge;
+ * }
+ * \endcode
+ *
+ * \note This must be done after a bridge constructor has
+ * completed setting up the new bridge but before it returns.
+ *
+ * \note After a bridge is registered, ast_bridge_destroy() must
+ * eventually be called to get rid of the bridge.
+ *
+ * \retval bridge on success.
+ * \retval NULL on error.
+ */
+struct ast_bridge *bridge_register(struct ast_bridge *bridge);
+
+/*!
+ * \internal
+ * \brief Allocate the bridge class object memory.
+ * \since 12.0.0
+ *
+ * \param size Size of the bridge class structure to allocate.
+ * \param v_table Bridge class virtual method table.
+ *
+ * \retval bridge on success.
+ * \retval NULL on error.
+ */
+struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_table);
+
+/*!
+ * \brief Initialize the base class of the bridge.
+ *
+ * \param self Bridge to operate upon. (Tolerates a NULL pointer)
+ * \param capabilities The capabilities that we require to be used on the bridge
+ * \param flags Flags that will alter the behavior of the bridge
+ *
+ * \retval self on success
+ * \retval NULL on failure, self is already destroyed
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_bridge *bridge;
+ * bridge = bridge_alloc(sizeof(*bridge), &ast_bridge_base_v_table);
+ * bridge = bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_1TO1MIX, AST_BRIDGE_FLAG_DISSOLVE_HANGUP);
+ * \endcode
+ *
+ * This creates a no frills two party bridge that will be
+ * destroyed once one of the channels hangs up.
+ */
+struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags);
 
 /*!
  * \internal
@@ -47,7 +118,7 @@ struct ast_bridge_channel;
  * \retval 0 on success.
  * \retval -1 on failure.
  */
-int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bridge_channel,
+int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bridge_channel,
 		int attempt_recovery, unsigned int optimized);
 
 /*!
@@ -68,7 +139,7 @@ int bridge_move_do(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
  * This moves the channels in src_bridge into the bridge pointed
  * to by dst_bridge.
  */
-void bridge_merge_do(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge,
+void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge,
 		struct ast_bridge_channel **kick_me, unsigned int num_kick, unsigned int optimized);
 
 /*!
@@ -83,6 +154,58 @@ void bridge_merge_do(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
  * \retval bridge_channel if channel is in the bridge.
  * \retval NULL if not in bridge.
  */
-struct ast_bridge_channel *find_bridge_channel(struct ast_bridge *bridge, struct ast_channel *chan);
+struct ast_bridge_channel *bridge_find_channel(struct ast_bridge *bridge, struct ast_channel *chan);
+
+/*!
+ * \internal
+ * \brief Adjust the bridge merge inhibit request count.
+ * \since 12.0.0
+ *
+ * \param bridge What to operate on.
+ * \param request Inhibit request increment.
+ *     (Positive to add requests.  Negative to remove requests.)
+ *
+ * \note This function assumes bridge is locked.
+ *
+ * \return Nothing
+ */
+void bridge_merge_inhibit_nolock(struct ast_bridge *bridge, int request);
+
+/*!
+ * \internal
+ * \brief Notify the bridge that it has been reconfigured.
+ * \since 12.0.0
+ *
+ * \param bridge Reconfigured bridge.
+ * \param colp_update Whether to perform COLP updates.
+ *
+ * \details
+ * After a series of bridge_channel_push and
+ * bridge_channel_pull calls, you need to call this function
+ * to cause the bridge to complete restructuring for the change
+ * in the channel makeup of the bridge.
+ *
+ * \note On entry, the bridge is already locked.
+ *
+ * \return Nothing
+ */
+void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update);
+
+/*!
+ * \internal
+ * \brief Dissolve the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge Bridge to eject all channels
+ *
+ * \details
+ * Force out all channels that are not already going out of the
+ * bridge.  Any new channels joining will leave immediately.
+ *
+ * \note On entry, bridge is already locked.
+ *
+ * \return Nothing
+ */
+void bridge_dissolve(struct ast_bridge *bridge);
 
 #endif /* _ASTERISK_PRIVATE_BRIDGING_H */

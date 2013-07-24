@@ -4385,4 +4385,16 @@ int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum 
  */
 int ast_channel_unsuppress(struct ast_channel *chan, unsigned int direction, enum ast_frame_type frametype);
 
+/*!
+ * \brief Simulate a DTMF end on a broken bridge channel.
+ *
+ * \param chan Channel sending DTMF that has not ended.
+ * \param digit DTMF digit to stop.
+ * \param start DTMF digit start time.
+ * \param why Reason bridge broken.
+ *
+ * \return Nothing
+ */
+void ast_channel_end_dtmf(struct ast_channel *chan, char digit, struct timeval start, const char *why);
+
 #endif /* _ASTERISK_CHANNEL_H */

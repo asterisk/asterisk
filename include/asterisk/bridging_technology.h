@@ -42,6 +42,22 @@ enum ast_bridge_preference {
 };
 
 /*!
+ * \brief Structure specific to bridge technologies capable of
+ * performing talking optimizations.
+ */
+struct ast_bridge_tech_optimizations {
+	/*! The amount of time in ms that talking must be detected before
+	 *  the dsp determines that talking has occurred */
+	unsigned int talking_threshold;
+	/*! The amount of time in ms that silence must be detected before
+	 *  the dsp determines that talking has stopped */
+	unsigned int silence_threshold;
+	/*! Whether or not the bridging technology should drop audio
+	 *  detected as silence from the mix. */
+	unsigned int drop_silence:1;
+};
+
+/*!
  * \brief Structure that is the essence of a bridge technology
  */
 struct ast_bridge_technology {

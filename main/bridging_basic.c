@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/app.h"
 #include "asterisk/bridging_internal.h"
+#include "asterisk/bridging_channel_internal.h"
 #include "asterisk/dial.h"
 #include "asterisk/stasis_bridging.h"
 
@@ -341,8 +342,8 @@ static int bridge_personality_normal_push(struct ast_bridge *self, struct ast_br
 		return -1;
 	}
 
-	ast_bridge_update_accountcodes(self, bridge_channel, swap);
-	ast_bridge_update_linkedids(self, bridge_channel, swap);
+	bridge_channel_update_accountcodes(bridge_channel, swap);
+	bridge_channel_update_linkedids(bridge_channel, swap);
 	return 0;
 }
 
@@ -1367,7 +1368,7 @@ static void bridge_unhold(struct ast_bridge *bridge)
 }
 
 /*!
- * \brief Wrapper for \ref bridge_move_do
+ * \brief Wrapper for \ref bridge_do_move
  */
 static int bridge_move(struct ast_bridge *dest, struct ast_bridge *src, struct ast_channel *channel, struct ast_channel *swap)
 {
@@ -1386,7 +1387,7 @@ static int bridge_move(struct ast_bridge *dest, struct ast_bridge *src, struct a
 	bridge_channel->swap = swap;
 	ao2_unlock(bridge_channel);
 
-	res = bridge_move_do(dest, bridge_channel, 1, 0);
+	res = bridge_do_move(dest, bridge_channel, 1, 0);
 
 	ast_bridge_unlock(dest);
 	ast_bridge_unlock(src);
@@ -1395,7 +1396,7 @@ static int bridge_move(struct ast_bridge *dest, struct ast_bridge *src, struct a
 }
 
 /*!
- * \brief Wrapper for \ref bridge_merge_do
+ * \brief Wrapper for \ref bridge_do_merge
  */
 static void bridge_merge(struct ast_bridge *dest, struct ast_bridge *src, struct ast_channel **kick_channels, unsigned int num_channels)
 {
@@ -1409,9 +1410,9 @@ static void bridge_merge(struct ast_bridge *dest, struct ast_bridge *src, struct
 	for (i = 0; i < num_channels; ++i) {
 		struct ast_bridge_channel *kick_bridge_channel;
 
-		kick_bridge_channel = find_bridge_channel(src, kick_channels[i]);
+		kick_bridge_channel = bridge_find_channel(src, kick_channels[i]);
 		if (!kick_bridge_channel) {
-			kick_bridge_channel = find_bridge_channel(dest, kick_channels[i]);
+			kick_bridge_channel = bridge_find_channel(dest, kick_channels[i]);
 		}
 
 		/* It's possible (and fine) for the bridge channel to be NULL at this point if the
@@ -1425,7 +1426,7 @@ static void bridge_merge(struct ast_bridge *dest, struct ast_bridge *src, struct
 		kick_bridge_channels[num_bridge_channels++] = kick_bridge_channel;
 	}
 
-	bridge_merge_do(dest, src, kick_bridge_channels, num_bridge_channels, 0);
+	bridge_do_merge(dest, src, kick_bridge_channels, num_bridge_channels, 0);
 	ast_bridge_unlock(dest);
 	ast_bridge_unlock(src);
 }
@@ -2658,7 +2659,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	}
 
 	ast_bridge_channel_write_hold(bridge_channel, NULL);
-	props->transferee_bridge = ast_bridge_channel_merge_inhibit(bridge_channel, +1);
+	props->transferee_bridge = bridge_channel_merge_inhibit(bridge_channel, +1);
 
 	/* Grab the extension to transfer to */
 	if (grab_transfer(bridge_channel->chan, exten, sizeof(exten), props->context)) {
@@ -2900,12 +2901,12 @@ struct ast_bridge *ast_bridge_basic_new(void)
 {
 	struct ast_bridge *bridge;
 
-	bridge = ast_bridge_alloc(sizeof(struct ast_bridge), &ast_bridge_basic_v_table);
-	bridge = ast_bridge_base_init(bridge,
+	bridge = bridge_alloc(sizeof(struct ast_bridge), &ast_bridge_basic_v_table);
+	bridge = bridge_base_init(bridge,
 		AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_1TO1MIX
 			| AST_BRIDGE_CAPABILITY_MULTIMIX, NORMAL_FLAGS);
 	bridge = bridge_basic_personality_alloc(bridge);
-	bridge = ast_bridge_register(bridge);
+	bridge = bridge_register(bridge);
 	return bridge;
 }
 
