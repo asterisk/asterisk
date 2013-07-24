@@ -3509,6 +3509,55 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_pvt_destructor destructor,
 	enum ast_bridge_hook_remove_flags remove_flags)
 {
+	struct ast_bridge_hook_dtmf *hook;
+	int res;
+
+	/* Allocate new hook and setup it's various variables */
+	hook = (struct ast_bridge_hook_dtmf *) bridge_hook_generic(sizeof(*hook), callback,
+		hook_pvt, destructor, remove_flags);
+	if (!hook) {
+		return -1;
+	}
+	hook->generic.type = AST_BRIDGE_HOOK_TYPE_DTMF;
+	ast_copy_string(hook->dtmf.code, dtmf, sizeof(hook->dtmf.code));
+
+	/* Once done we put it in the container. */
+	res = ao2_link(features->dtmf_hooks, hook) ? 0 : -1;
+	if (res) {
+		/*
+		 * Could not link the hook into the container.
+		 *
+		 * Remove the hook_pvt destructor call from the hook since we
+		 * are returning failure to install the hook.
+		 */
+		hook->generic.destructor = NULL;
+	}
+	ao2_ref(hook, -1);
+
+	return res;
+}
+
+/*!
+ * \internal
+ * \brief Attach an other hook to a bridge features structure
+ *
+ * \param features Bridge features structure
+ * \param callback Function to execute upon activation
+ * \param hook_pvt Unique data
+ * \param destructor Optional destructor callback for hook_pvt data
+ * \param remove_flags Dictates what situations the hook should be removed.
+ * \param type What type of hook is being attached.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
+ */
+static int bridge_other_hook(struct ast_bridge_features *features,
+	ast_bridge_hook_callback callback,
+	void *hook_pvt,
+	ast_bridge_hook_pvt_destructor destructor,
+	enum ast_bridge_hook_remove_flags remove_flags,
+	enum ast_bridge_hook_type type)
+{
 	struct ast_bridge_hook *hook;
 	int res;
 
@@ -3518,10 +3567,10 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
 	if (!hook) {
 		return -1;
 	}
-	ast_copy_string(hook->parms.dtmf.code, dtmf, sizeof(hook->parms.dtmf.code));
+	hook->type = type;
 
 	/* Once done we put it in the container. */
-	res = ao2_link(features->dtmf_hooks, hook) ? 0 : -1;
+	res = ao2_link(features->other_hooks, hook) ? 0 : -1;
 	if (res) {
 		/*
 		 * Could not link the hook into the container.
@@ -3542,30 +3591,8 @@ int ast_bridge_hangup_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_pvt_destructor destructor,
 	enum ast_bridge_hook_remove_flags remove_flags)
 {
-	struct ast_bridge_hook *hook;
-	int res;
-
-	/* Allocate new hook and setup it's various variables */
-	hook = bridge_hook_generic(sizeof(*hook), callback, hook_pvt, destructor,
-		remove_flags);
-	if (!hook) {
-		return -1;
-	}
-
-	/* Once done we put it in the container. */
-	res = ao2_link(features->hangup_hooks, hook) ? 0 : -1;
-	if (res) {
-		/*
-		 * Could not link the hook into the container.
-		 *
-		 * Remove the hook_pvt destructor call from the hook since we
-		 * are returning failure to install the hook.
-		 */
-		hook->destructor = NULL;
-	}
-	ao2_ref(hook, -1);
-
-	return res;
+	return bridge_other_hook(features, callback, hook_pvt, destructor, remove_flags,
+		AST_BRIDGE_HOOK_TYPE_HANGUP);
 }
 
 int ast_bridge_join_hook(struct ast_bridge_features *features,
@@ -3574,30 +3601,8 @@ int ast_bridge_join_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_pvt_destructor destructor,
 	enum ast_bridge_hook_remove_flags remove_flags)
 {
-	struct ast_bridge_hook *hook;
-	int res;
-
-	/* Allocate new hook and setup it's various variables */
-	hook = bridge_hook_generic(sizeof(*hook), callback, hook_pvt, destructor,
-		remove_flags);
-	if (!hook) {
-		return -1;
-	}
-
-	/* Once done we put it in the container. */
-	res = ao2_link(features->join_hooks, hook) ? 0 : -1;
-	if (res) {
-		/*
-		 * Could not link the hook into the container.
-		 *
-		 * Remove the hook_pvt destructor call from the hook since we
-		 * are returning failure to install the hook.
-		 */
-		hook->destructor = NULL;
-	}
-	ao2_ref(hook, -1);
-
-	return res;
+	return bridge_other_hook(features, callback, hook_pvt, destructor, remove_flags,
+		AST_BRIDGE_HOOK_TYPE_JOIN);
 }
 
 int ast_bridge_leave_hook(struct ast_bridge_features *features,
@@ -3606,40 +3611,20 @@ int ast_bridge_leave_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_pvt_destructor destructor,
 	enum ast_bridge_hook_remove_flags remove_flags)
 {
-	struct ast_bridge_hook *hook;
-	int res;
-
-	/* Allocate new hook and setup it's various variables */
-	hook = bridge_hook_generic(sizeof(*hook), callback, hook_pvt, destructor,
-		remove_flags);
-	if (!hook) {
-		return -1;
-	}
-
-	/* Once done we put it in the container. */
-	res = ao2_link(features->leave_hooks, hook) ? 0 : -1;
-	if (res) {
-		/*
-		 * Could not link the hook into the container.
-		 *
-		 * Remove the hook_pvt destructor call from the hook since we
-		 * are returning failure to install the hook.
-		 */
-		hook->destructor = NULL;
-	}
-	ao2_ref(hook, -1);
-
-	return res;
+	return bridge_other_hook(features, callback, hook_pvt, destructor, remove_flags,
+		AST_BRIDGE_HOOK_TYPE_LEAVE);
 }
 
-void ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
-	ast_bridge_talking_indicate_callback talker_cb,
-	ast_bridge_talking_indicate_destructor talker_destructor,
-	void *pvt_data)
+int ast_bridge_talk_detector_hook(struct ast_bridge_features *features,
+	ast_bridge_talking_indicate_callback callback,
+	void *hook_pvt,
+	ast_bridge_hook_pvt_destructor destructor,
+	enum ast_bridge_hook_remove_flags remove_flags)
 {
-	features->talker_cb = talker_cb;
-	features->talker_destructor_cb = talker_destructor;
-	features->talker_pvt_data = pvt_data;
+	ast_bridge_hook_callback hook_cb = (ast_bridge_hook_callback) callback;
+
+	return bridge_other_hook(features, hook_cb, hook_pvt, destructor, remove_flags,
+		AST_BRIDGE_HOOK_TYPE_TALK);
 }
 
 int ast_bridge_interval_hook(struct ast_bridge_features *features,
@@ -3649,7 +3634,7 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 	ast_bridge_hook_pvt_destructor destructor,
 	enum ast_bridge_hook_remove_flags remove_flags)
 {
-	struct ast_bridge_hook *hook;
+	struct ast_bridge_hook_timer *hook;
 	int res;
 
 	if (!features ||!interval || !callback) {
@@ -3665,17 +3650,18 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 	}
 
 	/* Allocate new hook and setup it's various variables */
-	hook = bridge_hook_generic(sizeof(*hook), callback, hook_pvt, destructor,
-		remove_flags);
+	hook = (struct ast_bridge_hook_timer *) bridge_hook_generic(sizeof(*hook), callback,
+		hook_pvt, destructor, remove_flags);
 	if (!hook) {
 		return -1;
 	}
-	hook->parms.timer.interval = interval;
-	hook->parms.timer.trip_time = ast_tvadd(ast_tvnow(), ast_samp2tv(hook->parms.timer.interval, 1000));
-	hook->parms.timer.seqno = ast_atomic_fetchadd_int((int *) &features->interval_sequence, +1);
+	hook->generic.type = AST_BRIDGE_HOOK_TYPE_TIMER;
+	hook->timer.interval = interval;
+	hook->timer.trip_time = ast_tvadd(ast_tvnow(), ast_samp2tv(hook->timer.interval, 1000));
+	hook->timer.seqno = ast_atomic_fetchadd_int((int *) &features->interval_sequence, +1);
 
 	ast_debug(1, "Putting interval hook %p with interval %u in the heap on features %p\n",
-		hook, hook->parms.timer.interval, features);
+		hook, hook->timer.interval, features);
 	ast_heap_wrlock(features->interval_hooks);
 	res = ast_heap_push(features->interval_hooks, hook);
 	ast_heap_unlock(features->interval_hooks);
@@ -3686,7 +3672,7 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 		 * Remove the hook_pvt destructor call from the hook since we
 		 * are returning failure to install the hook.
 		 */
-		hook->destructor = NULL;
+		hook->generic.destructor = NULL;
 		ao2_ref(hook, -1);
 	}
 
@@ -3836,24 +3822,22 @@ static void hooks_remove_heap(struct ast_heap *hooks, enum ast_bridge_hook_remov
 void ast_bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags remove_flags)
 {
 	hooks_remove_container(features->dtmf_hooks, remove_flags);
-	hooks_remove_container(features->hangup_hooks, remove_flags);
-	hooks_remove_container(features->join_hooks, remove_flags);
-	hooks_remove_container(features->leave_hooks, remove_flags);
+	hooks_remove_container(features->other_hooks, remove_flags);
 	hooks_remove_heap(features->interval_hooks, remove_flags);
 }
 
 static int interval_hook_time_cmp(void *a, void *b)
 {
-	struct ast_bridge_hook *hook_a = a;
-	struct ast_bridge_hook *hook_b = b;
+	struct ast_bridge_hook_timer *hook_a = a;
+	struct ast_bridge_hook_timer *hook_b = b;
 	int cmp;
 
-	cmp = ast_tvcmp(hook_b->parms.timer.trip_time, hook_a->parms.timer.trip_time);
+	cmp = ast_tvcmp(hook_b->timer.trip_time, hook_a->timer.trip_time);
 	if (cmp) {
 		return cmp;
 	}
 
-	cmp = hook_b->parms.timer.seqno - hook_a->parms.timer.seqno;
+	cmp = hook_b->timer.seqno - hook_a->timer.seqno;
 	return cmp;
 }
 
@@ -3875,21 +3859,21 @@ static int interval_hook_time_cmp(void *a, void *b)
  */
 static int bridge_dtmf_hook_sort(const void *obj_left, const void *obj_right, int flags)
 {
-	const struct ast_bridge_hook *hook_left = obj_left;
-	const struct ast_bridge_hook *hook_right = obj_right;
+	const struct ast_bridge_hook_dtmf *hook_left = obj_left;
+	const struct ast_bridge_hook_dtmf *hook_right = obj_right;
 	const char *right_key = obj_right;
 	int cmp;
 
 	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
 	default:
 	case OBJ_POINTER:
-		right_key = hook_right->parms.dtmf.code;
+		right_key = hook_right->dtmf.code;
 		/* Fall through */
 	case OBJ_KEY:
-		cmp = strcasecmp(hook_left->parms.dtmf.code, right_key);
+		cmp = strcasecmp(hook_left->dtmf.code, right_key);
 		break;
 	case OBJ_PARTIAL_KEY:
-		cmp = strncasecmp(hook_left->parms.dtmf.code, right_key, strlen(right_key));
+		cmp = strncasecmp(hook_left->dtmf.code, right_key, strlen(right_key));
 		break;
 	}
 	return cmp;
@@ -3908,30 +3892,16 @@ int ast_bridge_features_init(struct ast_bridge_features *features)
 		return -1;
 	}
 
-	/* Initialize the hangup hooks container */
-	features->hangup_hooks = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL,
+	/* Initialize the miscellaneous other hooks container */
+	features->other_hooks = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL,
 		NULL);
-	if (!features->hangup_hooks) {
-		return -1;
-	}
-
-	/* Initialize the join hooks container */
-	features->join_hooks = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL,
-		NULL);
-	if (!features->join_hooks) {
-		return -1;
-	}
-
-	/* Initialize the leave hooks container */
-	features->leave_hooks = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL,
-		NULL);
-	if (!features->leave_hooks) {
+	if (!features->other_hooks) {
 		return -1;
 	}
 
 	/* Initialize the interval hooks heap */
 	features->interval_hooks = ast_heap_create(8, interval_hook_time_cmp,
-		offsetof(struct ast_bridge_hook, parms.timer.heap_index));
+		offsetof(struct ast_bridge_hook_timer, timer.heap_index));
 	if (!features->interval_hooks) {
 		return -1;
 	}
@@ -3942,7 +3912,7 @@ int ast_bridge_features_init(struct ast_bridge_features *features)
 /* BUGBUG make ast_bridge_features_cleanup() static when make ast_bridge_join() requires features to be allocated. */
 void ast_bridge_features_cleanup(struct ast_bridge_features *features)
 {
-	struct ast_bridge_hook *hook;
+	struct ast_bridge_hook_timer *hook;
 
 	/* Destroy the interval hooks heap. */
 	if (features->interval_hooks) {
@@ -3964,22 +3934,9 @@ void ast_bridge_features_cleanup(struct ast_bridge_features *features)
 		features->limits = NULL;
 	}
 
-	if (features->talker_destructor_cb && features->talker_pvt_data) {
-		features->talker_destructor_cb(features->talker_pvt_data);
-		features->talker_pvt_data = NULL;
-	}
-
-	/* Destroy the leave hooks container. */
-	ao2_cleanup(features->leave_hooks);
-	features->leave_hooks = NULL;
-
-	/* Destroy the join hooks container. */
-	ao2_cleanup(features->join_hooks);
-	features->join_hooks = NULL;
-
-	/* Destroy the hangup hooks container. */
-	ao2_cleanup(features->hangup_hooks);
-	features->hangup_hooks = NULL;
+	/* Destroy the miscellaneous other hooks container. */
+	ao2_cleanup(features->other_hooks);
+	features->other_hooks = NULL;
 
 	/* Destroy the DTMF hooks container. */
 	ao2_cleanup(features->dtmf_hooks);

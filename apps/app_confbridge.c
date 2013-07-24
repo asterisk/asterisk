@@ -1402,25 +1402,26 @@ static void conf_handle_talker_destructor(void *pvt_data)
 	ast_free(pvt_data);
 }
 
-static void conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void *pvt_data, int talking)
+static int conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void *pvt_data, int talking)
 {
 	const char *conf_name = pvt_data;
 	struct confbridge_conference *conference = ao2_find(conference_bridges, conf_name, OBJ_KEY);
 	struct ast_json *talking_extras;
 
 	if (!conference) {
-		return;
+		/* Remove the hook since the conference does not exist. */
+		return -1;
 	}
 
 	talking_extras = ast_json_pack("{s: s}",
-					 "talking_status", talking ? "on" : "off");
-
+		"talking_status", talking ? "on" : "off");
 	if (!talking_extras) {
-		return;
+		return 0;
 	}
 
 	send_conf_stasis(conference, bridge_channel->chan, confbridge_talking_type(), talking_extras, 0);
 	ast_json_unref(talking_extras);
+	return 0;
 }
 
 static int conf_get_pin(struct ast_channel *chan, struct confbridge_user *user)
@@ -1599,14 +1600,17 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	/* Set a talker indicate call back if talking detection is requested */
 	if (ast_test_flag(&user.u_profile, USER_OPT_TALKER_DETECT)) {
 		char *conf_name = ast_strdup(args.conf_name); /* this is freed during feature cleanup */
-		if (!(conf_name)) {
+
+		if (!conf_name) {
 			res = -1; /* invalid PIN */
 			goto confbridge_cleanup;
 		}
-		ast_bridge_features_set_talk_detector(&user.features,
-			conf_handle_talker_cb,
-			conf_handle_talker_destructor,
-			conf_name);
+		if (ast_bridge_talk_detector_hook(&user.features, conf_handle_talker_cb,
+			conf_name, conf_handle_talker_destructor, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+			ast_free(conf_name);
+			res = -1;
+			goto confbridge_cleanup;
+		}
 	}
 
 	/* Look for a conference bridge matching the provided name */

@@ -410,15 +410,18 @@ static void bridge_channel_handle_hangup(struct ast_bridge_channel *bridge_chann
 	struct ao2_iterator iter;
 
 	/* Run any hangup hooks. */
-	iter = ao2_iterator_init(features->hangup_hooks, 0);
+	iter = ao2_iterator_init(features->other_hooks, 0);
 	for (; (hook = ao2_iterator_next(&iter)); ao2_ref(hook, -1)) {
 		int remove_me;
 
+		if (hook->type != AST_BRIDGE_HOOK_TYPE_HANGUP) {
+			continue;
+		}
 		remove_me = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
 		if (remove_me) {
 			ast_debug(1, "Hangup hook %p is being removed from %p(%s)\n",
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
-			ao2_unlink(features->hangup_hooks, hook);
+			ao2_unlink(features->other_hooks, hook);
 		}
 	}
 	ao2_iterator_destroy(&iter);
@@ -698,12 +701,12 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
 static int bridge_channel_interval_ready(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
-	struct ast_bridge_hook *hook;
+	struct ast_bridge_hook_timer *hook;
 	int ready;
 
 	ast_heap_wrlock(features->interval_hooks);
 	hook = ast_heap_peek(features->interval_hooks, 1);
-	ready = hook && ast_tvdiff_ms(hook->parms.timer.trip_time, ast_tvnow()) <= 0;
+	ready = hook && ast_tvdiff_ms(hook->timer.trip_time, ast_tvnow()) <= 0;
 	ast_heap_unlock(features->interval_hooks);
 
 	return ready;
@@ -833,7 +836,7 @@ static void bridge_channel_unsuspend(struct ast_bridge_channel *bridge_channel)
 /*! \brief Internal function that activates interval hooks on a bridge channel */
 static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_bridge_hook *hook;
+	struct ast_bridge_hook_timer *hook;
 	struct timeval start;
 
 	ast_heap_wrlock(bridge_channel->features->interval_hooks);
@@ -842,7 +845,7 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 		int interval;
 		unsigned int execution_time;
 
-		if (ast_tvdiff_ms(hook->parms.timer.trip_time, start) > 0) {
+		if (ast_tvdiff_ms(hook->timer.trip_time, start) > 0) {
 			ast_debug(1, "Hook %p on %p(%s) wants to happen in the future, stopping our traversal\n",
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
 			break;
@@ -852,11 +855,12 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 
 		ast_debug(1, "Executing hook %p on %p(%s)\n",
 			hook, bridge_channel, ast_channel_name(bridge_channel->chan));
-		interval = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+		interval = hook->generic.callback(bridge_channel->bridge, bridge_channel,
+			hook->generic.hook_pvt);
 
 		ast_heap_wrlock(bridge_channel->features->interval_hooks);
 		if (ast_heap_peek(bridge_channel->features->interval_hooks,
-			hook->parms.timer.heap_index) != hook
+			hook->timer.heap_index) != hook
 			|| !ast_heap_remove(bridge_channel->features->interval_hooks, hook)) {
 			/* Interval hook is already removed from the bridge_channel. */
 			ao2_ref(hook, -1);
@@ -872,11 +876,11 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 		}
 		if (interval) {
 			/* Set new interval for the hook. */
-			hook->parms.timer.interval = interval;
+			hook->timer.interval = interval;
 		}
 
 		ast_debug(1, "Updating interval hook %p with interval %u on %p(%s)\n",
-			hook, hook->parms.timer.interval, bridge_channel,
+			hook, hook->timer.interval, bridge_channel,
 			ast_channel_name(bridge_channel->chan));
 
 		/* resetting start */
@@ -887,12 +891,12 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 		 * to skip over any missed intervals because the hook was
 		 * delayed or took too long.
 		 */
-		execution_time = ast_tvdiff_ms(start, hook->parms.timer.trip_time);
-		while (hook->parms.timer.interval < execution_time) {
-			execution_time -= hook->parms.timer.interval;
+		execution_time = ast_tvdiff_ms(start, hook->timer.trip_time);
+		while (hook->timer.interval < execution_time) {
+			execution_time -= hook->timer.interval;
 		}
-		hook->parms.timer.trip_time = ast_tvadd(start, ast_samp2tv(hook->parms.timer.interval - execution_time, 1000));
-		hook->parms.timer.seqno = ast_atomic_fetchadd_int((int *) &bridge_channel->features->interval_sequence, +1);
+		hook->timer.trip_time = ast_tvadd(start, ast_samp2tv(hook->timer.interval - execution_time, 1000));
+		hook->timer.seqno = ast_atomic_fetchadd_int((int *) &bridge_channel->features->interval_sequence, +1);
 
 		if (ast_heap_push(bridge_channel->features->interval_hooks, hook)) {
 			/* Could not push the hook back onto the heap. */
@@ -916,7 +920,7 @@ static int bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_ch
 static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
-	struct ast_bridge_hook *hook = NULL;
+	struct ast_bridge_hook_dtmf *hook = NULL;
 	char dtmf[MAXIMUM_DTMF_FEATURE_STRING] = "";
 	size_t dtmf_len = 0;
 	unsigned int digit_timeout;
@@ -965,7 +969,7 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 				bridge_channel, ast_channel_name(bridge_channel->chan), dtmf);
 			break;
 		}
-		if (strlen(hook->parms.dtmf.code) == dtmf_len) {
+		if (strlen(hook->dtmf.code) == dtmf_len) {
 			ast_debug(1, "DTMF feature hook %p matched DTMF string '%s' on %p(%s)\n",
 				hook, dtmf, bridge_channel, ast_channel_name(bridge_channel->chan));
 			break;
@@ -983,7 +987,8 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 	if (hook) {
 		int remove_me;
 
-		remove_me = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+		remove_me = hook->generic.callback(bridge_channel->bridge, bridge_channel,
+			hook->generic.hook_pvt);
 		if (remove_me) {
 			ast_debug(1, "DTMF hook %p is being removed from %p(%s)\n",
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
@@ -1008,10 +1013,27 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 static void bridge_channel_talking(struct ast_bridge_channel *bridge_channel, int talking)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
+	struct ast_bridge_hook *hook;
+	struct ao2_iterator iter;
 
-	if (features->talker_cb) {
-		features->talker_cb(bridge_channel, features->talker_pvt_data, talking);
+	/* Run any talk detection hooks. */
+	iter = ao2_iterator_init(features->other_hooks, 0);
+	for (; (hook = ao2_iterator_next(&iter)); ao2_ref(hook, -1)) {
+		int remove_me;
+		ast_bridge_talking_indicate_callback talk_cb;
+
+		if (hook->type != AST_BRIDGE_HOOK_TYPE_TALK) {
+			continue;
+		}
+		talk_cb = (ast_bridge_talking_indicate_callback) hook->callback;
+		remove_me = talk_cb(bridge_channel, hook->hook_pvt, talking);
+		if (remove_me) {
+			ast_debug(1, "Talk detection hook %p is being removed from %p(%s)\n",
+				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
+			ao2_unlink(features->other_hooks, hook);
+		}
 	}
+	ao2_iterator_destroy(&iter);
 }
 
 /*! \brief Internal function that plays back DTMF on a bridge channel */
@@ -1533,7 +1555,7 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
-	struct ast_bridge_hook *hook;
+	struct ast_bridge_hook_dtmf *hook;
 	char dtmf[2];
 
 /* BUGBUG the feature hook matching needs to be done here.  Any matching feature hook needs to be queued onto the bridge_channel.  Also the feature hook digit timeout needs to be handled. */
@@ -1678,58 +1700,36 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 
 /*!
  * \internal
- * \brief Handle bridge channel join event.
+ * \brief Handle bridge channel join/leave event.
  * \since 12.0.0
  *
- * \param bridge_channel Which channel is joining.
+ * \param bridge_channel Which channel is involved.
+ * \param type Specified join/leave event.
  *
  * \return Nothing
  */
-static void bridge_channel_handle_join(struct ast_bridge_channel *bridge_channel)
+static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_channel, enum ast_bridge_hook_type type)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
 	struct ast_bridge_hook *hook;
 	struct ao2_iterator iter;
 
-	/* Run any join hooks. */
-	iter = ao2_iterator_init(features->join_hooks, AO2_ITERATOR_UNLINK);
-	hook = ao2_iterator_next(&iter);
-	if (hook) {
-		bridge_channel_suspend(bridge_channel);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		do {
-			hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
-			ao2_ref(hook, -1);
-		} while ((hook = ao2_iterator_next(&iter)));
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		bridge_channel_unsuspend(bridge_channel);
+	/* Run the specified hooks. */
+	iter = ao2_iterator_init(features->other_hooks, 0);
+	for (; (hook = ao2_iterator_next(&iter)); ao2_ref(hook, -1)) {
+		if (hook->type == type) {
+			break;
+		}
 	}
-	ao2_iterator_destroy(&iter);
-}
-
-/*!
- * \internal
- * \brief Handle bridge channel leave event.
- * \since 12.0.0
- *
- * \param bridge_channel Which channel is leaving.
- *
- * \return Nothing
- */
-static void bridge_channel_handle_leave(struct ast_bridge_channel *bridge_channel)
-{
-	struct ast_bridge_features *features = bridge_channel->features;
-	struct ast_bridge_hook *hook;
-	struct ao2_iterator iter;
-
-	/* Run any leave hooks. */
-	iter = ao2_iterator_init(features->leave_hooks, AO2_ITERATOR_UNLINK);
-	hook = ao2_iterator_next(&iter);
 	if (hook) {
+		/* Found the first specified hook to run. */
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		do {
-			hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+			if (hook->type == type) {
+				hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+				ao2_unlink(features->other_hooks, hook);
+			}
 			ao2_ref(hook, -1);
 		} while ((hook = ao2_iterator_next(&iter)));
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
@@ -1786,12 +1786,12 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 		}
 
 		ast_bridge_unlock(bridge_channel->bridge);
-		bridge_channel_handle_join(bridge_channel);
+		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_JOIN);
 		while (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
 			/* Wait for something to do. */
 			bridge_channel_wait(bridge_channel);
 		}
-		bridge_channel_handle_leave(bridge_channel);
+		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_LEAVE);
 		ast_bridge_channel_lock_bridge(bridge_channel);
 	}
 

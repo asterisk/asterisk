@@ -149,13 +149,43 @@ typedef void (*ast_bridge_hook_pvt_destructor)(void *hook_pvt);
  * \param bridge_channel Channel executing the feature
  * \param talking TRUE if the channel is now talking
  *
- * \retval 0 success
- * \retval -1 failure
+ * \retval 0 Keep the callback hook.
+ * \retval -1 Remove the callback hook.
  */
-typedef void (*ast_bridge_talking_indicate_callback)(struct ast_bridge_channel *bridge_channel, void *pvt_data, int talking);
+typedef int (*ast_bridge_talking_indicate_callback)(struct ast_bridge_channel *bridge_channel, void *pvt_data, int talking);
 
+enum ast_bridge_hook_remove_flags {
+	/*! The hook is removed when the channel is pulled from the bridge. */
+	AST_BRIDGE_HOOK_REMOVE_ON_PULL = (1 << 0),
+	/*! The hook is removed when the bridge's personality changes. */
+	AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE = (1 << 1),
+};
 
-typedef void (*ast_bridge_talking_indicate_destructor)(void *pvt_data);
+enum ast_bridge_hook_type {
+	/*! The hook type has not been specified. */
+	AST_BRIDGE_HOOK_TYPE_NONE,
+	AST_BRIDGE_HOOK_TYPE_DTMF,
+	AST_BRIDGE_HOOK_TYPE_TIMER,
+	AST_BRIDGE_HOOK_TYPE_HANGUP,
+	AST_BRIDGE_HOOK_TYPE_JOIN,
+	AST_BRIDGE_HOOK_TYPE_LEAVE,
+	AST_BRIDGE_HOOK_TYPE_TALK,
+};
+
+/* BUGBUG Need to be able to selectively remove DTMF, hangup, and interval hooks. */
+/*! \brief Structure that is the essence of a feature hook. */
+struct ast_bridge_hook {
+	/*! Callback that is called when hook is tripped */
+	ast_bridge_hook_callback callback;
+	/*! Callback to destroy hook_pvt data right before destruction. */
+	ast_bridge_hook_pvt_destructor destructor;
+	/*! Unique data that was passed into us */
+	void *hook_pvt;
+	/*! Flags determining when hooks should be removed from a bridge channel */
+	struct ast_flags remove_flags;
+	/*! What kind of hook this is. */
+	enum ast_bridge_hook_type type;
+};
 
 /*!
  * \brief Maximum length of a DTMF feature string
@@ -163,13 +193,21 @@ typedef void (*ast_bridge_talking_indicate_destructor)(void *pvt_data);
 #define MAXIMUM_DTMF_FEATURE_STRING (11 + 1)
 
 /*! Extra parameters for a DTMF feature hook. */
-struct ast_bridge_hook_dtmf {
+struct ast_bridge_hook_dtmf_parms {
 	/*! DTMF String that is examined during a feature hook lookup */
 	char code[MAXIMUM_DTMF_FEATURE_STRING];
 };
 
+/*! DTMF specific hook. */
+struct ast_bridge_hook_dtmf {
+	/*! Generic feature hook information. */
+	struct ast_bridge_hook generic;
+	/*! Extra parameters for a DTMF feature hook. */
+	struct ast_bridge_hook_dtmf_parms dtmf;
+};
+
 /*! Extra parameters for an interval timer hook. */
-struct ast_bridge_hook_timer {
+struct ast_bridge_hook_timer_parms {
 	/*! Time at which the hook should actually trip */
 	struct timeval trip_time;
 	/*! Heap index for interval hook */
@@ -180,33 +218,12 @@ struct ast_bridge_hook_timer {
 	unsigned int seqno;
 };
 
-enum ast_bridge_hook_remove_flags {
-	/*! The hook is removed when the channel is pulled from the bridge. */
-	AST_BRIDGE_HOOK_REMOVE_ON_PULL = (1 << 0),
-	/*! The hook is removed when the bridge's personality changes. */
-	AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE = (1 << 1),
-};
-
-/* BUGBUG Need to be able to selectively remove DTMF, hangup, and interval hooks. */
-/*! \brief Structure that is the essence of a feature hook. */
-struct ast_bridge_hook {
-	/*! Linked list information */
-	AST_LIST_ENTRY(ast_bridge_hook) entry;
-	/*! Callback that is called when hook is tripped */
-	ast_bridge_hook_callback callback;
-	/*! Callback to destroy hook_pvt data right before destruction. */
-	ast_bridge_hook_pvt_destructor destructor;
-	/*! Unique data that was passed into us */
-	void *hook_pvt;
-	/*! Flags determining when hooks should be removed from a bridge channel */
-	struct ast_flags remove_flags;
-	/*! Extra hook parameters. */
-	union {
-		/*! Extra parameters for a DTMF feature hook. */
-		struct ast_bridge_hook_dtmf dtmf;
-		/*! Extra parameters for an interval timer hook. */
-		struct ast_bridge_hook_timer timer;
-	} parms;
+/*! Timer specific hook. */
+struct ast_bridge_hook_timer {
+	/*! Generic feature hook information. */
+	struct ast_bridge_hook generic;
+	/*! Extra parameters for an interval timer hook. */
+	struct ast_bridge_hook_timer_parms timer;
 };
 
 #define BRIDGE_FEATURES_INTERVAL_RATE 10
@@ -217,24 +234,14 @@ struct ast_bridge_hook {
 struct ast_bridge_features {
 	/*! Attached DTMF feature hooks */
 	struct ao2_container *dtmf_hooks;
-	/*! Attached hangup interception hooks container */
-	struct ao2_container *hangup_hooks;
-	/*! Attached bridge channel join interception hooks container */
-	struct ao2_container *join_hooks;
-	/*! Attached bridge channel leave interception hooks container */
-	struct ao2_container *leave_hooks;
+	/*! Attached miscellaneous other hooks. */
+	struct ao2_container *other_hooks;
 	/*! Attached interval hooks */
 	struct ast_heap *interval_hooks;
 	/*! Used to determine when interval based features should be checked */
 	struct ast_timer *interval_timer;
 	/*! Limits feature data */
 	struct ast_bridge_features_limits *limits;
-	/*! Callback to indicate when a bridge channel has started and stopped talking */
-	ast_bridge_talking_indicate_callback talker_cb;
-	/*! Callback to destroy any pvt data stored for the talker. */
-	ast_bridge_talking_indicate_destructor talker_destructor_cb;
-	/*! Talker callback pvt data */
-	void *talker_pvt_data;
 	/*! Feature flags that are enabled */
 	struct ast_flags feature_flags;
 	/*! Used to assign the sequence number to the next interval hook added. */
@@ -575,19 +582,37 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
- * \brief Set a callback on the features structure to receive talking notifications on.
+ * \brief Attach a bridge channel talk detection hook to a bridge features structure
  *
  * \param features Bridge features structure
- * \param talker_cb Callback function to execute when talking events occur in the bridge core.
- * \param pvt_data Optional unique data that will be passed with the talking events.
- * \param talker_destructor Optional destructor callback for pvt data.
+ * \param callback Function to execute upon activation
+ * \param hook_pvt Unique data
+ * \param destructor Optional destructor callback for hook_pvt data
+ * \param remove_flags Dictates what situations the hook should be removed.
  *
- * \return Nothing
+ * \retval 0 on success
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_bridge_features features;
+ * ast_bridge_features_init(&features);
+ * ast_bridge_talk_hook(&features, talk_callback, NULL, NULL, 0);
+ * \endcode
+ *
+ * This makes the bridging technology call talk_callback when a
+ * channel is recognized as starting and stopping talking.  A
+ * pointer to useful data may be provided to the hook_pvt
+ * parameter.
+ *
+ * \note This hook is currently only supported by softmix.
  */
-void ast_bridge_features_set_talk_detector(struct ast_bridge_features *features,
-	ast_bridge_talking_indicate_callback talker_cb,
-	ast_bridge_talking_indicate_destructor talker_destructor,
-	void *pvt_data);
+int ast_bridge_talk_detector_hook(struct ast_bridge_features *features,
+	ast_bridge_talking_indicate_callback callback,
+	void *hook_pvt,
+	ast_bridge_hook_pvt_destructor destructor,
+	enum ast_bridge_hook_remove_flags remove_flags);
 
 /*!
  * \brief Enable a built in feature on a bridge features structure
