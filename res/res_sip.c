@@ -1634,7 +1634,7 @@ static void stop_monitor_thread(void)
 
 AST_THREADSTORAGE(pj_thread_storage);
 AST_THREADSTORAGE(servant_id_storage);
-#define SIP_SERVANT_ID 0xDEFECA7E
+#define SIP_SERVANT_ID 0x5E2F1D
 
 static void sip_thread_start(void)
 {
