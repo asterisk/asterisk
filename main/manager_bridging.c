@@ -381,6 +381,7 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 	char *id_text = data;
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_channel_snapshot *snapshot;
+	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
 	msg = stasis_cache_get(ast_channel_topic_all_cached(),
 		ast_channel_snapshot_type(), uniqueid);
 
@@ -393,12 +394,17 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 		return 0;
 	}
 
+	channel_text = ast_manager_build_channel_state_string(snapshot);
+	if (!channel_text) {
+		return 0;
+	}
+
 	astman_append(s,
 		"Event: BridgeInfoChannel\r\n"
-		"Uniqueid: %s\r\n"
+		"%s"
 		"%s"
 		"\r\n",
-		uniqueid,
+		ast_str_buffer(channel_text),
 		id_text);
 	return 0;
 }
