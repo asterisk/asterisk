@@ -34,7 +34,7 @@ static pj_status_t add_response_headers(pjsip_tx_data *tdata);
  * headers to a request or response, we mark the message with this value
  * so that we know not to re-add the headers again.
  */
-static unsigned int handled_id = 0xB000B1E5;
+static unsigned int handled_id = 0xCA115785;
 
 static pjsip_module global_header_mod = {
 	.name = {"Global headers", 13},
