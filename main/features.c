@@ -3163,6 +3163,42 @@ static void clear_dialed_interfaces(struct ast_channel *chan)
 
 /*!
  * \internal
+ * \brief Helper to add a builtin DTMF feature hook to the features struct.
+ * \since 12.0.0
+ *
+ * \param features Bridge features to setup.
+ * \param chan Get features from this channel.
+ * \param flags Feature flags on the channel.
+ * \param feature_flag Feature flag to test.
+ * \param feature_name features.conf name of feature.
+ * \param feature_bridge Bridge feature enum to get hook callback.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int builtin_features_helper(struct ast_bridge_features *features, struct ast_channel *chan,
+	struct ast_flags *flags, unsigned int feature_flag, const char *feature_name, enum ast_bridge_builtin_feature feature_bridge)
+{
+	char dtmf[AST_FEATURE_MAX_LEN];
+	int res;
+
+	res = 0;
+	if (ast_test_flag(flags, feature_flag)
+		&& !builtin_feature_get_exten(chan, feature_name, dtmf, sizeof(dtmf))
+		&& !ast_strlen_zero(dtmf)) {
+		res = ast_bridge_features_enable(features, feature_bridge, dtmf, NULL, NULL,
+			AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
+		if (res) {
+			ast_log(LOG_ERROR, "Channel %s: Requested DTMF feature %s not available.\n",
+				ast_channel_name(chan), feature_name);
+		}
+	}
+
+	return res;
+}
+
+/*!
+ * \internal
  * \brief Setup bridge builtin features.
  * \since 12.0.0
  *
@@ -3175,7 +3211,6 @@ static void clear_dialed_interfaces(struct ast_channel *chan)
 static int setup_bridge_features_builtin(struct ast_bridge_features *features, struct ast_channel *chan)
 {
 	struct ast_flags *flags;
-	char dtmf[AST_FEATURE_MAX_LEN];
 	int res;
 
 	ast_channel_lock(chan);
@@ -3186,43 +3221,12 @@ static int setup_bridge_features_builtin(struct ast_bridge_features *features, s
 	}
 
 	res = 0;
-	if (ast_test_flag(flags, AST_FEATURE_REDIRECT)) {
-		/* Add atxfer and blind transfer. */
-		if (!builtin_feature_get_exten(chan, "blindxfer", dtmf, sizeof(dtmf))
-				&& !ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_BLINDTRANSFER, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
-		}
-		if (!builtin_feature_get_exten(chan, "atxfer", dtmf, sizeof(dtmf)) &&
-				!ast_strlen_zero(dtmf)) {
-			res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, dtmf,
-					NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
-		}
-	}
-	if (ast_test_flag(flags, AST_FEATURE_DISCONNECT) &&
-			!builtin_feature_get_exten(chan, "disconnect", dtmf, sizeof(dtmf)) &&
-			!ast_strlen_zero(dtmf)) {
-		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_HANGUP, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
-	}
-	if (ast_test_flag(flags, AST_FEATURE_PARKCALL) &&
-			!builtin_feature_get_exten(chan, "parkcall", dtmf, sizeof(dtmf)) &&
-			!ast_strlen_zero(dtmf)) {
-		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_PARKCALL, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
-	}
-	if (ast_test_flag(flags, AST_FEATURE_AUTOMON) &&
-			!builtin_feature_get_exten(chan, "automon", dtmf, sizeof(dtmf)) &&
-			!ast_strlen_zero(dtmf)) {
-		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMON, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
-	}
-	if (ast_test_flag(flags, AST_FEATURE_AUTOMIXMON) &&
-			!builtin_feature_get_exten(chan, "automixmon", dtmf, sizeof(dtmf)) &&
-			!ast_strlen_zero(dtmf)) {
-		res |= ast_bridge_features_enable(features, AST_BRIDGE_BUILTIN_AUTOMIXMON, dtmf,
-				NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL | AST_BRIDGE_HOOK_REMOVE_ON_PERSONALITY_CHANGE);
-	}
+	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_REDIRECT, "blindxfer", AST_BRIDGE_BUILTIN_BLINDTRANSFER);
+	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_REDIRECT, "atxfer", AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER);
+	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_DISCONNECT, "disconnect", AST_BRIDGE_BUILTIN_HANGUP);
+	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_PARKCALL, "parkcall", AST_BRIDGE_BUILTIN_PARKCALL);
+	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_AUTOMON, "automon", AST_BRIDGE_BUILTIN_AUTOMON);
+	res |= builtin_features_helper(features, chan, flags, AST_FEATURE_AUTOMIXMON, "automixmon", AST_BRIDGE_BUILTIN_AUTOMIXMON);
 
 	return res ? -1 : 0;
 }
