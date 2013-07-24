@@ -256,7 +256,7 @@ void bridge_dissolve(struct ast_bridge *bridge)
 	struct ast_bridge_channel *bridge_channel;
 	struct ast_frame action = {
 		.frametype = AST_FRAME_BRIDGE_ACTION,
-		.subclass.integer = AST_BRIDGE_ACTION_DEFERRED_DISSOLVING,
+		.subclass.integer = BRIDGE_CHANNEL_ACTION_DEFERRED_DISSOLVING,
 	};
 
 	if (bridge->dissolved) {
@@ -268,7 +268,7 @@ void bridge_dissolve(struct ast_bridge *bridge)
 
 /* BUGBUG need a cause code on the bridge for the later ejected channels. */
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 	}
 
 	/* Must defer dissolving bridge because it is already locked. */
@@ -518,12 +518,12 @@ static void bridge_action_bridge(struct ast_bridge *bridge, struct ast_frame *ac
 #endif
 
 	switch (action->subclass.integer) {
-	case AST_BRIDGE_ACTION_DEFERRED_TECH_DESTROY:
+	case BRIDGE_CHANNEL_ACTION_DEFERRED_TECH_DESTROY:
 		ast_bridge_unlock(bridge);
 		bridge_tech_deferred_destroy(bridge, action);
 		ast_bridge_lock(bridge);
 		break;
-	case AST_BRIDGE_ACTION_DEFERRED_DISSOLVING:
+	case BRIDGE_CHANNEL_ACTION_DEFERRED_DISSOLVING:
 		ast_bridge_unlock(bridge);
 		bridge->v_table->dissolving(bridge);
 		ast_bridge_lock(bridge);
@@ -999,7 +999,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		};
 		struct ast_frame action = {
 			.frametype = AST_FRAME_BRIDGE_ACTION,
-			.subclass.integer = AST_BRIDGE_ACTION_DEFERRED_TECH_DESTROY,
+			.subclass.integer = BRIDGE_CHANNEL_ACTION_DEFERRED_TECH_DESTROY,
 			.data.ptr = &deferred_tech_destroy,
 			.datalen = sizeof(deferred_tech_destroy),
 		};
@@ -2161,14 +2161,14 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 		ao2_ref(bridge, -1);
 	}
 	if (!bridge_channel) {
-		state = AST_BRIDGE_CHANNEL_STATE_HANGUP;
+		state = AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
 		goto join_exit;
 	}
 /* BUGBUG features cannot be NULL when passed in. When it is changed to allocated we can do like ast_bridge_impart() and allocate one. */
 	ast_assert(features != NULL);
 	if (!features) {
 		ao2_ref(bridge_channel, -1);
-		state = AST_BRIDGE_CHANNEL_STATE_HANGUP;
+		state = AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
 		goto join_exit;
 	}
 	if (tech_args) {
@@ -2350,7 +2350,7 @@ int ast_bridge_depart(struct ast_channel *chan)
 	 * channel thread.
 	 */
 
-	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 
 	/* Wait for the depart thread to die */
 	ast_debug(1, "Waiting for %p(%s) bridge thread to die.\n",
@@ -2378,7 +2378,7 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 		return -1;
 	}
 
-	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 
 	ast_bridge_unlock(bridge);
 
@@ -2443,7 +2443,7 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		if (kick_me) {
 			for (idx = 0; idx < num_kick; ++idx) {
 				if (bridge_channel == kick_me[idx]) {
-					ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+					ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 					break;
 				}
 			}
@@ -2461,7 +2461,7 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		bridge_channel_change_bridge(bridge_channel, dst_bridge);
 
 		if (bridge_channel_push(bridge_channel)) {
-			ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+			ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -2475,7 +2475,7 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 			bridge_channel = kick_me[idx];
 			ast_bridge_channel_lock(bridge_channel);
 			if (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
-				ast_bridge_change_state_nolock(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+				ast_bridge_channel_leave_bridge_nolock(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 				bridge_channel_pull(bridge_channel);
 			}
 			ast_bridge_channel_unlock(bridge_channel);
@@ -2710,10 +2710,10 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 			bridge_channel_change_bridge(bridge_channel, orig_bridge);
 
 			if (bridge_channel_push(bridge_channel)) {
-				ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+				ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 			}
 		} else {
-			ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+			ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		}
 		res = -1;
 	}
@@ -3111,7 +3111,7 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 		}
 		other->swap = dst_bridge_channel->chan;
 		if (!bridge_do_move(dst_bridge, other, 1, 1)) {
-			ast_bridge_change_state(src_bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+			ast_bridge_channel_leave_bridge(src_bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 			res = -1;
 			if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
 				pvt->callbacks->optimization_finished(pvt);
@@ -4567,71 +4567,6 @@ static struct ast_channel *get_transferee(struct ao2_container *channels, struct
 	return transferee;
 }
 
-/*!
- * \internal
- * \brief Queue a blind transfer action on a transferee bridge channel
- *
- * This is only relevant for when a blind transfer is performed on a two-party
- * bridge. The transferee's bridge channel will have a blind transfer bridge
- * action queued onto it, resulting in the party being redirected to a new
- * destination
- *
- * \param transferee The channel to have the action queued on
- * \param exten The destination extension for the transferee
- * \param context The destination context for the transferee
- * \param hook Frame hook to attach to transferee
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
-		const char *exten, const char *context,
-		transfer_channel_cb new_channel_cb, void *user_data)
-{
-	RAII_VAR(struct ast_bridge_channel *, transferee_bridge_channel, NULL, ao2_cleanup);
-	struct blind_transfer_data blind_data;
-
-	ast_channel_lock(transferee);
-	transferee_bridge_channel = ast_channel_get_bridge_channel(transferee);
-	ast_channel_unlock(transferee);
-
-	if (!transferee_bridge_channel) {
-		return -1;
-	}
-
-	if (new_channel_cb) {
-		new_channel_cb(transferee, user_data, AST_BRIDGE_TRANSFER_SINGLE_PARTY);
-	}
-
-	ast_copy_string(blind_data.exten, exten, sizeof(blind_data.exten));
-	ast_copy_string(blind_data.context, context, sizeof(blind_data.context));
-
-	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
-		AST_BRIDGE_ACTION_BLIND_TRANSFER, &blind_data, sizeof(blind_data));
-}
-
-static int bridge_channel_queue_attended_transfer(struct ast_channel *transferee,
-		struct ast_channel *unbridged_chan)
-{
-	RAII_VAR(struct ast_bridge_channel *, transferee_bridge_channel, NULL, ao2_cleanup);
-	char unbridged_chan_name[AST_CHANNEL_NAME];
-
-	ast_channel_lock(transferee);
-	transferee_bridge_channel = ast_channel_get_bridge_channel(transferee);
-	ast_channel_unlock(transferee);
-
-	if (!transferee_bridge_channel) {
-		return -1;
-	}
-
-	ast_copy_string(unbridged_chan_name, ast_channel_name(unbridged_chan),
-		sizeof(unbridged_chan_name));
-
-	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
-		AST_BRIDGE_ACTION_ATTENDED_TRANSFER, unbridged_chan_name,
-		sizeof(unbridged_chan_name));
-}
-
 enum try_parking_result {
 	PARKING_SUCCESS,
 	PARKING_FAILURE,
@@ -4851,7 +4786,7 @@ static enum ast_transfer_result bridge_swap_attended_transfer(struct ast_bridge 
 			return AST_BRIDGE_TRANSFER_FAIL;
 		}
 		/* Must kick the source channel out of its bridge. */
-		ast_bridge_change_state(source_bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+		ast_bridge_channel_leave_bridge(source_bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		return AST_BRIDGE_TRANSFER_SUCCESS;
 	} else {
 		return AST_BRIDGE_TRANSFER_INVALID;

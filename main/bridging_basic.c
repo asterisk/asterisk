@@ -285,7 +285,7 @@ static int basic_hangup_hook(struct ast_bridge *bridge, struct ast_bridge_channe
 	}
 	if (2 <= bridge_count) {
 		/* Just allow this channel to leave the multi-party bridge. */
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 	}
 	ast_bridge_unlock(bridge_channel->bridge);
 	return 0;
@@ -342,8 +342,8 @@ static int bridge_personality_normal_push(struct ast_bridge *self, struct ast_br
 		return -1;
 	}
 
-	bridge_channel_update_accountcodes(bridge_channel, swap);
-	bridge_channel_update_linkedids(bridge_channel, swap);
+	ast_bridge_channel_update_accountcodes(bridge_channel, swap);
+	ast_bridge_channel_update_linkedids(bridge_channel, swap);
 	return 0;
 }
 
@@ -2659,7 +2659,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	}
 
 	ast_bridge_channel_write_hold(bridge_channel, NULL);
-	props->transferee_bridge = bridge_channel_merge_inhibit(bridge_channel, +1);
+	props->transferee_bridge = ast_bridge_channel_merge_inhibit(bridge_channel, +1);
 
 	/* Grab the extension to transfer to */
 	if (grab_transfer(bridge_channel->chan, exten, sizeof(exten), props->context)) {

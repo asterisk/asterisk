@@ -75,7 +75,7 @@ enum ast_bridge_builtin_feature {
 	 * how it was imparted.
 	 *
 	 * \note Joined channels exit the bridge with
-	 * AST_BRIDGE_CHANNEL_STATE_END.
+	 * AST_BRIDGE_CHANNEL_STATE_END_WITH_DISSOLVE.
 	 */
 	AST_BRIDGE_BUILTIN_HANGUP,
 	/*!

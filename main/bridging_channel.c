@@ -53,8 +53,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features_config.h"
 #include "asterisk/parking.h"
 
+/*!
+ * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel work with.
+ * \param action Type of bridge action frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+typedef int (*ast_bridge_channel_post_action_data)(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen);
 
-struct ast_bridge *bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request)
+struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request)
 {
 	struct ast_bridge *bridge;
 
@@ -98,31 +111,7 @@ static void bridge_channel_poke(struct ast_bridge_channel *bridge_channel)
 	}
 }
 
-void ast_bridge_change_state_nolock(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
-{
-/* BUGBUG need cause code for the bridge_channel leaving the bridge. */
-	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
-		return;
-	}
-
-	ast_debug(1, "Setting %p(%s) state from:%d to:%d\n",
-		bridge_channel, ast_channel_name(bridge_channel->chan), bridge_channel->state,
-		new_state);
-
-	/* Change the state on the bridge channel */
-	bridge_channel->state = new_state;
-
-	bridge_channel_poke(bridge_channel);
-}
-
-void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
-{
-	ast_bridge_channel_lock(bridge_channel);
-	ast_bridge_change_state_nolock(bridge_channel, new_state);
-	ast_bridge_channel_unlock(bridge_channel);
-}
-
-void bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
 	struct ast_bridge *bridge = bridge_channel->bridge;
 	struct ast_bridge_channel *other = NULL;
@@ -167,7 +156,7 @@ void bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channe
 	}
 }
 
-void bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
 	struct ast_bridge_channel *other = NULL;
 	struct ast_bridge *bridge = bridge_channel->bridge;
@@ -233,7 +222,19 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 	return 0;
 }
 
-int ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen)
+/*!
+ * \brief Queue an action frame onto the bridge channel with data.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to queue the frame onto.
+ * \param action Type of bridge action frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_BRIDGE_ACTION,
@@ -322,7 +323,7 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 	return 0;
 }
 
-int ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum ast_bridge_action_type action, const void *data, size_t datalen)
+static int ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_BRIDGE_ACTION,
@@ -423,7 +424,7 @@ static void bridge_channel_handle_hangup(struct ast_bridge_channel *bridge_chann
 	ao2_iterator_destroy(&iter);
 
 	/* Default hangup action. */
-	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
 }
 
 void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
@@ -488,7 +489,7 @@ static int payload_helper_app(ast_bridge_channel_post_action_data post_it,
 		strcpy(&app_data->app_name[app_data->moh_offset], moh_class);/* Safe */
 	}
 
-	return post_it(bridge_channel, AST_BRIDGE_ACTION_RUN_APP, app_data, len_data);
+	return post_it(bridge_channel, BRIDGE_CHANNEL_ACTION_RUN_APP, app_data, len_data);
 }
 
 int ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
@@ -573,7 +574,7 @@ static int payload_helper_playfile(ast_bridge_channel_post_action_data post_it,
 		strcpy(&payload->playfile[payload->moh_offset], moh_class);/* Safe */
 	}
 
-	return post_it(bridge_channel, AST_BRIDGE_ACTION_PLAY_FILE, payload, len_payload);
+	return post_it(bridge_channel, BRIDGE_CHANNEL_ACTION_PLAY_FILE, payload, len_payload);
 }
 
 int ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
@@ -635,7 +636,7 @@ static int payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 		memcpy(cb_data->payload, payload, payload_size);/* Safe */
 	}
 
-	return post_it(bridge_channel, AST_BRIDGE_ACTION_CALLBACK, cb_data, len_data);
+	return post_it(bridge_channel, BRIDGE_CHANNEL_ACTION_CALLBACK, cb_data, len_data);
 }
 
 int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
@@ -685,7 +686,7 @@ static int payload_helper_park(ast_bridge_channel_post_action_data post_it,
 		strcpy(&payload->parkee_uuid[payload->app_data_offset], app_data);
 	}
 
-	return post_it(bridge_channel, AST_BRIDGE_ACTION_PARK, payload, len_payload);
+	return post_it(bridge_channel, BRIDGE_CHANNEL_ACTION_PARK, payload, len_payload);
 }
 
 int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid, const char *parker_uuid, const char *app_data)
@@ -713,7 +714,7 @@ int ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int sta
 	struct ast_frame action = {
 		.frametype = AST_FRAME_BRIDGE_ACTION,
 		.subclass.integer = started_talking
-			? AST_BRIDGE_ACTION_TALKING_START : AST_BRIDGE_ACTION_TALKING_STOP,
+			? BRIDGE_CHANNEL_ACTION_TALKING_START : BRIDGE_CHANNEL_ACTION_TALKING_STOP,
 	};
 
 	return ast_bridge_channel_queue_frame(bridge_channel, &action);
@@ -904,7 +905,7 @@ static void bridge_channel_interval(struct ast_bridge_channel *bridge_channel)
 static int bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_channel, const char *dtmf)
 {
 	return ast_bridge_channel_write_action_data(bridge_channel,
-		AST_BRIDGE_ACTION_DTMF_STREAM, dtmf, strlen(dtmf) + 1);
+		BRIDGE_CHANNEL_ACTION_DTMF_STREAM, dtmf, strlen(dtmf) + 1);
 }
 
 /*!
@@ -1115,64 +1116,64 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_channel, struct ast_frame *action)
 {
 	switch (action->subclass.integer) {
-	case AST_BRIDGE_ACTION_INTERVAL:
+	case BRIDGE_CHANNEL_ACTION_INTERVAL:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_interval(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_FEATURE:
+	case BRIDGE_CHANNEL_ACTION_FEATURE:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_feature(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_DTMF_STREAM:
+	case BRIDGE_CHANNEL_ACTION_DTMF_STREAM:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_dtmf_stream(bridge_channel, action->data.ptr);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_TALKING_START:
-	case AST_BRIDGE_ACTION_TALKING_STOP:
+	case BRIDGE_CHANNEL_ACTION_TALKING_START:
+	case BRIDGE_CHANNEL_ACTION_TALKING_STOP:
 		bridge_channel_talking(bridge_channel,
-			action->subclass.integer == AST_BRIDGE_ACTION_TALKING_START);
+			action->subclass.integer == BRIDGE_CHANNEL_ACTION_TALKING_START);
 		break;
-	case AST_BRIDGE_ACTION_PLAY_FILE:
+	case BRIDGE_CHANNEL_ACTION_PLAY_FILE:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_playfile(bridge_channel, action->data.ptr);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_RUN_APP:
+	case BRIDGE_CHANNEL_ACTION_RUN_APP:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_run_app(bridge_channel, action->data.ptr);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_CALLBACK:
+	case BRIDGE_CHANNEL_ACTION_CALLBACK:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_do_callback(bridge_channel, action->data.ptr);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_PARK:
+	case BRIDGE_CHANNEL_ACTION_PARK:
 		bridge_channel_suspend(bridge_channel);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_park(bridge_channel, action->data.ptr);
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 		break;
-	case AST_BRIDGE_ACTION_BLIND_TRANSFER:
+	case BRIDGE_CHANNEL_ACTION_BLIND_TRANSFER:
 		bridge_channel_blind_transfer(bridge_channel, action->data.ptr);
 		break;
-	case AST_BRIDGE_ACTION_ATTENDED_TRANSFER:
+	case BRIDGE_CHANNEL_ACTION_ATTENDED_TRANSFER:
 		bridge_channel_attended_transfer(bridge_channel, action->data.ptr);
 		break;
 	default:
@@ -1350,7 +1351,7 @@ int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 
 	ast_bridge_publish_enter(bridge, bridge_channel->chan);
 	if (swap) {
-		ast_bridge_change_state(swap, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+		ast_bridge_channel_leave_bridge(swap, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		bridge_channel_pull(swap);
 	}
 
@@ -1519,7 +1520,7 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 /* BUGBUG since this is now only run by the channel thread, there is no need to queue the action once this intervals become a first class wait item in bridge_channel_wait(). */
 				struct ast_frame interval_action = {
 					.frametype = AST_FRAME_BRIDGE_ACTION,
-					.subclass.integer = AST_BRIDGE_ACTION_INTERVAL,
+					.subclass.integer = BRIDGE_CHANNEL_ACTION_INTERVAL,
 				};
 
 				ast_bridge_channel_queue_frame(bridge_channel, &interval_action);
@@ -1544,7 +1545,7 @@ static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_ch
 	if (hook) {
 		struct ast_frame action = {
 			.frametype = AST_FRAME_BRIDGE_ACTION,
-			.subclass.integer = AST_BRIDGE_ACTION_FEATURE,
+			.subclass.integer = BRIDGE_CHANNEL_ACTION_FEATURE,
 		};
 
 		ast_frfree(frame);
@@ -1769,7 +1770,7 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 	}
 
 	if (bridge_channel_push(bridge_channel)) {
-		ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
+		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 	}
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
@@ -1827,12 +1828,91 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 	ast_bridge_channel_restore_formats(bridge_channel);
 }
 
-void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel)
+void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
 {
-	ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_lock(bridge_channel);
+	ast_bridge_channel_leave_bridge_nolock(bridge_channel, new_state);
+	ast_bridge_channel_unlock(bridge_channel);
 }
 
-void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel)
+void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
 {
-	ast_bridge_change_state_nolock(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+/* BUGBUG need cause code for the bridge_channel leaving the bridge. */
+	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+		return;
+	}
+
+	ast_debug(1, "Setting %p(%s) state from:%d to:%d\n",
+		bridge_channel, ast_channel_name(bridge_channel->chan), bridge_channel->state,
+		new_state);
+
+	/* Change the state on the bridge channel */
+	bridge_channel->state = new_state;
+
+	bridge_channel_poke(bridge_channel);
+}
+
+/*!
+ * \internal
+ * \brief Queue a blind transfer action on a transferee bridge channel
+ *
+ * This is only relevant for when a blind transfer is performed on a two-party
+ * bridge. The transferee's bridge channel will have a blind transfer bridge
+ * action queued onto it, resulting in the party being redirected to a new
+ * destination
+ *
+ * \param transferee The channel to have the action queued on
+ * \param exten The destination extension for the transferee
+ * \param context The destination context for the transferee
+ * \param hook Frame hook to attach to transferee
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
+		const char *exten, const char *context,
+		transfer_channel_cb new_channel_cb, void *user_data)
+{
+	RAII_VAR(struct ast_bridge_channel *, transferee_bridge_channel, NULL, ao2_cleanup);
+	struct blind_transfer_data blind_data;
+
+	ast_channel_lock(transferee);
+	transferee_bridge_channel = ast_channel_get_bridge_channel(transferee);
+	ast_channel_unlock(transferee);
+
+	if (!transferee_bridge_channel) {
+		return -1;
+	}
+
+	if (new_channel_cb) {
+		new_channel_cb(transferee, user_data, AST_BRIDGE_TRANSFER_SINGLE_PARTY);
+	}
+
+	ast_copy_string(blind_data.exten, exten, sizeof(blind_data.exten));
+	ast_copy_string(blind_data.context, context, sizeof(blind_data.context));
+
+	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
+		BRIDGE_CHANNEL_ACTION_BLIND_TRANSFER, &blind_data, sizeof(blind_data));
+}
+
+int bridge_channel_queue_attended_transfer(struct ast_channel *transferee,
+		struct ast_channel *unbridged_chan)
+{
+	RAII_VAR(struct ast_bridge_channel *, transferee_bridge_channel, NULL, ao2_cleanup);
+	char unbridged_chan_name[AST_CHANNEL_NAME];
+
+	ast_channel_lock(transferee);
+	transferee_bridge_channel = ast_channel_get_bridge_channel(transferee);
+	ast_channel_unlock(transferee);
+
+	if (!transferee_bridge_channel) {
+		return -1;
+	}
+
+	ast_copy_string(unbridged_chan_name, ast_channel_name(unbridged_chan),
+		sizeof(unbridged_chan_name));
+
+	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
+		BRIDGE_CHANNEL_ACTION_ATTENDED_TRANSFER, unbridged_chan_name,
+		sizeof(unbridged_chan_name));
 }

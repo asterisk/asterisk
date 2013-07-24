@@ -33,24 +33,59 @@
 #ifndef _ASTERISK_PRIVATE_BRIDGING_CHANNEL_H
 #define _ASTERISK_PRIVATE_BRIDGING_CHANNEL_H
 
-struct blind_transfer_data {
-	char exten[AST_MAX_EXTENSION];
-	char context[AST_MAX_CONTEXT];
+/*!
+ * \internal
+ * \brief Actions that can be taken on a channel in a bridge
+ */
+enum bridge_channel_action_type {
+	/*! Bridged channel is to detect a feature hook */
+	BRIDGE_CHANNEL_ACTION_FEATURE,
+	/*! Bridged channel is to act on an interval hook */
+	BRIDGE_CHANNEL_ACTION_INTERVAL,
+	/*! Bridged channel is to send a DTMF stream out */
+	BRIDGE_CHANNEL_ACTION_DTMF_STREAM,
+	/*! Bridged channel is to indicate talking start */
+	BRIDGE_CHANNEL_ACTION_TALKING_START,
+	/*! Bridged channel is to indicate talking stop */
+	BRIDGE_CHANNEL_ACTION_TALKING_STOP,
+	/*! Bridge channel is to play the indicated sound file. */
+	BRIDGE_CHANNEL_ACTION_PLAY_FILE,
+	/*! Bridge channel is to run the indicated application. */
+	BRIDGE_CHANNEL_ACTION_RUN_APP,
+	/*! Bridge channel is to run the custom callback routine. */
+	BRIDGE_CHANNEL_ACTION_CALLBACK,
+	/*! Bridge channel is to get parked. */
+	BRIDGE_CHANNEL_ACTION_PARK,
+	/*! Bridge channel is to execute a blind transfer. */
+	BRIDGE_CHANNEL_ACTION_BLIND_TRANSFER,
+	/*! Bridge channel is to execute an attended transfer */
+	BRIDGE_CHANNEL_ACTION_ATTENDED_TRANSFER,
+
+	/*
+	 * Bridge actions put after this comment must never be put onto
+	 * the bridge_channel wr_queue because they have other resources
+	 * that must be freed.
+	 */
+
+	/*! Bridge reconfiguration deferred technology destruction. */
+	BRIDGE_CHANNEL_ACTION_DEFERRED_TECH_DESTROY = 1000,
+	/*! Bridge deferred dissolving. */
+	BRIDGE_CHANNEL_ACTION_DEFERRED_DISSOLVING,
 };
 
 /*!
- * \brief Adjust the bridge_channel's bridge merge inhibit request count.
+ * \internal
+ * \brief Push the bridge channel into its specified bridge.
  * \since 12.0.0
  *
- * \param bridge_channel What to operate on.
- * \param request Inhibit request increment.
- *     (Positive to add requests.  Negative to remove requests.)
+ * \param bridge_channel Channel to push.
  *
- * \note This API call is meant for internal bridging operations.
+ * \note On entry, bridge_channel->bridge is already locked.
  *
- * \retval bridge adjusted merge inhibit with reference count.
+ * \retval 0 on success.
+ * \retval -1 on failure.  The channel did not get pushed.
  */
-struct ast_bridge *bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request);
+int bridge_channel_push(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
@@ -67,90 +102,57 @@ void bridge_channel_pull(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
- * \brief Push the bridge channel into its specified bridge.
- * \since 12.0.0
+ * \brief Join the bridge_channel to the bridge
  *
- * \param bridge_channel Channel to push.
+ * \param bridge_channel The Channel in the bridge
  *
- * \note On entry, bridge_channel->bridge is already locked.
- *
- * \retval 0 on success.
- * \retval -1 on failure.  The channel did not get pushed.
+ * \note This API call starts the bridge_channel's processing of events while
+ * it is in the bridge. It will return when the channel has been instructed to
+ * leave the bridge.
  */
-int bridge_channel_push(struct ast_bridge_channel *bridge_channel);
-
 void bridge_channel_join(struct ast_bridge_channel *bridge_channel);
 
+/*!
+ * \internal
+ * \brief Temporarily suspend a channel from a bridge, handing control over to some
+ * other system
+ *
+ * \param bridge_channel The channel in the bridge
+ * \note This function assumes that \ref bridge_channel is already locked
+ */
 void bridge_channel_suspend_nolock(struct ast_bridge_channel *bridge_channel);
 
+/*!
+ * \internal
+ * \brief Unsuspend a channel that was previously suspended
+ *
+ * \param bridge_channel The channel in the bridge
+ * \note This function assumes that \ref bridge_channel is already locked
+ */
 void bridge_channel_unsuspend_nolock(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
- * \brief Update the linkedids for all channels in a bridge
- * \since 12.0.0
+ * \brief Queue a blind transfer action on a transferee bridge channel
  *
- * \param bridge_channel The channel joining the bridge
- * \param swap The channel being swapped out of the bridge. May be NULL.
+ * This is only relevant for when a blind transfer is performed on a two-party
+ * bridge. The transferee's bridge channel will have a blind transfer bridge
+ * action queued onto it, resulting in the party being redirected to a new
+ * destination
  *
- * \note The bridge must be locked prior to calling this function. This should be called
- * during a \ref bridge_channel_push operation, typically by a sub-class of a bridge
+ * \param transferee The channel to have the action queued on
+ * \param exten The destination extension for the transferee
+ * \param context The destination context for the transferee
+ * \param hook Frame hook to attach to transferee
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
+int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
+		const char *exten, const char *context,
+		transfer_channel_cb new_channel_cb, void *user_data);
 
-/*!
- * \internal
- * \brief Update the accountcodes for a channel entering a bridge
- * \since 12.0.0
- *
- * This function updates the accountcode and peeraccount on channels in two-party
- * bridges. In multi-party bridges, peeraccount is not set - it doesn't make much sense -
- * however accountcode propagation will still occur if the channel joining has an
- * accountcode.
- *
- * \param bridge_channel The channel joining the bridge
- * \param swap The channel being swapped out of the bridge. May be NULL.
- *
- * \note The bridge must be locked prior to calling this function. This should be called
- * during a \ref bridge_channel_push operation, typically by a sub-class of a bridge
- */
-void bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
-
-
-/*!
- * \brief Set bridge channel state to leave bridge (if not leaving already) with no lock.
- *
- * \param bridge_channel Channel to change the state on
- * \param new_state The new state to place the channel into
- *
- * \note This API call is only meant to be used within the
- * bridging module and hook callbacks to request the channel
- * exit the bridge.
- *
- * \note This function assumes the bridge_channel is locked.
- */
-void ast_bridge_change_state_nolock(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
-
-/*!
- * \brief Set bridge channel state to leave bridge (if not leaving already).
- *
- * \param bridge_channel Channel to change the state on
- * \param new_state The new state to place the channel into
- *
- * Example usage:
- *
- * \code
- * ast_bridge_change_state(bridge_channel, AST_BRIDGE_CHANNEL_STATE_HANGUP);
- * \endcode
- *
- * This places the channel pointed to by bridge_channel into the
- * state AST_BRIDGE_CHANNEL_STATE_HANGUP if it was
- * AST_BRIDGE_CHANNEL_STATE_WAIT before.
- *
- * \note This API call is only meant to be used within the
- * bridging module and hook callbacks to request the channel
- * exit the bridge.
- */
-void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
+int bridge_channel_queue_attended_transfer(struct ast_channel *transferee,
+		struct ast_channel *unbridged_chan);
 
 #endif /* _ASTERISK_PRIVATE_BRIDGING_H */
