@@ -9,13 +9,13 @@
 set -e
 
 usage() {
-  echo "$0: a script to install distribution-specific prerequirement"
-  echo 'Revision: $Id$'
-  echo ""
-  echo "Usage: $0:                    Shows this message."
-  echo "Usage: $0 test                Prints commands it is about to run."
-  echo "Usage: $0 install             Really install."
-  echo "Usage: $0 install-unpackaged  Really install unpackaged requirements."
+	echo "$0: a script to install distribution-specific prerequirement"
+	echo 'Revision: $Id$'
+	echo ""
+	echo "Usage: $0:                    Shows this message."
+	echo "Usage: $0 test                Prints commands it is about to run."
+	echo "Usage: $0 install             Really install."
+	echo "Usage: $0 install-unpackaged  Really install unpackaged requirements."
 }
 
 # Basic build system:
@@ -28,11 +28,12 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libmysql
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev libvpb-dev libgtk2.0-dev libmysqlclient-dev libbluetooth-dev libradiusclient-ng-dev freetds-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libcorosync-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev libjack-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev binutils-dev libsrtp-dev libgsm1-dev libedit-dev doxygen libjansson-dev libldap-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN subversion git"
 PACKAGES_RH="automake gcc gcc-c++ ncurses-devel openssl-devel libxml2-devel unixODBC-devel libcurl-devel libogg-devel libvorbis-devel speex-devel"
 PACKAGES_RH="$PACKAGES_RH spandsp-devel freetds-devel net-snmp-devel iksemel-devel corosynclib-devel newt-devel popt-devel libtool-ltdl-devel lua-devel"
 PACKAGES_RH="$PACKAGES_RH libsqlite3x-devel radiusclient-ng-devel portaudio-devel postgresql-devel libresample-devel neon-devel libical-devel"
 PACKAGES_RH="$PACKAGES_RH openldap-devel gmime22-devel sqlite2-devel mysql-devel bluez-libs-devel jack-audio-connection-kit-devel gsm-devel libedit-devel libuuid-devel"
-PACKAGES_RH="$PACKAGES_RH jansson-devel"
+PACKAGES_RH="$PACKAGES_RH jansson-devel libsrtp-devel pjproject-devel subversion git"
 
 PACKAGES_OBSD="popt gmake wget libxml libogg libvorbis curl iksemel spandsp speex iodbc freetds-0.63p1-msdblib mysql-client gmime sqlite sqlite3 jack"
 
@@ -41,15 +42,27 @@ KVERS=`uname -r`
 JANSSON_VER=2.4
 
 case "$1" in
-test)    testcmd=echo ;;
-install) testcmd='' ;;
-install-unpackaged) unpackaged="yes" ;;
-'') usage; exit 0 ;;
-*) usage; exit 1 ;;
+test)
+	testcmd=echo
+	;;
+install)
+	testcmd=''
+	;;
+install-unpackaged)
+	unpackaged="yes"
+	;;
+'')
+	usage
+	exit 0
+	;;
+*)
+	usage
+	exit 1
+	;;
 esac
 
 in_test_mode() {
-  test "$testcmd" != ''
+	test "$testcmd" != ''
 }
 
 check_installed_debs() {
@@ -105,11 +118,11 @@ install_unpackaged() {
 
 	# Only install libresample if it wasn't installed via package
 	if ! test -f /usr/include/libresample.h; then
-	    echo "*** Installing libresample ***"
-	    svn co http://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
-	    cd libresample-trunk
-	    ./configure && make && make install
-	    cd ..
+		echo "*** Installing libresample ***"
+		svn co http://svn.digium.com/svn/thirdparty/libresample/trunk libresample-trunk
+		cd libresample-trunk
+		./configure && make && make install
+		cd ..
 	fi
 
 	# Only install Jansson if it wasn't installed via package
@@ -118,6 +131,38 @@ install_unpackaged() {
 		wget -O - http://www.digip.org/jansson/releases/jansson-${JANSSON_VER}.tar.gz | zcat | tar -xf -
 		cd jansson-${JANSSON_VER}
 		./configure && make all && make install
+		cd ..
+		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+		/sbin/ldconfig
+	fi
+
+	# Only install libsrtp if it wasn't installed via package
+	if ! test -f /usr/include/srtp/srtp.h; then
+		echo "*** Installing libsrtp ***"
+		if [ ! -d libsrtp ]; then
+			git clone https://github.com/cisco/libsrtp.git
+			cd libsrtp
+		else
+			cd libsrtp
+			git pull
+		fi
+		./configure CFLAGS=-fPIC && make libsrtp.a && make uninstall && make install
+		cd ..
+		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
+		/sbin/ldconfig
+	fi
+
+	# Only install pjproject if it wasn't installed via package
+	if ! test -f /usr/include/pjlib.h; then
+		echo "*** Installing pjproject ***"
+		if [ ! -d pjproject ]; then
+			git clone https://github.com/asterisk/pjproject.git
+			cd pjproject
+		else
+			cd pjproject
+			git pull
+		fi
+		./configure --enable-shared --with-external-speex --with-external-gsm --with-external-srtp --disable-sound --disable-resample && make && make install
 		cd ..
 		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
 		/sbin/ldconfig
@@ -139,42 +184,42 @@ unsupported_distro=''
 
 # A number of distributions we don't (yet?) support.
 if [ "$OS" != 'Linux' -a "$OS" != 'OpenBSD' ]; then
-  echo >&2 "$0: Your OS ($OS) is currently not supported. Aborting."
-  exit 1
+	echo >&2 "$0: Your OS ($OS) is currently not supported. Aborting."
+	exit 1
 fi
 
 if [ -f /etc/gentoo-release ]; then
-  unsupported_distro='Gentoo'
+	unsupported_distro='Gentoo'
 fi
 
 if [ -f /etc/mandrake-release ]; then
-  unsupported_distro='Mandriva'
+	unsupported_distro='Mandriva'
 fi
 
 if [ -f /etc/SuSE-release ]; then
-  unsupported_distro='SUSE'
+	unsupported_distro='SUSE'
 fi
 
 if [ -f /etc/slackware-version ]; then
-  unsupported_distro='Slackware'
+	unsupported_distro='Slackware'
 fi
 
 if [ "$unsupported_distro" != '' ]; then
-  echo >&2 "$0: Your distribution ($unsupported_distro) is currently not supported. Aborting."
-  exit 1
+	echo >&2 "$0: Your distribution ($unsupported_distro) is currently not supported. Aborting."
+	exit 1
 fi
 
 # The distributions we do support:
 if [ -r /etc/debian_version ]; then
-  handle_debian
+	handle_debian
 elif [ -r /etc/redhat-release ]; then
-  handle_rh
+	handle_rh
 elif [ "$OS" = 'OpenBSD' ]; then
-  handle_obsd
+	handle_obsd
 fi
 
 if ! in_test_mode; then
-  echo "#############################################"
-  echo "## $1 completed successfully"
-  echo "#############################################"
+	echo "#############################################"
+	echo "## $1 completed successfully"
+	echo "#############################################"
 fi
