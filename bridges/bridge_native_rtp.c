@@ -323,7 +323,7 @@ static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_c
 		}
 		ast_rtp_instance_set_bridged(instance0, instance1);
 		ast_rtp_instance_set_bridged(instance1, instance0);
-		ast_debug(2, "Locally RTP bridged '%s' and '%s' in stack",
+		ast_debug(2, "Locally RTP bridged '%s' and '%s' in stack\n",
 			ast_channel_name(c0->chan), ast_channel_name(c1->chan));
 		break;
 
