@@ -83,7 +83,7 @@ static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_c
 static char builtin_features_dtmf[AST_BRIDGE_BUILTIN_END][MAXIMUM_DTMF_FEATURE_STRING];
 
 /*! Function handlers for the built in features */
-static void *builtin_features_handlers[AST_BRIDGE_BUILTIN_END];
+static ast_bridge_hook_callback builtin_features_handlers[AST_BRIDGE_BUILTIN_END];
 
 /*! Function handlers for built in interval features */
 static ast_bridge_builtin_set_limits_fn builtin_interval_handlers[AST_BRIDGE_BUILTIN_INTERVAL_END];
