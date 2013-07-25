@@ -1394,67 +1394,6 @@ static int park_call_full(struct ast_channel *chan, struct ast_channel *peer, st
 	return 0;
 }
 
-int ast_park_call_exten(struct ast_channel *park_me, struct ast_channel *parker, const char *park_exten, const char *park_context, int timeout, int *extout)
-{
-	int res;
-	char *parse;
-	const char *app_data;
-	struct ast_exten *exten;
-	struct park_app_args app_args;
-	struct ast_park_call_args args = {
-		.timeout = timeout,
-		.extout = extout,
-	};
-
-	if (!park_exten || !park_context) {
-		return park_call_full(park_me, parker, &args);
-	}
-
-	/*
-	 * Determiine if the specified park extension has an exclusive
-	 * parking lot to use.
-	 */
-	if (parker && parker != park_me) {
-		ast_autoservice_start(park_me);
-	}
-	exten = get_parking_exten(park_exten, parker, park_context);
-	if (exten) {
-		app_data = ast_get_extension_app_data(exten);
-		if (!app_data) {
-			app_data = "";
-		}
-		parse = ast_strdupa(app_data);
-		AST_STANDARD_APP_ARGS(app_args, parse);
-
-		if (!ast_strlen_zero(app_args.pl_name)) {
-			/* Find the specified exclusive parking lot */
-			args.parkinglot = find_parkinglot(app_args.pl_name);
-			if (!args.parkinglot && parkeddynamic) {
-				args.parkinglot = create_dynamic_parkinglot(app_args.pl_name, park_me);
-			}
-		}
-	}
-	if (parker && parker != park_me) {
-		ast_autoservice_stop(park_me);
-	}
-
-	res = park_call_full(park_me, parker, &args);
-	if (args.parkinglot) {
-		parkinglot_unref(args.parkinglot);
-	}
-	return res;
-}
-
-int ast_park_call(struct ast_channel *park_me, struct ast_channel *parker, int timeout, const char *park_exten, int *extout)
-{
-	struct ast_park_call_args args = {
-		.timeout = timeout,
-		.extout = extout,
-	};
-
-	return park_call_full(park_me, parker, &args);
-}
-
 /*!
  * \brief Park call via masqueraded channel and announce parking spot on peer channel.
  *
