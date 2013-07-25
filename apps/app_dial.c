@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dial.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/bridging.h"
+#include "asterisk/bridging_after.h"
 #include "asterisk/features_config.h"
 
 /*** DOCUMENTATION
@@ -201,7 +202,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<argument name="exten" required="false" />
 					<argument name="priority" required="true" />
 					<para>If the call is answered, transfer the calling party to
-					the specified <replaceable>priority</replaceable> and the called party to the specified 
+					the specified <replaceable>priority</replaceable> and the called party to the specified
 					<replaceable>priority</replaceable> plus one.</para>
 					<note>
 						<para>You cannot use any additional action post answer options in conjunction with this option.</para>
@@ -290,7 +291,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<argument name="arg" multiple="true">
 						<para>Macro arguments</para>
 					</argument>
-					<para>Execute the specified <replaceable>macro</replaceable> for the <emphasis>called</emphasis> channel 
+					<para>Execute the specified <replaceable>macro</replaceable> for the <emphasis>called</emphasis> channel
 					before connecting to the calling channel. Arguments can be specified to the Macro
 					using <literal>^</literal> as a delimiter. The macro can set the variable
 					<variable>MACRO_RESULT</variable> to specify the following actions after the macro is
@@ -332,7 +333,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>With <replaceable>delete</replaceable> set to <literal>1</literal>, the introduction will
 						always be deleted.</para>
 					</argument>
-					<para>This option is a modifier for the call screening/privacy mode. (See the 
+					<para>This option is a modifier for the call screening/privacy mode. (See the
 					<literal>p</literal> and <literal>P</literal> options.) It specifies
 					that no introductions are to be saved in the <directory>priv-callerintros</directory>
 					directory.</para>
@@ -353,7 +354,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<argument name="mode">
 						<para>With <replaceable>mode</replaceable> either not specified or set to <literal>1</literal>,
 						the originator hanging up will cause the phone to ring back immediately.</para>
-						<para>With <replaceable>mode</replaceable> set to <literal>2</literal>, when the operator 
+						<para>With <replaceable>mode</replaceable> set to <literal>2</literal>, when the operator
 						flashes the trunk, it will ring their phone back.</para>
 					</argument>
 					<para>Enables <emphasis>operator services</emphasis> mode.  This option only
@@ -1071,7 +1072,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			/* If we are calling a single channel, and not providing ringback or music, */
 			/* then, make them compatible for in-band tone purpose */
 			if (ast_channel_make_compatible(outgoing->chan, in) < 0) {
-				/* If these channels can not be made compatible, 
+				/* If these channels can not be made compatible,
 				 * there is no point in continuing.  The bridge
 				 * will just fail if it gets that far.
 				 */
@@ -1765,7 +1766,7 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 
 		/*! \page DialPrivacy Dial Privacy scripts
 		 * \par priv-callee-options script:
-		 * \li Dial 1 if you wish this caller to reach you directly in the future, 
+		 * \li Dial 1 if you wish this caller to reach you directly in the future,
 		 * 	and immediately connect to their incoming call.
 		 * \li Dial 2 if you wish to send this caller to voicemail now and forevermore.
 		 * \li Dial 3 to send this caller to the torture menus, now and forevermore.
@@ -1891,7 +1892,7 @@ static int setup_privacy_args(struct privacy_args *pa,
 	} else if (ast_test_flag64(opts, OPT_SCREEN_NOCALLERID) && strncmp(pa->privcid, "NOCALLERID", 10) == 0) {
 		ast_verb(3, "CallerID blank; N option set; Screening should happen; dbval is %d\n", pa->privdb_val);
 	}
-	
+
 	if (pa->privdb_val == AST_PRIVACY_DENY) {
 		ast_verb(3, "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
 		ast_copy_string(pa->status, "NOANSWER", sizeof(pa->status));
@@ -2021,14 +2022,14 @@ static void setup_peer_after_bridge_goto(struct ast_channel *chan, struct ast_ch
 		ast_channel_lock(chan);
 		context = ast_strdupa(ast_channel_context(chan));
 		ast_channel_unlock(chan);
-		ast_after_bridge_set_h(peer, context);
+		ast_bridge_set_after_h(peer, context);
 	} else if (ast_test_flag64(opts, OPT_CALLEE_GO_ON)) {
 		ast_channel_lock(chan);
 		context = ast_strdupa(ast_channel_context(chan));
 		extension = ast_strdupa(ast_channel_exten(chan));
 		priority = ast_channel_priority(chan);
 		ast_channel_unlock(chan);
-		ast_after_bridge_set_go_on(peer, context, extension, priority,
+		ast_bridge_set_after_go_on(peer, context, extension, priority,
 			opt_args[OPT_ARG_CALLEE_GO_ON]);
 	}
 }
@@ -2444,7 +2445,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			/* We are on the only destination. */
 			ast_rtp_instance_early_bridge_make_compatible(tc, chan);
 		}
-		
+
 		/* Inherit specially named variables from parent channel */
 		ast_channel_inherit_variables(chan, tc);
 		ast_channel_datastore_inherit(chan, tc);
@@ -2698,7 +2699,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		/* If appropriate, log that we have a destination channel and set the answer time */
 		if (ast_channel_name(peer))
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", ast_channel_name(peer));
-		
+
 		ast_channel_lock(peer);
 		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
 		if (ast_strlen_zero(number)) {
@@ -2967,7 +2968,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_channel_hangupcause_set(chan, ast_channel_hangupcause(peer));
 			}
 			setup_peer_after_bridge_goto(chan, peer, &opts, opt_args);
-			if (ast_after_bridge_goto_setup(peer)
+			if (ast_bridge_setup_after_goto(peer)
 				|| ast_pbx_start(peer)) {
 				ast_autoservice_chan_hangup_peer(chan, peer);
 			}
@@ -2997,7 +2998,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			config.end_bridge_callback = end_bridge_callback;
 			config.end_bridge_callback_data = chan;
 			config.end_bridge_callback_data_fixup = end_bridge_callback_data_fixup;
-			
+
 			if (moh) {
 				moh = 0;
 				ast_moh_stop(chan);

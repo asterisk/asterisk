@@ -38,9 +38,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/bridging.h"
+#include "asterisk/bridging_internal.h"
+#include "asterisk/bridging_channel_internal.h"
 #include "asterisk/bridging_basic.h"
 #include "asterisk/bridging_technology.h"
 #include "asterisk/bridging_channel.h"
+#include "asterisk/bridging_after.h"
 #include "asterisk/stasis_bridging.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/app.h"
@@ -61,8 +64,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/parking.h"
 #include "asterisk/core_local.h"
 #include "asterisk/core_unreal.h"
-#include "asterisk/bridging_internal.h"
-#include "asterisk/bridging_channel_internal.h"
 
 /*! All bridges container. */
 static struct ao2_container *bridges;
@@ -268,7 +269,7 @@ void bridge_dissolve(struct ast_bridge *bridge)
 
 /* BUGBUG need a cause code on the bridge for the later ejected channels. */
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 	}
 
 	/* Must defer dissolving bridge because it is already locked. */
@@ -1343,24 +1344,6 @@ static void set_bridge_peer_vars(struct ast_bridge *bridge)
 	}
 }
 
-/*!
- * \internal
- * \brief Notify the bridge that it has been reconfigured.
- * \since 12.0.0
- *
- * \param bridge Reconfigured bridge.
- * \param colp_update Whether to perform COLP updates.
- *
- * \details
- * After a series of bridge_channel_push and
- * bridge_channel_pull calls, you need to call this function
- * to cause the bridge to complete restructuring for the change
- * in the channel makeup of the bridge.
- *
- * \note On entry, the bridge is already locked.
- *
- * \return Nothing
- */
 void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update)
 {
 	if (!bridge->reconfigured) {
@@ -1387,726 +1370,17 @@ void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update)
 	}
 }
 
-/*!
- * \internal
- * \brief Close a pipe.
- * \since 12.0.0
- *
- * \param my_pipe What to close.
- *
- * \return Nothing
- */
-static void pipe_close(int *my_pipe)
-{
-	if (my_pipe[0] > -1) {
-		close(my_pipe[0]);
-		my_pipe[0] = -1;
-	}
-	if (my_pipe[1] > -1) {
-		close(my_pipe[1]);
-		my_pipe[1] = -1;
-	}
-}
-
-/*!
- * \internal
- * \brief Initialize a pipe as non-blocking.
- * \since 12.0.0
- *
- * \param my_pipe What to initialize.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int pipe_init_nonblock(int *my_pipe)
-{
-	int flags;
-
-	my_pipe[0] = -1;
-	my_pipe[1] = -1;
-	if (pipe(my_pipe)) {
-		ast_log(LOG_WARNING, "Can't create pipe! Try increasing max file descriptors with ulimit -n\n");
-		return -1;
-	}
-	flags = fcntl(my_pipe[0], F_GETFL);
-	if (fcntl(my_pipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
-		ast_log(LOG_WARNING, "Unable to set read pipe nonblocking! (%d: %s)\n",
-			errno, strerror(errno));
-		return -1;
-	}
-	flags = fcntl(my_pipe[1], F_GETFL);
-	if (fcntl(my_pipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
-		ast_log(LOG_WARNING, "Unable to set write pipe nonblocking! (%d: %s)\n",
-			errno, strerror(errno));
-		return -1;
-	}
-	return 0;
-}
-
-/* Destroy elements of the bridge channel structure and the bridge channel structure itself */
-static void bridge_channel_destroy(void *obj)
-{
-	struct ast_bridge_channel *bridge_channel = obj;
-	struct ast_frame *fr;
-
-	if (bridge_channel->callid) {
-		bridge_channel->callid = ast_callid_unref(bridge_channel->callid);
-	}
-
-	if (bridge_channel->bridge) {
-		ao2_ref(bridge_channel->bridge, -1);
-		bridge_channel->bridge = NULL;
-	}
-
-	/* Flush any unhandled wr_queue frames. */
-	while ((fr = AST_LIST_REMOVE_HEAD(&bridge_channel->wr_queue, frame_list))) {
-		ast_frfree(fr);
-	}
-	pipe_close(bridge_channel->alert_pipe);
-
-	ast_cond_destroy(&bridge_channel->cond);
-}
-
-static struct ast_bridge_channel *bridge_channel_alloc(struct ast_bridge *bridge)
+struct ast_bridge_channel *bridge_find_channel(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	struct ast_bridge_channel *bridge_channel;
 
-	bridge_channel = ao2_alloc(sizeof(struct ast_bridge_channel), bridge_channel_destroy);
-	if (!bridge_channel) {
-		return NULL;
-	}
-	ast_cond_init(&bridge_channel->cond, NULL);
-	if (pipe_init_nonblock(bridge_channel->alert_pipe)) {
-		ao2_ref(bridge_channel, -1);
-		return NULL;
-	}
-	if (bridge) {
-		bridge_channel->bridge = bridge;
-		ao2_ref(bridge_channel->bridge, +1);
+	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+		if (bridge_channel->chan == chan) {
+			break;
+		}
 	}
 
 	return bridge_channel;
-}
-
-struct after_bridge_cb_node {
-	/*! Next list node. */
-	AST_LIST_ENTRY(after_bridge_cb_node) list;
-	/*! Desired callback function. */
-	ast_after_bridge_cb callback;
-	/*! After bridge callback will not be called and destroy any resources data may contain. */
-	ast_after_bridge_cb_failed failed;
-	/*! Extra data to pass to the callback. */
-	void *data;
-	/*! Reason the after bridge callback failed. */
-	enum ast_after_bridge_cb_reason reason;
-};
-
-struct after_bridge_cb_ds {
-	/*! After bridge callbacks container. */
-	AST_LIST_HEAD(, after_bridge_cb_node) callbacks;
-};
-
-/*!
- * \internal
- * \brief Indicate after bridge callback failed.
- * \since 12.0.0
- *
- * \param node After bridge callback node.
- *
- * \return Nothing
- */
-static void after_bridge_cb_failed(struct after_bridge_cb_node *node)
-{
-	if (node->failed) {
-		node->failed(node->reason, node->data);
-		node->failed = NULL;
-	}
-}
-
-/*!
- * \internal
- * \brief Run discarding any after bridge callbacks.
- * \since 12.0.0
- *
- * \param after_bridge After bridge callback container process.
- * \param reason Why are we doing this.
- *
- * \return Nothing
- */
-static void after_bridge_cb_run_discard(struct after_bridge_cb_ds *after_bridge, enum ast_after_bridge_cb_reason reason)
-{
-	struct after_bridge_cb_node *node;
-
-	for (;;) {
-		AST_LIST_LOCK(&after_bridge->callbacks);
-		node = AST_LIST_REMOVE_HEAD(&after_bridge->callbacks, list);
-		AST_LIST_UNLOCK(&after_bridge->callbacks);
-		if (!node) {
-			break;
-		}
-		if (!node->reason) {
-			node->reason = reason;
-		}
-		after_bridge_cb_failed(node);
-		ast_free(node);
-	}
-}
-
-/*!
- * \internal
- * \brief Destroy the after bridge callback datastore.
- * \since 12.0.0
- *
- * \param data After bridge callback data to destroy.
- *
- * \return Nothing
- */
-static void after_bridge_cb_destroy(void *data)
-{
-	struct after_bridge_cb_ds *after_bridge = data;
-
-	after_bridge_cb_run_discard(after_bridge, AST_AFTER_BRIDGE_CB_REASON_DESTROY);
-
-	AST_LIST_HEAD_DESTROY(&after_bridge->callbacks);
-	ast_free(after_bridge);
-}
-
-/*!
- * \internal
- * \brief Fixup the after bridge callback datastore.
- * \since 12.0.0
- *
- * \param data After bridge callback data to fixup.
- * \param old_chan The datastore is moving from this channel.
- * \param new_chan The datastore is moving to this channel.
- *
- * \return Nothing
- */
-static void after_bridge_cb_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
-{
-	ast_after_bridge_callback_discard(new_chan, AST_AFTER_BRIDGE_CB_REASON_MASQUERADE);
-}
-
-static const struct ast_datastore_info after_bridge_cb_info = {
-	.type = "after-bridge-cb",
-	.destroy = after_bridge_cb_destroy,
-	.chan_fixup = after_bridge_cb_fixup,
-};
-
-/*!
- * \internal
- * \brief Setup/create an after bridge callback datastore container.
- * \since 12.0.0
- *
- * \param chan Channel to setup/create the after bridge callback container on.
- *
- * \retval after_bridge datastore container on success.
- * \retval NULL on error.
- */
-static struct after_bridge_cb_ds *after_bridge_cb_setup(struct ast_channel *chan)
-{
-	struct ast_datastore *datastore;
-	struct after_bridge_cb_ds *after_bridge;
-	SCOPED_CHANNELLOCK(lock, chan);
-
-	datastore = ast_channel_datastore_find(chan, &after_bridge_cb_info, NULL);
-	if (datastore) {
-		return datastore->data;
-	}
-
-	/* Create a new datastore. */
-	datastore = ast_datastore_alloc(&after_bridge_cb_info, NULL);
-	if (!datastore) {
-		return NULL;
-	}
-	after_bridge = ast_calloc(1, sizeof(*after_bridge));
-	if (!after_bridge) {
-		ast_datastore_free(datastore);
-		return NULL;
-	}
-	AST_LIST_HEAD_INIT(&after_bridge->callbacks);
-	datastore->data = after_bridge;
-	ast_channel_datastore_add(chan, datastore);
-
-	return datastore->data;
-}
-
-/*!
- * \internal
- * \brief Find an after bridge callback datastore container.
- * \since 12.0.0
- *
- * \param chan Channel to find the after bridge callback container on.
- *
- * \retval after_bridge datastore container on success.
- * \retval NULL on error.
- */
-static struct after_bridge_cb_ds *after_bridge_cb_find(struct ast_channel *chan)
-{
-	struct ast_datastore *datastore;
-	SCOPED_CHANNELLOCK(lock, chan);
-
-	datastore = ast_channel_datastore_find(chan, &after_bridge_cb_info, NULL);
-	if (!datastore) {
-		return NULL;
-	}
-	return datastore->data;
-}
-
-/*!
- * \internal
- * \brief Run any after bridge callback.
- * \since 12.0.0
- *
- * \param chan Channel to run after bridge callback.
- *
- * \return Nothing
- */
-static void after_bridge_callback_run(struct ast_channel *chan)
-{
-	struct after_bridge_cb_ds *after_bridge;
-	struct after_bridge_cb_node *node;
-
-	after_bridge = after_bridge_cb_find(chan);
-	if (!after_bridge) {
-		return;
-	}
-
-	for (;;) {
-		AST_LIST_LOCK(&after_bridge->callbacks);
-		node = AST_LIST_REMOVE_HEAD(&after_bridge->callbacks, list);
-		AST_LIST_UNLOCK(&after_bridge->callbacks);
-		if (!node) {
-			break;
-		}
-		if (node->reason) {
-			after_bridge_cb_failed(node);
-		} else {
-			node->failed = NULL;
-			node->callback(chan, node->data);
-		}
-		ast_free(node);
-	}
-}
-
-/*!
- * \internal
- * \brief Run discarding any after bridge callbacks.
- * \since 12.0.0
- *
- * \param chan Channel to run after bridge callback.
- *
- * \return Nothing
- */
-static void after_bridge_callback_run_discard(struct ast_channel *chan, enum ast_after_bridge_cb_reason reason)
-{
-	struct after_bridge_cb_ds *after_bridge;
-
-	after_bridge = after_bridge_cb_find(chan);
-	if (!after_bridge) {
-		return;
-	}
-
-	after_bridge_cb_run_discard(after_bridge, reason);
-}
-
-void ast_after_bridge_callback_discard(struct ast_channel *chan, enum ast_after_bridge_cb_reason reason)
-{
-	struct after_bridge_cb_ds *after_bridge;
-	struct after_bridge_cb_node *node;
-
-	after_bridge = after_bridge_cb_find(chan);
-	if (!after_bridge) {
-		return;
-	}
-
-	AST_LIST_LOCK(&after_bridge->callbacks);
-	node = AST_LIST_LAST(&after_bridge->callbacks);
-	if (node && !node->reason) {
-		node->reason = reason;
-	}
-	AST_LIST_UNLOCK(&after_bridge->callbacks);
-}
-
-int ast_after_bridge_callback_set(struct ast_channel *chan, ast_after_bridge_cb callback, ast_after_bridge_cb_failed failed, void *data)
-{
-	struct after_bridge_cb_ds *after_bridge;
-	struct after_bridge_cb_node *new_node;
-	struct after_bridge_cb_node *last_node;
-
-	/* Sanity checks. */
-	ast_assert(chan != NULL);
-	if (!chan || !callback) {
-		return -1;
-	}
-
-	after_bridge = after_bridge_cb_setup(chan);
-	if (!after_bridge) {
-		return -1;
-	}
-
-	/* Create a new callback node. */
-	new_node = ast_calloc(1, sizeof(*new_node));
-	if (!new_node) {
-		return -1;
-	}
-	new_node->callback = callback;
-	new_node->failed = failed;
-	new_node->data = data;
-
-	/* Put it in the container disabling any previously active one. */
-	AST_LIST_LOCK(&after_bridge->callbacks);
-	last_node = AST_LIST_LAST(&after_bridge->callbacks);
-	if (last_node && !last_node->reason) {
-		last_node->reason = AST_AFTER_BRIDGE_CB_REASON_REPLACED;
-	}
-	AST_LIST_INSERT_TAIL(&after_bridge->callbacks, new_node, list);
-	AST_LIST_UNLOCK(&after_bridge->callbacks);
-	return 0;
-}
-
-const char *reason_strings[] = {
-	[AST_AFTER_BRIDGE_CB_REASON_DESTROY] = "Channel destroyed (hungup)",
-	[AST_AFTER_BRIDGE_CB_REASON_REPLACED] = "Callback was replaced",
-	[AST_AFTER_BRIDGE_CB_REASON_MASQUERADE] = "Channel masqueraded",
-	[AST_AFTER_BRIDGE_CB_REASON_DEPART] = "Channel was departed from bridge",
-	[AST_AFTER_BRIDGE_CB_REASON_REMOVED] = "Callback was removed",
-};
-
-const char *ast_after_bridge_cb_reason_string(enum ast_after_bridge_cb_reason reason)
-{
-	if (reason < AST_AFTER_BRIDGE_CB_REASON_DESTROY
-		|| AST_AFTER_BRIDGE_CB_REASON_REMOVED < reason
-		|| !reason_strings[reason]) {
-		return "Unknown";
-	}
-
-	return reason_strings[reason];
-}
-
-struct after_bridge_goto_ds {
-	/*! Goto string that can be parsed by ast_parseable_goto(). */
-	const char *parseable_goto;
-	/*! Specific goto context or default context for parseable_goto. */
-	const char *context;
-	/*! Specific goto exten or default exten for parseable_goto. */
-	const char *exten;
-	/*! Specific goto priority or default priority for parseable_goto. */
-	int priority;
-	/*! TRUE if the peer should run the h exten. */
-	unsigned int run_h_exten:1;
-	/*! Specific goto location */
-	unsigned int specific:1;
-};
-
-/*!
- * \internal
- * \brief Destroy the after bridge goto datastore.
- * \since 12.0.0
- *
- * \param data After bridge goto data to destroy.
- *
- * \return Nothing
- */
-static void after_bridge_goto_destroy(void *data)
-{
-	struct after_bridge_goto_ds *after_bridge = data;
-
-	ast_free((char *) after_bridge->parseable_goto);
-	ast_free((char *) after_bridge->context);
-	ast_free((char *) after_bridge->exten);
-}
-
-/*!
- * \internal
- * \brief Fixup the after bridge goto datastore.
- * \since 12.0.0
- *
- * \param data After bridge goto data to fixup.
- * \param old_chan The datastore is moving from this channel.
- * \param new_chan The datastore is moving to this channel.
- *
- * \return Nothing
- */
-static void after_bridge_goto_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
-{
-	/* There can be only one.  Discard any already on the new channel. */
-	ast_after_bridge_goto_discard(new_chan);
-}
-
-static const struct ast_datastore_info after_bridge_goto_info = {
-	.type = "after-bridge-goto",
-	.destroy = after_bridge_goto_destroy,
-	.chan_fixup = after_bridge_goto_fixup,
-};
-
-/*!
- * \internal
- * \brief Remove channel goto location after the bridge and return it.
- * \since 12.0.0
- *
- * \param chan Channel to remove after bridge goto location.
- *
- * \retval datastore on success.
- * \retval NULL on error or not found.
- */
-static struct ast_datastore *after_bridge_goto_remove(struct ast_channel *chan)
-{
-	struct ast_datastore *datastore;
-
-	ast_channel_lock(chan);
-	datastore = ast_channel_datastore_find(chan, &after_bridge_goto_info, NULL);
-	if (datastore && ast_channel_datastore_remove(chan, datastore)) {
-		datastore = NULL;
-	}
-	ast_channel_unlock(chan);
-
-	return datastore;
-}
-
-void ast_after_bridge_goto_discard(struct ast_channel *chan)
-{
-	struct ast_datastore *datastore;
-
-	datastore = after_bridge_goto_remove(chan);
-	if (datastore) {
-		ast_datastore_free(datastore);
-	}
-}
-
-void ast_after_bridge_goto_read(struct ast_channel *chan, char *buffer, size_t buf_size)
-{
-	struct ast_datastore *datastore;
-	struct after_bridge_goto_ds *after_bridge;
-	char *current_pos = buffer;
-	size_t remaining_size = buf_size;
-
-	SCOPED_CHANNELLOCK(lock, chan);
-
-	datastore = ast_channel_datastore_find(chan, &after_bridge_goto_info, NULL);
-	if (!datastore) {
-		buffer[0] = '\0';
-		return;
-	}
-
-	after_bridge = datastore->data;
-
-	if (after_bridge->parseable_goto) {
-		snprintf(buffer, buf_size, "%s", after_bridge->parseable_goto);
-		return;
-	}
-
-	if (!ast_strlen_zero(after_bridge->context)) {
-		snprintf(current_pos, remaining_size, "%s,", after_bridge->context);
-		remaining_size = remaining_size - strlen(current_pos);
-		current_pos += strlen(current_pos);
-	}
-
-	if (after_bridge->run_h_exten) {
-		snprintf(current_pos, remaining_size, "h,");
-		remaining_size = remaining_size - strlen(current_pos);
-		current_pos += strlen(current_pos);
-	} else if (!ast_strlen_zero(after_bridge->exten)) {
-		snprintf(current_pos, remaining_size, "%s,", after_bridge->exten);
-		remaining_size = remaining_size - strlen(current_pos);
-		current_pos += strlen(current_pos);
-	}
-
-	snprintf(current_pos, remaining_size, "%d", after_bridge->priority);
-}
-
-int ast_after_bridge_goto_setup(struct ast_channel *chan)
-{
-	struct ast_datastore *datastore;
-	struct after_bridge_goto_ds *after_bridge;
-	int goto_failed = -1;
-
-	/* Determine if we are going to setup a dialplan location and where. */
-	if (ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO) {
-		/* An async goto has already setup a location. */
-		ast_channel_clear_softhangup(chan, AST_SOFTHANGUP_ASYNCGOTO);
-		if (!ast_check_hangup(chan)) {
-			goto_failed = 0;
-		}
-		return goto_failed;
-	}
-
-	/* Get after bridge goto datastore. */
-	datastore = after_bridge_goto_remove(chan);
-	if (!datastore) {
-		return goto_failed;
-	}
-
-	after_bridge = datastore->data;
-	if (after_bridge->run_h_exten) {
-		if (ast_exists_extension(chan, after_bridge->context, "h", 1,
-			S_COR(ast_channel_caller(chan)->id.number.valid,
-				ast_channel_caller(chan)->id.number.str, NULL))) {
-			ast_debug(1, "Running after bridge goto h exten %s,h,1\n",
-				ast_channel_context(chan));
-			ast_pbx_h_exten_run(chan, after_bridge->context);
-		}
-	} else if (!ast_check_hangup(chan)) {
-		if (after_bridge->specific) {
-			goto_failed = ast_explicit_goto(chan, after_bridge->context,
-				after_bridge->exten, after_bridge->priority);
-		} else if (!ast_strlen_zero(after_bridge->parseable_goto)) {
-			char *context;
-			char *exten;
-			int priority;
-
-			/* Option F(x) for Bridge(), Dial(), and Queue() */
-
-			/* Save current dialplan location in case of failure. */
-			context = ast_strdupa(ast_channel_context(chan));
-			exten = ast_strdupa(ast_channel_exten(chan));
-			priority = ast_channel_priority(chan);
-
-			/* Set current dialplan position to default dialplan position */
-			ast_explicit_goto(chan, after_bridge->context, after_bridge->exten,
-				after_bridge->priority);
-
-			/* Then perform the goto */
-			goto_failed = ast_parseable_goto(chan, after_bridge->parseable_goto);
-			if (goto_failed) {
-				/* Restore original dialplan location. */
-				ast_channel_context_set(chan, context);
-				ast_channel_exten_set(chan, exten);
-				ast_channel_priority_set(chan, priority);
-			}
-		} else {
-			/* Option F() for Bridge(), Dial(), and Queue() */
-			goto_failed = ast_goto_if_exists(chan, after_bridge->context,
-				after_bridge->exten, after_bridge->priority + 1);
-		}
-		if (!goto_failed) {
-			if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP)) {
-				ast_channel_priority_set(chan, ast_channel_priority(chan) + 1);
-			}
-
-			ast_debug(1, "Setup after bridge goto location to %s,%s,%d.\n",
-				ast_channel_context(chan),
-				ast_channel_exten(chan),
-				ast_channel_priority(chan));
-		}
-	}
-
-	/* Discard after bridge goto datastore. */
-	ast_datastore_free(datastore);
-
-	return goto_failed;
-}
-
-void ast_after_bridge_goto_run(struct ast_channel *chan)
-{
-	int goto_failed;
-
-	goto_failed = ast_after_bridge_goto_setup(chan);
-	if (goto_failed || ast_pbx_run(chan)) {
-		ast_hangup(chan);
-	}
-}
-
-/*!
- * \internal
- * \brief Set after bridge goto location of channel.
- * \since 12.0.0
- *
- * \param chan Channel to setup after bridge goto location.
- * \param run_h_exten TRUE if the h exten should be run.
- * \param specific TRUE if the context/exten/priority is exactly specified.
- * \param context Context to goto after bridge.
- * \param exten Exten to goto after bridge. (Could be NULL if run_h_exten)
- * \param priority Priority to goto after bridge.
- * \param parseable_goto User specified goto string. (Could be NULL)
- *
- * \details Add a channel datastore to setup the goto location
- * when the channel leaves the bridge and run a PBX from there.
- *
- * If run_h_exten then execute the h exten found in the given context.
- * Else if specific then goto the given context/exten/priority.
- * Else if parseable_goto then use the given context/exten/priority
- *   as the relative position for the parseable_goto.
- * Else goto the given context/exten/priority+1.
- *
- * \return Nothing
- */
-static void __after_bridge_set_goto(struct ast_channel *chan, int run_h_exten, int specific, const char *context, const char *exten, int priority, const char *parseable_goto)
-{
-	struct ast_datastore *datastore;
-	struct after_bridge_goto_ds *after_bridge;
-
-	/* Sanity checks. */
-	ast_assert(chan != NULL);
-	if (!chan) {
-		return;
-	}
-	if (run_h_exten) {
-		ast_assert(run_h_exten && context);
-		if (!context) {
-			return;
-		}
-	} else {
-		ast_assert(context && exten && 0 < priority);
-		if (!context || !exten || priority < 1) {
-			return;
-		}
-	}
-
-	/* Create a new datastore. */
-	datastore = ast_datastore_alloc(&after_bridge_goto_info, NULL);
-	if (!datastore) {
-		return;
-	}
-	after_bridge = ast_calloc(1, sizeof(*after_bridge));
-	if (!after_bridge) {
-		ast_datastore_free(datastore);
-		return;
-	}
-
-	/* Initialize it. */
-	after_bridge->parseable_goto = ast_strdup(parseable_goto);
-	after_bridge->context = ast_strdup(context);
-	after_bridge->exten = ast_strdup(exten);
-	after_bridge->priority = priority;
-	after_bridge->run_h_exten = run_h_exten ? 1 : 0;
-	after_bridge->specific = specific ? 1 : 0;
-	datastore->data = after_bridge;
-	if ((parseable_goto && !after_bridge->parseable_goto)
-		|| (context && !after_bridge->context)
-		|| (exten && !after_bridge->exten)) {
-		ast_datastore_free(datastore);
-		return;
-	}
-
-	/* Put it on the channel replacing any existing one. */
-	ast_channel_lock(chan);
-	ast_after_bridge_goto_discard(chan);
-	ast_channel_datastore_add(chan, datastore);
-	ast_channel_unlock(chan);
-}
-
-void ast_after_bridge_set_goto(struct ast_channel *chan, const char *context, const char *exten, int priority)
-{
-	__after_bridge_set_goto(chan, 0, 1, context, exten, priority, NULL);
-}
-
-void ast_after_bridge_set_h(struct ast_channel *chan, const char *context)
-{
-	__after_bridge_set_goto(chan, 1, 0, context, NULL, 1, NULL);
-}
-
-void ast_after_bridge_set_go_on(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *parseable_goto)
-{
-	char *p_goto;
-
-	if (!ast_strlen_zero(parseable_goto)) {
-		p_goto = ast_strdupa(parseable_goto);
-		ast_replace_subargument_delimiter(p_goto);
-	} else {
-		p_goto = NULL;
-	}
-	__after_bridge_set_goto(chan, 0, 0, context, exten, priority, p_goto);
 }
 
 void ast_bridge_notify_masquerade(struct ast_channel *chan)
@@ -2146,7 +1420,7 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan)
  * Need to update the features parameter doxygen when this
  * change is made to be like ast_bridge_impart().
  */
-enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
+enum bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_channel *chan,
 	struct ast_channel *swap,
 	struct ast_bridge_features *features,
@@ -2154,21 +1428,21 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	int pass_reference)
 {
 	struct ast_bridge_channel *bridge_channel;
-	enum ast_bridge_channel_state state;
+	enum bridge_channel_state state;
 
-	bridge_channel = bridge_channel_alloc(bridge);
+	bridge_channel = bridge_channel_internal_alloc(bridge);
 	if (pass_reference) {
 		ao2_ref(bridge, -1);
 	}
 	if (!bridge_channel) {
-		state = AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
+		state = BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
 		goto join_exit;
 	}
 /* BUGBUG features cannot be NULL when passed in. When it is changed to allocated we can do like ast_bridge_impart() and allocate one. */
 	ast_assert(features != NULL);
 	if (!features) {
 		ao2_ref(bridge_channel, -1);
-		state = AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
+		state = BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
 		goto join_exit;
 	}
 	if (tech_args) {
@@ -2184,7 +1458,7 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	bridge_channel->swap = swap;
 	bridge_channel->features = features;
 
-	bridge_channel_join(bridge_channel);
+	bridge_channel_internal_join(bridge_channel);
 	state = bridge_channel->state;
 
 	/* Cleanup all the data in the bridge channel after it leaves the bridge. */
@@ -2199,9 +1473,9 @@ enum ast_bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 
 join_exit:;
 /* BUGBUG this is going to cause problems for DTMF atxfer attended bridge between B & C.  Maybe an ast_bridge_join_internal() that does not do the after bridge goto for this case. */
-	after_bridge_callback_run(chan);
+	ast_bridge_run_after_callback(chan);
 	if (!(ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO)
-		&& !ast_after_bridge_goto_setup(chan)) {
+		&& !ast_bridge_setup_after_goto(chan)) {
 		/* Claim the after bridge goto is an async goto destination. */
 		ast_channel_lock(chan);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
@@ -2219,15 +1493,15 @@ static void *bridge_channel_depart_thread(void *data)
 		ast_callid_threadassoc_add(bridge_channel->callid);
 	}
 
-	bridge_channel_join(bridge_channel);
+	bridge_channel_internal_join(bridge_channel);
 
 	/* cleanup */
 	bridge_channel->swap = NULL;
 	ast_bridge_features_destroy(bridge_channel->features);
 	bridge_channel->features = NULL;
 
-	after_bridge_callback_run_discard(bridge_channel->chan, AST_AFTER_BRIDGE_CB_REASON_DEPART);
-	ast_after_bridge_goto_discard(bridge_channel->chan);
+	ast_bridge_discard_after_callback(bridge_channel->chan, AST_BRIDGE_AFTER_CB_REASON_DEPART);
+	ast_bridge_discard_after_goto(bridge_channel->chan);
 
 	return NULL;
 }
@@ -2242,7 +1516,7 @@ static void *bridge_channel_ind_thread(void *data)
 		ast_callid_threadassoc_add(bridge_channel->callid);
 	}
 
-	bridge_channel_join(bridge_channel);
+	bridge_channel_internal_join(bridge_channel);
 	chan = bridge_channel->chan;
 
 	/* cleanup */
@@ -2256,8 +1530,8 @@ static void *bridge_channel_ind_thread(void *data)
 
 	ao2_ref(bridge_channel, -1);
 
-	after_bridge_callback_run(chan);
-	ast_after_bridge_goto_run(chan);
+	ast_bridge_run_after_callback(chan);
+	ast_bridge_run_after_goto(chan);
 	return NULL;
 }
 
@@ -2275,7 +1549,7 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
 	}
 
 	/* Try to allocate a structure for the bridge channel */
-	bridge_channel = bridge_channel_alloc(bridge);
+	bridge_channel = bridge_channel_internal_alloc(bridge);
 	if (!bridge_channel) {
 		ast_bridge_features_destroy(features);
 		return -1;
@@ -2350,7 +1624,7 @@ int ast_bridge_depart(struct ast_channel *chan)
 	 * channel thread.
 	 */
 
-	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 
 	/* Wait for the depart thread to die */
 	ast_debug(1, "Waiting for %p(%s) bridge thread to die.\n",
@@ -2378,7 +1652,7 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 		return -1;
 	}
 
-	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 
 	ast_bridge_unlock(bridge);
 
@@ -2425,10 +1699,10 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 	 * Move channels from src_bridge over to dst_bridge.
 	 *
 	 * We must use AST_LIST_TRAVERSE_SAFE_BEGIN() because
-	 * bridge_channel_pull() alters the list we are traversing.
+	 * bridge_channel_internal_pull() alters the list we are traversing.
 	 */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&src_bridge->channels, bridge_channel, entry) {
-		if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+		if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 			/*
 			 * The channel is already leaving let it leave normally because
 			 * pulling it may delete hooks that should run for this channel.
@@ -2443,13 +1717,13 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		if (kick_me) {
 			for (idx = 0; idx < num_kick; ++idx) {
 				if (bridge_channel == kick_me[idx]) {
-					ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+					ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 					break;
 				}
 			}
 		}
-		bridge_channel_pull(bridge_channel);
-		if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+		bridge_channel_internal_pull(bridge_channel);
+		if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 			/*
 			 * The channel died as a result of being pulled or it was
 			 * kicked.  Leave it pointing to the original bridge.
@@ -2460,8 +1734,8 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		/* Point to new bridge.*/
 		bridge_channel_change_bridge(bridge_channel, dst_bridge);
 
-		if (bridge_channel_push(bridge_channel)) {
-			ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		if (bridge_channel_internal_push(bridge_channel)) {
+			ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -2474,9 +1748,9 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		for (idx = 0; idx < num_kick; ++idx) {
 			bridge_channel = kick_me[idx];
 			ast_bridge_channel_lock(bridge_channel);
-			if (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
-				ast_bridge_channel_leave_bridge_nolock(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
-				bridge_channel_pull(bridge_channel);
+			if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
+				ast_bridge_channel_leave_bridge_nolock(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+				bridge_channel_internal_pull(bridge_channel);
 			}
 			ast_bridge_channel_unlock(bridge_channel);
 		}
@@ -2689,8 +1963,8 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 	orig_bridge = bridge_channel->bridge;
 	was_in_bridge = bridge_channel->in_bridge;
 
-	bridge_channel_pull(bridge_channel);
-	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	bridge_channel_internal_pull(bridge_channel);
+	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 		/*
 		 * The channel died as a result of being pulled.  Leave it
 		 * pointing to the original bridge.
@@ -2703,17 +1977,17 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 	ao2_ref(orig_bridge, +1);/* Keep a ref in case the push fails. */
 	bridge_channel_change_bridge(bridge_channel, dst_bridge);
 
-	if (bridge_channel_push(bridge_channel)) {
+	if (bridge_channel_internal_push(bridge_channel)) {
 		/* Try to put the channel back into the original bridge. */
 		if (attempt_recovery && was_in_bridge) {
 			/* Point back to original bridge. */
 			bridge_channel_change_bridge(bridge_channel, orig_bridge);
 
-			if (bridge_channel_push(bridge_channel)) {
-				ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+			if (bridge_channel_internal_push(bridge_channel)) {
+				ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 			}
 		} else {
-			ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+			ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		}
 		res = -1;
 	}
@@ -2767,7 +2041,7 @@ static int bridge_move_locked(struct ast_bridge *dst_bridge, struct ast_bridge *
 			ast_channel_name(chan), src_bridge->uniqueid, dst_bridge->uniqueid);
 		return -1;
 	}
-	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 		ast_debug(1, "Can't move channel %s from bridge %s into bridge %s, channel leaving bridge.\n",
 			ast_channel_name(chan), src_bridge->uniqueid, dst_bridge->uniqueid);
 		return -1;
@@ -2789,7 +2063,7 @@ static int bridge_move_locked(struct ast_bridge *dst_bridge, struct ast_bridge *
 				ast_channel_name(swap));
 			return -1;
 		}
-		if (bridge_channel_swap->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+		if (bridge_channel_swap->state != BRIDGE_CHANNEL_STATE_WAIT) {
 			ast_debug(1, "Can't move channel %s from bridge %s into bridge %s, swap channel %s leaving bridge.\n",
 				ast_channel_name(chan), src_bridge->uniqueid, dst_bridge->uniqueid,
 				ast_channel_name(swap));
@@ -2894,12 +2168,6 @@ static int bridge_allows_optimization(struct ast_bridge *bridge)
 		|| ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_MASQUERADE_ONLY));
 }
 
-static int bridge_channel_allows_optimization(struct ast_bridge_channel *bridge_channel)
-{
-	return bridge_channel->in_bridge
-		&& AST_LIST_EMPTY(&bridge_channel->wr_queue);
-}
-
 /*!
  * \internal
  * \brief Lock the unreal channel stack for chan and prequalify it.
@@ -2929,13 +2197,13 @@ static struct ast_bridge *optimize_lock_chan_stack(struct ast_channel *chan)
 		return NULL;
 	}
 	bridge = bridge_channel->bridge;
-	if (bridge_channel->activity != AST_BRIDGE_CHANNEL_THREAD_SIMPLE
-		|| bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT
+	if (bridge_channel->activity != BRIDGE_CHANNEL_THREAD_SIMPLE
+		|| bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT
 		|| ast_bridge_trylock(bridge)) {
 		ast_bridge_channel_unlock(bridge_channel);
 		return NULL;
 	}
-	if (!bridge_channel_allows_optimization(bridge_channel) ||
+	if (!bridge_channel_internal_allows_optimization(bridge_channel) ||
 			!bridge_allows_optimization(bridge)) {
 		ast_bridge_unlock(bridge);
 		ast_bridge_channel_unlock(bridge_channel);
@@ -2977,15 +2245,15 @@ static struct ast_bridge *optimize_lock_peer_stack(struct ast_channel *peer)
 		return NULL;
 	}
 	bridge = bridge_channel->bridge;
-	if (bridge_channel->activity != AST_BRIDGE_CHANNEL_THREAD_IDLE
-		|| bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT
+	if (bridge_channel->activity != BRIDGE_CHANNEL_THREAD_IDLE
+		|| bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT
 		|| ast_bridge_trylock(bridge)) {
 		ast_bridge_channel_unlock(bridge_channel);
 		ast_channel_unlock(peer);
 		return NULL;
 	}
 	if (!bridge_allows_optimization(bridge) ||
-			!bridge_channel_allows_optimization(bridge_channel)) {
+			!bridge_channel_internal_allows_optimization(bridge_channel)) {
 		ast_bridge_unlock(bridge);
 		ast_bridge_channel_unlock(bridge_channel);
 		ast_channel_unlock(peer);
@@ -3099,7 +2367,7 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 	}
 
 	other = ast_bridge_channel_peer(src_bridge_channel);
-	if (other && other->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (other && other->state == BRIDGE_CHANNEL_STATE_WAIT) {
 		ast_verb(3, "Move-swap optimizing %s <-- %s.\n",
 			ast_channel_name(dst_bridge_channel->chan),
 			ast_channel_name(other->chan));
@@ -3111,7 +2379,7 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 		}
 		other->swap = dst_bridge_channel->chan;
 		if (!bridge_do_move(dst_bridge, other, 1, 1)) {
-			ast_bridge_channel_leave_bridge(src_bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+			ast_bridge_channel_leave_bridge(src_bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 			res = -1;
 			if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
 				pvt->callbacks->optimization_finished(pvt);
@@ -3343,7 +2611,7 @@ int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan)
 		return -1;
 	}
 
-	bridge_channel_suspend_nolock(bridge_channel);
+	bridge_channel_internal_suspend_nolock(bridge_channel);
 
 	ast_bridge_unlock(bridge);
 
@@ -3362,7 +2630,7 @@ int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan)
 		return -1;
 	}
 
-	bridge_channel_unsuspend_nolock(bridge_channel);
+	bridge_channel_internal_unsuspend_nolock(bridge_channel);
 
 	ast_bridge_unlock(bridge);
 
@@ -4686,7 +3954,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 		goto publish;
 	}
 
-	if (bridge_channel_queue_blind_transfer(transferee, exten, context,
+	if (bridge_channel_internal_queue_blind_transfer(transferee, exten, context,
 				new_channel_cb, user_data)) {
 		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
 		goto publish;
@@ -4722,7 +3990,7 @@ static enum ast_transfer_result bridge_swap_attended_transfer(struct ast_bridge 
 
 	bridged_to_source = ast_bridge_channel_peer(source_bridge_channel);
 	if (bridged_to_source
-		&& bridged_to_source->state == AST_BRIDGE_CHANNEL_STATE_WAIT
+		&& bridged_to_source->state == BRIDGE_CHANNEL_STATE_WAIT
 		&& !ast_test_flag(&bridged_to_source->features->feature_flags,
 			AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE)) {
 		bridged_to_source->swap = swap_channel;
@@ -4730,7 +3998,7 @@ static enum ast_transfer_result bridge_swap_attended_transfer(struct ast_bridge 
 			return AST_BRIDGE_TRANSFER_FAIL;
 		}
 		/* Must kick the source channel out of its bridge. */
-		ast_bridge_channel_leave_bridge(source_bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(source_bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		return AST_BRIDGE_TRANSFER_SUCCESS;
 	} else {
 		return AST_BRIDGE_TRANSFER_INVALID;
@@ -4953,7 +4221,7 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	}
 
 	app = ast_strdupa(ast_channel_appl(chan_unbridged));
-	if (bridge_channel_queue_attended_transfer(transferee, chan_unbridged)) {
+	if (bridge_channel_internal_queue_attended_transfer(transferee, chan_unbridged)) {
 		res = AST_BRIDGE_TRANSFER_FAIL;
 		goto end;
 	}

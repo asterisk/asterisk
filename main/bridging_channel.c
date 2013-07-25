@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/timing.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_channel.h"
+#include "asterisk/bridging_after.h"
 #include "asterisk/bridging_channel_internal.h"
 #include "asterisk/bridging_internal.h"
 #include "asterisk/stasis_bridging.h"
@@ -66,18 +67,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \retval -1 on error.
  */
 typedef int (*ast_bridge_channel_post_action_data)(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen);
-
-struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request)
-{
-	struct ast_bridge *bridge;
-
-	ast_bridge_channel_lock_bridge(bridge_channel);
-	bridge = bridge_channel->bridge;
-	ao2_ref(bridge, +1);
-	bridge_merge_inhibit_nolock(bridge, request);
-	ast_bridge_unlock(bridge);
-	return bridge;
-}
 
 void ast_bridge_channel_lock_bridge(struct ast_bridge_channel *bridge_channel)
 {
@@ -101,6 +90,25 @@ void ast_bridge_channel_lock_bridge(struct ast_bridge_channel *bridge_channel)
 	}
 }
 
+int ast_bridge_channel_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking)
+{
+	struct ast_frame action = {
+		.frametype = AST_FRAME_BRIDGE_ACTION,
+		.subclass.integer = started_talking
+			? BRIDGE_CHANNEL_ACTION_TALKING_START : BRIDGE_CHANNEL_ACTION_TALKING_STOP,
+	};
+
+	return ast_bridge_channel_queue_frame(bridge_channel, &action);
+}
+
+void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state)
+{
+	ast_bridge_channel_lock(bridge_channel);
+	ast_bridge_channel_leave_bridge_nolock(bridge_channel, new_state);
+	ast_bridge_channel_unlock(bridge_channel);
+}
+
+/*! \internal \brief Poke the bridge_channel thread */
 static void bridge_channel_poke(struct ast_bridge_channel *bridge_channel)
 {
 	if (!pthread_equal(pthread_self(), bridge_channel->thread)) {
@@ -108,6 +116,102 @@ static void bridge_channel_poke(struct ast_bridge_channel *bridge_channel)
 			pthread_kill(bridge_channel->thread, SIGURG);
 			sched_yield();
 		}
+	}
+}
+
+void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state)
+{
+/* BUGBUG need cause code for the bridge_channel leaving the bridge. */
+	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
+		return;
+	}
+
+	ast_debug(1, "Setting %p(%s) state from:%d to:%d\n",
+		bridge_channel, ast_channel_name(bridge_channel->chan), bridge_channel->state,
+		new_state);
+
+	/* Change the state on the bridge channel */
+	bridge_channel->state = new_state;
+
+	bridge_channel_poke(bridge_channel);
+}
+
+struct ast_bridge_channel *ast_bridge_channel_peer(struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_bridge *bridge = bridge_channel->bridge;
+	struct ast_bridge_channel *other = NULL;
+
+	if (bridge_channel->in_bridge && bridge->num_channels == 2) {
+		AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
+			if (other != bridge_channel) {
+				break;
+			}
+		}
+	}
+
+	return other;
+}
+
+void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channel)
+{
+	/* Restore original formats of the channel as they came in */
+	if (ast_format_cmp(ast_channel_readformat(bridge_channel->chan), &bridge_channel->read_format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_debug(1, "Bridge is returning %p(%s) to read format %s\n",
+			bridge_channel, ast_channel_name(bridge_channel->chan),
+			ast_getformatname(&bridge_channel->read_format));
+		if (ast_set_read_format(bridge_channel->chan, &bridge_channel->read_format)) {
+			ast_debug(1, "Bridge failed to return %p(%s) to read format %s\n",
+				bridge_channel, ast_channel_name(bridge_channel->chan),
+				ast_getformatname(&bridge_channel->read_format));
+		}
+	}
+	if (ast_format_cmp(ast_channel_writeformat(bridge_channel->chan), &bridge_channel->write_format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_debug(1, "Bridge is returning %p(%s) to write format %s\n",
+			bridge_channel, ast_channel_name(bridge_channel->chan),
+			ast_getformatname(&bridge_channel->write_format));
+		if (ast_set_write_format(bridge_channel->chan, &bridge_channel->write_format)) {
+			ast_debug(1, "Bridge failed to return %p(%s) to write format %s\n",
+				bridge_channel, ast_channel_name(bridge_channel->chan),
+				ast_getformatname(&bridge_channel->write_format));
+		}
+	}
+}
+
+struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request)
+{
+	struct ast_bridge *bridge;
+
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	bridge = bridge_channel->bridge;
+	ao2_ref(bridge, +1);
+	bridge_merge_inhibit_nolock(bridge, request);
+	ast_bridge_unlock(bridge);
+	return bridge;
+}
+
+void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+{
+	struct ast_bridge_channel *other = NULL;
+	struct ast_bridge *bridge = bridge_channel->bridge;
+	const char *oldest_linkedid = ast_channel_linkedid(bridge_channel->chan);
+
+	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
+		if (other == swap) {
+			continue;
+		}
+		oldest_linkedid = ast_channel_oldest_linkedid(oldest_linkedid, ast_channel_linkedid(other->chan));
+	}
+
+	if (ast_strlen_zero(oldest_linkedid)) {
+		return;
+	}
+
+	ast_channel_linkedid_set(bridge_channel->chan, oldest_linkedid);
+	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
+		if (other == swap) {
+			continue;
+		}
+		ast_channel_linkedid_set(other->chan, oldest_linkedid);
 	}
 }
 
@@ -156,30 +260,120 @@ void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_ch
 	}
 }
 
-void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+/*!
+* \internal
+* \brief Handle bridge hangup event.
+* \since 12.0.0
+*
+* \param bridge_channel Which channel is hanging up.
+*
+* \return Nothing
+*/
+static void bridge_channel_handle_hangup(struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_bridge_channel *other = NULL;
-	struct ast_bridge *bridge = bridge_channel->bridge;
-	const char *oldest_linkedid = ast_channel_linkedid(bridge_channel->chan);
+	struct ast_bridge_features *features = bridge_channel->features;
+	struct ast_bridge_hook *hook;
+	struct ao2_iterator iter;
 
-	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
-		if (other == swap) {
+	/* Run any hangup hooks. */
+	iter = ao2_iterator_init(features->other_hooks, 0);
+	for (; (hook = ao2_iterator_next(&iter)); ao2_ref(hook, -1)) {
+		int remove_me;
+
+		if (hook->type != AST_BRIDGE_HOOK_TYPE_HANGUP) {
 			continue;
 		}
-		oldest_linkedid = ast_channel_oldest_linkedid(oldest_linkedid, ast_channel_linkedid(other->chan));
-	}
-
-	if (ast_strlen_zero(oldest_linkedid)) {
-		return;
-	}
-
-	ast_channel_linkedid_set(bridge_channel->chan, oldest_linkedid);
-	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
-		if (other == swap) {
-			continue;
+		remove_me = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+		if (remove_me) {
+			ast_debug(1, "Hangup hook %p is being removed from %p(%s)\n",
+				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
+			ao2_unlink(features->other_hooks, hook);
 		}
-		ast_channel_linkedid_set(other->chan, oldest_linkedid);
 	}
+	ao2_iterator_destroy(&iter);
+
+	/* Default hangup action. */
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+}
+
+/*!
+ * \internal
+ * \brief Write an \ref ast_frame onto the bridge channel
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to queue the frame onto.
+ * \param frame The frame to write onto the bridge_channel
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
+{
+	ast_bridge_channel_lock_bridge(bridge_channel);
+/*
+ * BUGBUG need to implement a deferred write queue for when there is no peer channel in the bridge (yet or it was kicked).
+ *
+ * The tech decides if a frame needs to be pushed back for deferral.
+ * simple_bridge/native_bridge are likely the only techs that will do this.
+ */
+	bridge_channel->bridge->technology->write(bridge_channel->bridge, bridge_channel, frame);
+	ast_bridge_unlock(bridge_channel->bridge);
+
+	/*
+	 * Claim successful write to bridge.  If deferred frame
+	 * support is added, claim successfully deferred.
+	 */
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Queue an action frame onto the bridge channel with data.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to queue the frame onto.
+ * \param action Type of bridge action frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen)
+{
+	struct ast_frame frame = {
+		.frametype = AST_FRAME_BRIDGE_ACTION,
+		.subclass.integer = action,
+		.datalen = datalen,
+		.data.ptr = (void *) data,
+	};
+
+	return ast_bridge_channel_queue_frame(bridge_channel, &frame);
+}
+
+/*!
+ * \internal
+ * \brief Write an action frame onto the bridge channel with data.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to queue the frame onto.
+ * \param action Type of bridge action frame.
+ * \param data Frame payload data to pass.
+ * \param datalen Frame payload data length to pass.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen)
+{
+	struct ast_frame frame = {
+		.frametype = AST_FRAME_BRIDGE_ACTION,
+		.subclass.integer = action,
+		.datalen = datalen,
+		.data.ptr = (void *) data,
+	};
+
+	return bridge_channel_write_frame(bridge_channel, &frame);
 }
 
 int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *fr)
@@ -206,7 +400,7 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 	}
 
 	ast_bridge_channel_lock(bridge_channel);
-	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 		/* Drop frames on channels leaving the bridge. */
 		ast_bridge_channel_unlock(bridge_channel);
 		ast_frfree(dup);
@@ -220,42 +414,6 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 	}
 	ast_bridge_channel_unlock(bridge_channel);
 	return 0;
-}
-
-/*!
- * \brief Queue an action frame onto the bridge channel with data.
- * \since 12.0.0
- *
- * \param bridge_channel Which channel to queue the frame onto.
- * \param action Type of bridge action frame.
- * \param data Frame payload data to pass.
- * \param datalen Frame payload data length to pass.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int ast_bridge_channel_queue_action_data(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen)
-{
-	struct ast_frame frame = {
-		.frametype = AST_FRAME_BRIDGE_ACTION,
-		.subclass.integer = action,
-		.datalen = datalen,
-		.data.ptr = (void *) data,
-	};
-
-	return ast_bridge_channel_queue_frame(bridge_channel, &frame);
-}
-
-int ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
-{
-	struct ast_frame frame = {
-		.frametype = AST_FRAME_CONTROL,
-		.subclass.integer = control,
-		.datalen = datalen,
-		.data.ptr = (void *) data,
-	};
-
-	return ast_bridge_channel_queue_frame(bridge_channel, &frame);
 }
 
 int ast_bridge_queue_everyone_else(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
@@ -279,60 +437,16 @@ int ast_bridge_queue_everyone_else(struct ast_bridge *bridge, struct ast_bridge_
 	return not_written;
 }
 
-void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channel)
-{
-	/* Restore original formats of the channel as they came in */
-	if (ast_format_cmp(ast_channel_readformat(bridge_channel->chan), &bridge_channel->read_format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_debug(1, "Bridge is returning %p(%s) to read format %s\n",
-			bridge_channel, ast_channel_name(bridge_channel->chan),
-			ast_getformatname(&bridge_channel->read_format));
-		if (ast_set_read_format(bridge_channel->chan, &bridge_channel->read_format)) {
-			ast_debug(1, "Bridge failed to return %p(%s) to read format %s\n",
-				bridge_channel, ast_channel_name(bridge_channel->chan),
-				ast_getformatname(&bridge_channel->read_format));
-		}
-	}
-	if (ast_format_cmp(ast_channel_writeformat(bridge_channel->chan), &bridge_channel->write_format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_debug(1, "Bridge is returning %p(%s) to write format %s\n",
-			bridge_channel, ast_channel_name(bridge_channel->chan),
-			ast_getformatname(&bridge_channel->write_format));
-		if (ast_set_write_format(bridge_channel->chan, &bridge_channel->write_format)) {
-			ast_debug(1, "Bridge failed to return %p(%s) to write format %s\n",
-				bridge_channel, ast_channel_name(bridge_channel->chan),
-				ast_getformatname(&bridge_channel->write_format));
-		}
-	}
-}
-
-static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
-{
-	ast_bridge_channel_lock_bridge(bridge_channel);
-/*
- * BUGBUG need to implement a deferred write queue for when there is no peer channel in the bridge (yet or it was kicked).
- *
- * The tech decides if a frame needs to be pushed back for deferral.
- * simple_bridge/native_bridge are likely the only techs that will do this.
- */
-	bridge_channel->bridge->technology->write(bridge_channel->bridge, bridge_channel, frame);
-	ast_bridge_unlock(bridge_channel->bridge);
-
-	/*
-	 * Claim successful write to bridge.  If deferred frame
-	 * support is added, claim successfully deferred.
-	 */
-	return 0;
-}
-
-static int ast_bridge_channel_write_action_data(struct ast_bridge_channel *bridge_channel, enum bridge_channel_action_type action, const void *data, size_t datalen)
+int ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
 {
 	struct ast_frame frame = {
-		.frametype = AST_FRAME_BRIDGE_ACTION,
-		.subclass.integer = action,
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = control,
 		.datalen = datalen,
 		.data.ptr = (void *) data,
 	};
 
-	return bridge_channel_write_frame(bridge_channel, &frame);
+	return ast_bridge_channel_queue_frame(bridge_channel, &frame);
 }
 
 int ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen)
@@ -373,6 +487,7 @@ int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
 	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
 }
 
+/*! \internal \brief Helper function to kick off a PBX app on a bridge_channel */
 static int run_app_helper(struct ast_channel *chan, const char *app_name, const char *app_args)
 {
 	int res = 0;
@@ -394,42 +509,6 @@ static int run_app_helper(struct ast_channel *chan, const char *app_name, const 
 	return res;
 }
 
-/*!
-* \internal
-* \brief Handle bridge hangup event.
-* \since 12.0.0
-*
-* \param bridge_channel Which channel is hanging up.
-*
-* \return Nothing
-*/
-static void bridge_channel_handle_hangup(struct ast_bridge_channel *bridge_channel)
-{
-	struct ast_bridge_features *features = bridge_channel->features;
-	struct ast_bridge_hook *hook;
-	struct ao2_iterator iter;
-
-	/* Run any hangup hooks. */
-	iter = ao2_iterator_init(features->other_hooks, 0);
-	for (; (hook = ao2_iterator_next(&iter)); ao2_ref(hook, -1)) {
-		int remove_me;
-
-		if (hook->type != AST_BRIDGE_HOOK_TYPE_HANGUP) {
-			continue;
-		}
-		remove_me = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
-		if (remove_me) {
-			ast_debug(1, "Hangup hook %p is being removed from %p(%s)\n",
-				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
-			ao2_unlink(features->other_hooks, hook);
-		}
-	}
-	ao2_iterator_destroy(&iter);
-
-	/* Default hangup action. */
-	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
-}
-
 void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
 	if (moh_class) {
@@ -443,7 +522,6 @@ void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const
 		ast_bridge_channel_write_unhold(bridge_channel);
 	}
 }
-
 
 struct bridge_run_app {
 	/*! Offset into app_name[] where the MOH class name starts.  (zero if no MOH) */
@@ -471,6 +549,10 @@ static void bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, st
 		data->moh_offset ? &data->app_name[data->moh_offset] : NULL);
 }
 
+/*!
+ * \internal
+ * \brief Marshal an application to be executed on a bridge_channel
+ */
 static int payload_helper_app(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
@@ -497,13 +579,13 @@ static int payload_helper_app(ast_bridge_channel_post_action_data post_it,
 
 int ast_bridge_channel_write_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
-	return payload_helper_app(ast_bridge_channel_write_action_data,
+	return payload_helper_app(bridge_channel_write_action_data,
 		bridge_channel, app_name, app_args, moh_class);
 }
 
 int ast_bridge_channel_queue_app(struct ast_bridge_channel *bridge_channel, const char *app_name, const char *app_args, const char *moh_class)
 {
-	return payload_helper_app(ast_bridge_channel_queue_action_data,
+	return payload_helper_app(bridge_channel_queue_action_data,
 		bridge_channel, app_name, app_args, moh_class);
 }
 
@@ -560,6 +642,10 @@ static void bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, s
 		payload->moh_offset ? &payload->playfile[payload->moh_offset] : NULL);
 }
 
+/*!
+ * \internal
+ * \brief Marshal a file to be played on a bridge_channel
+ */
 static int payload_helper_playfile(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
 {
@@ -582,13 +668,13 @@ static int payload_helper_playfile(ast_bridge_channel_post_action_data post_it,
 
 int ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
 {
-	return payload_helper_playfile(ast_bridge_channel_write_action_data,
+	return payload_helper_playfile(bridge_channel_write_action_data,
 		bridge_channel, custom_play, playfile, moh_class);
 }
 
 int ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class)
 {
-	return payload_helper_playfile(ast_bridge_channel_queue_action_data,
+	return payload_helper_playfile(bridge_channel_queue_action_data,
 		bridge_channel, custom_play, playfile, moh_class);
 }
 
@@ -618,6 +704,10 @@ static void bridge_channel_do_callback(struct ast_bridge_channel *bridge_channel
 	data->callback(bridge_channel, data->payload_exists ? data->payload : NULL, data->payload_size);
 }
 
+/*!
+ * \internal
+ * \brief Marshal a custom callback function to be called on a bridge_channel
+ */
 static int payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
@@ -644,13 +734,13 @@ static int payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 
 int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
-	return payload_helper_cb(ast_bridge_channel_write_action_data,
+	return payload_helper_cb(bridge_channel_write_action_data,
 		bridge_channel, callback, payload, payload_size);
 }
 
 int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
-	return payload_helper_cb(ast_bridge_channel_queue_action_data,
+	return payload_helper_cb(bridge_channel_queue_action_data,
 		bridge_channel, callback, payload, payload_size);
 }
 
@@ -661,6 +751,10 @@ struct bridge_park {
 	char parkee_uuid[0];
 };
 
+/*!
+ * \internal
+ * \brief Park a bridge_cahnnel
+ */
 static void bridge_channel_park(struct ast_bridge_channel *bridge_channel, struct bridge_park *payload)
 {
 	ast_bridge_channel_park(bridge_channel, payload->parkee_uuid,
@@ -668,6 +762,10 @@ static void bridge_channel_park(struct ast_bridge_channel *bridge_channel, struc
 		payload->app_data_offset ? &payload->parkee_uuid[payload->app_data_offset] : NULL);
 }
 
+/*!
+ * \internal
+ * \brief Marshal a park action onto a bridge_channel
+ */
 static int payload_helper_park(ast_bridge_channel_post_action_data post_it,
 	struct ast_bridge_channel *bridge_channel,
 	const char *parkee_uuid,
@@ -694,48 +792,8 @@ static int payload_helper_park(ast_bridge_channel_post_action_data post_it,
 
 int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid, const char *parker_uuid, const char *app_data)
 {
-	return payload_helper_park(ast_bridge_channel_write_action_data,
+	return payload_helper_park(bridge_channel_write_action_data,
 		bridge_channel, parkee_uuid, parker_uuid, app_data);
-}
-
-int ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking)
-{
-	struct ast_frame action = {
-		.frametype = AST_FRAME_BRIDGE_ACTION,
-		.subclass.integer = started_talking
-			? BRIDGE_CHANNEL_ACTION_TALKING_START : BRIDGE_CHANNEL_ACTION_TALKING_STOP,
-	};
-
-	return ast_bridge_channel_queue_frame(bridge_channel, &action);
-}
-
-struct ast_bridge_channel *ast_bridge_channel_peer(struct ast_bridge_channel *bridge_channel)
-{
-	struct ast_bridge *bridge = bridge_channel->bridge;
-	struct ast_bridge_channel *other = NULL;
-
-	if (bridge_channel->in_bridge && bridge->num_channels == 2) {
-		AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
-			if (other != bridge_channel) {
-				break;
-			}
-		}
-	}
-
-	return other;
-}
-
-struct ast_bridge_channel *bridge_find_channel(struct ast_bridge *bridge, struct ast_channel *chan)
-{
-	struct ast_bridge_channel *bridge_channel;
-
-	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		if (bridge_channel->chan == chan) {
-			break;
-		}
-	}
-
-	return bridge_channel;
 }
 
 /*!
@@ -748,7 +806,7 @@ struct ast_bridge_channel *bridge_find_channel(struct ast_bridge *bridge, struct
  *
  * \return Nothing
  */
-void bridge_channel_suspend_nolock(struct ast_bridge_channel *bridge_channel)
+void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_channel)
 {
 	bridge_channel->suspended = 1;
 	if (bridge_channel->in_bridge) {
@@ -772,7 +830,7 @@ void bridge_channel_suspend_nolock(struct ast_bridge_channel *bridge_channel)
 static void bridge_channel_suspend(struct ast_bridge_channel *bridge_channel)
 {
 	ast_bridge_channel_lock_bridge(bridge_channel);
-	bridge_channel_suspend_nolock(bridge_channel);
+	bridge_channel_internal_suspend_nolock(bridge_channel);
 	ast_bridge_unlock(bridge_channel->bridge);
 }
 
@@ -786,7 +844,7 @@ static void bridge_channel_suspend(struct ast_bridge_channel *bridge_channel)
  *
  * \return Nothing
  */
-void bridge_channel_unsuspend_nolock(struct ast_bridge_channel *bridge_channel)
+void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_channel)
 {
 	bridge_channel->suspended = 0;
 	if (bridge_channel->in_bridge) {
@@ -815,7 +873,7 @@ void bridge_channel_unsuspend_nolock(struct ast_bridge_channel *bridge_channel)
 static void bridge_channel_unsuspend(struct ast_bridge_channel *bridge_channel)
 {
 	ast_bridge_channel_lock_bridge(bridge_channel);
-	bridge_channel_unsuspend_nolock(bridge_channel);
+	bridge_channel_internal_unsuspend_nolock(bridge_channel);
 	ast_bridge_unlock(bridge_channel->bridge);
 }
 
@@ -913,14 +971,15 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 	}
 }
 
+/*! \internal \brief Write a DTMF stream out to a channel */
 static int bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_channel, const char *dtmf)
 {
-	return ast_bridge_channel_write_action_data(bridge_channel,
+	return bridge_channel_write_action_data(bridge_channel,
 		BRIDGE_CHANNEL_ACTION_DTMF_STREAM, dtmf, strlen(dtmf) + 1);
 }
 
 /*!
- * \brief Internal function that executes a feature on a bridge channel
+ * \internal \brief Internal function that executes a feature on a bridge channel
  * \note Neither the bridge nor the bridge_channel locks should be held when entering
  * this function.
  */
@@ -1017,6 +1076,7 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 	}
 }
 
+/*! \internal \brief Indicate that a bridge_channel is talking */
 static void bridge_channel_talking(struct ast_bridge_channel *bridge_channel, int talking)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
@@ -1051,13 +1111,13 @@ static void bridge_channel_dtmf_stream(struct ast_bridge_channel *bridge_channel
 	ast_dtmf_stream(bridge_channel->chan, NULL, dtmf, 0, 0);
 }
 
-static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_channel,
-		struct blind_transfer_data *blind_data)
-{
-	ast_async_goto(bridge_channel->chan, blind_data->context, blind_data->exten, 1);
-	bridge_channel_handle_hangup(bridge_channel);
-}
+/*! \brief Data specifying where a blind transfer is going to */
+struct blind_transfer_data {
+	char exten[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
+};
 
+/*! \internal \brief Execute after bridge actions on a channel when it leaves a bridge */
 static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *data)
 {
 	RAII_VAR(struct ast_channel *, chan_target, data, ao2_cleanup);
@@ -1094,15 +1154,25 @@ static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *da
 	ast_party_connected_line_free(&connected_target);
 }
 
-static void after_bridge_move_channel_fail(enum ast_after_bridge_cb_reason reason, void *data)
+/*! \internal \brief Execute logic to cleanup when after bridge fails */
+static void after_bridge_move_channel_fail(enum ast_bridge_after_cb_reason reason, void *data)
 {
 	RAII_VAR(struct ast_channel *, chan_target, data, ao2_cleanup);
 
 	ast_log(LOG_WARNING, "Unable to complete transfer: %s\n",
-		ast_after_bridge_cb_reason_string(reason));
+		ast_bridge_after_cb_reason_string(reason));
 	ast_softhangup(chan_target, AST_SOFTHANGUP_DEV);
 }
 
+/*! \internal \brief Perform a blind transfer on a channel in a bridge */
+static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_channel,
+		struct blind_transfer_data *blind_data)
+{
+	ast_async_goto(bridge_channel->chan, blind_data->context, blind_data->exten, 1);
+	bridge_channel_handle_hangup(bridge_channel);
+}
+
+/*! \internal \brief Perform an attended transfer on a channel in a bridge */
 static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_channel,
 		const char *target_chan_name)
 {
@@ -1122,11 +1192,11 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 	ao2_ref(chan_bridged, +1);
 	ast_bridge_channel_unlock(bridge_channel);
 
-	if (ast_after_bridge_callback_set(chan_bridged, after_bridge_move_channel,
+	if (ast_bridge_set_after_callback(chan_bridged, after_bridge_move_channel,
 		after_bridge_move_channel_fail, ast_channel_ref(chan_target))) {
 		ast_softhangup(chan_target, AST_SOFTHANGUP_DEV);
 
-		/* Release the ref we tried to pass to ast_after_bridge_callback_set(). */
+		/* Release the ref we tried to pass to ast_bridge_set_after_callback(). */
 		ast_channel_unref(chan_target);
 	}
 	bridge_channel_handle_hangup(bridge_channel);
@@ -1214,7 +1284,7 @@ static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_chann
  *
  * \return Nothing
  */
-static void bridge_dissolve_check(struct ast_bridge_channel *bridge_channel)
+static void bridge_channel_dissolve_check(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge *bridge = bridge_channel->bridge;
 
@@ -1230,7 +1300,7 @@ static void bridge_dissolve_check(struct ast_bridge_channel *bridge_channel)
 	}
 
 	switch (bridge_channel->state) {
-	case AST_BRIDGE_CHANNEL_STATE_END:
+	case BRIDGE_CHANNEL_STATE_END:
 		/* Do we need to dissolve the bridge because this channel hung up? */
 		if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_HANGUP)
 			|| (bridge_channel->features->usable
@@ -1246,18 +1316,7 @@ static void bridge_dissolve_check(struct ast_bridge_channel *bridge_channel)
 /* BUGBUG need to implement AST_BRIDGE_CHANNEL_FLAG_LONELY support here */
 }
 
-/*!
- * \internal
- * \brief Pull the bridge channel out of its current bridge.
- * \since 12.0.0
- *
- * \param bridge_channel Channel to pull.
- *
- * \note On entry, bridge_channel->bridge is already locked.
- *
- * \return Nothing
- */
-void bridge_channel_pull(struct ast_bridge_channel *bridge_channel)
+void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge *bridge = bridge_channel->bridge;
 
@@ -1306,25 +1365,13 @@ void bridge_channel_pull(struct ast_bridge_channel *bridge_channel)
 		ast_clear_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING);
 	}
 
-	bridge_dissolve_check(bridge_channel);
+	bridge_channel_dissolve_check(bridge_channel);
 
 	bridge->reconfigured = 1;
 	ast_bridge_publish_leave(bridge, bridge_channel->chan);
 }
 
-/*!
- * \internal
- * \brief Push the bridge channel into its specified bridge.
- * \since 12.0.0
- *
- * \param bridge_channel Channel to push.
- *
- * \note On entry, bridge_channel->bridge is already locked.
- *
- * \retval 0 on success.
- * \retval -1 on failure.  The channel did not get pushed.
- */
-int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
+int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge *bridge = bridge_channel->bridge;
 	struct ast_bridge_channel *swap;
@@ -1345,8 +1392,8 @@ int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 
 	/* Add channel to the bridge */
 	if (bridge->dissolved
-		|| bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT
-		|| (swap && swap->state != AST_BRIDGE_CHANNEL_STATE_WAIT)
+		|| bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT
+		|| (swap && swap->state != BRIDGE_CHANNEL_STATE_WAIT)
 		|| bridge->v_table->push(bridge, bridge_channel, swap)
 		|| ast_bridge_channel_establish_roles(bridge_channel)) {
 		ast_debug(1, "Bridge %s: pushing %p(%s) into bridge failed\n",
@@ -1373,8 +1420,8 @@ int bridge_channel_push(struct ast_bridge_channel *bridge_channel)
 
 	ast_bridge_publish_enter(bridge, bridge_channel->chan);
 	if (swap) {
-		ast_bridge_channel_leave_bridge(swap, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
-		bridge_channel_pull(swap);
+		ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		bridge_channel_internal_pull(swap);
 	}
 
 	/* Clear any BLINDTRANSFER and ATTENDEDTRANSFER since the transfer has completed. */
@@ -1517,7 +1564,7 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 		break;
 	default:
 		/* Write the frame to the channel. */
-		bridge_channel->activity = AST_BRIDGE_CHANNEL_THREAD_SIMPLE;
+		bridge_channel->activity = BRIDGE_CHANNEL_THREAD_SIMPLE;
 		ast_write(bridge_channel->chan, fr);
 		break;
 	}
@@ -1661,7 +1708,7 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 
 	/* Wait for data to either come from the channel or us to be signaled */
 	ast_bridge_channel_lock(bridge_channel);
-	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 	} else if (bridge_channel->suspended) {
 /* BUGBUG the external party use of suspended will go away as will these references because this is the bridge channel thread */
 		ast_debug(1, "Bridge %s: %p(%s) is going into a signal wait\n",
@@ -1687,10 +1734,10 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 			ast_bridge_unlock(bridge_channel->bridge);
 		}
 		ast_bridge_channel_lock(bridge_channel);
-		bridge_channel->activity = AST_BRIDGE_CHANNEL_THREAD_FRAME;
+		bridge_channel->activity = BRIDGE_CHANNEL_THREAD_FRAME;
 		ast_bridge_channel_unlock(bridge_channel);
 		if (!bridge_channel->suspended
-			&& bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+			&& bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 			if (chan) {
 				bridge_handle_trip(bridge_channel);
 			} else if (-1 < outfd) {
@@ -1700,7 +1747,7 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 				bridge_channel_handle_interval(bridge_channel);
 			}
 		}
-		bridge_channel->activity = AST_BRIDGE_CHANNEL_THREAD_IDLE;
+		bridge_channel->activity = BRIDGE_CHANNEL_THREAD_IDLE;
 		return;
 	}
 	ast_bridge_channel_unlock(bridge_channel);
@@ -1747,7 +1794,7 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 }
 
 /*! \brief Join a channel to a bridge and handle anything the bridge may want us to do */
-void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
+void bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 {
 	ast_format_copy(&bridge_channel->read_format, ast_channel_readformat(bridge_channel->chan));
 	ast_format_copy(&bridge_channel->write_format, ast_channel_writeformat(bridge_channel->chan));
@@ -1777,12 +1824,12 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 		bridge_channel->bridge->callid = ast_read_threadstorage_callid();
 	}
 
-	if (bridge_channel_push(bridge_channel)) {
-		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+	if (bridge_channel_internal_push(bridge_channel)) {
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 	}
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
-	if (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 		/*
 		 * Indicate a source change since this channel is entering the
 		 * bridge system only if the bridge technology is not MULTIMIX
@@ -1795,7 +1842,7 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 
 		ast_bridge_unlock(bridge_channel->bridge);
 		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_JOIN);
-		while (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+		while (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 			/* Wait for something to do. */
 			bridge_channel_wait(bridge_channel);
 		}
@@ -1803,7 +1850,7 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 		ast_bridge_channel_lock_bridge(bridge_channel);
 	}
 
-	bridge_channel_pull(bridge_channel);
+	bridge_channel_internal_pull(bridge_channel);
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
 	ast_bridge_unlock(bridge_channel->bridge);
@@ -1836,48 +1883,7 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel)
 	ast_bridge_channel_restore_formats(bridge_channel);
 }
 
-void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
-{
-	ast_bridge_channel_lock(bridge_channel);
-	ast_bridge_channel_leave_bridge_nolock(bridge_channel, new_state);
-	ast_bridge_channel_unlock(bridge_channel);
-}
-
-void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
-{
-/* BUGBUG need cause code for the bridge_channel leaving the bridge. */
-	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
-		return;
-	}
-
-	ast_debug(1, "Setting %p(%s) state from:%d to:%d\n",
-		bridge_channel, ast_channel_name(bridge_channel->chan), bridge_channel->state,
-		new_state);
-
-	/* Change the state on the bridge channel */
-	bridge_channel->state = new_state;
-
-	bridge_channel_poke(bridge_channel);
-}
-
-/*!
- * \internal
- * \brief Queue a blind transfer action on a transferee bridge channel
- *
- * This is only relevant for when a blind transfer is performed on a two-party
- * bridge. The transferee's bridge channel will have a blind transfer bridge
- * action queued onto it, resulting in the party being redirected to a new
- * destination
- *
- * \param transferee The channel to have the action queued on
- * \param exten The destination extension for the transferee
- * \param context The destination context for the transferee
- * \param hook Frame hook to attach to transferee
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
+int bridge_channel_internal_queue_blind_transfer(struct ast_channel *transferee,
 		const char *exten, const char *context,
 		transfer_channel_cb new_channel_cb, void *user_data)
 {
@@ -1899,11 +1905,11 @@ int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
 	ast_copy_string(blind_data.exten, exten, sizeof(blind_data.exten));
 	ast_copy_string(blind_data.context, context, sizeof(blind_data.context));
 
-	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
+	return bridge_channel_queue_action_data(transferee_bridge_channel,
 		BRIDGE_CHANNEL_ACTION_BLIND_TRANSFER, &blind_data, sizeof(blind_data));
 }
 
-int bridge_channel_queue_attended_transfer(struct ast_channel *transferee,
+int bridge_channel_internal_queue_attended_transfer(struct ast_channel *transferee,
 		struct ast_channel *unbridged_chan)
 {
 	RAII_VAR(struct ast_bridge_channel *, transferee_bridge_channel, NULL, ao2_cleanup);
@@ -1920,7 +1926,114 @@ int bridge_channel_queue_attended_transfer(struct ast_channel *transferee,
 	ast_copy_string(unbridged_chan_name, ast_channel_name(unbridged_chan),
 		sizeof(unbridged_chan_name));
 
-	return ast_bridge_channel_queue_action_data(transferee_bridge_channel,
+	return bridge_channel_queue_action_data(transferee_bridge_channel,
 		BRIDGE_CHANNEL_ACTION_ATTENDED_TRANSFER, unbridged_chan_name,
 		sizeof(unbridged_chan_name));
+}
+
+int bridge_channel_internal_allows_optimization(struct ast_bridge_channel *bridge_channel)
+{
+	return bridge_channel->in_bridge
+		&& AST_LIST_EMPTY(&bridge_channel->wr_queue);
+}
+
+/*!
+ * \internal
+ * \brief Close a pipe.
+ * \since 12.0.0
+ *
+ * \param my_pipe What to close.
+ *
+ * \return Nothing
+ */
+static void pipe_close(int *my_pipe)
+{
+	if (my_pipe[0] > -1) {
+		close(my_pipe[0]);
+		my_pipe[0] = -1;
+	}
+	if (my_pipe[1] > -1) {
+		close(my_pipe[1]);
+		my_pipe[1] = -1;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Initialize a pipe as non-blocking.
+ * \since 12.0.0
+ *
+ * \param my_pipe What to initialize.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int pipe_init_nonblock(int *my_pipe)
+{
+	int flags;
+
+	my_pipe[0] = -1;
+	my_pipe[1] = -1;
+	if (pipe(my_pipe)) {
+		ast_log(LOG_WARNING, "Can't create pipe! Try increasing max file descriptors with ulimit -n\n");
+		return -1;
+	}
+	flags = fcntl(my_pipe[0], F_GETFL);
+	if (fcntl(my_pipe[0], F_SETFL, flags | O_NONBLOCK) < 0) {
+		ast_log(LOG_WARNING, "Unable to set read pipe nonblocking! (%d: %s)\n",
+			errno, strerror(errno));
+		return -1;
+	}
+	flags = fcntl(my_pipe[1], F_GETFL);
+	if (fcntl(my_pipe[1], F_SETFL, flags | O_NONBLOCK) < 0) {
+		ast_log(LOG_WARNING, "Unable to set write pipe nonblocking! (%d: %s)\n",
+			errno, strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+/* Destroy elements of the bridge channel structure and the bridge channel structure itself */
+static void bridge_channel_destroy(void *obj)
+{
+	struct ast_bridge_channel *bridge_channel = obj;
+	struct ast_frame *fr;
+
+	if (bridge_channel->callid) {
+		bridge_channel->callid = ast_callid_unref(bridge_channel->callid);
+	}
+
+	if (bridge_channel->bridge) {
+		ao2_ref(bridge_channel->bridge, -1);
+		bridge_channel->bridge = NULL;
+	}
+
+	/* Flush any unhandled wr_queue frames. */
+	while ((fr = AST_LIST_REMOVE_HEAD(&bridge_channel->wr_queue, frame_list))) {
+		ast_frfree(fr);
+	}
+	pipe_close(bridge_channel->alert_pipe);
+
+	ast_cond_destroy(&bridge_channel->cond);
+}
+
+struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *bridge)
+{
+	struct ast_bridge_channel *bridge_channel;
+
+	bridge_channel = ao2_alloc(sizeof(struct ast_bridge_channel), bridge_channel_destroy);
+	if (!bridge_channel) {
+		return NULL;
+	}
+	ast_cond_init(&bridge_channel->cond, NULL);
+	if (pipe_init_nonblock(bridge_channel->alert_pipe)) {
+		ao2_ref(bridge_channel, -1);
+		return NULL;
+	}
+	if (bridge) {
+		bridge_channel->bridge = bridge;
+		ao2_ref(bridge_channel->bridge, +1);
+	}
+
+	return bridge_channel;
 }

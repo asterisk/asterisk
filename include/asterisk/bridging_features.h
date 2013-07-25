@@ -16,7 +16,8 @@
  * at the top of the source tree.
  */
 
-/*! \file
+/*!
+ * \file
  * \brief Channel Bridging API
  * \author Joshua Colp <jcolp@digium.com>
  */
@@ -75,7 +76,7 @@ enum ast_bridge_builtin_feature {
 	 * how it was imparted.
 	 *
 	 * \note Joined channels exit the bridge with
-	 * AST_BRIDGE_CHANNEL_STATE_END_WITH_DISSOLVE.
+	 * BRIDGE_CHANNEL_STATE_END_WITH_DISSOLVE.
 	 */
 	AST_BRIDGE_BUILTIN_HANGUP,
 	/*!

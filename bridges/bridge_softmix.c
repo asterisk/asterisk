@@ -576,7 +576,7 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 	ast_mutex_unlock(&sc->lock);
 
 	if (update_talking != -1) {
-		ast_bridge_notify_talking(bridge_channel, update_talking);
+		ast_bridge_channel_notify_talking(bridge_channel, update_talking);
 	}
 }
 

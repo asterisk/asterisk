@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/bridging_basic.h"
+#include "asterisk/bridging_after.h"
 
 /*** DOCUMENTATION
 	<function name="CHANNELS" language="en_US">
@@ -531,7 +532,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 
 		locked_copy_string(chan, buf,  ast_print_namedgroups(&tmp_str, ast_channel_named_pickupgroups(chan)), len);
 	} else if (!strcasecmp(data, "after_bridge_goto")) {
-		ast_after_bridge_goto_read(chan, buf, len);
+		ast_bridge_read_after_goto(chan, buf, len);
 	} else if (!strcasecmp(data, "amaflags")) {
 		ast_channel_lock(chan);
 		snprintf(buf, len, "%d", ast_channel_amaflags(chan));
@@ -575,9 +576,9 @@ static int func_channel_write_real(struct ast_channel *chan, const char *functio
 		locked_string_field_set(chan, userfield, value);
 	else if (!strcasecmp(data, "after_bridge_goto")) {
 		if (ast_strlen_zero(value)) {
-			ast_after_bridge_goto_discard(chan);
+			ast_bridge_discard_after_goto(chan);
 		} else {
-			ast_after_bridge_set_go_on(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan), value);
+			ast_bridge_set_after_go_on(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan), value);
 		}
 	} else if (!strcasecmp(data, "amaflags")) {
 		ast_channel_lock(chan);

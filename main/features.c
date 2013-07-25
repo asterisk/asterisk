@@ -73,6 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_basic.h"
+#include "asterisk/bridging_after.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/features_config.h"
@@ -839,15 +840,15 @@ static void *bridge_call_thread(void *data)
 	}
 
 	if (tobj->return_to_pbx) {
-		ast_after_bridge_set_goto(tobj->chan, ast_channel_context(tobj->chan),
+		ast_bridge_set_after_goto(tobj->chan, ast_channel_context(tobj->chan),
 			ast_channel_exten(tobj->chan), ast_channel_priority(tobj->chan));
-		ast_after_bridge_set_goto(tobj->peer, ast_channel_context(tobj->peer),
+		ast_bridge_set_after_goto(tobj->peer, ast_channel_context(tobj->peer),
 			ast_channel_exten(tobj->peer), ast_channel_priority(tobj->peer));
 	}
 
 	ast_bridge_call(tobj->chan, tobj->peer, &tobj->bconfig);
 
-	ast_after_bridge_goto_run(tobj->chan);
+	ast_bridge_run_after_goto(tobj->chan);
 
 	ast_free(tobj);
 
@@ -3544,7 +3545,7 @@ static void bridge_check_monitor(struct ast_channel *chan, struct ast_channel *p
  */
 static void bridge_failed_peer_goto(struct ast_channel *chan, struct ast_channel *peer)
 {
-	if (ast_after_bridge_goto_setup(peer)
+	if (ast_bridge_setup_after_goto(peer)
 		|| ast_pbx_start(peer)) {
 		ast_autoservice_chan_hangup_peer(chan, peer);
 	}
@@ -4399,7 +4400,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_after_bridge_set_go_on(chana, chana_context, chana_exten, chana_priority, NULL);
+	ast_bridge_set_after_go_on(chana, chana_context, chana_exten, chana_priority, NULL);
 	if (ast_bridge_add_channel(bridge, chana, NULL, playtone & PLAYTONE_CHANNEL1, xfer_cfg_a ? xfer_cfg_a->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel1 to bridge: %s", ast_channel_name(chana));
 		astman_send_error(s, m, buf);
@@ -4407,7 +4408,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_after_bridge_set_go_on(chanb, chanb_context, chanb_exten, chanb_priority, NULL);
+	ast_bridge_set_after_go_on(chanb, chanb_context, chanb_exten, chanb_priority, NULL);
 	if (ast_bridge_add_channel(bridge, chanb, NULL, playtone & PLAYTONE_CHANNEL2, xfer_cfg_b ? xfer_cfg_b->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel2 to bridge: %s", ast_channel_name(chanb));
 		astman_send_error(s, m, buf);
@@ -5046,7 +5047,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		extension = ast_strdupa(ast_channel_exten(chan));
 		priority = ast_channel_priority(chan);
 		ast_channel_unlock(chan);
-		ast_after_bridge_set_go_on(current_dest_chan, context, extension, priority,
+		ast_bridge_set_after_go_on(current_dest_chan, context, extension, priority,
 			opt_args[OPT_ARG_CALLEE_GO_ON]);
 	} else if (!ast_test_flag(&opts, OPT_CALLEE_KILL)) {
 		ast_channel_lock(current_dest_chan);
@@ -5054,7 +5055,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		extension = ast_strdupa(ast_channel_exten(current_dest_chan));
 		priority = ast_channel_priority(current_dest_chan);
 		ast_channel_unlock(current_dest_chan);
-		ast_after_bridge_set_goto(current_dest_chan, context, extension, priority);
+		ast_bridge_set_after_goto(current_dest_chan, context, extension, priority);
 	}
 
 	if (ast_bridge_features_init(&chan_features)) {

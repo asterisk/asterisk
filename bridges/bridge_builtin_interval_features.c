@@ -58,7 +58,7 @@ static int bridge_features_duration_callback(struct ast_bridge *bridge, struct a
 		ast_stream_and_wait(bridge_channel->chan, limits->duration_sound, AST_DIGIT_NONE);
 	}
 
-	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
 
 	ast_test_suite_event_notify("BRIDGE_TIMELIMIT", "Channel1: %s", ast_channel_name(bridge_channel->chan));
 	return -1;
@@ -114,7 +114,7 @@ static int bridge_features_connect_callback(struct ast_bridge *bridge, struct as
 {
 	struct ast_bridge_features_limits *limits = hook_pvt;
 
-	if (bridge_channel->state != AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 		return -1;
 	}
 
@@ -126,7 +126,7 @@ static int bridge_features_warning_callback(struct ast_bridge *bridge, struct as
 {
 	struct ast_bridge_features_limits *limits = hook_pvt;
 
-	if (bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 		/* If we aren't in the wait state, something more important than this warning is happening and we should skip it. */
 		limits_interval_playback(bridge, bridge_channel, limits, limits->warning_sound);
 	}

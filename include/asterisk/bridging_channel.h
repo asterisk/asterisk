@@ -20,29 +20,29 @@
 
 /*!
  * \file
- * \brief Bridging Channel API
+ * \page AstBridgeChannel Bridging Channel API
  *
  * An API that act on a channel in a bridge. Note that while the
  * \ref ast_bridge_channel is owned by a channel, it should only be used
  * by members of the bridging system. The only places where this API should
  * be used is:
- *  - The \ref AstBridging API itself
- *  - Bridge mixing technologies
- *  - Bridge sub-classes
+ *  \arg \ref AstBridging API itself
+ *  \arg Bridge mixing technologies
+ *  \arg Bridge sub-classes
  *
  * In general, anywhere else it is unsafe to use this API. Care should be
  * taken when using this API to ensure that the locking order remains
  * correct. The locking order must be:
- *  - The \ref ast_bridge
- *  - The \ref ast_bridge_channel
- *  - The \ref ast_channel
+ *  \arg The \ref \c ast_bridge
+ *  \arg The \ref \c ast_bridge_channel
+ *  \arg The \ref \c ast_channel
  *
  * \author Joshua Colp <jcolp@digium.com>
  * \author Richard Mudgett <rmudgett@digium.com>
  * \author Matt Jordan <mjordan@digium.com>
  *
  * See Also:
- * \ref bridging.h
+ * \arg \ref AstBridging
  * \arg \ref AstCREDITS
  */
 
@@ -56,22 +56,22 @@ extern "C" {
 #include "asterisk/bridging_technology.h"
 
 /*! \brief State information about a bridged channel */
-enum ast_bridge_channel_state {
+enum bridge_channel_state {
 	/*! Waiting for a signal (Channel in the bridge) */
-	AST_BRIDGE_CHANNEL_STATE_WAIT = 0,
+	BRIDGE_CHANNEL_STATE_WAIT = 0,
 	/*! Bridged channel was forced out and should be hung up (Bridge may dissolve.) */
-	AST_BRIDGE_CHANNEL_STATE_END,
+	BRIDGE_CHANNEL_STATE_END,
 	/*! Bridged channel was forced out. Don't dissolve the bridge regardless */
-	AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE,
+	BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE,
 };
 
-enum ast_bridge_channel_thread_state {
+enum bridge_channel_thread_state {
 	/*! Bridge channel thread is idle/waiting. */
-	AST_BRIDGE_CHANNEL_THREAD_IDLE,
+	BRIDGE_CHANNEL_THREAD_IDLE,
 	/*! Bridge channel thread is writing a normal/simple frame. */
-	AST_BRIDGE_CHANNEL_THREAD_SIMPLE,
+	BRIDGE_CHANNEL_THREAD_SIMPLE,
 	/*! Bridge channel thread is processing a frame. */
-	AST_BRIDGE_CHANNEL_THREAD_FRAME,
+	BRIDGE_CHANNEL_THREAD_FRAME,
 };
 
 struct ast_bridge;
@@ -85,7 +85,7 @@ struct ast_bridge_channel {
 	/*! Condition, used if we want to wake up a thread waiting on the bridged channel */
 	ast_cond_t cond;
 	/*! Current bridged channel state */
-	enum ast_bridge_channel_state state;
+	enum bridge_channel_state state;
 	/*! Asterisk channel participating in the bridge */
 	struct ast_channel *chan;
 	/*! Asterisk channel we are swapping with (if swapping) */
@@ -154,7 +154,7 @@ struct ast_bridge_channel {
 	 *
 	 * \note Needs to be atomically settable.
 	 */
-	enum ast_bridge_channel_thread_state activity;
+	enum bridge_channel_thread_state activity;
 };
 
 /*!
@@ -217,22 +217,22 @@ static inline void _ast_bridge_channel_unlock(struct ast_bridge_channel *bridge_
 void ast_bridge_channel_lock_bridge(struct ast_bridge_channel *bridge_channel);
 
 /*!
- * \brief Set bridge channel state to leave bridge (if not leaving already).
+ * \brief Lets the bridging indicate when a bridge channel has stopped or started talking.
  *
- * \param bridge_channel Channel to change the state on
- * \param new_state The new state to place the channel into
+ * \note All DSP functionality on the bridge has been pushed down to the lowest possible
+ * layer, which in this case is the specific bridging technology being used. Since it
+ * is necessary for the knowledge of which channels are talking to make its way up to the
+ * application, this function has been created to allow the bridging technology to communicate
+ * that information with the bridging core.
  *
- * Example usage:
+ * \param bridge_channel The bridge channel that has either started or stopped talking.
+ * \param started_talking set to 1 when this indicates the channel has started talking set to 0
+ * when this indicates the channel has stopped talking.
  *
- * \code
- * ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
- * \endcode
- *
- * This places the channel pointed to by bridge_channel into the
- * state AST_BRIDGE_CHANNEL_STATE_END if it was
- * AST_BRIDGE_CHANNEL_STATE_WAIT before.
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
+int ast_bridge_channel_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking);
 
 /*!
  * \brief Set bridge channel state to leave bridge (if not leaving already).
@@ -243,14 +243,100 @@ void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, 
  * Example usage:
  *
  * \code
- * ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END);
+ * ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
  * \endcode
  *
  * This places the channel pointed to by bridge_channel into the
- * state AST_BRIDGE_CHANNEL_STATE_END if it was
- * AST_BRIDGE_CHANNEL_STATE_WAIT before.
+ * state BRIDGE_CHANNEL_STATE_END if it was
+ * BRIDGE_CHANNEL_STATE_WAIT before.
  */
-void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state);
+void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state);
+
+/*!
+ * \brief Set bridge channel state to leave bridge (if not leaving already).
+ *
+ * \param bridge_channel Channel to change the state on
+ * \param new_state The new state to place the channel into
+ *
+ * Example usage:
+ *
+ * \code
+ * ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+ * \endcode
+ *
+ * This places the channel pointed to by bridge_channel into the
+ * state BRIDGE_CHANNEL_STATE_END if it was
+ * BRIDGE_CHANNEL_STATE_WAIT before.
+ */
+void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state);
+
+/*!
+ * \brief Get the peer bridge channel of a two party bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel What to get the peer of.
+ *
+ * \note On entry, bridge_channel->bridge is already locked.
+ *
+ * \note This is an internal bridge function.
+ *
+ * \retval peer on success.
+ * \retval NULL no peer channel.
+ */
+struct ast_bridge_channel *ast_bridge_channel_peer(struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \brief Restore the formats of a bridge channel's channel to how they were before bridge_channel_internal_join
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel to restore
+ */
+void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \brief Adjust the bridge_channel's bridge merge inhibit request count.
+ * \since 12.0.0
+ *
+ * \param bridge_channel What to operate on.
+ * \param request Inhibit request increment.
+ *     (Positive to add requests.  Negative to remove requests.)
+ *
+ * \note This API call is meant for internal bridging operations.
+ *
+ * \retval bridge adjusted merge inhibit with reference count.
+ */
+struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request);
+
+/*!
+ * \internal
+ * \brief Update the linkedids for all channels in a bridge
+ * \since 12.0.0
+ *
+ * \param bridge_channel The channel joining the bridge
+ * \param swap The channel being swapped out of the bridge. May be NULL.
+ *
+ * \note The bridge must be locked prior to calling this function. This should be called
+ * during a \ref bridge_channel_internal_push operation, typically by a sub-class of a bridge
+ */
+void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
+
+/*!
+ * \internal
+ * \brief Update the accountcodes for a channel entering a bridge
+ * \since 12.0.0
+ *
+ * This function updates the accountcode and peeraccount on channels in two-party
+ * bridges. In multi-party bridges, peeraccount is not set - it doesn't make much sense -
+ * however accountcode propagation will still occur if the channel joining has an
+ * accountcode.
+ *
+ * \param bridge_channel The channel joining the bridge
+ * \param swap The channel being swapped out of the bridge. May be NULL.
+ *
+ * \note The bridge must be locked prior to calling this function. This should be called
+ * during a \ref bridge_channel_internal_push operation, typically by a sub-class of a bridge
+ */
+void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
 
 /*!
  * \brief Write a frame to the specified bridge_channel.
@@ -496,79 +582,6 @@ int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel,
  */
 int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid,
 	const char *parker_uuid, const char *app_data);
-
-/*!
- * \brief Restore the formats of a bridge channel's channel to how they were before bridge_channel_join
- * \since 12.0.0
- *
- * \param bridge_channel Channel to restore
- */
-void ast_bridge_channel_restore_formats(struct ast_bridge_channel *bridge_channel);
-
-/*!
- * \brief Get the peer bridge channel of a two party bridge.
- * \since 12.0.0
- *
- * \param bridge_channel What to get the peer of.
- *
- * \note On entry, bridge_channel->bridge is already locked.
- *
- * \note This is an internal bridge function.
- *
- * \retval peer on success.
- * \retval NULL no peer channel.
- */
-struct ast_bridge_channel *ast_bridge_channel_peer(struct ast_bridge_channel *bridge_channel);
-
-struct blind_transfer_data {
-	char exten[AST_MAX_EXTENSION];
-	char context[AST_MAX_CONTEXT];
-};
-
-/*!
- * \brief Adjust the bridge_channel's bridge merge inhibit request count.
- * \since 12.0.0
- *
- * \param bridge_channel What to operate on.
- * \param request Inhibit request increment.
- *     (Positive to add requests.  Negative to remove requests.)
- *
- * \note This API call is meant for internal bridging operations.
- *
- * \retval bridge adjusted merge inhibit with reference count.
- */
-struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *bridge_channel, int request);
-
-/*!
- * \internal
- * \brief Update the linkedids for all channels in a bridge
- * \since 12.0.0
- *
- * \param bridge_channel The channel joining the bridge
- * \param swap The channel being swapped out of the bridge. May be NULL.
- *
- * \note The bridge must be locked prior to calling this function. This should be called
- * during a \ref bridge_channel_push operation, typically by a sub-class of a bridge
- */
-void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
-
-/*!
- * \internal
- * \brief Update the accountcodes for a channel entering a bridge
- * \since 12.0.0
- *
- * This function updates the accountcode and peeraccount on channels in two-party
- * bridges. In multi-party bridges, peeraccount is not set - it doesn't make much sense -
- * however accountcode propagation will still occur if the channel joining has an
- * accountcode.
- *
- * \param bridge_channel The channel joining the bridge
- * \param swap The channel being swapped out of the bridge. May be NULL.
- *
- * \note The bridge must be locked prior to calling this function. This should be called
- * during a \ref bridge_channel_push operation, typically by a sub-class of a bridge
- */
-void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

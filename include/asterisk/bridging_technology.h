@@ -203,24 +203,6 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 int ast_bridge_technology_unregister(struct ast_bridge_technology *technology);
 
 /*!
- * \brief Lets the bridging indicate when a bridge channel has stopped or started talking.
- *
- * \note All DSP functionality on the bridge has been pushed down to the lowest possible
- * layer, which in this case is the specific bridging technology being used. Since it
- * is necessary for the knowledge of which channels are talking to make its way up to the
- * application, this function has been created to allow the bridging technology to communicate
- * that information with the bridging core.
- *
- * \param bridge_channel The bridge channel that has either started or stopped talking.
- * \param started_talking set to 1 when this indicates the channel has started talking set to 0
- * when this indicates the channel has stopped talking.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-int ast_bridge_notify_talking(struct ast_bridge_channel *bridge_channel, int started_talking);
-
-/*!
  * \brief Suspend a bridge technology from consideration
  *
  * \param technology The bridge technology to suspend

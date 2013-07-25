@@ -36,13 +36,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_basic.h"
+#include "asterisk/bridging_after.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/features_config.h"
 #include "asterisk/pbx.h"
 #include "asterisk/file.h"
 #include "asterisk/app.h"
 #include "asterisk/bridging_internal.h"
-#include "asterisk/bridging_channel_internal.h"
 #include "asterisk/dial.h"
 #include "asterisk/stasis_bridging.h"
 
@@ -279,13 +279,13 @@ static int basic_hangup_hook(struct ast_bridge *bridge, struct ast_bridge_channe
 
 	ast_bridge_channel_lock_bridge(bridge_channel);
 	AST_LIST_TRAVERSE(&bridge->channels, iter, entry) {
-		if (iter != bridge_channel && iter->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+		if (iter != bridge_channel && iter->state == BRIDGE_CHANNEL_STATE_WAIT) {
 			++bridge_count;
 		}
 	}
 	if (2 <= bridge_count) {
 		/* Just allow this channel to leave the multi-party bridge. */
-		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 	}
 	ast_bridge_unlock(bridge_channel->bridge);
 	return 0;
@@ -2300,7 +2300,7 @@ static int bridge_personality_atxfer_push(struct ast_bridge *self, struct ast_br
 
 static void transfer_pull(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct attended_transfer_properties *props)
 {
-	if (self->num_channels > 1 || bridge_channel->state == AST_BRIDGE_CHANNEL_STATE_WAIT) {
+	if (self->num_channels > 1 || bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 		return;
 	}
 
@@ -2794,13 +2794,13 @@ static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_c
 	if (!ast_strlen_zero(goto_on_blindxfr)) {
 		ast_debug(1, "After transfer, transferer %s goes to %s\n",
 				ast_channel_name(bridge_channel->chan), goto_on_blindxfr);
-		ast_after_bridge_set_go_on(bridge_channel->chan, NULL, NULL, 0, goto_on_blindxfr);
+		ast_bridge_set_after_go_on(bridge_channel->chan, NULL, NULL, 0, goto_on_blindxfr);
 	}
 
 	if (ast_bridge_transfer_blind(0, bridge_channel->chan, exten, context, blind_transfer_cb,
 			bridge_channel->chan) != AST_BRIDGE_TRANSFER_SUCCESS &&
 			!ast_strlen_zero(goto_on_blindxfr)) {
-		ast_after_bridge_goto_discard(bridge_channel->chan);
+		ast_bridge_discard_after_goto(bridge_channel->chan);
 	}
 
 	return 0;

@@ -109,6 +109,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/bridging.h"
+#include "asterisk/bridging_after.h"
 
 /* Define, to debug reference counts on queues, without debugging reference counts on queue members */
 /* #define REF_DEBUG_ONLY_QUEUES */
@@ -5293,7 +5294,7 @@ static void setup_peer_after_bridge_goto(struct ast_channel *chan, struct ast_ch
 		extension = ast_strdupa(ast_channel_exten(chan));
 		priority = ast_channel_priority(chan);
 		ast_channel_unlock(chan);
-		ast_after_bridge_set_go_on(peer, context, extension, priority,
+		ast_bridge_set_after_go_on(peer, context, extension, priority,
 			opt_args[OPT_ARG_CALLEE_GO_ON]);
 	}
 }

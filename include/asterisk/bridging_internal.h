@@ -180,8 +180,8 @@ void bridge_merge_inhibit_nolock(struct ast_bridge *bridge, int request);
  * \param colp_update Whether to perform COLP updates.
  *
  * \details
- * After a series of bridge_channel_push and
- * bridge_channel_pull calls, you need to call this function
+ * After a series of bridge_channel_internal_push and
+ * bridge_channel_internal_pull calls, you need to call this function
  * to cause the bridge to complete restructuring for the change
  * in the channel makeup of the bridge.
  *

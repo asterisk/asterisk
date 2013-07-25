@@ -16,6 +16,9 @@
  * at the top of the source tree.
  */
 
+#ifndef _ASTERISK_PRIVATE_BRIDGING_CHANNEL_H
+#define _ASTERISK_PRIVATE_BRIDGING_CHANNEL_H
+
 /*!
  * \file
  * \brief Private Bridging Channel API
@@ -23,15 +26,13 @@
  * \author Matt Jordan <mjordan@digium.com>
  *
  * A private API to manipulate channels in a bridge. These can be called on a channel in
- * a bridge by the bridging API, but should not be called by external consumers of the
- * Bridging API.
+ * a bridge by \ref bridging.c. These functions should not be called elsewhere, including
+ * by other members of the Bridging API.
  *
  * See Also:
  * \arg \ref AstCREDITS
+ * \arg \ref Ast
  */
-
-#ifndef _ASTERISK_PRIVATE_BRIDGING_CHANNEL_H
-#define _ASTERISK_PRIVATE_BRIDGING_CHANNEL_H
 
 /*!
  * \internal
@@ -73,6 +74,18 @@ enum bridge_channel_action_type {
 
 /*!
  * \internal
+ * \brief Allocate a new ao2 ref counted bridge_channel
+ * \since 12.0.0
+ *
+ * \param bridge The bridge to make the bridge_channel for
+ *
+ * \retval NULL on error
+ * \retval ao2 ref counted object on success
+ */
+struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *bridge);
+
+/*!
+ * \internal
  * \brief Push the bridge channel into its specified bridge.
  * \since 12.0.0
  *
@@ -83,7 +96,7 @@ enum bridge_channel_action_type {
  * \retval 0 on success.
  * \retval -1 on failure.  The channel did not get pushed.
  */
-int bridge_channel_push(struct ast_bridge_channel *bridge_channel);
+int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
@@ -96,7 +109,7 @@ int bridge_channel_push(struct ast_bridge_channel *bridge_channel);
  *
  * \return Nothing
  */
-void bridge_channel_pull(struct ast_bridge_channel *bridge_channel);
+void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
@@ -108,7 +121,7 @@ void bridge_channel_pull(struct ast_bridge_channel *bridge_channel);
  * it is in the bridge. It will return when the channel has been instructed to
  * leave the bridge.
  */
-void bridge_channel_join(struct ast_bridge_channel *bridge_channel);
+void bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
@@ -118,7 +131,7 @@ void bridge_channel_join(struct ast_bridge_channel *bridge_channel);
  * \param bridge_channel The channel in the bridge
  * \note This function assumes that \ref bridge_channel is already locked
  */
-void bridge_channel_suspend_nolock(struct ast_bridge_channel *bridge_channel);
+void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
@@ -127,7 +140,7 @@ void bridge_channel_suspend_nolock(struct ast_bridge_channel *bridge_channel);
  * \param bridge_channel The channel in the bridge
  * \note This function assumes that \ref bridge_channel is already locked
  */
-void bridge_channel_unsuspend_nolock(struct ast_bridge_channel *bridge_channel);
+void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
@@ -146,11 +159,35 @@ void bridge_channel_unsuspend_nolock(struct ast_bridge_channel *bridge_channel);
  * \retval 0 on success.
  * \retval -1 on error.
  */
-int bridge_channel_queue_blind_transfer(struct ast_channel *transferee,
+int bridge_channel_internal_queue_blind_transfer(struct ast_channel *transferee,
 		const char *exten, const char *context,
 		transfer_channel_cb new_channel_cb, void *user_data);
 
-int bridge_channel_queue_attended_transfer(struct ast_channel *transferee,
+/*!
+ * \internal
+ * \brief Queue an attended transfer action on a transferee bridge channel
+ *
+ * This is only relevant for when an attended transfer is performed on a two-party
+ * bridge. The transferee's bridge channel will have an attended transfer bridge
+ * action queued onto it.
+ *
+ * \param transferee The channel to have the action queued on
+ * \param unbridged_chan The unbridged channel who is the target of the attended
+ * transfer
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int bridge_channel_internal_queue_attended_transfer(struct ast_channel *transferee,
 		struct ast_channel *unbridged_chan);
+
+/*!
+ * \internal
+ * \brief Return whether or not the bridge_channel would allow optimization
+ *
+ * \retval 0 if optimization is not allowed
+ * \retval non-zero if optimization is allowed
+ */
+int bridge_channel_internal_allows_optimization(struct ast_bridge_channel *bridge_channel);
 
 #endif /* _ASTERISK_PRIVATE_BRIDGING_H */

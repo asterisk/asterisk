@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/bridging.h"
 #include "asterisk/bridging_internal.h"
-#include "asterisk/bridging_channel_internal.h"
 #include "asterisk/bridging_channel.h"
 #include "asterisk/bridging_features.h"
 #include "asterisk/features.h"
@@ -404,7 +403,7 @@ static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridg
 	user->resolution = PARK_TIMEOUT;
 	ao2_unlock(user);
 
-	ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 
 	/* Set parking timeout channel variables */
 	snprintf(parking_space, sizeof(parking_space), "%d", user->parking_space);
@@ -492,14 +491,14 @@ void say_parking_space(struct ast_bridge_channel *bridge_channel, const char *pa
 	if (sscanf(payload, "%u %u", &hangup_after, &numeric_value) != 2) {
 		/* If say_parking_space is called with a non-numeric string, we have a problem. */
 		ast_assert(0);
-		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		return;
 	}
 
 	ast_say_digits(bridge_channel->chan, numeric_value, "", ast_channel_language(bridge_channel->chan));
 
 	if (hangup_after) {
-		ast_bridge_channel_leave_bridge(bridge_channel, AST_BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 	}
 }
 
