@@ -679,7 +679,7 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, tos_video));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, cos_audio));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, cos_video));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowsubscribe", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allowsubscribe));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowsubscribe", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allowsubscribe));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpiry", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subminexpiry));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpirey", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subminexpiry));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromuser));

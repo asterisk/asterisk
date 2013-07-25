@@ -464,7 +464,7 @@
 						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
 					</para></description>
 				</configOption>
-				<configOption name="allowsubscribe" default="no">
+				<configOption name="allowsubscribe" default="yes">
 					<synopsis>Determines if endpoint is allowed to initiate subscriptions with Asterisk.</synopsis>
 				</configOption>
 				<configOption name="subminexpiry" default="60">
