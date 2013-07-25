@@ -99,17 +99,30 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	struct ast_taskprocessor *serializer = NULL;
 	pjsip_rx_data *clone;
 
-	pjsip_rx_data_clone(rdata, 0, &clone);
 	if (dlg) {
 		dist = pjsip_dlg_get_mod_data(dlg, distributor_mod.id);
 		if (dist) {
 			serializer = dist->serializer;
-			clone->endpt_info.mod_data[distributor_mod.id] = dist->endpoint;
 		}
+	}
+
+	if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG && (
+		!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_cancel_method) || 
+		!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_bye_method)) &&
+		!serializer) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 481, NULL, NULL, NULL);
+		goto end;
+	}
+
+	pjsip_rx_data_clone(rdata, 0, &clone);
+
+	if (dist) {
+		clone->endpt_info.mod_data[distributor_mod.id] = dist->endpoint;
 	}
 
 	ast_sip_push_task(serializer, distribute, clone);
 
+end:
 	if (dlg) {
 		pjsip_dlg_dec_lock(dlg);
 	}

@@ -954,14 +954,16 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	ast_sip_dialog_set_serializer(inv_session->dlg, session->serializer);
 	ast_sip_dialog_set_endpoint(inv_session->dlg, endpoint);
 	pjsip_dlg_inc_session(inv_session->dlg, &session_module);
-	ao2_ref(endpoint, +1);
+	ao2_ref(session, +1);
 	inv_session->mod_data[session_module.id] = session;
+	ao2_ref(endpoint, +1);
 	session->endpoint = endpoint;
 	session->inv_session = inv_session;
 	session->req_caps = ast_format_cap_alloc_nolock();
 
 	if (endpoint->dtmf == AST_SIP_DTMF_INBAND) {
 		if (!(session->dsp = ast_dsp_new())) {
+			ao2_ref(session, -1);
 			return NULL;
 		}
 
@@ -969,6 +971,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 
 	if (add_supplements(session)) {
+		ao2_ref(session, -1);
 		return NULL;
 	}
 	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
@@ -1046,6 +1049,10 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	ast_format_cap_copy(session->req_caps, req_caps);
 	if ((pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS)) {
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
+		/* Since we are not notifying ourselves that the INVITE session is being terminated
+		 * we need to manually drop its reference to session
+		 */
+		ao2_ref(session, -1);
 		return NULL;
 	}
 
@@ -1183,16 +1190,136 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 	return inv_session;
 }
 
+struct new_invite {
+	/*! \brief Session created for the new INVITE */
+	struct ast_sip_session *session;
+
+	/*! \brief INVITE request itself */
+	pjsip_rx_data *rdata;
+};
+
+static void new_invite_destroy(void *obj)
+{
+	struct new_invite *invite = obj;
+
+	ao2_cleanup(invite->session);
+
+	if (invite->rdata) {
+		pjsip_rx_data_free_cloned(invite->rdata);
+	}
+}
+
+static struct new_invite *new_invite_alloc(struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	struct new_invite *invite = ao2_alloc(sizeof(*invite), new_invite_destroy);
+
+	if (!invite) {
+		return NULL;
+	}
+
+	ao2_ref(session, +1);
+	invite->session = session;
+
+	if (pjsip_rx_data_clone(rdata, 0, &invite->rdata) != PJ_SUCCESS) {
+		ao2_ref(invite, -1);
+		return NULL;
+	}
+
+	return invite;
+}
+
+static int new_invite(void *data)
+{
+	RAII_VAR(struct new_invite *, invite, data, ao2_cleanup);
+	pjsip_tx_data *tdata = NULL;
+	pjsip_timer_setting timer;
+	pjsip_rdata_sdp_info *sdp_info;
+	pjmedia_sdp_session *local = NULL;
+
+	/* From this point on, any calls to pjsip_inv_terminate have the last argument as PJ_TRUE
+	 * so that we will be notified so we can destroy the session properly
+	 */
+
+	switch (get_destination(invite->session, invite->rdata)) {
+	case SIP_GET_DEST_EXTEN_FOUND:
+		/* Things worked. Keep going */
+		break;
+	case SIP_GET_DEST_UNSUPPORTED_URI:
+		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 416, NULL, NULL, &tdata) == PJ_SUCCESS) {
+			ast_sip_session_send_response(invite->session, tdata);
+		} else  {
+			pjsip_inv_terminate(invite->session->inv_session, 416, PJ_TRUE);
+		}
+		return 0;
+	case SIP_GET_DEST_EXTEN_NOT_FOUND:
+	case SIP_GET_DEST_EXTEN_PARTIAL:
+	default:
+		ast_log(LOG_NOTICE, "Call from '%s' (%s:%s:%d) to extension '%s' rejected because extension not found in context '%s'.\n",
+			ast_sorcery_object_get_id(invite->session->endpoint), invite->rdata->tp_info.transport->type_name, invite->rdata->pkt_info.src_name,
+			invite->rdata->pkt_info.src_port, invite->session->exten, invite->session->endpoint->context);
+
+		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 404, NULL, NULL, &tdata) == PJ_SUCCESS) {
+			ast_sip_session_send_response(invite->session, tdata);
+		} else  {
+			pjsip_inv_terminate(invite->session->inv_session, 404, PJ_TRUE);
+		}
+		return 0;
+	};
+
+	if ((sdp_info = pjsip_rdata_get_sdp_info(invite->rdata)) && (sdp_info->sdp_err == PJ_SUCCESS) && sdp_info->sdp) {
+		if (handle_incoming_sdp(invite->session, sdp_info->sdp)) {
+			if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 488, NULL, NULL, &tdata) == PJ_SUCCESS) {
+				ast_sip_session_send_response(invite->session, tdata);
+			} else  {
+				pjsip_inv_terminate(invite->session->inv_session, 488, PJ_TRUE);
+			}
+			return 0;
+		}
+		/* We are creating a local SDP which is an answer to their offer */
+		local = create_local_sdp(invite->session->inv_session, invite->session, sdp_info->sdp);
+	} else {
+		/* We are creating a local SDP which is an offer */
+		local = create_local_sdp(invite->session->inv_session, invite->session, NULL);
+	}
+
+	/* If we were unable to create a local SDP terminate the session early, it won't go anywhere */
+	if (!local) {
+		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
+			ast_sip_session_send_response(invite->session, tdata);
+		} else  {
+			pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
+		}
+		return 0;
+	} else {
+		pjsip_inv_set_local_sdp(invite->session->inv_session, local);
+		pjmedia_sdp_neg_set_prefer_remote_codec_order(invite->session->inv_session->neg, PJ_FALSE);
+	}
+
+	pjsip_timer_setting_default(&timer);
+	timer.min_se = invite->session->endpoint->min_se;
+	timer.sess_expires = invite->session->endpoint->sess_expires;
+	pjsip_timer_init_session(invite->session->inv_session, &timer);
+
+	/* At this point, we've verified what we can, so let's go ahead and send a 100 Trying out */
+	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
+		pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
+		return 0;
+	}
+	ast_sip_session_send_response(invite->session, tdata);
+
+	handle_incoming_request(invite->session, invite->rdata);
+
+	return 0;
+}
+
 static void handle_new_invite_request(pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint,
 			ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
 	pjsip_tx_data *tdata = NULL;
 	pjsip_inv_session *inv_session = NULL;
-	struct ast_sip_session *session = NULL;
-	pjsip_timer_setting timer;
-	pjsip_rdata_sdp_info *sdp_info;
-	pjmedia_sdp_session *local = NULL;
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	struct new_invite *invite;
 
 	ast_assert(endpoint != NULL);
 
@@ -1212,78 +1339,17 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		return;
 	}
 
-	/* From this point on, any calls to pjsip_inv_terminate have the last argument as PJ_TRUE
-	 * so that we will be notified so we can destroy the session properly
-	 */
-
-	switch (get_destination(session, rdata)) {
-	case SIP_GET_DEST_EXTEN_FOUND:
-		/* Things worked. Keep going */
-		break;
-	case SIP_GET_DEST_UNSUPPORTED_URI:
-		if (pjsip_inv_initial_answer(inv_session, rdata, 416, NULL, NULL, &tdata) == PJ_SUCCESS) {
-			ast_sip_session_send_response(session, tdata);
-		} else  {
-			pjsip_inv_terminate(inv_session, 416, PJ_TRUE);
-		}
-		return;
-	case SIP_GET_DEST_EXTEN_NOT_FOUND:
-	case SIP_GET_DEST_EXTEN_PARTIAL:
-	default:
-		ast_log(LOG_NOTICE, "Call from '%s' (%s:%s:%d) to extension '%s' rejected because extension not found in context '%s'.\n",
-			ast_sorcery_object_get_id(session->endpoint), rdata->tp_info.transport->type_name, rdata->pkt_info.src_name,
-			rdata->pkt_info.src_port, session->exten, session->endpoint->context);
-
-		if (pjsip_inv_initial_answer(inv_session, rdata, 404, NULL, NULL, &tdata) == PJ_SUCCESS) {
-			ast_sip_session_send_response(session, tdata);
-		} else  {
-			pjsip_inv_terminate(inv_session, 404, PJ_TRUE);
-		}
-		return;
-	};
-
-	if ((sdp_info = pjsip_rdata_get_sdp_info(rdata)) && (sdp_info->sdp_err == PJ_SUCCESS) && sdp_info->sdp) {
-		if (handle_incoming_sdp(session, sdp_info->sdp)) {
-			if (pjsip_inv_initial_answer(inv_session, rdata, 488, NULL, NULL, &tdata) == PJ_SUCCESS) {
-				ast_sip_session_send_response(session, tdata);
-			} else  {
-				pjsip_inv_terminate(inv_session, 488, PJ_TRUE);
-			}
-			return;
-		}
-		/* We are creating a local SDP which is an answer to their offer */
-		local = create_local_sdp(inv_session, session, sdp_info->sdp);
-	} else {
-		/* We are creating a local SDP which is an offer */
-		local = create_local_sdp(inv_session, session, NULL);
-	}
-
-	/* If we were unable to create a local SDP terminate the session early, it won't go anywhere */
-	if (!local) {
+	invite = new_invite_alloc(session, rdata);
+	if (!invite || ast_sip_push_task(session->serializer, new_invite, invite)) {
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
-			ast_sip_session_send_response(session, tdata);
-		} else  {
-			pjsip_inv_terminate(inv_session, 500, PJ_TRUE);
+			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
+		} else {
+			pjsip_inv_send_msg(inv_session, tdata);
 		}
-		return;
-	} else {
-		pjsip_inv_set_local_sdp(inv_session, local);
-		pjmedia_sdp_neg_set_prefer_remote_codec_order(inv_session->neg, PJ_FALSE);
-	}
-
-	pjsip_timer_setting_default(&timer);
-	timer.min_se = endpoint->min_se;
-	timer.sess_expires = endpoint->sess_expires;
-	pjsip_timer_init_session(inv_session, &timer);
-
-	/* At this point, we've verified what we can, so let's go ahead and send a 100 Trying out */
-	if (pjsip_inv_initial_answer(inv_session, rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
-		pjsip_inv_terminate(inv_session, 500, PJ_TRUE);
+		ao2_ref(session, -1);
+		ao2_cleanup(invite);
 		return;
 	}
-	ast_sip_session_send_response(session, tdata);
-
-	handle_incoming_request(session, rdata);
 }
 
 static pj_bool_t does_method_match(const pj_str_t *message_method, const char *supplement_method)

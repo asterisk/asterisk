@@ -1604,7 +1604,7 @@ static int request(void *obj)
 static struct ast_channel *gulp_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct request_data req_data;
-	struct ast_sip_session *session;
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 
 	req_data.caps = cap;
 	req_data.dest = data;
