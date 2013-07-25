@@ -716,11 +716,20 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 		return 0;
 	}
 
-	if ((method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) && inv_session->invite_tsx) {
-		/* We can't send a reinvite yet, so delay it */
-		ast_debug(3, "Delaying sending reinvite to %s because of outstanding transaction...\n",
-				ast_sorcery_object_get_id(session->endpoint));
-		return delay_request(session, on_request_creation, on_response, "INVITE", NULL);
+	if (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) {
+		if (inv_session->invite_tsx) {
+			/* We can't send a reinvite yet, so delay it */
+			ast_debug(3, "Delaying sending reinvite to %s because of outstanding transaction...\n",
+					ast_sorcery_object_get_id(session->endpoint));
+			return delay_request(session, on_request_creation, on_response, "INVITE", NULL);
+		} else if (inv_session->state != PJSIP_INV_STATE_CONFIRMED) {
+			/* Initial INVITE transaction failed to progress us to a confirmed state
+			 * which means re-invites are not possible
+			 */
+			ast_debug(3, "Not sending reinvite to %s because not in confirmed state...\n",
+					ast_sorcery_object_get_id(session->endpoint));
+			return 0;
+		}
 	}
 
 	if (generate_new_sdp) {
