@@ -112,7 +112,7 @@
 #include "asterisk/transcap.h"
 #include "asterisk/features.h"
 #include "asterisk/aoc.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
 
 #include "sig_pri.h"
@@ -4792,7 +4792,7 @@ static const char *sig_pri_moh_event_str(enum sig_pri_moh_event event)
  * \since 10.0
  *
  * \param pvt Channel private control structure.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -4836,7 +4836,7 @@ static enum sig_pri_moh_state sig_pri_moh_retrieve_call(struct sig_pri_chan *pvt
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -4900,7 +4900,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_idle(struct ast_channel *chan, str
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -4940,7 +4940,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_notify(struct ast_channel *chan, s
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -4977,7 +4977,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_moh(struct ast_channel *chan, stru
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -5022,7 +5022,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_hold_req(struct ast_channel *chan,
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -5063,7 +5063,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_pend_unhold(struct ast_channel *ch
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -5105,7 +5105,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_hold(struct ast_channel *chan, str
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -5147,7 +5147,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_retrieve_req(struct ast_channel *c
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -5225,7 +5225,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_pend_hold(struct ast_channel *chan
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -5265,7 +5265,7 @@ static enum sig_pri_moh_state sig_pri_moh_fsm_retrieve_fail(struct ast_channel *
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -5298,7 +5298,7 @@ static const sig_pri_moh_fsm_state sig_pri_moh_fsm[SIG_PRI_MOH_STATE_NUM] = {
  * \param chan Channel to post event to (Usually pvt->owner)
  * \param pvt Channel private control structure.
  * \param event MOH event to process.
- * 
+ *
  * \note Assumes the pvt->pri->lock is already obtained.
  * \note Assumes the sig_pri_lock_private(pvt) is already obtained.
  *
@@ -9270,7 +9270,7 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
  *
  * \param p Channel private pointer.
  * \param noalarm Non-zero if not in alarm mode.
- * 
+ *
  * \note Assumes the sig_pri_lock_private(p) is already obtained.
  *
  * \return Nothing

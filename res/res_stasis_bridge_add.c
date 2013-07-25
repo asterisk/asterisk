@@ -34,7 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/stasis_app_impl.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 static void *app_control_join_bridge(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)

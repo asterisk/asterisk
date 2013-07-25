@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 #include "asterisk/manager.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 /*** DOCUMENTATION
 	<manager name="Parkinglots" language="en_US">

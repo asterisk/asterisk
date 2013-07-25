@@ -32,7 +32,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page confbridge.conf confbridge.conf
  * \verbinclude confbridge.conf.sample
  */
@@ -58,7 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/say.h"
 #include "asterisk/audiohook.h"
@@ -68,7 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/test.h"
 #include "asterisk/stasis.h"
-#include "asterisk/stasis_bridging.h"
+#include "asterisk/stasis_bridges.h"
 #include "asterisk/json.h"
 
 /*** DOCUMENTATION
@@ -128,13 +128,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>---- Example 1 ----</para>
-			<para>In this example the custom set user profile on this channel will automatically be used by the ConfBridge app.</para> 
+			<para>In this example the custom set user profile on this channel will automatically be used by the ConfBridge app.</para>
 			<para>exten => 1,1,Answer() </para>
 			<para>exten => 1,n,Set(CONFBRIDGE(user,announce_join_leave)=yes)</para>
 			<para>exten => 1,n,Set(CONFBRIDGE(user,startmuted)=yes)</para>
 			<para>exten => 1,n,ConfBridge(1) </para>
 			<para>---- Example 2 ----</para>
-			<para>This example shows how to use a predefined user or bridge profile in confbridge.conf as a template for a dynamic profile. Here we make a admin/marked user out of the default_user profile that is already defined in confbridge.conf.</para> 
+			<para>This example shows how to use a predefined user or bridge profile in confbridge.conf as a template for a dynamic profile. Here we make a admin/marked user out of the default_user profile that is already defined in confbridge.conf.</para>
 			<para>exten => 1,1,Answer() </para>
 			<para>exten => 1,n,Set(CONFBRIDGE(user,template)=default_user)</para>
 			<para>exten => 1,n,Set(CONFBRIDGE(user,admin)=yes)</para>
@@ -155,7 +155,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>This function returns a non-negative integer for valid conference identifiers (0 or 1 for <literal>locked</literal>) and "" for invalid conference identifiers.</para> 
+			<para>This function returns a non-negative integer for valid conference identifiers (0 or 1 for <literal>locked</literal>) and "" for invalid conference identifiers.</para>
 		</description>
 	</function>
 	<manager name="ConfbridgeList" language="en_US">
@@ -2240,7 +2240,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 			"       Lists all currently active conference bridges or a specific conference bridge.\n"
 			"\n"
 			"       When a conference bridge name is provided, flags may be shown for users. Below\n"
-			"       are the flags and what they represent.\n" 
+			"       are the flags and what they represent.\n"
 			"\n"
 			"       Flags:\n"
 			"         A - The user is an admin\n"
@@ -2710,7 +2710,7 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 		conference->name,
 		conference->activeusers + conference->waitingusers,
 		conference->markedusers,
-		conference->locked ? "Yes" : "No"); 
+		conference->locked ? "Yes" : "No");
 		ao2_unlock(conference);
 
 		ao2_ref(conference, -1);
@@ -3147,8 +3147,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

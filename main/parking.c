@@ -30,7 +30,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/_private.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/pbx.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/parking.h"
 #include "asterisk/channel.h"
 #include "asterisk/_private.h"

@@ -30,7 +30,7 @@
 #include "asterisk/say.h"
 #include "asterisk/term.h"
 #include "asterisk/features.h"
-#include "asterisk/bridging_internal.h"
+#include "asterisk/bridge_internal.h"
 
 struct ast_bridge_parking
 {

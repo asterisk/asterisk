@@ -82,7 +82,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/chanvars.h"
 #include "asterisk/pktccops.h"
 #include "asterisk/stasis.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/features_config.h"
 
 /*
@@ -1143,7 +1143,7 @@ static char *handle_mgcp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_
 		e->command = "mgcp set debug {on|off}";
 		e->usage =
 			"Usage: mgcp set debug {on|off}\n"
-			"       Enables/Disables dumping of MGCP packets for debugging purposes\n";	
+			"       Enables/Disables dumping of MGCP packets for debugging purposes\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -1451,7 +1451,7 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 	ast_mutex_lock(&sub->lock);
 	switch(ind) {
 	case AST_CONTROL_RINGING:
-#ifdef DLINK_BUGGY_FIRMWARE	
+#ifdef DLINK_BUGGY_FIRMWARE
 		transmit_notify_request(sub, "rt");
 #else
 		if (!sub->sdpsent) { /* will hide the inband progress!!! */
@@ -4643,7 +4643,7 @@ static int reload_config(int reload)
 	struct hostent *hp;
 	struct ast_format format;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	
+
 	if (gethostname(ourhost, sizeof(ourhost)-1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname, MGCP disabled\n");
 		return 0;
@@ -4812,8 +4812,8 @@ static int reload_config(int reload)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

@@ -26,8 +26,8 @@
 #include "asterisk/logger.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/channel.h"
-#include "asterisk/bridging.h"
-#include "asterisk/bridging_features.h"
+#include "asterisk/bridge.h"
+#include "asterisk/bridge_features.h"
 #include "conf_state.h"
 
 /* Maximum length of a conference bridge name */

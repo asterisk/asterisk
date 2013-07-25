@@ -4,7 +4,7 @@
  * UNISTIM channel driver for asterisk
  *
  * Copyright (C) 2005 - 2007, Cedric Hans
- * 
+ *
  * Cedric Hans <cedric.hans@mlkj.net>
  *
  * Asterisk 1.4 patch by Peter Be
@@ -77,7 +77,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/astdb.h"
 #include "asterisk/features_config.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 
 #define DEFAULTCONTEXT	  "default"
@@ -215,7 +215,7 @@ static struct ast_jb_conf default_jbconf =
 	.target_extra = 40,
 };
 static struct ast_jb_conf global_jbconf;
-				
+
 
 /* #define DUMP_PACKET 1 */
 /* #define DEBUG_TIMER ast_verbose */
@@ -568,7 +568,7 @@ static const unsigned char packet_send_jitter_buffer_conf[] =
 	0x00, 0x00, /* late packet resync 2 bytes */ 0x3e, 0x80
 };
 
-/* Duration in ms div 2 (0x20 = 64ms, 0x08 = 16ms) 
+/* Duration in ms div 2 (0x20 = 64ms, 0x08 = 16ms)
 static unsigned char packet_send_StreamBasedToneCad[] =
   { 0x16, 0x0a, 0x1e, 0x00, duration on  0x0a, duration off  0x0d, duration on 0x0a, duration off 0x0d, duration on 0x0a, duration off 0x2b }; */
 static const unsigned char packet_send_open_audio_stream_rx[] =
@@ -688,11 +688,11 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 	size_t datalen);
 static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int unistim_senddigit_begin(struct ast_channel *ast, char digit);
-static int unistim_senddigit_end(struct ast_channel *ast, char digit, 
+static int unistim_senddigit_end(struct ast_channel *ast, char digit,
 	unsigned int duration);
 static int unistim_sendtext(struct ast_channel *ast, const char *text);
 
-static int write_entry_history(struct unistimsession *pte, FILE * f, char c, 
+static int write_entry_history(struct unistimsession *pte, FILE * f, char c,
 	char *line1);
 static void change_callerid(struct unistimsession *pte, int type, char *callerid);
 
@@ -766,7 +766,7 @@ static const char *ustmtext(const char *str, struct unistimsession *pte)
 	struct ustm_lang_entry le_search;
 	struct unistim_languages *lang = NULL;
 	int size;
-	
+
 	if (pte->device) {
 		lang = &options_languages[find_language(pte->device->language)];
 	}
@@ -3042,7 +3042,7 @@ static void handle_call_outgoing(struct unistimsession *s)
 	}
 	if (!(sub = unistim_alloc_sub(s->device, SUB_REAL))) {
 		ast_log(LOG_WARNING, "Unable to allocate subchannel!\n");
-		return;	    
+		return;
 	}
 	sub->parent = s->device->sline[softkey];
 	s->device->ssub[softkey] = sub;
@@ -3436,7 +3436,7 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 		pte->device->phone_number[i + 1] = 0;
 		show_phone_number(pte);
 
-		if (ast_exists_extension(NULL, pte->device->context, pte->device->phone_number, 1, NULL) && 
+		if (ast_exists_extension(NULL, pte->device->context, pte->device->phone_number, 1, NULL) &&
 			!ast_matchmore_extension(NULL, pte->device->context, pte->device->phone_number, 1, NULL)) {
 		    keycode = KEY_FUNC1;
 		} else {
@@ -4849,7 +4849,7 @@ static int unistim_hangup(struct ast_channel *ast)
 				send_text(TEXT_LINE2, TEXT_NORMAL, s, ustmtext("is on-line", s));
 				send_text_status(s, ustmtext("       Transf        Hangup", s));
 				send_favorite_short(sub->softkey, FAV_ICON_OFFHOOK_BLACK, s);
-			
+
 		}
 	}
 	if (s->state == STATE_CALL && sub->subtype == SUB_REAL) {
@@ -5136,7 +5136,7 @@ static void in_band_indication(struct ast_channel *ast, const struct ast_tone_zo
 	}
 }
 
-static int unistim_indicate(struct ast_channel *ast, int ind, const void *data, 
+static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 	size_t datalen)
 {
 	struct unistim_subchannel *sub;
@@ -6020,7 +6020,7 @@ static char *unistim_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	case CLI_INIT:
 		e->command = "unistim set debug {on|off}";
 		e->usage =
-			"Usage: unistim set debug\n" 
+			"Usage: unistim set debug\n"
 			"       Display debug messages.\n";
 		return NULL;
 
@@ -6053,7 +6053,7 @@ static char *unistim_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	case CLI_INIT:
 		e->command = "unistim reload";
 		e->usage =
-			"Usage: unistim reload\n" 
+			"Usage: unistim reload\n"
 			"       Reloads UNISTIM configuration from unistim.conf\n";
 		return NULL;
 
@@ -6577,7 +6577,7 @@ static int reload_config(void)
 		ast_log(LOG_ERROR, "Config file %s is in an invalid format.  Aborting.\n", config);
 		return -1;
 	}
-	
+
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 

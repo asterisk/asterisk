@@ -69,9 +69,9 @@
 extern "C" {
 #endif
 
-#include "asterisk/bridging_features.h"
-#include "asterisk/bridging_channel.h"
-#include "asterisk/bridging_roles.h"
+#include "asterisk/bridge_features.h"
+#include "asterisk/bridge_channel.h"
+#include "asterisk/bridge_roles.h"
 #include "asterisk/dsp.h"
 #include "asterisk/uuid.h"
 

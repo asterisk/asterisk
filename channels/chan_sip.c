@@ -292,7 +292,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "sip/include/security_events.h"
 #include "asterisk/sip_api.h"
 #include "asterisk/app.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_system.h"

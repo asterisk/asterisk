@@ -39,8 +39,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/datastore.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/bridging.h"
-#include "asterisk/bridging_roles.h"
+#include "asterisk/bridge.h"
+#include "asterisk/bridge_roles.h"
 #include "asterisk/stringfields.h"
 
 struct bridge_role_option {

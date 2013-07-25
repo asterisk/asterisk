@@ -41,7 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
 #include "asterisk/translate.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 /*** DOCUMENTATION
 	<application name="DumpChan" language="en_US">
@@ -139,10 +139,10 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		S_OR(ast_channel_dialed(c)->number.str, "(N/A)"),
 		S_COR(ast_channel_redirecting(c)->from.number.valid, ast_channel_redirecting(c)->from.number.str, "(N/A)"),
 		ast_channel_parkinglot(c),
-		ast_channel_language(c),	
+		ast_channel_language(c),
 		ast_state2str(ast_channel_state(c)),
 		ast_channel_state(c),
-		ast_channel_rings(c), 
+		ast_channel_rings(c),
 		ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(c)),
 		ast_getformatname(ast_channel_writeformat(c)),
 		ast_getformatname(ast_channel_readformat(c)),

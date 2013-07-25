@@ -26,7 +26,7 @@
 
 #include "asterisk/pbx.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 #define FEATURE_MAX_LEN		11
 #define FEATURE_APP_LEN		64

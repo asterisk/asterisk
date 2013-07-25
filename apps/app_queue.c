@@ -108,8 +108,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dial.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_message_router.h"
-#include "asterisk/bridging.h"
-#include "asterisk/bridging_after.h"
+#include "asterisk/bridge_after.h"
 
 /* Define, to debug reference counts on queues, without debugging reference counts on queue members */
 /* #define REF_DEBUG_ONLY_QUEUES */

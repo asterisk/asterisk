@@ -28,7 +28,7 @@ extern "C" {
 #include "asterisk/lock.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/channel.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/pbx.h"
 
 /*!

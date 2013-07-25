@@ -35,7 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/pbx.h"
 #include "asterisk/dial.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/callerid.h"
 #include "asterisk/stasis_app.h"
 #include "asterisk/stasis_app_playback.h"

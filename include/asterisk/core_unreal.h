@@ -31,7 +31,7 @@
 
 #include "asterisk/astobj2.h"
 #include "asterisk/channel.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/abstract_jb.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

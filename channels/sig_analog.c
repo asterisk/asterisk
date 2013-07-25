@@ -43,7 +43,7 @@
 #include "asterisk/features.h"
 #include "asterisk/causes.h"
 #include "asterisk/features_config.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 #include "sig_analog.h"
 
@@ -1830,7 +1830,7 @@ static void *__analog_ss_thread(void *data)
 			case ANALOG_SIG_SF_FEATDMF:
 				res = analog_my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				/* if international caca, do it again to get real ANO */
-				if ((p->sig == ANALOG_SIG_FEATDMF) && (dtmfbuf[1] != '0') 
+				if ((p->sig == ANALOG_SIG_FEATDMF) && (dtmfbuf[1] != '0')
 					&& (strlen(dtmfbuf) != 14)) {
 					if (analog_wink(p, idx)) {
 						goto quit;
@@ -2351,7 +2351,7 @@ static void *__analog_ss_thread(void *data)
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int k = 0;
-				int oldlinearity; 
+				int oldlinearity;
 				int timeout_ms;
 				int ms;
 				struct timeval start = ast_tvnow();

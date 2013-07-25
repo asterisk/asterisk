@@ -40,10 +40,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
-#include "asterisk/bridging.h"
-#include "asterisk/bridging_internal.h"
-#include "asterisk/bridging_basic.h"
-#include "asterisk/bridging_after.h"
+#include "asterisk/bridge.h"
+#include "asterisk/bridge_internal.h"
+#include "asterisk/bridge_basic.h"
+#include "asterisk/bridge_after.h"
 #include "asterisk/config_options.h"
 #include "asterisk/features_config.h"
 #include "asterisk/astobj2.h"
@@ -1403,7 +1403,7 @@ static struct ast_bridge *bridge_agent_hold_new(void)
 	return bridge;
 }
 
-static void bridging_init_agent_hold(void)
+static void bridge_init_agent_hold(void)
 {
 	/* Setup bridge agent_hold subclass v_table. */
 	bridge_agent_hold_v_table = ast_bridge_base_v_table;
@@ -2556,7 +2556,7 @@ static int load_module(void)
 	}
 
 	/* Init agent holding bridge v_table. */
-	bridging_init_agent_hold();
+	bridge_init_agent_hold();
 
 	/* Setup to provide Agent:agent-id device state. */
 	res |= ast_devstate_prov_add("Agent", agent_pvt_devstate_get);

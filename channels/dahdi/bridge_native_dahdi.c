@@ -42,8 +42,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/astobj.h"
 #include "bridge_native_dahdi.h"
-#include "asterisk/bridging.h"
-#include "asterisk/bridging_technology.h"
+#include "asterisk/bridge.h"
+#include "asterisk/bridge_technology.h"
 #include "asterisk/frame.h"
 
 /* ------------------------------------------------------------------- */

@@ -72,7 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/channel_internal.h"
 #include "asterisk/features.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/test.h"
 #include "asterisk/stasis_channels.h"
 

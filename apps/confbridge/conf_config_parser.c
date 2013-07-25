@@ -36,7 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "include/confbridge.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/cli.h"
-#include "asterisk/bridging_features.h"
+#include "asterisk/bridge_features.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/pbx.h"
 

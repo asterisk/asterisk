@@ -28,10 +28,10 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/channel.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
-#include "asterisk/stasis_bridging.h"
+#include "asterisk/stasis_bridges.h"
 #include "asterisk/manager.h"
 #include "asterisk/stasis_message_router.h"
 #include "include/confbridge.h"

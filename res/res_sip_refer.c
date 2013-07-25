@@ -34,7 +34,7 @@
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/taskprocessor.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/framehook.h"
 
 /*! \brief REFER Progress structure */

@@ -81,7 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stasis_endpoints.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 /*** DOCUMENTATION
 	<manager name="SKINNYdevices" language="en_US">
@@ -2872,7 +2872,7 @@ static void _transmit_displayprinotifyvar(struct skinny_device *d, const char *t
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting DISPLAY_PRINOTIFY_MESSAGE_VARIABLE to %s, '%s', timeout=%d, priority=%d\n",
 			d->name, text, timeout, priority);
 	}
-	
+
 	req->len = (packetlen & ~0x3) + 4;
 
 	transmit_response(d, req);
@@ -6047,7 +6047,7 @@ static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX
 {
 	struct skinny_line *l = sub->line;
 	struct skinny_device *d = l->device;
-	
+
 	if (sub->dialType == DIALTYPE_NORMAL) {
 		SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Dial %s and Activate\n", sub->callid, exten);
 		ast_copy_string(sub->exten, exten, sizeof(sub->exten));
@@ -7803,7 +7803,7 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&default_prefs, default_cap, v->value, 0);
 				continue;
-			} 
+			}
 		}
 
 		if (!strcasecmp(v->name, "transfer")) {
@@ -8384,7 +8384,7 @@ static int config_load(void)
 	memset(&default_prefs, 0, sizeof(default_prefs));
 	immed_dialchar = '\0';
 	memset(&vmexten, '\0', sizeof(vmexten));
-	
+
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));

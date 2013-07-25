@@ -34,17 +34,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/bridging.h"
-#include "asterisk/bridging_basic.h"
-#include "asterisk/bridging_after.h"
+#include "asterisk/bridge.h"
+#include "asterisk/bridge_internal.h"
+#include "asterisk/bridge_basic.h"
+#include "asterisk/bridge_after.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/features_config.h"
 #include "asterisk/pbx.h"
 #include "asterisk/file.h"
 #include "asterisk/app.h"
-#include "asterisk/bridging_internal.h"
 #include "asterisk/dial.h"
-#include "asterisk/stasis_bridging.h"
+#include "asterisk/stasis_bridges.h"
 
 #define NORMAL_FLAGS	(AST_BRIDGE_FLAG_DISSOLVE_HANGUP | AST_BRIDGE_FLAG_DISSOLVE_EMPTY \
 			| AST_BRIDGE_FLAG_SMART)

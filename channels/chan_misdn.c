@@ -103,7 +103,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
 #include "asterisk/features_config.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
@@ -10192,7 +10192,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
 			struct ast_format tmpfmt;
 			if (!(cap)) {
-				return RESPONSE_ERR; 
+				return RESPONSE_ERR;
 			}
 			ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
 			chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, cap, NULL, bc->port, bc->channel);
@@ -11277,8 +11277,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

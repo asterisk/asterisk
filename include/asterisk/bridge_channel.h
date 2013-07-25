@@ -53,7 +53,7 @@
 extern "C" {
 #endif
 
-#include "asterisk/bridging_technology.h"
+#include "asterisk/bridge_technology.h"
 
 /*! \brief State information about a bridged channel */
 enum bridge_channel_state {

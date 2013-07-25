@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/say.h"
 #include "asterisk/features.h"
-#include "asterisk/bridging_basic.h"
+#include "asterisk/bridge_basic.h"
 
 /*** DOCUMENTATION
 	<application name="Park" language="en_US">

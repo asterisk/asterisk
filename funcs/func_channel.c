@@ -37,15 +37,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/channel.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/indications.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/global_datastores.h"
-#include "asterisk/bridging_basic.h"
-#include "asterisk/bridging_after.h"
+#include "asterisk/bridge_basic.h"
+#include "asterisk/bridge_after.h"
 
 /*** DOCUMENTATION
 	<function name="CHANNELS" language="en_US">

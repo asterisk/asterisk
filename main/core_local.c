@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/astobj2.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/core_local.h"
 #include "asterisk/stasis.h"

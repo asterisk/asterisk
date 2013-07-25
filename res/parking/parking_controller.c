@@ -31,7 +31,7 @@
 #include "asterisk/manager.h"
 #include "asterisk/test.h"
 #include "asterisk/features.h"
-#include "asterisk/bridging_basic.h"
+#include "asterisk/bridge_basic.h"
 
 struct ast_bridge *parking_lot_get_bridge(struct parking_lot *lot)
 {

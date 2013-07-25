@@ -24,7 +24,7 @@
  */
 
 #include "asterisk/pbx.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/parking.h"
 #include "asterisk/stasis_channels.h"
 

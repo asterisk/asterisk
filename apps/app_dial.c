@@ -66,8 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/framehook.h"
 #include "asterisk/dial.h"
 #include "asterisk/stasis_channels.h"
-#include "asterisk/bridging.h"
-#include "asterisk/bridging_after.h"
+#include "asterisk/bridge_after.h"
 #include "asterisk/features_config.h"
 
 /*** DOCUMENTATION

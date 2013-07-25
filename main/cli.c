@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridging.h"
 

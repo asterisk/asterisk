@@ -124,7 +124,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ccss.h"
 #include "asterisk/data.h"
 #include "asterisk/features_config.h"
-#include "asterisk/bridging.h"
+#include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
 #include "chan_dahdi.h"
 #include "dahdi/bridge_native_dahdi.h"
@@ -506,7 +506,7 @@ static int mwilevel = 512;
 static int dtmfcid_level = 256;
 
 #define REPORT_CHANNEL_ALARMS 1
-#define REPORT_SPAN_ALARMS    2 
+#define REPORT_SPAN_ALARMS    2
 static int report_alarms = REPORT_CHANNEL_ALARMS;
 
 #ifdef HAVE_PRI
@@ -1705,14 +1705,14 @@ static void my_ami_channel_event(void *pvt, struct ast_channel *chan)
 #endif
 
 /* linear_mode = 0 - turn linear mode off, >0 - turn linear mode on
-* 	returns the last value of the linear setting 
-*/ 
+* 	returns the last value of the linear setting
+*/
 static int my_set_linear_mode(void *pvt, enum analog_sub sub, int linear_mode)
 {
 	struct dahdi_pvt *p = pvt;
 	int oldval;
 	int idx = analogsub_to_dahdisub(sub);
-	
+
 	dahdi_setlinear(p->subs[idx].dfd, linear_mode);
 	oldval = p->subs[idx].linear;
 	p->subs[idx].linear = linear_mode ? 1 : 0;
@@ -4516,7 +4516,7 @@ static int drc_sample(int sample, float drc)
 	float neg;
 	float shallow, steep;
 	float max = SHRT_MAX;
-	
+
 	neg = (sample < 0 ? -1 : 1);
 	steep = drc*sample;
 	shallow = neg*(max-max/drc)+(float)sample/drc;
@@ -4974,7 +4974,7 @@ static int dahdi_call(struct ast_channel *ast, const char *rdest, int timeout)
 		set_actual_gain(p->subs[SUB_REAL].dfd, 0, 0, p->rxdrc, p->txdrc, p->law);
 	} else {
 		set_actual_gain(p->subs[SUB_REAL].dfd, p->rxgain, p->txgain, p->rxdrc, p->txdrc, p->law);
-	}	
+	}
 
 #ifdef HAVE_PRI
 	if (dahdi_sig_pri_lib_handles(p->sig)) {
@@ -8239,7 +8239,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 			/* if the call is already accepted and we already delivered AST_CONTROL_RINGING
 			 * now enqueue a progress frame to bridge the media up */
 			if (p->mfcr2_call_accepted &&
-				!p->mfcr2_progress_sent && 
+				!p->mfcr2_progress_sent &&
 				ast_channel_state(ast) == AST_STATE_RINGING) {
 				ast_debug(1, "Enqueuing progress frame after R2 accept in chan %d\n", p->channel);
 				ast_queue_frame(p->owner, &fr);
@@ -11060,7 +11060,7 @@ static void *do_monitor(void *data)
 						pfds[count].events = POLLPRI;
 						pfds[count].revents = 0;
 						/* Message waiting or r2 channels also get watched for reading */
-						if (i->cidspill || i->mwisendactive || i->mwimonitor_fsk || 
+						if (i->cidspill || i->mwisendactive || i->mwimonitor_fsk ||
 							(i->cid_start == CID_START_DTMF_NOALERT && (i->sig == SIG_FXSLS || i->sig == SIG_FXSGS || i->sig == SIG_FXSKS))) {
 							pfds[count].events |= POLLIN;
 						}
@@ -11213,7 +11213,7 @@ static void *do_monitor(void *data)
 							int energy;
 							struct timeval now;
 							/* State machine dtmfcid_holdoff_state allows for the line to settle
-							 * before checking agin for dtmf energy.  Presently waits for 500 mS before checking again 
+							 * before checking agin for dtmf energy.  Presently waits for 500 mS before checking again
 							*/
 							if (1 == i->dtmfcid_holdoff_state) {
 								gettimeofday(&i->dtmfcid_delay, NULL);
@@ -11231,7 +11231,7 @@ static void *do_monitor(void *data)
 									ast_mutex_unlock(&iflock);
 									if (dahdi_analog_lib_handles(i->sig, i->radio, i->oprmode)) {
 										/* just in case this event changes or somehow destroys a channel, set doomed here too */
-										doomed = analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);  
+										doomed = analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);
 										i->dtmfcid_holdoff_state = 1;
 									} else {
 										struct ast_callid *callid = NULL;
@@ -11492,9 +11492,9 @@ static struct dahdi_mfcr2 *dahdi_r2_get_link(const struct dahdi_chan_conf *conf)
 	struct dahdi_mfcr2 *new_r2link = NULL;
 	struct dahdi_mfcr2 **new_r2links = NULL;
 
-	/* Only create a new R2 link if 
+	/* Only create a new R2 link if
 	   1. This is the first link requested
-	   2. Configuration changed 
+	   2. Configuration changed
 	   3. We got more channels than supported per link */
 	if (!r2links_count ||
 	    memcmp(&conf->mfcr2, &r2links[r2links_count - 1]->conf, sizeof(conf->mfcr2)) ||
@@ -16563,13 +16563,13 @@ static void parse_busy_pattern(struct ast_variable *v, struct ast_dsp_busy_patte
 
 	for (; ;) {
 		/* Scans the string for the next value in the pattern. If none, it checks to see if any have been entered so far. */
-		if(!sscanf(v->value, "%30d", &norval) && count_pattern == 0) { 
+		if(!sscanf(v->value, "%30d", &norval) && count_pattern == 0) {
 			ast_log(LOG_ERROR, "busypattern= expects either busypattern=tonelength,quietlength or busypattern=t1length, q1length, t2length, q2length at line %d.\n", v->lineno);
 			break;
 		}
 
-		busy_cadence->pattern[count_pattern] = norval; 
-		
+		busy_cadence->pattern[count_pattern] = norval;
+
 		count_pattern++;
 		if (count_pattern == 4) {
 			break;
@@ -16583,11 +16583,11 @@ static void parse_busy_pattern(struct ast_variable *v, struct ast_dsp_busy_patte
 	}
 	busy_cadence->length = count_pattern;
 
-	if (count_pattern % 2 != 0) { 
+	if (count_pattern % 2 != 0) {
 		/* The pattern length must be divisible by two */
 		ast_log(LOG_ERROR, "busypattern= expects either busypattern=tonelength,quietlength or busypattern=t1length, q1length, t2length, q2length at line %d.\n", v->lineno);
 	}
-	
+
 }
 
 static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct ast_variable *v, int reload, int options)
@@ -17245,7 +17245,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #if defined(HAVE_PRI_SERVICE_MESSAGES)
 			} else if (!strcasecmp(v->name, "service_message_support")) {
 				/* assuming switchtype for this channel group has been configured already */
-				if ((confp->pri.pri.switchtype == PRI_SWITCH_ATT4ESS 
+				if ((confp->pri.pri.switchtype == PRI_SWITCH_ATT4ESS
 					|| confp->pri.pri.switchtype == PRI_SWITCH_LUCENT5E
 					|| confp->pri.pri.switchtype == PRI_SWITCH_NI2) && ast_true(v->value)) {
 					confp->pri.pri.enable_service_message_support = 1;
@@ -17756,7 +17756,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 	for (tmp = iflist, y=-1; tmp; tmp = tmp->next) {
 		if (!tmp->destroy && tmp->span != y) {
 			tmp->manages_span_alarms = 1;
-			y = tmp->span; 
+			y = tmp->span;
 		} else {
 			tmp->manages_span_alarms = 0;
 		}
@@ -18291,8 +18291,8 @@ static const struct ast_data_entry dahdi_data_providers[] = {
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
