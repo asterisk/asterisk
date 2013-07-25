@@ -62,7 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
-#include "asterisk/stasis_bridging.h"
+#include "asterisk/stasis_bridges.h"
 
 /*!
  * \brief List of restrictions per user.

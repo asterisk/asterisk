@@ -27,7 +27,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/stasis_bridging.h"
+#include "asterisk/stasis_bridges.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/manager.h"
 #include "asterisk/stasis_message_router.h"

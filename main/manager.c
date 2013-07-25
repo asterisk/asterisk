@@ -94,7 +94,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/presencestate.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/stasis_channels.h"
-#include "asterisk/stasis_bridging.h"
+#include "asterisk/stasis_bridges.h"
 #include "asterisk/test.h"
 #include "asterisk/json.h"
 #include "asterisk/bridge.h"
