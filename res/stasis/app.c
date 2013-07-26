@@ -221,7 +221,7 @@ void app_update(struct app *app, stasis_app_cb handler, void *data)
 
 		msg = ast_json_pack("{s: s, s: s}",
 			"type", "ApplicationReplaced",
-			"application", app_name);
+			"application", app->name);
 		if (msg) {
 			app_send(app, msg);
 		}

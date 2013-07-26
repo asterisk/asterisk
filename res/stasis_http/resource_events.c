@@ -113,6 +113,19 @@ static void app_handler(void *data, const char *app_name,
 {
 	struct event_session *session = data;
 	int res;
+	const char *msg_type = S_OR(
+		ast_json_string_get(ast_json_object_get(message, "type")),
+		"");
+	const char *msg_application = S_OR(
+		ast_json_string_get(ast_json_object_get(message, "application")),
+		"");
+
+	/* Determine if we've been replaced */
+	if (strcmp(msg_type, "ApplicationReplaced") == 0 &&
+		strcmp(msg_application, app_name) == 0) {
+		ao2_find(session->websocket_apps, msg_application,
+			OBJ_UNLINK | OBJ_NODATA);
+	}
 
 	res = ast_json_object_set(message, "application",
 				  ast_json_string_create(app_name));
