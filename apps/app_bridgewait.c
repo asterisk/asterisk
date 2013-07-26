@@ -201,31 +201,33 @@ AST_APP_OPTIONS(bridgewait_opts, {
 	AST_APP_OPTION_ARG('S', MUXFLAG_TIMEOUT, OPT_ARG_TIMEOUT),
 });
 
+static int bridgewait_timeout_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	ast_verb(3, "Channel %s timed out.\n", ast_channel_name(bridge_channel->chan));
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+	return -1;
+}
+
 static int apply_option_timeout(struct ast_bridge_features *features, char *duration_arg)
 {
-	struct ast_bridge_features_limits hold_limits;
+	unsigned int duration;
 
 	if (ast_strlen_zero(duration_arg)) {
-		ast_log(LOG_ERROR, "No duration value provided for the timeout ('S') option.\n");
+		ast_log(LOG_ERROR, "Timeout option 'S': No value provided.\n");
+		return -1;
+	}
+	if (sscanf(duration_arg, "%u", &duration) != 1 || duration == 0) {
+		ast_log(LOG_ERROR, "Timeout option 'S': Invalid value provided '%s'.\n",
+			duration_arg);
 		return -1;
 	}
 
-	if (ast_bridge_features_limits_construct(&hold_limits)) {
-		ast_log(LOG_ERROR, "Could not construct duration limits. Bridge canceled.\n");
+	duration *= 1000;
+	if (ast_bridge_interval_hook(features, duration, bridgewait_timeout_callback,
+		NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+		ast_log(LOG_ERROR, "Timeout option 'S': Could not create timer.\n");
 		return -1;
 	}
-
-	if (sscanf(duration_arg, "%u", &hold_limits.duration) != 1
-		|| hold_limits.duration == 0) {
-		ast_log(LOG_ERROR, "Duration value provided for the timeout ('S') option must be greater than 0\n");
-		ast_bridge_features_limits_destroy(&hold_limits);
-		return -1;
-	}
-
-	/* Limits struct holds time as milliseconds, so muliply 1000x */
-	hold_limits.duration *= 1000;
-	ast_bridge_features_set_limits(features, &hold_limits, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
-	ast_bridge_features_limits_destroy(&hold_limits);
 
 	return 0;
 }

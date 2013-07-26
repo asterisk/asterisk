@@ -363,12 +363,6 @@ static int feature_park(struct ast_bridge *bridge, struct ast_bridge_channel *br
 	return 0;
 }
 
-static void parking_duration_cb_destroyer(void *hook_pvt)
-{
-	struct parked_user *user = hook_pvt;
-	ao2_ref(user, -1);
-}
-
 /*! \internal
  * \brief Interval hook. Pulls a parked call from the parking bridge after the timeout is passed and sets the resolution to timeout.
  *
@@ -523,7 +517,7 @@ void parking_set_duration(struct ast_bridge_features *features, struct parked_us
 	ao2_ref(user, +1);
 
 	if (ast_bridge_interval_hook(features, time_limit,
-		parking_duration_callback, user, parking_duration_cb_destroyer, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+		parking_duration_callback, user, __ao2_cleanup, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
 		ast_log(LOG_ERROR, "Failed to apply duration limits to the parking call.\n");
 		ao2_ref(user, -1);
 	}

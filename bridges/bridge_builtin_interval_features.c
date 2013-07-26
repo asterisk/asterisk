@@ -64,7 +64,7 @@ static int bridge_features_duration_callback(struct ast_bridge *bridge, struct a
 	return -1;
 }
 
-static void limits_interval_playback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_bridge_features_limits *limits, const char *file)
+static void limits_interval_playback(struct ast_bridge_channel *bridge_channel, struct ast_bridge_features_limits *limits, const char *file)
 {
 	if (!strcasecmp(file, "timeleft")) {
 		unsigned int remaining = ast_tvdiff_ms(limits->quitting_time, ast_tvnow()) / 1000;
@@ -114,11 +114,7 @@ static int bridge_features_connect_callback(struct ast_bridge *bridge, struct as
 {
 	struct ast_bridge_features_limits *limits = hook_pvt;
 
-	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
-		return -1;
-	}
-
-	limits_interval_playback(bridge, bridge_channel, limits, limits->connect_sound);
+	limits_interval_playback(bridge_channel, limits, limits->connect_sound);
 	return -1;
 }
 
@@ -126,72 +122,75 @@ static int bridge_features_warning_callback(struct ast_bridge *bridge, struct as
 {
 	struct ast_bridge_features_limits *limits = hook_pvt;
 
-	if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
-		/* If we aren't in the wait state, something more important than this warning is happening and we should skip it. */
-		limits_interval_playback(bridge, bridge_channel, limits, limits->warning_sound);
-	}
-
-	return !limits->frequency ? -1 : limits->frequency;
+	limits_interval_playback(bridge_channel, limits, limits->warning_sound);
+	return limits->frequency ?: -1;
 }
 
-static void copy_bridge_features_limits(struct ast_bridge_features_limits *dst, struct ast_bridge_features_limits *src)
+static void bridge_features_limits_copy(struct ast_bridge_features_limits *dst, struct ast_bridge_features_limits *src)
 {
+	ast_string_fields_copy(dst, src);
+	dst->quitting_time = src->quitting_time;
 	dst->duration = src->duration;
 	dst->warning = src->warning;
 	dst->frequency = src->frequency;
-	dst->quitting_time = src->quitting_time;
+}
 
-	ast_string_field_set(dst, duration_sound, src->duration_sound);
-	ast_string_field_set(dst, warning_sound, src->warning_sound);
-	ast_string_field_set(dst, connect_sound, src->connect_sound);
+static void bridge_features_limits_dtor(void *vdoomed)
+{
+	struct ast_bridge_features_limits *doomed = vdoomed;
+
+	ast_bridge_features_limits_destroy(doomed);
+	ast_module_unref(ast_module_info->self);
 }
 
 static int bridge_builtin_set_limits(struct ast_bridge_features *features,
-		struct ast_bridge_features_limits *limits, enum ast_bridge_hook_remove_flags remove_flags)
+	struct ast_bridge_features_limits *limits,
+	enum ast_bridge_hook_remove_flags remove_flags)
 {
-	struct ast_bridge_features_limits *feature_limits;
+	RAII_VAR(struct ast_bridge_features_limits *, feature_limits, NULL, ao2_cleanup);
 
 	if (!limits->duration) {
 		return -1;
 	}
 
-	if (features->limits) {
-		ast_log(LOG_ERROR, "Tried to apply limits to a feature set that already has limits.\n");
-		return -1;
-	}
-
-	feature_limits = ast_malloc(sizeof(*feature_limits));
+	/* Create limits hook_pvt data. */
+	ast_module_ref(ast_module_info->self);
+	feature_limits = ao2_alloc_options(sizeof(*feature_limits),
+		bridge_features_limits_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!feature_limits) {
+		ast_module_unref(ast_module_info->self);
 		return -1;
 	}
-
 	if (ast_bridge_features_limits_construct(feature_limits)) {
 		return -1;
 	}
+	bridge_features_limits_copy(feature_limits, limits);
+	feature_limits->quitting_time = ast_tvadd(ast_tvnow(),
+		ast_samp2tv(feature_limits->duration, 1000));
 
-	copy_bridge_features_limits(feature_limits, limits);
-	features->limits = feature_limits;
-
-/* BUGBUG feature interval hooks need to be reimplemented to be more stand alone. */
+	/* Install limit hooks. */
+	ao2_ref(feature_limits, +1);
 	if (ast_bridge_interval_hook(features, feature_limits->duration,
-		bridge_features_duration_callback, feature_limits, NULL, remove_flags)) {
+		bridge_features_duration_callback, feature_limits, __ao2_cleanup, remove_flags)) {
 		ast_log(LOG_ERROR, "Failed to schedule the duration limiter to the bridge channel.\n");
+		ao2_ref(feature_limits, -1);
 		return -1;
 	}
-
-	feature_limits->quitting_time = ast_tvadd(ast_tvnow(), ast_samp2tv(feature_limits->duration, 1000));
-
 	if (!ast_strlen_zero(feature_limits->connect_sound)) {
+		ao2_ref(feature_limits, +1);
 		if (ast_bridge_interval_hook(features, 1,
-			bridge_features_connect_callback, feature_limits, NULL, remove_flags)) {
+			bridge_features_connect_callback, feature_limits, __ao2_cleanup, remove_flags)) {
 			ast_log(LOG_WARNING, "Failed to schedule connect sound to the bridge channel.\n");
+			ao2_ref(feature_limits, -1);
 		}
 	}
-
 	if (feature_limits->warning && feature_limits->warning < feature_limits->duration) {
-		if (ast_bridge_interval_hook(features, feature_limits->duration - feature_limits->warning,
-			bridge_features_warning_callback, feature_limits, NULL, remove_flags)) {
+		ao2_ref(feature_limits, +1);
+		if (ast_bridge_interval_hook(features,
+			feature_limits->duration - feature_limits->warning,
+			bridge_features_warning_callback, feature_limits, __ao2_cleanup, remove_flags)) {
 			ast_log(LOG_WARNING, "Failed to schedule warning sound playback to the bridge channel.\n");
+			ao2_ref(feature_limits, -1);
 		}
 	}
 
@@ -200,17 +199,14 @@ static int bridge_builtin_set_limits(struct ast_bridge_features *features,
 
 static int unload_module(void)
 {
+	ast_bridge_interval_unregister(AST_BRIDGE_BUILTIN_INTERVAL_LIMITS);
 	return 0;
 }
 
 static int load_module(void)
 {
-	ast_bridge_interval_register(AST_BRIDGE_BUILTIN_INTERVAL_LIMITS, bridge_builtin_set_limits);
-
-	/* Bump up our reference count so we can't be unloaded. */
-	ast_module_ref(ast_module_info->self);
-
-	return AST_MODULE_LOAD_SUCCESS;
+	return ast_bridge_interval_register(AST_BRIDGE_BUILTIN_INTERVAL_LIMITS,
+		bridge_builtin_set_limits);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Built in bridging interval features");

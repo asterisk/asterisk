@@ -237,8 +237,6 @@ struct ast_bridge_features {
 	struct ao2_container *other_hooks;
 	/*! Attached interval hooks */
 	struct ast_heap *interval_hooks;
-	/*! Limits feature data */
-	struct ast_bridge_features_limits *limits;
 	/*! Feature flags that are enabled */
 	struct ast_flags feature_flags;
 	/*! Used to assign the sequence number to the next interval hook added. */
@@ -298,13 +296,6 @@ struct ast_bridge_features_automixmonitor {
  * \brief Structure that contains configuration information for the limits feature
  */
 struct ast_bridge_features_limits {
-	/*! Maximum duration that the channel is allowed to be in the bridge (specified in milliseconds) */
-	unsigned int duration;
-	/*! Duration into the call when warnings should begin (specified in milliseconds or 0 to disable) */
-	unsigned int warning;
-	/*! Interval between the warnings (specified in milliseconds or 0 to disable) */
-	unsigned int frequency;
-
 	AST_DECLARE_STRING_FIELDS(
 		/*! Sound file to play when the maximum duration is reached (if empty, then nothing will be played) */
 		AST_STRING_FIELD(duration_sound);
@@ -315,6 +306,12 @@ struct ast_bridge_features_limits {
 	);
 	/*! Time when the bridge will be terminated by the limits feature */
 	struct timeval quitting_time;
+	/*! Maximum duration that the channel is allowed to be in the bridge (specified in milliseconds) */
+	unsigned int duration;
+	/*! Duration into the call when warnings should begin (specified in milliseconds or 0 to disable) */
+	unsigned int warning;
+	/*! Interval between the warnings (specified in milliseconds or 0 to disable) */
+	unsigned int frequency;
 };
 
 /*!

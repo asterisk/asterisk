@@ -2974,7 +2974,6 @@ int ast_bridge_features_limits_construct(struct ast_bridge_features_limits *limi
 	memset(limits, 0, sizeof(*limits));
 
 	if (ast_string_field_init(limits, 256)) {
-		ast_free(limits);
 		return -1;
 	}
 
@@ -2987,13 +2986,14 @@ void ast_bridge_features_limits_destroy(struct ast_bridge_features_limits *limit
 }
 
 int ast_bridge_features_set_limits(struct ast_bridge_features *features,
-		struct ast_bridge_features_limits *limits, enum ast_bridge_hook_remove_flags remove_flags)
+	struct ast_bridge_features_limits *limits,
+	enum ast_bridge_hook_remove_flags remove_flags)
 {
 	if (builtin_interval_handlers[AST_BRIDGE_BUILTIN_INTERVAL_LIMITS]) {
-		ast_bridge_builtin_set_limits_fn bridge_features_set_limits_callback;
+		ast_bridge_builtin_set_limits_fn callback;
 
-		bridge_features_set_limits_callback = builtin_interval_handlers[AST_BRIDGE_BUILTIN_INTERVAL_LIMITS];
-		return bridge_features_set_limits_callback(features, limits, remove_flags);
+		callback = builtin_interval_handlers[AST_BRIDGE_BUILTIN_INTERVAL_LIMITS];
+		return callback(features, limits, remove_flags);
 	}
 
 	ast_log(LOG_ERROR, "Attempted to set limits without an AST_BRIDGE_BUILTIN_INTERVAL_LIMITS callback registered.\n");
@@ -3179,13 +3179,6 @@ void ast_bridge_features_cleanup(struct ast_bridge_features *features)
 			ao2_ref(hook, -1);
 		}
 		features->interval_hooks = ast_heap_destroy(features->interval_hooks);
-	}
-
-	/* If the features contains a limits pvt, destroy that as well. */
-	if (features->limits) {
-		ast_bridge_features_limits_destroy(features->limits);
-		ast_free(features->limits);
-		features->limits = NULL;
 	}
 
 	/* Destroy the miscellaneous other hooks container. */
