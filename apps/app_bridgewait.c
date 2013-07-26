@@ -146,7 +146,8 @@ static int apply_option_timeout(struct ast_bridge_features *features, char *dura
 		return -1;
 	}
 
-	if (sscanf(duration_arg, "%u", &(hold_limits.duration)) != 1 || hold_limits.duration == 0) {
+	if (sscanf(duration_arg, "%u", &hold_limits.duration) != 1
+		|| hold_limits.duration == 0) {
 		ast_log(LOG_ERROR, "Duration value provided for the timeout ('S') option must be greater than 0\n");
 		ast_bridge_features_limits_destroy(&hold_limits);
 		return -1;
