@@ -265,20 +265,19 @@ struct ast_flags *ast_bridge_features_ds_get(struct ast_channel *chan)
  * \brief Determine if we should dissolve the bridge from a hangup.
  * \since 12.0.0
  *
- * \param bridge The bridge that the channel is part of
  * \param bridge_channel Channel executing the feature
  * \param hook_pvt Private data passed in when the hook was created
  *
  * \retval 0 Keep the callback hook.
  * \retval -1 Remove the callback hook.
  */
-static int basic_hangup_hook(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int basic_hangup_hook(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	int bridge_count = 0;
 	struct ast_bridge_channel *iter;
 
 	ast_bridge_channel_lock_bridge(bridge_channel);
-	AST_LIST_TRAVERSE(&bridge->channels, iter, entry) {
+	AST_LIST_TRAVERSE(&bridge_channel->bridge->channels, iter, entry) {
 		if (iter != bridge_channel && iter->state == BRIDGE_CHANNEL_STATE_WAIT) {
 			++bridge_count;
 		}
@@ -1069,7 +1068,6 @@ static const char *get_transfer_context(struct ast_channel *transferer, const ch
 /*!
  * \brief Allocate and initialize attended transfer properties
  *
- * \param transferee_bridge The bridge where the transfer was initiated
  * \param transferer The channel performing the attended transfer
  * \param context Suggestion for what context the transfer target extension can be found in
  *
@@ -1077,8 +1075,7 @@ static const char *get_transfer_context(struct ast_channel *transferer, const ch
  * \retval non-NULL Newly allocated properties
  */
 static struct attended_transfer_properties *attended_transfer_properties_alloc(
-		struct ast_bridge *transferee_bridge, struct ast_channel *transferer,
-		const char *context)
+	struct ast_channel *transferer, const char *context)
 {
 	struct attended_transfer_properties *props;
 	char *tech;
@@ -1162,9 +1159,9 @@ static void attended_transfer_properties_shutdown(struct attended_transfer_prope
 	ast_debug(1, "Shutting down attended transfer %p\n", props);
 
 	if (props->transferee_bridge) {
-		ast_bridge_merge_inhibit(props->transferee_bridge, -1);
 		bridge_basic_change_personality(props->transferee_bridge,
 				BRIDGE_BASIC_PERSONALITY_NORMAL, NULL);
+		ast_bridge_merge_inhibit(props->transferee_bridge, -1);
 	}
 
 	if (props->target_bridge) {
@@ -2145,7 +2142,7 @@ static int fail_enter(struct attended_transfer_properties *props)
  *
  * Sends a stimulus to the attended transfer monitor thread that the abort sequence has been pressed
  */
-static int atxfer_abort(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int atxfer_abort(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct attended_transfer_properties *props = hook_pvt;
 
@@ -2159,7 +2156,7 @@ static int atxfer_abort(struct ast_bridge *bridge, struct ast_bridge_channel *br
  *
  * Sends a stimulus to the attended transfer monitor thread that the complete sequence has been pressed
  */
-static int atxfer_complete(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int atxfer_complete(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct attended_transfer_properties *props = hook_pvt;
 
@@ -2173,7 +2170,7 @@ static int atxfer_complete(struct ast_bridge *bridge, struct ast_bridge_channel 
  *
  * Sends a stimulus to the attended transfer monitor thread that the threeway sequence has been pressed
  */
-static int atxfer_threeway(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int atxfer_threeway(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct attended_transfer_properties *props = hook_pvt;
 
@@ -2187,7 +2184,7 @@ static int atxfer_threeway(struct ast_bridge *bridge, struct ast_bridge_channel 
  *
  * Sends a stimulus to the attended transfer monitor thread that the swap sequence has been pressed
  */
-static int atxfer_swap(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int atxfer_swap(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct attended_transfer_properties *props = hook_pvt;
 
@@ -2201,7 +2198,7 @@ static int atxfer_swap(struct ast_bridge *bridge, struct ast_bridge_channel *bri
  *
  * Sends a stimulus to the attended transfer monitor thread that the transferer has hung up.
  */
-static int atxfer_transferer_hangup(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int atxfer_transferer_hangup(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct attended_transfer_properties *props = hook_pvt;
 
@@ -2622,48 +2619,64 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
  * an attended transfer. For more information about attended transfer
  * progress, see documentation on the transfer state machine.
  *
- * \param bridge Bridge where attended transfer DTMF sequence was entered
  * \param bridge_channel The channel that pressed the attended transfer DTMF sequence
  * \param hook_pvt Structure with further information about the attended transfer
  */
-static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct ast_bridge_features_attended_transfer *attended_transfer = hook_pvt;
 	struct attended_transfer_properties *props;
+	struct ast_bridge *bridge;
 	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 1];
 	char exten[AST_MAX_EXTENSION] = "";
 	pthread_t thread;
 
+	/* Inhibit the bridge before we do anything else. */
+	bridge = ast_bridge_channel_merge_inhibit(bridge_channel, +1);
+
 	if (strcmp(bridge->v_table->name, "basic")) {
-		ast_log(LOG_ERROR, "Attended transfer attempted on unsupported bridge type '%s'\n", bridge->v_table->name);
+		ast_log(LOG_ERROR, "Attended transfer attempted on unsupported bridge type '%s'.\n",
+			bridge->v_table->name);
+		ast_bridge_merge_inhibit(bridge, -1);
+		ao2_ref(bridge, -1);
 		return 0;
 	}
 
-	if (bridge->inhibit_merge) {
-		ast_log(LOG_ERROR, "Unable to perform attended transfer since bridge '%s' does not permit merging.\n", bridge->uniqueid);
+	/* Was the bridge inhibited before we inhibited it? */
+	if (1 < bridge->inhibit_merge) {
+		/*
+		 * The peer likely initiated attended transfer at the same time
+		 * and we lost the race.
+		 */
+		ast_verb(3, "Channel %s: Bridge '%s' does not permit merging at this time.\n",
+			ast_channel_name(bridge_channel->chan), bridge->uniqueid);
+		ast_bridge_merge_inhibit(bridge, -1);
+		ao2_ref(bridge, -1);
 		return 0;
 	}
 
-	props = attended_transfer_properties_alloc(bridge, bridge_channel->chan,
-			attended_transfer ? attended_transfer->context : NULL);
-
+	props = attended_transfer_properties_alloc(bridge_channel->chan,
+		attended_transfer ? attended_transfer->context : NULL);
 	if (!props) {
-		ast_log(LOG_ERROR, "Unable to allocate control structure for performing attended transfer\n");
+		ast_log(LOG_ERROR, "Unable to allocate control structure for performing attended transfer.\n");
+		ast_bridge_merge_inhibit(bridge, -1);
+		ao2_ref(bridge, -1);
 		return 0;
 	}
+
+	props->transferee_bridge = bridge;
 
 	if (add_transferer_role(props->transferer, attended_transfer)) {
-		ast_log(LOG_ERROR, "Unable to set transferer bridge role properly\n");
+		ast_log(LOG_ERROR, "Unable to set transferrer bridge role.\n");
 		attended_transfer_properties_shutdown(props);
 		return 0;
 	}
 
 	ast_bridge_channel_write_hold(bridge_channel, NULL);
-	props->transferee_bridge = ast_bridge_channel_merge_inhibit(bridge_channel, +1);
 
 	/* Grab the extension to transfer to */
 	if (grab_transfer(bridge_channel->chan, exten, sizeof(exten), props->context)) {
-		ast_log(LOG_WARNING, "Unable to acquire target extension for attended transfer\n");
+		ast_log(LOG_WARNING, "Unable to acquire target extension for attended transfer.\n");
 		ast_bridge_channel_write_unhold(bridge_channel);
 		attended_transfer_properties_shutdown(props);
 		return 0;
@@ -2679,7 +2692,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	/* Get a channel that is the destination we wish to call */
 	props->transfer_target = dial_transfer(bridge_channel->chan, destination);
 	if (!props->transfer_target) {
-		ast_log(LOG_ERROR, "Unable to request outbound channel for attended transfer target\n");
+		ast_log(LOG_ERROR, "Unable to request outbound channel for attended transfer target.\n");
 		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		attended_transfer_properties_shutdown(props);
@@ -2690,7 +2703,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	/* Create a bridge to use to talk to the person we are calling */
 	props->target_bridge = ast_bridge_basic_new();
 	if (!props->target_bridge) {
-		ast_log(LOG_ERROR, "Unable to create bridge for attended transfer target\n");
+		ast_log(LOG_ERROR, "Unable to create bridge for attended transfer target.\n");
 		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
@@ -2701,7 +2714,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	ast_bridge_merge_inhibit(props->target_bridge, +1);
 
 	if (attach_framehook(props, props->transfer_target)) {
-		ast_log(LOG_ERROR, "Unable to attach framehook to transfer target\n");
+		ast_log(LOG_ERROR, "Unable to attach framehook to transfer target.\n");
 		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
@@ -2716,7 +2729,7 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 			BRIDGE_BASIC_PERSONALITY_ATXFER, props);
 
 	if (ast_call(props->transfer_target, destination, 0)) {
-		ast_log(LOG_ERROR, "Unable to place outbound call to transfer target\n");
+		ast_log(LOG_ERROR, "Unable to place outbound call to transfer target.\n");
 		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
@@ -2731,16 +2744,17 @@ static int feature_attended_transfer(struct ast_bridge *bridge, struct ast_bridg
 	 */
 	ast_channel_ref(props->transfer_target);
 	if (ast_bridge_impart(props->target_bridge, props->transfer_target, NULL, NULL, 1)) {
-		ast_log(LOG_ERROR, "Unable to place transfer target into bridge\n");
+		ast_log(LOG_ERROR, "Unable to place transfer target into bridge.\n");
 		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
+		props->transfer_target = NULL;
 		attended_transfer_properties_shutdown(props);
 		return 0;
 	}
 
 	if (ast_pthread_create_detached(&thread, NULL, attended_transfer_monitor_thread, props)) {
-		ast_log(LOG_ERROR, "Unable to create monitoring thread for attended transfer\n");
+		ast_log(LOG_ERROR, "Unable to create monitoring thread for attended transfer.\n");
 		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		attended_transfer_properties_shutdown(props);
@@ -2764,17 +2778,12 @@ static void blind_transfer_cb(struct ast_channel *new_channel, void *user_data,
 }
 
 /*! \brief Internal built in feature for blind transfers */
-static int feature_blind_transfer(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int feature_blind_transfer(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	char exten[AST_MAX_EXTENSION] = "";
 	struct ast_bridge_features_blind_transfer *blind_transfer = hook_pvt;
 	const char *context;
 	char *goto_on_blindxfr;
-
-	if (strcmp(bridge->v_table->name, "basic")) {
-		ast_log(LOG_ERROR, "Blind transfer attempted on unsupported bridge type '%s'\n", bridge->v_table->name);
-		return 0;
-	}
 
 	ast_bridge_channel_write_hold(bridge_channel, NULL);
 

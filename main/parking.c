@@ -147,12 +147,12 @@ void ast_uninstall_bridge_channel_park_func(void)
 	ast_bridge_channel_park_func = NULL;
 }
 
-int ast_park_blind_xfer(struct ast_bridge *bridge, struct ast_bridge_channel *parker,
-		struct ast_exten *park_exten)
+int ast_park_blind_xfer(struct ast_bridge_channel *parker, struct ast_exten *park_exten)
 {
 	static int warned = 0;
+
 	if (ast_park_blind_xfer_func) {
-		return ast_park_blind_xfer_func(bridge, parker, park_exten);
+		return ast_park_blind_xfer_func(parker, park_exten);
 	}
 
 	if (warned++ % 10 == 0) {

@@ -283,7 +283,7 @@ static void bridge_channel_handle_hangup(struct ast_bridge_channel *bridge_chann
 		if (hook->type != AST_BRIDGE_HOOK_TYPE_HANGUP) {
 			continue;
 		}
-		remove_me = hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+		remove_me = hook->callback(bridge_channel, hook->hook_pvt);
 		if (remove_me) {
 			ast_debug(1, "Hangup hook %p is being removed from %p(%s)\n",
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
@@ -916,8 +916,7 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 
 		ast_debug(1, "Executing hook %p on %p(%s)\n",
 			hook, bridge_channel, ast_channel_name(bridge_channel->chan));
-		interval = hook->generic.callback(bridge_channel->bridge, bridge_channel,
-			hook->generic.hook_pvt);
+		interval = hook->generic.callback(bridge_channel, hook->generic.hook_pvt);
 
 		ast_heap_wrlock(interval_hooks);
 		if (ast_heap_peek(interval_hooks, hook->timer.heap_index) != hook
@@ -1053,8 +1052,7 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel)
 	if (hook) {
 		int remove_me;
 
-		remove_me = hook->generic.callback(bridge_channel->bridge, bridge_channel,
-			hook->generic.hook_pvt);
+		remove_me = hook->generic.callback(bridge_channel, hook->generic.hook_pvt);
 		if (remove_me) {
 			ast_debug(1, "DTMF hook %p is being removed from %p(%s)\n",
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
@@ -1782,7 +1780,7 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		do {
 			if (hook->type == type) {
-				hook->callback(bridge_channel->bridge, bridge_channel, hook->hook_pvt);
+				hook->callback(bridge_channel, hook->hook_pvt);
 				ao2_unlink(features->other_hooks, hook);
 			}
 			ao2_ref(hook, -1);

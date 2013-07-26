@@ -1402,9 +1402,9 @@ static void conf_handle_talker_destructor(void *pvt_data)
 	ast_free(pvt_data);
 }
 
-static int conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void *pvt_data, int talking)
+static int conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void *hook_pvt, int talking)
 {
-	const char *conf_name = pvt_data;
+	const char *conf_name = hook_pvt;
 	struct confbridge_conference *conference = ao2_find(conference_bridges, conf_name, OBJ_KEY);
 	struct ast_json *talking_extras;
 

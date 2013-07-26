@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/musiconhold.h"
 
-static int bridge_features_duration_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int bridge_features_duration_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct ast_bridge_features_limits *limits = hook_pvt;
 
@@ -110,7 +110,7 @@ static void limits_interval_playback(struct ast_bridge_channel *bridge_channel, 
 	}
 }
 
-static int bridge_features_connect_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int bridge_features_connect_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct ast_bridge_features_limits *limits = hook_pvt;
 
@@ -118,7 +118,7 @@ static int bridge_features_connect_callback(struct ast_bridge *bridge, struct as
 	return -1;
 }
 
-static int bridge_features_warning_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int bridge_features_warning_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct ast_bridge_features_limits *limits = hook_pvt;
 

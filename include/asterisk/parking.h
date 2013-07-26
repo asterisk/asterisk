@@ -111,8 +111,7 @@ void ast_bridge_channel_park(struct ast_bridge_channel *bridge_channel,
 	const char *parker_uuid,
 	const char *app_data);
 
-typedef int (*ast_park_blind_xfer_fn)(struct ast_bridge *bridge, struct ast_bridge_channel *parker,
-	struct ast_exten *park_exten);
+typedef int (*ast_park_blind_xfer_fn)(struct ast_bridge_channel *parker, struct ast_exten *park_exten);
 
 /*!
  * \brief install a callback for handling blind transfers to a parking extension
@@ -132,15 +131,13 @@ void ast_uninstall_park_blind_xfer_func(void);
  * \brief use the installed park blind xfer func
  * \since 12
  *
- * \param bridge Bridge being transferred from
- * \param bridge_channel Bridge channel initiating the transfer
- * \param app_data arguments to the park application
+ * \param parker Bridge channel initiating the park
+ * \param park_exten Exten to blind transfer part to.
  *
  * \retval 0 on success
  * \retval -1 on failure
  */
-int ast_park_blind_xfer(struct ast_bridge *bridge, struct ast_bridge_channel *parker,
-		struct ast_exten *park_exten);
+int ast_park_blind_xfer(struct ast_bridge_channel *parker, struct ast_exten *park_exten);
 
 typedef void (*ast_bridge_channel_park_fn)(struct ast_bridge_channel *parkee, const char *parkee_uuid,
 	const char *parker_uuid, const char *app_data);

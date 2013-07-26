@@ -118,7 +118,6 @@ struct ast_bridge_channel;
 /*!
  * \brief Hook callback type
  *
- * \param bridge The bridge that the channel is part of
  * \param bridge_channel Channel executing the feature
  * \param hook_pvt Private data passed in when the hook was created
  *
@@ -131,7 +130,7 @@ struct ast_bridge_channel;
  * \retval 0 Keep the callback hook.
  * \retval -1 Remove the callback hook.
  */
-typedef int (*ast_bridge_hook_callback)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt);
+typedef int (*ast_bridge_hook_callback)(struct ast_bridge_channel *bridge_channel, void *hook_pvt);
 
 /*!
  * \brief Hook pvt destructor callback
@@ -143,17 +142,19 @@ typedef void (*ast_bridge_hook_pvt_destructor)(void *hook_pvt);
 /*!
  * \brief Talking indicator callback
  *
- * \details This callback can be registered with the bridge in order
- * to receive updates on when a bridge_channel has started and stopped
- * talking
+ * \details
+ * This callback can be registered with the bridge channel in
+ * order to receive updates when the bridge_channel has started
+ * and stopped talking.
  *
  * \param bridge_channel Channel executing the feature
+ * \param hook_pvt Private data passed in when the hook was created
  * \param talking TRUE if the channel is now talking
  *
  * \retval 0 Keep the callback hook.
  * \retval -1 Remove the callback hook.
  */
-typedef int (*ast_bridge_talking_indicate_callback)(struct ast_bridge_channel *bridge_channel, void *pvt_data, int talking);
+typedef int (*ast_bridge_talking_indicate_callback)(struct ast_bridge_channel *bridge_channel, void *hook_pvt, int talking);
 
 enum ast_bridge_hook_remove_flags {
 	/*! The hook is removed when the channel is pulled from the bridge. */
@@ -357,6 +358,8 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
  * \brief Invoke a built in feature hook now.
  *
  * \param feature The feature to invoke
+ * \param bridge_channel Channel executing the feature
+ * \param hook_pvt Private data passed in when the hook was created
  *
  * \note This API call is only meant to be used by bridge
  * subclasses and hook callbacks to request a builtin feature
@@ -368,10 +371,10 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature);
  * Example usage:
  *
  * \code
- * ast_bridge_features_do(AST_BRIDGE_BUILTIN_ATTENDED_TRANSFER, bridge, bridge_channel, hook_pvt);
+ * ast_bridge_features_do(AST_BRIDGE_BUILTIN_ATTENDED_TRANSFER, bridge_channel, hook_pvt);
  * \endcode
  */
-int ast_bridge_features_do(enum ast_bridge_builtin_feature feature, struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt);
+int ast_bridge_features_do(enum ast_bridge_builtin_feature feature, struct ast_bridge_channel *bridge_channel, void *hook_pvt);
 
 /*!
  * \brief Attach interval hooks to a bridge features structure

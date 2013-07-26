@@ -201,7 +201,7 @@ AST_APP_OPTIONS(bridgewait_opts, {
 	AST_APP_OPTION_ARG('S', MUXFLAG_TIMEOUT, OPT_ARG_TIMEOUT),
 });
 
-static int bridgewait_timeout_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int bridgewait_timeout_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	ast_verb(3, "Channel %s timed out.\n", ast_channel_name(bridge_channel->chan));
 	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);

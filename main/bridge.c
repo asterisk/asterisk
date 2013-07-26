@@ -2675,7 +2675,7 @@ int ast_bridge_features_unregister(enum ast_bridge_builtin_feature feature)
 	return 0;
 }
 
-int ast_bridge_features_do(enum ast_bridge_builtin_feature feature, struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+int ast_bridge_features_do(enum ast_bridge_builtin_feature feature, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	ast_bridge_hook_callback callback;
 
@@ -2687,7 +2687,7 @@ int ast_bridge_features_do(enum ast_bridge_builtin_feature feature, struct ast_b
 	if (!callback) {
 		return -1;
 	}
-	callback(bridge, bridge_channel, hook_pvt);
+	callback(bridge_channel, hook_pvt);
 
 	return 0;
 }
@@ -3777,8 +3777,7 @@ enum try_parking_result {
 	PARKING_NOT_APPLICABLE,
 };
 
-static enum try_parking_result try_parking(struct ast_bridge *bridge, struct ast_channel *transferer,
-		const char *exten, const char *context)
+static enum try_parking_result try_parking(struct ast_channel *transferer, const char *exten, const char *context)
 {
 	RAII_VAR(struct ast_bridge_channel *, transferer_bridge_channel, NULL, ao2_cleanup);
 	struct ast_exten *parking_exten;
@@ -3793,7 +3792,7 @@ static enum try_parking_result try_parking(struct ast_bridge *bridge, struct ast
 
 	parking_exten = ast_get_parking_exten(exten, NULL, context);
 	if (parking_exten) {
-		return ast_park_blind_xfer(bridge, transferer_bridge_channel, parking_exten) == 0 ?
+		return ast_park_blind_xfer(transferer_bridge_channel, parking_exten) == 0 ?
 			PARKING_SUCCESS : PARKING_FAILURE;
 	}
 
@@ -3871,7 +3870,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel *, transferee, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, transferee, NULL, ast_channel_cleanup);
 	int do_bridge_transfer;
 	int transfer_prohibited;
 	enum try_parking_result parking_result;
@@ -3893,7 +3892,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	/* Take off hold if they are on hold. */
 	ast_bridge_channel_write_unhold(bridge_channel);
 
-	parking_result = try_parking(bridge, transferer, exten, context);
+	parking_result = try_parking(transferer, exten, context);
 	switch (parking_result) {
 	case PARKING_SUCCESS:
 		transfer_result = AST_BRIDGE_TRANSFER_SUCCESS;

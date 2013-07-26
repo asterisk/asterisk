@@ -214,7 +214,7 @@ static void start_automonitor(struct ast_bridge_channel *bridge_channel, struct 
 	pbx_builtin_setvar_helper(peer_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
 }
 
-static int feature_automonitor(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int feature_automonitor(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	const char *start_message;
 	const char *stop_message;
@@ -226,7 +226,9 @@ static int feature_automonitor(struct ast_bridge *bridge, struct ast_bridge_chan
 	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
 
 	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
-	peer_chan = ast_bridge_peer(bridge, bridge_channel->chan);
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	peer_chan = ast_bridge_peer_nolock(bridge_channel->bridge, bridge_channel->chan);
+	ast_bridge_unlock(bridge_channel->bridge);
 
 	if (!peer_chan) {
 		ast_verb(3, "Cannot start AutoMonitor for %s - can not determine peer in bridge.\n",
@@ -397,7 +399,7 @@ static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, stru
 	pbx_builtin_setvar_helper(peer_chan, "TOUCH_MIXMONITOR_OUTPUT", touch_filename);
 }
 
-static int feature_automixmonitor(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int feature_automixmonitor(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	static const char *mixmonitor_spy_type = "MixMonitor";
 	const char *stop_message;
@@ -410,7 +412,9 @@ static int feature_automixmonitor(struct ast_bridge *bridge, struct ast_bridge_c
 	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
 
 	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
-	peer_chan = ast_bridge_peer(bridge, bridge_channel->chan);
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	peer_chan = ast_bridge_peer_nolock(bridge_channel->bridge, bridge_channel->chan);
+	ast_bridge_unlock(bridge_channel->bridge);
 
 	if (!peer_chan) {
 		ast_verb(3, "Cannot do AutoMixMonitor for %s - cannot determine peer in bridge.\n",
@@ -476,7 +480,7 @@ static int feature_automixmonitor(struct ast_bridge *bridge, struct ast_bridge_c
 }
 
 /*! \brief Internal built in feature for hangup */
-static int feature_hangup(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int feature_hangup(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	/*
 	 * This is very simple, we simply change the state on the

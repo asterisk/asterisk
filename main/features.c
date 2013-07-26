@@ -1842,14 +1842,13 @@ struct dynamic_dtmf_hook_data {
  * \brief Activated dynamic DTMF feature hook.
  * \since 12.0.0
  *
- * \param bridge The bridge that the channel is part of
  * \param bridge_channel Channel executing the feature
  * \param hook_pvt Private data passed in when the hook was created
  *
  * \retval 0 Keep the callback hook.
  * \retval -1 Remove the callback hook.
  */
-static int dynamic_dtmf_hook_trip(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int dynamic_dtmf_hook_trip(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct dynamic_dtmf_hook_data *pvt = hook_pvt;
 	int (*run_it)(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);

@@ -1078,12 +1078,11 @@ static void agent_connect_caller(struct ast_bridge_channel *bridge_channel, stru
 		 * The agent is in the new bridge so we can invoke the
 		 * mixmonitor hook to only start recording.
 		 */
-		ast_bridge_features_do(AST_BRIDGE_BUILTIN_AUTOMIXMON, caller_bridge,
-			bridge_channel, &options);
+		ast_bridge_features_do(AST_BRIDGE_BUILTIN_AUTOMIXMON, bridge_channel, &options);
 	}
 }
 
-static int bridge_agent_hold_ack(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int bridge_agent_hold_ack(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct agent_pvt *agent = hook_pvt;
 
@@ -1101,7 +1100,7 @@ static int bridge_agent_hold_ack(struct ast_bridge *bridge, struct ast_bridge_ch
 	return 0;
 }
 
-static int bridge_agent_hold_heartbeat(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int bridge_agent_hold_heartbeat(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct agent_pvt *agent = hook_pvt;
 	int probation_timedout = 0;
@@ -1709,7 +1708,7 @@ static void caller_abort_agent(struct agent_pvt *agent)
 	ast_bridge_channel_unlock(logged);
 }
 
-static int caller_safety_timeout(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int caller_safety_timeout(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct agent_pvt *agent = hook_pvt;
 

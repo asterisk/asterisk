@@ -183,7 +183,7 @@ static int create_parked_subscription(struct ast_channel *chan, const char *park
 /*!
  * \internal
  * \brief Helper function that creates an outgoing channel and returns it immediately. This function is nearly
- *        identical to the dial_transfer function in bridge_builtin_features.c, however it doesn't swap the
+ *        identical to the dial_transfer function in bridge_basic.c, however it doesn't swap the
  *        local channel and the channel that instigated the park.
  */
 static struct ast_channel *park_local_transfer(struct ast_channel *parker, const char *exten, const char *context)
@@ -242,7 +242,7 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	return parkee;
 }
 
-static int park_feature_helper(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_exten *park_exten)
+static int park_feature_helper(struct ast_bridge_channel *bridge_channel, struct ast_exten *park_exten)
 {
 	RAII_VAR(struct ast_channel *, other, NULL, ao2_cleanup);
 	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
@@ -251,7 +251,9 @@ static int park_feature_helper(struct ast_bridge *bridge, struct ast_bridge_chan
 	RAII_VAR(struct ao2_container *, bridge_peers, NULL, ao2_cleanup);
 	struct ao2_iterator iter;
 
-	bridge_peers = ast_bridge_peers(bridge);
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	bridge_peers = ast_bridge_peers_nolock(bridge_channel->bridge);
+	ast_bridge_unlock(bridge_channel->bridge);
 
 	if (ao2_container_count(bridge_peers) < 2) {
 		/* There is nothing to do if there is no one to park. */
@@ -357,20 +359,19 @@ static void park_bridge_channel(struct ast_bridge_channel *bridge_channel, const
 	}
 }
 
-static int feature_park(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int feature_park(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
-	park_feature_helper(bridge, bridge_channel, NULL);
+	park_feature_helper(bridge_channel, NULL);
 	return 0;
 }
 
 /*! \internal
  * \brief Interval hook. Pulls a parked call from the parking bridge after the timeout is passed and sets the resolution to timeout.
  *
- * \param bridge Which bridge the channel was parked in
  * \param bridge_channel bridge channel this interval hook is being executed on
  * \param hook_pvt A pointer to the parked_user struct associated with the channel is stuffed in here
  */
-static int parking_duration_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int parking_duration_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct parked_user *user = hook_pvt;
 	struct ast_channel *chan = user->chan;

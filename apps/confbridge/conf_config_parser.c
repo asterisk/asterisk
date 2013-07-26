@@ -2080,9 +2080,10 @@ static void menu_hook_destroy(void *hook_pvt)
 	ast_free(pvt);
 }
 
-static int menu_hook_callback(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+static int menu_hook_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct dtmf_menu_hook_pvt *pvt = hook_pvt;
+
 	return conf_handle_dtmf(bridge_channel, pvt->user, &pvt->menu_entry, pvt->menu);
 }
 
