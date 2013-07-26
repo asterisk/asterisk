@@ -117,11 +117,14 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel);
  *
  * \param bridge_channel The Channel in the bridge
  *
+ * \retval 0 bridge channel successfully joined the bridge
+ * \retval -1 bridge channel failed to join the bridge
+ *
  * \note This API call starts the bridge_channel's processing of events while
  * it is in the bridge. It will return when the channel has been instructed to
  * leave the bridge.
  */
-void bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel);
+int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal

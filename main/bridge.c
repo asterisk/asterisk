@@ -1420,7 +1420,7 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan)
  * Need to update the features parameter doxygen when this
  * change is made to be like ast_bridge_impart().
  */
-enum bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
+int ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_channel *chan,
 	struct ast_channel *swap,
 	struct ast_bridge_features *features,
@@ -1428,21 +1428,21 @@ enum bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	int pass_reference)
 {
 	struct ast_bridge_channel *bridge_channel;
-	enum bridge_channel_state state;
+	int res;
 
 	bridge_channel = bridge_channel_internal_alloc(bridge);
 	if (pass_reference) {
 		ao2_ref(bridge, -1);
 	}
 	if (!bridge_channel) {
-		state = BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
+		res = -1;
 		goto join_exit;
 	}
 /* BUGBUG features cannot be NULL when passed in. When it is changed to allocated we can do like ast_bridge_impart() and allocate one. */
 	ast_assert(features != NULL);
 	if (!features) {
 		ao2_ref(bridge_channel, -1);
-		state = BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE;
+		res = -1;
 		goto join_exit;
 	}
 	if (tech_args) {
@@ -1458,8 +1458,7 @@ enum bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
 	bridge_channel->swap = swap;
 	bridge_channel->features = features;
 
-	bridge_channel_internal_join(bridge_channel);
-	state = bridge_channel->state;
+	res = bridge_channel_internal_join(bridge_channel);
 
 	/* Cleanup all the data in the bridge channel after it leaves the bridge. */
 	ast_channel_lock(chan);
@@ -1481,7 +1480,7 @@ join_exit:;
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
 		ast_channel_unlock(chan);
 	}
-	return state;
+	return res;
 }
 
 /*! \brief Thread responsible for imparted bridged channels to be departed */

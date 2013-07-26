@@ -1794,8 +1794,9 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 }
 
 /*! \brief Join a channel to a bridge and handle anything the bridge may want us to do */
-void bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
+int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 {
+	int res = 0;
 	ast_format_copy(&bridge_channel->read_format, ast_channel_readformat(bridge_channel->chan));
 	ast_format_copy(&bridge_channel->write_format, ast_channel_writeformat(bridge_channel->chan));
 
@@ -1826,6 +1827,7 @@ void bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 
 	if (bridge_channel_internal_push(bridge_channel)) {
 		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		res = -1;
 	}
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
@@ -1881,6 +1883,8 @@ void bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	ast_channel_unlock(bridge_channel->chan);
 
 	ast_bridge_channel_restore_formats(bridge_channel);
+
+	return res;
 }
 
 int bridge_channel_internal_queue_blind_transfer(struct ast_channel *transferee,

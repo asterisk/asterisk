@@ -428,7 +428,8 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan);
  * \note Absolutely _NO_ locks should be held before calling
  * this function since it blocks.
  *
- * \retval state that channel exited the bridge with
+ * \retval 0 if the channel successfully joined the bridge before it exited.
+ * \retval -1 if the channel failed to join the bridge
  *
  * Example usage:
  *
@@ -447,7 +448,7 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan);
  * If channel specific features are enabled a pointer to the features structure
  * can be specified in the features parameter.
  */
-enum bridge_channel_state ast_bridge_join(struct ast_bridge *bridge,
+int ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_channel *chan,
 	struct ast_channel *swap,
 	struct ast_bridge_features *features,
