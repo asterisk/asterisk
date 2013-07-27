@@ -1136,6 +1136,7 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	ast_test_validate(test, 0 == ast_bridge_depart(chan_bob));
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
 
 	return AST_TEST_PASS;
@@ -1209,13 +1210,18 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 
 	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_fred, bridge2);
 
+	do_sleep();
 	CONF_EXIT(chan_bob, bridge2);
+	do_sleep();
 	CONF_EXIT(chan_charlie, bridge2);
 
 	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_fred, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
 
 	return AST_TEST_PASS;
@@ -1238,6 +1244,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	struct ast_party_caller david_caller = DAVID_CALLERID;
 	struct ast_party_caller eve_caller = EVE_CALLERID;
 	struct ast_party_caller fred_caller = EVE_CALLERID;
+	struct ast_bridge_channel_pair transferee;
+	struct ast_bridge_channel_pair target;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1296,35 +1304,56 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_eve, NULL, NULL, 0));
 	do_sleep();
 	BRIDGE_TO_CONF(chan_charlie, chan_fred, chan_eve, bridge2);
+	do_sleep();
 
 	/* Perform attended transfer */
-	CONF_EXIT_EVENT(chan_charlie, bridge2);
-	eve_tmp_snapshot = ast_channel_snapshot_create(chan_eve);
-	ast_bridge_transfer_attended(chan_alice, chan_fred);
+	CONF_EXIT(chan_eve, bridge2);
 	do_sleep();
-	CONF_ENTER_EVENT(chan_charlie, bridge1);
+	CONF_EXIT_EVENT(chan_charlie, bridge2);
+	do_sleep();
+	ast_test_validate(test, 0 == ast_bridge_depart(chan_charlie)); \
+	do_sleep();
+	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_charlie, NULL, NULL, 0)); \
+	do_sleep();
+	CONF_ENTER_EVENT(chan_charlie, bridge1); \
+	do_sleep();
+	CONF_EXIT_EVENT(chan_charlie, bridge1);
 
 	/* Fred goes away */
-	CONF_EXIT_EVENT(chan_fred, bridge2);
-	CONF_EXIT_SNAPSHOT(eve_tmp_snapshot, bridge2);
-	CONF_ENTER_EVENT(chan_eve, bridge1);
+	CONF_EXIT(chan_fred, bridge2);
+	do_sleep();
+	/*CONF_EXIT_EVENT(chan_eve, bridge1);
+	do_sleep();
+	ast_test_validate(test, 0 == ast_bridge_depart(chan_eve)); \
+	do_sleep();*/
 
 	/* Alice goes away */
-	CONF_EXIT_EVENT(chan_alice, bridge1);
+	CONF_EXIT(chan_alice, bridge1);
+	do_sleep();
 
+	transferee.bridge = bridge1;
+	transferee.channel = chan_alice;
+	target.bridge = bridge2;
+	target.channel = chan_fred;
+	ast_bridge_publish_attended_transfer_bridge_merge(1, AST_BRIDGE_TRANSFER_SUCCESS,
+		&transferee, &target, bridge1);
 	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_fred, bridge2);
 
 	CONF_EXIT(chan_bob, bridge1);
-	CONF_EXIT(chan_charlie, bridge1);
+	do_sleep();
 	CONF_EXIT(chan_david, bridge1);
-	CONF_EXIT(chan_eve, bridge1);
+	do_sleep();
 
+	HANGUP_CHANNEL(chan_fred, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
-	HANGUP_CHANNEL(chan_fred, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_david, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_eve, AST_CAUSE_NORMAL, "");
 
 	return AST_TEST_PASS;
@@ -1437,16 +1466,24 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	APPEND_DUMMY_EVENT();
 
 	CONF_EXIT(chan_bob, bridge1);
+	do_sleep();
 	CONF_EXIT(chan_charlie, bridge2);
+	do_sleep();
 	CONF_EXIT(chan_david, bridge1);
+	do_sleep();
 	CONF_EXIT(chan_eve, bridge2);
 
 	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_fred, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_david, AST_CAUSE_NORMAL, "");
+	do_sleep();
 	HANGUP_CHANNEL(chan_eve, AST_CAUSE_NORMAL, "");
 
 	return AST_TEST_PASS;
