@@ -1,6 +1,6 @@
 [general]
-enabled = yes		; When set to no, stasis-http support is disabled.
-;pretty = no		; When set to yes, responses from stasis-http are
+enabled = yes		; When set to no, ARI support is disabled.
+;pretty = no		; When set to yes, responses from ARI are
 ;			; formatted to be human readable.
 ;allowed_origins =	; Comma separated list of allowed origins, for
 ;			; Cross-Origin Resource Sharing. May be set to * to

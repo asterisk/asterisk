@@ -19,7 +19,7 @@
  * \brief Generated file - Build validators for ARI model objects.
  *
  * In addition to the normal validation functions one would normally expect,
- * each validator has a ari_validate_{id}_fn() companion function that returns
+ * each validator has a ast_ari_validate_{id}_fn() companion function that returns
  * the validator's function pointer.
  *
  * The reason for this seamingly useless indirection is the way function
@@ -50,7 +50,7 @@
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_void(struct ast_json *json);
+int ast_ari_validate_void(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger byte.
@@ -59,7 +59,7 @@ int ari_validate_void(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_byte(struct ast_json *json);
+int ast_ari_validate_byte(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger boolean.
@@ -68,7 +68,7 @@ int ari_validate_byte(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_boolean(struct ast_json *json);
+int ast_ari_validate_boolean(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger int.
@@ -77,7 +77,7 @@ int ari_validate_boolean(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_int(struct ast_json *json);
+int ast_ari_validate_int(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger long.
@@ -86,7 +86,7 @@ int ari_validate_int(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_long(struct ast_json *json);
+int ast_ari_validate_long(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger float.
@@ -95,7 +95,7 @@ int ari_validate_long(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_float(struct ast_json *json);
+int ast_ari_validate_float(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger double.
@@ -104,7 +104,7 @@ int ari_validate_float(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_double(struct ast_json *json);
+int ast_ari_validate_double(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger string.
@@ -113,7 +113,7 @@ int ari_validate_double(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_string(struct ast_json *json);
+int ast_ari_validate_string(struct ast_json *json);
 
 /*!
  * \brief Validator for native Swagger date.
@@ -122,7 +122,7 @@ int ari_validate_string(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_date(struct ast_json *json);
+int ast_ari_validate_date(struct ast_json *json);
 
 /*!
  * \brief Validator for a Swagger List[]/JSON array.
@@ -132,7 +132,7 @@ int ari_validate_date(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *));
+int ast_ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *));
 
 /*! @} */
 
@@ -153,14 +153,14 @@ typedef int (*ari_validator)(struct ast_json *json);
  * \returns True (non-zero) if valid.
  * \returns False (zero) if invalid.
  */
-int ari_validate_{{c_id}}(struct ast_json *json);
+int ast_ari_validate_{{c_id}}(struct ast_json *json);
 
 /*!
- * \brief Function pointer to ari_validate_{{c_id}}().
+ * \brief Function pointer to ast_ari_validate_{{c_id}}().
  *
- * See \ref ari_model_validators.h for more details.
+ * See \ref ast_ari_model_validators.h for more details.
  */
-ari_validator ari_validate_{{c_id}}_fn(void);
+ari_validator ast_ari_validate_{{c_id}}_fn(void);
 {{/models}}
 {{/api_declaration}}
 {{/apis}}

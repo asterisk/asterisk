@@ -44,22 +44,22 @@ WIKI_PREFIX = 'Asterisk 12'
 API_TRANSFORMS = [
     Transform(rel('api.wiki.mustache'),
               'doc/rest-api/%s {{name_title}} REST API.wiki' % WIKI_PREFIX),
-    Transform(rel('res_stasis_http_resource.c.mustache'),
-              'res/res_stasis_http_{{name}}.c'),
-    Transform(rel('stasis_http_resource.h.mustache'),
-              'res/stasis_http/resource_{{name}}.h'),
-    Transform(rel('stasis_http_resource.c.mustache'),
-              'res/stasis_http/resource_{{name}}.c', overwrite=False),
+    Transform(rel('res_ari_resource.c.mustache'),
+              'res/res_ari_{{name}}.c'),
+    Transform(rel('ari_resource.h.mustache'),
+              'res/ari/resource_{{name}}.h'),
+    Transform(rel('ari_resource.c.mustache'),
+              'res/ari/resource_{{name}}.c', overwrite=False),
 ]
 
 RESOURCES_TRANSFORMS = [
     Transform(rel('models.wiki.mustache'),
               'doc/rest-api/%s REST Data Models.wiki' % WIKI_PREFIX),
-    Transform(rel('stasis_http.make.mustache'), 'res/stasis_http.make'),
+    Transform(rel('ari.make.mustache'), 'res/ari.make'),
     Transform(rel('ari_model_validators.h.mustache'),
-              'res/stasis_http/ari_model_validators.h'),
+              'res/ari/ari_model_validators.h'),
     Transform(rel('ari_model_validators.c.mustache'),
-              'res/stasis_http/ari_model_validators.c'),
+              'res/ari/ari_model_validators.c'),
 ]
 
 

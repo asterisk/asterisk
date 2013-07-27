@@ -31,7 +31,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "stasis_http/ari_model_validators.h"
+#include "ari/ari_model_validators.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
@@ -90,18 +90,18 @@ static int check_range(intmax_t minval, intmax_t maxval, struct ast_json *json)
 	return 1;
 }
 
-int ari_validate_void(struct ast_json *json)
+int ast_ari_validate_void(struct ast_json *json)
 {
 	return check_type(json, AST_JSON_NULL);
 }
 
-int ari_validate_byte(struct ast_json *json)
+int ast_ari_validate_byte(struct ast_json *json)
 {
 	/* Java bytes are signed, which accounts for great fun for all */
 	return check_range(-128, 255, json);
 }
 
-int ari_validate_boolean(struct ast_json *json)
+int ast_ari_validate_boolean(struct ast_json *json)
 {
 	enum ast_json_type actual = ast_json_typeof(json);
 	switch (actual) {
@@ -115,34 +115,34 @@ int ari_validate_boolean(struct ast_json *json)
 	}
 }
 
-int ari_validate_int(struct ast_json *json)
+int ast_ari_validate_int(struct ast_json *json)
 {
 	/* Swagger int's are 32-bit */
 	return check_range(-2147483648LL, 2147483647LL, json);
 }
 
-int ari_validate_long(struct ast_json *json)
+int ast_ari_validate_long(struct ast_json *json)
 {
 	/* All integral values are valid longs. No need for range check. */
 	return check_type(json, AST_JSON_INTEGER);
 }
 
-int ari_validate_float(struct ast_json *json)
+int ast_ari_validate_float(struct ast_json *json)
 {
 	return check_type(json, AST_JSON_REAL);
 }
 
-int ari_validate_double(struct ast_json *json)
+int ast_ari_validate_double(struct ast_json *json)
 {
 	return check_type(json, AST_JSON_REAL);
 }
 
-int ari_validate_string(struct ast_json *json)
+int ast_ari_validate_string(struct ast_json *json)
 {
 	return check_type(json, AST_JSON_STRING);
 }
 
-int ari_validate_date(struct ast_json *json)
+int ast_ari_validate_date(struct ast_json *json)
 {
 	/* Dates are ISO-8601 strings */
 	const char *str;
@@ -158,7 +158,7 @@ int ari_validate_date(struct ast_json *json)
 	return 1;
 }
 
-int ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *))
+int ast_ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *))
 {
 	int res = 1;
 	size_t i;

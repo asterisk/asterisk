@@ -1,7 +1,0 @@
-{
-	global:
-		LINKER_SYMBOL_PREFIXstasis_http_*;
-		LINKER_SYMBOL_PREFIXari_*;
-	local:
-		*;
-};

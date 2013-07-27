@@ -34,7 +34,7 @@
 			<configObject name="global">
 				<synopsis>Global configuration settings</synopsis>
 				<configOption name="enabled">
-					<synopsis>Enable/disable the stasis-http module</synopsis>
+					<synopsis>Enable/disable the statsd module</synopsis>
 				</configOption>
 				<configOption name="server">
 					<synopsis>Address of the statsd server</synopsis>
@@ -161,7 +161,7 @@ void AST_OPTIONAL_API_NAME(ast_statsd_log_sample)(const char *metric_name,
 		sample_rate);
 }
 
-/*! \brief Mapping of the stasis http conf struct's globals to the
+/*! \brief Mapping of the statsd conf struct's globals to the
  *         general context in the config file. */
 static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
@@ -173,7 +173,7 @@ static struct aco_type global_option = {
 
 static struct aco_type *global_options[] = ACO_TYPES(&global_option);
 
-/*! \brief Disposes of the stasis http conf object */
+/*! \brief Disposes of the statsd conf object */
 static void conf_destructor(void *obj)
 {
     struct conf *cfg = obj;

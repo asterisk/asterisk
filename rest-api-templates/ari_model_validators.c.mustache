@@ -36,7 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 {{#api_declaration}}
 {{#models}}
 
-int ari_validate_{{c_id}}(struct ast_json *json)
+int ast_ari_validate_{{c_id}}(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
@@ -59,7 +59,7 @@ int ari_validate_{{c_id}}(struct ast_json *json)
 	} else
 {{#subtypes}}
 	if (strcmp("{{id}}", discriminator) == 0) {
-		return ari_validate_{{c_id}}(json);
+		return ast_ari_validate_{{c_id}}(json);
 	} else
 {{/subtypes}}
 	{
@@ -78,12 +78,12 @@ int ari_validate_{{c_id}}(struct ast_json *json)
 {{/required}}
 {{#type}}
 {{#is_list}}
-			prop_is_valid = ari_validate_list(
+			prop_is_valid = ast_ari_validate_list(
 				ast_json_object_iter_value(iter),
-				ari_validate_{{c_singular_name}});
+				ast_ari_validate_{{c_singular_name}});
 {{/is_list}}
 {{^is_list}}
-			prop_is_valid = ari_validate_{{c_name}}(
+			prop_is_valid = ast_ari_validate_{{c_name}}(
 				ast_json_object_iter_value(iter));
 {{/is_list}}
 {{/type}}
@@ -113,9 +113,9 @@ int ari_validate_{{c_id}}(struct ast_json *json)
 	return res;
 }
 
-ari_validator ari_validate_{{c_id}}_fn(void)
+ari_validator ast_ari_validate_{{c_id}}_fn(void)
 {
-	return ari_validate_{{c_id}};
+	return ast_ari_validate_{{c_id}};
 }
 {{/models}}
 {{/api_declaration}}

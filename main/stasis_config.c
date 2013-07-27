@@ -70,7 +70,7 @@ struct stasis_conf {
 	struct stasis_threadpool_conf *threadpool;
 };
 
-/*! \brief Mapping of the stasis http conf struct's globals to the
+/*! \brief Mapping of the stasis conf struct's globals to the
  *         threadpool context in the config file. */
 static struct aco_type threadpool_option = {
         .type = ACO_GLOBAL,

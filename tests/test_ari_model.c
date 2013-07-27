@@ -36,7 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/test.h"
-#include "../res/stasis_http/ari_model_validators.h"
+#include "../res/ari/ari_model_validators.h"
 
 AST_TEST_DEFINE(validate_byte)
 {
@@ -58,34 +58,34 @@ AST_TEST_DEFINE(validate_byte)
 
 	uut = ast_json_integer_create(-128);
 	ast_test_validate(test, NULL != uut);
-	ast_test_validate(test, ari_validate_byte(uut));
+	ast_test_validate(test, ast_ari_validate_byte(uut));
 
 	res = ast_json_integer_set(uut, 0);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, ari_validate_byte(uut));
+	ast_test_validate(test, ast_ari_validate_byte(uut));
 
 	res = ast_json_integer_set(uut, 255);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, ari_validate_byte(uut));
+	ast_test_validate(test, ast_ari_validate_byte(uut));
 
 	res = ast_json_integer_set(uut, -129);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_byte(uut));
+	ast_test_validate(test, !ast_ari_validate_byte(uut));
 
 	res = ast_json_integer_set(uut, 256);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_byte(uut));
+	ast_test_validate(test, !ast_ari_validate_byte(uut));
 
 	str = ast_json_string_create("not a byte");
 	ast_test_validate(test, NULL != str);
-	ast_test_validate(test, !ari_validate_byte(str));
+	ast_test_validate(test, !ast_ari_validate_byte(str));
 
 	/* Even if the string has an integral value */
 	res = ast_json_string_set(str, "0");
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_byte(str));
+	ast_test_validate(test, !ast_ari_validate_byte(str));
 
-	ast_test_validate(test, !ari_validate_byte(ast_json_null()));
+	ast_test_validate(test, !ast_ari_validate_byte(ast_json_null()));
 
 	return AST_TEST_PASS;
 }
@@ -107,24 +107,24 @@ AST_TEST_DEFINE(validate_boolean)
 		break;
 	}
 
-	ast_test_validate(test, ari_validate_boolean(ast_json_true()));
-	ast_test_validate(test, ari_validate_boolean(ast_json_false()));
+	ast_test_validate(test, ast_ari_validate_boolean(ast_json_true()));
+	ast_test_validate(test, ast_ari_validate_boolean(ast_json_false()));
 
 	str = ast_json_string_create("not a bool");
 	ast_test_validate(test, NULL != str);
-	ast_test_validate(test, !ari_validate_boolean(str));
+	ast_test_validate(test, !ast_ari_validate_boolean(str));
 
 	/* Even if the string has a boolean value */
 	res = ast_json_string_set(str, "true");
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_boolean(str));
+	ast_test_validate(test, !ast_ari_validate_boolean(str));
 
 	/* Even if the string has a boolean text in it */
 	res = ast_json_string_set(str, "true");
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_boolean(str));
+	ast_test_validate(test, !ast_ari_validate_boolean(str));
 
-	ast_test_validate(test, !ari_validate_boolean(ast_json_null()));
+	ast_test_validate(test, !ast_ari_validate_boolean(ast_json_null()));
 
 	return AST_TEST_PASS;
 }
@@ -149,34 +149,34 @@ AST_TEST_DEFINE(validate_int)
 
 	uut = ast_json_integer_create(-2147483648LL);
 	ast_test_validate(test, NULL != uut);
-	ast_test_validate(test, ari_validate_int(uut));
+	ast_test_validate(test, ast_ari_validate_int(uut));
 
 	res = ast_json_integer_set(uut, 0);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, ari_validate_int(uut));
+	ast_test_validate(test, ast_ari_validate_int(uut));
 
 	res = ast_json_integer_set(uut, 2147483647LL);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, ari_validate_int(uut));
+	ast_test_validate(test, ast_ari_validate_int(uut));
 
 	res = ast_json_integer_set(uut, -2147483649LL);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_int(uut));
+	ast_test_validate(test, !ast_ari_validate_int(uut));
 
 	res = ast_json_integer_set(uut, 2147483648LL);
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_int(uut));
+	ast_test_validate(test, !ast_ari_validate_int(uut));
 
 	str = ast_json_string_create("not a int");
 	ast_test_validate(test, NULL != str);
-	ast_test_validate(test, !ari_validate_int(str));
+	ast_test_validate(test, !ast_ari_validate_int(str));
 
 	/* Even if the string has an integral value */
 	res = ast_json_string_set(str, "0");
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_int(str));
+	ast_test_validate(test, !ast_ari_validate_int(str));
 
-	ast_test_validate(test, !ari_validate_int(ast_json_null()));
+	ast_test_validate(test, !ast_ari_validate_int(ast_json_null()));
 
 	return AST_TEST_PASS;
 }
@@ -201,18 +201,18 @@ AST_TEST_DEFINE(validate_long)
 
 	uut = ast_json_integer_create(0);
 	ast_test_validate(test, NULL != uut);
-	ast_test_validate(test, ari_validate_long(uut));
+	ast_test_validate(test, ast_ari_validate_long(uut));
 
 	str = ast_json_string_create("not a long");
 	ast_test_validate(test, NULL != str);
-	ast_test_validate(test, !ari_validate_long(str));
+	ast_test_validate(test, !ast_ari_validate_long(str));
 
 	/* Even if the string has an integral value */
 	res = ast_json_string_set(str, "0");
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_long(str));
+	ast_test_validate(test, !ast_ari_validate_long(str));
 
-	ast_test_validate(test, !ari_validate_long(ast_json_null()));
+	ast_test_validate(test, !ast_ari_validate_long(ast_json_null()));
 
 	return AST_TEST_PASS;
 }
@@ -237,13 +237,13 @@ AST_TEST_DEFINE(validate_string)
 
 	uut = ast_json_string_create("text");
 	ast_test_validate(test, NULL != uut);
-	ast_test_validate(test, ari_validate_string(uut));
+	ast_test_validate(test, ast_ari_validate_string(uut));
 
 	res = ast_json_string_set(uut, "");
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, ari_validate_string(uut));
+	ast_test_validate(test, ast_ari_validate_string(uut));
 
-	ast_test_validate(test, !ari_validate_string(ast_json_null()));
+	ast_test_validate(test, !ast_ari_validate_string(ast_json_null()));
 
 	return AST_TEST_PASS;
 }
@@ -341,7 +341,7 @@ AST_TEST_DEFINE(validate_date)
 	for (i = 0; i < ARRAY_LEN(valid_dates); ++i) {
 		res = ast_json_string_set(uut, valid_dates[i]);
 		ast_test_validate(test, 0 == res);
-		if (!ari_validate_date(uut)) {
+		if (!ast_ari_validate_date(uut)) {
 			ast_test_status_update(test,
 				"Expected '%s' to be a valid date\n",
 				valid_dates[i]);
@@ -352,7 +352,7 @@ AST_TEST_DEFINE(validate_date)
 	for (i = 0; i < ARRAY_LEN(invalid_dates); ++i) {
 		res = ast_json_string_set(uut, invalid_dates[i]);
 		ast_test_validate(test, 0 == res);
-		if (ari_validate_date(uut)) {
+		if (ast_ari_validate_date(uut)) {
 			ast_test_status_update(test,
 				"Expected '%s' to be an invalid date\n",
 				invalid_dates[i]);
@@ -360,7 +360,7 @@ AST_TEST_DEFINE(validate_date)
 		}
 	}
 
-	ast_test_validate(test, !ari_validate_string(ast_json_null()));
+	ast_test_validate(test, !ast_ari_validate_string(ast_json_null()));
 
 	return test_res;
 }
@@ -385,21 +385,21 @@ AST_TEST_DEFINE(validate_list)
 
 	uut = ast_json_array_create();
 	ast_test_validate(test, NULL != uut);
-	ast_test_validate(test, ari_validate_list(uut, ari_validate_string));
-	ast_test_validate(test, ari_validate_list(uut, ari_validate_int));
+	ast_test_validate(test, ast_ari_validate_list(uut, ast_ari_validate_string));
+	ast_test_validate(test, ast_ari_validate_list(uut, ast_ari_validate_int));
 
 	res = ast_json_array_append(uut, ast_json_string_create(""));
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, ari_validate_list(uut, ari_validate_string));
-	ast_test_validate(test, !ari_validate_list(uut, ari_validate_int));
+	ast_test_validate(test, ast_ari_validate_list(uut, ast_ari_validate_string));
+	ast_test_validate(test, !ast_ari_validate_list(uut, ast_ari_validate_int));
 
 	res = ast_json_array_append(uut, ast_json_integer_create(0));
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ari_validate_list(uut, ari_validate_string));
-	ast_test_validate(test, !ari_validate_list(uut, ari_validate_int));
+	ast_test_validate(test, !ast_ari_validate_list(uut, ast_ari_validate_string));
+	ast_test_validate(test, !ast_ari_validate_list(uut, ast_ari_validate_int));
 
 	ast_test_validate(test,
-		!ari_validate_list(ast_json_null(), ari_validate_string));
+		!ast_ari_validate_list(ast_json_null(), ast_ari_validate_string));
 
 	return AST_TEST_PASS;
 }

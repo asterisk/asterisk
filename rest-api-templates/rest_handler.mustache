@@ -17,7 +17,7 @@
 }}
 {{!
  * Recursive partial template to render a rest_handler. Used in
- * res_stasis_http_resource.c.mustache.
+ * res_ari_resource.c.mustache.
 }}
 {{#children}}
 {{> rest_handler}}
@@ -31,7 +31,7 @@ static struct stasis_rest_handlers {{full_name}} = {
 	.callbacks = {
 {{#operations}}
 {{#is_req}}
-		[{{c_http_method}}] = stasis_http_{{c_nickname}}_cb,
+		[{{c_http_method}}] = ast_ari_{{c_nickname}}_cb,
 {{/is_req}}
 {{/operations}}
 	},
