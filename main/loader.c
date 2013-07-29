@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/enum.h"
 #include "asterisk/http.h"
 #include "asterisk/lock.h"
-#include "asterisk/features.h"
+#include "asterisk/features_config.h"
 #include "asterisk/dsp.h"
 #include "asterisk/udptl.h"
 #include "asterisk/heap.h"
