@@ -1789,7 +1789,6 @@ error:
 		ast_pjsip_endpoint = NULL;
 	}
 	pj_caching_pool_destroy(&caching_pool);
-	/* XXX Should have a way of stopping monitor thread */
 	return AST_MODULE_LOAD_DECLINE;
 }
 
