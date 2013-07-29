@@ -160,12 +160,6 @@ static void do_sleep(void)
 /*! \brief David's Caller ID */
 #define DAVID_CALLERID { .id.name.str = "David", .id.name.valid = 1, .id.number.str = "400", .id.number.valid = 1, }
 
-/*! \brief Eve's Caller ID */
-#define EVE_CALLERID { .id.name.str = "Eve", .id.name.valid = 1, .id.number.str = "500", .id.number.valid = 1, }
-
-/*! \brief Fred's Caller ID */
-#define FRED_CALLERID { .id.name.str = "Fred", .id.name.valid = 1, .id.number.str = "600", .id.number.valid = 1, }
-
 /*! \brief Create a \ref test_cel_chan_tech for Alice. */
 #define CREATE_ALICE_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "100", "100", "default", NULL, 0, CHANNEL_TECH_NAME "/Alice"); \
@@ -187,18 +181,6 @@ static void do_sleep(void)
 /*! \brief Create a \ref test_cel_chan_tech for David. */
 #define CREATE_DAVID_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "400", "400", "default", NULL, 0, CHANNEL_TECH_NAME "/David"); \
-	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL, NULL); \
-	} while (0)
-
-/*! \brief Create a \ref test_cel_chan_tech for Eve. */
-#define CREATE_EVE_CHANNEL(channel_var, caller_id) do { \
-	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "500", "500", "default", NULL, 0, CHANNEL_TECH_NAME "/Eve"); \
-	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL, NULL); \
-	} while (0)
-
-/*! \brief Create a \ref test_cel_chan_tech for Eve. */
-#define CREATE_FRED_CHANNEL(channel_var, caller_id) do { \
-	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "600", "600", "default", NULL, 0, CHANNEL_TECH_NAME "/Fred"); \
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL, NULL); \
 	} while (0)
 
@@ -609,13 +591,17 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 	ANSWER_CHANNEL(chan_charlie);
 	EMULATE_APP_DATA(chan_charlie, 2, "Bridge", "");
+	do_sleep();
 	ast_bridge_impart(bridge, chan_charlie, NULL, NULL, 0);
 	do_sleep();
 	BRIDGE_TO_CONF(chan_alice, chan_bob, chan_charlie, bridge);
 
 	CONF_EXIT(chan_alice, bridge);
+	do_sleep();
 	CONF_EXIT(chan_bob, bridge);
+	do_sleep();
 	CONF_EXIT(chan_charlie, bridge);
+	do_sleep();
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1043,21 +1029,32 @@ AST_TEST_DEFINE(test_cel_dial_answer_multiparty)
 	EMULATE_DIAL(chan_alice, CHANNEL_TECH_NAME "/Bob");
 
 	START_DIALED(chan_alice, chan_bob);
+	do_sleep();
 
 	CREATE_CHARLIE_CHANNEL(chan_charlie, &charlie_caller);
+	do_sleep();
 	EMULATE_DIAL(chan_charlie, CHANNEL_TECH_NAME "/Bob");
+	do_sleep();
 
 	START_DIALED_FULL(chan_charlie, chan_david, "400", "David");
 
 	ast_channel_state_set(chan_alice, AST_STATE_RINGING);
+	do_sleep();
 	ast_channel_state_set(chan_charlie, AST_STATE_RINGING);
+	do_sleep();
 	ast_channel_publish_dial(chan_alice, chan_bob, NULL, "ANSWER");
+	do_sleep();
 	ast_channel_publish_dial(chan_charlie, chan_david, NULL, "ANSWER");
+	do_sleep();
 
 	ANSWER_NO_APP(chan_alice);
+	do_sleep();
 	ANSWER_NO_APP(chan_bob);
+	do_sleep();
 	ANSWER_NO_APP(chan_charlie);
+	do_sleep();
 	ANSWER_NO_APP(chan_david);
+	do_sleep();
 
 	do_sleep();
 	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_charlie, NULL, NULL, 0));
@@ -1075,8 +1072,11 @@ AST_TEST_DEFINE(test_cel_dial_answer_multiparty)
 	CONF_ENTER_EVENT(chan_alice, bridge);
 
 	CONF_EXIT(chan_alice, bridge);
+	do_sleep();
 	CONF_EXIT(chan_bob, bridge);
+	do_sleep();
 	CONF_EXIT(chan_charlie, bridge);
+	do_sleep();
 	CONF_EXIT(chan_david, bridge);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "ANSWER");
@@ -1147,13 +1147,13 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
-	RAII_VAR(struct ast_channel *, chan_fred, NULL, safe_channel_release);
+	RAII_VAR(struct ast_channel *, chan_david, NULL, safe_channel_release);
 	RAII_VAR(struct ast_bridge *, bridge1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge *, bridge2, NULL, ao2_cleanup);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
 	struct ast_party_caller charlie_caller = CHARLIE_CALLERID;
-	struct ast_party_caller fred_caller = ALICE_CALLERID;
+	struct ast_party_caller david_caller = ALICE_CALLERID;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1188,27 +1188,27 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	bridge2 = ast_bridge_basic_new();
 	ast_test_validate(test, bridge2 != NULL);
 
-	CREATE_FRED_CHANNEL(chan_fred, &fred_caller);
+	CREATE_DAVID_CHANNEL(chan_david, &david_caller);
 	CREATE_CHARLIE_CHANNEL(chan_charlie, &charlie_caller);
-	ANSWER_NO_APP(chan_fred);
+	ANSWER_NO_APP(chan_david);
 	ANSWER_NO_APP(chan_charlie);
 
 	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_charlie, NULL, NULL, 0));
 	do_sleep();
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_fred, NULL, NULL, 0));
+	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_david, NULL, NULL, 0));
 	do_sleep();
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_fred));
+	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_david));
 
 	/* Perform attended transfer */
 	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_alice));
 
-	ast_bridge_transfer_attended(chan_alice, chan_fred);
+	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
-	BRIDGE_TO_CONF(chan_charlie, chan_fred, chan_bob, bridge2);
-	CONF_EXIT_EVENT(chan_fred, bridge2);
+	BRIDGE_TO_CONF(chan_charlie, chan_david, chan_bob, bridge2);
+	CONF_EXIT_EVENT(chan_david, bridge2);
 
-	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_fred, bridge2);
+	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
 
 	do_sleep();
 	CONF_EXIT(chan_bob, bridge2);
@@ -1220,7 +1220,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
 	do_sleep();
-	HANGUP_CHANNEL(chan_fred, AST_CAUSE_NORMAL, "");
+	HANGUP_CHANNEL(chan_david, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
 
@@ -1233,19 +1233,12 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_david, NULL, safe_channel_release);
-	RAII_VAR(struct ast_channel *, chan_eve, NULL, safe_channel_release);
-	RAII_VAR(struct ast_channel *, chan_fred, NULL, safe_channel_release);
 	RAII_VAR(struct ast_bridge *, bridge1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge *, bridge2, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel_snapshot *, eve_tmp_snapshot, NULL, ao2_cleanup);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
 	struct ast_party_caller charlie_caller = CHARLIE_CALLERID;
-	struct ast_party_caller david_caller = DAVID_CALLERID;
-	struct ast_party_caller eve_caller = EVE_CALLERID;
-	struct ast_party_caller fred_caller = EVE_CALLERID;
-	struct ast_bridge_channel_pair transferee;
-	struct ast_bridge_channel_pair target;
+	struct ast_party_caller david_caller = ALICE_CALLERID;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1254,7 +1247,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 		info->summary = "Test attended transfers between two pairs of"
 			" bridged parties that results in a bridge merge";
 		info->description =
-			"This test creates six channels, places each triplet"
+			"This test creates four channels, places each pair"
 			" in a bridge, and then attended transfers the bridges"
 			" together causing a bridge merge.\n";
 		return AST_TEST_NOT_RUN;
@@ -1262,15 +1255,14 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 		break;
 	}
 	/* Create first set of bridged parties */
-	bridge1 = ast_bridge_basic_new();
+	bridge1 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
+		AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
 	ast_test_validate(test, bridge1 != NULL);
 
 	CREATE_ALICE_CHANNEL(chan_alice, &alice_caller);
 	CREATE_BOB_CHANNEL(chan_bob, &bob_caller);
-	CREATE_DAVID_CHANNEL(chan_david, &david_caller);
 	ANSWER_NO_APP(chan_alice);
 	ANSWER_NO_APP(chan_bob);
-	ANSWER_NO_APP(chan_david);
 
 	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_bob, NULL, NULL, 0));
 	do_sleep();
@@ -1279,82 +1271,46 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	do_sleep();
 	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_david, NULL, NULL, 0));
-	do_sleep();
-	BRIDGE_TO_CONF(chan_bob, chan_alice, chan_david, bridge1);
-
 	/* Create second set of bridged parties */
-	bridge2 = ast_bridge_basic_new();
+	bridge2 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
+		AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
 	ast_test_validate(test, bridge2 != NULL);
 
-	CREATE_FRED_CHANNEL(chan_fred, &fred_caller);
+	CREATE_DAVID_CHANNEL(chan_david, &david_caller);
 	CREATE_CHARLIE_CHANNEL(chan_charlie, &charlie_caller);
-	CREATE_EVE_CHANNEL(chan_eve, &eve_caller);
-	ANSWER_NO_APP(chan_fred);
+	ANSWER_NO_APP(chan_david);
 	ANSWER_NO_APP(chan_charlie);
-	ANSWER_NO_APP(chan_eve);
 
 	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_charlie, NULL, NULL, 0));
 	do_sleep();
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_fred, NULL, NULL, 0));
+	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_david, NULL, NULL, 0));
 	do_sleep();
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_fred));
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_eve, NULL, NULL, 0));
-	do_sleep();
-	BRIDGE_TO_CONF(chan_charlie, chan_fred, chan_eve, bridge2);
-	do_sleep();
+	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_david));
 
 	/* Perform attended transfer */
-	CONF_EXIT(chan_eve, bridge2);
-	do_sleep();
-	CONF_EXIT_EVENT(chan_charlie, bridge2);
-	do_sleep();
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_charlie)); \
-	do_sleep();
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_charlie, NULL, NULL, 0)); \
-	do_sleep();
-	CONF_ENTER_EVENT(chan_charlie, bridge1); \
-	do_sleep();
-	CONF_EXIT_EVENT(chan_charlie, bridge1);
+	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_david));
 
-	/* Fred goes away */
-	CONF_EXIT(chan_fred, bridge2);
+	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
-	/*CONF_EXIT_EVENT(chan_eve, bridge1);
+	BRIDGE_TO_CONF(chan_bob, chan_alice, chan_charlie, bridge1);
+	CONF_EXIT_EVENT(chan_alice, bridge1);
+
+	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
+
 	do_sleep();
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_eve)); \
-	do_sleep();*/
-
-	/* Alice goes away */
-	CONF_EXIT(chan_alice, bridge1);
-	do_sleep();
-
-	transferee.bridge = bridge1;
-	transferee.channel = chan_alice;
-	target.bridge = bridge2;
-	target.channel = chan_fred;
-	ast_bridge_publish_attended_transfer_bridge_merge(1, AST_BRIDGE_TRANSFER_SUCCESS,
-		&transferee, &target, bridge1);
-	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_fred, bridge2);
-
 	CONF_EXIT(chan_bob, bridge1);
 	do_sleep();
-	CONF_EXIT(chan_david, bridge1);
-	do_sleep();
+	CONF_EXIT(chan_charlie, bridge1);
 
-	HANGUP_CHANNEL(chan_fred, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
 	do_sleep();
-	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
-	do_sleep();
 	HANGUP_CHANNEL(chan_david, AST_CAUSE_NORMAL, "");
 	do_sleep();
-	HANGUP_CHANNEL(chan_eve, AST_CAUSE_NORMAL, "");
+	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
 
 	return AST_TEST_PASS;
 }
@@ -1365,17 +1321,12 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_david, NULL, safe_channel_release);
-	RAII_VAR(struct ast_channel *, chan_eve, NULL, safe_channel_release);
-	RAII_VAR(struct ast_channel *, chan_fred, NULL, safe_channel_release);
 	RAII_VAR(struct ast_bridge *, bridge1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge *, bridge2, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel_snapshot *, eve_tmp_snapshot, NULL, ao2_cleanup);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
 	struct ast_party_caller charlie_caller = CHARLIE_CALLERID;
-	struct ast_party_caller david_caller = DAVID_CALLERID;
-	struct ast_party_caller eve_caller = EVE_CALLERID;
-	struct ast_party_caller fred_caller = EVE_CALLERID;
+	struct ast_party_caller david_caller = ALICE_CALLERID;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1384,9 +1335,9 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 		info->summary = "Test attended transfers between two pairs of"
 			" bridged parties that results in a bridge merge";
 		info->description =
-			"This test creates six channels, places each triplet"
+			"This test creates four channels, places each pair"
 			" in a bridge, and then attended transfers the bridges"
-			" together causing a bridge merge.\n";
+			" together causing a bridge link.\n";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1394,15 +1345,14 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	/* Create first set of bridged parties */
 	bridge1 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
-		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
+		| AST_BRIDGE_FLAG_SWAP_INHIBIT_TO | AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM
+		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
 	ast_test_validate(test, bridge1 != NULL);
 
 	CREATE_ALICE_CHANNEL(chan_alice, &alice_caller);
 	CREATE_BOB_CHANNEL(chan_bob, &bob_caller);
-	CREATE_DAVID_CHANNEL(chan_david, &david_caller);
 	ANSWER_NO_APP(chan_alice);
 	ANSWER_NO_APP(chan_bob);
-	ANSWER_NO_APP(chan_david);
 
 	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_bob, NULL, NULL, 0));
 	do_sleep();
@@ -1411,80 +1361,67 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	do_sleep();
 	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_david, NULL, NULL, 0));
-	do_sleep();
-	BRIDGE_TO_CONF(chan_bob, chan_alice, chan_david, bridge1);
-
 	/* Create second set of bridged parties */
-	bridge2 = ast_bridge_basic_new();
+	bridge2 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
+		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
+		| AST_BRIDGE_FLAG_SWAP_INHIBIT_TO | AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM
+		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
 	ast_test_validate(test, bridge2 != NULL);
 
-	CREATE_FRED_CHANNEL(chan_fred, &fred_caller);
+	CREATE_DAVID_CHANNEL(chan_david, &david_caller);
 	CREATE_CHARLIE_CHANNEL(chan_charlie, &charlie_caller);
-	CREATE_EVE_CHANNEL(chan_eve, &eve_caller);
-	ANSWER_NO_APP(chan_fred);
+	ANSWER_NO_APP(chan_david);
 	ANSWER_NO_APP(chan_charlie);
-	ANSWER_NO_APP(chan_eve);
 
 	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_charlie, NULL, NULL, 0));
 	do_sleep();
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_fred, NULL, NULL, 0));
+	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_david, NULL, NULL, 0));
 	do_sleep();
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_fred));
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_eve, NULL, NULL, 0));
-	do_sleep();
-	BRIDGE_TO_CONF(chan_charlie, chan_fred, chan_eve, bridge2);
+	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_david));
 
 	/* Perform attended transfer */
-	ast_bridge_transfer_attended(chan_alice, chan_fred);
+
+	/* The following events can not be matched directly since nothing is known
+	 * about the linking local channel.
+	 * local channel ;1 and ;2 creation and ;2 answer */
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
+
+	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
+
+	/* The two BRIDGE_TO_CONFs and CONF_EXITs are all racing to be first */
+
+	/* BRIDGE_TO_CONF with primary charlie, peer david, and trigger channel ;2 */
+	APPEND_DUMMY_EVENT();
+
+	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
 
-	/* Append dummy event for the link channel ;1 start */
+	/* BRIDGE_TO_CONF with primary bob, peer alice, and trigger channel ;1 */
 	APPEND_DUMMY_EVENT();
 
-	/* Append dummy event for the link channel ;2 start */
-	APPEND_DUMMY_EVENT();
-
-	/* Append dummy event for the link channel ;2 answer */
-	APPEND_DUMMY_EVENT();
-
-	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_fred, bridge2);
-
-	/* Append dummy event for the link channel ;1 enter */
-	APPEND_DUMMY_EVENT();
-
-	/* Append dummy events for the link channel ;2 enter and Alice's exit,
-	 * must both be dummies since they're racing */
+	/* CONF_EXIT alice and david */
 	APPEND_DUMMY_EVENT();
 	APPEND_DUMMY_EVENT();
 
-	/* Append dummy events for the link channel ;1 answer and Fred's exit,
-	 * must both be dummies since they're racing */
-	APPEND_DUMMY_EVENT();
+	/* ANSWER ;1 */
 	APPEND_DUMMY_EVENT();
 
+	do_sleep();
 	CONF_EXIT(chan_bob, bridge1);
 	do_sleep();
 	CONF_EXIT(chan_charlie, bridge2);
-	do_sleep();
-	CONF_EXIT(chan_david, bridge1);
-	do_sleep();
-	CONF_EXIT(chan_eve, bridge2);
 
 	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
 	do_sleep();
-	HANGUP_CHANNEL(chan_fred, AST_CAUSE_NORMAL, "");
-	do_sleep();
-	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
-	do_sleep();
 	HANGUP_CHANNEL(chan_david, AST_CAUSE_NORMAL, "");
 	do_sleep();
-	HANGUP_CHANNEL(chan_eve, AST_CAUSE_NORMAL, "");
+	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
 
 	return AST_TEST_PASS;
 }
@@ -1775,7 +1712,7 @@ static int match_ie_val(
 	return 0;
 }
 
-static int events_are_equal(struct ast_event *received, struct ast_event *expected)
+static int events_are_equal(struct ast_test *test, struct ast_event *received, struct ast_event *expected)
 {
 	struct ast_event_iterator iterator;
 	int res;
@@ -1793,7 +1730,7 @@ static int events_are_equal(struct ast_event *received, struct ast_event *expect
 			&& ie_type != AST_EVENT_IE_EID
 			&& ie_type != AST_EVENT_IE_CEL_EVENT_TIME
 			&& !match_ie_val(received, expected, ie_type)) {
-			ast_log(LOG_ERROR, "Failed matching on field %s\n", ast_event_get_ie_type_name(ie_type));
+			ast_test_status_update(test, "Failed matching on field %s\n", ast_event_get_ie_type_name(ie_type));
 			return 0;
 		}
 	}
@@ -1801,16 +1738,16 @@ static int events_are_equal(struct ast_event *received, struct ast_event *expect
 	return 1;
 }
 
-static int dump_event(struct ast_event *event)
+static int dump_event(struct ast_test *test, struct ast_event *event)
 {
 	struct ast_event_iterator i;
 
 	if (ast_event_iterator_init(&i, event)) {
-		ast_log(LOG_ERROR, "Failed to initialize event iterator.  :-(\n");
+		ast_test_status_update(test, "Failed to initialize event iterator.  :-(\n");
 		return 0;
 	}
 
-	ast_log(LOG_ERROR, "Event: %s %s\n", ast_event_get_type_name(event),
+	ast_test_status_update(test, "Event: %s %s\n", ast_event_get_type_name(event),
 		ast_cel_get_type_name(ast_event_get_ie_uint(event, AST_EVENT_IE_CEL_EVENT_TYPE)));
 
 	do {
@@ -1825,37 +1762,37 @@ static int dump_event(struct ast_event *event)
 		switch (ie_pltype) {
 		case AST_EVENT_IE_PLTYPE_UNKNOWN:
 		case AST_EVENT_IE_PLTYPE_EXISTS:
-			ast_log(LOG_ERROR, "%s\n", ie_type_name);
+			ast_test_status_update(test, "%s\n", ie_type_name);
 			break;
 		case AST_EVENT_IE_PLTYPE_STR:
-			ast_log(LOG_ERROR, "%.30s: %s\n", ie_type_name,
+			ast_test_status_update(test, "%.30s: %s\n", ie_type_name,
 					ast_event_iterator_get_ie_str(&i));
 			break;
 		case AST_EVENT_IE_PLTYPE_UINT:
-			ast_log(LOG_ERROR, "%.30s: %u\n", ie_type_name,
+			ast_test_status_update(test, "%.30s: %u\n", ie_type_name,
 					ast_event_iterator_get_ie_uint(&i));
 			break;
 		case AST_EVENT_IE_PLTYPE_BITFLAGS:
-			ast_log(LOG_ERROR, "%.30s: %u\n", ie_type_name,
+			ast_test_status_update(test, "%.30s: %u\n", ie_type_name,
 					ast_event_iterator_get_ie_bitflags(&i));
 		default:
 			break;
 		}
 	} while (!ast_event_iterator_next(&i));
 
-	ast_log(LOG_ERROR, "\n");
+	ast_test_status_update(test, "\n");
 
 	return 0;
 }
 
-static int check_events(struct ao2_container *local_expected, struct ao2_container *local_received)
+static int check_events(struct ast_test *test, struct ao2_container *local_expected, struct ao2_container *local_received)
 {
 	struct ao2_iterator expected_it, received_it;
 	struct ast_event *rx_event, *ex_event;
 	int debug = 0;
 
 	if (ao2_container_count(local_expected) != ao2_container_count(local_received)) {
-		ast_log(LOG_ERROR, "Increasing verbosity since the number of expected events (%d)"
+		ast_test_status_update(test, "Increasing verbosity since the number of expected events (%d)"
 			" did not match number of received events (%d).\n",
 			ao2_container_count(local_expected),
 			ao2_container_count(local_received));
@@ -1867,16 +1804,16 @@ static int check_events(struct ao2_container *local_expected, struct ao2_contain
 	rx_event = ao2_iterator_next(&received_it);
 	ex_event = ao2_iterator_next(&expected_it);
 	while (rx_event && ex_event) {
-		if (!events_are_equal(rx_event, ex_event)) {
-			ast_log(LOG_ERROR, "Received event:\n");
-			dump_event(rx_event);
-			ast_log(LOG_ERROR, "Expected event:\n");
-			dump_event(ex_event);
+		if (!events_are_equal(test, rx_event, ex_event)) {
+			ast_test_status_update(test, "Received event:\n");
+			dump_event(test, rx_event);
+			ast_test_status_update(test, "Expected event:\n");
+			dump_event(test, ex_event);
 			return -1;
 		}
 		if (debug) {
-			ast_log(LOG_ERROR, "Compared events successfully%s\n", ast_event_get_type(ex_event) == AST_EVENT_CUSTOM ? " (wildcard match)" : "");
-			dump_event(rx_event);
+			ast_test_status_update(test, "Compared events successfully%s\n", ast_event_get_type(ex_event) == AST_EVENT_CUSTOM ? " (wildcard match)" : "");
+			dump_event(test, rx_event);
 		}
 		ao2_cleanup(rx_event);
 		ao2_cleanup(ex_event);
@@ -1885,14 +1822,14 @@ static int check_events(struct ao2_container *local_expected, struct ao2_contain
 	}
 
 	if (rx_event) {
-		ast_log(LOG_ERROR, "Received event:\n");
-		dump_event(rx_event);
+		ast_test_status_update(test, "Received event:\n");
+		dump_event(test, rx_event);
 		ao2_cleanup(rx_event);
 		return -1;
 	}
 	if (ex_event) {
-		ast_log(LOG_ERROR, "Expected event:\n");
-		dump_event(ex_event);
+		ast_test_status_update(test, "Expected event:\n");
+		dump_event(test, ex_event);
 		ao2_cleanup(ex_event);
 		return -1;
 	}
@@ -1965,7 +1902,7 @@ static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test
 	cel_received_events = NULL;
 
 	/* check events */
-	ast_test_validate(test, !check_events(local_expected, local_received));
+	ast_test_validate(test, !check_events(test, local_expected, local_received));
 
 	/* Restore the real CEL config */
 	ast_cel_set_config(saved_config);
