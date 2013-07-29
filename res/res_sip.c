@@ -292,17 +292,26 @@
 					</description>
 				</configOption>
 				<configOption name="trust_id_inbound" default="no">
-					<synopsis>Trust inbound CallerID information from endpoint</synopsis>
-					<description><para>This option determines whether res_sip will accept identification from the endpoint
-					received in a P-Asserted-Identity or Remote-Party-ID header. If <literal>no</literal>,
-					the configured Caller-ID from res_sip.conf will always be used as the identity for the
-					endpoint.</para></description>
+					<synopsis>Accept identification information received from this endpoint</synopsis>
+					<description><para>This option determines whether Asterisk will accept
+					identification from the endpoint from headers such as P-Asserted-Identity
+					or Remote-Party-ID header. This option applies both to calls originating from the
+					endpoint and calls originating from Asterisk. If <literal>no</literal>, the
+					configured Caller-ID from res_sip.conf will always be used as the identity for
+					the endpoint.</para></description>
 				</configOption>
 				<configOption name="trust_id_outbound" default="no">
-					<synopsis>Trust endpoint with private CallerID information</synopsis>
-					<description><para>This option determines whether res_sip will send identification
-					information to the endpoint that has been marked as private. If <literal>no</literal>,
-					private Caller-ID information will not be forwarded to the endpoint.</para></description>
+					<synopsis>Send private identification details to the endpoint.</synopsis>
+					<description><para>This option determines whether res_sip will send private
+					identification information to the endpoint. If <literal>no</literal>,
+					private Caller-ID information will not be forwarded to the endpoint.
+					"Private" in this case refers to any method of restricting identification.
+					Example: setting <replaceable>callerid_privacy</replaceable> to any
+					<literal>prohib</literal> variation.
+					Example: If <replaceable>trust_id_inbound</replaceable> is set to
+					<literal>yes</literal>, the presence of a <literal>Privacy: id</literal>
+					header in a SIP request or response would indicate the identification
+					provided in the request is private.</para></description>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'endpoint'.</synopsis>
