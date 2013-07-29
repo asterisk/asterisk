@@ -313,7 +313,7 @@ static struct reload_classes {
 	{ "manager",	reload_manager },
 	{ "http",	ast_http_reload },
 	{ "logger",	logger_reload },
-	{ "features",	ast_features_reload },
+	{ "features",	ast_features_config_reload },
 	{ "dsp",	ast_dsp_reload},
 	{ "udptl",	ast_udptl_reload },
 	{ "indications", ast_indications_reload },
