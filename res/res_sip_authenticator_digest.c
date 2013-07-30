@@ -41,7 +41,7 @@ AO2_GLOBAL_OBJ_STATIC(entity_id);
  */
 static int digest_requires_authentication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
 {
-	return endpoint->num_inbound_auths > 0;
+	return endpoint->inbound_auths.num > 0;
 }
 
 static void auth_store_cleanup(void *data)
@@ -380,8 +380,8 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	RAII_VAR(struct ast_sip_endpoint *, artificial_endpoint,
 		 ast_sip_get_artificial_endpoint(), ao2_cleanup);
 
-	auths = ast_alloca(endpoint->num_inbound_auths * sizeof(*auths));
-	verify_res = ast_alloca(endpoint->num_inbound_auths * sizeof(*verify_res));
+	auths = ast_alloca(endpoint->inbound_auths.num * sizeof(*auths));
+	verify_res = ast_alloca(endpoint->inbound_auths.num * sizeof(*verify_res));
 
 	if (!auths) {
 		return AST_SIP_AUTHENTICATION_ERROR;
@@ -389,12 +389,12 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 
 	if (endpoint == artificial_endpoint) {
 		auths[0] = ast_sip_get_artificial_auth();
-	} else if (ast_sip_retrieve_auths(endpoint->sip_inbound_auths, endpoint->num_inbound_auths, auths)) {
+	} else if (ast_sip_retrieve_auths(&endpoint->inbound_auths, auths)) {
 		res = AST_SIP_AUTHENTICATION_ERROR;
 		goto cleanup;
 	}
 
-	for (i = 0; i < endpoint->num_inbound_auths; ++i) {
+	for (i = 0; i < endpoint->inbound_auths.num; ++i) {
 		verify_res[i] = verify(auths[i], rdata, tdata->pool);
 		if (verify_res[i] == AUTH_SUCCESS) {
 			res = AST_SIP_AUTHENTICATION_SUCCESS;
@@ -402,14 +402,14 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 		}
 	}
 
-	for (i = 0; i < endpoint->num_inbound_auths; ++i) {
+	for (i = 0; i < endpoint->inbound_auths.num; ++i) {
 		challenge(auths[i]->realm, tdata, rdata, verify_res[i] == AUTH_STALE);
 	}
 
 	res = AST_SIP_AUTHENTICATION_CHALLENGE;
 
 cleanup:
-	ast_sip_cleanup_auths(auths, endpoint->num_inbound_auths);
+	ast_sip_cleanup_auths(auths, endpoint->inbound_auths.num);
 	return res;
 }
 

@@ -313,7 +313,7 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
 {
 	struct ast_party_id id;
 
-	if (!session->endpoint->trust_id_inbound) {
+	if (!session->endpoint->id.trust_inbound) {
 		return;
 	}
 
@@ -344,12 +344,12 @@ static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_
 {
 	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED) {
 		/* Initial inbound INVITE. Set the session ID directly */
-		if (session->endpoint->trust_id_inbound &&
+		if (session->endpoint->id.trust_inbound &&
 				(!set_id_from_pai(rdata, &session->id) || !set_id_from_rpid(rdata, &session->id))) {
 			return 0;
 		}
-		ast_party_id_copy(&session->id, &session->endpoint->id);
-		if (!session->endpoint->id.number.valid) {
+		ast_party_id_copy(&session->id, &session->endpoint->id.self);
+		if (!session->endpoint->id.self.number.valid) {
 			set_id_from_from(rdata, &session->id);
 		}
 	} else {
@@ -615,13 +615,13 @@ static void add_id_headers(const struct ast_sip_session *session, pjsip_tx_data 
 {
 	if (((id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED ||
 			(id->number.presentation & AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED) &&
-			!session->endpoint->trust_id_outbound) {
+			!session->endpoint->id.trust_outbound) {
 		return;
 	}
-	if (session->endpoint->send_pai) {
+	if (session->endpoint->id.send_pai) {
 		add_pai_header(tdata, id);
 	}
-	if (session->endpoint->send_rpid) {
+	if (session->endpoint->id.send_rpid) {
 		add_rpid_header(tdata, id);
 	}
 }
@@ -648,7 +648,7 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 
 	connected_id = ast_channel_connected_effective_id(session->channel);
 	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED &&
-			(session->endpoint->trust_id_outbound ||
+			(session->endpoint->id.trust_outbound ||
 			((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
 			(connected_id.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED))) {
 		/* Only change the From header on the initial outbound INVITE. Switching it
@@ -662,8 +662,8 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 
 		modify_id_header(tdata->pool, from, &connected_id);
 		modify_id_header(dlg->pool, dlg->local.info, &connected_id);
-		if (should_queue_connected_line_update(session, &session->endpoint->id)) {
-			queue_connected_line_update(session, &session->endpoint->id);
+		if (should_queue_connected_line_update(session, &session->endpoint->id.self)) {
+			queue_connected_line_update(session, &session->endpoint->id.self);
 		}
 	}
 	add_id_headers(session, tdata, &connected_id);

@@ -40,7 +40,7 @@ static pj_bool_t nat_on_rx_request(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
-	if (endpoint->rewrite_contact && (contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL)) &&
+	if (endpoint->nat.rewrite_contact && (contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL)) &&
 		(PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 
@@ -48,7 +48,7 @@ static pj_bool_t nat_on_rx_request(pjsip_rx_data *rdata)
 		uri->port = rdata->pkt_info.src_port;
 	}
 
-	if (endpoint->force_rport) {
+	if (endpoint->nat.force_rport) {
 		rdata->msg_info.via->rport_param = 0;
 	}
 

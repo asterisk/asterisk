@@ -31,19 +31,19 @@
 #include "asterisk/module.h"
 #include "asterisk/strings.h"
 
-static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_sess, const char **auth_strs, size_t num_auths)
+static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_sess, const struct ast_sip_auth_array *array)
 {
-	struct ast_sip_auth **auths = ast_alloca(num_auths * sizeof(*auths));
-	pjsip_cred_info *auth_creds = ast_alloca(num_auths * sizeof(*auth_creds));
+	struct ast_sip_auth **auths = ast_alloca(array->num * sizeof(*auths));
+	pjsip_cred_info *auth_creds = ast_alloca(array->num * sizeof(*auth_creds));
 	int res = 0;
 	int i;
 
-	if (ast_sip_retrieve_auths(auth_strs, num_auths, auths)) {
+	if (ast_sip_retrieve_auths(array, auths)) {
 		res = -1;
 		goto cleanup;
 	}
 
-	for (i = 0; i < num_auths; ++i) {
+	for (i = 0; i < array->num; ++i) {
 		pj_cstr(&auth_creds[i].realm, auths[i]->realm);
 		pj_cstr(&auth_creds[i].username, auths[i]->auth_user);
 		pj_cstr(&auth_creds[i].scheme, "digest");
@@ -62,14 +62,14 @@ static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_ses
 		}
 	}
 
-	pjsip_auth_clt_set_credentials(auth_sess, num_auths, auth_creds);
+	pjsip_auth_clt_set_credentials(auth_sess, array->num, auth_creds);
 
 cleanup:
-	ast_sip_cleanup_auths(auths, num_auths);
+	ast_sip_cleanup_auths(auths, array->num);
 	return res;
 }
 
-static int digest_create_request_with_auth(const char **auths, size_t num_auths, pjsip_rx_data *challenge,
+static int digest_create_request_with_auth(const struct ast_sip_auth_array *auths, pjsip_rx_data *challenge,
 		pjsip_transaction *tsx, pjsip_tx_data **new_request)
 {
 	pjsip_auth_clt_sess auth_sess;
@@ -80,7 +80,7 @@ static int digest_create_request_with_auth(const char **auths, size_t num_auths,
 		return -1;
 	}
 
-	if (set_outbound_authentication_credentials(&auth_sess, auths, num_auths)) {
+	if (set_outbound_authentication_credentials(&auth_sess, auths)) {
 		ast_log(LOG_WARNING, "Failed to set authentication credentials\n");
 		return -1;
 	}

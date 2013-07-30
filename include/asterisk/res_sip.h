@@ -270,14 +270,19 @@ struct ast_sip_auth {
 	enum ast_sip_auth_type type;
 };
 
+struct ast_sip_auth_array {
+	/*! Array of Sorcery IDs of auth sections */
+	const char **names;
+	/*! Number of credentials in the array */
+	unsigned int num;
+};
+
 /*!
  * \brief Different methods by which incoming requests can be matched to endpoints
  */
 enum ast_sip_endpoint_identifier_type {
 	/*! Identify based on user name in From header */
 	AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME = (1 << 0),
-	/*! Identify based on source location of the SIP message */
-	AST_SIP_ENDPOINT_IDENTIFY_BY_LOCATION = (1 << 1),
 };
 
 enum ast_sip_session_refresh_method {
@@ -312,6 +317,207 @@ enum ast_sip_session_media_encryption {
 };
 
 /*!
+ * \brief Session timers options
+ */
+struct ast_sip_timer_options {
+	/*! Minimum session expiration period, in seconds */
+	unsigned int min_se;
+	/*! Session expiration period, in seconds */
+	unsigned int sess_expires;
+};
+
+/*!
+ * \brief Endpoint configuration for SIP extensions.
+ *
+ * SIP extensions, in this case refers to features
+ * indicated in Supported or Required headers.
+ */
+struct ast_sip_endpoint_extensions {
+	/*! Enabled SIP extensions */
+	unsigned int flags;
+	/*! Timer options */
+	struct ast_sip_timer_options timer;
+};
+
+/*!
+ * \brief Endpoint configuration for unsolicited MWI
+ */
+struct ast_sip_mwi_configuration {
+	AST_DECLARE_STRING_FIELDS(
+		/*! Configured voicemail boxes for this endpoint. Used for MWI */
+		AST_STRING_FIELD(mailboxes);
+		/*! Username to use when sending MWI NOTIFYs to this endpoint */
+		AST_STRING_FIELD(fromuser);
+	);
+	/* Should mailbox states be combined into a single notification? */
+	unsigned int aggregate;
+};
+
+/*!
+ * \brief Endpoint subscription configuration
+ */
+struct ast_sip_endpoint_subscription_configuration {
+	/*! Indicates if endpoint is allowed to initiate subscriptions */
+	unsigned int allow;
+	/*! The minimum allowed expiration for subscriptions from endpoint */
+	unsigned int minexpiry;
+	/*! Message waiting configuration */
+	struct ast_sip_mwi_configuration mwi;
+};
+
+/*!
+ * \brief NAT configuration options for endpoints
+ */
+struct ast_sip_endpoint_nat_configuration {
+	/*! Whether to force using the source IP address/port for sending responses */
+	unsigned int force_rport;
+	/*! Whether to rewrite the Contact header with the source IP address/port or not */
+	unsigned int rewrite_contact;
+};
+
+/*!
+ * \brief Party identification options for endpoints
+ *
+ * This includes caller ID, connected line, and redirecting-related options
+ */
+struct ast_sip_endpoint_id_configuration {
+	struct ast_party_id self;
+	/*! Do we accept identification information from this endpoint */
+	unsigned int trust_inbound;
+	/*! Do we send private identification information to this endpoint? */
+	unsigned int trust_outbound;
+	/*! Do we send P-Asserted-Identity headers to this endpoint? */
+	unsigned int send_pai;
+	/*! Do we send Remote-Party-ID headers to this endpoint? */
+	unsigned int send_rpid;
+	/*! Do we add Diversion headers to applicable outgoing requests/responses? */
+	unsigned int send_diversion;
+	/*! When performing connected line update, which method should be used */
+	enum ast_sip_session_refresh_method refresh_method;
+};
+
+/*!
+ * \brief Call pickup configuration options for endpoints
+ */
+struct ast_sip_endpoint_pickup_configuration {
+	/*! Call group */
+	ast_group_t callgroup;
+	/*! Pickup group */
+	ast_group_t pickupgroup;
+	/*! Named call group */
+	struct ast_namedgroups *named_callgroups;
+	/*! Named pickup group */
+	struct ast_namedgroups *named_pickupgroups;
+};
+
+/*!
+ * \brief Configuration for one-touch INFO recording
+ */
+struct ast_sip_info_recording_configuration {
+	AST_DECLARE_STRING_FIELDS(
+		/*! Feature to enact when one-touch recording INFO with Record: On is received */
+		AST_STRING_FIELD(onfeature);
+		/*! Feature to enact when one-touch recording INFO with Record: Off is received */
+		AST_STRING_FIELD(offfeature);
+	);
+	/*! Is one-touch recording permitted? */
+	unsigned int enabled;
+};
+
+/*!
+ * \brief Endpoint configuration options for INFO packages
+ */
+struct ast_sip_endpoint_info_configuration {
+	/*! Configuration for one-touch recording */
+	struct ast_sip_info_recording_configuration recording;
+};
+
+/*!
+ * \brief RTP configuration for SIP endpoints
+ */
+struct ast_sip_media_rtp_configuration {
+	AST_DECLARE_STRING_FIELDS(
+		/*! Configured RTP engine for this endpoint. */
+		AST_STRING_FIELD(engine);
+	);
+	/*! Whether IPv6 RTP is enabled or not */
+	unsigned int ipv6;
+	/*! Whether symmetric RTP is enabled or not */
+	unsigned int symmetric;
+	/*! Whether ICE support is enabled or not */
+	unsigned int ice_support;
+	/*! Whether to use the "ptime" attribute received from the endpoint or not */
+	unsigned int use_ptime;
+	/*! Do we use AVPF exclusively for this endpoint? */
+	unsigned int use_avpf;
+	/*! \brief DTLS-SRTP configuration information */
+	struct ast_rtp_dtls_cfg dtls_cfg;
+	/*! Should SRTP use a 32 byte tag instead of an 80 byte tag? */
+	unsigned int srtp_tag_32;
+	/*! Do we use media encryption? what type? */
+	enum ast_sip_session_media_encryption encryption;
+};
+
+/*!
+ * \brief Direct media options for SIP endpoints
+ */
+struct ast_sip_direct_media_configuration {
+	/*! Boolean indicating if direct_media is permissible */
+	unsigned int enabled;
+	/*! When using direct media, which method should be used */
+	enum ast_sip_session_refresh_method method;
+	/*! Take steps to mitigate glare for direct media */
+	enum ast_sip_direct_media_glare_mitigation glare_mitigation;
+	/*! Do not attempt direct media session refreshes if a media NAT is detected */
+	unsigned int disable_on_nat;
+};
+
+struct ast_sip_t38_configuration {
+	/*! Whether T.38 UDPTL support is enabled or not */
+	unsigned int enabled;
+	/*! Error correction setting for T.38 UDPTL */
+	enum ast_t38_ec_modes error_correction;
+	/*! Explicit T.38 max datagram value, may be 0 to indicate the remote side can be trusted */
+	unsigned int maxdatagram;
+	/*! Whether NAT Support is enabled for T.38 UDPTL sessions or not */
+	unsigned int nat;
+	/*! Whether to use IPv6 for UDPTL or not */
+	unsigned int ipv6;
+};
+
+/*!
+ * \brief Media configuration for SIP endpoints
+ */
+struct ast_sip_endpoint_media_configuration {
+	AST_DECLARE_STRING_FIELDS(
+		/*! Optional external media address to use in SDP */
+		AST_STRING_FIELD(external_address);
+		/*! SDP origin username */
+		AST_STRING_FIELD(sdpowner);
+		/*! SDP session name */
+		AST_STRING_FIELD(sdpsession);
+	);
+	/*! RTP media configuration */
+	struct ast_sip_media_rtp_configuration rtp;
+	/*! Direct media options */
+	struct ast_sip_direct_media_configuration direct_media;
+	/*! T.38 (FoIP) options */
+	struct ast_sip_t38_configuration t38;
+	/*! Codec preferences */
+	struct ast_codec_pref prefs;
+	/*! Configured codecs */
+	struct ast_format_cap *codecs;
+	/*! DSCP TOS bits for audio streams */
+	unsigned int tos_audio;
+	/*! Priority for audio streams */
+	unsigned int cos_audio;
+	/*! DSCP TOS bits for video streams */
+	unsigned int tos_video;
+	/*! Priority for video streams */
+	unsigned int cos_video;
+};
+
+/*!
  * \brief An entity with which Asterisk communicates
  */
 struct ast_sip_endpoint {
@@ -325,148 +531,67 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(outbound_proxy);
 		/*! Explicit AORs to dial if none are specified */
 		AST_STRING_FIELD(aors);
-                /*! Musiconhold class to suggest that the other side use when placing on hold */
-                AST_STRING_FIELD(mohsuggest);
-		/*! Optional external media address to use in SDP */
-		AST_STRING_FIELD(external_media_address);
-		/*! Configured voicemail boxes for this endpoint. Used for MWI */
-		AST_STRING_FIELD(mailboxes);
-		/*! Configured RTP engine for this endpoint. */
-		AST_STRING_FIELD(rtp_engine);
+		/*! Musiconhold class to suggest that the other side use when placing on hold */
+		AST_STRING_FIELD(mohsuggest);
 		/*! Configured tone zone for this endpoint. */
 		AST_STRING_FIELD(zone);
 		/*! Configured language for this endpoint. */
 		AST_STRING_FIELD(language);
-		/*! Feature to enact when one-touch recording INFO with Record: On is received */
-		AST_STRING_FIELD(recordonfeature);
-		/*! Feature to enact when one-touch recording INFO with Record: Off is received */
-		AST_STRING_FIELD(recordofffeature);
-		/*! SDP origin username */
-		AST_STRING_FIELD(sdpowner);
-		/*! SDP session name */
-		AST_STRING_FIELD(sdpsession);
 		/*! Default username to place in From header */
 		AST_STRING_FIELD(fromuser);
 		/*! Domain to place in From header */
 		AST_STRING_FIELD(fromdomain);
-		/*! Username to use when sending MWI NOTIFYs to this endpoint */
-		AST_STRING_FIELD(mwi_from);
 	);
-	/*! Identification information for this endpoint */
-	struct ast_party_id id;
-	/*! Domain to which this endpoint belongs */
-	struct ast_sip_domain *domain;
-	/*! Address of record for incoming registrations */
-	struct ast_sip_aor *aor;
-	/*! Codec preferences */
-	struct ast_codec_pref prefs;
-	/*! Configured codecs */
-	struct ast_format_cap *codecs;
-	/*! Names of inbound authentication credentials */
-	const char **sip_inbound_auths;
-	/*! Number of configured auths */
-	size_t num_inbound_auths;
-	/*! Names of outbound authentication credentials */
-	const char **sip_outbound_auths;
-	/*! Number of configured outbound auths */
-	size_t num_outbound_auths;
+	/*! Configuration for extensions */
+	struct ast_sip_endpoint_extensions extensions;
+	/*! Configuration relating to media */
+	struct ast_sip_endpoint_media_configuration media;
+	/*! SUBSCRIBE/NOTIFY configuration options */
+	struct ast_sip_endpoint_subscription_configuration subscription;
+	/*! NAT configuration */
+	struct ast_sip_endpoint_nat_configuration nat;
+	/*! Party identification options */
+	struct ast_sip_endpoint_id_configuration id;
+	/*! Configuration options for INFO packages */
+	struct ast_sip_endpoint_info_configuration info;
+	/*! Call pickup configuration */
+	struct ast_sip_endpoint_pickup_configuration pickup;
+	/*! Inbound authentication credentials */
+	struct ast_sip_auth_array inbound_auths;
+	/*! Outbound authentication credentials */
+	struct ast_sip_auth_array outbound_auths;
 	/*! DTMF mode to use with this endpoint */
 	enum ast_sip_dtmf_mode dtmf;
-	/*! Whether IPv6 RTP is enabled or not */
-	unsigned int rtp_ipv6;
-	/*! Whether symmetric RTP is enabled or not */
-	unsigned int rtp_symmetric;
-	/*! Whether ICE support is enabled or not */
-	unsigned int ice_support;
-	/*! Whether to use the "ptime" attribute received from the endpoint or not */
-	unsigned int use_ptime;
-	/*! Whether to force using the source IP address/port for sending responses */
-	unsigned int force_rport;
-	/*! Whether to rewrite the Contact header with the source IP address/port or not */
-	unsigned int rewrite_contact;
-	/*! Enabled SIP extensions */
-	unsigned int extensions;
-	/*! Minimum session expiration period, in seconds */
-	unsigned int min_se;
-	/*! Session expiration period, in seconds */
-	unsigned int sess_expires;
-	/*! List of outbound registrations */
-	AST_LIST_HEAD_NOLOCK(, ast_sip_registration) registrations;
 	/*! Method(s) by which the endpoint should be identified. */
 	enum ast_sip_endpoint_identifier_type ident_method;
-	/*! Boolean indicating if direct_media is permissible */
-	unsigned int direct_media;
-	/*! When using direct media, which method should be used */
-	enum ast_sip_session_refresh_method direct_media_method;
-	/*! When performing connected line update, which method should be used */
-	enum ast_sip_session_refresh_method connected_line_method;
-	/*! Take steps to mitigate glare for direct media */
-	enum ast_sip_direct_media_glare_mitigation direct_media_glare_mitigation;
-	/*! Do not attempt direct media session refreshes if a media NAT is detected */
-	unsigned int disable_direct_media_on_nat;
-	/*! Do we trust the endpoint with our outbound identity? */
-	unsigned int trust_id_outbound;
-	/*! Do we trust identity information that originates externally (e.g. P-Asserted-Identity header)? */
-	unsigned int trust_id_inbound;
-	/*! Do we send P-Asserted-Identity headers to this endpoint? */
-	unsigned int send_pai;
-	/*! Do we send Remote-Party-ID headers to this endpoint? */
-	unsigned int send_rpid;
-	/*! Do we add Diversion headers to applicable outgoing requests/responses? */
-	unsigned int send_diversion;
-	/*! Should unsolicited MWI be aggregated into a single NOTIFY? */
-	unsigned int aggregate_mwi;
-	/*! Do we use media encryption? what type? */
-	enum ast_sip_session_media_encryption media_encryption;
-	/*! Do we use AVPF exclusively for this endpoint? */
-	unsigned int use_avpf;
-	/*! Is one-touch recording permitted? */
-	unsigned int one_touch_recording;
 	/*! Boolean indicating if ringing should be sent as inband progress */
 	unsigned int inband_progress;
-	/*! Call group */
-	ast_group_t callgroup;
-	/*! Pickup group */
-	ast_group_t pickupgroup;
-	/*! Named call group */
-	struct ast_namedgroups *named_callgroups;
-	/*! Named pickup group */
-	struct ast_namedgroups *named_pickupgroups;
 	/*! Pointer to the persistent Asterisk endpoint */
 	struct ast_endpoint *persistent;
 	/*! The number of channels at which busy device state is returned */
 	unsigned int devicestate_busy_at;
-	/*! Whether T.38 UDPTL support is enabled or not */
-	unsigned int t38udptl;
-	/*! Error correction setting for T.38 UDPTL */
-	enum ast_t38_ec_modes t38udptl_ec;
-	/*! Explicit T.38 max datagram value, may be 0 to indicate the remote side can be trusted */
-	unsigned int t38udptl_maxdatagram;
 	/*! Whether fax detection is enabled or not (CNG tone detection) */
 	unsigned int faxdetect;
-	/*! Whether NAT Support is enabled for T.38 UDPTL sessions or not */
-	unsigned int t38udptl_nat;
-	/*! Whether to use IPv6 for UDPTL or not */
-	unsigned int t38udptl_ipv6;
 	/*! Determines if transfers (using REFER) are allowed by this endpoint */
 	unsigned int allowtransfer;
-	/*! DSCP TOS bits for audio streams */
-	unsigned int tos_audio;
-	/*! Priority for audio streams */
-	unsigned int cos_audio;
-	/*! DSCP TOS bits for video streams */
-	unsigned int tos_video;
-	/*! Priority for video streams */
-	unsigned int cos_video;
-	/*! Indicates if endpoint is allowed to initiate subscriptions */
-	unsigned int allowsubscribe;
-	/*! The minimum allowed expiration for subscriptions from endpoint */
-	unsigned int subminexpiry;
-	/*! \brief DTLS-SRTP configuration information */
-	struct ast_rtp_dtls_cfg dtls_cfg;
-	/*! Should SRTP use a 32 byte tag instead of an 80 byte tag? */
-	unsigned int srtp_tag_32;
 };
+
+/*!
+ * \brief Initialize an auth array with the configured values.
+ *
+ * \param array Array to initialize
+ * \param auth_names Comma-separated list of names to set in the array
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_auth_array_init(struct ast_sip_auth_array *array, const char *auth_names);
+
+/*!
+ * \brief Free contents of an auth array.
+ *
+ * \param array Array whose contents are to be freed
+ */
+void ast_sip_auth_array_destroy(struct ast_sip_auth_array *array);
 
 /*!
  * \brief Possible returns from ast_sip_check_authentication
@@ -519,14 +644,13 @@ struct ast_sip_outbound_authenticator {
 	 * \brief Create a new request with authentication credentials
 	 *
 	 * \param auths An array of IDs of auth sorcery objects
-	 * \param num_auths The number of IDs in the array
 	 * \param challenge The SIP response with authentication challenge(s)
 	 * \param tsx The transaction in which the challenge was received
 	 * \param new_request The new SIP request with challenge response(s)
 	 * \retval 0 Successfully created new request
 	 * \retval -1 Failed to create a new request
 	 */
-	int (*create_request_with_auth)(const char **auths, size_t num_auths, struct pjsip_rx_data *challenge,
+	int (*create_request_with_auth)(const struct ast_sip_auth_array *auths, struct pjsip_rx_data *challenge,
 			struct pjsip_transaction *tsx, struct pjsip_tx_data **new_request);
 };
 
@@ -1183,7 +1307,7 @@ enum ast_sip_check_auth_result ast_sip_check_authentication(struct ast_sip_endpo
  * callback in the \ref ast_sip_outbound_authenticator structure for details about
  * the parameters and return values.
  */
-int ast_sip_create_request_with_auth(const char **auths, size_t num_auths, pjsip_rx_data *challenge,
+int ast_sip_create_request_with_auth(const struct ast_sip_auth_array *auths, pjsip_rx_data *challenge,
 		pjsip_transaction *tsx, pjsip_tx_data **new_request);
 
 /*!
@@ -1294,11 +1418,10 @@ struct ao2_container *ast_sip_get_endpoints(void);
 /*!
  * \brief Retrieve relevant SIP auth structures from sorcery
  *
- * \param auth_names The sorcery IDs of auths to retrieve
- * \param num_auths The number of auths to retrieve
+ * \param auths Array of sorcery IDs of auth credentials to retrieve
  * \param[out] out The retrieved auths are stored here
  */
-int ast_sip_retrieve_auths(const char *auth_names[], size_t num_auths, struct ast_sip_auth **out);
+int ast_sip_retrieve_auths(const struct ast_sip_auth_array *auths, struct ast_sip_auth **out);
 
 /*!
  * \brief Clean up retrieved auth structures from memory

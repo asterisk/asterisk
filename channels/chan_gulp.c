@@ -386,11 +386,11 @@ static enum ast_rtp_glue_result gulp_get_rtp_peer(struct ast_channel *chan, stru
 	ao2_ref(*instance, +1);
 
 	ast_assert(endpoint != NULL);
-	if (endpoint->media_encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
+	if (endpoint->media.rtp.encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-	if (endpoint->direct_media) {
+	if (endpoint->media.direct_media.enabled) {
 		return AST_RTP_GLUE_RESULT_REMOTE;
 	}
 
@@ -414,7 +414,7 @@ static enum ast_rtp_glue_result gulp_get_vrtp_peer(struct ast_channel *chan, str
 	ao2_ref(*instance, +1);
 
 	ast_assert(endpoint != NULL);
-	if (endpoint->media_encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
+	if (endpoint->media.rtp.encryption != AST_SIP_MEDIA_ENCRYPT_NONE) {
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -426,14 +426,15 @@ static void gulp_get_codec(struct ast_channel *chan, struct ast_format_cap *resu
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 
-	ast_format_cap_copy(result, channel->session->endpoint->codecs);
+	ast_format_cap_copy(result, channel->session->endpoint->media.codecs);
 }
 
 static int send_direct_media_request(void *data)
 {
 	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
 
-	return ast_sip_session_refresh(session, NULL, NULL, NULL, session->endpoint->direct_media_method, 1);
+	return ast_sip_session_refresh(session, NULL, NULL, NULL,
+			session->endpoint->media.direct_media.method, 1);
 }
 
 static struct ast_datastore_info direct_media_mitigation_info = { };
@@ -442,7 +443,7 @@ static int direct_media_mitigate_glare(struct ast_sip_session *session)
 {
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
 
-	if (session->endpoint->direct_media_glare_mitigation ==
+	if (session->endpoint->media.direct_media.glare_mitigation ==
 			AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_NONE) {
 		return 0;
 	}
@@ -455,10 +456,10 @@ static int direct_media_mitigate_glare(struct ast_sip_session *session)
 	/* Removing the datastore ensures we won't try to mitigate glare on subsequent reinvites */
 	ast_sip_session_remove_datastore(session, "direct_media_glare_mitigation");
 
-	if ((session->endpoint->direct_media_glare_mitigation ==
+	if ((session->endpoint->media.direct_media.glare_mitigation ==
 			AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_OUTGOING &&
 			session->inv_session->role == PJSIP_ROLE_UAC) ||
-			(session->endpoint->direct_media_glare_mitigation ==
+			(session->endpoint->media.direct_media.glare_mitigation ==
 			AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_INCOMING &&
 			session->inv_session->role == PJSIP_ROLE_UAS)) {
 		return 1;
@@ -511,7 +512,7 @@ static int gulp_set_rtp_peer(struct ast_channel *chan,
 	}
 	ast_channel_cleanup(bridge_peer);
 
-	if (nat_active && session->endpoint->disable_direct_media_on_nat) {
+	if (nat_active && session->endpoint->media.direct_media.disable_on_nat) {
 		return 0;
 	}
 
@@ -589,13 +590,13 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(chan));
 	}
 
-	if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->codecs)) {
-		ast_format_cap_copy(ast_channel_nativeformats(chan), session->endpoint->codecs);
+	if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->media.codecs)) {
+		ast_format_cap_copy(ast_channel_nativeformats(chan), session->endpoint->media.codecs);
 	} else {
 		ast_format_cap_copy(ast_channel_nativeformats(chan), session->req_caps);
 	}
 
-	ast_codec_choose(&session->endpoint->prefs, ast_channel_nativeformats(chan), 1, &fmt);
+	ast_codec_choose(&session->endpoint->media.prefs, ast_channel_nativeformats(chan), 1, &fmt);
 	ast_format_copy(ast_channel_writeformat(chan), &fmt);
 	ast_format_copy(ast_channel_rawwriteformat(chan), &fmt);
 	ast_format_copy(ast_channel_readformat(chan), &fmt);
@@ -611,11 +612,11 @@ static struct ast_channel *gulp_new(struct ast_sip_session *session, int state, 
 	ast_channel_exten_set(chan, S_OR(exten, "s"));
 	ast_channel_priority_set(chan, 1);
 
-	ast_channel_callgroup_set(chan, session->endpoint->callgroup);
-	ast_channel_pickupgroup_set(chan, session->endpoint->pickupgroup);
+	ast_channel_callgroup_set(chan, session->endpoint->pickup.callgroup);
+	ast_channel_pickupgroup_set(chan, session->endpoint->pickup.pickupgroup);
 
-	ast_channel_named_callgroups_set(chan, session->endpoint->named_callgroups);
-	ast_channel_named_pickupgroups_set(chan, session->endpoint->named_pickupgroups);
+	ast_channel_named_callgroups_set(chan, session->endpoint->pickup.named_callgroups);
+	ast_channel_named_pickupgroups_set(chan, session->endpoint->pickup.named_pickupgroups);
 
 	if (!ast_strlen_zero(session->endpoint->language)) {
 		ast_channel_language_set(chan, session->endpoint->language);
@@ -942,7 +943,7 @@ static int gulp_queryoption(struct ast_channel *ast, int option, void *data, int
 
 	switch (option) {
 	case AST_OPTION_T38_STATE:
-		if (session->endpoint->t38udptl) {
+		if (session->endpoint->media.t38.enabled) {
 			switch (session->t38state) {
 			case T38_LOCAL_REINVITE:
 			case T38_PEER_REINVITE:
@@ -1085,7 +1086,7 @@ static int update_connected_line_information(void *data)
 			}
 		}
 	} else {
-		enum ast_sip_session_refresh_method method = session->endpoint->connected_line_method;
+		enum ast_sip_session_refresh_method method = session->endpoint->id.refresh_method;
 
 		if (session->inv_session->invite_tsx && (session->inv_session->options & PJSIP_INV_SUPPORT_UPDATE)) {
 			method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
@@ -1891,7 +1892,7 @@ static void gulp_session_begin(struct ast_sip_session *session)
 {
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
 
-	if (session->endpoint->direct_media_glare_mitigation ==
+	if (session->endpoint->media.direct_media.glare_mitigation ==
 			AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_NONE) {
 		return;
 	}
@@ -2007,7 +2008,7 @@ static void gulp_incoming_response(struct ast_sip_session *session, struct pjsip
 static int gulp_incoming_ack(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	if (rdata->msg_info.msg->line.req.method.id == PJSIP_ACK_METHOD) {
-		if (session->endpoint->direct_media) {
+		if (session->endpoint->media.direct_media.enabled) {
 			ast_queue_control(session->channel, AST_CONTROL_SRCCHANGE);
 		}
 	}

@@ -108,22 +108,22 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 {
 	struct ast_rtp_engine_ice *ice;
 
-	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->rtp_engine, sched, ipv6 ? &address_ipv6 : &address_ipv4, NULL))) {
-		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n", session->endpoint->rtp_engine);
+	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->media.rtp.engine, sched, ipv6 ? &address_ipv6 : &address_ipv4, NULL))) {
+		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n", session->endpoint->media.rtp.engine);
 		return -1;
 	}
 
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RTCP, 1);
-	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->rtp_symmetric);
+	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->media.rtp.symmetric);
 
 	ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(session_media->rtp),
-					 session_media->rtp, &session->endpoint->prefs);
+					 session_media->rtp, &session->endpoint->media.prefs);
 
 	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
 	}
 
-	if (!session->endpoint->ice_support && (ice = ast_rtp_instance_get_ice(session_media->rtp))) {
+	if (!session->endpoint->media.rtp.ice_support && (ice = ast_rtp_instance_get_ice(session_media->rtp))) {
 		ice->stop(session_media->rtp);
 	}
 
@@ -134,13 +134,13 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	}
 
 	if (!strcmp(session_media->stream_type, STR_AUDIO) &&
-			(session->endpoint->tos_audio || session->endpoint->cos_video)) {
-		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->tos_audio,
-				session->endpoint->cos_audio, "SIP RTP Audio");
+			(session->endpoint->media.tos_audio || session->endpoint->media.cos_video)) {
+		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_audio,
+				session->endpoint->media.cos_audio, "SIP RTP Audio");
 	} else if (!strcmp(session_media->stream_type, STR_VIDEO) &&
-			(session->endpoint->tos_video || session->endpoint->cos_video)) {
-		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->tos_video,
-				session->endpoint->cos_video, "SIP RTP Video");
+			(session->endpoint->media.tos_video || session->endpoint->media.cos_video)) {
+		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
+				session->endpoint->media.cos_video, "SIP RTP Video");
 	}
 
 	return 0;
@@ -213,9 +213,9 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 
 	/* get the endpoint capabilities */
 	if (direct_media_enabled) {
-		ast_format_cap_joint_copy(session->endpoint->codecs, session->direct_media_cap, caps);
+		ast_format_cap_joint_copy(session->endpoint->media.codecs, session->direct_media_cap, caps);
 	} else {
-		ast_format_cap_copy(caps, session->endpoint->codecs);
+		ast_format_cap_copy(caps, session->endpoint->media.codecs);
 	}
 	format_cap_only_type(caps, media_type);
 
@@ -246,7 +246,7 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	if (session->channel) {
 		ast_format_cap_copy(caps, ast_channel_nativeformats(session->channel));
 		ast_format_cap_remove_bytype(caps, media_type);
-		ast_codec_choose(&session->endpoint->prefs, joint, 1, &fmt);
+		ast_codec_choose(&session->endpoint->media.prefs, joint, 1, &fmt);
 		ast_format_cap_add(caps, &fmt);
 
 		/* Apply the new formats to the channel, potentially changing read/write formats while doing so */
@@ -328,7 +328,7 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 	struct ao2_iterator it_candidates;
 	struct ast_rtp_engine_ice_candidate *candidate;
 
-	if (!session->endpoint->ice_support || !(ice = ast_rtp_instance_get_ice(session_media->rtp)) ||
+	if (!session->endpoint->media.rtp.ice_support || !(ice = ast_rtp_instance_get_ice(session_media->rtp)) ||
 		!(candidates = ice->get_local_candidates(session_media->rtp))) {
 		return;
 	}
@@ -387,7 +387,7 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 	unsigned int attr_i;
 
 	/* If ICE support is not enabled or available exit early */
-	if (!session->endpoint->ice_support || !(ice = ast_rtp_instance_get_ice(session_media->rtp))) {
+	if (!session->endpoint->media.rtp.ice_support || !(ice = ast_rtp_instance_get_ice(session_media->rtp))) {
 		return;
 	}
 
@@ -466,7 +466,7 @@ static void apply_packetization(struct ast_sip_session *session, struct ast_sip_
 	struct ast_codec_pref *pref = &ast_rtp_instance_get_codecs(session_media->rtp)->pref;
 
 	/* Apply packetization if available and configured to do so */
-	if (!session->endpoint->use_ptime || !(attr = pjmedia_sdp_media_find_attr2(remote_stream, "ptime", NULL))) {
+	if (!session->endpoint->media.rtp.use_ptime || !(attr = pjmedia_sdp_media_find_attr2(remote_stream, "ptime", NULL))) {
 		return;
 	}
 
@@ -517,7 +517,7 @@ static enum ast_sip_session_media_encryption check_endpoint_media_transport(
 {
 	enum ast_sip_session_media_encryption incoming_encryption;
 
-	if (endpoint->use_avpf) {
+	if (endpoint->media.rtp.use_avpf) {
 		char transport_end = stream->desc.transport.ptr[stream->desc.transport.slen - 1];
 		if (transport_end != 'F') {
 			return AST_SIP_MEDIA_TRANSPORT_INVALID;
@@ -526,7 +526,7 @@ static enum ast_sip_session_media_encryption check_endpoint_media_transport(
 
 	incoming_encryption = get_media_encryption_type(stream->desc.transport);
 
-	if (incoming_encryption == endpoint->media_encryption) {
+	if (incoming_encryption == endpoint->media.rtp.encryption) {
 		return incoming_encryption;
 	}
 
@@ -557,7 +557,7 @@ static int setup_dtls_srtp(struct ast_sip_session *session,
 {
 	struct ast_rtp_engine_dtls *dtls;
 
-	if (!session->endpoint->dtls_cfg.enabled || !session_media->rtp) {
+	if (!session->endpoint->media.rtp.dtls_cfg.enabled || !session_media->rtp) {
 		return -1;
 	}
 
@@ -566,8 +566,8 @@ static int setup_dtls_srtp(struct ast_sip_session *session,
 		return -1;
 	}
 
-	session->endpoint->dtls_cfg.suite = ((session->endpoint->srtp_tag_32) ? AST_AES_CM_128_HMAC_SHA1_32 : AST_AES_CM_128_HMAC_SHA1_80);
-	if (dtls->set_configuration(session_media->rtp, &session->endpoint->dtls_cfg)) {
+	session->endpoint->media.rtp.dtls_cfg.suite = ((session->endpoint->media.rtp.srtp_tag_32) ? AST_AES_CM_128_HMAC_SHA1_32 : AST_AES_CM_128_HMAC_SHA1_80);
+	if (dtls->set_configuration(session_media->rtp, &session->endpoint->media.rtp.dtls_cfg)) {
 		ast_log(LOG_ERROR, "Attempted to set an invalid DTLS-SRTP configuration on RTP instance '%p'\n",
 			session_media->rtp);
 		return -1;
@@ -675,7 +675,7 @@ static int setup_media_encryption(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media,
 	const struct pjmedia_sdp_media *stream)
 {
-	switch (session->endpoint->media_encryption) {
+	switch (session->endpoint->media.rtp.encryption) {
 	case AST_SIP_MEDIA_ENCRYPT_SDES:
 		if (setup_sdes_srtp(session_media, stream)) {
 			return -1;
@@ -706,7 +706,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
 
 	/* If no type formats have been configured reject this stream */
-	if (!ast_format_cap_has_type(session->endpoint->codecs, media_type)) {
+	if (!ast_format_cap_has_type(session->endpoint->media.codecs, media_type)) {
 		return 0;
 	}
 
@@ -750,7 +750,7 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 	static const pj_str_t STR_ACTPASS = { "actpass", 7 };
 	static const pj_str_t STR_HOLDCONN = { "holdconn", 8 };
 
-	switch (session->endpoint->media_encryption) {
+	switch (session->endpoint->media.rtp.encryption) {
 	case AST_SIP_MEDIA_ENCRYPT_NONE:
 	case AST_SIP_MEDIA_TRANSPORT_INVALID:
 		break;
@@ -764,7 +764,7 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 
 		crypto_attribute = ast_sdp_srtp_get_attrib(session_media->srtp,
 			0 /* DTLS running? No */,
-			session->endpoint->srtp_tag_32 /* 32 byte tag length? */);
+			session->endpoint->media.rtp.srtp_tag_32 /* 32 byte tag length? */);
 		if (!crypto_attribute) {
 			/* No crypto attribute to add, bad news */
 			return -1;
@@ -860,13 +860,13 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	int use_override_prefs = session->override_prefs.formats[0].id;
 	struct ast_codec_pref *prefs = use_override_prefs ?
-		&session->override_prefs : &session->endpoint->prefs;
+		&session->override_prefs : &session->endpoint->media.prefs;
 
 	if ((use_override_prefs && !codec_pref_has_type(&session->override_prefs, media_type)) ||
-	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->codecs, media_type))) {
+	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->media.codecs, media_type))) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
-	} else if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->rtp_ipv6)) {
+	} else if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
 		return -1;
 	}
 
@@ -881,25 +881,25 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	media->desc.media = pj_str(session_media->stream_type);
 	media->desc.transport = pj_str(ast_sdp_get_rtp_profile(
-		session->endpoint->media_encryption == AST_SIP_MEDIA_ENCRYPT_SDES,
-		session_media->rtp, session->endpoint->use_avpf));
+		session->endpoint->media.rtp.encryption == AST_SIP_MEDIA_ENCRYPT_SDES,
+		session_media->rtp, session->endpoint->media.rtp.use_avpf));
 
 	/* Add connection level details */
 	if (direct_media_enabled) {
 		ast_copy_string(hostip, ast_sockaddr_stringify_fmt(&session_media->direct_media_addr, AST_SOCKADDR_STR_ADDR), sizeof(hostip));
-	} else if (ast_strlen_zero(session->endpoint->external_media_address)) {
+	} else if (ast_strlen_zero(session->endpoint->media.external_address)) {
 		pj_sockaddr localaddr;
 
-		if (pj_gethostip(session->endpoint->rtp_ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
+		if (pj_gethostip(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
 			return -1;
 		}
 		pj_sockaddr_print(&localaddr, hostip, sizeof(hostip), 2);
 	} else {
-		ast_copy_string(hostip, session->endpoint->external_media_address, sizeof(hostip));
+		ast_copy_string(hostip, session->endpoint->media.external_address, sizeof(hostip));
 	}
 
 	media->conn->net_type = STR_IN;
-	media->conn->addr_type = session->endpoint->rtp_ipv6 ? STR_IP6 : STR_IP4;
+	media->conn->addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
 	pj_strdup2(pool, &media->conn->addr, hostip);
 	ast_rtp_instance_get_local_address(session_media->rtp, &addr);
 	media->desc.port = direct_media_enabled ? ast_sockaddr_port(&session_media->direct_media_addr) : (pj_uint16_t) ast_sockaddr_port(&addr);
@@ -914,9 +914,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	if (direct_media_enabled) {
-		ast_format_cap_joint_copy(session->endpoint->codecs, session->direct_media_cap, caps);
-	} else if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->codecs)) {
-		ast_format_cap_copy(caps, session->endpoint->codecs);
+		ast_format_cap_joint_copy(session->endpoint->media.codecs, session->direct_media_cap, caps);
+	} else if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->media.codecs)) {
+		ast_format_cap_copy(caps, session->endpoint->media.codecs);
 	} else {
 		ast_format_cap_copy(caps, session->req_caps);
 	}
@@ -1013,7 +1013,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	}
 
 	/* Create an RTP instance if need be */
-	if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->rtp_ipv6)) {
+	if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
 		return -1;
 	}
 

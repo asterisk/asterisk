@@ -280,7 +280,7 @@ static void get_redirecting_add_diversion(struct ast_sip_session *session, pjsip
 {
 	struct ast_party_redirecting *data;
 
-	if (session->channel && session->endpoint->send_diversion &&
+	if (session->channel && session->endpoint->id.send_diversion &&
 	    (data = ast_channel_redirecting(session->channel))->count) {
 		add_diversion_header(tdata, data);
 	}

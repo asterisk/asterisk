@@ -1191,7 +1191,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 
-	if (pjsip_inv_create_uac(dlg, NULL, endpoint->extensions, &inv_session) != PJ_SUCCESS) {
+	if (pjsip_inv_create_uac(dlg, NULL, endpoint->extensions.flags, &inv_session) != PJ_SUCCESS) {
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -1200,8 +1200,8 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 #endif
 
 	pjsip_timer_setting_default(&timer);
-	timer.min_se = endpoint->min_se;
-	timer.sess_expires = endpoint->sess_expires;
+	timer.min_se = endpoint->extensions.timer.min_se;
+	timer.sess_expires = endpoint->extensions.timer.sess_expires;
 	pjsip_timer_init_session(inv_session, &timer);
 
 	if (!(session = ast_sip_session_alloc(endpoint, inv_session))) {
@@ -1324,7 +1324,7 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 	pjsip_tx_data *tdata;
 	pjsip_dialog *dlg;
 	pjsip_inv_session *inv_session;
-	unsigned int options = endpoint->extensions;
+	unsigned int options = endpoint->extensions.flags;
 
 	if (pjsip_inv_verify_request(rdata, &options, NULL, NULL, ast_sip_get_pjsip_endpoint(), &tdata) != PJ_SUCCESS) {
 		if (tdata) {
@@ -1462,8 +1462,8 @@ static int new_invite(void *data)
 	}
 
 	pjsip_timer_setting_default(&timer);
-	timer.min_se = invite->session->endpoint->min_se;
-	timer.sess_expires = invite->session->endpoint->sess_expires;
+	timer.min_se = invite->session->endpoint->extensions.timer.min_se;
+	timer.sess_expires = invite->session->endpoint->extensions.timer.sess_expires;
 	pjsip_timer_init_session(invite->session->inv_session, &timer);
 
 	/* At this point, we've verified what we can, so let's go ahead and send a 100 Trying out */
@@ -1959,11 +1959,11 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 		local->origin.id = offer->origin.id;
 	}
 
-	pj_strdup2(inv->pool, &local->origin.user, session->endpoint->sdpowner);
+	pj_strdup2(inv->pool, &local->origin.user, session->endpoint->media.sdpowner);
 	local->origin.net_type = STR_IN;
-	local->origin.addr_type = session->endpoint->rtp_ipv6 ? STR_IP6 : STR_IP4;
+	local->origin.addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
 	local->origin.addr = *pj_gethostname();
-	pj_strdup2(inv->pool, &local->name, session->endpoint->sdpsession);
+	pj_strdup2(inv->pool, &local->name, session->endpoint->media.sdpsession);
 
 	/* Now let the handlers add streams of various types, pjmedia will automatically reorder the media streams for us */
 	successful = ao2_callback_data(session->media, OBJ_MULTIPLE, add_sdp_streams, local, session);

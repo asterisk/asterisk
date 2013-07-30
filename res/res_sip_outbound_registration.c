@@ -128,7 +128,7 @@ struct sip_outbound_registration_client_state {
 	/*! \brief Serializer for stuff and things */
 	struct ast_taskprocessor *serializer;
 	/*! \brief Configured authentication credentials */
-	const char **sip_outbound_auths;
+	struct ast_sip_auth_array outbound_auths;
 	/*! \brief Number of configured auths */
 	size_t num_outbound_auths;
 	/*! \brief Registration should be destroyed after completion of transaction */
@@ -169,19 +169,10 @@ struct sip_outbound_registration {
 	/*! \brief Outbound registration state */
 	struct sip_outbound_registration_state *state;
 	/*! \brief Configured authentication credentials */
-	const char **sip_outbound_auths;
+	struct ast_sip_auth_array outbound_auths;
 	/*! \brief Number of configured auths */
 	size_t num_outbound_auths;
 };
-
-static void destroy_auths(const char **auths, size_t num_auths)
-{
-	int i;
-	for (i = 0; i < num_auths; ++i) {
-		ast_free((char *) auths[i]);
-	}
-	ast_free(auths);
-}
 
 /*! \brief Helper function which cancels the timer on a client */
 static void cancel_registration(struct sip_outbound_registration_client_state *client_state)
@@ -270,7 +261,7 @@ static int handle_client_state_destruction(void *data)
 	pjsip_regc_destroy(client_state->client);
 
 	client_state->status = SIP_REGISTRATION_STOPPED;
-	destroy_auths(client_state->sip_outbound_auths, client_state->num_outbound_auths);
+	ast_sip_auth_array_destroy(&client_state->outbound_auths);
 
 	return 0;
 }
@@ -340,7 +331,7 @@ static int handle_registration_response(void *data)
 
 	if (response->code == 401 || response->code == 407) {
 		pjsip_tx_data *tdata;
-		if (!ast_sip_create_request_with_auth(response->client_state->sip_outbound_auths, response->client_state->num_outbound_auths,
+		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
 				response->rdata, response->tsx, &tdata)) {
 			pjsip_regc_send(response->client_state->client, tdata);
 			return 0;
@@ -469,7 +460,7 @@ static void sip_outbound_registration_destroy(void *obj)
 	struct sip_outbound_registration *registration = obj;
 
 	ao2_cleanup(registration->state);
-	destroy_auths(registration->sip_outbound_auths, registration->num_outbound_auths);
+	ast_sip_auth_array_destroy(&registration->outbound_auths);
 
 	ast_string_field_free_memory(registration);
 }
@@ -568,7 +559,7 @@ static int can_reuse_registration(struct sip_outbound_registration *existing, st
 	}
 
 	for (i = 0; i < existing->num_outbound_auths; ++i) {
-		if (strcmp(existing->sip_outbound_auths[i], applied->sip_outbound_auths[i])) {
+		if (strcmp(existing->outbound_auths.names[i], applied->outbound_auths.names[i])) {
 			return 0;
 		}
 	}
@@ -667,15 +658,13 @@ static int sip_outbound_registration_perform(void *data)
 	size_t i;
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
-	destroy_auths(registration->state->client_state->sip_outbound_auths,
-			registration->state->client_state->num_outbound_auths);
-	registration->state->client_state->num_outbound_auths = 0;
+	ast_sip_auth_array_destroy(&registration->state->client_state->outbound_auths);
 
-	registration->state->client_state->sip_outbound_auths = ast_calloc(registration->num_outbound_auths, sizeof(char *));
-	for (i = 0; i < registration->num_outbound_auths; ++i) {
-		registration->state->client_state->sip_outbound_auths[i] = ast_strdup(registration->sip_outbound_auths[i]);
+	registration->state->client_state->outbound_auths.names = ast_calloc(registration->outbound_auths.num, sizeof(char *));
+	for (i = 0; i < registration->outbound_auths.num; ++i) {
+		registration->state->client_state->outbound_auths.names[i] = ast_strdup(registration->outbound_auths.names[i]);
 	}
-	registration->state->client_state->num_outbound_auths = registration->num_outbound_auths;
+	registration->state->client_state->outbound_auths.num = registration->outbound_auths.num;
 	registration->state->client_state->retry_interval = registration->retry_interval;
 	registration->state->client_state->max_retries = registration->max_retries;
 	registration->state->client_state->retries = 0;
@@ -708,47 +697,11 @@ static void sip_outbound_registration_perform_all(void)
 	ao2_iterator_destroy(&i);
 }
 
-#define AUTH_INCREMENT 4
-
-static const char **auth_alloc(const char *value, size_t *num_auths)
-{
-	char *auths = ast_strdupa(value);
-	char *val;
-	int num_alloced = 0;
-	const char **alloced_auths = NULL;
-
-	while ((val = strsep(&auths, ","))) {
-		if (*num_auths >= num_alloced) {
-			size_t size;
-			num_alloced += AUTH_INCREMENT;
-			size = num_alloced * sizeof(char *);
-			alloced_auths = ast_realloc(alloced_auths, size);
-			if (!alloced_auths) {
-				goto failure;
-			}
-		}
-		alloced_auths[*num_auths] = ast_strdup(val);
-		if (!alloced_auths[*num_auths]) {
-			goto failure;
-		}
-		++(*num_auths);
-	}
-	return alloced_auths;
-
-failure:
-	destroy_auths(alloced_auths, *num_auths);
-	return NULL;
-}
-
 static int outbound_auth_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct sip_outbound_registration *registration = obj;
 
-	registration->sip_outbound_auths = auth_alloc(var->value, &registration->num_outbound_auths);
-	if (!registration->sip_outbound_auths) {
-		return -1;
-	}
-	return 0;
+	return ast_sip_auth_array_init(&registration->outbound_auths, var->value);
 }
 
 static int load_module(void)

@@ -281,12 +281,12 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 		return 0;
 	}
 
-	if (!ast_strlen_zero(endpoint->mwi_from)) {
+	if (!ast_strlen_zero(endpoint->subscription.mwi.fromuser)) {
 		pjsip_fromto_hdr *from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, NULL);
 		pjsip_name_addr *from_name_addr = (pjsip_name_addr *) from->uri;
 		pjsip_sip_uri *from_uri = pjsip_uri_get_uri(from_name_addr->uri);
 
-		pj_strdup2(tdata->pool, &from_uri->user, endpoint->mwi_from);
+		pj_strdup2(tdata->pool, &from_uri->user, endpoint->subscription.mwi.fromuser);
 	}
 
 	switch (state) {
@@ -627,18 +627,18 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags
 	char *mailboxes;
 	char *mailbox;
 
-	if (ast_strlen_zero(endpoint->mailboxes)) {
+	if (ast_strlen_zero(endpoint->subscription.mwi.mailboxes)) {
 		return 0;
 	}
 
-	if (endpoint->aggregate_mwi) {
+	if (endpoint->subscription.mwi.aggregate) {
 		aggregate_sub = mwi_subscription_alloc(endpoint, AST_SIP_NOTIFIER, 0, NULL);
 		if (!aggregate_sub) {
 			return 0;
 		}
 	}
 
-	mailboxes = ast_strdupa(endpoint->mailboxes);
+	mailboxes = ast_strdupa(endpoint->subscription.mwi.mailboxes);
 	while ((mailbox = strsep(&mailboxes, ","))) {
 		struct mwi_subscription *sub = aggregate_sub ?:
 			mwi_subscription_alloc(endpoint, AST_SIP_SUBSCRIBER, 0, NULL);

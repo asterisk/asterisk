@@ -62,9 +62,9 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 	}
 
 	if (!pj_stricmp2(&record->hvalue, "on")) {
-		feature = session->endpoint->recordonfeature;
+		feature = session->endpoint->info.recording.onfeature;
 	} else if (!pj_stricmp2(&record->hvalue, "off")) {
-		feature = session->endpoint->recordofffeature;
+		feature = session->endpoint->info.recording.offfeature;
 	} else {
 		/* Don't send response because another module may handle this */
 		return 0;
@@ -76,7 +76,7 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 	}
 
 	/* Is this endpoint configured with One Touch Recording? */
-	if (!session->endpoint->one_touch_recording || ast_strlen_zero(feature)) {
+	if (!session->endpoint->info.recording.enabled || ast_strlen_zero(feature)) {
 		send_response(session, 403, rdata);
 		return 0;
 	}

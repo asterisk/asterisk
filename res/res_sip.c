@@ -1068,14 +1068,14 @@ void ast_sip_unregister_outbound_authenticator(struct ast_sip_outbound_authentic
 	ast_module_unref(ast_module_info->self);
 }
 
-int ast_sip_create_request_with_auth(const char **auths, size_t num_auths, pjsip_rx_data *challenge,
+int ast_sip_create_request_with_auth(const struct ast_sip_auth_array *auths, pjsip_rx_data *challenge,
 		pjsip_transaction *tsx, pjsip_tx_data **new_request)
 {
 	if (!registered_outbound_authenticator) {
 		ast_log(LOG_WARNING, "No SIP outbound authenticator registered. Cannot respond to authentication challenge\n");
 		return -1;
 	}
-	return registered_outbound_authenticator->create_request_with_auth(auths, num_auths, challenge, tsx, new_request);
+	return registered_outbound_authenticator->create_request_with_auth(auths, challenge, tsx, new_request);
 }
 
 struct endpoint_identifier_list {
@@ -1475,7 +1475,7 @@ static void send_request_cb(void *token, pjsip_event *e)
 		return;
 	}
 
-	if (!ast_sip_create_request_with_auth(endpoint->sip_outbound_auths, endpoint->num_outbound_auths, challenge, tsx, &tdata)) {
+	if (!ast_sip_create_request_with_auth(&endpoint->outbound_auths, challenge, tsx, &tdata)) {
 		pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, NULL, NULL);
 	}
 }

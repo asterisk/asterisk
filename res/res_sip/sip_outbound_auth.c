@@ -61,7 +61,7 @@ static pj_bool_t outbound_auth(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
-	if (ast_sip_create_request_with_auth(endpoint->sip_outbound_auths, endpoint->num_outbound_auths, rdata, tsx, &tdata)) {
+	if (ast_sip_create_request_with_auth(&endpoint->outbound_auths, rdata, tsx, &tdata)) {
 		return PJ_FALSE;
 	}
 

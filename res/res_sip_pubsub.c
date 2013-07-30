@@ -625,7 +625,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpoint != NULL);
 
-	if (!endpoint->allowsubscribe) {
+	if (!endpoint->subscription.allow) {
 		ast_log(LOG_WARNING, "Subscriptions not permitted for endpoint %s.\n", ast_sorcery_object_get_id(endpoint));
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 603, NULL, NULL, NULL);
 		return PJ_TRUE;
@@ -633,9 +633,9 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 
 	expires_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, rdata->msg_info.msg->hdr.next);
 
-	if (expires_header && expires_header->ivalue < endpoint->subminexpiry) {
+	if (expires_header && expires_header->ivalue < endpoint->subscription.minexpiry) {
 		ast_log(LOG_WARNING, "Subscription expiration %d is too brief for endpoint %s. Minimum is %d\n",
-				expires_header->ivalue, ast_sorcery_object_get_id(endpoint), endpoint->subminexpiry);
+				expires_header->ivalue, ast_sorcery_object_get_id(endpoint), endpoint->subscription.minexpiry);
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 423, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}

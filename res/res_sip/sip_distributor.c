@@ -170,7 +170,7 @@ static int create_artificial_endpoint(void)
 		return -1;
 	}
 
-	artificial_endpoint->num_inbound_auths = 1;
+	artificial_endpoint->inbound_auths.num = 1;
 	return 0;
 }
 

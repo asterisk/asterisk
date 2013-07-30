@@ -234,8 +234,7 @@ static void qualify_contact_cb(void *token, pjsip_event *e)
 	   endpoint should do that matched on the contact */
 	endpoint = ao2_callback(endpoints, 0, NULL, NULL);
 
-	if (!ast_sip_create_request_with_auth(endpoint->sip_outbound_auths,
-					      endpoint->num_outbound_auths,
+	if (!ast_sip_create_request_with_auth(&endpoint->outbound_auths,
 					      challenge, tsx, &tdata)) {
 		pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata,
 					 -1, NULL, NULL);

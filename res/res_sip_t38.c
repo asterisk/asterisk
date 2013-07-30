@@ -248,13 +248,13 @@ static int t38_initialize_session(struct ast_sip_session *session, struct ast_si
 	}
 
 	if (!(session_media->udptl = ast_udptl_new_with_bindaddr(NULL, NULL, 0,
-		session->endpoint->t38udptl_ipv6 ? &address_ipv6 : &address_ipv4))) {
+		session->endpoint->media.t38.ipv6 ? &address_ipv6 : &address_ipv4))) {
 		return -1;
 	}
 
 	ast_channel_set_fd(session->channel, 5, ast_udptl_fd(session_media->udptl));
-	ast_udptl_set_error_correction_scheme(session_media->udptl, session->endpoint->t38udptl_ec);
-	ast_udptl_setnat(session_media->udptl, session->endpoint->t38udptl_nat);
+	ast_udptl_set_error_correction_scheme(session_media->udptl, session->endpoint->media.t38.error_correction);
+	ast_udptl_setnat(session_media->udptl, session->endpoint->media.t38.nat);
 
 	return 0;
 }
@@ -386,7 +386,7 @@ static int t38_interpret_parameters(void *obj)
 static struct ast_frame *t38_framehook_write(struct ast_sip_session *session, struct ast_frame *f)
 {
 	if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_T38_PARAMETERS &&
-		session->endpoint->t38udptl) {
+		session->endpoint->media.t38.enabled) {
 		struct t38_parameters_task_data *data = t38_parameters_task_data_alloc(session, f);
 
 		if (!data) {
@@ -446,7 +446,7 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 		.event_cb = t38_framehook,
 	};
 
-	if ((ast_channel_state(session->channel) == AST_STATE_UP) || !session->endpoint->t38udptl) {
+	if ((ast_channel_state(session->channel) == AST_STATE_UP) || !session->endpoint->media.t38.enabled) {
 		return;
 	}
 
@@ -533,8 +533,8 @@ static void t38_interpret_sdp(struct t38_state *state, struct ast_sip_session *s
 		} else if (!pj_stricmp2(&attr->name, "t38faxversion")) {
 			state->their_parms.version = pj_strtoul(&attr->value);
 		} else if (!pj_stricmp2(&attr->name, "t38faxmaxdatagram") || !pj_stricmp2(&attr->name, "t38maxdatagram")) {
-			if (session->endpoint->t38udptl_maxdatagram) {
-				ast_udptl_set_far_max_datagram(session_media->udptl, session->endpoint->t38udptl_maxdatagram);
+			if (session->endpoint->media.t38.maxdatagram) {
+				ast_udptl_set_far_max_datagram(session_media->udptl, session->endpoint->media.t38.maxdatagram);
 			} else {
 				ast_udptl_set_far_max_datagram(session_media->udptl, pj_strtoul(&attr->value));
 			}
@@ -569,7 +569,7 @@ static int defer_incoming_sdp_stream(struct ast_sip_session *session, struct ast
 {
 	struct t38_state *state;
 
-	if (!session->endpoint->t38udptl) {
+	if (!session->endpoint->media.t38.enabled) {
 		return 0;
 	}
 
@@ -600,7 +600,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	char host[NI_MAXHOST];
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
 
-	if (!session->endpoint->t38udptl) {
+	if (!session->endpoint->media.t38.enabled) {
 		return -1;
 	}
 
@@ -622,8 +622,8 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	}
 
 	/* Check the address family to make sure it matches configured */
-	if ((ast_sockaddr_is_ipv6(addrs) && !session->endpoint->t38udptl_ipv6) ||
-		(ast_sockaddr_is_ipv4(addrs) && session->endpoint->t38udptl_ipv6)) {
+	if ((ast_sockaddr_is_ipv6(addrs) && !session->endpoint->media.t38.ipv6) ||
+		(ast_sockaddr_is_ipv4(addrs) && session->endpoint->media.t38.ipv6)) {
 		/* The address does not match configured */
 		return -1;
 	}
@@ -652,7 +652,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	char tmp[512];
 	pj_str_t stmp;
 
-	if (!session->endpoint->t38udptl) {
+	if (!session->endpoint->media.t38.enabled) {
 		return 1;
 	} else if ((session->t38state != T38_LOCAL_REINVITE) && (session->t38state != T38_PEER_REINVITE) &&
 		(session->t38state != T38_ENABLED)) {
@@ -671,19 +671,19 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	media->desc.media = pj_str(session_media->stream_type);
 	media->desc.transport = STR_UDPTL;
 
-	if (ast_strlen_zero(session->endpoint->external_media_address)) {
+	if (ast_strlen_zero(session->endpoint->media.external_address)) {
 		pj_sockaddr localaddr;
 
-		if (pj_gethostip(session->endpoint->t38udptl_ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
+		if (pj_gethostip(session->endpoint->media.t38.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
 			return -1;
 		}
 		pj_sockaddr_print(&localaddr, hostip, sizeof(hostip), 2);
 	} else {
-		ast_copy_string(hostip, session->endpoint->external_media_address, sizeof(hostip));
+		ast_copy_string(hostip, session->endpoint->media.external_address, sizeof(hostip));
 	}
 
 	media->conn->net_type = STR_IN;
-	media->conn->addr_type = session->endpoint->t38udptl_ipv6 ? STR_IP6 : STR_IP4;
+	media->conn->addr_type = session->endpoint->media.t38.ipv6 ? STR_IP6 : STR_IP4;
 	pj_strdup2(pool, &media->conn->addr, hostip);
 	ast_udptl_get_us(session_media->udptl, &addr);
 	media->desc.port = (pj_uint16_t) ast_sockaddr_port(&addr);

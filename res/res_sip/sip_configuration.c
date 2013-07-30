@@ -247,11 +247,11 @@ static int prack_handler(const struct aco_option *opt, struct ast_variable *var,
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (ast_true(var->value)) {
-		endpoint->extensions |= PJSIP_INV_SUPPORT_100REL;
+		endpoint->extensions.flags |= PJSIP_INV_SUPPORT_100REL;
 	} else if (ast_false(var->value)) {
-		endpoint->extensions &= PJSIP_INV_SUPPORT_100REL;
+		endpoint->extensions.flags &= PJSIP_INV_SUPPORT_100REL;
 	} else if (!strcasecmp(var->value, "required")) {
-		endpoint->extensions |= PJSIP_INV_REQUIRE_100REL;
+		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_100REL;
 	} else {
 		return -1;
 	}
@@ -264,13 +264,13 @@ static int timers_handler(const struct aco_option *opt, struct ast_variable *var
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (ast_true(var->value)) {
-		endpoint->extensions |= PJSIP_INV_SUPPORT_TIMER;
+		endpoint->extensions.flags |= PJSIP_INV_SUPPORT_TIMER;
 	} else if (ast_false(var->value)) {
-		endpoint->extensions &= PJSIP_INV_SUPPORT_TIMER;
+		endpoint->extensions.flags &= PJSIP_INV_SUPPORT_TIMER;
 	} else if (!strcasecmp(var->value, "required")) {
-		endpoint->extensions |= PJSIP_INV_REQUIRE_TIMER;
+		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_TIMER;
 	} else if (!strcasecmp(var->value, "always")) {
-		endpoint->extensions |= PJSIP_INV_ALWAYS_USE_TIMER;
+		endpoint->extensions.flags |= PJSIP_INV_ALWAYS_USE_TIMER;
 	} else {
 		return -1;
 	}
@@ -278,7 +278,7 @@ static int timers_handler(const struct aco_option *opt, struct ast_variable *var
 	return 0;
 }
 
-static void destroy_auths(const char **auths, size_t num_auths)
+void ast_sip_auth_array_destroy(struct ast_sip_auth_array *auths)
 {
 	int i;
 
@@ -286,63 +286,57 @@ static void destroy_auths(const char **auths, size_t num_auths)
 		return;
 	}
 
-	for (i = 0; i < num_auths; ++i) {
-		ast_free((char *) auths[i]);
+	for (i = 0; i < auths->num; ++i) {
+		ast_free((char *) auths->names[i]);
 	}
-	ast_free(auths);
+	ast_free(auths->names);
+	auths->num = 0;
 }
 
 #define AUTH_INCREMENT 4
 
-static const char **auth_alloc(const char *value, size_t *num_auths)
+int ast_sip_auth_array_init(struct ast_sip_auth_array *auths, const char *value)
 {
-	char *auths = ast_strdupa(value);
+	char *auth_names = ast_strdupa(value);
 	char *val;
 	int num_alloced = 0;
 	const char **alloced_auths = NULL;
 
-	while ((val = strsep(&auths, ","))) {
-		if (*num_auths >= num_alloced) {
+	while ((val = strsep(&auth_names, ","))) {
+		if (auths->num >= num_alloced) {
 			size_t size;
 			num_alloced += AUTH_INCREMENT;
 			size = num_alloced * sizeof(char *);
-			alloced_auths = ast_realloc(alloced_auths, size);
-			if (!alloced_auths) {
+			auths->names = ast_realloc(alloced_auths, size);
+			if (!auths->names) {
 				goto failure;
 			}
 		}
-		alloced_auths[*num_auths] = ast_strdup(val);
-		if (!alloced_auths[*num_auths]) {
+		auths->names[auths->num] = ast_strdup(val);
+		if (!auths->names[auths->num]) {
 			goto failure;
 		}
-		++(*num_auths);
+		++auths->num;
 	}
-	return alloced_auths;
+	return 0;
 
 failure:
-	destroy_auths(alloced_auths, *num_auths);
-	return NULL;
+	ast_sip_auth_array_destroy(auths);
+	return -1;
 }
 
 static int inbound_auth_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
-	endpoint->sip_inbound_auths = auth_alloc(var->value, &endpoint->num_inbound_auths);
-	if (!endpoint->sip_inbound_auths) {
-		return -1;
-	}
-	return 0;
+	return ast_sip_auth_array_init(&endpoint->inbound_auths, var->value);
 }
+
 static int outbound_auth_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
-	endpoint->sip_outbound_auths = auth_alloc(var->value, &endpoint->num_outbound_auths);
-	if (!endpoint->sip_outbound_auths) {
-		return -1;
-	}
-	return 0;
+	return ast_sip_auth_array_init(&endpoint->outbound_auths, var->value);
 }
 
 static int ident_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
@@ -354,8 +348,6 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 	while ((val = strsep(&idents, ","))) {
 		if (!strcasecmp(val, "username")) {
 			endpoint->ident_method |= AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME;
-		} else if (!strcasecmp(val, "location")) {
-			endpoint->ident_method |= AST_SIP_ENDPOINT_IDENTIFY_BY_LOCATION;
 		} else {
 			ast_log(LOG_ERROR, "Unrecognized identification method %s specified for endpoint %s\n",
 					val, ast_sorcery_object_get_id(endpoint));
@@ -370,9 +362,9 @@ static int direct_media_method_handler(const struct aco_option *opt, struct ast_
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strcasecmp(var->value, "invite") || !strcasecmp(var->value, "reinvite")) {
-		endpoint->direct_media_method = AST_SIP_SESSION_REFRESH_METHOD_INVITE;
+		endpoint->media.direct_media.method = AST_SIP_SESSION_REFRESH_METHOD_INVITE;
 	} else if (!strcasecmp(var->value, "update")) {
-		endpoint->direct_media_method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
+		endpoint->media.direct_media.method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
 	} else {
 		ast_log(LOG_NOTICE, "Unrecognized option value %s for %s on endpoint %s\n",
 				var->value, var->name, ast_sorcery_object_get_id(endpoint));
@@ -386,9 +378,9 @@ static int connected_line_method_handler(const struct aco_option *opt, struct as
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strcasecmp(var->value, "invite") || !strcasecmp(var->value, "reinvite")) {
-		endpoint->connected_line_method = AST_SIP_SESSION_REFRESH_METHOD_INVITE;
+		endpoint->id.refresh_method = AST_SIP_SESSION_REFRESH_METHOD_INVITE;
 	} else if (!strcasecmp(var->value, "update")) {
-		endpoint->connected_line_method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
+		endpoint->id.refresh_method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
 	} else {
 		ast_log(LOG_NOTICE, "Unrecognized option value %s for %s on endpoint %s\n",
 				var->value, var->name, ast_sorcery_object_get_id(endpoint));
@@ -402,11 +394,11 @@ static int direct_media_glare_mitigation_handler(const struct aco_option *opt, s
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strcasecmp(var->value, "none")) {
-		endpoint->direct_media_glare_mitigation = AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_NONE;
+		endpoint->media.direct_media.glare_mitigation = AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_NONE;
 	} else if (!strcasecmp(var->value, "outgoing")) {
-		endpoint->direct_media_glare_mitigation = AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_OUTGOING;
+		endpoint->media.direct_media.glare_mitigation = AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_OUTGOING;
 	} else if (!strcasecmp(var->value, "incoming")) {
-		endpoint->direct_media_glare_mitigation = AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_INCOMING;
+		endpoint->media.direct_media.glare_mitigation = AST_SIP_DIRECT_MEDIA_GLARE_MITIGATION_INCOMING;
 	} else {
 		ast_log(LOG_NOTICE, "Unrecognized option value %s for %s on endpoint %s\n",
 				var->value, var->name, ast_sorcery_object_get_id(endpoint));
@@ -424,18 +416,18 @@ static int caller_id_handler(const struct aco_option *opt, struct ast_variable *
 
 	ast_callerid_split(var->value, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 	if (!ast_strlen_zero(cid_name)) {
-		endpoint->id.name.str = ast_strdup(cid_name);
-		if (!endpoint->id.name.str) {
+		endpoint->id.self.name.str = ast_strdup(cid_name);
+		if (!endpoint->id.self.name.str) {
 			return -1;
 		}
-		endpoint->id.name.valid = 1;
+		endpoint->id.self.name.valid = 1;
 	}
 	if (!ast_strlen_zero(cid_num)) {
-		endpoint->id.number.str = ast_strdup(cid_num);
-		if (!endpoint->id.number.str) {
+		endpoint->id.self.number.str = ast_strdup(cid_num);
+		if (!endpoint->id.self.number.str) {
 			return -1;
 		}
-		endpoint->id.number.valid = 1;
+		endpoint->id.self.number.valid = 1;
 	}
 	return 0;
 }
@@ -447,16 +439,16 @@ static int caller_id_privacy_handler(const struct aco_option *opt, struct ast_va
 	if (callingpres == -1 && sscanf(var->value, "%d", &callingpres) != 1) {
 		return -1;
 	}
-	endpoint->id.number.presentation = callingpres;
-	endpoint->id.name.presentation = callingpres;
+	endpoint->id.self.number.presentation = callingpres;
+	endpoint->id.self.name.presentation = callingpres;
 	return 0;
 }
 
 static int caller_id_tag_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
-	endpoint->id.tag = ast_strdup(var->value);
-	return endpoint->id.tag ? 0 : -1;
+	endpoint->id.self.tag = ast_strdup(var->value);
+	return endpoint->id.self.tag ? 0 : -1;
 }
 
 static int media_encryption_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
@@ -464,12 +456,12 @@ static int media_encryption_handler(const struct aco_option *opt, struct ast_var
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strcasecmp("no", var->value)) {
-		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
+		endpoint->media.rtp.encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
 	} else if (!strcasecmp("sdes", var->value)) {
-		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_SDES;
+		endpoint->media.rtp.encryption = AST_SIP_MEDIA_ENCRYPT_SDES;
 	} else if (!strcasecmp("dtls", var->value)) {
-		endpoint->media_encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;
-		ast_rtp_dtls_cfg_parse(&endpoint->dtls_cfg, "dtlsenable", "yes");
+		endpoint->media.rtp.encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;
+		ast_rtp_dtls_cfg_parse(&endpoint->media.rtp.dtls_cfg, "dtlsenable", "yes");
 	} else {
 		return -1;
 	}
@@ -483,11 +475,11 @@ static int group_handler(const struct aco_option *opt,
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strncmp(var->name, "callgroup", 9)) {
-		if (!(endpoint->callgroup = ast_get_group(var->value))) {
+		if (!(endpoint->pickup.callgroup = ast_get_group(var->value))) {
 			return -1;
 		}
 	} else if (!strncmp(var->name, "pickupgroup", 11)) {
-		if (!(endpoint->pickupgroup = ast_get_group(var->value))) {
+		if (!(endpoint->pickup.pickupgroup = ast_get_group(var->value))) {
 			return -1;
 		}
 	} else {
@@ -503,12 +495,12 @@ static int named_groups_handler(const struct aco_option *opt,
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strncmp(var->name, "namedcallgroup", 14)) {
-		if (!(endpoint->named_callgroups =
+		if (!(endpoint->pickup.named_callgroups =
 		      ast_get_namedgroups(var->value))) {
 			return -1;
 		}
 	} else if (!strncmp(var->name, "namedpickupgroup", 16)) {
-		if (!(endpoint->named_pickupgroups =
+		if (!(endpoint->pickup.named_pickupgroups =
 		      ast_get_namedgroups(var->value))) {
 			return -1;
 		}
@@ -524,7 +516,7 @@ static int dtls_handler(const struct aco_option *opt,
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
-	return ast_rtp_dtls_cfg_parse(&endpoint->dtls_cfg, var->name, var->value);
+	return ast_rtp_dtls_cfg_parse(&endpoint->media.rtp.dtls_cfg, var->name, var->value);
 }
 
 static int t38udptl_ec_handler(const struct aco_option *opt,
@@ -533,11 +525,11 @@ static int t38udptl_ec_handler(const struct aco_option *opt,
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strcmp(var->value, "none")) {
-		endpoint->t38udptl_ec = UDPTL_ERROR_CORRECTION_NONE;
+		endpoint->media.t38.error_correction = UDPTL_ERROR_CORRECTION_NONE;
 	} else if (!strcmp(var->value, "fec")) {
-		endpoint->t38udptl_ec = UDPTL_ERROR_CORRECTION_FEC;
+		endpoint->media.t38.error_correction = UDPTL_ERROR_CORRECTION_FEC;
 	} else if (!strcmp(var->value, "redundancy")) {
-		endpoint->t38udptl_ec = UDPTL_ERROR_CORRECTION_REDUNDANCY;
+		endpoint->media.t38.error_correction = UDPTL_ERROR_CORRECTION_REDUNDANCY;
 	} else {
 		return -1;
 	}
@@ -640,75 +632,74 @@ int ast_res_sip_initialize_configuration(void)
 
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "context", "default", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, context));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "disallow", "", OPT_CODEC_T, 0, FLDSET(struct ast_sip_endpoint, prefs, codecs));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow", "", OPT_CODEC_T, 1, FLDSET(struct ast_sip_endpoint, prefs, codecs));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "disallow", "", OPT_CODEC_T, 0, FLDSET(struct ast_sip_endpoint, media.prefs, media.codecs));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow", "", OPT_CODEC_T, 1, FLDSET(struct ast_sip_endpoint, media.prefs, media.codecs));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtmfmode", "rfc4733", dtmf_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, rtp_ipv6));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_symmetric", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, rtp_symmetric));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ice_support", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, ice_support));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "use_ptime", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, use_ptime));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "force_rport", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, force_rport));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rewrite_contact", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, rewrite_contact));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.ipv6));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_symmetric", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.symmetric));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "ice_support", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.ice_support));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "use_ptime", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.use_ptime));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "force_rport", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, nat.force_rport));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rewrite_contact", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, nat.rewrite_contact));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "transport", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, transport));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, outbound_proxy));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mohsuggest", "default", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, mohsuggest));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "100rel", "yes", prack_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "timers", "yes", timers_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "timers_min_se", "90", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, min_se));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "timers_sess_expires", "1800", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, sess_expires));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "timers_min_se", "90", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, extensions.timer.min_se));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "timers_sess_expires", "1800", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, extensions.timer.sess_expires));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "auth", "", inbound_auth_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "outbound_auth", "", outbound_auth_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aors", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, aors));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "external_media_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, external_media_address));
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "identify_by", "username,location", ident_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "direct_media", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, direct_media));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "external_media_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.external_address));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "identify_by", "username", ident_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "direct_media", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.direct_media.enabled));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "direct_media_method", "invite", direct_media_method_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "connected_line_method", "invite", connected_line_method_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "direct_media_glare_mitigation", "none", direct_media_glare_mitigation_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "disable_direct_media_on_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, disable_direct_media_on_nat));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "disable_direct_media_on_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.direct_media.disable_on_nat));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid", "", caller_id_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid_privacy", "", caller_id_privacy_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid_tag", "", caller_id_tag_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "trust_id_inbound", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, trust_id_inbound));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "trust_id_outbound", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, trust_id_outbound));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_pai", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_pai));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_rpid", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_rpid));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_diversion", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, send_diversion));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, mailboxes));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aggregate_mwi", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, aggregate_mwi));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "trust_id_inbound", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, id.trust_inbound));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "trust_id_outbound", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, id.trust_outbound));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_pai", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, id.send_pai));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_rpid", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, id.send_rpid));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "send_diversion", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, id.send_diversion));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, subscription.mwi.mailboxes));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "aggregate_mwi", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, subscription.mwi.aggregate));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "media_encryption", "no", media_encryption_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "use_avpf", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, use_avpf));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "one_touch_recording", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, one_touch_recording));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "use_avpf", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.use_avpf));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "one_touch_recording", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, info.recording.enabled));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "inband_progress", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, inband_progress));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callgroup", "", group_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "pickupgroup", "", group_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedcallgroup", "", named_groups_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedpickupgroup", "", named_groups_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "devicestate_busy_at", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, devicestate_busy_at));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, t38udptl));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.t38.enabled));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "t38udptl_ec", "none", t38udptl_ec_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_maxdatagram", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, t38udptl_maxdatagram));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_maxdatagram", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.t38.maxdatagram));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "faxdetect", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, faxdetect));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, t38udptl_nat));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, t38udptl_ipv6));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtpengine", "asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, rtp_engine));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.t38.nat));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.t38.ipv6));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tonezone", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, zone));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "language", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, language));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "recordonfeature", "automixmon", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, recordonfeature));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "recordofffeature", "automixmon", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, recordofffeature));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "recordonfeature", "automixmon", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, info.recording.onfeature));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "recordofffeature", "automixmon", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, info.recording.offfeature));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowtransfer", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allowtransfer));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdpowner", "-", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, sdpowner));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdpsession", "Asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, sdpsession));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, tos_audio));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, tos_video));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, cos_audio));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, cos_video));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowsubscribe", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allowsubscribe));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpiry", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subminexpiry));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpirey", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subminexpiry));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdpowner", "-", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.sdpowner));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdpsession", "Asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.sdpsession));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.tos_audio));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.tos_video));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_audio));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_video));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowsubscribe", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, subscription.allow));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpiry", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subscription.minexpiry));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpirey", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subscription.minexpiry));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromuser));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromdomain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromdomain));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwifromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, mwi_from));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwifromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, subscription.mwi.fromuser));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlsverify", "", dtls_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlsrekey", "", dtls_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscertfile", "", dtls_handler, NULL, 0, 0);
@@ -717,7 +708,7 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscafile", "", dtls_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscapath", "", dtls_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlssetup", "", dtls_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "srtp_tag_32", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, srtp_tag_32));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "srtp_tag_32", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.srtp_tag_32));
 
 	if (ast_sip_initialize_sorcery_transport(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -782,21 +773,55 @@ int ast_res_sip_reload_configuration(void)
 	return 0;
 }
 
+static void subscription_configuration_destroy(struct ast_sip_endpoint_subscription_configuration *subscription)
+{
+	ast_string_field_free_memory(&subscription->mwi);
+}
+
+static void info_configuration_destroy(struct ast_sip_endpoint_info_configuration *info)
+{
+	ast_string_field_free_memory(&info->recording);
+}
+
+static void media_configuration_destroy(struct ast_sip_endpoint_media_configuration *media)
+{
+	ast_string_field_free_memory(&media->rtp);
+	ast_string_field_free_memory(media);
+}
+
 static void endpoint_destructor(void* obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
 	ast_string_field_free_memory(endpoint);
 
-	if (endpoint->codecs) {
-		ast_format_cap_destroy(endpoint->codecs);
+	if (endpoint->media.codecs) {
+		ast_format_cap_destroy(endpoint->media.codecs);
 	}
-	destroy_auths(endpoint->sip_inbound_auths, endpoint->num_inbound_auths);
-	destroy_auths(endpoint->sip_outbound_auths, endpoint->num_outbound_auths);
-	ast_party_id_free(&endpoint->id);
-	endpoint->named_callgroups = ast_unref_namedgroups(endpoint->named_callgroups);
-	endpoint->named_pickupgroups = ast_unref_namedgroups(endpoint->named_pickupgroups);
+	subscription_configuration_destroy(&endpoint->subscription);
+	info_configuration_destroy(&endpoint->info);
+	media_configuration_destroy(&endpoint->media);
+	ast_sip_auth_array_destroy(&endpoint->inbound_auths);
+	ast_sip_auth_array_destroy(&endpoint->outbound_auths);
+	ast_party_id_free(&endpoint->id.self);
+	endpoint->pickup.named_callgroups = ast_unref_namedgroups(endpoint->pickup.named_callgroups);
+	endpoint->pickup.named_pickupgroups = ast_unref_namedgroups(endpoint->pickup.named_pickupgroups);
 	ao2_cleanup(endpoint->persistent);
+}
+
+static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
+{
+	return ast_string_field_init(&subscription->mwi, 64);
+}
+
+static int init_info_configuration(struct ast_sip_endpoint_info_configuration *info)
+{
+	return ast_string_field_init(&info->recording, 32);
+}
+
+static int init_media_configuration(struct ast_sip_endpoint_media_configuration *media)
+{
+	return ast_string_field_init(media, 64) || ast_string_field_init(&media->rtp, 32);
 }
 
 void *ast_sip_endpoint_alloc(const char *name)
@@ -809,11 +834,23 @@ void *ast_sip_endpoint_alloc(const char *name)
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
-	if (!(endpoint->codecs = ast_format_cap_alloc_nolock())) {
+	if (!(endpoint->media.codecs = ast_format_cap_alloc_nolock())) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
-	ast_party_id_init(&endpoint->id);
+	if (init_subscription_configuration(&endpoint->subscription)) {
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+	if (init_info_configuration(&endpoint->info)) {
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+	if (init_media_configuration(&endpoint->media)) {
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+	ast_party_id_init(&endpoint->id.self);
 	return endpoint;
 }
 
@@ -826,14 +863,14 @@ struct ao2_container *ast_sip_get_endpoints(void)
 	return endpoints;
 }
 
-int ast_sip_retrieve_auths(const char *auth_names[], size_t num_auths, struct ast_sip_auth **out)
+int ast_sip_retrieve_auths(const struct ast_sip_auth_array *auths, struct ast_sip_auth **out)
 {
 	int i;
 
-	for (i = 0; i < num_auths; ++i) {
-		out[i] = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, auth_names[i]);
+	for (i = 0; i < auths->num; ++i) {
+		out[i] = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, auths->names[i]);
 		if (!out[i]) {
-			ast_log(LOG_NOTICE, "Couldn't find auth '%s'. Cannot authenticate\n", auth_names[i]);
+			ast_log(LOG_NOTICE, "Couldn't find auth '%s'. Cannot authenticate\n", auths->names[i]);
 			return -1;
 		}
 	}

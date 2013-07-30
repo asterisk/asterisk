@@ -402,8 +402,8 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	}
 
 	/* endpoint name */
-	if (endpt->id.name.valid) {
-		CHECK_RES(ast_msg_set_var(msg, "SIP_PEERNAME", endpt->id.name.str));
+	if (endpt->id.self.name.valid) {
+		CHECK_RES(ast_msg_set_var(msg, "SIP_PEERNAME", endpt->id.self.name.str));
 	}
 
 	CHECK_RES(headers_to_vars(rdata, msg));
