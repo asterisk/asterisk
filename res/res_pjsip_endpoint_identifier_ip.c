@@ -33,7 +33,7 @@
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_endpoint_identifier_ip" language="en_US">
 		<synopsis>Module that identifies endpoints via source IP address</synopsis>
-		<configFile name="res_pjsip.conf">
+		<configFile name="pjsip.conf">
 			<configObject name="identify">
 				<configOption name="endpoint">
 					<synopsis>Name of Endpoint</synopsis>
@@ -135,7 +135,7 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 
 static int load_module(void)
 {
-	ast_sorcery_apply_default(ast_sip_get_sorcery(), "identify", "config", "res_pjsip.conf,criteria=type=identify");
+	ast_sorcery_apply_default(ast_sip_get_sorcery(), "identify", "config", "pjsip.conf,criteria=type=identify");
 
 	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "identify", ip_identify_alloc, NULL, NULL)) {
 		return AST_MODULE_LOAD_DECLINE;
