@@ -527,6 +527,24 @@ static int dtls_handler(const struct aco_option *opt,
 	return ast_rtp_dtls_cfg_parse(&endpoint->dtls_cfg, var->name, var->value);
 }
 
+static int t38udptl_ec_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strcmp(var->value, "none")) {
+		endpoint->t38udptl_ec = UDPTL_ERROR_CORRECTION_NONE;
+	} else if (!strcmp(var->value, "fec")) {
+		endpoint->t38udptl_ec = UDPTL_ERROR_CORRECTION_FEC;
+	} else if (!strcmp(var->value, "redundancy")) {
+		endpoint->t38udptl_ec = UDPTL_ERROR_CORRECTION_REDUNDANCY;
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
 static void *sip_nat_hook_alloc(const char *name)
 {
 	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_nat_hook), NULL);
@@ -667,6 +685,12 @@ int ast_res_sip_initialize_configuration(void)
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedcallgroup", "", named_groups_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "namedpickupgroup", "", named_groups_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "devicestate_busy_at", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, devicestate_busy_at));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, t38udptl));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "t38udptl_ec", "none", t38udptl_ec_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_maxdatagram", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, t38udptl_maxdatagram));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "faxdetect", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, faxdetect));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, t38udptl_nat));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "t38udptl_ipv6", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, t38udptl_ipv6));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtpengine", "asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, rtp_engine));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tonezone", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, zone));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "language", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, language));

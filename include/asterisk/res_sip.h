@@ -32,6 +32,8 @@
 #include "asterisk/dnsmgr.h"
 /* Needed for ast_endpoint */
 #include "asterisk/endpoints.h"
+/* Needed for ast_t38_ec_modes */
+#include "asterisk/udptl.h"
 /* Needed for pj_sockaddr */
 #include <pjlib.h>
 /* Needed for ast_rtp_dtls_cfg struct */
@@ -434,6 +436,18 @@ struct ast_sip_endpoint {
 	struct ast_endpoint *persistent;
 	/*! The number of channels at which busy device state is returned */
 	unsigned int devicestate_busy_at;
+	/*! Whether T.38 UDPTL support is enabled or not */
+	unsigned int t38udptl;
+	/*! Error correction setting for T.38 UDPTL */
+	enum ast_t38_ec_modes t38udptl_ec;
+	/*! Explicit T.38 max datagram value, may be 0 to indicate the remote side can be trusted */
+	unsigned int t38udptl_maxdatagram;
+	/*! Whether fax detection is enabled or not (CNG tone detection) */
+	unsigned int faxdetect;
+	/*! Whether NAT Support is enabled for T.38 UDPTL sessions or not */
+	unsigned int t38udptl_nat;
+	/*! Whether to use IPv6 for UDPTL or not */
+	unsigned int t38udptl_ipv6;
 	/*! Determines if transfers (using REFER) are allowed by this endpoint */
 	unsigned int allowtransfer;
 	/*! DSCP TOS bits for audio streams */

@@ -142,6 +142,7 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 static int gulp_transfer(struct ast_channel *ast, const char *target);
 static int gulp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int gulp_devicestate(const char *data);
+static int gulp_queryoption(struct ast_channel *ast, int option, void *data, int *datalen);
 
 /*! \brief PBX interface structure for channel registration */
 static struct ast_channel_tech gulp_tech = {
@@ -162,6 +163,7 @@ static struct ast_channel_tech gulp_tech = {
 	.transfer = gulp_transfer,
 	.fixup = gulp_fixup,
 	.devicestate = gulp_devicestate,
+	.queryoption = gulp_queryoption,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER
 };
 
@@ -431,7 +433,7 @@ static int send_direct_media_request(void *data)
 {
 	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
 
-	return ast_sip_session_refresh(session, NULL, NULL, session->endpoint->direct_media_method, 1);
+	return ast_sip_session_refresh(session, NULL, NULL, NULL, session->endpoint->direct_media_method, 1);
 }
 
 static struct ast_datastore_info direct_media_mitigation_info = { };
@@ -668,6 +670,55 @@ static int gulp_answer(struct ast_channel *ast)
 	return 0;
 }
 
+/*! \brief Internal helper function called when CNG tone is detected */
+static struct ast_frame *gulp_cng_tone_detected(struct ast_sip_session *session, struct ast_frame *f)
+{
+	const char *target_context;
+	int exists;
+
+	/* If we only needed this DSP for fax detection purposes we can just drop it now */
+	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
+		ast_dsp_set_features(session->dsp, DSP_FEATURE_DIGIT_DETECT);
+	} else {
+		ast_dsp_free(session->dsp);
+		session->dsp = NULL;
+	}
+
+	/* If already executing in the fax extension don't do anything */
+	if (!strcmp(ast_channel_exten(session->channel), "fax")) {
+		return f;
+	}
+
+	target_context = S_OR(ast_channel_macrocontext(session->channel), ast_channel_context(session->channel));
+
+	/* We need to unlock the channel here because ast_exists_extension has the
+	 * potential to start and stop an autoservice on the channel. Such action
+	 * is prone to deadlock if the channel is locked.
+	 */
+	ast_channel_unlock(session->channel);
+	exists = ast_exists_extension(session->channel, target_context, "fax", 1,
+		S_COR(ast_channel_caller(session->channel)->id.number.valid,
+			ast_channel_caller(session->channel)->id.number.str, NULL));
+	ast_channel_lock(session->channel);
+
+	if (exists) {
+		ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n",
+			ast_channel_name(session->channel));
+		pbx_builtin_setvar_helper(session->channel, "FAXEXTEN", ast_channel_exten(session->channel));
+		if (ast_async_goto(session->channel, target_context, "fax", 1)) {
+			ast_log(LOG_ERROR, "Failed to async goto '%s' into fax extension in '%s'\n",
+				ast_channel_name(session->channel), target_context);
+		}
+		ast_frfree(f);
+		f = &ast_null_frame;
+	} else {
+		ast_log(LOG_NOTICE, "FAX CNG detected on '%s' but no fax extension in '%s'\n",
+			ast_channel_name(session->channel), target_context);
+	}
+
+	return f;
+}
+
 /*! \brief Function called by core to read any waiting frames */
 static struct ast_frame *gulp_read(struct ast_channel *ast)
 {
@@ -718,8 +769,13 @@ static struct ast_frame *gulp_read(struct ast_channel *ast)
 		f = ast_dsp_process(ast, channel->session->dsp, f);
 
 		if (f && (f->frametype == AST_FRAME_DTMF)) {
-			ast_debug(3, "* Detected inband DTMF '%c' on '%s'\n", f->subclass.integer,
-				ast_channel_name(ast));
+			if (f->subclass.integer == 'f') {
+				ast_debug(3, "Fax CNG detected on %s\n", ast_channel_name(ast));
+				f = gulp_cng_tone_detected(channel->session, f);
+			} else {
+				ast_debug(3, "* Detected inband DTMF '%c' on '%s'\n", f->subclass.integer,
+					ast_channel_name(ast));
+			}
 		}
 	}
 
@@ -760,6 +816,8 @@ static int gulp_write(struct ast_channel *ast, struct ast_frame *frame)
 		if ((media = pvt->media[SIP_MEDIA_VIDEO]) && media->rtp) {
 			res = ast_rtp_instance_write(media->rtp, frame);
 		}
+		break;
+	case AST_FRAME_MODEM:
 		break;
 	default:
 		ast_log(LOG_WARNING, "Can't send %d type frames with Gulp\n", frame->frametype);
@@ -872,6 +930,45 @@ static int gulp_devicestate(const char *data)
 	}
 
 	return state;
+}
+
+/*! \brief Function called to query options on a channel */
+static int gulp_queryoption(struct ast_channel *ast, int option, void *data, int *datalen)
+{
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct ast_sip_session *session = channel->session;
+	int res = -1;
+	enum ast_sip_session_t38state state = T38_STATE_UNAVAILABLE;
+
+	switch (option) {
+	case AST_OPTION_T38_STATE:
+		if (session->endpoint->t38udptl) {
+			switch (session->t38state) {
+			case T38_LOCAL_REINVITE:
+			case T38_PEER_REINVITE:
+				state = T38_STATE_NEGOTIATING;
+				break;
+			case T38_ENABLED:
+				state = T38_STATE_NEGOTIATED;
+				break;
+			case T38_REJECTED:
+				state = T38_STATE_REJECTED;
+				break;
+			default:
+				state = T38_STATE_UNKNOWN;
+				break;
+			}
+		}
+
+		*((enum ast_t38_state *) data) = state;
+		res = 0;
+
+		break;
+	default:
+		break;
+	}
+
+	return res;
 }
 
 struct indicate_data {
@@ -994,7 +1091,7 @@ static int update_connected_line_information(void *data)
 			method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
 		}
 
-		ast_sip_session_refresh(session, NULL, NULL, method, 0);
+		ast_sip_session_refresh(session, NULL, NULL, NULL, method, 0);
 	}
 
 	return 0;
@@ -1097,6 +1194,18 @@ static int gulp_indicate(struct ast_channel *ast, int condition, const void *dat
 		} else {
 			res = -1;
 		}
+		break;
+	case AST_CONTROL_T38_PARAMETERS:
+		res = 0;
+
+		if (channel->session->t38state == T38_PEER_REINVITE) {
+			const struct ast_control_t38_parameters *parameters = data;
+
+			if (parameters->request_response == AST_T38_REQUEST_PARMS) {
+				res = AST_T38_REQUEST_PARMS;
+			}
+		}
+
 		break;
 	case -1:
 		res = -1;

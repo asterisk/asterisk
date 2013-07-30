@@ -412,6 +412,10 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
 
+		if (!remote->media[i]) {
+			continue;
+		}
+
 		/* We need a null-terminated version of the media string */
 		ast_copy_pj_str(media, &local->media[i]->desc.media, sizeof(media));
 
@@ -602,6 +606,8 @@ struct ast_sip_session_delayed_request {
 	char method[15];
 	/*! Callback to call when the delayed request is created. */
 	ast_sip_session_request_creation_cb on_request_creation;
+	/*! Callback to call when the delayed request SDP is created */
+	ast_sip_session_sdp_creation_cb on_sdp_creation;
 	/*! Callback to call when the delayed request receives a response */
 	ast_sip_session_response_cb on_response;
 	/*! Request to send */
@@ -611,6 +617,7 @@ struct ast_sip_session_delayed_request {
 
 static struct ast_sip_session_delayed_request *delayed_request_alloc(const char *method,
 		ast_sip_session_request_creation_cb on_request_creation,
+		ast_sip_session_sdp_creation_cb on_sdp_creation,
 		ast_sip_session_response_cb on_response,
 		pjsip_tx_data *tdata)
 {
@@ -620,6 +627,7 @@ static struct ast_sip_session_delayed_request *delayed_request_alloc(const char 
 	}
 	ast_copy_string(delay->method, method, sizeof(delay->method));
 	delay->on_request_creation = on_request_creation;
+	delay->on_sdp_creation = on_sdp_creation;
 	delay->on_response = on_response;
 	delay->tdata = tdata;
 	return delay;
@@ -636,10 +644,10 @@ static int send_delayed_request(struct ast_sip_session *session, struct ast_sip_
 
 	if (!strcmp(delay->method, "INVITE")) {
 		ast_sip_session_refresh(session, delay->on_request_creation,
-				delay->on_response, AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1);
+				delay->on_sdp_creation, delay->on_response, AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1);
 	} else if (!strcmp(delay->method, "UPDATE")) {
 		ast_sip_session_refresh(session, delay->on_request_creation,
-				delay->on_response, AST_SIP_SESSION_REFRESH_METHOD_UPDATE, 1);
+				delay->on_sdp_creation, delay->on_response, AST_SIP_SESSION_REFRESH_METHOD_UPDATE, 1);
 	} else {
 		ast_log(LOG_WARNING, "Unexpected delayed %s request with no existing request structure\n", delay->method);
 		return -1;
@@ -675,10 +683,11 @@ static void queue_delayed_request(struct ast_sip_session *session)
 }
 
 static int delay_request(struct ast_sip_session *session, ast_sip_session_request_creation_cb on_request,
-		ast_sip_session_response_cb on_response, const char *method, pjsip_tx_data *tdata)
+		ast_sip_session_sdp_creation_cb on_sdp_creation, ast_sip_session_response_cb on_response,
+		const char *method, pjsip_tx_data *tdata)
 {
 	struct ast_sip_session_delayed_request *delay = delayed_request_alloc(method,
-			on_request, on_response, tdata);
+			on_request, on_sdp_creation, on_response, tdata);
 
 	if (!delay) {
 		return -1;
@@ -702,7 +711,9 @@ static pjmedia_sdp_session *generate_session_refresh_sdp(struct ast_sip_session 
 }
 
 int ast_sip_session_refresh(struct ast_sip_session *session,
-		ast_sip_session_request_creation_cb on_request_creation, ast_sip_session_response_cb on_response,
+		ast_sip_session_request_creation_cb on_request_creation,
+		ast_sip_session_sdp_creation_cb on_sdp_creation,
+		ast_sip_session_response_cb on_response,
 		enum ast_sip_session_refresh_method method, int generate_new_sdp)
 {
 	pjsip_inv_session *inv_session = session->inv_session;
@@ -721,7 +732,7 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 			/* We can't send a reinvite yet, so delay it */
 			ast_debug(3, "Delaying sending reinvite to %s because of outstanding transaction...\n",
 					ast_sorcery_object_get_id(session->endpoint));
-			return delay_request(session, on_request_creation, on_response, "INVITE", NULL);
+			return delay_request(session, on_request_creation, on_sdp_creation, on_response, "INVITE", NULL);
 		} else if (inv_session->state != PJSIP_INV_STATE_CONFIRMED) {
 			/* Initial INVITE transaction failed to progress us to a confirmed state
 			 * which means re-invites are not possible
@@ -737,6 +748,11 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 		if (!new_sdp) {
 			ast_log(LOG_ERROR, "Failed to generate session refresh SDP. Not sending session refresh\n");
 			return -1;
+		}
+		if (on_sdp_creation) {
+			if (on_sdp_creation(session, new_sdp)) {
+				return -1;
+			}
 		}
 	}
 
@@ -771,6 +787,132 @@ static pjsip_module session_module = {
 	.name = {"Session Module", 14},
 	.priority = PJSIP_MOD_PRIORITY_APPLICATION,
 	.on_rx_request = session_on_rx_request,
+};
+
+/*! \brief Determine whether the SDP provided requires deferral of negotiating or not
+ *
+ * \retval 1 re-invite should be deferred and resumed later
+ * \retval 0 re-invite should not be deferred
+ */
+static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
+{
+	int i;
+	if (validate_incoming_sdp(sdp)) {
+		return 0;
+	}
+
+	for (i = 0; i < sdp->media_count; ++i) {
+		/* See if there are registered handlers for this media stream type */
+		char media[20];
+		struct ast_sip_session_sdp_handler *handler;
+		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
+		RAII_VAR(struct ast_sip_session_media *, session_media, NULL, ao2_cleanup);
+
+		/* We need a null-terminated version of the media string */
+		ast_copy_pj_str(media, &sdp->media[i]->desc.media, sizeof(media));
+
+		session_media = ao2_find(session->media, media, OBJ_KEY);
+		if (!session_media) {
+			/* if the session_media doesn't exist, there weren't
+			 * any handlers at the time of its creation */
+			continue;
+		}
+
+		if (session_media->handler && session_media->handler->defer_incoming_sdp_stream) {
+			int res;
+			handler = session_media->handler;
+			res = handler->defer_incoming_sdp_stream(
+				session, session_media, sdp, sdp->media[i]);
+			if (res) {
+				return 1;
+			}
+		}
+
+		handler_list = ao2_find(sdp_handlers, media, OBJ_KEY);
+		if (!handler_list) {
+			ast_debug(1, "No registered SDP handlers for media type '%s'\n", media);
+			continue;
+		}
+		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+			int res;
+			if (session_media->handler) {
+				/* There is only one slot for this stream type and it has already been claimed
+				 * so it will go unhandled */
+				break;
+			}
+			if (!handler->defer_incoming_sdp_stream) {
+				continue;
+			}
+			res = handler->defer_incoming_sdp_stream(session, session_media, sdp, sdp->media[i]);
+			if (res) {
+				return 1;
+			}
+		}
+	}
+	return 0;
+}
+
+static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
+{
+	pjsip_dialog *dlg;
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	pjsip_rdata_sdp_info *sdp_info;
+
+	if (rdata->msg_info.msg->line.req.method.id != PJSIP_INVITE_METHOD ||
+		!(dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag, PJ_FALSE)) ||
+		!(session = ast_sip_dialog_get_session(dlg))) {
+		return PJ_FALSE;
+	}
+
+	if (session->deferred_reinvite) {
+		pj_str_t key, deferred_key;
+		pjsip_tx_data *tdata;
+
+		/* We use memory from the new request on purpose so the deferred reinvite pool does not grow uncontrollably */
+		pjsip_tsx_create_key(rdata->tp_info.pool, &key, PJSIP_ROLE_UAS, &rdata->msg_info.cseq->method, rdata);
+		pjsip_tsx_create_key(rdata->tp_info.pool, &deferred_key, PJSIP_ROLE_UAS, &session->deferred_reinvite->msg_info.cseq->method,
+			session->deferred_reinvite);
+
+		/* If this is a retransmission ignore it */
+		if (!pj_strcmp(&key, &deferred_key)) {
+			return PJ_TRUE;
+		}
+
+		/* Otherwise this is a new re-invite, so reject it */
+		if (pjsip_dlg_create_response(dlg, rdata, 491, NULL, &tdata) == PJ_SUCCESS) {
+			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
+		}
+
+		return PJ_TRUE;
+	}
+
+	if (!(sdp_info = pjsip_rdata_get_sdp_info(rdata)) ||
+		(sdp_info->sdp_err != PJ_SUCCESS) ||
+		!sdp_info->sdp ||
+		!sdp_requires_deferral(session, sdp_info->sdp)) {
+		return PJ_FALSE;
+	}
+
+	pjsip_rx_data_clone(rdata, 0, &session->deferred_reinvite);
+
+	return PJ_TRUE;
+}
+
+void ast_sip_session_resume_reinvite(struct ast_sip_session *session)
+{
+	if (!session->deferred_reinvite) {
+		return;
+	}
+
+	pjsip_endpt_process_rx_data(ast_sip_get_pjsip_endpoint(), session->deferred_reinvite, NULL, NULL);
+	pjsip_rx_data_free_cloned(session->deferred_reinvite);
+	session->deferred_reinvite = NULL;
+}
+
+static pjsip_module session_reinvite_module = {
+	.name = { "Session Re-Invite Module", 24 },
+	.priority = PJSIP_MOD_PRIORITY_UA_PROXY_LAYER - 1,
+	.on_rx_request = session_reinvite_on_rx_request,
 };
 
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
@@ -940,6 +1082,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 {
 	RAII_VAR(struct ast_sip_session *, session, ao2_alloc(sizeof(*session), session_destructor), ao2_cleanup);
 	struct ast_sip_session_supplement *iter;
+	int dsp_features = 0;
 	if (!session) {
 		return NULL;
 	}
@@ -971,12 +1114,20 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	session->req_caps = ast_format_cap_alloc_nolock();
 
 	if (endpoint->dtmf == AST_SIP_DTMF_INBAND) {
+		dsp_features |= DSP_FEATURE_DIGIT_DETECT;
+	}
+
+	if (endpoint->faxdetect) {
+		dsp_features |= DSP_FEATURE_FAX_DETECT;
+	}
+
+	if (dsp_features) {
 		if (!(session->dsp = ast_dsp_new())) {
 			ao2_ref(session, -1);
 			return NULL;
 		}
 
-		ast_dsp_set_features(session->dsp, DSP_FEATURE_DIGIT_DETECT);
+		ast_dsp_set_features(session->dsp, dsp_features);
 	}
 
 	if (add_supplements(session)) {
@@ -1044,6 +1195,9 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
+#ifdef PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
+	inv_session->sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE;
+#endif
 
 	pjsip_timer_setting_default(&timer);
 	timer.min_se = endpoint->min_se;
@@ -1189,6 +1343,9 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
+#ifdef PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
+	inv_session->sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE;
+#endif
 	if (pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS) {
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) != PJ_SUCCESS) {
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
@@ -1473,7 +1630,7 @@ static void resend_reinvite(pj_timer_heap_t *timer, pj_timer_entry *entry)
 static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session_response_cb on_response, pjsip_tx_data *tdata)
 {
 	struct ast_sip_session_delayed_request *delay = delayed_request_alloc("INVITE",
-			NULL, on_response, tdata);
+			NULL, NULL, on_response, tdata);
 	pjsip_inv_session *inv = session->inv_session;
 	struct reschedule_reinvite_data *rrd = reschedule_reinvite_data_alloc(session, delay);
 	pj_time_val tv;
@@ -1710,8 +1867,9 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 				if (tsx->status_code == PJSIP_SC_REQUEST_PENDING) {
 					reschedule_reinvite(session, tsx->mod_data[session_module.id], tsx->last_tx);
 					return;
-				} else if (inv->state == PJSIP_INV_STATE_CONFIRMED) {
-					/* Other reinvite failures result in destroying the session. */
+				} else if (inv->state == PJSIP_INV_STATE_CONFIRMED &&
+					   tsx->status_code != 488) {
+					/* Other reinvite failures (except 488) result in destroying the session. */
 					pjsip_tx_data *tdata;
 					if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS) {
 						ast_sip_session_send_request(session, tdata);
@@ -1952,12 +2110,14 @@ static int load_module(void)
 	if (ast_sip_register_service(&session_module)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	ast_sip_register_service(&session_reinvite_module);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
 	ast_sip_unregister_service(&session_module);
+	ast_sip_unregister_service(&session_reinvite_module);
 	if (nat_hook) {
 		ast_sorcery_delete(ast_sip_get_sorcery(), nat_hook);
 		nat_hook = NULL;

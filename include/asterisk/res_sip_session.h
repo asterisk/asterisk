@@ -43,6 +43,16 @@ struct ast_party_id;
 struct pjmedia_sdp_media;
 struct pjmedia_sdp_session;
 struct ast_dsp;
+struct ast_udptl;
+
+/*! \brief T.38 states for a session */
+enum ast_sip_session_t38state {
+	T38_DISABLED = 0,   /*!< Not enabled */
+	T38_LOCAL_REINVITE, /*!< Offered from local - REINVITE */
+	T38_PEER_REINVITE,  /*!< Offered from peer - REINVITE */
+	T38_ENABLED,        /*!< Negotiated (enabled) */
+	T38_REJECTED,       /*!< Refused */
+};
 
 struct ast_sip_session_sdp_handler;
 
@@ -50,8 +60,12 @@ struct ast_sip_session_sdp_handler;
  * \brief A structure containing SIP session media information
  */
 struct ast_sip_session_media {
-	/*! \brief RTP instance itself */
-	struct ast_rtp_instance *rtp;
+	union {
+		/*! \brief RTP instance itself */
+		struct ast_rtp_instance *rtp;
+		/*! \brief UDPTL instance itself */
+		struct ast_udptl *udptl;
+	};
 	/*! \brief Direct media address */
 	struct ast_sockaddr direct_media_addr;
 	/*! \brief SDP handler that setup the RTP */
@@ -113,10 +127,15 @@ struct ast_sip_session {
 	struct ast_dsp *dsp;
 	/* Whether the termination of the session should be deferred */
 	unsigned int defer_terminate:1;
+	/* Deferred incoming re-invite */
+	pjsip_rx_data *deferred_reinvite;
+	/* Current T.38 state */
+	enum ast_sip_session_t38state t38state;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
 typedef int (*ast_sip_session_response_cb)(struct ast_sip_session *session, pjsip_rx_data *rdata);
+typedef int (*ast_sip_session_sdp_creation_cb)(struct ast_sip_session *session, pjmedia_sdp_session *sdp);
 
 enum ast_sip_session_supplement_priority {
 	/*! Top priority. Supplements with this priority are those that need to run before any others */
@@ -209,6 +228,19 @@ struct ast_sip_session_supplement {
 struct ast_sip_session_sdp_handler {
 	/*! An identifier for this handler */
 	const char *id;
+	/*!
+	 * \brief Determine whether a stream requires that the re-invite be deferred.
+	 * If a stream can not be immediately negotiated the re-invite can be deferred and
+	 * resumed at a later time. It is up to the handler which caused deferral to occur
+	 * to resume it.
+	 * \param session The session for which the media is being re-invited
+	 * \param session_media The media being reinvited
+	 * \param sdp The entire SDP.
+	 * \retval 0 The stream was unhandled or does not need the re-invite to be deferred.
+	 * \retval 1 Re-invite should be deferred and will be resumed later. No further operations will take place.
+	 * \note This is optional, if not implemented the stream is assumed to not be deferred.
+	 */
+	int (*defer_incoming_sdp_stream)(struct ast_sip_session *session, struct ast_sip_session_media *session_media, const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream);
 	/*!
 	 * \brief Set session details based on a stream in an incoming SDP offer or answer
 	 * \param session The session for which the media is being negotiated
@@ -443,6 +475,7 @@ void ast_sip_session_remove_datastore(struct ast_sip_session *session, const cha
  * 
  * \param session The session on which the reinvite will be sent
  * \param on_request_creation Callback called when request is created
+ * \param on_sdp_creation Callback called when SDP is created
  * \param on_response Callback called when response for request is received
  * \param method The method that should be used when constructing the session refresh
  * \param generate_new_sdp Boolean to indicate if a new SDP should be created
@@ -451,6 +484,7 @@ void ast_sip_session_remove_datastore(struct ast_sip_session *session, const cha
  */
 int ast_sip_session_refresh(struct ast_sip_session *session,
 		ast_sip_session_request_creation_cb on_request_creation,
+		ast_sip_session_sdp_creation_cb on_sdp_creation,
 		ast_sip_session_response_cb on_response,
 		enum ast_sip_session_refresh_method method,
 		int generate_new_sdp);
@@ -512,5 +546,16 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
  * \note This function *must* be called with the dialog locked
  */
 struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg);
+
+/*!
+ * \brief Resumes processing of a deferred incoming re-invite
+ *
+ * \param session The session which has a pending incoming re-invite
+ *
+ * \note When resuming a re-invite it is given to the pjsip stack as if it
+ *       had just been received from a transport, this means that the deferral
+ *       callback will be called again.
+ */
+void ast_sip_session_resume_reinvite(struct ast_sip_session *session);
 
 #endif /* _RES_SIP_SESSION_H */

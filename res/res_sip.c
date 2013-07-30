@@ -398,6 +398,56 @@
 						Gulp channel driver will return busy as the device state instead of in use.
 					</para></description>
 				</configOption>
+				<configOption name="t38udptl" default="no">
+					<synopsis>Whether T.38 UDPTL support is enabled or not</synopsis>
+					<description><para>
+						If set to yes T.38 UDPTL support will be enabled, and T.38 negotiation requests will be accepted
+						and relayed.
+					</para></description>
+				</configOption>
+				<configOption name="t38udptl_ec" default="none">
+					<synopsis>T.38 UDPTL error correction method</synopsis>
+					<description>
+						<enumlist>
+							<enum name="none"><para>
+								No error correction should be used.
+							</para></enum>
+							<enum name="fec"><para>
+								Forward error correction should be used.
+							</para></enum>
+							<enum name="redundancy"><para>
+								Redundacy error correction should be used.
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="t38udptl_maxdatagram" default="0">
+					<synopsis>T.38 UDPTL maximum datagram size</synopsis>
+					<description><para>
+						This option can be set to override the maximum datagram of a remote endpoint for broken
+						endpoints.
+					</para></description>
+				</configOption>
+				<configOption name="faxdetect" default="no">
+					<synopsis>Whether CNG tone detection is enabled</synopsis>
+					<description><para>
+						This option can be set to send the session to the fax extension when a CNG tone is
+						detected.
+					</para></description>
+				</configOption>
+				<configOption name="t38udptl_nat" default="no">
+					<synopsis>Whether NAT support is enabled on UDPTL sessions</synopsis>
+					<description><para>
+						When enabled the UDPTL stack will send UDPTL packets to the source address of
+						received packets.
+					</para></description>
+				</configOption>
+				<configOption name="t38udptl_ipv6" default="no">
+					<synopsis>Whether IPv6 is used for UDPTL Sessions</synopsis>
+					<description><para>
+						When enabled the UDPTL stack will use IPv6.
+					</para></description>
+				</configOption>
 				<configOption name="tonezone">
 					<synopsis>Set which country's indications to use for channels created for this endpoint.</synopsis>
 				</configOption>
