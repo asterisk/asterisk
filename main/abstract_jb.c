@@ -409,7 +409,6 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 	struct ast_jb_conf *jbconf = &jb->conf;
 	const struct ast_jb_impl *jbimpl = jb->impl;
 	void *jbobj;
-	struct ast_channel *bridged;
 	long now;
 	char logfile_pathname[20 + AST_JB_IMPL_NAME_SIZE + 2*AST_CHANNEL_NAME + 1];
 	char name1[AST_CHANNEL_NAME], name2[AST_CHANNEL_NAME], *tmp;
@@ -442,14 +441,15 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 
 	/* Create a frame log file */
 	if (ast_test_flag(jbconf, AST_JB_LOG)) {
+		RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(chan), ast_channel_cleanup);
 		char safe_logfile[30] = "/tmp/logfile-XXXXXX";
 		int safe_fd;
+
 		snprintf(name2, sizeof(name2), "%s", ast_channel_name(chan));
 		if ((tmp = strchr(name2, '/'))) {
 			*tmp = '#';
 		}
 
-		bridged = ast_bridged_channel(chan);
 		/* We should always have bridged chan if a jitterbuffer is in use */
 		ast_assert(bridged != NULL);
 
