@@ -1347,7 +1347,7 @@ static char *pktccops_gateset(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (a->argc < 9)
 		return CLI_SHOWUSAGE;
 
-	if (!strncmp(a->argv[2], "null", sizeof(a->argv[2]))) {
+	if (!strcmp(a->argv[2], "null")) {
 		cmts = NULL;
 	} else {
 		AST_LIST_LOCK(&cmts_list);
