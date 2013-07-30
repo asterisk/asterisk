@@ -43,8 +43,8 @@ snmp/agent.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_snmp)
 $(if $(filter res_ael_share,$(EMBEDDED_MODS)),modules.link,res_ael_share.so): ael/ael_lex.o ael/ael.tab.o ael/pval.o
 ael/ael_lex.o ael/ael.tab.o ael/pval.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ael_share)
 
-$(if $(filter res_sip,$(EMBEDDED_MODS)),modules.link,res_sip.so): $(subst .c,.o,$(wildcard res_sip/*.c))
-$(subst .c,.o,$(wildcard res_sip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_sip)
+$(if $(filter res_pjsip,$(EMBEDDED_MODS)),modules.link,res_pjsip.so): $(subst .c,.o,$(wildcard res_pjsip/*.c))
+$(subst .c,.o,$(wildcard res_pjsip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_pjsip)
 
 $(if $(filter res_stasis,$(EMBEDDED_MODS)),modules.link,res_stasis.so): $(subst .c,.o,$(wildcard stasis/*.c))
 $(subst .c,.o,$(wildcard stasis/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis)
@@ -74,7 +74,7 @@ ael/pval.o: ael/pval.c
 
 clean::
 	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] ari/*.[oi]
-	rm -f res_sip/*.[oi] stasis/*.[oi]
+	rm -f res_pjsip/*.[oi] stasis/*.[oi]
 	rm -f parking/*.o parking/*.i
 
 $(if $(filter res_parking,$(EMBEDDED_MODS)),modules.link,res_parking.so): $(subst .c,.o,$(wildcard parking/*.c))
