@@ -42,7 +42,7 @@ static struct ast_sip_endpoint *constant_identify(pjsip_rx_data *rdata)
 	if (!endpoint) {
 		return NULL;
 	}
-	ast_parse_allow_disallow(&endpoint->prefs, endpoint->codecs, "ulaw", 1);
+	ast_parse_allow_disallow(&endpoint->media.prefs, endpoint->media.codecs, "ulaw", 1);
 	return endpoint;
 }
 
