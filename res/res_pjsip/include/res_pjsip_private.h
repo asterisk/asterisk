@@ -5,8 +5,8 @@
  *      Author: mjordan
  */
 
-#ifndef RES_SIP_PRIVATE_H_
-#define RES_SIP_PRIVATE_H_
+#ifndef RES_PJSIP_PRIVATE_H_
+#define RES_PJSIP_PRIVATE_H_
 
 struct ao2_container;
 
@@ -71,4 +71,4 @@ int ast_sip_initialize_system(void);
  */
 int ast_sip_initialize_global(void);
 
-#endif /* RES_SIP_PRIVATE_H_ */
+#endif /* RES_PJSIP_PRIVATE_H_ */

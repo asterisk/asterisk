@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-#ifndef _RES_SIP_EXTEN_STATE_H
-#define _RES_SIP_EXTEN_STATE_H
+#ifndef _RES_PJSIP_EXTEN_STATE_H
+#define _RES_PJSIP_EXTEN_STATE_H
 
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
@@ -91,4 +91,4 @@ int ast_sip_register_exten_state_provider(struct ast_sip_exten_state_provider *o
  */
 void ast_sip_unregister_exten_state_provider(struct ast_sip_exten_state_provider *obj);
 
-#endif
+#endif /* _RES_PJSIP_EXTEN_STATE_H */

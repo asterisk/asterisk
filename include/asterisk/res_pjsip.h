@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-#ifndef _RES_SIP_H
-#define _RES_SIP_H
+#ifndef _RES_PJSIP_H
+#define _RES_PJSIP_H
 
 #include "asterisk/stringfields.h"
 /* Needed for struct ast_sockaddr */
@@ -1499,4 +1499,4 @@ int ast_sip_add_global_response_header(const char *name, const char *value, int 
 
 int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery);
 
-#endif /* _RES_SIP_H */
+#endif /* _RES_PJSIP_H */

@@ -577,7 +577,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
-	/* If res_sip_session is ever updated to create/destroy ast_sip_session_media
+	/* If res_pjsip_session is ever updated to create/destroy ast_sip_session_media
 	 * during a call such as if multiple same-type stream support is introduced,
 	 * these will need to be recaptured as well */
 	pvt->media[SIP_MEDIA_AUDIO] = ao2_find(session->media, "audio", OBJ_KEY);

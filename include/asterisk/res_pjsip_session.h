@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-#ifndef _RES_SIP_SESSION_H
-#define _RES_SIP_SESSION_H
+#ifndef _RES_PJSIP_SESSION_H
+#define _RES_PJSIP_SESSION_H
 
 /* Needed for pj_timer_entry definition */
 #include "pjlib.h"
@@ -141,7 +141,7 @@ enum ast_sip_session_supplement_priority {
 	/*! Top priority. Supplements with this priority are those that need to run before any others */
 	AST_SIP_SESSION_SUPPLEMENT_PRIORITY_FIRST = 0,
 	/*! Channel creation priority.
-	 * chan_gulp creates a channel at this priority. If your supplement depends on being run before
+	 * chan_pjsip creates a channel at this priority. If your supplement depends on being run before
 	 * or after channel creation, then set your priority to be lower or higher than this value.
 	 */
 	AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL = 1000000,
@@ -466,7 +466,7 @@ void ast_sip_session_remove_datastore(struct ast_sip_session *session, const cha
  * \brief Send a reinvite or UPDATE on a session
  *
  * This method will inspect the session in order to construct an appropriate
- * session refresh request. As with any outgoing request in res_sip_session,
+ * session refresh request. As with any outgoing request in res_pjsip_session,
  * this will call into registered supplements in case they wish to add anything.
  *
  * Note: The on_request_creation callback may or may not be called in the same
@@ -558,4 +558,4 @@ struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg);
  */
 void ast_sip_session_resume_reinvite(struct ast_sip_session *session);
 
-#endif /* _RES_SIP_SESSION_H */
+#endif /* _RES_PJSIP_SESSION_H */

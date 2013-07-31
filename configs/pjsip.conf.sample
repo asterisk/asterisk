@@ -1,4 +1,4 @@
-; This is an in-flux configuration file for the res_sip module, it will change as things progress
+; This is an in-flux configuration file for the res_pjsip module, it will change as things progress
 
 ;;; Transports
 ;[local]

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-#ifndef _RES_SIP_PUBSUB_H
-#define _RES_SIP_PUBSUB_H
+#ifndef _RES_PJSIP_PUBSUB_H
+#define _RES_PJSIP_PUBSUB_H
 
 #include "asterisk/linkedlists.h"
 
@@ -513,4 +513,4 @@ int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *h
  */
 void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler *handler);
 
-#endif /* RES_SIP_PUBSUB_H */
+#endif /* RES_PJSIP_PUBSUB_H */
