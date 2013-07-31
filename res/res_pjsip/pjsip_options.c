@@ -625,9 +625,9 @@ static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sip qualify";
+		e->command = "pjsip qualify";
 		e->usage =
-			"Usage: sip qualify <endpoint>\n"
+			"Usage: pjsip qualify <endpoint>\n"
 			"       Send a SIP OPTIONS request to all contacts on the endpoint.\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -653,7 +653,7 @@ static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 }
 
 static struct ast_cli_entry cli_options[] = {
-	AST_CLI_DEFINE(cli_qualify, "Send an OPTIONS request to a SIP endpoint")
+	AST_CLI_DEFINE(cli_qualify, "Send an OPTIONS request to a PJSIP endpoint")
 };
 
 static int sched_qualifies_hash_fn(const void *obj, int flags)
