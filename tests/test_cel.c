@@ -61,6 +61,18 @@ static struct ast_cel_general_config *saved_config;
 /*! \brief The CEL config used for CEL unit tests */
 static struct ast_cel_general_config *cel_test_config;
 
+/*! \brief Lock used for synchronizing test execution stages with received events */
+ast_mutex_t mid_test_sync_lock;
+
+/*! \brief Lock used with sync_out for checking the end of test execution */
+ast_mutex_t sync_lock;
+
+/*! \brief Condition used for checking the end of test execution */
+ast_cond_t sync_out;
+
+/*! \brief Flag used to trigger a mid-test synchronization, access controlled by mid_test_sync_lock */
+int do_mid_test_sync = 0;
+
 /*! \brief A channel technology used for the unit tests */
 static struct ast_channel_tech test_cel_chan_tech = {
 	.type = CHANNEL_TECH_NAME,
@@ -96,6 +108,7 @@ static void do_sleep(void)
 #define CONF_EXIT(channel, bridge) do { \
 	ast_test_validate(test, 0 == ast_bridge_depart(channel)); \
 	CONF_EXIT_EVENT(channel, bridge); \
+	mid_test_sync(); \
 	} while (0)
 
 #define CONF_EXIT_EVENT(channel, bridge) do { \
@@ -226,6 +239,8 @@ static void do_sleep(void)
 	ast_test_validate(test, extra != NULL); \
 	APPEND_EVENT(channel, AST_CEL_HANGUP, NULL, extra, NULL); \
 	} while (0)
+
+static void mid_test_sync(void);
 
 static int append_expected_event(
 	struct ast_channel *chan,
@@ -597,11 +612,8 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 	BRIDGE_TO_CONF(chan_alice, chan_bob, chan_charlie, bridge);
 
 	CONF_EXIT(chan_alice, bridge);
-	do_sleep();
 	CONF_EXIT(chan_bob, bridge);
-	do_sleep();
 	CONF_EXIT(chan_charlie, bridge);
-	do_sleep();
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1072,11 +1084,8 @@ AST_TEST_DEFINE(test_cel_dial_answer_multiparty)
 	CONF_ENTER_EVENT(chan_alice, bridge);
 
 	CONF_EXIT(chan_alice, bridge);
-	do_sleep();
 	CONF_EXIT(chan_bob, bridge);
-	do_sleep();
 	CONF_EXIT(chan_charlie, bridge);
-	do_sleep();
 	CONF_EXIT(chan_david, bridge);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "ANSWER");
@@ -1212,10 +1221,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 
 	do_sleep();
 	CONF_EXIT(chan_bob, bridge2);
-	do_sleep();
 	CONF_EXIT(chan_charlie, bridge2);
 
-	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1300,10 +1307,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 
 	do_sleep();
 	CONF_EXIT(chan_bob, bridge1);
-	do_sleep();
 	CONF_EXIT(chan_charlie, bridge1);
 
-	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1411,10 +1416,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 
 	do_sleep();
 	CONF_EXIT(chan_bob, bridge1);
-	do_sleep();
 	CONF_EXIT(chan_charlie, bridge2);
 
-	do_sleep();
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1558,6 +1561,29 @@ static struct ast_event *ao2_dup_event(const struct ast_event *event)
 	return event_dup;
 }
 
+static void mid_test_sync(void)
+{
+	ast_mutex_lock(&mid_test_sync_lock);
+	if (ao2_container_count(cel_expected_events) <= ao2_container_count(cel_received_events)) {
+		ast_mutex_unlock(&mid_test_sync_lock);
+		return;
+	}
+
+	do_mid_test_sync = 1;
+	ast_mutex_unlock(&mid_test_sync_lock);
+
+	{
+		struct timeval start = ast_tvnow();
+		struct timespec end = {
+			.tv_sec = start.tv_sec + 15,
+			.tv_nsec = start.tv_usec * 1000
+		};
+
+		SCOPED_MUTEX(lock, &sync_lock);
+		ast_cond_timedwait(&sync_out, &sync_lock, &end);
+	}
+}
+
 static int append_event(struct ast_event *ev)
 {
 	RAII_VAR(struct ast_event *, ao2_ev, NULL, ao2_cleanup);
@@ -1613,13 +1639,12 @@ static int append_expected_event(
 	return append_expected_event_snapshot(snapshot, type, userdefevname, extra, peer);
 }
 
-ast_mutex_t sync_lock;
-ast_cond_t sync_out;
-
 static void test_sub(const struct ast_event *event, void *data)
 {
 	struct ast_event *event_dup = ao2_dup_event(event);
 	const char *sync_tag;
+	SCOPED_MUTEX(mid_test_lock, &mid_test_sync_lock);
+
 	if (!event_dup) {
 		return;
 	}
@@ -1633,8 +1658,21 @@ static void test_sub(const struct ast_event *event, void *data)
 			return;
 		}
 	}
+
 	/* save the event for later processing */
 	ao2_link(cel_received_events, event_dup);
+
+	if (do_mid_test_sync) {
+		int expected = ao2_container_count(cel_expected_events);
+		int received = ao2_container_count(cel_received_events);
+		if (expected <= received) {
+			{
+			SCOPED_MUTEX(lock, &sync_lock);
+			ast_cond_signal(&sync_out);
+			do_mid_test_sync = 0;
+			}
+		}
+	}
 }
 
 /*!
@@ -1646,6 +1684,7 @@ static int test_cel_init_cb(struct ast_test_info *info, struct ast_test *test)
 	ast_assert(cel_received_events == NULL);
 	ast_assert(cel_expected_events == NULL);
 
+	ast_mutex_init(&mid_test_sync_lock);
 	ast_mutex_init(&sync_lock);
 	ast_cond_init(&sync_out, NULL);
 
@@ -1885,7 +1924,7 @@ static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test
 	} else {
 		struct timeval start = ast_tvnow();
 		struct timespec end = {
-			.tv_sec = start.tv_sec + 30,
+			.tv_sec = start.tv_sec + 15,
 			.tv_nsec = start.tv_usec * 1000
 		};
 
@@ -1911,6 +1950,7 @@ static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test
 
 	/* clean up the locks */
 	ast_mutex_destroy(&sync_lock);
+	ast_mutex_destroy(&mid_test_sync_lock);
 	ast_cond_destroy(&sync_out);
 	return 0;
 }
