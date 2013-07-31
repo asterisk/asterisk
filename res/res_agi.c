@@ -155,13 +155,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Defaults to <literal>#</literal></para>
 			</parameter>
 			<parameter name="pausechr" />
+			<parameter name="offsetms">
+				<para>Offset, in milliseconds, to start the audio playback</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Send the given file, allowing playback to be controlled by the given
 			digits, if any. Use double quotes for the digits if you wish none to be
-			permitted. Returns <literal>0</literal> if playback completes without a digit
+			permitted. If offsetms is provided then the audio will seek to offsetms
+			before play starts. Returns <literal>0</literal> if playback completes without a digit
 			being pressed, or the ASCII numerical value of the digit if one was pressed,
-			or <literal>-1</literal> on error or if the channel was disconnected.</para>
+			or <literal>-1</literal> on error or if the channel was disconnected. Returns the
+			position where playback was terminated as endpos.</para>
+
 			<para>It sets the following channel variables upon completion:</para>
 			<variablelist>
 				<variable name="CPLAYBACKSTATUS">
@@ -368,9 +374,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>Receives a string of text on a channel. Most channels 
+			<para>Receives a string of text on a channel. Most channels
 			do not support the reception of text. Returns <literal>-1</literal> for failure
-			or <literal>1</literal> for success, and the string in parenthesis.</para> 
+			or <literal>1</literal> for success, and the string in parenthesis.</para>
 		</description>
 	</agi>
 	<agi name="record file" language="en_US">
@@ -2092,7 +2098,7 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	long offsetms = 0;
 	char offsetbuf[20];
 
-	if (argc < 5 || argc > 9) {
+	if (argc < 5 || argc > 10) {
 		return RESULT_SHOWUSAGE;
 	}
 
@@ -2116,7 +2122,11 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 		suspend = argv[8];
 	}
 
-	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, suspend, NULL, skipms, NULL);
+	if (argc > 9 && (sscanf(argv[9], "%30ld", &offsetms) != 1)) {
+		return RESULT_SHOWUSAGE;
+	}
+
+	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, suspend, NULL, skipms, &offsetms);
 
 	/* If we stopped on one of our stop keys, return 0  */
 	if (res > 0 && stop && strchr(stop, res)) {
@@ -2137,7 +2147,7 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	snprintf(offsetbuf, sizeof(offsetbuf), "%ld", offsetms);
 	pbx_builtin_setvar_helper(chan, "CPLAYBACKOFFSET", offsetbuf);
 
-	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
+	ast_agi_send(agi->fd, chan, "200 result=%d endpos=%ld\n", res, offsetms);
 
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
@@ -2518,7 +2528,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 		}
 		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
 	}
-	
+
 	/* backward compatibility, if no offset given, arg[6] would have been
 	 * caught below and taken to be a beep, else if it is a digit then it is a
 	 * offset */
@@ -2881,7 +2891,7 @@ static int handle_dbget(struct ast_channel *chan, AGI *agi, int argc, const char
 			break;
 		}
 	} while (1);
-	
+
 	if (res)
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 	else
@@ -3294,15 +3304,15 @@ static struct agi_command commands[] = {
 	{ { "noop", NULL }, handle_noop, NULL, NULL, 1 },
 	{ { "receive", "char", NULL }, handle_recvchar, NULL, NULL, 0 },
 	{ { "receive", "text", NULL }, handle_recvtext, NULL, NULL, 0 },
-	{ { "record", "file", NULL }, handle_recordfile, NULL, NULL, 0 }, 
+	{ { "record", "file", NULL }, handle_recordfile, NULL, NULL, 0 },
 	{ { "say", "alpha", NULL }, handle_sayalpha, NULL, NULL, 0},
 	{ { "say", "digits", NULL }, handle_saydigits, NULL, NULL, 0 },
 	{ { "say", "number", NULL }, handle_saynumber, NULL, NULL, 0 },
-	{ { "say", "phonetic", NULL }, handle_sayphonetic, NULL, NULL, 0}, 
-	{ { "say", "date", NULL }, handle_saydate, NULL, NULL, 0}, 
-	{ { "say", "time", NULL }, handle_saytime, NULL, NULL, 0}, 
+	{ { "say", "phonetic", NULL }, handle_sayphonetic, NULL, NULL, 0},
+	{ { "say", "date", NULL }, handle_saydate, NULL, NULL, 0},
+	{ { "say", "time", NULL }, handle_saytime, NULL, NULL, 0},
 	{ { "say", "datetime", NULL }, handle_saydatetime, NULL, NULL, 0},
-	{ { "send", "image", NULL }, handle_sendimage, NULL, NULL, 0}, 
+	{ { "send", "image", NULL }, handle_sendimage, NULL, NULL, 0},
 	{ { "send", "text", NULL }, handle_sendtext, NULL, NULL, 0},
 	{ { "set", "autohangup", NULL }, handle_autohangup, NULL, NULL, 0},
 	{ { "set", "callerid", NULL }, handle_setcallerid, NULL, NULL, 0},
@@ -3706,7 +3716,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	const char *sighup_str;
 	const char *exit_on_hangup_str;
 	int exit_on_hangup;
-	
+
 	ast_channel_lock(chan);
 	sighup_str = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
 	send_sighup = !ast_false(sighup_str);
@@ -3721,7 +3731,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 		close(agi->ctrl);
 		return AGI_RESULT_FAILURE;
 	}
-	
+
 	setlinebuf(readf);
 	setup_env(chan, request, agi->fd, (agi->audio > -1), argc, argv);
 	for (;;) {

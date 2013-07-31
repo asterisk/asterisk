@@ -305,6 +305,10 @@ AGI (Asterisk Gateway Interface)
  * The manager event AsyncAGI has been split into AsyncAGIStart, AsyncAGIExec,
    and AsyncAGIEnd.
 
+ * The CONTROL STREAM FILE command now accepts an offsetms parameter. This
+   will start the playback of the audio at the position specified. It will
+   also return the final position of the file in 'endpos'.
+
 CDR (Call Detail Records)
 ------------------
  * Significant changes have been made to the behavior of CDRs. For a full
