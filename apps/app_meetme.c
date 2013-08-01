@@ -567,7 +567,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Usernum">
 					<para>The identifier of the MeetMe user who joined.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">MeetmeLeave</ref>
@@ -580,7 +580,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when a user leaves a MeetMe conference.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Duration">
 					<para>The length of time in seconds that the Meetme user was in the conference.</para>
 				</parameter>
@@ -606,7 +606,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when a MeetMe user has started talking.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Duration">
 					<para>The length of time in seconds that the Meetme user has been in the conference at the time of this event.</para>
 				</parameter>
@@ -624,7 +624,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when a MeetMe user begins or ends talking.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeTalkRequest']/managerEventInstance/syntax/parameter)" />
 			</syntax>
 		</managerEventInstance>
@@ -634,7 +634,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when a MeetMe user is muted or unmuted.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeJoin']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='MeetmeTalkRequest']/managerEventInstance/syntax/parameter)" />
 			</syntax>
 		</managerEventInstance>

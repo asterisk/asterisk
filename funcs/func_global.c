@@ -87,7 +87,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
 			<synopsis>Raised when a variable is shared between channels.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Variable">
 					<para>The SHARED variable being set.</para>
 					<note><para>The variable name will always be enclosed with

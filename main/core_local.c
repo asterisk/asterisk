@@ -72,82 +72,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when two halves of a Local Channel form a bridge.</synopsis>
 			<syntax>
-				<parameter name="LocalOneChannel">
-				</parameter>
-				<parameter name="LocalOneChannelState">
-					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="LocalOneChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="LocalOneCallerIDNum">
-				</parameter>
-				<parameter name="LocalOneCallerIDName">
-				</parameter>
-				<parameter name="LocalOneConnectedLineNum">
-				</parameter>
-				<parameter name="LocalOneConnectedLineName">
-				</parameter>
-				<parameter name="LocalOneAccountCode">
-				</parameter>
-				<parameter name="LocalOneContext">
-				</parameter>
-				<parameter name="LocalOneExten">
-				</parameter>
-				<parameter name="LocalOnePriority">
-				</parameter>
-				<parameter name="LocalOneUniqueid">
-				</parameter>
-				<parameter name="LocalTwoChannel">
-				</parameter>
-				<parameter name="LocalTwoChannelState">
-					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="LocalTwoChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="LocalTwoCallerIDNum">
-				</parameter>
-				<parameter name="LocalTwoCallerIDName">
-				</parameter>
-				<parameter name="LocalTwoConnectedLineNum">
-				</parameter>
-				<parameter name="LocalTwoConnectedLineName">
-				</parameter>
-				<parameter name="LocalTwoAccountCode">
-				</parameter>
-				<parameter name="LocalTwoContext">
-				</parameter>
-				<parameter name="LocalTwoExten">
-				</parameter>
-				<parameter name="LocalTwoPriority">
-				</parameter>
-				<parameter name="LocalTwoUniqueid">
-				</parameter>
+				<channel_snapshot prefix="LocalOne"/>
+				<channel_snapshot prefix="LocalTwo"/>
 				<parameter name="Context">
 					<para>The context in the dialplan that Channel2 starts in.</para>
 				</parameter>
@@ -168,8 +94,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when two halves of a Local Channel begin to optimize
 			themselves out of the media path.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalOne')])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalTwo')])" />
+				<channel_snapshot prefix="LocalOne"/>
+				<channel_snapshot prefix="LocalTwo"/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">LocalOptimizationEnd</ref>
@@ -182,8 +108,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when two halves of a Local Channel have finished optimizing
 			themselves out of the media path.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalOne')])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='LocalBridge']/managerEventInstance/syntax/parameter[contains(@name, 'LocalTwo')])" />
+				<channel_snapshot prefix="LocalOne"/>
+				<channel_snapshot prefix="LocalTwo"/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">LocalOptimizationBegin</ref>

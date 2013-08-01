@@ -32,7 +32,7 @@
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
 			<synopsis>Raised when an RTCP packet is sent.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="SSRC">
 					<para>The SSRC identifier for our stream</para>
 				</parameter>
@@ -108,7 +108,7 @@
 		<managerEventInstance class="EVENT_FLAG_REPORTING">
 			<synopsis>Raised when an RTCP packet is received.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="SSRC">
 					<para>The SSRC identifier for the remote system</para>
 				</parameter>

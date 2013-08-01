@@ -286,33 +286,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a call pickup occurs.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
-				<parameter name="TargetChannel"/>
-				<parameter name="TargetChannelState"><para>A numeric code for the channel's current state, related to TargetChannelStateDesc</para></parameter>
-				<parameter name="TargetChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="TargetCallerIDNum"/>
-				<parameter name="TargetCallerIDName"/>
-				<parameter name="TargetConnectedLineNum"/>
-				<parameter name="TargetConnectedLineName"/>
-				<parameter name="TargetAccountCode"/>
-				<parameter name="TargetContext"/>
-				<parameter name="TargetExten"/>
-				<parameter name="TargetPriority"/>
-				<parameter name="TargetUniqueid"/>
+				<channel_snapshot/>
+				<channel_snapshot prefix="Target"/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>

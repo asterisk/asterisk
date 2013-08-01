@@ -58,48 +58,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<note><para>A result of <literal>Success</literal> does not necessarily mean that a target was succesfully
 					contacted. It means that a party was succesfully placed into the dialplan at the expected location.</para></note>
 				</parameter>
-				<parameter name="TransfererChannel">
-					<para>The name of the channel that performed the transfer</para>
-				</parameter>
-				<parameter name="TransfererChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="TransfererCallerIDNum">
-				</parameter>
-				<parameter name="TransfererCallerIDName">
-				</parameter>
-				<parameter name="TransfererConnectedLineNum">
-				</parameter>
-				<parameter name="TransfererConnectedLineName">
-				</parameter>
-				<parameter name="TransfererAccountCode">
-				</parameter>
-				<parameter name="TransfererContext">
-				</parameter>
-				<parameter name="TransfererExten">
-				</parameter>
-				<parameter name="TransfererPriority">
-				</parameter>
-				<parameter name="TransfererUniqueid">
-				</parameter>
-				<parameter name="BridgeUniqueid">
-					<para>The ID of the bridge where the Transferer performed the transfer</para>
-				</parameter>
-				<parameter name="BridgeType">
-					<para>The type of the bridge where the Transferer performed the transfer</para>
-				</parameter>
+				<channel_snapshot prefix="Transferer"/>
+				<bridge_snapshot/>
 				<parameter name="IsExternal">
 					<para>Indicates if the transfer was performed outside of Asterisk. For instance,
 					a channel protocol native transfer is external. A DTMF transfer is internal.</para>
@@ -122,100 +82,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised when an attended transfer is complete.</synopsis>
 			<syntax>
 				<xi:include xpointer="xpointer(docs/managerEvent[@name='BlindTransfer']/managerEventInstance/syntax/parameter[@name='Result'])" />
-				<parameter name="OrigTransfererChannel">
-					<para>The original transferer channel that performed the attended transfer.</para>
-				</parameter>
-				<parameter name="OrigTransfererChannelState">
-					<para>A numeric code for the channel's current state, related to DestChannelStateDesc</para>
-				</parameter>
-				<parameter name="OrigTransfererChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="OrigTransfererCallerIDNum">
-				</parameter>
-				<parameter name="OrigTransfererCallerIDName">
-				</parameter>
-				<parameter name="OrigTransfererConnectedLineNum">
-				</parameter>
-				<parameter name="OrigTransfererConnectedLineName">
-				</parameter>
-				<parameter name="OrigTransfererAccountCode">
-				</parameter>
-				<parameter name="OrigTransfererContext">
-				</parameter>
-				<parameter name="OrigTransfererExten">
-				</parameter>
-				<parameter name="OrigTransfererPriority">
-				</parameter>
-				<parameter name="OrigTransfererUniqueid">
-				</parameter>
-				<parameter name="OrigBridgeUniqueid">
-					<para>The ID of the bridge where the Transferer performed the transfer</para>
-					<note><para>This header will not be present if the original transferer was not in a bridge.</para></note>
-				</parameter>
-				<parameter name="OrigBridgeType">
-					<para>The type of the bridge where the Transferer performed the transfer</para>
-					<note><para>This header will not be present if the original transferer was not in a bridge.</para></note>
-				</parameter>
-				<parameter name="SecondTransfererChannel">
-					<para>The second transferer channel involved in the attended transfer.</para>
-				</parameter>
-				<parameter name="SecondTransfererChannelState">
-					<para>A numeric code for the channel's current state, related to SecondTransfererChannelStateDesc</para>
-				</parameter>
-				<parameter name="SecondTransfererChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="SecondTransfererCallerIDNum">
-				</parameter>
-				<parameter name="SecondTransfererCallerIDName">
-				</parameter>
-				<parameter name="SecondTransfererConnectedLineNum">
-				</parameter>
-				<parameter name="SecondTransfererConnectedLineName">
-				</parameter>
-				<parameter name="SecondTransfererAccountCode">
-				</parameter>
-				<parameter name="SecondTransfererContext">
-				</parameter>
-				<parameter name="SecondTransfererExten">
-				</parameter>
-				<parameter name="SecondTransfererPriority">
-				</parameter>
-				<parameter name="SecondTransfererUniqueid">
-				</parameter>
-				<parameter name="SecondBridgeUniqueid">
-					<para>The unique ID of the bridge that the second transferer channel was in, or <literal>None</literal> if the second transferer channel was not bridged</para>
-					<note><para>This header will not be present if the second transferer was not in a bridge.</para></note>
-				</parameter>
-				<parameter name="SecondBridgeType">
-					<para>The type of the bridge where the Transferer performed the transfer</para>
-					<note><para>This header will not be present if the second transferer was not in a bridge.</para></note>
-				</parameter>
+				<channel_snapshot prefix="OrigTransferer"/>
+				<bridge_snapshot prefix="Orig"/>
+				<channel_snapshot prefix="SecondTransferer"/>
+				<bridge_snapshot prefix="Second"/>
 				<parameter name="DestType">
 					<para>Indicates the method by which the attended transfer completed.</para>
 					<enumlist>
@@ -234,107 +104,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Indicates the application that is running when the transfer completes</para>
 					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>App</literal></para></note>
 				</parameter>
-				<parameter name="LocalOneChannel">
-					<para>The local channel that is bridged with the original bridge when forming a link between bridges</para>
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneChannelState">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneCallerIDNum">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneCallerIDName">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneConnectedLineNum">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneConnectedLineName">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneAccountCode">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneContext">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneExten">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOnePriority">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalOneUniqueid">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoChannel">
-					<para>The local channel that is bridged with the second bridge when forming a link between bridges</para>
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoChannelState">
-					<para>A numeric code for the channel's current state, related to LocalTwoChannelStateDesc</para>
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoCallerIDNum">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoCallerIDName">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoConnectedLineNum">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoConnectedLineName">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoAccountCode">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoContext">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoExten">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoPriority">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
-				<parameter name="LocalTwoUniqueid">
-					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Link</literal></para></note>
-				</parameter>
+				<channel_snapshot prefix="LocalOne"/>
+				<channel_snapshot prefix="LocalTwo"/>
 				<parameter name="DestTransfererChannel">
 					<para>The name of the surviving transferer channel when a transfer results in a threeway call</para>
 					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Threeway</literal></para></note>
@@ -345,15 +116,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				and the two bridges are determined based on their chronological establishment. So consider that Alice calls Bob, and then Alice
 				transfers the call to Voicemail. The transferer and bridge headers would be arranged as follows:</para>
 				<para>	<replaceable>OrigTransfererChannel</replaceable>: Alice's channel in the bridge with Bob.</para>
-				<para>	<replaceable>BridgeUniqueidOrig</replaceable>: The bridge between Alice and Bob.</para>
+				<para>	<replaceable>OrigBridgeUniqueid</replaceable>: The bridge between Alice and Bob.</para>
 				<para>	<replaceable>SecondTransfererChannel</replaceable>: Alice's channel that called Voicemail.</para>
-				<para>	<replaceable>BridgeUniqueidSecond</replaceable>: Not present, since a call to Voicemail has no bridge.</para>
+				<para>	<replaceable>SecondBridgeUniqueid</replaceable>: Not present, since a call to Voicemail has no bridge.</para>
 				<para>Now consider if the order were reversed; instead of having Alice call Bob and transfer him to Voicemail, Alice instead
 				calls her Voicemail and transfers that to Bob. The transferer and bridge headers would be arranged as follows:</para>
 				<para>	<replaceable>OrigTransfererChannel</replaceable>: Alice's channel that called Voicemail.</para>
-				<para>	<replaceable>BridgeUniqueidOrig</replaceable>: Not present, since a call to Voicemail has no bridge.</para>
+				<para>	<replaceable>OrigBridgeUniqueid</replaceable>: Not present, since a call to Voicemail has no bridge.</para>
 				<para>	<replaceable>SecondTransfererChannel</replaceable>: Alice's channel in the bridge with Bob.</para>
-				<para>	<replaceable>BridgeUniqueidSecond</replaceable>: The bridge between Alice and Bob.</para>
+				<para>	<replaceable>SecondBridgeUniqueid</replaceable>: The bridge between Alice and Bob.</para>
 			</description>
 		</managerEventInstance>
 	</managerEvent>

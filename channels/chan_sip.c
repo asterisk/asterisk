@@ -643,7 +643,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a SIP session times out.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Source">
 					<para>The source of the session timeout.</para>
 					<enumlist>

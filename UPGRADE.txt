@@ -96,6 +96,11 @@ CEL:
  - The Uniqueid field for a channel is now a stable identifier, and will not
    change due to transfers, parking, etc.
 
+Build System:
+ - Asterisk now optionally uses libxslt to improve XML documentation generation
+   and maintainability. If libxslt is not available on the system, some XML
+   documentation will be incomplete.
+
 Core:
  - The following channel variables have changed behavior which is described in
    the CHANGES file: TRANSFER_CONTEXT, BRIDGEPEER, BRIDGEPVTCALLID,

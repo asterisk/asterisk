@@ -31,7 +31,7 @@
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Published when a malicious call ID request arrives.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="MCallerIDNumValid">
 				</parameter>
 				<parameter name="MCallerIDNum">

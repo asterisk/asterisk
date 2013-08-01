@@ -940,7 +940,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_AGI">
 			<synopsis>Raised when a channel starts AsyncAGI command processing.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Env">
 					<para>URL encoded string read from the AsyncAGI server.</para>
 				</parameter>
@@ -951,7 +951,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_AGI">
 			<synopsis>Raised when a channel stops AsyncAGI command processing.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -959,7 +959,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_AGI">
 			<synopsis>Raised when AsyncAGI completes an AGI command.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="CommandID" required="false">
 					<para>Optional command ID sent by the AsyncAGI server to identify the command.</para>
 				</parameter>
@@ -973,7 +973,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_AGI">
 			<synopsis>Raised when a received AGI command starts processing.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Command">
 					<para>The AGI command as received from the external source.</para>
 				</parameter>
@@ -987,7 +987,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_AGI">
 			<synopsis>Raised when a received AGI command completes processing.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AGIExecStart']/managerEventInstance/syntax/parameter)" />
 				<parameter name="ResultCode">
 					<para>The numeric result code from AGI</para>

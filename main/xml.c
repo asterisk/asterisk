@@ -29,6 +29,7 @@
 #include "asterisk/xml.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
+#include "asterisk/autoconfig.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -38,6 +39,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <libxml/xinclude.h>
 #include <libxml/xpath.h>
 /* libxml2 ast_xml implementation. */
+#ifdef HAVE_LIBXSLT
+	#include <libxslt/xsltInternals.h>
+	#include <libxslt/transform.h>
+#endif /* HAVE_LIBXSLT */
 
 
 int ast_xml_init(void)
@@ -63,13 +68,32 @@ struct ast_xml_doc *ast_xml_open(char *filename)
 	}
 
 	doc = xmlReadFile(filename, NULL, XML_PARSE_RECOVER);
-	if (doc) {
-		/* process xinclude elements. */
-		if (xmlXIncludeProcess(doc) < 0) {
+	if (!doc) {
+		return NULL;
+	}
+
+	/* process xinclude elements. */
+	if (xmlXIncludeProcess(doc) < 0) {
+		xmlFreeDoc(doc);
+		return NULL;
+	}
+
+#ifdef HAVE_LIBXSLT
+	{
+		xsltStylesheetPtr xslt = xsltLoadStylesheetPI(doc);
+		if (xslt) {
+			xmlDocPtr tmpdoc = xsltApplyStylesheet(xslt, doc, NULL);
+			xsltFreeStylesheet(xslt);
 			xmlFreeDoc(doc);
-			return NULL;
+			if (!tmpdoc) {
+				return NULL;
+			}
+			doc = tmpdoc;
 		}
 	}
+#else /* no HAVE_LIBXSLT */
+	ast_log(LOG_NOTICE, "XSLT support not found. XML documentation may be incomplete.\n");
+#endif /* HAVE_LIBXSLT */
 
 	return (struct ast_xml_doc *) doc;
 }

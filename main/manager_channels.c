@@ -42,47 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a new channel is created.</synopsis>
 			<syntax>
-				<parameter name="Channel">
-					<para>Name of the channel</para>
-				</parameter>
-				<parameter name="ChannelState">
-					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="ChannelStateDesc">
-					<para>Name for the channel's current state</para>
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="CallerIDNum">
-				</parameter>
-				<parameter name="CallerIDName">
-				</parameter>
-				<parameter name="ConnectedLineNum">
-				</parameter>
-				<parameter name="ConnectedLineName">
-				</parameter>
-				<parameter name="AccountCode">
-				</parameter>
-				<parameter name="Context">
-				</parameter>
-				<parameter name="Exten">
-				</parameter>
-				<parameter name="Priority">
-				</parameter>
-				<parameter name="Uniqueid">
-					<para>Unique identifier for the channel</para>
-				</parameter>
+				<channel_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -90,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel's state changes.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -98,7 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel is hung up.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Cause">
 					<para>A numeric cause code for why the channel was hung up.</para>
 				</parameter>
@@ -112,7 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a hangup is requested.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
 			</syntax>
 		</managerEventInstance>
@@ -121,7 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a soft hangup is requested with a specific cause code.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
 			</syntax>
 		</managerEventInstance>
@@ -130,7 +90,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
 			<synopsis>Raised when a channel enters a new context, extension, priority.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Extension">
 					<para>Deprecated in 12, but kept for
 					backward compatability. Please use
@@ -149,7 +109,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel receives new Caller ID information.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="CID-CallingPres">
 					<para>A description of the Caller ID presentation.</para>
 				</parameter>
@@ -160,7 +120,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a Channel's AccountCode is changed.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="OldAccountCode">
 					<para>The channel's previous account code</para>
 				</parameter>
@@ -171,45 +131,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a dial action has started.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
-				<parameter name="DestChannel">
-				</parameter>
-				<parameter name="DestChannelState">
-					<para>A numeric code for the channel's current state, related to DestChannelStateDesc</para>
-				</parameter>
-				<parameter name="DestChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="DestCallerIDNum">
-				</parameter>
-				<parameter name="DestCallerIDName">
-				</parameter>
-				<parameter name="DestConnectedLineNum">
-				</parameter>
-				<parameter name="DestConnectedLineName">
-				</parameter>
-				<parameter name="DestAccountCode">
-				</parameter>
-				<parameter name="DestContext">
-				</parameter>
-				<parameter name="DestExten">
-				</parameter>
-				<parameter name="DestPriority">
-				</parameter>
-				<parameter name="DestUniqueid">
-				</parameter>
+				<channel_snapshot/>
+				<channel_snapshot prefix="Dest"/>
 				<parameter name="DialString">
 					<para>The non-technology specific device being dialed.</para>
 				</parameter>
@@ -223,8 +146,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a dial action has completed.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='DialBegin']/managerEventInstance/syntax/parameter[contains(@name, 'Dest')])" />
+				<channel_snapshot/>
+				<channel_snapshot prefix="Dest"/>
 				<parameter name="DialStatus">
 					<para>The result of the dial operation.</para>
 					<enumlist>
@@ -246,7 +169,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel goes on hold.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="MusicClass">
 					<para>The suggested MusicClass, if provided.</para>
 				</parameter>
@@ -257,7 +180,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel goes off hold.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -265,84 +188,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when one channel begins spying on another channel.</synopsis>
 			<syntax>
-				<parameter name="SpyerChannel">
-					<para>The channel performing the spying.</para>
-				</parameter>
-				<parameter name="SpyerChannelState">
-					<para>A numeric code for the channel's current state, related to SpyerChannelStateDesc</para>
-				</parameter>
-				<parameter name="SpyerChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="SpyerCallerIDNum">
-				</parameter>
-				<parameter name="SpyerCallerIDName">
-				</parameter>
-				<parameter name="SpyerConnectedLineNum">
-				</parameter>
-				<parameter name="SpyerConnectedLineName">
-				</parameter>
-				<parameter name="SpyerAccountCode">
-				</parameter>
-				<parameter name="SpyerContext">
-				</parameter>
-				<parameter name="SpyerExten">
-				</parameter>
-				<parameter name="SpyerPriority">
-				</parameter>
-				<parameter name="SpyerUniqueid">
-				</parameter>
-				<parameter name="SpyeeChannel">
-					<para>The channel being spied upon.</para>
-				</parameter>
-				<parameter name="SpyeeChannelState">
-					<para>A numeric code for the channel's current state, related to SpyeeChannelStateDesc</para>
-				</parameter>
-				<parameter name="SpyeeChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="SpyeeCallerIDNum">
-				</parameter>
-				<parameter name="SpyeeCallerIDName">
-				</parameter>
-				<parameter name="SpyeeConnectedLineNum">
-				</parameter>
-				<parameter name="SpyeeConnectedLineName">
-				</parameter>
-				<parameter name="SpyeeAccountCode">
-				</parameter>
-				<parameter name="SpyeeContext">
-				</parameter>
-				<parameter name="SpyeeExten">
-				</parameter>
-				<parameter name="SpyeePriority">
-				</parameter>
-				<parameter name="SpyeeUniqueid">
-				</parameter>
+				<channel_snapshot prefix="Spyer"/>
+				<channel_snapshot prefix="Spyee"/>
 			</syntax>
 			<see-also>
 				<ref type="application">ChanSpyStop</ref>
@@ -353,7 +200,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel has stopped spying.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ChanSpyStart']/managerEventInstance/syntax/parameter[contains(@name, 'Spyer')])" />
+				<channel_snapshot prefix="Spyer"/>
+				<channel_snapshot prefix="Spyee"/>
 			</syntax>
 			<see-also>
 				<ref type="application">ChanSpyStart</ref>
@@ -364,7 +212,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_DIALPLAN">
 			<synopsis>Raised when a hangup handler is about to be called.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Handler">
 					<para>Hangup handler parameter string passed to the Gosub application.</para>
 				</parameter>
@@ -378,6 +226,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				by the CHANNEL() function.
 			</synopsis>
 			<syntax>
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='HangupHandlerRun']/managerEventInstance/syntax/parameter)" />
 			</syntax>
 			<see-also>
@@ -393,6 +242,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				the CHANNEL() function.
 			</synopsis>
 			<syntax>
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='HangupHandlerRun']/managerEventInstance/syntax/parameter)" />
 			</syntax>
 			<see-also>
@@ -407,7 +257,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				Raised periodically during a fax transmission.
 			</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Operation">
 					<enumlist>
 						<enum name="gateway"/>
@@ -429,7 +279,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				Raised when a receive fax operation has completed.
 			</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="LocalStationID">
 					<para>The value of the <variable>LOCALSTATIONID</variable> channel variable</para>
 				</parameter>
@@ -457,7 +307,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				Raised when a send fax operation has completed.
 			</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ReceiveFAX']/managerEventInstance/syntax/parameter)" />
 			</syntax>
 		</managerEventInstance>
@@ -466,7 +316,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when music on hold has started on a channel.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Class">
 					<para>The class of music being played on the channel</para>
 				</parameter>
@@ -481,7 +331,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when music on hold has stopped on a channel.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">MusicOnHoldStart</ref>
@@ -493,7 +343,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when monitoring has started on a channel.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">MonitorStop</ref>
@@ -506,7 +356,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 		<synopsis>Raised when monitoring has stopped on a channel.</synopsis>
 		<syntax>
-			<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+			<channel_snapshot/>
 		</syntax>
 		<see-also>
 			<ref type="managerEvent">MonitorStart</ref>
@@ -785,7 +635,7 @@ static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
 		<managerEventInstance>
 			<synopsis>A user defined event raised from the dialplan.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="UserEvent">
 					<para>The event name, as specified in the dialplan.</para>
 				</parameter>
@@ -934,7 +784,7 @@ static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
 		<managerEventInstance>
 			<synopsis>Raised when a DTMF digit has started on a channel.</synopsis>
 				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+					<channel_snapshot/>
 					<parameter name="Digit">
 						<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
 					</parameter>
@@ -977,7 +827,7 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 		<managerEventInstance>
 			<synopsis>Raised when a DTMF digit has ended on a channel.</synopsis>
 				<syntax>
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+					<channel_snapshot/>
 					<parameter name="Digit">
 						<para>DTMF digit received or transmitted (0-9, A-E, # or *</para>
 					</parameter>

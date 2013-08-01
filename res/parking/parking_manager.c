@@ -96,44 +96,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel is parked.</synopsis>
 			<syntax>
-				<parameter name="ParkeeChannel">
-				</parameter>
-				<parameter name="ParkeeChannelState">
-					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="ParkeeChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="ParkeeCallerIDNum">
-				</parameter>
-				<parameter name="ParkeeCallerIDName">
-				</parameter>
-				<parameter name="ParkeeConnectedLineNum">
-				</parameter>
-				<parameter name="ParkeeConnectedLineName">
-				</parameter>
-				<parameter name="ParkeeAccountCode">
-				</parameter>
-				<parameter name="ParkeeContext">
-				</parameter>
-				<parameter name="ParkeeExten">
-				</parameter>
-				<parameter name="ParkeePriority">
-				</parameter>
-				<parameter name="ParkeeUniqueid">
-				</parameter>
+				<channel_snapshot prefix="Parkee"/>
 				<parameter name="ParkerDialString">
 					<para>Dial String that can be used to call back the parker on ParkingTimeout.</para>
 				</parameter>
@@ -156,6 +119,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel leaves a parking lot due to reaching the time limit of being parked.</synopsis>
 			<syntax>
+				<channel_snapshot prefix="Parkee"/>
+				<channel_snapshot prefix="Parker"/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter)" />
 			</syntax>
 		</managerEventInstance>
@@ -164,6 +129,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel leaves a parking lot because it hung up without being answered.</synopsis>
 			<syntax>
+				<channel_snapshot prefix="Parkee"/>
+				<channel_snapshot prefix="Parker"/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter)" />
 			</syntax>
 		</managerEventInstance>
@@ -172,45 +139,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel leaves a parking lot because it was retrieved from the parking lot and reconnected.</synopsis>
 			<syntax>
+				<channel_snapshot prefix="Parkee"/>
+				<channel_snapshot prefix="Parker"/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter)" />
-				<parameter name="RetrieverChannel">
-				</parameter>
-				<parameter name="RetrieverChannelState">
-					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="RetrieverChannelStateDesc">
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="RetrieverCallerIDNum">
-				</parameter>
-				<parameter name="RetrieverCallerIDName">
-				</parameter>
-				<parameter name="RetrieverConnectedLineNum">
-				</parameter>
-				<parameter name="RetrieverConnectedLineName">
-				</parameter>
-				<parameter name="RetrieverAccountCode">
-				</parameter>
-				<parameter name="RetrieverContext">
-				</parameter>
-				<parameter name="RetrieverExten">
-				</parameter>
-				<parameter name="RetrieverPriority">
-				</parameter>
-				<parameter name="RetrieverUniqueid">
-				</parameter>
+				<channel_snapshot prefix="Retriever"/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>

@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		<managerEventInstance class="EVENT_FLAG_AOC">
 			<synopsis>Raised when an Advice of Charge message is sent at the beginning of a call.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Chargeable" />
 				<parameter name="RateType">
 					<enumlist>
@@ -91,7 +91,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		<managerEventInstance class="EVENT_FLAG_AOC">
 			<synopsis>Raised when an Advice of Charge message is sent during a call.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Charge" />
 				<parameter name="Type">
 					<enumlist>
@@ -144,7 +144,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 		<managerEventInstance class="EVENT_FLAG_AOC">
 			<synopsis>Raised when an Advice of Charge message is sent at the end of a call.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="ChargingAssociation" />
 				<parameter name="Number" />
 				<parameter name="Plan" />

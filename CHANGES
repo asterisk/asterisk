@@ -117,6 +117,13 @@ UserEvent
    interested res_stasis applications.
 
 
+Build System
+------------------
+ * Asterisk now optionally uses libxslt to improve XML documentation generation
+   and maintainability. If libxslt is not available on the system, some XML
+   documentation will be incomplete.
+
+
 Core
 ------------------
  * Redirecting reasons can now be set to arbitrary strings. This means

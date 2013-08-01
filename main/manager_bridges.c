@@ -40,18 +40,7 @@ static struct stasis_message_router *bridge_state_router;
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a bridge is created.</synopsis>
 			<syntax>
-				<parameter name="BridgeUniqueid">
-					<para>The unique identifier of the bridge</para>
-				</parameter>
-				<parameter name="BridgeType">
-					<para>The type of bridge</para>
-				</parameter>
-				<parameter name="BridgeTechnology">
-					<para>Technology in use by the bridge</para>
-				</parameter>
-				<parameter name="BridgeNumChannels">
-					<para>Number of channels in the bridge</para>
-				</parameter>
+				<bridge_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -59,7 +48,7 @@ static struct stasis_message_router *bridge_state_router;
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a bridge is destroyed.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -67,10 +56,8 @@ static struct stasis_message_router *bridge_state_router;
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel enters a bridge.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<parameter name="Uniqueid">
-					<para>The uniqueid of the channel entering the bridge</para>
-				</parameter>
+				<bridge_snapshot/>
+				<channel_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -78,10 +65,8 @@ static struct stasis_message_router *bridge_state_router;
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a channel leaves a bridge.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<parameter name="Uniqueid">
-					<para>The uniqueid of the channel leaving the bridge</para>
-				</parameter>
+				<bridge_snapshot/>
+				<channel_snapshot/>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -246,13 +231,8 @@ static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
 		<managerEventInstance>
 			<synopsis>Raised when two bridges are merged.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<parameter name="BridgeUniqueidFrom">
-					<para>The uniqueid of the bridge being dissolved in the merge</para>
-				</parameter>
-				<parameter name="BridgeTypeFrom">
-					<para>The type of bridge that is being dissolved in the merge</para>
-				</parameter>
+				<bridge_snapshot/>
+				<bridge_snapshot prefix="From"/>
 			</syntax>
 		</managerEventInstance>
 	***/

@@ -500,7 +500,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a notification is sent out by a MiniVoiceMail application</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Action">
 					<para>What action was taken. Currently, this will always be <literal>SentNotification</literal></para>
 				</parameter>

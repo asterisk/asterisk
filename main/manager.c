@@ -227,56 +227,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised in response to a Status command.</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>
-				<parameter name="Channel">
-					<para>Name of the channel</para>
-				</parameter>
+				<channel_snapshot/>
 				<parameter name="Type">
 					<para>Type of channel</para>
 				</parameter>
 				<parameter name="DNID">
 					<para>Dialed number identifier</para>
-				</parameter>
-				<parameter name="ChannelState">
-					<para>A numeric code for the channel's current state, related to ChannelStateDesc</para>
-				</parameter>
-				<parameter name="ChannelStateDesc">
-					<para>Name for the channel's current state</para>
-					<enumlist>
-						<enum name="Down"/>
-						<enum name="Rsrvd"/>
-						<enum name="OffHook"/>
-						<enum name="Dialing"/>
-						<enum name="Ring"/>
-						<enum name="Ringing"/>
-						<enum name="Up"/>
-						<enum name="Busy"/>
-						<enum name="Dialing Offhook"/>
-						<enum name="Pre-ring"/>
-						<enum name="Unknown"/>
-					</enumlist>
-				</parameter>
-				<parameter name="CallerIDNum">
-				</parameter>
-				<parameter name="CallerIDName">
-				</parameter>
-				<parameter name="ConnectedLineNum">
-				</parameter>
-				<parameter name="ConnectedLineName">
-				</parameter>
-				<parameter name="EffectiveConnectedLineNum">
-				</parameter>
-				<parameter name="EffectiveConnectedLineName">
-				</parameter>
-				<parameter name="AccountCode">
-				</parameter>
-				<parameter name="Context">
-				</parameter>
-				<parameter name="Exten">
-				</parameter>
-				<parameter name="Priority">
-				</parameter>
-				<parameter name="Uniqueid">
-					<para>Unique identifier for the channel</para>
 				</parameter>
 				<parameter name="TimeToHangup">
 					<para>Absolute lifetime of the channel</para>

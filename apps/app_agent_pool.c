@@ -202,49 +202,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Epoche time when the agent logged in.</para>
 					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
 				</parameter>
-				<parameter name="Channel">
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter[@name='Channel']/para)" />
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="ChannelState">
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter[@name='ChannelState']/para)" />
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="ChannelStateDesc">
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter[@name='ChannelStateDesc']/para)" />
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter[@name='ChannelStateDesc']/enumlist)" />
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="CallerIDNum">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="CallerIDName">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="ConnectedLineNum">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="ConnectedLineName">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="AccountCode">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="Context">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="Exten">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="Priority">
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
-				<parameter name="Uniqueid">
-					<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter[@name='Uniqueid']/para)" />
-					<para>Present if Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
-				</parameter>
+				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			</syntax>
+			<description>
+				<para>The channel snapshot is present if the Status value is <literal>AGENT_IDLE</literal> or <literal>AGENT_ONCALL</literal>.</para>
+			</description>
 			<see-also>
 				<ref type="manager">Agents</ref>
 			</see-also>

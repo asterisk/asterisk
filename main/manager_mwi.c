@@ -111,7 +111,7 @@ static void mwi_update_cb(void *data, struct stasis_subscription *sub,
 			has changed or when a channel has finished interacting with a
 			mailbox.</synopsis>
 			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<channel_snapshot/>
 				<parameter name="Mailbox">
 					<para>The mailbox with the new message, specified as <literal>mailbox</literal>@<literal>context</literal></para>
 				</parameter>

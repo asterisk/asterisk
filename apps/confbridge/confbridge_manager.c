@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeEnd</ref>
@@ -59,7 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeStart</ref>
@@ -74,8 +74,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
+				<channel_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeLeave</ref>
@@ -90,8 +90,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
+				<channel_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeJoin</ref>
@@ -106,7 +106,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeStopRecord</ref>
@@ -121,7 +121,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeRecord</ref>
@@ -136,8 +136,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
+				<channel_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeUnmute</ref>
@@ -152,8 +152,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
+				<channel_snapshot/>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeMute</ref>
@@ -161,7 +161,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
-
 	<managerEvent language="en_US" name="ConfbridgeTalking">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a confbridge participant unmutes.</synopsis>
@@ -169,8 +168,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Conference">
 					<para>The name of the Confbridge conference.</para>
 				</parameter>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='BridgeCreate']/managerEventInstance/syntax/parameter)" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Newchannel']/managerEventInstance/syntax/parameter)" />
+				<bridge_snapshot/>
+				<channel_snapshot/>
 				<parameter name="TalkingStatus">
 					<enumlist>
 						<enum name="on"/>
