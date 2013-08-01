@@ -1605,7 +1605,7 @@ static void xmpp_init_event_distribution(struct ast_xmpp_client *client)
 		return;
 	}
 
-	cached = stasis_cache_dump(ast_device_state_topic_cached(), NULL);
+	cached = stasis_cache_dump(ast_device_state_cache(), NULL);
 	ao2_callback(cached, OBJ_NODATA, cached_devstate_cb, client);
 
 	xmpp_pubsub_subscribe(client, "device_state");

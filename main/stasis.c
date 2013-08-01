@@ -653,6 +653,11 @@ int stasis_init(void)
 		return -1;
 	}
 
+	if (stasis_wait_init() != 0) {
+		ast_log(LOG_ERROR, "Stasis initialization failed\n");
+		return -1;
+	}
+
 	if (pool) {
 		ast_log(LOG_ERROR, "Stasis double-initialized\n");
 		return -1;

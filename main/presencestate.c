@@ -55,6 +55,7 @@ static const struct {
 
 STASIS_MESSAGE_TYPE_DEFN(ast_presence_state_message_type);
 struct stasis_topic *presence_state_topic_all;
+struct stasis_cache *presence_state_cache;
 struct stasis_caching_topic *presence_state_topic_cached;
 
 /*! \brief  A presence state provider */
@@ -95,7 +96,7 @@ static enum ast_presence_state presence_state_cached(const char *presence_provid
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_presence_state_message *presence_state;
 
-	msg = stasis_cache_get(ast_presence_state_topic_cached(), ast_presence_state_message_type(), presence_provider);
+	msg = stasis_cache_get(ast_presence_state_cache(), ast_presence_state_message_type(), presence_provider);
 
 	if (!msg) {
 		return res;
@@ -294,9 +295,14 @@ struct stasis_topic *ast_presence_state_topic_all(void)
 	return presence_state_topic_all;
 }
 
-struct stasis_caching_topic *ast_presence_state_topic_cached(void)
+struct stasis_cache *ast_presence_state_cache(void)
 {
-	return presence_state_topic_cached;
+	return presence_state_cache;
+}
+
+struct stasis_topic *ast_presence_state_topic_cached(void)
+{
+	return stasis_caching_get_topic(presence_state_topic_cached);
 }
 
 static const char *presence_state_get_id(struct stasis_message *msg)
@@ -314,6 +320,8 @@ static void presence_state_engine_cleanup(void)
 {
 	ao2_cleanup(presence_state_topic_all);
 	presence_state_topic_all = NULL;
+	ao2_cleanup(presence_state_cache);
+	presence_state_cache = NULL;
 	presence_state_topic_cached = stasis_caching_unsubscribe_and_join(presence_state_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_presence_state_message_type);
 }
@@ -331,7 +339,12 @@ int ast_presence_state_engine_init(void)
 		return -1;
 	}
 
-	presence_state_topic_cached = stasis_caching_topic_create(presence_state_topic_all, presence_state_get_id);
+	presence_state_cache = stasis_cache_create(presence_state_get_id);
+	if (!presence_state_cache) {
+		return -1;
+	}
+
+	presence_state_topic_cached = stasis_caching_topic_create(presence_state_topic_all, presence_state_cache);
 	if (!presence_state_topic_cached) {
 		return -1;
 	}

@@ -88,6 +88,7 @@ static AST_LIST_HEAD_STATIC(zombies, zombie);
  * @{ \brief Define \ref stasis topic objects for MWI
  */
 static struct stasis_topic *mwi_topic_all;
+static struct stasis_cache *mwi_state_cache;
 static struct stasis_caching_topic *mwi_topic_cached;
 static struct stasis_topic_pool *mwi_topic_pool;
 /* @} */
@@ -2696,9 +2697,14 @@ struct stasis_topic *ast_mwi_topic_all(void)
 	return mwi_topic_all;
 }
 
-struct stasis_caching_topic *ast_mwi_topic_cached(void)
+struct stasis_cache *ast_mwi_state_cache(void)
 {
-	return mwi_topic_cached;
+	return mwi_state_cache;
+}
+
+struct stasis_topic *ast_mwi_topic_cached(void)
+{
+	return stasis_caching_get_topic(mwi_topic_cached);
 }
 
 struct stasis_topic *ast_mwi_topic(const char *uniqueid)
@@ -2754,7 +2760,7 @@ int ast_publish_mwi_state_full(
 
 	if (!ast_strlen_zero(channel_id)) {
 		RAII_VAR(struct stasis_message *, chan_message,
-			stasis_cache_get(ast_channel_topic_all_cached(),
+			stasis_cache_get(ast_channel_cache(),
 					ast_channel_snapshot_type(),
 					channel_id),
 			ao2_cleanup);
@@ -2855,7 +2861,11 @@ int app_init(void)
 	if (!mwi_topic_all) {
 		return -1;
 	}
-	mwi_topic_cached = stasis_caching_topic_create(mwi_topic_all, mwi_state_get_id);
+	mwi_state_cache = stasis_cache_create(mwi_state_get_id);
+	if (!mwi_state_cache) {
+		return -1;
+	}
+	mwi_topic_cached = stasis_caching_topic_create(mwi_topic_all, mwi_state_cache);
 	if (!mwi_topic_cached) {
 		return -1;
 	}

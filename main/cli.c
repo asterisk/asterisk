@@ -915,7 +915,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_SHOWUSAGE;
 
 
-	if (!(channels = stasis_cache_dump(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type()))) {
+	if (!(channels = stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type()))) {
 		ast_cli(a->fd, "Failed to retrieve cached channels\n");
 		return CLI_SUCCESS;
 	}
@@ -1438,7 +1438,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	now = ast_tvnow();
 
-	if (!(msg = stasis_cache_get(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
+	if (!(msg = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
 		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
 		return CLI_SUCCESS;
 	}
@@ -1571,7 +1571,7 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 		return NULL;
 	}
 
-	if (!(cached_channels = stasis_cache_dump(ast_channel_topic_all_cached(), ast_channel_snapshot_type()))) {
+	if (!(cached_channels = stasis_cache_dump(ast_channel_cache(), ast_channel_snapshot_type()))) {
 		return NULL;
 	}
 

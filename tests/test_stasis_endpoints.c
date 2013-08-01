@@ -152,7 +152,7 @@ AST_TEST_DEFINE(cache_clear)
 	ast_test_validate(test, NULL != sink);
 
 	sub = stasis_subscribe(
-		stasis_caching_get_topic(ast_endpoint_topic_all_cached()),
+		ast_endpoint_topic_all_cached(),
 		stasis_message_sink_cb(), sink);
 	ast_test_validate(test, NULL != sub);
 

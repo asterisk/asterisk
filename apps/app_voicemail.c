@@ -12640,7 +12640,7 @@ static void start_poll_thread(void)
 	mwi_sub_sub = stasis_subscribe(ast_mwi_topic_all(), mwi_event_cb, NULL);
 
 	if (mwi_sub_sub) {
-		struct ao2_container *cached = stasis_cache_dump(ast_mwi_topic_cached(), stasis_subscription_change_type());
+		struct ao2_container *cached = stasis_cache_dump(ast_mwi_state_cache(), stasis_subscription_change_type());
 		if (cached) {
 			ao2_callback(cached, OBJ_MULTIPLE | OBJ_NODATA, dump_cache, NULL);
 		}

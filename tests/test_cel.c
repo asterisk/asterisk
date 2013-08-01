@@ -224,8 +224,9 @@ static void do_sleep(void)
 	ast_hangup((channel)); \
 	HANGUP_EVENT(channel, cause, dialstatus); \
 	APPEND_EVENT(channel, AST_CEL_CHANNEL_END, NULL, NULL, NULL); \
-	ao2_cleanup(stasis_cache_get_extended(ast_channel_topic_all_cached(), \
-		ast_channel_snapshot_type(), ast_channel_uniqueid(channel), 1)); \
+	stasis_topic_wait(ast_channel_topic_all_cached()); \
+	ao2_cleanup(stasis_cache_get(ast_channel_cache(), \
+		ast_channel_snapshot_type(), ast_channel_uniqueid(channel))); \
 	ao2_cleanup(channel); \
 	channel = NULL; \
 	} while (0)

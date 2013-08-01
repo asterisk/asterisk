@@ -3874,7 +3874,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 
 	if (all) {
-		if (!(cached_channels = stasis_cache_dump(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type()))) {
+		if (!(cached_channels = stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type()))) {
 			ast_free(str);
 			astman_send_error(s, m, "Memory Allocation Failure");
 			return 1;
@@ -3882,7 +3882,7 @@ static int action_status(struct mansession *s, const struct message *m)
 		it_chans = ao2_iterator_init(cached_channels, 0);
 		msg = ao2_iterator_next(&it_chans);
 	} else {
-		if (!(msg = stasis_cache_get(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type(), name))) {
+		if (!(msg = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(), name))) {
 			astman_send_error(s, m, "No such channel");
 			ast_free(str);
 			return 0;
@@ -5356,7 +5356,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		idText[0] = '\0';
 	}
 
-	if (!(channels = stasis_cache_dump(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type()))) {
+	if (!(channels = stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type()))) {
 		astman_send_error(s, m, "Could not get cached channels");
 		return 0;
 	}

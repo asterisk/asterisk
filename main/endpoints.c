@@ -58,16 +58,28 @@ struct ast_endpoint {
 	 */
 	int max_channels;
 	/*! Topic for this endpoint's messages */
-	struct stasis_topic *topic;
-	/*!
-	 * Forwarding subscription sending messages to ast_endpoint_topic_all()
-	 */
-	struct stasis_subscription *forward;
+	struct stasis_cp_single *topics;
 	/*! Router for handling this endpoint's messages */
 	struct stasis_message_router *router;
 	/*! ast_str_container of channels associated with this endpoint */
 	struct ao2_container *channel_ids;
 };
+
+struct stasis_topic *ast_endpoint_topic(struct ast_endpoint *endpoint)
+{
+	if (!endpoint) {
+		return ast_endpoint_topic_all();
+	}
+	return stasis_cp_single_topic(endpoint->topics);
+}
+
+struct stasis_topic *ast_endpoint_topic_cached(struct ast_endpoint *endpoint)
+{
+	if (!endpoint) {
+		return ast_endpoint_topic_all_cached();
+	}
+	return stasis_cp_single_topic_cached(endpoint->topics);
+}
 
 const char *ast_endpoint_state_to_string(enum ast_endpoint_state state)
 {
@@ -88,7 +100,7 @@ static void endpoint_publish_snapshot(struct ast_endpoint *endpoint)
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	ast_assert(endpoint != NULL);
-	ast_assert(endpoint->topic != NULL);
+	ast_assert(endpoint->topics != NULL);
 
 	snapshot = ast_endpoint_snapshot_create(endpoint);
 	if (!snapshot) {
@@ -98,7 +110,7 @@ static void endpoint_publish_snapshot(struct ast_endpoint *endpoint)
 	if (!message) {
 		return;
 	}
-	stasis_publish(endpoint->topic, message);
+	stasis_publish(ast_endpoint_topic(endpoint), message);
 }
 
 static void endpoint_dtor(void *obj)
@@ -110,11 +122,8 @@ static void endpoint_dtor(void *obj)
 	ao2_cleanup(endpoint->router);
 	endpoint->router = NULL;
 
-	stasis_unsubscribe(endpoint->forward);
-	endpoint->forward = NULL;
-
-	ao2_cleanup(endpoint->topic);
-	endpoint->topic = NULL;
+	stasis_cp_single_unsubscribe(endpoint->topics);
+	endpoint->topics = NULL;
 
 	ao2_cleanup(endpoint->channel_ids);
 	endpoint->channel_ids = NULL;
@@ -214,18 +223,13 @@ struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
 		return NULL;
 	}
 
-	endpoint->topic = stasis_topic_create(endpoint->id);
-	if (!endpoint->topic) {
+	endpoint->topics = stasis_cp_single_create(ast_endpoint_cache_all(),
+		endpoint->id);
+	if (!endpoint->topics) {
 		return NULL;
 	}
 
-	endpoint->forward =
-		stasis_forward_all(endpoint->topic, ast_endpoint_topic_all());
-	if (!endpoint->forward) {
-		return NULL;
-	}
-
-	endpoint->router = stasis_message_router_create(endpoint->topic);
+	endpoint->router = stasis_message_router_create(ast_endpoint_topic(endpoint));
 	if (!endpoint->router) {
 		return NULL;
 	}
@@ -271,7 +275,7 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 		RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 		message = stasis_cache_clear_create(clear_msg);
 		if (message) {
-			stasis_publish(endpoint->topic, message);
+			stasis_publish(ast_endpoint_topic(endpoint), message);
 		}
 	}
 
@@ -283,11 +287,6 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 const char *ast_endpoint_get_resource(const struct ast_endpoint *endpoint)
 {
 	return endpoint->resource;
-}
-
-struct stasis_topic *ast_endpoint_topic(struct ast_endpoint *endpoint)
-{
-	return endpoint ? endpoint->topic : ast_endpoint_topic_all();
 }
 
 void ast_endpoint_set_state(struct ast_endpoint *endpoint,

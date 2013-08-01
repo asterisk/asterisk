@@ -4005,11 +4005,11 @@ int ast_cdr_engine_init(void)
 		return -1;
 	}
 
-	channel_subscription = stasis_forward_all(stasis_caching_get_topic(ast_channel_topic_all_cached()), cdr_topic);
+	channel_subscription = stasis_forward_all(ast_channel_topic_all_cached(), cdr_topic);
 	if (!channel_subscription) {
 		return -1;
 	}
-	bridge_subscription = stasis_forward_all(stasis_caching_get_topic(ast_bridge_topic_all_cached()), cdr_topic);
+	bridge_subscription = stasis_forward_all(ast_bridge_topic_all_cached(), cdr_topic);
 	if (!bridge_subscription) {
 		return -1;
 	}

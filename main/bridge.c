@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge_after.h"
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/app.h"
 #include "asterisk/file.h"
 #include "asterisk/module.h"
@@ -634,6 +635,8 @@ static void destroy_bridge(void *obj)
 	}
 
 	cleanup_video_mode(bridge);
+
+	stasis_cp_single_unsubscribe(bridge->topics);
 }
 
 struct ast_bridge *bridge_register(struct ast_bridge *bridge)
@@ -684,6 +687,13 @@ struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabiliti
 	ast_uuid_generate_str(self->uniqueid, sizeof(self->uniqueid));
 	ast_set_flag(&self->feature_flags, flags);
 	self->allowed_capabilities = capabilities;
+
+	if (bridge_topics_init(self) != 0) {
+		ast_log(LOG_WARNING, "Bridge %s: Could not initialize topics\n",
+			self->uniqueid);
+		ao2_ref(self, -1);
+		return NULL;
+	}
 
 	/* Use our helper function to find the "best" bridge technology. */
 	self->technology = find_best_technology(capabilities, self);
@@ -4397,7 +4407,7 @@ static char *complete_bridge(const char *word, int state)
 	struct ao2_iterator iter;
 	struct stasis_message *msg;
 
-	if (!(cached_bridges = stasis_cache_dump(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type()))) {
+	if (!(cached_bridges = stasis_cache_dump(ast_bridge_cache(), ast_bridge_snapshot_type()))) {
 		return NULL;
 	}
 
@@ -4435,7 +4445,7 @@ static char *handle_bridge_show_all(struct ast_cli_entry *e, int cmd, struct ast
 		return NULL;
 	}
 
-	if (!(cached_bridges = stasis_cache_dump(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type()))) {
+	if (!(cached_bridges = stasis_cache_dump(ast_bridge_cache(), ast_bridge_snapshot_type()))) {
 		ast_cli(a->fd, "Failed to retrieve cached bridges\n");
 		return CLI_SUCCESS;
 	}
@@ -4467,7 +4477,7 @@ static int bridge_show_specific_print_channel(void *obj, void *arg, int flags)
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_channel_snapshot *snapshot;
 
-	if (!(msg = stasis_cache_get(ast_channel_topic_all_cached(), ast_channel_snapshot_type(), uniqueid))) {
+	if (!(msg = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(), uniqueid))) {
 		return 0;
 	}
 	snapshot = stasis_message_data(msg);
@@ -4500,7 +4510,7 @@ static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struc
 		return CLI_SHOWUSAGE;
 	}
 
-	msg = stasis_cache_get(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type(), a->argv[2]);
+	msg = stasis_cache_get(ast_bridge_cache(), ast_bridge_snapshot_type(), a->argv[2]);
 	if (!msg) {
 		ast_cli(a->fd, "Bridge '%s' not found\n", a->argv[2]);
 		return CLI_SUCCESS;

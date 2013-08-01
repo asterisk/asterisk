@@ -106,6 +106,8 @@ struct ast_channel_blob {
  */
 struct ast_multi_channel_blob;
 
+struct stasis_cp_all *ast_channel_cache_all(void);
+
 /*!
  * \since 12
  * \brief A topic which publishes the events for all channels.
@@ -120,16 +122,23 @@ struct stasis_topic *ast_channel_topic_all(void);
  *
  * \retval Topic for all channel events.
  */
-struct stasis_caching_topic *ast_channel_topic_all_cached(void);
+struct stasis_topic *ast_channel_topic_all_cached(void);
 
 /*!
  * \since 12
- * \brief A caching topic which caches \ref ast_channel_snapshot messages from
- * ast_channel_events_all(void) and indexes them by name.
+ * \brief Primary channel cache, indexed by Uniqueid.
  *
- * \retval Topic for all channel events.
+ * \retval Cache of \ref ast_channel_snapshot.
  */
-struct stasis_caching_topic *ast_channel_topic_all_cached_by_name(void);
+struct stasis_cache *ast_channel_cache(void);
+
+/*!
+ * \since 12
+ * \brief Secondary channel cache, indexed by name.
+ *
+ * \retval Cache of \ref ast_channel_snapshot.
+ */
+struct stasis_cache *ast_channel_cache_by_name(void);
 
 /*!
  * \since 12
@@ -551,7 +560,9 @@ int ast_channel_snapshot_caller_id_equal(
 
 /*!
  * \brief Initialize the stasis channel topic and message types
+ * \return 0 on success
+ * \return Non-zero on error
  */
-void ast_stasis_channels_init(void);
+int ast_stasis_channels_init(void);
 
 #endif /* STASIS_CHANNELS_H_ */

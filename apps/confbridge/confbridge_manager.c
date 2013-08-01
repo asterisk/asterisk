@@ -344,7 +344,7 @@ int manager_confbridge_init(void)
 	STASIS_MESSAGE_TYPE_INIT(confbridge_talking_type);
 
 	bridge_state_router = stasis_message_router_create(
-		stasis_caching_get_topic(ast_bridge_topic_all_cached()));
+		ast_bridge_topic_all_cached());
 
 	if (!bridge_state_router) {
 		return -1;
@@ -415,7 +415,7 @@ int manager_confbridge_init(void)
 	}
 
 	channel_state_router = stasis_message_router_create(
-		stasis_caching_get_topic(ast_channel_topic_all_cached()));
+		ast_channel_topic_all_cached());
 
 	if (!channel_state_router) {
 		manager_confbridge_shutdown();

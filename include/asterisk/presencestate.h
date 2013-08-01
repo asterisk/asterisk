@@ -168,7 +168,14 @@ struct stasis_topic *ast_presence_state_topic_all(void);
  * \retval Caching Stasis topic for presence state messages
  * \since 12
  */
-struct stasis_caching_topic *ast_presence_state_topic_cached(void);
+struct stasis_topic *ast_presence_state_topic_cached(void);
+
+/*!
+ * \brief Backend cache for ast_presence_state_topic_cached()
+ * \retval Cache of \ref ast_presence_state_message.
+ * \since 12
+ */
+struct stasis_cache *ast_presence_state_cache(void);
 
 /*!
  * \brief Stasis message payload representing a presence state update

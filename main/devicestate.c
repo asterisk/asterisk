@@ -196,6 +196,7 @@ static ast_cond_t change_pending;
 struct stasis_subscription *devstate_message_sub;
 
 static struct stasis_topic *device_state_topic_all;
+static struct stasis_cache *device_state_cache;
 static struct stasis_caching_topic *device_state_topic_cached;
 static struct stasis_topic_pool *device_state_topic_pool;
 
@@ -285,7 +286,7 @@ static enum ast_device_state devstate_cached(const char *device)
 	RAII_VAR(struct stasis_message *, cached_msg, NULL, ao2_cleanup);
 	struct ast_device_state_message *device_state;
 
-	cached_msg = stasis_cache_get(ast_device_state_topic_cached(), ast_device_state_message_type(), device);
+	cached_msg = stasis_cache_get(ast_device_state_cache(), ast_device_state_message_type(), device);
 	if (!cached_msg) {
 		return AST_DEVICE_UNKNOWN;
 	}
@@ -586,7 +587,7 @@ static enum ast_device_state get_aggregate_state(char *device)
 
 	ast_devstate_aggregate_init(&aggregate);
 
-	cached = stasis_cache_dump(ast_device_state_topic_cached(), NULL);
+	cached = stasis_cache_dump(ast_device_state_cache(), NULL);
 
 	ao2_callback_data(cached, OBJ_NODATA, devstate_change_aggregator_cb, &aggregate, device);
 
@@ -598,7 +599,7 @@ static int aggregate_state_changed(char *device, enum ast_device_state new_aggre
 	RAII_VAR(struct stasis_message *, cached_aggregate_msg, NULL, ao2_cleanup);
 	struct ast_device_state_message *cached_aggregate_device_state;
 
-	cached_aggregate_msg = stasis_cache_get(ast_device_state_topic_cached(), ast_device_state_message_type(), device);
+	cached_aggregate_msg = stasis_cache_get(ast_device_state_cache(), ast_device_state_message_type(), device);
 	if (!cached_aggregate_msg) {
 		return 1;
 	}
@@ -719,9 +720,14 @@ struct stasis_topic *ast_device_state_topic_all(void)
 	return device_state_topic_all;
 }
 
-struct stasis_caching_topic *ast_device_state_topic_cached(void)
+struct stasis_cache *ast_device_state_cache(void)
 {
-	return device_state_topic_cached;
+	return device_state_cache;
+}
+
+struct stasis_topic *ast_device_state_topic_cached(void)
+{
+	return stasis_caching_get_topic(device_state_topic_cached);
 }
 
 struct stasis_topic *ast_device_state_topic(const char *device)
@@ -777,6 +783,8 @@ static void devstate_cleanup(void)
 	devstate_message_sub = stasis_unsubscribe_and_join(devstate_message_sub);
 	ao2_cleanup(device_state_topic_all);
 	device_state_topic_all = NULL;
+	ao2_cleanup(device_state_cache);
+	device_state_cache = NULL;
 	device_state_topic_cached = stasis_caching_unsubscribe_and_join(device_state_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_device_state_message_type);
 	ao2_cleanup(device_state_topic_pool);
@@ -794,7 +802,11 @@ int devstate_init(void)
 	if (!device_state_topic_all) {
 		return -1;
 	}
-	device_state_topic_cached = stasis_caching_topic_create(device_state_topic_all, device_state_get_id);
+	device_state_cache = stasis_cache_create(device_state_get_id);
+	if (!device_state_cache) {
+		return -1;
+	}
+	device_state_topic_cached = stasis_caching_topic_create(device_state_topic_all, device_state_cache);
 	if (!device_state_topic_cached) {
 		return -1;
 	}
@@ -803,7 +815,7 @@ int devstate_init(void)
 		return -1;
 	}
 
-	devstate_message_sub = stasis_subscribe(stasis_caching_get_topic(ast_device_state_topic_cached()), devstate_change_collector_cb, NULL);
+	devstate_message_sub = stasis_subscribe(ast_device_state_topic_cached(), devstate_change_collector_cb, NULL);
 
 	if (!devstate_message_sub) {
 		ast_log(LOG_ERROR, "Failed to create subscription for the device state change collector\n");

@@ -8042,7 +8042,7 @@ static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cl
 	if (a->argc != e->args + 1)
 		return CLI_SHOWUSAGE;
 
-	if (!(msg = stasis_cache_get(ast_channel_topic_all_cached_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
+	if (!(msg = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
 		ast_cli(a->fd, "Channel '%s' not found\n", a->argv[e->args]);
 		return CLI_FAILURE;
 	}

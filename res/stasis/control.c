@@ -364,13 +364,9 @@ struct ast_channel_snapshot *stasis_app_control_get_snapshot(
 	const struct stasis_app_control *control)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct stasis_caching_topic *caching_topic;
 	struct ast_channel_snapshot *snapshot;
 
-	caching_topic = ast_channel_topic_all_cached();
-	ast_assert(caching_topic != NULL);
-
-	msg = stasis_cache_get(caching_topic, ast_channel_snapshot_type(),
+	msg = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(),
 		stasis_app_control_get_channel_id(control));
 	if (!msg) {
 		return NULL;

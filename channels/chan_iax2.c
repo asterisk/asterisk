@@ -8803,7 +8803,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			}
 
 			ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-			msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
+			msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
 
 			if (msg) {
 				struct ast_mwi_state *mwi_state = stasis_message_data(msg);

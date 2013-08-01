@@ -28386,7 +28386,7 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 		ast_str_reset(uniqueid);
 		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
 
-		msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
+		msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
 		if (!msg) {
 			continue;
 		}

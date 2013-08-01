@@ -44,15 +44,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 /*! \internal */
-struct stasis_caching_topic {
-	struct ao2_container *cache;
-	struct stasis_topic *topic;
-	struct stasis_topic *original_topic;
-	struct stasis_subscription *sub;
+struct stasis_cache {
+	struct ao2_container *entries;
 	snapshot_get_id id_fn;
 };
 
-static struct stasis_message_type *cache_guarantee_type(void);
+/*! \internal */
+struct stasis_caching_topic {
+	struct stasis_cache *cache;
+	struct stasis_topic *topic;
+	struct stasis_topic *original_topic;
+	struct stasis_subscription *sub;
+};
 
 static void stasis_caching_topic_dtor(void *obj) {
 	struct stasis_caching_topic *caching_topic = obj;
@@ -136,7 +139,8 @@ static struct cache_entry *cache_entry_create(struct stasis_message_type *type, 
 	ast_assert(type != NULL);
 	ast_assert(id != NULL);
 
-	entry = ao2_alloc(sizeof(*entry), cache_entry_dtor);
+	entry = ao2_alloc_options(sizeof(*entry), cache_entry_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!entry) {
 		return NULL;
 	}
@@ -183,28 +187,62 @@ static int cache_entry_cmp(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static struct stasis_message *cache_put(struct stasis_caching_topic *caching_topic, struct stasis_message_type *type, const char *id, struct stasis_message *new_snapshot)
+static void cache_dtor(void *obj)
+{
+        struct stasis_cache *cache = obj;
+
+        ao2_cleanup(cache->entries);
+        cache->entries = NULL;
+}
+
+struct stasis_cache *stasis_cache_create(snapshot_get_id id_fn)
+{
+        RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
+
+        cache = ao2_alloc_options(sizeof(*cache), cache_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+        if (!cache) {
+                return NULL;
+        }
+
+        cache->entries = ao2_container_alloc(NUM_CACHE_BUCKETS, cache_entry_hash,
+                cache_entry_cmp);
+        if (!cache->entries) {
+                return NULL;
+        }
+
+        cache->id_fn = id_fn;
+
+        ao2_ref(cache, +1);
+        return cache;
+}
+
+static struct stasis_message *cache_put(struct stasis_cache *cache,
+	struct stasis_message_type *type, const char *id,
+	struct stasis_message *new_snapshot)
 {
 	RAII_VAR(struct cache_entry *, new_entry, NULL, ao2_cleanup);
 	RAII_VAR(struct cache_entry *, cached_entry, NULL, ao2_cleanup);
 	struct stasis_message *old_snapshot = NULL;
 
-	ast_assert(caching_topic->cache != NULL);
+	ast_assert(cache->entries != NULL);
+	ast_assert(new_snapshot == NULL ||
+		type == stasis_message_type(new_snapshot));
 
 	new_entry = cache_entry_create(type, id, new_snapshot);
 
 	if (new_snapshot == NULL) {
 		/* Remove entry from cache */
-		cached_entry = ao2_find(caching_topic->cache, new_entry, OBJ_POINTER | OBJ_UNLINK);
+		cached_entry = ao2_find(cache->entries, new_entry, OBJ_POINTER | OBJ_UNLINK);
 		if (cached_entry) {
 			old_snapshot = cached_entry->snapshot;
 			cached_entry->snapshot = NULL;
 		}
 	} else {
 		/* Insert/update cache */
-		SCOPED_AO2LOCK(lock, caching_topic->cache);
+		SCOPED_AO2LOCK(lock, cache->entries);
 
-		cached_entry = ao2_find(caching_topic->cache, new_entry, OBJ_POINTER | OBJ_NOLOCK);
+		cached_entry = ao2_find(cache->entries, new_entry, OBJ_POINTER | OBJ_NOLOCK);
 		if (cached_entry) {
 			/* Update cache. Because objects are moving, no need to update refcounts. */
 			old_snapshot = cached_entry->snapshot;
@@ -212,7 +250,7 @@ static struct stasis_message *cache_put(struct stasis_caching_topic *caching_top
 			new_entry->snapshot = NULL;
 		} else {
 			/* Insert into the cache */
-			ao2_link_flags(caching_topic->cache, new_entry, OBJ_NOLOCK);
+			ao2_link_flags(cache->entries, new_entry, OBJ_NOLOCK);
 		}
 
 	}
@@ -220,68 +258,19 @@ static struct stasis_message *cache_put(struct stasis_caching_topic *caching_top
 	return old_snapshot;
 }
 
-/*! \internal */
-struct caching_guarantee {
-	ast_mutex_t lock;
-	ast_cond_t cond;
-	unsigned int done:1;
-};
-
-static void caching_guarantee_dtor(void *obj)
-{
-	struct caching_guarantee *guarantee = obj;
-
-	ast_assert(guarantee->done == 1);
-
-	ast_mutex_destroy(&guarantee->lock);
-	ast_cond_destroy(&guarantee->cond);
-}
-
-static struct stasis_message *caching_guarantee_create(void)
-{
-	RAII_VAR(struct caching_guarantee *, guarantee, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-
-	if (!(guarantee = ao2_alloc(sizeof(*guarantee), caching_guarantee_dtor))) {
-		return NULL;
-	}
-
-	ast_mutex_init(&guarantee->lock);
-	ast_cond_init(&guarantee->cond, NULL);
-
-	if (!(msg = stasis_message_create(cache_guarantee_type(), guarantee))) {
-		return NULL;
-	}
-
-	ao2_ref(msg, +1);
-	return msg;
-}
-
-struct stasis_message *stasis_cache_get_extended(struct stasis_caching_topic *caching_topic, struct stasis_message_type *type, const char *id, unsigned int guaranteed)
+struct stasis_message *stasis_cache_get(struct stasis_cache *cache, struct stasis_message_type *type, const char *id)
 {
 	RAII_VAR(struct cache_entry *, search_entry, NULL, ao2_cleanup);
 	RAII_VAR(struct cache_entry *, cached_entry, NULL, ao2_cleanup);
 
-	ast_assert(caching_topic->cache != NULL);
-
-	if (guaranteed) {
-		RAII_VAR(struct stasis_message *, msg, caching_guarantee_create(), ao2_cleanup);
-		struct caching_guarantee *guarantee = stasis_message_data(msg);
-
-		ast_mutex_lock(&guarantee->lock);
-		stasis_publish(caching_topic->original_topic, msg);
-		while (!guarantee->done) {
-			ast_cond_wait(&guarantee->cond, &guarantee->lock);
-		}
-		ast_mutex_unlock(&guarantee->lock);
-	}
+	ast_assert(cache->entries != NULL);
 
 	search_entry = cache_entry_create(type, id, NULL);
 	if (search_entry == NULL) {
 		return NULL;
 	}
 
-	cached_entry = ao2_find(caching_topic->cache, search_entry, OBJ_POINTER);
+	cached_entry = ao2_find(cache->entries, search_entry, OBJ_POINTER);
 	if (cached_entry == NULL) {
 		return NULL;
 	}
@@ -308,25 +297,25 @@ static int cache_dump_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
-struct ao2_container *stasis_cache_dump(struct stasis_caching_topic *caching_topic, struct stasis_message_type *type)
+struct ao2_container *stasis_cache_dump(struct stasis_cache *cache, struct stasis_message_type *type)
 {
 	struct cache_dump_data cache_dump;
 
-	ast_assert(caching_topic->cache != NULL);
+	ast_assert(cache->entries != NULL);
 
 	cache_dump.type = type;
-	cache_dump.cached = ao2_container_alloc(1, NULL, NULL);
+	cache_dump.cached = ao2_container_alloc_options(
+		AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
 	if (!cache_dump.cached) {
 		return NULL;
 	}
 
-	ao2_callback(caching_topic->cache, OBJ_MULTIPLE | OBJ_NODATA, cache_dump_cb, &cache_dump);
+	ao2_callback(cache->entries, OBJ_MULTIPLE | OBJ_NODATA, cache_dump_cb, &cache_dump);
 	return cache_dump.cached;
 }
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_cache_clear_type);
 STASIS_MESSAGE_TYPE_DEFN(stasis_cache_update_type);
-STASIS_MESSAGE_TYPE_DEFN(cache_guarantee_type);
 
 struct stasis_message *stasis_cache_clear_create(struct stasis_message *id_message)
 {
@@ -362,7 +351,8 @@ static struct stasis_message *update_create(struct stasis_topic *topic, struct s
 	ast_assert(topic != NULL);
 	ast_assert(old_snapshot != NULL || new_snapshot != NULL);
 
-	update = ao2_alloc(sizeof(*update), stasis_cache_update_dtor);
+	update = ao2_alloc_options(sizeof(*update), stasis_cache_update_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!update) {
 		return NULL;
 	}
@@ -393,7 +383,8 @@ static struct stasis_message *update_create(struct stasis_topic *topic, struct s
 	return msg;
 }
 
-static void caching_topic_exec(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void caching_topic_exec(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
 {
 	RAII_VAR(struct stasis_caching_topic *, caching_topic_needs_unref, NULL, ao2_cleanup);
 	struct stasis_caching_topic *caching_topic = data;
@@ -401,22 +392,11 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 
 	ast_assert(caching_topic != NULL);
 	ast_assert(caching_topic->topic != NULL);
-	ast_assert(caching_topic->id_fn != NULL);
+	ast_assert(caching_topic->cache != NULL);
+	ast_assert(caching_topic->cache->id_fn != NULL);
 
 	if (stasis_subscription_final_message(sub, message)) {
 		caching_topic_needs_unref = caching_topic;
-	}
-
-	/* Handle cache guarantee event */
-	if (cache_guarantee_type() == stasis_message_type(message)) {
-		struct caching_guarantee *guarantee = stasis_message_data(message);
-
-		ast_mutex_lock(&guarantee->lock);
-		guarantee->done = 1;
-		ast_cond_signal(&guarantee->cond);
-		ast_mutex_unlock(&guarantee->lock);
-
-		return;
 	}
 
 	/* Handle cache clear event */
@@ -424,13 +404,13 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 		RAII_VAR(struct stasis_message *, old_snapshot, NULL, ao2_cleanup);
 		RAII_VAR(struct stasis_message *, update, NULL, ao2_cleanup);
 		struct stasis_message *clear_msg = stasis_message_data(message);
-		const char *clear_id = caching_topic->id_fn(clear_msg);
+		const char *clear_id = caching_topic->cache->id_fn(clear_msg);
 		struct stasis_message_type *clear_type = stasis_message_type(clear_msg);
 
 		ast_assert(clear_type != NULL);
 
 		if (clear_id) {
-			old_snapshot = cache_put(caching_topic, clear_type, clear_id, NULL);
+			old_snapshot = cache_put(caching_topic->cache, clear_type, clear_id, NULL);
 			if (old_snapshot) {
 				update = update_create(topic, old_snapshot, NULL);
 				stasis_publish(caching_topic->topic, update);
@@ -444,7 +424,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 		}
 	}
 
-	id = caching_topic->id_fn(message);
+	id = caching_topic->cache->id_fn(message);
 	if (id == NULL) {
 		/* Object isn't cached; forward */
 		stasis_forward_message(caching_topic->topic, topic, message);
@@ -453,7 +433,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 		RAII_VAR(struct stasis_message *, old_snapshot, NULL, ao2_cleanup);
 		RAII_VAR(struct stasis_message *, update, NULL, ao2_cleanup);
 
-		old_snapshot = cache_put(caching_topic, stasis_message_type(message), id, message);
+		old_snapshot = cache_put(caching_topic->cache, stasis_message_type(message), id, message);
 
 		update = update_create(topic, old_snapshot, message);
 		if (update == NULL) {
@@ -464,7 +444,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub, stru
 	}
 }
 
-struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *original_topic, snapshot_get_id id_fn)
+struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *original_topic, struct stasis_cache *cache)
 {
 	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, ao2_cleanup);
 	struct stasis_subscription *sub;
@@ -476,14 +456,9 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 		return NULL;
 	}
 
-	caching_topic = ao2_alloc(sizeof(*caching_topic), stasis_caching_topic_dtor);
+	caching_topic = ao2_alloc_options(sizeof(*caching_topic),
+		stasis_caching_topic_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (caching_topic == NULL) {
-		return NULL;
-	}
-
-	caching_topic->cache = ao2_container_alloc(NUM_CACHE_BUCKETS, cache_entry_hash, cache_entry_cmp);
-	if (!caching_topic->cache) {
-		ast_log(LOG_ERROR, "Stasis cache allocation failed\n");
 		return NULL;
 	}
 
@@ -492,7 +467,8 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 		return NULL;
 	}
 
-	caching_topic->id_fn = id_fn;
+	ao2_ref(cache, +1);
+	caching_topic->cache = cache;
 
 	sub = internal_stasis_subscribe(original_topic, caching_topic_exec, caching_topic, 0);
 	if (sub == NULL) {
@@ -514,7 +490,6 @@ static void stasis_cache_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_clear_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_cache_update_type);
-	STASIS_MESSAGE_TYPE_CLEANUP(cache_guarantee_type);
 }
 
 int stasis_cache_init(void)
@@ -526,10 +501,6 @@ int stasis_cache_init(void)
 	}
 
 	if (STASIS_MESSAGE_TYPE_INIT(stasis_cache_update_type) != 0) {
-		return -1;
-	}
-
-	if (STASIS_MESSAGE_TYPE_INIT(cache_guarantee_type) != 0) {
 		return -1;
 	}
 

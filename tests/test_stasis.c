@@ -614,6 +614,7 @@ AST_TEST_DEFINE(cache_passthrough)
 {
 	RAII_VAR(struct stasis_message_type *, non_cache_type, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, stasis_caching_unsubscribe);
 	RAII_VAR(struct consumer *, consumer, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
@@ -636,7 +637,9 @@ AST_TEST_DEFINE(cache_passthrough)
 	ast_test_validate(test, NULL != non_cache_type);
 	topic = stasis_topic_create("SomeTopic");
 	ast_test_validate(test, NULL != topic);
-	caching_topic = stasis_caching_topic_create(topic, cache_test_data_id);
+	cache = stasis_cache_create(cache_test_data_id);
+	ast_test_validate(test, NULL != cache);
+	caching_topic = stasis_caching_topic_create(topic, cache);
 	ast_test_validate(test, NULL != caching_topic);
 	consumer = consumer_create(1);
 	ast_test_validate(test, NULL != consumer);
@@ -664,6 +667,7 @@ AST_TEST_DEFINE(cache)
 {
 	RAII_VAR(struct stasis_message_type *, cache_type, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, stasis_caching_unsubscribe);
 	RAII_VAR(struct consumer *, consumer, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
@@ -689,7 +693,9 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, NULL != cache_type);
 	topic = stasis_topic_create("SomeTopic");
 	ast_test_validate(test, NULL != topic);
-	caching_topic = stasis_caching_topic_create(topic, cache_test_data_id);
+	cache = stasis_cache_create(cache_test_data_id);
+	ast_test_validate(test, NULL != cache);
+	caching_topic = stasis_caching_topic_create(topic, cache);
 	ast_test_validate(test, NULL != caching_topic);
 	consumer = consumer_create(1);
 	ast_test_validate(test, NULL != consumer);
@@ -714,7 +720,7 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
 	ast_test_validate(test, test_message1_1 == actual_update->new_snapshot);
-	ast_test_validate(test, test_message1_1 == stasis_cache_get(caching_topic, cache_type, "1"));
+	ast_test_validate(test, test_message1_1 == stasis_cache_get(cache, cache_type, "1"));
 	/* stasis_cache_get returned a ref, so unref test_message1_1 */
 	ao2_ref(test_message1_1, -1);
 
@@ -723,7 +729,7 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
 	ast_test_validate(test, test_message2_1 == actual_update->new_snapshot);
-	ast_test_validate(test, test_message2_1 == stasis_cache_get(caching_topic, cache_type, "2"));
+	ast_test_validate(test, test_message2_1 == stasis_cache_get(cache, cache_type, "2"));
 	/* stasis_cache_get returned a ref, so unref test_message2_1 */
 	ao2_ref(test_message2_1, -1);
 
@@ -739,7 +745,7 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, test_message2_1 == actual_update->old_snapshot);
 	ast_test_validate(test, test_message2_2 == actual_update->new_snapshot);
-	ast_test_validate(test, test_message2_2 == stasis_cache_get(caching_topic, cache_type, "2"));
+	ast_test_validate(test, test_message2_2 == stasis_cache_get(cache, cache_type, "2"));
 	/* stasis_cache_get returned a ref, so unref test_message2_2 */
 	ao2_ref(test_message2_2, -1);
 
@@ -755,7 +761,7 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, test_message1_1 == actual_update->old_snapshot);
 	ast_test_validate(test, NULL == actual_update->new_snapshot);
-	ast_test_validate(test, NULL == stasis_cache_get(caching_topic, cache_type, "1"));
+	ast_test_validate(test, NULL == stasis_cache_get(cache, cache_type, "1"));
 
 	return AST_TEST_PASS;
 }
@@ -764,6 +770,7 @@ AST_TEST_DEFINE(cache_dump)
 {
 	RAII_VAR(struct stasis_message_type *, cache_type, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, stasis_caching_unsubscribe);
 	RAII_VAR(struct consumer *, consumer, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
@@ -791,7 +798,9 @@ AST_TEST_DEFINE(cache_dump)
 	ast_test_validate(test, NULL != cache_type);
 	topic = stasis_topic_create("SomeTopic");
 	ast_test_validate(test, NULL != topic);
-	caching_topic = stasis_caching_topic_create(topic, cache_test_data_id);
+	cache = stasis_cache_create(cache_test_data_id);
+	ast_test_validate(test, NULL != cache);
+	caching_topic = stasis_caching_topic_create(topic, cache);
 	ast_test_validate(test, NULL != caching_topic);
 	consumer = consumer_create(1);
 	ast_test_validate(test, NULL != consumer);
@@ -811,7 +820,7 @@ AST_TEST_DEFINE(cache_dump)
 	ast_test_validate(test, 2 == actual_len);
 
 	/* Check the cache */
-	cache_dump = stasis_cache_dump(caching_topic, NULL);
+	cache_dump = stasis_cache_dump(cache, NULL);
 	ast_test_validate(test, NULL != cache_dump);
 	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
 	i = ao2_iterator_init(cache_dump, 0);
@@ -829,7 +838,7 @@ AST_TEST_DEFINE(cache_dump)
 	ast_test_validate(test, 3 == actual_len);
 
 	/* Check the cache */
-	cache_dump = stasis_cache_dump(caching_topic, NULL);
+	cache_dump = stasis_cache_dump(cache, NULL);
 	ast_test_validate(test, NULL != cache_dump);
 	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
 	i = ao2_iterator_init(cache_dump, 0);
@@ -847,7 +856,7 @@ AST_TEST_DEFINE(cache_dump)
 	ast_test_validate(test, 4 == actual_len);
 
 	/* Check the cache */
-	cache_dump = stasis_cache_dump(caching_topic, NULL);
+	cache_dump = stasis_cache_dump(cache, NULL);
 	ast_test_validate(test, NULL != cache_dump);
 	ast_test_validate(test, 1 == ao2_container_count(cache_dump));
 	i = ao2_iterator_init(cache_dump, 0);
@@ -858,7 +867,7 @@ AST_TEST_DEFINE(cache_dump)
 
 	/* Dump the cache to ensure that it has no subscription change items in it since those aren't cached */
 	ao2_cleanup(cache_dump);
-	cache_dump = stasis_cache_dump(caching_topic, stasis_subscription_change_type());
+	cache_dump = stasis_cache_dump(cache, stasis_subscription_change_type());
 	ast_test_validate(test, 0 == ao2_container_count(cache_dump));
 
 	return AST_TEST_PASS;
@@ -1019,7 +1028,8 @@ static const char *cache_simple(struct stasis_message *message) {
 AST_TEST_DEFINE(router_cache_updates)
 {
 	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, stasis_caching_unsubscribe);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, stasis_caching_unsubscribe_and_join);
 	RAII_VAR(struct stasis_message_type *, test_message_type1, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message_type *, test_message_type2, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message_type *, test_message_type3, NULL, ao2_cleanup);
@@ -1051,7 +1061,9 @@ AST_TEST_DEFINE(router_cache_updates)
 	topic = stasis_topic_create("TestTopic");
 	ast_test_validate(test, NULL != topic);
 
-	caching_topic = stasis_caching_topic_create(topic, cache_simple);
+	cache = stasis_cache_create(cache_simple);
+	ast_test_validate(test, NULL != cache);
+	caching_topic = stasis_caching_topic_create(topic, cache);
 	ast_test_validate(test, NULL != caching_topic);
 
 	consumer1 = consumer_create(1);

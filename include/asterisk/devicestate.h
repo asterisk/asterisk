@@ -307,7 +307,14 @@ struct stasis_topic *ast_device_state_topic(const char *device);
  * \retval NULL if it has not been allocated
  * \since 12
  */
-struct stasis_caching_topic *ast_device_state_topic_cached(void);
+struct stasis_topic *ast_device_state_topic_cached(void);
+
+/*!
+ * \brief Backend cache for ast_device_state_topic_cached()
+ * \retval Cache of \ref ast_device_state_message.
+ * \since 12
+ */
+struct stasis_cache *ast_device_state_cache(void);
 
 /*!
  * \brief Get the Stasis message type for device state messages

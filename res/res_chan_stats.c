@@ -154,7 +154,7 @@ static int load_module(void)
 {
 	/* You can create a message router to route messages by type */
 	router = stasis_message_router_create(
-		stasis_caching_get_topic(ast_channel_topic_all_cached()));
+		ast_channel_topic_all_cached());
 	if (!router) {
 		return AST_MODULE_LOAD_FAILURE;
 	}

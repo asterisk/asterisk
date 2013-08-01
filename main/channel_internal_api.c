@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/data.h"
 #include "asterisk/endpoints.h"
 #include "asterisk/indications.h"
+#include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stringfields.h"
@@ -208,7 +209,7 @@ struct ast_channel {
 	char dtmf_digit_to_emulate;			/*!< Digit being emulated */
 	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
-	struct stasis_topic *topic;			/*!< Topic for all channel's events */
+	struct stasis_cp_single *topics;		/*!< Topic for all channel's events */
 	struct stasis_subscription *forwarder;		/*!< Subscription for event forwarding to all topic */
 	struct stasis_subscription *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 };
@@ -1434,8 +1435,8 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 	chan->forwarder = stasis_unsubscribe(chan->forwarder);
 	chan->endpoint_forward = stasis_unsubscribe(chan->endpoint_forward);
 
-	ao2_cleanup(chan->topic);
-	chan->topic = NULL;
+	stasis_cp_single_unsubscribe(chan->topics);
+	chan->topics = NULL;
 }
 
 void ast_channel_internal_finalize(struct ast_channel *chan)
@@ -1450,16 +1451,31 @@ int ast_channel_internal_is_finalized(struct ast_channel *chan)
 
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan)
 {
-	return chan ? chan->topic : ast_channel_topic_all();
+	if (!chan) {
+		return ast_channel_topic_all();
+	}
+
+	return stasis_cp_single_topic(chan->topics);
 }
 
-int ast_channel_forward_endpoint(struct ast_channel *chan, struct ast_endpoint *endpoint)
+struct stasis_topic *ast_channel_topic_cached(struct ast_channel *chan)
+{
+	if (!chan) {
+		return ast_channel_topic_all_cached();
+	}
+
+	return stasis_cp_single_topic_cached(chan->topics);
+}
+
+int ast_channel_forward_endpoint(struct ast_channel *chan,
+	struct ast_endpoint *endpoint)
 {
 	ast_assert(chan != NULL);
 	ast_assert(endpoint != NULL);
 
 	chan->endpoint_forward =
-		stasis_forward_all(chan->topic, ast_endpoint_topic(endpoint));
+		stasis_forward_all(ast_channel_topic(chan),
+			ast_endpoint_topic(endpoint));
 
 	if (chan->endpoint_forward == NULL) {
 		return -1;
@@ -1468,19 +1484,21 @@ int ast_channel_forward_endpoint(struct ast_channel *chan, struct ast_endpoint *
 	return 0;
 }
 
-void ast_channel_internal_setup_topics(struct ast_channel *chan)
+int ast_channel_internal_setup_topics(struct ast_channel *chan)
 {
 	const char *topic_name = chan->uniqueid;
-	ast_assert(chan->topic == NULL);
-	ast_assert(chan->forwarder == NULL);
+	ast_assert(chan->topics == NULL);
 
 	if (ast_strlen_zero(topic_name)) {
 		topic_name = "<dummy-channel>";
 	}
 
-	chan->topic = stasis_topic_create(topic_name);
-	chan->forwarder = stasis_forward_all(chan->topic, ast_channel_topic_all());
+	chan->topics = stasis_cp_single_create(
+		ast_channel_cache_all(), topic_name);
 
-	ast_assert(chan->topic != NULL);
-	ast_assert(chan->forwarder != NULL);
+	if (!chan->topics) {
+		return -1;
+	}
+
+	return 0;
 }

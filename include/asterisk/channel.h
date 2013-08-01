@@ -4186,6 +4186,21 @@ struct varshead *ast_channel_get_vars(struct ast_channel *chan);
 struct stasis_topic *ast_channel_topic(struct ast_channel *chan);
 
 /*!
+ * \since 12
+ * \brief A topic which publishes the events for a particular channel.
+ *
+ * \ref ast_channel_snapshot messages are replaced with \ref stasis_cache_update
+ *
+ * If the given \a chan is \c NULL, ast_channel_topic_all_cached() is returned.
+ *
+ * \param chan Channel, or \c NULL.
+ *
+ * \retval Topic for channel's events.
+ * \retval ast_channel_topic_all() if \a chan is \c NULL.
+ */
+struct stasis_topic *ast_channel_topic_cached(struct ast_channel *chan);
+
+/*!
  * \brief Get the bridge associated with a channel
  * \since 12.0.0
  *

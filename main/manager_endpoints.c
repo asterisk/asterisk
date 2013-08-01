@@ -49,7 +49,11 @@ static void endpoint_state_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
-	stasis_forward_message(ast_manager_get_topic(), stasis_caching_get_topic(ast_endpoint_topic_all_cached()), message);
+	/* XXX This looks wrong. Nothing should post or forward to a caching
+	 * topic directly. Maybe ast_endpoint_topic() would be correct? I'd have
+	 * to dig to make sure I don't break anything, though.
+	 */
+	stasis_forward_message(ast_manager_get_topic(), ast_endpoint_topic_all_cached(), message);
 }
 
 int manager_endpoints_init(void)
@@ -64,7 +68,7 @@ int manager_endpoints_init(void)
 
 	ast_register_atexit(manager_endpoints_shutdown);
 
-	endpoint_topic = stasis_caching_get_topic(ast_endpoint_topic_all_cached());
+	endpoint_topic = ast_endpoint_topic_all_cached();
 	if (!endpoint_topic) {
 		return -1;
 	}

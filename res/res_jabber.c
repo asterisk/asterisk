@@ -3310,7 +3310,7 @@ static void aji_init_event_distribution(struct aji_client *client)
 		RAII_VAR(struct ao2_container *, cached, NULL, ao2_cleanup);
 		device_state_sub = stasis_subscribe(ast_device_state_topic_all(),
 			aji_devstate_cb, client);
-		cached = stasis_cache_dump(ast_device_state_topic_cached(), NULL);
+		cached = stasis_cache_dump(ast_device_state_cache(), NULL);
 		ao2_callback(cached, OBJ_NODATA, cached_devstate_cb, client);
 	}
 

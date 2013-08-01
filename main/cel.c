@@ -1551,14 +1551,14 @@ int ast_cel_engine_init(void)
 	}
 
 	cel_channel_forwarder = stasis_forward_all(
-		stasis_caching_get_topic(ast_channel_topic_all_cached()),
+		ast_channel_topic_all_cached(),
 		cel_aggregation_topic);
 	if (!cel_channel_forwarder) {
 		return -1;
 	}
 
 	cel_bridge_forwarder = stasis_forward_all(
-		stasis_caching_get_topic(ast_bridge_topic_all_cached()),
+		ast_bridge_topic_all_cached(),
 		cel_aggregation_topic);
 	if (!cel_bridge_forwarder) {
 		return -1;

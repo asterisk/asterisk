@@ -1251,7 +1251,13 @@ struct stasis_topic *ast_mwi_topic(const char *uniqueid);
  * \retval NULL if it has not been allocated
  * \since 12
  */
-struct stasis_caching_topic *ast_mwi_topic_cached(void);
+struct stasis_topic *ast_mwi_topic_cached(void);
+
+/*!
+ * \brief Backend cache for ast_mwi_topic_cached().
+ * \retval Cache of \ref ast_mwi_state.
+ */
+struct stasis_cache *ast_mwi_state_cache(void);
 
 /*!
  * \brief Get the \ref stasis message type for MWI messages

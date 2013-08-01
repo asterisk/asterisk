@@ -466,18 +466,18 @@ void ast_ari_get_channel(struct ast_variable *headers,
 			     struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct stasis_caching_topic *caching_topic;
+	struct stasis_cache *cache;
 	struct ast_channel_snapshot *snapshot;
 
-	caching_topic = ast_channel_topic_all_cached();
-	if (!caching_topic) {
+	cache = ast_channel_cache();
+	if (!cache) {
 		ast_ari_response_error(
 			response, 500, "Internal Server Error",
 			"Message bus not initialized");
 		return;
 	}
 
-	msg = stasis_cache_get(caching_topic, ast_channel_snapshot_type(),
+	msg = stasis_cache_get(cache, ast_channel_snapshot_type(),
 			       args->channel_id);
 	if (!msg) {
 		ast_ari_response_error(
@@ -516,22 +516,22 @@ void ast_ari_get_channels(struct ast_variable *headers,
 			      struct ast_get_channels_args *args,
 			      struct ast_ari_response *response)
 {
-	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, snapshots, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ao2_iterator i;
 	void *obj;
 
-	caching_topic = ast_channel_topic_all_cached();
-	if (!caching_topic) {
+	cache = ast_channel_cache();
+	if (!cache) {
 		ast_ari_response_error(
 			response, 500, "Internal Server Error",
 			"Message bus not initialized");
 		return;
 	}
-	ao2_ref(caching_topic, +1);
+	ao2_ref(cache, +1);
 
-	snapshots = stasis_cache_dump(caching_topic, ast_channel_snapshot_type());
+	snapshots = stasis_cache_dump(cache, ast_channel_snapshot_type());
 	if (!snapshots) {
 		ast_ari_response_alloc_failed(response);
 		return;

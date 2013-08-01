@@ -30,6 +30,7 @@
 #include "asterisk/endpoints.h"
 #include "asterisk/json.h"
 #include "asterisk/stasis.h"
+#include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/stringfields.h"
 
 /*! \addtogroup StasisTopicsAndMessages
@@ -144,6 +145,31 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 struct stasis_topic *ast_endpoint_topic(struct ast_endpoint *endpoint);
 
 /*!
+ * \brief Returns the topic for a specific endpoint.
+ *
+ * \ref ast_endpoint_snapshot messages are replaced with
+ * \ref stasis_cache_update
+ *
+ * \param endpoint The endpoint.
+ * \return The topic for the given endpoint.
+ * \return ast_endpoint_topic_all() if endpoint is \c NULL.
+ * \since 12
+ */
+struct stasis_topic *ast_endpoint_topic_cached(struct ast_endpoint *endpoint);
+
+/*!
+ * \internal
+ * \brief Cache and global topics for endpoints.
+ *
+ * This is public simply to be used by endpoints.c. Please use the accessor
+ * functions (ast_endpoint_topic_all(), ast_endpoint_topic_all_cached(),
+ * ast_endpoint_cache(), etc.) instead of calling this directly.
+ *
+ * \since 12
+ */
+struct stasis_cp_all *ast_endpoint_cache_all(void);
+
+/*!
  * \brief Topic for all endpoint releated messages.
  * \since 12
  */
@@ -153,7 +179,14 @@ struct stasis_topic *ast_endpoint_topic_all(void);
  * \brief Cached topic for all endpoint related messages.
  * \since 12
  */
-struct stasis_caching_topic *ast_endpoint_topic_all_cached(void);
+struct stasis_topic *ast_endpoint_topic_all_cached(void);
+
+/*!
+ * \brief Backend cache for ast_endpoint_topic_all_cached().
+ * \return Cache of \ref ast_endpoint_snapshot.
+ * \since 12
+ */
+struct stasis_cache *ast_endpoint_cache(void);
 
 /*!
  * \brief Retrieve the most recent snapshot for the endpoint with the given

@@ -277,6 +277,8 @@ struct ast_bridge {
 	struct ast_bridge_technology *technology;
 	/*! Private information unique to the bridge technology */
 	void *tech_pvt;
+	/*! Per-bridge topics */
+	struct stasis_cp_single *topics;
 	/*! Call ID associated with the bridge */
 	struct ast_callid *callid;
 	/*! Linked list of channels participating in the bridge */

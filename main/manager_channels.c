@@ -1269,7 +1269,7 @@ int manager_channels_init(void)
 	if (!message_router) {
 		return -1;
 	}
-	channel_topic = stasis_caching_get_topic(ast_channel_topic_all_cached());
+	channel_topic = ast_channel_topic_all_cached();
 	if (!channel_topic) {
 		return -1;
 	}

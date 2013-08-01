@@ -448,22 +448,22 @@ void ast_ari_delete_bridge(struct ast_variable *headers, struct ast_delete_bridg
 
 void ast_ari_get_bridges(struct ast_variable *headers, struct ast_get_bridges_args *args, struct ast_ari_response *response)
 {
-	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, snapshots, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ao2_iterator i;
 	void *obj;
 
-	caching_topic = ast_bridge_topic_all_cached();
-	if (!caching_topic) {
+	cache = ast_bridge_cache();
+	if (!cache) {
 		ast_ari_response_error(
 			response, 500, "Internal Server Error",
 			"Message bus not initialized");
 		return;
 	}
-	ao2_ref(caching_topic, +1);
+	ao2_ref(cache, +1);
 
-	snapshots = stasis_cache_dump(caching_topic, ast_bridge_snapshot_type());
+	snapshots = stasis_cache_dump(cache, ast_bridge_snapshot_type());
 	if (!snapshots) {
 		ast_ari_response_alloc_failed(response);
 		return;

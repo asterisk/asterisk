@@ -993,7 +993,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	channel_router = stasis_message_router_create(stasis_caching_get_topic(ast_channel_topic_all_cached()));
+	channel_router = stasis_message_router_create(ast_channel_topic_all_cached());
 	if (!channel_router) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
@@ -1013,7 +1013,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	bridge_router = stasis_message_router_create(stasis_caching_get_topic(ast_bridge_topic_all_cached()));
+	bridge_router = stasis_message_router_create(ast_bridge_topic_all_cached());
 	if (!bridge_router) {
 		return AST_MODULE_LOAD_FAILURE;
 	}

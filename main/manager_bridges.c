@@ -350,7 +350,7 @@ static int manager_bridges_list(struct mansession *s, const struct message *m)
 		ast_str_set(&id_text, 0, "ActionID: %s\r\n", id);
 	}
 
-	bridges = stasis_cache_dump(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type());
+	bridges = stasis_cache_dump(ast_bridge_cache(), ast_bridge_snapshot_type());
 	if (!bridges) {
 		astman_send_error(s, m, "Internal error");
 		return -1;
@@ -382,7 +382,7 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_channel_snapshot *snapshot;
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
-	msg = stasis_cache_get(ast_channel_topic_all_cached(),
+	msg = stasis_cache_get(ast_channel_cache(),
 		ast_channel_snapshot_type(), uniqueid);
 
 	if (!msg) {
@@ -432,7 +432,7 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 		ast_str_set(&id_text, 0, "ActionID: %s\r\n", id);
 	}
 
-	msg = stasis_cache_get(ast_bridge_topic_all_cached(), ast_bridge_snapshot_type(), bridge_uniqueid);
+	msg = stasis_cache_get(ast_bridge_cache(), ast_bridge_snapshot_type(), bridge_uniqueid);
 	if (!msg) {
 		astman_send_error(s, m, "Specified BridgeUniqueid not found");
 		return -1;
@@ -489,7 +489,7 @@ int manager_bridging_init(void)
 		return -1;
 	}
 
-	bridge_topic = stasis_caching_get_topic(ast_bridge_topic_all_cached());
+	bridge_topic = ast_bridge_topic_all_cached();
 	if (!bridge_topic) {
 		return -1;
 	}

@@ -394,7 +394,7 @@ static void cache_cleanup(int unused)
 {
 	RAII_VAR(struct ao2_container *, cache_dump, NULL, ao2_cleanup);
 	/* remove all device states created during this test */
-	cache_dump = stasis_cache_dump(ast_device_state_topic_cached(), NULL);
+	cache_dump = stasis_cache_dump(ast_device_state_cache(), NULL);
 	if (!cache_dump) {
 		return;
 	}
@@ -434,7 +434,7 @@ AST_TEST_DEFINE(device_state_aggregation_test)
 	consumer = consumer_create();
 	ast_test_validate(test, NULL != consumer);
 
-	device_msg_router = stasis_message_router_create(stasis_caching_get_topic(ast_device_state_topic_cached()));
+	device_msg_router = stasis_message_router_create(ast_device_state_topic_cached());
 	ast_test_validate(test, NULL != device_msg_router);
 
 	ao2_ref(consumer, +1);
@@ -451,7 +451,7 @@ AST_TEST_DEFINE(device_state_aggregation_test)
 	ast_test_validate(test, AST_DEVICE_NOT_INUSE == consumer->state);
 	ast_test_validate(test, AST_DEVICE_NOT_INUSE == consumer->aggregate_state);
 
-	msg = stasis_cache_get(ast_device_state_topic_cached(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
+	msg = stasis_cache_get(ast_device_state_cache(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
 	device_state = stasis_message_data(msg);
 	ast_test_validate(test, AST_DEVICE_NOT_INUSE == device_state->state);
 	ao2_cleanup(msg);
@@ -466,7 +466,7 @@ AST_TEST_DEFINE(device_state_aggregation_test)
 	ast_test_validate(test, AST_DEVICE_NOT_INUSE == consumer->state);
 	ast_test_validate(test, AST_DEVICE_NOT_INUSE == consumer->aggregate_state);
 
-	msg = stasis_cache_get(ast_device_state_topic_cached(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
+	msg = stasis_cache_get(ast_device_state_cache(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
 	device_state = stasis_message_data(msg);
 	ast_test_validate(test, AST_DEVICE_NOT_INUSE == device_state->state);
 	ao2_cleanup(msg);
@@ -479,7 +479,7 @@ AST_TEST_DEFINE(device_state_aggregation_test)
 	ast_test_validate(test, AST_DEVICE_INUSE == consumer->state);
 	ast_test_validate(test, AST_DEVICE_INUSE == consumer->aggregate_state);
 
-	msg = stasis_cache_get(ast_device_state_topic_cached(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
+	msg = stasis_cache_get(ast_device_state_cache(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
 	device_state = stasis_message_data(msg);
 	ast_test_validate(test, AST_DEVICE_INUSE == device_state->state);
 	ao2_cleanup(msg);
@@ -492,7 +492,7 @@ AST_TEST_DEFINE(device_state_aggregation_test)
 	ast_test_validate(test, AST_DEVICE_RINGING == consumer->state);
 	ast_test_validate(test, AST_DEVICE_RINGINUSE == consumer->aggregate_state);
 
-	msg = stasis_cache_get(ast_device_state_topic_cached(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
+	msg = stasis_cache_get(ast_device_state_cache(), ast_device_state_message_type(), UNIT_TEST_DEVICE_IDENTIFIER);
 	device_state = stasis_message_data(msg);
 	ast_test_validate(test, AST_DEVICE_RINGINUSE == device_state->state);
 	ao2_cleanup(msg);

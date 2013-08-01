@@ -91,6 +91,22 @@ struct stasis_topic *ast_bridge_topic(struct ast_bridge *bridge);
 
 /*!
  * \since 12
+ * \brief A topic which publishes the events for a particular bridge.
+ *
+ * \ref ast_bridge_snapshot messages are replaced with stasis_cache_update
+ * messages.
+ *
+ * If the given \a bridge is \c NULL, ast_bridge_topic_all_cached() is returned.
+ *
+ * \param bridge Bridge for which to get a topic or \c NULL.
+ *
+ * \retval Topic for bridge's events.
+ * \retval ast_bridge_topic_all() if \a bridge is \c NULL.
+ */
+struct stasis_topic *ast_bridge_topic_cached(struct ast_bridge *bridge);
+
+/*!
+ * \since 12
  * \brief A topic which publishes the events for all bridges.
  * \retval Topic for all bridge events.
  */
@@ -103,7 +119,14 @@ struct stasis_topic *ast_bridge_topic_all(void);
  *
  * \retval Caching topic for all bridge events.
  */
-struct stasis_caching_topic *ast_bridge_topic_all_cached(void);
+struct stasis_topic *ast_bridge_topic_all_cached(void);
+
+/*!
+ * \since 12
+ * \brief Backend cache for ast_bridge_topic_all_cached().
+ * \retval Cache of \ref ast_bridge_snapshot.
+ */
+struct stasis_cache *ast_bridge_cache(void);
 
 /*!
  * \since 12
@@ -408,6 +431,15 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_get_latest(
 	const char *bridge_id);
 
 /*!
+ * \internal
+ * \brief Initialize the topics for a single bridge.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int bridge_topics_init(struct ast_bridge *bridge);
+
+/*!
+ * \internal
  * \brief Initialize the stasis bridging topic and message types
  * \retval 0 on success
  * \retval -1 on failure

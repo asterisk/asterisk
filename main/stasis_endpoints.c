@@ -73,16 +73,34 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</managerEvent>
 ***/
 
+static struct stasis_cp_all *endpoint_cache_all;
+
+struct stasis_cp_all *ast_endpoint_cache_all(void)
+{
+	return endpoint_cache_all;
+}
+
+struct stasis_cache *ast_endpoint_cache(void)
+{
+	return stasis_cp_all_cache(endpoint_cache_all);
+}
+
+struct stasis_topic *ast_endpoint_topic_all(void)
+{
+	return stasis_cp_all_topic(endpoint_cache_all);
+}
+
+struct stasis_topic *ast_endpoint_topic_all_cached(void)
+{
+	return stasis_cp_all_topic_cached(endpoint_cache_all);
+}
+
 static struct ast_manager_event_blob *peerstatus_to_ami(struct stasis_message *msg);
 
 STASIS_MESSAGE_TYPE_DEFN(ast_endpoint_snapshot_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_endpoint_state_type,
 	.to_ami = peerstatus_to_ami,
 );
-
-static struct stasis_topic *endpoint_topic_all;
-
-static struct stasis_caching_topic *endpoint_topic_all_cached;
 
 static struct ast_manager_event_blob *peerstatus_to_ami(struct stasis_message *msg)
 {
@@ -168,16 +186,6 @@ void ast_endpoint_blob_publish(struct ast_endpoint *endpoint, struct stasis_mess
 	}
 }
 
-struct stasis_topic *ast_endpoint_topic_all(void)
-{
-	return endpoint_topic_all;
-}
-
-struct stasis_caching_topic *ast_endpoint_topic_all_cached(void)
-{
-	return endpoint_topic_all_cached;
-}
-
 struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 	const char *name, unsigned int guaranteed)
 {
@@ -190,8 +198,12 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 		return NULL;
 	}
 
-	msg = stasis_cache_get_extended(ast_endpoint_topic_all_cached(),
-		ast_endpoint_snapshot_type(), id, guaranteed);
+	if (guaranteed) {
+		stasis_topic_wait(ast_endpoint_topic_all_cached());
+	}
+
+	msg = stasis_cache_get(ast_endpoint_cache(),
+		ast_endpoint_snapshot_type(), id);
 	if (!msg) {
 		return NULL;
 	}
@@ -267,44 +279,28 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 	return ast_json_ref(json);
 }
 
-static void endpoints_stasis_shutdown(void)
+static void endpoints_stasis_cleanup(void)
 {
-	stasis_caching_unsubscribe_and_join(endpoint_topic_all_cached);
-	endpoint_topic_all_cached = NULL;
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_endpoint_snapshot_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_endpoint_state_type);
 
-	ao2_cleanup(endpoint_topic_all);
-	endpoint_topic_all = NULL;
+	ao2_cleanup(endpoint_cache_all);
+	endpoint_cache_all = NULL;
 }
 
 int ast_endpoint_stasis_init(void)
 {
-	ast_register_atexit(endpoints_stasis_shutdown);
+	int res = 0;
+	ast_register_cleanup(endpoints_stasis_cleanup);
 
-	if (STASIS_MESSAGE_TYPE_INIT(ast_endpoint_snapshot_type) != 0) {
+	endpoint_cache_all = stasis_cp_all_create("endpoint_topic_all",
+		endpoint_snapshot_get_id);
+	if (!endpoint_cache_all) {
 		return -1;
 	}
 
-	if (!endpoint_topic_all) {
-		endpoint_topic_all = stasis_topic_create("endpoint_topic_all");
-	}
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_endpoint_snapshot_type);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_endpoint_state_type);
 
-	if (!endpoint_topic_all) {
-		return -1;
-	}
-
-	if (!endpoint_topic_all_cached) {
-		endpoint_topic_all_cached =
-			stasis_caching_topic_create(
-				endpoint_topic_all, endpoint_snapshot_get_id);
-	}
-
-	if (!endpoint_topic_all_cached) {
-		return -1;
-	}
-
-	if (STASIS_MESSAGE_TYPE_INIT(ast_endpoint_state_type) != 0) {
-		return -1;
-	}
-
-	return 0;
+	return res;
 }
