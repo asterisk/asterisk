@@ -239,7 +239,7 @@ static int get_message_count(void *obj, void *arg, int flags)
 	struct message_accumulator *counter = arg;
 	struct ast_mwi_state *mwi_state;
 
-	msg = stasis_cache_get(ast_mwi_topic_cached(), ast_mwi_state_type(), mwi_stasis->mailbox);
+	msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), mwi_stasis->mailbox);
 	if (!msg) {
 		return 0;
 	}
