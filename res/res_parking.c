@@ -1140,16 +1140,15 @@ static void link_configured_disable_marked_lots(void)
 
 static int load_module(void)
 {
-	if (aco_info_init(&cfg_info)) {
-		goto error;
-	}
-
 	parking_lot_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
 		parking_lot_sort_fn,
 		NULL);
-
 	if (!parking_lot_container) {
+		goto error;
+	}
+
+	if (aco_info_init(&cfg_info)) {
 		goto error;
 	}
 

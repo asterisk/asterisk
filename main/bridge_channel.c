@@ -757,9 +757,22 @@ struct bridge_park {
  */
 static void bridge_channel_park(struct ast_bridge_channel *bridge_channel, struct bridge_park *payload)
 {
-	ast_bridge_channel_park(bridge_channel, payload->parkee_uuid,
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
+		ast_parking_get_bridge_features(),
+		ao2_cleanup);
+
+	if (!parking_provider) {
+		ast_log(AST_LOG_WARNING, "Unable to park %s: No parking provider loaded!\n",
+			ast_channel_name(bridge_channel->chan));
+		return;
+	}
+
+	if (parking_provider->parking_park_bridge_channel(bridge_channel, payload->parkee_uuid,
 		&payload->parkee_uuid[payload->parker_uuid_offset],
-		payload->app_data_offset ? &payload->parkee_uuid[payload->app_data_offset] : NULL);
+		payload->app_data_offset ? &payload->parkee_uuid[payload->app_data_offset] : NULL)) {
+		ast_log(AST_LOG_WARNING, "Error occurred while parking %s\n",
+			ast_channel_name(bridge_channel->chan));
+	}
 }
 
 /*!

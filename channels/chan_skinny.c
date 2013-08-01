@@ -82,6 +82,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/bridge.h"
+#include "asterisk/parking.h"
 
 /*** DOCUMENTATION
 	<manager name="SKINNYdevices" language="en_US">
@@ -6404,24 +6405,37 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		break;
 	case STIMULUS_CALLPARK:
 		{
-		int extout;
+		char extout[AST_MAX_EXTENSION];
 		char message[32];
-
+		RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
+			ast_parking_get_bridge_features(),
+			ao2_cleanup);
+		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received STIMULUS_CALLPARK from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
 
-		if ((sub && sub->owner) && (ast_channel_state(sub->owner) ==  AST_STATE_UP)){
+		if (!parking_provider) {
+			transmit_displaynotify(d, "Call Park not available", 10);
+			break;
+		}
+
+		if ((sub && sub->owner) && (ast_channel_state(sub->owner) ==  AST_STATE_UP)) {
 			c = sub->owner;
-			if (ast_bridged_channel(c)) {
-				if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
-					snprintf(message, sizeof(message), "Call Parked at: %d", extout);
-					transmit_displaynotify(d, message, 10);
-				} else {
-					transmit_displaynotify(d, "Call Park failed", 10);
-				}
-			} else {
-				transmit_displaynotify(d, "Call Park not available", 10);
+			ast_channel_lock(c);
+			bridge_channel = ast_channel_get_bridge_channel(c);
+			ast_channel_unlock(c);
+
+			if (!bridge_channel) {
+				transmit_displaynotify(d, "Call Park failed", 10);
+				break;
 			}
+
+			if (!parking_provider->parking_park_call(bridge_channel, extout, sizeof(extout))) {
+				snprintf(message, sizeof(message), "Call Parked at: %s", extout);
+				transmit_displaynotify(d, message, 10);
+				break;
+			}
+			transmit_displaynotify(d, "Call Park failed", 10);
 		} else {
 			transmit_displaynotify(d, "Call Park not available", 10);
 		}
@@ -7141,24 +7155,37 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_PARK:
 		{
-		int extout;
+		char extout[AST_MAX_EXTENSION];
 		char message[32];
-
+		RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
+			ast_parking_get_bridge_features(),
+			ao2_cleanup);
+		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_PARK from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
 
-		if ((sub && sub->owner) && (ast_channel_state(sub->owner) ==  AST_STATE_UP)){
+		if (!parking_provider) {
+			transmit_displaynotify(d, "Call Park not available", 10);
+			break;
+		}
+
+		if ((sub && sub->owner) && (ast_channel_state(sub->owner) ==  AST_STATE_UP)) {
 			c = sub->owner;
-			if (ast_bridged_channel(c)) {
-				if (!ast_masq_park_call(ast_bridged_channel(c), c, 0, &extout)) {
-					snprintf(message, sizeof(message), "Call Parked at: %d", extout);
-					transmit_displaynotify(d, message, 10);
-				} else {
-					transmit_displaynotify(d, "Call Park failed", 10);
-				}
-			} else {
-				transmit_displaynotify(d, "Call Park not available", 10);
+			ast_channel_lock(c);
+			bridge_channel = ast_channel_get_bridge_channel(c);
+			ast_channel_unlock(c);
+
+			if (!bridge_channel) {
+				transmit_displaynotify(d, "Call Park failed", 10);
+				break;
 			}
+
+			if (!parking_provider->parking_park_call(bridge_channel, extout, sizeof(extout))) {
+				snprintf(message, sizeof(message), "Call Parked at: %s", extout);
+				transmit_displaynotify(d, message, 10);
+				break;
+			}
+			transmit_displaynotify(d, "Call Park failed", 10);
 		} else {
 			transmit_displaynotify(d, "Call Park not available", 10);
 		}

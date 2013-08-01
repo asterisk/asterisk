@@ -9202,7 +9202,7 @@ static void dp_lookup(int callno, const char *context, const char *callednum, co
 	memset(&ied1, 0, sizeof(ied1));
 	mm = ast_matchmore_extension(NULL, context, callednum, 1, callerid);
 	/* Must be started */
-	if (ast_parking_ext_valid(callednum, NULL, context) || ast_exists_extension(NULL, context, callednum, 1, callerid)) {
+	if (ast_exists_extension(NULL, context, callednum, 1, callerid)) {
 		dpstatus = IAX_DPSTATUS_EXISTS;
 	} else if (ast_canmatch_extension(NULL, context, callednum, 1, callerid)) {
 		dpstatus = IAX_DPSTATUS_CANEXIST;

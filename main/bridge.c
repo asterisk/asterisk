@@ -3781,32 +3781,31 @@ static struct ast_channel *get_transferee(struct ao2_container *channels, struct
 	return transferee;
 }
 
-enum try_parking_result {
-	PARKING_SUCCESS,
-	PARKING_FAILURE,
-	PARKING_NOT_APPLICABLE,
-};
-
-static enum try_parking_result try_parking(struct ast_channel *transferer, const char *exten, const char *context)
+static enum ast_transfer_result try_parking(struct ast_channel *transferer, const char *context, const char *exten)
 {
 	RAII_VAR(struct ast_bridge_channel *, transferer_bridge_channel, NULL, ao2_cleanup);
-	struct ast_exten *parking_exten;
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
+		ast_parking_get_bridge_features(),
+		ao2_cleanup);
+
+	if (!parking_provider) {
+		return AST_BRIDGE_TRANSFER_FAIL;
+	}
 
 	ast_channel_lock(transferer);
 	transferer_bridge_channel = ast_channel_get_bridge_channel(transferer);
 	ast_channel_unlock(transferer);
 
 	if (!transferer_bridge_channel) {
-		return PARKING_FAILURE;
+		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
-	parking_exten = ast_get_parking_exten(exten, NULL, context);
-	if (parking_exten) {
-		return ast_park_blind_xfer(transferer_bridge_channel, parking_exten) == 0 ?
-			PARKING_SUCCESS : PARKING_FAILURE;
+	if (parking_provider->parking_blind_transfer_park(transferer_bridge_channel,
+		context, exten)) {
+		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
-	return PARKING_NOT_APPLICABLE;
+	return AST_BRIDGE_TRANSFER_SUCCESS;
 }
 
 /*!
@@ -3883,7 +3882,6 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	RAII_VAR(struct ast_channel *, transferee, NULL, ast_channel_cleanup);
 	int do_bridge_transfer;
 	int transfer_prohibited;
-	enum try_parking_result parking_result;
 	enum ast_transfer_result transfer_result;
 
 	bridge = acquire_bridge(transferer);
@@ -3902,17 +3900,9 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	/* Take off hold if they are on hold. */
 	ast_bridge_channel_write_unhold(bridge_channel);
 
-	parking_result = try_parking(transferer, exten, context);
-	switch (parking_result) {
-	case PARKING_SUCCESS:
-		transfer_result = AST_BRIDGE_TRANSFER_SUCCESS;
+	transfer_result = try_parking(transferer, context, exten);
+	if (transfer_result == AST_BRIDGE_TRANSFER_SUCCESS) {
 		goto publish;
-	case PARKING_FAILURE:
-		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
-		goto publish;
-	case PARKING_NOT_APPLICABLE:
-	default:
-		break;
 	}
 
 	{

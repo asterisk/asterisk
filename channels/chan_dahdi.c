@@ -126,6 +126,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features_config.h"
 #include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/parking.h"
 #include "chan_dahdi.h"
 #include "dahdi/bridge_native_dahdi.h"
 
@@ -9230,6 +9231,10 @@ static void *analog_ss_thread(void *data)
 	int idx;
 	struct ast_format tmpfmt;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
+		ast_parking_get_bridge_features(),
+		ao2_cleanup);
+	int is_exten_parking;
 	const char *pickupexten;
 
 	ast_mutex_lock(&ss_thread_lock);
@@ -9560,11 +9565,13 @@ static void *analog_ss_thread(void *data)
 				exten[len++]=res;
 				exten[len] = '\0';
 			}
-			if (!ast_ignore_pattern(ast_channel_context(chan), exten))
+			if (!ast_ignore_pattern(ast_channel_context(chan), exten)) {
 				tone_zone_play_tone(p->subs[idx].dfd, -1);
-			else
+			} else {
 				tone_zone_play_tone(p->subs[idx].dfd, DAHDI_TONE_DIALTONE);
-			if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num) && !ast_parking_ext_valid(exten, chan, ast_channel_context(chan))) {
+			}
+			is_exten_parking = (parking_provider ? parking_provider->parking_is_exten_park(ast_channel_context(chan), exten) : 0);
+			if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num) && !is_exten_parking) {
 				if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 					if (getforward) {
 						/* Record this as the forwarding extension */
@@ -9700,14 +9707,17 @@ static void *analog_ss_thread(void *data)
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
-			} else if ((p->transfer || p->canpark) && ast_parking_ext_valid(exten, chan, ast_channel_context(chan)) &&
-						p->subs[SUB_THREEWAY].owner &&
-						ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
+			} else if ((p->transfer || p->canpark) && is_exten_parking &&
+						p->subs[SUB_THREEWAY].owner) {
+				RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 				/* This is a three way call, the main call being a real channel,
 					and we're parking the first call. */
-				ast_masq_park_call_exten(ast_bridged_channel(p->subs[SUB_THREEWAY].owner),
-					chan, exten, ast_channel_context(chan), 0, NULL);
-				ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
+				ast_channel_lock(chan);
+				bridge_channel = ast_channel_get_bridge_channel(chan);
+				ast_channel_unlock(chan);
+				if (bridge_channel && !parking_provider->parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), exten)) {
+					ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
+				}
 				break;
 			} else if (p->hidecallerid && !strcmp(exten, "*82")) {
 				ast_verb(3, "Enabling Caller*ID on %s\n", ast_channel_name(chan));

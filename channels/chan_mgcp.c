@@ -84,6 +84,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/bridge.h"
 #include "asterisk/features_config.h"
+#include "asterisk/parking.h"
 
 /*
  * Define to work around buggy dlink MGCP phone firmware which
@@ -2980,6 +2981,9 @@ static void *mgcp_ss(void *data)
 	int getforward = 0;
 	int loop_pause = 100;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
+		ast_parking_get_bridge_features(),
+		ao2_cleanup);
 	const char *pickupexten;
 
 	len = strlen(p->dtmf_buf);
@@ -3148,13 +3152,17 @@ static void *mgcp_ss(void *data)
 			getforward = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			len = 0;
-		} else if (ast_parking_ext_valid(p->dtmf_buf, chan, ast_channel_context(chan)) &&
-			sub->next->owner && ast_bridged_channel(sub->next->owner)) {
+		} else if (parking_provider && parking_provider->parking_is_exten_park(ast_channel_context(chan), p->dtmf_buf) &&
+			sub->next->owner) {
+			RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 			/* This is a three way call, the main call being a real channel,
-			   and we're parking the first call. */
-			ast_masq_park_call_exten(ast_bridged_channel(sub->next->owner), chan,
-				p->dtmf_buf, ast_channel_context(chan), 0, NULL);
-			ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
+				and we're parking the first call. */
+			ast_channel_lock(chan);
+			bridge_channel = ast_channel_get_bridge_channel(chan);
+			ast_channel_unlock(chan);
+			if (bridge_channel && !parking_provider->parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), p->dtmf_buf)) {
+				ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
+			}
 			break;
 		} else if (!ast_strlen_zero(p->lastcallerid) && !strcmp(p->dtmf_buf, "*60")) {
 			ast_verb(3, "Blacklisting number %s\n", p->lastcallerid);

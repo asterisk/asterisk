@@ -41,11 +41,8 @@ STASIS_MESSAGE_TYPE_DEFN(ast_parked_call_type);
 /*! \brief Topic for parking lots */
 static struct stasis_topic *parking_topic;
 
-/*! \brief Function Callback for handling blind transfers to park applications */
-static ast_park_blind_xfer_fn ast_park_blind_xfer_func = NULL;
-
-/*! \brief Function Callback for handling a bridge channel trying to park itself */
-static ast_bridge_channel_park_fn ast_bridge_channel_park_func = NULL;
+/*! \brief The container for the parking provider */
+static AO2_GLOBAL_OBJ_STATIC(parking_provider);
 
 static void parking_stasis_cleanup(void)
 {
@@ -127,67 +124,58 @@ struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_c
 	return payload;
 }
 
-void ast_install_park_blind_xfer_func(ast_park_blind_xfer_fn park_blind_xfer_func)
+struct ast_parking_bridge_feature_fn_table *ast_parking_get_bridge_features(void)
 {
-	ast_park_blind_xfer_func = park_blind_xfer_func;
+	return (struct ast_parking_bridge_feature_fn_table*)ao2_global_obj_ref(parking_provider);
 }
 
-void ast_install_bridge_channel_park_func(ast_bridge_channel_park_fn bridge_channel_park_func)
-{
-	ast_bridge_channel_park_func = bridge_channel_park_func;
-}
+/*! \brief A wrapper around the fn_table to ao2-ify it */
+struct parking_provider_wrapper {
+	struct ast_parking_bridge_feature_fn_table fn_table;
+};
 
-void ast_uninstall_park_blind_xfer_func(void)
+int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_table *fn_table)
 {
-	ast_park_blind_xfer_func = NULL;
-}
+	RAII_VAR(struct parking_provider_wrapper *, wrapper,
+		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
-void ast_uninstall_bridge_channel_park_func(void)
-{
-	ast_bridge_channel_park_func = NULL;
-}
-
-int ast_park_blind_xfer(struct ast_bridge_channel *parker, struct ast_exten *park_exten)
-{
-	static int warned = 0;
-
-	if (ast_park_blind_xfer_func) {
-		return ast_park_blind_xfer_func(parker, park_exten);
+	if (fn_table->module_version != PARKING_MODULE_VERSION) {
+		ast_log(AST_LOG_WARNING, "Parking module provided incorrect parking module "
+			"version: %d (expected: %d)\n", fn_table->module_version, PARKING_MODULE_VERSION);
+		return -1;
 	}
 
-	if (warned++ % 10 == 0) {
-		ast_verb(3, "%s attempted to blind transfer to a parking extension, but no parking blind transfer function is loaded.\n",
-			ast_channel_name(parker->chan));
+	if (wrapper) {
+		ast_log(AST_LOG_WARNING, "Parking provider already registered by %s!\n",
+			wrapper->fn_table.module_name);
+		return -1;
 	}
 
-	return -1;
+	wrapper = ao2_alloc(sizeof(*wrapper), NULL);
+	if (!wrapper) {
+		return -1;
+	}
+	wrapper->fn_table = *fn_table;
+
+	ao2_global_obj_replace(parking_provider, wrapper);
+	return 0;
 }
 
-struct ast_exten *ast_get_parking_exten(const char *exten_str, struct ast_channel *chan, const char *context)
+int ast_parking_unregister_bridge_features(const char *module_name)
 {
-	struct ast_exten *exten;
-	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
-	const char *app_at_exten;
+	RAII_VAR(struct parking_provider_wrapper *, wrapper,
+		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
-	ast_debug(4, "Checking if %s@%s is a parking exten\n", exten_str, context);
-	exten = pbx_find_extension(chan, NULL, &q, context, exten_str, 1, NULL, NULL,
-		E_MATCH);
-	if (!exten) {
-		return NULL;
+	if (!wrapper) {
+		ast_log(AST_LOG_WARNING, "No parking provider to unregister\n");
+		return -1;
 	}
 
-	app_at_exten = ast_get_extension_app(exten);
-	if (!app_at_exten || strcasecmp(PARK_APPLICATION, app_at_exten)) {
-		return NULL;
+	if (strcmp(wrapper->fn_table.module_name, module_name)) {
+		ast_log(AST_LOG_WARNING, "%s has not registered the parking provider\n", module_name);
+		return -1;
 	}
 
-	return exten;
-}
-
-void ast_bridge_channel_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid, const char *parker_uuid, const char *app_data)
-{
-	/* Run installable function */
-	if (ast_bridge_channel_park_func) {
-		return ast_bridge_channel_park_func(bridge_channel, parkee_uuid, parker_uuid, app_data);
-	}
+	ao2_global_obj_replace_unref(parking_provider, NULL);
+	return 0;
 }

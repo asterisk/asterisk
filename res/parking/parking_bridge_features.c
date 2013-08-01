@@ -186,7 +186,7 @@ static int create_parked_subscription(struct ast_channel *chan, const char *park
  *        identical to the dial_transfer function in bridge_basic.c, however it doesn't swap the
  *        local channel and the channel that instigated the park.
  */
-static struct ast_channel *park_local_transfer(struct ast_channel *parker, const char *exten, const char *context)
+static struct ast_channel *park_local_transfer(struct ast_channel *parker, const char *context, const char *exten)
 {
 	RAII_VAR(struct ast_channel *, parkee_side_2, NULL, ao2_cleanup);
 	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 1];
@@ -242,78 +242,121 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	return parkee;
 }
 
-static int park_feature_helper(struct ast_bridge_channel *bridge_channel, struct ast_exten *park_exten)
+/*! \internal \brief Determine if an extension is a parking extension */
+static int parking_is_exten_park(const char *context, const char *exten)
 {
-	RAII_VAR(struct ast_channel *, other, NULL, ao2_cleanup);
-	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
-	RAII_VAR(struct parked_user *, pu, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, bridge_peers, NULL, ao2_cleanup);
-	struct ao2_iterator iter;
+	struct ast_exten *exten_obj;
+	struct pbx_find_info info = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
+	const char *app_at_exten;
 
-	ast_bridge_channel_lock_bridge(bridge_channel);
-	bridge_peers = ast_bridge_peers_nolock(bridge_channel->bridge);
-	ast_bridge_unlock(bridge_channel->bridge);
-
-	if (ao2_container_count(bridge_peers) < 2) {
-		/* There is nothing to do if there is no one to park. */
+	ast_debug(4, "Checking if %s@%s is a parking exten\n", exten, context);
+	exten_obj = pbx_find_extension(NULL, NULL, &info, context, exten, 1, NULL, NULL, E_MATCH);
+	if (!exten_obj) {
 		return 0;
 	}
 
-	if (ao2_container_count(bridge_peers) > 2) {
-		/* With a multiparty bridge, we need to do a regular blind transfer. We link the existing bridge to the parking lot with a
-		 * local channel rather than transferring others. */
+	app_at_exten = ast_get_extension_app(exten_obj);
+	if (!app_at_exten || strcasecmp(PARK_APPLICATION, app_at_exten)) {
+		return 0;
+	}
+
+	return 1;
+}
+
+/*!
+ * \internal
+ * \since 12.0.0
+ * \brief Perform a blind transfer to a parking lot
+ *
+ * In general, most parking features should work to call this function. This will safely
+ * park either a channel in the bridge with \ref bridge_channel or will park the entire
+ * bridge if more than one channel is in the bridge. It will create the correct data to
+ * pass to the \ref AstBridging Bridging API to safely park the channel.
+ *
+ * \param bridge_channel The bridge_channel representing the channel performing the park
+ * \param context The context to blind transfer to
+ * \param exten The extension to blind transfer to
+ *
+ * \retval 0 on success
+ * \retval non-zero on error
+ */
+static int parking_blind_transfer_park(struct ast_bridge_channel *bridge_channel,
+		const char *context, const char *exten)
+{
+	RAII_VAR(struct ast_bridge_channel *, other, NULL, ao2_cleanup);
+	int peer_count;
+
+	if (ast_strlen_zero(context) || ast_strlen_zero(exten)) {
+		return -1;
+	}
+
+	if (!bridge_channel->in_bridge) {
+		return -1;
+	}
+
+	if (!parking_is_exten_park(context, exten)) {
+		return -1;
+	}
+
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	peer_count = bridge_channel->bridge->num_channels;
+	if (peer_count == 2) {
+		other = ast_bridge_channel_peer(bridge_channel);
+		ao2_ref(other, +1);
+	}
+	ast_bridge_unlock(bridge_channel->bridge);
+
+	if (peer_count < 2) {
+		/* There is nothing to do if there is no one to park. */
+		return -1;
+	}
+
+	/* With a multiparty bridge, we need to do a regular blind transfer. We link the
+	 * existing bridge to the parking lot with a Local channel rather than
+	 * transferring others. */
+	if (peer_count > 2) {
 		struct ast_channel *transfer_chan = NULL;
 
-		if (!park_exten) {
-			/* This simply doesn't work. The user attempted to one-touch park the parking lot and we can't originate a local channel
-			 * without knowing an extension to transfer it to.
-			 * XXX However, when parking lots are changed to be able to register extensions then this will be doable. */
-			ast_log(LOG_ERROR, "Can not one-touch park a multiparty bridge.\n");
-			return 0;
-		}
-
-		transfer_chan = park_local_transfer(bridge_channel->chan,
-			ast_get_extension_name(park_exten), ast_get_context_name(ast_get_extension_context(park_exten)));
-
+		transfer_chan = park_local_transfer(bridge_channel->chan, context, exten);
 		if (!transfer_chan) {
-			return 0;
+			return -1;
 		}
 
 		if (ast_bridge_impart(bridge_channel->bridge, transfer_chan, NULL, NULL, 1)) {
 			ast_hangup(transfer_chan);
+			return -1;
 		}
-
 		return 0;
 	}
 
-	/* Since neither of the above cases were used, we are doing a simple park with a two party bridge. */
-
-	for (iter = ao2_iterator_init(bridge_peers, 0); (other = ao2_iterator_next(&iter)); ao2_ref(other, -1)) {
-		/* We need the channel that isn't the bridge_channel's channel. */
-		if (strcmp(ast_channel_uniqueid(other), ast_channel_uniqueid(bridge_channel->chan))) {
-			break;
-		}
-	}
-	ao2_iterator_destroy(&iter);
-
-	if (!other) {
-		ast_assert(0);
-		return -1;
-	}
-
 	/* Subscribe to park messages with the other channel entering */
-	if (create_parked_subscription(bridge_channel->chan, ast_channel_uniqueid(other))) {
+	if (create_parked_subscription(bridge_channel->chan, ast_channel_uniqueid(other->chan))) {
 		return -1;
 	}
 
 	/* Write the park frame with the intended recipient and other data out to the bridge. */
-	ast_bridge_channel_write_park(bridge_channel, ast_channel_uniqueid(other), ast_channel_uniqueid(bridge_channel->chan), ast_get_extension_app_data(park_exten));
+	ast_bridge_channel_write_park(bridge_channel,
+		ast_channel_uniqueid(other->chan),
+		ast_channel_uniqueid(bridge_channel->chan),
+		NULL);
 
 	return 0;
 }
 
-static void park_bridge_channel(struct ast_bridge_channel *bridge_channel, const char *uuid_parkee, const char *uuid_parker, const char *app_data)
+
+/*!
+ * \internal
+ * \since 12.0.0
+ * \brief Perform a direct park on a channel in a bridge
+ *
+ * \note This will be called from within the \ref AstBridging Bridging API
+ *
+ * \param bridge_channel The bridge_channel representing the channel to be parked
+ * \param uuid_parkee The UUID of the channel being parked
+ * \param uuid_parker The UUID of the channel performing the park
+ * \param app_data Application parseable data to pass to the parking application
+ */
+static int parking_park_bridge_channel(struct ast_bridge_channel *bridge_channel, const char *uuid_parkee, const char *uuid_parker, const char *app_data)
 {
 	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_bridge *, original_bridge, NULL, ao2_cleanup);
@@ -321,7 +364,7 @@ static void park_bridge_channel(struct ast_bridge_channel *bridge_channel, const
 
 	if (strcmp(ast_channel_uniqueid(bridge_channel->chan), uuid_parkee)) {
 		/* We aren't the parkee, so ignore this action. */
-		return;
+		return -1;
 	}
 
 	parker = ast_channel_get_by_name(uuid_parker);
@@ -329,12 +372,12 @@ static void park_bridge_channel(struct ast_bridge_channel *bridge_channel, const
 	if (!parker) {
 		ast_log(LOG_NOTICE, "Channel with uuid %s left before we could start parking the call. Parking canceled.\n", uuid_parker);
 		publish_parked_call_failure(bridge_channel->chan);
-		return;
+		return -1;
 	}
 
 	if (!(parking_bridge = park_application_setup(bridge_channel->chan, parker, app_data, NULL))) {
 		publish_parked_call_failure(bridge_channel->chan);
-		return;
+		return -1;
 	}
 
 	pbx_builtin_setvar_helper(bridge_channel->chan, "BLINDTRANSFER", ast_channel_name(parker));
@@ -346,7 +389,7 @@ static void park_bridge_channel(struct ast_bridge_channel *bridge_channel, const
 	if (!original_bridge) {
 		ao2_unlock(bridge_channel);
 		publish_parked_call_failure(bridge_channel->chan);
-		return;
+		return -1;
 	}
 
 	ao2_ref(original_bridge, +1); /* Cleaned by RAII_VAR */
@@ -356,13 +399,60 @@ static void park_bridge_channel(struct ast_bridge_channel *bridge_channel, const
 	if (ast_bridge_move(parking_bridge, original_bridge, bridge_channel->chan, NULL, 1)) {
 		ast_log(LOG_ERROR, "Failed to move %s into the parking bridge.\n",
 			ast_channel_name(bridge_channel->chan));
+		return -1;
 	}
+
+	return 0;
 }
 
-static int feature_park(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+/*!
+ * \internal
+ * \since 12.0.0
+ * \brief Park a call
+ *
+ * \param parker The bridge_channel parking the call
+ * \param exten Optional. The extension where the call was parked.
+ * \param length Optional. If \c exten is specified, the length of the buffer.
+ *
+ * \note This will determine the context and extension to park the channel based on
+ * the configuration of the \ref ast_channel associated with \ref parker. It will then
+ * park either the channel or the entire bridge.
+ *
+ * \retval 0 on success
+ * \retval -1 on error
+ */
+static int parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t length)
 {
-	park_feature_helper(bridge_channel, NULL);
-	return 0;
+	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
+	const char *lot_name = NULL;
+
+	ast_channel_lock(parker->chan);
+	lot_name = find_channel_parking_lot_name(parker->chan);
+	if (!ast_strlen_zero(lot_name)) {
+		lot_name = ast_strdupa(lot_name);
+	}
+	ast_channel_unlock(parker->chan);
+
+	if (ast_strlen_zero(lot_name)) {
+		return -1;
+	}
+
+	lot = parking_lot_find_by_name(lot_name);
+	if (!lot) {
+		ast_log(AST_LOG_WARNING, "Cannot Park %s: lot %s unknown\n",
+			ast_channel_name(parker->chan), lot_name);
+		return -1;
+	}
+
+	if (exten) {
+		ast_copy_string(exten, lot->cfg->parkext, length);
+	}
+	return parking_blind_transfer_park(parker, lot->cfg->parking_con, lot->cfg->parkext);
+}
+
+static int feature_park_call(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	return parking_park_call(bridge_channel, NULL, 0);
 }
 
 /*! \internal
@@ -524,17 +614,27 @@ void parking_set_duration(struct ast_bridge_features *features, struct parked_us
 	}
 }
 
+struct ast_parking_bridge_feature_fn_table parking_provider = {
+	.module_version = PARKING_MODULE_VERSION,
+	.module_name = __FILE__,
+	.parking_is_exten_park = parking_is_exten_park,
+	.parking_blind_transfer_park = parking_blind_transfer_park,
+	.parking_park_bridge_channel = parking_park_bridge_channel,
+	.parking_park_call = parking_park_call,
+};
+
 void unload_parking_bridge_features(void)
 {
 	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_PARKCALL);
-	ast_uninstall_park_blind_xfer_func();
-	ast_uninstall_bridge_channel_park_func();
+	ast_parking_unregister_bridge_features(parking_provider.module_name);
 }
 
 int load_parking_bridge_features(void)
 {
-	ast_bridge_features_register(AST_BRIDGE_BUILTIN_PARKCALL, feature_park, NULL);
-	ast_install_park_blind_xfer_func(park_feature_helper);
-	ast_install_bridge_channel_park_func(park_bridge_channel);
+	if (ast_parking_register_bridge_features(&parking_provider)) {
+		return -1;
+	}
+
+	ast_bridge_features_register(AST_BRIDGE_BUILTIN_PARKCALL, feature_park_call, NULL);
 	return 0;
 }

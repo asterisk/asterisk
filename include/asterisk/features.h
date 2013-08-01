@@ -63,50 +63,6 @@ enum {
 	AST_FEATURE_FLAG_BYBOTH	 =   (3 << 3),
 };
 
-/*!
- * \brief Park a call via a masqueraded channel
- *
- * \param park_me Channel to be parked.
- * \param parker Channel parking the call.
- * \param timeout is a timeout in milliseconds
- * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
- *
- * \details
- * Masquerade the park_me channel into a new, empty channel which is then parked.
- *
- * \note Use ast_masq_park_call_exten() instead.
- *
- * \retval 0 on success.
- * \retval -1 on failure.
- */
-int ast_masq_park_call(struct ast_channel *park_me, struct ast_channel *parker, int timeout, int *extout);
-
-/*!
- * \brief Park a call via a masqueraded channel
- * \since 1.8.9
- *
- * \param park_me Channel to be parked.
- * \param parker Channel parking the call.
- * \param park_exten Parking lot access extension
- * \param park_context Parking lot context
- * \param timeout is a timeout in milliseconds
- * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
- *
- * \details
- * Masquerade the park_me channel into a new, empty channel which is then parked.
- *
- * \retval 0 on success.
- * \retval -1 on failure.
- */
-int ast_masq_park_call_exten(struct ast_channel *park_me, struct ast_channel *parker, const char *park_exten, const char *park_context, int timeout, int *extout);
-
-/*!
- * \brief Determine if parking extension exists in a given context
- * \retval 0 if extension does not exist
- * \retval 1 if extension does exist
-*/
-int ast_parking_ext_valid(const char *exten_str, struct ast_channel *chan, const char *context);
-
 /*! \brief Bridge a call, optionally allowing redirection */
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
 
