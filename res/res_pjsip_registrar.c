@@ -99,6 +99,7 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 				pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
 				return -1;
 			}
+			continue;
 		} else if (previous && previous->star) {
 			/* If there is a previous contact and it is a '*' this is a deal breaker */
 			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
