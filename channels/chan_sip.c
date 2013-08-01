@@ -23667,6 +23667,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
 		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 403"));
 		r->regstate = REG_STATE_NOAUTH;
+		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 		pvt_set_needdestroy(p, "received 403 response");
 		break;
 	case 404:	/* Not found */
@@ -23675,6 +23676,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 404");
 		r->regstate = REG_STATE_REJECTED;
+		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 404"));
 		break;
 	case 407:	/* Proxy auth */
@@ -23715,6 +23717,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 479");
 		r->regstate = REG_STATE_REJECTED;
+		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 479"));
 		break;
 	case 200:	/* 200 OK */
