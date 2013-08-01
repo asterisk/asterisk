@@ -2781,6 +2781,11 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	}
 }
 
+
+#define QUEUE_PAUSED_DEVSTATE AST_DEVICE_INUSE
+#define QUEUE_UNPAUSED_DEVSTATE AST_DEVICE_NOT_INUSE
+#define QUEUE_UNKNOWN_PAUSED_DEVSTATE AST_DEVICE_NOT_INUSE
+
 /*! \internal
  * \brief If adding a single new member to a queue, use this function instead of ao2_linking.
  *        This adds round robin queue position data for a fresh member as well as links it.
@@ -2792,6 +2797,8 @@ static void member_add_to_queue(struct call_queue *queue, struct member *mem)
 	ao2_lock(queue->members);
 	mem->queuepos = ao2_container_count(queue->members);
 	ao2_link(queue->members, mem);
+	ast_devstate_changed(mem->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
+		AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", queue->name, mem->interface);
 	ao2_unlock(queue->members);
 }
 
@@ -2804,6 +2811,7 @@ static void member_add_to_queue(struct call_queue *queue, struct member *mem)
 static void member_remove_from_queue(struct call_queue *queue, struct member *mem)
 {
 	ao2_lock(queue->members);
+	ast_devstate_changed(QUEUE_UNKNOWN_PAUSED_DEVSTATE, AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", queue->name, mem->interface);
 	queue_member_follower_removal(queue, mem);
 	ao2_unlink(queue->members, mem);
 	ao2_unlock(queue->members);
@@ -2870,6 +2878,8 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 			ast_copy_string(m->rt_uniqueid, rt_uniqueid, sizeof(m->rt_uniqueid));
 			if (paused_str) {
 				m->paused = paused;
+				ast_devstate_changed(m->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
+					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, m->interface);
 			}
 			if (strcasecmp(state_interface, m->state_interface)) {
 				ast_copy_string(m->state_interface, state_interface, sizeof(m->state_interface));
@@ -6286,7 +6296,8 @@ static int set_member_paused(const char *queuename, const char *interface, const
 				}
 
 				mem->paused = paused;
-
+				ast_devstate_changed(mem->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
+					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, mem->interface);
 				found++;
 
 				/* Before we do the PAUSE/UNPAUSE log, if this was a PAUSEALL/UNPAUSEALL, log that here, but only on the first found entry. */
@@ -7425,8 +7436,10 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 				if (m->realtime) {
 					update_realtime_member_field(m, q->name, args.option, rtvalue);
 				}
-
 				m->paused = (memvalue <= 0) ? 0 : 1;
+				ast_devstate_changed(m->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
+					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, args.interface);
+
 			} else if ((!strcasecmp(args.option, "ignorebusy")) || (!strcasecmp(args.option, "ringinuse"))) {
 				if (m->realtime) {
 					update_realtime_member_field(m, q->name, args.option, rtvalue);

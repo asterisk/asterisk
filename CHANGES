@@ -98,6 +98,12 @@ Queue
    AgentConnect, AgentComplete, AgentDump, and AgentRingNoAnswer will always be
    sent.  The "Variable" fields will also no longer exist on the Agent* events.
 
+ * Queues now support a hint for member paused state. The hint uses the form
+   'Queue:{queue_name}_pause_{member_name}', where {queue_name} and {member_name}
+   are the name of the queue and the name of the member to subscribe to,
+   respectively. For example: exten => 8501,hint,Queue:sales_pause_mark.
+   Members will show as In Use when paused.
+
 ResetCDR
 ------------------
  * The 'e' option has been deprecated. Use the CDR_PROP function to re-enable
