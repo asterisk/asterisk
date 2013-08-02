@@ -97,8 +97,12 @@ void ast_ari_delete_bridge(struct ast_variable *headers, struct ast_delete_bridg
 struct ast_add_channel_to_bridge_args {
 	/*! \brief Bridge's id */
 	const char *bridge_id;
-	/*! \brief Channel's id */
-	const char *channel;
+	/*! \brief Array of Ids of channels to add to bridge */
+	const char **channel;
+	/*! \brief Length of channel array. */
+	size_t channel_count;
+	/*! \brief Parsing context for channel. */
+	char *channel_parse;
 };
 /*!
  * \brief Add a channel to a bridge.
@@ -112,8 +116,12 @@ void ast_ari_add_channel_to_bridge(struct ast_variable *headers, struct ast_add_
 struct ast_remove_channel_from_bridge_args {
 	/*! \brief Bridge's id */
 	const char *bridge_id;
-	/*! \brief Channel's id */
-	const char *channel;
+	/*! \brief Array of Ids of channels to remove from bridge */
+	const char **channel;
+	/*! \brief Length of channel array. */
+	size_t channel_count;
+	/*! \brief Parsing context for channel. */
+	char *channel_parse;
 };
 /*!
  * \brief Remove a channel from a bridge.

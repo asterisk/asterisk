@@ -46,12 +46,15 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "ari/resource_{{name}}.h"
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
+
+#define MAX_VALS 128
 
 {{#apis}}
 {{#operations}}
@@ -67,6 +70,10 @@ static void ast_ari_{{c_nickname}}_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_{{c_nickname}}_args args = {};
+{{#has_parameters}}
+	struct ast_variable *i;
+{{/has_parameters}}
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -112,12 +119,21 @@ static void ast_ari_{{c_nickname}}_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+{{> param_cleanup}}
+	return;
 }
 {{/is_req}}
 {{#is_websocket}}
 static void ast_ari_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
 	struct ast_variable *get_params, struct ast_variable *headers)
 {
+	struct ast_{{c_nickname}}_args args = {};
+{{#has_parameters}}
+	RAII_VAR(struct ast_ari_response *, response, NULL, ast_free);
+	struct ast_variable *i;
+{{/has_parameters}}
 	RAII_VAR(struct ast_websocket *, s, ws_session, ast_websocket_unref);
 	RAII_VAR(struct ast_ari_websocket_session *, session, NULL, ao2_cleanup);
 {{#has_path_parameters}}
@@ -126,7 +142,15 @@ static void ast_ari_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
 	 * just punt. */
 	struct ast_variable *path_vars = NULL;
 {{/has_path_parameters}}
-{{> param_parsing}}
+
+{{#has_parameters}}
+	response = ast_calloc(1, sizeof(*response));
+	if (!response) {
+		ast_log(LOG_ERROR, "Failed to create response.\n");
+		goto fin;
+	}
+{{/has_parameters}}
+
 #if defined(AST_DEVMODE)
 	session = ast_ari_websocket_session_create(ws_session,
 		ast_ari_validate_{{response_class.c_name}}_fn());
@@ -135,9 +159,31 @@ static void ast_ari_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
 #endif
 	if (!session) {
 		ast_log(LOG_ERROR, "Failed to create ARI session\n");
-		return;
+		goto fin;
 	}
+
+{{> param_parsing}}
+
 	ast_ari_websocket_{{c_nickname}}(session, headers, &args);
+
+fin: __attribute__((unused))
+	if (response && response->response_code != 0) {
+		/* Param parsing failure */
+		/* TODO - ideally, this would return the error code to the
+		 * HTTP client; but we've already done the WebSocket
+		 * negotiation. Param parsing should happen earlier, but we
+		 * need a way to pass it through the WebSocket code to the
+		 * callback */
+		RAII_VAR(char *, msg, NULL, ast_free);
+		if (response->message) {
+			msg = ast_json_dump_string(response->message);
+		} else {
+			msg = ast_strdup("?");
+		}
+		ast_websocket_write(ws_session, AST_WEBSOCKET_OPCODE_TEXT, msg,
+			strlen(msg));
+	}
+{{> param_cleanup}}
 }
 {{/is_websocket}}
 {{/operations}}

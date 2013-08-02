@@ -41,12 +41,15 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "ari/resource_bridges.h"
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
+
+#define MAX_VALS 128
 
 /*!
  * \brief Parameter parsing callback for /bridges.
@@ -59,12 +62,12 @@ static void ast_ari_get_bridges_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_bridges_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	struct ast_get_bridges_args args = {};
 	ast_ari_get_bridges(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -93,6 +96,9 @@ static void ast_ari_get_bridges_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /bridges.
@@ -105,13 +111,12 @@ static void ast_ari_new_bridge_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_new_bridge_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_new_bridge_args args = {};
-	struct ast_variable *i;
 
 	for (i = get_params; i; i = i->next) {
 		if (strcmp(i->name, "type") == 0) {
@@ -147,6 +152,9 @@ static void ast_ari_new_bridge_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}.
@@ -159,13 +167,12 @@ static void ast_ari_get_bridge_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_bridge_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_get_bridge_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "bridgeId") == 0) {
@@ -202,6 +209,9 @@ static void ast_ari_get_bridge_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}.
@@ -214,13 +224,12 @@ static void ast_ari_delete_bridge_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_delete_bridge_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_delete_bridge_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "bridgeId") == 0) {
@@ -257,6 +266,9 @@ static void ast_ari_delete_bridge_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/addChannel.
@@ -269,17 +281,48 @@ static void ast_ari_add_channel_to_bridge_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_add_channel_to_bridge_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	struct ast_add_channel_to_bridge_args args = {};
-	struct ast_variable *i;
-
 	for (i = get_params; i; i = i->next) {
 		if (strcmp(i->name, "channel") == 0) {
-			args.channel = (i->value);
+			/* Parse comma separated list */
+			char *vals[MAX_VALS];
+			size_t j;
+
+			args.channel_parse = ast_strdup(i->value);
+			if (!args.channel_parse) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			args.channel_count = ast_app_separate_args(
+				args.channel_parse, ',', vals, ARRAY_LEN(vals));
+			if (args.channel_count == 0) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (args.channel_count >= MAX_VALS) {
+				ast_ari_response_error(response, 400,
+					"Bad Request",
+					"Too many values for channel");
+				goto fin;
+			}
+
+			args.channel = ast_malloc(sizeof(*args.channel) * args.channel_count);
+			if (!args.channel) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			for (j = 0; j < args.channel_count; ++j) {
+				args.channel[j] = (vals[j]);
+			}
 		} else
 		{}
 	}
@@ -320,6 +363,11 @@ static void ast_ari_add_channel_to_bridge_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	ast_free(args.channel_parse);
+	ast_free(args.channel);
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/removeChannel.
@@ -332,17 +380,48 @@ static void ast_ari_remove_channel_from_bridge_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_remove_channel_from_bridge_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	struct ast_remove_channel_from_bridge_args args = {};
-	struct ast_variable *i;
-
 	for (i = get_params; i; i = i->next) {
 		if (strcmp(i->name, "channel") == 0) {
-			args.channel = (i->value);
+			/* Parse comma separated list */
+			char *vals[MAX_VALS];
+			size_t j;
+
+			args.channel_parse = ast_strdup(i->value);
+			if (!args.channel_parse) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			args.channel_count = ast_app_separate_args(
+				args.channel_parse, ',', vals, ARRAY_LEN(vals));
+			if (args.channel_count == 0) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (args.channel_count >= MAX_VALS) {
+				ast_ari_response_error(response, 400,
+					"Bad Request",
+					"Too many values for channel");
+				goto fin;
+			}
+
+			args.channel = ast_malloc(sizeof(*args.channel) * args.channel_count);
+			if (!args.channel) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			for (j = 0; j < args.channel_count; ++j) {
+				args.channel[j] = (vals[j]);
+			}
 		} else
 		{}
 	}
@@ -380,6 +459,11 @@ static void ast_ari_remove_channel_from_bridge_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	ast_free(args.channel_parse);
+	ast_free(args.channel);
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/play.
@@ -392,13 +476,12 @@ static void ast_ari_play_on_bridge_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_play_on_bridge_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_play_on_bridge_args args = {};
-	struct ast_variable *i;
 
 	for (i = get_params; i; i = i->next) {
 		if (strcmp(i->name, "media") == 0) {
@@ -451,6 +534,9 @@ static void ast_ari_play_on_bridge_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/record.
@@ -463,13 +549,12 @@ static void ast_ari_record_bridge_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_record_bridge_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_record_bridge_args args = {};
-	struct ast_variable *i;
 
 	for (i = get_params; i; i = i->next) {
 		if (strcmp(i->name, "name") == 0) {
@@ -529,6 +614,9 @@ static void ast_ari_record_bridge_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 
 /*! \brief REST handler for /api-docs/bridges.{format} */

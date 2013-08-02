@@ -41,8 +41,12 @@
 
 /*! \brief Argument struct for ast_ari_event_websocket() */
 struct ast_event_websocket_args {
-	/*! \brief Comma seperated list of applications to subscribe to. */
-	const char *app;
+	/*! \brief Array of Applications to subscribe to. */
+	const char **app;
+	/*! \brief Length of app array. */
+	size_t app_count;
+	/*! \brief Parsing context for app. */
+	char *app_parse;
 };
 /*!
  * \brief WebSocket connection for events.

@@ -41,6 +41,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "ari/resource_events.h"
@@ -48,20 +49,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "ari/ari_model_validators.h"
 #endif
 
+#define MAX_VALS 128
+
 static void ast_ari_event_websocket_ws_cb(struct ast_websocket *ws_session,
 	struct ast_variable *get_params, struct ast_variable *headers)
 {
+	struct ast_event_websocket_args args = {};
+	RAII_VAR(struct ast_ari_response *, response, NULL, ast_free);
+	struct ast_variable *i;
 	RAII_VAR(struct ast_websocket *, s, ws_session, ast_websocket_unref);
 	RAII_VAR(struct ast_ari_websocket_session *, session, NULL, ao2_cleanup);
-	struct ast_event_websocket_args args = {};
-	struct ast_variable *i;
 
-	for (i = get_params; i; i = i->next) {
-		if (strcmp(i->name, "app") == 0) {
-			args.app = (i->value);
-		} else
-		{}
+	response = ast_calloc(1, sizeof(*response));
+	if (!response) {
+		ast_log(LOG_ERROR, "Failed to create response.\n");
+		goto fin;
 	}
+
 #if defined(AST_DEVMODE)
 	session = ast_ari_websocket_session_create(ws_session,
 		ast_ari_validate_message_fn());
@@ -70,9 +74,69 @@ static void ast_ari_event_websocket_ws_cb(struct ast_websocket *ws_session,
 #endif
 	if (!session) {
 		ast_log(LOG_ERROR, "Failed to create ARI session\n");
-		return;
+		goto fin;
 	}
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "app") == 0) {
+			/* Parse comma separated list */
+			char *vals[MAX_VALS];
+			size_t j;
+
+			args.app_parse = ast_strdup(i->value);
+			if (!args.app_parse) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			args.app_count = ast_app_separate_args(
+				args.app_parse, ',', vals, ARRAY_LEN(vals));
+			if (args.app_count == 0) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (args.app_count >= MAX_VALS) {
+				ast_ari_response_error(response, 400,
+					"Bad Request",
+					"Too many values for app");
+				goto fin;
+			}
+
+			args.app = ast_malloc(sizeof(*args.app) * args.app_count);
+			if (!args.app) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			for (j = 0; j < args.app_count; ++j) {
+				args.app[j] = (vals[j]);
+			}
+		} else
+		{}
+	}
+
 	ast_ari_websocket_event_websocket(session, headers, &args);
+
+fin: __attribute__((unused))
+	if (response && response->response_code != 0) {
+		/* Param parsing failure */
+		/* TODO - ideally, this would return the error code to the
+		 * HTTP client; but we've already done the WebSocket
+		 * negotiation. Param parsing should happen earlier, but we
+		 * need a way to pass it through the WebSocket code to the
+		 * callback */
+		RAII_VAR(char *, msg, NULL, ast_free);
+		if (response->message) {
+			msg = ast_json_dump_string(response->message);
+		} else {
+			msg = ast_strdup("?");
+		}
+		ast_websocket_write(ws_session, AST_WEBSOCKET_OPCODE_TEXT, msg,
+			strlen(msg));
+	}
+	ast_free(args.app_parse);
+	ast_free(args.app);
 }
 
 /*! \brief REST handler for /api-docs/events.{format} */

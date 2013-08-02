@@ -41,12 +41,15 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "ari/resource_recordings.h"
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
+
+#define MAX_VALS 128
 
 /*!
  * \brief Parameter parsing callback for /recordings/stored.
@@ -59,12 +62,12 @@ static void ast_ari_get_stored_recordings_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_stored_recordings_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	struct ast_get_stored_recordings_args args = {};
 	ast_ari_get_stored_recordings(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -93,6 +96,9 @@ static void ast_ari_get_stored_recordings_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/stored/{recordingName}.
@@ -105,13 +111,12 @@ static void ast_ari_get_stored_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_stored_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_get_stored_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -147,6 +152,9 @@ static void ast_ari_get_stored_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/stored/{recordingName}.
@@ -159,13 +167,12 @@ static void ast_ari_delete_stored_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_delete_stored_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_delete_stored_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -201,6 +208,9 @@ static void ast_ari_delete_stored_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live.
@@ -213,12 +223,12 @@ static void ast_ari_get_live_recordings_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_live_recordings_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	struct ast_get_live_recordings_args args = {};
 	ast_ari_get_live_recordings(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -247,6 +257,9 @@ static void ast_ari_get_live_recordings_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}.
@@ -259,13 +272,12 @@ static void ast_ari_get_live_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_live_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_get_live_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -301,6 +313,9 @@ static void ast_ari_get_live_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}.
@@ -313,13 +328,12 @@ static void ast_ari_cancel_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_cancel_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_cancel_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -355,6 +369,9 @@ static void ast_ari_cancel_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}/stop.
@@ -367,13 +384,12 @@ static void ast_ari_stop_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_stop_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_stop_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -409,6 +425,9 @@ static void ast_ari_stop_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}/pause.
@@ -421,13 +440,12 @@ static void ast_ari_pause_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_pause_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_pause_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -463,6 +481,9 @@ static void ast_ari_pause_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}/unpause.
@@ -475,13 +496,12 @@ static void ast_ari_unpause_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_unpause_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_unpause_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -517,6 +537,9 @@ static void ast_ari_unpause_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}/mute.
@@ -529,13 +552,12 @@ static void ast_ari_mute_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_mute_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_mute_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -571,6 +593,9 @@ static void ast_ari_mute_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}/unmute.
@@ -583,13 +608,12 @@ static void ast_ari_unmute_recording_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_unmute_recording_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_unmute_recording_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "recordingName") == 0) {
@@ -625,6 +649,9 @@ static void ast_ari_unmute_recording_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 
 /*! \brief REST handler for /api-docs/recordings.{format} */

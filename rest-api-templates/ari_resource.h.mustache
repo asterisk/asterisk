@@ -44,9 +44,21 @@
 struct ast_{{c_nickname}}_args {
 {{#parameters}}
 {{#description}}
+{{/description}}
+{{^allow_multiple}}
+{{#description}}
 	/*! \brief {{{description}}} */
 {{/description}}
 	{{c_data_type}}{{c_space}}{{c_name}};
+{{/allow_multiple}}
+{{#allow_multiple}}
+	/*! \brief Array of {{{description}}} */
+	{{c_data_type}}{{c_space}}*{{c_name}};
+	/*! \brief Length of {{c_name}} array. */
+	size_t {{c_name}}_count;
+	/*! \brief Parsing context for {{c_name}}. */
+	char *{{c_name}}_parse;
+{{/allow_multiple}}
 {{/parameters}}
 };
 {{#is_req}}

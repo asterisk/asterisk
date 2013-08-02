@@ -41,7 +41,9 @@
 
 /*! \brief Argument struct for ast_ari_get_sounds() */
 struct ast_get_sounds_args {
+	/*! \brief Lookup sound for a specific language. */
 	const char *lang;
+	/*! \brief Lookup sound in a specific format. */
 	const char *format;
 };
 /*!

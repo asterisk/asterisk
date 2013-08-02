@@ -21,7 +21,7 @@
 					"parameters": [
 						{
 							"name": "app",
-							"description": "Comma seperated list of applications to subscribe to.",
+							"description": "Applications to subscribe to.",
 							"paramType": "query",
 							"required": true,
 							"allowMultiple": true,

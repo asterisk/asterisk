@@ -19,12 +19,14 @@
 					"parameters": [
 						{
 							"name": "lang",
+							"description": "Lookup sound for a specific language.",
 							"paramType": "query",
 							"dataType": "string",
 							"required": false
 						},
 						{
 							"name": "format",
+							"description": "Lookup sound in a specific format.",
 							"paramType": "query",
 							"dataType": "string",
 							"required": false,

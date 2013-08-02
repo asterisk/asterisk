@@ -1,4 +1,4 @@
-/* -*- C -*-
+/*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2012 - 2013, Digium, Inc.
@@ -107,33 +107,95 @@ static struct stasis_app_control *find_channel_control(
 	return control;
 }
 
+struct control_list {
+	size_t count;
+	struct stasis_app_control *controls[];
+};
+
+static void control_list_dtor(void *obj) {
+	struct control_list *list = obj;
+	size_t i;
+
+	for (i = 0; i < list->count; ++i) {
+		ao2_cleanup(list->controls[i]);
+		list->controls[i] = NULL;
+	}
+}
+
+static struct control_list *control_list_create(struct ast_ari_response *response, size_t count, const char **channels) {
+	RAII_VAR(struct control_list *, list, NULL, ao2_cleanup);
+	size_t i;
+
+	if (count == 0 || !channels) {
+		ast_ari_response_error(response, 400, "Bad Request", "Missing parameter channel");
+		return NULL;
+	}
+
+	list = ao2_alloc(sizeof(*list) + count * sizeof(list->controls[0]), control_list_dtor);
+	if (!list) {
+		ast_ari_response_alloc_failed(response);
+		return NULL;
+	}
+
+	for (i = 0; i < count; ++i) {
+		if (ast_strlen_zero(channels[i])) {
+			continue;
+		}
+		list->controls[list->count] =
+			find_channel_control(response, channels[i]);
+		if (!list->controls[list->count]) {
+			return NULL;
+		}
+		++list->count;
+	}
+
+	if (list->count == 0) {
+		ast_ari_response_error(response, 400, "Bad Request", "Missing parameter channel");
+		return NULL;
+	}
+
+	ao2_ref(list, +1);
+	return list;
+}
+
 void ast_ari_add_channel_to_bridge(struct ast_variable *headers, struct ast_add_channel_to_bridge_args *args, struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
-	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct control_list *, list, NULL, ao2_cleanup);
+	size_t i;
+
 	if (!bridge) {
+		/* Response filled in by find_bridge */
 		return;
 	}
 
-	control = find_channel_control(response, args->channel);
-	if (!control) {
+	list = control_list_create(response, args->channel_count, args->channel);
+	if (!list) {
+		/* Response filled in by control_list_create() */
 		return;
 	}
 
-	stasis_app_control_add_channel_to_bridge(control, bridge);
+	for (i = 0; i < list->count; ++i) {
+		stasis_app_control_add_channel_to_bridge(list->controls[i], bridge);
+	}
+
 	ast_ari_response_no_content(response);
 }
 
 void ast_ari_remove_channel_from_bridge(struct ast_variable *headers, struct ast_remove_channel_from_bridge_args *args, struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
-	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct control_list *, list, NULL, ao2_cleanup);
+	size_t i;
+
 	if (!bridge) {
+		/* Response filled in by find_bridge */
 		return;
 	}
 
-	control = find_channel_control(response, args->channel);
-	if (!control) {
+	list = control_list_create(response, args->channel_count, args->channel);
+	if (!list) {
+		/* Response filled in by control_list_create() */
 		return;
 	}
 
@@ -141,9 +203,14 @@ void ast_ari_remove_channel_from_bridge(struct ast_variable *headers, struct ast
 	 * the bridge the channel is in. This will be possible once the bridge uniqueid
 	 * is added to the channel snapshot. A 409 response should be issued if the bridge
 	 * uniqueids don't match */
-	if (stasis_app_control_remove_channel_from_bridge(control, bridge)) {
-		ast_ari_response_error(response, 500, "Internal Error",
-			"Could not remove channel from bridge");
+	for (i = 0; i < list->count; ++i) {
+		if (stasis_app_control_remove_channel_from_bridge(list->controls[i], bridge)) {
+			ast_ari_response_error(response, 500, "Internal Error",
+				"Could not remove channel from bridge");
+		}
+	}
+
+	if (response->response_code) {
 		return;
 	}
 

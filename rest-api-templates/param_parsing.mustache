@@ -18,15 +18,48 @@
 {{!
  * Snippet for decoding parameters into an _args struct.
 }}
-	struct ast_{{c_nickname}}_args args = {};
-{{#has_parameters}}
-	struct ast_variable *i;
-
 {{#has_query_parameters}}
 	for (i = get_params; i; i = i->next) {
 {{#query_parameters}}
 		if (strcmp(i->name, "{{name}}") == 0) {
+{{^allow_multiple}}
 			args.{{c_name}} = {{c_convert}}(i->value);
+{{/allow_multiple}}
+{{#allow_multiple}}
+			/* Parse comma separated list */
+			char *vals[MAX_VALS];
+			size_t j;
+
+			args.{{c_name}}_parse = ast_strdup(i->value);
+			if (!args.{{c_name}}_parse) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			args.{{c_name}}_count = ast_app_separate_args(
+				args.{{c_name}}_parse, ',', vals, ARRAY_LEN(vals));
+			if (args.{{c_name}}_count == 0) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (args.{{c_name}}_count >= MAX_VALS) {
+				ast_ari_response_error(response, 400,
+					"Bad Request",
+					"Too many values for {{c_name}}");
+				goto fin;
+			}
+
+			args.{{c_name}} = ast_malloc(sizeof(*args.{{c_name}}) * args.{{c_name}}_count);
+			if (!args.{{c_name}}) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			for (j = 0; j < args.{{c_name}}_count; ++j) {
+				args.{{c_name}}[j] = {{c_convert}}(vals[j]);
+			}
+{{/allow_multiple}}
 		} else
 {{/query_parameters}}
 		{}
@@ -42,4 +75,3 @@
 		{}
 	}
 {{/has_path_parameters}}
-{{/has_parameters}}

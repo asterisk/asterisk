@@ -634,7 +634,7 @@
 							"description": "Format to encode audio in",
 							"paramType": "query",
 							"required": true,
-							"allowMultiple": true,
+							"allowMultiple": false,
 							"dataType": "string"
 						},
 						{

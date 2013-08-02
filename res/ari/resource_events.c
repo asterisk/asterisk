@@ -143,35 +143,28 @@ static void app_handler(void *data, const char *app_name,
 /*!
  * \brief Register for all of the apps given.
  * \param session Session info struct.
- * \param app_list Comma seperated list of app names to register.
+ * \param app_name Name of application to register.
  */
-static int session_register_apps(struct event_session *session,
-				 const char *app_list)
+static int session_register_app(struct event_session *session,
+				 const char *app_name)
 {
-	RAII_VAR(char *, to_free, NULL, ast_free);
-	char *apps, *app_name;
 	SCOPED_AO2LOCK(lock, session);
 
 	ast_assert(session->ws_session != NULL);
 	ast_assert(session->websocket_apps != NULL);
 
-	if (!app_list) {
+	if (ast_strlen_zero(app_name)) {
 		return -1;
 	}
 
-	to_free = apps = ast_strdup(app_list);
-	if (!apps) {
-		ast_ari_websocket_session_write(session->ws_session, ast_ari_oom_json());
+	if (ast_str_container_add(session->websocket_apps, app_name)) {
+		ast_ari_websocket_session_write(session->ws_session,
+			ast_ari_oom_json());
 		return -1;
 	}
-	while ((app_name = strsep(&apps, ","))) {
-		if (ast_str_container_add(session->websocket_apps, app_name)) {
-			ast_ari_websocket_session_write(session->ws_session, ast_ari_oom_json());
-			return -1;
-		}
 
-		stasis_app_register(app_name, app_handler, session);
-	}
+	stasis_app_register(app_name, app_handler, session);
+
 	return 0;
 }
 
@@ -182,6 +175,7 @@ void ast_ari_websocket_event_websocket(struct ast_ari_websocket_session *ws_sess
 	RAII_VAR(struct event_session *, session, NULL, session_cleanup);
 	struct ast_json *msg;
 	int res;
+	size_t i;
 
 	ast_debug(3, "/events WebSocket connection\n");
 
@@ -191,7 +185,15 @@ void ast_ari_websocket_event_websocket(struct ast_ari_websocket_session *ws_sess
 		return;
 	}
 
-	if (!args->app) {
+	res = 0;
+	for (i = 0; i < args->app_count; ++i) {
+		if (ast_strlen_zero(args->app[i])) {
+			continue;
+		}
+		res |= session_register_app(session, args->app[i]);
+	}
+
+	if (ao2_container_count(session->websocket_apps) == 0) {
 		RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
 
 		msg = ast_json_pack("{s: s, s: [s]}",
@@ -205,7 +207,6 @@ void ast_ari_websocket_event_websocket(struct ast_ari_websocket_session *ws_sess
 		return;
 	}
 
-	res = session_register_apps(session, args->app);
 	if (res != 0) {
 		ast_ari_websocket_session_write(ws_session, ast_ari_oom_json());
 		return;

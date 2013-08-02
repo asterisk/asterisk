@@ -41,12 +41,15 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
 #include "ari/resource_endpoints.h"
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
+
+#define MAX_VALS 128
 
 /*!
  * \brief Parameter parsing callback for /endpoints.
@@ -59,12 +62,12 @@ static void ast_ari_get_endpoints_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_endpoints_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	struct ast_get_endpoints_args args = {};
 	ast_ari_get_endpoints(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -93,6 +96,9 @@ static void ast_ari_get_endpoints_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /endpoints/{tech}.
@@ -105,13 +111,12 @@ static void ast_ari_get_endpoints_by_tech_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_endpoints_by_tech_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_get_endpoints_by_tech_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "tech") == 0) {
@@ -147,6 +152,9 @@ static void ast_ari_get_endpoints_by_tech_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 /*!
  * \brief Parameter parsing callback for /endpoints/{tech}/{resource}.
@@ -159,13 +167,12 @@ static void ast_ari_get_endpoint_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
+	struct ast_get_endpoint_args args = {};
+	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
-
-	struct ast_get_endpoint_args args = {};
-	struct ast_variable *i;
 
 	for (i = path_vars; i; i = i->next) {
 		if (strcmp(i->name, "tech") == 0) {
@@ -204,6 +211,9 @@ static void ast_ari_get_endpoint_cb(
 			"Internal Server Error", "Response validation failed");
 	}
 #endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
 }
 
 /*! \brief REST handler for /api-docs/endpoints.{format} */

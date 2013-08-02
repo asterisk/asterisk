@@ -41,8 +41,12 @@
 
 /*! \brief Argument struct for ast_ari_get_asterisk_info() */
 struct ast_get_asterisk_info_args {
-	/*! \brief Filter information returned */
-	const char *only;
+	/*! \brief Array of Filter information returned */
+	const char **only;
+	/*! \brief Length of only array. */
+	size_t only_count;
+	/*! \brief Parsing context for only. */
+	char *only_parse;
 };
 /*!
  * \brief Gets Asterisk system information.
