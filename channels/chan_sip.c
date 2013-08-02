@@ -7271,7 +7271,7 @@ static int sip_hangup(struct ast_channel *ast)
 			}
 
 			if (!p->pendinginvite) {
-				struct ast_channel *bridge = ast_bridged_channel(oldowner);
+				RAII_VAR(struct ast_channel *, bridge, ast_channel_bridge_peer(oldowner), ast_channel_cleanup);
 				char quality_buf[AST_MAX_USER_FIELD], *quality;
 
 				/* We need to get the lock on bridge because ast_rtp_instance_set_stats_vars will attempt
@@ -7282,7 +7282,6 @@ static int sip_hangup(struct ast_channel *ast)
 					do {
 						CHANNEL_DEADLOCK_AVOIDANCE(oldowner);
 					} while (sip_pvt_trylock(p));
-					bridge = ast_bridged_channel(oldowner);
 				}
 
 				if (p->rtp) {
@@ -18007,10 +18006,22 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 	/* Give useful transfer information to the dialplan */
 	if (transferer->owner) {
-		struct ast_channel *peer = ast_bridged_channel(transferer->owner);
+		RAII_VAR(struct ast_channel *, peer, ast_channel_bridge_peer(transferer->owner), ast_channel_cleanup);
+
+		/*! pbx_builtin_setvar_helper will attempt to lock the channel. We need
+		 * to be sure it's already locked here so we don't deadlock.
+		 */
+		while (peer && ast_channel_trylock(peer)) {
+			sip_pvt_unlock(transferer);
+			do {
+				CHANNEL_DEADLOCK_AVOIDANCE(transferer->owner);
+			} while (sip_pvt_trylock(transferer));
+		}
+
 		if (peer) {
 			pbx_builtin_setvar_helper(peer, "SIPREFERRINGCONTEXT", transferer->context);
 			pbx_builtin_setvar_helper(peer, "SIPREFERREDBYHDR", p_referred_by);
+			ast_channel_unlock(peer);
 		}
 	}
 
@@ -26354,7 +26365,6 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 {
 	struct ast_channel *c=NULL;
 	int res;
-	struct ast_channel *bridged_to;
 	const char *required;
 
 	/* If we have an INCOMING invite that we haven't answered, terminate that transaction */
@@ -26375,7 +26385,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	/* Get RTCP quality before end of call */
 	if (p->do_history || p->owner) {
 		char quality_buf[AST_MAX_USER_FIELD], *quality;
-		struct ast_channel *bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
+		RAII_VAR(struct ast_channel *, bridge, p->owner ? ast_channel_bridge_peer(p->owner) : NULL, ast_channel_cleanup);
 
 		/* We need to get the lock on bridge because ast_rtp_instance_set_stats_vars will attempt
 		 * to lock the bridge. This may get hairy...
@@ -26388,7 +26398,6 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				usleep(1);
 				sip_pvt_lock(p);
 			} while (p->owner && ast_channel_trylock(p->owner));
-			bridge = p->owner ? ast_bridged_channel(p->owner) : NULL;
 		}
 
 
@@ -26452,7 +26461,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		if (!res) {
 			c = p->owner;
 			if (c) {
-				bridged_to = ast_bridged_channel(c);
+				RAII_VAR(struct ast_channel *, bridged_to, ast_channel_bridge_peer(c), ast_channel_cleanup);
 				if (bridged_to) {
 					/* Don't actually hangup here... */
 					ast_queue_unhold(c);

@@ -68,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
+#include "asterisk/bridge.h"
 
 #include "console_video.h"
 
@@ -1173,7 +1174,7 @@ static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 static char *console_transfer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
-	struct ast_channel *b = NULL;
+	RAII_VAR(struct ast_channel *, b, NULL, ast_channel_cleanup);
 	char *tmp, *ext, *ctx;
 
 	switch (cmd) {
@@ -1192,24 +1193,19 @@ static char *console_transfer(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SHOWUSAGE;
 	if (o == NULL)
 		return CLI_FAILURE;
-	if (o->owner == NULL || (b = ast_bridged_channel(o->owner)) == NULL) {
+	if (o->owner == NULL || !ast_channel_is_bridged(o->owner)) {
 		ast_cli(a->fd, "There is no call to transfer\n");
 		return CLI_SUCCESS;
 	}
 
 	tmp = ast_ext_ctx(a->argv[2], &ext, &ctx);
-	if (ctx == NULL)			/* supply default context if needed */
+	if (ctx == NULL) {			/* supply default context if needed */
 		ctx = ast_strdupa(ast_channel_context(o->owner));
-	if (!ast_exists_extension(b, ctx, ext, 1,
-		S_COR(ast_channel_caller(b)->id.number.valid, ast_channel_caller(b)->id.number.str, NULL))) {
-		ast_cli(a->fd, "No such extension exists\n");
-	} else {
-		ast_cli(a->fd, "Whee, transferring %s to %s@%s.\n", ast_channel_name(b), ext, ctx);
-		if (ast_async_goto(b, ctx, ext, 1))
-			ast_cli(a->fd, "Failed to transfer :(\n");
 	}
-	if (tmp)
-		ast_free(tmp);
+	if (ast_bridge_transfer_blind(1, o->owner, ext, ctx, NULL, NULL) != AST_BRIDGE_TRANSFER_SUCCESS) {
+		ast_log(LOG_WARNING, "Unable to transfer call from channel %s\n", ast_channel_name(o->owner));
+	}
+	ast_free(tmp);
 	return CLI_SUCCESS;
 }
 

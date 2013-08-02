@@ -4357,10 +4357,12 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 				l->label);
 			if (verbose) {
 				AST_LIST_TRAVERSE(&l->sub, sub, list) {
+					RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(sub->owner), ao2_cleanup);
+
 					ast_cli(fd, "  %s> %s to %s\n",
 						(sub == l->activesub?"Active  ":"Inactive"),
 						ast_channel_name(sub->owner),
-						(ast_bridged_channel(sub->owner)?ast_channel_name(ast_bridged_channel(sub->owner)):"")
+						bridged ? ast_channel_name(bridged) : ""
 					);
 				}
 			}
@@ -7170,6 +7172,8 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 
 		if ((sub && sub->owner) && (ast_channel_state(sub->owner) ==  AST_STATE_UP)) {
+			RAII_VAR(struct ast_channel *, bridged, NULL, ast_channel_cleanup);
+
 			c = sub->owner;
 			ast_channel_lock(c);
 			bridge_channel = ast_channel_get_bridge_channel(c);

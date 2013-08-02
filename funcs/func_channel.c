@@ -495,10 +495,10 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		}
 		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "peer")) {
-		struct ast_channel *p;
+		RAII_VAR(struct ast_channel *, p, NULL, ast_channel_cleanup);
 
 		ast_channel_lock(chan);
-		p = ast_bridged_channel(chan);
+		p = ast_channel_bridge_peer(chan);
 		if (p || ast_channel_tech(chan)) /* dummy channel? if so, we hid the peer name in the language */
 			ast_copy_string(buf, (p ? ast_channel_name(p) : ""), len);
 		else {

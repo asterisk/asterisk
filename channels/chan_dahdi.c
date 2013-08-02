@@ -1742,7 +1742,7 @@ static void my_get_and_handle_alarms(void *pvt)
 
 static void *my_get_sigpvt_bridged_channel(struct ast_channel *chan)
 {
-	struct ast_channel *bridged = ast_bridged_channel(chan);
+	RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(chan), ast_channel_cleanup);
 
 	if (bridged && ast_channel_tech(bridged) == &dahdi_tech) {
 		struct dahdi_pvt *p = ast_channel_tech_pvt(bridged);
@@ -9737,12 +9737,15 @@ static void *analog_ss_thread(void *data)
 				struct ast_channel *nbridge =
 					p->subs[SUB_THREEWAY].owner;
 				struct dahdi_pvt *pbridge = NULL;
+				RAII_VAR(struct ast_channel *, bridged, nbridge ? ast_channel_bridge_peer(nbridge) : NULL, ast_channel_cleanup);
+
 				/* set up the private struct of the bridged one, if any */
-				if (nbridge && ast_bridged_channel(nbridge))
-					pbridge = ast_channel_tech_pvt(ast_bridged_channel(nbridge));
+				if (nbridge && bridged) {
+					pbridge = ast_channel_tech_pvt(bridged);
+				}
 				if (nbridge && pbridge &&
 					(ast_channel_tech(nbridge) == &dahdi_tech) &&
-					(ast_channel_tech(ast_bridged_channel(nbridge)) == &dahdi_tech) &&
+					(ast_channel_tech(bridged) == &dahdi_tech) &&
 					ISTRUNK(pbridge)) {
 					int func = DAHDI_FLASH;
 					/* Clear out the dial buffer */

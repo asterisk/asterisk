@@ -2606,15 +2606,11 @@ static void free_translation(struct ast_channel *clonechan)
 
 void ast_set_hangupsource(struct ast_channel *chan, const char *source, int force)
 {
-	struct ast_channel *bridge;
+	RAII_VAR(struct ast_channel *, bridge, ast_channel_bridge_peer(chan), ast_channel_cleanup);
 
 	ast_channel_lock(chan);
 	if (force || ast_strlen_zero(ast_channel_hangupsource(chan))) {
 		ast_channel_hangupsource_set(chan, source);
-	}
-	bridge = ast_bridged_channel(chan);
-	if (bridge) {
-		ast_channel_ref(bridge);
 	}
 	ast_channel_unlock(chan);
 
@@ -2624,7 +2620,6 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 			ast_channel_hangupsource_set(bridge, source);
 		}
 		ast_channel_unlock(bridge);
-		ast_channel_unref(bridge);
 	}
 }
 
@@ -3942,7 +3937,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_debug(1, "Ignoring answer on an inbound call!\n");
 					ast_frfree(f);
 					f = &ast_null_frame;
-				} else if (prestate == AST_STATE_UP && ast_bridged_channel(chan)) {
+				} else if (prestate == AST_STATE_UP && ast_channel_is_bridged(chan)) {
 					ast_debug(1, "Dropping duplicate answer!\n");
 					ast_frfree(f);
 					f = &ast_null_frame;
@@ -6766,8 +6761,7 @@ void ast_do_masquerade(struct ast_channel *original)
 
 	ast_debug(1, "Done Masquerading %s (%d)\n", ast_channel_name(original), ast_channel_state(original));
 
-	if ((bridged = ast_bridged_channel(original))) {
-		ast_channel_ref(bridged);
+	if ((bridged = ast_channel_bridge_peer(original))) {
 		ast_channel_unlock(original);
 		ast_indicate(bridged, AST_CONTROL_SRCCHANGE);
 		ast_channel_unref(bridged);
@@ -6866,12 +6860,6 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE) ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), name);
 
 	return 0;
-}
-
-/*! BUGBUG ast_bridged_channel() is to be removed. */
-struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
-{
-	return NULL;
 }
 
 /*! \brief Bridge two channels together (early) */

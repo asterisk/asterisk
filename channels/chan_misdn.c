@@ -104,6 +104,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/format_cap.h"
 #include "asterisk/features_config.h"
 #include "asterisk/bridge.h"
+#include "asterisk/pickup.h"
 
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
@@ -3442,6 +3443,7 @@ static void misdn_add_number_prefix(int port, enum mISDN_NUMBER_TYPE number_type
 
 static void export_aoc_vars(int originator, struct ast_channel *ast, struct misdn_bchannel *bc)
 {
+	RAII_VAR(struct ast_channel *, chan, NULL, ast_channel_cleanup);
 	char buf[128];
 
 	if (!bc->AOCD_need_export || !ast) {
@@ -3449,46 +3451,48 @@ static void export_aoc_vars(int originator, struct ast_channel *ast, struct misd
 	}
 
 	if (originator == ORG_AST) {
-		ast = ast_bridged_channel(ast);
-		if (!ast) {
+		chan = ast_channel_bridge_peer(ast);
+		if (!chan) {
 			return;
 		}
+	} else {
+		chan = ast_channel_ref(ast);
 	}
 
 	switch (bc->AOCDtype) {
 	case Fac_AOCDCurrency:
-		pbx_builtin_setvar_helper(ast, "AOCD_Type", "currency");
+		pbx_builtin_setvar_helper(chan, "AOCD_Type", "currency");
 		if (bc->AOCD.currency.chargeNotAvailable) {
-			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "no");
+			pbx_builtin_setvar_helper(chan, "AOCD_ChargeAvailable", "no");
 		} else {
-			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "yes");
+			pbx_builtin_setvar_helper(chan, "AOCD_ChargeAvailable", "yes");
 			if (bc->AOCD.currency.freeOfCharge) {
-				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "yes");
+				pbx_builtin_setvar_helper(chan, "AOCD_FreeOfCharge", "yes");
 			} else {
-				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "no");
+				pbx_builtin_setvar_helper(chan, "AOCD_FreeOfCharge", "no");
 				if (snprintf(buf, sizeof(buf), "%d %s", bc->AOCD.currency.currencyAmount * bc->AOCD.currency.multiplier, bc->AOCD.currency.currency) < sizeof(buf)) {
-					pbx_builtin_setvar_helper(ast, "AOCD_Amount", buf);
+					pbx_builtin_setvar_helper(chan, "AOCD_Amount", buf);
 					if (bc->AOCD.currency.billingId >= 0 && snprintf(buf, sizeof(buf), "%d", bc->AOCD.currency.billingId) < sizeof(buf)) {
-						pbx_builtin_setvar_helper(ast, "AOCD_BillingId", buf);
+						pbx_builtin_setvar_helper(chan, "AOCD_BillingId", buf);
 					}
 				}
 			}
 		}
 		break;
 	case Fac_AOCDChargingUnit:
-		pbx_builtin_setvar_helper(ast, "AOCD_Type", "charging_unit");
+		pbx_builtin_setvar_helper(chan, "AOCD_Type", "charging_unit");
 		if (bc->AOCD.chargingUnit.chargeNotAvailable) {
-			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "no");
+			pbx_builtin_setvar_helper(chan, "AOCD_ChargeAvailable", "no");
 		} else {
-			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "yes");
+			pbx_builtin_setvar_helper(chan, "AOCD_ChargeAvailable", "yes");
 			if (bc->AOCD.chargingUnit.freeOfCharge) {
-				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "yes");
+				pbx_builtin_setvar_helper(chan, "AOCD_FreeOfCharge", "yes");
 			} else {
-				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "no");
+				pbx_builtin_setvar_helper(chan, "AOCD_FreeOfCharge", "no");
 				if (snprintf(buf, sizeof(buf), "%d", bc->AOCD.chargingUnit.recordedUnits) < sizeof(buf)) {
-					pbx_builtin_setvar_helper(ast, "AOCD_RecordedUnits", buf);
+					pbx_builtin_setvar_helper(chan, "AOCD_RecordedUnits", buf);
 					if (bc->AOCD.chargingUnit.billingId >= 0 && snprintf(buf, sizeof(buf), "%d", bc->AOCD.chargingUnit.billingId) < sizeof(buf)) {
-						pbx_builtin_setvar_helper(ast, "AOCD_BillingId", buf);
+						pbx_builtin_setvar_helper(chan, "AOCD_BillingId", buf);
 					}
 				}
 			}
@@ -10943,7 +10947,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	case EVENT_HOLD:
 	{
 		int hold_allowed;
-		struct ast_channel *bridged;
+		RAII_VAR(struct ast_channel *, bridged, NULL, ast_channel_cleanup);
 
 		misdn_cfg_get(bc->port, MISDN_CFG_HOLD_ALLOWED, &hold_allowed, sizeof(hold_allowed));
 		if (!hold_allowed) {
@@ -10952,7 +10956,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 
-		bridged = ast_bridged_channel(ch->ast);
+		bridged = ast_channel_bridge_peer(ch->ast);
 		if (bridged) {
 			chan_misdn_log(2, bc->port, "Bridge Partner is of type: %s\n", ast_channel_tech(bridged)->type);
 			ch->l3id = bc->l3_id;

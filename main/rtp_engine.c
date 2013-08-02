@@ -1298,7 +1298,7 @@ char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_r
 void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_instance *instance)
 {
 	char quality_buf[AST_MAX_USER_FIELD], *quality;
-	struct ast_channel *bridge = ast_bridged_channel(chan);
+	RAII_VAR(struct ast_channel *, bridge, ast_channel_bridge_peer(chan), ast_channel_cleanup);
 
 	if ((quality = ast_rtp_instance_get_quality(instance, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
 		pbx_builtin_setvar_helper(chan, "RTPAUDIOQOS", quality);

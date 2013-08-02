@@ -4049,7 +4049,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	int ret;
 	int needfree = 0;
 	struct ast_channel *owner = NULL;
-	struct ast_channel *bridge = NULL;
+	RAII_VAR(struct ast_channel *, bridge, NULL, ast_channel_cleanup);
 
 	/*
 	 * Clear fr->af.data if there is no data in the buffer.  Things
@@ -4096,8 +4096,9 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		iax2_frame_free(fr);
 		return -1;
 	}
-	if ((owner = iaxs[fr->callno]->owner))
-		bridge = ast_bridged_channel(owner);
+	if ((owner = iaxs[fr->callno]->owner)) {
+		bridge = ast_channel_bridge_peer(owner);
+	}
 
 	/* if the user hasn't requested we force the use of the jitterbuffer, and we're bridged to
 	 * a channel that can accept jitter, then flush and suspend the jb, and send this frame straight through */

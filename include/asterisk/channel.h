@@ -2330,26 +2330,6 @@ int ast_transfer(struct ast_channel *chan, char *dest);
 void ast_do_masquerade(struct ast_channel *chan);
 
 /*!
- * \brief Find bridged channel
- *
- * \note This function does _not_ return a reference to the bridged channel.
- * The reason for this is mostly historical.  It _should_ return a reference,
- * but it will take a lot of work to make the code base account for that.
- * So, for now, the old rules still apply for how to handle this function.
- * If this function is being used from the channel thread that owns the channel,
- * then a reference is already held, and channel locking is not required to
- * guarantee that the channel will stay around.  If this function is used
- * outside of the associated channel thread, the channel parameter 'chan'
- * MUST be locked before calling this function.  Also, 'chan' must remain locked
- * for the entire time that the result of this function is being used.
- *
- * \param chan Current channel
- *
- * \return A pointer to the bridged channel
-*/
-struct ast_channel *ast_bridged_channel(struct ast_channel *chan);
-
-/*!
  * \brief Inherits channel variable from parent to child channel
  * \param parent Parent channel
  * \param child Child channel

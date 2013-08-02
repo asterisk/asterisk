@@ -922,7 +922,6 @@ static int mgcp_hangup(struct ast_channel *ast)
 {
 	struct mgcp_subchannel *sub = ast_channel_tech_pvt(ast);
 	struct mgcp_endpoint *p = sub->parent;
-	struct ast_channel *bridged;
 
 	ast_debug(1, "mgcp_hangup(%s)\n", ast_channel_name(ast));
 	if (!ast_channel_tech_pvt(ast)) {
@@ -969,10 +968,11 @@ static int mgcp_hangup(struct ast_channel *ast)
 	}
 	sub->cxident[0] = '\0';
 	if ((sub == p->sub) && sub->next->owner) {
+		RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(sub->next->owner), ast_channel_cleanup);
+
 		if (p->hookstate == MGCP_OFFHOOK) {
-			if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
+			if (sub->next->owner && bridged) {
 				/* ncs fix! */
-				bridged = ast_bridged_channel(sub->next->owner);
 				transmit_notify_request_with_callerid(p->sub, (p->ncs ? "L/wt1" : "L/wt"),
 					S_COR(ast_channel_caller(bridged)->id.number.valid, ast_channel_caller(bridged)->id.number.str, ""),
 					S_COR(ast_channel_caller(bridged)->id.name.valid, ast_channel_caller(bridged)->id.name.str, ""));
@@ -982,8 +982,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 			p->sub = sub->next;
 			p->sub->cxmode = MGCP_CX_RECVONLY;
 			transmit_modify_request(p->sub);
-			if (sub->next->owner && ast_bridged_channel(sub->next->owner)) {
-				bridged = ast_bridged_channel(sub->next->owner);
+			if (sub->next->owner && bridged) {
 				transmit_notify_request_with_callerid(p->sub, "L/rg",
 					S_COR(ast_channel_caller(bridged)->id.number.valid, ast_channel_caller(bridged)->id.number.str, ""),
 					S_COR(ast_channel_caller(bridged)->id.name.valid, ast_channel_caller(bridged)->id.name.str, ""));

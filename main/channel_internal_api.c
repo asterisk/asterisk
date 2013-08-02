@@ -67,10 +67,6 @@ struct ast_channel {
 	void *music_state;				/*!< Music State*/
 	void *generatordata;				/*!< Current generator data if there is any */
 	struct ast_generator *generator;		/*!< Current active data generator */
-/* BUGBUG bridged_channel must be eliminated from ast_channel */
-	struct ast_channel * bridged_channel;			/*!< Who are we bridged to, if we're bridged.
-							 *   Who is proxying for us, if we are proxied (i.e. chan_agent).
-							 *   Do not access directly, use ast_bridged_channel(chan) */
 	struct ast_channel *masq;			/*!< Channel that will masquerade as us */
 	struct ast_channel *masqr;			/*!< Who we are masquerading as */
 	const char *blockproc;				/*!< Procedure causing blocking */
@@ -290,7 +286,6 @@ static void channel_data_add_flags(struct ast_data *tree,
 int ast_channel_data_add_structure(struct ast_data *tree,
 	struct ast_channel *chan, int add_bridged)
 {
-	struct ast_channel *bc;
 	struct ast_data *data_bridged;
 	struct ast_data *data_cdr;
 	struct ast_data *data_flags;
@@ -309,7 +304,7 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 	ast_data_add_structure(ast_channel, tree, chan);
 
 	if (add_bridged) {
-		bc = ast_bridged_channel(chan);
+		RAII_VAR(struct ast_channel *, bc, ast_channel_bridge_peer(chan), ast_channel_cleanup);
 		if (bc) {
 			data_bridged = ast_data_add_node(tree, "bridged");
 			if (!data_bridged) {
@@ -1302,15 +1297,6 @@ struct ast_bridge_channel *ast_channel_internal_bridge_channel(const struct ast_
 void ast_channel_internal_bridge_channel_set(struct ast_channel *chan, struct ast_bridge_channel *value)
 {
 	chan->bridge_channel = value;
-}
-
-struct ast_channel *ast_channel_internal_bridged_channel(const struct ast_channel *chan)
-{
-	return chan->bridged_channel;
-}
-void ast_channel_internal_bridged_channel_set(struct ast_channel *chan, struct ast_channel *value)
-{
-	chan->bridged_channel = value;
 }
 
 struct ast_flags *ast_channel_flags(struct ast_channel *chan)
