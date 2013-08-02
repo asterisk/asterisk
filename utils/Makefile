@@ -180,7 +180,7 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(CMD_PREFIX) cp "$<" "$@"
 
 
-refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o version.o
+refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o version.o astobj2.o
 refcounter.o: _ASTCFLAGS+=-O0
 
 extconf.o: extconf.c
