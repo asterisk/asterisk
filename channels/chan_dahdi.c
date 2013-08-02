@@ -102,6 +102,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/adsi.h"
 #include "asterisk/cli.h"
+#include "asterisk/pickup.h"
 #include "asterisk/features.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/say.h"
