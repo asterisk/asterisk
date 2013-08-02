@@ -41,6 +41,42 @@ int ast_ari_validate_asterisk_info(struct ast_json *json)
 	struct ast_json_iter *iter;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("build", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_build_info(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AsteriskInfo field build failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("config", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_config_info(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AsteriskInfo field config failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("status", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_status_info(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AsteriskInfo field status failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("system", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_system_info(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI AsteriskInfo field system failed validation\n");
+				res = 0;
+			}
+		} else
 		{
 			ast_log(LOG_ERROR,
 				"ARI AsteriskInfo has undocumented field %s\n",
@@ -55,6 +91,383 @@ int ast_ari_validate_asterisk_info(struct ast_json *json)
 ari_validator ast_ari_validate_asterisk_info_fn(void)
 {
 	return ast_ari_validate_asterisk_info;
+}
+
+int ast_ari_validate_build_info(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_date = 0;
+	int has_kernel = 0;
+	int has_machine = 0;
+	int has_options = 0;
+	int has_os = 0;
+	int has_user = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("date", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_date = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BuildInfo field date failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("kernel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_kernel = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BuildInfo field kernel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("machine", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_machine = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BuildInfo field machine failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("options", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_options = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BuildInfo field options failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("os", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_os = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BuildInfo field os failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("user", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_user = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BuildInfo field user failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI BuildInfo has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_date) {
+		ast_log(LOG_ERROR, "ARI BuildInfo missing required field date\n");
+		res = 0;
+	}
+
+	if (!has_kernel) {
+		ast_log(LOG_ERROR, "ARI BuildInfo missing required field kernel\n");
+		res = 0;
+	}
+
+	if (!has_machine) {
+		ast_log(LOG_ERROR, "ARI BuildInfo missing required field machine\n");
+		res = 0;
+	}
+
+	if (!has_options) {
+		ast_log(LOG_ERROR, "ARI BuildInfo missing required field options\n");
+		res = 0;
+	}
+
+	if (!has_os) {
+		ast_log(LOG_ERROR, "ARI BuildInfo missing required field os\n");
+		res = 0;
+	}
+
+	if (!has_user) {
+		ast_log(LOG_ERROR, "ARI BuildInfo missing required field user\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_build_info_fn(void)
+{
+	return ast_ari_validate_build_info;
+}
+
+int ast_ari_validate_config_info(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_default_language = 0;
+	int has_name = 0;
+	int has_setid = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("default_language", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_default_language = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigInfo field default_language failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("max_channels", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigInfo field max_channels failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("max_load", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_double(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigInfo field max_load failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("max_open_files", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigInfo field max_open_files failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigInfo field name failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("setid", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_setid = 1;
+			prop_is_valid = ast_ari_validate_set_id(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigInfo field setid failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ConfigInfo has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_default_language) {
+		ast_log(LOG_ERROR, "ARI ConfigInfo missing required field default_language\n");
+		res = 0;
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI ConfigInfo missing required field name\n");
+		res = 0;
+	}
+
+	if (!has_setid) {
+		ast_log(LOG_ERROR, "ARI ConfigInfo missing required field setid\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_config_info_fn(void)
+{
+	return ast_ari_validate_config_info;
+}
+
+int ast_ari_validate_set_id(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_group = 0;
+	int has_user = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("group", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_group = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI SetId field group failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("user", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_user = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI SetId field user failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI SetId has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_group) {
+		ast_log(LOG_ERROR, "ARI SetId missing required field group\n");
+		res = 0;
+	}
+
+	if (!has_user) {
+		ast_log(LOG_ERROR, "ARI SetId missing required field user\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_set_id_fn(void)
+{
+	return ast_ari_validate_set_id;
+}
+
+int ast_ari_validate_status_info(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_last_reload_time = 0;
+	int has_startup_time = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("last_reload_time", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_last_reload_time = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI StatusInfo field last_reload_time failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("startup_time", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_startup_time = 1;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI StatusInfo field startup_time failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI StatusInfo has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_last_reload_time) {
+		ast_log(LOG_ERROR, "ARI StatusInfo missing required field last_reload_time\n");
+		res = 0;
+	}
+
+	if (!has_startup_time) {
+		ast_log(LOG_ERROR, "ARI StatusInfo missing required field startup_time\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_status_info_fn(void)
+{
+	return ast_ari_validate_status_info;
+}
+
+int ast_ari_validate_system_info(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_entity_id = 0;
+	int has_version = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("entity_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_entity_id = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI SystemInfo field entity_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("version", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_version = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI SystemInfo field version failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI SystemInfo has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_entity_id) {
+		ast_log(LOG_ERROR, "ARI SystemInfo missing required field entity_id\n");
+		res = 0;
+	}
+
+	if (!has_version) {
+		ast_log(LOG_ERROR, "ARI SystemInfo missing required field version\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_system_info_fn(void)
+{
+	return ast_ari_validate_system_info;
 }
 
 int ast_ari_validate_variable(struct ast_json *json)

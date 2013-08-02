@@ -162,6 +162,96 @@ int ast_ari_validate_asterisk_info(struct ast_json *json);
 ari_validator ast_ari_validate_asterisk_info_fn(void);
 
 /*!
+ * \brief Validator for BuildInfo.
+ *
+ * Info about how Asterisk was built
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_build_info(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_build_info().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_build_info_fn(void);
+
+/*!
+ * \brief Validator for ConfigInfo.
+ *
+ * Info about Asterisk configuration
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_config_info(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_config_info().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_config_info_fn(void);
+
+/*!
+ * \brief Validator for SetId.
+ *
+ * Effective user/group id
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_set_id(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_set_id().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_set_id_fn(void);
+
+/*!
+ * \brief Validator for StatusInfo.
+ *
+ * Info about Asterisk status
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_status_info(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_status_info().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_status_info_fn(void);
+
+/*!
+ * \brief Validator for SystemInfo.
+ *
+ * Info about Asterisk
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_system_info(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_system_info().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_system_info_fn(void);
+
+/*!
  * \brief Validator for Variable.
  *
  * The value of a channel variable
@@ -785,6 +875,33 @@ ari_validator ast_ari_validate_stasis_start_fn(void);
  * JSON models
  *
  * AsteriskInfo
+ * - build: BuildInfo
+ * - config: ConfigInfo
+ * - status: StatusInfo
+ * - system: SystemInfo
+ * BuildInfo
+ * - date: string (required)
+ * - kernel: string (required)
+ * - machine: string (required)
+ * - options: string (required)
+ * - os: string (required)
+ * - user: string (required)
+ * ConfigInfo
+ * - default_language: string (required)
+ * - max_channels: int
+ * - max_load: double
+ * - max_open_files: int
+ * - name: string (required)
+ * - setid: SetId (required)
+ * SetId
+ * - group: string (required)
+ * - user: string (required)
+ * StatusInfo
+ * - last_reload_time: Date (required)
+ * - startup_time: Date (required)
+ * SystemInfo
+ * - entity_id: string (required)
+ * - version: string (required)
  * Variable
  * - value: string (required)
  * Endpoint

@@ -85,10 +85,151 @@
 		}
 	],
 	"models": {
+		"BuildInfo": {
+			"id": "BuildInfo",
+			"description": "Info about how Asterisk was built",
+			"properties": {
+				"os": {
+					"required": true,
+					"type": "string",
+					"description": "OS Asterisk was built on."
+				},
+				"kernel": {
+					"required": true,
+					"type": "string",
+					"description": "Kernel version Asterisk was built on."
+				},
+				"options": {
+					"required": true,
+					"type": "string",
+					"description": "Compile time options, or empty string if default."
+				},
+				"machine": {
+					"required": true,
+					"type": "string",
+					"description": "Machine architecture (x86_64, i686, ppc, etc.)"
+				},
+				"date": {
+					"required": true,
+					"type": "string",
+					"description": "Date and time when Asterisk was built."
+				},
+				"user": {
+					"required": true,
+					"type": "string",
+					"description": "Username that build Asterisk"
+				}
+			}
+		},
+		"SystemInfo": {
+			"id": "SystemInfo",
+			"description": "Info about Asterisk",
+			"properties": {
+				"version": {
+					"required": true,
+					"type": "string",
+					"description": "Asterisk version."
+				},
+				"entity_id": {
+					"required": true,
+					"type": "string",
+					"description": ""
+				}
+			}
+		},
+		"SetId": {
+			"id": "SetId",
+			"description": "Effective user/group id",
+			"properties": {
+				"user": {
+					"required": true,
+					"type": "string",
+					"description": "Effective user id."
+				},
+				"group": {
+					"required": true,
+					"type": "string",
+					"description": "Effective group id."
+				}
+			}
+		},
+		"ConfigInfo": {
+			"id": "ConfigInfo",
+			"description": "Info about Asterisk configuration",
+			"properties": {
+				"name": {
+					"required": true,
+					"type": "string",
+					"description": "Asterisk system name."
+				},
+				"default_language": {
+					"required": true,
+					"type": "string",
+					"description": "Default language for media playback."
+				},
+				"max_channels": {
+					"required": false,
+					"type": "int",
+					"description": "Maximum number of simultaneous channels."
+				},
+				"max_open_files": {
+					"required": false,
+					"type": "int",
+					"description": "Maximum number of open file handles (files, sockets)."
+				},
+				"max_load": {
+					"required": false,
+					"type": "double",
+					"description": "Maximum load avg on system."
+				},
+				"setid": {
+					"required": true,
+					"type": "SetId",
+					"description": "Effective user/group id for running Asterisk."
+				}
+			}
+		},
+		"StatusInfo": {
+			"id": "StatusInfo",
+			"description": "Info about Asterisk status",
+			"properties": {
+				"startup_time": {
+					"required": true,
+					"type": "Date",
+					"description": "Time when Asterisk was started."
+				},
+				"last_reload_time": {
+					"required": true,
+					"type": "Date",
+					"description": "Time when Asterisk was last reloaded."
+				}
+			}
+		},
 		"AsteriskInfo": {
 			"id": "AsteriskInfo",
 			"description": "Asterisk system information",
-			"properties": {}
+			"properties": {
+				"build": {
+					"required": false,
+					"type": "BuildInfo",
+					"description": "Info about how Asterisk was built"
+				},
+				"system": {
+					"required": false,
+					"type": "SystemInfo",
+					"description": "Info about the system running Asterisk"
+				},
+				"config": {
+					"required": false,
+					"type": "ConfigInfo",
+					"description": "Info about Asterisk configuration"
+				},
+				"status": {
+					"required": false,
+					"type": "StatusInfo",
+					"description": "Info about Asterisk status"
+				}
+			}
 		},
 		"Variable": {
 			"id": "Variable",
