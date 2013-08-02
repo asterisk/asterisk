@@ -7292,7 +7292,7 @@ static void *pri_dchannel(void *vpri)
 #if defined(HAVE_PRI_AOC_EVENTS)
 						if (!pri->pvts[chanpos]->holding_aoce
 							&& pri->aoce_delayhangup
-							&& ast_bridged_channel(pri->pvts[chanpos]->owner)) {
+							&& ast_channel_is_bridged(pri->pvts[chanpos]->owner)) {
 							sig_pri_send_aoce_termination_request(pri, chanpos,
 								pri_get_timer(pri->pri, PRI_TIMER_T305) / 2);
 						} else if (detect_aoc_e_subcmd(e->hangup.subcmds)) {
