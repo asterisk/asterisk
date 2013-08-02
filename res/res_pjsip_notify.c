@@ -34,6 +34,24 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/sorcery.h"
 
+/*** DOCUMENTATION
+	<manager name="PJSIPNotify" language="en_US">
+		<synopsis>
+			Send a NOTIFY to an endpoint.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Endpoint" required="true">
+				<para>The endpoint to which to send the NOTIFY.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Send a NOTIFY to an endpoint.</para>
+			<para>Parameters will be placed into the notify as SIP headers.</para>
+		</description>
+	</manager>
+ ***/
+
 #define CONTENT_TYPE_SIZE 64
 #define CONTENT_SIZE 512
 
@@ -541,7 +559,7 @@ static char *cli_complete_notify(const char *line, const char *word,
 {
 	char *c = NULL;
 
-	if (pos == 2) {
+	if (pos == 3) {
 		int which = 0;
 		int wordlen = strlen(word);
 
@@ -564,7 +582,7 @@ static char *cli_complete_notify(const char *line, const char *word,
 		ao2_iterator_destroy(&i);
 		return c;
 	}
-	return pos > 2 ? cli_complete_endpoint(word, state) : NULL;
+	return pos > 3 ? cli_complete_endpoint(word, state) : NULL;
 }
 
 /*!
@@ -584,9 +602,9 @@ static char *cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "pjsip notify";
+		e->command = "pjsip send notify";
 		e->usage =
-			"Usage: pjsip notify <type> <peer> [<peer>...]\n"
+			"Usage: pjsip send notify <type> <peer> [<peer>...]\n"
 			"       Send a NOTIFY request to an endpoint\n"
 			"       Message types are defined in sip_notify.conf\n";
 		return NULL;
@@ -594,22 +612,22 @@ static char *cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		return cli_complete_notify(a->line, a->word, a->pos, a->n);
 	}
 
-	if (a->argc < 4) {
+	if (a->argc < 5) {
 		return CLI_SHOWUSAGE;
 	}
 
 	cfg = ao2_global_obj_ref(globals);
 
-	if (!(option = notify_option_find(cfg->notify_options, a->argv[2])))
+	if (!(option = notify_option_find(cfg->notify_options, a->argv[3])))
 	{
 		ast_cli(a->fd, "Unable to find notify type '%s'\n",
-			a->argv[2]);
+			a->argv[3]);
 		return CLI_FAILURE;
 	}
 
-	for (i = 3; i < a->argc; ++i) {
+	for (i = 4; i < a->argc; ++i) {
 		ast_cli(a->fd, "Sending NOTIFY of type '%s' to '%s'\n",
-			a->argv[2], a->argv[i]);
+			a->argv[3], a->argv[i]);
 
 		switch (push_notify(a->argv[i], option,
 				    notify_cli_data_create)) {
@@ -641,11 +659,11 @@ static struct ast_cli_entry cli_options[] = {
  */
 static int manager_notify(struct mansession *s, const struct message *m)
 {
-	const char *endpoint_name = astman_get_header(m, "Channel");
+	const char *endpoint_name = astman_get_header(m, "Endpoint");
 	struct ast_variable *vars = astman_get_variables(m);
 
 	if (ast_strlen_zero(endpoint_name)) {
-		astman_send_error(s, m, "PJSIPNotify requires a channel name");
+		astman_send_error(s, m, "PJSIPNotify requires an endpoint name");
 		return 0;
 	}
 
@@ -668,7 +686,7 @@ static int manager_notify(struct mansession *s, const struct message *m)
 		break;
 	}
 
-	astman_send_ack(s, m, "Notify Sent");
+	astman_send_ack(s, m, "NOTIFY sent");
 	return 0;
 }
 
@@ -706,7 +724,7 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "CLI/AMI PJSIP Notify Support",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "CLI/AMI PJSIP NOTIFY Support",
 		.load = load_module,
 		.reload = reload_module,
 		.unload = unload_module,

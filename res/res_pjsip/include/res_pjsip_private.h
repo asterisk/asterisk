@@ -71,4 +71,9 @@ int ast_sip_initialize_system(void);
  */
 int ast_sip_initialize_global(void);
 
+/*!
+ * \brief Clean up res_pjsip options handling
+ */
+void ast_res_pjsip_cleanup_options_handling(void);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */

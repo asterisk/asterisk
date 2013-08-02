@@ -951,6 +951,20 @@
 			</configObject>
 		</configFile>
 	</configInfo>
+	<manager name="PJSIPQualify" language="en_US">
+		<synopsis>
+			Qualify a chan_pjsip endpoint.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Endpoint" required="true">
+				<para>The endpoint you want to qualify.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Qualify a chan_pjsip endpoint.</para>
+		</description>
+	</manager>
  ***/
 
 
@@ -1876,6 +1890,7 @@ static int unload_pjsip(void *data)
 
 static int unload_module(void)
 {
+	ast_res_pjsip_cleanup_options_handling();
 	ast_sip_destroy_distributor();
 	ast_res_pjsip_destroy_configuration();
 	ast_sip_destroy_global_headers();

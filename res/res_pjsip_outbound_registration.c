@@ -30,6 +30,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/cli.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_outbound_registration" language="en_US">
@@ -90,6 +91,17 @@
 			</configObject>
 		</configFile>
 	</configInfo>
+	<manager name="PJSIPUnregister" language="en_US">
+		<synopsis>
+			Unregister an outbound registration.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Registration" required="true">
+				<para>The outbound registration to unregister.</para>
+			</parameter>
+		</syntax>
+	</manager>
  ***/
 
 /*! \brief Amount of buffer time (in seconds) before expiration that we re-register at */
@@ -209,7 +221,7 @@ static int handle_client_registration(void *data)
 /*! \brief Timer callback function, used just for registrations */
 static void sip_outbound_registration_timer_cb(pj_timer_heap_t *timer_heap, struct pj_timer_entry *entry)
 {
-	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, entry->user_data, ao2_cleanup);
+	struct sip_outbound_registration_client_state *client_state = entry->user_data;
 
 	ao2_ref(client_state, +1);
 	if (ast_sip_push_task(client_state->serializer, handle_client_registration, client_state)) {
@@ -333,7 +345,10 @@ static int handle_registration_response(void *data)
 		pjsip_tx_data *tdata;
 		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
 				response->rdata, response->tsx, &tdata)) {
-			pjsip_regc_send(response->client_state->client, tdata);
+			ao2_ref(response->client_state, +1);
+			if (pjsip_regc_send(response->client_state->client, tdata) != PJ_SUCCESS) {
+				ao2_cleanup(response->client_state);
+			}
 			return 0;
 		}
 		/* Otherwise, fall through so the failure is processed appropriately */
@@ -388,6 +403,7 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 	response->code = param->code;
 	response->expiration = param->expiration;
 	response->client_state = client_state;
+	ao2_ref(response->client_state, +1);
 
 	if (param->rdata) {
 		struct pjsip_retry_after_hdr *retry_after = pjsip_msg_find_hdr(param->rdata->msg_info.msg, PJSIP_H_RETRY_AFTER, NULL);
@@ -396,8 +412,6 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 		response->tsx = pjsip_rdata_get_tsx(param->rdata);
 		pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
 	}
-
-	ao2_ref(response->client_state, +1);
 
 	if (ast_sip_push_task(client_state->serializer, handle_registration_response, response)) {
 		ast_log(LOG_WARNING, "Failed to pass incoming registration response to threadpool\n");
@@ -704,6 +718,147 @@ static int outbound_auth_handler(const struct aco_option *opt, struct ast_variab
 	return ast_sip_auth_array_init(&registration->outbound_auths, var->value);
 }
 
+static struct sip_outbound_registration *retrieve_registration(const char *registration_name)
+{
+	return ast_sorcery_retrieve_by_id(
+		ast_sip_get_sorcery(),
+		"registration",
+		registration_name);
+}
+
+static int unregister_task(void *obj)
+{
+	RAII_VAR(struct sip_outbound_registration*, registration, obj, ao2_cleanup);
+	struct pjsip_regc *client = registration->state->client_state->client;
+	pjsip_tx_data *tdata;
+
+	if (pjsip_regc_unregister(client, &tdata) != PJ_SUCCESS) {
+		return 0;
+	}
+
+	ao2_ref(registration->state->client_state, +1);
+	if (pjsip_regc_send(client, tdata) != PJ_SUCCESS) {
+		ao2_cleanup(registration->state->client_state);
+	}
+
+	return 0;
+}
+
+static int queue_unregister(struct sip_outbound_registration *registration)
+{
+	ao2_ref(registration, +1);
+	if (ast_sip_push_task(registration->state->client_state->serializer, unregister_task, registration)) {
+		ao2_cleanup(registration);
+		return -1;
+	}
+	return 0;
+}
+
+static char *cli_complete_registration(const char *line, const char *word,
+int pos, int state)
+{
+	char *result = NULL;
+	int wordlen;
+	int which = 0;
+	struct sip_outbound_registration *registration;
+	RAII_VAR(struct ao2_container *, registrations, NULL, ao2_cleanup);
+	struct ao2_iterator i;
+
+	if (pos != 3) {
+		return NULL;
+	}
+
+	wordlen = strlen(word);
+	registrations = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "registration",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!registrations) {
+		return NULL;
+	}
+
+	i = ao2_iterator_init(registrations, 0);
+	while ((registration = ao2_iterator_next(&i))) {
+		const char *name = ast_sorcery_object_get_id(registration);
+		if (!strncasecmp(word, name, wordlen) && ++which > state) {
+			result = ast_strdup(name);
+		}
+
+		ao2_cleanup(registration);
+		if (result) {
+			break;
+		}
+	}
+	ao2_iterator_destroy(&i);
+	return result;
+}
+
+static char *cli_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	RAII_VAR(struct sip_outbound_registration *, registration, NULL, ao2_cleanup);
+	const char *registration_name;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip send unregister";
+		e->usage =
+			"Usage: pjsip send unregister <registration>\n"
+			"       Send a SIP REGISTER request to the specified outbound "
+			"registration with an expiration of 0. This will cause the contact "
+			"added by this registration to be removed on the remote system.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return cli_complete_registration(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	registration_name = a->argv[3];
+
+	registration = retrieve_registration(registration_name);
+	if (!registration) {
+		ast_cli(a->fd, "Unable to retrieve registration %s\n", registration_name);
+		return CLI_FAILURE;
+	}
+
+	if (queue_unregister(registration)) {
+		ast_cli(a->fd, "Failed to queue unregistration");
+		return 0;
+	}
+
+	return CLI_SUCCESS;
+}
+
+static int ami_unregister(struct mansession *s, const struct message *m)
+{
+	const char *registration_name = astman_get_header(m, "Registration");
+	RAII_VAR(struct sip_outbound_registration *, registration, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(registration_name)) {
+		astman_send_error(s, m, "Registration parameter missing.");
+		return 0;
+	}
+
+	registration = retrieve_registration(registration_name);
+	if (!registration) {
+		astman_send_error(s, m, "Unable to retrieve registration entry\n");
+		return 0;
+	}
+
+
+	if (queue_unregister(registration)) {
+		astman_send_ack(s, m, "Failed to queue unregistration");
+		return 0;
+	}
+
+	astman_send_ack(s, m, "Unregistration sent");
+	return 0;
+}
+
+static struct ast_cli_entry cli_outbound_registration[] = {
+	AST_CLI_DEFINE(cli_unregister, "Send a REGISTER request to an outbound registration target with a expiration of 0")
+};
+
 static int load_module(void)
 {
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "registration", "config", "pjsip.conf,criteria=type=registration");
@@ -726,6 +881,8 @@ static int load_module(void)
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
 	sip_outbound_registration_perform_all();
 
+	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
+	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -738,6 +895,8 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
+	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
+	ast_manager_unregister("PJSIPUnregister");
 	return 0;
 }
 

@@ -652,6 +652,64 @@ static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return CLI_SUCCESS;
 }
 
+/*!
+ * \internal
+ * \brief Send qualify request to the given contact.
+ */
+static int ami_contact_cb(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	ao2_ref(contact, +1);
+	if (ast_sip_push_task(NULL, qualify_contact_task, contact)) {
+		ao2_cleanup(contact);
+	}
+	return 0;
+}
+
+static int ami_sip_qualify(struct mansession *s, const struct message *m)
+{
+	const char *endpoint_name = astman_get_header(m, "Endpoint");
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	char *aor_name, *aors;
+
+	if (ast_strlen_zero(endpoint_name)) {
+		astman_send_error(s, m, "Endpoint parameter missing.");
+		return 0;
+	}
+
+	endpoint = ast_sorcery_retrieve_by_id(
+		ast_sip_get_sorcery(),
+		"endpoint",
+		endpoint_name);
+	if (!endpoint) {
+		astman_send_error(s, m, "Unable to retrieve endpoint\n");
+		return 0;
+	}
+
+	/* send a qualify for all contacts registered with the endpoint */
+	if (ast_strlen_zero(endpoint->aors)) {
+		astman_send_error(s, m, "No AoRs configured for endpoint\n");
+		return 0;
+	}
+
+	aors = ast_strdupa(endpoint->aors);
+
+	while ((aor_name = strsep(&aors, ","))) {
+		RAII_VAR(struct ast_sip_aor *, aor,
+			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
+		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+
+		if (!aor || !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+			continue;
+		}
+
+		ao2_callback(contacts, OBJ_NODATA, ami_contact_cb, NULL);
+	}
+
+	astman_send_ack(s, m, "Endpoint found, will qualify");
+	return 0;
+}
+
 static struct ast_cli_entry cli_options[] = {
 	AST_CLI_DEFINE(cli_qualify, "Send an OPTIONS request to a PJSIP endpoint")
 };
@@ -778,6 +836,13 @@ int ast_res_pjsip_init_options_handling(int reload)
 
 	qualify_and_schedule_permanent();
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
+	ast_manager_register2("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify, NULL, NULL, NULL);
 
 	return 0;
+}
+
+void ast_res_pjsip_cleanup_options_handling(void)
+{
+	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
+	ast_manager_unregister("PJSIPQualify");
 }
