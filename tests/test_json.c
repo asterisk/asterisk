@@ -55,7 +55,7 @@ static size_t alloc_count;
  */
 static void *json_debug_malloc(size_t size)
 {
-	void *p = ast_malloc(size);
+	void *p = ast_json_malloc(size);
 	if (p) {
 		++alloc_count;
 	}
@@ -67,7 +67,7 @@ static void json_debug_free(void *p)
 	if (p) {
 		--alloc_count;
 	}
-	ast_free(p);
+	ast_json_free(p);
 }
 
 static int json_test_init(struct ast_test_info *info, struct ast_test *test)

@@ -638,7 +638,7 @@ struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		struct ast_json *extra, const char *peer_name)
 {
 	struct timeval eventtime = ast_tvnow();
-	RAII_VAR(char *, extra_txt, NULL, ast_free);
+	RAII_VAR(char *, extra_txt, NULL, ast_json_free);
 	if (extra) {
 		extra_txt = ast_json_dump_string(extra);
 	}

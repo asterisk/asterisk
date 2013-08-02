@@ -142,7 +142,7 @@ struct ast_json *ast_ari_websocket_session_read(
 int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 	struct ast_json *message)
 {
-	RAII_VAR(char *, str, NULL, ast_free);
+	RAII_VAR(char *, str, NULL, ast_json_free);
 
 #ifdef AST_DEVMODE
 	if (!session->validator(message)) {

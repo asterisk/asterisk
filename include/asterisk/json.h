@@ -43,6 +43,37 @@
  * wrap them with json_ref() when passing them to other \c ast_json_*()
  * functions.
  *
+ * \par Thread Safety
+ *
+ * Jansson (as of 2.4) provides fairly weak thread safety guarantees. The
+ * Asterisk wrapper improves upon that slightly. The remaining refcounting
+ * problems are issues when slicing/sharing/mixing instances between JSON
+ * objects and arrays, which we avoid.
+ *
+ * The \c ast_json_dump_* functions are thread safe for multiple concurrent
+ * dumps of the same object, so long as the concurrent dumps start from the same
+ * \c root object. But if an object is shared by other JSON objects/arrays, then
+ * concurrent dumps of the outer objects/arrays are not thread safe. This can be
+ * avoided by using ast_json_deep_copy() when sharing JSON instances between
+ * objects.
+ *
+ * The ast_json_ref() and ast_json_unref() functions are thread safe. Since the
+ * Asterisk wrapper exclusively uses the reference stealing API, Jansson won't
+ * be performing many refcount modifications behind our backs. There are a few
+ * exceptions.
+ *
+ * The first is the transitive json_decref() that occurs when \ref
+ * AST_JSON_OBJECT and \ref AST_JSON_ARRAY instances are deleted. This can be
+ * avoided by using ast_json_deep_copy() when sharing JSON instances between
+ * objects.
+ *
+ * The second is when using the reference borrowing specifier in
+ * ast_json_pack() (capital \c O). This can be avoided by using the reference
+ * stealing specifier (lowercase \c o) and wrapping the JSON object parameter
+ * with ast_json_ref() for an explicit ref-bump.
+ *
+ * \par Example code
+ *
  * \code
  *	// Example of how to use the Asterisk JSON API
  *	static struct ast_json *foo(void) {
@@ -105,6 +136,20 @@ void ast_json_set_alloc_funcs(void *(*malloc_fn)(size_t), void (*free_fn)(void*)
  * ast_free().
  */
 void ast_json_reset_alloc_funcs(void);
+
+/*!
+ * \brief Asterisk's custom JSON allocator. Exposed for use by unit tests.
+ * \since 12.0.0
+ * \internal
+ */
+void *ast_json_malloc(size_t size);
+
+/*!
+ * \brief Asterisk's custom JSON allocator. Exposed for use by unit tests.
+ * \since 12.0.0
+ * \internal
+ */
+void ast_json_free(void *p);
 
 /*!
  * \struct ast_json
@@ -683,13 +728,23 @@ enum ast_json_encoding_format
 	AST_JSON_PRETTY,
 };
 
+/*!
+ * \brief Encode a JSON value to a compact string.
+ * \since 12.0.0
+ *
+ * Returned string must be freed by calling ast_json_free().
+ *
+ * \param root JSON value.
+ * \return String encoding of \a root.
+ * \return \c NULL on error.
+ */
 #define ast_json_dump_string(root) ast_json_dump_string_format(root, AST_JSON_COMPACT)
 
 /*!
  * \brief Encode a JSON value to a string.
  * \since 12.0.0
  *
- * Returned string must be freed by calling ast_free().
+ * Returned string must be freed by calling ast_json_free().
  *
  * \param root JSON value.
  * \param format encoding format type.

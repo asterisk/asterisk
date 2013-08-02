@@ -126,7 +126,7 @@ static int sorcery_json_equal(struct ast_json *object, struct ast_json *criteria
 static int sorcery_astdb_create(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	RAII_VAR(struct ast_json *, objset, ast_sorcery_objectset_json_create(sorcery, object), ast_json_unref);
-	RAII_VAR(char *, value, NULL, ast_free_ptr);
+	RAII_VAR(char *, value, NULL, ast_json_free);
 	const char *prefix = data;
 	char family[strlen(prefix) + strlen(ast_sorcery_object_get_type(object)) + 2];
 
