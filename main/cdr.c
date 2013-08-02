@@ -916,17 +916,14 @@ static int snapshot_cep_changed(struct ast_channel_snapshot *old_snapshot,
 		return 0;
 	}
 
-	if (strcmp(new_snapshot->context, old_snapshot->context)
-		|| strcmp(new_snapshot->exten, old_snapshot->exten)
-		|| new_snapshot->priority != old_snapshot->priority) {
-		return 1;
-	}
-
 	/* When Party A is originated to an application and the application exits, the stack
 	 * will attempt to clear the application and restore the dummy originate application
 	 * of "AppDialX". Ignore application changes to AppDialX as a result.
 	 */
-	if (strcmp(new_snapshot->appl, old_snapshot->appl) && strncasecmp(new_snapshot->appl, "appdial", 7)) {
+	if (strcmp(new_snapshot->appl, old_snapshot->appl) && strncasecmp(new_snapshot->appl, "appdial", 7)
+		&& (strcmp(new_snapshot->context, old_snapshot->context)
+		|| strcmp(new_snapshot->exten, old_snapshot->exten)
+		|| new_snapshot->priority != old_snapshot->priority)) {
 		return 1;
 	}
 

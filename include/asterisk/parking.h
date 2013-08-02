@@ -31,6 +31,11 @@
 #define PARK_APPLICATION "Park"
 
 /*!
+ * \brief The default parking lot
+ */
+#define DEFAULT_PARKINGLOT "default"
+
+/*!
  * \brief Defines the type of parked call message being published
  * \since 12
  */

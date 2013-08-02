@@ -185,6 +185,10 @@ Features:
  - Executing a dynamic feature on the bridge peer in a multi-party bridge will
    execute it on all peers of the activating channel.
 
+ - There is no longer an explicit 'features reload' CLI command. Features can still be
+   reloaded using 'module reload features'.
+
+
 Parking:
  - The arguments for the Park, ParkedCall, and ParkAndAnnounce applications have
    been modified significantly. See the application documents for specific details.

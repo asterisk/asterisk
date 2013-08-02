@@ -28,30 +28,6 @@
 #include "asterisk/linkedlists.h"
 #include "asterisk/bridge.h"
 
-#define FEATURE_MAX_LEN		11
-#define FEATURE_APP_LEN		64
-#define FEATURE_APP_ARGS_LEN	256
-#define FEATURE_SNAME_LEN	32
-#define FEATURE_EXTEN_LEN	32
-#define FEATURE_MOH_LEN		80  /* same as MAX_MUSICCLASS from channel.h */
-
-#define DEFAULT_PARKINGLOT "default"	/*!< Default parking lot */
-
-#define AST_FEATURE_RETURN_HANGUP           -1
-#define AST_FEATURE_RETURN_SUCCESSBREAK     0
-#define AST_FEATURE_RETURN_PBX_KEEPALIVE    AST_PBX_KEEPALIVE
-#define AST_FEATURE_RETURN_NO_HANGUP_PEER   AST_PBX_NO_HANGUP_PEER
-#define AST_FEATURE_RETURN_PASSDIGITS       21
-#define AST_FEATURE_RETURN_STOREDIGITS      22
-#define AST_FEATURE_RETURN_SUCCESS          23
-#define AST_FEATURE_RETURN_KEEPTRYING       24
-#define AST_FEATURE_RETURN_PARKFAILED       25
-
-#define FEATURE_SENSE_CHAN	(1 << 0)
-#define FEATURE_SENSE_PEER	(1 << 1)
-
-typedef int (*ast_feature_operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, const char *code, int sense, void *data);
-
 /*! \brief main call feature structure */
 
 enum {
@@ -93,54 +69,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct as
 int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 		struct ast_bridge_features *features, int play_tone, const char *xfersound);
 
-/*!
- * \brief Test if a channel can be picked up.
- *
- * \param chan Channel to test if can be picked up.
- *
- * \note This function assumes that chan is locked.
- *
- * \return TRUE if channel can be picked up.
- */
-int ast_can_pickup(struct ast_channel *chan);
 
-/*!
- * \brief Find a pickup channel target by group.
- *
- * \param chan channel that initiated pickup.
- *
- * \retval target on success.  The returned channel is locked and reffed.
- * \retval NULL on error.
- */
-struct ast_channel *ast_pickup_find_by_group(struct ast_channel *chan);
-
-/*! \brief Pickup a call */
-int ast_pickup_call(struct ast_channel *chan);
-
-/*!
- * \brief Pickup a call target.
- *
- * \param chan channel that initiated pickup.
- * \param target channel to be picked up.
- *
- * \note This function assumes that target is locked.
- *
- * \retval 0 on success.
- * \retval -1 on failure.
- */
-int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target);
-
-/*!
- * \brief accessor for call pickup message type
- * \since 12.0.0
- *
- * \retval pointer to the stasis message type
- * \retval NULL if not initialized
- */
-struct stasis_message_type *ast_call_pickup_type(void);
-
-/*! \brief Reload call features from features.conf */
-int ast_features_reload(void);
 
 /*!
  * \brief parse L option and read associated channel variables to set warning, warning frequency, and timelimit

@@ -202,6 +202,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/cli.h"
 #include "asterisk/channel.h"
 #include "asterisk/translate.h"
+#include "asterisk/pickup.h"
 #include "asterisk/features.h"
 #include "asterisk/acl.h"
 #include "asterisk/ulaw.h"
@@ -4294,6 +4295,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (ast_features_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_pickup_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}

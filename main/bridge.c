@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_internal.h"
 #include "asterisk/bridge_channel_internal.h"
+#include "asterisk/bridge_features.h"
 #include "asterisk/bridge_basic.h"
 #include "asterisk/bridge_technology.h"
 #include "asterisk/bridge_channel.h"

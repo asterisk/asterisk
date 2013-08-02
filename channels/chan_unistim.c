@@ -73,7 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/causes.h"
 #include "asterisk/indications.h"
-#include "asterisk/features.h"
+#include "asterisk/pickup.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/astdb.h"
 #include "asterisk/features_config.h"

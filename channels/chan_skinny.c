@@ -68,7 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/say.h"
 #include "asterisk/astdb.h"
-#include "asterisk/features.h"
+#include "asterisk/pickup.h"
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/utils.h"

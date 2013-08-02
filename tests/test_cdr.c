@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/time.h"
 #include "asterisk/bridge.h"
-#include "asterisk/bridge_basic.h"
+#include "asterisk/bridge_features.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridges.h"
 

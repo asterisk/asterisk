@@ -1227,6 +1227,9 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
+
+	/*ast_parking_unregister_bridge_features(parking_provider.module_name);*/
+
 	/* XXX Parking is currently not unloadable due to the fact that it loads features which could cause
 	 *     significant problems if they disappeared while a channel still had access to them.
 	 */

@@ -8,7 +8,7 @@
  *
  * \brief
  * Prototypes for public functions only of internal interest,
- * 
+ *
  */
 
 
@@ -25,7 +25,7 @@ int astdb_init(void);			/*!< Provided by db.c */
 void ast_channels_init(void);		/*!< Provided by channel.c */
 void ast_builtins_init(void);		/*!< Provided by cli.c */
 int ast_cli_perms_init(int reload);	/*!< Provided by cli.c */
-int dnsmgr_init(void);			/*!< Provided by dnsmgr.c */ 
+int dnsmgr_init(void);			/*!< Provided by dnsmgr.c */
 void dnsmgr_start_refresh(void);	/*!< Provided by dnsmgr.c */
 int dnsmgr_reload(void);		/*!< Provided by dnsmgr.c */
 void threadstorage_init(void);		/*!< Provided by threadstorage.c */
@@ -109,9 +109,9 @@ enum ast_module_reload_result ast_module_reload(const char *name);
  */
 void ast_process_pending_reloads(void);
 
-/*! \brief Load XML documentation. Provided by xmldoc.c 
+/*! \brief Load XML documentation. Provided by xmldoc.c
  *  \retval 1 on error.
- *  \retval 0 on success. 
+ *  \retval 0 on success.
  */
 int ast_xmldoc_load_documentation(void);
 

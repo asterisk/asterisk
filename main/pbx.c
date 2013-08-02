@@ -4651,18 +4651,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					COLORIZE(COLOR_BRMAGENTA, 0, passdata),
 					"in new stack");
 			}
-			snapshot = ast_channel_snapshot_create(c);
-			if (snapshot) {
-				/* pbx_exec sets application name and data, but we don't want to log
-				 * every exec. Just update the snapshot here instead.
-				 */
-				ast_string_field_set(snapshot, appl, app->name);
-				ast_string_field_set(snapshot, data, passdata);
-				msg = stasis_message_create(ast_channel_snapshot_type(), snapshot);
-				if (msg) {
-					stasis_publish(ast_channel_topic(c), msg);
-				}
-			}
 			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */

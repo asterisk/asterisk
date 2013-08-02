@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
-#include "asterisk/features.h"
+#include "asterisk/pickup.h"
 #include "asterisk/manager.h"
 #include "asterisk/callerid.h"
 
@@ -305,7 +305,7 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-/* Find channel for pick up specified by partial channel name */ 
+/* Find channel for pick up specified by partial channel name */
 static int find_by_part(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *target = obj;/*!< Potential pickup target */
@@ -323,7 +323,7 @@ static int find_by_part(void *obj, void *arg, void *data, int flags)
 	return 0;
 }
 
-/* Attempt to pick up specified by partial channel name */ 
+/* Attempt to pick up specified by partial channel name */
 static int pickup_by_part(struct ast_channel *chan, const char *part)
 {
 	struct ast_channel *target;/*!< Potential pickup target */

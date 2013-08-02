@@ -578,5 +578,6 @@ void unload_parking_manager(void)
 {
 	ast_manager_unregister("Parkinglots");
 	ast_manager_unregister("ParkedCalls");
+	ast_manager_unregister("Park");
 	parking_manager_disable_stasis();
 }

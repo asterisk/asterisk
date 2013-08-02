@@ -61,7 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/bridge.h"
 #include "asterisk/parking.h"
-#include "asterisk/features.h"
+#include "asterisk/pickup.h"
 #include "asterisk/core_local.h"
 
 /*** DOCUMENTATION
