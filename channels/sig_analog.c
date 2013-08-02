@@ -34,6 +34,7 @@
 
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
+#include "asterisk/pickup.h"
 #include "asterisk/pbx.h"
 #include "asterisk/file.h"
 #include "asterisk/callerid.h"
