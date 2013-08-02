@@ -45,6 +45,7 @@ enum ast_parked_call_event_type {
 	PARKED_CALL_GIVEUP,
 	PARKED_CALL_UNPARKED,
 	PARKED_CALL_FAILED,
+	PARKED_CALL_SWAP,
 };
 
 /*!

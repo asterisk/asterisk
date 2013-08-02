@@ -380,11 +380,20 @@ struct stasis_message *ast_bridge_blob_create(
 	return msg;
 }
 
-void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *chan)
+void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *chan,
+		struct ast_channel *swap)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, blob, NULL, ao2_cleanup);
 
-	msg = ast_bridge_blob_create(ast_channel_entered_bridge_type(), bridge, chan, NULL);
+	if (swap) {
+		blob = ast_json_pack("{s: s}", "swap", ast_channel_uniqueid(swap));
+		if (!blob) {
+			return;
+		}
+	}
+
+	msg = ast_bridge_blob_create(ast_channel_entered_bridge_type(), bridge, chan, blob);
 	if (!msg) {
 		return;
 	}

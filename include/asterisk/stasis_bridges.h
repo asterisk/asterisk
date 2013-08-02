@@ -215,8 +215,10 @@ struct stasis_message *ast_bridge_blob_create(struct stasis_message_type *type,
  *
  * \param bridge The bridge a channel entered
  * \param chan The channel that entered the bridge
+ * \param swap The channel being swapped out of the bridge
  */
-void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *chan);
+void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *chan,
+		struct ast_channel *swap);
 
 /*!
  * \since 12

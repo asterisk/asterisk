@@ -254,6 +254,8 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 				ast_channel_name(bridge_channel->chan));
 		}
 
+		publish_parked_call(pu, PARKED_CALL_SWAP);
+
 		return 0;
 	}
 

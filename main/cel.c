@@ -1304,6 +1304,9 @@ static void cel_parking_cb(
 	case PARKED_CALL_FAILED:
 		reason = "ParkedCallFailed";
 		break;
+	case PARKED_CALL_SWAP:
+		reason = "ParkedCallSwap";
+		break;
 	}
 
 	extra = ast_json_pack("{s: s}", "reason", reason);

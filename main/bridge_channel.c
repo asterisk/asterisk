@@ -1429,7 +1429,7 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 		bridge->v_table->name,
 		bridge->uniqueid);
 
-	ast_bridge_publish_enter(bridge, bridge_channel->chan);
+	ast_bridge_publish_enter(bridge, bridge_channel->chan, swap ? swap->chan : NULL);
 	if (swap) {
 		ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 		bridge_channel_internal_pull(swap);

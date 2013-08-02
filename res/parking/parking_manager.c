@@ -526,6 +526,9 @@ static void parked_call_message_response(struct ast_parked_call_payload *parked_
 	case PARKED_CALL_UNPARKED:
 		event_type = "UnParkedCall";
 		break;
+	case PARKED_CALL_SWAP:
+		event_type = "ParkedCallSwap";
+		break;
 	case PARKED_CALL_FAILED:
 		/* PARKED_CALL_FAILED doesn't currently get a message and is used exclusively for bridging */
 		return;

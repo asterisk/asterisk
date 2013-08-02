@@ -58,6 +58,9 @@ static struct stasis_message_router *bridge_state_router;
 			<syntax>
 				<bridge_snapshot/>
 				<channel_snapshot/>
+				<parameter name="SwapUniqueid">
+					<para>The uniqueid of the channel being swapped out of the bridge</para>
+				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -247,9 +250,11 @@ static void channel_enter_cb(void *data, struct stasis_subscription *sub,
 				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
+	static const char *swap_name = "SwapUniqueid: ";
 	struct ast_bridge_blob *blob = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, bridge_text, NULL, ast_free);
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
+	const char *swap_id;
 
 	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
 	channel_text = ast_manager_build_channel_state_string(blob->channel);
@@ -257,11 +262,17 @@ static void channel_enter_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
+	swap_id = ast_json_string_get(ast_json_object_get(blob->blob, "swap"));
+
 	manager_event(EVENT_FLAG_CALL, "BridgeEnter",
 		"%s"
-		"%s",
+		"%s"
+		"%s%s%s",
 		ast_str_buffer(bridge_text),
-		ast_str_buffer(channel_text));
+		ast_str_buffer(channel_text),
+		swap_id ? swap_name : "",
+		S_OR(swap_id, ""),
+		swap_id ? "\r\n" : "");
 }
 
 static void channel_leave_cb(void *data, struct stasis_subscription *sub,
