@@ -24,8 +24,8 @@
  *
  */
 
-#ifndef _AST_FEATURES_H
-#define _AST_FEATURES_H
+#ifndef _AST_PICKUP_H
+#define _AST_PICKUP_H
 
 /*!
  * \brief Test if a channel can be picked up.
@@ -88,4 +88,4 @@ struct stasis_message_type *ast_call_pickup_type(void);
  */
 int ast_pickup_init(void);
 
-#endif /* _AST_FEATURES_H */
+#endif /* _AST_PICKUP_H */
