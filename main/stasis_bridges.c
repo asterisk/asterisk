@@ -384,7 +384,7 @@ void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *cha
 		struct ast_channel *swap)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, blob, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	if (swap) {
 		blob = ast_json_pack("{s: s}", "swap", ast_channel_uniqueid(swap));
