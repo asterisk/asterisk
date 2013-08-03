@@ -449,8 +449,6 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 
 static void manager_bridging_cleanup(void)
 {
-	stasis_message_router_unsubscribe(bridge_state_router);
-	bridge_state_router = NULL;
 	stasis_unsubscribe(topic_forwarder);
 	topic_forwarder = NULL;
 }
