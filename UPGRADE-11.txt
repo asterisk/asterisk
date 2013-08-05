@@ -19,6 +19,11 @@
 === UPGRADE-10.txt -- Upgrade info for 1.8 to 10
 ===
 ===========================================================
+from 11.5 to 11.6:
+* res_agi will now properly indicate if there was an error in streaming an
+  audio file.  The result code will be -1 and the result returned from the
+  the function will be RESULT_FAILURE instead of the prior behavior of always
+  returning RESULT_SUCCESS even if there was an error.
 
 From 11.4 to 11.5:
 * The default settings for chan_sip are now overriden properly by the general
