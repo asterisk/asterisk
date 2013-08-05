@@ -17528,7 +17528,7 @@ static struct sip_peer *_sip_show_peers_one(int fd, struct mansession *s, struct
 		"TextSupport: %s\r\n"
 		"ACL: %s\r\n"
 		"Status: %s\r\n"
-		"RealtimeDevice: %s\r\n",
+		"RealtimeDevice: %s\r\n\r\n",
 		cont->idtext,
 		peer->name,
 		ast_sockaddr_isnull(&peer->addr) ? "-none-" : tmp_host,
