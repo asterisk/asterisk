@@ -176,6 +176,16 @@ void ast_ari_add_channel_to_bridge(struct ast_variable *headers, struct ast_add_
 	}
 
 	for (i = 0; i < list->count; ++i) {
+		stasis_app_control_clear_roles(list->controls[i]);
+		if (!ast_strlen_zero(args->role)) {
+			if (stasis_app_control_add_role(list->controls[i], args->role)) {
+				ast_ari_response_alloc_failed(response);
+				return;
+			}
+		}
+	}
+
+	for (i = 0; i < list->count; ++i) {
 		stasis_app_control_add_channel_to_bridge(list->controls[i], bridge);
 	}
 

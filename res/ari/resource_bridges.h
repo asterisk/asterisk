@@ -103,6 +103,8 @@ struct ast_add_channel_to_bridge_args {
 	size_t channel_count;
 	/*! \brief Parsing context for channel. */
 	char *channel_parse;
+	/*! \brief Channel's role in the bridge */
+	const char *role;
 };
 /*!
  * \brief Add a channel to a bridge.

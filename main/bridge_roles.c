@@ -355,6 +355,25 @@ void ast_channel_remove_bridge_role(struct ast_channel *chan, const char *role_n
 	ast_debug(2, "Role %s did not exist on channel %s\n", role_name, ast_channel_name(chan));
 }
 
+void ast_channel_clear_bridge_roles(struct ast_channel *chan)
+{
+	struct bridge_roles_datastore *roles_datastore = fetch_bridge_roles_datastore(chan);
+	struct bridge_role *role;
+
+	if (!roles_datastore) {
+		/* The roles datastore didn't already exist, so there is no need to remove any roles */
+		ast_debug(2, "Roles did not exist on channel %s\n", ast_channel_name(chan));
+		return;
+	}
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&roles_datastore->role_list, role, list) {
+		ast_debug(2, "Removing bridge role %s from channel %s\n", role->role, ast_channel_name(chan));
+		AST_LIST_REMOVE_CURRENT(list);
+		bridge_role_destroy(role);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+
 int ast_channel_set_bridge_role_option(struct ast_channel *channel, const char *role_name, const char *option, const char *value)
 {
 	struct bridge_role *role = get_role_from_channel(channel, role_name);

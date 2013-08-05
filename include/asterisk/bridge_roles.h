@@ -52,6 +52,13 @@ int ast_channel_add_bridge_role(struct ast_channel *chan, const char *role_name)
 void ast_channel_remove_bridge_role(struct ast_channel *chan, const char *role_name);
 
 /*!
+ * \brief Removes all bridge roles currently on a channel
+ *
+ * \param chan Channel the roles are being removed from
+ */
+void ast_channel_clear_bridge_roles(struct ast_channel *chan);
+
+/*!
  * \brief Set a role option on a channel
  * \param channel Channel receiving the role option
  * \param role_name Role the role option is applied to

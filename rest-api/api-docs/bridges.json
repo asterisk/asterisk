@@ -119,6 +119,14 @@
 							"required": true,
 							"allowMultiple": true,
 							"dataType": "string"
+						},
+						{
+							"name": "role",
+							"description": "Channel's role in the bridge",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [

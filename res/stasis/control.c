@@ -168,6 +168,16 @@ int stasis_app_control_dial(struct stasis_app_control *control, const char *endp
 	return 0;
 }
 
+int stasis_app_control_add_role(struct stasis_app_control *control, const char *role)
+{
+	return ast_channel_add_bridge_role(control->channel, role);
+}
+
+void stasis_app_control_clear_roles(struct stasis_app_control *control)
+{
+	ast_channel_clear_bridge_roles(control->channel);
+}
+
 int control_is_done(struct stasis_app_control *control)
 {
 	/* Called from stasis_app_exec thread; no lock needed */

@@ -324,6 +324,9 @@ static void ast_ari_add_channel_to_bridge_cb(
 				args.channel[j] = (vals[j]);
 			}
 		} else
+		if (strcmp(i->name, "role") == 0) {
+			args.role = (i->value);
+		} else
 		{}
 	}
 	for (i = path_vars; i; i = i->next) {

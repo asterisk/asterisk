@@ -174,6 +174,24 @@ const char *stasis_app_control_get_channel_id(
 int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, int timeout);
 
 /*!
+ * \brief Apply a bridge role to a channel controlled by a stasis app control
+ *
+ * \param control Control for \c res_stasis
+ * \param role Role to apply
+ *
+ * \return 0 for success
+ * \return -1 for error.
+ */
+int stasis_app_control_add_role(struct stasis_app_control *control, const char *role);
+
+/*!
+ * \brief Clear bridge roles currently applied to a channel controlled by a stasis app control
+ *
+ * \param control Control for \c res_stasis
+ */
+void stasis_app_control_clear_roles(struct stasis_app_control *control);
+
+/*!
  * \brief Exit \c res_stasis and continue execution in the dialplan.
  *
  * If the channel is no longer in \c res_stasis, this function does nothing.
