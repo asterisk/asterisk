@@ -31,6 +31,7 @@
 #include "asterisk/module.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/cli.h"
+#include "asterisk/stasis_system.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_outbound_registration" language="en_US">
@@ -119,6 +120,14 @@ enum sip_outbound_registration_status {
 	SIP_REGISTRATION_REJECTED_PERMANENT,
 	/*! \brief Registration has been stopped */
 	SIP_REGISTRATION_STOPPED,
+};
+
+static const char *sip_outbound_registration_status_str[] = {
+	[SIP_REGISTRATION_UNREGISTERED] = "Unregistered",
+	[SIP_REGISTRATION_REGISTERED] = "Registered",
+	[SIP_REGISTRATION_REJECTED_TEMPORARY] = "Rejected",
+	[SIP_REGISTRATION_REJECTED_PERMANENT] = "Rejected",
+	[SIP_REGISTRATION_STOPPED] = "Stopped",
 };
 
 /*! \brief Outbound registration client state information (persists for lifetime of regc) */
@@ -385,6 +394,8 @@ static int handle_registration_response(void *data)
 		ast_log(LOG_WARNING, "Fatal response '%d' received from '%s' on registration attempt to '%s', stopping outbound registration\n",
 			response->code, server_uri, client_uri);
 	}
+
+	ast_system_publish_registry("PJSIP", client_uri, server_uri, sip_outbound_registration_status_str[response->client_state->status], NULL);
 
 	/* If deferred destruction is in use see if we need to destroy now */
 	if (response->client_state->destroy) {
