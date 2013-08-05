@@ -359,7 +359,10 @@ static void bridge_parking_pull(struct ast_bridge_parking *self, struct ast_brid
 	}
 	ao2_unlock(pu);
 
-	parking_notify_metermaids(pu->parking_space, self->lot->cfg->parking_con, AST_DEVICE_NOT_INUSE);
+	/* Pull can still happen after the bridge starts dissolving, so make sure we still have a lot before trying to notify metermaids. */
+	if (self->lot) {
+		parking_notify_metermaids(pu->parking_space, self->lot->cfg->parking_con, AST_DEVICE_NOT_INUSE);
+	}
 
 	switch (pu->resolution) {
 	case PARK_UNSET:

@@ -110,6 +110,20 @@ struct parked_user {
 	enum park_call_resolution resolution;     /*!< How did the parking session end? If the call is in a bridge, lock parked_user before checking/setting */
 };
 
+#if defined(TEST_FRAMEWORK)
+/*!
+ * \since 12.0.0
+ * \brief Create an empty parking lot configuration structure
+ *        useful for unit tests.
+ *
+ * \param cat name given to the parking lot
+ *
+ * \retval NULL failure
+ * \retval non-NULL successfully allocated parking lot
+ */
+struct parking_lot_cfg *parking_lot_cfg_create(const char *cat);
+#endif
+
 /*!
  * \since 12.0.0
  * \brief If a parking lot exists in the parking lot list already, update its status to match the provided
@@ -268,9 +282,24 @@ struct parking_lot *parking_lot_find_by_name(const char *lot_name);
  * \retval NULL on error
  *
  * \note This should be called only after verifying that the named parking lot doesn't already exist in a non-dynamic way.
- *       The parking lots container should be locked before verifying and remain locked until after this function is called.
  */
 struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_channel *chan);
+
+#if defined(TEST_FRAMEWORK)
+/*!
+ * \since 12.0.0
+ * \brief Create a dynamic parking lot without respect to whether they are enabled by configuration
+ *
+ * \param name Dynamic parking lot name to create
+ * \param chan Channel parkee to get the dynamic parking lot parameters from
+ *
+ * \retval dynamically created parking lot on success
+ * \retval NULL on error
+ *
+ * \note This should be called only after verifying that the named parking lot doesn't already exist in a non-dynamic way.
+ */
+struct parking_lot *parking_create_dynamic_lot_forced(const char *name, struct ast_channel *chan);
+#endif
 
 /*!
  * \since 12.0.0
@@ -525,3 +554,21 @@ int load_parking_devstate(void);
  * \brief Unregister Parking devstate handler
  */
 void unload_parking_devstate(void);
+
+/*!
+ * \since 12.0.0
+ * \brief Register parking unit tests
+ *
+ * \retval 0 on success
+ * \retval nonzero on failure
+ */
+int load_parking_tests(void);
+
+/*!
+ * \since 12.0.0
+ * \brief Unregister parking unit tests
+ *
+ * \retval 0 on success
+ * \retval nonzero on failure
+ */
+int unload_parking_tests(void);

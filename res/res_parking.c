@@ -432,6 +432,13 @@ static void *parking_lot_cfg_alloc(const char *cat)
 	return lot_cfg;
 }
 
+#if defined(TEST_FRAMEWORK)
+struct parking_lot_cfg *parking_lot_cfg_create(const char *cat)
+{
+	return parking_lot_cfg_alloc(cat);
+}
+#endif
+
 /*!
  * XXX This is actually incredibly generic and might be better placed in something like astobj2 if there isn't already an equivalent
  * \brief find an item in a container by its name
@@ -928,7 +935,7 @@ static struct parking_lot_cfg *clone_parkinglot_cfg(struct parking_lot_cfg *sour
 	return cfg;
 }
 
-struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_channel *chan)
+static struct parking_lot *create_dynamic_lot_full(const char *name, struct ast_channel *chan, int forced)
 {
 	RAII_VAR(struct parking_lot_cfg *, cfg, NULL, ao2_cleanup);
 	RAII_VAR(struct parking_lot *, template_lot, NULL, ao2_cleanup);
@@ -942,7 +949,7 @@ struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_chan
 	int dyn_start;
 	int dyn_end;
 
-	if (!parking_dynamic_lots_enabled()) {
+	if (!forced && !parking_dynamic_lots_enabled()) {
 		return NULL;
 	}
 
@@ -1016,6 +1023,16 @@ struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_chan
 
 	return lot;
 }
+
+struct parking_lot *parking_create_dynamic_lot(const char *name, struct ast_channel *chan){
+	return create_dynamic_lot_full(name, chan, 0);
+}
+
+#if defined(TEST_FRAMEWORK)
+struct parking_lot *parking_create_dynamic_lot_forced(const char *name, struct ast_channel *chan) {
+	return create_dynamic_lot_full(name, chan, 1);
+}
+#endif
 
 /* Preapply */
 
@@ -1208,9 +1225,14 @@ static int load_module(void)
 		goto error;
 	}
 
+	if (load_parking_tests()) {
+		goto error;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 
 error:
+	/* XXX errored loads don't currently do a good job of cleaning up after themselves */
 	ao2_cleanup(parking_lot_container);
 	aco_info_destroy(&cfg_info);
 	return AST_MODULE_LOAD_DECLINE;
@@ -1240,6 +1262,7 @@ static int unload_module(void)
 	 *  destroy existing parking lots
 	 *  uninstall parking related bridge features
 	 *  remove extensions owned by the parking registrar
+	 *  unload currently loaded unit tests, CLI/AMI commands, etc.
 	 */
 }
 
