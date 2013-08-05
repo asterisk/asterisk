@@ -81,7 +81,7 @@ static void participant_stop_hold_audio(struct ast_bridge_channel *bridge_channe
 		ast_moh_stop(bridge_channel->chan);
 		break;
 	case IDLE_MODE_RINGING:
-		ast_indicate(bridge_channel->chan, -1);
+		ast_bridge_channel_queue_control_data(bridge_channel, -1, NULL, 0);
 		break;
 	case IDLE_MODE_NONE:
 		break;
@@ -124,7 +124,7 @@ static void participant_start_hold_audio(struct ast_bridge_channel *bridge_chann
 		ast_moh_start(bridge_channel->chan, ast_strlen_zero(moh_class) ? NULL : moh_class, NULL);
 		break;
 	case IDLE_MODE_RINGING:
-		ast_indicate(bridge_channel->chan, AST_CONTROL_RINGING);
+		ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_RINGING, NULL, 0);
 		break;
 	case IDLE_MODE_NONE:
 		break;
@@ -302,6 +302,44 @@ static int holding_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 	return 0;
 }
 
+static void holding_bridge_suspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
+{
+	struct holding_channel *hc = bridge_channel ? bridge_channel->tech_pvt : NULL;
+
+	if (!hc) {
+		return;
+	}
+
+	if (!ast_test_flag(&hc->holding_roles, HOLDING_ROLE_PARTICIPANT)) {
+		return;
+	}
+
+	participant_stop_hold_audio(bridge_channel);
+}
+
+static void holding_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
+{
+	struct holding_channel *hc = bridge_channel ? bridge_channel->tech_pvt : NULL;
+	struct ast_bridge_channel *announcer_channel = bridge->tech_pvt;
+
+	if (!hc) {
+		return;
+	}
+
+	/* If the bridge channel being unsuspended is not a participant, no need to do anything. */
+	if (!ast_test_flag(&hc->holding_roles, HOLDING_ROLE_PARTICIPANT)) {
+		return;
+	}
+
+	/* If there is currently an announcer channel in the bridge, there is also no need to do anything. */
+	if (announcer_channel) {
+		return;
+	}
+
+	/* Otherwise we need to resume the entertainment. */
+	participant_start_hold_audio(bridge_channel);
+}
+
 static struct ast_bridge_technology holding_bridge = {
 	.name = "holding_bridge",
 	.capabilities = AST_BRIDGE_CAPABILITY_HOLDING,
@@ -309,6 +347,8 @@ static struct ast_bridge_technology holding_bridge = {
 	.write = holding_bridge_write,
 	.join = holding_bridge_join,
 	.leave = holding_bridge_leave,
+	.suspend = holding_bridge_suspend,
+	.unsuspend = holding_bridge_unsuspend,
 };
 
 static int unload_module(void)
