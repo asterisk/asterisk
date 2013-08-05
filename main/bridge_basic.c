@@ -220,7 +220,7 @@ int ast_bridge_features_ds_get_string(struct ast_channel *chan, char *buffer, si
 	return dtmf_features_flags_to_string(&held_copy, buffer, buf_size);
 }
 
-int ast_bridge_features_ds_set(struct ast_channel *chan, struct ast_flags *flags)
+static int bridge_features_ds_set_full(struct ast_channel *chan, struct ast_flags *flags, int replace)
 {
 	struct ast_datastore *datastore;
 	struct ast_flags *ds_flags;
@@ -228,7 +228,12 @@ int ast_bridge_features_ds_set(struct ast_channel *chan, struct ast_flags *flags
 	datastore = ast_channel_datastore_find(chan, &dtmf_features_info, NULL);
 	if (datastore) {
 		ds_flags = datastore->data;
-		*ds_flags = *flags;
+		if (replace) {
+			*ds_flags = *flags;
+		} else {
+			flags->flags = flags->flags | ds_flags->flags;
+			*ds_flags = *flags;
+		}
 		return 0;
 	}
 
@@ -247,6 +252,16 @@ int ast_bridge_features_ds_set(struct ast_channel *chan, struct ast_flags *flags
 	datastore->data = ds_flags;
 	ast_channel_datastore_add(chan, datastore);
 	return 0;
+}
+
+int ast_bridge_features_ds_set(struct ast_channel *chan, struct ast_flags *flags)
+{
+	return bridge_features_ds_set_full(chan, flags, 1);
+}
+
+int ast_bridge_features_ds_append(struct ast_channel *chan, struct ast_flags *flags)
+{
+	return bridge_features_ds_set_full(chan, flags, 0);
 }
 
 struct ast_flags *ast_bridge_features_ds_get(struct ast_channel *chan)

@@ -953,10 +953,10 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 
 	res = 0;
 	ast_channel_lock(chan);
-	res |= ast_bridge_features_ds_set(chan, &config->features_caller);
+	res |= ast_bridge_features_ds_append(chan, &config->features_caller);
 	ast_channel_unlock(chan);
 	ast_channel_lock(peer);
-	res |= ast_bridge_features_ds_set(peer, &config->features_callee);
+	res |= ast_bridge_features_ds_append(peer, &config->features_callee);
 	ast_channel_unlock(peer);
 
 	if (res) {

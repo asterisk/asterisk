@@ -89,6 +89,22 @@ struct ast_flags *ast_bridge_features_ds_get(struct ast_channel *chan);
 int ast_bridge_features_ds_set(struct ast_channel *chan, struct ast_flags *flags);
 
 /*!
+ * \brief Append basic bridge DTMF feature flags on the channel.
+ * \since 12.0.0
+ *
+ * \param chan Channel to append DTMF features datastore.
+ * \param flags Builtin DTMF feature flags. (ast_bridge_config flags)
+ *
+ * \note The channel must be locked before calling this function.
+ * \note This function differs from ast_bridge_features_ds_set only in that it won't
+ *       remove features already set on the channel.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_bridge_features_ds_append(struct ast_channel *chan, struct ast_flags *flags);
+
+/*!
  * \brief Setup DTMF feature hooks using the channel features datastore property.
  * \since 12.0.0
  *
