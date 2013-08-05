@@ -6317,16 +6317,16 @@ static int increase_call_count(const struct ast_channel *c)
 #endif
 
 	ast_mutex_lock(&maxcalllock);
-	if (option_maxcalls) {
-		if (countcalls >= option_maxcalls) {
-			ast_log(LOG_WARNING, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, ast_channel_name(c));
+	if (ast_option_maxcalls) {
+		if (countcalls >= ast_option_maxcalls) {
+			ast_log(LOG_WARNING, "Maximum call limit of %d calls exceeded by '%s'!\n", ast_option_maxcalls, ast_channel_name(c));
 			failed = -1;
 		}
 	}
-	if (option_maxload) {
+	if (ast_option_maxload) {
 		getloadavg(&curloadavg, 1);
-		if (curloadavg >= option_maxload) {
-			ast_log(LOG_WARNING, "Maximum loadavg limit of %f load exceeded by '%s' (currently %f)!\n", option_maxload, ast_channel_name(c), curloadavg);
+		if (curloadavg >= ast_option_maxload) {
+			ast_log(LOG_WARNING, "Maximum loadavg limit of %f load exceeded by '%s' (currently %f)!\n", ast_option_maxload, ast_channel_name(c), curloadavg);
 			failed = -1;
 		}
 	}

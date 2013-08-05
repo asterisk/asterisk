@@ -854,10 +854,10 @@ static char *handle_showcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	} else
 		return CLI_SHOWUSAGE;
 
-	if (option_maxcalls) {
+	if (ast_option_maxcalls) {
 		ast_cli(a->fd, "%d of %d max active call%s (%5.2f%% of capacity)\n",
-		   ast_active_calls(), option_maxcalls, ESS(ast_active_calls()),
-		   ((double)ast_active_calls() / (double)option_maxcalls) * 100.0);
+		   ast_active_calls(), ast_option_maxcalls, ESS(ast_active_calls()),
+		   ((double)ast_active_calls() / (double)ast_option_maxcalls) * 100.0);
 	} else {
 		ast_cli(a->fd, "%d active call%s\n", ast_active_calls(), ESS(ast_active_calls()));
 	}
@@ -982,10 +982,10 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	if (!concise) {
 		numchans = ast_active_channels();
 		ast_cli(a->fd, "%d active channel%s\n", numchans, ESS(numchans));
-		if (option_maxcalls)
+		if (ast_option_maxcalls)
 			ast_cli(a->fd, "%d of %d max active call%s (%5.2f%% of capacity)\n",
-				ast_active_calls(), option_maxcalls, ESS(ast_active_calls()),
-				((double)ast_active_calls() / (double)option_maxcalls) * 100.0);
+				ast_active_calls(), ast_option_maxcalls, ESS(ast_active_calls()),
+				((double)ast_active_calls() / (double)ast_option_maxcalls) * 100.0);
 		else
 			ast_cli(a->fd, "%d active call%s\n", ast_active_calls(), ESS(ast_active_calls()));
 

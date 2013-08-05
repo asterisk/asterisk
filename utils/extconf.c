@@ -1894,9 +1894,9 @@ struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
 extern int option_verbose;
 extern int option_debug;		/*!< Debugging */
-extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
-extern double option_maxload;
-extern char defaultlanguage[];
+extern int ast_option_maxcalls;		/*!< Maximum number of simultaneous channels */
+extern double ast_option_maxload;
+extern char ast_defaultlanguage[];
 
 extern pid_t ast_mainpid;
 

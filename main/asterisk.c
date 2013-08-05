@@ -319,9 +319,9 @@ struct ast_flags ast_compat = { 0 };
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
-double option_maxload;				/*!< Max load avg on system */
-int option_maxcalls;				/*!< Max number of active calls */
-int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
+double ast_option_maxload;			/*!< Max load avg on system */
+int ast_option_maxcalls;			/*!< Max number of active calls */
+int ast_option_maxfiles;			/*!< Max number of open file handles (files, sockets) */
 unsigned int option_dtmfminduration;		/*!< Minimum duration of DTMF. */
 #if defined(HAVE_SYSINFO)
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
@@ -364,7 +364,7 @@ static char *remotehostname;
 
 struct console consoles[AST_MAX_CONNECTS];
 
-char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
+char ast_defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
 static int ast_el_add_history(char *);
 static int ast_el_read_history(char *);
@@ -599,17 +599,17 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "-----------------\n");
 	ast_cli(a->fd, "  Version:                     %s\n", ast_get_version());
 	ast_cli(a->fd, "  Build Options:               %s\n", S_OR(AST_BUILDOPTS, "(none)"));
-	if (option_maxcalls)
-		ast_cli(a->fd, "  Maximum calls:               %d (Current %d)\n", option_maxcalls, ast_active_channels());
+	if (ast_option_maxcalls)
+		ast_cli(a->fd, "  Maximum calls:               %d (Current %d)\n", ast_option_maxcalls, ast_active_channels());
 	else
 		ast_cli(a->fd, "  Maximum calls:               Not set\n");
-	if (option_maxfiles)
-		ast_cli(a->fd, "  Maximum open file handles:   %d\n", option_maxfiles);
+	if (ast_option_maxfiles)
+		ast_cli(a->fd, "  Maximum open file handles:   %d\n", ast_option_maxfiles);
 	else
 		ast_cli(a->fd, "  Maximum open file handles:   Not set\n");
 	ast_cli(a->fd, "  Verbosity:                   %d\n", option_verbose);
 	ast_cli(a->fd, "  Debug level:                 %d\n", option_debug);
-	ast_cli(a->fd, "  Maximum load average:        %lf\n", option_maxload);
+	ast_cli(a->fd, "  Maximum load average:        %lf\n", ast_option_maxload);
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Minimum free memory:         %ld MB\n", option_minmemfree);
 #endif
@@ -624,7 +624,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  System:                      %s/%s built by %s on %s %s\n", ast_build_os, ast_build_kernel, ast_build_user, ast_build_machine, ast_build_date);
 	ast_cli(a->fd, "  System name:                 %s\n", ast_config_AST_SYSTEM_NAME);
 	ast_cli(a->fd, "  Entity ID:                   %s\n", eid_str);
-	ast_cli(a->fd, "  Default language:            %s\n", defaultlanguage);
+	ast_cli(a->fd, "  Default language:            %s\n", ast_defaultlanguage);
 	ast_cli(a->fd, "  Language prefix:             %s\n", ast_language_is_prefix ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  User name and group:         %s/%s\n", ast_config_AST_RUN_USER, ast_config_AST_RUN_GROUP);
 	ast_cli(a->fd, "  Executable includes:         %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES) ? "Enabled" : "Disabled");
@@ -3402,22 +3402,22 @@ static void ast_readconfig(void)
 				option_dtmfminduration = AST_MIN_DTMF_DURATION;
 			}
 		} else if (!strcasecmp(v->name, "maxcalls")) {
-			if ((sscanf(v->value, "%30d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
-				option_maxcalls = 0;
+			if ((sscanf(v->value, "%30d", &ast_option_maxcalls) != 1) || (ast_option_maxcalls < 0)) {
+				ast_option_maxcalls = 0;
 			}
 		} else if (!strcasecmp(v->name, "maxload")) {
 			double test[1];
 
 			if (getloadavg(test, 1) == -1) {
 				ast_log(LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
-				option_maxload = 0.0;
-			} else if ((sscanf(v->value, "%30lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
-				option_maxload = 0.0;
+				ast_option_maxload = 0.0;
+			} else if ((sscanf(v->value, "%30lf", &ast_option_maxload) != 1) || (ast_option_maxload < 0.0)) {
+				ast_option_maxload = 0.0;
 			}
 		/* Set the maximum amount of open files */
 		} else if (!strcasecmp(v->name, "maxfiles")) {
-			option_maxfiles = atoi(v->value);
-			set_ulimit(option_maxfiles);
+			ast_option_maxfiles = atoi(v->value);
+			set_ulimit(ast_option_maxfiles);
 		/* What user to run as */
 		} else if (!strcasecmp(v->name, "runuser")) {
 			ast_copy_string(cfg_paths.run_user, v->value, sizeof(cfg_paths.run_user));
@@ -3440,7 +3440,7 @@ static void ast_readconfig(void)
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "defaultlanguage")) {
-			ast_copy_string(defaultlanguage, v->value, MAX_LANGUAGE);
+			ast_copy_string(ast_defaultlanguage, v->value, MAX_LANGUAGE);
 		} else if (!strcasecmp(v->name, "lockmode")) {
 			if (!strcasecmp(v->value, "lockfile")) {
 				ast_set_lock_type(AST_LOCK_TYPE_LOCKFILE);
@@ -3725,13 +3725,13 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_INIT_KEYS);
 			break;
 		case 'L':
-			if ((sscanf(optarg, "%30lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
-				option_maxload = 0.0;
+			if ((sscanf(optarg, "%30lf", &ast_option_maxload) != 1) || (ast_option_maxload < 0.0)) {
+				ast_option_maxload = 0.0;
 			}
 			break;
 		case 'M':
-			if ((sscanf(optarg, "%30d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
-				option_maxcalls = 0;
+			if ((sscanf(optarg, "%30d", &ast_option_maxcalls) != 1) || (ast_option_maxcalls < 0)) {
+				ast_option_maxcalls = 0;
 			}
 			break;
 		case 'm':

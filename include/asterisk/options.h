@@ -154,15 +154,15 @@ enum ast_compat_flags {
 extern struct ast_flags ast_compat;
 
 extern int option_verbose;
-extern int option_maxfiles;		/*!< Max number of open file handles (files, sockets) */
+extern int ast_option_maxfiles;		/*!< Max number of open file handles (files, sockets) */
 extern int option_debug;		/*!< Debugging */
-extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
+extern int ast_option_maxcalls;		/*!< Maximum number of simultaneous channels */
 extern unsigned int option_dtmfminduration;	/*!< Minimum duration of DTMF (channel.c) in ms */
-extern double option_maxload;
+extern double ast_option_maxload;
 #if defined(HAVE_SYSINFO)
 extern long option_minmemfree;		/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
-extern char defaultlanguage[];
+extern char ast_defaultlanguage[];
 
 extern struct timeval ast_startuptime;
 extern struct timeval ast_lastreloadtime;

@@ -99,7 +99,7 @@ void ast_ari_get_asterisk_info(struct ast_variable *headers,
 			" s: { s: s, s: s } }",
 
 			"name", ast_config_AST_SYSTEM_NAME,
-			"default_language", defaultlanguage,
+			"default_language", ast_defaultlanguage,
 
 			"setid",
 			"user", ast_config_AST_RUN_USER,
@@ -107,19 +107,19 @@ void ast_ari_get_asterisk_info(struct ast_variable *headers,
 
 		res |= ast_json_object_set(json, "config", config);
 
-		if (option_maxcalls) {
+		if (ast_option_maxcalls) {
 			res |= ast_json_object_set(config, "max_channels",
-				ast_json_integer_create(option_maxcalls));
+				ast_json_integer_create(ast_option_maxcalls));
 		}
 
-		if (option_maxfiles) {
+		if (ast_option_maxfiles) {
 			res |= ast_json_object_set(config, "max_open_files",
-				ast_json_integer_create(option_maxfiles));
+				ast_json_integer_create(ast_option_maxfiles));
 		}
 
-		if (option_maxload) {
+		if (ast_option_maxload) {
 			res |= ast_json_object_set(config, "max_load",
-				ast_json_real_create(option_maxload));
+				ast_json_real_create(ast_option_maxload));
 		}
 	}
 
