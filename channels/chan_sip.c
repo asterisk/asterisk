@@ -15272,6 +15272,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
 		}
 
+		p->socket.type = r->transport;
+
 		/* Use port number specified if no SRV record was found */
 		if (!ast_sockaddr_isnull(&r->us)) {
 			if (!ast_sockaddr_port(&r->us) && r->portno) {
