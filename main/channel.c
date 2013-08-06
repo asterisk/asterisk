@@ -4303,6 +4303,10 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_STREAM_REVERSE:
 	case AST_CONTROL_STREAM_FORWARD:
 	case AST_CONTROL_STREAM_RESTART:
+	case AST_CONTROL_RECORD_CANCEL:
+	case AST_CONTROL_RECORD_STOP:
+	case AST_CONTROL_RECORD_SUSPEND:
+	case AST_CONTROL_RECORD_MUTE:
 		break;
 
 	case AST_CONTROL_INCOMPLETE:
@@ -4561,6 +4565,10 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_STREAM_REVERSE:
 	case AST_CONTROL_STREAM_FORWARD:
 	case AST_CONTROL_STREAM_RESTART:
+	case AST_CONTROL_RECORD_CANCEL:
+	case AST_CONTROL_RECORD_STOP:
+	case AST_CONTROL_RECORD_SUSPEND:
+	case AST_CONTROL_RECORD_MUTE:
 		/* Nothing left to do for these. */
 		res = 0;
 		break;

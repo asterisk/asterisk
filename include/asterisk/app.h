@@ -709,11 +709,12 @@ enum ast_record_if_exists {
  *        skip_confirmation_sound is false.
  *
  * \param chan the channel being recorded
- * \param playfile Filename of sound to play before recording begins
+ * \param playfile Filename of sound to play before recording begins. A beep is also played when playfile completes, before the recording begins.
  * \param recordfile Filename to save the recording
  * \param maxtime_sec Longest possible message length in seconds
  * \param fmt string containing all formats to be recorded delimited by '|'
  * \param duration pointer to integer for storing length of the recording
+ * \param beep If true, play a beep before recording begins (and doesn't play \a playfile)
  * \param sound_duration pointer to integer for storing length of the recording minus all silence
  * \param silencethreshold tolerance of noise levels that can be considered silence for the purpose of silence timeout, -1 for default
  * \param maxsilence_ms Length of time in milliseconds which will trigger a timeout from silence, -1 for default
@@ -728,7 +729,7 @@ enum ast_record_if_exists {
  * \retval 't' Recording ended from the message exceeding the maximum duration
  * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
  */
-int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound, enum ast_record_if_exists if_exists);
+int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence_ms, const char *path, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound, enum ast_record_if_exists if_exists);
 
 /*!
  * \brief Record a file based on input from a channel. Use default accept and cancel DTMF.

@@ -87,6 +87,12 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						}
 					]
 				},
 				{
@@ -102,6 +108,12 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
 						}
 					]
 				}
@@ -124,6 +136,12 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						}
 					]
 				}
 			]
@@ -134,7 +152,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Pause a live recording.",
-					"notes": "Pausing a recording suspends silence detection, which will be restarted when the recording is unpaused.",
+					"notes": "Pausing a recording suspends silence detection, which will be restarted when the recording is unpaused. Paused time is not included in the accounting for maxDurationSeconds.",
 					"nickname": "pauseRecording",
 					"responseClass": "void",
 					"parameters": [
@@ -145,6 +163,16 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						},
+						{
+							"code": 409,
+							"reason": "Recording not in session"
 						}
 					]
 				}
@@ -166,6 +194,16 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						},
+						{
+							"code": 409,
+							"reason": "Recording not in session"
 						}
 					]
 				}
@@ -189,6 +227,16 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						},
+						{
+							"code": 409,
+							"reason": "Recording not in session"
+						}
 					]
 				}
 			]
@@ -209,6 +257,16 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						},
+						{
+							"code": 409,
+							"reason": "Recording not in session"
 						}
 					]
 				}

@@ -134,7 +134,7 @@ struct ast_pause_recording_args {
 /*!
  * \brief Pause a live recording.
  *
- * Pausing a recording suspends silence detection, which will be restarted when the recording is unpaused.
+ * Pausing a recording suspends silence detection, which will be restarted when the recording is unpaused. Paused time is not included in the accounting for maxDurationSeconds.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters

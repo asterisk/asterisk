@@ -44,14 +44,30 @@ enum stasis_app_recording_state {
 	STASIS_APP_RECORDING_STATE_PAUSED,
 	/*! The media has stopped recording */
 	STASIS_APP_RECORDING_STATE_COMPLETE,
-	/*! The media has stopped playing */
+	/*! The media has stopped recording, with error */
 	STASIS_APP_RECORDING_STATE_FAILED,
+	/*! The media has stopped recording, discard the recording file */
+	STASIS_APP_RECORDING_STATE_CANCELED,
+	/*! Sentinel */
+	STASIS_APP_RECORDING_STATE_MAX,
 };
 
 /*! Valid operation for controlling a recording. */
 enum stasis_app_recording_media_operation {
-	/*! Stop the recording operation. */
+	/*! Stop the recording, deleting the media file(s) */
+	STASIS_APP_RECORDING_CANCEL,
+	/*! Stop the recording. */
 	STASIS_APP_RECORDING_STOP,
+	/*! Pause the recording */
+	STASIS_APP_RECORDING_PAUSE,
+	/*! Unpause the recording */
+	STASIS_APP_RECORDING_UNPAUSE,
+	/*! Mute the recording (record silence) */
+	STASIS_APP_RECORDING_MUTE,
+	/*! Unmute the recording */
+	STASIS_APP_RECORDING_UNMUTE,
+	/*! Sentinel */
+	STASIS_APP_RECORDING_OPER_MAX,
 };
 
 #define STASIS_APP_RECORDING_TERMINATE_INVALID 0

@@ -1145,6 +1145,78 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 	return d;
 }
 
+/*!
+ * \brief Construct a silence frame of the same duration as \a orig.
+ *
+ * The \a orig frame must be \ref AST_FORMAT_SLINEAR.
+ *
+ * \param orig Frame as basis for silence to generate.
+ * \return New frame of silence; free with ast_frfree().
+ * \return \c NULL on error.
+ */
+static struct ast_frame *make_silence(const struct ast_frame *orig)
+{
+	struct ast_frame *silence;
+	size_t size;
+	size_t datalen;
+	size_t samples = 0;
+	struct ast_frame *next;
+
+	if (!orig) {
+		return NULL;
+	}
+
+	if (orig->subclass.format.id != AST_FORMAT_SLINEAR) {
+		ast_log(LOG_WARNING, "Attempting to silence non-slin frame\n");
+		return NULL;
+	}
+
+	for (next = AST_LIST_NEXT(orig, frame_list);
+		 orig;
+		 orig = next, next = orig ? AST_LIST_NEXT(orig, frame_list) : NULL) {
+		samples += orig->samples;
+	}
+
+	ast_verb(4, "Silencing %zd samples\n", samples);
+
+
+	datalen = sizeof(short) * samples;
+	size = sizeof(*silence) + datalen;
+	silence = ast_calloc(1, size);
+	if (!silence) {
+		return NULL;
+	}
+
+	silence->mallocd = AST_MALLOCD_HDR;
+	silence->frametype = AST_FRAME_VOICE;
+	silence->data.ptr = (void *)(silence + 1);
+	silence->samples = samples;
+	silence->datalen = datalen;
+
+	ast_format_set(&silence->subclass.format, AST_FORMAT_SLINEAR, 0);
+
+	return silence;
+}
+
+/*!
+ * \brief Sets a channel's read format to \ref AST_FORMAT_SLINEAR, recording
+ * its original format.
+ *
+ * \param chan Channel to modify.
+ * \param[out] orig_format Output variable to store channel's original read
+ *                         format.
+ * \return 0 on success.
+ * \return -1 on error.
+ */
+static int set_read_to_slin(struct ast_channel *chan, struct ast_format *orig_format)
+{
+	if (!chan || !orig_format) {
+		return -1;
+	}
+	ast_format_copy(orig_format, ast_channel_readformat(chan));
+	return ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
+}
+
 static int global_silence_threshold = 128;
 static int global_maxsilence = 0;
 
@@ -1274,8 +1346,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			return -1;
 		}
 		ast_dsp_set_threshold(sildet, silencethreshold);
-		ast_format_copy(&rfmt, ast_channel_readformat(chan));
-		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
+		res = set_read_to_slin(chan, &rfmt);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			ast_dsp_free(sildet);
@@ -1293,9 +1364,15 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	}
 
 	if (x == fmtcnt) {
-		/* Loop forever, writing the packets we read to the writer(s), until
-		   we read a digit or get a hangup */
+		/* Loop, writing the packets we read to the writer(s), until
+		 * we have reason to stop. */
 		struct ast_frame *f;
+		int paused = 0;
+		int muted = 0;
+		time_t pause_start = 0;
+		int paused_secs = 0;
+		int pausedsilence = 0;
+
 		for (;;) {
 			if (!(res = ast_waitfor(chan, 2000))) {
 				ast_debug(1, "One waitfor failed, trying another\n");
@@ -1315,11 +1392,29 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
 				/* write each format */
-				for (x = 0; x < fmtcnt; x++) {
-					if (prepend && !others[x]) {
-						break;
+				if (paused) {
+					/* It's all good */
+					res = 0;
+				} else {
+					RAII_VAR(struct ast_frame *, silence, NULL, ast_frame_dtor);
+					struct ast_frame *orig = f;
+
+					if (muted) {
+						silence = make_silence(orig);
+						if (!silence) {
+							ast_log(LOG_WARNING,
+								"Error creating silence\n");
+							break;
+						}
+						f = silence;
 					}
-					res = ast_writestream(others[x], f);
+					for (x = 0; x < fmtcnt; x++) {
+						if (prepend && !others[x]) {
+							break;
+						}
+						res = ast_writestream(others[x], f);
+					}
+					f = orig;
 				}
 
 				/* Silence Detection */
@@ -1330,6 +1425,17 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 						totalsilence += olddspsilence;
 					}
 					olddspsilence = dspsilence;
+
+					if (paused) {
+						/* record how much silence there was while we are paused */
+						pausedsilence = dspsilence;
+					} else if (dspsilence > pausedsilence) {
+						/* ignore the paused silence */
+						dspsilence -= pausedsilence;
+					} else {
+						/* dspsilence has reset, reset pausedsilence */
+						pausedsilence = 0;
+					}
 
 					if (dspsilence > maxsilence) {
 						/* Ended happily with silence */
@@ -1362,15 +1468,51 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 					break;
 				}
 				if (strchr(canceldtmf, f->subclass.integer)) {
-					ast_verb(3, "User cancelled message by pressing %c\n", f->subclass.integer);
+					ast_verb(3, "User canceled message by pressing %c\n", f->subclass.integer);
 					res = f->subclass.integer;
 					outmsg = 0;
 					break;
 				}
+			} else if (f->frametype == AST_FRAME_CONTROL) {
+				if (f->subclass.integer == AST_CONTROL_RECORD_CANCEL) {
+					ast_verb(3, "Message canceled by control\n");
+					outmsg = 0; /* cancels the recording */
+					res = 0;
+					break;
+				} else if (f->subclass.integer == AST_CONTROL_RECORD_STOP) {
+					ast_verb(3, "Message ended by control\n");
+					res = 0;
+					break;
+				} else if (f->subclass.integer == AST_CONTROL_RECORD_SUSPEND) {
+					paused = !paused;
+					ast_verb(3, "Message %spaused by control\n",
+						paused ? "" : "un");
+					if (paused) {
+						pause_start = time(NULL);
+					} else {
+						paused_secs += time(NULL) - pause_start;
+					}
+				} else if (f->subclass.integer == AST_CONTROL_RECORD_MUTE) {
+					muted = !muted;
+					ast_verb(3, "Message %smuted by control\n",
+						muted ? "" : "un");
+					/* We can only silence slin frames, so
+					 * set the mode, if we haven't already
+					 * for sildet
+					 */
+					if (muted && !rfmt.id) {
+						ast_verb(3, "Setting read format to linear mode\n");
+						res = set_read_to_slin(chan, &rfmt);
+						if (res < 0) {
+							ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+							break;
+						}
+					}
+				}
 			}
-			if (maxtime) {
+			if (maxtime && !paused) {
 				end = time(NULL);
-				if (maxtime < (end - start)) {
+				if (maxtime < (end - start - paused_secs)) {
 					ast_verb(3, "Took too long, cutting it short...\n");
 					res = 't';
 					outmsg = 2;
@@ -1493,9 +1635,9 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 static const char default_acceptdtmf[] = "#";
 static const char default_canceldtmf[] = "";
 
-int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence, const char *path, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound, enum ast_record_if_exists if_exists)
+int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence, const char *path, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound, enum ast_record_if_exists if_exists)
 {
-	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, 0, silencethreshold, maxsilence, path, 0, S_OR(acceptdtmf, default_acceptdtmf), S_OR(canceldtmf, default_canceldtmf), skip_confirmation_sound, if_exists);
+	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, beep, silencethreshold, maxsilence, path, 0, S_OR(acceptdtmf, default_acceptdtmf), S_OR(canceldtmf, default_canceldtmf), skip_confirmation_sound, if_exists);
 }
 
 int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence, const char *path)

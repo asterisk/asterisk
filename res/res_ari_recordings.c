@@ -295,6 +295,7 @@ static void ast_ari_get_live_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
 		is_valid = 1;
 		break;
 	default:
@@ -351,6 +352,7 @@ static void ast_ari_cancel_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
 		is_valid = 1;
 		break;
 	default:
@@ -407,6 +409,7 @@ static void ast_ari_stop_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
 		is_valid = 1;
 		break;
 	default:
@@ -463,6 +466,8 @@ static void ast_ari_pause_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
+	case 409: /* Recording not in session */
 		is_valid = 1;
 		break;
 	default:
@@ -519,6 +524,8 @@ static void ast_ari_unpause_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
+	case 409: /* Recording not in session */
 		is_valid = 1;
 		break;
 	default:
@@ -575,6 +582,8 @@ static void ast_ari_mute_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
+	case 409: /* Recording not in session */
 		is_valid = 1;
 		break;
 	default:
@@ -631,6 +640,8 @@ static void ast_ari_unmute_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
+	case 409: /* Recording not in session */
 		is_valid = 1;
 		break;
 	default:

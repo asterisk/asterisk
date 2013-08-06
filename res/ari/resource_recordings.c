@@ -71,27 +71,81 @@ void ast_ari_get_live_recording(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-void ast_ari_cancel_recording(struct ast_variable *headers, struct ast_cancel_recording_args *args, struct ast_ari_response *response)
+static void control_recording(const char *name,
+	enum stasis_app_recording_media_operation operation,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_cancel_recording\n");
+	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	enum stasis_app_recording_oper_results res;
+
+	recording = stasis_app_recording_find_by_name(name);
+	if (recording == NULL) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Recording not found");
+		return;
+	}
+
+	res = stasis_app_recording_operation(recording, operation);
+
+	switch (res) {
+	case STASIS_APP_RECORDING_OPER_OK:
+		ast_ari_response_no_content(response);
+		return;
+	case STASIS_APP_RECORDING_OPER_FAILED:
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Recording operation failed");
+		return;
+	case STASIS_APP_RECORDING_OPER_NOT_RECORDING:
+		ast_ari_response_error(response, 409,
+			"Conflict", "Recording not in session");
+	}
 }
-void ast_ari_stop_recording(struct ast_variable *headers, struct ast_stop_recording_args *args, struct ast_ari_response *response)
+
+void ast_ari_cancel_recording(struct ast_variable *headers,
+	struct ast_cancel_recording_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_stop_recording\n");
+	control_recording(args->recording_name, STASIS_APP_RECORDING_CANCEL,
+		response);
 }
-void ast_ari_pause_recording(struct ast_variable *headers, struct ast_pause_recording_args *args, struct ast_ari_response *response)
+
+void ast_ari_stop_recording(struct ast_variable *headers,
+	struct ast_stop_recording_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_pause_recording\n");
+	control_recording(args->recording_name, STASIS_APP_RECORDING_STOP,
+		response);
 }
-void ast_ari_unpause_recording(struct ast_variable *headers, struct ast_unpause_recording_args *args, struct ast_ari_response *response)
+
+void ast_ari_pause_recording(struct ast_variable *headers,
+	struct ast_pause_recording_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_unpause_recording\n");
+	control_recording(args->recording_name, STASIS_APP_RECORDING_PAUSE,
+		response);
 }
-void ast_ari_mute_recording(struct ast_variable *headers, struct ast_mute_recording_args *args, struct ast_ari_response *response)
+
+void ast_ari_unpause_recording(struct ast_variable *headers,
+	struct ast_unpause_recording_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_mute_recording\n");
+	control_recording(args->recording_name, STASIS_APP_RECORDING_UNPAUSE,
+		response);
 }
-void ast_ari_unmute_recording(struct ast_variable *headers, struct ast_unmute_recording_args *args, struct ast_ari_response *response)
+
+void ast_ari_mute_recording(struct ast_variable *headers,
+	struct ast_mute_recording_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_unmute_recording\n");
+	control_recording(args->recording_name, STASIS_APP_RECORDING_MUTE,
+		response);
+}
+
+void ast_ari_unmute_recording(struct ast_variable *headers,
+	struct ast_unmute_recording_args *args,
+	struct ast_ari_response *response)
+{
+	control_recording(args->recording_name, STASIS_APP_RECORDING_UNMUTE,
+		response);
 }

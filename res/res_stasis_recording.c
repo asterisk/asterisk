@@ -59,11 +59,13 @@ struct stasis_app_recording {
 	struct stasis_app_recording_options *options;
 	/*! Absolute path (minus extension) of the recording */
 	char *absolute_name;
-	/*! Control object for the channel we're playing back to */
+	/*! Control object for the channel we're recording */
 	struct stasis_app_control *control;
 
 	/*! Current state of the recording. */
 	enum stasis_app_recording_state state;
+	/*! Indicates whether the recording is currently muted */
+	int muted:1;
 };
 
 static int recording_hash(const void *obj, int flags)
@@ -99,6 +101,10 @@ static const char *state_to_string(enum stasis_app_recording_state state)
 		return "done";
 	case STASIS_APP_RECORDING_STATE_FAILED:
 		return "failed";
+	case STASIS_APP_RECORDING_STATE_CANCELED:
+		return "canceled";
+	case STASIS_APP_RECORDING_STATE_MAX:
+		return "?";
 	}
 
 	return "?";
@@ -253,12 +259,13 @@ static void *record_file(struct stasis_app_control *control,
 	}
 
 	ast_play_and_record_full(chan,
-		recording->options->beep ? "beep" : NULL,
+		NULL, /* playfile */
 		recording->absolute_name,
 		recording->options->max_duration_seconds,
 		recording->options->format,
 		&duration,
 		NULL, /* sound_duration */
+		recording->options->beep,
 		-1, /* silencethreshold */
 		recording->options->max_silence_seconds * 1000,
 		NULL, /* path */
@@ -403,12 +410,127 @@ struct ast_json *stasis_app_recording_to_json(
 	return ast_json_ref(json);
 }
 
+typedef int (*recording_operation_cb)(struct stasis_app_recording *recording);
+
+static int recording_noop(struct stasis_app_recording *recording)
+{
+	return 0;
+}
+
+static int recording_disregard(struct stasis_app_recording *recording)
+{
+	recording->state = STASIS_APP_RECORDING_STATE_CANCELED;
+	return 0;
+}
+
+static int recording_cancel(struct stasis_app_recording *recording)
+{
+	int res = 0;
+	recording->state = STASIS_APP_RECORDING_STATE_CANCELED;
+	res |= stasis_app_control_queue_control(recording->control,
+		AST_CONTROL_RECORD_CANCEL);
+	res |= ast_filedelete(recording->absolute_name, NULL);
+	return res;
+}
+
+static int recording_stop(struct stasis_app_recording *recording)
+{
+	recording->state = STASIS_APP_RECORDING_STATE_COMPLETE;
+	return stasis_app_control_queue_control(recording->control,
+		AST_CONTROL_RECORD_STOP);
+}
+
+static int recording_pause(struct stasis_app_recording *recording)
+{
+	recording->state = STASIS_APP_RECORDING_STATE_PAUSED;
+	return stasis_app_control_queue_control(recording->control,
+		AST_CONTROL_RECORD_SUSPEND);
+}
+
+static int recording_unpause(struct stasis_app_recording *recording)
+{
+	recording->state = STASIS_APP_RECORDING_STATE_RECORDING;
+	return stasis_app_control_queue_control(recording->control,
+		AST_CONTROL_RECORD_SUSPEND);
+}
+
+static int recording_mute(struct stasis_app_recording *recording)
+{
+	if (recording->muted) {
+		/* already muted */
+		return 0;
+	}
+
+	recording->muted = 1;
+	return stasis_app_control_queue_control(recording->control,
+		AST_CONTROL_RECORD_MUTE);
+}
+
+static int recording_unmute(struct stasis_app_recording *recording)
+{
+	if (!recording->muted) {
+		/* already unmuted */
+		return 0;
+	}
+
+	return stasis_app_control_queue_control(recording->control,
+		AST_CONTROL_RECORD_MUTE);
+}
+
+recording_operation_cb operations[STASIS_APP_RECORDING_STATE_MAX][STASIS_APP_RECORDING_OPER_MAX] = {
+	[STASIS_APP_RECORDING_STATE_QUEUED][STASIS_APP_RECORDING_CANCEL] = recording_disregard,
+	[STASIS_APP_RECORDING_STATE_QUEUED][STASIS_APP_RECORDING_STOP] = recording_disregard,
+	[STASIS_APP_RECORDING_STATE_RECORDING][STASIS_APP_RECORDING_CANCEL] = recording_cancel,
+	[STASIS_APP_RECORDING_STATE_RECORDING][STASIS_APP_RECORDING_STOP] = recording_stop,
+	[STASIS_APP_RECORDING_STATE_RECORDING][STASIS_APP_RECORDING_PAUSE] = recording_pause,
+	[STASIS_APP_RECORDING_STATE_RECORDING][STASIS_APP_RECORDING_UNPAUSE] = recording_noop,
+	[STASIS_APP_RECORDING_STATE_RECORDING][STASIS_APP_RECORDING_MUTE] = recording_mute,
+	[STASIS_APP_RECORDING_STATE_RECORDING][STASIS_APP_RECORDING_UNMUTE] = recording_unmute,
+	[STASIS_APP_RECORDING_STATE_PAUSED][STASIS_APP_RECORDING_CANCEL] = recording_cancel,
+	[STASIS_APP_RECORDING_STATE_PAUSED][STASIS_APP_RECORDING_STOP] = recording_stop,
+	[STASIS_APP_RECORDING_STATE_PAUSED][STASIS_APP_RECORDING_PAUSE] = recording_noop,
+	[STASIS_APP_RECORDING_STATE_PAUSED][STASIS_APP_RECORDING_UNPAUSE] = recording_unpause,
+	[STASIS_APP_RECORDING_STATE_PAUSED][STASIS_APP_RECORDING_MUTE] = recording_mute,
+	[STASIS_APP_RECORDING_STATE_PAUSED][STASIS_APP_RECORDING_UNMUTE] = recording_unmute,
+};
+
 enum stasis_app_recording_oper_results stasis_app_recording_operation(
 	struct stasis_app_recording *recording,
 	enum stasis_app_recording_media_operation operation)
 {
-	ast_assert(0); // TODO
-	return STASIS_APP_RECORDING_OPER_FAILED;
+	recording_operation_cb cb;
+	SCOPED_AO2LOCK(lock, recording);
+
+	if (recording->state < 0 || recording->state >= STASIS_APP_RECORDING_STATE_MAX) {
+		ast_log(LOG_WARNING, "Invalid recording state %d\n",
+			recording->state);
+		return -1;
+	}
+
+	if (operation < 0 || operation >= STASIS_APP_RECORDING_OPER_MAX) {
+		ast_log(LOG_WARNING, "Invalid recording operation %d\n",
+			operation);
+		return -1;
+	}
+
+	cb = operations[recording->state][operation];
+
+	if (!cb) {
+		if (recording->state != STASIS_APP_RECORDING_STATE_RECORDING) {
+			/* So we can be specific in our error message. */
+			return STASIS_APP_RECORDING_OPER_NOT_RECORDING;
+		} else {
+			/* And, really, all operations should be valid during
+			 * recording */
+			ast_log(LOG_ERROR,
+				"Unhandled operation during recording: %d\n",
+				operation);
+			return STASIS_APP_RECORDING_OPER_FAILED;
+		}
+	}
+
+	return cb(recording) ?
+		STASIS_APP_RECORDING_OPER_FAILED : STASIS_APP_RECORDING_OPER_OK;
 }
 
 static int load_module(void)

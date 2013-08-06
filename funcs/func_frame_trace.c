@@ -343,6 +343,18 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_STREAM_FORWARD:
 			ast_verbose("SubClass: STREAM_FORWARD\n");
 			break;
+		case AST_CONTROL_RECORD_CANCEL:
+			ast_verbose("SubClass: RECORD_CANCEL\n");
+			break;
+		case AST_CONTROL_RECORD_STOP:
+			ast_verbose("SubClass: RECORD_STOP\n");
+			break;
+		case AST_CONTROL_RECORD_SUSPEND:
+			ast_verbose("SubClass: RECORD_SUSPEND\n");
+			break;
+		case AST_CONTROL_RECORD_MUTE:
+			ast_verbose("SubClass: RECORD_MUTE\n");
+			break;
 		}
 
 		if (frame->subclass.integer == -1) {
