@@ -10205,10 +10205,9 @@ void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, cons
 		headp = &globals;
 	}
 
-	if (value) {
+	if (value && (newvariable = ast_var_assign(name, value))) {
 		if (headp == &globals)
 			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
-		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 
@@ -10255,10 +10254,9 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
-	if (value) {
+	if (value && (newvariable = ast_var_assign(name, value))) {
 		if (headp == &globals)
 			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
-		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		manager_event(EVENT_FLAG_DIALPLAN, "VarSet",
 			"Channel: %s\r\n"
