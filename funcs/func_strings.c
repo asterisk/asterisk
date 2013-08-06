@@ -1698,6 +1698,12 @@ AST_TEST_DEFINE(test_FIELDNUM)
 
 	for (i = 0; i < ARRAY_LEN(test_args); i++) {
 		struct ast_var_t *var = ast_var_assign("FIELDS", test_args[i].fields);
+		if (!var) {
+			ast_test_status_update(test, "Out of memory\n");
+			res = AST_TEST_FAIL;
+			break;
+		}
+
 		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
 
 		snprintf(expression, sizeof(expression), "${FIELDNUM(%s,%s,%s)}", var->name, test_args[i].delim, test_args[i].field);

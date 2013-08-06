@@ -607,14 +607,18 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			ast_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
 			if (ast_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
 				AST_LIST_HEAD_INIT_NOLOCK(&headp);
-				newvariable = ast_var_assign("NUMBER", called_number);
-				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-				newvariable = ast_var_assign("EID", dr[anscnt].eid_str);
-				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-				newvariable = ast_var_assign("SECRET", cursecret);
-				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-				newvariable = ast_var_assign("IPADDR", ipaddr);
-				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				if ((newvariable = ast_var_assign("NUMBER", called_number))) {
+					AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				}
+				if ((newvariable = ast_var_assign("EID", dr[anscnt].eid_str))) {
+					AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				}
+				if ((newvariable = ast_var_assign("SECRET", cursecret))) {
+					AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				}
+				if ((newvariable = ast_var_assign("IPADDR", ipaddr))) {
+					AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+				}
 				pbx_substitute_variables_varshead(&headp, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
 				dr[anscnt].weight = get_mapping_weight(map, &headp);
 				while ((newvariable = AST_LIST_REMOVE_HEAD(&headp, entries)))

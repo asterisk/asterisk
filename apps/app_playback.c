@@ -220,6 +220,10 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		s = x + 1;
 	ast_debug(2, "value is <%s>\n", s);
 	n = ast_var_assign("SAY", s);
+	if (!n) {
+		ast_log(LOG_ERROR, "Memory allocation error in do_say\n");
+		return -1;
+	}
 	AST_LIST_INSERT_HEAD(&head, n, entries);
 
 	/* scan the body, one piece at a time */

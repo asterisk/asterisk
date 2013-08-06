@@ -91,12 +91,15 @@ static char *loopback_subst(char *buf, int buflen, const char *exten, const char
 
 	snprintf(tmp, sizeof(tmp), "%d", priority);
 	AST_LIST_HEAD_INIT_NOLOCK(&headp);
-	newvariable = ast_var_assign("EXTEN", exten);
-	AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = ast_var_assign("CONTEXT", context);
-	AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
-	newvariable = ast_var_assign("PRIORITY", tmp);
-	AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+	if ((newvariable = ast_var_assign("EXTEN", exten))) {
+		AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+	}
+	if ((newvariable = ast_var_assign("CONTEXT", context))) {
+		AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+	}
+	if ((newvariable = ast_var_assign("PRIORITY", tmp))) {
+		AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
+	}
 	/* Substitute variables */
 	pbx_substitute_variables_varshead(&headp, data, buf, buflen);
 	/* free the list */

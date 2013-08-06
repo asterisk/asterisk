@@ -282,11 +282,12 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
-	var = ast_var_assign(args.var, S_OR(value, ""));
-	AST_LIST_INSERT_HEAD(varshead, var, entries);
+	if ((var = ast_var_assign(args.var, S_OR(value, "")))) {
+		AST_LIST_INSERT_HEAD(varshead, var, entries);
 
-	sprintf(shared_buffer, "SHARED(%s)", args.var);
-	ast_channel_publish_varset(chan, shared_buffer, value);
+		sprintf(shared_buffer, "SHARED(%s)", args.var);
+		ast_channel_publish_varset(chan, shared_buffer, value);
+	}
 
 	ast_channel_unlock(chan);
 

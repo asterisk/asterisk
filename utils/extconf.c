@@ -3164,10 +3164,9 @@ static void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name
 		}
 	}
 
-	if (value) {
+	if (value && (newvariable = ast_var_assign(name, value))) {
 		if ((option_verbose > 1) && (headp == &globals))
 			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
-		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 

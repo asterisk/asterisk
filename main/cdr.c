@@ -699,8 +699,8 @@ static int copy_variables(struct varshead *to_list, struct varshead *from_list)
 	AST_LIST_TRAVERSE(from_list, variables, entries) {
 		if (variables &&
 		    (var = ast_var_name(variables)) && (val = ast_var_value(variables)) &&
-		    !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
-			newvariable = ast_var_assign(var, val);
+		    !ast_strlen_zero(var) && !ast_strlen_zero(val) &&
+		    (newvariable = ast_var_assign(var, val))) {
 			AST_LIST_INSERT_HEAD(to_list, newvariable, entries);
 			x++;
 		}
@@ -1033,8 +1033,7 @@ static void set_variable(struct varshead *headp, const char *name, const char *v
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
-	if (value) {
-		newvariable = ast_var_assign(name, value);
+	if (value && (newvariable = ast_var_assign(name, value))) {
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 }
@@ -1113,15 +1112,15 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 		copy_variables(&cdr_copy->varshead, &it_cdr->party_a.variables);
 		AST_LIST_TRAVERSE(&it_cdr->party_b.variables, it_var, entries) {
 			int found = 0;
+			struct ast_var_t *newvariable;
 			AST_LIST_TRAVERSE(&cdr_copy->varshead, it_copy_var, entries) {
 				if (!strcmp(ast_var_name(it_var), ast_var_name(it_copy_var))) {
 					found = 1;
 					break;
 				}
 			}
-			if (!found) {
-				AST_LIST_INSERT_TAIL(&cdr_copy->varshead, ast_var_assign(ast_var_name(it_var),
-						ast_var_value(it_var)), entries);
+			if (!found && (newvariable = ast_var_assign(ast_var_name(it_var), ast_var_value(it_var)))) {
+				AST_LIST_INSERT_TAIL(&cdr_copy->varshead, newvariable, entries);
 			}
 		}
 
