@@ -1481,8 +1481,9 @@ static enum process_bridge_enter_results single_state_process_bridge_enter(struc
 
 	while ((cand_cdr_master = ao2_iterator_next(it_cdrs))) {
 		struct cdr_object *cand_cdr;
+		RAII_VAR(struct cdr_object *, cdr_cleanup, cand_cdr_master, ao2_cleanup);
+		SCOPED_AO2LOCK(lock, cand_cdr_master);
 
-		ao2_lock(cand_cdr_master);
 		for (cand_cdr = cand_cdr_master; cand_cdr; cand_cdr = cand_cdr->next) {
 			/* Skip any records that are not in a bridge or in this bridge.
 			 * I'm not sure how that would happen, but it pays to be careful. */
@@ -1498,8 +1499,6 @@ static enum process_bridge_enter_results single_state_process_bridge_enter(struc
 			success = 1;
 			break;
 		}
-		ao2_unlock(cand_cdr_master);
-		ao2_t_ref(cand_cdr_master, -1, "Drop iterator reference");
 	}
 	ao2_iterator_destroy(it_cdrs);
 
@@ -1624,8 +1623,9 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 
 	while ((cand_cdr_master = ao2_iterator_next(it_cdrs))) {
 		struct cdr_object *cand_cdr;
+		RAII_VAR(struct cdr_object *, cdr_cleanup, cand_cdr_master, ao2_cleanup);
+		SCOPED_AO2LOCK(lock, cand_cdr_master);
 
-		ao2_lock(cand_cdr_master);
 		for (cand_cdr = cand_cdr_master; cand_cdr; cand_cdr = cand_cdr->next) {
 			/* Skip any records that are not in a bridge or in this bridge.
 			 * I'm not sure how that would happen, but it pays to be careful. */
@@ -1654,8 +1654,6 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 			success = 1;
 			break;
 		}
-		ao2_unlock(cand_cdr_master);
-		ao2_t_ref(cand_cdr_master, -1, "Drop iterator reference");
 	}
 	ao2_iterator_destroy(it_cdrs);
 
@@ -2276,7 +2274,7 @@ static struct ao2_container *create_candidates_for_bridge(struct ast_bridge_snap
 		ao2_cleanup(candidates);
 		return NULL;
 	}
-	while ((cand_cdr_master = ao2_iterator_next(it_cdrs))) {
+	for (; (cand_cdr_master = ao2_iterator_next(it_cdrs)); ao2_cleanup(cand_cdr_master)) {
 		SCOPED_AO2LOCK(lock, cand_cdr_master);
 		add_candidate_for_bridge(bridge->uniqueid, candidates, cand_cdr_master, 1);
 	}
@@ -2290,7 +2288,7 @@ static struct ao2_container *create_candidates_for_bridge(struct ast_bridge_snap
 		ao2_cleanup(candidates);
 		return NULL;
 	}
-	while ((cand_cdr_master = ao2_iterator_next(it_cdrs))) {
+	for (; (cand_cdr_master = ao2_iterator_next(it_cdrs)); ao2_cleanup(cand_cdr_master)) {
 		SCOPED_AO2LOCK(lock, cand_cdr_master);
 		add_candidate_for_bridge(bridge->uniqueid, candidates, cand_cdr_master, 0);
 	}
@@ -2860,7 +2858,7 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 		return -1;
 	}
 
-	while ((cdr = ao2_iterator_next(it_cdrs))) {
+	for (; (cdr = ao2_iterator_next(it_cdrs)); ao2_unlock(cdr), ao2_cleanup(cdr)) {
 		ao2_lock(cdr);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 			struct varshead *headp = NULL;
@@ -2876,8 +2874,6 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 				set_variable(headp, name, value);
 			}
 		}
-		ao2_unlock(cdr);
-		ao2_ref(cdr, -1);
 	}
 	ao2_iterator_destroy(it_cdrs);
 
@@ -3597,7 +3593,7 @@ static void cli_show_channels(struct ast_cli_args *a)
 	ast_cli(a->fd, TITLE_STRING, "Channel", "Dst. Channel", "LastApp", "Start", "Answer", "End", "Billsec", "Duration");
 
 	it_cdrs = ao2_iterator_init(active_cdrs_by_channel, 0);
-	while ((cdr = ao2_iterator_next(&it_cdrs))) {
+	for (; (cdr = ao2_iterator_next(&it_cdrs)); ao2_cleanup(cdr)) {
 		struct cdr_object *it_cdr;
 		struct timeval start_time = { 0, };
 		struct timeval answer_time = { 0, };
@@ -3622,7 +3618,6 @@ static void cli_show_channels(struct ast_cli_args *a)
 
 		/* If there was no start time, then all CDRs were for a dialed channel; skip */
 		if (ast_tvzero(start_time)) {
-			ao2_ref(cdr, -1);
 			continue;
 		}
 		it_cdr = cdr->last;
@@ -3639,7 +3634,6 @@ static void cli_show_channels(struct ast_cli_args *a)
 				end_time_buffer,
 				ast_tvzero(answer_time) ? 0 : (long)ast_tvdiff_ms(end_time, answer_time) / 1000,
 				(long)ast_tvdiff_ms(end_time, start_time) / 1000);
-		ao2_ref(cdr, -1);
 	}
 	ao2_iterator_destroy(&it_cdrs);
 #undef FORMAT_STRING
