@@ -1806,6 +1806,13 @@ AST_TEST_DEFINE(test_STRREPLACE)
 		char tmp[512], tmp2[512] = "";
 
 		struct ast_var_t *var = ast_var_assign("test_string", test_strings[i][0]);
+		if (!var) {
+			ast_test_status_update(test, "Unable to allocate variable\n");
+			ast_free(str);
+			ast_channel_release(chan);
+			return AST_TEST_FAIL;
+		}
+			
 		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
 
 		if (test_strings[i][3]) {
