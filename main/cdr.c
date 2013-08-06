@@ -383,8 +383,7 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
 
-		if (value) {
-			newvariable = ast_var_assign(name, value);
+		if (value && (newvariable = ast_var_assign(name, value))) {
 			AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		}
 	}
@@ -408,8 +407,8 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 	AST_LIST_TRAVERSE(headpa,variables,entries) {
 		if (variables &&
 		    (var = ast_var_name(variables)) && (val = ast_var_value(variables)) &&
-		    !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
-			newvariable = ast_var_assign(var, val);
+		    !ast_strlen_zero(var) && !ast_strlen_zero(val) &&
+		    (newvariable = ast_var_assign(var, val))) {
 			AST_LIST_INSERT_HEAD(headpb, newvariable, entries);
 			x++;
 		}

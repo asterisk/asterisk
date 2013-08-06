@@ -253,15 +253,16 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
-	var = ast_var_assign(args.var, S_OR(value, ""));
-	AST_LIST_INSERT_HEAD(varshead, var, entries);
-	manager_event(EVENT_FLAG_DIALPLAN, "VarSet", 
-		"Channel: %s\r\n"
-		"Variable: SHARED(%s)\r\n"
-		"Value: %s\r\n"
-		"Uniqueid: %s\r\n", 
-		chan ? ast_channel_name(chan) : "none", args.var, value, 
-		chan ? ast_channel_uniqueid(chan) : "none");
+	if ((var = ast_var_assign(args.var, S_OR(value, "")))) {
+		AST_LIST_INSERT_HEAD(varshead, var, entries);
+		manager_event(EVENT_FLAG_DIALPLAN, "VarSet", 
+			"Channel: %s\r\n"
+			"Variable: SHARED(%s)\r\n"
+			"Value: %s\r\n"
+			"Uniqueid: %s\r\n", 
+			chan ? ast_channel_name(chan) : "none", args.var, value, 
+			chan ? ast_channel_uniqueid(chan) : "none");
+	}
 
 	ast_channel_unlock(chan);
 
