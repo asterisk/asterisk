@@ -221,7 +221,6 @@ static int handle_client_registration(void *data)
 	ao2_ref(client_state, +1);
 	if (pjsip_regc_send(client_state->client, tdata) != PJ_SUCCESS) {
 		ao2_ref(client_state, -1);
-		pjsip_tx_data_dec_ref(tdata);
 	}
 
 	return 0;

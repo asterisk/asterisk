@@ -250,7 +250,6 @@ static void create_send_notify(struct exten_state_subscription *exten_state_sub,
 
 	if (ast_sip_subscription_send_request(exten_state_sub->sip_sub, tdata) != PJ_SUCCESS) {
 		ast_log(LOG_WARNING, "Unable to send NOTIFY request\n");
-		pjsip_tx_data_dec_ref(tdata);
 	}
 }
 

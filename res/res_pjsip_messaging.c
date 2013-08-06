@@ -484,7 +484,6 @@ static int msg_send(void *data)
 	update_from(tdata, mdata->from);
 	vars_to_headers(mdata->msg, tdata);
 	if (ast_sip_send_request(tdata, NULL, endpoint)) {
-		pjsip_tx_data_dec_ref(tdata);
 		ast_log(LOG_ERROR, "SIP MESSAGE - Could not send request\n");
 		return -1;
 	}

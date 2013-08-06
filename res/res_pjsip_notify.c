@@ -440,7 +440,6 @@ static int notify_contact(void *obj, void *arg, int flags)
 	data->build_notify(tdata, data->info);
 
 	if (ast_sip_send_request(tdata, NULL, data->endpoint)) {
-		pjsip_tx_data_dec_ref(tdata);
 		ast_log(LOG_ERROR, "SIP NOTIFY - Unable to send request for "
 			"contact %s\n",	contact->uri);
 		return -1;
