@@ -110,12 +110,12 @@
  * It's a thread safe container, so freely use the stasis_cache_get() and
  * stasis_cache_dump() to query the cache.
  *
- * The \ref stasis_caching_topic provides a topic that forwards non-cacheable
- * messages unchanged. A cacheable message is wrapped in a \ref
- * stasis_cache_update message which provides the old snapshot (or \c NULL if
- * this is a new cache entry), and the new snapshot (or \c NULL if the entry was
- * removed from the cache). A stasis_cache_clear_create() message must be sent
- * to the topic in order to remove entries from the cache.
+ * The \ref stasis_caching_topic discards non-cacheable messages. A cacheable
+ * message is wrapped in a \ref stasis_cache_update message which provides the
+ * old snapshot (or \c NULL if this is a new cache entry), and the new snapshot
+ * (or \c NULL if the entry was removed from the cache). A
+ * stasis_cache_clear_create() message must be sent to the topic in order to
+ * remove entries from the cache.
  *
  * In order to unsubscribe a \ref stasis_caching_topic from the upstream topic,
  * call stasis_caching_unsubscribe(). Due to cyclic references, the \ref

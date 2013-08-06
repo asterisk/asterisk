@@ -426,8 +426,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 
 	id = caching_topic->cache->id_fn(message);
 	if (id == NULL) {
-		/* Object isn't cached; forward */
-		stasis_forward_message(caching_topic->topic, topic, message);
+		/* Object isn't cached; discard */
 	} else {
 		/* Update the cache */
 		RAII_VAR(struct stasis_message *, old_snapshot, NULL, ao2_cleanup);

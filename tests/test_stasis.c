@@ -610,7 +610,7 @@ static const char *cache_test_data_id(struct stasis_message *message) {
 	return cachable->id;
 }
 
-AST_TEST_DEFINE(cache_passthrough)
+AST_TEST_DEFINE(cache_filter)
 {
 	RAII_VAR(struct stasis_message_type *, non_cache_type, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
@@ -620,14 +620,13 @@ AST_TEST_DEFINE(cache_passthrough)
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 	RAII_VAR(struct stasis_message *, test_message, NULL, ao2_cleanup);
 	int actual_len;
-	struct stasis_message_type *actual_type;
 
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = __func__;
 		info->category = test_category;
-		info->summary = "Test passing messages through cache topic unscathed.";
-		info->description = "Test passing messages through cache topic unscathed.";
+		info->summary = "Test caching topics only forward cache_update messages.";
+		info->description = "Test caching topics only forward cache_update messages.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -652,13 +651,8 @@ AST_TEST_DEFINE(cache_passthrough)
 
 	stasis_publish(topic, test_message);
 
-	actual_len = consumer_wait_for(consumer, 1);
-	ast_test_validate(test, 1 == actual_len);
-
-	actual_type = stasis_message_type(consumer->messages_rxed[0]);
-	ast_test_validate(test, non_cache_type == actual_type);
-
-	ast_test_validate(test, test_message == consumer->messages_rxed[0]);
+	actual_len = consumer_should_stay(consumer, 0);
+	ast_test_validate(test, 0 == actual_len);
 
 	return AST_TEST_PASS;
 }
@@ -1113,8 +1107,9 @@ AST_TEST_DEFINE(router_cache_updates)
 	ast_test_validate(test, 1 == actual_len);
 	actual_len = consumer_wait_for(consumer2, 1);
 	ast_test_validate(test, 1 == actual_len);
-	actual_len = consumer_wait_for(consumer3, 1);
-	ast_test_validate(test, 1 == actual_len);
+	/* Uncacheable message should not be passed through */
+	actual_len = consumer_should_stay(consumer3, 0);
+	ast_test_validate(test, 0 == actual_len);
 
 	actual = consumer1->messages_rxed[0];
 	ast_test_validate(test, stasis_cache_update_type() == stasis_message_type(actual));
@@ -1127,9 +1122,6 @@ AST_TEST_DEFINE(router_cache_updates)
 	update = stasis_message_data(actual);
 	ast_test_validate(test, test_message_type2 == update->type);
 	ast_test_validate(test, test_message2 == update->new_snapshot);
-
-	actual = consumer3->messages_rxed[0];
-	ast_test_validate(test, test_message3 == actual);
 
 	/* consumer1 and consumer2 do not get the final message. */
 	ao2_cleanup(consumer1);
@@ -1287,7 +1279,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(publish);
 	AST_TEST_UNREGISTER(unsubscribe_stops_messages);
 	AST_TEST_UNREGISTER(forward);
-	AST_TEST_UNREGISTER(cache_passthrough);
+	AST_TEST_UNREGISTER(cache_filter);
 	AST_TEST_UNREGISTER(cache);
 	AST_TEST_UNREGISTER(cache_dump);
 	AST_TEST_UNREGISTER(route_conflicts);
@@ -1309,7 +1301,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(publish);
 	AST_TEST_REGISTER(unsubscribe_stops_messages);
 	AST_TEST_REGISTER(forward);
-	AST_TEST_REGISTER(cache_passthrough);
+	AST_TEST_REGISTER(cache_filter);
 	AST_TEST_REGISTER(cache);
 	AST_TEST_REGISTER(cache_dump);
 	AST_TEST_REGISTER(route_conflicts);
