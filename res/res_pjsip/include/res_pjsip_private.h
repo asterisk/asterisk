@@ -76,4 +76,9 @@ int ast_sip_initialize_global(void);
  */
 void ast_res_pjsip_cleanup_options_handling(void);
 
+/*!
+ * \brief Get threadpool options
+ */
+void sip_get_threadpool_options(struct ast_threadpool_options *threadpool_options);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */

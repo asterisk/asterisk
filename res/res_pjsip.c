@@ -935,6 +935,19 @@
 				<configOption name="compactheaders" default="no">
 					<synopsis>Use the short forms of common SIP header names.</synopsis>
 				</configOption>
+				<configOption name="threadpool_initial_size" default="0">
+					<synopsis>Initial number of threads in the res_pjsip threadpool.</synopsis>
+				</configOption>
+				<configOption name="threadpool_auto_increment" default="5">
+					<synopsis>The amount by which the number of threads is incremented when necessary.</synopsis>
+				</configOption>
+				<configOption name="threadpool_idle_timeout" default="60">
+					<synopsis>Number of seconds before an idle thread should be disposed of.</synopsis>
+				</configOption>
+				<configOption name="threadpool_max_size" default="0">
+					<synopsis>Maximum number of threads in the res_pjsip threadpool.
+					A value of 0 indicates no maximum.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="global">
 				<synopsis>Options that apply globally to all SIP communications</synopsis>
@@ -1760,26 +1773,12 @@ static void remove_request_headers(pjsip_endpoint *endpt)
 
 static int load_module(void)
 {
-    /* The third parameter is just copied from
-     * example code from PJLIB. This can be adjusted
-     * if necessary.
+	/* The third parameter is just copied from
+	 * example code from PJLIB. This can be adjusted
+	 * if necessary.
 	 */
 	pj_status_t status;
-
-	/* XXX For the time being, create hard-coded threadpool
-	 * options. Just bump up by five threads every time we
-	 * don't have any available threads. Idle threads time
-	 * out after a minute. No maximum size
-	 */
-	struct ast_threadpool_options options = {
-		.version = AST_THREADPOOL_OPTIONS_VERSION,
-		.auto_increment = 5,
-		.max_size = 0,
-		.idle_timeout = 60,
-		.initial_size = 0,
-		.thread_start = sip_thread_start,
-	};
-	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
+	struct ast_threadpool_options options;
 
 	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
@@ -1809,6 +1808,14 @@ static int load_module(void)
 
 	if (ast_sip_initialize_system()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP system configuration. Aborting load\n");
+		goto error;
+	}
+
+	sip_get_threadpool_options(&options);
+	options.thread_start = sip_thread_start;
+	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
+	if (!sip_threadpool) {
+		ast_log(LOG_ERROR, "Failed to create SIP threadpool. Aborting load\n");
 		goto error;
 	}
 
