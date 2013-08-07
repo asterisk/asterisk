@@ -4584,10 +4584,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						case AST_CONTROL_BUSY:
 							ast_verb(3, "%s is busy\n", ochan_name);
 							ast_channel_publish_dial(qe->chan, o->chan, on, "BUSY");
-							do_hang(o);
 							endtime = (long) time(NULL);
 							endtime -= starttime;
 							rna(endtime * 1000, qe, o->chan, on, membername, qe->parent->autopausebusy);
+							do_hang(o);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
 								if (qe->parent->timeoutrestart) {
 									start_time_tv = ast_tvnow();
