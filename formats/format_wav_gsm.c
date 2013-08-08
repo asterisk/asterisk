@@ -393,6 +393,17 @@ static int wav_rewrite(struct ast_filestream *s, const char *comment)
 	return 0;
 }
 
+static void wav_close(struct ast_filestream *s)
+{
+	if (s->mode == O_RDONLY) {
+		return;
+	}
+
+	if (s->filename) {
+		update_header(s->f);
+	}
+}
+
 static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 {
 	/* Send a frame from the file to the appropriate channel */
@@ -468,7 +479,6 @@ static int wav_write(struct ast_filestream *s, struct ast_frame *f)
 			ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 			return -1;
 		}
-		update_header(s->f); /* XXX inefficient! */
 	}
 	return 0;
 }
@@ -560,6 +570,7 @@ static struct ast_format_def wav49_f = {
 	.trunc = wav_trunc,
 	.tell = wav_tell,
 	.read = wav_read,
+	.close = wav_close,
 	.buf_size = 2*GSM_FRAME_SIZE + AST_FRIENDLY_OFFSET,
 	.desc_size = sizeof(struct wavg_desc),
 };
