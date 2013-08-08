@@ -2198,6 +2198,9 @@ static struct ast_bridge *optimize_lock_chan_stack(struct ast_channel *chan)
 	if (!AST_LIST_EMPTY(ast_channel_readq(chan))) {
 		return NULL;
 	}
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF)) {
+		return NULL;
+	}
 	if (ast_channel_has_audio_frame_or_monitor(chan)) {
 		/* Channel has an active monitor, audiohook, or framehook. */
 		return NULL;
@@ -2241,6 +2244,10 @@ static struct ast_bridge *optimize_lock_peer_stack(struct ast_channel *peer)
 		return NULL;
 	}
 	if (!AST_LIST_EMPTY(ast_channel_readq(peer))) {
+		ast_channel_unlock(peer);
+		return NULL;
+	}
+	if (ast_test_flag(ast_channel_flags(peer), AST_FLAG_EMULATE_DTMF)) {
 		ast_channel_unlock(peer);
 		return NULL;
 	}
