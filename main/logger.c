@@ -1733,7 +1733,31 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 		}
 	}
 #else /* !defined(BETTER_BACKTRACES) */
-	strings = backtrace_symbols(addresses, num_frames);
+	if ((strings = backtrace_symbols(addresses, num_frames))) {
+		/* Re-do value into ast_alloc'ed memory */
+		char **ast_strings;
+		char *p;
+		unsigned size = num_frames + sizeof(*strings);
+		int i;
+		for (i = 0; i < num_frames; ++i) {
+			size += strlen(strings[i]) + 1;
+		}
+#undef free
+		if (!(ast_strings = ast_malloc(size))) {
+			free(strings);
+			ast_log(LOG_WARNING, "Unable to re-allocate space for backtrace structure\n");
+			return NULL;
+		}
+		p = (char *) (ast_strings + num_frames);
+		for (i = 0; i < num_frames; ++i) {
+			unsigned len = strlen(strings[i]) + 1;
+			ast_strings[i] = p;
+			memcpy(p, strings[i], len);
+			p += len;
+		}
+		free(strings);
+		strings = ast_strings;
+	}
 #endif /* defined(BETTER_BACKTRACES) */
 	return strings;
 }
@@ -1758,9 +1782,7 @@ void ast_backtrace(void)
 			ast_debug(1, "#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
 		}
 
-		/* MALLOC_DEBUG will erroneously report an error here, unless we undef the macro. */
-#undef free
-		free(strings);
+		ast_free(strings);
 	} else {
 		ast_debug(1, "Could not allocate memory for backtrace\n");
 	}
