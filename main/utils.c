@@ -862,7 +862,8 @@ static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt
 		for (frame_iterator = 0; frame_iterator < num_frames; ++frame_iterator) {
 			ast_str_append(str, 0, "\t%s\n", symbols[frame_iterator]);
 		}
-
+/* Prevent MALLOC_DEBUG from complaining */
+#undef free
 		free(symbols);
 	} else {
 		ast_str_append(str, 0, "\tCouldn't retrieve backtrace symbols\n");
