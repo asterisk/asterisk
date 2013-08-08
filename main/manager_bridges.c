@@ -381,7 +381,7 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 	}
 
 	snapshot = stasis_message_data(msg);
-	if (snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER)) {
+	if (snapshot->tech_properties & AST_CHAN_TP_INTERNAL) {
 		return 0;
 	}
 

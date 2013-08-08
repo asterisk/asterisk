@@ -86,7 +86,7 @@ static struct ast_channel_tech record_tech = {
 	.call = rec_call,
 	.read = rec_read,
 	.write = rec_write,
-	.properties = AST_CHAN_TP_RECORDER,
+	.properties = AST_CHAN_TP_INTERNAL,
 };
 
 struct ast_channel_tech *conf_record_get_tech(void)

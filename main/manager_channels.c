@@ -383,7 +383,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		return NULL;
 	}
 
-	if (snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER)) {
+	if (snapshot->tech_properties & AST_CHAN_TP_INTERNAL) {
 		ast_free(out);
 		return NULL;
 	}

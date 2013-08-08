@@ -830,6 +830,16 @@ struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format 
 	return NULL;
 }
 
+/*! \brief Channel technology used to extract a channel from a running application. The
+ * channel created with this technology will be immediately hung up - most external
+ * applications won't ever want to see this.
+ */
+static const struct ast_channel_tech surrogate_tech = {
+	.type = "Surrogate",
+	.description = "Surrogate channel used to pull channel from an application",
+	.properties = AST_CHAN_TP_INTERNAL,
+};
+
 static const struct ast_channel_tech null_tech = {
 	.type = "NULL",
 	.description = "Null channel (should not see this)",
@@ -852,6 +862,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	struct ast_sched_context *schedctx;
 	struct ast_timer *timer;
 	struct timeval now;
+	const struct ast_channel_tech *channel_tech;
 
 	/* If shutting down, don't allocate any new channels */
 	if (ast_shutting_down()) {
@@ -965,9 +976,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_name_set(tmp, "-**Unknown**");
 	}
 
-	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
-
-	/* These 4 variables need to be set up for the cdr_init() to work right */
 	if (amaflag != AST_AMA_NONE) {
 		ast_channel_amaflags_set(tmp, amaflag);
 	} else {
@@ -977,39 +985,39 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	if (!ast_strlen_zero(acctcode)) {
 		ast_channel_accountcode_set(tmp, acctcode);
 	}
+	ast_channel_language_set(tmp, ast_defaultlanguage);
 
 	ast_channel_context_set(tmp, S_OR(context, "default"));
 	ast_channel_exten_set(tmp, S_OR(exten, "s"));
 	ast_channel_priority_set(tmp, 1);
-
-	ast_atomic_fetchadd_int(&chancount, +1);
 
 	headp = ast_channel_varshead(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
 
 	ast_pbx_hangup_handler_init(tmp);
 	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_datastores(tmp));
-
 	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_autochans(tmp));
 
-	ast_channel_language_set(tmp, ast_defaultlanguage);
-
-	ast_channel_tech_set(tmp, &null_tech);
-
-	ao2_link(channels, tmp);
-
-	/*
-	 * And now, since the channel structure is built, and has its name, let's
-	 * call the manager event generator with this Newchannel event. This is the
-	 * proper and correct place to make this call, but you sure do have to pass
-	 * a lot of data into this func to do it here!
-	 */
-	if (ast_get_channel_tech(tech) || (tech2 && ast_get_channel_tech(tech2))) {
-		ast_channel_publish_snapshot(tmp);
+	channel_tech = ast_get_channel_tech(tech);
+	if (!channel_tech && !ast_strlen_zero(tech2)) {
+		channel_tech = ast_get_channel_tech(tech2);
+	}
+	if (channel_tech) {
+		ast_channel_tech_set(tmp, channel_tech);
+	} else {
+		ast_channel_tech_set(tmp, &null_tech);
 	}
 
 	ast_channel_internal_finalize(tmp);
-	ast_publish_channel_state(tmp);
+
+	ast_atomic_fetchadd_int(&chancount, +1);
+	ao2_link(channels, tmp);
+
+	/*
+	 * And now, since the channel structure is built, and has its name, let
+	 * the world know of its existance
+	 */
+	ast_channel_publish_snapshot(tmp);
 	return tmp;
 }
 
@@ -6376,7 +6384,7 @@ void ast_do_masquerade(struct ast_channel *original)
 		struct ast_party_connected_line connected;
 		struct ast_party_redirecting redirecting;
 	} exchange;
-	struct ast_channel *clonechan, *chans[2];
+	struct ast_channel *clonechan;
 	struct ast_channel *bridged;
 	struct ast_format rformat;
 	struct ast_format wformat;
@@ -6458,42 +6466,6 @@ void ast_do_masquerade(struct ast_channel *original)
 
 	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
 		ast_channel_name(clonechan), ast_channel_state(clonechan), ast_channel_name(original), ast_channel_state(original));
-
-	chans[0] = clonechan;
-	chans[1] = original;
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a masquerade occurs between two channels, wherein the Clone channel's internal information replaces the Original channel's information.</synopsis>
-			<syntax>
-				<parameter name="Clone">
-					<para>The name of the channel whose information will be going into the Original channel.</para>
-				</parameter>
-				<parameter name="CloneUniqueid">
-					<para>The uniqueid of the channel whose information will be going into the Original channel.</para>
-				</parameter>
-				<parameter name="CloneState">
-					<para>The current state of the clone channel.</para>
-				</parameter>
-				<parameter name="Original">
-					<para>The name of the channel whose information will be replaced by the Clone channel's information.</para>
-				</parameter>
-				<parameter name="OriginalUniqueid">
-					<para>The uniqueid of the channel whose information will be replaced by the Clone channel's information.</para>
-				</parameter>
-				<parameter name="OriginalState">
-					<para>The current state of the original channel.</para>
-				</parameter>
-			</syntax>
-		</managerEventInstance>
-	***/
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "Masquerade", 2, chans,
-		"Clone: %s\r\n"
-		"CloneUniqueid: %s\r\n"
-		"CloneState: %s\r\n"
-		"Original: %s\r\n"
-		"OriginalUniqueid: %s\r\n"
-		"OriginalState: %s\r\n",
-		ast_channel_name(clonechan), ast_channel_uniqueid(clonechan), ast_state2str(ast_channel_state(clonechan)), ast_channel_name(original), ast_channel_uniqueid(original), ast_state2str(ast_channel_state(original)));
 
 	/*
 	 * Remember the original read/write formats.  We turn off any
@@ -7549,6 +7521,7 @@ static void channels_shutdown(void)
 		ao2_ref(channels, -1);
 		channels = NULL;
 	}
+	ast_channel_unregister(&surrogate_tech);
 }
 
 void ast_channels_init(void)
@@ -7558,6 +7531,8 @@ void ast_channels_init(void)
 	if (channels) {
 		ao2_container_register("channels", channels, prnt_channel_key);
 	}
+
+	ast_channel_register(&surrogate_tech);
 
 	ast_stasis_channels_init();
 

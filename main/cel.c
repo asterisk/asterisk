@@ -1103,7 +1103,7 @@ static int cel_filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 	if (!snapshot) {
 		return 0;
 	}
-	return snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER);
+	return snapshot->tech_properties & AST_CHAN_TP_INTERNAL;
 }
 
 static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,

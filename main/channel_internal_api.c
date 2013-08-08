@@ -426,13 +426,13 @@ void ast_channel_##field##_set(struct ast_channel *chan, const char *value) \
 	if ((assert_on_null)) ast_assert(!ast_strlen_zero(value)); \
 	if (!strcmp(value, chan->field)) return; \
 	ast_string_field_set(chan, field, value); \
-	if (publish) ast_channel_publish_snapshot(chan); \
+	if (publish && ast_channel_internal_is_finalized(chan)) ast_channel_publish_snapshot(chan); \
 } \
   \
 void ast_channel_##field##_build_va(struct ast_channel *chan, const char *fmt, va_list ap) \
 { \
 	ast_string_field_build_va(chan, field, fmt, ap); \
-	if (publish) ast_channel_publish_snapshot(chan); \
+	if (publish && ast_channel_internal_is_finalized(chan)) ast_channel_publish_snapshot(chan); \
 } \
 void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...) \
 { \
@@ -1481,7 +1481,6 @@ int ast_channel_internal_setup_topics(struct ast_channel *chan)
 
 	chan->topics = stasis_cp_single_create(
 		ast_channel_cache_all(), topic_name);
-
 	if (!chan->topics) {
 		return -1;
 	}

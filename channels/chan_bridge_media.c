@@ -89,7 +89,7 @@ static struct ast_channel_tech announce_tech = {
 	.send_text = ast_unreal_sendtext,
 	.queryoption = ast_unreal_queryoption,
 	.setoption = ast_unreal_setoption,
-	.properties = AST_CHAN_TP_ANNOUNCER,
+	.properties = AST_CHAN_TP_INTERNAL,
 };
 
 static struct ast_channel_tech record_tech = {
@@ -111,7 +111,7 @@ static struct ast_channel_tech record_tech = {
 	.send_text = ast_unreal_sendtext,
 	.queryoption = ast_unreal_queryoption,
 	.setoption = ast_unreal_setoption,
-	.properties = AST_CHAN_TP_RECORDER,
+	.properties = AST_CHAN_TP_INTERNAL,
 };
 
 static struct ast_channel *media_request_helper(struct ast_format_cap *cap,
