@@ -792,7 +792,7 @@ static int setup_bridge_features_dynamic(struct ast_bridge_features *features, s
 	return res;
 }
 
-/* BUGBUG this really should be made a private function of bridging_basic.c after struct ast_call_feature is made an ao2 object. */
+/* BUGBUG this really should be made a private function of bridge_basic.c after struct ast_call_feature is made an ao2 object. */
 int ast_bridge_channel_setup_features(struct ast_bridge_channel *bridge_channel)
 {
 	int res = 0;

@@ -1482,7 +1482,6 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	ao2_ref(bridge_channel, -1);
 
 join_exit:;
-/* BUGBUG this is going to cause problems for DTMF atxfer attended bridge between B & C.  Maybe an ast_bridge_join_internal() that does not do the after bridge goto for this case. */
 	ast_bridge_run_after_callback(chan);
 	if (!(ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO)
 		&& !ast_bridge_setup_after_goto(chan)) {
@@ -1960,7 +1959,6 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 	int was_in_bridge;
 	int res = 0;
 
-/* BUGBUG need bridge move stasis event and a success/fail event. */
 	if (bridge_channel->swap) {
 		ast_debug(1, "Moving %p(%s) into bridge %s swapping with %s\n",
 			bridge_channel, ast_channel_name(bridge_channel->chan), dst_bridge->uniqueid,

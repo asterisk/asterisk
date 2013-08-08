@@ -193,7 +193,6 @@ struct ast_channel {
 
 	unsigned short transfercapability;		/*!< ISDN Transfer Capability - AST_FLAG_DIGITAL is not enough */
 
-/* BUGBUG the bridge pointer must change to an ast_channel_bridge pointer because it will never change while the channel is in the bridging system whereas the bridge could change. */
 	struct ast_bridge *bridge;                      /*!< Bridge this channel is participating in */
 	struct ast_bridge_channel *bridge_channel;/*!< The bridge_channel this channel is linked with. */
 	struct ast_timer *timer;			/*!< timer object that provided timingfd */

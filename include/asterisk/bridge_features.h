@@ -86,7 +86,6 @@ enum ast_bridge_builtin_feature {
 	 * parking slot to which it was parked.
 	 */
 	AST_BRIDGE_BUILTIN_PARKCALL,
-/* BUGBUG does Monitor and/or MixMonitor require a two party bridge?  MixMonitor is used by ConfBridge so maybe it doesn't. */
 	/*!
 	 * DTMF one-touch-record toggle using Monitor app.
 	 *
@@ -174,7 +173,6 @@ enum ast_bridge_hook_type {
 	AST_BRIDGE_HOOK_TYPE_TALK,
 };
 
-/* BUGBUG Need to be able to selectively remove DTMF, hangup, and interval hooks. */
 /*! \brief Structure that is the essence of a feature hook. */
 struct ast_bridge_hook {
 	/*! Callback that is called when hook is tripped */
