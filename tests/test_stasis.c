@@ -1245,7 +1245,7 @@ AST_TEST_DEFINE(to_ami)
 	RAII_VAR(char *, data, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_manager_event_blob *, actual, NULL, ao2_cleanup);
 	const char *expected_text = "SomeData";
-	const char *expected = "Message: SomeData";
+	const char *expected = "Message: SomeData\r\n";
 
 	switch (cmd) {
 	case TEST_INIT:
