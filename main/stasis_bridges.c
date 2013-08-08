@@ -660,7 +660,7 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 			"%s"
 			"%s"
 			"IsExternal: %s\r\n"
-			"%s\r\n",
+			"%s",
 			result_strs[transfer_msg->result],
 			ast_str_buffer(transferer1_state),
 			bridge1_state ? ast_str_buffer(bridge1_state) : "",
