@@ -2871,7 +2871,11 @@ static void handle_dial_page(struct unistimsession *pte)
 			send_text(TEXT_LINE0, TEXT_NORMAL, pte, ustmtext("Enter the number to dial", pte));
 			send_text(TEXT_LINE1, TEXT_NORMAL, pte, ustmtext("and press Call", pte));
 		}
-		send_text_status(pte, ustmtext("Call   Redial BackSp Erase", pte));
+		if (ast_strlen_zero(pte->device->redial_number)) {
+			send_text_status(pte, ustmtext("Call          BackSp Erase", pte));
+		} else {
+			send_text_status(pte, ustmtext("Call   Redial BackSp Erase", pte));
+		}
 	}
 
 	pte->device->size_phone_number = 0;
@@ -3274,6 +3278,8 @@ static void handle_key_fav(struct unistimsession *pte, char keycode)
 static void key_call(struct unistimsession *pte, char keycode)
 {
 	struct unistim_subchannel *sub = get_sub(pte->device, SUB_REAL);
+	struct unistim_subchannel *sub_3way = get_sub(pte->device, SUB_THREEWAY);
+
 	if ((keycode >= KEY_0) && (keycode <= KEY_SHARP)) {
 		if (keycode == KEY_SHARP) {
 			keycode = '#';
@@ -3288,22 +3294,21 @@ static void key_call(struct unistimsession *pte, char keycode)
 	switch (keycode) {
 	case KEY_FUNC1:
 		if (ast_channel_state(sub->owner) == AST_STATE_UP) {
-			if (get_sub(pte->device, SUB_THREEWAY)) {
+			if (sub_3way) {
 				close_call(pte);
 			}
 		}
 		break;
 	case KEY_FUNC2:
-		if (ast_channel_state(sub->owner) == AST_STATE_RING) {
+		if (sub_3way) {
 			transfer_cancel_step2(pte);
-		}
-		if (ast_channel_state(sub->owner) == AST_STATE_UP) {
+		} else if (ast_channel_state(sub->owner) == AST_STATE_UP) {
 			transfer_call_step1(pte);
 		}
 		break;
 	case KEY_HANGUP:
 	case KEY_FUNC4:
-		if (!get_sub(pte->device, SUB_THREEWAY)) {
+		if (!sub_3way) {
 			close_call(pte);
 		}
 		break;
@@ -3981,13 +3986,24 @@ static void show_main_page(struct unistimsession *pte)
 			send_text(TEXT_LINE1, TEXT_NORMAL, pte, pte->device->call_forward);
 		}
 		send_icon(TEXT_LINE0, FAV_ICON_REFLECT + FAV_BLINK_SLOW, pte);
-		send_text_status(pte, ustmtext("Dial   Redial NoFwd  ", pte));
-	} else {
-		if ((pte->device->extension == EXTENSION_ASK) ||
-			(pte->device->extension == EXTENSION_TN)) {
-			send_text_status(pte, ustmtext("Dial   Redial Fwd    Unregis", pte));
+		if (ast_strlen_zero(pte->device->redial_number)) {
+			send_text_status(pte, ustmtext("Dial          NoFwd  ", pte));
 		} else {
-			send_text_status(pte, ustmtext("Dial   Redial Fwd    Pickup", pte));
+			send_text_status(pte, ustmtext("Dial   Redial NoFwd  ", pte));
+		}
+	} else {
+		if ((pte->device->extension == EXTENSION_ASK) || (pte->device->extension == EXTENSION_TN)) {
+			if (ast_strlen_zero(pte->device->redial_number)) {
+				send_text_status(pte, ustmtext("Dial          Fwd    Unregis", pte));
+			} else {
+				send_text_status(pte, ustmtext("Dial   Redial Fwd    Unregis", pte));
+			}
+		} else {
+			if (ast_strlen_zero(pte->device->redial_number)) {
+				send_text_status(pte, ustmtext("Dial          Fwd    Pickup", pte));
+			} else {
+				send_text_status(pte, ustmtext("Dial   Redial Fwd    Pickup", pte));
+			}
 		}
 		send_text(TEXT_LINE1, TEXT_NORMAL, pte, pte->device->maintext1);
 		if (pte->device->missed_call == 0) {
@@ -4773,8 +4789,8 @@ static int unistim_hangup(struct ast_channel *ast)
 		ast_verb(0, "unistim_hangup(%s) on %s@%s (STATE_%s)\n", ast_channel_name(ast), l->name, l->parent->name, ptestate_tostr(s->state));
 	}
 	sub_trans = get_sub(d, SUB_THREEWAY);
-	if (sub_trans && (sub_trans->owner) && (sub->subtype == SUB_REAL) &&
-		(sub->alreadygone == 0)) {
+	sub_real = get_sub(d, SUB_REAL);
+	if (sub_trans && (sub_trans->owner) && (sub->subtype == SUB_REAL)) { /* 3rd party busy or congested and transfer_cancel_step2 does not called */
 		if (unistimdebug) {
 			ast_verb(0, "Threeway call disconnected, switching to real call\n");
 		}
@@ -4782,16 +4798,13 @@ static int unistim_hangup(struct ast_channel *ast)
 		sub_trans->moh = 0;
 		sub_trans->subtype = SUB_REAL;
 		swap_subs(sub_trans, sub);
-
 		send_text_status(s, ustmtext("       Transf        Hangup", s));
 		send_callerid_screen(s, sub_trans);
 		unistim_hangup_clean(ast, sub);
 		unistim_unalloc_sub(d, sub);
 		return 0;
 	}
-	sub_real = get_sub(d, SUB_REAL);
-	if (sub_real && (sub_real->owner) && (sub->subtype == SUB_THREEWAY) &&
-		(sub->alreadygone == 0)) {
+	if (sub_real && (sub_real->owner) && (sub->subtype == SUB_THREEWAY)) { /* 3way call cancelled by softkey pressed */
 		if (unistimdebug) {
 			ast_verb(0, "Real call disconnected, stay in call\n");
 		}
