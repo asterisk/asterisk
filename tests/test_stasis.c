@@ -54,7 +54,7 @@ static struct ast_manager_event_blob *fake_ami(struct stasis_message *message)
 	const char *text = stasis_message_data(message);
 
 	res = ast_manager_event_blob_create(EVENT_FLAG_TEST, "FakeMI",
-		"Message: %s", text);
+		"Message: %s\r\n", text);
 
 	if (res == NULL) {
 		return NULL;
