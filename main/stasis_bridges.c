@@ -537,8 +537,7 @@ static struct ast_manager_event_blob *blind_transfer_to_ami(struct stasis_messag
 	}
 
 	channel_state = ast_manager_build_channel_state_string_prefix(blob->channel, "Transferer");
-	bridge_state = ast_manager_build_bridge_state_string(blob->bridge, "");
-
+	bridge_state = ast_manager_build_bridge_state_string(blob->bridge);
 	if (!channel_state || !bridge_state) {
 		return NULL;
 	}
@@ -605,20 +604,21 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 
 	transferer1_state = ast_manager_build_channel_state_string_prefix(transfer_msg->to_transferee.channel_snapshot, "OrigTransferer");
 	transferer2_state = ast_manager_build_channel_state_string_prefix(transfer_msg->to_transfer_target.channel_snapshot, "SecondTransferer");
-
 	if (!transferer1_state || !transferer2_state) {
 		return NULL;
 	}
 
 	if (transfer_msg->to_transferee.bridge_snapshot) {
-		bridge1_state = ast_manager_build_bridge_state_string(transfer_msg->to_transferee.bridge_snapshot, "Orig");
+		bridge1_state = ast_manager_build_bridge_state_string_prefix(
+			transfer_msg->to_transferee.bridge_snapshot, "Orig");
 		if (!bridge1_state) {
 			return NULL;
 		}
 	}
 
 	if (transfer_msg->to_transfer_target.bridge_snapshot) {
-		bridge2_state = ast_manager_build_bridge_state_string(transfer_msg->to_transfer_target.bridge_snapshot, "Second");
+		bridge2_state = ast_manager_build_bridge_state_string_prefix(
+			transfer_msg->to_transfer_target.bridge_snapshot, "Second");
 		if (!bridge2_state) {
 			return NULL;
 		}

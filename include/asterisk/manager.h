@@ -397,13 +397,27 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
  *
  * \param snapshot the bridge snapshot for which to generate an AMI message
  *                 body
+ * \param prefix What to prepend to the bridge fields
+ *
+ * \retval NULL on error
+ * \retval ast_str* on success (must be ast_freed by caller)
+ */
+struct ast_str *ast_manager_build_bridge_state_string_prefix(
+	const struct ast_bridge_snapshot *snapshot,
+	const char *prefix);
+
+/*!
+ * \brief Generate the AMI message body from a bridge snapshot
+ * \since 12
+ *
+ * \param snapshot the bridge snapshot for which to generate an AMI message
+ *                 body
  *
  * \retval NULL on error
  * \retval ast_str* on success (must be ast_freed by caller)
  */
 struct ast_str *ast_manager_build_bridge_state_string(
-	const struct ast_bridge_snapshot *snapshot,
-	const char *suffix);
+	const struct ast_bridge_snapshot *snapshot);
 
 /*! \brief Struct containing info for an AMI event to send out. */
 struct ast_manager_event_blob {

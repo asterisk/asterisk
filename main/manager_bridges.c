@@ -108,31 +108,38 @@ static struct stasis_message_router *bridge_state_router;
  */
 static struct stasis_subscription *topic_forwarder;
 
-struct ast_str *ast_manager_build_bridge_state_string(
+struct ast_str *ast_manager_build_bridge_state_string_prefix(
 	const struct ast_bridge_snapshot *snapshot,
-	const char *suffix)
+	const char *prefix)
 {
 	struct ast_str *out = ast_str_create(128);
-	int res = 0;
+	int res;
+
 	if (!out) {
 		return NULL;
 	}
-	res = ast_str_set(&out, 0,
-		"BridgeUniqueid%s: %s\r\n"
-		"BridgeType%s: %s\r\n"
-		"BridgeTechnology%s: %s\r\n"
-		"BridgeNumChannels%s: %d\r\n",
-		suffix, snapshot->uniqueid,
-		suffix, snapshot->subclass,
-		suffix, snapshot->technology,
-		suffix, snapshot->num_channels);
 
+	res = ast_str_set(&out, 0,
+		"%sBridgeUniqueid: %s\r\n"
+		"%sBridgeType: %s\r\n"
+		"%sBridgeTechnology: %s\r\n"
+		"%sBridgeNumChannels: %d\r\n",
+		prefix, snapshot->uniqueid,
+		prefix, snapshot->subclass,
+		prefix, snapshot->technology,
+		prefix, snapshot->num_channels);
 	if (!res) {
 		ast_free(out);
 		return NULL;
 	}
 
 	return out;
+}
+
+struct ast_str *ast_manager_build_bridge_state_string(
+	const struct ast_bridge_snapshot *snapshot)
+{
+	return ast_manager_build_bridge_state_string_prefix(snapshot, "");
 }
 
 /*! \brief Typedef for callbacks that get called on channel snapshot updates */
@@ -201,7 +208,7 @@ static void bridge_snapshot_update(void *data, struct stasis_subscription *sub,
 		if (!bridge_event_string) {
 			bridge_event_string =
 				ast_manager_build_bridge_state_string(
-					new_snapshot ? new_snapshot : old_snapshot, "");
+					new_snapshot ? new_snapshot : old_snapshot);
 			if (!bridge_event_string) {
 				return;
 			}
@@ -224,8 +231,8 @@ static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
 	ast_assert(merge_msg->to != NULL);
 	ast_assert(merge_msg->from != NULL);
 
-	to_text = ast_manager_build_bridge_state_string(merge_msg->to, "");
-	from_text = ast_manager_build_bridge_state_string(merge_msg->from, "From");
+	to_text = ast_manager_build_bridge_state_string_prefix(merge_msg->to, "To");
+	from_text = ast_manager_build_bridge_state_string_prefix(merge_msg->from, "From");
 	if (!to_text || !from_text) {
 		return;
 	}
@@ -234,7 +241,7 @@ static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
 		<managerEventInstance>
 			<synopsis>Raised when two bridges are merged.</synopsis>
 			<syntax>
-				<bridge_snapshot/>
+				<bridge_snapshot prefix="To"/>
 				<bridge_snapshot prefix="From"/>
 			</syntax>
 		</managerEventInstance>
@@ -256,7 +263,7 @@ static void channel_enter_cb(void *data, struct stasis_subscription *sub,
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
 	const char *swap_id;
 
-	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
+	bridge_text = ast_manager_build_bridge_state_string(blob->bridge);
 	channel_text = ast_manager_build_channel_state_string(blob->channel);
 	if (!bridge_text || !channel_text) {
 		return;
@@ -283,7 +290,7 @@ static void channel_leave_cb(void *data, struct stasis_subscription *sub,
 	RAII_VAR(struct ast_str *, bridge_text, NULL, ast_free);
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
 
-	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
+	bridge_text = ast_manager_build_bridge_state_string(blob->bridge);
 	channel_text = ast_manager_build_channel_state_string(blob->channel);
 	if (!bridge_text || !channel_text) {
 		return;
@@ -309,7 +316,7 @@ static int send_bridge_list_item_cb(void *obj, void *arg, void *data, int flags)
 	struct ast_bridge_snapshot *snapshot = stasis_message_data(obj);
 	struct mansession *s = arg;
 	char *id_text = data;
-	RAII_VAR(struct ast_str *, bridge_info, ast_manager_build_bridge_state_string(snapshot, ""), ast_free);
+	RAII_VAR(struct ast_str *, bridge_info, ast_manager_build_bridge_state_string(snapshot), ast_free_ptr);
 
 	if (!bridge_info) {
 		return 0;
@@ -432,7 +439,7 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 	astman_send_ack(s, m, "Bridge channel listing will follow");
 
 	snapshot = stasis_message_data(msg);
-	bridge_info = ast_manager_build_bridge_state_string(snapshot, "");
+	bridge_info = ast_manager_build_bridge_state_string(snapshot);
 
 	ao2_callback_data(snapshot->channels, OBJ_NODATA, send_bridge_info_item_cb, s, ast_str_buffer(id_text));
 

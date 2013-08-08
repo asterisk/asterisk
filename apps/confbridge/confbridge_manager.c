@@ -200,7 +200,7 @@ static void confbridge_publish_manager_event(
 	ast_assert(blob != NULL);
 	ast_assert(event != NULL);
 
-	bridge_text = ast_manager_build_bridge_state_string(blob->bridge, "");
+	bridge_text = ast_manager_build_bridge_state_string(blob->bridge);
 	if (!bridge_text) {
 		return;
 	}
