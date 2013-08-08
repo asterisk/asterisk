@@ -461,6 +461,8 @@ static const char config[] = "chan_dahdi.conf";
 static int num_cadence = 4;
 static int user_has_defined_cadences = 0;
 
+static int has_pseudo;
+
 static struct dahdi_ring_cadence cadences[NUM_CADENCE_MAX] = {
 	{ { 125, 125, 2000, 4000 } },			/*!< Quick chirp followed by normal ring */
 	{ { 250, 250, 500, 1000, 250, 250, 500, 4000 } }, /*!< British style ring */
@@ -817,6 +819,18 @@ struct dahdi_chan_conf {
 	 * \note Set from the "smdiport" string read in from chan_dahdi.conf
 	 */
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
+
+	/*!
+	 * \brief Don't create channels below this number
+	 * \note by default is 0 (no limit)
+	 */
+	int wanted_channels_start;
+
+	/*!
+	 * \brief Don't create channels above this number (infinity by default)
+	 * \note by default is 0 (special value that means "no limit").
+	 */
+	int wanted_channels_end;
 };
 
 /*! returns a new dahdi_chan_conf with default values (by-value) */
@@ -2633,7 +2647,7 @@ static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
-static int pri_destroy_dchan(struct sig_pri_span *pri);
+static void pri_destroy_span(struct sig_pri_span *pri);
 
 static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 {
@@ -2663,7 +2677,7 @@ static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 		pri_event_noalarm(pri, index, 0);
 		break;
 	case DAHDI_EVENT_REMOVED:
-		pri_destroy_dchan(pri);
+		pri_destroy_span(pri);
 		break;
 	default:
 		break;
@@ -10736,28 +10750,120 @@ static int mwi_send_process_event(struct dahdi_pvt * pvt, int event)
 	return handled;
 }
 
-/* destroy a DAHDI channel, identified by its number */
-static int dahdi_destroy_channel_bynum(int channel)
+/* destroy a range DAHDI channels, identified by their number */
+static void dahdi_destroy_channel_range(int start, int end)
 {
 	struct dahdi_pvt *cur;
+	struct dahdi_pvt *next;
+	int destroyed_first = 0;
+	int destroyed_last = 0;
 
 	ast_mutex_lock(&iflock);
-	for (cur = iflist; cur; cur = cur->next) {
-		if (cur->channel == channel) {
+	ast_debug(1, "range: %d-%d\n", start, end);
+	for (cur = iflist; cur; cur = next) {
+		next = cur->next;
+		if (cur->channel >= start && cur->channel <= end) {
 			int x = DAHDI_FLASH;
 
+			if (cur->channel > destroyed_last) {
+				destroyed_last = cur->channel;
+			}
+			if (destroyed_first < 1 || cur->channel < destroyed_first) {
+				destroyed_first = cur->channel;
+			}
+			ast_debug(3, "Destroying %d\n", cur->channel);
 			/* important to create an event for dahdi_wait_event to register so that all analog_ss_threads terminate */
 			ioctl(cur->subs[SUB_REAL].dfd, DAHDI_HOOK, &x);
 
 			destroy_channel(cur, 1);
-			ast_mutex_unlock(&iflock);
 			ast_module_unref(ast_module_info->self);
-			return RESULT_SUCCESS;
 		}
 	}
 	ast_mutex_unlock(&iflock);
-	return RESULT_FAILURE;
+	if (destroyed_first > start || destroyed_last < end) {
+		ast_debug(1, "Asked to destroy %d-%d, destroyed %d-%d,\n",
+			start, end, destroyed_first, destroyed_last);
+	}
 }
+
+static int setup_dahdi(int reload);
+static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, struct dahdi_chan_conf *base_conf, struct dahdi_chan_conf *conf);
+
+/*!
+ * \internal
+ * \brief create a range of new DAHDI channels
+ *
+ * \param start first channel in the range
+ * \param end last channel in the range
+ *
+ * \retval RESULT_SUCCESS on success.
+ * \retval RESULT_FAILURE on error.
+ */
+static int dahdi_create_channel_range(int start, int end)
+{
+	struct dahdi_pvt *cur;
+	struct dahdi_chan_conf default_conf = dahdi_chan_conf_default();
+	struct dahdi_chan_conf base_conf = dahdi_chan_conf_default();
+	struct dahdi_chan_conf conf = dahdi_chan_conf_default();
+	int i, x;
+	int ret = RESULT_FAILURE; /* be pessimistic */
+
+	ast_debug(1, "channel range caps: %d - %d\n", start, end);
+	ast_mutex_lock(&iflock);
+	for (cur = iflist; cur; cur = cur->next) {
+		if (cur->channel >= start && cur->channel <= end) {
+			ast_log(LOG_ERROR,
+				"channel range %d-%d is occupied\n",
+				start, end);
+			goto out;
+		}
+	}
+	for (x = 0; x < NUM_SPANS; x++) {
+#ifdef HAVE_PRI
+		struct dahdi_pri *pri = pris + x;
+
+		if (!pris[x].pri.pvts[0]) {
+			break;
+		}
+		for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
+			int channo = pri->dchannels[i];
+
+			if (!channo) {
+				break;
+			}
+			if (!pri->pri.fds[i]) {
+				break;
+			}
+			if (channo >= start && channo <= end) {
+				ast_log(LOG_ERROR,
+						"channel range %d-%d is occupied by span %d\n",
+						start, end, x + 1);
+				goto out;
+			}
+		}
+#endif
+	}
+	if (!default_conf.chan.cc_params || !base_conf.chan.cc_params ||
+		!conf.chan.cc_params) {
+		goto out;
+	}
+	default_conf.wanted_channels_start = start;
+	base_conf.wanted_channels_start = start;
+	conf.wanted_channels_start = start;
+	default_conf.wanted_channels_end = end;
+	base_conf.wanted_channels_end = end;
+	conf.wanted_channels_end = end;
+	if (setup_dahdi_int(0, &default_conf, &base_conf, &conf) == 0) {
+		ret = RESULT_SUCCESS;
+	}
+out:
+	ast_cc_config_params_destroy(default_conf.chan.cc_params);
+	ast_cc_config_params_destroy(base_conf.chan.cc_params);
+	ast_cc_config_params_destroy(conf.chan.cc_params);
+	ast_mutex_unlock(&iflock);
+	return ret;
+}
+
 
 static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 {
@@ -11124,11 +11230,7 @@ static void *do_monitor(void *data)
 		doomed = NULL;
 		for (i = iflist;; i = i->next) {
 			if (doomed) {
-				int res;
-				res = dahdi_destroy_channel_bynum(doomed->channel);
-				if (res != RESULT_SUCCESS) {
-					ast_log(LOG_WARNING, "Couldn't find channel to destroy, hopefully another destroy operation just happened.\n");
-				}
+				dahdi_destroy_channel_range(doomed->channel, doomed->channel);
 				doomed = NULL;
 			}
 			if (!i) {
@@ -13574,10 +13676,21 @@ static int prepare_pri(struct dahdi_pri *pri)
 	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 		if (!pri->dchannels[i])
 			break;
+		if (pri->pri.fds[i] >= 0) {
+			/* A partial range addition. Not a complete setup. */
+			break;
+		}
 		pri->pri.fds[i] = open("/dev/dahdi/channel", O_RDWR);
+		if ((pri->pri.fds[i] < 0)) {
+			ast_log(LOG_ERROR, "Unable to open D-channel (fd=%d) (%s)\n",
+				pri->pri.fds[i], strerror(errno));
+			return -1;
+		}
 		x = pri->dchannels[i];
-		if ((pri->pri.fds[i] < 0) || (ioctl(pri->pri.fds[i],DAHDI_SPECIFY,&x) == -1)) {
-			ast_log(LOG_ERROR, "Unable to open D-channel %d (%s)\n", x, strerror(errno));
+		res = ioctl(pri->pri.fds[i], DAHDI_SPECIFY, &x);
+		if (res) {
+			dahdi_close_pri_fd(pri, i);
+			ast_log(LOG_ERROR, "Unable to SPECIFY channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
 		memset(&p, 0, sizeof(p));
@@ -13978,22 +14091,44 @@ static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_
  *
  * \param pri the pri span
  *
- * \return TRUE if the span was valid and we attempted destroying.
- *
  * Shuts down a span and destroys its D-Channel. Further destruction
  * of the B-channels using dahdi_destroy_channel() would probably be required
  * for the B-Channels.
  */
-static int pri_destroy_dchan(struct sig_pri_span *pri)
+static void pri_destroy_span(struct sig_pri_span *pri)
 {
 	int i;
+	int res;
+	int cancel_code;
 	struct dahdi_pri* dahdi_pri;
+	pthread_t master = pri->master;
 
-	if (!pri->master || (pri->master == AST_PTHREADT_NULL)) {
-		return 0;
+	if (!master || (master == AST_PTHREADT_NULL)) {
+		return;
 	}
-	pthread_cancel(pri->master);
-	pthread_join(pri->master, NULL);
+	ast_debug(2, "About to destroy DAHDI channels of span %d.\n", pri->span);
+	for (i = 0; i < pri->numchans; i++) {
+		int channel;
+		struct sig_pri_chan *pvt = pri->pvts[i];
+
+		if (!pvt) {
+			continue;
+		}
+		channel = pvt->channel;
+		ast_debug(2, "About to destroy B-channel %d.\n", channel);
+		dahdi_destroy_channel_range(channel, channel);
+	}
+
+	cancel_code = pthread_cancel(master);
+	ast_debug(4,
+		"Waiting to join thread of span %d "
+		"with pid=%p cancel_code=%d\n",
+		pri->span, (void *)master, cancel_code);
+	res = pthread_join(master, NULL);
+	if (res != 0) {
+		ast_log(LOG_NOTICE, "pthread_join failed: %d\n", res);
+	}
+	pri->master = AST_PTHREADT_NULL;
 
 	/* The 'struct dahdi_pri' that contains our 'struct sig_pri_span' */
 	dahdi_pri = container_of(pri, struct dahdi_pri, pri);
@@ -14001,17 +14136,16 @@ static int pri_destroy_dchan(struct sig_pri_span *pri)
 		ast_debug(4, "closing pri_fd %d\n", i);
 		dahdi_close_pri_fd(dahdi_pri, i);
 	}
-	pri->pri = NULL;
+	sig_pri_init_pri(pri);
 	ast_debug(1, "PRI span %d destroyed\n", pri->span);
-	return 1;
 }
 
 static char *handle_pri_destroy_span(struct ast_cli_entry *e, int cmd,
 		struct ast_cli_args *a)
 {
 	int span;
-	int i;
 	int res;
+	struct sig_pri_span *pri;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -14035,25 +14169,13 @@ static char *handle_pri_destroy_span(struct ast_cli_entry *e, int cmd,
 			a->argv[3], 1, NUM_SPANS);
 		return CLI_SUCCESS;
 	}
-	if (!pris[span - 1].pri.pri) {
+	pri = &pris[span - 1].pri;
+	if (!pri->pri) {
 		ast_cli(a->fd, "No PRI running on span %d\n", span);
 		return CLI_SUCCESS;
 	}
 
-	for (i = 0; i < pris[span - 1].pri.numchans; i++) {
-		int channel;
-		struct sig_pri_chan *pvt = pris[span - 1].pri.pvts[i];
-
-		if (!pvt) {
-			continue;
-		}
-		channel = pvt->channel;
-		ast_debug(2, "About to destroy B-channel %d.\n", channel);
-		dahdi_destroy_channel_bynum(channel);
-	}
-	ast_debug(2, "About to destroy D-channel of span %d.\n", span);
-	pri_destroy_dchan(&pris[span - 1].pri);
-
+	pri_destroy_span(pri);
 	return CLI_SUCCESS;
 }
 
@@ -14505,26 +14627,97 @@ static struct ast_cli_entry dahdi_mfcr2_cli[] = {
 
 #endif /* HAVE_OPENR2 */
 
-static char *dahdi_destroy_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *dahdi_destroy_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int channel;
-	int ret;
+	int start;
+	int end;
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "dahdi destroy channel";
+		e->command = "dahdi destroy channels";
 		e->usage =
-			"Usage: dahdi destroy channel <chan num>\n"
+			"Usage: dahdi destroy channels <from_channel> [<to_channel>]\n"
 			"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc != 4)
+	if ((a->argc < 4) || a->argc > 5) {
 		return CLI_SHOWUSAGE;
+	}
+	start = atoi(a->argv[3]);
+	if (start < 1) {
+		ast_cli(a->fd, "Invalid starting channel number %s.\n",
+				a->argv[4]);
+		return CLI_FAILURE;
+	}
+	if (a->argc == 5) {
+		end = atoi(a->argv[4]);
+		if (end < 1) {
+			ast_cli(a->fd, "Invalid ending channel number %s.\n",
+					a->argv[4]);
+			return CLI_FAILURE;
+		}
+	} else {
+		end = start;
+	}
 
-	channel = atoi(a->argv[3]);
-	ret = dahdi_destroy_channel_bynum(channel);
-	return ( RESULT_SUCCESS == ret ) ? CLI_SUCCESS : CLI_FAILURE;
+	if (end < start) {
+		ast_cli(a->fd,
+			"range end (%d) is smaller than range start (%d)\n",
+			end, start);
+		return CLI_FAILURE;
+	}
+	dahdi_destroy_channel_range(start, end);
+	return CLI_SUCCESS;
+}
+
+static char *dahdi_create_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int start;
+	int end;
+	int ret;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dahdi create channels";
+		e->usage = "Usage: dahdi create channels <from> [<to>] - a range of channels\n"
+			   "       dahdi create channels new           - add channels not yet created\n"
+			   "For ISDN  and SS7 the range should include complete spans.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if ((a->argc < 4) || a->argc > 5) {
+		return CLI_SHOWUSAGE;
+	}
+	if (a->argc == 4 && !strcmp(a->argv[3], "new")) {
+		ret = dahdi_create_channel_range(0, 0);
+		return (RESULT_SUCCESS == ret) ? CLI_SUCCESS : CLI_FAILURE;
+	}
+	start = atoi(a->argv[3]);
+	if (start <= 0) {
+		ast_cli(a->fd, "Invalid starting channel number '%s'.\n",
+				a->argv[3]);
+		return CLI_FAILURE;
+	}
+	if (a->argc == 5) {
+		end = atoi(a->argv[4]);
+		if (end <= 0) {
+			ast_cli(a->fd, "Invalid ending channel number '%s'.\n",
+					a->argv[4]);
+			return CLI_FAILURE;
+		}
+	} else {
+		end = start;
+	}
+	if (end < start) {
+		ast_cli(a->fd,
+			"range end (%d) is smaller than range start (%d)\n",
+			end, start);
+		return CLI_FAILURE;
+	}
+	ret = dahdi_create_channel_range(start, end);
+	return (RESULT_SUCCESS == ret) ? CLI_SUCCESS : CLI_FAILURE;
 }
 
 static void dahdi_softhangup_all(void)
@@ -14555,7 +14748,6 @@ retry:
 	ast_mutex_unlock(&iflock);
 }
 
-static int setup_dahdi(int reload);
 static int dahdi_restart(void)
 {
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
@@ -15332,7 +15524,8 @@ static struct ast_cli_entry dahdi_cli[] = {
 	AST_CLI_DEFINE(handle_dahdi_show_cadences, "List cadences"),
 	AST_CLI_DEFINE(dahdi_show_channels, "Show active DAHDI channels"),
 	AST_CLI_DEFINE(dahdi_show_channel, "Show information on a channel"),
-	AST_CLI_DEFINE(dahdi_destroy_channel, "Destroy a channel"),
+	AST_CLI_DEFINE(dahdi_destroy_channels, "Destroy channels"),
+	AST_CLI_DEFINE(dahdi_create_channels, "Create channels"),
 	AST_CLI_DEFINE(dahdi_restart_cmd, "Fully restart DAHDI channels"),
 	AST_CLI_DEFINE(dahdi_show_status, "Show all DAHDI cards status"),
 	AST_CLI_DEFINE(dahdi_show_version, "Show the DAHDI version in use"),
@@ -16359,7 +16552,7 @@ static char *parse_spanchan(char *chanstr, char **subdir)
 	return p;
 }
 
-static int build_channels(struct dahdi_chan_conf *conf, const char *value, int reload, int lineno, int *found_pseudo)
+static int build_channels(struct dahdi_chan_conf *conf, const char *value, int reload, int lineno)
 {
 	char *c, *chan;
 	char *subdir;
@@ -16382,8 +16575,6 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 			finish = start;
 		} else if (!strcasecmp(chan, "pseudo")) {
 			finish = start = CHAN_PSEUDO;
-			if (found_pseudo)
-				*found_pseudo = 1;
 		} else {
 			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", value, chan);
 			return -1;
@@ -16413,6 +16604,12 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 					}
 				}
 			}
+			if (conf->wanted_channels_start &&
+				(real_channel < conf->wanted_channels_start ||
+				 real_channel > conf->wanted_channels_end)
+			   ) {
+				continue;
+			}
 			tmp = mkintf(real_channel, conf, reload);
 
 			if (tmp) {
@@ -16421,6 +16618,9 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 				ast_log(LOG_ERROR, "Unable to %s channel '%s'\n",
 						(reload == 1) ? "reconfigure" : "register", value);
 				return -1;
+			}
+			if (real_channel == CHAN_PSEUDO) {
+				has_pseudo = 1;
 			}
 		}
 	}
@@ -16608,7 +16808,6 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 {
 	struct dahdi_pvt *tmp;
 	int y;
-	int found_pseudo = 0;
 	struct ast_variable *dahdichan = NULL;
 
 	for (; v; v = v->next) {
@@ -16621,7 +16820,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				ast_log(LOG_WARNING, "Channel '%s' ignored.\n", v->value);
 				continue;
 			}
-			if (build_channels(confp, v->value, reload, v->lineno, &found_pseudo)) {
+			if (build_channels(confp, v->value, reload, v->lineno)) {
 				if (confp->ignore_failed_channels) {
 					ast_log(LOG_WARNING, "Channel '%s' failure ignored: ignore_failed_channels.\n", v->value);
 					continue;
@@ -17754,8 +17953,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 
 	if (dahdichan) {
 		/* Process the deferred dahdichan value. */
-		if (build_channels(confp, dahdichan->value, reload, dahdichan->lineno,
-			&found_pseudo)) {
+		if (build_channels(confp, dahdichan->value, reload, dahdichan->lineno)) {
 			if (confp->ignore_failed_channels) {
 				ast_log(LOG_WARNING,
 					"Dahdichan '%s' failure ignored: ignore_failed_channels.\n",
@@ -17778,7 +17976,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 
 	/*< \todo why check for the pseudo in the per-channel section.
 	 * Any actual use for manual setup of the pseudo channel? */
-	if (!found_pseudo && reload != 1 && !(options & PROC_DAHDI_OPT_NOCHAN)) {
+	if (!has_pseudo && reload != 1 && !(options & PROC_DAHDI_OPT_NOCHAN)) {
 		/* use the default configuration for a channel, so
 		   that any settings from real configured channels
 		   don't "leak" into the pseudo channel config
@@ -17792,6 +17990,7 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 		}
 		if (tmp) {
 			ast_verb(3, "Automatically generated pseudo channel\n");
+			has_pseudo = 1;
 		} else {
 			ast_log(LOG_WARNING, "Unable to register pseudo channel!\n");
 		}
@@ -18071,7 +18270,8 @@ static int setup_dahdi_int(int reload, struct dahdi_chan_conf *default_conf, str
 	if (reload != 1) {
 		int x;
 		for (x = 0; x < NUM_SPANS; x++) {
-			if (pris[x].pri.pvts[0]) {
+			if (pris[x].pri.pvts[0] &&
+					pris[x].pri.master == AST_PTHREADT_NULL) {
 				prepare_pri(pris + x);
 				if (sig_pri_start_pri(&pris[x].pri)) {
 					ast_log(LOG_ERROR, "Unable to start D-channel on span %d\n", x + 1);
