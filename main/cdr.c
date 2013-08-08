@@ -1818,6 +1818,11 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 		cdr = ao2_find(active_cdrs_by_channel, peer->name, OBJ_KEY);
 	}
 
+	if (!cdr) {
+		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", caller ? caller->name : peer->name);
+		return;
+	}
+
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		if (ast_strlen_zero(dial_status)) {
@@ -1896,7 +1901,7 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 /*! \internal \brief Filter channel snapshots by technology */
 static int filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 {
-	return snapshot->tech_properties & (AST_CHAN_TP_ANNOUNCER | AST_CHAN_TP_RECORDER);
+	return snapshot->tech_properties & AST_CHAN_TP_INTERNAL;
 }
 
 /*! \internal \brief Filter a channel cache update */
