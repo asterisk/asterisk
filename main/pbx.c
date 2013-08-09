@@ -9776,6 +9776,8 @@ struct pbx_outgoing {
 	char exten[AST_MAX_EXTENSION];
 	/*! \brief Dialplan priority */
 	int priority;
+	/*! \brief Result of the dial operation when dialed is set */
+	int dial_res;
 	/*! \brief Set when dialing is completed */
 	unsigned int dialed:1;
 	/*! \brief Set when execution is completed */
@@ -9806,6 +9808,7 @@ static void *pbx_outgoing_exec(void *data)
 	/* Notify anyone interested that dialing is complete */
 	ast_mutex_lock(&outgoing->lock);
 	res = ast_dial_run(outgoing->dial, NULL, 0);
+	outgoing->dial_res = res;
 	outgoing->dialed = 1;
 	ast_cond_signal(&outgoing->cond);
 	ast_mutex_unlock(&outgoing->lock);
@@ -9978,6 +9981,11 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		}
 		while (!outgoing->dialed) {
 			ast_cond_wait(&outgoing->cond, &outgoing->lock);
+
+			if (outgoing->dial_res != AST_DIAL_RESULT_ANSWERED) {
+				/* The dial operation failed. */
+				return -1;
+			}
 		}
 		if (channel && *channel) {
 			ast_channel_lock(*channel);

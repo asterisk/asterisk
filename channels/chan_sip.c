@@ -17345,7 +17345,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			break;
 		}
 
-		if (peer->endpoint) {
+		if (peer && peer->endpoint) {
 			ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 		}
 	}
