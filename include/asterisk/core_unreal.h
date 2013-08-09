@@ -215,13 +215,14 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
  *
  * \param ast A member of the unreal channel being pushed
  * \param bridge Which bridge we want to push the channel to
+ * \param flags Feature flags to be set on the bridge channel.
  *
  * \retval 0 if the channel is successfully imparted onto the bridge
  * \retval -1 on failure
  *
  * \note This is equivalent to ast_call() on unreal based channel drivers that are designed to use it instead.
  */
-int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge *bridge);
+int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge *bridge, unsigned int flags);
 
 /* ------------------------------------------------------------------- */
 

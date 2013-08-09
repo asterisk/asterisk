@@ -1324,7 +1324,12 @@ static void bridge_channel_dissolve_check(struct ast_bridge_channel *bridge_chan
 	default:
 		break;
 	}
-/* BUGBUG need to implement AST_BRIDGE_CHANNEL_FLAG_LONELY support here */
+
+	if (bridge->num_lonely && bridge->num_lonely == bridge->num_channels) {
+		/* This will start a chain reaction where each channel leaving enters this function and causes
+		 * the next to leave as long as there aren't non-lonely channels in the bridge. */
+		ast_bridge_channel_leave_bridge(AST_LIST_FIRST(&bridge->channels), BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+	}
 }
 
 void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
@@ -1360,6 +1365,9 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
 	/* Remove channel from the bridge */
 	if (!bridge_channel->suspended) {
 		--bridge->num_active;
+	}
+	if (ast_test_flag(&bridge_channel->features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
+		--bridge->num_lonely;
 	}
 	--bridge->num_channels;
 	AST_LIST_REMOVE(&bridge->channels, bridge_channel, entry);
@@ -1416,6 +1424,9 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 	bridge_channel->just_joined = 1;
 	AST_LIST_INSERT_TAIL(&bridge->channels, bridge_channel, entry);
 	++bridge->num_channels;
+	if (ast_test_flag(&bridge_channel->features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
+		++bridge->num_lonely;
+	}
 	if (!bridge_channel->suspended) {
 		++bridge->num_active;
 	}

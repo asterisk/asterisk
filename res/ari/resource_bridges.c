@@ -300,7 +300,8 @@ void ast_ari_play_on_bridge(struct ast_variable *headers, struct ast_play_on_bri
 	}
 	ast_debug(1, "Created announcer channel '%s'\n", ast_channel_name(play_channel));
 
-	if (ast_unreal_channel_push_to_bridge(play_channel, bridge)) {
+	if (ast_unreal_channel_push_to_bridge(play_channel, bridge,
+		AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE | AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
 		ast_ari_response_error(
 			response, 500, "Internal Error", "Failed to put playback channel into the bridge");
 		return;
@@ -394,7 +395,8 @@ void ast_ari_record_bridge(struct ast_variable *headers, struct ast_record_bridg
 		return;
 	}
 
-	if (ast_unreal_channel_push_to_bridge(record_channel, bridge)) {
+	if (ast_unreal_channel_push_to_bridge(record_channel, bridge,
+		AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE | AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
 		ast_ari_response_error(
 			response, 500, "Internal Error", "Failed to put recording channel into the bridge");
 		return;

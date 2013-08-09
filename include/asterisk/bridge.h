@@ -295,6 +295,8 @@ struct ast_bridge {
 	unsigned int num_channels;
 	/*! Number of active channels in the bridge. */
 	unsigned int num_active;
+	/*! Number of channels with AST_BRIDGE_CHANNEL_FLAG_LONELY in the bridge. */
+	unsigned int num_lonely;
 	/*!
 	 * \brief Count of the active temporary requests to inhibit bridge merges.
 	 * Zero if merges are allowed.

@@ -668,7 +668,7 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
 	ast_channel_datastore_inherit(semi1, semi2);
 }
 
-int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge *bridge)
+int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge *bridge, unsigned int flags)
 {
 	struct ast_bridge_features *features;
 	struct ast_channel *chan;
@@ -741,7 +741,8 @@ int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge
 		ast_channel_unref(chan);
 		return -1;
 	}
-	ast_set_flag(&features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE);
+
+	ast_set_flag(&features->feature_flags, flags);
 
 	/* Impart the semi2 channel into the bridge */
 	if (ast_bridge_impart(bridge, chan, NULL, features, 1)) {
