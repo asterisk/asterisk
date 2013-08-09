@@ -123,8 +123,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<synopsis>Apply a denoise filter to the audio before mixing</synopsis>
 					<description><para>Sets whether or not a denoise filter should be applied
 					to the audio before mixing or not.  Off by default. Requires
-					codec_speex to be built and installed.  Do not confuse this option
-					with drop_silence.  Denoise is useful if there is a lot of background
+					<literal>codec_speex</literal> to be built and installed.  Do not confuse this option
+					with <replaceable>drop_silence</replaceable>.  Denoise is useful if there is a lot of background
 					noise for a user as it attempts to remove the noise while preserving
 					the speech.  This option does NOT remove silence from being mixed into
 					the conference and does come at the cost of a slight performance hit.
@@ -158,7 +158,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						during mid sentence.
 					</para>
 					<para>
-						2. The drop_silence option depends on this value to
+						2. The <replaceable>drop_silence</replaceable> option depends on this value to
 						determine when the user's audio should begin to be
 						dropped from the conference bridge after the user
 						stops talking.  If this value is set too low the user's
@@ -200,7 +200,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						room noise.
 						</para>
 						<para>
-						3. The drop_silence option depends on this value to determine
+						3. The <replaceable>drop_silence</replaceable> option depends on this value to determine
 						when the user's audio should be mixed into the bridge
 						after periods of silence.  If this value is too loose
 						the beginning of a user's speech will get cut off as they
@@ -274,15 +274,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						Records the conference call starting when the first user
 						enters the room, and ending when the last user exits the room.
 						The default recorded filename is
-						<filename>'confbridge-${name of conference bridge}-${start time}.wav</filename>
+						<filename>'confbridge-${name of conference bridge}-${start time}.wav'</filename>
 						and the default format is 8khz slinear.  This file will be
-						located in the configured monitoring directory in asterisk.conf.
+						located in the configured monitoring directory in <filename>asterisk.conf</filename>.
 					</para></description>
 				</configOption>
 				<configOption name="record_file" default="confbridge-${name of conference bridge}-${start time}.wav">
 					<synopsis>The filename of the conference recording</synopsis>
 					<description><para>
-						When record_conference is set to yes, the specific name of the
+						When <replaceable>record_conference</replaceable> is set to yes, the specific name of the
 						record file can be set using this option.  Note that since multiple
 						conferences may use the same bridge profile, this may cause issues
 						depending on the configuration.  It is recommended to only use this
@@ -295,9 +295,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<configOption name="record_file_append" default="yes">
 					<synopsis>Append record file when starting/stopping on same conference recording</synopsis>
 					<description><para>
-						When record_file_append is set to yes, stopping and starting recording on a
+						When <replaceable>record_file_append</replaceable> is set to yes, stopping and starting recording on a
 						conference adds the new portion to end of current record_file. When this is
-						set to no, a new record_file is generated every time you start then stop recording
+						set to no, a new <replaceable>record_file</replaceable> is generated every time you start then stop recording
 						on a conference.
 					</para></description>
 				</configOption>
@@ -306,7 +306,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<description><para>
 						Sets how confbridge handles video distribution to the conference participants.
 						Note that participants wanting to view and be the source of a video feed
-						_MUST_ be sharing the same video codec.  Also, using video in conjunction with
+						<emphasis>MUST</emphasis> be sharing the same video codec.  Also, using video in conjunction with
 						with the jitterbuffer currently results in the audio being slightly out of sync
 						with the video.  This is a result of the jitterbuffer only working on the audio
 						stream.  It is recommended to disable the jitterbuffer when video is used.</para>
@@ -395,7 +395,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<configObject name="menu">
 				<synopsis>A conference user menu</synopsis>
 				<description>
-					<para>Conference users, as defined by a <literal>conf_user</literal>,
+					<para>Conference users, as defined by a <replaceable>conf_user</replaceable>,
 					can have a DTMF menu assigned to their profile when they enter the
 					<literal>ConfBridge</literal> application.</para>
 				</description>
@@ -412,7 +412,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</configOption>
 				<configOption name="^[0-9A-D*#]+$">
 					<synopsis>DTMF sequences to assign various confbridge actions to</synopsis>
-					<description><para>--- ConfBridge Menu Options ---</para>
+					<description>
 					<para>The ConfBridge application also has the ability to apply custom DTMF menus to
 					each channel using the application.  Like the User and Bridge profiles a menu
 					is passed in to ConfBridge as an argument in the dialplan.</para>
