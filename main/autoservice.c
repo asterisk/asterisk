@@ -144,34 +144,40 @@ static void *autoservice_run(void *ign)
 			defer_frame = &hangup_frame;
 		} else if (ast_is_deferrable_frame(f)) {
 			defer_frame = f;
-		}
-
-		if (defer_frame) {
-			for (i = 0; i < x; i++) {
-				struct ast_frame *dup_f;
-
-				if (mons[i] != chan) {
-					continue;
-				}
-
-				if (defer_frame != f) {
-					if ((dup_f = ast_frdup(defer_frame))) {
-						AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
-					}
-				} else {
-					if ((dup_f = ast_frisolate(defer_frame))) {
-						if (dup_f != defer_frame) {
-							ast_frfree(defer_frame);
-						}
-						AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
-					}
-				}
-
-				break;
-			}
-		} else if (f) {
+		} else {
+			/* Can't defer. Discard and continue with next. */
 			ast_frfree(f);
+			continue;
 		}
+
+		for (i = 0; i < x; i++) {
+			struct ast_frame *dup_f;
+
+			if (mons[i] != chan) {
+				continue;
+			}
+
+			if (!f) { /* defer_frame == &hangup_frame */
+				if ((dup_f = ast_frdup(defer_frame))) {
+					AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
+				}
+			} else {
+				if ((dup_f = ast_frisolate(defer_frame))) {
+					AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
+				}
+				if (dup_f != defer_frame) {
+					ast_frfree(defer_frame);
+				}
+			}
+
+			break;
+		}
+		/* The ast_waitfor_n() call will only read frames from
+		 * the channels' file descriptors. If ast_waitfor_n()
+		 * returns non-NULL, then one of the channels in the
+		 * mons array must have triggered the return. It's
+		 * therefore impossible that we got here while (i >= x).
+		 * If we did, we'd need to ast_frfree(f) if (f). */
 	}
 
 	if (callid) {
