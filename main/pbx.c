@@ -9983,6 +9983,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 			ast_cond_wait(&outgoing->cond, &outgoing->lock);
 
 			if (outgoing->dial_res != AST_DIAL_RESULT_ANSWERED) {
+				ast_mutex_unlock(&outgoing->lock);
 				/* The dial operation failed. */
 				return -1;
 			}
