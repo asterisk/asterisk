@@ -58,13 +58,15 @@ struct hash_test {
 	int preload;
 	/*! When to give up on the tests */
 	struct timeval deadline;
+	/*! The actual test object */
+	struct ast_test *test;
 };
 
 static int is_timed_out(struct hash_test const *data) {
 	struct timeval now = ast_tvnow();
 	int val = ast_tvdiff_us(data->deadline, now) < 0;
 	if (val) {
-		printf("Now: %ld.%06ld Deadline: %ld.%06ld\n",
+		ast_test_status_update(data->test, "Now: %ld.%06ld Deadline: %ld.%06ld\n",
 			now.tv_sec, now.tv_usec,
 			data->deadline.tv_sec, data->deadline.tv_usec);
 	}
@@ -240,6 +242,7 @@ AST_TEST_DEFINE(hash_test)
 	}
 
 	ast_test_status_update(test, "Executing hash concurrency test...\n");
+	data.test = test;
 	data.preload = MAX_HASH_ENTRIES / 2;
 	data.max_grow = MAX_HASH_ENTRIES - data.preload;
 	data.deadline = ast_tvadd(ast_tvnow(), ast_tv(MAX_TEST_SECONDS, 0));
