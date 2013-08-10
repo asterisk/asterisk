@@ -61,7 +61,14 @@ struct hash_test {
 };
 
 static int is_timed_out(struct hash_test const *data) {
-	return ast_tvdiff_us(data->deadline, ast_tvnow()) < 0;
+	struct timeval now = ast_tvnow();
+	int val = ast_tvdiff_us(data->deadline, now) < 0;
+	if (val) {
+		printf("Now: %ld.%06ld Deadline: %ld.%06ld\n",
+			now.tv_sec, now.tv_usec,
+			data->deadline.tv_sec, data->deadline.tv_usec);
+	}
+	return val;
 }
 
 /*! /brief Create test element */
