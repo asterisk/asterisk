@@ -1827,21 +1827,29 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		bridge_channel, ast_channel_name(bridge_channel->chan));
 
 	/*
-	 * Get "in the bridge" before pushing the channel for any
-	 * masquerades on the channel to happen before bridging.
+	 * Directly locking the bridge is safe here because nobody else
+	 * knows about this bridge_channel yet.
+	 */
+	ast_bridge_lock(bridge_channel->bridge);
+
+	/* Make sure we're still good to be put into a bridge
 	 */
 	ast_channel_lock(bridge_channel->chan);
+	if (ast_channel_internal_bridge(bridge_channel->chan)
+		|| ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_ZOMBIE)) {
+		ast_channel_unlock(bridge_channel->chan);
+		ast_bridge_unlock(bridge_channel->bridge);
+		ast_debug(1, "Bridge %s: %p(%s) failed to join Bridge\n",
+			bridge_channel->bridge->uniqueid,
+			bridge_channel,
+			ast_channel_name(bridge_channel->chan));
+		return -1;
+	}
 	ast_channel_internal_bridge_set(bridge_channel->chan, bridge_channel->bridge);
 	ast_channel_unlock(bridge_channel->chan);
 
 	/* Add the jitterbuffer if the channel requires it */
 	ast_jb_enable_for_channel(bridge_channel->chan);
-
-	/*
-	 * Directly locking the bridge is safe here because nobody else
-	 * knows about this bridge_channel yet.
-	 */
-	ast_bridge_lock(bridge_channel->bridge);
 
 	if (!bridge_channel->bridge->callid) {
 		bridge_channel->bridge->callid = ast_read_threadstorage_callid();

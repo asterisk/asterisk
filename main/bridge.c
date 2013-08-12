@@ -1439,7 +1439,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	int pass_reference)
 {
 	struct ast_bridge_channel *bridge_channel;
-	int res;
+	int res = 0;
 
 	bridge_channel = bridge_channel_internal_alloc(bridge);
 	if (pass_reference) {
@@ -1460,16 +1460,21 @@ int ast_bridge_join(struct ast_bridge *bridge,
 		bridge_channel->tech_args = *tech_args;
 	}
 
-	/* Initialize various other elements of the bridge channel structure that we can't do above */
 	ast_channel_lock(chan);
-	ast_channel_internal_bridge_channel_set(chan, bridge_channel);
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
+		res = -1;
+	} else {
+		ast_channel_internal_bridge_channel_set(chan, bridge_channel);
+	}
 	ast_channel_unlock(chan);
 	bridge_channel->thread = pthread_self();
 	bridge_channel->chan = chan;
 	bridge_channel->swap = swap;
 	bridge_channel->features = features;
 
-	res = bridge_channel_internal_join(bridge_channel);
+	if (!res) {
+		res = bridge_channel_internal_join(bridge_channel);
+	}
 
 	/* Cleanup all the data in the bridge channel after it leaves the bridge. */
 	ast_channel_lock(chan);
@@ -1546,8 +1551,15 @@ static void *bridge_channel_ind_thread(void *data)
 
 int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int independent)
 {
-	int res;
+	int res = 0;
 	struct ast_bridge_channel *bridge_channel;
+
+	/* Imparted channels cannot have a PBX. */
+	if (ast_channel_pbx(chan)) {
+		ast_log(AST_LOG_WARNING, "Channel %s has a PBX thread and cannot be imparted into bridge %s\n",
+			ast_channel_name(chan), bridge->uniqueid);
+		return -1;
+	}
 
 	/* Supply an empty features structure if the caller did not. */
 	if (!features) {
@@ -1564,9 +1576,14 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
 		return -1;
 	}
 
-	/* Setup various parameters */
 	ast_channel_lock(chan);
-	ast_channel_internal_bridge_channel_set(chan, bridge_channel);
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
+		ast_log(AST_LOG_NOTICE, "Channel %s is a zombie and cannot be imparted into bridge %s\n",
+			ast_channel_name(chan), bridge->uniqueid);
+		res = -1;
+	} else {
+		ast_channel_internal_bridge_channel_set(chan, bridge_channel);
+	}
 	ast_channel_unlock(chan);
 	bridge_channel->chan = chan;
 	bridge_channel->swap = swap;
@@ -1575,18 +1592,14 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
 	bridge_channel->callid = ast_read_threadstorage_callid();
 
 	/* Actually create the thread that will handle the channel */
-	if (independent) {
-		/* Independently imparted channels cannot have a PBX. */
-		ast_assert(!ast_channel_pbx(chan));
-
-		res = ast_pthread_create_detached(&bridge_channel->thread, NULL,
-			bridge_channel_ind_thread, bridge_channel);
-	} else {
-		/* Imparted channels to be departed should not have a PBX either. */
-		ast_assert(!ast_channel_pbx(chan));
-
-		res = ast_pthread_create(&bridge_channel->thread, NULL,
-			bridge_channel_depart_thread, bridge_channel);
+	if (!res) {
+		if (independent) {
+			res = ast_pthread_create_detached(&bridge_channel->thread, NULL,
+				bridge_channel_ind_thread, bridge_channel);
+		} else {
+			res = ast_pthread_create(&bridge_channel->thread, NULL,
+				bridge_channel_depart_thread, bridge_channel);
+		}
 	}
 
 	if (res) {
@@ -2105,10 +2118,11 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 	ast_channel_unlock(chan);
 
 	if (chan_bridge) {
-		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+		struct ast_bridge_channel *bridge_channel;
 
 		ast_bridge_lock_both(bridge, chan_bridge);
 		bridge_channel = bridge_find_channel(chan_bridge, chan);
+
 		if (bridge_move_locked(bridge, chan_bridge, chan, NULL, 1)) {
 			ast_bridge_unlock(chan_bridge);
 			ast_bridge_unlock(bridge);
@@ -2145,8 +2159,17 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 		}
 		ast_channel_ref(yanked_chan);
 		if (ast_bridge_impart(bridge, yanked_chan, NULL, features, 1)) {
-			ast_log(LOG_WARNING, "Could not add %s to the bridge\n", ast_channel_name(chan));
-			ast_hangup(yanked_chan);
+			/* It is possible for us to yank a channel and have some other
+			 * thread start a PBX on the channl after we yanked it. In particular,
+			 * this can theoretically happen on the ;2 of a Local channel if we
+			 * yank it prior to the ;1 being answered. Make sure that it isn't
+			 * executing a PBX before hanging it up.
+			 */
+			if (ast_channel_pbx(yanked_chan)) {
+				ast_channel_unref(yanked_chan);
+			} else {
+				ast_hangup(yanked_chan);
+			}
 			return -1;
 		}
 	}

@@ -1142,6 +1142,8 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
+	ast_debug(1, "Performing Bridge action on %s and %s\n", channela, channelb);
+
 	/* Start with chana */
 	chana = ast_channel_get_by_name_prefix(channela, strlen(channela));
 	if (!chana) {
