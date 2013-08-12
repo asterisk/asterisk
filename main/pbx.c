@@ -9969,6 +9969,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 			ast_channel_unlock(*channel);
 			ast_channel_unref(*channel);
 		}
+		ast_mutex_unlock(&outgoing->lock);
 		ao2_ref(outgoing, -1);
 		return -1;
 	}
