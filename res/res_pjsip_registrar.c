@@ -29,6 +29,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
+#include "asterisk/test.h"
 
 /*! \brief Internal function which returns the expiration time for a contact */
 static int registrar_get_expiration(const struct ast_sip_aor *aor, const pjsip_contact_hdr *contact, const pjsip_rx_data *rdata)
@@ -142,8 +143,17 @@ static int registrar_prune_static(void *obj, void *arg, int flags)
 static int registrar_delete_contact(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
+	const char *aor_name = arg;
 
 	ast_sip_location_delete_contact(contact);
+	if (!ast_strlen_zero(aor_name)) {
+		ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact->uri, aor_name);
+		ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
+				"Contact: %s\r\n"
+				"AOR: %s",
+				contact->uri,
+				aor_name);
+	}
 
 	return 0;
 }
@@ -284,7 +294,7 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 
 		if (contact_hdr->star) {
 			/* A star means to unregister everything, so do so for the possible contacts */
-			ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, registrar_delete_contact, NULL);
+			ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, registrar_delete_contact, aor_name);
 			break;
 		}
 
@@ -308,6 +318,13 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 			ast_sip_location_add_contact(aor, contact_uri, ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1)));
 			ast_verb(3, "Added contact '%s' to AOR '%s' with expiration of %d seconds\n",
 				contact_uri, aor_name, expiration);
+			ast_test_suite_event_notify("AOR_CONTACT_ADDED",
+					"Contact: %s\r\n"
+					"AOR: %s\r\n"
+					"Expiration: %d",
+					contact_uri,
+					aor_name,
+					expiration);
 		} else if (expiration) {
 			RAII_VAR(struct ast_sip_contact *, updated, ast_sorcery_copy(ast_sip_get_sorcery(), contact), ao2_cleanup);
 			updated->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
@@ -317,9 +334,21 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 			ast_sip_location_update_contact(updated);
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
 				contact_uri, aor_name, expiration);
+			ast_test_suite_event_notify("AOR_CONTACT_REFRESHED",
+					"Contact: %s\r\n"
+					"AOR: %s\r\n"
+					"Expiration: %d",
+					contact_uri,
+					aor_name,
+					expiration);
 		} else {
 			ast_sip_location_delete_contact(contact);
 			ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact_uri, aor_name);
+			ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
+					"Contact: %s\r\n"
+					"AOR: %s",
+					contact_uri,
+					aor_name);
 		}
 	}
 
