@@ -23403,8 +23403,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 					wait = ast_random() % 2000;
 				}
 				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, dialog_ref(p, "passing dialog ptr into sched structure based on waitid for sip_reinvite_retry."));
-				ast_log(LOG_WARNING, "just did sched_add waitid(%d) for sip_reinvite_retry for dialog %s in handle_response_invite\n", p->waitid, p->callid);
-				ast_debug(2, "Reinvite race. Waiting %d secs before retry\n", wait);
+				ast_debug(2, "Reinvite race. Scheduled sip_reinvite_retry in %d secs in handle_response_invite (waitid %d, dialog '%s')\n",
+						wait, p->waitid, p->callid);
 			}
 		}
 		break;
