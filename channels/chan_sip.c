@@ -16148,7 +16148,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	if (ast_apply_acl(sip_cfg.contact_acl, &peer->addr, "SIP contact ACL: ") != AST_SENSE_ALLOW ||
 			ast_apply_acl(peer->contactacl, &peer->addr, "SIP contact ACL: ") != AST_SENSE_ALLOW) {
 		ast_log(LOG_WARNING, "Domain '%s' disallowed by contact ACL (violating IP %s)\n", hostport,
-			ast_sockaddr_stringify_addr(&testsa));
+				ast_sockaddr_stringify_addr(&peer->addr));
 		ast_string_field_set(peer, fullcontact, "");
 		ast_string_field_set(pvt, our_contact, "");
 		return PARSE_REGISTER_DENIED;
