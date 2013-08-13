@@ -68,7 +68,7 @@ static int is_timed_out(struct hash_test const *data) {
 	if (val) {
 		/* tv_usec is suseconds_t, which could be int or long */
 		ast_test_status_update(data->test, "Now: %ld.%06ld Deadline: %ld.%06ld\n",
-			now.tv_sec, now.tv_usec,
+			now.tv_sec, (long)now.tv_usec,
 			data->deadline.tv_sec, (long)data->deadline.tv_usec);
 	}
 	return val;
