@@ -348,11 +348,8 @@ void stasis_app_control_add_channel_to_bridge(
  *
  * \param control Control whose channel should be removed from the bridge
  * \param bridge Pointer to the bridge
- *
- * \retval non-zero on failure
- * \retval zero on success
  */
-int stasis_app_control_remove_channel_from_bridge(
+void stasis_app_control_remove_channel_from_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge);
 
 /*!

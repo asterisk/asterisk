@@ -231,10 +231,11 @@ static void *record_file(struct stasis_app_control *control,
 	recording = data;
 	ast_assert(recording != NULL);
 
-	ao2_lock(recording);
-	recording->state = STASIS_APP_RECORDING_STATE_RECORDING;
-	recording_publish(recording);
-	ao2_unlock(recording);
+	if (stasis_app_get_bridge(control)) {
+		ast_log(LOG_ERROR, "Cannot record channel while in bridge\n");
+		recording_fail(recording);
+		return NULL;
+	}
 
 	switch (recording->options->terminate_on) {
 	case STASIS_APP_RECORDING_TERMINATE_NONE:
@@ -257,6 +258,11 @@ static void *record_file(struct stasis_app_control *control,
 		recording_fail(recording);
 		return NULL;
 	}
+
+	ao2_lock(recording);
+	recording->state = STASIS_APP_RECORDING_STATE_RECORDING;
+	recording_publish(recording);
+	ao2_unlock(recording);
 
 	ast_play_and_record_full(chan,
 		NULL, /* playfile */

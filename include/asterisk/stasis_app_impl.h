@@ -85,4 +85,14 @@ void *stasis_app_send_command(struct stasis_app_control *control,
 int stasis_app_send_command_async(struct stasis_app_control *control,
 	stasis_app_command_cb command, void *data);
 
+/*!
+ * \since 12
+ * \brief Gets the bridge currently associated with a control object.
+ *
+ * \param control Control object for the channel to query.
+ * \return Associated \ref ast_bridge.
+ * \return \c NULL if not associated with a bridge.
+ */
+struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control);
+
 #endif /* _ASTERISK_RES_STASIS_H */

@@ -48,8 +48,29 @@ struct stasis_app_control *control_create(struct ast_channel *channel);
 int control_dispatch_all(struct stasis_app_control *control,
 	struct ast_channel *chan);
 
+/*!
+ * \brief Blocks until \a control's command queue has a command available.
+ *
+ * \param control Control to block on.
+ */
+void control_wait(struct stasis_app_control *control);
+
+/*!
+ * \brief Signals that a control object should finish and exit back to the
+ * dialplan.
+ *
+ * \param control Control object to continue.
+ */
+void control_continue(struct stasis_app_control *control);
+
+/*!
+ * \brief Returns true if control_continue() has been called on this \a control.
+ *
+ * \param control Control to query.
+ * \return True (non-zero) if control_continue() has been called.
+ * \return False (zero) otherwise.
+ */
 int control_is_done(struct stasis_app_control *control);
 
-void control_continue(struct stasis_app_control *control);
 
 #endif /* _ASTERISK_RES_STASIS_CONTROL_H */

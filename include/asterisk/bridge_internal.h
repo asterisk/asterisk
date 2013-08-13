@@ -36,6 +36,7 @@
 
 struct ast_bridge;
 struct ast_bridge_channel;
+struct ast_bridge_methods;
 
 /*!
  * \brief Register the new bridge with the system.

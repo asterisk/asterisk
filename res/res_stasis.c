@@ -594,6 +594,13 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		int r;
 		int command_count;
 
+		if (stasis_app_get_bridge(control)) {
+			/* Bridge is handling channel frames */
+			control_wait(control);
+			control_dispatch_all(control, chan);
+			continue;
+		}
+
 		r = ast_waitfor(chan, MAX_WAIT_MS);
 
 		if (r < 0) {

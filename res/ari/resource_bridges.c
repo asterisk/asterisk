@@ -214,10 +214,8 @@ void ast_ari_remove_channel_from_bridge(struct ast_variable *headers, struct ast
 	 * is added to the channel snapshot. A 409 response should be issued if the bridge
 	 * uniqueids don't match */
 	for (i = 0; i < list->count; ++i) {
-		if (stasis_app_control_remove_channel_from_bridge(list->controls[i], bridge)) {
-			ast_ari_response_error(response, 500, "Internal Error",
-				"Could not remove channel from bridge");
-		}
+		stasis_app_control_remove_channel_from_bridge(list->controls[i],
+			bridge);
 	}
 
 	if (response->response_code) {

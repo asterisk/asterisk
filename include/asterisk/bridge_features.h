@@ -25,6 +25,8 @@
 #ifndef _ASTERISK_BRIDGING_FEATURES_H
 #define _ASTERISK_BRIDGING_FEATURES_H
 
+#include "asterisk/channel.h"
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
