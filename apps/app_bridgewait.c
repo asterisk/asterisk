@@ -349,10 +349,16 @@ static struct wait_bridge_wrapper *get_wait_bridge_wrapper(const char *bridge_na
 		return wrapper;
 	}
 
+	/*
+	 * Holding bridges can allow local channel move/swap
+	 * optimization to the bridge.  However, we cannot allow it for
+	 * this holding bridge because the call will lose the channel
+	 * roles and dialplan location as a result.
+	 */
 	bridge = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_HOLDING,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
-		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED
-		| AST_BRIDGE_FLAG_DISSOLVE_EMPTY);
+		| AST_BRIDGE_FLAG_SWAP_INHIBIT_TO | AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM
+		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_DISSOLVE_EMPTY);
 
 	if (!bridge) {
 		return NULL;
