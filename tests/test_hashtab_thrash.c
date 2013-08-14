@@ -208,7 +208,7 @@ static void *hash_test_count(void *d)
 
 		if (last_count == count) {
 			/* Allow other threads to run. */
-			sched_yield();
+			usleep(1);
 		} else if (last_count > count) {
 			/* Make sure the hashtable never shrinks */
 			return "hashtab unexpectedly shrank";
