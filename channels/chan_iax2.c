@@ -39,6 +39,18 @@
  * \verbinclude iax.conf.sample
  */
 
+/*!
+ * \todo XXX The IAX2 channel driver needs its native bridge
+ * code converted to the new bridge technology scheme.
+ *
+ * \note The chan_dahdi native bridge code can be used as an
+ * example.  It also appears that chan_iax2 also has a native
+ * transfer check like chan_dahdi to eliminate tromboned calls.
+ *
+ * \note The existing native bridge code is marked with the
+ * IAX2_NATIVE_BRIDGING conditional.
+ */
+
 /*** MODULEINFO
 	<use type="external">crypto</use>
 	<support_level>core</support_level>
@@ -1213,7 +1225,6 @@ static void __attribute__((format(printf, 1, 2))) jb_debug_output(const char *fm
 	ast_verbose("%s", buf);
 }
 
-static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int expire_registry(const void *data);
 static int iax2_answer(struct ast_channel *c);
 static int iax2_call(struct ast_channel *c, const char *dest, int timeout);
@@ -1263,7 +1274,6 @@ static void sched_delay_remove(struct sockaddr_in *sin, callno_entry entry);
 static void network_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
 
-/* BUGBUG The IAX2 channel driver needs its own native bridge technology. */
 static struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
 	.description = tdesc,
@@ -1284,7 +1294,6 @@ static struct ast_channel_tech iax2_tech = {
 	.indicate = iax2_indicate,
 	.setoption = iax2_setoption,
 	.queryoption = iax2_queryoption,
-	.bridge = iax2_bridge,
 	.transfer = iax2_transfer,
 	.fixup = iax2_fixup,
 	.func_channel_read = acf_channel_read,
@@ -5326,6 +5335,7 @@ static int iax2_key_rotate(const void *vpvt)
 	return res;
 }
 
+#if defined(IAX2_NATIVE_BRIDGING)
 static int iax2_start_transfer(unsigned short callno0, unsigned short callno1, int mediaonly)
 {
 	int res;
@@ -5360,7 +5370,9 @@ static int iax2_start_transfer(unsigned short callno0, unsigned short callno1, i
 	iaxs[callno1]->transferring = mediaonly ? TRANSFER_MBEGIN : TRANSFER_BEGIN;
 	return 0;
 }
+#endif	/* defined(IAX2_NATIVE_BRIDGING) */
 
+#if defined(IAX2_NATIVE_BRIDGING)
 static void lock_both(unsigned short callno0, unsigned short callno1)
 {
 	ast_mutex_lock(&iaxsl[callno0]);
@@ -5368,13 +5380,17 @@ static void lock_both(unsigned short callno0, unsigned short callno1)
 		DEADLOCK_AVOIDANCE(&iaxsl[callno0]);
 	}
 }
+#endif	/* defined(IAX2_NATIVE_BRIDGING) */
 
+#if defined(IAX2_NATIVE_BRIDGING)
 static void unlock_both(unsigned short callno0, unsigned short callno1)
 {
 	ast_mutex_unlock(&iaxsl[callno1]);
 	ast_mutex_unlock(&iaxsl[callno0]);
 }
+#endif	/* defined(IAX2_NATIVE_BRIDGING) */
 
+#if defined(IAX2_NATIVE_BRIDGING)
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct ast_channel *cs[3];
@@ -5539,6 +5555,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 	unlock_both(callno0, callno1);
 	return res;
 }
+#endif	/* defined(IAX2_NATIVE_BRIDGING) */
 
 static int iax2_answer(struct ast_channel *c)
 {
