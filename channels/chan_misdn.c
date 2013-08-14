@@ -57,6 +57,21 @@
 /* Define to enable cli commands to generate canned CCBS messages. */
 // #define CCBS_TEST_MESSAGES	1
 
+/*
+ * XXX The mISDN channel driver needs its native bridge code
+ * converted to the new bridge technology scheme.  The
+ * chan_dahdi native bridge code can be used as an example.  It
+ * is unlikely that this will ever get done.  Support for this
+ * channel driver is dwindling because the supported version of
+ * mISDN does not support newer kernels.
+ *
+ * Without native bridge support, the following config file
+ * parameters have no effect: bridging.
+ *
+ * The existing native bridge code is marked with the
+ * mISDN_NATIVE_BRIDGING conditional.
+ */
+
 /*** MODULEINFO
 	<depend>isdnnet</depend>
 	<depend>misdn</depend>
@@ -750,6 +765,7 @@ static int misdn_chan_is_valid(struct chan_list *ch)
 	return 0;
 }
 
+#if defined(mISDN_NATIVE_BRIDGING)
 /*! Returns a reference to the found chan_list. */
 static struct chan_list *get_chan_by_ast(struct ast_channel *ast)
 {
@@ -767,6 +783,7 @@ static struct chan_list *get_chan_by_ast(struct ast_channel *ast)
 
 	return NULL;
 }
+#endif	/* defined(mISDN_NATIVE_BRIDGING) */
 
 /*! Returns a reference to the found chan_list. */
 static struct chan_list *get_chan_by_ast_name(const char *name)
@@ -7557,6 +7574,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	return 0;
 }
 
+#if defined(mISDN_NATIVE_BRIDGING)
 static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 	struct ast_channel *c1, int flags,
 	struct ast_frame **fo,
@@ -7570,14 +7588,20 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 	int p1_b, p2_b;
 	int bridging;
 
+	misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
+	if (!bridging) {
+		/* Native mISDN bridging globally disabled. */
+		return AST_BRIDGE_FAILED_NOWARN;
+	}
+
 	ch1 = get_chan_by_ast(c0);
 	if (!ch1) {
-		return -1;
+		return AST_BRIDGE_FAILED;
 	}
 	ch2 = get_chan_by_ast(c1);
 	if (!ch2) {
 		chan_list_unref(ch1, "Failed to find ch2");
-		return -1;
+		return AST_BRIDGE_FAILED;
 	}
 
 	carr[0] = c0;
@@ -7585,20 +7609,16 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 
 	misdn_cfg_get(ch1->bc->port, MISDN_CFG_BRIDGING, &p1_b, sizeof(p1_b));
 	misdn_cfg_get(ch2->bc->port, MISDN_CFG_BRIDGING, &p2_b, sizeof(p2_b));
-
-	if (! p1_b || ! p2_b) {
+	if (!p1_b || !p2_b) {
 		ast_log(LOG_NOTICE, "Falling back to Asterisk bridging\n");
 		chan_list_unref(ch1, "Bridge fallback ch1");
 		chan_list_unref(ch2, "Bridge fallback ch2");
-		return AST_BRIDGE_FAILED;
+		return AST_BRIDGE_FAILED_NOWARN;
 	}
 
-	misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
-	if (bridging) {
-		/* trying to make a mISDN_dsp conference */
-		chan_misdn_log(1, ch1->bc->port, "I SEND: Making conference with Number:%d\n", ch1->bc->pid + 1);
-		misdn_lib_bridge(ch1->bc, ch2->bc);
-	}
+	/* make a mISDN_dsp conference */
+	chan_misdn_log(1, ch1->bc->port, "I SEND: Making conference with Number:%d\n", ch1->bc->pid + 1);
+	misdn_lib_bridge(ch1->bc, ch2->bc);
 
 	ast_verb(3, "Native bridging %s and %s\n", ast_channel_name(c0), ast_channel_name(c1));
 
@@ -7671,6 +7691,7 @@ static enum ast_bridge_result misdn_bridge(struct ast_channel *c0,
 	chan_list_unref(ch2, "Bridge complete ch2");
 	return AST_BRIDGE_COMPLETE;
 }
+#endif	/* defined(mISDN_NATIVE_BRIDGING) */
 
 /** AST INDICATIONS END **/
 
@@ -8097,26 +8118,7 @@ static int misdn_send_text(struct ast_channel *chan, const char *text)
 	return 0;
 }
 
-/* BUGBUG The mISDN channel driver needs its own native bridge technology. (More like just never give it one.) */
 static struct ast_channel_tech misdn_tech = {
-	.type = misdn_type,
-	.description = "Channel driver for mISDN Support (Bri/Pri)",
-	.requester = misdn_request,
-	.send_digit_begin = misdn_digit_begin,
-	.send_digit_end = misdn_digit_end,
-	.call = misdn_call,
-	.bridge = misdn_bridge,
-	.hangup = misdn_hangup,
-	.answer = misdn_answer,
-	.read = misdn_read,
-	.write = misdn_write,
-	.indicate = misdn_indication,
-	.fixup = misdn_fixup,
-	.send_text = misdn_send_text,
-	.properties = 0,
-};
-
-static struct ast_channel_tech misdn_tech_wo_bridge = {
 	.type = misdn_type,
 	.description = "Channel driver for mISDN Support (Bri/Pri)",
 	.requester = misdn_request,
@@ -8167,7 +8169,6 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	char *cid_num = NULL;
 	int chan_offset = 0;
 	int tmp_port = misdn_cfg_get_next_port(0);
-	int bridging;
 	struct ast_format tmpfmt;
 
 	for (; tmp_port > 0; tmp_port = misdn_cfg_get_next_port(tmp_port)) {
@@ -8200,8 +8201,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		MISDN_ASTERISK_TECH_PVT_SET(tmp, chlist);
 		chlist->ast = tmp;
 
-		misdn_cfg_get(0, MISDN_GEN_BRIDGING, &bridging, sizeof(bridging));
-		ast_channel_tech_set(tmp, bridging ? &misdn_tech : &misdn_tech_wo_bridge);
+		ast_channel_tech_set(tmp, &misdn_tech);
 
 		ast_channel_priority_set(tmp, 1);
 
@@ -11270,7 +11270,6 @@ static int unload_module(void)
 	misdn_cc_destroy();
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	misdn_tech.capabilities = ast_format_cap_destroy(misdn_tech.capabilities);
-	misdn_tech_wo_bridge.capabilities = ast_format_cap_destroy(misdn_tech_wo_bridge.capabilities);
 
 	return 0;
 }
@@ -11302,12 +11301,8 @@ static int load_module(void)
 	if (!(misdn_tech.capabilities = ast_format_cap_alloc())) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (!(misdn_tech_wo_bridge.capabilities = ast_format_cap_alloc())) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
 	ast_format_set(&prefformat, AST_FORMAT_ALAW, 0);
 	ast_format_cap_add(misdn_tech.capabilities, &prefformat);
-	ast_format_cap_add(misdn_tech_wo_bridge.capabilities, &prefformat);
 
 	max_ports = misdn_lib_maxports_get();
 
