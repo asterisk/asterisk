@@ -37,6 +37,16 @@
  * \verbinclude vpb.conf.sample
  */
 
+/*
+ * XXX chan_vpb needs its native bridge code converted to the
+ * new bridge technology scheme.  The chan_dahdi native bridge
+ * code can be used as an example.  It is unlikely that this
+ * will ever get done.
+ *
+ * The existing native bridge code is marked with the
+ * VPB_NATIVE_BRIDGING conditional.
+ */
+
 /*** MODULEINFO
 	<depend>vpb</depend>
 	<defaultenabled>no</defaultenabled>
@@ -347,7 +357,6 @@ static int vpb_hangup(struct ast_channel *ast);
 static int vpb_answer(struct ast_channel *ast);
 static struct ast_frame *vpb_read(struct ast_channel *ast);
 static int vpb_write(struct ast_channel *ast, struct ast_frame *frame);
-static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int vpb_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen);
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
@@ -369,7 +378,7 @@ static struct ast_channel_tech vpb_tech = {
 	send_image: NULL,
 	send_html: NULL,
 	exception: NULL,
-	bridge: ast_vpb_bridge,
+	bridge: NULL,
 	early_bridge: NULL,
 	indicate: vpb_indicate,
 	fixup: vpb_fixup,
@@ -403,7 +412,7 @@ static struct ast_channel_tech vpb_tech_indicate = {
 	send_image: NULL,
 	send_html: NULL,
 	exception: NULL,
-	bridge: ast_vpb_bridge,
+	bridge: NULL,
 	early_bridge: NULL,
 	indicate: NULL,
 	fixup: vpb_fixup,
@@ -419,6 +428,7 @@ static struct ast_channel_tech vpb_tech_indicate = {
 	set_base_channel: NULL
 };
 
+#if defined(VPB_NATIVE_BRIDGING)
 /* Can't get ast_vpb_bridge() working on v4pci without either a horrible 
 *  high pitched feedback noise or bad hiss noise depending on gain settings
 *  Get asterisk to do the bridging
@@ -618,6 +628,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 */
 	return (res == VPB_OK) ? AST_BRIDGE_COMPLETE : AST_BRIDGE_FAILED;
 }
+#endif	/* defined(VPB_NATIVE_BRIDGING) */
 
 /* Caller ID can be located in different positions between the rings depending on your Telco
  * Australian (Telstra) callerid starts 700ms after 1st ring and finishes 1.5s after first ring
