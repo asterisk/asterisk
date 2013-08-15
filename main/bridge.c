@@ -1421,7 +1421,7 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan)
 }
 
 /*
- * BUGBUG make ast_bridge_join() require features to be allocated just like ast_bridge_impart() and not expect the struct back.
+ * XXX ASTERISK-21271 make ast_bridge_join() require features to be allocated just like ast_bridge_impart() and not expect the struct back.
  *
  * This change is really going to break ConfBridge.  All other
  * users are easily changed.  However, it is needed so the
@@ -1449,7 +1449,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 		res = -1;
 		goto join_exit;
 	}
-/* BUGBUG features cannot be NULL when passed in. When it is changed to allocated we can do like ast_bridge_impart() and allocate one. */
+/* XXX ASTERISK-21271 features cannot be NULL when passed in. When it is changed to allocated we can do like ast_bridge_impart() and allocate one. */
 	ast_assert(features != NULL);
 	if (!features) {
 		ao2_ref(bridge_channel, -1);
@@ -2638,9 +2638,9 @@ void ast_bridge_merge_inhibit(struct ast_bridge *bridge, int request)
 int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	struct ast_bridge_channel *bridge_channel;
-/* BUGBUG the case of a disolved bridge while channel is suspended is not handled. */
-/* BUGBUG suspend/unsuspend needs to be rethought. The caller must block until it has successfully suspended the channel for temporary control. */
-/* BUGBUG external suspend/unsuspend needs to be eliminated. The channel may be playing a file at the time and stealing it then is not good. */
+/* XXX ASTERISK-21271 the case of a disolved bridge while channel is suspended is not handled. */
+/* XXX ASTERISK-21271 suspend/unsuspend needs to be rethought. The caller must block until it has successfully suspended the channel for temporary control. */
+/* XXX ASTERISK-21271 external suspend/unsuspend needs to be eliminated. The channel may be playing a file at the time and stealing it then is not good. */
 
 	ast_bridge_lock(bridge);
 
@@ -2659,7 +2659,7 @@ int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan)
 int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan)
 {
 	struct ast_bridge_channel *bridge_channel;
-/* BUGBUG the case of a disolved bridge while channel is suspended is not handled. */
+/* XXX ASTERISK-21271 the case of a disolved bridge while channel is suspended is not handled. */
 
 	ast_bridge_lock(bridge);
 
@@ -3181,7 +3181,7 @@ static int bridge_dtmf_hook_sort(const void *obj_left, const void *obj_right, in
 	return cmp;
 }
 
-/* BUGBUG make ast_bridge_features_init() static when make ast_bridge_join() requires features to be allocated. */
+/* XXX ASTERISK-21271 make ast_bridge_features_init() static when make ast_bridge_join() requires features to be allocated. */
 int ast_bridge_features_init(struct ast_bridge_features *features)
 {
 	/* Zero out the structure */
@@ -3213,7 +3213,7 @@ int ast_bridge_features_init(struct ast_bridge_features *features)
 	return 0;
 }
 
-/* BUGBUG make ast_bridge_features_cleanup() static when make ast_bridge_join() requires features to be allocated. */
+/* XXX ASTERISK-21271 make ast_bridge_features_cleanup() static when make ast_bridge_join() requires features to be allocated. */
 void ast_bridge_features_cleanup(struct ast_bridge_features *features)
 {
 	struct ast_bridge_hook_timer *hook;

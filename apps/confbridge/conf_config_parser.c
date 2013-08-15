@@ -1922,7 +1922,7 @@ int conf_load_config(void)
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, user_types, NULL, user_template_handler, 0);
 
-/* BUGBUG need a user supplied bridge merge_priority to merge ConfBridges (default = 1, range 1-INT_MAX) */
+/* XXX ASTERISK-21271 need a user supplied bridge merge_priority to merge ConfBridges (default = 1, range 1-INT_MAX) */
 	/* Bridge options */
 	aco_option_register(&cfg_info, "type", ACO_EXACT, bridge_types, NULL, OPT_NOOP_T, 0, 0);
 	aco_option_register(&cfg_info, "jitterbuffer", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), USER_OPT_JITTERBUFFER);

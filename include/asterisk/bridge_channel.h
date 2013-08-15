@@ -81,7 +81,7 @@ struct ast_bridge_tech_optimizations;
  * \brief Structure that contains information regarding a channel in a bridge
  */
 struct ast_bridge_channel {
-/* BUGBUG cond is only here because of external party suspend/unsuspend support. */
+/* XXX ASTERISK-21271 cond is only here because of external party suspend/unsuspend support. */
 	/*! Condition, used if we want to wake up a thread waiting on the bridged channel */
 	ast_cond_t cond;
 	/*! Current bridged channel state */

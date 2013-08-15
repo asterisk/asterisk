@@ -599,7 +599,7 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 	}
 
 /*
- * BUGBUG must fix config framework loading of multiple files.
+ * XXX ASTERISK-22009 must fix config framework loading of multiple files.
  *
  * A reload with multiple files must reload all files if any
  * file has been touched.
