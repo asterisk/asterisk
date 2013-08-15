@@ -797,9 +797,6 @@ int ast_bridge_channel_setup_features(struct ast_bridge_channel *bridge_channel)
 {
 	int res = 0;
 
-	/* Always pass through any DTMF digits. */
-	bridge_channel->features->dtmf_passthrough = 1;
-
 	res |= setup_bridge_features_builtin(bridge_channel->features, bridge_channel->chan);
 	res |= setup_bridge_features_dynamic(bridge_channel->features, bridge_channel->chan);
 

@@ -1587,6 +1587,8 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	/* Set if DTMF should pass through for this user or not */
 	if (ast_test_flag(&user.u_profile, USER_OPT_DTMF_PASS)) {
 		user.features.dtmf_passthrough = 1;
+	} else {
+		user.features.dtmf_passthrough = 0;
 	}
 
 	/* Set dsp threshold values if present */

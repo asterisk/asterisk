@@ -3204,6 +3204,8 @@ int ast_bridge_features_init(struct ast_bridge_features *features)
 		return -1;
 	}
 
+	features->dtmf_passthrough = 1;
+
 	return 0;
 }
 
