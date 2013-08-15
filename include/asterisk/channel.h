@@ -1976,12 +1976,6 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 #define AST_BRIDGE_DTMF_CHANNEL_0		(1 << 0)
 /*! \brief Report DTMF on channel 1 */
 #define AST_BRIDGE_DTMF_CHANNEL_1		(1 << 1)
-/*! \brief Return all voice frames on channel 0 */
-#define AST_BRIDGE_REC_CHANNEL_0		(1 << 2)
-/*! \brief Return all voice frames on channel 1 */
-#define AST_BRIDGE_REC_CHANNEL_1		(1 << 3)
-/*! \brief Ignore all signal frames except NULL */
-#define AST_BRIDGE_IGNORE_SIGS			(1 << 4)
 
 
 /*!

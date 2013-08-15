@@ -5513,8 +5513,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		if ((f->frametype == AST_FRAME_CONTROL)) {
 			if (f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
 				ast_channel_hangupcause_hash_set(other, f->data.ptr, f->datalen);
-			} else if (!(flags & AST_BRIDGE_IGNORE_SIGS)
-				&& (f->subclass.integer != AST_CONTROL_SRCUPDATE)) {
+			} else if (f->subclass.integer != AST_CONTROL_SRCUPDATE) {
 				*fo = f;
 				*rc = who;
 				res =  AST_BRIDGE_COMPLETE;

@@ -1033,15 +1033,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			break;
 
 		case AST_FRAME_CONTROL:
-			if (!(p->bridge->flags & AST_BRIDGE_IGNORE_SIGS)) {
-			#if 0
-			if (f.subclass == AST_CONTROL_BUSY ||
-			f.subclass == AST_CONTROL_CONGESTION ||
-			f.subclass == AST_CONTROL_HANGUP ||
-			f.subclass == AST_CONTROL_FLASH)
-			#endif
-				endbridge = 1;
-			}
+			endbridge = 1;
 			break;
 
 		default:
@@ -2263,12 +2255,7 @@ static void *do_chanreads(void *pvt)
 		ast_verb(5, "%s: chanreads: Starting cycle ...\n", p->dev);
 		ast_verb(5, "%s: chanreads: Checking bridge \n", p->dev);
 		if (p->bridge) {
-			if (p->bridge->c0 == p->owner && (p->bridge->flags & AST_BRIDGE_REC_CHANNEL_0))
-				bridgerec = 1;
-			else if (p->bridge->c1 == p->owner && (p->bridge->flags & AST_BRIDGE_REC_CHANNEL_1))
-				bridgerec = 1;
-			else 
-				bridgerec = 0;
+			bridgerec = 0;
 		} else {
 			bridgerec = ast_channel_is_bridged(p->owner) ? 1 : 0;
 		}

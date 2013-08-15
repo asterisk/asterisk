@@ -397,9 +397,6 @@ static int builtin_feature_get_exten(struct ast_channel *chan, const char *featu
 
 static void set_config_flags(struct ast_channel *chan, struct ast_bridge_config *config)
 {
-/* BUGBUG there is code that checks AST_BRIDGE_IGNORE_SIGS but no code to set it. */
-/* BUGBUG there is code that checks AST_BRIDGE_REC_CHANNEL_0 but no code to set it. */
-/* BUGBUG there is code that checks AST_BRIDGE_REC_CHANNEL_1 but no code to set it. */
 	ast_clear_flag(config, AST_FLAGS_ALL);
 
 	if (ast_test_flag(&config->features_caller, AST_FEATURE_DTMF_MASK)) {
