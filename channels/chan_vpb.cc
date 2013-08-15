@@ -378,7 +378,6 @@ static struct ast_channel_tech vpb_tech = {
 	send_image: NULL,
 	send_html: NULL,
 	exception: NULL,
-	bridge: NULL,
 	early_bridge: NULL,
 	indicate: vpb_indicate,
 	fixup: vpb_fixup,
@@ -387,11 +386,8 @@ static struct ast_channel_tech vpb_tech = {
 	transfer: NULL,
 	write_video: NULL,
 	write_text: NULL,
-	bridged_channel: NULL,
 	func_channel_read: NULL,
 	func_channel_write: NULL,
-	get_base_channel: NULL,
-	set_base_channel: NULL
 };
 
 static struct ast_channel_tech vpb_tech_indicate = {
@@ -412,7 +408,6 @@ static struct ast_channel_tech vpb_tech_indicate = {
 	send_image: NULL,
 	send_html: NULL,
 	exception: NULL,
-	bridge: NULL,
 	early_bridge: NULL,
 	indicate: NULL,
 	fixup: vpb_fixup,
@@ -421,11 +416,8 @@ static struct ast_channel_tech vpb_tech_indicate = {
 	transfer: NULL,
 	write_video: NULL,
 	write_text: NULL,
-	bridged_channel: NULL,
 	func_channel_read: NULL,
 	func_channel_write: NULL,
-	get_base_channel: NULL,
-	set_base_channel: NULL
 };
 
 #if defined(VPB_NATIVE_BRIDGING)

@@ -7316,18 +7316,14 @@ static int data_channeltypes_provider_handler(const struct ast_data_search *sear
 		ast_data_add_bool(data_type, "send_image", cl->tech->send_image ? 1 : 0);
 		ast_data_add_bool(data_type, "send_html", cl->tech->send_html ? 1 : 0);
 		ast_data_add_bool(data_type, "exception", cl->tech->exception ? 1 : 0);
-		ast_data_add_bool(data_type, "bridge", cl->tech->bridge ? 1 : 0);
 		ast_data_add_bool(data_type, "early_bridge", cl->tech->early_bridge ? 1 : 0);
 		ast_data_add_bool(data_type, "fixup", cl->tech->fixup ? 1 : 0);
 		ast_data_add_bool(data_type, "setoption", cl->tech->setoption ? 1 : 0);
 		ast_data_add_bool(data_type, "queryoption", cl->tech->queryoption ? 1 : 0);
 		ast_data_add_bool(data_type, "write_video", cl->tech->write_video ? 1 : 0);
 		ast_data_add_bool(data_type, "write_text", cl->tech->write_text ? 1 : 0);
-		ast_data_add_bool(data_type, "bridged_channel", cl->tech->bridged_channel ? 1 : 0);
 		ast_data_add_bool(data_type, "func_channel_read", cl->tech->func_channel_read ? 1 : 0);
 		ast_data_add_bool(data_type, "func_channel_write", cl->tech->func_channel_write ? 1 : 0);
-		ast_data_add_bool(data_type, "get_base_channel", cl->tech->get_base_channel ? 1 : 0);
-		ast_data_add_bool(data_type, "set_base_channel", cl->tech->set_base_channel ? 1 : 0);
 		ast_data_add_bool(data_type, "get_pvt_uniqueid", cl->tech->get_pvt_uniqueid ? 1 : 0);
 		ast_data_add_bool(data_type, "cc_callback", cl->tech->cc_callback ? 1 : 0);
 

@@ -652,11 +652,6 @@ struct ast_channel_tech {
 	/*! \brief Handle an exception, reading a frame */
 	struct ast_frame * (* const exception)(struct ast_channel *chan);
 
-/* BUGBUG this tech callback is to be removed. */
-	/*! \brief Bridge two channels of the same type together */
-	enum ast_bridge_result (* const bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags,
-						struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
-
 	/*! \brief Bridge two channels of the same type together (early) */
 	enum ast_bridge_result (* const early_bridge)(struct ast_channel *c0, struct ast_channel *c1);
 
@@ -681,10 +676,6 @@ struct ast_channel_tech {
 	/*! \brief Write a text frame, in standard format */
 	int (* const write_text)(struct ast_channel *chan, struct ast_frame *frame);
 
-/* BUGBUG this tech callback is to be removed. */
-	/*! \brief Find bridged channel */
-	struct ast_channel *(* const bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
-
 	/*!
 	 * \brief Provide additional read items for CHANNEL() dialplan function
 	 * \note data should be treated as a const char *.
@@ -696,13 +687,6 @@ struct ast_channel_tech {
 	 * \note data should be treated as a const char *.
 	 */
 	int (* func_channel_write)(struct ast_channel *chan, const char *function, char *data, const char *value);
-
-/* BUGBUG this tech callback is to be removed. */
-	/*! \brief Retrieve base channel (agent and local) */
-	struct ast_channel* (* get_base_channel)(struct ast_channel *chan);
-
-	/*! \brief Set base channel (agent and local) */
-	int (* set_base_channel)(struct ast_channel *chan, struct ast_channel *base);
 
 	/*! \brief Get the unique identifier for the PVT, i.e. SIP call-ID for SIP */
 	const char * (* get_pvt_uniqueid)(struct ast_channel *chan);
