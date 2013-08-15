@@ -1943,6 +1943,10 @@ static int remoteconsolehandler(char *s)
 			ast_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 		ret = 1;
 	}
+	while (isspace(*s)) {
+		s++;
+	}
+
 	if ((strncasecmp(s, "quit", 4) == 0 || strncasecmp(s, "exit", 4) == 0) &&
 	    (s[4] == '\0' || isspace(s[4]))) {
 		quit_handler(0, SHUTDOWN_FAST, 0);
