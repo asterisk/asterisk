@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/datastore.h"
 #include "asterisk/stasis.h"
+#include "asterisk/core_local.h"
 
 struct parked_subscription_datastore {
 	struct stasis_subscription *parked_subscription;
@@ -188,14 +189,10 @@ static int create_parked_subscription(struct ast_channel *chan, const char *park
  */
 static struct ast_channel *park_local_transfer(struct ast_channel *parker, const char *context, const char *exten)
 {
-	RAII_VAR(struct ast_channel *, parkee_side_2, NULL, ao2_cleanup);
 	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 1];
 	struct ast_channel *parkee;
+	struct ast_channel *parkee_side_2;
 	int cause;
-
-	/* Used for side_2 hack */
-	char *parkee_name;
-	char *semi_pos;
 
 	/* Fill the variable with the extension and context we want to call */
 	snprintf(destination, sizeof(destination), "%s@%s", exten, context);
@@ -212,26 +209,18 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	ast_connected_line_copy_from_caller(ast_channel_connected(parkee), ast_channel_caller(parker));
 	ast_channel_inherit_variables(parker, parkee);
 	ast_channel_datastore_inherit(parker, parkee);
-	ast_channel_unlock(parkee);
 	ast_channel_unlock(parker);
 
-	/* BUGBUG Use Richard's unreal channel stuff here instead of this hack */
-	parkee_name = ast_strdupa(ast_channel_name(parkee));
-
-	semi_pos = strrchr(parkee_name, ';');
-	if (!semi_pos) {
-		/* There should always be a semicolon present in the string if is used since it's a local channel. */
-		ast_assert(0);
-		return NULL;
-	}
-
-	parkee_name[(semi_pos - parkee_name) + 1] = '2';
-	parkee_side_2 = ast_channel_get_by_name(parkee_name);
+	parkee_side_2 = ast_local_get_peer(parkee);
+	ast_assert(parkee_side_2 != NULL);
+	ast_channel_unlock(parkee);
 
 	/* We need to have the parker subscribe to the new local channel before hand. */
 	create_parked_subscription(parker, ast_channel_uniqueid(parkee_side_2));
 
 	pbx_builtin_setvar_helper(parkee_side_2, "BLINDTRANSFER", ast_channel_name(parker));
+
+	ast_channel_unref(parkee_side_2);
 
 	/* Since the above worked fine now we actually call it and return the channel */
 	if (ast_call(parkee, destination, 0)) {
