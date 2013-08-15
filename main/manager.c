@@ -487,11 +487,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Exten" required="true">
 				<para>Extension to transfer to.</para>
 			</parameter>
-			<parameter name="Context" required="true">
+			<parameter name="Context">
 				<para>Context to transfer to.</para>
-			</parameter>
-			<parameter name="Priority" required="true">
-				<para>Priority to transfer to.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -4216,7 +4213,6 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 		pbx_builtin_setvar_helper(chan, "TRANSFER_CONTEXT", context);
 	}
 
-/* BUGBUG action_atxfer() is broken because the bridge DTMF hooks need both begin and end events to match correctly. */
 	for (digit = feature_code; *digit; ++digit) {
 		struct ast_frame f = { AST_FRAME_DTMF, .subclass.integer = *digit };
 		ast_queue_frame(chan, &f);
