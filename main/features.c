@@ -79,59 +79,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #include "asterisk/features_config.h"
 
-/* BUGBUG TEST_FRAMEWORK is disabled because parking tests no longer work. */
-#undef TEST_FRAMEWORK
-
-/*
- * Party A - transferee
- * Party B - transferer
- * Party C - target of transfer
- *
- * DTMF attended transfer works within the channel bridge.
- * Unfortunately, when either party A or B in the channel bridge
- * hangs up, that channel is not completely hung up until the
- * transfer completes.  This is a real problem depending upon
- * the channel technology involved.
- *
- * For chan_dahdi, the channel is crippled until the hangup is
- * complete.  Either the channel is not useable (analog) or the
- * protocol disconnect messages are held up (PRI/BRI/SS7) and
- * the media is not released.
- *
- * For chan_sip, a call limit of one is going to block that
- * endpoint from any further calls until the hangup is complete.
- *
- * For party A this is a minor problem.  The party A channel
- * will only be in this condition while party B is dialing and
- * when party B and C are conferring.  The conversation between
- * party B and C is expected to be a short one.  Party B is
- * either asking a question of party C or announcing party A.
- * Also party A does not have much incentive to hangup at this
- * point.
- *
- * For party B this can be a major problem during a blonde
- * transfer.  (A blonde transfer is our term for an attended
- * transfer that is converted into a blind transfer. :))  Party
- * B could be the operator.  When party B hangs up, he assumes
- * that he is out of the original call entirely.  The party B
- * channel will be in this condition while party C is ringing,
- * while attempting to recall party B, and while waiting between
- * call attempts.
- *
- * WARNING:
- * The ATXFER_NULL_TECH conditional is a hack to fix the
- * problem.  It will replace the party B channel technology with
- * a NULL channel driver.  The consequences of this code is that
- * the 'h' extension will not be able to access any channel
- * technology specific information like SIP statistics for the
- * call.
- *
- * Uncomment the ATXFER_NULL_TECH define below to replace the
- * party B channel technology in the channel bridge to complete
- * hanging up the channel technology.
- */
-//#define ATXFER_NULL_TECH	1
-
 /*** DOCUMENTATION
 	<application name="Bridge" language="en_US">
 		<synopsis>

@@ -1689,8 +1689,6 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 	}
 
 	/* Simply write the frame out to the bridge technology. */
-/* BUGBUG The tech is where AST_CONTROL_ANSWER hook should go. (early bridge) */
-/* BUGBUG The tech is where incoming BUSY/CONGESTION hangup should happen? (early bridge) */
 	bridge_channel_write_frame(bridge_channel, frame);
 	ast_frfree(frame);
 }
