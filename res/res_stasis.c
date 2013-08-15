@@ -442,12 +442,15 @@ static void control_unlink(struct stasis_app_control *control)
 struct ast_bridge *stasis_app_bridge_create(const char *type)
 {
 	struct ast_bridge *bridge;
-	int capabilities, flags = 0;
+	int capabilities, flags = AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM | AST_BRIDGE_FLAG_MERGE_INHIBIT_TO
+		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
+		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED;
+
 	if (ast_strlen_zero(type) || !strcmp(type, "mixing")) {
 		capabilities = AST_BRIDGE_CAPABILITY_1TO1MIX |
 			AST_BRIDGE_CAPABILITY_MULTIMIX |
 			AST_BRIDGE_CAPABILITY_NATIVE;
-		flags = AST_BRIDGE_FLAG_SMART;
+		flags |= AST_BRIDGE_FLAG_SMART;
 	} else if (!strcmp(type, "holding")) {
 		capabilities = AST_BRIDGE_CAPABILITY_HOLDING;
 	} else {
