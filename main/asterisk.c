@@ -2112,6 +2112,11 @@ static int remoteconsolehandler(char *s)
 	/* Called when readline data is available */
 	if (!ast_all_zeros(s))
 		ast_el_add_history(s);
+
+	while (isspace(*s)) {
+		s++;
+	}
+
 	/* The real handler for bang */
 	if (s[0] == '!') {
 		if (s[1])

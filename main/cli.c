@@ -2292,6 +2292,13 @@ static char *parse_args(const char *s, int *argc, const char *argv[], int max, i
 		return NULL;
 
 	cur = duplicate;
+
+	/* Remove leading spaces from the command */
+	while (isspace(*s)) {
+		cur++;
+		s++;
+	}
+
 	/* scan the original string copying into cur when needed */
 	for (; *s ; s++) {
 		if (x >= max - 1) {
