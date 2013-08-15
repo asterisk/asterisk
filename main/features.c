@@ -1068,7 +1068,6 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 
 	ast_bridge_features_cleanup(&chan_features);
 
-/* BUGBUG this is used by Dial and FollowMe for CDR information.  By Queue for Queue stats like CDRs. */
 	if (res && config->end_bridge_callback) {
 		config->end_bridge_callback(config->end_bridge_callback_data);
 	}

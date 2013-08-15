@@ -594,8 +594,10 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
  */
 static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
-/* BUGBUG need to look at channel roles to determine what to do with control frame. */
-	/*! \todo BUGBUG softmix_bridge_write_control() not written */
+	/*
+	 * XXX Softmix needs to use channel roles to determine what to
+	 * do with control frames.
+	 */
 	return 0;
 }
 
@@ -622,6 +624,11 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 		return 0;
 	}
 
+	/*
+	 * XXX Softmix needs to use channel roles to determine who gets
+	 * what frame.  Possible roles: announcer, recorder, agent,
+	 * supervisor.
+	 */
 	switch (frame->frametype) {
 	case AST_FRAME_NULL:
 		/* "Accept" the frame and discard it. */
@@ -820,6 +827,10 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		goto softmix_cleanup;
 	}
 
+	/*
+	 * XXX Softmix needs to use channel roles to determine who gets
+	 * what audio mixed.
+	 */
 	while (!softmix_data->stop && bridge->num_active) {
 		struct ast_bridge_channel *bridge_channel;
 		int timeout = -1;

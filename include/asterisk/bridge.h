@@ -733,7 +733,6 @@ enum ast_bridge_optimization ast_bridges_allow_optimization(struct ast_bridge *c
  * \retval -1 on error.
  *
  * \note This API call is meant for internal bridging operations.
- * \note BUGBUG This may get moved.
  */
 int ast_bridge_queue_action(struct ast_bridge *bridge, struct ast_frame *action);
 

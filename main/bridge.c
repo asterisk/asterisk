@@ -2682,7 +2682,11 @@ void ast_bridge_technology_suspend(struct ast_bridge_technology *technology)
 
 void ast_bridge_technology_unsuspend(struct ast_bridge_technology *technology)
 {
-/* BUGBUG unsuspending a bridge technology probably needs to prod all existing bridges to see if they should start using it. */
+	/*
+	 * XXX We may want the act of unsuspending a bridge technology
+	 * to prod all existing bridges to see if they should start
+	 * using it.
+	 */
 	technology->suspended = 0;
 }
 
