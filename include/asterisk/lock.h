@@ -316,7 +316,22 @@ static inline void __dump_backtrace(struct ast_bt *bt, int canlog)
  * \param this_lock_addr lock address to return lock information
  * \since 1.6.1
  */
-void log_show_lock(void *this_lock_addr);
+void ast_log_show_lock(void *this_lock_addr);
+
+/*!
+ * \brief Generate a lock dump equivalent to "core show locks".
+ *
+ * The lock dump generated is generally too large to be output by a
+ * single ast_verbose/log/debug/etc. call. Only ast_cli() handles it
+ * properly without changing BUFSIZ in logger.c.
+ *
+ * Note: This must be ast_free()d when you're done with it.
+ *
+ * \retval An ast_str containing the lock dump
+ * \retval NULL on error
+ * \since 12
+ */
+struct ast_str *ast_dump_locks(void);
 
 /*!
  * \brief retrieve lock info for the specified mutex

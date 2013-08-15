@@ -18008,22 +18008,29 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 	/* Give useful transfer information to the dialplan */
 	if (transferer->owner) {
-		RAII_VAR(struct ast_channel *, peer, ast_channel_bridge_peer(transferer->owner), ast_channel_cleanup);
+		RAII_VAR(struct ast_channel *, peer, NULL, ast_channel_cleanup);
+		RAII_VAR(struct ast_channel *, owner_relock, NULL, ast_channel_cleanup);
+		RAII_VAR(struct ast_channel *, owner_ref, NULL, ast_channel_cleanup);
 
-		/*! pbx_builtin_setvar_helper will attempt to lock the channel. We need
-		 * to be sure it's already locked here so we don't deadlock.
-		 */
-		while (peer && ast_channel_trylock(peer)) {
-			sip_pvt_unlock(transferer);
-			do {
-				CHANNEL_DEADLOCK_AVOIDANCE(transferer->owner);
-			} while (sip_pvt_trylock(transferer));
-		}
+		/* Grab a reference to transferer->owner to prevent it from going away */
+		owner_ref = ast_channel_ref(transferer->owner);
 
+		/* Established locking order here is bridge, channel, pvt
+		 * and the bridge will be locked during ast_channel_bridge_peer */
+		ast_channel_unlock(owner_ref);
+		sip_pvt_unlock(transferer);
+
+		peer = ast_channel_bridge_peer(owner_ref);
 		if (peer) {
 			pbx_builtin_setvar_helper(peer, "SIPREFERRINGCONTEXT", transferer->context);
 			pbx_builtin_setvar_helper(peer, "SIPREFERREDBYHDR", p_referred_by);
 			ast_channel_unlock(peer);
+		}
+
+		owner_relock = sip_pvt_lock_full(transferer);
+		if (!owner_relock) {
+			ast_debug(3, "Unable to reacquire owner channel lock, channel is gone\n");
+			return -5;
 		}
 	}
 
@@ -26091,7 +26098,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, uint
 	int res = 0;
 	struct blind_transfer_cb_data cb_data;
 	enum ast_transfer_result transfer_res;
-	RAII_VAR(struct ast_channel *, transferer, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, transferer, NULL, ast_channel_cleanup);
 	RAII_VAR(struct ast_str *, replaces_str, NULL, ast_free_ptr);
 
 	if (req->debug) {
@@ -26368,6 +26375,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	struct ast_channel *c=NULL;
 	int res;
 	const char *required;
+	RAII_VAR(struct ast_channel *, peer_channel, NULL, ast_channel_cleanup);
+	char quality_buf[AST_MAX_USER_FIELD], *quality;
 
 	/* If we have an INCOMING invite that we haven't answered, terminate that transaction */
 	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !req->ignore) {
@@ -26384,70 +26393,88 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	check_via(p, req);
 	sip_alreadygone(p);
 
+	if (p->owner) {
+		RAII_VAR(struct ast_channel *, owner_relock, NULL, ast_channel_cleanup);
+		RAII_VAR(struct ast_channel *, owner_ref, NULL, ast_channel_cleanup);
+
+		/* Grab a reference to p->owner to prevent it from going away */
+		owner_ref = ast_channel_ref(p->owner);
+
+		/* Established locking order here is bridge, channel, pvt
+		 * and the bridge will be locked during ast_channel_bridge_peer */
+		ast_channel_unlock(owner_ref);
+		sip_pvt_unlock(p);
+
+		peer_channel = ast_channel_bridge_peer(owner_ref);
+
+		owner_relock = sip_pvt_lock_full(p);
+		if (!owner_relock) {
+			ast_debug(3, "Unable to reacquire owner channel lock, channel is gone\n");
+			return 0;
+		}
+	}
+
 	/* Get RTCP quality before end of call */
-	if (p->do_history || p->owner) {
-		char quality_buf[AST_MAX_USER_FIELD], *quality;
-		RAII_VAR(struct ast_channel *, bridge, p->owner ? ast_channel_bridge_peer(p->owner) : NULL, ast_channel_cleanup);
-
-		/* We need to get the lock on bridge because ast_rtp_instance_set_stats_vars will attempt
-		 * to lock the bridge. This may get hairy...
-		 */
-		while (bridge && ast_channel_trylock(bridge)) {
-			ast_channel_unlock(p->owner);
-			do {
-				/* Can't use DEADLOCK_AVOIDANCE since p is an ao2 object */
-				sip_pvt_unlock(p);
-				usleep(1);
-				sip_pvt_lock(p);
-			} while (p->owner && ast_channel_trylock(p->owner));
-		}
-
-
-		if (p->rtp && (quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
-			if (p->do_history) {
+	if (p->rtp) {
+		if (p->do_history) {
+			if ((quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
 				append_history(p, "RTCPaudio", "Quality:%s", quality);
-
-				if ((quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_JITTER, quality_buf, sizeof(quality_buf)))) {
-					append_history(p, "RTCPaudioJitter", "Quality:%s", quality);
-				}
-				if ((quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS, quality_buf, sizeof(quality_buf)))) {
-					append_history(p, "RTCPaudioLoss", "Quality:%s", quality);
-				}
-				if ((quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT, quality_buf, sizeof(quality_buf)))) {
-					append_history(p, "RTCPaudioRTT", "Quality:%s", quality);
-				}
 			}
-
-			if (p->owner) {
-				ast_rtp_instance_set_stats_vars(p->owner, p->rtp);
+			if ((quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_JITTER, quality_buf, sizeof(quality_buf)))) {
+				append_history(p, "RTCPaudioJitter", "Quality:%s", quality);
 			}
-
-		}
-
-		if (bridge) {
-			struct sip_pvt *q = ast_channel_tech_pvt(bridge);
-
-			if (IS_SIP_TECH(ast_channel_tech(bridge)) && q && q->rtp) {
-				ast_rtp_instance_set_stats_vars(bridge, q->rtp);
+			if ((quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_LOSS, quality_buf, sizeof(quality_buf)))) {
+				append_history(p, "RTCPaudioLoss", "Quality:%s", quality);
 			}
-			ast_channel_unlock(bridge);
-		}
-
-		if (p->vrtp && (quality = ast_rtp_instance_get_quality(p->vrtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
-			if (p->do_history) {
-				append_history(p, "RTCPvideo", "Quality:%s", quality);
-			}
-			if (p->owner) {
-				pbx_builtin_setvar_helper(p->owner, "RTPVIDEOQOS", quality);
+			if ((quality = ast_rtp_instance_get_quality(p->rtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY_RTT, quality_buf, sizeof(quality_buf)))) {
+				append_history(p, "RTCPaudioRTT", "Quality:%s", quality);
 			}
 		}
-		if (p->trtp && (quality = ast_rtp_instance_get_quality(p->trtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
-			if (p->do_history) {
-				append_history(p, "RTCPtext", "Quality:%s", quality);
+
+		if (p->owner) {
+			RAII_VAR(struct ast_channel *, owner_relock, NULL, ast_channel_cleanup);
+			RAII_VAR(struct ast_channel *, owner_ref, NULL, ast_channel_cleanup);
+
+			/* Grab a reference to p->owner to prevent it from going away */
+			owner_ref = ast_channel_ref(p->owner);
+
+			/* Established locking order here is bridge, channel, pvt
+			 * and the bridge and channel will be locked during
+			 * ast_rtp_instance_set_stats_vars */
+			ast_channel_unlock(owner_ref);
+			sip_pvt_unlock(p);
+
+			ast_rtp_instance_set_stats_vars(owner_ref, p->rtp);
+			if (peer_channel && IS_SIP_TECH(ast_channel_tech(peer_channel))) {
+				struct sip_pvt *q = ast_channel_tech_pvt(peer_channel);
+				if (q && q->rtp) {
+					ast_rtp_instance_set_stats_vars(peer_channel, q->rtp);
+				}
 			}
-			if (p->owner) {
-				pbx_builtin_setvar_helper(p->owner, "RTPTEXTQOS", quality);
+
+			owner_relock = sip_pvt_lock_full(p);
+			if (!owner_relock) {
+				ast_debug(3, "Unable to reacquire owner channel lock, channel is gone\n");
+				return 0;
 			}
+		}
+	}
+
+	if (p->vrtp && (quality = ast_rtp_instance_get_quality(p->vrtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
+		if (p->do_history) {
+			append_history(p, "RTCPvideo", "Quality:%s", quality);
+		}
+		if (p->owner) {
+			pbx_builtin_setvar_helper(p->owner, "RTPVIDEOQOS", quality);
+		}
+	}
+
+	if (p->trtp && (quality = ast_rtp_instance_get_quality(p->trtp, AST_RTP_INSTANCE_STAT_FIELD_QUALITY, quality_buf, sizeof(quality_buf)))) {
+		if (p->do_history) {
+			append_history(p, "RTCPtext", "Quality:%s", quality);
+		}
+		if (p->owner) {
+			pbx_builtin_setvar_helper(p->owner, "RTPTEXTQOS", quality);
 		}
 	}
 
@@ -26463,15 +26490,30 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		if (!res) {
 			c = p->owner;
 			if (c) {
-				RAII_VAR(struct ast_channel *, bridged_to, ast_channel_bridge_peer(c), ast_channel_cleanup);
-				if (bridged_to) {
+				if (peer_channel) {
+					RAII_VAR(struct ast_channel *, owner_relock, NULL, ast_channel_cleanup);
+					char *local_context = ast_strdupa(p->context);
+					char *local_refer_to = ast_strdupa(p->refer->refer_to);
+
+					/* Grab a reference to p->owner to prevent it from going away */
+					ast_channel_ref(c);
+
 					/* Don't actually hangup here... */
 					ast_queue_unhold(c);
 					ast_channel_unlock(c);  /* async_goto can do a masquerade, no locks can be held during a masq */
-					ast_async_goto(bridged_to, p->context, p->refer->refer_to, 1);
-					ast_channel_lock(c);
-				} else
+					sip_pvt_unlock(p);
+
+					ast_async_goto(peer_channel, local_context, local_refer_to, 1);
+
+					owner_relock = sip_pvt_lock_full(p);
+					ast_channel_cleanup(c);
+					if (!owner_relock) {
+						ast_debug(3, "Unable to reacquire owner channel lock, channel is gone\n");
+						return 0;
+					}
+				} else {
 					ast_queue_hangup(p->owner);
+				}
 			}
 		} else {
 			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_sockaddr_stringify(&p->recv));

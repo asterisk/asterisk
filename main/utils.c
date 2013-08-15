@@ -927,7 +927,7 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 	which will give a stack trace and continue. -- that aught to do the job!
 
 */
-void log_show_lock(void *this_lock_addr)
+void ast_log_show_lock(void *this_lock_addr)
 {
 	struct thr_lock_info *lock_info;
 	struct ast_str *str;
@@ -958,24 +958,12 @@ void log_show_lock(void *this_lock_addr)
 }
 
 
-static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+struct ast_str *ast_dump_locks(void)
 {
 	struct thr_lock_info *lock_info;
 	struct ast_str *str;
 
-	if (!(str = ast_str_create(4096)))
-		return CLI_FAILURE;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show locks";
-		e->usage =
-			"Usage: core show locks\n"
-			"       This command is for lock debugging.  It prints out which locks\n"
-			"are owned by each active thread.\n";
-		return NULL;
-
-	case CLI_GENERATE:
+	if (!(str = ast_str_create(4096))) {
 		return NULL;
 	}
 
@@ -988,8 +976,9 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	               "=== <pending> <lock#> (<file>): <lock type> <line num> <function> <lock name> <lock addr> (times locked)\n"
 	               "===\n", ast_get_version());
 
-	if (!str)
-		return CLI_FAILURE;
+	if (!str) {
+		return NULL;
+	}
 
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
@@ -1012,14 +1001,37 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	}
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
 
-	if (!str)
-		return CLI_FAILURE;
+	if (!str) {
+		return NULL;
+	}
 
 	ast_str_append(&str, 0, "=======================================================================\n"
 	               "\n");
 
-	if (!str)
+	return str;
+}
+
+static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_str *str;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show locks";
+		e->usage =
+			"Usage: core show locks\n"
+			"       This command is for lock debugging.  It prints out which locks\n"
+			"are owned by each active thread.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	str = ast_dump_locks();
+	if (!str) {
 		return CLI_FAILURE;
+	}
 
 	ast_cli(a->fd, "%s", ast_str_buffer(str));
 
