@@ -568,7 +568,6 @@ int load_parking_tests(void);
  * \since 12.0.0
  * \brief Unregister parking unit tests
  *
- * \retval 0 on success
- * \retval nonzero on failure
+ * \return Nothing
  */
-int unload_parking_tests(void);
+void unload_parking_tests(void);

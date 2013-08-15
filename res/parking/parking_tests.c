@@ -804,42 +804,32 @@ cleanup:
 #endif /* TEST_FRAMEWORK */
 
 
-int unload_parking_tests(void)
+void unload_parking_tests(void)
 {
 /* NOOP without test framework */
 #if defined(TEST_FRAMEWORK)
-
-	int res = 0;
-
-	res |= AST_TEST_UNREGISTER(create_lot);
-	res |= AST_TEST_UNREGISTER(park_call);
-	res |= AST_TEST_UNREGISTER(retrieve_call);
-	res |= AST_TEST_UNREGISTER(park_extensions);
-	res |= AST_TEST_UNREGISTER(extension_conflicts);
-	res |= AST_TEST_UNREGISTER(dynamic_parking_variables);
-
-	return res;
+	AST_TEST_UNREGISTER(create_lot);
+	AST_TEST_UNREGISTER(park_call);
+	AST_TEST_UNREGISTER(retrieve_call);
+	AST_TEST_UNREGISTER(park_extensions);
+	AST_TEST_UNREGISTER(extension_conflicts);
+	AST_TEST_UNREGISTER(dynamic_parking_variables);
 #endif
-
-	return 0;
 }
 
 int load_parking_tests(void)
 {
-/* NOOP without test framework */
-#if defined(TEST_FRAMEWORK)
-
 	int res = 0;
 
+/* NOOP without test framework */
+#if defined(TEST_FRAMEWORK)
 	res |= AST_TEST_REGISTER(create_lot);
 	res |= AST_TEST_REGISTER(park_call);
 	res |= AST_TEST_REGISTER(retrieve_call);
 	res |= AST_TEST_REGISTER(park_extensions);
 	res |= AST_TEST_REGISTER(extension_conflicts);
 	res |= AST_TEST_REGISTER(dynamic_parking_variables);
-
-	return res;
 #endif
 
-	return 0;
+	return res;
 }

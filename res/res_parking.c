@@ -196,8 +196,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define PARKED_CALL_APPLICATION "ParkedCall"
 #define PARK_AND_ANNOUNCE_APPLICATION "ParkAndAnnounce"
 
-/* TODO Add unit tests for parking */
-
 static int parking_lot_sort_fn(const void *obj_left, const void *obj_right, int flags)
 {
 	const struct parking_lot *left = obj_left;

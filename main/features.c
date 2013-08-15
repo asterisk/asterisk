@@ -232,8 +232,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</manager>
  ***/
 
-/* TODO Scrape all of the parking stuff out of features.c */
-
 typedef enum {
 	FEATURE_INTERPRET_DETECT, /* Used by ast_feature_detect */
 	FEATURE_INTERPRET_DO,     /* Used by feature_interpret */
