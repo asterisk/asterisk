@@ -583,6 +583,19 @@ int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel,
 int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, const char *parkee_uuid,
 	const char *parker_uuid, const char *app_data);
 
+/*!
+ * \brief Kick the channel out of the bridge.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel is being kicked or hungup.
+ *
+ * \note This is intended to be called by bridge hooks and the
+ * bridge channel thread.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

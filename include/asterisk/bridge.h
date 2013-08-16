@@ -563,6 +563,37 @@ int ast_bridge_depart(struct ast_channel *chan);
 int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan);
 
 /*!
+ * \brief Kick a channel from a bridge
+ *
+ * \param bridge Bridge that the channel is to be kicked from
+ * \param chan Channel to kick
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ *
+ * Example usage:
+ *
+ * \code
+ * ast_bridge_kick(bridge, chan);
+ * \endcode
+ *
+ * \details
+ * This kicks the channel pointed to by the chan pointer from
+ * the bridge pointed to by the bridge pointer and requests that
+ * it be hung up.  Control over the channel will NOT be given to
+ * the calling thread.
+ *
+ * \note The functional difference between ast_bridge_kick() and
+ * ast_bridge_remove() is that the bridge may dissolve as a
+ * result of the channel being kicked.
+ *
+ * \note This API call can be used on channels that were added
+ * to the bridge using both ast_bridge_join and
+ * ast_bridge_impart.
+ */
+int ast_bridge_kick(struct ast_bridge *bridge, struct ast_channel *chan);
+
+/*!
  * \brief Merge two bridges together
  *
  * \param dst_bridge Destination bridge of merge.

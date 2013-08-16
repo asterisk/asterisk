@@ -1681,6 +1681,31 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 	return 0;
 }
 
+static void kick_it(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size)
+{
+	ast_bridge_channel_kick(bridge_channel);
+}
+
+int ast_bridge_kick(struct ast_bridge *bridge, struct ast_channel *chan)
+{
+	struct ast_bridge_channel *bridge_channel;
+	int res;
+
+	ast_bridge_lock(bridge);
+
+	/* Try to find the channel that we want to kick. */
+	if (!(bridge_channel = bridge_find_channel(bridge, chan))) {
+		ast_bridge_unlock(bridge);
+		return -1;
+	}
+
+	res = ast_bridge_channel_queue_callback(bridge_channel, kick_it, NULL, 0);
+
+	ast_bridge_unlock(bridge);
+
+	return res;
+}
+
 /*!
  * \internal
  * \brief Point the bridge_channel to a new bridge.
@@ -4651,25 +4676,9 @@ static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct
 		return CLI_SUCCESS;
 	}
 
-/*
- * BUGBUG the CLI kick needs to get the bridge to decide if it should dissolve.
- *
- * Likely the best way to do this is to add a kick method.  The
- * basic bridge class can then decide to dissolve the bridge if
- * one of two channels is kicked.
- *
- * SIP/foo -- Local;1==Local;2 -- .... -- Local;1==Local;2 -- SIP/bar
- * Kick a ;1 channel and the chain toward SIP/foo goes away.
- * Kick a ;2 channel and the chain toward SIP/bar goes away.
- *
- * This can leave a local channel chain between the kicked ;1
- * and ;2 channels that are orphaned until you manually request
- * one of those channels to hangup or request the bridge to
- * dissolve.
- */
 	ast_cli(a->fd, "Kicking channel '%s' from bridge '%s'\n",
 		ast_channel_name(chan), a->argv[2]);
-	ast_bridge_remove(bridge, chan);
+	ast_bridge_kick(bridge, chan);
 
 	return CLI_SUCCESS;
 }

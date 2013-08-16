@@ -263,16 +263,7 @@ void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_ch
 	}
 }
 
-/*!
-* \internal
-* \brief Handle bridge hangup event.
-* \since 12.0.0
-*
-* \param bridge_channel Which channel is hanging up.
-*
-* \return Nothing
-*/
-static void bridge_channel_handle_hangup(struct ast_bridge_channel *bridge_channel)
+void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
 	struct ast_bridge_hook *hook;
@@ -522,7 +513,7 @@ void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const
 	}
 	if (run_app_helper(bridge_channel->chan, app_name, S_OR(app_args, ""))) {
 		/* Break the bridge if the app returns non-zero. */
-		bridge_channel_handle_hangup(bridge_channel);
+		ast_bridge_channel_kick(bridge_channel);
 	}
 	if (moh_class) {
 		ast_bridge_channel_write_unhold(bridge_channel);
@@ -1100,7 +1091,7 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel, co
 		 * here if the hook did not already change the state.
 		 */
 		if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
-			bridge_channel_handle_hangup(bridge_channel);
+			ast_bridge_channel_kick(bridge_channel);
 		}
 	} else if (features->dtmf_passthrough) {
 		/* Stream any collected DTMF to the other channels. */
@@ -1213,7 +1204,7 @@ static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_chan
 		struct blind_transfer_data *blind_data)
 {
 	ast_async_goto(bridge_channel->chan, blind_data->context, blind_data->exten, 1);
-	bridge_channel_handle_hangup(bridge_channel);
+	ast_bridge_channel_kick(bridge_channel);
 }
 
 /*!
@@ -1229,7 +1220,7 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 	chan_target = ast_channel_get_by_name(target_chan_name);
 	if (!chan_target) {
 		/* Dang, it disappeared somehow */
-		bridge_channel_handle_hangup(bridge_channel);
+		ast_bridge_channel_kick(bridge_channel);
 		return;
 	}
 
@@ -1246,7 +1237,7 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 		/* Release the ref we tried to pass to ast_bridge_set_after_callback(). */
 		ast_channel_unref(chan_target);
 	}
-	bridge_channel_handle_hangup(bridge_channel);
+	ast_bridge_channel_kick(bridge_channel);
 }
 
 /*!
@@ -1674,14 +1665,14 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 	}
 
 	if (!frame) {
-		bridge_channel_handle_hangup(bridge_channel);
+		ast_bridge_channel_kick(bridge_channel);
 		return;
 	}
 	switch (frame->frametype) {
 	case AST_FRAME_CONTROL:
 		switch (frame->subclass.integer) {
 		case AST_CONTROL_HANGUP:
-			bridge_channel_handle_hangup(bridge_channel);
+			ast_bridge_channel_kick(bridge_channel);
 			ast_frfree(frame);
 			return;
 /* BUGBUG This is where incoming HOLD/UNHOLD memory should register.  Write UNHOLD into bridge when this channel is pulled. */
