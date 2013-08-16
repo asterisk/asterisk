@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/heap.h"
 #include "asterisk/app.h"
 #include "asterisk/test.h"
+#include "asterisk/sounds_index.h"
 
 #include <dlfcn.h>
 
@@ -319,6 +320,7 @@ static struct reload_classes {
 	{ "indications", ast_indications_reload },
 	{ "cel",        ast_cel_engine_reload },
 	{ "plc",        ast_plc_reload },
+	{ "sounds",     ast_sounds_reindex },
 	{ NULL, 	NULL }
 };
 

@@ -162,20 +162,22 @@ static int show_sound_info_cb(void *obj, void *arg, int flags)
 	int formats_shown = 0;
 	RAII_VAR(struct ast_media_index *, local_index, ast_sounds_get_index(), ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
-	const char *description = ast_media_get_description(local_index, a->argv[2], language);
+	const char *description = ast_media_get_description(local_index, a->argv[3], language);
 
 	ast_cli(a->fd, "  Language %s:\n", language);
 	if (!ast_strlen_zero(description)) {
 		ast_cli(a->fd, "    Description: %s\n", description);
 	}
 
-	cap = ast_media_get_format_cap(local_index, a->argv[2], language);
-        ast_format_cap_iter_start(cap);
-        while (!ast_format_cap_iter_next(cap, &format)) {
-		ast_cli(a->fd, "    Format: %s\n", ast_getformatname(&format));
-		formats_shown = 1;
-        }
-        ast_format_cap_iter_end(cap);
+	cap = ast_media_get_format_cap(local_index, a->argv[3], language);
+	if (cap) {
+	        ast_format_cap_iter_start(cap);
+	        while (!ast_format_cap_iter_next(cap, &format)) {
+			ast_cli(a->fd, "    Format: %s\n", ast_getformatname(&format));
+			formats_shown = 1;
+	        }
+	        ast_format_cap_iter_end(cap);
+	}
 
 	if (!formats_shown) {
 		ast_cli(a->fd, "    No Formats Available\n");
@@ -184,42 +186,43 @@ static int show_sound_info_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
-/*! \brief Allow for reloading of sounds via the command line */
-static char *handle_cli_sounds_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+/*! \brief Show a list of sounds available on the system */
+static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sounds reload";
+		e->command = "core show sounds";
 		e->usage =
-			"Usage: sounds reload\n"
-			"       Reloads the index of sound files and their descriptions.\n";
+			"Usage: core show sounds\n"
+			"       Shows a listing of sound files available on the system.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc != 2) {
-		return CLI_SHOWUSAGE;
+	if (a->argc == 3) {
+		RAII_VAR(struct ao2_container *, sound_files, ast_media_get_media(sounds_index), ao2_cleanup);
+		if (!sound_files) {
+			return CLI_FAILURE;
+		}
+
+		ast_cli(a->fd, "Available audio files:\n");
+		ao2_callback(sound_files, OBJ_MULTIPLE | OBJ_NODATA, show_sounds_cb, a);
+		return CLI_SUCCESS;
 	}
 
-	if (ast_sounds_reindex()) {
-		ast_cli(a->fd, "Sound re-indexing failed.\n");
-		return CLI_FAILURE;
-	}
-
-	ast_cli(a->fd, "Sound files re-indexed.\n");
-	return CLI_SUCCESS;
+	return CLI_SHOWUSAGE;
 }
 
-/*! \brief Allow for reloading of sounds via the command line */
-static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+/*! \brief Show details about a sound available in the system */
+static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sounds show";
+		e->command = "core show sound";
 		e->usage =
-			"Usage: sounds show [soundid]\n"
-			"       Shows a listing of sound files or information about the specified sound.\n";
+			"Usage: core show sound [soundid]\n"
+			"       Shows information about the specified sound.\n";
 		return NULL;
 	case CLI_GENERATE:
 	{
@@ -247,25 +250,14 @@ static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast
 	}
 	}
 
-	if (a->argc == 2) {
-		RAII_VAR(struct ao2_container *, sound_files, ast_media_get_media(sounds_index), ao2_cleanup);
-		if (!sound_files) {
-			return CLI_FAILURE;
-		}
-
-		ast_cli(a->fd, "Available audio files:\n");
-		ao2_callback(sound_files, OBJ_MULTIPLE | OBJ_NODATA, show_sounds_cb, a);
-		return CLI_SUCCESS;
-	}
-
-	if (a->argc == 3) {
-		RAII_VAR(struct ao2_container *, variants, ast_media_get_variants(sounds_index, a->argv[2]), ao2_cleanup);
+	if (a->argc == 4) {
+		RAII_VAR(struct ao2_container *, variants, ast_media_get_variants(sounds_index, a->argv[3]), ao2_cleanup);
 		if (!variants || !ao2_container_count(variants)) {
-			ast_cli(a->fd, "ERROR: File %s not found in index\n", a->argv[2]);
+			ast_cli(a->fd, "ERROR: File %s not found in index\n", a->argv[3]);
 			return CLI_FAILURE;
 		}
 
-		ast_cli(a->fd, "Indexed Information for %s:\n", a->argv[2]);
+		ast_cli(a->fd, "Indexed Information for %s:\n", a->argv[3]);
 		ao2_callback(variants, OBJ_MULTIPLE | OBJ_NODATA, show_sound_info_cb, a);
 		return CLI_SUCCESS;
 	}
@@ -276,7 +268,7 @@ static char *handle_cli_sounds_show(struct ast_cli_entry *e, int cmd, struct ast
 /*! \brief Struct for registering CLI commands */
 static struct ast_cli_entry cli_sounds[] = {
 	AST_CLI_DEFINE(handle_cli_sounds_show, "Shows available sounds"),
-	AST_CLI_DEFINE(handle_cli_sounds_reload, "Reload sounds index"),
+	AST_CLI_DEFINE(handle_cli_sound_show, "Shows details about a specific sound"),
 };
 
 static void sounds_cleanup(void)
