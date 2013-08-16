@@ -982,7 +982,10 @@ static void *db_sync_thread(void *data)
 	return NULL;
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void astdb_atexit(void)
 {
 	ast_cli_unregister_multiple(cli_database, ARRAY_LEN(cli_database));

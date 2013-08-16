@@ -231,7 +231,10 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	return parkee;
 }
 
-/*! \internal \brief Determine if an extension is a parking extension */
+/*!
+ * \internal
+ * \brief Determine if an extension is a parking extension
+ */
 static int parking_is_exten_park(const char *context, const char *exten)
 {
 	struct ast_exten *exten_obj;

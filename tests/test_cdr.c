@@ -2402,7 +2402,8 @@ AST_TEST_DEFINE(test_cdr_fork_cdr)
 }
 
 /*!
- * \internal \brief Callback function called before each test executes
+ * \internal
+ * \brief Callback function called before each test executes
  */
 static int test_cdr_init_cb(struct ast_test_info *info, struct ast_test *test)
 {
@@ -2413,7 +2414,8 @@ static int test_cdr_init_cb(struct ast_test_info *info, struct ast_test *test)
 }
 
 /*!
- * \internal \brief Callback function called after each test executes
+ * \internal
+ * \brief Callback function called after each test executes
  */
 static int test_cdr_cleanup_cb(struct ast_test_info *info, struct ast_test *test)
 {

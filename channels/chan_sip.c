@@ -7724,7 +7724,10 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 	return res;
 }
 
-/*! \internal \brief Create and initialize UDPTL for the specified dialog
+/*!
+ * \internal
+ * \brief Create and initialize UDPTL for the specified dialog
+ *
  * \param p SIP private structure to create UDPTL object for
  * \pre p is locked
  * \pre p->owner is locked
@@ -14443,7 +14446,10 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	return 0;
 }
 
-/*! \internal \brief Find the channel that is causing the RINGING update, ref'd */
+/*!
+ * \internal
+ * \brief Find the channel that is causing the RINGING update, ref'd
+ */
 static struct ast_channel *find_ringing_channel(struct ao2_container *device_state_info, struct sip_pvt *p)
 {
 	struct ao2_iterator citer;
@@ -16386,7 +16392,10 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	}
 }
 
-/*! \internal \brief Create a new route
+/*!
+ * \internal
+ * \brief Create a new route
+ *
  * \retval NULL on error
  * \retval sip_route on success
  */
@@ -16415,7 +16424,10 @@ static struct sip_route *create_route(const char *hop, struct sip_route *prev)
 	return route;
 }
 
-/*! \internal \brief copy route-set
+/*!
+ * \internal
+ * \brief copy route-set
+ *
  * \retval non-zero on failure
  * \retval 0 on success
  */
@@ -17045,7 +17057,9 @@ static void extract_host_from_hostport(char **hostport)
 	ast_sockaddr_split_hostport(*hostport, hostport, &dont_care, PARSE_PORT_IGNORE);
 }
 
-/*! \internal \brief Helper function to update a peer's lastmsgssent value
+/*!
+ * \internal
+ * \brief Helper function to update a peer's lastmsgssent value
  */
 static void update_peer_lastmsgssent(struct sip_peer *peer, int value, int locked)
 {
@@ -17059,13 +17073,16 @@ static void update_peer_lastmsgssent(struct sip_peer *peer, int value, int locke
 }
 
 
-/*! \brief Verify registration of user
-	- Registration is done in several steps, first a REGISTER without auth
-	  to get a challenge (nonce) then a second one with auth
-	- Registration requests are only matched with peers that are marked as "dynamic"
+/*!
+ * \brief Verify registration of user
+ *
+ * \details
+ * - Registration is done in several steps, first a REGISTER without auth
+ *   to get a challenge (nonce) then a second one with auth
+ * - Registration requests are only matched with peers that are marked as "dynamic"
  */
 static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sockaddr *addr,
-					      struct sip_request *req, const char *uri)
+	struct sip_request *req, const char *uri)
 {
 	enum check_auth_result res = AUTH_NOT_FOUND;
 	struct sip_peer *peer;
@@ -27207,7 +27224,10 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 	return handler_result;
 }
 
-/*! \internal \brief Subscribe to MWI events for the specified peer
+/*!
+ * \internal
+ * \brief Subscribe to MWI events for the specified peer
+ *
  * \note The peer cannot be locked during this method.  sip_send_mwi_peer will
  * attempt to lock the peer after the event subscription lock is held; if the peer is locked during
  * this method then we will attempt to lock the event subscription lock but after the peer, creating

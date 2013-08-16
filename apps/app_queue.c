@@ -2060,7 +2060,8 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
 }
 
 /*!
- * \internal \brief Determine if a queue member is available
+ * \internal
+ * \brief Determine if a queue member is available
  * \retval 1 if the member is available
  * \retval 0 if the member is not available
  */

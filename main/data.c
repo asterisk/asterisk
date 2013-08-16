@@ -3302,7 +3302,10 @@ AST_TEST_DEFINE(test_data_get)
 
 #endif
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void data_shutdown(void)
 {
 	ast_manager_unregister("DataGet");

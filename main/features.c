@@ -1439,7 +1439,10 @@ done:
 	return 0;
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void features_shutdown(void)
 {
 	ast_features_config_shutdown();

@@ -1149,7 +1149,10 @@ int ast_tone_zone_data_add_structure(struct ast_data *tree, struct ast_tone_zone
 	return 0;
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void indications_shutdown(void)
 {
 	ast_cli_unregister_multiple(cli_indications, ARRAY_LEN(cli_indications));

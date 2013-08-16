@@ -1071,7 +1071,10 @@ static int format_list_init(void)
 	return 0;
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void format_list_shutdown(void)
 {
 	ast_rwlock_destroy(&format_list_array_lock);
@@ -1105,7 +1108,10 @@ init_list_cleanup:
 	return -1;
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void format_attr_shutdown(void)
 {
 	ast_cli_unregister_multiple(my_clis, ARRAY_LEN(my_clis));

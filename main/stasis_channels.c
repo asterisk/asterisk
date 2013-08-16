@@ -138,7 +138,10 @@ static const char *channel_snapshot_get_name(struct stasis_message *message)
 	return snapshot->name;
 }
 
-/*! \internal \brief Hash function for \ref ast_channel_snapshot objects */
+/*!
+ * \internal
+ * \brief Hash function for \ref ast_channel_snapshot objects
+ */
 static int channel_snapshot_hash_cb(const void *obj, const int flags)
 {
 	const struct ast_channel_snapshot *snapshot = obj;
@@ -146,7 +149,10 @@ static int channel_snapshot_hash_cb(const void *obj, const int flags)
 	return ast_str_case_hash(name);
 }
 
-/*! \internal \brief Comparison function for \ref ast_channel_snapshot objects */
+/*!
+ * \internal
+ * \brief Comparison function for \ref ast_channel_snapshot objects
+ */
 static int channel_snapshot_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct ast_channel_snapshot *left = obj;
@@ -401,7 +407,10 @@ struct ast_multi_channel_blob {
 	struct ast_json *blob;						/*< A blob of JSON data */
 };
 
-/*! \internal \brief Standard comparison function for \ref channel_role_snapshot objects */
+/*!
+ * \internal
+ * \brief Standard comparison function for \ref channel_role_snapshot objects
+ */
 static int channel_role_single_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct channel_role_snapshot *left = obj;
@@ -410,7 +419,10 @@ static int channel_role_single_cmp_cb(void *obj, void *arg, int flags)
 	return strcasecmp(left->role, match) ? 0 : (CMP_MATCH | CMP_STOP);
 }
 
-/*! \internal \brief Multi comparison function for \ref channel_role_snapshot objects */
+/*!
+ * \internal
+ * \brief Multi comparison function for \ref channel_role_snapshot objects
+ */
 static int channel_role_multi_cmp_cb(void *obj, void *arg, int flags)
 {
 	struct channel_role_snapshot *left = obj;
@@ -419,7 +431,10 @@ static int channel_role_multi_cmp_cb(void *obj, void *arg, int flags)
 	return strcasecmp(left->role, match) ? 0 : (CMP_MATCH);
 }
 
-/*! \internal \brief Hash function for \ref channel_role_snapshot objects */
+/*!
+ * \internal
+ * \brief Hash function for \ref channel_role_snapshot objects
+ */
 static int channel_role_hash_cb(const void *obj, const int flags)
 {
 	const struct channel_role_snapshot *snapshot = obj;
@@ -427,7 +442,10 @@ static int channel_role_hash_cb(const void *obj, const int flags)
 	return ast_str_case_hash(name);
 }
 
-/*! \internal \brief Destructor for \ref ast_multi_channel_blob objects */
+/*!
+ * \internal
+ * \brief Destructor for \ref ast_multi_channel_blob objects
+ */
 static void multi_channel_blob_dtor(void *obj)
 {
 	struct ast_multi_channel_blob *multi_blob = obj;

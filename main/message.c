@@ -1301,10 +1301,14 @@ void ast_msg_shutdown(void)
 	}
 }
 
-/*! \internal \brief Clean up other resources on Asterisk shutdown
+/*!
+ * \internal
+ * \brief Clean up other resources on Asterisk shutdown
+ *
  * \note This does not include the msg_q_tp object, which must be disposed
  * of prior to Asterisk checking for channel destruction in its shutdown
- * sequence.  The atexit handlers are executed after this occurs. */
+ * sequence.  The atexit handlers are executed after this occurs.
+ */
 static void message_shutdown(void)
 {
 	ast_custom_function_unregister(&msg_function);

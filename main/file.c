@@ -343,7 +343,10 @@ static int exts_compare(const char *exts, const char *type)
 	return 0;
 }
 
-/*! \internal \brief Close the file stream by canceling any pending read / write callbacks */
+/*!
+ * \internal
+ * \brief Close the file stream by canceling any pending read / write callbacks
+ */
 static void filestream_close(struct ast_filestream *f)
 {
 	enum ast_format_type format_type = AST_FORMAT_GET_TYPE(f->fmt->format.id);

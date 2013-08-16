@@ -383,7 +383,10 @@ pickup_failed:
 	return res;
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void pickup_shutdown(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_call_pickup_type);

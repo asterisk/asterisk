@@ -1685,7 +1685,8 @@ static void test_sub(const struct ast_event *event, void *data)
 }
 
 /*!
- * \internal \brief Callback function called before each test executes
+ * \internal
+ * \brief Callback function called before each test executes
  */
 static int test_cel_init_cb(struct ast_test_info *info, struct ast_test *test)
 {
@@ -1908,7 +1909,10 @@ static struct ast_event *create_sync_event(void)
 }
 
 /*!
- * \internal \brief Callback function called after each test executes.
+ * \internal
+ * \brief Callback function called after each test executes.
+ *
+ * \details
  * In addition to cleanup, this function also performs verification
  * that the events received during a test match the events that were
  * expected to have been generated during the test.

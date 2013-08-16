@@ -3105,7 +3105,10 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 	return 0;
 }
 
-/*! \internal \brief Update RTCP interarrival jitter stats */
+/*!
+ * \internal
+ * \brief Update RTCP interarrival jitter stats
+ */
 static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 {
 	double reported_jitter;
@@ -3127,7 +3130,10 @@ static void update_jitter_stats(struct ast_rtp *rtp, unsigned int ia_jitter)
 	rtp->rtcp->reported_normdev_jitter = reported_normdev_jitter_current;
 }
 
-/*! \internal \brief Update RTCP lost packet stats */
+/*!
+ * \internal
+ * \brief Update RTCP lost packet stats
+ */
 static void update_lost_stats(struct ast_rtp *rtp, unsigned int lost_packets)
 {
 	double reported_lost;

@@ -1671,7 +1671,10 @@ int ast_rtp_engine_unload_format(const struct ast_format *format)
 	return 0;
 }
 
-/*! \internal \brief \ref stasis message payload for RTCP messages */
+/*!
+ * \internal
+ * \brief \ref stasis message payload for RTCP messages
+ */
 struct rtcp_message_payload {
 	struct ast_channel_snapshot *snapshot;  /*< The channel snapshot, if available */
 	struct ast_rtp_rtcp_report *report;     /*< The RTCP report */

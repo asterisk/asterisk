@@ -50,8 +50,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_CONFIG_RESYNC_THRESHOLD (DEFAULT_FRAME_MS) * 2
 #define DEFAULT_CONFIG_TARGET_EXTRA -1
 
-/*! \internal \brief Destructor for a jitter buffer
+/*!
+ * \internal
+ * \brief Destructor for a jitter buffer
+ *
  * \param jb The jitter buffer to destroy
+ *
  * \note This will destroy all frames still in the jitter buffer
  */
 static void dispose_jitterbuffer(struct ast_jb *jb)
@@ -67,9 +71,13 @@ static void dispose_jitterbuffer(struct ast_jb *jb)
 	jb->jbobj = NULL;
 }
 
-/*! \internal \brief Create a test frame
+/*!
+ * \internal
+ * \brief Create a test frame
+ *
  * \param timestamp the time in ms of the frame
  * \param seqno the frame's sequence number
+ *
  * \returns a malloc'd frame
  */
 static struct ast_frame *create_test_frame(long timestamp,
@@ -150,19 +158,28 @@ static struct ast_frame *create_test_frame(long timestamp,
 	(conf)->target_extra = DEFAULT_CONFIG_TARGET_EXTRA; \
 	} while (0)
 
-/*! \internal \brief A container object for the jitter buffers, used for all tests*/
+/*!
+ * \internal
+ * \brief A container object for the jitter buffers, used for all tests
+ */
 static struct ast_jb default_jb = {
 	.impl = NULL,
 	.jbobj = NULL
 };
 
-/*! \internal \brief Construct a test name */
+/*!
+ * \internal
+ * \brief Construct a test name
+ */
 #define TEST_NAME(type_name, specifier) type_name ## _  ## specifier
 
 #define TEST_NAME2(test_name) #test_name
 #define STRINGIFY_TESTNAME(test_name) TEST_NAME2(test_name)
 
-/*! \internal \brief Test nominal construction of a jitter buffer
+/*!
+ * \internal
+ * \brief Test nominal construction of a jitter buffer
+ *
  * \param type_name The enum type of the jitter buffer to create
  * \param literal_type_name The literal name of the type - "fixed" or "adaptive"
  */
@@ -198,7 +215,10 @@ static struct ast_jb default_jb = {
 	return AST_TEST_PASS; \
 }
 
-/*! \internal \brief Test putting the initial frame into a jitter buffer
+/*!
+ * \internal
+ * \brief Test putting the initial frame into a jitter buffer
+ *
  * \param type_name The enum type of the jitter buffer to create
  * \param literal_type_name The literal name of the type - "fixed" or "adaptive"
  */
@@ -254,7 +274,10 @@ static struct ast_jb default_jb = {
 	return AST_TEST_PASS; \
 }
 
-/*! \internal \brief Test putting a voice frames into a jitter buffer
+/*!
+ * \internal
+ * \brief Test putting a voice frames into a jitter buffer
+ *
  * \param type_name The enum type of the jitter buffer to create
  * \param literal_type_name The literal name of the type - "fixed" or "adaptive"
  */
@@ -316,7 +339,10 @@ static struct ast_jb default_jb = {
 	return AST_TEST_PASS; \
 }
 
-/*! \internal \brief Test overflowing the limits of a jitter buffer
+/*!
+ * \internal
+ * \brief Test overflowing the limits of a jitter buffer
+ *
  * \param type_name The enum type of the jitter buffer to create
  * \param literal_type_name The literal name of the type - "fixed" or "adaptive"
  * \param overflow_limit The number of frames at which we expect the buffer to overflow
@@ -381,7 +407,10 @@ static struct ast_jb default_jb = {
 	return AST_TEST_PASS; \
 }
 
-/*! \internal \brief Test putting voice frames into a jitter buffer out of order
+/*!
+ * \internal
+ * \brief Test putting voice frames into a jitter buffer out of order
+ *
  * \param type_name The enum type of the jitter buffer to create
  * \param literal_type_name The literal name of the type - "fixed" or "adaptive"
  * \param synch_limit The synchronization limit for this particular type of jitter buffer

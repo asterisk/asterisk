@@ -4841,7 +4841,10 @@ const char *ast_extension_state2str(int extension_state)
 	return "Unknown";
 }
 
-/*! \internal \brief Check extension state for an extension by using hint */
+/*!
+ * \internal
+ * \brief Check extension state for an extension by using hint
+ */
 static int internal_extension_state_extended(struct ast_channel *c, const char *context, const char *exten,
 	struct ao2_container *device_state_info)
 {
@@ -5226,7 +5229,10 @@ static void destroy_state_cb(void *doomed)
 	}
 }
 
-/*! \internal \brief Add watcher for extension states with destructor */
+/*!
+ * \internal
+ * \brief Add watcher for extension states with destructor
+ */
 static int extension_state_add_destroy(const char *context, const char *exten,
 	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data, int extended)
 {
@@ -11431,8 +11437,12 @@ static const struct ast_data_entry pbx_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/core/hints", &hints_data_provider),
 };
 
-/*! \internal \brief Clean up resources on Asterisk shutdown.
- * \note Cleans up resources allocated in load_pbx */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown.
+ *
+ * \note Cleans up resources allocated in load_pbx
+ */
 static void unload_pbx(void)
 {
 	int x;

@@ -108,7 +108,10 @@ void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, 
 	ast_bridge_channel_unlock(bridge_channel);
 }
 
-/*! \internal \brief Poke the bridge_channel thread */
+/*!
+ * \internal
+ * \brief Poke the bridge_channel thread
+ */
 static void bridge_channel_poke(struct ast_bridge_channel *bridge_channel)
 {
 	if (!pthread_equal(pthread_self(), bridge_channel->thread)) {
@@ -487,7 +490,10 @@ int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
 	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
 }
 
-/*! \internal \brief Helper function to kick off a PBX app on a bridge_channel */
+/*!
+ * \internal
+ * \brief Helper function to kick off a PBX app on a bridge_channel
+ */
 static int run_app_helper(struct ast_channel *chan, const char *app_name, const char *app_args)
 {
 	int res = 0;
@@ -983,7 +989,10 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 	}
 }
 
-/*! \internal \brief Write a DTMF stream out to a channel */
+/*!
+ * \internal
+ * \brief Write a DTMF stream out to a channel
+ */
 static int bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_channel, const char *dtmf)
 {
 	return bridge_channel_write_action_data(bridge_channel,
@@ -1099,7 +1108,10 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel, co
 	}
 }
 
-/*! \internal \brief Indicate that a bridge_channel is talking */
+/*!
+ * \internal
+ * \brief Indicate that a bridge_channel is talking
+ */
 static void bridge_channel_talking(struct ast_bridge_channel *bridge_channel, int talking)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
@@ -1140,7 +1152,10 @@ struct blind_transfer_data {
 	char context[AST_MAX_CONTEXT];
 };
 
-/*! \internal \brief Execute after bridge actions on a channel when it leaves a bridge */
+/*!
+ * \internal
+ * \brief Execute after bridge actions on a channel when it leaves a bridge
+ */
 static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *data)
 {
 	RAII_VAR(struct ast_channel *, chan_target, data, ao2_cleanup);
@@ -1177,7 +1192,10 @@ static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *da
 	ast_party_connected_line_free(&connected_target);
 }
 
-/*! \internal \brief Execute logic to cleanup when after bridge fails */
+/*!
+ * \internal
+ * \brief Execute logic to cleanup when after bridge fails
+ */
 static void after_bridge_move_channel_fail(enum ast_bridge_after_cb_reason reason, void *data)
 {
 	RAII_VAR(struct ast_channel *, chan_target, data, ao2_cleanup);
@@ -1187,7 +1205,10 @@ static void after_bridge_move_channel_fail(enum ast_bridge_after_cb_reason reaso
 	ast_softhangup(chan_target, AST_SOFTHANGUP_DEV);
 }
 
-/*! \internal \brief Perform a blind transfer on a channel in a bridge */
+/*!
+ * \internal
+ * \brief Perform a blind transfer on a channel in a bridge
+ */
 static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_channel,
 		struct blind_transfer_data *blind_data)
 {
@@ -1195,7 +1216,10 @@ static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_chan
 	bridge_channel_handle_hangup(bridge_channel);
 }
 
-/*! \internal \brief Perform an attended transfer on a channel in a bridge */
+/*!
+ * \internal
+ * \brief Perform an attended transfer on a channel in a bridge
+ */
 static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_channel,
 		const char *target_chan_name)
 {

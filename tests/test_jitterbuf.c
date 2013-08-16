@@ -96,7 +96,10 @@ static const char *jitter_buffer_return_codes[] = {
 	"JB_SCHED"          /* 5 */
 };
 
-/*! \internal \brief Make a default jitter buffer configuration */
+/*!
+ * \internal
+ * \brief Make a default jitter buffer configuration
+ */
 static void test_jb_populate_config(struct jb_conf *jbconf)
 {
 	if (!jbconf) {
@@ -109,7 +112,10 @@ static void test_jb_populate_config(struct jb_conf *jbconf)
 	jbconf->target_extra = 0;
 }
 
-/*! \internal \brief Debug callback function for the jitter buffer's jb_dbg function */
+/*!
+ * \internal
+ * \brief Debug callback function for the jitter buffer's jb_dbg function
+ */
 static void __attribute__((format(printf, 1, 2))) test_jb_debug_output(const char *fmt, ...)
 {
 	va_list args;
@@ -122,7 +128,10 @@ static void __attribute__((format(printf, 1, 2))) test_jb_debug_output(const cha
 	ast_debug(1, "%s", buf);
 }
 
-/*! \internal \brief Warning callback function for the jitter buffer's jb_warn function */
+/*!
+ * \internal
+ * \brief Warning callback function for the jitter buffer's jb_warn function
+ */
 static void __attribute__((format(printf, 1, 2))) test_jb_warn_output(const char *fmt, ...)
 {
 	va_list args;
@@ -135,7 +144,10 @@ static void __attribute__((format(printf, 1, 2))) test_jb_warn_output(const char
 	ast_log(AST_LOG_WARNING, "%s", buf);
 }
 
-/*! \internal \brief Error callback function for the jitter buffer's jb_err function */
+/*!
+ * \internal
+ * \brief Error callback function for the jitter buffer's jb_err function
+ */
 static void __attribute__((format(printf, 1, 2))) test_jb_error_output(const char *fmt, ...)
 {
 	va_list args;
@@ -148,7 +160,10 @@ static void __attribute__((format(printf, 1, 2))) test_jb_error_output(const cha
 	ast_log(AST_LOG_ERROR, "%s", buf);
 }
 
-/*! \internal \brief Insert frames into the jitter buffer for the nominal tests */
+/*!
+ * \internal
+ * \brief Insert frames into the jitter buffer for the nominal tests
+ */
 static int test_jb_nominal_frame_insertion(struct ast_test *test, struct jitterbuf *jb, enum jb_frame_type frame_type)
 {
 	int i = 0, ret = 0;
@@ -323,7 +338,10 @@ cleanup:
 	return result;
 }
 
-/*! \internal \brief Insert frames into the jitter buffer for the out of order tests */
+/*!
+ * \internal
+ * \brief Insert frames into the jitter buffer for the out of order tests
+ */
 static int test_jb_out_of_order_frame_insertion(struct ast_test *test, struct jitterbuf *jb, enum jb_frame_type frame_type)
 {
 	int i = 0, ret = 0;
@@ -517,7 +535,10 @@ cleanup:
 	return result;
 }
 
-/*! \internal \brief Insert frames into the jitter buffer for the lost frame tests */
+/*!
+ * \internal
+ * \brief Insert frames into the jitter buffer for the lost frame tests
+ */
 static int test_jb_lost_frame_insertion(struct ast_test *test, struct jitterbuf *jb, enum jb_frame_type frame_type)
 {
 	int i = 0, ret = 0;
@@ -708,7 +729,10 @@ cleanup:
 	return result;
 }
 
-/*! \internal \brief Insert frames into the jitter buffer for the late frame tests */
+/*!
+ * \internal
+ * \brief Insert frames into the jitter buffer for the late frame tests
+ */
 static int test_jb_late_frame_insertion(struct ast_test *test, struct jitterbuf *jb, enum jb_frame_type frame_type)
 {
 	int i = 0, ret = 0;
@@ -891,7 +915,10 @@ cleanup:
 	return result;
 }
 
-/*! \internal \brief Insert frames into the jitter buffer for the overflow tests */
+/*!
+ * \internal
+ * \brief Insert frames into the jitter buffer for the overflow tests
+ */
 static void test_jb_overflow_frame_insertion(struct jitterbuf *jb, enum jb_frame_type frame_type)
 {
 	int i = 0;
@@ -1040,7 +1067,10 @@ cleanup:
 	return result;
 }
 
-/*! \internal \brief Insert frames into the jitter buffer for the resynch tests */
+/*!
+ * \internal
+ * \brief Insert frames into the jitter buffer for the resynch tests
+ */
 static void test_jb_resynch_frame_insertion(struct jitterbuf *jb, enum jb_frame_type frame_type)
 {
 	int i = 0;

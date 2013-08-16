@@ -7678,7 +7678,10 @@ static void test_suite_event_cb(void *data, struct stasis_subscription *sub,
 
 #endif
 
-/*! \internal \brief Free a user record.  Should already be removed from the list */
+/*!
+ * \internal
+ * \brief Free a user record.  Should already be removed from the list
+ */
 static void manager_free_user(struct ast_manager_user *user)
 {
 	if (user->a1_hash) {
@@ -7696,7 +7699,10 @@ static void manager_free_user(struct ast_manager_user *user)
 	ast_free(user);
 }
 
-/*! \internal \brief Clean up resources on Asterisk shutdown */
+/*!
+ * \internal
+ * \brief Clean up resources on Asterisk shutdown
+ */
 static void manager_shutdown(void)
 {
 	struct ast_manager_user *user;

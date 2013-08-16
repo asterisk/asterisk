@@ -1545,7 +1545,10 @@ static int dial_state_process_dial_begin(struct cdr_object *cdr, struct ast_chan
 	return 1;
 }
 
-/*! \internal \brief Convert a dial status to a CDR disposition */
+/*!
+ * \internal
+ * \brief Convert a dial status to a CDR disposition
+ */
 static enum ast_cdr_disposition dial_status_to_disposition(const char *dial_status)
 {
 	RAII_VAR(struct module_config *, mod_cfg,
@@ -1898,13 +1901,19 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 	return 0;
 }
 
-/*! \internal \brief Filter channel snapshots by technology */
+/*!
+ * \internal
+ * \brief Filter channel snapshots by technology
+ */
 static int filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 {
 	return snapshot->tech_properties & AST_CHAN_TP_INTERNAL;
 }
 
-/*! \internal \brief Filter a channel cache update */
+/*!
+ * \internal
+ * \brief Filter a channel cache update
+ */
 static int filter_channel_cache_message(struct ast_channel_snapshot *old_snapshot,
 		struct ast_channel_snapshot *new_snapshot)
 {
@@ -2209,7 +2218,9 @@ static struct bridge_candidate *bridge_candidate_alloc(struct cdr_object *cdr, s
 }
 
 /*!
- * \internal \brief Build and add bridge candidates based on a CDR
+ * \internal
+ * \brief Build and add bridge candidates based on a CDR
+ *
  * \param bridge_id The ID of the bridge we need candidates for
  * \param candidates The container of \ref bridge_candidate objects
  * \param cdr The \ref cdr_object that is our candidate
@@ -2303,7 +2314,9 @@ static struct ao2_container *create_candidates_for_bridge(struct ast_bridge_snap
 }
 
 /*!
- * \internal \brief Create a new CDR, append it to an existing CDR, and update its snapshots
+ * \internal
+ * \brief Create a new CDR, append it to an existing CDR, and update its snapshots
+ *
  * \note The new CDR will be automatically transitioned to the bridge state
  */
 static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
