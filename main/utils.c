@@ -74,10 +74,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char base64[64];
 static char b2a[256];
 
-#ifndef __AST_DEBUG_MALLOC
-void *_ast_mem_backtrace_buffer[_AST_MEM_BACKTRACE_BUFLEN];
-#endif
-
 AST_THREADSTORAGE(inet_ntoa_buf);
 
 #if !defined(HAVE_GETHOSTBYNAME_R_5) && !defined(HAVE_GETHOSTBYNAME_R_6)
