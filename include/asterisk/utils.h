@@ -484,23 +484,26 @@ static void ast_free_ptr(void *ptr)
 
 #ifndef __AST_DEBUG_MALLOC
 
-/* This buffer is in static memory. We never intend to read it,
+/*
+ * This buffer is in static memory. We never intend to read it,
  * nor do we care about multiple threads writing to it at the
  * same time. We only want to know if we're recursing too deep
- * already. 60 entries should be more than enough. Function call
- * depth rarely exceeds 20 or so. */
+ * already. 60 entries should be more than enough.  Function
+ * call depth rarely exceeds 20 or so.
+ */
 #define _AST_MEM_BACKTRACE_BUFLEN 60
 extern void *_ast_mem_backtrace_buffer[_AST_MEM_BACKTRACE_BUFLEN];
 
+/*
+ * Ok, this sucks. But if we're already out of mem, we don't
+ * want the logger to create infinite recursion (and a crash).
+ */
 #define MALLOC_FAILURE_MSG \
-	{ \
-		/* Ok, this sucks. But if we're already out of mem, we don't \
-		 * want the logger to create infinite recursion (and a crash). */ \
-		if (backtrace(_ast_mem_backtrace_buffer, _AST_MEM_BACKTRACE_BUFLEN) < \
-				_AST_MEM_BACKTRACE_BUFLEN) { \
+	do { \
+		if (backtrace(_ast_mem_backtrace_buffer, _AST_MEM_BACKTRACE_BUFLEN) < _AST_MEM_BACKTRACE_BUFLEN) { \
 			ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file); \
 		} \
-	}
+	} while (0)
 
 /*!
  * \brief A wrapper for malloc()
@@ -518,8 +521,9 @@ void * attribute_malloc _ast_malloc(size_t len, const char *file, int lineno, co
 {
 	void *p;
 
-	if (!(p = malloc(len)))
+	if (!(p = malloc(len))) {
 		MALLOC_FAILURE_MSG;
+	}
 
 	return p;
 }
@@ -541,8 +545,9 @@ void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, in
 {
 	void *p;
 
-	if (!(p = calloc(num, len)))
+	if (!(p = calloc(num, len))) {
 		MALLOC_FAILURE_MSG;
+	}
 
 	return p;
 }
@@ -577,8 +582,9 @@ void * attribute_malloc _ast_realloc(void *p, size_t len, const char *file, int 
 {
 	void *newp;
 
-	if (!(newp = realloc(p, len)))
+	if (!(newp = realloc(p, len))) {
 		MALLOC_FAILURE_MSG;
+	}
 
 	return newp;
 }
@@ -605,8 +611,9 @@ char * attribute_malloc _ast_strdup(const char *str, const char *file, int linen
 	char *newstr = NULL;
 
 	if (str) {
-		if (!(newstr = strdup(str)))
+		if (!(newstr = strdup(str))) {
 			MALLOC_FAILURE_MSG;
+		}
 	}
 
 	return newstr;
@@ -634,8 +641,9 @@ char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *fi
 	char *newstr = NULL;
 
 	if (str) {
-		if (!(newstr = strndup(str, len)))
+		if (!(newstr = strndup(str, len))) {
 			MALLOC_FAILURE_MSG;
+		}
 	}
 
 	return newstr;
@@ -673,8 +681,9 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 {
 	int res;
 
-	if ((res = vasprintf(ret, fmt, ap)) == -1)
+	if ((res = vasprintf(ret, fmt, ap)) == -1) {
 		MALLOC_FAILURE_MSG;
+	}
 
 	return res;
 }
