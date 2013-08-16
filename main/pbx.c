@@ -7281,6 +7281,81 @@ static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+#if 0
+/* This code can be used to test if the system survives running out of memory.
+ * It might be an idea to put this in only if ENABLE_AUTODESTRUCT_TESTS is enabled.
+ *
+ * If you want to test this, these Linux sysctl flags might be appropriate:
+ *   vm.overcommit_memory = 2
+ *   vm.swappiness = 0
+ *
+ * <@Corydon76-home> I envision 'core eat disk space' and 'core eat file descriptors' now
+ * <@mjordan> egads
+ * <@mjordan> it's literally the 'big red' auto-destruct button
+ * <@mjordan> if you were wondering who even builds such a thing.... well, now you know
+ * ...
+ * <@Corydon76-home> What about if they lived only if you defined TEST_FRAMEWORK?  Shouldn't have those on production machines
+ * <@mjordan> I think accompanied with an update to one of our README files that "no, really, TEST_FRAMEWORK isn't for you", I'd be fine
+ */
+static char *handle_eat_memory(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	void **blocks;
+	int blocks_pos = 0;
+	const int blocks_max = 50000;
+	long long int allocated = 0;
+	int sizes[] = {
+		100 * 1024 * 1024,
+		100 * 1024,
+		2 * 1024,
+		400,
+		0
+	};
+	int i;
+
+	switch (cmd) {
+	case CLI_INIT:
+		/* To do: add method to free memory again? 5 minutes? */
+		e->command = "core eat memory";
+		e->usage =
+			"Usage: core eat memory\n"
+			"       Eats all available memory so you can test if the system survives\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	blocks = ast_malloc(sizeof(void*) * blocks_max);
+	if (!blocks) {
+		ast_log(LOG_ERROR, "Already out of mem?\n");
+		return CLI_SUCCESS;
+	}
+
+	for (i = 0; sizes[i]; ++i) {
+		int alloc_size = sizes[i];
+		ast_log(LOG_WARNING, "Allocating %d sized blocks (got %d blocks already)\n", alloc_size, blocks_pos);
+		while (1) {
+			void *block;
+			if (blocks_pos >= blocks_max) {
+				ast_log(LOG_ERROR, "Memory buffer too small? Run me again :)\n");
+				break;
+			}
+
+			block = ast_malloc(alloc_size);
+			if (!block) {
+				break;
+			}
+
+			blocks[blocks_pos++] = block;
+			allocated += alloc_size;
+		}
+	}
+
+	/* No freeing of the mem! */
+	ast_log(LOG_WARNING, "Allocated %lld bytes total!\n", allocated);
+	return CLI_SUCCESS;
+}
+#endif
+
 static char *handle_show_applications(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_app *aa;
@@ -8162,6 +8237,9 @@ static char *handle_unset_extenpatternmatchnew(struct ast_cli_entry *e, int cmd,
  * CLI entries for upper commands ...
  */
 static struct ast_cli_entry pbx_cli[] = {
+#if 0
+	AST_CLI_DEFINE(handle_eat_memory, "Eats all available memory"),
+#endif
 	AST_CLI_DEFINE(handle_show_applications, "Shows registered dialplan applications"),
 	AST_CLI_DEFINE(handle_show_functions, "Shows registered dialplan functions"),
 	AST_CLI_DEFINE(handle_show_switches, "Show alternative switches"),
