@@ -510,6 +510,25 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 
 #endif
 
+/*!
+ * \since 12
+ * \brief Bump refcount on an AO2 object by one, returning the object.
+ *
+ * This is useful for inlining a ref bump, and you don't care about the ref
+ * count. Also \c NULL safe, for even more convenience.
+ *
+ * \param obj AO2 object to bump the refcount on.
+ * \retval The given \a obj pointer.
+ */
+#define ao2_bump(obj)						\
+	({							\
+		typeof(obj) __obj_ ## __LINE__ = (obj);		\
+		if (__obj_ ## __LINE__) {			\
+			ao2_ref(__obj_ ## __LINE__, +1);	\
+		}						\
+		__obj_ ## __LINE__;				\
+	})
+
 int __ao2_ref_debug(void *o, int delta, const char *tag, const char *file, int line, const char *func);
 int __ao2_ref(void *o, int delta);
 

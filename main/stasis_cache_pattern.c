@@ -177,6 +177,9 @@ void stasis_cp_single_unsubscribe(struct stasis_cp_single *one)
 	stasis_unsubscribe(one->forward_cached_to_all);
 	one->forward_cached_to_all = NULL;
 	stasis_caching_unsubscribe(one->topic_cached);
+	one->topic_cached = NULL;
+
+	ao2_cleanup(one);
 }
 
 struct stasis_topic *stasis_cp_single_topic(struct stasis_cp_single *one)

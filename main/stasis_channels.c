@@ -912,6 +912,13 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_agent_logoff_type,
 
 static void stasis_channels_cleanup(void)
 {
+	stasis_caching_unsubscribe_and_join(channel_by_name_topic);
+	channel_by_name_topic = NULL;
+	ao2_cleanup(channel_cache_by_name);
+	channel_cache_by_name = NULL;
+	ao2_cleanup(channel_cache_all);
+	channel_cache_all = NULL;
+
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_snapshot_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_dial_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_varset_type);
@@ -931,13 +938,6 @@ static void stasis_channels_cleanup(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_monitor_stop_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_agent_login_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_channel_agent_logoff_type);
-
-	stasis_caching_unsubscribe_and_join(channel_by_name_topic);
-	channel_by_name_topic = NULL;
-	ao2_cleanup(channel_cache_by_name);
-	channel_cache_by_name = NULL;
-	ao2_cleanup(channel_cache_all);
-	channel_cache_all = NULL;
 }
 
 int ast_stasis_channels_init(void)

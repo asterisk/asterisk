@@ -59,8 +59,14 @@ struct stasis_caching_topic {
 
 static void stasis_caching_topic_dtor(void *obj) {
 	struct stasis_caching_topic *caching_topic = obj;
+
+	/* Caching topics contain subscriptions, and must be manually
+	 * unsubscribed. */
 	ast_assert(!stasis_subscription_is_subscribed(caching_topic->sub));
+	/* If there are any messages in flight to this subscription; that would
+	 * be bad. */
 	ast_assert(stasis_subscription_is_done(caching_topic->sub));
+
 	ao2_cleanup(caching_topic->sub);
 	caching_topic->sub = NULL;
 	ao2_cleanup(caching_topic->cache);

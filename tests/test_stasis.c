@@ -1271,6 +1271,97 @@ AST_TEST_DEFINE(to_ami)
 	return AST_TEST_PASS;
 }
 
+static void noop(void *data, struct stasis_subscription *sub,
+	struct stasis_topic *topic, struct stasis_message *message)
+{
+	/* no-op */
+}
+
+AST_TEST_DEFINE(dtor_order)
+{
+	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary = "Test that destruction order doesn't bomb stuff";
+		info->description = "Test that destruction order doesn't bomb stuff";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topic = stasis_topic_create("test-topic");
+	ast_test_validate(test, NULL != topic);
+
+	sub = stasis_subscribe(topic, noop, NULL);
+	ast_test_validate(test, NULL != sub);
+
+	/* With any luck, this won't completely blow everything up */
+	ao2_cleanup(topic);
+	stasis_unsubscribe(sub);
+
+	/* These refs were cleaned up manually */
+	topic = NULL;
+	sub = NULL;
+
+	return AST_TEST_PASS;
+}
+
+static const char *noop_get_id(struct stasis_message *message)
+{
+	return NULL;
+}
+
+AST_TEST_DEFINE(caching_dtor_order)
+{
+	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL,
+		stasis_caching_unsubscribe);
+	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary = "Test that destruction order doesn't bomb stuff";
+		info->description = "Test that destruction order doesn't bomb stuff";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	cache = stasis_cache_create(noop_get_id);
+	ast_test_validate(test, NULL != cache);
+
+	topic = stasis_topic_create("test-topic");
+	ast_test_validate(test, NULL != topic);
+
+	caching_topic = stasis_caching_topic_create(topic, cache);
+	ast_test_validate(test, NULL != caching_topic);
+
+	sub = stasis_subscribe(stasis_caching_get_topic(caching_topic), noop,
+		NULL);
+	ast_test_validate(test, NULL != sub);
+
+	/* With any luck, this won't completely blow everything up */
+	ao2_cleanup(cache);
+	ao2_cleanup(topic);
+	stasis_caching_unsubscribe(caching_topic);
+	stasis_unsubscribe(sub);
+
+	/* These refs were cleaned up manually */
+	cache = NULL;
+	topic = NULL;
+	caching_topic = NULL;
+	sub = NULL;
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(message_type);
@@ -1290,6 +1381,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(to_json);
 	AST_TEST_UNREGISTER(no_to_ami);
 	AST_TEST_UNREGISTER(to_ami);
+	AST_TEST_UNREGISTER(dtor_order);
+	AST_TEST_UNREGISTER(caching_dtor_order);
 	return 0;
 }
 
@@ -1312,6 +1405,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(to_json);
 	AST_TEST_REGISTER(no_to_ami);
 	AST_TEST_REGISTER(to_ami);
+	AST_TEST_REGISTER(dtor_order);
+	AST_TEST_REGISTER(caching_dtor_order);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
