@@ -265,7 +265,7 @@ For additional information on the bridging API, see
 \arg <code>include/asterisk/bridge_after.h</code>
 
 For additional implementation details regarding the core bridging API, see
-<code>main/bridging.c</code> and <code>main/bridging_channel.c</code>.
+<code>main/bridge.c</code> and <code>main/bridge_channel.c</code>.
 
 \subsection ArchInterfaceCDR Call Detail Record (CDR) Handlers
 

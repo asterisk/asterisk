@@ -26,7 +26,7 @@
  * \author Matt Jordan <mjordan@digium.com>
  *
  * A private API to manipulate channels in a bridge. These can be called on a channel in
- * a bridge by \ref bridging.c. These functions should not be called elsewhere, including
+ * a bridge by \ref bridge.c. These functions should not be called elsewhere, including
  * by other members of the Bridging API.
  *
  * See Also:
