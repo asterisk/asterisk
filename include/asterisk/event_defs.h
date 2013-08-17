@@ -271,7 +271,6 @@ enum ast_event_subscriber_res {
 
 struct ast_event;
 struct ast_event_ie;
-struct ast_event_sub;
 struct ast_event_iterator;
 
 /*!

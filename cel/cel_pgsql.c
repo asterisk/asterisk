@@ -58,6 +58,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "%Y-%m-%d %T.%6q"
 
+#define PGSQL_BACKEND_NAME "CEL PGSQL backend"
+
 static char *config = "cel_pgsql.conf";
 static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbport = NULL, *table = NULL;
 static int connected = 0;
@@ -73,7 +75,6 @@ AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 
 static PGconn	*conn = NULL;
 static PGresult	*result = NULL;
-static struct ast_event_sub *event_sub = NULL;
 
 struct columns {
 	char *name;
@@ -113,7 +114,7 @@ static AST_RWLIST_HEAD_STATIC(psql_columns, columns);
 		} \
 	} while (0)
 
-static void pgsql_log(const struct ast_event *event, void *userdata)
+static void pgsql_log(struct ast_event *event)
 {
 	struct ast_tm tm;
 	char timestr[128];
@@ -346,10 +347,7 @@ static int my_unload_module(void)
 {
 	struct columns *current;
 	AST_RWLIST_WRLOCK(&psql_columns);
-	if (event_sub) {
-		event_sub = ast_event_unsubscribe(event_sub);
-		event_sub = NULL;
-	}
+	ast_cel_backend_unregister(PGSQL_BACKEND_NAME);
 	if (conn) {
 		PQfinish(conn);
 		conn = NULL;
@@ -561,9 +559,7 @@ static int my_load_module(int reload)
 	process_my_load_module(cfg);
 	ast_config_destroy(cfg);
 
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, pgsql_log, "CEL PGSQL backend", NULL, AST_EVENT_IE_END);
-
-	if (!event_sub) {
+	if (ast_cel_backend_register(PGSQL_BACKEND_NAME, pgsql_log)) {
 		ast_log(LOG_WARNING, "Unable to subscribe to CEL events for pgsql\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}

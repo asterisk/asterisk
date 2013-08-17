@@ -56,6 +56,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define CHANNEL_TECH_NAME "CELTestChannel"
 
+#define TEST_BACKEND_NAME "CEL Test Logging"
+
 /*! \brief A placeholder for Asterisk's 'real' CEL configuration */
 static struct ast_cel_general_config *saved_config;
 
@@ -1544,9 +1546,6 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 	return AST_TEST_PASS;
 }
 
-/*! Subscription for CEL events */
-static struct ast_event_sub *event_sub = NULL;
-
 /*! Container for astobj2 duplicated ast_events */
 static struct ao2_container *cel_received_events = NULL;
 
@@ -1648,24 +1647,13 @@ static int append_expected_event(
 	return append_expected_event_snapshot(snapshot, type, userdefevname, extra, peer);
 }
 
-static void test_sub(const struct ast_event *event, void *data)
+static void test_sub(struct ast_event *event)
 {
 	struct ast_event *event_dup = ao2_dup_event(event);
-	const char *sync_tag;
 	SCOPED_MUTEX(mid_test_lock, &mid_test_sync_lock);
 
 	if (!event_dup) {
 		return;
-	}
-
-	sync_tag = ast_event_get_ie_str(event, AST_EVENT_IE_SERVICE);
-	if (sync_tag) {
-		if (!strcmp(sync_tag, "SYNC")) {
-			/* trigger things */
-			SCOPED_MUTEX(lock, &sync_lock);
-			ast_cond_signal(&sync_out);
-			return;
-		}
 	}
 
 	/* save the event for later processing */
@@ -1690,7 +1678,6 @@ static void test_sub(const struct ast_event *event, void *data)
  */
 static int test_cel_init_cb(struct ast_test_info *info, struct ast_test *test)
 {
-	ast_assert(event_sub == NULL);
 	ast_assert(cel_received_events == NULL);
 	ast_assert(cel_expected_events == NULL);
 
@@ -1707,8 +1694,9 @@ static int test_cel_init_cb(struct ast_test_info *info, struct ast_test *test)
 	cel_expected_events = ao2_container_alloc(1, NULL, NULL);
 
 	/* start the CEL event callback */
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, test_sub, "CEL Test Logging",
-		NULL, AST_EVENT_IE_END);
+	if (ast_cel_backend_register(TEST_BACKEND_NAME, test_sub)) {
+		return -1;
+	}
 	return 0;
 }
 
@@ -1866,29 +1854,6 @@ static int check_events(struct ast_test *test, struct ao2_container *local_expec
 	return 0;
 }
 
-static struct ast_event *create_sync_event(void)
-{
-	struct ast_event *event_dup;
-	RAII_VAR(struct ast_event *, event, ao2_callback(cel_expected_events, 0, NULL, NULL), ao2_cleanup);
-	uint16_t event_len;
-
-	if (!event) {
-		return NULL;
-	}
-
-	event_len = ast_event_get_size(event);
-
-	event_dup = ast_calloc(1, event_len);
-	if (!event_dup) {
-		return NULL;
-	}
-
-	memcpy(event_dup, event, event_len);
-	ast_event_append_ie_str(&event_dup, AST_EVENT_IE_SERVICE, "SYNC");
-
-	return event_dup;
-}
-
 /*!
  * \internal
  * \brief Callback function called after each test executes.
@@ -1900,35 +1865,15 @@ static struct ast_event *create_sync_event(void)
  */
 static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test *test)
 {
-	struct ast_event *sync;
 	RAII_VAR(struct ao2_container *, local_expected, cel_expected_events, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, local_received, cel_received_events, ao2_cleanup);
-	ast_assert(event_sub != NULL);
 	ast_assert(cel_received_events != NULL);
 	ast_assert(cel_expected_events != NULL);
 
 	do_sleep();
 
-	/* sync with the event system */
-	sync = create_sync_event();
-	ast_test_validate(test, sync != NULL);
-	if (ast_event_queue(sync)) {
-		ast_event_destroy(sync);
-		ast_test_validate(test, NULL);
-	} else {
-		struct timeval start = ast_tvnow();
-		struct timespec end = {
-			.tv_sec = start.tv_sec + 15,
-			.tv_nsec = start.tv_usec * 1000
-		};
-
-		SCOPED_MUTEX(lock, &sync_lock);
-		ast_cond_timedwait(&sync_out, &sync_lock, &end);
-	}
-
 	/* stop the CEL event callback and clean up storage structures*/
-	ast_event_unsubscribe(event_sub);
-	event_sub = NULL;
+	ast_cel_backend_unregister(TEST_BACKEND_NAME);
 
 	/* cleaned up by RAII_VAR's */
 	cel_expected_events = NULL;

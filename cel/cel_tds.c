@@ -81,9 +81,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define DATE_FORMAT "%Y/%m/%d %T"
 
-static char *config = "cel_tds.conf";
+#define TDS_BACKEND_NAME "CEL TDS logging backend"
 
-static struct ast_event_sub *event_sub = NULL;
+static char *config = "cel_tds.conf";
 
 struct cel_tds_config {
 	AST_DECLARE_STRING_FIELDS(
@@ -112,7 +112,7 @@ static int execute_and_consume(DBPROCESS *dbproc, const char *fmt, ...)
 static int mssql_connect(void);
 static int mssql_disconnect(void);
 
-static void tds_log(const struct ast_event *event, void *userdata)
+static void tds_log(struct ast_event *event)
 {
 	char start[80];
 	char *accountcode_ai, *clidnum_ai, *exten_ai, *context_ai, *clid_ai, *channel_ai, *app_ai, *appdata_ai, *uniqueid_ai, *linkedid_ai, *cidani_ai, *cidrdnis_ai, *ciddnid_ai, *peer_ai, *userfield_ai;
@@ -397,9 +397,7 @@ failed:
 
 static int tds_unload_module(void)
 {
-	if (event_sub) {
-		event_sub = ast_event_unsubscribe(event_sub);
-	}
+	ast_cel_backend_unregister(TDS_BACKEND_NAME);
 
 	if (settings) {
 		ast_mutex_lock(&tds_lock);
@@ -561,8 +559,7 @@ static int load_module(void)
 	}
 
 	/* Register MSSQL CEL handler */
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, tds_log, "CEL TDS logging backend", NULL, AST_EVENT_IE_END);
-	if (!event_sub) {
+	if (ast_cel_backend_register(TDS_BACKEND_NAME, tds_log)) {
 		ast_log(LOG_ERROR, "Unable to register MSSQL CEL handling\n");
 		ast_string_field_free_memory(settings);
 		ast_free(settings);

@@ -147,11 +147,17 @@ static struct stasis_subscription *cel_cel_forwarder;
 /*! Container for primary channel/bridge ID listing for 2 party bridges */
 static struct ao2_container *bridge_primaries;
 
+/*! The number of buckets into which bridge primary structs will be hashed */
+#define BRIDGE_PRIMARY_BUCKETS 251
+
 struct stasis_message_type *cel_generic_type(void);
 STASIS_MESSAGE_TYPE_DEFN(cel_generic_type);
 
-/*! The number of buckets into which primary channel uniqueids will be hashed */
-#define BRIDGE_PRIMARY_BUCKETS 251
+/*! Container for CEL backend information */
+static struct ao2_container *cel_backends;
+
+/*! The number of buckets into which backend names will be hashed */
+#define BACKEND_BUCKETS 13
 
 /*! Container for dial end multichannel blobs for holding on to dial statuses */
 static struct ao2_container *cel_dialstatus_store;
@@ -323,6 +329,57 @@ static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
 	[AST_CEL_LOCAL_OPTIMIZE]   = "LOCAL_OPTIMIZE",
 };
 
+struct cel_backend {
+	ast_cel_backend_cb callback; /*!< Callback for this backend */
+	char name[0];                /*!< Name of this backend */
+};
+
+/*! \brief Hashing function for cel_backend */
+static int cel_backend_hash(const void *obj, int flags)
+{
+	const struct cel_backend *backend;
+	const char *name;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	case OBJ_POINTER:
+		backend = obj;
+		name = backend->name;
+		break;
+	case OBJ_KEY:
+		name = obj;
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+
+	return ast_str_hash(name);
+}
+
+/*! \brief Comparator function for cel_backend */
+static int cel_backend_cmp(void *obj, void *arg, int flags)
+{
+	struct cel_backend *backend2, *backend1 = obj;
+	const char *backend2_id, *backend1_id = backend1->name;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	case OBJ_POINTER:
+		backend2 = arg;
+		backend2_id = backend2->name;
+		break;
+	case OBJ_KEY:
+		backend2_id = arg;
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+
+	return !strcmp(backend1_id, backend2_id) ? CMP_MATCH | CMP_STOP : 0;
+}
+
 struct bridge_assoc {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(bridge_id);           /*!< UniqueID of the bridge */
@@ -451,18 +508,18 @@ static int print_app(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static void print_cel_sub(const struct ast_event *event, void *data)
+static int event_desc_cb(void *obj, void *arg, int flags)
 {
-	struct ast_cli_args *a = data;
+	struct ast_cli_args *a = arg;
+	struct cel_backend *backend = obj;
 
-	ast_cli(a->fd, "CEL Event Subscriber: %s\n",
-			ast_event_get_ie_str(event, AST_EVENT_IE_DESCRIPTION));
+	ast_cli(a->fd, "CEL Event Subscriber: %s\n", backend->name);
+	return 0;
 }
 
 static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	unsigned int i;
-	struct ast_event_sub *sub;
 	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
 
 	switch (cmd) {
@@ -506,14 +563,7 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	}
 
 	ao2_callback(cfg->general->apps, OBJ_NODATA, print_app, a);
-
-	if (!(sub = ast_event_subscribe_new(AST_EVENT_SUB, print_cel_sub, a))) {
-		return CLI_FAILURE;
-	}
-	ast_event_sub_append_ie_uint(sub, AST_EVENT_IE_EVENTTYPE, AST_EVENT_CEL);
-	ast_event_report_subs(sub);
-	ast_event_sub_destroy(sub);
-	sub = NULL;
+	ao2_callback(cel_backends, OBJ_MULTIPLE | OBJ_NODATA, event_desc_cb, a);
 
 	return CLI_SUCCESS;
 }
@@ -668,6 +718,14 @@ struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		AST_EVENT_IE_END);
 }
 
+static int cel_backend_send_cb(void *obj, void *arg, int flags)
+{
+	struct cel_backend *backend = obj;
+
+	backend->callback(arg);
+	return 0;
+}
+
 static int cel_report_event(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
 		struct ast_json *extra, const char *peer2_name)
@@ -711,10 +769,13 @@ static int cel_report_event(struct ast_channel_snapshot *snapshot,
 	}
 
 	ev = ast_cel_create_event(snapshot, event_type, userdefevname, extra, peer_name);
-	if (ev && ast_event_queue(ev)) {
-		ast_event_destroy(ev);
+	if (!ev) {
 		return -1;
 	}
+
+	/* Distribute event to backends */
+	ao2_callback(cel_backends, OBJ_MULTIPLE | OBJ_NODATA, cel_backend_send_cb, ev);
+	ast_event_destroy(ev);
 
 	return 0;
 }
@@ -1543,6 +1604,11 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
+	cel_backends = ao2_container_alloc(BACKEND_BUCKETS, cel_backend_hash, cel_backend_cmp);
+	if (!cel_backends) {
+		return -1;
+	}
+
 	cel_aggregation_topic = stasis_topic_create("cel_aggregation_topic");
 	if (!cel_aggregation_topic) {
 		return -1;
@@ -1702,3 +1768,35 @@ void ast_cel_set_config(struct ast_cel_general_config *config)
 	ao2_ref(mod_cfg->general, +1);
 }
 
+int ast_cel_backend_unregister(const char *name)
+{
+	RAII_VAR(struct cel_backend *, backend, NULL, ao2_cleanup);
+
+	backend = ao2_find(cel_backends, name, OBJ_KEY | OBJ_UNLINK);
+	if (!backend) {
+		return -1;
+	}
+
+	return 0;
+}
+
+int ast_cel_backend_register(const char *name, ast_cel_backend_cb backend_callback)
+{
+	RAII_VAR(struct cel_backend *, backend, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(name)) {
+		return -1;
+	}
+
+	backend = ao2_alloc(sizeof(*backend) + 1 + strlen(name), NULL);
+	if (!backend) {
+		return -1;
+	}
+
+	/* safe strcpy */
+	strcpy(backend->name, name);
+	backend->callback = backend_callback;
+	ao2_link(cel_backends, backend);
+
+	return 0;
+}

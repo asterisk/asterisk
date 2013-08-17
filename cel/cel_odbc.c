@@ -51,7 +51,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 
 #define	CONFIG	"cel_odbc.conf"
-static struct ast_event_sub *event_sub = NULL;
+
+#define ODBC_BACKEND_NAME "ODBC CEL backend"
 
 /*! \brief show_user_def is off by default */
 #define CEL_SHOW_USERDEF_DEFAULT	0
@@ -367,7 +368,7 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 				}																\
 			} while (0)
 
-static void odbc_log(const struct ast_event *event, void *userdata)
+static void odbc_log(struct ast_event *event)
 {
 	struct tables *tableptr;
 	struct columns *entry;
@@ -789,18 +790,12 @@ early_release:
 
 static int unload_module(void)
 {
-	if (event_sub) {
-		event_sub = ast_event_unsubscribe(event_sub);
-	}
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
-		event_sub = ast_event_subscribe(AST_EVENT_CEL, odbc_log, "ODBC CEL backend", NULL, AST_EVENT_IE_END);
-		if (!event_sub) {
-			ast_log(LOG_ERROR, "Unable to subscribe to CEL events\n");
-		}
 		ast_log(LOG_ERROR, "Unable to lock column list.  Unload failed.\n");
 		return -1;
 	}
 
+	ast_cel_backend_unregister(ODBC_BACKEND_NAME);
 	free_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
 	AST_RWLIST_HEAD_DESTROY(&odbc_tables);
@@ -814,13 +809,13 @@ static int load_module(void)
 
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock column list.  Load failed.\n");
-		return 0;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	load_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, odbc_log, "ODBC CEL backend", NULL, AST_EVENT_IE_END);
-	if (!event_sub) {
+	if (ast_cel_backend_register(ODBC_BACKEND_NAME, odbc_log)) {
 		ast_log(LOG_ERROR, "Unable to subscribe to CEL events\n");
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -829,7 +824,7 @@ static int reload(void)
 {
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock column list.  Reload failed.\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	free_config();
@@ -838,7 +833,7 @@ static int reload(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "ODBC CEL backend",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, ODBC_BACKEND_NAME,
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,

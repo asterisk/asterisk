@@ -84,7 +84,8 @@ static char radiuscfg[PATH_MAX] = "/etc/radiusclient-ng/radiusclient.conf";
 static struct ast_flags global_flags = { RADIUS_FLAG_USEGMTIME | RADIUS_FLAG_LOGUNIQUEID | RADIUS_FLAG_LOGUSERFIELD };
 
 static rc_handle *rh = NULL;
-static struct ast_event_sub *event_sub = NULL;
+
+#define RADIUS_BACKEND_NAME "CEL Radius Logging"
 
 #define ADD_VENDOR_CODE(x,y) (rc_avpair_add(rh, send, x, &y, strlen(y), VENDOR_CODE))
 
@@ -174,7 +175,7 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cel_event_record *r
 	return 0;
 }
 
-static void radius_log(const struct ast_event *event, void *userdata)
+static void radius_log(struct ast_event *event)
 {
 	int result = ERROR_RC;
 	VALUE_PAIR *send = NULL;
@@ -204,9 +205,7 @@ return_cleanup:
 
 static int unload_module(void)
 {
-	if (event_sub) {
-		event_sub = ast_event_unsubscribe(event_sub);
-	}
+	ast_cel_backend_unregister(RADIUS_BACKEND_NAME);
 	if (rh) {
 		rc_destroy(rh);
 		rh = NULL;
@@ -256,8 +255,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, radius_log, "CEL Radius Logging", NULL, AST_EVENT_IE_END);
-	if (!event_sub) {
+	if (ast_cel_backend_register(RADIUS_BACKEND_NAME, radius_log)) {
 		rc_destroy(rh);
 		rh = NULL;
 		return AST_MODULE_LOAD_DECLINE;

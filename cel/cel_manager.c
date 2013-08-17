@@ -57,12 +57,12 @@ static int enablecel;
 /*! \brief show_user_def is off by default */
 #define CEL_SHOW_USERDEF_DEFAULT	0
 
+#define MANAGER_BACKEND_NAME "Manager Event Logging"
+
 /*! TRUE if we should set the EventName header to USER_DEFINED on user events. */
 static unsigned char cel_show_user_def;
 
-static struct ast_event_sub *event_sub;
-
-static void manager_log(const struct ast_event *event, void *userdata)
+static void manager_log(struct ast_event *event)
 {
 	struct ast_tm timeresult;
 	char start_time[80] = "";
@@ -180,12 +180,9 @@ static int load_config(int reload)
 
 	cel_show_user_def = new_cel_show_user_def;
 	if (enablecel && !newenablecel) {
-		if (event_sub) {
-			event_sub = ast_event_unsubscribe(event_sub);
-		}
+		ast_cel_backend_unregister(MANAGER_BACKEND_NAME);
 	} else if (!enablecel && newenablecel) {
-		event_sub = ast_event_subscribe(AST_EVENT_CEL, manager_log, "Manager Event Logging", NULL, AST_EVENT_IE_END);
-		if (!event_sub) {
+		if (ast_cel_backend_register(MANAGER_BACKEND_NAME, manager_log)) {
 			ast_log(LOG_ERROR, "Unable to register Asterisk Call Manager CEL handling\n");
 		}
 	}
@@ -196,9 +193,7 @@ static int load_config(int reload)
 
 static int unload_module(void)
 {
-	if (event_sub) {
-		event_sub = ast_event_unsubscribe(event_sub);
-	}
+	ast_cel_backend_unregister(MANAGER_BACKEND_NAME);
 	return 0;
 }
 

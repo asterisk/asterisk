@@ -300,6 +300,35 @@ struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
 		struct ast_json *extra, const char *peer_name);
 
+/*!
+ * \brief CEL backend callback
+ */
+/*typedef int (*ast_cel_backend_cb)(struct ast_cel_event_record *cel);*/
+typedef void (*ast_cel_backend_cb)(struct ast_event *event);
+
+/*!
+ * \brief Register a CEL backend
+ *
+ * \param name Name of backend to register
+ * \param backend_callback Callback to register
+ *
+ * \retval zero on success
+ * \retval non-zero on failure
+ * \since 12
+ */
+int ast_cel_backend_register(const char *name, ast_cel_backend_cb backend_callback);
+
+/*!
+ * \brief Unregister a CEL backend
+ *
+ * \param name Name of backend to unregister
+ *
+ * \retval zero on success
+ * \retval non-zero on failure
+ * \since 12
+ */
+int ast_cel_backend_unregister(const char *name);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

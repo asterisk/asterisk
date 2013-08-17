@@ -4149,11 +4149,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (ast_event_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
 #ifdef TEST_FRAMEWORK
 	if (ast_test_init()) {
 		printf("%s", term_quit());

@@ -57,6 +57,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/stringfields.h"
 
+#define SQLITE_BACKEND_NAME "CEL sqlite3 custom backend"
+
 AST_MUTEX_DEFINE_STATIC(lock);
 
 static const char config_file[] = "cel_sqlite3_custom.conf";
@@ -69,7 +71,6 @@ static char table[80];
  * \bug Handling of this var is crash prone on reloads
  */
 static char *columns;
-static struct ast_event_sub *event_sub = NULL;
 
 struct values {
 	char *expression;
@@ -229,7 +230,7 @@ static void free_config(void)
 	}
 }
 
-static void write_cel(const struct ast_event *event, void *userdata)
+static void write_cel(struct ast_event *event)
 {
 	char *error = NULL;
 	char *sql = NULL;
@@ -293,9 +294,7 @@ static void write_cel(const struct ast_event *event, void *userdata)
 
 static int unload_module(void)
 {
-	if (event_sub) {
-		event_sub = ast_event_unsubscribe(event_sub);
-	}
+	ast_cel_backend_unregister(SQLITE_BACKEND_NAME);
 
 	free_config();
 
@@ -339,8 +338,7 @@ static int load_module(void)
 		}
 	}
 
-	event_sub = ast_event_subscribe(AST_EVENT_CEL, write_cel, "CEL sqlite3 custom backend", NULL, AST_EVENT_IE_END);
-	if (!event_sub) {
+	if (ast_cel_backend_register(SQLITE_BACKEND_NAME, write_cel)) {
 		ast_log(LOG_ERROR, "Unable to register custom SQLite3 CEL handling\n");
 		free_config();
 		return AST_MODULE_LOAD_DECLINE;
