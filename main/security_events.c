@@ -657,13 +657,11 @@ static struct ast_json *alloc_security_event_json_object(const struct ast_securi
 	 *       This is true even if ast_json_object_set fails.
 	 */
 
-	/* AST_EVENT_IE_SECURITY_EVENT */
 	json_temp = ast_json_integer_create(sec->event_type);
-	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_SECURITY_EVENT), json_temp)) {
+	if (!json_temp || ast_json_object_set(json_object, "SecurityEvent", json_temp)) {
 		return NULL;
 	}
 
-	/* AST_EVENT_IE_EVENT_VERSION */
 	json_temp = ast_json_stringf("%d", sec->version);
 	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_EVENT_VERSION), json_temp)) {
 		return NULL;

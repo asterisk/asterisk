@@ -8884,8 +8884,10 @@ static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm
  * \brief MWI subscription event callback.
  * \since 1.8
  *
- * \param event the event being passed to the subscriber
- * \param userdata the data provider in the call to ast_event_subscribe()
+ * \param userdata the data provider in the call to stasis_subscribe()
+ * \param sub the subscription to which the message was delivered for this callback
+ * \param topic the topic on which the message was published
+ * \param msg the message being passed to the subscriber
  *
  * \return Nothing
  */

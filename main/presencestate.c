@@ -36,7 +36,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/presencestate.h"
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
-#include "asterisk/event.h"
 
 /*! \brief Device state strings for printing */
 static const struct {

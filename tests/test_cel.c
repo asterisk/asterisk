@@ -1730,23 +1730,12 @@ static int match_ie_val(
 	case AST_EVENT_IE_PLTYPE_STR:
 	{
 		const char *str;
-		uint32_t hash;
-
-		hash = ast_event_get_ie_str_hash(event2, type);
-		if (hash != ast_event_get_ie_str_hash(event1, type)) {
-			return 0;
-		}
 
 		str = ast_event_get_ie_str(event2, type);
 		if (str) {
 			const char *e1str, *e2str;
 			e1str = ast_event_get_ie_str(event1, type);
 			e2str = str;
-
-			if (type == AST_EVENT_IE_DEVICE) {
-				e1str = ast_tech_to_upper(ast_strdupa(e1str));
-				e2str = ast_tech_to_upper(ast_strdupa(e2str));
-			}
 
 			if (!strcmp(e1str, e2str)) {
 				return 1;
@@ -1773,10 +1762,8 @@ static int events_are_equal(struct ast_test *test, struct ast_event *received, s
 
 	for (res = ast_event_iterator_init(&iterator, received); !res; res = ast_event_iterator_next(&iterator)) {
 		/* XXX ignore sec/usec for now */
-		/* ignore EID */
 		int ie_type = ast_event_iterator_get_ie_type(&iterator);
 		if (ie_type != AST_EVENT_IE_CEL_EVENT_TIME_USEC
-			&& ie_type != AST_EVENT_IE_EID
 			&& ie_type != AST_EVENT_IE_CEL_EVENT_TIME
 			&& !match_ie_val(received, expected, ie_type)) {
 			ast_test_status_update(test, "Failed matching on field %s\n", ast_event_get_ie_type_name(ie_type));
@@ -1796,7 +1783,7 @@ static int dump_event(struct ast_test *test, struct ast_event *event)
 		return 0;
 	}
 
-	ast_test_status_update(test, "Event: %s %s\n", ast_event_get_type_name(event),
+	ast_test_status_update(test, "Event: %s\n",
 		ast_cel_get_type_name(ast_event_get_ie_uint(event, AST_EVENT_IE_CEL_EVENT_TYPE)));
 
 	do {
@@ -1810,9 +1797,6 @@ static int dump_event(struct ast_test *test, struct ast_event *event)
 
 		switch (ie_pltype) {
 		case AST_EVENT_IE_PLTYPE_UNKNOWN:
-		case AST_EVENT_IE_PLTYPE_EXISTS:
-			ast_test_status_update(test, "%s\n", ie_type_name);
-			break;
 		case AST_EVENT_IE_PLTYPE_STR:
 			ast_test_status_update(test, "%.30s: %s\n", ie_type_name,
 					ast_event_iterator_get_ie_str(&i));
@@ -1821,9 +1805,6 @@ static int dump_event(struct ast_test *test, struct ast_event *event)
 			ast_test_status_update(test, "%.30s: %u\n", ie_type_name,
 					ast_event_iterator_get_ie_uint(&i));
 			break;
-		case AST_EVENT_IE_PLTYPE_BITFLAGS:
-			ast_test_status_update(test, "%.30s: %u\n", ie_type_name,
-					ast_event_iterator_get_ie_bitflags(&i));
 		default:
 			break;
 		}

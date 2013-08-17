@@ -36,11 +36,6 @@ extern "C" {
 
 /*!
  * \brief Security event types
- *
- * AST_EVENT_SECURITY is the event type of an ast_event generated as a security
- * event.  The event will have an information element of type
- * AST_EVENT_IE_SECURITY_EVENT which identifies the security event sub-type.
- * This enum defines the possible values for this sub-type.
  */
 enum ast_security_event_type {
 	/*!

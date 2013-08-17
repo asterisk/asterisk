@@ -184,7 +184,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "parking/res_parking.h"
 #include "asterisk/config.h"
 #include "asterisk/config_options.h"
-#include "asterisk/event.h"
 #include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"

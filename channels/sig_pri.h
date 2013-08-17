@@ -27,7 +27,6 @@
 
 #include "asterisk/channel.h"
 #include "asterisk/frame.h"
-#include "asterisk/event.h"
 #include "asterisk/ccss.h"
 #include <libpri.h>
 #include <dahdi/user.h>

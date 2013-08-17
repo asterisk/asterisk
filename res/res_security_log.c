@@ -105,8 +105,7 @@ static void security_event_stasis_cb(struct ast_json *json)
 		return;
 	}
 
-	ast_str_set(&str, 0, "%s=\"%s\"",
-			ast_event_get_ie_type_name(AST_EVENT_IE_SECURITY_EVENT),
+	ast_str_set(&str, 0, "SecurityEvent=\"%s\"",
 			ast_security_event_get_name(event_type));
 
 	append_json(&str, json,

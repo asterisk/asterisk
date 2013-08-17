@@ -64,7 +64,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/presencestate.h"
-#include "asterisk/event.h"
 #include "asterisk/hashtab.h"
 #include "asterisk/module.h"
 #include "asterisk/indications.h"
@@ -5181,7 +5180,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		ao2_iterator_destroy(&cb_iter);
 
 		/* For extension callbacks */
-		/* extended callbacks are called when the state changed or when AST_EVENT_RINGING is
+		/* extended callbacks are called when the state changed or when AST_STATE_RINGING is
 		 * included. Normal callbacks are only called when the state changed.
 		 */
 		cb_iter = ao2_iterator_init(hint->callbacks, 0);

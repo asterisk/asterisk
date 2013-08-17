@@ -87,7 +87,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"
 #include "asterisk/security_events.h"
-#include "asterisk/event.h"
 #include "asterisk/aoc.h"
 #include "asterisk/strings.h"
 #include "asterisk/stringfields.h"

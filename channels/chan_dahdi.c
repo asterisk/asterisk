@@ -119,7 +119,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/smdi.h"
 #include "asterisk/astobj.h"
-#include "asterisk/event.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/paths.h"
 #include "asterisk/ccss.h"

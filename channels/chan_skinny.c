@@ -77,7 +77,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/event.h"
 #include "asterisk/indications.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stasis_endpoints.h"

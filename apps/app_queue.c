@@ -96,7 +96,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/event.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"
 #include "asterisk/global_datastores.h"

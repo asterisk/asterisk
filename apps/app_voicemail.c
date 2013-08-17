@@ -131,7 +131,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/smdi.h"
 #include "asterisk/astobj2.h"
-#include "asterisk/event.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/test.h"
 

@@ -59,7 +59,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/message.h"
 #include "asterisk/manager.h"
-#include "asterisk/event.h"
 #include "asterisk/cli.h"
 #include "asterisk/config_options.h"
 
@@ -1455,7 +1454,6 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 	int oldmsgs, newmsgs;
 	iks *item, *item_content;
 	struct ast_eid pubsub_eid;
-	struct ast_event *event;
 	unsigned int cachable = AST_DEVSTATE_CACHABLE;
 	item = iks_find(iks_find(iks_find(pak->x, "event"), "items"), "item");
 	if (!item) {
@@ -1491,12 +1489,6 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 		ast_debug(1, "Don't know how to handle PubSub event of type %s\n",
 			  iks_name(item_content));
 		return IKS_FILTER_EAT;
-	}
-
-	if (cachable == AST_DEVSTATE_CACHABLE) {
-		ast_event_queue_and_cache(event);
-	} else {
-		ast_event_queue(event);
 	}
 
 	return IKS_FILTER_EAT;

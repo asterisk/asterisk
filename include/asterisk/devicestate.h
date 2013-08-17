@@ -19,7 +19,7 @@
 /*! \file
  * \brief Device state management
  *
- * To subscribe to device state changes, use the generic ast_event_subscribe
+ * To subscribe to device state changes, use the stasis_subscribe
  * method.  For an example, see apps/app_queue.c.
  *
  * \todo Currently, when the state of a device changes, the device state provider

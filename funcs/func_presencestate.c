@@ -41,7 +41,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #ifdef TEST_FRAMEWORK
 #include "asterisk/test.h"
-#include "asterisk/event.h"
 #include <semaphore.h>
 #endif
 

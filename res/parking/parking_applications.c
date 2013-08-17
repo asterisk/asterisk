@@ -30,7 +30,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "res_parking.h"
 #include "asterisk/config.h"
 #include "asterisk/config_options.h"
-#include "asterisk/event.h"
 #include "asterisk/utils.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/features.h"

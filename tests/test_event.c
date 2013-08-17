@@ -25,21 +25,14 @@
  * \ingroup tests
  *
  * \todo API Calls not yet touched by a test: XXX TODO
- *   - ast_event_queue_and_cache()
- *   - ast_event_get_cached()
  *   - ast_event_report_subs()
- *   - ast_event_dump_cache()
  *   - ast_event_get_ie_type_name()
  *   - ast_event_get_ie_pltype()
- *   - ast_event_str_to_event_type()
- *   - ast_event_str_to_ie_type()
  *   - ast_event_iterator_init()
  *   - ast_event_iterator_next()
  *   - ast_event_iterator_get_ie_type()
  *   - ast_event_iterator_get_ie_uint()
- *   - ast_event_iterator_get_ie_bitflags()
  *   - ast_event_iterator_get_ie_str()
- *   - ast_event_iterator_get_ie_raw()
  */
 
 /*** MODULEINFO
@@ -58,7 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static int check_event(struct ast_event *event, struct ast_test *test,
 		enum ast_event_type expected_type, const char *type_name,
-		const char *str, uint32_t uint, uint32_t bitflags)
+		const char *str, uint32_t uint)
 {
 	enum ast_event_type type;
 	const void *foo;
@@ -71,46 +64,27 @@ static int check_event(struct ast_event *event, struct ast_test *test,
 		return -1;
 	}
 
-	/* Check #2: Check string representation of event type */
-	if (strcmp(type_name, ast_event_get_type_name(event))) {
-		ast_test_status_update(test, "Didn't get expected type name: '%s' != '%s'\n",
-				type_name, ast_event_get_type_name(event));
-		return -1;
-	}
-
-	/* Check #3: Check for automatically included EID */
-	if (memcmp(&ast_eid_default, ast_event_get_ie_raw(event, AST_EVENT_IE_EID), sizeof(ast_eid_default))) {
-		ast_test_status_update(test, "Failed to get EID\n");
-		return -1;
-	}
-
 	/* Check #4: Check for the string IE */
-	if (strcmp(str, ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX))) {
+	if (strcmp(str, ast_event_get_ie_str(event, AST_EVENT_IE_CEL_USEREVENT_NAME))) {
 		ast_test_status_update(test, "Failed to get string IE.\n");
 		return -1;
 	}
 
 	/* Check #5: Check for the uint IE */
-	if (uint != ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS)) {
+	if (uint != ast_event_get_ie_uint(event, AST_EVENT_IE_CEL_AMAFLAGS)) {
 		ast_test_status_update(test, "Failed to get uint IE.\n");
 		return -1;
 	}
 
-	/* Check #6: Check for the bitflags IE */
-	if (bitflags != ast_event_get_ie_bitflags(event, AST_EVENT_IE_OLDMSGS)) {
-		ast_test_status_update(test, "Failed to get bitflags IE.\n");
+	/* Check #6: Check if a check for a str IE that isn't there works */
+	if ((foo = ast_event_get_ie_str(event, AST_EVENT_IE_CEL_CIDNAME))) {
+		ast_test_status_update(test, "CEL_CIDNAME IE check returned non-NULL %p\n", foo);
 		return -1;
 	}
 
-	/* Check #7: Check if a check for a str IE that isn't there works */
-	if ((foo = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE))) {
-		ast_test_status_update(test, "DEVICE IE check returned non-NULL %p\n", foo);
-		return -1;
-	}
-
-	/* Check #8: Check if a check for a uint IE that isn't there returns 0 */
-	if (ast_event_get_ie_uint(event, AST_EVENT_IE_STATE)) {
-		ast_test_status_update(test, "OLDMSGS IE should be 0\n");
+	/* Check #7: Check if a check for a uint IE that isn't there returns 0 */
+	if (ast_event_get_ie_uint(event, AST_EVENT_IE_CEL_EVENT_TIME_USEC)) {
+		ast_test_status_update(test, "UNIQUEID IE should be 0\n");
 		return -1;
 	}
 
@@ -130,7 +104,6 @@ AST_TEST_DEFINE(event_new_test)
 	static const enum ast_event_type type = AST_EVENT_CUSTOM;
 	static const char str[] = "SIP/alligatormittens";
 	static const uint32_t uint = 0xb00bface;
-	static const uint32_t bitflags = 0x12488421;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -160,34 +133,27 @@ AST_TEST_DEFINE(event_new_test)
 		goto return_cleanup;
 	}
 
-	if (ast_event_append_ie_str(&event, AST_EVENT_IE_MAILBOX, str)) {
+	if (ast_event_append_ie_str(&event, AST_EVENT_IE_CEL_USEREVENT_NAME, str)) {
 		ast_test_status_update(test, "Failed to append str IE\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
 
-	if (ast_event_append_ie_uint(&event, AST_EVENT_IE_NEWMSGS, uint)) {
+	if (ast_event_append_ie_uint(&event, AST_EVENT_IE_CEL_AMAFLAGS, uint)) {
 		ast_test_status_update(test, "Failed to append uint IE\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
 
-	if (ast_event_append_ie_bitflags(&event, AST_EVENT_IE_OLDMSGS, bitflags)) {
-		ast_test_status_update(test, "Failed to append bitflags IE\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (check_event(event, test, type, "Custom", str, uint, bitflags)) {
+	if (check_event(event, test, type, "Custom", str, uint)) {
 		ast_test_status_update(test, "Dynamically generated event broken\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
 
 	event2 = ast_event_new(type,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, str,
-			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, uint,
-			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_BITFLAGS, bitflags,
+			AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_STR, str,
+			AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, uint,
 			AST_EVENT_IE_END);
 
 	if (!event2) {
@@ -196,7 +162,7 @@ AST_TEST_DEFINE(event_new_test)
 		goto return_cleanup;
 	}
 
-	if (check_event(event2, test, type, "Custom", str, uint, bitflags)) {
+	if (check_event(event2, test, type, "Custom", str, uint)) {
 		ast_test_status_update(test, "Statically generated event broken\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
@@ -240,7 +206,6 @@ enum test_subs_class_type {
 	TEST_SUBS_CUSTOM_STR,
 	TEST_SUBS_CUSTOM_RAW,
 	TEST_SUBS_CUSTOM_UINT,
-	TEST_SUBS_CUSTOM_BITFLAGS,
 	TEST_SUBS_CUSTOM_EXISTS,
 	TEST_SUBS_CUSTOM_DYNAMIC,
 	TEST_SUBS_CUSTOM_ANY,
@@ -268,8 +233,6 @@ static const char *test_subs_class_type_str(enum test_subs_class_type val)
 		return "TEST_SUBS_CUSTOM_RAW";
 	case TEST_SUBS_CUSTOM_UINT:
 		return "TEST_SUBS_CUSTOM_UINT";
-	case TEST_SUBS_CUSTOM_BITFLAGS:
-		return "TEST_SUBS_CUSTOM_BITFLAGS";
 	case TEST_SUBS_CUSTOM_EXISTS:
 		return "TEST_SUBS_CUSTOM_EXISTS";
 	case TEST_SUBS_CUSTOM_DYNAMIC:
@@ -312,9 +275,6 @@ AST_TEST_DEFINE(event_sub_test)
 		[TEST_SUBS_CUSTOM_UINT] = {
 			.expected_count = 1,
 		},
-		[TEST_SUBS_CUSTOM_BITFLAGS] = {
-			.expected_count = 4,
-		},
 		[TEST_SUBS_CUSTOM_EXISTS] = {
 			.expected_count = 2,
 		},
@@ -322,7 +282,7 @@ AST_TEST_DEFINE(event_sub_test)
 			.expected_count = 1,
 		},
 		[TEST_SUBS_CUSTOM_ANY] = {
-			.expected_count = 6,
+			.expected_count = 5,
 		},
 	};
 
@@ -351,23 +311,15 @@ AST_TEST_DEFINE(event_sub_test)
 	/*
 	 * Subscription TEST_SUBS_CUSTOM_STR:
 	 *  - allocate normally
-	 *  - subscribe to CUSTOM events with a DEVICE STR IE check
+	 *  - subscribe to CUSTOM events with a CEL_CIDNAME STR IE check
 	 */
 	ast_test_status_update(test, "Adding TEST_SUBS_CUSTOM_STR subscription\n");
 	test_subs[TEST_SUBS_CUSTOM_STR].sub = ast_event_subscribe(AST_EVENT_CUSTOM, event_sub_cb,
 		test_subs_class_type_str(TEST_SUBS_CUSTOM_STR), &test_subs[TEST_SUBS_CUSTOM_STR].data,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
 		AST_EVENT_IE_END);
 	if (!test_subs[TEST_SUBS_CUSTOM_STR].sub) {
 		ast_test_status_update(test, "Failed to create TEST_SUBS_CUSTOM_STR subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_CUSTOM_STR].sub),
-		test_subs_class_type_str(TEST_SUBS_CUSTOM_STR))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_CUSTOM_STR subscription\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
@@ -384,12 +336,12 @@ AST_TEST_DEFINE(event_sub_test)
 	/*
 	 * Subscription TEST_SUBS_ALL_STR:
 	 *  - allocate normally
-	 *  - subscribe to ALL events with a DEVICE STR IE check
+	 *  - subscribe to ALL events with a CEL_CIDNAME STR IE check
 	 */
 	ast_test_status_update(test, "Adding TEST_SUBS_ALL_STR subscription\n");
 	test_subs[TEST_SUBS_ALL_STR].sub = ast_event_subscribe(AST_EVENT_ALL, event_sub_cb,
 		test_subs_class_type_str(TEST_SUBS_ALL_STR), &test_subs[TEST_SUBS_ALL_STR].data,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
 		AST_EVENT_IE_END);
 	if (!test_subs[TEST_SUBS_ALL_STR].sub) {
 		ast_test_status_update(test, "Failed to create TEST_SUBS_ALL_STR subscription\n");
@@ -397,23 +349,15 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_ALL_STR].sub),
-		test_subs_class_type_str(TEST_SUBS_ALL_STR))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_ALL_STR subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
 	/*
 	 * Subscription TEST_SUBS_CUSTOM_RAW:
 	 *  - allocate normally
-	 *  - subscribe to CUSTOM events with a MAILBOX RAW IE check
+	 *  - subscribe to CUSTOM events with a CEL_USEREVENT_NAME RAW IE check
 	 */
 	ast_test_status_update(test, "Adding TEST_SUBS_CUSTOM_RAW subscription\n");
 	test_subs[TEST_SUBS_CUSTOM_RAW].sub = ast_event_subscribe(AST_EVENT_CUSTOM, event_sub_cb,
 		test_subs_class_type_str(TEST_SUBS_CUSTOM_RAW), &test_subs[TEST_SUBS_CUSTOM_RAW].data,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
 		AST_EVENT_IE_END);
 	if (!test_subs[TEST_SUBS_CUSTOM_RAW].sub) {
 		ast_test_status_update(test, "Failed to create TEST_SUBS_CUSTOM_RAW subscription\n");
@@ -421,23 +365,15 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_CUSTOM_RAW].sub),
-		test_subs_class_type_str(TEST_SUBS_CUSTOM_RAW))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_CUSTOM_RAW subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
 	/*
 	 * Subscription TEST_SUBS_CUSTOM_UINT:
 	 *  - allocate normally
-	 *  - subscribe to CUSTOM events with a NEWMSGS UINT IE check
+	 *  - subscribe to CUSTOM events with a CEL_AMAFLAGS UINT IE check
 	 */
 	ast_test_status_update(test, "Adding TEST_SUBS_CUSTOM_UINT subscription\n");
 	test_subs[TEST_SUBS_CUSTOM_UINT].sub = ast_event_subscribe(AST_EVENT_CUSTOM, event_sub_cb,
 		test_subs_class_type_str(TEST_SUBS_CUSTOM_UINT), &test_subs[TEST_SUBS_CUSTOM_UINT].data,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 5,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, 5,
 		AST_EVENT_IE_END);
 	if (!test_subs[TEST_SUBS_CUSTOM_UINT].sub) {
 		ast_test_status_update(test, "Failed to create TEST_SUBS_CUSTOM_UINT subscription\n");
@@ -445,59 +381,18 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_CUSTOM_UINT].sub),
-		test_subs_class_type_str(TEST_SUBS_CUSTOM_UINT))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_CUSTOM_UINT subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	/*
-	 * Subscription TEST_SUBS_CUSTOM_BITFLAGS:
-	 *  - allocate normally
-	 *  - subscribe to CUSTOM events with a NEWMSGS BITFLAGS IE check
-	 */
-	ast_test_status_update(test, "Adding TEST_SUBS_CUSTOM_BITFLAGS subscription\n");
-	test_subs[TEST_SUBS_CUSTOM_BITFLAGS].sub = ast_event_subscribe(AST_EVENT_CUSTOM, event_sub_cb,
-		test_subs_class_type_str(TEST_SUBS_CUSTOM_BITFLAGS), &test_subs[TEST_SUBS_CUSTOM_BITFLAGS].data,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_BITFLAGS, 0x06,
-		AST_EVENT_IE_END);
-	if (!test_subs[TEST_SUBS_CUSTOM_BITFLAGS].sub) {
-		ast_test_status_update(test, "Failed to create TEST_SUBS_CUSTOM_BITFLAGS subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_CUSTOM_BITFLAGS].sub),
-		test_subs_class_type_str(TEST_SUBS_CUSTOM_BITFLAGS))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_CUSTOM_BITFLAGS subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
 	/*
 	 * Subscription TEST_SUBS_CUSTOM_EXISTS:
 	 *  - allocate normally
-	 *  - subscribe to CUSTOM events with a NEWMSGS UINT and OLDMSGS EXISTS IE check
+	 *  - subscribe to CUSTOM events with a CEL_AMAFLAGS UINT and UNIQUEID EXISTS IE check
 	 */
 	ast_test_status_update(test, "Adding TEST_SUBS_CUSTOM_EXISTS subscription\n");
 	test_subs[TEST_SUBS_CUSTOM_EXISTS].sub = ast_event_subscribe(AST_EVENT_CUSTOM, event_sub_cb,
 		test_subs_class_type_str(TEST_SUBS_CUSTOM_EXISTS), &test_subs[TEST_SUBS_CUSTOM_EXISTS].data,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
-		AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, 4,
 		AST_EVENT_IE_END);
 	if (!test_subs[TEST_SUBS_CUSTOM_EXISTS].sub) {
 		ast_test_status_update(test, "Failed to create TEST_SUBS_CUSTOM_EXISTS subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_CUSTOM_EXISTS].sub),
-		test_subs_class_type_str(TEST_SUBS_CUSTOM_EXISTS))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_CUSTOM_EXISTS subscription\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
@@ -527,17 +422,7 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub),
-		"")) {
-		ast_event_sub_destroy(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub);
-		test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub = NULL;
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_CUSTOM_DYNAMIC subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (ast_event_sub_append_ie_uint(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_NEWMSGS, 4)) {
+	if (ast_event_sub_append_ie_uint(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_CEL_AMAFLAGS, 4)) {
 		ast_event_sub_destroy(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub);
 		test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub = NULL;
 		ast_test_status_update(test, "Failed to append UINT IE to TEST_SUBS_CUSTOM_DYNAMIC subscription\n");
@@ -545,15 +430,7 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
-	if (ast_event_sub_append_ie_bitflags(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_OLDMSGS, 1)) {
-		ast_event_sub_destroy(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub);
-		test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub = NULL;
-		ast_test_status_update(test, "Failed to append BITFLAGS IE to TEST_SUBS_CUSTOM_DYNAMIC subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (ast_event_sub_append_ie_str(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_DEVICE, "FOO/bar")) {
+	if (ast_event_sub_append_ie_str(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_CEL_CIDNAME, "FOO/bar")) {
 		ast_event_sub_destroy(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub);
 		test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub = NULL;
 		ast_test_status_update(test, "Failed to append STR IE to TEST_SUBS_CUSTOM_DYNAMIC subscription\n");
@@ -561,19 +438,11 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
-	if (ast_event_sub_append_ie_raw(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_MAILBOX, "800 km",
+	if (ast_event_sub_append_ie_raw(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_CEL_USEREVENT_NAME, "800 km",
 			strlen("800 km"))) {
 		ast_event_sub_destroy(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub);
 		test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub = NULL;
 		ast_test_status_update(test, "Failed to append RAW IE to TEST_SUBS_CUSTOM_DYNAMIC subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	if (ast_event_sub_append_ie_exists(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub, AST_EVENT_IE_STATE)) {
-		ast_event_sub_destroy(test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub);
-		test_subs[TEST_SUBS_CUSTOM_DYNAMIC].sub = NULL;
-		ast_test_status_update(test, "Failed to append EXISTS IE to TEST_SUBS_CUSTOM_DYNAMIC subscription\n");
 		res = AST_TEST_FAIL;
 		goto return_cleanup;
 	}
@@ -593,34 +462,15 @@ AST_TEST_DEFINE(event_sub_test)
 
 	/* Check STR matching. */
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_EXISTS) {
 		ast_test_status_update(test, "Str FOO/bar subscription did not exist\n");
 		res = AST_TEST_FAIL;
 	}
 
-	/* Make sure that the tech portion of the device string is case-insensitive */
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "foo/bar",
-		AST_EVENT_IE_END);
-	if (sub_res != AST_EVENT_SUB_EXISTS) {
-		ast_test_status_update(test, "Str FOO/bar subscription lacks proper case-sensitivity for device strings\n");
-		res = AST_TEST_FAIL;
-	}
-
-	/* Make sure that the non-tech portion of the device string is case-sensitive
-	 * and fails to match appropriately */
-	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/BAR",
-		AST_EVENT_IE_END);
-	if (sub_res == AST_EVENT_SUB_EXISTS) {
-		ast_test_status_update(test, "Str FOO/bar subscription lacks proper case-sensitivity for device strings\n");
-		res = AST_TEST_FAIL;
-	}
-
-	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "Money",
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "Money",
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
 		ast_test_status_update(test, "Str Money subscription should not exist! (%d)\n",
@@ -630,7 +480,7 @@ AST_TEST_DEFINE(event_sub_test)
 
 	/* Check RAW matching. */
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_EXISTS) {
 		ast_test_status_update(test, "Raw FOO/bar subscription did not exist\n");
@@ -638,7 +488,7 @@ AST_TEST_DEFINE(event_sub_test)
 	}
 
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar") - 1,
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar") - 1,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
 		ast_test_status_update(test, "Raw FOO/bar-1 subscription should not exist! (%d)\n",
@@ -647,7 +497,7 @@ AST_TEST_DEFINE(event_sub_test)
 	}
 
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "Monkeys", sizeof("Monkeys"),
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "Monkeys", sizeof("Monkeys"),
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
 		ast_test_status_update(test, "Raw Monkeys subscription should not exist! (%d)\n",
@@ -657,7 +507,7 @@ AST_TEST_DEFINE(event_sub_test)
 
 	/* Check UINT matching. */
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 5,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, 5,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_EXISTS) {
 		ast_test_status_update(test, "UINT=5 subscription did not exist\n");
@@ -665,47 +515,10 @@ AST_TEST_DEFINE(event_sub_test)
 	}
 
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 1,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, 1,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
 		ast_test_status_update(test, "UINT=1 subscription should not exist! (%d)\n",
-			sub_res);
-		res = AST_TEST_FAIL;
-	}
-
-	/* Check BITFLAGS matching. */
-	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_BITFLAGS, 2,
-		AST_EVENT_IE_END);
-	if (sub_res != AST_EVENT_SUB_EXISTS) {
-		ast_test_status_update(test, "BITFLAGS=2 subscription did not exist\n");
-		res = AST_TEST_FAIL;
-	}
-
-	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_BITFLAGS, 8,
-		AST_EVENT_IE_END);
-	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "BITFLAGS=8 subscription should not exist! (%d)\n",
-			sub_res);
-		res = AST_TEST_FAIL;
-	}
-
-	/* Check EXISTS matching. */
-	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
-		AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, 100,
-		AST_EVENT_IE_END);
-	if (sub_res != AST_EVENT_SUB_EXISTS) {
-		ast_test_status_update(test, "EXISTS subscription did not exist\n");
-		res = AST_TEST_FAIL;
-	}
-
-	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
-		AST_EVENT_IE_END);
-	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "EXISTS subscription should not exist! (%d)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -719,8 +532,8 @@ AST_TEST_DEFINE(event_sub_test)
 	 * TEST_SUBS_CUSTOM_RAW
 	 */
 	event = ast_event_new(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "Mula",
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "Mula",
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
 		AST_EVENT_IE_END);
 	if (!event) {
 		ast_test_status_update(test, "Failed to create event\n");
@@ -753,14 +566,6 @@ AST_TEST_DEFINE(event_sub_test)
 		goto return_cleanup;
 	}
 
-	if (strcmp(ast_event_subscriber_get_description(test_subs[TEST_SUBS_CUSTOM_ANY].sub),
-		test_subs_class_type_str(TEST_SUBS_CUSTOM_ANY))) {
-		ast_test_status_update(test,
-			"Unexpected subscription description on TEST_SUBS_CUSTOM_ANY subscription\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
 	/*
 	 * Fire off some events and track what was received in the callback
 	 */
@@ -775,8 +580,8 @@ AST_TEST_DEFINE(event_sub_test)
 	 * TEST_SUBS_CUSTOM_ANY
 	 */
 	event = ast_event_new(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar") - 1,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar") - 1,
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
 		AST_EVENT_IE_END);
 	if (!event) {
 		ast_test_status_update(test, "Failed to create event\n");
@@ -799,8 +604,8 @@ AST_TEST_DEFINE(event_sub_test)
 	 * TEST_SUBS_CUSTOM_ANY
 	 */
 	event = ast_event_new(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "Misery",
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "Misery",
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar"),
 		AST_EVENT_IE_END);
 	if (!event) {
 		ast_test_status_update(test, "Failed to create event\n");
@@ -820,34 +625,10 @@ AST_TEST_DEFINE(event_sub_test)
 	 *
 	 * Matching subscriptions:
 	 * TEST_SUBS_CUSTOM_UINT
-	 * TEST_SUBS_CUSTOM_BITFLAGS
 	 * TEST_SUBS_CUSTOM_ANY
 	 */
 	event = ast_event_new(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 5,
-		AST_EVENT_IE_END);
-	if (!event) {
-		ast_test_status_update(test, "Failed to create event\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-	if (ast_event_queue(event)) {
-		ast_event_destroy(event);
-		event = NULL;
-		ast_test_status_update(test, "Failed to queue event\n");
-		res = AST_TEST_FAIL;
-		goto return_cleanup;
-	}
-
-	/*
-	 * Event to check BITFLAGS matching.
-	 *
-	 * Matching subscriptions:
-	 * TEST_SUBS_CUSTOM_BITFLAGS
-	 * TEST_SUBS_CUSTOM_ANY
-	 */
-	event = ast_event_new(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, 5,
 		AST_EVENT_IE_END);
 	if (!event) {
 		ast_test_status_update(test, "Failed to create event\n");
@@ -867,12 +648,11 @@ AST_TEST_DEFINE(event_sub_test)
 	 *
 	 * Matching subscriptions:
 	 * TEST_SUBS_CUSTOM_EXISTS
-	 * TEST_SUBS_CUSTOM_BITFLAGS
 	 * TEST_SUBS_CUSTOM_ANY
 	 */
 	event = ast_event_new(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
-		AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, 4,
+		AST_EVENT_IE_UNIQUEID, AST_EVENT_IE_PLTYPE_UINT, 4,
 		AST_EVENT_IE_END);
 	if (!event) {
 		ast_test_status_update(test, "Failed to create event\n");
@@ -892,18 +672,17 @@ AST_TEST_DEFINE(event_sub_test)
 	 *
 	 * Matching subscriptions:
 	 * TEST_SUBS_CUSTOM_DYNAMIC
-	 * TEST_SUBS_CUSTOM_BITFLAGS
 	 * TEST_SUBS_CUSTOM_EXISTS
 	 * TEST_SUBS_ALL_STR
 	 * TEST_SUBS_CUSTOM_STR
 	 * TEST_SUBS_CUSTOM_ANY
 	 */
 	event = ast_event_new(AST_EVENT_CUSTOM,
-		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
-		AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, 5,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "800 km", strlen("800 km"),
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
-		AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, 5,
+		AST_EVENT_IE_CEL_AMAFLAGS, AST_EVENT_IE_PLTYPE_UINT, 4,
+		AST_EVENT_IE_UNIQUEID, AST_EVENT_IE_PLTYPE_UINT, 5,
+		AST_EVENT_IE_CEL_USEREVENT_NAME, AST_EVENT_IE_PLTYPE_RAW, "800 km", strlen("800 km"),
+		AST_EVENT_IE_CEL_CIDNAME, AST_EVENT_IE_PLTYPE_STR, "FOO/bar",
+		AST_EVENT_IE_CEL_EVENT_TIME_USEC, AST_EVENT_IE_PLTYPE_UINT, 5,
 		AST_EVENT_IE_END);
 	if (!event) {
 		ast_test_status_update(test, "Failed to create event\n");

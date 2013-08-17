@@ -79,7 +79,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
-#include "asterisk/event.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/pktccops.h"
 #include "asterisk/stasis.h"
