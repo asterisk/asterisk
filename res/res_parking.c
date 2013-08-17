@@ -33,6 +33,9 @@
 		<configFile name="res_parking.conf">
 			<configObject name="globals">
 				<synopsis>Options that apply to every parking lot</synopsis>
+				<configOption name="parkeddynamic">
+					<synopsis>Enables dynamically created parkinglots.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="parking_lot">
 				<synopsis>Defined parking lots for res_parking to use to park calls on</synopsis>
@@ -191,9 +194,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/manager.h"
 #include "asterisk/pbx.h"
-
-#define PARKED_CALL_APPLICATION "ParkedCall"
-#define PARK_AND_ANNOUNCE_APPLICATION "ParkAndAnnounce"
 
 static int parking_lot_sort_fn(const void *obj_left, const void *obj_right, int flags)
 {
@@ -1152,6 +1152,27 @@ static void link_configured_disable_marked_lots(void)
 	disable_marked_lots();
 }
 
+const struct ast_module_info *parking_get_module_info(void)
+{
+	return ast_module_info;
+}
+
+static int unload_module(void)
+{
+	unload_parking_bridge_features();
+	remove_all_configured_parking_lot_extensions();
+	unload_parking_applications();
+	unload_parking_manager();
+	unload_parking_ui();
+	unload_parking_devstate();
+	unload_parking_tests();
+	ao2_cleanup(parking_lot_container);
+	parking_lot_container = NULL;
+	aco_info_destroy(&cfg_info);
+
+	return 0;
+}
+
 static int load_module(void)
 {
 	parking_lot_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX,
@@ -1194,15 +1215,7 @@ static int load_module(void)
 		goto error;
 	}
 
-	if (ast_register_application_xml(PARK_APPLICATION, park_app_exec)) {
-		goto error;
-	}
-
-	if (ast_register_application_xml(PARKED_CALL_APPLICATION, parked_call_app_exec)) {
-		goto error;
-	}
-
-	if (ast_register_application_xml(PARK_AND_ANNOUNCE_APPLICATION, park_and_announce_app_exec)) {
+	if (load_parking_applications()) {
 		goto error;
 	}
 
@@ -1229,9 +1242,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 
 error:
-	/* XXX errored loads don't currently do a good job of cleaning up after themselves */
-	ao2_cleanup(parking_lot_container);
-	aco_info_destroy(&cfg_info);
+	unload_module();
 	return AST_MODULE_LOAD_DECLINE;
 }
 
@@ -1242,25 +1253,6 @@ static int reload_module(void)
 	}
 
 	return 0;
-}
-
-static int unload_module(void)
-{
-
-	/*ast_parking_unregister_bridge_features(parking_provider.module_name);*/
-
-	/* XXX Parking is currently not unloadable due to the fact that it loads features which could cause
-	 *     significant problems if they disappeared while a channel still had access to them.
-	 */
-	return -1;
-
-	/* TODO Things we will need to do here:
-	 *
-	 *  destroy existing parking lots
-	 *  uninstall parking related bridge features
-	 *  remove extensions owned by the parking registrar
-	 *  unload currently loaded unit tests, CLI/AMI commands, etc.
-	 */
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Call Parking Resource",

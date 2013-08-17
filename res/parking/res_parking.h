@@ -32,6 +32,7 @@
 #define DEFAULT_PARKING_EXTEN "700"
 #define BASE_REGISTRAR "res_parking"
 #define PARK_DIAL_CONTEXT "park-dial"
+#define PARKED_CALL_APPLICATION "ParkedCall"
 
 enum park_call_resolution {
 	PARK_UNSET = 0,		/*! Nothing set a resolution. This should never be observed in practice. */
@@ -463,43 +464,18 @@ int parking_dynamic_lots_enabled(void);
 
 /*!
  * \since 12.0.0
- * \brief Execution function for the parking application
+ * \brief Register parking applications
  *
- * \param chan ast_channel entering the application
- * \param data arguments to the application
- *
- * \retval 0 the application executed in such a way that the channel should proceed in the dial plan
- * \retval -1 the channel should no longer proceed through the dial plan
- *
- * \note this function should only be used to register the parking application and not generally to park calls.
+ * \retval 0 if successful
+ * \retval -1 on failure
  */
-int park_app_exec(struct ast_channel *chan, const char *data);
+int load_parking_applications(void);
 
 /*!
  * \since 12.0.0
- * \brief Execution function for the parked call application
- *
- * \param chan ast_channel entering the application
- * \param data arguments to the application
- *
- * \retval 0 the application executed in such a way that the channel should proceed in the dial plan
- * \retval -1 the channel should no longer proceed through the dial plan
+ * \brief Unregister parking applications
  */
-int parked_call_app_exec(struct ast_channel *chan, const char *data);
-
-/*!
- * \since 12.0.0
- * \brief Execution function for the park and retrieve application
- *
- * \param chan ast_channel entering the application
- * \param data arguments to the application
- *
- * \retval 0 the application executed in such a way that the channel should proceed in the dial plan
- * \retval -1 the channel should no longer proceed through the dial plan
- *
- * \note this function should only be used to register the park and announce application and not generally to park and announce.
- */
-int park_and_announce_app_exec(struct ast_channel *chan, const char *data);
+void unload_parking_applications(void);
 
 /*!
  * \since 12.0.0
@@ -571,3 +547,12 @@ int load_parking_tests(void);
  * \return Nothing
  */
 void unload_parking_tests(void);
+
+struct ast_module_info;
+/*!
+ * \since 12.0.0
+ * \brief Get res_parking's module info
+ *
+ * \retval res_parking's ast_module
+ */
+const struct ast_module_info *parking_get_module_info(void);

@@ -1715,11 +1715,7 @@ static void *__analog_ss_thread(void *data)
 	int idx;
 	struct ast_callid *callid;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
-		ast_parking_get_bridge_features(),
-		ao2_cleanup);
 	const char *pickupexten;
-	int is_exten_parking;
 
 	analog_increase_ss_count();
 
@@ -2077,6 +2073,8 @@ static void *__analog_ss_thread(void *data)
 			timeout = 999999;
 		}
 		while (len < AST_MAX_EXTENSION-1) {
+			int is_exten_parking = 0;
+
 			/* Read digit unless it's supposed to be immediate, in which case the
 			   only answer is 's' */
 			if (p->immediate) {
@@ -2100,7 +2098,9 @@ static void *__analog_ss_thread(void *data)
 			} else {
 				analog_play_tone(p, idx, ANALOG_TONE_DIALTONE);
 			}
-			is_exten_parking = (parking_provider ? parking_provider->parking_is_exten_park(ast_channel_context(chan), exten) : 0);
+			if (ast_parking_provider_registered()) {
+				is_exten_parking = ast_parking_is_exten_park(ast_channel_context(chan), exten);
+			}
 			if (ast_exists_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num) && !is_exten_parking) {
 				if (!res || !ast_matchmore_extension(chan, ast_channel_context(chan), exten, 1, p->cid_num)) {
 					if (getforward) {
@@ -2253,7 +2253,7 @@ static void *__analog_ss_thread(void *data)
 				ast_channel_lock(chan);
 				bridge_channel = ast_channel_get_bridge_channel(chan);
 				ast_channel_unlock(chan);
-				if (bridge_channel && !parking_provider->parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), exten)) {
+				if (bridge_channel && !ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), exten)) {
 					ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
 				}
 				ao2_ref(bridge_channel, -1);

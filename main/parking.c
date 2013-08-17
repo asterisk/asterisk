@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/parking.h"
 #include "asterisk/channel.h"
 #include "asterisk/_private.h"
+#include "asterisk/module.h"
 
 /*! \brief Message type for parked calls */
 STASIS_MESSAGE_TYPE_DEFN(ast_parked_call_type);
@@ -124,19 +125,77 @@ struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_c
 	return payload;
 }
 
-struct ast_parking_bridge_feature_fn_table *ast_parking_get_bridge_features(void)
+int ast_parking_park_bridge_channel(struct ast_bridge_channel *parkee, const char *parkee_uuid, const char *parker_uuid, const char *app_data)
 {
-	return (struct ast_parking_bridge_feature_fn_table*)ao2_global_obj_ref(parking_provider);
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
+		ao2_global_obj_ref(parking_provider), ao2_cleanup);
+
+	if (!table || !table->parking_park_bridge_channel) {
+		return -1;
+	}
+
+	if (table->module_info) {
+		SCOPED_MODULE_USE(table->module_info->self);
+		return table->parking_park_bridge_channel(parkee, parkee_uuid, parker_uuid, app_data);
+	}
+
+	return table->parking_park_bridge_channel(parkee, parkee_uuid, parker_uuid, app_data);
 }
 
-/*! \brief A wrapper around the fn_table to ao2-ify it */
-struct parking_provider_wrapper {
-	struct ast_parking_bridge_feature_fn_table fn_table;
-};
+int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker, const char *context, const char *exten)
+{
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
+		ao2_global_obj_ref(parking_provider), ao2_cleanup);
+
+	if (!table || !table->parking_blind_transfer_park) {
+		return -1;
+	}
+
+	if (table->module_info) {
+		SCOPED_MODULE_USE(table->module_info->self);
+		return table->parking_blind_transfer_park(parker, context, exten);
+	}
+
+	return table->parking_blind_transfer_park(parker, context, exten);
+}
+
+int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t length)
+{
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
+		ao2_global_obj_ref(parking_provider), ao2_cleanup);
+
+	if (!table || !table->parking_park_call) {
+		return -1;
+	}
+
+	if (table->module_info) {
+		SCOPED_MODULE_USE(table->module_info->self);
+		return table->parking_park_call(parker, exten, length);
+	}
+
+	return table->parking_park_call(parker, exten, length);
+}
+
+int ast_parking_is_exten_park(const char *context, const char *exten)
+{
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
+		ao2_global_obj_ref(parking_provider), ao2_cleanup);
+
+	if (!table || !table->parking_is_exten_park) {
+		return -1;
+	}
+
+	if (table->module_info) {
+		SCOPED_MODULE_USE(table->module_info->self);
+		return table->parking_is_exten_park(context, exten);
+	}
+
+	return table->parking_is_exten_park(context, exten);
+}
 
 int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_table *fn_table)
 {
-	RAII_VAR(struct parking_provider_wrapper *, wrapper,
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, wrapper,
 		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
 	if (fn_table->module_version != PARKING_MODULE_VERSION) {
@@ -147,7 +206,7 @@ int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_ta
 
 	if (wrapper) {
 		ast_log(AST_LOG_WARNING, "Parking provider already registered by %s!\n",
-			wrapper->fn_table.module_name);
+			wrapper->module_name);
 		return -1;
 	}
 
@@ -155,7 +214,7 @@ int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_ta
 	if (!wrapper) {
 		return -1;
 	}
-	wrapper->fn_table = *fn_table;
+	*wrapper = *fn_table;
 
 	ao2_global_obj_replace(parking_provider, wrapper);
 	return 0;
@@ -163,19 +222,26 @@ int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_ta
 
 int ast_parking_unregister_bridge_features(const char *module_name)
 {
-	RAII_VAR(struct parking_provider_wrapper *, wrapper,
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, wrapper,
 		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
 	if (!wrapper) {
-		ast_log(AST_LOG_WARNING, "No parking provider to unregister\n");
 		return -1;
 	}
 
-	if (strcmp(wrapper->fn_table.module_name, module_name)) {
+	if (strcmp(wrapper->module_name, module_name)) {
 		ast_log(AST_LOG_WARNING, "%s has not registered the parking provider\n", module_name);
 		return -1;
 	}
 
 	ao2_global_obj_replace_unref(parking_provider, NULL);
 	return 0;
+}
+
+int ast_parking_provider_registered(void)
+{
+	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
+		ao2_global_obj_ref(parking_provider), ao2_cleanup);
+
+	return !!table;
 }

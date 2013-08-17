@@ -3844,11 +3844,8 @@ static struct ast_channel *get_transferee(struct ao2_container *channels, struct
 static enum ast_transfer_result try_parking(struct ast_channel *transferer, const char *context, const char *exten)
 {
 	RAII_VAR(struct ast_bridge_channel *, transferer_bridge_channel, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
-		ast_parking_get_bridge_features(),
-		ao2_cleanup);
 
-	if (!parking_provider) {
+	if (!ast_parking_provider_registered()) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
@@ -3860,7 +3857,7 @@ static enum ast_transfer_result try_parking(struct ast_channel *transferer, cons
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
-	if (parking_provider->parking_blind_transfer_park(transferer_bridge_channel,
+	if (ast_parking_blind_transfer_park(transferer_bridge_channel,
 		context, exten)) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}

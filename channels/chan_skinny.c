@@ -6408,14 +6408,11 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		{
 		char extout[AST_MAX_EXTENSION];
 		char message[32];
-		RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
-			ast_parking_get_bridge_features(),
-			ao2_cleanup);
 		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received STIMULUS_CALLPARK from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
 
-		if (!parking_provider) {
+		if (!ast_parking_provider_registered()) {
 			transmit_displaynotify(d, "Call Park not available", 10);
 			break;
 		}
@@ -6431,7 +6428,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				break;
 			}
 
-			if (!parking_provider->parking_park_call(bridge_channel, extout, sizeof(extout))) {
+			if (!ast_parking_park_call(bridge_channel, extout, sizeof(extout))) {
 				snprintf(message, sizeof(message), "Call Parked at: %s", extout);
 				transmit_displaynotify(d, message, 10);
 				break;
@@ -7158,14 +7155,11 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		{
 		char extout[AST_MAX_EXTENSION];
 		char message[32];
-		RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
-			ast_parking_get_bridge_features(),
-			ao2_cleanup);
 		RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_PARK from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
 
-		if (!parking_provider) {
+		if (!ast_parking_provider_registered()) {
 			transmit_displaynotify(d, "Call Park not available", 10);
 			break;
 		}
@@ -7183,7 +7177,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				break;
 			}
 
-			if (!parking_provider->parking_park_call(bridge_channel, extout, sizeof(extout))) {
+			if (!ast_parking_park_call(bridge_channel, extout, sizeof(extout))) {
 				snprintf(message, sizeof(message), "Call Parked at: %s", extout);
 				transmit_displaynotify(d, message, 10);
 				break;
