@@ -691,10 +691,9 @@
 					<para>There are different transports and protocol derivatives
 						supported by <literal>res_pjsip</literal>. They are in order of
 						preference: UDP, TCP, and WebSocket (WS).</para>
-					<warning><para>
-						Multiple endpoints using the same connection is	<emphasis>NOT</emphasis>
-						supported. Doing so may	result in broken calls.
-					</para></warning>
+					<note><para>Changes to transport configuration in pjsip.conf will only be
+						effected on a complete restart of Asterisk. A module reload
+						will not suffice.</para></note>
 				</description>
 				<configOption name="async_operations" default="1">
 					<synopsis>Number of simultaneous Asynchronous Operations</synopsis>
