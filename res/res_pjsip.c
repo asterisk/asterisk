@@ -623,16 +623,18 @@
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
 				<description><para>
-					Authentication objects hold the authenitcation information for use
-					by <literal>endpoints</literal>. This also allows for multiple <literal>
-					endpoints</literal> to use the same information. Choice of MD5/plaintext
-					and setting of username.
+					Authentication objects hold the authentication information for use
+					by other objects such as <literal>endpoints</literal> or <literal>registrations</literal>.
+					This also allows for multiple objects to use a single auth object. See
+					the <literal>auth_type</literal> config option for password style choices.
 				</para></description>
 				<configOption name="auth_type" default="userpass">
 					<synopsis>Authentication type</synopsis>
 					<description><para>
-						This option specifies which of the password style config options should be read,
-						either 'password' or 'md5_cred' when trying to authenticate an endpoint inbound request.
+						This option specifies which of the password style config options should be read
+						when trying to authenticate an endpoint inbound request. If set to <literal>userpass</literal>
+						then we'll read from the 'password' option. For <literal>md5</literal> we'll read
+						from 'md5_cred'.
 						</para>
 						<enumlist>
 							<enum name="md5"/>
