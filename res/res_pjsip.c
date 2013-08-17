@@ -832,7 +832,8 @@
 				<description><para>
 					An AoR is what allows Asterisk to contact an endpoint via res_pjsip. If no
 					AoRs are specified, an endpoint will not be reachable by Asterisk.
-					Beyond that, an AoR has other uses within Asterisk.
+					Beyond that, an AoR has other uses within Asterisk, such as inbound
+					registration.
 					</para><para>
 					An <literal>AoR</literal> is a way to allow dialing a group
 					of <literal>Contacts</literal> that all use the same
@@ -841,12 +842,20 @@
 					This can be used as another way of grouping a list of contacts to dial
 					rather than specifing them each directly when dialing via the dialplan.
 					This must be used in conjuction with the <literal>PJSIP_DIAL_CONTACTS</literal>.
+					</para><para>
+					Registrations: For Asterisk to match an inbound registration to an endpoint,
+					the AoR object name must match the user portion of the SIP URI in the "To:" 
+					header of the inbound SIP registration. That will usually be equivalent
+					to the "user name" set in your hard or soft phones configuration.
 				</para></description>
 				<configOption name="contact">
 					<synopsis>Permanent contacts assigned to AoR</synopsis>
 					<description><para>
-						Contacts included in this list will be called whenever referenced
+						Contacts specified will be called whenever referenced
 						by <literal>chan_pjsip</literal>.
+						</para><para>
+						Use a separate "contact=" entry for each contact required. Contacts
+						are specified using a SIP URI.
 					</para></description>
 				</configOption>
 				<configOption name="default_expiration" default="3600">
@@ -855,8 +864,8 @@
 				<configOption name="mailboxes">
 					<synopsis>Mailbox(es) to be associated with</synopsis>
 					<description><para>This option applies when an external entity subscribes to an AoR
-					for message waiting indications. The mailboxes specified here will be
-					subscribed to.</para></description>
+					for message waiting indications. The mailboxes specified will be subscribed to.
+					More than one mailbox can be specified with a comma-delimited string.</para></description>
 				</configOption>
 				<configOption name="maximum_expiration" default="7200">
 					<synopsis>Maximum time to keep an AoR</synopsis>
@@ -867,7 +876,10 @@
 				<configOption name="max_contacts" default="0">
 					<synopsis>Maximum number of contacts that can bind to an AoR</synopsis>
 					<description><para>
-						Maximum number of contacts that can associate with this AoR.
+						Maximum number of contacts that can associate with this AoR. This value does
+						not affect the number of contacts that can be added with the "contact" option.
+						It only limits contacts added through external interaction, such as
+						registration.
 						</para>
 						<note><para>This should be set to <literal>1</literal> and
 						<replaceable>remove_existing</replaceable> set to <literal>yes</literal> if you
