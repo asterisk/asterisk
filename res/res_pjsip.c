@@ -675,8 +675,11 @@
 			<configObject name="domain_alias">
 				<synopsis>Domain Alias</synopsis>
 				<description><para>
-					Signifies that a domain is an alias. Used for checking the domain of
-					the AoR to which the endpoint is binding.
+					Signifies that a domain is an alias. If the domain on a session is
+					not found to match an AoR then this object is used to see if we have
+					an alias for the AoR to which the endpoint is binding. This objects
+					name as defined in configuration should be the domain alias and a 
+					config option is provided to specify the domain to be aliased.
 				</para></description>
 				<configOption name="type">
 					<synopsis>Must be of type 'domain_alias'.</synopsis>
