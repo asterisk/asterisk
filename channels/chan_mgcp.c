@@ -2980,9 +2980,6 @@ static void *mgcp_ss(void *data)
 	int getforward = 0;
 	int loop_pause = 100;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, parking_provider,
-		ast_parking_get_bridge_features(),
-		ao2_cleanup);
 	const char *pickupexten;
 
 	len = strlen(p->dtmf_buf);
@@ -3151,7 +3148,7 @@ static void *mgcp_ss(void *data)
 			getforward = 0;
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			len = 0;
-		} else if (parking_provider && parking_provider->parking_is_exten_park(ast_channel_context(chan), p->dtmf_buf) &&
+		} else if (ast_parking_provider_registered() && ast_parking_is_exten_park(ast_channel_context(chan), p->dtmf_buf) &&
 			sub->next->owner) {
 			RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 			/* This is a three way call, the main call being a real channel,
@@ -3159,7 +3156,7 @@ static void *mgcp_ss(void *data)
 			ast_channel_lock(chan);
 			bridge_channel = ast_channel_get_bridge_channel(chan);
 			ast_channel_unlock(chan);
-			if (bridge_channel && !parking_provider->parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), p->dtmf_buf)) {
+			if (bridge_channel && !ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), p->dtmf_buf)) {
 				ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
 			}
 			break;
