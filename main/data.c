@@ -1631,7 +1631,7 @@ static void data_filter_destructor(void *obj)
 {
 	struct data_filter *filter = obj, *globres;
 
-	AST_LIST_TRAVERSE(&(filter->glob_list), globres, list) {
+	while ((globres = AST_LIST_REMOVE_HEAD(&(filter->glob_list), list))) {
 		ao2_ref(globres, -1);
 	}
 
