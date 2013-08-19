@@ -4277,7 +4277,7 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	ast_bridge_remove(the_bridge, chan_bridged);
 
 	publish_attended_transfer_app(&publication, app);
-	return AST_BRIDGE_TRANSFER_SUCCESS;
+	res = AST_BRIDGE_TRANSFER_SUCCESS;
 
 end:
 	/* All successful transfer paths have published an appropriate stasis message.
