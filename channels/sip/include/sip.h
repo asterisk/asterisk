@@ -469,7 +469,7 @@ enum subscriptiontype {
 /*! \brief The number of media types in enum \ref media_type below. */
 #define OFFERED_MEDIA_COUNT	4
 
-/*! \brief Media types generate different "dummy answers" for not accepting the offer of 
+/*! \brief Media types generate different "dummy answers" for not accepting the offer of
 	a media stream. We need to add definitions for each RTP profile. Secure RTP is not
 	the same as normal RTP and will require a new definition */
 enum media_type {
@@ -816,7 +816,7 @@ struct sip_request {
 	char authenticated;     /*!< non-zero if this request was authenticated */
 	ptrdiff_t header[SIP_MAX_HEADERS]; /*!< Array of offsets into the request string of each SIP header*/
 	ptrdiff_t line[SIP_MAX_LINES];     /*!< Array of offsets into the request string of each SDP line*/
-	struct ast_str *data;	
+	struct ast_str *data;
 	struct ast_str *content;
 	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;          /*!< The socket used for this request */
@@ -1084,7 +1084,7 @@ struct sip_pvt {
 	struct ast_format_cap *prefcaps;         /*!< Preferred codec (outbound only) */
 	int noncodeccapability;	          /*!< DTMF RFC2833 telephony-event */
 	int jointnoncodeccapability;      /*!< Joint Non codec capability */
-	int maxcallbitrate;               /*!< Maximum Call Bitrate for Video Calls */	
+	int maxcallbitrate;               /*!< Maximum Call Bitrate for Video Calls */
 	int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
 	int request_queue_sched_id;       /*!< Scheduler ID of any scheduled action to process queued requests */
 	int provisional_keepalive_sched_id;   /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
@@ -1427,7 +1427,7 @@ struct sip_threadinfo {
 
 /*!
  * \brief Definition of an MWI subscription to another server
- * 
+ *
  * \todo Convert this to astobj2.
  */
 struct sip_subscription_mwi {
@@ -1579,7 +1579,7 @@ enum sip_publish_type {
 	SIP_PUBLISH_MODIFY,
 	/*!
 	 * \brief Remove
-	 * 
+	 *
 	 * \details
 	 * Used to remove published state from an ESC. This will contain
 	 * an Expires header set to 0 and likely no body.
