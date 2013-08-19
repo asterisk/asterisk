@@ -4813,6 +4813,7 @@ static char *handle_bridge_technology_suspend(struct ast_cli_entry *e, int cmd, 
 static struct ast_cli_entry bridge_cli[] = {
 	AST_CLI_DEFINE(handle_bridge_show_all, "List all bridges"),
 	AST_CLI_DEFINE(handle_bridge_show_specific, "Show information about a bridge"),
+/* BUGBUG need AMI action equivalents to the following CLI commands. */
 	AST_CLI_DEFINE(handle_bridge_destroy_specific, "Destroy a bridge"),
 	AST_CLI_DEFINE(handle_bridge_kick_channel, "Kick a channel from a bridge"),
 	AST_CLI_DEFINE(handle_bridge_technology_show, "List registered bridge technologies"),
@@ -4856,7 +4857,6 @@ int ast_bridging_init(void)
 
 	ast_bridging_init_basic();
 
-/* BUGBUG need AMI action equivalents to the CLI commands. */
 	ast_cli_register_multiple(bridge_cli, ARRAY_LEN(bridge_cli));
 
 	return 0;
