@@ -750,9 +750,9 @@ enum {
 #define CONFFLAG_INTROMSG           (1ULL << 32) /*!< If set play an intro announcement at start of conference */
 #define CONFFLAG_INTROUSER_VMREC    (1ULL << 33)
 /*! If there's only one person left in a conference when someone leaves, kill the conference */
-#define CONFFLAG_KILL_LAST_MAN_STANDING ((uint64_t)1 << 34)
+#define CONFFLAG_KILL_LAST_MAN_STANDING (1ULL << 34)
 /*! If set, don't enable a denoiser for the channel */
-#define CONFFLAG_DONT_DENOISE       (1ULL << 33)
+#define CONFFLAG_DONT_DENOISE       (1ULL << 35)
 
 enum {
 	OPT_ARG_WAITMARKED = 0,
