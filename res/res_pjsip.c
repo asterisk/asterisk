@@ -289,6 +289,8 @@
 						to the first configured transport in <filename>pjsip.conf</filename> which is
 						valid for the URI we are trying to contact.
 						</para></warning>
+						<warning><para>Transport configuration is not affected by reloads. In order to
+						change transports, a full Asterisk restart is required</para></warning>
 					</description>
 				</configOption>
 				<configOption name="trust_id_inbound" default="no">
