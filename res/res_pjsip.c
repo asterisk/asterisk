@@ -220,13 +220,18 @@
 				<configOption name="identify_by" default="username,location">
 					<synopsis>Way(s) for Endpoint to be identified</synopsis>
 					<description><para>
-						There are currently two methods to identify an endpoint. By default
-						both are used to identify an endpoint.
+						An endpoint can be identified in multiple ways. Currently, the only supported
+						option is <literal>username</literal>, which matches the endpoint based on the
+						username in the From header.
 						</para>
+						<note><para>Endpoints can also be identified by IP address; however, that method
+						of identification is not handled by this configuration option. See the documentation
+						for the <literal>identify</literal> configuration section for more details on that
+						method of endpoint identification. If this option is set to <literal>username</literal>
+						and an <literal>identify</literal> configuration section exists for the endpoint, then
+						the endpoint can be identified in multiple ways.</para></note>
 						<enumlist>
 							<enum name="username" />
-							<enum name="location" />
-							<enum name="username,location" />
 						</enumlist>
 					</description>
 				</configOption>
