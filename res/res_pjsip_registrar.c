@@ -210,12 +210,14 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		/* Short circuit early if the endpoint has no AORs configured on it, which means no registration possible */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_without_configured_aors");
+		ast_log(LOG_WARNING, "Endpoint '%s' has no configured AORs\n", ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
 	if (!PJSIP_URI_SCHEME_IS_SIP(rdata->msg_info.to->uri) && !PJSIP_URI_SCHEME_IS_SIPS(rdata->msg_info.to->uri)) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 416, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_uri_in_to_received");
+		ast_log(LOG_WARNING, "Endpoint '%s' attempted to register to an AOR with a non-SIP URI\n", ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
@@ -251,6 +253,7 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		/* The provided AOR name was not found (be it within the configuration or sorcery itself) */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_requested_aor_not_found");
+		ast_log(LOG_WARNING, "AOR '%s' not found for endpoint '%s'\n", user_name, ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
@@ -258,6 +261,8 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		/* Registration is not permitted for this AOR */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_without_registration_permitted");
+		ast_log(LOG_WARNING, "AOR '%s' has no configured max_contacts. Endpoint '%s' unable to register\n",
+				ast_sorcery_object_get_id(aor), ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
@@ -271,6 +276,8 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		/* The provided Contact headers do not conform to the specification */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_contacts_provided");
+		ast_log(LOG_WARNING, "Failed to validate contacts in REGISTER request from '%s'\n",
+				ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
@@ -278,6 +285,8 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		/* Enforce the maximum number of contacts */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
+		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %d\n",
+				ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor), aor->max_contacts);
 		return PJ_TRUE;
 	}
 
