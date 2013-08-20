@@ -98,6 +98,7 @@ static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 	struct ast_sockaddr addr = { { 0, } };
 	RAII_VAR(struct ao2_container *, candidates, NULL, ao2_cleanup);
 	RAII_VAR(struct ip_identify_match *, match, NULL, ao2_cleanup);
+	struct ast_sip_endpoint *endpoint;
 
 	/* If no possibilities exist return early to save some time */
 	if (!(candidates = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "identify", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL)) ||
@@ -112,7 +113,12 @@ static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 		return NULL;
 	}
 
-	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", match->endpoint_name);
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", match->endpoint_name);
+	if (endpoint) {
+		ast_debug(3, "Retrieved endpoint %s\n", ast_sorcery_object_get_id(endpoint));
+	}
+
+	return endpoint;
 }
 
 static struct ast_sip_endpoint_identifier ip_identifier = {
