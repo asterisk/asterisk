@@ -249,10 +249,16 @@ static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE(handle_cli_threadstorage_show_summary,     "Summarize outstanding memory allocations")
 };
 
+static void threadstorage_shutdown(void)
+{
+	ast_cli_unregister_multiple(cli, ARRAY_LEN(cli));
+}
+
 void threadstorage_init(void)
 {
 	pthread_mutex_init(&threadstoragelock, NULL);
 	ast_cli_register_multiple(cli, ARRAY_LEN(cli));
+	ast_register_atexit(threadstorage_shutdown);
 }
 
 #endif /* !defined(DEBUG_THREADLOCALS) */
