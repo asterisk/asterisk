@@ -29,6 +29,8 @@ port = 1720
 ;allow=gsm		; Always allow GSM, it's cool :)
 ;allow=ulaw		; see https://wiki.asterisk.org/wiki/display/AST/RTP+Packetization
 			; for framing options
+;autoframing=yes	; Set packetization based on the remote endpoint's (ptime)
+			; preferences. Defaults to no.
 ;
 ; User-Input Mode (DTMF)
 ;
