@@ -665,17 +665,6 @@ struct ast_sip_endpoint_identifier {
     struct ast_sip_endpoint *(*identify_endpoint)(pjsip_rx_data *rdata);
 };
 
-#define SIP_SORCERY_SECURITY_TYPE "security"
-
-/*!
- * \brief SIP security details and configuration.
- */
-struct ast_sip_security {
-	SORCERY_OBJECT(details);
-	struct ast_acl_list *acl;
-	struct ast_acl_list *contact_acl;
-};
-
 /*!
  * \brief Register a SIP service in Asterisk.
  *
@@ -971,16 +960,6 @@ int ast_sip_initialize_sorcery_domain_alias(struct ast_sorcery *sorcery);
  * \retval 0 success
  */
 int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery);
-
-/*!
- * \brief Initialize security support on a sorcery instance
- *
- * \param sorcery The sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_initialize_sorcery_security(struct ast_sorcery *sorcery);
 
 /*!
  * \brief Callback called when an outbound request with authentication credentials is to be sent in dialog

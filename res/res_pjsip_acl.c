@@ -153,13 +153,24 @@ static int apply_contact_acl(pjsip_rx_data *rdata, struct ast_acl_list *contact_
 	return forbidden;
 }
 
+#define SIP_SORCERY_ACL_TYPE "acl"
+
+/*!
+ * \brief SIP ACL details and configuration.
+ */
+struct ast_sip_acl {
+	SORCERY_OBJECT(details);
+	struct ast_acl_list *acl;
+	struct ast_acl_list *contact_acl;
+};
+
 static int check_acls(void *obj, void *arg, int flags)
 {
-	struct ast_sip_security *security = obj;
+	struct ast_sip_acl *sip_acl = obj;
 	pjsip_rx_data *rdata = arg;
 
-	if (apply_acl(rdata, security->acl) ||
-	    apply_contact_acl(rdata, security->contact_acl)) {
+	if (apply_acl(rdata, sip_acl->acl) ||
+	    apply_contact_acl(rdata, sip_acl->contact_acl)) {
 		return CMP_MATCH | CMP_STOP;
 	}
 	return 0;
@@ -168,9 +179,9 @@ static int check_acls(void *obj, void *arg, int flags)
 static pj_bool_t acl_on_rx_msg(pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ao2_container *, acls, ast_sorcery_retrieve_by_fields(
-			 ast_sip_get_sorcery(), SIP_SORCERY_SECURITY_TYPE,
+			 ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE,
 			 AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL), ao2_cleanup);
-	RAII_VAR(struct ast_sip_security *, matched_acl, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_acl *, matched_acl, NULL, ao2_cleanup);
 
 	if (!acls) {
 		ast_log(LOG_ERROR, "Unable to retrieve ACL sorcery data\n");
@@ -187,6 +198,20 @@ static pj_bool_t acl_on_rx_msg(pjsip_rx_data *rdata)
 	return PJ_FALSE;
 }
 
+static int acl_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_acl *sip_acl = obj;
+	int error = 0;
+	int ignore;
+	if (!strncmp(var->name, "contact", 7)) {
+		ast_append_acl(var->name + 7, var->value, &sip_acl->contact_acl, &error, &ignore);
+	} else {
+		ast_append_acl(var->name, var->value, &sip_acl->acl, &error, &ignore);
+	}
+
+	return error;
+}
+
 static pjsip_module acl_module = {
 	.name = { "ACL Module", 14 },
 	/* This should run after a logger but before anything else */
@@ -194,8 +219,42 @@ static pjsip_module acl_module = {
 	.on_rx_request = acl_on_rx_msg,
 };
 
+static void acl_destroy(void *obj)
+{
+	struct ast_sip_acl *sip_acl = obj;
+	sip_acl->acl = ast_free_acl_list(sip_acl->acl);
+	sip_acl->contact_acl = ast_free_acl_list(sip_acl->contact_acl);
+}
+
+static void *acl_alloc(const char *name)
+{
+	struct ast_sip_acl *sip_acl =
+		ast_sorcery_generic_alloc(sizeof(*sip_acl), acl_destroy);
+
+	return sip_acl;
+}
+
 static int load_module(void)
 {
+	ast_sorcery_apply_default(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE,
+				  "config", "pjsip.conf,criteria=type=acl");
+
+	if (ast_sorcery_object_register(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE,
+					acl_alloc, NULL, NULL)) {
+
+		ast_log(LOG_ERROR, "Failed to register SIP %s object with sorcery\n",
+			SIP_SORCERY_ACL_TYPE);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "type", "", OPT_NOOP_T, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "permit", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "deny", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "acl", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contactpermit", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contactdeny", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contactacl", "", acl_handler, NULL, 0, 0);
+
 	ast_sip_register_service(&acl_module);
 	return AST_MODULE_LOAD_SUCCESS;
 }
