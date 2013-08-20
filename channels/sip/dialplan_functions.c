@@ -353,7 +353,7 @@ AST_TEST_DEFINE(test_sip_rtpqos_1)
 		goto done;
 	}
 	chan->tech = &sip_tech;
-	chan->tech_pvt = p;
+	chan->tech_pvt = dialog_ref(p, "Give the owner channel a reference to the dialog");
 	p->owner = chan;
 
 	varstr = ast_str_create(16);
@@ -397,8 +397,9 @@ done:
 	ast_free(varstr);
 	ast_free(buffer);
 
-	/* This unref will take care of destroying the channel, RTP instance, and SIP pvt */
+	/* This unlink and unref will take care of destroying the channel, RTP instance, and SIP pvt */
 	if (p) {
+		dialog_unlink_all(p);
 		dialog_unref(p, "Destroy test object");
 	}
 	ast_rtp_engine_unregister(&test_engine);
