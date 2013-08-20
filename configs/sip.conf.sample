@@ -310,6 +310,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;allow=ulaw                     ; Allow codecs in order of preference
 ;allow=ilbc                     ; see https://wiki.asterisk.org/wiki/display/AST/RTP+Packetization
 				; for framing options
+;autoframing=yes		; Set packetization based on the remote endpoint's (ptime)
+				; preferences. Defaults to no.
 ;
 ; This option specifies a preference for which music on hold class this channel
 ; should listen to when put on hold if the music class has not been set on the
@@ -1205,6 +1207,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; language
 ; allow
 ; disallow
+; autoframing
 ; insecure
 ; trustrpid
 ; progressinband
