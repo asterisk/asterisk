@@ -228,6 +228,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 #include <inttypes.h>
 
+#define REF_DEBUG 1
 #include "asterisk/network.h"
 #include "asterisk/paths.h"	/* need ast_config_AST_SYSTEM_NAME */
 /*
