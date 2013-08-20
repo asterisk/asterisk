@@ -39,14 +39,14 @@ static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pj
 
 	pjsip_tx_data *tdata;
 
-	char buf[body->len];
+	char buf[body ? body->len : 0];
 	char *cur = buf;
 	char *line;
 
 	char event = '\0';
 	unsigned int duration = 0;
 
-	if (!ast_sip_is_content_type(&body->content_type, "application", "dtmf-relay")) {
+	if (!body || !ast_sip_is_content_type(&body->content_type, "application", "dtmf-relay")) {
 		return 0;
 	}
 
