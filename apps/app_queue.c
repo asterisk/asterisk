@@ -2064,7 +2064,7 @@ static void update_status(struct call_queue *q, struct member *m, const int stat
  * \retval 1 if the member is available
  * \retval 0 if the member is not available
  */
-static int is_member_available(struct member *mem)
+static int is_member_available(struct call_queue *q, struct member *mem)
 {
 	int available = 0;
 
@@ -2089,6 +2089,10 @@ static int is_member_available(struct member *mem)
 			break;
 	}
 
+	/* Let wrapuptimes override device state availability */
+	if (mem->lastcall && q->wrapuptime && (time(NULL) - q->wrapuptime < mem->lastcall)) {
+		available = 0;
+	}
 	return available;
 }
 
@@ -2139,7 +2143,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 
 			/* check every member until we find one NOT_INUSE */
 			if (!avail) {
-				avail = is_member_available(m);
+				avail = is_member_available(q, m);
 			}
 			if (avail && found_member) {
 				/* early exit as we've found an available member and the member of interest */
@@ -3703,7 +3707,7 @@ static int num_available_members(struct call_queue *q)
 	mem_iter = ao2_iterator_init(q->members, 0);
 	while ((mem = ao2_iterator_next(&mem_iter))) {
 
-		avl += is_member_available(mem);
+		avl += is_member_available(q, mem);
 		ao2_ref(mem, -1);
 
 		/* If autofill is not enabled or if the queue's strategy is ringall, then
@@ -6227,7 +6231,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 			member_add_to_queue(q, new_member);
 			queue_publish_member_blob(queue_member_added_type(), queue_member_blob_create(q, new_member));
 
-			if (is_member_available(new_member)) {
+			if (is_member_available(q, new_member)) {
 				ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 			}
 
@@ -6313,7 +6317,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 					dump_queue_members(q);
 				}
 
-				if (is_member_available(mem)) {
+				if (is_member_available(q, mem)) {
 					ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
 				} else if (!num_available_members(q)) {
 					ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
