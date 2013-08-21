@@ -602,9 +602,9 @@ void parking_set_duration(struct ast_bridge_features *features, struct parked_us
 	/* The interval hook is going to need a reference to the parked_user */
 	ao2_ref(user, +1);
 
-	if (ast_bridge_interval_hook(features, time_limit,
+	if (ast_bridge_interval_hook(features, 0, time_limit,
 		parking_duration_callback, user, __ao2_cleanup, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
-		ast_log(LOG_ERROR, "Failed to apply duration limits to the parking call.\n");
+		ast_log(LOG_ERROR, "Failed to apply duration limit to the parked call.\n");
 		ao2_ref(user, -1);
 	}
 }

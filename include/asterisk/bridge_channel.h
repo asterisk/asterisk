@@ -530,11 +530,17 @@ int ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel,
  */
 typedef void (*ast_bridge_custom_callback_fn)(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size);
 
+enum ast_bridge_channel_custom_callback_option {
+	/*! The callback temporarily affects media. (Like a custom playfile.) */
+	AST_BRIDGE_CHANNEL_CB_OPTION_MEDIA = (1 << 0),
+};
+
 /*!
  * \brief Write a bridge action custom callback frame into the bridge.
  * \since 12.0.0
  *
  * \param bridge_channel Which channel is putting the frame into the bridge
+ * \param flags Custom callback option flags.
  * \param callback Custom callback run on a bridge channel.
  * \param payload Data to pass to the callback. (NULL if none).
  * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
@@ -546,13 +552,16 @@ typedef void (*ast_bridge_custom_callback_fn)(struct ast_bridge_channel *bridge_
  * \retval 0 on success.
  * \retval -1 on error.
  */
-int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
+int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel,
+	enum ast_bridge_channel_custom_callback_option flags,
+	ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
 
 /*!
  * \brief Queue a bridge action custom callback frame onto the bridge channel.
  * \since 12.0.0
  *
  * \param bridge_channel Which channel to put the frame onto.
+ * \param flags Custom callback option flags.
  * \param callback Custom callback run on a bridge channel.
  * \param payload Data to pass to the callback. (NULL if none).
  * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
@@ -564,7 +573,9 @@ int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel,
  * \retval 0 on success.
  * \retval -1 on error.
  */
-int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
+int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel,
+	enum ast_bridge_channel_custom_callback_option flags,
+	ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
 
 /*!
  * \brief Have a bridge channel park a channel in the bridge

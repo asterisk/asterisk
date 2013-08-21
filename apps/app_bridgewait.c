@@ -223,7 +223,7 @@ static int apply_option_timeout(struct ast_bridge_features *features, char *dura
 	}
 
 	duration *= 1000;
-	if (ast_bridge_interval_hook(features, duration, bridgewait_timeout_callback,
+	if (ast_bridge_interval_hook(features, 0, duration, bridgewait_timeout_callback,
 		NULL, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
 		ast_log(LOG_ERROR, "Timeout option 'S': Could not create timer.\n");
 		return -1;

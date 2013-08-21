@@ -1699,7 +1699,7 @@ int ast_bridge_kick(struct ast_bridge *bridge, struct ast_channel *chan)
 		return -1;
 	}
 
-	res = ast_bridge_channel_queue_callback(bridge_channel, kick_it, NULL, 0);
+	res = ast_bridge_channel_queue_callback(bridge_channel, 0, kick_it, NULL, 0);
 
 	ast_bridge_unlock(bridge);
 
@@ -2963,6 +2963,7 @@ int ast_bridge_talk_detector_hook(struct ast_bridge_features *features,
 }
 
 int ast_bridge_interval_hook(struct ast_bridge_features *features,
+	enum ast_bridge_hook_timer_option flags,
 	unsigned int interval,
 	ast_bridge_hook_callback callback,
 	void *hook_pvt,
@@ -2984,8 +2985,9 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
 	}
 	hook->generic.type = AST_BRIDGE_HOOK_TYPE_TIMER;
 	hook->timer.interval = interval;
-	hook->timer.trip_time = ast_tvadd(ast_tvnow(), ast_samp2tv(hook->timer.interval, 1000));
+	hook->timer.trip_time = ast_tvadd(ast_tvnow(), ast_samp2tv(interval, 1000));
 	hook->timer.seqno = ast_atomic_fetchadd_int((int *) &features->interval_sequence, +1);
+	hook->timer.flags = flags;
 
 	ast_debug(1, "Putting interval hook %p with interval %u in the heap on features %p\n",
 		hook, hook->timer.interval, features);

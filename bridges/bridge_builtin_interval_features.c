@@ -170,7 +170,8 @@ static int bridge_builtin_set_limits(struct ast_bridge_features *features,
 
 	/* Install limit hooks. */
 	ao2_ref(feature_limits, +1);
-	if (ast_bridge_interval_hook(features, feature_limits->duration,
+	if (ast_bridge_interval_hook(features, AST_BRIDGE_HOOK_TIMER_OPTION_MEDIA,
+		feature_limits->duration,
 		bridge_features_duration_callback, feature_limits, __ao2_cleanup, remove_flags)) {
 		ast_log(LOG_ERROR, "Failed to schedule the duration limiter to the bridge channel.\n");
 		ao2_ref(feature_limits, -1);
@@ -178,7 +179,7 @@ static int bridge_builtin_set_limits(struct ast_bridge_features *features,
 	}
 	if (!ast_strlen_zero(feature_limits->connect_sound)) {
 		ao2_ref(feature_limits, +1);
-		if (ast_bridge_interval_hook(features, 1,
+		if (ast_bridge_interval_hook(features, AST_BRIDGE_HOOK_TIMER_OPTION_MEDIA, 1,
 			bridge_features_connect_callback, feature_limits, __ao2_cleanup, remove_flags)) {
 			ast_log(LOG_WARNING, "Failed to schedule connect sound to the bridge channel.\n");
 			ao2_ref(feature_limits, -1);
@@ -186,7 +187,7 @@ static int bridge_builtin_set_limits(struct ast_bridge_features *features,
 	}
 	if (feature_limits->warning && feature_limits->warning < feature_limits->duration) {
 		ao2_ref(feature_limits, +1);
-		if (ast_bridge_interval_hook(features,
+		if (ast_bridge_interval_hook(features, AST_BRIDGE_HOOK_TIMER_OPTION_MEDIA,
 			feature_limits->duration - feature_limits->warning,
 			bridge_features_warning_callback, feature_limits, __ao2_cleanup, remove_flags)) {
 			ast_log(LOG_WARNING, "Failed to schedule warning sound playback to the bridge channel.\n");

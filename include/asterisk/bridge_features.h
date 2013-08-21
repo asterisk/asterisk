@@ -208,6 +208,11 @@ struct ast_bridge_hook_dtmf {
 	struct ast_bridge_hook_dtmf_parms dtmf;
 };
 
+enum ast_bridge_hook_timer_option {
+	/*! The timer temporarily affects media. (Like a custom playfile.) */
+	AST_BRIDGE_HOOK_TIMER_OPTION_MEDIA = (1 << 0),
+};
+
 /*! Extra parameters for an interval timer hook. */
 struct ast_bridge_hook_timer_parms {
 	/*! Time at which the hook should actually trip */
@@ -218,6 +223,8 @@ struct ast_bridge_hook_timer_parms {
 	unsigned int interval;
 	/*! Sequence number for the hook to ensure expiration ordering */
 	unsigned int seqno;
+	/*! Option flags determining how callback is called. */
+	unsigned int flags;
 };
 
 /*! Timer specific hook. */
@@ -553,6 +560,7 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
  * \brief Attach an interval hook to a bridge features structure
  *
  * \param features Bridge features structure
+ * \param flags Interval timer callback option flags.
  * \param interval The interval that the hook should execute at in milliseconds
  * \param callback Function to execute upon activation
  * \param hook_pvt Unique data
@@ -572,6 +580,7 @@ int ast_bridge_dtmf_hook(struct ast_bridge_features *features,
  * data may be provided to the hook_pvt parameter.
  */
 int ast_bridge_interval_hook(struct ast_bridge_features *features,
+	enum ast_bridge_hook_timer_option flags,
 	unsigned int interval,
 	ast_bridge_hook_callback callback,
 	void *hook_pvt,

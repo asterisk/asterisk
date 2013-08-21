@@ -1202,7 +1202,7 @@ static int bridge_agent_hold_push(struct ast_bridge *self, struct ast_bridge_cha
 
 	/* Add heartbeat interval hook. */
 	ao2_ref(agent, +1);
-	if (ast_bridge_interval_hook(bridge_channel->features, 1000,
+	if (ast_bridge_interval_hook(bridge_channel->features, 0, 1000,
 		bridge_agent_hold_heartbeat, agent, __ao2_cleanup, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
 		ao2_ref(agent, -1);
 		res = -1;
@@ -1696,6 +1696,13 @@ static void agent_alert(struct ast_bridge_channel *bridge_channel, const void *p
 		return;
 	}
 
+	/* Change holding bridge participant role's idle mode to silence */
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	ast_bridge_channel_clear_roles(bridge_channel);
+	ast_channel_set_bridge_role_option(bridge_channel->chan, "holding_participant", "idle_mode", "silence");
+	ast_bridge_channel_establish_roles(bridge_channel);
+	ast_bridge_unlock(bridge_channel->bridge);
+
 	/* Alert the agent. */
 	agent_lock(agent);
 	playfile = ast_strdupa(agent->cfg->beep_sound);
@@ -1724,8 +1731,8 @@ static void agent_alert(struct ast_bridge_channel *bridge_channel, const void *p
 
 static int send_alert_to_agent(struct ast_bridge_channel *bridge_channel, const char *agent_id)
 {
-	return ast_bridge_channel_queue_callback(bridge_channel, agent_alert, agent_id,
-		strlen(agent_id) + 1);
+	return ast_bridge_channel_queue_callback(bridge_channel,
+		AST_BRIDGE_CHANNEL_CB_OPTION_MEDIA, agent_alert, agent_id, strlen(agent_id) + 1);
 }
 
 static int send_colp_to_agent(struct ast_bridge_channel *bridge_channel, struct ast_party_connected_line *connected)
@@ -1797,7 +1804,7 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 
 	/* Add safety timeout hook. */
 	ao2_ref(agent, +1);
-	if (ast_bridge_interval_hook(&caller_features, CALLER_SAFETY_TIMEOUT_TIME,
+	if (ast_bridge_interval_hook(&caller_features, 0, CALLER_SAFETY_TIMEOUT_TIME,
 		caller_safety_timeout, agent, __ao2_cleanup, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
 		ao2_ref(agent, -1);
 		ast_bridge_features_cleanup(&caller_features);

@@ -322,6 +322,87 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 
 /*!
  * \internal
+ * \brief Suspend a channel from a bridge.
+ *
+ * \param bridge_channel Channel to suspend.
+ *
+ * \note This function assumes bridge_channel->bridge is locked.
+ *
+ * \return Nothing
+ */
+void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_channel)
+{
+	bridge_channel->suspended = 1;
+	if (bridge_channel->in_bridge) {
+		--bridge_channel->bridge->num_active;
+	}
+
+	/* Get technology bridge threads off of the channel. */
+	if (bridge_channel->bridge->technology->suspend) {
+		bridge_channel->bridge->technology->suspend(bridge_channel->bridge, bridge_channel);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Suspend a channel from a bridge.
+ *
+ * \param bridge_channel Channel to suspend.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_suspend(struct ast_bridge_channel *bridge_channel)
+{
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	bridge_channel_internal_suspend_nolock(bridge_channel);
+	ast_bridge_unlock(bridge_channel->bridge);
+}
+
+/*!
+ * \internal
+ * \brief Unsuspend a channel from a bridge.
+ *
+ * \param bridge_channel Channel to unsuspend.
+ *
+ * \note This function assumes bridge_channel->bridge is locked.
+ *
+ * \return Nothing
+ */
+void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_channel)
+{
+	bridge_channel->suspended = 0;
+	if (bridge_channel->in_bridge) {
+		++bridge_channel->bridge->num_active;
+	}
+
+	/* Wake technology bridge threads to take care of channel again. */
+	if (bridge_channel->bridge->technology->unsuspend) {
+		bridge_channel->bridge->technology->unsuspend(bridge_channel->bridge, bridge_channel);
+	}
+
+	/* Wake suspended channel. */
+	ast_bridge_channel_lock(bridge_channel);
+	ast_cond_signal(&bridge_channel->cond);
+	ast_bridge_channel_unlock(bridge_channel);
+}
+
+/*!
+ * \internal
+ * \brief Unsuspend a channel from a bridge.
+ *
+ * \param bridge_channel Channel to unsuspend.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_unsuspend(struct ast_bridge_channel *bridge_channel)
+{
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	bridge_channel_internal_unsuspend_nolock(bridge_channel);
+	ast_bridge_unlock(bridge_channel->bridge);
+}
+
+/*!
+ * \internal
  * \brief Queue an action frame onto the bridge channel with data.
  * \since 12.0.0
  *
@@ -680,6 +761,8 @@ struct bridge_custom_callback {
 	ast_bridge_custom_callback_fn callback;
 	/*! Size of the payload if it exists.  A number otherwise. */
 	size_t payload_size;
+	/*! Option flags determining how callback is called. */
+	unsigned int flags;
 	/*! Nonzero if the payload exists. */
 	char payload_exists;
 	/*! Payload to give to callback. */
@@ -691,14 +774,22 @@ struct bridge_custom_callback {
  * \brief Handle the do custom callback bridge action.
  * \since 12.0.0
  *
- * \param bridge_channel Which channel to run the application on.
- * \param data Action frame data to run the application.
+ * \param bridge_channel Which channel to call the callback on.
+ * \param data Action frame data to call the callback.
  *
  * \return Nothing
  */
 static void bridge_channel_do_callback(struct ast_bridge_channel *bridge_channel, struct bridge_custom_callback *data)
 {
+	if (ast_test_flag(data, AST_BRIDGE_CHANNEL_CB_OPTION_MEDIA)) {
+		bridge_channel_suspend(bridge_channel);
+		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+	}
 	data->callback(bridge_channel, data->payload_exists ? data->payload : NULL, data->payload_size);
+	if (ast_test_flag(data, AST_BRIDGE_CHANNEL_CB_OPTION_MEDIA)) {
+		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+		bridge_channel_unsuspend(bridge_channel);
+	}
 }
 
 /*!
@@ -706,7 +797,9 @@ static void bridge_channel_do_callback(struct ast_bridge_channel *bridge_channel
  * \brief Marshal a custom callback function to be called on a bridge_channel
  */
 static int payload_helper_cb(ast_bridge_channel_post_action_data post_it,
-	struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+	struct ast_bridge_channel *bridge_channel,
+	enum ast_bridge_channel_custom_callback_option flags,
+	ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
 	struct bridge_custom_callback *cb_data;
 	size_t len_data = sizeof(*cb_data) + (payload ? payload_size : 0);
@@ -721,6 +814,7 @@ static int payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 	cb_data = alloca(len_data);
 	cb_data->callback = callback;
 	cb_data->payload_size = payload_size;
+	cb_data->flags = flags;
 	cb_data->payload_exists = payload && payload_size;
 	if (cb_data->payload_exists) {
 		memcpy(cb_data->payload, payload, payload_size);/* Safe */
@@ -729,16 +823,20 @@ static int payload_helper_cb(ast_bridge_channel_post_action_data post_it,
 	return post_it(bridge_channel, BRIDGE_CHANNEL_ACTION_CALLBACK, cb_data, len_data);
 }
 
-int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+int ast_bridge_channel_write_callback(struct ast_bridge_channel *bridge_channel,
+	enum ast_bridge_channel_custom_callback_option flags,
+	ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
 	return payload_helper_cb(bridge_channel_write_action_data,
-		bridge_channel, callback, payload, payload_size);
+		bridge_channel, flags, callback, payload, payload_size);
 }
 
-int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
+int ast_bridge_channel_queue_callback(struct ast_bridge_channel *bridge_channel,
+	enum ast_bridge_channel_custom_callback_option flags,
+	ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
 {
 	return payload_helper_cb(bridge_channel_queue_action_data,
-		bridge_channel, callback, payload, payload_size);
+		bridge_channel, flags, callback, payload, payload_size);
 }
 
 struct bridge_park {
@@ -804,87 +902,6 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
 
 /*!
  * \internal
- * \brief Suspend a channel from a bridge.
- *
- * \param bridge_channel Channel to suspend.
- *
- * \note This function assumes bridge_channel->bridge is locked.
- *
- * \return Nothing
- */
-void bridge_channel_internal_suspend_nolock(struct ast_bridge_channel *bridge_channel)
-{
-	bridge_channel->suspended = 1;
-	if (bridge_channel->in_bridge) {
-		--bridge_channel->bridge->num_active;
-	}
-
-	/* Get technology bridge threads off of the channel. */
-	if (bridge_channel->bridge->technology->suspend) {
-		bridge_channel->bridge->technology->suspend(bridge_channel->bridge, bridge_channel);
-	}
-}
-
-/*!
- * \internal
- * \brief Suspend a channel from a bridge.
- *
- * \param bridge_channel Channel to suspend.
- *
- * \return Nothing
- */
-static void bridge_channel_suspend(struct ast_bridge_channel *bridge_channel)
-{
-	ast_bridge_channel_lock_bridge(bridge_channel);
-	bridge_channel_internal_suspend_nolock(bridge_channel);
-	ast_bridge_unlock(bridge_channel->bridge);
-}
-
-/*!
- * \internal
- * \brief Unsuspend a channel from a bridge.
- *
- * \param bridge_channel Channel to unsuspend.
- *
- * \note This function assumes bridge_channel->bridge is locked.
- *
- * \return Nothing
- */
-void bridge_channel_internal_unsuspend_nolock(struct ast_bridge_channel *bridge_channel)
-{
-	bridge_channel->suspended = 0;
-	if (bridge_channel->in_bridge) {
-		++bridge_channel->bridge->num_active;
-	}
-
-	/* Wake technology bridge threads to take care of channel again. */
-	if (bridge_channel->bridge->technology->unsuspend) {
-		bridge_channel->bridge->technology->unsuspend(bridge_channel->bridge, bridge_channel);
-	}
-
-	/* Wake suspended channel. */
-	ast_bridge_channel_lock(bridge_channel);
-	ast_cond_signal(&bridge_channel->cond);
-	ast_bridge_channel_unlock(bridge_channel);
-}
-
-/*!
- * \internal
- * \brief Unsuspend a channel from a bridge.
- *
- * \param bridge_channel Channel to unsuspend.
- *
- * \return Nothing
- */
-static void bridge_channel_unsuspend(struct ast_bridge_channel *bridge_channel)
-{
-	ast_bridge_channel_lock_bridge(bridge_channel);
-	bridge_channel_internal_unsuspend_nolock(bridge_channel);
-	ast_bridge_unlock(bridge_channel->bridge);
-}
-
-/*!
- * \internal
  * \brief Handle bridge channel interval expiration.
  * \since 12.0.0
  *
@@ -897,7 +914,7 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 	struct ast_heap *interval_hooks;
 	struct ast_bridge_hook_timer *hook;
 	struct timeval start;
-	int hook_run = 0;
+	int chan_suspended = 0;
 
 	interval_hooks = bridge_channel->features->interval_hooks;
 	ast_heap_wrlock(interval_hooks);
@@ -914,8 +931,9 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 		ao2_ref(hook, +1);
 		ast_heap_unlock(interval_hooks);
 
-		if (!hook_run) {
-			hook_run = 1;
+		if (!chan_suspended
+			&& ast_test_flag(&hook->timer, AST_BRIDGE_HOOK_TIMER_OPTION_MEDIA)) {
+			chan_suspended = 1;
 			bridge_channel_suspend(bridge_channel);
 			ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		}
@@ -970,7 +988,7 @@ static void bridge_channel_handle_interval(struct ast_bridge_channel *bridge_cha
 	}
 	ast_heap_unlock(interval_hooks);
 
-	if (hook_run) {
+	if (chan_suspended) {
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
 	}
@@ -1276,11 +1294,7 @@ static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_chann
 		bridge_channel_unsuspend(bridge_channel);
 		break;
 	case BRIDGE_CHANNEL_ACTION_CALLBACK:
-		bridge_channel_suspend(bridge_channel);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_do_callback(bridge_channel, action->data.ptr);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		bridge_channel_unsuspend(bridge_channel);
 		break;
 	case BRIDGE_CHANNEL_ACTION_PARK:
 		bridge_channel_suspend(bridge_channel);

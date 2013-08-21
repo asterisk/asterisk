@@ -49,13 +49,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/frame.h"
 #include "asterisk/musiconhold.h"
 
-enum role_flags {
-	HOLDING_ROLE_PARTICIPANT = (1 << 0),
-	HOLDING_ROLE_ANNOUNCER = (1 << 1),
+enum holding_roles {
+	HOLDING_ROLE_PARTICIPANT,
+	HOLDING_ROLE_ANNOUNCER,
 };
 
 enum idle_modes {
-	IDLE_MODE_NONE = 0,
+	IDLE_MODE_NONE,
 	IDLE_MODE_MOH,
 	IDLE_MODE_RINGING,
 	IDLE_MODE_SILENCE,
@@ -64,91 +64,62 @@ enum idle_modes {
 
 /*! \brief Structure which contains per-channel role information */
 struct holding_channel {
-	struct ast_flags holding_roles;
 	struct ast_silence_generator *silence_generator;
+	enum holding_roles role;
 	enum idle_modes idle_mode;
+	/*! TRUE if the entertainment is started. */
+	unsigned int entertainment_active:1;
 };
 
-static void participant_stop_hold_audio(struct ast_bridge_channel *bridge_channel)
-{
-	struct holding_channel *hc = bridge_channel->tech_pvt;
-	if (!hc) {
-		return;
-	}
+typedef void (*deferred_cb)(struct ast_bridge_channel *bridge_channel);
 
-	switch (hc->idle_mode) {
-	case IDLE_MODE_MOH:
-		ast_moh_stop(bridge_channel->chan);
-		break;
-	case IDLE_MODE_RINGING:
-		ast_bridge_channel_queue_control_data(bridge_channel, -1, NULL, 0);
-		break;
-	case IDLE_MODE_NONE:
-		break;
-	case IDLE_MODE_SILENCE:
-		if (hc->silence_generator) {
-			ast_channel_stop_silence_generator(bridge_channel->chan, hc->silence_generator);
-			hc->silence_generator = NULL;
-		}
-		break;
-	case IDLE_MODE_HOLD:
-		ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
-		break;
+struct deferred_data {
+	/*! Deferred holding technology callback */
+	deferred_cb callback;
+};
+
+static void deferred_action(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size);
+
+/*!
+ * \internal
+ * \brief Defer an action to a bridge_channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to operate on.
+ * \param callback action to defer.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int defer_action(struct ast_bridge_channel *bridge_channel, deferred_cb callback)
+{
+	struct deferred_data data = { .callback = callback };
+	int res;
+
+	res = ast_bridge_channel_queue_callback(bridge_channel, 0, deferred_action,
+		&data, sizeof(data));
+	if (res) {
+		ast_log(LOG_WARNING, "Bridge %s: Could not defer action on %s.\n",
+			bridge_channel->bridge->uniqueid, ast_channel_name(bridge_channel->chan));
 	}
+	return res;
 }
 
-static void participant_reaction_announcer_join(struct ast_bridge_channel *bridge_channel)
+/*!
+ * \internal
+ * \brief Setup participant idle mode from channel.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Channel to setup idle mode.
+ *
+ * \return Nothing
+ */
+static void participant_idle_mode_setup(struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_channel *chan;
-	chan = bridge_channel->chan;
-	participant_stop_hold_audio(bridge_channel);
-	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
-		ast_log(LOG_WARNING, "Could not make participant %s compatible.\n", ast_channel_name(chan));
-	}
-}
-
-/* This should only be called on verified holding_participants. */
-static void participant_start_hold_audio(struct ast_bridge_channel *bridge_channel)
-{
-	struct holding_channel *hc = bridge_channel->tech_pvt;
-	const char *moh_class;
-	size_t moh_length;
-
-	if (!hc) {
-		return;
-	}
-
-	switch(hc->idle_mode) {
-	case IDLE_MODE_MOH:
-		moh_class = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "moh_class");
-		ast_moh_start(bridge_channel->chan, ast_strlen_zero(moh_class) ? NULL : moh_class, NULL);
-		break;
-	case IDLE_MODE_RINGING:
-		ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_RINGING, NULL, 0);
-		break;
-	case IDLE_MODE_NONE:
-		break;
-	case IDLE_MODE_SILENCE:
-		hc->silence_generator = ast_channel_start_silence_generator(bridge_channel->chan);
-		break;
-	case IDLE_MODE_HOLD:
-		moh_class = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "moh_class");
-		moh_length = moh_class ? strlen(moh_class + 1) : 0;
-		ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_HOLD, moh_class, moh_length);
-		break;
-	}
-}
-
-static void handle_participant_join(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *announcer_channel)
-{
-	struct ast_channel *us = bridge_channel->chan;
-	struct holding_channel *hc = bridge_channel->tech_pvt;
 	const char *idle_mode = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "idle_mode");
+	struct holding_channel *hc = bridge_channel->tech_pvt;
 
-
-	if (!hc) {
-		return;
-	}
+	ast_assert(hc != NULL);
 
 	if (ast_strlen_zero(idle_mode)) {
 		hc->idle_mode = IDLE_MODE_MOH;
@@ -163,16 +134,105 @@ static void handle_participant_join(struct ast_bridge_channel *bridge_channel, s
 	} else if (!strcmp(idle_mode, "hold")) {
 		hc->idle_mode = IDLE_MODE_HOLD;
 	} else {
-		ast_debug(2, "channel %s idle mode '%s' doesn't match any expected idle mode\n", ast_channel_name(us), idle_mode);
+		/* Invalid idle mode requested. */
+		ast_debug(1, "channel %s idle mode '%s' doesn't match any defined idle mode\n",
+			ast_channel_name(bridge_channel->chan), idle_mode);
+		ast_assert(0);
 	}
+}
+
+static void participant_entertainment_stop(struct ast_bridge_channel *bridge_channel)
+{
+	struct holding_channel *hc = bridge_channel->tech_pvt;
+
+	ast_assert(hc != NULL);
+
+	if (!hc->entertainment_active) {
+		/* Already stopped */
+		return;
+	}
+	hc->entertainment_active = 0;
+
+	switch (hc->idle_mode) {
+	case IDLE_MODE_MOH:
+		ast_moh_stop(bridge_channel->chan);
+		break;
+	case IDLE_MODE_RINGING:
+		ast_indicate(bridge_channel->chan, -1);
+		break;
+	case IDLE_MODE_NONE:
+		break;
+	case IDLE_MODE_SILENCE:
+		if (hc->silence_generator) {
+			ast_channel_stop_silence_generator(bridge_channel->chan, hc->silence_generator);
+			hc->silence_generator = NULL;
+		}
+		break;
+	case IDLE_MODE_HOLD:
+		ast_indicate(bridge_channel->chan, AST_CONTROL_UNHOLD);
+		break;
+	}
+}
+
+static void participant_reaction_announcer_join(struct ast_bridge_channel *bridge_channel)
+{
+	struct ast_channel *chan;
+
+	chan = bridge_channel->chan;
+	participant_entertainment_stop(bridge_channel);
+	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+		ast_log(LOG_WARNING, "Could not make participant %s compatible.\n", ast_channel_name(chan));
+	}
+}
+
+/* This should only be called on verified holding_participants. */
+static void participant_entertainment_start(struct ast_bridge_channel *bridge_channel)
+{
+	struct holding_channel *hc = bridge_channel->tech_pvt;
+	const char *moh_class;
+	size_t moh_length;
+
+	ast_assert(hc != NULL);
+
+	if (hc->entertainment_active) {
+		/* Already started */
+		return;
+	}
+	hc->entertainment_active = 1;
+
+	participant_idle_mode_setup(bridge_channel);
+	switch(hc->idle_mode) {
+	case IDLE_MODE_MOH:
+		moh_class = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "moh_class");
+		ast_moh_start(bridge_channel->chan, ast_strlen_zero(moh_class) ? NULL : moh_class, NULL);
+		break;
+	case IDLE_MODE_RINGING:
+		ast_indicate(bridge_channel->chan, AST_CONTROL_RINGING);
+		break;
+	case IDLE_MODE_NONE:
+		break;
+	case IDLE_MODE_SILENCE:
+		hc->silence_generator = ast_channel_start_silence_generator(bridge_channel->chan);
+		break;
+	case IDLE_MODE_HOLD:
+		moh_class = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "moh_class");
+		moh_length = moh_class ? strlen(moh_class + 1) : 0;
+		ast_indicate_data(bridge_channel->chan, AST_CONTROL_HOLD, moh_class, moh_length);
+		break;
+	}
+}
+
+static void handle_participant_join(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *announcer_channel)
+{
+	struct ast_channel *us = bridge_channel->chan;
 
 	/* If the announcer channel isn't present, we need to set up ringing, music on hold, or whatever. */
 	if (!announcer_channel) {
-		participant_start_hold_audio(bridge_channel);
+		defer_action(bridge_channel, participant_entertainment_start);
 		return;
 	}
 
-	/* If it is present though, we need to establish compatability. */
+	/* We need to get compatible with the announcer. */
 	if (ast_set_write_format_by_id(us, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Could not make participant %s compatible.\n", ast_channel_name(us));
 	}
@@ -185,6 +245,8 @@ static int holding_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	struct holding_channel *hc;
 	struct ast_channel *us = bridge_channel->chan; /* The joining channel */
 
+	ast_assert(bridge_channel->tech_pvt == NULL);
+
 	if (!(hc = ast_calloc(1, sizeof(*hc)))) {
 		return -1;
 	}
@@ -195,54 +257,44 @@ static int holding_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	announcer_channel = bridge->tech_pvt;
 
 	if (ast_bridge_channel_has_role(bridge_channel, "announcer")) {
-		/* If another announcer already exists, scrap the holding channel struct so we know to ignore it in the future */
 		if (announcer_channel) {
+			/* Another announcer already exists. */
 			bridge_channel->tech_pvt = NULL;
 			ast_free(hc);
-			ast_log(LOG_WARNING, "A second announcer channel %s attempted to enter a holding bridge.\n",
-				ast_channel_name(announcer_channel->chan));
+			ast_log(LOG_WARNING, "Bridge %s: Channel %s tried to be an announcer.  Bridge already has one.\n",
+				bridge->uniqueid, ast_channel_name(bridge_channel->chan));
 			return -1;
 		}
 
 		bridge->tech_pvt = bridge_channel;
-		ast_set_flag(&hc->holding_roles, HOLDING_ROLE_ANNOUNCER);
+		hc->role = HOLDING_ROLE_ANNOUNCER;
 
 		/* The announcer should always be made compatible with signed linear */
 		if (ast_set_read_format_by_id(us, AST_FORMAT_SLINEAR)) {
 			ast_log(LOG_ERROR, "Could not make announcer %s compatible.\n", ast_channel_name(us));
 		}
 
-		/* Make everyone compatible. While we are at it we should stop music on hold and ringing. */
+		/* Make everyone listen to the announcer. */
 		AST_LIST_TRAVERSE(&bridge->channels, other_channel, entry) {
 			/* Skip the reaction if we are the channel in question */
 			if (bridge_channel == other_channel) {
 				continue;
 			}
-			participant_reaction_announcer_join(other_channel);
+			defer_action(other_channel, participant_reaction_announcer_join);
 		}
 
 		return 0;
 	}
 
-	/* If the entering channel isn't an announcer then we need to setup it's properties and put it in its holding state if necessary */
-	ast_set_flag(&hc->holding_roles, HOLDING_ROLE_PARTICIPANT);
+	hc->role = HOLDING_ROLE_PARTICIPANT;
 	handle_participant_join(bridge_channel, announcer_channel);
 	return 0;
 }
 
 static void participant_reaction_announcer_leave(struct ast_bridge_channel *bridge_channel)
 {
-	struct holding_channel *hc = bridge_channel->tech_pvt;
-
-	if (!hc) {
-		/* We are dealing with a channel that failed to join properly. Skip it. */
-		return;
-	}
-
 	ast_bridge_channel_restore_formats(bridge_channel);
-	if (ast_test_flag(&hc->holding_roles, HOLDING_ROLE_PARTICIPANT)) {
-		participant_start_hold_audio(bridge_channel);
-	}
+	participant_entertainment_start(bridge_channel);
 }
 
 static void holding_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
@@ -254,27 +306,23 @@ static void holding_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 		return;
 	}
 
-	if (!ast_test_flag(&hc->holding_roles, HOLDING_ROLE_ANNOUNCER)) {
-		/* It's not an announcer so nothing needs to react to its departure. Just free the tech_pvt. */
-		if (!bridge->tech_pvt) {
-			/* Since no announcer is in the channel, we may be playing MOH/ringing. Stop that. */
-			participant_stop_hold_audio(bridge_channel);
+	switch (hc->role) {
+	case HOLDING_ROLE_ANNOUNCER:
+		/* The announcer is leaving */
+		bridge->tech_pvt = NULL;
+
+		/* Reset the other channels back to moh/ringing. */
+		AST_LIST_TRAVERSE(&bridge->channels, other_channel, entry) {
+			defer_action(other_channel, participant_reaction_announcer_leave);
 		}
-		ast_free(hc);
-		bridge_channel->tech_pvt = NULL;
-		return;
+		break;
+	default:
+		/* Nothing needs to react to its departure. */
+		participant_entertainment_stop(bridge_channel);
+		break;
 	}
-
-	/* When the announcer leaves, the other channels should reset their formats and go back to moh/ringing */
-	AST_LIST_TRAVERSE(&bridge->channels, other_channel, entry) {
-		participant_reaction_announcer_leave(other_channel);
-	}
-
-	/* Since the announcer is leaving, we should clear the tech_pvt pointing to it */
-	bridge->tech_pvt = NULL;
-
-	ast_free(hc);
 	bridge_channel->tech_pvt = NULL;
+	ast_free(hc);
 }
 
 static int holding_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
@@ -287,57 +335,57 @@ static int holding_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 		return 0;
 	}
 
-	/* If we aren't an announcer, we never have any business writing anything. */
-	if (!ast_test_flag(&hc->holding_roles, HOLDING_ROLE_ANNOUNCER)) {
+	switch (hc->role) {
+	case HOLDING_ROLE_ANNOUNCER:
+		/* Write the frame to all other channels if any. */
+		ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
+		break;
+	default:
 		/* "Accept" the frame and discard it. */
-		return 0;
+		break;
 	}
-
-	/*
-	 * Ok, so we are the announcer.  Write the frame to all other
-	 * channels if any.
-	 */
-	ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 
 	return 0;
 }
 
 static void holding_bridge_suspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct holding_channel *hc = bridge_channel ? bridge_channel->tech_pvt : NULL;
+	struct holding_channel *hc = bridge_channel->tech_pvt;
 
 	if (!hc) {
 		return;
 	}
 
-	if (!ast_test_flag(&hc->holding_roles, HOLDING_ROLE_PARTICIPANT)) {
-		return;
+	switch (hc->role) {
+	case HOLDING_ROLE_PARTICIPANT:
+		participant_entertainment_stop(bridge_channel);
+		break;
+	default:
+		break;
 	}
-
-	participant_stop_hold_audio(bridge_channel);
 }
 
 static void holding_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct holding_channel *hc = bridge_channel ? bridge_channel->tech_pvt : NULL;
+	struct holding_channel *hc = bridge_channel->tech_pvt;
 	struct ast_bridge_channel *announcer_channel = bridge->tech_pvt;
 
 	if (!hc) {
 		return;
 	}
 
-	/* If the bridge channel being unsuspended is not a participant, no need to do anything. */
-	if (!ast_test_flag(&hc->holding_roles, HOLDING_ROLE_PARTICIPANT)) {
-		return;
+	switch (hc->role) {
+	case HOLDING_ROLE_PARTICIPANT:
+		if (announcer_channel) {
+			/* There is an announcer channel in the bridge. */
+			break;
+		}
+		/* We need to restart the entertainment. */
+		participant_entertainment_start(bridge_channel);
+		break;
+	default:
+		break;
 	}
-
-	/* If there is currently an announcer channel in the bridge, there is also no need to do anything. */
-	if (announcer_channel) {
-		return;
-	}
-
-	/* Otherwise we need to resume the entertainment. */
-	participant_start_hold_audio(bridge_channel);
 }
 
 static struct ast_bridge_technology holding_bridge = {
@@ -350,6 +398,32 @@ static struct ast_bridge_technology holding_bridge = {
 	.suspend = holding_bridge_suspend,
 	.unsuspend = holding_bridge_unsuspend,
 };
+
+/*!
+ * \internal
+ * \brief Deferred action to start/stop participant entertainment.
+ * \since 12.0.0
+ *
+ * \param bridge_channel Which channel to operate on.
+ * \param payload Data to pass to the callback. (NULL if none).
+ * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
+ *
+ * \return Nothing
+ */
+static void deferred_action(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size)
+{
+	const struct deferred_data *data = payload;
+
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	if (bridge_channel->bridge->technology != &holding_bridge
+		|| !bridge_channel->tech_pvt) {
+		/* Not valid anymore. */
+		ast_bridge_unlock(bridge_channel->bridge);
+		return;
+	}
+	data->callback(bridge_channel);
+	ast_bridge_unlock(bridge_channel->bridge);
+}
 
 static int unload_module(void)
 {

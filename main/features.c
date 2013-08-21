@@ -558,13 +558,6 @@ static void dynamic_dtmf_hook_callback(struct ast_bridge_channel *bridge_channel
 		run_data->moh_offset ? &run_data->app_name[run_data->moh_offset] : NULL);
 }
 
-static int dynamic_dtmf_hook_run_callback(struct ast_bridge_channel *bridge_channel,
-	ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size)
-{
-	callback(bridge_channel, payload, payload_size);
-	return 0;
-}
-
 struct dynamic_dtmf_hook_data {
 	/*! Which side of bridge to run app (AST_FEATURE_FLAG_ONSELF/AST_FEATURE_FLAG_ONPEER) */
 	unsigned int flags;
@@ -592,7 +585,6 @@ struct dynamic_dtmf_hook_data {
 static int dynamic_dtmf_hook_trip(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	struct dynamic_dtmf_hook_data *pvt = hook_pvt;
-	int (*run_it)(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_callback_fn callback, const void *payload, size_t payload_size);
 	struct dynamic_dtmf_hook_run *run_data;
 	const char *activated_name;
 	size_t len_name;
@@ -633,11 +625,12 @@ static int dynamic_dtmf_hook_trip(struct ast_bridge_channel *bridge_channel, voi
 	strcpy(&run_data->app_name[run_data->activated_offset], activated_name);/* Safe */
 
 	if (ast_test_flag(pvt, AST_FEATURE_FLAG_ONPEER)) {
-		run_it = ast_bridge_channel_write_callback;
+		ast_bridge_channel_write_callback(bridge_channel,
+			AST_BRIDGE_CHANNEL_CB_OPTION_MEDIA,
+			dynamic_dtmf_hook_callback, run_data, len_data);
 	} else {
-		run_it = dynamic_dtmf_hook_run_callback;
+		dynamic_dtmf_hook_callback(bridge_channel, run_data, len_data);
 	}
-	run_it(bridge_channel, dynamic_dtmf_hook_callback, run_data, len_data);
 	return 0;
 }
 
