@@ -7350,35 +7350,57 @@ static int sip_hangup(struct ast_channel *ast)
 	return 0;
 }
 
-/*! \brief Try setting codec suggested by the SIP_CODEC channel variable */
+/*! \brief Try setting the codecs suggested by the SIP_CODEC channel variable */
 static void try_suggested_sip_codec(struct sip_pvt *p)
 {
 	struct ast_format fmt;
-	const char *codec;
+	const char *codec_list;
+	char *codec_list_copy;
+	struct ast_format_cap *original_jointcaps;
+	char *codec;
+	int first_codec = 1;
 
-	ast_format_clear(&fmt);
+	char *strtok_ptr;
 
 	if (p->outgoing_call) {
-		codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC_OUTBOUND");
-	} else if (!(codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC_INBOUND"))) {
-		codec = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
+		codec_list = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC_OUTBOUND");
+	} else if (!(codec_list = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC_INBOUND"))) {
+		codec_list = pbx_builtin_getvar_helper(p->owner, "SIP_CODEC");
 	}
 
-	if (!codec)
+	if (ast_strlen_zero(codec_list)) {
 		return;
+	}
 
-	ast_getformatbyname(codec, &fmt);
-	if (fmt.id) {
-		ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC} variable\n", codec);
-		if (ast_format_cap_iscompatible(p->jointcaps, &fmt)) {
-			ast_format_cap_set(p->jointcaps, &fmt);
-			ast_format_cap_set(p->caps, &fmt);
-		} else
-			ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because it is not shared by both ends.\n");
-	} else
-		ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized/not configured codec (check allow/disallow in sip.conf): %s\n", codec);
+	codec_list_copy = ast_strdupa(codec_list);
+	original_jointcaps = ast_format_cap_dup(p->jointcaps);
+
+	for (codec = strtok_r(codec_list_copy, ",", &strtok_ptr); codec; codec = strtok_r(NULL, ",", &strtok_ptr)) {
+		codec = ast_strip(codec);
+
+		if (!ast_getformatbyname(codec, &fmt)) {
+			ast_log(AST_LOG_NOTICE, "Ignoring ${SIP_CODEC*} variable because of unrecognized/not configured codec %s (check allow/disallow in sip.conf)\n", codec);
+			continue;
+		}
+		if (ast_format_cap_iscompatible(original_jointcaps, &fmt)) {
+			if (first_codec) {
+				ast_verb(4, "Set codec to '%s' for this call because of ${SIP_CODEC*} variable\n", codec);
+				ast_format_cap_set(p->jointcaps, &fmt);
+				ast_format_cap_set(p->caps, &fmt);
+				first_codec = 0;
+			} else {
+				ast_verb(4, "Add codec to '%s' for this call because of ${SIP_CODEC*} variable\n", codec);
+				ast_format_cap_add(p->jointcaps, &fmt);
+				ast_format_cap_add(p->caps, &fmt);
+			}
+		} else {
+			ast_log(AST_LOG_NOTICE, "Ignoring ${SIP_CODEC*} variable because it is not shared by both ends: %s\n", codec);
+		}
+	}
+	ast_format_cap_destroy(original_jointcaps);
 	return;
-}
+ }
+
 
 /*! \brief  sip_answer: Answer SIP call , send 200 OK on Invite
  * Part of PBX interface */

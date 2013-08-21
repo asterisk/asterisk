@@ -553,6 +553,10 @@ chan_sip
    set of proxies by using a pre-loaded route-set defined by the Path headers in
    the REGISTER request. See Realtime updates for more configuration information.
 
+ * The SIP_CODEC family of variables may now specify more than one codec. Each
+   codec must be separated by a comma. The first codec specified is the
+   preferred codec for the offer. This allows a dialplan writer to specify both
+   audio and video codecs, e.g., Set(SIP_CODEC=ulaw,h264)
 
 Functions
 ------------------
