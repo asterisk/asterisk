@@ -648,8 +648,16 @@ void ast_ari_get_channel_var(struct ast_variable *headers, struct ast_get_channe
 
 	ast_assert(response != NULL);
 
+	if (ast_strlen_zero(args->variable)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Variable name is required");
+		return;
+	}
+
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
+		/* response filled in by find_control */
 		return;
 	}
 
@@ -669,15 +677,16 @@ void ast_ari_set_channel_var(struct ast_variable *headers, struct ast_set_channe
 
 	ast_assert(response != NULL);
 
-	control = find_control(response, args->channel_id);
-	if (control == NULL) {
-		return;
-	}
-
 	if (ast_strlen_zero(args->variable)) {
 		ast_ari_response_error(
 			response, 400, "Bad Request",
 			"Variable name is required");
+		return;
+	}
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* response filled in by find_control */
 		return;
 	}
 

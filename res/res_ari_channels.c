@@ -1055,6 +1055,7 @@ static void ast_ari_get_channel_var_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 400: /* Missing variable parameter. */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
@@ -1122,6 +1123,7 @@ static void ast_ari_set_channel_var_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 400: /* Missing variable parameter. */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;

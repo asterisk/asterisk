@@ -754,6 +754,10 @@
 					],
 					"errorResponses": [
 						{
+							"code": 400,
+							"reason": "Missing variable parameter."
+						},
+						{
 							"code": 404,
 							"reason": "Channel not found"
 						},
@@ -795,6 +799,10 @@
 						}
 					],
 					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Missing variable parameter."
+						},
 						{
 							"code": 404,
 							"reason": "Channel not found"

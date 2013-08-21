@@ -175,6 +175,7 @@ static void ast_ari_get_global_var_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 400: /* Missing variable parameter. */
 		is_valid = 1;
 		break;
 	default:
@@ -234,6 +235,7 @@ static void ast_ari_set_global_var_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 400: /* Missing variable parameter. */
 		is_valid = 1;
 		break;
 	default:

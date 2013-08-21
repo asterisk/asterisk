@@ -143,12 +143,20 @@ void ast_ari_get_asterisk_info(struct ast_variable *headers,
 void ast_ari_get_global_var(struct ast_variable *headers, struct ast_get_global_var_args *args, struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
-	RAII_VAR(struct ast_str *, tmp, ast_str_create(32), ast_free);
+	RAII_VAR(struct ast_str *, tmp, NULL, ast_free);
 
 	const char *value;
 
 	ast_assert(response != NULL);
 
+	if (ast_strlen_zero(args->variable)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Variable name is required");
+		return;
+	}
+
+	tmp = ast_str_create(32);
 	if (!tmp) {
 		ast_ari_response_alloc_failed(response);
 		return;
