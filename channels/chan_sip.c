@@ -18939,7 +18939,24 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		ast_string_field_set(p, context, sip_cfg.messagecontext);
 	}
 
-	get_destination(p, NULL, NULL);
+	switch (get_destination(p, NULL, NULL)) {
+	case SIP_GET_DEST_REFUSED:
+		/* Okay to send 403 since this is after auth processing */
+		transmit_response(p, "403 Forbidden", req);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
+	case SIP_GET_DEST_INVALID_URI:
+		transmit_response(p, "416 Unsupported URI Scheme", req);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
+	case SIP_GET_DEST_EXTEN_NOT_FOUND:
+	case SIP_GET_DEST_EXTEN_MATCHMORE:
+		transmit_response(p, "404 Not Found", req);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
+	case SIP_GET_DEST_EXTEN_FOUND:
+		break;
+	}
 
 	if (!(msg = ast_msg_alloc())) {
 		transmit_response(p, "500 Internal Server Error", req);
@@ -26697,6 +26714,21 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 
 			sender = ast_strdupa(from);
 			ast_callerid_parse(sender, &name, &location);
+			if (ast_strlen_zero(location)) {
+				/* This can occur if either
+				 *  1) A name-addr style From header does not close the angle brackets
+				 *  properly.
+				 *  2) The From header is not in name-addr style and the content of the
+				 *  From contains characters other than 0-9, *, #, or +.
+				 *
+				 *  In both cases, ast_callerid_parse() should have parsed the From header
+				 *  as a name rather than a number. So we just need to set the location
+				 *  to what was parsed as a name, and set the name NULL since there was
+				 *  no name present.
+				 */
+				location = name;
+				name = NULL;
+			}
 			ast_string_field_set(pvt, fromname, name);
 			if (strchr(location, ':')) { /* Must be a URI */
 				parse_uri(location, "sip:,sips:", &user, NULL, &domain, NULL);
