@@ -1334,7 +1334,25 @@ static struct ast_cli_entry cli_http[] = {
 
 static void http_shutdown(void)
 {
+	struct http_uri_redirect *redirect;
 	ast_cli_unregister_multiple(cli_http, ARRAY_LEN(cli_http));
+
+	ast_tcptls_server_stop(&http_desc);
+	if (http_tls_cfg.enabled) {
+		ast_tcptls_server_stop(&https_desc);
+	}
+	ast_free(http_tls_cfg.certfile);
+	ast_free(http_tls_cfg.pvtfile);
+	ast_free(http_tls_cfg.cipher);
+
+	ast_http_uri_unlink(&statusuri);
+	ast_http_uri_unlink(&staticuri);
+
+	AST_RWLIST_WRLOCK(&uri_redirects);
+	while ((redirect = AST_RWLIST_REMOVE_HEAD(&uri_redirects, entry))) {
+		ast_free(redirect);
+	}
+	AST_RWLIST_UNLOCK(&uri_redirects);
 }
 
 int ast_http_init(void)
