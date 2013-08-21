@@ -28202,9 +28202,7 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 
 	copy_socket_data(&p->socket, &req->socket);
 
-	if (ast_sockaddr_isnull(&p->recv)) { /* This may already be set before getting here */
-		ast_sockaddr_copy(&p->recv, addr);
-	}
+	ast_sockaddr_copy(&p->recv, addr);
 
 	/* if we have an owner, then this request has been authenticated */
 	if (p->owner) {
