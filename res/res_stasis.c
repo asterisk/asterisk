@@ -631,24 +631,19 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 		f = ast_read(chan);
 		if (!f) {
-			ast_debug(3,
-				"%s: No more frames. Must be done, I guess.\n",
+			/* Continue on in the dialplan */
+			ast_debug(3, "%s: Hangup (no more frames)\n",
 				ast_channel_uniqueid(chan));
 			break;
 		}
 
-		switch (f->frametype) {
-		case AST_FRAME_CONTROL:
+		if (f->frametype == AST_FRAME_CONTROL) {
 			if (f->subclass.integer == AST_CONTROL_HANGUP) {
 				/* Continue on in the dialplan */
 				ast_debug(3, "%s: Hangup\n",
 					ast_channel_uniqueid(chan));
-				control_continue(control);
+				break;
 			}
-			break;
-		default:
-			/* Not handled; discard */
-			break;
 		}
 	}
 

@@ -56,14 +56,6 @@ int control_dispatch_all(struct stasis_app_control *control,
 void control_wait(struct stasis_app_control *control);
 
 /*!
- * \brief Signals that a control object should finish and exit back to the
- * dialplan.
- *
- * \param control Control object to continue.
- */
-void control_continue(struct stasis_app_control *control);
-
-/*!
  * \brief Returns true if control_continue() has been called on this \a control.
  *
  * \param control Control to query.
