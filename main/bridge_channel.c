@@ -305,7 +305,8 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 {
 	ast_bridge_channel_lock_bridge(bridge_channel);
 /*
- * BUGBUG need to implement a deferred write queue for when there is no peer channel in the bridge (yet or it was kicked).
+ * XXX need to implement a deferred write queue for when there
+ * is no peer channel in the bridge (yet or it was kicked).
  *
  * The tech decides if a frame needs to be pushed back for deferral.
  * simple_bridge/native_bridge are likely the only techs that will do this.
