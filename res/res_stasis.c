@@ -597,6 +597,11 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		int r;
 		int command_count;
 
+		/* Check to see if a bridge absorbed our hangup frame */
+		if (ast_check_hangup_locked(chan)) {
+			break;
+		}
+
 		if (stasis_app_get_bridge(control)) {
 			/* Bridge is handling channel frames */
 			control_wait(control);
