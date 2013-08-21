@@ -312,12 +312,16 @@ enum ast_control_t38 {
 };
 
 enum ast_control_t38_rate {
-	AST_T38_RATE_2400 = 0,
+	AST_T38_RATE_2400 = 1,
 	AST_T38_RATE_4800,
 	AST_T38_RATE_7200,
 	AST_T38_RATE_9600,
 	AST_T38_RATE_12000,
-	AST_T38_RATE_14400,
+	/* Set to 0 so it's taken as default when unspecified.
+	 * See ITU-T T.38 Implementors' Guide (11 May 2012),
+	 * Table H.2: if the T38MaxBitRate attribute is omitted
+	 * it should use a default of 14400. */
+	AST_T38_RATE_14400 = 0,
 };
 
 enum ast_control_t38_rate_management {
