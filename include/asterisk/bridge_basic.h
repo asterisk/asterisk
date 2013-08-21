@@ -104,17 +104,6 @@ int ast_bridge_features_ds_set(struct ast_channel *chan, struct ast_flags *flags
  */
 int ast_bridge_features_ds_append(struct ast_channel *chan, struct ast_flags *flags);
 
-/*!
- * \brief Setup DTMF feature hooks using the channel features datastore property.
- * \since 12.0.0
- *
- * \param bridge_channel What to setup DTMF features on.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-int ast_bridge_channel_setup_features(struct ast_bridge_channel *bridge_channel);
-
 /*! \brief Bridge basic class virtual method table. */
 extern struct ast_bridge_methods ast_bridge_basic_v_table;
 
