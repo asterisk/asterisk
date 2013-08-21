@@ -269,8 +269,7 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 	ast_assert(channel_array != NULL);
 	for (i = 0; i < snapshot->num_channels; ++i) {
 		int res = ast_json_array_append(channel_array,
-			ast_json_stringf("channel:%s",
-				snapshot->channel_ids[i]));
+			ast_json_string_create(snapshot->channel_ids[i]));
 		if (res != 0) {
 			return NULL;
 		}
