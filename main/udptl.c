@@ -1458,8 +1458,15 @@ static int removed_options_handler(const struct aco_option *opt, struct ast_vari
 
 static void __ast_udptl_reload(int reload)
 {
+	RAII_VAR(struct udptl_config *, udptl_cfg, udptl_snapshot_alloc(), ao2_cleanup);
+
 	if (aco_process_config(&cfg_info, reload) == ACO_PROCESS_ERROR) {
-		ast_log(LOG_WARNING, "Could not reload udptl config\n");
+		if (!reload) {
+			if (!aco_set_defaults(&general_option, "general", udptl_cfg->general)) {
+				ast_log(LOG_WARNING, "Could not load udptl config; using defaults\n");
+				ao2_global_obj_replace(globals, udptl_cfg);
+			}
+		}
 	}
 }
 
