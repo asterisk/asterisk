@@ -49,6 +49,25 @@
 		LINKER_SYMBOL_PREFIXres_srtp;
 		LINKER_SYMBOL_PREFIXres_srtp_policy;
 		LINKER_SYMBOL_PREFIXsecure_call_info;
+		/*
+
+		If _IO_stdin_used is not exported, stdout/stderr may not get
+		properly aligned. That causes breakage on some architectures.
+
+		http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=634261#51
+		http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=634261#94
+		http://lists.gnu.org/archive/html/bug-glibc/2001-12/msg00203.html
+
+		We export the symbol to get proper behaviour. Now printf
+		doesn't SIGBUS anymore on the SPARC.
+
+		Michael Karcher wrote on Jan 13, 2013:
+		> A build process that mangles the export of _IO_stdin_used is
+		> (as defined by the libc ABI, even if not explicitly written
+		> down) broken. [...]
+
+		*/
+		LINKER_SYMBOL_PREFIX_IO_stdin_used;
 	local:
 		*;
 };
