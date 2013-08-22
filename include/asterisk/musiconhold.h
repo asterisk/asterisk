@@ -28,20 +28,21 @@ extern "C" {
 #endif
 
 /*!
- * \brief Turn on music on hold on a given channel 
+ * \brief Turn on music on hold on a given channel
  *
  * \param chan The channel structure that will get music on hold
  * \param mclass The class to use if the musicclass is not currently set on
- *               the channel structure.
+ *               the channel structure.  NULL and the empty string are equivalent.
  * \param interpclass The class to use if the musicclass is not currently set on
  *                    the channel structure or in the mclass argument.
+ *                    NULL and the empty string are equivalent.
  *
  * \retval Zero on success
  * \retval non-zero on failure
  */
 int ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass);
 
-/*! Turn off music on hold on a given channel */
+/*! \brief Turn off music on hold on a given channel */
 void ast_moh_stop(struct ast_channel *chan);
 
 void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, const char *, const char *),
