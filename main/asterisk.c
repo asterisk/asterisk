@@ -3021,12 +3021,23 @@ static int ast_el_initialize(void)
 static int ast_el_add_history(char *buf)
 {
 	HistEvent ev;
+	char *stripped_buf;
 
-	if (el_hist == NULL || el == NULL)
+	if (el_hist == NULL || el == NULL) {
 		ast_el_initialize();
-	if (strlen(buf) > (MAX_HISTORY_COMMAND_LENGTH - 1))
+	}
+	if (strlen(buf) > (MAX_HISTORY_COMMAND_LENGTH - 1)) {
 		return 0;
-	return (history(el_hist, &ev, H_ENTER, ast_strip(ast_strdupa(buf))));
+	}
+
+	stripped_buf = ast_strip(ast_strdupa(buf));
+
+	/* HISTCONTROL=ignoredups */
+	if (!history(el_hist, &ev, H_FIRST) && strcmp(ev.str, stripped_buf) == 0) {
+		return 0;
+	}
+
+	return history(el_hist, &ev, H_ENTER, stripped_buf);
 }
 
 static int ast_el_write_history(char *filename)
