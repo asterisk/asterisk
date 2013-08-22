@@ -90,14 +90,14 @@ static void do_sleep(void)
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 }
 
-#define APPEND_EVENT(chan, ev_type, userevent, extra, peer) do { \
-	if (append_expected_event(chan, ev_type, userevent, extra, peer)) { \
+#define APPEND_EVENT(chan, ev_type, userevent, extra) do { \
+	if (append_expected_event(chan, ev_type, userevent, extra)) { \
 		return AST_TEST_FAIL; \
 	} \
 	} while (0)
 
-#define APPEND_EVENT_SNAPSHOT(snapshot, ev_type, userevent, extra, peer) do { \
-	if (append_expected_event_snapshot(snapshot, ev_type, userevent, extra, peer)) { \
+#define APPEND_EVENT_SNAPSHOT(snapshot, ev_type, userevent, extra) do { \
+	if (append_expected_event_snapshot(snapshot, ev_type, userevent, extra)) { \
 		return AST_TEST_FAIL; \
 	} \
 	} while (0)
@@ -108,40 +108,38 @@ static void do_sleep(void)
 	} \
 	} while (0)
 
-#define CONF_EXIT(channel, bridge) do { \
+#define BRIDGE_EXIT(channel, bridge) do { \
 	ast_test_validate(test, 0 == ast_bridge_depart(channel)); \
-	CONF_EXIT_EVENT(channel, bridge); \
+	BRIDGE_EXIT_EVENT(channel, bridge); \
 	mid_test_sync(); \
 	} while (0)
 
-#define CONF_EXIT_EVENT(channel, bridge) do { \
+#define BRIDGE_EXIT_EVENT(channel, bridge) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
 	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(channel, AST_CEL_CONF_EXIT, NULL, extra, NULL); \
+	APPEND_EVENT(channel, AST_CEL_BRIDGE_EXIT, NULL, extra); \
 	} while (0)
 
-#define CONF_EXIT_SNAPSHOT(channel, bridge) do { \
+#define BRIDGE_EXIT_SNAPSHOT(channel, bridge) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
 	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT_SNAPSHOT(channel, AST_CEL_CONF_EXIT, NULL, extra, NULL); \
+	APPEND_EVENT_SNAPSHOT(channel, AST_CEL_BRIDGE_EXIT, NULL, extra); \
 	} while (0)
 
-#define CONF_ENTER_EVENT(channel, bridge) do { \
+#define BRIDGE_ENTER(channel, bridge) do { \
+	ast_test_validate(test, 0 == ast_bridge_impart(bridge, channel, NULL, NULL, 0)); \
+	do_sleep(); \
+	BRIDGE_ENTER_EVENT(channel, bridge); \
+	mid_test_sync(); \
+	} while (0)
+
+#define BRIDGE_ENTER_EVENT(channel, bridge) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
 	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(channel, AST_CEL_CONF_ENTER, NULL, extra, NULL); \
-	} while (0)
-
-#define BRIDGE_TO_CONF(first, second, third, bridge) do { \
-	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
-	extra = ast_json_pack("{s: s, s: s}", \
-		"channel_name", ast_channel_name(third), \
-		"bridge_id", bridge->uniqueid); \
-	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(first, AST_CEL_BRIDGE_TO_CONF, NULL, extra, ast_channel_name(second)); \
+	APPEND_EVENT(channel, AST_CEL_BRIDGE_ENTER, NULL, extra); \
 	} while (0)
 
 #define BLINDTRANSFER_EVENT(channel, bridge, extension, context) do { \
@@ -151,7 +149,7 @@ static void do_sleep(void)
 		"context", context, \
 		"bridge_id", bridge->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(channel, AST_CEL_BLINDTRANSFER, NULL, extra, NULL); \
+	APPEND_EVENT(channel, AST_CEL_BLINDTRANSFER, NULL, extra); \
 	} while (0)
 
 #define ATTENDEDTRANSFER_BRIDGE(channel1, bridge1, channel2, bridge2) do { \
@@ -161,7 +159,7 @@ static void do_sleep(void)
 		"channel2_name", ast_channel_name(channel2), \
 		"bridge2_id", bridge2->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(channel1, AST_CEL_ATTENDEDTRANSFER, NULL, extra, NULL); \
+	APPEND_EVENT(channel1, AST_CEL_ATTENDEDTRANSFER, NULL, extra); \
 	} while (0)
 
 /*! \brief Alice's Caller ID */
@@ -179,25 +177,25 @@ static void do_sleep(void)
 /*! \brief Create a \ref test_cel_chan_tech for Alice. */
 #define CREATE_ALICE_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "100", "100", "default", NULL, 0, CHANNEL_TECH_NAME "/Alice"); \
-	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL, NULL); \
+	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	} while (0)
 
 /*! \brief Create a \ref test_cel_chan_tech for Bob. */
 #define CREATE_BOB_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "200", "200", "default", NULL, 0, CHANNEL_TECH_NAME "/Bob"); \
-	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL, NULL); \
+	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	} while (0)
 
 /*! \brief Create a \ref test_cel_chan_tech for Charlie. */
 #define CREATE_CHARLIE_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "300", "300", "default", NULL, 0, CHANNEL_TECH_NAME "/Charlie"); \
-	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL, NULL); \
+	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	} while (0)
 
 /*! \brief Create a \ref test_cel_chan_tech for David. */
 #define CREATE_DAVID_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "400", "400", "default", NULL, 0, CHANNEL_TECH_NAME "/David"); \
-	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL, NULL); \
+	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	} while (0)
 
 /*! \brief Emulate a channel entering into an application */
@@ -217,7 +215,7 @@ static void do_sleep(void)
 
 #define ANSWER_NO_APP(chan) do { \
 	ast_setstate(chan, AST_STATE_UP); \
-	APPEND_EVENT(chan, AST_CEL_ANSWER, NULL, NULL, NULL); \
+	APPEND_EVENT(chan, AST_CEL_ANSWER, NULL, NULL); \
 	} while (0)
 
 /*! \brief Hang up a test channel safely */
@@ -226,7 +224,7 @@ static void do_sleep(void)
 	ao2_ref(channel, +1); \
 	ast_hangup((channel)); \
 	HANGUP_EVENT(channel, cause, dialstatus); \
-	APPEND_EVENT(channel, AST_CEL_CHANNEL_END, NULL, NULL, NULL); \
+	APPEND_EVENT(channel, AST_CEL_CHANNEL_END, NULL, NULL); \
 	stasis_topic_wait(ast_channel_topic_all_cached()); \
 	ao2_cleanup(stasis_cache_get(ast_channel_cache(), \
 		ast_channel_snapshot_type(), ast_channel_uniqueid(channel))); \
@@ -241,7 +239,7 @@ static void do_sleep(void)
 		"hangupsource", "", \
 		"dialstatus", dialstatus); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(channel, AST_CEL_HANGUP, NULL, extra, NULL); \
+	APPEND_EVENT(channel, AST_CEL_HANGUP, NULL, extra); \
 	} while (0)
 
 static void mid_test_sync(void);
@@ -250,13 +248,13 @@ static int append_expected_event(
 	struct ast_channel *chan,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra, const char *peer);
+	struct ast_json *extra);
 
 static int append_expected_event_snapshot(
 	struct ast_channel_snapshot *snapshot,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra, const char *peer);
+	struct ast_json *extra);
 
 static int append_dummy_event(void);
 
@@ -408,11 +406,11 @@ AST_TEST_DEFINE(test_cel_single_bridge)
 	EMULATE_APP_DATA(chan, 2, "Bridge", "");
 
 	do_sleep();
-	ast_bridge_impart(bridge, chan, NULL, NULL, 0);
+	BRIDGE_ENTER(chan, bridge);
 
 	do_sleep();
 
-	ast_bridge_depart(chan);
+	BRIDGE_EXIT(chan, bridge);
 
 	HANGUP_CHANNEL(chan, AST_CAUSE_NORMAL, "");
 
@@ -446,11 +444,11 @@ AST_TEST_DEFINE(test_cel_single_bridge_continue)
 	EMULATE_APP_DATA(chan, 2, "Bridge", "");
 
 	do_sleep();
-	ast_bridge_impart(bridge, chan, NULL, NULL, 0);
+	BRIDGE_ENTER(chan, bridge);
 
 	do_sleep();
 
-	ast_bridge_depart(chan);
+	BRIDGE_EXIT(chan, bridge);
 
 	EMULATE_APP_DATA(chan, 3, "Wait", "");
 
@@ -491,19 +489,16 @@ AST_TEST_DEFINE(test_cel_single_twoparty_bridge_a)
 	ANSWER_CHANNEL(chan_alice);
 	EMULATE_APP_DATA(chan_alice, 2, "Bridge", "");
 
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+	BRIDGE_ENTER(chan_alice, bridge);
 	do_sleep();
 
 	ANSWER_CHANNEL(chan_bob);
 	EMULATE_APP_DATA(chan_bob, 2, "Bridge", "");
 
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
-	do_sleep();
-	APPEND_EVENT(chan_alice, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_bob));
+	BRIDGE_ENTER(chan_bob, bridge);
 
-	ast_bridge_depart(chan_alice);
-	ast_bridge_depart(chan_bob);
-	APPEND_EVENT(chan_alice, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_bob));
+	BRIDGE_EXIT(chan_alice, bridge);
+	BRIDGE_EXIT(chan_bob, bridge);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -546,16 +541,12 @@ AST_TEST_DEFINE(test_cel_single_twoparty_bridge_b)
 	EMULATE_APP_DATA(chan_bob, 2, "Bridge", "");
 	do_sleep();
 
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
-	do_sleep();
+	BRIDGE_ENTER(chan_bob, bridge);
 
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
-	do_sleep();
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
+	BRIDGE_ENTER(chan_alice, bridge);
 
-	ast_bridge_depart(chan_alice);
-	ast_bridge_depart(chan_bob);
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_alice));
+	BRIDGE_EXIT(chan_alice, bridge);
+	BRIDGE_EXIT(chan_bob, bridge);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -566,7 +557,7 @@ AST_TEST_DEFINE(test_cel_single_twoparty_bridge_b)
 /* XXX Validation needs to be reworked on a per-channel basis before
  * test_cel_single_multiparty_bridge and test_cel_dial_answer_multiparty
  * can operate properly. */
-#if 0
+#ifdef RACEY_TESTS
 AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 {
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
@@ -602,26 +593,22 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 	do_sleep();
 
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+	BRIDGE_ENTER(chan_alice, bridge);
 
 	ANSWER_CHANNEL(chan_bob);
 	EMULATE_APP_DATA(chan_bob, 2, "Bridge", "");
 	do_sleep();
 
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
-	do_sleep();
-	APPEND_EVENT(chan_alice, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_bob));
+	BRIDGE_ENTER(chan_bob, bridge);
 
 	ANSWER_CHANNEL(chan_charlie);
 	EMULATE_APP_DATA(chan_charlie, 2, "Bridge", "");
 	do_sleep();
-	ast_bridge_impart(bridge, chan_charlie, NULL, NULL, 0);
-	do_sleep();
-	BRIDGE_TO_CONF(chan_alice, chan_bob, chan_charlie, bridge);
+	BRIDGE_ENTER(chan_charlie, bridge);
 
-	CONF_EXIT(chan_alice, bridge);
-	CONF_EXIT(chan_bob, bridge);
-	CONF_EXIT(chan_charlie, bridge);
+	BRIDGE_EXIT(chan_alice, bridge);
+	BRIDGE_EXIT(chan_bob, bridge);
+	BRIDGE_EXIT(chan_charlie, bridge);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -633,7 +620,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 #define EMULATE_DIAL(channel, dialstring) do { \
 	EMULATE_APP_DATA(channel, 1, "Dial", dialstring); \
-	if (append_expected_event(channel, AST_CEL_APP_START, NULL, NULL, NULL)) { \
+	if (append_expected_event(channel, AST_CEL_APP_START, NULL, NULL)) { \
 		return AST_TEST_FAIL; \
 	} \
 	} while (0)
@@ -643,7 +630,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 #define START_DIALED_FULL(caller, callee, number, name) do { \
 	callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, number, NULL, NULL, ast_channel_linkedid(caller), 0, CHANNEL_TECH_NAME "/" name); \
-	if (append_expected_event(callee, AST_CEL_CHANNEL_START, NULL, NULL, NULL)) { \
+	if (append_expected_event(callee, AST_CEL_CHANNEL_START, NULL, NULL)) { \
 		return AST_TEST_FAIL; \
 	} \
 	ast_set_flag(ast_channel_flags(callee), AST_FLAG_OUTGOING); \
@@ -955,15 +942,11 @@ AST_TEST_DEFINE(test_cel_dial_answer_twoparty_bridge_a)
 
 	do_sleep();
 
-	ast_bridge_impart(bridge, chan_caller, NULL, NULL, 0);
-	do_sleep();
-	ast_bridge_impart(bridge, chan_callee, NULL, NULL, 0);
-	do_sleep();
-	APPEND_EVENT(chan_caller, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_callee));
+	BRIDGE_ENTER(chan_caller, bridge);
+	BRIDGE_ENTER(chan_callee, bridge);
 
-	ast_bridge_depart(chan_caller);
-	ast_bridge_depart(chan_callee);
-	APPEND_EVENT(chan_caller, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_callee));
+	BRIDGE_EXIT(chan_caller, bridge);
+	BRIDGE_EXIT(chan_callee, bridge);
 
 	HANGUP_CHANNEL(chan_caller, AST_CAUSE_NORMAL, "ANSWER");
 	HANGUP_CHANNEL(chan_callee, AST_CAUSE_NORMAL, "");
@@ -1005,15 +988,11 @@ AST_TEST_DEFINE(test_cel_dial_answer_twoparty_bridge_b)
 	ANSWER_NO_APP(chan_callee);
 
 	do_sleep();
-	ast_bridge_impart(bridge, chan_callee, NULL, NULL, 0);
-	do_sleep();
-	ast_bridge_impart(bridge, chan_caller, NULL, NULL, 0);
-	do_sleep();
-	APPEND_EVENT(chan_callee, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_caller));
+	BRIDGE_ENTER(chan_callee, bridge);
+	BRIDGE_ENTER(chan_caller, bridge);
 
-	ast_bridge_depart(chan_caller);
-	ast_bridge_depart(chan_callee);
-	APPEND_EVENT(chan_callee, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_caller));
+	BRIDGE_EXIT(chan_caller, bridge);
+	BRIDGE_EXIT(chan_callee, bridge);
 
 	HANGUP_CHANNEL(chan_caller, AST_CAUSE_NORMAL, "ANSWER");
 	HANGUP_CHANNEL(chan_callee, AST_CAUSE_NORMAL, "");
@@ -1021,7 +1000,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_twoparty_bridge_b)
 	return AST_TEST_PASS;
 }
 
-#if 0
+#ifdef RACEY_TESTS
 AST_TEST_DEFINE(test_cel_dial_answer_multiparty)
 {
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
@@ -1079,24 +1058,15 @@ AST_TEST_DEFINE(test_cel_dial_answer_multiparty)
 	do_sleep();
 
 	do_sleep();
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_charlie, NULL, NULL, 0));
-	do_sleep();
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_david, NULL, NULL, 0));
-	do_sleep();
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_david));
+	BRIDGE_ENTER(chan_charlie, bridge);
+	BRIDGE_ENTER(chan_david, bridge);
+	BRIDGE_ENTER(chan_bob, bridge);
+	BRIDGE_ENTER(chan_alice, bridge);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0));
-	do_sleep();
-	BRIDGE_TO_CONF(chan_charlie, chan_david, chan_bob, bridge);
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0));
-	do_sleep();
-	CONF_ENTER_EVENT(chan_alice, bridge);
-
-	CONF_EXIT(chan_alice, bridge);
-	CONF_EXIT(chan_bob, bridge);
-	CONF_EXIT(chan_charlie, bridge);
-	CONF_EXIT(chan_david, bridge);
+	BRIDGE_EXIT(chan_alice, bridge);
+	BRIDGE_EXIT(chan_bob, bridge);
+	BRIDGE_EXIT(chan_charlie, bridge);
+	BRIDGE_EXIT(chan_david, bridge);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "ANSWER");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1137,12 +1107,8 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	ANSWER_NO_APP(chan_alice);
 	ANSWER_NO_APP(chan_bob);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0));
-	do_sleep();
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0));
-	do_sleep();
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
+	BRIDGE_ENTER(chan_bob, bridge);
+	BRIDGE_ENTER(chan_alice, bridge);
 
 	pair.bridge = bridge;
 	pair.channel = chan_alice;
@@ -1150,10 +1116,8 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 		&pair, "transfer_context", "transfer_extension");
 	BLINDTRANSFER_EVENT(chan_alice, bridge, "transfer_extension", "transfer_context");
 
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_alice));
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_alice));
-
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_bob));
+	BRIDGE_EXIT(chan_alice, bridge);
+	BRIDGE_EXIT(chan_bob, bridge);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
@@ -1197,12 +1161,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	ANSWER_NO_APP(chan_alice);
 	ANSWER_NO_APP(chan_bob);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_bob, NULL, NULL, 0));
-	do_sleep();
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_alice, NULL, NULL, 0));
-	do_sleep();
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
+	BRIDGE_ENTER(chan_bob, bridge1);
+	BRIDGE_ENTER(chan_alice, bridge1);
 
 	/* Create second set of bridged parties */
 	bridge2 = ast_bridge_basic_new();
@@ -1213,26 +1173,24 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	ANSWER_NO_APP(chan_david);
 	ANSWER_NO_APP(chan_charlie);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_charlie, NULL, NULL, 0));
-	do_sleep();
+	BRIDGE_ENTER(chan_charlie, bridge2);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_david, NULL, NULL, 0));
+	BRIDGE_ENTER(chan_david, bridge2);
+	BRIDGE_EXIT_EVENT(chan_bob, bridge1);
 	do_sleep();
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_david));
 
 	/* Perform attended transfer */
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_alice));
-
 	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
-	BRIDGE_TO_CONF(chan_charlie, chan_david, chan_bob, bridge2);
-	CONF_EXIT_EVENT(chan_david, bridge2);
+	BRIDGE_ENTER_EVENT(chan_bob, bridge2);
 
+	BRIDGE_EXIT_EVENT(chan_david, bridge2);
 	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
+	BRIDGE_EXIT_EVENT(chan_alice, bridge1);
 
 	do_sleep();
-	CONF_EXIT(chan_bob, bridge2);
-	CONF_EXIT(chan_charlie, bridge2);
+	BRIDGE_EXIT(chan_bob, bridge2);
+	BRIDGE_EXIT(chan_charlie, bridge2);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
@@ -1282,12 +1240,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	ANSWER_NO_APP(chan_alice);
 	ANSWER_NO_APP(chan_bob);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_bob, NULL, NULL, 0));
-	do_sleep();
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_alice, NULL, NULL, 0));
-	do_sleep();
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
+	BRIDGE_ENTER(chan_bob, bridge1);
+	BRIDGE_ENTER(chan_alice, bridge1);
 
 	/* Create second set of bridged parties */
 	bridge2 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
@@ -1299,26 +1253,23 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	ANSWER_NO_APP(chan_david);
 	ANSWER_NO_APP(chan_charlie);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_charlie, NULL, NULL, 0));
-	do_sleep();
+	BRIDGE_ENTER(chan_charlie, bridge2);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_david, NULL, NULL, 0));
-	do_sleep();
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_david));
+	BRIDGE_ENTER(chan_david, bridge2);
 
 	/* Perform attended transfer */
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_END, NULL, NULL, ast_channel_name(chan_david));
-
 	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
-	BRIDGE_TO_CONF(chan_bob, chan_alice, chan_charlie, bridge1);
-	CONF_EXIT_EVENT(chan_alice, bridge1);
+	BRIDGE_EXIT_EVENT(chan_charlie, bridge2);
+	BRIDGE_ENTER_EVENT(chan_charlie, bridge1);
+	BRIDGE_EXIT_EVENT(chan_david, bridge2);
+	BRIDGE_EXIT_EVENT(chan_alice, bridge1);
 
 	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
 
 	do_sleep();
-	CONF_EXIT(chan_bob, bridge1);
-	CONF_EXIT(chan_charlie, bridge1);
+	BRIDGE_EXIT(chan_bob, bridge1);
+	BRIDGE_EXIT(chan_charlie, bridge1);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
@@ -1370,12 +1321,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	ANSWER_NO_APP(chan_alice);
 	ANSWER_NO_APP(chan_bob);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_bob, NULL, NULL, 0));
-	do_sleep();
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge1, chan_alice, NULL, NULL, 0));
-	do_sleep();
-	APPEND_EVENT(chan_bob, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_alice));
+	BRIDGE_ENTER(chan_bob, bridge1);
+	BRIDGE_ENTER(chan_alice, bridge1);
 
 	/* Create second set of bridged parties */
 	bridge2 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
@@ -1389,12 +1336,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	ANSWER_NO_APP(chan_david);
 	ANSWER_NO_APP(chan_charlie);
 
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_charlie, NULL, NULL, 0));
-	do_sleep();
-
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge2, chan_david, NULL, NULL, 0));
-	do_sleep();
-	APPEND_EVENT(chan_charlie, AST_CEL_BRIDGE_START, NULL, NULL, ast_channel_name(chan_david));
+	BRIDGE_ENTER(chan_charlie, bridge2);
+	BRIDGE_ENTER(chan_david, bridge2);
 
 	/* Perform attended transfer */
 
@@ -1407,27 +1350,21 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 
 	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
 
-	/* The two BRIDGE_TO_CONFs and CONF_EXITs are all racing to be first */
-
-	/* BRIDGE_TO_CONF with primary charlie, peer david, and trigger channel ;2 */
-	APPEND_DUMMY_EVENT();
-
 	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
 
-	/* BRIDGE_TO_CONF with primary bob, peer alice, and trigger channel ;1 */
+	/* ;1 and ;2 BRIDGE_ENTER and ;1 ANSWER */
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
 	APPEND_DUMMY_EVENT();
 
-	/* CONF_EXIT alice and david */
+	/* BRIDGE_EXIT alice and david */
 	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-
-	/* ANSWER ;1 */
 	APPEND_DUMMY_EVENT();
 
 	do_sleep();
-	CONF_EXIT(chan_bob, bridge1);
-	CONF_EXIT(chan_charlie, bridge2);
+	BRIDGE_EXIT(chan_bob, bridge1);
+	BRIDGE_EXIT(chan_charlie, bridge2);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	do_sleep();
@@ -1473,8 +1410,13 @@ AST_TEST_DEFINE(test_cel_dial_pickup)
 	CREATE_CHARLIE_CHANNEL(chan_charlie, &charlie_caller);
 
 	{
+		RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 		SCOPED_CHANNELLOCK(lock, chan_callee);
-		APPEND_EVENT(chan_callee, AST_CEL_PICKUP, NULL, NULL, ast_channel_name(chan_charlie));
+
+		extra = ast_json_pack("{s: s}", "pickup_channel", ast_channel_name(chan_charlie));
+		ast_test_validate(test, extra != NULL);
+
+		APPEND_EVENT(chan_callee, AST_CEL_PICKUP, NULL, extra);
 		ast_test_validate(test, 0 == ast_do_pickup(chan_charlie, chan_callee));
 	}
 
@@ -1500,6 +1442,7 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 	RAII_VAR(struct ast_channel_snapshot *, bob_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, local_opt_begin, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, local_opt_end, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1538,7 +1481,11 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 
 	stasis_publish(ast_channel_topic(chan_alice), local_opt_begin);
 	stasis_publish(ast_channel_topic(chan_alice), local_opt_end);
-	APPEND_EVENT_SNAPSHOT(alice_snapshot, AST_CEL_LOCAL_OPTIMIZE, NULL, NULL, bob_snapshot->name);
+
+	extra = ast_json_pack("{s: s}", "local_two", bob_snapshot->name);
+	ast_test_validate(test, extra != NULL);
+
+	APPEND_EVENT_SNAPSHOT(alice_snapshot, AST_CEL_LOCAL_OPTIMIZE, NULL, extra);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1621,10 +1568,10 @@ static int append_expected_event_snapshot(
 	struct ast_channel_snapshot *snapshot,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra, const char *peer)
+	struct ast_json *extra)
 {
 	RAII_VAR(struct ast_event *, ev, NULL, ast_free);
-	ev = ast_cel_create_event(snapshot, type, userdefevname, extra, peer);
+	ev = ast_cel_create_event(snapshot, type, userdefevname, extra);
 	if (!ev) {
 		return -1;
 	}
@@ -1636,7 +1583,7 @@ static int append_expected_event(
 	struct ast_channel *chan,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra, const char *peer)
+	struct ast_json *extra)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	snapshot = ast_channel_snapshot_create(chan);
@@ -1644,7 +1591,7 @@ static int append_expected_event(
 		return -1;
 	}
 
-	return append_expected_event_snapshot(snapshot, type, userdefevname, extra, peer);
+	return append_expected_event_snapshot(snapshot, type, userdefevname, extra);
 }
 
 static void test_sub(struct ast_event *event)
@@ -1904,7 +1851,9 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_cel_single_bridge_continue);
 	AST_TEST_UNREGISTER(test_cel_single_twoparty_bridge_a);
 	AST_TEST_UNREGISTER(test_cel_single_twoparty_bridge_b);
-	/*AST_TEST_UNREGISTER(test_cel_single_multiparty_bridge);*/
+#ifdef RACEY_TESTS
+	AST_TEST_UNREGISTER(test_cel_single_multiparty_bridge);
+#endif
 
 	AST_TEST_UNREGISTER(test_cel_dial_unanswered);
 	AST_TEST_UNREGISTER(test_cel_dial_congestion);
@@ -1915,7 +1864,9 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_cel_dial_answer_no_bridge);
 	AST_TEST_UNREGISTER(test_cel_dial_answer_twoparty_bridge_a);
 	AST_TEST_UNREGISTER(test_cel_dial_answer_twoparty_bridge_b);
-	/*AST_TEST_UNREGISTER(test_cel_dial_answer_multiparty);*/
+#ifdef RACEY_TESTS
+	AST_TEST_UNREGISTER(test_cel_dial_answer_multiparty);
+#endif
 
 	AST_TEST_UNREGISTER(test_cel_blind_transfer);
 	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_swap);
@@ -1956,11 +1907,8 @@ static int load_module(void)
 	cel_test_config->events |= 1<<AST_CEL_CHANNEL_END;
 	cel_test_config->events |= 1<<AST_CEL_ANSWER;
 	cel_test_config->events |= 1<<AST_CEL_HANGUP;
-	cel_test_config->events |= 1<<AST_CEL_BRIDGE_START;
-	cel_test_config->events |= 1<<AST_CEL_BRIDGE_END;
-	cel_test_config->events |= 1<<AST_CEL_BRIDGE_TO_CONF;
-	cel_test_config->events |= 1<<AST_CEL_CONF_ENTER;
-	cel_test_config->events |= 1<<AST_CEL_CONF_EXIT;
+	cel_test_config->events |= 1<<AST_CEL_BRIDGE_ENTER;
+	cel_test_config->events |= 1<<AST_CEL_BRIDGE_EXIT;
 	cel_test_config->events |= 1<<AST_CEL_BLINDTRANSFER;
 	cel_test_config->events |= 1<<AST_CEL_ATTENDEDTRANSFER;
 	cel_test_config->events |= 1<<AST_CEL_PICKUP;
@@ -1977,7 +1925,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_cel_single_bridge_continue);
 	AST_TEST_REGISTER(test_cel_single_twoparty_bridge_a);
 	AST_TEST_REGISTER(test_cel_single_twoparty_bridge_b);
-	/*AST_TEST_REGISTER(test_cel_single_multiparty_bridge);*/
+#ifdef RACEY_TESTS
+	AST_TEST_REGISTER(test_cel_single_multiparty_bridge);
+#endif
 
 	AST_TEST_REGISTER(test_cel_dial_unanswered);
 	AST_TEST_REGISTER(test_cel_dial_congestion);
@@ -1988,7 +1938,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_cel_dial_answer_no_bridge);
 	AST_TEST_REGISTER(test_cel_dial_answer_twoparty_bridge_a);
 	AST_TEST_REGISTER(test_cel_dial_answer_twoparty_bridge_b);
-	/*AST_TEST_REGISTER(test_cel_dial_answer_multiparty);*/
+#ifdef RACEY_TESTS
+	AST_TEST_REGISTER(test_cel_dial_answer_multiparty);
+#endif
 
 	AST_TEST_REGISTER(test_cel_blind_transfer);
 	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_swap);

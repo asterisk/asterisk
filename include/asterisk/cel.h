@@ -51,44 +51,28 @@ enum ast_cel_event_type {
 	AST_CEL_APP_START = 5,
 	/*! \brief an app ends */
 	AST_CEL_APP_END = 6,
-	/*! \brief a bridge is established */
-	AST_CEL_BRIDGE_START = 7,
-	/*! \brief a bridge is torn down */
-	AST_CEL_BRIDGE_END = 8,
-	/*! \brief a conference is started */
-	AST_CEL_CONF_START = 9,
-	/*! \brief a conference is ended */
-	AST_CEL_CONF_END = 10,
+	/*! \brief channel enters a bridge */
+	AST_CEL_BRIDGE_ENTER = 7,
+	/*! \brief channel exits a bridge */
+	AST_CEL_BRIDGE_EXIT = 8,
 	/*! \brief a channel is parked */
-	AST_CEL_PARK_START = 11,
+	AST_CEL_PARK_START = 9,
 	/*! \brief channel out of the park */
-	AST_CEL_PARK_END = 12,
+	AST_CEL_PARK_END = 10,
 	/*! \brief a transfer occurs */
-	AST_CEL_BLINDTRANSFER = 13,
+	AST_CEL_BLINDTRANSFER = 11,
 	/*! \brief a transfer occurs */
-	AST_CEL_ATTENDEDTRANSFER = 14,
-	/*! \brief a 3-way conference, usually part of a transfer */
-	AST_CEL_HOOKFLASH = 16,
-	/*! \brief a 3-way conference, usually part of a transfer */
-	AST_CEL_3WAY_START = 17,
-	/*! \brief a 3-way conference, usually part of a transfer */
-	AST_CEL_3WAY_END = 18,
-	/*! \brief channel enters a conference */
-	AST_CEL_CONF_ENTER = 19,
-	/*! \brief channel exits a conference */
-	AST_CEL_CONF_EXIT = 20,
+	AST_CEL_ATTENDEDTRANSFER = 12,
 	/*! \brief a user-defined event, the event name field should be set  */
-	AST_CEL_USER_DEFINED = 21,
+	AST_CEL_USER_DEFINED = 13,
 	/*! \brief the last channel with the given linkedid is retired  */
-	AST_CEL_LINKEDID_END = 22,
+	AST_CEL_LINKEDID_END = 14,
 	/*! \brief a directed pickup was performed on this channel  */
-	AST_CEL_PICKUP = 24,
+	AST_CEL_PICKUP = 15,
 	/*! \brief this call was forwarded somewhere else  */
-	AST_CEL_FORWARD = 25,
-	/*! \brief a bridge turned into a conference and will be treated as such until it is torn down */
-	AST_CEL_BRIDGE_TO_CONF = 26,
+	AST_CEL_FORWARD = 16,
 	/*! \brief A local channel optimization occurred */
-	AST_CEL_LOCAL_OPTIMIZE = 27,
+	AST_CEL_LOCAL_OPTIMIZE = 17,
 };
 
 /*! 
@@ -289,7 +273,6 @@ struct ast_channel_snapshot;
  * \param userdefevname Custom name for the call event. (optional)
  * \param extra An event-specific opaque JSON blob to be rendered and placed
  *        in the "CEL_EXTRA" information element of the call event. (optional)
- * \param peer_name The peer name to be placed into the event. (optional)
  *
  * \since 12
  *
@@ -298,7 +281,7 @@ struct ast_channel_snapshot;
  */
 struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
-		struct ast_json *extra, const char *peer_name);
+		struct ast_json *extra);
 
 /*!
  * \brief CEL backend callback
