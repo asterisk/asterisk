@@ -973,6 +973,7 @@
 				</configOption>
 				<configOption name="type">
                                         <synopsis>Must be of type 'system'.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="global">
 				<synopsis>Options that apply globally to all SIP communications</synopsis>
@@ -988,6 +989,7 @@
 				</configOption>
 				<configOption name="type">
                                         <synopsis>Must be of type 'global'.</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
