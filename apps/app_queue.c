@@ -5991,7 +5991,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	char *gosubexec = NULL;
 	const char *monitorfilename;
 	char tmpid[256];
-	char meid[1024];
 	int forwardsallowed = 1;
 	int block_connected_line = 0;
 	int callcompletedinsl;
@@ -6005,7 +6004,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	tmpid[0] = 0;
-	meid[0] = 0;
 	time(&now);
 
 	/* If we've already exceeded our timeout, then just stop
