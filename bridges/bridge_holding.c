@@ -204,7 +204,7 @@ static void participant_entertainment_start(struct ast_bridge_channel *bridge_ch
 	switch(hc->idle_mode) {
 	case IDLE_MODE_MOH:
 		moh_class = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "moh_class");
-		ast_moh_start(bridge_channel->chan, ast_strlen_zero(moh_class) ? NULL : moh_class, NULL);
+		ast_moh_start(bridge_channel->chan, moh_class, NULL);
 		break;
 	case IDLE_MODE_RINGING:
 		ast_indicate(bridge_channel->chan, AST_CONTROL_RINGING);

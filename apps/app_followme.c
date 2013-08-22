@@ -1424,7 +1424,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			if (ast_waitstream(chan, "") < 0)
 				goto outrun;
 		}
-		ast_moh_start(chan, S_OR(targs->mohclass, NULL), NULL);
+		ast_moh_start(chan, targs->mohclass, NULL);
 	}
 
 	ast_channel_lock(chan);

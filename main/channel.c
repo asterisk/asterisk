@@ -7193,7 +7193,6 @@ void ast_uninstall_music_functions(void)
 	ast_moh_cleanup_ptr = NULL;
 }
 
-/*! \brief Turn on music on hold on a given channel */
 int ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	if (ast_moh_start_ptr)
@@ -7204,7 +7203,6 @@ int ast_moh_start(struct ast_channel *chan, const char *mclass, const char *inte
 	return 0;
 }
 
-/*! \brief Turn off music on hold on a given channel */
 void ast_moh_stop(struct ast_channel *chan)
 {
 	if (ast_moh_stop_ptr)
