@@ -281,13 +281,13 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (ast_test_flag(flags, OPT_SAYEXTENSION)) {
 			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
-			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, ast_channel_language(chan));
+			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, ast_channel_language(chan), AST_SAY_CASE_NONE);
 		}
 	} else {
-		res = ast_say_character_str(chan, S_OR(name, ext), AST_DIGIT_ANY, ast_channel_language(chan));
+		res = ast_say_character_str(chan, S_OR(name, ext), AST_DIGIT_ANY, ast_channel_language(chan), AST_SAY_CASE_NONE);
 		if (!ast_strlen_zero(name) && ast_test_flag(flags, OPT_SAYEXTENSION)) {
 			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
-			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, ast_channel_language(chan));
+			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, ast_channel_language(chan), AST_SAY_CASE_NONE);
 		}
 	}
 

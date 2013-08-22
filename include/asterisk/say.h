@@ -148,13 +148,23 @@ SAY_EXTERN int (* ast_say_digit_str_full)(struct ast_channel *chan, const char *
  */
 SAY_EXTERN int (* ast_say_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, const char *options, int audiofd, int ctrlfd) SAY_INIT(ast_say_full);
 
+/*!
+ * \brief Controls how ast_say_character_str denotes the case of characters in a string
+ */
+enum ast_say_case_sensitivity {
+	AST_SAY_CASE_NONE,  /*!< Do not distinguish case on any letters */
+	AST_SAY_CASE_LOWER, /*!< Denote case only on lower case letters, upper case is assumed otherwise */
+	AST_SAY_CASE_UPPER, /*!< Denote case only on upper case letters, lower case is assumed otherwise */
+	AST_SAY_CASE_ALL,   /*!< Denote case on all letters, upper and lower */
+};
+
 /*! \brief
  * function to pronounce character and phonetic strings
  */
 int ast_say_character_str(struct ast_channel *chan, const char *num,
-	const char *ints, const char *lang);
+	const char *ints, const char *lang, enum ast_say_case_sensitivity sensitivity);
 
-SAY_EXTERN int (* ast_say_character_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, int audiofd, int ctrlfd) SAY_INIT(ast_say_character_str_full);
+SAY_EXTERN int (* ast_say_character_str_full)(struct ast_channel *chan, const char *num, const char *ints, const char *lang, enum ast_say_case_sensitivity sensitivity, int audiofd, int ctrlfd) SAY_INIT(ast_say_character_str_full);
 
 int ast_say_phonetic_str(struct ast_channel *chan, const char *num,
 	const char *ints, const char *lang);

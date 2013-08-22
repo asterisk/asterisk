@@ -13683,7 +13683,7 @@ static int vmsayname_exec(struct ast_channel *chan, const char *data)
 		ast_debug(3, "Greeting not found for '%s@%s', falling back to mailbox number.\n", args_copy, context);
 		res = ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
 		if (!res) {
-			res = ast_say_character_str(chan, args_copy, AST_DIGIT_ANY, ast_channel_language(chan));
+			res = ast_say_character_str(chan, args_copy, AST_DIGIT_ANY, ast_channel_language(chan), AST_SAY_CASE_NONE);
 		}
 	}
 

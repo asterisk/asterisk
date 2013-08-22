@@ -1048,7 +1048,7 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 								break;
 							}
 						} else {
-							res = ast_say_character_str(chan, peer_name, "", ast_channel_language(chan));
+							res = ast_say_character_str(chan, peer_name, "", ast_channel_language(chan), AST_SAY_CASE_NONE);
 						}
 					}
 					if (ptr && (num = atoi(ptr))) {

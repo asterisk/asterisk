@@ -2313,11 +2313,37 @@ static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, const 
 static int handle_sayalpha(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
 	int res;
+	int sensitivity = AST_SAY_CASE_NONE;
 
-	if (argc != 4)
+	if (argc < 4 || argc > 5) {
 		return RESULT_SHOWUSAGE;
+	}
 
-	res = ast_say_character_str_full(chan, argv[2], argv[3], ast_channel_language(chan), agi->audio, agi->ctrl);
+	if (argc > 4) {
+		switch (argv[4][0]) {
+		case 'a':
+		case 'A':
+			sensitivity = AST_SAY_CASE_ALL;
+			break;
+		case 'l':
+		case 'L':
+			sensitivity = AST_SAY_CASE_LOWER;
+			break;
+		case 'n':
+		case 'N':
+			sensitivity = AST_SAY_CASE_NONE;
+			break;
+		case 'u':
+		case 'U':
+			sensitivity = AST_SAY_CASE_UPPER;
+			break;
+		case '\0':
+			break;
+		default:
+			return RESULT_SHOWUSAGE;
+		}
+	}
+	res = ast_say_character_str_full(chan, argv[2], argv[3], ast_channel_language(chan), sensitivity, agi->audio, agi->ctrl);
 	if (res == 1) /* New command */
 		return RESULT_SUCCESS;
 	ast_agi_send(agi->fd, chan, "200 result=%d\n", res);

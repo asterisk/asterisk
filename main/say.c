@@ -61,13 +61,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int wait_file(struct ast_channel *chan, const char *ints, const char *file, const char *lang);
 
 
-static int say_character_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, int audiofd, int ctrlfd)
+static int say_character_str_full(struct ast_channel *chan, const char *str, const char *ints, const char *lang, enum ast_say_case_sensitivity sensitivity, int audiofd, int ctrlfd)
 {
 	const char *fn;
 	char fnbuf[10], asciibuf[20] = "letters/ascii";
 	char ltr;
 	int num = 0;
 	int res = 0;
+	int upper = 0;
+	int lower = 0;
 
 	while (str[num] && !res) {
 		fn = NULL;
@@ -121,9 +123,35 @@ static int say_character_str_full(struct ast_channel *chan, const char *str, con
 			break;
 		default:
 			ltr = str[num];
-			if ('A' <= ltr && ltr <= 'Z') ltr += 'a' - 'A';		/* file names are all lower-case */
-			strcpy(fnbuf, "letters/X");
-			fnbuf[8] = ltr;
+			if ('A' <= ltr && ltr <= 'Z') {
+				ltr += 'a' - 'A';		/* file names are all lower-case */
+				switch (sensitivity) {
+				case AST_SAY_CASE_UPPER:
+				case AST_SAY_CASE_ALL:
+					upper = !upper;
+				case AST_SAY_CASE_LOWER:
+				case AST_SAY_CASE_NONE:
+					break;
+				}
+			} else if ('a' <= ltr && ltr <= 'z') {
+				switch (sensitivity) {
+				case AST_SAY_CASE_LOWER:
+				case AST_SAY_CASE_ALL:
+					lower = !lower;
+				case AST_SAY_CASE_UPPER:
+				case AST_SAY_CASE_NONE:
+					break;
+				}
+			}
+
+			if (upper) {
+				strcpy(fnbuf, "uppercase");
+			} else if (lower) {
+				strcpy(fnbuf, "lowercase");
+			} else {
+				strcpy(fnbuf, "letters/X");
+				fnbuf[8] = ltr;
+			}
 			fn = fnbuf;
 		}
 		if ((fn && ast_fileexists(fn, NULL, lang) > 0) ||
@@ -136,6 +164,9 @@ static int say_character_str_full(struct ast_channel *chan, const char *str, con
 					res = ast_waitstream(chan, ints);
 			}
 			ast_stopstream(chan);
+		}
+		if (upper || lower) {
+			continue;
 		}
 		num++;
 	}

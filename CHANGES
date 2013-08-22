@@ -339,6 +339,10 @@ AGI (Asterisk Gateway Interface)
    will start the playback of the audio at the position specified. It will
    also return the final position of the file in 'endpos'.
 
+ * The SAY ALPHA command now accepts an additional parameter to control
+   whether it specifies the case of uppercase, lowercase, or all letters to
+   provide functionality similar to SayAlphaCase.
+
 CDR (Call Detail Records)
 ------------------
  * Significant changes have been made to the behavior of CDRs. For a full

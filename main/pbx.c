@@ -501,6 +501,46 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">CHANNEL</ref>
 		</see-also>
 	</application>
+	<application name="SayAlphaCase" language="en_US">
+		<synopsis>
+			Say Alpha.
+		</synopsis>
+		<syntax>
+			<parameter name="casetype" required="true" >
+				<enumlist>
+					<enum name="a">
+						<para>Case sensitive (all) pronunciation.
+						(Ex: SayAlphaCase(a,aBc); - lowercase a uppercase b lowercase c).</para>
+					</enum>
+					<enum name="l">
+						<para>Case sensitive (lower) pronunciation.
+						(Ex: SayAlphaCase(l,aBc); - lowercase a b lowercase c).</para>
+					</enum>
+					<enum name="n">
+						<para>Case insensitive pronunciation. Equivalent to SayAlpha.
+						(Ex: SayAlphaCase(n,aBc) - a b c).</para>
+					</enum>
+					<enum name="u">
+						<para>Case sensitive (upper) pronunciation.
+						(Ex: SayAlphaCase(u,aBc); - a uppercase b c).</para>
+					</enum>
+				</enumlist>
+			</parameter>
+			<parameter name="string" required="true" />
+		</syntax>
+		<description>
+			<para>This application will play the sounds that correspond to the letters of the
+			given <replaceable>string</replaceable>.  Optionally, a <replaceable>casetype</replaceable> may be
+			specified.  This will be used for case-insensitive or case-sensitive pronunciations.</para>
+		</description>
+		<see-also>
+			<ref type="application">SayDigits</ref>
+			<ref type="application">SayNumber</ref>
+			<ref type="application">SayPhonetic</ref>
+			<ref type="application">SayAlpha</ref>
+			<ref type="function">CHANNEL</ref>
+		</see-also>
+	</application>
 	<application name="SayDigits" language="en_US">
 		<synopsis>
 			Say Digits.
@@ -1122,6 +1162,7 @@ static int pbx_builtin_execiftime(struct ast_channel *, const char *);
 static int pbx_builtin_saynumber(struct ast_channel *, const char *);
 static int pbx_builtin_saydigits(struct ast_channel *, const char *);
 static int pbx_builtin_saycharacters(struct ast_channel *, const char *);
+static int pbx_builtin_saycharacters_case(struct ast_channel *, const char *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, const char *);
 static int matchcid(const char *cidpattern, const char *callerid);
 #ifdef NEED_DEBUG
@@ -1297,6 +1338,7 @@ static struct pbx_builtin {
 	{ "RaiseException", pbx_builtin_raise_exception },
 	{ "Ringing",        pbx_builtin_ringing },
 	{ "SayAlpha",       pbx_builtin_saycharacters },
+	{ "SayAlphaCase",   pbx_builtin_saycharacters_case },
 	{ "SayDigits",      pbx_builtin_saydigits },
 	{ "SayNumber",      pbx_builtin_saynumber },
 	{ "SayPhonetic",    pbx_builtin_sayphonetic },
@@ -11260,12 +11302,60 @@ static int pbx_builtin_saydigits(struct ast_channel *chan, const char *data)
 	return res;
 }
 
+static int pbx_builtin_saycharacters_case(struct ast_channel *chan, const char *data)
+{
+	int res = 0;
+	int sensitivity = 0;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(options);
+		AST_APP_ARG(characters);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "SayAlphaCase requires two arguments (options, characters)\n");
+		return 0;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!args.options || strlen(args.options) != 1) {
+		ast_log(LOG_WARNING, "SayAlphaCase options are mutually exclusive and required\n");
+		return 0;
+	}
+
+	switch (args.options[0]) {
+	case 'a':
+		sensitivity = AST_SAY_CASE_ALL;
+		break;
+	case 'l':
+		sensitivity = AST_SAY_CASE_LOWER;
+		break;
+	case 'n':
+		sensitivity = AST_SAY_CASE_NONE;
+		break;
+	case 'u':
+		sensitivity = AST_SAY_CASE_UPPER;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Invalid option: '%s'\n", args.options);
+		return 0;
+	}
+
+	res = ast_say_character_str(chan, args.characters, "", ast_channel_language(chan), sensitivity);
+
+	return res;
+}
+
 static int pbx_builtin_saycharacters(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
 
-	if (data)
-		res = ast_say_character_str(chan, data, "", ast_channel_language(chan));
+	if (data) {
+		res = ast_say_character_str(chan, data, "", ast_channel_language(chan), AST_SAY_CASE_NONE);
+	}
+
 	return res;
 }
 
