@@ -685,7 +685,7 @@
 					Signifies that a domain is an alias. If the domain on a session is
 					not found to match an AoR then this object is used to see if we have
 					an alias for the AoR to which the endpoint is binding. This objects
-					name as defined in configuration should be the domain alias and a 
+					name as defined in configuration should be the domain alias and a
 					config option is provided to specify the domain to be aliased.
 				</para></description>
 				<configOption name="type">
@@ -851,7 +851,7 @@
 					This must be used in conjuction with the <literal>PJSIP_DIAL_CONTACTS</literal>.
 					</para><para>
 					Registrations: For Asterisk to match an inbound registration to an endpoint,
-					the AoR object name must match the user portion of the SIP URI in the "To:" 
+					the AoR object name must match the user portion of the SIP URI in the "To:"
 					header of the inbound SIP registration. That will usually be equivalent
 					to the "user name" set in your hard or soft phones configuration.
 				</para></description>
@@ -935,7 +935,7 @@
 				<description><para>
 					The settings in this section are global. In addition to being global, the values will
 					not be re-evaluated when a reload is performed. This is because the values must be set
-					before the SIP stack is initialized. The only way to reset these values is to either 
+					before the SIP stack is initialized. The only way to reset these values is to either
 					restart Asterisk, or unload res_pjsip.so and then load it again.
 				</para></description>
 				<configOption name="timert1" default="500">
@@ -1724,7 +1724,7 @@ int ast_sip_is_content_type(pjsip_media_type *content_type, char *type, char *su
 
 	pjsip_media_type_init2(&compare, type, subtype);
 
-	return pjsip_media_type_cmp(content_type, &compare, 0) ? -1 : 0;
+	return pjsip_media_type_cmp(content_type, &compare, 0) ? 0 : -1;
 }
 
 pj_caching_pool caching_pool;

@@ -32,77 +32,114 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
 
+static int is_media_type(pjsip_rx_data *rdata, char *subtype)
+{
+	return !pj_strcmp2(&rdata->msg_info.ctype->media.type, "application") &&
+		!pj_strcmp2(&rdata->msg_info.ctype->media.subtype, subtype);
+}
+
+static void send_response(struct ast_sip_session *session,
+			  struct pjsip_rx_data *rdata, int code)
+{
+	pjsip_tx_data *tdata;
+	pjsip_dialog *dlg = session->inv_session->dlg;
+
+	if (pjsip_dlg_create_response(dlg, rdata, code,
+				      NULL, &tdata) == PJ_SUCCESS) {
+		struct pjsip_transaction *tsx = pjsip_rdata_get_tsx(rdata);
+		pjsip_dlg_send_response(dlg, tsx, tdata);
+	}
+}
+
+static char get_event(const char *c)
+{
+	unsigned int event;
+
+	if (*c == '!' || *c == '*' || *c == '#' ||
+	    ('A' <= *c && *c <= 'D') ||
+	    ('a' <= *c && *c <= 'd')) {
+		return *c;
+	}
+
+	if ((sscanf(c, "%30u", &event) != 1) || event > 16) {
+		return '\0';
+	}
+
+	if (event < 10) {
+		return *c;
+	}
+
+	switch (event) {
+	case 10: return '*';
+	case 11: return '#';
+	case 16: return '!';
+	}
+
+	return 'A' + (event - 12);
+}
+
 static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
-	int res = 0;
 	pjsip_msg_body *body = rdata->msg_info.msg->body;
-
-	pjsip_tx_data *tdata;
-
 	char buf[body ? body->len : 0];
 	char *cur = buf;
 	char *line;
 
 	char event = '\0';
-	unsigned int duration = 0;
+	unsigned int duration = 100;
 
-	if (!body || !ast_sip_is_content_type(&body->content_type, "application", "dtmf-relay")) {
+	char is_dtmf = is_media_type(rdata, "dtmf");
+
+	if (!is_dtmf && !is_media_type(rdata, "dtmf-relay")) {
+		return 0;
+	}
+
+	if (!body || !body->len) {
+		/* need to return 200 OK on empty body */
+		send_response(session, rdata, 200);
 		return 0;
 	}
 
 	body->print_body(body, buf, body->len);
 
-	while ((line = strsep(&cur, "\r\n"))) {
-		char *c;
+	if (is_dtmf) {
+		/* directly use what is in the message body */
+		event = get_event(cur);
+	} else { /* content type = application/dtmf-relay */
+		while ((line = strsep(&cur, "\r\n"))) {
+			char *c;
 
-		if (!(c = strchr(line, '='))) {
-			continue;
-		}
-		*c++ = '\0';
-
-		c = ast_skip_blanks(c);
-
-		if (!strcasecmp(line, "signal")) {
-			if (c[0] == '!' || c[0] == '*' || c[0] == '#' ||
-			    ('0' <= c[0] && c[0] <= '9') ||
-			    ('A' <= c[0] && c[0] <= 'D') ||
-			    ('a' <= c[0] && c[0] <= 'd')) {
-				event = c[0];
-			} else {
-				ast_log(LOG_ERROR, "Invalid DTMF event signal in INFO message.\n");
-				res = -1;
-				break;
+			if (!(c = strchr(line, '='))) {
+				continue;
 			}
-		} else if (!strcasecmp(line, "duration")) {
-			sscanf(c, "%30u", &duration);
-		}
-	}
 
-	if (!duration) {
-		duration = 100;
+			*c++ = '\0';
+			c = ast_skip_blanks(c);
+
+			if (!strcasecmp(line, "signal")) {
+				if (!(event = get_event(c))) {
+					break;
+				}
+			} else if (!strcasecmp(line, "duration")) {
+				sscanf(c, "%30u", &duration);
+			}
+		}
 	}
 
 	if (event == '!') {
 		struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_FLASH, } };
-
 		ast_queue_frame(session->channel, &f);
 	} else if (event != '\0') {
 		struct ast_frame f = { AST_FRAME_DTMF, };
 		f.len = duration;
 		f.subclass.integer = event;
-
 		ast_queue_frame(session->channel, &f);
 	} else {
-		res = -1;
+		ast_log(LOG_ERROR, "Invalid DTMF event signal in INFO message.\n");
 	}
 
-	if (pjsip_dlg_create_response(session->inv_session->dlg, rdata, !res ? 200 : 500, NULL, &tdata) == PJ_SUCCESS) {
-		struct pjsip_transaction *tsx = pjsip_rdata_get_tsx(rdata);
-
-		pjsip_dlg_send_response(session->inv_session->dlg, tsx, tdata);
-	}
-
-	return res;
+	send_response(session, rdata, event ? 200 : 500);
+	return event ? 0 : -1;
 }
 
 static struct ast_sip_session_supplement dtmf_info_supplement = {
