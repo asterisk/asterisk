@@ -580,7 +580,7 @@ static void parking_lot_destructor(void *obj)
 	struct parking_lot *lot = obj;
 
 	if (lot->parking_bridge) {
-		ast_bridge_destroy(lot->parking_bridge);
+		ast_bridge_destroy(lot->parking_bridge, 0);
 	}
 	ao2_cleanup(lot->parked_users);
 	ao2_cleanup(lot->cfg);

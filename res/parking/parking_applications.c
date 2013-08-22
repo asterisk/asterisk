@@ -618,14 +618,14 @@ static int parked_call_app_exec(struct ast_channel *chan, const char *data)
 
 	/* Move the parkee into the new bridge */
 	if (ast_bridge_move(retrieval_bridge, lot->parking_bridge, pu->chan, NULL, 0)) {
-		ast_bridge_destroy(retrieval_bridge);
+		ast_bridge_destroy(retrieval_bridge, 0);
 		return -1;
 	}
 
 	/* Initialize our bridge features */
 	res = ast_bridge_features_init(&chan_features);
 	if (res) {
-		ast_bridge_destroy(retrieval_bridge);
+		ast_bridge_destroy(retrieval_bridge, 0);
 		ast_bridge_features_cleanup(&chan_features);
 		return -1;
 	}

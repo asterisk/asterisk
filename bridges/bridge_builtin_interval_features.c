@@ -45,10 +45,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/test.h"
-
 #include "asterisk/say.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/causes.h"
 
 static int bridge_features_duration_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
@@ -58,9 +58,11 @@ static int bridge_features_duration_callback(struct ast_bridge_channel *bridge_c
 		ast_stream_and_wait(bridge_channel->chan, limits->duration_sound, AST_DIGIT_NONE);
 	}
 
-	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+		AST_CAUSE_NORMAL_CLEARING);
 
-	ast_test_suite_event_notify("BRIDGE_TIMELIMIT", "Channel1: %s", ast_channel_name(bridge_channel->chan));
+	ast_test_suite_event_notify("BRIDGE_TIMELIMIT", "Channel1: %s",
+		ast_channel_name(bridge_channel->chan));
 	return -1;
 }
 

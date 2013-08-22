@@ -198,6 +198,7 @@ void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update);
  * \since 12.0.0
  *
  * \param bridge Bridge to eject all channels
+ * \param cause Cause of bridge being dissolved.  (If cause <= 0 then use AST_CAUSE_NORMAL_CLEARING)
  *
  * \details
  * Force out all channels that are not already going out of the
@@ -207,6 +208,6 @@ void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update);
  *
  * \return Nothing
  */
-void bridge_dissolve(struct ast_bridge *bridge);
+void bridge_dissolve(struct ast_bridge *bridge, int cause);
 
 #endif /* _ASTERISK_PRIVATE_BRIDGING_H */

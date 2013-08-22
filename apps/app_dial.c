@@ -3024,7 +3024,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 				ast_channel_setoption(chan, AST_OPTION_OPRMODE, &oprmode, sizeof(oprmode), 0);
 			}
-/* BUGBUG bridge needs to set hangup cause on chan when peer breaks the bridge. */
 			setup_peer_after_bridge_goto(chan, peer, &opts, opt_args);
 			res = ast_bridge_call(chan, peer, &config);
 		}

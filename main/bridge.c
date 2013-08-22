@@ -55,7 +55,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/test.h"
 #include "asterisk/_private.h"
-
 #include "asterisk/heap.h"
 #include "asterisk/say.h"
 #include "asterisk/timing.h"
@@ -66,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/parking.h"
 #include "asterisk/core_local.h"
 #include "asterisk/core_unreal.h"
+#include "asterisk/causes.h"
 
 /*! All bridges container. */
 static struct ao2_container *bridges;
@@ -241,22 +241,7 @@ int ast_bridge_queue_action(struct ast_bridge *bridge, struct ast_frame *action)
 	return 0;
 }
 
-/*!
- * \internal
- * \brief Dissolve the bridge.
- * \since 12.0.0
- *
- * \param bridge Bridge to eject all channels
- *
- * \details
- * Force out all channels that are not already going out of the
- * bridge.  Any new channels joining will leave immediately.
- *
- * \note On entry, bridge is already locked.
- *
- * \return Nothing
- */
-void bridge_dissolve(struct ast_bridge *bridge)
+void bridge_dissolve(struct ast_bridge *bridge, int cause)
 {
 	struct ast_bridge_channel *bridge_channel;
 	struct ast_frame action = {
@@ -269,11 +254,17 @@ void bridge_dissolve(struct ast_bridge *bridge)
 	}
 	bridge->dissolved = 1;
 
-	ast_debug(1, "Bridge %s: dissolving bridge\n", bridge->uniqueid);
+	if (cause <= 0) {
+		cause = AST_CAUSE_NORMAL_CLEARING;
+	}
+	bridge->cause = cause;
 
-/* BUGBUG need a cause code on the bridge for the later ejected channels. */
+	ast_debug(1, "Bridge %s: dissolving bridge with cause %d(%s)\n",
+		bridge->uniqueid, cause, ast_cause2str(cause));
+
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(bridge_channel,
+			BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, cause);
 	}
 
 	/* Must defer dissolving bridge because it is already locked. */
@@ -302,7 +293,7 @@ static void bridge_dissolve_check_stolen(struct ast_bridge *bridge, struct ast_b
 		&& ast_test_flag(&bridge_channel->features->feature_flags,
 			AST_BRIDGE_CHANNEL_FLAG_DISSOLVE_HANGUP)) {
 		/* The stolen channel controlled the bridge it was stolen from. */
-		bridge_dissolve(bridge);
+		bridge_dissolve(bridge, 0);
 		return;
 	}
 	if (bridge->num_channels < 2
@@ -311,7 +302,7 @@ static void bridge_dissolve_check_stolen(struct ast_bridge *bridge, struct ast_b
 		 * The stolen channel has not left enough channels to keep the
 		 * bridge alive.  Assume the stolen channel hung up.
 		 */
-		bridge_dissolve(bridge);
+		bridge_dissolve(bridge, 0);
 		return;
 	}
 }
@@ -648,7 +639,7 @@ struct ast_bridge *bridge_register(struct ast_bridge *bridge)
 		bridge->construction_completed = 1;
 		ast_bridge_publish_state(bridge);
 		if (!ao2_link(bridges, bridge)) {
-			ast_bridge_destroy(bridge);
+			ast_bridge_destroy(bridge, 0);
 			bridge = NULL;
 		}
 	}
@@ -852,11 +843,11 @@ struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags
 	return bridge;
 }
 
-int ast_bridge_destroy(struct ast_bridge *bridge)
+int ast_bridge_destroy(struct ast_bridge *bridge, int cause)
 {
 	ast_debug(1, "Bridge %s: telling all channels to leave the party\n", bridge->uniqueid);
 	ast_bridge_lock(bridge);
-	bridge_dissolve(bridge);
+	bridge_dissolve(bridge, cause);
 	ast_bridge_unlock(bridge);
 
 	ao2_ref(bridge, -1);
@@ -1366,7 +1357,7 @@ void bridge_reconfigured(struct ast_bridge *bridge, unsigned int colp_update)
 	if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_SMART)
 		&& smart_bridge_operation(bridge)) {
 		/* Smart bridge failed. */
-		bridge_dissolve(bridge);
+		bridge_dissolve(bridge, 0);
 		return;
 	}
 	bridge_complete_join(bridge);
@@ -1652,7 +1643,8 @@ int ast_bridge_depart(struct ast_channel *chan)
 	 * channel thread.
 	 */
 
-	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+	ast_bridge_channel_leave_bridge(bridge_channel,
+		BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, AST_CAUSE_NORMAL_CLEARING);
 
 	/* Wait for the depart thread to die */
 	ast_debug(1, "Waiting for %p(%s) bridge thread to die.\n",
@@ -1680,7 +1672,8 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 		return -1;
 	}
 
-	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+	ast_bridge_channel_leave_bridge(bridge_channel,
+		BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, AST_CAUSE_NORMAL_CLEARING);
 
 	ast_bridge_unlock(bridge);
 
@@ -1689,7 +1682,7 @@ int ast_bridge_remove(struct ast_bridge *bridge, struct ast_channel *chan)
 
 static void kick_it(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size)
 {
-	ast_bridge_channel_kick(bridge_channel);
+	ast_bridge_channel_kick(bridge_channel, AST_CAUSE_NORMAL_CLEARING);
 }
 
 int ast_bridge_kick(struct ast_bridge *bridge, struct ast_channel *chan)
@@ -1770,7 +1763,8 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		if (kick_me) {
 			for (idx = 0; idx < num_kick; ++idx) {
 				if (bridge_channel == kick_me[idx]) {
-					ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+					ast_bridge_channel_leave_bridge(bridge_channel,
+						BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, AST_CAUSE_NORMAL_CLEARING);
 					break;
 				}
 			}
@@ -1788,7 +1782,8 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		bridge_channel_change_bridge(bridge_channel, dst_bridge);
 
 		if (bridge_channel_internal_push(bridge_channel)) {
-			ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+			ast_bridge_channel_leave_bridge(bridge_channel,
+				BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -1802,7 +1797,8 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 			bridge_channel = kick_me[idx];
 			ast_bridge_channel_lock(bridge_channel);
 			if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
-				ast_bridge_channel_leave_bridge_nolock(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+				ast_bridge_channel_leave_bridge_nolock(bridge_channel,
+					BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, AST_CAUSE_NORMAL_CLEARING);
 				bridge_channel_internal_pull(bridge_channel);
 			}
 			ast_bridge_channel_unlock(bridge_channel);
@@ -2036,10 +2032,12 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 			bridge_channel_change_bridge(bridge_channel, orig_bridge);
 
 			if (bridge_channel_internal_push(bridge_channel)) {
-				ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+				ast_bridge_channel_leave_bridge(bridge_channel,
+					BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
 			}
 		} else {
-			ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+			ast_bridge_channel_leave_bridge(bridge_channel,
+				BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
 		}
 		res = -1;
 	}
@@ -2452,7 +2450,8 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 		}
 		other->swap = dst_bridge_channel->chan;
 		if (!bridge_do_move(dst_bridge, other, 1, 1)) {
-			ast_bridge_channel_leave_bridge(src_bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+			ast_bridge_channel_leave_bridge(src_bridge_channel,
+				BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, AST_CAUSE_NORMAL_CLEARING);
 			res = -1;
 		}
 		if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
@@ -4063,7 +4062,8 @@ static enum ast_transfer_result bridge_swap_attended_transfer(struct ast_bridge 
 			return AST_BRIDGE_TRANSFER_FAIL;
 		}
 		/* Must kick the source channel out of its bridge. */
-		ast_bridge_channel_leave_bridge(source_bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(source_bridge_channel,
+			BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, AST_CAUSE_NORMAL_CLEARING);
 		return AST_BRIDGE_TRANSFER_SUCCESS;
 	} else {
 		return AST_BRIDGE_TRANSFER_INVALID;
@@ -4619,7 +4619,7 @@ static char *handle_bridge_destroy_specific(struct ast_cli_entry *e, int cmd, st
 	}
 
 	ast_cli(a->fd, "Destroying bridge '%s'\n", a->argv[2]);
-	ast_bridge_destroy(bridge);
+	ast_bridge_destroy(bridge, 0);
 
 	return CLI_SUCCESS;
 }

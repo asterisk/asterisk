@@ -304,6 +304,8 @@ struct ast_bridge {
 	 * \note Temporary as in try again in a moment.
 	 */
 	unsigned int inhibit_merge;
+	/*! Cause code of the dissolved bridge. */
+	int cause;
 	/*! TRUE if the bridge was reconfigured. */
 	unsigned int reconfigured:1;
 	/*! TRUE if the bridge has been dissolved.  Any channel that now tries to join is immediately ejected. */
@@ -395,6 +397,7 @@ static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *fil
  * \brief Destroy a bridge
  *
  * \param bridge Bridge to destroy
+ * \param cause Cause of bridge being destroyed.  (If cause <= 0 then use AST_CAUSE_NORMAL_CLEARING)
  *
  * \retval 0 on success
  * \retval -1 on failure
@@ -402,12 +405,12 @@ static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *fil
  * Example usage:
  *
  * \code
- * ast_bridge_destroy(bridge);
+ * ast_bridge_destroy(bridge, AST_CAUSE_NORMAL_CLEARING);
  * \endcode
  *
  * This destroys a bridge that was previously created.
  */
-int ast_bridge_destroy(struct ast_bridge *bridge);
+int ast_bridge_destroy(struct ast_bridge *bridge, int cause);
 
 /*!
  * \brief Notify bridging that this channel was just masqueraded.

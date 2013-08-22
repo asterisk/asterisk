@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/monitor.h"
 #include "asterisk/mixmonitor.h"
 #include "asterisk/audiohook.h"
+#include "asterisk/causes.h"
 
 enum set_touch_variables_res {
 	SET_TOUCH_SUCCESS,
@@ -487,7 +488,8 @@ static int feature_hangup(struct ast_bridge_channel *bridge_channel, void *hook_
 	 * bridge_channel to force the channel out of the bridge and the
 	 * core takes care of the rest.
 	 */
-	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+		AST_CAUSE_NORMAL_CLEARING);
 	return 0;
 }
 

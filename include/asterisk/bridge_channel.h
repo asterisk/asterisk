@@ -239,36 +239,40 @@ int ast_bridge_channel_notify_talking(struct ast_bridge_channel *bridge_channel,
  *
  * \param bridge_channel Channel to change the state on
  * \param new_state The new state to place the channel into
+ * \param cause Cause of channel leaving bridge.
+ *   If cause <= 0 then use cause on channel if cause still <= 0 use AST_CAUSE_NORMAL_CLEARING.
  *
  * Example usage:
  *
  * \code
- * ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+ * ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, AST_CAUSE_NORMAL_CLEARING);
  * \endcode
  *
  * This places the channel pointed to by bridge_channel into the
  * state BRIDGE_CHANNEL_STATE_END if it was
  * BRIDGE_CHANNEL_STATE_WAIT before.
  */
-void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state);
+void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state, int cause);
 
 /*!
  * \brief Set bridge channel state to leave bridge (if not leaving already).
  *
  * \param bridge_channel Channel to change the state on
  * \param new_state The new state to place the channel into
+ * \param cause Cause of channel leaving bridge.
+ *   If cause <= 0 then use cause on channel if cause still <= 0 use AST_CAUSE_NORMAL_CLEARING.
  *
  * Example usage:
  *
  * \code
- * ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+ * ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, AST_CAUSE_NORMAL_CLEARING);
  * \endcode
  *
  * This places the channel pointed to by bridge_channel into the
  * state BRIDGE_CHANNEL_STATE_END if it was
  * BRIDGE_CHANNEL_STATE_WAIT before.
  */
-void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state);
+void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state, int cause);
 
 /*!
  * \brief Get the peer bridge channel of a two party bridge.
@@ -599,13 +603,15 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
  * \since 12.0.0
  *
  * \param bridge_channel Which channel is being kicked or hungup.
+ * \param cause Cause of channel being kicked.
+ *   If cause <= 0 then use cause on channel if cause still <= 0 use AST_CAUSE_NORMAL_CLEARING.
  *
  * \note This is intended to be called by bridge hooks and the
  * bridge channel thread.
  *
  * \return Nothing
  */
-void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel);
+void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int cause);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -299,7 +299,8 @@ static int basic_hangup_hook(struct ast_bridge_channel *bridge_channel, void *ho
 	}
 	if (2 <= bridge_count) {
 		/* Just allow this channel to leave the multi-party bridge. */
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(bridge_channel,
+			BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, 0);
 	}
 	ast_bridge_unlock(bridge_channel->bridge);
 	return 0;
@@ -1488,7 +1489,7 @@ static void attended_transfer_properties_shutdown(struct attended_transfer_prope
 	}
 
 	if (props->target_bridge) {
-		ast_bridge_destroy(props->target_bridge);
+		ast_bridge_destroy(props->target_bridge, 0);
 		props->target_bridge = NULL;
 	}
 
@@ -2454,7 +2455,7 @@ static enum attended_transfer_state wait_to_recall_exit(struct attended_transfer
 static int fail_enter(struct attended_transfer_properties *props)
 {
 	if (props->transferee_bridge) {
-		ast_bridge_destroy(props->transferee_bridge);
+		ast_bridge_destroy(props->transferee_bridge, 0);
 		props->transferee_bridge = NULL;
 	}
 	return 0;

@@ -676,7 +676,7 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
 
 	/* Put peer into the bridge */
 	if (ast_bridge_impart(bridge, peer, NULL, peer_features, 1)) {
-		ast_bridge_destroy(bridge);
+		ast_bridge_destroy(bridge, 0);
 		ast_bridge_features_cleanup(&chan_features);
 		bridge_failed_peer_goto(chan, peer);
 		return -1;
@@ -829,7 +829,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	if (ast_bridge_add_channel(bridge, chana, NULL, playtone & PLAYTONE_CHANNEL1, xfer_cfg_a ? xfer_cfg_a->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel1 to bridge: %s", ast_channel_name(chana));
 		astman_send_error(s, m, buf);
-		ast_bridge_destroy(bridge);
+		ast_bridge_destroy(bridge, 0);
 		return 0;
 	}
 
@@ -837,7 +837,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	if (ast_bridge_add_channel(bridge, chanb, NULL, playtone & PLAYTONE_CHANNEL2, xfer_cfg_b ? xfer_cfg_b->xfersound : NULL)) {
 		snprintf(buf, sizeof(buf), "Unable to add Channel2 to bridge: %s", ast_channel_name(chanb));
 		astman_send_error(s, m, buf);
-		ast_bridge_destroy(bridge);
+		ast_bridge_destroy(bridge, 0);
 		return 0;
 	}
 
@@ -1125,7 +1125,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE), xfer_cfg ? xfer_cfg->xfersound : NULL)) {
 		ast_bridge_features_destroy(peer_features);
 		ast_bridge_features_cleanup(&chan_features);
-		ast_bridge_destroy(bridge);
+		ast_bridge_destroy(bridge, 0);
 		goto done;
 	}
 

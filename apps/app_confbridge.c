@@ -892,7 +892,7 @@ static void destroy_conference_bridge(void *obj)
 
 	/* Destroying a conference bridge is simple, all we have to do is destroy the bridging object */
 	if (conference->bridge) {
-		ast_bridge_destroy(conference->bridge);
+		ast_bridge_destroy(conference->bridge, 0);
 		conference->bridge = NULL;
 	}
 

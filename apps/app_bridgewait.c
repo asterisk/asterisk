@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/causes.h"
 
 /*** DOCUMENTATION
 	<application name="BridgeWait" language="en_US">
@@ -127,8 +128,9 @@ struct wait_bridge_wrapper {
 static void wait_bridge_wrapper_destructor(void *obj)
 {
 	struct wait_bridge_wrapper *wrapper = obj;
+
 	if (wrapper->bridge) {
-		ast_bridge_destroy(wrapper->bridge);
+		ast_bridge_destroy(wrapper->bridge, 0);
 	}
 }
 
@@ -204,7 +206,8 @@ AST_APP_OPTIONS(bridgewait_opts, {
 static int bridgewait_timeout_callback(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
 	ast_verb(3, "Channel %s timed out.\n", ast_channel_name(bridge_channel->chan));
-	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+		AST_CAUSE_NORMAL_CLEARING);
 	return -1;
 }
 
@@ -321,9 +324,8 @@ static struct wait_bridge_wrapper *wait_bridge_wrapper_alloc(const char *bridge_
 
 	bridge_wrapper = ao2_alloc_options(sizeof(*bridge_wrapper) + strlen(bridge_name) + 1,
 		wait_bridge_wrapper_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
-
 	if (!bridge_wrapper) {
-		ast_bridge_destroy(bridge);
+		ast_bridge_destroy(bridge, 0);
 		return NULL;
 	}
 

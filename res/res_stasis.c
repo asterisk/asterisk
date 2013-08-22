@@ -471,7 +471,7 @@ void stasis_app_bridge_destroy(const char *bridge_id)
 		return;
 	}
 	ao2_unlink(app_bridges, bridge);
-	ast_bridge_destroy(bridge);
+	ast_bridge_destroy(bridge, 0);
 }
 
 int app_send_start_msg(struct app *app, struct ast_channel *chan,

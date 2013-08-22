@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/features_config.h"
 #include "asterisk/parking.h"
+#include "asterisk/causes.h"
 
 /*!
  * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
@@ -101,13 +102,6 @@ int ast_bridge_channel_notify_talking(struct ast_bridge_channel *bridge_channel,
 	return ast_bridge_channel_queue_frame(bridge_channel, &action);
 }
 
-void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state)
-{
-	ast_bridge_channel_lock(bridge_channel);
-	ast_bridge_channel_leave_bridge_nolock(bridge_channel, new_state);
-	ast_bridge_channel_unlock(bridge_channel);
-}
-
 /*!
  * \internal
  * \brief Poke the bridge_channel thread
@@ -122,9 +116,33 @@ static void bridge_channel_poke(struct ast_bridge_channel *bridge_channel)
 	}
 }
 
-void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state)
+/*!
+ * \internal
+ * \brief Set actual cause on channel.
+ * \since 12.0.0
+ *
+ * \param chan Channel to set cause.
+ * \param cause Cause to set on channel.
+ *   If cause <= 0 then use cause on channel if cause still <= 0 use AST_CAUSE_NORMAL_CLEARING.
+ *
+ * \return Actual cause set on channel.
+ */
+static int channel_set_cause(struct ast_channel *chan, int cause)
 {
-/* BUGBUG need cause code for the bridge_channel leaving the bridge. */
+	ast_channel_lock(chan);
+	if (cause <= 0) {
+		cause = ast_channel_hangupcause(chan);
+		if (cause <= 0) {
+			cause = AST_CAUSE_NORMAL_CLEARING;
+		}
+	}
+	ast_channel_hangupcause_set(chan, cause);
+	ast_channel_unlock(chan);
+	return cause;
+}
+
+void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state, int cause)
+{
 	if (bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT) {
 		return;
 	}
@@ -133,10 +151,19 @@ void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_ch
 		bridge_channel, ast_channel_name(bridge_channel->chan), bridge_channel->state,
 		new_state);
 
+	channel_set_cause(bridge_channel->chan, cause);
+
 	/* Change the state on the bridge channel */
 	bridge_channel->state = new_state;
 
 	bridge_channel_poke(bridge_channel);
+}
+
+void ast_bridge_channel_leave_bridge(struct ast_bridge_channel *bridge_channel, enum bridge_channel_state new_state, int cause)
+{
+	ast_bridge_channel_lock(bridge_channel);
+	ast_bridge_channel_leave_bridge_nolock(bridge_channel, new_state, cause);
+	ast_bridge_channel_unlock(bridge_channel);
 }
 
 struct ast_bridge_channel *ast_bridge_channel_peer(struct ast_bridge_channel *bridge_channel)
@@ -263,11 +290,18 @@ void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_ch
 	}
 }
 
-void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel)
+void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int cause)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
 	struct ast_bridge_hook *hook;
 	struct ao2_iterator iter;
+
+	ast_bridge_channel_lock(bridge_channel);
+	if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
+		channel_set_cause(bridge_channel->chan, cause);
+		cause = 0;
+	}
+	ast_bridge_channel_unlock(bridge_channel);
 
 	/* Run any hangup hooks. */
 	iter = ao2_iterator_init(features->other_hooks, 0);
@@ -287,7 +321,7 @@ void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel)
 	ao2_iterator_destroy(&iter);
 
 	/* Default hangup action. */
-	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, cause);
 }
 
 /*!
@@ -595,7 +629,7 @@ void ast_bridge_channel_run_app(struct ast_bridge_channel *bridge_channel, const
 	}
 	if (run_app_helper(bridge_channel->chan, app_name, S_OR(app_args, ""))) {
 		/* Break the bridge if the app returns non-zero. */
-		ast_bridge_channel_kick(bridge_channel);
+		ast_bridge_channel_kick(bridge_channel, AST_CAUSE_NORMAL_CLEARING);
 	}
 	if (moh_class) {
 		ast_bridge_channel_write_unhold(bridge_channel);
@@ -1106,7 +1140,7 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel, co
 		 * here if the hook did not already change the state.
 		 */
 		if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
-			ast_bridge_channel_kick(bridge_channel);
+			ast_bridge_channel_kick(bridge_channel, 0);
 		}
 	} else if (features->dtmf_passthrough) {
 		/* Stream any collected DTMF to the other channels. */
@@ -1219,7 +1253,7 @@ static void bridge_channel_blind_transfer(struct ast_bridge_channel *bridge_chan
 		struct blind_transfer_data *blind_data)
 {
 	ast_async_goto(bridge_channel->chan, blind_data->context, blind_data->exten, 1);
-	ast_bridge_channel_kick(bridge_channel);
+	ast_bridge_channel_kick(bridge_channel, AST_CAUSE_NORMAL_CLEARING);
 }
 
 /*!
@@ -1235,7 +1269,7 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 	chan_target = ast_channel_get_by_name(target_chan_name);
 	if (!chan_target) {
 		/* Dang, it disappeared somehow */
-		ast_bridge_channel_kick(bridge_channel);
+		ast_bridge_channel_kick(bridge_channel, AST_CAUSE_NORMAL_CLEARING);
 		return;
 	}
 
@@ -1252,7 +1286,7 @@ static void bridge_channel_attended_transfer(struct ast_bridge_channel *bridge_c
 		/* Release the ref we tried to pass to ast_bridge_set_after_callback(). */
 		ast_channel_unref(chan_target);
 	}
-	ast_bridge_channel_kick(bridge_channel);
+	ast_bridge_channel_kick(bridge_channel, AST_CAUSE_NORMAL_CLEARING);
 }
 
 /*!
@@ -1337,7 +1371,7 @@ static void bridge_channel_dissolve_check(struct ast_bridge_channel *bridge_chan
 	if (!bridge->num_channels
 		&& ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_EMPTY)) {
 		/* Last channel leaving the bridge turns off the lights. */
-		bridge_dissolve(bridge);
+		bridge_dissolve(bridge, ast_channel_hangupcause(bridge_channel->chan));
 		return;
 	}
 
@@ -1348,7 +1382,7 @@ static void bridge_channel_dissolve_check(struct ast_bridge_channel *bridge_chan
 			|| (bridge_channel->features->usable
 				&& ast_test_flag(&bridge_channel->features->feature_flags,
 					AST_BRIDGE_CHANNEL_FLAG_DISSOLVE_HANGUP))) {
-			bridge_dissolve(bridge);
+			bridge_dissolve(bridge, ast_channel_hangupcause(bridge_channel->chan));
 			return;
 		}
 		break;
@@ -1357,9 +1391,14 @@ static void bridge_channel_dissolve_check(struct ast_bridge_channel *bridge_chan
 	}
 
 	if (bridge->num_lonely && bridge->num_lonely == bridge->num_channels) {
-		/* This will start a chain reaction where each channel leaving enters this function and causes
-		 * the next to leave as long as there aren't non-lonely channels in the bridge. */
-		ast_bridge_channel_leave_bridge(AST_LIST_FIRST(&bridge->channels), BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		/*
+		 * This will start a chain reaction where each channel leaving
+		 * enters this function and causes the next to leave as long as
+		 * there aren't non-lonely channels in the bridge.
+		 */
+		ast_bridge_channel_leave_bridge(AST_LIST_FIRST(&bridge->channels),
+			BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE,
+			ast_channel_hangupcause(bridge_channel->chan));
 	}
 }
 
@@ -1473,7 +1512,7 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 
 	ast_bridge_publish_enter(bridge, bridge_channel->chan, swap ? swap->chan : NULL);
 	if (swap) {
-		ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, 0);
 		bridge_channel_internal_pull(swap);
 	}
 
@@ -1671,14 +1710,14 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 	}
 
 	if (!frame) {
-		ast_bridge_channel_kick(bridge_channel);
+		ast_bridge_channel_kick(bridge_channel, 0);
 		return;
 	}
 	switch (frame->frametype) {
 	case AST_FRAME_CONTROL:
 		switch (frame->subclass.integer) {
 		case AST_CONTROL_HANGUP:
-			ast_bridge_channel_kick(bridge_channel);
+			ast_bridge_channel_kick(bridge_channel, 0);
 			ast_frfree(frame);
 			return;
 /* BUGBUG This is where incoming HOLD/UNHOLD memory should register.  Write UNHOLD into bridge when this channel is pulled. */
@@ -1885,7 +1924,8 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	}
 
 	if (bridge_channel_internal_push(bridge_channel)) {
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
+		ast_bridge_channel_leave_bridge(bridge_channel,
+			BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
 		res = -1;
 	}
 	bridge_reconfigured(bridge_channel->bridge, 1);

@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/causes.h"
 
 /*** DOCUMENTATION
 	<application name="AgentLogin" language="en_US">
@@ -760,7 +761,7 @@ static void agent_pvt_destructor(void *vdoomed)
 
 	ast_party_connected_line_free(&doomed->waiting_colp);
 	if (doomed->caller_bridge) {
-		ast_bridge_destroy(doomed->caller_bridge);
+		ast_bridge_destroy(doomed->caller_bridge, AST_CAUSE_USER_BUSY);
 		doomed->caller_bridge = NULL;
 	}
 	if (doomed->logged) {
@@ -1019,15 +1020,17 @@ static void agent_connect_caller(struct ast_bridge_channel *bridge_channel, stru
 
 	if (!caller_bridge) {
 		/* Reset agent. */
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+			AST_CAUSE_NORMAL_CLEARING);
 		return;
 	}
 	res = ast_bridge_move(caller_bridge, bridge_channel->bridge, bridge_channel->chan,
 		NULL, 0);
 	if (res) {
 		/* Reset agent. */
-		ast_bridge_destroy(caller_bridge);
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+			AST_CAUSE_NORMAL_CLEARING);
 		return;
 	}
 	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_ANSWER, NULL, 0);
@@ -1122,13 +1125,15 @@ static int bridge_agent_hold_heartbeat(struct ast_bridge_channel *bridge_channel
 
 	if (deferred_logoff) {
 		ast_debug(1, "Agent %s: Deferred logoff.\n", agent->username);
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+			AST_CAUSE_NORMAL_CLEARING);
 	} else if (probation_timedout) {
 		ast_debug(1, "Agent %s: Login complete.\n", agent->username);
 		agent_devstate_changed(agent->username);
 	} else if (ack_timedout) {
 		ast_debug(1, "Agent %s: Ack call timeout.\n", agent->username);
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+			AST_CAUSE_NORMAL_CLEARING);
 	} else if (wrapup_timedout) {
 		ast_debug(1, "Agent %s: Wrapup timeout. Ready for new call.\n", agent->username);
 		agent_devstate_changed(agent->username);
@@ -1233,7 +1238,8 @@ static int bridge_agent_hold_push(struct ast_bridge *self, struct ast_bridge_cha
 		 * agent will have some slightly different behavior in corner
 		 * cases.
 		 */
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+			AST_CAUSE_NORMAL_CLEARING);
 		return 0;
 	}
 
@@ -1455,7 +1461,7 @@ static void agent_logout(struct agent_pvt *agent)
 	agent_devstate_changed(agent->username);
 
 	if (caller_bridge) {
-		ast_bridge_destroy(caller_bridge);
+		ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
 	}
 
 	send_agent_logoff(logged, agent->username, time_logged_in);
@@ -1479,6 +1485,7 @@ static void agent_run(struct agent_pvt *agent, struct ast_channel *logged)
 	struct ast_bridge_features features;
 
 	if (ast_bridge_features_init(&features)) {
+		ast_channel_hangupcause_set(logged, AST_CAUSE_NORMAL_CLEARING);
 		goto agent_run_cleanup;
 	}
 	for (;;) {
@@ -1487,6 +1494,8 @@ static void agent_run(struct agent_pvt *agent, struct ast_channel *logged)
 		struct agent_cfg *cfg_old;
 		struct ast_bridge *holding;
 		struct ast_bridge *caller_bridge;
+
+		ast_channel_hangupcause_set(logged, AST_CAUSE_NORMAL_CLEARING);
 
 		holding = ao2_global_obj_ref(agent_holding);
 		if (!holding) {
@@ -1535,7 +1544,7 @@ static void agent_run(struct agent_pvt *agent, struct ast_channel *logged)
 		agent_unlock(agent);
 		ao2_ref(cfg_old, -1);
 		if (caller_bridge) {
-			ast_bridge_destroy(caller_bridge);
+			ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
 		}
 
 		if (agent->state == AGENT_STATE_LOGGING_OUT
@@ -1661,13 +1670,14 @@ static void caller_abort_agent(struct agent_pvt *agent)
 		agent->caller_bridge = NULL;
 		agent_unlock(agent);
 		if (caller_bridge) {
-			ast_bridge_destroy(caller_bridge);
+			ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
 		}
 		return;
 	}
 
 	/* Kick the agent out of the holding bridge to reset it. */
-	ast_bridge_channel_leave_bridge_nolock(logged, BRIDGE_CHANNEL_STATE_END);
+	ast_bridge_channel_leave_bridge_nolock(logged, BRIDGE_CHANNEL_STATE_END,
+		AST_CAUSE_NORMAL_CLEARING);
 	ast_bridge_channel_unlock(logged);
 }
 
@@ -1677,7 +1687,8 @@ static int caller_safety_timeout(struct ast_bridge_channel *bridge_channel, void
 
 	if (agent->state == AGENT_STATE_CALL_PRESENT) {
 		ast_verb(3, "Agent '%s' did not respond.  Safety timeout.\n", agent->username);
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+			AST_CAUSE_USER_BUSY);
 		caller_abort_agent(agent);
 	}
 
@@ -1829,7 +1840,7 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 	case AGENT_STATE_LOGGING_OUT:
 		agent_unlock(agent);
 		ast_party_connected_line_free(&connected);
-		ast_bridge_destroy(caller_bridge);
+		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_features_cleanup(&caller_features);
 		ast_verb(3, "Agent '%s' not logged in.\n", agent->username);
 		pbx_builtin_setvar_helper(chan, "AGENT_STATUS", "NOT_LOGGED_IN");
@@ -1843,7 +1854,7 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 	default:
 		agent_unlock(agent);
 		ast_party_connected_line_free(&connected);
-		ast_bridge_destroy(caller_bridge);
+		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_features_cleanup(&caller_features);
 		ast_verb(3, "Agent '%s' is busy.\n", agent->username);
 		pbx_builtin_setvar_helper(chan, "AGENT_STATUS", "BUSY");
@@ -1855,7 +1866,7 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 	logged = agent_bridge_channel_get_lock(agent);
 	if (!logged) {
 		ast_party_connected_line_free(&connected);
-		ast_bridge_destroy(caller_bridge);
+		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_features_cleanup(&caller_features);
 		ast_verb(3, "Agent '%s' not logged in.\n", agent->username);
 		pbx_builtin_setvar_helper(chan, "AGENT_STATUS", "NOT_LOGGED_IN");
@@ -1870,7 +1881,7 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 	ast_bridge_channel_unlock(logged);
 	ao2_ref(logged, -1);
 	if (res) {
-		ast_bridge_destroy(caller_bridge);
+		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_features_cleanup(&caller_features);
 		ast_verb(3, "Agent '%s': Failed to alert the agent.\n", agent->username);
 		pbx_builtin_setvar_helper(chan, "AGENT_STATUS", "ERROR");
@@ -2499,7 +2510,7 @@ static int unload_module(void)
 	/* Destroy agent holding bridge. */
 	holding = ao2_global_obj_replace(agent_holding, NULL);
 	if (holding) {
-		ast_bridge_destroy(holding);
+		ast_bridge_destroy(holding, 0);
 	}
 
 	destroy_config();
