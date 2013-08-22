@@ -1474,7 +1474,21 @@ int ast_cel_engine_init(void)
 	aco_option_register_custom(&cel_cfg_info, "apps", ACO_EXACT, general_options, "", apps_handler, 0);
 	aco_option_register_custom(&cel_cfg_info, "events", ACO_EXACT, general_options, "", events_handler, 0);
 
-	aco_process_config(&cel_cfg_info, 0);
+	if (aco_process_config(&cel_cfg_info, 0)) {
+		RAII_VAR(struct cel_config *, cel_cfg, cel_config_alloc(), ao2_cleanup);
+
+		if (!cel_cfg) {
+			return -1;
+		}
+
+		/* If we couldn't process the configuration and this wasn't a reload,
+		 * create a default config
+		 */
+		if (!aco_set_defaults(&general_option, "general", cel_cfg->general)) {
+			ast_log(LOG_NOTICE, "Failed to process CEL configuration; using defaults\n");
+			ao2_global_obj_replace(cel_configs, cel_cfg);
+		}
+	}
 
 	ast_register_cleanup(ast_cel_engine_term);
 
