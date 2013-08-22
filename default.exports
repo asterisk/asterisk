@@ -1,4 +1,8 @@
 {
+	global:
+		/* See main/asterisk.exports.in for an explanation why this is
+		 * needed. */
+		_IO_stdin_used;
 	local:
 		*;
 };
