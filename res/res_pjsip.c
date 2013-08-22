@@ -971,6 +971,8 @@
 					<synopsis>Maximum number of threads in the res_pjsip threadpool.
 					A value of 0 indicates no maximum.</synopsis>
 				</configOption>
+				<configOption name="type">
+                                        <synopsis>Must be of type 'system'.</synopsis>
 			</configObject>
 			<configObject name="global">
 				<synopsis>Options that apply globally to all SIP communications</synopsis>
@@ -984,6 +986,8 @@
 				<configOption name="useragent" default="Asterisk &lt;Asterisk Version&gt;">
 					<synopsis>Value used in User-Agent header for SIP requests and Server header for SIP responses.</synopsis>
 				</configOption>
+				<configOption name="type">
+                                        <synopsis>Must be of type 'global'.</synopsis>
 			</configObject>
 		</configFile>
 	</configInfo>
