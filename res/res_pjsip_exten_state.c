@@ -515,6 +515,8 @@ static void subscription_terminated(struct ast_sip_subscription *sub,
 	send_notify(exten_state_sub, NULL, PJSIP_EVSUB_STATE_TERMINATED);
 }
 
+#define DEFAULT_PRESENCE_BODY "application/pidf+xml"
+
 /*!
  * \internal
  * \brief Create and register a subscription handler.
@@ -534,6 +536,9 @@ static struct ast_sip_subscription_handler *create_and_register_handler(
 
 	handler->event_name = event_name;
 	handler->accept[0] = accept;
+	if (!strcmp(accept, DEFAULT_PRESENCE_BODY)) {
+		handler->handles_default_accept = 1;
+	}
 
 	handler->subscription_shutdown = subscription_shutdown;
 	handler->new_subscribe = new_subscribe;

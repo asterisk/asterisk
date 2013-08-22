@@ -228,7 +228,21 @@ struct ast_sip_subscription_handler {
 	const char *event_name;
 	/*! The types of body this handler accepts */
 	const char *accept[AST_SIP_MAX_ACCEPT];
-
+	/*!
+	 * \brief Indicates if this handler can be used as a default handler for an event type.
+	 *
+	 * Typically, a SUBSCRIBE request will contain one or more Accept headers that tell
+	 * what format they expect the body of NOTIFY requests to use. However, every event
+	 * package is required to define a default body format type to be used if a SUBSCRIBE
+	 * request for the event contains no Accept header.
+	 *
+	 * If this value is non-zero, then this handler provides the default body format for
+	 * the event package and can handle SUBSCRIBES with no Accept headers present.
+	 * If this value is zero, then this handler provides an alternative body format
+	 * from the default for the event package and cannot handle SUBSCRIBEs with no
+	 * Accept header.
+	 */
+	unsigned int handles_default_accept;
 	/*!
 	 * \brief Called when a subscription is to be destroyed
 	 *

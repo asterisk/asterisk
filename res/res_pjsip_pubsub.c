@@ -585,6 +585,12 @@ static struct ast_sip_subscription_handler *find_sub_handler(const char *event, 
 			continue;
 		}
 		ast_debug(3, "Event name match: %s = %s\n", event, iter->event_name);
+		if (!num_accept && iter->handles_default_accept) {
+			/* The SUBSCRIBE contained no Accept headers, and this subscription handler
+			 * provides the default body type, so it's a match!
+			 */
+			break;
+		}
 		for (i = 0; i < num_accept; ++i) {
 			for (j = 0; j < num_accept; ++j) {
 				if (ast_strlen_zero(iter->accept[i])) {
@@ -620,7 +626,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	struct ast_sip_subscription_handler *handler;
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 	struct ast_sip_subscription *sub;
-	int i;
+	size_t num_accept_headers;
 
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpoint != NULL);
@@ -646,20 +652,21 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 489, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
+	ast_copy_pj_str(event, &event_header->event_type, sizeof(event));
 
 	accept_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_ACCEPT, rdata->msg_info.msg->hdr.next);
-	if (!accept_header) {
-		ast_log(LOG_WARNING, "Incoming SUBSCRIBE request with no Accept header\n");
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400, NULL, NULL, NULL);
-		return PJ_TRUE;
+	if (accept_header) {
+		int i;
+
+		for (i = 0; i < accept_header->count; ++i) {
+			ast_copy_pj_str(accept[i], &accept_header->values[i], sizeof(accept[i]));
+		}
+		num_accept_headers = accept_header->count;
+	} else {
+		num_accept_headers = 0;
 	}
 
-	ast_copy_pj_str(event, &event_header->event_type, sizeof(event));
-	for (i = 0; i < accept_header->count; ++i) {
-		ast_copy_pj_str(accept[i], &accept_header->values[i], sizeof(accept[i]));
-	}
-
-	handler = find_sub_handler(event, accept, accept_header->count);
+	handler = find_sub_handler(event, accept, num_accept_headers);
 	if (!handler) {
 		ast_log(LOG_WARNING, "No registered subscribe handler for event %s\n", event);
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 489, NULL, NULL, NULL);

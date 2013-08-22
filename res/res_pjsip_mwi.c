@@ -64,6 +64,7 @@ static int mwi_refresh_subscription(struct ast_sip_subscription *sub);
 static struct ast_sip_subscription_handler mwi_handler = {
 	.event_name = "message-summary",
 	.accept = { "application/simple-message-summary", },
+	.handles_default_accept = 1,
 	.subscription_shutdown = mwi_subscription_shutdown,
 	.new_subscribe = mwi_new_subscribe,
 	.resubscribe = mwi_resubscribe,
