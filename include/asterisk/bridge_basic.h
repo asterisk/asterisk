@@ -33,6 +33,7 @@
 extern "C" {
 #endif
 
+#define AST_TRANSFERER_ROLE_NAME "transferer"
 /* ------------------------------------------------------------------- */
 
 /*!
@@ -125,6 +126,17 @@ extern struct ast_bridge_methods ast_bridge_basic_v_table;
  * channels hangs up.
  */
 struct ast_bridge *ast_bridge_basic_new(void);
+
+/*!
+ * \brief Set feature flags on a basic bridge
+ *
+ * Using this function instead of setting flags directly will
+ * ensure that after operations such as an attended transfer,
+ * the bridge will maintain the flags that were set on it.
+ *
+ * \params Flags to set on the bridge. These are added to the flags already set.
+ */
+void ast_bridge_basic_set_flags(struct ast_bridge *bridge, unsigned int flags);
 
 /*! Initialize the basic bridge class for use by the system. */
 void ast_bridging_init_basic(void);

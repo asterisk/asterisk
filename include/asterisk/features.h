@@ -43,6 +43,20 @@ enum {
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
 
 /*!
+ * \brief Bridge a call, and add additional flags to the bridge
+ *
+ * This does the same thing as \ref ast_bridge_call, except that once the bridge
+ * is created, the provided flags are set on the bridge. The provided flags are
+ * added to the bridge's flags; they will not clear any flags already set.
+ *
+ * \param chan The calling channel
+ * \param peer The called channel
+ * \param config Bridge configuration for the channels
+ * \param flags Additional flags to set on the created bridge
+ */
+int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, unsigned int flags);
+
+/*!
  * \brief Add an arbitrary channel to a bridge
  * \since 12.0.0
  *

@@ -639,19 +639,7 @@ static int pre_bridge_setup(struct ast_channel *chan, struct ast_channel *peer, 
 	return 0;
 }
 
-/*!
- * \brief bridge the call and set CDR
- *
- * \param chan The bridge considers this channel the caller.
- * \param peer The bridge considers this channel the callee.
- * \param config Configuration for this bridge.
- *
- * Set start time, check for two channels,check if monitor on
- * check for feature activation, create new CDR
- * \retval res on success.
- * \retval -1 on failure to bridge.
- */
-int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config)
+int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, unsigned int flags)
 {
 	int res;
 	struct ast_bridge *bridge;
@@ -684,6 +672,8 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 		return -1;
 	}
 
+	ast_bridge_basic_set_flags(bridge, flags);
+
 	/* Put peer into the bridge */
 	if (ast_bridge_impart(bridge, peer, NULL, peer_features, 1)) {
 		ast_bridge_destroy(bridge);
@@ -715,6 +705,23 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 	}
 
 	return res;
+}
+
+/*!
+ * \brief bridge the call and set CDR
+ *
+ * \param chan The bridge considers this channel the caller.
+ * \param peer The bridge considers this channel the callee.
+ * \param config Configuration for this bridge.
+ *
+ * Set start time, check for two channels,check if monitor on
+ * check for feature activation, create new CDR
+ * \retval res on success.
+ * \retval -1 on failure to bridge.
+ */
+int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config)
+{
+	return ast_bridge_call_with_flags(chan, peer, config, 0);
 }
 
 enum play_tone_action {

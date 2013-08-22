@@ -1284,6 +1284,22 @@ struct stasis_message_type *ast_mwi_state_type(void);
  */
 struct stasis_message_type *ast_mwi_vm_app_type(void);
 
+/*!
+ * \brief Get the \ref stasis topic for queue messages
+ * \retval The topic structure for queue messages
+ * \retval NULL if it has not been allocated
+ * \since 12
+ */
+struct stasis_topic *ast_queue_topic_all(void);
+
+/*!
+ * \brief Get the \ref stasis topic for queue messages for a particular queue name
+ * \param queuename The name for which to get the topic
+ * \retval The topic structure for queue messages for a given name
+ * \retval NULL if it failed to be found or allocated
+ * \since 12
+ */
+struct stasis_topic *ast_queue_topic(const char *queuename);
 /*! @} */
 
 /*!

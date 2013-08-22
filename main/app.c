@@ -85,12 +85,15 @@ struct zombie {
 static AST_LIST_HEAD_STATIC(zombies, zombie);
 
 /*
- * @{ \brief Define \ref stasis topic objects for MWI
+ * @{ \brief Define \ref stasis topic objects
  */
 static struct stasis_topic *mwi_topic_all;
 static struct stasis_cache *mwi_state_cache;
 static struct stasis_caching_topic *mwi_topic_cached;
 static struct stasis_topic_pool *mwi_topic_pool;
+
+static struct stasis_topic *queue_topic_all;
+static struct stasis_topic_pool *queue_topic_pool;
 /* @} */
 
 /*
@@ -2978,8 +2981,22 @@ struct stasis_message *ast_mwi_blob_create(struct ast_mwi_state *mwi_state,
 	return msg;
 }
 
+struct stasis_topic *ast_queue_topic_all(void)
+{
+	return queue_topic_all;
+}
+
+struct stasis_topic *ast_queue_topic(const char *queuename)
+{
+	return stasis_topic_pool_get_topic(queue_topic_pool, queuename);
+}
+
 static void app_cleanup(void)
 {
+	ao2_cleanup(queue_topic_pool);
+	queue_topic_pool = NULL;
+	ao2_cleanup(queue_topic_all);
+	queue_topic_all = NULL;
 	ao2_cleanup(mwi_topic_pool);
 	mwi_topic_pool = NULL;
 	ao2_cleanup(mwi_topic_all);
@@ -3015,7 +3032,14 @@ int app_init(void)
 	if (!mwi_topic_pool) {
 		return -1;
 	}
-
+	queue_topic_all = stasis_topic_create("stasis_queue_topic");
+	if (!queue_topic_all) {
+		return -1;
+	}
+	queue_topic_pool = stasis_topic_pool_create(queue_topic_all);
+	if (!queue_topic_pool) {
+		return -1;
+	}
 	return 0;
 }
 

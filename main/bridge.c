@@ -72,6 +72,8 @@ static struct ao2_container *bridges;
 
 static AST_RWLIST_HEAD_STATIC(bridge_technologies, ast_bridge_technology);
 
+static unsigned int optimization_id;
+
 /* Initial starting point for the bridge array of channels */
 #define BRIDGE_ARRAY_START 128
 
@@ -2435,22 +2437,26 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 
 	other = ast_bridge_channel_peer(src_bridge_channel);
 	if (other && other->state == BRIDGE_CHANNEL_STATE_WAIT) {
+		unsigned int id = ast_atomic_fetchadd_int((int *) &optimization_id, +1);
+
 		ast_verb(3, "Move-swap optimizing %s <-- %s.\n",
 			ast_channel_name(dst_bridge_channel->chan),
 			ast_channel_name(other->chan));
 
 		if (pvt && !ast_test_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN) && pvt->callbacks
 				&& pvt->callbacks->optimization_started) {
-			pvt->callbacks->optimization_started(pvt);
+			pvt->callbacks->optimization_started(pvt, other->chan,
+					dst_bridge_channel->chan == pvt->owner ? AST_UNREAL_OWNER : AST_UNREAL_CHAN,
+					id);
 			ast_set_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN);
 		}
 		other->swap = dst_bridge_channel->chan;
 		if (!bridge_do_move(dst_bridge, other, 1, 1)) {
 			ast_bridge_channel_leave_bridge(src_bridge_channel, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE);
 			res = -1;
-			if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
-				pvt->callbacks->optimization_finished(pvt);
-			}
+		}
+		if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
+			pvt->callbacks->optimization_finished(pvt, res == 1, id);
 		}
 	}
 	return res;
@@ -2528,6 +2534,7 @@ static int try_merge_optimize_out(struct ast_bridge *chan_bridge,
 		chan_bridge_channel,
 		peer_bridge_channel,
 	};
+	unsigned int id;
 
 	switch (bridges_allow_merge_optimization(chan_bridge, peer_bridge, ARRAY_LEN(kick_me), &merge)) {
 	case MERGE_ALLOWED:
@@ -2551,14 +2558,18 @@ static int try_merge_optimize_out(struct ast_bridge *chan_bridge,
 		ast_channel_name(chan_bridge_channel->chan),
 		ast_channel_name(peer_bridge_channel->chan));
 
+	id = ast_atomic_fetchadd_int((int *) &optimization_id, +1);
+
 	if (pvt && !ast_test_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN) && pvt->callbacks
 			&& pvt->callbacks->optimization_started) {
-		pvt->callbacks->optimization_started(pvt);
+		pvt->callbacks->optimization_started(pvt, NULL,
+				merge.dest == ast_channel_internal_bridge(pvt->owner) ? AST_UNREAL_OWNER : AST_UNREAL_CHAN,
+				id);
 		ast_set_flag(pvt, AST_UNREAL_OPTIMIZE_BEGUN);
 	}
 	bridge_do_merge(merge.dest, merge.src, kick_me, ARRAY_LEN(kick_me), 1);
 	if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
-		pvt->callbacks->optimization_finished(pvt);
+		pvt->callbacks->optimization_finished(pvt, 1, id);
 	}
 
 	return -1;

@@ -96,6 +96,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<syntax>
 				<channel_snapshot prefix="LocalOne"/>
 				<channel_snapshot prefix="LocalTwo"/>
+				<channel_snapshot prefix="Source"/>
+				<parameter name="DestUniqueId">
+					<para>The unique ID of the bridge into which the local channel is optimizing.</para>
+				</parameter>
+				<parameter name="Id">
+					<para>Identification for the optimization operation.</para>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">LocalOptimizationEnd</ref>
@@ -110,6 +117,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<syntax>
 				<channel_snapshot prefix="LocalOne"/>
 				<channel_snapshot prefix="LocalTwo"/>
+				<parameter name="Success">
+					<para>Indicates whether the local optimization succeeded.</para>
+				</parameter>
+				<parameter name="Id">
+					<para>Identification for the optimization operation. Matches the <replaceable>Id</replaceable>
+					from a previous <literal>LocalOptimizationBegin</literal></para>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">LocalOptimizationBegin</ref>
@@ -127,8 +141,9 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 static int local_call(struct ast_channel *ast, const char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_devicestate(const char *data);
-static void local_optimization_started_cb(struct ast_unreal_pvt *base);
-static void local_optimization_finished_cb(struct ast_unreal_pvt *base);
+static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct ast_channel *source,
+		enum ast_unreal_channel_indicator dest, unsigned int id);
+static void local_optimization_finished_cb(struct ast_unreal_pvt *base, int success, unsigned int id);
 
 static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message *msg);
 
@@ -306,58 +321,97 @@ static int local_devicestate(const char *data)
 	return res;
 }
 
-static void publish_local_optimization(struct local_pvt *p, int complete)
+static struct ast_multi_channel_blob *local_channel_optimization_blob(struct local_pvt *p,
+		struct ast_json *json_object)
 {
-	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, blob, ast_json_null(), ast_json_unref);
+	struct ast_multi_channel_blob *payload;
 	RAII_VAR(struct ast_channel_snapshot *, local_one_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, local_two_snapshot, NULL, ao2_cleanup);
 
-	if (!blob) {
-		return;
-	}
-
 	local_one_snapshot = ast_channel_snapshot_create(p->base.owner);
 	if (!local_one_snapshot) {
-		return;
+		return NULL;
 	}
 
 	local_two_snapshot = ast_channel_snapshot_create(p->base.chan);
 	if (!local_two_snapshot) {
-		return;
+		return NULL;
 	}
 
-	payload = ast_multi_channel_blob_create(blob);
+	payload = ast_multi_channel_blob_create(json_object);
 	if (!payload) {
-		return;
+		return NULL;
 	}
 	ast_multi_channel_blob_add_channel(payload, "1", local_one_snapshot);
 	ast_multi_channel_blob_add_channel(payload, "2", local_two_snapshot);
 
-	msg = stasis_message_create(
-			complete ? ast_local_optimization_end_type() : ast_local_optimization_begin_type(),
-			payload);
+	return payload;
+}
+
+/*! \brief Callback for \ref ast_unreal_pvt_callbacks \ref optimization_started_cb */
+static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct ast_channel *source,
+		enum ast_unreal_channel_indicator dest, unsigned int id)
+{
+	RAII_VAR(struct ast_json *, json_object, ast_json_null(), ast_json_unref);
+	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct local_pvt *p = (struct local_pvt *)base;
+
+	json_object = ast_json_pack("{s: i, s: i}",
+			"dest", dest, "id", id);
+
+	if (!json_object) {
+		return;
+	}
+
+	payload = local_channel_optimization_blob(p, json_object);
+	if (!payload) {
+		return;
+	}
+
+	if (source) {
+		RAII_VAR(struct ast_channel_snapshot *, source_snapshot, NULL, ao2_cleanup);
+		source_snapshot = ast_channel_snapshot_create(source);
+		if (!source_snapshot) {
+			return;
+		}
+
+		ast_multi_channel_blob_add_channel(payload, "source", source_snapshot);
+	}
+
+	msg = stasis_message_create(ast_local_optimization_begin_type(), payload);
 	if (!msg) {
 		return;
 	}
 
 	stasis_publish(ast_channel_topic(p->base.owner), msg);
-
-}
-
-/*! \brief Callback for \ref ast_unreal_pvt_callbacks \ref optimization_started_cb */
-static void local_optimization_started_cb(struct ast_unreal_pvt *base)
-{
-	struct local_pvt *p = (struct local_pvt *)base;
-	publish_local_optimization(p, 0);
 }
 
 /*! \brief Callback for \ref ast_unreal_pvt_callbacks \ref optimization_finished_cb */
-static void local_optimization_finished_cb(struct ast_unreal_pvt *base)
+static void local_optimization_finished_cb(struct ast_unreal_pvt *base, int success, unsigned int id)
 {
+	RAII_VAR(struct ast_json *, json_object, ast_json_null(), ast_json_unref);
+	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct local_pvt *p = (struct local_pvt *)base;
-	publish_local_optimization(p, 1);
+
+	json_object = ast_json_pack("{s: i, s: i}", "success", success, "id", id);
+
+	if (!json_object) {
+		return;
+	}
+
+	payload = local_channel_optimization_blob(p, json_object);
+	if (!payload) {
+		return;
+	}
+
+	msg = stasis_message_create(ast_local_optimization_end_type(), payload);
+	if (!msg) {
+		return;
+	}
+
+	stasis_publish(ast_channel_topic(p->base.owner), msg);
 }
 
 static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message *message)
@@ -384,9 +438,31 @@ static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message
 	}
 
 	if (stasis_message_type(message) == ast_local_optimization_begin_type()) {
+		struct ast_channel_snapshot *source_snapshot;
+		RAII_VAR(struct ast_str *, source_str, NULL, ast_free);
+		const char *dest_uniqueid;
+
+		source_snapshot = ast_multi_channel_blob_get_channel(obj, "source");
+		if (source_snapshot) {
+			source_str = ast_manager_build_channel_state_string_prefix(source_snapshot, "Source");
+			if (!source_str) {
+				return NULL;
+			}
+		}
+
+		dest_uniqueid = ast_json_object_get(blob, "dest") == AST_UNREAL_OWNER ?
+				local_snapshot_one->uniqueid : local_snapshot_two->uniqueid;
+
 		event = "LocalOptimizationBegin";
+		if (source_str) {
+			ast_str_append(&event_buffer, 0, "%s", ast_str_buffer(source_str));
+		}
+		ast_str_append(&event_buffer, 0, "DestUniqueId: %s\r\n", dest_uniqueid);
+		ast_str_append(&event_buffer, 0, "Id: %u\r\n", (unsigned int) ast_json_integer_get(ast_json_object_get(blob, "id")));
 	} else if (stasis_message_type(message) == ast_local_optimization_end_type()) {
 		event = "LocalOptimizationEnd";
+		ast_str_append(&event_buffer, 0, "Success: %s\r\n", ast_json_integer_get(ast_json_object_get(blob, "success")) ? "Yes" : "No");
+		ast_str_append(&event_buffer, 0, "Id: %u\r\n", (unsigned int) ast_json_integer_get(ast_json_object_get(blob, "id")));
 	} else if (stasis_message_type(message) == ast_local_bridge_type()) {
 		event = "LocalBridge";
 		ast_str_append(&event_buffer, 0, "Context: %s\r\n", ast_json_string_get(ast_json_object_get(blob, "context")));

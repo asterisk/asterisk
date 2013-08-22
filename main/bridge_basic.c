@@ -51,7 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			| AST_BRIDGE_FLAG_SMART)
 
 #define TRANSFER_FLAGS AST_BRIDGE_FLAG_SMART
-#define TRANSFERER_ROLE_NAME "transferer"
 
 struct attended_transfer_properties;
 
@@ -1494,7 +1493,7 @@ static void attended_transfer_properties_shutdown(struct attended_transfer_prope
 	}
 
 	if (props->transferer) {
-		ast_channel_remove_bridge_role(props->transferer, TRANSFERER_ROLE_NAME);
+		ast_channel_remove_bridge_role(props->transferer, AST_TRANSFERER_ROLE_NAME);
 	}
 
 	clear_stimulus_queue(props);
@@ -2581,14 +2580,14 @@ static int bridge_personality_atxfer_push(struct ast_bridge *self, struct ast_br
 	const char *swap_dtmf;
 	struct bridge_basic_personality *personality = self->personality;
 
-	if (!ast_channel_has_role(bridge_channel->chan, TRANSFERER_ROLE_NAME)) {
+	if (!ast_channel_has_role(bridge_channel->chan, AST_TRANSFERER_ROLE_NAME)) {
 		return 0;
 	}
 
-	abort_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "abort");
-	complete_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "complete");
-	threeway_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "threeway");
-	swap_dtmf = ast_channel_get_role_option(bridge_channel->chan, TRANSFERER_ROLE_NAME, "swap");
+	abort_dtmf = ast_channel_get_role_option(bridge_channel->chan, AST_TRANSFERER_ROLE_NAME, "abort");
+	complete_dtmf = ast_channel_get_role_option(bridge_channel->chan, AST_TRANSFERER_ROLE_NAME, "complete");
+	threeway_dtmf = ast_channel_get_role_option(bridge_channel->chan, AST_TRANSFERER_ROLE_NAME, "threeway");
+	swap_dtmf = ast_channel_get_role_option(bridge_channel->chan, AST_TRANSFERER_ROLE_NAME, "swap");
 
 	if (!ast_strlen_zero(abort_dtmf) && ast_bridge_dtmf_hook(bridge_channel->features,
 			abort_dtmf, atxfer_abort, personality->details[personality->current].pvt, NULL,
@@ -2838,11 +2837,11 @@ static int add_transferer_role(struct ast_channel *chan, struct ast_bridge_featu
 		atxfer_swap = ast_strdupa(xfer_cfg->atxferswap);
 	}
 
-	return ast_channel_add_bridge_role(chan, TRANSFERER_ROLE_NAME) ||
-		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "abort", atxfer_abort) ||
-		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "complete", atxfer_complete) ||
-		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "threeway", atxfer_threeway) ||
-		ast_channel_set_bridge_role_option(chan, TRANSFERER_ROLE_NAME, "swap", atxfer_swap);
+	return ast_channel_add_bridge_role(chan, AST_TRANSFERER_ROLE_NAME) ||
+		ast_channel_set_bridge_role_option(chan, AST_TRANSFERER_ROLE_NAME, "abort", atxfer_abort) ||
+		ast_channel_set_bridge_role_option(chan, AST_TRANSFERER_ROLE_NAME, "complete", atxfer_complete) ||
+		ast_channel_set_bridge_role_option(chan, AST_TRANSFERER_ROLE_NAME, "threeway", atxfer_threeway) ||
+		ast_channel_set_bridge_role_option(chan, AST_TRANSFERER_ROLE_NAME, "swap", atxfer_swap);
 }
 
 /*!
@@ -3241,6 +3240,15 @@ struct ast_bridge *ast_bridge_basic_new(void)
 	bridge = bridge_basic_personality_alloc(bridge);
 	bridge = bridge_register(bridge);
 	return bridge;
+}
+
+void ast_bridge_basic_set_flags(struct ast_bridge *bridge, unsigned int flags)
+{
+	SCOPED_LOCK(lock, bridge, ast_bridge_lock, ast_bridge_unlock);
+	struct bridge_basic_personality *personality = bridge->personality;
+
+	personality->details[personality->current].bridge_flags |= flags;
+	ast_set_flag(&bridge->feature_flags, flags);
 }
 
 void ast_bridging_init_basic(void)
