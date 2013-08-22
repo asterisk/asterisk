@@ -980,6 +980,9 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 
 	if (frame->frametype == AST_FRAME_CONTROL) {
 		switch(frame->subclass.integer) {
+		case AST_CONTROL_HOLD:
+		case AST_CONTROL_UNHOLD:
+		case AST_CONTROL_T38_PARAMETERS:
 		case AST_CONTROL_SRCUPDATE:
 		case AST_CONTROL_SRCCHANGE:
 			framedata->jb_impl->force_resync(framedata->jb_obj);

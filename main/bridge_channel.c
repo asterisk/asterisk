@@ -1529,11 +1529,6 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
  * When the receiving channel is pulled from the bridge it needs to generate its own UNHOLD.
  * Something similar needs to be done for DTMF begin/end.
  */
-	case AST_CONTROL_VIDUPDATE:
-	case AST_CONTROL_SRCUPDATE:
-	case AST_CONTROL_SRCCHANGE:
-	case AST_CONTROL_T38_PARAMETERS:
-/* BUGBUG may have to do something with a jitter buffer for these. */
 		ast_indicate_data(chan, fr->subclass.integer, fr->data.ptr, fr->datalen);
 		break;
 	case AST_CONTROL_OPTION:
