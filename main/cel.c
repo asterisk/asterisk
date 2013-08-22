@@ -1512,7 +1512,7 @@ struct ast_cel_general_config *ast_cel_get_config(void)
 {
 	RAII_VAR(struct cel_config *, mod_cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
 
-	if (!mod_cfg->general) {
+	if (!mod_cfg || !mod_cfg->general) {
 		return NULL;
 	}
 
@@ -1525,9 +1525,11 @@ void ast_cel_set_config(struct ast_cel_general_config *config)
 	RAII_VAR(struct cel_config *, mod_cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
 	RAII_VAR(struct ast_cel_general_config *, cleanup_config, mod_cfg->general, ao2_cleanup);
 
-	mod_cfg->general = config;
-	if (mod_cfg->general) {
-		ao2_ref(mod_cfg->general, +1);
+	if (mod_cfg) {
+		mod_cfg->general = config;
+		if (mod_cfg->general) {
+			ao2_ref(mod_cfg->general, +1);
+		}
 	}
 }
 
