@@ -1411,7 +1411,11 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan)
 	ast_bridge_channel_lock_bridge(bridge_channel);
 	bridge = bridge_channel->bridge;
 	if (bridge_channel == bridge_find_channel(bridge, chan)) {
-/* BUGBUG this needs more work.  The channels need to be made compatible again if the formats change. The bridge_channel thread needs to monitor for this case. */
+/*
+ * XXX ASTERISK-22366 this needs more work.  The channels need
+ * to be made compatible again if the formats change. The
+ * bridge_channel thread needs to monitor for this case.
+ */
 		/* The channel we want to notify is still in a bridge. */
 		bridge->v_table->notify_masquerade(bridge, bridge_channel);
 		bridge_reconfigured(bridge, 1);
