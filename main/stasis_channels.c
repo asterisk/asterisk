@@ -969,13 +969,16 @@ int ast_stasis_channels_init(void)
 	if (!channel_cache_all) {
 		return -1;
 	}
-	STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_login_type);
-	STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_logoff_type);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_login_type);
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_agent_logoff_type);
 
 	channel_cache_by_name = stasis_cache_create(channel_snapshot_get_name);
 	if (!channel_cache_by_name) {
 		return -1;
 	}
+
+	/* This should be initialized before the caching topic */
+	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_snapshot_type);
 
 	channel_by_name_topic = stasis_caching_topic_create(
 		stasis_cp_all_topic(channel_cache_all),
@@ -984,7 +987,6 @@ int ast_stasis_channels_init(void)
 		return -1;
 	}
 
-	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_snapshot_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_dial_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_varset_type);
 	res |= STASIS_MESSAGE_TYPE_INIT(ast_channel_user_event_type);
