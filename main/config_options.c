@@ -188,7 +188,7 @@ static int link_option_to_types(struct aco_info *info, struct aco_type **types, 
 #endif /* AST_XML_DOCS */
 		) {
 			do {
-				ao2_unlink(types[idx]->internal->opts, opt);
+				ao2_unlink(types[idx - 1]->internal->opts, opt);
 			} while (--idx);
 			return -1;
 		}
