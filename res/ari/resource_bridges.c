@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/format_cap.h"
 #include "asterisk/file.h"
+#include "asterisk/musiconhold.h"
 
 /*!
  * \brief Finds a bridge, filling the response with an error, if appropriate.
@@ -496,6 +497,48 @@ void ast_ari_record_bridge(struct ast_variable *headers, struct ast_record_bridg
 	control = NULL;
 
 	ast_ari_response_created(response, recording_url, json);
+}
+
+void ast_ari_moh_start_bridge(struct ast_variable *headers, struct ast_moh_start_bridge_args *args, struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
+	struct ast_channel *moh_channel;
+	const char *moh_class = args->moh_class;
+
+	if (!bridge) {
+		/* The response is provided by find_bridge() */
+		return;
+	}
+
+	moh_channel = stasis_app_bridge_moh_channel(bridge);
+	if (!moh_channel) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	ast_moh_start(moh_channel, moh_class, NULL);
+
+	ast_ari_response_no_content(response);
+
+}
+
+void ast_ari_moh_stop_bridge(struct ast_variable *headers, struct ast_moh_stop_bridge_args *args, struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
+
+	if (!bridge) {
+		/* the response is provided by find_bridge() */
+		return;
+	}
+
+	if (stasis_app_bridge_moh_stop(bridge)) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Bridge isn't playing music");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
 }
 
 void ast_ari_get_bridge(struct ast_variable *headers, struct ast_get_bridge_args *args, struct ast_ari_response *response)

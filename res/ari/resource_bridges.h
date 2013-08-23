@@ -133,6 +133,36 @@ struct ast_remove_channel_from_bridge_args {
  * \param[out] response HTTP response
  */
 void ast_ari_remove_channel_from_bridge(struct ast_variable *headers, struct ast_remove_channel_from_bridge_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_moh_start_bridge() */
+struct ast_moh_start_bridge_args {
+	/*! \brief Bridge's id */
+	const char *bridge_id;
+	/*! \brief Channel's id */
+	const char *moh_class;
+};
+/*!
+ * \brief Play music on hold to a bridge or change the MOH class that is playing.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_moh_start_bridge(struct ast_variable *headers, struct ast_moh_start_bridge_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_moh_stop_bridge() */
+struct ast_moh_stop_bridge_args {
+	/*! \brief Bridge's id */
+	const char *bridge_id;
+};
+/*!
+ * \brief Stop playing music on hold to a bridge.
+ *
+ * This will only stop music on hold being played via bridges/{bridgeId}/mohStart.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_moh_stop_bridge(struct ast_variable *headers, struct ast_moh_stop_bridge_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_play_on_bridge() */
 struct ast_play_on_bridge_args {
 	/*! \brief Bridge's id */

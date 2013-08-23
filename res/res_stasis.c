@@ -65,6 +65,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "stasis/app.h"
 #include "stasis/control.h"
+#include "asterisk/core_unreal.h"
+#include "asterisk/musiconhold.h"
+#include "asterisk/causes.h"
+#include "asterisk/stringfields.h"
+#include "asterisk/bridge_after.h"
 
 /*! Time to wait for a frame in the application */
 #define MAX_WAIT_MS 200
@@ -89,6 +94,8 @@ struct ao2_container *apps_registry;
 struct ao2_container *app_controls;
 
 struct ao2_container *app_bridges;
+
+struct ao2_container *app_bridges_moh;
 
 /*! \brief Message router for the channel caching topic */
 struct stasis_message_router *channel_router;
@@ -192,6 +199,234 @@ static int bridges_compare(void *lhs, void *rhs, int flags)
 	} else {
 		return 0;
 	}
+}
+
+/*!
+ *  Used with app_bridges_moh, provides links between bridges and existing music
+ *  on hold channels that are being used with them.
+ */
+struct stasis_app_bridge_moh_wrapper {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(channel_id);
+		AST_STRING_FIELD(bridge_id);
+	);
+};
+
+static void stasis_app_bridge_moh_wrapper_destructor(void *obj)
+{
+	struct stasis_app_bridge_moh_wrapper *wrapper = obj;
+	ast_string_field_free_memory(wrapper);
+}
+
+/*! AO2 hash function for the bridges moh container */
+static int bridges_moh_hash_fn(const void *obj, const int flags)
+{
+	const struct stasis_app_bridge_moh_wrapper *wrapper;
+	const char *key;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	case OBJ_KEY:
+		key = obj;
+		return ast_str_hash(key);
+	case OBJ_POINTER:
+		wrapper = obj;
+		return ast_str_hash(wrapper->bridge_id);
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+}
+
+static int bridges_moh_sort_fn(const void *obj_left, const void *obj_right, const int flags)
+{
+	const struct stasis_app_bridge_moh_wrapper *left = obj_left;
+	const struct stasis_app_bridge_moh_wrapper *right = obj_right;
+	const char *right_key = obj_right;
+	int cmp;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	case OBJ_POINTER:
+		right_key = right->bridge_id;
+		/* Fall through */
+	case OBJ_KEY:
+		cmp = strcmp(left->bridge_id, right_key);
+		break;
+	case OBJ_PARTIAL_KEY:
+		cmp = strncmp(left->bridge_id, right_key, strlen(right_key));
+		break;
+	default:
+		/* Sort can only work on something with a full or partial key. */
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	return cmp;
+}
+
+/*! Removes the bridge to music on hold channel link */
+static void remove_bridge_moh(char *bridge_id)
+{
+	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, moh_wrapper, ao2_find(app_bridges_moh, bridge_id, OBJ_KEY), ao2_cleanup);
+
+	if (moh_wrapper) {
+		ao2_unlink_flags(app_bridges_moh, moh_wrapper, OBJ_NOLOCK);
+	}
+	ast_free(bridge_id);
+}
+
+/*! After bridge failure callback for moh channels */
+static void moh_after_bridge_cb_failed(enum ast_bridge_after_cb_reason reason, void *data)
+{
+	char *bridge_id = data;
+
+	remove_bridge_moh(bridge_id);
+}
+
+/*! After bridge callback for moh channels */
+static void moh_after_bridge_cb(struct ast_channel *chan, void *data)
+{
+	char *bridge_id = data;
+
+	remove_bridge_moh(bridge_id);
+}
+
+/*! Request a bridge MOH channel */
+static struct ast_channel *prepare_bridge_moh_channel(void)
+{
+	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
+	struct ast_format format;
+
+	cap = ast_format_cap_alloc_nolock();
+	if (!cap) {
+		return NULL;
+	}
+
+	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
+
+	return ast_request("Announcer", cap, NULL, "ARI_MOH", NULL);
+}
+
+/*! Provides the moh channel with a thread so it can actually play its music */
+static void *moh_channel_thread(void *data)
+{
+	struct ast_channel *moh_channel = data;
+
+	while (!ast_safe_sleep(moh_channel, 1000));
+
+	ast_moh_stop(moh_channel);
+	ast_hangup(moh_channel);
+
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Creates, pushes, and links a channel for playing music on hold to bridge
+ *
+ * \param bridge Which bridge this moh channel exists for
+ *
+ * \retval NULL if the channel could not be created, pushed, or linked
+ * \retval Reference to the channel on success
+ */
+static struct ast_channel *bridge_moh_create(struct ast_bridge *bridge)
+{
+	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, new_wrapper, NULL, ao2_cleanup);
+	RAII_VAR(char *, bridge_id, ast_strdup(bridge->uniqueid), ast_free);
+	struct ast_channel *chan;
+	pthread_t threadid;
+
+	if (!bridge_id) {
+		return NULL;
+	}
+
+	chan = prepare_bridge_moh_channel();
+
+	if (!chan) {
+		return NULL;
+	}
+
+	/* The after bridge callback assumes responsibility of the bridge_id. */
+	ast_bridge_set_after_callback(chan, moh_after_bridge_cb, moh_after_bridge_cb_failed, bridge_id);
+
+	bridge_id = NULL;
+
+	if (ast_unreal_channel_push_to_bridge(chan, bridge,
+		AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE | AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
+		ast_hangup(chan);
+		return NULL;
+	}
+
+	new_wrapper = ao2_alloc_options(sizeof(*new_wrapper), stasis_app_bridge_moh_wrapper_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!new_wrapper) {
+		ast_hangup(chan);
+		return NULL;
+	}
+
+	if (ast_string_field_init(new_wrapper, 32)) {
+		ast_hangup(chan);
+		return NULL;
+	}
+
+	ast_string_field_set(new_wrapper, bridge_id, bridge->uniqueid);
+	ast_string_field_set(new_wrapper, channel_id, ast_channel_uniqueid(chan));
+
+	if (!ao2_link(app_bridges_moh, new_wrapper)) {
+		ast_hangup(chan);
+		return NULL;
+	}
+
+	if (ast_pthread_create_detached(&threadid, NULL, moh_channel_thread, chan)) {
+		ast_log(LOG_ERROR, "Failed to create channel thread. Abandoning MOH channel creation.\n");
+		ao2_unlink_flags(app_bridges_moh, new_wrapper, OBJ_NOLOCK);
+		ast_hangup(chan);
+		return NULL;
+	}
+
+	return chan;
+}
+
+struct ast_channel *stasis_app_bridge_moh_channel(struct ast_bridge *bridge)
+{
+	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, moh_wrapper, NULL, ao2_cleanup);
+
+	SCOPED_AO2LOCK(lock, app_bridges_moh);
+
+	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_KEY | OBJ_NOLOCK);
+
+	if (!moh_wrapper) {
+		struct ast_channel *bridge_moh_channel = bridge_moh_create(bridge);
+		return bridge_moh_channel;
+	}
+
+	return ast_channel_get_by_name(moh_wrapper->channel_id);
+}
+
+int stasis_app_bridge_moh_stop(struct ast_bridge *bridge)
+{
+	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, moh_wrapper, NULL, ao2_cleanup);
+	struct ast_channel *chan;
+
+	SCOPED_AO2LOCK(lock, app_bridges_moh);
+
+	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_KEY | OBJ_NOLOCK);
+
+	if (!moh_wrapper) {
+		return -1;
+	}
+
+	chan = ast_channel_get_by_name(moh_wrapper->channel_id);
+	if (!chan) {
+		return -1;
+	}
+
+	ast_moh_stop(chan);
+	ast_softhangup(chan, AST_CAUSE_NORMAL_CLEARING);
+	ao2_cleanup(chan);
+
+	ao2_unlink_flags(app_bridges_moh, moh_wrapper, OBJ_NOLOCK);
+
+	return 0;
 }
 
 struct ast_bridge *stasis_app_bridge_find_by_id(
@@ -1003,6 +1238,14 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
+	app_bridges_moh = ao2_container_alloc_hash(
+		AO2_ALLOC_OPT_LOCK_MUTEX, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
+		37, bridges_moh_hash_fn, bridges_moh_sort_fn, NULL);
+
+	if (!app_bridges_moh) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	channel_router = stasis_message_router_create(ast_channel_topic_all_cached());
 	if (!channel_router) {
 		return AST_MODULE_LOAD_FAILURE;
@@ -1057,6 +1300,9 @@ static int unload_module(void)
 
 	ao2_cleanup(app_bridges);
 	app_bridges = NULL;
+
+	ao2_cleanup(app_bridges_moh);
+	app_bridges_moh = NULL;
 
 	return r;
 }

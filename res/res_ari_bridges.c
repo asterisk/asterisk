@@ -469,6 +469,128 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/mohStart.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_moh_start_bridge_cb(
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_moh_start_bridge_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "mohClass") == 0) {
+			args.moh_class = (i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		{}
+	}
+	ast_ari_moh_start_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/mohStart\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/mohStart\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
+/*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/mohStop.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_moh_stop_bridge_cb(
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_moh_stop_bridge_args args = {};
+	struct ast_variable *i;
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		{}
+	}
+	ast_ari_moh_stop_bridge(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/mohStop\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/mohStop\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
+/*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/play.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
@@ -641,6 +763,24 @@ static struct stasis_rest_handlers bridges_bridgeId_removeChannel = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
+static struct stasis_rest_handlers bridges_bridgeId_mohStart = {
+	.path_segment = "mohStart",
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_moh_start_bridge_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/bridges.{format} */
+static struct stasis_rest_handlers bridges_bridgeId_mohStop = {
+	.path_segment = "mohStop",
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_moh_stop_bridge_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/bridges.{format} */
 static struct stasis_rest_handlers bridges_bridgeId_play = {
 	.path_segment = "play",
 	.callbacks = {
@@ -666,8 +806,8 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 		[AST_HTTP_GET] = ast_ari_get_bridge_cb,
 		[AST_HTTP_DELETE] = ast_ari_delete_bridge_cb,
 	},
-	.num_children = 4,
-	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_play,&bridges_bridgeId_record, }
+	.num_children = 6,
+	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_mohStart,&bridges_bridgeId_mohStop,&bridges_bridgeId_play,&bridges_bridgeId_record, }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
 static struct stasis_rest_handlers bridges = {

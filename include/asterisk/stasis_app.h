@@ -335,6 +335,28 @@ struct ast_bridge *stasis_app_bridge_find_by_id(
 	const char *bridge_id);
 
 /*!
+ * \brief Finds or creates an announcer channel in a bridge that can play music on hold.
+ *
+ * \param bridge Bridge we want an MOH channel for
+ *
+ * \return NULL if the music on hold channel fails to be created or join the bridge for any reason.
+ * \return Pointer to the ;1 end of the announcer channel chain.
+ */
+struct ast_channel *stasis_app_bridge_moh_channel(
+	struct ast_bridge *bridge);
+
+/*!
+ * \brief Breaks down MOH channels playing on the bridge created by stasis_app_bridge_moh_channel
+ *
+ * \param bridge Bridge we want to stop the MOH on
+ *
+ * \return -1 if no moh channel could be found and stopped
+ * \return 0 on success
+ */
+int stasis_app_bridge_moh_stop(
+	struct ast_bridge *bridge);
+
+/*!
  * \brief Add a channel to the bridge.
  *
  * \param control Control whose channel should be added to the bridge

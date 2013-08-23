@@ -177,6 +177,79 @@
 			]
 		},
 		{
+			"path": "/bridges/{bridgeId}/mohStart",
+			"description": "Play music on hold to a bridge",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Play music on hold to a bridge or change the MOH class that is playing.",
+					"nickname": "mohStartBridge",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "mohClass",
+							"description": "Channel's id",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/bridges/{bridgeId}/mohStop",
+			"description": "Stop music on hold for a bridge",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Stop playing music on hold to a bridge.",
+					"notes": "This will only stop music on hold being played via bridges/{bridgeId}/mohStart.",
+					"nickname": "mohStopBridge",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/bridges/{bridgeId}/play",
 			"description": "Play media to the participants of a bridge",
 			"operations": [
