@@ -265,11 +265,28 @@ class MultiOrderedDict(OrderedDict):
     def __init__(self, *args, **kwds):
         OrderedDict.__init__(self, *args, **kwds)
 
-    def __setitem__(self, key, val):
+    def __setitem__(self, key, val, i=None):
         if key not in self:
-            OrderedDict.__setitem__(self, key, [val])
-        elif val not in self[key]:
-            self[key].append(val)
+#            print "__setitem__ key = ", key, " val = ", val
+            OrderedDict.__setitem__(
+                self, key, val if isinstance(val, list) else [val])
+            return
+#        print "inserting key = ", key, " val = ", val
+        vals = self[key]
+        if i is None:
+            i = len(vals)
+
+        if not isinstance(val, list):
+            if val not in vals:
+                vals.insert(i, val)
+        else:
+            for j in val.reverse():
+                if j not in vals:
+                    vals.insert(i, j)
+
+
+    def insert(self, i, key, val):
+        self.__setitem__(key, val, i)
 
     def copy(self):
         # TODO - find out why for some reason copies
@@ -279,28 +296,3 @@ class MultiOrderedDict(OrderedDict):
             for v in val:
                 c[key] = v
         return c
-
-    # def update(self, other=None, **kwds):
-    #     if other is None:
-    #         pass
-
-    #     if isinstance(other, list):
-    #         for val in other:
-    #             update(self, val)
-    #         return
-
-    #     for key, val in other.iteritems():
-    #         # key = [ v1, v2, ...n ]
-    #         if key in self and len(self[key]) > 1:
-    #             # merge values adding only those not already in list
-    #             val = self[key] + [v for v in val if v not in self[key]]
-    #         OrderedDict.__setitem__(self, key, val)
-    #     # if hasattr(other, 'keys'):
-    #     #         other = other.keys()
-    #     # for (key, val) in obj.iteritems():
-    #     #     if key in self and len(self[key]) > 1:
-    #     #         # add only values not already in list
-    #     #         val = self[key] + [v for v in val if v not in self[key]]
-    #     #     OrderedDict.__setitem__(self, key, val)
-    #     if kwds:
-    #         self.update(kwds)
