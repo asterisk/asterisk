@@ -117,11 +117,11 @@ static void *bucket_wizard_retrieve(const struct ast_sorcery *sorcery, void *dat
 #ifdef HAVE_URIPARSER
 	UriParserStateA state;
 	UriUriA uri;
+	size_t len;
 #else
 	char *tmp = ast_strdupa(id);
 #endif
 	SCOPED_AO2RDLOCK(lock, schemes);
-	size_t len;
 	char *uri_scheme;
 	RAII_VAR(struct ast_bucket_scheme *, scheme, NULL, ao2_cleanup);
 
@@ -140,7 +140,7 @@ static void *bucket_wizard_retrieve(const struct ast_sorcery *sorcery, void *dat
 	uriFreeUriMembersA(&uri);
 #else
 	uri_scheme = tmp;
-	if (!(tmp = strchr(':'))) {
+	if (!(tmp = strchr(uri_scheme, ':'))) {
 		return NULL;
 	}
 	*tmp = '\0';
@@ -186,10 +186,10 @@ static void *bucket_file_wizard_retrieve(const struct ast_sorcery *sorcery, void
 #ifdef HAVE_URIPARSER
 	UriParserStateA state;
 	UriUriA uri;
+	size_t len;
 #else
 	char *tmp = ast_strdupa(id);
 #endif
-	size_t len;
 	char *uri_scheme;
 	SCOPED_AO2RDLOCK(lock, schemes);
 	RAII_VAR(struct ast_bucket_scheme *, scheme, NULL, ao2_cleanup);
@@ -209,7 +209,7 @@ static void *bucket_file_wizard_retrieve(const struct ast_sorcery *sorcery, void
 	uriFreeUriMembersA(&uri);
 #else
 	uri_scheme = tmp;
-	if (!(tmp = strchr(':'))) {
+	if (!(tmp = strchr(uri_scheme, ':'))) {
 		return NULL;
 	}
 	*tmp = '\0';
@@ -402,10 +402,10 @@ struct ast_bucket *ast_bucket_alloc(const char *uri)
 #ifdef HAVE_URIPARSER
 	UriParserStateA state;
 	UriUriA full_uri;
+	size_t len;
 #else
 	char *tmp = ast_strdupa(uri);
 #endif
-	size_t len;
 	char *uri_scheme;
 	RAII_VAR(struct ast_bucket_scheme *, scheme, NULL, ao2_cleanup);
 	struct ast_bucket *bucket;
@@ -430,7 +430,7 @@ struct ast_bucket *ast_bucket_alloc(const char *uri)
 	uriFreeUriMembersA(&full_uri);
 #else
 	uri_scheme = tmp;
-	if (!(tmp = strchr(':'))) {
+	if (!(tmp = strchr(uri_scheme, ':'))) {
 		return NULL;
 	}
 	*tmp = '\0';
@@ -628,10 +628,10 @@ struct ast_bucket_file *ast_bucket_file_alloc(const char *uri)
 #ifdef HAVE_URIPARSER
 	UriParserStateA state;
 	UriUriA full_uri;
+	size_t len;
 #else
 	char *tmp = ast_strdupa(uri);
 #endif
-	size_t len;
 	char *uri_scheme;
 	RAII_VAR(struct ast_bucket_scheme *, scheme, NULL, ao2_cleanup);
 	struct ast_bucket_file *file;
@@ -656,7 +656,7 @@ struct ast_bucket_file *ast_bucket_file_alloc(const char *uri)
 	uriFreeUriMembersA(&full_uri);
 #else
 	uri_scheme = tmp;
-	if (!(tmp = strchr(':'))) {
+	if (!(tmp = strchr(uri_scheme, ':'))) {
 		return NULL;
 	}
 	*tmp = '\0';
