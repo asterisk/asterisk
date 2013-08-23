@@ -229,6 +229,11 @@ unsigned int aco_option_get_flags(const struct aco_option *option)
 	return option->flags;
 }
 
+intptr_t aco_option_get_argument(const struct aco_option *option, unsigned int position)
+{
+	return option->args[position];
+}
+
 #ifdef AST_XML_DOCS
 /*! \internal
  * \brief Find a particular ast_xml_doc_item from it's parent config_info, types, and name

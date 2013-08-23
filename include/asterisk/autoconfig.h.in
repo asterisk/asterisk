@@ -1022,6 +1022,9 @@
 /* Define to 1 if you have the `unsetenv' function. */
 #undef HAVE_UNSETENV
 
+/* Define to 1 if you have the uriparser library library. */
+#undef HAVE_URIPARSER
+
 /* Define to 1 if you have the `utime' function. */
 #undef HAVE_UTIME
 

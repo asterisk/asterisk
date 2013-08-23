@@ -991,6 +991,10 @@ PBX_KQUEUE
 KQUEUE_DIR
 KQUEUE_INCLUDE
 KQUEUE_LIB
+PBX_URIPARSER
+URIPARSER_DIR
+URIPARSER_INCLUDE
+URIPARSER_LIB
 PBX_JANSSON
 JANSSON_DIR
 JANSSON_INCLUDE
@@ -1272,6 +1276,7 @@ with_iodbc
 with_isdnnet
 with_jack
 with_jansson
+with_uriparser
 with_kqueue
 with_ldap
 with_libcurl
@@ -2007,6 +2012,7 @@ Optional Packages:
   --with-isdnnet=PATH     use ISDN4Linux files in PATH
   --with-jack=PATH        use Jack Audio Connection Kit files in PATH
   --with-jansson=PATH     use Jansson JSON library files in PATH
+  --with-uriparser=PATH   use uriparser library files in PATH
   --with-kqueue=PATH      use kqueue support files in PATH
   --with-ldap=PATH        use OpenLDAP files in PATH
   --with-libcurl=DIR      look for the curl library in DIR
@@ -9016,6 +9022,38 @@ fi
 
 
 
+    URIPARSER_DESCRIP="uriparser library"
+    URIPARSER_OPTION="uriparser"
+    PBX_URIPARSER=0
+
+# Check whether --with-uriparser was given.
+if test "${with_uriparser+set}" = set; then :
+  withval=$with_uriparser;
+	case ${withval} in
+	n|no)
+	USE_URIPARSER=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_URIPARSER=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} URIPARSER"
+	;;
+	*)
+	URIPARSER_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} URIPARSER"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
     KQUEUE_DESCRIP="kqueue support"
     KQUEUE_OPTION="kqueue"
     PBX_KQUEUE=0
@@ -12547,6 +12585,111 @@ fi
 if test "x$JANSSON_LIB" == "x"; then
   as_fn_error $? "*** JSON support not found (this typically means the libjansson development package is missing)" "$LINENO" 5
 fi
+
+
+if test "x${PBX_URIPARSER}" != "x1" -a "${USE_URIPARSER}" != "no"; then
+   pbxlibdir=""
+   # if --with-URIPARSER=DIR has been specified, use it.
+   if test "x${URIPARSER_DIR}" != "x"; then
+      if test -d ${URIPARSER_DIR}/lib; then
+         pbxlibdir="-L${URIPARSER_DIR}/lib"
+      else
+         pbxlibdir="-L${URIPARSER_DIR}"
+      fi
+   fi
+   pbxfuncname="uriParseUriA"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_URIPARSER_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_uriparser_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -luriparser" >&5
+$as_echo_n "checking for ${pbxfuncname} in -luriparser... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-luriparser ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_URIPARSER_FOUND=yes
+else
+  AST_URIPARSER_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_URIPARSER_FOUND}" = "yes"; then
+      URIPARSER_LIB="${pbxlibdir} -luriparser "
+      # if --with-URIPARSER=DIR has been specified, use it.
+      if test "x${URIPARSER_DIR}" != "x"; then
+         URIPARSER_INCLUDE="-I${URIPARSER_DIR}/include"
+      fi
+      URIPARSER_INCLUDE="${URIPARSER_INCLUDE} "
+      if test "xuriparser/Uri.h" = "x" ; then	# no header, assume found
+         URIPARSER_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${URIPARSER_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "uriparser/Uri.h" "ac_cv_header_uriparser_Uri_h" "$ac_includes_default"
+if test "x$ac_cv_header_uriparser_Uri_h" = xyes; then :
+  URIPARSER_HEADER_FOUND=1
+else
+  URIPARSER_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${URIPARSER_HEADER_FOUND}" = "x0" ; then
+         URIPARSER_LIB=""
+         URIPARSER_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            URIPARSER_LIB=""
+         fi
+         PBX_URIPARSER=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_URIPARSER 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
 
 # Another mandatory item (unless it's explicitly disabled)
 # Check whether --enable-xmldoc was given.

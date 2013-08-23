@@ -609,6 +609,16 @@ int aco_option_register_deprecated(struct aco_info *info, const char *name, stru
  */
 unsigned int aco_option_get_flags(const struct aco_option *option);
 
+/*!
+ * \brief Get the offset position for an argument within a config option
+ *
+ * \param option Pointer to the aco_option struct
+ * \param arg Argument number
+ *
+ * \retval position of the argument
+ */
+intptr_t aco_option_get_argument(const struct aco_option *option, unsigned int position);
+
 /*! \note  Everything below this point is to handle converting varargs
  * containing field names, to varargs containing a count of args, followed
  * by the offset of each of the field names in the struct type that is

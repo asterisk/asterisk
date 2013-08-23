@@ -241,6 +241,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/aoc.h"
 #include "asterisk/uuid.h"
 #include "asterisk/sorcery.h"
+#include "asterisk/bucket.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
 #include "asterisk/stasis_endpoints.h"
@@ -4186,6 +4187,11 @@ int main(int argc, char *argv[])
 #endif
 
 	aco_init();
+
+	if (ast_bucket_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
 
 	if (stasis_init()) {
 		printf("Stasis initialization failed.\n%s", term_quit());

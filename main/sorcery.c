@@ -61,7 +61,7 @@ static struct ast_threadpool *threadpool;
 /*! \brief Structure for internal sorcery object information */
 struct ast_sorcery_object {
 	/*! \brief Unique identifier of this object */
-	char id[AST_UUID_STR_LEN];
+	char *id;
 
 	/*! \brief Type of object */
 	char type[MAX_OBJECT_TYPE];
@@ -1041,6 +1041,7 @@ static void sorcery_object_destructor(void *object)
 	}
 
 	ast_variables_destroy(details->object->extended);
+	ast_free(details->object->id);
 }
 
 void *ast_sorcery_generic_alloc(size_t size, ao2_destructor_fn destructor)
@@ -1069,9 +1070,12 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 	}
 
 	if (ast_strlen_zero(id)) {
-		ast_uuid_generate_str(details->object->id, sizeof(details->object->id));
+		char uuid[AST_UUID_STR_LEN];
+
+		ast_uuid_generate_str(uuid, sizeof(uuid));
+		details->object->id = ast_strdup(uuid);
 	} else {
-		ast_copy_string(details->object->id, id, sizeof(details->object->id));
+		details->object->id = ast_strdup(id);
 	}
 
 	ast_copy_string(details->object->type, type, sizeof(details->object->type));
