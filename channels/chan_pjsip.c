@@ -637,11 +637,17 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 
 static int answer(void *data)
 {
-	pj_status_t status;
+	pj_status_t status = PJ_SUCCESS;
 	pjsip_tx_data *packet;
 	struct ast_sip_session *session = data;
 
-	if ((status = pjsip_inv_answer(session->inv_session, 200, NULL, NULL, &packet)) == PJ_SUCCESS) {
+	pjsip_dlg_inc_lock(session->inv_session->dlg);
+	if (session->inv_session->invite_tsx) {
+		status = pjsip_inv_answer(session->inv_session, 200, NULL, NULL, &packet);
+	}
+	pjsip_dlg_dec_lock(session->inv_session->dlg);
+
+	if (status == PJ_SUCCESS && packet) {
 		ast_sip_session_send_response(session, packet);
 	}
 
