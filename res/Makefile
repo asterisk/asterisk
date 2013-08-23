@@ -9,7 +9,7 @@
 # the GNU General Public License
 #
 
--include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps
+-include $(ASTTOPDIR)/menuselect.makeopts $(ASTTOPDIR)/menuselect.makedeps $(ASTTOPDIR)/build_tools/menuselect-deps
 
 MODULE_PREFIX=res
 MENUSELECT_CATEGORY=RES
@@ -86,7 +86,10 @@ FORCE:
 $(PJ_LIB_FILES): FORCE
 	$(MAKE) -C $(patsubst %/lib/,%,$(dir $@))/build/ ../lib/$(notdir $@)
 
+ifeq ($(subst 1:0,1,$(UUID)), 1)
 res_rtp_asterisk.o: $(PJ_LIB_FILES)
+res_rtp_asterisk.o: _ASTCFLAGS+=-DUSE_PJPROJECT
 res_rtp_asterisk.o: _ASTCFLAGS+=$(PJ_CFLAGS)
 res_rtp_asterisk.so: _ASTLDFLAGS+=$(PJ_LDFLAGS)
 res_rtp_asterisk.so: LIBS+=$(PJ_LDLIBS)
+endif
