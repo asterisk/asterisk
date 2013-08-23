@@ -10101,8 +10101,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 
 	/* Wait for dialing to complete */
 	if (channel || synchronous) {
-		if (channel) {
-			ast_channel_ref(*channel);
+		if (channel && *channel) {
 			ast_channel_unlock(*channel);
 		}
 		while (!outgoing->dialed) {
