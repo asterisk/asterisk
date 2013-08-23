@@ -734,15 +734,15 @@ int ast_sip_initialize_sorcery_qualify(struct ast_sorcery *sorcery)
 	/* initialize sorcery ast_sip_contact_status resource */
 	ast_sorcery_apply_default(sorcery, CONTACT_STATUS, "memory", NULL);
 
-	if (ast_sorcery_object_register(sorcery, CONTACT_STATUS,
+	if (ast_sorcery_internal_object_register(sorcery, CONTACT_STATUS,
 					contact_status_alloc, NULL, NULL)) {
 		ast_log(LOG_ERROR, "Unable to register ast_sip_contact_status in sorcery\n");
 		return -1;
 	}
 
-	ast_sorcery_object_field_register(sorcery, CONTACT_STATUS, "rtt", "0", OPT_UINT_T,
+	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "rtt", "0", OPT_UINT_T,
 					  1, FLDSET(struct ast_sip_contact_status, status));
-	ast_sorcery_object_field_register(sorcery, CONTACT_STATUS, "rtt", "0", OPT_UINT_T,
+	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "rtt", "0", OPT_UINT_T,
 					  1, FLDSET(struct ast_sip_contact_status, rtt));
 
 	return 0;

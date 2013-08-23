@@ -628,7 +628,7 @@ int ast_res_pjsip_initialize_configuration(void)
 		return -1;
 	}
 
-	ast_sorcery_object_register(sip_sorcery, "nat_hook", sip_nat_hook_alloc, NULL, NULL);
+	ast_sorcery_internal_object_register(sip_sorcery, "nat_hook", sip_nat_hook_alloc, NULL, NULL);
 
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "context", "default", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, context));
@@ -696,7 +696,6 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_video));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allowsubscribe", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, subscription.allow));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpiry", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subscription.minexpiry));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subminexpirey", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, subscription.minexpiry));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromuser));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromdomain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromdomain));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwifromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, subscription.mwi.fromuser));

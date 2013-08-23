@@ -345,6 +345,24 @@ int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, c
  *
  * \param sorcery Pointer to a sorcery structure
  * \param type Type of object
+ * \param hidden All objects of this type are internal and should not be manipulated by users
+ * \param alloc Required object allocation callback
+ * \param transform Optional transformation callback
+ * \param apply Optional object set apply callback
+ *
+ * \note In general, this function should not be used directly. One of the various
+ * macro'd versions should be used instead.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply);
+
+/*!
+ * \brief Register an object type
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
  * \param alloc Required object allocation callback
  * \param transform Optional transformation callback
  * \param apply Optional object set apply callback
@@ -352,7 +370,23 @@ int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, c
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply);
+#define ast_sorcery_object_register(sorcery, type, alloc, transform, apply) \
+	__ast_sorcery_object_register((sorcery), (type), 0, (alloc), (transform), (apply))
+
+/*!
+ * \brief Register an internal, hidden object type
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param alloc Required object allocation callback
+ * \param transform Optional transformation callback
+ * \param apply Optional object set apply callback
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+#define ast_sorcery_internal_object_register(sorcery, type, alloc, transform, apply) \
+	__ast_sorcery_object_register((sorcery), (type), 1, (alloc), (transform), (apply))
 
 /*!
  * \brief Set the copy handler for an object type
@@ -401,7 +435,8 @@ int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *
  * \retval -1 failure
  */
 int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type, const char *name, const char *default_val, enum aco_option_type opt_type,
-                                        aco_option_handler config_handler, sorcery_field_handler sorcery_handler, unsigned int flags, size_t argc, ...);
+                                        aco_option_handler config_handler, sorcery_field_handler sorcery_handler, unsigned int flags, unsigned int no_doc,
+                                        size_t argc, ...);
 
 /*!
  * \brief Register a field within an object
@@ -417,7 +452,23 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, flags, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+
+/*!
+ * \brief Register a field within an object without documentation
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param name Name of the field
+ * \param default_val Default value of the field
+ * \param opt_type Option type
+ * \param flags Option type specific flags
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+#define ast_sorcery_object_field_register_nodoc(sorcery, type, name, default_val, opt_type, flags, ...) \
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 /*!
  * \brief Register a field within an object with custom handlers

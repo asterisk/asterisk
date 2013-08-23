@@ -575,7 +575,7 @@ static int sorcery_extended_fields_handler(const void *obj, struct ast_variable 
 	return 0;
 }
 
-int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
+int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 
@@ -587,6 +587,7 @@ int ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, a
 	object_type->type.type = ACO_ITEM;
 	object_type->type.category = ".?";
 	object_type->type.item_alloc = alloc;
+	object_type->type.hidden = hidden;
 
 	object_type->transform = transform;
 	object_type->apply = apply;
@@ -639,13 +640,13 @@ int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *
 	object_field->multiple_handler = sorcery_handler;
 
 	ao2_link(object_type->fields, object_field);
-	__aco_option_register(object_type->info, regex, ACO_REGEX, object_type->file->types, "", OPT_CUSTOM_T, config_handler, 0, 0);
+	__aco_option_register(object_type->info, regex, ACO_REGEX, object_type->file->types, "", OPT_CUSTOM_T, config_handler, 0, 1, 0);
 
 	return 0;
 }
 
 int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type, const char *name, const char *default_val, enum aco_option_type opt_type,
-					aco_option_handler config_handler, sorcery_field_handler sorcery_handler, unsigned int flags, size_t argc, ...)
+					aco_option_handler config_handler, sorcery_field_handler sorcery_handler, unsigned int flags, unsigned int no_doc, size_t argc, ...)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_field *, object_field, NULL, ao2_cleanup);
@@ -677,15 +678,15 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
 
 	/* TODO: Improve this hack */
 	if (!argc) {
-		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, argc);
+		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, no_doc, argc);
 	} else if (argc == 1) {
-		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, argc,
+		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, no_doc, argc,
 				      object_field->args[0]);
 	} else if (argc == 2) {
-		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, argc,
+		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, no_doc, argc,
 				      object_field->args[0], object_field->args[1]);
 	} else if (argc == 3) {
-		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, argc,
+		__aco_option_register(object_type->info, name, ACO_EXACT, object_type->file->types, default_val, opt_type, config_handler, flags, no_doc, argc,
 				      object_field->args[0], object_field->args[1], object_field->args[2]);
 	} else {
 		ast_assert(0); /* The hack... she does us no good for this */

@@ -256,6 +256,10 @@
 				<configOption name="rtp_symmetric" default="no">
 					<synopsis>Enforce that RTP must be symmetric</synopsis>
 				</configOption>
+				<configOption name="send_diversion" default="yes">
+					<synopsis>Send the Diversion header, conveying the diversion
+					information to the called user agent</synopsis>
+				</configOption>
 				<configOption name="send_pai" default="no">
 					<synopsis>Send the P-Asserted-Identity header</synopsis>
 				</configOption>
@@ -670,15 +674,6 @@
 					<synopsis>Username to use for account</synopsis>
 				</configOption>
 			</configObject>
-			<configObject name="nat_hook">
-				<synopsis>XXX This exists only to prevent XML documentation errors.</synopsis>
-				<configOption name="external_media_address">
-					<synopsis>I should be undocumented or hidden</synopsis>
-				</configOption>
-				<configOption name="method">
-					<synopsis>I should be undocumented or hidden</synopsis>
-				</configOption>
-			</configObject>
 			<configObject name="domain_alias">
 				<synopsis>Domain Alias</synopsis>
 				<description><para>
@@ -769,6 +764,8 @@
 							<enum name="udp" />
 							<enum name="tcp" />
 							<enum name="tls" />
+							<enum name="ws" />
+							<enum name="wss" />
 						</enumlist>
 					</description>
 				</configOption>
@@ -783,6 +780,24 @@
 				</configOption>
 				<configOption name="verify_server" default="false">
 					<synopsis>Require verification of server certificate (TLS ONLY)</synopsis>
+				</configOption>
+				<configOption name="tos" default="false">
+					<synopsis>Enable TOS for the signalling sent over this transport</synopsis>
+					<description>
+					<para>See <literal>https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service</literal>
+					for more information on this parameter.</para>
+					<note><para>This option does not apply to the <replaceable>ws</replaceable>
+					or the <replaceable>wss</replaceable> protocols.</para></note>
+					</description>
+				</configOption>
+				<configOption name="cos" default="false">
+					<synopsis>Enable COS for the signalling sent over this transport</synopsis>
+					<description>
+					<para>See <literal>https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service</literal>
+					for more information on this parameter.</para>
+					<note><para>This option does not apply to the <replaceable>ws</replaceable>
+					or the <replaceable>wss</replaceable> protocols.</para></note>
+					</description>
 				</configOption>
 			</configObject>
 			<configObject name="contact">
@@ -809,28 +824,6 @@
 					<description><para>
 						Interval between attempts to qualify the contact for reachability.
 						If <literal>0</literal> never qualify. Time in seconds.
-					</para></description>
-				</configOption>
-			</configObject>
-			<configObject name="contact_status">
-				<synopsis>Status for a contact</synopsis>
-				<description><para>
-					The contact status keeps track of whether or not a contact is reachable
-					and how long it took to qualify the contact (round trip time).
-				</para></description>
-				<configOption name="status">
-					<synopsis>A contact's status</synopsis>
-					<description>
-						<enumlist>
-							<enum name="AVAILABLE" />
-							<enum name="UNAVAILABLE" />
-						</enumlist>
-					</description>
-				</configOption>
-				<configOption name="rtt">
-					<synopsis>Round trip time</synopsis>
-					<description><para>
-						The time, in microseconds, it took to qualify the contact.
 					</para></description>
 				</configOption>
 			</configObject>
@@ -972,7 +965,7 @@
 					A value of 0 indicates no maximum.</synopsis>
 				</configOption>
 				<configOption name="type">
-                                        <synopsis>Must be of type 'system'.</synopsis>
+					<synopsis>Must be of type 'system'.</synopsis>
 				</configOption>
 			</configObject>
 			<configObject name="global">
@@ -984,11 +977,11 @@
 				<configOption name="maxforwards" default="70">
 					<synopsis>Value used in Max-Forwards header for SIP requests.</synopsis>
 				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'global'.</synopsis>
+				</configOption>
 				<configOption name="useragent" default="Asterisk &lt;Asterisk Version&gt;">
 					<synopsis>Value used in User-Agent header for SIP requests and Server header for SIP responses.</synopsis>
-				</configOption>
-				<configOption name="type">
-                                        <synopsis>Must be of type 'global'.</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>

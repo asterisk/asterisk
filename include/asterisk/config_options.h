@@ -116,6 +116,7 @@ struct aco_type {
 	aco_matchvalue_func matchfunc;       /*!< A function for determing whether the option value matches (i.e. hassip= requires ast_true()) */
 	enum aco_category_op category_match; /*!< Whether the following category regex is a whitelist or blacklist */
 	size_t item_offset;                  /*!< The offset in the config snapshot for the global config or item config container */
+	unsigned int hidden;  /*!< Type is for internal purposes only and it and all options should not be visible to users */
 
 	/* non-global callbacks */
 	aco_type_item_alloc item_alloc;         /*!< An allocation function for item associated with this type */
@@ -528,6 +529,7 @@ int aco_set_defaults(struct aco_type *type, const char *category, void *obj);
  * \param type The option type (only for default handlers)
  * \param handler The handler function for the option (only for non-default types)
  * \param flags a type specific flags, stored in the option and available to the handler
+ * \param no_doc if non-zero, this option should not have documentation
  * \param argc The number for variadic arguments
  * \param ... field offsets to store for default handlers
  *
@@ -535,7 +537,7 @@ int aco_set_defaults(struct aco_type *type, const char *category, void *obj);
  * \retval -1 failure
  */
 int __aco_option_register(struct aco_info *info, const char *name, enum aco_matchtype match_type, struct aco_type **types,
-	const char *default_val, enum aco_option_type type, aco_option_handler handler, unsigned int flags, size_t argc, ...);
+	const char *default_val, enum aco_option_type type, aco_option_handler handler, unsigned int flags, unsigned int no_doc, size_t argc, ...);
 
 /*! \brief Register a config option
  * \param info A pointer to the aco_info struct
@@ -551,7 +553,7 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
  * \retval -1 Failure
  */
 #define aco_option_register(info, name, matchtype, types, default_val, opt_type, flags, ...) \
-	__aco_option_register(info, name, matchtype, types, default_val, opt_type, NULL, flags, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+	__aco_option_register(info, name, matchtype, types, default_val, opt_type, NULL, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*! \brief Register a config option
  * \param info A pointer to the aco_info struct
@@ -566,7 +568,25 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
  * \retval -1 Failure
  */
 #define aco_option_register_custom(info, name, matchtype, types, default_val, handler, flags) \
-	__aco_option_register(info, name, matchtype, types, default_val, OPT_CUSTOM_T, handler, flags, 0);
+	__aco_option_register(info, name, matchtype, types, default_val, OPT_CUSTOM_T, handler, flags, 0, 0);
+
+/*! \brief Register a config option with no expected documentation
+ * \param info A pointer to the aco_info struct
+ * \param name The name of the option
+ * \param matchtype
+ * \param types An array of valid option types for matching categories to the correct struct type
+ * \param default_val The default value of the option in the same format as defined in a config file
+ * \param handler The handler callback for the option
+ * \param flags \a type specific flags, stored in the option and available to the handler
+ *
+ * \note This is used primarily with custom options that only have internal purposes
+ * and that should be ignored by the user.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+#define aco_option_register_custom_nodoc(info, name, matchtype, types, default_val, handler, flags) \
+	__aco_option_register(info, name, matchtype, types, default_val, OPT_CUSTOM_T, handler, flags, 1, 0);
 
 /*! \brief Register a deprecated (and aliased) config option
  * \param info A pointer to the aco_info struct

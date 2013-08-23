@@ -69,6 +69,7 @@ struct aco_option {
 	enum aco_option_type type;
 	aco_option_handler handler;
 	unsigned int flags;
+	unsigned int no_doc:1;
 	unsigned char deprecated:1;
 	size_t argc;
 	intptr_t args[0];
@@ -183,7 +184,7 @@ static int link_option_to_types(struct aco_info *info, struct aco_type **types, 
 		}
 		if (!ao2_link(type->internal->opts, opt)
 #ifdef AST_XML_DOCS
-				|| xmldoc_update_config_option(types, info->module, opt->name, type->name, opt->default_val, opt->match_type == ACO_REGEX, opt->type)
+				|| (!opt->no_doc && xmldoc_update_config_option(types, info->module, opt->name, type->name, opt->default_val, opt->match_type == ACO_REGEX, opt->type))
 #endif /* AST_XML_DOCS */
 		) {
 			do {
@@ -276,7 +277,8 @@ static struct ast_xml_doc_item *find_xmldoc_type(struct ast_xml_doc_item *config
 #endif /* AST_XML_DOCS */
 
 int __aco_option_register(struct aco_info *info, const char *name, enum aco_matchtype matchtype, struct aco_type **types,
-	const char *default_val, enum aco_option_type kind, aco_option_handler handler, unsigned int flags, size_t argc, ...)
+	const char *default_val, enum aco_option_type kind, aco_option_handler handler, unsigned int flags,
+	unsigned int no_doc, size_t argc, ...)
 {
 	struct aco_option *opt;
 	va_list ap;
@@ -313,6 +315,7 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
 	opt->handler = handler;
 	opt->flags = flags;
 	opt->argc = argc;
+	opt->no_doc = no_doc;
 
 	if (!opt->handler && !(opt->handler = ast_config_option_default_handler(opt->type))) {
 		/* This should never happen */
@@ -765,7 +768,7 @@ int aco_info_init(struct aco_info *info)
 				goto error;
 			}
 #ifdef AST_XML_DOCS
-			if (xmldoc_update_config_type(info->module, type->name, type->category, type->matchfield, type->matchvalue, type->category_match == ACO_WHITELIST)) {
+			if (!type->hidden && xmldoc_update_config_type(info->module, type->name, type->category, type->matchfield, type->matchvalue, type->category_match == ACO_WHITELIST)) {
 				goto error;
 			}
 #endif /* AST_XML_DOCS */
@@ -917,7 +920,7 @@ static char *complete_config_option(const char *module, const char *option, cons
 /* Define as 0 if we want to allow configurations to be registered without
  * documentation
  */
-#define XMLDOC_STRICT 0
+#define XMLDOC_STRICT 1
 
 /*! \internal
  * \brief Update the XML documentation for a config type based on its registration
