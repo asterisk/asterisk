@@ -1209,10 +1209,9 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel, co
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
 			ao2_unlink(features->dtmf_hooks, hook);
 		}
-
 		testsuite_notify_feature_success(bridge_channel->chan, hook->dtmf.code);
-
 		ao2_ref(hook, -1);
+
 		/*
 		 * If we are handing the channel off to an external hook for
 		 * ownership, we are not guaranteed what kind of state it will
