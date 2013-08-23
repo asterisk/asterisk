@@ -174,6 +174,15 @@ Core
    was responsible for an attended transfer in a similar fashion to
    BLINDTRANSFER.
 
+
+Codecs
+------------------
+ * Added pass through support for VP8 and Opus
+
+ * Added format attribute negotiation for the Opus codec. Format attribute
+   negotiation is provided by the res_format_attr_opus module.
+
+
 AMI (Asterisk Manager Interface)
 ------------------
  * The SIPshowpeer action will now include a 'SubscribeContext' field for a peer
