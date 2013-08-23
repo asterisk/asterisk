@@ -869,7 +869,7 @@ static void append_backtrace_information(struct ast_str **str, struct ast_bt *bt
 			ast_str_append(str, 0, "\t%s\n", symbols[frame_iterator]);
 		}
 
-		ast_free(symbols);
+		ast_std_free(symbols);
 	} else {
 		ast_str_append(str, 0, "\tCouldn't retrieve backtrace symbols\n");
 	}

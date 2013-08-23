@@ -123,7 +123,7 @@ void ao2_bt(void)
 	for(i = 0; i < c; i++) {
 		ast_verbose("%d: %p %s\n", i, addresses[i], strings[i]);
 	}
-	ast_free(strings);
+	ast_std_free(strings);
 }
 #endif
 

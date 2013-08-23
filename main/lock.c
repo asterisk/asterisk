@@ -29,6 +29,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/utils.h"
 #include "asterisk/lock.h"
 
 /* Allow direct use of pthread_mutex_* / pthread_cond_* */
@@ -44,6 +45,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #undef pthread_cond_destroy
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
+
+#if defined(DEBUG_THREADS) && defined(HAVE_BKTR)
+static void __dump_backtrace(struct ast_bt *bt, int canlog)
+{
+	char **strings;
+	ssize_t i;
+
+	strings = backtrace_symbols(bt->addresses, bt->num_frames);
+
+	for (i = 0; i < bt->num_frames; i++) {
+		__ast_mutex_logger("%s\n", strings[i]);
+	}
+
+	ast_std_free(strings);
+}
+#endif	/* defined(DEBUG_THREADS) && defined(HAVE_BKTR) */
 
 int __ast_pthread_mutex_init(int tracking, const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t)

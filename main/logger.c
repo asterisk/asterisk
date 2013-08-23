@@ -1593,7 +1593,7 @@ void *ast_bt_destroy(struct ast_bt *bt)
 
 char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 {
-	char **strings = NULL;
+	char **strings;
 #if defined(BETTER_BACKTRACES)
 	int stackfr;
 	bfd *bfdobj;           /* bfd.h */
@@ -1613,9 +1613,12 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 
 #if defined(BETTER_BACKTRACES)
 	strings_size = num_frames * sizeof(*strings);
-	eachlen = ast_calloc(num_frames, sizeof(*eachlen));
 
-	if (!(strings = ast_calloc(num_frames, sizeof(*strings)))) {
+	eachlen = ast_calloc(num_frames, sizeof(*eachlen));
+	strings = ast_std_calloc(num_frames, sizeof(*strings));
+	if (!eachlen || !strings) {
+		ast_free(eachlen);
+		ast_std_free(strings);
 		return NULL;
 	}
 
@@ -1630,6 +1633,7 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 
 		if (strcmp(dli.dli_fname, "asterisk") == 0) {
 			char asteriskpath[256];
+
 			if (!(dli.dli_fname = ast_utils_which("asterisk", asteriskpath, sizeof(asteriskpath)))) {
 				/* This will fail to find symbols */
 				ast_debug(1, "Failed to find asterisk binary for debug symbols.\n");
@@ -1638,11 +1642,11 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 		}
 
 		lastslash = strrchr(dli.dli_fname, '/');
-		if (	(bfdobj = bfd_openr(dli.dli_fname, NULL)) &&
-				bfd_check_format(bfdobj, bfd_object) &&
-				(allocsize = bfd_get_symtab_upper_bound(bfdobj)) > 0 &&
-				(syms = ast_malloc(allocsize)) &&
-				(symbolcount = bfd_canonicalize_symtab(bfdobj, syms))) {
+		if ((bfdobj = bfd_openr(dli.dli_fname, NULL)) &&
+			bfd_check_format(bfdobj, bfd_object) &&
+			(allocsize = bfd_get_symtab_upper_bound(bfdobj)) > 0 &&
+			(syms = ast_malloc(allocsize)) &&
+			(symbolcount = bfd_canonicalize_symtab(bfdobj, syms))) {
 
 			if (bfdobj->flags & DYNAMIC) {
 				offset = addresses[stackfr] - dli.dli_fbase;
@@ -1651,9 +1655,9 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 			}
 
 			for (section = bfdobj->sections; section; section = section->next) {
-				if (	!bfd_get_section_flags(bfdobj, section) & SEC_ALLOC ||
-						section->vma > offset ||
-						section->size + section->vma < offset) {
+				if (!bfd_get_section_flags(bfdobj, section) & SEC_ALLOC ||
+					section->vma > offset ||
+					section->size + section->vma < offset) {
 					continue;
 				}
 
@@ -1668,7 +1672,9 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 				found++;
 				if ((lastslash = strrchr(file, '/'))) {
 					const char *prevslash;
-					for (prevslash = lastslash - 1; *prevslash != '/' && prevslash >= file; prevslash--);
+
+					for (prevslash = lastslash - 1; *prevslash != '/' && prevslash >= file; prevslash--) {
+					}
 					if (prevslash >= file) {
 						lastslash = prevslash;
 					}
@@ -1690,9 +1696,7 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 		}
 		if (bfdobj) {
 			bfd_close(bfdobj);
-			if (syms) {
-				ast_free(syms);
-			}
+			ast_free(syms);
 		}
 
 		/* Default output, if we cannot find the information within BFD */
@@ -1712,52 +1716,32 @@ char **ast_bt_get_symbols(void **addresses, size_t num_frames)
 
 		if (!ast_strlen_zero(msg)) {
 			char **tmp;
-			eachlen[stackfr] = strlen(msg);
-			if (!(tmp = ast_realloc(strings, strings_size + eachlen[stackfr] + 1))) {
-				ast_free(strings);
+
+			eachlen[stackfr] = strlen(msg) + 1;
+			if (!(tmp = ast_std_realloc(strings, strings_size + eachlen[stackfr]))) {
+				ast_std_free(strings);
 				strings = NULL;
 				break; /* out of stack frame iteration */
 			}
 			strings = tmp;
 			strings[stackfr] = (char *) strings + strings_size;
-			ast_copy_string(strings[stackfr], msg, eachlen[stackfr] + 1);
-			strings_size += eachlen[stackfr] + 1;
+			strcpy(strings[stackfr], msg);/* Safe since we just allocated the room. */
+			strings_size += eachlen[stackfr];
 		}
 	}
 
 	if (strings) {
-		/* Recalculate the offset pointers */
+		/* Recalculate the offset pointers because of the reallocs. */
 		strings[0] = (char *) strings + num_frames * sizeof(*strings);
 		for (stackfr = 1; stackfr < num_frames; stackfr++) {
-			strings[stackfr] = strings[stackfr - 1] + eachlen[stackfr - 1] + 1;
+			strings[stackfr] = strings[stackfr - 1] + eachlen[stackfr - 1];
 		}
 	}
+	ast_free(eachlen);
+
 #else /* !defined(BETTER_BACKTRACES) */
-	if ((strings = backtrace_symbols(addresses, num_frames))) {
-		/* Re-do value into ast_alloc'ed memory */
-		char **ast_strings;
-		char *p;
-		unsigned size = num_frames + sizeof(*strings);
-		int i;
-		for (i = 0; i < num_frames; ++i) {
-			size += strlen(strings[i]) + 1;
-		}
-#undef free
-		if (!(ast_strings = ast_malloc(size))) {
-			free(strings);
-			ast_log(LOG_WARNING, "Unable to re-allocate space for backtrace structure\n");
-			return NULL;
-		}
-		p = (char *) (ast_strings + num_frames);
-		for (i = 0; i < num_frames; ++i) {
-			unsigned len = strlen(strings[i]) + 1;
-			ast_strings[i] = p;
-			memcpy(p, strings[i], len);
-			p += len;
-		}
-		free(strings);
-		strings = ast_strings;
-	}
+
+	strings = backtrace_symbols(addresses, num_frames);
 #endif /* defined(BETTER_BACKTRACES) */
 	return strings;
 }
@@ -1782,7 +1766,7 @@ void ast_backtrace(void)
 			ast_debug(1, "#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
 		}
 
-		ast_free(strings);
+		ast_std_free(strings);
 	} else {
 		ast_debug(1, "Could not allocate memory for backtrace\n");
 	}

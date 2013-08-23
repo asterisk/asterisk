@@ -54,6 +54,12 @@ extern "C" {
 #undef vasprintf
 #undef free
 
+void *ast_std_malloc(size_t size);
+void *ast_std_calloc(size_t nmemb, size_t size);
+void *ast_std_realloc(void *ptr, size_t size);
+void ast_std_free(void *ptr);
+void ast_free_ptr(void *ptr);
+
 void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
 void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
 void *__ast_malloc(size_t size, const char *file, int lineno, const char *func);
