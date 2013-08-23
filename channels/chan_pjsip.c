@@ -1168,10 +1168,25 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 	case AST_CONTROL_VIDUPDATE:
 		media = pvt->media[SIP_MEDIA_VIDEO];
 		if (media && media->rtp) {
-			ao2_ref(channel->session, +1);
+			/* FIXME: Only use this for VP8. Additional work would have to be done to
+			 * fully support other video codecs */
+			struct ast_format_cap *fcap = ast_channel_nativeformats(ast);
+			struct ast_format vp8;
+			ast_format_set(&vp8, AST_FORMAT_VP8, 0);
+			if (ast_format_cap_iscompatible(fcap, &vp8)) {
+				/* FIXME Fake RTP write, this will be sent as an RTCP packet. Ideally the
+				 * RTP engine would provide a way to externally write/schedule RTCP
+				 * packets */
+				struct ast_frame fr;
+				fr.frametype = AST_FRAME_CONTROL;
+				fr.subclass.integer = AST_CONTROL_VIDUPDATE;
+				res = ast_rtp_instance_write(media->rtp, &fr);
+			} else {
+				ao2_ref(channel->session, +1);
 
-			if (ast_sip_push_task(channel->session->serializer, transmit_info_with_vidupdate, channel->session)) {
-				ao2_cleanup(channel->session);
+				if (ast_sip_push_task(channel->session->serializer, transmit_info_with_vidupdate, channel->session)) {
+					ao2_cleanup(channel->session);
+				}
 			}
 		} else {
 			res = -1;

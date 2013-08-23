@@ -1269,7 +1269,7 @@ static void add_dtls_to_sdp(struct ast_rtp_instance *instance, struct ast_str **
 static void start_ice(struct ast_rtp_instance *instance);
 static void add_codec_to_sdp(const struct sip_pvt *p, struct ast_format *codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
-			     int debug, int *min_packet_size);
+			     int debug, int *min_packet_size, int *max_packet_size);
 static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 				struct ast_str **m_buf, struct ast_str **a_buf,
 				int debug);
@@ -7945,10 +7945,25 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
 		if (p->vrtp && !p->novideo) {
-			transmit_info_with_vidupdate(p);
-			/* ast_rtcp_send_h261fur(p->vrtp); */
-		} else
+			/* FIXME: Only use this for VP8. Additional work would have to be done to
+			 * fully support other video codecs */
+			struct ast_format_cap *fcap = ast_channel_nativeformats(ast);
+			struct ast_format vp8;
+			ast_format_set(&vp8, AST_FORMAT_VP8, 0);
+			if (ast_format_cap_iscompatible(fcap, &vp8)) {
+				/* FIXME Fake RTP write, this will be sent as an RTCP packet. Ideally the
+				 * RTP engine would provide a way to externally write/schedule RTCP
+				 * packets */
+				struct ast_frame fr;
+				fr.frametype = AST_FRAME_CONTROL;
+				fr.subclass.integer = AST_CONTROL_VIDUPDATE;
+				res = ast_rtp_instance_write(p->vrtp, &fr);
+			} else {
+				transmit_info_with_vidupdate(p);
+			}
+		} else {
 			res = -1;
+		}
 		break;
 	case AST_CONTROL_T38_PARAMETERS:
 		res = -1;
@@ -11167,7 +11182,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 			if (debug)
 				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
 		}
-	} else if (sscanf(a, "fmtp: %30u %255s", &codec, fmtp_string) == 2) {
+	} else if (sscanf(a, "fmtp: %30u %255[^\t\n]", &codec, fmtp_string) == 2) {
 		struct ast_format *format;
 
 		if ((format = ast_rtp_codecs_get_payload_format(newaudiortp, codec))) {
@@ -11230,7 +11245,8 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_
 		/* We have a rtpmap to handle */
 		if (*last_rtpmap_codec < SDP_MAX_RTPMAP_CODECS) {
 			/* Note: should really look at the '#chans' params too */
-			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {
+			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)
+					|| !strncasecmp(mimeSubtype, "VP8", 3)) {
 				if (!(ast_rtp_codecs_payloads_set_rtpmap_type_rate(newvideortp, NULL, codec, "video", mimeSubtype, 0, sample_rate))) {
 					if (debug)
 						ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
@@ -12799,7 +12815,8 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	struct ast_str **m_buf,
 	struct ast_str **a_buf,
 	int debug,
-	int *min_packet_size)
+	int *min_packet_size,
+	int *max_packet_size)
 {
 	int rtp_code;
 	struct ast_format_list fmt;
@@ -12821,7 +12838,12 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	} else /* I don't see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
 		return;
 	ast_str_append(m_buf, 0, " %d", rtp_code);
-	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code, mime, rate);
+	/* Opus mandates 2 channels in rtpmap */
+	if ((int)format->id == AST_FORMAT_OPUS) {
+		ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d/2\r\n", rtp_code, mime, rate);
+	} else {
+		ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code, mime, rate);
+	}
 
 	ast_format_sdp_generate(format, rtp_code, a_buf);
 
@@ -12852,12 +12874,22 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 		break;
 	}
 
-	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size))
+	if (max_packet_size && fmt.max_ms && (fmt.max_ms < *max_packet_size)) {
+		*max_packet_size = fmt.max_ms;
+	}
+
+	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size)) {
 		*min_packet_size = fmt.cur_ms;
+	}
 
 	/* Our first codec packetization processed cannot be zero */
-	if ((*min_packet_size)==0 && fmt.cur_ms)
+	if ((*min_packet_size) == 0 && fmt.cur_ms) {
 		*min_packet_size = fmt.cur_ms;
+	}
+
+	if ((*max_packet_size) == 0 && fmt.max_ms) {
+		*max_packet_size = fmt.max_ms;
+	}
 }
 
 /*! \brief Add video codec offer to SDP offer/answer body in INVITE or 200 OK */
@@ -12884,6 +12916,10 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, struct ast_format *format
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code, subtype, rate);
+	/* VP8: add RTCP FIR support */
+	if ((int)format->id == AST_FORMAT_VP8) {
+		ast_str_append(a_buf, 0, "a=rtcp-fb:* ccm fir\r\n");
+	}
 
 	ast_format_sdp_generate(format, rtp_code, a_buf);
 }
@@ -13128,6 +13164,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	int needtext = FALSE;
 	int debug = sip_debug_test_pvt(p);
 	int min_audio_packet_size = 0;
+	int max_audio_packet_size = 0;
 	int min_video_packet_size = 0;
 	int min_text_packet_size = 0;
 
@@ -13309,7 +13346,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_AUDIO) {
 					continue;
 				}
-				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size);
+				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size, &max_audio_packet_size);
 				ast_format_cap_add(alreadysent, &tmp_fmt);
 			}
 			ast_format_cap_iter_end(p->prefcaps);
@@ -13329,7 +13366,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				continue;
 
 			if (AST_FORMAT_GET_TYPE(tmp_fmt.id) == AST_FORMAT_TYPE_AUDIO) {
-				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size);
+				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size, &max_audio_packet_size);
 			} else if (needvideo && (AST_FORMAT_GET_TYPE(tmp_fmt.id) == AST_FORMAT_TYPE_VIDEO)) {
 				add_vcodec_to_sdp(p, &tmp_fmt, &m_video, &a_video, debug, &min_video_packet_size);
 			} else if (needtext && (AST_FORMAT_GET_TYPE(tmp_fmt.id) == AST_FORMAT_TYPE_TEXT)) {
@@ -13346,7 +13383,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 				continue;
 
 			if (AST_FORMAT_GET_TYPE(tmp_fmt.id) == AST_FORMAT_TYPE_AUDIO) {
-				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size);
+				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size, &max_audio_packet_size);
 			} else if (needvideo && (AST_FORMAT_GET_TYPE(tmp_fmt.id) == AST_FORMAT_TYPE_VIDEO)) {
 				add_vcodec_to_sdp(p, &tmp_fmt, &m_video, &a_video, debug, &min_video_packet_size);
 			} else if (needtext && (AST_FORMAT_GET_TYPE(tmp_fmt.id) == AST_FORMAT_TYPE_TEXT)) {
@@ -13365,19 +13402,27 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 		ast_debug(3, "-- Done with adding codecs to SDP\n");
 
-		if (!p->owner || !ast_internal_timing_enabled(p->owner))
+		if (!p->owner || !ast_internal_timing_enabled(p->owner)) {
 			ast_str_append(&a_audio, 0, "a=silenceSupp:off - - - -\r\n");
+		}
 
-		if (min_audio_packet_size)
+		if (min_audio_packet_size) {
 			ast_str_append(&a_audio, 0, "a=ptime:%d\r\n", min_audio_packet_size);
+		}
 
 		/* XXX don't think you can have ptime for video */
-		if (min_video_packet_size)
+		if (min_video_packet_size) {
 			ast_str_append(&a_video, 0, "a=ptime:%d\r\n", min_video_packet_size);
+		}
 
 		/* XXX don't think you can have ptime for text */
-		if (min_text_packet_size)
+		if (min_text_packet_size) {
 			ast_str_append(&a_text, 0, "a=ptime:%d\r\n", min_text_packet_size);
+		}
+
+		if (max_audio_packet_size) {
+			ast_str_append(&a_text, 0, "a=maxptime:%d\r\n", max_audio_packet_size);
+		}
 
 		if (!doing_directmedia) {
 			if (ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {

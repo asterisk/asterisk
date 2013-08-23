@@ -1977,6 +1977,9 @@ int ast_rtp_engine_init()
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_SIREN7, 0), 0, "audio", "G7221", 16000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_SIREN14, 0), 0, "audio", "G7221", 32000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_G719, 0), 0, "audio", "G719", 48000);
+	/* Opus and VP8 */
+	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_OPUS, 0), 0,  "audio", "opus", 48000);
+	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_VP8, 0), 0,  "video", "VP8", 90000);
 
 	/* Define the static rtp payload mappings */
 	add_static_payload(0, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0), 0);
@@ -2018,6 +2021,9 @@ int ast_rtp_engine_init()
 	add_static_payload(118, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR16, 0), 0); /* 16 Khz signed linear */
 	add_static_payload(119, ast_format_set(&tmpfmt, AST_FORMAT_SPEEX32, 0), 0);
 	add_static_payload(121, NULL, AST_RTP_CISCO_DTMF);   /* Must be type 121 */
+	/* Opus and VP8 */
+	add_static_payload(100, ast_format_set(&tmpfmt, AST_FORMAT_VP8, 0), 0);
+	add_static_payload(107, ast_format_set(&tmpfmt, AST_FORMAT_OPUS, 0), 0);
 
 	return 0;
 }

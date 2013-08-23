@@ -1097,8 +1097,12 @@ int ast_codec_get_samples(struct ast_frame *f)
 			return 160;
 		}
 	case AST_FORMAT_CELT:
-		/* TODO The assumes 20ms delivery right now, which is incorrect */
+		/* TODO This assumes 20ms delivery right now, which is incorrect */
 		samples = ast_format_rate(&f->subclass.format) / 50;
+		break;
+	case AST_FORMAT_OPUS:
+		/* TODO This assumes 20ms delivery right now, which is incorrect */
+		samples = 960;
 		break;
 	default:
 		ast_log(LOG_WARNING, "Unable to calculate samples for format %s\n", ast_getformatname(&f->subclass.format));

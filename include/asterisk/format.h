@@ -29,6 +29,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/silk.h"
 #include "asterisk/celt.h"
+#include "asterisk/opus.h"
 #define AST_FORMAT_ATTR_SIZE 64
 #define AST_FORMAT_INC 100000
 
@@ -101,6 +102,8 @@ enum ast_format_id {
 	AST_FORMAT_SLINEAR192       = 27 + AST_FORMAT_TYPE_AUDIO,
 	AST_FORMAT_SPEEX32          = 28 + AST_FORMAT_TYPE_AUDIO,
 	AST_FORMAT_CELT             = 29 + AST_FORMAT_TYPE_AUDIO,
+	/*! Opus */
+	AST_FORMAT_OPUS             = 30 + AST_FORMAT_TYPE_AUDIO,
 
 	/*! H.261 Video */
 	AST_FORMAT_H261             = 1 + AST_FORMAT_TYPE_VIDEO,
@@ -112,6 +115,8 @@ enum ast_format_id {
 	AST_FORMAT_H264             = 4 + AST_FORMAT_TYPE_VIDEO,
 	/*! MPEG4 Video */
 	AST_FORMAT_MP4_VIDEO        = 5 + AST_FORMAT_TYPE_VIDEO,
+	/*! VP8 */
+	AST_FORMAT_VP8              = 6 + AST_FORMAT_TYPE_VIDEO,
 
 	/*! JPEG Images */
 	AST_FORMAT_JPEG             = 1 + AST_FORMAT_TYPE_IMAGE,

@@ -430,6 +430,9 @@ uint64_t ast_format_id_to_old_bitfield(enum ast_format_id id)
 	/*! SpeeX Wideband (16kHz) Free Compression */
 	case AST_FORMAT_SPEEX16:
 		return (1ULL << 33);
+	/*! Opus audio (8kHz, 16kHz, 24kHz, 48Khz) */
+	case AST_FORMAT_OPUS:
+		return (1ULL << 34);
 	/*! Raw mu-law data (G.711) */
 	case AST_FORMAT_TESTLAW:
 		return (1ULL << 47);
@@ -449,6 +452,9 @@ uint64_t ast_format_id_to_old_bitfield(enum ast_format_id id)
 	/*! MPEG4 Video */
 	case AST_FORMAT_MP4_VIDEO:
 		return (1ULL << 22);
+	/*! VP8 Video */
+	case AST_FORMAT_VP8:
+		return (1ULL << 23);
 
 	/*! JPEG Images */
 	case AST_FORMAT_JPEG:
@@ -532,6 +538,9 @@ struct ast_format *ast_format_from_old_bitfield(struct ast_format *dst, uint64_t
 	/*! SpeeX Wideband (16kHz) Free Compression */
 	case (1ULL << 33):
 		return ast_format_set(dst, AST_FORMAT_SPEEX16, 0);
+	/*! Opus audio (8kHz, 16kHz, 24kHz, 48Khz) */
+	case (1ULL << 34):
+		return ast_format_set(dst, AST_FORMAT_OPUS, 0);
 	/*! Raw mu-law data (G.711) */
 	case (1ULL << 47):
 		return ast_format_set(dst, AST_FORMAT_TESTLAW, 0);
@@ -551,6 +560,9 @@ struct ast_format *ast_format_from_old_bitfield(struct ast_format *dst, uint64_t
 	/*! MPEG4 Video */
 	case (1ULL << 22):
 		return ast_format_set(dst, AST_FORMAT_MP4_VIDEO, 0);
+	/*! VP8 Video */
+	case (1ULL << 23):
+		return ast_format_set(dst, AST_FORMAT_VP8, 0);
 
 	/*! JPEG Images */
 	case (1ULL << 16):
@@ -782,6 +794,9 @@ int ast_format_rate(const struct ast_format *format)
 			return samplerate;
 		}
 	}
+	/* Opus */
+	case AST_FORMAT_OPUS:
+		return 48000;
 	default:
 		return 8000;
 	}
@@ -1067,6 +1082,10 @@ static int format_list_init(void)
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR48, 0), "slin48", 48000, "16 bit Signed Linear PCM (48kHz)", 960, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE, 0);/*!< Signed linear (48kHz) */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR96, 0), "slin96", 96000, "16 bit Signed Linear PCM (96kHz)", 1920, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE, 0);/*!< Signed linear (96kHz) */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR192, 0), "slin192", 192000, "16 bit Signed Linear PCM (192kHz)", 3840, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE, 0);/*!< Signed linear (192kHz) */
+	/* Opus (FIXME: real min is 3/5/10, real max is 120...) */
+	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_OPUS, 0), "opus", 48000, "Opus Codec", 10, 20, 60, 20, 20, 0, 0);   /*!< codec_opus.c */
+	/* VP8 (passthrough) */
+	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_VP8, 0), "vp8", 0, "VP8 Video", 0, 0, 0, 0 ,0 ,0, 0);         /*!< Passthrough support, see format_h263.c */
 
 	return 0;
 }

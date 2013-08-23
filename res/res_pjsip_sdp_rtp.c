@@ -849,7 +849,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	char tmp[512];
 	pj_str_t stmp;
 	pjmedia_sdp_attr *attr;
-	int index = 0, min_packet_size = 0, noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) ? AST_RTP_DTMF : 0;
+	int index = 0;
+	int noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) ? AST_RTP_DTMF : 0;
+	int min_packet_size = 0, max_packet_size = 0;
 	int rtp_code;
 	struct ast_format format;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ast_format_cap_destroy);
@@ -951,6 +953,10 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			if (fmt.cur_ms && ((fmt.cur_ms < min_packet_size) || !min_packet_size)) {
 				min_packet_size = fmt.cur_ms;
 			}
+
+			if (fmt.max_ms && ((fmt.max_ms < max_packet_size) || !max_packet_size)) {
+				max_packet_size = fmt.max_ms;
+			}
 		}
 	}
 
@@ -980,6 +986,12 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	if (min_packet_size) {
 		snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
 		attr = pjmedia_sdp_attr_create(pool, "ptime", pj_cstr(&stmp, tmp));
+		media->attr[media->attr_count++] = attr;
+	}
+
+	if (max_packet_size) {
+		snprintf(tmp, sizeof(tmp), "%d", max_packet_size);
+		attr = pjmedia_sdp_attr_create(pool, "maxptime", pj_cstr(&stmp, tmp));
 		media->attr[media->attr_count++] = attr;
 	}
 
