@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features_config.h"
 #include "asterisk/parking.h"
 #include "asterisk/causes.h"
+#include "asterisk/test.h"
 
 /*!
  * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
@@ -1080,6 +1081,44 @@ static int bridge_channel_write_dtmf_stream(struct ast_bridge_channel *bridge_ch
 
 /*!
  * \internal
+ * \brief Indicate to the testsuite a feature was successfully detected.
+ *
+ * Currently, this function only will relay built-in features to the testsuite,
+ * but it could be modified to detect applicationmap items should the need arise.
+ *
+ * \param chan The channel that activated the feature
+ * \param dtmf The DTMF sequence entered to activate the feature
+ */
+static void testsuite_notify_feature_success(struct ast_channel *chan, const char *dtmf)
+{
+#ifdef TEST_FRAMEWORK
+	char *feature = "unknown";
+	struct ast_featuremap_config *featuremap = ast_get_chan_featuremap_config(chan);
+
+	if (featuremap) {
+		if (!strcmp(dtmf, featuremap->blindxfer)) {
+			feature = "blindxfer";
+		} else if (!strcmp(dtmf, featuremap->atxfer)) {
+			feature = "atxfer";
+		} else if (!strcmp(dtmf, featuremap->disconnect)) {
+			feature = "disconnect";
+		} else if (!strcmp(dtmf, featuremap->automon)) {
+			feature = "automon";
+		} else if (!strcmp(dtmf, featuremap->automixmon)) {
+			feature = "automixmon";
+		} else if (!strcmp(dtmf, featuremap->parkcall)) {
+			feature = "parkcall";
+		}
+	}
+
+	ast_test_suite_event_notify("FEATURE_DETECTION",
+			"Result: success\r\n"
+			"Feature: %s", feature);
+#endif /* TEST_FRAMEWORK */
+}
+
+/*!
+ * \internal
  * \brief Internal function that executes a feature on a bridge channel
  * \note Neither the bridge nor the bridge_channel locks should be held when entering
  * this function.
@@ -1170,8 +1209,10 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel, co
 				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
 			ao2_unlink(features->dtmf_hooks, hook);
 		}
-		ao2_ref(hook, -1);
 
+		testsuite_notify_feature_success(bridge_channel->chan, hook->dtmf.code);
+
+		ao2_ref(hook, -1);
 		/*
 		 * If we are handing the channel off to an external hook for
 		 * ownership, we are not guaranteed what kind of state it will
@@ -1181,9 +1222,12 @@ static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel, co
 		if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
 			ast_bridge_channel_kick(bridge_channel, 0);
 		}
-	} else if (features->dtmf_passthrough) {
-		/* Stream any collected DTMF to the other channels. */
-		bridge_channel_write_dtmf_stream(bridge_channel, dtmf);
+	} else {
+		if (features->dtmf_passthrough) {
+			/* Stream any collected DTMF to the other channels. */
+			bridge_channel_write_dtmf_stream(bridge_channel, dtmf);
+		}
+		ast_test_suite_event_notify("FEATURE_DETECTION", "Result: fail");
 	}
 }
 
@@ -1713,6 +1757,13 @@ static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_ch
 		}
 		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		bridge_channel_unsuspend(bridge_channel);
+#ifdef TEST_FRAMEWORK
+	} else if (frame->frametype == AST_FRAME_DTMF_END) {
+		/* Only transmit this event on DTMF end or else every DTMF
+		 * press will result in the event being broadcast twice
+		 */
+		ast_test_suite_event_notify("FEATURE_DETECTION", "Result: fail");
+#endif
 	}
 
 	return frame;
