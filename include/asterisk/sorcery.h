@@ -485,7 +485,24 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register_custom(sorcery, type, name, default_val, config_handler, sorcery_handler, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+
+/*!
+ * \brief Register a field within an object with custom handlers without documentation
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param name Name of the field
+ * \param default_val Default value of the field
+ * \param config_handler Custom configuration handler
+ * \param sorcery_handler Custom sorcery handler
+ * \param flags Option type specific flags
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+#define ast_sorcery_object_field_register_custom_nodoc(sorcery, type, name, default_val, config_handler, sorcery_handler, flags, ...) \
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*!
  * \brief Inform any wizards to load persistent objects
