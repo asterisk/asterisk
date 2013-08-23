@@ -1570,6 +1570,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		}
 	}
 
+	ast_channel_latest_musicclass_set(chan, mohclass->name);
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 
 	if (mohclass->total_files) {

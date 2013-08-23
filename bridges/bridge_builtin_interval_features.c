@@ -103,12 +103,14 @@ static void limits_interval_playback(struct ast_bridge_channel *bridge_channel, 
 	/*
 	 * It may be necessary to resume music on hold after we finish
 	 * playing the announcment.
-	 *
-	 * XXX We have no idea what MOH class was in use before playing
-	 * the file.
 	 */
 	if (ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_MOH)) {
-		ast_moh_start(bridge_channel->chan, NULL, NULL);
+		const char *latest_musicclass;
+
+		ast_channel_lock(bridge_channel->chan);
+		latest_musicclass = ast_strdupa(ast_channel_latest_musicclass(bridge_channel->chan));
+		ast_channel_unlock(bridge_channel->chan);
+		ast_moh_start(bridge_channel->chan, latest_musicclass, NULL);
 	}
 }
 

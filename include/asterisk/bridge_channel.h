@@ -155,6 +155,13 @@ struct ast_bridge_channel {
 	 * \note Needs to be atomically settable.
 	 */
 	enum bridge_channel_thread_state activity;
+	/*! Owed events to the bridge. */
+	struct {
+		/*! Time started sending the current digit. (Invalid if owed.dtmf_digit is zero.) */
+		struct timeval dtmf_tv;
+		/*! Digit currently sending into the bridge. (zero if not sending) */
+		char dtmf_digit;
+	} owed;
 };
 
 /*!

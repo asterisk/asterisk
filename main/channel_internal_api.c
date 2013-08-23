@@ -96,6 +96,7 @@ struct ast_channel {
 		AST_STRING_FIELD(name);         /*!< ASCII unique channel name */
 		AST_STRING_FIELD(language);     /*!< Language requested for voice prompts */
 		AST_STRING_FIELD(musicclass);   /*!< Default music class */
+		AST_STRING_FIELD(latest_musicclass);   /*!< Latest active music class */
 		AST_STRING_FIELD(accountcode);  /*!< Account code for billing */
 		AST_STRING_FIELD(peeraccount);  /*!< Peer account code for billing */
 		AST_STRING_FIELD(userfield);    /*!< Userfield for CEL billing */
@@ -190,6 +191,7 @@ struct ast_channel {
 	int epfd;
 #endif
 	int visible_indication;                         /*!< Indication currently playing on the channel */
+	int hold_state;							/*!< Current Hold/Unhold state */
 
 	unsigned short transfercapability;		/*!< ISDN Transfer Capability - AST_FLAG_DIGITAL is not enough */
 
@@ -444,6 +446,7 @@ void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...)
 DEFINE_STRINGFIELD_SETTERS_FOR(name, 0, 1);
 DEFINE_STRINGFIELD_SETTERS_FOR(language, 1, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(musicclass, 0, 0);
+DEFINE_STRINGFIELD_SETTERS_FOR(latest_musicclass, 0, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(accountcode, 1, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount, 1, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(userfield, 0, 0);
@@ -462,6 +465,7 @@ DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext, 0, 0);
 DEFINE_STRINGFIELD_GETTER_FOR(name);
 DEFINE_STRINGFIELD_GETTER_FOR(language);
 DEFINE_STRINGFIELD_GETTER_FOR(musicclass);
+DEFINE_STRINGFIELD_GETTER_FOR(latest_musicclass);
 DEFINE_STRINGFIELD_GETTER_FOR(accountcode);
 DEFINE_STRINGFIELD_GETTER_FOR(peeraccount);
 DEFINE_STRINGFIELD_GETTER_FOR(userfield);
@@ -644,6 +648,14 @@ int ast_channel_visible_indication(const struct ast_channel *chan)
 void ast_channel_visible_indication_set(struct ast_channel *chan, int value)
 {
 	chan->visible_indication = value;
+}
+int ast_channel_hold_state(const struct ast_channel *chan)
+{
+	return chan->hold_state;
+}
+void ast_channel_hold_state_set(struct ast_channel *chan, int value)
+{
+	chan->hold_state = value;
 }
 int ast_channel_vstreamid(const struct ast_channel *chan)
 {

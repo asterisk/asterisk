@@ -2034,12 +2034,16 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 			if (bridge_channel_internal_push(bridge_channel)) {
 				ast_bridge_channel_leave_bridge(bridge_channel,
 					BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
+				bridge_channel_settle_owed_events(orig_bridge, bridge_channel);
 			}
 		} else {
 			ast_bridge_channel_leave_bridge(bridge_channel,
 				BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
+			bridge_channel_settle_owed_events(orig_bridge, bridge_channel);
 		}
 		res = -1;
+	} else {
+		bridge_channel_settle_owed_events(orig_bridge, bridge_channel);
 	}
 
 	bridge_reconfigured(dst_bridge, !optimized);

@@ -84,6 +84,20 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
 
 /*!
  * \internal
+ * \brief Clear owed events by the channel to the original bridge.
+ * \since 12.0.0
+ *
+ * \param orig_bridge Original bridge the channel was in before leaving.
+ * \param bridge_channel Channel that owes events to the original bridge.
+ *
+ * \note On entry, the orig_bridge is already locked.
+ *
+ * \return Nothing
+ */
+void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \internal
  * \brief Push the bridge channel into its specified bridge.
  * \since 12.0.0
  *

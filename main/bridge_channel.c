@@ -346,6 +346,24 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
  * simple_bridge/native_bridge are likely the only techs that will do this.
  */
 	bridge_channel->bridge->technology->write(bridge_channel->bridge, bridge_channel, frame);
+
+	/* Remember any owed events to the bridge. */
+	switch (frame->frametype) {
+	case AST_FRAME_DTMF_BEGIN:
+		bridge_channel->owed.dtmf_tv = ast_tvnow();
+		bridge_channel->owed.dtmf_digit = frame->subclass.integer;
+		break;
+	case AST_FRAME_DTMF_END:
+		bridge_channel->owed.dtmf_digit = '\0';
+		break;
+	case AST_FRAME_CONTROL:
+		/*
+		 * We explicitly will not remember HOLD/UNHOLD frames because
+		 * things like attended transfers will handle them.
+		 */
+	default:
+		break;
+	}
 	ast_bridge_unlock(bridge_channel->bridge);
 
 	/*
@@ -353,6 +371,27 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 	 * support is added, claim successfully deferred.
 	 */
 	return 0;
+}
+
+void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct ast_bridge_channel *bridge_channel)
+{
+	if (bridge_channel->owed.dtmf_digit) {
+		struct ast_frame frame = {
+			.frametype = AST_FRAME_DTMF_END,
+			.subclass.integer = bridge_channel->owed.dtmf_digit,
+			.src = "Bridge channel owed DTMF",
+		};
+
+		frame.len = ast_tvdiff_ms(ast_tvnow(), bridge_channel->owed.dtmf_tv);
+		if (frame.len < option_dtmfminduration) {
+			frame.len = option_dtmfminduration;
+		}
+		ast_log(LOG_DTMF, "DTMF end '%c' simulated to bridge %s because %s left.  Duration %ld ms.\n",
+			bridge_channel->owed.dtmf_digit, orig_bridge->uniqueid,
+			ast_channel_name(bridge_channel->chan), frame.len);
+		bridge_channel->owed.dtmf_digit = '\0';
+		orig_bridge->technology->write(orig_bridge, NULL, &frame);
+	}
 }
 
 /*!
@@ -719,14 +758,14 @@ void ast_bridge_channel_playfile(struct ast_bridge_channel *bridge_channel, ast_
 	/*
 	 * It may be necessary to resume music on hold after we finish
 	 * playing the announcment.
-	 *
-	 * XXX We have no idea what MOH class was in use before playing
-	 * the file. This method also fails to restore ringing indications.
-	 * the proposed solution is to create a resume_entertainment callback
-	 * for the bridge technology and execute it here.
 	 */
 	if (ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_MOH)) {
-		ast_moh_start(bridge_channel->chan, NULL, NULL);
+		const char *latest_musicclass;
+
+		ast_channel_lock(bridge_channel->chan);
+		latest_musicclass = ast_strdupa(ast_channel_latest_musicclass(bridge_channel->chan));
+		ast_channel_unlock(bridge_channel->chan);
+		ast_moh_start(bridge_channel->chan, latest_musicclass, NULL);
 	}
 }
 
@@ -1420,8 +1459,6 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
 		bridge->v_table->name,
 		bridge->uniqueid);
 
-/* BUGBUG This is where incoming HOLD/UNHOLD memory should write UNHOLD into bridge. (if not local optimizing) */
-/* BUGBUG This is where incoming DTMF begin/end memory should write DTMF end into bridge. (if not local optimizing) */
 	if (!bridge_channel->just_joined) {
 		/* Tell the bridge technology we are leaving so they tear us down */
 		ast_debug(1, "Bridge %s: %p(%s) is leaving %s technology\n",
@@ -1558,17 +1595,6 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 			ast_channel_connected_line_macro(NULL, chan, fr, is_caller, 1)) {
 			ast_indicate_data(chan, fr->subclass.integer, fr->data.ptr, fr->datalen);
 		}
-		break;
-	case AST_CONTROL_HOLD:
-	case AST_CONTROL_UNHOLD:
-/*
- * BUGBUG bridge_channels should remember sending/receiving an outstanding HOLD to/from the bridge
- *
- * When the sending channel is pulled from the bridge it needs to write into the bridge an UNHOLD before being pulled.
- * When the receiving channel is pulled from the bridge it needs to generate its own UNHOLD.
- * Something similar needs to be done for DTMF begin/end.
- */
-		ast_indicate_data(chan, fr->subclass.integer, fr->data.ptr, fr->datalen);
 		break;
 	case AST_CONTROL_OPTION:
 		/*
@@ -1720,7 +1746,6 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 			ast_bridge_channel_kick(bridge_channel, 0);
 			ast_frfree(frame);
 			return;
-/* BUGBUG This is where incoming HOLD/UNHOLD memory should register.  Write UNHOLD into bridge when this channel is pulled. */
 		default:
 			break;
 		}
@@ -1735,7 +1760,6 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 			ast_frfree(frame);
 			return;
 		}
-/* BUGBUG This is where incoming DTMF begin/end memory should register.  Write DTMF end into bridge when this channel is pulled. */
 		break;
 	default:
 		break;
@@ -1887,6 +1911,7 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 {
 	int res = 0;
+
 	ast_format_copy(&bridge_channel->read_format, ast_channel_readformat(bridge_channel->chan));
 	ast_format_copy(&bridge_channel->write_format, ast_channel_writeformat(bridge_channel->chan));
 
@@ -1952,21 +1977,27 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	}
 
 	bridge_channel_internal_pull(bridge_channel);
+	bridge_channel_settle_owed_events(bridge_channel->bridge, bridge_channel);
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
 	ast_bridge_unlock(bridge_channel->bridge);
 
-	/* Indicate a source change since this channel is leaving the bridge system. */
-	ast_indicate(bridge_channel->chan, AST_CONTROL_SRCCHANGE);
+	/* Complete any active hold before exiting the bridge. */
+	if (ast_channel_hold_state(bridge_channel->chan) == AST_CONTROL_HOLD) {
+		ast_debug(1, "Channel %s simulating UNHOLD for bridge end.\n",
+			ast_channel_name(bridge_channel->chan));
+		ast_indicate(bridge_channel->chan, AST_CONTROL_UNHOLD);
+	}
 
-/* BUGBUG Revisit in regards to moving channels between bridges and local channel optimization. */
-/* BUGBUG This is where outgoing HOLD/UNHOLD memory should write UNHOLD to channel. */
 	/* Complete any partial DTMF digit before exiting the bridge. */
 	if (ast_channel_sending_dtmf_digit(bridge_channel->chan)) {
 		ast_channel_end_dtmf(bridge_channel->chan,
 			ast_channel_sending_dtmf_digit(bridge_channel->chan),
 			ast_channel_sending_dtmf_tv(bridge_channel->chan), "bridge end");
 	}
+
+	/* Indicate a source change since this channel is leaving the bridge system. */
+	ast_indicate(bridge_channel->chan, AST_CONTROL_SRCCHANGE);
 
 	/*
 	 * Wait for any dual redirect to complete.
