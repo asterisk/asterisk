@@ -131,6 +131,10 @@
 					],
 					"errorResponses": [
 						{
+							"code": 400,
+							"reason": "Channel not found"
+						},
+						{
 							"code": 404,
 							"reason": "Bridge not found"
 						},
@@ -140,7 +144,7 @@
 						},
 						{
 							"code": 422,
-							"reason": "Channel not found, or not in Stasis application"
+							"reason": "Channel not in Stasis application"
 						}
 					]
 				}
@@ -171,6 +175,24 @@
 							"required": true,
 							"allowMultiple": true,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in Stasis application"
+						},
+						{
+							"code": 422,
+							"reason": "Channel not in this bridge"
 						}
 					]
 				}

@@ -510,6 +510,9 @@ static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
 		ast_bridge_after_cb_reason_string(reason));
 }
 
+static int OK = 0;
+static int FAIL = -1;
+
 static void *app_control_add_channel_to_bridge(
 	struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
@@ -542,7 +545,7 @@ static void *app_control_add_channel_to_bridge(
 		bridge_after_cb_failed, control);
 	if (res != 0) {
 		ast_log(LOG_ERROR, "Error setting after-bridge callback\n");
-		return NULL;
+		return &FAIL;
 	}
 
 	{
@@ -569,22 +572,24 @@ static void *app_control_add_channel_to_bridge(
 			ast_log(LOG_ERROR, "Error adding channel to bridge\n");
 			ast_channel_pbx_set(chan, control->pbx);
 			control->pbx = NULL;
-			return NULL;
+			return &FAIL;
 		}
 
 		ast_assert(stasis_app_get_bridge(control) == NULL);
 		control->bridge = bridge;
 	}
-	return NULL;
+	return &OK;
 }
 
-void stasis_app_control_add_channel_to_bridge(
+int stasis_app_control_add_channel_to_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge)
 {
+	int *res;
 	ast_debug(3, "%s: Sending channel add_to_bridge command\n",
 			stasis_app_control_get_channel_id(control));
-	stasis_app_send_command_async(control,
+	res = stasis_app_send_command(control,
 		app_control_add_channel_to_bridge, bridge);
+	return *res;
 }
 
 static void *app_control_remove_channel_from_bridge(
@@ -594,7 +599,7 @@ static void *app_control_remove_channel_from_bridge(
 	struct ast_bridge *bridge = data;
 
 	if (!control) {
-		return NULL;
+		return &FAIL;
 	}
 
 	/* We should only depart from our own bridge */
@@ -606,20 +611,22 @@ static void *app_control_remove_channel_from_bridge(
 		ast_log(LOG_WARNING, "%s: Not in bridge %s; not removing\n",
 			stasis_app_control_get_channel_id(control),
 			bridge->uniqueid);
-		return NULL;
+		return &FAIL;
 	}
 
 	ast_bridge_depart(chan);
-	return NULL;
+	return &OK;
 }
 
-void stasis_app_control_remove_channel_from_bridge(
+int stasis_app_control_remove_channel_from_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge)
 {
+	int *res;
 	ast_debug(3, "%s: Sending channel remove_from_bridge command\n",
 			stasis_app_control_get_channel_id(control));
-	stasis_app_send_command_async(control,
+	res = stasis_app_send_command(control,
 		app_control_remove_channel_from_bridge, bridge);
+	return *res;
 }
 
 const char *stasis_app_control_get_channel_id(

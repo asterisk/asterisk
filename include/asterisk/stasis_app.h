@@ -361,8 +361,10 @@ int stasis_app_bridge_moh_stop(
  *
  * \param control Control whose channel should be added to the bridge
  * \param bridge Pointer to the bridge
+ * \return non-zero on failure
+ * \return zero on success
  */
-void stasis_app_control_add_channel_to_bridge(
+int stasis_app_control_add_channel_to_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge);
 
 /*!
@@ -370,9 +372,21 @@ void stasis_app_control_add_channel_to_bridge(
  *
  * \param control Control whose channel should be removed from the bridge
  * \param bridge Pointer to the bridge
+ * \return non-zero on failure
+ * \return zero on success
  */
-void stasis_app_control_remove_channel_from_bridge(
+int stasis_app_control_remove_channel_from_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge);
+
+/*!
+ * \since 12
+ * \brief Gets the bridge currently associated with a control object.
+ *
+ * \param control Control object for the channel to query.
+ * \return Associated \ref ast_bridge.
+ * \return \c NULL if not associated with a bridge.
+ */
+struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control);
 
 /*!
  * \brief Destroy the bridge.

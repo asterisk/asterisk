@@ -345,9 +345,10 @@ static void ast_ari_add_channel_to_bridge_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 400: /* Channel not found */
 	case 404: /* Bridge not found */
 	case 409: /* Bridge not in Stasis application */
-	case 422: /* Channel not found, or not in Stasis application */
+	case 422: /* Channel not in Stasis application */
 		is_valid = 1;
 		break;
 	default:
@@ -444,6 +445,10 @@ static void ast_ari_remove_channel_from_bridge_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 400: /* Channel not found */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in Stasis application */
+	case 422: /* Channel not in this bridge */
 		is_valid = 1;
 		break;
 	default:

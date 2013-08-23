@@ -99,6 +99,18 @@ static struct stasis_app_control *find_channel_control(
 
 	control = stasis_app_control_find_by_channel_id(channel_id);
 	if (control == NULL) {
+		/* Distinguish between 400 and 422 errors */
+		RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL,
+			ao2_cleanup);
+		snapshot = ast_channel_snapshot_get_latest(channel_id);
+		if (snapshot == NULL) {
+			ast_log(LOG_DEBUG, "Couldn't find '%s'\n", channel_id);
+			ast_ari_response_error(response, 400, "Bad Request",
+				"Channel not found");
+			return NULL;
+		}
+
+		ast_log(LOG_DEBUG, "Found non-stasis '%s'\n", channel_id);
 		ast_ari_response_error(response, 422, "Unprocessable Entity",
 			"Channel not in Stasis application");
 		return NULL;
@@ -145,6 +157,7 @@ static struct control_list *control_list_create(struct ast_ari_response *respons
 		list->controls[list->count] =
 			find_channel_control(response, channels[i]);
 		if (!list->controls[list->count]) {
+			/* response filled in by find_channel_control() */
 			return NULL;
 		}
 		++list->count;
@@ -166,7 +179,7 @@ void ast_ari_add_channel_to_bridge(struct ast_variable *headers, struct ast_add_
 	size_t i;
 
 	if (!bridge) {
-		/* Response filled in by find_bridge */
+		/* Response filled in by find_bridge() */
 		return;
 	}
 
@@ -200,7 +213,7 @@ void ast_ari_remove_channel_from_bridge(struct ast_variable *headers, struct ast
 	size_t i;
 
 	if (!bridge) {
-		/* Response filled in by find_bridge */
+		/* Response filled in by find_bridge() */
 		return;
 	}
 
@@ -210,17 +223,22 @@ void ast_ari_remove_channel_from_bridge(struct ast_variable *headers, struct ast
 		return;
 	}
 
-	/* BUGBUG this should make sure the bridge requested for removal is actually
-	 * the bridge the channel is in. This will be possible once the bridge uniqueid
-	 * is added to the channel snapshot. A 409 response should be issued if the bridge
-	 * uniqueids don't match */
+	/* Make sure all of the channels are in this bridge */
+	for (i = 0; i < list->count; ++i) {
+		if (stasis_app_get_bridge(list->controls[i]) != bridge) {
+			ast_log(LOG_WARNING, "Channel %s not in bridge %s\n",
+				args->channel[i], args->bridge_id);
+			ast_ari_response_error(response, 422,
+				"Unprocessable Entity",
+				"Channel not in this bridge");
+			return;
+		}
+	}
+
+	/* Now actually remove it */
 	for (i = 0; i < list->count; ++i) {
 		stasis_app_control_remove_channel_from_bridge(list->controls[i],
 			bridge);
-	}
-
-	if (response->response_code) {
-		return;
 	}
 
 	ast_ari_response_no_content(response);
