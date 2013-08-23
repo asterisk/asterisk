@@ -45,35 +45,25 @@ apps=dial,park
 ;  CHAN_END         -- The time a channel was terminated
 ;  ANSWER           -- The time a channel was answered (ie, phone taken off-hook)
 ;  HANGUP           -- The time at which a hangup occurred
-;  CONF_ENTER       -- The time a channel was connected into a conference room
-;  CONF_EXIT        -- The time a channel was removed from a conference room
-;  CONF_START       -- The time the first person enters a conference room
-;  CONF_END         -- The time the last person left a conference room (and
-;                      turned out the lights?)
+;  BRIDGE_ENTER       -- The time a channel was connected into a conference room
+;  BRIDGE_EXIT        -- The time a channel was removed from a conference room
 ;  APP_START        -- The time a tracked application was started
 ;  APP_END          -- the time a tracked application ended
 ;  PARK_START       -- The time a call was parked
 ;  PARK_END         -- Unpark event
-;  BRIDGE_START     -- The time a bridge is started
-;  BRIDGE_END       -- The time a bridge is ended
-;  BRIDGE_UPDATE    -- This is a replacement channel (Masquerade)
-;  3WAY_START       -- When a 3-way conference starts (usually via attended transfer)
-;  3WAY_END         -- When one or all exit a 3-way conference
 ;  BLINDTRANSFER    -- When a blind transfer is initiated
 ;  ATTENDEDTRANSFER -- When an attended transfer is initiated
-;  TRANSFER         -- Generic transfer initiated; not used yet...?
-;  PICKUP           -- This channel picked up the peer channel
+;  PICKUP           -- This channel picked up the specified channel
 ;  FORWARD          -- This channel is being forwarded somewhere else
-;  HOOKFLASH        -- So far, when a hookflash event occurs on a DAHDI
-;                      interface
 ;  LINKEDID_END     -- The last channel with the given linkedid is retired
 ;  USER_DEFINED     -- Triggered from the dialplan, and has a name given by the
 ;                      user
+;  LOCAL_OPTIMIZE   -- A local channel pair is optimizing away.
 ;
 ; Default value: none
 ;                (Track no events)
 
-events=APP_START,CHAN_START,CHAN_END,ANSWER,HANGUP,BRIDGE_START,BRIDGE_END
+events=APP_START,CHAN_START,CHAN_END,ANSWER,HANGUP,BRIDGE_ENTER,BRIDGE_EXIT
 
 ; Date Format
 ;
