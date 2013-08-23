@@ -243,13 +243,13 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 	}
 
 	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
-		ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+		ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_sorcery_unref(sorcery);
 		return NULL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	return sorcery;
 }
@@ -424,12 +424,12 @@ AST_TEST_DEFINE(object_register)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (!ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Registered object type a second time, despite it being registered already\n");
 		return AST_TEST_FAIL;
 	}
@@ -458,7 +458,7 @@ AST_TEST_DEFINE(object_register_without_mapping)
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (!ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Registered object type when no object mapping exists\n");
 		return AST_TEST_FAIL;
 	}
@@ -487,7 +487,7 @@ AST_TEST_DEFINE(object_field_register)
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob))) {
+	if (!ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob))) {
 		ast_test_status_update(test, "Registered an object field successfully when no mappings or object types exist\n");
 		return AST_TEST_FAIL;
 	}
@@ -497,17 +497,17 @@ AST_TEST_DEFINE(object_field_register)
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob))) {
+	if (!ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob))) {
 		ast_test_status_update(test, "Registered an object field successfully when object type does not exist\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob))) {
+	if (ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob))) {
 		ast_test_status_update(test, "Could not successfully register object field when mapping and object type exists\n");
 		return AST_TEST_FAIL;
 	}
@@ -551,7 +551,7 @@ AST_TEST_DEFINE(object_fields_register)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
@@ -1013,7 +1013,7 @@ AST_TEST_DEFINE(objectset_create_regex)
 	}
 
 	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
-	    ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
+	    ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
 		ast_test_status_update(test, "Failed to register 'test' object type\n");
 		return AST_TEST_FAIL;
 	}
@@ -1113,13 +1113,13 @@ AST_TEST_DEFINE(objectset_apply_handler)
 	}
 
 	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
-	    ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
+	    ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
 		ast_test_status_update(test, "Failed to register 'test' object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
 		ast_test_status_update(test, "Failed to allocate a known object type\n");
@@ -1212,13 +1212,13 @@ AST_TEST_DEFINE(objectset_transform)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, test_sorcery_transform, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, test_sorcery_transform, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
 		ast_test_status_update(test, "Failed to allocate a known object type\n");
@@ -1274,7 +1274,7 @@ AST_TEST_DEFINE(objectset_apply_fields)
 	}
 
 	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
-	    ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
+	    ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
 		ast_test_status_update(test, "Failed to register 'test' object type\n");
 		return AST_TEST_FAIL;
 	}
@@ -2069,7 +2069,7 @@ AST_TEST_DEFINE(caching_wizard_behavior)
 		goto end;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		goto end;
 	}
@@ -2314,13 +2314,13 @@ AST_TEST_DEFINE(configuration_file_wizard)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	ast_sorcery_load(sorcery);
 
@@ -2377,13 +2377,13 @@ AST_TEST_DEFINE(configuration_file_wizard_with_file_integrity)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	ast_sorcery_load(sorcery);
 
@@ -2431,14 +2431,14 @@ AST_TEST_DEFINE(configuration_file_wizard_with_criteria)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
-	ast_sorcery_object_field_register(sorcery, "test", "type", NULL, OPT_NOOP_T, 0, NULL);
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "type", NULL, OPT_NOOP_T, 0, NULL);
 
 	ast_sorcery_load(sorcery);
 
@@ -2490,13 +2490,13 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_field)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	ast_sorcery_load(sorcery);
 
@@ -2553,13 +2553,13 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_multiple)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	ast_sorcery_load(sorcery);
 
@@ -2624,13 +2624,13 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_multiple_all)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+	if (ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_test_status_update(test, "Failed to register object type\n");
 		return AST_TEST_FAIL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	ast_sorcery_load(sorcery);
 

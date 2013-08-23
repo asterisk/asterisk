@@ -61,13 +61,13 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 	}
 
 	if (ast_sorcery_apply_default(sorcery, "test", "astdb", "test") ||
-		ast_sorcery_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
+		ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_sorcery_unref(sorcery);
 		return NULL;
 	}
 
-	ast_sorcery_object_field_register(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
-	ast_sorcery_object_field_register(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
 
 	return sorcery;
 }
