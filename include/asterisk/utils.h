@@ -465,24 +465,20 @@ long int ast_random(void);
  */
 #define ast_random_double() (((double)ast_random()) / RAND_MAX)
 
+#ifndef __AST_DEBUG_MALLOC
+#define ast_std_malloc malloc
+#define ast_std_calloc calloc
+#define ast_std_realloc realloc
+#define ast_std_free free
+
 /*!
  * \brief free() wrapper
  *
  * ast_free_ptr should be used when a function pointer for free() needs to be passed
  * as the argument to a function. Otherwise, astmm will cause seg faults.
  */
-#ifdef __AST_DEBUG_MALLOC
-static void ast_free_ptr(void *ptr) attribute_unused;
-static void ast_free_ptr(void *ptr)
-{
-	ast_free(ptr);
-}
-#else
 #define ast_free free
 #define ast_free_ptr ast_free
-#endif
-
-#ifndef __AST_DEBUG_MALLOC
 
 /*
  * This buffer is in static memory. We never intend to read it,

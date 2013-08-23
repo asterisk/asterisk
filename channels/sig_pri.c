@@ -9430,7 +9430,7 @@ void sig_pri_cli_show_span(int fd, int *dchannels, struct sig_pri_span *pri)
 			info_str = pri_dump_info_str(pri->pri);
 			if (info_str) {
 				ast_cli(fd, "%s", info_str);
-				free(info_str);
+				ast_std_free(info_str);
 			}
 #else
 			pri_dump_info(pri->pri);

@@ -87,7 +87,7 @@ void *__ast_bt_destroy(struct ast_bt *bt);
  * \param addresses A list of addresses, such as the ->addresses structure element of struct ast_bt.
  * \param num_frames Number of addresses in the addresses list
  * \retval NULL Unable to allocate memory
- * \return List of strings. This should be freed with a single call to free.
+ * \return List of strings. Free the entire list with a single ast_std_free call.
  * \since 1.6.2.16
  */
 char **__ast_bt_get_symbols(void **addresses, size_t num_frames);

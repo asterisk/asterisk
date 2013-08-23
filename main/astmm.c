@@ -158,6 +158,31 @@ AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
 		}                                    \
 	} while (0)
 
+void *ast_std_malloc(size_t size)
+{
+	return malloc(size);
+}
+
+void *ast_std_calloc(size_t nmemb, size_t size)
+{
+	return calloc(nmemb, size);
+}
+
+void *ast_std_realloc(void *ptr, size_t size)
+{
+	return realloc(ptr, size);
+}
+
+void ast_std_free(void *ptr)
+{
+	free(ptr);
+}
+
+void ast_free_ptr(void *ptr)
+{
+	ast_free(ptr);
+}
+
 static void print_backtrace(struct ast_bt *bt)
 {
 	int i = 0;
@@ -172,10 +197,9 @@ static void print_backtrace(struct ast_bt *bt)
 		for (i = 3; i < bt->num_frames - 2; i++) {
 			astmm_log("#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
 		}
-		free(strings);
+		ast_std_free(strings);
 	}
 }
-
 
 /*!
  * \internal
@@ -343,9 +367,7 @@ static void region_free(struct ast_freed_regions *freed, struct ast_region *reg)
 
 	if (old) {
 		region_data_check(old);
-		if (old->bt) {
-			old->bt = ast_bt_destroy(old->bt);
-		}
+		old->bt = ast_bt_destroy(old->bt);
 		free(old);
 	}
 }

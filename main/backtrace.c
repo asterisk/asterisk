@@ -40,17 +40,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include <bfd.h>
 #endif
 
-/* Undefine the overrides for memory allocation. astmm.c uses these functions
- * as well.
- */
-#undef calloc
-#undef malloc
-#undef free
-#undef realloc
-
 struct ast_bt *__ast_bt_create(void)
 {
-	struct ast_bt *bt = calloc(1, sizeof(*bt));
+	struct ast_bt *bt = ast_std_calloc(1, sizeof(*bt));
+
 	if (!bt) {
 		return NULL;
 	}
@@ -69,15 +62,15 @@ int __ast_bt_get_addresses(struct ast_bt *bt)
 
 void *__ast_bt_destroy(struct ast_bt *bt)
 {
-	if (bt->alloced) {
-		free(bt);
+	if (bt && bt->alloced) {
+		ast_std_free(bt);
 	}
 	return NULL;
 }
 
 char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 {
-	char **strings = NULL;
+	char **strings;
 #if defined(BETTER_BACKTRACES)
 	int stackfr;
 	bfd *bfdobj;           /* bfd.h */
@@ -97,9 +90,12 @@ char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 
 #if defined(BETTER_BACKTRACES)
 	strings_size = num_frames * sizeof(*strings);
-	eachlen = calloc(num_frames, sizeof(*eachlen));
 
-	if (!(strings = calloc(num_frames, sizeof(*strings)))) {
+	eachlen = ast_std_calloc(num_frames, sizeof(*eachlen));
+	strings = ast_std_calloc(num_frames, sizeof(*strings));
+	if (!eachlen || !strings) {
+		ast_std_free(eachlen);
+		ast_std_free(strings);
 		return NULL;
 	}
 
@@ -114,6 +110,7 @@ char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 
 		if (strcmp(dli.dli_fname, "asterisk") == 0) {
 			char asteriskpath[256];
+
 			if (!(dli.dli_fname = ast_utils_which("asterisk", asteriskpath, sizeof(asteriskpath)))) {
 				/* This will fail to find symbols */
 				dli.dli_fname = "asterisk";
@@ -121,22 +118,22 @@ char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 		}
 
 		lastslash = strrchr(dli.dli_fname, '/');
-		if (	(bfdobj = bfd_openr(dli.dli_fname, NULL)) &&
-				bfd_check_format(bfdobj, bfd_object) &&
-				(allocsize = bfd_get_symtab_upper_bound(bfdobj)) > 0 &&
-				(syms = malloc(allocsize)) &&
-				(symbolcount = bfd_canonicalize_symtab(bfdobj, syms))) {
+		if ((bfdobj = bfd_openr(dli.dli_fname, NULL)) &&
+			bfd_check_format(bfdobj, bfd_object) &&
+			(allocsize = bfd_get_symtab_upper_bound(bfdobj)) > 0 &&
+			(syms = ast_std_malloc(allocsize)) &&
+			(symbolcount = bfd_canonicalize_symtab(bfdobj, syms))) {
 
 			if (bfdobj->flags & DYNAMIC) {
 				offset = addresses[stackfr] - dli.dli_fbase;
 			} else {
-				offset = addresses[stackfr] - (void *)0;
+				offset = addresses[stackfr] - (void *) 0;
 			}
 
 			for (section = bfdobj->sections; section; section = section->next) {
-				if (	!bfd_get_section_flags(bfdobj, section) & SEC_ALLOC ||
-						section->vma > offset ||
-						section->size + section->vma < offset) {
+				if (!bfd_get_section_flags(bfdobj, section) & SEC_ALLOC ||
+					section->vma > offset ||
+					section->size + section->vma < offset) {
 					continue;
 				}
 
@@ -151,7 +148,9 @@ char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 				found++;
 				if ((lastslash = strrchr(file, '/'))) {
 					const char *prevslash;
-					for (prevslash = lastslash - 1; *prevslash != '/' && prevslash >= file; prevslash--);
+
+					for (prevslash = lastslash - 1; *prevslash != '/' && prevslash >= file; prevslash--) {
+					}
 					if (prevslash >= file) {
 						lastslash = prevslash;
 					}
@@ -173,7 +172,7 @@ char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 		}
 		if (bfdobj) {
 			bfd_close(bfdobj);
-			free(syms);
+			ast_std_free(syms);
 		}
 
 		/* Default output, if we cannot find the information within BFD */
@@ -193,27 +192,31 @@ char **__ast_bt_get_symbols(void **addresses, size_t num_frames)
 
 		if (!ast_strlen_zero(msg)) {
 			char **tmp;
-			eachlen[stackfr] = strlen(msg);
-			if (!(tmp = realloc(strings, strings_size + eachlen[stackfr] + 1))) {
-				free(strings);
+
+			eachlen[stackfr] = strlen(msg) + 1;
+			if (!(tmp = ast_std_realloc(strings, strings_size + eachlen[stackfr]))) {
+				ast_std_free(strings);
 				strings = NULL;
 				break; /* out of stack frame iteration */
 			}
 			strings = tmp;
 			strings[stackfr] = (char *) strings + strings_size;
-			ast_copy_string(strings[stackfr], msg, eachlen[stackfr] + 1);
-			strings_size += eachlen[stackfr] + 1;
+			strcpy(strings[stackfr], msg);/* Safe since we just allocated the room. */
+			strings_size += eachlen[stackfr];
 		}
 	}
 
 	if (strings) {
-		/* Recalculate the offset pointers */
+		/* Recalculate the offset pointers because of the reallocs. */
 		strings[0] = (char *) strings + num_frames * sizeof(*strings);
 		for (stackfr = 1; stackfr < num_frames; stackfr++) {
-			strings[stackfr] = strings[stackfr - 1] + eachlen[stackfr - 1] + 1;
+			strings[stackfr] = strings[stackfr - 1] + eachlen[stackfr - 1];
 		}
 	}
+	ast_std_free(eachlen);
+
 #else /* !defined(BETTER_BACKTRACES) */
+
 	strings = backtrace_symbols(addresses, num_frames);
 #endif /* defined(BETTER_BACKTRACES) */
 	return strings;

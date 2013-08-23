@@ -1587,9 +1587,7 @@ void ast_log_backtrace(void)
 			ast_debug(1, "#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
 		}
 
-		/* MALLOC_DEBUG will erroneously report an error here, unless we undef the macro. */
-#undef free
-		free(strings);
+		ast_std_free(strings);
 	} else {
 		ast_debug(1, "Could not allocate memory for backtrace\n");
 	}
