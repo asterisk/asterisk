@@ -170,11 +170,6 @@ AST_TEST_DEFINE(bucket_alloc)
 		return AST_TEST_FAIL;
 	}
 
-	if ((bucket = ast_bucket_alloc("test://"))) {
-		ast_test_status_update(test, "Allocated a bucket with no name\n");
-		return AST_TEST_FAIL;
-	}
-
 	if (!(bucket = ast_bucket_alloc("test:///tmp/bob"))) {
 		ast_test_status_update(test, "Failed to allocate bucket\n");
 		return AST_TEST_FAIL;
@@ -374,11 +369,6 @@ AST_TEST_DEFINE(bucket_file_alloc)
 
 	if ((file = ast_bucket_file_alloc(""))) {
 		ast_test_status_update(test, "Allocated a file with no URI provided\n");
-		return AST_TEST_FAIL;
-	}
-
-	if ((file = ast_bucket_file_alloc("test://"))) {
-		ast_test_status_update(test, "Allocated a file with no name\n");
 		return AST_TEST_FAIL;
 	}
 
