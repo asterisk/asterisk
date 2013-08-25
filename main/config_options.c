@@ -184,7 +184,9 @@ static int link_option_to_types(struct aco_info *info, struct aco_type **types, 
 		}
 		if (!ao2_link(type->internal->opts, opt)
 #ifdef AST_XML_DOCS
-				|| (!opt->no_doc && xmldoc_update_config_option(types, info->module, opt->name, type->name, opt->default_val, opt->match_type == ACO_REGEX, opt->type))
+				|| (!info->hidden && 
+					!opt->no_doc &&
+					xmldoc_update_config_option(types, info->module, opt->name, type->name, opt->default_val, opt->match_type == ACO_REGEX, opt->type))
 #endif /* AST_XML_DOCS */
 		) {
 			do {
@@ -773,7 +775,9 @@ int aco_info_init(struct aco_info *info)
 				goto error;
 			}
 #ifdef AST_XML_DOCS
-			if (!type->hidden && xmldoc_update_config_type(info->module, type->name, type->category, type->matchfield, type->matchvalue, type->category_match == ACO_WHITELIST)) {
+			if (!info->hidden &&
+				!type->hidden &&
+				xmldoc_update_config_type(info->module, type->name, type->category, type->matchfield, type->matchvalue, type->category_match == ACO_WHITELIST)) {
 				goto error;
 			}
 #endif /* AST_XML_DOCS */

@@ -156,6 +156,7 @@ struct aco_file {
 
 struct aco_info {
 	const char *module; /*!< The name of the module whose config is being processed */
+	int hidden:1;                /*!< If enabled, this config item is hidden from users */
 	aco_pre_apply_config pre_apply_config; /*!< A callback called after processing, but before changes are applied */
 	aco_post_apply_config post_apply_config;/*!< A callback called after changes are applied */
 	aco_snapshot_alloc snapshot_alloc;     /*!< Allocate an object to hold all global configs and item containers */
@@ -210,6 +211,15 @@ static struct aco_info name = { \
 	.module = mod, \
 	.global_obj = &arr, \
 	.snapshot_alloc = alloc, \
+	__VA_ARGS__ \
+};
+
+#define CONFIG_INFO_TEST(name, arr, alloc, ...) \
+static struct aco_info name = { \
+	.module = AST_MODULE, \
+	.global_obj = &arr, \
+	.snapshot_alloc = alloc, \
+	.hidden = 1, \
 	__VA_ARGS__ \
 };
 

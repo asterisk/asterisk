@@ -749,7 +749,7 @@ struct aco_file config_test_conf = {
 };
 
 static AO2_GLOBAL_OBJ_STATIC(global_obj);
-CONFIG_INFO_STANDARD(cfg_info, global_obj, test_config_alloc,
+CONFIG_INFO_TEST(cfg_info, global_obj, test_config_alloc,
 	.files = ACO_FILES(&config_test_conf),
 );
 
