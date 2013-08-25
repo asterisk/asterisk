@@ -699,6 +699,7 @@ int ast_res_pjsip_initialize_configuration(void)
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromuser));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "fromdomain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromdomain));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwifromuser", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, subscription.mwi.fromuser));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtpengine", "asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.rtp.engine));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlsverify", "", dtls_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlsrekey", "", dtls_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtlscertfile", "", dtls_handler, NULL, 0, 0);
