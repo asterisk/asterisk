@@ -110,10 +110,8 @@ int ast_bridge_channel_notify_talking(struct ast_bridge_channel *bridge_channel,
 static void bridge_channel_poke(struct ast_bridge_channel *bridge_channel)
 {
 	if (!pthread_equal(pthread_self(), bridge_channel->thread)) {
-		while (bridge_channel->waiting) {
-			pthread_kill(bridge_channel->thread, SIGURG);
-			sched_yield();
-		}
+		/* Wake up the bridge channel thread. */
+		ast_queue_frame(bridge_channel->chan, &ast_null_frame);
 	}
 }
 
@@ -1883,13 +1881,11 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 		ast_debug(10, "Bridge %s: %p(%s) is going into a waitfor\n",
 			bridge_channel->bridge->uniqueid, bridge_channel,
 			ast_channel_name(bridge_channel->chan));
-		bridge_channel->waiting = 1;
 		ast_bridge_channel_unlock(bridge_channel);
 		outfd = -1;
 		ms = bridge_channel_next_interval(bridge_channel);
 		chan = ast_waitfor_nandfds(&bridge_channel->chan, 1,
 			&bridge_channel->alert_pipe[0], 1, NULL, &outfd, &ms);
-		bridge_channel->waiting = 0;
 		if (ast_channel_softhangup_internal_flag(bridge_channel->chan) & AST_SOFTHANGUP_UNBRIDGE) {
 			ast_channel_clear_softhangup(bridge_channel->chan, AST_SOFTHANGUP_UNBRIDGE);
 			ast_bridge_channel_lock_bridge(bridge_channel);
