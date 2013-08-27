@@ -1,3 +1,36 @@
+2013-08-27  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 1.8.15-cert3 Released.
+
+	* AST-2013-005: Remote crash from invalid SDP
+
+	If the SIP channel driver processes an invalid SDP that defines media
+	descriptions before connection information, it may attempt to
+	reference the socket address ifnormation even though that information
+	has not yet been set. This will cause a crash.
+
+	This patch adds checks when handling the various media descriptions
+	that ensures the media descriptions are handled only if we have
+	connection information suitable for that media.
+
+	Thanks to Walter Doekes, OSSO B.V., for reporting, testing, and
+	providng the solution to this problem.
+
+	* AST-2013-004: Fix crash when handling ACK on dialog that has no
+	channel
+
+	A remotely exploitable crash vulnerability exists in the SIP channel
+	driver if an ACK with SDP is received after the channel has been
+	terminated. The handling code incorrectly assumed that the channel
+	would always be present.
+
+	This patch adds a check such that the SDP will only be parsed and
+	applied if Asterisk has a channel present that is associated with the
+	dialog.
+
+	Note that the patch being applied was modified only slightly from the
+	patch provided by Walter Doekes of OSSO B.V.
+
 2013-03-27  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Certified Asterisk 1.8.15-cert2 Released.
