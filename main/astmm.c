@@ -142,6 +142,8 @@ enum summary_opts {
 static enum summary_opts atexit_summary;
 /*! Nonzero if the unfreed regions are listed at exit. */
 static int atexit_list;
+/*! Nonzero if the memory allocation backtrace is enabled. */
+static int backtrace_enabled;
 
 #define HASH(a)		(((unsigned long)(a)) % ARRAY_LEN(regions))
 
@@ -235,7 +237,7 @@ static void *__ast_alloc_region(size_t size, const enum func_type which, const c
 	reg->cache = cache;
 	reg->lineno = lineno;
 	reg->which = which;
-	reg->bt = ast_bt_create();
+	reg->bt = backtrace_enabled ? ast_bt_create() : NULL;
 	ast_copy_string(reg->file, file, sizeof(reg->file));
 	ast_copy_string(reg->func, func, sizeof(reg->func));
 
@@ -975,11 +977,49 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+static char *handle_memory_backtrace(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "memory backtrace";
+		e->usage =
+			"Usage: memory backtrace {on|off}\n"
+			"       Enable dumping an allocation backtrace with memory diagnostics.\n"
+			"       Note that saving the backtrace data for each allocation\n"
+			"       can be CPU intensive.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 2) {
+			const char * const options[] = { "off", "on", NULL };
+
+			return ast_cli_complete(a->word, options, a->n);
+		}
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_true(a->argv[2])) {
+		backtrace_enabled = 1;
+	} else if (ast_false(a->argv[2])) {
+		backtrace_enabled = 0;
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "The memory backtrace is: %s\n", backtrace_enabled ? "On" : "Off");
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_memory[] = {
 	AST_CLI_DEFINE(handle_memory_atexit_list, "Enable memory allocations not freed at exit list."),
 	AST_CLI_DEFINE(handle_memory_atexit_summary, "Enable memory allocations not freed at exit summary."),
 	AST_CLI_DEFINE(handle_memory_show_allocations, "Display outstanding memory allocations"),
 	AST_CLI_DEFINE(handle_memory_show_summary, "Summarize outstanding memory allocations"),
+	AST_CLI_DEFINE(handle_memory_backtrace, "Enable dumping an allocation backtrace with memory diagnostics."),
 };
 
 AST_LIST_HEAD_NOLOCK(region_list, ast_region);
