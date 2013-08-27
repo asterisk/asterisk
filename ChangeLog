@@ -6,7 +6,7 @@
 
 	If the SIP channel driver processes an invalid SDP that defines media
 	descriptions before connection information, it may attempt to
-	reference the socket address ifnormation even though that information
+	reference the socket address information even though that information
 	has not yet been set. This will cause a crash.
 
 	This patch adds checks when handling the various media descriptions
