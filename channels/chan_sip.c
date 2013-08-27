@@ -28167,7 +28167,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 			p->invitestate = INV_TERMINATED;
 			p->pendinginvite = 0;
 			acked = __sip_ack(p, seqno, 1 /* response */, 0);
-			if (find_sdp(req)) {
+			if (p->owner && find_sdp(req)) {
 				if (process_sdp(p, req, SDP_T38_NONE)) {
 					return -1;
 				}
