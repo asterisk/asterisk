@@ -14396,8 +14396,10 @@ static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_create(const char *ma
 	int i;
 	int this_index_only = -1;
 	int open = 0;
-	int inbox_index = 0;
-	int old_index = 1;
+	int inbox_index = get_folder_by_name("INBOX");
+	int old_index = get_folder_by_name("Old");
+	int urgent_index = get_folder_by_name("Urgent");
+
 
 	if (ast_strlen_zero(mailbox)) {
 		ast_log(LOG_WARNING, "Cannot create a mailbox snapshot since no mailbox was specified\n");
