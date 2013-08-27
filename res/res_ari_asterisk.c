@@ -81,8 +81,16 @@ static void ast_ari_get_asterisk_info_cb(
 				goto fin;
 			}
 
-			args.only_count = ast_app_separate_args(
-				args.only_parse, ',', vals, ARRAY_LEN(vals));
+			if (strlen(args.only_parse) == 0) {
+				/* ast_app_separate_args can't handle "" */
+				args.only_count = 1;
+				vals[0] = args.only_parse;
+			} else {
+				args.only_count = ast_app_separate_args(
+					args.only_parse, ',', vals,
+					ARRAY_LEN(vals));
+			}
+
 			if (args.only_count == 0) {
 				ast_ari_response_alloc_failed(response);
 				goto fin;

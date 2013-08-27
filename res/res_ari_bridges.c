@@ -300,8 +300,16 @@ static void ast_ari_add_channel_to_bridge_cb(
 				goto fin;
 			}
 
-			args.channel_count = ast_app_separate_args(
-				args.channel_parse, ',', vals, ARRAY_LEN(vals));
+			if (strlen(args.channel_parse) == 0) {
+				/* ast_app_separate_args can't handle "" */
+				args.channel_count = 1;
+				vals[0] = args.channel_parse;
+			} else {
+				args.channel_count = ast_app_separate_args(
+					args.channel_parse, ',', vals,
+					ARRAY_LEN(vals));
+			}
+
 			if (args.channel_count == 0) {
 				ast_ari_response_alloc_failed(response);
 				goto fin;
@@ -403,8 +411,16 @@ static void ast_ari_remove_channel_from_bridge_cb(
 				goto fin;
 			}
 
-			args.channel_count = ast_app_separate_args(
-				args.channel_parse, ',', vals, ARRAY_LEN(vals));
+			if (strlen(args.channel_parse) == 0) {
+				/* ast_app_separate_args can't handle "" */
+				args.channel_count = 1;
+				vals[0] = args.channel_parse;
+			} else {
+				args.channel_count = ast_app_separate_args(
+					args.channel_parse, ',', vals,
+					ARRAY_LEN(vals));
+			}
+
 			if (args.channel_count == 0) {
 				ast_ari_response_alloc_failed(response);
 				goto fin;

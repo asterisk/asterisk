@@ -174,14 +174,16 @@ fin: __attribute__((unused))
 		 * negotiation. Param parsing should happen earlier, but we
 		 * need a way to pass it through the WebSocket code to the
 		 * callback */
-		RAII_VAR(char *, msg, NULL, ast_free);
+		RAII_VAR(char *, msg, NULL, ast_json_free);
 		if (response->message) {
 			msg = ast_json_dump_string(response->message);
 		} else {
-			msg = ast_strdup("?");
+			ast_log(LOG_ERROR, "Missing response message\n");
 		}
-		ast_websocket_write(ws_session, AST_WEBSOCKET_OPCODE_TEXT, msg,
-			strlen(msg));
+		if (msg) {
+			ast_websocket_write(ws_session,
+				AST_WEBSOCKET_OPCODE_TEXT, msg,	strlen(msg));
+		}
 	}
 {{> param_cleanup}}
 }
