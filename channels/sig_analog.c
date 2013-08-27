@@ -2715,6 +2715,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		subclass = analog_event2str(res);
 		data_size += strlen(subclass);
 		cause_code = ast_alloca(data_size);
+		memset(cause_code, 0, data_size);
 		cause_code->ast_cause = AST_CAUSE_NORMAL_CLEARING;
 		ast_copy_string(cause_code->chan_name, ast_channel_name(ast), AST_CHANNEL_NAME);
 		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "ANALOG %s", subclass);

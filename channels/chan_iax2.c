@@ -9996,6 +9996,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 		data_size += strlen(subclass);
 
 		cause_code = ast_alloca(data_size);
+		memset(cause_code, 0, data_size);
 		ast_copy_string(cause_code->chan_name, ast_channel_name(iaxs[fr->callno]->owner), AST_CHANNEL_NAME);
 
 		cause_code->ast_cause = ies.causecode;
