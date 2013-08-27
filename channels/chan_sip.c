@@ -10000,7 +10000,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	/* Setup audio address and port */
 	if (p->rtp) {
-		if (portno > 0) {
+		if (sa && portno > 0) {
 			ast_sockaddr_set_port(sa, portno);
 			ast_rtp_instance_set_remote_address(p->rtp, sa);
 			if (debug) {
@@ -10047,7 +10047,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	/* Setup video address and port */
 	if (p->vrtp) {
-		if (vportno > 0) {
+		if (vsa && vportno > 0) {
 			ast_sockaddr_set_port(vsa, vportno);
 			ast_rtp_instance_set_remote_address(p->vrtp, vsa);
 			if (debug) {
@@ -10064,7 +10064,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	/* Setup text address and port */
 	if (p->trtp) {
-		if (tportno > 0) {
+		if (tsa && tportno > 0) {
 			ast_sockaddr_set_port(tsa, tportno);
 			ast_rtp_instance_set_remote_address(p->trtp, tsa);
 			if (debug) {
@@ -10087,7 +10087,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	/* Setup image address and port */
 	if (p->udptl) {
-		if (udptlportno > 0) {
+		if (isa && udptlportno > 0) {
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
 				ast_rtp_instance_get_remote_address(p->rtp, isa);
 				if (!ast_sockaddr_isnull(isa) && debug) {
@@ -26915,7 +26915,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 			p->invitestate = INV_TERMINATED;
 			p->pendinginvite = 0;
 			acked = __sip_ack(p, seqno, 1 /* response */, 0);
-			if (find_sdp(req)) {
+			if (p->owner && find_sdp(req)) {
 				if (process_sdp(p, req, SDP_T38_NONE)) {
 					return -1;
 				}

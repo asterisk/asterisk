@@ -1,3 +1,21 @@
+2013-08-27  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 10.12.3-digiumphones Released.
+
+	* AST-2013-005: Remote crash from invalid SDP
+
+	If the SIP channel driver processes an invalid SDP that defines media
+	descriptions before connection information, it may attempt to
+	reference the socket address information even though that information
+	has not yet been set. This will cause a crash.
+
+	This patch adds checks when handling the various media descriptions
+	that ensures the media descriptions are handled only if we have
+	connection information suitable for that media.
+
+	Thanks to Walter Doekes, OSSO B.V., for reporting, testing, and
+	providng the solution to this problem.
+
 2013-03-27  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 10.12.2-digiumphones Released.
