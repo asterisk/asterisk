@@ -36,8 +36,16 @@
 				goto fin;
 			}
 
-			args.{{c_name}}_count = ast_app_separate_args(
-				args.{{c_name}}_parse, ',', vals, ARRAY_LEN(vals));
+			if (strlen(args.{{c_name}}_parse) == 0) {
+				/* ast_app_separate_args can't handle "" */
+				args.{{c_name}}_count = 1;
+				vals[0] = args.{{c_name}}_parse;
+			} else {
+				args.{{c_name}}_count = ast_app_separate_args(
+					args.{{c_name}}_parse, ',', vals,
+					ARRAY_LEN(vals));
+			}
+
 			if (args.{{c_name}}_count == 0) {
 				ast_ari_response_alloc_failed(response);
 				goto fin;

@@ -48,6 +48,15 @@ struct app;
 struct app *app_create(const char *name, stasis_app_cb handler, void *data);
 
 /*!
+ * \brief Tears down an application.
+ *
+ * It should be finished before calling this.
+ *
+ * \param app Application to unsubscribe.
+ */
+void app_shutdown(struct app *app);
+
+/*!
  * \brief Deactivates an application.
  *
  * Any channels currently in the application remain active (since the app might
@@ -96,17 +105,6 @@ void app_update(struct app *app, stasis_app_cb handler, void *data);
 const char *app_name(const struct app *app);
 
 /*!
- * \brief Subscribe an application to a topic.
- *
- * \param app Application.
- * \param topic Topic to subscribe to.
- * \return New subscription.
- * \return \c NULL on error.
- */
-struct stasis_subscription *app_subscribe(struct app *app,
-	struct stasis_topic *topic);
-
-/*!
  * \brief Send a message to an application.
  *
  * \param app Application.
@@ -114,83 +112,44 @@ struct stasis_subscription *app_subscribe(struct app *app,
  */
 void app_send(struct app *app, struct ast_json *message);
 
+struct app_forwards;
+
 /*!
- * \brief Send the start message to an application.
+ * \brief Subscribes an application to a channel.
  *
  * \param app Application.
- * \param chan The channel entering the application.
- * \param argc The number of arguments for the application.
- * \param argv The arguments for the application.
+ * \param chan Channel to subscribe to.
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_send_start_msg(struct app *app, struct ast_channel *chan, int argc,
-	char *argv[]);
+int app_subscribe_channel(struct app *app, struct ast_channel *chan);
 
 /*!
- * \brief Send the end message to an application.
+ * \brief Cancel the subscription an app has for a channel.
+ *
+ * \param app Subscribing application.
+ * \param forwards Returned object from app_subscribe_channel().
+ */
+int app_unsubscribe_channel(struct app *app, struct ast_channel *chan);
+
+/*!
+ * \brief Add a bridge subscription to an existing channel subscription.
  *
  * \param app Application.
- * \param chan The channel leaving the application.
+ * \param bridge Bridge to subscribe to.
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_send_end_msg(struct app *app, struct ast_channel *chan);
+int app_subscribe_bridge(struct app *app, struct ast_bridge *bridge);
 
 /*!
- * \brief Checks if an application is watching a given channel.
+ * \brief Cancel the bridge subscription for an application.
  *
- * \param app Application.
- * \param uniqueid Uniqueid of the channel to check about.
- * \return True (non-zero) if \a app is watching channel with given \a uniqueid
- * \return False (zero) if \a app isn't.
- */
-int app_is_watching_channel(struct app *app, const char *uniqueid);
-
-/*!
- * \brief Add a channel to an application's watch list.
- *
- * \param app Application.
- * \param chan Channel to watch.
+ * \param forwards Return from app_subscribe_channel().
+ * \param bridge Bridge to subscribe to.
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_add_channel(struct app *app, const struct ast_channel *chan);
-
-/*!
- * \brief Remove a channel from an application's watch list.
- *
- * \param app Application.
- * \param chan Channel to watch.
- */
-void app_remove_channel(struct app *app, const struct ast_channel *chan);
-
-/*!
- * \brief Add a bridge to an application's watch list by uniqueid.
- *
- * \param app Application.
- * \param bridge Bridge to watch.
- * \return 0 on success.
- * \return Non-zero on error.
- */
-int app_add_bridge(struct app *app, const char *uniqueid);
-
-/*!
- * \brief Remove a bridge from an application's watch list by uniqueid.
- *
- * \param app Application.
- * \param bridge Bridge to remove.
- */
-void app_remove_bridge(struct app* app, const char *uniqueid);
-
-/*!
- * \brief Checks if an application is watching a given bridge.
- *
- * \param app Application.
- * \param uniqueid Uniqueid of the bridge to check.
- * \return True (non-zero) if \a app is watching bridge with given \a uniqueid
- * \return False (zero) if \a app isn't.
- */
-int app_is_watching_bridge(struct app *app, const char *uniqueid);
+int app_unsubscribe_bridge(struct app *app, struct ast_bridge *bridge);
 
 #endif /* _ASTERISK_RES_STASIS_APP_H */

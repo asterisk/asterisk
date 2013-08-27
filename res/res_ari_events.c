@@ -89,8 +89,16 @@ static void ast_ari_event_websocket_ws_cb(struct ast_websocket *ws_session,
 				goto fin;
 			}
 
-			args.app_count = ast_app_separate_args(
-				args.app_parse, ',', vals, ARRAY_LEN(vals));
+			if (strlen(args.app_parse) == 0) {
+				/* ast_app_separate_args can't handle "" */
+				args.app_count = 1;
+				vals[0] = args.app_parse;
+			} else {
+				args.app_count = ast_app_separate_args(
+					args.app_parse, ',', vals,
+					ARRAY_LEN(vals));
+			}
+
 			if (args.app_count == 0) {
 				ast_ari_response_alloc_failed(response);
 				goto fin;
@@ -126,14 +134,16 @@ fin: __attribute__((unused))
 		 * negotiation. Param parsing should happen earlier, but we
 		 * need a way to pass it through the WebSocket code to the
 		 * callback */
-		RAII_VAR(char *, msg, NULL, ast_free);
+		RAII_VAR(char *, msg, NULL, ast_json_free);
 		if (response->message) {
 			msg = ast_json_dump_string(response->message);
 		} else {
-			msg = ast_strdup("?");
+			ast_log(LOG_ERROR, "Missing response message\n");
 		}
-		ast_websocket_write(ws_session, AST_WEBSOCKET_OPCODE_TEXT, msg,
-			strlen(msg));
+		if (msg) {
+			ast_websocket_write(ws_session,
+				AST_WEBSOCKET_OPCODE_TEXT, msg,	strlen(msg));
+		}
 	}
 	ast_free(args.app_parse);
 	ast_free(args.app);
