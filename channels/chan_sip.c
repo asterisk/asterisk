@@ -27987,6 +27987,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 				/* size of the string making up the cause code is "SIP " + cause length */
 				data_size += 4 + strlen(REQ_OFFSET_TO_STR(req, rlpart2));
 				cause_code = ast_alloca(data_size);
+				memset(cause_code, 0, data_size);
 
 				ast_copy_string(cause_code->chan_name, ast_channel_name(p->owner), AST_CHANNEL_NAME);
 

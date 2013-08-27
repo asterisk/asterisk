@@ -2532,7 +2532,8 @@ static void jingle_action_session_terminate(struct jingle_endpoint *endpoint, st
 
 		/* Size of the string making up the cause code is "Motif " + text */
 		data_size += 6 + strlen(iks_name(text));
-		cause_code = ast_malloc(data_size);
+		cause_code = ast_alloca(data_size);
+		memset(cause_code, 0, data_size);
 
 		/* Get the appropriate cause code mapping for this reason */
 		for (i = 0; i < ARRAY_LEN(jingle_reason_mappings); i++) {
@@ -2546,15 +2547,14 @@ static void jingle_action_session_terminate(struct jingle_endpoint *endpoint, st
 		snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "Motif %s", iks_name(text));
 	} else {
 		/* No technology specific information is available */
-		cause_code = ast_malloc(data_size);
+		cause_code = ast_alloca(data_size);
+		memset(cause_code, 0, data_size);
 	}
 
 	ast_copy_string(cause_code->chan_name, ast_channel_name(chan), AST_CHANNEL_NAME);
 	cause_code->ast_cause = cause;
 	ast_queue_control_data(chan, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
 	ast_channel_hangupcause_hash_set(chan, cause_code, data_size);
-
-	ast_free(cause_code);
 
 	ast_debug(3, "Hanging up channel '%s' due to session terminate message with cause '%d'\n", ast_channel_name(chan), cause);
 	ast_queue_hangup_with_cause(chan, cause);
