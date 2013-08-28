@@ -2862,11 +2862,29 @@ static int cdr_object_select_all_by_channel_cb(void *obj, void *arg, int flags)
 }
 
 /* Read Only CDR variables */
-static const char * const cdr_readonly_vars[] = { "clid", "src", "dst", "dcontext",
-	"channel", "dstchannel", "lastapp", "lastdata", "start", "answer", "end", "duration",
-	"billsec", "disposition", "amaflags", "accountcode", "uniqueid", "linkedid",
-	"userfield", "sequence", "total_duration", "total_billsec", "first_start",
-	"first_answer", NULL };
+static const char * const cdr_readonly_vars[] = {
+	"clid",
+	"src",
+	"dst",
+	"dcontext",
+	"channel",
+	"dstchannel",
+	"lastapp",
+	"lastdata",
+	"start",
+	"answer",
+	"end",
+	"duration",
+	"billsec",
+	"disposition",
+	"amaflags",
+	"accountcode",
+	"uniqueid",
+	"linkedid",
+	"userfield",
+	"sequence",
+	NULL
+};
 
 int ast_cdr_setvar(const char *channel_name, const char *name, const char *value)
 {
@@ -3036,12 +3054,12 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 	int total = 0, x = 0, i;
 
 	if (!workspace) {
-		return 1;
+		return 0;
 	}
 
 	if (!cdr) {
 		ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
-		return 1;
+		return 0;
 	}
 
 	ast_str_reset(*buf);
@@ -3067,7 +3085,11 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 		for (i = 0; cdr_readonly_vars[i]; i++) {
 			/* null out the workspace, because the cdr_get_tv() won't write anything if time is NULL, so you get old vals */
 			workspace[0] = 0;
-			cdr_object_format_property(it_cdr, cdr_readonly_vars[i], workspace, sizeof(workspace));
+			if (cdr_object_format_property(it_cdr, cdr_readonly_vars[i], workspace, sizeof(workspace))) {
+				/* Unhandled read-only CDR variable. */
+				ast_assert(0);
+				continue;
+			}
 
 			if (!ast_strlen_zero(workspace)
 				&& ast_str_append(buf, 0, "level %d: %s%c%s%c", x, cdr_readonly_vars[i], delim, workspace, sep) < 0) {
