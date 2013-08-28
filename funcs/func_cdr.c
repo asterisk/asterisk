@@ -20,7 +20,7 @@
  *
  * \brief  Call Detail Record related dialplan functions
  *
- * \author Anthony Minessale II 
+ * \author Anthony Minessale II
  *
  * \ingroup functions
  */
@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	<function name="CDR" language="en_US">
 		<synopsis>
 			Gets or sets a CDR variable.
-		</synopsis>	
+		</synopsis>
 		<syntax>
 			<parameter name="name" required="true">
 				<para>CDR field name:</para>
@@ -210,8 +210,8 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 	char tempbuf[512];
 	char *info;
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(variable);
-			     AST_APP_ARG(options);
+		AST_APP_ARG(variable);
+		AST_APP_ARG(options);
 	);
 
 	if (!chan) {
@@ -237,31 +237,34 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		}
 		ast_copy_string(tempbuf, value, sizeof(tempbuf));
 		ast_set_flag(&flags, OPT_UNPARSED);
-	}else if (ast_cdr_getvar(ast_channel_name(chan), args.variable, tempbuf, sizeof(tempbuf))) {
+	} else if (ast_cdr_getvar(ast_channel_name(chan), args.variable, tempbuf, sizeof(tempbuf))) {
 		return 0;
 	}
 
-	if (ast_test_flag(&flags, OPT_FLOAT) && (!strcasecmp("billsec", args.variable) || !strcasecmp("duration", args.variable))) {
+	if (ast_test_flag(&flags, OPT_FLOAT)
+		&& (!strcasecmp("billsec", args.variable) || !strcasecmp("duration", args.variable))) {
 		long ms;
 		double dtime;
+
 		if (sscanf(tempbuf, "%30ld", &ms) != 1) {
 			ast_log(AST_LOG_WARNING, "Unable to parse %s (%s) from the CDR for channel %s\n",
-					args.variable, tempbuf, ast_channel_name(chan));
+				args.variable, tempbuf, ast_channel_name(chan));
 			return 0;
 		}
 		dtime = (double)(ms / 1000.0);
 		sprintf(tempbuf, "%lf", dtime);
 	} else if (!ast_test_flag(&flags, OPT_UNPARSED)) {
 		if (!strcasecmp("start", args.variable)
-				|| !strcasecmp("end", args.variable)
-				|| !strcasecmp("answer", args.variable)) {
+			|| !strcasecmp("end", args.variable)
+			|| !strcasecmp("answer", args.variable)) {
 			struct timeval fmt_time;
 			struct ast_tm tm;
 			/* tv_usec is suseconds_t, which could be int or long */
 			long int tv_usec;
+
 			if (sscanf(tempbuf, "%ld.%ld", &fmt_time.tv_sec, &tv_usec) != 2) {
 				ast_log(AST_LOG_WARNING, "Unable to parse %s (%s) from the CDR for channel %s\n",
-						args.variable, tempbuf, ast_channel_name(chan));
+					args.variable, tempbuf, ast_channel_name(chan));
 				return 0;
 			}
 			fmt_time.tv_usec = tv_usec;
@@ -269,18 +272,20 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 			ast_strftime(tempbuf, sizeof(*tempbuf), "%Y-%m-%d %T", &tm);
 		} else if (!strcasecmp("disposition", args.variable)) {
 			int disposition;
+
 			if (sscanf(tempbuf, "%8d", &disposition) != 1) {
 				ast_log(AST_LOG_WARNING, "Unable to parse %s (%s) from the CDR for channel %s\n",
-						args.variable, tempbuf, ast_channel_name(chan));
+					args.variable, tempbuf, ast_channel_name(chan));
 				return 0;
 			}
 			sprintf(format_buf, "%s", ast_cdr_disp2str(disposition));
 			strcpy(tempbuf, format_buf);
 		} else if (!strcasecmp("amaflags", args.variable)) {
 			int amaflags;
+
 			if (sscanf(tempbuf, "%8d", &amaflags) != 1) {
 				ast_log(AST_LOG_WARNING, "Unable to parse %s (%s) from the CDR for channel %s\n",
-						args.variable, tempbuf, ast_channel_name(chan));
+					args.variable, tempbuf, ast_channel_name(chan));
 				return 0;
 			}
 			sprintf(format_buf, "%s", ast_channel_amaflags2string(amaflags));
@@ -297,17 +302,19 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 {
 	struct ast_flags flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(variable);
-			     AST_APP_ARG(options);
+		AST_APP_ARG(variable);
+		AST_APP_ARG(options);
 	);
 
-	if (ast_strlen_zero(parse) || !value || !chan)
+	if (ast_strlen_zero(parse) || !value || !chan) {
 		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (!ast_strlen_zero(args.options))
+	if (!ast_strlen_zero(args.options)) {
 		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
+	}
 
 	if (!strcasecmp(args.variable, "accountcode")) {
 		ast_log(AST_LOG_WARNING, "Using the CDR function to set 'accountcode' is deprecated. Please use the CHANNEL function instead.\n");
