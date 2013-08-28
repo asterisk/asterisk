@@ -692,17 +692,25 @@ struct cdr_object {
  */
 static int copy_variables(struct varshead *to_list, struct varshead *from_list)
 {
-	struct ast_var_t *variables, *newvariable = NULL;
-	const char *var, *val;
+	struct ast_var_t *variables;
+	struct ast_var_t *newvariable;
+	const char *var;
+	const char *val;
 	int x = 0;
 
 	AST_LIST_TRAVERSE(from_list, variables, entries) {
-		if (variables &&
-		    (var = ast_var_name(variables)) && (val = ast_var_value(variables)) &&
-		    !ast_strlen_zero(var) && !ast_strlen_zero(val) &&
-		    (newvariable = ast_var_assign(var, val))) {
+		var = ast_var_name(variables);
+		if (ast_strlen_zero(var)) {
+			continue;
+		}
+		val = ast_var_value(variables);
+		if (ast_strlen_zero(val)) {
+			continue;
+		}
+		newvariable = ast_var_assign(var, val);
+		if (newvariable) {
 			AST_LIST_INSERT_HEAD(to_list, newvariable, entries);
-			x++;
+			++x;
 		}
 	}
 
@@ -2720,8 +2728,8 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr)
 		return NULL;
 	}
 
-	memcpy(newcdr, cdr, sizeof(*newcdr));
-	memset(&newcdr->varshead, 0, sizeof(newcdr->varshead));
+	*newcdr = *cdr;
+	AST_LIST_HEAD_INIT_NOLOCK(&newcdr->varshead);
 	copy_variables(&newcdr->varshead, &cdr->varshead);
 	newcdr->next = NULL;
 
@@ -2731,19 +2739,18 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr)
 static const char *cdr_format_var_internal(struct ast_cdr *cdr, const char *name)
 {
 	struct ast_var_t *variables;
-	struct varshead *headp = &cdr->varshead;
 
 	if (ast_strlen_zero(name)) {
 		return NULL;
 	}
 
-	AST_LIST_TRAVERSE(headp, variables, entries) {
+	AST_LIST_TRAVERSE(&cdr->varshead, variables, entries) {
 		if (!strcasecmp(name, ast_var_name(variables))) {
 			return ast_var_value(variables);
 		}
 	}
 
-	return '\0';
+	return NULL;
 }
 
 static void cdr_get_tv(struct timeval when, const char *fmt, char *buf, int bufsize)
@@ -2880,6 +2887,7 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 		ao2_lock(cdr);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 			struct varshead *headp = NULL;
+
 			if (it_cdr->fn_table == &finalized_state_fn_table) {
 				continue;
 			}
