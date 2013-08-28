@@ -62,8 +62,7 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 
 void ast_var_delete(struct ast_var_t *var)
 {
-	if (var)
-		ast_free(var);
+	ast_free(var);
 }
 
 const char *ast_var_name(const struct ast_var_t *var)
