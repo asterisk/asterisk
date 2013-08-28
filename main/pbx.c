@@ -4284,12 +4284,12 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t used;
+				size_t my_used;
+
 				if (!substr2) {
 					substr2 = ast_str_create(16);
 				}
-
-				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), &used);
+				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), &my_used);
 				finalvars = ast_str_buffer(substr2);
 			} else {
 				finalvars = ast_str_buffer(substr1);
@@ -4360,12 +4360,12 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t used;
+				size_t my_used;
+
 				if (!substr2) {
 					substr2 = ast_str_create(16);
 				}
-
-				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), &used);
+				ast_str_substitute_variables_full(&substr2, 0, c, headp, ast_str_buffer(substr1), &my_used);
 				finalvars = ast_str_buffer(substr2);
 			} else {
 				finalvars = ast_str_buffer(substr1);
