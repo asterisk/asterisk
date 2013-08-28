@@ -177,10 +177,11 @@ void *ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
 
 	pthread_once(&ts->once, ts->key_init);
 	if (!(buf = pthread_getspecific(ts->key))) {
-		if (!(buf = ast_calloc(1, init_size)))
+		if (!(buf = ast_calloc(1, init_size))) {
 			return NULL;
+		}
 		if (ts->custom_init && ts->custom_init(buf)) {
-			free(buf);
+			ast_free(buf);
 			return NULL;
 		}
 		pthread_setspecific(ts->key, buf);
@@ -197,10 +198,11 @@ void *__ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size, co
 
 	pthread_once(&ts->once, ts->key_init);
 	if (!(buf = pthread_getspecific(ts->key))) {
-		if (!(buf = ast_calloc(1, init_size)))
+		if (!(buf = ast_calloc(1, init_size))) {
 			return NULL;
+		}
 		if (ts->custom_init && ts->custom_init(buf)) {
-			free(buf);
+			ast_free(buf);
 			return NULL;
 		}
 		pthread_setspecific(ts->key, buf);
