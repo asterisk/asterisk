@@ -36,6 +36,8 @@
 #include "asterisk/taskprocessor.h"
 #include "asterisk/bridge.h"
 #include "asterisk/framehook.h"
+#include "asterisk/stasis_bridges.h"
+#include "asterisk/stasis_channels.h"
 
 /*! \brief REFER Progress structure */
 struct refer_progress {
@@ -51,6 +53,10 @@ struct refer_progress {
 	int subclass;
 	/*! \brief Serializer for notifications */
 	struct ast_taskprocessor *serializer;
+	/*! \brief Stasis subscription for bridge events */
+	struct stasis_subscription *bridge_sub;
+	/*! \brief Uniqueid of transferee channel */
+	char *transferee;
 };
 
 /*! \brief REFER Progress notification structure */
@@ -136,6 +142,39 @@ static int refer_progress_notify(void *data)
 	return 0;
 }
 
+static void refer_progress_bridge(void *data, struct stasis_subscription *sub,
+		struct stasis_topic *topic, struct stasis_message *message)
+{
+	struct refer_progress *progress = data;
+	struct ast_bridge_blob *enter_blob;
+	struct refer_progress_notification *notification;
+
+	if (stasis_subscription_final_message(sub, message)) {
+		ao2_ref(progress, -1);
+		return;
+	}
+
+	if (ast_channel_entered_bridge_type() != stasis_message_type(message)) {
+		/* Don't care */
+		return;
+	}
+
+	enter_blob = stasis_message_data(message);
+	if (strcmp(enter_blob->channel->uniqueid, progress->transferee)) {
+		/* Don't care */
+		return;
+	}
+
+	/* OMG the transferee is joining a bridge. His call got answered! */
+	notification = refer_progress_notification_alloc(progress, 200, PJSIP_EVSUB_STATE_TERMINATED);
+	if (notification) {
+		if (ast_sip_push_task(progress->serializer, refer_progress_notify, notification)) {
+			ao2_cleanup(notification);
+		}
+		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
+	}
+}
+
 /*! \brief Progress monitoring frame hook - examines frames to determine state of transfer */
 static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data)
 {
@@ -182,7 +221,6 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 				ast_channel_name(chan));
 			ast_framehook_detach(chan, progress->framehook);
 		}
-
 	}
 
 	return f;
@@ -250,6 +288,11 @@ static void refer_progress_destroy(void *obj)
 {
 	struct refer_progress *progress = obj;
 
+	if (progress->bridge_sub) {
+		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
+	}
+
+	ast_free(progress->transferee);
 	ast_taskprocessor_unreference(progress->serializer);
 }
 
@@ -438,6 +481,19 @@ static void refer_blind_callback(struct ast_channel *chan, void *user_data, enum
 			.data = refer->progress,
 		};
 
+		refer->progress->transferee = ast_strdup(ast_channel_uniqueid(chan));
+		if (!refer->progress->transferee) {
+			struct refer_progress_notification *notification = refer_progress_notification_alloc(refer->progress, 200,
+				PJSIP_EVSUB_STATE_TERMINATED);
+
+			ast_log(LOG_WARNING, "Could not copy channel name '%s' during transfer - assuming success\n",
+				ast_channel_name(chan));
+
+			if (notification) {
+				refer_progress_notify(notification);
+			}
+		}
+
 		/* We need to bump the reference count up on the progress structure since it is in the frame hook now */
 		ao2_ref(refer->progress, +1);
 
@@ -452,6 +508,28 @@ static void refer_blind_callback(struct ast_channel *chan, void *user_data, enum
 			if (notification) {
 				refer_progress_notify(notification);
 			}
+
+			ao2_cleanup(refer->progress);
+		}
+
+		/* We need to bump the reference count for the stasis subscription */
+		ao2_ref(refer->progress, +1);
+		/* We also will need to detect if the transferee enters a bridge. This is currently the only reliable way to
+		 * detect if the transfer target has answered the call
+		 */
+		refer->progress->bridge_sub = stasis_subscribe(ast_bridge_topic_all(), refer_progress_bridge, refer->progress);
+		if (!refer->progress->bridge_sub) {
+			struct refer_progress_notification *notification = refer_progress_notification_alloc(refer->progress, 200,
+				PJSIP_EVSUB_STATE_TERMINATED);
+
+			ast_log(LOG_WARNING, "Could not create bridge stasis subscription for monitoring progress on transfer of channel '%s' - assuming success\n",
+					ast_channel_name(chan));
+
+			if (notification) {
+				refer_progress_notify(notification);
+			}
+
+			ast_framehook_detach(chan, refer->progress->framehook);
 
 			ao2_cleanup(refer->progress);
 		}
