@@ -3573,10 +3573,12 @@ static char *handle_cli_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SHOWUSAGE;
 	}
 
-	if (!strcmp(a->argv[3], "on") && !ast_test_flag(&mod_cfg->general->settings, CDR_DEBUG)) {
+	if (!strcasecmp(a->argv[3], "on")
+		&& !ast_test_flag(&mod_cfg->general->settings, CDR_DEBUG)) {
 		ast_set_flag(&mod_cfg->general->settings, CDR_DEBUG);
 		ast_cli(a->fd, "CDR debugging enabled\n");
-	} else if (!strcmp(a->argv[3], "off") && ast_test_flag(&mod_cfg->general->settings, CDR_DEBUG)) {
+	} else if (!strcasecmp(a->argv[3], "off")
+		&& ast_test_flag(&mod_cfg->general->settings, CDR_DEBUG)) {
 		ast_clear_flag(&mod_cfg->general->settings, CDR_DEBUG);
 		ast_cli(a->fd, "CDR debugging disabled\n");
 	}
