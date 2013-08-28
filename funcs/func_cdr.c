@@ -213,6 +213,8 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		AST_APP_ARG(options);
 	);
 
+	buf[0] = '\0';/* Ensure the buffer is initialized. */
+
 	if (!chan) {
 		return -1;
 	}

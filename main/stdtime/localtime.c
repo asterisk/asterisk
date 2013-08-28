@@ -2304,6 +2304,7 @@ int ast_strftime_locale(char *buf, size_t len, const char *tmp, const struct ast
 	long fraction;
 	const char *prevlocale;
 
+	buf[0] = '\0';/* Ensure the buffer is initialized. */
 	if (!format) {
 		return -1;
 	}

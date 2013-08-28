@@ -2764,6 +2764,7 @@ static void cdr_get_tv(struct timeval when, const char *fmt, char *buf, int bufs
 	if (fmt == NULL) {	/* raw mode */
 		snprintf(buf, bufsize, "%ld.%06ld", (long)when.tv_sec, (long)when.tv_usec);
 	} else {
+		buf[0] = '\0';/* Ensure the buffer is initialized. */
 		if (when.tv_sec) {
 			struct ast_tm tm;
 
@@ -3083,8 +3084,6 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 		}
 
 		for (i = 0; cdr_readonly_vars[i]; i++) {
-			/* null out the workspace, because the cdr_get_tv() won't write anything if time is NULL, so you get old vals */
-			workspace[0] = 0;
 			if (cdr_object_format_property(it_cdr, cdr_readonly_vars[i], workspace, sizeof(workspace))) {
 				/* Unhandled read-only CDR variable. */
 				ast_assert(0);
@@ -3638,7 +3637,7 @@ static void cli_show_channels(struct ast_cli_args *a)
 	struct ao2_iterator it_cdrs;
 	struct cdr_object *cdr;
 	char start_time_buffer[64];
-	char answer_time_buffer[64] = "\0";
+	char answer_time_buffer[64];
 	char end_time_buffer[64];
 
 #define TITLE_STRING "%-25.25s %-25.25s %-15.15s %-8.8s %-8.8s %-8.8s %-8.8s %-8.8s\n"
@@ -3702,8 +3701,8 @@ static void cli_show_channel(struct ast_cli_args *a)
 	struct cdr_object *it_cdr;
 	char clid[64];
 	char start_time_buffer[64];
-	char answer_time_buffer[64] = "\0";
-	char end_time_buffer[64] = "\0";
+	char answer_time_buffer[64];
+	char end_time_buffer[64];
 	const char *channel_name = a->argv[3];
 	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
 
