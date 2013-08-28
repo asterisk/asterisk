@@ -1321,7 +1321,7 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 
-	ast_assert(strcmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
+	ast_assert(strcasecmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
 	cdr_object_swap_snapshot(&cdr->party_a, snapshot);
 
 	/* When Party A is originated to an application and the application exits, the stack
@@ -1367,7 +1367,7 @@ static int base_process_parked_channel(struct cdr_object *cdr, struct ast_parked
 {
 	char park_info[128];
 
-	ast_assert(!strcmp(parking_info->parkee->name, cdr->party_a.snapshot->name));
+	ast_assert(!strcasecmp(parking_info->parkee->name, cdr->party_a.snapshot->name));
 
 	/* Update Party A information regardless */
 	cdr->fn_table->process_party_a(cdr, parking_info->parkee);
@@ -1402,14 +1402,14 @@ static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_ch
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 
-	if (caller && !strcmp(cdr->party_a.snapshot->name, caller->name)) {
+	if (caller && !strcasecmp(cdr->party_a.snapshot->name, caller->name)) {
 		cdr_object_swap_snapshot(&cdr->party_a, caller);
 		CDR_DEBUG(mod_cfg, "%p - Updated Party A %s snapshot\n", cdr,
 				cdr->party_a.snapshot->name);
 		cdr_object_swap_snapshot(&cdr->party_b, peer);
 		CDR_DEBUG(mod_cfg, "%p - Updated Party B %s snapshot\n", cdr,
 				cdr->party_b.snapshot->name);
-	} else if (!strcmp(cdr->party_a.snapshot->name, peer->name)) {
+	} else if (!strcasecmp(cdr->party_a.snapshot->name, peer->name)) {
 		/* We're the entity being dialed, i.e., outbound origination */
 		cdr_object_swap_snapshot(&cdr->party_a, peer);
 		CDR_DEBUG(mod_cfg, "%p - Updated Party A %s snapshot\n", cdr,
@@ -1438,13 +1438,13 @@ static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 	struct cdr_object_snapshot *party_a;
 
 	/* Don't match on ourselves */
-	if (!strcmp(cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name)) {
+	if (!strcasecmp(cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name)) {
 		return 1;
 	}
 
 	/* Try the candidate CDR's Party A first */
 	party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_a);
-	if (!strcmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
 		cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_a);
 		if (!cand_cdr->party_b.snapshot) {
 			/* We just stole them - finalize their CDR. Note that this won't
@@ -1457,11 +1457,12 @@ static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 	}
 
 	/* Try their Party B, unless it's us */
-	if (!cand_cdr->party_b.snapshot || !strcmp(cdr->party_a.snapshot->name, cand_cdr->party_b.snapshot->name)) {
+	if (!cand_cdr->party_b.snapshot
+		|| !strcasecmp(cdr->party_a.snapshot->name, cand_cdr->party_b.snapshot->name)) {
 		return 1;
 	}
 	party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_b);
-	if (!strcmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
 		cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_b);
 		return 0;
 	}
@@ -1534,7 +1535,8 @@ static void dial_state_process_party_b(struct cdr_object *cdr, struct ast_channe
 {
 	ast_assert(snapshot != NULL);
 
-	if (!cdr->party_b.snapshot || strcmp(cdr->party_b.snapshot->name, snapshot->name)) {
+	if (!cdr->party_b.snapshot
+		|| strcasecmp(cdr->party_b.snapshot->name, snapshot->name)) {
 		return;
 	}
 	cdr_object_swap_snapshot(&cdr->party_b, snapshot);
@@ -1591,11 +1593,11 @@ static int dial_state_process_dial_end(struct cdr_object *cdr, struct ast_channe
 	} else {
 		party_a = peer;
 	}
-	ast_assert(!strcmp(cdr->party_a.snapshot->name, party_a->name));
+	ast_assert(!strcasecmp(cdr->party_a.snapshot->name, party_a->name));
 	cdr_object_swap_snapshot(&cdr->party_a, party_a);
 
 	if (cdr->party_b.snapshot) {
-		if (strcmp(cdr->party_b.snapshot->name, peer->name)) {
+		if (strcasecmp(cdr->party_b.snapshot->name, peer->name)) {
 			/* Not the status for this CDR - defer back to the message router */
 			return 1;
 		}
@@ -1651,7 +1653,7 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 			}
 
 			/* Skip any records that aren't our Party B */
-			if (strcmp(cdr->party_b.snapshot->name, cand_cdr->party_a.snapshot->name)) {
+			if (strcasecmp(cdr->party_b.snapshot->name, cand_cdr->party_a.snapshot->name)) {
 				continue;
 			}
 			cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_a);
@@ -1724,7 +1726,8 @@ static int dialed_pending_state_process_dial_begin(struct cdr_object *cdr, struc
 
 static void bridge_state_process_party_b(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
-	if (!cdr->party_b.snapshot || strcmp(cdr->party_b.snapshot->name, snapshot->name)) {
+	if (!cdr->party_b.snapshot
+		|| strcasecmp(cdr->party_b.snapshot->name, snapshot->name)) {
 		return;
 	}
 	cdr_object_swap_snapshot(&cdr->party_b, snapshot);
@@ -1740,9 +1743,9 @@ static int bridge_state_process_bridge_leave(struct cdr_object *cdr, struct ast_
 	if (strcmp(cdr->bridge, bridge->uniqueid)) {
 		return 1;
 	}
-	if (strcmp(cdr->party_a.snapshot->name, channel->name)
-			&& cdr->party_b.snapshot
-			&& strcmp(cdr->party_b.snapshot->name, channel->name)) {
+	if (strcasecmp(cdr->party_a.snapshot->name, channel->name)
+		&& cdr->party_b.snapshot
+		&& strcasecmp(cdr->party_b.snapshot->name, channel->name)) {
 		return 1;
 	}
 	cdr_object_transition_state(cdr, &finalized_state_fn_table);
@@ -1754,7 +1757,7 @@ static int bridge_state_process_bridge_leave(struct cdr_object *cdr, struct ast_
 
 static int parked_state_process_bridge_leave(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
 {
-	if (strcmp(cdr->party_a.snapshot->name, channel->name)) {
+	if (strcasecmp(cdr->party_a.snapshot->name, channel->name)) {
 		return 1;
 	}
 	cdr_object_transition_state(cdr, &finalized_state_fn_table);
@@ -1883,7 +1886,8 @@ static int cdr_object_finalize_party_b(void *obj, void *arg, int flags)
 	struct ast_channel_snapshot *party_b = arg;
 	struct cdr_object *it_cdr;
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-		if (it_cdr->party_b.snapshot && !strcmp(it_cdr->party_b.snapshot->name, party_b->name)) {
+		if (it_cdr->party_b.snapshot
+			&& !strcasecmp(it_cdr->party_b.snapshot->name, party_b->name)) {
 			/* Don't transition to the finalized state - let the Party A do
 			 * that when its ready
 			 */
@@ -1902,7 +1906,8 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 		if (!it_cdr->fn_table->process_party_b) {
 			continue;
 		}
-		if (it_cdr->party_b.snapshot && !strcmp(it_cdr->party_b.snapshot->name, party_b->name)) {
+		if (it_cdr->party_b.snapshot
+			&& !strcasecmp(it_cdr->party_b.snapshot->name, party_b->name)) {
 			it_cdr->fn_table->process_party_b(it_cdr, party_b);
 		}
 	}
@@ -2075,7 +2080,7 @@ static int cdr_object_party_b_left_bridge_cb(void *obj, void *arg, int flags)
 		if (!it_cdr->party_b.snapshot) {
 			continue;
 		}
-		if (strcmp(it_cdr->party_b.snapshot->name, leave_data->channel->name)) {
+		if (strcasecmp(it_cdr->party_b.snapshot->name, leave_data->channel->name)) {
 			continue;
 		}
 		/* It is our Party B, in our bridge. Set the end time and let the handler
@@ -2362,23 +2367,24 @@ static int bridge_candidate_process(void *obj, void *arg, int flags)
 	struct cdr_object_snapshot *party_a;
 
 	/* If the candidate is us or someone we've taken on, pass on by */
-	if (!strcmp(cdr->party_a.snapshot->name, bcand->candidate.snapshot->name)
-		|| (cdr->party_b.snapshot && !(strcmp(cdr->party_b.snapshot->name, bcand->candidate.snapshot->name)))) {
+	if (!strcasecmp(cdr->party_a.snapshot->name, bcand->candidate.snapshot->name)
+		|| (cdr->party_b.snapshot
+			&& !strcasecmp(cdr->party_b.snapshot->name, bcand->candidate.snapshot->name))) {
 		return 0;
 	}
 	party_a = cdr_object_pick_party_a(&cdr->party_a, &bcand->candidate);
 	/* We're party A - make a new CDR, append it to us, and set the candidate as
 	 * Party B */
-	if (!strcmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
 		bridge_candidate_add_to_cdr(cdr, cdr->bridge, &bcand->candidate);
 		return 0;
 	}
 
 	/* We're Party B. Check if the candidate is the CDR's Party A. If so, find out if we
 	 * can add ourselves directly as the Party B, or if we need a new CDR. */
-	if (!strcmp(bcand->cdr->party_a.snapshot->name, bcand->candidate.snapshot->name)) {
+	if (!strcasecmp(bcand->cdr->party_a.snapshot->name, bcand->candidate.snapshot->name)) {
 		if (bcand->cdr->party_b.snapshot
-				&& strcmp(bcand->cdr->party_b.snapshot->name, cdr->party_a.snapshot->name)) {
+			&& strcasecmp(bcand->cdr->party_b.snapshot->name, cdr->party_a.snapshot->name)) {
 			bridge_candidate_add_to_cdr(bcand->cdr, cdr->bridge, &cdr->party_a);
 		} else {
 			cdr_object_snapshot_copy(&bcand->cdr->party_b, &cdr->party_a);
@@ -2891,9 +2897,10 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 			if (it_cdr->fn_table == &finalized_state_fn_table) {
 				continue;
 			}
-			if (!strcmp(channel_name, it_cdr->party_a.snapshot->name)) {
+			if (!strcasecmp(channel_name, it_cdr->party_a.snapshot->name)) {
 				headp = &it_cdr->party_a.variables;
-			} else if (it_cdr->party_b.snapshot && !strcmp(channel_name, it_cdr->party_b.snapshot->name)) {
+			} else if (it_cdr->party_b.snapshot
+				&& !strcasecmp(channel_name, it_cdr->party_b.snapshot->name)) {
 				headp = &it_cdr->party_b.variables;
 			}
 			if (headp) {
@@ -3128,7 +3135,7 @@ static int cdr_object_update_party_b_userfield_cb(void *obj, void *arg, int flag
 			continue;
 		}
 		if (it_cdr->party_b.snapshot
-			&& !strcmp(it_cdr->party_b.snapshot->name, info->channel_name)) {
+			&& !strcasecmp(it_cdr->party_b.snapshot->name, info->channel_name)) {
 			strcpy(it_cdr->party_b.userfield, info->userfield);
 		}
 	}
