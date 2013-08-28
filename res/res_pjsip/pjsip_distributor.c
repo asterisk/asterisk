@@ -92,9 +92,61 @@ struct ast_sip_endpoint *ast_sip_dialog_get_endpoint(pjsip_dialog *dlg)
 	return dist->endpoint;
 }
 
+static pjsip_dialog *find_dialog(pjsip_rx_data *rdata)
+{
+	pj_str_t tsx_key;
+	pjsip_transaction *tsx;
+	pjsip_dialog *dlg;
+	pj_str_t *local_tag;
+	pj_str_t *remote_tag;
+
+	if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
+		local_tag = &rdata->msg_info.to->tag;
+		remote_tag = &rdata->msg_info.from->tag;
+	} else {
+		local_tag = &rdata->msg_info.from->tag;
+		remote_tag = &rdata->msg_info.to->tag;
+	}
+
+	/* We can only call the convenient method for
+	 *  1) responses
+	 *  2) non-CANCEL requests
+	 *  3) CANCEL requests with a to-tag
+	 */
+	if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG ||
+			pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_cancel_method) ||
+			rdata->msg_info.to->tag.slen != 0) {
+		return pjsip_ua_find_dialog(&rdata->msg_info.cid->id, local_tag,
+				remote_tag, PJ_TRUE);
+	}
+
+	/* Incoming CANCEL without a to-tag can't use same method for finding the
+	 * dialog. Instead, we have to find the matching INVITE transaction and
+	 * then get the dialog from the transaction
+	 */
+	pjsip_tsx_create_key(rdata->tp_info.pool, &tsx_key, PJSIP_ROLE_UAS,
+			pjsip_get_invite_method(), rdata);
+
+	tsx = pjsip_tsx_layer_find_tsx(&tsx_key, PJ_TRUE);
+	if (!tsx) {
+		ast_log(LOG_ERROR, "Could not find matching INVITE transaction for CANCEL request\n");
+		return NULL;
+	}
+
+	dlg = pjsip_tsx_get_dlg(tsx);
+	pj_mutex_unlock(tsx->mutex);
+
+	if (!dlg) {
+		return NULL;
+	}
+
+	pjsip_dlg_inc_lock(dlg);
+	return dlg;
+}
+
 static pj_bool_t distributor(pjsip_rx_data *rdata)
 {
-	pjsip_dialog *dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag, PJ_TRUE);
+	pjsip_dialog *dlg = find_dialog(rdata);
 	struct distributor_dialog_data *dist = NULL;
 	struct ast_taskprocessor *serializer = NULL;
 	pjsip_rx_data *clone;
