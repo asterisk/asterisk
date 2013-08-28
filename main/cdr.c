@@ -1122,7 +1122,7 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 			int found = 0;
 			struct ast_var_t *newvariable;
 			AST_LIST_TRAVERSE(&cdr_copy->varshead, it_copy_var, entries) {
-				if (!strcmp(ast_var_name(it_var), ast_var_name(it_copy_var))) {
+				if (!strcasecmp(ast_var_name(it_var), ast_var_name(it_copy_var))) {
 					found = 1;
 					break;
 				}
