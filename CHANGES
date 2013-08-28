@@ -1098,6 +1098,16 @@ res_xmpp
 Scripts
 ------------------
 
+Realtime/Database Scripts
+------------------
+ * Asterisk previously included example db schemas in the contrib/realtime/
+   directory of the source tree.  This has been replaced by a set of database
+   migrations using the Alembic framework.  This allows you to use alembic to 
+   initialize the database for you.  It will also serve as a database migration
+   tool when upgrading Asterisk in the future.
+
+   See contrib/ast-db-manage/README.md for more details.
+
 safe_asterisk
 ------------------
  * The safe_asterisk script will now install over previously installations.
