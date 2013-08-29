@@ -16,13 +16,15 @@
 # at the top of the source tree.
 #
 
+import sys
+
 try:
     import pystache
 except ImportError:
     print >> sys.stderr, "Pystache required. Please sudo pip install pystache."
+    sys.exit(1)
 
 import os.path
-import sys
 
 from asterisk_processor import AsteriskProcessor
 from optparse import OptionParser
