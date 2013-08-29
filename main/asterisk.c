@@ -1872,8 +1872,8 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 		time_t s, e;
 		/* Begin shutdown routine, hanging up active channels */
 		ast_begin_shutdown(1);
-		if (option_verbose && ast_opt_console) {
-			ast_verbose("Beginning asterisk %s....\n", restart ? "restart" : "shutdown");
+		if (ast_opt_console) {
+			ast_verb(0, "Beginning asterisk %s....\n", restart ? "restart" : "shutdown");
 		}
 		time(&s);
 		for (;;) {
@@ -1889,7 +1889,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 		if (niceness != SHUTDOWN_REALLY_NICE) {
 			ast_begin_shutdown(0);
 		}
-		if (option_verbose && ast_opt_console) {
+		if (ast_opt_console) {
 			ast_verb(0, "Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
 		}
 		for (;;) {
@@ -1905,7 +1905,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	 */
 	ast_mutex_lock(&safe_system_lock);
 	if (shuttingdown != niceness) {
-		if (shuttingdown == NOT_SHUTTING_DOWN && option_verbose && ast_opt_console) {
+		if (shuttingdown == NOT_SHUTTING_DOWN && ast_opt_console) {
 			ast_verb(0, "Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
 		}
 		ast_mutex_unlock(&safe_system_lock);
@@ -2030,17 +2030,45 @@ static void __remote_quit_handler(int num)
 	sig_flags.need_quit = 1;
 }
 
-static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
+static const char *fix_header(char *outbuf, int maxout, const char *s, char level)
 {
-	const char *c;
+	const char *cmp;
+
+	switch (level) {
+	case 0: *outbuf = '\0';
+		return s;
+	case 1: cmp = VERBOSE_PREFIX_1;
+		break;
+	case 2: cmp = VERBOSE_PREFIX_2;
+		break;
+	case 3: cmp = VERBOSE_PREFIX_3;
+		break;
+	default: cmp = VERBOSE_PREFIX_4;
+		break;
+	}
 
 	if (!strncmp(s, cmp, strlen(cmp))) {
-		c = s + strlen(cmp);
-		term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
-		return c;
+		s += strlen(cmp);
 	}
-	return NULL;
+	term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
+
+	return s;
 }
+
+struct console_state_data {
+	int newline;
+	char verbose_line_level;
+};
+
+static int console_state_init(void *ptr)
+{
+	struct console_state_data *state = ptr;
+	state->newline = 1;
+	state->verbose_line_level = 0;
+	return 0;
+}
+
+AST_THREADSTORAGE_CUSTOM(console_state, console_state_init, ast_free_ptr);
 
 /* These gymnastics are due to platforms which designate char as unsigned by
  * default. Level is the negative character -- offset by 1, because \0 is the
@@ -2048,31 +2076,78 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp
 #define VERBOSE_MAGIC2LEVEL(x) (((char) -*(signed char *) (x)) - 1)
 #define VERBOSE_HASMAGIC(x)	(*(signed char *) (x) < 0)
 
+static int console_log_verbose(const char *s)
+{
+	/* verbose level of 0 evaluates to a magic of -1, 1 to -2, etc...
+	   search up to -7 (level = 6) as this is currently the largest
+	   level used */
+	static const char find_set[9] = { -1, -2, -3, -4, -5, -6, -7, '\n'};
+
+	struct console_state_data *state =
+		ast_threadstorage_get(&console_state, sizeof(*state));
+
+	char prefix[80];
+	const char *c = s;
+	int res = 0;
+
+	do {
+		if (VERBOSE_HASMAGIC(s)) {
+			/* if it has one always use the given line's level,
+			   otherwise we'll use the last line's level */
+			state->verbose_line_level = VERBOSE_MAGIC2LEVEL(s);
+			/* move past magic */
+			s++;
+		}
+
+		c = fix_header(prefix, sizeof(prefix), s,
+			       state->verbose_line_level);
+
+		if (!state->newline) {
+			/* don't use the prefix if line continuation */
+			*prefix = '\0';
+		}
+
+		/* for a given line separate on verbose magic and newlines */
+		if (!(s = strpbrk(c, find_set))) {
+			s = strchr(c, '\0');
+		} else if (*s == '\n') {
+			++s;
+		}
+
+		/* check if we should write this line after calculating begin/end
+		   so we process the case of a higher level line embedded within
+		   two lower level lines */
+		if (state->verbose_line_level > option_verbose) {
+			continue;
+		}
+
+		state->newline = *(s - 1) == '\n';
+		if (!ast_strlen_zero(prefix)) {
+			fputs(prefix, stdout);
+		}
+
+		fwrite(c, sizeof(char), s - c, stdout);
+
+		if (!res) {
+			/* if at least some info has been written
+			   we'll want to return true */
+			res = 1;
+		}
+		c = s;
+	} while (*s);
+
+	if (res) {
+		fflush(stdout);
+	}
+
+	return res;
+}
+
 static void console_verboser(const char *s)
 {
-	char tmp[80];
-	const char *c = NULL;
-	char level = 0;
-
-	if (VERBOSE_HASMAGIC(s)) {
-		level = VERBOSE_MAGIC2LEVEL(s);
-		s++;
-		if (level > option_verbose) {
-			return;
-		}
+	if (!console_log_verbose(s)) {
+		return;
 	}
-
-	if ((c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_4)) ||
-	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_3)) ||
-	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_2)) ||
-	    (c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_1))) {
-		fputs(tmp, stdout);
-		fputs(c, stdout);
-	} else {
-		fputs(s, stdout);
-	}
-
-	fflush(stdout);
 
 	/* Wake up a poll()ing console */
 	if (ast_opt_console && consolethread != AST_PTHREADT_NULL) {
@@ -2480,23 +2555,6 @@ static struct ast_cli_entry cli_asterisk[] = {
 #endif /* ! LOW_MEMORY */
 };
 
-struct el_read_char_state_struct {
-	unsigned int line_full:1;
-	unsigned int prev_line_full:1;
-	char prev_line_verbosity;
-};
-
-static int el_read_char_state_init(void *ptr)
-{
-	struct el_read_char_state_struct *state = ptr;
-	state->line_full = 1;
-	state->prev_line_full = 1;
-	state->prev_line_verbosity = 0;
-	return 0;
-}
-
-AST_THREADSTORAGE_CUSTOM(el_read_char_state, el_read_char_state_init, ast_free_ptr);
-
 static int ast_el_read_char(EditLine *editline, char *cp)
 {
 	int num_read = 0;
@@ -2506,7 +2564,6 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 	int max;
 #define EL_BUF_SIZE 512
 	char buf[EL_BUF_SIZE];
-	struct el_read_char_state_struct *state = ast_threadstorage_get(&el_read_char_state, sizeof(*state));
 
 	for (;;) {
 		max = 1;
@@ -2536,8 +2593,6 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			}
 		}
 		if (fds[0].revents) {
-			char level = 0;
-			char *curline = buf, *nextline;
 			res = read(ast_consock, buf, sizeof(buf) - 1);
 			/* if the remote side disappears exit */
 			if (res < 1) {
@@ -2577,33 +2632,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 				}
 			}
 
-			do {
-				state->prev_line_full = state->line_full;
-				if ((nextline = strchr(curline, '\n'))) {
-					state->line_full = 1;
-					nextline++;
-				} else {
-					state->line_full = 0;
-					nextline = strchr(curline, '\0');
-				}
-
-				if (state->prev_line_full && VERBOSE_HASMAGIC(curline)) {
-					level = VERBOSE_MAGIC2LEVEL(curline);
-					curline++;
-				} else if (state->prev_line_full && !VERBOSE_HASMAGIC(curline)) {
-					/* Non-verbose output */
-					level = 0;
-				} else {
-					level = state->prev_line_verbosity;
-				}
-				if ((!state->prev_line_full && state->prev_line_verbosity <= option_verbose) || (state->prev_line_full && level <= option_verbose)) {
-					if (write(STDOUT_FILENO, curline, nextline - curline) < 0) {
-					}
-				}
-
-				state->prev_line_verbosity = level;
-				curline = nextline;
-			} while (!ast_strlen_zero(curline));
+			console_log_verbose(buf);
 
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (buf[res-2] == '\n'))) {
 				*cp = CC_REFRESH;
@@ -3627,7 +3656,7 @@ static void env_init(void)
 
 static void print_intro_message(const char *runuser, const char *rungroup)
 {
-	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
+ 	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
 		if (ast_register_verbose(console_verboser)) {
 			fprintf(stderr, "Unable to register console verboser?\n");
 			return;
@@ -4121,8 +4150,8 @@ int main(int argc, char *argv[])
 
 	print_intro_message(runuser, rungroup);
 
-	if (ast_opt_console && !option_verbose) {
-		ast_verbose("[ Initializing Custom Configuration Options ]\n");
+	if (ast_opt_console) {
+		ast_verb(0, "[ Initializing Custom Configuration Options ]\n");
 	}
 	/* custom config setup */
 	register_config_cli();

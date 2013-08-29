@@ -63,7 +63,7 @@ static char *app_log = "Log";
 		<syntax>
 			<parameter name="level" required="true">
 				<para>Level must be one of <literal>ERROR</literal>, <literal>WARNING</literal>, <literal>NOTICE</literal>,
-				<literal>DEBUG</literal>, <literal>VERBOSE</literal> or <literal>DTMF</literal>.</para>	
+				<literal>DEBUG</literal>, <literal>VERBOSE</literal> or <literal>DTMF</literal>.</para>
 			</parameter>
 			<parameter name="message" required="true">
 				<para>Output text message.</para>
@@ -100,24 +100,8 @@ static int verbose_exec(struct ast_channel *chan, const char *data)
 		vsize = 0;
 		ast_log(LOG_WARNING, "'%s' is not a verboser number\n", args.level);
 	}
-	if (option_verbose >= vsize) {
-		switch (vsize) {
-		case 0:
-			ast_verb(0, "%s\n", args.msg);
-			break;
-		case 1:
-			ast_verb(1, "%s\n", args.msg);
-			break;
-		case 2:
-			ast_verb(2, "%s\n", args.msg);
-			break;
-		case 3:
-			ast_verb(3, "%s\n", args.msg);
-			break;
-		default:
-			ast_verb(4, "%s\n", args.msg);
-		}
-	}
+
+	ast_verb(vsize, "%s\n", args.msg);
 
 	return 0;
 }
@@ -171,7 +155,7 @@ static int unload_module(void)
 	res = ast_unregister_application(app_verbose);
 	res |= ast_unregister_application(app_log);
 
-	return res;	
+	return res;
 }
 
 static int load_module(void)

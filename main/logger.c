@@ -1552,7 +1552,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	callid = ast_read_threadstorage_callid();
 
 	va_start(ap, fmt);
-	ast_log_full(level, file, line, function, callid, fmt, ap);
+	if (level == __LOG_VERBOSE) {
+		__ast_verbose_ap(file, line, function, 0, callid, fmt, ap);
+	} else {
+		ast_log_full(level, file, line, function, callid, fmt, ap);
+	}
 	va_end(ap);
 
 	if (callid) {
@@ -1826,4 +1830,3 @@ void ast_logger_unregister_level(const char *name)
 		AST_RWLIST_UNLOCK(&logchannels);
 	}
 }
-
