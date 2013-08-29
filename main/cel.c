@@ -1226,9 +1226,6 @@ static void cel_blind_transfer_cb(
 		return;
 	}
 
-	ast_log(LOG_NOTICE, "exten is %s, context is %s, bridge_snapshot is %p\n",
-			exten, context, bridge_snapshot);
-
 	extra = ast_json_pack("{s: s, s: s, s: s}",
 		"extension", exten,
 		"context", context,
