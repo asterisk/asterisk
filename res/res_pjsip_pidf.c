@@ -159,8 +159,11 @@ static void add_non_standard(pj_pool_t *pool, pj_xml_node *node, const char *pid
 
 	if (pidfstate[0] != '-') {
 		pj_xml_node *activities = create_node(pool, status, "ep:activities");
-		pj_strdup2(pool, &activities->content, "ep:");
-		pj_strcat2(&activities->content, pidfstate);
+		size_t str_size = sizeof("ep:") + strlen(pidfstate);
+
+		activities->content.ptr = pj_pool_alloc(pool, str_size);
+		activities->content.slen = pj_ansi_snprintf(activities->content.ptr, str_size,
+				"ep:%s", pidfstate);
 	}
 
 	create_attr(pool, node, XMLNS_PP, XMLNS_PERSON);
