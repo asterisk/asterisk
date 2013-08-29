@@ -11235,7 +11235,7 @@ static struct ast_custom_function misdn_cc_function = {
 static int unload_module(void)
 {
 	/* First, take us out of the channel loop */
-	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
+	ast_verb(0, "-- Unregistering mISDN Channel Driver --\n");
 
 	misdn_tasks_destroy();
 
