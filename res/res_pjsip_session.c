@@ -1868,17 +1868,33 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		break;
 	case PJSIP_EVENT_RX_MSG:
 		if (tsx->method.id == PJSIP_INVITE_METHOD) {
-			if (tsx->role == PJSIP_ROLE_UAC && tsx->state == PJSIP_TSX_STATE_COMPLETED) {
-				/* This means we got a non 2XX final response to our outgoing INVITE */
-				if (tsx->status_code == PJSIP_SC_REQUEST_PENDING) {
-					reschedule_reinvite(session, tsx->mod_data[session_module.id], tsx->last_tx);
-					return;
-				} else if (inv->state == PJSIP_INV_STATE_CONFIRMED &&
-					   tsx->status_code != 488) {
-					/* Other reinvite failures (except 488) result in destroying the session. */
-					pjsip_tx_data *tdata;
-					if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS) {
-						ast_sip_session_send_request(session, tdata);
+			if (tsx->role == PJSIP_ROLE_UAC) {
+				if (tsx->state == PJSIP_TSX_STATE_COMPLETED) {
+					/* This means we got a non 2XX final response to our outgoing INVITE */
+					if (tsx->status_code == PJSIP_SC_REQUEST_PENDING) {
+						reschedule_reinvite(session, tsx->mod_data[session_module.id], tsx->last_tx);
+						return;
+					} else if (inv->state == PJSIP_INV_STATE_CONFIRMED &&
+						   tsx->status_code != 488) {
+						/* Other reinvite failures (except 488) result in destroying the session. */
+						pjsip_tx_data *tdata;
+						if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS) {
+							ast_sip_session_send_request(session, tdata);
+						}
+					}
+				} else if (tsx->state == PJSIP_TSX_STATE_TERMINATED) {
+					if (inv->cancelling && tsx->status_code == PJSIP_SC_OK) {
+						/* This is a race condition detailed in RFC 5407 section 3.1.2.
+						 * We sent a CANCEL at the same time that the UAS sent us a 200 OK for
+						 * the original INVITE. As a result, we have now received a 200 OK for
+						 * a cancelled call. Our role is to immediately send a BYE to end the
+						 * dialog.
+						 */
+						pjsip_tx_data *tdata;
+
+						if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS) {
+							ast_sip_session_send_request(session, tdata);
+						}
 					}
 				}
 			}
