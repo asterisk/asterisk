@@ -7755,6 +7755,8 @@ static void manager_shutdown(void)
 		stasis_message_router_unsubscribe_and_join(stasis_router);
 		stasis_router = NULL;
 	}
+	stasis_unsubscribe_and_join(rtp_topic_forwarder);
+	rtp_topic_forwarder = NULL;
 	ao2_cleanup(manager_topic);
 	manager_topic = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_manager_get_generic_type);

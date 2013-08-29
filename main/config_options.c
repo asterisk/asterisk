@@ -457,9 +457,11 @@ static int process_category(struct ast_config *cfg, struct aco_info *info, struc
 	if (!ast_strlen_zero(file->skip_category)) {
 		regex_skip = build_regex(file->skip_category);
 		if (!regexec(regex_skip, cat, 0, NULL, 0)) {
+			regfree(regex_skip);
 			ast_free(regex_skip);
 			return 0;
 		}
+		regfree(regex_skip);
 		ast_free(regex_skip);
 	}
 

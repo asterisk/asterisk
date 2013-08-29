@@ -172,6 +172,7 @@ static int process_config(int reload)
 static void config_exit(void)
 {
 	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(confs);
 }
 
 int stasis_config_init(void)

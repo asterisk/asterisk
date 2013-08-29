@@ -1921,7 +1921,7 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 static void really_quit(int num, shutdown_nice_t niceness, int restart)
 {
 	int active_channels;
-	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	struct ast_json *json_object = NULL;
 	int run_cleanups = niceness >= SHUTDOWN_NICE;
 
 	if (run_cleanups) {
@@ -1959,6 +1959,8 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 				"Shutdown", active_channels ? "Uncleanly" : "Cleanly",
 				"Restart", restart ? "True" : "False");
 		ast_manager_publish_event("Shutdown", EVENT_FLAG_SYSTEM, json_object);
+		ast_json_unref(json_object);
+		json_object = NULL;
 	}
 	ast_verb(0, "Asterisk %s ending (%d).\n",
 		active_channels ? "uncleanly" : "cleanly", num);

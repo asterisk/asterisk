@@ -1799,7 +1799,7 @@ static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_ch
 static void handle_dial_message(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-	struct cdr_object *cdr;
+	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *caller;
 	struct ast_channel_snapshot *peer;
@@ -3967,6 +3967,8 @@ static void cdr_engine_cleanup(void)
 	bridge_subscription = stasis_unsubscribe_and_join(bridge_subscription);
 	parking_subscription = stasis_unsubscribe_and_join(parking_subscription);
 	stasis_message_router_unsubscribe_and_join(stasis_router);
+	ao2_cleanup(cdr_topic);
+	cdr_topic = NULL;
 }
 
 static void cdr_engine_shutdown(void)
