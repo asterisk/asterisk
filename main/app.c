@@ -3001,6 +3001,8 @@ static void app_cleanup(void)
 	mwi_topic_pool = NULL;
 	ao2_cleanup(mwi_topic_all);
 	mwi_topic_all = NULL;
+	ao2_cleanup(mwi_state_cache);
+	mwi_state_cache = NULL;
 	mwi_topic_cached = stasis_caching_unsubscribe_and_join(mwi_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_mwi_state_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_mwi_vm_app_type);

@@ -75,9 +75,9 @@ STASIS_MESSAGE_TYPE_DEFN(ast_format_unregister_type);
 static struct ast_json *json_array_from_list(const char *list, const char *sep)
 {
 	RAII_VAR(struct ast_json *, array, ast_json_array_create(), ast_json_unref);
-	RAII_VAR(char *, stringp, ast_strdup(list), ast_free);
-	char *ext;
+	char *stringp, *ext;
 
+	stringp = ast_strdupa(list);	/* this is in the stack so does not need to be freed */
 	if (!array || !stringp) {
 		return NULL;
 	}

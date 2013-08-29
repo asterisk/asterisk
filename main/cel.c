@@ -1352,6 +1352,8 @@ static void ast_cel_engine_term(void)
 	cel_dialstatus_store = NULL;
 	ao2_cleanup(linkedids);
 	linkedids = NULL;
+	ao2_cleanup(cel_backends);
+	cel_backends = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(cel_generic_type);
 }
 
