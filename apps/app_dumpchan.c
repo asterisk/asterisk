@@ -138,10 +138,10 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		S_OR(ast_channel_dialed(c)->number.str, "(N/A)"),
 		S_COR(ast_channel_redirecting(c)->from.number.valid, ast_channel_redirecting(c)->from.number.str, "(N/A)"),
 		ast_channel_parkinglot(c),
-		ast_channel_language(c),	
+		ast_channel_language(c),
 		ast_state2str(ast_channel_state(c)),
 		ast_channel_state(c),
-		ast_channel_rings(c), 
+		ast_channel_rings(c),
 		ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(c)),
 		ast_getformatname(ast_channel_writeformat(c)),
 		ast_getformatname(ast_channel_readformat(c)),
@@ -159,7 +159,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		min,
 		sec,
 		ast_channel_internal_bridged_channel(c) ? ast_channel_name(ast_channel_internal_bridged_channel(c)) : "<none>",
-		ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>", 
+		ast_bridged_channel(c) ? ast_channel_name(ast_bridged_channel(c)) : "<none>",
 		ast_channel_context(c),
 		ast_channel_exten(c),
 		ast_channel_priority(c),
@@ -182,17 +182,15 @@ static int dumpchan_exec(struct ast_channel *chan, const char *data)
 	if (!ast_strlen_zero(data))
 		level = atoi(data);
 
-	if (option_verbose >= level) {
-		serialize_showchan(chan, info, sizeof(info));
-		pbx_builtin_serialize_variables(chan, &vars);
-		ast_verbose("\n"
-			"Dumping Info For Channel: %s:\n"
-			"%s\n"
-			"Info:\n"
-			"%s\n"
-			"Variables:\n"
-			"%s%s\n", ast_channel_name(chan), line, info, ast_str_buffer(vars), line);
-	}
+	serialize_showchan(chan, info, sizeof(info));
+	pbx_builtin_serialize_variables(chan, &vars);
+	ast_verb(level, "\n"
+		 "Dumping Info For Channel: %s:\n"
+		 "%s\n"
+		 "Info:\n"
+		 "%s\n"
+		 "Variables:\n"
+		 "%s%s\n", ast_channel_name(chan), line, info, ast_str_buffer(vars), line);
 
 	return 0;
 }

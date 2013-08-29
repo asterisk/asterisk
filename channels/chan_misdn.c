@@ -10203,7 +10203,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
 			struct ast_format tmpfmt;
 			if (!(cap)) {
-				return RESPONSE_ERR; 
+				return RESPONSE_ERR;
 			}
 			ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
 			chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, cap, NULL, bc->port, bc->channel);
@@ -11232,7 +11232,7 @@ static struct ast_custom_function misdn_cc_function = {
 static int unload_module(void)
 {
 	/* First, take us out of the channel loop */
-	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
+	ast_verb(0, "-- Unregistering mISDN Channel Driver --\n");
 
 	misdn_tasks_destroy();
 

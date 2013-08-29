@@ -1145,7 +1145,7 @@ static void *bridge_call_thread(void *data)
 
 	if (tobj->return_to_pbx) {
 		if (!ast_check_hangup(tobj->peer)) {
-			ast_log(LOG_VERBOSE, "putting peer %s into PBX again\n", ast_channel_name(tobj->peer));
+			ast_verb(0, "putting peer %s into PBX again\n", ast_channel_name(tobj->peer));
 			if (ast_pbx_start(tobj->peer)) {
 				ast_log(LOG_WARNING, "FAILED continuing PBX on peer %s\n", ast_channel_name(tobj->peer));
 				ast_autoservice_chan_hangup_peer(tobj->chan, tobj->peer);
@@ -1154,7 +1154,7 @@ static void *bridge_call_thread(void *data)
 			ast_autoservice_chan_hangup_peer(tobj->chan, tobj->peer);
 		}
 		if (!ast_check_hangup(tobj->chan)) {
-			ast_log(LOG_VERBOSE, "putting chan %s into PBX again\n", ast_channel_name(tobj->chan));
+			ast_verb(0, "putting chan %s into PBX again\n", ast_channel_name(tobj->chan));
 			if (ast_pbx_start(tobj->chan)) {
 				ast_log(LOG_WARNING, "FAILED continuing PBX on chan %s\n", ast_channel_name(tobj->chan));
 				ast_hangup(tobj->chan);
@@ -9082,4 +9082,3 @@ int ast_features_init(void)
 
 	return res;
 }
-
