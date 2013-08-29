@@ -5431,7 +5431,7 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
 		return;
 	}
 
-	if (ast_json_integer_get(result_blob) == AST_BRIDGE_TRANSFER_FAIL) {
+	if (ast_json_integer_get(result_blob) != AST_BRIDGE_TRANSFER_SUCCESS) {
 		return;
 	}
 
@@ -5490,7 +5490,7 @@ static void handle_attended_transfer(void *userdata, struct stasis_subscription 
 		return;
 	}
 
-	if (atxfer_msg->result == AST_BRIDGE_TRANSFER_FAIL ||
+	if (atxfer_msg->result != AST_BRIDGE_TRANSFER_SUCCESS ||
 			atxfer_msg->dest_type == AST_ATTENDED_TRANSFER_DEST_THREEWAY) {
 		return;
 	}

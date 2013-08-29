@@ -585,9 +585,15 @@ static struct ast_manager_event_blob *blind_transfer_to_ami(struct stasis_messag
 	}
 
 	channel_state = ast_manager_build_channel_state_string_prefix(blob->channel, "Transferer");
-	bridge_state = ast_manager_build_bridge_state_string(blob->bridge);
-	if (!channel_state || !bridge_state) {
+	if (!channel_state) {
 		return NULL;
+	}
+
+	if (blob->bridge) {
+		bridge_state = ast_manager_build_bridge_state_string(blob->bridge);
+		if (!bridge_state) {
+			return NULL;
+		}
 	}
 
 	exten = ast_json_string_get(ast_json_object_get(blob->blob, "exten"));
@@ -604,7 +610,7 @@ static struct ast_manager_event_blob *blind_transfer_to_ami(struct stasis_messag
 			"Extension: %s\r\n",
 			result_strs[result],
 			ast_str_buffer(channel_state),
-			ast_str_buffer(bridge_state),
+			bridge_state ? ast_str_buffer(bridge_state) : "",
 			is_external ? "Yes" : "No",
 			context,
 			exten);

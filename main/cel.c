@@ -1197,10 +1197,24 @@ static void cel_blind_transfer_cb(
 	struct ast_channel_snapshot *chan_snapshot = obj->channel;
 	struct ast_bridge_snapshot *bridge_snapshot = obj->bridge;
 	struct ast_json *blob = obj->blob;
-	struct ast_json *json_exten = ast_json_object_get(blob, "exten");
-	struct ast_json *json_context = ast_json_object_get(blob, "context");
+	struct ast_json *json_result = ast_json_object_get(blob, "result");
+	struct ast_json *json_exten;
+	struct ast_json *json_context;
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 	const char *exten, *context;
+	enum ast_transfer_result result;
+
+	if (!json_result) {
+		return;
+	}
+
+	result = ast_json_integer_get(json_result);
+	if (result != AST_BRIDGE_TRANSFER_SUCCESS) {
+		return;
+	}
+
+	json_exten = ast_json_object_get(blob, "exten");
+	json_context = ast_json_object_get(blob, "context");
 
 	if (!json_exten || !json_context) {
 		return;
@@ -1211,6 +1225,7 @@ static void cel_blind_transfer_cb(
 	if (!exten || !context) {
 		return;
 	}
+
 	extra = ast_json_pack("{s: s, s: s, s: s}",
 		"extension", exten,
 		"context", context,
