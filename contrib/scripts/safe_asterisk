@@ -1,7 +1,6 @@
 #!/bin/sh
 # vim:textwidth=80:tabstop=4:shiftwidth=4:smartindent:autoindent
 
-ASTETCDIR=__ASTERISK_ETC_DIR__
 ASTSBINDIR=__ASTERISK_SBIN_DIR__
 ASTVARRUNDIR=__ASTERISK_VARRUN_DIR__
 ASTVARLOGDIR=__ASTERISK_LOG_DIR__
@@ -20,32 +19,23 @@ RUNDIR=${RUNDIR:-/tmp}
 SLEEPSECS=4
 ASTPIDFILE=${ASTVARRUNDIR}/asterisk.pid
 
-# Obtain parameters from the safe_asterisk.conf file in the
-# ASTETCDIR directory
+# comment this line out to have this script _not_ kill all mpg123 processes when
+# asterisk exits
+KILLALLMPG123=1
 
-kvalue=`grep ^KILLALLMPG123= $ASTETCDIR 2>/dev/null | cut -c 15`
-if test "x$kvalue" != "x" ; then
-    KILLALLMPG123=$kvalue
-else
-    KILLALLMPG123=0
-fi
+# run asterisk with this priority
+PRIORITY=0
 
-pvalue=`grep ^PRIORITY= $ASTETCDIR 2>/dev/null | cut -c 10`
-if test "x$pvalue" != "x" ; then
-    PRIORITY=$pvalue
-else
-    PRIORITY=0
-fi
+# set system filemax on supported OSes if this variable is set
+# SYSMAXFILES=262144
 
-svalue=`grep ^SYSMAXFILES= $ASTETCDIR 2>/dev/null | cut -c 13-21`
-if test "x$svalue" != "x" ; then
-    SYSMAXFILES=$svalue
-fi
+# Asterisk allows full permissions by default, so set a umask, if you want
+# restricted permissions.
+#UMASK=022
 
-mvalue=`grep ^MAXFILES= $ASTETCDIR 2>/dev/null | cut -c 10-15`
-if test "x$mvalue" != "x" ; then
-    MAXFILES=$mvalue
-fi
+# set max files open with ulimit. On linux systems, this will be automatically
+# set to the system's maximum files open devided by two, if not set here.
+# MAXFILES=32768
 
 message() {
 	echo "$1" >&2
@@ -106,10 +96,8 @@ else
 
 fi
 
-
-uvalue=`grep ^UMASK= $ASTETCDIR 2>/dev/null | cut -c 7-10`
-if test "x$uvalue" != "x" ; then
-    umask $uvalue
+if test "x$UMASK" != "x"; then
+	umask $UMASK
 fi
 
 #
@@ -145,7 +133,7 @@ if test ! -d "${RUNDIR}" ; then
 	fi
 fi
 
-if test ! -w "${DUMPDROP}" ; then
+if test ! -w "${DUMPDROP}" ; then	
 	message "Cannot write to ${DUMPDROP}"
 	exit 1
 fi
@@ -169,7 +157,7 @@ fi
 
 run_asterisk()
 {
-	while :; do
+	while :; do 
 
 		if test "x$TTY" != "x" ; then
 			cd "${RUNDIR}"
