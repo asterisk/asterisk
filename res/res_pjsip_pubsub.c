@@ -962,15 +962,6 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 		return;
 	}
 
-	if (event->type == PJSIP_EVENT_RX_MSG) {
-		sub->handler->subscription_terminated(sub, event->body.rx_msg.rdata);
-	}
-
-	if (event->type == PJSIP_EVENT_TSX_STATE &&
-			event->body.tsx_state.type == PJSIP_EVENT_RX_MSG) {
-		sub->handler->subscription_terminated(sub, event->body.tsx_state.src.rdata);
-	}
-
 	if (sub->handler->subscription_shutdown) {
 		sub->handler->subscription_shutdown(sub);
 	}
@@ -1049,6 +1040,11 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 	};
 
 	if (!sub) {
+		return;
+	}
+
+	if (pjsip_evsub_get_state(sub->evsub) == PJSIP_EVSUB_STATE_TERMINATED) {
+		sub->handler->subscription_terminated(sub, rdata);
 		return;
 	}
 
