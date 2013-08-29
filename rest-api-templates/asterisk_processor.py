@@ -187,6 +187,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
         operation.c_http_method = 'AST_HTTP_' + operation.http_method
         if not operation.summary.endswith("."):
             raise SwaggerError("Summary should end with .", context)
+        operation.wiki_notes = wikify(operation.notes or "")
 
     def process_parameter(self, parameter, context):
         if not parameter.data_type in self.type_mapping:
