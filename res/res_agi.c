@@ -4042,9 +4042,6 @@ static int write_htmldump(const char *filename)
 
 	AST_RWLIST_RDLOCK(&agi_commands);
 	AST_RWLIST_TRAVERSE(&agi_commands, command, list) {
-#ifdef AST_XML_DOCS
-		char *stringptmp;
-#endif
 		char *tempstr, *stringp;
 
 		if (!command->cmda[0])	/* end ? */
@@ -4057,8 +4054,7 @@ static int write_htmldump(const char *filename)
 		fprintf(htmlfile, "<TR><TD><TABLE BORDER=\"1\" CELLPADDING=\"5\" WIDTH=\"100%%\">\n");
 		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TH></TR>\n", fullcmd, command->summary);
 #ifdef AST_XML_DOCS
-		stringptmp = ast_xmldoc_printable(command->usage, 0);
-		stringp = ast_strdup(stringptmp);
+		stringp = ast_xmldoc_printable(command->usage, 0);
 #else
 		stringp = ast_strdup(command->usage);
 #endif
@@ -4076,9 +4072,6 @@ static int write_htmldump(const char *filename)
 		fprintf(htmlfile, "</TD></TR>\n");
 		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
 		ast_free(stringp);
-#ifdef AST_XML_DOCS
-		ast_free(stringptmp);
-#endif
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
 	fprintf(htmlfile, "</TABLE>\n</BODY>\n</HTML>\n");

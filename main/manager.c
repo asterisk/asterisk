@@ -1924,19 +1924,19 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 #ifdef AST_XML_DOCS
 				if (cur->docsrc == AST_XML_DOC) {
+					char *syntax = ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1);
+					char *synopsis = ast_xmldoc_printable(S_OR(cur->synopsis, "Not available"), 1);
+					char *description = ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1);
+					char *arguments = ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1);
+					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
+					char *privilege = ast_xmldoc_printable(S_OR(authority->str, "Not available"), 1);
 					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n",
-						syntax_title,
-						ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1),
-						synopsis_title,
-						ast_xmldoc_printable(S_OR(cur->synopsis, "Not available"), 1),
-						description_title,
-						ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1),
-						arguments_title,
-						ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1),
-						seealso_title,
-						ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1),
-						privilege_title,
-						ast_xmldoc_printable(S_OR(authority->str, "Not available"), 1));
+						syntax_title, syntax,
+						synopsis_title, synopsis,
+						description_title, description,
+						arguments_title, arguments,
+						seealso_title, seealso,
+						privilege_title, privilege);
 				} else
 #endif
 				{
@@ -7560,29 +7560,29 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 	ast_cli(a->fd, "Event: %s\n", a->argv[3]);
 	for (temp = item; temp; temp = temp->next) {
 		if (!ast_strlen_zero(ast_str_buffer(temp->synopsis))) {
-			ast_cli(a->fd, "%s%s\n\n",
-				synopsis_title,
-				ast_xmldoc_printable(ast_str_buffer(temp->synopsis), 1));
+			char *synopsis = ast_xmldoc_printable(ast_str_buffer(temp->synopsis), 1);
+			ast_cli(a->fd, "%s%s\n\n", synopsis_title, synopsis);
+			ast_free(synopsis);
 		}
 		if (!ast_strlen_zero(ast_str_buffer(temp->syntax))) {
-			ast_cli(a->fd, "%s%s\n\n",
-				syntax_title,
-				ast_xmldoc_printable(ast_str_buffer(temp->syntax), 1));
+			char *syntax = ast_xmldoc_printable(ast_str_buffer(temp->syntax), 1);
+			ast_cli(a->fd, "%s%s\n\n", syntax_title, syntax);
+			ast_free(syntax);
 		}
 		if (!ast_strlen_zero(ast_str_buffer(temp->description))) {
-			ast_cli(a->fd, "%s%s\n\n",
-				description_title,
-				ast_xmldoc_printable(ast_str_buffer(temp->description), 1));
+			char *description = ast_xmldoc_printable(ast_str_buffer(temp->description), 1);
+			ast_cli(a->fd, "%s%s\n\n", description_title, description);
+			ast_free(description);
 		}
 		if (!ast_strlen_zero(ast_str_buffer(temp->arguments))) {
-			ast_cli(a->fd, "%s%s\n\n",
-				arguments_title,
-				ast_xmldoc_printable(ast_str_buffer(temp->arguments), 1));
+			char *arguments = ast_xmldoc_printable(ast_str_buffer(temp->arguments), 1);
+			ast_cli(a->fd, "%s%s\n\n", arguments_title, arguments);
+			ast_free(arguments);
 		}
 		if (!ast_strlen_zero(ast_str_buffer(temp->seealso))) {
-			ast_cli(a->fd, "%s%s\n\n",
-				seealso_title,
-				ast_xmldoc_printable(ast_str_buffer(temp->seealso), 1));
+			char *seealso = ast_xmldoc_printable(ast_str_buffer(temp->seealso), 1);
+			ast_cli(a->fd, "%s%s\n\n", seealso_title, seealso);
+			ast_free(seealso);
 		}
 	}
 
