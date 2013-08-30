@@ -180,7 +180,7 @@
 						format for the recording is determined by the <replaceable>TOUCH_MONITOR_FORMAT</replaceable>
 						channel variable. If this variable is not specified, then <literal>wav</literal> is the
 						default. The filename is constructed in the following manner:</para>
-							
+
 						<para>    prefix-timestamp-filename</para>
 
 						<para>where prefix is either the value of the <replaceable>TOUCH_MONITOR_PREFIX</replaceable>
@@ -547,9 +547,15 @@ static void *featuregroup_alloc(const char *cat)
 	return group;
 }
 
+/* Used for deprecated parking configuration */
+struct dummy_config {
+	char dummy;
+};
+
 struct features_config {
 	struct features_global_config *global;
 	struct ast_featuremap_config *featuremap;
+	struct dummy_config *parkinglots;
 	struct ao2_container *applicationmap;
 	struct ao2_container *featuregroups;
 };
@@ -588,14 +594,24 @@ static struct aco_type featuregroup_option = {
 	.item_find = featuregroup_find,
 };
 
+static struct aco_type parkinglot_option = {
+	.type = ACO_GLOBAL,
+	.name = "parkinglot",
+	.category_match = ACO_WHITELIST,
+	.category = "^parkinglot_.*$",
+	.item_offset = offsetof(struct features_config, parkinglots),
+	.hidden = 1,
+};
+
 static struct aco_type *global_options[] = ACO_TYPES(&global_option);
 static struct aco_type *featuremap_options[] = ACO_TYPES(&featuremap_option);
 static struct aco_type *applicationmap_options[] = ACO_TYPES(&applicationmap_option);
 static struct aco_type *featuregroup_options[] = ACO_TYPES(&featuregroup_option);
+static struct aco_type *parkinglot_options[] = ACO_TYPES(&parkinglot_option);
 
 static struct aco_file features_conf = {
 	.filename = "features.conf",
-	.types = ACO_TYPES(&global_option, &featuremap_option, &applicationmap_option, &featuregroup_option),
+	.types = ACO_TYPES(&global_option, &featuremap_option, &applicationmap_option, &featuregroup_option, &parkinglot_option),
 };
 
 AO2_GLOBAL_OBJ_STATIC(globals);
@@ -711,6 +727,11 @@ static struct features_config *__features_config_alloc(int allocate_applicationm
 
 	cfg->featuremap = ao2_alloc(sizeof(*cfg->featuremap), featuremap_config_destructor);
 	if (!cfg->featuremap || ast_string_field_init(cfg->featuremap, 32)) {
+		return NULL;
+	}
+
+	cfg->parkinglots = ao2_alloc(sizeof(*cfg->parkinglots), NULL);
+	if (!cfg->parkinglots) {
 		return NULL;
 	}
 
@@ -1433,9 +1454,15 @@ static int pickup_handler(const struct aco_option *opt,
 	return pickup_set(pickup, var->name, var->value);
 }
 
+static int parking_warning = 0;
 static int unsupported_handler(const struct aco_option *opt,
 		struct ast_variable *var, void *obj)
 {
+	if (!parking_warning) {
+		ast_log(LOG_WARNING, "Parkinglots are no longer configurable in features.conf; "
+			"parking is now handled by res_parking.conf\n");
+		parking_warning = 1;
+	}
 	ast_log(LOG_WARNING, "The option '%s' is no longer configurable in features.conf.\n", var->name);
 	return 0;
 }
@@ -1707,6 +1734,9 @@ static int load_config(void)
 
 	aco_option_register_custom(&cfg_info, "^.*$", ACO_REGEX, featuregroup_options,
 			"", featuregroup_handler, 0);
+
+	aco_option_register_custom_nodoc(&cfg_info, "^.*$", ACO_REGEX, parkinglot_options,
+			"", unsupported_handler, 0);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
 		RAII_VAR(struct features_config *, features_cfg, __features_config_alloc(0), ao2_cleanup);

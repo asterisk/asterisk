@@ -473,7 +473,7 @@ static int process_category(struct ast_config *cfg, struct aco_info *info, struc
 
 	field = info->internal->pending + type->item_offset;
 	if (!*field) {
-		ast_log(LOG_ERROR, "No object to update!\n");
+		ast_log(LOG_ERROR, "In %s: %s - No object to update!\n", file->filename, cat);
 		return -1;
 	}
 
