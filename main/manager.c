@@ -1512,17 +1512,22 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			if (!strcasecmp(cur->action, a->argv[num])) {
 #ifdef AST_XML_DOCS
 				if (cur->docsrc == AST_XML_DOC) {
+					char *syntax = ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1);
+					char *synopsis = ast_xmldoc_printable(S_OR(cur->synopsis, "Not available"), 1);
+					char *description = ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1);
+					char *arguments = ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1);
+					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
 					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n",
-						syntax_title,
-						ast_xmldoc_printable(S_OR(cur->syntax, "Not available"), 1),
-						synopsis_title,
-						ast_xmldoc_printable(S_OR(cur->synopsis, "Not available"), 1),
-						description_title,
-						ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1),
-						arguments_title,
-						ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1),
-						seealso_title,
-						ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1));
+						syntax_title, syntax,
+						synopsis_title, synopsis,
+						description_title, description,
+						arguments_title, arguments,
+						seealso_title, seealso);
+					ast_free(syntax);
+					ast_free(synopsis);
+					ast_free(description);
+					ast_free(arguments);
+					ast_free(seealso);
 				} else
 #endif
 				{
