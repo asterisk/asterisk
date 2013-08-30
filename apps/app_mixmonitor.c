@@ -137,7 +137,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<variable name="MIXMONITOR_FILENAME">
 					<para>Will contain the filename used to record.</para>
 				</variable>
-			</variablelist>	
+			</variablelist>
 		</description>
 		<see-also>
 			<ref type="application">Monitor</ref>
@@ -404,7 +404,7 @@ static void destroy_monitor_audiohook(struct mixmonitor *mixmonitor)
 	ast_audiohook_destroy(&mixmonitor->audiohook);
 }
 
-static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook) 
+static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
 {
 	int res = 0;
 
@@ -496,12 +496,14 @@ static void mixmonitor_free(struct mixmonitor *mixmonitor)
 		if (mixmonitor->mixmonitor_ds) {
 			ast_mutex_destroy(&mixmonitor->mixmonitor_ds->lock);
 			ast_cond_destroy(&mixmonitor->mixmonitor_ds->destruction_condition);
-			ast_free(mixmonitor->filename_write);
-			ast_free(mixmonitor->filename_read);
 			ast_free(mixmonitor->mixmonitor_ds);
-			ast_free(mixmonitor->name);
-			ast_free(mixmonitor->post_process);
 		}
+
+		ast_free(mixmonitor->name);
+		ast_free(mixmonitor->post_process);
+		ast_free(mixmonitor->filename);
+		ast_free(mixmonitor->filename_write);
+		ast_free(mixmonitor->filename_read);
 
 		/* Free everything in the recipient list */
 		clear_mixmonitor_recipient_list(mixmonitor);
@@ -586,7 +588,7 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 	}
 }
 
-static void *mixmonitor_thread(void *obj) 
+static void *mixmonitor_thread(void *obj)
 {
 	struct mixmonitor *mixmonitor = obj;
 	char *fs_ext = "";
