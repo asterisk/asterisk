@@ -34662,7 +34662,12 @@ static int unload_module(void)
 
 	clear_sip_domains();
 	sip_cfg.contact_acl = ast_free_acl_list(sip_cfg.contact_acl);
+	if (sipsock_read_id) {
+		ast_io_remove(io, sipsock_read_id);
+		sipsock_read_id = NULL;
+	}
 	close(sipsock);
+	io_context_destroy(io);
 	ast_sched_context_destroy(sched);
 	con = ast_context_find(used_context);
 	if (con) {
@@ -34675,6 +34680,11 @@ static int unload_module(void)
 
 	sip_reqresp_parser_exit();
 	sip_unregister_tests();
+
+	if (notify_types) {
+		ast_config_destroy(notify_types);
+		notify_types = NULL;
+	}
 
 	ast_format_cap_destroy(sip_tech.capabilities);
 	sip_cfg.caps = ast_format_cap_destroy(sip_cfg.caps);
