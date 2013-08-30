@@ -176,14 +176,6 @@ void ast_optional_api_use(const char *symname, ast_optional_fn *optional_ref,
 void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 	const char *module);
 
-/*!
- * \brief Call at exit to clean up optional_api internals.
- *
- * Since the optional_api code might run before main() starts, it can't safely
- * register its own cleanup handlers. That has to be done within main().
- */
-void optional_api_cleanup(void);
-
 #define AST_OPTIONAL_API_NAME(name) __##name
 
 #if defined(AST_API_MODULE)
