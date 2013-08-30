@@ -4479,12 +4479,11 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t my_used;
-
-				if (!ltmp) {
+				size_t used;
+				if (!ltmp)
 					ltmp = ast_alloca(VAR_BUF_SIZE);
-				}
-				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &my_used);
+
+				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &used);
 				vars = ltmp;
 			} else {
 				vars = var;
@@ -4569,12 +4568,11 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 
 			/* Substitute if necessary */
 			if (needsub) {
-				size_t my_used;
-
-				if (!ltmp) {
+				size_t used;
+				if (!ltmp)
 					ltmp = ast_alloca(VAR_BUF_SIZE);
-				}
-				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &my_used);
+
+				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1, &used);
 				vars = ltmp;
 			} else {
 				vars = var;
