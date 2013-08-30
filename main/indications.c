@@ -499,6 +499,9 @@ struct ast_tone_zone_sound *ast_get_indication_tone(const struct ast_tone_zone *
 
 	ast_tone_zone_unlock(zone);
 
+	if (!_zone)
+		zone = ast_tone_zone_unref(zone);
+
 	return ts;
 }
 

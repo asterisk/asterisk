@@ -557,6 +557,8 @@ static struct ast_cli_entry cli_named_acl[] = {
 
 static void named_acl_cleanup(void)
 {
+	ast_cli_unregister_multiple(cli_named_acl, ARRAY_LEN(cli_named_acl));
+
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
 }

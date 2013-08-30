@@ -159,6 +159,8 @@ static int unload_module(void)
 		security_event_sub = ast_event_unsubscribe(security_event_sub);
 	}
 
+	ast_logger_unregister_level(LOG_SECURITY_NAME);
+
 	ast_verb(3, "Security Logging Disabled\n");
 
 	return 0;
