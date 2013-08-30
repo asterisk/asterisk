@@ -3248,6 +3248,10 @@ static void config_shutdown(void)
 
 	AST_LIST_LOCK(&cfmtime_head);
 	while ((cfmtime = AST_LIST_REMOVE_HEAD(&cfmtime_head, list))) {
+		struct cache_file_include *cfinclude;
+		while ((cfinclude = AST_LIST_REMOVE_HEAD(&cfmtime->includes, list))) {
+			ast_free(cfinclude);
+		}
 		ast_free(cfmtime);
 	}
 	AST_LIST_UNLOCK(&cfmtime_head);

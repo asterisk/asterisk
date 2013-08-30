@@ -1396,11 +1396,27 @@ void ast_translate_available_formats(struct ast_format_cap *dest, struct ast_for
 	ast_format_cap_iter_end(src);
 }
 
+static void translate_shutdown(void)
+{
+	int x;
+	ast_cli_unregister_multiple(cli_translate, ARRAY_LEN(cli_translate));
+
+	ast_rwlock_wrlock(&tablelock);
+	for (x = 0; x < index_size; x++) {
+		ast_free(__matrix[x]);
+	}
+	ast_free(__matrix);
+	ast_free(__indextable);
+	ast_rwlock_unlock(&tablelock);
+	ast_rwlock_destroy(&tablelock);
+}
+
 int ast_translate_init(void)
 {
 	int res = 0;
 	ast_rwlock_init(&tablelock);
 	res = matrix_resize(1);
 	res |= ast_cli_register_multiple(cli_translate, ARRAY_LEN(cli_translate));
+	ast_register_atexit(translate_shutdown);
 	return res;
 }
