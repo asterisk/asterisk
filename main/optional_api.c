@@ -158,18 +158,8 @@ struct {
 	size_t len;
 } apis;
 
-void optional_api_cleanup(void)
-{
-	while (apis.len--) {
-		optional_api_destroy(apis.list[apis.len]);
-	}
-	free(apis.list);
-	apis.list = NULL;
-	apis.maxlen = 0;
-}
-
 /*!
- * \brief Gets (or creates) the \ref optional_api for the give function.
+ * \brief Gets (or creates) the \ref optional_api for the given function.
  *
  * \param sysname Name of the function to look up.
  * \return Corresponding \ref optional_api.
@@ -181,9 +171,11 @@ static struct optional_api *get_api(const char *symname)
 	size_t i;
 
 	/* Find one, if we already have it */
-	for (i = 0; i < apis.len; ++i) {
-		if (strcmp(symname, apis.list[i]->symname) == 0) {
-			return apis.list[i];
+	if (apis.list) {
+		for (i = 0; i < apis.len; ++i) {
+			if (strcmp(symname, apis.list[i]->symname) == 0) {
+				return apis.list[i];
+			}
 		}
 	}
 
