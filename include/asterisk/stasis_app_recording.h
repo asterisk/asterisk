@@ -31,6 +31,68 @@
 #include "asterisk/app.h"
 #include "asterisk/stasis_app.h"
 
+/*! @{ */
+
+/*! \brief Structure representing a recording stored on disk */
+struct stasis_app_stored_recording;
+
+/*!
+ * \brief Returns the filename for this recording, for use with streamfile.
+ *
+ * The returned string will be valid until the \a recording object is freed.
+ *
+ * \param recording Recording to query.
+ * \return Absolute path to the recording file, without the extension.
+ * \return \c NULL on error.
+ */
+const char *stasis_app_stored_recording_get_file(
+	struct stasis_app_stored_recording *recording);
+
+/*!
+ * \brief Convert stored recording info to JSON.
+ *
+ * \param recording Recording to convert.
+ * \return JSON representation.
+ * \return \c NULL on error.
+ */
+struct ast_json *stasis_app_stored_recording_to_json(
+	struct stasis_app_stored_recording *recording);
+
+/*!
+ * \brief Find all stored recordings on disk.
+ *
+ * \return Container of \ref stasis_app_stored_recording objects.
+ * \return \c NULL on error.
+ */
+struct ao2_container *stasis_app_stored_recording_find_all(void);
+
+/*!
+ * \brief Creates a stored recording object, with the given name.
+ *
+ * \param name Name of the recording.
+ * \return New recording object.
+ * \return \c NULL if recording is not found. \c errno is set to indicate why
+ *	- \c ENOMEM - out of memeory
+ *	- \c EACCES - file permissions (or recording is outside the config dir)
+ *	- Any of the error codes for stat(), opendir(), readdir()
+ */
+struct stasis_app_stored_recording *stasis_app_stored_recording_find_by_name(
+	const char *name);
+
+/*!
+ * \brief Delete a recording from disk.
+ *
+ * \param recording Recording to delete.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int stasis_app_stored_recording_delete(
+	struct stasis_app_stored_recording *recording);
+
+/*! @} */
+
+/*! @{ */
+
 /*! Opaque struct for handling the recording of media to a file. */
 struct stasis_app_recording;
 
@@ -215,5 +277,7 @@ enum stasis_app_recording_oper_results stasis_app_recording_operation(
  * \ref ast_channel_blob.
  */
 struct stasis_message_type *stasis_app_recording_snapshot_type(void);
+
+/*! @} */
 
 #endif /* _ASTERISK_STASIS_APP_RECORDING_H */

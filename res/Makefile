@@ -75,7 +75,7 @@ ael/pval.o: ael/pval.c
 clean::
 	rm -f snmp/*.[oi] ael/*.[oi] ais/*.[oi] ari/*.[oi]
 	rm -f res_pjsip/*.[oi] stasis/*.[oi]
-	rm -f parking/*.o parking/*.i
+	rm -f parking/*.o parking/*.i stasis_recording/*.[oi]
 
 $(if $(filter res_parking,$(EMBEDDED_MODS)),modules.link,res_parking.so): $(subst .c,.o,$(wildcard parking/*.c))
 $(subst .c,.o,$(wildcard parking/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_parking)
@@ -85,6 +85,9 @@ ari/cli.o ari/config.o ari/ari_websockets.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,re
 
 res_ari_model.so: ari/ari_model_validators.o
 ari/ari_model_validators.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_model)
+
+res_stasis_recording.so: stasis_recording/stored.o
+stasis_recording/stored.o:  _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_recording)
 
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make

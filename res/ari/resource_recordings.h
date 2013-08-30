@@ -76,17 +76,6 @@ struct ast_delete_stored_recording_args {
  * \param[out] response HTTP response
  */
 void ast_ari_delete_stored_recording(struct ast_variable *headers, struct ast_delete_stored_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_live_recordings() */
-struct ast_get_live_recordings_args {
-};
-/*!
- * \brief List libe recordings.
- *
- * \param headers HTTP headers
- * \param args Swagger parameters
- * \param[out] response HTTP response
- */
-void ast_ari_get_live_recordings(struct ast_variable *headers, struct ast_get_live_recordings_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_get_live_recording() */
 struct ast_get_live_recording_args {
 	/*! \brief The name of the recording */

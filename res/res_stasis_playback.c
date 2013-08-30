@@ -25,6 +25,7 @@
 
 /*** MODULEINFO
 	<depend type="module">res_stasis</depend>
+	<depend type="module">res_stasis_recording</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -42,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"
 #include "asterisk/stasis_app_impl.h"
 #include "asterisk/stasis_app_playback.h"
+#include "asterisk/stasis_app_recording.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/uuid.h"
@@ -279,13 +281,14 @@ static void play_on_channel(struct stasis_app_playback *playback,
 		file = ast_strdup(playback->media + strlen(SOUND_URI_SCHEME));
 	} else if (ast_begins_with(playback->media, RECORDING_URI_SCHEME)) {
 		/* Play recording */
+		RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
+			ao2_cleanup);
 		const char *relname =
 			playback->media + strlen(RECORDING_URI_SCHEME);
-		if (relname[0] == '/') {
-			file = ast_strdup(relname);
-		} else {
-			ast_asprintf(&file, "%s/%s",
-				ast_config_AST_RECORDING_DIR, relname);
+		recording = stasis_app_stored_recording_find_by_name(relname);
+		if (recording) {
+			file = ast_strdup(stasis_app_stored_recording_get_file(
+					recording));
 		}
 	} else {
 		/* Play URL */
@@ -627,4 +630,4 @@ static int unload_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis application playback support",
 	.load = load_module,
 	.unload = unload_module,
-	.nonoptreq = "res_stasis");
+	.nonoptreq = "res_stasis,res_stasis_recording");
