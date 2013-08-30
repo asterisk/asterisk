@@ -269,8 +269,10 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 				return 0;
 			}
 			fmt_time.tv_usec = tv_usec;
-			ast_localtime(&fmt_time, &tm, NULL);
-			ast_strftime(tempbuf, sizeof(*tempbuf), "%Y-%m-%d %T", &tm);
+			if (fmt_time.tv_sec || fmt_time.tv_usec) {
+				ast_localtime(&fmt_time, &tm, NULL);
+				ast_strftime(tempbuf, sizeof(*tempbuf), "%Y-%m-%d %T", &tm);
+			}
 		} else if (!strcasecmp("disposition", args.variable)) {
 			int disposition;
 
