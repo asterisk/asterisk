@@ -25,7 +25,9 @@
  * \author David M. Lee, II <dlee@digium.com>
  */
 
+#include "asterisk/http.h"
 #include "asterisk/json.h"
+#include "asterisk/stringfields.h"
 
 /*! @{ */
 
@@ -139,5 +141,25 @@ struct ast_ari_conf_user *ast_ari_config_validate_user(const char *username,
 
 /*! @} */
 
+/* Forward-declare websocket structs. This avoids including http_websocket.h,
+ * which causes optional_api stuff to happen, which makes optional_api more
+ * difficult to debug. */
+
+struct ast_websocket_server;
+
+/*!
+ * \brief Wrapper for invoking the websocket code for an incoming connection.
+ *
+ * \param ws_server WebSocket server to invoke.
+ * \param ser HTTP session.
+ * \param uri Requested URI.
+ * \param method Requested HTTP method.
+ * \param get_params Parsed query parameters.
+ * \param headers Parsed HTTP headers.
+ */
+void ari_handle_websocket(struct ast_websocket_server *ws_server,
+	struct ast_tcptls_session_instance *ser, const char *uri,
+	enum ast_http_method method, struct ast_variable *get_params,
+	struct ast_variable *headers);
 
 #endif /* ARI_INTERNAL_H_ */

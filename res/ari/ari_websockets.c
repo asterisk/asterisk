@@ -20,8 +20,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/astobj2.h"
 #include "asterisk/ari.h"
+#include "asterisk/astobj2.h"
+#include "asterisk/http_websocket.h"
+#include "internal.h"
 
 /*! \file
  *
@@ -162,4 +164,16 @@ int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 
 	return ast_websocket_write(session->ws_session,
 		AST_WEBSOCKET_OPCODE_TEXT, str,	strlen(str));
+}
+
+void ari_handle_websocket(struct ast_websocket_server *ws_server,
+	struct ast_tcptls_session_instance *ser, const char *uri,
+	enum ast_http_method method, struct ast_variable *get_params,
+	struct ast_variable *headers)
+{
+	struct ast_http_uri fake_urih = {
+		.data = ws_server,
+	};
+	ast_websocket_uri_cb(ser, &fake_urih, uri, method, get_params,
+		headers);
 }

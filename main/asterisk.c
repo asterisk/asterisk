@@ -247,6 +247,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_system.h"
 #include "asterisk/security_events.h"
+#include "asterisk/optional_api.h"
 
 #include "../defaults.h"
 
@@ -4164,6 +4165,10 @@ int main(int argc, char *argv[])
 		if (!ast_strlen_zero(filename))
 			ast_el_read_history(filename);
 	}
+
+#if defined(OPTIONAL_API)
+	ast_register_cleanup(optional_api_cleanup);
+#endif
 
 	ast_json_init();
 	ast_ulaw_init();

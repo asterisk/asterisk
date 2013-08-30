@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2008, Digium, Inc.
+ * Copyright (C) 2008-2013, Digium, Inc.
  *
  * Kevin P. Fleming <kpfleming@digium.com>
  *
@@ -29,19 +29,6 @@
  * modules that are consumers of these APIs that *optionally* use them; they
  * have only a part of their functionality dependent on the APIs, and can
  * provide the remainder even if the APIs are not available.
- *
- * To accomodate this situation, the AST_OPTIONAL_API macro allows an API
- * function to be declared in a special way, if Asterisk being built on a
- * platform that supports special compiler and dynamic linker attributes.
- * If so the API function will actually be a weak symbol, which means if the
- * provider of the API is not loaded, the symbol can still be referenced (unlike a
- * strong symbol, which would cause an immediate fault if not defined when
- * referenced), but it will return NULL signifying the linker/loader was
- * not able to resolve the symbol. In addition, the macro defines a hidden
- * 'stub' version of the API call, using a provided function body, and uses
- * various methods to make the API function symbol actually resolve to
- * that hidden stub, but only when the *real* provider of the symbol has
- * not been found.
  *
  * An example can be found in agi.h:
  *
@@ -74,19 +61,6 @@
  * apply special aliases to the function prototype; this can be done
  * by defining AST_API_MODULE just before including the header file
  * containing the AST_OPTIONAL_API macro calls.
- *
- * \note If the platform does not provide adequate resources,
- * then the AST_OPTIONAL_API macro will result in a non-optional function
- * definition; this means that any consumers of the API functions so
- * defined will require that the provider of the API functions be
- * loaded before they can reference the symbols.
- *
- * WARNING WARNING WARNING WARNING WARNING
- *
- * You MUST add the AST_MODFLAG_GLOBAL_SYMBOLS to the module for which you
- * are enabling optional_api functionality, or it will fail to work.
- *
- * WARNING WARNING WARNING WARNING WARNING
  */
 
 /*!
@@ -99,122 +73,14 @@
  */
 #define AST_OPTIONAL_API_UNAVAILABLE	INT_MIN
 
-
-#if defined(HAVE_ATTRIBUTE_weak_import) || defined(HAVE_ATTRIBUTE_weak)
-
-/*
- * This is the Darwin (Mac OS/X) implementation, that only provides the 'weak'
- * or 'weak_import' compiler attribute for weak symbols. On this platform,
- *
- * - The module providing the API will only provide a '__' prefixed version
- *   of the API function to other modules (this will be hidden from the other
- *   modules by the macros), so any modules compiled against older versions
- *   of the module that provided a non-prefixed version of the API function
- *   will fail to link at runtime.
- * - In the API module itself, access to the API function without using a
- *   prefixed name is provided by a static pointer variable that holds the
- *   function address.
- * - 'Consumer' modules of the API will use a combination of a weak_import or
- *   weak symbol, a local stub function, a pointer variable and a constructor
- *   function (which initializes that pointer variable as the module is being
- *   loaded) to provide safe, optional access to the API function without any
- *   special code being required.
+/*!
+ * \def AST_OPTIONAL_API_NAME(name)
+ * \brief Expands to the name of the implementation function.
  */
-
-#if defined(HAVE_ATTRIBUTE_weak_import)
-#define	__default_attribute	weak_import /* pre-Lion */
-#else
-#define	__default_attribute	weak        /* Lion-onwards */
-#endif
-
-#define AST_OPTIONAL_API_NAME(name) __##name
-
-#if defined(AST_API_MODULE)
-
-#define AST_OPTIONAL_API(result, name, proto, stub) \
-	result AST_OPTIONAL_API_NAME(name) proto; \
-	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const name = AST_OPTIONAL_API_NAME(name);
-
-#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)	\
-	result __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto; \
-	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const name = AST_OPTIONAL_API_NAME(name);
-
-#else
-
-#define AST_OPTIONAL_API(result, name, proto, stub) \
-	static result __stub__##name proto stub; \
-	__attribute__((__default_attribute)) typeof(__stub__##name) AST_OPTIONAL_API_NAME(name); \
-	static attribute_unused typeof(__stub__##name) * name; \
-	static void __attribute__((constructor)) __init__##name(void) { name = AST_OPTIONAL_API_NAME(name) ? : __stub__##name; }
-
-#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub) \
-	static __attribute__((attr)) result __stub__##name proto stub; \
-	__attribute__((attr, __default_attribute)) typeof(__stub__##name) AST_OPTIONAL_API_NAME(name); \
-	static attribute_unused __attribute__((attr)) typeof(__stub__##name) * name; \
-	static void __attribute__((constructor)) __init__##name(void) { name = AST_OPTIONAL_API_NAME(name) ? : __stub__##name; }
-
-#endif
-
-/* End of Darwin (Mac OS/X) implementation */
-
-#elif defined(HAVE_ATTRIBUTE_weakref)
-
-/*
- * This is the generic GCC implementation, used when the 'weakref'
- * compiler attribute is available. On these platforms:
- *
- * - The module providing the API will provide a '__' prefixed version
- *   of the API function to other modules (this will be hidden from the other
- *   modules by the macros), and also a non-prefixed alias so that modules
- *   compiled against older versions of the module that provided a non-prefixed
- *    version of the API function will continue to link properly.
- * - In the API module itself, access to the API function without using a
- *   prefixed name is provided by the non-prefixed alias described above.
- * - 'Consumer' modules of the API will use a combination of a weakref
- *   symbol, a local stub function, a pointer variable and a constructor function
- *   (which initializes that pointer variable as the module is being loaded)
- *   to provide safe, optional access to the API function without any special
- *   code being required.
- */
-
-#define AST_OPTIONAL_API_NAME(name) __##name
-
-#if defined(AST_API_MODULE)
-
-#define AST_OPTIONAL_API(result, name, proto, stub) \
-	result AST_OPTIONAL_API_NAME(name) proto; \
-	static __attribute__((alias(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(AST_OPTIONAL_API_NAME(name)) name;
-
-#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)	\
-	result __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto; \
-	static __attribute__((alias(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(AST_OPTIONAL_API_NAME(name)) name;
-
-#else
-
-#define AST_OPTIONAL_API(result, name, proto, stub) \
-	static result __stub__##name proto stub; \
-	static __attribute__((weakref(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(__stub__##name) __ref__##name; \
-	static attribute_unused typeof(__stub__##name) * name; \
-	static void __attribute__((constructor)) __init__##name(void) { name = __ref__##name ? : __stub__##name; }
-
-#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub) \
-	static __attribute__((attr)) result __stub__##name proto stub; \
-	static __attribute__((attr, weakref(__stringify(AST_OPTIONAL_API_NAME(name))))) typeof(__stub__##name) __ref__##name; \
-	static attribute_unused __attribute__((attr)) typeof(__stub__##name) * name; \
-	static void __attribute__((constructor)) __init__##name(void) { name = __ref__##name ? : __stub__##name; }
-
-#endif
-
-/* End of GCC implementation */
-
-#else
-
-/* This is the non-optional implementation. */
-
-#define AST_OPTIONAL_API_NAME(name) name
 
 /*!
- * \brief Define an optional API function
+ * \def AST_OPTIONAL_API(result, name, proto, stub)
+ * \brief Declare an optional API function
  *
  * \param result The type of result the function returns
  * \param name The name of the function
@@ -225,12 +91,12 @@
  * \code
  * AST_OPTIONAL_API(int, ast_agi_register, (struct ast_module *mod, agi_command *cmd),
  *                  { return AST_OPTIONAL_API_UNAVAILABLE; });
- * \endcode		 
+ * \endcode
  */
-#define AST_OPTIONAL_API(result, name, proto, stub) result AST_OPTIONAL_API_NAME(name) proto
 
 /*!
- * \brief Define an optional API function with compiler attributes
+ * \def AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)
+ * \brief Declare an optional API function with compiler attributes
  *
  * \param result The type of result the function returns
  * \param attr Any compiler attributes to be applied to the function (without the __attribute__ wrapper)
@@ -238,11 +104,154 @@
  * \param proto The prototype (arguments) of the function
  * \param stub The code block that will be used by the hidden stub when needed
  */
-#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub) result __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto
 
-/* End of non-optional implementation */
+#if defined(OPTIONAL_API)
 
+#if !defined(HAVE_ATTRIBUTE_constructor) || !defined(HAVE_ATTRIBUTE_constructor)
+#error OPTIONAL_API requires compiler constructor/destructor support
 #endif
+
+/*!
+ * \internal
+ * \brief Function pointer to an optional API function.
+ *
+ * Functions that are declared as optional may have any signature they want;
+ * they are cast to this type as needed. We don't use a \c void pointer, because
+ * technically data and function pointers are incompatible.
+ *
+ * \note
+ * The may_alias attribute is to avoid type punning/strict aliasing warnings
+ * with older GCC's.
+ */
+typedef void (*ast_optional_fn)(void) attribute_may_alias;
+
+/*!
+ * \internal
+ * \brief Provide an implementation of an optional API.
+ *
+ * Any declared usages of this function are linked.
+ *
+ * \param symname Name of the provided function.
+ * \param impl Function pointer to the implementation function.
+ */
+void ast_optional_api_provide(const char *symname, ast_optional_fn impl);
+
+/*!
+ * \internal
+ * \brief Remove an implementation of an optional API.
+ *
+ * Any declared usages of this function are unlinked.
+ *
+ * \param symname Name of the provided function.
+ * \param impl Function pointer to the implementation function.
+ */
+void ast_optional_api_unprovide(const char *symname, ast_optional_fn impl);
+
+/*!
+ * \internal
+ * \brief Define a usage of an optional API.
+ *
+ * If the API has been provided, it will be linked into \a optional_ref.
+ * Otherwise, it will be linked to \a stub until an implementation is provided.
+ *
+ * \param symname Name of the function to use.
+ * \param optional_ref Pointer-to-function-pointer to link to impl/stub.
+ * \param stub Stub function to link to when impl is not available.
+ * \param module Name of the module requesting the API.
+ */
+void ast_optional_api_use(const char *symname, ast_optional_fn *optional_ref,
+	ast_optional_fn stub, const char *module);
+
+/*!
+ * \internal
+ * \brief Remove a usage of an optional API.
+ *
+ * The \a optional_ref will be linked to the \a stub provided at use time,
+ * will no longer be updated if the API is provided/removed.
+ *
+ * \param symname Name of the function to use.
+ * \param optional_ref Pointer-to-function-pointer to link to impl/stub.
+ * \param module Name of the module requesting the API.
+ */
+void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
+	const char *module);
+
+/*!
+ * \brief Call at exit to clean up optional_api internals.
+ *
+ * Since the optional_api code might run before main() starts, it can't safely
+ * register its own cleanup handlers. That has to be done within main().
+ */
+void optional_api_cleanup(void);
+
+#define AST_OPTIONAL_API_NAME(name) __##name
+
+#if defined(AST_API_MODULE)
+/* Module defining the API */
+
+#define AST_OPTIONAL_API_IMPL_INIT(name)				\
+	static void __attribute__((constructor)) __init__##name##_impl(void) { \
+		ast_optional_api_provide(#name,				\
+			(ast_optional_fn)AST_OPTIONAL_API_NAME(name));	\
+	}								\
+	static void __attribute__((destructor)) __dtor__##name##_impl(void) { \
+		ast_optional_api_unprovide(#name,			\
+			(ast_optional_fn)AST_OPTIONAL_API_NAME(name));	\
+	}
+
+#define AST_OPTIONAL_API(result, name, proto, stub)			\
+	result AST_OPTIONAL_API_NAME(name) proto;			\
+	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const \
+	     name = AST_OPTIONAL_API_NAME(name);			\
+	AST_OPTIONAL_API_IMPL_INIT(name)
+
+#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)		\
+	result  __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto; \
+	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const \
+	     name = AST_OPTIONAL_API_NAME(name);			\
+	AST_OPTIONAL_API_IMPL_INIT(name)
+
+#else
+/* Module using the API */
+
+#define AST_OPTIONAL_API_INIT(name)					\
+	static void __attribute__((constructor)) __init__##name(void) {	\
+		ast_optional_api_use(#name, (ast_optional_fn *)&name,	\
+			(ast_optional_fn)__stub__##name,		\
+			AST_MODULE);					\
+	}								\
+	static void __attribute__((destructor)) __dtor__##name(void) {	\
+		ast_optional_api_unuse(#name, (ast_optional_fn *)&name, \
+			AST_MODULE);					\
+	}
+
+#define AST_OPTIONAL_API(result, name, proto, stub)			\
+	static result __stub__##name proto stub;			\
+	static attribute_unused						\
+		typeof(__stub__##name) * name;				\
+	AST_OPTIONAL_API_INIT(name)
+
+#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)		\
+	static __attribute__((attr)) result __stub__##name proto stub;	\
+	static attribute_unused	__attribute__((attr))			\
+		typeof(__stub__##name) * name;				\
+	AST_OPTIONAL_API_INIT(name)
+
+#endif /* defined(AST_API_MODULE) */
+
+#else /* defined(OPTIONAL_API) */
+
+/* Non-optional API */
+
+#define AST_OPTIONAL_API_NAME(name) name
+
+#define AST_OPTIONAL_API(result, name, proto, stub)	\
+	result AST_OPTIONAL_API_NAME(name) proto
+
+#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)	\
+	result __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto
+
+#endif /* defined(OPTIONAL_API) */
 
 #undef AST_API_MODULE
 

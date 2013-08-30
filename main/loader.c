@@ -185,6 +185,8 @@ void ast_module_register(const struct ast_module_info *info)
 		mod = resource_being_loaded;
 	}
 
+	ast_verb(5, "Registering module %s\n", info->name);
+
 	mod->info = info;
 	AST_LIST_HEAD_INIT(&mod->users);
 
@@ -230,6 +232,7 @@ void ast_module_unregister(const struct ast_module_info *info)
 	AST_LIST_UNLOCK(&module_list);
 
 	if (mod) {
+		ast_verb(5, "Unregistering module %s\n", info->name);
 		AST_LIST_HEAD_DESTROY(&mod->users);
 		ast_free(mod);
 	}
@@ -403,16 +406,83 @@ static struct ast_module *find_resource(const char *resource, int do_lock)
 }
 
 #ifdef LOADABLE_MODULES
+
+/*!
+ * \brief dlclose(), with failure logging.
+ */
+static void logged_dlclose(const char *name, void *lib)
+{
+	if (dlclose(lib) != 0) {
+		ast_log(LOG_WARNING, "Failed to unload %s: %s\n",
+			name, dlerror());
+	}
+}
+
+#if defined(HAVE_RTLD_NOLOAD)
+/*!
+ * \brief Check to see if the given resource is loaded.
+ *
+ * \param resource_name Name of the resource, including .so suffix.
+ * \return False (0) if module is not loaded.
+ * \return True (non-zero) if module is loaded.
+ */
+static int is_module_loaded(const char *resource_name)
+{
+	char fn[PATH_MAX] = "";
+	void *lib;
+
+	ast_verb(10, "Checking if %s is loaded\n", resource_name);
+
+	snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_MODULE_DIR,
+		resource_name);
+
+	lib = dlopen(fn, RTLD_LAZY | RTLD_NOLOAD);
+
+	if (lib) {
+		ast_verb(10, "  %s loaded\n", resource_name);
+		logged_dlclose(resource_name, lib);
+		return 1;
+	}
+
+	ast_verb(10, "  %s not loaded\n", resource_name);
+	return 0;
+}
+#endif
+
 static void unload_dynamic_module(struct ast_module *mod)
 {
+	char *name = ast_strdupa(ast_module_name(mod));
 	void *lib = mod->lib;
 
 	/* WARNING: the structure pointed to by mod is going to
 	   disappear when this operation succeeds, so we can't
 	   dereference it */
 
-	if (lib)
-		while (!dlclose(lib));
+	if (!lib) {
+		return;
+	}
+
+	logged_dlclose(name, lib);
+
+	/* There are several situations where the module might still be resident
+	 * in memory.
+	 *
+	 * If somehow there was another dlopen() on the same module (unlikely,
+	 * since that all is supposed to happen in loader.c).
+	 *
+	 * Or the lazy resolution of a global symbol (very likely, since that is
+	 * how we load all of our modules that export global symbols).
+	 *
+	 * Avoid the temptation of repeating the dlclose(). The other code that
+	 * dlopened the module still has its module reference, and should close
+	 * it itself. In other situations, dlclose() will happily return success
+	 * for as many times as you wish to call it.
+	 */
+#if defined(HAVE_RTLD_NOLOAD)
+	if (is_module_loaded(name)) {
+		ast_log(LOG_WARNING, "Module '%s' could not be completely unloaded\n", name);
+	}
+#endif
 }
 
 static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, struct ast_heap *resource_heap, int required);
@@ -461,7 +531,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	if (resource_being_loaded != (mod = AST_LIST_LAST(&module_list))) {
 		ast_log(LOG_WARNING, "Module '%s' did not register itself during load\n", resource_in);
 		/* no, it did not, so close it and return */
-		while (!dlclose(lib));
+		logged_dlclose(resource_in, lib);
 		/* note that the module's destructor will call ast_module_unregister(),
 		   which will free the structure we allocated in resource_being_loaded */
 		return NULL;
@@ -472,32 +542,11 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	/* if we are being asked only to load modules that provide global symbols,
 	   and this one does not, then close it and return */
 	if (global_symbols_only && !wants_global) {
-		while (!dlclose(lib));
+		logged_dlclose(resource_in, lib);
 		return NULL;
 	}
 
-	/* This section is a workaround for a gcc 4.1 bug that has already been
-	 * fixed in later versions.  Unfortunately, some distributions, such as
-	 * RHEL/CentOS 5, distribute gcc 4.1, so we're stuck with having to deal
-	 * with this issue.  This basically ensures that optional_api modules are
-	 * loaded before any module which requires their functionality. */
-#if !defined(HAVE_ATTRIBUTE_weak_import) && !defined(HAVE_ATTRIBUTE_weakref)
-	if (!ast_strlen_zero(mod->info->nonoptreq)) {
-		/* Force any required dependencies to load */
-		char *each, *required_resource = ast_strdupa(mod->info->nonoptreq);
-		while ((each = strsep(&required_resource, ","))) {
-			struct ast_module *dependency;
-			each = ast_strip(each);
-			dependency = find_resource(each, 0);
-			/* Is it already loaded? */
-			if (!dependency) {
-				load_resource(each, global_symbols_only, resource_heap, 1);
-			}
-		}
-	}
-#endif
-
-	while (!dlclose(lib));
+	logged_dlclose(resource_in, lib);
 	resource_being_loaded = NULL;
 
 	/* start the load process again */
@@ -523,6 +572,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 
 	return AST_LIST_LAST(&module_list);
 }
+
 #endif
 
 void ast_module_shutdown(void)

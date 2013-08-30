@@ -1,4 +1,4 @@
-	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
+<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 			<support_level>core</support_level>
 		</member>
@@ -28,6 +28,13 @@
 			<!-- Added to work around GCC bug
 			     See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=47816
 			  -->
+			<support_level>extended</support_level>
+		</member>
+		<member name="OPTIONAL_API" displayname="Enable the optional API">
+			<!-- Added to manually disable the optional API, since
+			     it's now supported on all systems.
+			  -->
+			<defaultenabled>yes</defaultenabled>
 			<support_level>extended</support_level>
 		</member>
 		<member name="BETTER_BACKTRACES" displayname="Use libbfd (GPL) to generate better inline backtraces">

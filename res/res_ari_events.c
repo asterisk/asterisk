@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
+#include "asterisk/http_websocket.h"
 
 #define MAX_VALS 128
 

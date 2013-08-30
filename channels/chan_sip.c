@@ -298,6 +298,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_system.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/features_config.h"
+#include "asterisk/http_websocket.h"
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
