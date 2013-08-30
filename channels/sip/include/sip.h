@@ -35,7 +35,6 @@
 #include "asterisk/indications.h"
 #include "asterisk/security_events.h"
 #include "asterisk/features.h"
-#include "asterisk/http_websocket.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/features_config.h"
@@ -768,6 +767,8 @@ struct sip_settings {
 	int tcp_enabled;
 	int default_max_forwards;    /*!< Default max forwards (SIP Anti-loop) */
 };
+
+struct ast_websocket;
 
 /*! \brief The SIP socket definition */
 struct sip_socket {

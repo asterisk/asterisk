@@ -632,6 +632,8 @@ class ApiDeclaration(Stringify):
         api_json = api_decl_json.get('apis') or []
         self.apis = [
             Api().load(j, processor, context) for j in api_json]
+        self.has_websocket = filter(lambda api: api.has_websocket,
+                                    self.apis) == []
         models = api_decl_json.get('models').items() or []
         self.models = [Model().load(id, json, processor, context)
                        for (id, json) in models]

@@ -63,6 +63,9 @@ Build System
    Please see https://wiki.asterisk.org/wiki/x/J4GLAQ for more information on
    configuring and installing PJSIP for usage with Asterisk.
 
+ * Optional API was re-implemented to be more portable, and no longer requires
+   weak reference support from the compiler. The build option OPTIONAL_API may
+   be disabled to disable Optional API support.
 
 Applications
 ------------------

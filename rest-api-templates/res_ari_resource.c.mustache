@@ -53,6 +53,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
+{{^has_websocket}}
+{{! Only include http_websocket if necessary. Otherwise we'll do a lot of
+ *  unnecessary optional_api intialization, which makes optional_api harder
+ *  to debug
+ }}
+#include "asterisk/http_websocket.h"
+{{/has_websocket}}
 
 #define MAX_VALS 128
 

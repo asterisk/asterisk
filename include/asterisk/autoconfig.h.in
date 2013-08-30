@@ -82,11 +82,20 @@
 /* Define to 1 if your GCC C compiler supports the 'const' attribute. */
 #undef HAVE_ATTRIBUTE_const
 
+/* Define to 1 if your GCC C compiler supports the 'constructor' attribute. */
+#undef HAVE_ATTRIBUTE_constructor
+
 /* Define to 1 if your GCC C compiler supports the 'deprecated' attribute. */
 #undef HAVE_ATTRIBUTE_deprecated
 
+/* Define to 1 if your GCC C compiler supports the 'destructor' attribute. */
+#undef HAVE_ATTRIBUTE_destructor
+
 /* Define to 1 if your GCC C compiler supports the 'malloc' attribute. */
 #undef HAVE_ATTRIBUTE_malloc
+
+/* Define to 1 if your GCC C compiler supports the 'may_alias' attribute. */
+#undef HAVE_ATTRIBUTE_may_alias
 
 /* Define to 1 if your GCC C compiler supports the 'pure' attribute. */
 #undef HAVE_ATTRIBUTE_pure
@@ -100,15 +109,6 @@
 /* Define to 1 if your GCC C compiler supports the 'warn_unused_result'
    attribute. */
 #undef HAVE_ATTRIBUTE_warn_unused_result
-
-/* Define to 1 if your GCC C compiler supports the 'weak' attribute. */
-#undef HAVE_ATTRIBUTE_weak
-
-/* Define to 1 if your GCC C compiler supports the 'weak_import' attribute. */
-#undef HAVE_ATTRIBUTE_weak_import
-
-/* Define to 1 if your GCC C compiler supports the 'weakref' attribute. */
-#undef HAVE_ATTRIBUTE_weakref
 
 /* Define to 1 if you have the Debug symbol decoding library. */
 #undef HAVE_BFD
@@ -719,6 +719,9 @@
 
 /* Define to 1 if you have the `roundl' function. */
 #undef HAVE_ROUNDL
+
+/* Define if your system has the RTLD_NOLOAD headers. */
+#undef HAVE_RTLD_NOLOAD
 
 /* Define to 1 if your system has /sbin/launchd. */
 #undef HAVE_SBIN_LAUNCHD

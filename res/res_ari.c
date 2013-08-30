@@ -124,11 +124,11 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "ari/internal.h"
+#include "asterisk/ari.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/module.h"
 #include "asterisk/paths.h"
-#include "asterisk/ari.h"
-#include "ari/internal.h"
 
 #include <string.h>
 #include <sys/stat.h>
@@ -522,11 +522,8 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 
 	if (handler->ws_server && method == AST_HTTP_GET) {
 		/* WebSocket! */
-		struct ast_http_uri fake_urih = {
-			.data = handler->ws_server,
-		};
-		ast_websocket_uri_cb(ser, &fake_urih, uri, method, get_params,
-			headers);
+		ari_handle_websocket(handler->ws_server, ser, uri, method,
+			get_params, headers);
 		/* Since the WebSocket code handles the connection, we shouldn't
 		 * do anything else; setting no_response */
 		response->no_response = 1;

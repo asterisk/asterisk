@@ -21,7 +21,7 @@
 
 /*! \file
  *
- * \brief Stasis RESTful API hooks.
+ * \brief Asterisk RESTful API hooks.
  *
  * This header file is used mostly as glue code between generated declarations
  * and res_ari.c.
@@ -31,7 +31,14 @@
 
 #include "asterisk/http.h"
 #include "asterisk/json.h"
-#include "asterisk/http_websocket.h"
+
+/* Forward-declare websocket structs. This avoids including http_websocket.h,
+ * which causes optional_api stuff to happen, which makes optional_api more
+ * difficult to debug. */
+
+struct ast_websocket_server;
+
+struct ast_websocket;
 
 /*!
  * \brief Configured encoding format for JSON output.
