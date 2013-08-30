@@ -134,6 +134,7 @@ static void ast_ari_get_stored_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
 		is_valid = 1;
 		break;
 	default:
@@ -190,6 +191,7 @@ static void ast_ari_delete_stored_recording_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
 		is_valid = 1;
 		break;
 	default:
@@ -204,55 +206,6 @@ static void ast_ari_delete_stored_recording_cb(
 
 	if (!is_valid) {
 		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingName}\n");
-		ast_ari_response_error(response, 500,
-			"Internal Server Error", "Response validation failed");
-	}
-#endif /* AST_DEVMODE */
-
-fin: __attribute__((unused))
-	return;
-}
-/*!
- * \brief Parameter parsing callback for /recordings/live.
- * \param get_params GET parameters in the HTTP request.
- * \param path_vars Path variables extracted from the request.
- * \param headers HTTP headers.
- * \param[out] response Response to the HTTP request.
- */
-static void ast_ari_get_live_recordings_cb(
-	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
-{
-	struct ast_get_live_recordings_args args = {};
-#if defined(AST_DEVMODE)
-	int is_valid;
-	int code;
-#endif /* AST_DEVMODE */
-
-	ast_ari_get_live_recordings(headers, &args, response);
-#if defined(AST_DEVMODE)
-	code = response->response_code;
-
-	switch (code) {
-	case 0: /* Implementation is still a stub, or the code wasn't set */
-		is_valid = response->message == NULL;
-		break;
-	case 500: /* Internal Server Error */
-	case 501: /* Not Implemented */
-		is_valid = 1;
-		break;
-	default:
-		if (200 <= code && code <= 299) {
-			is_valid = ast_ari_validate_list(response->message,
-				ast_ari_validate_live_recording_fn());
-		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/live\n", code);
-			is_valid = 0;
-		}
-	}
-
-	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /recordings/live\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -745,7 +698,6 @@ static struct stasis_rest_handlers recordings_live_recordingName = {
 static struct stasis_rest_handlers recordings_live = {
 	.path_segment = "live",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_live_recordings_cb,
 	},
 	.num_children = 1,
 	.children = { &recordings_live_recordingName, }

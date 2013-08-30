@@ -30,21 +30,111 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_app_recording.h"
 #include "resource_recordings.h"
 
-void ast_ari_get_stored_recordings(struct ast_variable *headers, struct ast_get_stored_recordings_args *args, struct ast_ari_response *response)
+void ast_ari_get_stored_recordings(struct ast_variable *headers,
+	struct ast_get_stored_recordings_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_get_stored_recordings\n");
+	RAII_VAR(struct ao2_container *, recordings, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ao2_iterator i;
+	void *obj;
+
+	recordings = stasis_app_stored_recording_find_all();
+
+	if (!recordings) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	json = ast_json_array_create();
+	if (!json) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	i = ao2_iterator_init(recordings, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_app_stored_recording *, recording, obj,
+			ao2_cleanup);
+
+		int r = ast_json_array_append(
+			json, stasis_app_stored_recording_to_json(recording));
+		if (r != 0) {
+			ast_ari_response_alloc_failed(response);
+			ao2_iterator_destroy(&i);
+			return;
+		}
+	}
+	ao2_iterator_destroy(&i);
+
+	ast_ari_response_ok(response, ast_json_ref(json));
 }
-void ast_ari_get_stored_recording(struct ast_variable *headers, struct ast_get_stored_recording_args *args, struct ast_ari_response *response)
+
+void ast_ari_get_stored_recording(struct ast_variable *headers,
+	struct ast_get_stored_recording_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_get_stored_recording\n");
+	RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
+		ao2_cleanup);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+
+	recording = stasis_app_stored_recording_find_by_name(
+		args->recording_name);
+	if (recording == NULL) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Recording not found");
+		return;
+	}
+
+	json = stasis_app_stored_recording_to_json(recording);
+	if (json == NULL) {
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Error building response");
+		return;
+	}
+
+	ast_ari_response_ok(response, ast_json_ref(json));
 }
-void ast_ari_delete_stored_recording(struct ast_variable *headers, struct ast_delete_stored_recording_args *args, struct ast_ari_response *response)
+
+void ast_ari_delete_stored_recording(struct ast_variable *headers,
+	struct ast_delete_stored_recording_args *args,
+	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_delete_stored_recording\n");
-}
-void ast_ari_get_live_recordings(struct ast_variable *headers, struct ast_get_live_recordings_args *args, struct ast_ari_response *response)
-{
-	ast_log(LOG_ERROR, "TODO: ast_ari_get_live_recordings\n");
+	RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
+		ao2_cleanup);
+	int res;
+
+	recording = stasis_app_stored_recording_find_by_name(
+		args->recording_name);
+	if (recording == NULL) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Recording not found");
+		return;
+	}
+
+	res = stasis_app_stored_recording_delete(recording);
+
+	if (res != 0) {
+		switch (errno) {
+		case EACCES:
+		case EPERM:
+			ast_ari_response_error(response, 500,
+				"Internal Server Error",
+				"Delete failed");
+			break;
+		default:
+			ast_log(LOG_WARNING,
+				"Unexpected error deleting recording %s: %s\n",
+				args->recording_name, strerror(errno));
+			ast_ari_response_error(response, 500,
+				"Internal Server Error",
+				"Delete failed");
+			break;
+		}
+		return;
+	}
+
+	ast_ari_response_no_content(response);
 }
 
 void ast_ari_get_live_recording(struct ast_variable *headers,

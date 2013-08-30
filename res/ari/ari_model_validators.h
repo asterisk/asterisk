@@ -937,10 +937,8 @@ ari_validator ast_ari_validate_stasis_start_fn(void);
  * - name: string (required)
  * - state: string (required)
  * StoredRecording
- * - duration_seconds: int
- * - formats: List[string] (required)
- * - id: string (required)
- * - time: Date
+ * - format: string (required)
+ * - name: string (required)
  * FormatLangPair
  * - format: string (required)
  * - language: string (required)

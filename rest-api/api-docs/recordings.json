@@ -37,6 +37,12 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						}
 					]
 				},
 				{
@@ -53,19 +59,13 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						}
 					]
-				}
-			]
-		},
-		{
-			"path": "/recordings/live",
-			"description": "Recordings that are in progress",
-			"operations": [
-				{
-					"httpMethod": "GET",
-					"summary": "List libe recordings.",
-					"nickname": "getLiveRecordings",
-					"responseClass": "List[LiveRecording]"
 				}
 			]
 		},
@@ -278,22 +278,13 @@
 			"id": "StoredRecording",
 			"description": "A past recording that may be played back.",
 			"properties": {
-				"id": {
+				"name": {
 					"required": true,
 					"type": "string"
 				},
-				"formats": {
+				"format": {
 					"required": true,
-					"type": "List[string]"
-				},
-				"duration_seconds": {
-					"required": false,
-					"type": "int"
-				},
-				"time": {
-					"description": "Time recording was started",
-					"required": false,
-					"type": "Date"
+					"type": "string"
 				}
 			}
 		},
@@ -303,7 +294,26 @@
 			"properties": {
 				"name": {
 					"required": true,
-					"type": "string"
+					"type": "string",
+					"description": "Base name for the recording"
+				},
+				"format": {
+					"required": true,
+					"type": "string",
+					"description": "Recording format (wav, gsm, etc.)"
+				},
+				"state": {
+					"required": false,
+					"type": "string",
+					"allowableValues": {
+						"valueType": "LIST",
+						"values": [
+							"queued",
+							"playing",
+							"paused",
+							"done"
+						]
+					}
 				},
 				"state": {
 					"required": true,

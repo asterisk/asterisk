@@ -1061,46 +1061,27 @@ int ast_ari_validate_stored_recording(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
-	int has_formats = 0;
-	int has_id = 0;
+	int has_format = 0;
+	int has_name = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
-		if (strcmp("duration_seconds", ast_json_object_iter_key(iter)) == 0) {
+		if (strcmp("format", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
-			prop_is_valid = ast_ari_validate_int(
-				ast_json_object_iter_value(iter));
-			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI StoredRecording field duration_seconds failed validation\n");
-				res = 0;
-			}
-		} else
-		if (strcmp("formats", ast_json_object_iter_key(iter)) == 0) {
-			int prop_is_valid;
-			has_formats = 1;
-			prop_is_valid = ast_ari_validate_list(
-				ast_json_object_iter_value(iter),
-				ast_ari_validate_string);
-			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI StoredRecording field formats failed validation\n");
-				res = 0;
-			}
-		} else
-		if (strcmp("id", ast_json_object_iter_key(iter)) == 0) {
-			int prop_is_valid;
-			has_id = 1;
+			has_format = 1;
 			prop_is_valid = ast_ari_validate_string(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI StoredRecording field id failed validation\n");
+				ast_log(LOG_ERROR, "ARI StoredRecording field format failed validation\n");
 				res = 0;
 			}
 		} else
-		if (strcmp("time", ast_json_object_iter_key(iter)) == 0) {
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
-			prop_is_valid = ast_ari_validate_date(
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI StoredRecording field time failed validation\n");
+				ast_log(LOG_ERROR, "ARI StoredRecording field name failed validation\n");
 				res = 0;
 			}
 		} else
@@ -1112,13 +1093,13 @@ int ast_ari_validate_stored_recording(struct ast_json *json)
 		}
 	}
 
-	if (!has_formats) {
-		ast_log(LOG_ERROR, "ARI StoredRecording missing required field formats\n");
+	if (!has_format) {
+		ast_log(LOG_ERROR, "ARI StoredRecording missing required field format\n");
 		res = 0;
 	}
 
-	if (!has_id) {
-		ast_log(LOG_ERROR, "ARI StoredRecording missing required field id\n");
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI StoredRecording missing required field name\n");
 		res = 0;
 	}
 
