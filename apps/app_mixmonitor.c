@@ -129,7 +129,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<variable name="MIXMONITOR_FILENAME">
 					<para>Will contain the filename used to record.</para>
 				</variable>
-			</variablelist>	
+			</variablelist>
 		</description>
 		<see-also>
 			<ref type="application">Monitor</ref>
@@ -307,7 +307,7 @@ static void destroy_monitor_audiohook(struct mixmonitor *mixmonitor)
 	ast_audiohook_destroy(&mixmonitor->audiohook);
 }
 
-static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook) 
+static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
 {
 	struct ast_channel *peer = NULL;
 	int res = 0;
@@ -318,7 +318,7 @@ static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
 	ast_audiohook_attach(chan, audiohook);
 
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
-		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
+		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);
 
 	return res;
 }
@@ -331,12 +331,14 @@ static void mixmonitor_free(struct mixmonitor *mixmonitor)
 		if (mixmonitor->mixmonitor_ds) {
 			ast_mutex_destroy(&mixmonitor->mixmonitor_ds->lock);
 			ast_cond_destroy(&mixmonitor->mixmonitor_ds->destruction_condition);
-			ast_free(mixmonitor->filename_write);
-			ast_free(mixmonitor->filename_read);
 			ast_free(mixmonitor->mixmonitor_ds);
-			ast_free(mixmonitor->name);
-			ast_free(mixmonitor->post_process);
 		}
+		ast_free(mixmonitor->name);
+		ast_free(mixmonitor->post_process);
+		ast_free(mixmonitor->filename);
+		ast_free(mixmonitor->filename_write);
+		ast_free(mixmonitor->filename_read);
+
 		ast_free(mixmonitor);
 	}
 }
@@ -370,7 +372,7 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 	}
 }
 
-static void *mixmonitor_thread(void *obj) 
+static void *mixmonitor_thread(void *obj)
 {
 	struct mixmonitor *mixmonitor = obj;
 
@@ -532,7 +534,7 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 static void launch_monitor_thread(struct ast_channel *chan, const char *filename,
 				  unsigned int flags, int readvol, int writevol,
 				  const char *post_process, const char *filename_write,
-				  const char *filename_read) 
+				  const char *filename_read)
 {
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
@@ -650,7 +652,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 		AST_APP_ARG(post_process);
 	);
-	
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename or ,t(filename) and/or r(filename)\n");
 		return -1;
@@ -674,7 +676,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 				readvol = get_volfactor(x);
 			}
 		}
-		
+
 		if (ast_test_flag(&flags, MUXFLAG_WRITEVOLUME)) {
 			if (ast_strlen_zero(opts[OPT_ARG_WRITEVOLUME])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the spoken volume ('V') option.\n");
@@ -684,7 +686,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 				writevol = get_volfactor(x);
 			}
 		}
-		
+
 		if (ast_test_flag(&flags, MUXFLAG_VOLUME)) {
 			if (ast_strlen_zero(opts[OPT_ARG_VOLUME])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the combined volume ('W') option.\n");
@@ -878,7 +880,7 @@ static int unload_module(void)
 	res = ast_unregister_application(stop_app);
 	res |= ast_unregister_application(app);
 	res |= ast_manager_unregister("MixMonitorMute");
-	
+
 	return res;
 }
 
