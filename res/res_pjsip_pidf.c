@@ -178,6 +178,42 @@ static void release_pool(void *obj)
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 }
 
+/*!
+ * \internal
+ * \brief Convert angle brackets in input into escaped forms suitable for XML
+ *
+ * \param input Raw input string
+ * \param output Sanitized string
+ * \param len Size of output buffer
+ */
+static void sanitize_xml(const char *input, char *output, size_t len)
+{
+	char *copy = ast_strdupa(input);
+	char *break_point;
+
+	output[0] = '\0';
+
+	while ((break_point = strpbrk(copy, "<>"))) {
+		char bracket = *break_point;
+
+		*break_point = '\0';
+		strncat(output, copy, len);
+
+		if (bracket == '<') {
+			strncat(output, "&lt;", len);
+		} else {
+			strncat(output, "&rt;", len);
+		}
+
+		copy = break_point + 1;
+	}
+
+	/* Be sure to copy everything after the final bracket */
+	if (*copy) {
+		strncat(output, copy, len);
+	}
+}
+
 static int pidf_xml_create_body(struct ast_sip_exten_state_data *data, const char *local,
 				const char *remote, struct ast_str **body_text)
 {
@@ -186,6 +222,7 @@ static int pidf_xml_create_body(struct ast_sip_exten_state_data *data, const cha
 	pj_str_t entity, note, id, contact, priority;
 	char *statestring = NULL, *pidfstate = NULL, *pidfnote = NULL;
 	int local_state, size;
+	char sanitized[PJSIP_MAX_URL_SIZE];
 
 	RAII_VAR(pj_pool_t *, pool,
 		 pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
@@ -211,7 +248,8 @@ static int pidf_xml_create_body(struct ast_sip_exten_state_data *data, const cha
 		return -1;
 	}
 
-	pjpidf_tuple_set_contact(pool, tuple, pj_cstr(&contact, remote));
+	sanitize_xml(remote, sanitized, sizeof(sanitized));
+	pjpidf_tuple_set_contact(pool, tuple, pj_cstr(&contact, sanitized));
 	pjpidf_tuple_set_contact_prio(pool, tuple, pj_cstr(&priority, "1"));
 	pjpidf_status_set_basic_open(pjpidf_tuple_get_status(tuple),
 				     (pidfstate[0] == 'b') || (local_state != NOTIFY_CLOSED));
