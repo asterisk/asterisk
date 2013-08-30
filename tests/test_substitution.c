@@ -53,16 +53,17 @@ static enum ast_test_result_state test_chan_integer(struct ast_test *test,
 	char workspace[4096];
 	struct ast_str *str = ast_str_create(16);
 
-	ast_test_status_update(test, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 	for (i = 0; i < 256; i++) {
 		*ifield = i;
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
+
 		if (sscanf(workspace, "%d", &value1) != 1 || value1 != i || sscanf(ast_str_buffer(str), "%d", &value2) != 1 || value2 != i) {
 			ast_test_status_update(test, "%s != %s and/or %d != %d != %d\n", ast_str_buffer(str), workspace, value1, value2, i);
 			okay = 0;
 		}
 	}
+	ast_test_status_update(test, "Tested '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -76,16 +77,17 @@ static enum ast_test_result_state test_chan_integer_accessor(struct ast_test *te
 	char workspace[4096];
 	struct ast_str *str = ast_str_create(16);
 
-	ast_test_status_update(test, "Testing '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 	for (i = 0; i < 256; i++) {
 		setter(c, i);
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
+
 		if (sscanf(workspace, "%d", &value1) != 1 || value1 != i || sscanf(ast_str_buffer(str), "%d", &value2) != 1 || value2 != i) {
 			ast_test_status_update(test, "%s != %s and/or %d != %d != %d\n", ast_str_buffer(str), workspace, value1, value2, i);
 			okay = 0;
 		}
 	}
+	ast_test_status_update(test, "Tested '%s' . . . . . %s\n", expression, okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -105,13 +107,14 @@ static enum ast_test_result_state test_chan_string(struct ast_test *test,
 		setter(c, values[i]);
 		ast_str_substitute_variables(&str, 0, c, expression);
 		pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
-		ast_test_status_update(test, "Testing '%s' . . . . . %s\n",
-				expression, okay ? "passed" : "FAILED");
+
 		if (strcmp(getter(c), ast_str_buffer(str)) != 0 || strcmp(getter(c), workspace) != 0) {
 			ast_test_status_update(test, "%s != %s != %s\n", getter(c), ast_str_buffer(str), workspace);
 			okay = 0;
 		}
 	}
+	ast_test_status_update(test, "Tested '%s' . . . . . %s\n",
+		expression, okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -132,14 +135,15 @@ static enum ast_test_result_state test_chan_variable(struct ast_test *test,
 		pbx_builtin_setvar_helper(c, varname, values[i]);
 		ast_str_substitute_variables(&str, 0, c, ast_str_buffer(var));
 		pbx_substitute_variables_helper(c, ast_str_buffer(var), workspace, sizeof(workspace));
-		ast_test_status_update(test, "Testing '%s' . . . . . %s\n",
-				ast_str_buffer(var), okay ? "passed" : "FAILED");
+
 		if (strcmp(values[i], ast_str_buffer(str)) != 0 || strcmp(values[i], workspace) != 0) {
 			ast_test_status_update(test, "%s != %s != %s\n",
 					values[i], ast_str_buffer(str), workspace);
 			okay = 0;
 		}
 	}
+	ast_test_status_update(test, "Tested '%s' . . . . . %s\n",
+		ast_str_buffer(var), okay ? "passed" : "FAILED");
 
 	ast_free(str);
 	ast_free(var);
@@ -156,13 +160,14 @@ static enum ast_test_result_state test_chan_function(struct ast_test *test,
 
 	ast_str_substitute_variables(&str, 0, c, expression);
 	pbx_substitute_variables_helper(c, expression, workspace, sizeof(workspace));
-	ast_test_status_update(test, "Testing '%s' . . . . . %s\n",
-			expression, okay ? "passed" : "FAILED");
+
 	if (strcmp(workspace, ast_str_buffer(str)) != 0) {
-		ast_test_status_update(test, "test_chan_function, expr: '%s' ... %s != %s\n",
+		ast_test_status_update(test, "expr: '%s' ... %s != %s\n",
 				expression, ast_str_buffer(str), workspace);
 		okay = 0;
 	}
+	ast_test_status_update(test, "Tested '%s' . . . . . %s\n",
+		expression, okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -182,15 +187,13 @@ static enum ast_test_result_state test_2way_function(struct ast_test *test,
 	ast_str_substitute_variables(&str, 0, c, ast_str_buffer(expression));
 
 	okay = !strcmp(ast_str_buffer(str), "foobarbaz");
-
-	ast_test_status_update(test, "Testing '%s%s' and '%s%s' . . . . . %s\n",
-			encode1, encode2, decode1, decode2,
-			okay ? "passed" : "FAILED");
-
 	if (!okay) {
-		ast_test_status_update(test, "  '%s' != 'foobarbaz'\n",
+		ast_test_status_update(test, "'%s' != 'foobarbaz'\n",
 				ast_str_buffer(str));
 	}
+	ast_test_status_update(test, "Tested '%s%s' and '%s%s' . . . . . %s\n",
+		encode1, encode2, decode1, decode2,
+		okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -204,16 +207,15 @@ static enum ast_test_result_state test_expected_result(struct ast_test *test,
 	int okay;
 
 	ast_str_substitute_variables(&str, 0, c, expression);
+
 	okay = !strcmp(ast_str_buffer(str), result);
-
-	ast_test_status_update(test, "Testing '%s' ('%s') == '%s' . . . . . %s\n",
-			ast_str_buffer(str), expression, result,
-			okay ? "passed" : "FAILED");
-
 	if (!okay) {
-		ast_test_status_update(test, "test_expected_result: '%s' != '%s'\n",
+		ast_test_status_update(test, "'%s' != '%s'\n",
 				ast_str_buffer(str), result);
 	}
+	ast_test_status_update(test, "Tested '%s' ('%s') == '%s' . . . . . %s\n",
+		ast_str_buffer(str), expression, result,
+		okay ? "passed" : "FAILED");
 
 	ast_free(str);
 
@@ -287,6 +289,7 @@ AST_TEST_DEFINE(test_substitution)
 	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,cd)}", "ab&ef"));
 	TEST(test_expected_result(test, c, "${SHELL(printf '%d' 123)},${SHELL(printf '%d' 456)}", "123,456"));
 	TEST(test_expected_result(test, c, "${foo},${CDR(answer)},${SHELL(printf '%d' 456)}", "123,0.000000,456"));
+	TEST(test_expected_result(test, c, "${foo},${CDR(answer,u)},${SHELL(printf '%d' 456)}", "123,0.000000,456"));
 	TEST(test_expected_result(test, c, "${foo},${this_does_not_exist},${THIS_DOES_NOT_EXIST(either)}", "123,,"));
 #undef TEST
 
