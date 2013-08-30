@@ -1709,10 +1709,16 @@ static int load_config(void)
 			"", featuregroup_handler, 0);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-		ast_log(LOG_ERROR, "Failed to process features.conf configuration!\n");
-		aco_info_destroy(&cfg_info);
-		ao2_global_obj_release(globals);
-		return -1;
+		RAII_VAR(struct features_config *, features_cfg, __features_config_alloc(0), ao2_cleanup);
+
+		if (aco_set_defaults(&global_option, "general", features_cfg->global) ||
+			aco_set_defaults(&featuremap_option, "featuremap", features_cfg->featuremap)) {
+			ast_log(LOG_ERROR, "Failed to load features.conf and failed to initialize defaults.\n");
+			return -1;
+		}
+
+		ast_log(LOG_NOTICE, "Could not load features config; using defaults\n");
+		ao2_global_obj_replace(globals, features_cfg);
 	}
 
 	return 0;
