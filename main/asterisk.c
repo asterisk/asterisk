@@ -2089,7 +2089,7 @@ static int console_log_verbose(const char *s)
 
 	char prefix[80];
 	const char *c = s;
-	int res = 0;
+	int num, res = 0;
 
 	do {
 		if (VERBOSE_HASMAGIC(s)) {
@@ -2127,7 +2127,10 @@ static int console_log_verbose(const char *s)
 			fputs(prefix, stdout);
 		}
 
-		fwrite(c, sizeof(char), s - c, stdout);
+		num = s - c;
+		if (fwrite(c, sizeof(char), num, stdout) < num) {
+			break;
+		}
 
 		if (!res) {
 			/* if at least some info has been written
