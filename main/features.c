@@ -8850,6 +8850,7 @@ AST_TEST_DEFINE(features_test)
 		}
 		res = -1;
 	}
+	parked_chan = ast_channel_unref(parked_chan);
 
 
 exit_features_test:
@@ -9035,6 +9036,9 @@ static void features_shutdown(void)
 	ast_unregister_application(parkcall);
 	ast_unregister_application(parkedcall);
 	ast_unregister_application(app_bridge);
+#if defined(TEST_FRAMEWORK)
+	AST_TEST_UNREGISTER(features_test);
+#endif	/* defined(TEST_FRAMEWORK) */
 
 	pthread_cancel(parking_thread);
 	pthread_kill(parking_thread, SIGURG);
