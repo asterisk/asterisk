@@ -1290,6 +1290,8 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_name);
 
 	if (!transport || !transport->state) {
+		ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport '%s' for endpoint '%s'\n",
+			transport_name, ast_sorcery_object_get_id(endpoint));
 		return -1;
 	}
 

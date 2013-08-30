@@ -110,6 +110,9 @@ struct ast_sorcery_object_type {
 
 	/*! \brief Serializer for observers */
 	struct ast_taskprocessor *serializer;
+
+	/*! \brief Specifies if object type is reloadable or not */
+	unsigned int reloadable:1;
 };
 
 /*! \brief Structure for registered object type observer */
@@ -575,7 +578,7 @@ static int sorcery_extended_fields_handler(const void *obj, struct ast_variable 
 	return 0;
 }
 
-int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
+int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 
@@ -589,6 +592,7 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
 	object_type->type.item_alloc = alloc;
 	object_type->type.hidden = hidden;
 
+	object_type->reloadable = reloadable;
 	object_type->transform = transform;
 	object_type->apply = apply;
 	object_type->file->types[0] = &object_type->type;
@@ -695,11 +699,25 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
 	return 0;
 }
 
+/*! \brief Retrieves whether or not the type is reloadable */
+static int sorcery_reloadable(const struct ast_sorcery *sorcery, const char *type)
+{
+	RAII_VAR(struct ast_sorcery_object_type *, object_type,
+		 ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	return object_type && object_type->reloadable;
+}
+
 static int sorcery_wizard_load(void *obj, void *arg, int flags)
 {
 	struct ast_sorcery_object_wizard *wizard = obj;
 	struct sorcery_load_details *details = arg;
 	void (*load)(void *data, const struct ast_sorcery *sorcery, const char *type);
+
+	if (details->reload && !sorcery_reloadable(details->sorcery, details->type)) {
+		ast_log(LOG_NOTICE, "Type '%s' is not reloadable, "
+			"maintaining previous values\n", details->type);
+		return 0;
+	}
 
 	load = !details->reload ? wizard->wizard->load : wizard->wizard->reload;
 

@@ -602,6 +602,8 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		RAII_VAR(struct ast_sip_transport *, transport, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", registration->transport), ao2_cleanup);
 
 		if (!transport || !transport->state) {
+			ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport '%s' "
+				" for outbound registration", registration->transport);
 			return -1;
 		}
 

@@ -356,7 +356,7 @@ int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, c
  * \retval 0 success
  * \retval -1 failure
  */
-int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply);
+int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply);
 
 /*!
  * \brief Register an object type
@@ -371,7 +371,22 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
  * \retval -1 failure
  */
 #define ast_sorcery_object_register(sorcery, type, alloc, transform, apply) \
-	__ast_sorcery_object_register((sorcery), (type), 0, (alloc), (transform), (apply))
+	__ast_sorcery_object_register((sorcery), (type), 0, 1, (alloc), (transform), (apply))
+
+/*!
+ * \brief Register an object type that is not reloadable
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param alloc Required object allocation callback
+ * \param transform Optional transformation callback
+ * \param apply Optional object set apply callback
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+#define ast_sorcery_object_register_no_reload(sorcery, type, alloc, transform, apply) \
+	__ast_sorcery_object_register((sorcery), (type), 0, 0, (alloc), (transform), (apply))
 
 /*!
  * \brief Register an internal, hidden object type
@@ -386,7 +401,7 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
  * \retval -1 failure
  */
 #define ast_sorcery_internal_object_register(sorcery, type, alloc, transform, apply) \
-	__ast_sorcery_object_register((sorcery), (type), 1, (alloc), (transform), (apply))
+	__ast_sorcery_object_register((sorcery), (type), 1, 1, (alloc), (transform), (apply))
 
 /*!
  * \brief Set the copy handler for an object type

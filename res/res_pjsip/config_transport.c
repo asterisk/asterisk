@@ -309,7 +309,7 @@ int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery)
 {
 	ast_sorcery_apply_default(sorcery, "transport", "config", "pjsip.conf,criteria=type=transport");
 
-	if (ast_sorcery_object_register(sorcery, "transport", transport_alloc, NULL, transport_apply)) {
+	if (ast_sorcery_object_register_no_reload(sorcery, "transport", transport_alloc, NULL, transport_apply)) {
 		return -1;
 	}
 
