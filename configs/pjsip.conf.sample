@@ -1,26 +1,660 @@
-; This is an in-flux configuration file for the res_pjsip module, it will change as things progress
+; PJSIP Configuration Samples and Quick Reference
+;
+; This file has several very basic configuration examples, to serve as a quick
+; reference to jog your memory when you need to write up a new configuration.
+; It is not intended to teach PJSIP configuration or serve as an exhaustive
+; reference of options and potential scenarios.
+;
+; This file has two main sections.
+; First, manually written examples to serve as a handy reference.
+; Second, a list of all possible PJSIP config options by section. This is
+; pulled from the XML config help. It only shows the synopsis for every item.
+; If you want to see more detail please check the documentation sources
+; mentioned at the top of this file.
 
-;;; Transports
-;[local]
+; Documentation
+;
+; The official documentation is at http://wiki.asterisk.org
+; You can read the XML configuration help via Asterisk command line with
+; "config show help res_pjsip", then you can drill down through the various
+; sections and their options.
+;
+
+;========!!!!!!!!!!!!!!!!!!!  SECURITY NOTICE  !!!!!!!!!!!!!!!!!!!!===========
+;
+; At a minimum please read the file "README-SERIOUSLY.bestpractices.txt",
+; located in the Asterisk source directory before starting Asterisk.
+; Otherwise you risk allowing the security of the Asterisk system to be
+; compromised. Beyond that please visit and read the security information on
+; the wiki at: https://wiki.asterisk.org/wiki/x/EwFB
+;
+; A few basics to pay attention to:
+;
+; Anonymous Calls
+;
+; By default anonymous inbound calls via PJSIP are not allowed. If you want to
+; route anonymous calls you'll need to define an endpoint named "anonymous".
+; res_pjsip_endpoint_identifier_anonymous.so handles that functionality so it
+; must be loaded. It is not recommended to accept anonymous calls.
+;
+; Access Control Lists
+;
+; See the example ACL configuration in this file. Read the configuration help
+; for the section and all of its options. Look over the samples in acl.conf
+; and documentation at https://wiki.asterisk.org/wiki/x/uA80AQ
+; If possible, restrict access to only networks and addresses you trust.
+;
+; Dialplan Contexts
+;
+; When defining configuration (such as an endpoint) that links into
+; dialplan configuration, be aware of what that dialplan does. It's easy to
+; accidentally provide access to internal or outbound dialing extensions which
+; could cost you severely. The "context=" line in endpoint configuration
+; determines which dialplan context inbound calls will enter into.
+;
+;=============================================================================
+
+; Overview of Configuration Section Types Used in the Examples
+;
+; * Transport "transport"
+;   * Configures res_pjsip transport layer interaction.
+; * Endpoint "endpoint"
+;   * Configures core SIP functionality related to SIP endpoints.
+; * Authentication "auth"
+;   * Stores inbound or outbound authentication credentials for use by trunks,
+;     endpoints, registrations.
+; * Address of Record "aor"
+;   * Stores contact information for use by endpoints.
+; * Endpoint Identification "identify"
+;   * Maps a host directly to an endpoint
+; * Access Control List "acl"
+;   * Defines a permission list or references one stored in acl.conf
+; * Registration "registration"
+;   * Contains information about an outbound SIP registration
+
+; The following sections show example configurations for various scenarios.
+; Most require a couple or more configuration types configured in concert.
+
+;===============EXAMPLE TRANSPORTS============================================
+;
+; A few examples for potential transport options.
+;
+; For the NAT transport example, be aware that the options starting with
+; the prefix "external_" will only apply to communication with addresses
+; outside the range set with "localnet=".
+;
+; IPv6: For endpoints using IPv6, remember to set "rtp_ipv6=yes" so that the RTP
+; engine will also be able to bind to an IPv6 address.
+;
+; You can have more than one of any type of transport, as long as it doesn't
+; use the same resources (bind address, port, etc) as the others.
+
+; Basic UDP transport
+;
+;[transport-udp]
 ;type=transport
-;protocol=udp ; Supported protocols are udp, tcp, and tls
-;bind=0.0.0.0 ; This supports both IPv4 and IPv6, port is optional
+;protocol=udp    ;udp,tcp,tls,ws,wss
+;bind=0.0.0.0
 
-;;; Endpoints
-[endpoint]
-type=endpoint
-context=default
-disallow=all
-allow=ulaw
-dtmfmode=rfc4733          ; Supported DTMF modes are rfc4733, inband, info, and none
-;transport=local          ; Name of a specific transport to use when placing calls
-;100rel=yes               ; Enable or disable 100rel support - valid options are: yes, no, required
-;timers=yes               ; Enable or disable session timers support - valid options are: yes, no, required, always
-;timers_min_se=90         ; Minimum session timers expiration period, in seconds
-;timers_sess_expires=1800 ; Session timers expiration period, in seconds
-;mohsuggest=example	      ; What musiconhold class to suggest that the peer channel use when this endpoint places them on hold
-;rtp_ipv6=yes             ; Force IPv6 for RTP transport
-;rtp_symmetric=yes        ; Enable symmetric RTP support
-;use_ptime=yes            ; Whether to use the ptime value received from the endpoint or not
-;media_encryption=no      ; Options for media encryption are no, and sdes
-;use_avpf=no              ; Whether to force usage of AVPF transport for this endpoint
+; UDP transport behind NAT
+;
+;[transport-udp-nat]
+;type=transport
+;protocol=udp
+;bind=0.0.0.0
+;localnet=192.0.2.0/24
+;external_media_address=203.0.113.1
+;external_signaling_address=203.0.113.1
+
+; Basic IPv6 UDP transport
+;
+;[transport-udp-ipv6]
+;type=transport
+;protocol=udp
+;bind=::
+
+; Example IPv4 TLS transport
+;
+;[transport-tls]
+;type=transport
+;protocol=tls
+;bind=0.0.0.0
+;cert_file=/path/mycert.crt
+;privkey_file=/path/mykey.key
+;cipher=ALL
+;method=tlsv1
+
+
+;===============OUTBOUND REGISTRATION WITH OUTBOUND AUTHENTICATION============
+;
+; This is a simple registration that works with some SIP trunking providers.
+; You'll need to set up the auth example "mytrunk_auth" below to enable outbound
+; authentication. Note that we "outbound_auth=" use for outbound authentication
+; instead of "auth=", which is for inbound authentication.
+;
+; If you are registering to a server from behind NAT, be sure you assign a transport
+; that is appropriately configured with NAT related settings. See the NAT transport example.
+;
+; "contact_user=" sets the SIP contact header's user portion of the SIP URI
+; this will affect the extension reached in dialplan when the far end calls you at this
+; registration. The default is 's'.
+
+;[mytrunk]
+;type=registration
+;transport=transport-udp
+;outbound_auth=mytrunk_auth
+;server_uri=sip:sip.example.com
+;client_uri=sip:1234567890@sip.example.com
+;contact_user=1234567890
+;retry_interval=60
+;expiration=3600
+
+;[mytrunk_auth]
+;type=auth
+;auth_type=userpass
+;password=1234567890
+;username=1234567890
+;realm=sip.example.com
+
+;===============ENDPOINT CONFIGURED AS A TRUNK, OUTBOUND AUTHENTICATION=======
+;
+; This is one way to configure an endpoint as a trunk. It is set up with
+; "outbound_auth=" to enable authentication when dialing out through this
+; endpoint. There is no inbound authentication set up since a provider will
+; not normally authenticate when calling you.
+;
+; The identify configuration enables IP address matching against this endpoint.
+; For calls from a trunking provider, the From user may be different every time,
+; so we want to match against IP address instead of From user.
+;
+; If you want the provider of your trunk to know where to send your calls
+; you'll need to use an outbound registration as in the example above this
+; section.
+;
+; NAT
+;
+; At a basic level configure the endpoint with a transport that is set up
+; with the appropriate NAT settings. There may be some additional settings you
+; need here based on your NAT/Firewall scenario. Look to the CLI config help
+; "config show help res_pjsip endpoint" or on the wiki for other NAT related
+; options and configuration. We've included a few below.
+;
+; AOR
+;
+; Endpoints use one or more AOR sections to store their contact details.
+; You can define multiple contact addresses in SIP URI format in multiple
+; "contact=" entries.
+;
+; Section Naming
+;
+; Sections can have the same name as long as their "type="
+; options are set to different values.
+
+;[mytrunk]
+;type=endpoint
+;transport=transport-udp
+;context=from-external
+;disallow=all
+;allow=ulaw
+;outbound_auth=mytrunk
+;aors=mytrunk
+;                   ;A few NAT relevant options that may come in handy.
+;force_rport=yes    ;It's a good idea to read the configuration help for each
+;direct_media=no    ;of these options.
+;ice_support=yes
+
+;[mytrunk]
+;type=aor
+;contact=sip:198.51.100.1:5060
+;contact=sip:198.51.100.2:5060
+
+;[mytrunk]
+;type=identify
+;endpoint=mytrunk
+;match=198.51.100.1
+;match=198.51.100.2
+
+
+;=============ENDPOINT CONFIGURED AS A TRUNK, INBOUND AUTH AND REGISTRATION===
+;
+; Here we are allowing a remote device to register to Asterisk and requiring
+; that they authenticate for registration and calls.
+; You'll note that this configuration is essentially the same as configuring
+; an endpoint for use with a SIP phone.
+
+
+;[7000]
+;type=endpoint
+;context=from-external
+;disallow=all
+;allow=ulaw
+;transport=transport-udp
+;auth=7000
+;aors=7000
+
+;[7000]
+;type=auth
+;auth_type=userpass
+;password=7000
+;username=7000
+
+;[7000]
+;type=aor
+;max_contacts=1
+
+
+;===============ENDPOINT CONFIGURED FOR USE WITH A SIP PHONE==================
+;
+; This example includes the endpoint, auth and aor configurations. It
+; requires inbound authentication and allows registration, as well as references
+; a transport that you'll need to uncomment from the previous examples.
+;
+; Uncomment one of the transport lines to choose which transport you want. If
+; not specified then the default transport chosen is the first defined transport
+; in the configuration file.
+;
+; Modify the "max_contacts=" line to change how many unique registrations to allow.
+;
+; Use the "contact=" line instead of max_contacts= if you want to statically
+; define the location of the device.
+;
+; If using the TLS enabled transport, you may want the "media_encryption=yes"
+; option to additionally enable SRTP, though they are not mutually inclusive.
+;
+; Use the "rtp_ipv6=yes" option if you want to utilize RTP over an ipv6 transport.
+;
+; If this endpoint were remote, and it was using a transport configured for NAT
+; then you likely want to use "direct_media=no" to prevent audio issues.
+
+
+;[6001]
+;type=endpoint
+;transport=transport-udp
+;context=from-internal
+;disallow=all
+;allow=ulaw
+;allow=gsm
+;auth=6001
+;aors=6001
+;
+; A few more transports to pick from, and some related options below them.
+;
+;transport=transport-tls
+;media_encryption=yes
+;transport=transport-udp-ipv6
+;rtp_ipv6=yes
+;transport=transport-udp-nat
+;direct_media=no
+;
+; MWI related options
+
+;aggregate_mwi=yes
+;mailboxes=6001@default,7001@default
+;mwifromuser=6001
+;
+; Extension and Device state options
+;
+;devicestate_busy_at=1
+;allowsubscribe=yes
+;subminexpiry=30
+
+;[6001]
+;type=auth
+;auth_type=userpass
+;password=6001
+;username=6001
+
+;[6001]
+;type=aor
+;max_contacts=1
+;contact=sip:6001@192.0.2.1:5060
+
+
+;============EXAMPLE ACL CONFIGURATION==========================================
+;
+; The ACL or Access Control List section defines a set of permissions to permit
+; or deny access to various address or addresses. Alternatively it references an
+; ACL configuration already set in acl.conf.
+;
+; The ACL configuration is independent of individual endpoint configuration and
+; operates on all inbound SIP communication using res_pjsip.
+
+; Reference an ACL defined in acl.conf.
+;
+;[acl]
+;type=acl
+;acl=example_named_acl1
+
+; Reference a contactacl specifically.
+;
+;[acl]
+;type=acl
+;contactacl=example_contact_acl1
+
+; Define your own ACL here in pjsip.conf and
+; permit or deny by IP address or range.
+;
+;[acl]
+;type=acl
+;deny=0.0.0.0/0.0.0.0
+;permit=209.16.236.0/24
+;deny=209.16.236.1
+
+; Restrict based on Contact Headers rather than IP.
+; Define options multiple times for various addresses or use a comma-delimited string.
+;
+;[acl]
+;type=acl
+;contactdeny=0.0.0.0/0.0.0.0
+;contactpermit=209.16.236.0/24
+;contactpermit=209.16.236.1
+;contactpermit=209.16.236.2,209.16.236.3
+
+; Restrict based on Contact Headers rather than IP and use
+; advanced syntax. Note the bang symbol used for "NOT", so we can deny
+; 209.16.236.12/32 within the permit= statement.
+;
+;[acl]
+;type=acl
+;contactdeny=0.0.0.0/0.0.0.0
+;contactpermit=209.16.236.0
+;permit=209.16.236.0/24, !209.16.236.12/32
+
+
+
+; MODULE PROVIDING BELOW SECTION(S): res_pjsip
+;==========================ENDPOINT SECTION OPTIONS=========================
+;[endpoint]
+;  SYNOPSIS: Endpoint
+;100rel=yes     ; Allow support for RFC3262 provisional ACK tags (default:
+                ; "yes")
+;aggregate_mwi=yes      ;  (default: "yes")
+;allow= ; Media Codec s to allow (default: "")
+;aors=  ; AoR s to be used with the endpoint (default: "")
+;auth=  ; Authentication Object s associated with the endpoint (default: "")
+;callerid=      ; CallerID information for the endpoint (default: "")
+;callerid_privacy=      ; Default privacy level (default: "")
+;callerid_tag=  ; Internal id_tag for the endpoint (default: "")
+;context=default        ; Dialplan context for inbound sessions (default:
+                        ; "default")
+;direct_media_glare_mitigation=none     ; Mitigation of direct media re INVITE
+                                        ; glare (default: "none")
+;direct_media_method=invite     ; Direct Media method type (default: "invite")
+;connected_line_method=invite   ; Connected line method type (default:
+                                ; "invite")
+;direct_media=yes       ; Determines whether media may flow directly between
+                        ; endpoints (default: "yes")
+;disable_direct_media_on_nat=no ; Disable direct media session refreshes when
+                                ; NAT obstructs the media session (default:
+                                ; "no")
+;disallow=      ; Media Codec s to disallow (default: "")
+;dtmfmode=rfc4733       ; DTMF mode (default: "rfc4733")
+;external_media_address=        ; IP used for External Media handling (default:
+                                ; "")
+;force_rport=yes        ; Force use of return port (default: "yes")
+;ice_support=no ; Enable the ICE mechanism to help traverse NAT (default: "no")
+;identify_by=username   ; Way s for Endpoint to be identified (default:
+                        ; "username")
+;mailboxes=     ; Mailbox es to be associated with (default: "")
+;mohsuggest=default     ; Default Music On Hold class (default: "default")
+;outbound_auth= ; Authentication object used for outbound requests (default:
+                ; "")
+;outbound_proxy=        ; Proxy through which to send requests (default: "")
+;rewrite_contact=no     ; Allow Contact header to be rewritten with the source
+                        ; IP address port (default: "no")
+;rtp_ipv6=no    ; Allow use of IPv6 for RTP traffic (default: "no")
+;rtp_symmetric=no       ; Enforce that RTP must be symmetric (default: "no")
+;send_diversion=yes     ; Send the Diversion header conveying the diversion
+                        ; information to the called user agent (default: "yes")
+;send_pai=no    ; Send the P Asserted Identity header (default: "no")
+;send_rpid=no   ; Send the Remote Party ID header (default: "no")
+;timers_min_se=90       ; Minimum session timers expiration period (default:
+                        ; "90")
+;timers=yes     ; Session timers for SIP packets (default: "yes")
+;timers_sess_expires=1800       ; Maximum session timer expiration period
+                                ; (default: "1800")
+;transport=     ; Desired transport configuration (default: "")
+;trust_id_inbound=no    ; Accept identification information received from this
+                        ; endpoint (default: "no")
+;trust_id_outbound=no   ; Send private identification details to the endpoint
+                        ; (default: "no")
+;type=  ; Must be of type endpoint (default: "")
+;use_ptime=no   ; Use Endpoint s requested packetisation interval (default:
+                ; "no")
+;use_avpf=no    ; Determines whether res_pjsip will use and enforce usage of
+                ; AVPF for this endpoint (default: "no")
+;media_encryption=no    ; Determines whether res_pjsip will use and enforce
+                        ; usage of media encryption for this endpoint (default:
+                        ; "no")
+;inband_progress=no     ; Determines whether chan_pjsip will indicate ringing
+                        ; using inband progress (default: "no")
+;callgroup=     ; The numeric pickup groups for a channel (default: "")
+;pickupgroup=   ; The numeric pickup groups that a channel can pickup (default:
+                ; "")
+;namedcallgroup=        ; The named pickup groups for a channel (default: "")
+;namedpickupgroup=      ; The named pickup groups that a channel can pickup
+                        ; (default: "")
+;devicestate_busy_at=0  ; The number of in use channels which will cause busy
+                        ; to be returned as device state (default: "0")
+;t38udptl=no    ; Whether T 38 UDPTL support is enabled or not (default: "no")
+;t38udptl_ec=none       ; T 38 UDPTL error correction method (default: "none")
+;t38udptl_maxdatagram=0 ; T 38 UDPTL maximum datagram size (default: "0")
+;faxdetect=no   ; Whether CNG tone detection is enabled (default: "no")
+;t38udptl_nat=no        ; Whether NAT support is enabled on UDPTL sessions
+                        ; (default: "no")
+;t38udptl_ipv6=no       ; Whether IPv6 is used for UDPTL Sessions (default:
+                        ; "no")
+;tonezone=      ; Set which country s indications to use for channels created
+                ; for this endpoint (default: "")
+;language=      ; Set the default language to use for channels created for this
+                ; endpoint (default: "")
+;one_touch_recording=no ; Determines whether one touch recording is allowed for
+                        ; this endpoint (default: "no")
+;recordonfeature=automixmon     ; The feature to enact when one touch recording
+                                ; is turned on (default: "automixmon")
+;recordofffeature=automixmon    ; The feature to enact when one touch recording
+                                ; is turned off (default: "automixmon")
+;rtpengine=asterisk     ; Name of the RTP engine to use for channels created
+                        ; for this endpoint (default: "asterisk")
+;allowtransfer=yes      ; Determines whether SIP REFER transfers are allowed
+                        ; for this endpoint (default: "yes")
+;sdpowner=-     ; String placed as the username portion of an SDP origin o line
+                ; (default: "-")
+;sdpsession=Asterisk    ; String used for the SDP session s line (default:
+                        ; "Asterisk")
+;tos_audio=0    ; DSCP TOS bits for audio streams (default: "0")
+;tos_video=0    ; DSCP TOS bits for video streams (default: "0")
+;cos_audio=0    ; Priority for audio streams (default: "0")
+;cos_video=0    ; Priority for video streams (default: "0")
+;allowsubscribe=yes     ; Determines if endpoint is allowed to initiate
+                        ; subscriptions with Asterisk (default: "yes")
+;subminexpiry=0 ; The minimum allowed expiry time for subscriptions initiated
+                ; by the endpoint (default: "0")
+;fromuser=      ; Username to use in From header for requests to this endpoint
+                ; (default: "")
+;mwifromuser=   ; Username to use in From header for unsolicited MWI NOTIFYs to
+                ; this endpoint (default: "")
+;fromdomain=    ; Domain to user in From header for requests to this endpoint
+                ; (default: "")
+;dtlsverify=    ; Verify that the provided peer certificate is valid (default:
+                ; "")
+;dtlsrekey=     ; Interval at which to renegotiate the TLS session and rekey
+                ; the SRTP session (default: "")
+;dtlscertfile=  ; Path to certificate file to present to peer (default: "")
+;dtlsprivatekey=        ; Path to private key for certificate file (default:
+                        ; "")
+;dtlscipher=    ; Cipher to use for DTLS negotiation (default: "")
+;dtlscafile=    ; Path to certificate authority certificate (default: "")
+;dtlscapath=    ; Path to a directory containing certificate authority
+                ; certificates (default: "")
+;dtlssetup=     ; Whether we are willing to accept connections connect to the
+                ; other party or both (default: "")
+;srtp_tag_32=no ; Determines whether 32 byte tags should be used instead of 80
+                ; byte tags (default: "no")
+
+
+;==========================AUTH SECTION OPTIONS=========================
+;[auth]
+;  SYNOPSIS: Authentication type
+;auth_type=userpass     ; Authentication type (default: "userpass")
+;nonce_lifetime=32      ; Lifetime of a nonce associated with this
+                        ; authentication config (default: "32")
+;md5_cred=      ; MD5 Hash used for authentication (default: "")
+;password=      ; PlainText password used for authentication (default: "")
+;realm=asterisk ; SIP realm for endpoint (default: "asterisk")
+;type=  ; Must be auth (default: "")
+;username=      ; Username to use for account (default: "")
+
+
+;==========================DOMAIN_ALIAS SECTION OPTIONS=========================
+;[domain_alias]
+;  SYNOPSIS: Domain Alias
+;type=  ; Must be of type domain_alias (default: "")
+;domain=        ; Domain to be aliased (default: "")
+
+
+;==========================TRANSPORT SECTION OPTIONS=========================
+;[transport]
+;  SYNOPSIS: SIP Transport
+;async_operations=1     ; Number of simultaneous Asynchronous Operations
+                        ; (default: "1")
+;bind=  ; IP Address and optional port to bind to for this transport (default:
+        ; "")
+;ca_list_file=  ; File containing a list of certificates to read TLS ONLY
+                ; (default: "")
+;cert_file=     ; Certificate file for endpoint TLS ONLY (default: "")
+;cipher=        ; Preferred Cryptography Cipher TLS ONLY (default: "")
+;domain=        ; Domain the transport comes from (default: "")
+;external_media_address=        ; External Address to use in RTP handling
+                                ; (default: "")
+;external_signaling_address=    ; External address for SIP signalling (default:
+                                ; "")
+;external_signaling_port=0      ; External port for SIP signalling (default:
+                                ; "0")
+;method=        ; Method of SSL transport TLS ONLY (default: "")
+;localnet=      ; Network to consider local used for NAT purposes (default: "")
+;password=      ; Password required for transport (default: "")
+;privkey_file=  ; Private key file TLS ONLY (default: "")
+;protocol=udp   ; Protocol to use for SIP traffic (default: "udp")
+;require_client_cert=   ; Require client certificate TLS ONLY (default: "")
+;type=  ; Must be of type transport (default: "")
+;verify_client= ; Require verification of client certificate TLS ONLY (default:
+                ; "")
+;verify_server= ; Require verification of server certificate TLS ONLY (default:
+                ; "")
+;tos=0  ; Enable TOS for the signalling sent over this transport (default: "0")
+;cos=0  ; Enable COS for the signalling sent over this transport (default: "0")
+
+
+;==========================CONTACT SECTION OPTIONS=========================
+;[contact]
+;  SYNOPSIS: A way of creating an aliased name to a SIP URI
+;type=  ; Must be of type contact (default: "")
+;uri=   ; SIP URI to contact peer (default: "")
+;expiration_time=       ; Time to keep alive a contact (default: "")
+;qualify_frequency=0    ; Interval at which to qualify a contact (default: "0")
+
+
+;==========================AOR SECTION OPTIONS=========================
+;[aor]
+;  SYNOPSIS: The configuration for a location of an endpoint
+;contact=       ; Permanent contacts assigned to AoR (default: "")
+;default_expiration=3600        ; Default expiration time in seconds for
+                                ; contacts that are dynamically bound to an AoR
+                                ; (default: "3600")
+;mailboxes=     ; Mailbox es to be associated with (default: "")
+;maximum_expiration=7200        ; Maximum time to keep an AoR (default: "7200")
+;max_contacts=0 ; Maximum number of contacts that can bind to an AoR (default:
+                ; "0")
+;minimum_expiration=60  ; Minimum keep alive time for an AoR (default: "60")
+;remove_existing=no     ; Determines whether new contacts replace existing ones
+                        ; (default: "no")
+;type=  ; Must be of type aor (default: "")
+;qualify_frequency=0    ; Interval at which to qualify an AoR (default: "0")
+;authenticate_qualify=no        ; Authenticates a qualify request if needed
+                                ; (default: "no")
+
+
+;==========================SYSTEM SECTION OPTIONS=========================
+;[system]
+;  SYNOPSIS: Options that apply to the SIP stack as well as other system-wide settings
+;timert1=500    ; Set transaction timer T1 value milliseconds (default: "500")
+;timerb=32000   ; Set transaction timer B value milliseconds (default: "32000")
+;compactheaders=no      ; Use the short forms of common SIP header names
+                        ; (default: "no")
+;threadpool_initial_size=0      ; Initial number of threads in the res_pjsip
+                                ; threadpool (default: "0")
+;threadpool_auto_increment=5    ; The amount by which the number of threads is
+                                ; incremented when necessary (default: "5")
+;threadpool_idle_timeout=60     ; Number of seconds before an idle thread
+                                ; should be disposed of (default: "60")
+;threadpool_max_size=0  ; Maximum number of threads in the res_pjsip threadpool
+                        ; A value of 0 indicates no maximum (default: "0")
+;type=  ; Must be of type system (default: "")
+
+
+;==========================GLOBAL SECTION OPTIONS=========================
+;[global]
+;  SYNOPSIS: Options that apply globally to all SIP communications
+;maxforwards=70 ; Value used in Max Forwards header for SIP requests (default:
+                ; "70")
+;type=  ; Must be of type global (default: "")
+;useragent=     ; Value used in User Agent header for SIP requests and Server
+                ; header for SIP responses (default: Populated by Asterisk
+                ; Version)
+
+
+
+
+; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
+;==========================ACL SECTION OPTIONS=========================
+;[acl]
+;  SYNOPSIS: Access Control List
+;acl=   ; Name of IP ACL (default: "")
+;contactacl=    ; Name of Contact ACL (default: "")
+;contactdeny=   ; List of Contact Header addresses to Deny (default: "")
+;contactpermit= ; List of Contact Header addresses to Permit (default: "")
+;deny=  ; List of IP domains to deny access from (default: "")
+;permit=        ; List of IP domains to allow access from (default: "")
+;type=  ; Must be of type security (default: "")
+
+
+
+
+; MODULE PROVIDING BELOW SECTION(S): res_pjsip_outbound_registration
+;==========================REGISTRATION SECTION OPTIONS=========================
+;[registration]
+;  SYNOPSIS: The configuration for outbound registration
+;auth_rejection_permanent=yes   ; Determines whether failed authentication
+                                ; challenges are treated as permanent failures
+                                ; (default: "yes")
+;client_uri=    ; Client SIP URI used when attemping outbound registration
+                ; (default: "")
+;contact_user=  ; Contact User to use in request (default: "")
+;expiration=3600        ; Expiration time for registrations in seconds
+                        ; (default: "3600")
+;max_retries=10 ; Maximum number of registration attempts (default: "10")
+;outbound_auth= ; Authentication object to be used for outbound registrations
+                ; (default: "")
+;outbound_proxy=        ; Outbound Proxy used to send registrations (default:
+                        ; "")
+;retry_interval=60      ; Interval in seconds between retries if outbound
+                        ; registration is unsuccessful (default: "60")
+;server_uri=    ; SIP URI of the server to register against (default: "")
+;transport=     ; Transport used for outbound authentication (default: "")
+;type=  ; Must be of type registration (default: "")
+
+
+
+
+; MODULE PROVIDING BELOW SECTION(S): res_pjsip_endpoint_identifier_ip
+;==========================IDENTIFY SECTION OPTIONS=========================
+;[identify]
+;  SYNOPSIS: NEEDS A SYNOPSIS
+;endpoint=      ; Name of Endpoint (default: "")
+;match= ; IP addresses or networks to match against (default: "")
+;type=  ; Must be of type identify (default: "")
+
+
+
+
