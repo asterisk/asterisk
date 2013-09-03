@@ -82,6 +82,7 @@ static int load_config(void)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	struct ast_flags config_flags = { 0 };
+	int mappings = 0;
 	int res = 0;
 
 	cfg = ast_config_load(CONFIG, config_flags);
@@ -90,7 +91,10 @@ static int load_config(void)
 		return -1;
 	}
 
-	var = ast_variable_browse(cfg, "mappings");
+	if (!(var = ast_variable_browse(cfg, "mappings"))) {
+		ast_log(LOG_NOTICE, "No mappings found in " CONFIG ". Not logging CEL to custom CSVs.\n");
+	}
+
 	while (var) {
 		if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
 			struct cel_config *sink = ast_calloc_with_stringfields(1, struct cel_config, 1024);
@@ -105,6 +109,8 @@ static int load_config(void)
 			ast_string_field_build(sink, filename, "%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
 			ast_mutex_init(&sink->lock);
 
+			ast_verb(3, "Added CEL CSV mapping for '%s'.\n", sink->filename);
+			mappings += 1;
 			AST_RWLIST_INSERT_TAIL(&sinks, sink, list);
 		} else {
 			ast_log(LOG_NOTICE, "Mapping must have both a filename and a format at line %d\n", var->lineno);
@@ -112,6 +118,8 @@ static int load_config(void)
 		var = var->next;
 	}
 	ast_config_destroy(cfg);
+
+	ast_verb(1, "Added CEL CSV mapping for %d files.\n", mappings);
 
 	return res;
 }
