@@ -3259,8 +3259,8 @@ int ooOnReceivedTerminalCapabilitySet(OOH323CallData *call, H245Message *pmsg)
       OOTRACEDBGC3("Empty TCS found.  (%s, %s)\n",
                     call->callType, call->callToken);
 
-      ooH245AcknowledgeTerminalCapabilitySet(call);
       call->remoteTermCapSeqNo = tcs->sequenceNumber;
+      ooH245AcknowledgeTerminalCapabilitySet(call);
 
 /* close all transmit chans */
 
