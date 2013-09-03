@@ -34,8 +34,9 @@
 
 static int is_media_type(pjsip_rx_data *rdata, char *subtype)
 {
-	return !pj_strcmp2(&rdata->msg_info.ctype->media.type, "application") &&
-		!pj_strcmp2(&rdata->msg_info.ctype->media.subtype, subtype);
+	return rdata->msg_info.ctype
+		&& !pj_strcmp2(&rdata->msg_info.ctype->media.type, "application")
+		&& !pj_strcmp2(&rdata->msg_info.ctype->media.subtype, subtype);
 }
 
 static void send_response(struct ast_sip_session *session,
