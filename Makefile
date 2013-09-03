@@ -416,7 +416,8 @@ _clean:
 	rm -f main/version.c
 	rm -f doc/core-en_US.xml
 	rm -f doc/full-en_US.xml
-	rm -f docs/rest-api/*.wiki
+	rm -f doc/rest-api/*.wiki
+	rm -f rest-api-templates/*.pyc
 	@$(MAKE) -C menuselect clean
 	cp -f .cleancount .lastclean
 
