@@ -15208,6 +15208,7 @@ static int message_range_and_existence_check(struct vm_state *vms, const char *m
 				DISPOSE(vms->curdir, vms->curmsg);
 				break;
 			}
+			ast_config_destroy(msg_cfg);
 			DISPOSE(vms->curdir, vms->curmsg);
 		}
 		if (!found) {
