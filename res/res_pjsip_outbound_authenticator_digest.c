@@ -85,13 +85,27 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_array *auth
 		return -1;
 	}
 
-	if (pjsip_auth_clt_reinit_req(&auth_sess, challenge,
-				tsx->last_tx, new_request) != PJ_SUCCESS) {
-		ast_log(LOG_WARNING, "Failed to create new request with authentication credentials\n");
-		return -1;
+	switch (pjsip_auth_clt_reinit_req(&auth_sess, challenge,
+				tsx->last_tx, new_request)) {
+	case PJ_SUCCESS:
+		return 0;
+	case PJSIP_ENOCREDENTIAL:
+		ast_log(LOG_WARNING, "Unable to create request with auth."
+				"No auth credentials for any realms in challenge.\n");
+		break;
+	case PJSIP_EAUTHSTALECOUNT:
+		ast_log(LOG_WARNING, "Unable to create request with auth."
+				"Number of stale retries exceeded\n");
+		break;
+	case PJSIP_EFAILEDCREDENTIAL:
+		ast_log(LOG_WARNING, "Authentication credentials not accepted by server\n");
+		break;
+	default:
+		ast_log(LOG_WARNING, "Unable to create request with auth. Unknown failure\n");
+		break;
 	}
 
-	return 0;
+	return -1;
 }
 
 static struct ast_sip_outbound_authenticator digest_authenticator = {
