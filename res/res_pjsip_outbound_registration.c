@@ -209,6 +209,8 @@ static int handle_client_registration(void *data)
 {
 	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, data, ao2_cleanup);
 	pjsip_tx_data *tdata;
+	pjsip_regc_info info;
+	char server_uri[PJSIP_MAX_URL_SIZE], client_uri[PJSIP_MAX_URL_SIZE];
 
 	cancel_registration(client_state);
 
@@ -216,6 +218,12 @@ static int handle_client_registration(void *data)
 		(pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS)) {
 		return 0;
 	}
+
+	pjsip_regc_get_info(client_state->client, &info);
+	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
+	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
+	ast_debug(3, "REGISTER attempt %d to '%s' with client '%s'\n",
+		  client_state->retries + 1, server_uri, client_uri);
 
 	/* Due to the registration the callback may now get called, so bump the ref count */
 	ao2_ref(client_state, +1);
@@ -364,6 +372,7 @@ static int handle_registration_response(void *data)
 
 	if (PJSIP_IS_STATUS_IN_CLASS(response->code, 200)) {
 		/* If the registration went fine simply reschedule registration for the future */
+		ast_debug(1, "Outbound registration to '%s' with client '%s' successful\n", server_uri, client_uri);
 		response->client_state->status = SIP_REGISTRATION_REGISTERED;
 		response->client_state->retries = 0;
 		schedule_registration(response->client_state, response->expiration - REREGISTER_BUFFER_TIME);
