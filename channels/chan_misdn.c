@@ -12762,8 +12762,7 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...)
 	} else if (misdn_debug_only[port]
 		? (level == 1 && misdn_debug[port]) || level == misdn_debug[port]
 		: level <= misdn_debug[port]) {
-		ast_console_puts(port_buf);
-		ast_console_puts(buf);
+		ast_verbose("%s%s", port_buf, buf);
 	}
 
 	if (level <= misdn_debug[0] && !ast_strlen_zero(global_tracefile)) {
@@ -12775,12 +12774,7 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...)
 
 		fp = fopen(global_tracefile, "a+");
 		if (!fp) {
-			ast_console_puts("Error opening Tracefile: [ ");
-			ast_console_puts(global_tracefile);
-			ast_console_puts(" ] ");
-
-			ast_console_puts(strerror(errno));
-			ast_console_puts("\n");
+			ast_verbose("Error opening Tracefile: [ %s ] %s\n", global_tracefile, strerror(errno));
 			return;
 		}
 
