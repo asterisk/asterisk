@@ -239,11 +239,12 @@ static void dump_prov(char *output, int maxlen, void *value, int len)
 	dump_prov_ies(output, maxlen, value, len);
 }
 
-static struct iax2_ie {
+struct iax2_ie {
 	int ie;
 	char *name;
 	void (*dump)(char *output, int maxlen, void *value, int len);
-} infoelts[] = {
+};
+static struct iax2_ie infoelts[] = {
 	{ IAX_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
 	{ IAX_IE_CALLING_NUMBER, "CALLING NUMBER", dump_string },
 	{ IAX_IE_CALLING_ANI, "ANI", dump_string },
@@ -392,6 +393,7 @@ static void dump_ies(unsigned char *iedata, int len)
 	int found;
 	char interp[1024];
 	char tmp[1024];
+
 	if (len < 2)
 		return;
 	while(len > 2) {
@@ -604,6 +606,14 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"TXFER  ",
 		"CNLINE ",
 		"REDIR  ",
+		"T38PARM",
+		"CC     ",
+		"SRCCHG ",
+		"RDACT  ",
+		"AOC    ",
+		"ENDQ   ",
+		"INCOMPL",
+		"UPDTRTP",
 	};
 	struct ast_iax2_full_hdr *fh;
 	char retries[20];
