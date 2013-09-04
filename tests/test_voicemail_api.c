@@ -382,12 +382,27 @@ static struct ast_vm_msg_snapshot *test_vm_api_create_mock_snapshot(const char *
 	snprintf(msg_id_buf, sizeof(msg_id_buf), "%ld-%d", (long)time(NULL), ast_str_hash(msg_id_hash));
 
 	if ((snapshot = ast_calloc(1, sizeof(*snapshot)))) {
-		ast_string_field_init(snapshot, 128);
+		if (ast_string_field_init(snapshot, 128)) {
+			ast_free(snapshot);
+			return NULL;
+		}
 		ast_string_field_set(snapshot, msg_id, msg_id_buf);
 		ast_string_field_set(snapshot, exten, exten);
 		ast_string_field_set(snapshot, callerid, callerid);
 	}
 	return snapshot;
+}
+
+/*!
+ * \internal
+ * \brief Destroy a mock snapshot object
+ */
+static void test_vm_api_destroy_mock_snapshot(struct ast_vm_msg_snapshot *snapshot)
+{
+	if (snapshot) {
+		ast_string_field_free_memory(snapshot);
+		ast_free(snapshot);
+	}
 }
 
 /*!
@@ -620,10 +635,10 @@ static int test_vm_api_test_setup(void)
 		|| !((msg_three = test_vm_api_create_mock_snapshot("default", "test_vm_api_2345", "\"Phil\" <2000>")))
 		|| !((msg_four = test_vm_api_create_mock_snapshot("default", "test_vm_api_2345", "\"Bill\" <3000>")))) {
 		ast_log(AST_LOG_ERROR, "Failed to create mock snapshots for test\n");
-		ast_free(msg_one);
-		ast_free(msg_two);
-		ast_free(msg_three);
-		ast_free(msg_four);
+		test_vm_api_destroy_mock_snapshot(msg_one);
+		test_vm_api_destroy_mock_snapshot(msg_two);
+		test_vm_api_destroy_mock_snapshot(msg_three);
+		test_vm_api_destroy_mock_snapshot(msg_four);
 		return 1;
 	}
 
@@ -631,10 +646,10 @@ static int test_vm_api_test_setup(void)
 	if (ast_vm_test_create_user("default", "test_vm_api_1234")
 		|| ast_vm_test_create_user("default", "test_vm_api_2345")) {
 		ast_log(AST_LOG_ERROR, "Failed to create test voicemail users\n");
-		ast_free(msg_one);
-		ast_free(msg_two);
-		ast_free(msg_three);
-		ast_free(msg_four);
+		test_vm_api_destroy_mock_snapshot(msg_one);
+		test_vm_api_destroy_mock_snapshot(msg_two);
+		test_vm_api_destroy_mock_snapshot(msg_three);
+		test_vm_api_destroy_mock_snapshot(msg_four);
 		/* Note that the cleanup macro will ensure that any test user that
 		 * was successfully created is removed
 		 */
@@ -687,7 +702,7 @@ static int test_vm_api_test_setup(void)
 			 * up the object here instead */
 			ast_log(AST_LOG_ERROR, "Failed to store voicemail %s/%s\n",
 				"default", test_snapshots[i]->exten);
-			ast_free(test_snapshots[i]);
+			test_vm_api_destroy_mock_snapshot(test_snapshots[i]);
 			test_snapshots[i] = NULL;
 			res = 1;
 		}
@@ -703,7 +718,7 @@ static void test_vm_api_test_teardown(void)
 	/* Remove our test message snapshots */
 	for (i = 0; i < TOTAL_SNAPSHOTS; ++i) {
 		test_vm_api_remove_voicemail(test_snapshots[i]);
-		ast_free(test_snapshots[i]);
+		test_vm_api_destroy_mock_snapshot(test_snapshots[i]);
 		test_snapshots[i] = NULL;
 	}
 
@@ -853,6 +868,7 @@ AST_TEST_DEFINE(voicemail_api_nominal_snapshot)
 	VM_API_INT_VERIFY(2, test_mbox_snapshot->total_msg_num);
 	VM_API_SNAPSHOT_MSG_VERIFY(test_snapshots[0], test_mbox_snapshot, "INBOX", 0);
 	VM_API_SNAPSHOT_MSG_VERIFY(test_snapshots[1], test_mbox_snapshot, "INBOX", 1);
+	ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	ast_test_status_update(test, "Test retrieving message 1, 0 from Old and INBOX of test_vm_1234 ordered by time desc\n");
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "INBOX", 1, AST_VM_SNAPSHOT_SORT_BY_TIME, 1);
