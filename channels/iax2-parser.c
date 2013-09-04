@@ -607,13 +607,15 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"CNLINE ",
 		"REDIR  ",
 		"T38PARM",
-		"CC     ",
+		"CC ERR!",/* This must never go across an IAX link. */
 		"SRCCHG ",
-		"RDACT  ",
+		"READACT",
 		"AOC    ",
-		"ENDQ   ",
+		"ENDOFQ ",
 		"INCOMPL",
-		"UPDTRTP",
+		"MCID   ",
+		"UPDRTPP",
+		"PCAUSEC",
 	};
 	struct ast_iax2_full_hdr *fh;
 	char retries[20];
