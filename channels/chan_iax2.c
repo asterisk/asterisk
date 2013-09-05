@@ -11696,9 +11696,9 @@ static void *iax2_process_thread(void *data)
 	}
 
 	/*!
-	 * \note For some reason, idle threads are exiting without being removed
-	 * from an idle list, which is causing memory corruption.  Forcibly remove
-	 * it from the list, if it's there.
+	 * \note For some reason, idle threads are exiting without being
+	 * removed from an idle list, which is causing memory
+	 * corruption.  Forcibly remove it from the list, if it's there.
 	 */
 	AST_LIST_LOCK(&idle_list);
 	AST_LIST_REMOVE(&idle_list, thread, list);
@@ -14193,7 +14193,7 @@ static void cleanup_thread_list(void *head)
 	struct iax2_thread *thread;
 
 	AST_LIST_LOCK(list_head);
-	while ((thread = AST_LIST_REMOVE_HEAD(&idle_list, list))) {
+	while ((thread = AST_LIST_REMOVE_HEAD(list_head, list))) {
 		pthread_t thread_id = thread->threadid;
 
 		thread->stop = 1;
@@ -14236,9 +14236,9 @@ static int __unload_module(void)
 	}
 
 	/* Call for all threads to halt */
-	cleanup_thread_list(&idle_list);
 	cleanup_thread_list(&active_list);
 	cleanup_thread_list(&dynamic_list);
+	cleanup_thread_list(&idle_list);
 
 	ast_netsock_release(netsock);
 	ast_netsock_release(outsock);
