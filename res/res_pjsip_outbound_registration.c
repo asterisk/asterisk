@@ -57,6 +57,15 @@
 				</configOption>
 				<configOption name="client_uri">
 					<synopsis>Client SIP URI used when attemping outbound registration</synopsis>
+					<description><para>
+						This is the address-of-record for the outbound registration (i.e. the URI in
+						the To header of the REGISTER).</para>
+						<para>For registration with an ITSP, the client SIP URI may need to consist of
+						an account name or number and the provider's hostname for their registrar, e.g.
+						client_uri=1234567890@example.com. This may differ between providers.</para>
+						<para>For registration to generic registrars, the client SIP URI will depend
+						on networking specifics and configuration of the registrar.
+					</para></description>
 				</configOption>
 				<configOption name="contact_user">
 					<synopsis>Contact User to use in request</synopsis>
@@ -78,6 +87,12 @@
 				</configOption>
 				<configOption name="server_uri">
 					<synopsis>SIP URI of the server to register against</synopsis>
+					<description><para>
+						This is the URI at which to find the registrar to send the outbound REGISTER. This URI
+						is used as the request URI of the outbound REGISTER request from Asterisk.</para>
+						<para>For registration with an ITSP, the setting may often be just the domain of
+						the registrar, e.g. sip:sip.example.com.
+					</para></description>
 				</configOption>
 				<configOption name="transport">
 					<synopsis>Transport used for outbound authentication</synopsis>
