@@ -810,7 +810,7 @@ struct chan_iax2_pvt {
 	/*! Status of knowledge of peer ADSI capability */
 	int peeradsicpe;
 
-	/*! Who we are bridged to */
+	/*! Callno of native bridge peer. (Valid if nonzero) */
 	unsigned short bridgecallno;
 
 	int pingid;			/*!< Transmit PING request */
@@ -11510,13 +11510,13 @@ immediatedial:
 				}
 				break;
 			case IAX_COMMAND_TXREJ:
-				if (iaxs[fr->callno]->bridgecallno) {
-					while (ast_mutex_trylock(&iaxsl[iaxs[fr->callno]->bridgecallno])) {
-						DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
-					}
-					if (!iaxs[fr->callno]) {
-						break;
-					}
+				while (iaxs[fr->callno]
+					&& iaxs[fr->callno]->bridgecallno
+					&& ast_mutex_trylock(&iaxsl[iaxs[fr->callno]->bridgecallno])) {
+					DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
+				}
+				if (!iaxs[fr->callno]) {
+					break;
 				}
 
 				iaxs[fr->callno]->transferring = TRANSFER_NONE;
@@ -11527,20 +11527,21 @@ immediatedial:
 					break;
 				}
 
-				if (iaxs[iaxs[fr->callno]->bridgecallno]->transferring) {
+				if (iaxs[iaxs[fr->callno]->bridgecallno]
+					&& iaxs[iaxs[fr->callno]->bridgecallno]->transferring) {
 					iaxs[iaxs[fr->callno]->bridgecallno]->transferring = TRANSFER_NONE;
 					send_command(iaxs[iaxs[fr->callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
 				}
 				ast_mutex_unlock(&iaxsl[iaxs[fr->callno]->bridgecallno]);
 				break;
 			case IAX_COMMAND_TXREADY:
-				if (iaxs[fr->callno]->bridgecallno) {
-					while (ast_mutex_trylock(&iaxsl[iaxs[fr->callno]->bridgecallno])) {
-						DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
-					}
-					if (!iaxs[fr->callno]) {
-						break;
-					}
+				while (iaxs[fr->callno]
+					&& iaxs[fr->callno]->bridgecallno
+					&& ast_mutex_trylock(&iaxsl[iaxs[fr->callno]->bridgecallno])) {
+					DEADLOCK_AVOIDANCE(&iaxsl[fr->callno]);
+				}
+				if (!iaxs[fr->callno]) {
+					break;
 				}
 
 				if (iaxs[fr->callno]->transferring == TRANSFER_BEGIN) {
@@ -11559,8 +11560,9 @@ immediatedial:
 					break;
 				}
 
-				if (!(iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_READY) &&
-				    !(iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_MREADY)) {
+				if (!iaxs[iaxs[fr->callno]->bridgecallno]
+					|| (iaxs[iaxs[fr->callno]->bridgecallno]->transferring != TRANSFER_READY
+						&& iaxs[iaxs[fr->callno]->bridgecallno]->transferring != TRANSFER_MREADY)) {
 					ast_mutex_unlock(&iaxsl[iaxs[fr->callno]->bridgecallno]);
 					break;
 				}
@@ -11944,11 +11946,10 @@ static void *iax2_process_thread(void *data)
 			break;
 		}
 
-		if (thread->iostate == IAX_IOSTATE_IDLE)
-			continue;
-
 		/* See what we need to do */
 		switch (thread->iostate) {
+		case IAX_IOSTATE_IDLE:
+			continue;
 		case IAX_IOSTATE_READY:
 			thread->actions++;
 			thread->iostate = IAX_IOSTATE_PROCESSING;
@@ -11961,14 +11962,10 @@ static void *iax2_process_thread(void *data)
 #ifdef SCHED_MULTITHREADED
 			thread->schedfunc(thread->scheddata);
 #endif		
+			break;
 		default:
 			break;
 		}
-		time(&thread->checktime);
-		thread->iostate = IAX_IOSTATE_IDLE;
-#ifdef DEBUG_SCHED_MULTITHREAD
-		thread->curfunc[0]='\0';
-#endif		
 
 		/* The network thread added us to the active_thread list when we were given
 		 * frames to process, Now that we are done, we must remove ourselves from
@@ -11979,6 +11976,12 @@ static void *iax2_process_thread(void *data)
 
 		/* Make sure another frame didn't sneak in there after we thought we were done. */
 		handle_deferred_full_frames(thread);
+
+		time(&thread->checktime);
+		thread->iostate = IAX_IOSTATE_IDLE;
+#ifdef DEBUG_SCHED_MULTITHREAD
+		thread->curfunc[0]='\0';
+#endif
 	}
 
 	/*!
