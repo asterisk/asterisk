@@ -1534,12 +1534,11 @@ static struct iax2_thread *find_idle_thread(void)
 #ifdef SCHED_MULTITHREADED
 static int __schedule_action(void (*func)(const void *data), const void *data, const char *funcname)
 {
-	struct iax2_thread *thread = NULL;
+	struct iax2_thread *thread;
 	static time_t lasterror;
-	static time_t t;
+	time_t t;
 
 	thread = find_idle_thread();
-
 	if (thread != NULL) {
 		thread->schedfunc = func;
 		thread->scheddata = data;
@@ -1551,9 +1550,10 @@ static int __schedule_action(void (*func)(const void *data), const void *data, c
 		return 0;
 	}
 	time(&t);
-	if (t != lasterror)
-		ast_debug(1, "Out of idle IAX2 threads for scheduling!\n");
-	lasterror = t;
+	if (t != lasterror) {
+		lasterror = t;
+		ast_debug(1, "Out of idle IAX2 threads for scheduling! (%s)\n", funcname);
+	}
 
 	return -1;
 }
@@ -3387,42 +3387,49 @@ static void __attempt_transmit(const void *data)
 	struct iax_frame *f = (struct iax_frame *)data;
 	int freeme = 0;
 	int callno = f->callno;
+
 	/* Make sure this call is still active */
 	if (callno)
 		ast_mutex_lock(&iaxsl[callno]);
 	if (callno && iaxs[callno]) {
-		if ((f->retries < 0) /* Already ACK'd */ ||
-		    (f->retries >= max_retries) /* Too many attempts */) {
-				/* Record an error if we've transmitted too many times */
-				if (f->retries >= max_retries) {
-					if (f->transfer) {
-						/* Transfer timeout */
-						send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
-					} else if (f->final) {
-						iax2_destroy(callno);
-					} else {
-						if (iaxs[callno]->owner)
-							ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %u, ts=%d, seqno=%d)\n", ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),ast_channel_name(iaxs[f->callno]->owner), f->af.frametype, f->af.subclass.integer, f->ts, f->oseqno);
-						iaxs[callno]->error = ETIMEDOUT;
-						if (iaxs[callno]->owner) {
-							struct ast_frame fr = { AST_FRAME_CONTROL, { AST_CONTROL_HANGUP }, .data.uint32 = AST_CAUSE_DESTINATION_OUT_OF_ORDER };
-							/* Hangup the fd */
-							iax2_queue_frame(callno, &fr); /* XXX */
-							/* Remember, owner could disappear */
-							if (iaxs[callno] && iaxs[callno]->owner)
-								ast_channel_hangupcause_set(iaxs[callno]->owner, AST_CAUSE_DESTINATION_OUT_OF_ORDER);
-						} else {
-							if (iaxs[callno]->reg) {
-								memset(&iaxs[callno]->reg->us, 0, sizeof(iaxs[callno]->reg->us));
-								iaxs[callno]->reg->regstate = REG_STATE_TIMEOUT;
-								iaxs[callno]->reg->refresh = IAX_DEFAULT_REG_EXPIRE;
-							}
-							iax2_destroy(callno);
-						}
-					}
-
+		if (f->retries < 0) {
+			/* Already ACK'd */
+			freeme = 1;
+		} else if (f->retries >= max_retries) {
+			/* Too many attempts.  Record an error. */
+			if (f->transfer) {
+				/* Transfer timeout */
+				send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_TXREJ, 0, NULL, 0, -1);
+			} else if (f->final) {
+				iax2_destroy(callno);
+			} else {
+				if (iaxs[callno]->owner) {
+					ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %u, ts=%d, seqno=%d)\n",
+						ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),
+						ast_channel_name(iaxs[f->callno]->owner),
+						f->af.frametype,
+						f->af.subclass.integer,
+						f->ts,
+						f->oseqno);
 				}
-				freeme = 1;
+				iaxs[callno]->error = ETIMEDOUT;
+				if (iaxs[callno]->owner) {
+					struct ast_frame fr = { AST_FRAME_CONTROL, { AST_CONTROL_HANGUP }, .data.uint32 = AST_CAUSE_DESTINATION_OUT_OF_ORDER };
+					/* Hangup the fd */
+					iax2_queue_frame(callno, &fr); /* XXX */
+					/* Remember, owner could disappear */
+					if (iaxs[callno] && iaxs[callno]->owner)
+						ast_channel_hangupcause_set(iaxs[callno]->owner, AST_CAUSE_DESTINATION_OUT_OF_ORDER);
+				} else {
+					if (iaxs[callno]->reg) {
+						memset(&iaxs[callno]->reg->us, 0, sizeof(iaxs[callno]->reg->us));
+						iaxs[callno]->reg->regstate = REG_STATE_TIMEOUT;
+						iaxs[callno]->reg->refresh = IAX_DEFAULT_REG_EXPIRE;
+					}
+					iax2_destroy(callno);
+				}
+			}
+			freeme = 1;
 		} else {
 			/* Update it if it needs it */
 			update_packet(f);
@@ -8620,8 +8627,6 @@ static int expire_registry(const void *data)
 	return 0;
 }
 
-static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
-
 static void reg_source_db(struct iax2_peer *p)
 {
 	char data[80];
@@ -9454,9 +9459,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 
 	if (!(thread = find_idle_thread())) {
 		time(&t);
-		if (t != last_errtime)
+		if (t != last_errtime) {
+			last_errtime = t;
 			ast_debug(1, "Out of idle IAX2 threads for I/O, pausing!\n");
-		last_errtime = t;
+		}
 		usleep(1);
 		return 1;
 	}
@@ -11400,12 +11406,13 @@ immediatedial:
 
 			/* Don't actually pass these frames along */
 			if ((f.subclass.integer != IAX_COMMAND_ACK) &&
-			  (f.subclass.integer != IAX_COMMAND_TXCNT) &&
-			  (f.subclass.integer != IAX_COMMAND_TXACC) &&
-			  (f.subclass.integer != IAX_COMMAND_INVAL) &&
-			  (f.subclass.integer != IAX_COMMAND_VNAK)) {
-				if (iaxs[fr->callno] && iaxs[fr->callno]->aseqno != iaxs[fr->callno]->iseqno)
+				(f.subclass.integer != IAX_COMMAND_TXCNT) &&
+				(f.subclass.integer != IAX_COMMAND_TXACC) &&
+				(f.subclass.integer != IAX_COMMAND_INVAL) &&
+				(f.subclass.integer != IAX_COMMAND_VNAK)) {
+				if (iaxs[fr->callno] && iaxs[fr->callno]->aseqno != iaxs[fr->callno]->iseqno) {
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
+				}
 			}
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
@@ -11527,8 +11534,9 @@ immediatedial:
 		/*iaxs[fr->callno]->last = fr->ts; (do it afterwards cos schedule/forward_delivery needs the last ts too)*/
 		fr->outoforder = 0;
 	} else {
-		if (iaxdebug && iaxs[fr->callno])
+		if (iaxdebug && iaxs[fr->callno]) {
 			ast_debug(1, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass.integer, fr->ts, iaxs[fr->callno]->last);
+		}
 		fr->outoforder = -1;
 	}
 	fr->cacheable = ((f.frametype == AST_FRAME_VOICE) || (f.frametype == AST_FRAME_VIDEO));
@@ -14008,7 +14016,7 @@ static int iax2_devicestate(const char *data)
 		return res;
 
 	res = AST_DEVICE_UNAVAILABLE;
-	ast_debug(3, "iax2_devicestate: Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
+	ast_debug(3, "Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
 		pds.peer, ast_sockaddr_ipv4(&p->addr), p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 
 	if ((ast_sockaddr_ipv4(&p->addr) || p->defaddr.sin_addr.s_addr) &&
