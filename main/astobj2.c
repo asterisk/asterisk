@@ -114,27 +114,28 @@ struct ao2_stats {
 static struct ao2_stats ao2;
 #endif
 
-#ifndef HAVE_BKTR	/* backtrace support */
-void ao2_bt(void) {}
-#else
+#ifdef HAVE_BKTR
 #include <execinfo.h>    /* for backtrace */
+#endif
 
 void ao2_bt(void)
 {
-	int c, i;
+#ifdef HAVE_BKTR
+	int depth;
+	int idx;
 #define N1	20
 	void *addresses[N1];
 	char **strings;
 
-	c = backtrace(addresses, N1);
-	strings = ast_bt_get_symbols(addresses,c);
-	ast_verbose("backtrace returned: %d\n", c);
-	for(i = 0; i < c; i++) {
-		ast_verbose("%d: %p %s\n", i, addresses[i], strings[i]);
+	depth = backtrace(addresses, N1);
+	strings = ast_bt_get_symbols(addresses, depth);
+	ast_verbose("backtrace returned: %d\n", depth);
+	for (idx = 0; idx < depth; ++idx) {
+		ast_verbose("%d: %p %s\n", idx, addresses[idx], strings[idx]);
 	}
 	ast_std_free(strings);
-}
 #endif
+}
 
 #define INTERNAL_OBJ_MUTEX(user_data) \
 	((struct astobj2_lock *) (((char *) (user_data)) - sizeof(struct astobj2_lock)))
