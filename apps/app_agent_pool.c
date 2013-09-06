@@ -1353,7 +1353,7 @@ static void bridge_agent_hold_pull(struct ast_bridge *self, struct ast_bridge_ch
  */
 static void bridge_agent_hold_dissolving(struct ast_bridge *self)
 {
-	ao2_global_obj_replace_unref(agent_holding, NULL);
+	ao2_global_obj_release(agent_holding);
 	ast_bridge_base_v_table.dissolving(self);
 }
 

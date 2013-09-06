@@ -157,7 +157,7 @@ static int process_config(int reload)
 		if (conf && !reload
 			&& !aco_set_defaults(&threadpool_option, "threadpool", conf->threadpool)) {
 			ast_log(AST_LOG_NOTICE, "Failed to process Stasis configuration; using defaults\n");
-			ao2_global_obj_replace(confs, conf);
+			ao2_global_obj_replace_unref(confs, conf);
 			return 0;
 		}
 		return -1;

@@ -3949,7 +3949,7 @@ static int process_config(int reload)
 		 */
 		if (!reload && !(aco_set_defaults(&general_option, "general", mod_cfg->general))) {
 			ast_log(LOG_NOTICE, "Failed to process CDR configuration; using defaults\n");
-			ao2_global_obj_replace(module_configs, mod_cfg);
+			ao2_global_obj_replace_unref(module_configs, mod_cfg);
 			return 0;
 		}
 		return 1;
