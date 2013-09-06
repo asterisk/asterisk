@@ -68,7 +68,9 @@ struct app_forwards {
 
 static void forwards_dtor(void *obj)
 {
+#ifdef AST_DEVMODE
 	struct app_forwards *forwards = obj;
+#endif /* AST_DEVMODE */
 
 	ast_assert(forwards->topic_forward == NULL);
 	ast_assert(forwards->topic_cached_forward == NULL);
