@@ -192,6 +192,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 
 
+/* The prime here should be similar in size to the channel container. */
+#ifdef LOW_MEMORY
+#define NUM_CDR_BUCKETS 61
+#else
+#define NUM_CDR_BUCKETS 769
+#endif
+
 #define DEFAULT_ENABLED "1"
 #define DEFAULT_BATCHMODE "0"
 #define DEFAULT_UNANSWERED "0"
@@ -2279,7 +2286,7 @@ static void add_candidate_for_bridge(const char *bridge_id,
  */
 static struct ao2_container *create_candidates_for_bridge(struct ast_bridge_snapshot *bridge)
 {
-	struct ao2_container *candidates = ao2_container_alloc(51, bridge_candidate_hash_fn, bridge_candidate_cmp_fn);
+	struct ao2_container *candidates = ao2_container_alloc(61, bridge_candidate_hash_fn, bridge_candidate_cmp_fn);
 	char *bridge_id = ast_strdupa(bridge->uniqueid);
 	struct ao2_iterator *it_cdrs;
 	struct cdr_object *cand_cdr_master;
@@ -2429,11 +2436,7 @@ static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_sna
 	if (!candidates) {
 		return;
 	}
-	ao2_callback(candidates, OBJ_NODATA,
-			bridge_candidate_process,
-			cdr);
-
-	return;
+	ao2_callback(candidates, OBJ_NODATA, bridge_candidate_process, cdr);
 }
 
 /*! \brief Handle entering into a parking bridge
@@ -4029,7 +4032,6 @@ static void cdr_container_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
 	}
 }
 
-
 int ast_cdr_engine_init(void)
 {
 	RAII_VAR(struct module_config *, mod_cfg, NULL, ao2_cleanup);
@@ -4038,8 +4040,8 @@ int ast_cdr_engine_init(void)
 		return -1;
 	}
 
-	/* The prime here should be the same as the channel container */
-	active_cdrs_by_channel = ao2_container_alloc(51, cdr_object_channel_hash_fn, cdr_object_channel_cmp_fn);
+	active_cdrs_by_channel = ao2_container_alloc(NUM_CDR_BUCKETS,
+		cdr_object_channel_hash_fn, cdr_object_channel_cmp_fn);
 	if (!active_cdrs_by_channel) {
 		return -1;
 	}
