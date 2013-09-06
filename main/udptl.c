@@ -1468,7 +1468,7 @@ static void __ast_udptl_reload(int reload)
 			}
 
 			ast_log(LOG_NOTICE, "Could not load udptl config; using defaults\n");
-			ao2_global_obj_replace(globals, udptl_cfg);
+			ao2_global_obj_replace_unref(globals, udptl_cfg);
 		}
 	}
 }

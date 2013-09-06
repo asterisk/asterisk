@@ -216,7 +216,7 @@ int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_ta
 	}
 	*wrapper = *fn_table;
 
-	ao2_global_obj_replace(parking_provider, wrapper);
+	ao2_global_obj_replace_unref(parking_provider, wrapper);
 	return 0;
 }
 
@@ -234,7 +234,7 @@ int ast_parking_unregister_bridge_features(const char *module_name)
 		return -1;
 	}
 
-	ao2_global_obj_replace_unref(parking_provider, NULL);
+	ao2_global_obj_release(parking_provider);
 	return 0;
 }
 

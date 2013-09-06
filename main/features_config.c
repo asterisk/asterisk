@@ -1748,7 +1748,7 @@ static int load_config(void)
 		}
 
 		ast_log(LOG_NOTICE, "Could not load features config; using defaults\n");
-		ao2_global_obj_replace(globals, features_cfg);
+		ao2_global_obj_replace_unref(globals, features_cfg);
 	}
 
 	return 0;

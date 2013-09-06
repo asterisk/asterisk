@@ -1503,7 +1503,7 @@ int ast_cel_engine_init(void)
 		 */
 		if (!aco_set_defaults(&general_option, "general", cel_cfg->general)) {
 			ast_log(LOG_NOTICE, "Failed to process CEL configuration; using defaults\n");
-			ao2_global_obj_replace(cel_configs, cel_cfg);
+			ao2_global_obj_replace_unref(cel_configs, cel_cfg);
 		}
 	}
 
