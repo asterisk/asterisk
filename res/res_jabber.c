@@ -3330,7 +3330,7 @@ static void aji_init_event_distribution(struct aji_client *client)
  */
 static int aji_handle_pubsub_event(void *data, ikspak *pak)
 {
-	char *item_id, *device_state, *context, *cachable_str;
+	char *item_id, *device_state, *mailbox, *cachable_str;
 	int oldmsgs, newmsgs;
 	iks *item, *item_content;
 	struct ast_eid pubsub_eid;
@@ -3359,11 +3359,11 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 						&pubsub_eid);
 		return IKS_FILTER_EAT;
 	} else if (!strcasecmp(iks_name(item_content), "mailbox")) {
-		context = strsep(&item_id, "@");
+		mailbox = strsep(&item_id, "@");
 		sscanf(iks_find_cdata(item_content, "OLDMSGS"), "%10d", &oldmsgs);
 		sscanf(iks_find_cdata(item_content, "NEWMSGS"), "%10d", &newmsgs);
 
-		ast_publish_mwi_state_full(item_id, context, newmsgs, oldmsgs, NULL, &pubsub_eid);
+		ast_publish_mwi_state_full(mailbox, item_id, newmsgs, oldmsgs, NULL, &pubsub_eid);
 
 		return IKS_FILTER_EAT;
 	} else {
