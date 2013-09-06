@@ -355,8 +355,8 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 		if (h323debug)
 			ast_debug(1, "Preparing %s for new native format\n", ast_channel_name(c));
 		ast_format_cap_from_old_bitfield(ast_channel_nativeformats(c), pvt->nativeformats);
-		ast_set_read_format(c, &c->readformat);
-		ast_set_write_format(c, &c->writeformat);
+		ast_set_read_format(c, ast_channel_readformat(c));
+		ast_set_write_format(c, ast_channel_writeformat(c));
 	}
 	if (pvt->needhangup) {
 		if (h323debug)
@@ -796,8 +796,8 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 
 				pvt->nativeformats = ast_format_to_old_bitfield(&f->subclass.format);
 
-				ast_set_read_format(pvt->owner, &pvt->owner->readformat);
-				ast_set_write_format(pvt->owner, &pvt->owner->writeformat);
+				ast_set_read_format(pvt->owner, ast_channel_readformat(pvt->owner));
+				ast_set_write_format(pvt->owner,ast_channel_writeformat(pvt->owner));
 				ast_channel_unlock(pvt->owner);
 			}
 			/* Do in-band DTMF detection */
@@ -863,7 +863,10 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(c), &frame->subclass.format))) {
 			char tmp[256];
 			ast_log(LOG_WARNING, "Asked to transmit frame type '%s', while native formats is '%s' (read/write = %s/%s)\n",
-				ast_getformatname(&frame->subclass.format), ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(c)), ast_getformatname(&c->readformat), ast_getformatname(&c->writeformat));
+				ast_getformatname(&frame->subclass.format),
+				ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(c)),
+				ast_getformatname(ast_channel_readformat(c)),
+				ast_getformatname(ast_channel_writeformat(c)));
 			return 0;
 		}
 	}
@@ -976,7 +979,7 @@ static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, pvt->owner);
 		return -1;
 	}
-	oh323_set_owner(p, newchan);
+	oh323_set_owner(pvt, newchan);
 	ast_mutex_unlock(&pvt->lock);
 	return 0;
 }
@@ -1009,7 +1012,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 		ast_debug(1, "Created RTP channel\n");
 
 	ast_rtp_instance_set_qos(pvt->rtp, tos, cos, "H323 RTP");
-	ast_rtp_instance_set_channel_id(pvt->rtp, pvt->owner ? ast_channel_uniqueid(pvt->owner), "");
+	ast_rtp_instance_set_channel_id(pvt->rtp, pvt->owner ? ast_channel_uniqueid(pvt->owner) : "");
 
 	if (h323debug)
 		ast_debug(1, "Setting NAT on RTP to %d\n", pvt->options.nat);
@@ -1071,10 +1074,10 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 
 		pvt->nativeformats = ast_format_cap_to_old_bitfield(ast_channel_nativeformats(ch));
 		ast_best_codec(ast_channel_nativeformats(ch), &tmpfmt);
-		ast_format_copy(&ch->writeformat, &tmpfmt);
-		ast_format_copy(&ch->rawwriteformat, &tmpfmt);
-		ast_format_copy(&ch->readformat, &tmpfmt);
-		ast_format_copy(&ch->rawreadformat, &tmpfmt);
+		ast_format_copy(ast_channel_writeformat(ch), &tmpfmt);
+		ast_format_copy(ast_channel_rawwriteformat(ch), &tmpfmt);
+		ast_format_copy(ast_channel_readformat(ch), &tmpfmt);
+		ast_format_copy(ast_channel_rawreadformat(ch), &tmpfmt);
 		if (!pvt->rtp)
 			__oh323_rtp_create(pvt);
 #if 0
@@ -1196,7 +1199,7 @@ static void oh323_set_owner(struct oh323_pvt *pvt, struct ast_channel *chan)
 {
 	pvt->owner = chan;
 	if (pvt->rtp) {
-		ast_rtp_instance_set_channel_id(pvt, chan ? ast_channel_uniqueid(chan) : "");
+		ast_rtp_instance_set_channel_id(pvt->rtp, chan ? ast_channel_uniqueid(chan) : "");
 	}
 }
 
@@ -2097,11 +2100,15 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 			if (!(ast_format_cap_identical(ast_channel_nativeformats(pvt->owner), pvt_native))) {
 				if (h323debug) {
 					char tmp[256], tmp2[256];
-					ast_debug(1, "Native format changed to '%s' from '%s', read format is %s, write format is %s\n", ast_getformatname_multiple(tmp, sizeof(tmp), pvt_native), ast_getformatname_multiple(tmp2, sizeof(tmp2), ast_channel_nativeformats(pvt->owner)), ast_getformatname(&pvt->owner->readformat), ast_getformatname(&pvt->owner->writeformat));
+					ast_debug(1, "Native format changed to '%s' from '%s', read format is %s, write format is %s\n",
+						ast_getformatname_multiple(tmp, sizeof(tmp), pvt_native),
+						ast_getformatname_multiple(tmp2, sizeof(tmp2), ast_channel_nativeformats(pvt->owner)),
+						ast_getformatname(ast_channel_readformat(pvt->owner)),
+						ast_getformatname(ast_channel_writeformat(pvt->owner)));
 				}
 				ast_format_cap_copy(ast_channel_nativeformats(pvt->owner), pvt_native);
-				ast_set_read_format(pvt->owner, &pvt->owner->readformat);
-				ast_set_write_format(pvt->owner, &pvt->owner->writeformat);
+				ast_set_read_format(pvt->owner, ast_channel_readformat(pvt->owner));
+				ast_set_write_format(pvt->owner, ast_channel_writeformat(pvt->owner));
 			}
 			if (pvt->options.progress_audio)
 				ast_queue_control(pvt->owner, AST_CONTROL_PROGRESS);
