@@ -914,7 +914,9 @@ struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers)
 		char decoded[256] = {};
 		char *username;
 		char *password;
+#ifdef AST_DEVMODE
 		int cnt;
+#endif /* AST_DEVMODE */
 
 		if (strcasecmp("Authorization", v->name) != 0) {
 			continue;
@@ -939,7 +941,10 @@ struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers)
 		/* This will truncate "userid:password" lines to
 		 * sizeof(decoded). The array is long enough that this shouldn't
 		 * be a problem */
-		cnt = ast_base64decode((unsigned char*)decoded, base64,
+#ifdef AST_DEVMODE
+		cnt =
+#endif /* AST_DEVMODE */
+		ast_base64decode((unsigned char*)decoded, base64,
 			sizeof(decoded) - 1);
 		ast_assert(cnt < sizeof(decoded));
 
