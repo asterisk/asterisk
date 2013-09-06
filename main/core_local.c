@@ -422,7 +422,7 @@ static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message
 	struct ast_channel_snapshot *local_snapshot_two;
 	RAII_VAR(struct ast_str *, local_channel_one, NULL, ast_free);
 	RAII_VAR(struct ast_str *, local_channel_two, NULL, ast_free);
-	struct ast_str *event_buffer = ast_str_alloca(128);
+	RAII_VAR(struct ast_str *, event_buffer, NULL, ast_free);
 	const char *event;
 
 	local_snapshot_one = ast_multi_channel_blob_get_channel(obj, "1");
@@ -431,9 +431,10 @@ static struct ast_manager_event_blob *local_message_to_ami(struct stasis_message
 		return NULL;
 	}
 
+	event_buffer = ast_str_create(1024);
 	local_channel_one = ast_manager_build_channel_state_string_prefix(local_snapshot_one, "LocalOne");
 	local_channel_two = ast_manager_build_channel_state_string_prefix(local_snapshot_two, "LocalTwo");
-	if (!local_channel_one || !local_channel_two) {
+	if (!event_buffer || !local_channel_one || !local_channel_two) {
 		return NULL;
 	}
 
