@@ -3356,8 +3356,8 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 		sscanf(iks_find_cdata(item_content, "OLDMSGS"), "%10d", &oldmsgs);
 		sscanf(iks_find_cdata(item_content, "NEWMSGS"), "%10d", &newmsgs);
 		if (!(event = ast_event_new(AST_EVENT_MWI, AST_EVENT_IE_MAILBOX,
-			AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_CONTEXT,
-			AST_EVENT_IE_PLTYPE_STR, context, AST_EVENT_IE_OLDMSGS,
+			AST_EVENT_IE_PLTYPE_STR, context, AST_EVENT_IE_CONTEXT,
+			AST_EVENT_IE_PLTYPE_STR, item_id, AST_EVENT_IE_OLDMSGS,
 			AST_EVENT_IE_PLTYPE_UINT, oldmsgs, AST_EVENT_IE_NEWMSGS,
 			AST_EVENT_IE_PLTYPE_UINT, newmsgs, AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW,
 			&pubsub_eid, sizeof(pubsub_eid), AST_EVENT_IE_END))) {
