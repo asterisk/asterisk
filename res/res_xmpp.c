@@ -2543,13 +2543,7 @@ static void xmpp_log_hook(void *data, const char *xmpp, size_t size, int incomin
 	}
 
 	if (!incoming) {
-		if (strlen(xmpp) == 1) {
-			if (option_debug > 2  && xmpp[0] == ' ') {
-				ast_verbose("\n<--- XMPP keep alive from '%s' --->\n", client->name);
-			}
-		} else {
-			ast_verbose("\n<--- XMPP sent to '%s' --->\n%s\n<------------->\n", client->name, xmpp);
-		}
+		ast_verbose("\n<--- XMPP sent to '%s' --->\n%s\n<------------->\n", client->name, xmpp);
 	} else {
 		ast_verbose("\n<--- XMPP received from '%s' --->\n%s\n<------------->\n", client->name, xmpp);
 	}
@@ -3242,6 +3236,40 @@ static int xmpp_resource_is_available(void *obj, void *arg, int flags)
 	return (resource->status == IKS_SHOW_AVAILABLE) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+/*! \brief Helper function which sends a ping request to a server */
+static int xmpp_ping_request(struct ast_xmpp_client *client, const char *to, const char *from)
+{
+	iks *iq, *ping;
+	int res;
+	
+	ast_debug(2, "JABBER: Sending Keep-Alive Ping for client '%s'\n", client->name);
+
+	if (!(iq = iks_new("iq")) || !(ping = iks_new("ping"))) {
+		iks_delete(iq);
+		return -1;
+	}
+	
+	iks_insert_attrib(iq, "type", "get");
+	iks_insert_attrib(iq, "to", to);
+	iks_insert_attrib(iq, "from", from);
+	
+	ast_xmpp_client_lock(client);
+	iks_insert_attrib(iq, "id", client->mid);
+	ast_xmpp_increment_mid(client->mid);
+	ast_xmpp_client_unlock(client);
+	
+	iks_insert_attrib(ping, "xmlns", "urn:xmpp:ping");
+	iks_insert_node(iq, ping);
+	
+	res = ast_xmpp_client_send(client, iq);
+	
+	iks_delete(ping);
+	iks_delete(iq);
+
+
+	return res;
+}
+
 /*! \brief Internal function called when a presence message is received */
 static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_client_config *cfg, iks *node, ikspak *pak)
 {
@@ -3545,6 +3573,7 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 /*! \brief Internal function used to reconnect an XMPP client to its server */
 static int xmpp_client_reconnect(struct ast_xmpp_client *client)
 {
+	struct timeval tv = { .tv_sec = 5, .tv_usec = 0 };
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
 	int res = IKS_NET_NOCONN;
@@ -3567,6 +3596,9 @@ static int xmpp_client_reconnect(struct ast_xmpp_client *client)
 	res = iks_connect_via(client->parser, S_OR(clientcfg->server, client->jid->server), clientcfg->port,
 			      ast_test_flag(&clientcfg->flags, XMPP_COMPONENT) ? clientcfg->user : client->jid->server);
 
+	/* Set socket timeout options */
+	setsockopt(iks_fd(client->parser), SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(struct timeval));
+	
 	if (res == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "No XMPP connection available when trying to connect client '%s'\n", client->name);
 		return -1;
@@ -3651,6 +3683,14 @@ static int xmpp_client_receive(struct ast_xmpp_client *client, unsigned int time
 		/* Log the message here, because iksemel's logHook is
 		   unaccessible */
 		xmpp_log_hook(client, buf, len, 1);
+		
+		if(buf[0] == ' ') {
+			ast_debug(1, "JABBER: Detected Google Keep Alive. "
+				"Sending out Ping request for client '%s'\n", client->name);
+			/* If we just send out the ping here then we will have socket
+			 * read errors because the socket will timeout */
+			xmpp_ping_request(client, client->jid->server, client->jid->full);
+		}
 
 		/* let iksemel deal with the string length,
 		   and reset our buffer */
@@ -3684,6 +3724,7 @@ static void *xmpp_client_thread(void *data)
 
 	do {
 		if (client->state == XMPP_STATE_DISCONNECTING) {
+			ast_debug(1, "JABBER: Disconnecting client '%s'\n", client->name);
 			break;
 		}
 
@@ -3712,8 +3753,12 @@ static void *xmpp_client_thread(void *data)
 			RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 			RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
 
-			if (cfg && cfg->clients && (clientcfg = xmpp_config_find(cfg->clients, client->name))) {
-				res = ast_test_flag(&clientcfg->flags, XMPP_KEEPALIVE) ? xmpp_client_send_raw_message(client, " ") : IKS_OK;
+			if (cfg && cfg->clients) {
+				clientcfg = xmpp_config_find(cfg->clients, client->name);
+			}
+
+			if (clientcfg && ast_test_flag(&clientcfg->flags, XMPP_KEEPALIVE)) {
+				res = xmpp_ping_request(client, client->jid->server, client->jid->full);
 			} else {
 				res = IKS_OK;
 			}
@@ -3725,6 +3770,18 @@ static void *xmpp_client_thread(void *data)
 			}
 		} else if (res == IKS_NET_RWERR) {
 			ast_log(LOG_WARNING, "JABBER: socket read error\n");
+		} else if (res == IKS_NET_NOSOCK) {
+			ast_log(LOG_WARNING, "JABBER: No Socket\n");
+		} else if (res == IKS_NET_NOCONN) {
+			ast_log(LOG_WARNING, "JABBER: No Connection\n");
+		} else if (res == IKS_NET_NODNS) {
+			ast_log(LOG_WARNING, "JABBER: No DNS\n");
+		} else if (res == IKS_NET_NOTSUPP) {
+			ast_log(LOG_WARNING, "JABBER: Not Supported\n");
+		} else if (res == IKS_NET_DROPPED) {
+			ast_log(LOG_WARNING, "JABBER: Dropped?\n");
+		} else {
+			ast_debug(5, "JABBER: Unknown\n");
 		}
 
 	} while (1);
