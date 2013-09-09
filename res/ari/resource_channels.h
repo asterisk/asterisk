@@ -72,6 +72,8 @@ struct ast_originate_args {
 /*!
  * \brief Create a new channel (originate).
  *
+ * The new channel is not created until the dialed party picks up. Not wanting to block this request indefinitely, this request returns immediately with a 204 No Content. When the channel is created, a StasisStart event is sent with the provided app and appArgs. In the event of a failure (timeout, busy, etc.), an OriginationFailed event is sent.
+ *
  * \param headers HTTP headers
  * \param args Swagger parameters
  * \param[out] response HTTP response
