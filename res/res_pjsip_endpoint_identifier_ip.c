@@ -89,8 +89,20 @@ static int ip_identify_match_check(void *obj, void *arg, int flags)
 {
 	struct ip_identify_match *identify = obj;
 	struct ast_sockaddr *addr = arg;
+	int sense;
 
-	return (ast_apply_ha(identify->matches, addr) != AST_SENSE_ALLOW) ? CMP_MATCH | CMP_STOP : 0;
+	sense = ast_apply_ha(identify->matches, addr);
+	if (sense != AST_SENSE_ALLOW) {
+		ast_debug(3, "Source address %s matches identify '%s'\n",
+				ast_sockaddr_stringify(addr),
+				ast_sorcery_object_get_id(identify));
+		return CMP_MATCH | CMP_STOP;
+	} else {
+		ast_debug(3, "Source address %s does not match identify '%s'\n",
+				ast_sockaddr_stringify(addr),
+				ast_sorcery_object_get_id(identify));
+		return 0;
+	}
 }
 
 static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
@@ -103,6 +115,7 @@ static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 	/* If no possibilities exist return early to save some time */
 	if (!(candidates = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "identify", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL)) ||
 		!ao2_container_count(candidates)) {
+		ast_debug(3, "No identify sections to match against\n");
 		return NULL;
 	}
 
@@ -110,12 +123,17 @@ static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 	ast_sockaddr_set_port(&addr, rdata->pkt_info.src_port);
 
 	if (!(match = ao2_callback(candidates, 0, ip_identify_match_check, &addr))) {
+		ast_debug(3, "'%s' did not match any identify section rules\n",
+				ast_sockaddr_stringify(&addr));
 		return NULL;
 	}
 
 	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", match->endpoint_name);
 	if (endpoint) {
 		ast_debug(3, "Retrieved endpoint %s\n", ast_sorcery_object_get_id(endpoint));
+	} else {
+		ast_log(LOG_WARNING, "Identify section '%s' points to endpoint '%s' but endpoint could not be looked up\n",
+				ast_sorcery_object_get_id(match), match->endpoint_name);
 	}
 
 	return endpoint;
