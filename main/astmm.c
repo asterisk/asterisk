@@ -71,7 +71,7 @@ enum func_type {
 #undef vasprintf
 #undef asprintf
 
-#define FENCE_MAGIC		0xdeadbeef	/*!< Allocated memory high/low fence overwrite check. */
+#define FENCE_MAGIC		0xfeedbabe	/*!< Allocated memory high/low fence overwrite check. */
 #define FREED_MAGIC		0xdeaddead	/*!< Freed memory wipe filler. */
 #define MALLOC_FILLER	0x55		/*!< Malloced memory filler.  Must not be zero. */
 
