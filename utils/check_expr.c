@@ -105,12 +105,19 @@ void ast_remove_lock_info(void *lock_addr)
 }
 #endif /* HAVE_BKTR */
 
+void ast_suspend_lock_info(void *lock_addr)
+{
+}
+void ast_restore_lock_info(void *lock_addr)
+{
+}
 void ast_mark_lock_acquired(void *);
 void ast_mark_lock_acquired(void *foo)
 {
     /* not a lot to do in a standalone w/o threading! */
 }
 #endif
+
 
 static int global_lineno = 1;
 static int global_expr_count=0;

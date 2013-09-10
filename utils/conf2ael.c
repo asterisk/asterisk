@@ -777,5 +777,11 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 {
 }
 #endif /* HAVE_BKTR */
+void ast_suspend_lock_info(void *lock_addr)
+{
+}
+void ast_restore_lock_info(void *lock_addr)
+{
+}
 #endif /* !defined(LOW_MEMORY) */
 #endif /* DEBUG_THREADS */
