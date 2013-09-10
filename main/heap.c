@@ -181,18 +181,19 @@ static int grow_heap(struct ast_heap *h
 #endif
 )
 {
-	h->avail_len = h->avail_len * 2 + 1;
+	void **new_heap;
+	size_t new_len = h->avail_len * 2 + 1;
 
-	if (!(h->heap =
 #ifdef MALLOC_DEBUG
-			__ast_realloc(h->heap, h->avail_len * sizeof(void *), file, lineno, func)
+	new_heap = __ast_realloc(h->heap, new_len * sizeof(void *), file, lineno, func);
 #else
-			ast_realloc(h->heap, h->avail_len * sizeof(void *))
+	new_heap = ast_realloc(h->heap, new_len * sizeof(void *));
 #endif
-		)) {
-		h->cur_len = h->avail_len = 0;
+	if (!new_heap) {
 		return -1;
 	}
+	h->heap = new_heap;
+	h->avail_len = new_len;
 
 	return 0;
 }
