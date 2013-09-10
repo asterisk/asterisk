@@ -2363,9 +2363,22 @@ int ast_cli_generatornummatches(const char *text, const char *word)
 	return matches;
 }
 
+static void destroy_match_list(char **match_list, int matches)
+{
+	if (match_list) {
+		int idx;
+
+		for (idx = 1; idx < matches; ++idx) {
+			ast_free(match_list[idx]);
+		}
+		ast_free(match_list);
+	}
+}
+
 char **ast_cli_completion_matches(const char *text, const char *word)
 {
 	char **match_list = NULL, *retstr, *prevstr;
+	char **new_list;
 	size_t match_list_len, max_equal, which, i;
 	int matches = 0;
 
@@ -2374,14 +2387,19 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 	while ((retstr = ast_cli_generator(text, word, matches)) != NULL) {
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
-			if (!(match_list = ast_realloc(match_list, match_list_len * sizeof(*match_list))))
+			new_list = ast_realloc(match_list, match_list_len * sizeof(*match_list));
+			if (!new_list) {
+				destroy_match_list(match_list, matches);
 				return NULL;
+			}
+			match_list = new_list;
 		}
 		match_list[++matches] = retstr;
 	}
 
-	if (!match_list)
+	if (!match_list) {
 		return match_list; /* NULL */
+	}
 
 	/* Find the longest substring that is common to all results
 	 * (it is a candidate for completion), and store a copy in entry 0.
@@ -2394,20 +2412,23 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 		max_equal = i;
 	}
 
-	if (!(retstr = ast_malloc(max_equal + 1))) {
-		ast_free(match_list);
+	retstr = ast_malloc(max_equal + 1);
+	if (!retstr) {
+		destroy_match_list(match_list, matches);
 		return NULL;
 	}
-
 	ast_copy_string(retstr, match_list[1], max_equal + 1);
 	match_list[0] = retstr;
 
 	/* ensure that the array is NULL terminated */
 	if (matches + 1 >= match_list_len) {
-		if (!(match_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(*match_list)))) {
+		new_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(*match_list));
+		if (!new_list) {
 			ast_free(retstr);
+			destroy_match_list(match_list, matches);
 			return NULL;
 		}
+		match_list = new_list;
 	}
 	match_list[matches + 1] = NULL;
 

@@ -2777,45 +2777,62 @@ static char *cli_prompt(EditLine *editline)
 	return ast_str_buffer(prompt);
 }
 
+static void destroy_match_list(char **match_list, int matches)
+{
+	if (match_list) {
+		int idx;
+
+		for (idx = 0; idx < matches; ++idx) {
+			ast_free(match_list[idx]);
+		}
+		ast_free(match_list);
+	}
+}
+
 static char **ast_el_strtoarr(char *buf)
 {
-	char **match_list = NULL, **match_list_tmp, *retstr;
-	size_t match_list_len;
+	char *retstr;
+	char **match_list = NULL;
+	char **new_list;
+	size_t match_list_len = 1;
 	int matches = 0;
 
-	match_list_len = 1;
-	while ( (retstr = strsep(&buf, " ")) != NULL) {
-
-		if (!strcmp(retstr, AST_CLI_COMPLETE_EOF))
+	while ((retstr = strsep(&buf, " "))) {
+		if (!strcmp(retstr, AST_CLI_COMPLETE_EOF)) {
 			break;
+		}
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
-			if ((match_list_tmp = ast_realloc(match_list, match_list_len * sizeof(char *)))) {
-				match_list = match_list_tmp;
-			} else {
-				if (match_list)
-					ast_free(match_list);
-				return (char **) NULL;
+			new_list = ast_realloc(match_list, match_list_len * sizeof(char *));
+			if (!new_list) {
+				destroy_match_list(match_list, matches);
+				return NULL;
 			}
+			match_list = new_list;
 		}
 
-		match_list[matches++] = ast_strdup(retstr);
+		retstr = ast_strdup(retstr);
+		if (!retstr) {
+			destroy_match_list(match_list, matches);
+			return NULL;
+		}
+		match_list[matches++] = retstr;
 	}
 
-	if (!match_list)
-		return (char **) NULL;
+	if (!match_list) {
+		return NULL;
+	}
 
 	if (matches >= match_list_len) {
-		if ((match_list_tmp = ast_realloc(match_list, (match_list_len + 1) * sizeof(char *)))) {
-			match_list = match_list_tmp;
-		} else {
-			if (match_list)
-				ast_free(match_list);
-			return (char **) NULL;
+		new_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(char *));
+		if (!new_list) {
+			destroy_match_list(match_list, matches);
+			return NULL;
 		}
+		match_list = new_list;
 	}
 
-	match_list[matches] = (char *) NULL;
+	match_list[matches] = NULL;
 
 	return match_list;
 }
@@ -2916,7 +2933,9 @@ static char *cli_complete(EditLine *editline, int ch)
 
 		if (nummatches > 0) {
 			char *mbuf;
+			char *new_mbuf;
 			int mlen = 0, maxmbuf = 2048;
+
 			/* Start with a 2048 byte buffer */
 			if (!(mbuf = ast_malloc(maxmbuf))) {
 				*((char *) lf->cursor) = savechr;
@@ -2930,10 +2949,13 @@ static char *cli_complete(EditLine *editline, int ch)
 				if (mlen + 1024 > maxmbuf) {
 					/* Every step increment buffer 1024 bytes */
 					maxmbuf += 1024;
-					if (!(mbuf = ast_realloc(mbuf, maxmbuf))) {
+					new_mbuf = ast_realloc(mbuf, maxmbuf);
+					if (!new_mbuf) {
+						ast_free(mbuf);
 						*((char *) lf->cursor) = savechr;
 						return (char *)(CC_ERROR);
 					}
+					mbuf = new_mbuf;
 				}
 				/* Only read 1024 bytes at a time */
 				res = read(ast_consock, mbuf + mlen, 1024);
