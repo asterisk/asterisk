@@ -311,13 +311,17 @@ static int event_append_ie_raw(struct ast_event **event, enum ast_event_ie_type 
 	const void *data, size_t data_len)
 {
 	struct ast_event_ie *ie;
+	struct ast_event *old_event;
 	unsigned int extra_len;
 	uint16_t event_len;
 
 	event_len = ntohs((*event)->event_len);
 	extra_len = sizeof(*ie) + data_len;
 
-	if (!(*event = ast_realloc(*event, event_len + extra_len))) {
+	old_event = *event;
+	*event = ast_realloc(*event, event_len + extra_len);
+	if (!*event) {
+		ast_free(old_event);
 		return -1;
 	}
 

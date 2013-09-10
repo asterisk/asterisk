@@ -1055,20 +1055,26 @@ static struct ast_generator mohgen = {
 static int moh_add_file(struct mohclass *class, const char *filepath)
 {
 	if (!class->allowed_files) {
-		if (!(class->filearray = ast_calloc(1, INITIAL_NUM_FILES * sizeof(*class->filearray))))
-			return -1;
-		class->allowed_files = INITIAL_NUM_FILES;
-	} else if (class->total_files == class->allowed_files) {
-		if (!(class->filearray = ast_realloc(class->filearray, class->allowed_files * sizeof(*class->filearray) * 2))) {
-			class->allowed_files = 0;
-			class->total_files = 0;
+		class->filearray = ast_calloc(1, INITIAL_NUM_FILES * sizeof(*class->filearray));
+		if (!class->filearray) {
 			return -1;
 		}
+		class->allowed_files = INITIAL_NUM_FILES;
+	} else if (class->total_files == class->allowed_files) {
+		char **new_array;
+
+		new_array = ast_realloc(class->filearray, class->allowed_files * sizeof(*class->filearray) * 2);
+		if (!new_array) {
+			return -1;
+		}
+		class->filearray = new_array;
 		class->allowed_files *= 2;
 	}
 
-	if (!(class->filearray[class->total_files] = ast_strdup(filepath)))
+	class->filearray[class->total_files] = ast_strdup(filepath);
+	if (!class->filearray[class->total_files]) {
 		return -1;
+	}
 
 	class->total_files++;
 

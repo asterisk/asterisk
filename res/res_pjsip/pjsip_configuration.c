@@ -290,6 +290,7 @@ void ast_sip_auth_array_destroy(struct ast_sip_auth_array *auths)
 		ast_free((char *) auths->names[i]);
 	}
 	ast_free(auths->names);
+	auths->names = NULL;
 	auths->num = 0;
 }
 
@@ -300,22 +301,26 @@ int ast_sip_auth_array_init(struct ast_sip_auth_array *auths, const char *value)
 	char *auth_names = ast_strdupa(value);
 	char *val;
 	int num_alloced = 0;
-	const char **alloced_auths = NULL;
+	const char **alloced_auths;
+
+	ast_assert(auths != NULL);
+	ast_assert(auths->names == NULL);
+	ast_assert(!auths->num);
 
 	while ((val = strsep(&auth_names, ","))) {
 		if (auths->num >= num_alloced) {
-			size_t size;
 			num_alloced += AUTH_INCREMENT;
-			size = num_alloced * sizeof(char *);
-			auths->names = ast_realloc(alloced_auths, size);
-			if (!auths->names) {
+			alloced_auths = ast_realloc(auths->names, num_alloced * sizeof(char *));
+			if (!alloced_auths) {
 				goto failure;
 			}
+			auths->names = alloced_auths;
 		}
-		auths->names[auths->num] = ast_strdup(val);
-		if (!auths->names[auths->num]) {
+		val = ast_strdup(val);
+		if (!val) {
 			goto failure;
 		}
+		auths->names[auths->num] = val;
 		++auths->num;
 	}
 	return 0;

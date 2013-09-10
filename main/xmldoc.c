@@ -607,8 +607,11 @@ static struct ast_xml_node *xmldoc_get_node(const char *type, const char *name, 
  */
 static void __attribute__((format(printf, 4, 5))) xmldoc_reverse_helper(int reverse, int *len, char **syntax, const char *fmt, ...)
 {
-	int totlen, tmpfmtlen;
-	char *tmpfmt, tmp;
+	int totlen;
+	int tmpfmtlen;
+	char *tmpfmt;
+	char *new_syntax;
+	char tmp;
 	va_list ap;
 
 	va_start(ap, fmt);
@@ -621,12 +624,12 @@ static void __attribute__((format(printf, 4, 5))) xmldoc_reverse_helper(int reve
 	tmpfmtlen = strlen(tmpfmt);
 	totlen = *len + tmpfmtlen + 1;
 
-	*syntax = ast_realloc(*syntax, totlen);
-
-	if (!*syntax) {
+	new_syntax = ast_realloc(*syntax, totlen);
+	if (!new_syntax) {
 		ast_free(tmpfmt);
 		return;
 	}
+	*syntax = new_syntax;
 
 	if (reverse) {
 		memmove(*syntax + tmpfmtlen, *syntax, *len);

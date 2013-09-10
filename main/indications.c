@@ -341,12 +341,12 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 	}
 
 	while ((s = strsep(&stringp, separator)) && !ast_strlen_zero(s)) {
+		struct playtones_item *new_items;
 		struct ast_tone_zone_part tone_data = {
 			.time = 0,
 		};
 
 		s = ast_strip(s);
-
 		if (s[0]=='!') {
 			s++;
 		} else if (d.reppos == -1) {
@@ -374,9 +374,12 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 			}
 		}
 
-		if (!(d.items = ast_realloc(d.items, (d.nitems + 1) * sizeof(*d.items)))) {
+		new_items = ast_realloc(d.items, (d.nitems + 1) * sizeof(*d.items));
+		if (!new_items) {
+			ast_free(d.items);
 			return -1;
 		}
+		d.items = new_items;
 
 		d.items[d.nitems].fac1 = 2.0 * cos(2.0 * M_PI * (tone_data.freq1 / sample_rate)) * max_sample_val;
 		d.items[d.nitems].init_v2_1 = sin(-4.0 * M_PI * (tone_data.freq1 / sample_rate)) * d.vol;
