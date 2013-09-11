@@ -582,7 +582,8 @@ usecallerid=yes
 ; easily be re-attaching to a prior incoming call that was not yet hung up).
 ; This option changes the hangup to wait for a dialtone on the line, before
 ; marking the line as once again available for use with outgoing calls.
-;waitfordialtone=yes
+; Specified in milliseconds, not set by default.
+;waitfordialtone=1000
 ;
 ; For analog lines, enables Asterisk to use dialtone detection per channel
 ; if an incoming call was hung up before it was answered.  If dialtone is
