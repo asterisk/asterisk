@@ -1077,6 +1077,7 @@ static int transmit_info_with_vidupdate(void *data)
 static int update_connected_line_information(void *data)
 {
 	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
+	struct ast_party_id connected_id;
 
 	if ((ast_channel_state(session->channel) != AST_STATE_UP) && (session->inv_session->role == PJSIP_UAS_ROLE)) {
 		int response_code = 0;
@@ -1101,7 +1102,13 @@ static int update_connected_line_information(void *data)
 			method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
 		}
 
-		ast_sip_session_refresh(session, NULL, NULL, NULL, method, 0);
+		connected_id = ast_channel_connected_effective_id(session->channel);
+		if ((session->endpoint->id.send_pai || session->endpoint->id.send_rpid) &&
+		    (session->endpoint->id.trust_outbound ||
+		     ((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
+		      (connected_id.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED))) {
+			ast_sip_session_refresh(session, NULL, NULL, NULL, method, 1);
+		}
 	}
 
 	return 0;
