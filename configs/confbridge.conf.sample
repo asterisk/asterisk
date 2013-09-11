@@ -109,7 +109,7 @@ type=user
 
 ;denoise=yes ; Sets whether or not a denoise filter should be applied
              ; to the audio before mixing or not.  Off by default. Requires
-             ; codec_speex to be built and installed.  Do not confuse this option
+             ; func_speex to be built and installed.  Do not confuse this option
              ; with drop_silence.  Denoise is useful if there is a lot of background
              ; noise for a user as it attempts to remove the noise while preserving
              ; the speech.  This option does NOT remove silence from being mixed into
