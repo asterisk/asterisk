@@ -662,9 +662,6 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 
 		modify_id_header(tdata->pool, from, &connected_id);
 		modify_id_header(dlg->pool, dlg->local.info, &connected_id);
-		if (should_queue_connected_line_update(session, &session->endpoint->id.self)) {
-			queue_connected_line_update(session, &session->endpoint->id.self);
-		}
 	}
 	add_id_headers(session, tdata, &connected_id);
 }
@@ -674,7 +671,7 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
  * \brief Session supplement for outgoing INVITE response
  *
  * This will add P-Asserted-Identity and Remote-Party-ID headers if necessary
- * 
+ *
  * \param session The session on which the INVITE response is to be sent
  * \param tdata The outbound INVITE response
  */
