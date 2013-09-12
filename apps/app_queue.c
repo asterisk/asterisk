@@ -9489,8 +9489,8 @@ static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct as
 	case CLI_INIT:
 		e->command = "queue add member";
 		e->usage =
-			"Usage: queue add member <channel> to <queue> [[[penalty <penalty>] as <membername>] state_interface <interface>]\n"
-			"       Add a channel to a queue with optionally:  a penalty, membername and a state_interface\n";
+			"Usage: queue add member <dial string> to <queue> [[[penalty <penalty>] as <membername>] state_interface <interface>]\n"
+			"       Add a dial string (Such as a channel,e.g. SIP/6001) to a queue with optionally:  a penalty, membername and a state_interface\n";
 		return NULL;
 	case CLI_GENERATE:
 		return complete_queue_add_member(a->line, a->word, a->pos, a->n);
