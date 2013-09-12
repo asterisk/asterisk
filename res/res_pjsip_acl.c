@@ -37,47 +37,77 @@
 		<synopsis>SIP ACL module</synopsis>
 		<description><para>
 			<emphasis>ACL</emphasis>
-			</para>
-			<para>The ACL module used by <literal>res_pjsip</literal>. This module is
+			</para><para>
+			The ACL module used by <literal>res_pjsip</literal>. This module is
 			independent of <literal>endpoints</literal> and operates on all inbound
 			SIP communication using res_pjsip.
 			</para><para>
-			It should be noted that this module can also reference ACLs from
-			<filename>acl.conf</filename>.
+			There are two main ways of defining your ACL with the options
+			provided. You can use the <literal>permit</literal> and <literal>deny</literal> options
+			which act on <emphasis>IP</emphasis> addresses, or the <literal>contactpermit</literal>
+			and <literal>contactdeny</literal> options which act on <emphasis>Contact header</emphasis>
+			addresses in incoming REGISTER requests. You can combine the various options to
+			create a mixed ACL.
 			</para><para>
-			There are two main ways of creating an access list: <literal>IP-Domain</literal>
-			and <literal>Contact Header</literal>. It is possible to create a combined ACL using
-			both IP and Contact.
+			Additionally, instead of defining an ACL with options, you can reference IP or
+			Contact header ACLs from the file <filename>acl.conf</filename> by using the <literal>acl</literal>
+			or <literal>contactacl</literal> options.
 		</para></description>
 		<configFile name="pjsip.conf">
 			<configObject name="acl">
 				<synopsis>Access Control List</synopsis>
 				<configOption name="acl">
-					<synopsis>Name of IP ACL</synopsis>
+					<synopsis>List of IP ACL section names in acl.conf</synopsis>
 					<description><para>
-						This matches sections configured in <literal>acl.conf</literal>
+						This matches sections configured in <literal>acl.conf</literal>. The value is
+						defined as a list of comma-delimited section names.
 					</para></description>
 				</configOption>
 				<configOption name="contactacl">
-					<synopsis>Name of Contact ACL</synopsis>
+					<synopsis>List of Contact ACL section names in acl.conf</synopsis>
 					<description><para>
-						This matches sections configured in <literal>acl.conf</literal>
+						This matches sections configured in <literal>acl.conf</literal>. The value is
+						defined as a list of comma-delimited section names.
 					</para></description>
 				</configOption>
 				<configOption name="contactdeny">
-					<synopsis>List of Contact Header addresses to Deny</synopsis>
+					<synopsis>List of Contact header addresses to deny</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
 				</configOption>
 				<configOption name="contactpermit">
-					<synopsis>List of Contact Header addresses to Permit</synopsis>
+					<synopsis>List of Contact header addresses to permit</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
 				</configOption>
 				<configOption name="deny">
-					<synopsis>List of IP-domains to deny access from</synopsis>
+					<synopsis>List of IP addresses to deny access from</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
 				</configOption>
 				<configOption name="permit">
-					<synopsis>List of IP-domains to allow access from</synopsis>
+					<synopsis>List of IP addresses to permit access from</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
 				</configOption>
 				<configOption name="type">
-					<synopsis>Must be of type 'security'.</synopsis>
+					<synopsis>Must be of type 'acl'.</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
