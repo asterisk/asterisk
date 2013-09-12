@@ -1387,8 +1387,8 @@ pjsip_dialog *ast_sip_create_dialog(const struct ast_sip_endpoint *endpoint, con
 }
 
 /* PJSIP doesn't know about the INFO method, so we have to define it ourselves */
-const pjsip_method pjsip_info_method = {PJSIP_OTHER_METHOD, {"INFO", 4} };
-const pjsip_method pjsip_message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };
+static const pjsip_method info_method = {PJSIP_OTHER_METHOD, {"INFO", 4} };
+static const pjsip_method message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };
 
 static struct {
 	const char *method;
@@ -1403,8 +1403,8 @@ static struct {
 	{ "SUBSCRIBE", &pjsip_subscribe_method },
 	{ "NOTIFY", &pjsip_notify_method },
 	{ "PUBLISH", &pjsip_publish_method },
-	{ "INFO", &pjsip_info_method },
-	{ "MESSAGE", &pjsip_message_method },
+	{ "INFO", &info_method },
+	{ "MESSAGE", &message_method },
 };
 
 static const pjsip_method *get_pjsip_method(const char *method)
