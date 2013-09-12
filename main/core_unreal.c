@@ -441,10 +441,18 @@ static int unreal_queue_indicate(struct ast_unreal_pvt *p, struct ast_channel *a
  */
 static int unreal_colp_redirect_indicate(struct ast_unreal_pvt *p, struct ast_channel *ast, int condition)
 {
+	struct ast_channel *my_chan;
+	struct ast_channel *my_owner;
 	struct ast_channel *this_channel;
 	struct ast_channel *the_other_channel;
 	int isoutbound;
 	int res = 0;
+	unsigned char frame_data[1024];
+	struct ast_frame f = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = condition,
+		.data.ptr = frame_data,
+	};
 
 	/*
 	 * A connected line update frame may only contain a partial
@@ -458,7 +466,8 @@ static int unreal_colp_redirect_indicate(struct ast_unreal_pvt *p, struct ast_ch
 	 * redirecting information, which is why it is handled here as
 	 * well.
 	 */
-	ao2_lock(p);
+	ast_channel_unlock(ast);
+	ast_unreal_lock_all(p, &my_chan, &my_owner);
 	isoutbound = AST_UNREAL_IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		this_channel = p->chan;
@@ -468,13 +477,6 @@ static int unreal_colp_redirect_indicate(struct ast_unreal_pvt *p, struct ast_ch
 		the_other_channel = p->chan;
 	}
 	if (the_other_channel) {
-		unsigned char frame_data[1024];
-		struct ast_frame f = {
-			.frametype = AST_FRAME_CONTROL,
-			.subclass.integer = condition,
-			.data.ptr = frame_data,
-		};
-
 		if (condition == AST_CONTROL_CONNECTED_LINE) {
 			ast_connected_line_copy_to_caller(ast_channel_caller(the_other_channel),
 				ast_channel_connected(this_channel));
@@ -484,9 +486,20 @@ static int unreal_colp_redirect_indicate(struct ast_unreal_pvt *p, struct ast_ch
 			f.datalen = ast_redirecting_build_data(frame_data, sizeof(frame_data),
 				ast_channel_redirecting(this_channel), NULL);
 		}
-		res = unreal_queue_frame(p, isoutbound, &f, ast, 1);
+	}
+	if (my_chan) {
+		ast_channel_unlock(my_chan);
+		ast_channel_unref(my_chan);
+	}
+	if (my_owner) {
+		ast_channel_unlock(my_owner);
+		ast_channel_unref(my_owner);
+	}
+	if (the_other_channel) {
+		res = unreal_queue_frame(p, isoutbound, &f, ast, 0);
 	}
 	ao2_unlock(p);
+	ast_channel_lock(ast);
 
 	return res;
 }
