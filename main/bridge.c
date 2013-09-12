@@ -4843,6 +4843,28 @@ static struct ast_cli_entry bridge_cli[] = {
 
 /*!
  * \internal
+ * \brief Print bridge object key (name).
+ * \since 12.0.0
+ *
+ * \param v_obj A pointer to the object we want the key printed.
+ * \param where User data needed by prnt to determine where to put output.
+ * \param prnt Print output callback function to use.
+ *
+ * \return Nothing
+ */
+static void bridge_prnt_obj(void *v_obj, void *where, ao2_prnt_fn *prnt)
+{
+	struct ast_bridge *bridge = v_obj;
+
+	if (!bridge) {
+		return;
+	}
+	prnt(where, "%s %s chans:%d",
+		bridge->uniqueid, bridge->v_table->name, bridge->num_channels);
+}
+
+/*!
+ * \internal
  * \brief Shutdown the bridging system.
  * \since 12.0.0
  *
@@ -4851,6 +4873,7 @@ static struct ast_cli_entry bridge_cli[] = {
 static void bridge_shutdown(void)
 {
 	ast_cli_unregister_multiple(bridge_cli, ARRAY_LEN(bridge_cli));
+	ao2_container_unregister("bridges");
 	ao2_cleanup(bridges);
 	bridges = NULL;
 	ao2_cleanup(bridge_manager);
@@ -4875,6 +4898,7 @@ int ast_bridging_init(void)
 	if (!bridges) {
 		return -1;
 	}
+	ao2_container_register("bridges", bridges, bridge_prnt_obj);
 
 	ast_bridging_init_basic();
 
