@@ -32,7 +32,8 @@
 		LINKER_SYMBOL_PREFIXast_sip_get_endpoints;
 		LINKER_SYMBOL_PREFIXast_copy_pj_str;
 		LINKER_SYMBOL_PREFIXast_sip_get_sorcery;
-		LINKER_SYMBOL_PREFIXast_sip_create_dialog;
+		LINKER_SYMBOL_PREFIXast_sip_create_dialog_uac;
+		LINKER_SYMBOL_PREFIXast_sip_create_dialog_uas;
 		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_aor;
 		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_first_aor_contact;
 		LINKER_SYMBOL_PREFIXast_sip_location_retrieve_contact_from_aor_list;

@@ -1185,7 +1185,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 
-	if (!(dlg = ast_sip_create_dialog(endpoint, uri, request_user))) {
+	if (!(dlg = ast_sip_create_dialog_uac(endpoint, uri, request_user))) {
 		return NULL;
 	}
 
@@ -1337,7 +1337,8 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		}
 		return NULL;
 	}
-	if (pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, NULL, &dlg) != PJ_SUCCESS) {
+	dlg = ast_sip_create_dialog_uas(endpoint, rdata);
+	if (!dlg) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		return NULL;
 	}
