@@ -395,6 +395,9 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	}
 
 	for (i = 0; i < endpoint->inbound_auths.num; ++i) {
+		if (ast_strlen_zero(auths[i]->realm)) {
+			ast_string_field_set(auths[i], realm, "asterisk");
+		}
 		verify_res[i] = verify(auths[i], rdata, tdata->pool);
 		if (verify_res[i] == AUTH_SUCCESS) {
 			res = AST_SIP_AUTHENTICATION_SUCCESS;
