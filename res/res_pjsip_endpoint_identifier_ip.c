@@ -41,12 +41,12 @@
 				</configOption>
 				<configOption name="match">
 					<synopsis>IP addresses or networks to match against</synopsis>
-					<description>
+					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
 						have a subnet mask appended. The subnet mask may be written in either
 						CIDR or dot-decimal notation. Separate the IP address and subnet
 						mask with a slash ('/')
-					</description>
+					</para></description>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
