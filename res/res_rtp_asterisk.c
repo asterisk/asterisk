@@ -4537,8 +4537,6 @@ static int load_module(void)
 #ifdef HAVE_PJPROJECT
 	pj_lock_t *lock;
 
-	pj_log_set_level(0);
-
 	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
