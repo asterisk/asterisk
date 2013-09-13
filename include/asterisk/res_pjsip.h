@@ -1188,7 +1188,7 @@ struct ast_sip_body {
 };
 
 /*!
- * \brief General purpose method for creating a dialog with an endpoint
+ * \brief General purpose method for creating a UAC dialog with an endpoint
  *
  * \param endpoint A pointer to the endpoint
  * \param aor_name Optional name of the AOR to target, may even be an explicit SIP URI
@@ -1197,7 +1197,15 @@ struct ast_sip_body {
  * \retval non-NULL success
  * \retval NULL failure
  */
- pjsip_dialog *ast_sip_create_dialog(const struct ast_sip_endpoint *endpoint, const char *aor_name, const char *request_user);
+pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint, const char *aor_name, const char *request_user);
+
+/*!
+ * \brief General purpose method for creating a UAS dialog with an endpoint
+ *
+ * \param endpoint A pointer to the endpoint
+ * \param rdata The request that is starting the dialog
+ */
+pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
 
 /*!
  * \brief General purpose method for creating a SIP request

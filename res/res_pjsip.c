@@ -1324,7 +1324,7 @@ static int sip_get_tpselector_from_uri(const char *uri, pjsip_tpselector *select
 	return 0;
 }
 
-pjsip_dialog *ast_sip_create_dialog(const struct ast_sip_endpoint *endpoint, const char *uri, const char *request_user)
+pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint, const char *uri, const char *request_user)
 {
 	pj_str_t local_uri = { "sip:temp@temp", 13 }, remote_uri;
 	pjsip_dialog *dlg = NULL;
@@ -1382,6 +1382,38 @@ pjsip_dialog *ast_sip_create_dialog(const struct ast_sip_endpoint *endpoint, con
 	}
 
 	dlg->sess_count--;
+
+	return dlg;
+}
+
+pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+{
+	pjsip_dialog *dlg;
+	pj_str_t contact;
+	pjsip_transport_type_e type = rdata->tp_info.transport->key.type;
+	pj_status_t status;
+
+	contact.ptr = pj_pool_alloc(rdata->tp_info.pool, PJSIP_MAX_URL_SIZE);
+	contact.slen = pj_ansi_snprintf(contact.ptr, PJSIP_MAX_URL_SIZE,
+			"<%s:%s%.*s%s:%d%s%s>",
+			(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
+			(type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
+			(int)rdata->tp_info.transport->local_name.host.slen,
+			rdata->tp_info.transport->local_name.host.ptr,
+			(type & PJSIP_TRANSPORT_IPV6) ? "]" : "",
+			rdata->tp_info.transport->local_name.port,
+			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
+			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
+
+	status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact, &dlg);
+	if (status != PJ_SUCCESS) {
+		char err[PJ_ERR_MSG_SIZE];
+
+		pjsip_strerror(status, err, sizeof(err));
+		ast_log(LOG_ERROR, "Could not create dialog with endpoint %s. %s\n",
+				ast_sorcery_object_get_id(endpoint), err);
+		return NULL;
+	}
 
 	return dlg;
 }

@@ -282,7 +282,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	}
 	sub->role = role;
 	if (role == AST_SIP_NOTIFIER) {
-		pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, NULL, &dlg);
+		dlg = ast_sip_create_dialog_uas(endpoint, rdata);
 	} else {
 		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
 
@@ -293,7 +293,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 			ao2_ref(sub, -1);
 			return NULL;
 		}
-		dlg = ast_sip_create_dialog(endpoint, contact->uri, NULL);
+		dlg = ast_sip_create_dialog_uac(endpoint, contact->uri, NULL);
 	}
 	if (!dlg) {
 		ast_log(LOG_WARNING, "Unable to create dialog for SIP subscription\n");
