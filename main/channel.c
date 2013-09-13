@@ -4380,6 +4380,89 @@ const char *ast_channel_amaflags2string(enum ama_flags flag)
 	}
 }
 
+/*!
+ * \internal
+ * \brief Preprocess connected line update.
+ * \since 12.0.0
+ *
+ * \param chan channel to change the indication
+ * \param data pointer to payload data
+ * \param datalen size of payload data
+ *
+ * \note This function assumes chan is locked.
+ *
+ * \retval 0 keep going.
+ * \retval -1 quit now.
+ */
+static int indicate_connected_line(struct ast_channel *chan, const void *data, size_t datalen)
+{
+	struct ast_party_connected_line *chan_connected = ast_channel_connected(chan);
+	struct ast_party_connected_line *chan_indicated = ast_channel_connected_indicated(chan);
+	struct ast_party_connected_line connected;
+	unsigned char current[1024];
+	unsigned char proposed[1024];
+	int current_size;
+	int proposed_size;
+	int res;
+
+	ast_party_connected_line_set_init(&connected, chan_connected);
+	res = ast_connected_line_parse_data(data, datalen, &connected);
+	if (!res) {
+		ast_channel_set_connected_line(chan, &connected, NULL);
+	}
+	ast_party_connected_line_free(&connected);
+	if (res) {
+		return -1;
+	}
+
+	current_size = ast_connected_line_build_data(current, sizeof(current),
+		chan_indicated, NULL);
+	proposed_size = ast_connected_line_build_data(proposed, sizeof(proposed),
+		chan_connected, NULL);
+	if (current_size == -1 || proposed_size == -1) {
+		return -1;
+	}
+
+	if (current_size == proposed_size && !memcmp(current, proposed, current_size)) {
+		ast_debug(1, "%s: Dropping redundant connected line update \"%s\" <%s>.\n",
+			ast_channel_name(chan),
+			S_COR(chan_connected->id.name.valid, chan_connected->id.name.str, ""),
+			S_COR(chan_connected->id.number.valid, chan_connected->id.number.str, ""));
+		return -1;
+	}
+
+	ast_party_connected_line_copy(chan_indicated, chan_connected);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Preprocess redirecting update.
+ * \since 12.0.0
+ *
+ * \param chan channel to change the indication
+ * \param data pointer to payload data
+ * \param datalen size of payload data
+ *
+ * \note This function assumes chan is locked.
+ *
+ * \retval 0 keep going.
+ * \retval -1 quit now.
+ */
+static int indicate_redirecting(struct ast_channel *chan, const void *data, size_t datalen)
+{
+	struct ast_party_redirecting redirecting;
+	int res;
+
+	ast_party_redirecting_set_init(&redirecting, ast_channel_redirecting(chan));
+	res = ast_redirecting_parse_data(data, datalen, &redirecting);
+	if (!res) {
+		ast_channel_set_redirecting(chan, &redirecting, NULL);
+	}
+	ast_party_redirecting_free(&redirecting);
+	return res ? -1 : 0;
+}
+
 int ast_indicate_data(struct ast_channel *chan, int _condition,
 		const void *data, size_t datalen)
 {
@@ -4414,7 +4497,6 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		/* who knows what we will get back! the anticipation is killing me. */
 		if (!(awesome_frame = ast_framehook_list_write_event(ast_channel_framehooks(chan), awesome_frame))
 			|| awesome_frame->frametype != AST_FRAME_CONTROL) {
-
 			res = 0;
 			goto indicate_cleanup;
 		}
@@ -4426,46 +4508,15 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	switch (condition) {
 	case AST_CONTROL_CONNECTED_LINE:
-		{
-			struct ast_party_connected_line connected;
-			unsigned char current[1024], proposed[1024];
-			int current_size, proposed_size;
-
-			ast_party_connected_line_set_init(&connected, ast_channel_connected(chan));
-			res = ast_connected_line_parse_data(data, datalen, &connected);
-			if (!res) {
-				ast_channel_set_connected_line(chan, &connected, NULL);
-			}
-			ast_party_connected_line_free(&connected);
-
-			current_size = ast_connected_line_build_data(current, sizeof(current),
-				ast_channel_connected_indicated(chan), NULL);
-			proposed_size = ast_connected_line_build_data(proposed, sizeof(proposed),
-				ast_channel_connected(chan), NULL);
-
-			if (current_size == -1 || proposed_size == -1) {
-				goto indicate_cleanup;
-			}
-
-			if (!res && current_size == proposed_size &&
-				!memcmp(current, proposed, current_size)) {
-				goto indicate_cleanup;
-			}
-
-			ast_party_connected_line_copy(ast_channel_connected_indicated(chan),
-				ast_channel_connected(chan));
+		if (indicate_connected_line(chan, data, datalen)) {
+			res = 0;
+			goto indicate_cleanup;
 		}
 		break;
 	case AST_CONTROL_REDIRECTING:
-		{
-			struct ast_party_redirecting redirecting;
-
-			ast_party_redirecting_set_init(&redirecting, ast_channel_redirecting(chan));
-			res = ast_redirecting_parse_data(data, datalen, &redirecting);
-			if (!res) {
-				ast_channel_set_redirecting(chan, &redirecting, NULL);
-			}
-			ast_party_redirecting_free(&redirecting);
+		if (indicate_redirecting(chan, data, datalen)) {
+			res = 0;
+			goto indicate_cleanup;
 		}
 		break;
 	case AST_CONTROL_HOLD:

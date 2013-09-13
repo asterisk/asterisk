@@ -122,6 +122,8 @@ struct ast_bridge_channel {
 	unsigned int just_joined:1;
 	/*! TRUE if the channel is suspended from the bridge. */
 	unsigned int suspended:1;
+	/*! TRUE if the COLP update on initial join is inhibited. */
+	unsigned int inhibit_colp:1;
 	/*! TRUE if the channel must wait for an ast_bridge_depart to reclaim the channel. */
 	unsigned int depart_wait:1;
 	/* ^-- These flags change while the bridge is locked or before the channel is in the bridge. */

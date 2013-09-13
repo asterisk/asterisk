@@ -2000,7 +2000,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 			BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
 		res = -1;
 	}
-	bridge_reconfigured(bridge_channel->bridge, 1);
+	bridge_reconfigured(bridge_channel->bridge, !bridge_channel->inhibit_colp);
 
 	if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 		/*

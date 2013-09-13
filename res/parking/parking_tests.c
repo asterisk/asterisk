@@ -82,6 +82,12 @@ static void safe_channel_release(struct ast_channel *chan)
 	ast_channel_release(chan);
 }
 
+static void do_sleep(struct timespec *to_sleep)
+{
+	while ((nanosleep(to_sleep, to_sleep) == -1) && (errno == EINTR)) {
+	}
+}
+
 static int fake_fixup(struct ast_channel *clonechan, struct ast_channel *original)
 {
 	return 0;
@@ -99,7 +105,6 @@ static struct parking_lot *generate_test_parking_lot(const char *name, int low_s
 	struct parking_lot *test_lot;
 
 	test_cfg = parking_lot_cfg_create(name);
-
 	if (!test_cfg) {
 		return NULL;
 	}
@@ -120,7 +125,6 @@ static struct parking_lot *generate_test_parking_lot(const char *name, int low_s
 	}
 
 	test_lot = parking_lot_build_or_update(test_cfg, 1);
-
 	if (!test_lot) {
 		return NULL;
 	}
@@ -195,7 +199,6 @@ AST_TEST_DEFINE(park_call)
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
 	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
 
-	struct ast_bridge_features chan_features;
 	struct timespec to_sleep = {1, 0};
 
 	switch (cmd) {
@@ -219,7 +222,6 @@ AST_TEST_DEFINE(park_call)
 	}
 
 	chan_alice = create_alice_channel();
-
 	if (!chan_alice) {
 		ast_test_status_update(test, "Failed to create test channel to park. Test failed.\n");
 		dispose_test_lot(test_lot, 1);
@@ -227,27 +229,23 @@ AST_TEST_DEFINE(park_call)
 	}
 
 	ast_channel_state_set(chan_alice, AST_STATE_UP);
-
 	pbx_builtin_setvar_helper(chan_alice, "BLINDTRANSFER", ast_channel_name(chan_alice));
 
 	parking_bridge = park_application_setup(chan_alice, chan_alice, TEST_LOT_NAME, NULL);
-
 	if (!parking_bridge) {
 		ast_test_status_update(test, "Failed to get the parking bridge for '%s'. Test failed.\n", TEST_LOT_NAME);
 		dispose_test_lot(test_lot, 1);
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_bridge_features_init(&chan_features)) {
-		ast_bridge_features_cleanup(&chan_features);
-		ast_test_status_update(test, "Failed to initialize bridge features. Test failed.\n");
+	if (ast_bridge_impart(parking_bridge, chan_alice, NULL, NULL,
+		AST_BRIDGE_IMPART_CHAN_DEPARTABLE)) {
+		ast_test_status_update(test, "Failed to impart alice into parking lot. Test failed.\n");
 		dispose_test_lot(test_lot, 1);
 		return AST_TEST_FAIL;
 	}
 
-	ast_bridge_impart(parking_bridge, chan_alice, NULL, NULL, 0);
-
-	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
+	do_sleep(&to_sleep);
 
 	ast_bridge_depart(chan_alice);
 
@@ -255,6 +253,7 @@ AST_TEST_DEFINE(park_call)
 
 	if (dispose_test_lot(test_lot, 1)) {
 		ast_test_status_update(test, "Found parking lot in container after attempted removal. Test failed.\n");
+		return AST_TEST_FAIL;
 	}
 
 	return AST_TEST_PASS;
@@ -353,8 +352,6 @@ AST_TEST_DEFINE(retrieve_call)
 		.resolution = PARK_ANSWERED,
 	};
 
-	struct ast_bridge_features chan_features;
-
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "park_retrieve";
@@ -383,7 +380,6 @@ AST_TEST_DEFINE(retrieve_call)
 	}
 
 	ast_channel_state_set(chan_alice, AST_STATE_UP);
-
 	pbx_builtin_setvar_helper(chan_alice, "BLINDTRANSFER", ast_channel_name(chan_alice));
 
 	parking_bridge = park_application_setup(chan_alice, chan_alice, TEST_LOT_NAME, NULL);
@@ -393,26 +389,23 @@ AST_TEST_DEFINE(retrieve_call)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_bridge_features_init(&chan_features)) {
-		ast_bridge_features_cleanup(&chan_features);
-		ast_test_status_update(test, "Failed to initialize bridge features. Test failed.\n");
+	if (ast_bridge_impart(parking_bridge, chan_alice, NULL, NULL,
+		AST_BRIDGE_IMPART_CHAN_DEPARTABLE)) {
+		ast_test_status_update(test, "Failed to impart alice into parking lot. Test failed.\n");
 		dispose_test_lot(test_lot, 1);
 		return AST_TEST_FAIL;
 	}
 
-	ast_bridge_impart(parking_bridge, chan_alice, NULL, NULL, 0);
-
-	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
+	do_sleep(&to_sleep);
 
 	retrieved_user = parking_lot_retrieve_parked_user(test_lot, 701);
 	if (!retrieved_user) {
 		ast_test_status_update(test, "Failed to retrieve the parked user from the expected parking space. Test failed.\n");
-
 		failure = 1;
 		goto test_cleanup;
 	}
 
-	ast_test_status_update(test, "Successfully retrieved parked user from the parking lot. Validating user data. Test failed.\n");
+	ast_test_status_update(test, "Successfully retrieved parked user from the parking lot. Validating user data.\n");
 
 	if (!parked_users_match(retrieved_user, &expected_user, test)) {
 		ast_test_status_update(test, "Parked user validation failed\n");

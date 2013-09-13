@@ -24986,7 +24986,8 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 	ast_channel_unlock(replaces_chan);
 
 	if (bridge) {
-		if (ast_bridge_impart(bridge, c, replaces_chan, NULL, 1)) {
+		if (ast_bridge_impart(bridge, c, replaces_chan, NULL,
+			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			ast_hangup(c);
 		}
 	} else {

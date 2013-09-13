@@ -639,7 +639,8 @@ static int parked_call_app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Now we should try to join the new bridge ourselves... */
-	ast_bridge_join(retrieval_bridge, chan, NULL, &chan_features, NULL, 1);
+	ast_bridge_join(retrieval_bridge, chan, NULL, &chan_features, NULL,
+		AST_BRIDGE_JOIN_PASS_REFERENCE);
 
 	ast_bridge_features_cleanup(&chan_features);
 

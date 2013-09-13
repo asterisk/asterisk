@@ -316,7 +316,8 @@ static int parking_blind_transfer_park(struct ast_bridge_channel *bridge_channel
 			return -1;
 		}
 
-		if (ast_bridge_impart(bridge_channel->bridge, transfer_chan, NULL, NULL, 1)) {
+		if (ast_bridge_impart(bridge_channel->bridge, transfer_chan, NULL, NULL,
+			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			ast_hangup(transfer_chan);
 			return -1;
 		}

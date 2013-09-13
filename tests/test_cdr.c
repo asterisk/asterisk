@@ -559,7 +559,7 @@ AST_TEST_DEFINE(test_cdr_outbound_bridged_call)
 	ast_test_validate(test, bridge != NULL);
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_alice, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, ast_channel_linkedid(chan_alice), 0, CHANNEL_TECH_NAME "/Bob");
 	ast_copy_string(bob_expected.linkedid, ast_channel_linkedid(chan_bob), sizeof(bob_expected.linkedid));
@@ -576,7 +576,7 @@ AST_TEST_DEFINE(test_cdr_outbound_bridged_call)
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_bob, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
@@ -686,7 +686,7 @@ AST_TEST_DEFINE(test_cdr_single_bridge)
 	ast_test_validate(test, bridge != NULL);
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_bridge_impart(bridge, chan, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
@@ -761,7 +761,7 @@ AST_TEST_DEFINE(test_cdr_single_bridge_continue)
 	ast_test_validate(test, bridge_one != NULL);
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge_one, chan, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge_one, chan, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
@@ -844,14 +844,14 @@ AST_TEST_DEFINE(test_cdr_single_twoparty_bridge_a)
 	bridge = ast_bridge_basic_new();
 	ast_test_validate(test, bridge != NULL);
 
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_alice, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
 	EMULATE_APP_DATA(chan_bob, 1, "Answer", "");
 	ast_setstate(chan_bob, AST_STATE_UP);
 	EMULATE_APP_DATA(chan_bob, 2, "Bridge", "");
 
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_bob, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
 	ast_bridge_depart(chan_alice);
@@ -937,10 +937,10 @@ AST_TEST_DEFINE(test_cdr_single_twoparty_bridge_b)
 	EMULATE_APP_DATA(chan_bob, 2, "Bridge", "");
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_bob, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_alice, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
 	ast_bridge_depart(chan_alice);
@@ -1056,21 +1056,21 @@ AST_TEST_DEFINE(test_cdr_single_multiparty_bridge)
 	ast_test_validate(test, bridge != NULL);
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_alice, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	EMULATE_APP_DATA(chan_bob, 1, "Answer", "");
 	ast_setstate(chan_bob, AST_STATE_UP);
 	EMULATE_APP_DATA(chan_bob, 2, "Bridge", "");
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_bob, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
 	EMULATE_APP_DATA(chan_charlie, 1, "Answer", "");
 	ast_setstate(chan_charlie, AST_STATE_UP);
 	EMULATE_APP_DATA(chan_charlie, 2, "Bridge", "");
-	ast_bridge_impart(bridge, chan_charlie, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_charlie, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
@@ -1669,8 +1669,8 @@ AST_TEST_DEFINE(test_cdr_dial_answer_twoparty_bridge_a)
 	ast_test_validate(test, bridge != NULL);
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
-	ast_bridge_impart(bridge, chan_caller, NULL, NULL, 0);
-	ast_bridge_impart(bridge, chan_callee, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_caller, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_callee, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 
@@ -1743,9 +1743,9 @@ AST_TEST_DEFINE(test_cdr_dial_answer_twoparty_bridge_b)
 	bridge = ast_bridge_basic_new();
 	ast_test_validate(test, bridge != NULL);
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_bridge_impart(bridge, chan_callee, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_callee, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_bridge_impart(bridge, chan_caller, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_caller, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 	ast_bridge_depart(chan_caller);
 	ast_bridge_depart(chan_callee);
@@ -1902,18 +1902,18 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 	ast_test_validate(test, bridge != NULL);
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_charlie, NULL, NULL, 0));
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_charlie, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_david, NULL, NULL, 0));
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_david, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0));
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_bob, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0));
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_alice, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_alice));
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_bob));
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_charlie));
-	ast_test_validate(test, 0 == ast_bridge_depart(chan_david));
+	ast_test_validate(test, !ast_bridge_depart(chan_alice));
+	ast_test_validate(test, !ast_bridge_depart(chan_bob));
+	ast_test_validate(test, !ast_bridge_depart(chan_charlie));
+	ast_test_validate(test, !ast_bridge_depart(chan_david));
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL);
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL);
@@ -1992,9 +1992,9 @@ AST_TEST_DEFINE(test_cdr_park)
 	ast_test_validate(test, bridge != NULL);
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_bridge_impart(bridge, chan_alice, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_alice, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
-	ast_bridge_impart(bridge, chan_bob, NULL, NULL, 0);
+	ast_test_validate(test, !ast_bridge_impart(bridge, chan_bob, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
 	ast_bridge_depart(chan_alice);
 	ast_bridge_depart(chan_bob);
