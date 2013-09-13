@@ -35,11 +35,18 @@
 		<synopsis>Module that identifies endpoints via source IP address</synopsis>
 		<configFile name="pjsip.conf">
 			<configObject name="identify">
+				<synopsis>Identifies endpoints via source IP address</synopsis>
 				<configOption name="endpoint">
 					<synopsis>Name of Endpoint</synopsis>
 				</configOption>
 				<configOption name="match">
 					<synopsis>IP addresses or networks to match against</synopsis>
+					<description>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dot-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</description>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
