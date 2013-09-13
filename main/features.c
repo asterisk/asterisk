@@ -675,7 +675,8 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
 	ast_bridge_basic_set_flags(bridge, flags);
 
 	/* Put peer into the bridge */
-	if (ast_bridge_impart(bridge, peer, NULL, peer_features, 1)) {
+	if (ast_bridge_impart(bridge, peer, NULL, peer_features,
+		AST_BRIDGE_IMPART_CHAN_INDEPENDENT | AST_BRIDGE_IMPART_INHIBIT_JOIN_COLP)) {
 		ast_bridge_destroy(bridge, 0);
 		ast_bridge_features_cleanup(&chan_features);
 		bridge_failed_peer_goto(chan, peer);
@@ -683,7 +684,8 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
 	}
 
 	/* Join bridge */
-	ast_bridge_join(bridge, chan, NULL, &chan_features, NULL, 1);
+	ast_bridge_join(bridge, chan, NULL, &chan_features, NULL,
+		AST_BRIDGE_JOIN_PASS_REFERENCE | AST_BRIDGE_JOIN_INHIBIT_JOIN_COLP);
 
 	/*
 	 * If the bridge was broken for a hangup that isn't real, then
@@ -1129,7 +1131,8 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		goto done;
 	}
 
-	ast_bridge_join(bridge, chan, NULL, &chan_features, NULL, 1);
+	ast_bridge_join(bridge, chan, NULL, &chan_features, NULL,
+		AST_BRIDGE_JOIN_PASS_REFERENCE);
 
 	ast_bridge_features_cleanup(&chan_features);
 

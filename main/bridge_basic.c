@@ -2289,7 +2289,8 @@ static enum attended_transfer_state recalling_exit(struct attended_transfer_prop
 		 */
 		ast_bridge_features_ds_set(props->recall_target, &props->transferer_features);
 		ast_channel_ref(props->recall_target);
-		if (ast_bridge_impart(props->transferee_bridge, props->recall_target, NULL, NULL, 1)) {
+		if (ast_bridge_impart(props->transferee_bridge, props->recall_target, NULL, NULL,
+			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			ast_hangup(props->recall_target);
 			return TRANSFER_FAIL;
 		}
@@ -2380,7 +2381,8 @@ static int retransfer_enter(struct attended_transfer_properties *props)
 	}
 
 	ast_channel_ref(props->recall_target);
-	if (ast_bridge_impart(props->transferee_bridge, props->recall_target, NULL, NULL, 1)) {
+	if (ast_bridge_impart(props->transferee_bridge, props->recall_target, NULL, NULL,
+		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_log(LOG_ERROR, "Unable to place recall target into bridge\n");
 		ast_hangup(props->recall_target);
 		return -1;
@@ -3067,7 +3069,8 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 	 * choice is to give it a bump
 	 */
 	ast_channel_ref(props->transfer_target);
-	if (ast_bridge_impart(props->target_bridge, props->transfer_target, NULL, NULL, 1)) {
+	if (ast_bridge_impart(props->target_bridge, props->transfer_target, NULL, NULL,
+		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_log(LOG_ERROR, "Unable to place transfer target into bridge.\n");
 		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
 		ast_bridge_channel_write_unhold(bridge_channel);

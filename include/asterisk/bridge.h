@@ -422,6 +422,13 @@ int ast_bridge_destroy(struct ast_bridge *bridge, int cause);
  */
 void ast_bridge_notify_masquerade(struct ast_channel *chan);
 
+enum ast_bridge_join_flags {
+	/*! The bridge reference is being passed by the caller. */
+	AST_BRIDGE_JOIN_PASS_REFERENCE = (1 << 0),
+	/*! The initial bridge join does not cause a COLP exchange. */
+	AST_BRIDGE_JOIN_INHIBIT_JOIN_COLP = (1 << 1),
+};
+
 /*!
  * \brief Join (blocking) a channel to a bridge
  *
@@ -430,7 +437,7 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan);
  * \param swap Channel to swap out if swapping
  * \param features Bridge features structure
  * \param tech_args Optional Bridging tech optimization parameters for this channel.
- * \param pass_reference TRUE if the bridge reference is being passed by the caller.
+ * \param flags defined by enum ast_bridge_join_flags.
  *
  * \note Absolutely _NO_ locks should be held before calling
  * this function since it blocks.
@@ -441,7 +448,7 @@ void ast_bridge_notify_masquerade(struct ast_channel *chan);
  * Example usage:
  *
  * \code
- * ast_bridge_join(bridge, chan, NULL, NULL, NULL, 0);
+ * ast_bridge_join(bridge, chan, NULL, NULL, NULL, AST_BRIDGE_JOIN_PASS_REFERENCE);
  * \endcode
  *
  * This adds a channel pointed to by the chan pointer to the bridge pointed to by
@@ -460,7 +467,18 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_channel *swap,
 	struct ast_bridge_features *features,
 	struct ast_bridge_tech_optimizations *tech_args,
-	int pass_reference);
+	enum ast_bridge_join_flags flags);
+
+enum ast_bridge_impart_flags {
+	/*! Field describing what the caller can do with the channel after it is imparted. */
+	AST_BRIDGE_IMPART_CHAN_MASK = (1 << 0),
+	/*! The caller wants to reclaim the channel using ast_bridge_depart(). */
+	AST_BRIDGE_IMPART_CHAN_DEPARTABLE = (0 << 0),
+	/*! The caller is passing channel control entirely to the bridging system. */
+	AST_BRIDGE_IMPART_CHAN_INDEPENDENT = (1 << 0),
+	/*! The initial bridge join does not cause a COLP exchange. */
+	AST_BRIDGE_IMPART_INHIBIT_JOIN_COLP = (1 << 1),
+};
 
 /*!
  * \brief Impart (non-blocking) a channel onto a bridge
@@ -469,7 +487,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
  * \param chan Channel to impart (The channel reference is stolen if impart successful.)
  * \param swap Channel to swap out if swapping.  NULL if not swapping.
  * \param features Bridge features structure.
- * \param independent TRUE if caller does not want to reclaim the channel using ast_bridge_depart().
+ * \param flags defined by enum ast_bridge_impart_flags.
  *
  * \note The features parameter must be NULL or obtained by
  * ast_bridge_features_new().  You must not dereference features
@@ -478,12 +496,12 @@ int ast_bridge_join(struct ast_bridge *bridge,
  * \note chan is locked by this function.
  *
  * \retval 0 on success
- * \retval -1 on failure
+ * \retval -1 on failure (Caller still has ownership of chan)
  *
  * Example usage:
  *
  * \code
- * ast_bridge_impart(bridge, chan, NULL, NULL, 0);
+ * ast_bridge_impart(bridge, chan, NULL, NULL, AST_BRIDGE_IMPART_CHAN_INDEPENDENT);
  * \endcode
  *
  * \details
@@ -501,20 +519,26 @@ int ast_bridge_join(struct ast_bridge *bridge,
  * features structure can be specified in the features
  * parameter.
  *
- * \note If you impart a channel as not independent you MUST
+ * \note If you impart a channel with
+ * AST_BRIDGE_IMPART_CHAN_DEPARTABLE you MUST
  * ast_bridge_depart() the channel if this call succeeds.  The
  * bridge channel thread is created join-able.  The implication
  * is that the channel is special and will not behave like a
  * normal channel.
  *
- * \note If you impart a channel as independent you must not
+ * \note If you impart a channel with
+ * AST_BRIDGE_IMPART_CHAN_INDEPENDENT you must not
  * ast_bridge_depart() the channel.  The bridge channel thread
  * is created non-join-able.  The channel must be treated as if
  * it were placed into the bridge by ast_bridge_join().
  * Channels placed into a bridge by ast_bridge_join() are
  * removed by a third party using ast_bridge_remove().
  */
-int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int independent);
+int ast_bridge_impart(struct ast_bridge *bridge,
+	struct ast_channel *chan,
+	struct ast_channel *swap,
+	struct ast_bridge_features *features,
+	enum ast_bridge_impart_flags flags) attribute_warn_unused_result;
 
 /*!
  * \brief Depart a channel from a bridge

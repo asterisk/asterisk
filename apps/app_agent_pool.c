@@ -1509,7 +1509,8 @@ static void agent_run(struct agent_pvt *agent, struct ast_channel *logged)
 		 * want to put the agent back into the holding bridge for the
 		 * next caller.
 		 */
-		ast_bridge_join(holding, logged, NULL, &features, NULL, 1);
+		ast_bridge_join(holding, logged, NULL, &features, NULL,
+			AST_BRIDGE_JOIN_PASS_REFERENCE);
 		if (logged != agent->logged) {
 			/* This channel is no longer the logged in agent. */
 			break;
@@ -1890,7 +1891,8 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 	}
 
 	ast_indicate(chan, AST_CONTROL_RINGING);
-	ast_bridge_join(caller_bridge, chan, NULL, &caller_features, NULL, 1);
+	ast_bridge_join(caller_bridge, chan, NULL, &caller_features, NULL,
+		AST_BRIDGE_JOIN_PASS_REFERENCE);
 	ast_bridge_features_cleanup(&caller_features);
 
 	return -1;

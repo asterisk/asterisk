@@ -687,7 +687,7 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 		publish_local_bridge_message(p);
 		ast_answer(chan);
 		res = ast_bridge_impart(p->action.bridge.join, chan, p->action.bridge.swap,
-			p->action.bridge.features, 1);
+			p->action.bridge.features, AST_BRIDGE_IMPART_CHAN_INDEPENDENT);
 		ao2_ref(p->action.bridge.join, -1);
 		p->action.bridge.join = NULL;
 		ao2_cleanup(p->action.bridge.swap);

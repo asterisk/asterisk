@@ -1433,13 +1433,13 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	struct ast_channel *swap,
 	struct ast_bridge_features *features,
 	struct ast_bridge_tech_optimizations *tech_args,
-	int pass_reference)
+	enum ast_bridge_join_flags flags)
 {
 	struct ast_bridge_channel *bridge_channel;
 	int res = 0;
 
 	bridge_channel = bridge_channel_internal_alloc(bridge);
-	if (pass_reference) {
+	if (flags & AST_BRIDGE_JOIN_PASS_REFERENCE) {
 		ao2_ref(bridge, -1);
 	}
 	if (!bridge_channel) {
@@ -1468,6 +1468,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	bridge_channel->chan = chan;
 	bridge_channel->swap = swap;
 	bridge_channel->features = features;
+	bridge_channel->inhibit_colp = !!(flags & AST_BRIDGE_JOIN_INHIBIT_JOIN_COLP);
 
 	if (!res) {
 		res = bridge_channel_internal_join(bridge_channel);
@@ -1546,7 +1547,11 @@ static void *bridge_channel_ind_thread(void *data)
 	return NULL;
 }
 
-int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap, struct ast_bridge_features *features, int independent)
+int ast_bridge_impart(struct ast_bridge *bridge,
+	struct ast_channel *chan,
+	struct ast_channel *swap,
+	struct ast_bridge_features *features,
+	enum ast_bridge_impart_flags flags)
 {
 	int res = 0;
 	struct ast_bridge_channel *bridge_channel;
@@ -1585,12 +1590,14 @@ int ast_bridge_impart(struct ast_bridge *bridge, struct ast_channel *chan, struc
 	bridge_channel->chan = chan;
 	bridge_channel->swap = swap;
 	bridge_channel->features = features;
-	bridge_channel->depart_wait = independent ? 0 : 1;
+	bridge_channel->inhibit_colp = !!(flags & AST_BRIDGE_IMPART_INHIBIT_JOIN_COLP);
+	bridge_channel->depart_wait =
+		(flags & AST_BRIDGE_IMPART_CHAN_MASK) == AST_BRIDGE_IMPART_CHAN_DEPARTABLE;
 	bridge_channel->callid = ast_read_threadstorage_callid();
 
 	/* Actually create the thread that will handle the channel */
 	if (!res) {
-		if (independent) {
+		if ((flags & AST_BRIDGE_IMPART_CHAN_MASK) == AST_BRIDGE_IMPART_CHAN_INDEPENDENT) {
 			res = ast_pthread_create_detached(&bridge_channel->thread, NULL,
 				bridge_channel_ind_thread, bridge_channel);
 		} else {
@@ -2191,7 +2198,8 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 			ast_answer(yanked_chan);
 		}
 		ast_channel_ref(yanked_chan);
-		if (ast_bridge_impart(bridge, yanked_chan, NULL, features, 1)) {
+		if (ast_bridge_impart(bridge, yanked_chan, NULL, features,
+			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			/* It is possible for us to yank a channel and have some other
 			 * thread start a PBX on the channl after we yanked it. In particular,
 			 * this can theoretically happen on the ;2 of a Local channel if we
@@ -3638,7 +3646,8 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
 		ast_hangup(local);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
-	if (ast_bridge_impart(bridge, local, transferer, NULL, 1)) {
+	if (ast_bridge_impart(bridge, local, transferer, NULL,
+		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(local);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
@@ -3808,7 +3817,8 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
-	if (ast_bridge_impart(bridge1, local_chan, chan1, NULL, 1)) {
+	if (ast_bridge_impart(bridge1, local_chan, chan1, NULL,
+		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(local_chan);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}

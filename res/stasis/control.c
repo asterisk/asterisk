@@ -117,7 +117,6 @@ static struct stasis_app_command *exec_command(
 	command_fn = command_fn ? : noop_cb;
 
 	command = command_create(command_fn, data);
-
 	if (!command) {
 		return NULL;
 	}
@@ -166,7 +165,6 @@ static void *app_control_dial(struct stasis_app_control *control,
 	ast_dial_set_global_timeout(dial, dial_data->timeout);
 
 	res = ast_dial_run(dial, NULL, 0);
-
 	if (res != AST_DIAL_RESULT_ANSWERED || !(new_chan = ast_dial_answered_steal(dial))) {
 		return NULL;
 	}
@@ -176,8 +174,12 @@ static void *app_control_dial(struct stasis_app_control *control,
 		return NULL;
 	}
 
-	ast_bridge_impart(bridge, new_chan, NULL, NULL, 1);
-	stasis_app_control_add_channel_to_bridge(control, bridge);
+	if (ast_bridge_impart(bridge, new_chan, NULL, NULL,
+		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
+		ast_hangup(new_chan);
+	} else {
+		stasis_app_control_add_channel_to_bridge(control, bridge);
+	}
 
 	return NULL;
 }
@@ -566,8 +568,7 @@ static void *app_control_add_channel_to_bridge(
 			chan,
 			NULL, /* swap channel */
 			NULL, /* features */
-			0); /* independent - false allows us to ast_bridge_depart() */
-
+			AST_BRIDGE_IMPART_CHAN_DEPARTABLE);
 		if (res != 0) {
 			ast_log(LOG_ERROR, "Error adding channel to bridge\n");
 			ast_channel_pbx_set(chan, control->pbx);

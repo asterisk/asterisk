@@ -109,7 +109,7 @@ static void do_sleep(void)
 	} while (0)
 
 #define BRIDGE_EXIT(channel, bridge) do { \
-	ast_test_validate(test, 0 == ast_bridge_depart(channel)); \
+	ast_test_validate(test, !ast_bridge_depart(channel)); \
 	BRIDGE_EXIT_EVENT(channel, bridge); \
 	mid_test_sync(); \
 	} while (0)
@@ -129,7 +129,7 @@ static void do_sleep(void)
 	} while (0)
 
 #define BRIDGE_ENTER(channel, bridge) do { \
-	ast_test_validate(test, 0 == ast_bridge_impart(bridge, channel, NULL, NULL, 0)); \
+	ast_test_validate(test, !ast_bridge_impart(bridge, channel, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE)); \
 	do_sleep(); \
 	BRIDGE_ENTER_EVENT(channel, bridge); \
 	mid_test_sync(); \
@@ -1417,7 +1417,7 @@ AST_TEST_DEFINE(test_cel_dial_pickup)
 		ast_test_validate(test, extra != NULL);
 
 		APPEND_EVENT(chan_callee, AST_CEL_PICKUP, NULL, extra);
-		ast_test_validate(test, 0 == ast_do_pickup(chan_charlie, chan_callee));
+		ast_test_validate(test, !ast_do_pickup(chan_charlie, chan_callee));
 	}
 
 	/* Hang up the masqueraded zombie */

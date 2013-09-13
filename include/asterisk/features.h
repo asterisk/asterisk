@@ -39,8 +39,14 @@ enum {
 	AST_FEATURE_FLAG_BYBOTH	 =   (3 << 3),
 };
 
-/*! \brief Bridge a call, optionally allowing redirection */
-int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
+/*!
+ * \brief Bridge a call, optionally allowing redirection
+ *
+ * \note The function caller is assumed to have already done the
+ * COLP exchange for the initial bridging of the two channels if
+ * it was desired.
+ */
+int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config);
 
 /*!
  * \brief Bridge a call, and add additional flags to the bridge
@@ -53,6 +59,10 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct as
  * \param peer The called channel
  * \param config Bridge configuration for the channels
  * \param flags Additional flags to set on the created bridge
+ *
+ * \note The function caller is assumed to have already done the
+ * COLP exchange for the initial bridging of the two channels if
+ * it was desired.
  */
 int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, unsigned int flags);
 
