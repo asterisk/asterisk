@@ -3190,7 +3190,8 @@ struct ao2_container *__ao2_container_alloc_hash_debug(unsigned int ao2_options,
 	num_buckets = hash_fn ? n_buckets : 1;
 	container_size = sizeof(struct ao2_container_hash) + num_buckets * sizeof(struct hash_bucket);
 
-	self = __ao2_alloc_debug(container_size, container_destruct_debug, ao2_options,
+	self = __ao2_alloc_debug(container_size,
+		ref_debug ? container_destruct_debug : container_destruct, ao2_options,
 		tag, file, line, func, ref_debug);
 	return hash_ao2_container_init(self, container_options, num_buckets, hash_fn,
 		sort_fn, cmp_fn);
@@ -5337,7 +5338,8 @@ struct ao2_container *__ao2_container_alloc_rbtree_debug(unsigned int ao2_option
 		return NULL;
 	}
 
-	self = __ao2_alloc_debug(sizeof(*self), container_destruct_debug, ao2_options,
+	self = __ao2_alloc_debug(sizeof(*self),
+		ref_debug ? container_destruct_debug : container_destruct, ao2_options,
 		tag, file, line, func, ref_debug);
 	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
 }
