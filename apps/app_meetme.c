@@ -5253,6 +5253,23 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 			res = -2;
 			goto usernotfound;
 		}
+	} else {
+		/* fail for commands that require a user */
+		switch (*args.command) {
+		case 'm': /* Unmute */
+		case 'M': /* Mute */
+		case 't': /* Lower user's talk volume */
+		case 'T': /* Raise user's talk volume */
+		case 'u': /* Lower user's listen volume */
+		case 'U': /* Raise user's listen volume */
+		case 'r': /* Reset user's volume level */
+		case 'k': /* Kick user */
+			res = -2;
+			ast_log(LOG_NOTICE, "No user specified!\n");
+			goto usernotfound;
+		default:
+			break;
+		}
 	}
 
 	switch (*args.command) {
@@ -5268,21 +5285,22 @@ static int admin_exec(struct ast_channel *chan, const char *data) {
 	case 101: /* e: Eject last user*/
 	{
 		int max_no = 0;
-
-		/* If they passed in a user, disregard it */
-		if (user) {
-			ao2_ref(user, -1);
-		}
+		RAII_VAR(struct ast_conf_user *, eject_user, NULL, ao2_cleanup);
 
 		ao2_callback(cnf->usercontainer, OBJ_NODATA, user_max_cmp, &max_no);
-		user = ao2_find(cnf->usercontainer, &max_no, 0);
-		if (!ast_test_flag64(&user->userflags, CONFFLAG_ADMIN))
-			user->adminflags |= ADMINFLAG_KICKME;
-		else {
+		eject_user = ao2_find(cnf->usercontainer, &max_no, 0);
+		if (!eject_user) {
+			res = -1;
+			ast_log(LOG_NOTICE, "No last user to kick!\n");
+			break;
+		}
+
+		if (!ast_test_flag64(&eject_user->userflags, CONFFLAG_ADMIN)) {
+			eject_user->adminflags |= ADMINFLAG_KICKME;
+		} else {
 			res = -1;
 			ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
 		}
-		ao2_ref(user, -1);
 		break;
 	}
 	case 77: /* M: Mute */ 
