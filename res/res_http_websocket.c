@@ -645,11 +645,25 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		fprintf(ser->f, "HTTP/1.1 101 Switching Protocols\r\n"
 			"Upgrade: %s\r\n"
 			"Connection: Upgrade\r\n"
-			"Sec-WebSocket-Accept: %s\r\n"
-			"Sec-WebSocket-Protocol: %s\r\n\r\n",
+			"Sec-WebSocket-Accept: %s\r\n",
 			upgrade,
-			base64,
-			protocol_handler->name);
+			base64);
+
+		/* RFC 6455, Section 4.1:
+		 *
+		 * 6. If the response includes a |Sec-WebSocket-Protocol| header
+		 *    field and this header field indicates the use of a
+		 *    subprotocol that was not present in the client's handshake
+		 *    (the server has indicated a subprotocol not requested by
+		 *    the client), the client MUST _Fail the WebSocket
+		 *    Connection_.
+		 */
+		if (protocol) {
+			fprintf(ser->f, "Sec-WebSocket-Protocol: %s\r\n",
+				protocol);
+		}
+
+		fprintf(ser->f, "\r\n");
 	} else {
 
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75 or completely unknown */
