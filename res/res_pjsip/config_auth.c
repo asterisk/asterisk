@@ -117,7 +117,7 @@ int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register(sorcery, SIP_SORCERY_AUTH_TYPE, "md5_cred",
 			"", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_auth, md5_creds));
 	ast_sorcery_object_field_register(sorcery, SIP_SORCERY_AUTH_TYPE, "realm",
-			"asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_auth, realm));
+			"", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_auth, realm));
 	ast_sorcery_object_field_register(sorcery, SIP_SORCERY_AUTH_TYPE, "nonce_lifetime",
 			"32", OPT_UINT_T, 0, FLDSET(struct ast_sip_auth, nonce_lifetime));
 	ast_sorcery_object_field_register_custom(sorcery, SIP_SORCERY_AUTH_TYPE, "auth_type",

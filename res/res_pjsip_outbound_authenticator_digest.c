@@ -31,10 +31,30 @@
 #include "asterisk/module.h"
 #include "asterisk/strings.h"
 
-static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_sess, const struct ast_sip_auth_array *array)
+static pjsip_www_authenticate_hdr *get_auth_header(pjsip_rx_data *challenge) {
+	pjsip_hdr_e search_type;
+
+	if (challenge->msg_info.msg->line.status.code == PJSIP_SC_UNAUTHORIZED) {
+		search_type = PJSIP_H_WWW_AUTHENTICATE;
+	} else if (challenge->msg_info.msg->line.status.code == PJSIP_SC_PROXY_AUTHENTICATION_REQUIRED) {
+		search_type = PJSIP_H_PROXY_AUTHENTICATE;
+	} else {
+		ast_log(LOG_ERROR,
+				"Status code %d was received when it should have been 401 or 407.\n",
+				challenge->msg_info.msg->line.status.code);
+		return NULL ;
+	}
+
+	return pjsip_msg_find_hdr(challenge->msg_info.msg, search_type, NULL);
+
+}
+
+static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_sess,
+		const struct ast_sip_auth_array *array, pjsip_rx_data *challenge)
 {
 	struct ast_sip_auth **auths = ast_alloca(array->num * sizeof(*auths));
 	pjsip_cred_info *auth_creds = ast_alloca(array->num * sizeof(*auth_creds));
+	pjsip_www_authenticate_hdr *auth_hdr = NULL;
 	int res = 0;
 	int i;
 
@@ -43,8 +63,19 @@ static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_ses
 		goto cleanup;
 	}
 
+	auth_hdr = get_auth_header(challenge);
+	if (auth_hdr == NULL) {
+		res = -1;
+		ast_log(LOG_ERROR, "Unable to find authenticate header in challenge.\n");
+		goto cleanup;
+	}
+
 	for (i = 0; i < array->num; ++i) {
-		pj_cstr(&auth_creds[i].realm, auths[i]->realm);
+		if (ast_strlen_zero(auths[i]->realm)) {
+			pj_cstr(&auth_creds[i].realm, auth_hdr->challenge.common.realm.ptr);
+		} else {
+			pj_cstr(&auth_creds[i].realm, auths[i]->realm);
+		}
 		pj_cstr(&auth_creds[i].username, auths[i]->auth_user);
 		pj_cstr(&auth_creds[i].scheme, "digest");
 		switch (auths[i]->type) {
@@ -80,7 +111,7 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_array *auth
 		return -1;
 	}
 
-	if (set_outbound_authentication_credentials(&auth_sess, auths)) {
+	if (set_outbound_authentication_credentials(&auth_sess, auths, challenge)) {
 		ast_log(LOG_WARNING, "Failed to set authentication credentials\n");
 		return -1;
 	}
