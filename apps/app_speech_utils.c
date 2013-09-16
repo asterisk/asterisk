@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<support_level>core</support_level>
+	<depend>res_speech</depend>
  ***/
 
 #include "asterisk.h"
