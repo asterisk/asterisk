@@ -38,6 +38,32 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "../res/ari/ari_model_validators.h"
 
+#if defined(TEST_FRAMEWORK)
+/*!
+ * Wrapper of ast_test_validate_int() so an external function pointer is not used.
+ *
+ * \note Must do this because using an external function pointer
+ * does not play nicely when loading with RTLD_LAZY.
+ */
+static int wrap_ast_ari_validate_int(struct ast_json *json)
+{
+	return ast_ari_validate_int(json);
+}
+#endif	/* defined(TEST_FRAMEWORK) */
+
+#if defined(TEST_FRAMEWORK)
+/*!
+ * Wrapper of ast_ari_validate_string() so an external function pointer is not used.
+ *
+ * \note Must do this because using an external function pointer
+ * does not play nicely when loading with RTLD_LAZY.
+ */
+static int wrap_ast_ari_validate_string(struct ast_json *json)
+{
+	return ast_ari_validate_string(json);
+}
+#endif	/* defined(TEST_FRAMEWORK) */
+
 AST_TEST_DEFINE(validate_byte)
 {
 	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
@@ -385,21 +411,21 @@ AST_TEST_DEFINE(validate_list)
 
 	uut = ast_json_array_create();
 	ast_test_validate(test, NULL != uut);
-	ast_test_validate(test, ast_ari_validate_list(uut, ast_ari_validate_string));
-	ast_test_validate(test, ast_ari_validate_list(uut, ast_ari_validate_int));
+	ast_test_validate(test, ast_ari_validate_list(uut, wrap_ast_ari_validate_string));
+	ast_test_validate(test, ast_ari_validate_list(uut, wrap_ast_ari_validate_int));
 
 	res = ast_json_array_append(uut, ast_json_string_create(""));
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, ast_ari_validate_list(uut, ast_ari_validate_string));
-	ast_test_validate(test, !ast_ari_validate_list(uut, ast_ari_validate_int));
+	ast_test_validate(test, ast_ari_validate_list(uut, wrap_ast_ari_validate_string));
+	ast_test_validate(test, !ast_ari_validate_list(uut, wrap_ast_ari_validate_int));
 
 	res = ast_json_array_append(uut, ast_json_integer_create(0));
 	ast_test_validate(test, 0 == res);
-	ast_test_validate(test, !ast_ari_validate_list(uut, ast_ari_validate_string));
-	ast_test_validate(test, !ast_ari_validate_list(uut, ast_ari_validate_int));
+	ast_test_validate(test, !ast_ari_validate_list(uut, wrap_ast_ari_validate_string));
+	ast_test_validate(test, !ast_ari_validate_list(uut, wrap_ast_ari_validate_int));
 
 	ast_test_validate(test,
-		!ast_ari_validate_list(ast_json_null(), ast_ari_validate_string));
+		!ast_ari_validate_list(ast_json_null(), wrap_ast_ari_validate_string));
 
 	return AST_TEST_PASS;
 }
