@@ -8720,6 +8720,22 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 		}
 	}
 
+	/* treat an unspecified refresh interval as the minimum */
+	if (!refresh) {
+		refresh = min_reg_expire;
+	}
+	if (refresh > max_reg_expire) {
+		ast_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
+			p->name, max_reg_expire, refresh);
+		p->expiry = max_reg_expire;
+	} else if (refresh < min_reg_expire) {
+		ast_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
+			p->name, min_reg_expire, refresh);
+		p->expiry = min_reg_expire;
+	} else {
+		p->expiry = refresh;
+	}
+
 	if (ast_sockaddr_cmp(&p->addr, &sockaddr)) {
 		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
@@ -8783,20 +8799,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 			peer_unref(p);
 		}
 	}
-	/* treat an unspecified refresh interval as the minimum */
-	if (!refresh)
-		refresh = min_reg_expire;
-	if (refresh > max_reg_expire) {
-		ast_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
-			p->name, max_reg_expire, refresh);
-		p->expiry = max_reg_expire;
-	} else if (refresh < min_reg_expire) {
-		ast_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
-			p->name, min_reg_expire, refresh);
-		p->expiry = min_reg_expire;
-	} else {
-		p->expiry = refresh;
-	}
+
 	if (p->expiry && sin->sin_addr.s_addr) {
 		p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, peer_ref(p));
 		if (p->expire == -1)
