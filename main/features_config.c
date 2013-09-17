@@ -42,8 +42,8 @@
 				<configOption name="recordingfailsound">
 					<synopsis>Sound to play when automon or automixmon is attempted but fails to start</synopsis>
 				</configOption>
-				<configOption name="transferdigittimeout" default="3000">
-					<synopsis>Milliseconds allowed between digit presses when dialing a transfer destination</synopsis>
+				<configOption name="transferdigittimeout" default="3">
+					<synopsis>Seconds allowed between digit presses when dialing a transfer destination</synopsis>
 				</configOption>
 				<configOption name="atxfernoanswertimeout" default="15000">
 					<synopsis>Milliseconds to wait for attended transfer destination to answer</synopsis>

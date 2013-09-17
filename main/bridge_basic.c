@@ -2866,7 +2866,7 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 		ast_channel_unlock(chan);
 		return -1;
 	}
-	digit_timeout = xfer_cfg->transferdigittimeout;
+	digit_timeout = xfer_cfg->transferdigittimeout * 1000;
 	ast_channel_unlock(chan);
 
 	/* Play the simple "transfer" prompt out and wait */
