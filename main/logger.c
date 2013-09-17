@@ -1603,10 +1603,11 @@ void ast_log_backtrace(void)
 
 void __ast_verbose_ap(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, va_list ap)
 {
-	struct ast_str *buf = NULL;
+	const char *p;
+	struct ast_str *prefixed, *buf = NULL;
 	int res = 0;
 	const char *prefix = level >= 4 ? VERBOSE_PREFIX_4 : level == 3 ? VERBOSE_PREFIX_3 : level == 2 ? VERBOSE_PREFIX_2 : level == 1 ? VERBOSE_PREFIX_1 : "";
-	signed char magic = level > 127 ? -128 : -level - 1; /* 0 => -1, 1 => -2, etc.  Can't pass NUL, as it is EOS-delimiter */
+	signed char magic = level > 9 ? -10 : -level - 1; /* 0 => -1, 1 => -2, etc.  Can't pass NUL, as it is EOS-delimiter */
 
 	/* For compatibility with modules still calling ast_verbose() directly instead of using ast_verb() */
 	if (level < 0) {
@@ -1623,37 +1624,41 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, s
 		}
 	}
 
-	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE))) {
+	if (!(prefixed = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)) ||
+	    !(buf = ast_str_create(VERBOSE_BUF_INIT_SIZE))) {
 		return;
 	}
 
-	if (ast_opt_timestamp) {
-		struct timeval now;
-		struct ast_tm tm;
-		char date[40];
-		char *datefmt;
-
-		now = ast_tvnow();
-		ast_localtime(&now, &tm, NULL);
-		ast_strftime(date, sizeof(date), dateformat, &tm);
-		datefmt = ast_alloca(strlen(date) + 3 + strlen(prefix) + strlen(fmt) + 1);
-		sprintf(datefmt, "%c[%s] %s%s", (char) magic, date, prefix, fmt);
-		fmt = datefmt;
-	} else {
-		char *tmp = ast_alloca(strlen(prefix) + strlen(fmt) + 2);
-		sprintf(tmp, "%c%s%s", (char) magic, prefix, fmt);
-		fmt = tmp;
-	}
-
-	/* Build string */
 	res = ast_str_set_va(&buf, 0, fmt, ap);
-
 	/* If the build failed then we can drop this allocated message */
 	if (res == AST_DYNSTR_BUILD_FAILED) {
 		return;
 	}
 
-	ast_log_callid(__LOG_VERBOSE, file, line, func, callid, "%s", ast_str_buffer(buf));
+	ast_str_reset(prefixed);
+	/* for every newline found in the buffer add verbose prefix data */
+	fmt = ast_str_buffer(buf);
+	do {
+		if (!(p = strchr(fmt, '\n'))) {
+			p = strchr(fmt, '\0') - 1;
+		}
+		++p;
+
+		if (ast_opt_timestamp) {
+			struct ast_tm tm;
+			char date[40];
+			struct timeval now = ast_tvnow();
+			ast_localtime(&now, &tm, NULL);
+			ast_strftime(date, sizeof(date), dateformat, &tm);
+			ast_str_append(&prefixed, 0, "%c[%s] %s", (char) magic, date, prefix);
+		} else {
+			ast_str_append(&prefixed, 0, "%c%s", (char) magic, prefix);
+		}
+		ast_str_append_substr(&prefixed, 0, fmt, p - fmt);
+		fmt = p;
+	} while (p && *p);
+
+	ast_log_callid(__LOG_VERBOSE, file, line, func, callid, "%s", ast_str_buffer(prefixed));
 }
 
 void __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...)
