@@ -95,6 +95,13 @@ static void leave_marked(struct conference_bridge_user *cbu)
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&cbu->conference_bridge->active_list, cbu_iter, list) {
 			/* Kick ENDMARKED cbu_iters */
 			if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_ENDMARKED)) {
+				if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_WAITMARKED) &&
+						  !ast_test_flag(&cbu_iter->u_profile, USER_OPT_MARKEDUSER)) {
+					AST_LIST_REMOVE_CURRENT(list);
+					cbu_iter->conference_bridge->activeusers--;
+					AST_LIST_INSERT_TAIL(&cbu_iter->conference_bridge->waiting_list, cbu_iter, list);
+					cbu_iter->conference_bridge->waitingusers++;
+				}
 				cbu_iter->kicked = 1;
 				ast_bridge_remove(cbu_iter->conference_bridge->bridge, cbu_iter->chan);
 			} else if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_WAITMARKED) &&
