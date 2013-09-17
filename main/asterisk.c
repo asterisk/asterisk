@@ -2056,14 +2056,12 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char leve
 }
 
 struct console_state_data {
-	int newline;
 	char verbose_line_level;
 };
 
 static int console_state_init(void *ptr)
 {
 	struct console_state_data *state = ptr;
-	state->newline = 1;
 	state->verbose_line_level = 0;
 	return 0;
 }
@@ -2076,42 +2074,40 @@ AST_THREADSTORAGE_CUSTOM(console_state, console_state_init, ast_free_ptr);
 #define VERBOSE_MAGIC2LEVEL(x) (((char) -*(signed char *) (x)) - 1)
 #define VERBOSE_HASMAGIC(x)	(*(signed char *) (x) < 0)
 
-static int console_log_verbose(const char *s)
+static int console_print(const char *s, int local)
 {
-	/* verbose level of 0 evaluates to a magic of -1, 1 to -2, etc...
-	   search up to -7 (level = 6) as this is currently the largest
-	   level used */
-	static const char find_set[9] = { -1, -2, -3, -4, -5, -6, -7, '\n'};
-
 	struct console_state_data *state =
 		ast_threadstorage_get(&console_state, sizeof(*state));
 
 	char prefix[80];
-	const char *c = s;
+	const char *c;
 	int num, res = 0;
+	unsigned int newline;
 
 	do {
 		if (VERBOSE_HASMAGIC(s)) {
-			/* if it has one always use the given line's level,
-			   otherwise we'll use the last line's level */
+			/* always use the given line's level, otherwise
+			   we'll use the last line's level */
 			state->verbose_line_level = VERBOSE_MAGIC2LEVEL(s);
 			/* move past magic */
 			s++;
-		}
 
-		c = fix_header(prefix, sizeof(prefix), s,
-			       state->verbose_line_level);
-
-		if (!state->newline) {
-			/* don't use the prefix if line continuation */
+			if (local) {
+				s = fix_header(prefix, sizeof(prefix), s,
+					       state->verbose_line_level);
+			}
+		} else {
 			*prefix = '\0';
 		}
+		c = s;
 
-		/* for a given line separate on verbose magic and newlines */
-		if (!(s = strpbrk(c, find_set))) {
-			s = strchr(c, '\0');
-		} else if (*s == '\n') {
+		/* for a given line separate on verbose magic, newline, and eol */
+		if ((s = strchr(c, '\n'))) {
 			++s;
+			newline = 1;
+		} else {
+			s = strchr(c, '\0');
+			newline = 0;
 		}
 
 		/* check if we should write this line after calculating begin/end
@@ -2121,8 +2117,7 @@ static int console_log_verbose(const char *s)
 			continue;
 		}
 
-		state->newline = *(s - 1) == '\n';
-		if (!ast_strlen_zero(prefix)) {
+		if (local && !ast_strlen_zero(prefix)) {
 			fputs(prefix, stdout);
 		}
 
@@ -2136,8 +2131,13 @@ static int console_log_verbose(const char *s)
 			   we'll want to return true */
 			res = 1;
 		}
-		c = s;
 	} while (*s);
+
+	if (newline) {
+		/* if ending on a newline then reset last level to zero
+		    since what follows may be not be logging output */
+		state->verbose_line_level = 0;
+	}
 
 	if (res) {
 		fflush(stdout);
@@ -2148,7 +2148,7 @@ static int console_log_verbose(const char *s)
 
 static void console_verboser(const char *s)
 {
-	if (!console_log_verbose(s)) {
+	if (!console_print(s, 1)) {
 		return;
 	}
 
@@ -2635,7 +2635,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 				}
 			}
 
-			console_log_verbose(buf);
+			console_print(buf, 0);
 
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (buf[res-2] == '\n'))) {
 				*cp = CC_REFRESH;
