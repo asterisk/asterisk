@@ -889,7 +889,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	/* Add connection level details */
 	if (direct_media_enabled) {
 		ast_copy_string(hostip, ast_sockaddr_stringify_fmt(&session_media->direct_media_addr, AST_SOCKADDR_STR_ADDR), sizeof(hostip));
-	} else if (ast_strlen_zero(session->endpoint->media.external_address)) {
+	} else if (ast_strlen_zero(session->endpoint->media.address)) {
 		pj_sockaddr localaddr;
 
 		if (pj_gethostip(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
@@ -897,7 +897,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 		pj_sockaddr_print(&localaddr, hostip, sizeof(hostip), 2);
 	} else {
-		ast_copy_string(hostip, session->endpoint->media.external_address, sizeof(hostip));
+		ast_copy_string(hostip, session->endpoint->media.address, sizeof(hostip));
 	}
 
 	media->conn->net_type = STR_IN;
