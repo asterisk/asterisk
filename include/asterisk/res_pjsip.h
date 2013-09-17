@@ -490,8 +490,8 @@ struct ast_sip_t38_configuration {
  */
 struct ast_sip_endpoint_media_configuration {
 	AST_DECLARE_STRING_FIELDS(
-		/*! Optional external media address to use in SDP */
-		AST_STRING_FIELD(external_address);
+		/*! Optional media address to use in SDP */
+		AST_STRING_FIELD(address);
 		/*! SDP origin username */
 		AST_STRING_FIELD(sdpowner);
 		/*! SDP session name */

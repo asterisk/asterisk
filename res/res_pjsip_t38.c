@@ -671,7 +671,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	media->desc.media = pj_str(session_media->stream_type);
 	media->desc.transport = STR_UDPTL;
 
-	if (ast_strlen_zero(session->endpoint->media.external_address)) {
+	if (ast_strlen_zero(session->endpoint->media.address)) {
 		pj_sockaddr localaddr;
 
 		if (pj_gethostip(session->endpoint->media.t38.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
@@ -679,7 +679,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 		pj_sockaddr_print(&localaddr, hostip, sizeof(hostip), 2);
 	} else {
-		ast_copy_string(hostip, session->endpoint->media.external_address, sizeof(hostip));
+		ast_copy_string(hostip, session->endpoint->media.address, sizeof(hostip));
 	}
 
 	media->conn->net_type = STR_IN;
