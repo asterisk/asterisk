@@ -45,8 +45,8 @@
 				<configOption name="transferdigittimeout" default="3">
 					<synopsis>Seconds allowed between digit presses when dialing a transfer destination</synopsis>
 				</configOption>
-				<configOption name="atxfernoanswertimeout" default="15000">
-					<synopsis>Milliseconds to wait for attended transfer destination to answer</synopsis>
+				<configOption name="atxfernoanswertimeout" default="15">
+					<synopsis>Seconds to wait for attended transfer destination to answer</synopsis>
 				</configOption>
 				<configOption name="atxferdropcall" default="no">
 					<synopsis>Hang up the call entirely if the attended transfer fails</synopsis>
@@ -62,8 +62,8 @@
 						hang up all channels involved in the transfer.</para>
 					</description>
 				</configOption>
-				<configOption name="atxferloopdelay" default="10000">
-					<synopsis>Milliseconds to wait between attempts to re-dial transfer destination</synopsis>
+				<configOption name="atxferloopdelay" default="10">
+					<synopsis>Seconds to wait between attempts to re-dial transfer destination</synopsis>
 					<see-also><ref type="configOption">atxferdropcall</ref></see-also>
 				</configOption>
 				<configOption name="atxfercallbackretries" default="2">
@@ -355,10 +355,10 @@
 #define DEFAULT_RECORDING_FAIL_SOUND                ""
 
 /*! Default xfer options */
-#define DEFAULT_TRANSFER_DIGIT_TIMEOUT              3000
-#define DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER  15000
+#define DEFAULT_TRANSFER_DIGIT_TIMEOUT              3
+#define DEFAULT_NOANSWER_TIMEOUT_ATTENDED_TRANSFER  15
 #define DEFAULT_ATXFER_DROP_CALL                    0
-#define DEFAULT_ATXFER_LOOP_DELAY                   10000
+#define DEFAULT_ATXFER_LOOP_DELAY                   10
 #define DEFAULT_ATXFER_CALLBACK_RETRIES             2
 #define DEFAULT_XFERSOUND                           "beep"
 #define DEFAULT_XFERFAILSOUND                       "beeperr"

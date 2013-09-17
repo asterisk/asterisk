@@ -2721,7 +2721,7 @@ static enum attended_transfer_stimulus wait_for_stimulus(struct attended_transfe
 		if (!(state_properties[props->state].flags & TRANSFER_STATE_FLAG_TIMED)) {
 			ast_cond_wait(&props->cond, lock);
 		} else {
-			struct timeval relative_timeout;
+			struct timeval relative_timeout = { 0, };
 			struct timeval absolute_timeout;
 			struct timespec timeout_arg;
 
@@ -2730,10 +2730,10 @@ static enum attended_transfer_stimulus wait_for_stimulus(struct attended_transfe
 			}
 
 			if (state_properties[props->state].flags & TRANSFER_STATE_FLAG_TIMER_LOOP_DELAY) {
-				relative_timeout = ast_samp2tv(props->atxferloopdelay, 1000);
+				relative_timeout.tv_sec = props->atxferloopdelay;
 			} else {
 				/* Implied TRANSFER_STATE_FLAG_TIMER_ATXFER_NO_ANSWER */
-				relative_timeout = ast_samp2tv(props->atxfernoanswertimeout, 1000);
+				relative_timeout.tv_sec = props->atxfernoanswertimeout;
 			}
 
 			absolute_timeout = ast_tvadd(props->start, relative_timeout);
