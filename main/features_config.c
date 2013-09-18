@@ -1348,6 +1348,11 @@ static int applicationmap_handler(const struct aco_option *opt,
 		*slash = '\0';
 	}
 
+	/* Some applications do not require arguments. */
+	if (!args.app_data) {
+		args.app_data = "";
+	}
+
 	/* Two syntaxes allowed for applicationmap:
 	 * Old: foo = *1,self,NoOp,Boo!,default
 	 * New: foo = *1,self,NoOp(Boo!),default
