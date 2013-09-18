@@ -135,6 +135,8 @@ static struct ast_sip_endpoint* get_endpoint(const char *fromto, char **uri)
 
 	if ((*uri = strchr(name, '/'))) {
 		*(*uri)++ = '\0';
+	} else if ((*uri = strchr(name, '@'))) {
+		*(*uri) = '\0';
 	}
 
 	/* endpoint is required */
@@ -163,7 +165,6 @@ static struct ast_sip_endpoint* get_endpoint(const char *fromto, char **uri)
  */
 static void update_from(pjsip_tx_data *tdata, const char *from)
 {
-	/* static const pj_str_t hname = { "From", 4 }; */
 	pjsip_name_addr *from_name_addr;
 	pjsip_sip_uri *from_uri;
 	pjsip_uri *parsed;
@@ -206,6 +207,49 @@ static void update_from(pjsip_tx_data *tdata, const char *from)
 		}
 		pj_strdup2(tdata->pool, &from_uri->user, uri);
 	}
+}
+
+static char *scheme_sip_to_pjsip(pjsip_rx_data *rdata, char *buf, unsigned int size)
+{
+	char *res = buf;
+	pjsip_name_addr *name_addr = (pjsip_name_addr *)rdata->msg_info.to->uri;
+	pjsip_sip_uri *sip_uri = pjsip_uri_get_uri(name_addr->uri);
+
+	const pj_str_t *scheme = pjsip_uri_get_scheme(rdata->msg_info.to->uri);
+	size_t size_scheme = pj_strlen(scheme);
+	size_t size_user = pj_strlen(&sip_uri->user);
+	size_t size_host = pj_strlen(&sip_uri->host);
+
+	/* 5 = count of 'p' 'j' ':' '@' '\0' */
+	if (size < size_scheme + size_user + size_host + 5) {
+		/* won't fit */
+		ast_log(LOG_WARNING, "Unable to handle MESSAGE- incoming uri "
+			"too large for given buffer\n");
+		return NULL;
+	}
+
+	*buf++ = 'p';
+	*buf++ = 'j';
+
+	memcpy(buf, pj_strbuf(scheme), size_scheme);
+	buf += size_scheme;
+	*buf++ = ':';
+
+	memcpy(buf, pj_strbuf(&sip_uri->user), size_user);
+	buf += size_user;
+	*buf++ = '@';
+
+	memcpy(buf, pj_strbuf(&sip_uri->host), size_host);
+	buf += size_host;
+	*buf = '\0';
+
+	return res;
+}
+
+static char *scheme_pjsip_to_sip(const char *uri)
+{
+	ast_assert(!strncmp(uri, "pjsip", 5));
+	return ast_strdup(uri + 2);
 }
 
 /*!
@@ -273,8 +317,13 @@ static enum pjsip_status_code vars_to_headers(const struct ast_msg *msg, pjsip_t
 			}
 			sprintf((char*)value, "%d", max_forwards);
 			ast_sip_add_header(tdata, name, value);
-		}
-		else if (!is_msg_var_blocked(name)) {
+		} else if (!strcasecmp(name, "To")) {
+			char *to = scheme_pjsip_to_sip(value);
+			if (to) {
+				ast_sip_add_header(tdata, name, to);
+				ast_free(to);
+			}
+		} else if (!is_msg_var_blocked(name)) {
 			ast_sip_add_header(tdata, name, value);
 		}
 		ast_msg_var_unref_current(i);
@@ -283,7 +332,7 @@ static enum pjsip_status_code vars_to_headers(const struct ast_msg *msg, pjsip_t
 }
 
 /*!
- * \internal  
+ * \internal
  * \brief Copies any other request header data over to ast_msg structure.
  *
  * \param rdata The SIP request
@@ -373,11 +422,7 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	CHECK_RES(ast_msg_set_exten(msg, "%s", buf));
 
 	/* to header */
-	name_addr = (pjsip_name_addr *)rdata->msg_info.to->uri;
-	if ((size = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, name_addr, buf, sizeof(buf)-1)) > 0) {
-		buf[size] = '\0';
-		CHECK_RES(ast_msg_set_to(msg, "%s", buf));
-	}
+	CHECK_RES(ast_msg_set_to(msg, "%s", scheme_sip_to_pjsip(rdata, buf, sizeof(buf))));
 
 	/* from header */
 	name_addr = (pjsip_name_addr *)rdata->msg_info.from->uri;
@@ -439,7 +484,7 @@ static struct msg_data* msg_data_create(const struct ast_msg *msg, const char *t
 	/* typecast to suppress const warning */
 	mdata->msg = ast_msg_ref((struct ast_msg*)msg);
 
-	mdata->to = ast_strdup(to);
+	mdata->to = scheme_pjsip_to_sip(to);
 	mdata->from = ast_strdup(from);
 
 	/* sometimes from can still contain the tag at this point, so remove it */
@@ -509,7 +554,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 }
 
 static const struct ast_msg_tech msg_tech = {
-	.name = "sip",
+	.name = "pjsip",
 	.msg_send = sip_msg_send,
 };
 
