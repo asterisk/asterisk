@@ -184,7 +184,7 @@ static int link_option_to_types(struct aco_info *info, struct aco_type **types, 
 		}
 		if (!ao2_link(type->internal->opts, opt)
 #ifdef AST_XML_DOCS
-				|| (!info->hidden && 
+				|| (!info->hidden &&
 					!opt->no_doc &&
 					xmldoc_update_config_option(types, info->module, opt->name, type->name, opt->default_val, opt->match_type == ACO_REGEX, opt->type))
 #endif /* AST_XML_DOCS */
@@ -592,16 +592,17 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 {
 	struct ast_config *cfg;
 	struct ast_flags cfg_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0, };
-	int res = ACO_PROCESS_OK, x = 0;
+	int res = ACO_PROCESS_OK;
+	int file_count = 0;
 	struct aco_file *file;
-
-	if (!(info->files[0])) {
-		ast_log(LOG_ERROR, "No filename given, cannot proceed!\n");
-		return ACO_PROCESS_ERROR;
-	}
 
 	if (!info->internal) {
 		ast_log(LOG_ERROR, "Attempting to process uninitialized aco_info\n");
+		return ACO_PROCESS_ERROR;
+	}
+
+	if (!(info->files[0])) {
+		ast_log(LOG_ERROR, "No filename given, cannot proceed!\n");
 		return ACO_PROCESS_ERROR;
 	}
 
@@ -610,16 +611,12 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 		return ACO_PROCESS_ERROR;
 	}
 
-/*
- * XXX ASTERISK-22009 must fix config framework loading of multiple files.
- *
- * A reload with multiple files must reload all files if any
- * file has been touched.
- */
-	while (res != ACO_PROCESS_ERROR && (file = info->files[x++])) {
+	while (res != ACO_PROCESS_ERROR && (file = info->files[file_count++])) {
 		const char *filename = file->filename;
+
 try_alias:
-		if (!(cfg = ast_config_load(filename, cfg_flags))) {
+		cfg = ast_config_load(filename, cfg_flags);
+		if (!cfg || cfg == CONFIG_STATUS_FILEMISSING) {
 			if (file->alias && strcmp(file->alias, filename)) {
 				filename = file->alias;
 				goto try_alias;
@@ -632,20 +629,30 @@ try_alias:
 			res = ACO_PROCESS_UNCHANGED;
 			continue;
 		} else if (cfg == CONFIG_STATUS_FILEINVALID) {
-			ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed\n", file->filename);
-			res = ACO_PROCESS_ERROR;
-			break;
-		} else if (cfg == CONFIG_STATUS_FILEMISSING) {
-			if (file->alias && strcmp(file->alias, filename)) {
-				filename = file->alias;
-				goto try_alias;
-			}
-			ast_log(LOG_ERROR, "%s is missing! Cannot load %s\n", file->filename, info->module);
+			ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed\n",
+				file->filename);
 			res = ACO_PROCESS_ERROR;
 			break;
 		}
 
-		res = internal_process_ast_config(info, file, cfg);
+		/* A file got loaded. */
+		if (reload) {
+			/* Must do any subsequent file loads unconditionally. */
+			reload = 0;
+			ast_clear_flag(&cfg_flags, CONFIG_FLAG_FILEUNCHANGED);
+
+			if (file_count != 1) {
+				/*
+				 * Must restart loading to load all config files since a file
+				 * after the first one changed.
+				 */
+				file_count = 0;
+			} else {
+				res = internal_process_ast_config(info, file, cfg);
+			}
+		} else {
+			res = internal_process_ast_config(info, file, cfg);
+		}
 		ast_config_destroy(cfg);
 	}
 
@@ -653,7 +660,7 @@ try_alias:
 		goto end;
 	}
 
-	if (info->pre_apply_config && (info->pre_apply_config())) {
+	if (info->pre_apply_config && info->pre_apply_config()) {
 		res = ACO_PROCESS_ERROR;
 		goto end;
 	}
