@@ -1044,6 +1044,7 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 	ast_mutex_init(&softmix_data->lock);
 	softmix_data->timer = ast_timer_open();
 	if (!softmix_data->timer) {
+		ast_log(AST_LOG_WARNING, "Failed to open timer for softmix bridge\n");
 		softmix_bridge_data_destroy(softmix_data);
 		return -1;
 	}
