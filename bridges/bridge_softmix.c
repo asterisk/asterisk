@@ -313,6 +313,7 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 		return -1;
 	}
 	if (!(softmix_data->timer = ast_timer_open())) {
+		ast_log(AST_LOG_WARNING, "Failed to open timer for softmix bridge\n");
 		ao2_ref(softmix_data, -1);
 		return -1;
 	}
