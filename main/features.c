@@ -6136,19 +6136,9 @@ static void process_applicationmap_line(struct ast_variable *var)
 	);
 
 	AST_STANDARD_APP_ARGS(args, tmp_val);
-	if ((new_syn = strchr(args.app, '('))) {
-		/* New syntax */
-		args.moh_class = args.app_args;
-		args.app_args = new_syn;
-		*args.app_args++ = '\0';
-		if (args.app_args[strlen(args.app_args) - 1] == ')') {
-			args.app_args[strlen(args.app_args) - 1] = '\0';
-		}
-	}
 
 	activateon = strsep(&args.activatedby, "/");
 
-	/*! \todo XXX var_name or app_args ? */
 	if (ast_strlen_zero(args.app)
 		|| ast_strlen_zero(args.exten)
 		|| ast_strlen_zero(activateon)
@@ -6159,6 +6149,16 @@ static void process_applicationmap_line(struct ast_variable *var)
 		return;
 	}
 
+	if ((new_syn = strchr(args.app, '('))) {
+		/* New syntax */
+		args.moh_class = args.app_args;
+		args.app_args = new_syn;
+		*args.app_args++ = '\0';
+		if (args.app_args[strlen(args.app_args) - 1] == ')') {
+			args.app_args[strlen(args.app_args) - 1] = '\0';
+		}
+	}
+	
 	AST_RWLIST_RDLOCK(&feature_list);
 	if (find_dynamic_feature(var->name)) {
 		AST_RWLIST_UNLOCK(&feature_list);
