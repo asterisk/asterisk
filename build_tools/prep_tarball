@@ -19,11 +19,11 @@ hash unzip 2>&- || { echo >&2 "The unzip application is required but was not fou
 
 cd doc
 echo "Downloading the PDF and HTML documentation from the Asterisk wiki (this will take a minute) ..."
-wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin-Guide-$branch.pdf
+wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-$branch-Reference.pdf
+wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin-Guide.pdf
 wget https://wiki.asterisk.org/wiki/download/attachments/19005471/Asterisk-Admin-Guide-$branch.html.zip
 echo "Extracting HTML Admin Guide"
 unzip Asterisk-Admin-Guide-$branch.html.zip
 mv AST/ Asterisk-Admin-Guide/
-mv Asterisk-Admin-Guide-$branch.pdf Asterisk-Admin-Guide.pdf
 rm -f Asterisk-Admin-Guide-$branch.html.zip
 echo "Documentation downloaded. Goodbye!"
