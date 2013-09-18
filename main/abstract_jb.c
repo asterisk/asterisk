@@ -488,7 +488,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 		char safe_logfile[30] = "/tmp/logfile-XXXXXX";
 		int safe_fd;
 		snprintf(name2, sizeof(name2), "%s", chan->name);
-		if ((tmp = strchr(name2, '/'))) {
+		while ((tmp = strchr(name2, '/'))) {
 			*tmp = '#';
 		}
 
@@ -497,7 +497,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 		ast_assert(bridged != NULL);
 
 		snprintf(name1, sizeof(name1), "%s", bridged->name);
-		if ((tmp = strchr(name1, '/'))) {
+		while ((tmp = strchr(name1, '/'))) {
 			*tmp = '#';
 		}
 
