@@ -76,7 +76,7 @@ struct optional_api {
 static void optional_api_user_destroy(struct optional_api_user *user)
 {
 	*user->optional_ref = user->stub;
-	free(user);
+	ast_std_free(user);
 }
 
 /*!
@@ -95,7 +95,7 @@ static struct optional_api_user *optional_api_user_create(
 	struct optional_api_user *user;
 	size_t size = sizeof(*user) + strlen(module) + 1;
 
-	user = calloc(1, size);
+	user = ast_std_calloc(1, size);
 	if (!user) {
 		return NULL;
 	}
@@ -117,10 +117,10 @@ static void optional_api_destroy(struct optional_api *api)
 	while (api->users_len--) {
 		optional_api_user_destroy(api->users[api->users_len]);
 	}
-	free(api->users);
+	ast_std_free(api->users);
 	api->users = NULL;
 	api->users_maxlen = 0;
-	free(api);
+	ast_std_free(api);
 }
 
 /*!
@@ -137,7 +137,7 @@ static struct optional_api *optional_api_create(const char *symname)
 
 	ast_verb(6, "%s: building api object\n", symname);
 	size = sizeof(*api) + strlen(symname) + 1;
-	api = calloc(1, size);
+	api = ast_std_calloc(1, size);
 	if (!api) {
 		ast_log(LOG_ERROR, "Failed to allocate api\n");
 		return NULL;
@@ -181,13 +181,16 @@ static struct optional_api *get_api(const char *symname)
 
 	/* API not found. Build one */
 	api = optional_api_create(symname);
+	if (!api) {
+		return NULL;
+	}
 
 	/* Grow the list, if needed */
 	if (apis.len + 1 > apis.maxlen) {
 		size_t new_maxlen = apis.maxlen ? 2 * apis.maxlen : 1;
-		struct optional_api **new_list =
-			realloc(apis.list, new_maxlen * sizeof(*new_list));
+		struct optional_api **new_list;
 
+		new_list = ast_std_realloc(apis.list, new_maxlen * sizeof(*new_list));
 		if (!new_list) {
 			optional_api_destroy(api);
 			ast_log(LOG_ERROR, "Failed to allocate api list\n");
@@ -300,11 +303,10 @@ void ast_optional_api_use(const char *symname, ast_optional_fn *optional_ref,
 
 	/* Add user to the API */
 	if (api->users_len + 1 > api->users_maxlen) {
-		size_t new_maxlen = api->users_maxlen ?
-			2 * api->users_maxlen : 1;
-		struct optional_api_user **new_list =
-			realloc(api->users, new_maxlen * sizeof(*new_list));
+		size_t new_maxlen = api->users_maxlen ? 2 * api->users_maxlen : 1;
+		struct optional_api_user **new_list;
 
+		new_list = ast_std_realloc(api->users, new_maxlen * sizeof(*new_list));
 		if (!new_list) {
 			optional_api_user_destroy(user);
 			ast_log(LOG_ERROR, "Failed to allocate api list\n");
@@ -336,6 +338,7 @@ void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 
 	for (i = 0; i < api->users_len; ++i) {
 		struct optional_api_user *user = api->users[i];
+
 		if (user->optional_ref == optional_ref) {
 			if (*user->optional_ref != user->stub) {
 				ast_verb(4, "%s: stubbing for %s\n", symname,
