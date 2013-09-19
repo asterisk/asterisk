@@ -13438,13 +13438,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Our T.38 end is */
 		ast_udptl_get_us(p->udptl, &udptladdr);
 
-		/* Determine T.38 UDPTL destination */
-		if (!ast_sockaddr_isnull(&p->udptlredirip)) {
-			ast_sockaddr_copy(&udptldest, &p->udptlredirip);
-		} else {
-			ast_sockaddr_copy(&udptldest, &p->ourip);
-			ast_sockaddr_set_port(&udptldest, ast_sockaddr_port(&udptladdr));
-		}
+		/* We don't use directmedia for T.38, so keep the destination the same as our IP address. */
+		ast_sockaddr_copy(&udptldest, &p->ourip);
+		ast_sockaddr_set_port(&udptldest, ast_sockaddr_port(&udptladdr));
 
 		if (debug) {
 			ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_sockaddr_stringify_addr(&p->ourip), ast_sockaddr_port(&udptladdr));
@@ -13455,9 +13451,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 
 		ast_str_append(&m_modem, 0, "m=image %d udptl t38\r\n", ast_sockaddr_port(&udptldest));
 
-		if (!ast_sockaddr_cmp(&udptldest, &dest)) {
+		if (ast_sockaddr_cmp(&udptldest, &dest)) {
 			ast_str_append(&m_modem, 0, "c=IN %s %s\r\n",
-					(ast_sockaddr_is_ipv6(&dest) && !ast_sockaddr_is_ipv4_mapped(&dest)) ?
+					(ast_sockaddr_is_ipv6(&udptldest) && !ast_sockaddr_is_ipv4_mapped(&udptldest)) ?
 					"IP6" : "IP4", ast_sockaddr_stringify_addr_remote(&udptldest));
 		}
 
