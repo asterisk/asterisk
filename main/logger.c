@@ -1632,6 +1632,7 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, s
 	res = ast_str_set_va(&buf, 0, fmt, ap);
 	/* If the build failed then we can drop this allocated message */
 	if (res == AST_DYNSTR_BUILD_FAILED) {
+		ast_free(buf);
 		return;
 	}
 
@@ -1659,6 +1660,7 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, s
 	} while (p && *p);
 
 	ast_log_callid(__LOG_VERBOSE, file, line, func, callid, "%s", ast_str_buffer(prefixed));
+	ast_free(buf);
 }
 
 void __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...)
