@@ -398,6 +398,15 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 		*stuff++ = '\0';
 		tech = tmp;
 		device = stuff;
+	} else {
+		const char *forward_context;
+		char destination[AST_MAX_CONTEXT + AST_MAX_EXTENSION + 1];
+
+		ast_channel_lock(original);
+		forward_context = pbx_builtin_getvar_helper(original, "FORWARD_CONTEXT");
+		snprintf(destination, sizeof(destination), "%s@%s", tmp, S_OR(forward_context, ast_channel_context(original)));
+		ast_channel_unlock(original);
+		device = ast_strdupa(destination);
 	}
 
 	/* Drop old destination information */
@@ -409,11 +418,13 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	channel->device = ast_strdup(device);
 	AST_LIST_UNLOCK(&dial->channels);
 
-	/* Finally give it a go... send it out into the world */
-	begin_dial_channel(channel, chan, chan ? 0 : 1);
 
 	/* Drop the original channel */
 	ast_hangup(original);
+	channel->owner = NULL;
+
+	/* Finally give it a go... send it out into the world */
+	begin_dial_channel(channel, chan, chan ? 0 : 1);
 
 	return 0;
 }
