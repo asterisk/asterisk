@@ -478,10 +478,6 @@ static int process_category(struct ast_config *cfg, struct aco_info *info, struc
 	}
 
 	if (type->type == ACO_GLOBAL && *field) {
-		if (aco_set_defaults(type, cat, *field)) {
-			ast_log(LOG_ERROR, "In %s: Setting defaults for %s failed\n", file->filename, cat);
-			return -1;
-		}
 		if (aco_process_category_options(type, cfg, cat, *field)) {
 			ast_log(LOG_ERROR, "In %s: Processing options for %s failed\n", file->filename, cat);
 			return -1;
@@ -613,6 +609,27 @@ enum aco_process_status aco_process_config(struct aco_info *info, int reload)
 
 	while (res != ACO_PROCESS_ERROR && (file = info->files[file_count++])) {
 		const char *filename = file->filename;
+		struct aco_type *match;
+		int i;
+
+		/* set defaults for global objects */
+		for (i = 0, match = file->types[i]; match; match = file->types[++i]) {
+			void **field = info->internal->pending + match->item_offset;
+
+			if (match->type != ACO_GLOBAL || !*field) {
+				continue;
+			}
+
+			if (aco_set_defaults(match, match->category, *field)) {
+				ast_log(LOG_ERROR, "In %s: Setting defaults for %s failed\n", file->filename, match->category);
+				res = ACO_PROCESS_ERROR;
+				break;
+			}
+		}
+
+		if (res == ACO_PROCESS_ERROR) {
+			break;
+		}
 
 try_alias:
 		cfg = ast_config_load(filename, cfg_flags);
