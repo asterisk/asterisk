@@ -2122,6 +2122,7 @@ static int unload_module(void)
 
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
+	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
 
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_channel_unregister(&chan_pjsip_tech);
