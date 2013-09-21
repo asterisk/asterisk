@@ -213,13 +213,15 @@ void ast_json_unref(struct ast_json *json)
 	struct json_mem_list *free_list;
 	struct json_mem *mem;
 
+	if (!json) {
+		return;
+	}
+
 	/* Jansson refcounting is non-atomic; lock it. */
 	{
 		SCOPED_JSON_LOCK(json);
-		if (!json) {
-			return;
-		}
-		json_decref((json_t *)json);
+
+		json_decref((json_t *) json);
 	}
 
 	/* Now free any objects that were ast_json_free()'s while the lock was
