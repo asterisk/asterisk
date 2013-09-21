@@ -439,6 +439,7 @@ static int process_description_file(struct ast_media_index *index,
 			/* if there's text in cumulative_description, archive it and start anew */
 			if (file_id_persist && !ast_strlen_zero(ast_str_buffer(cumulative_description))) {
 				RAII_VAR(struct media_variant *, variant, NULL, ao2_cleanup);
+
 				variant = find_variant(index, file_id_persist, variant_str);
 				if (!variant) {
 					variant = alloc_variant(index, file_id_persist, variant_str);
@@ -451,11 +452,10 @@ static int process_description_file(struct ast_media_index *index,
 				ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
 
 				ast_str_reset(cumulative_description);
-				ast_free(file_id_persist);
-				file_id_persist = NULL;
 			}
 
-			file_id_persist = strdup(file_identifier);
+			ast_free(file_id_persist);
+			file_id_persist = ast_strdup(file_identifier);
 			description = ast_skip_blanks(description);
 			ast_str_set(&cumulative_description, 0, "%s", description);
 		}
@@ -464,6 +464,7 @@ static int process_description_file(struct ast_media_index *index,
 	/* handle the last one */
 	if (file_id_persist && !ast_strlen_zero(ast_str_buffer(cumulative_description))) {
 		RAII_VAR(struct media_variant *, variant, NULL, ao2_cleanup);
+
 		variant = find_variant(index, file_id_persist, variant_str);
 		if (!variant) {
 			variant = alloc_variant(index, file_id_persist, variant_str);
@@ -471,12 +472,12 @@ static int process_description_file(struct ast_media_index *index,
 
 		if (variant) {
 			ast_string_field_set(variant, description, ast_str_buffer(cumulative_description));
-			ast_free(file_id_persist);
 		} else {
 			res = -1;
 		}
 	}
 
+	ast_free(file_id_persist);
 	fclose(f);
 	return res;
 }
