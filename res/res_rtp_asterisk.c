@@ -3210,10 +3210,6 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 	int res, packetwords, position = 0;
 	int report_counter = 0;
 	struct ast_rtp_rtcp_report_block *report_block;
-	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-			NULL,
-			ao2_cleanup);
-	RAII_VAR(struct ast_json *, message_blob, NULL, ast_json_unref);
 	struct ast_frame *f = &ast_null_frame;
 
 	/* Read in RTCP data from the socket */
@@ -3274,6 +3270,8 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 	while (position < packetwords) {
 		int i, pt, rc;
 		unsigned int length;
+		struct ast_json *message_blob;
+		RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report, NULL, ao2_cleanup);
 
 		i = position;
 		length = ntohl(rtcpheader[i]);
@@ -3397,6 +3395,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_received_type(),
 					rtcp_report,
 					message_blob);
+			ast_json_unref(message_blob);
 			break;
 		case RTCP_PT_FUR:
 		/* Handle RTCP FIR as FUR */
