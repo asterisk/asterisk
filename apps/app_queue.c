@@ -1952,12 +1952,29 @@ static void queue_publish_multi_channel_blob(struct ast_channel *caller, struct 
 			agent_snapshot, type, blob);
 }
 
+/*!
+ * \internal
+ * \brief Publish the member blob.
+ * \since 12.0.0
+ *
+ * \param type Stasis message type to publish.
+ * \param blob The information being published.
+ *
+ * \note The json blob reference is passed to this function.
+ *
+ * \return Nothing
+ */
 static void queue_publish_member_blob(struct stasis_message_type *type, struct ast_json *blob)
 {
 	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!blob) {
+		return;
+	}
+
 	payload = ast_json_payload_create(blob);
+	ast_json_unref(blob);
 	if (!payload) {
 		return;
 	}
@@ -6729,7 +6746,8 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	return res;
 }
 
-static int publish_queue_member_pause(struct call_queue *q, struct member *member, const char *reason) {
+static int publish_queue_member_pause(struct call_queue *q, struct member *member, const char *reason)
+{
 	struct ast_json *json_blob = queue_member_blob_create(q, member);
 
 	if (!json_blob) {
