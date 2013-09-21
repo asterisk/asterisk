@@ -622,6 +622,7 @@ static void features_config_destructor(void *obj)
 
 	ao2_cleanup(cfg->global);
 	ao2_cleanup(cfg->featuremap);
+	ao2_cleanup(cfg->parkinglots);
 	ao2_cleanup(cfg->applicationmap);
 	ao2_cleanup(cfg->featuregroups);
 }
@@ -720,7 +721,7 @@ static struct features_config *__features_config_alloc(int allocate_applicationm
 		return NULL;
 	}
 
-	cfg->global = global_config_alloc();;
+	cfg->global = global_config_alloc();
 	if (!cfg->global) {
 		return NULL;
 	}
