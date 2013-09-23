@@ -2134,17 +2134,15 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_sip_register_service(&session_reinvite_module);
+
+	ast_module_ref(ast_module_info->self);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	ast_sip_unregister_service(&session_module);
-	ast_sip_unregister_service(&session_reinvite_module);
-	if (nat_hook) {
-		ast_sorcery_delete(ast_sip_get_sorcery(), nat_hook);
-		nat_hook = NULL;
-	}
+	/* This will never get called as this module can't be unloaded */
 	return 0;
 }
 
