@@ -1853,7 +1853,8 @@ static int load_module(void)
 	pj_caching_pool_init(&caching_pool, NULL, 1024 * 1024);
 	if (pjsip_endpt_create(&caching_pool.factory, "SIP", &ast_pjsip_endpoint) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to create PJSIP endpoint structure. Aborting load\n");
-		goto error;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* PJSIP will automatically try to add a Max-Forwards header. Since we want to control that,
@@ -1864,12 +1865,20 @@ static int load_module(void)
 	memory_pool = pj_pool_create(&caching_pool.factory, "SIP", 1024, 1024, NULL);
 	if (!memory_pool) {
 		ast_log(LOG_ERROR, "Failed to create memory pool for SIP. Aborting load\n");
-		goto error;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sip_initialize_system()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP system configuration. Aborting load\n");
-		goto error;
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	sip_get_threadpool_options(&options);
@@ -1877,7 +1886,12 @@ static int load_module(void)
 	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
 	if (!sip_threadpool) {
 		ast_log(LOG_ERROR, "Failed to create SIP threadpool. Aborting load\n");
-		goto error;
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	pjsip_tsx_layer_init_module(ast_pjsip_endpoint);
@@ -1888,49 +1902,62 @@ static int load_module(void)
 			NULL, PJ_THREAD_DEFAULT_STACK_SIZE * 2, 0, &monitor_thread);
 	if (status != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to start SIP monitor thread. Aborting load\n");
-		goto error;
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_sip_initialize_global_headers();
 
 	if (ast_res_pjsip_initialize_configuration()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
-		goto error;
+		ast_sip_destroy_global_headers();
+		stop_monitor_thread();
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sip_initialize_distributor()) {
 		ast_log(LOG_ERROR, "Failed to register distributor module. Aborting load\n");
-		goto error;
+		ast_res_pjsip_destroy_configuration();
+		ast_sip_destroy_global_headers();
+		stop_monitor_thread();
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sip_initialize_outbound_authentication()) {
 		ast_log(LOG_ERROR, "Failed to initialize outbound authentication. Aborting load\n");
-		goto error;
+		ast_sip_destroy_distributor();
+		ast_res_pjsip_destroy_configuration();
+		ast_sip_destroy_global_headers();
+		stop_monitor_thread();
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_res_pjsip_init_options_handling(0);
 
 	ast_res_pjsip_init_contact_transports();
 
-return AST_MODULE_LOAD_SUCCESS;
+	ast_module_ref(ast_module_info->self);
 
-error:
-	ast_sip_destroy_distributor();
-	ast_res_pjsip_destroy_configuration();
-	ast_sip_destroy_global_headers();
-	if (monitor_thread) {
-		stop_monitor_thread();
-	}
-	if (memory_pool) {
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-	}
-	if (ast_pjsip_endpoint) {
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-	}
-	pj_caching_pool_destroy(&caching_pool);
-	return AST_MODULE_LOAD_DECLINE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload_module(void)
@@ -1942,36 +1969,9 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_pjsip(void *data)
-{
-	if (memory_pool) {
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-	}
-	if (ast_pjsip_endpoint) {
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-	}
-	pj_caching_pool_destroy(&caching_pool);
-	return 0;
-}
-
 static int unload_module(void)
 {
-	ast_res_pjsip_cleanup_options_handling();
-	ast_sip_destroy_distributor();
-	ast_res_pjsip_destroy_configuration();
-	ast_sip_destroy_global_headers();
-	if (monitor_thread) {
-		stop_monitor_thread();
-	}
-	/* The thread this is called from cannot call PJSIP/PJLIB functions,
-	 * so we have to push the work to the threadpool to handle
-	 */
-	ast_sip_push_task_synchronous(NULL, unload_pjsip, NULL);
-
-	ast_threadpool_shutdown(sip_threadpool);
-
+	/* This will never get called as this module can't be unloaded */
 	return 0;
 }
 
