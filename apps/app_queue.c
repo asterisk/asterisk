@@ -5910,7 +5910,7 @@ static void setup_mixmonitor(struct queue_ent *qe, const char *filename)
 	char escaped_filename[256];
 	char file_with_ext[256];
 	char mixmonargs[1512];
-	char escaped_monitor_exec[1024];
+	char escaped_monitor_exec[1024] = "\0";
 	const char *monitor_options;
 	const char *monitor_exec;
 
