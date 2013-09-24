@@ -40,7 +40,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_technology.h"
 
-#define SNAPSHOT_CHANNELS_BUCKETS 13
+/* The container of channel snapshots in a bridge snapshot should always be
+   equivalent to a linked list; otherwise things (like CDRs) that depend on some
+   consistency in the ordering of channels in a bridge will break. */
+#define SNAPSHOT_CHANNELS_BUCKETS 1
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="BlindTransfer">

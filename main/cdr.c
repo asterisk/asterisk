@@ -327,7 +327,7 @@ AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 static ast_cond_t cdr_pending_cond;
 
-/*! \brief A container of the active CDRs indexed by Party A channel name */
+/*! \brief A container of the active CDRs indexed by Party A channel id */
 static struct ao2_container *active_cdrs_by_channel;
 
 /*! \brief Message router for stasis messages regarding channel state */
@@ -682,6 +682,7 @@ struct cdr_object {
 	struct ast_flags flags;                 /*!< Flags on the CDR */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(linkedid);         /*!< Linked ID. Cached here as it may change out from party A, which must be immutable */
+		AST_STRING_FIELD(uniqueid);			/*!< Unique id of party A. Cached here as it is the primary key of this CDR */
 		AST_STRING_FIELD(name);             /*!< Channel name of party A. Cached here as the party A address may change */
 		AST_STRING_FIELD(bridge);           /*!< The bridge the party A happens to be in. */
 		AST_STRING_FIELD(appl);             /*!< The last accepted application party A was in */
@@ -772,42 +773,58 @@ static void cdr_object_transition_state(struct cdr_object *cdr, struct cdr_objec
 	}
 }
 /*! \internal
- * \brief Hash function for containers of CDRs indexing by Party A name */
+ * \brief Hash function for containers of CDRs indexing by Party A uniqueid */
 static int cdr_object_channel_hash_fn(const void *obj, const int flags)
 {
-	const struct cdr_object *cdr = obj;
-	const char *name = (flags & OBJ_KEY) ? obj : cdr->name;
-	return ast_str_case_hash(name);
+	const struct cdr_object *cdr;
+	const char *key;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	case OBJ_KEY:
+		key = obj;
+		break;
+	case OBJ_POINTER:
+		cdr = obj;
+		key = cdr->uniqueid;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_case_hash(key);
 }
 
 /*! \internal
- * \brief Comparison function for containers of CDRs indexing by Party A name
+ * \brief Comparison function for containers of CDRs indexing by Party A uniqueid
  */
 static int cdr_object_channel_cmp_fn(void *obj, void *arg, int flags)
 {
-	struct cdr_object *left = obj;
-	struct cdr_object *right = arg;
-	const char *match = (flags & OBJ_KEY) ? arg : right->name;
-	return strcasecmp(left->name, match) ? 0 : (CMP_MATCH | CMP_STOP);
-}
+    struct cdr_object *left = obj;
+    struct cdr_object *right = arg;
+    const char *right_key = arg;
+    int cmp;
 
-/*! \internal
- * \brief Comparison function for containers of CDRs indexing by bridge. Note
- * that we expect there to be collisions, as a single bridge may have multiple
- * CDRs active at one point in time
- */
-static int cdr_object_bridge_cmp_fn(void *obj, void *arg, int flags)
-{
-	struct cdr_object *left = obj;
-	struct cdr_object *it_cdr;
-	const char *match = arg;
-
-	for (it_cdr = left; it_cdr; it_cdr = it_cdr->next) {
-		if (!strcasecmp(it_cdr->bridge, match)) {
-			return CMP_MATCH;
-		}
-	}
-	return 0;
+    switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+    case OBJ_POINTER:
+        right_key = right->uniqueid;
+        /* Fall through */
+    case OBJ_KEY:
+        cmp = strcmp(left->uniqueid, right_key);
+        break;
+    case OBJ_PARTIAL_KEY:
+        /*
+         * We could also use a partial key struct containing a length
+         * so strlen() does not get called for every comparison instead.
+         */
+        cmp = strncmp(left->uniqueid, right_key, strlen(right_key));
+        break;
+    default:
+        /* Sort can only work on something with a full or partial key. */
+        ast_assert(0);
+        cmp = 0;
+        break;
+    }
+    return cmp ? 0 : CMP_MATCH;
 }
 
 /*!
@@ -854,6 +871,7 @@ static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan)
 		ao2_cleanup(cdr);
 		return NULL;
 	}
+	ast_string_field_set(cdr, uniqueid, chan->uniqueid);
 	ast_string_field_set(cdr, name, chan->name);
 	ast_string_field_set(cdr, linkedid, chan->linkedid);
 	cdr->disposition = AST_CDR_NULL;
@@ -985,7 +1003,7 @@ static struct cdr_object_snapshot *cdr_object_pick_party_a(struct cdr_object_sna
 	} else if (left->snapshot->creationtime.tv_sec > right->snapshot->creationtime.tv_sec) {
 		return right;
 	} else if (left->snapshot->creationtime.tv_usec > right->snapshot->creationtime.tv_usec) {
-			return right;
+		return right;
 	} else {
 		/* Okay, fine, take the left one */
 		return left;
@@ -1062,12 +1080,15 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 	struct ast_var_t *it_var, *it_copy_var;
 	struct ast_channel_snapshot *party_a;
 	struct ast_channel_snapshot *party_b;
+	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		struct ast_cdr *cdr_copy;
 
 		/* Don't create records for CDRs where the party A was a dialed channel */
-		if (snapshot_is_dialed(it_cdr->party_a.snapshot)) {
+		if (snapshot_is_dialed(it_cdr->party_a.snapshot) && !it_cdr->party_b.snapshot) {
+			CDR_DEBUG(mod_cfg, "%p - %s is dialed and has no Party B; discarding\n", it_cdr,
+				it_cdr->party_a.snapshot->name);
 			continue;
 		}
 
@@ -1437,6 +1458,7 @@ static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_ch
 static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 		struct cdr_object *cand_cdr)
 {
+	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 	struct cdr_object_snapshot *party_a;
 
 	/* Don't match on ourselves */
@@ -1447,6 +1469,8 @@ static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 	/* Try the candidate CDR's Party A first */
 	party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_a);
 	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+		CDR_DEBUG(mod_cfg, "%p - Party A %s has new Party B %s\n",
+			cdr, cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name);
 		cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_a);
 		if (!cand_cdr->party_b.snapshot) {
 			/* We just stole them - finalize their CDR. Note that this won't
@@ -1465,6 +1489,8 @@ static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 	}
 	party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_b);
 	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+		CDR_DEBUG(mod_cfg, "%p - Party A %s has new Party B %s\n",
+			cdr, cdr->party_a.snapshot->name, cand_cdr->party_b.snapshot->name);
 		cdr_object_snapshot_copy(&cdr->party_b, &cand_cdr->party_b);
 		return 0;
 	}
@@ -1474,27 +1500,31 @@ static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 
 static enum process_bridge_enter_results single_state_process_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
 {
-	struct ao2_iterator *it_cdrs;
-	struct cdr_object *cand_cdr_master;
-	char *bridge_id = ast_strdupa(bridge->uniqueid);
+	struct ao2_iterator it_cdrs;
+	char *channel_id;
 	int success = 0;
 
 	ast_string_field_set(cdr, bridge, bridge->uniqueid);
 
-	/* Get parties in the bridge */
-	it_cdrs = ao2_callback(active_cdrs_by_channel, OBJ_MULTIPLE,
-			cdr_object_bridge_cmp_fn, bridge_id);
-	if (!it_cdrs) {
-		/* No one in the bridge yet! */
+	if (ao2_container_count(bridge->channels) == 1) {
+		/* No one in the bridge yet but us! */
 		cdr_object_transition_state(cdr, &bridge_state_fn_table);
 		return BRIDGE_ENTER_ONLY_PARTY;
 	}
 
-	while ((cand_cdr_master = ao2_iterator_next(it_cdrs))) {
+	for (it_cdrs = ao2_iterator_init(bridge->channels, 0);
+		!success && (channel_id = ao2_iterator_next(&it_cdrs));
+		ao2_ref(channel_id, -1)) {
+		RAII_VAR(struct cdr_object *, cand_cdr_master,
+			ao2_find(active_cdrs_by_channel, channel_id, OBJ_KEY),
+			ao2_cleanup);
 		struct cdr_object *cand_cdr;
-		RAII_VAR(struct cdr_object *, cdr_cleanup, cand_cdr_master, ao2_cleanup);
-		SCOPED_AO2LOCK(lock, cand_cdr_master);
 
+		if (!cand_cdr_master) {
+			continue;
+		}
+
+		ao2_lock(cand_cdr_master);
 		for (cand_cdr = cand_cdr_master; cand_cdr; cand_cdr = cand_cdr->next) {
 			/* Skip any records that are not in a bridge or in this bridge.
 			 * I'm not sure how that would happen, but it pays to be careful. */
@@ -1510,8 +1540,9 @@ static enum process_bridge_enter_results single_state_process_bridge_enter(struc
 			success = 1;
 			break;
 		}
+		ao2_unlock(cand_cdr_master);
 	}
-	ao2_iterator_destroy(it_cdrs);
+	ao2_iterator_destroy(&it_cdrs);
 
 	/* We always transition state, even if we didn't get a peer */
 	cdr_object_transition_state(cdr, &bridge_state_fn_table);
@@ -1620,27 +1651,32 @@ static int dial_state_process_dial_end(struct cdr_object *cdr, struct ast_channe
 
 static enum process_bridge_enter_results dial_state_process_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
 {
-	struct ao2_iterator *it_cdrs;
-	char *bridge_id = ast_strdupa(bridge->uniqueid);
-	struct cdr_object *cand_cdr_master;
+	struct ao2_iterator it_cdrs;
+	char *channel_id;
 	int success = 0;
 
 	ast_string_field_set(cdr, bridge, bridge->uniqueid);
 
 	/* Get parties in the bridge */
-	it_cdrs = ao2_callback(active_cdrs_by_channel, OBJ_MULTIPLE,
-			cdr_object_bridge_cmp_fn, bridge_id);
-	if (!it_cdrs) {
-		/* No one in the bridge yet! */
+	if (ao2_container_count(bridge->channels) == 1) {
+		/* No one in the bridge yet but us! */
 		cdr_object_transition_state(cdr, &bridge_state_fn_table);
 		return BRIDGE_ENTER_ONLY_PARTY;
 	}
 
-	while ((cand_cdr_master = ao2_iterator_next(it_cdrs))) {
+	for (it_cdrs = ao2_iterator_init(bridge->channels, 0);
+		!success && (channel_id = ao2_iterator_next(&it_cdrs));
+		ao2_ref(channel_id, -1)) {
+		RAII_VAR(struct cdr_object *, cand_cdr_master,
+			ao2_find(active_cdrs_by_channel, channel_id, OBJ_KEY),
+			ao2_cleanup);
 		struct cdr_object *cand_cdr;
-		RAII_VAR(struct cdr_object *, cdr_cleanup, cand_cdr_master, ao2_cleanup);
-		SCOPED_AO2LOCK(lock, cand_cdr_master);
 
+		if (!cand_cdr_master) {
+			continue;
+		}
+
+		ao2_lock(cand_cdr_master);
 		for (cand_cdr = cand_cdr_master; cand_cdr; cand_cdr = cand_cdr->next) {
 			/* Skip any records that are not in a bridge or in this bridge.
 			 * I'm not sure how that would happen, but it pays to be careful. */
@@ -1669,8 +1705,9 @@ static enum process_bridge_enter_results dial_state_process_bridge_enter(struct 
 			success = 1;
 			break;
 		}
+		ao2_unlock(cand_cdr_master);
 	}
-	ao2_iterator_destroy(it_cdrs);
+	ao2_iterator_destroy(&it_cdrs);
 
 	/* We always transition state, even if we didn't get a peer */
 	cdr_object_transition_state(cdr, &bridge_state_fn_table);
@@ -1829,9 +1866,9 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 	/* Figure out who is running this show */
 	if (caller) {
-		cdr = ao2_find(active_cdrs_by_channel, caller->name, OBJ_KEY);
+		cdr = ao2_find(active_cdrs_by_channel, caller->uniqueid, OBJ_KEY);
 	} else {
-		cdr = ao2_find(active_cdrs_by_channel, peer->name, OBJ_KEY);
+		cdr = ao2_find(active_cdrs_by_channel, peer->uniqueid, OBJ_KEY);
 	}
 
 	if (!cdr) {
@@ -1986,6 +2023,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 	struct stasis_cache_update *update = stasis_message_data(message);
 	struct ast_channel_snapshot *old_snapshot;
 	struct ast_channel_snapshot *new_snapshot;
+	const char *uniqueid;
 	const char *name;
 	struct cdr_object *it_cdr;
 
@@ -1994,16 +2032,12 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 
 	old_snapshot = stasis_message_data(update->old_snapshot);
 	new_snapshot = stasis_message_data(update->new_snapshot);
+	uniqueid = new_snapshot ? new_snapshot->uniqueid : old_snapshot->uniqueid;
 	name = new_snapshot ? new_snapshot->name : old_snapshot->name;
 
 	if (filter_channel_cache_message(old_snapshot, new_snapshot)) {
 		return;
 	}
-
-	CDR_DEBUG(mod_cfg, "Channel Update message for %s: %u.%08u\n",
-			name,
-			(unsigned int)stasis_message_timestamp(message)->tv_sec,
-			(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
 	if (new_snapshot && !old_snapshot) {
 		cdr = cdr_object_alloc(new_snapshot);
@@ -2015,7 +2049,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 
 	/* Handle Party A */
 	if (!cdr) {
-		cdr = ao2_find(active_cdrs_by_channel, name, OBJ_KEY);
+		cdr = ao2_find(active_cdrs_by_channel, uniqueid, OBJ_KEY);
 	}
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", name);
@@ -2027,7 +2061,6 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 				if (!it_cdr->fn_table->process_party_a) {
 					continue;
 				}
-				CDR_DEBUG(mod_cfg, "%p - Processing new channel snapshot %s\n", it_cdr, new_snapshot->name);
 				all_reject &= it_cdr->fn_table->process_party_a(it_cdr, new_snapshot);
 			}
 			if (all_reject && check_new_cdr_needed(old_snapshot, new_snapshot)) {
@@ -2121,7 +2154,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
 	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel->name, OBJ_KEY),
+			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY),
 			ao2_cleanup);
 	struct cdr_object *it_cdr;
 	struct bridge_leave_data leave_data = {
@@ -2171,163 +2204,6 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	}
 }
 
-struct bridge_candidate {
-	struct cdr_object *cdr;					/*!< The actual CDR this candidate belongs to, either as A or B */
-	struct cdr_object_snapshot candidate;	/*!< The candidate for a new pairing */
-};
-
-/*! \internal
- * \brief Comparison function for \ref bridge_candidate objects
- */
-static int bridge_candidate_cmp_fn(void *obj, void *arg, int flags)
-{
-	struct bridge_candidate *left = obj;
-	struct bridge_candidate *right = arg;
-	const char *match = (flags & OBJ_KEY) ? arg : right->candidate.snapshot->name;
-	return strcasecmp(left->candidate.snapshot->name, match) ? 0 : (CMP_MATCH | CMP_STOP);
-}
-
-/*! \internal
- * \brief Hash function for \ref bridge_candidate objects
- */
-static int bridge_candidate_hash_fn(const void *obj, const int flags)
-{
-	const struct bridge_candidate *bc = obj;
-	const char *id = (flags & OBJ_KEY) ? obj : bc->candidate.snapshot->name;
-	return ast_str_case_hash(id);
-}
-
-/*! \brief \ref bridge_candidate Destructor */
-static void bridge_candidate_dtor(void *obj)
-{
-	struct bridge_candidate *bcand = obj;
-	ao2_cleanup(bcand->cdr);
-	ao2_cleanup(bcand->candidate.snapshot);
-	free_variables(&bcand->candidate.variables);
-}
-
-/*!
- * \brief \ref bridge_candidate Constructor
- * \param cdr The \ref cdr_object that is a candidate for being compared to in
- *  a bridge operation
- * \param candidate The \ref cdr_object_snapshot candidate snapshot in the CDR
- *  that should be used during the operaton
- */
-static struct bridge_candidate *bridge_candidate_alloc(struct cdr_object *cdr, struct cdr_object_snapshot *candidate)
-{
-	struct bridge_candidate *bcand;
-
-	bcand = ao2_alloc(sizeof(*bcand), bridge_candidate_dtor);
-	if (!bcand) {
-		return NULL;
-	}
-	bcand->cdr = cdr;
-	ao2_ref(bcand->cdr, +1);
-	bcand->candidate.flags = candidate->flags;
-	strcpy(bcand->candidate.userfield, candidate->userfield);
-	bcand->candidate.snapshot = candidate->snapshot;
-	ao2_ref(bcand->candidate.snapshot, +1);
-	copy_variables(&bcand->candidate.variables, &candidate->variables);
-
-	return bcand;
-}
-
-/*!
- * \internal
- * \brief Build and add bridge candidates based on a CDR
- *
- * \param bridge_id The ID of the bridge we need candidates for
- * \param candidates The container of \ref bridge_candidate objects
- * \param cdr The \ref cdr_object that is our candidate
- * \param party_a Non-zero if we should look at the Party A channel; 0 if Party B
- */
-static void add_candidate_for_bridge(const char *bridge_id,
-		struct ao2_container *candidates,
-		struct cdr_object *cdr,
-		int party_a)
-{
-	struct cdr_object *it_cdr;
-
-	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-		struct cdr_object_snapshot *party_snapshot;
-		RAII_VAR(struct bridge_candidate *, bcand, NULL, ao2_cleanup);
-
-		party_snapshot = party_a ? &it_cdr->party_a : &it_cdr->party_b;
-
-		if (it_cdr->fn_table != &bridge_state_fn_table || strcmp(bridge_id, it_cdr->bridge)) {
-			continue;
-		}
-
-		if (!party_snapshot->snapshot) {
-			continue;
-		}
-
-		/* Don't add a party twice */
-		bcand = ao2_find(candidates, party_snapshot->snapshot->name, OBJ_KEY);
-		if (bcand) {
-			continue;
-		}
-
-		bcand = bridge_candidate_alloc(it_cdr, party_snapshot);
-		if (bcand) {
-			ao2_link(candidates, bcand);
-		}
-	}
-}
-
-/*!
- * \brief Create new \ref bridge_candidate objects for each party currently
- * in a bridge
- * \param bridge The \param ast_bridge_snapshot for the bridge we're processing
- *
- * Note that we use two passes here instead of one so that we only create a
- * candidate for a party B if they are never a party A in the bridge. Otherwise,
- * we don't care about them.
- */
-static struct ao2_container *create_candidates_for_bridge(struct ast_bridge_snapshot *bridge)
-{
-	struct ao2_container *candidates = ao2_container_alloc(61, bridge_candidate_hash_fn, bridge_candidate_cmp_fn);
-	char *bridge_id = ast_strdupa(bridge->uniqueid);
-	struct ao2_iterator *it_cdrs;
-	struct cdr_object *cand_cdr_master;
-
-	if (!candidates) {
-		return NULL;
-	}
-
-	/* For each CDR that has a record in the bridge, get their Party A and
-	 * make them a candidate. Note that we do this in two passes as opposed to one so
-	 * that we give preference CDRs where the channel is Party A */
-	it_cdrs = ao2_callback(active_cdrs_by_channel, OBJ_MULTIPLE,
-			cdr_object_bridge_cmp_fn, bridge_id);
-	if (!it_cdrs) {
-		/* No one in the bridge yet! */
-		ao2_cleanup(candidates);
-		return NULL;
-	}
-	for (; (cand_cdr_master = ao2_iterator_next(it_cdrs)); ao2_cleanup(cand_cdr_master)) {
-		SCOPED_AO2LOCK(lock, cand_cdr_master);
-		add_candidate_for_bridge(bridge->uniqueid, candidates, cand_cdr_master, 1);
-	}
-	ao2_iterator_destroy(it_cdrs);
-	/* For each CDR that has a record in the bridge, get their Party B and
-	 * make them a candidate. */
-	it_cdrs = ao2_callback(active_cdrs_by_channel, OBJ_MULTIPLE,
-			cdr_object_bridge_cmp_fn, bridge_id);
-	if (!it_cdrs) {
-		/* Now it's just an error. */
-		ao2_cleanup(candidates);
-		return NULL;
-	}
-	for (; (cand_cdr_master = ao2_iterator_next(it_cdrs)); ao2_cleanup(cand_cdr_master)) {
-		SCOPED_AO2LOCK(lock, cand_cdr_master);
-		add_candidate_for_bridge(bridge->uniqueid, candidates, cand_cdr_master, 0);
-	}
-	ao2_iterator_destroy(it_cdrs);
-
-	return candidates;
-}
-
 /*!
  * \internal
  * \brief Create a new CDR, append it to an existing CDR, and update its snapshots
@@ -2335,9 +2211,10 @@ static struct ao2_container *create_candidates_for_bridge(struct ast_bridge_snap
  * \note The new CDR will be automatically transitioned to the bridge state
  */
 static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
-		const char *bridge_id,
 		struct cdr_object_snapshot *party_b)
 {
+	RAII_VAR(struct module_config *,  mod_cfg,
+		ao2_global_obj_ref(module_configs), ao2_cleanup);
 	struct cdr_object *new_cdr;
 
 	new_cdr = cdr_object_create_and_append(cdr);
@@ -2348,76 +2225,70 @@ static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
 	cdr_object_check_party_a_answer(new_cdr);
 	ast_string_field_set(new_cdr, bridge, cdr->bridge);
 	cdr_object_transition_state(new_cdr, &bridge_state_fn_table);
+	CDR_DEBUG(mod_cfg, "%p - Party A %s has new Party B %s\n",
+		new_cdr, new_cdr->party_a.snapshot->name,
+		party_b->snapshot->name);
 }
 
 /*!
- * \brief Process a single \ref bridge_candidate. Note that this is called as
- * part of an \ref ao2_callback on an \ref ao2_container of \ref bridge_candidate
- * objects previously created by \ref create_candidates_for_bridge.
+ * \brief Process a single \ref bridge_candidate
  *
- * \param obj The \ref bridge_candidate being processed
- * \param arg The \ref cdr_object that is being compared against the candidates
+ * When a CDR enters a bridge, it needs to make pairings with everyone else
+ * that it is not currently paired with. This function determines, for the
+ * CDR for the channel that entered the bridge and the CDR for every other
+ * channel currently in the bridge, who is Party A and makes new CDRs.
  *
- * The purpose of this function is to create the necessary CDR entries as a
- * result of \ref cdr_object having entered the same bridge as the CDR
- * represented by \ref bridge_candidate.
+ * \param cdr The \ref cdr_obj being processed
+ * \param cand_cdr The \ref cdr_object that is a candidate
+ *
  */
-static int bridge_candidate_process(void *obj, void *arg, int flags)
+static int bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *base_cand_cdr)
 {
-	struct bridge_candidate *bcand = obj;
-	struct cdr_object *cdr = arg;
+	RAII_VAR(struct module_config *, mod_cfg,
+		ao2_global_obj_ref(module_configs), ao2_cleanup);
 	struct cdr_object_snapshot *party_a;
+	struct cdr_object *cand_cdr;
 
-	/* If the candidate is us or someone we've taken on, pass on by */
-	if (!strcasecmp(cdr->party_a.snapshot->name, bcand->candidate.snapshot->name)
-		|| (cdr->party_b.snapshot
-			&& !strcasecmp(cdr->party_b.snapshot->name, bcand->candidate.snapshot->name))) {
-		return 0;
-	}
-	party_a = cdr_object_pick_party_a(&cdr->party_a, &bcand->candidate);
-	/* We're party A - make a new CDR, append it to us, and set the candidate as
-	 * Party B */
-	if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
-		bridge_candidate_add_to_cdr(cdr, cdr->bridge, &bcand->candidate);
-		return 0;
-	}
+	SCOPED_AO2LOCK(lock, base_cand_cdr);
 
-	/* We're Party B. Check if the candidate is the CDR's Party A. If so, find out if we
-	 * can add ourselves directly as the Party B, or if we need a new CDR. */
-	if (!strcasecmp(bcand->cdr->party_a.snapshot->name, bcand->candidate.snapshot->name)) {
-		if (bcand->cdr->party_b.snapshot
-			&& strcasecmp(bcand->cdr->party_b.snapshot->name, cdr->party_a.snapshot->name)) {
-			bridge_candidate_add_to_cdr(bcand->cdr, cdr->bridge, &cdr->party_a);
+	for (cand_cdr = base_cand_cdr; cand_cdr; cand_cdr = cand_cdr->next) {
+		/* Skip any records that are not in this bridge */
+		if (strcmp(cand_cdr->bridge, cdr->bridge)) {
+			continue;
+		}
+
+		/* If the candidate is us or someone we've taken on, pass on by */
+		if (!strcasecmp(cdr->party_a.snapshot->name, cand_cdr->party_a.snapshot->name)
+			|| (cdr->party_b.snapshot
+				&& !strcasecmp(cdr->party_b.snapshot->name, cand_cdr->party_a.snapshot->name))) {
+			return 0;
+		}
+
+		party_a = cdr_object_pick_party_a(&cdr->party_a, &cand_cdr->party_a);
+		/* We're party A - make a new CDR, append it to us, and set the candidate as
+		 * Party B */
+		if (!strcasecmp(party_a->snapshot->name, cdr->party_a.snapshot->name)) {
+			bridge_candidate_add_to_cdr(cdr, &cand_cdr->party_a);
+			return 0;
+		}
+
+		/* We're Party B. Check if we can add ourselves immediately or if we need
+		 * a new CDR for them (they already have a Party B) */
+		if (cand_cdr->party_b.snapshot
+			&& strcasecmp(cand_cdr->party_b.snapshot->name, cdr->party_a.snapshot->name)) {
+			bridge_candidate_add_to_cdr(cand_cdr, &cdr->party_a);
 		} else {
-			cdr_object_snapshot_copy(&bcand->cdr->party_b, &cdr->party_a);
+			CDR_DEBUG(mod_cfg, "%p - Party A %s has new Party B %s\n",
+				cand_cdr, cand_cdr->party_a.snapshot->name,
+				cdr->party_a.snapshot->name);
+			cdr_object_snapshot_copy(&cand_cdr->party_b, &cdr->party_a);
 			/* It's possible that this joined at one point and was never chosen
 			 * as party A. Clear their end time, as it would be set in such a
 			 * case.
 			 */
-			memset(&bcand->cdr->end, 0, sizeof(bcand->cdr->end));
+			memset(&cand_cdr->end, 0, sizeof(cand_cdr->end));
 		}
-	} else {
-		/* We are Party B to a candidate CDR's Party B. Since a candidate
-		 * CDR will only have a Party B represented here if that channel
-		 * was never a Party A in the bridge, we have to go looking for
-		 * that channel's primary CDR record.
-		 */
-		struct cdr_object *b_party = ao2_find(active_cdrs_by_channel, bcand->candidate.snapshot->name, OBJ_KEY);
-		if (!b_party) {
-			/* Holy cow - no CDR? */
-			b_party = cdr_object_alloc(bcand->candidate.snapshot);
-			cdr_object_snapshot_copy(&b_party->party_a, &bcand->candidate);
-			cdr_object_snapshot_copy(&b_party->party_b, &cdr->party_a);
-			cdr_object_check_party_a_answer(b_party);
-			ast_string_field_set(b_party, bridge, cdr->bridge);
-			cdr_object_transition_state(b_party, &bridge_state_fn_table);
-			ao2_link(active_cdrs_by_channel, b_party);
-		} else {
-			bridge_candidate_add_to_cdr(b_party, cdr->bridge, &cdr->party_a);
-		}
-		ao2_ref(b_party, -1);
 	}
-
 	return 0;
 }
 
@@ -2429,14 +2300,25 @@ static int bridge_candidate_process(void *obj, void *arg, int flags)
  */
 static void handle_bridge_pairings(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge)
 {
-	RAII_VAR(struct ao2_container *, candidates,
-			create_candidates_for_bridge(bridge),
+	struct ao2_iterator it_channels;
+	char *channel_id;
+
+	it_channels = ao2_iterator_init(bridge->channels, 0);
+	while ((channel_id = ao2_iterator_next(&it_channels))) {
+		RAII_VAR(struct cdr_object *, cand_cdr,
+			ao2_find(active_cdrs_by_channel, channel_id, OBJ_KEY),
 			ao2_cleanup);
 
-	if (!candidates) {
-		return;
+		if (!cand_cdr) {
+			ao2_ref(channel_id, -1);
+			continue;
+		}
+
+		bridge_candidate_process(cdr, cand_cdr);
+
+		ao2_ref(channel_id, -1);
 	}
-	ao2_callback(candidates, OBJ_NODATA, bridge_candidate_process, cdr);
+	ao2_iterator_destroy(&it_channels);
 }
 
 /*! \brief Handle entering into a parking bridge
@@ -2556,6 +2438,7 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 }
 
 /*!
+ * \internal
  * \brief Handler for Stasis-Core bridge enter messages
  * \param data Passed on
  * \param sub The stasis subscription for this message callback
@@ -2569,7 +2452,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 	struct ast_bridge_snapshot *bridge = update->bridge;
 	struct ast_channel_snapshot *channel = update->channel;
 	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel->name, OBJ_KEY),
+			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY),
 			ao2_cleanup);
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
@@ -2631,7 +2514,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 			(unsigned int)stasis_message_timestamp(message)->tv_sec,
 			(unsigned int)stasis_message_timestamp(message)->tv_usec);
 
-	cdr = ao2_find(active_cdrs_by_channel, channel->name, OBJ_KEY);
+	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
 		return;
@@ -2850,15 +2733,30 @@ void ast_cdr_format_var(struct ast_cdr *cdr, const char *name, char **ret, char 
 
 /*
  * \internal
- * \brief Callback that finds all CDRs that reference a particular channel
+ * \brief Callback that finds all CDRs that reference a particular channel by name
  */
-static int cdr_object_select_all_by_channel_cb(void *obj, void *arg, int flags)
+static int cdr_object_select_all_by_name_cb(void *obj, void *arg, int flags)
 {
 	struct cdr_object *cdr = obj;
 	const char *name = arg;
 
 	if (!strcasecmp(cdr->party_a.snapshot->name, name) ||
 			(cdr->party_b.snapshot && !strcasecmp(cdr->party_b.snapshot->name, name))) {
+		return CMP_MATCH;
+	}
+	return 0;
+}
+
+/*
+ * \internal
+ * \brief Callback that finds a CDR by channel name
+ */
+static int cdr_object_get_by_name_cb(void *obj, void *arg, int flags)
+{
+	struct cdr_object *cdr = obj;
+	const char *name = arg;
+
+	if (!strcasecmp(cdr->party_a.snapshot->name, name)) {
 		return CMP_MATCH;
 	}
 	return 0;
@@ -2904,7 +2802,7 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 		}
 	}
 
-	it_cdrs = ao2_callback(active_cdrs_by_channel, OBJ_MULTIPLE, cdr_object_select_all_by_channel_cb, arg);
+	it_cdrs = ao2_callback(active_cdrs_by_channel, OBJ_MULTIPLE, cdr_object_select_all_by_name_cb, arg);
 	if (!it_cdrs) {
 		ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
 		return -1;
@@ -3016,11 +2914,28 @@ static int cdr_object_format_property(struct cdr_object *cdr_obj, const char *na
 	return 0;
 }
 
+/*! \internal
+ * \brief Look up and retrieve a CDR object by channel name
+ * \param name The name of the channel
+ * \retval NULL on error
+ * \retval The \ref cdr_object for the channel on success, with the reference
+ *	count bumped by one.
+ */
+static struct cdr_object *cdr_object_get_by_name(const char *name)
+{
+	char *param;
+
+	if (ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	param = ast_strdupa(name);
+	return ao2_callback(active_cdrs_by_channel, 0, cdr_object_get_by_name_cb, param);
+}
+
 int ast_cdr_getvar(const char *channel_name, const char *name, char *value, size_t length)
 {
-	RAII_VAR(struct cdr_object *, cdr,
-		ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY),
-		ao2_cleanup);
+	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct cdr_object *cdr_obj;
 
 	if (!cdr) {
@@ -3047,9 +2962,7 @@ int ast_cdr_getvar(const char *channel_name, const char *name, char *value, size
 
 int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, char delim, char sep)
 {
-	RAII_VAR(struct cdr_object *, cdr,
-		ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY),
-		ao2_cleanup);
+	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct cdr_object *it_cdr;
 	struct ast_var_t *variable;
 	const char *var;
@@ -3167,9 +3080,7 @@ static int cdr_object_update_party_b_userfield_cb(void *obj, void *arg, int flag
 
 void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 {
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY),
-			ao2_cleanup);
+	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct party_b_userfield_update party_b_info = {
 			.channel_name = channel_name,
 			.userfield = userfield,
@@ -3222,9 +3133,7 @@ static void post_cdr(struct ast_cdr *cdr)
 
 int ast_cdr_set_property(const char *channel_name, enum ast_cdr_options option)
 {
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY),
-			ao2_cleanup);
+	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct cdr_object *it_cdr;
 
 	if (!cdr) {
@@ -3249,9 +3158,7 @@ int ast_cdr_set_property(const char *channel_name, enum ast_cdr_options option)
 
 int ast_cdr_clear_property(const char *channel_name, enum ast_cdr_options option)
 {
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY),
-			ao2_cleanup);
+	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct cdr_object *it_cdr;
 
 	if (!cdr) {
@@ -3272,9 +3179,7 @@ int ast_cdr_clear_property(const char *channel_name, enum ast_cdr_options option
 
 int ast_cdr_reset(const char *channel_name, struct ast_flags *options)
 {
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY),
-			ao2_cleanup);
+	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct ast_var_t *vardata;
 	struct cdr_object *it_cdr;
 
@@ -3310,9 +3215,7 @@ int ast_cdr_reset(const char *channel_name, struct ast_flags *options)
 
 int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 {
-	RAII_VAR(struct cdr_object *, cdr,
-			ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY),
-			ao2_cleanup);
+	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct cdr_object *new_cdr;
 	struct cdr_object *it_cdr;
 	struct cdr_object *cdr_obj;

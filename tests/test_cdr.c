@@ -312,7 +312,8 @@ static enum ast_test_result_state verify_mock_cdr_record(struct ast_test *test, 
 			ast_test_status_update(test, "CDRs recorded where no record expected\n");
 			return AST_TEST_FAIL;
 		}
-
+		ast_test_debug(test, "Verifying expected record %s, %s\n",
+			expected->channel, S_OR(expected->dstchannel, "<none>"));
 		VERIFY_STRING_FIELD(accountcode, actual, expected);
 		VERIFY_NUMERIC_FIELD(amaflags, actual, expected);
 		VERIFY_STRING_FIELD(channel, actual, expected);
@@ -1802,23 +1803,23 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 		.peeraccount = "400",
 		.next = &charlie_expected_two,
 	};
-	struct ast_cdr alice_expected_three = {
-		.clid = "\"Alice\" <100>",
-		.src = "100",
-		.dst = "100",
+	struct ast_cdr bob_expected_one = {
+		.clid = "\"Bob\" <200>",
+		.src = "200",
+		.dst = "200",
 		.dcontext = "default",
-		.channel = CHANNEL_TECH_NAME "/Alice",
-		.dstchannel = CHANNEL_TECH_NAME "/Charlie",
-		.lastapp = "Dial",
-		.lastdata = CHANNEL_TECH_NAME "/Bob",
+		.channel = CHANNEL_TECH_NAME "/Bob",
+		.dstchannel = CHANNEL_TECH_NAME "/David",
+		.lastapp = "AppDial",
+		.lastdata = "(Outgoing Line)",
 		.amaflags = AST_AMA_DOCUMENTATION,
 		.billsec = 1,
 		.disposition = AST_CDR_ANSWERED,
-		.accountcode = "100",
-		.peeraccount = "300",
+		.accountcode = "200",
+		.peeraccount = "400",
 		.next = &charlie_expected_one,
 	};
-	struct ast_cdr alice_expected_two = {
+	struct ast_cdr alice_expected_three = {
 		.clid = "\"Alice\" <100>",
 		.src = "100",
 		.dst = "100",
@@ -1832,6 +1833,22 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 		.disposition = AST_CDR_ANSWERED,
 		.accountcode = "100",
 		.peeraccount = "400",
+		.next = &bob_expected_one,
+	};
+	struct ast_cdr alice_expected_two = {
+		.clid = "\"Alice\" <100>",
+		.src = "100",
+		.dst = "100",
+		.dcontext = "default",
+		.channel = CHANNEL_TECH_NAME "/Alice",
+		.dstchannel = CHANNEL_TECH_NAME "/Charlie",
+		.lastapp = "Dial",
+		.lastdata = CHANNEL_TECH_NAME "/Bob",
+		.amaflags = AST_AMA_DOCUMENTATION,
+		.billsec = 1,
+		.disposition = AST_CDR_ANSWERED,
+		.accountcode = "100",
+		.peeraccount = "300",
 		.next = &alice_expected_three,
 	};
 	struct ast_cdr alice_expected_one = {
@@ -1874,6 +1891,8 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, "200", "Bob", "200", "200", "default", NULL, 0, CHANNEL_TECH_NAME "/Bob");
 	ast_set_flag(ast_channel_flags(chan_bob), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_bob, 0, "AppDial", "(Outgoing Line)");
+	ast_copy_string(bob_expected_one.uniqueid, ast_channel_uniqueid(chan_bob), sizeof(bob_expected_one.uniqueid));
+	ast_copy_string(bob_expected_one.linkedid, ast_channel_linkedid(chan_alice), sizeof(bob_expected_one.linkedid));
 
 	CREATE_CHARLIE_CHANNEL(chan_charlie, &charlie_caller, &charlie_expected_one);
 	EMULATE_APP_DATA(chan_charlie, 1, "Dial", CHANNEL_TECH_NAME "/David");
@@ -1920,7 +1939,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL);
 	HANGUP_CHANNEL(chan_david, AST_CAUSE_NORMAL);
 
-	result = verify_mock_cdr_record(test, &alice_expected_one, 5);
+	result = verify_mock_cdr_record(test, &alice_expected_one, 6);
 
 	return result;
 }
