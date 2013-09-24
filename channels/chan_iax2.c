@@ -5516,34 +5516,44 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 			break;
 		}
 		other = (who == c0) ? c1 : c0;  /* the 'other' channel */
-		if ((f->frametype == AST_FRAME_CONTROL)) {
-			if (f->subclass.integer == AST_CONTROL_PVT_CAUSE_CODE) {
+		if (f->frametype == AST_FRAME_CONTROL) {
+			switch (f->subclass.integer) {
+			case AST_CONTROL_VIDUPDATE:
+			case AST_CONTROL_SRCUPDATE:
+			case AST_CONTROL_SRCCHANGE:
+			case AST_CONTROL_T38_PARAMETERS:
+				ast_write(other, f);
+				break;
+			case AST_CONTROL_PVT_CAUSE_CODE:
 				ast_channel_hangupcause_hash_set(other, f->data.ptr, f->datalen);
-			} else if (f->subclass.integer != AST_CONTROL_SRCUPDATE) {
+				break;
+			default:
 				*fo = f;
 				*rc = who;
-				res =  AST_BRIDGE_COMPLETE;
+				res = AST_BRIDGE_COMPLETE;
 				break;
 			}
-		}
-		if ((f->frametype == AST_FRAME_VOICE) ||
-			(f->frametype == AST_FRAME_TEXT) ||
-			(f->frametype == AST_FRAME_VIDEO) ||
-			(f->frametype == AST_FRAME_IMAGE) ||
-			(f->frametype == AST_FRAME_DTMF) ||
-			(f->frametype == AST_FRAME_CONTROL && f->subclass.integer != AST_CONTROL_PVT_CAUSE_CODE)) {
+			if (res == AST_BRIDGE_COMPLETE) {
+				break;
+			}
+		} else if (f->frametype == AST_FRAME_VOICE
+			|| f->frametype == AST_FRAME_TEXT
+			|| f->frametype == AST_FRAME_VIDEO
+			|| f->frametype == AST_FRAME_IMAGE) {
+			ast_write(other, f);
+		} else if (f->frametype == AST_FRAME_DTMF) {
 			/* monitored dtmf take out of the bridge.
 			 * check if we monitor the specific source.
 			 */
 			int monitored_source = (who == c0) ? AST_BRIDGE_DTMF_CHANNEL_0 : AST_BRIDGE_DTMF_CHANNEL_1;
-			if (f->frametype == AST_FRAME_DTMF && (flags & monitored_source)) {
+
+			if (flags & monitored_source) {
 				*rc = who;
 				*fo = f;
 				res = AST_BRIDGE_COMPLETE;
 				/* Remove from native mode */
 				break;
 			}
-			/* everything else goes to the other side */
 			ast_write(other, f);
 		}
 		ast_frfree(f);
