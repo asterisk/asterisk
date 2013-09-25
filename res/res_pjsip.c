@@ -208,8 +208,15 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="external_media_address">
-					<synopsis>IP used for External Media handling</synopsis>
+				<configOption name="media_address">
+					<synopsis>IP address used in SDP for media handling</synopsis>
+					<description><para>
+						At the time of SDP creation, the IP address defined here will be used as
+						the media address for individual streams in the SDP.
+					</para><note>
+						Be aware that the <literal>external_media_address</literal> option, set in Transport
+						configuration, can also affect the final media address used in the SDP.
+					</note></description>
 				</configOption>
 				<configOption name="force_rport" default="yes">
 					<synopsis>Force use of return port</synopsis>
@@ -730,7 +737,14 @@
 					<synopsis>Domain the transport comes from</synopsis>
 				</configOption>
 				<configOption name="external_media_address">
-					<synopsis>External Address to use in RTP handling</synopsis>
+					<synopsis>External IP address to use in RTP handling</synopsis>
+					<description><para>
+						When a request or response is sent out, if the destination of the
+						message is outside the IP network defined in the option <literal>localnet</literal>,
+						and the media address in the SDP is within the localnet network, then the
+						media address in the SDP will be rewritten to the value defined for
+						<literal>external_media_address</literal>.
+					</para></description>
 				</configOption>
 				<configOption name="external_signaling_address">
 					<synopsis>External address for SIP signalling</synopsis>
