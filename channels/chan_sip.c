@@ -16107,6 +16107,14 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		}
 	}
 
+	if (expire > max_expiry) {
+		expire = max_expiry;
+	}
+	if (expire < min_expiry && expire != 0) {
+		expire = min_expiry;
+	}
+	pvt->expiry = expire;
+
 	copy_socket_data(&pvt->socket, &req->socket);
 
 	do {
@@ -16246,12 +16254,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	AST_SCHED_DEL_UNREF(sched, peer->expire,
 			sip_unref_peer(peer, "remove register expire ref"));
 
-	if (expire > max_expiry) {
-		expire = max_expiry;
-	}
-	if (expire < min_expiry) {
-		expire = min_expiry;
-	}
 	if (peer->is_realtime && !ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 		peer->expire = -1;
 	} else {
@@ -16261,7 +16263,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 			sip_unref_peer(peer, "remote registration ref");
 		}
 	}
-	pvt->expiry = expire;
 	if (!build_path(pvt, peer, req, NULL)) {
 		/* Tell the dialog to use the Path header in the response */
 		ast_set2_flag(&pvt->flags[0], 1, SIP_USEPATH);
@@ -17283,7 +17284,10 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 						break;
 					case PARSE_REGISTER_UPDATE:
 						ast_string_field_set(p, fullcontact, peer->fullcontact);
-						update_peer(peer, p->expiry);
+						/* If expiry is 0, peer has been unregistered already */
+						if (p->expiry != 0) {
+							update_peer(peer, p->expiry);
+						}
 						/* Say OK and ask subsystem to retransmit msg counter */
 						transmit_response_with_date(p, "200 OK", req);
 						send_mwi = 1;
