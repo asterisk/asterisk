@@ -14120,6 +14120,7 @@ static void pri_destroy_span(struct sig_pri_span *pri)
 	}
 
 	cancel_code = pthread_cancel(master);
+	pthread_kill(master, SIGURG);
 	ast_debug(4,
 		"Waiting to join thread of span %d "
 		"with pid=%p cancel_code=%d\n",
@@ -16424,8 +16425,10 @@ static int __unload_module(void)
 
 #ifdef HAVE_PRI
 	for (i = 0; i < NUM_SPANS; i++) {
-		if (pris[i].pri.master != AST_PTHREADT_NULL)
+		if (pris[i].pri.master != AST_PTHREADT_NULL) {
 			pthread_cancel(pris[i].pri.master);
+			pthread_kill(pris[i].pri.master, SIGURG);
+		}
 	}
 	ast_cli_unregister_multiple(dahdi_pri_cli, ARRAY_LEN(dahdi_pri_cli));
 	ast_unregister_application(dahdi_send_keypad_facility_app);
@@ -16435,9 +16438,11 @@ static int __unload_module(void)
 #endif
 #if defined(HAVE_SS7)
 	for (i = 0; i < NUM_SPANS; i++) {
-		if (linksets[i].ss7.master != AST_PTHREADT_NULL)
+		if (linksets[i].ss7.master != AST_PTHREADT_NULL) {
 			pthread_cancel(linksets[i].ss7.master);
+			pthread_kill(linksets[i].ss7.master, SIGURG);
 		}
+	}
 	ast_cli_unregister_multiple(dahdi_ss7_cli, ARRAY_LEN(dahdi_ss7_cli));
 #endif	/* defined(HAVE_SS7) */
 #if defined(HAVE_OPENR2)
@@ -16481,8 +16486,9 @@ static int __unload_module(void)
 
 #if defined(HAVE_PRI)
 	for (i = 0; i < NUM_SPANS; i++) {
-		if (pris[i].pri.master && (pris[i].pri.master != AST_PTHREADT_NULL))
+		if (pris[i].pri.master && (pris[i].pri.master != AST_PTHREADT_NULL)) {
 			pthread_join(pris[i].pri.master, NULL);
+		}
 		for (j = 0; j < SIG_PRI_NUM_DCHANS; j++) {
 			dahdi_close_pri_fd(&(pris[i]), j);
 		}
@@ -16497,8 +16503,9 @@ static int __unload_module(void)
 
 #if defined(HAVE_SS7)
 	for (i = 0; i < NUM_SPANS; i++) {
-		if (linksets[i].ss7.master && (linksets[i].ss7.master != AST_PTHREADT_NULL))
+		if (linksets[i].ss7.master && (linksets[i].ss7.master != AST_PTHREADT_NULL)) {
 			pthread_join(linksets[i].ss7.master, NULL);
+		}
 		for (j = 0; j < SIG_SS7_NUM_DCHANS; j++) {
 			dahdi_close_ss7_fd(&(linksets[i]), j);
 		}
