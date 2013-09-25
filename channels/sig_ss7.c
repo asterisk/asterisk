@@ -788,7 +788,9 @@ void *ss7_linkset(void *data)
 	ss7_event *e = NULL;
 	struct sig_ss7_chan *p;
 	struct pollfd pollers[SIG_SS7_NUM_DCHANS];
-	int nextms = 0;
+	int nextms;
+
+#define SS7_MAX_POLL	60000	/* Maximum poll time in ms. */
 
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
@@ -813,6 +815,11 @@ void *ss7_linkset(void *data)
 			}
 			nextms = tv.tv_sec * 1000;
 			nextms += tv.tv_usec / 1000;
+			if (SS7_MAX_POLL < nextms) {
+				nextms = SS7_MAX_POLL;
+			}
+		} else {
+			nextms = SS7_MAX_POLL;
 		}
 
 		for (i = 0; i < linkset->numsigchans; i++) {
