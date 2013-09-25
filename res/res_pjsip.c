@@ -213,10 +213,12 @@
 					<description><para>
 						At the time of SDP creation, the IP address defined here will be used as
 						the media address for individual streams in the SDP.
-					</para><note>
+					</para>
+					<note><para>
 						Be aware that the <literal>external_media_address</literal> option, set in Transport
 						configuration, can also affect the final media address used in the SDP.
-					</note></description>
+					</para></note>
+					</description>
 				</configOption>
 				<configOption name="force_rport" default="yes">
 					<synopsis>Force use of return port</synopsis>
