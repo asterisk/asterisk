@@ -30,6 +30,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 #include "asterisk/test.h"
+#include "asterisk/taskprocessor.h"
 
 /*! \brief Internal function which returns the expiration time for a contact */
 static int registrar_get_expiration(const struct ast_sip_aor *aor, const pjsip_contact_hdr *contact, const pjsip_rx_data *rdata)
@@ -188,19 +189,295 @@ static void registrar_add_date_header(pjsip_tx_data *tdata)
 	ast_sip_add_header(tdata, "Date", date);
 }
 
-static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
+#define SERIALIZER_BUCKETS 59
+
+static struct ao2_container *serializers;
+
+/*! \brief Serializer with associated aor key */
+struct serializer {
+	/* Serializer to distribute tasks to */
+	struct ast_taskprocessor *serializer;
+	/* The name of the aor to associate with the serializer */
+	char aor_name[0];
+};
+
+static void serializer_destroy(void *obj)
 {
-	struct ast_sip_endpoint *endpoint = ast_pjsip_rdata_get_endpoint(rdata);
-	pjsip_sip_uri *uri;
-	char user_name[64], domain_name[64];
-	char *configured_aors, *aor_name;
-	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
+	struct serializer *ser = obj;
+
+	ast_taskprocessor_unreference(ser->serializer);
+}
+
+static struct serializer *serializer_create(const char *aor_name)
+{
+	size_t size = strlen(aor_name) + 1;
+	struct serializer *ser = ao2_alloc(
+		sizeof(*ser) + size, serializer_destroy);
+
+	if (!ser) {
+		return NULL;
+	}
+
+	if (!(ser->serializer = ast_sip_create_serializer())) {
+		ao2_ref(ser, -1);
+		return NULL;
+	}
+
+	strcpy(ser->aor_name, aor_name);
+	return ser;
+}
+
+static struct serializer *serializer_find_or_create(const char *aor_name)
+{
+	struct serializer *ser = ao2_find(serializers, aor_name, OBJ_SEARCH_KEY);
+
+	if (ser) {
+		return ser;
+	}
+
+	if (!(ser = serializer_create(aor_name))) {
+		return NULL;
+	}
+
+	ao2_link(serializers, ser);
+	return ser;
+}
+
+static int serializer_hash(const void *obj, const int flags)
+{
+	const struct serializer *object;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		return ast_str_hash(key);
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		return ast_str_hash(object->aor_name);
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+}
+
+static int serializer_cmp(void *obj_left, void *obj_right, int flags)
+{
+	const struct serializer *object_left = obj_left;
+	const struct serializer *object_right = obj_right;
+	const char *right_key = obj_right;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->aor_name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->aor_name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/*
+		 * We could also use a partial key struct containing a length
+		 * so strlen() does not get called for every comparison instead.
+		 */
+		cmp = strncmp(object_left->aor_name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+
+	return cmp ? 0 : CMP_MATCH;
+}
+
+struct rx_task_data {
+	pjsip_rx_data *rdata;
+	struct ast_sip_endpoint *endpoint;
+	struct ast_sip_aor *aor;
+};
+
+static void rx_task_data_destroy(void *obj)
+{
+	struct rx_task_data *task_data = obj;
+
+	pjsip_rx_data_free_cloned(task_data->rdata);
+	ao2_cleanup(task_data->endpoint);
+	ao2_cleanup(task_data->aor);
+}
+
+static struct rx_task_data *rx_task_data_create(pjsip_rx_data *rdata,
+						struct ast_sip_endpoint *endpoint,
+						struct ast_sip_aor *aor)
+{
+	struct rx_task_data *task_data = ao2_alloc(
+		sizeof(*task_data), rx_task_data_destroy);
+
+	if (!task_data) {
+		return NULL;
+	}
+
+	pjsip_rx_data_clone(rdata, 0, &task_data->rdata);
+
+	task_data->endpoint = endpoint;
+	ao2_ref(task_data->endpoint, +1);
+
+	task_data->aor = aor;
+	ao2_ref(task_data->aor, +1);
+
+	return task_data;
+}
+
+static int rx_task(void *data)
+{
+	RAII_VAR(struct rx_task_data *, task_data, data, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+
 	int added = 0, updated = 0, deleted = 0;
 	pjsip_contact_hdr *contact_hdr = NULL;
 	struct registrar_contact_details details = { 0, };
 	pjsip_tx_data *tdata;
 	pjsip_response_addr addr;
+	const char *aor_name = ast_sorcery_object_get_id(task_data->aor);
+
+	/* Retrieve the current contacts, we'll need to know whether to update or not */
+	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
+
+	/* So we don't count static contacts against max_contacts we prune them out from the container */
+	ao2_callback(contacts, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, registrar_prune_static, NULL);
+
+	if (registrar_validate_contacts(task_data->rdata, contacts, task_data->aor, &added, &updated, &deleted)) {
+		/* The provided Contact headers do not conform to the specification */
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 400, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(task_data->endpoint, task_data->rdata, "registrar_invalid_contacts_provided");
+		ast_log(LOG_WARNING, "Failed to validate contacts in REGISTER request from '%s'\n",
+				ast_sorcery_object_get_id(task_data->endpoint));
+		return PJ_TRUE;
+	}
+
+	if ((MAX(added - deleted, 0) + (!task_data->aor->remove_existing ? ao2_container_count(contacts) : 0)) > task_data->aor->max_contacts) {
+		/* Enforce the maximum number of contacts */
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(task_data->endpoint, task_data->rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
+		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %d\n",
+				ast_sorcery_object_get_id(task_data->endpoint), ast_sorcery_object_get_id(task_data->aor), task_data->aor->max_contacts);
+		return PJ_TRUE;
+	}
+
+	if (!(details.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Contact Comparison", 256, 256))) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 500, NULL, NULL, NULL);
+		return PJ_TRUE;
+	}
+
+	/* Iterate each provided Contact header and add, update, or delete */
+	while ((contact_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
+		int expiration;
+		char contact_uri[PJSIP_MAX_URL_SIZE];
+		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+
+		if (contact_hdr->star) {
+			/* A star means to unregister everything, so do so for the possible contacts */
+			ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, registrar_delete_contact, (void *)aor_name);
+			break;
+		}
+
+		if (!PJSIP_URI_SCHEME_IS_SIP(contact_hdr->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact_hdr->uri)) {
+			/* This registrar only currently supports sip: and sips: URI schemes */
+			continue;
+		}
+
+		expiration = registrar_get_expiration(task_data->aor, contact_hdr, task_data->rdata);
+		details.uri = pjsip_uri_get_uri(contact_hdr->uri);
+		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, details.uri, contact_uri, sizeof(contact_uri));
+
+		if (!(contact = ao2_callback(contacts, OBJ_UNLINK, registrar_find_contact, &details))) {
+			/* If they are actually trying to delete a contact that does not exist... be forgiving */
+			if (!expiration) {
+				ast_verb(3, "Attempted to remove non-existent contact '%s' from AOR '%s' by request\n",
+					contact_uri, aor_name);
+				continue;
+			}
+
+			ast_sip_location_add_contact(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1)));
+			ast_verb(3, "Added contact '%s' to AOR '%s' with expiration of %d seconds\n",
+				contact_uri, aor_name, expiration);
+			ast_test_suite_event_notify("AOR_CONTACT_ADDED",
+					"Contact: %s\r\n"
+					"AOR: %s\r\n"
+					"Expiration: %d",
+					contact_uri,
+					aor_name,
+					expiration);
+		} else if (expiration) {
+			RAII_VAR(struct ast_sip_contact *, updated, ast_sorcery_copy(ast_sip_get_sorcery(), contact), ao2_cleanup);
+			updated->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
+			updated->qualify_frequency = task_data->aor->qualify_frequency;
+			updated->authenticate_qualify = task_data->aor->authenticate_qualify;
+
+			ast_sip_location_update_contact(updated);
+			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
+				contact_uri, aor_name, expiration);
+			ast_test_suite_event_notify("AOR_CONTACT_REFRESHED",
+					"Contact: %s\r\n"
+					"AOR: %s\r\n"
+					"Expiration: %d",
+					contact_uri,
+					aor_name,
+					expiration);
+		} else {
+			ast_sip_location_delete_contact(contact);
+			ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact_uri, aor_name);
+			ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
+					"Contact: %s\r\n"
+					"AOR: %s",
+					contact_uri,
+					aor_name);
+		}
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
+
+	/* If the AOR is configured to remove any existing contacts that have not been updated/added as a result of this REGISTER
+	 * do so
+	 */
+	if (task_data->aor->remove_existing) {
+		ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, registrar_delete_contact, NULL);
+	}
+
+	/* Update the contacts as things will probably have changed */
+	ao2_cleanup(contacts);
+	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
+
+	/* Send a response containing all of the contacts (including static) that are present on this AOR */
+	if (pjsip_endpt_create_response(ast_sip_get_pjsip_endpoint(), task_data->rdata, 200, NULL, &tdata) != PJ_SUCCESS) {
+		return PJ_TRUE;
+	}
+
+	/* Add the date header to the response, some UAs use this to set their date and time */
+	registrar_add_date_header(tdata);
+
+	ao2_callback(contacts, 0, registrar_add_contact, tdata);
+
+	if (pjsip_get_response_addr(tdata->pool, task_data->rdata, &addr) == PJ_SUCCESS) {
+		pjsip_endpt_send_response(ast_sip_get_pjsip_endpoint(), &addr, tdata, NULL, NULL);
+	} else {
+		pjsip_tx_data_dec_ref(tdata);
+	}
+
+	return PJ_TRUE;
+}
+
+static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
+{
+	RAII_VAR(struct serializer *, ser, NULL, ao2_cleanup);
+	struct rx_task_data *task_data;
+
+	RAII_VAR(struct ast_sip_endpoint *, endpoint,
+		 ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
+	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
+	pjsip_sip_uri *uri;
+	char user_name[64], domain_name[64];
+	char *configured_aors, *aor_name;
 
 	if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_register_method) || !endpoint) {
 		return PJ_FALSE;
@@ -252,7 +529,7 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	if (ast_strlen_zero(aor_name) || !(aor = ast_sip_location_retrieve_aor(aor_name))) {
 		/* The provided AOR name was not found (be it within the configuration or sorcery itself) */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(endpoint, rdata, "registrar_requested_aor_not_found");
+		ast_sip_report_req_no_support(endpoint, rdata, "registrar_requested_aor_not_found");
 		ast_log(LOG_WARNING, "AOR '%s' not found for endpoint '%s'\n", user_name, ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
@@ -260,136 +537,35 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	if (!aor->max_contacts) {
 		/* Registration is not permitted for this AOR */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_without_registration_permitted");
+		ast_sip_report_req_no_support(endpoint, rdata, "registrar_attempt_without_registration_permitted");
 		ast_log(LOG_WARNING, "AOR '%s' has no configured max_contacts. Endpoint '%s' unable to register\n",
 				ast_sorcery_object_get_id(aor), ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
-	/* Retrieve the current contacts, we'll need to know whether to update or not */
-	contacts = ast_sip_location_retrieve_aor_contacts(aor);
-
-	/* So we don't count static contacts against max_contacts we prune them out from the container */
-	ao2_callback(contacts, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, registrar_prune_static, NULL);
-
-	if (registrar_validate_contacts(rdata, contacts, aor, &added, &updated, &deleted)) {
-		/* The provided Contact headers do not conform to the specification */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_contacts_provided");
-		ast_log(LOG_WARNING, "Failed to validate contacts in REGISTER request from '%s'\n",
-				ast_sorcery_object_get_id(endpoint));
-		return PJ_TRUE;
-	}
-
-	if ((MAX(added - deleted, 0) + (!aor->remove_existing ? ao2_container_count(contacts) : 0)) > aor->max_contacts) {
-		/* Enforce the maximum number of contacts */
+	if (!(ser = serializer_find_or_create(aor_name))) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
-		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %d\n",
-				ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor), aor->max_contacts);
+		ast_sip_report_mem_limit(endpoint, rdata);
+		ast_log(LOG_WARNING, "Endpoint '%s' unable to register on AOR '%s' - could not get serializer\n",
+			ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor));
 		return PJ_TRUE;
 	}
 
-	if (!(details.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Contact Comparison", 256, 256))) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+	if (!(task_data = rx_task_data_create(rdata, endpoint, aor))) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_mem_limit(endpoint, rdata);
+		ast_log(LOG_WARNING, "Endpoint '%s' unable to register on AOR '%s' - could not create rx_task_data\n",
+			ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor));
 		return PJ_TRUE;
 	}
 
-	/* Iterate each provided Contact header and add, update, or delete */
-	while ((contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
-		int expiration;
-		char contact_uri[PJSIP_MAX_URL_SIZE];
-		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
-
-		if (contact_hdr->star) {
-			/* A star means to unregister everything, so do so for the possible contacts */
-			ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, registrar_delete_contact, aor_name);
-			break;
-		}
-
-		if (!PJSIP_URI_SCHEME_IS_SIP(contact_hdr->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact_hdr->uri)) {
-			/* This registrar only currently supports sip: and sips: URI schemes */
-			continue;
-		}
-
-		expiration = registrar_get_expiration(aor, contact_hdr, rdata);
-		details.uri = pjsip_uri_get_uri(contact_hdr->uri);
-		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, details.uri, contact_uri, sizeof(contact_uri));
-
-		if (!(contact = ao2_callback(contacts, OBJ_UNLINK, registrar_find_contact, &details))) {
-			/* If they are actually trying to delete a contact that does not exist... be forgiving */
-			if (!expiration) {
-				ast_verb(3, "Attempted to remove non-existent contact '%s' from AOR '%s' by request\n",
-					contact_uri, aor_name);
-				continue;
-			}
-
-			ast_sip_location_add_contact(aor, contact_uri, ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1)));
-			ast_verb(3, "Added contact '%s' to AOR '%s' with expiration of %d seconds\n",
-				contact_uri, aor_name, expiration);
-			ast_test_suite_event_notify("AOR_CONTACT_ADDED",
-					"Contact: %s\r\n"
-					"AOR: %s\r\n"
-					"Expiration: %d",
-					contact_uri,
-					aor_name,
-					expiration);
-		} else if (expiration) {
-			RAII_VAR(struct ast_sip_contact *, updated, ast_sorcery_copy(ast_sip_get_sorcery(), contact), ao2_cleanup);
-			updated->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
-			updated->qualify_frequency = aor->qualify_frequency;
-			updated->authenticate_qualify = aor->authenticate_qualify;
-
-			ast_sip_location_update_contact(updated);
-			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
-				contact_uri, aor_name, expiration);
-			ast_test_suite_event_notify("AOR_CONTACT_REFRESHED",
-					"Contact: %s\r\n"
-					"AOR: %s\r\n"
-					"Expiration: %d",
-					contact_uri,
-					aor_name,
-					expiration);
-		} else {
-			ast_sip_location_delete_contact(contact);
-			ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact_uri, aor_name);
-			ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
-					"Contact: %s\r\n"
-					"AOR: %s",
-					contact_uri,
-					aor_name);
-		}
+	if (ast_sip_push_task(ser->serializer, rx_task, task_data)) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_mem_limit(endpoint, rdata);
+		ast_log(LOG_WARNING, "Endpoint '%s' unable to register on AOR '%s' - could not serialize task\n",
+			ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor));
+		ao2_ref(task_data, -1);
 	}
-
-	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
-
-	/* If the AOR is configured to remove any existing contacts that have not been updated/added as a result of this REGISTER
-	 * do so
-	 */
-	if (aor->remove_existing) {
-		ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, registrar_delete_contact, NULL);
-	}
-
-	/* Update the contacts as things will probably have changed */
-	ao2_cleanup(contacts);
-	contacts = ast_sip_location_retrieve_aor_contacts(aor);
-
-	/* Send a response containing all of the contacts (including static) that are present on this AOR */
-	if (pjsip_endpt_create_response(ast_sip_get_pjsip_endpoint(), rdata, 200, NULL, &tdata) != PJ_SUCCESS) {
-		return PJ_TRUE;
-	}
-
-	/* Add the date header to the response, some UAs use this to set their date and time */
-	registrar_add_date_header(tdata);
-
-	ao2_callback(contacts, 0, registrar_add_contact, tdata);
-
-	if (pjsip_get_response_addr(tdata->pool, rdata, &addr) == PJ_SUCCESS) {
-		pjsip_endpt_send_response(ast_sip_get_pjsip_endpoint(), &addr, tdata, NULL, NULL);
-	} else {
-		pjsip_tx_data_dec_ref(tdata);
-	}
-
 	return PJ_TRUE;
 }
 
@@ -403,6 +579,11 @@ static pjsip_module registrar_module = {
 static int load_module(void)
 {
 	const pj_str_t STR_REGISTER = { "REGISTER", 8 };
+
+	if (!(serializers = ao2_container_alloc(
+		      SERIALIZER_BUCKETS, serializer_hash, serializer_cmp))) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	if (ast_sip_register_service(&registrar_module)) {
 		return AST_MODULE_LOAD_DECLINE;
@@ -419,6 +600,8 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_sip_unregister_service(&registrar_module);
+
+	ao2_cleanup(serializers);
 	return 0;
 }
 
