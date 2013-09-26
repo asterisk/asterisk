@@ -377,7 +377,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. Pass no audio to the calling
 					party until the called channel has answered.</para>
 					<argument name="tone" required="false">
-						<para>Indicate progress to calling party. Send audio 'tone' from indications.conf</para>
+						<para>Indicate progress to calling party. Send audio 'tone' from the indications.conf tonezone currently in use.</para>
 					</argument>
 				</option>
 				<option name="S">
