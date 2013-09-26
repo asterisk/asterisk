@@ -1478,6 +1478,24 @@ void ast_sip_report_auth_success(struct ast_sip_endpoint *endpoint, pjsip_rx_dat
  */
 void ast_sip_report_auth_challenge_sent(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pjsip_tx_data *tdata);
 
+/*!
+ * \brief Send a security event notification for when a request is not supported
+ *
+ * \param endpoint Pointer to the endpoint in use
+ * \param rdata Received message
+ * \param req_type the type of request
+ */
+void ast_sip_report_req_no_support(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata,
+				   const char* req_type);
+
+/*!
+ * \brief Send a security event notification for when a memory limit is hit.
+ *
+ * \param endpoint Pointer to the endpoint in use
+ * \param rdata Received message
+ */
+void ast_sip_report_mem_limit(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
+
 void ast_sip_initialize_global_headers(void);
 void ast_sip_destroy_global_headers(void);
 

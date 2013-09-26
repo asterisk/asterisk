@@ -232,3 +232,59 @@ void ast_sip_report_auth_challenge_sent(struct ast_sip_endpoint *endpoint, pjsip
 
 	ast_security_event_report(AST_SEC_EVT(&chal_sent));
 }
+
+void ast_sip_report_req_no_support(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata,
+				   const char* req_type)
+{
+	enum ast_transport transport = security_event_get_transport(rdata);
+	char call_id[pj_strlen(&rdata->msg_info.cid->id) + 1];
+	struct ast_sockaddr local, remote;
+
+	struct ast_security_event_req_no_support req_no_support_event = {
+		.common.event_type  = AST_SECURITY_EVENT_REQ_NO_SUPPORT,
+		.common.version     = AST_SECURITY_EVENT_REQ_NO_SUPPORT_VERSION,
+		.common.service     = "PJSIP",
+		.common.account_id  = ast_sorcery_object_get_id(endpoint),
+		.common.local_addr  = {
+			.addr       = &local,
+			.transport  = transport,
+		},
+		.common.remote_addr = {
+			.addr       = &remote,
+			.transport  = transport,
+		},
+		.common.session_id  = call_id,
+		.request_type       = req_type
+	};
+
+	security_event_populate(rdata, call_id, sizeof(call_id), &local, &remote);
+
+	ast_security_event_report(AST_SEC_EVT(&req_no_support_event));
+}
+
+void ast_sip_report_mem_limit(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+{
+	enum ast_transport transport = security_event_get_transport(rdata);
+	char call_id[pj_strlen(&rdata->msg_info.cid->id) + 1];
+	struct ast_sockaddr local, remote;
+
+	struct ast_security_event_mem_limit mem_limit_event = {
+		.common.event_type  = AST_SECURITY_EVENT_MEM_LIMIT,
+		.common.version     = AST_SECURITY_EVENT_MEM_LIMIT_VERSION,
+		.common.service     = "PJSIP",
+		.common.account_id  = ast_sorcery_object_get_id(endpoint),
+		.common.local_addr  = {
+			.addr       = &local,
+			.transport  = transport,
+		},
+		.common.remote_addr = {
+			.addr       = &remote,
+			.transport  = transport,
+		},
+		.common.session_id  = call_id
+	};
+
+	security_event_populate(rdata, call_id, sizeof(call_id), &local, &remote);
+
+	ast_security_event_report(AST_SEC_EVT(&mem_limit_event));
+}
