@@ -1169,6 +1169,7 @@ static int unload_module(void)
 	ao2_cleanup(parking_lot_container);
 	parking_lot_container = NULL;
 	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(globals);
 
 	return 0;
 }
