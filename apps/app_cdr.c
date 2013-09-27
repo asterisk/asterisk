@@ -149,7 +149,9 @@ static int nocdr_exec(struct ast_channel *chan, const char *data)
 
 static int unload_module(void)
 {
-	return ast_unregister_application(nocdr_app);
+	ast_unregister_application(nocdr_app);
+	ast_unregister_application(resetcdr_app);
+	return 0;
 }
 
 static int load_module(void)
