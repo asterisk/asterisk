@@ -85,10 +85,6 @@ struct test_obj {
 
 /*! Partial search key +/- matching range. */
 int partial_key_match_range;
-/*! Special iax2 OBJ_CONTINUE test.  Bucket selected. */
-int special_bucket;
-/*! Special iax2 OBJ_CONTINUE test.  Object number select. */
-int special_match;
 
 static void test_obj_destructor(void *v_obj)
 {
@@ -138,11 +134,6 @@ static int test_cmp_cb(void *obj, void *arg, int flags)
 	} else {
 		struct test_obj *arg_obj = (struct test_obj *) arg;
 
-		if (!arg_obj) {
-			/* Never match on the special iax2 OBJ_CONTINUE test. */
-			return 0;
-		}
-
 		return (cmp_obj->i == arg_obj->i) ? CMP_MATCH : 0;
 	}
 }
@@ -161,14 +152,6 @@ static int test_hash_cb(const void *obj, const int flags)
 		return 0;
 	} else {
 		const struct test_obj *hash_obj = obj;
-
-		if (!hash_obj) {
-			/*
-			 * Use the special_bucket as the bucket for the special iax2
-			 * OBJ_CONTINUE test.
-			 */
-			return special_bucket;
-		}
 
 		return hash_obj->i;
 	}
@@ -193,14 +176,6 @@ static int test_sort_cb(const void *obj_left, const void *obj_right, int flags)
 		return test_left->i - *i;
 	} else {
 		const struct test_obj *test_right = obj_right;
-
-		if (!test_right) {
-			/*
-			 * Compare with special_match in the special iax2 OBJ_CONTINUE
-			 * test.
-			 */
-			return test_left->i - special_match;
-		}
 
 		return test_left->i - test_right->i;
 	}
@@ -453,22 +428,15 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 	struct ao2_iterator it;
 	struct ao2_iterator *mult_it;
 	struct test_obj *obj;
-	ao2_callback_fn *cmp_fn;
 	int n_buckets = 0;
 	int increment = 0;
 	int destructor_count = 0;
-	int count;
 	int num;
 	int res = AST_TEST_PASS;
 
 	c_type = test_container2str(type);
 	ast_test_status_update(test, "Test %d, %s containers (%s).\n",
 		tst_num, c_type, use_sort ? "sorted" : "non-sorted");
-
-	/* Need at least 12 objects for the special iax2 OBJ_CONTINUE test. */
-	if (lim < 12) {
-		lim = 12;
-	}
 
 	c1 = NULL;
 	switch (type) {
@@ -480,10 +448,6 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 		break;
 	case TEST_CONTAINER_HASH:
 		n_buckets = (ast_random() % ((lim / 4) + 1)) + 1;
-		if (n_buckets < 6) {
-			/* Need at least 6 buckets for the special iax2 OBJ_CONTINUE test. */
-			n_buckets = 6;
-		}
 		c1 = ao2_t_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, n_buckets,
 			test_hash_cb, use_sort ? test_sort_cb : NULL, test_cmp_cb, "test");
 		break;
@@ -542,105 +506,6 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 
 	/* Testing ao2_find with OBJ_PARTIAL_KEY */
 	res = test_ao2_find_w_OBJ_PARTIAL_KEY(res, c1, lim, test);
-
-	/*
-	 * Testing ao2_find with OBJ_POINTER | OBJ_UNLINK | OBJ_CONTINUE.
-	 * In this test items are unlinked from c1 and placed in c2.  Then
-	 * unlinked from c2 and placed back into c1.
-	 *
-	 * For this module and set of custom hash/cmp functions, an object
-	 * should only be found if the astobj2 default cmp function is used.
-	 * This test is designed to mimic the chan_iax.c call number use case.
-	 *
-	 * Must test the custom cmp_cb case first since it should never
-	 * find and thus unlink anything for this test.
-	 */
-	for (cmp_fn = test_cmp_cb; ; cmp_fn = NULL) {
-		num = lim;
-		for (count = 0; num && count < 100; ++count) {
-			--num;
-
-			/* This special manipulation is needed for sorted hash buckets. */
-			special_bucket = num;
-			switch (count) {
-			case 0:
-				/* Beyond end of bucket list. */
-				special_match = lim;
-				break;
-			case 1:
-				/* At end of bucket list. */
-				special_match = num;
-				break;
-			case 2:
-				/* In between in middle of bucket list. */
-				special_match = num - 1;
-				break;
-			case 3:
-				/* Beginning of bucket list. */
-				special_match = num % n_buckets;
-				break;
-			case 4:
-				/* Before bucket list. */
-				special_match = -1;
-				break;
-			default:
-				/* Empty bucket list. (If possible to empty it.) */
-				special_match = -1;
-				special_bucket = lim - 1;
-				break;
-			}
-
-			/* ao2_find is just a shortcut notation for ao2_callback(). */
-			obj = ao2_callback(c1, OBJ_POINTER | OBJ_UNLINK | OBJ_CONTINUE, cmp_fn, NULL);
-			if (!obj) {
-				if (!cmp_fn) {
-					ast_test_status_update(test,
-						"ao2_find with OBJ_POINTER | OBJ_UNLINK | OBJ_CONTINUE failed with default cmp_cb.\n");
-					res = AST_TEST_FAIL;
-				}
-			} else {
-				if (cmp_fn) {
-					ast_test_status_update(test,
-						"ao2_find with OBJ_POINTER | OBJ_UNLINK | OBJ_CONTINUE failed with custom cmp_cb.\n");
-					res = AST_TEST_FAIL;
-				}
-				ao2_link(c2, obj);
-				ao2_t_ref(obj, -1, "test");
-			}
-		}
-		if (ao2_container_check(c1, 0)) {
-			ast_test_status_update(test, "container integrity check failed\n");
-			res = AST_TEST_FAIL;
-			goto cleanup;
-		}
-		if (ao2_container_check(c2, 0)) {
-			ast_test_status_update(test, "container integrity check failed\n");
-			res = AST_TEST_FAIL;
-			goto cleanup;
-		}
-		it = ao2_iterator_init(c2, 0);
-		while ((obj = ao2_t_iterator_next(&it, "test"))) {
-			ao2_t_unlink(c2, obj, "test");
-			ao2_t_link(c1, obj, "test");
-			ao2_t_ref(obj, -1, "test");
-		}
-		ao2_iterator_destroy(&it);
-		if (ao2_container_check(c1, 0)) {
-			ast_test_status_update(test, "container integrity check failed\n");
-			res = AST_TEST_FAIL;
-			goto cleanup;
-		}
-		if (ao2_container_check(c2, 0)) {
-			ast_test_status_update(test, "container integrity check failed\n");
-			res = AST_TEST_FAIL;
-			goto cleanup;
-		}
-
-		if (!cmp_fn) {
-			/* Completed testing with custom cmp_cb and default cmp_cb */
-			break;
-		}
-	}
 
 	/* Test Callback with no flags. */
 	increment = 0;

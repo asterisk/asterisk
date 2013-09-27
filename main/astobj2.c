@@ -2249,8 +2249,6 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
 struct hash_traversal_state {
 	/*! Active sort function in the traversal if not NULL. */
 	ao2_sort_fn *sort_fn;
-	/*! Node returned in the sorted starting hash bucket if OBJ_CONTINUE flag set. (Reffed) */
-	struct hash_bucket_node *first_node;
 	/*! Saved comparison callback arg pointer. */
 	void *arg;
 	/*! Starting hash bucket */
@@ -2261,8 +2259,6 @@ struct hash_traversal_state {
 	enum search_flags flags;
 	/*! TRUE if it is a descending search */
 	unsigned int descending:1;
-	/*! TRUE if the starting bucket needs to be rechecked because of sorting skips. */
-	unsigned int recheck_starting_bucket:1;
 };
 
 struct hash_traversal_state_check {
@@ -2344,12 +2340,6 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 		} else {
 			state->bucket_last = bucket_cur;
 		}
-		if (flags & OBJ_CONTINUE) {
-			state->bucket_last = 0;
-			if (state->sort_fn) {
-				state->recheck_starting_bucket = 1;
-			}
-		}
 		state->bucket_start = bucket_cur;
 
 		/* For each bucket */
@@ -2369,14 +2359,7 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 					if (cmp > 0) {
 						continue;
 					}
-					if (flags & OBJ_CONTINUE) {
-						/* Remember first node when we wrap around. */
-						__ao2_ref(node, +1);
-						state->first_node = node;
-
-						/* From now on all nodes are matching */
-						state->sort_fn = NULL;
-					} else if (cmp < 0) {
+					if (cmp < 0) {
 						/* No more nodes in this bucket are possible to match. */
 						break;
 					}
@@ -2385,31 +2368,6 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 				/* We have the first traversal node */
 				__ao2_ref(node, +1);
 				return node;
-			}
-
-			/* Was this the starting bucket? */
-			if (bucket_cur == state->bucket_start
-				&& (flags & OBJ_CONTINUE)
-				&& (flags & OBJ_SEARCH_MASK) != OBJ_SEARCH_NONE) {
-				/* In case the bucket was empty or none of the nodes matched. */
-				state->sort_fn = NULL;
-			}
-
-			/* Was this the first container bucket? */
-			if (bucket_cur == 0
-				&& (flags & OBJ_CONTINUE)
-				&& (flags & OBJ_SEARCH_MASK) != OBJ_SEARCH_NONE) {
-				/* Move to the end to ensure we check every bucket */
-				bucket_cur = self->n_buckets;
-				state->bucket_last = state->bucket_start + 1;
-				if (state->recheck_starting_bucket) {
-					/*
-					 * We have to recheck the first part of the starting bucket
-					 * because of sorting skips.
-					 */
-					state->recheck_starting_bucket = 0;
-					--state->bucket_last;
-				}
 			}
 		}
 	} else {
@@ -2423,12 +2381,6 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 			state->bucket_last = self->n_buckets;
 		} else {
 			state->bucket_last = bucket_cur + 1;
-		}
-		if (flags & OBJ_CONTINUE) {
-			state->bucket_last = self->n_buckets;
-			if (state->sort_fn) {
-				state->recheck_starting_bucket = 1;
-			}
 		}
 		state->bucket_start = bucket_cur;
 
@@ -2449,14 +2401,7 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 					if (cmp < 0) {
 						continue;
 					}
-					if (flags & OBJ_CONTINUE) {
-						/* Remember first node when we wrap around. */
-						__ao2_ref(node, +1);
-						state->first_node = node;
-
-						/* From now on all nodes are matching */
-						state->sort_fn = NULL;
-					} else if (cmp > 0) {
+					if (cmp > 0) {
 						/* No more nodes in this bucket are possible to match. */
 						break;
 					}
@@ -2465,31 +2410,6 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 				/* We have the first traversal node */
 				__ao2_ref(node, +1);
 				return node;
-			}
-
-			/* Was this the starting bucket? */
-			if (bucket_cur == state->bucket_start
-				&& (flags & OBJ_CONTINUE)
-				&& (flags & OBJ_SEARCH_MASK) != OBJ_SEARCH_NONE) {
-				/* In case the bucket was empty or none of the nodes matched. */
-				state->sort_fn = NULL;
-			}
-
-			/* Was this the last container bucket? */
-			if (bucket_cur == self->n_buckets - 1
-				&& (flags & OBJ_CONTINUE)
-				&& (flags & OBJ_SEARCH_MASK) != OBJ_SEARCH_NONE) {
-				/* Move to the beginning to ensure we check every bucket */
-				bucket_cur = -1;
-				state->bucket_last = state->bucket_start;
-				if (state->recheck_starting_bucket) {
-					/*
-					 * We have to recheck the first part of the starting bucket
-					 * because of sorting skips.
-					 */
-					state->recheck_starting_bucket = 0;
-					++state->bucket_last;
-				}
 			}
 		}
 	}
@@ -2539,11 +2459,6 @@ static struct hash_bucket_node *hash_ao2_find_next(struct ao2_container_hash *se
 			for (node = AST_DLLIST_LAST(&self->buckets[bucket_cur].list);
 				node;
 				node = AST_DLLIST_PREV(node, links)) {
-				if (node == state->first_node) {
-					/* We have wrapped back to the starting point. */
-					__ao2_ref(prev, -1);
-					return NULL;
-				}
 				if (!node->common.obj) {
 					/* Node is empty */
 					continue;
@@ -2578,23 +2493,6 @@ static struct hash_bucket_node *hash_ao2_find_next(struct ao2_container_hash *se
 
 hash_descending_resume:;
 			}
-
-			/* Was this the first container bucket? */
-			if (bucket_cur == 0
-				&& (flags & OBJ_CONTINUE)
-				&& (flags & OBJ_SEARCH_MASK) != OBJ_SEARCH_NONE) {
-				/* Move to the end to ensure we check every bucket */
-				bucket_cur = self->n_buckets;
-				state->bucket_last = state->bucket_start + 1;
-				if (state->recheck_starting_bucket) {
-					/*
-					 * We have to recheck the first part of the starting bucket
-					 * because of sorting skips.
-					 */
-					state->recheck_starting_bucket = 0;
-					--state->bucket_last;
-				}
-			}
 		}
 	} else {
 		goto hash_ascending_resume;
@@ -2605,11 +2503,6 @@ hash_descending_resume:;
 			for (node = AST_DLLIST_FIRST(&self->buckets[bucket_cur].list);
 				node;
 				node = AST_DLLIST_NEXT(node, links)) {
-				if (node == state->first_node) {
-					/* We have wrapped back to the starting point. */
-					__ao2_ref(prev, -1);
-					return NULL;
-				}
 				if (!node->common.obj) {
 					/* Node is empty */
 					continue;
@@ -2644,45 +2537,12 @@ hash_descending_resume:;
 
 hash_ascending_resume:;
 			}
-
-			/* Was this the last container bucket? */
-			if (bucket_cur == self->n_buckets - 1
-				&& (flags & OBJ_CONTINUE)
-				&& (flags & OBJ_SEARCH_MASK) != OBJ_SEARCH_NONE) {
-				/* Move to the beginning to ensure we check every bucket */
-				bucket_cur = -1;
-				state->bucket_last = state->bucket_start;
-				if (state->recheck_starting_bucket) {
-					/*
-					 * We have to recheck the first part of the starting bucket
-					 * because of sorting skips.
-					 */
-					state->recheck_starting_bucket = 0;
-					++state->bucket_last;
-				}
-			}
 		}
 	}
 
 	/* No more nodes in the container left to traverse. */
 	__ao2_ref(prev, -1);
 	return NULL;
-}
-
-/*!
- * \internal
- * \brief Cleanup the hash container traversal state.
- * \since 12.0.0
- *
- * \param state Traversal state to cleanup.
- *
- * \return Nothing
- */
-static void hash_ao2_find_cleanup(struct hash_traversal_state *state)
-{
-	if (state->first_node) {
-		__ao2_ref(state->first_node, -1);
-	}
 }
 
 /*!
@@ -3110,7 +2970,6 @@ static const struct ao2_container_methods v_table_hash = {
 	.insert = (ao2_container_insert_fn) hash_ao2_insert_node,
 	.traverse_first = (ao2_container_find_first_fn) hash_ao2_find_first,
 	.traverse_next = (ao2_container_find_next_fn) hash_ao2_find_next,
-	.traverse_cleanup = (ao2_container_find_cleanup_fn) hash_ao2_find_cleanup,
 	.iterator_next = (ao2_iterator_next_fn) hash_ao2_iterator_next,
 	.destroy = (ao2_container_destroy_fn) hash_ao2_destroy,
 #if defined(AST_DEVMODE)
@@ -4461,8 +4320,6 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 struct rbtree_traversal_state {
 	/*! Active sort function in the traversal if not NULL. */
 	ao2_sort_fn *sort_fn;
-	/*! First node returned if OBJ_CONTINUE flag set. (Reffed) */
-	struct rbtree_node *first_node;
 	/*! Saved comparison callback arg pointer. */
 	void *arg;
 	/*! Saved search flags to control traversing the container. */
@@ -4507,31 +4364,9 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
 		default:
 		case OBJ_ORDER_ASCENDING:
 			node = rb_node_next(node);
-			if (!node) {
-				if (!state->first_node) {
-					break;
-				}
-				/* Wrap around to the beginning. */
-				node = rb_node_most_left(self->root);
-			}
-			if (node == state->first_node) {
-				/* We have wrapped back to the starting point. */
-				node = NULL;
-			}
 			break;
 		case OBJ_ORDER_DESCENDING:
 			node = rb_node_prev(node);
-			if (!node) {
-				if (!state->first_node) {
-					break;
-				}
-				/* Wrap around to the end. */
-				node = rb_node_most_right(self->root);
-			}
-			if (node == state->first_node) {
-				/* We have wrapped back to the starting point. */
-				node = NULL;
-			}
 			break;
 		case OBJ_ORDER_PRE:
 			node = rb_node_pre(node);
@@ -4590,7 +4425,6 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
  *   OBJ_SEARCH_OBJECT - if set, 'obj_right', is an object.
  *   OBJ_SEARCH_KEY - if set, 'obj_right', is a search key item that is not an object.
  *   OBJ_SEARCH_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
- *   OBJ_CONTINUE - if set, return node right before or right after search key if not a match.
  * \param bias How to bias search direction for duplicates
  *
  * \retval node on success.
@@ -4644,12 +4478,6 @@ static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, vo
 				}
 
 				/* No match found. */
-				if (flags & OBJ_CONTINUE) {
-					next = rb_node_next_full(node);
-					if (!next) {
-						next = rb_node_prev_full(node);
-					}
-				}
 				return next;
 			}
 		} else {
@@ -4700,9 +4528,6 @@ static struct rbtree_node *rb_find_initial(struct ao2_container_rbtree *self, vo
 				}
 
 				/* No match found. */
-				if (flags & OBJ_CONTINUE) {
-					return node;
-				}
 				return NULL;
 			}
 		}
@@ -4867,34 +4692,9 @@ static struct rbtree_node *rb_ao2_find_first(struct ao2_container_rbtree *self, 
 		break;
 	}
 
-	if (state->sort_fn && (flags & OBJ_CONTINUE)) {
-		/* Remember first node when we wrap around. */
-		__ao2_ref(node, +1);
-		state->first_node = node;
-
-		/* From now on all nodes are matching */
-		state->sort_fn = NULL;
-	}
-
 	/* We have the first traversal node */
 	__ao2_ref(node, +1);
 	return node;
-}
-
-/*!
- * \internal
- * \brief Cleanup the rbtree container traversal state.
- * \since 12.0.0
- *
- * \param state Traversal state to cleanup.
- *
- * \return Nothing
- */
-static void rb_ao2_find_cleanup(struct rbtree_traversal_state *state)
-{
-	if (state->first_node) {
-		__ao2_ref(state->first_node, -1);
-	}
 }
 
 /*!
@@ -5282,7 +5082,6 @@ static const struct ao2_container_methods v_table_rbtree = {
 	.insert = (ao2_container_insert_fn) rb_ao2_insert_node,
 	.traverse_first = (ao2_container_find_first_fn) rb_ao2_find_first,
 	.traverse_next = (ao2_container_find_next_fn) rb_ao2_find_next,
-	.traverse_cleanup = (ao2_container_find_cleanup_fn) rb_ao2_find_cleanup,
 	.iterator_next = (ao2_iterator_next_fn) rb_ao2_iterator_next,
 	.destroy = (ao2_container_destroy_fn) rb_ao2_destroy,
 #if defined(AST_DEVMODE)
