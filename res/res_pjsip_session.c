@@ -45,6 +45,9 @@
 
 #define SDP_HANDLER_BUCKETS 11
 
+#define MOD_DATA_ON_RESPONSE "on_response"
+#define MOD_DATA_NAT_HOOK "nat_hook"
+
 /* Some forward declarations */
 static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata);
 static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata);
@@ -127,7 +130,7 @@ int ast_sip_session_register_sdp_handler(struct ast_sip_session_sdp_handler *han
 			}
 		}
 		AST_LIST_INSERT_TAIL(&handler_list->list, handler, next);
-		ast_debug(1, "Registered SDP stream handler '%s' for stream type '%s'\n", handler->id, stream_type); 
+		ast_debug(1, "Registered SDP stream handler '%s' for stream type '%s'\n", handler->id, stream_type);
 		ast_module_ref(ast_module_info->self);
 		return 0;
 	}
@@ -144,7 +147,7 @@ int ast_sip_session_register_sdp_handler(struct ast_sip_session_sdp_handler *han
 	if (!ao2_link(sdp_handlers, handler_list)) {
 		return -1;
 	}
-	ast_debug(1, "Registered SDP stream handler '%s' for stream type '%s'\n", handler->id, stream_type); 
+	ast_debug(1, "Registered SDP stream handler '%s' for stream type '%s'\n", handler->id, stream_type);
 	ast_module_ref(ast_module_info->self);
 	return 0;
 }
@@ -925,7 +928,9 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 		return;
 	}
 
-	tdata->mod_data[session_module.id] = on_response;
+	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id,
+			     MOD_DATA_ON_RESPONSE, on_response);
+
 	handle_outgoing_request(session, tdata);
 	pjsip_inv_send_msg(session->inv_session, tdata);
 	return;
@@ -1641,7 +1646,7 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 	pjsip_inv_session *inv = session->inv_session;
 	struct reschedule_reinvite_data *rrd = reschedule_reinvite_data_alloc(session, delay);
 	pj_time_val tv;
-	
+
 	if (!rrd || !delay) {
 		return;
 	}
@@ -1850,6 +1855,7 @@ static void session_inv_on_new_session(pjsip_inv_session *inv, pjsip_event *e)
 
 static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e)
 {
+	ast_sip_session_response_cb cb;
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
 	print_debug_details(inv, tsx, e);
 	if (!session) {
@@ -1904,8 +1910,8 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 				handle_incoming_request(session, e->body.tsx_state.src.rdata);
 			}
 		}
-		if (tsx->mod_data[session_module.id]) {
-			ast_sip_session_response_cb cb = tsx->mod_data[session_module.id];
+		if ((cb = ast_sip_mod_data_get(tsx->mod_data, session_module.id,
+					       MOD_DATA_ON_RESPONSE))) {
 			cb(session, e->body.tsx_state.src.rdata);
 		}
 	case PJSIP_EVENT_TRANSPORT_ERROR:
@@ -2073,7 +2079,8 @@ static pjsip_inv_callback inv_callback = {
 /*! \brief Hook for modifying outgoing messages with SDP to contain the proper address information */
 static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_transport *transport)
 {
-	struct ast_sip_nat_hook *hook = tdata->mod_data[session_module.id];
+	struct ast_sip_nat_hook *hook = ast_sip_mod_data_get(
+		tdata->mod_data, session_module.id, MOD_DATA_NAT_HOOK);
 	struct pjmedia_sdp_session *sdp;
 	int stream;
 
@@ -2107,7 +2114,7 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 	}
 
 	/* We purposely do this so that the hook will not be invoked multiple times, ie: if a retransmit occurs */
-	tdata->mod_data[session_module.id] = nat_hook;
+	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id, MOD_DATA_NAT_HOOK, nat_hook);
 }
 
 static int load_module(void)

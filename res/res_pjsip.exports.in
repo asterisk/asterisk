@@ -70,6 +70,8 @@
 		LINKER_SYMBOL_PREFIXast_sip_initialize_sorcery_global;
 		LINKER_SYMBOL_PREFIXast_sip_auth_array_init;
 		LINKER_SYMBOL_PREFIXast_sip_auth_array_destroy;
+		LINKER_SYMBOL_PREFIXast_sip_dict_get;
+		LINKER_SYMBOL_PREFIXast_sip_dict_set;
 	local:
 		*;
 };
