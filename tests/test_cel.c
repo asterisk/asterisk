@@ -91,13 +91,19 @@ static void do_sleep(void)
 }
 
 #define APPEND_EVENT(chan, ev_type, userevent, extra) do { \
-	if (append_expected_event(chan, ev_type, userevent, extra)) { \
+	if (append_expected_event(chan, ev_type, userevent, extra, NULL)) { \
 		return AST_TEST_FAIL; \
 	} \
 	} while (0)
 
-#define APPEND_EVENT_SNAPSHOT(snapshot, ev_type, userevent, extra) do { \
-	if (append_expected_event_snapshot(snapshot, ev_type, userevent, extra)) { \
+#define APPEND_EVENT_PEER(chan, ev_type, userevent, extra, peer) do { \
+	if (append_expected_event(chan, ev_type, userevent, extra, peer)) { \
+		return AST_TEST_FAIL; \
+	} \
+	} while (0)
+
+#define APPEND_EVENT_SNAPSHOT(snapshot, ev_type, userevent, extra, peer) do { \
+	if (append_expected_event_snapshot(snapshot, ev_type, userevent, extra, peer)) { \
 		return AST_TEST_FAIL; \
 	} \
 	} while (0)
@@ -115,17 +121,31 @@ static void do_sleep(void)
 	} while (0)
 
 #define BRIDGE_EXIT_EVENT(channel, bridge) do { \
+	RAII_VAR(struct ast_str *, peer_str, NULL, ast_free); \
+	stasis_topic_wait(ast_channel_topic_all()); \
+	stasis_topic_wait(ast_bridge_topic_all()); \
+	peer_str = test_cel_generate_peer_str(channel, bridge); \
+	ast_test_validate(test, peer_str != NULL); \
+	BRIDGE_EXIT_EVENT_PEER(channel, bridge, ast_str_buffer(peer_str)); \
+	} while (0)
+
+#define BRIDGE_EXIT_EVENT_PEER(channel, bridge, peer) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
 	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(channel, AST_CEL_BRIDGE_EXIT, NULL, extra); \
+	APPEND_EVENT_PEER(channel, AST_CEL_BRIDGE_EXIT, NULL, extra, peer); \
 	} while (0)
 
 #define BRIDGE_EXIT_SNAPSHOT(channel, bridge) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
+	RAII_VAR(struct ast_str *, peer_str, NULL, ast_free); \
+	stasis_topic_wait(ast_channel_topic_all()); \
+	stasis_topic_wait(ast_bridge_topic_all()); \
+	peer_str = test_cel_generate_peer_str_snapshot(channel, bridge); \
+	ast_test_validate(test, peer_str != NULL); \
 	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT_SNAPSHOT(channel, AST_CEL_BRIDGE_EXIT, NULL, extra); \
+	APPEND_EVENT_SNAPSHOT(channel, AST_CEL_BRIDGE_EXIT, NULL, extra, ast_str_buffer(peer_str)); \
 	} while (0)
 
 #define BRIDGE_ENTER(channel, bridge) do { \
@@ -136,10 +156,19 @@ static void do_sleep(void)
 	} while (0)
 
 #define BRIDGE_ENTER_EVENT(channel, bridge) do { \
+	RAII_VAR(struct ast_str *, peer_str, NULL, ast_free); \
+	stasis_topic_wait(ast_channel_topic_all()); \
+	stasis_topic_wait(ast_bridge_topic_all()); \
+	peer_str = test_cel_generate_peer_str(channel, bridge); \
+	ast_test_validate(test, peer_str != NULL); \
+	BRIDGE_ENTER_EVENT_PEER(channel, bridge, ast_str_buffer(peer_str)); \
+	} while (0)
+
+#define BRIDGE_ENTER_EVENT_PEER(channel, bridge, peer) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
 	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
 	ast_test_validate(test, extra != NULL); \
-	APPEND_EVENT(channel, AST_CEL_BRIDGE_ENTER, NULL, extra); \
+	APPEND_EVENT_PEER(channel, AST_CEL_BRIDGE_ENTER, NULL, extra, peer); \
 	} while (0)
 
 #define BLINDTRANSFER_EVENT(channel, bridge, extension, context) do { \
@@ -248,15 +277,80 @@ static int append_expected_event(
 	struct ast_channel *chan,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra);
+	struct ast_json *extra,
+	const char *peer);
 
 static int append_expected_event_snapshot(
 	struct ast_channel_snapshot *snapshot,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra);
+	struct ast_json *extra,
+	const char *peer);
 
 static int append_dummy_event(void);
+
+static struct ast_str *__test_cel_generate_peer_str(struct ast_channel_snapshot *chan, struct ast_bridge_snapshot *bridge)
+{
+	struct ast_str *peer_str = ast_str_create(32);
+	struct ao2_iterator i;
+	char *current_chan = NULL;
+
+	if (!peer_str) {
+		return NULL;
+	}
+
+	for (i = ao2_iterator_init(bridge->channels, 0);
+		(current_chan = ao2_iterator_next(&i));
+		ao2_cleanup(current_chan)) {
+		RAII_VAR(struct ast_channel_snapshot *, current_snapshot,
+			NULL,
+			ao2_cleanup);
+
+		/* Don't add the channel for which this message is being generated */
+		if (!strcmp(current_chan, chan->uniqueid)) {
+			continue;
+		}
+
+		current_snapshot = ast_channel_snapshot_get_latest(current_chan);
+		if (!current_snapshot) {
+			continue;
+		}
+
+		ast_str_append(&peer_str, 0, "%s,", current_snapshot->name);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Rip off the trailing comma */
+	ast_str_truncate(peer_str, -1);
+
+	return peer_str;
+}
+
+static struct ast_str *test_cel_generate_peer_str_snapshot(struct ast_channel_snapshot *chan, struct ast_bridge *bridge)
+{
+	RAII_VAR(struct ast_bridge_snapshot *, snapshot,
+		ast_bridge_snapshot_get_latest(bridge->uniqueid),
+		ao2_cleanup);
+
+	if (!snapshot) {
+		return NULL;
+	}
+
+	return __test_cel_generate_peer_str(chan, snapshot);
+}
+
+static struct ast_str *test_cel_generate_peer_str(struct ast_channel *chan, struct ast_bridge *bridge)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot,
+		ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan)),
+		ao2_cleanup);
+
+	if (!snapshot) {
+		return NULL;
+	}
+
+	return test_cel_generate_peer_str_snapshot(snapshot, bridge);
+}
 
 static void safe_channel_release(struct ast_channel *chan)
 {
@@ -620,7 +714,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 #define EMULATE_DIAL(channel, dialstring) do { \
 	EMULATE_APP_DATA(channel, 1, "Dial", dialstring); \
-	if (append_expected_event(channel, AST_CEL_APP_START, NULL, NULL)) { \
+	if (append_expected_event(channel, AST_CEL_APP_START, NULL, NULL, NULL)) { \
 		return AST_TEST_FAIL; \
 	} \
 	} while (0)
@@ -630,7 +724,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 #define START_DIALED_FULL(caller, callee, number, name) do { \
 	callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, number, NULL, NULL, ast_channel_linkedid(caller), 0, CHANNEL_TECH_NAME "/" name); \
-	if (append_expected_event(callee, AST_CEL_CHANNEL_START, NULL, NULL)) { \
+	if (append_expected_event(callee, AST_CEL_CHANNEL_START, NULL, NULL, NULL)) { \
 		return AST_TEST_FAIL; \
 	} \
 	ast_set_flag(ast_channel_flags(callee), AST_FLAG_OUTGOING); \
@@ -1182,7 +1276,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	/* Perform attended transfer */
 	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
-	BRIDGE_ENTER_EVENT(chan_bob, bridge2);
+	BRIDGE_ENTER_EVENT_PEER(chan_bob, bridge2, "CELTestChannel/David,CELTestChannel/Charlie");
 
 	BRIDGE_EXIT_EVENT(chan_david, bridge2);
 	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
@@ -1260,8 +1354,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	/* Perform attended transfer */
 	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
-	BRIDGE_EXIT_EVENT(chan_charlie, bridge2);
-	BRIDGE_ENTER_EVENT(chan_charlie, bridge1);
+	BRIDGE_EXIT_EVENT_PEER(chan_charlie, bridge2, "CELTestChannel/David");
+	BRIDGE_ENTER_EVENT_PEER(chan_charlie, bridge1, "CELTestChannel/Bob,CELTestChannel/Alice");
 	BRIDGE_EXIT_EVENT(chan_david, bridge2);
 	BRIDGE_EXIT_EVENT(chan_alice, bridge1);
 
@@ -1485,7 +1579,7 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 	extra = ast_json_pack("{s: s}", "local_two", bob_snapshot->name);
 	ast_test_validate(test, extra != NULL);
 
-	APPEND_EVENT_SNAPSHOT(alice_snapshot, AST_CEL_LOCAL_OPTIMIZE, NULL, extra);
+	APPEND_EVENT_SNAPSHOT(alice_snapshot, AST_CEL_LOCAL_OPTIMIZE, NULL, extra, NULL);
 
 	HANGUP_CHANNEL(chan_alice, AST_CAUSE_NORMAL, "");
 	HANGUP_CHANNEL(chan_bob, AST_CAUSE_NORMAL, "");
@@ -1568,10 +1662,11 @@ static int append_expected_event_snapshot(
 	struct ast_channel_snapshot *snapshot,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra)
+	struct ast_json *extra,
+	const char *peer)
 {
 	RAII_VAR(struct ast_event *, ev, NULL, ast_free);
-	ev = ast_cel_create_event(snapshot, type, userdefevname, extra);
+	ev = ast_cel_create_event(snapshot, type, userdefevname, extra, peer);
 	if (!ev) {
 		return -1;
 	}
@@ -1583,7 +1678,8 @@ static int append_expected_event(
 	struct ast_channel *chan,
 	enum ast_cel_event_type type,
 	const char *userdefevname,
-	struct ast_json *extra)
+	struct ast_json *extra,
+	const char *peer)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	snapshot = ast_channel_snapshot_create(chan);
@@ -1591,7 +1687,7 @@ static int append_expected_event(
 		return -1;
 	}
 
-	return append_expected_event_snapshot(snapshot, type, userdefevname, extra);
+	return append_expected_event_snapshot(snapshot, type, userdefevname, extra, peer);
 }
 
 static void test_sub(struct ast_event *event)
@@ -1647,13 +1743,63 @@ static int test_cel_init_cb(struct ast_test_info *info, struct ast_test *test)
 	return 0;
 }
 
-/*! \brief Check an IE value from two events,  */
+/*!
+ * \brief Check two peer strings for equality
+ *
+ * \retval zero if the peer strings do not match
+ * \retval non-zero if the peer strings match
+ */
+static int test_cel_peer_strings_match(const char *str1, const char *str2)
+{
+	struct ao2_container *intersection = ast_str_container_alloc(11);
+	RAII_VAR(char *, str1_dup, ast_strdup(str1), ast_free);
+	RAII_VAR(char *, str2_dup, ast_strdup(str2), ast_free);
+	char *chan;
+
+	while ((chan = strsep(&str1_dup, ","))) {
+		ast_str_container_add(intersection, chan);
+	}
+
+	while ((chan = strsep(&str2_dup, ","))) {
+		RAII_VAR(char *, ao2_chan, ao2_find(intersection, chan, OBJ_SEARCH_KEY), ao2_cleanup);
+
+		/* item in str2 not in str1 */
+		if (!ao2_chan) {
+			return 0;
+		}
+
+		ast_str_container_remove(intersection, chan);
+	}
+
+	/* item in str1 not in str2 */
+	if (ao2_container_count(intersection)) {
+		return 0;
+	}
+
+	return 1;
+}
+
+/*!
+ * \brief Check an IE value from two events
+ *
+ * \retval zero if the IEs in the events of the specified type do not match
+ * \retval non-zero if the IEs in the events of the specified type match
+ */
 static int match_ie_val(
 	const struct ast_event *event1,
 	const struct ast_event *event2,
 	enum ast_event_ie_type type)
 {
 	enum ast_event_ie_pltype pltype = ast_event_get_ie_pltype(type);
+
+	/* XXX ignore sec/usec for now */
+	if (type == AST_EVENT_IE_CEL_EVENT_TIME_USEC) {
+		return 1;
+	}
+
+	if (type == AST_EVENT_IE_CEL_EVENT_TIME) {
+		return 1;
+	}
 
 	switch (pltype) {
 	case AST_EVENT_IE_PLTYPE_UINT:
@@ -1664,20 +1810,23 @@ static int match_ie_val(
 	}
 	case AST_EVENT_IE_PLTYPE_STR:
 	{
-		const char *str;
+		const char *str1 = ast_event_get_ie_str(event1, type);
+		const char *str2 = ast_event_get_ie_str(event2, type);
 
-		str = ast_event_get_ie_str(event2, type);
-		if (str) {
-			const char *e1str, *e2str;
-			e1str = ast_event_get_ie_str(event1, type);
-			e2str = str;
-
-			if (!strcmp(e1str, e2str)) {
-				return 1;
-			}
+		if (!str1 && !str2) {
+			return 1;
+		} else if (!str1) {
+			return 0;
+		} else if (!str2) {
+			return 0;
 		}
 
-		return 0;
+		/* use special matching for CEL PEER field */
+		if (type == AST_EVENT_IE_CEL_PEER) {
+			return test_cel_peer_strings_match(str1, str2);
+		}
+
+		return !strcmp(str1, str2);
 	}
 	default:
 		break;
@@ -1696,11 +1845,8 @@ static int events_are_equal(struct ast_test *test, struct ast_event *received, s
 	}
 
 	for (res = ast_event_iterator_init(&iterator, received); !res; res = ast_event_iterator_next(&iterator)) {
-		/* XXX ignore sec/usec for now */
 		int ie_type = ast_event_iterator_get_ie_type(&iterator);
-		if (ie_type != AST_EVENT_IE_CEL_EVENT_TIME_USEC
-			&& ie_type != AST_EVENT_IE_CEL_EVENT_TIME
-			&& !match_ie_val(received, expected, ie_type)) {
+		if (!match_ie_val(received, expected, ie_type)) {
 			ast_test_status_update(test, "Failed matching on field %s\n", ast_event_get_ie_type_name(ie_type));
 			return 0;
 		}

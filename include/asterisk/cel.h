@@ -273,6 +273,7 @@ struct ast_channel_snapshot;
  * \param userdefevname Custom name for the call event. (optional)
  * \param extra An event-specific opaque JSON blob to be rendered and placed
  *        in the "CEL_EXTRA" information element of the call event. (optional)
+ * \param peer_str A list of comma-separated peer channel names. (optional)
  *
  * \since 12
  *
@@ -281,7 +282,7 @@ struct ast_channel_snapshot;
  */
 struct ast_event *ast_cel_create_event(struct ast_channel_snapshot *snapshot,
 		enum ast_cel_event_type event_type, const char *userdefevname,
-		struct ast_json *extra);
+		struct ast_json *extra, const char *peer_str);
 
 /*!
  * \brief CEL backend callback
