@@ -1504,4 +1504,60 @@ int ast_sip_add_global_response_header(const char *name, const char *value, int 
 
 int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery);
 
+/*!
+ * \brief Retrieves the value associated with the given key.
+ *
+ * \param ht the hash table/dictionary to search
+ * \param key the key to find
+ *
+ * \retval the value associated with the key, NULL otherwise.
+ */
+void *ast_sip_dict_get(void *ht, const char *key);
+
+/*!
+ * \brief Using the dictionary stored in mod_data array at a given id,
+ *        retrieve the value associated with the given key.
+ *
+ * \param mod_data a module data array
+ * \param id the mod_data array index
+ * \param key the key to find
+ *
+ * \retval the value associated with the key, NULL otherwise.
+ */
+#define ast_sip_mod_data_get(mod_data, id, key)		\
+	ast_sip_dict_get(mod_data[id], key)
+
+/*!
+ * \brief Set the value for the given key.
+ *
+ * Note - if the hash table does not exist one is created first, the key/value
+ * pair is set, and the hash table returned.
+ *
+ * \param pool the pool to allocate memory in
+ * \param ht the hash table/dictionary in which to store the key/value pair
+ * \param key the key to associate a value with
+ * \param val the value to associate with a key
+ *
+ * \retval the given, or newly created, hash table.
+ */
+void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
+		       const char *key, void *val);
+
+/*!
+ * \brief Utilizing a mod_data array for a given id, set the value
+ *        associated with the given key.
+ *
+ * For a given structure's mod_data array set the element indexed by id to
+ * be a dictionary containing the key/val pair.
+ *
+ * \param pool a memory allocation pool
+ * \param mod_data a module data array
+ * \param id the mod_data array index
+ * \param key the key to find
+ * \param val the value to associate with a key
+ */
+#define ast_sip_mod_data_set(pool, mod_data, id, key, val)		\
+	mod_data[id] = ast_sip_dict_set(pool, mod_data[id], key, val)
+
+
 #endif /* _RES_PJSIP_H */

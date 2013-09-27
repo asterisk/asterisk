@@ -1836,6 +1836,29 @@ int ast_sip_thread_is_servant(void)
 	return *servant_id == SIP_SERVANT_ID;
 }
 
+void *ast_sip_dict_get(void *ht, const char *key)
+{
+	unsigned int hval;
+
+	if (!ht) {
+		return NULL;
+	}
+
+	return pj_hash_get(ht, key, PJ_HASH_KEY_STRING, &hval);
+}
+
+void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
+		       const char *key, void *val)
+{
+	if (!ht) {
+		ht = pj_hash_create(pool, 11);
+	}
+
+	pj_hash_set(pool, ht, key, PJ_HASH_KEY_STRING, 0, val);
+
+	return ht;
+}
+
 static void remove_request_headers(pjsip_endpoint *endpt)
 {
 	const pjsip_hdr *request_headers = pjsip_endpt_get_request_headers(endpt);
