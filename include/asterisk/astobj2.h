@@ -896,34 +896,6 @@ enum search_flags {
 	 */
 	OBJ_MULTIPLE = (1 << 2),
 	/*!
-	 * \brief Continue if a match is not found.
-	 *
-	 * \details
-	 * This flag forces a whole container search.  The
-	 * OBJ_SEARCH_OBJECT, OBJ_SEARCH_KEY, and OBJ_SEARCH_PARTIAL_KEY
-	 * flags just specify where to start the search in the
-	 * container.  If the search is not stopped early then the
-	 * search _continues_ until the search wraps around to the
-	 * starting point.
-	 *
-	 * Normal searches start where the search key specifies to start
-	 * and end when the search key indicates that the object is not
-	 * in the container.
-	 *
-	 * For hash containers, this tells the ao2_callback() core to
-	 * keep searching through the rest of the buckets if a match is
-	 * not found in the starting bucket defined by the hash value on
-	 * the argument.
-	 *
-	 * For rbtree containers, if the search key is not in the
-	 * container, the search will start either at the first item
-	 * before the search key or the first item after the search key.
-	 *
-	 * \note The supplied ao2_callback_fn is called for every node
-	 * in the container from the starting point.
-	 */
-	OBJ_CONTINUE = (1 << 3),
-	/*!
 	 * \brief Assume that the ao2_container is already locked.
 	 *
 	 * \note For ao2_containers that have mutexes, no locking will
@@ -1127,6 +1099,8 @@ typedef int (ao2_callback_data_fn)(void *obj, void *arg, void *data, int flags);
  *   OBJ_SEARCH_OBJECT - if set, 'obj', is an object.
  *   OBJ_SEARCH_KEY - if set, 'obj', is a search key item that is not an object.
  *
+ * \note This function must be idempotent.
+ *
  * \return Computed hash value.
  */
 typedef int (ao2_hash_fn)(const void *obj, int flags);
@@ -1140,6 +1114,8 @@ typedef int (ao2_hash_fn)(const void *obj, int flags);
  *   OBJ_SEARCH_OBJECT - if set, 'obj_right', is an object.
  *   OBJ_SEARCH_KEY - if set, 'obj_right', is a search key item that is not an object.
  *   OBJ_SEARCH_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
+ *
+ * \note This function must be idempotent.
  *
  * \retval <0 if obj_left < obj_right
  * \retval =0 if obj_left == obj_right
