@@ -6,7 +6,7 @@
 ;	configuration. If your Asterisk is installed on a public
 ;	IP address connected to the Internet, you will want to learn
 ;	about the various security settings BEFORE you start
-;	Asterisk. 
+;	Asterisk.
 ;
 ;	Especially note the following settings:
 ;		- allowguest (default enabled)
