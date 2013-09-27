@@ -118,8 +118,12 @@ static int native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel
 	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1;
-	struct ast_rtp_instance *instance0 = NULL, *instance1 = NULL, *vinstance0 = NULL;
-	struct ast_rtp_instance *vinstance1 = NULL, *tinstance0 = NULL, *tinstance1 = NULL;
+	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, tinstance0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, tinstance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
 	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
 
@@ -185,7 +189,10 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1 = NULL;
-	struct ast_rtp_instance *instance0 = NULL, *instance1 = NULL, *vinstance0 = NULL, *vinstance1 = NULL;
+	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
 
 	if (c0 == c1) {
 		return;
