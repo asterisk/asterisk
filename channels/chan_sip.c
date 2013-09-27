@@ -18701,9 +18701,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      int sipmethod, const char *uri, enum xmittype reliable,
 					      struct ast_sockaddr *addr, struct sip_peer **authpeer)
 {
-	char from[256] = "", *of, *name, *unused_password, *domain;
+	char from[256], *of, *name, *unused_password, *domain;
 	enum check_auth_result res = AUTH_DONT_KNOW;
-	char calleridname[50];
+	char calleridname[256];
 	char *uri2 = ast_strdupa(uri);
 
 	terminate_uri(uri2);	/* trim extra stuff */
