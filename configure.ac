@@ -1215,6 +1215,11 @@ if test "${PBX_BFD}" = "0"; then
   AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_check_format], [bfd.h], [-ldl -liberty])
 fi
 
+if test "${PBX_BFD}" = "0"; then
+  # openSUSE requires -lz
+  AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_check_format], [bfd.h], [-ldl -liberty -lz])
+fi
+
 if test "x${OSARCH}" = "xlinux-gnu" ; then
   AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
 fi
