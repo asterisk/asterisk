@@ -50,6 +50,46 @@
 			<para>Parameters will be placed into the notify as SIP headers.</para>
 		</description>
 	</manager>
+	<configInfo name="res_pjsip_notify" language="en_US">
+		<synopsis>Module that supports sending NOTIFY requests to endpoints from external sources</synopsis>
+		<configFile name="pjsip_notify.conf">
+			<configObject name="general">
+				<synopsis>Unused, but reserved.</synopsis>
+			</configObject>
+			<configObject name="notify">
+				<synopsis>Configuration of a NOTIFY request.</synopsis>
+				<description>
+					<para>Each key-value pair in a <literal>notify</literal>
+					configuration section defines either a SIP header to send
+					in the request or a line of content in the request message
+					body. A key of <literal>Content</literal> is treated
+					as part of the message body and is appended in sequential
+					order; any other header is treated as part of the SIP
+					request.</para>
+				</description>
+				<configOption name="^.*$">
+					<synopsis>A key/value pair to add to a NOTIFY request.</synopsis>
+					<description>
+						<para>If the key is <literal>Content</literal>,
+						it will be treated as part of the message body. Otherwise,
+						it will be added as a header in the NOTIFY request.</para>
+						<para>The following headers are reserved and cannot be
+						specified:</para>
+						<enumlist>
+							<enum name="Call-ID" />
+							<enum name="Contact" />
+							<enum name="CSeq" />
+							<enum name="To" />
+							<enum name="From" />
+							<enum name="Record-Route" />
+							<enum name="Route" />
+							<enum name="Via" />
+						</enumlist>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
  ***/
 
 #define CONTENT_TYPE_SIZE 64
@@ -59,7 +99,7 @@
  * \internal
  * \brief The configuration file containing NOTIFY payload types to send.
  */
-static const char notify_config[] = "sip_notify.conf";
+static const char notify_config[] = "pjsip_notify.conf";
 
 struct notify_option_item {
 	const char *name;
