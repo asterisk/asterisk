@@ -1138,7 +1138,7 @@ static int ast_rtcp_write(const void *data)
 	}
 
 	if (!res) {
-		/* 
+		/*
 		 * Not being rescheduled.
 		 */
 		ao2_ref(instance, -1);
@@ -2259,6 +2259,13 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 		f = ast_frisolate(&srcupdate);
 		AST_LIST_INSERT_TAIL(&frames, f, frame_list);
+
+		rtp->seedrxseqno = 0;
+		rtp->rxcount = 0;
+		rtp->cycles = 0;
+		rtp->lastrxseqno = 0;
+		rtp->rtcp->expected_prior = 0;
+		rtp->rtcp->received_prior = 0;
 	}
 
 	rtp->rxssrc = ssrc;
@@ -2791,14 +2798,14 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 	payload = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(instance), AST_RTP_CN);
 
 	level = 127 - (level & 0x7f);
-	
+
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload.code << 16) | (rtp->seqno++));
 	rtpheader[1] = htonl(rtp->lastts);
-	rtpheader[2] = htonl(rtp->ssrc); 
+	rtpheader[2] = htonl(rtp->ssrc);
 	data[12] = level;
 
 	res = rtp_sendto(instance, (void *) rtpheader, hdrlen + 1, 0, &remote_address);
