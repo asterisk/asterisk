@@ -1749,8 +1749,12 @@ static enum process_bridge_enter_results dialed_pending_state_process_bridge_ent
 
 static int dialed_pending_state_process_parking_bridge_enter(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
 {
-	/* We can't handle this as we have a Party B - ask for a new one */
-	return 1;
+	if (cdr->party_b.snapshot) {
+		/* We can't handle this as we have a Party B - ask for a new one */
+		return 1;
+	}
+	cdr_object_transition_state(cdr, &parked_state_fn_table);
+	return 0;
 }
 
 static int dialed_pending_state_process_dial_begin(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer)
@@ -2497,6 +2501,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	int unhandled = 1;
 	struct cdr_object *it_cdr;
 
 	/* Anything other than getting parked will be handled by other updates */
@@ -2524,7 +2529,18 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		if (it_cdr->fn_table->process_parked_channel) {
-			it_cdr->fn_table->process_parked_channel(it_cdr, payload);
+			unhandled &= it_cdr->fn_table->process_parked_channel(it_cdr, payload);
+		}
+	}
+
+	if (unhandled) {
+		/* Nothing handled the messgae - we need a new one! */
+		struct cdr_object *new_cdr = cdr_object_create_and_append(cdr);
+		if (new_cdr) {
+			/* As the new CDR is created in the single state, it is guaranteed
+			 * to have a function for the parked call message and will handle
+			 * the message */
+			new_cdr->fn_table->process_parked_channel(new_cdr, payload);
 		}
 	}
 
