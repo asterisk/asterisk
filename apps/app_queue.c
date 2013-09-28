@@ -1870,13 +1870,21 @@ static void queue_multi_channel_manager_event(void *data,
 	RAII_VAR(struct ast_str *, event_string, NULL, ast_free);
 
 	caller = ast_multi_channel_blob_get_channel(obj, "caller");
+	if (caller) {
+		caller_event_string = ast_manager_build_channel_state_string(caller);
+		if (!caller_event_string) {
+			ast_log(AST_LOG_NOTICE, "No caller event string, bailing\n");
+			return;
+		}
+	}
+
 	agent = ast_multi_channel_blob_get_channel(obj, "agent");
-
-	caller_event_string = ast_manager_build_channel_state_string(caller);
-	agent_event_string = ast_manager_build_channel_state_string_prefix(agent, "Dest");
-
-	if (!caller_event_string || !agent_event_string) {
-		return;
+	if (agent) {
+		agent_event_string = ast_manager_build_channel_state_string_prefix(agent, "Dest");
+		if (!agent_event_string) {
+			ast_log(AST_LOG_NOTICE, "No agent event string, bailing\n");
+			return;
+		}
 	}
 
 	event_string = ast_manager_str_from_json_object(ast_multi_channel_blob_get_json(obj), NULL);
@@ -1888,8 +1896,8 @@ static void queue_multi_channel_manager_event(void *data,
 		"%s"
 		"%s"
 		"%s",
-		ast_str_buffer(caller_event_string),
-		ast_str_buffer(agent_event_string),
+		caller_event_string ? ast_str_buffer(caller_event_string) : "",
+		agent_event_string ? ast_str_buffer(agent_event_string) : "",
 		ast_str_buffer(event_string));
 }
 
@@ -1925,7 +1933,9 @@ static void queue_publish_multi_channel_snapshot_blob(struct stasis_topic *topic
 	}
 
 	ast_multi_channel_blob_add_channel(payload, "caller", caller_snapshot);
-	ast_multi_channel_blob_add_channel(payload, "agent", agent_snapshot);
+	if (agent_snapshot) {
+		ast_multi_channel_blob_add_channel(payload, "agent", agent_snapshot);
+	}
 
 	msg = stasis_message_create(type, payload);
 	if (!msg) {
@@ -5150,9 +5160,6 @@ static void send_agent_complete(const char *queuename, struct ast_channel_snapsh
 	const char *reason = NULL;	/* silence dumb compilers */
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
-	ast_assert(peer != NULL);
-	ast_assert(caller != NULL);
-
 	switch (rsn) {
 	case CALLER:
 		reason = "caller";
@@ -5729,7 +5736,7 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 	ast_debug(3, "Detected hangup of queue %s channel %s\n", reason == CALLER ? "caller" : "member",
 			channel_blob->snapshot->name);
 
-	ast_queue_log(queue_data->queue->name, caller_snapshot->uniqueid, queue_data->member->membername,
+	ast_queue_log(queue_data->queue->name, queue_data->caller_uniqueid, queue_data->member->membername,
 			reason == CALLER ? "COMPLETECALLER" : "COMPLETEAGENT", "%ld|%ld|%d",
 		(long) (queue_data->starttime - queue_data->holdstart),
 		(long) (time(NULL) - queue_data->starttime), queue_data->caller_pos);
