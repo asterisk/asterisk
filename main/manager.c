@@ -5934,6 +5934,10 @@ static void append_channel_vars(struct ast_str **pbuf, struct ast_channel *chan)
 
 	vars = ast_channel_get_manager_vars(chan);
 
+	if (!vars) {
+		return;
+	}
+
 	AST_LIST_TRAVERSE(vars, var, entries) {
 		ast_str_append(pbuf, 0, "ChanVariable(%s): %s=%s\r\n", ast_channel_name(chan), var->name, var->value);
 	}
