@@ -147,6 +147,7 @@
 ;client_uri=sip:1234567890@sip.example.com
 ;contact_user=1234567890
 ;retry_interval=60
+;forbidden_retry_interval=600
 ;expiration=3600
 
 ;[mytrunk_auth]

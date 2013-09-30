@@ -854,6 +854,10 @@ chan_sip
  * Added 'ignore_requested_pref'. When enabled, this will use the preferred
    codecs configured for a peer instead of the requested codec.
 
+ * The option "register_retry_403" has been added to chan_sip to work around
+   servers that are known to erroneously send 403 in response to valid
+   REGISTER requests and allows Asterisk to continue attepmting to connect.
+
 chan_skinny
 ------------------
  * Added the 'immeddialkey' parameter. If set, when the user presses the
