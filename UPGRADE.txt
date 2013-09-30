@@ -26,6 +26,9 @@ From 11.5 to 11.6:
   returning RESULT_SUCCESS even if there was an error.
 * The libuuid development library is now optional for res_rtp_asterisk. If the
   library is not present when building ICE and TURN support will not be present.
+* The option "register_retry_403" has been added to chan_sip to work around
+  servers that are known to erroneously send 403 in response to valid
+  REGISTER requests and allows Asterisk to continue attepmting to connect.
 
 From 11.4 to 11.5:
 * The default settings for chan_sip are now overriden properly by the general
