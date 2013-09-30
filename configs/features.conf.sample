@@ -1,101 +1,10 @@
 ;
-; Sample Call Features (parking, transfer, etc) configuration
+; Sample Call Features (transfer, monitor/mixmonitor, etc) configuration
 ;
 
+; Asterisk 12 Note - All parking lot configuration is now done in res_parking.conf
+
 [general]
-parkext => 700                  ; What extension to dial to park.  Set per parking lot.
-;parkext_exclusive=yes          ; Specify that the parkext created for this parking lot
-                                ; will only access this parking lot. (default is no)
-parkpos => 701-720              ; What extensions to park calls on. (defafult parking lot)
-                                ; These need to be numeric, as Asterisk starts from the start position
-                                ; and increments with one for the next parked call.
-                                ; Set per parking lot.
-context => parkedcalls          ; Which context parked calls are in (default parking lot)
-                                ; Set per parking lot.
-;parkinghints = no              ; Add hints priorities automatically for parking slots (default is no).
-                                ; Set per parking lot.
-;parkingtime => 45              ; Number of seconds a call can be parked before returning.
-                                ; Set per parking lot. (default is 45 seconds)
-
-;comebacktoorigin = yes         ; Setting this option configures the behavior of call parking when the
-                                ; parked call times out (See the parkingtime option).  The default value is 'yes'.
-                                ; Set per parking lot.
-                                ;
-                                ; 'yes' - When the parked call times out, attempt to send the call back to the peer
-                                ;         that parked this call. This is done by saving off the name of the channel
-                                ;         that parked the call. The call will return to the context 'park-dial' and
-                                ;         an extension created based on the name of the channel that originally parked
-                                ;         the call.  This extension will be created automatically to do a Dial() to the
-                                ;         device that originally parked the call for comebacktodialtime seconds. If the
-                                ;         call is not answered, the call will proceed to the next priority (usually none
-                                ;         unless you deliberately set up a catch-all second priority in the park-call
-                                ;         context) in the dialplan for extension matching the peer name (same as how
-                                ;         peer names are flattened into extensions when comebacktoorigin is 'no').
-                                ;
-                                ; 'no'  - This option is useful for performing custom dialplan functionality prior to
-                                ;         sending the call back to the extension that initially parked the call, or to
-                                ;         an entirely different destination.
-                                ;
-                                ;         When the parked call times out, send it back to the dialplan.  The location
-                                ;         will be defined by the comebackcontext option. The extension will be built from
-                                ;         the saved channel name that parked the call. For example, if a SIP peer named
-                                ;         '0004F2040001' parked this call, the extension will be 'SIP_0004F2040001'.
-                                ;         (Note that an underscore is used here because the '/' character has a special
-                                ;         meaning in extension names for CallerID matching.)  If this extension does not
-                                ;         exist, the call will be sent to the 's' extension, instead.  Finally, if the 's'
-                                ;         extension of 'parkedcallstimeout' does not exist, the call will fall back to the
-                                ;         's' extension of the 'default' context.
-                                ;
-                                ;         Additionally, in this example an extension of 'SIP_0004F2040001' will be
-                                ;         created in the 'park-dial' context.  This extension will be set up to do a
-                                ;         Dial() to 'SIP/0004F2040001'.
-                                ;
-                                ;         During the timeout procedure, the following variables are set
-                                ;         PARKINGSLOT - extension that the call was parked in prior to timing out
-                                ;         PARKEDLOT - name of the lot that the call was parked in prior to timing out
-                                ;         PARKER - name of the device that parked the call
-
-;comebackdialtime = 30          ; When a parked call times out, this is the number of seconds to dial the device that
-                                ; originally parked the call.  It is also available as a channel variable COMEBACKDIALTIME
-                                ; after a parked call has timed out.
-                                ; The default value is 30 seconds.
-                                ; Set per parking lot.
-
-;comebackcontext = parkedcallstimeout
-                                ; The context a timed out call will return to if comebcktoorigin=no.
-                                ; The default value is 'parkedcallstimeout'.
-                                ; Set per parking lot.
-
-;courtesytone = beep            ; Sound file to play to when someone picks up a parked call
-                                ; and also when the Touch Monitor is activated/deactivated.
-                                ; Default is no tone.
-;parkedplay = caller            ; Who to play courtesytone to when picking up a parked call.
-                                ; One of: parked, caller, both  (default is caller)
-                                ; Operates on all parking lots.
-;parkedcalltransfers = caller   ; Enables or disables DTMF based transfers when picking up a parked call.
-                                ; one of: callee, caller, both, no (default is no)
-                                ; Set per parking lot.
-;parkedcallreparking = caller   ; Enables or disables DTMF based parking when picking up a parked call.
-                                ; one of: callee, caller, both, no (default is no)
-                                ; Set per parking lot.
-;parkedcallhangup = caller      ; Enables or disables DTMF based hangups when picking up a parked call.
-                                ; one of: callee, caller, both, no (default is no)
-                                ; Set per parking lot.
-;parkedcallrecording = caller   ; Enables or disables DTMF based one-touch recording when picking up a parked call.
-                                ; one of: callee, caller, both, no (default is no)
-                                ; Set per parking lot.
-;parkeddynamic = yes            ; Enables dynamically created parkinglots. (default is no)
-                                ; Operates on all parking lots.
-;adsipark = yes                 ; if you want ADSI parking announcements
-                                ; Operates on all parking lots.
-;findslot => next               ; Continue to the 'next' free parking space.
-                                ; Defaults to 'first' available
-                                ; Set per parking lot.
-;parkedmusicclass=default       ; This is the MOH class to use for the parked channel
-                                ; as long as the class is not set on the channel directly
-                                ; using Set(CHANNEL(musicclass)=whatever) in the dialplan
-                                ; Set per parking lot.
-
 ;transferdigittimeout => 3      ; Number of seconds to wait between digits when transferring a call
                                 ; (default is 3 seconds)
 ;xfersound = beep               ; to indicate an attended transfer is complete
@@ -116,29 +25,10 @@ context => parkedcalls          ; Which context parked calls are in (default par
 ;atxfercallbackretries = 2      ; Number of times to attempt to send the call back to the transferer.
                                 ; By default, this is 2.
 
-;
-;*** Define another parking lot
-;
-; You can set parkinglot with the CHANNEL dialplan function
-; or by setting 'parkinglot' directly in the channel configuration file.
-;
-; (Note: Leading '0's and any non-numerical characters on parkpos extensions
-;  will be ignored.  Parkext on the other hand can be any string.)
-;
-;[parkinglot_edvina]
-;context => edvinapark
-;parkext => 799
-;parkpos => 800-850
-;findslot => next
-;comebacktoorigin = no
-;comebackdialtime = 90
-;comebackcontext = edvinapark-timeout ; Make sure you create the context!
-;parkedmusicclass = edvina
 
 ; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
 ; They can not be used while the remote party is ringing or in progress. If you require this feature you can use
 ; chan_local in combination with Answer to accomplish it.
-
 
 [featuremap]
 ;blindxfer => #1                ; Blind transfer  (default is #) -- Make sure to set the T and/or t option in the Dial() or Queue() app call!
