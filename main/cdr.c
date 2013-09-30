@@ -3876,9 +3876,6 @@ static int process_config(int reload)
 		return 1;
 	}
 
-	if (reload) {
-		manager_event(EVENT_FLAG_SYSTEM, "Reload", "Module: CDR\r\nMessage: CDR subsystem reload requested\r\n");
-	}
 	return 0;
 }
 
