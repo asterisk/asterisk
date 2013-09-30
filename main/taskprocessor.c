@@ -431,10 +431,6 @@ static void tps_taskprocessor_destroy(void *tps)
 	}
 	ast_free((char *) t->name);
 	if (t->listener) {
-		/* This code should not be reached since the listener
-		 * should have been destroyed before the taskprocessor could
-		 * be destroyed
-		 */
 		ao2_ref(t->listener, -1);
 		t->listener = NULL;
 	}

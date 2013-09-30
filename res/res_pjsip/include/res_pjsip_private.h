@@ -9,6 +9,7 @@
 #define RES_PJSIP_PRIVATE_H_
 
 struct ao2_container;
+struct ast_threadpool_options;
 
 /*!
  * \brief Initialize the configuration for res_pjsip

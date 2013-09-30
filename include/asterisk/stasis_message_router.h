@@ -100,6 +100,9 @@ int stasis_message_router_is_done(struct stasis_message_router *router);
  * updates for types not handled by routes added with
  * stasis_message_router_add_cache_update().
  *
+ * Adding multiple routes for the same message type results in undefined
+ * behavior.
+ *
  * \param router Router to add the route to.
  * \param message_type Type of message to route.
  * \param callback Callback to forard messages of \a message_type to.
@@ -121,6 +124,9 @@ int stasis_message_router_add(struct stasis_message_router *router,
  * These are distinct from regular routes, so one could have both a regular
  * route and a cache route for the same \a message_type.
  *
+ * Adding multiple routes for the same message type results in undefined
+ * behavior.
+ *
  * \param router Router to add the route to.
  * \param message_type Subtype of cache update to route.
  * \param callback Callback to forard messages of \a message_type to.
@@ -138,6 +144,11 @@ int stasis_message_router_add_cache_update(struct stasis_message_router *router,
 /*!
  * \brief Remove a route from a message router.
  *
+ * If a route is removed from another thread, there is no notification that
+ * all messages using this route have been processed. This typically means that
+ * the associated \c data pointer for this route must be kept until the
+ * route itself is disposed of.
+ *
  * \param router Router to remove the route from.
  * \param message_type Type of message to route.
  *
@@ -148,6 +159,11 @@ void stasis_message_router_remove(struct stasis_message_router *router,
 
 /*!
  * \brief Remove a cache route from a message router.
+ *
+ * If a route is removed from another thread, there is no notification that
+ * all messages using this route have been processed. This typically means that
+ * the associated \c data pointer for this route must be kept until the
+ * route itself is disposed of.
  *
  * \param router Router to remove the route from.
  * \param message_type Type of message to route.

@@ -467,23 +467,24 @@ struct dispatch {
 	struct stasis_subscription *sub;
 };
 
-static void dispatch_dtor(void *data)
+static void dispatch_dtor(struct dispatch *dispatch)
 {
-	struct dispatch *dispatch = data;
 	ao2_cleanup(dispatch->topic);
 	ao2_cleanup(dispatch->message);
 	ao2_cleanup(dispatch->sub);
+
+	ast_free(dispatch);
 }
 
 static struct dispatch *dispatch_create(struct stasis_topic *topic, struct stasis_message *message, struct stasis_subscription *sub)
 {
-	RAII_VAR(struct dispatch *, dispatch, NULL, ao2_cleanup);
+	struct dispatch *dispatch;
 
 	ast_assert(topic != NULL);
 	ast_assert(message != NULL);
 	ast_assert(sub != NULL);
 
-	dispatch = ao2_alloc(sizeof(*dispatch), dispatch_dtor);
+	dispatch = ast_malloc(sizeof(*dispatch));
 	if (!dispatch) {
 		return NULL;
 	}
@@ -497,7 +498,6 @@ static struct dispatch *dispatch_create(struct stasis_topic *topic, struct stasi
 	dispatch->sub = sub;
 	ao2_ref(sub, +1);
 
-	ao2_ref(dispatch, +1);
 	return dispatch;
 }
 
@@ -508,9 +508,10 @@ static struct dispatch *dispatch_create(struct stasis_topic *topic, struct stasi
  */
 static int dispatch_exec(void *data)
 {
-	RAII_VAR(struct dispatch *, dispatch, data, ao2_cleanup);
+	struct dispatch *dispatch = data;
 
 	subscription_invoke(dispatch->sub, dispatch->topic, dispatch->message);
+	dispatch_dtor(dispatch);
 
 	return 0;
 }
@@ -534,20 +535,19 @@ void stasis_forward_message(struct stasis_topic *_topic, struct stasis_topic *pu
 		ast_assert(sub != NULL);
 
 		if (sub->mailbox) {
-			RAII_VAR(struct dispatch *, dispatch, NULL, ao2_cleanup);
+			struct dispatch *dispatch;
 
 			dispatch = dispatch_create(publisher_topic, message, sub);
 			if (!dispatch) {
-				ast_log(LOG_DEBUG, "Dropping dispatch\n");
+				ast_log(LOG_ERROR, "Dropping dispatch\n");
 				break;
 			}
 
-			if (ast_taskprocessor_push(sub->mailbox, dispatch_exec, dispatch) == 0) {
-				/* Ownership transferred to mailbox.
-				 * Don't increment ref, b/c the task processor
-				 * may have already gotten rid of the object.
+			if (ast_taskprocessor_push(sub->mailbox, dispatch_exec, dispatch) != 0) {
+				/* Push failed; just delete the dispatch.
 				 */
-				dispatch = NULL;
+				ast_log(LOG_ERROR, "Dropping dispatch\n");
+				dispatch_dtor(dispatch);
 			}
 		} else {
 			/* Dispatch directly */

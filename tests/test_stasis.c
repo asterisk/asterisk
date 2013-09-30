@@ -867,52 +867,6 @@ AST_TEST_DEFINE(cache_dump)
 	return AST_TEST_PASS;
 }
 
-AST_TEST_DEFINE(route_conflicts)
-{
-	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message_router *, uut, NULL, stasis_message_router_unsubscribe_and_join);
-	RAII_VAR(struct stasis_message_type *, test_message_type, NULL, ao2_cleanup);
-	RAII_VAR(struct consumer *, consumer1, NULL, ao2_cleanup);
-	RAII_VAR(struct consumer *, consumer2, NULL, ao2_cleanup);
-	int ret;
-
-	switch (cmd) {
-	case TEST_INIT:
-		info->name = __func__;
-		info->category = test_category;
-		info->summary =
-			"Multiple routes to the same message_type should fail";
-		info->description =
-			"Multiple routes to the same message_type should fail";
-		return AST_TEST_NOT_RUN;
-	case TEST_EXECUTE:
-		break;
-	}
-
-	topic = stasis_topic_create("TestTopic");
-	ast_test_validate(test, NULL != topic);
-
-	consumer1 = consumer_create(1);
-	ast_test_validate(test, NULL != consumer1);
-	consumer2 = consumer_create(1);
-	ast_test_validate(test, NULL != consumer2);
-
-	test_message_type = stasis_message_type_create("TestMessage", NULL);
-	ast_test_validate(test, NULL != test_message_type);
-
-	uut = stasis_message_router_create(topic);
-	ast_test_validate(test, NULL != uut);
-
-	ret = stasis_message_router_add(
-		uut, test_message_type, consumer_exec, consumer1);
-	ast_test_validate(test, 0 == ret);
-	ret = stasis_message_router_add(
-		uut, test_message_type, consumer_exec, consumer2);
-	ast_test_validate(test, 0 != ret);
-
-	return AST_TEST_PASS;
-}
-
 AST_TEST_DEFINE(router)
 {
 	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
@@ -1373,7 +1327,6 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(cache_filter);
 	AST_TEST_UNREGISTER(cache);
 	AST_TEST_UNREGISTER(cache_dump);
-	AST_TEST_UNREGISTER(route_conflicts);
 	AST_TEST_UNREGISTER(router);
 	AST_TEST_UNREGISTER(router_cache_updates);
 	AST_TEST_UNREGISTER(interleaving);
@@ -1397,7 +1350,6 @@ static int load_module(void)
 	AST_TEST_REGISTER(cache_filter);
 	AST_TEST_REGISTER(cache);
 	AST_TEST_REGISTER(cache_dump);
-	AST_TEST_REGISTER(route_conflicts);
 	AST_TEST_REGISTER(router);
 	AST_TEST_REGISTER(router_cache_updates);
 	AST_TEST_REGISTER(interleaving);

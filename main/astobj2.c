@@ -478,38 +478,23 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 	ast_atomic_fetchadd_int(&ao2.total_objects, -1);
 #endif
 
+	/* In case someone uses an object after it's been freed */
+	obj->priv_data.magic = 0;
+
 	switch (obj->priv_data.options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
 		obj_mutex = INTERNAL_OBJ_MUTEX(user_data);
 		ast_mutex_destroy(&obj_mutex->mutex.lock);
 
-		/*
-		 * For safety, zero-out the astobj2_lock header and also the
-		 * first word of the user-data, which we make sure is always
-		 * allocated.
-		 */
-		memset(obj_mutex, '\0', sizeof(*obj_mutex) + sizeof(void *) );
 		ast_free(obj_mutex);
 		break;
 	case AO2_ALLOC_OPT_LOCK_RWLOCK:
 		obj_rwlock = INTERNAL_OBJ_RWLOCK(user_data);
 		ast_rwlock_destroy(&obj_rwlock->rwlock.lock);
 
-		/*
-		 * For safety, zero-out the astobj2_rwlock header and also the
-		 * first word of the user-data, which we make sure is always
-		 * allocated.
-		 */
-		memset(obj_rwlock, '\0', sizeof(*obj_rwlock) + sizeof(void *) );
 		ast_free(obj_rwlock);
 		break;
 	case AO2_ALLOC_OPT_LOCK_NOLOCK:
-		/*
-		 * For safety, zero-out the astobj2 header and also the first
-		 * word of the user-data, which we make sure is always
-		 * allocated.
-		 */
-		memset(obj, '\0', sizeof(*obj) + sizeof(void *) );
 		ast_free(obj);
 		break;
 	default:
@@ -574,14 +559,6 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	struct astobj2 *obj;
 	struct astobj2_lock *obj_mutex;
 	struct astobj2_rwlock *obj_rwlock;
-
-	if (data_size < sizeof(void *)) {
-		/*
-		 * We always alloc at least the size of a void *,
-		 * for debugging purposes.
-		 */
-		data_size = sizeof(void *);
-	}
 
 	switch (options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
