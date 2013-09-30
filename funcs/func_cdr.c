@@ -349,12 +349,23 @@ static int cdr_prop_write(struct ast_channel *chan, const char *cmd, char *parse
 {
 	enum ast_cdr_options option;
 
-	if (!strcasecmp("party_a", cmd)) {
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(variable);
+		AST_APP_ARG(options);
+	);
+
+	if (ast_strlen_zero(parse) || !value || !chan) {
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!strcasecmp("party_a", args.variable)) {
 		option = AST_CDR_FLAG_PARTY_A;
-	} else if (!strcasecmp("disable", cmd)) {
+	} else if (!strcasecmp("disable", args.variable)) {
 		option = AST_CDR_FLAG_DISABLE_ALL;
 	} else {
-		ast_log(AST_LOG_WARNING, "Unknown option %s used with CDR_PROP\n", cmd);
+		ast_log(AST_LOG_WARNING, "Unknown option %s used with CDR_PROP\n", args.variable);
 		return 0;
 	}
 
