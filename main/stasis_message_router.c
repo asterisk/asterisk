@@ -184,14 +184,13 @@ static int find_route(
 
 static void router_dispatch(void *data,
 			    struct stasis_subscription *sub,
-			    struct stasis_topic *topic,
 			    struct stasis_message *message)
 {
 	struct stasis_message_router *router = data;
 	struct stasis_message_route route;
 
 	if (find_route(router, message, &route) == 0) {
-		route.callback(route.data, sub, topic, message);
+		route.callback(route.data, sub, message);
 	}
 
 	if (stasis_subscription_final_message(sub, message)) {

@@ -143,7 +143,7 @@ static int refer_progress_notify(void *data)
 }
 
 static void refer_progress_bridge(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct refer_progress *progress = data;
 	struct ast_bridge_blob *enter_blob;

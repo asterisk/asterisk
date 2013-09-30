@@ -1151,7 +1151,7 @@ static const struct {
 	{{ "restart", "gracefully", NULL }},
 };
 
-static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message);
 
 static void acl_change_stasis_subscribe(void)
 {
@@ -1427,7 +1427,6 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
 }
 
 static void manager_default_msg_cb(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	RAII_VAR(struct ast_manager_event_blob *, ev, NULL, ao2_cleanup);
@@ -1444,7 +1443,6 @@ static void manager_default_msg_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void manager_generic_msg_cb(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	struct ast_json_payload *payload = stasis_message_data(message);
@@ -7640,7 +7638,6 @@ static void load_channelvars(struct ast_variable *var)
 #ifdef TEST_FRAMEWORK
 
 static void test_suite_event_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic,
 		struct stasis_message *message)
 {
 	struct ast_test_suite_message_payload *payload;
@@ -8344,7 +8341,7 @@ static int __init_manager(int reload, int by_external_config)
 }
 
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	if (stasis_message_type(message) != ast_named_acl_change_type()) {
 		return;

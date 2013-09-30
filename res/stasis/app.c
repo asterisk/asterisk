@@ -220,7 +220,7 @@ static void app_dtor(void *obj)
 }
 
 static void sub_default_handler(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct app *app = data;
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
@@ -363,7 +363,6 @@ static channel_snapshot_monitor channel_monitors[] = {
 
 static void sub_channel_update_handler(void *data,
                 struct stasis_subscription *sub,
-                struct stasis_topic *topic,
                 struct stasis_message *message)
 {
 	struct app *app = data;
@@ -411,7 +410,6 @@ static struct ast_json *simple_bridge_event(
 
 static void sub_bridge_update_handler(void *data,
                 struct stasis_subscription *sub,
-                struct stasis_topic *topic,
                 struct stasis_message *message)
 {
         RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
@@ -447,7 +445,7 @@ static void sub_bridge_update_handler(void *data,
 }
 
 static void bridge_merge_handler(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct app *app = data;
 	struct ast_bridge_merge_message *merge;
@@ -476,7 +474,7 @@ static void bridge_merge_handler(void *data, struct stasis_subscription *sub,
 	}
 
 	/* Forward the message to the app */
-	stasis_forward_message(app->topic, topic, message);
+	stasis_publish(app->topic, message);
 }
 
 struct app *app_create(const char *name, stasis_app_cb handler, void *data)

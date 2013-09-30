@@ -1270,8 +1270,8 @@ static void build_rand_pad(unsigned char *buf, ssize_t len);
 static int get_unused_callno(enum callno_type type, int validated, callno_entry *entry);
 static int replace_callno(const void *obj);
 static void sched_delay_remove(struct sockaddr_in *sin, callno_entry entry);
-static void network_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
-static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
+static void network_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message);
+static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message);
 
 static struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
@@ -1331,7 +1331,7 @@ static void iax2_lock_owner(int callno)
 	}
 }
 
-static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	/* The MWI subscriptions exist just so the core knows we care about those
 	 * mailboxes.  However, we just grab the events out of the cache when it
@@ -1378,7 +1378,7 @@ static int network_change_sched_cb(const void *data)
 }
 
 static void network_change_stasis_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	/* This callback is only concerned with network change messages from the system topic. */
 	if (stasis_message_type(message) != ast_network_change_type()) {
@@ -1392,7 +1392,7 @@ static void network_change_stasis_cb(void *data, struct stasis_subscription *sub
 }
 
 static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	if (stasis_message_type(message) != ast_named_acl_change_type()) {
 		return;

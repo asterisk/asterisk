@@ -12606,7 +12606,7 @@ static void mwi_sub_event_cb(struct stasis_subscription_change *change)
 	}
 }
 
-static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct stasis_subscription_change *change;
 	/* Only looking for subscription change notices here */
@@ -12629,7 +12629,7 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 static int dump_cache(void *obj, void *arg, int flags)
 {
 	struct stasis_message *msg = obj;
-	mwi_event_cb(NULL, NULL, NULL, msg);
+	mwi_event_cb(NULL, NULL, msg);
 	return 0;
 }
 

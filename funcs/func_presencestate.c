@@ -649,7 +649,7 @@ struct test_cb_data {
 	sem_t sem;
 };
 
-static void test_cb(void *userdata, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void test_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct test_cb_data *cb_data = userdata;
 	if (stasis_message_type(msg) != ast_presence_state_message_type()) {

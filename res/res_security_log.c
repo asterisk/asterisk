@@ -117,7 +117,7 @@ static void security_event_stasis_cb(struct ast_json *json)
 }
 
 static void security_stasis_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_json_payload *payload = stasis_message_data(message);
 

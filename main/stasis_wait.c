@@ -55,7 +55,7 @@ static void caching_guarantee_dtor(void *obj)
 }
 
 static void guarantee_handler(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	/* Wait for our particular message */
 	if (data == message) {

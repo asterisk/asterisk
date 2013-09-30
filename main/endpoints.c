@@ -152,7 +152,7 @@ int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 
 /*! \brief Handler for channel snapshot cache clears */
 static void endpoint_cache_clear(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct ast_endpoint *endpoint = data;
@@ -174,7 +174,7 @@ static void endpoint_cache_clear(void *data,
 }
 
 static void endpoint_default(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct stasis_endpoint *endpoint = data;

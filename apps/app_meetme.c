@@ -1139,7 +1139,7 @@ STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_talking_type);
 STASIS_MESSAGE_TYPE_DEFN_LOCAL(meetme_talk_request_type);
 
 static void meetme_stasis_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message);
+	struct stasis_message *message);
 
 static void meetme_stasis_cleanup(void)
 {
@@ -1226,7 +1226,7 @@ static int meetme_stasis_init(void)
 }
 
 static void meetme_stasis_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_channel_blob *channel_blob = stasis_message_data(message);
 	struct stasis_message_type *message_type;

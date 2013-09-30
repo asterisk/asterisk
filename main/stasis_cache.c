@@ -339,8 +339,6 @@ struct stasis_message *stasis_cache_clear_create(struct stasis_message *id_messa
 static void stasis_cache_update_dtor(void *obj)
 {
 	struct stasis_cache_update *update = obj;
-	ao2_cleanup(update->topic);
-	update->topic = NULL;
 	ao2_cleanup(update->old_snapshot);
 	update->old_snapshot = NULL;
 	ao2_cleanup(update->new_snapshot);
@@ -349,12 +347,11 @@ static void stasis_cache_update_dtor(void *obj)
 	update->type = NULL;
 }
 
-static struct stasis_message *update_create(struct stasis_topic *topic, struct stasis_message *old_snapshot, struct stasis_message *new_snapshot)
+static struct stasis_message *update_create(struct stasis_message *old_snapshot, struct stasis_message *new_snapshot)
 {
 	RAII_VAR(struct stasis_cache_update *, update, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
-	ast_assert(topic != NULL);
 	ast_assert(old_snapshot != NULL || new_snapshot != NULL);
 
 	update = ao2_alloc_options(sizeof(*update), stasis_cache_update_dtor,
@@ -363,8 +360,6 @@ static struct stasis_message *update_create(struct stasis_topic *topic, struct s
 		return NULL;
 	}
 
-	ao2_ref(topic, +1);
-	update->topic = topic;
 	if (old_snapshot) {
 		ao2_ref(old_snapshot, +1);
 		update->old_snapshot = old_snapshot;
@@ -390,7 +385,7 @@ static struct stasis_message *update_create(struct stasis_topic *topic, struct s
 }
 
 static void caching_topic_exec(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	RAII_VAR(struct stasis_caching_topic *, caching_topic_needs_unref, NULL, ao2_cleanup);
 	struct stasis_caching_topic *caching_topic = data;
@@ -418,7 +413,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 		if (clear_id) {
 			old_snapshot = cache_put(caching_topic->cache, clear_type, clear_id, NULL);
 			if (old_snapshot) {
-				update = update_create(topic, old_snapshot, NULL);
+				update = update_create(old_snapshot, NULL);
 				stasis_publish(caching_topic->topic, update);
 				return;
 			}
@@ -440,7 +435,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 
 		old_snapshot = cache_put(caching_topic->cache, stasis_message_type(message), id, message);
 
-		update = update_create(topic, old_snapshot, message);
+		update = update_create(old_snapshot, message);
 		if (update == NULL) {
 			return;
 		}

@@ -224,63 +224,54 @@ static void confbridge_publish_manager_event(
 }
 
 static void confbridge_start_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeStart", NULL);
 }
 
 static void confbridge_end_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeEnd", NULL);
 }
 
 static void confbridge_leave_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeLeave", NULL);
 }
 
 static void confbridge_join_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeJoin", NULL);
 }
 
 static void confbridge_start_record_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeRecord", NULL);
 }
 
 static void confbridge_stop_record_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeStopRecord", NULL);
 }
 
 static void confbridge_mute_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeMute", NULL);
 }
 
 static void confbridge_unmute_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	confbridge_publish_manager_event(message, "ConfbridgeUnmute", NULL);
 }
 
 static void confbridge_talking_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, extra_text, NULL, ast_free);

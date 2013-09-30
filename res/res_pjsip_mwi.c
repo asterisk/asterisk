@@ -118,7 +118,7 @@ struct mwi_subscription {
 };
 
 static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg);
+		struct stasis_message *msg);
 
 static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char *mailbox, struct mwi_subscription *mwi_sub)
 {
@@ -603,7 +603,7 @@ static int serialized_cleanup(void *userdata)
 }
 
 static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct mwi_subscription *mwi_sub = userdata;
 

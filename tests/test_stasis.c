@@ -183,7 +183,7 @@ static struct consumer *consumer_create(int ignore_subscriptions) {
 	return consumer;
 }
 
-static void consumer_exec(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void consumer_exec(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	struct consumer *consumer = data;
 	RAII_VAR(struct consumer *, consumer_needs_cleanup, NULL, ao2_cleanup);
@@ -711,7 +711,6 @@ AST_TEST_DEFINE(cache)
 	/* Check for new snapshot messages */
 	ast_test_validate(test, stasis_cache_update_type() == stasis_message_type(consumer->messages_rxed[0]));
 	actual_update = stasis_message_data(consumer->messages_rxed[0]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
 	ast_test_validate(test, test_message1_1 == actual_update->new_snapshot);
 	ast_test_validate(test, test_message1_1 == stasis_cache_get(cache, cache_type, "1"));
@@ -720,7 +719,6 @@ AST_TEST_DEFINE(cache)
 
 	ast_test_validate(test, stasis_cache_update_type() == stasis_message_type(consumer->messages_rxed[1]));
 	actual_update = stasis_message_data(consumer->messages_rxed[1]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
 	ast_test_validate(test, test_message2_1 == actual_update->new_snapshot);
 	ast_test_validate(test, test_message2_1 == stasis_cache_get(cache, cache_type, "2"));
@@ -736,7 +734,6 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, 3 == actual_len);
 
 	actual_update = stasis_message_data(consumer->messages_rxed[2]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, test_message2_1 == actual_update->old_snapshot);
 	ast_test_validate(test, test_message2_2 == actual_update->new_snapshot);
 	ast_test_validate(test, test_message2_2 == stasis_cache_get(cache, cache_type, "2"));
@@ -752,7 +749,6 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, 4 == actual_len);
 
 	actual_update = stasis_message_data(consumer->messages_rxed[3]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, test_message1_1 == actual_update->old_snapshot);
 	ast_test_validate(test, NULL == actual_update->new_snapshot);
 	ast_test_validate(test, NULL == stasis_cache_get(cache, cache_type, "1"));
@@ -1226,7 +1222,7 @@ AST_TEST_DEFINE(to_ami)
 }
 
 static void noop(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	/* no-op */
 }

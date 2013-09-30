@@ -348,18 +348,6 @@ const char *stasis_topic_name(const struct stasis_topic *topic);
 void stasis_publish(struct stasis_topic *topic, struct stasis_message *message);
 
 /*!
- * \brief Publish a message from a specified topic to all the subscribers of a
- * possibly different topic.
- * \param topic Topic to publish message to.
- * \param topic Original topic message was from.
- * \param message Message
- * \since 12
- */
-void stasis_forward_message(struct stasis_topic *topic,
-			    struct stasis_topic *publisher_topic,
-			    struct stasis_message *message);
-
-/*!
  * \brief Wait for all pending messages on a given topic to be processed.
  * \param topic Topic to await pending messages on.
  * \return 0 on success.
@@ -381,11 +369,10 @@ struct stasis_subscription;
 /*!
  * \brief Callback function type for Stasis subscriptions.
  * \param data Data field provided with subscription.
- * \param topic Topic to which the message was published.
  * \param message Published message.
  * \since 12
  */
-typedef void (*stasis_subscription_cb)(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message);
+typedef void (*stasis_subscription_cb)(void *data, struct stasis_subscription *sub, struct stasis_message *message);
 
 /*!
  * \brief Create a subscription.
@@ -583,8 +570,6 @@ struct stasis_message_type *stasis_cache_update_type(void);
  * \since 12
  */
 struct stasis_cache_update {
-	/*! \brief Topic that published \c new_snapshot */
-	struct stasis_topic *topic;
 	/*! \brief Convenience reference to snapshot type */
 	struct stasis_message_type *type;
 	/*! \brief Old value from the cache */

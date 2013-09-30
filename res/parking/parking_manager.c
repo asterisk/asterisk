@@ -545,7 +545,7 @@ static void parked_call_message_response(struct ast_parked_call_payload *parked_
 		);
 }
 
-static void parking_event_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void parking_event_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	if (stasis_message_type(message) == ast_parked_call_type()) {
 		struct ast_parked_call_payload *parked_call_message = stasis_message_data(message);

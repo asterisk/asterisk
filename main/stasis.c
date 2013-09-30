@@ -249,7 +249,6 @@ static void subscription_dtor(void *obj)
  * \param message Message to send.
  */
 static void subscription_invoke(struct stasis_subscription *sub,
-				  struct stasis_topic *topic,
 				  struct stasis_message *message)
 {
 	/* Notify that the final message has been received */
@@ -260,7 +259,7 @@ static void subscription_invoke(struct stasis_subscription *sub,
 	}
 
 	/* Since sub is mostly immutable, no need to lock sub */
-	sub->callback(sub->data, sub, topic, message);
+	sub->callback(sub->data, sub, message);
 
 	/* Notify that the final message has been processed */
 	if (stasis_subscription_final_message(sub, message)) {
@@ -301,6 +300,9 @@ struct stasis_subscription *internal_stasis_subscribe(
 		if (!sub->mailbox) {
 			return NULL;
 		}
+		ast_taskprocessor_set_local(sub->mailbox, sub);
+		/* Taskprocessor has a reference */
+		ao2_ref(sub, +1);
 	}
 
 	ao2_ref(topic, +1);
@@ -327,6 +329,13 @@ struct stasis_subscription *stasis_subscribe(
 	return internal_stasis_subscribe(topic, callback, data, 1);
 }
 
+static int sub_cleanup(void *data)
+{
+	struct stasis_subscription *sub = data;
+	ao2_cleanup(sub);
+	return 0;
+}
+
 struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *sub)
 {
 	/* The subscription may be the last ref to this topic. Hold
@@ -348,6 +357,11 @@ struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *sub)
 
 	/* Now let everyone know about the unsubscribe */
 	send_subscription_unsubscribe(topic, sub);
+
+	/* When all that's done, remove the ref the mailbox has on the sub */
+	if (sub->mailbox) {
+		ast_taskprocessor_push(sub->mailbox, sub_cleanup, sub);
+	}
 
 	/* Unsubscribing unrefs the subscription */
 	ao2_cleanup(sub);
@@ -476,92 +490,38 @@ static int topic_remove_subscription(struct stasis_topic *topic, struct stasis_s
 }
 
 /*!
- * \internal
- * \brief Information needed to dispatch a message to a subscription
- */
-struct dispatch {
-	/*! Topic message was published to */
-	struct stasis_topic *topic;
-	/*! The message itself */
-	struct stasis_message *message;
-	/*! Subscription receiving the message */
-	struct stasis_subscription *sub;
-};
-
-static void dispatch_dtor(struct dispatch *dispatch)
-{
-	ao2_cleanup(dispatch->topic);
-	ao2_cleanup(dispatch->message);
-	ao2_cleanup(dispatch->sub);
-
-	ast_free(dispatch);
-}
-
-static struct dispatch *dispatch_create(struct stasis_topic *topic, struct stasis_message *message, struct stasis_subscription *sub)
-{
-	struct dispatch *dispatch;
-
-	ast_assert(topic != NULL);
-	ast_assert(message != NULL);
-	ast_assert(sub != NULL);
-
-	dispatch = ast_malloc(sizeof(*dispatch));
-	if (!dispatch) {
-		return NULL;
-	}
-
-	dispatch->topic = topic;
-	ao2_ref(topic, +1);
-
-	dispatch->message = message;
-	ao2_ref(message, +1);
-
-	dispatch->sub = sub;
-	ao2_ref(sub, +1);
-
-	return dispatch;
-}
-
-/*!
  * \brief Dispatch a message to a subscriber
  * \param data \ref dispatch object
  * \return 0
  */
-static int dispatch_exec(void *data)
+static int dispatch_exec(struct ast_taskprocessor_local *local)
 {
-	struct dispatch *dispatch = data;
+	struct stasis_subscription *sub = local->local_data;
+	struct stasis_message *message = local->data;
 
-	subscription_invoke(dispatch->sub, dispatch->topic, dispatch->message);
-	dispatch_dtor(dispatch);
+	subscription_invoke(sub, message);
+	ao2_cleanup(message);
 
 	return 0;
 }
 
 static void dispatch_message(struct stasis_subscription *sub,
-	struct stasis_topic *publisher_topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	if (sub->mailbox) {
-		struct dispatch *dispatch;
-
-		dispatch = dispatch_create(publisher_topic, message, sub);
-		if (!dispatch) {
+		ao2_bump(message);
+		if (ast_taskprocessor_push_local(sub->mailbox, dispatch_exec, message) != 0) {
+			/* Push failed; ugh. */
 			ast_log(LOG_DEBUG, "Dropping dispatch\n");
-			return;
-		}
-
-		if (ast_taskprocessor_push(sub->mailbox, dispatch_exec, dispatch) != 0) {
-			/* Push failed; just delete the dispatch.
-			 */
-			ast_log(LOG_DEBUG, "Dropping dispatch\n");
-			dispatch_dtor(dispatch);
+			ao2_cleanup(message);
 		}
 	} else {
 		/* Dispatch directly */
-		subscription_invoke(sub, publisher_topic, message);
+		subscription_invoke(sub, message);
 	}
 }
 
-void stasis_forward_message(struct stasis_topic *_topic, struct stasis_topic *publisher_topic, struct stasis_message *message)
+void stasis_publish(struct stasis_topic *_topic, struct stasis_message *message)
 {
 	size_t i;
 	/* The topic may be unref'ed by the subscription invocation.
@@ -571,21 +531,16 @@ void stasis_forward_message(struct stasis_topic *_topic, struct stasis_topic *pu
 	SCOPED_AO2LOCK(lock, topic);
 
 	ast_assert(topic != NULL);
-	ast_assert(publisher_topic != NULL);
 	ast_assert(message != NULL);
 
 	for (i = 0; i < ast_vector_size(topic->subscribers); ++i) {
-		struct stasis_subscription *sub = ast_vector_get(topic->subscribers, i);
+		struct stasis_subscription *sub =
+			ast_vector_get(topic->subscribers, i);
 
 		ast_assert(sub != NULL);
 
-		dispatch_message(sub, publisher_topic, message);
+		dispatch_message(sub, message);
 	}
-}
-
-void stasis_publish(struct stasis_topic *topic, struct stasis_message *message)
-{
-	stasis_forward_message(topic, topic, message);
 }
 
 /*!
@@ -748,7 +703,7 @@ static void send_subscription_unsubscribe(struct stasis_topic *topic,
 	stasis_publish(topic, msg);
 
 	/* Now we have to dispatch to the subscription itself */
-	dispatch_message(sub, topic, msg);
+	dispatch_message(sub, msg);
 }
 
 struct topic_pool_entry {

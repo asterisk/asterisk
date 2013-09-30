@@ -1318,7 +1318,7 @@ static void xmpp_pubsub_publish_device_state(struct ast_xmpp_client *client, con
  * \param data void pointer to ast_client structure
  * \return void
  */
-static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct ast_xmpp_client *client = data;
 	const char *mailbox, *context;
@@ -1351,7 +1351,7 @@ static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, stru
  * \param data void pointer to ast_client structure
  * \return void
  */
-static void xmpp_pubsub_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void xmpp_pubsub_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct ast_xmpp_client *client = data;
 	struct ast_device_state_message *dev_state;
@@ -1566,7 +1566,7 @@ static int cached_devstate_cb(void *obj, void *arg, int flags)
 {
 	struct stasis_message *msg = obj;
 	struct ast_xmpp_client *client = arg;
-	xmpp_pubsub_devstate_cb(client, client->device_state_sub, NULL, msg);
+	xmpp_pubsub_devstate_cb(client, client->device_state_sub, msg);
 	return 0;
 }
 

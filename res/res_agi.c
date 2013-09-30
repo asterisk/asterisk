@@ -1040,7 +1040,7 @@ STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_exec_type);
 STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_end_type);
 
 static void agi_channel_manager_event(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	const char *type = data;

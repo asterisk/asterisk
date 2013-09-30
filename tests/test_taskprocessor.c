@@ -48,6 +48,31 @@ struct task_data {
 	int task_complete;
 };
 
+static void task_data_dtor(void *obj)
+{
+	struct task_data *task_data = obj;
+
+	ast_mutex_destroy(&task_data->lock);
+	ast_cond_destroy(&task_data->cond);
+}
+
+/*! \brief Create a task_data object */
+static struct task_data *task_data_create(void)
+{
+	struct task_data *task_data =
+		ao2_alloc(sizeof(*task_data), task_data_dtor);
+
+	if (!task_data) {
+		return NULL;
+	}
+
+	ast_cond_init(&task_data->cond, NULL);
+	ast_mutex_init(&task_data->lock);
+	task_data->task_complete = 0;
+
+	return task_data;
+}
+
 /*!
  * \brief Queued task for baseline test.
  *
@@ -65,6 +90,30 @@ static int task(void *data)
 }
 
 /*!
+ * \brief Wait for a task to execute.
+ */
+static int task_wait(struct task_data *task_data)
+{
+	struct timeval start = ast_tvnow();
+	struct timespec end;
+	SCOPED_MUTEX(lock, &task_data->lock);
+
+	end.tv_sec = start.tv_sec + 30;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	while (!task_data->task_complete) {
+		int res;
+		res = ast_cond_timedwait(&task_data->cond, &task_data->lock,
+			&end);
+		if (res == ETIMEDOUT) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
  * \brief Baseline test for default taskprocessor
  *
  * This test ensures that when a task is added to a taskprocessor that
@@ -73,12 +122,9 @@ static int task(void *data)
  */
 AST_TEST_DEFINE(default_taskprocessor)
 {
-	struct ast_taskprocessor *tps;
-	struct task_data task_data;
-	struct timeval start;
-	struct timespec ts;
-	enum ast_test_result_state res = AST_TEST_PASS;
-	int timedwait_res;
+	RAII_VAR(struct ast_taskprocessor *, tps, NULL, ast_taskprocessor_unreference);
+	RAII_VAR(struct task_data *, task_data, NULL, ao2_cleanup);
+	int res;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -99,36 +145,21 @@ AST_TEST_DEFINE(default_taskprocessor)
 		return AST_TEST_FAIL;
 	}
 
-	start = ast_tvnow();
-
-	ts.tv_sec = start.tv_sec + 30;
-	ts.tv_nsec = start.tv_usec * 1000;
-
-	ast_cond_init(&task_data.cond, NULL);
-	ast_mutex_init(&task_data.lock);
-	task_data.task_complete = 0;
-
-	ast_taskprocessor_push(tps, task, &task_data);
-	ast_mutex_lock(&task_data.lock);
-	while (!task_data.task_complete) {
-		timedwait_res = ast_cond_timedwait(&task_data.cond, &task_data.lock, &ts);
-		if (timedwait_res == ETIMEDOUT) {
-			break;
-		}
+	task_data = task_data_create();
+	if (!task_data) {
+		ast_test_status_update(test, "Unable to create task_data\n");
+		return AST_TEST_FAIL;
 	}
-	ast_mutex_unlock(&task_data.lock);
 
-	if (!task_data.task_complete) {
+	ast_taskprocessor_push(tps, task, task_data);
+
+	res = task_wait(task_data);
+	if (res != 0) {
 		ast_test_status_update(test, "Queued task did not execute!\n");
-		res = AST_TEST_FAIL;
-		goto test_end;
+		return AST_TEST_FAIL;
 	}
 
-test_end:
-	tps = ast_taskprocessor_unreference(tps);
-	ast_mutex_destroy(&task_data.lock);
-	ast_cond_destroy(&task_data.cond);
-	return res;
+	return AST_TEST_PASS;
 }
 
 #define NUM_TASKS 20000
@@ -631,12 +662,78 @@ AST_TEST_DEFINE(taskprocessor_shutdown)
 	return AST_TEST_PASS;
 }
 
+static int local_task_exe(struct ast_taskprocessor_local *local)
+{
+	int *local_data = local->local_data;
+	struct task_data *task_data = local->data;
+
+	*local_data = 1;
+	task(task_data);
+
+	return 0;
+}
+
+AST_TEST_DEFINE(taskprocessor_push_local)
+{
+	RAII_VAR(struct ast_taskprocessor *, tps, NULL,
+		ast_taskprocessor_unreference);
+	struct task_data *task_data;
+	int local_data;
+	int res;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = "/main/taskprocessor/";
+		info->summary = "Test of pushing local data";
+		info->description =
+			"Ensures that local data is passed along.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+
+	tps = ast_taskprocessor_get("test", TPS_REF_DEFAULT);
+	if (!tps) {
+		ast_test_status_update(test, "Unable to create test taskprocessor\n");
+		return AST_TEST_FAIL;
+	}
+
+
+	task_data = task_data_create();
+	if (!task_data) {
+		ast_test_status_update(test, "Unable to create task_data\n");
+		return AST_TEST_FAIL;
+	}
+
+	local_data = 0;
+	ast_taskprocessor_set_local(tps, &local_data);
+
+	ast_taskprocessor_push_local(tps, local_task_exe, task_data);
+
+	res = task_wait(task_data);
+	if (res != 0) {
+		ast_test_status_update(test, "Queued task did not execute!\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (local_data != 1) {
+		ast_test_status_update(test,
+			"Queued task did not set local_data!\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	ast_test_unregister(default_taskprocessor);
 	ast_test_unregister(default_taskprocessor_load);
 	ast_test_unregister(taskprocessor_listener);
 	ast_test_unregister(taskprocessor_shutdown);
+	ast_test_unregister(taskprocessor_push_local);
 	return 0;
 }
 
@@ -646,6 +743,7 @@ static int load_module(void)
 	ast_test_register(default_taskprocessor_load);
 	ast_test_register(taskprocessor_listener);
 	ast_test_register(taskprocessor_shutdown);
+	ast_test_register(taskprocessor_push_local);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

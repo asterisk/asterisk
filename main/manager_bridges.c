@@ -180,7 +180,6 @@ bridge_snapshot_monitor bridge_monitors[] = {
 };
 
 static void bridge_snapshot_update(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, bridge_event_string, NULL, ast_free);
@@ -221,7 +220,6 @@ static void bridge_snapshot_update(void *data, struct stasis_subscription *sub,
 }
 
 static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	struct ast_bridge_merge_message *merge_msg = stasis_message_data(message);
@@ -254,7 +252,6 @@ static void bridge_merge_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_enter_cb(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	static const char *swap_name = "SwapUniqueid: ";
@@ -283,7 +280,6 @@ static void channel_enter_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_leave_cb(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	struct ast_bridge_blob *blob = stasis_message_data(message);

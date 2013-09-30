@@ -54,7 +54,6 @@ static int exclude_event_cb(const char *key)
 
 /*! \brief Generic MWI event callback used for one-off events from voicemail modules */
 static void mwi_app_event_cb(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	struct ast_mwi_blob *payload = stasis_message_data(message);
@@ -86,7 +85,6 @@ static void mwi_app_event_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void mwi_update_cb(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	struct ast_mwi_state *mwi_state;

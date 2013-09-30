@@ -281,7 +281,7 @@ static void sounds_cleanup(void)
 }
 
 static void format_update_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	ast_sounds_reindex();
 }

@@ -1839,7 +1839,7 @@ static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_ch
  * \param topic The topic this message was published for
  * \param message The message
  */
-static void handle_dial_message(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void handle_dial_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
@@ -2020,7 +2020,7 @@ static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
  * \param topic The topic this message was published for
  * \param message The message
  */
-static void handle_channel_cache_message(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void handle_channel_cache_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
@@ -2150,7 +2150,7 @@ static int filter_bridge_messages(struct ast_bridge_snapshot *bridge)
  * \param message The message - hopefully a bridge one!
  */
 static void handle_bridge_leave_message(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct ast_bridge_blob *update = stasis_message_data(message);
 	struct ast_bridge_snapshot *bridge = update->bridge;
@@ -2450,7 +2450,7 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
  * \param message The message - hopefully a bridge one!
  */
 static void handle_bridge_enter_message(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct ast_bridge_blob *update = stasis_message_data(message);
 	struct ast_bridge_snapshot *bridge = update->bridge;
@@ -2494,7 +2494,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
  * \param message The message about who got parked
  * */
 static void handle_parked_call_message(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct ast_parked_call_payload *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *channel = payload->parkee;
