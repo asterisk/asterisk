@@ -427,7 +427,7 @@ AST_TEST_DEFINE(forward)
 	RAII_VAR(struct consumer *, parent_consumer, NULL, ao2_cleanup);
 	RAII_VAR(struct consumer *, consumer, NULL, ao2_cleanup);
 
-	RAII_VAR(struct stasis_subscription *, forward_sub, NULL, stasis_unsubscribe);
+	RAII_VAR(struct stasis_forward *, forward_sub, NULL, stasis_forward_cancel);
 	RAII_VAR(struct stasis_subscription *, parent_sub, NULL, stasis_unsubscribe);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 
@@ -499,8 +499,8 @@ AST_TEST_DEFINE(interleaving)
 	RAII_VAR(struct stasis_message *, test_message2, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, test_message3, NULL, ao2_cleanup);
 
-	RAII_VAR(struct stasis_subscription *, forward_sub1, NULL, stasis_unsubscribe);
-	RAII_VAR(struct stasis_subscription *, forward_sub2, NULL, stasis_unsubscribe);
+	RAII_VAR(struct stasis_forward *, forward_sub1, NULL, stasis_forward_cancel);
+	RAII_VAR(struct stasis_forward *, forward_sub2, NULL, stasis_forward_cancel);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 
 	RAII_VAR(struct consumer *, consumer, NULL, ao2_cleanup);

@@ -464,6 +464,8 @@ int stasis_subscription_is_done(struct stasis_subscription *subscription);
 struct stasis_subscription *stasis_unsubscribe_and_join(
 	struct stasis_subscription *subscription);
 
+struct stasis_forward;
+
 /*!
  * \brief Create a subscription which forwards all messages from one topic to
  * another.
@@ -477,8 +479,10 @@ struct stasis_subscription *stasis_unsubscribe_and_join(
  * \return \c NULL on error.
  * \since 12
  */
-struct stasis_subscription *stasis_forward_all(struct stasis_topic *from_topic,
+struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 	struct stasis_topic *to_topic);
+
+struct stasis_forward *stasis_forward_cancel(struct stasis_forward *forward);
 
 /*!
  * \brief Get the unique ID for the subscription.

@@ -58,9 +58,9 @@ struct app_forwards {
 	int interested;
 
 	/*! Forward for the regular topic */
-	struct stasis_subscription *topic_forward;
+	struct stasis_forward *topic_forward;
 	/*! Forward for the caching topic */
-	struct stasis_subscription *topic_cached_forward;
+	struct stasis_forward *topic_cached_forward;
 
 	/*! Unique id of the object being forwarded */
 	char id[];
@@ -78,9 +78,9 @@ static void forwards_dtor(void *obj)
 
 static void forwards_unsubscribe(struct app_forwards *forwards)
 {
-	stasis_unsubscribe(forwards->topic_forward);
+	stasis_forward_cancel(forwards->topic_forward);
 	forwards->topic_forward = NULL;
-	stasis_unsubscribe(forwards->topic_cached_forward);
+	stasis_forward_cancel(forwards->topic_cached_forward);
 	forwards->topic_cached_forward = NULL;
 }
 
@@ -129,7 +129,7 @@ static struct app_forwards *forwards_create_channel(struct app *app,
 		ast_channel_topic_cached(chan), app->topic);
 	if (!forwards->topic_cached_forward) {
 		/* Half-subscribed is a bad thing */
-		stasis_unsubscribe(forwards->topic_forward);
+		stasis_forward_cancel(forwards->topic_forward);
 		forwards->topic_forward = NULL;
 		return NULL;
 	}
@@ -163,7 +163,7 @@ static struct app_forwards *forwards_create_bridge(struct app *app,
 		ast_bridge_topic_cached(bridge), app->topic);
 	if (!forwards->topic_cached_forward) {
 		/* Half-subscribed is a bad thing */
-		stasis_unsubscribe(forwards->topic_forward);
+		stasis_forward_cancel(forwards->topic_forward);
 		forwards->topic_forward = NULL;
 		return NULL;
 	}

@@ -207,8 +207,7 @@ struct ast_channel {
 	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
 	struct stasis_cp_single *topics;		/*!< Topic for all channel's events */
-	struct stasis_subscription *forwarder;		/*!< Subscription for event forwarding to all topic */
-	struct stasis_subscription *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
+	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
@@ -1429,8 +1428,7 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 
 	ast_string_field_free_memory(chan);
 
-	chan->forwarder = stasis_unsubscribe(chan->forwarder);
-	chan->endpoint_forward = stasis_unsubscribe(chan->endpoint_forward);
+	chan->endpoint_forward = stasis_forward_cancel(chan->endpoint_forward);
 
 	stasis_cp_single_unsubscribe(chan->topics);
 	chan->topics = NULL;

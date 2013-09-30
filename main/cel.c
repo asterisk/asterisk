@@ -121,16 +121,16 @@ static struct stasis_topic *cel_topic;
 static struct stasis_topic *cel_aggregation_topic;
 
 /*! Subscription for forwarding the channel caching topic */
-static struct stasis_subscription *cel_channel_forwarder;
+static struct stasis_forward *cel_channel_forwarder;
 
 /*! Subscription for forwarding the channel caching topic */
-static struct stasis_subscription *cel_bridge_forwarder;
+static struct stasis_forward *cel_bridge_forwarder;
 
 /*! Subscription for forwarding the parking topic */
-static struct stasis_subscription *cel_parking_forwarder;
+static struct stasis_forward *cel_parking_forwarder;
 
 /*! Subscription for forwarding the CEL-specific topic */
-static struct stasis_subscription *cel_cel_forwarder;
+static struct stasis_forward *cel_cel_forwarder;
 
 struct stasis_message_type *cel_generic_type(void);
 STASIS_MESSAGE_TYPE_DEFN(cel_generic_type);
@@ -1394,10 +1394,10 @@ static void ast_cel_engine_term(void)
 	cel_aggregation_topic = NULL;
 	ao2_cleanup(cel_topic);
 	cel_topic = NULL;
-	cel_channel_forwarder = stasis_unsubscribe_and_join(cel_channel_forwarder);
-	cel_bridge_forwarder = stasis_unsubscribe_and_join(cel_bridge_forwarder);
-	cel_parking_forwarder = stasis_unsubscribe_and_join(cel_parking_forwarder);
-	cel_cel_forwarder = stasis_unsubscribe_and_join(cel_cel_forwarder);
+	cel_channel_forwarder = stasis_forward_cancel(cel_channel_forwarder);
+	cel_bridge_forwarder = stasis_forward_cancel(cel_bridge_forwarder);
+	cel_parking_forwarder = stasis_forward_cancel(cel_parking_forwarder);
+	cel_cel_forwarder = stasis_forward_cancel(cel_cel_forwarder);
 	ast_cli_unregister(&cli_status);
 	ao2_cleanup(cel_dialstatus_store);
 	cel_dialstatus_store = NULL;

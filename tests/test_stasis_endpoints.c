@@ -264,11 +264,14 @@ AST_TEST_DEFINE(channel_messages)
 	type = stasis_message_type(msg);
 	ast_test_validate(test, ast_channel_snapshot_type() == type);
 
+	/* The ordering of the cache clear and endpoint snapshot are
+	 * unspecified */
 	msg = sink->messages[3];
-	type = stasis_message_type(msg);
-	ast_test_validate(test, stasis_cache_clear_type() == type);
+	if (stasis_message_type(msg) == stasis_cache_clear_type()) {
+		/* Okay; the next message should be the endpoint snapshot */
+		msg = sink->messages[4];
+	}
 
-	msg = sink->messages[4];
 	type = stasis_message_type(msg);
 	ast_test_validate(test, ast_endpoint_snapshot_type() == type);
 	actual_snapshot = stasis_message_data(msg);

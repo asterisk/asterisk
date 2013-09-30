@@ -334,13 +334,13 @@ static struct ao2_container *active_cdrs_by_channel;
 static struct stasis_message_router *stasis_router;
 
 /*! \brief Our subscription for bridges */
-static struct stasis_subscription *bridge_subscription;
+static struct stasis_forward *bridge_subscription;
 
 /*! \brief Our subscription for channels */
-static struct stasis_subscription *channel_subscription;
+static struct stasis_forward *channel_subscription;
 
 /*! \brief Our subscription for parking */
-static struct stasis_subscription *parking_subscription;
+static struct stasis_forward *parking_subscription;
 
 /*! \brief The parent topic for all topics we want to aggregate for CDRs */
 static struct stasis_topic *cdr_topic;
@@ -3884,9 +3884,9 @@ static int process_config(int reload)
 
 static void cdr_engine_cleanup(void)
 {
-	channel_subscription = stasis_unsubscribe_and_join(channel_subscription);
-	bridge_subscription = stasis_unsubscribe_and_join(bridge_subscription);
-	parking_subscription = stasis_unsubscribe_and_join(parking_subscription);
+	channel_subscription = stasis_forward_cancel(channel_subscription);
+	bridge_subscription = stasis_forward_cancel(bridge_subscription);
+	parking_subscription = stasis_forward_cancel(parking_subscription);
 	stasis_message_router_unsubscribe_and_join(stasis_router);
 	ao2_cleanup(cdr_topic);
 	cdr_topic = NULL;

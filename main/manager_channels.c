@@ -370,7 +370,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief The \ref stasis subscription returned by the forwarding of the channel topic
  * to the manager topic
  */
-static struct stasis_subscription *topic_forwarder;
+static struct stasis_forward *topic_forwarder;
 
 struct ast_str *ast_manager_build_channel_state_string_prefix(
 		const struct ast_channel_snapshot *snapshot,
@@ -1100,7 +1100,7 @@ static void channel_unhold_cb(void *data, struct stasis_subscription *sub,
 
 static void manager_channels_shutdown(void)
 {
-	stasis_unsubscribe(topic_forwarder);
+	stasis_forward_cancel(topic_forwarder);
 	topic_forwarder = NULL;
 }
 

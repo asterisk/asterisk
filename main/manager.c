@@ -1126,7 +1126,7 @@ static struct stasis_topic *manager_topic;
 static struct stasis_message_router *stasis_router;
 
 /*! \brief The \ref stasis_subscription for forwarding the RTP topic to the AMI topic */
-static struct stasis_subscription *rtp_topic_forwarder;
+static struct stasis_forward *rtp_topic_forwarder;
 
 #define MGR_SHOW_TERMINAL_WIDTH 80
 
@@ -7759,7 +7759,7 @@ static void manager_shutdown(void)
 		stasis_message_router_unsubscribe_and_join(stasis_router);
 		stasis_router = NULL;
 	}
-	stasis_unsubscribe_and_join(rtp_topic_forwarder);
+	stasis_forward_cancel(rtp_topic_forwarder);
 	rtp_topic_forwarder = NULL;
 	ao2_cleanup(manager_topic);
 	manager_topic = NULL;

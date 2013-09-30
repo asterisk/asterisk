@@ -39,15 +39,15 @@ struct stasis_cp_all {
 	struct stasis_topic *topic_cached;
 	struct stasis_cache *cache;
 
-	struct stasis_subscription *forward_all_to_cached;
+	struct stasis_forward *forward_all_to_cached;
 };
 
 struct stasis_cp_single {
 	struct stasis_topic *topic;
 	struct stasis_caching_topic *topic_cached;
 
-	struct stasis_subscription *forward_topic_to_all;
-	struct stasis_subscription *forward_cached_to_all;
+	struct stasis_forward *forward_topic_to_all;
+	struct stasis_forward *forward_cached_to_all;
 };
 
 static void all_dtor(void *obj)
@@ -60,7 +60,7 @@ static void all_dtor(void *obj)
 	all->topic_cached = NULL;
 	ao2_cleanup(all->cache);
 	all->cache = NULL;
-	stasis_unsubscribe_and_join(all->forward_all_to_cached);
+	stasis_forward_cancel(all->forward_all_to_cached);
 	all->forward_all_to_cached = NULL;
 }
 
@@ -172,9 +172,9 @@ void stasis_cp_single_unsubscribe(struct stasis_cp_single *one)
 		return;
 	}
 
-	stasis_unsubscribe(one->forward_topic_to_all);
+	stasis_forward_cancel(one->forward_topic_to_all);
 	one->forward_topic_to_all = NULL;
-	stasis_unsubscribe(one->forward_cached_to_all);
+	stasis_forward_cancel(one->forward_cached_to_all);
 	one->forward_cached_to_all = NULL;
 	stasis_caching_unsubscribe(one->topic_cached);
 	one->topic_cached = NULL;

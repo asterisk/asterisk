@@ -10336,7 +10336,7 @@ static const struct ast_data_entry queue_data_providers[] = {
 };
 
 static struct stasis_message_router *agent_router;
-static struct stasis_subscription *topic_forwarder;
+static struct stasis_forward *topic_forwarder;
 
 static int unload_module(void)
 {
@@ -10364,7 +10364,7 @@ static int unload_module(void)
 		stasis_message_router_remove(message_router, queue_agent_ringnoanswer_type());
 	}
 	stasis_message_router_unsubscribe_and_join(agent_router);
-	topic_forwarder = stasis_unsubscribe(topic_forwarder);
+	topic_forwarder = stasis_forward_cancel(topic_forwarder);
 
 	STASIS_MESSAGE_TYPE_CLEANUP(queue_caller_join_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(queue_caller_leave_type);
