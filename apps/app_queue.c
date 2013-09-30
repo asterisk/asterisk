@@ -1832,7 +1832,7 @@ STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_agent_dump_type);
 STASIS_MESSAGE_TYPE_DEFN_LOCAL(queue_agent_ringnoanswer_type);
 
 static void queue_channel_manager_event(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	const char *type = data;
@@ -1858,7 +1858,7 @@ static void queue_channel_manager_event(void *data,
 }
 
 static void queue_multi_channel_manager_event(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	const char *type = data;
@@ -1902,7 +1902,7 @@ static void queue_multi_channel_manager_event(void *data,
 }
 
 static void queue_member_manager_event(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	const char *type = data;
@@ -2140,7 +2140,7 @@ static int is_member_available(struct call_queue *q, struct member *mem)
 }
 
 /*! \brief set a member's status based on device state of that member's interface*/
-static void device_state_cb(void *unused, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void device_state_cb(void *unused, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct ao2_iterator miter, qiter;
 	struct ast_device_state_message *dev_state;
@@ -5185,7 +5185,7 @@ static void send_agent_complete(const char *queuename, struct ast_channel_snapsh
 }
 
 static void queue_agent_cb(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct ast_channel_blob *agent_blob;
 
@@ -5401,7 +5401,7 @@ static void log_attended_transfer(struct queue_stasis_data *queue_data, struct a
  * \param msg The stasis message for the bridge enter event
  */
 static void handle_bridge_enter(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct queue_stasis_data *queue_data = userdata;
 	struct ast_bridge_blob *enter_blob = stasis_message_data(msg);
@@ -5434,7 +5434,7 @@ static void handle_bridge_enter(void *userdata, struct stasis_subscription *sub,
  * \param msg The stasis message for the blind transfer event
  */
 static void handle_blind_transfer(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct queue_stasis_data *queue_data = userdata;
 	struct ast_bridge_blob *blind_blob = stasis_message_data(msg);
@@ -5503,7 +5503,7 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
  * \param msg The stasis message for the attended transfer event.
  */
 static void handle_attended_transfer(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct queue_stasis_data *queue_data = userdata;
 	struct ast_attended_transfer_message *atxfer_msg = stasis_message_data(msg);
@@ -5558,7 +5558,7 @@ static void handle_attended_transfer(void *userdata, struct stasis_subscription 
  * subroutines for further processing.
  */
 static void queue_bridge_cb(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	if (stasis_subscription_final_message(sub, msg)) {
 		ao2_cleanup(userdata);
@@ -5578,7 +5578,7 @@ static void queue_bridge_cb(void *userdata, struct stasis_subscription *sub,
  * \param msg The stasis message for the local optimization begin event
  */
 static void handle_local_optimization_begin(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct queue_stasis_data *queue_data = userdata;
 	struct ast_multi_channel_blob *optimization_blob = stasis_message_data(msg);
@@ -5630,7 +5630,7 @@ static void handle_local_optimization_begin(void *userdata, struct stasis_subscr
  * \param msg The stasis message for the local optimization end event
  */
 static void handle_local_optimization_end(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct queue_stasis_data *queue_data = userdata;
 	struct ast_multi_channel_blob *optimization_blob = stasis_message_data(msg);
@@ -5695,7 +5695,7 @@ static void handle_local_optimization_end(void *userdata, struct stasis_subscrip
  * \param msg The stasis message for the hangup event.
  */
 static void handle_hangup(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	struct queue_stasis_data *queue_data = userdata;
 	struct ast_channel_blob *channel_blob = stasis_message_data(msg);
@@ -5756,7 +5756,7 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
  * subroutines for further processing.
  */
 static void queue_channel_cb(void *userdata, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *msg)
+		struct stasis_message *msg)
 {
 	if (stasis_subscription_final_message(sub, msg)) {
 		ao2_cleanup(userdata);
@@ -10336,7 +10336,7 @@ static const struct ast_data_entry queue_data_providers[] = {
 };
 
 static struct stasis_message_router *agent_router;
-static struct stasis_subscription *topic_forwarder;
+static struct stasis_forward *topic_forwarder;
 
 static int unload_module(void)
 {
@@ -10364,7 +10364,7 @@ static int unload_module(void)
 		stasis_message_router_remove(message_router, queue_agent_ringnoanswer_type());
 	}
 	stasis_message_router_unsubscribe_and_join(agent_router);
-	topic_forwarder = stasis_unsubscribe(topic_forwarder);
+	topic_forwarder = stasis_forward_cancel(topic_forwarder);
 
 	STASIS_MESSAGE_TYPE_CLEANUP(queue_caller_join_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(queue_caller_leave_type);

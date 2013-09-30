@@ -62,7 +62,7 @@ struct stasis_message;
  */
 struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
-	void (*stasis_subscription_cb)(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message),
+	void (*stasis_subscription_cb)(void *data, struct stasis_subscription *sub, struct stasis_message *message),
 	void *data,
 	int needs_mailbox);
 

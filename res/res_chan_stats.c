@@ -57,7 +57,7 @@ static struct stasis_message_router *router;
  * \param message The message itself.
  */
 static void statsmaker(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, metric, NULL, ast_free);
 
@@ -89,7 +89,7 @@ static void statsmaker(void *data, struct stasis_subscription *sub,
  * \param message The message itself.
  */
 static void updates(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	/* Since this came from a message router, we know the type of the
 	 * message. We can cast the data without checking its type.
@@ -139,7 +139,7 @@ static void updates(void *data, struct stasis_subscription *sub,
  * \param message The message itself.
  */
 static void default_route(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	if (stasis_subscription_final_message(sub, message)) {
 		/* Much like with the regular subscription, you may need to

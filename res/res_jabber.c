@@ -371,8 +371,8 @@ static void aji_pubsub_purge_nodes(struct aji_client *client,
 	const char* collection_name);
 static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
 	const char *context, const char *oldmsgs, const char *newmsgs);
-static void aji_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg);
-static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg);
+static void aji_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg);
+static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg);
 static iks* aji_build_publish_skeleton(struct aji_client *client, const char *node,
 				       const char *event_type, unsigned int cachable);
 /* No transports in this version */
@@ -3235,7 +3235,7 @@ int ast_aji_disconnect(struct aji_client *client)
  * \param data void pointer to ast_client structure
  * \return void
  */
-static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	const char *mailbox;
 	const char *context;
@@ -3269,7 +3269,7 @@ static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasi
  * \param data void pointer to ast_client structure
  * \return void
  */
-static void aji_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *msg)
+static void aji_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct aji_client *client = data;
 	struct ast_device_state_message *dev_state;
@@ -3291,7 +3291,7 @@ static int cached_devstate_cb(void *obj, void *arg, int flags)
 {
 	struct stasis_message *msg = obj;
 	struct aji_client *client = arg;
-	aji_devstate_cb(client, device_state_sub, NULL, msg);
+	aji_devstate_cb(client, device_state_sub, msg);
 	return 0;
 }
 

@@ -7549,14 +7549,19 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
 	RAII_VAR(struct ast_str *, tmp, NULL, ast_free);
 	struct manager_channel_variable *mcv;
 
-	ret = ao2_alloc(sizeof(*ret), varshead_dtor);
-	tmp = ast_str_create(16);
-
 	if (!ret || !tmp) {
 		return NULL;
 	}
 
 	AST_RWLIST_RDLOCK(&channelvars);
+
+	if (AST_LIST_EMPTY(&channelvars)) {
+		return NULL;
+	}
+
+	ret = ao2_alloc(sizeof(*ret), varshead_dtor);
+	tmp = ast_str_create(16);
+
 	AST_LIST_TRAVERSE(&channelvars, mcv, entry) {
 		const char *val = NULL;
 		struct ast_var_t *var;

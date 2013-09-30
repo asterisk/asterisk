@@ -121,16 +121,16 @@ static struct stasis_topic *cel_topic;
 static struct stasis_topic *cel_aggregation_topic;
 
 /*! Subscription for forwarding the channel caching topic */
-static struct stasis_subscription *cel_channel_forwarder;
+static struct stasis_forward *cel_channel_forwarder;
 
 /*! Subscription for forwarding the channel caching topic */
-static struct stasis_subscription *cel_bridge_forwarder;
+static struct stasis_forward *cel_bridge_forwarder;
 
 /*! Subscription for forwarding the parking topic */
-static struct stasis_subscription *cel_parking_forwarder;
+static struct stasis_forward *cel_parking_forwarder;
 
 /*! Subscription for forwarding the CEL-specific topic */
-static struct stasis_subscription *cel_cel_forwarder;
+static struct stasis_forward *cel_cel_forwarder;
 
 struct stasis_message_type *cel_generic_type(void);
 STASIS_MESSAGE_TYPE_DEFN(cel_generic_type);
@@ -1019,7 +1019,6 @@ static int cel_filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
 }
 
 static void cel_snapshot_update_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct stasis_cache_update *update = stasis_message_data(message);
@@ -1082,7 +1081,6 @@ static struct ast_str *cel_generate_peer_str(
 
 static void cel_bridge_enter_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_bridge_blob *blob = stasis_message_data(message);
@@ -1110,7 +1108,6 @@ static void cel_bridge_enter_cb(
 
 static void cel_bridge_leave_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_bridge_blob *blob = stasis_message_data(message);
@@ -1138,7 +1135,6 @@ static void cel_bridge_leave_cb(
 
 static void cel_parking_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_parked_call_payload *parked_payload = stasis_message_data(message);
@@ -1183,7 +1179,6 @@ static void save_dialstatus(struct ast_multi_channel_blob *blob)
 }
 
 static void cel_dial_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_multi_channel_blob *blob = stasis_message_data(message);
@@ -1218,7 +1213,6 @@ static void cel_dial_cb(void *data, struct stasis_subscription *sub,
 
 static void cel_generic_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
@@ -1241,7 +1235,6 @@ static void cel_generic_cb(
 
 static void cel_blind_transfer_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_bridge_blob *obj = stasis_message_data(message);
@@ -1289,7 +1282,6 @@ static void cel_blind_transfer_cb(
 
 static void cel_attended_transfer_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_attended_transfer_message *xfer = stasis_message_data(message);
@@ -1342,7 +1334,6 @@ static void cel_attended_transfer_cb(
 
 static void cel_pickup_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_multi_channel_blob *obj = stasis_message_data(message);
@@ -1364,7 +1355,6 @@ static void cel_pickup_cb(
 
 static void cel_local_cb(
 	void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic,
 	struct stasis_message *message)
 {
 	struct ast_multi_channel_blob *obj = stasis_message_data(message);
@@ -1394,10 +1384,10 @@ static void ast_cel_engine_term(void)
 	cel_aggregation_topic = NULL;
 	ao2_cleanup(cel_topic);
 	cel_topic = NULL;
-	cel_channel_forwarder = stasis_unsubscribe_and_join(cel_channel_forwarder);
-	cel_bridge_forwarder = stasis_unsubscribe_and_join(cel_bridge_forwarder);
-	cel_parking_forwarder = stasis_unsubscribe_and_join(cel_parking_forwarder);
-	cel_cel_forwarder = stasis_unsubscribe_and_join(cel_cel_forwarder);
+	cel_channel_forwarder = stasis_forward_cancel(cel_channel_forwarder);
+	cel_bridge_forwarder = stasis_forward_cancel(cel_bridge_forwarder);
+	cel_parking_forwarder = stasis_forward_cancel(cel_parking_forwarder);
+	cel_cel_forwarder = stasis_forward_cancel(cel_cel_forwarder);
 	ast_cli_unregister(&cli_status);
 	ao2_cleanup(cel_dialstatus_store);
 	cel_dialstatus_store = NULL;

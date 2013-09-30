@@ -109,6 +109,7 @@ struct ast_taskprocessor_listener_callbacks {
 	 * \param listener The listener
 	 */
 	void (*shutdown)(struct ast_taskprocessor_listener *listener);
+	void (*dtor)(struct ast_taskprocessor_listener *listener);
 };
 
 /*!
@@ -175,6 +176,18 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 struct ast_taskprocessor *ast_taskprocessor_create_with_listener(const char *name, struct ast_taskprocessor_listener *listener);
 
 /*!
+ * \brief Sets the local data associated with a taskprocessor.
+ *
+ * \since 12.0.0
+ *
+ * See ast_taskprocessor_push_local().
+ *
+ * \param tps Task processor.
+ * \param local_data Local data to associate with \a tps.
+ */
+void ast_taskprocessor_set_local(struct ast_taskprocessor *tps, void *local_data);
+
+/*!
  * \brief Unreference the specified taskprocessor and its reference count will decrement.
  *
  * Taskprocessors use astobj2 and will unlink from the taskprocessor singleton container and destroy
@@ -195,6 +208,32 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps);
  * \since 1.6.1
  */
 int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *datap), void *datap);
+
+/*! \brief Local data parameter */
+struct ast_taskprocessor_local {
+	/*! Local data, associated with the taskprocessor. */
+	void *local_data;
+	/*! Data pointer passed with this task. */
+	void *data;
+};
+
+/*!
+ * \brief Push a task into the specified taskprocessor queue and signal the
+ * taskprocessor thread.
+ *
+ * The callback receives a \ref ast_taskprocessor_local struct, which contains
+ * both the provided \a datap pointer, and any local data set on the
+ * taskprocessor with ast_taskprocessor_set_local().
+ *
+ * \param tps The taskprocessor structure
+ * \param task_exe The task handling function to push into the taskprocessor queue
+ * \param datap The data to be used by the task handling function
+ * \retval 0 success
+ * \retval -1 failure
+ * \since 12.0.0
+ */
+int ast_taskprocessor_push_local(struct ast_taskprocessor *tps,
+	int (*task_exe)(struct ast_taskprocessor_local *local), void *datap);
 
 /*!
  * \brief Pop a task off the taskprocessor and execute it.

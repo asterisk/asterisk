@@ -125,7 +125,7 @@ static void parker_parked_call_message_response(struct ast_parked_call_payload *
 	}
 }
 
-static void parker_update_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void parker_update_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	if (stasis_subscription_final_message(sub, message)) {
 		ast_free(data);

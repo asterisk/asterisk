@@ -183,7 +183,7 @@ static struct consumer *consumer_create(int ignore_subscriptions) {
 	return consumer;
 }
 
-static void consumer_exec(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void consumer_exec(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	struct consumer *consumer = data;
 	RAII_VAR(struct consumer *, consumer_needs_cleanup, NULL, ao2_cleanup);
@@ -427,7 +427,7 @@ AST_TEST_DEFINE(forward)
 	RAII_VAR(struct consumer *, parent_consumer, NULL, ao2_cleanup);
 	RAII_VAR(struct consumer *, consumer, NULL, ao2_cleanup);
 
-	RAII_VAR(struct stasis_subscription *, forward_sub, NULL, stasis_unsubscribe);
+	RAII_VAR(struct stasis_forward *, forward_sub, NULL, stasis_forward_cancel);
 	RAII_VAR(struct stasis_subscription *, parent_sub, NULL, stasis_unsubscribe);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 
@@ -499,8 +499,8 @@ AST_TEST_DEFINE(interleaving)
 	RAII_VAR(struct stasis_message *, test_message2, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, test_message3, NULL, ao2_cleanup);
 
-	RAII_VAR(struct stasis_subscription *, forward_sub1, NULL, stasis_unsubscribe);
-	RAII_VAR(struct stasis_subscription *, forward_sub2, NULL, stasis_unsubscribe);
+	RAII_VAR(struct stasis_forward *, forward_sub1, NULL, stasis_forward_cancel);
+	RAII_VAR(struct stasis_forward *, forward_sub2, NULL, stasis_forward_cancel);
 	RAII_VAR(struct stasis_subscription *, sub, NULL, stasis_unsubscribe);
 
 	RAII_VAR(struct consumer *, consumer, NULL, ao2_cleanup);
@@ -711,7 +711,6 @@ AST_TEST_DEFINE(cache)
 	/* Check for new snapshot messages */
 	ast_test_validate(test, stasis_cache_update_type() == stasis_message_type(consumer->messages_rxed[0]));
 	actual_update = stasis_message_data(consumer->messages_rxed[0]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
 	ast_test_validate(test, test_message1_1 == actual_update->new_snapshot);
 	ast_test_validate(test, test_message1_1 == stasis_cache_get(cache, cache_type, "1"));
@@ -720,7 +719,6 @@ AST_TEST_DEFINE(cache)
 
 	ast_test_validate(test, stasis_cache_update_type() == stasis_message_type(consumer->messages_rxed[1]));
 	actual_update = stasis_message_data(consumer->messages_rxed[1]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, NULL == actual_update->old_snapshot);
 	ast_test_validate(test, test_message2_1 == actual_update->new_snapshot);
 	ast_test_validate(test, test_message2_1 == stasis_cache_get(cache, cache_type, "2"));
@@ -736,7 +734,6 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, 3 == actual_len);
 
 	actual_update = stasis_message_data(consumer->messages_rxed[2]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, test_message2_1 == actual_update->old_snapshot);
 	ast_test_validate(test, test_message2_2 == actual_update->new_snapshot);
 	ast_test_validate(test, test_message2_2 == stasis_cache_get(cache, cache_type, "2"));
@@ -752,7 +749,6 @@ AST_TEST_DEFINE(cache)
 	ast_test_validate(test, 4 == actual_len);
 
 	actual_update = stasis_message_data(consumer->messages_rxed[3]);
-	ast_test_validate(test, topic == actual_update->topic);
 	ast_test_validate(test, test_message1_1 == actual_update->old_snapshot);
 	ast_test_validate(test, NULL == actual_update->new_snapshot);
 	ast_test_validate(test, NULL == stasis_cache_get(cache, cache_type, "1"));
@@ -863,52 +859,6 @@ AST_TEST_DEFINE(cache_dump)
 	ao2_cleanup(cache_dump);
 	cache_dump = stasis_cache_dump(cache, stasis_subscription_change_type());
 	ast_test_validate(test, 0 == ao2_container_count(cache_dump));
-
-	return AST_TEST_PASS;
-}
-
-AST_TEST_DEFINE(route_conflicts)
-{
-	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message_router *, uut, NULL, stasis_message_router_unsubscribe_and_join);
-	RAII_VAR(struct stasis_message_type *, test_message_type, NULL, ao2_cleanup);
-	RAII_VAR(struct consumer *, consumer1, NULL, ao2_cleanup);
-	RAII_VAR(struct consumer *, consumer2, NULL, ao2_cleanup);
-	int ret;
-
-	switch (cmd) {
-	case TEST_INIT:
-		info->name = __func__;
-		info->category = test_category;
-		info->summary =
-			"Multiple routes to the same message_type should fail";
-		info->description =
-			"Multiple routes to the same message_type should fail";
-		return AST_TEST_NOT_RUN;
-	case TEST_EXECUTE:
-		break;
-	}
-
-	topic = stasis_topic_create("TestTopic");
-	ast_test_validate(test, NULL != topic);
-
-	consumer1 = consumer_create(1);
-	ast_test_validate(test, NULL != consumer1);
-	consumer2 = consumer_create(1);
-	ast_test_validate(test, NULL != consumer2);
-
-	test_message_type = stasis_message_type_create("TestMessage", NULL);
-	ast_test_validate(test, NULL != test_message_type);
-
-	uut = stasis_message_router_create(topic);
-	ast_test_validate(test, NULL != uut);
-
-	ret = stasis_message_router_add(
-		uut, test_message_type, consumer_exec, consumer1);
-	ast_test_validate(test, 0 == ret);
-	ret = stasis_message_router_add(
-		uut, test_message_type, consumer_exec, consumer2);
-	ast_test_validate(test, 0 != ret);
 
 	return AST_TEST_PASS;
 }
@@ -1272,7 +1222,7 @@ AST_TEST_DEFINE(to_ami)
 }
 
 static void noop(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	/* no-op */
 }
@@ -1373,7 +1323,6 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(cache_filter);
 	AST_TEST_UNREGISTER(cache);
 	AST_TEST_UNREGISTER(cache_dump);
-	AST_TEST_UNREGISTER(route_conflicts);
 	AST_TEST_UNREGISTER(router);
 	AST_TEST_UNREGISTER(router_cache_updates);
 	AST_TEST_UNREGISTER(interleaving);
@@ -1397,7 +1346,6 @@ static int load_module(void)
 	AST_TEST_REGISTER(cache_filter);
 	AST_TEST_REGISTER(cache);
 	AST_TEST_REGISTER(cache_dump);
-	AST_TEST_REGISTER(route_conflicts);
 	AST_TEST_REGISTER(router);
 	AST_TEST_REGISTER(router_cache_updates);
 	AST_TEST_REGISTER(interleaving);

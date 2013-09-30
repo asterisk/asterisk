@@ -739,7 +739,7 @@ announce_cleanup:
 	cap_slin = ast_format_cap_destroy(cap_slin);
 }
 
-static void park_announce_update_cb(void *data, struct stasis_subscription *sub, struct stasis_topic *topic, struct stasis_message *message)
+static void park_announce_update_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	struct park_announce_subscription_data *pa_data = data;
 	char *dial_string = pa_data->dial_string;

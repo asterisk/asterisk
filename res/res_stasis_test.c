@@ -120,7 +120,7 @@ struct stasis_message_sink *stasis_message_sink_create(void)
  * the initial lazy binding will still work as expected.
  */
 static void message_sink_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct stasis_message_sink *sink = data;
 

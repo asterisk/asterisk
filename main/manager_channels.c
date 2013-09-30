@@ -370,7 +370,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief The \ref stasis subscription returned by the forwarding of the channel topic
  * to the manager topic
  */
-static struct stasis_subscription *topic_forwarder;
+static struct stasis_forward *topic_forwarder;
 
 struct ast_str *ast_manager_build_channel_state_string_prefix(
 		const struct ast_channel_snapshot *snapshot,
@@ -565,7 +565,6 @@ channel_snapshot_monitor channel_monitors[] = {
 };
 
 static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
-				    struct stasis_topic *topic,
 				    struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
@@ -616,7 +615,7 @@ static int userevent_exclusion_cb(const char *key)
 }
 
 static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
@@ -667,7 +666,7 @@ static void publish_basic_channel_event(const char *event, int class, struct ast
 }
 
 static void channel_hangup_request_cb(void *data,
-	struct stasis_subscription *sub, struct stasis_topic *topic,
+	struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
@@ -707,7 +706,7 @@ static void channel_hangup_request_cb(void *data,
 }
 
 static void channel_chanspy_stop_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, spyer_channel_string, NULL, ast_free);
 	struct ast_channel_snapshot *spyer;
@@ -730,7 +729,7 @@ static void channel_chanspy_stop_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_chanspy_start_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, spyer_channel_string, NULL, ast_free);
 	RAII_VAR(struct ast_str *, spyee_channel_string, NULL, ast_free);
@@ -765,7 +764,7 @@ static void channel_chanspy_start_cb(void *data, struct stasis_subscription *sub
 }
 
 static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
@@ -806,7 +805,7 @@ static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
@@ -853,7 +852,7 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_hangup_handler_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 	struct ast_channel_blob *payload = stasis_message_data(message);
@@ -884,7 +883,7 @@ static void channel_hangup_handler_cb(void *data, struct stasis_subscription *su
 }
 
 static void channel_fax_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
 	RAII_VAR(struct ast_str *, event_buffer, ast_str_create(256), ast_free);
@@ -957,7 +956,7 @@ static void channel_fax_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_moh_start_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct ast_channel_blob *payload = stasis_message_data(message);
 	struct ast_json *blob = payload->blob;
@@ -977,7 +976,7 @@ static void channel_moh_start_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_moh_stop_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct ast_channel_blob *payload = stasis_message_data(message);
 
@@ -985,7 +984,7 @@ static void channel_moh_stop_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_monitor_start_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct ast_channel_blob *payload = stasis_message_data(message);
 
@@ -993,7 +992,7 @@ static void channel_monitor_start_cb(void *data, struct stasis_subscription *sub
 }
 
 static void channel_monitor_stop_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_topic *topic, struct stasis_message *message)
+		struct stasis_message *message)
 {
 	struct ast_channel_blob *payload = stasis_message_data(message);
 
@@ -1004,7 +1003,7 @@ static void channel_monitor_stop_cb(void *data, struct stasis_subscription *sub,
  * \brief Callback processing messages for channel dialing
  */
 static void channel_dial_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_multi_channel_blob *obj = stasis_message_data(message);
 	const char *dialstatus;
@@ -1051,7 +1050,7 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_hold_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 	const char *musicclass;
@@ -1083,7 +1082,7 @@ static void channel_hold_cb(void *data, struct stasis_subscription *sub,
 }
 
 static void channel_unhold_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_topic *topic, struct stasis_message *message)
+	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
@@ -1100,7 +1099,7 @@ static void channel_unhold_cb(void *data, struct stasis_subscription *sub,
 
 static void manager_channels_shutdown(void)
 {
-	stasis_unsubscribe(topic_forwarder);
+	stasis_forward_cancel(topic_forwarder);
 	topic_forwarder = NULL;
 }
 
