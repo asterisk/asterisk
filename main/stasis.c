@@ -34,7 +34,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis_internal.h"
 #include "asterisk/stasis.h"
-#include "asterisk/threadpool.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/utils.h"
 #include "asterisk/uuid.h"
@@ -133,9 +132,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! The number of buckets to use for topic pools */
 #define TOPIC_POOL_BUCKETS 57
-
-/*! Threadpool for dispatching notifications to subscribers */
-static struct ast_threadpool *pool;
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_subscription_change_type);
 
@@ -286,7 +282,15 @@ struct stasis_subscription *internal_stasis_subscribe(
 	ast_uuid_generate_str(sub->uniqueid, sizeof(sub->uniqueid));
 
 	if (needs_mailbox) {
-		sub->mailbox = ast_threadpool_serializer(sub->uniqueid, pool);
+		/* With a small number of subscribers, a thread-per-sub is
+		 * acceptable. If our usage changes so that we have larger
+		 * numbers of subscribers, we'll probably want to consider
+		 * a threadpool. We had that originally, but with so few
+		 * subscribers it was actually a performance loss instead of
+		 * a gain.
+		 */
+		sub->mailbox = ast_taskprocessor_get(sub->uniqueid,
+			TPS_REF_DEFAULT);
 		if (!sub->mailbox) {
 			return NULL;
 		}
@@ -731,13 +735,6 @@ void stasis_log_bad_type_access(const char *name)
 	ast_log(LOG_ERROR, "Use of %s() before init/after destruction\n", name);
 }
 
-/*! \brief Shutdown function */
-static void stasis_exit(void)
-{
-	ast_threadpool_shutdown(pool);
-	pool = NULL;
-}
-
 /*! \brief Cleanup function for graceful shutdowns */
 static void stasis_cleanup(void)
 {
@@ -748,33 +745,11 @@ int stasis_init(void)
 {
 	int cache_init;
 
-	struct ast_threadpool_options opts;
-
 	/* Be sure the types are cleaned up after the message bus */
 	ast_register_cleanup(stasis_cleanup);
-	ast_register_atexit(stasis_exit);
-
-	if (stasis_config_init() != 0) {
-		ast_log(LOG_ERROR, "Stasis configuration failed\n");
-		return -1;
-	}
 
 	if (stasis_wait_init() != 0) {
 		ast_log(LOG_ERROR, "Stasis initialization failed\n");
-		return -1;
-	}
-
-	if (pool) {
-		ast_log(LOG_ERROR, "Stasis double-initialized\n");
-		return -1;
-	}
-
-	stasis_config_get_threadpool_options(&opts);
-	ast_debug(3, "Creating Stasis threadpool: initial_size = %d, max_size = %d, idle_timeout_secs = %d\n",
-		opts.initial_size, opts.max_size, opts.idle_timeout);
-	pool = ast_threadpool_create("stasis-core", NULL, &opts);
-	if (!pool) {
-		ast_log(LOG_ERROR, "Stasis threadpool allocation failed\n");
 		return -1;
 	}
 

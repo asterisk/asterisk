@@ -1,8 +1,0 @@
-[threadpool]
-;initial_size = 0	; Initial size of the threadpool
-
-;idle_timeout_sec = 20	; Number of seconds a thread should be idle before dying
-;			; 0 means threads never time out
-
-;max_size = 200         ; Maximum number of threads in the threadpool
-;			; 0 means no limit to the threads in the threadpool

@@ -884,16 +884,6 @@ int stasis_config_init(void);
  */
 int stasis_wait_init(void);
 
-struct ast_threadpool_options;
-
-/*!
- * \internal
- * \brief Retrieves the Stasis threadpool configuration.
- * \param[out] threadpool_options Filled with Stasis threadpool options.
- */
-void stasis_config_get_threadpool_options(
-	struct ast_threadpool_options *threadpool_options);
-
 /*! @} */
 
 /*!

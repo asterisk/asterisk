@@ -109,6 +109,7 @@ struct ast_taskprocessor_listener_callbacks {
 	 * \param listener The listener
 	 */
 	void (*shutdown)(struct ast_taskprocessor_listener *listener);
+	void (*dtor)(struct ast_taskprocessor_listener *listener);
 };
 
 /*!
