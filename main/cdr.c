@@ -2171,6 +2171,10 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 		return;
 	}
 
+	if (filter_channel_snapshot(channel)) {
+		return;
+	}
+
 	CDR_DEBUG(mod_cfg, "Bridge Leave message for %s: %u.%08u\n",
 			channel->name,
 			(unsigned int)stasis_message_timestamp(message)->tv_sec,
@@ -2511,6 +2515,10 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 
 	/* No one got parked? */
 	if (!channel) {
+		return;
+	}
+
+	if (filter_channel_snapshot(channel)) {
 		return;
 	}
 
