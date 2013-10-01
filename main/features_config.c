@@ -1868,6 +1868,9 @@ void ast_features_config_shutdown(void)
 
 int ast_features_config_reload(void)
 {
+	/* Rearm the parking config options have moved warning. */
+	parking_warning = 0;
+
 	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
 		return -1;
 	}
