@@ -9722,16 +9722,34 @@ static void *analog_ss_thread(void *data)
 				getforward = 0;
 				memset(exten, 0, sizeof(exten));
 				len = 0;
-			} else if ((p->transfer || p->canpark) && is_exten_parking &&
-						p->subs[SUB_THREEWAY].owner) {
-				RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
-				/* This is a three way call, the main call being a real channel,
-					and we're parking the first call. */
-				ast_channel_lock(chan);
-				bridge_channel = ast_channel_get_bridge_channel(chan);
-				ast_channel_unlock(chan);
-				if (bridge_channel && !ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), exten)) {
-					ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
+			} else if ((p->transfer || p->canpark) && is_exten_parking
+				&& p->subs[SUB_THREEWAY].owner) {
+				struct ast_bridge_channel *bridge_channel;
+
+				/*
+				 * This is a three way call, the main call being a real channel,
+				 * and we're parking the first call.
+				 */
+				ast_channel_lock(p->subs[SUB_THREEWAY].owner);
+				bridge_channel = ast_channel_get_bridge_channel(p->subs[SUB_THREEWAY].owner);
+				ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
+				if (bridge_channel) {
+					if (!ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), exten)) {
+						/*
+						 * Swap things around between the three-way and real call so we
+						 * can hear where the channel got parked.
+						 */
+						ast_mutex_lock(&p->lock);
+						p->owner = p->subs[SUB_THREEWAY].owner;
+						swap_subs(p, SUB_THREEWAY, SUB_REAL);
+						ast_mutex_unlock(&p->lock);
+
+						ast_verb(3, "%s: Parked call\n", ast_channel_name(chan));
+						ast_hangup(chan);
+						ao2_ref(bridge_channel, -1);
+						goto quit;
+					}
+					ao2_ref(bridge_channel, -1);
 				}
 				break;
 			} else if (p->hidecallerid && !strcmp(exten, "*82")) {
