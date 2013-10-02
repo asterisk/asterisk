@@ -472,6 +472,7 @@ static int handle_negotiated_sdp(struct ast_sip_session *session, const pjmedia_
 	successful = ao2_callback(session->media, OBJ_MULTIPLE, handle_negotiated_sdp_session_media, &callback_data);
 	if (successful && ao2_container_count(successful->c) == ao2_container_count(session->media)) {
 		/* Nothing experienced a catastrophic failure */
+		ast_queue_frame(session->channel, &ast_null_frame);
 		return 0;
 	}
 	return -1;
