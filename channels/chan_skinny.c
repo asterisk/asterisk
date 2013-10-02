@@ -82,6 +82,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/bridge.h"
 #include "asterisk/parking.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<manager name="SKINNYdevices" language="en_US">
@@ -5423,6 +5424,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			AST_LIST_INSERT_HEAD(&l->sub, sub, list);
 			//l->activesub = sub;
 		}
+		ast_channel_stage_snapshot(tmp);
 		ast_channel_tech_set(tmp, &skinny_tech);
 		ast_channel_tech_pvt_set(tmp, sub);
 		ast_format_cap_copy(ast_channel_nativeformats(tmp), l->cap);
@@ -5495,6 +5497,8 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		/* Set channel variables for this call from configuration */
 		for (v = l->chanvars ; v ; v = v->next)
 			pbx_builtin_setvar_helper(tmp, v->name, v->value);
+
+		ast_channel_stage_snapshot_done(tmp);
 
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {

@@ -316,6 +316,22 @@ void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_ty
 
 /*!
  * \since 12
+ * \brief Set flag to indicate channel snapshot is being staged.
+ *
+ * \param chan Channel being staged.
+ */
+void ast_channel_stage_snapshot(struct ast_channel *chan);
+
+/*!
+ * \since 12
+ * \brief Clear flag to indicate channel snapshot is being staged, and publish snapshot.
+ *
+ * \param chan Channel being staged.
+ */
+void ast_channel_stage_snapshot_done(struct ast_channel *chan);
+
+/*!
+ * \since 12
  * \brief Publish a \ref ast_channel_snapshot for a channel.
  *
  * \param chan Channel to publish.

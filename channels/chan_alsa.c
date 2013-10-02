@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/poll-compat.h"
+#include "asterisk/stasis_channels.h"
 
 /*! Global jitterbuffer configuration - by default, jb is disabled
  *  \note Values shown here match the defaults shown in alsa.conf.sample */
@@ -580,6 +581,8 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "", p->exten, p->context, linkedid, 0, "ALSA/%s", indevname)))
 		return NULL;
 
+	ast_channel_stage_snapshot(tmp);
+
 	ast_channel_tech_set(tmp, &alsa_tech);
 	ast_channel_set_fd(tmp, 0, readdev);
 	ast_format_set(ast_channel_readformat(tmp), AST_FORMAT_SLINEAR, 0);
@@ -596,6 +599,9 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	p->owner = tmp;
 	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(tmp, &global_jbconf);
+
+	ast_channel_stage_snapshot_done(tmp);
+
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));

@@ -876,6 +876,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		/* Channel structure allocation failure. */
 		return NULL;
 	}
+
+	ast_channel_stage_snapshot(tmp);
+
 	if (!(nativeformats = ast_format_cap_alloc())) {
 		ao2_ref(tmp, -1);
 		/* format capabilities structure allocation failure */
@@ -1020,7 +1023,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	 * And now, since the channel structure is built, and has its name, let
 	 * the world know of its existance
 	 */
-	ast_channel_publish_snapshot(tmp);
+	ast_channel_stage_snapshot_done(tmp);
 	return tmp;
 }
 
@@ -7716,8 +7719,12 @@ void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars)
 {
 	struct ast_variable *cur;
 
+	ast_channel_stage_snapshot(chan);
+
 	for (cur = vars; cur; cur = cur->next)
 		pbx_builtin_setvar_helper(chan, cur->name, cur->value);
+
+	ast_channel_stage_snapshot_done(chan);
 }
 
 static void *silence_generator_alloc(struct ast_channel *chan, void *data)

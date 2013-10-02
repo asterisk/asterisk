@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/callerid.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/stasis_channels.h"
 
 /*! 
  * \brief The sample rate to request from PortAudio 
@@ -427,6 +428,8 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 		return NULL;
 	}
 
+	ast_channel_stage_snapshot(chan);
+
 	ast_channel_tech_set(chan, &console_tech);
 	ast_format_set(ast_channel_readformat(chan), AST_FORMAT_SLINEAR16, 0);
 	ast_format_set(ast_channel_writeformat(chan), AST_FORMAT_SLINEAR16, 0);
@@ -439,6 +442,8 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 		ast_channel_language_set(chan, pvt->language);
 
 	ast_jb_configure(chan, &global_jbconf);
+
+	ast_channel_stage_snapshot_done(chan);
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(chan)) {

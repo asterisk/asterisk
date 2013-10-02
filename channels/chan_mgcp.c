@@ -85,6 +85,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/features_config.h"
 #include "asterisk/parking.h"
+#include "asterisk/stasis_channels.h"
 
 /*
  * Define to work around buggy dlink MGCP phone firmware which
@@ -1506,6 +1507,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, linkedid, i->accountcode, i->exten, i->context, i->amaflags, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 	if (tmp) {
+		ast_channel_stage_snapshot(tmp);
 		ast_channel_tech_set(tmp, &mgcp_tech);
 		ast_format_cap_copy(ast_channel_nativeformats(tmp), i->cap);
 		if (ast_format_cap_is_empty(ast_channel_nativeformats(tmp))) {
@@ -1566,6 +1568,9 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 		if (sub->rtp) {
 			ast_jb_configure(tmp, &global_jbconf);
 		}
+
+		ast_channel_stage_snapshot_done(tmp);
+
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));

@@ -600,10 +600,25 @@ struct ast_json *ast_multi_channel_blob_get_json(struct ast_multi_channel_blob *
 	return obj->blob;
 }
 
+void ast_channel_stage_snapshot(struct ast_channel *chan)
+{
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_SNAPSHOT_STAGE);
+}
+
+void ast_channel_stage_snapshot_done(struct ast_channel *chan)
+{
+	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_SNAPSHOT_STAGE);
+	ast_channel_publish_snapshot(chan);
+}
+
 void ast_channel_publish_snapshot(struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_SNAPSHOT_STAGE)) {
+		return;
+	}
 
 	snapshot = ast_channel_snapshot_create(chan);
 	if (!snapshot) {

@@ -1151,8 +1151,10 @@ static void check_bridge_play_sounds(struct ast_bridge *bridge)
 
 static void update_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid)
 {
+	ast_channel_stage_snapshot(chan);
 	pbx_builtin_setvar_helper(chan, "BRIDGEPEER", name);
 	pbx_builtin_setvar_helper(chan, "BRIDGEPVTCALLID", pvtid);
+	ast_channel_stage_snapshot_done(chan);
 }
 
 /*!

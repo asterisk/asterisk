@@ -6473,6 +6473,7 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_lock(&pri->lock);
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						if (c) {
+							ast_channel_stage_snapshot(c);
 #if defined(HAVE_PRI_SUBADDR)
 							if (e->ring.calling.subaddress.valid) {
 								/* Set Calling Subaddress */
@@ -6557,6 +6558,7 @@ static void *pri_dchannel(void *vpri)
 									PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
 #endif
 							}
+							ast_channel_stage_snapshot_done(c);
 						}
 						if (c && !ast_pthread_create_detached(&threadid, NULL, pri_ss_thread, pri->pvts[chanpos])) {
 							ast_verb(3, "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
@@ -6602,6 +6604,7 @@ static void *pri_dchannel(void *vpri)
 							 * will do anything with the channel we have just
 							 * created.
 							 */
+							ast_channel_stage_snapshot(c);
 #if defined(HAVE_PRI_SUBADDR)
 							if (e->ring.calling.subaddress.valid) {
 								/* Set Calling Subaddress */
@@ -6670,6 +6673,8 @@ static void *pri_dchannel(void *vpri)
 
 							sig_pri_handle_subcmds(pri, chanpos, e->e, e->ring.subcmds,
 								e->ring.call);
+
+							ast_channel_stage_snapshot_done(c);
 						}
 						if (c && !ast_pbx_start(c)) {
 							ast_verb(3, "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",

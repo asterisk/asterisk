@@ -116,6 +116,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_system.h"
+#include "asterisk/stasis_channels.h"
 
 #include "iax2/include/iax2.h"
 #include "iax2/include/firmware.h"
@@ -5702,6 +5703,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		return NULL;
 	}
 
+	ast_channel_stage_snapshot(tmp);
+
 	if ((callid = iaxs[callno]->callid)) {
 		ast_channel_callid_set(tmp, callid);
 	}
@@ -5798,6 +5801,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 			}
 		}
 	}
+
+	ast_channel_stage_snapshot_done(tmp);
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
