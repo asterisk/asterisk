@@ -221,6 +221,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static void cdr_detach(struct ast_cdr *cdr);
 static void cdr_submit_batch(int shutdown);
+static int cdr_toggle_runtime_options(void);
 
 /*! \brief The configuration settings for this module */
 struct module_config {
@@ -2566,9 +2567,12 @@ struct ast_cdr_config *ast_cdr_get_config(void)
 void ast_cdr_set_config(struct ast_cdr_config *config)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+
 	ao2_cleanup(mod_cfg->general);
 	mod_cfg->general = config;
 	ao2_ref(mod_cfg->general, +1);
+
+	cdr_toggle_runtime_options();
 }
 
 int ast_cdr_is_enabled(void)
@@ -3847,6 +3851,63 @@ static void finalize_batch_mode(void)
 	ast_cdr_engine_term();
 }
 
+/*!
+ * \brief Destroy the active Stasis subscriptions/router/topics
+ */
+static void destroy_subscriptions(void)
+{
+	stasis_message_router_unsubscribe_and_join(stasis_router);
+	stasis_router = NULL;
+
+	ao2_cleanup(cdr_topic);
+	cdr_topic = NULL;
+
+	channel_subscription = stasis_forward_cancel(channel_subscription);
+	bridge_subscription = stasis_forward_cancel(bridge_subscription);
+	parking_subscription = stasis_forward_cancel(parking_subscription);
+}
+
+/*!
+ * \brief Create the Stasis subcriptions for CDRs
+ */
+static int create_subscriptions(void)
+{
+	/* Use the CDR topic to determine if we've already created this */
+	if (cdr_topic) {
+		return 0;
+	}
+
+	cdr_topic = stasis_topic_create("cdr_engine");
+	if (!cdr_topic) {
+		return -1;
+	}
+
+	channel_subscription = stasis_forward_all(ast_channel_topic_all_cached(), cdr_topic);
+	if (!channel_subscription) {
+		return -1;
+	}
+	bridge_subscription = stasis_forward_all(ast_bridge_topic_all_cached(), cdr_topic);
+	if (!bridge_subscription) {
+		return -1;
+	}
+	parking_subscription = stasis_forward_all(ast_parking_topic(), cdr_topic);
+	if (!parking_subscription) {
+		return -1;
+	}
+
+	stasis_router = stasis_message_router_create(cdr_topic);
+	if (!stasis_router) {
+		return -1;
+	}
+	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
+	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
+	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
+	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
+	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
+
+	return 0;
+}
+
 static int process_config(int reload)
 {
 	RAII_VAR(struct module_config *, mod_cfg, module_config_alloc(), ao2_cleanup);
@@ -3889,12 +3950,7 @@ static int process_config(int reload)
 
 static void cdr_engine_cleanup(void)
 {
-	channel_subscription = stasis_forward_cancel(channel_subscription);
-	bridge_subscription = stasis_forward_cancel(bridge_subscription);
-	parking_subscription = stasis_forward_cancel(parking_subscription);
-	stasis_message_router_unsubscribe_and_join(stasis_router);
-	ao2_cleanup(cdr_topic);
-	cdr_topic = NULL;
+	destroy_subscriptions();
 }
 
 static void cdr_engine_shutdown(void)
@@ -3960,10 +4016,35 @@ static void cdr_container_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
 	}
 }
 
+/*!
+ * \brief Checks if CDRs are enabled and enables/disables the necessary options
+ */
+static int cdr_toggle_runtime_options(void)
+{
+	RAII_VAR(struct module_config *, mod_cfg,
+		ao2_global_obj_ref(module_configs), ao2_cleanup);
+
+	if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
+		if (create_subscriptions()) {
+			destroy_subscriptions();
+			ast_log(AST_LOG_ERROR, "Failed to create Stasis subscriptions\n");
+			return -1;
+		}
+		if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
+			cdr_enable_batch_mode(mod_cfg->general);
+		} else {
+			ast_log(LOG_NOTICE, "CDR simple logging enabled.\n");
+		}
+	} else {
+		destroy_subscriptions();
+		ast_log(LOG_NOTICE, "CDR logging disabled.\n");
+	}
+
+	return 0;
+}
+
 int ast_cdr_engine_init(void)
 {
-	RAII_VAR(struct module_config *, mod_cfg, NULL, ao2_cleanup);
-
 	if (process_config(0)) {
 		return -1;
 	}
@@ -3975,34 +4056,6 @@ int ast_cdr_engine_init(void)
 	}
 	ao2_container_register("cdrs_by_channel", active_cdrs_by_channel, cdr_container_print_fn);
 
-	cdr_topic = stasis_topic_create("cdr_engine");
-	if (!cdr_topic) {
-		return -1;
-	}
-
-	channel_subscription = stasis_forward_all(ast_channel_topic_all_cached(), cdr_topic);
-	if (!channel_subscription) {
-		return -1;
-	}
-	bridge_subscription = stasis_forward_all(ast_bridge_topic_all_cached(), cdr_topic);
-	if (!bridge_subscription) {
-		return -1;
-	}
-	parking_subscription = stasis_forward_all(ast_parking_topic(), cdr_topic);
-	if (!parking_subscription) {
-		return -1;
-	}
-
-	stasis_router = stasis_message_router_create(cdr_topic);
-	if (!stasis_router) {
-		return -1;
-	}
-	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
-	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
-
 	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
@@ -4013,19 +4066,7 @@ int ast_cdr_engine_init(void)
 	ast_register_cleanup(cdr_engine_cleanup);
 	ast_register_atexit(cdr_engine_shutdown);
 
-	mod_cfg = ao2_global_obj_ref(module_configs);
-
-	if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
-		if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
-			cdr_enable_batch_mode(mod_cfg->general);
-		} else {
-			ast_log(LOG_NOTICE, "CDR simple logging enabled.\n");
-		}
-	} else {
-		ast_log(LOG_NOTICE, "CDR logging disabled.\n");
-	}
-
-	return 0;
+	return cdr_toggle_runtime_options();
 }
 
 void ast_cdr_engine_term(void)
@@ -4063,17 +4104,7 @@ int ast_cdr_engine_reload(void)
 		}
 	}
 
-	if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
-		if (!ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
-			ast_log(LOG_NOTICE, "CDR simple logging enabled.\n");
-		} else {
-			cdr_enable_batch_mode(mod_cfg->general);
-		}
-	} else {
-		ast_log(LOG_NOTICE, "CDR logging disabled, data will be lost.\n");
-	}
-
-	return 0;
+	return cdr_toggle_runtime_options();
 }
 
 

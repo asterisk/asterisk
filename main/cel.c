@@ -547,17 +547,6 @@ static int apps_handler(const struct aco_option *opt, struct ast_variable *var, 
 	return 0;
 }
 
-static int do_reload(void)
-{
-	if (aco_process_config(&cel_cfg_info, 1) == ACO_PROCESS_ERROR) {
-		return -1;
-	}
-
-	ast_verb(3, "CEL logging %sabled.\n", ast_cel_check_enabled() ? "en" : "dis");
-
-	return 0;
-}
-
 const char *ast_cel_get_type_name(enum ast_cel_event_type type)
 {
 	return S_OR(cel_event_types[type], "Unknown");
@@ -1374,23 +1363,31 @@ static void cel_local_cb(
 	cel_report_event(localone, AST_CEL_LOCAL_OPTIMIZE, NULL, extra, NULL);
 }
 
-static void ast_cel_engine_term(void)
+static void destroy_subscriptions(void)
 {
-	aco_info_destroy(&cel_cfg_info);
-	ao2_global_obj_release(cel_configs);
-	stasis_message_router_unsubscribe_and_join(cel_state_router);
-	cel_state_router = NULL;
-	ao2_cleanup(cel_aggregation_topic);
-	cel_aggregation_topic = NULL;
-	ao2_cleanup(cel_topic);
-	cel_topic = NULL;
+ 	stasis_message_router_unsubscribe_and_join(cel_state_router);
+ 	cel_state_router = NULL;
+
+ 	ao2_cleanup(cel_aggregation_topic);
+ 	cel_aggregation_topic = NULL;
+ 	ao2_cleanup(cel_topic);
+ 	cel_topic = NULL;
+
 	cel_channel_forwarder = stasis_forward_cancel(cel_channel_forwarder);
 	cel_bridge_forwarder = stasis_forward_cancel(cel_bridge_forwarder);
 	cel_parking_forwarder = stasis_forward_cancel(cel_parking_forwarder);
 	cel_cel_forwarder = stasis_forward_cancel(cel_cel_forwarder);
-	ast_cli_unregister(&cli_status);
-	ao2_cleanup(cel_dialstatus_store);
-	cel_dialstatus_store = NULL;
+}
+
+static void ast_cel_engine_term(void)
+{
+	destroy_subscriptions();
+
+	aco_info_destroy(&cel_cfg_info);
+	ao2_global_obj_release(cel_configs);
+ 	ast_cli_unregister(&cli_status);
+ 	ao2_cleanup(cel_dialstatus_store);
+ 	cel_dialstatus_store = NULL;
 	ao2_cleanup(linkedids);
 	linkedids = NULL;
 	ao2_cleanup(cel_backends);
@@ -1398,29 +1395,12 @@ static void ast_cel_engine_term(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(cel_generic_type);
 }
 
-int ast_cel_engine_init(void)
+/*!
+ * \brief Create the Stasis subscriptions for CEL
+ */
+static int create_subscriptions(void)
 {
 	int ret = 0;
-	if (!(linkedids = ast_str_container_alloc(NUM_APP_BUCKETS))) {
-		return -1;
-	}
-
-	if (!(cel_dialstatus_store = ao2_container_alloc(NUM_DIALSTATUS_BUCKETS, dialstatus_hash, dialstatus_cmp))) {
-		return -1;
-	}
-
-	if (STASIS_MESSAGE_TYPE_INIT(cel_generic_type)) {
-		return -1;
-	}
-
-	if (ast_cli_register(&cli_status)) {
-		return -1;
-	}
-
-	cel_backends = ao2_container_alloc(BACKEND_BUCKETS, cel_backend_hash, cel_backend_cmp);
-	if (!cel_backends) {
-		return -1;
-	}
 
 	cel_aggregation_topic = stasis_topic_create("cel_aggregation_topic");
 	if (!cel_aggregation_topic) {
@@ -1515,11 +1495,33 @@ int ast_cel_engine_init(void)
 		cel_local_cb,
 		NULL);
 
-	/* If somehow we failed to add any routes, just shut down the whole
-	 * thing and fail it.
-	 */
 	if (ret) {
-		ast_cel_engine_term();
+		ast_log(AST_LOG_ERROR, "Failed to register for Stasis messages\n");
+	}
+
+	return ret;
+}
+
+int ast_cel_engine_init(void)
+{
+	if (!(linkedids = ast_str_container_alloc(NUM_APP_BUCKETS))) {
+		return -1;
+	}
+
+	if (!(cel_dialstatus_store = ao2_container_alloc(NUM_DIALSTATUS_BUCKETS, dialstatus_hash, dialstatus_cmp))) {
+		return -1;
+	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(cel_generic_type)) {
+		return -1;
+	}
+
+	if (ast_cli_register(&cli_status)) {
+		return -1;
+	}
+
+	cel_backends = ao2_container_alloc(BACKEND_BUCKETS, cel_backend_hash, cel_backend_cmp);
+	if (!cel_backends) {
 		return -1;
 	}
 
@@ -1548,7 +1550,34 @@ int ast_cel_engine_init(void)
 		}
 	}
 
-	ast_register_cleanup(ast_cel_engine_term);
+	if (ast_cel_check_enabled() && create_subscriptions()) {
+		return -1;
+	}
+
+	ast_register_atexit(&ast_cel_engine_term);
+	return 0;
+}
+
+static int do_reload(void)
+{
+	unsigned int was_enabled = ast_cel_check_enabled();
+	unsigned int is_enabled;
+
+	if (aco_process_config(&cel_cfg_info, 1) == ACO_PROCESS_ERROR) {
+		return -1;
+	}
+
+	is_enabled = ast_cel_check_enabled();
+
+	if (!was_enabled && is_enabled) {
+		if (create_subscriptions()) {
+			return -1;
+		}
+	} else if (was_enabled && !is_enabled) {
+		destroy_subscriptions();
+	}
+
+	ast_verb(3, "CEL logging %sabled.\n", is_enabled ? "en" : "dis");
 
 	return 0;
 }
@@ -1596,11 +1625,20 @@ void ast_cel_set_config(struct ast_cel_general_config *config)
 {
 	RAII_VAR(struct cel_config *, mod_cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
 	RAII_VAR(struct ast_cel_general_config *, cleanup_config, mod_cfg->general, ao2_cleanup);
+	int was_enabled = ast_cel_check_enabled();
+	int is_enabled;
 
 	if (mod_cfg) {
 		mod_cfg->general = config;
 		if (mod_cfg->general) {
 			ao2_ref(mod_cfg->general, +1);
+		}
+
+		is_enabled = ast_cel_check_enabled();
+		if (!was_enabled && is_enabled) {
+			create_subscriptions();
+		} else if (was_enabled && !is_enabled) {
+			destroy_subscriptions();
 		}
 	}
 }

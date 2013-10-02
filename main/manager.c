@@ -1106,6 +1106,7 @@ static int timestampevents;
 static int httptimeout = 60;
 static int broken_events_action = 0;
 static int manager_enabled = 0;
+static int subscribed = 0;
 static int webmanager_enabled = 0;
 static int manager_debug = 0;	/*!< enable some debugging code in the manager */
 static int authtimeout;
@@ -7794,16 +7795,8 @@ static void manager_shutdown(void)
  */
 static int manager_subscriptions_init(void)
 {
-	int res;
+	int res = 0;
 
-	res = STASIS_MESSAGE_TYPE_INIT(ast_manager_get_generic_type);
-	if (res != 0) {
-		return -1;
-	}
-	manager_topic = stasis_topic_create("manager_topic");
-	if (!manager_topic) {
-		return -1;
-	}
 	rtp_topic_forwarder = stasis_forward_all(ast_rtp_topic(), manager_topic);
 	if (!rtp_topic_forwarder) {
 		return -1;
@@ -7823,6 +7816,36 @@ static int manager_subscriptions_init(void)
 	if (res != 0) {
 		return -1;
 	}
+	return 0;
+}
+
+static int subscribe_all(void)
+{
+	if (manager_subscriptions_init()) {
+		ast_log(AST_LOG_ERROR, "Failed to initialize manager subscriptions\n");
+		return -1;
+	}
+	if (manager_system_init()) {
+		ast_log(AST_LOG_ERROR, "Failed to initialize manager system handling\n");
+		return -1;
+	}
+	if (manager_channels_init()) {
+		ast_log(AST_LOG_ERROR, "Failed to initialize manager channel handling\n");
+		return -1;
+	}
+	if (manager_mwi_init()) {
+		ast_log(AST_LOG_ERROR, "Failed to initialize manager MWI handling\n");
+		return -1;
+	}
+	if (manager_bridging_init()) {
+		return -1;
+	}
+	if (manager_endpoints_init()) {
+		ast_log(AST_LOG_ERROR, "Failed to initialize manager endpoints handling\n");
+		return -1;
+	}
+
+	subscribed = 1;
 	return 0;
 }
 
@@ -7848,27 +7871,12 @@ static int __init_manager(int reload, int by_external_config)
 	manager_enabled = 0;
 
 	if (!reload) {
-		if (manager_subscriptions_init()) {
-			ast_log(AST_LOG_ERROR, "Failed to initialize manager subscriptions\n");
+		int res = STASIS_MESSAGE_TYPE_INIT(ast_manager_get_generic_type);
+		if (res != 0) {
 			return -1;
 		}
-		if (manager_system_init()) {
-			ast_log(AST_LOG_ERROR, "Failed to initialize manager system handling\n");
-			return -1;
-		}
-		if (manager_channels_init()) {
-			ast_log(AST_LOG_ERROR, "Failed to initialize manager channel handling\n");
-			return -1;
-		}
-		if (manager_mwi_init()) {
-			ast_log(AST_LOG_ERROR, "Failed to initialize manager MWI handling\n");
-			return -1;
-		}
-		if (manager_bridging_init()) {
-			return -1;
-		}
-		if (manager_endpoints_init()) {
-			ast_log(AST_LOG_ERROR, "Failed to initialize manager endpoints handling\n");
+		manager_topic = stasis_topic_create("manager_topic");
+		if (!manager_topic) {
 			return -1;
 		}
 	}
@@ -8053,6 +8061,13 @@ static int __init_manager(int reload, int by_external_config)
 		} else {
 			ast_log(LOG_NOTICE, "Invalid keyword <%s> = <%s> in manager.conf [general]\n",
 				var->name, val);
+		}
+	}
+
+	if (manager_enabled && !subscribed) {
+		if (subscribe_all() != 0) {
+			ast_log(LOG_ERROR, "Manager subscription error\n");
+			return -1;
 		}
 	}
 
