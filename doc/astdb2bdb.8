@@ -1,0 +1,46 @@
+.TH "ASTDB2BDB" "8" "30 SEPTEMBER 2013" "Asterisk 11" ""
+
+.SH NAME
+astdb2bdb \- convert astdb back to Berkeley DB 1.86
+.SH SYNOPSIS
+
+.B cd \fIastvarlibdir\fB && astdb2bdb path/to/astdb.sqlite3
+
+.SH "DESCRIPTION"
+Up until version version 11, Asterisk used an old version of the
+Berkeley DB 1.86 (bdb) to store its internal persistent database. In
+version 11 it switched to using a SQLIte 3 database. This program is
+used to convert the newly-formatted SQLite 3 astdb back to bdb.
+
+You may need it in case of reverting an upgrade or other similar
+scenarios.
+
+.SH OPTIONS
+There is a single (and required) parameter: the path the the sqlite file.
+The output file will be a file called
+.B astdb
+in the current working directory.
+
+.SH EXAMPLES
+In case you want to revert an upgrade to Asterisk 11, you can do the
+following (while Asterisk is not running):
+
+  cd /var/lib/asterisk && astdb2bdb astdb.sqlite3 && rm astdb.sqlite3
+
+This will convert the newly-formatted astdb back to the old format, and
+delete it (to avoid obsolete data copies).
+
+.SH NOTES
+Berkeley DB 1.86 is obsolete. It is incompatible with newer versions
+(4.x and newer) that you may see around. Chances are you don't have the
+tools to use it independently of Asterisk.
+
+.SH SEE ALSO
+.B astdb2sqlite3(8),
+.B asterisk(8)
+
+.SH AUTHOR
+astdb2bdb was written by Terry Wilson <twilson@digium.com>.
+
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com>.
+
