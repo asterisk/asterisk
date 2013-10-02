@@ -10059,24 +10059,35 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	}
 	ast_set_flag(ast_channel_flags(dialed), AST_FLAG_ORIGINATED);
 
-	if (!ast_strlen_zero(cid_num) && !ast_strlen_zero(cid_name)) {
+	if (!ast_strlen_zero(cid_num) || !ast_strlen_zero(cid_name)) {
 		struct ast_party_connected_line connected;
 
-		ast_party_connected_line_set_init(&connected, ast_channel_connected(dialed));
-
+		/*
+		 * It seems strange to set the CallerID on an outgoing call leg
+		 * to whom we are calling, but this function's callers are doing
+		 * various Originate methods.  This call leg goes to the local
+		 * user.  Once the called party answers, the dialplan needs to
+		 * be able to access the CallerID from the CALLERID function as
+		 * if the called party had placed this call.
+		 */
 		ast_set_callerid(dialed, cid_num, cid_name, cid_num);
-		connected.id.number.valid = 1;
-		connected.id.number.str = (char *) cid_num;
-		connected.id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
-		connected.id.name.valid = 1;
-		connected.id.name.str = (char *) cid_name;
-		connected.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 
+		ast_party_connected_line_set_init(&connected, ast_channel_connected(dialed));
+		if (!ast_strlen_zero(cid_num)) {
+			connected.id.number.valid = 1;
+			connected.id.number.str = (char *) cid_num;
+			connected.id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		}
+		if (!ast_strlen_zero(cid_name)) {
+			connected.id.name.valid = 1;
+			connected.id.name.str = (char *) cid_name;
+			connected.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		}
 		ast_channel_set_connected_line(dialed, &connected, NULL);
 	}
 
 	if (early_media) {
-		ast_dial_set_state_callback(outgoing->dial, &pbx_outgoing_state_callback);
+		ast_dial_set_state_callback(outgoing->dial, pbx_outgoing_state_callback);
 	}
 
 	if (channel) {
