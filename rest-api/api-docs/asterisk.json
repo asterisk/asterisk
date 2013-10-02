@@ -27,9 +27,10 @@
 							"allowableValues": {
 								"valueType": "LIST",
 								"values": [
-									"version",
-									"modules",
-									"uptime"
+									"build",
+									"system",
+									"config",
+									"status"
 								]
 							}
 						}
