@@ -135,6 +135,10 @@ struct stasis_app_control_dial_data {
 	int timeout;
 };
 
+static void *app_control_add_channel_to_bridge(
+        struct stasis_app_control *control,
+        struct ast_channel *chan, void *data);
+
 static void *app_control_dial(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
@@ -142,9 +146,8 @@ static void *app_control_dial(struct stasis_app_control *control,
 	RAII_VAR(struct stasis_app_control_dial_data *, dial_data, data, ast_free);
 	enum ast_dial_result res;
 	char *tech, *resource;
-
 	struct ast_channel *new_chan;
-	struct ast_bridge *bridge;
+	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
 
 	tech = dial_data->endpoint;
 	if (!(resource = strchr(tech, '/'))) {
@@ -178,13 +181,14 @@ static void *app_control_dial(struct stasis_app_control *control,
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(new_chan);
 	} else {
-		stasis_app_control_add_channel_to_bridge(control, bridge);
+		app_control_add_channel_to_bridge(control, chan, bridge);
 	}
 
 	return NULL;
 }
 
-int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, int timeout)
+int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, const char *exten, const char *context,
+			    int timeout)
 {
 	struct stasis_app_control_dial_data *dial_data;
 
@@ -192,7 +196,13 @@ int stasis_app_control_dial(struct stasis_app_control *control, const char *endp
 		return -1;
 	}
 
-	ast_copy_string(dial_data->endpoint, endpoint, sizeof(dial_data->endpoint));
+	if (!ast_strlen_zero(endpoint)) {
+		ast_copy_string(dial_data->endpoint, endpoint, sizeof(dial_data->endpoint));
+	} else if (!ast_strlen_zero(exten) && !ast_strlen_zero(context)) {
+		snprintf(dial_data->endpoint, sizeof(dial_data->endpoint), "Local/%s@%s", exten, context);
+	} else {
+		return -1;
+	}
 
 	if (timeout > 0) {
 		dial_data->timeout = timeout * 1000;

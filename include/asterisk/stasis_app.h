@@ -166,12 +166,15 @@ const char *stasis_app_control_get_channel_id(
  *
  * \param control Control for \c res_stasis
  * \param endpoint The endpoint to dial.
+ * \param exten Extension to dial if no endpoint specified.
+ * \param context Context to use with extension.
  * \param timeout The amount of time to wait for answer, before giving up.
  *
  * \return 0 for success
  * \return -1 for error.
  */
-int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, int timeout);
+int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, const char *exten,
+                            const char *context, int timeout);
 
 /*!
  * \brief Apply a bridge role to a channel controlled by a stasis app control
