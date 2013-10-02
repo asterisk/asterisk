@@ -10050,7 +10050,9 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		return -1;
 	}
 
-	ast_set_variables(dialed, vars);
+	if (vars) {
+		ast_set_variables(dialed, vars);
+	}
 
 	if (account) {
 		ast_channel_accountcode_set(dialed, account);

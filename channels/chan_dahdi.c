@@ -8910,6 +8910,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		return NULL;
 	}
 
+	ast_channel_stage_snapshot(tmp);
+
 	if (callid) {
 		ast_channel_callid_set(tmp, callid);
 	}
@@ -9086,6 +9088,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 
 	for (v = i->vars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp, v->name, v->value);
+
+	ast_channel_stage_snapshot_done(tmp);
 
 	ast_module_ref(ast_module_info->self);
 

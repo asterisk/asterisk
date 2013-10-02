@@ -286,6 +286,8 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	cap_request = NULL;
 	cap_all_audio = ast_format_cap_destroy(cap_all_audio);
 
+	ast_channel_stage_snapshot(channel->owner);
+
 	ast_channel_appl_set(channel->owner, "AppDial2");
 	ast_channel_data_set(channel->owner, "(Outgoing Line)");
 	ast_publish_channel_state(channel->owner);
@@ -311,6 +313,8 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 		ast_channel_adsicpe_set(channel->owner, ast_channel_adsicpe(chan));
 		ast_channel_transfercapability_set(channel->owner, ast_channel_transfercapability(chan));
 	}
+
+	ast_channel_stage_snapshot_done(channel->owner);
 
 	return 0;
 }

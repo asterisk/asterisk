@@ -77,7 +77,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/features_config.h"
 #include "asterisk/bridge.h"
-
+#include "asterisk/stasis_channels.h"
 
 #define DEFAULTCONTEXT	  "default"
 #define DEFAULTCALLERID	 "Unknown"
@@ -5563,6 +5563,8 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		return NULL;
 	}
 
+	ast_channel_stage_snapshot(tmp);
+
 	ast_format_cap_copy(ast_channel_nativeformats(tmp), l->cap);
 	if (ast_format_cap_is_empty(ast_channel_nativeformats(tmp))) {
 		ast_format_cap_copy(ast_channel_nativeformats(tmp), global_cap);
@@ -5623,6 +5625,9 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		}
 	}
 	ast_channel_priority_set(tmp, 1);
+
+	ast_channel_stage_snapshot_done(tmp);
+
 	if (state != AST_STATE_DOWN) {
 		if (unistimdebug) {
 			ast_verb(0, "Starting pbx in unistim_new\n");

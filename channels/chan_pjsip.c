@@ -577,6 +577,8 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
+	ast_channel_stage_snapshot(chan);
+
 	/* If res_pjsip_session is ever updated to create/destroy ast_sip_session_media
 	 * during a call such as if multiple same-type stream support is introduced,
 	 * these will need to be recaptured as well */
@@ -631,6 +633,8 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	}
 
 	ast_endpoint_add_channel(session->endpoint->persistent, chan);
+
+	ast_channel_stage_snapshot_done(chan);
 
 	return chan;
 }

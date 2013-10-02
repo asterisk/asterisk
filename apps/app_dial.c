@@ -1958,10 +1958,12 @@ static void end_bridge_callback(void *data)
 	time(&end);
 
 	ast_channel_lock(chan);
+	ast_channel_stage_snapshot(chan);
 	snprintf(buf, sizeof(buf), "%d", ast_channel_get_up_time(chan));
 	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", buf);
 	snprintf(buf, sizeof(buf), "%d", ast_channel_get_duration(chan));
 	pbx_builtin_setvar_helper(chan, "DIALEDTIME", buf);
+	ast_channel_stage_snapshot_done(chan);
 	ast_channel_unlock(chan);
 }
 
@@ -2096,11 +2098,13 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	struct ast_party_caller caller;
 
 	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
+	ast_channel_stage_snapshot(chan);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", "");
 	pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", "");
 	pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", "");
 	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", "");
 	pbx_builtin_setvar_helper(chan, "DIALEDTIME", "");
+	ast_channel_stage_snapshot_done(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/resource)\n");
@@ -2431,6 +2435,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			chanlist_free(tmp);
 			continue;
 		}
+
+		ast_channel_stage_snapshot(tc);
+
 		ast_channel_get_device_name(tc, device_name, sizeof(device_name));
 		if (!ignore_cc) {
 			ast_cc_extension_monitor_add_dialstring(chan, tmp->interface, device_name);
@@ -2539,6 +2546,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_exten_set(tc, ast_channel_macroexten(chan));
 		else
 			ast_channel_exten_set(tc, ast_channel_exten(chan));
+
+		ast_channel_stage_snapshot_done(tc);
 
 		ast_channel_unlock(tc);
 		ast_channel_unlock(chan);
@@ -2690,6 +2699,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_answer(chan);
 
 		strcpy(pa.status, "ANSWER");
+		ast_channel_stage_snapshot(chan);
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
@@ -2708,6 +2718,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 		ast_channel_unlock(peer);
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
+		ast_channel_stage_snapshot_done(chan);
 
 		if (!ast_strlen_zero(args.url) && ast_channel_supports_html(peer) ) {
 			ast_debug(1, "app_dial: sendurl=%s.\n", args.url);
@@ -2793,6 +2804,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			/* chan and peer are going into the PBX; as such neither are considered
 			 * outgoing channels any longer */
 			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING);
+			ast_channel_stage_snapshot(peer);
 			ast_clear_flag(ast_channel_flags(peer), AST_FLAG_OUTGOING);
 
 			ast_replace_subargument_delimiter(opt_args[OPT_ARG_GOTO]);
@@ -2801,6 +2813,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_context_set(peer, ast_channel_context(chan));
 			ast_channel_exten_set(peer, ast_channel_exten(chan));
 			ast_channel_priority_set(peer, ast_channel_priority(chan) + 2);
+			ast_channel_stage_snapshot_done(peer);
 			if (ast_pbx_start(peer)) {
 				ast_autoservice_chan_hangup_peer(chan, peer);
 			}

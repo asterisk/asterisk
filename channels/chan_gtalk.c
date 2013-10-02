@@ -1149,6 +1149,9 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		ast_log(LOG_WARNING, "Unable to allocate Gtalk channel structure!\n");
 		return NULL;
 	}
+
+	ast_channel_stage_snapshot(tmp);
+
 	ast_channel_tech_set(tmp, &gtalk_tech);
 
 	/* Select our native format based on codec preference until we receive
@@ -1221,6 +1224,9 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	ast_channel_priority_set(tmp, 1);
 	if (i->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
+
+	ast_channel_stage_snapshot_done(tmp);
+
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 		ast_channel_hangupcause_set(tmp, AST_CAUSE_SWITCH_CONGESTION);

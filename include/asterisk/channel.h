@@ -923,6 +923,11 @@ enum {
 	 * occur.
 	 */
 	AST_FLAG_DEAD = (1 << 24),
+	/*!
+	 * Channel snapshot should not be published, it is being staged for an explicit
+	 * publish.
+	 */
+	AST_FLAG_SNAPSHOT_STAGE = (1 << 25),
 };
 
 /*! \brief ast_bridge_config flags */

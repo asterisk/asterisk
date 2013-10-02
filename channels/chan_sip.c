@@ -7285,6 +7285,10 @@ static int sip_hangup(struct ast_channel *ast)
 					} while (sip_pvt_trylock(p));
 				}
 
+				if (p->rtp || p->vrtp || p->trtp) {
+					ast_channel_stage_snapshot(oldowner);
+				}
+
 				if (p->rtp) {
 					ast_rtp_instance_set_stats_vars(oldowner, p->rtp);
 				}
@@ -7319,6 +7323,9 @@ static int sip_hangup(struct ast_channel *ast)
 						append_history(p, "RTCPtext", "Quality:%s", quality);
 					}
 					pbx_builtin_setvar_helper(oldowner, "RTPTEXTQOS", quality);
+				}
+				if (p->rtp || p->vrtp || p->trtp) {
+					ast_channel_stage_snapshot_done(oldowner);
 				}
 
 				/* Send a hangup */
@@ -8092,6 +8099,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		}
 	}
 
+	ast_channel_stage_snapshot(tmp);
+
 	/* If we sent in a callid, bind it to the channel. */
 	if (callid) {
 		ast_channel_callid_set(tmp, callid);
@@ -8286,6 +8295,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (i->do_history) {
 		append_history(i, "NewChan", "Channel %s - from %s", ast_channel_name(tmp), i->callid);
 	}
+
+	ast_channel_stage_snapshot_done(tmp);
 
 	return tmp;
 }
@@ -26531,6 +26542,10 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		}
 	}
 
+	if ((p->rtp || p->vrtp || p->trtp) && p->owner) {
+		ast_channel_stage_snapshot(p->owner);
+	}
+
 	/* Get RTCP quality before end of call */
 	if (p->rtp) {
 		if (p->do_history) {
@@ -26593,6 +26608,10 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		if (p->owner) {
 			pbx_builtin_setvar_helper(p->owner, "RTPTEXTQOS", quality);
 		}
+	}
+
+	if ((p->rtp || p->vrtp || p->trtp) && p->owner) {
+		ast_channel_stage_snapshot_done(p->owner);
 	}
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */

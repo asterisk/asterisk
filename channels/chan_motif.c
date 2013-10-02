@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/xmpp.h"
+#include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
 	<configInfo name="chan_motif" language="en_US">
@@ -785,6 +786,8 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 		return NULL;
 	}
 
+	ast_channel_stage_snapshot(chan);
+
 	ast_channel_tech_set(chan, &jingle_tech);
 	ast_channel_tech_pvt_set(chan, session);
 	jingle_set_owner(session, chan);
@@ -847,6 +850,8 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 	ast_channel_priority_set(chan, 1);
 
 	ao2_unlock(endpoint);
+
+	ast_channel_stage_snapshot_done(chan);
 
 	return chan;
 }
