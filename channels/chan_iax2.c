@@ -8615,7 +8615,7 @@ static void __expire_registry(const void *data)
 		"cause", "Expired");
 	ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 	/* modify entry in peercnts table as _not_ registered */
-	peercnt_modify(0, 0, &peer->addr);
+	peercnt_modify((unsigned char) 0, 0, &peer->addr);
 	/* Reset the address */
 	memset(&peer->addr, 0, sizeof(peer->addr));
 	/* Reset expiry value */
@@ -8759,7 +8759,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 		}
 
 		/* modify entry in peercnts table as _not_ registered */
-		peercnt_modify(0, 0, &p->addr);
+		peercnt_modify((unsigned char) 0, 0, &p->addr);
 
 		/* Stash the IP address from which they registered */
 		ast_sockaddr_from_sin(&p->addr, sin);
@@ -8796,7 +8796,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 
 	/* modify entry in peercnts table as registered */
 	if (p->maxcallno) {
-		peercnt_modify(1, p->maxcallno, &p->addr);
+		peercnt_modify((unsigned char) 1, p->maxcallno, &p->addr);
 	}
 
 	/* Make sure our call still exists, an INVAL at the right point may make it go away */
@@ -12417,7 +12417,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			peer->pokefreqok = DEFAULT_FREQ_OK;
 			peer->pokefreqnotok = DEFAULT_FREQ_NOTOK;
 			peer->maxcallno = 0;
-			peercnt_modify(0, 0, &peer->addr);
+			peercnt_modify((unsigned char) 0, 0, &peer->addr);
 			peer->calltoken_required = CALLTOKEN_DEFAULT;
 			ast_string_field_set(peer,context,"");
 			ast_string_field_set(peer,peercontext,"");
@@ -12605,7 +12605,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				if (sscanf(v->value, "%10hu", &peer->maxcallno) != 1) {
 					ast_log(LOG_WARNING, "maxcallnumbers must be set to a valid number. %s is not valid at line %d.\n", v->value, v->lineno);
 				} else {
-					peercnt_modify(1, peer->maxcallno, &peer->addr);
+					peercnt_modify((unsigned char) 1, peer->maxcallno, &peer->addr);
 				}
 			} else if (!strcasecmp(v->name, "requirecalltoken")) {
 				/* default is required unless in optional ip list */
