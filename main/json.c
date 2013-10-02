@@ -340,10 +340,10 @@ struct ast_json *ast_json_vstringf(const char *format, va_list args)
 	json_t *ret = NULL;
 
 	if (format) {
-		int err = vasprintf(&str, format, args);
+		int err = ast_vasprintf(&str, format, args);
 		if (err > 0) {
 			ret = json_string(str);
-			free(str);
+			ast_free(str);
 		}
 	}
 	return (struct ast_json *)ret;

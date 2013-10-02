@@ -554,8 +554,8 @@ void ast_ari_get_docs(const char *uri, struct ast_variable *headers,
 			  struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_str *, absolute_path_builder, NULL, ast_free);
-	RAII_VAR(char *, absolute_api_dirname, NULL, free);
-	RAII_VAR(char *, absolute_filename, NULL, free);
+	RAII_VAR(char *, absolute_api_dirname, NULL, ast_std_free);
+	RAII_VAR(char *, absolute_filename, NULL, ast_std_free);
 	struct ast_json *obj = NULL;
 	struct ast_variable *host = NULL;
 	struct ast_json_error error = {};
