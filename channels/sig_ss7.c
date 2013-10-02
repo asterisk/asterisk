@@ -42,6 +42,7 @@
 #include "asterisk/musiconhold.h"
 #include "asterisk/cli.h"
 #include "asterisk/transcap.h"
+#include "asterisk/stasis_channels.h"
 
 #include "sig_ss7.h"
 #if defined(LIBSS7_ABI_COMPATIBILITY)
