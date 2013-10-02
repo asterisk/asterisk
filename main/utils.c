@@ -656,9 +656,10 @@ static void lock_info_destroy(void *data)
 	}
 
 	pthread_mutex_destroy(&lock_info->lock);
-	if (lock_info->thread_name)
-		free((void *) lock_info->thread_name);
-	free(lock_info);
+	if (lock_info->thread_name) {
+		ast_free((void *) lock_info->thread_name);
+	}
+	ast_free(lock_info);
 }
 
 /*!
@@ -2184,7 +2185,7 @@ int ast_mkdir(const char *path, int mode)
 
 static int safe_mkdir(const char *base_path, char *path, int mode)
 {
-	RAII_VAR(char *, absolute_path, NULL, free);
+	RAII_VAR(char *, absolute_path, NULL, ast_std_free);
 
 	absolute_path = realpath(path, NULL);
 
@@ -2206,7 +2207,7 @@ static int safe_mkdir(const char *base_path, char *path, int mode)
 		int res;
 
 		while (path_term) {
-			RAII_VAR(char *, absolute_subpath, NULL, free);
+			RAII_VAR(char *, absolute_subpath, NULL, ast_std_free);
 
 			/* Truncate the path one past the slash */
 			char c = *(path_term + 1);
@@ -2254,7 +2255,7 @@ static int safe_mkdir(const char *base_path, char *path, int mode)
 
 int ast_safe_mkdir(const char *base_path, const char *path, int mode)
 {
-	RAII_VAR(char *, absolute_base_path, NULL, free);
+	RAII_VAR(char *, absolute_base_path, NULL, ast_std_free);
 	RAII_VAR(char *, p, NULL, ast_free);
 
 	if (base_path == NULL || path == NULL) {

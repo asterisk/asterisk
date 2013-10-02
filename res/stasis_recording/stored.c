@@ -78,7 +78,7 @@ static int split_path(const char *path, char **dir, char **file)
 {
 	RAII_VAR(char *, relative_dir, NULL, ast_free);
 	RAII_VAR(char *, absolute_dir, NULL, ast_free);
-	RAII_VAR(char *, real_dir, NULL, free);
+	RAII_VAR(char *, real_dir, NULL, ast_std_free);
 	char *last_slash;
 	const char *file_portion;
 
@@ -108,7 +108,16 @@ static int split_path(const char *path, char **dir, char **file)
 		return -1;
 	}
 
+#if defined(__AST_DEBUG_MALLOC)
 	*dir = ast_strdup(real_dir); /* Dupe so we can ast_free() */
+#else
+	/*
+	 * ast_std_free() and ast_free() are the same thing at this time
+	 * so we don't need to dupe.
+	 */
+	*dir = real_dir;
+	real_dir = NULL;
+#endif	/* defined(__AST_DEBUG_MALLOC) */
 	*file = ast_strdup(file_portion);
 	return 0;
 }

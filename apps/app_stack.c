@@ -1215,8 +1215,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 		ast_agi_send(agi->fd, chan, "200 result=%d Gosub failed\n", res);
 	}
 
-	/* Must use free because the memory was allocated by asprintf(). */
-	free(gosub_args);
+	ast_free(gosub_args);
 
 	ast_channel_lock(chan);
 	ast_debug(4, "%s Ending location: %s,%s,%d\n", ast_channel_name(chan),

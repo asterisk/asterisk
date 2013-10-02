@@ -448,10 +448,10 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 {
 	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, ao2_cleanup);
 	struct stasis_subscription *sub;
-	RAII_VAR(char *, new_name, NULL, free);
+	RAII_VAR(char *, new_name, NULL, ast_free);
 	int ret;
 
-	ret = asprintf(&new_name, "%s-cached", stasis_topic_name(original_topic));
+	ret = ast_asprintf(&new_name, "%s-cached", stasis_topic_name(original_topic));
 	if (ret < 0) {
 		return NULL;
 	}
