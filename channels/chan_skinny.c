@@ -1677,8 +1677,8 @@ static struct skinny_line *skinny_line_alloc(void)
 		return NULL;
 	}
 
-	l->cap = ast_format_cap_alloc_nolock();
-	l->confcap = ast_format_cap_alloc_nolock();
+	l->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	l->confcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!l->cap || !l->confcap) {
 		l->cap = ast_format_cap_destroy(l->cap);
 		l->confcap = ast_format_cap_destroy(l->confcap);
@@ -1704,8 +1704,8 @@ static struct skinny_device *skinny_device_alloc(const char *dname)
 		return NULL;
 	}
 
-	d->cap = ast_format_cap_alloc_nolock();
-	d->confcap = ast_format_cap_alloc_nolock();
+	d->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	d->confcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	d->endpoint = ast_endpoint_create("Skinny", dname);
 	if (!d->cap || !d->confcap || !d->endpoint) {
 		d->cap = ast_format_cap_destroy(d->cap);
@@ -6643,7 +6643,7 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
 	uint32_t count = 0;
-	struct ast_format_cap *codecs = ast_format_cap_alloc();
+	struct ast_format_cap *codecs = ast_format_cap_alloc(0);
 	int i;
 
 	if (!codecs) {
@@ -8635,10 +8635,10 @@ static int load_module(void)
 {
 	int res = 0;
 	struct ast_format tmpfmt;
-	if (!(default_cap = ast_format_cap_alloc())) {
+	if (!(default_cap = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (!(skinny_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(skinny_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

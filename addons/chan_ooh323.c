@@ -521,7 +521,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 		ast_log(LOG_ERROR, "Couldn't allocate private ooh323 structure\n");
 		return NULL;
 	}
-	if (!(pvt->cap = ast_format_cap_alloc_nolock())) {
+	if (!(pvt->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		ast_free(pvt);
 		ast_log(LOG_ERROR, "Couldn't allocate private ooh323 structure\n");
 		return NULL;
@@ -2304,7 +2304,7 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
    	user = ast_calloc(1,sizeof(struct ooh323_user));
 	if (user) {
 		memset(user, 0, sizeof(struct ooh323_user));
-		if (!(user->cap = ast_format_cap_alloc())) {
+		if (!(user->cap = ast_format_cap_alloc(0))) {
 			ast_free(user);
 			return NULL;
 		}
@@ -2452,7 +2452,7 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 	peer = ast_calloc(1, sizeof(*peer));
 	if (peer) {
 		memset(peer, 0, sizeof(struct ooh323_peer));
-		if (!(peer->cap = ast_format_cap_alloc())) {
+		if (!(peer->cap = ast_format_cap_alloc(0))) {
 			ast_free(peer);
 			return NULL;
 		}
@@ -3677,10 +3677,10 @@ static int load_module(void)
 		.onModeChanged = onModeChanged,
 		.onMediaChanged = (cb_OnMediaChanged) setup_rtp_remote,
 	};
-	if (!(gCap = ast_format_cap_alloc())) {
+	if (!(gCap = ast_format_cap_alloc(0))) {
 		return 1; 
 	}
-	if (!(ooh323_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(ooh323_tech.capabilities = ast_format_cap_alloc(0))) {
 		return 1;
 	}
 	ast_format_cap_add(gCap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));

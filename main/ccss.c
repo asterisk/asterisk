@@ -2815,7 +2815,7 @@ static void *generic_recall(void *data)
 	const char *callback_sub = ast_get_cc_callback_sub(agent->cc_params);
 	unsigned int recall_timer = ast_get_cc_recall_timer(agent->cc_params) * 1000;
 	struct ast_format tmp_fmt;
-	struct ast_format_cap *tmp_cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	if (!tmp_cap) {
 		return NULL;

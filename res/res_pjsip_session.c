@@ -1123,7 +1123,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	ao2_ref(endpoint, +1);
 	session->endpoint = endpoint;
 	session->inv_session = inv_session;
-	session->req_caps = ast_format_cap_alloc_nolock();
+	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	if (endpoint->dtmf == AST_SIP_DTMF_INBAND) {
 		dsp_features |= DSP_FEATURE_DIGIT_DETECT;
@@ -1151,7 +1151,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 			iter->session_begin(session);
 		}
 	}
-	session->direct_media_cap = ast_format_cap_alloc_nolock();
+	session->direct_media_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	AST_LIST_HEAD_INIT_NOLOCK(&session->delayed_requests);
 	ast_party_id_init(&session->id);
 	ao2_ref(session, +1);

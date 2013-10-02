@@ -2039,7 +2039,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	}
 
 	/* Now gather all of the codecs that were asked for: */
-	if (!(peercap = ast_format_cap_alloc_nolock())) {
+	if (!(peercap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		return -1;
 	}
 	ast_rtp_codecs_payload_formats(ast_rtp_instance_get_codecs(sub->rtp), peercap, &peerNonCodecCapability);
@@ -4172,7 +4172,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_mutex_init(&e->lock);
 					ast_mutex_init(&e->rqnt_queue_lock);
 					ast_mutex_init(&e->cmd_queue_lock);
-					e->cap = ast_format_cap_alloc_nolock();
+					e->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 					ast_copy_string(e->name, v->value, sizeof(e->name));
 					e->needaudit = 1;
 				}
@@ -4288,7 +4288,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_mutex_init(&e->lock);
 					ast_mutex_init(&e->rqnt_queue_lock);
 					ast_mutex_init(&e->cmd_queue_lock);
-					e->cap = ast_format_cap_alloc_nolock();
+					e->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 					ast_copy_string(e->name, v->value, sizeof(e->name));
 					e->needaudit = 1;
 				}
@@ -4829,10 +4829,10 @@ static int load_module(void)
 {
 	struct ast_format tmpfmt;
 
-	if (!(global_capability = ast_format_cap_alloc())) {
+	if (!(global_capability = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
-	if (!(mgcp_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(mgcp_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add(global_capability, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));

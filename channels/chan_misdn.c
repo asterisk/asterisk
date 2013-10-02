@@ -10193,7 +10193,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->addr = bc->addr;
 
 		{
-			struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+			struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 			struct ast_format tmpfmt;
 			if (!(cap)) {
 				return RESPONSE_ERR;
@@ -11298,7 +11298,7 @@ static int load_module(void)
 	};
 
 
-	if (!(misdn_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(misdn_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_set(&prefformat, AST_FORMAT_ALAW, 0);

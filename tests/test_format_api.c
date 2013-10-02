@@ -622,8 +622,8 @@ AST_TEST_DEFINE(container_test1_nolock)
 		break;
 	}
 
-	cap1 = ast_format_cap_alloc_nolock();
-	cap2 = ast_format_cap_alloc_nolock();
+	cap1 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	cap2 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	if (!cap1 || !cap2) {
 		ast_test_status_update(test, "cap alloc failed.\n");
@@ -654,8 +654,8 @@ AST_TEST_DEFINE(container_test1_withlock)
 		break;
 	}
 
-	cap1 = ast_format_cap_alloc();
-	cap2 = ast_format_cap_alloc();
+	cap1 = ast_format_cap_alloc(0);
+	cap2 = ast_format_cap_alloc(0);
 
 	if (!cap1 || !cap2) {
 		ast_test_status_update(test, "cap alloc failed.\n");
@@ -710,7 +710,7 @@ AST_TEST_DEFINE(container_test2_no_locking)
 		break;
 	}
 
-	cap = ast_format_cap_alloc_nolock();
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
 		ast_test_status_update(test, "alloc failed\n");
 		return AST_TEST_FAIL;
@@ -737,7 +737,7 @@ AST_TEST_DEFINE(container_test2_with_locking)
 		break;
 	}
 
-	cap = ast_format_cap_alloc();
+	cap = ast_format_cap_alloc(0);
 	if (!cap) {
 		ast_test_status_update(test, "alloc failed\n");
 		return AST_TEST_FAIL;
@@ -756,13 +756,13 @@ static int container_test3_helper(int nolocking, struct ast_test *test)
 
 	for (x = 0; x < 2000; x++) {
 		if (nolocking) {
-			cap1 = ast_format_cap_alloc_nolock();
-			cap2 = ast_format_cap_alloc_nolock();
-			joint = ast_format_cap_alloc_nolock();
+			cap1 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+			cap2 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+			joint = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 		} else {
-			cap1 = ast_format_cap_alloc();
-			cap2 = ast_format_cap_alloc();
-			joint = ast_format_cap_alloc();
+			cap1 = ast_format_cap_alloc(0);
+			cap2 = ast_format_cap_alloc(0);
+			joint = ast_format_cap_alloc(0);
 		}
 		if (!cap1 || !cap2 || !joint) {
 			ast_test_status_update(test, "cap alloc fail\n");

@@ -1497,7 +1497,7 @@ static int load_module(void)
 	struct ast_format tmpfmt;
 	PaError res;
 
-	if (!(console_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(console_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add(console_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR16, 0));

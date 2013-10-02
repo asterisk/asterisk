@@ -2218,7 +2218,7 @@ static void recall_callback(struct ast_dial *dial)
 
 static int recalling_enter(struct attended_transfer_properties *props)
 {
-	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
 	struct ast_format fmt;
 
 	if (!cap) {
@@ -2346,7 +2346,7 @@ static int attach_framehook(struct attended_transfer_properties *props, struct a
 
 static int retransfer_enter(struct attended_transfer_properties *props)
 {
-	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
 	struct ast_format fmt;
 	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
 	int cause;

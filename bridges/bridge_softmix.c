@@ -1137,7 +1137,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	struct ast_format tmp;
-	if (!(softmix_bridge.format_capabilities = ast_format_cap_alloc())) {
+	if (!(softmix_bridge.format_capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add(softmix_bridge.format_capabilities, ast_format_set(&tmp, AST_FORMAT_SLINEAR, 0));

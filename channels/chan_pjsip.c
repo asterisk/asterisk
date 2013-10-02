@@ -2065,7 +2065,7 @@ static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip
  */
 static int load_module(void)
 {
-	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

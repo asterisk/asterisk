@@ -1376,7 +1376,7 @@ static int load_module(void)
 	struct ast_flags config_flags = { 0 };
 	struct ast_format tmpfmt;
 
-	if (!(phone_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(phone_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add(phone_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_G723_1, 0));
@@ -1384,11 +1384,11 @@ static int load_module(void)
 	ast_format_cap_add(phone_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
 	ast_format_cap_add(phone_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_G729A, 0));
 
-	if (!(prefcap = ast_format_cap_alloc())) {
+	if (!(prefcap = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_copy(prefcap, phone_tech.capabilities);
-	if (!(phone_tech_fxs.capabilities = ast_format_cap_alloc())) {
+	if (!(phone_tech_fxs.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

@@ -1018,7 +1018,7 @@ int ast_local_init(void)
 		return -1;
 	}
 
-	if (!(local_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(local_tech.capabilities = ast_format_cap_alloc(0))) {
 		return -1;
 	}
 	ast_format_cap_add_all(local_tech.capabilities);

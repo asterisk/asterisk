@@ -182,12 +182,12 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	announce_tech.capabilities = ast_format_cap_alloc();
+	announce_tech.capabilities = ast_format_cap_alloc(0);
 	if (!announce_tech.capabilities) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	record_tech.capabilities = ast_format_cap_alloc();
+	record_tech.capabilities = ast_format_cap_alloc(0);
 	if (!record_tech.capabilities) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

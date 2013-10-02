@@ -82,7 +82,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!(simple_bridge.format_capabilities = ast_format_cap_alloc())) {
+	if (!(simple_bridge.format_capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add_all_by_type(simple_bridge.format_capabilities, AST_FORMAT_TYPE_AUDIO);
