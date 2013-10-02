@@ -1,0 +1,39 @@
+.TH "ASTDB2SQLITE3" "8" "30 SEPTEMBER 2013" "Asterisk 11" ""
+
+.SH NAME
+astdb2sqlite3 \- convert astdb to SQLite 3
+.SH SYNOPSIS
+
+.B astdb2sqlite3 path/to/astdb
+
+.SH "DESCRIPTION"
+Up until version version 11, Asterisk used an old version of the
+Berkeley DB 1.86 (bdb) to store its internal persistent database. In
+version 11 it switched to using a SQLite 3 database. This program is
+used to convert an existing bdb astdb file to astdb.sqlite3.
+
+Normally the conversion is done by Asterisk itself which will run this
+program. But you may need to run it on your own.
+
+.SH OPTIONS
+There is a single (and required) parameter: the path the the bdb file.
+The output file name will be the same as the input, with
+.B .sqlite3
+appended.
+
+.SH EXAMPLES
+Asterisk will typically run the following to upgrade the database:
+
+  astdb2sqlite3 /var/lib/asterisk/astdb
+
+which will create \fB/var/lib/asterisk/astdb.sqlite3\fR.
+
+.SH SEE ALSO
+.B astdb2bdb(8),
+.B asterisk(8)
+
+.SH AUTHOR
+astdb2sqlite3 was written by Terry Wilson <twilson@digium.com>.
+
+This manual page was written by Tzafrir Cohen <tzafrir.cohen@xorcom.com>.
+
