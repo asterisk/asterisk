@@ -90,7 +90,7 @@ void ast_ari_dial(struct ast_variable *headers, struct ast_dial_args *args, stru
 		return;
 	}
 
-	if (stasis_app_control_dial(control, args->endpoint, args->timeout)) {
+	if (stasis_app_control_dial(control, args->endpoint, args->extension, args->context, args->timeout)) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
