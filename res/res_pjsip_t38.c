@@ -446,7 +446,8 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 		.event_cb = t38_framehook,
 	};
 
-	if ((ast_channel_state(session->channel) == AST_STATE_UP) || !session->endpoint->media.t38.enabled) {
+	if (!session->channel || (ast_channel_state(session->channel) == AST_STATE_UP) ||
+	    !session->endpoint->media.t38.enabled) {
 		return;
 	}
 
