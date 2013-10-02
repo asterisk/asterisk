@@ -814,11 +814,6 @@ int stasis_init(void)
 	/* Be sure the types are cleaned up after the message bus */
 	ast_register_cleanup(stasis_cleanup);
 
-	if (stasis_wait_init() != 0) {
-		ast_log(LOG_ERROR, "Stasis initialization failed\n");
-		return -1;
-	}
-
 	cache_init = stasis_cache_init();
 	if (cache_init != 0) {
 		return -1;

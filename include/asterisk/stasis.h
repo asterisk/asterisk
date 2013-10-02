@@ -347,15 +347,6 @@ const char *stasis_topic_name(const struct stasis_topic *topic);
  */
 void stasis_publish(struct stasis_topic *topic, struct stasis_message *message);
 
-/*!
- * \brief Wait for all pending messages on a given topic to be processed.
- * \param topic Topic to await pending messages on.
- * \return 0 on success.
- * \return Non-zero on error.
- * \since 12
- */
-int stasis_topic_wait(struct stasis_topic *topic);
-
 /*! @} */
 
 /*! @{ */
@@ -867,11 +858,6 @@ int stasis_cache_init(void);
  * \since 12
  */
 int stasis_config_init(void);
-
-/*!
- * \internal
- */
-int stasis_wait_init(void);
 
 /*! @} */
 

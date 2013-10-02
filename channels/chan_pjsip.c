@@ -896,7 +896,11 @@ static int chan_pjsip_devicestate(const char *data)
 	}
 
 	endpoint_snapshot = ast_endpoint_latest_snapshot(ast_endpoint_get_tech(endpoint->persistent),
-		ast_endpoint_get_resource(endpoint->persistent), 1);
+		ast_endpoint_get_resource(endpoint->persistent));
+
+	if (!endpoint_snapshot) {
+		return AST_DEVICE_INVALID;
+	}
 
 	if (endpoint_snapshot->state == AST_ENDPOINT_OFFLINE) {
 		state = AST_DEVICE_UNAVAILABLE;
@@ -916,7 +920,6 @@ static int chan_pjsip_devicestate(const char *data)
 		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 		struct ast_channel_snapshot *snapshot;
 
-		stasis_topic_wait(ast_channel_topic_all_cached());
 		msg = stasis_cache_get(cache, ast_channel_snapshot_type(),
 			endpoint_snapshot->channel_ids[num]);
 

@@ -140,7 +140,7 @@ void ast_ari_get_endpoint(struct ast_variable *headers,
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
 
-	snapshot = ast_endpoint_latest_snapshot(args->tech, args->resource, 0);
+	snapshot = ast_endpoint_latest_snapshot(args->tech, args->resource);
 	if (!snapshot) {
 		ast_ari_response_error(response, 404, "Not Found",
 			"Endpoint not found");

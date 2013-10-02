@@ -187,7 +187,7 @@ void ast_endpoint_blob_publish(struct ast_endpoint *endpoint, struct stasis_mess
 }
 
 struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
-	const char *name, unsigned int guaranteed)
+	const char *name)
 {
 	RAII_VAR(char *, id, NULL, ast_free);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -196,10 +196,6 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 	ast_asprintf(&id, "%s/%s", tech, name);
 	if (!id) {
 		return NULL;
-	}
-
-	if (guaranteed) {
-		stasis_topic_wait(ast_endpoint_topic_all_cached());
 	}
 
 	msg = stasis_cache_get(ast_endpoint_cache(),
