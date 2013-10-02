@@ -3638,7 +3638,7 @@ static void cli_show_channel(struct ast_cli_args *a)
 #define TITLE_STRING "%-10.10s %-20.20s %-25.25s %-15.15s %-15.15s %-8.8s %-8.8s %-8.8s %-8.8s %-8.8s\n"
 #define FORMAT_STRING "%-10.10s %-20.20s %-25.25s %-15.15s %-15.15s %-8.8s %-8.8s %-8.8s %-8.8ld %-8.8ld\n"
 
-	cdr = ao2_find(active_cdrs_by_channel, channel_name, OBJ_KEY);
+	cdr = cdr_object_get_by_name(channel_name);
 	if (!cdr) {
 		ast_cli(a->fd, "Unknown channel: %s\n", channel_name);
 		return;
