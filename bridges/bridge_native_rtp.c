@@ -183,10 +183,89 @@ static int native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel
 	return 0;
 }
 
-static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel *target)
+/*!
+ * \internal
+ * \brief Given a bridge channel, get its RTP instance
+ *
+ * The returned ast_rtp_instance has its refcount bumped.
+ *
+ * \param bridge_channel Take a guess
+ * \retval NULL No RTP instance on this bridge channel
+ * \retval non-NULL The RTP instance on this bridge channel
+ */
+static struct ast_rtp_instance *bridge_channel_get_rtp_instance(struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_bridge_channel *c0 = AST_LIST_FIRST(&bridge->channels);
-	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
+	struct ast_rtp_glue *glue;
+	struct ast_rtp_instance *instance;
+
+	glue = ast_rtp_instance_get_glue(ast_channel_tech(bridge_channel->chan)->type);
+	if (!glue) {
+		return NULL;
+	}
+
+	glue->get_rtp_info(bridge_channel->chan, &instance);
+	return instance;
+}
+
+/*!
+ * \internal
+ * \brief Determine which two channels are bridged together
+ *
+ * Because of the nature of swapping, when the time comes for a channel to
+ * leave a native RTP bridge, it may be that there are more than two channels
+ * in the list of bridge channels. Therefore, it is important to correctly
+ * determine which two channels were bridged together.
+ *
+ * \param bridge The involved bridge
+ * \param leaving The bridge channel that is leaving the native RTP bridge
+ * \param[out] c0 The first bridged channel
+ * \param[out] c1 The second bridged channel
+ */
+static void find_bridged_channels(struct ast_bridge *bridge, struct ast_bridge_channel *leaving,
+		struct ast_bridge_channel **c0, struct ast_bridge_channel **c1)
+{
+	RAII_VAR(struct ast_rtp_instance *, leaving_instance, bridge_channel_get_rtp_instance(leaving), ao2_cleanup);
+	struct ast_bridge_channel *iter;
+
+	if (!leaving_instance) {
+		return;
+	}
+
+	AST_LIST_TRAVERSE(&bridge->channels, iter, entry) {
+		RAII_VAR(struct ast_rtp_instance *, instance, NULL, ao2_cleanup);
+
+		if (iter == leaving) {
+			continue;
+		}
+
+		instance = bridge_channel_get_rtp_instance(iter);
+		if (!instance) {
+			continue;
+		}
+
+		if (instance == ast_rtp_instance_get_bridged(leaving_instance)) {
+			break;
+		}
+	}
+	*c0 = leaving;
+	*c1 = iter;
+	return;
+}
+
+/*!
+ * \internal
+ * \brief Stop native RTP bridging of two channels
+ *
+ * \param bridge The bridge that had native RTP bridging happening on it
+ * \param target If remote RTP bridging, the channel that is placed on hold.
+ * \param leaving If this is called because a channel is leaving, this is the
+ * bridge channel that is leaving the bridge
+ */
+static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel *target,
+		struct ast_bridge_channel *leaving)
+{
+	struct ast_bridge_channel *c0 = NULL;
+	struct ast_bridge_channel *c1 = NULL;
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1 = NULL;
 	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
@@ -194,7 +273,21 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
 
-	if (c0 == c1) {
+	if (bridge->num_channels == 2) {
+		c0 = AST_LIST_FIRST(&bridge->channels);
+		c1 = AST_LIST_LAST(&bridge->channels);
+	} else if (bridge->num_channels > 2) {
+		/* When a channel leaves a native RTP bridge, it is possible for
+		 * more channels to exist in the bridge than when the RTP bridge
+		 * was started. Thus we need to determine which two channels were
+		 * bridged based on the leaving channel
+		 */
+		find_bridged_channels(bridge, leaving, &c0, &c1);
+	} else {
+		return;
+	}
+
+	if (!c0 || !c1) {
 		return;
 	}
 
@@ -254,7 +347,7 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct a
 
 	if (bridge) {
 		if (f->subclass.integer == AST_CONTROL_HOLD) {
-			native_rtp_bridge_stop(bridge, chan);
+			native_rtp_bridge_stop(bridge, chan, NULL);
 		} else if ((f->subclass.integer == AST_CONTROL_UNHOLD) || (f->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER)) {
 			native_rtp_bridge_start(bridge, chan);
 		}
@@ -420,7 +513,7 @@ static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 {
 	native_rtp_bridge_framehook_detach(bridge_channel);
 
-	native_rtp_bridge_stop(bridge, NULL);
+	native_rtp_bridge_stop(bridge, NULL, bridge_channel);
 }
 
 static int native_rtp_bridge_write(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
