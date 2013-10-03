@@ -400,6 +400,9 @@
 /* Define to 1 if you have the LibXSLT library. */
 #undef HAVE_LIBXSLT
 
+/* Define to 1 if LIBXSLT has the LibXSLT Library Cleanup Function feature. */
+#undef HAVE_LIBXSLT_CLEANUP
+
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 

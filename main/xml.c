@@ -55,6 +55,9 @@ int ast_xml_init(void)
 int ast_xml_finish(void)
 {
 	xmlCleanupParser();
+#ifdef HAVE_LIBXSLT_CLEANUP
+	xsltCleanupGlobals();
+#endif
 
 	return 0;
 }
