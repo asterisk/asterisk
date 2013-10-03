@@ -380,14 +380,14 @@ static const struct {
 		{ AST_EVENT_IE_SESSION_ID, SEC_EVT_FIELD(common, session_id) },
 		{ AST_EVENT_IE_LOCAL_ADDR, SEC_EVT_FIELD(common, local_addr) },
 		{ AST_EVENT_IE_REMOTE_ADDR, SEC_EVT_FIELD(common, remote_addr) },
-		{ AST_EVENT_IE_CHALLENGE, SEC_EVT_FIELD(inval_password, challenge) },
-		{ AST_EVENT_IE_RECEIVED_CHALLENGE, SEC_EVT_FIELD(inval_password, received_challenge) },
-		{ AST_EVENT_IE_RECEIVED_HASH, SEC_EVT_FIELD(inval_password, received_hash) },
 		{ AST_EVENT_IE_END, 0 }
 	},
 	.optional_ies = {
 		{ AST_EVENT_IE_MODULE, SEC_EVT_FIELD(common, module) },
 		{ AST_EVENT_IE_SESSION_TV, SEC_EVT_FIELD(common, session_tv) },
+		{ AST_EVENT_IE_CHALLENGE, SEC_EVT_FIELD(inval_password, challenge) },
+		{ AST_EVENT_IE_RECEIVED_CHALLENGE, SEC_EVT_FIELD(inval_password, received_challenge) },
+		{ AST_EVENT_IE_RECEIVED_HASH, SEC_EVT_FIELD(inval_password, received_hash) },
 		{ AST_EVENT_IE_END, 0 }
 	},
 },
