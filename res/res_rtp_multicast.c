@@ -260,14 +260,14 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 	/* Construct an RTP header for our packet */
 	rtpheader = (unsigned char *)(f->data.ptr - hdrlen);
 	put_unaligned_uint32(rtpheader, htonl((2 << 30) | (codec << 16) | (multicast->seqno)));
-	put_unaligned_uint32(rtpheader + 4, htonl(multicast->lastts));
 	
 	if (ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO)) {
 		put_unaligned_uint32(rtpheader + 4, htonl(f->ts * 8));
-	} 
-	else {
-		put_unaligned_uint32(rtpheader + 8, htonl(multicast->ssrc));
+	} else {
+		put_unaligned_uint32(rtpheader + 4, htonl(multicast->lastts));
 	}
+
+	put_unaligned_uint32(rtpheader + 8, htonl(multicast->ssrc));
 
 	/* Increment sequence number and wrap to 0 if it overflows 16 bits. */
 	multicast->seqno = 0xFFFF & (multicast->seqno + 1);
