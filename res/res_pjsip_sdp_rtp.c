@@ -1097,6 +1097,11 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 	char host[NI_MAXHOST];
 	struct ast_sockaddr addr = { { 0, } };
 
+	/* If the stream has been rejected there will be no connection line */
+	if (!stream->conn) {
+		return;
+	}
+
 	ast_copy_pj_str(host, &stream->conn->addr, sizeof(host));
 	ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID);
 
