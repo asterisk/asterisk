@@ -122,8 +122,6 @@ static void do_sleep(void)
 
 #define BRIDGE_EXIT_EVENT(channel, bridge) do { \
 	RAII_VAR(struct ast_str *, peer_str, NULL, ast_free); \
-	stasis_topic_wait(ast_channel_topic_all()); \
-	stasis_topic_wait(ast_bridge_topic_all()); \
 	peer_str = test_cel_generate_peer_str(channel, bridge); \
 	ast_test_validate(test, peer_str != NULL); \
 	BRIDGE_EXIT_EVENT_PEER(channel, bridge, ast_str_buffer(peer_str)); \
@@ -139,8 +137,6 @@ static void do_sleep(void)
 #define BRIDGE_EXIT_SNAPSHOT(channel, bridge) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
 	RAII_VAR(struct ast_str *, peer_str, NULL, ast_free); \
-	stasis_topic_wait(ast_channel_topic_all()); \
-	stasis_topic_wait(ast_bridge_topic_all()); \
 	peer_str = test_cel_generate_peer_str_snapshot(channel, bridge); \
 	ast_test_validate(test, peer_str != NULL); \
 	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
@@ -157,8 +153,6 @@ static void do_sleep(void)
 
 #define BRIDGE_ENTER_EVENT(channel, bridge) do { \
 	RAII_VAR(struct ast_str *, peer_str, NULL, ast_free); \
-	stasis_topic_wait(ast_channel_topic_all()); \
-	stasis_topic_wait(ast_bridge_topic_all()); \
 	peer_str = test_cel_generate_peer_str(channel, bridge); \
 	ast_test_validate(test, peer_str != NULL); \
 	BRIDGE_ENTER_EVENT_PEER(channel, bridge, ast_str_buffer(peer_str)); \
