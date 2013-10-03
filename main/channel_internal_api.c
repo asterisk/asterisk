@@ -879,7 +879,6 @@ const struct ast_channel_tech *ast_channel_tech(const struct ast_channel *chan)
 void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tech *value)
 {
 	chan->tech = value;
-	ast_channel_publish_snapshot(chan);
 }
 enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan)
 {
