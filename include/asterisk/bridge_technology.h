@@ -113,6 +113,10 @@ struct ast_bridge_technology {
 	 * \brief Remove a channel from a bridging technology instance for a bridge.
 	 *
 	 * \note On entry, bridge is already locked.
+	 * \note Do not make assumptions about the number of channels in the bridge when
+	 * this callback is called. When a channel is swapped into a bridge for another
+	 * channel, the leave callback is called after the new channel has been added to
+	 * the bridge.
 	 */
 	void (*leave)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*!
