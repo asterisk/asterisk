@@ -152,6 +152,13 @@ void ast_ari_mute_channel(struct ast_variable *headers, struct ast_mute_channel_
 		return;
 	}
 
+	if (ast_strlen_zero(args->direction)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Direction is required");
+		return;
+	}
+
 	if (!strcmp(args->direction, "in")) {
 		direction = AST_MUTE_DIRECTION_READ;
 	} else if (!strcmp(args->direction, "out")) {
@@ -178,6 +185,13 @@ void ast_ari_unmute_channel(struct ast_variable *headers, struct ast_unmute_chan
 
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
+		return;
+	}
+
+	if (ast_strlen_zero(args->direction)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Direction is required");
 		return;
 	}
 
