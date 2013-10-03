@@ -687,7 +687,7 @@ static void announce_to_dial(char *dial_string, char *announce_string, int parki
 	struct ast_channel *dchan;
 	struct outgoing_helper oh = { 0, };
 	int outstate;
-	struct ast_format_cap *cap_slin = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	char buf[13];
 	char *dial_tech;
 	char *cur_announce;

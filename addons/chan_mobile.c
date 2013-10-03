@@ -4705,7 +4705,7 @@ static int load_module(void)
 
 	int dev_id, s;
 
-	if (!(mbl_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(mbl_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_set(&prefformat, DEVICE_FRAME_FORMAT, 0);

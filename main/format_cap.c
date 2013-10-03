@@ -38,13 +38,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/astobj2.h"
 #include "asterisk/utils.h"
 
+#define FORMAT_STR_BUFSIZE 256
 
 struct ast_format_cap {
 	/* The capabilities structure is just an ao2 container of ast_formats */
 	struct ao2_container *formats;
 	struct ao2_iterator it;
 	/*! TRUE if the formats container created without a lock. */
-	int nolock;
+	struct ast_flags flags;
+	unsigned int string_cache_valid;
+	char format_strs[0];
 };
 
 /*! format exists within capabilities structure if it is identical to
@@ -67,33 +70,33 @@ static int hash_cb(const void *obj, const int flags)
 	return format->id;
 }
 
-static struct ast_format_cap *cap_alloc_helper(int nolock)
+struct ast_format_cap *ast_format_cap_alloc(enum ast_format_cap_flags flags)
 {
-	struct ast_format_cap *cap = ast_calloc(1, sizeof(*cap));
+	struct ast_format_cap *cap;
+	unsigned int alloc_size;
+	
+	alloc_size = sizeof(*cap);
+	if (flags & AST_FORMAT_CAP_FLAG_CACHE_STRINGS) {
+		alloc_size += FORMAT_STR_BUFSIZE;
+	}
 
+	cap = ast_calloc(1, alloc_size);
 	if (!cap) {
 		return NULL;
 	}
-	cap->nolock = nolock;
+
+	ast_set_flag(&cap->flags, flags);
 	cap->formats = ao2_container_alloc_options(
-		nolock ? AO2_ALLOC_OPT_LOCK_NOLOCK : AO2_ALLOC_OPT_LOCK_MUTEX,
-		283, hash_cb, cmp_cb);
+		(flags & AST_FORMAT_CAP_FLAG_NOLOCK) ?
+		AO2_ALLOC_OPT_LOCK_NOLOCK :
+		AO2_ALLOC_OPT_LOCK_MUTEX,
+		11, hash_cb, cmp_cb);
 	if (!cap->formats) {
 		ast_free(cap);
 		return NULL;
 	}
 
 	return cap;
-}
-
-struct ast_format_cap *ast_format_cap_alloc_nolock(void)
-{
-	return cap_alloc_helper(1);
-}
-
-struct ast_format_cap *ast_format_cap_alloc(void)
-{
-	return cap_alloc_helper(0);
 }
 
 void *ast_format_cap_destroy(struct ast_format_cap *cap)
@@ -106,7 +109,7 @@ void *ast_format_cap_destroy(struct ast_format_cap *cap)
 	return NULL;
 }
 
-void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *format)
+static void format_cap_add(struct ast_format_cap *cap, const struct ast_format *format)
 {
 	struct ast_format *fnew;
 
@@ -118,7 +121,14 @@ void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *for
 	}
 	ast_format_copy(fnew, format);
 	ao2_link(cap->formats, fnew);
+
 	ao2_ref(fnew, -1);
+}
+
+void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *format)
+{
+	format_cap_add(cap, format);
+	cap->string_cache_valid = 0;
 }
 
 void ast_format_cap_add_all_by_type(struct ast_format_cap *cap, enum ast_format_type type)
@@ -129,9 +139,10 @@ void ast_format_cap_add_all_by_type(struct ast_format_cap *cap, enum ast_format_
 
 	for (x = 0; x < f_len; x++) {
 		if (AST_FORMAT_GET_TYPE(f_list[x].format.id) == type) {
-			ast_format_cap_add(cap, &f_list[x].format);
+			format_cap_add(cap, &f_list[x].format);
 		}
 	}
+	cap->string_cache_valid = 0;
 	ast_format_list_destroy(f_list);
 }
 
@@ -142,8 +153,9 @@ void ast_format_cap_add_all(struct ast_format_cap *cap)
 	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
 
 	for (x = 0; x < f_len; x++) {
-		ast_format_cap_add(cap, &f_list[x].format);
+		format_cap_add(cap, &f_list[x].format);
 	}
+	cap->string_cache_valid = 0;
 	ast_format_list_destroy(f_list);
 }
 
@@ -153,7 +165,7 @@ static int append_cb(void *obj, void *arg, int flag)
 	struct ast_format *format = (struct ast_format *) obj;
 
 	if (!ast_format_cap_iscompatible(result, format)) {
-		ast_format_cap_add(result, format);
+		format_cap_add(result, format);
 	}
 
 	return 0;
@@ -162,6 +174,7 @@ static int append_cb(void *obj, void *arg, int flag)
 void ast_format_cap_append(struct ast_format_cap *dst, const struct ast_format_cap *src)
 {
 	ao2_callback(src->formats, OBJ_NODATA, append_cb, dst);
+	dst->string_cache_valid = 0;
 }
 
 static int copy_cb(void *obj, void *arg, int flag)
@@ -169,28 +182,32 @@ static int copy_cb(void *obj, void *arg, int flag)
 	struct ast_format_cap *result = (struct ast_format_cap *) arg;
 	struct ast_format *format = (struct ast_format *) obj;
 
-	ast_format_cap_add(result, format);
+	format_cap_add(result, format);
 	return 0;
+}
+
+static void format_cap_remove_all(struct ast_format_cap *cap)
+{
+	ao2_callback(cap->formats, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, NULL, NULL);
 }
 
 void ast_format_cap_copy(struct ast_format_cap *dst, const struct ast_format_cap *src)
 {
-	ast_format_cap_remove_all(dst);
+	format_cap_remove_all(dst);
 	ao2_callback(src->formats, OBJ_NODATA, copy_cb, dst);
+	dst->string_cache_valid = 0;
 }
 
 struct ast_format_cap *ast_format_cap_dup(const struct ast_format_cap *cap)
 {
 	struct ast_format_cap *dst;
-	if (cap->nolock) {
-		dst = ast_format_cap_alloc_nolock();
-	} else {
-		dst = ast_format_cap_alloc();
-	}
+
+	dst = ast_format_cap_alloc(ast_test_flag(&cap->flags, AST_FLAGS_ALL));
 	if (!dst) {
 		return NULL;
 	}
 	ao2_callback(cap->formats, OBJ_NODATA, copy_cb, dst);
+	dst->string_cache_valid = 0;
 	return dst;
 }
 
@@ -217,6 +234,7 @@ int ast_format_cap_remove(struct ast_format_cap *cap, struct ast_format *format)
 	fremove = ao2_callback(cap->formats, OBJ_POINTER | OBJ_UNLINK, find_exact_cb, format);
 	if (fremove) {
 		ao2_ref(fremove, -1);
+		cap->string_cache_valid = 0;
 		return 0;
 	}
 
@@ -259,6 +277,7 @@ int ast_format_cap_remove_byid(struct ast_format_cap *cap, enum ast_format_id id
 
 	/* match_found will be set if at least one item was removed */
 	if (data.match_found) {
+		cap->string_cache_valid = 0;
 		return 0;
 	}
 
@@ -278,17 +297,20 @@ void ast_format_cap_remove_bytype(struct ast_format_cap *cap, enum ast_format_ty
 		OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
 		multiple_by_type_cb,
 		&type);
+	cap->string_cache_valid = 0;
 }
 
 void ast_format_cap_remove_all(struct ast_format_cap *cap)
 {
-	ao2_callback(cap->formats, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, NULL, NULL);
+	format_cap_remove_all(cap);
+	cap->string_cache_valid = 0;
 }
 
 void ast_format_cap_set(struct ast_format_cap *cap, struct ast_format *format)
 {
-	ast_format_cap_remove_all(cap);
-	ast_format_cap_add(cap, format);
+	format_cap_remove_all(cap);
+	format_cap_add(cap, format);
+	cap->string_cache_valid = 0;
 }
 
 int ast_format_cap_get_compatible_format(const struct ast_format_cap *cap, const struct ast_format *format, struct ast_format *result)
@@ -434,7 +456,7 @@ int ast_format_cap_identical(const struct ast_format_cap *cap1, const struct ast
 struct ast_format_cap *ast_format_cap_joint(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2)
 {
 	struct ao2_iterator it;
-	struct ast_format_cap *result = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *result = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	struct ast_format *tmp;
 	struct find_joint_data data = {
 		.joint_found = 0,
@@ -472,7 +494,7 @@ static int joint_copy_helper(const struct ast_format_cap *cap1, const struct ast
 		.joint_found = 0,
 	};
 	if (!append) {
-		ast_format_cap_remove_all(result);
+		format_cap_remove_all(result);
 	}
 	it = ao2_iterator_init(cap1->formats, 0);
 	while ((tmp = ao2_iterator_next(&it))) {
@@ -484,6 +506,8 @@ static int joint_copy_helper(const struct ast_format_cap *cap1, const struct ast
 		ao2_ref(tmp, -1);
 	}
 	ao2_iterator_destroy(&it);
+
+	result->string_cache_valid = 0;
 
 	return ao2_container_count(result->formats) ? 1 : 0;
 }
@@ -501,7 +525,7 @@ int ast_format_cap_joint_copy(const struct ast_format_cap *cap1, const struct as
 struct ast_format_cap *ast_format_cap_get_type(const struct ast_format_cap *cap, enum ast_format_type ftype)
 {
 	struct ao2_iterator it;
-	struct ast_format_cap *result = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *result = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	struct ast_format *tmp;
 
 	if (!result) {
@@ -575,7 +599,7 @@ int ast_format_cap_iter_next(struct ast_format_cap *cap, struct ast_format *form
 	return 0;
 }
 
-char *ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap)
+static char *getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap)
 {
 	int x;
 	unsigned len;
@@ -611,6 +635,20 @@ char *ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *
 	return buf;
 }
 
+char *ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap)
+{
+	if (ast_test_flag(&cap->flags, AST_FORMAT_CAP_FLAG_CACHE_STRINGS)) {
+		if (!cap->string_cache_valid) {
+			getformatname_multiple(cap->format_strs, FORMAT_STR_BUFSIZE, cap);
+			cap->string_cache_valid = 1;
+		}
+		ast_copy_string(buf, cap->format_strs, size);
+		return buf;
+	}
+
+	return getformatname_multiple(buf, size, cap);
+}
+
 uint64_t ast_format_cap_to_old_bitfield(const struct ast_format_cap *cap)
 {
 	uint64_t res = 0;
@@ -632,11 +670,12 @@ void ast_format_cap_from_old_bitfield(struct ast_format_cap *dst, uint64_t src)
 	int x;
 	struct ast_format tmp_format = { 0, };
 
-	ast_format_cap_remove_all(dst);
+	format_cap_remove_all(dst);
 	for (x = 0; x < 64; x++) {
 		tmp = (1ULL << x);
 		if (tmp & src) {
-			ast_format_cap_add(dst, ast_format_from_old_bitfield(&tmp_format, tmp));
+			format_cap_add(dst, ast_format_from_old_bitfield(&tmp_format, tmp));
 		}
 	}
+	dst->string_cache_valid = 0;
 }

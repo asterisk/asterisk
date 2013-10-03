@@ -1081,8 +1081,8 @@ void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struc
 	struct ast_rtp_glue *glue0, *glue1;
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
-	struct ast_format_cap *cap0 = ast_format_cap_alloc_nolock();
-	struct ast_format_cap *cap1 = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap0 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *cap1 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	/* Lock both channels so we can look for the glue that binds them together */
 	ast_channel_lock_both(c0, c1);
@@ -1167,8 +1167,8 @@ int ast_rtp_instance_early_bridge(struct ast_channel *c0, struct ast_channel *c1
 	struct ast_rtp_glue *glue0, *glue1;
 	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
 	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
-	struct ast_format_cap *cap0 = ast_format_cap_alloc_nolock();
-	struct ast_format_cap *cap1 = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap0 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *cap1 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	/* If there is no second channel just immediately bail out, we are of no use in that scenario */
 	if (!c1 || !cap1 || !cap0) {

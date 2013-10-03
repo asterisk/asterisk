@@ -1836,7 +1836,7 @@ static struct unistim_line *unistim_line_alloc(void)
 		return NULL;
 	}
 
-	if (!(l->cap = ast_format_cap_alloc_nolock())) {
+	if (!(l->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		ast_free(l);
 		return NULL;
 	}
@@ -6853,10 +6853,10 @@ int load_module(void)
 {
 	int res;
 	struct ast_format tmpfmt;
-	if (!(global_cap = ast_format_cap_alloc())) {
+	if (!(global_cap = ast_format_cap_alloc(0))) {
 		goto buff_failed;
 	}
-	if (!(unistim_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(unistim_tech.capabilities = ast_format_cap_alloc(0))) {
 		goto buff_failed;
 	}
 

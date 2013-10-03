@@ -1717,7 +1717,7 @@ static iax2_format iax2_codec_choose(struct ast_codec_pref *pref, iax2_format fo
 	struct ast_format_cap *cap;
 	struct ast_format tmpfmt;
 	iax2_format format = 0;
-	if ((cap = ast_format_cap_alloc_nolock())) {
+	if ((cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		ast_format_clear(&tmpfmt);
 		ast_format_cap_from_old_bitfield(cap, formats);
 		ast_codec_choose(pref, cap, find_best, &tmpfmt);
@@ -1730,7 +1730,7 @@ static iax2_format iax2_codec_choose(struct ast_codec_pref *pref, iax2_format fo
 
 static iax2_format iax2_best_codec(iax2_format formats)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	struct ast_format tmpfmt;
 	if (!cap) {
 		return 0;
@@ -1755,7 +1755,7 @@ const char *iax2_getformatname(iax2_format format)
 
 static char *iax2_getformatname_multiple(char *codec_buf, size_t len, iax2_format format)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	if (!cap) {
 		return "(Nothing)";
@@ -1770,7 +1770,7 @@ static char *iax2_getformatname_multiple(char *codec_buf, size_t len, iax2_forma
 static int iax2_parse_allow_disallow(struct ast_codec_pref *pref, iax2_format *formats, const char *list, int allowing)
 {
 	int res;
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
 		return 1;
 	}
@@ -1786,7 +1786,7 @@ static int iax2_parse_allow_disallow(struct ast_codec_pref *pref, iax2_format *f
 static int iax2_data_add_codecs(struct ast_data *root, const char *node_name, iax2_format formats)
 {
 	int res;
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
 		return -1;
 	}
@@ -14624,7 +14624,7 @@ static int load_module(void)
 	int x = 0;
 	struct iax2_registry *reg = NULL;
 
-	if (!(iax2_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(iax2_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add_all(iax2_tech.capabilities);

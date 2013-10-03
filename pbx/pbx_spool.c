@@ -144,7 +144,7 @@ static struct outgoing *new_outgoing(const char *fn)
 		return NULL;
 	}
 
-	o->capabilities = ast_format_cap_alloc_nolock();
+	o->capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!o->capabilities) {
 		free_outgoing(o);
 		return NULL;

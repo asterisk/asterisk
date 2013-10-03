@@ -322,7 +322,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 	iks *iq, *jingle, *dcodecs, *payload_red, *payload_audio, *payload_cn;
 	int x;
 	struct ast_format pref_codec;
-	struct ast_format_cap *alreadysent = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *alreadysent = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	if (p->initiator || !alreadysent)
 		return 1;
@@ -798,9 +798,9 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 		return NULL;
 	}
 
-	tmp->cap = ast_format_cap_alloc_nolock();
-	tmp->jointcap = ast_format_cap_alloc_nolock();
-	tmp->peercap = ast_format_cap_alloc_nolock();
+	tmp->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	tmp->jointcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	tmp->peercap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!tmp->cap || !tmp->jointcap || !tmp->peercap) {
 		tmp->cap = ast_format_cap_destroy(tmp->cap);
 		tmp->jointcap = ast_format_cap_destroy(tmp->jointcap);
@@ -1897,7 +1897,7 @@ static int jingle_load_config(void)
 			member = ast_calloc(1, sizeof(*member));
 			ASTOBJ_INIT(member);
 			ASTOBJ_WRLOCK(member);
-			member->cap = ast_format_cap_alloc_nolock();
+			member->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 			if (!strcasecmp(cat, "guest")) {
 				ast_copy_string(member->name, "guest", sizeof(member->name));
 				ast_copy_string(member->user, "guest", sizeof(member->user));
@@ -1981,12 +1981,12 @@ static int load_module(void)
 
 	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
 
-	if (!(jingle_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(jingle_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_format_cap_add_all_by_type(jingle_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
-	if (!(global_capability = ast_format_cap_alloc())) {
+	if (!(global_capability = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add(global_capability, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));

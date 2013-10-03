@@ -1479,7 +1479,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (!(oss_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(oss_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add(oss_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));

@@ -436,7 +436,7 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 	iks_insert_attrib(dcodecs, "xmlns", GOOGLE_AUDIO_NS);
 	iks_insert_attrib(dcodecs, "xml:lang", "en");
 
-	if (!(alreadysent = ast_format_cap_alloc_nolock())) {
+	if (!(alreadysent = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		return 0;
 	}
 	for (x = 0; x < AST_CODEC_PREF_SIZE; x++) {
@@ -1063,9 +1063,9 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 		return NULL;
 	}
-	tmp->cap = ast_format_cap_alloc_nolock();
-	tmp->jointcap = ast_format_cap_alloc_nolock();
-	tmp->peercap = ast_format_cap_alloc_nolock();
+	tmp->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	tmp->jointcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	tmp->peercap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!tmp->jointcap || !tmp->peercap || !tmp->cap) {
 		tmp->cap = ast_format_cap_destroy(tmp->cap);
 		tmp->jointcap = ast_format_cap_destroy(tmp->jointcap);
@@ -2256,7 +2256,7 @@ static int gtalk_load_config(void)
 			member = ast_calloc(1, sizeof(*member));
 			ASTOBJ_INIT(member);
 			ASTOBJ_WRLOCK(member);
-			member->cap = ast_format_cap_alloc_nolock();
+			member->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 			if (!strcasecmp(cat, "guest")) {
 				ast_copy_string(member->name, "guest", sizeof(member->name));
 				ast_copy_string(member->user, "guest", sizeof(member->user));
@@ -2336,10 +2336,10 @@ static int load_module(void)
 	char *jabber_loaded = ast_module_helper("", "res_jabber.so", 0, 0, 0, 0);
 	struct ast_format tmpfmt;
 
-	if (!(gtalk_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(gtalk_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if (!(global_capability = ast_format_cap_alloc())) {
+	if (!(global_capability = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

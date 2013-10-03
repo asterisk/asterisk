@@ -662,7 +662,7 @@ static int conf_start_record(struct confbridge_conference *conference)
 		return -1;
 	}
 
-	cap = ast_format_cap_alloc_nolock();
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
 		return -1;
 	}
@@ -1327,7 +1327,7 @@ static int alloc_playback_chan(struct confbridge_conference *conference)
 	struct ast_format_cap *cap;
 	struct ast_format format;
 
-	cap = ast_format_cap_alloc_nolock();
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
 		return -1;
 	}
@@ -3094,7 +3094,7 @@ static void unregister_channel_tech(struct ast_channel_tech *tech)
  */
 static int register_channel_tech(struct ast_channel_tech *tech)
 {
-	tech->capabilities = ast_format_cap_alloc();
+	tech->capabilities = ast_format_cap_alloc(0);
 	if (!tech->capabilities) {
 		return -1;
 	}

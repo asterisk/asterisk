@@ -519,7 +519,7 @@ static void *jingle_endpoint_alloc(const char *cat)
 
 	ast_string_field_set(endpoint, name, cat);
 
-	endpoint->cap = ast_format_cap_alloc_nolock();
+	endpoint->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	endpoint->transport = JINGLE_TRANSPORT_ICE_UDP;
 
 	return endpoint;
@@ -741,9 +741,9 @@ static struct jingle_session *jingle_alloc(struct jingle_endpoint *endpoint, con
 	session->connection = endpoint->connection;
 	session->transport = endpoint->transport;
 
-	if (!(session->cap = ast_format_cap_alloc_nolock()) ||
-	    !(session->jointcap = ast_format_cap_alloc_nolock()) ||
-	    !(session->peercap = ast_format_cap_alloc_nolock()) ||
+	if (!(session->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK)) ||
+	    !(session->jointcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK)) ||
+	    !(session->peercap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK)) ||
 	    !session->callid) {
 		ao2_ref(session, -1);
 		return NULL;
@@ -2707,7 +2707,7 @@ static int custom_transport_handler(const struct aco_option *opt, struct ast_var
  */
 static int load_module(void)
 {
-	if (!(jingle_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(jingle_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

@@ -113,7 +113,7 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 	unsigned int timeout = 30;
 	static const char default_exten[] = "s";
 	struct ast_format tmpfmt;
-	struct ast_format_cap *cap_slin = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	ast_autoservice_start(chan);
 	if (!cap_slin) {

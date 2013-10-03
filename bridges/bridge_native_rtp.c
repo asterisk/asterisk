@@ -124,8 +124,8 @@ static int native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, tinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, tinstance1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
-	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
 
 	if (c0 == c1) {
 		return 0;
@@ -279,8 +279,8 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
-	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc_nolock(), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
 	int read_ptime0, read_ptime1, write_ptime0, write_ptime1;
 
 	/* We require two channels before even considering native bridging */
@@ -448,7 +448,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!(native_rtp_bridge.format_capabilities = ast_format_cap_alloc())) {
+	if (!(native_rtp_bridge.format_capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add_all_by_type(native_rtp_bridge.format_capabilities, AST_FORMAT_TYPE_AUDIO);

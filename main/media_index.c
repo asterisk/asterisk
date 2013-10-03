@@ -67,7 +67,7 @@ static struct media_variant *media_variant_alloc(const char *variant_str)
 		return NULL;
 	}
 
-	variant->formats = ast_format_cap_alloc();
+	variant->formats = ast_format_cap_alloc(0);
 	if (!variant->formats) {
 		return NULL;
 	}

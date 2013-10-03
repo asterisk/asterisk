@@ -276,7 +276,7 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
 	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
 	struct ast_format format;
 
-	cap = ast_format_cap_alloc_nolock();
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
 		return NULL;
 	}

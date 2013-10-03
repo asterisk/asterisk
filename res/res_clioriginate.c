@@ -70,7 +70,7 @@ static char *orig_app(int fd, const char *chan, const char *app, const char *app
 		return CLI_SHOWUSAGE;
 	}
 
-	if (!(cap = ast_format_cap_alloc_nolock())) {
+	if (!(cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		return CLI_FAILURE;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
@@ -115,7 +115,7 @@ static char *orig_exten(int fd, const char *chan, const char *data)
 		exten = "s";
 	if (ast_strlen_zero(context))
 		context = "default";
-	if (!(cap = ast_format_cap_alloc_nolock())) {
+	if (!(cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		return CLI_FAILURE;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));

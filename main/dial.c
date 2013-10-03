@@ -273,7 +273,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	} else if (chan) {
 		cap_request = ast_channel_nativeformats(chan);
 	} else {
-		cap_all_audio = ast_format_cap_alloc_nolock();
+		cap_all_audio = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 		ast_format_cap_add_all_by_type(cap_all_audio, AST_FORMAT_TYPE_AUDIO);
 		cap_request = cap_all_audio;
 	}

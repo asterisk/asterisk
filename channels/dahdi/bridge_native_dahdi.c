@@ -911,7 +911,7 @@ int dahdi_native_load(struct ast_module *mod, const struct ast_channel_tech *tec
 
 	dahdi_tech = tech;
 
-	native_bridge.format_capabilities = ast_format_cap_alloc();
+	native_bridge.format_capabilities = ast_format_cap_alloc(0);
 	if (!native_bridge.format_capabilities) {
 		return -1;
 	}

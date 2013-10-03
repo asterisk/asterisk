@@ -1611,7 +1611,7 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 	struct ast_conference *cnf;
 	struct dahdi_confinfo dahdic = { 0, };
 	int confno_int = 0;
-	struct ast_format_cap *cap_slin = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	struct ast_format tmp_fmt;
 
 	AST_LIST_LOCK(&confs);
@@ -3216,7 +3216,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	int setusercount = 0;
 	int confsilence = 0, totalsilence = 0;
 	char *mailbox, *context;
-	struct ast_format_cap *cap_slin = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	struct ast_format tmpfmt;
 
 	if (!cap_slin) {

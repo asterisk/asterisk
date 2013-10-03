@@ -3025,7 +3025,7 @@ static int handle_speechcreate(struct ast_channel *chan, AGI *agi, int argc, con
 		return RESULT_SUCCESS;
 	}
 
-	if (!(cap = ast_format_cap_alloc_nolock())) {
+	if (!(cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		return RESULT_FAILURE;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));

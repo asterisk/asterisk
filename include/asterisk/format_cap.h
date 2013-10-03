@@ -29,32 +29,27 @@
 /*! Capabilities are represented by an opaque structure statically defined in format_capability.c */
 struct ast_format_cap;
 
-/*!
- * \brief Allocate a new ast_format_cap structure.
- *
- * \note Allocation of this object assumes locking
- * is already occuring and that the point of contention
- * is above this capabilities structure.  For example,
- * a tech_pvt object referencing a capabilities structure
- * can use this function as long as it always holds the
- * tech_pvt lock while accessing its capabilities.
- *
- * \retval ast_format_cap object on success.
- * \retval NULL on failure.
- */
-struct ast_format_cap *ast_format_cap_alloc_nolock(void);
+enum ast_format_cap_flags {
+	/*!
+	 * The ast_format_cap will be allocated with no lock.
+	 * Useful if there is a separate lock used to protect the structure
+	 */
+	AST_FORMAT_CAP_FLAG_NOLOCK = (1 << 0),
+	/*!
+	 * String representations of the formats are cached on the structure.
+	 * Useful if string representation is frequently requested of the structure.
+	 */
+	AST_FORMAT_CAP_FLAG_CACHE_STRINGS = (1 << 1),
+};
 
 /*!
- * \brief Allocate a new ast_format_cap structure with locking
+ * \brief Allocate a new ast_format_cap structure
  *
- * \note If no other form of locking is taking place, use this function.
- * This function makes most sense for globally accessible capabilities structures
- * that have no other means of locking.
- *
+ * \param flags Modifiers of struct behavior.
  * \retval ast_format_cap object on success.
  * \retval NULL on failure.
  */
-struct ast_format_cap *ast_format_cap_alloc(void);
+struct ast_format_cap *ast_format_cap_alloc(enum ast_format_cap_flags flags);
 
 /*!
  * \brief Destroy an ast_format_cap structure.

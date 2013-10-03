@@ -1313,7 +1313,7 @@ static struct oh323_alias *realtime_alias(const char *alias)
 static int h323_parse_allow_disallow(struct ast_codec_pref *pref, h323_format *formats, const char *list, int allowing)
 {
 	int res;
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
 		return 1;
 	}
@@ -2093,7 +2093,7 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 	/* Don't try to lock the channel if nothing changed */
 	if (nativeformats_changed || pvt->options.progress_audio || (rtp_change != NEED_NONE)) {
 		if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
-			struct ast_format_cap *pvt_native = ast_format_cap_alloc_nolock();
+			struct ast_format_cap *pvt_native = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 			ast_format_cap_from_old_bitfield(pvt_native, pvt->nativeformats);
 
 			/* Re-build translation path only if native format(s) has been changed */
@@ -3336,7 +3336,7 @@ static enum ast_module_load_result load_module(void)
 {
 	int res;
 
-	if (!(oh323_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(oh323_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add_all_by_type(oh323_tech.capabilities, AST_FORMAT_TYPE_AUDIO);

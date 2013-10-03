@@ -671,7 +671,7 @@ static void *test_item_alloc(const char *cat)
 		ao2_ref(item, -1);
 		return NULL;
 	}
-	if (!(item->codeccapopt = ast_format_cap_alloc())) {
+	if (!(item->codeccapopt = ast_format_cap_alloc(0))) {
 		ao2_ref(item, -1);
 		return NULL;
 	}
@@ -855,10 +855,10 @@ AST_TEST_DEFINE(config_options_test)
 	ast_sockaddr_parse(&acl_allow, "1.2.3.4", PARSE_PORT_FORBID);
 	ast_sockaddr_parse(&acl_fail, "1.1.1.1", PARSE_PORT_FORBID);
 
-	defaults.codeccapopt = ast_format_cap_alloc();
+	defaults.codeccapopt = ast_format_cap_alloc(0);
 	ast_parse_allow_disallow(&defaults.codecprefopt, defaults.codeccapopt, CODEC_DEFAULT, 1);
 
-	configs.codeccapopt = ast_format_cap_alloc();
+	configs.codeccapopt = ast_format_cap_alloc(0);
 	ast_parse_allow_disallow(&configs.codecprefopt, configs.codeccapopt, CODEC_CONFIG, 1);
 
 	ast_string_field_init(&defaults, 128);

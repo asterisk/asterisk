@@ -281,7 +281,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_format_set(&prefformat, AST_FORMAT_SLINEAR, 0);
-	if (!(nbs_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(nbs_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add(nbs_tech.capabilities, &prefformat);

@@ -176,7 +176,7 @@ failure:
 /*! \brief Function called when our module is loaded */
 static int load_module(void)
 {
-	if (!(multicast_rtp_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(multicast_rtp_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add_all(multicast_rtp_tech.capabilities);

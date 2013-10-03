@@ -879,7 +879,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	ast_channel_stage_snapshot(tmp);
 
-	if (!(nativeformats = ast_format_cap_alloc())) {
+	if (!(nativeformats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_CACHE_STRINGS))) {
 		ao2_ref(tmp, -1);
 		/* format capabilities structure allocation failure */
 		return NULL;
@@ -5401,7 +5401,7 @@ static int set_format(struct ast_channel *chan,
 
 int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	int res;
 
 	if (!cap) {
@@ -5422,7 +5422,7 @@ int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 
 int ast_set_read_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	struct ast_format tmp_format;
 	int res;
 
@@ -5454,7 +5454,7 @@ int ast_set_read_format_from_cap(struct ast_channel *chan, struct ast_format_cap
 
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	int res;
 
 	if (!cap) {
@@ -5475,7 +5475,7 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 
 int ast_set_write_format_by_id(struct ast_channel *chan, enum ast_format_id id)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	struct ast_format tmp_format;
 	int res;
 

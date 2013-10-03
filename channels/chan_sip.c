@@ -8814,11 +8814,11 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 		sip_pvt_callid_set(p, logger_callid);
 	}
 
-	p->caps = ast_format_cap_alloc_nolock();
-	p->jointcaps = ast_format_cap_alloc_nolock();
-	p->peercaps = ast_format_cap_alloc_nolock();
-	p->redircaps = ast_format_cap_alloc_nolock();
-	p->prefcaps = ast_format_cap_alloc_nolock();
+	p->caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	p->jointcaps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	p->peercaps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	p->redircaps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	p->prefcaps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	if (!p->caps|| !p->jointcaps || !p->peercaps || !p->redircaps) {
 		p->caps = ast_format_cap_destroy(p->caps);
@@ -10052,15 +10052,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int udptlportno = -1;			/*!< UDPTL image destination port number */
 
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */
-	struct ast_format_cap *peercapability = ast_format_cap_alloc_nolock();
-	struct ast_format_cap *vpeercapability = ast_format_cap_alloc_nolock();
-	struct ast_format_cap *tpeercapability = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *peercapability = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *vpeercapability = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *tpeercapability = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
 	int peernoncodeccapability = 0, vpeernoncodeccapability = 0, tpeernoncodeccapability = 0;
 
 	struct ast_rtp_codecs newaudiortp = { 0, }, newvideortp = { 0, }, newtextrtp = { 0, };
-	struct ast_format_cap *newjointcapability = ast_format_cap_alloc_nolock(); /* Negotiated capability */
-	struct ast_format_cap *newpeercapability = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *newjointcapability = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK); /* Negotiated capability */
+	struct ast_format_cap *newpeercapability = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	int newnoncodeccapability;
 
 	const char *codecs;
@@ -13136,8 +13136,8 @@ static char *crypto_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled, int 
 */
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int oldsdp, int add_audio, int add_t38)
 {
-	struct ast_format_cap *alreadysent = ast_format_cap_alloc_nolock();
-	struct ast_format_cap *tmpcap = ast_format_cap_alloc_nolock();
+	struct ast_format_cap *alreadysent = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *tmpcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	int res = AST_SUCCESS;
 	int doing_directmedia = FALSE;
 	struct ast_sockaddr addr = { {0,} };
@@ -30358,7 +30358,7 @@ static struct sip_peer *temp_peer(const char *name)
 		return NULL;
 	}
 
-	if (!(peer->caps = ast_format_cap_alloc_nolock())) {
+	if (!(peer->caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 		ao2_t_ref(peer, -1, "failed to allocate format capabilities, drop peer");
 		return NULL;
 	}
@@ -30467,7 +30467,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (!(peer->endpoint = ast_endpoint_create("SIP", name))) {
 			return NULL;
 		}
-		if (!(peer->caps = ast_format_cap_alloc_nolock())) {
+		if (!(peer->caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
 			ao2_t_ref(peer, -1, "failed to allocate format capabilities, drop peer");
 			return NULL;
 		}
@@ -34351,7 +34351,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (!(sip_tech.capabilities = ast_format_cap_alloc())) {
+	if (!(sip_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -34373,7 +34373,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (!(sip_cfg.caps = ast_format_cap_alloc())) {
+	if (!(sip_cfg.caps = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_add_all_by_type(sip_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
