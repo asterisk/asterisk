@@ -23911,8 +23911,9 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			}
 			tmptmp = strcasestr(contact, "expires=");
 			if (tmptmp) {
-				if (sscanf(tmptmp + 8, "%30d;", &expires) != 1)
+				if (sscanf(tmptmp + 8, "%30d", &expires) != 1) {
 					expires = 0;
+				}
 			}
 
 		}
