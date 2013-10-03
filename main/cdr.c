@@ -3002,7 +3002,13 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 	}
 
 	if (!cdr) {
-		ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
+		RAII_VAR(struct module_config *, mod_cfg,
+			 ao2_global_obj_ref(module_configs), ao2_cleanup);
+
+		if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
+			ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
+		}
+
 		return 0;
 	}
 
