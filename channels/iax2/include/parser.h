@@ -47,7 +47,7 @@ struct iax_ies {
 	char *challenge;
 	char *md5_result;
 	char *rsa_result;
-	struct sockaddr_in *apparent_addr;
+	struct ast_sockaddr apparent_addr;
 	unsigned short refresh;
 	unsigned short dpstatus;
 	unsigned short callno;
@@ -153,13 +153,13 @@ struct iax_ie_data {
 void iax_set_output(void (*output)(const char *data));
 /* Choose a different function for errors */
 void iax_set_error(void (*output)(const char *data));
-void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen);
+void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct ast_sockaddr *addr, int datalen);
 void iax_frame_subclass2str(enum iax_frame_subclass subclass, char *str, size_t len);
 
 const char *iax_ie2str(int ie);
 
 int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, const void *data, int datalen);
-int iax_ie_append_addr(struct iax_ie_data *ied, unsigned char ie, const struct sockaddr_in *sin);
+int iax_ie_append_addr(struct iax_ie_data *ied, unsigned char ie, const struct ast_sockaddr *addr);
 int iax_ie_append_versioned_uint64(struct iax_ie_data *ied, unsigned char ie, unsigned char version, uint64_t value);
 int iax_ie_append_int(struct iax_ie_data *ied, unsigned char ie, unsigned int value);
 int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned short value);

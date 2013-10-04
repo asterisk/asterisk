@@ -770,7 +770,6 @@ Stasis Message Bus
    Stasis can be configured in stasis.conf. Note that these parameters operate
    at a very low level in Asterisk, and generally will not require changes.
 
-
 Channel Drivers
 ------------------
  * When a channel driver is configured to enable jiterbuffers, they are now
@@ -814,6 +813,11 @@ chan_dahdi
  * Added the CLI command 'dahdi create channels'. A range of channels can be
    specified to be created, or the keyword 'new' can be used to add channels
    not yet created.
+
+chan_iax2
+------------------
+ * IPv6 support has been added.  We are now able to bind to and
+   communicate using IPv6 addresses.
 
 chan_local
 ------------------

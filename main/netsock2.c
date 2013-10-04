@@ -297,6 +297,37 @@ cleanup:
 	return res_cnt;
 }
 
+int ast_sockaddr_apply_netmask(const struct ast_sockaddr *addr, const struct ast_sockaddr *netmask,
+		struct ast_sockaddr *result)
+{
+	int res = 0;
+
+	if (ast_sockaddr_is_ipv4(addr)) {
+		struct sockaddr_in result4 = { 0, };
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) &addr->ss;
+		struct sockaddr_in *mask4 = (struct sockaddr_in *) &netmask->ss;
+		result4.sin_family = AF_INET;
+		result4.sin_addr.s_addr = addr4->sin_addr.s_addr & mask4->sin_addr.s_addr;
+		ast_sockaddr_from_sin(result, &result4);
+	} else if (ast_sockaddr_is_ipv6(addr)) {
+		struct sockaddr_in6 result6 = { 0, };
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) &addr->ss;
+		struct sockaddr_in6 *mask6 = (struct sockaddr_in6 *) &netmask->ss;
+		int i;
+		result6.sin6_family = AF_INET6;
+		for (i = 0; i < 4; ++i) {
+			V6_WORD(&result6, i) = V6_WORD(addr6, i) & V6_WORD(mask6, i);
+		}
+		memcpy(&result->ss, &result6, sizeof(result6));
+		result->len = sizeof(result6);
+	} else {
+		/* Unsupported address scheme */
+		res = -1;
+	}
+
+	return res;
+}
+
 int ast_sockaddr_cmp(const struct ast_sockaddr *a, const struct ast_sockaddr *b)
 {
 	const struct ast_sockaddr *a_tmp, *b_tmp;
