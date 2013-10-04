@@ -53,6 +53,15 @@
 int ast_ari_validate_void(struct ast_json *json);
 
 /*!
+ * \brief Validator for native Swagger object.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_object(struct ast_json *json);
+
+/*!
  * \brief Validator for native Swagger byte.
  *
  * \param json JSON object to validate.

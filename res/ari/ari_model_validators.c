@@ -2530,6 +2530,7 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 	int has_application = 0;
 	int has_channel = 0;
 	int has_eventname = 0;
+	int has_userevent = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
@@ -2581,6 +2582,16 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("userevent", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_userevent = 1;
+			prop_is_valid = ast_ari_validate_object(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelUserevent field userevent failed validation\n");
+				res = 0;
+			}
+		} else
 		{
 			ast_log(LOG_ERROR,
 				"ARI ChannelUserevent has undocumented field %s\n",
@@ -2606,6 +2617,11 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 
 	if (!has_eventname) {
 		ast_log(LOG_ERROR, "ARI ChannelUserevent missing required field eventname\n");
+		res = 0;
+	}
+
+	if (!has_userevent) {
+		ast_log(LOG_ERROR, "ARI ChannelUserevent missing required field userevent\n");
 		res = 0;
 	}
 
@@ -2721,6 +2737,85 @@ ari_validator ast_ari_validate_channel_varset_fn(void)
 	return ast_ari_validate_channel_varset;
 }
 
+int ast_ari_validate_endpoint_state_change(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_endpoint = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI EndpointStateChange field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI EndpointStateChange field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI EndpointStateChange field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("endpoint", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_endpoint = 1;
+			prop_is_valid = ast_ari_validate_endpoint(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI EndpointStateChange field endpoint failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI EndpointStateChange has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI EndpointStateChange missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI EndpointStateChange missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_endpoint) {
+		ast_log(LOG_ERROR, "ARI EndpointStateChange missing required field endpoint\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_endpoint_state_change_fn(void)
+{
+	return ast_ari_validate_endpoint_state_change;
+}
+
 int ast_ari_validate_event(struct ast_json *json)
 {
 	int res = 1;
@@ -2782,6 +2877,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	} else
 	if (strcmp("ChannelVarset", discriminator) == 0) {
 		return ast_ari_validate_channel_varset(json);
+	} else
+	if (strcmp("EndpointStateChange", discriminator) == 0) {
+		return ast_ari_validate_endpoint_state_change(json);
 	} else
 	if (strcmp("PlaybackFinished", discriminator) == 0) {
 		return ast_ari_validate_playback_finished(json);
@@ -2917,6 +3015,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("ChannelVarset", discriminator) == 0) {
 		return ast_ari_validate_channel_varset(json);
+	} else
+	if (strcmp("EndpointStateChange", discriminator) == 0) {
+		return ast_ari_validate_endpoint_state_change(json);
 	} else
 	if (strcmp("Event", discriminator) == 0) {
 		return ast_ari_validate_event(json);
@@ -3360,4 +3461,93 @@ int ast_ari_validate_stasis_start(struct ast_json *json)
 ari_validator ast_ari_validate_stasis_start_fn(void)
 {
 	return ast_ari_validate_stasis_start;
+}
+
+int ast_ari_validate_application(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_bridge_ids = 0;
+	int has_channel_ids = 0;
+	int has_endpoint_ids = 0;
+	int has_name = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("bridge_ids", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_bridge_ids = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_string);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Application field bridge_ids failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel_ids", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel_ids = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_string);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Application field channel_ids failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("endpoint_ids", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_endpoint_ids = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_string);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Application field endpoint_ids failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Application field name failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI Application has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_bridge_ids) {
+		ast_log(LOG_ERROR, "ARI Application missing required field bridge_ids\n");
+		res = 0;
+	}
+
+	if (!has_channel_ids) {
+		ast_log(LOG_ERROR, "ARI Application missing required field channel_ids\n");
+		res = 0;
+	}
+
+	if (!has_endpoint_ids) {
+		ast_log(LOG_ERROR, "ARI Application missing required field endpoint_ids\n");
+		res = 0;
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI Application missing required field name\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_application_fn(void)
+{
+	return ast_ari_validate_application;
 }

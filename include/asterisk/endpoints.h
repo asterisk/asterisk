@@ -77,6 +77,19 @@ const char *ast_endpoint_state_to_string(enum ast_endpoint_state state);
 struct ast_endpoint;
 
 /*!
+ * \brief Finds the endpoint with the given tech/resource id.
+ *
+ * Endpoints are refcounted, so ao2_cleanup() when you're done.
+ *
+ * \param id Tech/resource id to look for.
+ * \return Associated endpoint.
+ * \return \c NULL if not found.
+ *
+ * \since 12
+ */
+struct ast_endpoint *ast_endpoint_find_by_id(const char *id);
+
+/*!
  * \brief Create an endpoint struct.
  *
  * The endpoint is created with a state of UNKNOWN and max_channels of -1
@@ -124,6 +137,18 @@ const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint);
  * \since 12
  */
 const char *ast_endpoint_get_resource(const struct ast_endpoint *endpoint);
+
+/*!
+ * \brief Gets the tech/resource id of the given endpoint.
+ *
+ * This is unique across all endpoints, and immutable.
+ *
+ * \param endpoint The endpoint.
+ * \return Tech/resource id of the endpoint.
+ * \return \c NULL if endpoint is \c NULL.
+ * \since 12
+ */
+const char *ast_endpoint_get_id(const struct ast_endpoint *endpoint);
 
 /*!
  * \brief Updates the state of the given endpoint.

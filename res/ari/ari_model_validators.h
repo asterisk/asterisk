@@ -55,6 +55,15 @@
 int ast_ari_validate_void(struct ast_json *json);
 
 /*!
+ * \brief Validator for native Swagger object.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_object(struct ast_json *json);
+
+/*!
  * \brief Validator for native Swagger byte.
  *
  * \param json JSON object to validate.
@@ -746,6 +755,24 @@ int ast_ari_validate_channel_varset(struct ast_json *json);
 ari_validator ast_ari_validate_channel_varset_fn(void);
 
 /*!
+ * \brief Validator for EndpointStateChange.
+ *
+ * Endpoint state changed.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_endpoint_state_change(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_endpoint_state_change().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_endpoint_state_change_fn(void);
+
+/*!
  * \brief Validator for Event.
  *
  * Base type for asynchronous events from Asterisk.
@@ -870,6 +897,24 @@ int ast_ari_validate_stasis_start(struct ast_json *json);
  * See \ref ast_ari_model_validators.h for more details.
  */
 ari_validator ast_ari_validate_stasis_start_fn(void);
+
+/*!
+ * \brief Validator for Application.
+ *
+ * Details of a Stasis application
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_application(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_application().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_application_fn(void);
 
 /*
  * JSON models
@@ -1035,6 +1080,7 @@ ari_validator ast_ari_validate_stasis_start_fn(void);
  * - timestamp: Date
  * - channel: Channel (required)
  * - eventname: string (required)
+ * - userevent: object (required)
  * ChannelVarset
  * - type: string (required)
  * - application: string (required)
@@ -1042,6 +1088,11 @@ ari_validator ast_ari_validate_stasis_start_fn(void);
  * - channel: Channel
  * - value: string (required)
  * - variable: string (required)
+ * EndpointStateChange
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - endpoint: Endpoint (required)
  * Event
  * - type: string (required)
  * - application: string (required)
@@ -1072,6 +1123,11 @@ ari_validator ast_ari_validate_stasis_start_fn(void);
  * - timestamp: Date
  * - args: List[string] (required)
  * - channel: Channel (required)
+ * Application
+ * - bridge_ids: List[string] (required)
+ * - channel_ids: List[string] (required)
+ * - endpoint_ids: List[string] (required)
+ * - name: string (required)
  */
 
 #endif /* _ASTERISK_ARI_MODEL_H */

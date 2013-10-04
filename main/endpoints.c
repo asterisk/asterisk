@@ -38,9 +38,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/_private.h"
 
 /*! Buckets for endpoint->channel mappings. Keep it prime! */
+#define ENDPOINT_CHANNEL_BUCKETS 127
+
+/*! Buckets for endpoint hash. Keep it prime! */
 #define ENDPOINT_BUCKETS 127
+
+static struct ao2_container *endpoints;
 
 struct ast_endpoint {
 	AST_DECLARE_STRING_FIELDS(
@@ -64,6 +70,59 @@ struct ast_endpoint {
 	/*! ast_str_container of channels associated with this endpoint */
 	struct ao2_container *channel_ids;
 };
+
+static int endpoint_hash(const void *obj, int flags)
+{
+	const struct ast_endpoint *endpoint;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		return ast_str_hash(key);
+	case OBJ_SEARCH_OBJECT:
+		endpoint = obj;
+		return ast_str_hash(endpoint->id);
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+}
+
+static int endpoint_cmp(void *obj, void *arg, int flags)
+{
+	const struct ast_endpoint *left = obj;
+	const struct ast_endpoint *right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = right->id;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(left->id, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(left->id, right_key, strlen(right_key));
+		break;
+	default:
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+
+	return CMP_MATCH;
+}
+
+struct ast_endpoint *ast_endpoint_find_by_id(const char *id)
+{
+	return ao2_find(endpoints, id, OBJ_KEY);
+}
 
 struct stasis_topic *ast_endpoint_topic(struct ast_endpoint *endpoint)
 {
@@ -218,7 +277,7 @@ struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
 	/* All access to channel_ids should be covered by the endpoint's
 	 * lock; no extra lock needed. */
 	endpoint->channel_ids = ast_str_container_alloc_options(
-		AO2_ALLOC_OPT_LOCK_NOLOCK, ENDPOINT_BUCKETS);
+		AO2_ALLOC_OPT_LOCK_NOLOCK, ENDPOINT_CHANNEL_BUCKETS);
 	if (!endpoint->channel_ids) {
 		return NULL;
 	}
@@ -241,14 +300,10 @@ struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
 
 	endpoint_publish_snapshot(endpoint);
 
+	ao2_link(endpoints, endpoint);
+
 	ao2_ref(endpoint, +1);
 	return endpoint;
-}
-
-const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint)
-{
-	ast_assert(endpoint != NULL);
-	return endpoint->tech;
 }
 
 static struct stasis_message *create_endpoint_snapshot_message(struct ast_endpoint *endpoint)
@@ -270,6 +325,8 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 		return;
 	}
 
+	ao2_unlink(endpoints, endpoint);
+
 	clear_msg = create_endpoint_snapshot_message(endpoint);
 	if (clear_msg) {
 		RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
@@ -284,9 +341,28 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 	stasis_message_router_unsubscribe(endpoint->router);
 }
 
+const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint)
+{
+	if (!endpoint) {
+		return NULL;
+	}
+	return endpoint->tech;
+}
+
 const char *ast_endpoint_get_resource(const struct ast_endpoint *endpoint)
 {
+	if (!endpoint) {
+		return NULL;
+	}
 	return endpoint->resource;
+}
+
+const char *ast_endpoint_get_id(const struct ast_endpoint *endpoint)
+{
+	if (!endpoint) {
+		return NULL;
+	}
+	return endpoint->id;
 }
 
 void ast_endpoint_set_state(struct ast_endpoint *endpoint,
@@ -353,4 +429,24 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 
 	ao2_ref(snapshot, +1);
 	return snapshot;
+}
+
+static void endpoint_cleanup(void)
+{
+	ao2_cleanup(endpoints);
+	endpoints = NULL;
+}
+
+int ast_endpoint_init(void)
+{
+	ast_register_cleanup(endpoint_cleanup);
+
+	endpoints = ao2_container_alloc(ENDPOINT_BUCKETS, endpoint_hash,
+		endpoint_cmp);
+
+	if (!endpoints) {
+		return -1;
+	}
+
+	return 0;
 }

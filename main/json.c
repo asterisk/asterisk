@@ -686,9 +686,15 @@ struct ast_json *ast_json_pack(char const *format, ...)
 }
 struct ast_json *ast_json_vpack(char const *format, va_list ap)
 {
+	json_error_t error;
 	struct ast_json *r = NULL;
 	if (format) {
-		r = (struct ast_json *)json_vpack_ex(NULL, 0, format, ap);
+		r = (struct ast_json *)json_vpack_ex(&error, 0, format, ap);
+		if (!r) {
+			ast_log(LOG_ERROR,
+				"Error building JSON from '%s': %s.\n",
+				format, error.text);
+		}
 	}
 	return r;
 }

@@ -49,3 +49,7 @@ res_ari_events.so: ari/resource_events.o
 
 ari/resource_events.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_events)
 
+res_ari_applications.so: ari/resource_applications.o
+
+ari/resource_applications.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_applications)
+

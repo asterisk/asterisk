@@ -293,6 +293,11 @@
 					"required": true,
 					"type": "Channel",
 					"description": "The channel that signaled the user event."
+				},
+				"userevent": {
+					"required": true,
+					"type": "object",
+					"description": "Custom Userevent data"
 				}
 			}
 		},
@@ -335,6 +340,17 @@
 					"required": false,
 					"type": "Channel",
 					"description": "The channel on which the variable was set.\n\nIf missing, the variable is a global variable."
+				}
+			}
+		},
+		"EndpointStateChange": {
+			"id": "EndpointStateChange",
+			"extends": "Event",
+			"description": "Endpoint state changed.",
+			"properties": {
+				"endpoint": {
+					"required": true,
+					"type": "Endpoint"
 				}
 			}
 		},

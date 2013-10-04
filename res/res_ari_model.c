@@ -95,6 +95,11 @@ int ast_ari_validate_void(struct ast_json *json)
 	return check_type(json, AST_JSON_NULL);
 }
 
+int ast_ari_validate_object(struct ast_json *json)
+{
+	return check_type(json, AST_JSON_OBJECT);
+}
+
 int ast_ari_validate_byte(struct ast_json *json)
 {
 	/* Java bytes are signed, which accounts for great fun for all */

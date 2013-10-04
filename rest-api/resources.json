@@ -37,6 +37,10 @@
 		{
 			"path": "/api-docs/events.{format}",
 			"description": "WebSocket resource"
+		},
+		{
+			"path": "/api-docs/applications.{format}",
+			"description": "Stasis application resources"
 		}
 	]
 }

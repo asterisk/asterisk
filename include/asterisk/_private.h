@@ -142,4 +142,12 @@ int ast_parking_stasis_init(void);
 
 /*! \brief initialize the sounds index */
 int ast_sounds_index_init(void);
+
+/*!
+ * \brief Endpoint support initialization.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int ast_endpoint_init(void);
+
 #endif /* _ASTERISK__PRIVATE_H */
