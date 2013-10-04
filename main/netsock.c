@@ -117,7 +117,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	const int reuseFlag = 1;
 
 	/* Make a UDP socket */
-	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+	netsocket = socket(ast_sockaddr_is_ipv6(bindaddr) ? AST_AF_INET6 : AST_AF_INET, SOCK_DGRAM, IPPROTO_IP);
 
 	if (netsocket < 0) {
 		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
@@ -155,7 +155,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	ns->ioc = ioc;
 	ns->sockfd = netsocket;
 	ns->data = data;
-	memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
+	ast_sockaddr_copy(&ns->bindaddr, bindaddr);
 	ASTOBJ_CONTAINER_LINK(list, ns);
 
 	return ns;
@@ -171,10 +171,6 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 	struct ast_sockaddr addr;
 
 	if (ast_sockaddr_parse(&addr, bindinfo, 0)) {
-		if (!ast_sockaddr_is_ipv4(&addr)) {
-			ast_log(LOG_WARNING, "Only IPv4 addresses are supported at this time.\n");
-			return NULL;
-		}
 
 		if (!ast_sockaddr_port(&addr)) {
 			ast_sockaddr_set_port(&addr, defaultport);

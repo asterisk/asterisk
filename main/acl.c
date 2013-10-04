@@ -349,63 +349,6 @@ struct ast_acl_list *ast_duplicate_acl_list(struct ast_acl_list *original)
 
 /*!
  * \brief
- * Isolate a 32-bit section of an IPv6 address
- *
- * An IPv6 address can be divided into 4 32-bit chunks. This gives
- * easy access to one of these chunks.
- *
- * \param sin6 A pointer to a struct sockaddr_in6
- * \param index Which 32-bit chunk to operate on. Must be in the range 0-3.
- */
-#define V6_WORD(sin6, index) ((uint32_t *)&((sin6)->sin6_addr))[(index)]
-
-/*!
- * \brief
- * Apply a netmask to an address and store the result in a separate structure.
- *
- * When dealing with IPv6 addresses, one cannot apply a netmask with a simple
- * logical and operation. Furthermore, the incoming address may be an IPv4 address
- * and need to be mapped properly before attempting to apply a rule.
- *
- * \param addr The IP address to apply the mask to.
- * \param netmask The netmask configured in the host access rule.
- * \param result The resultant address after applying the netmask to the given address
- * \retval 0 Successfully applied netmask
- * \retval -1 Failed to apply netmask
- */
-static int apply_netmask(const struct ast_sockaddr *addr, const struct ast_sockaddr *netmask,
-		struct ast_sockaddr *result)
-{
-	int res = 0;
-
-	if (ast_sockaddr_is_ipv4(addr)) {
-		struct sockaddr_in result4 = { 0, };
-		struct sockaddr_in *addr4 = (struct sockaddr_in *) &addr->ss;
-		struct sockaddr_in *mask4 = (struct sockaddr_in *) &netmask->ss;
-		result4.sin_family = AF_INET;
-		result4.sin_addr.s_addr = addr4->sin_addr.s_addr & mask4->sin_addr.s_addr;
-		ast_sockaddr_from_sin(result, &result4);
-	} else if (ast_sockaddr_is_ipv6(addr)) {
-		struct sockaddr_in6 result6 = { 0, };
-		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) &addr->ss;
-		struct sockaddr_in6 *mask6 = (struct sockaddr_in6 *) &netmask->ss;
-		int i;
-		result6.sin6_family = AF_INET6;
-		for (i = 0; i < 4; ++i) {
-			V6_WORD(&result6, i) = V6_WORD(addr6, i) & V6_WORD(mask6, i);
-		}
-		memcpy(&result->ss, &result6, sizeof(result6));
-		result->len = sizeof(result6);
-	} else {
-		/* Unsupported address scheme */
-		res = -1;
-	}
-
-	return res;
-}
-
-/*!
- * \brief
  * Parse a netmask in CIDR notation
  *
  * \details
@@ -467,8 +410,6 @@ static int parse_cidr_mask(struct ast_sockaddr *addr, int is_v4, const char *mas
 
 	return 0;
 }
-
-
 
 void ast_append_acl(const char *sense, const char *stuff, struct ast_acl_list **path, int *error, int *named_acl_flag)
 {
@@ -693,7 +634,7 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 			return ret;
 		}
 
-		if (apply_netmask(&ha->addr, &ha->netmask, &ha->addr)) {
+		if (ast_sockaddr_apply_netmask(&ha->addr, &ha->netmask, &ha->addr)) {
 			/* This shouldn't happen because ast_sockaddr_parse would
 			 * have failed much earlier on an unsupported address scheme
 			 */
@@ -805,7 +746,7 @@ enum ast_acl_sense ast_apply_ha(const struct ast_ha *ha, const struct ast_sockad
 
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
-		if (apply_netmask(addr_to_use, &current_ha->netmask, &result)) {
+		if (ast_sockaddr_apply_netmask(addr_to_use, &current_ha->netmask, &result)) {
 			/* Unlikely to happen since we know the address to be IPv4 or IPv6 */
 			continue;
 		}
