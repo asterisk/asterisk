@@ -1,0 +1,167 @@
+{
+	"_copyright": "Copyright (C) 2013, Digium, Inc.",
+	"_author": "David M. Lee, II <dlee@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/applications.{format}",
+	"apis": [
+		{
+			"path": "/applications",
+			"description": "Stasis applications",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List all applications.",
+					"nickname": "getApplications",
+					"responseClass": "List[Application]"
+				}
+			]
+		},
+		{
+			"path": "/applications/{applicationName}",
+			"description": "Stasis application",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Get details of an application.",
+					"nickname": "getApplication",
+					"responseClass": "Application",
+					"parameters": [
+						{
+							"name": "applicationName",
+							"description": "Application's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Application does not exist."
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/applications/{applicationName}/subscription",
+			"description": "Stasis application",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Subscribe an application to a event source.",
+					"notes": "Returns the state of the application after the subscriptions have changed",
+					"nickname": "applicationSubscribe",
+					"responseClass": "Application",
+					"parameters": [
+						{
+							"name": "applicationName",
+							"description": "Application's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "eventSource",
+							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": true,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Missing parameter."
+						},
+						{
+							"code": 404,
+							"reason": "Application does not exist."
+						},
+						{
+							"code": 422,
+							"reason": "Event source does not exist."
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Unsubscribe an application from an event source.",
+					"notes": "Returns the state of the application after the subscriptions have changed",
+					"nickname": "applicationUnsubscribe",
+					"responseClass": "Application",
+					"parameters": [
+						{
+							"name": "applicationName",
+							"description": "Application's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "eventSource",
+							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": true,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Missing parameter; event source scheme not recognized."
+						},
+						{
+							"code": 404,
+							"reason": "Application does not exist."
+						},
+						{
+							"code": 409,
+							"reason": "Application not subscribed to event source."
+						},
+						{
+							"code": 422,
+							"reason": "Event source does not exist."
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"Application": {
+			"id": "Application",
+			"description": "Details of a Stasis application",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Name of this application",
+					"required": true
+				},
+				"channel_ids": {
+					"type": "List[string]",
+					"description": "Id's for channels subscribed to.",
+					"required": true
+				},
+				"bridge_ids": {
+					"type": "List[string]",
+					"description": "Id's for bridges subscribed to.",
+					"required": true
+				},
+				"endpoint_ids": {
+					"type": "List[string]",
+					"description": "{tech}/{resource} for endpoints subscribed to.",
+					"required": true
+				}
+			}
+		}
+	}
+}
