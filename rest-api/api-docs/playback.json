@@ -31,7 +31,7 @@
 					"httpMethod": "DELETE",
 					"summary": "Stop a playback.",
 					"nickname": "stopPlayback",
-					"responseClass": "Playback",
+					"responseClass": "void",
 					"parameters": [
 						{
 							"name": "playbackId",
