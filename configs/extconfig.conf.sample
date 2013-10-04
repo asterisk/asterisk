@@ -65,6 +65,7 @@
 ; engine.  Here are several of the possible options:
 ;    odbc ... res_config_odbc
 ;    sqlite ... res_config_sqlite
+;    sqlite3 ... res_config_sqlite3
 ;    pgsql ... res_config_pgsql
 ;    curl ... res_config_curl
 ;    ldap ... res_config_ldap
@@ -78,6 +79,11 @@
 ;iaxpeers => odbc,asterisk
 ;sippeers => odbc,asterisk
 ;sipregs => odbc,asterisk ; (avoid sipregs if possible, e.g. by using a view)
+;ps_endpoints => odbc,asterisk
+;ps_auths => odbc,asterisk
+;ps_aors => odbc,asterisk
+;ps_domain_aliases => odbc,asterisk
+;ps_endpoint_id_ips => odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
 ;meetme => mysql,general

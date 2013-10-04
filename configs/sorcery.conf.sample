@@ -48,3 +48,13 @@ test=memory
 test/cache=test
 test=memory
 
+;
+; The following object mappings set PJSIP objects to use realtime database mappings from extconfig
+; with the table names used when automatically generating configuration from the alembic script.
+;
+;[res_pjsip]
+;endpoint=realtime,ps_endpoints
+;auth=realtime,ps_auths
+;aor=realtime,ps_aors
+;domain_alias=realtime,ps_domain_aliases
+;identify=realtime,ps_endpoint_id_ips
