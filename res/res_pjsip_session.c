@@ -42,6 +42,7 @@
 #include "asterisk/causes.h"
 #include "asterisk/sdp_srtp.h"
 #include "asterisk/dsp.h"
+#include "asterisk/acl.h"
 
 #define SDP_HANDLER_BUCKETS 11
 
@@ -2095,6 +2096,18 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 	}
 
 	sdp = tdata->msg->body->data;
+
+	if (sdp->conn) {
+		char host[NI_MAXHOST];
+		struct ast_sockaddr addr = { { 0, } };
+
+		ast_copy_pj_str(host, &sdp->conn->addr, sizeof(host));
+		ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID);
+
+		if (ast_apply_ha(transport->localnet, &addr) != AST_SENSE_ALLOW) {
+			pj_strdup2(tdata->pool, &sdp->conn->addr, transport->external_media_address);
+		}
+	}
 
 	for (stream = 0; stream < sdp->media_count; ++stream) {
 		/* See if there are registered handlers for this media stream type */
