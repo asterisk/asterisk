@@ -1342,15 +1342,19 @@ static int sip_get_tpselector_from_uri(const char *uri, pjsip_tpselector *select
 
 pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint, const char *uri, const char *request_user)
 {
-	pj_str_t local_uri = { "sip:temp@temp", 13 }, remote_uri;
+	char enclosed_uri[PJSIP_MAX_URL_SIZE];
+	pj_str_t local_uri = { "sip:temp@temp", 13 }, remote_uri, target_uri;
 	pjsip_dialog *dlg = NULL;
 	const char *outbound_proxy = endpoint->outbound_proxy;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 	static const pj_str_t HCONTACT = { "Contact", 7 };
 
-	pj_cstr(&remote_uri, uri);
+	snprintf(enclosed_uri, sizeof(enclosed_uri), "<%s>", uri);
+	pj_cstr(&remote_uri, enclosed_uri);
 
-	if (pjsip_dlg_create_uac(pjsip_ua_instance(), &local_uri, NULL, &remote_uri, NULL, &dlg) != PJ_SUCCESS) {
+	pj_cstr(&target_uri, uri);
+
+	if (pjsip_dlg_create_uac(pjsip_ua_instance(), &local_uri, NULL, &remote_uri, &target_uri, &dlg) != PJ_SUCCESS) {
 		return NULL;
 	}
 
@@ -1370,9 +1374,17 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	dlg->local.contact = pjsip_parse_hdr(dlg->pool, &HCONTACT, local_uri.ptr, local_uri.slen, NULL);
 
 	/* If a request user has been specified and we are permitted to change it, do so */
-	if (!ast_strlen_zero(request_user) && (PJSIP_URI_SCHEME_IS_SIP(dlg->target) || PJSIP_URI_SCHEME_IS_SIPS(dlg->target))) {
-		pjsip_sip_uri *target = pjsip_uri_get_uri(dlg->target);
-		pj_strdup2(dlg->pool, &target->user, request_user);
+	if (!ast_strlen_zero(request_user)) {
+		pjsip_sip_uri *sip_uri;
+
+		if (PJSIP_URI_SCHEME_IS_SIP(dlg->target) || PJSIP_URI_SCHEME_IS_SIPS(dlg->target)) {
+			sip_uri = pjsip_uri_get_uri(dlg->target);
+			pj_strdup2(dlg->pool, &sip_uri->user, request_user);
+		}
+		if (PJSIP_URI_SCHEME_IS_SIP(dlg->remote.info->uri) || PJSIP_URI_SCHEME_IS_SIPS(dlg->remote.info->uri)) {
+			sip_uri = pjsip_uri_get_uri(dlg->remote.info->uri);
+			pj_strdup2(dlg->pool, &sip_uri->user, request_user);
+		}
 	}
 
 	/* We have to temporarily bump up the sess_count here so the dialog is not prematurely destroyed */
