@@ -13,7 +13,7 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
-					"summary": "List all endoints.",
+					"summary": "List all endpoints.",
 					"nickname": "getEndpoints",
 					"responseClass": "List[Endpoint]"
 				}

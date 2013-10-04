@@ -114,6 +114,8 @@ void app_send(struct app *app, struct ast_json *message);
 
 struct app_forwards;
 
+struct ast_json *app_to_json(const struct app *app);
+
 /*!
  * \brief Subscribes an application to a channel.
  *
@@ -128,9 +130,31 @@ int app_subscribe_channel(struct app *app, struct ast_channel *chan);
  * \brief Cancel the subscription an app has for a channel.
  *
  * \param app Subscribing application.
- * \param forwards Returned object from app_subscribe_channel().
+ * \param chan Channel to unsubscribe from.
+ * \return 0 on success.
+ * \return Non-zero on error.
  */
 int app_unsubscribe_channel(struct app *app, struct ast_channel *chan);
+
+/*!
+ * \brief Cancel the subscription an app has for a channel.
+ *
+ * \param app Subscribing application.
+ * \param channel_id Id of channel to unsubscribe from.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int app_unsubscribe_channel_id(struct app *app, const char *channel_id);
+
+/*!
+ * \brief Test if an app is subscribed to a channel.
+ *
+ * \param app Subscribing application.
+ * \param channel_id Id of channel to check.
+ * \return True (non-zero) if channel is subscribed to \a app.
+ * \return False (zero) if channel is not subscribed.
+ */
+int app_is_subscribed_channel_id(struct app *app, const char *channel_id);
 
 /*!
  * \brief Add a bridge subscription to an existing channel subscription.
@@ -151,5 +175,55 @@ int app_subscribe_bridge(struct app *app, struct ast_bridge *bridge);
  * \return Non-zero on error.
  */
 int app_unsubscribe_bridge(struct app *app, struct ast_bridge *bridge);
+
+/*!
+ * \brief Cancel the subscription an app has for a bridge.
+ *
+ * \param app Subscribing application.
+ * \param bridge_id Id of bridge to unsubscribe from.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int app_unsubscribe_bridge_id(struct app *app, const char *bridge_id);
+
+/*!
+ * \brief Test if an app is subscribed to a bridge.
+ *
+ * \param app Subscribing application.
+ * \param bridge_id Id of bridge to check.
+ * \return True (non-zero) if bridge is subscribed to \a app.
+ * \return False (zero) if bridge is not subscribed.
+ */
+int app_is_subscribed_bridge_id(struct app *app, const char *bridge_id);
+
+/*!
+ * \brief Subscribes an application to a endpoint.
+ *
+ * \param app Application.
+ * \param chan Endpoint to subscribe to.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int app_subscribe_endpoint(struct app *app, struct ast_endpoint *endpoint);
+
+/*!
+ * \brief Cancel the subscription an app has for a endpoint.
+ *
+ * \param app Subscribing application.
+ * \param endpoint_id Id of endpoint to unsubscribe from.
+ * \return 0 on success.
+ * \return Non-zero on error.
+ */
+int app_unsubscribe_endpoint_id(struct app *app, const char *endpoint_id);
+
+/*!
+ * \brief Test if an app is subscribed to a endpoint.
+ *
+ * \param app Subscribing application.
+ * \param endpoint_id Id of endpoint to check.
+ * \return True (non-zero) if endpoint is subscribed to \a app.
+ * \return False (zero) if endpoint is not subscribed.
+ */
+int app_is_subscribed_endpoint_id(struct app *app, const char *endpoint_id);
 
 #endif /* _ASTERISK_RES_STASIS_APP_H */

@@ -43,7 +43,7 @@
 struct ast_get_endpoints_args {
 };
 /*!
- * \brief List all endoints.
+ * \brief List all endpoints.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters

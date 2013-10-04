@@ -247,6 +247,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_system.h"
 #include "asterisk/security_events.h"
+#include "asterisk/endpoints.h"
 
 #include "../defaults.h"
 
@@ -4339,6 +4340,11 @@ int main(int argc, char *argv[])
 	}
 
 	ast_channels_init();
+
+	if (ast_endpoint_init()) {
+		printf ("%s", term_quit());
+		exit(1);
+	}
 
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());

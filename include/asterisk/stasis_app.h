@@ -69,6 +69,14 @@ typedef void (*stasis_app_cb)(void *data, const char *app_name,
 	struct ast_json *message);
 
 /*!
+ * \brief Gets the names of all registered Stasis applications.
+ *
+ * \return \c ast_str_container of container names.
+ * \return \c NULL on error.
+ */
+struct ao2_container *stasis_app_get_all(void);
+
+/*!
  * \brief Register a new Stasis application.
  *
  * If an application is already registered with the given name, the old
@@ -77,6 +85,7 @@ typedef void (*stasis_app_cb)(void *data, const char *app_name,
  * \param app_name Name of this application.
  * \param handler Callback for application messages.
  * \param data Data blob to pass to the callback. Must be AO2 managed.
+ *
  * \return 0 for success
  * \return -1 for error.
  */
@@ -96,10 +105,60 @@ void stasis_app_unregister(const char *app_name);
  *
  * \param app_name Name of the application to invoke.
  * \param message Message to send (borrowed reference)
+ *
  * \return 0 for success.
  * \return -1 for error.
  */
 int stasis_app_send(const char *app_name, struct ast_json *message);
+
+/*!
+ * \brief Return the JSON representation of a Stasis application.
+ *
+ * \param app_name Name of the application.
+ *
+ * \return JSON representation of app with given name.
+ * \return \c NULL on error.
+ */
+struct ast_json *stasis_app_to_json(const char *app_name);
+
+/*! \brief Return code for stasis_app_[un]subscribe */
+enum stasis_app_subscribe_res {
+	STASIS_ASR_OK,
+	STASIS_ASR_APP_NOT_FOUND,
+	STASIS_ASR_EVENT_SOURCE_NOT_FOUND,
+	STASIS_ASR_EVENT_SOURCE_BAD_SCHEME,
+	STASIS_ASR_INTERNAL_ERROR,
+};
+
+/*!
+ * \brief Subscribes an application to a list of event sources.
+ *
+ * \param app_name Name of the application to subscribe.
+ * \param event_source_uris URIs for the event sources to subscribe to.
+ * \param event_sources_count Array size of event_source_uris.
+ * \param json Optional output pointer for JSON representation of the app
+ *             after adding the subscription.
+ *
+ * \return \ref stasis_app_subscribe_res return code.
+ */
+enum stasis_app_subscribe_res stasis_app_subscribe(const char *app_name,
+	const char **event_source_uris, int event_sources_count,
+	struct ast_json **json);
+
+/*!
+ * \brief Unsubscribes an application from a list of event sources.
+ *
+ * \param app_name Name of the application to subscribe.
+ * \param event_source_uris URIs for the event sources to subscribe to.
+ * \param event_sources_count Array size of event_source_uris.
+ * \param json Optional output pointer for JSON representation of the app
+ *             after adding the subscription.
+ *
+ * \return \ref stasis_app_subscribe_res return code.
+ */
+enum stasis_app_subscribe_res stasis_app_unsubscribe(const char *app_name,
+	const char **event_source_uris, int event_sources_count,
+	struct ast_json **json);
 
 /*! @} */
 
@@ -111,6 +170,7 @@ struct stasis_app_control;
 /*!
  * \brief Returns the handler for the given channel.
  * \param chan Channel to handle.
+ *
  * \return NULL channel not in Stasis application.
  * \return Pointer to \c res_stasis handler.
  */
@@ -120,6 +180,7 @@ struct stasis_app_control *stasis_app_control_find_by_channel(
 /*!
  * \brief Returns the handler for the channel with the given id.
  * \param channel_id Uniqueid of the channel.
+ *
  * \return NULL channel not in Stasis application, or channel does not exist.
  * \return Pointer to \c res_stasis handler.
  */
@@ -153,6 +214,7 @@ void stasis_app_control_execute_until_exhausted(
  * \brief Returns the uniqueid of the channel associated with this control
  *
  * \param control Control object.
+ *
  * \return Uniqueid of the associate channel.
  * \return \c NULL if \a control is \c NULL.
  */
@@ -245,6 +307,7 @@ int stasis_app_control_answer(struct stasis_app_control *control);
  * \brief Get the value of a variable on the channel associated with this control.
  * \param control Control for \c res_stasis.
  * \param variable The name of the variable.
+ *
  * \return The value of the variable.  The returned variable must be freed.
  */
 char *stasis_app_control_get_channel_var(struct stasis_app_control *control, const char *variable);
@@ -291,6 +354,7 @@ void stasis_app_control_moh_stop(struct stasis_app_control *control);
  * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.
  *
  * \param control Control for \c res_stasis.
+ *
  * \return Most recent snapshot. ao2_cleanup() when done.
  * \return \c NULL if channel isn't in cache.
  */
@@ -331,6 +395,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type);
 /*!
  * \brief Returns the bridge with the given id.
  * \param bridge_id Uniqueid of the bridge.
+ *
  * \return NULL bridge not created by a Stasis application, or bridge does not exist.
  * \return Pointer to bridge.
  */
@@ -364,6 +429,7 @@ int stasis_app_bridge_moh_stop(
  *
  * \param control Control whose channel should be added to the bridge
  * \param bridge Pointer to the bridge
+ *
  * \return non-zero on failure
  * \return zero on success
  */
@@ -375,6 +441,7 @@ int stasis_app_control_add_channel_to_bridge(
  *
  * \param control Control whose channel should be removed from the bridge
  * \param bridge Pointer to the bridge
+ *
  * \return non-zero on failure
  * \return zero on success
  */
@@ -386,6 +453,7 @@ int stasis_app_control_remove_channel_from_bridge(
  * \brief Gets the bridge currently associated with a control object.
  *
  * \param control Control object for the channel to query.
+ *
  * \return Associated \ref ast_bridge.
  * \return \c NULL if not associated with a bridge.
  */
