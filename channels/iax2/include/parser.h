@@ -21,6 +21,7 @@
 #include "asterisk/frame.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/crypto.h"
+#include "asterisk/netsock2.h"
 #include "iax2.h"
 
 struct iax_ies {
