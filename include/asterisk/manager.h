@@ -518,8 +518,6 @@ struct stasis_message_type *ast_manager_get_generic_type(void);
  */
 struct stasis_topic *ast_manager_get_topic(void);
 
-struct ast_json;
-
 /*!
  * \since 12
  * \brief Publish an event to AMI

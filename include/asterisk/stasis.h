@@ -731,7 +731,7 @@ struct ao2_container *stasis_cache_dump(struct stasis_cache *cache,
 void stasis_log_bad_type_access(const char *name);
 
 /*!
- * \brief Boiler-plate removing macro for defining message types.
+ * \brief Boiler-plate messaging macro for defining public message types.
  *
  * \code
  *	STASIS_MESSAGE_TYPE_DEFN(ast_foo_type,
@@ -757,7 +757,7 @@ void stasis_log_bad_type_access(const char *name);
 	}
 
 /*!
- * \brief Boiler-plate removing macro for defining local message types.
+ * \brief Boiler-plate messaging macro for defining local message types.
  *
  * \code
  *	STASIS_MESSAGE_TYPE_DEFN_LOCAL(ast_foo_type,
@@ -783,7 +783,7 @@ void stasis_log_bad_type_access(const char *name);
 	}
 
 /*!
-* \brief Boiler-plate removing macro for initializing message types.
+* \brief Boiler-plate messaging macro for initializing message types.
  *
  * \code
  *	if (STASIS_MESSAGE_TYPE_INIT(ast_foo_type) != 0) {
@@ -805,7 +805,7 @@ void stasis_log_bad_type_access(const char *name);
 	})
 
 /*!
- * \brief Boiler-plate removing macro for cleaning up message types.
+ * \brief Boiler-plate messaging macro for cleaning up message types.
  *
  * Note that if your type is defined in core instead of a loadable module, you
  * should call message type cleanup from an ast_register_cleanup() handler

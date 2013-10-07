@@ -1268,8 +1268,12 @@ static const struct autopause {
 #define DEFAULT_TIMEOUT		15
 #define RECHECK			1		/*!< Recheck every second to see we we're at the top yet */
 #define MAX_PERIODIC_ANNOUNCEMENTS 10           /*!< The maximum periodic announcements we can have */
-#define DEFAULT_MIN_ANNOUNCE_FREQUENCY 15       /*!< The minimum number of seconds between position announcements \
-                                                     The default value of 15 provides backwards compatibility */
+/*!
+ * \brief The minimum number of seconds between position announcements.
+ * \note The default value of 15 provides backwards compatibility.
+ */
+#define DEFAULT_MIN_ANNOUNCE_FREQUENCY 15
+
 #define MAX_QUEUE_BUCKETS 53
 
 #define	RES_OKAY	0		/*!< Action completed */
