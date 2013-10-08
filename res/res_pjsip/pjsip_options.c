@@ -581,25 +581,58 @@ static pjsip_module options_module = {
 static int cli_on_contact(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
-	struct ast_cli_args *a = arg;
-	ast_cli(a->fd, " contact %s\n", contact->uri);
+	int *cli_fd = arg;
+	ast_cli(*cli_fd, " contact %s\n", contact->uri);
 	qualify_contact(contact);
 	return 0;
+}
+
+/*!
+ * \brief Data pushed to threadpool to qualify endpoints from the CLI
+ */
+struct qualify_data {
+	/*! Endpoint that is being qualified */
+	struct ast_sip_endpoint *endpoint;
+	/*! CLI File descriptor for printing messages */
+	int cli_fd;
+};
+
+static struct qualify_data *qualify_data_alloc(struct ast_sip_endpoint *endpoint, int cli_fd)
+{
+	struct qualify_data *qual_data;
+
+	qual_data = ast_malloc(sizeof(*qual_data));
+	if (!qual_data) {
+		return NULL;
+	}
+
+	qual_data->endpoint = ao2_bump(endpoint);
+	qual_data->cli_fd = cli_fd;
+	return qual_data;
+}
+
+static void qualify_data_destroy(struct qualify_data *qual_data)
+{
+	ao2_cleanup(qual_data->endpoint);
+	ast_free(qual_data);
 }
 
 /*!
  * \internal
  * \brief For an endpoint iterate over and qualify all aors/contacts
  */
-static void cli_qualify_contacts(struct ast_cli_args *a, const char *endpoint_name,
-				 struct ast_sip_endpoint *endpoint)
+static int cli_qualify_contacts(void *data)
 {
 	char *aor_name, *aors;
+	RAII_VAR(struct qualify_data *, qual_data, data, qualify_data_destroy);
+	struct ast_sip_endpoint *endpoint = qual_data->endpoint;
+	int cli_fd = qual_data->cli_fd;
+	const char *endpoint_name = ast_sorcery_object_get_id(endpoint);
 
 	if (ast_strlen_zero(endpoint->aors)) {
-		ast_cli(a->fd, "Endpoint %s has no AoR's configured\n",
+		ast_cli(cli_fd, "Endpoint %s has no AoR's configured\n",
 			endpoint_name);
-		return;
+		return 0;
 	}
 
 	aors = ast_strdupa(endpoint->aors);
@@ -613,15 +646,17 @@ static void cli_qualify_contacts(struct ast_cli_args *a, const char *endpoint_na
 			continue;
 		}
 
-		ast_cli(a->fd, "Sending qualify to endpoint %s\n", endpoint_name);
-		ao2_callback(contacts, OBJ_NODATA, cli_on_contact, a);
+		ast_cli(cli_fd, "Sending qualify to endpoint %s\n", endpoint_name);
+		ao2_callback(contacts, OBJ_NODATA, cli_on_contact, &cli_fd);
 	}
+	return 0;
 }
 
 static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 	const char *endpoint_name;
+	struct qualify_data *qual_data;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -646,8 +681,15 @@ static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		return CLI_FAILURE;
 	}
 
-	/* send a qualify for all contacts registered with the endpoint */
-	cli_qualify_contacts(a, endpoint_name, endpoint);
+	qual_data = qualify_data_alloc(endpoint, a->fd);
+	if (!qual_data) {
+		return CLI_FAILURE;
+	}
+
+	if (ast_sip_push_task(NULL, cli_qualify_contacts, qual_data)) {
+		qualify_data_destroy(qual_data);
+		return CLI_FAILURE;
+	}
 
 	return CLI_SUCCESS;
 }
