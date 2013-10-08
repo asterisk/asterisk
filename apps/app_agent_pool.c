@@ -2032,6 +2032,7 @@ static int agent_login_exec(struct ast_channel *chan, const char *data)
 	agent->logged = ast_channel_ref(chan);
 	agent->last_disconnect = ast_tvnow();
 	time(&agent->login_start);
+	agent->deferred_logoff = 0;
 	agent_unlock(agent);
 
 	agent_login_channel_config(agent, chan);
