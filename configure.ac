@@ -2452,6 +2452,15 @@ echo "       \$\$\$\$\$\$\$\$\$\$\$\$\$\$\$\$.                "
 echo
 fi
 
+if test "x${AST_IODBC_FOUND}" = "xyes"; then
+	echo "WARNING: iodbc libs/headers found!"
+	echo
+	echo "  If you plan to use ODBC functionality, you should consider"
+	echo "  switching to unixodbc instead."
+	echo "  See: https://issues.asterisk.org/jira/browse/ASTERISK-22459"
+	echo
+fi
+
 AC_MSG_NOTICE(Package configured for: )
 AC_MSG_NOTICE( OS type  : $host_os)
 AC_MSG_NOTICE( Host CPU : $host_cpu)
