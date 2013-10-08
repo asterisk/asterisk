@@ -44,6 +44,11 @@ CLI:
    by the CLI command is always the Asterisk version. This CLI command
    will be removed in Asterisk 14.
 
+ConfBridge
+ - ConfBridge now has the ability to set the language of announcements to the
+   conference.  The language can be set on a bridge profile in confbridge.conf
+   or by the dialplan function CONFBRIDGE(bridge,language)=en.
+
 from 11.6-cert6 to 11.6-cert7:
 
 * Due to the POODLE vulnerability (see 
