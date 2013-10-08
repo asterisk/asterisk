@@ -1033,37 +1033,65 @@ enum agi_result {
 	AGI_RESULT_HANGUP,
 };
 
-STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_exec_start_type);
-STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_exec_end_type);
-STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_start_type);
-STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_exec_type);
-STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_end_type);
-
-static void agi_channel_manager_event(void *data,
-	struct stasis_subscription *sub,
-	struct stasis_message *message)
+static struct ast_manager_event_blob *agi_channel_to_ami(const char *type, struct stasis_message *message)
 {
-	const char *type = data;
 	struct ast_channel_blob *obj = stasis_message_data(message);
-	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
 	RAII_VAR(struct ast_str *, event_string, NULL, ast_free);
 
-	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
-	if (!channel_event_string) {
-		return;
-	}
-
+	channel_string = ast_manager_build_channel_state_string(obj->snapshot);
 	event_string = ast_manager_str_from_json_object(obj->blob, NULL);
-	if (!event_string) {
-		return;
+	if (!channel_string || !event_string) {
+		return NULL;
 	}
 
-	manager_event(EVENT_FLAG_AGI, type,
+	return ast_manager_event_blob_create(EVENT_FLAG_AGI, type,
 		"%s"
 		"%s",
-		ast_str_buffer(channel_event_string),
+		ast_str_buffer(channel_string),
 		ast_str_buffer(event_string));
 }
+
+static struct ast_manager_event_blob *agi_exec_start_to_ami(struct stasis_message *message)
+{
+	return agi_channel_to_ami("AGIExecStart", message);
+}
+
+static struct ast_manager_event_blob *agi_exec_end_to_ami(struct stasis_message *message)
+{
+	return agi_channel_to_ami("AGIExecEnd", message);
+}
+
+static struct ast_manager_event_blob *agi_async_start_to_ami(struct stasis_message *message)
+{
+	return agi_channel_to_ami("AsyncAGIStart", message);
+}
+
+static struct ast_manager_event_blob *agi_async_exec_to_ami(struct stasis_message *message)
+{
+	return agi_channel_to_ami("AsyncAGIExec", message);
+}
+
+static struct ast_manager_event_blob *agi_async_end_to_ami(struct stasis_message *message)
+{
+	return agi_channel_to_ami("AsyncAGIEnd", message);
+}
+
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_exec_start_type,
+	.to_ami = agi_exec_start_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_exec_end_type,
+	.to_ami = agi_exec_end_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_start_type,
+	.to_ami = agi_async_start_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_exec_type,
+	.to_ami = agi_async_exec_to_ami,
+	);
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(agi_async_end_type,
+	.to_ami = agi_async_end_to_ami,
+	);
 
 static agi_command *find_command(const char * const cmds[], int exact);
 
@@ -3468,10 +3496,9 @@ int AST_OPTIONAL_API_NAME(ast_agi_unregister)(struct ast_module *mod, agi_comman
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&agi_commands);
-	if (unregistered)
+	if (unregistered) {
 		ast_verb(2, "AGI Command '%s' unregistered\n",fullcmd);
-	else
-		ast_log(LOG_WARNING, "Unable to unregister command: '%s'!\n",fullcmd);
+	}
 	return unregistered;
 }
 
@@ -4256,17 +4283,6 @@ AST_TEST_DEFINE(test_agi_null_docs)
 
 static int unload_module(void)
 {
-	struct stasis_message_router *message_router;
-
-	message_router = ast_manager_get_message_router();
-	if (message_router) {
-		stasis_message_router_remove(message_router, agi_exec_start_type());
-		stasis_message_router_remove(message_router, agi_exec_end_type());
-		stasis_message_router_remove(message_router, agi_async_start_type());
-		stasis_message_router_remove(message_router, agi_async_exec_type());
-		stasis_message_router_remove(message_router, agi_async_end_type());
-	}
-
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_exec_start_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_exec_end_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_start_type);
@@ -4274,67 +4290,39 @@ static int unload_module(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_end_type);
 
 	ast_cli_unregister_multiple(cli_agi, ARRAY_LEN(cli_agi));
-	/* we can safely ignore the result of ast_agi_unregister_multiple() here, since it cannot fail, as
-	   we know that these commands were registered by this module and are still registered
-	*/
-	(void) ast_agi_unregister_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
+	ast_agi_unregister_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
 	ast_unregister_application(eapp);
 	ast_unregister_application(deadapp);
 	ast_manager_unregister("AGI");
+	ast_unregister_application(app);
 	AST_TEST_UNREGISTER(test_agi_null_docs);
-	return ast_unregister_application(app);
+	return 0;
 }
 
 static int load_module(void)
 {
-	struct stasis_message_router *message_router;
+	int err = 0;
 
-	message_router = ast_manager_get_message_router();
-	if (!message_router) {
+	err |= STASIS_MESSAGE_TYPE_INIT(agi_exec_start_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(agi_exec_end_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(agi_async_start_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(agi_async_exec_type);
+	err |= STASIS_MESSAGE_TYPE_INIT(agi_async_end_type);
+
+	err |= ast_cli_register_multiple(cli_agi, ARRAY_LEN(cli_agi));
+	err |= ast_agi_register_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
+	err |= ast_register_application_xml(deadapp, deadagi_exec);
+	err |= ast_register_application_xml(eapp, eagi_exec);
+	err |= ast_manager_register_xml("AGI", EVENT_FLAG_AGI, action_add_agi_cmd);
+	err |= ast_register_application_xml(app, agi_exec);
+
+	AST_TEST_REGISTER(test_agi_null_docs);
+
+	if (err) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-
-	STASIS_MESSAGE_TYPE_INIT(agi_exec_start_type);
-	STASIS_MESSAGE_TYPE_INIT(agi_exec_end_type);
-	STASIS_MESSAGE_TYPE_INIT(agi_async_start_type);
-	STASIS_MESSAGE_TYPE_INIT(agi_async_exec_type);
-	STASIS_MESSAGE_TYPE_INIT(agi_async_end_type);
-
-	stasis_message_router_add(message_router,
-				  agi_exec_start_type(),
-				  agi_channel_manager_event,
-				  "AGIExecStart");
-
-	stasis_message_router_add(message_router,
-				  agi_exec_end_type(),
-				  agi_channel_manager_event,
-				  "AGIExecEnd");
-
-	stasis_message_router_add(message_router,
-				  agi_async_start_type(),
-				  agi_channel_manager_event,
-				  "AsyncAGIStart");
-
-	stasis_message_router_add(message_router,
-				  agi_async_exec_type(),
-				  agi_channel_manager_event,
-				  "AsyncAGIExec");
-
-	stasis_message_router_add(message_router,
-				  agi_async_end_type(),
-				  agi_channel_manager_event,
-				  "AsyncAGIEnd");
-
-	ast_cli_register_multiple(cli_agi, ARRAY_LEN(cli_agi));
-	/* we can safely ignore the result of ast_agi_register_multiple() here, since it cannot fail, as
-	   no other commands have been registered yet
-	*/
-	(void) ast_agi_register_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
-	ast_register_application_xml(deadapp, deadagi_exec);
-	ast_register_application_xml(eapp, eagi_exec);
-	ast_manager_register_xml("AGI", EVENT_FLAG_AGI, action_add_agi_cmd);
-	AST_TEST_REGISTER(test_agi_null_docs);
-	return ast_register_application_xml(app, agi_exec);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Asterisk Gateway Interface (AGI)",
