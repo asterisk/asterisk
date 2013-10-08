@@ -1339,6 +1339,9 @@ static int alloc_playback_chan(struct confbridge_conference *conference)
 		return -1;
 	}
 
+	/* To make sure playback_chan has the same language of that profile */
+	ast_channel_language_set(conference->playback_chan, conference->b_profile.language);
+
 	ast_debug(1, "Created announcer channel '%s' to conference bridge '%s'\n",
 		ast_channel_name(conference->playback_chan), conference->name);
 	return 0;

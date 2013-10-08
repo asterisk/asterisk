@@ -161,6 +161,10 @@ ConfBridge
    when the recording is stopped and then re-started, the existing recording
    will be used and appended to.
 
+ * ConfBridge now has the ability to set the language of announcements to the
+   conference.  The language can be set on a bridge profile in confbridge.conf
+   or by the dialplan function CONFBRIDGE(bridge,language)=en.
+
 ControlPlayback
 ------------------
  * The channel variable CPLAYBACKSTATUS may now return the value
