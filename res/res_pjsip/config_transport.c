@@ -184,7 +184,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	if (res != PJ_SUCCESS) {
 		char msg[PJ_ERR_MSG_SIZE];
 
-		pjsip_strerror(res, msg, sizeof(msg));
+		pj_strerror(res, msg, sizeof(msg));
 		ast_log(LOG_ERROR, "Transport '%s' could not be started: %s\n", ast_sorcery_object_get_id(obj), msg);
 		return -1;
 	}
