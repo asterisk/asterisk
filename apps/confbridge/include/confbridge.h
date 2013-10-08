@@ -192,6 +192,7 @@ struct bridge_profile_sounds {
 
 struct bridge_profile {
 	char name[64];
+	char language[MAX_LANGUAGE];		  /*!< Language used for playback_chan */
 	char rec_file[PATH_MAX];
 	unsigned int flags;
 	unsigned int max_members;          /*!< The maximum number of participants allowed in the conference */

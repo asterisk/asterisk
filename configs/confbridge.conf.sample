@@ -197,6 +197,9 @@ type=bridge
                            ;               is the single source of video distribution among all participants. If
                            ;               that user leaves, the marked user to join after them becomes the source.
 
+;language=en               ; Set the language used for announcements to the conference.
+                           ; Default is en (English).
+
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after
 ; the option.  Example: sound_had_joined=conf-hasjoin  This will play the conf-hasjoin

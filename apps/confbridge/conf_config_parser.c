@@ -257,6 +257,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						will be used.
 					</para></description>
 				</configOption>
+				<configOption name="language" default="en">
+					<synopsis>The language used for announcements to the conference.</synopsis>
+					<description><para>
+						By default, announcements to a conference use English.  Which means
+						the prompts played to all users within the conference will be
+						English.  By changing the language of a bridge, this will change
+						the language of the prompts played to all users.
+					</para></description>
+				</configOption>
 				<configOption name="mixing_interval">
 					<synopsis>Sets the internal mixing interval in milliseconds for the bridge</synopsis>
 					<description><para>
@@ -1417,6 +1426,7 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 
 	ast_cli(a->fd,"--------------------------------------------\n");
 	ast_cli(a->fd,"Name:                 %s\n", b_profile.name);
+	ast_cli(a->fd,"Language:             %s\n", b_profile.language);
 
 	if (b_profile.internal_sample_rate) {
 		snprintf(tmp, sizeof(tmp), "%d", b_profile.internal_sample_rate);
@@ -1934,6 +1944,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "record_file_append", ACO_EXACT, bridge_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_FILE_APPEND);
 	aco_option_register(&cfg_info, "max_members", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, max_members));
 	aco_option_register(&cfg_info, "record_file", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_file));
+	aco_option_register(&cfg_info, "language", ACO_EXACT, bridge_types, "en", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, language));
 	aco_option_register_custom(&cfg_info, "^sound_", ACO_REGEX, bridge_types, NULL, sound_option_handler, 0);
 	/* This option should only be used with the CONFBRIDGE dialplan function */
 	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, bridge_types, NULL, bridge_template_handler, 0);
