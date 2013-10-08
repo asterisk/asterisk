@@ -1437,7 +1437,7 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 	if (status != PJ_SUCCESS) {
 		char err[PJ_ERR_MSG_SIZE];
 
-		pjsip_strerror(status, err, sizeof(err));
+		pj_strerror(status, err, sizeof(err));
 		ast_log(LOG_ERROR, "Could not create dialog with endpoint %s. %s\n",
 				ast_sorcery_object_get_id(endpoint), err);
 		return NULL;
