@@ -1661,7 +1661,13 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	unsigned int count = PJ_ARRAY_SIZE(address), pos = 0;
 
 	/* Add all the local interface IP addresses */
-	pj_enum_ip_interface(ast_sockaddr_is_ipv4(addr) ? pj_AF_INET() : pj_AF_INET6(), &count, address);
+	if (ast_sockaddr_is_ipv4(addr)) {
+		pj_enum_ip_interface(pj_AF_INET(), &count, address);
+	} else if (ast_sockaddr_is_any(addr)) {
+		pj_enum_ip_interface(pj_AF_UNSPEC(), &count, address);
+	} else {
+		pj_enum_ip_interface(pj_AF_INET6(), &count, address);
+	}
 
 	for (pos = 0; pos < count; pos++) {
 		pj_sockaddr_set_port(&address[pos], port);
