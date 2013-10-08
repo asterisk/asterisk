@@ -1875,7 +1875,7 @@ static int verify_default_profiles(void)
 		ao2_link(cfg->bridge_profiles, bridge_profile);
 	}
 
-	user_profile = ao2_find(cfg->bridge_profiles, DEFAULT_USER_PROFILE, OBJ_KEY);
+	user_profile = ao2_find(cfg->user_profiles, DEFAULT_USER_PROFILE, OBJ_KEY);
 	if (!user_profile) {
 		user_profile = user_profile_alloc(DEFAULT_USER_PROFILE);
 		if (!user_profile) {
