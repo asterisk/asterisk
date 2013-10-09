@@ -294,7 +294,7 @@ static int read_header(void *obj)
 	plen = strlen(p);
 	if (plen + 1 > data->len) {
 		ast_log(AST_LOG_ERROR,
-				"Buffer isn't big enough to hold header value.  %lu > %lu\n", plen + 1,
+				"Buffer isn't big enough to hold header value.  %zu > %zu\n", plen + 1,
 				data->len);
 		return -1;
 	}
