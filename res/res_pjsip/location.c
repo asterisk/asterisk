@@ -270,6 +270,24 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 {
 	struct ast_sip_aor *aor = obj;
 	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	pj_pool_t *pool;
+	pj_str_t contact_uri;
+	static const pj_str_t HCONTACT = { "Contact", 7 };
+
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Permanent Contact Validation", 256, 256);
+	if (!pool) {
+		return -1;
+	}
+
+	pj_strdup2_with_null(pool, &contact_uri, var->value);
+	if (!pjsip_parse_hdr(pool, &HCONTACT, contact_uri.ptr, contact_uri.slen, NULL)) {
+		ast_log(LOG_ERROR, "Permanent URI on aor '%s' with contact '%s' failed to parse\n",
+			ast_sorcery_object_get_id(aor), var->value);
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return -1;
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 
 	if ((!aor->permanent_contacts && !(aor->permanent_contacts = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) ||
 		!(contact = ast_sorcery_alloc(ast_sip_get_sorcery(), "contact", NULL))) {
