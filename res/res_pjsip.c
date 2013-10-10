@@ -254,7 +254,7 @@
 					<synopsis>Authentication object used for outbound requests</synopsis>
 				</configOption>
 				<configOption name="outbound_proxy">
-					<synopsis>Proxy through which to send requests</synopsis>
+					<synopsis>Proxy through which to send requests, a full SIP URI must be provided</synopsis>
 				</configOption>
 				<configOption name="rewrite_contact">
 					<synopsis>Allow Contact header to be rewritten with the source IP address-port</synopsis>
@@ -1401,6 +1401,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 
 		pj_strdup2_with_null(dlg->pool, &tmp, outbound_proxy);
 		if (!(route = pjsip_parse_hdr(dlg->pool, &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL))) {
+			dlg->sess_count--;
 			pjsip_dlg_terminate(dlg);
 			return NULL;
 		}
