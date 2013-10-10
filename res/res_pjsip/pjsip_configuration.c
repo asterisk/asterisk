@@ -595,6 +595,28 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		return -1;
 	}
 
+	if (!ast_strlen_zero(endpoint->outbound_proxy)) {
+		pj_pool_t *pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Outbound Proxy Validation", 256, 256);
+		static const pj_str_t ROUTE_HNAME = { "Route", 5 };
+		pj_str_t tmp;
+
+		if (!pool) {
+			ast_log(LOG_ERROR, "Could not allocate pool for outbound proxy validation on '%s'\n",
+				ast_sorcery_object_get_id(endpoint));
+			return -1;
+		}
+
+		pj_strdup2_with_null(pool, &tmp, endpoint->outbound_proxy);
+		if (!pjsip_parse_hdr(pool, &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL)) {
+			ast_log(LOG_ERROR, "Invalid outbound proxy '%s' specified on endpoint '%s'\n",
+				endpoint->outbound_proxy, ast_sorcery_object_get_id(endpoint));
+			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+			return -1;
+		}
+
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+	}
+
 	return 0;
 }
 
