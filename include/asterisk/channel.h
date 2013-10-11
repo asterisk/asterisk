@@ -77,7 +77,7 @@
 
 	\par Reference
 	\arg channel.c - generic functions
- 	\arg channel.h - declarations of functions, flags and structures
+	\arg channel.h - declarations of functions, flags and structures
 	\arg translate.h - Transcoding support functions
 	\arg \ref channel_drivers - Implemented channel drivers
 	\arg \ref Def_Frame Asterisk Multimedia Frames
@@ -886,8 +886,8 @@ enum {
 	 *  to instead only generate END frames. */
 	AST_FLAG_END_DTMF_ONLY = (1 << 14),
 	/* OBSOLETED in favor of AST_CAUSE_ANSWERED_ELSEWHERE
-	Flag to show channels that this call is hangup due to the fact that the call
-	    was indeed answered, but in another channel */
+	 * Flag to show channels that this call is hangup due to the fact that the call
+	 * was indeed answered, but in another channel */
 	/* AST_FLAG_ANSWERED_ELSEWHERE = (1 << 15), */
 	/*! This flag indicates that on a masquerade, an active stream should not
 	 *  be carried over */
@@ -1125,11 +1125,11 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
  */
 struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
 	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
-			    const char *cid_name, const char *acctcode,
-			    const char *exten, const char *context,
-			    const char *linkedid, enum ama_flags amaflag,
-			    const char *file, int line, const char *function,
-			    const char *name_fmt, ...);
+		const char *cid_name, const char *acctcode,
+		const char *exten, const char *context,
+		const char *linkedid, enum ama_flags amaflag,
+		const char *file, int line, const char *function,
+		const char *name_fmt, ...);
 
 /*!
  * \brief Create a channel structure
@@ -1143,7 +1143,7 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
  */
 #define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, ...) \
 	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, \
-			    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+		__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 #if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
 /*!
