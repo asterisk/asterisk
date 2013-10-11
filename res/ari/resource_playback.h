@@ -73,7 +73,7 @@ struct ast_control_playback_args {
 	const char *operation;
 };
 /*!
- * \brief Get a playback's details.
+ * \brief Control a playback.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters

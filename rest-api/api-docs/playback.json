@@ -51,7 +51,7 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
-					"summary": "Get a playback's details.",
+					"summary": "Control a playback.",
 					"nickname": "controlPlayback",
 					"responseClass": "void",
 					"parameters": [
