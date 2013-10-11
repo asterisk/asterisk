@@ -145,7 +145,7 @@ static void ast_ari_stop_playback_cb(
 		break;
 	default:
 		if (200 <= code && code <= 299) {
-			is_valid = ast_ari_validate_playback(
+			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /playback/{playbackId}\n", code);

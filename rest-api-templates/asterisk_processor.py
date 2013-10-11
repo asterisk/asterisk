@@ -187,6 +187,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
         operation.c_http_method = 'AST_HTTP_' + operation.http_method
         if not operation.summary.endswith("."):
             raise SwaggerError("Summary should end with .", context)
+        operation.wiki_summary = wikify(operation.summary or "")
         operation.wiki_notes = wikify(operation.notes or "")
 
     def process_parameter(self, parameter, context):
@@ -202,10 +203,12 @@ class AsteriskProcessor(SwaggerPostProcessor):
             parameter.c_space = ''
         else:
             parameter.c_space = ' '
+        parameter.wiki_description = wikify(parameter.description)
 
     def process_model(self, model, context):
         model.description_dox = model.description.replace('\n', '\n * ')
         model.description_dox = re.sub(' *\n', '\n', model.description_dox)
+        model.wiki_description = wikify(model.description)
         model.c_id = snakify(model.id)
         return model
 

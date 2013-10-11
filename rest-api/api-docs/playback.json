@@ -31,7 +31,7 @@
 					"httpMethod": "DELETE",
 					"summary": "Stop a playback.",
 					"nickname": "stopPlayback",
-					"responseClass": "Playback",
+					"responseClass": "void",
 					"parameters": [
 						{
 							"name": "playbackId",
@@ -51,7 +51,7 @@
 			"operations": [
 				{
 					"httpMethod": "POST",
-					"summary": "Get a playback's details.",
+					"summary": "Control a playback.",
 					"nickname": "controlPlayback",
 					"responseClass": "void",
 					"parameters": [
