@@ -119,6 +119,14 @@ struct softmix_channel {
 
 struct softmix_bridge_data {
 	struct ast_timer *timer;
+	/*!
+	 * \brief Bridge pointer passed to the softmix mixing thread.
+	 *
+	 * \note Does not need a reference because the bridge will
+	 * always exist while the mixing thread exists even if the
+	 * bridge is no longer actively using the softmix technology.
+	 */
+	struct ast_bridge *bridge;
 	/*! Lock for signaling the mixing thread. */
 	ast_mutex_t lock;
 	/*! Condition, used if we need to wake up the mixing thread. */
@@ -980,8 +988,8 @@ softmix_cleanup:
  */
 static void *softmix_mixing_thread(void *data)
 {
-	struct ast_bridge *bridge = data;
-	struct softmix_bridge_data *softmix_data;
+	struct softmix_bridge_data *softmix_data = data;
+	struct ast_bridge *bridge = softmix_data->bridge;
 
 	ast_bridge_lock(bridge);
 	if (bridge->callid) {
@@ -990,7 +998,6 @@ static void *softmix_mixing_thread(void *data)
 
 	ast_debug(1, "Bridge %s: starting mixing thread\n", bridge->uniqueid);
 
-	softmix_data = bridge->tech_pvt;
 	while (!softmix_data->stop) {
 		if (!bridge->num_active) {
 			/* Wait for something to happen to the bridge. */
@@ -1029,6 +1036,7 @@ static void softmix_bridge_data_destroy(struct softmix_bridge_data *softmix_data
 		softmix_data->timer = NULL;
 	}
 	ast_mutex_destroy(&softmix_data->lock);
+	ast_cond_destroy(&softmix_data->cond);
 	ast_free(softmix_data);
 }
 
@@ -1041,7 +1049,9 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 	if (!softmix_data) {
 		return -1;
 	}
+	softmix_data->bridge = bridge;
 	ast_mutex_init(&softmix_data->lock);
+	ast_cond_init(&softmix_data->cond, NULL);
 	softmix_data->timer = ast_timer_open();
 	if (!softmix_data->timer) {
 		ast_log(AST_LOG_WARNING, "Failed to open timer for softmix bridge\n");
@@ -1055,7 +1065,8 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 	bridge->tech_pvt = softmix_data;
 
 	/* Start the mixing thread. */
-	if (ast_pthread_create(&softmix_data->thread, NULL, softmix_mixing_thread, bridge)) {
+	if (ast_pthread_create(&softmix_data->thread, NULL, softmix_mixing_thread,
+		softmix_data)) {
 		softmix_data->thread = AST_PTHREADT_NULL;
 		softmix_bridge_data_destroy(softmix_data);
 		bridge->tech_pvt = NULL;
