@@ -72,7 +72,7 @@ static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_ses
 
 	for (i = 0; i < array->num; ++i) {
 		if (ast_strlen_zero(auths[i]->realm)) {
-			pj_cstr(&auth_creds[i].realm, auth_hdr->challenge.common.realm.ptr);
+			auth_creds[i].realm = auth_hdr->challenge.common.realm;
 		} else {
 			pj_cstr(&auth_creds[i].realm, auths[i]->realm);
 		}
