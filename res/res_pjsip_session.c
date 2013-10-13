@@ -1814,6 +1814,10 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 
 	print_debug_details(inv, NULL, e);
 
+	if (!session) {
+		return;
+	}
+
 	switch(e->type) {
 	case PJSIP_EVENT_TX_MSG:
 		handle_outgoing(session, e->body.tx_msg.tdata);
