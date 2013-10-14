@@ -15356,15 +15356,20 @@ static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "dahdi set hwgain";
+		e->command = "dahdi set hwgain {rx|tx}";
 		e->usage =
 			"Usage: dahdi set hwgain <rx|tx> <chan#> <gain>\n"
-			"	Sets the hardware gain on a a given channel, overriding the\n"
-			"   value provided at module loadtime, whether the channel is in\n"
-			"   use or not.  Changes take effect immediately.\n"
+			"   Sets the hardware gain on a given channel.  Changes take effect\n"
+			"   immediately whether the channel is in use or not.\n"
+			"\n"
 			"   <rx|tx> which direction do you want to change (relative to our module)\n"
 			"   <chan num> is the channel number relative to the device\n"
-			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n";
+			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n"
+			"\n"
+			"   Please note:\n"
+			"   * This is currently the only way to set hwgain by the channel driver.\n"
+			"   * hwgain is only supportable by hardware with analog ports because\n"
+			"     hwgain works on the analog side of an analog-digital conversion.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -15425,12 +15430,13 @@ static char *dahdi_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "dahdi set swgain";
+		e->command = "dahdi set swgain {rx|tx}";
 		e->usage =
 			"Usage: dahdi set swgain <rx|tx> <chan#> <gain>\n"
-			"	Sets the software gain on a a given channel, overriding the\n"
-			"   value provided at module loadtime, whether the channel is in\n"
-			"   use or not.  Changes take effect immediately.\n"
+			"   Sets the software gain on a given channel and overrides the\n"
+			"   value provided at module loadtime.  Changes take effect\n"
+			"   immediately whether the channel is in use or not.\n"
+			"\n"
 			"   <rx|tx> which direction do you want to change (relative to our module)\n"
 			"   <chan num> is the channel number relative to the device\n"
 			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n";
@@ -15474,6 +15480,12 @@ static char *dahdi_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 		ast_cli(a->fd, "software %s gain set to %.1f on channel %d\n",
 			tx ? "tx" : "rx", gain, channel);
+
+		if (tx) {
+			tmp->txgain = gain;
+		} else {
+			tmp->rxgain = gain;
+		}
 		break;
 	}
 	ast_mutex_unlock(&iflock);

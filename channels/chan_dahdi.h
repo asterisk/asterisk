@@ -149,9 +149,9 @@ struct dahdi_pvt {
 	struct dahdi_pvt *oprpeer;				/*!< "Operator Services" peer tech_pvt ptr */
 	/*! \brief Amount of gain to increase during caller id */
 	float cid_rxgain;
-	/*! \brief Rx gain set by chan_dahdi.conf */
+	/*! \brief Software Rx gain set by chan_dahdi.conf */
 	float rxgain;
-	/*! \brief Tx gain set by chan_dahdi.conf */
+	/*! \brief Software Tx gain set by chan_dahdi.conf */
 	float txgain;
 
 	float txdrc; /*!< Dynamic Range Compression factor. a number between 1 and 6ish */
