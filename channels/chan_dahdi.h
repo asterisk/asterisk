@@ -147,6 +147,10 @@ struct dahdi_pvt {
 	int outsigmod;					/*!< Outbound Signalling style (modifier) */
 	int oprmode;					/*!< "Operator Services" mode */
 	struct dahdi_pvt *oprpeer;				/*!< "Operator Services" peer tech_pvt ptr */
+	/*! \brief Hardware Rx gain set by chan_dahdi.conf */
+	float hwrxgain;
+	/*! \brief Hardware Tx gain set by chan_dahdi.conf */
+	float hwtxgain;
 	/*! \brief Amount of gain to increase during caller id */
 	float cid_rxgain;
 	/*! \brief Software Rx gain set by chan_dahdi.conf */
@@ -402,6 +406,10 @@ struct dahdi_pvt {
 	 * \note Applies to all channels
 	 */
 	unsigned int manages_span_alarms:1;
+	/*! \brief TRUE if hardware Rx gain set by Asterisk */
+	unsigned int hwrxgain_enabled;
+	/*! \brief TRUE if hardware Tx gain set by Asterisk */
+	unsigned int hwtxgain_enabled;
 
 #if defined(HAVE_PRI)
 	struct sig_pri_span *pri;

@@ -4526,6 +4526,15 @@ void dahdi_ec_disable(struct dahdi_pvt *p)
 	p->echocanon = 0;
 }
 
+static int set_hwgain(int fd, float gain, int tx_direction)
+{
+	struct dahdi_hwgain hwgain;
+
+	hwgain.newgain = gain * 10.0;
+	hwgain.tx = tx_direction;
+	return ioctl(fd, DAHDI_SET_HWGAIN, &hwgain) < 0;
+}
+
 /* perform a dynamic range compression transform on the given sample */
 static int drc_sample(int sample, float drc)
 {
@@ -12451,6 +12460,10 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
                         	}
                 	}
 		}
+		tmp->hwrxgain_enabled = conf->chan.hwrxgain_enabled;
+		tmp->hwtxgain_enabled = conf->chan.hwtxgain_enabled;
+		tmp->hwrxgain = conf->chan.hwrxgain;
+		tmp->hwtxgain = conf->chan.hwtxgain;
 		tmp->cid_rxgain = conf->chan.cid_rxgain;
 		tmp->rxgain = conf->chan.rxgain;
 		tmp->txgain = conf->chan.txgain;
@@ -12458,6 +12471,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->rxdrc = conf->chan.rxdrc;
 		tmp->tonezone = conf->chan.tonezone;
 		if (tmp->subs[SUB_REAL].dfd > -1) {
+			if (tmp->hwrxgain_enabled) {
+				tmp->hwrxgain_enabled = !set_hwgain(tmp->subs[SUB_REAL].dfd, tmp->hwrxgain, 0);
+			}
+			if (tmp->hwtxgain_enabled) {
+				tmp->hwtxgain_enabled = !set_hwgain(tmp->subs[SUB_REAL].dfd, tmp->hwtxgain, 1);
+			}
 			set_actual_gain(tmp->subs[SUB_REAL].dfd, tmp->rxgain, tmp->txgain, tmp->rxdrc, tmp->txdrc, tmp->law);
 			if (tmp->dsp)
 				ast_dsp_set_digitmode(tmp->dsp, DSP_DIGITMODE_DTMF | tmp->dtmfrelax);
@@ -15010,6 +15029,8 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 	struct dahdi_confinfo ci;
 	struct dahdi_params ps;
 	int x;
+	char hwrxgain[15];
+	char hwtxgain[15];
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -15083,7 +15104,18 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, "Default law: %s\n", tmp->law_default == DAHDI_LAW_MULAW ? "ulaw" : tmp->law_default == DAHDI_LAW_ALAW ? "alaw" : "unknown");
 			ast_cli(a->fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
 			ast_cli(a->fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
-			ast_cli(a->fd, "Gains (RX/TX): %.2f/%.2f\n", tmp->rxgain, tmp->txgain);
+			if (tmp->hwrxgain_enabled) {
+				snprintf(hwrxgain, sizeof(hwrxgain), "%.1f", tmp->hwrxgain);
+			} else {
+				ast_copy_string(hwrxgain, "Disabled", sizeof(hwrxgain));
+			}
+			if (tmp->hwtxgain_enabled) {
+				snprintf(hwtxgain, sizeof(hwtxgain), "%.1f", tmp->hwtxgain);
+			} else {
+				ast_copy_string(hwtxgain, "Disabled", sizeof(hwtxgain));
+			}
+			ast_cli(a->fd, "HW Gains (RX/TX): %s/%s\n", hwrxgain, hwtxgain);
+			ast_cli(a->fd, "SW Gains (RX/TX): %.2f/%.2f\n", tmp->rxgain, tmp->txgain);
 			ast_cli(a->fd, "Dynamic Range Compression (RX/TX): %.2f/%.2f\n", tmp->rxdrc, tmp->txdrc);
 			ast_cli(a->fd, "DND: %s\n", dahdi_dnd(tmp, -1) ? "yes" : "no");
 			ast_cli(a->fd, "Echo Cancellation:\n");
@@ -15349,9 +15381,8 @@ static char *dahdi_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int channel;
-	int gain;
+	float gain;
 	int tx;
-	struct dahdi_hwgain hwgain;
 	struct dahdi_pvt *tmp = NULL;
 
 	switch (cmd) {
@@ -15359,7 +15390,8 @@ static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		e->command = "dahdi set hwgain {rx|tx}";
 		e->usage =
 			"Usage: dahdi set hwgain <rx|tx> <chan#> <gain>\n"
-			"   Sets the hardware gain on a given channel.  Changes take effect\n"
+			"   Sets the hardware gain on a given channel and overrides the\n"
+			"   value provided at module loadtime.  Changes take effect\n"
 			"   immediately whether the channel is in use or not.\n"
 			"\n"
 			"   <rx|tx> which direction do you want to change (relative to our module)\n"
@@ -15367,7 +15399,6 @@ static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			"   <gain> is the gain in dB (e.g. -3.5 for -3.5dB)\n"
 			"\n"
 			"   Please note:\n"
-			"   * This is currently the only way to set hwgain by the channel driver.\n"
 			"   * hwgain is only supportable by hardware with analog ports because\n"
 			"     hwgain works on the analog side of an analog-digital conversion.\n";
 		return NULL;
@@ -15386,7 +15417,7 @@ static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return CLI_SHOWUSAGE;
 
 	channel = atoi(a->argv[4]);
-	gain = atof(a->argv[5])*10.0;
+	gain = atof(a->argv[5]);
 
 	ast_mutex_lock(&iflock);
 
@@ -15398,15 +15429,21 @@ static char *dahdi_set_hwgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		if (tmp->subs[SUB_REAL].dfd == -1)
 			break;
 
-		hwgain.newgain = gain;
-		hwgain.tx = tx;
-		if (ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_SET_HWGAIN, &hwgain) < 0) {
+		if (set_hwgain(tmp->subs[SUB_REAL].dfd, gain, tx)) {
 			ast_cli(a->fd, "Unable to set the hardware gain for channel %d: %s\n", channel, strerror(errno));
 			ast_mutex_unlock(&iflock);
 			return CLI_FAILURE;
 		}
-		ast_cli(a->fd, "hardware %s gain set to %d (%.1f dB) on channel %d\n",
-			tx ? "tx" : "rx", gain, (float)gain/10.0, channel);
+		ast_cli(a->fd, "Hardware %s gain set to %.1f dB on channel %d.\n",
+			tx ? "tx" : "rx", gain, channel);
+
+		if (tx) {
+			tmp->hwtxgain_enabled = 1;
+			tmp->hwtxgain = gain;
+		} else {
+			tmp->hwrxgain_enabled = 1;
+			tmp->hwrxgain = gain;
+		}
 		break;
 	}
 
@@ -15478,7 +15515,7 @@ static char *dahdi_set_swgain(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			return CLI_FAILURE;
 		}
 
-		ast_cli(a->fd, "software %s gain set to %.1f on channel %d\n",
+		ast_cli(a->fd, "Software %s gain set to %.2f dB on channel %d.\n",
 			tx ? "tx" : "rx", gain, channel);
 
 		if (tx) {
@@ -17081,6 +17118,24 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			/* If set to true or yes, assume that simple fsk is desired */
 			if (ast_true(v->value)) {
 				confp->chan.mwimonitor_fsk = 1;
+			}
+		} else if (!strcasecmp(v->name, "hwrxgain")) {
+			confp->chan.hwrxgain_enabled = 0;
+			if (strcasecmp(v->value, "disabled")) {
+				if (sscanf(v->value, "%30f", &confp->chan.hwrxgain) == 1) {
+					confp->chan.hwrxgain_enabled = 1;
+				} else {
+					ast_log(LOG_WARNING, "Invalid hwrxgain: %s at line %d.\n", v->value, v->lineno);
+				}
+			}
+		} else if (!strcasecmp(v->name, "hwtxgain")) {
+			confp->chan.hwtxgain_enabled = 0;
+			if (strcasecmp(v->value, "disabled")) {
+				if (sscanf(v->value, "%30f", &confp->chan.hwtxgain) == 1) {
+					confp->chan.hwtxgain_enabled = 1;
+				} else {
+					ast_log(LOG_WARNING, "Invalid hwtxgain: %s at line %d.\n", v->value, v->lineno);
+				}
 			}
 		} else if (!strcasecmp(v->name, "cid_rxgain")) {
 			if (sscanf(v->value, "%30f", &confp->chan.cid_rxgain) != 1) {

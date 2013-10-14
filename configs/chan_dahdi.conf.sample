@@ -808,31 +808,53 @@ echocancelwhenbridged=yes
 ;
 ;relaxdtmf=yes
 ;
-; You may also set the default receive and transmit gains (in dB)
+; Hardware gain settings increase/decrease the analog volume level on a channel.
+;   The values are in db (decibels) and can be adjusted in 0.1 dB increments.
+;   A positive number increases the volume level on a channel, and a negavive
+;   value decreases volume level.
 ;
-; Gain Settings: increasing / decreasing the volume level on a channel.
-;                The values are in db (decibells). A positive number
-;                increases the volume level on a channel, and a
-;                negavive value decreases volume level.
+;   Hardware gain settings are only possible on hardware with analog ports
+;   because the gain is done on the analog side of the analog/digital conversion.
 ;
-; Dynamic Range Compression: you can also enable dynamic range compression
-;                on a channel. This will amplify quiet sounds while leaving
-;                louder sounds untouched. This is useful in situations where
-;                a linear gain setting would cause clipping. Acceptable values
-;                are in the range of 0.0 to around 6.0 with higher values
-;                causing more compression to be done.
+;   When hardware gains are disabled, Asterisk will NOT touch the gain setting
+;   already configured in hardware.
 ;
-;                There are several independent gain settings:
-;   rxgain: gain for the rx (receive - into Asterisk) channel. Default: 0.0
-;   txgain: gain for the tx (transmit - out of Asterisk Asterisk) channel.
-;           Default: 0.0
-;   cid_rxgain: set the gain just for the caller ID sounds Asterisk
-;               emits. Default: 5.0 .
-;   rxdrc: dynamic range compression for the rx channel. Default: 0.0
-;   txdrc: dynamic range compression for the tx channel. Default: 0.0
-
+;   hwrxgain: Hardware receive gain for the channel (into Asterisk).
+;             Default: disabled
+;   hwtxgain: Hardware transmit gain for the channel (out of Asterisk).
+;             Default: disabled
+;
+;hwrxgain=disabled
+;hwtxgain=disabled
+;hwrxgain=2.0
+;hwtxgain=3.0
+;
+; Software gain settings digitally increase/decrease the volume level on a channel.
+;   The values are in db (decibels).  A positive number increases the volume
+;   level on a channel, and a negavive value decreases volume level.
+;
+;   Software gains work on the digital side of the analog/digital conversion
+;   and thus can also work with T1/E1 cards.
+;
+;   rxgain: Software receive gain for the channel (into Asterisk). Default: 0.0
+;   txgain: Software transmit gain for the channel (out of Asterisk).
+;             Default: 0.0
+;
+;   cid_rxgain: Add this gain to rxgain when Asterisk expects to receive
+;               a Caller ID stream.
+;               Default: 5.0 .
+;
 ;rxgain=2.0
 ;txgain=3.0
+;
+; Dynamic Range Compression: You can also enable dynamic range compression
+;   on a channel.  This will digitally amplify quiet sounds while leaving louder
+;   sounds untouched.  This is useful in situations where a linear gain setting
+;   would cause clipping.  Acceptable values are in the range of 0.0 to around
+;   6.0 with higher values causing more compression to be done.
+;
+;   rxdrc: dynamic range compression for the rx channel. Default: 0.0
+;   txdrc: dynamic range compression for the tx channel. Default: 0.0
 ;
 ;rxdrc=1.0
 ;txdrc=4.0
