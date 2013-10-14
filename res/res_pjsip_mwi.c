@@ -19,6 +19,7 @@
 /*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
+	<depend>res_pjsip_pubsub</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -36,13 +37,6 @@
 #include "asterisk/sorcery.h"
 #include "asterisk/stasis.h"
 #include "asterisk/app.h"
-
-/*** MODULEINFO
-	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_pubsub</depend>
-	<support_level>core</support_level>
- ***/
 
 struct mwi_subscription;
 AO2_GLOBAL_OBJ_STATIC(unsolicited_mwi);
