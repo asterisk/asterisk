@@ -6879,6 +6879,7 @@ static int sip_answer(struct ast_channel *ast)
 {
 	int res = 0;
 	struct sip_pvt *p = ast->tech_pvt;
+	int oldsdp = FALSE;
 
 	if (!p) {
 		ast_debug(1, "Asked to answer channel %s without tech pvt; ignoring\n",
@@ -6889,10 +6890,14 @@ static int sip_answer(struct ast_channel *ast)
 	if (ast->_state != AST_STATE_UP) {
 		try_suggested_sip_codec(p);	
 
+		if (ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT)) {
+			oldsdp = TRUE;
+		}
+
 		ast_setstate(ast, AST_STATE_UP);
 		ast_debug(1, "SIP answering channel: %s\n", ast->name);
 		ast_rtp_instance_update_source(p->rtp);
-		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, FALSE, TRUE);
+		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, oldsdp, TRUE);
 		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 	}
 	sip_pvt_unlock(p);
