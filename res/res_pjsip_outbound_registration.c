@@ -372,6 +372,23 @@ static int sip_outbound_registration_is_temporal(unsigned int code,
 	}
 }
 
+static void schedule_retry(struct registration_response *response, unsigned int interval,
+			   const char *server_uri, const char *client_uri)
+{
+	response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
+	schedule_registration(response->client_state, interval);
+
+	if (response->rdata) {
+		ast_log(LOG_WARNING, "Temporal response '%d' received from '%s' on "
+			"registration attempt to '%s', retrying in '%d'\n",
+			response->code, server_uri, client_uri, interval);
+	} else {
+		ast_log(LOG_WARNING, "No response received from '%s' on "
+			"registration attempt to '%s', retrying in '%d'\n",
+			server_uri, client_uri, interval);
+	}
+}
+
 /*! \brief Callback function for handling a response to a registration attempt */
 static int handle_registration_response(void *data)
 {
@@ -408,10 +425,7 @@ static int handle_registration_response(void *data)
 		schedule_registration(response->client_state, response->expiration - REREGISTER_BUFFER_TIME);
 	} else if (response->retry_after) {
 		/* If we have been instructed to retry after a period of time, schedule it as such */
-		response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
-		schedule_registration(response->client_state, response->retry_after);
-		ast_log(LOG_WARNING, "Temporal response '%d' received from '%s' on registration attempt to '%s', instructed to retry in '%d'\n",
-			response->code, server_uri, client_uri, response->retry_after);
+		schedule_retry(response, response->retry_after, server_uri, client_uri);
 	} else if (response->client_state->retry_interval && sip_outbound_registration_is_temporal(response->code, response->client_state)) {
 		if (response->client_state->retries == response->client_state->max_retries) {
 			/* If we received enough temporal responses to exceed our maximum give up permanently */
@@ -420,11 +434,8 @@ static int handle_registration_response(void *data)
 				server_uri, client_uri);
 		} else {
 			/* On the other hand if we can still try some more do so */
-			response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
 			response->client_state->retries++;
-			schedule_registration(response->client_state, response->client_state->retry_interval);
-			ast_log(LOG_WARNING, "Temporal response '%d' received from '%s' on registration attempt to '%s', retrying in '%d' seconds\n",
-				response->code, server_uri, client_uri, response->client_state->retry_interval);
+			schedule_retry(response, response->client_state->retry_interval, server_uri, client_uri);
 		}
 	} else {
 		if (response->code == 403
@@ -439,8 +450,12 @@ static int handle_registration_response(void *data)
 		} else {
 			/* Finally if there's no hope of registering give up */
 			response->client_state->status = SIP_REGISTRATION_REJECTED_PERMANENT;
-			ast_log(LOG_WARNING, "Fatal response '%d' received from '%s' on registration attempt to '%s', stopping outbound registration\n",
-				response->code, server_uri, client_uri);
+			if (response->rdata) {
+				ast_log(LOG_WARNING, "Fatal response '%d' received from '%s' on registration attempt to '%s', stopping outbound registration\n",
+					response->code, server_uri, client_uri);
+			} else {
+				ast_log(LOG_WARNING, "Fatal registration attempt to '%s', stopping outbound registration\n", client_uri);
+			}
 		}
 	}
 
