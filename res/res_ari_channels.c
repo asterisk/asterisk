@@ -680,7 +680,7 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /channels/{channelId}/unhold.
+ * \brief Parameter parsing callback for /channels/{channelId}/hold.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -722,13 +722,13 @@ static void ast_ari_unhold_channel_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/unhold\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/hold\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/unhold\n");
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/hold\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -738,7 +738,7 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /channels/{channelId}/mohstart.
+ * \brief Parameter parsing callback for /channels/{channelId}/moh.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -786,13 +786,13 @@ static void ast_ari_moh_start_channel_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/mohstart\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/moh\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/mohstart\n");
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/moh\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -802,7 +802,7 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /channels/{channelId}/mohstop.
+ * \brief Parameter parsing callback for /channels/{channelId}/moh.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -844,13 +844,13 @@ static void ast_ari_moh_stop_channel_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/mohstop\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/moh\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/mohstop\n");
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/moh\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -1199,33 +1199,17 @@ static struct stasis_rest_handlers channels_channelId_hold = {
 	.path_segment = "hold",
 	.callbacks = {
 		[AST_HTTP_POST] = ast_ari_hold_channel_cb,
+		[AST_HTTP_DELETE] = ast_ari_unhold_channel_cb,
 	},
 	.num_children = 0,
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/channels.{format} */
-static struct stasis_rest_handlers channels_channelId_unhold = {
-	.path_segment = "unhold",
-	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_unhold_channel_cb,
-	},
-	.num_children = 0,
-	.children = {  }
-};
-/*! \brief REST handler for /api-docs/channels.{format} */
-static struct stasis_rest_handlers channels_channelId_mohstart = {
-	.path_segment = "mohstart",
+static struct stasis_rest_handlers channels_channelId_moh = {
+	.path_segment = "moh",
 	.callbacks = {
 		[AST_HTTP_POST] = ast_ari_moh_start_channel_cb,
-	},
-	.num_children = 0,
-	.children = {  }
-};
-/*! \brief REST handler for /api-docs/channels.{format} */
-static struct stasis_rest_handlers channels_channelId_mohstop = {
-	.path_segment = "mohstop",
-	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_moh_stop_channel_cb,
+		[AST_HTTP_DELETE] = ast_ari_moh_stop_channel_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1266,8 +1250,8 @@ static struct stasis_rest_handlers channels_channelId = {
 		[AST_HTTP_GET] = ast_ari_get_channel_cb,
 		[AST_HTTP_DELETE] = ast_ari_delete_channel_cb,
 	},
-	.num_children = 12,
-	.children = { &channels_channelId_dial,&channels_channelId_continue,&channels_channelId_answer,&channels_channelId_mute,&channels_channelId_unmute,&channels_channelId_hold,&channels_channelId_unhold,&channels_channelId_mohstart,&channels_channelId_mohstop,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable, }
+	.num_children = 10,
+	.children = { &channels_channelId_dial,&channels_channelId_continue,&channels_channelId_answer,&channels_channelId_mute,&channels_channelId_unmute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable, }
 };
 /*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels = {

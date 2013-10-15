@@ -433,11 +433,11 @@
 			]
 		},
 		{
-			"path": "/channels/{channelId}/unhold",
+			"path": "/channels/{channelId}/hold",
 			"description": "Remove a channel from hold",
 			"operations": [
 				{
-					"httpMethod": "POST",
+					"httpMethod": "DELETE",
 					"summary": "Remove a channel from hold.",
 					"nickname": "unholdChannel",
 					"responseClass": "void",
@@ -465,7 +465,7 @@
 			]
 		},
 		{
-			"path": "/channels/{channelId}/mohstart",
+			"path": "/channels/{channelId}/moh",
 			"description": "Play music on hold to a channel",
 			"operations": [
 				{
@@ -506,11 +506,11 @@
 			]
 		},
 		{
-			"path": "/channels/{channelId}/mohstop",
+			"path": "/channels/{channelId}/moh",
 			"description": "Stop playing music on hold to a channel",
 			"operations": [
 				{
-					"httpMethod": "POST",
+					"httpMethod": "DELETE",
 					"summary": "Stop playing music on hold to a channel.",
 					"nickname": "mohStopChannel",
 					"responseClass": "void",
