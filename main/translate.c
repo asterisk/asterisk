@@ -128,7 +128,7 @@ static int format2index(enum ast_format_id id)
  */
 static int add_format2index(enum ast_format_id id)
 {
-	if (format2index(id) != -1) {
+	if (format2index(id) >= 0) {
 		/* format is already already indexed */
 		return 0;
 	}
@@ -263,9 +263,6 @@ static void matrix_clear(void)
  */
 static struct translator_path *matrix_get(unsigned int x, unsigned int y)
 {
-	if (!(x >= 0 && y >= 0)) {
-		return NULL;
-	}
 	return __matrix[x] + y;
 }
 
@@ -426,8 +423,8 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 	src_index = format2index(src->id);
 	dst_index = format2index(dst->id);
 
-	if (src_index == -1 || dst_index == -1) {
-		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", src_index == -1 ? "starting" : "ending");
+	if (src_index < 0 || dst_index < 0) {
+		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", src_index < 0 ? "starting" : "ending");
 		return NULL;
 	}
 
@@ -876,7 +873,7 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 
 	for (i = -1; i < f_len; i++) {
 		x = -1;
-		if ((i >= 0) && ((x = format2index(f_list[i].format.id)) == -1)) {
+		if ((i >= 0) && ((x = format2index(f_list[i].format.id)) < 0)) {
 			continue;
 		}
 		/* translation only applies to audio right now. */
@@ -890,7 +887,7 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 		ast_str_set(&out, 0, " ");
 		for (k = -1; k < f_len; k++) {
 			y = -1;
-			if ((k >= 0) && ((y = format2index(f_list[k].format.id)) == -1)) {
+			if ((k >= 0) && ((y = format2index(f_list[k].format.id)) < 0)) {
 				continue;
 			}
 			/* translation only applies to audio right now. */
@@ -971,7 +968,7 @@ static char *handle_show_translation_path(struct ast_cli_args *a)
 		dst = format2index(format_list[i].format.id);
 		src = format2index(input_src_format.id);
 		ast_str_reset(str);
-		if ((len >= cur_max_index) && (src != -1) && (dst != -1) && matrix_get(src, dst)->step) {
+		if ((len >= cur_max_index) && (src >= 0) && (dst >= 0) && matrix_get(src, dst)->step) {
 			ast_str_append(&str, 0, "%s", ast_getformatname_multiple_byid(tmp, sizeof(tmp), matrix_get(src, dst)->step->src_format.id));
 			while (src != dst) {
 				step = matrix_get(src, dst)->step;
@@ -1075,8 +1072,8 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 	t->dst_fmt_index = format2index(t->dst_format.id);
 	t->active = 1;
 
-	if (t->src_fmt_index == -1 || t->dst_fmt_index == -1) {
-		ast_log(LOG_WARNING, "Invalid translator path: (%s codec is not valid)\n", t->src_fmt_index == -1 ? "starting" : "ending");
+	if (t->src_fmt_index < 0 || t->dst_fmt_index < 0) {
+		ast_log(LOG_WARNING, "Invalid translator path: (%s codec is not valid)\n", t->src_fmt_index < 0 ? "starting" : "ending");
 		return -1;
 	}
 	if (t->src_fmt_index >= cur_max_index) {
@@ -1190,16 +1187,14 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 	struct ast_format *dst_fmt_out,
 	struct ast_format *src_fmt_out)
 {
-	unsigned int besttablecost = INT_MAX;
-	unsigned int beststeps = INT_MAX;
 	struct ast_format best;
-	struct ast_format bestdst;
 	struct ast_format_cap *joint_cap = ast_format_cap_joint(dst_cap, src_cap);
+
 	ast_format_clear(&best);
-	ast_format_clear(&bestdst);
 
 	if (joint_cap) { /* yes, pick one and return */
 		struct ast_format tmp_fmt;
+
 		ast_format_cap_iter_start(joint_cap);
 		while (!ast_format_cap_iter_next(joint_cap, &tmp_fmt)) {
 			/* We are guaranteed to find one common format. */
@@ -1212,7 +1207,6 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 				ast_format_copy(&best, &tmp_fmt);
 				continue;
 			}
-
 		}
 		ast_format_cap_iter_end(joint_cap);
 
@@ -1222,35 +1216,43 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 		ast_format_cap_destroy(joint_cap);
 		return 0;
 	} else {      /* No, we will need to translate */
+		unsigned int besttablecost = INT_MAX;
+		unsigned int beststeps = INT_MAX;
 		struct ast_format cur_dst;
 		struct ast_format cur_src;
-		AST_RWLIST_RDLOCK(&translators);
+		struct ast_format bestdst;
 
+		ast_format_clear(&bestdst);
+
+		AST_RWLIST_RDLOCK(&translators);
 		ast_format_cap_iter_start(dst_cap);
 		while (!ast_format_cap_iter_next(dst_cap, &cur_dst)) {
 			ast_format_cap_iter_start(src_cap);
 			while (!ast_format_cap_iter_next(src_cap, &cur_src)) {
 				int x = format2index(cur_src.id);
 				int y = format2index(cur_dst.id);
+				struct translator_path *trans;
+
 				if (x < 0 || y < 0) {
 					continue;
 				}
-				if (!matrix_get(x, y) || !(matrix_get(x, y)->step)) {
+				trans = matrix_get(x, y);
+				if (!trans || !trans->step) {
 					continue;
 				}
-				if (((matrix_get(x, y)->table_cost < besttablecost) || (matrix_get(x, y)->multistep < beststeps))) {
+				if (trans->table_cost < besttablecost || trans->multistep < beststeps) {
 					/* better than what we have so far */
 					ast_format_copy(&best, &cur_src);
 					ast_format_copy(&bestdst, &cur_dst);
-					besttablecost = matrix_get(x, y)->table_cost;
-					beststeps = matrix_get(x, y)->multistep;
+					besttablecost = trans->table_cost;
+					beststeps = trans->multistep;
 				}
 			}
 			ast_format_cap_iter_end(src_cap);
 		}
-
 		ast_format_cap_iter_end(dst_cap);
 		AST_RWLIST_UNLOCK(&translators);
+
 		if (best.id) {
 			ast_format_copy(dst_fmt_out, &bestdst);
 			ast_format_copy(src_fmt_out, &best);
@@ -1268,8 +1270,8 @@ unsigned int ast_translate_path_steps(struct ast_format *dst_format, struct ast_
 	src = format2index(src_format->id);
 	dest = format2index(dst_format->id);
 
-	if (src == -1 || dest == -1) {
-		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", src == -1 ? "starting" : "ending");
+	if (src < 0 || dest < 0) {
+		ast_log(LOG_WARNING, "No translator path: (%s codec is not valid)\n", src < 0 ? "starting" : "ending");
 		return -1;
 	}
 	AST_RWLIST_RDLOCK(&translators);
