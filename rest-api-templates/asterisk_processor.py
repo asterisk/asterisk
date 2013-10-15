@@ -218,6 +218,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
         if prop.name != prop.name.lower():
             raise SwaggerError("Property name should be all lowercase",
                                context)
+        prop.wiki_description = wikify(prop.description)
 
     def process_type(self, swagger_type, context):
         swagger_type.c_name = snakify(swagger_type.name)
