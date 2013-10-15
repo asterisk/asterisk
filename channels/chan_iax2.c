@@ -10400,9 +10400,9 @@ static int socket_process_helper(struct iax2_thread *thread)
 										ast_set_read_format(iaxs[fr->callno]->owner, ast_channel_readformat(iaxs[fr->callno]->owner));
 									}
 									ast_format_cap_copy(native, orignative);
-									ast_channel_unlock(iaxs[fr->callno]->owner);
 									orignative = ast_format_cap_destroy(orignative);
 								}
+								ast_channel_unlock(iaxs[fr->callno]->owner);
 							}
 						} else {
 							ast_debug(1, "Neat, somebody took away the channel at a magical time but i found it!\n");
