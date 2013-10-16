@@ -13,7 +13,7 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
-					"summary": "List active channels.",
+					"summary": "List all active channels in Asterisk.",
 					"nickname": "getChannels",
 					"responseClass": "List[Channel]"
 				},

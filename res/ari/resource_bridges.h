@@ -43,7 +43,7 @@
 struct ast_get_bridges_args {
 };
 /*!
- * \brief List active bridges.
+ * \brief List all active bridges in Asterisk.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters
