@@ -68,7 +68,6 @@ void ast_ari_stop_playback(struct ast_variable *headers,
 	}
 
 	res = stasis_app_playback_operation(playback, STASIS_PLAYBACK_STOP);
-
 	switch (res) {
 	case STASIS_PLAYBACK_OPER_OK:
 		ast_ari_response_no_content(response);
@@ -93,6 +92,11 @@ void ast_ari_control_playback(struct ast_variable *headers,
 	enum stasis_app_playback_media_operation oper;
 	enum stasis_playback_oper_results res;
 
+	if (!args->operation) {
+		ast_ari_response_error(response, 400,
+			"Bad Request", "Missing operation");
+		return;
+	}
 	if (strcmp(args->operation, "unpause") == 0) {
 		oper = STASIS_PLAYBACK_UNPAUSE;
 	} else if (strcmp(args->operation, "pause") == 0) {
@@ -108,7 +112,6 @@ void ast_ari_control_playback(struct ast_variable *headers,
 			"Bad Request", "Invalid operation %s",
 			args->operation);
 		return;
-
 	}
 
 	playback = stasis_app_playback_find_by_id(args->playback_id);
@@ -119,7 +122,6 @@ void ast_ari_control_playback(struct ast_variable *headers,
 	}
 
 	res = stasis_app_playback_operation(playback, oper);
-
 	switch (res) {
 	case STASIS_PLAYBACK_OPER_OK:
 		ast_ari_response_no_content(response);
