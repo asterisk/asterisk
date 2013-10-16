@@ -199,7 +199,7 @@
 			]
 		},
 		{
-			"path": "/bridges/{bridgeId}/mohStart",
+			"path": "/bridges/{bridgeId}/moh",
 			"description": "Play music on hold to a bridge",
 			"operations": [
 				{
@@ -239,11 +239,11 @@
 			]
 		},
 		{
-			"path": "/bridges/{bridgeId}/mohStop",
+			"path": "/bridges/{bridgeId}/moh",
 			"description": "Stop music on hold for a bridge",
 			"operations": [
 				{
-					"httpMethod": "POST",
+					"httpMethod": "DELETE",
 					"summary": "Stop playing music on hold to a bridge.",
 					"notes": "This will only stop music on hold being played via bridges/{bridgeId}/mohStart.",
 					"nickname": "mohStopBridge",

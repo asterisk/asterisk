@@ -490,7 +490,7 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /bridges/{bridgeId}/mohStart.
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/moh.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -538,13 +538,13 @@ static void ast_ari_moh_start_bridge_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/mohStart\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/moh\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/mohStart\n");
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/moh\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -554,7 +554,7 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /bridges/{bridgeId}/mohStop.
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/moh.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
@@ -596,13 +596,13 @@ static void ast_ari_moh_stop_bridge_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/mohStop\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/moh\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/mohStop\n");
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/moh\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -787,19 +787,11 @@ static struct stasis_rest_handlers bridges_bridgeId_removeChannel = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
-static struct stasis_rest_handlers bridges_bridgeId_mohStart = {
-	.path_segment = "mohStart",
+static struct stasis_rest_handlers bridges_bridgeId_moh = {
+	.path_segment = "moh",
 	.callbacks = {
 		[AST_HTTP_POST] = ast_ari_moh_start_bridge_cb,
-	},
-	.num_children = 0,
-	.children = {  }
-};
-/*! \brief REST handler for /api-docs/bridges.{format} */
-static struct stasis_rest_handlers bridges_bridgeId_mohStop = {
-	.path_segment = "mohStop",
-	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_moh_stop_bridge_cb,
+		[AST_HTTP_DELETE] = ast_ari_moh_stop_bridge_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -830,8 +822,8 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 		[AST_HTTP_GET] = ast_ari_get_bridge_cb,
 		[AST_HTTP_DELETE] = ast_ari_delete_bridge_cb,
 	},
-	.num_children = 6,
-	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_mohStart,&bridges_bridgeId_mohStop,&bridges_bridgeId_play,&bridges_bridgeId_record, }
+	.num_children = 5,
+	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_moh,&bridges_bridgeId_play,&bridges_bridgeId_record, }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
 static struct stasis_rest_handlers bridges = {
