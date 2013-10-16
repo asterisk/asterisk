@@ -8842,9 +8842,10 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		ao2_lock(q);
 		/* This check is to make sure we don't print information for realtime
 		 * queues which have been deleted from realtime but which have not yet
-		 * been deleted from the in-core container
+		 * been deleted from the in-core container. Only do this if we're not
+		 * looking for a specific queue.
 		 */
-		if (q->realtime) {
+		if (argc < 3 && q->realtime) {
 			realtime_queue = find_load_queue_rt_friendly(q->name);
 			if (!realtime_queue) {
 				ao2_unlock(q);
