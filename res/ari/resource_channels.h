@@ -43,7 +43,7 @@
 struct ast_get_channels_args {
 };
 /*!
- * \brief List active channels.
+ * \brief List all active channels in Asterisk.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters

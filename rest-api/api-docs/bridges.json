@@ -13,7 +13,7 @@
 			"operations": [
 				{
 					"httpMethod": "GET",
-					"summary": "List active bridges.",
+					"summary": "List all active bridges in Asterisk.",
 					"nickname": "getBridges",
 					"responseClass": "List[Bridge]"
 				},
