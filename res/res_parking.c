@@ -623,6 +623,9 @@ void parking_lot_cfg_remove_extensions(struct parking_lot_cfg *lot_cfg)
 		 */
 		ast_context_destroy(NULL, lot_cfg->registrar);
 	}
+
+	/* If we come back for a second pass, someone else has this registrar now. */
+	ast_string_field_set(lot_cfg, registrar, "");
 }
 
 static void remove_all_configured_parking_lot_extensions(void)
