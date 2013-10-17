@@ -1508,7 +1508,7 @@ static int xmpp_pubsub_handle_error(void *data, ikspak *pak)
 	}
 
 	if (!orig_pubsub) {
-		ast_log(LOG_ERROR, "Error isn't a PubSub error, why are we here?\n");
+		ast_debug(1, "Error isn't a PubSub error, why are we here?\n");
 		return IKS_FILTER_EAT;
 	}
 
