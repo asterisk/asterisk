@@ -6793,6 +6793,8 @@ int ast_do_masquerade(struct ast_channel *original)
 {
 	int x;
 	int origstate;
+	unsigned int orig_disablestatecache;
+	unsigned int clone_disablestatecache;
 	int visible_indication;
 	int clone_was_zombie = 0;/*!< TRUE if the clonechan was a zombie before the masquerade. */
 	struct ast_frame *current;
@@ -7028,6 +7030,20 @@ int ast_do_masquerade(struct ast_channel *original)
 	origstate = ast_channel_state(original);
 	ast_channel_state_set(original, ast_channel_state(clonechan));
 	ast_channel_state_set(clonechan, origstate);
+
+	/* And the swap the cachable state too. Otherwise we'd start caching
+	 * Local channels and ignoring real ones. */
+	orig_disablestatecache = ast_test_flag(ast_channel_flags(original), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+	clone_disablestatecache = ast_test_flag(ast_channel_flags(clonechan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+	if (orig_disablestatecache != clone_disablestatecache) {
+		if (orig_disablestatecache) {
+			ast_clear_flag(ast_channel_flags(original), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+			ast_set_flag(ast_channel_flags(clonechan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+		} else {
+			ast_set_flag(ast_channel_flags(original), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+			ast_clear_flag(ast_channel_flags(clonechan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
+		}
+	}
 
 	/* Mangle the name of the clone channel */
 	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig); /* quick, hide the brains! */
