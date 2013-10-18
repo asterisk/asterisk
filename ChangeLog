@@ -1,3 +1,44 @@
+2013-10-18  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.6.0-rc2 Released.
+
+	* Properly copy/remove the device state cache flag over a masquerade.
+
+	  In r378303 the AST_FLAG_DISABLE_DEVSTATE_CACHE flag was added that
+	  tells	the devstate system to not cache states for non-real devices.
+	  However, when optimizing away channels (ast_do_masquerade), that\
+	  flag wasn't copied.
+
+	  In my case, using Local devices as queue members created a situation
+	  where the endpoint was considered in use, but the state change of the
+	  device being available again was ignored (not cached). The endpoint
+	  channel was optimized into the (previously) Local channel, but kept
+	  the do-not-cache flag. The end result being that the queue member
+	  apparently stayed in use forever.
+
+	* Fix Setting A chan_sip Dialog's SIP_NAT_FORCE_RPORT Flag
+
+	  A condition was added in a commit to fix ASTERISK-21374, that, if the
+	  SIP_PAGE3_NAT_AUTO_RPORT flag was set, to then copy a peer's
+	  SIP_NAT_FORCE_RPORT flag to the dialog.  This condition should not
+	  have been there since	it assumed that if Asterisk is in an
+	  environment where NAT is involved, that the auto_* nat settings or
+	  force_rport setting would be on in the global settings. If the nat
+	  setting in the global setting is set to 'nat=no' and then turned on
+	  for peers (which is not quite the recommended way, although it is
+	  allowed) this flag is never copied to the dialog resulting in
+	  problems like, REGISTER replies going to the wrong port.
+
+	  This patch removes this conditional check and will now always use the
+	  peer's flag which by this point in the code the checks on whether the
+	  peer is behind NAT or not (if using auto_force_rport) have already
+	  been run.
+
+	* Fix memory leak in logger
+
+	  Fixed a memory leak discovered in the logger where a temporary string
+	  buffer was not being freed.
+
 2013-09-19  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.6.0-rc1 Released.
