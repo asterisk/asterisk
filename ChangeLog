@@ -2,6 +2,14 @@
 
 	* Asterisk 11.6.0-rc2 Released.
 
+	* Remove Port Restriction When Checking For NAT
+
+	  When trying to determine if a peer is behind NAT, we should not be
+	  using the ports when comparing addresses.
+	  
+	  This patch removes the port from being checked and just useds the
+	  addresses now.
+
 	* Properly copy/remove the device state cache flag over a masquerade.
 
 	  In r378303 the AST_FLAG_DISABLE_DEVSTATE_CACHE flag was added that
