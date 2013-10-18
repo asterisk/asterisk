@@ -203,14 +203,12 @@ void parked_call_retrieve_enable_features(struct ast_channel *chan, struct parki
 
 	ast_channel_lock(chan);
 	existing_features = ast_bridge_features_ds_get(chan);
-
 	if (existing_features) {
 		feature_flags = *existing_features;
 	}
 
 	if (lot->cfg->parkedcalltransfers & recipient_mode) {
 		ast_set_flag(&feature_flags, AST_FEATURE_REDIRECT);
-		ast_set_flag(&feature_flags, AST_FEATURE_ATXFER);
 	}
 
 	if (lot->cfg->parkedcallreparking & recipient_mode) {
