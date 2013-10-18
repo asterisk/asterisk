@@ -3932,6 +3932,7 @@ static int action_status(struct mansession *s, const struct message *m)
 		ast_free(built);
 
 		if (!all) {
+			ao2_ref(msg, -1);
 			break;
 		}
 	}

@@ -927,6 +927,7 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 			struct ast_variable *field;
 
 			if ((res = object_field->multiple_handler(object, &tmp))) {
+				ao2_ref(object_field, -1);
 				break;
 			}
 

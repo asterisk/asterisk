@@ -1581,6 +1581,7 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 
 		if (!strncasecmp(word, snapshot->name, wordlen) && (++which > state)) {
 			ret = ast_strdup(snapshot->name);
+			ao2_ref(msg, -1);
 			break;
 		}
 	}
