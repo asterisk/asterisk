@@ -18379,9 +18379,9 @@ static void check_for_nat(const struct ast_sockaddr *addr, struct sip_pvt *p)
 		return;
 	}
 
-	if (ast_sockaddr_cmp(addr, &p->recv)) {
-		char *tmp_str = ast_strdupa(ast_sockaddr_stringify(addr));
-		ast_debug(3, "NAT detected for %s / %s\n", tmp_str, ast_sockaddr_stringify(&p->recv));
+	if (ast_sockaddr_cmp_addr(addr, &p->recv)) {
+		char *tmp_str = ast_strdupa(ast_sockaddr_stringify_addr(addr));
+		ast_debug(3, "NAT detected for %s / %s\n", tmp_str, ast_sockaddr_stringify_addr(&p->recv));
 		p->natdetected = 1;
 		if (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT)) {
 			ast_set_flag(&p->flags[0], SIP_NAT_FORCE_RPORT);
