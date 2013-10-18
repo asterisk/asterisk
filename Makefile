@@ -437,12 +437,15 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 
 datafiles: _all doc/core-en_US.xml
 	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig "$(DESTDIR)$(libdir)/pkgconfig";
-# Should static HTTP be installed during make samples or even with its own target ala
-# webvoicemail?  There are portions here that *could* be customized but might also be
-# improved a lot.  I'll put it here for now.
 
-	for x in static-http/*; do \
-		$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/static-http" ; \
+#	# Recursively install contents of the static-http directory, in case
+#	# extra content is provided there. See contrib/scripts/get_swagger_ui.sh
+	find static-http | while read x; do \
+		if test -d $$x; then \
+			$(INSTALL) -m 755 -d "$(DESTDIR)$(ASTDATADIR)/$$x"; \
+		else \
+			$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/$$x" ; \
+		fi \
 	done
 	$(INSTALL) -m 644 doc/core-en_US.xml "$(DESTDIR)$(ASTDATADIR)/static-http";
 	$(INSTALL) -m 644 doc/snapshots.xslt "$(DESTDIR)$(ASTDATADIR)/static-http";
