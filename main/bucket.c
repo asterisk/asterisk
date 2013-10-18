@@ -520,6 +520,7 @@ struct ast_json *ast_bucket_json(const struct ast_bucket *bucket)
 
 		if (!bucket_uri || ast_json_array_append(buckets, bucket_uri)) {
 			res = -1;
+			ao2_ref(uri, -1);
 			break;
 		}
 	}
@@ -544,6 +545,7 @@ struct ast_json *ast_bucket_json(const struct ast_bucket *bucket)
 
 		if (!file_uri || ast_json_array_append(files, file_uri)) {
 			res = -1;
+			ao2_ref(uri, -1);
 			break;
 		}
 	}

@@ -4533,6 +4533,7 @@ static char *complete_bridge_stasis(const char *word, int state)
 
 		if (!strncasecmp(word, snapshot->uniqueid, wordlen) && (++which > state)) {
 			ret = ast_strdup(snapshot->uniqueid);
+			ao2_ref(msg, -1);
 			break;
 		}
 	}
