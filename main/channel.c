@@ -5288,11 +5288,10 @@ static int set_format(struct ast_channel *chan,
 	const int direction)
 {
 	struct ast_trans_pvt *trans_pvt;
-	struct ast_format_cap *cap_native = ast_channel_nativeformats(chan);
+	struct ast_format_cap *cap_native;
 	struct ast_format best_set_fmt;
 	struct ast_format best_native_fmt;
 	int res;
-	char from[200], to[200];
 
 	ast_best_codec(cap_set, &best_set_fmt);
 
@@ -5324,6 +5323,9 @@ static int set_format(struct ast_channel *chan,
 		return 0;
 	}
 
+	ast_channel_lock(chan);
+	cap_native = ast_channel_nativeformats(chan);
+
 	/* Find a translation path from the native format to one of the desired formats */
 	if (!direction) {
 		/* reading */
@@ -5332,17 +5334,20 @@ static int set_format(struct ast_channel *chan,
 		/* writing */
 		res = ast_translator_best_choice(cap_native, cap_set, &best_native_fmt, &best_set_fmt);
 	}
-
 	if (res < 0) {
+		char from[200];
+		char to[200];
+
+		ast_getformatname_multiple(from, sizeof(from), cap_native);
+		ast_channel_unlock(chan);
+		ast_getformatname_multiple(to, sizeof(to), cap_set);
+
 		ast_log(LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
-			ast_getformatname_multiple(from, sizeof(from), cap_native),
-			ast_getformatname_multiple(to, sizeof(to), cap_set));
+			from, to);
 		return -1;
 	}
 
 	/* Now we have a good choice for both. */
-	ast_channel_lock(chan);
-
 	if ((ast_format_cmp(rawformat, &best_native_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		(ast_format_cmp(format, &best_set_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		((ast_format_cmp(rawformat, format) != AST_FORMAT_CMP_NOT_EQUAL) || trans->get(chan))) {
@@ -6144,24 +6149,41 @@ int ast_channel_sendurl(struct ast_channel *chan, const char *url)
 /*! \brief Set up translation from one channel to another */
 static int ast_channel_make_compatible_helper(struct ast_channel *from, struct ast_channel *to)
 {
-	struct ast_format_cap *src_cap = ast_channel_nativeformats(from); /* shallow copy, do not destroy */
-	struct ast_format_cap *dst_cap = ast_channel_nativeformats(to);   /* shallow copy, do not destroy */
+	struct ast_format_cap *src_cap;
+	struct ast_format_cap *dst_cap;
 	struct ast_format best_src_fmt;
 	struct ast_format best_dst_fmt;
-	int use_slin;
+	int no_path;
+
+	ast_channel_lock_both(from, to);
 
 	if ((ast_format_cmp(ast_channel_readformat(from), ast_channel_writeformat(to)) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		(ast_format_cmp(ast_channel_readformat(to), ast_channel_writeformat(from)) != AST_FORMAT_CMP_NOT_EQUAL)) {
 		/* Already compatible!  Moving on ... */
+		ast_channel_unlock(to);
+		ast_channel_unlock(from);
 		return 0;
 	}
 
-	/* If there's no audio in this call, don't bother with trying to find a translation path */
-	if (!ast_format_cap_has_type(src_cap, AST_FORMAT_TYPE_AUDIO) || !ast_format_cap_has_type(dst_cap, AST_FORMAT_TYPE_AUDIO))
-		return 0;
+	src_cap = ast_channel_nativeformats(from); /* shallow copy, do not destroy */
+	dst_cap = ast_channel_nativeformats(to);   /* shallow copy, do not destroy */
 
-	if (ast_translator_best_choice(dst_cap, src_cap, &best_src_fmt, &best_dst_fmt) < 0) {
-		ast_log(LOG_WARNING, "No path to translate from %s to %s\n", ast_channel_name(from), ast_channel_name(to));
+	/* If there's no audio in this call, don't bother with trying to find a translation path */
+	if (!ast_format_cap_has_type(src_cap, AST_FORMAT_TYPE_AUDIO)
+		|| !ast_format_cap_has_type(dst_cap, AST_FORMAT_TYPE_AUDIO)) {
+		ast_channel_unlock(to);
+		ast_channel_unlock(from);
+		return 0;
+	}
+
+	no_path = ast_translator_best_choice(dst_cap, src_cap, &best_dst_fmt, &best_src_fmt);
+
+	ast_channel_unlock(to);
+	ast_channel_unlock(from);
+
+	if (no_path) {
+		ast_log(LOG_WARNING, "No path to translate from %s to %s\n",
+			ast_channel_name(from), ast_channel_name(to));
 		return -1;
 	}
 
@@ -6171,24 +6193,28 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	 * no direct conversion available. If generic PLC is
 	 * desired, then transcoding via SLINEAR is a requirement
 	 */
-	use_slin = ast_format_is_slinear(&best_src_fmt) || ast_format_is_slinear(&best_dst_fmt) ? 1 : 0;
-	if ((ast_format_cmp(&best_src_fmt, &best_dst_fmt) == AST_FORMAT_CMP_NOT_EQUAL) &&
-		(ast_opt_generic_plc || ast_opt_transcode_via_slin) &&
-	    (ast_translate_path_steps(&best_dst_fmt, &best_src_fmt) != 1 || use_slin)) {
+	if (ast_format_cmp(&best_dst_fmt, &best_src_fmt) == AST_FORMAT_CMP_NOT_EQUAL
+		&& (ast_opt_generic_plc || ast_opt_transcode_via_slin)) {
+		int use_slin = (ast_format_is_slinear(&best_src_fmt)
+			|| ast_format_is_slinear(&best_dst_fmt)) ? 1 : 0;
 
-		int best_sample_rate = ast_format_rate(&best_src_fmt) > ast_format_rate(&best_dst_fmt) ?
-			ast_format_rate(&best_src_fmt) : ast_format_rate(&best_dst_fmt);
+		if (use_slin || ast_translate_path_steps(&best_dst_fmt, &best_src_fmt) != 1) {
+			int best_sample_rate = (ast_format_rate(&best_src_fmt) > ast_format_rate(&best_dst_fmt)) ?
+				ast_format_rate(&best_src_fmt) : ast_format_rate(&best_dst_fmt);
 
-		/* pick the best signed linear format based upon what preserves the sample rate the best. */
-		ast_format_set(&best_dst_fmt, ast_format_slin_by_rate(best_sample_rate), 0);
+			/* pick the best signed linear format based upon what preserves the sample rate the best. */
+			ast_format_set(&best_src_fmt, ast_format_slin_by_rate(best_sample_rate), 0);
+		}
 	}
 
-	if (ast_set_read_format(from, &best_dst_fmt) < 0) {
-		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %s\n", ast_channel_name(from), ast_getformatname(&best_dst_fmt));
+	if (ast_set_read_format(from, &best_src_fmt)) {
+		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %s\n",
+			ast_channel_name(from), ast_getformatname(&best_src_fmt));
 		return -1;
 	}
-	if (ast_set_write_format(to, &best_dst_fmt) < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %s\n", ast_channel_name(to), ast_getformatname(&best_dst_fmt));
+	if (ast_set_write_format(to, &best_src_fmt)) {
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %s\n",
+			ast_channel_name(to), ast_getformatname(&best_src_fmt));
 		return -1;
 	}
 	return 0;
@@ -6196,19 +6222,20 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 
 int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *peer)
 {
-	/* Some callers do not check return code, and we must try to set all call legs correctly */
-	int rc = 0;
+	/*
+	 * Set up translation from the peer to the chan first in case we
+	 * need to hear any in-band tones and the other direction fails.
+	 */
+	if (ast_channel_make_compatible_helper(peer, chan)) {
+		return -1;
+	}
 
 	/* Set up translation from the chan to the peer */
-	rc = ast_channel_make_compatible_helper(chan, peer);
+	if (ast_channel_make_compatible_helper(chan, peer)) {
+		return -1;
+	}
 
-	if (rc < 0)
-		return rc;
-
-	/* Set up translation from the peer to the chan */
-	rc = ast_channel_make_compatible_helper(peer, chan);
-
-	return rc;
+	return 0;
 }
 
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clonechan)

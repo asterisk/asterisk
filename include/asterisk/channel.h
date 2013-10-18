@@ -1984,14 +1984,23 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 
 
 /*!
- * \brief Makes two channel formats compatible
- * \param c0 first channel to make compatible
- * \param c1 other channel to make compatible
+ * \brief Make the frame formats of two channels compatible.
+ *
+ * \param chan First channel to make compatible.  Should be the calling party.
+ * \param peer Other channel to make compatible.  Should be the called party.
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
  * \details
- * Set two channels to compatible formats -- call before ast_channel_bridge in general.
- * \return Returns 0 on success and -1 if it could not be done
+ * Set two channels to compatible frame formats in both
+ * directions.  The path from peer to chan is made compatible
+ * first to allow for in-band audio in case the other direction
+ * cannot be made compatible.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
+int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *peer);
 
 /*!
  * \brief Bridge two channels together (early)
