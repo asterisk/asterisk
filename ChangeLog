@@ -1,3 +1,21 @@
+2013-10-18  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 1.8.24.0-rc2 Released.
+
+	* Properly copy/remove the device state cache flag over a masquerade.
+
+	  In r378303 the AST_FLAG_DISABLE_DEVSTATE_CACHE flag was added that
+	  tells the devstate system to not cache states for non-real devices.
+	  However, when optimizing away channels (ast_do_masquerade), that flag
+	  wasn't copied.
+
+	  In my case, using Local devices as queue members created a situation
+	  where the endpoint was considered in use, but the state change of the
+	  device being available again was ignored (not cached). The endpoint
+	  channel was optimized into the (previously) Local channel, but kept
+	  the do-not-cache flag. The end result being that the queue member
+	  apparently stayed in use forever.
+
 2013-09-19  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.24.0-rc1 Released.
