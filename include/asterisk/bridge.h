@@ -567,7 +567,8 @@ int ast_bridge_impart(struct ast_bridge *bridge,
  * This does not hang up the channel.
  *
  * \note This API call can only be used on channels that were added to the bridge
- *       using the ast_bridge_impart API call with the independent flag FALSE.
+ *       using the ast_bridge_impart API call with the AST_BRIDGE_IMPART_CHAN_DEPARTABLE
+ *       flag.
  */
 int ast_bridge_depart(struct ast_channel *chan);
 
