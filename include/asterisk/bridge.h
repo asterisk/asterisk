@@ -414,7 +414,7 @@ static inline void _ast_bridge_unlock(struct ast_bridge *bridge, const char *fil
  * While this function will kick all channels out of the bridge, channels that
  * were added to the bridge using ast_bridge_impart() with the flag
  * AST_BRIDGE_IMPART_CHAN_DEPARTABLE set must have ast_bridge_depart() called
- * on them before calling ast_bridge_destroy().
+ * on them.
  */
 int ast_bridge_destroy(struct ast_bridge *bridge, int cause);
 
