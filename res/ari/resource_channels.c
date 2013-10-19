@@ -585,6 +585,8 @@ void ast_ari_originate(struct ast_variable *headers,
 	int timeout = 30000;
 
 	char *stuff;
+	struct ast_channel *chan;
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 
 	if (ast_strlen_zero(args->endpoint)) {
 		ast_ari_response_error(response, 400, "Bad Request",
@@ -635,13 +637,13 @@ void ast_ari_originate(struct ast_variable *headers,
 		}
 
 		/* originate a channel, putting it into an application */
-		if (ast_pbx_outgoing_app(dialtech, NULL, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, NULL)) {
+		if (ast_pbx_outgoing_app(dialtech, NULL, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, &chan)) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
 	} else if (!ast_strlen_zero(args->extension)) {
 		/* originate a channel, sending it to an extension */
-		if (ast_pbx_outgoing_exten(dialtech, NULL, dialdevice, timeout, S_OR(args->context, "default"), args->extension, args->priority ? args->priority : 1, NULL, 0, cid_num, cid_name, NULL, NULL, NULL, 0)) {
+		if (ast_pbx_outgoing_exten(dialtech, NULL, dialdevice, timeout, S_OR(args->context, "default"), args->extension, args->priority ? args->priority : 1, NULL, 0, cid_num, cid_name, NULL, NULL, &chan, 0)) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
@@ -651,7 +653,20 @@ void ast_ari_originate(struct ast_variable *headers,
 		return;
 	}
 
-	ast_ari_response_no_content(response);
+	if (!ast_strlen_zero(args->app)) {
+		/* channel: + channel ID + null terminator */
+		char uri[9 + strlen(ast_channel_uniqueid(chan))];
+		const char *uris[1] = { uri, };
+
+		sprintf(uri, "channel:%s", ast_channel_uniqueid(chan));
+		stasis_app_subscribe(args->app, uris, 1, NULL);
+	}
+
+	snapshot = ast_channel_snapshot_create(chan);
+	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot));
+
+	ast_channel_unlock(chan);
+	ast_channel_unref(chan);
 }
 
 void ast_ari_get_channel_var(struct ast_variable *headers, struct ast_get_channel_var_args *args, struct ast_ari_response *response)

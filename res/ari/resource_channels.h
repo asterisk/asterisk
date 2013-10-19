@@ -60,7 +60,7 @@ struct ast_originate_args {
 	const char *context;
 	/*! \brief The priority to dial after the endpoint answers. If omitted, uses 1 */
 	long priority;
-	/*! \brief The application name to pass to the Stasis application. */
+	/*! \brief The application that is subscribed to the originated channel, and passed to the Stasis application. */
 	const char *app;
 	/*! \brief The application arguments to pass to the Stasis application. */
 	const char *app_args;
@@ -72,7 +72,7 @@ struct ast_originate_args {
 /*!
  * \brief Create a new channel (originate).
  *
- * The new channel is not created until the dialed party picks up. Not wanting to block this request indefinitely, this request returns immediately with a 204 No Content. When the channel is created, a StasisStart event is sent with the provided app and appArgs. In the event of a failure (timeout, busy, etc.), an OriginationFailed event is sent.
+ * The new channel is created immediately and a snapshot of it returned. If a Stasis application is provided it will be automatically subscribed to the originated channel for further events and updates.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters

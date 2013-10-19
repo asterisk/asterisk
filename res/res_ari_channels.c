@@ -160,7 +160,7 @@ static void ast_ari_originate_cb(
 		break;
 	default:
 		if (200 <= code && code <= 299) {
-			is_valid = ast_ari_validate_void(
+			is_valid = ast_ari_validate_channel(
 				response->message);
 		} else {
 			ast_log(LOG_ERROR, "Invalid error response %d for /channels\n", code);
