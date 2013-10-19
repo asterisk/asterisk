@@ -4491,6 +4491,7 @@ static int create_addr(const char *peername, struct ast_channel *c, struct ast_s
 	if (!(peer = find_peer(peername, 1))) {
 		struct ast_sockaddr peer_addr;
 
+		peer_addr.ss.ss_family = AST_AF_UNSPEC;
 		cai->found = 0;
 		if (ast_get_ip_or_srv(&peer_addr, peername, srvlookup ? "_iax._udp" : NULL)) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
