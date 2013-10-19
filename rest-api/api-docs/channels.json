@@ -20,9 +20,9 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Create a new channel (originate).",
-					"notes": "The new channel is not created until the dialed party picks up. Not wanting to block this request indefinitely, this request returns immediately with a 204 No Content. When the channel is created, a StasisStart event is sent with the provided app and appArgs. In the event of a failure (timeout, busy, etc.), an OriginationFailed event is sent.",
+					"notes": "The new channel is created immediately and a snapshot of it returned. If a Stasis application is provided it will be automatically subscribed to the originated channel for further events and updates.",
 					"nickname": "originate",
-					"responseClass": "void",
+					"responseClass": "channel",
 					"parameters": [
 						{
 							"name": "endpoint",
@@ -58,7 +58,7 @@
 						},
 						{
 							"name": "app",
-							"description": "The application name to pass to the Stasis application.",
+							"description": "The application that is subscribed to the originated channel, and passed to the Stasis application.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
