@@ -22,7 +22,7 @@
 					"summary": "Create a new channel (originate).",
 					"notes": "The new channel is created immediately and a snapshot of it returned. If a Stasis application is provided it will be automatically subscribed to the originated channel for further events and updates.",
 					"nickname": "originate",
-					"responseClass": "channel",
+					"responseClass": "Channel",
 					"parameters": [
 						{
 							"name": "endpoint",
