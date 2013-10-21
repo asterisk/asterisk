@@ -441,7 +441,7 @@ static void handle_options(struct stasis_rest_handlers *handler,
 	/* CORS 6.2 #9 - "Add one or more Access-Control-Allow-Methods headers
 	 * consisting of (a subset of) the list of methods."
 	 */
-	ast_str_append(&response->headers, 0, "%s: OPTIONS,%s\r\n",
+	ast_str_append(&response->headers, 0, "%s: OPTIONS%s\r\n",
 		       ACA_METHODS, ast_str_buffer(allow));
 
 
