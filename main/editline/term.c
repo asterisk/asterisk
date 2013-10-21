@@ -65,15 +65,17 @@ __RCSID("$NetBSD: term.c,v 1.35 2002/03/18 16:00:59 christos Exp $");
 #include <ncurses.h>
 #endif
 #if defined(HAVE_TERM_H)
-#include "term.h"
 /* Can not use /usr/include/term.h because of a lot of incompatibilities, so just define some prototypes */
+#include "term.h"
+#endif /* defined(HAVE_TERM_H) */
+#if defined(HAVE_TERM_H) || !(defined(HAVE_TERMCAP_H) || defined(HAVE_CURSES_H) || defined(HAVE_NCURSES_H))
 extern int tgetent(char *, const char *);
 extern int tgetflag(const char *);
 extern int tgetnum(const char *);
 extern char *tgetstr(const char *, char **);
 extern int tputs (const char *, int, int (*)(int));
 extern char *tgoto (const char *, int, int);
-#endif /* defined(HAVE_TERM_H) */
+#endif /* defined(HAVE_TERM_H) or none_of_the_others */
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
