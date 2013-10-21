@@ -1879,9 +1879,6 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 			ast_channel_name(bridge_channel->chan));
 		ast_cond_wait(&bridge_channel->cond, ao2_object_get_lockaddr(bridge_channel));
 	} else {
-		ast_debug(10, "Bridge %s: %p(%s) is going into a waitfor\n",
-			bridge_channel->bridge->uniqueid, bridge_channel,
-			ast_channel_name(bridge_channel->chan));
 		ast_bridge_channel_unlock(bridge_channel);
 		outfd = -1;
 		ms = bridge_channel_next_interval(bridge_channel);
