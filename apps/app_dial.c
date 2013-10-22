@@ -380,6 +380,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Indicate progress to calling party. Send audio 'tone' from the indications.conf tonezone currently in use.</para>
 					</argument>
 				</option>
+                                <option name="R">
+                                        <para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. 
+					Allow interruption of the ringback if early media is received on the channel.</para>
+                                </option>
 				<option name="S">
 					<argument name="x" required="true" />
 					<para>Hang up the call <replaceable>x</replaceable> seconds <emphasis>after</emphasis> the called party has
@@ -611,6 +615,7 @@ enum {
 #define OPT_CALLER_ANSWER    (1LLU << 40)
 #define OPT_PREDIAL_CALLEE   (1LLU << 41)
 #define OPT_PREDIAL_CALLER   (1LLU << 42)
+#define OPT_RING_WITH_EARLY_MEDIA (1LLU << 43)
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -633,7 +638,7 @@ enum {
 	OPT_ARG_PREDIAL_CALLEE,
 	OPT_ARG_PREDIAL_CALLER,
 	/* note: this entry _MUST_ be the last one in the enum */
-	OPT_ARG_ARRAY_SIZE,
+	OPT_ARG_ARRAY_SIZE
 };
 
 AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
@@ -666,6 +671,7 @@ AST_APP_OPTIONS(dial_exec_options, BEGIN_OPTIONS
 	AST_APP_OPTION('p', OPT_SCREENING),
 	AST_APP_OPTION_ARG('P', OPT_PRIVACY, OPT_ARG_PRIVACY),
 	AST_APP_OPTION_ARG('r', OPT_RINGBACK, OPT_ARG_RINGBACK),
+	AST_APP_OPTION('R', OPT_RING_WITH_EARLY_MEDIA),
 	AST_APP_OPTION_ARG('S', OPT_DURATION_STOP, OPT_ARG_DURATION_STOP),
 	AST_APP_OPTION_ARG('s', OPT_FORCE_CID_TAG, OPT_ARG_FORCE_CID_TAG),
 	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
@@ -1732,7 +1738,7 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 		ast_channel_musicclass_set(chan, opt_args[OPT_ARG_MUSICBACK]);
 		ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
 		ast_channel_musicclass_set(chan, original_moh);
-	} else if (ast_test_flag64(opts, OPT_RINGBACK)) {
+	} else if (ast_test_flag64(opts, OPT_RINGBACK) || ast_test_flag64(opts, OPT_RING_WITH_EARLY_MEDIA)) {
 		ast_indicate(chan, AST_CONTROL_RINGING);
 		pa->sentringing++;
 	}
@@ -1787,7 +1793,7 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 
 	if (ast_test_flag64(opts, OPT_MUSICBACK)) {
 		ast_moh_stop(chan);
-	} else if (ast_test_flag64(opts, OPT_RINGBACK)) {
+	} else if (ast_test_flag64(opts, OPT_RINGBACK) || ast_test_flag64(opts, OPT_RING_WITH_EARLY_MEDIA)) {
 		ast_indicate(chan, -1);
 		pa->sentringing = 0;
 	}
@@ -2345,7 +2351,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
 				OPT_CALLEE_PARK | OPT_CALLER_PARK |
 				OPT_CALLEE_MIXMONITOR | OPT_CALLER_MIXMONITOR |
-				OPT_RINGBACK | OPT_MUSICBACK | OPT_FORCECLID | OPT_IGNORE_CONNECTEDLINE);
+				OPT_RINGBACK | OPT_MUSICBACK | OPT_FORCECLID | OPT_IGNORE_CONNECTEDLINE |
+				OPT_RING_WITH_EARLY_MEDIA);
 			ast_set2_flag64(tmp, args.url, DIAL_NOFORWARDHTML);
 		}
 
@@ -2654,7 +2661,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				ast_moh_start(chan, NULL, NULL);
 			}
 			ast_indicate(chan, AST_CONTROL_PROGRESS);
-		} else if (ast_test_flag64(outgoing, OPT_RINGBACK)) {
+		} else if (ast_test_flag64(outgoing, OPT_RINGBACK) || ast_test_flag64(outgoing, OPT_RING_WITH_EARLY_MEDIA)) {
 			if (!ast_strlen_zero(opt_args[OPT_ARG_RINGBACK])) {
 				if (dial_handle_playtones(chan, opt_args[OPT_ARG_RINGBACK])){
 					ast_indicate(chan, AST_CONTROL_RINGING);
