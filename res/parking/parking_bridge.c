@@ -368,16 +368,16 @@ static void bridge_parking_pull(struct ast_bridge_parking *self, struct ast_brid
 	case PARK_UNSET:
 		/* This should be impossible now since the resolution is forcibly set to abandon if it was unset at this point. Resolution
 		   isn't allowed to be changed when it isn't currently PARK_UNSET. */
-		return;
+		break;
 	case PARK_ABANDON:
 		/* Since the call was abandoned without additional handling, we need to issue the give up event and unpark the user. */
 		publish_parked_call(pu, PARKED_CALL_GIVEUP);
 		unpark_parked_user(pu);
-		return;
+		break;
 	case PARK_FORCED:
 		/* PARK_FORCED is currently unused, but it is expected that it would be handled similar to PARK_ANSWERED.
 		 * There is currently no event related to forced parked calls either */
-		return;
+		break;
 	case PARK_ANSWERED:
 		/* If answered or forced, the channel should be pulled from the bridge as part of that process and unlinked from
 		 * the parking lot afterwards. We do need to apply bridge features though and play the courtesy tone if set. */
@@ -387,14 +387,14 @@ static void bridge_parking_pull(struct ast_bridge_parking *self, struct ast_brid
 		if (pu->lot->cfg->parkedplay & AST_FEATURE_FLAG_BYCALLEE) {
 			ast_bridge_channel_queue_playfile(bridge_channel, NULL, pu->lot->cfg->courtesytone, NULL);
 		}
-
-		return;
+		break;
 	case PARK_TIMEOUT:
 		/* Timeout is similar to abandon because it simply sets the bridge state to end and doesn't
 		 * actually pull the channel. Because of that, unpark should happen in here. */
 		publish_parked_call(pu, PARKED_CALL_TIMEOUT);
+		parked_call_retrieve_enable_features(bridge_channel->chan, pu->lot, AST_FEATURE_FLAG_BYCALLEE);
 		unpark_parked_user(pu);
-		return;
+		break;
 	}
 }
 
