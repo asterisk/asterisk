@@ -107,6 +107,9 @@ void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct as
  *
  * \retval 0 on success.
  * \retval -1 on failure.  The channel did not get pushed.
+ *
+ * \note On failure the caller must call
+ * ast_bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
  */
 int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel);
 

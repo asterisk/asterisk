@@ -1791,6 +1791,8 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 		bridge_channel_change_bridge(bridge_channel, dst_bridge);
 
 		if (bridge_channel_internal_push(bridge_channel)) {
+			ast_bridge_features_remove(bridge_channel->features,
+				AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 			ast_bridge_channel_leave_bridge(bridge_channel,
 				BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
 		}
@@ -2036,11 +2038,15 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 
 	if (bridge_channel_internal_push(bridge_channel)) {
 		/* Try to put the channel back into the original bridge. */
+		ast_bridge_features_remove(bridge_channel->features,
+			AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		if (attempt_recovery && was_in_bridge) {
 			/* Point back to original bridge. */
 			bridge_channel_change_bridge(bridge_channel, orig_bridge);
 
 			if (bridge_channel_internal_push(bridge_channel)) {
+				ast_bridge_features_remove(bridge_channel->features,
+					AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 				ast_bridge_channel_leave_bridge(bridge_channel,
 					BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
 				bridge_channel_settle_owed_events(orig_bridge, bridge_channel);

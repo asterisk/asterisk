@@ -1566,7 +1566,6 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 		|| ast_bridge_channel_establish_roles(bridge_channel)) {
 		ast_debug(1, "Bridge %s: pushing %p(%s) into bridge failed\n",
 			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
-		ast_bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 		return -1;
 	}
 	bridge_channel->in_bridge = 1;
@@ -1969,8 +1968,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	 */
 	ast_bridge_lock(bridge_channel->bridge);
 
-	/* Make sure we're still good to be put into a bridge
-	 */
+	/* Make sure we're still good to be put into a bridge */
 	ast_channel_lock(bridge_channel->chan);
 	if (ast_channel_internal_bridge(bridge_channel->chan)
 		|| ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_ZOMBIE)) {
@@ -1993,8 +1991,14 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	}
 
 	if (bridge_channel_internal_push(bridge_channel)) {
-		ast_bridge_channel_leave_bridge(bridge_channel,
-			BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
+		int cause = bridge_channel->bridge->cause;
+
+		ast_bridge_unlock(bridge_channel->bridge);
+		ast_bridge_channel_kick(bridge_channel, cause);
+		ast_bridge_channel_lock_bridge(bridge_channel);
+		ast_bridge_features_remove(bridge_channel->features,
+			AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+		bridge_channel_dissolve_check(bridge_channel);
 		res = -1;
 	}
 	bridge_reconfigured(bridge_channel->bridge, !bridge_channel->inhibit_colp);
