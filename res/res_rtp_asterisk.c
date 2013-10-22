@@ -2264,8 +2264,10 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->rxcount = 0;
 		rtp->cycles = 0;
 		rtp->lastrxseqno = 0;
-		rtp->rtcp->expected_prior = 0;
-		rtp->rtcp->received_prior = 0;
+		if (rtp->rtcp) {
+			rtp->rtcp->expected_prior = 0;
+			rtp->rtcp->received_prior = 0;
+		}
 	}
 
 	rtp->rxssrc = ssrc;
