@@ -689,13 +689,11 @@ static int analog_is_dialing(struct analog_pvt *p, enum analog_sub index)
  * \param p Analog private structure.
  * \param inthreeway TRUE if the 3-way call is conferenced.
  *
- * \note
- * On entry these locks are held: real-call, private, 3-way call.
+ * \note On entry these locks are held: real-call, private, 3-way call.
+ * \note On exit these locks are held: real-call, private.
  *
- * \retval 1 Transfer successful.  3-way call is unlocked and subchannel is unalloced.
- *         Swapped real and 3-way subchannel.
- * \retval 0 Transfer successful.  3-way call is unlocked and subchannel is unalloced.
- * \retval -1 on error.  Caller must unlock 3-way call.
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
 static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 {
@@ -703,6 +701,7 @@ static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 	struct ast_channel *owner_3way;
 	struct ast_channel *bridge_real;
 	struct ast_channel *bridge_3way;
+	int ret = 0;
 
 	owner_real = p->subs[ANALOG_SUB_REAL].owner;
 	owner_3way = p->subs[ANALOG_SUB_THREEWAY].owner;
@@ -730,15 +729,8 @@ static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 			bridge_3way, ast_channel_connected(owner_3way), !inthreeway)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 				ast_channel_name(bridge_3way), ast_channel_name(owner_real));
-			return -1;
+			ret = -1;
 		}
-
-		/* Three-way is now the REAL */
-		analog_swap_subs(p, ANALOG_SUB_THREEWAY, ANALOG_SUB_REAL);
-		ast_channel_unlock(owner_3way);
-		analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
-		/* Tell the caller not to hangup */
-		return 1;
 	} else if (bridge_real) {
 		/* Try transferring the other way. */
 		ast_verb(3, "TRANSFERRING %s to %s\n", ast_channel_name(owner_real), ast_channel_name(owner_3way));
@@ -756,18 +748,19 @@ static int analog_attempt_transfer(struct analog_pvt *p, int inthreeway)
 			!inthreeway, bridge_real, ast_channel_connected(owner_real), 0)) {
 			ast_log(LOG_WARNING, "Unable to masquerade %s as %s\n",
 				ast_channel_name(bridge_real), ast_channel_name(owner_3way));
-			return -1;
+			ret = -1;
 		}
-
-		/* Orphan the channel after releasing the lock */
-		ast_channel_unlock(owner_3way);
-		analog_unalloc_sub(p, ANALOG_SUB_THREEWAY);
-		return 0;
 	} else {
 		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
 			ast_channel_name(owner_real), ast_channel_name(owner_3way));
-		return -1;
+		ret = -1;
 	}
+
+	if (ret) {
+		ast_softhangup_nolock(owner_3way, AST_SOFTHANGUP_DEV);
+	}
+	ast_channel_unlock(owner_3way);
+	return ret;
 }
 
 static int analog_update_conf(struct analog_pvt *p)
@@ -2912,16 +2905,13 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 								analog_set_new_owner(p, NULL);
 								/* Ring the phone */
 								analog_ring(p);
-							} else {
-								res = analog_attempt_transfer(p, inthreeway);
-								if (res < 0) {
-									/* Transfer attempt failed. */
-									ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
-									ast_channel_unlock(p->subs[ANALOG_SUB_THREEWAY].owner);
-								} else if (res) {
-									/* Don't actually hang up at this point */
-									break;
-								}
+							} else if (!analog_attempt_transfer(p, inthreeway)) {
+								/*
+								 * Transfer successful.  Don't actually hang up at this point.
+								 * Let our channel legs of the calls die off as the transfer
+								 * percolates through the core.
+								 */
+								break;
 							}
 						} else {
 							ast_softhangup_nolock(p->subs[ANALOG_SUB_THREEWAY].owner, AST_SOFTHANGUP_DEV);
