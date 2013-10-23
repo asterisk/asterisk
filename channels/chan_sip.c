@@ -13358,10 +13358,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Unless otherwise configured, the prefcaps is added before the peer's
 		 * configured codecs.
 		 */
-		if (!ast_test_flag(&p->flags[2], SIP_PAGE3_IGNORE_PREFCAPS) && ast_format_cap_has_joint(tmpcap, p->prefcaps)) {
+		if (!ast_test_flag(&p->flags[2], SIP_PAGE3_IGNORE_PREFCAPS)) {
 			ast_format_cap_iter_start(p->prefcaps);
 			while (!(ast_format_cap_iter_next(p->prefcaps, &tmp_fmt))) {
-				if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_AUDIO) {
+				if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_AUDIO ||
+					!ast_format_cap_iscompatible(tmpcap, &tmp_fmt)) {
 					continue;
 				}
 				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size, &max_audio_packet_size);
