@@ -1092,6 +1092,7 @@ static void testsuite_notify_feature_success(struct ast_channel *chan, const cha
 #ifdef TEST_FRAMEWORK
 	char *feature = "unknown";
 	struct ast_featuremap_config *featuremap = ast_get_chan_featuremap_config(chan);
+	struct ast_features_xfer_config *xfer = ast_get_chan_features_xfer_config(chan);
 
 	if (featuremap) {
 		if (!strcmp(dtmf, featuremap->blindxfer)) {
@@ -1106,6 +1107,8 @@ static void testsuite_notify_feature_success(struct ast_channel *chan, const cha
 			feature = "automixmon";
 		} else if (!strcmp(dtmf, featuremap->parkcall)) {
 			feature = "parkcall";
+		} else if (!strcmp(dtmf, xfer->atxferthreeway)) {
+			feature = "atxferthreeway";
 		}
 	}
 
