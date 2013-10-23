@@ -1236,8 +1236,11 @@ filename_completion_function(const char *text, int state)
 	filename_len = strlen(filename);
 
 	dir = opendir(dirname ? dirname : ".");
-	if (!dir)
+	if (!dir) {
+		free(filename);
+		free(dirname);
 		return (NULL);	/* cannot open the directory */
+	}
 
 	/* find the match */
 	while ((entry = readdir(dir)) != NULL) {
@@ -1274,6 +1277,8 @@ filename_completion_function(const char *text, int state)
 	} else
 		temp = NULL;
 	closedir(dir);
+	free(filename);
+	free(dirname);
 
 	return (temp);
 }

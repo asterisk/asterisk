@@ -1053,6 +1053,7 @@ void __ast_test_suite_event_notify(const char *file, const char *func, int line,
 
 static void test_cleanup(void)
 {
+	ast_cli_unregister_multiple(test_cli, ARRAY_LEN(test_cli));
 	ao2_cleanup(test_suite_topic);
 	test_suite_topic = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_test_suite_message_type);

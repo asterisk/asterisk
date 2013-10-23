@@ -337,6 +337,7 @@ static void dll_tests(void)
 
 		if (e == b) {
 			AST_DLLIST_REMOVE_CURRENT(list);  /* C A */
+			free(b);
 			print_list(tc, "C <=> A");
 		}
 		if (e == a) {
@@ -348,6 +349,7 @@ static void dll_tests(void)
 	AST_DLLIST_TRAVERSE_SAFE_END;
 	print_list(tc, "C <=> A <=> D");
 
+	destroy_test_container(tc);
 }
 
 static int unload_module(void)
