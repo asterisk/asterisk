@@ -1562,6 +1562,10 @@ AST_TEST_DEFINE(parse_contact_header_test)
 
 				contactptr = AST_LIST_NEXT(contactptr,list);
 			}
+
+			while ((contactptr = AST_LIST_REMOVE_HEAD(contactlistptr,list))) {
+				ast_free(contactptr);
+			}
 		}
 	}
 

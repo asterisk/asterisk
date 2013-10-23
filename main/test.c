@@ -931,6 +931,11 @@ int __ast_test_suite_assert_notify(const char *file, const char *func, int line,
 	return 0;
 }
 
+static void test_shutdown(void)
+{
+	ast_cli_unregister_multiple(test_cli, ARRAY_LEN(test_cli));
+}
+
 #endif /* TEST_FRAMEWORK */
 
 int ast_test_init()
@@ -938,6 +943,7 @@ int ast_test_init()
 #ifdef TEST_FRAMEWORK
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
+	ast_register_atexit(test_shutdown);
 #endif
 
 	return 0;
