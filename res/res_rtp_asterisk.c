@@ -94,6 +94,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define RTCP_PT_PSFB    206
 
 #define RTP_MTU		1200
+#define DTMF_SAMPLE_RATE_MS    8 /*!< DTMF samples per millisecond */
 
 #define DEFAULT_DTMF_TIMEOUT (150 * (8000 / 1000))	/*!< samples */
 
@@ -1726,6 +1727,35 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 }
 #endif
 
+/*!
+ * \internal
+ * \brief Calculates the elapsed time from issue of the first tx packet in an
+ *        rtp session and a specified time
+ *
+ * \param rtp pointer to the rtp struct with the transmitted rtp packet
+ * \param delivery time of delivery - if NULL or zero value, will be ast_tvnow()
+ *
+ * \return time elapsed in milliseconds
+ */
+static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
+{
+	struct timeval t;
+	long ms;
+
+	if (ast_tvzero(rtp->txcore)) {
+		rtp->txcore = ast_tvnow();
+		rtp->txcore.tv_usec -= rtp->txcore.tv_usec % 20000;
+	}
+
+	t = (delivery && !ast_tvzero(*delivery)) ? *delivery : ast_tvnow();
+	if ((ms = ast_tvdiff_ms(t, rtp->txcore)) < 0) {
+		ms = 0;
+	}
+	rtp->txcore = t;
+
+	return (unsigned int) ms;
+}
+
 static int ast_rtp_new(struct ast_rtp_instance *instance,
 		       struct ast_sched_context *sched, struct ast_sockaddr *addr,
 		       void *data)
@@ -1957,6 +1987,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 	rtp->send_duration = 160;
+	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
 	rtp->lastdigitts = rtp->lastts + rtp->send_duration;
 
 	/* Create the actual packet that we will be sending */
@@ -2037,6 +2068,7 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	/* And now we increment some values for the next time we swing by */
 	rtp->seqno++;
 	rtp->send_duration += 160;
+	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
 
 	return 0;
 }
@@ -2114,7 +2146,7 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 	res = 0;
 
 	/* Oh and we can't forget to turn off the stuff that says we are sending DTMF */
-	rtp->lastts += rtp->send_duration;
+	rtp->lastts += calc_txstamp(rtp, NULL) * DTMF_SAMPLE_RATE_MS;
 cleanup:
 	rtp->sending_digit = 0;
 	rtp->send_digit = 0;
@@ -2162,25 +2194,6 @@ static void ast_rtp_change_source(struct ast_rtp_instance *instance)
 	rtp->ssrc = ssrc;
 
 	return;
-}
-
-static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
-{
-	struct timeval t;
-	long ms;
-
-	if (ast_tvzero(rtp->txcore)) {
-		rtp->txcore = ast_tvnow();
-		rtp->txcore.tv_usec -= rtp->txcore.tv_usec % 20000;
-	}
-
-	t = (delivery && !ast_tvzero(*delivery)) ? *delivery : ast_tvnow();
-	if ((ms = ast_tvdiff_ms(t, rtp->txcore)) < 0) {
-		ms = 0;
-	}
-	rtp->txcore = t;
-
-	return (unsigned int) ms;
 }
 
 static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
