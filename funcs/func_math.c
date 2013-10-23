@@ -503,6 +503,9 @@ AST_TEST_DEFINE(test_MATH_function)
 		res = AST_TEST_FAIL;
 	}
 
+	ast_free(expr);
+	ast_free(result);
+
 	return res;
 }
 #endif
