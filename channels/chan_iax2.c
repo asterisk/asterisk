@@ -13256,7 +13256,6 @@ static int set_config(const char *config_file, int reload, int forced)
 			else if (ast_parse_arg(v->value, PARSE_UINT32 | PARSE_IN_RANGE, &portno, 1024, 65535)) {
 				portno = IAX_DEFAULT_PORTNO;
 			}
-			ast_sockaddr_set_port(&bindaddr, portno);
 		} else if (!strcasecmp(v->name, "pingtime")){
 			ping_time = atoi(v->value);
 		}
@@ -13318,18 +13317,28 @@ static int set_config(const char *config_file, int reload, int forced)
 			if (reload) {
 				ast_log(LOG_NOTICE, "Ignoring bindaddr on reload\n");
 			} else {
-				/* remember port if it has already been set */
-				int setport = ast_sockaddr_port(&bindaddr);
 
-				if (ast_parse_arg(v->value, PARSE_ADDR | PARSE_PORT_IGNORE, NULL)) {
-					ast_log(LOG_WARNING, "Invalid address '%s' specified, default '%s' will be used\n", v->value,
-						ast_sockaddr_stringify(&bindaddr));
+				if (!ast_parse_arg(v->value, PARSE_ADDR, NULL)) {
+
+					ast_sockaddr_parse(&bindaddr, v->value, 0);
+
+					if (!ast_sockaddr_port(&bindaddr)) {
+						ast_sockaddr_set_port(&bindaddr, portno);
+					}
+
+					if (!(ns = ast_netsock_bindaddr(netsock, io, &bindaddr, qos.tos, qos.cos, socket_read, NULL))) {
+						ast_log(LOG_WARNING, "Unable to apply binding to '%s' at line %d\n", v->value, v->lineno);
+					} else {
+						ast_verb(2, "Binding IAX2 to address %s\n", ast_sockaddr_stringify(&bindaddr));
+
+						if (defaultsockfd < 0) {
+							defaultsockfd = ast_netsock_sockfd(ns);
+						}
+						ast_netsock_unref(ns);
+					}
+
 				} else {
-					ast_sockaddr_parse(&bindaddr, v->value, PARSE_PORT_IGNORE);
-				}
-
-				if (setport) {
-					ast_sockaddr_set_port(&bindaddr, setport);
+					ast_log(LOG_WARNING, "Invalid address '%s' specified, at line %d\n", v->value, v->lineno);
 				}
 			}
 		} else if (!strcasecmp(v->name, "authdebug")) {
@@ -13528,15 +13537,14 @@ static int set_config(const char *config_file, int reload, int forced)
 		network_change_stasis_unsubscribe();
 	}
 
-	if (!ast_sockaddr_port(&bindaddr)) {
-		ast_sockaddr_set_port(&bindaddr, IAX_DEFAULT_PORTNO);
-	}
-
 	if (defaultsockfd < 0) {
+
+		ast_sockaddr_set_port(&bindaddr, portno);
+
 		if (!(ns = ast_netsock_bindaddr(netsock, io, &bindaddr, qos.tos, qos.cos, socket_read, NULL))) {
 			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		} else {
-			ast_verb(2, "Binding IAX2 to address %s\n", ast_sockaddr_stringify(&bindaddr));
+			ast_verb(2, "Binding IAX2 to default address %s\n", ast_sockaddr_stringify(&bindaddr));
 			defaultsockfd = ast_netsock_sockfd(ns);
 			ast_netsock_unref(ns);
 		}

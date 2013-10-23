@@ -22,11 +22,13 @@
 ;bindport=4569           ; The default port to listen on
                          ; NOTE: bindport must be specified BEFORE bindaddr or
                          ; may be specified on a specific bindaddr if followed by
-                         ; colon and port (e.g. bindaddr=192.168.0.1:4569)
+                         ; colon and port (e.g. bindaddr=192.168.0.1:4569) or for
+                         ; IPv6 the address needs to be in brackets then colon
+                         ; and port (e.g. bindaddr=[2001:db8::1]:4569).
 
 ;bindaddr=192.168.0.1    ; You can specify 'bindaddr' more than once to bind to
                          ; multiple addresses, but the first will be the
-                         ; default.
+                         ; default. IPv6 addresses are accepted.
 
 ;
 ; Set 'iaxcompat' to yes if you plan to use layered switches or some other
