@@ -1971,7 +1971,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	char *c;
 	char *a;
 	char host[258];
-	int len;
+	int len = 0;
 	int portno;
 	struct ast_format_cap *peercap;
 	int peerNonCodecCapability;
@@ -2001,8 +2001,8 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 		ast_log(LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
 		return -1;
 	}
-	if (sscanf(m, "audio %30d RTP/AVP %n", &portno, &len) != 1) {
-		ast_log(LOG_WARNING, "Unable to determine port number for RTP in '%s'\n", m);
+	if (sscanf(m, "audio %30d RTP/AVP %n", &portno, &len) != 1 || !len) {
+		ast_log(LOG_WARNING, "Malformed media stream descriptor: %s\n", m);
 		return -1;
 	}
 	sin.sin_family = AF_INET;
