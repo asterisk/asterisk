@@ -11949,7 +11949,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* Prefer the audio codec we were requested to use, first, no matter what
 		   Note that p->prefcodec can include video codecs, so mask them out
 		*/
-		if (capability & p->prefcodec) {
+		if ((capability & p->prefcodec) & AST_FORMAT_AUDIO_MASK) {
 			format_t codec = p->prefcodec & AST_FORMAT_AUDIO_MASK;
 
 			add_codec_to_sdp(p, codec, &m_audio, &a_audio, debug, &min_audio_packet_size);
