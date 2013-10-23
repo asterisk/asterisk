@@ -13197,19 +13197,18 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		*/
 
 		/* Prefer the audio codec we were requested to use, first, no matter what
-		   Note that p->prefcodec can include video codecs, so mask them out
+		   Note that p->prefcodec can include video codecs, so ignore them
 		*/
-		if (ast_format_cap_has_joint(tmpcap, p->prefcaps)) {
-			ast_format_cap_iter_start(p->prefcaps);
-			while (!(ast_format_cap_iter_next(p->prefcaps, &tmp_fmt))) {
-				if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_AUDIO) {
-					continue;
-				}
-				add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size);
-				ast_format_cap_add(alreadysent, &tmp_fmt);
+		ast_format_cap_iter_start(p->prefcaps);
+		while (!(ast_format_cap_iter_next(p->prefcaps, &tmp_fmt))) {
+			if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_AUDIO ||
+				!ast_format_cap_iscompatible(tmpcap, &tmp_fmt)) {
+				continue;
 			}
-			ast_format_cap_iter_end(p->prefcaps);
+			add_codec_to_sdp(p, &tmp_fmt, &m_audio, &a_audio, debug, &min_audio_packet_size);
+			ast_format_cap_add(alreadysent, &tmp_fmt);
 		}
+		ast_format_cap_iter_end(p->prefcaps);
 
 		/* Start by sending our preferred audio/video codecs */
 		for (x = 0; x < AST_CODEC_PREF_SIZE; x++) {
