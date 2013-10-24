@@ -73,10 +73,12 @@ static void decrement_losspct(jitterbuf *jb)
 
 void jb_reset(jitterbuf *jb)
 {
-	/* only save settings */
+	/* only save settings and free list */
 	jb_conf s = jb->info.conf;
+	jb_frame *fr = jb->free;
 	memset(jb, 0, sizeof(*jb));
 	jb->info.conf = s;
+	jb->free = fr;
 
 	/* initialize length, using the default value */
 	jb->info.current = jb->info.target = jb->info.conf.target_extra = JB_TARGET_EXTRA;
@@ -87,7 +89,7 @@ jitterbuf * jb_new()
 {
 	jitterbuf *jb;
 
-	if (!(jb = ast_malloc(sizeof(*jb))))
+	if (!(jb = ast_calloc(1, sizeof(*jb))))
 		return NULL;
 
 	jb_reset(jb);
