@@ -33,8 +33,8 @@ import re
 import sys
 import traceback
 
-# I'm not quite sure what was in Swagger 1.2, but apparently I missed it
-SWAGGER_VERSIONS = ["1.1", "1.3"]
+# We don't fully support Swagger 1.2, but we need it for subtyping
+SWAGGER_VERSIONS = ["1.1", "1.2"]
 
 SWAGGER_PRIMITIVES = [
     'void',
@@ -479,13 +479,13 @@ class Model(Stringify):
 
     def __init__(self):
         self.id = None
-        self.extends = None
-        self.extends_type = None
+        self.subtypes = []
+        self.__subtype_types = []
         self.notes = None
         self.description = None
         self.__properties = None
         self.__discriminator = None
-        self.__subtypes = []
+        self.__extends_type = None
 
     def load(self, id, model_json, processor, context):
         context = context.next_stack(model_json, 'id')
@@ -494,9 +494,9 @@ class Model(Stringify):
         self.id = model_json.get('id')
         if id != self.id:
             raise SwaggerError("Model id doesn't match name", context)
-        self.extends = model_json.get('extends')
-        if self.extends and context.version_less_than("1.3"):
-            raise SwaggerError("Type extension support added in Swagger 1.3",
+        self.subtypes = model_json.get('subTypes') or []
+        if self.subtypes and context.version_less_than("1.2"):
+            raise SwaggerError("Type extension support added in Swagger 1.2",
                                context)
         self.description = model_json.get('description')
         props = model_json.get('properties').items() or []
@@ -507,8 +507,8 @@ class Model(Stringify):
         discriminator = model_json.get('discriminator')
 
         if discriminator:
-            if context.version_less_than("1.3"):
-                raise SwaggerError("Discriminator support added in Swagger 1.3",
+            if context.version_less_than("1.2"):
+                raise SwaggerError("Discriminator support added in Swagger 1.2",
                                    context)
 
             discr_props = [p for p in self.__properties if p.name == discriminator]
@@ -526,43 +526,42 @@ class Model(Stringify):
         processor.process_model(self, context)
         return self
 
-    def add_subtype(self, subtype):
-        """Add subtype to this model.
-
-        @param subtype: Model instance for the subtype.
-        """
-        self.__subtypes.append(subtype)
+    def extends(self):
+        return self.__extends_type and self.__extends_type.id
 
     def set_extends_type(self, extends_type):
-        self.extends_type = extends_type
+        self.__extends_type = extends_type
+
+    def set_subtype_types(self, subtype_types):
+        self.__subtype_types = subtype_types
 
     def discriminator(self):
         """Returns the discriminator, digging through base types if needed.
         """
         return self.__discriminator or \
-            self.extends_type and self.extends_type.discriminator()
+            self.__extends_type and self.__extends_type.discriminator()
 
     def properties(self):
         base_props = []
-        if self.extends_type:
-            base_props = self.extends_type.properties()
+        if self.__extends_type:
+            base_props = self.__extends_type.properties()
         return base_props + self.__properties
 
     def has_properties(self):
         return len(self.properties()) > 0
 
-    def subtypes(self):
-        """Returns the full list of all subtypes.
+    def all_subtypes(self):
+        """Returns the full list of all subtypes, including sub-subtypes.
         """
-        res = self.__subtypes + \
-            [subsubtypes for subtype in self.__subtypes
-             for subsubtypes in subtype.subtypes()]
+        res = self.__subtype_types + \
+              [subsubtypes for subtype in self.__subtype_types
+               for subsubtypes in subtype.all_subtypes()]
         return sorted(res, key=lambda m: m.id)
 
     def has_subtypes(self):
         """Returns True if type has any subtypes.
         """
-        return len(self.subtypes()) > 0
+        return len(self.subtypes) > 0
 
 
 class ApiDeclaration(Stringify):
@@ -641,13 +640,16 @@ class ApiDeclaration(Stringify):
         # Now link all base/extended types
         model_dict = dict((m.id, m) for m in self.models)
         for m in self.models:
-            if m.extends:
-                extends_type = model_dict.get(m.extends)
-                if not extends_type:
-                    raise SwaggerError("%s extends non-existing model %s",
-                                       m.id, m.extends)
-                extends_type.add_subtype(m)
-                m.set_extends_type(extends_type)
+            def link_subtype(name):
+                res = model_dict.get(subtype)
+                if not res:
+                    raise SwaggerError("%s has non-existing subtype %s",
+                                       m.id, name)
+                res.set_extends_type(m)
+                return res;
+            if m.subtypes:
+                m.set_subtype_types([
+                    link_subtype(subtype) for subtype in m.subtypes])
         return self
 
 

@@ -57,11 +57,11 @@ int ast_ari_validate_{{c_id}}(struct ast_json *json)
 	if (strcmp("{{id}}", discriminator) == 0) {
 		/* Self type; fall through */
 	} else
-{{#subtypes}}
+{{#all_subtypes}}
 	if (strcmp("{{id}}", discriminator) == 0) {
 		return ast_ari_validate_{{c_id}}(json);
 	} else
-{{/subtypes}}
+{{/all_subtypes}}
 	{
 		ast_log(LOG_ERROR, "ARI {{id}} has undocumented subtype %s\n",
 			discriminator);
