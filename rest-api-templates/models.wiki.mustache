@@ -5,7 +5,7 @@
 {{#models}}
 h1. {{id}}
 {{#extends}}Base type: [{{extends}}|#{{extends}}]{{/extends}}
-{{#has_subtypes}}Subtypes:{{#subtypes}} [{{id}}|#{{id}}]{{/subtypes}}{{/has_subtypes}}
+{{#has_subtypes}}Subtypes:{{#all_subtypes}} [{{id}}|#{{id}}]{{/all_subtypes}}{{/has_subtypes}}
 {{#wiki_description}}
 
 {{{wiki_description}}}
