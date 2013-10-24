@@ -2277,6 +2277,15 @@ int ast_safe_mkdir(const char *base_path, const char *path, int mode)
 	return safe_mkdir(absolute_base_path, p, mode);
 }
 
+static void utils_shutdown(void)
+{
+	close(dev_urandom_fd);
+	dev_urandom_fd = -1;
+#if defined(DEBUG_THREADS) && !defined(LOW_MEMORY)
+	ast_cli_unregister_multiple(utils_cli, ARRAY_LEN(utils_cli));
+#endif
+}
+
 int ast_utils_init(void)
 {
 	dev_urandom_fd = open("/dev/urandom", O_RDONLY);
@@ -2286,6 +2295,7 @@ int ast_utils_init(void)
 	ast_cli_register_multiple(utils_cli, ARRAY_LEN(utils_cli));
 #endif
 #endif
+	ast_register_atexit(utils_shutdown);
 	return 0;
 }
 
