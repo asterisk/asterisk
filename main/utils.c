@@ -1025,9 +1025,6 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	struct thr_lock_info *lock_info;
 	struct ast_str *str;
 
-	if (!(str = ast_str_create(4096)))
-		return CLI_FAILURE;
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core show locks";
@@ -1041,7 +1038,10 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return NULL;
 	}
 
-	ast_str_append(&str, 0, "\n"
+	if (!(str = ast_str_create(4096)))
+		return CLI_FAILURE;
+
+	ast_str_append(&str, 0, "\n" 
 	               "=======================================================================\n"
 	               "=== %s\n"
 	               "=== Currently Held Locks\n"
@@ -2163,6 +2163,17 @@ int ast_mkdir(const char *path, int mode)
 	return 0;
 }
 
+static void utils_shutdown(void)
+{
+#ifdef HAVE_DEV_URANDOM
+	close(dev_urandom_fd);
+	dev_urandom_fd = -1;
+#endif
+#if defined(DEBUG_THREADS) && !defined(LOW_MEMORY)
+	ast_cli_unregister_multiple(utils_cli, ARRAY_LEN(utils_cli));
+#endif
+}
+
 int ast_utils_init(void)
 {
 #ifdef HAVE_DEV_URANDOM
@@ -2174,6 +2185,7 @@ int ast_utils_init(void)
 	ast_cli_register_multiple(utils_cli, ARRAY_LEN(utils_cli));
 #endif
 #endif
+	ast_register_atexit(utils_shutdown);
 	return 0;
 }
 
