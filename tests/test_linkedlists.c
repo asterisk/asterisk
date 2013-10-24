@@ -105,19 +105,16 @@ static int dbl_list_expect_reverse(struct test_dbl_llist *test_list, const char 
 #define MATCH_OR_FAIL(list, val, retbuf) \
 	if (list_expect(list, val, &retbuf)) { \
 		ast_test_status_update(test, "Expected: %s, Got: %s\n", val, ast_str_buffer(retbuf)); \
-		ast_free(retbuf); \
 		return AST_TEST_FAIL; \
 	}
 
 #define MATCH_OR_FAIL_DBL(list, val, retbuf) \
 	if (dbl_list_expect_forward(list, val, &retbuf)) { \
 		ast_test_status_update(test, "Expected: %s, Got: %s\n", val, ast_str_buffer(retbuf)); \
-		ast_free(retbuf); \
 		return AST_TEST_FAIL; \
 	} \
 	if (dbl_list_expect_reverse(list, val, &retbuf)) { \
 		ast_test_status_update(test, "Expected reverse of: %s, Got: %s\n", val, ast_str_buffer(retbuf)); \
-		ast_free(retbuf); \
 		return AST_TEST_FAIL; \
 	}
 
@@ -129,7 +126,7 @@ static int dbl_list_expect_reverse(struct test_dbl_llist *test_list, const char 
 
 AST_TEST_DEFINE(single_ll_tests)
 {
-	struct ast_str *buf;
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
 	struct test_llist test_list = { 0, };
 	struct test_llist other_list = { 0, };
 	struct test_val *bogus;
@@ -340,7 +337,7 @@ AST_TEST_DEFINE(single_ll_tests)
 
 AST_TEST_DEFINE(double_ll_tests)
 {
-	struct ast_str *buf;
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
 	struct test_dbl_llist test_list = { 0, };
 	struct test_dbl_llist other_list = { 0, };
 	struct test_val *bogus;
