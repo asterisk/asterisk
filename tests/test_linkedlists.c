@@ -65,7 +65,6 @@ static int list_expect(struct test_llist *test_list, const char *expect, struct 
 #define MATCH_OR_FAIL(list, val, retbuf) \
 	if (list_expect(list, val, &retbuf)) { \
 		ast_test_status_update(test, "Expected: %s, Got: %s\n", val, ast_str_buffer(retbuf)); \
-		ast_free(retbuf); \
 		return AST_TEST_FAIL; \
 	}
 
@@ -77,7 +76,7 @@ static int list_expect(struct test_llist *test_list, const char *expect, struct 
 
 AST_TEST_DEFINE(single_ll_tests)
 {
-	struct ast_str *buf;
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
 	struct test_llist test_list = { 0, };
 	struct test_llist other_list = { 0, };
 	struct test_val *bogus;
