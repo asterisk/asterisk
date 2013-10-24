@@ -11146,6 +11146,11 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 	return NULL;
 }
 
+static void monitor_pfds_clean(void *arg) {
+	struct pollfd **pfds = arg;
+	ast_free(*pfds);
+}
+
 static void *do_monitor(void *data)
 {
 	int count, res, res2, spoint, pollres=0;
@@ -11169,6 +11174,7 @@ static void *do_monitor(void *data)
 #endif
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
+	pthread_cleanup_push(monitor_pfds_clean, &pfds);
 	for (;;) {
 		/* Lock the interface list */
 		ast_mutex_lock(&iflock);
@@ -11424,6 +11430,7 @@ static void *do_monitor(void *data)
 		ast_mutex_unlock(&iflock);
 	}
 	/* Never reached */
+	pthread_cleanup_pop(1);
 	return NULL;
 
 }

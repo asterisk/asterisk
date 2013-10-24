@@ -1975,11 +1975,17 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		close(ast_socket);
 		ast_socket = -1;
 		unlink(ast_config_AST_SOCKET);
+		pthread_kill(lthread, SIGURG);
+		pthread_join(lthread, NULL);
 	}
 	if (ast_consock > -1)
 		close(ast_consock);
 	if (!ast_opt_remote)
 		unlink(ast_config_AST_PID);
+	if (sig_alert_pipe[0])
+		close(sig_alert_pipe[0]);
+	if (sig_alert_pipe[1])
+		close(sig_alert_pipe[1]);
 	printf("%s", term_quit());
 	if (restart) {
 		int i;
