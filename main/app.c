@@ -2786,7 +2786,9 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen uni
 		return -1;
 	}
 
-	if ((res = sscanf(timestr, FMT, &amount, u)) == 0) {
+	res = sscanf(timestr, FMT, &amount, u);
+
+	if (res == 0 || res == EOF) {
 #undef FMT
 		return -1;
 	} else if (res == 2) {
