@@ -5576,11 +5576,14 @@ static struct ast_cli_entry cli_astobj2[] = {
 };
 #endif	/* defined(AO2_DEBUG) || defined(AST_DEVMODE) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG) || defined(AST_DEVMODE)
 static void astobj2_cleanup(void)
 {
+#if defined(AST_DEVMODE)
 	ao2_t_ref(reg_containers, -1, "Releasing container registration container");
 	reg_containers = NULL;
+#endif
+	ast_cli_unregister_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
 }
 #endif
 
@@ -5593,10 +5596,10 @@ int astobj2_init(void)
 	if (!reg_containers) {
 		return -1;
 	}
-	ast_register_atexit(astobj2_cleanup);
 #endif	/* defined(AST_DEVMODE) */
 #if defined(AO2_DEBUG) || defined(AST_DEVMODE)
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
+	ast_register_atexit(astobj2_cleanup);
 #endif	/* defined(AO2_DEBUG) || defined(AST_DEVMODE) */
 
 	return 0;
