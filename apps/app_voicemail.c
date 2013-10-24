@@ -12758,6 +12758,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 {
 	int i, j, res = AST_TEST_PASS, syserr;
 	struct ast_vm_user *vmu;
+	struct ast_vm_user svm;
 	struct vm_state vms;
 #ifdef IMAP_STORAGE
 	struct ast_channel *chan = NULL;
@@ -12810,7 +12811,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 #endif
 
-	if (!(vmu = find_user(NULL, testcontext, testmailbox)) &&
+	if (!(vmu = find_user(&svm, testcontext, testmailbox)) &&
 		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
 		ast_unreplace_sigchld();
