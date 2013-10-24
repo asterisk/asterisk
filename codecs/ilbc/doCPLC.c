@@ -90,7 +90,7 @@
        int lag=20, randlag;
        float gain, maxcc;
        float use_gain;
-       float gain_comp, maxcc_comp, per, max_per;
+       float gain_comp, maxcc_comp, per, max_per=0;
        int i, pick, use_lag;
        float ftmp, randvec[BLOCKL_MAX], pitchfact, energy;
 
