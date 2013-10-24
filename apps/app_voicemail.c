@@ -11994,6 +11994,7 @@ static int acf_mailbox_exists(struct ast_channel *chan, const char *cmd, char *a
 
 static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, char *buf, size_t len)
 {
+	struct ast_vm_user svm;
 	struct ast_vm_user *vmu = NULL;
 	char *tmp, *mailbox, *context, *parse;
 	int res = 0;
@@ -12027,7 +12028,7 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 		 context = "default";
 	}
 
-	vmu = find_user(NULL, context, mailbox);
+	vmu = find_user(&svm, context, mailbox);
 
 	if (!strncasecmp(arg.attribute, "exists", 5)) {
 		ast_copy_string(buf, vmu ? "1" : "0", len);
@@ -13788,6 +13789,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 {
 	int i, j, res = AST_TEST_PASS, syserr;
 	struct ast_vm_user *vmu;
+	struct ast_vm_user svm;
 	struct vm_state vms;
 #ifdef IMAP_STORAGE
 	struct ast_channel *chan = NULL;
@@ -13840,7 +13842,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 #endif
 
-	if (!(vmu = find_user(NULL, testcontext, testmailbox)) &&
+	if (!(vmu = find_user(&svm, testcontext, testmailbox)) &&
 		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
 		ast_unreplace_sigchld();
