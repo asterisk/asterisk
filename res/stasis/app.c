@@ -220,32 +220,32 @@ static struct app_forwards *forwards_create_endpoint(struct app *app,
 
 static int forwards_sort(const void *obj_left, const void *obj_right, int flags)
 {
-    const struct app_forwards *object_left = obj_left;
-    const struct app_forwards *object_right = obj_right;
-    const char *right_key = obj_right;
-    int cmp;
+	const struct app_forwards *object_left = obj_left;
+	const struct app_forwards *object_right = obj_right;
+	const char *right_key = obj_right;
+	int cmp;
 
-    switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
-    case OBJ_POINTER:
-        right_key = object_right->id;
-        /* Fall through */
-    case OBJ_KEY:
-        cmp = strcmp(object_left->id, right_key);
-        break;
-    case OBJ_PARTIAL_KEY:
-        /*
-         * We could also use a partial key struct containing a length
-         * so strlen() does not get called for every comparison instead.
-         */
-        cmp = strncmp(object_left->id, right_key, strlen(right_key));
-        break;
-    default:
-        /* Sort can only work on something with a full or partial key. */
-        ast_assert(0);
-        cmp = 0;
-        break;
-    }
-    return cmp;
+	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
+	case OBJ_POINTER:
+		right_key = object_right->id;
+		/* Fall through */
+	case OBJ_KEY:
+		cmp = strcmp(object_left->id, right_key);
+		break;
+	case OBJ_PARTIAL_KEY:
+		/*
+		 * We could also use a partial key struct containing a length
+		 * so strlen() does not get called for every comparison instead.
+		 */
+		cmp = strncmp(object_left->id, right_key, strlen(right_key));
+		break;
+	default:
+		/* Sort can only work on something with a full or partial key. */
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	return cmp;
 }
 
 static void app_dtor(void *obj)
@@ -408,61 +408,61 @@ static channel_snapshot_monitor channel_monitors[] = {
 };
 
 static void sub_channel_update_handler(void *data,
-                struct stasis_subscription *sub,
-                struct stasis_message *message)
+	struct stasis_subscription *sub,
+	struct stasis_message *message)
 {
 	struct app *app = data;
-        struct stasis_cache_update *update;
-        struct ast_channel_snapshot *new_snapshot;
-        struct ast_channel_snapshot *old_snapshot;
-        const struct timeval *tv;
-        int i;
+	struct stasis_cache_update *update;
+	struct ast_channel_snapshot *new_snapshot;
+	struct ast_channel_snapshot *old_snapshot;
+	const struct timeval *tv;
+	int i;
 
 	ast_assert(stasis_message_type(message) == stasis_cache_update_type());
 
-        update = stasis_message_data(message);
+	update = stasis_message_data(message);
 
 	ast_assert(update->type == ast_channel_snapshot_type());
 
-        new_snapshot = stasis_message_data(update->new_snapshot);
-        old_snapshot = stasis_message_data(update->old_snapshot);
+	new_snapshot = stasis_message_data(update->new_snapshot);
+	old_snapshot = stasis_message_data(update->old_snapshot);
 
-        /* Pull timestamp from the new snapshot, or from the update message
-         * when there isn't one. */
-        tv = update->new_snapshot ?
+	/* Pull timestamp from the new snapshot, or from the update message
+	 * when there isn't one. */
+	tv = update->new_snapshot ?
 		stasis_message_timestamp(update->new_snapshot) :
 		stasis_message_timestamp(message);
 
-        for (i = 0; i < ARRAY_LEN(channel_monitors); ++i) {
-                RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
+	for (i = 0; i < ARRAY_LEN(channel_monitors); ++i) {
+		RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
 
-                msg = channel_monitors[i](old_snapshot, new_snapshot, tv);
-                if (msg) {
-                        app_send(app, msg);
-                }
-        }
+		msg = channel_monitors[i](old_snapshot, new_snapshot, tv);
+		if (msg) {
+			app_send(app, msg);
+		}
+	}
 }
 
 static struct ast_json *simple_endpoint_event(
-        const char *type,
-        struct ast_endpoint_snapshot *snapshot,
-        const struct timeval *tv)
+	const char *type,
+	struct ast_endpoint_snapshot *snapshot,
+	const struct timeval *tv)
 {
-        return ast_json_pack("{s: s, s: o, s: o}",
-                "type", type,
-                "timestamp", ast_json_timeval(*tv, NULL),
-                "endpoint", ast_endpoint_snapshot_to_json(snapshot));
+	return ast_json_pack("{s: s, s: o, s: o}",
+		"type", type,
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"endpoint", ast_endpoint_snapshot_to_json(snapshot));
 }
 
 static void sub_endpoint_update_handler(void *data,
-                struct stasis_subscription *sub,
-                struct stasis_message *message)
+	struct stasis_subscription *sub,
+	struct stasis_message *message)
 {
-        RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct app *app = data;
-        struct stasis_cache_update *update;
-        struct ast_endpoint_snapshot *new_snapshot;
-        const struct timeval *tv;
+	struct stasis_cache_update *update;
+	struct ast_endpoint_snapshot *new_snapshot;
+	const struct timeval *tv;
 
 	ast_assert(stasis_message_type(message) == stasis_cache_update_type());
 
@@ -477,34 +477,34 @@ static void sub_endpoint_update_handler(void *data,
 
 	json = simple_endpoint_event("EndpointStateChange", new_snapshot, tv);
 
-        if (!json) {
-                return;
-        }
+	if (!json) {
+		return;
+	}
 
-        app_send(app, json);
+	app_send(app, json);
 }
 
 static struct ast_json *simple_bridge_event(
-        const char *type,
-        struct ast_bridge_snapshot *snapshot,
-        const struct timeval *tv)
+	const char *type,
+	struct ast_bridge_snapshot *snapshot,
+	const struct timeval *tv)
 {
-        return ast_json_pack("{s: s, s: o, s: o}",
-                "type", type,
-                "timestamp", ast_json_timeval(*tv, NULL),
-                "bridge", ast_bridge_snapshot_to_json(snapshot));
+	return ast_json_pack("{s: s, s: o, s: o}",
+		"type", type,
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"bridge", ast_bridge_snapshot_to_json(snapshot));
 }
 
 static void sub_bridge_update_handler(void *data,
-                struct stasis_subscription *sub,
-                struct stasis_message *message)
+	struct stasis_subscription *sub,
+	struct stasis_message *message)
 {
-        RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct app *app = data;
-        struct stasis_cache_update *update;
-        struct ast_bridge_snapshot *new_snapshot;
-        struct ast_bridge_snapshot *old_snapshot;
-        const struct timeval *tv;
+	struct stasis_cache_update *update;
+	struct ast_bridge_snapshot *new_snapshot;
+	struct ast_bridge_snapshot *old_snapshot;
+	const struct timeval *tv;
 
 	ast_assert(stasis_message_type(message) == stasis_cache_update_type());
 
@@ -518,17 +518,17 @@ static void sub_bridge_update_handler(void *data,
 		stasis_message_timestamp(update->new_snapshot) :
 		stasis_message_timestamp(message);
 
-        if (!new_snapshot) {
-                json = simple_bridge_event("BridgeDestroyed", old_snapshot, tv);
-        } else if (!old_snapshot) {
-                json = simple_bridge_event("BridgeCreated", old_snapshot, tv);
-        }
+	if (!new_snapshot) {
+		json = simple_bridge_event("BridgeDestroyed", old_snapshot, tv);
+	} else if (!old_snapshot) {
+		json = simple_bridge_event("BridgeCreated", old_snapshot, tv);
+	}
 
-        if (!json) {
-                return;
-        }
+	if (!json) {
+		return;
+	}
 
-        app_send(app, json);
+	app_send(app, json);
 }
 
 static void bridge_merge_handler(void *data, struct stasis_subscription *sub,
@@ -607,13 +607,13 @@ struct app *app_create(const char *name, stasis_app_cb handler, void *data)
 		return NULL;
 	}
 
-        res |= stasis_message_router_add_cache_update(app->router,
+	res |= stasis_message_router_add_cache_update(app->router,
 		ast_bridge_snapshot_type(), sub_bridge_update_handler, app);
 
-        res |= stasis_message_router_add_cache_update(app->router,
+	res |= stasis_message_router_add_cache_update(app->router,
 		ast_channel_snapshot_type(), sub_channel_update_handler, app);
 
-        res |= stasis_message_router_add_cache_update(app->router,
+	res |= stasis_message_router_add_cache_update(app->router,
 		ast_endpoint_snapshot_type(), sub_endpoint_update_handler, app);
 
 	res |= stasis_message_router_set_default(app->router,
