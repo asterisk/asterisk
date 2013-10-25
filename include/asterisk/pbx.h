@@ -69,6 +69,16 @@ enum ast_extension_states {
 	AST_EXTENSION_ONHOLD = 1 << 4,	/*!< All devices ONHOLD */
 };
 
+/*!
+ * \brief extension matchcid types
+ * \note matchcid in ast_exten retains 0/1, this adds 3rd state for functions to specify all
+ * \see ast_context_remove_extension_callerid
+ */
+enum ast_ext_matchcid_types {
+	AST_EXT_MATCHCID_OFF = 0,	/*!< Match only extensions with matchcid=0 */
+	AST_EXT_MATCHCID_ON = 1,	/*!< Match only extensions with matchcid=1 AND cidmatch matches */
+	AST_EXT_MATCHCID_ANY = 2,	/*!< Match both - used only in functions manipulating ast_exten's */
+};
 
 struct ast_context;
 struct ast_exten;

@@ -1237,13 +1237,22 @@ static int hashtab_compare_extens(const void *ah_a, const void *ah_b)
 	}
 
 	/* but if they are the same, do the cidmatch values match? */
-	if (ac->matchcid && bc->matchcid) {
-		return strcmp(ac->cidmatch,bc->cidmatch);
-	} else if (!ac->matchcid && !bc->matchcid) {
-		return 0; /* if there's no matchcid on either side, then this is a match */
-	} else {
-		return 1; /* if there's matchcid on one but not the other, they are different */
+	/* not sure which side may be using ast_ext_matchcid_types, so check both */
+	if (ac->matchcid == AST_EXT_MATCHCID_ANY || bc->matchcid == AST_EXT_MATCHCID_ANY) {
+		return 0;
 	}
+	if (ac->matchcid == AST_EXT_MATCHCID_OFF && bc->matchcid == AST_EXT_MATCHCID_OFF) {
+		return 0;
+	}
+	if (ac->matchcid != bc->matchcid) {
+		return 1;
+	}
+	/* all other cases already disposed of, match now required on callerid string (cidmatch) */
+	/* although ast_add_extension2_lockopt() enforces non-zero ptr, caller may not have */
+	if (ast_strlen_zero(ac->cidmatch) && ast_strlen_zero(bc->cidmatch)) {
+		return 0;
+	}
+	return strcmp(ac->cidmatch, bc->cidmatch);
 }
 
 static int hashtab_compare_exten_numbers(const void *ah_a, const void *ah_b)
@@ -1271,7 +1280,7 @@ static unsigned int hashtab_hash_extens(const void *obj)
 	const struct ast_exten *ac = obj;
 	unsigned int x = ast_hashtab_hash_string(ac->exten);
 	unsigned int y = 0;
-	if (ac->matchcid)
+	if (ac->matchcid == AST_EXT_MATCHCID_ON)
 		y = ast_hashtab_hash_string(ac->cidmatch);
 	return x+y;
 }
@@ -1467,7 +1476,7 @@ int check_contexts(char *file, int line )
 				ast_copy_string(dummy_name, e1->exten, sizeof(dummy_name));
 				e2 = ast_hashtab_lookup(c1->root_table, &ex);
 				if (!e2) {
-					if (e1->matchcid) {
+					if (e1->matchcid == AST_EXT_MATCHCID_ON) {
 						ast_log(LOG_NOTICE,"Called from: %s:%d: The %s context records the exten %s (CID match: %s) but it is not in its root_table\n", file, line, c2->name, dummy_name, e1->cidmatch );
 					} else {
 						ast_log(LOG_NOTICE,"Called from: %s:%d: The %s context records the exten %s but it is not in its root_table\n", file, line, c2->name, dummy_name );
@@ -6682,7 +6691,7 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
 /*! \note This function will lock conlock. */
 int ast_context_remove_extension(const char *context, const char *extension, int priority, const char *registrar)
 {
-	return ast_context_remove_extension_callerid(context, extension, priority, NULL, 0, registrar);
+	return ast_context_remove_extension_callerid(context, extension, priority, NULL, AST_EXT_MATCHCID_ANY, registrar);
 }
 
 int ast_context_remove_extension_callerid(const char *context, const char *extension, int priority, const char *callerid, int matchcallerid, const char *registrar)
@@ -6712,7 +6721,7 @@ int ast_context_remove_extension_callerid(const char *context, const char *exten
  */
 int ast_context_remove_extension2(struct ast_context *con, const char *extension, int priority, const char *registrar, int already_locked)
 {
-	return ast_context_remove_extension_callerid2(con, extension, priority, NULL, 0, registrar, already_locked);
+	return ast_context_remove_extension_callerid2(con, extension, priority, NULL, AST_EXT_MATCHCID_ANY, registrar, already_locked);
 }
 
 int ast_context_remove_extension_callerid2(struct ast_context *con, const char *extension, int priority, const char *callerid, int matchcallerid, const char *registrar, int already_locked)
@@ -6728,10 +6737,6 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 	if (!already_locked)
 		ast_wrlock_context(con);
 
-	/* Handle this is in the new world */
-
-	/* FIXME For backwards compatibility, if callerid==NULL, then remove ALL
-	 * peers, not just those matching the callerid. */
 #ifdef NEED_DEBUG
 	ast_verb(3,"Removing %s/%s/%d%s%s from trees, registrar=%s\n", con->name, extension, priority, matchcallerid ? "/" : "", matchcallerid ? callerid : "", registrar);
 #endif
@@ -6740,7 +6745,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 #endif
 	/* find this particular extension */
 	ex.exten = dummy_name;
-	ex.matchcid = matchcallerid && !ast_strlen_zero(callerid); /* don't say match if there's no callerid */
+	ex.matchcid = matchcallerid;
 	ex.cidmatch = callerid;
 	ast_copy_string(dummy_name, extension, sizeof(dummy_name));
 	exten = ast_hashtab_lookup(con->root_table, &ex);
@@ -6763,7 +6768,6 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 			ex.priority = priority;
 			exten2 = ast_hashtab_lookup(exten->peer_table, &ex);
 			if (exten2) {
-
 				if (exten2->label) { /* if this exten has a label, remove that, too */
 					exten3 = ast_hashtab_remove_this_object(exten->peer_label_table,exten2);
 					if (!exten3)
@@ -6824,10 +6828,11 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 
 	/* scan the priority list to remove extension with exten->priority == priority */
 	for (peer = exten, next_peer = exten->peer ? exten->peer : exten->next;
-		 peer && !strcmp(peer->exten, extension) && (!matchcallerid || (!ast_strlen_zero(callerid) && !ast_strlen_zero(peer->cidmatch) && !strcmp(peer->cidmatch,callerid)) || (ast_strlen_zero(callerid) && ast_strlen_zero(peer->cidmatch)));
+		 peer && !strcmp(peer->exten, extension) &&
+			(!callerid || (!matchcallerid && !peer->matchcid) || (matchcallerid && peer->matchcid && !strcmp(peer->cidmatch, callerid))) ;
 			peer = next_peer, next_peer = next_peer ? (next_peer->peer ? next_peer->peer : next_peer->next) : NULL) {
+
 		if ((priority == 0 || peer->priority == priority) &&
-				(!callerid || !matchcallerid || (matchcallerid && !strcmp(peer->cidmatch, callerid))) &&
 				(!registrar || !strcmp(peer->registrar, registrar) )) {
 			found = 1;
 
@@ -6857,6 +6862,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 			} else { /* easy, we are not first priority in extension */
 				previous_peer->peer = peer->peer;
 			}
+
 
 			/* now, free whole priority extension */
 			destroy_exten(peer);
@@ -7605,7 +7611,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 			dpc->total_prio++;
 
 			/* write extension name and first peer */
-			if (e->matchcid)
+			if (e->matchcid == AST_EXT_MATCHCID_ON)
 				snprintf(buf, sizeof(buf), "'%s' (CID match '%s') => ", ast_get_extension_name(e), e->cidmatch);
 			else
 				snprintf(buf, sizeof(buf), "'%s' =>", ast_get_extension_name(e));
@@ -9751,10 +9757,10 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	/* Blank callerid and NULL callerid are two SEPARATE things.  Do NOT confuse the two!!! */
 	if (callerid) {
 		p += ext_strncpy(p, callerid, strlen(callerid) + 1) + 1;
-		tmp->matchcid = 1;
+		tmp->matchcid = AST_EXT_MATCHCID_ON;
 	} else {
 		*p++ = '\0';
-		tmp->matchcid = 0;
+		tmp->matchcid = AST_EXT_MATCHCID_OFF;
 	}
 	tmp->app = p;
 	strcpy(p, application);
@@ -9771,7 +9777,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 								an extension, and the trie exists, then we need to incrementally add this pattern to it. */
 		ast_copy_string(dummy_name, extension, sizeof(dummy_name));
 		dummy_exten.exten = dummy_name;
-		dummy_exten.matchcid = 0;
+		dummy_exten.matchcid = AST_EXT_MATCHCID_OFF;
 		dummy_exten.cidmatch = 0;
 		tmp2 = ast_hashtab_lookup(con->root_table, &dummy_exten);
 		if (!tmp2) {
@@ -9784,11 +9790,11 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	for (e = con->root; e; el = e, e = e->next) {   /* scan the extension list */
 		res = ext_cmp(e->exten, tmp->exten);
 		if (res == 0) { /* extension match, now look at cidmatch */
-			if (!e->matchcid && !tmp->matchcid)
+			if (e->matchcid == AST_EXT_MATCHCID_OFF && tmp->matchcid == AST_EXT_MATCHCID_OFF)
 				res = 0;
-			else if (tmp->matchcid && !e->matchcid)
+			else if (tmp->matchcid == AST_EXT_MATCHCID_ON && e->matchcid == AST_EXT_MATCHCID_OFF)
 				res = 1;
-			else if (e->matchcid && !tmp->matchcid)
+			else if (e->matchcid == AST_EXT_MATCHCID_ON && tmp->matchcid == AST_EXT_MATCHCID_OFF)
 				res = -1;
 			else
 				res = ext_cmp(e->cidmatch, tmp->cidmatch);
@@ -9865,7 +9871,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		}
 	}
 	if (option_debug) {
-		if (tmp->matchcid) {
+		if (tmp->matchcid == AST_EXT_MATCHCID_ON) {
 			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s (%p)\n",
 					  tmp->exten, tmp->priority, tmp->cidmatch, con->name, con);
 		} else {
@@ -9874,7 +9880,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		}
 	}
 
-	if (tmp->matchcid) {
+	if (tmp->matchcid == AST_EXT_MATCHCID_ON) {
 		ast_verb(3, "Added extension '%s' priority %d (CID match '%s') to %s\n",
 				 tmp->exten, tmp->priority, tmp->cidmatch, con->name);
 	} else {
@@ -10334,12 +10340,11 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 						}
 						ast_verb(3, "Remove %s/%s/%d, registrar=%s; con=%s(%p); con->root=%p\n",
 								 tmp->name, prio_item->exten, prio_item->priority, registrar, con? con->name : "<nil>", con, con? con->root_table: NULL);
-						/* set matchcid to 1 to insure we get a direct match, and NULL registrar to make sure no wildcarding is done */
 						ast_copy_string(extension, prio_item->exten, sizeof(extension));
 						if (prio_item->cidmatch) {
 							ast_copy_string(cidmatch, prio_item->cidmatch, sizeof(cidmatch));
 						}
-						end_traversal &= ast_context_remove_extension_callerid2(tmp, extension, prio_item->priority, prio_item->cidmatch ? cidmatch : NULL, 1, NULL, 1);
+						end_traversal &= ast_context_remove_extension_callerid2(tmp, extension, prio_item->priority, cidmatch, prio_item->matchcid, NULL, 1);
 					}
 					/* Explanation:
 					 * ast_context_remove_extension_callerid2 will destroy the extension that it comes across. This
