@@ -721,6 +721,10 @@
 						{
 							"code": 409,
 							"reason": "Channel is not in a Stasis application; the channel is currently bridged with other hcannels; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail"
+						},
+						{
+							"code": 422,
+							"reason": "The format specified is unknown on this system"
 						}
 					]
 				}
