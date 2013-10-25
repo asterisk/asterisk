@@ -454,20 +454,20 @@
 							}
 						}
 					],
-					"errorResponses": [
-						{
-							"code": 400,
-							"reason": "Recording name invalid"
-						},
-						{
-							"code": 404,
-							"reason": "Bridge not found"
-						},
-						{
-							"code": 409,
-							"reason": "Bridge not in Stasis application; Recording already in progress"
-						}
-					]
+                    "errorResponses": [
+                        {
+                            "code": 400,
+                            "reason": "Invalid parameters"
+                        },
+                        {
+                            "code": 404,
+                            "reason": "Bridge not found"
+                        },
+                        {
+                            "code": 409,
+                            "reason": "Bridge is not in a Stasis application; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail"
+                        }
+                    ]
 				}
 			]
 		}

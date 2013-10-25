@@ -742,9 +742,9 @@ static void ast_ari_record_bridge_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
-	case 400: /* Recording name invalid */
+	case 400: /* Invalid parameters */
 	case 404: /* Bridge not found */
-	case 409: /* Bridge not in Stasis application; Recording already in progress */
+	case 409: /* Bridge is not in a Stasis application; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail */
 		is_valid = 1;
 		break;
 	default:

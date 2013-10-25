@@ -3288,6 +3288,136 @@ ari_validator ast_ari_validate_playback_started_fn(void)
 	return ast_ari_validate_playback_started;
 }
 
+int ast_ari_validate_recording_failed(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_cause = 0;
+	int has_recording = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("cause", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_cause = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFailed field cause failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("recording", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_recording = 1;
+			prop_is_valid = ast_ari_validate_live_recording(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFailed field recording failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RecordingFailed has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_cause) {
+		ast_log(LOG_ERROR, "ARI RecordingFailed missing required field cause\n");
+		res = 0;
+	}
+
+	if (!has_recording) {
+		ast_log(LOG_ERROR, "ARI RecordingFailed missing required field recording\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_recording_failed_fn(void)
+{
+	return ast_ari_validate_recording_failed;
+}
+
+int ast_ari_validate_recording_finished(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_recording = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("recording", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_recording = 1;
+			prop_is_valid = ast_ari_validate_live_recording(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFinished field recording failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RecordingFinished has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_recording) {
+		ast_log(LOG_ERROR, "ARI RecordingFinished missing required field recording\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_recording_finished_fn(void)
+{
+	return ast_ari_validate_recording_finished;
+}
+
+int ast_ari_validate_recording_started(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_recording = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("recording", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_recording = 1;
+			prop_is_valid = ast_ari_validate_live_recording(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingStarted field recording failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI RecordingStarted has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_recording) {
+		ast_log(LOG_ERROR, "ARI RecordingStarted missing required field recording\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_recording_started_fn(void)
+{
+	return ast_ari_validate_recording_started;
+}
+
 int ast_ari_validate_stasis_end(struct ast_json *json)
 {
 	int res = 1;

@@ -120,6 +120,47 @@
 				}
 			}
 		},
+		"RecordingStarted": {
+			"id": "RecordingStarted",
+			"extends": "Event",
+			"description": "Event showing the start of a recording operation.",
+			"properties": {
+				"recording": {
+					"type": "LiveRecording",
+					"description": "Recording control object",
+					"required": true
+				}
+			}
+		},
+		"RecordingFinished": {
+			"id": "RecordingFinished",
+			"extends": "Event",
+			"description": "Event showing the completion of a recording operation.",
+			"properties": {
+				"recording": {
+					"type": "LiveRecording",
+					"description": "Recording control object",
+					"required": true
+				}
+			}
+		},
+		"RecordingFailed": {
+			"id": "RecordingFailed",
+			"extends": "Event",
+			"description": "Event showing failure of a recording operation.",
+			"properties": {
+				"recording": {
+					"type": "LiveRecording",
+					"description": "Recording control object",
+					"required": true
+				},
+				"cause": {
+					"type": "string",
+					"description": "Cause for the recording failure",
+					"required": true
+				}
+			}
+		},
 		"ApplicationReplaced": {
 			"id": "ApplicationReplaced",
 			"description": "Notification that another WebSocket has taken over for an application.\n\nAn application may only be subscribed to by a single WebSocket at a time. If multiple WebSockets attempt to subscribe to the same application, the newer WebSocket wins, and the older one receives this event.",
