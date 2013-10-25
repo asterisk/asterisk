@@ -314,9 +314,4 @@ void *__ast_bt_destroy(struct ast_bt *bt)
 void ast_log_backtrace(void)
 {
 }
-
-int ast_register_atexit(void (*func)(void))
-{
-	return 0;
-}
 #endif
