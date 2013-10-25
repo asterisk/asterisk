@@ -232,17 +232,17 @@ static void default_listener_shutdown(struct ast_taskprocessor_listener *listene
 
 	ast_taskprocessor_push(listener->tps, default_listener_die, pvt);
 
-	if (pthread_self() == pvt->poll_thread) {
+	ast_assert(pvt->poll_thread != AST_PTHREADT_NULL);
+
+	if (pthread_equal(pthread_self(), pvt->poll_thread)) {
 		res = pthread_detach(pvt->poll_thread);
 		if (res != 0) {
-			ast_log(LOG_ERROR, "pthread_detach(): %s\n",
-				strerror(errno));
+			ast_log(LOG_ERROR, "pthread_detach(): %s\n", strerror(errno));
 		}
 	} else {
 		res = pthread_join(pvt->poll_thread, NULL);
 		if (res != 0) {
-			ast_log(LOG_ERROR, "pthread_join(): %s\n",
-				strerror(errno));
+			ast_log(LOG_ERROR, "pthread_join(): %s\n", strerror(errno));
 		}
 	}
 	pvt->poll_thread = AST_PTHREADT_NULL;
@@ -538,18 +538,15 @@ static void taskprocessor_listener_dtor(void *obj)
 
 struct ast_taskprocessor_listener *ast_taskprocessor_listener_alloc(const struct ast_taskprocessor_listener_callbacks *callbacks, void *user_data)
 {
-	RAII_VAR(struct ast_taskprocessor_listener *, listener,
-			NULL, ao2_cleanup);
+	struct ast_taskprocessor_listener *listener;
 
 	listener = ao2_alloc(sizeof(*listener), taskprocessor_listener_dtor);
-
 	if (!listener) {
 		return NULL;
 	}
 	listener->callbacks = callbacks;
 	listener->user_data = user_data;
 
-	ao2_ref(listener, +1);
 	return listener;
 }
 
