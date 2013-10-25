@@ -993,6 +993,7 @@ static void ast_ari_record_channel_cb(
 	case 400: /* Invalid parameters */
 	case 404: /* Channel not found */
 	case 409: /* Channel is not in a Stasis application; the channel is currently bridged with other hcannels; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail */
+	case 422: /* The format specified is unknown on this system */
 		is_valid = 1;
 		break;
 	default:
