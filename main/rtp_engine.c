@@ -1409,89 +1409,89 @@ struct ast_rtp_instance *ast_rtp_instance_get_bridged(struct ast_rtp_instance *i
 	return instance->bridged;
 }
 
-void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struct ast_channel *c1)
+void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c_dst, struct ast_channel *c_src)
 {
-	struct ast_rtp_instance *instance0 = NULL, *instance1 = NULL,
-		*vinstance0 = NULL, *vinstance1 = NULL,
-		*tinstance0 = NULL, *tinstance1 = NULL;
-	struct ast_rtp_glue *glue0, *glue1;
-	enum ast_rtp_glue_result audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID, video_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
-	enum ast_rtp_glue_result audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID, video_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
-	format_t codec0 = 0, codec1 = 0;
+	struct ast_rtp_instance *instance_dst = NULL, *instance_src = NULL,
+		*vinstance_dst = NULL, *vinstance_src = NULL,
+		*tinstance_dst = NULL, *tinstance_src = NULL;
+	struct ast_rtp_glue *glue_dst, *glue_src;
+	enum ast_rtp_glue_result audio_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID, video_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID;
+	enum ast_rtp_glue_result audio_glue_src_res = AST_RTP_GLUE_RESULT_FORBID, video_glue_src_res = AST_RTP_GLUE_RESULT_FORBID;
+	format_t codec_dst = 0, codec_src = 0;
 	int res = 0;
 
 	/* Lock both channels so we can look for the glue that binds them together */
-	ast_channel_lock(c0);
-	while (ast_channel_trylock(c1)) {
-		ast_channel_unlock(c0);
+	ast_channel_lock(c_dst);
+	while (ast_channel_trylock(c_src)) {
+		ast_channel_unlock(c_dst);
 		usleep(1);
-		ast_channel_lock(c0);
+		ast_channel_lock(c_dst);
 	}
 
 	/* Grab glue that binds each channel to something using the RTP engine */
-	if (!(glue0 = ast_rtp_instance_get_glue(c0->tech->type)) || !(glue1 = ast_rtp_instance_get_glue(c1->tech->type))) {
-		ast_debug(1, "Can't find native functions for channel '%s'\n", glue0 ? c1->name : c0->name);
+	if (!(glue_dst = ast_rtp_instance_get_glue(c_dst->tech->type)) || !(glue_src = ast_rtp_instance_get_glue(c_src->tech->type))) {
+		ast_debug(1, "Can't find native functions for channel '%s'\n", glue_dst ? c_src->name : c_dst->name);
 		goto done;
 	}
 
-	audio_glue0_res = glue0->get_rtp_info(c0, &instance0);
-	video_glue0_res = glue0->get_vrtp_info ? glue0->get_vrtp_info(c0, &vinstance0) : AST_RTP_GLUE_RESULT_FORBID;
+	audio_glue_dst_res = glue_dst->get_rtp_info(c_dst, &instance_dst);
+	video_glue_dst_res = glue_dst->get_vrtp_info ? glue_dst->get_vrtp_info(c_dst, &vinstance_dst) : AST_RTP_GLUE_RESULT_FORBID;
 
-	audio_glue1_res = glue1->get_rtp_info(c1, &instance1);
-	video_glue1_res = glue1->get_vrtp_info ? glue1->get_vrtp_info(c1, &vinstance1) : AST_RTP_GLUE_RESULT_FORBID;
+	audio_glue_src_res = glue_src->get_rtp_info(c_src, &instance_src);
+	video_glue_src_res = glue_src->get_vrtp_info ? glue_src->get_vrtp_info(c_src, &vinstance_src) : AST_RTP_GLUE_RESULT_FORBID;
 
 	/* If we are carrying video, and both sides are not going to remotely bridge... fail the native bridge */
-	if (video_glue0_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue0_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue0_res != AST_RTP_GLUE_RESULT_REMOTE)) {
-		audio_glue0_res = AST_RTP_GLUE_RESULT_FORBID;
+	if (video_glue_dst_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue_dst_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue_dst_res != AST_RTP_GLUE_RESULT_REMOTE)) {
+		audio_glue_dst_res = AST_RTP_GLUE_RESULT_FORBID;
 	}
-	if (video_glue1_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue1_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue1_res != AST_RTP_GLUE_RESULT_REMOTE)) {
-		audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
+	if (video_glue_src_res != AST_RTP_GLUE_RESULT_FORBID && (audio_glue_src_res != AST_RTP_GLUE_RESULT_REMOTE || video_glue_src_res != AST_RTP_GLUE_RESULT_REMOTE)) {
+		audio_glue_src_res = AST_RTP_GLUE_RESULT_FORBID;
 	}
-	if (audio_glue0_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue0_res == AST_RTP_GLUE_RESULT_FORBID || video_glue0_res == AST_RTP_GLUE_RESULT_REMOTE) && glue0->get_codec) {
-		codec0 = glue0->get_codec(c0);
+	if (audio_glue_dst_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue_dst_res == AST_RTP_GLUE_RESULT_FORBID || video_glue_dst_res == AST_RTP_GLUE_RESULT_REMOTE) && glue_dst->get_codec) {
+		codec_dst = glue_dst->get_codec(c_dst);
 	}
-	if (audio_glue1_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue1_res == AST_RTP_GLUE_RESULT_FORBID || video_glue1_res == AST_RTP_GLUE_RESULT_REMOTE) && glue1->get_codec) {
-		codec1 = glue1->get_codec(c1);
+	if (audio_glue_src_res == AST_RTP_GLUE_RESULT_REMOTE && (video_glue_src_res == AST_RTP_GLUE_RESULT_FORBID || video_glue_src_res == AST_RTP_GLUE_RESULT_REMOTE) && glue_src->get_codec) {
+		codec_src = glue_src->get_codec(c_src);
 	}
 
 	/* If any sort of bridge is forbidden just completely bail out and go back to generic bridging */
-	if (audio_glue0_res != AST_RTP_GLUE_RESULT_REMOTE || audio_glue1_res != AST_RTP_GLUE_RESULT_REMOTE) {
+	if (audio_glue_dst_res != AST_RTP_GLUE_RESULT_REMOTE || audio_glue_src_res != AST_RTP_GLUE_RESULT_REMOTE) {
 		goto done;
 	}
 
 	/* Make sure we have matching codecs */
-	if (!(codec0 & codec1)) {
+	if (!(codec_dst & codec_src)) {
 		goto done;
 	}
 
-	ast_rtp_codecs_payloads_copy(&instance0->codecs, &instance1->codecs, instance1);
+	ast_rtp_codecs_payloads_copy(&instance_src->codecs, &instance_dst->codecs, instance_dst);
 
-	if (vinstance0 && vinstance1) {
-		ast_rtp_codecs_payloads_copy(&vinstance0->codecs, &vinstance1->codecs, vinstance1);
+	if (vinstance_dst && vinstance_src) {
+		ast_rtp_codecs_payloads_copy(&vinstance_src->codecs, &vinstance_dst->codecs, vinstance_dst);
 	}
-	if (tinstance0 && tinstance1) {
-		ast_rtp_codecs_payloads_copy(&tinstance0->codecs, &tinstance1->codecs, tinstance1);
+	if (tinstance_dst && tinstance_src) {
+		ast_rtp_codecs_payloads_copy(&tinstance_src->codecs, &tinstance_dst->codecs, tinstance_dst);
 	}
 
-        if (glue0->update_peer(c0, instance1, vinstance1, tinstance1, codec1, 0)) {
-                ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+        if (glue_dst->update_peer(c_dst, instance_src, vinstance_src, tinstance_src, codec_src, 0)) {
+                ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", c_dst->name, c_src ? c_src->name : "<unspecified>");
         }
 
 	res = 0;
 
 done:
-	ast_channel_unlock(c0);
-	ast_channel_unlock(c1);
+	ast_channel_unlock(c_dst);
+	ast_channel_unlock(c_src);
 
-	unref_instance_cond(&instance0);
-	unref_instance_cond(&instance1);
-	unref_instance_cond(&vinstance0);
-	unref_instance_cond(&vinstance1);
-	unref_instance_cond(&tinstance0);
-	unref_instance_cond(&tinstance1);
+	unref_instance_cond(&instance_dst);
+	unref_instance_cond(&instance_src);
+	unref_instance_cond(&vinstance_dst);
+	unref_instance_cond(&vinstance_src);
+	unref_instance_cond(&tinstance_dst);
+	unref_instance_cond(&tinstance_src);
 
 	if (!res) {
-		ast_debug(1, "Seeded SDP of '%s' with that of '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+		ast_debug(1, "Seeded SDP of '%s' with that of '%s'\n", c_dst->name, c_src ? c_src->name : "<unspecified>");
 	}
 }
 
