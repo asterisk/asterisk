@@ -102,6 +102,8 @@ done:
 			return NULL;
 		}
 		ast_debug(3, "Retrieved endpoint %s\n", ast_sorcery_object_get_id(endpoint));
+	} else {
+		ast_debug(3, "Could not identify endpoint by username '%s'\n", endpoint_name);
 	}
 	return endpoint;
 }
