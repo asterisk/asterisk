@@ -10242,11 +10242,26 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				}
 
 				if ((!strcmp(protocol, "RTP/SAVPF") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received SAVPF profle in audio offer but AVPF is not enabled: %s\n", m);
-					continue;
+					if (req->method != SIP_RESPONSE) {
+						ast_log(LOG_NOTICE, "Received SAVPF profle in audio offer but AVPF is not enabled, enabling: %s\n", m);
+						secure_audio = 1;
+						ast_set_flag(&p->flags[2], SIP_PAGE3_USE_AVPF);
+					}
+					else {
+
+						ast_log(LOG_WARNING, "Received SAVPF profle in audio answer but AVPF is not enabled: %s\n", m);
+						continue;
+					}
 				} else if ((!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVP")) && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received SAVP profile in audio offer but AVPF is enabled: %s\n", m);
-					continue;
+					if (req->method != SIP_RESPONSE) {
+						ast_log(LOG_NOTICE, "Received SAVP profle in audio offer but AVPF is enabled, disabling: %s\n", m);
+						secure_audio = 1;
+						ast_clear_flag(&p->flags[2], SIP_PAGE3_USE_AVPF);
+					}
+					else {
+						ast_log(LOG_WARNING, "Received SAVP profile in audio offer but AVPF is enabled: %s\n", m);
+						continue;
+					}
 				} else if (!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) {
 					secure_audio = 1;
 
@@ -10257,11 +10272,23 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 				} else if (!strcmp(protocol, "RTP/SAVP") || !strcmp(protocol, "RTP/SAVPF")) {
 					secure_audio = 1;
 				} else if (!strcmp(protocol, "RTP/AVPF") && !ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received AVPF profile in audio offer but AVPF is not enabled: %s\n", m);
-					continue;
+					if (req->method != SIP_RESPONSE) {
+						ast_log(LOG_NOTICE, "Received AVPF profile in audio offer but AVPF is not enabled, enabling: %s\n", m);
+						ast_set_flag(&p->flags[2], SIP_PAGE3_USE_AVPF);
+					}
+					else {
+						ast_log(LOG_WARNING, "Received AVP profile in audio answer but AVPF is enabled: %s\n", m);
+						continue;
+					}
 				} else if (!strcmp(protocol, "RTP/AVP") && ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
-					ast_log(LOG_WARNING, "Received AVP profile in audio offer but AVPF is enabled: %s\n", m);
-					continue;
+					if (req->method != SIP_RESPONSE) {
+						ast_log(LOG_NOTICE, "Received AVP profile in audio answer but AVPF is enabled, disabling: %s\n", m);
+						ast_clear_flag(&p->flags[2], SIP_PAGE3_USE_AVPF);
+					}
+					else {
+						ast_log(LOG_WARNING, "Received AVP profile in audio answer but AVPF is enabled: %s\n", m);
+						continue;
+					}
 				} else if ((!strcmp(protocol, "UDP/TLS/RTP/SAVP") || !strcmp(protocol, "UDP/TLS/RTP/SAVPF")) &&
 					   (!(dtls = ast_rtp_instance_get_dtls(p->rtp)) || !dtls->active(p->rtp))) {
 					ast_log(LOG_WARNING, "Received UDP/TLS in audio offer but DTLS is not enabled: %s\n", m);
