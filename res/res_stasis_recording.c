@@ -348,6 +348,14 @@ struct stasis_app_recording *stasis_app_control_record(
 	recording->control = control;
 	recording->state = STASIS_APP_RECORDING_STATE_QUEUED;
 
+	if ((recording->options->if_exists == AST_RECORD_IF_EXISTS_FAIL) &&
+			(ast_fileexists(recording->absolute_name, NULL, NULL))) {
+		ast_log(LOG_WARNING, "Recording file '%s' already exists and ifExists option is failure.\n",
+			recording->absolute_name);
+		errno = EEXIST;
+		return NULL;
+	}
+
 	{
 		RAII_VAR(struct stasis_app_recording *, old_recording, NULL,
 			ao2_cleanup);

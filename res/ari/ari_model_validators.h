@@ -863,6 +863,60 @@ int ast_ari_validate_playback_started(struct ast_json *json);
 ari_validator ast_ari_validate_playback_started_fn(void);
 
 /*!
+ * \brief Validator for RecordingFailed.
+ *
+ * Event showing failure of a recording operation.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_recording_failed(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_recording_failed().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_recording_failed_fn(void);
+
+/*!
+ * \brief Validator for RecordingFinished.
+ *
+ * Event showing the completion of a recording operation.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_recording_finished(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_recording_finished().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_recording_finished_fn(void);
+
+/*!
+ * \brief Validator for RecordingStarted.
+ *
+ * Event showing the start of a recording operation.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_recording_started(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_recording_started().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_recording_started_fn(void);
+
+/*!
  * \brief Validator for StasisEnd.
  *
  * Notification that a channel has left a Stasis appliction.
@@ -1112,6 +1166,13 @@ ari_validator ast_ari_validate_application_fn(void);
  * - application: string (required)
  * - timestamp: Date
  * - playback: Playback (required)
+ * RecordingFailed
+ * - cause: string (required)
+ * - recording: LiveRecording (required)
+ * RecordingFinished
+ * - recording: LiveRecording (required)
+ * RecordingStarted
+ * - recording: LiveRecording (required)
  * StasisEnd
  * - type: string (required)
  * - application: string (required)

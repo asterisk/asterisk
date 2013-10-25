@@ -720,7 +720,7 @@
 						},
 						{
 							"code": 409,
-							"reason": "Channel is not in a Stasis application; the channel is currently bridged with other channels; A recording with the same name is currently in progress."
+							"reason": "Channel is not in a Stasis application; the channel is currently bridged with other hcannels; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail"
 						}
 					]
 				}

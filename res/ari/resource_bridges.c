@@ -452,7 +452,7 @@ void ast_ari_record_bridge(struct ast_variable *headers, struct ast_record_bridg
 			break;
 		case EEXIST:
 			ast_ari_response_error(response, 409, "Conflict",
-				"Recording '%s' already in progress",
+				"Recording '%s' already exists and can not be overwritten",
 				args->name);
 			break;
 		case ENOMEM:

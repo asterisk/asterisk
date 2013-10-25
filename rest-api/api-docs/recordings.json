@@ -309,9 +309,11 @@
 						"valueType": "LIST",
 						"values": [
 							"queued",
-							"playing",
+							"recording",
 							"paused",
-							"done"
+							"done",
+							"failed",
+							"canceled"
 						]
 					}
 				},

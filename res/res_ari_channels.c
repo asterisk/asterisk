@@ -992,7 +992,7 @@ static void ast_ari_record_channel_cb(
 	case 501: /* Not Implemented */
 	case 400: /* Invalid parameters */
 	case 404: /* Channel not found */
-	case 409: /* Channel is not in a Stasis application; the channel is currently bridged with other channels; A recording with the same name is currently in progress. */
+	case 409: /* Channel is not in a Stasis application; the channel is currently bridged with other hcannels; A recording with the same name already exists on the system and can not be overwritten because it is in progress or ifExists=fail */
 		is_valid = 1;
 		break;
 	default:
