@@ -41,6 +41,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/test.h"
 
+#include <stdio.h>
+#include <unistd.h>
+
 #define CATEGORY "/main/json/"
 
 /*!
@@ -1208,11 +1211,33 @@ static int safe_fclose(FILE *f)
 	return 0;
 }
 
+static FILE *mkstemp_file(char *template, const char *mode)
+{
+	int fd = mkstemp(template);
+	FILE *file;
+
+	if (fd < 0) {
+		ast_log(LOG_ERROR, "Failed to create temp file: %s\n",
+			strerror(errno));
+		return NULL;
+	}
+
+	file = fdopen(fd, mode);
+	if (!file) {
+		ast_log(LOG_ERROR, "Failed to create temp file: %s\n",
+			strerror(errno));
+		return NULL;
+	}
+
+	return file;
+}
+
 AST_TEST_DEFINE(json_test_dump_load_file)
 {
 	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-	RAII_VAR(char *, filename, NULL, free);
+	char filename[] = "/tmp/ast_json.XXXXXX";
+	RAII_VAR(char *, rm_on_exit, filename, unlink);
 	RAII_VAR(FILE *, file, NULL, safe_fclose);
 	int uut_res;
 
@@ -1229,12 +1254,13 @@ AST_TEST_DEFINE(json_test_dump_load_file)
 
 	/* dump/load file */
 	expected = ast_json_pack("{ s: i }", "one", 1);
-	filename = tempnam(NULL, "ast-json");
-	file = fopen(filename, "w");
+	file = mkstemp_file(filename, "w");
+	ast_test_validate(test, NULL != file);
 	uut_res = ast_json_dump_file(expected, file);
 	ast_test_validate(test, 0 == uut_res);
 	fclose(file);
 	file = fopen(filename, "r");
+	ast_test_validate(test, NULL != file);
 	uut = ast_json_load_file(file, NULL);
 	ast_test_validate(test, ast_json_equal(expected, uut));
 
@@ -1245,7 +1271,9 @@ AST_TEST_DEFINE(json_test_dump_load_new_file)
 {
 	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-	RAII_VAR(char *, filename, NULL, free);
+	char filename[] = "/tmp/ast_json.XXXXXX";
+	RAII_VAR(char *, rm_on_exit, filename, unlink);
+	RAII_VAR(FILE *, file, NULL, safe_fclose);
 	int uut_res;
 
 	switch (cmd) {
@@ -1261,7 +1289,8 @@ AST_TEST_DEFINE(json_test_dump_load_new_file)
 
 	/* dump/load filename */
 	expected = ast_json_pack("{ s: i }", "one", 1);
-	filename = tempnam(NULL, "ast-json");
+	file = mkstemp_file(filename, "w");
+	ast_test_validate(test, NULL != file);
 	uut_res = ast_json_dump_new_file(expected, filename);
 	ast_test_validate(test, 0 == uut_res);
 	uut = ast_json_load_new_file(filename, NULL);
@@ -1273,7 +1302,8 @@ AST_TEST_DEFINE(json_test_dump_load_new_file)
 AST_TEST_DEFINE(json_test_dump_load_null)
 {
 	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
-	RAII_VAR(char *, filename, NULL, free);
+	char filename[] = "/tmp/ast_json.XXXXXX";
+	RAII_VAR(char *, rm_on_exit, filename, unlink);
 	RAII_VAR(FILE *, file, NULL, safe_fclose);
 
 	switch (cmd) {
@@ -1290,8 +1320,8 @@ AST_TEST_DEFINE(json_test_dump_load_null)
 	/* dump/load NULL tests */
 	uut = ast_json_load_string("{ \"one\": 1 }", NULL);
 	ast_test_validate(test, NULL != uut);
-	filename = tempnam(NULL, "ast-json");
-	file = fopen(filename, "w");
+	file = mkstemp_file(filename, "w");
+	ast_test_validate(test, NULL != file);
 	ast_test_validate(test, NULL == ast_json_dump_string(NULL));
 	ast_test_validate(test, -1 == ast_json_dump_file(NULL, file));
 	ast_test_validate(test, -1 == ast_json_dump_file(uut, NULL));
