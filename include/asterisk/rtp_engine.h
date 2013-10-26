@@ -1656,12 +1656,12 @@ void ast_rtp_instance_set_bridged(struct ast_rtp_instance *instance, struct ast_
 /*!
  * \brief Make two channels compatible for early bridging
  *
- * \param c0 First channel part of the bridge
- * \param c1 Second channel part of the bridge
+ * \param c_dst Destination channel to copy to
+ * \param c_src Source channel to copy from
  *
  * \since 1.8
  */
-void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
+void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c_dst, struct ast_channel *c_src);
 
 /*!
  * \brief Early bridge two channels that use RTP instances
