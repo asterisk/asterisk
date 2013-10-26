@@ -2046,7 +2046,7 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	if (rdata->msg_info.msg->line.req.method.id == PJSIP_ACK_METHOD) {
-		if (session->endpoint->media.direct_media.enabled) {
+		if (session->endpoint->media.direct_media.enabled && session->channel) {
 			ast_queue_control(session->channel, AST_CONTROL_SRCCHANGE);
 		}
 	}

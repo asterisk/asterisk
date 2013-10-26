@@ -190,6 +190,9 @@ struct ast_sip_session_supplement {
 	 * The reason is that the rdata passed into this function is a cloned rdata structure,
 	 * and its module data is not copied during the cloning operation.
 	 * If you need to get the dialog, you can get it via session->inv_session->dlg.
+	 *
+	 * \note
+	 * There is no guarantee that a channel will be present on the session when this is called.
      */
     int (*incoming_request)(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
     /*! 
@@ -203,6 +206,9 @@ struct ast_sip_session_supplement {
 	 * The reason is that the rdata passed into this function is a cloned rdata structure,
 	 * and its module data is not copied during the cloning operation.
 	 * If you need to get the dialog, you can get it via session->inv_session->dlg.
+	 *
+	 * \note
+	 * There is no guarantee that a channel will be present on the session when this is called.
 	 */
     void (*incoming_response)(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
     /*!
