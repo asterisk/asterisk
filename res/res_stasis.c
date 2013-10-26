@@ -106,51 +106,125 @@ struct ao2_container *app_bridges_moh;
 /*! AO2 hash function for \ref app */
 static int app_hash(const void *obj, const int flags)
 {
-	const struct app *app = obj;
-	const char *name = flags & OBJ_KEY ? obj : app_name(app);
+	const struct app *app;
+	const char *key;
 
-	return ast_str_hash(name);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		app = obj;
+		key = app_name(app);
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 /*! AO2 comparison function for \ref app */
-static int app_compare(void *lhs, void *rhs, int flags)
+static int app_compare(void *obj, void *arg, int flags)
 {
-	const struct app *lhs_app = lhs;
-	const struct app *rhs_app = rhs;
-	const char *lhs_name = app_name(lhs_app);
-	const char *rhs_name = flags & OBJ_KEY ? rhs : app_name(rhs_app);
+	const struct app *object_left = obj;
+	const struct app *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	if (strcmp(lhs_name, rhs_name) == 0) {
-		return CMP_MATCH | CMP_STOP;
-	} else {
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = app_name(object_right);
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(app_name(object_left), right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/*
+		 * We could also use a partial key struct containing a length
+		 * so strlen() does not get called for every comparison instead.
+		 */
+		cmp = strncmp(app_name(object_left), right_key, strlen(right_key));
+		break;
+	default:
+		/*
+		 * What arg points to is specific to this traversal callback
+		 * and has no special meaning to astobj2.
+		 */
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
 		return 0;
 	}
+	/*
+	 * At this point the traversal callback is identical to a sorted
+	 * container.
+	 */
+	return CMP_MATCH;
 }
 
 /*! AO2 hash function for \ref stasis_app_control */
 static int control_hash(const void *obj, const int flags)
 {
-	const struct stasis_app_control *control = obj;
-	const char *id = flags & OBJ_KEY ?
-		obj : stasis_app_control_get_channel_id(control);
+	const struct stasis_app_control *control;
+	const char *key;
 
-	return ast_str_hash(id);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		control = obj;
+		key = stasis_app_control_get_channel_id(control);
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 /*! AO2 comparison function for \ref stasis_app_control */
-static int control_compare(void *lhs, void *rhs, int flags)
+static int control_compare(void *obj, void *arg, int flags)
 {
-	const struct stasis_app_control *lhs_control = lhs;
-	const struct stasis_app_control *rhs_control = rhs;
-	const char *lhs_id = stasis_app_control_get_channel_id(lhs_control);
-	const char *rhs_id = flags & OBJ_KEY ?
-		rhs : stasis_app_control_get_channel_id(rhs_control);
+	const struct stasis_app_control *object_left = obj;
+	const struct stasis_app_control *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	if (strcmp(lhs_id, rhs_id) == 0) {
-		return CMP_MATCH | CMP_STOP;
-	} else {
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = stasis_app_control_get_channel_id(object_right);
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(stasis_app_control_get_channel_id(object_left), right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/*
+		 * We could also use a partial key struct containing a length
+		 * so strlen() does not get called for every comparison instead.
+		 */
+		cmp = strncmp(stasis_app_control_get_channel_id(object_left), right_key, strlen(right_key));
+		break;
+	default:
+		/*
+		 * What arg points to is specific to this traversal callback
+		 * and has no special meaning to astobj2.
+		 */
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
 		return 0;
 	}
+	/*
+	 * At this point the traversal callback is identical to a sorted
+	 * container.
+	 */
+	return CMP_MATCH;
 }
 
 static int cleanup_cb(void *obj, void *arg, int flags)
@@ -196,33 +270,69 @@ struct stasis_app_control *stasis_app_control_find_by_channel(
 struct stasis_app_control *stasis_app_control_find_by_channel_id(
 	const char *channel_id)
 {
-	return ao2_find(app_controls, channel_id, OBJ_KEY);
+	return ao2_find(app_controls, channel_id, OBJ_SEARCH_KEY);
 }
 
 /*! AO2 hash function for bridges container  */
 static int bridges_hash(const void *obj, const int flags)
 {
-	const struct ast_bridge *bridge = obj;
-	const char *id = flags & OBJ_KEY ?
-		obj : bridge->uniqueid;
+	const struct ast_bridge *bridge;
+	const char *key;
 
-	return ast_str_hash(id);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		bridge = obj;
+		key = bridge->uniqueid;
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 /*! AO2 comparison function for bridges container */
-static int bridges_compare(void *lhs, void *rhs, int flags)
+static int bridges_compare(void *obj, void *arg, int flags)
 {
-	const struct ast_bridge *lhs_bridge = lhs;
-	const struct ast_bridge *rhs_bridge = rhs;
-	const char *lhs_id = lhs_bridge->uniqueid;
-	const char *rhs_id = flags & OBJ_KEY ?
-		rhs : rhs_bridge->uniqueid;
+	const struct ast_bridge *object_left = obj;
+	const struct ast_bridge *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	if (strcmp(lhs_id, rhs_id) == 0) {
-		return CMP_MATCH | CMP_STOP;
-	} else {
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->uniqueid;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->uniqueid, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/*
+		 * We could also use a partial key struct containing a length
+		 * so strlen() does not get called for every comparison instead.
+		 */
+		cmp = strncmp(object_left->uniqueid, right_key, strlen(right_key));
+		break;
+	default:
+		/*
+		 * What arg points to is specific to this traversal callback
+		 * and has no special meaning to astobj2.
+		 */
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
 		return 0;
 	}
+	/*
+	 * At this point the traversal callback is identical to a sorted
+	 * container.
+	 */
+	return CMP_MATCH;
 }
 
 /*!
@@ -248,18 +358,20 @@ static int bridges_moh_hash_fn(const void *obj, const int flags)
 	const struct stasis_app_bridge_moh_wrapper *wrapper;
 	const char *key;
 
-	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
-	case OBJ_KEY:
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
 		key = obj;
-		return ast_str_hash(key);
-	case OBJ_POINTER:
+		break;
+	case OBJ_SEARCH_OBJECT:
 		wrapper = obj;
-		return ast_str_hash(wrapper->bridge_id);
+		key = wrapper->bridge_id;
+		break;
 	default:
 		/* Hash can only work on something with a full key. */
 		ast_assert(0);
 		return 0;
 	}
+	return ast_str_hash(key);
 }
 
 static int bridges_moh_sort_fn(const void *obj_left, const void *obj_right, const int flags)
@@ -269,14 +381,14 @@ static int bridges_moh_sort_fn(const void *obj_left, const void *obj_right, cons
 	const char *right_key = obj_right;
 	int cmp;
 
-	switch (flags & (OBJ_POINTER | OBJ_KEY | OBJ_PARTIAL_KEY)) {
-	case OBJ_POINTER:
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
 		right_key = right->bridge_id;
 		/* Fall through */
-	case OBJ_KEY:
+	case OBJ_SEARCH_KEY:
 		cmp = strcmp(left->bridge_id, right_key);
 		break;
-	case OBJ_PARTIAL_KEY:
+	case OBJ_SEARCH_PARTIAL_KEY:
 		cmp = strncmp(left->bridge_id, right_key, strlen(right_key));
 		break;
 	default:
@@ -291,7 +403,7 @@ static int bridges_moh_sort_fn(const void *obj_left, const void *obj_right, cons
 /*! Removes the bridge to music on hold channel link */
 static void remove_bridge_moh(char *bridge_id)
 {
-	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, moh_wrapper, ao2_find(app_bridges_moh, bridge_id, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, moh_wrapper, ao2_find(app_bridges_moh, bridge_id, OBJ_SEARCH_KEY), ao2_cleanup);
 
 	if (moh_wrapper) {
 		ao2_unlink_flags(app_bridges_moh, moh_wrapper, OBJ_NOLOCK);
@@ -416,7 +528,7 @@ struct ast_channel *stasis_app_bridge_moh_channel(struct ast_bridge *bridge)
 
 	SCOPED_AO2LOCK(lock, app_bridges_moh);
 
-	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_KEY | OBJ_NOLOCK);
+	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 
 	if (!moh_wrapper) {
 		struct ast_channel *bridge_moh_channel = bridge_moh_create(bridge);
@@ -433,7 +545,7 @@ int stasis_app_bridge_moh_stop(struct ast_bridge *bridge)
 
 	SCOPED_AO2LOCK(lock, app_bridges_moh);
 
-	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_KEY | OBJ_NOLOCK);
+	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 
 	if (!moh_wrapper) {
 		return -1;
@@ -456,7 +568,7 @@ int stasis_app_bridge_moh_stop(struct ast_bridge *bridge)
 struct ast_bridge *stasis_app_bridge_find_by_id(
 	const char *bridge_id)
 {
-	return ao2_find(app_bridges, bridge_id, OBJ_KEY);
+	return ao2_find(app_bridges, bridge_id, OBJ_SEARCH_KEY);
 }
 
 
@@ -471,7 +583,7 @@ static void control_unlink(struct stasis_app_control *control)
 	}
 
 	ao2_unlink_flags(app_controls, control,
-		OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
+		OBJ_SEARCH_OBJECT | OBJ_UNLINK | OBJ_NODATA);
 	ao2_cleanup(control);
 }
 
@@ -599,7 +711,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 	ast_assert(chan != NULL);
 
-	app = ao2_find(apps_registry, app_name, OBJ_KEY);
+	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	if (!app) {
 		ast_log(LOG_ERROR,
 			"Stasis app '%s' not registered\n", app_name);
@@ -719,8 +831,7 @@ int stasis_app_send(const char *app_name, struct ast_json *message)
 {
 	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
 
-	app = ao2_find(apps_registry, app_name, OBJ_KEY);
-
+	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	if (!app) {
 		/* XXX We can do a better job handling late binding, queueing up
 		 * the call for a few seconds to wait for the app to register.
@@ -763,8 +874,7 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 
 	SCOPED_LOCK(apps_lock, apps_registry, ao2_lock, ao2_unlock);
 
-	app = ao2_find(apps_registry, app_name, OBJ_KEY | OBJ_NOLOCK);
-
+	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (app) {
 		app_update(app, handler, data);
 	} else {
@@ -791,7 +901,7 @@ void stasis_app_unregister(const char *app_name)
 		return;
 	}
 
-	app = ao2_find(apps_registry, app_name, OBJ_KEY);
+	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	if (!app) {
 		ast_log(LOG_ERROR,
 			"Stasis app '%s' not registered\n", app_name);
@@ -811,7 +921,7 @@ struct ast_json *stasis_app_to_json(const char *app_name)
 	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
 
 	if (app_name) {
-		app = ao2_find(apps_registry, app_name, OBJ_KEY);
+		app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	}
 
 	if (!app) {
@@ -849,7 +959,7 @@ enum stasis_app_subscribe_res stasis_app_subscribe(const char *app_name,
 	int i;
 
 	if (app_name) {
-		app = ao2_find(apps_registry, app_name, OBJ_KEY);
+		app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	}
 
 	if (!app) {
@@ -964,7 +1074,7 @@ enum stasis_app_subscribe_res stasis_app_unsubscribe(const char *app_name,
 	if (app_name) {
 		ast_log(LOG_WARNING, "Could not find app '%s'\n",
 			app_name ? : "(null)");
-		app = ao2_find(apps_registry, app_name, OBJ_KEY);
+		app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	}
 
 	if (!app) {
