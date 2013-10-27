@@ -68,7 +68,7 @@ def upgrade():
         sa.Column('useragent', sa.String(20)),
         sa.Column('lastms', sa.Integer),
         sa.Column('host', sa.String(40)),
-        sa.Column('type', sa.Enum(*TYPE_VALUES)),
+        sa.Column('type', sa.Enum(*TYPE_VALUES, name='type_values')),
         sa.Column('context', sa.String(40)),
         sa.Column('permit', sa.String(95)),
         sa.Column('deny', sa.String(95)),
@@ -138,10 +138,10 @@ def upgrade():
                   name='yes_no_values')),
         sa.Column('contactpermit', sa.String(95)),
         sa.Column('contactdeny', sa.String(95)),
-        sa.Column('usereqphone', sa.Enum(*YESNO_VALUES)),
-        sa.Column('textsupport', sa.Enum(*YESNO_VALUES)),
-        sa.Column('faxdetect', sa.Enum(*YESNO_VALUES)),
-        sa.Column('buggymwi', sa.Enum(*YESNO_VALUES)),
+        sa.Column('usereqphone', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
+        sa.Column('textsupport', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
+        sa.Column('faxdetect', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
+        sa.Column('buggymwi', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('auth', sa.String(40)),
         sa.Column('fullname', sa.String(40)),
         sa.Column('trunkname', sa.String(40)),
@@ -156,7 +156,7 @@ def upgrade():
         sa.Column('subscribemwi', sa.Enum(*YESNO_VALUES,
                   name='yes_no_values')),
         sa.Column('vmexten', sa.String(40)),
-        sa.Column('autoframing', sa.Enum(*YESNO_VALUES)),
+        sa.Column('autoframing', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('rtpkeepalive', sa.Integer),
         sa.Column('call-limit', sa.Integer),
         sa.Column('g726nonstandard', sa.Enum(*YESNO_VALUES,
@@ -167,7 +167,7 @@ def upgrade():
                   name='yes_no_values')),
         sa.Column('dynamic', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('path', sa.String(256)),
-        sa.Column('supportpath', sa.Enum(*YESNO_VALUES))
+        sa.Column('supportpath', sa.Enum(*YESNO_VALUES, name='yes_no_values'))
     )
     op.create_index('sippeers_name', 'sippeers', ['name'])
     op.create_index('sippeers_name_host', 'sippeers', ['name', 'host'])
@@ -179,7 +179,7 @@ def upgrade():
         sa.Column('id', sa.Integer, primary_key=True, nullable=False,
                   autoincrement=True),
         sa.Column('name', sa.String(40), nullable=False, unique=True),
-        sa.Column('type', sa.Enum(*TYPE_VALUES)),
+        sa.Column('type', sa.Enum(*TYPE_VALUES, name='type_values')),
         sa.Column('username', sa.String(40)),
         sa.Column('mailbox', sa.String(40)),
         sa.Column('secret', sa.String(40)),
@@ -202,9 +202,9 @@ def upgrade():
         sa.Column('language', sa.String(10)),
         sa.Column('callerid', sa.String(100)),
         sa.Column('cid_number', sa.String(40)),
-        sa.Column('sendani', sa.Enum(*YESNO_VALUES)),
+        sa.Column('sendani', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('fullname', sa.String(40)),
-        sa.Column('trunk', sa.Enum(*YESNO_VALUES)),
+        sa.Column('trunk', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('auth', sa.String(20)),
         sa.Column('maxauthreq', sa.Integer),
         sa.Column('requirecalltoken', sa.Enum(*IAX_REQUIRECALLTOKEN_VALUES,
@@ -226,7 +226,7 @@ def upgrade():
         sa.Column('qualifyfreqok', sa.String(10)),
         sa.Column('qualifyfreqnotok', sa.String(10)),
         sa.Column('timezone', sa.String(20)),
-        sa.Column('adsi', sa.Enum(*YESNO_VALUES)),
+        sa.Column('adsi', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('amaflags', sa.String(20)),
         sa.Column('setvar', sa.String(200))
     )
@@ -248,7 +248,7 @@ def upgrade():
         sa.Column('alias', sa.String(80)),
         sa.Column('email', sa.String(80)),
         sa.Column('pager', sa.String(80)),
-        sa.Column('attach', sa.Enum(*YESNO_VALUES)),
+        sa.Column('attach', sa.Enum(*YESNO_VALUES, name='yes_no_values')),
         sa.Column('attachfmt', sa.String(10)),
         sa.Column('serveremail', sa.String(80)),
         sa.Column('language', sa.String(20)),
@@ -306,13 +306,13 @@ def upgrade():
         sa.Column('maxusers', sa.Integer),
         sa.Column('members', sa.Integer, nullable=False, default=0)
     )
-    op.create_index('meetme_confno_starttime_endtime', 'meetme',
+    op.create_index('meetme_confno_start_end', 'meetme',
                     ['confno', 'starttime', 'endtime'])
 
     op.create_table(
         'musiconhold',
         sa.Column('name', sa.String(80), primary_key=True, nullable=False),
-        sa.Column('mode', sa.Enum(*MOH_MODE_VALUES)),
+        sa.Column('mode', sa.Enum(*MOH_MODE_VALUES, name='moh_mode_values')),
         sa.Column('directory', sa.String(255)),
         sa.Column('application', sa.String(255)),
         sa.Column('digit', sa.String(1)),
