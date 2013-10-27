@@ -266,8 +266,10 @@ static int odbc_load_module(int reload)
 	} while (0);
 
 	if (ast_test_flag(&config, CONFIG_REGISTERED) && (!cfg || dsn == NULL || table == NULL)) {
-		ast_cdr_unregister(name);
+		ast_cdr_backend_suspend(name);
 		ast_clear_flag(&config, CONFIG_REGISTERED);
+	} else {
+		ast_cdr_backend_unsuspend(name);
 	}
 
 	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED && cfg != CONFIG_STATUS_FILEINVALID) {
@@ -283,7 +285,9 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_cdr_unregister(name);
+	if (ast_cdr_unregister(name)) {
+		return -1;
+	}
 
 	if (dsn) {
 		ast_verb(11, "cdr_odbc: free dsn\n");

@@ -503,8 +503,27 @@ int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be);
  * \brief Unregister a CDR handling engine
  * \param name name of CDR handler to unregister
  * Unregisters a CDR by it's name
+ *
+ * \retval 0 The backend unregistered successfully
+ * \retval -1 The backend could not be unregistered at this time
  */
-void ast_cdr_unregister(const char *name);
+int ast_cdr_unregister(const char *name);
+
+/*!
+ * \brief Suspend a CDR backend temporarily
+ *
+  * \retval 0 The backend is suspdended
+  * \retval -1 The backend could not be suspended
+  */
+int ast_cdr_backend_suspend(const char *name);
+
+/*!
+ * \brief Unsuspend a CDR backend
+ *
+ * \retval 0 The backend was unsuspended
+ * \retval -1 The back could not be unsuspended
+ */
+int ast_cdr_backend_unsuspend(const char *name);
 
 /*!
  * \brief Disposition to a string

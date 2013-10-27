@@ -436,7 +436,10 @@ static void empty_columns(void)
 
 static int unload_module(void)
 {
-	ast_cdr_unregister(name);
+	if (ast_cdr_unregister(name)) {
+		return -1;
+	}
+
 	ast_cli_unregister_multiple(cdr_pgsql_status_cli, ARRAY_LEN(cdr_pgsql_status_cli));
 
 	PQfinish(conn);

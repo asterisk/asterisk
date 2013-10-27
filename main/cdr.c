@@ -294,6 +294,7 @@ struct cdr_beitem {
 	char desc[80];
 	ast_cdrbe be;
 	AST_RWLIST_ENTRY(cdr_beitem) list;
+	int suspended:1;
 };
 
 /*! \brief List of registered backends */
@@ -2581,6 +2582,42 @@ int ast_cdr_is_enabled(void)
 	return ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED);
 }
 
+int ast_cdr_backend_suspend(const char *name)
+{
+	int success = -1;
+	struct cdr_beitem *i = NULL;
+
+	AST_RWLIST_WRLOCK(&be_list);
+	AST_RWLIST_TRAVERSE(&be_list, i, list) {
+		if (!strcasecmp(name, i->name)) {
+			ast_debug(3, "Suspending CDR backend %s\n", i->name);
+			i->suspended = 1;
+			success = 0;
+		}
+	}
+	AST_RWLIST_UNLOCK(&be_list);
+
+	return success;
+}
+
+int ast_cdr_backend_unsuspend(const char *name)
+{
+	int success = -1;
+	struct cdr_beitem *i = NULL;
+
+	AST_RWLIST_WRLOCK(&be_list);
+	AST_RWLIST_TRAVERSE(&be_list, i, list) {
+		if (!strcasecmp(name, i->name)) {
+			ast_debug(3, "Unsuspending CDR backend %s\n", i->name);
+			i->suspended = 0;
+			success = 0;
+		}
+	}
+	AST_RWLIST_UNLOCK(&be_list);
+
+	return success;
+}
+
 int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 {
 	struct cdr_beitem *i = NULL;
@@ -2615,24 +2652,39 @@ int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 	return 0;
 }
 
-void ast_cdr_unregister(const char *name)
+int ast_cdr_unregister(const char *name)
 {
-	struct cdr_beitem *i = NULL;
+	struct cdr_beitem *match = NULL;
+	int active_count;
 
 	AST_RWLIST_WRLOCK(&be_list);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
-		if (!strcasecmp(name, i->name)) {
-			AST_RWLIST_REMOVE_CURRENT(list);
+	AST_RWLIST_TRAVERSE(&be_list, match, list) {
+		if (!strcasecmp(name, match->name)) {
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	if (!match) {
+		AST_RWLIST_UNLOCK(&be_list);
+		return 0;
+	}
+
+	active_count = ao2_container_count(active_cdrs_by_channel);
+
+	if (!match->suspended && active_count != 0) {
+		AST_RWLIST_UNLOCK(&be_list);
+		ast_log(AST_LOG_WARNING, "Unable to unregister CDR backend %s; %d CDRs are still active\n",
+			name, active_count);
+		return -1;
+	}
+
+	AST_RWLIST_REMOVE(&be_list, match, list);
 	AST_RWLIST_UNLOCK(&be_list);
 
-	if (i) {
-		ast_verb(2, "Unregistered '%s' CDR backend\n", name);
-		ast_free(i);
-	}
+	ast_verb(2, "Unregistered '%s' CDR backend\n", name);
+	ast_free(match);
+
+	return 0;
 }
 
 struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr)
@@ -3159,7 +3211,9 @@ static void post_cdr(struct ast_cdr *cdr)
 		}
 		AST_RWLIST_RDLOCK(&be_list);
 		AST_RWLIST_TRAVERSE(&be_list, i, list) {
-			i->be(cdr);
+			if (!i->suspended) {
+				i->be(cdr);
+			}
 		}
 		AST_RWLIST_UNLOCK(&be_list);
 	}
@@ -3772,7 +3826,7 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			ast_cli(a->fd, "    (none)\n");
 		} else {
 			AST_RWLIST_TRAVERSE(&be_list, beitem, list) {
-				ast_cli(a->fd, "    %s\n", beitem->name);
+				ast_cli(a->fd, "    %s%s\n", beitem->name, beitem->suspended ? " (suspended) " : "");
 			}
 		}
 		AST_RWLIST_UNLOCK(&be_list);

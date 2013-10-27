@@ -235,7 +235,9 @@ static int load_config(int reload)
 
 static int unload_module(void)
 {
-	ast_cdr_unregister(name);
+	if (ast_cdr_unregister(name)) {
+		return -1;
+	}
 
 	if (AST_RWLIST_WRLOCK(&sinks)) {
 		ast_cdr_register(name, ast_module_info->description, syslog_log);

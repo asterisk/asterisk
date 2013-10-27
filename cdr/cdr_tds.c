@@ -443,6 +443,10 @@ failed:
 
 static int tds_unload_module(void)
 {
+	if (ast_cdr_unregister(name)) {
+		return -1;
+	}
+
 	if (settings) {
 		ast_mutex_lock(&tds_lock);
 		mssql_disconnect();
@@ -451,8 +455,6 @@ static int tds_unload_module(void)
 		ast_string_field_free_memory(settings);
 		ast_free(settings);
 	}
-
-	ast_cdr_unregister(name);
 
 	dbexit();
 

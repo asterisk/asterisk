@@ -384,9 +384,11 @@ static int my_unload_module(int reload)
 	}
 
 	dbport = 0;
-	ast_cdr_unregister(name);
-	
-	return 0;
+	if (reload) {
+		return ast_cdr_backend_suspend(name);
+	} else {
+		return ast_cdr_unregister(name);
+	}
 }
 
 static int my_load_config_string(struct ast_config *cfg, const char *category, const char *variable, struct ast_str **field, const char *def)
@@ -660,7 +662,11 @@ static int my_load_module(int reload)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	res = ast_cdr_register(name, desc, mysql_log);
+	if (!reload) {
+		res = ast_cdr_register(name, desc, mysql_log);
+	} else {
+		res = ast_cdr_backend_unsuspend(name);
+	}
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register MySQL CDR handling\n");
 	} else {
