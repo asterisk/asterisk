@@ -86,8 +86,9 @@ static int load_config(int reload)
 	if (!cfg) {
 		/* Standard configuration */
 		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
-		if (enablecdr)
-			ast_cdr_unregister(name);
+		if (enablecdr) {
+			ast_cdr_backend_suspend(name);
+		}
 		enablecdr = 0;
 		return -1;
 	}
@@ -135,10 +136,11 @@ static int load_config(int reload)
 
 	ast_config_destroy(cfg);
 
-	if (enablecdr && !newenablecdr)
-		ast_cdr_unregister(name);
-	else if (!enablecdr && newenablecdr)
-		ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
+	if (!newenablecdr) {
+		ast_cdr_backend_suspend(name);
+	} else if (newenablecdr) {
+		ast_cdr_backend_unsuspend(name);
+	}
 	enablecdr = newenablecdr;
 
 	return 0;
@@ -210,7 +212,10 @@ static int manager_log(struct ast_cdr *cdr)
 
 static int unload_module(void)
 {
-	ast_cdr_unregister(name);
+	if (ast_cdr_unregister(name)) {
+		return -1;
+	}
+
 	if (customfields)
 		ast_free(customfields);
 
@@ -219,7 +224,12 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	if (ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log)) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	if (load_config(0)) {
+		ast_cdr_unregister(name);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

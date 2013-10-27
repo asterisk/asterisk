@@ -315,7 +315,10 @@ static int csv_log(struct ast_cdr *cdr)
 
 static int unload_module(void)
 {
-	ast_cdr_unregister(name);
+	if (ast_cdr_unregister(name)) {
+		return -1;
+	}
+
 	loaded = 0;
 	return 0;
 }

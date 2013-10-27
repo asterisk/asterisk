@@ -289,7 +289,9 @@ static int write_cdr(struct ast_cdr *cdr)
 
 static int unload_module(void)
 {
-	ast_cdr_unregister(name);
+	if (ast_cdr_unregister(name)) {
+		return -1;
+	}
 
 	free_config(0);
 

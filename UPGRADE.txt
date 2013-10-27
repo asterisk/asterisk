@@ -337,6 +337,9 @@ CDR (Call Detail Records)
    associated with the current CDR for the channel, as opposed to a cumulative
    measurement of all CDRs for that channel.
 
+ - CDR backends can no longer be unloaded while billing data is in flight. This
+   helps to prevent loss of billing data during restarts and shutdowns.
+
 CEL:
  - The Uniqueid field for a channel is now a stable identifier, and will not
    change due to transfers, parking, etc.
