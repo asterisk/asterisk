@@ -1832,6 +1832,35 @@ static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_ch
 	return 1;
 }
 
+/*!
+ * \internal
+ * \brief Filter channel snapshots by technology
+ */
+static int filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
+{
+	return snapshot->tech_properties & AST_CHAN_TP_INTERNAL;
+}
+
+/*!
+ * \internal
+ * \brief Filter a channel cache update
+ */
+static int filter_channel_cache_message(struct ast_channel_snapshot *old_snapshot,
+		struct ast_channel_snapshot *new_snapshot)
+{
+	int ret = 0;
+
+	/* Drop cache updates from certain channel technologies */
+	if (old_snapshot) {
+		ret |= filter_channel_snapshot(old_snapshot);
+	}
+	if (new_snapshot) {
+		ret |= filter_channel_snapshot(new_snapshot);
+	}
+
+	return ret;
+}
+
 /* TOPIC ROUTER CALLBACKS */
 
 /*!
@@ -1869,6 +1898,10 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			peer ? peer->name : "(none)",
 			(unsigned int)stasis_message_timestamp(message)->tv_sec,
 			(unsigned int)stasis_message_timestamp(message)->tv_usec);
+
+	if (filter_channel_snapshot(peer) || (caller && filter_channel_snapshot(caller))) {
+		return;
+	}
 
 	/* Figure out who is running this show */
 	if (caller) {
@@ -1957,35 +1990,6 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 		}
 	}
 	return 0;
-}
-
-/*!
- * \internal
- * \brief Filter channel snapshots by technology
- */
-static int filter_channel_snapshot(struct ast_channel_snapshot *snapshot)
-{
-	return snapshot->tech_properties & AST_CHAN_TP_INTERNAL;
-}
-
-/*!
- * \internal
- * \brief Filter a channel cache update
- */
-static int filter_channel_cache_message(struct ast_channel_snapshot *old_snapshot,
-		struct ast_channel_snapshot *new_snapshot)
-{
-	int ret = 0;
-
-	/* Drop cache updates from certain channel technologies */
-	if (old_snapshot) {
-		ret |= filter_channel_snapshot(old_snapshot);
-	}
-	if (new_snapshot) {
-		ret |= filter_channel_snapshot(new_snapshot);
-	}
-
-	return ret;
 }
 
 /*! \brief Determine if we need to add a new CDR based on snapshots */
