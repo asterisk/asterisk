@@ -19,6 +19,23 @@
 === UPGRADE-10.txt -- Upgrade info for 1.8 to 10
 ===
 ===========================================================
+
+From 11.6 to 11.7:
+ConfBridge
+ - ConfBridge now has the ability to set the language of announcements to the
+   conference.  The language can be set on a bridge profile in confbridge.conf
+   or by the dialplan function CONFBRIDGE(bridge,language)=en.
+chan_sip - Clarify The "sip show peers" Forcerport Column And Add Comedia
+ - Under the "Forcerport" column, the "N" used to mean NAT (i.e. Yes).  With
+   the additon of auto_* NAT settings, the meaning changed and there was a
+   certain combination of letters added to indicate the current setting. The
+   combination of using "Y", "N", "A" or "a", can be confusing.  Therefore, we
+   now display clearly what the current Forcerport setting is: "Yes", "No",
+   "Auto (Yes)", "Auto (No)".
+ - Since we are clarifying the Forcerport column, we have added a column to
+   display the Comedia setting since this is useful information as well.  We
+   no longer have a simple "NAT" setting like other versions before 11.
+
 From 11.5 to 11.6:
 * res_agi will now properly indicate if there was an error in streaming an
   audio file.  The result code will be -1 and the result returned from the
