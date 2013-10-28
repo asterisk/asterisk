@@ -25,6 +25,16 @@ There are many significant architectural changes in Asterisk 12. It is
 recommended that you not only read through this document for important
 changes that affect an upgrade, but that you also read through the CHANGES
 document in depth to better understand the new options available to you.
+chan_sip - Clarify The "sip show peers" Forcerport Column And Add Comedia
+ - Under the "Forcerport" column, the "N" used to mean NAT (i.e. Yes).  With
+   the additon of auto_* NAT settings, the meaning changed and there was a
+   certain combination of letters added to indicate the current setting. The
+   combination of using "Y", "N", "A" or "a", can be confusing.  Therefore, we
+   now display clearly what the current Forcerport setting is: "Yes", "No",
+   "Auto (Yes)", "Auto (No)".
+ - Since we are clarifying the Forcerport column, we have added a column to
+   display the Comedia setting since this is useful information as well.  We
+   no longer have a simple "NAT" setting like other versions before 11.
 
 Additional information on the architectural changes made in Asterisk can be
 found on the Asterisk wiki (https://wiki.asterisk.org)
