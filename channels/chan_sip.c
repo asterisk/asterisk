@@ -19019,7 +19019,7 @@ int peercomparefunc(const void *a, const void *b)
 }
 
 /* the last argument is left-aligned, so we don't need a size anyways */
-#define PEERS_FORMAT2 "%-25.25s %-39.39s %-3.3s %-10.10s %-3.3s %-8s %-11s %-32.32s %s\n"
+#define PEERS_FORMAT2 "%-25.25s %-39.39s %-3.3s %-10.10s %-10.10s %-3.3s %-8s %-11s %-32.32s %s\n"
 
 /*! \brief Used in the sip_show_peers functions to pass parameters */
 struct show_peers_context {
@@ -19081,7 +19081,7 @@ static char *_sip_show_peers(int fd, int *total, struct mansession *s, const str
 
 	if (!s) {
 		/* Normal list */
-		ast_cli(fd, PEERS_FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "ACL", "Port", "Status", "Description", (cont.realtimepeers ? "Realtime" : ""));
+		ast_cli(fd, PEERS_FORMAT2, "Name/username", "Host", "Dyn", "Forcerport", "Comedia", "ACL", "Port", "Status", "Description", (cont.realtimepeers ? "Realtime" : ""));
 	}
 
 	ao2_lock(peers);
@@ -19197,9 +19197,8 @@ static struct sip_peer *_sip_show_peers_one(int fd, struct mansession *s, struct
 		ast_cli(fd, PEERS_FORMAT2, name,
 		tmp_host,
 		peer->host_dynamic ? " D " : "   ",	/* Dynamic or not? */
-		ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ?
-			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " A " : " a " :
-			ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? " N " : "   ",	/* NAT=yes? */
+		force_rport_string(peer->flags),
+		comedia_string(peer->flags),
 		(!ast_acl_list_is_empty(peer->acl)) ? " A " : "   ",       /* permit/deny */
 		tmp_port, status,
 		peer->description ? peer->description : "",
@@ -19230,7 +19229,7 @@ static struct sip_peer *_sip_show_peers_one(int fd, struct mansession *s, struct
 		ast_sockaddr_isnull(&peer->addr) ? "0" : tmp_port,
 		peer->host_dynamic ? "yes" : "no",	/* Dynamic or not? */
 		ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) ? "yes" : "no",
-		ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",	/* NAT=yes? */
+		ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) ? "yes" : "no",
 		ast_test_flag(&peer->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA) ? "yes" : "no",
 		ast_test_flag(&peer->flags[1], SIP_PAGE2_SYMMETRICRTP) ? "yes" : "no",
 		ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
