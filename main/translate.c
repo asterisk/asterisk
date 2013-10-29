@@ -771,7 +771,7 @@ static void matrix_rebuild(int samples)
 						matrix_get(x, z)->table_cost = newtablecost;
 						matrix_get(x, z)->multistep = 1;
 						changed++;
-						ast_debug(3, "Discovered %d cost path from %s to %s, via %s\n",
+						ast_debug(10, "Discovered %d cost path from %s to %s, via %s\n",
 							matrix_get(x, z)->table_cost,
 							ast_getformatname(ast_format_set(&tmpx, index2format(x), 0)),
 							ast_getformatname(ast_format_set(&tmpy, index2format(z), 0)),
