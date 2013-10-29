@@ -6346,18 +6346,19 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
 			newvar = ast_var_assign(&varname[1], ast_var_value(current));
 			if (newvar) {
 				AST_LIST_INSERT_TAIL(ast_channel_varshead(child), newvar, entries);
-				ast_debug(1, "Copying soft-transferable variable %s.\n", ast_var_name(newvar));
+				ast_debug(1, "Inheriting variable %s from %s to %s.\n",
+					ast_var_name(newvar), ast_channel_name(parent), ast_channel_name(child));
 			}
 			break;
 		case 2:
 			newvar = ast_var_assign(varname, ast_var_value(current));
 			if (newvar) {
 				AST_LIST_INSERT_TAIL(ast_channel_varshead(child), newvar, entries);
-				ast_debug(1, "Copying hard-transferable variable %s.\n", ast_var_name(newvar));
+				ast_debug(1, "Inheriting variable %s from %s to %s.\n",
+					ast_var_name(newvar), ast_channel_name(parent), ast_channel_name(child));
 			}
 			break;
 		default:
-			ast_debug(1, "Not copying variable %s.\n", ast_var_name(current));
 			break;
 		}
 	}

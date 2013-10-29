@@ -2186,7 +2186,6 @@ static char *_xmldoc_build_field(struct ast_xml_node *node, const char *var, int
 	node = ast_xml_find_element(ast_xml_node_get_children(node), var, NULL, NULL);
 
 	if (!node || !ast_xml_node_get_children(node)) {
-		ast_debug(1, "Cannot find variable '%s' in tree\n", var);
 		return ret;
 	}
 

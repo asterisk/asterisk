@@ -4323,7 +4323,7 @@ void ast_str_substitute_variables_full(struct ast_str **buf, ssize_t maxlen, str
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 					}
 				}
-				ast_debug(2, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
+				ast_debug(2, "Function %s result is '%s'\n", finalvars, cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
 				ast_str_retrieve_variable(&substr3, 0, c, headp, finalvars);
@@ -4523,7 +4523,7 @@ void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 					}
 				}
-				ast_debug(2, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
+				ast_debug(2, "Function %s result is '%s'\n", vars, cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
 				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
