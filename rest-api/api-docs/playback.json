@@ -25,6 +25,12 @@
 							"allowMultiple": false,
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "The playback cannot be found"
+						}
 					]
 				},
 				{
@@ -40,6 +46,12 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "The playback cannot be found"
 						}
 					]
 				}
