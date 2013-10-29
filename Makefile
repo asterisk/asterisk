@@ -170,7 +170,7 @@ ifeq ($(findstring -Wall,$(_ASTCFLAGS) $(ASTCFLAGS)),)
   _ASTCFLAGS+=-Wall
 endif
 
-_ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
+_ASTCFLAGS+=-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_NESTED_FUNCTIONS) $(DEBUG)
 
 ifeq ($(AST_DEVMODE),yes)
   _ASTCFLAGS+=-Werror
