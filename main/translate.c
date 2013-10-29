@@ -613,7 +613,7 @@ static void rebuild_matrix(int samples)
 					 * then this is a up sample down sample conversion scenario. */
 					tr_matrix[x][z].rate_change = tr_matrix[x][y].rate_change + tr_matrix[y][z].rate_change;
 
-					ast_debug(3, "Discovered %d cost path from %s to %s, via %s\n", tr_matrix[x][z].cost,
+					ast_debug(10, "Discovered %d cost path from %s to %s, via %s\n", tr_matrix[x][z].cost,
 						  ast_getformatname(1LL << x), ast_getformatname(1LL << z), ast_getformatname(1LL << y));
 					changed++;
 				}
