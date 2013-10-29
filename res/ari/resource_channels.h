@@ -105,27 +105,6 @@ struct ast_delete_channel_args {
  * \param[out] response HTTP response
  */
 void ast_ari_delete_channel(struct ast_variable *headers, struct ast_delete_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_dial() */
-struct ast_dial_args {
-	/*! \brief Channel's id */
-	const char *channel_id;
-	/*! \brief Endpoint to call. If not specified, dial is routed via dialplan */
-	const char *endpoint;
-	/*! \brief Extension to dial */
-	const char *extension;
-	/*! \brief When routing via dialplan, the context use. If omitted, uses 'default' */
-	const char *context;
-	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
-	int timeout;
-};
-/*!
- * \brief Create a new channel (originate) and bridge to this channel.
- *
- * \param headers HTTP headers
- * \param args Swagger parameters
- * \param[out] response HTTP response
- */
-void ast_ari_dial(struct ast_variable *headers, struct ast_dial_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_continue_in_dialplan() */
 struct ast_continue_in_dialplan_args {
 	/*! \brief Channel's id */
