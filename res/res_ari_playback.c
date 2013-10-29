@@ -85,6 +85,7 @@ static void ast_ari_get_playback_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* The playback cannot be found */
 		is_valid = 1;
 		break;
 	default:
@@ -141,6 +142,7 @@ static void ast_ari_stop_playback_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* The playback cannot be found */
 		is_valid = 1;
 		break;
 	default:
