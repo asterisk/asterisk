@@ -642,6 +642,8 @@ static int incoming_in_dialog_request(struct ast_sip_session *session, struct pj
 		return 0;
 	}
 
+	ast_debug(3, "Received in dialog SIP message\n");
+
 	memset(&f, 0, sizeof(f));
 	f.frametype = AST_FRAME_TEXT;
 	f.subclass.integer = 0;

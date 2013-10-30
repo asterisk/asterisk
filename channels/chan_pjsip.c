@@ -1815,6 +1815,8 @@ static int sendtext(void *obj)
 		return 0;
 	}
 
+	ast_debug(3, "Sending in dialog SIP message\n");
+
 	ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, &tdata);
 	ast_sip_add_body(tdata, &body);
 	ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint);
