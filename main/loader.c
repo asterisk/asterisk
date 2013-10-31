@@ -412,9 +412,18 @@ static struct ast_module *find_resource(const char *resource, int do_lock)
  */
 static void logged_dlclose(const char *name, void *lib)
 {
-	if (dlclose(lib) != 0) {
-		ast_log(LOG_WARNING, "Failed to unload %s: %s\n",
-			name, dlerror());
+	char *error;
+
+	if (!lib) {
+		return;
+	}
+
+	/* Clear any existing error */
+	dlerror();
+	if (dlclose(lib)) {
+		error = dlerror();
+		ast_log(AST_LOG_ERROR, "Failure in dlclose for module '%s': %s\n",
+			S_OR(name, "unknown"), S_OR(error, "Unknown error"));
 	}
 }
 
@@ -457,12 +466,7 @@ static void unload_dynamic_module(struct ast_module *mod)
 	/* WARNING: the structure pointed to by mod is going to
 	   disappear when this operation succeeds, so we can't
 	   dereference it */
-
-	if (!lib) {
-		return;
-	}
-
-	logged_dlclose(name, lib);
+	logged_dlclose(ast_module_name(mod), lib);
 
 	/* There are several situations where the module might still be resident
 	 * in memory.
