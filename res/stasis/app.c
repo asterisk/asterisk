@@ -934,3 +934,19 @@ int app_subscribe_endpoint(struct app *app, struct ast_endpoint *endpoint)
 		return 0;
 	}
 }
+
+int app_unsubscribe_endpoint_id(struct app *app, const char *endpoint_id)
+{
+	if (!app || !endpoint_id) {
+		return -1;
+	}
+
+	return unsubscribe(app, "endpoint", endpoint_id);
+}
+
+int app_is_subscribed_endpoint_id(struct app *app, const char *endpoint_id)
+{
+	RAII_VAR(struct app_forwards *, forwards, NULL, ao2_cleanup);
+	forwards = ao2_find(app->forwards, endpoint_id, OBJ_SEARCH_KEY);
+	return forwards != NULL;
+}
