@@ -394,7 +394,7 @@ static int process_description_file(struct ast_media_index *index,
 	}
 	f = fopen(ast_str_buffer(description_file_path), "r");
 	if (!f) {
-		ast_log(LOG_WARNING, "Could not open media description file '%s'\n", ast_str_buffer(description_file_path));
+		ast_log(LOG_WARNING, "Could not open media description file '%s': %s\n", ast_str_buffer(description_file_path), strerror(errno));
 		return -1;
 	}
 
@@ -402,7 +402,7 @@ static int process_description_file(struct ast_media_index *index,
 		char *file_identifier, *description;
 		if (!fgets(buf, sizeof(buf), f)) {
 			if (ferror(f)) {
-				ast_log(LOG_ERROR, "Error reading from file %s\n", ast_str_buffer(description_file_path));
+				ast_log(LOG_ERROR, "Error reading from file %s: %s\n", ast_str_buffer(description_file_path), strerror(errno));
 			}
 			continue;
 		}
@@ -416,7 +416,7 @@ static int process_description_file(struct ast_media_index *index,
 				}
 			}
 			if (ferror(f)) {
-				ast_log(LOG_ERROR, "Error reading from file %s\n", ast_str_buffer(description_file_path));
+				ast_log(LOG_ERROR, "Error reading from file %s: %s\n", ast_str_buffer(description_file_path), strerror(errno));
 			}
 			continue;
 		}
@@ -536,7 +536,7 @@ static int media_index_update(struct ast_media_index *index,
 
 	srcdir = opendir(ast_str_buffer(index_dir));
 	if (srcdir == NULL) {
-		ast_log(LOG_ERROR, "Failed to open %s\n", ast_str_buffer(index_dir));
+		ast_log(LOG_ERROR, "Failed to open %s: %s\n", ast_str_buffer(index_dir), strerror(errno));
 		return -1;
 	}
 
@@ -551,7 +551,7 @@ static int media_index_update(struct ast_media_index *index,
 		ast_str_set(&statfile, 0, "%s/%s", ast_str_buffer(index_dir), dent->d_name);
 
 		if (stat(ast_str_buffer(statfile), &st) < 0) {
-			ast_log(LOG_ERROR, "Failed to stat %s\n", ast_str_buffer(statfile));
+			ast_log(LOG_ERROR, "Failed to stat %s: %s\n", ast_str_buffer(statfile), strerror(errno));
 			res = -1;
 			break;
 		}
