@@ -381,10 +381,16 @@ enum ast_rtp_ice_candidate_type {
 	AST_RTP_ICE_CANDIDATE_TYPE_RELAYED, /*!< ICE relayed candidate, which represents the address allocated in TURN server. */
 };
 
+/*! \brief ICE component types */
+enum ast_rtp_ice_component_type {
+	AST_RTP_ICE_COMPONENT_RTP = 1,
+	AST_RTP_ICE_COMPONENT_RTCP = 2,
+};
+
 /*! \brief Structure for an ICE candidate */
 struct ast_rtp_engine_ice_candidate {
 	char *foundation;                     /*!< Foundation identifier */
-	unsigned int id;                      /*!< Component identifier */
+	enum ast_rtp_ice_component_type id;   /*!< Component identifier */
 	char *transport;                      /*!< Transport for the media */
 	int priority;                         /*!< Priority which is used if multiple candidates can be used */
 	struct ast_sockaddr address;          /*!< Address of the candidate */
