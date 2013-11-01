@@ -96,6 +96,8 @@ void ast_ari_get_channel(struct ast_variable *headers, struct ast_get_channel_ar
 struct ast_delete_channel_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
+	/*! \brief Reason for hanging up the channel */
+	const char *reason;
 };
 /*!
  * \brief Delete (i.e. hangup) a channel.
@@ -137,6 +139,42 @@ struct ast_answer_channel_args {
  * \param[out] response HTTP response
  */
 void ast_ari_answer_channel(struct ast_variable *headers, struct ast_answer_channel_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_ring_channel() */
+struct ast_ring_channel_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+};
+/*!
+ * \brief Indicate ringing to a channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_ring_channel(struct ast_variable *headers, struct ast_ring_channel_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_send_dtmfchannel() */
+struct ast_send_dtmfchannel_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+	/*! \brief DTMF To send. */
+	const char *dtmf;
+	/*! \brief Amount of time to wait before DTMF digits (specified in milliseconds) start. */
+	int before;
+	/*! \brief Amount of time in between DTMF digits (specified in milliseconds). */
+	int between;
+	/*! \brief Length of each DTMF digit (specified in milliseconds). */
+	int duration;
+	/*! \brief Amount of time to wait after DTMF digits (specified in milliseconds) end. */
+	int after;
+};
+/*!
+ * \brief Send provided DTMF to a given channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_send_dtmfchannel(struct ast_variable *headers, struct ast_send_dtmfchannel_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_mute_channel() */
 struct ast_mute_channel_args {
 	/*! \brief Channel's id */

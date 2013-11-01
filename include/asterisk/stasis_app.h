@@ -274,6 +274,31 @@ void stasis_app_control_clear_roles(struct stasis_app_control *control);
 int stasis_app_control_continue(struct stasis_app_control *control, const char *context, const char *extension, int priority);
 
 /*!
+ * \brief Indicate ringing to the channel associated with this control.
+ *
+ * \param control Control for \c res_stasis.
+ *
+ * \return 0 for success.
+ * \return -1 for error.
+ */
+int stasis_app_control_ring(struct stasis_app_control *control);
+
+/*!
+ * \brief Send DTMF to the channel associated with this control.
+ *
+ * \param control Control for \c res_stasis.
+ * \param dtmf DTMF string.
+ * \param before Amount of time to wait before sending DTMF digits.
+ * \param between Amount of time between each DTMF digit.
+ * \param duration Amount of time each DTMF digit lasts for.
+ * \param after Amount of time to wait after sending DTMF digits.
+ *
+ * \return 0 for success.
+ * \return -1 for error.
+ */
+int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf, int before, int between, unsigned int duration, int after);
+
+/*!
  * \brief Mute the channel associated with this control.
  *
  * \param control Control for \c res_stasis.
