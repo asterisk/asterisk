@@ -273,7 +273,7 @@ static void play_on_channel(struct stasis_app_playback *playback,
 	}
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
-		ast_answer(chan);
+		ast_indicate(chan, AST_CONTROL_PROGRESS);
 	}
 
 	if (ast_begins_with(playback->media, SOUND_URI_SCHEME)) {

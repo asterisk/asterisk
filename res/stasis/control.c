@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/frame.h"
 #include "asterisk/pbx.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/app.h"
 
 struct stasis_app_control {
 	ast_cond_t wait_cond;
@@ -276,6 +277,66 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 	}
 
 	stasis_app_send_command_async(control, app_control_continue, continue_data);
+
+	return 0;
+}
+
+struct stasis_app_control_dtmf_data {
+	int before;
+	int between;
+	unsigned int duration;
+	int after;
+	char dtmf[];
+};
+
+static void *app_control_dtmf(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	RAII_VAR(struct stasis_app_control_dtmf_data *, dtmf_data, data, ast_free);
+
+	if (dtmf_data->before) {
+		ast_safe_sleep(chan, dtmf_data->before);
+	}
+
+	ast_dtmf_stream(chan, NULL, dtmf_data->dtmf, dtmf_data->between, dtmf_data->duration);
+
+	if (dtmf_data->after) {
+		ast_safe_sleep(chan, dtmf_data->after);
+	}
+
+	return NULL;
+}
+
+int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf, int before, int between, unsigned int duration, int after)
+{
+	struct stasis_app_control_dtmf_data *dtmf_data;
+
+	if (!(dtmf_data = ast_calloc(1, sizeof(*dtmf_data) + strlen(dtmf) + 1))) {
+		return -1;
+	}
+
+	dtmf_data->before = before;
+	dtmf_data->between = between;
+	dtmf_data->duration = duration;
+	dtmf_data->after = after;
+	strcpy(dtmf_data->dtmf, dtmf);
+
+	stasis_app_send_command_async(control, app_control_dtmf, dtmf_data);
+
+	return 0;
+}
+
+static void *app_control_ring(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	ast_indicate(control->channel, AST_CONTROL_RINGING);
+
+	return NULL;
+}
+
+int stasis_app_control_ring(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_ring, NULL);
 
 	return 0;
 }

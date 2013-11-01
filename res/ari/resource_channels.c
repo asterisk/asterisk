@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_app_playback.h"
 #include "asterisk/stasis_app_recording.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/causes.h"
 #include "resource_channels.h"
 
 #include <limits.h>
@@ -123,6 +124,22 @@ void ast_ari_answer_channel(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_ring_channel(struct ast_variable *headers,
+				struct ast_ring_channel_args *args,
+				struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	stasis_app_control_ring(control);
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_mute_channel(struct ast_variable *headers, struct ast_mute_channel_args *args, struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
@@ -191,6 +208,27 @@ void ast_ari_unmute_channel(struct ast_variable *headers, struct ast_unmute_chan
 	}
 
 	stasis_app_control_unmute(control, direction, frametype);
+
+	ast_ari_response_no_content(response);
+}
+
+void ast_ari_send_dtmfchannel(struct ast_variable *headers, struct ast_send_dtmfchannel_args *args, struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	if (ast_strlen_zero(args->dtmf)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"DTMF is required");
+		return;
+	}
+
+	stasis_app_control_dtmf(control, args->dtmf, args->before, args->between, args->duration, args->after);
 
 	ast_ari_response_no_content(response);
 }
@@ -501,6 +539,7 @@ void ast_ari_delete_channel(struct ast_variable *headers,
 				struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
+	int cause;
 
 	chan = ast_channel_get_by_name(args->channel_id);
 	if (chan == NULL) {
@@ -510,6 +549,20 @@ void ast_ari_delete_channel(struct ast_variable *headers,
 		return;
 	}
 
+	if (ast_strlen_zero(args->reason) || !strcmp(args->reason, "normal")) {
+		cause = AST_CAUSE_NORMAL;
+	} else if (!strcmp(args->reason, "busy")) {
+		cause = AST_CAUSE_BUSY;
+	} else if (!strcmp(args->reason, "congestion")) {
+		cause = AST_CAUSE_CONGESTION;
+	} else {
+		ast_ari_response_error(
+			response, 400, "Invalid Reason",
+			"Invalid reason for hangup provided");
+		return;
+	}
+
+	ast_channel_hangupcause_set(chan, cause);
 	ast_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
 
 	ast_ari_response_no_content(response);

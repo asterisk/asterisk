@@ -138,9 +138,30 @@
 							"required": true,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "reason",
+							"description": "Reason for hanging up the channel",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string",
+							"defalutValue": "normal",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"normal",
+									"busy",
+									"congestion"
+								]
+							}
 						}
 					],
 					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Invalid reason for hangup provided"
+						},
 						{
 							"code": 404,
 							"reason": "Channel not found"
@@ -225,6 +246,118 @@
 						}
 					],
 					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/ring",
+			"description": "Send a ringing indication to a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Indicate ringing to a channel.",
+					"nickname": "ringChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/dtmf",
+			"description": "Send DTMF to a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Send provided DTMF to a given channel.",
+					"nickname": "sendDTMFChannel",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "dtmf",
+							"description": "DTMF To send.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "before",
+							"description": "Amount of time to wait before DTMF digits (specified in milliseconds) start.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 0
+						},
+						{
+							"name": "between",
+							"description": "Amount of time in between DTMF digits (specified in milliseconds).",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 100
+						},
+						{
+							"name": "duration",
+							"description": "Length of each DTMF digit (specified in milliseconds).",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 100
+						},
+						{
+							"name": "after",
+							"description": "Amount of time to wait after DTMF digits (specified in milliseconds) end.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 0
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "DTMF is required"
+						},
 						{
 							"code": 404,
 							"reason": "Channel not found"
