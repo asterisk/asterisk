@@ -489,11 +489,34 @@ struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control)
 	}
 }
 
+static void *bridge_channel_depart(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	RAII_VAR(struct ast_bridge_channel *, bridge_channel, data, ao2_cleanup);
+
+	{
+		SCOPED_CHANNELLOCK(lock, chan);
+
+		if (bridge_channel != ast_channel_internal_bridge_channel(chan)) {
+			ast_debug(3, "%s: Channel is no longer in departable state\n",
+				ast_channel_uniqueid(chan));
+			return NULL;
+		}
+	}
+
+	ast_debug(3, "%s: Channel departing bridge\n",
+		ast_channel_uniqueid(chan));
+
+	ast_bridge_depart(chan);
+
+	return NULL;
+}
 
 static void bridge_after_cb(struct ast_channel *chan, void *data)
 {
 	struct stasis_app_control *control = data;
 	SCOPED_AO2LOCK(lock, control);
+	struct ast_bridge_channel *bridge_channel;
 
 	ast_debug(3, "%s, %s: Channel leaving bridge\n",
 		ast_channel_uniqueid(chan), control->bridge->uniqueid);
@@ -507,8 +530,15 @@ static void bridge_after_cb(struct ast_channel *chan, void *data)
 	/* No longer in the bridge */
 	control->bridge = NULL;
 
-	/* Wakeup the command_queue loop */
-	exec_command(control, NULL, NULL);
+	/* Get the bridge channel so we don't depart from the wrong bridge */
+	ast_channel_lock(chan);
+	bridge_channel = ast_channel_get_bridge_channel(chan);
+	ast_channel_unlock(chan);
+
+	/* Depart this channel from the bridge using the command queue if possible */
+	if (stasis_app_send_command_async(control, bridge_channel_depart, bridge_channel)) {
+		ao2_cleanup(bridge_channel);
+	}
 }
 
 static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
