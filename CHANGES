@@ -9,6 +9,19 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
+------------------------------------------------------------------------------
+
+ConfBridge
+--------------------------
+ * CONFBRIDGE dialplan function is now capable of creating/modifying dynamic
+   conference user menus.
+
+ * CONFBRIDGE dialplan function is now capable of removing dynamic conference
+   menus, bridge settings, and user settings that have been applied by the
+   CONFBRIDGE dialplan function.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------
 

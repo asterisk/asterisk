@@ -100,8 +100,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 			<parameter name="menu">
 				<para>The name of the DTMF menu in confbridge.conf to be applied to
-				this channel.  No menu is applied by default if this option is left
-				blank.</para>
+				this channel.  When left blank, a dynamically built menu profile
+				created by the CONFBRIDGE dialplan function is searched for on
+				the channel and used. If no dynamic profile is present, the
+				'default_menu' profile found in confbridge.conf is used.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -116,14 +118,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<function name="CONFBRIDGE" language="en_US">
 		<synopsis>
-			Set a custom dynamic bridge and user profile on a channel for the ConfBridge application using the same options defined in confbridge.conf.
+			Set a custom dynamic bridge, user, or menu profile on a channel for the ConfBridge application using the same options defined in confbridge.conf.
 		</synopsis>
 		<syntax>
 			<parameter name="type" required="true">
-				<para>Type refers to which type of profile the option belongs too.  Type can be <literal>bridge</literal> or <literal>user</literal>.</para>
+				<para>Type refers to which type of profile the option belongs too.  Type can be <literal>bridge</literal>, <literal>user</literal>, or
+				<literal>menu</literal>.</para>
 			</parameter>
 			<parameter name="option" required="true">
-				<para>Option refers to <filename>confbridge.conf</filename> option that is being set dynamically on this channel.</para>
+				<para>Option refers to <filename>confbridge.conf</filename> option that is being set dynamically on this channel, or
+				<literal>clear</literal> to remove already applied options from the channel.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -1504,8 +1508,9 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	int res = 0, volume_adjustments[2];
 	int quiet = 0;
 	char *parse;
-	const char *b_profile_name = DEFAULT_BRIDGE_PROFILE;
-	const char *u_profile_name = DEFAULT_USER_PROFILE;
+	const char *b_profile_name = NULL;
+	const char *u_profile_name = NULL;
+	const char *menu_profile_name = NULL;
 	struct confbridge_conference *conference = NULL;
 	struct confbridge_user user = {
 		.chan = chan,
@@ -1517,7 +1522,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(conf_name);
 		AST_APP_ARG(b_profile_name);
 		AST_APP_ARG(u_profile_name);
-		AST_APP_ARG(menu_name);
+		AST_APP_ARG(menu_profile_name);
 	);
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
@@ -1545,7 +1550,8 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		b_profile_name = args.b_profile_name;
 	}
 	if (!conf_find_bridge_profile(chan, b_profile_name, &user.b_profile)) {
-		ast_log(LOG_WARNING, "Conference bridge profile %s does not exist\n", b_profile_name);
+		ast_log(LOG_WARNING, "Conference bridge profile %s does not exist\n", b_profile_name ?
+			b_profile_name : DEFAULT_BRIDGE_PROFILE);
 		res = -1;
 		goto confbridge_cleanup;
 	}
@@ -1555,7 +1561,8 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		u_profile_name = args.u_profile_name;
 	}
 	if (!conf_find_user_profile(chan, u_profile_name, &user.u_profile)) {
-		ast_log(LOG_WARNING, "Conference user profile %s does not exist\n", u_profile_name);
+		ast_log(LOG_WARNING, "Conference user profile %s does not exist\n", u_profile_name ?
+			u_profile_name : DEFAULT_USER_PROFILE);
 		res = -1;
 		goto confbridge_cleanup;
 	}
@@ -1577,14 +1584,15 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* menu name */
-	if (args.argc > 3 && !ast_strlen_zero(args.menu_name)) {
-		ast_copy_string(user.menu_name, args.menu_name, sizeof(user.menu_name));
-		if (conf_set_menu_to_user(user.menu_name, &user)) {
-			ast_log(LOG_WARNING, "Conference menu %s does not exist and can not be applied to confbridge user.\n",
-				args.menu_name);
-			res = -1; /* invalid PIN */
-			goto confbridge_cleanup;
-		}
+	if (args.argc > 3 && !ast_strlen_zero(args.menu_profile_name)) {
+		menu_profile_name = args.menu_profile_name;
+	}
+
+	if (conf_set_menu_to_user(chan, &user, menu_profile_name)) {
+		ast_log(LOG_WARNING, "Conference menu profile %s does not exist\n", menu_profile_name ?
+			menu_profile_name : DEFAULT_MENU_PROFILE);
+		res = -1;
+		goto confbridge_cleanup;
 	}
 
 	/* Set if DTMF should pass through for this user or not */

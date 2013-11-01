@@ -419,6 +419,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</enumlist>
 					</description>
 				</configOption>
+				<configOption name="template">
+					<synopsis>When using the CONFBRIDGE dialplan function, use a menu profile as a template for creating a new temporary profile</synopsis>
+				</configOption>
 				<configOption name="^[0-9A-D*#]+$">
 					<synopsis>DTMF sequences to assign various confbridge actions to</synopsis>
 					<description>
@@ -896,15 +899,25 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 struct func_confbridge_data {
 	struct bridge_profile b_profile;
 	struct user_profile u_profile;
+	struct conf_menu *menu;
 	unsigned int b_usable:1; /*!< Tells if bridge profile is usable or not */
 	unsigned int u_usable:1; /*!< Tells if user profile is usable or not */
+	unsigned int m_usable:1; /*!< Tells if menu profile is usable or not */
 };
+
+static void func_confbridge_data_destructor(struct func_confbridge_data *b_data)
+{
+	conf_bridge_profile_destroy(&b_data->b_profile);
+	ao2_cleanup(b_data->menu);
+	ast_free(b_data);
+}
+
 static void func_confbridge_destroy_cb(void *data)
 {
 	struct func_confbridge_data *b_data = data;
-	conf_bridge_profile_destroy(&b_data->b_profile);
-	ast_free(b_data);
+	func_confbridge_data_destructor(b_data);
 };
+
 static const struct ast_datastore_info confbridge_datastore = {
 	.type = "confbridge",
 	.destroy = func_confbridge_destroy_cb
@@ -944,14 +957,18 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 			ast_datastore_free(datastore);
 			return 0;
 		}
+		datastore->data = b_data;
 		b_data->b_profile.sounds = bridge_profile_sounds_alloc();
 		if (!b_data->b_profile.sounds) {
 			ast_channel_unlock(chan);
 			ast_datastore_free(datastore);
-			ast_free(b_data);
 			return 0;
 		}
-		datastore->data = b_data;
+		if (!(b_data->menu = menu_alloc("dialplan"))) {
+			ast_channel_unlock(chan);
+			ast_datastore_free(datastore);
+			return 0;
+		}
 		ast_channel_datastore_add(chan, datastore);
 	} else {
 		b_data = datastore->data;
@@ -966,13 +983,46 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 	tmpvar.value = value;
 	tmpvar.file = "CONFBRIDGE";
 	if (!strcasecmp(args.type, "bridge")) {
-		if (!aco_process_var(&bridge_type, "dialplan", &tmpvar, &b_data->b_profile)) {
+		if (!strcasecmp(args.option, "clear")) {
+			b_data->b_usable = 0;
+			conf_bridge_profile_destroy(&b_data->b_profile);
+			memset(&b_data->b_profile, 0, sizeof(b_data->b_profile)) ;
+			if (!(b_data->b_profile.sounds = bridge_profile_sounds_alloc())) {
+				/* If this reallocation fails, the datastore has become unusable and must be destroyed. */
+				ast_channel_lock(chan);
+				ast_channel_datastore_remove(chan, datastore);
+				ast_channel_unlock(chan);
+				ast_datastore_free(datastore);
+			}
+			return 0;
+		} else if (!aco_process_var(&bridge_type, "dialplan", &tmpvar, &b_data->b_profile)) {
 			b_data->b_usable = 1;
 			return 0;
 		}
 	} else if (!strcasecmp(args.type, "user")) {
-		if (!aco_process_var(&user_type, "dialplan", &tmpvar, &b_data->u_profile)) {
+		if (!strcasecmp(args.option, "clear")) {
+			b_data->u_usable = 0;
+			user_profile_destructor(&b_data->u_profile);
+			memset(&b_data->u_profile, 0, sizeof(b_data->u_profile));
+			return 0;
+		} else if (!aco_process_var(&user_type, "dialplan", &tmpvar, &b_data->u_profile)) {
 			b_data->u_usable = 1;
+			return 0;
+		}
+	} else if (!strcasecmp(args.type, "menu")) {
+		if (!strcasecmp(args.option, "clear")) {
+			b_data->m_usable = 0;
+			ao2_cleanup(b_data->menu);
+			if (!(b_data->menu = menu_alloc("dialplan"))) {
+				/* If this reallocation fails, the datastore has become unusable and must be destroyed */
+				ast_channel_lock(chan);
+				ast_channel_datastore_remove(chan, datastore);
+				ast_channel_unlock(chan);
+				ast_datastore_free(datastore);
+			}
+			return 0;
+		} else if (!aco_process_var(&menu_type, "dialplan", &tmpvar, b_data->menu)) {
+			b_data->m_usable = 1;
 			return 0;
 		}
 	}
@@ -1852,6 +1902,70 @@ static int bridge_template_handler(const struct aco_option *opt, struct ast_vari
 	return 0;
 }
 
+static int copy_menu_entry(struct conf_menu_entry *dst, struct conf_menu_entry *src)
+{
+	struct conf_menu_action *menu_action;
+	struct conf_menu_action *new_menu_action;
+
+	ast_copy_string(dst->dtmf, src->dtmf, sizeof(dst->dtmf));
+	AST_LIST_HEAD_INIT_NOLOCK(&dst->actions);
+
+	AST_LIST_TRAVERSE(&src->actions, menu_action, action) {
+		if (!(new_menu_action = ast_calloc(1, sizeof(*new_menu_action)))) {
+			return -1;
+		}
+		memcpy(new_menu_action, menu_action, sizeof(*new_menu_action));
+		AST_LIST_NEXT(new_menu_action, action) = NULL;
+		AST_LIST_INSERT_TAIL(&dst->actions, new_menu_action, action);
+	}
+
+	return 0;
+}
+
+static int conf_menu_profile_copy(struct conf_menu *dst, struct conf_menu *src)
+{
+	/* Copy each menu item to the dst struct */
+	struct conf_menu_entry *cur;
+
+	AST_LIST_TRAVERSE(&src->entries, cur, entry) {
+		struct conf_menu_entry *cpy;
+
+		if (!(cpy = ast_calloc(1, sizeof(*cpy)))) {
+			return -1;
+		}
+
+		if (copy_menu_entry(cpy, cur)) {
+			conf_menu_entry_destroy(cpy);
+			ast_free(cpy);
+			return -1;
+		}
+		AST_LIST_INSERT_TAIL(&dst->entries, cpy, entry);
+	}
+
+	return 0;
+}
+
+static int menu_template_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct conf_menu *dst_menu = obj;
+	struct confbridge_cfg *cfg = aco_pending_config(&cfg_info);
+	RAII_VAR(struct conf_menu *, src_menu, NULL, ao2_cleanup);
+
+	if (!cfg) {
+		return 0;
+	}
+
+	if (!(src_menu = ao2_find(cfg->menus, var->value, OBJ_KEY))) {
+		return -1;
+	}
+
+	if (conf_menu_profile_copy(dst_menu, src_menu)) {
+		return -1;
+	}
+
+	return 0;
+}
+
 static int sound_option_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	set_sound(var->name, var->value, obj);
@@ -1868,6 +1982,7 @@ static int verify_default_profiles(void)
 {
 	RAII_VAR(struct user_profile *, user_profile, NULL, ao2_cleanup);
 	RAII_VAR(struct bridge_profile *, bridge_profile, NULL, ao2_cleanup);
+	RAII_VAR(struct conf_menu *, menu_profile, NULL, ao2_cleanup);
 	struct confbridge_cfg *cfg = aco_pending_config(&cfg_info);
 
 	if (!cfg) {
@@ -1894,6 +2009,17 @@ static int verify_default_profiles(void)
 		ast_log(AST_LOG_NOTICE, "Adding %s profile to app_confbridge\n", DEFAULT_USER_PROFILE);
 		aco_set_defaults(&user_type, DEFAULT_USER_PROFILE, user_profile);
 		ao2_link(cfg->user_profiles, user_profile);
+	}
+
+	menu_profile = ao2_find(cfg->menus, DEFAULT_MENU_PROFILE, OBJ_KEY);
+	if (!menu_profile) {
+		menu_profile = menu_alloc(DEFAULT_MENU_PROFILE);
+		if (!menu_profile) {
+			return -1;
+		}
+		ast_log(AST_LOG_NOTICE, "Adding %s menu to app_confbridge\n", DEFAULT_MENU_PROFILE);
+		aco_set_defaults(&menu_type, DEFAULT_MENU_PROFILE, menu_profile);
+		ao2_link(cfg->menus, menu_profile);
 	}
 
 	return 0;
@@ -1951,6 +2077,7 @@ int conf_load_config(void)
 
 	/* Menu options */
 	aco_option_register(&cfg_info, "type", ACO_EXACT, menu_types, NULL, OPT_NOOP_T, 0, 0);
+	aco_option_register_custom(&cfg_info, "template", ACO_EXACT, menu_types, NULL, menu_template_handler, 0);
 	aco_option_register_custom(&cfg_info, "^[0-9A-D*#]+$", ACO_REGEX, menu_types, NULL, menu_option_handler, 0);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
@@ -1988,11 +2115,7 @@ const struct user_profile *conf_find_user_profile(struct ast_channel *chan, cons
 	struct func_confbridge_data *b_data = NULL;
 	RAII_VAR(struct confbridge_cfg *, cfg, ao2_global_obj_ref(cfg_handle), ao2_cleanup);
 
-	if (!cfg) {
-		return NULL;
-	}
-
-	if (chan) {
+	if (chan && ast_strlen_zero(user_profile_name)) {
 		ast_channel_lock(chan);
 		datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL);
 		ast_channel_unlock(chan);
@@ -2005,6 +2128,9 @@ const struct user_profile *conf_find_user_profile(struct ast_channel *chan, cons
 		}
 	}
 
+	if (!cfg) {
+		return NULL;
+	}
 	if (ast_strlen_zero(user_profile_name)) {
 		user_profile_name = DEFAULT_USER_PROFILE;
 	}
@@ -2042,11 +2168,7 @@ const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, 
 	struct func_confbridge_data *b_data = NULL;
 	RAII_VAR(struct confbridge_cfg *, cfg, ao2_global_obj_ref(cfg_handle), ao2_cleanup);
 
-	if (!cfg) {
-		return NULL;
-	}
-
-	if (chan) {
+	if (chan && ast_strlen_zero(bridge_profile_name)) {
 		ast_channel_lock(chan);
 		datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL);
 		ast_channel_unlock(chan);
@@ -2057,6 +2179,10 @@ const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, 
 				return result;
 			}
 		}
+	}
+
+	if (!cfg) {
+		return NULL;
 	}
 	if (ast_strlen_zero(bridge_profile_name)) {
 		bridge_profile_name = DEFAULT_BRIDGE_PROFILE;
@@ -2083,7 +2209,7 @@ static void menu_hook_destroy(void *hook_pvt)
 	struct dtmf_menu_hook_pvt *pvt = hook_pvt;
 	struct conf_menu_action *action = NULL;
 
-	ao2_ref(pvt->menu, -1);
+	ao2_cleanup(pvt->menu);
 
 	while ((action = AST_LIST_REMOVE_HEAD(&pvt->menu_entry.actions, action))) {
 		ast_free(action);
@@ -2096,24 +2222,6 @@ static int menu_hook_callback(struct ast_bridge_channel *bridge_channel, void *h
 	struct dtmf_menu_hook_pvt *pvt = hook_pvt;
 
 	return conf_handle_dtmf(bridge_channel, pvt->user, &pvt->menu_entry, pvt->menu);
-}
-
-static int copy_menu_entry(struct conf_menu_entry *dst, struct conf_menu_entry *src)
-{
-	struct conf_menu_action *menu_action = NULL;
-	struct conf_menu_action *new_menu_action = NULL;
-
-	memcpy(dst, src, sizeof(*dst));
-	AST_LIST_HEAD_INIT_NOLOCK(&dst->actions);
-
-	AST_LIST_TRAVERSE(&src->actions, menu_action, action) {
-		if (!(new_menu_action = ast_calloc(1, sizeof(*new_menu_action)))) {
-			return -1;
-		}
-		memcpy(new_menu_action, menu_action, sizeof(*new_menu_action));
-		AST_LIST_INSERT_HEAD(&dst->actions, new_menu_action, action);
-	}
-	return 0;
 }
 
 void conf_menu_entry_destroy(struct conf_menu_entry *menu_entry)
@@ -2141,37 +2249,24 @@ int conf_find_menu_entry_by_sequence(const char *dtmf_sequence, struct conf_menu
 	return 0;
 }
 
-int conf_set_menu_to_user(const char *menu_name, struct confbridge_user *user)
+static int apply_menu_hooks(struct confbridge_user *user, struct conf_menu *menu)
 {
-	struct conf_menu *menu;
-	struct conf_menu_entry *menu_entry = NULL;
-	RAII_VAR(struct confbridge_cfg *, cfg, ao2_global_obj_ref(cfg_handle), ao2_cleanup);
+	struct conf_menu_entry *menu_entry;
 
-	if (!cfg) {
-		return -1;
-	}
-
-	if (!(menu = menu_find(cfg->menus, menu_name))) {
-		return -1;
-	}
-	ao2_lock(menu);
+	SCOPED_AO2LOCK(menu_lock, menu);
 	AST_LIST_TRAVERSE(&menu->entries, menu_entry, entry) {
 		struct dtmf_menu_hook_pvt *pvt;
 
 		if (!(pvt = ast_calloc(1, sizeof(*pvt)))) {
-			ao2_unlock(menu);
-			ao2_ref(menu, -1);
-			return -1;
-		}
-		if (copy_menu_entry(&pvt->menu_entry, menu_entry)) {
-			ast_free(pvt);
-			ao2_unlock(menu);
-			ao2_ref(menu, -1);
 			return -1;
 		}
 		pvt->user = user;
-		ao2_ref(menu, +1);
-		pvt->menu = menu;
+		pvt->menu = ao2_bump(menu);
+
+		if (copy_menu_entry(&pvt->menu_entry, menu_entry)) {
+			menu_hook_destroy(pvt);
+			return -1;
+		}
 
 		if (ast_bridge_dtmf_hook(&user->features, pvt->menu_entry.dtmf,
 			menu_hook_callback, pvt, menu_hook_destroy, 0)) {
@@ -2179,10 +2274,45 @@ int conf_set_menu_to_user(const char *menu_name, struct confbridge_user *user)
 		}
 	}
 
-	ao2_unlock(menu);
-	ao2_ref(menu, -1);
-
 	return 0;
+}
+
+int conf_set_menu_to_user(struct ast_channel *chan, struct confbridge_user *user, const char *menu_profile_name)
+{
+	RAII_VAR(struct confbridge_cfg *, cfg, ao2_global_obj_ref(cfg_handle), ao2_cleanup);
+	RAII_VAR(struct conf_menu *, menu, NULL, ao2_cleanup);
+
+	if (chan && ast_strlen_zero(menu_profile_name)) {
+		struct ast_datastore *datastore;
+		struct func_confbridge_data *b_data;
+
+		ast_channel_lock(chan);
+		datastore = ast_channel_datastore_find(chan, &confbridge_datastore, NULL);
+		ast_channel_unlock(chan);
+		if (datastore) {
+			/* If a menu exists in the CONFBRIDGE function datastore, use it. */
+			b_data = datastore->data;
+			if (b_data->m_usable) {
+				menu = ao2_bump(b_data->menu);
+				return apply_menu_hooks(user, menu);
+			}
+		}
+	}
+
+	/* Otherwise, we need to get whatever menu profile is specified to use (or default). */
+	if (!cfg) {
+		return -1;
+	}
+
+	if (ast_strlen_zero(menu_profile_name)) {
+		menu_profile_name = DEFAULT_MENU_PROFILE;
+	}
+
+	if (!(menu = ao2_find(cfg->menus, menu_profile_name, OBJ_KEY))) {
+		return -1;
+	}
+
+	return apply_menu_hooks(user, menu);
 }
 
 void conf_destroy_config(void)

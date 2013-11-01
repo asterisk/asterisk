@@ -37,6 +37,7 @@
 
 #define DEFAULT_USER_PROFILE "default_user"
 #define DEFAULT_BRIDGE_PROFILE "default_bridge"
+#define DEFAULT_MENU_PROFILE "default_menu"
 
 #define DEFAULT_TALKING_THRESHOLD 160
 #define DEFAULT_SILENCE_THRESHOLD 2500
@@ -260,30 +261,55 @@ void conf_destroy_config(void);
  * \brief find a user profile given a user profile's name and store
  * that profile in result structure.
  *
- * \details This function first attempts to find any custom user
- * profile that might exist on a channel datastore, if that doesn't
- * exist it looks up the provided user profile name, if that doesn't
- * exist either the default_user profile is used.
-
+ * \param chan channel the user profile is requested for
+ * \param user_profile_name name of the profile requested (optional)
+ * \param result data contained by the user profile will be copied to this struct pointer
+ *
+ * \details If user_profile_name is not provided, this function will
+ * check for the presence of a user profile set by the CONFBRIDGE
+ * function on a channel datastore. If that doesn't exist, the
+ * default_user profile is used.
+ *
  * \retval user profile on success
  * \retval NULL on failure
  */
 const struct user_profile *conf_find_user_profile(struct ast_channel *chan, const char *user_profile_name, struct user_profile *result);
 
 /*!
- * \brief Find a bridge profile
+ * \brief Find a bridge profile given a bridge profile's name and store
+ * that profile in result structure.
  *
- * \details Any bridge profile found using this function must be
- * destroyed using conf_bridge_profile_destroy.  This function first
- * attempts to find any custom bridge profile that might exist on
- * a channel datastore, if that doesn't exist it looks up the
- * provided bridge profile name, if that doesn't exist either
- * the default_bridge profile is used.
+ * \param chan channel the bridge profile is requested for
+ * \param bridge_profile_name name of the profile requested (optional)
+ * \param result data contained by the bridge profile will be copied to this struct pointer
  *
- * \retval Bridge profile on success
+ * \details If bridge_profile_name is not provided, this function will
+ * check for the presence of a bridge profile set by the CONFBRIDGE
+ * function on a channel datastore. If that doesn't exist, the
+ * default_bridge profile is used.
+ *
+ * \retval bridge profile on success
  * \retval NULL on failure
  */
 const struct bridge_profile *conf_find_bridge_profile(struct ast_channel *chan, const char *bridge_profile_name, struct bridge_profile *result);
+
+/*!
+ * \brief find a menu profile given a menu profile's name and apply
+ * the menu in DTMF hooks.
+ *
+ * \param chan channel the menu profile is requested for
+ * \param user user profile the menu is being applied to
+ * \param menu_profile_name name of the profile requested (optional)
+ *
+ * \details If menu_profile_name is not provided, this function will
+ * check for the presence of a menu profile set by the CONFBRIDGE
+ * function on a channel datastore. If that doesn't exist, the
+ * default_menu profile is used.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int conf_set_menu_to_user(struct ast_channel *chan, struct confbridge_user *user, const char *menu_profile_name);
 
 /*!
  * \brief Destroy a bridge profile found by 'conf_find_bridge_profile'
@@ -295,14 +321,6 @@ void conf_bridge_profile_destroy(struct bridge_profile *b_profile);
  * \note conf_bridge_profile_destroy must be called on the dst structure
  */
 void conf_bridge_profile_copy(struct bridge_profile *dst, struct bridge_profile *src);
-
-/*!
- * \brief Set a DTMF menu to a conference user by menu name.
- *
- * \retval 0 on success, menu was found and set
- * \retval -1 on error, menu was not found
- */
-int conf_set_menu_to_user(const char *menu_name, struct confbridge_user *user);
 
 /*!
  * \brief Finds a menu_entry in a menu structure matched by DTMF sequence.
