@@ -26,6 +26,9 @@ h3. Path parameters
 h3. Query parameters
 {{#query_parameters}}
 * {{name}}: {{data_type}}{{#default_value}} = {{default_value}}{{/default_value}} -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
+{{#allow_multiple}}
+** Allows comma separated values.
+{{/allow_multiple}}
 {{/query_parameters}}
 {{/has_query_parameters}}
 {{#has_header_parameters}}
@@ -33,6 +36,9 @@ h3. Query parameters
 h3. Header parameters
 {{#header_parameters}}
 * {{name}}: {{data_type}}{{#default_value}} = {{default_value}}{{/default_value}} -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
+{{#allow_multiple}}
+** Allows comma separated values.
+{{/allow_multiple}}
 {{/header_parameters}}
 {{/has_header_parameters}}
 {{#has_error_responses}}
