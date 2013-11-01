@@ -1419,14 +1419,26 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 	} else {
 		/* Just a line (variable = value) */
 		int object = 0;
+		int is_escaped;
+
 		if (!(*cat)) {
 			ast_log(LOG_WARNING,
 				"parse error: No category context for line %d of %s\n", lineno, configfile);
 			return -1;
 		}
-		c = strchr(cur, '=');
 
-		if (c && c > cur && (*(c - 1) == '+')) {
+		is_escaped = cur[0] == '\\';
+		if (is_escaped) {
+			/* First character is escaped. */
+			++cur;
+			if (cur[0] < 33) {
+				ast_log(LOG_ERROR, "Invalid escape in line %d of %s\n", lineno, configfile);
+				return -1;
+			}
+		}
+		c = strchr(cur + is_escaped, '=');
+
+		if (c && c > cur + is_escaped && (*(c - 1) == '+')) {
 			struct ast_variable *var, *replace = NULL;
 			struct ast_str **str = ast_threadstorage_get(&appendbuf, sizeof(*str));
 
@@ -1462,8 +1474,11 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				object = 1;
 				c++;
 			}
+			cur = ast_strip(cur);
 set_new_variable:
-			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c), S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile)))) {
+			if (ast_strlen_zero(cur)) {
+				ast_log(LOG_WARNING, "No variable name in line %d of %s\n", lineno, configfile);
+			} else if ((v = ast_variable_new(cur, ast_strip(c), S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile)))) {
 				v->lineno = lineno;
 				v->object = object;
 				*last_cat = 0;
