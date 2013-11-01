@@ -140,6 +140,8 @@ enum stasis_app_subscribe_res {
  *             after adding the subscription.
  *
  * \return \ref stasis_app_subscribe_res return code.
+ *
+ * \note Do not hold any channel locks if subscribing to a channel.
  */
 enum stasis_app_subscribe_res stasis_app_subscribe(const char *app_name,
 	const char **event_source_uris, int event_sources_count,
