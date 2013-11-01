@@ -1020,6 +1020,17 @@ struct ast_channel *ast_bridge_peer(struct ast_bridge *bridge, struct ast_channe
  */
 void ast_bridge_features_remove(struct ast_bridge_features *features, enum ast_bridge_hook_remove_flags flags);
 
+/*!
+ * \brief Find bridge by id
+ * \since 12.0.0
+ *
+ * \param bridge_id Bridge identifier
+ *
+ * \return NULL bridge not found
+ * \return non-NULL reference to bridge
+ */
+struct ast_bridge *ast_bridge_find_by_id(const char *bridge_id);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

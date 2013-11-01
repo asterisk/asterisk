@@ -101,6 +101,39 @@ static struct stasis_message_router *bridge_state_router;
 			<para>Returns detailed information about a bridge and the channels in it.</para>
 		</description>
 	</manager>
+	<manager name="BridgeDestroy" language="en_US">
+		<synopsis>
+			Destroy a bridge.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="BridgeUniqueid" required="true">
+				<para>The unique ID of the bridge to destroy.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Deletes the bridge, causing channels to continue or hang up.</para>
+		</description>
+	</manager>
+	<manager name="BridgeKick" language="en_US">
+		<synopsis>
+			Kick a channel from a bridge.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="BridgeUniqueid" required="false">
+				<para>The unique ID of the bridge containing the channel to
+				destroy.  This parameter can be omitted, or supplied to insure
+				that the channel is not removed from the wrong bridge.</para>
+			</parameter>
+			<parameter name="Channel" required="true">
+				<para>The channel to kick out of a bridge.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>The channel is removed from the bridge.</para>
+		</description>
+	</manager>
  ***/
 
 /*! \brief The \ref stasis subscription returned by the forwarding of the channel topic
@@ -419,7 +452,7 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(bridge_uniqueid)) {
 		astman_send_error(s, m, "BridgeUniqueid must be provided");
-		return -1;
+		return 0;
 	}
 
 	if (!ast_strlen_zero(id)) {
@@ -429,7 +462,7 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 	msg = stasis_cache_get(ast_bridge_cache(), ast_bridge_snapshot_type(), bridge_uniqueid);
 	if (!msg) {
 		astman_send_error(s, m, "Specified BridgeUniqueid not found");
-		return -1;
+		return 0;
 	}
 
 	astman_send_ack(s, m, "Bridge channel listing will follow");
@@ -450,6 +483,72 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int manager_bridge_destroy(struct mansession *s, const struct message *m)
+{
+	const char *bridge_uniqueid = astman_get_header(m, "BridgeUniqueid");
+	struct ast_bridge *bridge;
+
+	if (ast_strlen_zero(bridge_uniqueid)) {
+		astman_send_error(s, m, "BridgeUniqueid must be provided");
+		return 0;
+	}
+
+	bridge = ast_bridge_find_by_id(bridge_uniqueid);
+	if (!bridge) {
+		astman_send_error(s, m, "Specified BridgeUniqueid not found");
+		return 0;
+	}
+	ast_bridge_destroy(bridge, 0);
+
+	astman_send_ack(s, m, "Bridge has been destroyed");
+
+	return 0;
+}
+
+static int manager_bridge_kick(struct mansession *s, const struct message *m)
+{
+	const char *bridge_uniqueid = astman_get_header(m, "BridgeUniqueid");
+	const char *channel_name = astman_get_header(m, "Channel");
+	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, channel, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(channel_name)) {
+		astman_send_error(s, m, "Channel must be provided");
+		return 0;
+	}
+
+	channel = ast_channel_get_by_name(channel_name);
+	if (!channel) {
+		astman_send_error(s, m, "Channel does not exist");
+		return 0;
+	}
+
+	if (ast_strlen_zero(bridge_uniqueid)) {
+		/* get the bridge from the channel */
+		ast_channel_lock(channel);
+		bridge = ast_channel_get_bridge(channel);
+		ast_channel_unlock(channel);
+		if (!bridge) {
+			astman_send_error(s, m, "Channel is not in a bridge");
+			return 0;
+		}
+	} else {
+		bridge = ast_bridge_find_by_id(bridge_uniqueid);
+		if (!bridge) {
+			astman_send_error(s, m, "Bridge not found");
+			return 0;
+		}
+	}
+
+	if (ast_bridge_kick(bridge, channel)) {
+		astman_send_error(s, m, "Channel kick from bridge failed");
+		return 0;
+	}
+
+	astman_send_ack(s, m, "Channel has been kicked");
+	return 0;
+}
+
 static void manager_bridging_cleanup(void)
 {
 	stasis_forward_cancel(topic_forwarder);
@@ -460,6 +559,8 @@ static void manager_bridging_shutdown(void)
 {
 	ast_manager_unregister("BridgeList");
 	ast_manager_unregister("BridgeInfo");
+	ast_manager_unregister("BridgeDestroy");
+	ast_manager_unregister("BridgeKick");
 }
 
 int manager_bridging_init(void)
@@ -510,6 +611,8 @@ int manager_bridging_init(void)
 
 	ret |= ast_manager_register_xml_core("BridgeList", 0, manager_bridges_list);
 	ret |= ast_manager_register_xml_core("BridgeInfo", 0, manager_bridge_info);
+	ret |= ast_manager_register_xml_core("BridgeDestroy", 0, manager_bridge_destroy);
+	ret |= ast_manager_register_xml_core("BridgeKick", 0, manager_bridge_kick);
 
 	/* If somehow we failed to add any routes, just shut down the whole
 	 * thing and fail it.

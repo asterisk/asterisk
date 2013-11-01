@@ -27,6 +27,48 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<manager name="BridgeTechnologyList" language="en_US">
+		<synopsis>
+			List available bridging technologies and their statuses.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Returns detailed information about the available bridging technologies.</para>
+		</description>
+	</manager>
+	<manager name="BridgeTechnologySuspend" language="en_US">
+		<synopsis>
+			Suspend a bridging technology.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="BridgeTechnology" required="true">
+				<para>The name of the bridging technology to suspend.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Marks a bridging technology as suspended, which prevents subsequently created bridges from using it.</para>
+		</description>
+	</manager>
+	<manager name="BridgeTechnologyUnsuspend" language="en_US">
+		<synopsis>
+			Unsuspend a bridging technology.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="BridgeTechnology" required="true">
+				<para>The name of the bridging technology to unsuspend.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Clears a previously suspended bridging technology, which allows subsequently created bridges to use it.</para>
+		</description>
+	</manager>
+***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -4485,6 +4527,11 @@ static int bridge_sort_cmp(const void *obj_left, const void *obj_right, int flag
 	return cmp;
 }
 
+struct ast_bridge *ast_bridge_find_by_id(const char *bridge_id)
+{
+	return ao2_find(bridges, bridge_id, OBJ_SEARCH_KEY);
+}
+
 struct bridge_complete {
 	/*! Nth match to return. */
 	int state;
@@ -4673,7 +4720,7 @@ static char *handle_bridge_destroy_specific(struct ast_cli_entry *e, int cmd, st
 		return CLI_SHOWUSAGE;
 	}
 
-	bridge = ao2_find(bridges, a->argv[2], OBJ_KEY);
+	bridge = ast_bridge_find_by_id(a->argv[2]);
 	if (!bridge) {
 		ast_cli(a->fd, "Bridge '%s' not found\n", a->argv[2]);
 		return CLI_SUCCESS;
@@ -4692,7 +4739,7 @@ static char *complete_bridge_participant(const char *bridge_name, const char *li
 	int which;
 	int wordlen;
 
-	bridge = ao2_find(bridges, bridge_name, OBJ_KEY);
+	bridge = ast_bridge_find_by_id(bridge_name);
 	if (!bridge) {
 		return NULL;
 	}
@@ -4739,7 +4786,7 @@ static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct
 		return CLI_SHOWUSAGE;
 	}
 
-	bridge = ao2_find(bridges, a->argv[2], OBJ_KEY);
+	bridge = ast_bridge_find_by_id(a->argv[2]);
 	if (!bridge) {
 		ast_cli(a->fd, "Bridge '%s' not found\n", a->argv[2]);
 		return CLI_SUCCESS;
@@ -4891,12 +4938,101 @@ static char *handle_bridge_technology_suspend(struct ast_cli_entry *e, int cmd, 
 static struct ast_cli_entry bridge_cli[] = {
 	AST_CLI_DEFINE(handle_bridge_show_all, "List all bridges"),
 	AST_CLI_DEFINE(handle_bridge_show_specific, "Show information about a bridge"),
-/* XXX ASTERISK-22356 need AMI action equivalents to the following CLI commands. */
 	AST_CLI_DEFINE(handle_bridge_destroy_specific, "Destroy a bridge"),
 	AST_CLI_DEFINE(handle_bridge_kick_channel, "Kick a channel from a bridge"),
 	AST_CLI_DEFINE(handle_bridge_technology_show, "List registered bridge technologies"),
 	AST_CLI_DEFINE(handle_bridge_technology_suspend, "Suspend/unsuspend a bridge technology"),
 };
+
+
+static int handle_manager_bridge_tech_suspend(struct mansession *s, const struct message *m, int suspend)
+{
+	const char *name = astman_get_header(m, "BridgeTechnology");
+	struct ast_bridge_technology *cur;
+	int successful = 0;
+
+	if (ast_strlen_zero(name)) {
+		astman_send_error(s, m, "BridgeTechnology must be provided");
+		return 0;
+	}
+
+	AST_RWLIST_RDLOCK(&bridge_technologies);
+	AST_RWLIST_TRAVERSE(&bridge_technologies, cur, entry) {
+
+		if (!strcasecmp(cur->name, name)) {
+			successful = 1;
+			if (suspend) {
+				ast_bridge_technology_suspend(cur);
+			} else {
+				ast_bridge_technology_unsuspend(cur);
+			}
+			break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&bridge_technologies);
+	if (!successful) {
+		astman_send_error(s, m, "BridgeTechnology not found");
+		return 0;
+	}
+
+	astman_send_ack(s, m, (suspend ? "Suspended bridge technology" : "Unsuspended bridge technology"));
+	return 0;
+}
+
+static int manager_bridge_tech_suspend(struct mansession *s, const struct message *m)
+{
+	return handle_manager_bridge_tech_suspend(s, m, 1);
+}
+
+static int manager_bridge_tech_unsuspend(struct mansession *s, const struct message *m)
+{
+	return handle_manager_bridge_tech_suspend(s, m, 0);
+}
+
+static int manager_bridge_tech_list(struct mansession *s, const struct message *m)
+{
+	const char *id = astman_get_header(m, "ActionID");
+	RAII_VAR(struct ast_str *, id_text, ast_str_create(128), ast_free);
+	struct ast_bridge_technology *cur;
+
+	if (!id_text) {
+		astman_send_error(s, m, "Internal error");
+		return -1;
+	}
+
+	if (!ast_strlen_zero(id)) {
+		ast_str_set(&id_text, 0, "ActionID: %s\r\n", id);
+	}
+
+	astman_send_ack(s, m, "Bridge technology listing will follow");
+
+	AST_RWLIST_RDLOCK(&bridge_technologies);
+	AST_RWLIST_TRAVERSE(&bridge_technologies, cur, entry) {
+		const char *type;
+
+		type = tech_capability2str(cur->capabilities);
+
+		astman_append(s,
+			"Event: BridgeTechnologyListItem\r\n"
+			"BridgeTechnology: %s\r\n"
+			"BridgeType: %s\r\n"
+			"BridgePriority: %d\r\n"
+			"BridgeSuspended: %s\r\n"
+			"%s"
+			"\r\n",
+			cur->name, type, cur->preference, AST_YESNO(cur->suspended),
+			ast_str_buffer(id_text));
+	}
+	AST_RWLIST_UNLOCK(&bridge_technologies);
+
+	astman_append(s,
+		"Event: BridgeTechnologyListComplete\r\n"
+		"%s"
+		"\r\n",
+		ast_str_buffer(id_text));
+
+	return 0;
+}
 
 /*!
  * \internal
@@ -4929,6 +5065,9 @@ static void bridge_prnt_obj(void *v_obj, void *where, ao2_prnt_fn *prnt)
  */
 static void bridge_shutdown(void)
 {
+	ast_manager_unregister("BridgeTechnologyList");
+	ast_manager_unregister("BridgeTechnologySuspend");
+	ast_manager_unregister("BridgeTechnologyUnsuspend");
 	ast_cli_unregister_multiple(bridge_cli, ARRAY_LEN(bridge_cli));
 	ao2_container_unregister("bridges");
 	ao2_cleanup(bridges);
@@ -4960,6 +5099,10 @@ int ast_bridging_init(void)
 	ast_bridging_init_basic();
 
 	ast_cli_register_multiple(bridge_cli, ARRAY_LEN(bridge_cli));
+
+	ast_manager_register_xml_core("BridgeTechnologyList", 0, manager_bridge_tech_list);
+	ast_manager_register_xml_core("BridgeTechnologySuspend", 0, manager_bridge_tech_suspend);
+	ast_manager_register_xml_core("BridgeTechnologyUnsuspend", 0, manager_bridge_tech_unsuspend);
 
 	return 0;
 }
