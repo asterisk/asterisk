@@ -426,87 +426,33 @@ int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *su
 	return res;
 }
 
-static int (*ast_has_voicemail_func)(const char *mailbox, const char *folder) = NULL;
-static int (*ast_inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs) = NULL;
-static int (*ast_inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs) = NULL;
-static int (*ast_sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context) = NULL;
-static int (*ast_messagecount_func)(const char *context, const char *mailbox, const char *folder) = NULL;
-static int (*ast_copy_recording_to_vm_func)(struct ast_vm_recording_data *vm_rec_data) = NULL;
-static const char *(*ast_vm_index_to_foldername_func)(int id) = NULL;
-static struct ast_vm_mailbox_snapshot *(*ast_vm_mailbox_snapshot_create_func)(const char *mailbox,
-	const char *context,
-	const char *folder,
-	int descending,
-	enum ast_vm_snapshot_sort_val sort_val,
-	int combine_INBOX_and_OLD) = NULL;
-static struct ast_vm_mailbox_snapshot *(*ast_vm_mailbox_snapshot_destroy_func)(struct ast_vm_mailbox_snapshot *mailbox_snapshot) = NULL;
-static int (*ast_vm_msg_move_func)(const char *mailbox,
-	const char *context,
-	size_t num_msgs,
-	const char *oldfolder,
-	const char *old_msg_ids[],
-	const char *newfolder) = NULL;
-static int (*ast_vm_msg_remove_func)(const char *mailbox,
-	const char *context,
-	size_t num_msgs,
-	const char *folder,
-	const char *msgs[]) = NULL;
-static int (*ast_vm_msg_forward_func)(const char *from_mailbox,
-	const char *from_context,
-	const char *from_folder,
-	const char *to_mailbox,
-	const char *to_context,
-	const char *to_folder,
-	size_t num_msgs,
-	const char *msg_ids[],
-	int delete_old) = NULL;
-static int (*ast_vm_msg_play_func)(struct ast_channel *chan,
-	const char *mailbox,
-	const char *context,
-	const char *folder,
-	const char *msg_num,
-	ast_vm_msg_play_cb cb) = NULL;
+static ast_has_voicemail_fn *ast_has_voicemail_func = NULL;
+static ast_inboxcount_fn *ast_inboxcount_func = NULL;
+static ast_inboxcount2_fn *ast_inboxcount2_func = NULL;
+static ast_sayname_fn *ast_sayname_func = NULL;
+static ast_messagecount_fn *ast_messagecount_func = NULL;
+static ast_copy_recording_to_vm_fn *ast_copy_recording_to_vm_func = NULL;
+static ast_vm_index_to_foldername_fn *ast_vm_index_to_foldername_func = NULL;
+static ast_vm_mailbox_snapshot_create_fn *ast_vm_mailbox_snapshot_create_func = NULL;
+static ast_vm_mailbox_snapshot_destroy_fn *ast_vm_mailbox_snapshot_destroy_func = NULL;
+static ast_vm_msg_move_fn *ast_vm_msg_move_func = NULL;
+static ast_vm_msg_remove_fn *ast_vm_msg_remove_func = NULL;
+static ast_vm_msg_forward_fn *ast_vm_msg_forward_func = NULL;
+static ast_vm_msg_play_fn *ast_vm_msg_play_func = NULL;
 
-void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
-			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
-			      int (*inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
-			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
-			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context),
-			      int (*copy_recording_to_vm_func)(struct ast_vm_recording_data *vm_rec_data),
-			      const char *vm_index_to_foldername_func(int id),
-			      struct ast_vm_mailbox_snapshot *(*vm_mailbox_snapshot_create_func)(const char *mailbox,
-				const char *context,
-				const char *folder,
-				int descending,
-				enum ast_vm_snapshot_sort_val sort_val,
-				int combine_INBOX_and_OLD),
-			      struct ast_vm_mailbox_snapshot *(*vm_mailbox_snapshot_destroy_func)(struct ast_vm_mailbox_snapshot *mailbox_snapshot),
-			      int (*vm_msg_move_func)(const char *mailbox,
-				const char *context,
-				size_t num_msgs,
-				const char *oldfolder,
-				const char *old_msg_ids[],
-				const char *newfolder),
-			      int (*vm_msg_remove_func)(const char *mailbox,
-				const char *context,
-				size_t num_msgs,
-				const char *folder,
-				const char *msgs[]),
-			      int (*vm_msg_forward_func)(const char *from_mailbox,
-				const char *from_context,
-				const char *from_folder,
-				const char *to_mailbox,
-				const char *to_context,
-				const char *to_folder,
-				size_t num_msgs,
-				const char *msg_ids[],
-				int delete_old),
-			      int (*vm_msg_play_func)(struct ast_channel *chan,
-				const char *mailbox,
-				const char *context,
-				const char *folder,
-				const char *msg_num,
-				ast_vm_msg_play_cb cb))
+void ast_install_vm_functions(ast_has_voicemail_fn *has_voicemail_func,
+	ast_inboxcount_fn *inboxcount_func,
+	ast_inboxcount2_fn *inboxcount2_func,
+	ast_messagecount_fn *messagecount_func,
+	ast_sayname_fn *sayname_func,
+	ast_copy_recording_to_vm_fn *copy_recording_to_vm_func,
+	ast_vm_index_to_foldername_fn *vm_index_to_foldername_func,
+	ast_vm_mailbox_snapshot_create_fn *vm_mailbox_snapshot_create_func,
+	ast_vm_mailbox_snapshot_destroy_fn *vm_mailbox_snapshot_destroy_func,
+	ast_vm_msg_move_fn *vm_msg_move_func,
+	ast_vm_msg_remove_fn *vm_msg_remove_func,
+	ast_vm_msg_forward_fn *vm_msg_forward_func,
+	ast_vm_msg_play_fn *vm_msg_play_func)
 {
 	ast_has_voicemail_func = has_voicemail_func;
 	ast_inboxcount_func = inboxcount_func;
@@ -541,11 +487,11 @@ void ast_uninstall_vm_functions(void)
 }
 
 #ifdef TEST_FRAMEWORK
-int (*ast_vm_test_create_user_func)(const char *context, const char *mailbox) = NULL;
-int (*ast_vm_test_destroy_user_func)(const char *context, const char *mailbox) = NULL;
+static ast_vm_test_create_user_fn *ast_vm_test_create_user_func = NULL;
+static ast_vm_test_destroy_user_fn *ast_vm_test_destroy_user_func = NULL;
 
-void ast_install_vm_test_functions(int (*vm_test_create_user_func)(const char *context, const char *mailbox),
-				   int (*vm_test_destroy_user_func)(const char *context, const char *mailbox))
+void ast_install_vm_test_functions(ast_vm_test_create_user_fn *vm_test_create_user_func,
+	ast_vm_test_destroy_user_fn *vm_test_destroy_user_func)
 {
 	ast_vm_test_create_user_func = vm_test_create_user_func;
 	ast_vm_test_destroy_user_func = vm_test_destroy_user_func;
@@ -735,7 +681,7 @@ int ast_vm_msg_play(struct ast_channel *chan,
 	const char *context,
 	const char *folder,
 	const char *msg_num,
-	ast_vm_msg_play_cb cb)
+	ast_vm_msg_play_cb *cb)
 {
 	if (ast_vm_msg_play_func) {
 		return ast_vm_msg_play_func(chan, mailbox, context, folder, msg_num, cb);

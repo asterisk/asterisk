@@ -44,7 +44,7 @@ AST_THREADSTORAGE_EXTERNAL(ast_str_thread_global_buf);
 /*! \brief Callback function for IVR
     \return returns 0 on completion, -1 on hangup or digit if interrupted
   */
-typedef int (*ast_ivr_callback)(struct ast_channel *chan, char *option, void *cbdata);
+typedef int (ast_ivr_callback)(struct ast_channel *chan, char *option, void *cbdata);
 
 typedef enum {
 	AST_ACTION_UPONE,	/*!< adata is unused */
@@ -82,7 +82,7 @@ struct ast_ivr_menu {
 	unsigned int flags;	/*!< Flags */
 	struct ast_ivr_option *options;	/*!< All options */
 };
- 
+
 /*!
  * \brief Structure used for ast_copy_recording_to_vm in order to cleanly supply
  * data needed for making the recording from the recorded file.
@@ -324,72 +324,257 @@ struct ast_vm_mailbox_snapshot {
 /*!
  * \brief Voicemail playback callback function definition
  *
- * \param channel to play the file back on.
- * \param location of file on disk
+ * \param chan Channel to play the file back on.
+ * \param playfile Location of file on disk
  * \param duration of file in seconds. This will be zero if msg is very short or
  * has an unknown duration.
  */
 typedef void (ast_vm_msg_play_cb)(struct ast_channel *chan, const char *playfile, int duration);
 
 /*!
+ * \brief Determines if the given folder has messages.
+ *
+ * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param folder The folder to look in.  Default is INBOX if not provided.
+ *
+ * \retval 1 if the folder has one or more messages.
+ * \retval 0 otherwise.
+ */
+typedef int (ast_has_voicemail_fn)(const char *mailbox, const char *folder);
+
+/*!
+ * \brief Gets the number of messages that exist for the mailbox list.
+ *
+ * \param mailbox Comma or space deliminated list of mailboxes (user@context).
+ * \param newmsgs Where to put the count of new messages. (Can be NULL)
+ * \param oldmsgs Where to put the count of old messages. (Can be NULL)
+ *
+ * \details
+ * Simultaneously determines the count of new + urgent and old
+ * messages.  The total messages would then be the sum of these.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+typedef int (ast_inboxcount_fn)(const char *mailbox, int *newmsgs, int *oldmsgs);
+
+/*!
+ * \brief Gets the number of messages that exist for the mailbox list.
+ *
+ * \param mailbox Comma or space deliminated list of mailboxes (user@context).
+ * \param urgentmsgs Where to put the count of urgent messages. (Can be NULL)
+ * \param newmsgs Where to put the count of new messages. (Can be NULL)
+ * \param oldmsgs Where to put the count of old messages. (Can be NULL)
+ *
+ * \details
+ * Simultaneously determines the count of new, old, and urgent
+ * messages.  The total messages would then be the sum of these
+ * three.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+typedef int (ast_inboxcount2_fn)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs);
+
+/*!
+ * \brief Gets the number of messages that exist in a mailbox folder.
+ *
+ * \param context The context part of user@context.  Uses 'default' if not provided.
+ * \param mailbox The user part of user@context.
+ * \param folder The folder to look in.  Default is INBOX if not provided.
+ *
+ * \note If requesting INBOX then the returned count is INBOX +
+ * Urgent.
+ *
+ * \return The number of messages in this mailbox folder (zero or more).
+ */
+typedef int (ast_messagecount_fn)(const char *context, const char *mailbox, const char *folder);
+
+/*!
+ * \brief Play a recorded user name for the mailbox.
+ *
+ * \param chan Where to play the recorded name file.
+ * \param mailbox The user part of user@context.
+ * \param context The context part of user@context.  Must be explicit.
+ *
+ * \retval 0 Name played without interruption
+ * \retval dtmf ASCII value of the DTMF which interrupted playback
+ * \retval -1 on failure
+ */
+typedef int (ast_sayname_fn)(struct ast_channel *chan, const char *mailbox, const char *context);
+
+/*!
+ * \brief Creates a voicemail based on a specified file to a mailbox.
+ *
+ * \param vm_rec_data A record containing filename and voicemail txt info.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+typedef int (ast_copy_recording_to_vm_fn)(struct ast_vm_recording_data *vm_rec_data);
+
+/*!
+ * \brief Convert the mailbox folder id to a folder name.
+ *
+ * \param id Mailbox folder id to convert.
+ *
+ * \deprecated Nothing calls it and nothing ever should.
+ *
+ * \return The folder name associated with the id.
+ */
+typedef const char *(ast_vm_index_to_foldername_fn)(int id);
+
+/*!
+ * \brief Create a snapshot of a mailbox which contains information about every msg.
+ *
+ * \param mailbox The user part of user@context.
+ * \param context The context part of user@context.  Must be explicit.
+ * \param folder When not NULL only msgs from the specified folder will be included.
+ * \param desending list the msgs in descending order rather than ascending order.
+ * \param sort_val What to sort in the snapshot.
+ * \param combine_INBOX_and_OLD When this argument is set, The OLD folder will be represented
+ *        in the INBOX folder of the snapshot. This allows the snapshot to represent the
+ *        OLD and INBOX messages in sorted order merged together.
+ *
+ * \note Only used by voicemail unit tests.
+ *
+ * \retval snapshot on success
+ * \retval NULL on failure
+ */
+typedef struct ast_vm_mailbox_snapshot *(ast_vm_mailbox_snapshot_create_fn)(const char *mailbox,
+	const char *context, const char *folder, int descending,
+	enum ast_vm_snapshot_sort_val sort_val, int combine_INBOX_and_OLD);
+
+/*!
+ * \brief destroy a snapshot
+ *
+ * \param mailbox_snapshot The snapshot to destroy.
+ *
+ * \note Only used by voicemail unit tests.
+ *
+ * \retval NULL
+ */
+typedef struct ast_vm_mailbox_snapshot *(ast_vm_mailbox_snapshot_destroy_fn)(struct ast_vm_mailbox_snapshot *mailbox_snapshot);
+
+/*!
+ * \brief Move messages from one folder to another
+ *
+ * \param mailbox The mailbox to which the folders belong
+ * \param context The voicemail context for the mailbox
+ * \param num_msgs The number of messages to move
+ * \param oldfolder The folder from where messages should be moved
+ * \param old_msg_ids The message IDs of the messages to move
+ * \param newfolder The folder to which messages should be moved
+ *    new folder. This array must be num_msgs sized.
+ *
+ * \note Only used by voicemail unit tests.
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+typedef int (ast_vm_msg_move_fn)(const char *mailbox, const char *context, size_t num_msgs,
+	const char *oldfolder, const char *old_msg_ids[], const char *newfolder);
+
+/*!
+ * \brief Remove/delete messages from a mailbox folder.
+ *
+ * \param mailbox The mailbox from which to delete messages
+ * \param context The voicemail context for the mailbox
+ * \param num_msgs The number of messages to delete
+ * \param folder The folder from which to remove messages
+ * \param msgs The message IDs of the messages to delete
+ *
+ * \note Only used by voicemail unit tests.
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+typedef int (ast_vm_msg_remove_fn)(const char *mailbox, const char *context, size_t num_msgs,
+	const char *folder, const char *msgs[]);
+
+/*!
+ * \brief forward a message from one mailbox to another.
+ *
+ * \brief from_mailbox The original mailbox the message is being forwarded from
+ * \brief from_context The voicemail context of the from_mailbox
+ * \brief from_folder The folder from which the message is being forwarded
+ * \brief to_mailbox The mailbox to forward the message to
+ * \brief to_context The voicemail context of the to_mailbox
+ * \brief to_folder The folder to which the message is being forwarded
+ * \brief num_msgs The number of messages being forwarded
+ * \brief msg_ids The message IDs of the messages in from_mailbox to forward
+ * \brief delete_old If non-zero, the forwarded messages are also deleted from from_mailbox.
+ * Otherwise, the messages will remain in the from_mailbox.
+ *
+ * \note Only used by voicemail unit tests.
+ *
+ * \retval -1 Failure
+ * \retval 0 Success
+ */
+typedef int (ast_vm_msg_forward_fn)(const char *from_mailbox, const char *from_context,
+	const char *from_folder, const char *to_mailbox, const char *to_context,
+	const char *to_folder, size_t num_msgs, const char *msg_ids[], int delete_old);
+
+/*!
+ * \brief Play a voicemail msg back on a channel.
+ *
+ * \param chan
+ * \param mailbox msg is in.
+ * \param context of mailbox.
+ * \param folder voicemail folder to look in.
+ * \param msg_num message number in the voicemailbox to playback to the channel.
+ * \param cb
+ *
+ * \note Only used by voicemail unit tests.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+typedef int (ast_vm_msg_play_fn)(struct ast_channel *chan, const char *mailbox,
+	const char *context, const char *folder, const char *msg_num, ast_vm_msg_play_cb *cb);
+
+/*!
  * \brief Set voicemail function callbacks
  *
- * \param copy_recording_to_vm_func, vm_index_to_foldername, vm_mailbox_snapshot_create
- * \param vm_mailbox_snapshot_destroy, vm_msg_move, vm_msg_remove, vm_msg_forward, vm_msg_play
- * \param[in] has_voicemail_func set function pointer
- * \param[in] inboxcount_func set function pointer
- * \param[in] inboxcount2_func set function pointer
- * \param[in] messagecount_func set function pointer
- * \param[in] sayname_func set function pointer
+ * \param has_voicemail_func set function pointer
+ * \param inboxcount_func set function pointer
+ * \param inboxcount2_func set function pointer
+ * \param messagecount_func set function pointer
+ * \param sayname_func set function pointer
+ * \param copy_recording_to_vm_func set function pointer
+ * \param vm_index_to_foldername_func set function pointer
+ * \param vm_mailbox_snapshot_create_func set function pointer
+ * \param vm_mailbox_snapshot_destroy_func set function pointer
+ * \param vm_msg_move_func set function pointer
+ * \param vm_msg_remove_func set function pointer
+ * \param vm_msg_forward_func set function pointer
+ * \param vm_msg_play_func set function pointer
+ *
  * \version 1.6.1 Added inboxcount2_func, sayname_func
  */
-void ast_install_vm_functions(int (*has_voicemail_func)(const char *mailbox, const char *folder),
-			      int (*inboxcount_func)(const char *mailbox, int *newmsgs, int *oldmsgs),
-			      int (*inboxcount2_func)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs),
-			      int (*messagecount_func)(const char *context, const char *mailbox, const char *folder),
-			      int (*sayname_func)(struct ast_channel *chan, const char *mailbox, const char *context),
-			      int (*copy_recording_to_vm_func)(struct ast_vm_recording_data *vm_rec_data),
-			      const char *vm_index_to_foldername(int id),
-			      struct ast_vm_mailbox_snapshot *(*vm_mailbox_snapshot_create)(const char *mailbox,
-				const char *context,
-				const char *folder,
-				int descending,
-				enum ast_vm_snapshot_sort_val sort_val,
-				int combine_INBOX_and_OLD),
-			      struct ast_vm_mailbox_snapshot *(*vm_mailbox_snapshot_destroy)(struct ast_vm_mailbox_snapshot *mailbox_snapshot),
-			      int (*vm_msg_move)(const char *mailbox,
-				const char *context,
-				size_t num_msgs,
-				const char *oldfolder,
-				const char *old_msg_ids[],
-				const char *newfolder),
-			      int (*vm_msg_remove)(const char *mailbox,
-				const char *context,
-				size_t num_msgs,
-				const char *folder,
-				const char *msgs[]),
-			      int (*vm_msg_forward)(const char *from_mailbox,
-				const char *from_context,
-				const char *from_folder,
-				const char *to_mailbox,
-				const char *to_context,
-				const char *to_folder,
-				size_t num_msgs,
-				const char *msg_ids[],
-				int delete_old),
-			      int (*vm_msg_play)(struct ast_channel *chan,
-				const char *mailbox,
-				const char *context,
-				const char *folder,
-				const char *msg_num,
-				ast_vm_msg_play_cb cb));
+void ast_install_vm_functions(ast_has_voicemail_fn *has_voicemail_func,
+	ast_inboxcount_fn *inboxcount_func,
+	ast_inboxcount2_fn *inboxcount2_func,
+	ast_messagecount_fn *messagecount_func,
+	ast_sayname_fn *sayname_func,
+	ast_copy_recording_to_vm_fn *copy_recording_to_vm_func,
+	ast_vm_index_to_foldername_fn *vm_index_to_foldername_func,
+	ast_vm_mailbox_snapshot_create_fn *vm_mailbox_snapshot_create_func,
+	ast_vm_mailbox_snapshot_destroy_fn *vm_mailbox_snapshot_destroy_func,
+	ast_vm_msg_move_fn *vm_msg_move_func,
+	ast_vm_msg_remove_fn *vm_msg_remove_func,
+	ast_vm_msg_forward_fn *vm_msg_forward_func,
+	ast_vm_msg_play_fn *vm_msg_play_func);
 
 
 void ast_uninstall_vm_functions(void);
 
 #ifdef TEST_FRAMEWORK
-void ast_install_vm_test_functions(int (*vm_test_destroy_user)(const char *context, const char *mailbox),
-				   int (*vm_test_create_user)(const char *context, const char *mailbox));
+typedef int (ast_vm_test_create_user_fn)(const char *context, const char *mailbox);
+typedef int (ast_vm_test_destroy_user_fn)(const char *context, const char *mailbox);
+
+void ast_install_vm_test_functions(ast_vm_test_create_user_fn *vm_test_create_user_func,
+	ast_vm_test_destroy_user_fn *vm_test_destroy_user_func);
 
 void ast_uninstall_vm_test_functions(void);
 #endif
@@ -467,7 +652,7 @@ int ast_app_messagecount(const char *context, const char *mailbox, const char *f
  */
 const char *ast_vm_index_to_foldername(int id);
 
-/*
+/*!
  * \brief Create a snapshot of a mailbox which contains information about every msg.
  *
  * \param mailbox, the mailbox to look for
@@ -488,7 +673,7 @@ struct ast_vm_mailbox_snapshot *ast_vm_mailbox_snapshot_create(const char *mailb
 	enum ast_vm_snapshot_sort_val sort_val,
 	int combine_INBOX_and_OLD);
 
-/*
+/*!
  * \brief destroy a snapshot
  *
  * \param mailbox_snapshot The snapshot to destroy.
@@ -580,7 +765,7 @@ int ast_vm_msg_play(struct ast_channel *chan,
 	const char *context,
 	const char *folder,
 	const char *msg_num,
-	ast_vm_msg_play_cb cb);
+	ast_vm_msg_play_cb *cb);
 
 #ifdef TEST_FRAMEWORK
 int ast_vm_test_destroy_user(const char *context, const char *mailbox);
@@ -779,7 +964,7 @@ enum ast_getdata_result {
 	AST_GETDATA_COMPLETE = 0,
 	AST_GETDATA_TIMEOUT = 1,
 	AST_GETDATA_INTERRUPTED = 2,
-	/*! indicates a user terminated empty string rather than an empty string resulting 
+	/*! indicates a user terminated empty string rather than an empty string resulting
 	 * from a timeout or other factors */
 	AST_GETDATA_EMPTY_END_TERMINATED = 3,
 };
@@ -1070,7 +1255,8 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 /*! \brief Allow to record message and have a review option */
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
 
-/*!\brief Decode an encoded control or extended ASCII character 
+/*!
+ * \brief Decode an encoded control or extended ASCII character
  * \param[in] stream String to decode
  * \param[out] result Decoded character
  * \param[out] consumed Number of characters used in stream to encode the character
@@ -1079,7 +1265,8 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
  */
 int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
 
-/*!\brief Decode a stream of encoded control or extended ASCII characters
+/*!
+ * \brief Decode a stream of encoded control or extended ASCII characters
  * \param[in] stream Encoded string
  * \param[out] result Decoded string
  * \param[in] result_len Maximum size of the result buffer
