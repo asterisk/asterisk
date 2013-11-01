@@ -642,6 +642,9 @@ void ast_ari_originate(struct ast_variable *headers,
 		return;
 	}
 
+	snapshot = ast_channel_snapshot_create(chan);
+	ast_channel_unlock(chan);
+
 	if (!ast_strlen_zero(args->app)) {
 		/* channel: + channel ID + null terminator */
 		char uri[9 + strlen(ast_channel_uniqueid(chan))];
@@ -651,10 +654,7 @@ void ast_ari_originate(struct ast_variable *headers,
 		stasis_app_subscribe(args->app, uris, 1, NULL);
 	}
 
-	snapshot = ast_channel_snapshot_create(chan);
 	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot));
-
-	ast_channel_unlock(chan);
 	ast_channel_unref(chan);
 }
 
