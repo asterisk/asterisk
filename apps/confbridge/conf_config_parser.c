@@ -430,6 +430,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					is passed in to ConfBridge as an argument in the dialplan.</para>
 					<para>Below is a list of menu actions that can be assigned to a DTMF sequence.</para>
 					<note><para>
+						To have the first DTMF digit in a sequence be the '#' character, you need to
+						escape it.  If it is not escaped then normal config file processing will
+						think it is a directive like #include.  For example: The mute setting is
+						toggled when <literal>#1</literal> is pressed.</para>
+						<para><literal>\#1=toggle_mute</literal></para>
+					</note>
+					<note><para>
 					A single DTMF sequence can have multiple actions associated with it. This is
 					accomplished by stringing the actions together and using a <literal>,</literal> as the
 					delimiter.  Example:  Both listening and talking volume is reset when <literal>5</literal> is
@@ -453,7 +460,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="toggle_mute"><para>
 							Toggle turning on and off mute.  Mute will make the user silent
 							to everyone else, but the user will still be able to listen in.
-							continue to collect the dtmf sequence.</para></enum>
+							</para></enum>
 						<enum name="no_op"><para>
 							This action does nothing (No Operation). Its only real purpose exists for
 							being able to reserve a sequence in the config as a menu exit sequence.</para></enum>

@@ -62,7 +62,7 @@ type=user
                             ;    loose the user will hear themselves briefly each
                             ;    time they begin talking until the dsp has time to
                             ;    establish that they are in fact talking.
-                            ; 2. When talk detection AMI events are enabled, this value 
+                            ; 2. When talk detection AMI events are enabled, this value
                             ;    determines when talking has begun which results in
                             ;    an AMI event to fire.  If this value is set too tight
                             ;    AMI events may be falsely triggered by variants in
@@ -248,6 +248,11 @@ type=bridge
 ; Below is a list of menu actions that can be assigned
 ; to a DTMF sequence.
 ;
+; To have the first DTMF digit in a sequence be the '#' character, you need to
+; escape it.  If it is not escaped then normal config file processing will
+; think it is a directive like #include.  For example:
+; \#1=toggle_mute                      ; Pressing #1 will toggle the mute setting.
+;
 ; A single DTMF sequence can have multiple actions associated with it. This is
 ; accomplished by stringing the actions together and using a ',' as the delimiter.
 ; Example:  Both listening and talking volume is reset when '5' is pressed.
@@ -270,7 +275,7 @@ type=bridge
                                        ; using the '&' character as a delimiter.
 ; toggle_mute      ; Toggle turning on and off mute.  Mute will make the user silent
                    ; to everyone else, but the user will still be able to listen in.
-                   ; continue to collect the dtmf sequence.
+
 ; no_op ; This action does nothing (No Operation). Its only real purpose exists for
         ; being able to reserve a sequence in the config as a menu exit sequence.
 ; decrease_listening_volume ; Decreases the channel's listening volume.
