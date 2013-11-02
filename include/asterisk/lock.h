@@ -339,6 +339,28 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
  * used during deadlock avoidance, to preserve the original location where
  * a lock was originally acquired.
  */
+#define AO2_DEADLOCK_AVOIDANCE(obj) \
+	do { \
+		char __filename[80], __func[80], __mutex_name[80]; \
+		int __lineno; \
+		int __res = ast_find_lock_info(ao2_object_get_lockaddr(obj), __filename, sizeof(__filename), &__lineno, __func, sizeof(__func), __mutex_name, sizeof(__mutex_name)); \
+		int __res2 = ao2_unlock(obj); \
+		usleep(1); \
+		if (__res < 0) { /* Could happen if the ao2 object does not have a mutex. */ \
+			if (__res2) { \
+				ast_log(LOG_WARNING, "Could not unlock ao2 object '%s': %s and no lock info found!  I will NOT try to relock.\n", #obj, strerror(__res2)); \
+			} else { \
+				ao2_lock(obj); \
+			} \
+		} else { \
+			if (__res2) { \
+				ast_log(LOG_WARNING, "Could not unlock ao2 object '%s': %s.  {{{Originally locked at %s line %d: (%s) '%s'}}}  I will NOT try to relock.\n", #obj, strerror(__res2), __filename, __lineno, __func, __mutex_name); \
+			} else { \
+				__ao2_lock(obj, AO2_LOCK_REQ_MUTEX, __filename, __func, __lineno, __mutex_name); \
+			} \
+		} \
+	} while (0)
+
 #define CHANNEL_DEADLOCK_AVOIDANCE(chan) \
 	do { \
 		char __filename[80], __func[80], __mutex_name[80]; \
@@ -493,12 +515,17 @@ static inline void delete_reentrancy_cs(struct ast_lock_track **plt)
 
 #else /* !DEBUG_THREADS */
 
-#define	CHANNEL_DEADLOCK_AVOIDANCE(chan) \
+#define AO2_DEADLOCK_AVOIDANCE(obj) \
+	ao2_unlock(obj); \
+	usleep(1); \
+	ao2_lock(obj);
+
+#define CHANNEL_DEADLOCK_AVOIDANCE(chan) \
 	ast_channel_unlock(chan); \
 	usleep(1); \
 	ast_channel_lock(chan);
 
-#define	DEADLOCK_AVOIDANCE(lock) \
+#define DEADLOCK_AVOIDANCE(lock) \
 	do { \
 		int __res; \
 		if (!(__res = ast_mutex_unlock(lock))) { \
