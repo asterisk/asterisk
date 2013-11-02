@@ -54,11 +54,13 @@ struct confbridge_state *CONF_STATE_MULTI = &STATE_MULTI;
 static void join_unmarked(struct confbridge_user *user)
 {
 	conf_add_user_active(user->conference, user);
+	conf_update_user_mute(user);
 }
 
 static void join_marked(struct confbridge_user *user)
 {
 	conf_add_user_marked(user->conference, user);
+	conf_update_user_mute(user);
 
 	conf_change_state(user, CONF_STATE_MULTI_MARKED);
 }
