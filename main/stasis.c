@@ -140,10 +140,10 @@ STASIS_MESSAGE_TYPE_DEFN(stasis_subscription_change_type);
 struct stasis_topic {
 	char *name;
 	/*! Variable length array of the subscribers */
-	ast_vector(, struct stasis_subscription *) subscribers;
+	AST_VECTOR(, struct stasis_subscription *) subscribers;
 
 	/*! Topics forwarding into this topic */
-	ast_vector(, struct stasis_topic *) upstream_topics;
+	AST_VECTOR(, struct stasis_topic *) upstream_topics;
 };
 
 /* Forward declarations for the tightly-coupled subscription object */
@@ -167,13 +167,13 @@ static void topic_dtor(void *obj)
 
 	/* Subscribers hold a reference to topics, so they should all be
 	 * unsubscribed before we get here. */
-	ast_assert(ast_vector_size(&topic->subscribers) == 0);
+	ast_assert(AST_VECTOR_SIZE(&topic->subscribers) == 0);
 
 	ast_free(topic->name);
 	topic->name = NULL;
 
-	ast_vector_free(&topic->subscribers);
-	ast_vector_free(&topic->upstream_topics);
+	AST_VECTOR_FREE(&topic->subscribers);
+	AST_VECTOR_FREE(&topic->upstream_topics);
 }
 
 struct stasis_topic *stasis_topic_create(const char *name)
@@ -192,8 +192,8 @@ struct stasis_topic *stasis_topic_create(const char *name)
 		return NULL;
 	}
 
-	res |= ast_vector_init(&topic->subscribers, INITIAL_SUBSCRIBERS_MAX);
-	res |= ast_vector_init(&topic->upstream_topics, 0);
+	res |= AST_VECTOR_INIT(&topic->subscribers, INITIAL_SUBSCRIBERS_MAX);
+	res |= AST_VECTOR_INIT(&topic->upstream_topics, 0);
 
 	if (res != 0) {
 		return NULL;
@@ -428,8 +428,8 @@ int stasis_subscription_is_subscribed(const struct stasis_subscription *sub)
 		struct stasis_topic *topic = sub->topic;
 		SCOPED_AO2LOCK(lock_topic, topic);
 
-		for (i = 0; i < ast_vector_size(&topic->subscribers); ++i) {
-			if (ast_vector_get(&topic->subscribers, i) == sub) {
+		for (i = 0; i < AST_VECTOR_SIZE(&topic->subscribers); ++i) {
+			if (AST_VECTOR_GET(&topic->subscribers, i) == sub) {
 				return 1;
 			}
 		}
@@ -480,11 +480,11 @@ static int topic_add_subscription(struct stasis_topic *topic, struct stasis_subs
 	 *
 	 * If we bumped the refcount here, the owner would have to unsubscribe
 	 * and cleanup, which is a bit awkward. */
-	ast_vector_append(&topic->subscribers, sub);
+	AST_VECTOR_APPEND(&topic->subscribers, sub);
 
-	for (idx = 0; idx < ast_vector_size(&topic->upstream_topics); ++idx) {
+	for (idx = 0; idx < AST_VECTOR_SIZE(&topic->upstream_topics); ++idx) {
 		topic_add_subscription(
-			ast_vector_get(&topic->upstream_topics, idx), sub);
+			AST_VECTOR_GET(&topic->upstream_topics, idx), sub);
 	}
 
 	return 0;
@@ -495,12 +495,12 @@ static int topic_remove_subscription(struct stasis_topic *topic, struct stasis_s
 	size_t idx;
 	SCOPED_AO2LOCK(lock_topic, topic);
 
-	for (idx = 0; idx < ast_vector_size(&topic->upstream_topics); ++idx) {
+	for (idx = 0; idx < AST_VECTOR_SIZE(&topic->upstream_topics); ++idx) {
 		topic_remove_subscription(
-			ast_vector_get(&topic->upstream_topics, idx), sub);
+			AST_VECTOR_GET(&topic->upstream_topics, idx), sub);
 	}
 
-	return ast_vector_remove_elem_unordered(&topic->subscribers, sub,
+	return AST_VECTOR_REMOVE_ELEM_UNORDERED(&topic->subscribers, sub,
 		AST_VECTOR_ELEM_CLEANUP_NOOP);
 }
 
@@ -549,8 +549,8 @@ void stasis_publish(struct stasis_topic *topic, struct stasis_message *message)
 	 */
 	ao2_ref(topic, +1);
 	ao2_lock(topic);
-	for (i = 0; i < ast_vector_size(&topic->subscribers); ++i) {
-		struct stasis_subscription *sub = ast_vector_get(&topic->subscribers, i);
+	for (i = 0; i < AST_VECTOR_SIZE(&topic->subscribers); ++i) {
+		struct stasis_subscription *sub = AST_VECTOR_GET(&topic->subscribers, i);
 
 		ast_assert(sub != NULL);
 
@@ -599,11 +599,11 @@ struct stasis_forward *stasis_forward_cancel(struct stasis_forward *forward)
 	to = forward->to_topic;
 
 	topic_lock_both(to, from);
-	ast_vector_remove_elem_unordered(&to->upstream_topics, from,
+	AST_VECTOR_REMOVE_ELEM_UNORDERED(&to->upstream_topics, from,
 		AST_VECTOR_ELEM_CLEANUP_NOOP);
 
-	for (idx = 0; idx < ast_vector_size(&to->subscribers); ++idx) {
-		topic_remove_subscription(from, ast_vector_get(&to->subscribers, idx));
+	for (idx = 0; idx < AST_VECTOR_SIZE(&to->subscribers); ++idx) {
+		topic_remove_subscription(from, AST_VECTOR_GET(&to->subscribers, idx));
 	}
 	ao2_unlock(from);
 	ao2_unlock(to);
@@ -633,15 +633,15 @@ struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 	forward->to_topic = ao2_bump(to_topic);
 
 	topic_lock_both(to_topic, from_topic);
-	res = ast_vector_append(&to_topic->upstream_topics, from_topic);
+	res = AST_VECTOR_APPEND(&to_topic->upstream_topics, from_topic);
 	if (res != 0) {
 		ao2_unlock(from_topic);
 		ao2_unlock(to_topic);
 		return NULL;
 	}
 
-	for (idx = 0; idx < ast_vector_size(&to_topic->subscribers); ++idx) {
-		topic_add_subscription(from_topic, ast_vector_get(&to_topic->subscribers, idx));
+	for (idx = 0; idx < AST_VECTOR_SIZE(&to_topic->subscribers); ++idx) {
+		topic_add_subscription(from_topic, AST_VECTOR_GET(&to_topic->subscribers, idx));
 	}
 	ao2_unlock(from_topic);
 	ao2_unlock(to_topic);

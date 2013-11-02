@@ -45,7 +45,7 @@ struct stasis_message_route {
 	void *data;
 };
 
-ast_vector(route_table, struct stasis_message_route);
+AST_VECTOR(route_table, struct stasis_message_route);
 
 static struct stasis_message_route *route_table_find(struct route_table *table,
 	struct stasis_message_type *message_type)
@@ -59,8 +59,8 @@ static struct stasis_message_route *route_table_find(struct route_table *table,
 	 * tables, then we can look into containers with more efficient
 	 * lookups.
 	 */
-	for (idx = 0; idx < ast_vector_size(table); ++idx) {
-		route = ast_vector_get_addr(table, idx);
+	for (idx = 0; idx < AST_VECTOR_SIZE(table); ++idx) {
+		route = AST_VECTOR_GET_ADDR(table, idx);
 		if (route->message_type == message_type) {
 			return route;
 		}
@@ -70,7 +70,7 @@ static struct stasis_message_route *route_table_find(struct route_table *table,
 }
 
 /*!
- * \brief route_table comparator for ast_vector_remove_cmp_unordered()
+ * \brief route_table comparator for AST_VECTOR_REMOVE_CMP_UNORDERED()
  *
  * \param elem Element to compare against
  * \param value Value to compare with the vector element.
@@ -92,7 +92,7 @@ static struct stasis_message_route *route_table_find(struct route_table *table,
 static int route_table_remove(struct route_table *table,
 	struct stasis_message_type *message_type)
 {
-	return ast_vector_remove_cmp_unordered(table, message_type, ROUTE_TABLE_ELEM_CMP,
+	return AST_VECTOR_REMOVE_CMP_UNORDERED(table, message_type, ROUTE_TABLE_ELEM_CMP,
 		ROUTE_TABLE_ELEM_CLEANUP);
 }
 
@@ -110,7 +110,7 @@ static int route_table_add(struct route_table *table,
 	route.callback = callback;
 	route.data = data;
 
-	res = ast_vector_append(table, route);
+	res = AST_VECTOR_APPEND(table, route);
 	if (res) {
 		ROUTE_TABLE_ELEM_CLEANUP(route);
 	}
@@ -122,11 +122,11 @@ static void route_table_dtor(struct route_table *table)
 	size_t idx;
 	struct stasis_message_route *route;
 
-	for (idx = 0; idx < ast_vector_size(table); ++idx) {
-		route = ast_vector_get_addr(table, idx);
+	for (idx = 0; idx < AST_VECTOR_SIZE(table); ++idx) {
+		route = AST_VECTOR_GET_ADDR(table, idx);
 		ROUTE_TABLE_ELEM_CLEANUP(*route);
 	}
-	ast_vector_free(table);
+	AST_VECTOR_FREE(table);
 }
 
 /*! \internal */
@@ -218,8 +218,8 @@ struct stasis_message_router *stasis_message_router_create(
 	}
 
 	res = 0;
-	res |= ast_vector_init(&router->routes, 0);
-	res |= ast_vector_init(&router->cache_routes, 0);
+	res |= AST_VECTOR_INIT(&router->routes, 0);
+	res |= AST_VECTOR_INIT(&router->cache_routes, 0);
 	if (res) {
 		return NULL;
 	}
