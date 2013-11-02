@@ -54,6 +54,7 @@ static void join_active(struct conference_bridge_user *cbu)
 {
 	conf_add_user_active(cbu->conference_bridge, cbu);
 	conf_handle_second_active(cbu->conference_bridge);
+	conf_update_user_mute(cbu);
 
 	conf_change_state(cbu, CONF_STATE_MULTI_MARKED);
 }
@@ -62,6 +63,7 @@ static void join_marked(struct conference_bridge_user *cbu)
 {
 	conf_add_user_marked(cbu->conference_bridge, cbu);
 	conf_handle_second_active(cbu->conference_bridge);
+	conf_update_user_mute(cbu);
 
 	conf_change_state(cbu, CONF_STATE_MULTI_MARKED);
 }
