@@ -39,7 +39,7 @@
  * \param name Optional vector struct name.
  * \param type Vector element type.
  */
-#define ast_vector(name, type)			\
+#define AST_VECTOR(name, type)			\
 	struct name {				\
 		type *elems;			\
 		size_t max;			\
@@ -58,7 +58,7 @@
  * \return 0 on success.
  * \return Non-zero on failure.
  */
-#define ast_vector_init(vec, size) ({					\
+#define AST_VECTOR_INIT(vec, size) ({					\
 	size_t __size = (size);						\
 	size_t alloc_size = __size * sizeof(*((vec)->elems));		\
 	(vec)->elems = alloc_size ? ast_malloc(alloc_size) : NULL;	\
@@ -79,7 +79,7 @@
  *
  * \param vec Vector to deallocate.
  */
-#define ast_vector_free(vec) do {		\
+#define AST_VECTOR_FREE(vec) do {		\
 	ast_free((vec)->elems);			\
 	(vec)->elems = NULL;			\
 	(vec)->max = 0;				\
@@ -95,7 +95,7 @@
  * \return 0 on success.
  * \return Non-zero on failure.
  */
-#define ast_vector_append(vec, elem) ({						\
+#define AST_VECTOR_APPEND(vec, elem) ({						\
 	int res = 0;								\
 	do {									\
 		if ((vec)->current + 1 > (vec)->max) {				\
@@ -125,7 +125,7 @@
  * \param idx Index of the element to remove.
  * \return The element that was removed.
  */
-#define ast_vector_remove_unordered(vec, idx) ({		\
+#define AST_VECTOR_REMOVE_UNORDERED(vec, idx) ({		\
 	typeof((vec)->elems[0]) res;				\
 	size_t __idx = (idx);					\
 	ast_assert(__idx < (vec)->current);			\
@@ -146,14 +146,14 @@
  * \return 0 if element was removed.
  * \return Non-zero if element was not in the vector.
  */
-#define ast_vector_remove_cmp_unordered(vec, value, cmp, cleanup) ({	\
+#define AST_VECTOR_REMOVE_CMP_UNORDERED(vec, value, cmp, cleanup) ({	\
 	int res = -1;							\
 	size_t idx;							\
 	typeof(value) __value = (value);				\
 	for (idx = 0; idx < (vec)->current; ++idx) {			\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
-			ast_vector_remove_unordered((vec), idx);	\
+			AST_VECTOR_REMOVE_UNORDERED((vec), idx);	\
 			res = 0;					\
 			break;						\
 		}							\
@@ -162,7 +162,7 @@
 })
 
 /*!
- * \brief Default comparator for ast_vector_remove_elem_unordered()
+ * \brief Default comparator for AST_VECTOR_REMOVE_ELEM_UNORDERED()
  *
  * \param elem Element to compare against
  * \param value Value to compare with the vector element.
@@ -191,8 +191,8 @@
  * \return 0 if element was removed.
  * \return Non-zero if element was not in the vector.
  */
-#define ast_vector_remove_elem_unordered(vec, elem, cleanup) ({	\
-	ast_vector_remove_cmp_unordered((vec), (elem),		\
+#define AST_VECTOR_REMOVE_ELEM_UNORDERED(vec, elem, cleanup) ({	\
+	AST_VECTOR_REMOVE_CMP_UNORDERED((vec), (elem),		\
 		AST_VECTOR_ELEM_DEFAULT_CMP, cleanup);		\
 })
 
@@ -202,7 +202,7 @@
  * \param vec Vector to query.
  * \return Number of elements in the vector.
  */
-#define ast_vector_size(vec) (vec)->current
+#define AST_VECTOR_SIZE(vec) (vec)->current
 
 /*!
  * \brief Get an address of element in a vector.
@@ -210,7 +210,7 @@
  * \param vec Vector to query.
  * \param idx Index of the element to get address of.
  */
-#define ast_vector_get_addr(vec, idx) ({	\
+#define AST_VECTOR_GET_ADDR(vec, idx) ({	\
 	size_t __idx = (idx);			\
 	ast_assert(__idx < (vec)->current);	\
 	&(vec)->elems[__idx];			\
@@ -222,7 +222,7 @@
  * \param vec Vector to query.
  * \param idx Index of the element to get.
  */
-#define ast_vector_get(vec, idx) ({		\
+#define AST_VECTOR_GET(vec, idx) ({		\
 	size_t __idx = (idx);			\
 	ast_assert(__idx < (vec)->current);	\
 	(vec)->elems[__idx];			\
