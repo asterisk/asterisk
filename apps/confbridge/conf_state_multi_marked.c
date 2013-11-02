@@ -60,11 +60,13 @@ struct confbridge_state *CONF_STATE_MULTI_MARKED = &STATE_MULTI_MARKED;
 static void join_active(struct confbridge_user *user)
 {
 	conf_add_user_active(user->conference, user);
+	conf_update_user_mute(user);
 }
 
 static void join_marked(struct confbridge_user *user)
 {
 	conf_add_user_marked(user->conference, user);
+	conf_update_user_mute(user);
 }
 
 static void leave_active(struct confbridge_user *user)
@@ -95,8 +97,8 @@ static void leave_marked(struct confbridge_user *user)
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&user->conference->active_list, user_iter, list) {
 			/* Kick ENDMARKED user_iters */
 			if (ast_test_flag(&user_iter->u_profile, USER_OPT_ENDMARKED)) {
-				if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED) &&
-						  !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
+				if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
+					&& !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
 					AST_LIST_REMOVE_CURRENT(list);
 					user_iter->conference->activeusers--;
 					AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
@@ -104,17 +106,18 @@ static void leave_marked(struct confbridge_user *user)
 				}
 				user_iter->kicked = 1;
 				ast_bridge_remove(user_iter->conference->bridge, user_iter->chan);
-			} else if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED) &&
-					!ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
+			} else if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
+				&& !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
 				AST_LIST_REMOVE_CURRENT(list);
 				user_iter->conference->activeusers--;
 				AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
 				user_iter->conference->waitingusers++;
-				/* Handle muting/moh of user_iter if necessary */
+
+				/* Handle moh of user_iter if necessary */
 				if (ast_test_flag(&user_iter->u_profile, USER_OPT_MUSICONHOLD)) {
-					user_iter->features.mute = 1;
 					conf_moh_start(user_iter);
 				}
+				conf_update_user_mute(user_iter);
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
@@ -170,7 +173,7 @@ static void transition_to_marked(struct confbridge_user *user)
 		conf_handle_first_marked_common(user);
 	}
 
-	/* Move all waiting users to active, stopping MOH and umuting if necessary */
+	/* Move all waiting users to active, stopping MOH and unmuting if necessary */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&user->conference->waiting_list, user_iter, list) {
 		AST_LIST_REMOVE_CURRENT(list);
 		user->conference->waitingusers--;
@@ -179,10 +182,7 @@ static void transition_to_marked(struct confbridge_user *user)
 		if (user_iter->playing_moh) {
 			conf_moh_stop(user_iter);
 		}
-		/* only unmute them if they are not supposed to start muted */
-		if (!ast_test_flag(&user_iter->u_profile, USER_OPT_STARTMUTED)) {
-			user_iter->features.mute = 0;
-		}
+		conf_update_user_mute(user_iter);
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 }

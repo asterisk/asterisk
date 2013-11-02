@@ -967,6 +967,32 @@ static int handle_conf_user_leave(struct confbridge_user *user)
 	return 0;
 }
 
+void conf_update_user_mute(struct confbridge_user *user)
+{
+	int mute_user;
+	int mute_system;
+	int mute_effective;
+
+	/* User level mute request. */
+	mute_user = user->muted;
+
+	/* System level mute request. */
+	mute_system = user->playing_moh
+		/*
+		 * Do not allow waitmarked users to talk to anyone unless there
+		 * is a marked user present.
+		 */
+		|| (!user->conference->markedusers
+			&& ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED));
+
+	mute_effective = mute_user || mute_system;
+
+	ast_debug(1, "User %s is %s: user:%d system:%d.\n",
+		ast_channel_name(user->chan), mute_effective ? "muted" : "unmuted",
+		mute_user, mute_system);
+	user->features.mute = mute_effective;
+}
+
 void conf_moh_stop(struct confbridge_user *user)
 {
 	user->playing_moh = 0;
@@ -1112,9 +1138,7 @@ void conf_handle_second_active(struct confbridge_conference *conference)
 	if (ast_test_flag(&first_user->u_profile, USER_OPT_MUSICONHOLD)) {
 		conf_moh_stop(first_user);
 	}
-	if (!ast_test_flag(&first_user->u_profile, USER_OPT_STARTMUTED)) {
-		first_user->features.mute = 0;
-	}
+	conf_update_user_mute(first_user);
 }
 
 void conf_ended(struct confbridge_conference *conference)
@@ -1638,7 +1662,8 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* If the caller should be joined already muted, make it so */
 	if (ast_test_flag(&user.u_profile, USER_OPT_STARTMUTED)) {
-		user.features.mute = 1;
+		/* Set user level mute request. */
+		user.muted = 1;
 	}
 
 	if (ast_test_flag(&user.u_profile, USER_OPT_DROP_SILENCE)) {
@@ -1756,17 +1781,28 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 	struct confbridge_user *user,
 	struct ast_channel *chan)
 {
-	/* Mute or unmute yourself, note we only allow manipulation if they aren't waiting for a marked user or if marked users exist */
-	if (!ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED) || conference->markedusers) {
-		user->features.mute = (!user->features.mute ? 1 : 0);
-		ast_test_suite_event_notify("CONF_MUTE", "Message: participant %s %s\r\nConference: %s\r\nChannel: %s", ast_channel_name(chan), user->features.mute ? "muted" : "unmuted", user->b_profile.name, ast_channel_name(chan));
-		if (user->features.mute) {
-			send_mute_event(chan, conference);
-		} else {
-			send_unmute_event(chan, conference);
-		}
+	int mute;
+
+	/* Toggle user level mute request. */
+	mute = !user->muted;
+	user->muted = mute;
+
+	conf_update_user_mute(user);
+	ast_test_suite_event_notify("CONF_MUTE",
+		"Message: participant %s %s\r\n"
+		"Conference: %s\r\n"
+		"Channel: %s",
+		ast_channel_name(chan),
+		mute ? "muted" : "unmuted",
+		user->b_profile.name,
+		ast_channel_name(chan));
+	if (mute) {
+		send_mute_event(chan, conference);
+	} else {
+		send_unmute_event(chan, conference);
 	}
-	return ast_stream_and_wait(chan, (user->features.mute ?
+
+	return ast_stream_and_wait(chan, (mute ?
 		conf_get_sound(CONF_SOUND_MUTED, user->b_profile.sounds) :
 		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds)),
 		"");
@@ -1776,21 +1812,26 @@ static int action_toggle_mute_participants(struct confbridge_conference *confere
 {
 	struct confbridge_user *cur_user = NULL;
 	const char *sound_to_play;
+	int mute;
 
 	ao2_lock(conference);
 
-	/* If already muted, then unmute */
-	conference->muted = conference->muted ? 0 : 1;
-	sound_to_play = conf_get_sound((conference->muted ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED),
-		user->b_profile.sounds);
+	/* Toggle bridge level mute request. */
+	mute = !conference->muted;
+	conference->muted = mute;
 
 	AST_LIST_TRAVERSE(&conference->active_list, cur_user, list) {
 		if (!ast_test_flag(&cur_user->u_profile, USER_OPT_ADMIN)) {
-			cur_user->features.mute = conference->muted;
+			/* Set user level to bridge level mute request. */
+			cur_user->muted = mute;
+			conf_update_user_mute(cur_user);
 		}
 	}
 
 	ao2_unlock(conference);
+
+	sound_to_play = conf_get_sound((mute ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED),
+		user->b_profile.sounds);
 
 	/* The host needs to hear it seperately, as they don't get the audio from play_sound_helper */
 	ast_stream_and_wait(user->chan, sound_to_play, "");
@@ -2211,7 +2252,7 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 
 static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confbridge_user *user, int waiting)
 {
-	char flag_str[5 + 1];/* Max flags + terminator */
+	char flag_str[6 + 1];/* Max flags + terminator */
 	int pos = 0;
 
 	/* Build flags column string. */
@@ -2227,18 +2268,22 @@ static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confb
 	if (ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED)) {
 		flag_str[pos++] = 'E';
 	}
+	if (user->muted) {
+		flag_str[pos++] = 'm';
+	}
 	if (waiting) {
 		flag_str[pos++] = 'w';
 	}
 	flag_str[pos] = '\0';
 
-	ast_cli(a->fd, "%-29s ", ast_channel_name(user->chan));
-	ast_cli(a->fd, "%-5s ", flag_str);
-	ast_cli(a->fd, "%-17s", user->u_profile.name);
-	ast_cli(a->fd, "%-17s", user->b_profile.name);
-	ast_cli(a->fd, "%-17s", user->menu_name);
-	ast_cli(a->fd, "%-17s", S_COR(ast_channel_caller(user->chan)->id.number.valid, ast_channel_caller(user->chan)->id.number.str, "<unknown>"));
-	ast_cli(a->fd, "\n");
+	ast_cli(a->fd, "%-30s %-6s %-16s %-16s %-16s %s\n",
+		ast_channel_name(user->chan),
+		flag_str,
+		user->u_profile.name,
+		user->b_profile.name,
+		user->menu_name,
+		S_COR(ast_channel_caller(user->chan)->id.number.valid,
+			ast_channel_caller(user->chan)->id.number.str, "<unknown>"));
 }
 
 static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -2260,6 +2305,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 			"         M - The user is a marked user\n"
 			"         W - The user must wait for a marked user to join\n"
 			"         E - The user will be kicked after the last marked user leaves the conference\n"
+			"         m - The user is muted\n"
 			"         w - The user is waiting for a marked user to join\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -2291,8 +2337,8 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 			ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 			return CLI_SUCCESS;
 		}
-		ast_cli(a->fd, "Channel                       Flags User Profile     Bridge Profile   Menu             CallerID\n");
-		ast_cli(a->fd, "============================= ===== ================ ================ ================ ================\n");
+		ast_cli(a->fd, "Channel                        Flags  User Profile     Bridge Profile   Menu             CallerID\n");
+		ast_cli(a->fd, "============================== ====== ================ ================ ================ ================\n");
 		ao2_lock(conference);
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			handle_cli_confbridge_list_item(a, user, 0);
@@ -2356,14 +2402,23 @@ static int generic_mute_unmute_helper(int mute, const char *conference_name, con
 		}
 	}
 	if (user) {
-		user->features.mute = mute;
-		ast_channel_lock(user->chan);
-		if (user->features.mute) {
+		/* Set user level mute request. */
+		user->muted = mute ? 1 : 0;
+
+		conf_update_user_mute(user);
+		ast_test_suite_event_notify("CONF_MUTE",
+			"Message: participant %s %s\r\n"
+			"Conference: %s\r\n"
+			"Channel: %s",
+			ast_channel_name(user->chan),
+			mute ? "muted" : "unmuted",
+			conference->b_profile.name,
+			ast_channel_name(user->chan));
+		if (mute) {
 			send_mute_event(user->chan, conference);
 		} else {
 			send_unmute_event(user->chan, conference);
 		}
-		ast_channel_unlock(user->chan);
 	} else {
 		res = -2;;
 	}
@@ -2622,6 +2677,7 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		"WaitMarked: %s\r\n"
 		"EndMarked: %s\r\n"
 		"Waiting: %s\r\n"
+		"Muted: %s\r\n"
 		"\r\n",
 		id_text,
 		conference->name,
@@ -2632,7 +2688,8 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER) ? "Yes" : "No",
 		ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED) ? "Yes" : "No",
 		ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED) ? "Yes" : "No",
-		waiting ? "Yes" : "No");
+		waiting ? "Yes" : "No",
+		user->muted ? "Yes" : "No");
 }
 
 static int action_confbridgelist(struct mansession *s, const struct message *m)
@@ -3065,11 +3122,11 @@ void conf_mute_only_active(struct confbridge_conference *conference)
 {
 	struct confbridge_user *only_user = AST_LIST_FIRST(&conference->active_list);
 
-	/* Turn on MOH/mute if the single participant is set up for it */
+	/* Turn on MOH if the single participant is set up for it */
 	if (ast_test_flag(&only_user->u_profile, USER_OPT_MUSICONHOLD)) {
-		only_user->features.mute = 1;
 		conf_moh_start(only_user);
 	}
+	conf_update_user_mute(only_user);
 }
 
 void conf_remove_user_waiting(struct confbridge_conference *conference, struct confbridge_user *user)

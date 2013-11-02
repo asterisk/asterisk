@@ -242,6 +242,7 @@ struct confbridge_user {
 	struct ast_bridge_features features;         /*!< Bridge features structure */
 	struct ast_bridge_tech_optimizations tech_args; /*!< Bridge technology optimizations for talk detection */
 	unsigned int suspended_moh;                  /*!< Count of active suspended MOH actions. */
+	unsigned int muted:1;                        /*!< Has the user requested to be muted? */
 	unsigned int kicked:1;                       /*!< User has been kicked from the conference */
 	unsigned int playing_moh:1;                  /*!< MOH is currently being played to the user */
 	AST_LIST_HEAD_NOLOCK(, post_join_action) post_join_list; /*!< List of sounds to play after joining */;
@@ -383,6 +384,15 @@ int play_sound_file(struct confbridge_conference *conference, const char *filena
  * \param conference The conference bridge
  */
 void conf_ended(struct confbridge_conference *conference);
+
+/*!
+ * \brief Update the actual mute status of the user and set it on the bridge.
+ *
+ * \param user User to update the mute status.
+ *
+ * \return Nothing
+ */
+void conf_update_user_mute(struct confbridge_user *user);
 
 /*!
  * \brief Stop MOH for the conference user.
