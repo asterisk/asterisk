@@ -208,7 +208,7 @@ enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast
  *
  * \param addr The IP address found.  The address family is used
  * as an input parameter to filter the returned addresses.  If
- * it is 0, both IPv4 and IPv6 addresses can be returned.
+ * it is AST_AF_UNSPEC, both IPv4 and IPv6 addresses can be returned.
  * \param hostname The hostname to look up
  *
  * \retval 0 Success
