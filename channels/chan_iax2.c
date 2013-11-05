@@ -4272,7 +4272,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct ast_sockaddr
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_sockaddr *hostaddr;
 
-					if (!ast_sockaddr_resolve(&hostaddr, tmp->value, PARSE_PORT_FORBID, 0)
+					if (!ast_sockaddr_resolve(&hostaddr, tmp->value, PARSE_PORT_FORBID, AST_AF_UNSPEC)
 						|| ast_sockaddr_cmp_addr(hostaddr, addr)) {
 						/* No match */
 						ast_variables_destroy(var);
@@ -4394,7 +4394,7 @@ static struct iax2_user *realtime_user(const char *username, struct ast_sockaddr
 				if (!strcasecmp(tmp->name, "host")) {
 					struct ast_sockaddr *hostaddr;
 
-					if (!ast_sockaddr_resolve(&hostaddr, tmp->value, PARSE_PORT_FORBID, 0)
+					if (!ast_sockaddr_resolve(&hostaddr, tmp->value, PARSE_PORT_FORBID, AST_AF_UNSPEC)
 						|| ast_sockaddr_cmp_addr(hostaddr, addr)) {
 						/* No match */
 						ast_variables_destroy(var);
@@ -12399,6 +12399,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 			port = IAX_DEFAULT_PORTNO;
 	}
 
+	addr.ss.ss_family = AST_AF_UNSPEC;
 	if (!ast_get_ip(&addr, host)) {
 		struct ast_netsock *sock;
 
