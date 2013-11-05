@@ -5473,6 +5473,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->chanvars = copy_vars(peer->chanvars);
 	if (peer->fromdomainport)
 		dialog->fromdomainport = peer->fromdomainport;
+	dialog->callingpres = peer->callingpres;
 
 	return 0;
 }
@@ -12877,29 +12878,51 @@ static void state_notify_build_xml(struct state_notify_data *data, int full, con
 				struct ast_channel *caller;
 
 				if ((caller = ast_channel_callback(find_calling_channel, NULL, p, 0))) {
+					static char *anonymous = "anonymous";
+					static char *invalid = "anonymous.invalid";
 					char *cid_num;
 					char *connected_num;
 					int need;
+					int cid_num_restricted, connected_num_restricted;
 
 					ast_channel_lock(caller);
+
+					cid_num_restricted = (caller->caller.id.number.presentation &
+								   AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED;
 					cid_num = S_COR(caller->caller.id.number.valid,
-						caller->caller.id.number.str, "");
-					need = strlen(cid_num) + strlen(p->fromdomain) + sizeof("sip:@");
+							S_COR(cid_num_restricted, anonymous,
+							      caller->caller.id.number.str), "");
+
+					need = strlen(cid_num) + (cid_num_restricted ? strlen(invalid) :
+								  strlen(p->fromdomain)) + sizeof("sip:@");
+
 					remote_target = alloca(need);
-					snprintf(remote_target, need, "sip:%s@%s", cid_num, p->fromdomain);
+					snprintf(remote_target, need, "sip:%s@%s", cid_num,
+						 cid_num_restricted ? invalid : p->fromdomain);
 
 					ast_xml_escape(S_COR(caller->caller.id.name.valid,
-							     caller->caller.id.name.str, ""),
+							     S_COR((caller->caller.id.name.presentation &
+								     AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED, anonymous,
+								   caller->caller.id.name.str), ""),
 						       remote_display, sizeof(remote_display));
 
+					connected_num_restricted = (caller->connected.id.number.presentation &
+								    AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED;
 					connected_num = S_COR(caller->connected.id.number.valid,
-						caller->connected.id.number.str, "");
-					need = strlen(connected_num) + strlen(p->fromdomain) + sizeof("sip:@");
+							      S_COR(connected_num_restricted, anonymous,
+								    caller->connected.id.number.str), "");
+
+					need = strlen(connected_num) + (connected_num_restricted ? strlen(invalid) :
+									strlen(p->fromdomain)) + sizeof("sip:@");
 					local_target = alloca(need);
-					snprintf(local_target, need, "sip:%s@%s", connected_num, p->fromdomain);
+
+					snprintf(local_target, need, "sip:%s@%s", connected_num,
+						 connected_num_restricted ? invalid : p->fromdomain);
 
 					ast_xml_escape(S_COR(caller->connected.id.name.valid,
-							     caller->connected.id.name.str, ""),
+							     S_COR((caller->connected.id.name.presentation &
+								     AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED, anonymous,
+								    caller->connected.id.name.str), ""),
 						       local_display, sizeof(local_display));
 
 					ast_channel_unlock(caller);
