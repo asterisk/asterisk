@@ -30731,6 +30731,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					srvlookup = v->value;
 				}
 			} else if (!strcasecmp(v->name, "defaultip")) {
+				peer->defaddr.ss.ss_family = AST_AF_UNSPEC;
 				if (!ast_strlen_zero(v->value) && ast_get_ip(&peer->defaddr, v->value)) {
 					sip_unref_peer(peer, "sip_unref_peer: from build_peer defaultip");
 					return NULL;
