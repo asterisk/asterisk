@@ -37,9 +37,9 @@ extern "C" {
  * ever include socket.h.
  */
 enum {
-	AST_AF_UNSPEC	= 0,
-	AST_AF_INET	= 2,
-	AST_AF_INET6	= 10,
+	AST_AF_UNSPEC = AF_UNSPEC,
+	AST_AF_INET   = AF_INET,
+	AST_AF_INET6  = AF_INET6,
 };
 
 enum ast_transport {
