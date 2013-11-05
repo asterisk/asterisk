@@ -208,15 +208,12 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	ast_string_field_set(snapshot, exten, ast_channel_exten(chan));
 
 	ast_string_field_set(snapshot, caller_name,
-		S_COR(ast_channel_caller(chan)->ani.name.valid, ast_channel_caller(chan)->ani.name.str,
-		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "")));
+		S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, ""));
 	ast_string_field_set(snapshot, caller_number,
-		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str,
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "")));
+		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, ""));
 	ast_string_field_set(snapshot, caller_dnid, S_OR(ast_channel_dialed(chan)->number.str, ""));
 	ast_string_field_set(snapshot, caller_subaddr,
-		S_COR(ast_channel_caller(chan)->ani.subaddress.valid, ast_channel_caller(chan)->ani.subaddress.str,
-		S_COR(ast_channel_caller(chan)->id.subaddress.valid, ast_channel_caller(chan)->id.subaddress.str, "")));
+		S_COR(ast_channel_caller(chan)->id.subaddress.valid, ast_channel_caller(chan)->id.subaddress.str, ""));
 	ast_string_field_set(snapshot, dialed_subaddr,
 		S_COR(ast_channel_dialed(chan)->subaddress.valid, ast_channel_dialed(chan)->subaddress.str, ""));
 	ast_string_field_set(snapshot, caller_ani,
