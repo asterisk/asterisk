@@ -4467,6 +4467,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						}
 						prev = o;
 					}
+				} else if (prev) {
+					prev->call_next = NULL;
 				}
 				numlines++;
 			}
@@ -4927,7 +4929,9 @@ skip_frame:;
 
 	if (!*to) {
 		for (o = start; o; o = o->call_next) {
-			rna(orig, qe, o->chan, o->interface, o->member->membername, 1);
+			if (o->chan) {
+				rna(orig, qe, o->chan, o->interface, o->member->membername, 1);
+			}
 		}
 
 		publish_dial_end_event(qe->chan, outgoing, NULL, "NOANSWER");
