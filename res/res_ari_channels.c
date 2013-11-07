@@ -58,17 +58,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_channels_cb(
+static void ast_ari_channels_list_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_channels_args args = {};
+	struct ast_ari_channels_list_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	ast_ari_get_channels(headers, &args, response);
+	ast_ari_channels_list(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -107,11 +107,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_originate_cb(
+static void ast_ari_channels_originate_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_originate_args args = {};
+	struct ast_ari_channels_originate_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -145,7 +145,7 @@ static void ast_ari_originate_cb(
 		} else
 		{}
 	}
-	ast_ari_originate(headers, &args, response);
+	ast_ari_channels_originate(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -185,11 +185,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_channel_cb(
+static void ast_ari_channels_get_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_channel_args args = {};
+	struct ast_ari_channels_get_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -202,7 +202,7 @@ static void ast_ari_get_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_get_channel(headers, &args, response);
+	ast_ari_channels_get(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -242,11 +242,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_delete_channel_cb(
+static void ast_ari_channels_hangup_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_delete_channel_args args = {};
+	struct ast_ari_channels_hangup_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -265,7 +265,7 @@ static void ast_ari_delete_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_delete_channel(headers, &args, response);
+	ast_ari_channels_hangup(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -306,11 +306,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_continue_in_dialplan_cb(
+static void ast_ari_channels_continue_in_dialplan_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_continue_in_dialplan_args args = {};
+	struct ast_ari_channels_continue_in_dialplan_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -335,7 +335,7 @@ static void ast_ari_continue_in_dialplan_cb(
 		} else
 		{}
 	}
-	ast_ari_continue_in_dialplan(headers, &args, response);
+	ast_ari_channels_continue_in_dialplan(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -376,11 +376,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_answer_channel_cb(
+static void ast_ari_channels_answer_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_answer_channel_args args = {};
+	struct ast_ari_channels_answer_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -393,7 +393,7 @@ static void ast_ari_answer_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_answer_channel(headers, &args, response);
+	ast_ari_channels_answer(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -434,11 +434,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_ring_channel_cb(
+static void ast_ari_channels_ring_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_ring_channel_args args = {};
+	struct ast_ari_channels_ring_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -451,7 +451,7 @@ static void ast_ari_ring_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_ring_channel(headers, &args, response);
+	ast_ari_channels_ring(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -492,11 +492,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_send_dtmfchannel_cb(
+static void ast_ari_channels_send_dtmf_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_send_dtmfchannel_args args = {};
+	struct ast_ari_channels_send_dtmf_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -527,7 +527,7 @@ static void ast_ari_send_dtmfchannel_cb(
 		} else
 		{}
 	}
-	ast_ari_send_dtmfchannel(headers, &args, response);
+	ast_ari_channels_send_dtmf(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -569,11 +569,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_mute_channel_cb(
+static void ast_ari_channels_mute_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_mute_channel_args args = {};
+	struct ast_ari_channels_mute_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -592,7 +592,7 @@ static void ast_ari_mute_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_mute_channel(headers, &args, response);
+	ast_ari_channels_mute(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -627,17 +627,17 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /channels/{channelId}/unmute.
+ * \brief Parameter parsing callback for /channels/{channelId}/mute.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_unmute_channel_cb(
+static void ast_ari_channels_unmute_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_unmute_channel_args args = {};
+	struct ast_ari_channels_unmute_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -656,7 +656,7 @@ static void ast_ari_unmute_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_unmute_channel(headers, &args, response);
+	ast_ari_channels_unmute(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -675,13 +675,13 @@ static void ast_ari_unmute_channel_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/unmute\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/{channelId}/mute\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/unmute\n");
+		ast_log(LOG_ERROR, "Response validation failed for /channels/{channelId}/mute\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -697,11 +697,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_hold_channel_cb(
+static void ast_ari_channels_hold_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_hold_channel_args args = {};
+	struct ast_ari_channels_hold_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -714,7 +714,7 @@ static void ast_ari_hold_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_hold_channel(headers, &args, response);
+	ast_ari_channels_hold(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -755,11 +755,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_unhold_channel_cb(
+static void ast_ari_channels_unhold_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_unhold_channel_args args = {};
+	struct ast_ari_channels_unhold_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -772,7 +772,7 @@ static void ast_ari_unhold_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_unhold_channel(headers, &args, response);
+	ast_ari_channels_unhold(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -813,11 +813,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_moh_start_channel_cb(
+static void ast_ari_channels_start_moh_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_moh_start_channel_args args = {};
+	struct ast_ari_channels_start_moh_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -836,7 +836,7 @@ static void ast_ari_moh_start_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_moh_start_channel(headers, &args, response);
+	ast_ari_channels_start_moh(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -877,11 +877,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_moh_stop_channel_cb(
+static void ast_ari_channels_stop_moh_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_moh_stop_channel_args args = {};
+	struct ast_ari_channels_stop_moh_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -894,7 +894,7 @@ static void ast_ari_moh_stop_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_moh_stop_channel(headers, &args, response);
+	ast_ari_channels_stop_moh(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -935,11 +935,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_play_on_channel_cb(
+static void ast_ari_channels_play_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_play_on_channel_args args = {};
+	struct ast_ari_channels_play_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -967,7 +967,7 @@ static void ast_ari_play_on_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_play_on_channel(headers, &args, response);
+	ast_ari_channels_play(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -1008,11 +1008,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_record_channel_cb(
+static void ast_ari_channels_record_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_record_channel_args args = {};
+	struct ast_ari_channels_record_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -1049,7 +1049,7 @@ static void ast_ari_record_channel_cb(
 		} else
 		{}
 	}
-	ast_ari_record_channel(headers, &args, response);
+	ast_ari_channels_record(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -1092,11 +1092,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_channel_var_cb(
+static void ast_ari_channels_get_channel_var_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_channel_var_args args = {};
+	struct ast_ari_channels_get_channel_var_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -1115,7 +1115,7 @@ static void ast_ari_get_channel_var_cb(
 		} else
 		{}
 	}
-	ast_ari_get_channel_var(headers, &args, response);
+	ast_ari_channels_get_channel_var(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -1157,11 +1157,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_set_channel_var_cb(
+static void ast_ari_channels_set_channel_var_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_set_channel_var_args args = {};
+	struct ast_ari_channels_set_channel_var_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -1183,7 +1183,7 @@ static void ast_ari_set_channel_var_cb(
 		} else
 		{}
 	}
-	ast_ari_set_channel_var(headers, &args, response);
+	ast_ari_channels_set_channel_var(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -1223,7 +1223,7 @@ fin: __attribute__((unused))
 static struct stasis_rest_handlers channels_channelId_continue = {
 	.path_segment = "continue",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_continue_in_dialplan_cb,
+		[AST_HTTP_POST] = ast_ari_channels_continue_in_dialplan_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1232,7 +1232,7 @@ static struct stasis_rest_handlers channels_channelId_continue = {
 static struct stasis_rest_handlers channels_channelId_answer = {
 	.path_segment = "answer",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_answer_channel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_answer_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1241,7 +1241,7 @@ static struct stasis_rest_handlers channels_channelId_answer = {
 static struct stasis_rest_handlers channels_channelId_ring = {
 	.path_segment = "ring",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_ring_channel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_ring_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1250,7 +1250,7 @@ static struct stasis_rest_handlers channels_channelId_ring = {
 static struct stasis_rest_handlers channels_channelId_dtmf = {
 	.path_segment = "dtmf",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_send_dtmfchannel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_send_dtmf_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1259,16 +1259,8 @@ static struct stasis_rest_handlers channels_channelId_dtmf = {
 static struct stasis_rest_handlers channels_channelId_mute = {
 	.path_segment = "mute",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_mute_channel_cb,
-	},
-	.num_children = 0,
-	.children = {  }
-};
-/*! \brief REST handler for /api-docs/channels.{format} */
-static struct stasis_rest_handlers channels_channelId_unmute = {
-	.path_segment = "unmute",
-	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_unmute_channel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_mute_cb,
+		[AST_HTTP_DELETE] = ast_ari_channels_unmute_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1277,8 +1269,8 @@ static struct stasis_rest_handlers channels_channelId_unmute = {
 static struct stasis_rest_handlers channels_channelId_hold = {
 	.path_segment = "hold",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_hold_channel_cb,
-		[AST_HTTP_DELETE] = ast_ari_unhold_channel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_hold_cb,
+		[AST_HTTP_DELETE] = ast_ari_channels_unhold_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1287,8 +1279,8 @@ static struct stasis_rest_handlers channels_channelId_hold = {
 static struct stasis_rest_handlers channels_channelId_moh = {
 	.path_segment = "moh",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_moh_start_channel_cb,
-		[AST_HTTP_DELETE] = ast_ari_moh_stop_channel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_start_moh_cb,
+		[AST_HTTP_DELETE] = ast_ari_channels_stop_moh_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1297,7 +1289,7 @@ static struct stasis_rest_handlers channels_channelId_moh = {
 static struct stasis_rest_handlers channels_channelId_play = {
 	.path_segment = "play",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_play_on_channel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_play_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1306,7 +1298,7 @@ static struct stasis_rest_handlers channels_channelId_play = {
 static struct stasis_rest_handlers channels_channelId_record = {
 	.path_segment = "record",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_record_channel_cb,
+		[AST_HTTP_POST] = ast_ari_channels_record_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1315,8 +1307,8 @@ static struct stasis_rest_handlers channels_channelId_record = {
 static struct stasis_rest_handlers channels_channelId_variable = {
 	.path_segment = "variable",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_channel_var_cb,
-		[AST_HTTP_POST] = ast_ari_set_channel_var_cb,
+		[AST_HTTP_GET] = ast_ari_channels_get_channel_var_cb,
+		[AST_HTTP_POST] = ast_ari_channels_set_channel_var_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -1326,18 +1318,18 @@ static struct stasis_rest_handlers channels_channelId = {
 	.path_segment = "channelId",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_channel_cb,
-		[AST_HTTP_DELETE] = ast_ari_delete_channel_cb,
+		[AST_HTTP_GET] = ast_ari_channels_get_cb,
+		[AST_HTTP_DELETE] = ast_ari_channels_hangup_cb,
 	},
-	.num_children = 11,
-	.children = { &channels_channelId_continue,&channels_channelId_answer,&channels_channelId_ring,&channels_channelId_dtmf,&channels_channelId_mute,&channels_channelId_unmute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable, }
+	.num_children = 10,
+	.children = { &channels_channelId_continue,&channels_channelId_answer,&channels_channelId_ring,&channels_channelId_dtmf,&channels_channelId_mute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable, }
 };
 /*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels = {
 	.path_segment = "channels",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_channels_cb,
-		[AST_HTTP_POST] = ast_ari_originate_cb,
+		[AST_HTTP_GET] = ast_ari_channels_list_cb,
+		[AST_HTTP_POST] = ast_ari_channels_originate_cb,
 	},
 	.num_children = 1,
 	.children = { &channels_channelId, }

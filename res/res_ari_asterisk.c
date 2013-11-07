@@ -58,11 +58,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_asterisk_info_cb(
+static void ast_ari_asterisk_get_info_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_asterisk_info_args args = {};
+	struct ast_ari_asterisk_get_info_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -115,7 +115,7 @@ static void ast_ari_get_asterisk_info_cb(
 		} else
 		{}
 	}
-	ast_ari_get_asterisk_info(headers, &args, response);
+	ast_ari_asterisk_get_info(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -156,11 +156,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_global_var_cb(
+static void ast_ari_asterisk_get_global_var_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_global_var_args args = {};
+	struct ast_ari_asterisk_get_global_var_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -173,7 +173,7 @@ static void ast_ari_get_global_var_cb(
 		} else
 		{}
 	}
-	ast_ari_get_global_var(headers, &args, response);
+	ast_ari_asterisk_get_global_var(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -213,11 +213,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_set_global_var_cb(
+static void ast_ari_asterisk_set_global_var_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_set_global_var_args args = {};
+	struct ast_ari_asterisk_set_global_var_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -233,7 +233,7 @@ static void ast_ari_set_global_var_cb(
 		} else
 		{}
 	}
-	ast_ari_set_global_var(headers, &args, response);
+	ast_ari_asterisk_set_global_var(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -271,7 +271,7 @@ fin: __attribute__((unused))
 static struct stasis_rest_handlers asterisk_info = {
 	.path_segment = "info",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_asterisk_info_cb,
+		[AST_HTTP_GET] = ast_ari_asterisk_get_info_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -280,8 +280,8 @@ static struct stasis_rest_handlers asterisk_info = {
 static struct stasis_rest_handlers asterisk_variable = {
 	.path_segment = "variable",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_global_var_cb,
-		[AST_HTTP_POST] = ast_ari_set_global_var_cb,
+		[AST_HTTP_GET] = ast_ari_asterisk_get_global_var_cb,
+		[AST_HTTP_POST] = ast_ari_asterisk_set_global_var_cb,
 	},
 	.num_children = 0,
 	.children = {  }

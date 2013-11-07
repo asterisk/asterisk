@@ -95,7 +95,8 @@ static int filter_langs_cb(void *obj, void *arg, int flags)
 }
 
 /*! \brief Generate a Sound structure as documented in sounds.json for the specified filename */
-static struct ast_json *create_sound_blob(const char *filename, struct ast_get_sounds_args *args)
+static struct ast_json *create_sound_blob(const char *filename,
+	struct ast_ari_sounds_list_args *args)
 {
 	RAII_VAR(struct ast_json *, sound, NULL, ast_json_unref);
 	RAII_VAR(struct ao2_container *, languages, NULL, ao2_cleanup);
@@ -163,7 +164,7 @@ static int append_sound_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_json *sounds_array = arg;
 	char *filename = obj;
-	struct ast_get_sounds_args *args = data;
+	struct ast_ari_sounds_list_args *args = data;
 	struct ast_json *sound_blob = create_sound_blob(filename, args);
 	if (!sound_blob) {
 		return 0;
@@ -173,7 +174,9 @@ static int append_sound_cb(void *obj, void *arg, void *data, int flags)
 	return 0;
 }
 
-void ast_ari_get_sounds(struct ast_variable *headers, struct ast_get_sounds_args *args, struct ast_ari_response *response)
+void ast_ari_sounds_list(struct ast_variable *headers,
+	struct ast_ari_sounds_list_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ao2_container *, sound_files, NULL, ao2_cleanup);
 	struct ast_json *sounds_blob;
@@ -206,7 +209,9 @@ void ast_ari_get_sounds(struct ast_variable *headers, struct ast_get_sounds_args
 	ast_ari_response_ok(response, sounds_blob);
 }
 
-void ast_ari_get_stored_sound(struct ast_variable *headers, struct ast_get_stored_sound_args *args, struct ast_ari_response *response)
+void ast_ari_sounds_get(struct ast_variable *headers,
+	struct ast_ari_sounds_get_args *args,
+	struct ast_ari_response *response)
 {
 	struct ast_json *sound_blob;
 

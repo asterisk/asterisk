@@ -39,8 +39,8 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_event_websocket() */
-struct ast_event_websocket_args {
+/*! \brief Argument struct for ast_ari_events_event_websocket() */
+struct ast_ari_events_event_websocket_args {
 	/*! \brief Array of Applications to subscribe to. */
 	const char **app;
 	/*! \brief Length of app array. */
@@ -55,6 +55,6 @@ struct ast_event_websocket_args {
  * \param headers HTTP headers.
  * \param args Swagger parameters.
  */
-void ast_ari_websocket_event_websocket(struct ast_ari_websocket_session *session, struct ast_variable *headers, struct ast_event_websocket_args *args);
+void ast_ari_websocket_events_event_websocket(struct ast_ari_websocket_session *session, struct ast_variable *headers, struct ast_ari_events_event_websocket_args *args);
 
 #endif /* _ASTERISK_RESOURCE_EVENTS_H */

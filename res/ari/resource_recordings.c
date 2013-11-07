@@ -30,8 +30,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_app_recording.h"
 #include "resource_recordings.h"
 
-void ast_ari_get_stored_recordings(struct ast_variable *headers,
-	struct ast_get_stored_recordings_args *args,
+void ast_ari_recordings_list_stored(struct ast_variable *headers,
+	struct ast_ari_recordings_list_stored_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ao2_container *, recordings, NULL, ao2_cleanup);
@@ -70,8 +70,8 @@ void ast_ari_get_stored_recordings(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-void ast_ari_get_stored_recording(struct ast_variable *headers,
-	struct ast_get_stored_recording_args *args,
+void ast_ari_recordings_get_stored(struct ast_variable *headers,
+	struct ast_ari_recordings_get_stored_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
@@ -96,8 +96,8 @@ void ast_ari_get_stored_recording(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-void ast_ari_delete_stored_recording(struct ast_variable *headers,
-	struct ast_delete_stored_recording_args *args,
+void ast_ari_recordings_delete_stored(struct ast_variable *headers,
+	struct ast_ari_recordings_delete_stored_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
@@ -137,8 +137,8 @@ void ast_ari_delete_stored_recording(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_get_live_recording(struct ast_variable *headers,
-	struct ast_get_live_recording_args *args,
+void ast_ari_recordings_get_live(struct ast_variable *headers,
+	struct ast_ari_recordings_get_live_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
@@ -192,48 +192,48 @@ static void control_recording(const char *name,
 	}
 }
 
-void ast_ari_cancel_recording(struct ast_variable *headers,
-	struct ast_cancel_recording_args *args,
+void ast_ari_recordings_cancel(struct ast_variable *headers,
+	struct ast_ari_recordings_cancel_args *args,
 	struct ast_ari_response *response)
 {
 	control_recording(args->recording_name, STASIS_APP_RECORDING_CANCEL,
 		response);
 }
 
-void ast_ari_stop_recording(struct ast_variable *headers,
-	struct ast_stop_recording_args *args,
+void ast_ari_recordings_stop(struct ast_variable *headers,
+	struct ast_ari_recordings_stop_args *args,
 	struct ast_ari_response *response)
 {
 	control_recording(args->recording_name, STASIS_APP_RECORDING_STOP,
 		response);
 }
 
-void ast_ari_pause_recording(struct ast_variable *headers,
-	struct ast_pause_recording_args *args,
+void ast_ari_recordings_pause(struct ast_variable *headers,
+	struct ast_ari_recordings_pause_args *args,
 	struct ast_ari_response *response)
 {
 	control_recording(args->recording_name, STASIS_APP_RECORDING_PAUSE,
 		response);
 }
 
-void ast_ari_unpause_recording(struct ast_variable *headers,
-	struct ast_unpause_recording_args *args,
+void ast_ari_recordings_unpause(struct ast_variable *headers,
+	struct ast_ari_recordings_unpause_args *args,
 	struct ast_ari_response *response)
 {
 	control_recording(args->recording_name, STASIS_APP_RECORDING_UNPAUSE,
 		response);
 }
 
-void ast_ari_mute_recording(struct ast_variable *headers,
-	struct ast_mute_recording_args *args,
+void ast_ari_recordings_mute(struct ast_variable *headers,
+	struct ast_ari_recordings_mute_args *args,
 	struct ast_ari_response *response)
 {
 	control_recording(args->recording_name, STASIS_APP_RECORDING_MUTE,
 		response);
 }
 
-void ast_ari_unmute_recording(struct ast_variable *headers,
-	struct ast_unmute_recording_args *args,
+void ast_ari_recordings_unmute(struct ast_variable *headers,
+	struct ast_ari_recordings_unmute_args *args,
 	struct ast_ari_response *response)
 {
 	control_recording(args->recording_name, STASIS_APP_RECORDING_UNMUTE,

@@ -14,7 +14,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "List all applications.",
-					"nickname": "getApplications",
+					"nickname": "list",
 					"responseClass": "List[Application]"
 				}
 			]
@@ -26,7 +26,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "Get details of an application.",
-					"nickname": "getApplication",
+					"nickname": "get",
 					"responseClass": "Application",
 					"parameters": [
 						{
@@ -55,7 +55,7 @@
 					"httpMethod": "POST",
 					"summary": "Subscribe an application to a event source.",
 					"notes": "Returns the state of the application after the subscriptions have changed",
-					"nickname": "applicationSubscribe",
+					"nickname": "subscribe",
 					"responseClass": "Application",
 					"parameters": [
 						{
@@ -94,7 +94,7 @@
 					"httpMethod": "DELETE",
 					"summary": "Unsubscribe an application from an event source.",
 					"notes": "Returns the state of the application after the subscriptions have changed",
-					"nickname": "applicationUnsubscribe",
+					"nickname": "unsubscribe",
 					"responseClass": "Application",
 					"parameters": [
 						{

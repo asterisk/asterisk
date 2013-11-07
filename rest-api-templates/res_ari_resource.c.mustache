@@ -73,11 +73,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_{{c_nickname}}_cb(
+static void ast_ari_{{c_name}}_{{c_nickname}}_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_{{c_nickname}}_args args = {};
+	struct ast_ari_{{c_name}}_{{c_nickname}}_args args = {};
 {{#has_parameters}}
 	struct ast_variable *i;
 {{/has_parameters}}
@@ -87,7 +87,7 @@ static void ast_ari_{{c_nickname}}_cb(
 #endif /* AST_DEVMODE */
 
 {{> param_parsing}}
-	ast_ari_{{c_nickname}}(headers, &args, response);
+	ast_ari_{{c_name}}_{{c_nickname}}(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -133,10 +133,10 @@ fin: __attribute__((unused))
 }
 {{/is_req}}
 {{#is_websocket}}
-static void ast_ari_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
+static void ast_ari_{{c_name}}_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
 	struct ast_variable *get_params, struct ast_variable *headers)
 {
-	struct ast_{{c_nickname}}_args args = {};
+	struct ast_ari_{{c_name}}_{{c_nickname}}_args args = {};
 {{#has_parameters}}
 	RAII_VAR(struct ast_ari_response *, response, NULL, ast_free);
 	struct ast_variable *i;
@@ -171,7 +171,7 @@ static void ast_ari_{{c_nickname}}_ws_cb(struct ast_websocket *ws_session,
 
 {{> param_parsing}}
 
-	ast_ari_websocket_{{c_nickname}}(session, headers, &args);
+	ast_ari_websocket_{{c_name}}_{{c_nickname}}(session, headers, &args);
 
 fin: __attribute__((unused))
 	if (response && response->response_code != 0) {
@@ -216,7 +216,7 @@ static int load_module(void)
 {{#operations}}
 {{#is_websocket}}
 	res |= ast_websocket_server_add_protocol({{full_name}}.ws_server,
-		"{{websocket_protocol}}", ast_ari_{{c_nickname}}_ws_cb);
+		"{{websocket_protocol}}", ast_ari_{{c_name}}_{{c_nickname}}_ws_cb);
 {{/is_websocket}}
 {{/operations}}
 {{/apis}}

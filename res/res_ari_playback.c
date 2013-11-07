@@ -58,11 +58,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_playback_cb(
+static void ast_ari_playback_get_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_playback_args args = {};
+	struct ast_ari_playback_get_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -75,7 +75,7 @@ static void ast_ari_get_playback_cb(
 		} else
 		{}
 	}
-	ast_ari_get_playback(headers, &args, response);
+	ast_ari_playback_get(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -115,11 +115,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_stop_playback_cb(
+static void ast_ari_playback_stop_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_stop_playback_args args = {};
+	struct ast_ari_playback_stop_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -132,7 +132,7 @@ static void ast_ari_stop_playback_cb(
 		} else
 		{}
 	}
-	ast_ari_stop_playback(headers, &args, response);
+	ast_ari_playback_stop(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -172,11 +172,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_control_playback_cb(
+static void ast_ari_playback_control_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_control_playback_args args = {};
+	struct ast_ari_playback_control_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -195,7 +195,7 @@ static void ast_ari_control_playback_cb(
 		} else
 		{}
 	}
-	ast_ari_control_playback(headers, &args, response);
+	ast_ari_playback_control(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -235,7 +235,7 @@ fin: __attribute__((unused))
 static struct stasis_rest_handlers playback_playbackId_control = {
 	.path_segment = "control",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_control_playback_cb,
+		[AST_HTTP_POST] = ast_ari_playback_control_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -245,8 +245,8 @@ static struct stasis_rest_handlers playback_playbackId = {
 	.path_segment = "playbackId",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_playback_cb,
-		[AST_HTTP_DELETE] = ast_ari_stop_playback_cb,
+		[AST_HTTP_GET] = ast_ari_playback_get_cb,
+		[AST_HTTP_DELETE] = ast_ari_playback_stop_cb,
 	},
 	.num_children = 1,
 	.children = { &playback_playbackId_control, }

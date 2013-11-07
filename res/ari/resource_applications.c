@@ -41,8 +41,8 @@ static int append_json(void *obj, void *arg, int flags)
 	return 0;
 }
 
-void ast_ari_get_applications(struct ast_variable *headers,
-	struct ast_get_applications_args *args,
+void ast_ari_applications_list(struct ast_variable *headers,
+	struct ast_ari_applications_list_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ao2_container *, apps, NULL, ao2_cleanup);
@@ -72,8 +72,8 @@ void ast_ari_get_applications(struct ast_variable *headers,
 	ast_ari_response_ok(response, json);
 }
 
-void ast_ari_get_application(struct ast_variable *headers,
-	struct ast_get_application_args *args,
+void ast_ari_applications_get(struct ast_variable *headers,
+	struct ast_ari_applications_get_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
@@ -89,8 +89,8 @@ void ast_ari_get_application(struct ast_variable *headers,
 	ast_ari_response_ok(response, json);
 }
 
-void ast_ari_application_subscribe(struct ast_variable *headers,
-	struct ast_application_subscribe_args *args,
+void ast_ari_applications_subscribe(struct ast_variable *headers,
+	struct ast_ari_applications_subscribe_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
@@ -134,8 +134,8 @@ void ast_ari_application_subscribe(struct ast_variable *headers,
 	}
 }
 
-void ast_ari_application_unsubscribe(struct ast_variable *headers,
-	struct ast_application_unsubscribe_args *args,
+void ast_ari_applications_unsubscribe(struct ast_variable *headers,
+	struct ast_ari_applications_unsubscribe_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);

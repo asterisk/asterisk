@@ -39,8 +39,8 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_get_stored_recordings() */
-struct ast_get_stored_recordings_args {
+/*! \brief Argument struct for ast_ari_recordings_list_stored() */
+struct ast_ari_recordings_list_stored_args {
 };
 /*!
  * \brief List recordings that are complete.
@@ -49,9 +49,9 @@ struct ast_get_stored_recordings_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_stored_recordings(struct ast_variable *headers, struct ast_get_stored_recordings_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_stored_recording() */
-struct ast_get_stored_recording_args {
+void ast_ari_recordings_list_stored(struct ast_variable *headers, struct ast_ari_recordings_list_stored_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_get_stored() */
+struct ast_ari_recordings_get_stored_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -62,9 +62,9 @@ struct ast_get_stored_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_stored_recording(struct ast_variable *headers, struct ast_get_stored_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_delete_stored_recording() */
-struct ast_delete_stored_recording_args {
+void ast_ari_recordings_get_stored(struct ast_variable *headers, struct ast_ari_recordings_get_stored_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_delete_stored() */
+struct ast_ari_recordings_delete_stored_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -75,9 +75,9 @@ struct ast_delete_stored_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_delete_stored_recording(struct ast_variable *headers, struct ast_delete_stored_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_live_recording() */
-struct ast_get_live_recording_args {
+void ast_ari_recordings_delete_stored(struct ast_variable *headers, struct ast_ari_recordings_delete_stored_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_get_live() */
+struct ast_ari_recordings_get_live_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -88,9 +88,9 @@ struct ast_get_live_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_live_recording(struct ast_variable *headers, struct ast_get_live_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_cancel_recording() */
-struct ast_cancel_recording_args {
+void ast_ari_recordings_get_live(struct ast_variable *headers, struct ast_ari_recordings_get_live_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_cancel() */
+struct ast_ari_recordings_cancel_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -101,9 +101,9 @@ struct ast_cancel_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_cancel_recording(struct ast_variable *headers, struct ast_cancel_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_stop_recording() */
-struct ast_stop_recording_args {
+void ast_ari_recordings_cancel(struct ast_variable *headers, struct ast_ari_recordings_cancel_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_stop() */
+struct ast_ari_recordings_stop_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -114,9 +114,9 @@ struct ast_stop_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_stop_recording(struct ast_variable *headers, struct ast_stop_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_pause_recording() */
-struct ast_pause_recording_args {
+void ast_ari_recordings_stop(struct ast_variable *headers, struct ast_ari_recordings_stop_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_pause() */
+struct ast_ari_recordings_pause_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -129,9 +129,9 @@ struct ast_pause_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_pause_recording(struct ast_variable *headers, struct ast_pause_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_unpause_recording() */
-struct ast_unpause_recording_args {
+void ast_ari_recordings_pause(struct ast_variable *headers, struct ast_ari_recordings_pause_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_unpause() */
+struct ast_ari_recordings_unpause_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -142,9 +142,9 @@ struct ast_unpause_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_unpause_recording(struct ast_variable *headers, struct ast_unpause_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_mute_recording() */
-struct ast_mute_recording_args {
+void ast_ari_recordings_unpause(struct ast_variable *headers, struct ast_ari_recordings_unpause_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_mute() */
+struct ast_ari_recordings_mute_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -157,9 +157,9 @@ struct ast_mute_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_mute_recording(struct ast_variable *headers, struct ast_mute_recording_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_unmute_recording() */
-struct ast_unmute_recording_args {
+void ast_ari_recordings_mute(struct ast_variable *headers, struct ast_ari_recordings_mute_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_recordings_unmute() */
+struct ast_ari_recordings_unmute_args {
 	/*! \brief The name of the recording */
 	const char *recording_name;
 };
@@ -170,6 +170,6 @@ struct ast_unmute_recording_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_unmute_recording(struct ast_variable *headers, struct ast_unmute_recording_args *args, struct ast_ari_response *response);
+void ast_ari_recordings_unmute(struct ast_variable *headers, struct ast_ari_recordings_unmute_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_RECORDINGS_H */

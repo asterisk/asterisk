@@ -33,8 +33,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_endpoints.h"
 
-void ast_ari_get_endpoints(struct ast_variable *headers,
-	struct ast_get_endpoints_args *args,
+void ast_ari_endpoints_list(struct ast_variable *headers,
+	struct ast_ari_endpoints_list_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
@@ -79,8 +79,8 @@ void ast_ari_get_endpoints(struct ast_variable *headers,
 
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
-void ast_ari_get_endpoints_by_tech(struct ast_variable *headers,
-	struct ast_get_endpoints_by_tech_args *args,
+void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
+	struct ast_ari_endpoints_list_by_tech_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
@@ -133,8 +133,8 @@ void ast_ari_get_endpoints_by_tech(struct ast_variable *headers,
 
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
-void ast_ari_get_endpoint(struct ast_variable *headers,
-	struct ast_get_endpoint_args *args,
+void ast_ari_endpoints_get(struct ast_variable *headers,
+	struct ast_ari_endpoints_get_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);

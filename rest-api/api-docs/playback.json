@@ -14,7 +14,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "Get a playback's details.",
-					"nickname": "getPlayback",
+					"nickname": "get",
 					"responseClass": "Playback",
 					"parameters": [
 						{
@@ -36,7 +36,7 @@
 				{
 					"httpMethod": "DELETE",
 					"summary": "Stop a playback.",
-					"nickname": "stopPlayback",
+					"nickname": "stop",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -64,7 +64,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Control a playback.",
-					"nickname": "controlPlayback",
+					"nickname": "control",
 					"responseClass": "void",
 					"parameters": [
 						{

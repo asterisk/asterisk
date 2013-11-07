@@ -157,6 +157,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
         # Now in all caps, for include guard
         resource_api.name_caps = resource_api.name.upper()
         resource_api.name_title = resource_api.name.capitalize()
+        resource_api.c_name = snakify(resource_api.name)
         # Construct the PathSegement tree for the API.
         if resource_api.api_declaration:
             resource_api.root_path = PathSegment('', None)
@@ -182,7 +183,7 @@ class AsteriskProcessor(SwaggerPostProcessor):
         api.wiki_path = wikify(api.path)
 
     def process_operation(self, operation, context):
-        # Nicknames are camelcase, Asterisk coding is snake case
+        # Nicknames are camelCase, Asterisk coding is snake case
         operation.c_nickname = snakify(operation.nickname)
         operation.c_http_method = 'AST_HTTP_' + operation.http_method
         if not operation.summary.endswith("."):

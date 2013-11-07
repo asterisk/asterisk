@@ -52,10 +52,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_VALS 128
 
-static void ast_ari_event_websocket_ws_cb(struct ast_websocket *ws_session,
+static void ast_ari_events_event_websocket_ws_cb(struct ast_websocket *ws_session,
 	struct ast_variable *get_params, struct ast_variable *headers)
 {
-	struct ast_event_websocket_args args = {};
+	struct ast_ari_events_event_websocket_args args = {};
 	RAII_VAR(struct ast_ari_response *, response, NULL, ast_free);
 	struct ast_variable *i;
 	RAII_VAR(struct ast_websocket *, s, ws_session, ast_websocket_unref);
@@ -125,7 +125,7 @@ static void ast_ari_event_websocket_ws_cb(struct ast_websocket *ws_session,
 		{}
 	}
 
-	ast_ari_websocket_event_websocket(session, headers, &args);
+	ast_ari_websocket_events_event_websocket(session, headers, &args);
 
 fin: __attribute__((unused))
 	if (response && response->response_code != 0) {
@@ -167,7 +167,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	res |= ast_websocket_server_add_protocol(events.ws_server,
-		"ari", ast_ari_event_websocket_ws_cb);
+		"ari", ast_ari_events_event_websocket_ws_cb);
 	stasis_app_ref();
 	res |= ast_ari_add_handler(&events);
 	return res;

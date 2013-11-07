@@ -58,17 +58,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_bridges_cb(
+static void ast_ari_bridges_list_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_bridges_args args = {};
+	struct ast_ari_bridges_list_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	ast_ari_get_bridges(headers, &args, response);
+	ast_ari_bridges_list(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -107,11 +107,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_new_bridge_cb(
+static void ast_ari_bridges_create_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_new_bridge_args args = {};
+	struct ast_ari_bridges_create_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -124,7 +124,7 @@ static void ast_ari_new_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_new_bridge(headers, &args, response);
+	ast_ari_bridges_create(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -163,11 +163,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_bridge_cb(
+static void ast_ari_bridges_get_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_bridge_args args = {};
+	struct ast_ari_bridges_get_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -180,7 +180,7 @@ static void ast_ari_get_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_get_bridge(headers, &args, response);
+	ast_ari_bridges_get(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -220,11 +220,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_delete_bridge_cb(
+static void ast_ari_bridges_destroy_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_delete_bridge_args args = {};
+	struct ast_ari_bridges_destroy_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -237,7 +237,7 @@ static void ast_ari_delete_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_delete_bridge(headers, &args, response);
+	ast_ari_bridges_destroy(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -277,11 +277,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_add_channel_to_bridge_cb(
+static void ast_ari_bridges_add_channel_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_add_channel_to_bridge_args args = {};
+	struct ast_ari_bridges_add_channel_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -343,7 +343,7 @@ static void ast_ari_add_channel_to_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_add_channel_to_bridge(headers, &args, response);
+	ast_ari_bridges_add_channel(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -388,11 +388,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_remove_channel_from_bridge_cb(
+static void ast_ari_bridges_remove_channel_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_remove_channel_from_bridge_args args = {};
+	struct ast_ari_bridges_remove_channel_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -451,7 +451,7 @@ static void ast_ari_remove_channel_from_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_remove_channel_from_bridge(headers, &args, response);
+	ast_ari_bridges_remove_channel(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -496,11 +496,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_moh_start_bridge_cb(
+static void ast_ari_bridges_start_moh_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_moh_start_bridge_args args = {};
+	struct ast_ari_bridges_start_moh_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -519,7 +519,7 @@ static void ast_ari_moh_start_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_moh_start_bridge(headers, &args, response);
+	ast_ari_bridges_start_moh(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -560,11 +560,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_moh_stop_bridge_cb(
+static void ast_ari_bridges_stop_moh_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_moh_stop_bridge_args args = {};
+	struct ast_ari_bridges_stop_moh_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -577,7 +577,7 @@ static void ast_ari_moh_stop_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_moh_stop_bridge(headers, &args, response);
+	ast_ari_bridges_stop_moh(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -618,11 +618,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_play_on_bridge_cb(
+static void ast_ari_bridges_play_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_play_on_bridge_args args = {};
+	struct ast_ari_bridges_play_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -650,7 +650,7 @@ static void ast_ari_play_on_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_play_on_bridge(headers, &args, response);
+	ast_ari_bridges_play(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -691,11 +691,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_record_bridge_cb(
+static void ast_ari_bridges_record_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_record_bridge_args args = {};
+	struct ast_ari_bridges_record_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -732,7 +732,7 @@ static void ast_ari_record_bridge_cb(
 		} else
 		{}
 	}
-	ast_ari_record_bridge(headers, &args, response);
+	ast_ari_bridges_record(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -773,7 +773,7 @@ fin: __attribute__((unused))
 static struct stasis_rest_handlers bridges_bridgeId_addChannel = {
 	.path_segment = "addChannel",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_add_channel_to_bridge_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_add_channel_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -782,7 +782,7 @@ static struct stasis_rest_handlers bridges_bridgeId_addChannel = {
 static struct stasis_rest_handlers bridges_bridgeId_removeChannel = {
 	.path_segment = "removeChannel",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_remove_channel_from_bridge_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_remove_channel_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -791,8 +791,8 @@ static struct stasis_rest_handlers bridges_bridgeId_removeChannel = {
 static struct stasis_rest_handlers bridges_bridgeId_moh = {
 	.path_segment = "moh",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_moh_start_bridge_cb,
-		[AST_HTTP_DELETE] = ast_ari_moh_stop_bridge_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_start_moh_cb,
+		[AST_HTTP_DELETE] = ast_ari_bridges_stop_moh_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -801,7 +801,7 @@ static struct stasis_rest_handlers bridges_bridgeId_moh = {
 static struct stasis_rest_handlers bridges_bridgeId_play = {
 	.path_segment = "play",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_play_on_bridge_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_play_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -810,7 +810,7 @@ static struct stasis_rest_handlers bridges_bridgeId_play = {
 static struct stasis_rest_handlers bridges_bridgeId_record = {
 	.path_segment = "record",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_record_bridge_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_record_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -820,8 +820,8 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 	.path_segment = "bridgeId",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_bridge_cb,
-		[AST_HTTP_DELETE] = ast_ari_delete_bridge_cb,
+		[AST_HTTP_GET] = ast_ari_bridges_get_cb,
+		[AST_HTTP_DELETE] = ast_ari_bridges_destroy_cb,
 	},
 	.num_children = 5,
 	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_moh,&bridges_bridgeId_play,&bridges_bridgeId_record, }
@@ -830,8 +830,8 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 static struct stasis_rest_handlers bridges = {
 	.path_segment = "bridges",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_bridges_cb,
-		[AST_HTTP_POST] = ast_ari_new_bridge_cb,
+		[AST_HTTP_GET] = ast_ari_bridges_list_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_create_cb,
 	},
 	.num_children = 1,
 	.children = { &bridges_bridgeId, }

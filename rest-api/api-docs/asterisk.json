@@ -14,7 +14,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "Gets Asterisk system information.",
-					"nickname": "getAsteriskInfo",
+					"nickname": "getInfo",
 					"responseClass": "AsteriskInfo",
 					"parameters": [
 						{

@@ -58,17 +58,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_applications_cb(
+static void ast_ari_applications_list_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_applications_args args = {};
+	struct ast_ari_applications_list_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	ast_ari_get_applications(headers, &args, response);
+	ast_ari_applications_list(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -107,11 +107,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_application_cb(
+static void ast_ari_applications_get_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_application_args args = {};
+	struct ast_ari_applications_get_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -124,7 +124,7 @@ static void ast_ari_get_application_cb(
 		} else
 		{}
 	}
-	ast_ari_get_application(headers, &args, response);
+	ast_ari_applications_get(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -164,11 +164,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_application_subscribe_cb(
+static void ast_ari_applications_subscribe_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_application_subscribe_args args = {};
+	struct ast_ari_applications_subscribe_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -227,7 +227,7 @@ static void ast_ari_application_subscribe_cb(
 		} else
 		{}
 	}
-	ast_ari_application_subscribe(headers, &args, response);
+	ast_ari_applications_subscribe(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -271,11 +271,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_application_unsubscribe_cb(
+static void ast_ari_applications_unsubscribe_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_application_unsubscribe_args args = {};
+	struct ast_ari_applications_unsubscribe_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -334,7 +334,7 @@ static void ast_ari_application_unsubscribe_cb(
 		} else
 		{}
 	}
-	ast_ari_application_unsubscribe(headers, &args, response);
+	ast_ari_applications_unsubscribe(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -377,8 +377,8 @@ fin: __attribute__((unused))
 static struct stasis_rest_handlers applications_applicationName_subscription = {
 	.path_segment = "subscription",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_application_subscribe_cb,
-		[AST_HTTP_DELETE] = ast_ari_application_unsubscribe_cb,
+		[AST_HTTP_POST] = ast_ari_applications_subscribe_cb,
+		[AST_HTTP_DELETE] = ast_ari_applications_unsubscribe_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -388,7 +388,7 @@ static struct stasis_rest_handlers applications_applicationName = {
 	.path_segment = "applicationName",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_application_cb,
+		[AST_HTTP_GET] = ast_ari_applications_get_cb,
 	},
 	.num_children = 1,
 	.children = { &applications_applicationName_subscription, }
@@ -397,7 +397,7 @@ static struct stasis_rest_handlers applications_applicationName = {
 static struct stasis_rest_handlers applications = {
 	.path_segment = "applications",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_applications_cb,
+		[AST_HTTP_GET] = ast_ari_applications_list_cb,
 	},
 	.num_children = 1,
 	.children = { &applications_applicationName, }

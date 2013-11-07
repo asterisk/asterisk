@@ -31,7 +31,7 @@ static struct stasis_rest_handlers {{full_name}} = {
 	.callbacks = {
 {{#operations}}
 {{#is_req}}
-		[{{c_http_method}}] = ast_ari_{{c_nickname}}_cb,
+		[{{c_http_method}}] = ast_ari_{{c_name}}_{{c_nickname}}_cb,
 {{/is_req}}
 {{/operations}}
 	},

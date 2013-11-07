@@ -37,8 +37,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "resource_asterisk.h"
 
-void ast_ari_get_asterisk_info(struct ast_variable *headers,
-	struct ast_get_asterisk_info_args *args,
+void ast_ari_asterisk_get_info(struct ast_variable *headers,
+	struct ast_ari_asterisk_get_info_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
@@ -140,7 +140,9 @@ void ast_ari_get_asterisk_info(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-void ast_ari_get_global_var(struct ast_variable *headers, struct ast_get_global_var_args *args, struct ast_ari_response *response)
+void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
+	struct ast_ari_asterisk_get_global_var_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	RAII_VAR(struct ast_str *, tmp, NULL, ast_free);
@@ -172,7 +174,9 @@ void ast_ari_get_global_var(struct ast_variable *headers, struct ast_get_global_
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-void ast_ari_set_global_var(struct ast_variable *headers, struct ast_set_global_var_args *args, struct ast_ari_response *response)
+void ast_ari_asterisk_set_global_var(struct ast_variable *headers,
+	struct ast_ari_asterisk_set_global_var_args *args,
+	struct ast_ari_response *response)
 {
 	ast_assert(response != NULL);
 

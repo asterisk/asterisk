@@ -39,8 +39,8 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_get_channels() */
-struct ast_get_channels_args {
+/*! \brief Argument struct for ast_ari_channels_list() */
+struct ast_ari_channels_list_args {
 };
 /*!
  * \brief List all active channels in Asterisk.
@@ -49,9 +49,9 @@ struct ast_get_channels_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_channels(struct ast_variable *headers, struct ast_get_channels_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_originate() */
-struct ast_originate_args {
+void ast_ari_channels_list(struct ast_variable *headers, struct ast_ari_channels_list_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_originate() */
+struct ast_ari_channels_originate_args {
 	/*! \brief Endpoint to call. */
 	const char *endpoint;
 	/*! \brief The extension to dial after the endpoint answers */
@@ -78,9 +78,9 @@ struct ast_originate_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_originate(struct ast_variable *headers, struct ast_originate_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_channel() */
-struct ast_get_channel_args {
+void ast_ari_channels_originate(struct ast_variable *headers, struct ast_ari_channels_originate_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_get() */
+struct ast_ari_channels_get_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 };
@@ -91,9 +91,9 @@ struct ast_get_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_channel(struct ast_variable *headers, struct ast_get_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_delete_channel() */
-struct ast_delete_channel_args {
+void ast_ari_channels_get(struct ast_variable *headers, struct ast_ari_channels_get_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_hangup() */
+struct ast_ari_channels_hangup_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief Reason for hanging up the channel */
@@ -106,9 +106,9 @@ struct ast_delete_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_delete_channel(struct ast_variable *headers, struct ast_delete_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_continue_in_dialplan() */
-struct ast_continue_in_dialplan_args {
+void ast_ari_channels_hangup(struct ast_variable *headers, struct ast_ari_channels_hangup_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_continue_in_dialplan() */
+struct ast_ari_channels_continue_in_dialplan_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief The context to continue to. */
@@ -125,9 +125,9 @@ struct ast_continue_in_dialplan_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_continue_in_dialplan(struct ast_variable *headers, struct ast_continue_in_dialplan_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_answer_channel() */
-struct ast_answer_channel_args {
+void ast_ari_channels_continue_in_dialplan(struct ast_variable *headers, struct ast_ari_channels_continue_in_dialplan_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_answer() */
+struct ast_ari_channels_answer_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 };
@@ -138,9 +138,9 @@ struct ast_answer_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_answer_channel(struct ast_variable *headers, struct ast_answer_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_ring_channel() */
-struct ast_ring_channel_args {
+void ast_ari_channels_answer(struct ast_variable *headers, struct ast_ari_channels_answer_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_ring() */
+struct ast_ari_channels_ring_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 };
@@ -151,9 +151,9 @@ struct ast_ring_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_ring_channel(struct ast_variable *headers, struct ast_ring_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_send_dtmfchannel() */
-struct ast_send_dtmfchannel_args {
+void ast_ari_channels_ring(struct ast_variable *headers, struct ast_ari_channels_ring_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_send_dtmf() */
+struct ast_ari_channels_send_dtmf_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief DTMF To send. */
@@ -174,9 +174,9 @@ struct ast_send_dtmfchannel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_send_dtmfchannel(struct ast_variable *headers, struct ast_send_dtmfchannel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_mute_channel() */
-struct ast_mute_channel_args {
+void ast_ari_channels_send_dtmf(struct ast_variable *headers, struct ast_ari_channels_send_dtmf_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_mute() */
+struct ast_ari_channels_mute_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief Direction in which to mute audio */
@@ -189,9 +189,9 @@ struct ast_mute_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_mute_channel(struct ast_variable *headers, struct ast_mute_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_unmute_channel() */
-struct ast_unmute_channel_args {
+void ast_ari_channels_mute(struct ast_variable *headers, struct ast_ari_channels_mute_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_unmute() */
+struct ast_ari_channels_unmute_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief Direction in which to unmute audio */
@@ -204,9 +204,9 @@ struct ast_unmute_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_unmute_channel(struct ast_variable *headers, struct ast_unmute_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_hold_channel() */
-struct ast_hold_channel_args {
+void ast_ari_channels_unmute(struct ast_variable *headers, struct ast_ari_channels_unmute_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_hold() */
+struct ast_ari_channels_hold_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 };
@@ -217,9 +217,9 @@ struct ast_hold_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_hold_channel(struct ast_variable *headers, struct ast_hold_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_unhold_channel() */
-struct ast_unhold_channel_args {
+void ast_ari_channels_hold(struct ast_variable *headers, struct ast_ari_channels_hold_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_unhold() */
+struct ast_ari_channels_unhold_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 };
@@ -230,9 +230,9 @@ struct ast_unhold_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_unhold_channel(struct ast_variable *headers, struct ast_unhold_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_moh_start_channel() */
-struct ast_moh_start_channel_args {
+void ast_ari_channels_unhold(struct ast_variable *headers, struct ast_ari_channels_unhold_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_start_moh() */
+struct ast_ari_channels_start_moh_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief Music on hold class to use */
@@ -247,9 +247,9 @@ struct ast_moh_start_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_moh_start_channel(struct ast_variable *headers, struct ast_moh_start_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_moh_stop_channel() */
-struct ast_moh_stop_channel_args {
+void ast_ari_channels_start_moh(struct ast_variable *headers, struct ast_ari_channels_start_moh_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_stop_moh() */
+struct ast_ari_channels_stop_moh_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 };
@@ -260,9 +260,9 @@ struct ast_moh_stop_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_moh_stop_channel(struct ast_variable *headers, struct ast_moh_stop_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_play_on_channel() */
-struct ast_play_on_channel_args {
+void ast_ari_channels_stop_moh(struct ast_variable *headers, struct ast_ari_channels_stop_moh_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_play() */
+struct ast_ari_channels_play_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief Media's URI to play. */
@@ -283,9 +283,9 @@ struct ast_play_on_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_play_on_channel(struct ast_variable *headers, struct ast_play_on_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_record_channel() */
-struct ast_record_channel_args {
+void ast_ari_channels_play(struct ast_variable *headers, struct ast_ari_channels_play_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_record() */
+struct ast_ari_channels_record_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief Recording's filename */
@@ -312,9 +312,9 @@ struct ast_record_channel_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_record_channel(struct ast_variable *headers, struct ast_record_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_channel_var() */
-struct ast_get_channel_var_args {
+void ast_ari_channels_record(struct ast_variable *headers, struct ast_ari_channels_record_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_get_channel_var() */
+struct ast_ari_channels_get_channel_var_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief The channel variable or function to get */
@@ -327,9 +327,9 @@ struct ast_get_channel_var_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_channel_var(struct ast_variable *headers, struct ast_get_channel_var_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_set_channel_var() */
-struct ast_set_channel_var_args {
+void ast_ari_channels_get_channel_var(struct ast_variable *headers, struct ast_ari_channels_get_channel_var_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_set_channel_var() */
+struct ast_ari_channels_set_channel_var_args {
 	/*! \brief Channel's id */
 	const char *channel_id;
 	/*! \brief The channel variable or function to set */
@@ -344,6 +344,6 @@ struct ast_set_channel_var_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_set_channel_var(struct ast_variable *headers, struct ast_set_channel_var_args *args, struct ast_ari_response *response);
+void ast_ari_channels_set_channel_var(struct ast_variable *headers, struct ast_ari_channels_set_channel_var_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */

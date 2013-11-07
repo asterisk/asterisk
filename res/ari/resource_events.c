@@ -168,9 +168,9 @@ static int session_register_app(struct event_session *session,
 	return 0;
 }
 
-void ast_ari_websocket_event_websocket(struct ast_ari_websocket_session *ws_session,
+void ast_ari_websocket_events_event_websocket(struct ast_ari_websocket_session *ws_session,
 	struct ast_variable *headers,
-	struct ast_event_websocket_args *args)
+	struct ast_ari_events_event_websocket_args *args)
 {
 	RAII_VAR(struct event_session *, session, NULL, session_cleanup);
 	struct ast_json *msg;

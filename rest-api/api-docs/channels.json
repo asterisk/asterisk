@@ -14,7 +14,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "List all active channels in Asterisk.",
-					"nickname": "getChannels",
+					"nickname": "list",
 					"responseClass": "List[Channel]"
 				},
 				{
@@ -106,7 +106,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "Channel details.",
-					"nickname": "getChannel",
+					"nickname": "get",
 					"responseClass": "Channel",
 					"parameters": [
 						{
@@ -128,7 +128,7 @@
 				{
 					"httpMethod": "DELETE",
 					"summary": "Delete (i.e. hangup) a channel.",
-					"nickname": "deleteChannel",
+					"nickname": "hangup",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -233,7 +233,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Answer a channel.",
-					"nickname": "answerChannel",
+					"nickname": "answer",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -265,7 +265,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Indicate ringing to a channel.",
-					"nickname": "ringChannel",
+					"nickname": "ring",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -297,7 +297,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Send provided DTMF to a given channel.",
-					"nickname": "sendDTMFChannel",
+					"nickname": "sendDTMF",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -377,7 +377,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Mute a channel.",
-					"nickname": "muteChannel",
+					"nickname": "mute",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -416,17 +416,11 @@
 							"reason": "Channel not in a Stasis application"
 						}
 					]
-				}
-			]
-		},
-		{
-			"path": "/channels/{channelId}/unmute",
-			"description": "Unmute a channel",
-			"operations": [
+				},
 				{
-					"httpMethod": "POST",
+					"httpMethod": "DELETE",
 					"summary": "Unmute a channel.",
-					"nickname": "unmuteChannel",
+					"nickname": "unmute",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -475,7 +469,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Hold a channel.",
-					"nickname": "holdChannel",
+					"nickname": "hold",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -497,17 +491,11 @@
 							"reason": "Channel not in a Stasis application"
 						}
 					]
-				}
-			]
-		},
-		{
-			"path": "/channels/{channelId}/hold",
-			"description": "Remove a channel from hold",
-			"operations": [
+				},
 				{
 					"httpMethod": "DELETE",
 					"summary": "Remove a channel from hold.",
-					"nickname": "unholdChannel",
+					"nickname": "unhold",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -540,7 +528,7 @@
 					"httpMethod": "POST",
 					"summary": "Play music on hold to a channel.",
 					"notes": "Using media operations such as playOnChannel on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.",
-					"nickname": "mohStartChannel",
+					"nickname": "startMoh",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -570,17 +558,11 @@
 							"reason": "Channel not in a Stasis application"
 						}
 					]
-				}
-			]
-		},
-		{
-			"path": "/channels/{channelId}/moh",
-			"description": "Stop playing music on hold to a channel",
-			"operations": [
+				},
 				{
 					"httpMethod": "DELETE",
 					"summary": "Stop playing music on hold to a channel.",
-					"nickname": "mohStopChannel",
+					"nickname": "stopMoh",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -613,7 +595,7 @@
 					"httpMethod": "POST",
 					"summary": "Start playback of media.",
 					"notes": "The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
-					"nickname": "playOnChannel",
+					"nickname": "play",
 					"responseClass": "Playback",
 					"parameters": [
 						{
@@ -679,7 +661,7 @@
 					"httpMethod": "POST",
 					"summary": "Start a recording.",
 					"notes": "Record audio from a channel. Note that this will not capture audio sent to the channel. The bridge itself has a record feature if that's what you want.",
-					"nickname": "recordChannel",
+					"nickname": "record",
 					"responseClass": "LiveRecording",
 					"parameters": [
 						{
