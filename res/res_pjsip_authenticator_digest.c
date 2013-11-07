@@ -290,6 +290,8 @@ enum digest_verify_result {
 	AUTH_SUCCESS,
 	/*! Authentication credentials correct but nonce mismatch */
 	AUTH_STALE,
+	/*! Authentication credentials were not provided */
+	AUTH_NOAUTH,
 };
 
 /*!
@@ -330,6 +332,11 @@ static int verify(struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool_t *po
 			return AUTH_SUCCESS;
 		}
 	}
+
+	if (authed == PJSIP_EAUTHNOAUTH) {
+		return AUTH_NOAUTH;
+	}
+
 	return AUTH_FAIL;
 }
 
@@ -376,6 +383,7 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 	enum digest_verify_result *verify_res;
 	enum ast_sip_check_auth_result res;
 	int i;
+	int failures = 0;
 
 	RAII_VAR(struct ast_sip_endpoint *, artificial_endpoint,
 		 ast_sip_get_artificial_endpoint(), ao2_cleanup);
@@ -403,13 +411,20 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 			res = AST_SIP_AUTHENTICATION_SUCCESS;
 			goto cleanup;
 		}
+		if (verify_res[i] == AUTH_FAIL) {
+			failures++;
+		}
 	}
 
 	for (i = 0; i < endpoint->inbound_auths.num; ++i) {
 		challenge(auths[i]->realm, tdata, rdata, verify_res[i] == AUTH_STALE);
 	}
 
-	res = AST_SIP_AUTHENTICATION_CHALLENGE;
+	if (failures == endpoint->inbound_auths.num) {
+		res = AST_SIP_AUTHENTICATION_FAILED;
+	} else {
+		res = AST_SIP_AUTHENTICATION_CHALLENGE;
+	}
 
 cleanup:
 	ast_sip_cleanup_auths(auths, endpoint->inbound_auths.num);
