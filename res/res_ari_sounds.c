@@ -58,11 +58,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_sounds_cb(
+static void ast_ari_sounds_list_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_sounds_args args = {};
+	struct ast_ari_sounds_list_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -78,7 +78,7 @@ static void ast_ari_get_sounds_cb(
 		} else
 		{}
 	}
-	ast_ari_get_sounds(headers, &args, response);
+	ast_ari_sounds_list(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -117,11 +117,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_stored_sound_cb(
+static void ast_ari_sounds_get_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_stored_sound_args args = {};
+	struct ast_ari_sounds_get_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -134,7 +134,7 @@ static void ast_ari_get_stored_sound_cb(
 		} else
 		{}
 	}
-	ast_ari_get_stored_sound(headers, &args, response);
+	ast_ari_sounds_get(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -172,7 +172,7 @@ static struct stasis_rest_handlers sounds_soundId = {
 	.path_segment = "soundId",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_stored_sound_cb,
+		[AST_HTTP_GET] = ast_ari_sounds_get_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -181,7 +181,7 @@ static struct stasis_rest_handlers sounds_soundId = {
 static struct stasis_rest_handlers sounds = {
 	.path_segment = "sounds",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_sounds_cb,
+		[AST_HTTP_GET] = ast_ari_sounds_list_cb,
 	},
 	.num_children = 1,
 	.children = { &sounds_soundId, }

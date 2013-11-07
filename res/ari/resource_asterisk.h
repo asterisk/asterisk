@@ -39,8 +39,8 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_get_asterisk_info() */
-struct ast_get_asterisk_info_args {
+/*! \brief Argument struct for ast_ari_asterisk_get_info() */
+struct ast_ari_asterisk_get_info_args {
 	/*! \brief Array of Filter information returned */
 	const char **only;
 	/*! \brief Length of only array. */
@@ -55,9 +55,9 @@ struct ast_get_asterisk_info_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_asterisk_info(struct ast_variable *headers, struct ast_get_asterisk_info_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_global_var() */
-struct ast_get_global_var_args {
+void ast_ari_asterisk_get_info(struct ast_variable *headers, struct ast_ari_asterisk_get_info_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_asterisk_get_global_var() */
+struct ast_ari_asterisk_get_global_var_args {
 	/*! \brief The variable to get */
 	const char *variable;
 };
@@ -68,9 +68,9 @@ struct ast_get_global_var_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_global_var(struct ast_variable *headers, struct ast_get_global_var_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_set_global_var() */
-struct ast_set_global_var_args {
+void ast_ari_asterisk_get_global_var(struct ast_variable *headers, struct ast_ari_asterisk_get_global_var_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_asterisk_set_global_var() */
+struct ast_ari_asterisk_set_global_var_args {
 	/*! \brief The variable to set */
 	const char *variable;
 	/*! \brief The value to set the variable to */
@@ -83,6 +83,6 @@ struct ast_set_global_var_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_set_global_var(struct ast_variable *headers, struct ast_set_global_var_args *args, struct ast_ari_response *response);
+void ast_ari_asterisk_set_global_var(struct ast_variable *headers, struct ast_ari_asterisk_set_global_var_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_ASTERISK_H */

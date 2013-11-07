@@ -631,6 +631,11 @@ class ApiDeclaration(Stringify):
         api_json = api_decl_json.get('apis') or []
         self.apis = [
             Api().load(j, processor, context) for j in api_json]
+        paths = set()
+        for api in self.apis:
+            if api.path in paths:
+                raise SwaggerError("API with duplicated path: %s" % api.path, context)
+            paths.add(api.path)
         self.has_websocket = filter(lambda api: api.has_websocket,
                                     self.apis) == []
         models = api_decl_json.get('models').items() or []

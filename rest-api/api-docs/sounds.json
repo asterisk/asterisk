@@ -14,7 +14,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "List all sounds.",
-					"nickname": "getSounds",
+					"nickname": "list",
 					"responseClass": "List[Sound]",
 					"parameters": [
 						{
@@ -43,7 +43,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "Get a sound's details.",
-					"nickname": "getStoredSound",
+					"nickname": "get",
 					"responseClass": "Sound",
 					"parameters": [
 						{

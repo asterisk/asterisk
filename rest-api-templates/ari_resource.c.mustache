@@ -33,19 +33,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 {{#apis}}
 {{#operations}}
 {{#is_req}}
-void ast_ari_{{c_nickname}}(struct ast_variable *headers,
-	struct ast_{{c_nickname}}_args *args,
+void ast_ari_{{c_name}}_{{c_nickname}}(struct ast_variable *headers,
+	struct ast_ari_{{c_name}}_{{c_nickname}}_args *args,
 	struct ast_ari_response *response)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_{{c_nickname}}\n");
+	ast_log(LOG_ERROR, "TODO: ast_ari_{{c_name}}_{{c_nickname}}\n");
 }
 {{/is_req}}
 {{#is_websocket}}
-void ast_ari_websocket_{{c_nickname}}(struct ast_ari_websocket_session *session,
+void ast_ari_websocket_{{c_name}}_{{c_nickname}}(struct ast_ari_websocket_session *session,
 	struct ast_variable *headers,
-	struct ast_{{c_nickname}}_args *args)
+	struct ast_ari_{{c_name}}_{{c_nickname}}_args *args)
 {
-	ast_log(LOG_ERROR, "TODO: ast_ari_websocket_{{c_nickname}}\n");
+	ast_log(LOG_ERROR, "TODO: ast_ari_websocket_{{c_name}}_{{c_nickname}}\n");
 }
 {{/is_websocket}}
 {{/operations}}

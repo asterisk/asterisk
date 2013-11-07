@@ -14,14 +14,14 @@
 				{
 					"httpMethod": "GET",
 					"summary": "List all active bridges in Asterisk.",
-					"nickname": "getBridges",
+					"nickname": "list",
 					"responseClass": "List[Bridge]"
 				},
 				{
 					"httpMethod": "POST",
 					"summary": "Create a new bridge.",
 					"notes": "This bridge persists until it has been shut down, or Asterisk has been shut down.",
-					"nickname": "newBridge",
+					"nickname": "create",
 					"responseClass": "Bridge",
 					"parameters": [
 						{
@@ -50,7 +50,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "Get bridge details.",
-					"nickname": "getBridge",
+					"nickname": "get",
 					"responseClass": "Bridge",
 					"parameters": [
 						{
@@ -73,7 +73,7 @@
 					"httpMethod": "DELETE",
 					"summary": "Shut down a bridge.",
 					"notes": "If any channels are in this bridge, they will be removed and resume whatever they were doing beforehand.",
-					"nickname": "deleteBridge",
+					"nickname": "destroy",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -101,7 +101,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Add a channel to a bridge.",
-					"nickname": "addChannelToBridge",
+					"nickname": "addChannel",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -157,7 +157,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Remove a channel from a bridge.",
-					"nickname": "removeChannelFromBridge",
+					"nickname": "removeChannel",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -205,7 +205,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Play music on hold to a bridge or change the MOH class that is playing.",
-					"nickname": "mohStartBridge",
+					"nickname": "startMoh",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -235,18 +235,12 @@
 							"reason": "Bridge not in Stasis application"
 						}
 					]
-				}
-			]
-		},
-		{
-			"path": "/bridges/{bridgeId}/moh",
-			"description": "Stop music on hold for a bridge",
-			"operations": [
+				},
 				{
 					"httpMethod": "DELETE",
 					"summary": "Stop playing music on hold to a bridge.",
-					"notes": "This will only stop music on hold being played via bridges/{bridgeId}/mohStart.",
-					"nickname": "mohStopBridge",
+					"notes": "This will only stop music on hold being played via POST bridges/{bridgeId}/moh.",
+					"nickname": "stopMoh",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -279,7 +273,7 @@
 					"httpMethod": "POST",
 					"summary": "Start playback of media on a bridge.",
 					"notes": "The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
-					"nickname": "playOnBridge",
+					"nickname": "play",
 					"responseClass": "Playback",
 					"parameters": [
 						{
@@ -356,7 +350,7 @@
 					"httpMethod": "POST",
 					"summary": "Start a recording.",
 					"notes": "This records the mixed audio from all channels participating in this bridge.",
-					"nickname": "recordBridge",
+					"nickname": "record",
 					"responseClass": "LiveRecording",
 					"parameters": [
 						{

@@ -39,8 +39,8 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_get_endpoints() */
-struct ast_get_endpoints_args {
+/*! \brief Argument struct for ast_ari_endpoints_list() */
+struct ast_ari_endpoints_list_args {
 };
 /*!
  * \brief List all endpoints.
@@ -49,9 +49,9 @@ struct ast_get_endpoints_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_endpoints(struct ast_variable *headers, struct ast_get_endpoints_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_endpoints_by_tech() */
-struct ast_get_endpoints_by_tech_args {
+void ast_ari_endpoints_list(struct ast_variable *headers, struct ast_ari_endpoints_list_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_endpoints_list_by_tech() */
+struct ast_ari_endpoints_list_by_tech_args {
 	/*! \brief Technology of the endpoints (sip,iax2,...) */
 	const char *tech;
 };
@@ -62,9 +62,9 @@ struct ast_get_endpoints_by_tech_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_endpoints_by_tech(struct ast_variable *headers, struct ast_get_endpoints_by_tech_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_endpoint() */
-struct ast_get_endpoint_args {
+void ast_ari_endpoints_list_by_tech(struct ast_variable *headers, struct ast_ari_endpoints_list_by_tech_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_endpoints_get() */
+struct ast_ari_endpoints_get_args {
 	/*! \brief Technology of the endpoint */
 	const char *tech;
 	/*! \brief ID of the endpoint */
@@ -77,6 +77,6 @@ struct ast_get_endpoint_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_endpoint(struct ast_variable *headers, struct ast_get_endpoint_args *args, struct ast_ari_response *response);
+void ast_ari_endpoints_get(struct ast_variable *headers, struct ast_ari_endpoints_get_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_ENDPOINTS_H */

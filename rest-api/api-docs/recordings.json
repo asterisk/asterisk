@@ -14,7 +14,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "List recordings that are complete.",
-					"nickname": "getStoredRecordings",
+					"nickname": "listStored",
 					"responseClass": "List[StoredRecording]"
 				}
 			]
@@ -26,7 +26,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "Get a stored recording's details.",
-					"nickname": "getStoredRecording",
+					"nickname": "getStored",
 					"responseClass": "StoredRecording",
 					"parameters": [
 						{
@@ -48,7 +48,7 @@
 				{
 					"httpMethod": "DELETE",
 					"summary": "Delete a stored recording.",
-					"nickname": "deleteStoredRecording",
+					"nickname": "deleteStored",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -76,7 +76,7 @@
 				{
 					"httpMethod": "GET",
 					"summary": "List live recordings.",
-					"nickname": "getLiveRecording",
+					"nickname": "getLive",
 					"responseClass": "LiveRecording",
 					"parameters": [
 						{
@@ -98,7 +98,7 @@
 				{
 					"httpMethod": "DELETE",
 					"summary": "Stop a live recording and discard it.",
-					"nickname": "cancelRecording",
+					"nickname": "cancel",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -125,7 +125,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Stop a live recording and store it.",
-					"nickname": "stopRecording",
+					"nickname": "stop",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -153,7 +153,7 @@
 					"httpMethod": "POST",
 					"summary": "Pause a live recording.",
 					"notes": "Pausing a recording suspends silence detection, which will be restarted when the recording is unpaused. Paused time is not included in the accounting for maxDurationSeconds.",
-					"nickname": "pauseRecording",
+					"nickname": "pause",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -175,16 +175,11 @@
 							"reason": "Recording not in session"
 						}
 					]
-				}
-			]
-		},
-		{
-			"path": "/recordings/live/{recordingName}/unpause",
-			"operations": [
+				},
 				{
-					"httpMethod": "POST",
+					"httpMethod": "DELETE",
 					"summary": "Unpause a live recording.",
-					"nickname": "unpauseRecording",
+					"nickname": "unpause",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -216,7 +211,7 @@
 					"httpMethod": "POST",
 					"summary": "Mute a live recording.",
 					"notes": "Muting a recording suspends silence detection, which will be restarted when the recording is unmuted.",
-					"nickname": "muteRecording",
+					"nickname": "mute",
 					"responseClass": "void",
 					"parameters": [
 						{
@@ -238,16 +233,11 @@
 							"reason": "Recording not in session"
 						}
 					]
-				}
-			]
-		},
-		{
-			"path": "/recordings/live/{recordingName}/unmute",
-			"operations": [
+				},
 				{
-					"httpMethod": "POST",
+					"httpMethod": "DELETE",
 					"summary": "Unmute a live recording.",
-					"nickname": "unmuteRecording",
+					"nickname": "unmute",
 					"responseClass": "void",
 					"parameters": [
 						{

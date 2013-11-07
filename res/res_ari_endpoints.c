@@ -58,17 +58,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_endpoints_cb(
+static void ast_ari_endpoints_list_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_endpoints_args args = {};
+	struct ast_ari_endpoints_list_args args = {};
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
 #endif /* AST_DEVMODE */
 
-	ast_ari_get_endpoints(headers, &args, response);
+	ast_ari_endpoints_list(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -107,11 +107,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_endpoints_by_tech_cb(
+static void ast_ari_endpoints_list_by_tech_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_endpoints_by_tech_args args = {};
+	struct ast_ari_endpoints_list_by_tech_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -124,7 +124,7 @@ static void ast_ari_get_endpoints_by_tech_cb(
 		} else
 		{}
 	}
-	ast_ari_get_endpoints_by_tech(headers, &args, response);
+	ast_ari_endpoints_list_by_tech(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -163,11 +163,11 @@ fin: __attribute__((unused))
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_get_endpoint_cb(
+static void ast_ari_endpoints_get_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_get_endpoint_args args = {};
+	struct ast_ari_endpoints_get_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -183,7 +183,7 @@ static void ast_ari_get_endpoint_cb(
 		} else
 		{}
 	}
-	ast_ari_get_endpoint(headers, &args, response);
+	ast_ari_endpoints_get(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -221,7 +221,7 @@ static struct stasis_rest_handlers endpoints_tech_resource = {
 	.path_segment = "resource",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_endpoint_cb,
+		[AST_HTTP_GET] = ast_ari_endpoints_get_cb,
 	},
 	.num_children = 0,
 	.children = {  }
@@ -231,7 +231,7 @@ static struct stasis_rest_handlers endpoints_tech = {
 	.path_segment = "tech",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_endpoints_by_tech_cb,
+		[AST_HTTP_GET] = ast_ari_endpoints_list_by_tech_cb,
 	},
 	.num_children = 1,
 	.children = { &endpoints_tech_resource, }
@@ -240,7 +240,7 @@ static struct stasis_rest_handlers endpoints_tech = {
 static struct stasis_rest_handlers endpoints = {
 	.path_segment = "endpoints",
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_get_endpoints_cb,
+		[AST_HTTP_GET] = ast_ari_endpoints_list_cb,
 	},
 	.num_children = 1,
 	.children = { &endpoints_tech, }

@@ -81,9 +81,9 @@ static struct stasis_app_control *find_control(
 	return control;
 }
 
-void ast_ari_continue_in_dialplan(
+void ast_ari_channels_continue_in_dialplan(
 	struct ast_variable *headers,
-	struct ast_continue_in_dialplan_args *args,
+	struct ast_ari_channels_continue_in_dialplan_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
@@ -103,9 +103,9 @@ void ast_ari_continue_in_dialplan(
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_answer_channel(struct ast_variable *headers,
-				struct ast_answer_channel_args *args,
-				struct ast_ari_response *response)
+void ast_ari_channels_answer(struct ast_variable *headers,
+	struct ast_ari_channels_answer_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 
@@ -124,9 +124,9 @@ void ast_ari_answer_channel(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_ring_channel(struct ast_variable *headers,
-				struct ast_ring_channel_args *args,
-				struct ast_ari_response *response)
+void ast_ari_channels_ring(struct ast_variable *headers,
+	struct ast_ari_channels_ring_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 
@@ -140,7 +140,9 @@ void ast_ari_ring_channel(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_mute_channel(struct ast_variable *headers, struct ast_mute_channel_args *args, struct ast_ari_response *response)
+void ast_ari_channels_mute(struct ast_variable *headers,
+	struct ast_ari_channels_mute_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	unsigned int direction = 0;
@@ -176,7 +178,9 @@ void ast_ari_mute_channel(struct ast_variable *headers, struct ast_mute_channel_
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_unmute_channel(struct ast_variable *headers, struct ast_unmute_channel_args *args, struct ast_ari_response *response)
+void ast_ari_channels_unmute(struct ast_variable *headers,
+	struct ast_ari_channels_unmute_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	unsigned int direction = 0;
@@ -212,7 +216,9 @@ void ast_ari_unmute_channel(struct ast_variable *headers, struct ast_unmute_chan
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_send_dtmfchannel(struct ast_variable *headers, struct ast_send_dtmfchannel_args *args, struct ast_ari_response *response)
+void ast_ari_channels_send_dtmf(struct ast_variable *headers,
+	struct ast_ari_channels_send_dtmf_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 
@@ -233,7 +239,9 @@ void ast_ari_send_dtmfchannel(struct ast_variable *headers, struct ast_send_dtmf
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_hold_channel(struct ast_variable *headers, struct ast_hold_channel_args *args, struct ast_ari_response *response)
+void ast_ari_channels_hold(struct ast_variable *headers,
+	struct ast_ari_channels_hold_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 
@@ -248,7 +256,9 @@ void ast_ari_hold_channel(struct ast_variable *headers, struct ast_hold_channel_
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_unhold_channel(struct ast_variable *headers, struct ast_unhold_channel_args *args, struct ast_ari_response *response)
+void ast_ari_channels_unhold(struct ast_variable *headers,
+	struct ast_ari_channels_unhold_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 
@@ -263,7 +273,9 @@ void ast_ari_unhold_channel(struct ast_variable *headers, struct ast_unhold_chan
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_moh_start_channel(struct ast_variable *headers, struct ast_moh_start_channel_args *args, struct ast_ari_response *response)
+void ast_ari_channels_start_moh(struct ast_variable *headers,
+	struct ast_ari_channels_start_moh_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 
@@ -277,7 +289,9 @@ void ast_ari_moh_start_channel(struct ast_variable *headers, struct ast_moh_star
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_moh_stop_channel(struct ast_variable *headers, struct ast_moh_stop_channel_args *args, struct ast_ari_response *response)
+void ast_ari_channels_stop_moh(struct ast_variable *headers,
+	struct ast_ari_channels_stop_moh_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 
@@ -291,8 +305,8 @@ void ast_ari_moh_stop_channel(struct ast_variable *headers, struct ast_moh_stop_
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_play_on_channel(struct ast_variable *headers,
-	struct ast_play_on_channel_args *args,
+void ast_ari_channels_play(struct ast_variable *headers,
+	struct ast_ari_channels_play_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
@@ -363,8 +377,8 @@ void ast_ari_play_on_channel(struct ast_variable *headers,
 	ast_ari_response_created(response, playback_url, json);
 }
 
-void ast_ari_record_channel(struct ast_variable *headers,
-	struct ast_record_channel_args *args,
+void ast_ari_channels_record(struct ast_variable *headers,
+	struct ast_ari_channels_record_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
@@ -502,9 +516,9 @@ void ast_ari_record_channel(struct ast_variable *headers,
 	ast_ari_response_created(response, recording_url, json);
 }
 
-void ast_ari_get_channel(struct ast_variable *headers,
-			     struct ast_get_channel_args *args,
-			     struct ast_ari_response *response)
+void ast_ari_channels_get(struct ast_variable *headers,
+	struct ast_ari_channels_get_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct stasis_cache *cache;
@@ -534,9 +548,9 @@ void ast_ari_get_channel(struct ast_variable *headers,
 				ast_channel_snapshot_to_json(snapshot));
 }
 
-void ast_ari_delete_channel(struct ast_variable *headers,
-				struct ast_delete_channel_args *args,
-				struct ast_ari_response *response)
+void ast_ari_channels_hangup(struct ast_variable *headers,
+	struct ast_ari_channels_hangup_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
 	int cause;
@@ -568,9 +582,9 @@ void ast_ari_delete_channel(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
-void ast_ari_get_channels(struct ast_variable *headers,
-			      struct ast_get_channels_args *args,
-			      struct ast_ari_response *response)
+void ast_ari_channels_list(struct ast_variable *headers,
+	struct ast_ari_channels_list_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, snapshots, NULL, ao2_cleanup);
@@ -615,9 +629,9 @@ void ast_ari_get_channels(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-void ast_ari_originate(struct ast_variable *headers,
-			   struct ast_originate_args *args,
-			   struct ast_ari_response *response)
+void ast_ari_channels_originate(struct ast_variable *headers,
+	struct ast_ari_channels_originate_args *args,
+	struct ast_ari_response *response)
 {
 	char *dialtech;
 	char dialdevice[AST_CHANNEL_NAME];
@@ -711,7 +725,9 @@ void ast_ari_originate(struct ast_variable *headers,
 	ast_channel_unref(chan);
 }
 
-void ast_ari_get_channel_var(struct ast_variable *headers, struct ast_get_channel_var_args *args, struct ast_ari_response *response)
+void ast_ari_channels_get_channel_var(struct ast_variable *headers,
+	struct ast_ari_channels_get_channel_var_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
@@ -742,7 +758,9 @@ void ast_ari_get_channel_var(struct ast_variable *headers, struct ast_get_channe
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-void ast_ari_set_channel_var(struct ast_variable *headers, struct ast_set_channel_var_args *args, struct ast_ari_response *response)
+void ast_ari_channels_set_channel_var(struct ast_variable *headers,
+	struct ast_ari_channels_set_channel_var_args *args,
+	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 

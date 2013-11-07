@@ -39,8 +39,8 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_get_applications() */
-struct ast_get_applications_args {
+/*! \brief Argument struct for ast_ari_applications_list() */
+struct ast_ari_applications_list_args {
 };
 /*!
  * \brief List all applications.
@@ -49,9 +49,9 @@ struct ast_get_applications_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_applications(struct ast_variable *headers, struct ast_get_applications_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_get_application() */
-struct ast_get_application_args {
+void ast_ari_applications_list(struct ast_variable *headers, struct ast_ari_applications_list_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_applications_get() */
+struct ast_ari_applications_get_args {
 	/*! \brief Application's name */
 	const char *application_name;
 };
@@ -62,9 +62,9 @@ struct ast_get_application_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_get_application(struct ast_variable *headers, struct ast_get_application_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_application_subscribe() */
-struct ast_application_subscribe_args {
+void ast_ari_applications_get(struct ast_variable *headers, struct ast_ari_applications_get_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_applications_subscribe() */
+struct ast_ari_applications_subscribe_args {
 	/*! \brief Application's name */
 	const char *application_name;
 	/*! \brief Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource} */
@@ -83,9 +83,9 @@ struct ast_application_subscribe_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_application_subscribe(struct ast_variable *headers, struct ast_application_subscribe_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_application_unsubscribe() */
-struct ast_application_unsubscribe_args {
+void ast_ari_applications_subscribe(struct ast_variable *headers, struct ast_ari_applications_subscribe_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_applications_unsubscribe() */
+struct ast_ari_applications_unsubscribe_args {
 	/*! \brief Application's name */
 	const char *application_name;
 	/*! \brief Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource} */
@@ -104,6 +104,6 @@ struct ast_application_unsubscribe_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_application_unsubscribe(struct ast_variable *headers, struct ast_application_unsubscribe_args *args, struct ast_ari_response *response);
+void ast_ari_applications_unsubscribe(struct ast_variable *headers, struct ast_ari_applications_unsubscribe_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_APPLICATIONS_H */
