@@ -1390,6 +1390,7 @@ struct sip_registry {
 		AST_STRING_FIELD(md5secret);  /*!< Password in md5 */
 		AST_STRING_FIELD(callback);   /*!< Contact extension */
 		AST_STRING_FIELD(peername);   /*!< Peer registering to */
+		AST_STRING_FIELD(localtag);   /*!< Local tag generated same time as callid */
 	);
 	enum ast_transport transport;   /*!< Transport for this registration UDP, TCP or TLS */
 	int portno;                     /*!< Optional port override */
