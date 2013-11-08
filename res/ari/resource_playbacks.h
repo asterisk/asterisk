@@ -40,7 +40,7 @@
 #include "asterisk/ari.h"
 
 /*! \brief Argument struct for ast_ari_playback_get() */
-struct ast_ari_playback_get_args {
+struct ast_ari_playbacks_get_args {
 	/*! \brief Playback's id */
 	const char *playback_id;
 };
@@ -51,9 +51,9 @@ struct ast_ari_playback_get_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_playback_get(struct ast_variable *headers, struct ast_ari_playback_get_args *args, struct ast_ari_response *response);
+void ast_ari_playbacks_get(struct ast_variable *headers, struct ast_ari_playbacks_get_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_playback_stop() */
-struct ast_ari_playback_stop_args {
+struct ast_ari_playbacks_stop_args {
 	/*! \brief Playback's id */
 	const char *playback_id;
 };
@@ -64,9 +64,9 @@ struct ast_ari_playback_stop_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_playback_stop(struct ast_variable *headers, struct ast_ari_playback_stop_args *args, struct ast_ari_response *response);
+void ast_ari_playbacks_stop(struct ast_variable *headers, struct ast_ari_playbacks_stop_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_playback_control() */
-struct ast_ari_playback_control_args {
+struct ast_ari_playbacks_control_args {
 	/*! \brief Playback's id */
 	const char *playback_id;
 	/*! \brief Operation to perform on the playback. */
@@ -79,6 +79,6 @@ struct ast_ari_playback_control_args {
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_playback_control(struct ast_variable *headers, struct ast_ari_playback_control_args *args, struct ast_ari_response *response);
+void ast_ari_playbacks_control(struct ast_variable *headers, struct ast_ari_playbacks_control_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_PLAYBACK_H */

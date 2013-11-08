@@ -31,7 +31,7 @@
 			"description": "Sound resources"
 		},
 		{
-			"path": "/api-docs/playback.{format}",
+			"path": "/api-docs/playbacks.{format}",
 			"description": "Playback control resources"
 		},
 		{

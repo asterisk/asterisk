@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief /api-docs/playback.{format} implementation- Playback control resources
+ * \brief /api-docs/playbacks.{format} implementation- Playback control resources
  *
  * \author David M. Lee, II <dlee@digium.com>
  */
@@ -28,10 +28,10 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/stasis_app_playback.h"
-#include "resource_playback.h"
+#include "resource_playbacks.h"
 
-void ast_ari_playback_get(struct ast_variable *headers,
-	struct ast_ari_playback_get_args *args,
+void ast_ari_playbacks_get(struct ast_variable *headers,
+	struct ast_ari_playbacks_get_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
@@ -53,8 +53,8 @@ void ast_ari_playback_get(struct ast_variable *headers,
 
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
-void ast_ari_playback_stop(struct ast_variable *headers,
-	struct ast_ari_playback_stop_args *args,
+void ast_ari_playbacks_stop(struct ast_variable *headers,
+	struct ast_ari_playbacks_stop_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
@@ -84,8 +84,8 @@ void ast_ari_playback_stop(struct ast_variable *headers,
 		return;
 	}
 }
-void ast_ari_playback_control(struct ast_variable *headers,
-	struct ast_ari_playback_control_args *args,
+void ast_ari_playbacks_control(struct ast_variable *headers,
+	struct ast_ari_playbacks_control_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
