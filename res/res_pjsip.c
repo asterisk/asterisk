@@ -1924,7 +1924,7 @@ static int load_module(void)
 	}
 
 	if (ast_sip_initialize_system()) {
-		ast_log(LOG_ERROR, "Failed to initialize SIP system configuration. Aborting load\n");
+		ast_log(LOG_ERROR, "Failed to initialize SIP 'system' configuration section. Aborting load\n");
 		pj_pool_release(memory_pool);
 		memory_pool = NULL;
 		pjsip_endpt_destroy(ast_pjsip_endpoint);
