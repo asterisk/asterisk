@@ -5,10 +5,10 @@
 	"apiVersion": "0.0.1",
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/stasis",
-	"resourcePath": "/api-docs/playback.{format}",
+	"resourcePath": "/api-docs/playbacks.{format}",
 	"apis": [
 		{
-			"path": "/playback/{playbackId}",
+			"path": "/playbacks/{playbackId}",
 			"description": "Control object for a playback operation.",
 			"operations": [
 				{
@@ -58,7 +58,7 @@
 			]
 		},
 		{
-			"path": "/playback/{playbackId}/control",
+			"path": "/playbacks/{playbackId}/control",
 			"description": "Control object for a playback operation.",
 			"operations": [
 				{

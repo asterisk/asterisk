@@ -41,9 +41,9 @@ res_ari_sounds.so: ari/resource_sounds.o
 
 ari/resource_sounds.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_sounds)
 
-res_ari_playback.so: ari/resource_playback.o
+res_ari_playbacks.so: ari/resource_playbacks.o
 
-ari/resource_playback.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_playback)
+ari/resource_playbacks.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_playbacks)
 
 res_ari_events.so: ari/resource_events.o
 

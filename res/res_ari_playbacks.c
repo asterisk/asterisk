@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis_app.h"
-#include "ari/resource_playback.h"
+#include "ari/resource_playbacks.h"
 #if defined(AST_DEVMODE)
 #include "ari/ari_model_validators.h"
 #endif
@@ -52,17 +52,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_VALS 128
 
 /*!
- * \brief Parameter parsing callback for /playback/{playbackId}.
+ * \brief Parameter parsing callback for /playbacks/{playbackId}.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_playback_get_cb(
+static void ast_ari_playbacks_get_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_ari_playback_get_args args = {};
+	struct ast_ari_playbacks_get_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -75,7 +75,7 @@ static void ast_ari_playback_get_cb(
 		} else
 		{}
 	}
-	ast_ari_playback_get(headers, &args, response);
+	ast_ari_playbacks_get(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -93,13 +93,13 @@ static void ast_ari_playback_get_cb(
 			is_valid = ast_ari_validate_playback(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /playback/{playbackId}\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /playbacks/{playbackId}\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /playback/{playbackId}\n");
+		ast_log(LOG_ERROR, "Response validation failed for /playbacks/{playbackId}\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -109,17 +109,17 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /playback/{playbackId}.
+ * \brief Parameter parsing callback for /playbacks/{playbackId}.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_playback_stop_cb(
+static void ast_ari_playbacks_stop_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_ari_playback_stop_args args = {};
+	struct ast_ari_playbacks_stop_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -132,7 +132,7 @@ static void ast_ari_playback_stop_cb(
 		} else
 		{}
 	}
-	ast_ari_playback_stop(headers, &args, response);
+	ast_ari_playbacks_stop(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -150,13 +150,13 @@ static void ast_ari_playback_stop_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /playback/{playbackId}\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /playbacks/{playbackId}\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /playback/{playbackId}\n");
+		ast_log(LOG_ERROR, "Response validation failed for /playbacks/{playbackId}\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -166,17 +166,17 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
- * \brief Parameter parsing callback for /playback/{playbackId}/control.
+ * \brief Parameter parsing callback for /playbacks/{playbackId}/control.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_playback_control_cb(
+static void ast_ari_playbacks_control_cb(
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_ari_playback_control_args args = {};
+	struct ast_ari_playbacks_control_args args = {};
 	struct ast_variable *i;
 #if defined(AST_DEVMODE)
 	int is_valid;
@@ -195,7 +195,7 @@ static void ast_ari_playback_control_cb(
 		} else
 		{}
 	}
-	ast_ari_playback_control(headers, &args, response);
+	ast_ari_playbacks_control(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -215,13 +215,13 @@ static void ast_ari_playback_control_cb(
 			is_valid = ast_ari_validate_void(
 				response->message);
 		} else {
-			ast_log(LOG_ERROR, "Invalid error response %d for /playback/{playbackId}/control\n", code);
+			ast_log(LOG_ERROR, "Invalid error response %d for /playbacks/{playbackId}/control\n", code);
 			is_valid = 0;
 		}
 	}
 
 	if (!is_valid) {
-		ast_log(LOG_ERROR, "Response validation failed for /playback/{playbackId}/control\n");
+		ast_log(LOG_ERROR, "Response validation failed for /playbacks/{playbackId}/control\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -231,46 +231,46 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/playback.{format} */
-static struct stasis_rest_handlers playback_playbackId_control = {
+/*! \brief REST handler for /api-docs/playbacks.{format} */
+static struct stasis_rest_handlers playbacks_playbackId_control = {
 	.path_segment = "control",
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_playback_control_cb,
+		[AST_HTTP_POST] = ast_ari_playbacks_control_cb,
 	},
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/playback.{format} */
-static struct stasis_rest_handlers playback_playbackId = {
+/*! \brief REST handler for /api-docs/playbacks.{format} */
+static struct stasis_rest_handlers playbacks_playbackId = {
 	.path_segment = "playbackId",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_GET] = ast_ari_playback_get_cb,
-		[AST_HTTP_DELETE] = ast_ari_playback_stop_cb,
+		[AST_HTTP_GET] = ast_ari_playbacks_get_cb,
+		[AST_HTTP_DELETE] = ast_ari_playbacks_stop_cb,
 	},
 	.num_children = 1,
-	.children = { &playback_playbackId_control, }
+	.children = { &playbacks_playbackId_control, }
 };
-/*! \brief REST handler for /api-docs/playback.{format} */
-static struct stasis_rest_handlers playback = {
-	.path_segment = "playback",
+/*! \brief REST handler for /api-docs/playbacks.{format} */
+static struct stasis_rest_handlers playbacks = {
+	.path_segment = "playbacks",
 	.callbacks = {
 	},
 	.num_children = 1,
-	.children = { &playback_playbackId, }
+	.children = { &playbacks_playbackId, }
 };
 
 static int load_module(void)
 {
 	int res = 0;
 	stasis_app_ref();
-	res |= ast_ari_add_handler(&playback);
+	res |= ast_ari_add_handler(&playbacks);
 	return res;
 }
 
 static int unload_module(void)
 {
-	ast_ari_remove_handler(&playback);
+	ast_ari_remove_handler(&playbacks);
 	stasis_app_unref();
 	return 0;
 }
