@@ -68,26 +68,27 @@
 
 /*! \name Manager event classes */
 /*@{ */
-#define EVENT_FLAG_SYSTEM 		(1 << 0) /* System events such as module load/unload */
-#define EVENT_FLAG_CALL			(1 << 1) /* Call event, such as state change, etc */
-#define EVENT_FLAG_LOG			(1 << 2) /* Log events */
-#define EVENT_FLAG_VERBOSE		(1 << 3) /* Verbose messages */
-#define EVENT_FLAG_COMMAND		(1 << 4) /* Ability to read/set commands */
-#define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
-#define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
-#define EVENT_FLAG_CONFIG		(1 << 7) /* Ability to modify configurations */
-#define EVENT_FLAG_DTMF  		(1 << 8) /* Ability to read DTMF events */
-#define EVENT_FLAG_REPORTING		(1 << 9) /* Reporting events such as rtcp sent */
-#define EVENT_FLAG_CDR			(1 << 10) /* CDR events */
-#define EVENT_FLAG_DIALPLAN		(1 << 11) /* Dialplan events (VarSet, NewExten) */
-#define EVENT_FLAG_ORIGINATE	(1 << 12) /* Originate a call to an extension */
-#define EVENT_FLAG_AGI			(1 << 13) /* AGI events */
-#define EVENT_FLAG_HOOKRESPONSE		(1 << 14) /* Hook Response */
-#define EVENT_FLAG_CC			(1 << 15) /* Call Completion events */
-#define EVENT_FLAG_AOC			(1 << 16) /* Advice Of Charge events */
-#define EVENT_FLAG_TEST			(1 << 17) /* Test event used to signal the Asterisk Test Suite */
+#define EVENT_FLAG_SYSTEM           (1 << 0) /* System events such as module load/unload */
+#define EVENT_FLAG_CALL             (1 << 1) /* Call event, such as state change, etc */
+#define EVENT_FLAG_LOG              (1 << 2) /* Log events */
+#define EVENT_FLAG_VERBOSE          (1 << 3) /* Verbose messages */
+#define EVENT_FLAG_COMMAND          (1 << 4) /* Ability to read/set commands */
+#define EVENT_FLAG_AGENT            (1 << 5) /* Ability to read/set agent info */
+#define EVENT_FLAG_USER             (1 << 6) /* Ability to read/set user info */
+#define EVENT_FLAG_CONFIG           (1 << 7) /* Ability to modify configurations */
+#define EVENT_FLAG_DTMF             (1 << 8) /* Ability to read DTMF events */
+#define EVENT_FLAG_REPORTING        (1 << 9) /* Reporting events such as rtcp sent */
+#define EVENT_FLAG_CDR              (1 << 10) /* CDR events */
+#define EVENT_FLAG_DIALPLAN         (1 << 11) /* Dialplan events (VarSet, NewExten) */
+#define EVENT_FLAG_ORIGINATE        (1 << 12) /* Originate a call to an extension */
+#define EVENT_FLAG_AGI              (1 << 13) /* AGI events */
+#define EVENT_FLAG_HOOKRESPONSE     (1 << 14) /* Hook Response */
+#define EVENT_FLAG_CC               (1 << 15) /* Call Completion events */
+#define EVENT_FLAG_AOC              (1 << 16) /* Advice Of Charge events */
+#define EVENT_FLAG_TEST             (1 << 17) /* Test event used to signal the Asterisk Test Suite */
+#define EVENT_FLAG_SECURITY         (1 << 18) /* Security Message as AMI Event */
 /*XXX Why shifted by 30? XXX */
-#define EVENT_FLAG_MESSAGE		(1 << 30) /* MESSAGE events. */
+#define EVENT_FLAG_MESSAGE          (1 << 30) /* MESSAGE events. */
 /*@} */
 
 /*! \brief Export manager structures */

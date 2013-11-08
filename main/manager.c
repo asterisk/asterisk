@@ -1129,6 +1129,9 @@ static struct stasis_message_router *stasis_router;
 /*! \brief The \ref stasis_subscription for forwarding the RTP topic to the AMI topic */
 static struct stasis_forward *rtp_topic_forwarder;
 
+/*! \brief The \ref stasis_subscription for forwarding the Security topic to the AMI topic */
+static struct stasis_forward *security_topic_forwarder;
+
 #define MGR_SHOW_TERMINAL_WIDTH 80
 
 #define MAX_VARS 128
@@ -1593,6 +1596,7 @@ static const struct permalias {
 	{ EVENT_FLAG_CC, "cc" },
 	{ EVENT_FLAG_AOC, "aoc" },
 	{ EVENT_FLAG_TEST, "test" },
+	{ EVENT_FLAG_SECURITY, "security" },
 	{ EVENT_FLAG_MESSAGE, "message" },
 	{ INT_MAX, "all" },
 	{ 0, "none" },
@@ -7774,6 +7778,8 @@ static void manager_shutdown(void)
 	}
 	stasis_forward_cancel(rtp_topic_forwarder);
 	rtp_topic_forwarder = NULL;
+	stasis_forward_cancel(security_topic_forwarder);
+	security_topic_forwarder = NULL;
 	ao2_cleanup(manager_topic);
 	manager_topic = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_manager_get_generic_type);
@@ -7814,6 +7820,11 @@ static int manager_subscriptions_init(void)
 
 	rtp_topic_forwarder = stasis_forward_all(ast_rtp_topic(), manager_topic);
 	if (!rtp_topic_forwarder) {
+		return -1;
+	}
+
+	security_topic_forwarder = stasis_forward_all(ast_security_topic(), manager_topic);
+	if (!security_topic_forwarder) {
 		return -1;
 	}
 
