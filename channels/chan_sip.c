@@ -1483,6 +1483,7 @@ static char *generate_random_string(char *buf, size_t size);
 static void build_callid_pvt(struct sip_pvt *pvt);
 static void change_callid_pvt(struct sip_pvt *pvt, const char *callid);
 static void build_callid_registry(struct sip_registry *reg, const struct ast_sockaddr *ourip, const char *fromdomain);
+static void build_localtag_registry(struct sip_registry *reg);
 static void make_our_tag(struct sip_pvt *pvt);
 static int add_header(struct sip_request *req, const char *var, const char *value);
 static int add_max_forwards(struct sip_pvt *dialog, struct sip_request *req);
@@ -8759,6 +8760,12 @@ static void build_callid_registry(struct sip_registry *reg, const struct ast_soc
 	ast_string_field_build(reg, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 }
 
+/*! \brief Build SIP From tag value for REGISTER */
+static void build_localtag_registry(struct sip_registry *reg)
+{
+	ast_string_field_build(reg, localtag, "as%08lx", ast_random());
+}
+
 /*! \brief Make our SIP dialog tag */
 static void make_our_tag(struct sip_pvt *pvt)
 {
@@ -15396,13 +15403,13 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			return 0;
 		} else {
 			p = dialog_ref(r->call, "getting a copy of the r->call dialog in transmit_register");
-			make_our_tag(p);	/* create a new local tag for every register attempt */
 			ast_string_field_set(p, theirtag, NULL);	/* forget their old tag, so we don't match tags when getting response */
 		}
 	} else {
 		/* Build callid for registration if we haven't registered before */
 		if (!r->callid_valid) {
 			build_callid_registry(r, &internip, default_fromdomain);
+			build_localtag_registry(r);
 			r->callid_valid = TRUE;
 		}
 		/* Allocate SIP dialog for registration */
@@ -15410,6 +15417,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_log(LOG_WARNING, "Unable to allocate registration transaction (memory or socket error)\n");
 			return 0;
 		}
+
+		/* reset tag to consistent value from registry */
+		ast_string_field_set(p, tag, r->localtag);
 
 		if (p->do_history) {
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
