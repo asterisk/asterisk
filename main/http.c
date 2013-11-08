@@ -616,8 +616,12 @@ struct ast_variable *ast_http_get_post_vars(
 {
 	int content_length = 0;
 	struct ast_variable *v, *post_vars=NULL, *prev = NULL;
-	char *buf, *var, *val;
+	char *var, *val;
+	RAII_VAR(char *, buf, NULL, ast_free_ptr);
 	int res;
+
+	/* Use errno to distinguish errors from no params */
+	errno = 0;
 
 	for (v = headers; v; v = v->next) {
 		if (!strcasecmp(v->name, "Content-Type")) {
@@ -640,22 +644,25 @@ struct ast_variable *ast_http_get_post_vars(
 	}
 
 	if (content_length > MAX_POST_CONTENT - 1) {
-		ast_log(LOG_WARNING, "Excessively long HTTP content. %d is greater than our max of %d\n",
-				content_length, MAX_POST_CONTENT);
-		ast_http_send(ser, AST_HTTP_POST, 413, "Request Entity Too Large", NULL, NULL, 0, 0);
+		ast_log(LOG_WARNING,
+			"Excessively long HTTP content. (%d > %d)\n",
+			content_length, MAX_POST_CONTENT);
+		errno = EFBIG;
 		return NULL;
 	}
 
 	buf = ast_malloc(content_length + 1);
 	if (!buf) {
+		/* malloc sets errno to ENOMEM */
 		return NULL;
 	}
 
 	res = fread(buf, 1, content_length, ser->f);
 	if (res < content_length) {
 		/* Error, distinguishable by ferror() or feof(), but neither
-		 * is good. */
-		goto done;
+		 * is good. Treat either one as I/O error */
+		errno = EIO;
+		return NULL;
 	}
 	buf[content_length] = '\0';
 
@@ -677,8 +684,6 @@ struct ast_variable *ast_http_get_post_vars(
 		}
 	}
 
-done:
-	ast_free(buf);
 	return post_vars;
 }
 

@@ -844,6 +844,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	RAII_VAR(struct ast_ari_conf_user *, user, NULL, ao2_cleanup);
 	struct ast_ari_response response = {};
 	int ret = 0;
+	RAII_VAR(struct ast_variable *, post_vars, NULL, ast_variables_destroy);
 
 	if (!response_headers || !response_body) {
 		return -1;
@@ -861,8 +862,46 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 
 	process_cors_request(headers, &response);
 
+	/* Process form data from a POST. It could be mixed with query
+	 * parameters, which seems a bit odd. But it's allowed, so that's okay
+	 * with us.
+	 */
+	post_vars = ast_http_get_post_vars(ser, headers);
+	if (get_params == NULL) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(&response, 413,
+				"Request Entity Too Large",
+				"Request body too large");
+			break;
+		case ENOMEM:
+			ast_ari_response_error(&response, 500,
+				"Internal Server Error",
+				"Error processing request");
+			break;
+		case EIO:
+			ast_ari_response_error(&response, 400,
+				"Bad Request", "Error parsing request body");
+			break;
+		}
+		get_params = post_vars;
+	} else if (get_params && post_vars) {
+		/* Has both post_vars and get_params */
+		struct ast_variable *last_var = post_vars;
+		while (last_var->next) {
+			last_var = last_var->next;
+		}
+		/* The duped get_params will get freed when post_vars gets
+		 * ast_variables_destroyed.
+		 */
+		last_var->next = ast_variables_dup(get_params);
+		get_params = post_vars;
+	}
+
 	user = authenticate_user(get_params, headers);
-	if (!user) {
+	if (response.response_code > 0) {
+		/* POST parameter processing error. Do nothing. */
+	} else if (!user) {
 		/* Per RFC 2617, section 1.2: The 401 (Unauthorized) response
 		 * message is used by an origin server to challenge the
 		 * authorization of a user agent. This response MUST include a

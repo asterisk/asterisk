@@ -6723,6 +6723,20 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		params = ast_http_get_post_vars(ser, headers);
 	}
 
+	if (!params) {
+		switch (errno) {
+		case EFBIG:
+			ast_http_send(ser, AST_HTTP_POST, 413, "Request Entity Too Large", NULL, NULL, 0, 0);
+			break;
+		case ENOMEM:
+			ast_http_send(ser, AST_HTTP_POST, 500, "Internal Server Error", NULL, NULL, 0, 0);
+			break;
+		case EIO:
+			ast_http_send(ser, AST_HTTP_POST, 400, "Bad Request", NULL, NULL, 0, 0);
+			break;
+		}
+	}
+
 	for (v = params; v && m.hdrcount < ARRAY_LEN(m.headers); v = v->next) {
 		hdrlen = strlen(v->name) + strlen(v->value) + 3;
 		m.headers[m.hdrcount] = ast_malloc(hdrlen);
