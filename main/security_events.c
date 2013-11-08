@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 
 static const size_t TIMESTAMP_STR_LEN = 32;
+static const size_t SECURITY_EVENT_BUF_INIT_LEN = 256;
 
 /*! \brief Security Topic */
 static struct stasis_topic *security_topic;
@@ -51,8 +52,81 @@ struct stasis_topic *ast_security_topic(void)
 	return security_topic;
 }
 
+static int append_event_str_single(struct ast_str **str, struct ast_json *json,
+		const enum ast_event_ie_type ie_type)
+{
+	const char *ie_type_key = ast_event_get_ie_type_name(ie_type);
+	struct ast_json *json_string = ast_json_object_get(json, ie_type_key);
+
+	ast_assert(json_string != NULL);
+
+	if (ast_str_append(str, 0, "%s: %s\r\n", ie_type_key, ast_json_string_get(json_string)) == -1) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int append_event_str_from_json(struct ast_str **str, struct ast_json *json,
+		const struct ast_security_event_ie_type *ies)
+{
+	unsigned int i;
+
+	for (i = 0; ies[i].ie_type != AST_EVENT_IE_END; i++) {
+		if (append_event_str_single(str, json, ies[i].ie_type)) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static struct ast_manager_event_blob *security_event_to_ami_blob(struct ast_json *json)
+{
+	RAII_VAR(struct ast_str *, str, NULL, ast_free);
+	struct ast_json *event_type_json;
+	enum ast_security_event_type event_type;
+
+	event_type_json = ast_json_object_get(json, "SecurityEvent");
+	event_type = ast_json_integer_get(event_type_json);
+
+	ast_assert(event_type >= 0 && event_type < AST_SECURITY_EVENT_NUM_TYPES);
+
+	if (!(str = ast_str_create(SECURITY_EVENT_BUF_INIT_LEN))) {
+		return NULL;
+	}
+
+	if (append_event_str_from_json(&str, json,
+			ast_security_event_get_required_ies(event_type))) {
+		ast_log(LOG_ERROR, "Failed to issue a security event to AMI.\n");
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_SECURITY,
+		ast_security_event_get_name(event_type),
+		"%s",
+		ast_str_buffer(str));
+}
+
+static struct ast_manager_event_blob *security_event_to_ami(struct stasis_message *message)
+{
+	struct ast_json_payload *payload = stasis_message_data(message);
+
+	if (stasis_message_type(message) != ast_security_event_type()) {
+		return NULL;
+	}
+
+	if (!payload) {
+		return NULL;
+	}
+
+	return security_event_to_ami_blob(payload->json);
+}
+
 /*! \brief Message type for security events */
-STASIS_MESSAGE_TYPE_DEFN(ast_security_event_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_security_event_type,
+	.to_ami = security_event_to_ami,
+	);
 
 static void security_stasis_cleanup(void)
 {
