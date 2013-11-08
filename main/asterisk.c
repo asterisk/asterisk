@@ -1233,7 +1233,6 @@ int ast_safe_system(const char *s)
 {
 	pid_t pid;
 	int res;
-	struct rusage rusage;
 	int status;
 
 #if defined(HAVE_WORKING_FORK) || defined(HAVE_WORKING_VFORK)
@@ -1265,7 +1264,7 @@ int ast_safe_system(const char *s)
 		_exit(1);
 	} else if (pid > 0) {
 		for (;;) {
-			res = wait4(pid, &status, 0, &rusage);
+			res = waitpid(pid, &status, 0);
 			if (res > -1) {
 				res = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 				break;
@@ -1751,7 +1750,7 @@ static void _child_handler(int sig)
 	/*
 	 * Reap all dead children -- not just one
 	 */
-	for (n = 0; wait4(-1, &status, WNOHANG, NULL) > 0; n++)
+	for (n = 0; waitpid(-1, &status, WNOHANG) > 0; n++)
 		;
 	if (n == 0 && option_debug)
 		printf("Huh?  Child handler, but nobody there?\n");

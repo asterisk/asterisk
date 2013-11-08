@@ -150,7 +150,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 		ast_log(LOG_WARNING, "Failed to spawn RAS\n");
 	} else {
 		for (;;) {
-			res = wait4(pid, &status, WNOHANG, NULL);
+			res = waitpid(pid, &status, WNOHANG);
 			if (!res) {
 				/* Check for hangup */
 				if (ast_check_hangup(chan) && !signalled) {
@@ -163,7 +163,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 				continue;
 			}
 			if (res < 0) {
-				ast_log(LOG_WARNING, "wait4 returned %d: %s\n", res, strerror(errno));
+				ast_log(LOG_WARNING, "waitpid returned %d: %s\n", res, strerror(errno));
 			}
 			if (WIFEXITED(status)) {
 				ast_verb(3, "RAS on %s terminated with status %d\n", ast_channel_name(chan), WEXITSTATUS(status));

@@ -1330,7 +1330,6 @@ int ast_safe_system(const char *s)
 	int x;
 #endif
 	int res;
-	struct rusage rusage;
 	int status;
 
 #if defined(HAVE_WORKING_FORK) || defined(HAVE_WORKING_VFORK)
@@ -1352,7 +1351,7 @@ int ast_safe_system(const char *s)
 		_exit(1);
 	} else if (pid > 0) {
 		for(;;) {
-			res = wait4(pid, &status, 0, &rusage);
+			res = waitpid(pid, &status, 0);
 			if (res > -1) {
 				res = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 				break;
