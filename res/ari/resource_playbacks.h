@@ -19,7 +19,7 @@
 /*! \file
  *
  * \brief Generated file - declares stubs to be implemented in
- * res/ari/resource_playback.c
+ * res/ari/resource_playbacks.c
  *
  * Playback control resources
  *
@@ -34,12 +34,12 @@
  * template in rest-api-templates/ari_resource.h.mustache
  */
 
-#ifndef _ASTERISK_RESOURCE_PLAYBACK_H
-#define _ASTERISK_RESOURCE_PLAYBACK_H
+#ifndef _ASTERISK_RESOURCE_PLAYBACKS_H
+#define _ASTERISK_RESOURCE_PLAYBACKS_H
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_playback_get() */
+/*! \brief Argument struct for ast_ari_playbacks_get() */
 struct ast_ari_playbacks_get_args {
 	/*! \brief Playback's id */
 	const char *playback_id;
@@ -52,7 +52,7 @@ struct ast_ari_playbacks_get_args {
  * \param[out] response HTTP response
  */
 void ast_ari_playbacks_get(struct ast_variable *headers, struct ast_ari_playbacks_get_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_playback_stop() */
+/*! \brief Argument struct for ast_ari_playbacks_stop() */
 struct ast_ari_playbacks_stop_args {
 	/*! \brief Playback's id */
 	const char *playback_id;
@@ -65,7 +65,7 @@ struct ast_ari_playbacks_stop_args {
  * \param[out] response HTTP response
  */
 void ast_ari_playbacks_stop(struct ast_variable *headers, struct ast_ari_playbacks_stop_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_playback_control() */
+/*! \brief Argument struct for ast_ari_playbacks_control() */
 struct ast_ari_playbacks_control_args {
 	/*! \brief Playback's id */
 	const char *playback_id;
@@ -81,4 +81,4 @@ struct ast_ari_playbacks_control_args {
  */
 void ast_ari_playbacks_control(struct ast_variable *headers, struct ast_ari_playbacks_control_args *args, struct ast_ari_response *response);
 
-#endif /* _ASTERISK_RESOURCE_PLAYBACK_H */
+#endif /* _ASTERISK_RESOURCE_PLAYBACKS_H */
