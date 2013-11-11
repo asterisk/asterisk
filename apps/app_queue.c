@@ -2116,7 +2116,7 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 	ao2_lock(q);
 	mem_iter = ao2_iterator_init(q->members, 0);
 	for (; (member = ao2_iterator_next(&mem_iter)); ao2_ref(member, -1)) {
-		if ((max_penalty && (member->penalty > max_penalty)) || (min_penalty && (member->penalty < min_penalty))) {
+		if ((max_penalty != INT_MAX && member->penalty > max_penalty) || (min_penalty != INT_MAX && member->penalty < min_penalty)) {
 			if (conditions & QUEUE_EMPTY_PENALTY) {
 				ast_debug(4, "%s is unavailable because his penalty is not between %d and %d\n", member->membername, min_penalty, max_penalty);
 				continue;
@@ -5005,26 +5005,55 @@ static int is_our_turn(struct queue_ent *qe)
 */
 static void update_qe_rule(struct queue_ent *qe)
 {
-	int max_penalty = qe->pr->max_relative ? qe->max_penalty + qe->pr->max_value : qe->pr->max_value;
-	int min_penalty = qe->pr->min_relative ? qe->min_penalty + qe->pr->min_value : qe->pr->min_value;
-	char max_penalty_str[20], min_penalty_str[20];
-	/* a relative change to the penalty could put it below 0 */
-	if (max_penalty < 0) {
-		max_penalty = 0;
+	int max_penalty = INT_MAX;
+
+	if (qe->max_penalty != INT_MAX) {
+		char max_penalty_str[20];
+
+		if (qe->pr->max_relative) {
+			max_penalty = qe->max_penalty + qe->pr->max_value;
+		} else {
+			max_penalty = qe->pr->max_value;
+		}
+
+		/* a relative change to the penalty could put it below 0 */
+		if (max_penalty < 0) {
+			max_penalty = 0;
+		}
+
+		snprintf(max_penalty_str, sizeof(max_penalty_str), "%d", max_penalty);
+		pbx_builtin_setvar_helper(qe->chan, "QUEUE_MAX_PENALTY", max_penalty_str);
+		qe->max_penalty = max_penalty;
+		ast_debug(3, "Setting max penalty to %d for caller %s since %d seconds have elapsed\n",
+			qe->max_penalty, ast_channel_name(qe->chan), qe->pr->time);
 	}
-	if (min_penalty < 0) {
-		min_penalty = 0;
+
+	if (qe->min_penalty != INT_MAX) {
+		char min_penalty_str[20];
+		int min_penalty;
+
+		if (qe->pr->min_relative) {
+			min_penalty = qe->min_penalty + qe->pr->min_value;
+		} else {
+			min_penalty = qe->pr->min_value;
+		}
+
+		/* a relative change to the penalty could put it below 0 */
+		if (min_penalty < 0) {
+			min_penalty = 0;
+		}
+
+		if (max_penalty != INT_MAX && min_penalty > max_penalty) {
+			min_penalty = max_penalty;
+		}
+
+		snprintf(min_penalty_str, sizeof(min_penalty_str), "%d", min_penalty);
+		pbx_builtin_setvar_helper(qe->chan, "QUEUE_MIN_PENALTY", min_penalty_str);
+		qe->min_penalty = min_penalty;
+		ast_debug(3, "Setting min penalty to %d for caller %s since %d seconds have elapsed\n",
+			qe->min_penalty, ast_channel_name(qe->chan), qe->pr->time);
 	}
-	if (min_penalty > max_penalty) {
-		min_penalty = max_penalty;
-	}
-	snprintf(max_penalty_str, sizeof(max_penalty_str), "%d", max_penalty);
-	snprintf(min_penalty_str, sizeof(min_penalty_str), "%d", min_penalty);
-	pbx_builtin_setvar_helper(qe->chan, "QUEUE_MAX_PENALTY", max_penalty_str);
-	pbx_builtin_setvar_helper(qe->chan, "QUEUE_MIN_PENALTY", min_penalty_str);
-	qe->max_penalty = max_penalty;
-	qe->min_penalty = min_penalty;
-	ast_debug(3, "Setting max penalty to %d and min penalty to %d for caller %s since %d seconds have elapsed\n", qe->max_penalty, qe->min_penalty, ast_channel_name(qe->chan), qe->pr->time);
+
 	qe->pr = AST_LIST_NEXT(qe->pr, list);
 }
 
@@ -5173,8 +5202,8 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	unsigned char usepenalty = (membercount <= q->penaltymemberslimit) ? 0 : 1;
 
 	if (usepenalty) {
-		if ((qe->max_penalty && (mem->penalty > qe->max_penalty)) ||
-			(qe->min_penalty && (mem->penalty < qe->min_penalty))) {
+		if ((qe->max_penalty != INT_MAX && mem->penalty > qe->max_penalty) ||
+			(qe->min_penalty != INT_MAX && mem->penalty < qe->min_penalty)) {
 			return -1;
 		}
 	} else {
@@ -7589,10 +7618,10 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		} else {
 			ast_log(LOG_WARNING, "${QUEUE_MAX_PENALTY}: Invalid value (%s), channel %s.\n",
 				max_penalty_str, ast_channel_name(chan));
-			max_penalty = 0;
+			max_penalty = INT_MAX;
 		}
 	} else {
-		max_penalty = 0;
+		max_penalty = INT_MAX;
 	}
 
 	if ((min_penalty_str = pbx_builtin_getvar_helper(chan, "QUEUE_MIN_PENALTY"))) {
@@ -7601,10 +7630,10 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 		} else {
 			ast_log(LOG_WARNING, "${QUEUE_MIN_PENALTY}: Invalid value (%s), channel %s.\n",
 				min_penalty_str, ast_channel_name(chan));
-			min_penalty = 0;
+			min_penalty = INT_MAX;
 		}
 	} else {
-		min_penalty = 0;
+		min_penalty = INT_MAX;
 	}
 	ast_channel_unlock(chan);
 
