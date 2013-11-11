@@ -1560,7 +1560,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument (conference name[,options])\n", app);
-		res = -1; /* invalid PIN */
+		res = -1;
 		goto confbridge_cleanup;
 	}
 
@@ -1639,7 +1639,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		char *conf_name = ast_strdup(args.conf_name); /* this is freed during feature cleanup */
 
 		if (!conf_name) {
-			res = -1; /* invalid PIN */
+			res = -1;
 			goto confbridge_cleanup;
 		}
 		if (ast_bridge_talk_detector_hook(&user.features, conf_handle_talker_cb,
@@ -1652,7 +1652,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* Look for a conference bridge matching the provided name */
 	if (!(conference = join_conference_bridge(args.conf_name, &user))) {
-		res = -1; /* invalid PIN */
+		res = -1;
 		goto confbridge_cleanup;
 	}
 
