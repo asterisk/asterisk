@@ -1582,7 +1582,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument (conference name[,options])\n", app);
-		res = -1; /* invalid PIN */
+		res = -1;
 		goto confbridge_cleanup;
 	}
 
@@ -1633,7 +1633,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		if (conf_set_menu_to_user(conference_bridge_user.menu_name, &conference_bridge_user)) {
 			ast_log(LOG_WARNING, "Conference menu %s does not exist and can not be applied to confbridge user.\n",
 				args.menu_name);
-			res = -1; /* invalid PIN */
+			res = -1;
 			goto confbridge_cleanup;
 		}
 	}
@@ -1655,7 +1655,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_TALKER_DETECT)) {
 		char *conf_name = ast_strdup(args.conf_name); /* this is freed during feature cleanup */
 		if (!(conf_name)) {
-			res = -1; /* invalid PIN */
+			res = -1;
 			goto confbridge_cleanup;
 		}
 		ast_bridge_features_set_talk_detector(&conference_bridge_user.features,
@@ -1666,7 +1666,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* Look for a conference bridge matching the provided name */
 	if (!(conference_bridge = join_conference_bridge(args.conf_name, &conference_bridge_user))) {
-		res = -1; /* invalid PIN */
+		res = -1;
 		goto confbridge_cleanup;
 	}
 
