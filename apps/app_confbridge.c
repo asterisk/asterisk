@@ -2035,6 +2035,9 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 		case MENU_ACTION_PLAYBACK:
 			if (!stop_prompts) {
 				res |= action_playback(bridge_channel, menu_action->data.playback_file);
+				ast_test_suite_event_notify("CONF_MENU_PLAYBACK",
+					"Message: %s\r\nChannel: %s",
+					menu_action->data.playback_file, ast_channel_name(bridge_channel->chan));
 			}
 			break;
 		case MENU_ACTION_RESET_LISTENING:
@@ -2091,6 +2094,9 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 		case MENU_ACTION_LEAVE:
 			ao2_lock(conference);
 			ast_bridge_remove(conference->bridge, bridge_channel->chan);
+			ast_test_suite_event_notify("CONF_MENU_LEAVE",
+				"Channel: %s",
+				ast_channel_name(bridge_channel->chan));
 			ao2_unlock(conference);
 			break;
 		case MENU_ACTION_NOOP:
