@@ -919,7 +919,7 @@ ari_validator ast_ari_validate_recording_started_fn(void);
 /*!
  * \brief Validator for StasisEnd.
  *
- * Notification that a channel has left a Stasis appliction.
+ * Notification that a channel has left a Stasis application.
  *
  * \param json JSON object to validate.
  * \returns True (non-zero) if valid.
@@ -937,7 +937,7 @@ ari_validator ast_ari_validate_stasis_end_fn(void);
 /*!
  * \brief Validator for StasisStart.
  *
- * Notification that a channel has entered a Stasis appliction.
+ * Notification that a channel has entered a Stasis application.
  *
  * \param json JSON object to validate.
  * \returns True (non-zero) if valid.

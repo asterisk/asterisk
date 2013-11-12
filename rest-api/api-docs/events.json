@@ -403,7 +403,7 @@
 		},
 		"StasisEnd": {
 			"id": "StasisEnd",
-			"description": "Notification that a channel has left a Stasis appliction.",
+			"description": "Notification that a channel has left a Stasis application.",
 			"properties": {
 				"channel": {
 					"required": true,
@@ -413,7 +413,7 @@
 		},
 		"StasisStart": {
 			"id": "StasisStart",
-			"description": "Notification that a channel has entered a Stasis appliction.",
+			"description": "Notification that a channel has entered a Stasis application.",
 			"properties": {
 				"args": {
 					"required": true,
