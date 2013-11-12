@@ -77,7 +77,7 @@ static int celgenuserevent_exec(struct ast_channel *chan, const char *data)
 
 	blob = ast_json_pack("{s: s, s: {s: s}}",
 		"event", args.event,
-		"extra", "extra", args.extra);
+		"extra", "extra", S_OR(args.extra, ""));
 	if (!blob) {
 		return res;
 	}
