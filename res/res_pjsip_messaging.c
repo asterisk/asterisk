@@ -431,15 +431,9 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 		CHECK_RES(ast_msg_set_from(msg, "%s", buf));
 	}
 
-	/* contact header */
-	if ((size = pjsip_hdr_print_on(pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL), buf, sizeof(buf)-1)) > 0) {
-		buf[size] = '\0';
-		CHECK_RES(ast_msg_set_var(msg, "SIP_FULLCONTACT", buf));
-	}
-
 	/* receive address */
 	field = pj_sockaddr_print(&rdata->pkt_info.src_addr, buf, sizeof(buf)-1, 1);
-	CHECK_RES(ast_msg_set_var(msg, "SIP_RECVADDR", field));
+	CHECK_RES(ast_msg_set_var(msg, "PJSIP_RECVADDR", field));
 
 	/* body */
 	if (print_body(rdata, buf, sizeof(buf) - 1) > 0) {
@@ -448,7 +442,7 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 
 	/* endpoint name */
 	if (endpt->id.self.name.valid) {
-		CHECK_RES(ast_msg_set_var(msg, "SIP_PEERNAME", endpt->id.self.name.str));
+		CHECK_RES(ast_msg_set_var(msg, "PJSIP_PEERNAME", endpt->id.self.name.str));
 	}
 
 	CHECK_RES(headers_to_vars(rdata, msg));

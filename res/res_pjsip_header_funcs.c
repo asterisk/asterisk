@@ -452,6 +452,11 @@ static int func_read_header(struct ast_channel *chan, const char *function, char
 						 AST_APP_ARG(header_name); AST_APP_ARG(header_number););
 	AST_STANDARD_APP_ARGS(args, data);
 
+	if (!channel) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
+
 	if (ast_strlen_zero(args.action)) {
 		ast_log(AST_LOG_ERROR, "This function requires an action.\n");
 		return -1;
@@ -505,6 +510,11 @@ static int func_write_header(struct ast_channel *chan, const char *cmd, char *da
 						 AST_APP_ARG(action);
 						 AST_APP_ARG(header_name); AST_APP_ARG(header_number););
 	AST_STANDARD_APP_ARGS(args, data);
+
+	if (!channel) {
+		ast_log(LOG_ERROR, "This function requires a PJSIP channel.\n");
+		return -1;
+	}
 
 	if (ast_strlen_zero(args.action)) {
 		ast_log(AST_LOG_ERROR, "This function requires an action.\n");
