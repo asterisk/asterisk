@@ -35,6 +35,12 @@
 							"paramType": "path",
 							"dataType": "string"
 						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Endpoints not found"
+						}
 					]
 				}
 			]
@@ -60,6 +66,12 @@
 							"description": "ID of the endpoint",
 							"paramType": "path",
 							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Endpoints not found"
 						}
 					]
 				}
