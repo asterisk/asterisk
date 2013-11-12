@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/channel.h"
 
 void ast_ari_endpoints_list(struct ast_variable *headers,
 	struct ast_ari_endpoints_list_args *args,
@@ -89,6 +90,12 @@ void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
 	struct ao2_iterator i;
 	void *obj;
 
+	if (!ast_get_channel_tech(args->tech)) {
+		ast_ari_response_error(response, 404, "Not Found",
+				       "No Endpoints found - invalid tech %s", args->tech);
+		return;
+	}
+
 	cache = ast_endpoint_cache();
 	if (!cache) {
 		ast_ari_response_error(
@@ -116,7 +123,7 @@ void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
 		struct ast_endpoint_snapshot *snapshot = stasis_message_data(msg);
 		int r;
 
-		if (strcmp(args->tech, snapshot->tech) != 0) {
+		if (strcasecmp(args->tech, snapshot->tech) != 0) {
 			continue;
 		}
 
@@ -128,13 +135,7 @@ void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
 		}
 	}
 	ao2_iterator_destroy(&i);
-
-	if (ast_json_array_size(json)) {
-		ast_ari_response_ok(response, ast_json_ref(json));
-	} else {
-		ast_ari_response_error(response, 404, "Not Found",
-				       "No Endpoints found with tech %s", args->tech);
-	}
+	ast_ari_response_ok(response, ast_json_ref(json));
 }
 void ast_ari_endpoints_get(struct ast_variable *headers,
 	struct ast_ari_endpoints_get_args *args,
