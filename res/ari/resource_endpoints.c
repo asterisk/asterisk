@@ -89,8 +89,6 @@ void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
 	struct ao2_iterator i;
 	void *obj;
 
-	/* TODO - if tech isn't a recognized type of endpoint, it should 404 */
-
 	cache = ast_endpoint_cache();
 	if (!cache) {
 		ast_ari_response_error(
@@ -131,7 +129,12 @@ void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
 	}
 	ao2_iterator_destroy(&i);
 
-	ast_ari_response_ok(response, ast_json_ref(json));
+	if (ast_json_array_size(json)) {
+		ast_ari_response_ok(response, ast_json_ref(json));
+	} else {
+		ast_ari_response_error(response, 404, "Not Found",
+				       "No Endpoints found with tech %s", args->tech);
+	}
 }
 void ast_ari_endpoints_get(struct ast_variable *headers,
 	struct ast_ari_endpoints_get_args *args,

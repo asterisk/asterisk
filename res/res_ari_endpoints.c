@@ -134,6 +134,7 @@ static void ast_ari_endpoints_list_by_tech_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Endpoints not found */
 		is_valid = 1;
 		break;
 	default:
@@ -193,6 +194,7 @@ static void ast_ari_endpoints_get_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 404: /* Endpoints not found */
 		is_valid = 1;
 		break;
 	default:
