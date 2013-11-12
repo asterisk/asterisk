@@ -1219,11 +1219,8 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 		 * a failure and die, and returning 2 means no event was received. */
 		res = read(p->subs[index].dfd, buf, sizeof(buf));
 		if (res < 0) {
-			if (errno != ELAST) {
-				ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
-				callerid_free(p->cs);
-				return -1;
-			}
+			ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
+			return -1;
 		}
 
 		if (analog_p->ringt > 0) {
