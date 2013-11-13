@@ -140,6 +140,22 @@ void ast_ari_channels_ring(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_channels_ring_stop(struct ast_variable *headers,
+	struct ast_ari_channels_ring_stop_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		return;
+	}
+
+	stasis_app_control_ring_stop(control);
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_channels_mute(struct ast_variable *headers,
 	struct ast_ari_channels_mute_args *args,
 	struct ast_ari_response *response)

@@ -341,6 +341,21 @@ int stasis_app_control_ring(struct stasis_app_control *control)
 	return 0;
 }
 
+static void *app_control_ring_stop(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	ast_indicate(control->channel, -1);
+
+	return NULL;
+}
+
+int stasis_app_control_ring_stop(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_ring_stop, NULL);
+
+	return 0;
+}
+
 struct stasis_app_control_mute_data {
 	enum ast_frame_type frametype;
 	unsigned int direction;

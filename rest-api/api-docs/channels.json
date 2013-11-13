@@ -287,6 +287,32 @@
 							"reason": "Channel not in a Stasis application"
 						}
 					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Stop ringing indication on a channel if locally generated.",
+					"nickname": "ringStop",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
 				}
 			]
 		},
