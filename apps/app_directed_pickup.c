@@ -220,8 +220,14 @@ static int pickup_by_exten(struct ast_channel *chan, const char *exten, const ch
 static int find_by_mark(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *target = obj;/*!< Potential pickup target */
+	struct ast_channel *chan = arg;
 	const char *mark = data;
 	const char *tmp;
+
+	if (chan == target) {
+		/* The channel attempting to pickup a call cannot pickup itself. */
+		return 0;
+	}
 
 	ast_channel_lock(target);
 	tmp = pbx_builtin_getvar_helper(target, PICKUPMARK);
@@ -241,7 +247,7 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 	int res = -1;
 
 	/* The found channel is already locked. */
-	target = ast_channel_callback(find_by_mark, NULL, (char *) mark, 0);
+	target = ast_channel_callback(find_by_mark, chan, (char *) mark, 0);
 	if (target) {
 		res = ast_do_pickup(chan, target);
 		ast_channel_unlock(target);
