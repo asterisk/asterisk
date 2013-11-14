@@ -21,6 +21,15 @@ ConfBridge
    menus, bridge settings, and user settings that have been applied by the
    CONFBRIDGE dialplan function.
 
+Say
+--------------------------
+ * If a channel variable SAY_DTMF_INTERRUPT is present on a channel and set
+   to 'true' (case insensitive), then any Say application (SayNumber,
+   SayDigits, SayAlpha, SayAlphaCase, SayUnixTime, and SayCounted) will
+   anticipate DTMF. If DTMF is received, these applications will behave like
+   the background application and jump to the received extension once a match
+   is established or after a short period of inactivity.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------

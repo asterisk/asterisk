@@ -59,7 +59,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="options" required="false">
 				 <optionlist>
 					<option name="j">
-						<para>Allow the calling user to dial digits to jump to that extension.</para>
+						<para>Allow the calling user to dial digits to jump to that extension.
+						This option is automatically enabled if
+						<variable>SAY_DTMF_INTERRUPT</variable> is present on the channel and
+						set to 'true' (case insensitive)</para>
 					</option>
 				</optionlist>
 			</parameter>
@@ -129,6 +132,7 @@ static int sayunixtime_exec(struct ast_channel *chan, const char *data)
 	const char * haltondigits = AST_DIGIT_NONE;
 	struct ast_flags64 opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	const char *interrupt_string;
 
 	if (!data) {
 		return 0;
@@ -145,6 +149,14 @@ static int sayunixtime_exec(struct ast_channel *chan, const char *data)
 			haltondigits = AST_DIGIT_ANY;
 		}
 	}
+
+	/* Check if 'SAY_DTMF_INTERRUPT' is true and apply the same behavior as the j flag. */
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		haltondigits = AST_DIGIT_ANY;
+	}
+	ast_channel_unlock(chan);
 
 	ast_get_time_t(ast_strlen_zero(args.timeval) ? NULL : args.timeval, &unixtime, time(NULL), NULL);
 

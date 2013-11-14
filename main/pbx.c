@@ -491,8 +491,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="string" required="true" />
 		</syntax>
 		<description>
-			<para>This application will play the sounds that correspond to the letters of the
-			given <replaceable>string</replaceable>.</para>
+			<para>This application will play the sounds that correspond to the letters
+			of the given <replaceable>string</replaceable>. If the channel variable
+			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive),
+			then this application will react to DTMF in the	same way as
+			<literal>Background</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayDigits</ref>
@@ -531,7 +534,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This application will play the sounds that correspond to the letters of the
 			given <replaceable>string</replaceable>.  Optionally, a <replaceable>casetype</replaceable> may be
-			specified.  This will be used for case-insensitive or case-sensitive pronunciations.</para>
+			specified.  This will be used for case-insensitive or case-sensitive pronunciations. If the channel
+			variable <variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
+			application will react to DTMF in the same way as <literal>Background</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayDigits</ref>
@@ -550,7 +555,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>This application will play the sounds that correspond to the digits of
-			the given number. This will use the language that is currently set for the channel.</para>
+			the given number. This will use the language that is currently set for the channel.
+			If the channel variable <variable>SAY_DTMF_INTERRUPT</variable> is set to 'true'
+			(case insensitive), then this application will react to DTMF in the same way as
+			<literal>Background</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -568,9 +576,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="gender" />
 		</syntax>
 		<description>
-			<para>This application will play the sounds that correspond to the given <replaceable>digits</replaceable>.
-			Optionally, a <replaceable>gender</replaceable> may be specified. This will use the language that is currently
-			set for the channel. See the CHANNEL() function for more information on setting the language for the channel.</para>
+			<para>This application will play the sounds that correspond to the given
+			<replaceable>digits</replaceable>. Optionally, a <replaceable>gender</replaceable> may be
+			specified. This will use the language that is currently set for the channel. See the CHANNEL()
+			function for more information on setting the language for the channel. If the channel variable
+			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
+			application will react to DTMF in the same way as <literal>Background</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -588,7 +599,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>This application will play the sounds from the phonetic alphabet that correspond to the
-			letters in the given <replaceable>string</replaceable>.</para>
+			letters in the given <replaceable>string</replaceable>. If the channel variable
+			<variable>SAY_DTMF_INTERRUPT</variable> is set to 'true' (case insensitive), then this
+			application will react to DTMF in the same way as <literal>Background</literal>.</para>
 		</description>
 		<see-also>
 			<ref type="application">SayAlpha</ref>
@@ -11288,7 +11301,18 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 {
 	char tmp[256];
 	char *number = tmp;
+	int number_val;
 	char *options;
+	int res;
+	int interrupt = 0;
+	const char *interrupt_string;
+
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		interrupt = 1;
+	}
+	ast_channel_unlock(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
@@ -11296,6 +11320,12 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 	}
 	ast_copy_string(tmp, data, sizeof(tmp));
 	strsep(&number, ",");
+
+	if (sscanf(tmp, "%d", &number_val) != 1) {
+		ast_log(LOG_WARNING, "argument '%s' to SayNumber could not be parsed as a number.\n", tmp);
+		return 0;
+	}
+
 	options = strsep(&number, ",");
 	if (options) {
 		if ( strcasecmp(options, "f") && strcasecmp(options, "m") &&
@@ -11305,19 +11335,32 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (ast_say_number(chan, atoi(tmp), "", ast_channel_language(chan), options)) {
+	res = ast_say_number(chan, number_val, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), options);
+
+	if (res < 0) {
 		ast_log(LOG_WARNING, "We were unable to say the number %s, is it too large?\n", tmp);
 	}
 
-	return 0;
+	return interrupt ? res : 0;
 }
 
 static int pbx_builtin_saydigits(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
+	int interrupt = 0;
+	const char *interrupt_string;
 
-	if (data)
-		res = ast_say_digit_str(chan, data, "", ast_channel_language(chan));
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		interrupt = 1;
+	}
+	ast_channel_unlock(chan);
+
+	if (data) {
+		res = ast_say_digit_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan));
+	}
+
 	return res;
 }
 
@@ -11326,10 +11369,20 @@ static int pbx_builtin_saycharacters_case(struct ast_channel *chan, const char *
 	int res = 0;
 	int sensitivity = 0;
 	char *parse;
+	int interrupt = 0;
+	const char *interrupt_string;
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(options);
 		AST_APP_ARG(characters);
 	);
+
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		interrupt = 1;
+	}
+	ast_channel_unlock(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SayAlphaCase requires two arguments (options, characters)\n");
@@ -11362,7 +11415,7 @@ static int pbx_builtin_saycharacters_case(struct ast_channel *chan, const char *
 		return 0;
 	}
 
-	res = ast_say_character_str(chan, args.characters, "", ast_channel_language(chan), sensitivity);
+	res = ast_say_character_str(chan, args.characters, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), sensitivity);
 
 	return res;
 }
@@ -11370,9 +11423,18 @@ static int pbx_builtin_saycharacters_case(struct ast_channel *chan, const char *
 static int pbx_builtin_saycharacters(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
+	int interrupt = 0;
+	const char *interrupt_string;
+
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		interrupt = 1;
+	}
+	ast_channel_unlock(chan);
 
 	if (data) {
-		res = ast_say_character_str(chan, data, "", ast_channel_language(chan), AST_SAY_CASE_NONE);
+		res = ast_say_character_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan), AST_SAY_CASE_NONE);
 	}
 
 	return res;
@@ -11381,9 +11443,18 @@ static int pbx_builtin_saycharacters(struct ast_channel *chan, const char *data)
 static int pbx_builtin_sayphonetic(struct ast_channel *chan, const char *data)
 {
 	int res = 0;
+	int interrupt = 0;
+	const char *interrupt_string;
+
+	ast_channel_lock(chan);
+	interrupt_string = pbx_builtin_getvar_helper(chan, "SAY_DTMF_INTERRUPT");
+	if (ast_true(interrupt_string)) {
+		interrupt = 1;
+	}
+	ast_channel_unlock(chan);
 
 	if (data)
-		res = ast_say_phonetic_str(chan, data, "", ast_channel_language(chan));
+		res = ast_say_phonetic_str(chan, data, interrupt ? AST_DIGIT_ANY : "", ast_channel_language(chan));
 	return res;
 }
 
