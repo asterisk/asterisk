@@ -104,7 +104,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="options" required="false">
 				<optionlist>
 					<option name="p">
-						<para>Channel name specified partial name. Used when find channel by callid.</para>
+						<para>All channel names listed specify partial names.  Used when find channel by callid.</para>
 					</option>
 				</optionlist>
 			</parameter>
@@ -277,7 +277,7 @@ static int pickup_by_group(struct ast_channel *chan)
 /* application entry point for Pickup() */
 static int pickup_exec(struct ast_channel *chan, const char *data)
 {
-	char *tmp;
+	char *parse;
 	char *exten;
 	char *context;
 
@@ -286,10 +286,20 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Parse extension (and context if there) */
-	tmp = ast_strdupa(data);
-	while (!ast_strlen_zero(tmp) && (exten = strsep(&tmp, "&"))) {
-		if ((context = strchr(exten, '@')))
+	parse = ast_strdupa(data);
+	for (;;) {
+		if (ast_strlen_zero(parse)) {
+			break;
+		}
+		exten = strsep(&parse, "&");
+		if (ast_strlen_zero(exten)) {
+			continue;
+		}
+
+		context = strchr(exten, '@');
+		if (context) {
 			*context++ = '\0';
+		}
 		if (!ast_strlen_zero(context) && !strcasecmp(context, PICKUPMARK)) {
 			if (!pickup_by_mark(chan, exten)) {
 				/* Pickup successful.  Stop the dialplan this channel is a zombie. */
@@ -346,16 +356,26 @@ static int pickup_by_part(struct ast_channel *chan, const char *part)
 	return res;
 }
 
+enum OPT_PICKUPCHAN_FLAGS {
+	OPT_PICKUPCHAN_PARTIAL =   (1 << 0),	/* Channel name is a partial name. */
+};
+
+AST_APP_OPTIONS(pickupchan_opts, BEGIN_OPTIONS
+	AST_APP_OPTION('p', OPT_PICKUPCHAN_PARTIAL),
+END_OPTIONS);
+
 /* application entry point for PickupChan() */
 static int pickupchan_exec(struct ast_channel *chan, const char *data)
 {
-	int partial_pickup = 0;
 	char *pickup = NULL;
 	char *parse = ast_strdupa(data);
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(channel);
 		AST_APP_ARG(options);
+		AST_APP_ARG(other);	/* Any remining unused arguments */
 	);
+	struct ast_flags opts;
+
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.channel)) {
@@ -363,27 +383,34 @@ static int pickupchan_exec(struct ast_channel *chan, const char *data)
 		/* Pickup failed.  Keep going in the dialplan. */
 		return 0;
 	}
-
-	if (!ast_strlen_zero(args.options) && strchr(args.options, 'p')) {
-		partial_pickup = 1;
+	if (ast_app_parse_options(pickupchan_opts, &opts, NULL, args.options)) {
+		/*
+		 * General invalid option syntax.
+		 * Pickup failed.  Keep going in the dialplan.
+		 */
+		return 0;
 	}
 
 	/* Parse channel */
-	while (!ast_strlen_zero(args.channel) && (pickup = strsep(&args.channel, "&"))) {
-		if (!strncasecmp(ast_channel_name(chan), pickup, strlen(pickup))) {
-			ast_log(LOG_NOTICE, "Cannot pickup your own channel %s.\n", pickup);
-		} else {
-			if (partial_pickup) {
-				if (!pickup_by_part(chan, pickup)) {
-					/* Pickup successful.  Stop the dialplan this channel is a zombie. */
-					return -1;
-				}
-			} else if (!pickup_by_channel(chan, pickup)) {
+	for (;;) {
+		if (ast_strlen_zero(args.channel)) {
+			break;
+		}
+		pickup = strsep(&args.channel, "&");
+		if (ast_strlen_zero(pickup)) {
+			continue;
+		}
+
+		if (ast_test_flag(&opts, OPT_PICKUPCHAN_PARTIAL)) {
+			if (!pickup_by_part(chan, pickup)) {
 				/* Pickup successful.  Stop the dialplan this channel is a zombie. */
 				return -1;
 			}
-			ast_log(LOG_NOTICE, "No target channel found for %s.\n", pickup);
+		} else if (!pickup_by_channel(chan, pickup)) {
+			/* Pickup successful.  Stop the dialplan this channel is a zombie. */
+			return -1;
 		}
+		ast_log(LOG_NOTICE, "No target channel found for %s.\n", pickup);
 	}
 
 	/* Pickup failed.  Keep going in the dialplan. */
