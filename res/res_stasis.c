@@ -704,6 +704,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_control *, control, NULL, control_unlink);
+	struct ast_bridge *last_bridge = NULL;
 	int res = 0;
 
 	ast_assert(chan != NULL);
@@ -745,7 +746,6 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		RAII_VAR(struct ast_frame *, f, NULL, ast_frame_dtor);
 		int r;
 		int command_count;
-		struct ast_bridge *last_bridge = NULL;
 		struct ast_bridge *bridge = NULL;
 
 		/* Check to see if a bridge absorbed our hangup frame */
