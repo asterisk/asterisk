@@ -1508,16 +1508,26 @@ static int conf_rec_name(struct confbridge_user *user, const char *conf_name)
 		 "%s/confbridge-name-%s-%s", destdir,
 		 conf_name, ast_channel_uniqueid(user->chan));
 
-	res = ast_play_and_record(user->chan,
-		"vm-rec-name",
-		user->name_rec_location,
-		10,
-		"sln",
-		&duration,
-		NULL,
-		ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE),
-		0,
-		NULL);
+	if (!(ast_test_flag(&user->u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW))) {
+		res = ast_play_and_record(user->chan,
+			"vm-rec-name",
+			user->name_rec_location,
+			10,
+			"sln",
+			&duration,
+			NULL,
+			ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE),
+			0,
+			NULL);
+	} else {
+		res = ast_record_review(user->chan,
+			"vm-rec-name",
+			user->name_rec_location,
+			10,
+			"sln",
+			&duration,
+			NULL);
+	}
 
 	if (res == -1) {
 		user->name_rec_location[0] = '\0';
@@ -1603,7 +1613,9 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* See if we need them to record a intro name */
-	if (!quiet && ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE)) {
+	if (!quiet &&
+		(ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE) ||
+		(ast_test_flag(&user.u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW)))) {
 		conf_rec_name(&user, args.conf_name);
 	}
 

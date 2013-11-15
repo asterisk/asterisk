@@ -21,6 +21,11 @@ ConfBridge
    menus, bridge settings, and user settings that have been applied by the
    CONFBRIDGE dialplan function.
 
+ * Added conference user option 'announce_join_leave_review'. This option
+   implies 'announce_join_leave' with the added effect that the user will
+   be asked if they want to confirm or re-record the recording of their
+   name when entering the conference
+
 Say
 --------------------------
  * If a channel variable SAY_DTMF_INTERRUPT is present on a channel and set

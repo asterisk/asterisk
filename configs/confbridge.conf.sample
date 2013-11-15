@@ -128,6 +128,11 @@ type=user
                          ; name when entering the conference.  After the name is
                          ; recorded, it will be played as the user enters and exists
                          ; the conference. This option is off by default.
+;announce_join_leave_review=yes ; When enabled, implies announce_join_leave, but the user
+                                ; will be prompted to review their recording before
+                                ; entering the conference. During this phase, the recording
+                                ; may be listened to, re-recorded, or accepted as is. This
+                                ; option is off by default.
 ;dtmf_passthrough=yes  ; Sets whether or not DTMF should pass through the conference.
                        ; This option is off by default.
 ;announcement=</path/to/file> ; Play a sound file to the user when they join the conference.

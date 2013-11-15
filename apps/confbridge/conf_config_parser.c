@@ -110,6 +110,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<configOption name="announce_join_leave">
 					<synopsis>Prompt user for their name when joining a conference and play it to the conference when they enter</synopsis>
 				</configOption>
+				<configOption name="announce_join_leave_review">
+					<synopsis>Prompt user for their name when joining a conference and play it to the conference when they enter.
+					The user will be asked to review the recording of their name before entering the conference.</synopsis>
+				</configOption>
 				<configOption name="pin">
 					<synopsis>Sets a PIN the user must enter before joining the conference</synopsis>
 				</configOption>
@@ -1384,8 +1388,9 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 		u_profile.flags & USER_OPT_ANNOUNCEUSERCOUNT ?
 		"enabled" : "disabled");
 	ast_cli(a->fd,"Announce join/leave:     %s\n",
-		u_profile.flags & USER_OPT_ANNOUNCE_JOIN_LEAVE ?
-		"enabled" : "disabled");
+		u_profile.flags & (USER_OPT_ANNOUNCE_JOIN_LEAVE | USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW) ?
+		u_profile.flags & USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW ?
+		"enabled (with review)" : "enabled" : "disabled");
 	ast_cli(a->fd,"Announce User Count all: %s\n",
 		u_profile.flags & USER_OPT_ANNOUNCEUSERCOUNTALL ?
 		"enabled" : "disabled");
@@ -2054,6 +2059,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "talk_detection_events", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_TALKER_DETECT);
 	aco_option_register(&cfg_info, "dtmf_passthrough", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_DTMF_PASS);
 	aco_option_register(&cfg_info, "announce_join_leave", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ANNOUNCE_JOIN_LEAVE);
+	aco_option_register(&cfg_info, "announce_join_leave_review", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW);
 	aco_option_register(&cfg_info, "pin", ACO_EXACT, user_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct user_profile, pin));
 	aco_option_register(&cfg_info, "music_on_hold_class", ACO_EXACT, user_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct user_profile, moh_class));
 	aco_option_register(&cfg_info, "announcement", ACO_EXACT, user_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct user_profile, announcement));
