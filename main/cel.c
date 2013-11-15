@@ -1363,11 +1363,14 @@ static void cel_local_cb(
 	cel_report_event(localone, AST_CEL_LOCAL_OPTIMIZE, NULL, extra, NULL);
 }
 
-static void destroy_subscriptions(void)
+static void destroy_routes(void)
 {
 	stasis_message_router_unsubscribe_and_join(cel_state_router);
 	cel_state_router = NULL;
+}
 
+static void destroy_subscriptions(void)
+{
 	ao2_cleanup(cel_aggregation_topic);
 	cel_aggregation_topic = NULL;
 	ao2_cleanup(cel_topic);
@@ -1381,6 +1384,7 @@ static void destroy_subscriptions(void)
 
 static void ast_cel_engine_term(void)
 {
+	destroy_routes();
 	destroy_subscriptions();
 
 	aco_info_destroy(&cel_cfg_info);
@@ -1400,8 +1404,6 @@ static void ast_cel_engine_term(void)
  */
 static int create_subscriptions(void)
 {
-	int ret = 0;
-
 	cel_aggregation_topic = stasis_topic_create("cel_aggregation_topic");
 	if (!cel_aggregation_topic) {
 		return -1;
@@ -1439,6 +1441,16 @@ static int create_subscriptions(void)
 	if (!cel_cel_forwarder) {
 		return -1;
 	}
+
+	return 0;
+}
+
+/*!
+ * \brief Create the Stasis message router and routes for CEL
+ */
+static int create_routes(void)
+{
+	int ret = 0;
 
 	cel_state_router = stasis_message_router_create(cel_aggregation_topic);
 	if (!cel_state_router) {
@@ -1550,7 +1562,11 @@ int ast_cel_engine_init(void)
 		}
 	}
 
-	if (ast_cel_check_enabled() && create_subscriptions()) {
+	if (create_subscriptions()) {
+		return -1;
+	}
+
+	if (ast_cel_check_enabled() && create_routes()) {
 		return -1;
 	}
 
@@ -1570,11 +1586,11 @@ static int do_reload(void)
 	is_enabled = ast_cel_check_enabled();
 
 	if (!was_enabled && is_enabled) {
-		if (create_subscriptions()) {
+		if (create_routes()) {
 			return -1;
 		}
 	} else if (was_enabled && !is_enabled) {
-		destroy_subscriptions();
+		destroy_routes();
 	}
 
 	ast_verb(3, "CEL logging %sabled.\n", is_enabled ? "en" : "dis");
@@ -1636,9 +1652,9 @@ void ast_cel_set_config(struct ast_cel_general_config *config)
 
 		is_enabled = ast_cel_check_enabled();
 		if (!was_enabled && is_enabled) {
-			create_subscriptions();
+			create_routes();
 		} else if (was_enabled && !is_enabled) {
-			destroy_subscriptions();
+			destroy_routes();
 		}
 	}
 }
