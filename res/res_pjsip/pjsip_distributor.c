@@ -134,7 +134,12 @@ static pjsip_dialog *find_dialog(pjsip_rx_data *rdata)
 	}
 
 	dlg = pjsip_tsx_get_dlg(tsx);
+
+#ifdef HAVE_PJ_TRANSACTION_GRP_LOCK
+	pj_grp_lock_release(tsx->grp_lock);
+#else
 	pj_mutex_unlock(tsx->mutex);
+#endif
 
 	if (!dlg) {
 		return NULL;
