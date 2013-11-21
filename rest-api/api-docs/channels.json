@@ -553,7 +553,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Play music on hold to a channel.",
-					"notes": "Using media operations such as playOnChannel on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.",
+					"notes": "Using media operations such as /play on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.",
 					"nickname": "startMoh",
 					"responseClass": "void",
 					"parameters": [
@@ -589,6 +589,65 @@
 					"httpMethod": "DELETE",
 					"summary": "Stop playing music on hold to a channel.",
 					"nickname": "stopMoh",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/channels/{channelId}/silence",
+			"description": "Play silence to a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Play silence to a channel.",
+					"notes": "Using media operations such as /play on a channel playing silence in this manner will suspend silence without resuming automatically.",
+					"nickname": "startSilence",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Stop playing silence to a channel.",
+					"nickname": "stopSilence",
 					"responseClass": "void",
 					"parameters": [
 						{

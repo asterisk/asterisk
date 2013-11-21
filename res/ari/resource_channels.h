@@ -254,7 +254,7 @@ struct ast_ari_channels_start_moh_args {
 /*!
  * \brief Play music on hold to a channel.
  *
- * Using media operations such as playOnChannel on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.
+ * Using media operations such as /play on a channel playing MOH in this manner will suspend MOH without resuming automatically. If continuing music on hold is desired, the stasis application must reinitiate music on hold.
  *
  * \param headers HTTP headers
  * \param args Swagger parameters
@@ -274,6 +274,34 @@ struct ast_ari_channels_stop_moh_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_stop_moh(struct ast_variable *headers, struct ast_ari_channels_stop_moh_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_start_silence() */
+struct ast_ari_channels_start_silence_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+};
+/*!
+ * \brief Play silence to a channel.
+ *
+ * Using media operations such as /play on a channel playing silence in this manner will suspend silence without resuming automatically.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_start_silence(struct ast_variable *headers, struct ast_ari_channels_start_silence_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_stop_silence() */
+struct ast_ari_channels_stop_silence_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+};
+/*!
+ * \brief Stop playing silence to a channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_stop_silence(struct ast_variable *headers, struct ast_ari_channels_stop_silence_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_channels_play() */
 struct ast_ari_channels_play_args {
 	/*! \brief Channel's id */

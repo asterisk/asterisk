@@ -386,6 +386,18 @@ void stasis_app_control_moh_start(struct stasis_app_control *control, const char
 void stasis_app_control_moh_stop(struct stasis_app_control *control);
 
 /*!
+ * \brief Start playing silence to a channel.
+ * \param control Control for \c res_stasis.
+ */
+void stasis_app_control_silence_start(struct stasis_app_control *control);
+
+/*!
+ * \brief Stop playing silence to a channel.
+ * \param control Control for \c res_stasis.
+ */
+void stasis_app_control_silence_stop(struct stasis_app_control *control);
+
+/*!
  * \brief Returns the most recent snapshot for the associated channel.
  *
  * The returned pointer is AO2 managed, so ao2_cleanup() when you're done.
