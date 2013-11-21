@@ -321,6 +321,38 @@ void ast_ari_channels_stop_moh(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_channels_start_silence(struct ast_variable *headers,
+	struct ast_ari_channels_start_silence_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	stasis_app_control_silence_start(control);
+	ast_ari_response_no_content(response);
+}
+
+void ast_ari_channels_stop_silence(struct ast_variable *headers,
+	struct ast_ari_channels_stop_silence_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	stasis_app_control_silence_stop(control);
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_channels_play(struct ast_variable *headers,
 	struct ast_ari_channels_play_args *args,
 	struct ast_ari_response *response)

@@ -59,6 +59,10 @@ struct stasis_app_control {
 	 */
 	struct ast_pbx *pbx;
 	/*!
+	 * Silence generator, when silence is being generated.
+	 */
+	struct ast_silence_generator *silgen;
+	/*!
 	 * When set, /c app_stasis should exit and continue in the dialplan.
 	 */
 	int is_done:1;
@@ -67,6 +71,10 @@ struct stasis_app_control {
 static void control_dtor(void *obj)
 {
 	struct stasis_app_control *control = obj;
+
+	/* We may have a lingering silence generator; free it */
+	ast_channel_stop_silence_generator(control->channel, control->silgen);
+	control->silgen = NULL;
 
 	ao2_cleanup(control->command_queue);
 	ast_cond_destroy(&control->wait_cond);
@@ -500,6 +508,55 @@ static void *app_control_moh_stop(struct stasis_app_control *control,
 void stasis_app_control_moh_stop(struct stasis_app_control *control)
 {
 	stasis_app_send_command_async(control, app_control_moh_stop, NULL);
+}
+
+static void *app_control_silence_start(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	if (control->silgen) {
+		/* We have a silence generator, but it may have been implicitly
+		 * disabled by media actions (music on hold, playing media,
+		 * etc.) Just stop it and restart a new one.
+		 */
+		ast_channel_stop_silence_generator(
+			control->channel, control->silgen);
+	}
+
+	ast_debug(3, "%s: Starting silence generator\n",
+		stasis_app_control_get_channel_id(control));
+	control->silgen = ast_channel_start_silence_generator(control->channel);
+
+	if (!control->silgen) {
+		ast_log(LOG_WARNING,
+			"%s: Failed to start silence generator.\n",
+			stasis_app_control_get_channel_id(control));
+	}
+
+	return NULL;
+}
+
+void stasis_app_control_silence_start(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_silence_start, NULL);
+}
+
+static void *app_control_silence_stop(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	if (control->silgen) {
+		ast_debug(3, "%s: Stopping silence generator\n",
+			stasis_app_control_get_channel_id(control));
+		ast_channel_stop_silence_generator(
+			control->channel, control->silgen);
+		control->silgen = NULL;
+	}
+
+	return NULL;
+}
+
+void stasis_app_control_silence_stop(struct stasis_app_control *control)
+{
+	stasis_app_send_command_async(control, app_control_silence_stop, NULL);
 }
 
 struct ast_channel_snapshot *stasis_app_control_get_snapshot(
