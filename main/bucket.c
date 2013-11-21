@@ -254,7 +254,7 @@ int __ast_bucket_scheme_register(const char *name, struct ast_sorcery_wizard *bu
 	bucket_file_destroy_cb destroy_cb, struct ast_module *module)
 {
 	SCOPED_AO2WRLOCK(lock, schemes);
-	struct ast_bucket_scheme *scheme;
+	RAII_VAR(struct ast_bucket_scheme *, scheme, NULL, ao2_cleanup);
 
 	if (ast_strlen_zero(name) || !bucket || !file ||
 	    !bucket->create || !bucket->delete || !bucket->retrieve_id ||
