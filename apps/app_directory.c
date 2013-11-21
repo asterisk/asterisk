@@ -111,6 +111,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				options may be specified. <emphasis>If more than one is specified</emphasis>, then Directory will act as 
 				if <replaceable>b</replaceable> was specified.  The number
 				of characters for the user to type defaults to <literal>3</literal>.</para></note>
+
 			</parameter>
 		</syntax>
 		<description>
@@ -121,6 +122,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			received and the extension to jump to exists:</para>
 			<para><literal>0</literal> - Jump to the 'o' extension, if it exists.</para>
 			<para><literal>*</literal> - Jump to the 'a' extension, if it exists.</para>
+			<para>This application will set the following channel variable before completion:</para>
+			<variablelist>
+				<variable name="DIRECTORY_RESULT">
+					<para>Reason Directory application exited.</para>
+					<value name="OPERATOR">User requested operator</value>
+					<value name="ASSISTANT">User requested assistant</value>
+					<value name="TIMEOUT">User allowed DTMF wait duration to pass without sending DTMF</value>
+					<value name="HANGUP">The channel hung up before the application finished</value>
+					<value name="SELECTED">User selected a user to call from the directory</value>
+					<value name="USEREXIT">User exited with '#' during selection</value>
+					<value name="FAILED">The application failed</value>
+				</variable>
+			</variablelist>
 		</description>
 	</application>
 
@@ -309,6 +323,7 @@ static int select_entry(struct ast_channel *chan, const char *dialcontext, const
 		return -1;
 	}
 
+	pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "SELECTED");
 	return 0;
 }
 
@@ -349,6 +364,7 @@ static int select_item_seq(struct ast_channel *chan, struct directory_item **ite
 	
 			if (res == '0') { /* operator selected */
 				goto_exten(chan, dialcontext, "o");
+				pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "OPERATOR");
 				return '0';
 			} else if (res == '1') { /* Name selected */
 				return select_entry(chan, dialcontext, item, flags) ? -1 : 1;
@@ -357,6 +373,7 @@ static int select_item_seq(struct ast_channel *chan, struct directory_item **ite
 				break;
 			} else if (res == '#') {
 				/* Exit reading, continue in dialplan */
+				pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "USEREXIT");
 				return res;
 			}
 
@@ -422,6 +439,7 @@ static int select_item_menu(struct ast_channel *chan, struct directory_item **it
 		}
 
 		if (res && res > '0' && res < '1' + limit) {
+			pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "SELECTED");
 			return select_entry(chan, dialcontext, block[res - '1'], flags) ? -1 : 1;
 		}
 
@@ -741,10 +759,12 @@ static int do_directory(struct ast_channel *chan, struct ast_config *vmcfg, stru
 	char ext[10] = "";
 
 	if (digit == '0' && !goto_exten(chan, dialcontext, "o")) {
+		pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "OPERATOR");
 		return digit;
 	}
 
 	if (digit == '*' && !goto_exten(chan, dialcontext, "a")) {
+		pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "ASSISTANT");
 		return digit;
 	}
 
@@ -909,8 +929,12 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
 
-		if (res <= 0)
+		if (res <= 0) {
+			if (res == 0) {
+				pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "TIMEOUT");
+			}
 			break;
+		}
 
 		res = do_directory(chan, cfg, ucfg, args.vmcontext, args.dialcontext, res, digit, &flags, opts);
 		if (res)
@@ -918,14 +942,21 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
 		ast_stopstream(chan);
-
-		if (res)
+		if (res < 0) {
 			break;
+		}
 	}
 
 	if (ucfg)
 		ast_config_destroy(ucfg);
 	ast_config_destroy(cfg);
+
+	if (ast_check_hangup(chan)) {
+		pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "HANGUP");
+	} else if (res < 0) {
+		/* If the res < 0 and we didn't hangup, an unaccounted for error must have happened. */
+		pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "FAILED");
+	}
 
 	return res < 0 ? -1 : 0;
 }

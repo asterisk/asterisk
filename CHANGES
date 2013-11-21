@@ -26,6 +26,18 @@ ConfBridge
    be asked if they want to confirm or re-record the recording of their
    name when entering the conference
 
+Directory
+--------------------------
+ * At exit, the Directory application now sets a channel variable
+   DIRECTORY_RESULT to one of the following based on the reason for exiting:
+     OPERATOR    user requested operator by pressing '0' for operator
+     ASSISTANT   user requested assistant by pressing '*' for assistant
+     TIMEOUT     user pressed nothing and Directory stopped waiting
+     HANGUP      user's channel hung up
+     SELECTED    user selected a user from the directory and is routed
+     USEREXIT    user pressed '#' from the selection prompt to exit
+     FAILED      directory failed in a way that wasn't accounted for. Dang.
+
 Say
 --------------------------
  * If a channel variable SAY_DTMF_INTERRUPT is present on a channel and set
