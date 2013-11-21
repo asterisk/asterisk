@@ -1026,6 +1026,7 @@ static void session_destructor(void *obj)
 	ast_party_id_free(&session->id);
 	ao2_cleanup(session->endpoint);
 	ast_format_cap_destroy(session->req_caps);
+	ast_format_cap_destroy(session->direct_media_cap);
 
 	if (session->dsp) {
 		ast_dsp_free(session->dsp);
