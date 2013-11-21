@@ -334,7 +334,8 @@ typedef void (ast_vm_msg_play_cb)(struct ast_channel *chan, const char *playfile
 /*!
  * \brief Determines if the given folder has messages.
  *
- * \param mailbox The @ delimited string for user@context. If no context is found, uses 'default' for the context.
+ * \param mailbox Comma or & delimited list of mailboxes (user@context).
+ *          If no context is found, uses 'default' for the context.
  * \param folder The folder to look in.  Default is INBOX if not provided.
  *
  * \retval 1 if the folder has one or more messages.
@@ -345,7 +346,8 @@ typedef int (ast_has_voicemail_fn)(const char *mailbox, const char *folder);
 /*!
  * \brief Gets the number of messages that exist for the mailbox list.
  *
- * \param mailbox Comma or space deliminated list of mailboxes (user@context).
+ * \param mailbox Comma or space delimited list of mailboxes (user@context).
+ *          If no context is found, uses 'default' for the context.
  * \param newmsgs Where to put the count of new messages. (Can be NULL)
  * \param oldmsgs Where to put the count of old messages. (Can be NULL)
  *
@@ -361,7 +363,8 @@ typedef int (ast_inboxcount_fn)(const char *mailbox, int *newmsgs, int *oldmsgs)
 /*!
  * \brief Gets the number of messages that exist for the mailbox list.
  *
- * \param mailbox Comma or space deliminated list of mailboxes (user@context).
+ * \param mailbox Comma or space delimited list of mailboxes (user@context).
+ *          If no context is found, uses 'default' for the context.
  * \param urgentmsgs Where to put the count of urgent messages. (Can be NULL)
  * \param newmsgs Where to put the count of new messages. (Can be NULL)
  * \param oldmsgs Where to put the count of old messages. (Can be NULL)
@@ -430,7 +433,7 @@ typedef const char *(ast_vm_index_to_foldername_fn)(int id);
  * \param mailbox The user part of user@context.
  * \param context The context part of user@context.  Must be explicit.
  * \param folder When not NULL only msgs from the specified folder will be included.
- * \param desending list the msgs in descending order rather than ascending order.
+ * \param descending list the msgs in descending order rather than ascending order.
  * \param sort_val What to sort in the snapshot.
  * \param combine_INBOX_and_OLD When this argument is set, The OLD folder will be represented
  *        in the INBOX folder of the snapshot. This allows the snapshot to represent the
@@ -658,7 +661,7 @@ const char *ast_vm_index_to_foldername(int id);
  * \param mailbox, the mailbox to look for
  * \param context, the context to look for the mailbox in
  * \param folder, OPTIONAL.  When not NULL only msgs from the specified folder will be included.
- * \param desending, list the msgs in descending order rather than ascending order.
+ * \param descending, list the msgs in descending order rather than ascending order.
  * \param combine_INBOX_and_OLD, When this argument is set, The OLD folder will be represented
  *        in the INBOX folder of the snapshot. This allows the snapshot to represent the
  *        OLD and INBOX messages in sorted order merged together.
