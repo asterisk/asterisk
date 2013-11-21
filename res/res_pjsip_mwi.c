@@ -682,6 +682,7 @@ static void create_mwi_subscriptions(void)
 	}
 	ao2_callback(endpoints, OBJ_NODATA, create_mwi_subscriptions_for_endpoint, mwi_subscriptions);
 	ao2_global_obj_replace_unref(unsolicited_mwi, mwi_subscriptions);
+	ao2_ref(mwi_subscriptions, -1);
 }
 
 static int reload(void)
