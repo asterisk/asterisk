@@ -47,11 +47,11 @@ API_TRANSFORMS = [
     Transform(rel('api.wiki.mustache'),
               'doc/rest-api/%s {{name_title}} REST API.wiki' % WIKI_PREFIX),
     Transform(rel('res_ari_resource.c.mustache'),
-              'res/res_ari_{{name}}.c'),
+              'res/res_ari_{{c_name}}.c'),
     Transform(rel('ari_resource.h.mustache'),
-              'res/ari/resource_{{name}}.h'),
+              'res/ari/resource_{{c_name}}.h'),
     Transform(rel('ari_resource.c.mustache'),
-              'res/ari/resource_{{name}}.c', overwrite=False),
+              'res/ari/resource_{{c_name}}.c', overwrite=False),
 ]
 
 RESOURCES_TRANSFORMS = [
