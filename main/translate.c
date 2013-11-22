@@ -369,38 +369,41 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			ast_frfree(out);
 		out = p->t->frameout(p);
 	}
-	if (consume)
-		ast_frfree(f);
-	if (out == NULL)
-		return NULL;
-	/* we have a frame, play with times */
-	if (!ast_tvzero(delivery)) {
-		/* Regenerate prediction after a discontinuity */
-		if (ast_tvzero(path->nextout))
-			path->nextout = ast_tvnow();
+	if (out) {
+		/* we have a frame, play with times */
+		if (!ast_tvzero(delivery)) {
+			/* Regenerate prediction after a discontinuity */
+			if (ast_tvzero(path->nextout)) {
+				path->nextout = ast_tvnow();
+			}
 
-		/* Use next predicted outgoing timestamp */
-		out->delivery = path->nextout;
-		
-		/* Predict next outgoing timestamp from samples in this
-		   frame. */
-		path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(out->subclass.codec)));
-		if (f->samples != out->samples && ast_test_flag(out, AST_FRFLAG_HAS_TIMING_INFO)) {
-			ast_debug(4, "Sample size different %u vs %u\n", f->samples, out->samples);
-			ast_clear_flag(out, AST_FRFLAG_HAS_TIMING_INFO);
+			/* Use next predicted outgoing timestamp */
+			out->delivery = path->nextout;
+
+			/* Predict next outgoing timestamp from samples in this
+			   frame. */
+			path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(out->subclass.codec)));
+			if (f->samples != out->samples && ast_test_flag(out, AST_FRFLAG_HAS_TIMING_INFO)) {
+				ast_debug(4, "Sample size different %u vs %u\n", f->samples, out->samples);
+				ast_clear_flag(out, AST_FRFLAG_HAS_TIMING_INFO);
+			}
+		} else {
+			out->delivery = ast_tv(0, 0);
+			ast_set2_flag(out, has_timing_info, AST_FRFLAG_HAS_TIMING_INFO);
+			if (has_timing_info) {
+				out->ts = ts;
+				out->len = len;
+				out->seqno = seqno;
+			}
 		}
-	} else {
-		out->delivery = ast_tv(0, 0);
-		ast_set2_flag(out, has_timing_info, AST_FRFLAG_HAS_TIMING_INFO);
-		if (has_timing_info) {
-			out->ts = ts;
-			out->len = len;
-			out->seqno = seqno;
+		/* Invalidate prediction if we're entering a silence period */
+		if (out->frametype == AST_FRAME_CNG) {
+			path->nextout = ast_tv(0, 0);
 		}
 	}
-	/* Invalidate prediction if we're entering a silence period */
-	if (out->frametype == AST_FRAME_CNG)
-		path->nextout = ast_tv(0, 0);
+	if (consume) {
+		ast_frfree(f);
+	}
 	return out;
 }
 
