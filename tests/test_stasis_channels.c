@@ -248,14 +248,14 @@ AST_TEST_DEFINE(channel_snapshot_json)
 		break;
 	}
 
-	ast_test_validate(test, NULL == ast_channel_snapshot_to_json(NULL));
+	ast_test_validate(test, NULL == ast_channel_snapshot_to_json(NULL, NULL));
 
 	chan = ast_channel_alloc(0, AST_STATE_DOWN, "cid_num", "cid_name", "acctcode", "exten", "context", NULL, 0, "TEST/name");
 	ast_test_validate(test, NULL != chan);
 	snapshot = ast_channel_snapshot_create(chan);
 	ast_test_validate(test, NULL != snapshot);
 
-	actual = ast_channel_snapshot_to_json(snapshot);
+	actual = ast_channel_snapshot_to_json(snapshot, NULL);
 	expected = ast_json_pack("{ s: s, s: s, s: s, s: s,"
 				 "  s: { s: s, s: s, s: i },"
 				 "  s: { s: s, s: s },"

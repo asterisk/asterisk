@@ -41,7 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char *test_category = "/stasis/core/";
 
-static struct ast_json *fake_json(struct stasis_message *message)
+static struct ast_json *fake_json(struct stasis_message *message, const struct stasis_message_sanitizer *sanitize)
 {
 	const char *text = stasis_message_data(message);
 
@@ -1100,7 +1100,7 @@ AST_TEST_DEFINE(no_to_json)
 	}
 
 	/* Test NULL */
-	actual = stasis_message_to_json(NULL);
+	actual = stasis_message_to_json(NULL, NULL);
 	ast_test_validate(test, NULL == actual);
 
 	/* Test message with NULL to_json function */
@@ -1111,7 +1111,7 @@ AST_TEST_DEFINE(no_to_json)
 	uut = stasis_message_create(type, data);
 	ast_test_validate(test, NULL != uut);
 
-	actual = stasis_message_to_json(uut);
+	actual = stasis_message_to_json(uut, NULL);
 	ast_test_validate(test, NULL == actual);
 
 	return AST_TEST_PASS;
@@ -1145,7 +1145,7 @@ AST_TEST_DEFINE(to_json)
 	ast_test_validate(test, NULL != uut);
 
 	expected = ast_json_string_create(expected_text);
-	actual = stasis_message_to_json(uut);
+	actual = stasis_message_to_json(uut, NULL);
 	ast_test_validate(test, ast_json_equal(expected, actual));
 
 	return AST_TEST_PASS;
