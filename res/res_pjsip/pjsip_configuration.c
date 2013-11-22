@@ -520,8 +520,19 @@ static int dtls_handler(const struct aco_option *opt,
 			 struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
+	char *name = ast_strdupa(var->name);
+	char *front, *buf = name;
 
-	return ast_rtp_dtls_cfg_parse(&endpoint->media.rtp.dtls_cfg, var->name, var->value);
+	/* strip out underscores in the name */
+	front = strtok(buf, "_");
+	while (front) {
+		int size = strlen(front);
+		ast_copy_string(buf, front, size + 1);
+		buf += size;
+		front = strtok(NULL, "_");
+	}
+
+	return ast_rtp_dtls_cfg_parse(&endpoint->media.rtp.dtls_cfg, name, var->value);
 }
 
 static int t38udptl_ec_handler(const struct aco_option *opt,
