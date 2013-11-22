@@ -81,9 +81,9 @@ int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery)
 	}
 
 	ast_sorcery_object_field_register(sorcery, "global", "type", "", OPT_NOOP_T, 0, 0);
-	ast_sorcery_object_field_register(sorcery, "global", "maxforwards", __stringify(DEFAULT_MAX_FORWARDS),
+	ast_sorcery_object_field_register(sorcery, "global", "max_forwards", __stringify(DEFAULT_MAX_FORWARDS),
 			OPT_UINT_T, 0, FLDSET(struct global_config, max_forwards));
-	ast_sorcery_object_field_register(sorcery, "global", "useragent", default_useragent,
+	ast_sorcery_object_field_register(sorcery, "global", "user_agent", default_useragent,
 			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, useragent));
 
 	return 0;

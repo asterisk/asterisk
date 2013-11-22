@@ -389,7 +389,7 @@
                                 ; NAT obstructs the media session (default:
                                 ; "no")
 ;disallow=      ; Media Codec s to disallow (default: "")
-;dtmfmode=rfc4733       ; DTMF mode (default: "rfc4733")
+;dtmf_mode=rfc4733       ; DTMF mode (default: "rfc4733")
 ;external_media_address=        ; IP used for External Media handling (default:
                                 ; "")
 ;force_rport=yes        ; Force use of return port (default: "yes")
@@ -397,7 +397,7 @@
 ;identify_by=username   ; Way s for Endpoint to be identified (default:
                         ; "username")
 ;mailboxes=     ; Mailbox es to be associated with (default: "")
-;mohsuggest=default     ; Default Music On Hold class (default: "default")
+;moh_suggest=default     ; Default Music On Hold class (default: "default")
 ;outbound_auth= ; Authentication object used for outbound requests (default:
                 ; "")
 ;outbound_proxy=        ; Proxy through which to send requests (default: "")
@@ -429,66 +429,66 @@
                         ; "no")
 ;inband_progress=no     ; Determines whether chan_pjsip will indicate ringing
                         ; using inband progress (default: "no")
-;callgroup=     ; The numeric pickup groups for a channel (default: "")
-;pickupgroup=   ; The numeric pickup groups that a channel can pickup (default:
-                ; "")
-;namedcallgroup=        ; The named pickup groups for a channel (default: "")
-;namedpickupgroup=      ; The named pickup groups that a channel can pickup
-                        ; (default: "")
-;devicestate_busy_at=0  ; The number of in use channels which will cause busy
+;call_group=     ; The numeric pickup groups for a channel (default: "")
+;pickup_group=   ; The numeric pickup groups that a channel can pickup (default:
+                 ; "")
+;named_call_group=        ; The named pickup groups for a channel (default: "")
+;named_pickup_group=      ; The named pickup groups that a channel can pickup
+                          ; (default: "")
+;device_state_busy_at=0  ; The number of in use channels which will cause busy
                         ; to be returned as device state (default: "0")
-;t38udptl=no    ; Whether T 38 UDPTL support is enabled or not (default: "no")
-;t38udptl_ec=none       ; T 38 UDPTL error correction method (default: "none")
-;t38udptl_maxdatagram=0 ; T 38 UDPTL maximum datagram size (default: "0")
-;faxdetect=no   ; Whether CNG tone detection is enabled (default: "no")
-;t38udptl_nat=no        ; Whether NAT support is enabled on UDPTL sessions
+;t38_udptl=no    ; Whether T 38 UDPTL support is enabled or not (default: "no")
+;t38_udptl_ec=none       ; T 38 UDPTL error correction method (default: "none")
+;t38_udptl_maxdatagram=0 ; T 38 UDPTL maximum datagram size (default: "0")
+;fax_detect=no   ; Whether CNG tone detection is enabled (default: "no")
+;t38_udptl_nat=no        ; Whether NAT support is enabled on UDPTL sessions
                         ; (default: "no")
-;t38udptl_ipv6=no       ; Whether IPv6 is used for UDPTL Sessions (default:
+;t38_udptl_ipv6=no       ; Whether IPv6 is used for UDPTL Sessions (default:
                         ; "no")
-;tonezone=      ; Set which country s indications to use for channels created
+;tone_zone=      ; Set which country s indications to use for channels created
                 ; for this endpoint (default: "")
 ;language=      ; Set the default language to use for channels created for this
                 ; endpoint (default: "")
 ;one_touch_recording=no ; Determines whether one touch recording is allowed for
                         ; this endpoint (default: "no")
-;recordonfeature=automixmon     ; The feature to enact when one touch recording
-                                ; is turned on (default: "automixmon")
-;recordofffeature=automixmon    ; The feature to enact when one touch recording
-                                ; is turned off (default: "automixmon")
-;rtpengine=asterisk     ; Name of the RTP engine to use for channels created
-                        ; for this endpoint (default: "asterisk")
-;allowtransfer=yes      ; Determines whether SIP REFER transfers are allowed
-                        ; for this endpoint (default: "yes")
-;sdpowner=-     ; String placed as the username portion of an SDP origin o line
-                ; (default: "-")
-;sdpsession=Asterisk    ; String used for the SDP session s line (default:
-                        ; "Asterisk")
+;record_on_feature=automixmon     ; The feature to enact when one touch recording
+                                  ; is turned on (default: "automixmon")
+;record_off_feature=automixmon    ; The feature to enact when one touch recording
+                               	   ; is turned off (default: "automixmon")
+;rtp_engine=asterisk     ; Name of the RTP engine to use for channels created
+                       	 ; for this endpoint (default: "asterisk")
+;allow_transfer=yes      ; Determines whether SIP REFER transfers are allowed
+                       	 ; for this endpoint (default: "yes")
+;sdp_owner=-     ; String placed as the username portion of an SDP origin o line
+     		 ; (default: "-")
+;sdp_session=Asterisk    ; String used for the SDP session s line (default:
+     			 ; "Asterisk")
 ;tos_audio=0    ; DSCP TOS bits for audio streams (default: "0")
 ;tos_video=0    ; DSCP TOS bits for video streams (default: "0")
 ;cos_audio=0    ; Priority for audio streams (default: "0")
 ;cos_video=0    ; Priority for video streams (default: "0")
-;allowsubscribe=yes     ; Determines if endpoint is allowed to initiate
-                        ; subscriptions with Asterisk (default: "yes")
-;subminexpiry=0 ; The minimum allowed expiry time for subscriptions initiated
-                ; by the endpoint (default: "0")
-;fromuser=      ; Username to use in From header for requests to this endpoint
-                ; (default: "")
-;mwifromuser=   ; Username to use in From header for unsolicited MWI NOTIFYs to
-                ; this endpoint (default: "")
+;allow_subscribe=yes     ; Determines if endpoint is allowed to initiate
+                         ; subscriptions with Asterisk (default: "yes")
+;sub_min_expiry=0 ; The minimum allowed expiry time for subscriptions initiated
+                  ; by the endpoint (default: "0")
+;from_user=      ; Username to use in From header for requests to this endpoint
+                 ; (default: "")
+;mwi_from_user=   ; Username to use in From header for unsolicited MWI NOTIFYs to
+                  ; this endpoint (default: "")
 ;fromdomain=    ; Domain to user in From header for requests to this endpoint
                 ; (default: "")
-;dtlsverify=    ; Verify that the provided peer certificate is valid (default:
-                ; "")
-;dtlsrekey=     ; Interval at which to renegotiate the TLS session and rekey
-                ; the SRTP session (default: "")
-;dtlscertfile=  ; Path to certificate file to present to peer (default: "")
-;dtlsprivatekey=        ; Path to private key for certificate file (default:
+;dtls_verify=    ; Verify that the provided peer certificate is valid (default:
+                 ; "")
+;dtls_rekey=     ; Interval at which to renegotiate the TLS session and rekey
+                 ; the SRTP session (default: "")
+;dtls_cert_file=  ; Path to certificate file to present to peer (default: "")
+;dtls_private_key=        ; Path to private key for certificate file (default:
                         ; "")
-;dtlscipher=    ; Cipher to use for DTLS negotiation (default: "")
-;dtlscafile=    ; Path to certificate authority certificate (default: "")
-;dtlscapath=    ; Path to a directory containing certificate authority
-                ; certificates (default: "")
-;dtlssetup=     ; Whether we are willing to accept connections connect to the
+;dtls_cipher=    ; Cipher to use for DTLS negotiation (default: "")
+;dtls_ca_file=    ; Path to certificate authority certificate (default: "")
+;dtls_ca_path=    ; Path to a directory containing certificate authority
+                  ; certificates (default: "")
+;dtls_setup=     ; Whether we are willing to accept connections connect to the
                 ; other party or both (default: "")
 ;srtp_tag_32=no ; Determines whether 32 byte tags should be used instead of 80
                 ; byte tags (default: "no")
@@ -533,9 +533,9 @@
 ;external_signaling_port=0      ; External port for SIP signalling (default:
                                 ; "0")
 ;method=        ; Method of SSL transport TLS ONLY (default: "")
-;localnet=      ; Network to consider local used for NAT purposes (default: "")
+;local_net=      ; Network to consider local used for NAT purposes (default: "")
 ;password=      ; Password required for transport (default: "")
-;privkey_file=  ; Private key file TLS ONLY (default: "")
+;priv_key_file=  ; Private key file TLS ONLY (default: "")
 ;protocol=udp   ; Protocol to use for SIP traffic (default: "udp")
 ;require_client_cert=   ; Require client certificate TLS ONLY (default: "")
 ;type=  ; Must be of type transport (default: "")
@@ -579,9 +579,9 @@
 ;==========================SYSTEM SECTION OPTIONS=========================
 ;[system]
 ;  SYNOPSIS: Options that apply to the SIP stack as well as other system-wide settings
-;timert1=500    ; Set transaction timer T1 value milliseconds (default: "500")
-;timerb=32000   ; Set transaction timer B value milliseconds (default: "32000")
-;compactheaders=no      ; Use the short forms of common SIP header names
+;timer_t1=500    ; Set transaction timer T1 value milliseconds (default: "500")
+;timer_b=32000   ; Set transaction timer B value milliseconds (default: "32000")
+;compact_headers=no      ; Use the short forms of common SIP header names
                         ; (default: "no")
 ;threadpool_initial_size=0      ; Initial number of threads in the res_pjsip
                                 ; threadpool (default: "0")
@@ -597,12 +597,12 @@
 ;==========================GLOBAL SECTION OPTIONS=========================
 ;[global]
 ;  SYNOPSIS: Options that apply globally to all SIP communications
-;maxforwards=70 ; Value used in Max Forwards header for SIP requests (default:
-                ; "70")
+;max_forwards=70 ; Value used in Max Forwards header for SIP requests (default:
+                 ; "70")
 ;type=  ; Must be of type global (default: "")
-;useragent=     ; Value used in User Agent header for SIP requests and Server
-                ; header for SIP responses (default: Populated by Asterisk
-                ; Version)
+;user_agent=     ; Value used in User Agent header for SIP requests and Server
+                 ; header for SIP responses (default: Populated by Asterisk
+                 ; Version)
 
 
 
@@ -612,9 +612,9 @@
 ;[acl]
 ;  SYNOPSIS: Access Control List
 ;acl=   ; Name of IP ACL (default: "")
-;contactacl=    ; Name of Contact ACL (default: "")
-;contactdeny=   ; List of Contact Header addresses to Deny (default: "")
-;contactpermit= ; List of Contact Header addresses to Permit (default: "")
+;contact_acl=    ; Name of Contact ACL (default: "")
+;contact_deny=   ; List of Contact Header addresses to Deny (default: "")
+;contact_permit= ; List of Contact Header addresses to Permit (default: "")
 ;deny=  ; List of IP domains to deny access from (default: "")
 ;permit=        ; List of IP domains to allow access from (default: "")
 ;type=  ; Must be of type security (default: "")

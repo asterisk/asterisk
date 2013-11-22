@@ -63,14 +63,14 @@
 						defined as a list of comma-delimited section names.
 					</para></description>
 				</configOption>
-				<configOption name="contactacl">
+				<configOption name="contact_acl">
 					<synopsis>List of Contact ACL section names in acl.conf</synopsis>
 					<description><para>
 						This matches sections configured in <literal>acl.conf</literal>. The value is
 						defined as a list of comma-delimited section names.
 					</para></description>
 				</configOption>
-				<configOption name="contactdeny">
+				<configOption name="contact_deny">
 					<synopsis>List of Contact header addresses to deny</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -79,7 +79,7 @@
 						mask with a slash ('/')
 					</para></description>
 				</configOption>
-				<configOption name="contactpermit">
+				<configOption name="contact_permit">
 					<synopsis>List of Contact header addresses to permit</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
@@ -281,9 +281,9 @@ static int load_module(void)
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "permit", "", acl_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "deny", "", acl_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "acl", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contactpermit", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contactdeny", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contactacl", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_permit", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_deny", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_acl", "", acl_handler, NULL, 0, 0);
 
 	ast_sip_register_service(&acl_module);
 	return AST_MODULE_LOAD_SUCCESS;

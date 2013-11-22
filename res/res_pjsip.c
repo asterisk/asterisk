@@ -189,7 +189,7 @@
 				<configOption name="disallow">
 					<synopsis>Media Codec(s) to disallow</synopsis>
 				</configOption>
-				<configOption name="dtmfmode" default="rfc4733">
+				<configOption name="dtmf_mode" default="rfc4733">
 					<synopsis>DTMF mode</synopsis>
 					<description>
 						<para>This setting allows to choose the DTMF mode for endpoint communication.</para>
@@ -247,7 +247,7 @@
 				<configOption name="mailboxes">
 					<synopsis>Mailbox(es) to be associated with</synopsis>
 				</configOption>
-				<configOption name="mohsuggest" default="default">
+				<configOption name="moh_suggest" default="default">
 					<synopsis>Default Music On Hold class</synopsis>
 				</configOption>
 				<configOption name="outbound_auth">
@@ -388,49 +388,49 @@
 						to indicate ringing and will NOT send it as audio.
 					</para></description>
 				</configOption>
-				<configOption name="callgroup">
+				<configOption name="call_group">
 					<synopsis>The numeric pickup groups for a channel.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of numbers or ranges between the values
 						of 0-63 (maximum of 64 groups).
 					</para></description>
 				</configOption>
-				<configOption name="pickupgroup">
+				<configOption name="pickup_group">
 					<synopsis>The numeric pickup groups that a channel can pickup.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of numbers or ranges between the values
 						of 0-63 (maximum of 64 groups).
 					</para></description>
 				</configOption>
-				<configOption name="namedcallgroup">
+				<configOption name="named_call_group">
 					<synopsis>The named pickup groups for a channel.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of case sensitive strings limited by
 						supported line length.
 					</para></description>
 				</configOption>
-				<configOption name="namedpickupgroup">
+				<configOption name="named_pickup_group">
 					<synopsis>The named pickup groups that a channel can pickup.</synopsis>
 					<description><para>
 						Can be set to a comma separated list of case sensitive strings limited by
 						supported line length.
 					</para></description>
 				</configOption>
-				<configOption name="devicestate_busy_at" default="0">
+				<configOption name="device_state_busy_at" default="0">
 					<synopsis>The number of in-use channels which will cause busy to be returned as device state</synopsis>
 					<description><para>
 						When the number of in-use channels for the endpoint matches the devicestate_busy_at setting the
 						PJSIP channel driver will return busy as the device state instead of in use.
 					</para></description>
 				</configOption>
-				<configOption name="t38udptl" default="no">
+				<configOption name="t38_udptl" default="no">
 					<synopsis>Whether T.38 UDPTL support is enabled or not</synopsis>
 					<description><para>
 						If set to yes T.38 UDPTL support will be enabled, and T.38 negotiation requests will be accepted
 						and relayed.
 					</para></description>
 				</configOption>
-				<configOption name="t38udptl_ec" default="none">
+				<configOption name="t38_udptl_ec" default="none">
 					<synopsis>T.38 UDPTL error correction method</synopsis>
 					<description>
 						<enumlist>
@@ -446,34 +446,34 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="t38udptl_maxdatagram" default="0">
+				<configOption name="t38_udptl_maxdatagram" default="0">
 					<synopsis>T.38 UDPTL maximum datagram size</synopsis>
 					<description><para>
 						This option can be set to override the maximum datagram of a remote endpoint for broken
 						endpoints.
 					</para></description>
 				</configOption>
-				<configOption name="faxdetect" default="no">
+				<configOption name="fax_detect" default="no">
 					<synopsis>Whether CNG tone detection is enabled</synopsis>
 					<description><para>
 						This option can be set to send the session to the fax extension when a CNG tone is
 						detected.
 					</para></description>
 				</configOption>
-				<configOption name="t38udptl_nat" default="no">
+				<configOption name="t38_udptl_nat" default="no">
 					<synopsis>Whether NAT support is enabled on UDPTL sessions</synopsis>
 					<description><para>
 						When enabled the UDPTL stack will send UDPTL packets to the source address of
 						received packets.
 					</para></description>
 				</configOption>
-				<configOption name="t38udptl_ipv6" default="no">
+				<configOption name="t38_udptl_ipv6" default="no">
 					<synopsis>Whether IPv6 is used for UDPTL Sessions</synopsis>
 					<description><para>
 						When enabled the UDPTL stack will use IPv6.
 					</para></description>
 				</configOption>
-				<configOption name="tonezone">
+				<configOption name="tone_zone">
 					<synopsis>Set which country's indications to use for channels created for this endpoint.</synopsis>
 				</configOption>
 				<configOption name="language">
@@ -486,7 +486,7 @@
 						<ref type="configOption">recordofffeature</ref>
 					</see-also>
 				</configOption>
-				<configOption name="recordonfeature" default="automixmon">
+				<configOption name="record_on_feature" default="automixmon">
 					<synopsis>The feature to enact when one-touch recording is turned on.</synopsis>
 					<description>
 						<para>When an INFO request for one-touch recording arrives with a Record header set to "on", this
@@ -499,7 +499,7 @@
 						<ref type="configOption">recordofffeature</ref>
 					</see-also>
 				</configOption>
-				<configOption name="recordofffeature" default="automixmon">
+				<configOption name="record_off_feature" default="automixmon">
 					<synopsis>The feature to enact when one-touch recording is turned off.</synopsis>
 					<description>
 						<para>When an INFO request for one-touch recording arrives with a Record header set to "off", this
@@ -512,16 +512,16 @@
 						<ref type="configOption">recordonfeature</ref>
 					</see-also>
 				</configOption>
-				<configOption name="rtpengine" default="asterisk">
+				<configOption name="rtp_engine" default="asterisk">
 					<synopsis>Name of the RTP engine to use for channels created for this endpoint</synopsis>
 				</configOption>
-				<configOption name="allowtransfer" default="yes">
+				<configOption name="allow_transfer" default="yes">
 					<synopsis>Determines whether SIP REFER transfers are allowed for this endpoint</synopsis>
 				</configOption>
-				<configOption name="sdpowner" default="-">
+				<configOption name="sdp_owner" default="-">
 					<synopsis>String placed as the username portion of an SDP origin (o=) line.</synopsis>
 				</configOption>
-				<configOption name="sdpsession" default="Asterisk">
+				<configOption name="sdp_session" default="Asterisk">
 					<synopsis>String used for the SDP session (s=) line.</synopsis>
 				</configOption>
 				<configOption name="tos_audio">
@@ -548,29 +548,29 @@
 						See https://wiki.asterisk.org/wiki/display/AST/IP+Quality+of+Service for more information about QoS settings
 					</para></description>
 				</configOption>
-				<configOption name="allowsubscribe" default="yes">
+				<configOption name="allow_subscribe" default="yes">
 					<synopsis>Determines if endpoint is allowed to initiate subscriptions with Asterisk.</synopsis>
 				</configOption>
-				<configOption name="subminexpiry" default="60">
+				<configOption name="sub_min_expiry" default="60">
 					<synopsis>The minimum allowed expiry time for subscriptions initiated by the endpoint.</synopsis>
 				</configOption>
-				<configOption name="fromuser">
+				<configOption name="from_user">
 					<synopsis>Username to use in From header for requests to this endpoint.</synopsis>
 				</configOption>
-				<configOption name="mwifromuser">
+				<configOption name="mwi_from_user">
 					<synopsis>Username to use in From header for unsolicited MWI NOTIFYs to this endpoint.</synopsis>
 				</configOption>
-				<configOption name="fromdomain">
+				<configOption name="from_domain">
 					<synopsis>Domain to user in From header for requests to this endpoint.</synopsis>
 				</configOption>
-				<configOption name="dtlsverify">
+				<configOption name="dtls_verify">
 					<synopsis>Verify that the provided peer certificate is valid</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
 						set to <literal>dtls</literal>.
 					</para></description>
 				</configOption>
-				<configOption name="dtlsrekey">
+				<configOption name="dtls_rekey">
 					<synopsis>Interval at which to renegotiate the TLS session and rekey the SRTP session</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -579,21 +579,21 @@
 						If this is not set or the value provided is 0 rekeying will be disabled.
 					</para></description>
 				</configOption>
-				<configOption name="dtlscertfile">
+				<configOption name="dtls_cert_file">
 					<synopsis>Path to certificate file to present to peer</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
 						set to <literal>dtls</literal>.
 					</para></description>
 				</configOption>
-				<configOption name="dtlsprivatekey">
+				<configOption name="dtls_private_key">
 					<synopsis>Path to private key for certificate file</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
 						set to <literal>dtls</literal>.
 					</para></description>
 				</configOption>
-				<configOption name="dtlscipher">
+				<configOption name="dtls_cipher">
 					<synopsis>Cipher to use for DTLS negotiation</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
@@ -603,21 +603,21 @@
 						http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
 					</para></description>
 				</configOption>
-				<configOption name="dtlscafile">
+				<configOption name="dtls_ca_file">
 					<synopsis>Path to certificate authority certificate</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
 						set to <literal>dtls</literal>.
 					</para></description>
 				</configOption>
-				<configOption name="dtlscapath">
+				<configOption name="dtls_ca_path">
 					<synopsis>Path to a directory containing certificate authority certificates</synopsis>
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
 						set to <literal>dtls</literal>.
 					</para></description>
 				</configOption>
-				<configOption name="dtlssetup">
+				<configOption name="dtls_setup">
 					<synopsis>Whether we are willing to accept connections, connect to the other party, or both.</synopsis>
 					<description>
 						<para>
@@ -767,7 +767,7 @@
 						</enumlist>
 					</description>
 				</configOption>
-				<configOption name="localnet">
+				<configOption name="local_net">
 					<synopsis>Network to consider local (used for NAT purposes).</synopsis>
 					<description><para>This must be in CIDR or dotted decimal format with the IP
 					and mask separated with a slash ('/').</para></description>
@@ -775,7 +775,7 @@
 				<configOption name="password">
 					<synopsis>Password required for transport</synopsis>
 				</configOption>
-				<configOption name="privkey_file">
+				<configOption name="priv_key_file">
 					<synopsis>Private key file (TLS ONLY)</synopsis>
 				</configOption>
 				<configOption name="protocol" default="udp">
@@ -952,7 +952,7 @@
 					before the SIP stack is initialized. The only way to reset these values is to either
 					restart Asterisk, or unload res_pjsip.so and then load it again.
 				</para></description>
-				<configOption name="timert1" default="500">
+				<configOption name="timer_t1" default="500">
 					<synopsis>Set transaction timer T1 value (milliseconds).</synopsis>
 					<description><para>
 						Timer T1 is the base for determining how long to wait before retransmitting
@@ -960,7 +960,7 @@
 						For more information on this timer, see RFC 3261, Section 17.1.1.1.
 					</para></description>
 				</configOption>
-				<configOption name="timerb" default="32000">
+				<configOption name="timer_b" default="32000">
 					<synopsis>Set transaction timer B value (milliseconds).</synopsis>
 					<description><para>
 						Timer B determines the maximum amount of time to wait after sending an INVITE
@@ -969,7 +969,7 @@
 						this timer, see RFC 3261, Section 17.1.1.1.
 					</para></description>
 				</configOption>
-				<configOption name="compactheaders" default="no">
+				<configOption name="compact_headers" default="no">
 					<synopsis>Use the short forms of common SIP header names.</synopsis>
 				</configOption>
 				<configOption name="threadpool_initial_size" default="0">
@@ -995,13 +995,13 @@
 					The settings in this section are global. Unlike options in the <literal>system</literal>
 					section, these options can be refreshed by performing a reload.
 				</para></description>
-				<configOption name="maxforwards" default="70">
+				<configOption name="max_forwards" default="70">
 					<synopsis>Value used in Max-Forwards header for SIP requests.</synopsis>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'global'.</synopsis>
 				</configOption>
-				<configOption name="useragent" default="Asterisk &lt;Asterisk Version&gt;">
+				<configOption name="user_agent" default="Asterisk &lt;Asterisk Version&gt;">
 					<synopsis>Value used in User-Agent header for SIP requests and Server header for SIP responses.</synopsis>
 				</configOption>
 			</configObject>
