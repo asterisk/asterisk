@@ -38,6 +38,10 @@ Directory
      USEREXIT    user pressed '#' from the selection prompt to exit
      FAILED      directory failed in a way that wasn't accounted for. Dang.
 
+PickupChan
+--------------------------
+* PickupChan now accepts channel uniqueids of channels to pickup.
+
 Say
 --------------------------
  * If a channel variable SAY_DTMF_INTERRUPT is present on a channel and set

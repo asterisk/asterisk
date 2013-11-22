@@ -97,20 +97,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Pickup a ringing channel.
 		</synopsis>
 		<syntax >
-			<parameter name="Technology/Resource" argsep="&amp;" required="true">
-				<argument name="Technology/Resource" required="true" />
-				<argument name="Technology2/Resource2" required="false" multiple="true" />
+			<parameter name="channel" argsep="&amp;" required="true">
+				<argument name="channel" required="true" />
+				<argument name="channel2" required="false" multiple="true" />
+				<para>List of channel names or channel uniqueids to pickup if ringing.
+					For example, a channel name could be <literal>SIP/bob</literal> or
+					<literal>SIP/bob-00000000</literal> to find
+					<literal>SIP/bob-00000000</literal>.
+				</para>
 			</parameter>
 			<parameter name="options" required="false">
 				<optionlist>
 					<option name="p">
-						<para>All channel names listed specify partial names.  Used when find channel by callid.</para>
+						<para>Supplied channel names are prefixes.  For example,
+							<literal>SIP/bob</literal> will match
+							<literal>SIP/bob-00000000</literal> and
+							<literal>SIP/bobby-00000000</literal>.
+						</para>
 					</option>
 				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
-			<para>This will pickup a specified <replaceable>channel</replaceable> if ringing.</para>
+			<para>Pickup a specified <replaceable>channel</replaceable> if ringing.</para>
 		</description>
 	</application>
  ***/
@@ -119,17 +128,48 @@ static const char app[] = "Pickup";
 static const char app2[] = "PickupChan";
 
 struct pickup_by_name_args {
+	/*! Channel attempting to pickup a call. */
+	struct ast_channel *chan;
+	/*! Channel uniqueid or partial channel name to match. */
 	const char *name;
+	/*! Length of partial channel name to match. */
 	size_t len;
 };
 
-static int pickup_by_name_cb(void *obj, void *arg, void *data, int flags)
+static int find_by_name(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_channel *target = obj;/*!< Potential pickup target */
 	struct pickup_by_name_args *args = data;
 
+	if (args->chan == target) {
+		/* The channel attempting to pickup a call cannot pickup itself. */
+		return 0;
+	}
+
 	ast_channel_lock(target);
-	if (!strncasecmp(ast_channel_name(target), args->name, args->len) && ast_can_pickup(target)) {
+	if (!strncasecmp(ast_channel_name(target), args->name, args->len)
+		&& ast_can_pickup(target)) {
+		/* Return with the channel still locked on purpose */
+		return CMP_MATCH | CMP_STOP;
+	}
+	ast_channel_unlock(target);
+
+	return 0;
+}
+
+static int find_by_uniqueid(void *obj, void *arg, void *data, int flags)
+{
+	struct ast_channel *target = obj;/*!< Potential pickup target */
+	struct pickup_by_name_args *args = data;
+
+	if (args->chan == target) {
+		/* The channel attempting to pickup a call cannot pickup itself. */
+		return 0;
+	}
+
+	ast_channel_lock(target);
+	if (!strcasecmp(ast_channel_uniqueid(target), args->name)
+		&& ast_can_pickup(target)) {
 		/* Return with the channel still locked on purpose */
 		return CMP_MATCH | CMP_STOP;
 	}
@@ -139,45 +179,55 @@ static int pickup_by_name_cb(void *obj, void *arg, void *data, int flags)
 }
 
 /*! \brief Helper Function to walk through ALL channels checking NAME and STATE */
-static struct ast_channel *my_ast_get_channel_by_name_locked(const char *channame)
+static struct ast_channel *find_by_channel(struct ast_channel *chan, const char *channame)
 {
+	struct ast_channel *target;
 	char *chkchan;
 	struct pickup_by_name_args pickup_args;
 
-	/* Check if channel name contains a '-'.
-	 * In this case the channel name will be interpreted as full channel name.
-	 */
+	pickup_args.chan = chan;
+
 	if (strchr(channame, '-')) {
-		/* check full channel name */
+		/*
+		 * Use the given channel name string as-is.  This allows a full channel
+		 * name with a typical sequence number to be used as well as still
+		 * allowing the odd partial channel name that has a '-' in it to still
+		 * work, i.e. Local/bob@en-phone.
+		 */
 		pickup_args.len = strlen(channame);
 		pickup_args.name = channame;
 	} else {
-		/* need to append a '-' for the comparison so we check full channel name,
-		 * i.e SIP/hgc- , use a temporary variable so original stays the same for
-		 * debugging.
+		/*
+		 * Append a '-' for the comparison so we check the channel name less
+		 * a sequence number, i.e Find SIP/bob- and not SIP/bobby.
 		 */
 		pickup_args.len = strlen(channame) + 1;
 		chkchan = ast_alloca(pickup_args.len + 1);
-		strcpy(chkchan, channame);
+		strcpy(chkchan, channame);/* Safe */
 		strcat(chkchan, "-");
 		pickup_args.name = chkchan;
 	}
+	target = ast_channel_callback(find_by_name, NULL, &pickup_args, 0);
+	if (target) {
+		return target;
+	}
 
-	return ast_channel_callback(pickup_by_name_cb, NULL, &pickup_args, 0);
+	/* Now try a search for uniqueid. */
+	pickup_args.name = channame;
+	pickup_args.len = 0;
+	return ast_channel_callback(find_by_uniqueid, NULL, &pickup_args, 0);
 }
 
-/*! \brief Attempt to pick up named channel, does not use context */
-static int pickup_by_channel(struct ast_channel *chan, char *pickup)
+/*! \brief Attempt to pick up named channel. */
+static int pickup_by_channel(struct ast_channel *chan, const char *name)
 {
 	int res = -1;
 	struct ast_channel *target;/*!< Potential pickup target */
 
-	target = my_ast_get_channel_by_name_locked(pickup);
+	/* The found channel is already locked. */
+	target = find_by_channel(chan, name);
 	if (target) {
-		/* Just check that we are not picking up the SAME as target. (i.e. ourself) */
-		if (chan != target) {
-			res = ast_do_pickup(chan, target);
-		}
+		res = ast_do_pickup(chan, target);
 		ast_channel_unlock(target);
 		target = ast_channel_unref(target);
 	}
@@ -322,21 +372,25 @@ static int pickup_exec(struct ast_channel *chan, const char *data)
 }
 
 /* Find channel for pick up specified by partial channel name */
-static int find_by_part(void *obj, void *arg, void *data, int flags)
+static struct ast_channel *find_by_part(struct ast_channel *chan, const char *part)
 {
-	struct ast_channel *target = obj;/*!< Potential pickup target */
-	const char *part = data;
-	int len = strlen(part);
+	struct ast_channel *target;
+	struct pickup_by_name_args pickup_args;
 
-	ast_channel_lock(target);
-	if (len <= strlen(ast_channel_name(target)) && !strncmp(ast_channel_name(target), part, len)
-		&& ast_can_pickup(target)) {
-		/* Return with the channel still locked on purpose */
-		return CMP_MATCH | CMP_STOP;
+	pickup_args.chan = chan;
+
+	/* Try a partial channel name search. */
+	pickup_args.name = part;
+	pickup_args.len = strlen(part);
+	target = ast_channel_callback(find_by_name, NULL, &pickup_args, 0);
+	if (target) {
+		return target;
 	}
-	ast_channel_unlock(target);
 
-	return 0;
+	/* Now try a search for uniqueid. */
+	pickup_args.name = part;
+	pickup_args.len = 0;
+	return ast_channel_callback(find_by_uniqueid, NULL, &pickup_args, 0);
 }
 
 /* Attempt to pick up specified by partial channel name */
@@ -346,7 +400,7 @@ static int pickup_by_part(struct ast_channel *chan, const char *part)
 	int res = -1;
 
 	/* The found channel is already locked. */
-	target = ast_channel_callback(find_by_part, NULL, (char *) part, 0);
+	target = find_by_part(chan, part);
 	if (target) {
 		res = ast_do_pickup(chan, target);
 		ast_channel_unlock(target);
