@@ -755,11 +755,15 @@ void ast_publish_channel_state(struct ast_channel *chan)
 	stasis_publish(ast_channel_topic(chan), message);
 }
 
-struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot)
+struct ast_json *ast_channel_snapshot_to_json(
+	const struct ast_channel_snapshot *snapshot,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	RAII_VAR(struct ast_json *, json_chan, NULL, ast_json_unref);
 
-	if (snapshot == NULL) {
+	if (snapshot == NULL
+		|| (sanitize && sanitize->channel_snapshot
+		&& sanitize->channel_snapshot(snapshot))) {
 		return NULL;
 	}
 
@@ -817,8 +821,10 @@ int ast_channel_snapshot_caller_id_equal(
 		strcmp(old_snapshot->caller_name, new_snapshot->caller_name) == 0;
 }
 
-static struct ast_json *channel_blob_to_json(struct stasis_message *message,
-	const char *type)
+static struct ast_json *channel_blob_to_json(
+	struct stasis_message *message,
+	const char *type,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	RAII_VAR(struct ast_json *, out, NULL, ast_json_unref);
 	struct ast_channel_blob *channel_blob = stasis_message_data(message);
@@ -844,8 +850,13 @@ static struct ast_json *channel_blob_to_json(struct stasis_message *message,
 
 	/* For global channel messages, the snapshot is optional */
 	if (snapshot) {
-		res |= ast_json_object_set(out, "channel",
-			ast_channel_snapshot_to_json(snapshot));
+		struct ast_json *json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
+
+		if (!json_channel) {
+			return NULL;
+		}
+
+		res |= ast_json_object_set(out, "channel", json_channel);
 	}
 
 	if (res != 0) {
@@ -855,7 +866,9 @@ static struct ast_json *channel_blob_to_json(struct stasis_message *message,
 	return ast_json_ref(out);
 }
 
-static struct ast_json *dtmf_end_to_json(struct stasis_message *message)
+static struct ast_json *dtmf_end_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	struct ast_channel_blob *channel_blob = stasis_message_data(message);
 	struct ast_json *blob = channel_blob->blob;
@@ -863,9 +876,14 @@ static struct ast_json *dtmf_end_to_json(struct stasis_message *message)
 	const char *direction =
 		ast_json_string_get(ast_json_object_get(blob, "direction"));
 	const struct timeval *tv = stasis_message_timestamp(message);
+	struct ast_json *json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
 
 	/* Only present received DTMF end events as JSON */
 	if (strcasecmp("Received", direction) != 0) {
+		return NULL;
+	}
+
+	if (!json_channel) {
 		return NULL;
 	}
 
@@ -874,32 +892,43 @@ static struct ast_json *dtmf_end_to_json(struct stasis_message *message)
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"digit", ast_json_object_get(blob, "digit"),
 		"duration_ms", ast_json_object_get(blob, "duration_ms"),
-		"channel", ast_channel_snapshot_to_json(snapshot));
+		"channel", json_channel);
 }
 
-static struct ast_json *user_event_to_json(struct stasis_message *message)
+static struct ast_json *user_event_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	struct ast_channel_blob *channel_blob = stasis_message_data(message);
 	struct ast_json *blob = channel_blob->blob;
 	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
 	const struct timeval *tv = stasis_message_timestamp(message);
+	struct ast_json *json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
+
+	if (!json_channel) {
+		return NULL;
+	}
 
 	return ast_json_pack("{s: s, s: o, s: O, s: O, s: o}",
 		"type", "ChannelUserevent",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"eventname", ast_json_object_get(blob, "eventname"),
 		"userevent", blob,
-		"channel", ast_channel_snapshot_to_json(snapshot));
+		"channel", json_channel);
 }
 
-static struct ast_json *varset_to_json(struct stasis_message *message)
+static struct ast_json *varset_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
 {
-	return channel_blob_to_json(message, "ChannelVarset");
+	return channel_blob_to_json(message, "ChannelVarset", sanitize);
 }
 
-static struct ast_json *hangup_request_to_json(struct stasis_message *message)
+static struct ast_json *hangup_request_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
 {
-	return channel_blob_to_json(message, "ChannelHangupRequest");
+	return channel_blob_to_json(message, "ChannelHangupRequest", sanitize);
 }
 
 /*!

@@ -208,11 +208,14 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
  * \brief Build a JSON object from a \ref ast_endpoint_snapshot.
  *
  * \param snapshot Endpoint snapshot.
+ * \param sanitize The message sanitizer to use on the snapshot
+ *
  * \return JSON object representing endpoint snapshot.
  * \return \c NULL on error
  */
 struct ast_json *ast_endpoint_snapshot_to_json(
-	const struct ast_endpoint_snapshot *snapshot);
+	const struct ast_endpoint_snapshot *snapshot,
+	const struct stasis_message_sanitizer *sanitize);
 
 /*!
  * \brief Initialization function for endpoint stasis support.

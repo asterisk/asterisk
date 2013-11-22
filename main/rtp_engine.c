@@ -1780,13 +1780,14 @@ static struct ast_manager_event_blob *rtcp_report_to_ami(struct stasis_message *
 		ast_str_buffer(packet_string));
 }
 
-static struct ast_json *rtcp_report_to_json(struct stasis_message *msg)
+static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	struct rtcp_message_payload *payload = stasis_message_data(msg);
 	RAII_VAR(struct ast_json *, json_rtcp_report, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, json_rtcp_report_blocks, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, json_rtcp_sender_info, NULL, ast_json_unref);
-	struct ast_json * json_payload;
+	RAII_VAR(struct ast_json *, json_channel, NULL, ast_json_unref);
 	int i;
 
 	json_rtcp_report_blocks = ast_json_array_create();
@@ -1835,11 +1836,17 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg)
 		return NULL;
 	}
 
-	json_payload = ast_json_pack("{s: O, s: O, s: O}",
-		"channel", payload->snapshot ? ast_channel_snapshot_to_json(payload->snapshot) : ast_json_null(),
+	if (payload->snapshot) {
+		json_channel = ast_channel_snapshot_to_json(payload->snapshot, sanitize);
+		if (!json_channel) {
+			return NULL;
+		}
+	}
+
+	return ast_json_pack("{s: O, s: O, s: O}",
+		"channel", payload->snapshot ? json_channel : ast_json_null(),
 		"rtcp_report", json_rtcp_report,
 		"blob", payload->blob);
-	return json_payload;
 }
 
 static void rtp_rtcp_report_dtor(void *obj)

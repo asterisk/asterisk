@@ -276,7 +276,7 @@ static void sub_default_handler(void *data, struct stasis_subscription *sub,
 	}
 
 	/* By default, send any message that has a JSON representation */
-	json = stasis_message_to_json(message);
+	json = stasis_message_to_json(message, stasis_app_get_sanitizer());
 	if (!json) {
 		return;
 	}
@@ -295,10 +295,16 @@ static struct ast_json *simple_channel_event(
 	struct ast_channel_snapshot *snapshot,
 	const struct timeval *tv)
 {
+	struct ast_json *json_channel = ast_channel_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+
+	if (!json_channel) {
+		return NULL;
+	}
+
 	return ast_json_pack("{s: s, s: o, s: o}",
 		"type", type,
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"channel", ast_channel_snapshot_to_json(snapshot));
+		"channel", json_channel);
 }
 
 static struct ast_json *channel_created_event(
@@ -312,12 +318,18 @@ static struct ast_json *channel_destroyed_event(
 	struct ast_channel_snapshot *snapshot,
 	const struct timeval *tv)
 {
+	struct ast_json *json_channel = ast_channel_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+
+	if (!json_channel) {
+		return NULL;
+	}
+
 	return ast_json_pack("{s: s, s: o, s: i, s: s, s: o}",
 		"type", "ChannelDestroyed",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"cause", snapshot->hangupcause,
 		"cause_txt", ast_cause2str(snapshot->hangupcause),
-		"channel", ast_channel_snapshot_to_json(snapshot));
+		"channel", json_channel);
 }
 
 static struct ast_json *channel_state_change_event(
@@ -353,6 +365,7 @@ static struct ast_json *channel_dialplan(
 	const struct timeval *tv)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json_channel;
 
 	/* No Newexten event on cache clear or first event */
 	if (!old_snapshot || !new_snapshot) {
@@ -368,12 +381,17 @@ static struct ast_json *channel_dialplan(
 		return NULL;
 	}
 
+	json_channel = ast_channel_snapshot_to_json(new_snapshot, stasis_app_get_sanitizer());
+	if (!json_channel) {
+		return NULL;
+	}
+
 	return ast_json_pack("{s: s, s: o, s: s, s: s, s: o}",
 		"type", "ChannelDialplan",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"dialplan_app", new_snapshot->appl,
 		"dialplan_app_data", new_snapshot->data,
-		"channel", ast_channel_snapshot_to_json(new_snapshot));
+		"channel", json_channel);
 }
 
 static struct ast_json *channel_callerid(
@@ -382,6 +400,7 @@ static struct ast_json *channel_callerid(
 	const struct timeval *tv)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json_channel;
 
 	/* No NewCallerid event on cache clear or first event */
 	if (!old_snapshot || !new_snapshot) {
@@ -392,13 +411,18 @@ static struct ast_json *channel_callerid(
 		return NULL;
 	}
 
+	json_channel = ast_channel_snapshot_to_json(new_snapshot, stasis_app_get_sanitizer());
+	if (!json_channel) {
+		return NULL;
+	}
+
 	return ast_json_pack("{s: s, s: o, s: i, s: s, s: o}",
 		"type", "ChannelCallerId",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"caller_presentation", new_snapshot->caller_pres,
 		"caller_presentation_txt", ast_describe_caller_presentation(
 			new_snapshot->caller_pres),
-		"channel", ast_channel_snapshot_to_json(new_snapshot));
+		"channel", json_channel);
 }
 
 static channel_snapshot_monitor channel_monitors[] = {
@@ -448,10 +472,16 @@ static struct ast_json *simple_endpoint_event(
 	struct ast_endpoint_snapshot *snapshot,
 	const struct timeval *tv)
 {
+	struct ast_json *json_endpoint = ast_endpoint_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+
+	if (!json_endpoint) {
+		return NULL;
+	}
+
 	return ast_json_pack("{s: s, s: o, s: o}",
 		"type", type,
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"endpoint", ast_endpoint_snapshot_to_json(snapshot));
+		"endpoint", json_endpoint);
 }
 
 static void sub_endpoint_update_handler(void *data,
@@ -489,10 +519,15 @@ static struct ast_json *simple_bridge_event(
 	struct ast_bridge_snapshot *snapshot,
 	const struct timeval *tv)
 {
+	struct ast_json *json_bridge = ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+	if (!json_bridge) {
+		return NULL;
+	}
+
 	return ast_json_pack("{s: s, s: o, s: o}",
 		"type", type,
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"bridge", ast_bridge_snapshot_to_json(snapshot));
+		"bridge", json_bridge);
 }
 
 static void sub_bridge_update_handler(void *data,
@@ -521,7 +556,7 @@ static void sub_bridge_update_handler(void *data,
 	if (!new_snapshot) {
 		json = simple_bridge_event("BridgeDestroyed", old_snapshot, tv);
 	} else if (!old_snapshot) {
-		json = simple_bridge_event("BridgeCreated", old_snapshot, tv);
+		json = simple_bridge_event("BridgeCreated", new_snapshot, tv);
 	}
 
 	if (!json) {

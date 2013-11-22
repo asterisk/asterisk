@@ -627,6 +627,7 @@ static int send_start_msg(struct app *app, struct ast_channel *chan,
 
 	struct ast_json *json_args;
 	int i;
+	struct stasis_message_sanitizer *sanitize = stasis_app_get_sanitizer();
 
 	ast_assert(chan != NULL);
 
@@ -636,11 +637,16 @@ static int send_start_msg(struct app *app, struct ast_channel *chan,
 		return -1;
 	}
 
+	if (sanitize && sanitize->channel_snapshot
+		&& sanitize->channel_snapshot(snapshot)) {
+		return 0;
+	}
+
 	msg = ast_json_pack("{s: s, s: o, s: [], s: o}",
 		"type", "StasisStart",
 		"timestamp", ast_json_timeval(ast_tvnow(), NULL),
 		"args",
-		"channel", ast_channel_snapshot_to_json(snapshot));
+		"channel", ast_channel_snapshot_to_json(snapshot, NULL));
 	if (!msg) {
 		return -1;
 	}
@@ -665,6 +671,7 @@ static int send_end_msg(struct app *app, struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	struct stasis_message_sanitizer *sanitize = stasis_app_get_sanitizer();
 
 	ast_assert(chan != NULL);
 
@@ -674,10 +681,15 @@ static int send_end_msg(struct app *app, struct ast_channel *chan)
 		return -1;
 	}
 
+	if (sanitize && sanitize->channel_snapshot
+		&& sanitize->channel_snapshot(snapshot)) {
+		return 0;
+	}
+
 	msg = ast_json_pack("{s: s, s: o, s: o}",
 		"type", "StasisEnd",
 		"timestamp", ast_json_timeval(ast_tvnow(), NULL),
-		"channel", ast_channel_snapshot_to_json(snapshot));
+		"channel", ast_channel_snapshot_to_json(snapshot, NULL));
 	if (!msg) {
 		return -1;
 	}
@@ -1151,6 +1163,34 @@ static int unload_module(void)
 	app_bridges_moh = NULL;
 
 	return 0;
+}
+
+/* \brief Sanitization callback for channel snapshots */
+static int channel_snapshot_sanitizer(const struct ast_channel_snapshot *snapshot)
+{
+	if (!snapshot || !(snapshot->tech_properties & AST_CHAN_TP_INTERNAL)) {
+		return 0;
+	}
+	return 1;
+}
+
+/* \brief Sanitization callback for channel unique IDs */
+static int channel_id_sanitizer(const char *id)
+{
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, ast_channel_snapshot_get_latest(id), ao2_cleanup);
+
+	return channel_snapshot_sanitizer(snapshot);
+}
+
+/* \brief Sanitization callbacks for communication to Stasis applications */
+struct stasis_message_sanitizer app_sanitizer = {
+	.channel_id = channel_id_sanitizer,
+	.channel_snapshot = channel_snapshot_sanitizer,
+};
+
+struct stasis_message_sanitizer *stasis_app_get_sanitizer(void)
+{
+	return &app_sanitizer;
 }
 
 static int load_module(void)

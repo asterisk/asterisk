@@ -532,6 +532,13 @@ void stasis_app_ref(void);
  */
 void stasis_app_unref(void);
 
+/*!
+ * \brief Get the Stasis message sanitizer for app_stasis applications
+ *
+ * \retval The stasis message sanitizer
+ */
+struct stasis_message_sanitizer *stasis_app_get_sanitizer(void);
+
 /*! @} */
 
 #endif /* _ASTERISK_STASIS_APP_H */

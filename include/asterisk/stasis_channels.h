@@ -541,10 +541,15 @@ void ast_publish_channel_state(struct ast_channel *chan);
 
 /*!
  * \brief Build a JSON object from a \ref ast_channel_snapshot.
+ *
+ * \param snapshot The snapshot to convert to JSON
+ * \param sanitize The message sanitizer to use on the snapshot
+ *
  * \return JSON object representing channel snapshot.
  * \return \c NULL on error
  */
-struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot);
+struct ast_json *ast_channel_snapshot_to_json(const struct ast_channel_snapshot *snapshot,
+	const struct stasis_message_sanitizer *sanitize);
 
 /*!
  * \brief Compares the context, exten and priority of two snapshots.

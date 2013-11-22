@@ -690,7 +690,7 @@ struct ast_json *ast_json_vpack(char const *format, va_list ap)
 	struct ast_json *r = NULL;
 	if (format) {
 		r = (struct ast_json *)json_vpack_ex(&error, 0, format, ap);
-		if (!r) {
+		if (!r && !ast_strlen_zero(error.text)) {
 			ast_log(LOG_ERROR,
 				"Error building JSON from '%s': %s.\n",
 				format, error.text);

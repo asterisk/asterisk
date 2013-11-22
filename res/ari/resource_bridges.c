@@ -605,7 +605,7 @@ void ast_ari_bridges_get(struct ast_variable *headers,
 	}
 
 	ast_ari_response_ok(response,
-		ast_bridge_snapshot_to_json(snapshot));
+		ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer()));
 }
 
 void ast_ari_bridges_destroy(struct ast_variable *headers,
@@ -656,7 +656,9 @@ void ast_ari_bridges_list(struct ast_variable *headers,
 	while ((obj = ao2_iterator_next(&i))) {
 		RAII_VAR(struct stasis_message *, msg, obj, ao2_cleanup);
 		struct ast_bridge_snapshot *snapshot = stasis_message_data(msg);
-		if (ast_json_array_append(json, ast_bridge_snapshot_to_json(snapshot))) {
+		struct ast_json *json_bridge = ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+
+		if (!json_bridge || ast_json_array_append(json, json_bridge)) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
@@ -689,5 +691,5 @@ void ast_ari_bridges_create(struct ast_variable *headers,
 	}
 
 	ast_ari_response_ok(response,
-		ast_bridge_snapshot_to_json(snapshot));
+		ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer()));
 }
