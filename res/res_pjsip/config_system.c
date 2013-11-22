@@ -128,11 +128,11 @@ int ast_sip_initialize_system(void)
 	}
 
 	ast_sorcery_object_field_register(system_sorcery, "system", "type", "", OPT_NOOP_T, 0, 0);
-	ast_sorcery_object_field_register(system_sorcery, "system", "timert1", __stringify(DEFAULT_TIMER_T1),
+	ast_sorcery_object_field_register(system_sorcery, "system", "timer_t1", __stringify(DEFAULT_TIMER_T1),
 			OPT_UINT_T, 0, FLDSET(struct system_config, timert1));
-	ast_sorcery_object_field_register(system_sorcery, "system", "timerb", __stringify(DEFAULT_TIMER_B),
+	ast_sorcery_object_field_register(system_sorcery, "system", "timer_b", __stringify(DEFAULT_TIMER_B),
 			OPT_UINT_T, 0, FLDSET(struct system_config, timerb));
-	ast_sorcery_object_field_register(system_sorcery, "system", "compactheaders", "no",
+	ast_sorcery_object_field_register(system_sorcery, "system", "compact_headers", "no",
 			OPT_BOOL_T, 1, FLDSET(struct system_config, compactheaders));
 	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_initial_size", "0",
 			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.initial_size));

@@ -102,6 +102,7 @@ def set_dtmfmode(key, val, section, pjsip, nmapped):
     Sets the dtmfmode value.  If value matches allowable option in pjsip
     then map it, otherwise set it to none.
     """
+    key = 'dtmf_mode'
     # available pjsip.conf values: rfc4733, inband, info, none
     if val == 'inband' or val == 'info':
         set_value(key, val, section, pjsip, nmapped)
@@ -191,6 +192,13 @@ def from_recordfeature(key, val, section, pjsip, nmapped):
     set_value('one_touch_recording', 'yes', section, pjsip, nmapped)
     set_value(key, val, section, pjsip, nmapped)
 
+def set_record_on_feature(key, val, section, pjsip, nmapped):
+    """Sets the record_on_feature in pjsip.conf"""
+    from_recordfeature('record_on_feature', val, section, pjsip, nmapped)
+
+def set_record_off_feature(key, val, section, pjsip, nmapped):
+    """Sets the record_off_feature in pjsip.conf"""
+    from_recordfeature('record_off_feature', val, section, pjsip, nmapped)
 
 def from_progressinband(key, val, section, pjsip, nmapped):
     """Sets the inband_progress value in pjsip.conf"""
@@ -371,7 +379,7 @@ peer_map = [
     ['icesupport',         set_value('ice_support')],
     ['autoframing',        set_value('use_ptime')],
     ['outboundproxy',      set_value('outbound_proxy')],
-    ['mohsuggest',         set_value],
+    ['mohsuggest',         set_value('moh_suggest')],
     ['session-timers',     set_timers],          # timers
     ['session-minse',      set_value('timers_min_se')],
     ['session-expires',    set_value('timers_sess_expires')],
@@ -390,42 +398,42 @@ peer_map = [
     ['send_diversion',     set_value],
     ['encrpytion',         set_media_encryption],
     ['avpf',               set_value('use_avpf')],
-    ['recordonfeature',    from_recordfeature],  # automixon
-    ['recordofffeature',   from_recordfeature],  # automixon
+    ['recordonfeature',    set_record_on_feature],  # automixon
+    ['recordofffeature',   set_record_off_feature],  # automixon
     ['progressinband',     from_progressinband], # in_band_progress
-    ['callgroup',          set_value],
-    ['pickupgroup',        set_value],
-    ['namedcallgroup',     set_value],
-    ['namedpickupgroup',   set_value],
-    ['allowtransfer',      set_value],
-    ['fromuser',           set_value],
-    ['fromdomain',         set_value],
-    ['mwifrom',            set_value('mwifromuser')],
+    ['callgroup',          set_value('call_group')],
+    ['pickupgroup',        set_value('pickup_group')],
+    ['namedcallgroup',     set_value('named_call_group')],
+    ['namedpickupgroup',   set_value('named_pickup_group')],
+    ['allowtransfer',      set_value('allow_transfer')],
+    ['fromuser',           set_value('from_user')],
+    ['fromdomain',         set_value('from_domain')],
+    ['mwifrom',            set_value('mwi_from_user')],
     ['tos_audio',          set_value],
     ['tos_video',          set_value],
     ['cos_audio',          set_value],
     ['cos_video',          set_value],
-    ['sdpowner',           set_value],
-    ['sdpsession',         set_value],
-    ['tonezone',           set_value],
+    ['sdpowner',           set_value('sdp_owner')],
+    ['sdpsession',         set_value('sdp_session')],
+    ['tonezone',           set_value('tone_zone')],
     ['language',           set_value],
-    ['allowsubscribe',     set_value],
-    ['subminexpiry',       set_value],
-    ['rtp_engine',         set_value('rtpengine')],
+    ['allowsubscribe',     set_value('allow_subscribe')],
+    ['subminexpiry',       set_value('sub_min_expiry')],
+    ['rtp_engine',         set_value],
     ['mailbox',            from_mailbox],
-    ['busylevel',          set_value('devicestate_busy_at')],
+    ['busylevel',          set_value('device_state_busy_at')],
     ['secret',             setup_auth],
     ['md5secret',          setup_auth],
     ['type',               setup_ident],
     ['dtlsenable',         from_dtlsenable],
-    ['dtlsverify',         set_value],
-    ['dtlsrekey',          set_value],
-    ['dtlscertfile',       set_value],
-    ['dtlsprivatekey',     set_value],
-    ['dtlscipher',         set_value],
-    ['dtlscafile',         set_value],
-    ['dtlscapath',         set_value],
-    ['dtlssetup',          set_value],
+    ['dtlsverify',         set_value('dtls_verify')],
+    ['dtlsrekey',          set_value('dtls_rekey')],
+    ['dtlscertfile',       set_value('dtls_cert_file')],
+    ['dtlsprivatekey',     set_value('dtls_private_key')],
+    ['dtlscipher',         set_value('dtls_cipher')],
+    ['dtlscafile',         set_value('dtls_ca_file')],
+    ['dtlscapath',         set_value('dtls_ca_path')],
+    ['dtlssetup',          set_value('dtls_setup')],
     ['encryption_taglen',  from_encryption_taglen],
 
 ############################ maps to an aor ###################################
@@ -446,9 +454,9 @@ peer_map = [
     ['permit',             merge_value(type='acl', section_to='acl')],
     ['deny',               merge_value(type='acl', section_to='acl')],
     ['acl',                merge_value(type='acl', section_to='acl')],
-    ['contactpermit',      merge_value(type='acl', section_to='acl')],
-    ['contactdeny',        merge_value(type='acl', section_to='acl')],
-    ['contactacl',         merge_value(type='acl', section_to='acl')],
+    ['contactpermit',      merge_value('contact_permit', type='acl', section_to='acl')],
+    ['contactdeny',        merge_value('contact_deny', type='acl', section_to='acl')],
+    ['contactacl',         merge_value('contact_acl', type='acl', section_to='acl')],
 
 ########################### maps to transport #################################
 #        type = transport
@@ -499,7 +507,7 @@ def add_localnet(section, pjsip, nmapped):
     the same thing on to every transport.
     """
     try:
-        merge_value('localnet', sip.get('general', 'localnet')[0], 'general',
+        merge_value('local_net', sip.get('general', 'localnet')[0], 'general',
                     pjsip, nmapped, 'transport', section)
     except LookupError:
         # No localnet options configured. No biggie!
@@ -519,7 +527,7 @@ def set_transport_common(section, pjsip, nmapped):
     """
 
     try:
-        merge_value('localnet', sip.get('general', 'localnet')[0], 'general',
+        merge_value('local_net', sip.get('general', 'localnet')[0], 'general',
                     pjsip, nmapped, 'transport', section)
     except LookupError:
         # No localnet options configured. Move on.
@@ -687,7 +695,7 @@ def set_tls_bindaddr(val, pjsip, nmapped):
 
 def set_tls_private_key(val, pjsip, nmapped):
     """Sets privkey_file based on sip.conf tlsprivatekey or sslprivatekey"""
-    set_value('privkey_file', val, 'transport-tls', pjsip, nmapped,
+    set_value('priv_key_file', val, 'transport-tls', pjsip, nmapped,
               'transport')
 
 
