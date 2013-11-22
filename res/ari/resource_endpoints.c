@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis.h"
+#include "asterisk/stasis_app.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/channel.h"
 
@@ -69,8 +70,15 @@ void ast_ari_endpoints_list(struct ast_variable *headers,
 	while ((obj = ao2_iterator_next(&i))) {
 		RAII_VAR(struct stasis_message *, msg, obj, ao2_cleanup);
 		struct ast_endpoint_snapshot *snapshot = stasis_message_data(msg);
-		int r = ast_json_array_append(
-			json, ast_endpoint_snapshot_to_json(snapshot));
+		struct ast_json *json_endpoint = ast_endpoint_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+		int r;
+
+		if (!json_endpoint) {
+			return;
+		}
+
+		r = ast_json_array_append(
+			json, json_endpoint);
 		if (r != 0) {
 			ast_ari_response_alloc_failed(response);
 			return;
@@ -121,14 +129,20 @@ void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
 	while ((obj = ao2_iterator_next(&i))) {
 		RAII_VAR(struct stasis_message *, msg, obj, ao2_cleanup);
 		struct ast_endpoint_snapshot *snapshot = stasis_message_data(msg);
+		struct ast_json *json_endpoint;
 		int r;
 
 		if (strcasecmp(args->tech, snapshot->tech) != 0) {
 			continue;
 		}
 
+		json_endpoint = ast_endpoint_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+		if (!json_endpoint) {
+			continue;
+		}
+
 		r = ast_json_array_append(
-			json, ast_endpoint_snapshot_to_json(snapshot));
+			json, json_endpoint);
 		if (r != 0) {
 			ast_ari_response_alloc_failed(response);
 			return;
@@ -151,7 +165,7 @@ void ast_ari_endpoints_get(struct ast_variable *headers,
 		return;
 	}
 
-	json = ast_endpoint_snapshot_to_json(snapshot);
+	json = ast_endpoint_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
 	if (!json) {
 		ast_ari_response_alloc_failed(response);
 		return;

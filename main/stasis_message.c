@@ -161,7 +161,9 @@ struct ast_manager_event_blob *stasis_message_to_ami(struct stasis_message *msg)
 	return INVOKE_VIRTUAL(to_ami, msg);
 }
 
-struct ast_json *stasis_message_to_json(struct stasis_message *msg)
+struct ast_json *stasis_message_to_json(
+	struct stasis_message *msg,
+	struct stasis_message_sanitizer *sanitize)
 {
-	return INVOKE_VIRTUAL(to_json, msg);
+	return INVOKE_VIRTUAL(to_json, msg, sanitize);
 }

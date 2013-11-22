@@ -135,9 +135,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_message *message);
 static struct ast_manager_event_blob *blind_transfer_to_ami(struct stasis_message *message);
-static struct ast_json *ast_channel_entered_bridge_to_json(struct stasis_message *msg);
-static struct ast_json *ast_channel_left_bridge_to_json(struct stasis_message *msg);
-static struct ast_json *ast_bridge_merge_message_to_json(struct stasis_message *msg);
+static struct ast_json *ast_channel_entered_bridge_to_json(
+	struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize);
+static struct ast_json *ast_channel_left_bridge_to_json(
+	struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize);
+static struct ast_json *ast_bridge_merge_message_to_json(
+	struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize);
 
 static struct stasis_cp_all *bridge_cache_all;
 
@@ -316,17 +322,25 @@ static struct ast_bridge_merge_message *bridge_merge_message_create(struct ast_b
 	return msg;
 }
 
-static struct ast_json *ast_bridge_merge_message_to_json(struct stasis_message *msg)
+static struct ast_json *ast_bridge_merge_message_to_json(
+	struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize)
 {
-	struct ast_bridge_merge_message *merge;
+	struct ast_bridge_merge_message *merge = stasis_message_data(msg);
+	RAII_VAR(struct ast_json *, json_bridge_to,
+		ast_bridge_snapshot_to_json(merge->to, sanitize), ast_json_unref);
+	RAII_VAR(struct ast_json *, json_bridge_from,
+		ast_bridge_snapshot_to_json(merge->from, sanitize), ast_json_unref);
 
-	merge = stasis_message_data(msg);
+	if (!json_bridge_to || !json_bridge_from) {
+		return NULL;
+	}
 
-        return ast_json_pack("{s: s, s: o, s: o, s: o}",
+        return ast_json_pack("{s: s, s: o, s: O, s: O}",
                 "type", "BridgeMerged",
                 "timestamp", ast_json_timeval(*stasis_message_timestamp(msg), NULL),
-                "bridge", ast_bridge_snapshot_to_json(merge->to),
-                "bridge_from", ast_bridge_snapshot_to_json(merge->from));
+                "bridge", json_bridge_to,
+                "bridge_from", json_bridge_from);
 }
 
 void ast_bridge_publish_merge(struct ast_bridge *to, struct ast_bridge *from)
@@ -443,45 +457,63 @@ static struct ast_json *simple_bridge_channel_event(
         const char *type,
         struct ast_bridge_snapshot *bridge_snapshot,
         struct ast_channel_snapshot *channel_snapshot,
-        const struct timeval *tv)
+        const struct timeval *tv,
+	const struct stasis_message_sanitizer *sanitize)
 {
-        return ast_json_pack("{s: s, s: o, s: o, s: o}",
+	RAII_VAR(struct ast_json *, json_bridge,
+		ast_bridge_snapshot_to_json(bridge_snapshot, sanitize), ast_json_unref);
+	RAII_VAR(struct ast_json *, json_channel,
+		ast_channel_snapshot_to_json(channel_snapshot, sanitize), ast_json_unref);
+
+	if (!json_bridge || !json_channel) {
+		return NULL;
+	}
+
+        return ast_json_pack("{s: s, s: o, s: O, s: O}",
                 "type", type,
                 "timestamp", ast_json_timeval(*tv, NULL),
-                "bridge", ast_bridge_snapshot_to_json(bridge_snapshot),
-                "channel", ast_channel_snapshot_to_json(channel_snapshot));
+                "bridge", json_bridge,
+                "channel", json_channel);
 }
 
-struct ast_json *ast_channel_entered_bridge_to_json(struct stasis_message *msg)
+struct ast_json *ast_channel_entered_bridge_to_json(
+	struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize)
 {
         struct ast_bridge_blob *obj = stasis_message_data(msg);
 
 	return simple_bridge_channel_event("ChannelEnteredBridge", obj->bridge,
-                obj->channel, stasis_message_timestamp(msg));
+                obj->channel, stasis_message_timestamp(msg), sanitize);
 }
 
-struct ast_json *ast_channel_left_bridge_to_json(struct stasis_message *msg)
+struct ast_json *ast_channel_left_bridge_to_json(
+	struct stasis_message *msg,
+	const struct stasis_message_sanitizer *sanitize)
 {
         struct ast_bridge_blob *obj = stasis_message_data(msg);
 
 	return simple_bridge_channel_event("ChannelLeftBridge", obj->bridge,
-                obj->channel, stasis_message_timestamp(msg));
+                obj->channel, stasis_message_timestamp(msg), sanitize);
 }
 
-typedef struct ast_json *(*json_item_serializer_cb)(void *obj);
-
-static struct ast_json *container_to_json_array(struct ao2_container *items, json_item_serializer_cb item_cb)
+static struct ast_json *container_to_json_array(struct ao2_container *items,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	RAII_VAR(struct ast_json *, json_items, ast_json_array_create(), ast_json_unref);
-	void *item;
+	char *item;
 	struct ao2_iterator it;
 	if (!json_items) {
 		return NULL;
 	}
 
-	it = ao2_iterator_init(items, 0);
-	while ((item = ao2_iterator_next(&it))) {
-		if (ast_json_array_append(json_items, item_cb(item))) {
+	for (it = ao2_iterator_init(items, 0);
+		(item = ao2_iterator_next(&it)); ao2_cleanup(item)) {
+		if (sanitize && sanitize->channel_id && sanitize->channel_id(item)) {
+			continue;
+		}
+
+		if (ast_json_array_append(json_items, ast_json_string_create(item))) {
+			ao2_cleanup(item);
 			ao2_iterator_destroy(&it);
 			return NULL;
 		}
@@ -500,7 +532,9 @@ static const char *capability2str(uint32_t capabilities)
 	}
 }
 
-struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *snapshot)
+struct ast_json *ast_bridge_snapshot_to_json(
+	const struct ast_bridge_snapshot *snapshot,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	RAII_VAR(struct ast_json *, json_bridge, NULL, ast_json_unref);
 	struct ast_json *json_channels;
@@ -509,8 +543,7 @@ struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *s
 		return NULL;
 	}
 
-	json_channels = container_to_json_array(snapshot->channels,
-		(json_item_serializer_cb)ast_json_string_create);
+	json_channels = container_to_json_array(snapshot->channels, sanitize);
 	if (!json_channels) {
 		return NULL;
 	}

@@ -231,10 +231,15 @@ void ast_bridge_publish_leave(struct ast_bridge *bridge, struct ast_channel *cha
 
 /*!
  * \brief Build a JSON object from a \ref ast_bridge_snapshot.
+ *
+ * \param snapshot The bridge snapshot to convert to JSON
+ * \param sanitize The message sanitizer to use on the snapshot
+ *
  * \return JSON object representing bridge snapshot.
  * \return \c NULL on error
  */
-struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *snapshot);
+struct ast_json *ast_bridge_snapshot_to_json(const struct ast_bridge_snapshot *snapshot,
+	const struct stasis_message_sanitizer *sanitize);
 
 /*!
  * \brief Pair showing a bridge snapshot and a specific channel snapshot belonging to the bridge

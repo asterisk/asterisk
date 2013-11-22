@@ -237,7 +237,8 @@ static const char *endpoint_snapshot_get_id(struct stasis_message *message)
 
 
 struct ast_json *ast_endpoint_snapshot_to_json(
-	const struct ast_endpoint_snapshot *snapshot)
+	const struct ast_endpoint_snapshot *snapshot,
+	const struct stasis_message_sanitizer *sanitize)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ast_json *channel_array;
@@ -264,7 +265,14 @@ struct ast_json *ast_endpoint_snapshot_to_json(
 	channel_array = ast_json_object_get(json, "channel_ids");
 	ast_assert(channel_array != NULL);
 	for (i = 0; i < snapshot->num_channels; ++i) {
-		int res = ast_json_array_append(channel_array,
+		int res;
+
+		if (sanitize && sanitize->channel_id
+			&& sanitize->channel_id(snapshot->channel_ids[i])) {
+			continue;
+		}
+
+		res = ast_json_array_append(channel_array,
 			ast_json_string_create(snapshot->channel_ids[i]));
 		if (res != 0) {
 			return NULL;

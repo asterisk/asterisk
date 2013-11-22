@@ -593,7 +593,7 @@ void ast_ari_channels_get(struct ast_variable *headers,
 	ast_assert(snapshot != NULL);
 
 	ast_ari_response_ok(response,
-				ast_channel_snapshot_to_json(snapshot));
+				ast_channel_snapshot_to_json(snapshot, NULL));
 }
 
 void ast_ari_channels_hangup(struct ast_variable *headers,
@@ -639,6 +639,7 @@ void ast_ari_channels_list(struct ast_variable *headers,
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ao2_iterator i;
 	void *obj;
+	struct stasis_message_sanitizer *sanitize = stasis_app_get_sanitizer();
 
 	cache = ast_channel_cache();
 	if (!cache) {
@@ -661,14 +662,23 @@ void ast_ari_channels_list(struct ast_variable *headers,
 		return;
 	}
 
-	i = ao2_iterator_init(snapshots, 0);
-	while ((obj = ao2_iterator_next(&i))) {
+	for (i = ao2_iterator_init(snapshots, 0);
+		(obj = ao2_iterator_next(&i)); ao2_cleanup(obj)) {
 		RAII_VAR(struct stasis_message *, msg, obj, ao2_cleanup);
 		struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
-		int r = ast_json_array_append(
-			json, ast_channel_snapshot_to_json(snapshot));
+		int r;
+
+		if (sanitize && sanitize->channel_snapshot
+			&& sanitize->channel_snapshot(snapshot)) {
+			continue;
+		}
+
+		r = ast_json_array_append(
+			json, ast_channel_snapshot_to_json(snapshot, NULL));
 		if (r != 0) {
 			ast_ari_response_alloc_failed(response);
+			ao2_cleanup(obj);
+			ao2_iterator_destroy(&i);
 			return;
 		}
 	}
@@ -769,7 +779,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		stasis_app_subscribe(args->app, uris, 1, NULL);
 	}
 
-	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot));
+	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
 	ast_channel_unref(chan);
 }
 

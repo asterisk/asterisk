@@ -187,6 +187,36 @@ struct stasis_message_type;
 struct stasis_message;
 
 /*!
+ * \brief Structure containing callbacks for Stasis message sanitization
+ *
+ * \note If either callback is implemented, both should be implemented since
+ * not all callers may have access to the full snapshot.
+ */
+struct stasis_message_sanitizer {
+	/*!
+	 * \brief Callback which determines whether a channel should be sanitized from
+	 * a message based on the channel's unique ID
+	 *
+	 * \param channel_id The unique ID of the channel
+	 *
+	 * \retval non-zero if the channel should be left out of the message
+	 * \retval zero if the channel should remain in the message
+	 */
+	int (*channel_id)(const char *channel_id);
+
+	/*!
+	 * \brief Callback which determines whether a channel should be sanitized from
+	 * a message based on the channel's snapshot
+	 *
+	 * \param snapshot A snapshot generated from the channel
+	 *
+	 * \retval non-zero if the channel should be left out of the message
+	 * \retval zero if the channel should remain in the message
+	 */
+	int (*channel_snapshot)(const struct ast_channel_snapshot *snapshot);
+};
+
+/*!
  * \brief Virtual table providing methods for messages.
  * \since 12
  */
@@ -198,17 +228,19 @@ struct stasis_message_vtable {
 	 * The returned object should be ast_json_unref()'ed.
 	 *
 	 * \param message Message to convert to JSON string.
+	 * \param sanitize Snapshot sanitization callback.
+	 *
 	 * \return Newly allocated JSON message.
 	 * \return \c NULL on error.
 	 * \return \c NULL if JSON format is not supported.
 	 */
-	struct ast_json *(*to_json)(struct stasis_message *message);
+	struct ast_json *(*to_json)(struct stasis_message *message, const struct stasis_message_sanitizer *sanitize);
 
 	/*!
 	 * \brief Build the AMI representation of the message.
 	 *
 	 * May be \c NULL, or may return \c NULL, to indicate no representation.
-	 * The returned object should be ao2_cleankup()'ed.
+	 * The returned object should be ao2_cleanup()'ed.
 	 *
 	 * \param message Message to convert to AMI string.
 	 * \return Newly allocated \ref ast_manager_event_blob.
@@ -292,11 +324,13 @@ const struct timeval *stasis_message_timestamp(const struct stasis_message *msg)
  * be ast_json_unref()'ed.
  *
  * \param message Message to convert to JSON string.
+ * \param sanitize Snapshot sanitization callback.
+ *
  * \return Newly allocated string with JSON message.
  * \return \c NULL on error.
  * \return \c NULL if JSON format is not supported.
  */
-struct ast_json *stasis_message_to_json(struct stasis_message *message);
+struct ast_json *stasis_message_to_json(struct stasis_message *message, struct stasis_message_sanitizer *sanitize);
 
 /*!
  * \brief Build the AMI representation of the message.
