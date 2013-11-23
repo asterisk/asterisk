@@ -103,10 +103,15 @@ struct ao2_container *app_bridges;
 
 struct ao2_container *app_bridges_moh;
 
+const char *stasis_app_name(const struct stasis_app *app)
+{
+	return app_name(app);
+}
+
 /*! AO2 hash function for \ref app */
 static int app_hash(const void *obj, const int flags)
 {
-	const struct app *app;
+	const struct stasis_app *app;
 	const char *key;
 
 	switch (flags & OBJ_SEARCH_MASK) {
@@ -115,7 +120,7 @@ static int app_hash(const void *obj, const int flags)
 		break;
 	case OBJ_SEARCH_OBJECT:
 		app = obj;
-		key = app_name(app);
+		key = stasis_app_name(app);
 		break;
 	default:
 		/* Hash can only work on something with a full key. */
@@ -128,24 +133,24 @@ static int app_hash(const void *obj, const int flags)
 /*! AO2 comparison function for \ref app */
 static int app_compare(void *obj, void *arg, int flags)
 {
-	const struct app *object_left = obj;
-	const struct app *object_right = arg;
+	const struct stasis_app *object_left = obj;
+	const struct stasis_app *object_right = arg;
 	const char *right_key = arg;
 	int cmp;
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		right_key = app_name(object_right);
+		right_key = stasis_app_name(object_right);
 		/* Fall through */
 	case OBJ_SEARCH_KEY:
-		cmp = strcmp(app_name(object_left), right_key);
+		cmp = strcmp(stasis_app_name(object_left), right_key);
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
 		/*
 		 * We could also use a partial key struct containing a length
 		 * so strlen() does not get called for every comparison instead.
 		 */
-		cmp = strncmp(app_name(object_left), right_key, strlen(right_key));
+		cmp = strncmp(stasis_app_name(object_left), right_key, strlen(right_key));
 		break;
 	default:
 		/*
@@ -229,13 +234,13 @@ static int control_compare(void *obj, void *arg, int flags)
 
 static int cleanup_cb(void *obj, void *arg, int flags)
 {
-	struct app *app = obj;
+	struct stasis_app *app = obj;
 
 	if (!app_is_finished(app)) {
 		return 0;
 	}
 
-	ast_verb(1, "Shutting down application '%s'\n", app_name(app));
+	ast_verb(1, "Shutting down application '%s'\n", stasis_app_name(app));
 	app_shutdown(app);
 
 	return CMP_MATCH;
@@ -619,7 +624,7 @@ void stasis_app_bridge_destroy(const char *bridge_id)
 	ast_bridge_destroy(bridge, 0);
 }
 
-static int send_start_msg(struct app *app, struct ast_channel *chan,
+static int send_start_msg(struct stasis_app *app, struct ast_channel *chan,
 	int argc, char *argv[])
 {
 	RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
@@ -667,7 +672,7 @@ static int send_start_msg(struct app *app, struct ast_channel *chan,
 	return 0;
 }
 
-static int send_end_msg(struct app *app, struct ast_channel *chan)
+static int send_end_msg(struct stasis_app *app, struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
@@ -714,7 +719,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 {
 	SCOPED_MODULE_USE(ast_module_info->self);
 
-	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_control *, control, NULL, control_unlink);
 	struct ast_bridge *last_bridge = NULL;
 	int res = 0;
@@ -838,7 +843,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 int stasis_app_send(const char *app_name, struct ast_json *message)
 {
-	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
 	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	if (!app) {
@@ -849,17 +854,31 @@ int stasis_app_send(const char *app_name, struct ast_json *message)
 			"Stasis app '%s' not registered\n", app_name);
 		return -1;
 	}
-
 	app_send(app, message);
 	return 0;
 }
 
+static struct stasis_app *find_app_by_name(const char *app_name)
+{
+	struct stasis_app *res = NULL;
+
+	if (!ast_strlen_zero(app_name)) {
+		res = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
+	}
+
+	if (!res) {
+		ast_log(LOG_WARNING, "Could not find app '%s'\n",
+			app_name ? : "(null)");
+	}
+	return res;
+}
+
 static int append_name(void *obj, void *arg, int flags)
 {
-	struct app *app = obj;
+	struct stasis_app *app = obj;
 	struct ao2_container *apps = arg;
 
-	ast_str_container_add(apps, app_name(app));
+	ast_str_container_add(apps, stasis_app_name(app));
 	return 0;
 }
 
@@ -879,7 +898,7 @@ struct ao2_container *stasis_app_get_all(void)
 
 int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 {
-	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
 	SCOPED_LOCK(apps_lock, apps_registry, ao2_lock, ao2_unlock);
 
@@ -904,7 +923,7 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 
 void stasis_app_unregister(const char *app_name)
 {
-	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
 	if (!app_name) {
 		return;
@@ -925,217 +944,249 @@ void stasis_app_unregister(const char *app_name)
 	cleanup();
 }
 
-struct ast_json *stasis_app_to_json(const char *app_name)
+/*!
+ * \internal \brief List of registered event sources.
+ */
+AST_RWLIST_HEAD_STATIC(event_sources, stasis_app_event_source);
+
+void stasis_app_register_event_source(struct stasis_app_event_source *obj)
 {
-	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
-
-	if (app_name) {
-		app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
+	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_LIST_INSERT_TAIL(&event_sources, obj, next);
+	/* only need to bump the module ref on non-core sources because the
+	   core ones are [un]registered by this module. */
+	if (!stasis_app_is_core_event_source(obj)) {
+		ast_module_ref(ast_module_info->self);
 	}
+}
 
+void stasis_app_unregister_event_source(struct stasis_app_event_source *obj)
+{
+	struct stasis_app_event_source *source;
+	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&event_sources, source, next) {
+		if (source == obj) {
+			AST_RWLIST_REMOVE_CURRENT(next);
+			if (!stasis_app_is_core_event_source(obj)) {
+				ast_module_unref(ast_module_info->self);
+			}
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+}
+
+/*!
+ * \internal
+ * \brief Convert event source data to JSON.
+ *
+ * Calls each event source that has a "to_json" handler allowing each
+ * source to add data to the given JSON object.
+ *
+ * \param app application associated with the event source
+ * \param json a json object to "fill"
+ *
+ * \retval The given json object.
+ */
+static struct ast_json *app_event_sources_to_json(
+	const struct stasis_app *app, struct ast_json *json)
+{
+	struct stasis_app_event_source *source;
+	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	AST_LIST_TRAVERSE(&event_sources, source, next) {
+		if (source->to_json) {
+			source->to_json(app, json);
+		}
+	}
+	return json;
+}
+
+static struct ast_json *stasis_app_object_to_json(struct stasis_app *app)
+{
 	if (!app) {
 		return NULL;
 	}
 
-	return app_to_json(app);
+	return app_event_sources_to_json(app, app_to_json(app));
 }
 
-#define CHANNEL_SCHEME "channel:"
-#define BRIDGE_SCHEME "bridge:"
-#define ENDPOINT_SCHEME "endpoint:"
+struct ast_json *stasis_app_to_json(const char *app_name)
+{
+	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
 
-/*! Struct for capturing event source information */
-struct event_source {
-	enum {
-		EVENT_SOURCE_CHANNEL,
-		EVENT_SOURCE_BRIDGE,
-		EVENT_SOURCE_ENDPOINT,
-	} event_source_type;
-	union {
-		struct ast_channel *channel;
-		struct ast_bridge *bridge;
-		struct ast_endpoint *endpoint;
-	};
-};
+	return stasis_app_object_to_json(app);
+}
+
+/*!
+ * \internal
+ * \brief Finds an event source that matches a uri scheme.
+ *
+ * Uri(s) should begin with a particular scheme that can be matched
+ * against an event source.
+ *
+ * \param uri uri containing a scheme to match
+ *
+ * \retval an event source if found, NULL otherwise.
+ */
+static struct stasis_app_event_source *app_event_source_find(const char *uri)
+{
+	struct stasis_app_event_source *source;
+	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	AST_LIST_TRAVERSE(&event_sources, source, next) {
+		if (ast_begins_with(uri, source->scheme)) {
+			return source;
+		}
+	}
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Callback for subscription handling
+ *
+ * \param app [un]subscribing application
+ * \param uri scheme:id of an event source
+ * \param event_source being [un]subscribed [from]to
+ *
+ * \retval stasis_app_subscribe_res return code.
+ */
+typedef enum stasis_app_subscribe_res (*app_subscription_handler)(
+	struct stasis_app *app, const char *uri,
+	struct stasis_app_event_source *event_source);
+
+/*!
+ * \internal
+ * \brief Subscriptions handler for application [un]subscribing.
+ *
+ * \param app_name Name of the application to subscribe.
+ * \param event_source_uris URIs for the event sources to subscribe to.
+ * \param event_sources_count Array size of event_source_uris.
+ * \param json Optional output pointer for JSON representation of the app
+ *             after adding the subscription.
+ * \param handler [un]subscribe handler
+ *
+ * \retval stasis_app_subscribe_res return code.
+ */
+static enum stasis_app_subscribe_res app_handle_subscriptions(
+	const char *app_name, const char **event_source_uris,
+	int event_sources_count, struct ast_json **json,
+	app_subscription_handler handler)
+{
+	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
+	int i;
+
+	if (!app) {
+		return STASIS_ASR_APP_NOT_FOUND;
+	}
+
+	for (i = 0; i < event_sources_count; ++i) {
+		const char *uri = event_source_uris[i];
+		enum stasis_app_subscribe_res res = STASIS_ASR_INTERNAL_ERROR;
+		struct stasis_app_event_source *event_source;
+
+		if (!(event_source = app_event_source_find(uri))) {
+			ast_log(LOG_WARNING, "Invalid scheme: %s\n", uri);
+			return STASIS_ASR_EVENT_SOURCE_BAD_SCHEME;
+		}
+
+		if (handler &&
+		    ((res = handler(app, uri, event_source)))) {
+			return res;
+		}
+	}
+
+	if (json) {
+		ast_debug(3, "%s: Successful; setting results\n", app_name);
+		*json = stasis_app_object_to_json(app);
+	}
+
+	return STASIS_ASR_OK;
+}
+
+/*!
+ * \internal
+ * \brief Subscribe an app to an event source.
+ *
+ * \param app subscribing application
+ * \param uri scheme:id of an event source
+ * \param event_source being subscribed to
+ *
+ * \retval stasis_app_subscribe_res return code.
+ */
+static enum stasis_app_subscribe_res app_subscribe(
+	struct stasis_app *app, const char *uri,
+	struct stasis_app_event_source *event_source)
+{
+	const char *app_name = stasis_app_name(app);
+	RAII_VAR(void *, obj, NULL, ao2_cleanup);
+
+	ast_debug(3, "%s: Checking %s\n", app_name, uri);
+
+	if (!event_source->find ||
+	    (!(obj = event_source->find(app, uri + strlen(event_source->scheme))))) {
+		ast_log(LOG_WARNING, "Event source not found: %s\n", uri);
+		return STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
+	}
+
+	ast_debug(3, "%s: Subscribing to %s\n", app_name, uri);
+
+	if (!event_source->subscribe || (event_source->subscribe(app, obj))) {
+		ast_log(LOG_WARNING, "Error subscribing app '%s' to '%s'\n",
+			app_name, uri);
+		return STASIS_ASR_INTERNAL_ERROR;
+	}
+
+	return STASIS_ASR_OK;
+}
 
 enum stasis_app_subscribe_res stasis_app_subscribe(const char *app_name,
 	const char **event_source_uris, int event_sources_count,
 	struct ast_json **json)
 {
-	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
-	RAII_VAR(struct event_source *, event_sources, NULL, ast_free);
-	enum stasis_app_subscribe_res res = STASIS_ASR_OK;
-	int i;
+	return app_handle_subscriptions(
+		app_name, event_source_uris, event_sources_count,
+		json, app_subscribe);
+}
 
-	if (app_name) {
-		app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
+/*!
+ * \internal
+ * \brief Unsubscribe an app from an event source.
+ *
+ * \param app application to unsubscribe
+ * \param uri scheme:id of an event source
+ * \param event_source being unsubscribed from
+ *
+ * \retval stasis_app_subscribe_res return code.
+ */
+static enum stasis_app_subscribe_res app_unsubscribe(
+	struct stasis_app *app, const char *uri,
+	struct stasis_app_event_source *event_source)
+{
+	const char *app_name = stasis_app_name(app);
+	const char *id = uri + strlen(event_source->scheme);
+
+	if (!event_source->is_subscribed ||
+	    (!event_source->is_subscribed(app, id))) {
+		return STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
 	}
 
-	if (!app) {
-		ast_log(LOG_WARNING, "Could not find app '%s'\n",
-			app_name ? : "(null)");
-		return STASIS_ASR_APP_NOT_FOUND;
+	ast_debug(3, "%s: Unsubscribing from %s\n", app_name, uri);
+
+	if (!event_source->unsubscribe || (event_source->unsubscribe(app, id))) {
+		ast_log(LOG_WARNING, "Error unsubscribing app '%s' to '%s'\n",
+			app_name, uri);
+		return -1;
 	}
-
-	event_sources = ast_calloc(event_sources_count, sizeof(*event_sources));
-	if (!event_sources) {
-		return STASIS_ASR_INTERNAL_ERROR;
-	}
-
-	for (i = 0; res == STASIS_ASR_OK && i < event_sources_count; ++i) {
-		const char *uri = event_source_uris[i];
-		ast_debug(3, "%s: Checking %s\n", app_name,
-			uri);
-		if (ast_begins_with(uri, CHANNEL_SCHEME)) {
-			event_sources[i].event_source_type =
-				EVENT_SOURCE_CHANNEL;
-			event_sources[i].channel = ast_channel_get_by_name(
-				uri + strlen(CHANNEL_SCHEME));
-			if (!event_sources[i].channel) {
-				ast_log(LOG_WARNING, "Channel not found: %s\n", uri);
-				res = STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
-			}
-		} else if (ast_begins_with(uri, BRIDGE_SCHEME)) {
-			event_sources[i].event_source_type =
-				EVENT_SOURCE_BRIDGE;
-			event_sources[i].bridge = stasis_app_bridge_find_by_id(
-				uri + strlen(BRIDGE_SCHEME));
-			if (!event_sources[i].bridge) {
-				ast_log(LOG_WARNING, "Bridge not found: %s\n", uri);
-				res = STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
-			}
-		} else if (ast_begins_with(uri, ENDPOINT_SCHEME)) {
-			event_sources[i].event_source_type =
-				EVENT_SOURCE_ENDPOINT;
-			event_sources[i].endpoint = ast_endpoint_find_by_id(
-				uri + strlen(ENDPOINT_SCHEME));
-			if (!event_sources[i].endpoint) {
-				ast_log(LOG_WARNING, "Endpoint not found: %s\n", uri);
-				res = STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
-			}
-		} else {
-			ast_log(LOG_WARNING, "Invalid scheme: %s\n", uri);
-			res = STASIS_ASR_EVENT_SOURCE_BAD_SCHEME;
-		}
-	}
-
-	for (i = 0; res == STASIS_ASR_OK && i < event_sources_count; ++i) {
-		int sub_res = -1;
-		ast_debug(1, "%s: Subscribing to %s\n", app_name,
-			event_source_uris[i]);
-
-		switch (event_sources[i].event_source_type) {
-		case EVENT_SOURCE_CHANNEL:
-			sub_res = app_subscribe_channel(app,
-				event_sources[i].channel);
-			break;
-		case EVENT_SOURCE_BRIDGE:
-			sub_res = app_subscribe_bridge(app,
-				event_sources[i].bridge);
-			break;
-		case EVENT_SOURCE_ENDPOINT:
-			sub_res = app_subscribe_endpoint(app,
-				event_sources[i].endpoint);
-			break;
-		}
-
-		if (sub_res != 0) {
-			ast_log(LOG_WARNING,
-				"Error subscribing app '%s' to '%s'\n",
-				app_name, event_source_uris[i]);
-			res = STASIS_ASR_INTERNAL_ERROR;
-		}
-	}
-
-	if (res == STASIS_ASR_OK && json) {
-		ast_debug(1, "%s: Successful; setting results\n", app_name);
-		*json = app_to_json(app);
-	}
-
-	for (i = 0; i < event_sources_count; ++i) {
-		switch (event_sources[i].event_source_type) {
-		case EVENT_SOURCE_CHANNEL:
-			event_sources[i].channel =
-				ast_channel_cleanup(event_sources[i].channel);
-			break;
-		case EVENT_SOURCE_BRIDGE:
-			ao2_cleanup(event_sources[i].bridge);
-			event_sources[i].bridge = NULL;
-			break;
-		case EVENT_SOURCE_ENDPOINT:
-			ao2_cleanup(event_sources[i].endpoint);
-			event_sources[i].endpoint = NULL;
-			break;
-		}
-	}
-
-	return res;
+	return 0;
 }
 
 enum stasis_app_subscribe_res stasis_app_unsubscribe(const char *app_name,
 	const char **event_source_uris, int event_sources_count,
 	struct ast_json **json)
 {
-	RAII_VAR(struct app *, app, NULL, ao2_cleanup);
-	enum stasis_app_subscribe_res res = STASIS_ASR_OK;
-	int i;
-
-	if (app_name) {
-		app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
-	}
-
-	if (!app) {
-		ast_log(LOG_WARNING, "Could not find app '%s'\n",
-			app_name ? : "(null)");
-		return STASIS_ASR_APP_NOT_FOUND;
-	}
-
-	/* Validate the input */
-	for (i = 0; res == STASIS_ASR_OK && i < event_sources_count; ++i) {
-		if (ast_begins_with(event_source_uris[i], CHANNEL_SCHEME)) {
-			const char *channel_id = event_source_uris[i] +
-				strlen(CHANNEL_SCHEME);
-			if (!app_is_subscribed_channel_id(app, channel_id)) {
-				res = STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
-			}
-		} else if (ast_begins_with(event_source_uris[i], BRIDGE_SCHEME)) {
-			const char *bridge_id = event_source_uris[i] +
-				strlen(BRIDGE_SCHEME);
-			if (!app_is_subscribed_bridge_id(app, bridge_id)) {
-				res = STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
-			}
-		} else if (ast_begins_with(event_source_uris[i], ENDPOINT_SCHEME)) {
-			const char *endpoint_id = event_source_uris[i] +
-				strlen(ENDPOINT_SCHEME);
-			if (!app_is_subscribed_endpoint_id(app, endpoint_id)) {
-				res = STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
-			}
-		} else {
-			res = STASIS_ASR_EVENT_SOURCE_BAD_SCHEME;
-		}
-	}
-
-	for (i = 0; res == STASIS_ASR_OK && i < event_sources_count; ++i) {
-		if (ast_begins_with(event_source_uris[i], CHANNEL_SCHEME)) {
-			const char *channel_id = event_source_uris[i] +
-				strlen(CHANNEL_SCHEME);
-			app_unsubscribe_channel_id(app, channel_id);
-		} else if (ast_begins_with(event_source_uris[i], BRIDGE_SCHEME)) {
-			const char *bridge_id = event_source_uris[i] +
-				strlen(BRIDGE_SCHEME);
-			app_unsubscribe_bridge_id(app, bridge_id);
-		} else if (ast_begins_with(event_source_uris[i], ENDPOINT_SCHEME)) {
-			const char *endpoint_id = event_source_uris[i] +
-				strlen(ENDPOINT_SCHEME);
-			app_unsubscribe_endpoint_id(app, endpoint_id);
-		}
-	}
-
-	if (res == STASIS_ASR_OK && json) {
-		*json = app_to_json(app);
-	}
-
-	return res;
+	return app_handle_subscriptions(
+		app_name, event_source_uris, event_sources_count,
+		json, app_unsubscribe);
 }
 
 void stasis_app_ref(void)
@@ -1150,6 +1201,8 @@ void stasis_app_unref(void)
 
 static int unload_module(void)
 {
+	stasis_app_unregister_event_sources();
+
 	ao2_cleanup(apps_registry);
 	apps_registry = NULL;
 
@@ -1205,6 +1258,8 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
+
+	stasis_app_register_event_sources();
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

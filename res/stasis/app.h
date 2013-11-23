@@ -34,7 +34,7 @@
 /*!
  * \brief Opaque pointer to \c res_stasis app structure.
  */
-struct app;
+struct stasis_app;
 
 /*!
  * \brief Create a res_stasis application.
@@ -45,7 +45,7 @@ struct app;
  * \return New \c res_stasis application.
  * \return \c NULL on error.
  */
-struct app *app_create(const char *name, stasis_app_cb handler, void *data);
+struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *data);
 
 /*!
  * \brief Tears down an application.
@@ -54,7 +54,7 @@ struct app *app_create(const char *name, stasis_app_cb handler, void *data);
  *
  * \param app Application to unsubscribe.
  */
-void app_shutdown(struct app *app);
+void app_shutdown(struct stasis_app *app);
 
 /*!
  * \brief Deactivates an application.
@@ -64,7 +64,7 @@ void app_shutdown(struct app *app);
  *
  * \param app Application to deactivate.
  */
-void app_deactivate(struct app *app);
+void app_deactivate(struct stasis_app *app);
 
 /*!
  * \brief Checks whether an app is active.
@@ -73,7 +73,7 @@ void app_deactivate(struct app *app);
  * \return True (non-zero) if app is active.
  * \return False (zero) if app has been deactivated.
  */
-int app_is_active(struct app *app);
+int app_is_active(struct stasis_app *app);
 
 /*!
  * \brief Checks whether a deactivated app has no channels.
@@ -82,7 +82,7 @@ int app_is_active(struct app *app);
  * \param True (non-zero) if app is deactivated, and has no associated channels.
  * \param False (zero) otherwise.
  */
-int app_is_finished(struct app *app);
+int app_is_finished(struct stasis_app *app);
 
 /*!
  * \brief Update the handler and data for a \c res_stasis application.
@@ -93,7 +93,7 @@ int app_is_finished(struct app *app);
  * \param handler New application callback.
  * \param data New data pointer for the callback.
  */
-void app_update(struct app *app, stasis_app_cb handler, void *data);
+void app_update(struct stasis_app *app, stasis_app_cb handler, void *data);
 
 /*!
  * \brief Return an application's name.
@@ -102,7 +102,7 @@ void app_update(struct app *app, stasis_app_cb handler, void *data);
  * \return Name of the application.
  * \return \c NULL is \a app is \c NULL.
  */
-const char *app_name(const struct app *app);
+const char *app_name(const struct stasis_app *app);
 
 /*!
  * \brief Send a message to an application.
@@ -110,11 +110,11 @@ const char *app_name(const struct app *app);
  * \param app Application.
  * \param message Message to send.
  */
-void app_send(struct app *app, struct ast_json *message);
+void app_send(struct stasis_app *app, struct ast_json *message);
 
 struct app_forwards;
 
-struct ast_json *app_to_json(const struct app *app);
+struct ast_json *app_to_json(const struct stasis_app *app);
 
 /*!
  * \brief Subscribes an application to a channel.
@@ -124,7 +124,7 @@ struct ast_json *app_to_json(const struct app *app);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_subscribe_channel(struct app *app, struct ast_channel *chan);
+int app_subscribe_channel(struct stasis_app *app, struct ast_channel *chan);
 
 /*!
  * \brief Cancel the subscription an app has for a channel.
@@ -134,7 +134,7 @@ int app_subscribe_channel(struct app *app, struct ast_channel *chan);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_unsubscribe_channel(struct app *app, struct ast_channel *chan);
+int app_unsubscribe_channel(struct stasis_app *app, struct ast_channel *chan);
 
 /*!
  * \brief Cancel the subscription an app has for a channel.
@@ -144,7 +144,7 @@ int app_unsubscribe_channel(struct app *app, struct ast_channel *chan);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_unsubscribe_channel_id(struct app *app, const char *channel_id);
+int app_unsubscribe_channel_id(struct stasis_app *app, const char *channel_id);
 
 /*!
  * \brief Test if an app is subscribed to a channel.
@@ -154,7 +154,7 @@ int app_unsubscribe_channel_id(struct app *app, const char *channel_id);
  * \return True (non-zero) if channel is subscribed to \a app.
  * \return False (zero) if channel is not subscribed.
  */
-int app_is_subscribed_channel_id(struct app *app, const char *channel_id);
+int app_is_subscribed_channel_id(struct stasis_app *app, const char *channel_id);
 
 /*!
  * \brief Add a bridge subscription to an existing channel subscription.
@@ -164,7 +164,7 @@ int app_is_subscribed_channel_id(struct app *app, const char *channel_id);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_subscribe_bridge(struct app *app, struct ast_bridge *bridge);
+int app_subscribe_bridge(struct stasis_app *app, struct ast_bridge *bridge);
 
 /*!
  * \brief Cancel the bridge subscription for an application.
@@ -174,7 +174,7 @@ int app_subscribe_bridge(struct app *app, struct ast_bridge *bridge);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_unsubscribe_bridge(struct app *app, struct ast_bridge *bridge);
+int app_unsubscribe_bridge(struct stasis_app *app, struct ast_bridge *bridge);
 
 /*!
  * \brief Cancel the subscription an app has for a bridge.
@@ -184,7 +184,7 @@ int app_unsubscribe_bridge(struct app *app, struct ast_bridge *bridge);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_unsubscribe_bridge_id(struct app *app, const char *bridge_id);
+int app_unsubscribe_bridge_id(struct stasis_app *app, const char *bridge_id);
 
 /*!
  * \brief Test if an app is subscribed to a bridge.
@@ -194,7 +194,7 @@ int app_unsubscribe_bridge_id(struct app *app, const char *bridge_id);
  * \return True (non-zero) if bridge is subscribed to \a app.
  * \return False (zero) if bridge is not subscribed.
  */
-int app_is_subscribed_bridge_id(struct app *app, const char *bridge_id);
+int app_is_subscribed_bridge_id(struct stasis_app *app, const char *bridge_id);
 
 /*!
  * \brief Subscribes an application to a endpoint.
@@ -204,7 +204,7 @@ int app_is_subscribed_bridge_id(struct app *app, const char *bridge_id);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_subscribe_endpoint(struct app *app, struct ast_endpoint *endpoint);
+int app_subscribe_endpoint(struct stasis_app *app, struct ast_endpoint *endpoint);
 
 /*!
  * \brief Cancel the subscription an app has for a endpoint.
@@ -214,7 +214,7 @@ int app_subscribe_endpoint(struct app *app, struct ast_endpoint *endpoint);
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int app_unsubscribe_endpoint_id(struct app *app, const char *endpoint_id);
+int app_unsubscribe_endpoint_id(struct stasis_app *app, const char *endpoint_id);
 
 /*!
  * \brief Test if an app is subscribed to a endpoint.
@@ -224,6 +224,6 @@ int app_unsubscribe_endpoint_id(struct app *app, const char *endpoint_id);
  * \return True (non-zero) if endpoint is subscribed to \a app.
  * \return False (zero) if endpoint is not subscribed.
  */
-int app_is_subscribed_endpoint_id(struct app *app, const char *endpoint_id);
+int app_is_subscribed_endpoint_id(struct stasis_app *app, const char *endpoint_id);
 
 #endif /* _ASTERISK_RES_STASIS_APP_H */
