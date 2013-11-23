@@ -111,6 +111,18 @@ void stasis_app_unregister(const char *app_name);
  */
 int stasis_app_send(const char *app_name, struct ast_json *message);
 
+/*! \brief Forward declare app */
+struct stasis_app;
+
+/*!
+ * \brief Retrieve an application's name
+ *
+ * \param app An application
+ *
+ * \return The name of the application.
+ */
+const char *stasis_app_name(const struct stasis_app *app);
+
 /*!
  * \brief Return the JSON representation of a Stasis application.
  *
@@ -120,6 +132,102 @@ int stasis_app_send(const char *app_name, struct ast_json *message);
  * \return \c NULL on error.
  */
 struct ast_json *stasis_app_to_json(const char *app_name);
+
+/*!
+ * \brief Event source information and callbacks.
+ */
+struct stasis_app_event_source {
+	/*! \brief The scheme to match against on [un]subscribes */
+	const char *scheme;
+
+	/*!
+	 * \brief Find an event source data object by the given id/name.
+	 *
+	 * \param app Application
+	 * \param id A unique identifier to search on
+	 *
+	 * \return The data object associated with the id/name.
+	 */
+	void *(*find)(const struct stasis_app *app, const char *id);
+
+	/*!
+	 * \brief Subscribe an application to an event source.
+	 *
+	 * \param app Application
+	 * \param obj an event source data object
+	 *
+	 * \return 0 on success, failure code otherwise
+	 */
+	int (*subscribe)(struct stasis_app *app, void *obj);
+
+	/*!
+	 * \brief Cancel the subscription an app has to an event source.
+	 *
+	 * \param app Application
+	 * \param id a previously subscribed object id
+	 *
+	 * \return 0 on success, failure code otherwise
+	 */
+	int (*unsubscribe)(struct stasis_app *app, const char *id);
+
+	/*!
+	 * \brief Find an event source by the given id/name.
+	 *
+	 * \param app Application
+	 * \param id A unique identifier to check
+	 *
+	 * \return true if id is subscribed, false otherwise.
+	 */
+	int (*is_subscribed)(struct stasis_app *app, const char *id);
+
+	/*!
+	 * \brief Convert event source data to json
+	 *
+	 * \param app Application
+	 * \param id json object to fill
+	 */
+	void (*to_json)(const struct stasis_app *app, struct ast_json *json);
+
+	/*! Next item in the list */
+	AST_LIST_ENTRY(stasis_app_event_source) next;
+};
+
+/*!
+ * \brief Register an application event source.
+ *
+ * \param obj the event source to register
+ */
+void stasis_app_register_event_source(struct stasis_app_event_source *obj);
+
+/*!
+ * \brief Register core event sources.
+ */
+void stasis_app_register_event_sources(void);
+
+/*!
+ * \brief Checks to see if the given object is a core event source
+ *
+ * \note core event sources are currently only endpoint, bridge, and channel.
+ *
+ * \param obj event source object to check
+ *
+ * \return non-zero if core event source, otherwise 0 (false)
+
+ */
+int stasis_app_is_core_event_source(struct stasis_app_event_source *obj);
+
+/*!
+ * \brief Unregister an application event source.
+ *
+ * \param obj the event source to unregister
+ */
+void stasis_app_unregister_event_source(struct stasis_app_event_source *obj);
+
+/*!
+ * \brief Unregister core event sources.
+ */
+void stasis_app_unregister_event_sources(void);
+
 
 /*! \brief Return code for stasis_app_[un]subscribe */
 enum stasis_app_subscribe_res {

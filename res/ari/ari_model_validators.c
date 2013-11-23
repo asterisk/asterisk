@@ -1333,6 +1333,60 @@ ari_validator ast_ari_validate_playback_fn(void)
 	return ast_ari_validate_playback;
 }
 
+int ast_ari_validate_device_state(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_name = 0;
+	int has_state = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI DeviceState field name failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("state", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_state = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI DeviceState field state failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI DeviceState has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI DeviceState missing required field name\n");
+		res = 0;
+	}
+
+	if (!has_state) {
+		ast_log(LOG_ERROR, "ARI DeviceState missing required field state\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_device_state_fn(void)
+{
+	return ast_ari_validate_device_state;
+}
+
 int ast_ari_validate_application_replaced(struct ast_json *json)
 {
 	int res = 1;
@@ -2746,6 +2800,85 @@ ari_validator ast_ari_validate_channel_varset_fn(void)
 	return ast_ari_validate_channel_varset;
 }
 
+int ast_ari_validate_device_state_changed(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_device_state = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI DeviceStateChanged field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI DeviceStateChanged field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI DeviceStateChanged field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("device_state", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_device_state = 1;
+			prop_is_valid = ast_ari_validate_device_state(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI DeviceStateChanged field device_state failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI DeviceStateChanged has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI DeviceStateChanged missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI DeviceStateChanged missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_device_state) {
+		ast_log(LOG_ERROR, "ARI DeviceStateChanged missing required field device_state\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_device_state_changed_fn(void)
+{
+	return ast_ari_validate_device_state_changed;
+}
+
 int ast_ari_validate_endpoint_state_change(struct ast_json *json)
 {
 	int res = 1;
@@ -2887,6 +3020,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("ChannelVarset", discriminator) == 0) {
 		return ast_ari_validate_channel_varset(json);
 	} else
+	if (strcmp("DeviceStateChanged", discriminator) == 0) {
+		return ast_ari_validate_device_state_changed(json);
+	} else
 	if (strcmp("EndpointStateChange", discriminator) == 0) {
 		return ast_ari_validate_endpoint_state_change(json);
 	} else
@@ -3024,6 +3160,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("ChannelVarset", discriminator) == 0) {
 		return ast_ari_validate_channel_varset(json);
+	} else
+	if (strcmp("DeviceStateChanged", discriminator) == 0) {
+		return ast_ari_validate_device_state_changed(json);
 	} else
 	if (strcmp("EndpointStateChange", discriminator) == 0) {
 		return ast_ari_validate_endpoint_state_change(json);
@@ -3592,6 +3731,7 @@ int ast_ari_validate_application(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_bridge_ids = 0;
 	int has_channel_ids = 0;
+	int has_device_names = 0;
 	int has_endpoint_ids = 0;
 	int has_name = 0;
 
@@ -3615,6 +3755,17 @@ int ast_ari_validate_application(struct ast_json *json)
 				ast_ari_validate_string);
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI Application field channel_ids failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("device_names", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_device_names = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_string);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Application field device_names failed validation\n");
 				res = 0;
 			}
 		} else
@@ -3654,6 +3805,11 @@ int ast_ari_validate_application(struct ast_json *json)
 
 	if (!has_channel_ids) {
 		ast_log(LOG_ERROR, "ARI Application missing required field channel_ids\n");
+		res = 0;
+	}
+
+	if (!has_device_names) {
+		ast_log(LOG_ERROR, "ARI Application missing required field device_names\n");
 		res = 0;
 	}
 

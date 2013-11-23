@@ -35,6 +35,10 @@
 			"description": "Playback control resources"
 		},
 		{
+			"path": "/api-docs/deviceStates.{format}",
+			"description": "Device state resources"
+		},
+		{
 			"path": "/api-docs/events.{format}",
 			"description": "WebSocket resource"
 		},

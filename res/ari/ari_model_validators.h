@@ -481,6 +481,24 @@ int ast_ari_validate_playback(struct ast_json *json);
 ari_validator ast_ari_validate_playback_fn(void);
 
 /*!
+ * \brief Validator for DeviceState.
+ *
+ * Represents the state of a device.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_device_state(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_device_state().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_device_state_fn(void);
+
+/*!
  * \brief Validator for ApplicationReplaced.
  *
  * Notification that another WebSocket has taken over for an application.
@@ -753,6 +771,24 @@ int ast_ari_validate_channel_varset(struct ast_json *json);
  * See \ref ast_ari_model_validators.h for more details.
  */
 ari_validator ast_ari_validate_channel_varset_fn(void);
+
+/*!
+ * \brief Validator for DeviceStateChanged.
+ *
+ * Notification that a device state has changed.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_device_state_changed(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_device_state_changed().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_device_state_changed_fn(void);
 
 /*!
  * \brief Validator for EndpointStateChange.
@@ -1052,6 +1088,9 @@ ari_validator ast_ari_validate_application_fn(void);
  * - media_uri: string (required)
  * - state: string (required)
  * - target_uri: string (required)
+ * DeviceState
+ * - name: string (required)
+ * - state: string (required)
  * ApplicationReplaced
  * - type: string (required)
  * - application: string (required)
@@ -1143,6 +1182,11 @@ ari_validator ast_ari_validate_application_fn(void);
  * - channel: Channel
  * - value: string (required)
  * - variable: string (required)
+ * DeviceStateChanged
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - device_state: DeviceState (required)
  * EndpointStateChange
  * - type: string (required)
  * - application: string (required)
@@ -1187,6 +1231,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * Application
  * - bridge_ids: List[string] (required)
  * - channel_ids: List[string] (required)
+ * - device_names: List[string] (required)
  * - endpoint_ids: List[string] (required)
  * - name: string (required)
  */

@@ -68,7 +68,7 @@
 						},
 						{
 							"name": "eventSource",
-							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}",
+							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName}",
 							"paramType": "query",
 							"required": true,
 							"allowMultiple": true,
@@ -107,7 +107,7 @@
 						},
 						{
 							"name": "eventSource",
-							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}",
+							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, device_state:{deviceName}",
 							"paramType": "query",
 							"required": true,
 							"allowMultiple": true,
@@ -159,6 +159,11 @@
 				"endpoint_ids": {
 					"type": "List[string]",
 					"description": "{tech}/{resource} for endpoints subscribed to.",
+					"required": true
+				},
+				"device_names": {
+					"type": "List[string]",
+					"description": "Names of the devices subscribed to.",
 					"required": true
 				}
 			}

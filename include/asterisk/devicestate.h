@@ -325,6 +325,15 @@ struct stasis_cache *ast_device_state_cache(void);
 struct stasis_message_type *ast_device_state_message_type(void);
 
 /*!
+ * \brief Clear the device from the stasis cache.
+ * \param The device to clear
+ * \retval 0 if successful
+ * \retval -1 nothing to clear
+ * \since 12
+ */
+int ast_device_state_clear_cache(const char *device);
+
+/*!
  * \brief Initialize the device state core
  * \retval 0 Success
  * \retval -1 Failure

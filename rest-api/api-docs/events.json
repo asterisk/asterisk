@@ -76,6 +76,7 @@
 				}
 			},
 			"subTypes": [
+				"DeviceStateChanged",
 				"PlaybackStarted",
 				"PlaybackFinished",
 				"ApplicationReplaced",
@@ -97,6 +98,17 @@
 				"StasisEnd",
 				"StasisStart"
 			]
+		},
+		"DeviceStateChanged": {
+			"id": "DeviceStateChanged",
+			"description": "Notification that a device state has changed.",
+			"properties": {
+				"device_state": {
+					"type": "DeviceState",
+					"description": "Device state object",
+					"required": true
+				}
+			}
 		},
 		"PlaybackStarted": {
 			"id": "PlaybackStarted",

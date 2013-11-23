@@ -734,6 +734,22 @@ struct stasis_topic *ast_device_state_topic(const char *device)
 	return stasis_topic_pool_get_topic(device_state_topic_pool, device);
 }
 
+int ast_device_state_clear_cache(const char *device)
+{
+	RAII_VAR(struct stasis_message *, cached_msg, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!(cached_msg = stasis_cache_get(ast_device_state_cache(),
+					    ast_device_state_message_type(), device))) {
+		/* nothing to clear */
+		return -1;
+	}
+
+	msg = stasis_cache_clear_create(cached_msg);
+	stasis_publish(ast_device_state_topic(device), msg);
+	return 0;
+}
+
 int ast_publish_device_state_full(
 			const char *device,
 			enum ast_device_state state,

@@ -1,0 +1,151 @@
+{
+	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
+	"_author": "Kevin Harwell <kharwell@digium.com>",
+	"_svn_revision": "$Revision$",
+	"apiVersion": "0.0.1",
+	"swaggerVersion": "1.1",
+	"basePath": "http://localhost:8088/stasis",
+	"resourcePath": "/api-docs/deviceStates.{format}",
+	"apis": [
+		{
+			"path": "/deviceStates",
+			"description": "Device states",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "List all ARI controlled device states.",
+					"nickname": "list",
+					"responseClass": "List[DeviceState]"
+				}
+			]
+		},
+		{
+			"path": "/deviceStates/{deviceName}",
+			"description": "Device state",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Retrieve the current state of a device.",
+					"nickname": "get",
+					"responseClass": "DeviceState",
+					"parameters": [
+						{
+							"name": "deviceName",
+							"description": "Name of the device",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				},
+				{
+					"httpMethod": "PUT",
+					"summary": "Change the state of a device controlled by ARI. (Note - implicitly creates the device state).",
+					"nickname": "update",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "deviceName",
+							"description": "Name of the device",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "deviceState",
+							"description": "Device state value",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string",
+						        "allowableValues": {
+							         "valueType": "LIST",
+							          "values": [
+								          "NOT_INUSE",
+								          "INUSE",
+								          "BUSY",
+								          "INVALID",
+								          "UNAVAILABLE",
+								          "RINGING",
+								          "RINGINUSE",
+								          "ONHOLD"
+								  ]
+						    }
+
+						}
+					],
+				        "errorResponses": [
+						{
+							"code": 404,
+							"reason": "Device name is missing"
+						},
+						{
+							"code": 409,
+							"reason": "Uncontrolled device specified"
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Destroy a device-state controlled by ARI.",
+					"nickname": "delete",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "deviceName",
+							"description": "Name of the device",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+				        "errorResponses": [
+						{
+							"code": 404,
+							"reason": "Device name is missing"
+						},
+						{
+							"code": 409,
+							"reason": "Uncontrolled device specified"
+						}
+					]
+				}
+			]
+		}
+	],
+	"models": {
+		"DeviceState": {
+			"id": "DeviceState",
+			"description": "Represents the state of a device.",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Name of the device.",
+					"required": true
+				},
+				"state": {
+					"type": "string",
+					"description": "Device's state",
+					"required": true,
+					"allowableValues": {
+						"valueType": "LIST",
+						"values": [
+							"UNKNOWN",
+							"NOT_INUSE",
+							"INUSE",
+							"BUSY",
+							"INVALID",
+							"UNAVAILABLE",
+							"RINGING",
+							"RINGINUSE",
+							"ONHOLD"
+						]
+					}
+				}
+			}
+		}
+	}
+}
