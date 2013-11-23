@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_app.h"
 #include "asterisk/stasis_app_playback.h"
 #include "asterisk/stasis_app_recording.h"
+#include "asterisk/stasis_app_snoop.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/causes.h"
 #include "resource_channels.h"
@@ -847,3 +848,73 @@ void ast_ari_channels_set_channel_var(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_channels_snoop_channel(struct ast_variable *headers, struct ast_ari_channels_snoop_channel_args *args, struct ast_ari_response *response)
+{
+	enum stasis_app_snoop_direction spy, whisper;
+	RAII_VAR(struct ast_channel *, chan, NULL, ast_channel_cleanup);
+	RAII_VAR(struct ast_channel *, snoop, NULL, ast_channel_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	ast_assert(response != NULL);
+
+	if (ast_strlen_zero(args->spy) || !strcmp(args->spy, "none")) {
+		spy = STASIS_SNOOP_DIRECTION_NONE;
+	} else if (!strcmp(args->spy, "both")) {
+		spy = STASIS_SNOOP_DIRECTION_BOTH;
+	} else if (!strcmp(args->spy, "out")) {
+		spy = STASIS_SNOOP_DIRECTION_OUT;
+	} else if (!strcmp(args->spy, "in")) {
+		spy = STASIS_SNOOP_DIRECTION_IN;
+	} else {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Invalid direction specified for spy");
+		return;
+	}
+
+	if (ast_strlen_zero(args->whisper) || !strcmp(args->whisper, "none")) {
+		whisper = STASIS_SNOOP_DIRECTION_NONE;
+	} else if (!strcmp(args->whisper, "both")) {
+		whisper = STASIS_SNOOP_DIRECTION_BOTH;
+	} else if (!strcmp(args->whisper, "out")) {
+		whisper = STASIS_SNOOP_DIRECTION_OUT;
+	} else if (!strcmp(args->whisper, "in")) {
+		whisper = STASIS_SNOOP_DIRECTION_IN;
+	} else {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Invalid direction specified for whisper");
+		return;
+	}
+
+	if (spy == STASIS_SNOOP_DIRECTION_NONE && whisper == STASIS_SNOOP_DIRECTION_NONE) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Direction must be specified for at least spy or whisper");
+		return;
+	} else if (ast_strlen_zero(args->app)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Application name is required");
+		return;
+	}
+
+	chan = ast_channel_get_by_name(args->channel_id);
+	if (chan == NULL) {
+		ast_ari_response_error(
+			response, 404, "Channel Not Found",
+			"Provided channel was not found");
+		return;
+	}
+
+	snoop = stasis_app_control_snoop(chan, spy, whisper, args->app, args->app_args);
+	if (snoop == NULL) {
+		ast_ari_response_error(
+			response, 500, "Internal error",
+			"Snoop channel could not be created");
+		return;
+	}
+
+	snapshot = ast_channel_snapshot_create(snoop);
+	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
+}

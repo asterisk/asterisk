@@ -954,6 +954,91 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/channels/{channelId}/snoop",
+			"description": "Snoop (spy/whisper) on a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Start snooping.",
+					"notes": "Snoop (spy/whisper) on a specific channel.",
+					"nickname": "snoopChannel",
+					"responseClass": "Channel",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "spy",
+							"description": "Direction of audio to spy on",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string",
+							"defaultValue": "none",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"none",
+									"both",
+									"out",
+									"in"
+								]
+							}
+						},
+						{
+							"name": "whisper",
+							"description": "Direction of audio to whisper into",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string",
+							"defaultValue": "none",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"none",
+									"both",
+									"out",
+									"in"
+								]
+							}
+						},
+						{
+							"name": "app",
+							"description": "Application the snooping channel is placed into",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "appArgs",
+							"description": "The application arguments to pass to the Stasis application",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Invalid parameters"
+						},
+						{
+							"code": 404,
+							"reason": "Channel not found"
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
