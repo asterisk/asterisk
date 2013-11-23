@@ -49,8 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Recording check is unimplemented. le sigh */
 #define RECORDING_CHECK 0
 
-STASIS_MESSAGE_TYPE_DEFN(stasis_app_recording_snapshot_type);
-
 /*! Container of all current recordings */
 static struct ao2_container *recordings;
 
@@ -61,12 +59,39 @@ struct stasis_app_recording {
 	char *absolute_name;
 	/*! Control object for the channel we're recording */
 	struct stasis_app_control *control;
-
 	/*! Current state of the recording. */
 	enum stasis_app_recording_state state;
 	/*! Indicates whether the recording is currently muted */
 	int muted:1;
 };
+
+static struct ast_json *recording_to_json(struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_json *blob = channel_blob->blob;
+	const char *state =
+		ast_json_string_get(ast_json_object_get(blob, "state"));
+	const char *type;
+
+	if (!strcmp(state, "recording")) {
+		type = "RecordingStarted";
+	} else if (!strcmp(state, "done") || !strcasecmp(state, "canceled")) {
+		type = "RecordingFinished";
+	} else if (!strcmp(state, "failed")) {
+		type = "RecordingFailed";
+	} else {
+		return NULL;
+	}
+
+	return ast_json_pack("{s: s, s: O}",
+		"type", type,
+		"recording", blob);
+}
+
+STASIS_MESSAGE_TYPE_DEFN(stasis_app_recording_snapshot_type,
+	.to_json = recording_to_json,
+);
 
 static int recording_hash(const void *obj, int flags)
 {
@@ -183,7 +208,7 @@ enum ast_record_if_exists stasis_app_recording_if_exists_parse(
 	return -1;
 }
 
-static void recording_publish(struct stasis_app_recording *recording)
+static void recording_publish(struct stasis_app_recording *recording, const char *cause)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
@@ -196,6 +221,19 @@ static void recording_publish(struct stasis_app_recording *recording)
 		return;
 	}
 
+	if (!ast_strlen_zero(cause)) {
+		struct ast_json *failure_cause = ast_json_string_create(cause);
+
+		if (!failure_cause) {
+			return;
+		}
+
+		if (ast_json_object_set(json, "cause", failure_cause)) {
+			ast_json_unref(failure_cause);
+			return;
+		}
+	}
+
 	message = ast_channel_blob_create_from_cache(
 		stasis_app_control_get_channel_id(recording->control),
 		stasis_app_recording_snapshot_type(), json);
@@ -206,11 +244,11 @@ static void recording_publish(struct stasis_app_recording *recording)
 	stasis_app_control_publish(recording->control, message);
 }
 
-static void recording_fail(struct stasis_app_recording *recording)
+static void recording_fail(struct stasis_app_recording *recording, const char *cause)
 {
 	SCOPED_AO2LOCK(lock, recording);
 	recording->state = STASIS_APP_RECORDING_STATE_FAILED;
-	recording_publish(recording);
+	recording_publish(recording, cause);
 }
 
 static void recording_cleanup(struct stasis_app_recording *recording)
@@ -233,7 +271,7 @@ static void *record_file(struct stasis_app_control *control,
 
 	if (stasis_app_get_bridge(control)) {
 		ast_log(LOG_ERROR, "Cannot record channel while in bridge\n");
-		recording_fail(recording);
+		recording_fail(recording, "Cannot record channel while in bridge");
 		return NULL;
 	}
 
@@ -255,13 +293,13 @@ static void *record_file(struct stasis_app_control *control,
 	if (res != 0) {
 		ast_debug(3, "%s: Failed to answer\n",
 			ast_channel_uniqueid(chan));
-		recording_fail(recording);
+		recording_fail(recording, "Failed to answer channel");
 		return NULL;
 	}
 
 	ao2_lock(recording);
 	recording->state = STASIS_APP_RECORDING_STATE_RECORDING;
-	recording_publish(recording);
+	recording_publish(recording, NULL);
 	ao2_unlock(recording);
 
 	ast_play_and_record_full(chan,
@@ -284,7 +322,7 @@ static void *record_file(struct stasis_app_control *control,
 
 	ao2_lock(recording);
 	recording->state = STASIS_APP_RECORDING_STATE_COMPLETE;
-	recording_publish(recording);
+	recording_publish(recording, NULL);
 	ao2_unlock(recording);
 
 	return NULL;

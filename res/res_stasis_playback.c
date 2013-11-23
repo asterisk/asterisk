@@ -57,8 +57,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define SOUND_URI_SCHEME "sound:"
 #define RECORDING_URI_SCHEME "recording:"
 
-STASIS_MESSAGE_TYPE_DEFN(stasis_app_playback_snapshot_type);
-
 /*! Container of all current playbacks */
 static struct ao2_container *playbacks;
 
@@ -86,6 +84,32 @@ struct stasis_app_playback {
 	/*! Current playback state */
 	enum stasis_app_playback_state state;
 };
+
+static struct ast_json *playback_to_json(struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_json *blob = channel_blob->blob;
+	const char *state =
+		ast_json_string_get(ast_json_object_get(blob, "state"));
+	const char *type;
+
+	if (!strcmp(state, "playing")) {
+		type = "PlaybackStarted";
+	} else if (!strcmp(state, "done")) {
+		type = "PlaybackFinished";
+	} else {
+		return NULL;
+	}
+
+	return ast_json_pack("{s: s, s: O}",
+		"type", type,
+		"playback", blob);
+}
+
+STASIS_MESSAGE_TYPE_DEFN(stasis_app_playback_snapshot_type,
+	.to_json = playback_to_json,
+);
 
 static void playback_dtor(void *obj)
 {
