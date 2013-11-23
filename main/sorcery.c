@@ -52,9 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Number of buckets for types (should be prime for performance reasons) */
 #define TYPE_BUCKETS 53
 
-/*! \brief Maximum length of an object field name */
-#define MAX_OBJECT_FIELD 128
-
 /*! \brief Thread pool for observers */
 static struct ast_threadpool *threadpool;
 

@@ -515,6 +515,18 @@ static void subscription_terminated(struct ast_sip_subscription *sub,
 	send_notify(exten_state_sub, NULL, PJSIP_EVSUB_STATE_TERMINATED);
 }
 
+static void to_ami(struct ast_sip_subscription *sub,
+		   struct ast_str **buf)
+{
+	struct exten_state_subscription *exten_state_sub =
+		get_exten_state_sub(sub);
+
+	ast_str_append(buf, 0, "SubscriptionType: extension_state\r\n"
+		       "Extension: %s\r\nExtensionStates: %s\r\n",
+		       exten_state_sub->exten, ast_extension_state2str(
+			       exten_state_sub->last_exten_state));
+}
+
 #define DEFAULT_PRESENCE_BODY "application/pidf+xml"
 
 /*!
@@ -545,6 +557,7 @@ static struct ast_sip_subscription_handler *create_and_register_handler(
 	handler->resubscribe = resubscribe;
 	handler->subscription_timeout = subscription_timeout;
 	handler->subscription_terminated = subscription_terminated;
+	handler->to_ami = to_ami;
 
 	if (ast_sip_register_subscription_handler(handler)) {
 		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",

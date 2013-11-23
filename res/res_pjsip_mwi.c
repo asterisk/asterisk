@@ -54,6 +54,7 @@ static void mwi_notify_response(struct ast_sip_subscription *sub, pjsip_rx_data 
 static void mwi_notify_request(struct ast_sip_subscription *sub, pjsip_rx_data *rdata,
 		struct ast_sip_subscription_response_data *response_data);
 static int mwi_refresh_subscription(struct ast_sip_subscription *sub);
+static void mwi_to_ami(struct ast_sip_subscription *sub, struct ast_str **buf);
 
 static struct ast_sip_subscription_handler mwi_handler = {
 	.event_name = "message-summary",
@@ -67,6 +68,7 @@ static struct ast_sip_subscription_handler mwi_handler = {
 	.notify_response = mwi_notify_response,
 	.notify_request = mwi_notify_request,
 	.refresh_subscription = mwi_refresh_subscription,
+	.to_ami = mwi_to_ami,
 };
 
 /*!
@@ -118,11 +120,11 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 {
 	struct mwi_stasis_subscription *mwi_stasis_sub;
 	struct stasis_topic *topic;
-	
+
 	if (!mwi_sub) {
 		return NULL;
 	}
-	
+
 	mwi_stasis_sub = ao2_alloc(sizeof(*mwi_stasis_sub) + strlen(mailbox), NULL);
 	if (!mwi_stasis_sub) {
 		return NULL;
@@ -209,7 +211,7 @@ static struct mwi_subscription *mwi_subscription_alloc(struct ast_sip_endpoint *
 static int mwi_sub_hash(const void *obj, int flags)
 {
 	const struct mwi_subscription *mwi_sub = obj;
-	
+
 	return ast_str_hash(mwi_sub->id);
 }
 
@@ -570,6 +572,44 @@ static int mwi_refresh_subscription(struct ast_sip_subscription *sub)
 {
 	ast_log(LOG_WARNING, "Being told to refresh an MWI subscription? This should not happen\n");
 	return 0;
+}
+
+static void mwi_subscription_mailboxes_str(struct ao2_container *stasis_subs,
+					   struct ast_str **str)
+{
+	int num = ao2_container_count(stasis_subs);
+
+	struct mwi_stasis_subscription *node;
+	struct ao2_iterator i = ao2_iterator_init(stasis_subs, 0);
+
+	while ((node = ao2_iterator_next(&i))) {
+		if (--num) {
+			ast_str_append(str, 0, "%s,", node->mailbox);
+		} else {
+			ast_str_append(str, 0, "%s", node->mailbox);
+		}
+		ao2_ref(node, -1);
+	}
+	ao2_iterator_destroy(&i);
+}
+
+static void mwi_to_ami(struct ast_sip_subscription *sub,
+		       struct ast_str **buf)
+{
+	struct mwi_subscription *mwi_sub;
+	RAII_VAR(struct ast_datastore *, mwi_datastore,
+			ast_sip_subscription_get_datastore(sub, "MWI datastore"), ao2_cleanup);
+
+	if (!mwi_datastore) {
+		return;
+	}
+
+	mwi_sub = mwi_datastore->data;
+
+	ast_str_append(buf, 0, "SubscriptionType: mwi\r\n");
+	ast_str_append(buf, 0, "Mailboxes: ");
+	mwi_subscription_mailboxes_str(mwi_sub->stasis_subs, buf);
+	ast_str_append(buf, 0, "\r\n");
 }
 
 static int serialized_notify(void *userdata)

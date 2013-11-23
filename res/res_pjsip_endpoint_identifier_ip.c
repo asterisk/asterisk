@@ -29,6 +29,8 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 #include "asterisk/acl.h"
+#include "asterisk/manager.h"
+#include "res_pjsip/include/res_pjsip_private.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_endpoint_identifier_ip" language="en_US">
@@ -164,6 +166,68 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 	return error;
 }
 
+static int ip_identify_match_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
+	const struct ip_identify_match *identify = obj;
+
+	ast_ha_join(identify->matches, &str);
+	*buf = ast_strdup(ast_str_buffer(str));
+	return 0;
+}
+
+static int sip_identify_to_ami(const struct ip_identify_match *identify,
+			       struct ast_str **buf)
+{
+	return ast_sip_sorcery_object_to_ami(identify, buf);
+}
+
+static int find_identify_by_endpoint(void *obj, void *arg, int flags)
+{
+	struct ip_identify_match *identify = obj;
+	const char *endpoint_name = arg;
+
+	return strcmp(identify->endpoint_name, endpoint_name) ? 0 : CMP_MATCH | CMP_STOP;
+}
+
+static int format_ami_endpoint_identify(const struct ast_sip_endpoint *endpoint,
+					struct ast_sip_ami *ami)
+{
+	RAII_VAR(struct ao2_container *, identifies, NULL, ao2_cleanup);
+	RAII_VAR(struct ip_identify_match *, identify, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
+
+	if (!(identifies = ast_sorcery_retrieve_by_fields(
+		      ast_sip_get_sorcery(), "identify", AST_RETRIEVE_FLAG_MULTIPLE |
+		      AST_RETRIEVE_FLAG_ALL, NULL))) {
+		return -1;
+	}
+
+	if (!(identify = ao2_callback(identifies, OBJ_NOLOCK,
+				      find_identify_by_endpoint,
+				      (void*)ast_sorcery_object_get_id(endpoint)))) {
+		return 1;
+	}
+
+	if (!(buf = ast_sip_create_ami_event("IdentifyDetail", ami))) {
+		return -1;
+	}
+
+	if (sip_identify_to_ami(identify, &buf)) {
+		return -1;
+	}
+
+	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
+		       ast_sorcery_object_get_id(endpoint));
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	return 0;
+}
+
+struct ast_sip_endpoint_formatter endpoint_identify_formatter = {
+	.format_ami = format_ami_endpoint_identify
+};
+
 static int load_module(void)
 {
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "identify", "config", "pjsip.conf,criteria=type=identify");
@@ -174,10 +238,11 @@ static int load_module(void)
 
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, endpoint_name));
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, ip_identify_match_to_str, 0, 0);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "identify");
 
 	ast_sip_register_endpoint_identifier(&ip_identifier);
+	ast_sip_register_endpoint_formatter(&endpoint_identify_formatter);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

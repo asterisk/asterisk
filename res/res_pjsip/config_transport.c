@@ -26,6 +26,45 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/acl.h"
+#include "include/res_pjsip_private.h"
+
+static int sip_transport_to_ami(const struct ast_sip_transport *transport,
+				struct ast_str **buf)
+{
+	return ast_sip_sorcery_object_to_ami(transport, buf);
+}
+
+static int format_ami_endpoint_transport(const struct ast_sip_endpoint *endpoint,
+					 struct ast_sip_ami *ami)
+{
+	RAII_VAR(struct ast_str *, buf,
+		 ast_sip_create_ami_event("TransportDetail", ami), ast_free);
+	RAII_VAR(struct ast_sip_transport *,
+		 transport, ast_sorcery_retrieve_by_id(
+			 ast_sip_get_sorcery(), "transport",
+			 endpoint->transport), ao2_cleanup);
+	if (!buf) {
+		return -1;
+	}
+
+	if (!transport) {
+		astman_send_error_va(ami->s, ami->m, "Unable to retrieve "
+				     "transport %s\n", endpoint->transport);
+		return -1;
+	}
+
+	sip_transport_to_ami(transport, &buf);
+
+	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
+		       ast_sorcery_object_get_id(endpoint));
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	return 0;
+}
+
+struct ast_sip_endpoint_formatter endpoint_transport_formatter = {
+	.format_ami = format_ami_endpoint_transport
+};
 
 static int destroy_transport_state(void *data)
 {
@@ -213,6 +252,25 @@ static int transport_protocol_handler(const struct aco_option *opt, struct ast_v
 	return 0;
 }
 
+static const char *transport_types[] = {
+	[AST_TRANSPORT_UDP] = "udp",
+	[AST_TRANSPORT_TCP] = "tcp",
+	[AST_TRANSPORT_TLS] = "tls",
+	[AST_TRANSPORT_WS] = "ws",
+	[AST_TRANSPORT_WSS] = "wss"
+};
+
+static int transport_protocol_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+
+	if (ARRAY_IN_BOUNDS(transport->type, transport_types)) {
+		*buf = ast_strdup(transport_types[transport->type]);
+	}
+
+	return 0;
+}
+
 /*! \brief Custom handler for turning a string bind into a pj_sockaddr */
 static int transport_bind_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -220,6 +278,20 @@ static int transport_bind_handler(const struct aco_option *opt, struct ast_varia
 	pj_str_t buf;
 
 	return (pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, var->value), &transport->host) != PJ_SUCCESS) ? -1 : 0;
+}
+
+static int transport_bind_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+
+	if (!(*buf = ast_calloc(MAX_OBJECT_FIELD, sizeof(char)))) {
+		return -1;
+	}
+
+	/* include port as well as brackets if IPv6 */
+	pj_sockaddr_print(&transport->host, *buf, MAX_OBJECT_FIELD, 1 | 2);
+
+	return 0;
 }
 
 /*! \brief Custom handler for TLS boolean settings */
@@ -237,6 +309,27 @@ static int transport_tls_bool_handler(const struct aco_option *opt, struct ast_v
 		return -1;
 	}
 
+	return 0;
+}
+
+static int verify_server_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+	*buf = ast_strdup(AST_YESNO(transport->tls.verify_server));
+	return 0;
+}
+
+static int verify_client_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+	*buf = ast_strdup(AST_YESNO(transport->tls.verify_client));
+	return 0;
+}
+
+static int require_client_cert_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+	*buf = ast_strdup(AST_YESNO(transport->tls.require_client_cert));
 	return 0;
 }
 
@@ -261,6 +354,24 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 		return -1;
 	}
 
+	return 0;
+}
+
+static const char *tls_method_map[] = {
+	[PJSIP_SSL_DEFAULT_METHOD] = "default",
+	[PJSIP_SSL_UNSPECIFIED_METHOD] = "unspecified",
+	[PJSIP_TLSV1_METHOD] = "tlsv1",
+	[PJSIP_SSLV2_METHOD] = "sslv2",
+	[PJSIP_SSLV3_METHOD] = "sslv3",
+	[PJSIP_SSLV23_METHOD] = "sslv23",
+};
+
+static int tls_method_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+	if (ARRAY_IN_BOUNDS(transport->tls.method, tls_method_map)) {
+		*buf = ast_strdup(tls_method_map[transport->tls.method]);
+	}
 	return 0;
 }
 
@@ -291,6 +402,27 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 	}
 }
 
+static int transport_tls_cipher_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
+	const struct ast_sip_transport *transport = obj;
+	int i;
+
+	if (!str) {
+		return -1;
+	}
+
+	for (i = 0; i < transport->tls.ciphers_num; ++i) {
+		ast_str_append(&str, 0, "%s", pj_ssl_cipher_name(transport->ciphers[i]));
+		if (i < transport->tls.ciphers_num - 1) {
+			ast_str_append(&str, 0, ",");
+		}
+	}
+
+	*buf = ast_strdup(ast_str_buffer(str));
+	return 0;
+}
+
 /*! \brief Custom handler for localnet setting */
 static int transport_localnet_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -304,6 +436,16 @@ static int transport_localnet_handler(const struct aco_option *opt, struct ast_v
 	return error;
 }
 
+static int localnet_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
+	const struct ast_sip_transport *transport = obj;
+
+	ast_ha_join(transport->localnet, &str);
+	*buf = ast_strdup(ast_str_buffer(str));
+	return 0;
+}
+
 /*! \brief Initialize sorcery with transport support */
 int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery)
 {
@@ -314,8 +456,8 @@ int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery)
 	}
 
 	ast_sorcery_object_field_register(sorcery, "transport", "type", "", OPT_NOOP_T, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "protocol", "udp", transport_protocol_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "bind", "", transport_bind_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "protocol", "udp", transport_protocol_handler, transport_protocol_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "bind", "", transport_bind_handler, transport_bind_to_str, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "async_operations", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, async_operations));
 	ast_sorcery_object_field_register(sorcery, "transport", "ca_list_file", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, ca_list_file));
 	ast_sorcery_object_field_register(sorcery, "transport", "cert_file", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, cert_file));
@@ -325,14 +467,15 @@ int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register(sorcery, "transport", "external_signaling_port", "0", OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, external_signaling_port), 0, 65535);
 	ast_sorcery_object_field_register(sorcery, "transport", "external_media_address", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, external_media_address));
 	ast_sorcery_object_field_register(sorcery, "transport", "domain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, domain));
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "verify_server", "", transport_tls_bool_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "verify_client", "", transport_tls_bool_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "require_client_cert", "", transport_tls_bool_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "method", "", transport_tls_method_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "cipher", "", transport_tls_cipher_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sorcery, "transport", "local_net", "", transport_localnet_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "verify_server", "", transport_tls_bool_handler, verify_server_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "verify_client", "", transport_tls_bool_handler, verify_client_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "require_client_cert", "", transport_tls_bool_handler, require_client_cert_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "method", "", transport_tls_method_handler, tls_method_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "cipher", "", transport_tls_cipher_handler, transport_tls_cipher_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "local_net", "", transport_localnet_handler, localnet_to_str, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "tos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, tos));
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 
+	ast_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 	return 0;
 }

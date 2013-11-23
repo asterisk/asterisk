@@ -300,6 +300,123 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 	return 0;
 }
 
+int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg)
+{
+	char *copy, *name;
+
+	if (!on_aor || ast_strlen_zero(aors)) {
+		return 0;
+	}
+
+	copy = ast_strdupa(aors);
+	while ((name = strsep(&copy, ","))) {
+		RAII_VAR(struct ast_sip_aor *, aor,
+			 ast_sip_location_retrieve_aor(name), ao2_cleanup);
+
+		if (!aor) {
+			continue;
+		}
+
+		if (on_aor(aor, arg, 0)) {
+			return -1;
+		}
+	}
+	ast_free(copy);
+	return 0;
+}
+
+int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
+			     on_contact_t on_contact, void *arg)
+{
+	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+	struct ast_sip_contact *contact;
+	int num;
+	struct ao2_iterator i;
+
+	if (!on_contact ||
+	    !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+		return 0;
+	}
+
+	num = ao2_container_count(contacts);
+	i = ao2_iterator_init(contacts, 0);
+	while ((contact = ao2_iterator_next(&i))) {
+		int res = on_contact(aor, contact, --num == 0, arg);
+
+		ao2_ref(contact, -1);
+		if (res) {
+			return -1;
+		}
+	}
+	ao2_iterator_destroy(&i);
+	return 0;
+}
+
+int ast_sip_contact_to_str(const struct ast_sip_aor *aor,
+			   const struct ast_sip_contact *contact,
+			   int last, void *arg)
+{
+	struct ast_str **buf = arg;
+
+	ast_str_append(buf, 0, "%s/%s",
+		       ast_sorcery_object_get_id(aor), contact->uri);
+
+	if (!last) {
+		ast_str_append(buf, 0, ",");
+	}
+
+	return 0;
+}
+
+static int sip_aor_to_ami(const struct ast_sip_aor *aor, struct ast_str **buf)
+{
+	return ast_sip_sorcery_object_to_ami(aor, buf);
+}
+
+static int format_ami_aor_handler(void *obj, void *arg, int flags)
+{
+	const struct ast_sip_aor *aor = obj;
+	struct ast_sip_ami *ami = arg;
+	const struct ast_sip_endpoint *endpoint = ami->arg;
+	RAII_VAR(struct ast_str *, buf,
+		 ast_sip_create_ami_event("AorDetail", ami), ast_free);
+
+	int num;
+	RAII_VAR(struct ao2_container *, contacts,
+		 ast_sip_location_retrieve_aor_contacts(aor), ao2_cleanup);
+
+	if (!buf) {
+		return -1;
+	}
+
+	sip_aor_to_ami(aor, &buf);
+	ast_str_append(&buf, 0, "Contacts: ");
+	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, &buf);
+	ast_str_append(&buf, 0, "\r\n");
+
+	num = ao2_container_count(contacts);
+	ast_str_append(&buf, 0, "TotalContacts: %d\r\n", num);
+	ast_str_append(&buf, 0, "ContactsRegistered: %d\r\n",
+		       num - ao2_container_count(aor->permanent_contacts));
+	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
+		       ast_sorcery_object_get_id(endpoint));
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	return 0;
+}
+
+static int format_ami_endpoint_aor(const struct ast_sip_endpoint *endpoint,
+				   struct ast_sip_ami *ami)
+{
+	ami->arg = (void *)endpoint;
+	return ast_sip_for_each_aor(endpoint->aors,
+				    format_ami_aor_handler, ami);
+}
+
+struct ast_sip_endpoint_formatter endpoint_aor_formatter = {
+	.format_ami = format_ami_endpoint_aor
+};
+
 /*! \brief Initialize sorcery with location support */
 int ast_sip_initialize_sorcery_location(struct ast_sorcery *sorcery)
 {
@@ -328,6 +445,7 @@ int ast_sip_initialize_sorcery_location(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register_custom(sorcery, "aor", "contact", "", permanent_uri_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, mailboxes));
 
+	ast_sip_register_endpoint_formatter(&endpoint_aor_formatter);
 	return 0;
 }
 

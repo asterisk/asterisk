@@ -755,6 +755,24 @@ int ast_safe_mkdir(const char *base_path, const char *path, int mode);
 
 #define ARRAY_LEN(a) (size_t) (sizeof(a) / sizeof(0[a]))
 
+/*!
+ * \brief Checks to see if value is within the given bounds
+ *
+ * \param v the value to check
+ * \param min minimum lower bound (inclusive)
+ * \param max maximum upper bound (inclusive)
+ * \return 0 if value out of bounds, otherwise true (non-zero)
+ */
+#define IN_BOUNDS(v, min, max) ((v) >= (min)) && ((v) <= (max))
+
+/*!
+ * \brief Checks to see if value is within the bounds of the given array
+ *
+ * \param v the value to check
+ * \param a the array to bound check
+ * \return 0 if value out of bounds, otherwise true (non-zero)
+ */
+#define ARRAY_IN_BOUNDS(v, a) IN_BOUNDS(v, 0, ARRAY_LEN(a) - 1)
 
 /* Definition for Digest authorization */
 struct ast_http_digest {

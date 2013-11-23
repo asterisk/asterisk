@@ -252,7 +252,7 @@ struct ast_sip_subscription_handler {
 	 * during this callback. The handler MUST, however, begin the destruction
 	 * process for the subscription during this callback.
 	 */
-   void (*subscription_shutdown)(struct ast_sip_subscription *subscription);
+	void (*subscription_shutdown)(struct ast_sip_subscription *subscription);
 
 	/*!
 	 * \brief Called when a SUBSCRIBE arrives in order to create a new subscription
@@ -366,6 +366,16 @@ struct ast_sip_subscription_handler {
 	 * \retval non-zero Failure
 	 */
 	int (*refresh_subscription)(struct ast_sip_subscription *sub);
+
+	/*!
+	 * \brief Converts the subscriber to AMI
+	 *
+	 * This is a subscriber callback.
+	 *
+	 * \param sub The subscription
+	 * \param buf The string to write AMI data
+	 */
+	void (*to_ami)(struct ast_sip_subscription *sub, struct ast_str **buf);
 	AST_LIST_ENTRY(ast_sip_subscription_handler) next;
 };
 
