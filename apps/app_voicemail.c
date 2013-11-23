@@ -8158,7 +8158,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				/* If forwarded with intro, DON'T PLAY THIS MESSAGE AGAIN! */
 				if (ast_strlen_zero(vmstmp.introfn))
 #endif
-				res = ast_play_and_wait(chan, "vm-msgsaved");
+				res = ast_play_and_wait(chan, "vm-msgforwarded");
 			}
 #ifndef IMAP_STORAGE
 			else {
