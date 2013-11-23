@@ -1021,6 +1021,41 @@
 			<para>Qualify a chan_pjsip endpoint.</para>
 		</description>
 	</manager>
+	<manager name="PJSIPShowEndpoints" language="en_US">
+		<synopsis>
+			Lists PJSIP endpoints.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>
+			Provides a listing of all endpoints.  For each endpoint an <literal>EndpointList</literal> event
+			is raised that contains relevant attributes and status information.  Once all
+			endpoints have been listed an <literal>EndpointListComplete</literal> event is issued.
+                        </para>
+		</description>
+	</manager>
+	<manager name="PJSIPShowEndpoint" language="en_US">
+		<synopsis>
+			Detail listing of an endpoint and its objects.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Endpoint" required="true">
+				<para>The endpoint to list.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>
+			Provides a detailed listing of options for a given endpoint.  Events are issued
+			showing the configuration and status of the endpoint and associated objects.  These
+			events include <literal>EndpointDetail</literal>, <literal>AorDetail</literal>,
+			<literal>AuthDetail</literal>, <literal>TransportDetail</literal>, and
+			<literal>IdentifyDetail</literal>.  Some events may be listed multiple times if multiple objects are
+			associated (for instance AoRs).  Once all detail events have been raised a final
+			<literal>EndpointDetailComplete</literal> event is issued.
+                        </para>
+		</description>
+	</manager>
  ***/
 
 
@@ -1203,6 +1238,49 @@ struct ast_sip_endpoint *ast_sip_identify_endpoint(pjsip_rx_data *rdata)
 		}
 	}
 	return endpoint;
+}
+
+AST_RWLIST_HEAD_STATIC(endpoint_formatters, ast_sip_endpoint_formatter);
+
+int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+{
+	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_INSERT_TAIL(&endpoint_formatters, obj, next);
+	ast_module_ref(ast_module_info->self);
+	return 0;
+}
+
+void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+{
+	struct ast_sip_endpoint_formatter *i;
+	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&endpoint_formatters, i, next) {
+		if (i == obj) {
+			AST_RWLIST_REMOVE_CURRENT(next);
+			ast_module_unref(ast_module_info->self);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+}
+
+int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
+				struct ast_sip_ami *ami, int *count)
+{
+	int res = 0;
+	struct ast_sip_endpoint_formatter *i;
+	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	*count = 0;
+	AST_RWLIST_TRAVERSE(&endpoint_formatters, i, next) {
+		if (i->format_ami && ((res = i->format_ami(endpoint, ami)) < 0)) {
+			return res;
+		}
+
+		if (!res) {
+			(*count)++;
+		}
+	}
+	return 0;
 }
 
 pjsip_endpoint *ast_sip_get_pjsip_endpoint(void)
@@ -1964,7 +2042,7 @@ static int load_module(void)
 
 	ast_sip_initialize_global_headers();
 
-	if (ast_res_pjsip_initialize_configuration()) {
+	if (ast_res_pjsip_initialize_configuration(ast_module_info)) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
 		ast_sip_destroy_global_headers();
 		stop_monitor_thread();

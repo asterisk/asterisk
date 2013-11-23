@@ -32,6 +32,7 @@
 #include "asterisk/taskprocessor.h"
 #include "asterisk/cli.h"
 #include "asterisk/stasis_system.h"
+#include "res_pjsip/include/res_pjsip_private.h"
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_outbound_registration" language="en_US">
@@ -128,6 +129,20 @@
 				<para>The outbound registration to unregister.</para>
 			</parameter>
 		</syntax>
+	</manager>
+	<manager name="PJSIPShowRegistrationsOutbound" language="en_US">
+		<synopsis>
+			Lists PJSIP outbound registrations.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>
+			In response <literal>OutboundRegistrationDetail</literal> events showing configuration and status
+			information are raised for each outbound registration object. <literal>AuthDetail</literal>
+			events are raised for each associated auth object as well.  Once all events are completed an
+			<literal>OutboundRegistrationDetailComplete</literal> is issued.
+                        </para>
+		</description>
 	</manager>
  ***/
 
@@ -796,6 +811,12 @@ static int outbound_auth_handler(const struct aco_option *opt, struct ast_variab
 	return ast_sip_auth_array_init(&registration->outbound_auths, var->value);
 }
 
+static int outbound_auths_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct sip_outbound_registration *registration = obj;
+	return ast_sip_auths_to_str(&registration->outbound_auths, buf);
+}
+
 static struct sip_outbound_registration *retrieve_registration(const char *registration_name)
 {
 	return ast_sorcery_retrieve_by_id(
@@ -937,6 +958,85 @@ static struct ast_cli_entry cli_outbound_registration[] = {
 	AST_CLI_DEFINE(cli_unregister, "Send a REGISTER request to an outbound registration target with a expiration of 0")
 };
 
+struct sip_ami_outbound {
+	struct ast_sip_ami *ami;
+	int registered;
+	int not_registered;
+	struct sip_outbound_registration *registration;
+};
+
+static int ami_outbound_registration_task(void *obj)
+{
+	struct sip_ami_outbound *ami = obj;
+	RAII_VAR(struct ast_str *, buf,
+		 ast_sip_create_ami_event("OutboundRegistrationDetail", ami->ami), ast_free);
+
+	if (!buf) {
+		return -1;
+	}
+
+	ast_sip_sorcery_object_to_ami(ami->registration, &buf);
+
+	if (ami->registration->state) {
+		pjsip_regc_info info;
+		if (ami->registration->state->client_state->status ==
+		    SIP_REGISTRATION_REGISTERED) {
+			++ami->registered;
+		} else {
+			++ami->not_registered;
+		}
+
+		ast_str_append(&buf, 0, "Status: %s%s",
+			       sip_outbound_registration_status_str[
+				       ami->registration->state->client_state->status], "\r\n");
+
+		pjsip_regc_get_info(ami->registration->state->client_state->client, &info);
+		ast_str_append(&buf, 0, "NextReg: %d%s", info.next_reg, "\r\n");
+	}
+
+	astman_append(ami->ami->s, "%s\r\n", ast_str_buffer(buf));
+	return ast_sip_format_auths_ami(&ami->registration->outbound_auths, ami->ami);
+}
+
+static int ami_outbound_registration_detail(void *obj, void *arg, int flags)
+{
+	struct sip_ami_outbound *ami = arg;
+
+	ami->registration = obj;
+	return ast_sip_push_task_synchronous(
+		NULL, ami_outbound_registration_task, ami);
+}
+
+static int ami_show_outbound_registrations(struct mansession *s,
+					   const struct message *m)
+{
+	struct ast_sip_ami ami = { s = s, m = m };
+	struct sip_ami_outbound ami_outbound = { .ami = &ami };
+	RAII_VAR(struct ao2_container *, regs, ast_sorcery_retrieve_by_fields(
+			 ast_sip_get_sorcery(), "registration", AST_RETRIEVE_FLAG_MULTIPLE |
+			 AST_RETRIEVE_FLAG_ALL, NULL), ao2_cleanup);
+
+	if (!regs) {
+		astman_send_error(s, m, "Unable to retreive "
+				  "outbound registrations\n");
+		return -1;
+	}
+
+	astman_send_listack(s, m, "Following are Events for each Outbound "
+			    "registration", "start");
+
+	ao2_callback(regs, OBJ_NODATA, ami_outbound_registration_detail, &ami_outbound);
+
+	astman_append(s,
+		      "Event: OutboundRegistrationDetailComplete\r\n"
+		      "EventList: Complete\r\n"
+		      "Registered: %d\r\n"
+		      "NotRegistered: %d\r\n\r\n",
+		      ami_outbound.registered,
+		      ami_outbound.not_registered);
+	return 0;
+}
+
 static int load_module(void)
 {
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "registration", "config", "pjsip.conf,criteria=type=registration");
@@ -956,12 +1056,13 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "forbidden_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, forbidden_retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "max_retries", "10", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, max_retries));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "auth_rejection_permanent", "yes", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, auth_rejection_permanent));
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, 0, 0);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
 	sip_outbound_registration_perform_all();
 
 	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
+	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING,ami_show_outbound_registrations);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -975,6 +1076,7 @@ static int reload_module(void)
 static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
+	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
 	ast_manager_unregister("PJSIPUnregister");
 	return 0;
 }

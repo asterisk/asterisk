@@ -102,6 +102,9 @@ extern "C" {
 /*! \brief Maximum size of an object type */
 #define MAX_OBJECT_TYPE 64
 
+/*! \brief Maximum length of an object field name */
+#define MAX_OBJECT_FIELD 128
+
 /*!
  * \brief Retrieval flags
  */

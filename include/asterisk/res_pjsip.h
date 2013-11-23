@@ -1559,5 +1559,154 @@ void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
 #define ast_sip_mod_data_set(pool, mod_data, id, key, val)		\
 	mod_data[id] = ast_sip_dict_set(pool, mod_data[id], key, val)
 
+/*!
+ * \brief Function pointer for contact callbacks.
+ */
+typedef int (*on_contact_t)(const struct ast_sip_aor *aor,
+			    const struct ast_sip_contact *contact,
+			    int last, void *arg);
+
+/*!
+ * \brief For every contact on an AOR call the given 'on_contact' handler.
+ *
+ * \param aor the aor containing a list of contacts to iterate
+ * \param on_contact callback on each contact on an AOR
+ * \param arg user data passed to handler
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
+			     on_contact_t on_contact, void *arg);
+
+/*!
+ * \brief Handler used to convert a contact to a string.
+ *
+ * \param aor the aor containing a list of contacts to iterate
+ * \param contact the contact to convert
+ * \param last is this the last contact
+ * \param arg user data passed to handler
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_contact_to_str(const struct ast_sip_aor *aor,
+			   const struct ast_sip_contact *contact,
+			   int last, void *arg);
+
+/*!
+ * \brief For every aor in the comma separated aors string call the
+ *        given 'on_aor' handler.
+ *
+ * \param aors a comma separated list of aors
+ * \param on_aor callback for each aor
+ * \param arg user data passed to handler
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg);
+
+/*!
+ * \brief For every auth in the array call the given 'on_auth' handler.
+ *
+ * \param array an array of auths
+ * \param on_auth callback for each auth
+ * \param arg user data passed to handler
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_for_each_auth(const struct ast_sip_auth_array *array,
+			  ao2_callback_fn on_auth, void *arg);
+
+/*!
+ * \brief Converts the given auth type to a string
+ *
+ * \param type the auth type to convert
+ * \retval a string representative of the auth type
+ */
+const char *ast_sip_auth_type_to_str(enum ast_sip_auth_type type);
+
+/*!
+ * \brief Converts an auths array to a string of comma separated values
+ *
+ * \param auths an auth array
+ * \param buf the string buffer to write the object data
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_auths_to_str(const struct ast_sip_auth_array *auths, char **buf);
+
+/*
+ * \brief AMI variable container
+ */
+struct ast_sip_ami {
+	/*! Manager session */
+	struct mansession *s;
+	/*! Manager message */
+	const struct message *m;
+	/*! user specified argument data */
+	void *arg;
+};
+
+/*!
+ * \brief Creates a string to store AMI event data in.
+ *
+ * \param event the event to set
+ * \param ami AMI session and message container
+ * \retval an initialized ast_str or NULL on error.
+ */
+struct ast_str *ast_sip_create_ami_event(const char *event,
+					 struct ast_sip_ami *ami);
+
+/*!
+ * \brief An entity responsible formatting endpoint information.
+ */
+struct ast_sip_endpoint_formatter {
+	/*!
+	 * \brief Callback used to format endpoint information over AMI.
+	 */
+	int (*format_ami)(const struct ast_sip_endpoint *endpoint,
+			  struct ast_sip_ami *ami);
+	AST_RWLIST_ENTRY(ast_sip_endpoint_formatter) next;
+};
+
+/*!
+ * \brief Register an endpoint formatter.
+ *
+ * \param obj the formatter to register
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
+
+/*!
+ * \brief Unregister an endpoint formatter.
+ *
+ * \param obj the formatter to unregister
+ */
+void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
+
+/*!
+ * \brief Converts a sorcery object to a string of object properties.
+ *
+ * \param obj the sorcery object to convert
+ * \param str the string buffer to write the object data
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_sorcery_object_to_ami(const void *obj, struct ast_str **buf);
+
+/*!
+ * \brief Formats the endpoint and sends over AMI.
+ *
+ * \param endpoint the endpoint to format and send
+ * \param endpoint ami AMI variable container
+ * \param count the number of formatters operated on
+ * \retval 0 Success, otherwise non-zero on error
+ */
+int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
+				struct ast_sip_ami *ami, int *count);
+
+/*!
+ * \brief Format auth details for AMI.
+ *
+ * \param auths an auth array
+ * \param ami ami variable container
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_format_auths_ami(const struct ast_sip_auth_array *auths,
+			     struct ast_sip_ami *ami);
 
 #endif /* _RES_PJSIP_H */

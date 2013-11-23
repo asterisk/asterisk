@@ -332,7 +332,23 @@ int attribute_pure ast_true(const char *val);
 int attribute_pure ast_false(const char *val);
 
 /*
- *  \brief Join an array of strings into a single string.
+ * \brief Join an array of strings into a single string.
+ * \param s the resulting string buffer
+ * \param len the length of the result buffer, s
+ * \param w an array of strings to join.
+ * \param size the number of elements to join
+ * \param delim delimiter between elements
+ *
+ * This function will join all of the strings in the array 'w' into a single
+ * string.  It will also place 'delim' in the result buffer in between each
+ * string from 'w'.
+ * \since 12
+*/
+void ast_join_delim(char *s, size_t len, const char * const w[],
+		    unsigned int size, char delim);
+
+/*
+ * \brief Join an array of strings into a single string.
  * \param s the resulting string buffer
  * \param len the length of the result buffer, s
  * \param w an array of strings to join.
@@ -341,7 +357,33 @@ int attribute_pure ast_false(const char *val);
  * string.  It will also place a space in the result buffer in between each
  * string from 'w'.
 */
-void ast_join(char *s, size_t len, const char * const w[]);
+#define ast_join(s, len, w) ast_join_delim(s, len, w, -1, ' ')
+
+/*
+ * \brief Attempts to convert the given string to camel case using
+ *        the specified delimiter.
+ *
+ * note - returned string needs to be freed
+ *
+ * \param s the string to convert
+ * \param delim delimiter to parse out
+ *
+ * \retval The string converted to "CamelCase"
+ * \since 12
+*/
+char *ast_to_camel_case_delim(const char *s, const char *delim);
+
+/*
+ * \brief Attempts to convert the given string to camel case using
+ *        an underscore as the specified delimiter.
+ *
+ * note - returned string needs to be freed
+ *
+ * \param s the string to convert
+ *
+ * \retval The string converted to "CamelCase"
+*/
+#define ast_to_camel_case(s) ast_to_camel_case_delim(s, "_")
 
 /*
   \brief Parse a time (integer) string.

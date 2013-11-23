@@ -23,6 +23,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/logger.h"
 #include "asterisk/sorcery.h"
+#include "include/res_pjsip_private.h"
 
 static void auth_destroy(void *obj)
 {
@@ -58,6 +59,24 @@ static int auth_type_handler(const struct aco_option *opt, struct ast_variable *
 				var->value, var->name);
 		return -1;
 	}
+	return 0;
+}
+
+static const char *auth_types_map[] = {
+	[AST_SIP_AUTH_TYPE_USER_PASS] = "userpass",
+	[AST_SIP_AUTH_TYPE_MD5] = "md5"
+};
+
+const char *ast_sip_auth_type_to_str(enum ast_sip_auth_type type)
+{
+	return ARRAY_IN_BOUNDS(type, auth_types_map) ?
+		auth_types_map[type] : "";
+}
+
+static int auth_type_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_auth *auth = obj;
+	*buf = ast_strdup(ast_sip_auth_type_to_str(auth->type));
 	return 0;
 }
 
@@ -99,6 +118,84 @@ static int auth_apply(const struct ast_sorcery *sorcery, void *obj)
 	return res;
 }
 
+int ast_sip_for_each_auth(const struct ast_sip_auth_array *array,
+			  ao2_callback_fn on_auth, void *arg)
+{
+	int i;
+
+	if (!array || !array->num) {
+		return 0;
+	}
+
+	for (i = 0; i < array->num; ++i) {
+		RAII_VAR(struct ast_sip_auth *, auth, ast_sorcery_retrieve_by_id(
+				 ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE,
+				 array->names[i]), ao2_cleanup);
+
+		if (!auth) {
+			continue;
+		}
+
+		if (on_auth(auth, arg, 0)) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int sip_auth_to_ami(const struct ast_sip_auth *auth,
+			   struct ast_str **buf)
+{
+	return ast_sip_sorcery_object_to_ami(auth, buf);
+}
+
+static int format_ami_auth_handler(void *obj, void *arg, int flags)
+{
+	const struct ast_sip_auth *auth = obj;
+	struct ast_sip_ami *ami = arg;
+	const struct ast_sip_endpoint *endpoint = ami->arg;
+	RAII_VAR(struct ast_str *, buf,
+		 ast_sip_create_ami_event("AuthDetail", ami), ast_free);
+
+	if (!buf) {
+		return -1;
+	}
+
+	if (sip_auth_to_ami(auth, &buf)) {
+		return -1;
+	}
+
+	if (endpoint) {
+		ast_str_append(&buf, 0, "EndpointName: %s\r\n",
+		       ast_sorcery_object_get_id(endpoint));
+	}
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	return 0;
+}
+
+int ast_sip_format_auths_ami(const struct ast_sip_auth_array *auths,
+			     struct ast_sip_ami *ami)
+{
+	return ast_sip_for_each_auth(auths, format_ami_auth_handler, ami);
+}
+
+static int format_ami_endpoint_auth(const struct ast_sip_endpoint *endpoint,
+				    struct ast_sip_ami *ami)
+{
+	ami->arg = (void *)endpoint;
+	if (ast_sip_format_auths_ami(&endpoint->inbound_auths, ami)) {
+		return -1;
+	}
+
+	return ast_sip_format_auths_ami(&endpoint->outbound_auths, ami);
+}
+
+static struct ast_sip_endpoint_formatter endpoint_auth_formatter = {
+	.format_ami = format_ami_endpoint_auth
+};
+
 /*! \brief Initialize sorcery with auth support */
 int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery)
 {
@@ -121,7 +218,8 @@ int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register(sorcery, SIP_SORCERY_AUTH_TYPE, "nonce_lifetime",
 			"32", OPT_UINT_T, 0, FLDSET(struct ast_sip_auth, nonce_lifetime));
 	ast_sorcery_object_field_register_custom(sorcery, SIP_SORCERY_AUTH_TYPE, "auth_type",
-			"userpass", auth_type_handler, NULL, 0, 0);
+			"userpass", auth_type_handler, auth_type_to_str, 0, 0);
 
+	ast_sip_register_endpoint_formatter(&endpoint_auth_formatter);
 	return 0;
 }

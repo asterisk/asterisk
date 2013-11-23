@@ -31,6 +31,25 @@
 #include "asterisk/module.h"
 #include "asterisk/test.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/manager.h"
+#include "res_pjsip/include/res_pjsip_private.h"
+
+/*** DOCUMENTATION
+	<manager name="PJSIPShowRegistrationsInbound" language="en_US">
+		<synopsis>
+			Lists PJSIP inbound registrations.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>
+			In response <literal>InboundRegistrationDetail</literal> events showing configuration and status
+			information are raised for each inbound registration object.  As well as <literal>AuthDetail</literal>
+			events for each associated auth object.  Once all events are completed an
+			<literal>InboundRegistrationDetailComplete</literal> is issued.
+                        </para>
+		</description>
+	</manager>
+ ***/
 
 /*! \brief Internal function which returns the expiration time for a contact */
 static int registrar_get_expiration(const struct ast_sip_aor *aor, const pjsip_contact_hdr *contact, const pjsip_rx_data *rdata)
@@ -569,6 +588,66 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	return PJ_TRUE;
 }
 
+static int ami_registrations_aor(void *obj, void *arg, int flags)
+{
+	struct ast_sip_aor *aor = obj;
+	struct ast_sip_ami *ami = arg;
+	int *count = ami->arg;
+	RAII_VAR(struct ast_str *, buf,
+		 ast_sip_create_ami_event("InboundRegistrationDetail", ami), ast_free);
+
+	if (!buf) {
+		return -1;
+	}
+
+	ast_sip_sorcery_object_to_ami(aor, &buf);
+	ast_str_append(&buf, 0, "Contacts: ");
+	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, &buf);
+	ast_str_append(&buf, 0, "\r\n");
+
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	(*count)++;
+	return 0;
+}
+
+static int ami_registrations_endpoint(void *obj, void *arg, int flags)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	return ast_sip_for_each_aor(
+		endpoint->aors, ami_registrations_aor, arg);
+}
+
+static int ami_registrations_endpoints(void *arg)
+{
+	RAII_VAR(struct ao2_container *, endpoints,
+		 ast_sip_get_endpoints(), ao2_cleanup);
+
+	if (!endpoints) {
+		return 0;
+	}
+
+	ao2_callback(endpoints, OBJ_NODATA, ami_registrations_endpoint, arg);
+	return 0;
+}
+
+static int ami_show_registrations(struct mansession *s, const struct message *m)
+{
+	int count = 0;
+	struct ast_sip_ami ami = { .s = s, .m = m, .arg = &count };
+	astman_send_listack(s, m, "Following are Events for each Inbound "
+			    "registration", "start");
+
+	ami_registrations_endpoints(&ami);
+
+	astman_append(s,
+		      "Event: InboundRegistrationDetailComplete\r\n"
+		      "EventList: Complete\r\n"
+		      "ListItems: %d\r\n\r\n", count);
+	return 0;
+}
+
+#define AMI_SHOW_REGISTRATIONS "PJSIPShowRegistrationsInbound"
+
 static pjsip_module registrar_module = {
 	.name = { "Registrar", 9 },
 	.id = -1,
@@ -594,11 +673,15 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	ast_manager_register_xml(AMI_SHOW_REGISTRATIONS, EVENT_FLAG_SYSTEM,
+				 ami_show_registrations);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_manager_unregister(AMI_SHOW_REGISTRATIONS);
 	ast_sip_unregister_service(&registrar_module);
 
 	ao2_cleanup(serializers);

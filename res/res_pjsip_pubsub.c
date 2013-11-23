@@ -40,6 +40,38 @@
 #include "asterisk/taskprocessor.h"
 #include "asterisk/sched.h"
 #include "asterisk/res_pjsip.h"
+#include "asterisk/callerid.h"
+#include "asterisk/manager.h"
+#include "res_pjsip/include/res_pjsip_private.h"
+
+/*** DOCUMENTATION
+	<manager name="PJSIPShowSubscriptionsInbound" language="en_US">
+		<synopsis>
+			Lists subscriptions.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>
+			Provides a listing of all inbound subscriptions.  An event <literal>InboundSubscriptionDetail</literal>
+			is issued for each subscription object.  Once all detail events are completed an
+			<literal>InboundSubscriptionDetailComplete</literal> event is issued.
+                        </para>
+		</description>
+	</manager>
+	<manager name="PJSIPShowSubscriptionsOutbound" language="en_US">
+		<synopsis>
+			Lists subscriptions.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>
+			Provides a listing of all outbound subscriptions.  An event <literal>OutboundSubscriptionDetail</literal>
+			is issued for each subscription object.  Once all detail events are completed an
+			<literal>OutboundSubscriptionDetailComplete</literal> event is issued.
+                        </para>
+		</description>
+	</manager>
+ ***/
 
 static pj_bool_t pubsub_on_rx_request(pjsip_rx_data *rdata);
 
@@ -163,7 +195,87 @@ struct ast_sip_subscription {
 	pjsip_evsub *evsub;
 	/*! The underlying PJSIP dialog */
 	pjsip_dialog *dlg;
+	/*! Next item in the list */
+	AST_LIST_ENTRY(ast_sip_subscription) next;
 };
+
+static const char *sip_subscription_roles_map[] = {
+	[AST_SIP_SUBSCRIBER] = "Subscriber",
+	[AST_SIP_NOTIFIER] = "Notifier"
+};
+
+AST_RWLIST_HEAD_STATIC(subscriptions, ast_sip_subscription);
+
+static void add_subscription(struct ast_sip_subscription *obj)
+{
+	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_INSERT_TAIL(&subscriptions, obj, next);
+	ast_module_ref(ast_module_info->self);
+}
+
+static void remove_subscription(struct ast_sip_subscription *obj)
+{
+	struct ast_sip_subscription *i;
+	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscriptions, i, next) {
+		if (i == obj) {
+			AST_RWLIST_REMOVE_CURRENT(next);
+			ast_module_unref(ast_module_info->self);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+}
+
+typedef int (*on_subscription_t)(struct ast_sip_subscription *sub, void *arg);
+
+static int for_each_subscription(on_subscription_t on_subscription, void *arg)
+{
+	int num = 0;
+	struct ast_sip_subscription *i;
+	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+
+	if (!on_subscription) {
+		return num;
+	}
+
+	AST_RWLIST_TRAVERSE(&subscriptions, i, next) {
+		if (on_subscription(i, arg)) {
+			break;
+		}
+		++num;
+	}
+	return num;
+}
+
+static void sip_subscription_to_ami(struct ast_sip_subscription *sub,
+				    struct ast_str **buf)
+{
+	char str[256];
+	struct ast_sip_endpoint_id_configuration *id = &sub->endpoint->id;
+
+	ast_str_append(buf, 0, "Role: %s\r\n",
+		       sip_subscription_roles_map[sub->role]);
+	ast_str_append(buf, 0, "Endpoint: %s\r\n",
+		       ast_sorcery_object_get_id(sub->endpoint));
+
+	ast_copy_pj_str(str, &sub->dlg->call_id->id, sizeof(str));
+	ast_str_append(buf, 0, "Callid: %s\r\n", str);
+
+	ast_str_append(buf, 0, "State: %s\r\n", pjsip_evsub_get_state_name(
+			       ast_sip_subscription_get_evsub(sub)));
+
+	ast_callerid_merge(str, sizeof(str),
+			   S_COR(id->self.name.valid, id->self.name.str, NULL),
+			   S_COR(id->self.number.valid, id->self.number.str, NULL),
+			   "Unknown");
+
+	ast_str_append(buf, 0, "Callerid: %s\r\n", str);
+
+	if (sub->handler->to_ami) {
+		sub->handler->to_ami(sub, buf);
+	}
+}
 
 #define DATASTORE_BUCKETS 53
 
@@ -196,6 +308,7 @@ static void subscription_destructor(void *obj)
 	struct ast_sip_subscription *sub = obj;
 
 	ast_debug(3, "Destroying SIP subscription\n");
+	remove_subscription(sub);
 
 	ao2_cleanup(sub->datastores);
 	ao2_cleanup(sub->endpoint);
@@ -311,6 +424,8 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	ao2_ref(endpoint, +1);
 	sub->endpoint = endpoint;
 	sub->handler = handler;
+
+	add_subscription(sub);
 	return sub;
 }
 
@@ -1114,6 +1229,71 @@ static void pubsub_on_server_timeout(pjsip_evsub *evsub)
 	ast_sip_push_task(sub->serializer, serialized_pubsub_on_server_timeout, sub);
 }
 
+static int ami_subscription_detail(struct ast_sip_subscription *sub,
+				   struct ast_sip_ami *ami,
+				   const char *event)
+{
+	RAII_VAR(struct ast_str *, buf,
+		 ast_sip_create_ami_event(event, ami), ast_free);
+
+	if (!buf) {
+		return -1;
+	}
+
+	sip_subscription_to_ami(sub, &buf);
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	return 0;
+}
+
+static int ami_subscription_detail_inbound(struct ast_sip_subscription *sub, void *arg)
+{
+	return sub->role == AST_SIP_NOTIFIER ? ami_subscription_detail(
+		sub, arg, "InboundSubscriptionDetail") : 0;
+}
+
+static int ami_subscription_detail_outbound(struct ast_sip_subscription *sub, void *arg)
+{
+	return sub->role == AST_SIP_SUBSCRIBER ? ami_subscription_detail(
+		sub, arg, "OutboundSubscriptionDetail") : 0;
+}
+
+static int ami_show_subscriptions_inbound(struct mansession *s, const struct message *m)
+{
+	struct ast_sip_ami ami = { .s = s, .m = m };
+	int num;
+
+	astman_send_listack(s, m, "Following are Events for "
+			    "each inbound Subscription", "start");
+
+	num = for_each_subscription(ami_subscription_detail_inbound, &ami);
+
+	astman_append(s,
+		      "Event: InboundSubscriptionDetailComplete\r\n"
+		      "EventList: Complete\r\n"
+		      "ListItems: %d\r\n\r\n", num);
+	return 0;
+}
+
+static int ami_show_subscriptions_outbound(struct mansession *s, const struct message *m)
+{
+	struct ast_sip_ami ami = { .s = s, .m = m };
+	int num;
+
+	astman_send_listack(s, m, "Following are Events for "
+			    "each outbound Subscription", "start");
+
+	num = for_each_subscription(ami_subscription_detail_outbound, &ami);
+
+	astman_append(s,
+		      "Event: OutboundSubscriptionDetailComplete\r\n"
+		      "EventList: Complete\r\n"
+		      "ListItems: %d\r\n\r\n", num);
+	return 0;
+}
+
+#define AMI_SHOW_SUBSCRIPTIONS_INBOUND "PJSIPShowSubscriptionsInbound"
+#define AMI_SHOW_SUBSCRIPTIONS_OUTBOUND "PJSIPShowSubscriptionsOutbound"
+
 static int load_module(void)
 {
 	static const pj_str_t str_PUBLISH = { "PUBLISH", 7 };
@@ -1139,11 +1319,19 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
+	ast_manager_register_xml(AMI_SHOW_SUBSCRIPTIONS_INBOUND, EVENT_FLAG_SYSTEM,
+				 ami_show_subscriptions_inbound);
+	ast_manager_register_xml(AMI_SHOW_SUBSCRIPTIONS_OUTBOUND, EVENT_FLAG_SYSTEM,
+				 ami_show_subscriptions_outbound);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_manager_unregister(AMI_SHOW_SUBSCRIPTIONS_OUTBOUND);
+	ast_manager_unregister(AMI_SHOW_SUBSCRIPTIONS_INBOUND);
+
 	if (sched) {
 		ast_sched_context_destroy(sched);
 	}

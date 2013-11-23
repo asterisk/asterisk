@@ -1707,7 +1707,7 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 	return dataPut;
 }
 
-void ast_join(char *s, size_t len, const char * const w[])
+void ast_join_delim(char *s, size_t len, const char * const w[], unsigned int size, char delim)
 {
 	int x, ofs = 0;
 	const char *src;
@@ -1715,15 +1715,34 @@ void ast_join(char *s, size_t len, const char * const w[])
 	/* Join words into a string */
 	if (!s)
 		return;
-	for (x = 0; ofs < len && w[x]; x++) {
+	for (x = 0; ofs < len && w[x] && x < size; x++) {
 		if (x > 0)
-			s[ofs++] = ' ';
+			s[ofs++] = delim;
 		for (src = w[x]; *src && ofs < len; src++)
 			s[ofs++] = *src;
 	}
 	if (ofs == len)
 		ofs--;
 	s[ofs] = '\0';
+}
+
+char *ast_to_camel_case_delim(const char *s, const char *delim)
+{
+	char *res = ast_strdup(s);
+	char *front, *back, *buf = res;
+	int size;
+
+	front = strtok_r(buf, delim, &back);
+
+	while (front) {
+		size = strlen(front);
+		*front = toupper(*front);
+		ast_copy_string(buf, front, size + 1);
+		buf += size;
+		front = strtok_r(NULL, delim, &back);
+	}
+
+	return res;
 }
 
 /*
