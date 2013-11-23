@@ -79,15 +79,12 @@ static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate
 	/* Setup the factories that are needed for this audiohook type */
 	switch (audiohook->type) {
 	case AST_AUDIOHOOK_TYPE_SPY:
-		if (reset) {
-			ast_slinfactory_destroy(&audiohook->read_factory);
-		}
-		ast_slinfactory_init_with_format(&audiohook->read_factory, &slin);
-		/* fall through */
 	case AST_AUDIOHOOK_TYPE_WHISPER:
 		if (reset) {
+			ast_slinfactory_destroy(&audiohook->read_factory);
 			ast_slinfactory_destroy(&audiohook->write_factory);
 		}
+		ast_slinfactory_init_with_format(&audiohook->read_factory, &slin);
 		ast_slinfactory_init_with_format(&audiohook->write_factory, &slin);
 		break;
 	default:
@@ -134,8 +131,8 @@ int ast_audiohook_destroy(struct ast_audiohook *audiohook)
 	/* Drop the factories used by this audiohook type */
 	switch (audiohook->type) {
 	case AST_AUDIOHOOK_TYPE_SPY:
-		ast_slinfactory_destroy(&audiohook->read_factory);
 	case AST_AUDIOHOOK_TYPE_WHISPER:
+		ast_slinfactory_destroy(&audiohook->read_factory);
 		ast_slinfactory_destroy(&audiohook->write_factory);
 		break;
 	default:
@@ -815,11 +812,12 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	AST_LIST_TRAVERSE_SAFE_END;
 
 	/* If this frame is being written out to the channel then we need to use whisper sources */
-	if (direction == AST_AUDIOHOOK_DIRECTION_WRITE && !AST_LIST_EMPTY(&audiohook_list->whisper_list)) {
+	if (!AST_LIST_EMPTY(&audiohook_list->whisper_list)) {
 		int i = 0;
 		short read_buf[samples], combine_buf[samples], *data1 = NULL, *data2 = NULL;
 		memset(&combine_buf, 0, sizeof(combine_buf));
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&audiohook_list->whisper_list, audiohook, list) {
+			struct ast_slinfactory *factory = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook->read_factory : &audiohook->write_factory);
 			ast_audiohook_lock(audiohook);
 			if (audiohook->status != AST_AUDIOHOOK_STATUS_RUNNING) {
 				AST_LIST_REMOVE_CURRENT(list);
@@ -829,7 +827,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				continue;
 			}
 			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
-			if (ast_slinfactory_available(&audiohook->write_factory) >= samples && ast_slinfactory_read(&audiohook->write_factory, read_buf, samples)) {
+			if (ast_slinfactory_available(factory) >= samples && ast_slinfactory_read(factory, read_buf, samples)) {
 				/* Take audio from this whisper source and combine it into our main buffer */
 				for (i = 0, data1 = combine_buf, data2 = read_buf; i < samples; i++, data1++, data2++)
 					ast_slinear_saturated_add(data1, data2);

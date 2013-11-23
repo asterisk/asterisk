@@ -386,5 +386,28 @@ struct ast_ari_channels_set_channel_var_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_set_channel_var(struct ast_variable *headers, struct ast_ari_channels_set_channel_var_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_snoop_channel() */
+struct ast_ari_channels_snoop_channel_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+	/*! \brief Direction of audio to spy on */
+	const char *spy;
+	/*! \brief Direction of audio to whisper into */
+	const char *whisper;
+	/*! \brief Application the snooping channel is placed into */
+	const char *app;
+	/*! \brief The application arguments to pass to the Stasis application */
+	const char *app_args;
+};
+/*!
+ * \brief Start snooping.
+ *
+ * Snoop (spy/whisper) on a specific channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_snoop_channel(struct ast_variable *headers, struct ast_ari_channels_snoop_channel_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */
