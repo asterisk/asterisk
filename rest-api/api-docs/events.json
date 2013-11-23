@@ -153,11 +153,6 @@
 					"type": "LiveRecording",
 					"description": "Recording control object",
 					"required": true
-				},
-				"cause": {
-					"type": "string",
-					"description": "Cause for the recording failure",
-					"required": true
 				}
 			}
 		},

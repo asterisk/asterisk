@@ -1032,6 +1032,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - id: string (required)
  * - technology: string (required)
  * LiveRecording
+ * - cause: string
  * - format: string (required)
  * - name: string (required)
  * - state: string (required)
@@ -1167,7 +1168,6 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date
  * - playback: Playback (required)
  * RecordingFailed
- * - cause: string (required)
  * - recording: LiveRecording (required)
  * RecordingFinished
  * - recording: LiveRecording (required)

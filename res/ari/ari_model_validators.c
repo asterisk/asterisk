@@ -996,6 +996,15 @@ int ast_ari_validate_live_recording(struct ast_json *json)
 	int has_state = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("cause", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LiveRecording field cause failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("format", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_format = 1;
@@ -3292,20 +3301,9 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
-	int has_cause = 0;
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
-		if (strcmp("cause", ast_json_object_iter_key(iter)) == 0) {
-			int prop_is_valid;
-			has_cause = 1;
-			prop_is_valid = ast_ari_validate_string(
-				ast_json_object_iter_value(iter));
-			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI RecordingFailed field cause failed validation\n");
-				res = 0;
-			}
-		} else
 		if (strcmp("recording", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_recording = 1;
@@ -3322,11 +3320,6 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 				ast_json_object_iter_key(iter));
 			res = 0;
 		}
-	}
-
-	if (!has_cause) {
-		ast_log(LOG_ERROR, "ARI RecordingFailed missing required field cause\n");
-		res = 0;
 	}
 
 	if (!has_recording) {
