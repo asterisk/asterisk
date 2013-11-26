@@ -569,8 +569,8 @@
 /* Define if your system has the PJPROJECT libraries. */
 #undef HAVE_PJPROJECT
 
-/* Define to 1 if pjsip has the PJSIP Transaction Group Lock Support feature.
-   */
+/* Define to 1 if PJPROJECT has the PJSIP Transaction Group Lock Support
+   feature. */
 #undef HAVE_PJ_TRANSACTION_GRP_LOCK
 
 /* Define to 1 if your system defines IP_PKTINFO. */
