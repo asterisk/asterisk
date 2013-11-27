@@ -59,11 +59,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_asterisk_get_info_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_asterisk_get_info_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -115,6 +118,53 @@ static void ast_ari_asterisk_get_info_cb(
 		} else
 		{}
 	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "only");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args.only);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args.only_count = ast_json_array_size(field);
+			args.only = ast_malloc(sizeof(*args.only) * args.only_count);
+
+			if (!args.only) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			for (i = 0; i < args.only_count; ++i) {
+				args.only[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args.only_count = 1;
+			args.only = ast_malloc(sizeof(*args.only) * args.only_count);
+			if (!args.only) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+			args.only[0] = ast_json_string_get(field);
+		}
+	}
 	ast_ari_asterisk_get_info(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -157,11 +207,14 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_asterisk_get_global_var_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_asterisk_get_global_var_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -172,6 +225,26 @@ static void ast_ari_asterisk_get_global_var_cb(
 			args.variable = (i->value);
 		} else
 		{}
+	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args.variable = ast_json_string_get(field);
 	}
 	ast_ari_asterisk_get_global_var(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -214,11 +287,14 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_asterisk_set_global_var_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_asterisk_set_global_var_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -232,6 +308,30 @@ static void ast_ari_asterisk_set_global_var_cb(
 			args.value = (i->value);
 		} else
 		{}
+	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args.variable = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "value");
+	if (field) {
+		args.value = ast_json_string_get(field);
 	}
 	ast_ari_asterisk_set_global_var(headers, &args, response);
 #if defined(AST_DEVMODE)

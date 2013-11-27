@@ -50,15 +50,16 @@ struct ast_ari_response;
 
 /*!
  * \brief Callback type for RESTful method handlers.
+ * \param ser TCP/TLS session object
  * \param get_params GET parameters from the HTTP request.
  * \param path_vars Path variables from any wildcard path segments.
  * \param headers HTTP headers from the HTTP requiest.
  * \param[out] response The RESTful response.
  */
-typedef void (*stasis_rest_callback)(struct ast_variable *get_params,
-				     struct ast_variable *path_vars,
-				     struct ast_variable *headers,
-				     struct ast_ari_response *response);
+typedef void (*stasis_rest_callback)(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response);
 
 /*!
  * \brief Handler for a single RESTful path segment.

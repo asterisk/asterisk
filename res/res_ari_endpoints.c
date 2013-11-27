@@ -59,10 +59,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_endpoints_list_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_endpoints_list_args args = {};
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -108,11 +110,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_endpoints_list_by_tech_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_endpoints_list_by_tech_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -165,11 +169,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_endpoints_get_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_endpoints_get_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;

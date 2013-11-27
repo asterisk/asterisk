@@ -59,10 +59,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_list_stored_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_list_stored_args args = {};
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -108,11 +110,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_get_stored_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_get_stored_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -165,11 +169,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_delete_stored_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_delete_stored_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -222,11 +228,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_get_live_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_get_live_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -279,11 +287,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_cancel_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_cancel_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -336,11 +346,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_stop_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_stop_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -393,11 +405,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_pause_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_pause_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -451,11 +465,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_unpause_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_unpause_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -509,11 +525,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_mute_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_mute_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -567,11 +585,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_recordings_unmute_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_recordings_unmute_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;

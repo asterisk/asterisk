@@ -146,6 +146,15 @@ class AsteriskProcessor(SwaggerPostProcessor):
         'boolean': 'ast_true',
     }
 
+    #: JSON conversion functions
+    json_convert_mapping = {
+        'string': 'ast_json_string_get',
+        'int': 'ast_json_integer_get',
+        'long': 'ast_json_integer_get',
+        'double': 'ast_json_real_get',
+        'boolean': 'ast_json_is_true',
+    }
+
     def __init__(self, wiki_prefix):
         self.wiki_prefix = wiki_prefix
 
@@ -190,15 +199,22 @@ class AsteriskProcessor(SwaggerPostProcessor):
             raise SwaggerError("Summary should end with .", context)
         operation.wiki_summary = wikify(operation.summary or "")
         operation.wiki_notes = wikify(operation.notes or "")
+        operation.parse_body = (operation.body_parameter or operation.has_query_parameters) and True
 
     def process_parameter(self, parameter, context):
-        if not parameter.data_type in self.type_mapping:
-            raise SwaggerError(
-                "Invalid parameter type %s" % parameter.data_type, context)
+        if parameter.param_type == 'body':
+            parameter.c_data_type = 'struct ast_json *'
+        else:
+            if not parameter.data_type in self.type_mapping:
+                raise SwaggerError(
+                    "Invalid parameter type %s" % parameter.data_type, context)
+            # Type conversions
+            parameter.c_data_type = self.type_mapping[parameter.data_type]
+            parameter.c_convert = self.convert_mapping[parameter.data_type]
+            parameter.json_convert = self.json_convert_mapping[parameter.data_type]
+
         # Parameter names are camelcase, Asterisk convention is snake case
         parameter.c_name = snakify(parameter.name)
-        parameter.c_data_type = self.type_mapping[parameter.data_type]
-        parameter.c_convert = self.convert_mapping[parameter.data_type]
         # You shouldn't put a space between 'char *' and the variable
         if parameter.c_data_type.endswith('*'):
             parameter.c_space = ''

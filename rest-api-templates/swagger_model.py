@@ -377,8 +377,9 @@ class Operation(Stringify):
         if self.is_websocket:
             self.websocket_protocol = op_json.get('websocketProtocol')
             if self.http_method != 'GET':
-                raise ValueError(
-                    "upgrade: websocket is only valid on GET operations")
+                raise SwaggerError(
+                    "upgrade: websocket is only valid on GET operations",
+                    context)
 
         params_json = op_json.get('parameters') or []
         self.parameters = [
@@ -394,6 +395,14 @@ class Operation(Stringify):
         self.has_header_parameters = self.header_parameters and True
         self.has_parameters = self.has_query_parameters or \
             self.has_path_parameters or self.has_header_parameters
+
+        # Body param is different, since there's at most one
+        self.body_parameter = [
+            p for p in self.parameters if p.is_type('body')]
+        if len(self.body_parameter) > 1:
+            raise SwaggerError("Cannot have more than one body param", context)
+        self.body_parameter = self.body_parameter and self.body_parameter[0]
+
         self.summary = op_json.get('summary')
         self.notes = op_json.get('notes')
         err_json = op_json.get('errorResponses') or []
