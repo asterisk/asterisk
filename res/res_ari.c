@@ -539,7 +539,7 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 		return;
 	}
 
-	callback(get_params, path_vars, headers, response);
+	callback(ser, get_params, path_vars, headers, response);
 	if (response->message == NULL && response->response_code == 0) {
 		/* Really should not happen */
 		ast_log(LOG_ERROR, "ARI %s %s not implemented\n",

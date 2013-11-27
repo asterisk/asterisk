@@ -212,5 +212,17 @@ void ast_http_prefix(char *buf, int len);
  */
 struct ast_variable *ast_http_get_post_vars(struct ast_tcptls_session_instance *ser, struct ast_variable *headers);
 
+struct ast_json;
+
+/*!\brief Get JSON from client Request Entity-Body, if content type is
+ *        application/json.
+ * \param ser TCP/TLS session object
+ * \param headers List of HTTP headers
+ * \return Parsed JSON content body
+ * \return \c NULL on error, if no content, or if different content type.
+ * \since 12
+ */
+struct ast_json *ast_http_get_json(
+	struct ast_tcptls_session_instance *ser, struct ast_variable *headers);
 
 #endif /* _ASTERISK_SRV_H */

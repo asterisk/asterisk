@@ -59,11 +59,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_playbacks_get_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_playbacks_get_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -116,11 +118,13 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_playbacks_stop_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_playbacks_stop_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -173,11 +177,14 @@ fin: __attribute__((unused))
  * \param[out] response Response to the HTTP request.
  */
 static void ast_ari_playbacks_control_cb(
+	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
 	struct ast_ari_playbacks_control_args args = {};
 	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -194,6 +201,26 @@ static void ast_ari_playbacks_control_cb(
 			args.playback_id = (i->value);
 		} else
 		{}
+	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "operation");
+	if (field) {
+		args.operation = ast_json_string_get(field);
 	}
 	ast_ari_playbacks_control(headers, &args, response);
 #if defined(AST_DEVMODE)

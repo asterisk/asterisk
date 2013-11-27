@@ -95,10 +95,11 @@ static void handler(const char *name,
  * Macro to reduce the handler definition boiler-plate.
  */
 #define HANDLER(name, response_code)					\
-	static void name(struct ast_variable *get_params,		\
-			 struct ast_variable *path_vars,		\
-			 struct ast_variable *headers,			\
-			 struct ast_ari_response *response)		\
+	static void name(struct ast_tcptls_session_instance *ser,	\
+		struct ast_variable *get_params,			\
+		struct ast_variable *path_vars,				\
+		struct ast_variable *headers,				\
+		struct ast_ari_response *response)			\
 	{								\
 		handler(#name, response_code, get_params, path_vars, headers, response); \
 	}

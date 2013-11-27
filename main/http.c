@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/_private.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/json.h"
 
 #define MAX_PREFIX 80
 #define DEFAULT_PORT 8088
@@ -607,6 +608,91 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 
 #define MAX_POST_CONTENT 1025
 
+static const char *get_content_type(struct ast_variable *headers)
+{
+	struct ast_variable *v;
+
+	for (v = headers; v; v = v->next) {
+		if (strcasecmp(v->name, "Content-Type") == 0) {
+			return v->value;
+		}
+	}
+
+	/* Missing content type; assume empty string */
+	return "";
+}
+
+static int get_content_length(struct ast_variable *headers)
+{
+	struct ast_variable *v;
+
+	for (v = headers; v; v = v->next) {
+		if (!strcasecmp(v->name, "Content-Length")) {
+			return atoi(v->value);
+		}
+	}
+
+	/* Missing content length; assume zero */
+	return 0;
+}
+
+struct ast_json *ast_http_get_json(
+	struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
+{
+	int content_length = 0;
+	int res;
+	struct ast_json *body;
+	RAII_VAR(char *, buf, NULL, ast_free);
+
+	/* Use errno to distinguish errors from no body */
+	errno = 0;
+
+	if (strcasecmp(get_content_type(headers), "application/json") != 0) {
+		/* Content type is not JSON */
+		return NULL;
+	}
+
+	content_length = get_content_length(headers);
+
+	if (content_length <= 0) {
+		/* No content (or streaming content). */
+		return NULL;
+	}
+
+	if (content_length > MAX_POST_CONTENT - 1) {
+		ast_log(LOG_WARNING,
+			"Excessively long HTTP content. (%d > %d)\n",
+			content_length, MAX_POST_CONTENT);
+		errno = EFBIG;
+		return NULL;
+	}
+
+	buf = ast_malloc(content_length);
+	if (!buf) {
+		/* Malloc sets ENOMEM */
+		return NULL;
+	}
+
+	res = fread(buf, 1, content_length, ser->f);
+	if (res < content_length) {
+		/* Error, distinguishable by ferror() or feof(), but neither
+		 * is good. Treat either one as I/O error */
+		ast_log(LOG_WARNING, "Short HTTP request body (%d < %d)\n",
+			res, content_length);
+		errno = EIO;
+		return NULL;
+	}
+
+	body = ast_json_load_buf(buf, content_length, NULL);
+	if (body == NULL) {
+		/* Failed to parse JSON; treat as an I/O error */
+		errno = EIO;
+		return NULL;
+	}
+
+	return body;
+}
+
 /*
  * get post variables from client Request Entity-Body, if content type is
  * application/x-www-form-urlencoded
@@ -623,21 +709,12 @@ struct ast_variable *ast_http_get_post_vars(
 	/* Use errno to distinguish errors from no params */
 	errno = 0;
 
-	for (v = headers; v; v = v->next) {
-		if (!strcasecmp(v->name, "Content-Type")) {
-			if (strcasecmp(v->value, "application/x-www-form-urlencoded")) {
-				return NULL;
-			}
-			break;
-		}
+	if (strcasecmp(get_content_type(headers), "application/x-www-form-urlencoded") != 0) {
+		/* Content type is not form data */
+		return NULL;
 	}
 
-	for (v = headers; v; v = v->next) {
-		if (!strcasecmp(v->name, "Content-Length")) {
-			content_length = atoi(v->value);
-			break;
-		}
-	}
+	content_length = get_content_length(headers);
 
 	if (content_length <= 0) {
 		return NULL;
