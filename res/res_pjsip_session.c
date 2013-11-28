@@ -2065,13 +2065,31 @@ static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t stat
 static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const pjsip_uri *target, const pjsip_event *e)
 {
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	const pjsip_sip_uri *uri;
 
-	if (PJSIP_URI_SCHEME_IS_SIP(target) || PJSIP_URI_SCHEME_IS_SIPS(target)) {
-		const pjsip_sip_uri *uri = pjsip_uri_get_uri(target);
+	if (session->endpoint->redirect_method == AST_SIP_REDIRECT_URI_PJSIP) {
+		return PJSIP_REDIRECT_ACCEPT;
+	}
+
+	if (!PJSIP_URI_SCHEME_IS_SIP(target) && !PJSIP_URI_SCHEME_IS_SIPS(target)) {
+		return PJSIP_REDIRECT_STOP;
+	}
+
+	uri = pjsip_uri_get_uri(target);
+
+	if (session->endpoint->redirect_method == AST_SIP_REDIRECT_USER) {
 		char exten[AST_MAX_EXTENSION];
 
 		ast_copy_pj_str(exten, &uri->user, sizeof(exten));
 		ast_channel_call_forward_set(session->channel, exten);
+	} else if (session->endpoint->redirect_method == AST_SIP_REDIRECT_URI_CORE) {
+		char target_uri[PJSIP_MAX_URL_SIZE];
+		/* PJSIP/ + endpoint length + / + max URL size */
+		char forward[8 + strlen(ast_sorcery_object_get_id(session->endpoint)) + PJSIP_MAX_URL_SIZE];
+
+		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, uri, target_uri, sizeof(target_uri));
+		sprintf(forward, "PJSIP/%s/%s", ast_sorcery_object_get_id(session->endpoint), target_uri);
+		ast_channel_call_forward_set(session->channel, forward);
 	}
 
 	return PJSIP_REDIRECT_STOP;

@@ -244,6 +244,27 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="redirect_method">
+					<synopsis>How redirects received from an endpoint are handled</synopsis>
+					<description><para>
+						When a redirect is received from an endpoint there are multiple ways it can be handled.
+						If this option is set to <literal>user</literal> the user portion of the redirect target
+						is treated as an extension within the dialplan and dialed using a Local channel. If this option
+						is set to <literal>uri_core</literal> the target URI is returned to the dialing application
+						which dials it using the PJSIP channel driver and endpoint originally used. If this option is
+						set to <literal>uri_pjsip</literal> the redirect occurs within chan_pjsip itself and is not exposed
+						to the core at all. The <literal>uri_pjsip</literal> option has the benefit of being more efficient
+						and also supporting multiple potential redirect targets. The con is that since redirection occurs
+						within chan_pjsip redirecting information is not forwarded and redirection can not be
+						prevented.
+						</para>
+						<enumlist>
+							<enum name="user" />
+							<enum name="uri_core" />
+							<enum name="uri_pjsip" />
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="mailboxes">
 					<synopsis>Mailbox(es) to be associated with</synopsis>
 				</configOption>

@@ -316,6 +316,15 @@ enum ast_sip_session_media_encryption {
 	AST_SIP_MEDIA_ENCRYPT_DTLS,
 };
 
+enum ast_sip_session_redirect {
+	/*! User portion of the target URI should be used as the target in the dialplan */
+	AST_SIP_REDIRECT_USER = 0,
+	/*! Target URI should be used as the target in the dialplan */
+	AST_SIP_REDIRECT_URI_CORE,
+	/*! Target URI should be used as the target within chan_pjsip itself */
+	AST_SIP_REDIRECT_URI_PJSIP,
+};
+
 /*!
  * \brief Session timers options
  */
@@ -574,6 +583,8 @@ struct ast_sip_endpoint {
 	unsigned int faxdetect;
 	/*! Determines if transfers (using REFER) are allowed by this endpoint */
 	unsigned int allowtransfer;
+	/*! Method used when handling redirects */
+	enum ast_sip_session_redirect redirect_method;
 };
 
 /*!
