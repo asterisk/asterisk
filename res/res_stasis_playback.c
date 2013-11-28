@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/uuid.h"
+#include "asterisk/say.h"
 
 /*! Number of hash buckets for playback container. Keep it prime! */
 #define PLAYBACK_BUCKETS 127
@@ -56,6 +57,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SOUND_URI_SCHEME "sound:"
 #define RECORDING_URI_SCHEME "recording:"
+#define NUMBER_URI_SCHEME "number:"
+#define DIGITS_URI_SCHEME "digits:"
+#define CHARACTERS_URI_SCHEME "characters:"
 
 /*! Container of all current playbacks */
 static struct ao2_container *playbacks;
@@ -74,15 +78,16 @@ struct stasis_app_playback {
 	long offsetms;
 	/*! Number of milliseconds to skip for forward/reverse operations */
 	int skipms;
-
-	/*! Set when playback has been completed */
-	int done;
 	/*! Condition for waiting on done to be set */
 	ast_cond_t done_cond;
 	/*! Number of milliseconds of media that has been played */
 	long playedms;
 	/*! Current playback state */
 	enum stasis_app_playback_state state;
+	/*! Set when playback has been completed */
+	unsigned int done:1;
+	/*! Set when the playback can be controlled */
+	unsigned int controllable:1;
 };
 
 static struct ast_json *playback_to_json(struct stasis_message *message,
@@ -272,8 +277,6 @@ static void play_on_channel(struct stasis_app_playback *playback,
 {
 	RAII_VAR(struct stasis_app_playback *, mark_when_done, playback,
 		mark_as_done);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
-	RAII_VAR(char *, file, NULL, ast_free);
 	int res;
 	long offsetms;
 
@@ -301,8 +304,12 @@ static void play_on_channel(struct stasis_app_playback *playback,
 	}
 
 	if (ast_begins_with(playback->media, SOUND_URI_SCHEME)) {
+		playback->controllable = 1;
+
 		/* Play sound */
-		file = ast_strdup(playback->media + strlen(SOUND_URI_SCHEME));
+		res = ast_control_streamfile_lang(chan, playback->media + strlen(SOUND_URI_SCHEME),
+				fwd, rev, stop, pause, restart, playback->skipms, playback->language,
+				&offsetms);
 	} else if (ast_begins_with(playback->media, RECORDING_URI_SCHEME)) {
 		/* Play recording */
 		RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
@@ -310,22 +317,40 @@ static void play_on_channel(struct stasis_app_playback *playback,
 		const char *relname =
 			playback->media + strlen(RECORDING_URI_SCHEME);
 		recording = stasis_app_stored_recording_find_by_name(relname);
-		if (recording) {
-			file = ast_strdup(stasis_app_stored_recording_get_file(
-					recording));
+
+		if (!recording) {
+			ast_log(LOG_ERROR, "Attempted to play recording '%s' on channel '%s' but recording does not exist",
+				ast_channel_name(chan), relname);
+			return;
 		}
+
+		playback->controllable = 1;
+
+		res = ast_control_streamfile_lang(chan,
+			stasis_app_stored_recording_get_file(recording), fwd, rev, stop, pause,
+			restart, playback->skipms, playback->language, &offsetms);
+	} else if (ast_begins_with(playback->media, NUMBER_URI_SCHEME)) {
+		int number;
+
+		if (sscanf(playback->media + strlen(NUMBER_URI_SCHEME), "%30d", &number) != 1) {
+			ast_log(LOG_ERROR, "Attempted to play number '%s' on channel '%s' but number is invalid",
+				ast_channel_name(chan), playback->media + strlen(NUMBER_URI_SCHEME));
+			return;
+		}
+
+		res = ast_say_number(chan, number, stop, playback->language, NULL);
+	} else if (ast_begins_with(playback->media, DIGITS_URI_SCHEME)) {
+		res = ast_say_digit_str(chan, playback->media + strlen(DIGITS_URI_SCHEME),
+			stop, playback->language);
+	} else if (ast_begins_with(playback->media, CHARACTERS_URI_SCHEME)) {
+		res = ast_say_character_str(chan, playback->media + strlen(CHARACTERS_URI_SCHEME),
+			stop, playback->language, AST_SAY_CASE_NONE);
 	} else {
 		/* Play URL */
-		ast_log(LOG_ERROR, "Unimplemented\n");
+		ast_log(LOG_ERROR, "Attempted to play URI '%s' on channel '%s' but scheme is unsupported",
+			ast_channel_name(chan), playback->media);
 		return;
 	}
-
-	if (!file) {
-		return;
-	}
-
-	res = ast_control_streamfile_lang(chan, file, fwd, rev, stop, pause,
-		restart, playback->skipms, playback->language, &offsetms);
 
 	playback_final_update(playback, offsetms, res,
 		ast_channel_uniqueid(chan));
@@ -527,6 +552,11 @@ static int playback_cancel(struct stasis_app_playback *playback)
 static int playback_stop(struct stasis_app_playback *playback)
 {
 	SCOPED_AO2LOCK(lock, playback);
+
+	if (!playback->controllable) {
+		return -1;
+	}
+
 	playback->state = STASIS_PLAYBACK_STATE_STOPPED;
 	return stasis_app_control_queue_control(playback->control,
 		AST_CONTROL_STREAM_STOP);
@@ -534,6 +564,12 @@ static int playback_stop(struct stasis_app_playback *playback)
 
 static int playback_restart(struct stasis_app_playback *playback)
 {
+	SCOPED_AO2LOCK(lock, playback);
+
+	if (!playback->controllable) {
+		return -1;
+	}
+
 	return stasis_app_control_queue_control(playback->control,
 		AST_CONTROL_STREAM_RESTART);
 }
@@ -541,8 +577,14 @@ static int playback_restart(struct stasis_app_playback *playback)
 static int playback_pause(struct stasis_app_playback *playback)
 {
 	SCOPED_AO2LOCK(lock, playback);
+
+	if (!playback->controllable) {
+		return -1;
+	}
+
 	playback->state = STASIS_PLAYBACK_STATE_PAUSED;
 	playback_publish(playback);
+
 	return stasis_app_control_queue_control(playback->control,
 		AST_CONTROL_STREAM_SUSPEND);
 }
@@ -550,20 +592,38 @@ static int playback_pause(struct stasis_app_playback *playback)
 static int playback_unpause(struct stasis_app_playback *playback)
 {
 	SCOPED_AO2LOCK(lock, playback);
+
+	if (!playback->controllable) {
+		return -1;
+	}
+
 	playback->state = STASIS_PLAYBACK_STATE_PLAYING;
 	playback_publish(playback);
+
 	return stasis_app_control_queue_control(playback->control,
 		AST_CONTROL_STREAM_SUSPEND);
 }
 
 static int playback_reverse(struct stasis_app_playback *playback)
 {
+	SCOPED_AO2LOCK(lock, playback);
+
+	if (!playback->controllable) {
+		return -1;
+	}
+
 	return stasis_app_control_queue_control(playback->control,
 		AST_CONTROL_STREAM_REVERSE);
 }
 
 static int playback_forward(struct stasis_app_playback *playback)
 {
+	SCOPED_AO2LOCK(lock, playback);
+
+	if (!playback->controllable) {
+		return -1;
+	}
+
 	return stasis_app_control_queue_control(playback->control,
 		AST_CONTROL_STREAM_FORWARD);
 }
