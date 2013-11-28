@@ -455,6 +455,25 @@ static int ident_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int redirect_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	if (!strcasecmp(var->value, "user")) {
+		endpoint->redirect_method = AST_SIP_REDIRECT_USER;
+	} else if (!strcasecmp(var->value, "uri_core")) {
+		endpoint->redirect_method = AST_SIP_REDIRECT_URI_CORE;
+	} else if (!strcasecmp(var->value, "uri_pjsip")) {
+		endpoint->redirect_method = AST_SIP_REDIRECT_URI_PJSIP;
+	} else {
+		ast_log(LOG_ERROR, "Unrecognized redirect method %s specified for endpoint %s\n",
+			var->value, ast_sorcery_object_get_id(endpoint));
+		return -1;
+	}
+
+	return 0;
+}
+
 static int direct_media_method_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
@@ -1353,6 +1372,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_ca_path", "", dtls_handler, dtlscapath_to_str, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_setup", "", dtls_handler, dtlssetup_to_str, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "srtp_tag_32", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.srtp_tag_32));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "redirect_method", "user", redirect_handler, NULL, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
