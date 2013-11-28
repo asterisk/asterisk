@@ -583,7 +583,8 @@ static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * td
 	RAII_VAR(struct ast_datastore *, datastore,
 			 ast_sip_session_get_datastore(session, header_datastore.type), ao2_cleanup);
 
-	if (!datastore || !datastore->data) {
+	if (!datastore || !datastore->data ||
+		(session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED)) {
 		return;
 	}
 
