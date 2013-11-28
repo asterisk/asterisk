@@ -983,6 +983,11 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 	}
 
+	/* If no formats were actually added to the media stream don't add it to the SDP */
+	if (!media->desc.fmt_count) {
+		return 1;
+	}
+
 	/* If ptime is set add it as an attribute */
 	if (min_packet_size) {
 		snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
