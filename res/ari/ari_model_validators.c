@@ -3032,6 +3032,15 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("PlaybackStarted", discriminator) == 0) {
 		return ast_ari_validate_playback_started(json);
 	} else
+	if (strcmp("RecordingFailed", discriminator) == 0) {
+		return ast_ari_validate_recording_failed(json);
+	} else
+	if (strcmp("RecordingFinished", discriminator) == 0) {
+		return ast_ari_validate_recording_finished(json);
+	} else
+	if (strcmp("RecordingStarted", discriminator) == 0) {
+		return ast_ari_validate_recording_started(json);
+	} else
 	if (strcmp("StasisEnd", discriminator) == 0) {
 		return ast_ari_validate_stasis_end(json);
 	} else
@@ -3178,6 +3187,15 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("PlaybackStarted", discriminator) == 0) {
 		return ast_ari_validate_playback_started(json);
+	} else
+	if (strcmp("RecordingFailed", discriminator) == 0) {
+		return ast_ari_validate_recording_failed(json);
+	} else
+	if (strcmp("RecordingFinished", discriminator) == 0) {
+		return ast_ari_validate_recording_finished(json);
+	} else
+	if (strcmp("RecordingStarted", discriminator) == 0) {
+		return ast_ari_validate_recording_started(json);
 	} else
 	if (strcmp("StasisEnd", discriminator) == 0) {
 		return ast_ari_validate_stasis_end(json);
@@ -3440,9 +3458,40 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFailed field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFailed field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFailed field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("recording", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_recording = 1;
@@ -3459,6 +3508,16 @@ int ast_ari_validate_recording_failed(struct ast_json *json)
 				ast_json_object_iter_key(iter));
 			res = 0;
 		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI RecordingFailed missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI RecordingFailed missing required field application\n");
+		res = 0;
 	}
 
 	if (!has_recording) {
@@ -3478,9 +3537,40 @@ int ast_ari_validate_recording_finished(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFinished field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFinished field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingFinished field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("recording", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_recording = 1;
@@ -3497,6 +3587,16 @@ int ast_ari_validate_recording_finished(struct ast_json *json)
 				ast_json_object_iter_key(iter));
 			res = 0;
 		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI RecordingFinished missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI RecordingFinished missing required field application\n");
+		res = 0;
 	}
 
 	if (!has_recording) {
@@ -3516,9 +3616,40 @@ int ast_ari_validate_recording_started(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
 	int has_recording = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingStarted field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingStarted field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI RecordingStarted field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("recording", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_recording = 1;
@@ -3535,6 +3666,16 @@ int ast_ari_validate_recording_started(struct ast_json *json)
 				ast_json_object_iter_key(iter));
 			res = 0;
 		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI RecordingStarted missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI RecordingStarted missing required field application\n");
+		res = 0;
 	}
 
 	if (!has_recording) {
