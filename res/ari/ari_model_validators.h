@@ -1212,10 +1212,19 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date
  * - playback: Playback (required)
  * RecordingFailed
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
  * - recording: LiveRecording (required)
  * RecordingFinished
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
  * - recording: LiveRecording (required)
  * RecordingStarted
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
  * - recording: LiveRecording (required)
  * StasisEnd
  * - type: string (required)
