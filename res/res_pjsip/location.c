@@ -26,9 +26,6 @@
 #include "asterisk/sorcery.h"
 #include "include/res_pjsip_private.h"
 
-#define CONTACT_TRANSPORTS_BUCKETS 7
-static struct ao2_container *contact_transports;
-
 /*! \brief Destructor for AOR */
 static void aor_destroy(void *obj)
 {
@@ -72,48 +69,6 @@ static void *contact_alloc(const char *name)
 	}
 
 	return contact;
-}
-
-/*! \brief Callback function for finding a contact_transport by URI */
-static int contact_transport_find_by_uri(void *obj, void *arg, int flags)
-{
-	struct ast_sip_contact_transport *ct = obj;
-	const char *contact_uri = arg;
-
-	return (!strcmp(ct->uri, contact_uri)) ? CMP_MATCH | CMP_STOP : 0;
-}
-
-/*! \brief Callback function for finding a contact_transport by transport */
-static int contact_transport_find_by_transport(void *obj, void *arg, int flags)
-{
-	struct ast_sip_contact_transport *ct = obj;
-	pjsip_transport *transport = arg;
-
-	return (ct->transport == transport) ? CMP_MATCH | CMP_STOP : 0;
-}
-
-void ast_sip_location_add_contact_transport(struct ast_sip_contact_transport *ct)
-{
-	ao2_link(contact_transports, ct);
-
-	return;
-}
-
-void ast_sip_location_delete_contact_transport(struct ast_sip_contact_transport *ct)
-{
-	ao2_unlink(contact_transports, ct);
-
-	return;
-}
-
-struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_uri(const char *contact_uri)
-{
-	return ao2_callback(contact_transports, 0, contact_transport_find_by_uri, (void *)contact_uri);
-}
-
-struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_transport(pjsip_transport *transport)
-{
-	return ao2_callback(contact_transports, 0, contact_transport_find_by_transport, transport);
 }
 
 struct ast_sip_aor *ast_sip_location_retrieve_aor(const char *aor_name)
@@ -449,16 +404,3 @@ int ast_sip_initialize_sorcery_location(struct ast_sorcery *sorcery)
 	return 0;
 }
 
-int ast_res_pjsip_init_contact_transports(void)
-{
-	if (contact_transports) {
-		ao2_t_ref(contact_transports, -1, "Remove old contact transports");
-	}
-
-	contact_transports = ao2_t_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, CONTACT_TRANSPORTS_BUCKETS, NULL, NULL, "Create container for contact transports");
-	if (!contact_transports) {
-		return -1;
-	}
-
-	return 0;
-}

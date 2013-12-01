@@ -1369,7 +1369,10 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	/* Get the local bound address for the transport that will be used when communicating with the provided URI */
 	if (pjsip_tpmgr_find_local_addr(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()), pool, type, selector,
 							      &local_addr, &local_port) != PJ_SUCCESS) {
-		return -1;
+
+		/* If no local address can be retrieved using the transport manager use the host one */
+		pj_strdup(pool, &local_addr, pj_gethostname());
+		local_port = pjsip_transport_get_default_port_for_type(PJSIP_TRANSPORT_UDP);
 	}
 
 	/* If IPv6 was specified in the transport, set the proper type */
@@ -1423,22 +1426,6 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 	return 0;
 }
 
-static int sip_get_tpselector_from_uri(const char *uri, pjsip_tpselector *selector)
-{
-	RAII_VAR(struct ast_sip_contact_transport *, contact_transport, NULL, ao2_cleanup);
-
-	contact_transport = ast_sip_location_retrieve_contact_transport_by_uri(uri);
-
-	if (!contact_transport) {
-		return -1;
-	}
-
-	selector->type = PJSIP_TPSELECTOR_TRANSPORT;
-	selector->u.transport = contact_transport->transport;
-
-	return 0;
-}
-
 pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint, const char *uri, const char *request_user)
 {
 	char enclosed_uri[PJSIP_MAX_URL_SIZE];
@@ -1457,7 +1444,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 		return NULL;
 	}
 
-	if (sip_get_tpselector_from_uri(uri, &selector) && sip_get_tpselector_from_endpoint(endpoint, &selector)) {
+	if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -2103,8 +2090,6 @@ static int load_module(void)
 	}
 
 	ast_res_pjsip_init_options_handling(0);
-
-	ast_res_pjsip_init_contact_transports();
 
 	ast_module_ref(ast_module_info->self);
 
