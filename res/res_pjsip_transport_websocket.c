@@ -95,12 +95,7 @@ static pj_status_t ws_destroy(pjsip_transport *transport)
 
 static int transport_shutdown(void *data)
 {
-	RAII_VAR(struct ast_sip_contact_transport *, ct, NULL, ao2_cleanup);
 	pjsip_transport *transport = data;
-
-	if ((ct = ast_sip_location_retrieve_contact_transport_by_transport(transport))) {
-		ast_sip_location_delete_contact_transport(ct);
-	}
 
 	pjsip_transport_shutdown(transport);
 	return 0;
@@ -220,6 +215,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 	struct ast_taskprocessor *serializer = NULL;
 	struct transport_create_data create_data;
 	struct ws_transport *transport = NULL;
+	struct transport_read_data read_data;
 
 	if (ast_websocket_set_nonblock(session)) {
 		ast_websocket_unref(session);
@@ -240,9 +236,9 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 	}
 
 	transport = create_data.transport;
+	read_data.transport = transport;
 
 	while (ast_wait_for_input(ast_websocket_fd(session), -1) > 0) {
-		struct transport_read_data read_data;
 		enum ast_websocket_opcode opcode;
 		int fragmented;
 
@@ -251,9 +247,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 		}
 
 		if (opcode == AST_WEBSOCKET_OPCODE_TEXT || opcode == AST_WEBSOCKET_OPCODE_BINARY) {
-			read_data.transport = transport;
-
-			ast_sip_push_task(serializer, transport_read, &read_data);
+			ast_sip_push_task_synchronous(serializer, transport_read, &read_data);
 		} else if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
 			break;
 		}
@@ -266,72 +260,11 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 }
 
 /*!
- * \brief Session supplement handler for avoiding DNS lookup on bogus address.
- */
-static void websocket_outgoing_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
-{
-	char contact_uri[PJSIP_MAX_URL_SIZE] = { 0, };
-	RAII_VAR(struct ast_sip_contact_transport *, ct, NULL, ao2_cleanup);
-	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_TRANSPORT, };
-
-	const pjsip_sip_uri *request_uri = pjsip_uri_get_uri(tdata->msg->line.req.uri);
-
-	if (pj_stricmp2(&request_uri->transport_param, "WS") && pj_stricmp2(&request_uri->transport_param, "WSS")) {
-		return;
-	}
-
-	pjsip_uri_print(PJSIP_URI_IN_REQ_URI, request_uri, contact_uri, sizeof(contact_uri));
-
-	if (!(ct = ast_sip_location_retrieve_contact_transport_by_uri(contact_uri))) {
-		return;
-	}
-
-	selector.u.transport = ct->transport;
-
-	pjsip_tx_data_set_transport(tdata, &selector);
-
-	tdata->dest_info.addr.count = 1;
-	tdata->dest_info.addr.entry[0].type = ct->transport->key.type;
-	tdata->dest_info.addr.entry[0].addr = ct->transport->key.rem_addr;
-	tdata->dest_info.addr.entry[0].addr_len = ct->transport->addr_len;
-}
-
-static struct ast_sip_session_supplement websocket_supplement = {
-	.outgoing_request = websocket_outgoing_request,
-};
-
-/*!
- * \brief Destructor for ast_sip_contact_transport
- */
-static void contact_transport_destroy(void *obj)
-{
-	struct ast_sip_contact_transport *ct = obj;
-
-	ast_string_field_free_memory(ct);
-}
-
-static void *contact_transport_alloc(void)
-{
-	struct ast_sip_contact_transport *ct = ao2_alloc(sizeof(*ct), contact_transport_destroy);
-
-	if (!ct) {
-		return NULL;
-	}
-
-	if (ast_string_field_init(ct, 256)) {
-		ao2_cleanup(ct);
-		return NULL;
-	}
-
-	return ct;
-}
-
-/*!
  * \brief Store the transport a message came in on, so it can be used for outbound messages to that contact.
  */
 static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 {
-	pjsip_contact_hdr *contact_hdr = NULL;
+	pjsip_contact_hdr *contact;
 
 	long type = rdata->tp_info.transport->key.type;
 
@@ -339,23 +272,15 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
-	if ((contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL))) {
-		RAII_VAR(struct ast_sip_contact_transport *, ct, NULL, ao2_cleanup);
-		char contact_uri[PJSIP_MAX_URL_SIZE];
+	if ((contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL)) &&
+		(PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
+		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 
-		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, pjsip_uri_get_uri(contact_hdr->uri), contact_uri, sizeof(contact_uri));
-
-		if (!(ct = ast_sip_location_retrieve_contact_transport_by_uri(contact_uri))) {
-			if (!(ct = contact_transport_alloc())) {
-				return PJ_FALSE;
-			}
-
-			ast_string_field_set(ct, uri, contact_uri);
-			ct->transport = rdata->tp_info.transport;
-
-			ast_sip_location_add_contact_transport(ct);
-		}
+		pj_cstr(&uri->host, rdata->pkt_info.src_name);
+		uri->port = rdata->pkt_info.src_port;
 	}
+
+	rdata->msg_info.via->rport_param = 0;
 
 	return PJ_FALSE;
 }
@@ -376,8 +301,6 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_sip_session_register_supplement(&websocket_supplement);
-
 	if (ast_websocket_add_protocol("sip", websocket_cb)) {
 		ast_sip_unregister_service(&websocket_module);
 		return AST_MODULE_LOAD_DECLINE;
@@ -389,7 +312,6 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_sip_unregister_service(&websocket_module);
-	ast_sip_session_unregister_supplement(&websocket_supplement);
 	ast_websocket_remove_protocol("sip", websocket_cb);
 
 	return 0;

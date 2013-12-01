@@ -263,10 +263,9 @@ static int qualify_contact(struct ast_sip_contact *contact)
 	ao2_ref(contact, +1);
 	if (pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(),
 				     tdata, -1, contact, qualify_contact_cb) != PJ_SUCCESS) {
-		pjsip_tx_data_dec_ref(tdata);
+		/* The callback will be called so we don't need to drop the contact ref*/
 		ast_log(LOG_ERROR, "Unable to send request to qualify contact %s\n",
 			contact->uri);
-		ao2_ref(contact, -1);
 		return -1;
 	}
 

@@ -180,17 +180,6 @@ struct ast_sip_contact_status {
 };
 
 /*!
- * \brief A transport to be used for messages to a contact
- */
-struct ast_sip_contact_transport {
-	AST_DECLARE_STRING_FIELDS(
-		/*! Full URI of the contact */
-		AST_STRING_FIELD(uri);
-	);
-	pjsip_transport *transport;
-};
-
-/*!
  * \brief A SIP address of record
  */
 struct ast_sip_aor {
@@ -888,37 +877,6 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const ch
  * \retval non-NULL if found
  */
 struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_name);
-
-/*!
- * \brief Add a transport for a contact to use
- */
-
-void ast_sip_location_add_contact_transport(struct ast_sip_contact_transport *ct);
-
-/*!
- * \brief Delete a transport for a contact that went away
- */
-void ast_sip_location_delete_contact_transport(struct ast_sip_contact_transport *ct);
-
-/*!
- * \brief Retrieve a contact_transport, by URI
- *
- * \param contact_uri URI of the contact
- *
- * \retval NULL if not found
- * \retval non-NULL if found
- */
-struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_uri(const char *contact_uri);
-
-/*!
- * \brief Retrieve a contact_transport, by transport
- *
- * \param transport transport the contact uses
- *
- * \retval NULL if not found
- * \retval non-NULL if found
- */
-struct ast_sip_contact_transport *ast_sip_location_retrieve_contact_transport_by_transport(pjsip_transport *transport);
 
 /*!
  * \brief Add a new contact to an AOR

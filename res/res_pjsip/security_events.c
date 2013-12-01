@@ -33,35 +33,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_pjsip.h"
 #include "asterisk/security_events.h"
 
-static int find_transport_in_use(void *obj, void *arg, int flags)
-{
-	struct ast_sip_transport *transport = obj;
-	pjsip_rx_data *rdata = arg;
-
-	if ((transport->state->transport == rdata->tp_info.transport) ||
-		(transport->state->factory && !pj_strcmp(&transport->state->factory->addr_name.host, &rdata->tp_info.transport->local_name.host) &&
-			transport->state->factory->addr_name.port == rdata->tp_info.transport->local_name.port)) {
-		return CMP_MATCH | CMP_STOP;
-	}
-
-	return 0;
-}
-
 static enum ast_transport security_event_get_transport(pjsip_rx_data *rdata)
 {
-	RAII_VAR(struct ao2_container *, transports, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
-
-	/* It should be impossible for these to fail as the transport has to exist for the message to exist */
-	transports = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "transport", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-
-	ast_assert(transports != NULL);
-
-	transport = ao2_callback(transports, 0, find_transport_in_use, rdata);
-
-	ast_assert(transport != NULL);
-
-	return transport->type;
+	if (rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
+		rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
+		return AST_TRANSPORT_UDP;
+	} else if (rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TCP ||
+		rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TCP6) {
+		return AST_TRANSPORT_TCP;
+	} else if (rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TLS ||
+		rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TLS6) {
+		return AST_TRANSPORT_TLS;
+	} else if (!strcmp(rdata->tp_info.transport->type_name, "WS")) {
+		return AST_TRANSPORT_WS;
+	} else if (!strcmp(rdata->tp_info.transport->type_name, "WSS")) {
+		return AST_TRANSPORT_WSS;
+	} else {
+		return 0;
+	}
 }
 
 static void security_event_populate(pjsip_rx_data *rdata, char *call_id, size_t call_id_size, struct ast_sockaddr *local, struct ast_sockaddr *remote)
