@@ -936,6 +936,19 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id,
 			     MOD_DATA_ON_RESPONSE, on_response);
 
+	if (!ast_strlen_zero(session->endpoint->fromuser) ||
+		!ast_strlen_zero(session->endpoint->fromdomain)) {
+		pjsip_fromto_hdr *from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, tdata->msg->hdr.next);
+		pjsip_sip_uri *uri = pjsip_uri_get_uri(from->uri);
+
+		if (!ast_strlen_zero(session->endpoint->fromuser)) {
+			pj_strdup2(tdata->pool, &uri->user, session->endpoint->fromuser);
+		}
+		if (!ast_strlen_zero(session->endpoint->fromdomain)) {
+			pj_strdup2(tdata->pool, &uri->host, session->endpoint->fromdomain);
+		}
+	}
+
 	handle_outgoing_request(session, tdata);
 	pjsip_inv_send_msg(session->inv_session, tdata);
 	return;
