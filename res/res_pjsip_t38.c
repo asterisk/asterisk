@@ -446,8 +446,10 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 		.event_cb = t38_framehook,
 	};
 
-	if (!session->channel || (ast_channel_state(session->channel) == AST_STATE_UP) ||
-	    !session->endpoint->media.t38.enabled) {
+	/* Only attach the framehook on the first outgoing INVITE or the first incoming INVITE */
+	if ((session->inv_session->state != PJSIP_INV_STATE_NULL &&
+		session->inv_session->state != PJSIP_INV_STATE_INCOMING) ||
+		!session->endpoint->media.t38.enabled) {
 		return;
 	}
 
