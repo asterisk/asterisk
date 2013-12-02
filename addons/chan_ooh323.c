@@ -2487,11 +2487,23 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "e164")) {
-				if (!(peer->e164 = ast_strdup(v->value))) {
-					ast_log(LOG_ERROR, "Could not allocate memory for e164 of "
+				int valid = 1;
+				const char *tmp;
+				for(tmp = v->value; *tmp; tmp++) {
+					if (!isdigit(*tmp)) {
+						valid = 0;
+						break;
+					}
+				}
+				if (valid) {
+					if (!(peer->e164 = ast_strdup(v->value))) {
+						ast_log(LOG_ERROR, "Could not allocate memory for e164 of "
 											 "peer %s\n", name);
-					ooh323_delete_peer(peer);
-					return NULL;
+						ooh323_delete_peer(peer);
+						return NULL;
+					}
+				} else {
+					ast_log(LOG_ERROR, "Invalid e164: %s for peer %s\n", v->value, name);
 				}
 			} else  if (!strcasecmp(v->name, "email")) {
 				if (!(peer->email = ast_strdup(v->value))) {
@@ -2622,6 +2634,9 @@ static struct ooh323_peer *build_peer(const char *name, struct ast_variable *v, 
 
 static int ooh323_do_reload(void)
 {
+	struct ooAliases * pNewAlias = NULL;
+	struct ooh323_peer *peer = NULL;
+
 	if (gH323Debug) {
 		ast_verb(0, "---   ooh323_do_reload\n");
 	}
@@ -2640,6 +2655,46 @@ static int ooh323_do_reload(void)
 								gGatekeeper : 0, 0);
 		ooGkClientStart(gH323ep.gkClient);
 	}
+
+	/* Set aliases if any */
+	if (gH323Debug) {
+		ast_verb(0, "updating local aliases\n");
+	}
+
+	for (pNewAlias = gAliasList; pNewAlias; pNewAlias = pNewAlias->next) {
+		switch (pNewAlias->type) {
+		case T_H225AliasAddress_h323_ID:
+			ooH323EpAddAliasH323ID(pNewAlias->value);
+			break;
+		case T_H225AliasAddress_dialedDigits:	
+			ooH323EpAddAliasDialedDigits(pNewAlias->value);
+			break;
+		case T_H225AliasAddress_email_ID:	
+			ooH323EpAddAliasEmailID(pNewAlias->value);
+			break;
+		default:
+            		;
+		}
+	}
+
+	ast_mutex_lock(&peerl.lock);
+	peer = peerl.peers;
+	while (peer) {
+		if(peer->h323id) {
+			ooH323EpAddAliasH323ID(peer->h323id);
+		}
+		if(peer->email) {
+			ooH323EpAddAliasEmailID(peer->email);
+		}
+		if(peer->e164) {
+			ooH323EpAddAliasDialedDigits(peer->e164);
+		}
+       		if(peer->url) {
+			ooH323EpAddAliasURLID(peer->url);
+		}
+		peer = peer->next;
+	}
+	ast_mutex_unlock(&peerl.lock);
 
 	if (gH323Debug) {
 		ast_verb(0, "+++   ooh323_do_reload\n");
@@ -2724,6 +2779,7 @@ int reload_config(int reload)
 	  		free(prev);
 		}
 		gAliasList = NULL;
+		ooH323EpClearAllAliases();
 	}
 
 	/* Inintialize everything to default */
@@ -2840,17 +2896,29 @@ int reload_config(int reload)
 			gAliasList = pNewAlias;
 			pNewAlias = NULL;
 		} else if (!strcasecmp(v->name, "e164")) {
-         		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
-			if (!pNewAlias) {
-				ast_log(LOG_ERROR, "Failed to allocate memory for e164 alias\n");
-				ast_config_destroy(cfg);
-				return 1;
+			int valid = 1;
+			const char *tmp;
+			for(tmp = v->value; *tmp; tmp++) {
+				if (!isdigit(*tmp)) {
+					valid = 0;
+					break;
+				}
 			}
-			pNewAlias->type =  T_H225AliasAddress_dialedDigits;
-			pNewAlias->value = strdup(v->value);
-			pNewAlias->next = gAliasList;
-			gAliasList = pNewAlias;
-			pNewAlias = NULL;
+			if (valid) {
+         			pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
+				if (!pNewAlias) {
+					ast_log(LOG_ERROR, "Failed to allocate memory for e164 alias\n");
+					ast_config_destroy(cfg);
+					return 1;
+				}
+				pNewAlias->type =  T_H225AliasAddress_dialedDigits;
+				pNewAlias->value = strdup(v->value);
+				pNewAlias->next = gAliasList;
+				gAliasList = pNewAlias;
+				pNewAlias = NULL;
+			} else {
+				ast_log(LOG_ERROR, "Invalid e164: %s\n", v->value);
+			}
 		} else if (!strcasecmp(v->name, "email")) {
          		pNewAlias = ast_calloc(1, sizeof(struct ooAliases));
 			if (!pNewAlias) {
