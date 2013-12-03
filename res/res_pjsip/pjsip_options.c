@@ -441,7 +441,7 @@ static void contact_deleted(const void *obj)
 	}
 }
 
-struct ast_sorcery_observer contact_observer = {
+static const struct ast_sorcery_observer contact_observer = {
 	.created = contact_created,
 	.deleted = contact_deleted
 };

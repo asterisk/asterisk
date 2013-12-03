@@ -92,7 +92,7 @@ static void persistent_endpoint_contact_observer(const void *object)
 }
 
 /*! \brief Observer for contacts so state can be updated on respective endpoints */
-static struct ast_sorcery_observer state_contact_observer = {
+static const struct ast_sorcery_observer state_contact_observer = {
 	.created = persistent_endpoint_contact_observer,
 	.deleted = persistent_endpoint_contact_observer,
 };

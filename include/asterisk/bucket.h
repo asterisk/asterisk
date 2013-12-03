@@ -256,7 +256,7 @@ int ast_bucket_observer_add(const struct ast_sorcery_observer *callbacks);
  *
  * \param callbacks Implementation of the sorcery observer interface
  */
-void ast_bucket_observer_remove(struct ast_sorcery_observer *callbacks);
+void ast_bucket_observer_remove(const struct ast_sorcery_observer *callbacks);
 
 /*!
  * \brief Get a JSON representation of a bucket
@@ -359,7 +359,7 @@ int ast_bucket_file_observer_add(const struct ast_sorcery_observer *callbacks);
  *
  * \param callbacks Implementation of the sorcery observer interface
  */
-void ast_bucket_file_observer_remove(struct ast_sorcery_observer *callbacks);
+void ast_bucket_file_observer_remove(const struct ast_sorcery_observer *callbacks);
 
 /*!
  * \brief Get a JSON representation of a bucket file

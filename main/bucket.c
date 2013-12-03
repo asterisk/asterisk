@@ -473,7 +473,7 @@ int ast_bucket_observer_add(const struct ast_sorcery_observer *callbacks)
 	return ast_sorcery_observer_add(bucket_sorcery, "bucket", callbacks);
 }
 
-void ast_bucket_observer_remove(struct ast_sorcery_observer *callbacks)
+void ast_bucket_observer_remove(const struct ast_sorcery_observer *callbacks)
 {
 	ast_sorcery_observer_remove(bucket_sorcery, "bucket", callbacks);
 }
@@ -763,7 +763,7 @@ int ast_bucket_file_observer_add(const struct ast_sorcery_observer *callbacks)
 	return ast_sorcery_observer_add(bucket_sorcery, "file", callbacks);
 }
 
-void ast_bucket_file_observer_remove(struct ast_sorcery_observer *callbacks)
+void ast_bucket_file_observer_remove(const struct ast_sorcery_observer *callbacks)
 {
 	ast_sorcery_observer_remove(bucket_sorcery, "file", callbacks);
 }

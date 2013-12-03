@@ -227,7 +227,7 @@ static void sorcery_observer_loaded(const char *object_type)
 }
 
 /*! \brief Test sorcery observer implementation */
-static struct ast_sorcery_observer test_observer = {
+static const struct ast_sorcery_observer test_observer = {
 	.created = sorcery_observer_created,
 	.updated = sorcery_observer_updated,
 	.deleted = sorcery_observer_deleted,
