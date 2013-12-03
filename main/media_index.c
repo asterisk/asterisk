@@ -551,9 +551,8 @@ static int media_index_update(struct ast_media_index *index,
 		ast_str_set(&statfile, 0, "%s/%s", ast_str_buffer(index_dir), dent->d_name);
 
 		if (stat(ast_str_buffer(statfile), &st) < 0) {
-			ast_log(LOG_ERROR, "Failed to stat %s: %s\n", ast_str_buffer(statfile), strerror(errno));
-			res = -1;
-			break;
+			ast_log(LOG_WARNING, "Failed to stat %s: %s\n", ast_str_buffer(statfile), strerror(errno));
+			continue;
 		}
 
 		if (S_ISDIR(st.st_mode)) {
