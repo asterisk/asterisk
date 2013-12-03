@@ -77,7 +77,7 @@
  ***/
 
 /*** DOCUMENTATION
-	<configInfo name="ari" language="en_US">
+	<configInfo name="res_ari" language="en_US">
 		<synopsis>HTTP binding for the Stasis API</synopsis>
 		<configFile name="ari.conf">
 			<configObject name="general">
