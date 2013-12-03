@@ -1222,7 +1222,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
-#ifdef PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
+#if defined(HAVE_PJSIP_REPLACE_MEDIA_STREAM) || defined(PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE)
 	inv_session->sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE;
 #endif
 
@@ -1371,7 +1371,8 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
-#ifdef PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE
+
+#if defined(HAVE_PJSIP_REPLACE_MEDIA_STREAM) || defined(PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE)
 	inv_session->sdp_neg_flags = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE;
 #endif
 	if (pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS) {

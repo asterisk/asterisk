@@ -569,6 +569,9 @@
 /* Define if your system has the PJPROJECT libraries. */
 #undef HAVE_PJPROJECT
 
+/* Define if your system has the PJSIP_REPLACE_MEDIA_STREAM headers. */
+#undef HAVE_PJSIP_REPLACE_MEDIA_STREAM
+
 /* Define to 1 if PJPROJECT has the PJSIP Transaction Group Lock Support
    feature. */
 #undef HAVE_PJ_TRANSACTION_GRP_LOCK
