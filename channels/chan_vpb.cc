@@ -2439,6 +2439,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 
 	tmp = ast_channel_alloc(1, state, 0, 0, "", me->ext, me->context, linkedid, AST_AMA_NONE, "%s", me->dev);
 	if (tmp) {
+		ast_channel_lock(tmp);
 		if (use_ast_ind == 1){
 			ast_channel_tech_set(tmp, &vpb_tech_indicate);
 		} else {
@@ -2471,6 +2472,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 			ast_channel_exten_set(tmp, "s");
 		if (!ast_strlen_zero(me->language))
 			ast_channel_language_set(tmp, me->language);
+		ast_channel_unlock(tmp);
 
 		me->owner = tmp;
 

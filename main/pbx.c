@@ -1601,9 +1601,11 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	saved_c_appl= ast_channel_appl(c);
 	saved_c_data= ast_channel_data(c);
 
+	ast_channel_lock(c);
 	ast_channel_appl_set(c, app->name);
 	ast_channel_data_set(c, data);
 	ast_channel_publish_snapshot(c);
+	ast_channel_unlock(c);
 
 	if (app->module)
 		u = __ast_module_user_add(app->module, c);
@@ -6101,7 +6103,9 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 		if (!callid) {
 			callid = ast_create_callid();
 			if (callid) {
+				ast_channel_lock(c);
 				ast_channel_callid_set(c, callid);
+				ast_channel_unlock(c);
 			}
 		}
 		ast_callid_threadassoc_add(callid);
@@ -10069,6 +10073,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		return -1;
 	}
 
+	ast_channel_lock(dialed);
 	if (vars) {
 		ast_set_variables(dialed, vars);
 	}
@@ -10077,6 +10082,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		ast_channel_accountcode_set(dialed, account);
 	}
 	ast_set_flag(ast_channel_flags(dialed), AST_FLAG_ORIGINATED);
+	ast_channel_unlock(dialed);
 
 	if (!ast_strlen_zero(cid_num) || !ast_strlen_zero(cid_name)) {
 		struct ast_party_connected_line connected;
@@ -10172,6 +10178,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		if (failed) {
 			char failed_reason[4] = "";
 
+			ast_channel_lock(failed);
 			if (!ast_strlen_zero(context)) {
 				ast_channel_context_set(failed, context);
 			}
@@ -10184,6 +10191,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 			ast_set_variables(failed, vars);
 			snprintf(failed_reason, sizeof(failed_reason), "%d", ast_dial_reason(outgoing->dial, 0));
 			pbx_builtin_setvar_helper(failed, "REASON", failed_reason);
+			ast_channel_unlock(failed);
 
 			if (ast_pbx_run(failed)) {
 				ast_log(LOG_ERROR, "Unable to run PBX on '%s'\n", ast_channel_name(failed));
@@ -10484,10 +10492,12 @@ static int pbx_builtin_busy(struct ast_channel *chan, const char *data)
 	ast_indicate(chan, AST_CONTROL_BUSY);
 	/* Don't change state of an UP channel, just indicate
 	   busy in audio */
+	ast_channel_lock(chan);
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_channel_hangupcause_set(chan, AST_CAUSE_BUSY);
 		ast_setstate(chan, AST_STATE_BUSY);
 	}
+	ast_channel_unlock(chan);
 	wait_for_hangup(chan, data);
 	return -1;
 }
@@ -10500,10 +10510,12 @@ static int pbx_builtin_congestion(struct ast_channel *chan, const char *data)
 	ast_indicate(chan, AST_CONTROL_CONGESTION);
 	/* Don't change state of an UP channel, just indicate
 	   congestion in audio */
+	ast_channel_lock(chan);
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_channel_hangupcause_set(chan, AST_CAUSE_CONGESTION);
 		ast_setstate(chan, AST_STATE_BUSY);
 	}
+	ast_channel_unlock(chan);
 	wait_for_hangup(chan, data);
 	return -1;
 }

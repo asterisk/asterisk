@@ -497,7 +497,10 @@ int ast_aoc_s_add_special_arrangement(struct ast_aoc_decoded *decoded,
  */
 int ast_aoc_decoded2str(const struct ast_aoc_decoded *decoded, struct ast_str **msg);
 
-/*! \brief generate AOC manager event for an AOC-S, AOC-D, or AOC-E msg */
+/*!
+ * \brief generate AOC manager event for an AOC-S, AOC-D, or AOC-E msg
+ * \pre chan is locked
+ */
 int ast_aoc_manager_event(const struct ast_aoc_decoded *decoded, struct ast_channel *chan);
 
 /*! \brief get the message type, AOC-D, AOC-E, or AOC Request */

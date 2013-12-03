@@ -5689,11 +5689,15 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	/* Don't hold call lock */
 	ast_mutex_unlock(&iaxsl[callno]);
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
+	if (tmp) {
+		ast_channel_lock(tmp);
+	}
 	ast_mutex_lock(&iaxsl[callno]);
 	if (i != iaxs[callno]) {
 		if (tmp) {
 			/* unlock and relock iaxsl[callno] to preserve locking order */
 			ast_mutex_unlock(&iaxsl[callno]);
+			ast_channel_unlock(tmp);
 			tmp = ast_channel_release(tmp);
 			ast_mutex_lock(&iaxsl[callno]);
 		}
@@ -5803,6 +5807,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	}
 
 	ast_channel_stage_snapshot_done(tmp);
+	ast_channel_unlock(tmp);
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
@@ -12234,7 +12239,9 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 	if (c) {
 		struct ast_format_cap *joint;
 		if (callid) {
+			ast_channel_lock(c);
 			ast_channel_callid_set(c, callid);
+			ast_channel_unlock(c);
 		}
 
 		/* Choose a format we can live with */

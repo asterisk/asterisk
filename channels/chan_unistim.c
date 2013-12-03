@@ -2517,10 +2517,12 @@ static void *unistim_ss(void *data)
 	int res;
 
 	ast_verb(3, "Starting switch on '%s@%s-%d' to %s\n", l->name, l->parent->name, sub->softkey, s->device->phone_number);
+	ast_channel_lock(chan);
 	ast_channel_exten_set(chan, s->device->phone_number);
+	ast_setstate(chan, AST_STATE_RING);
+	ast_channel_unlock(chan);
 	ast_copy_string(s->device->redial_number, s->device->phone_number,
 					sizeof(s->device->redial_number));
-	ast_setstate(chan, AST_STATE_RING);
 	res = ast_pbx_run(chan);
 	if (res) {
 		ast_log(LOG_WARNING, "PBX exited non-zero\n");
@@ -5563,6 +5565,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		return NULL;
 	}
 
+	ast_channel_lock(tmp);
 	ast_channel_stage_snapshot(tmp);
 
 	ast_format_cap_copy(ast_channel_nativeformats(tmp), l->cap);
@@ -5627,6 +5630,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	ast_channel_priority_set(tmp, 1);
 
 	ast_channel_stage_snapshot_done(tmp);
+	ast_channel_unlock(tmp);
 
 	if (state != AST_STATE_DOWN) {
 		if (unistimdebug) {

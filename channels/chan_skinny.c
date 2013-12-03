@@ -4845,6 +4845,7 @@ static void *skinny_newcall(void *data)
 	struct skinny_device *d = l->device;
 	int res = 0;
 
+	ast_channel_lock(c);
 	ast_set_callerid(c,
 		l->hidecallerid ? "" : l->cid_num,
 		l->hidecallerid ? "" : l->cid_name,
@@ -4858,6 +4859,7 @@ static void *skinny_newcall(void *data)
 	ast_party_name_init(&ast_channel_connected(c)->id.name);
 #endif
 	ast_setstate(c, AST_STATE_RING);
+	ast_channel_unlock(c);
 	if (!sub->rtp) {
 		start_rtp(sub);
 	}
@@ -5424,6 +5426,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			AST_LIST_INSERT_HEAD(&l->sub, sub, list);
 			//l->activesub = sub;
 		}
+		ast_channel_lock(tmp);
 		ast_channel_stage_snapshot(tmp);
 		ast_channel_tech_set(tmp, &skinny_tech);
 		ast_channel_tech_pvt_set(tmp, sub);
@@ -5499,6 +5502,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			pbx_builtin_setvar_helper(tmp, v->name, v->value);
 
 		ast_channel_stage_snapshot_done(tmp);
+		ast_channel_unlock(tmp);
 
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
