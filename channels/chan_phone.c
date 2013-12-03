@@ -862,6 +862,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 	struct ast_format tmpfmt;
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "", i->ext, i->context, linkedid, 0, "Phone/%s", i->dev + 5);
 	if (tmp) {
+		ast_channel_lock(tmp);
 		ast_channel_tech_set(tmp, cur_tech);
 		ast_channel_set_fd(tmp, 0, i->fd);
 		/* XXX Switching formats silently causes kernel panics XXX */
@@ -898,6 +899,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 			ast_channel_caller(tmp)->ani.number.valid = 1;
 			ast_channel_caller(tmp)->ani.number.str = ast_strdup(i->cid_num);
 		}
+		ast_channel_unlock(tmp);
 
 		i->owner = tmp;
 		ast_module_ref(ast_module_info->self);

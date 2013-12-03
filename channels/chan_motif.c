@@ -785,6 +785,7 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 	if (!(chan = ast_channel_alloc(1, state, S_OR(title, ""), S_OR(cid_name, ""), "", "", "", linkedid, 0, "Motif/%s-%04lx", str, ast_random() & 0xffff))) {
 		return NULL;
 	}
+	ast_channel_lock(chan);
 
 	ast_channel_stage_snapshot(chan);
 
@@ -852,6 +853,7 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 	ao2_unlock(endpoint);
 
 	ast_channel_stage_snapshot_done(chan);
+	ast_channel_unlock(chan);
 
 	return chan;
 }
@@ -2412,7 +2414,9 @@ static void jingle_action_session_initiate(struct jingle_endpoint *endpoint, str
 
 	ao2_link(endpoint->state->sessions, session);
 
+	ast_channel_lock(chan);
 	ast_setstate(chan, AST_STATE_RING);
+	ast_channel_unlock(chan);
 	res = ast_pbx_start(chan);
 
 	switch (res) {

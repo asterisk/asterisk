@@ -577,13 +577,15 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
-	ast_channel_stage_snapshot(chan);
-
 	/* If res_pjsip_session is ever updated to create/destroy ast_sip_session_media
 	 * during a call such as if multiple same-type stream support is introduced,
 	 * these will need to be recaptured as well */
 	pvt->media[SIP_MEDIA_AUDIO] = ao2_find(session->media, "audio", OBJ_KEY);
 	pvt->media[SIP_MEDIA_VIDEO] = ao2_find(session->media, "video", OBJ_KEY);
+
+	ast_channel_lock(chan);
+	ast_channel_stage_snapshot(chan);
+
 	ast_channel_tech_pvt_set(chan, channel);
 	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
 		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(chan));
@@ -632,9 +634,10 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		ast_channel_zone_set(chan, zone);
 	}
 
-	ast_endpoint_add_channel(session->endpoint->persistent, chan);
-
 	ast_channel_stage_snapshot_done(chan);
+	ast_channel_unlock(chan);
+
+	ast_endpoint_add_channel(session->endpoint->persistent, chan);
 
 	return chan;
 }
@@ -2030,9 +2033,11 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 	switch (status.code) {
 	case 180:
 		ast_queue_control(session->channel, AST_CONTROL_RINGING);
+		ast_channel_lock(session->channel);
 		if (ast_channel_state(session->channel) != AST_STATE_UP) {
 			ast_setstate(session->channel, AST_STATE_RINGING);
 		}
+		ast_channel_unlock(session->channel);
 		break;
 	case 183:
 		ast_queue_control(session->channel, AST_CONTROL_PROGRESS);

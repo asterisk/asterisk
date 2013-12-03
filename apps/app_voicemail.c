@@ -10958,8 +10958,11 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 #endif
 
 	/* Set language from config to override channel language */
-	if (!ast_strlen_zero(vmu->language))
+	if (!ast_strlen_zero(vmu->language)) {
+		ast_channel_lock(chan);
 		ast_channel_language_set(chan, vmu->language);
+		ast_channel_unlock(chan);
+	}
 
 	/* Retrieve urgent, old and new message counts */
 	ast_debug(1, "Before open_mailbox\n");

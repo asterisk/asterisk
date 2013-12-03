@@ -1464,7 +1464,9 @@ static void agent_logout(struct agent_pvt *agent)
 		ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
 	}
 
+	ast_channel_lock(logged);
 	send_agent_logoff(logged, agent->username, time_logged_in);
+	ast_channel_unlock(logged);
 	ast_verb(2, "Agent '%s' logged out.  Logged in for %ld seconds.\n",
 		agent->username, time_logged_in);
 	ast_channel_unref(logged);
@@ -2045,7 +2047,9 @@ static int agent_login_exec(struct ast_channel *chan, const char *data)
 	ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", agent->username,
 		ast_getformatname(ast_channel_readformat(chan)),
 		ast_getformatname(ast_channel_writeformat(chan)));
+	ast_channel_lock(chan);
 	send_agent_login(chan, agent->username);
+	ast_channel_unlock(chan);
 
 	agent_run(agent, chan);
 	return -1;
