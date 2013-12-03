@@ -142,7 +142,7 @@ static void contact_expiration_observer_deleted(const void *object)
 }
 
 /*! \brief Observer callbacks for autoexpiring contacts */
-static struct ast_sorcery_observer contact_expiration_observer = {
+static const struct ast_sorcery_observer contact_expiration_observer = {
 	.created = contact_expiration_observer_created,
 	.updated = contact_expiration_observer_updated,
 	.deleted = contact_expiration_observer_deleted,

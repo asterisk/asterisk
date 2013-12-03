@@ -1526,6 +1526,7 @@ int ast_sorcery_observer_add(const struct ast_sorcery *sorcery, const char *type
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	struct ast_sorcery_object_type_observer *observer;
+	int res;
 
 	if (!object_type || !callbacks) {
 		return -1;
@@ -1536,10 +1537,13 @@ int ast_sorcery_observer_add(const struct ast_sorcery *sorcery, const char *type
 	}
 
 	observer->callbacks = callbacks;
-	ao2_link(object_type->observers, observer);
+	res = 0;
+	if (!ao2_link(object_type->observers, observer)) {
+		res = -1;
+	}
 	ao2_ref(observer, -1);
 
-	return 0;
+	return res;
 }
 
 /*! \brief Internal callback function for removing an observer */
@@ -1550,13 +1554,19 @@ static int sorcery_observer_remove(void *obj, void *arg, int flags)
 	return (observer->callbacks == arg) ? CMP_MATCH | CMP_STOP : 0;
 }
 
-void ast_sorcery_observer_remove(const struct ast_sorcery *sorcery, const char *type, struct ast_sorcery_observer *callbacks)
+void ast_sorcery_observer_remove(const struct ast_sorcery *sorcery, const char *type, const struct ast_sorcery_observer *callbacks)
 {
-	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, NULL, ao2_cleanup);
+	struct ast_sorcery_observer *cbs = (struct ast_sorcery_observer *) callbacks;/* Remove const for traversal. */
 
+	if (!sorcery) {
+		return;
+	}
+	object_type = ao2_find(sorcery->types, type, OBJ_KEY);
 	if (!object_type) {
 		return;
 	}
 
-	ao2_callback(object_type->observers, OBJ_NODATA | OBJ_UNLINK, sorcery_observer_remove, callbacks);
+	ao2_callback(object_type->observers, OBJ_NODATA | OBJ_UNLINK,
+		sorcery_observer_remove, cbs);
 }
