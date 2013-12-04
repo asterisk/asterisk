@@ -588,6 +588,15 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	return PJ_TRUE;
 }
 
+/* function pointer to callback needs to be within the module
+   in order to avoid problems with an undefined symbol */
+static int sip_contact_to_str(const struct ast_sip_aor *aor,
+			      const struct ast_sip_contact *contact,
+			      int last, void *arg)
+{
+	return ast_sip_contact_to_str(aor, contact, last, arg);
+}
+
 static int ami_registrations_aor(void *obj, void *arg, int flags)
 {
 	struct ast_sip_aor *aor = obj;
@@ -602,7 +611,7 @@ static int ami_registrations_aor(void *obj, void *arg, int flags)
 
 	ast_sip_sorcery_object_to_ami(aor, &buf);
 	ast_str_append(&buf, 0, "Contacts: ");
-	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, &buf);
+	ast_sip_for_each_contact(aor, sip_contact_to_str, &buf);
 	ast_str_append(&buf, 0, "\r\n");
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
