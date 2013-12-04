@@ -113,11 +113,7 @@ static struct t38_parameters_task_data *t38_parameters_task_data_alloc(struct as
 
 	data->session = session;
 	ao2_ref(session, +1);
-
-	if (!(data->frame = ast_frdup(frame))) {
-		ao2_cleanup(data);
-		return NULL;
-	}
+	data->frame = frame;
 
 	return data;
 }
@@ -396,6 +392,8 @@ static struct ast_frame *t38_framehook_write(struct ast_sip_session *session, st
 		if (ast_sip_push_task(session->serializer, t38_interpret_parameters, data)) {
 			ao2_ref(data, -1);
 		}
+
+		f = &ast_null_frame;
 	} else if (f->frametype == AST_FRAME_MODEM) {
 		RAII_VAR(struct ast_sip_session_media *, session_media, NULL, ao2_cleanup);
 
