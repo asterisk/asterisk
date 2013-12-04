@@ -1937,7 +1937,7 @@ int ast_sip_thread_is_servant(void)
 
 void *ast_sip_dict_get(void *ht, const char *key)
 {
-	unsigned int hval;
+	unsigned int hval = 0;
 
 	if (!ht) {
 		return NULL;
