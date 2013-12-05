@@ -67,6 +67,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="n">
 						<para>Do not answer, but record anyway if line not yet answered.</para>
 					</option>
+					<option name="o">
+						<para>Exit when 0 is pressed, setting the variable <variable>RECORD_STATUS</variable>
+						to <literal>OPERATOR</literal> instead of <literal>DTMF</literal></para>
+					</option>
 					<option name="q">
 						<para>quiet (do not play a beep tone).</para>
 					</option>
@@ -113,6 +117,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  ***/
 
+#define OPERATOR_KEY '0'
+
 static char *app = "Record";
 
 enum {
@@ -125,18 +131,50 @@ enum {
 	OPTION_KEEP = (1 << 6),
 	FLAG_HAS_PERCENT = (1 << 7),
 	OPTION_ANY_TERMINATE = (1 << 8),
+	OPTION_OPERATOR_EXIT = (1 << 9),
 };
 
 AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('a', OPTION_APPEND),
-	AST_APP_OPTION('k', OPTION_KEEP),	
+	AST_APP_OPTION('k', OPTION_KEEP),
 	AST_APP_OPTION('n', OPTION_NOANSWER),
+	AST_APP_OPTION('o', OPTION_OPERATOR_EXIT),
 	AST_APP_OPTION('q', OPTION_QUIET),
 	AST_APP_OPTION('s', OPTION_SKIP),
 	AST_APP_OPTION('t', OPTION_STAR_TERMINATE),
 	AST_APP_OPTION('y', OPTION_ANY_TERMINATE),
 	AST_APP_OPTION('x', OPTION_IGNORE_TERMINATE),
 });
+
+/*!
+ * \internal
+ * \brief Used to determine what action to take when DTMF is received while recording
+ * \since 13.0.0
+ *
+ * \param chan channel being recorded
+ * \param flags option flags in use by the record application
+ * \param dtmf_integer the integer value of the DTMF key received
+ * \param terminator key currently set to be pressed for normal termination
+ *
+ * \retval 0 do not exit
+ * \retval -1 do exit
+ */
+static int record_dtmf_response(struct ast_channel *chan, struct ast_flags *flags, int dtmf_integer, int terminator)
+{
+	if ((dtmf_integer == OPERATOR_KEY) &&
+		(ast_test_flag(flags, OPTION_OPERATOR_EXIT))) {
+		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "OPERATOR");
+		return -1;
+	}
+
+	if ((dtmf_integer == terminator) ||
+		(ast_test_flag(flags, OPTION_ANY_TERMINATE))) {
+		pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "DTMF");
+		return -1;
+	}
+
+	return 0;
+}
 
 static int record_exec(struct ast_channel *chan, const char *data)
 {
@@ -384,12 +422,11 @@ static int record_exec(struct ast_channel *chan, const char *data)
 				ast_frfree(f);
 				break;
 			}
-		} else if ((f->frametype == AST_FRAME_DTMF) &&
-			   ((f->subclass.integer == terminator) ||
-			    (ast_test_flag(&flags, OPTION_ANY_TERMINATE)))) {
-			ast_frfree(f);
-			pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "DTMF");
-			break;
+		} else if (f->frametype == AST_FRAME_DTMF) {
+			if (record_dtmf_response(chan, &flags, f->subclass.integer, terminator)) {
+				ast_frfree(f);
+				break;
+			}
 		}
 		ast_frfree(f);
 	}
