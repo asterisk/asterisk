@@ -426,7 +426,13 @@ int stasis_app_control_unmute(struct stasis_app_control *control, unsigned int d
 char *stasis_app_control_get_channel_var(struct stasis_app_control *control, const char *variable)
 {
 	RAII_VAR(struct ast_str *, tmp, ast_str_create(32), ast_free);
-	SCOPED_CHANNELLOCK(lockvar, control->channel);
+
+	/* You may be tempted to lock the channel you're about to read from. You
+	 * would be wrong. Some dialplan functions put the channel into
+	 * autoservice, which deadlocks if the channel is already locked.
+	 * ast_str_retrieve_variable() does its own locking, and the dialplan
+	 * functions need to as well. We should be fine without the lock.
+	 */
 
 	if (!tmp) {
 		return NULL;
