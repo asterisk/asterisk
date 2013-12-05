@@ -581,7 +581,6 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "", p->exten, p->context, linkedid, 0, "ALSA/%s", indevname)))
 		return NULL;
 
-	ast_channel_lock(tmp);
 	ast_channel_stage_snapshot(tmp);
 
 	ast_channel_tech_set(tmp, &alsa_tech);
@@ -602,7 +601,6 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	ast_jb_configure(tmp, &global_jbconf);
 
 	ast_channel_stage_snapshot_done(tmp);
-	ast_channel_unlock(tmp);
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {

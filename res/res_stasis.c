@@ -637,9 +637,7 @@ static int send_start_msg(struct stasis_app *app, struct ast_channel *chan,
 	ast_assert(chan != NULL);
 
 	/* Set channel info */
-	ast_channel_lock(chan);
 	snapshot = ast_channel_snapshot_create(chan);
-	ast_channel_unlock(chan);
 	if (!snapshot) {
 		return -1;
 	}
@@ -683,9 +681,7 @@ static int send_end_msg(struct stasis_app *app, struct ast_channel *chan)
 	ast_assert(chan != NULL);
 
 	/* Set channel info */
-	ast_channel_lock(chan);
 	snapshot = ast_channel_snapshot_create(chan);
-	ast_channel_unlock(chan);
 	if (snapshot == NULL) {
 		return -1;
 	}

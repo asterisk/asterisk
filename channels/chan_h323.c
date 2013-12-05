@@ -1061,9 +1061,6 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 	ch = ast_channel_alloc(1, state, cid_num, cid_name, pvt->accountcode, pvt->exten, pvt->context, linkedid, pvt->amaflags, "H323/%s", host);
 	/* Update usage counter */
 	ast_module_ref(ast_module_info->self);
-	if (ch) {
-		ast_channel_lock(ch);
-	}
 	ast_mutex_lock(&pvt->lock);
 	if (ch) {
 		ast_channel_tech_set(ch, &oh323_tech);
@@ -1142,7 +1139,6 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		}
 		if (pvt->cd.transfer_capability >= 0)
 			ast_channel_transfercapability_set(ch, pvt->cd.transfer_capability);
-		ast_channel_unlock(ch);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(ch));

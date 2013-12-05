@@ -428,7 +428,6 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 		return NULL;
 	}
 
-	ast_channel_lock(chan);
 	ast_channel_stage_snapshot(chan);
 
 	ast_channel_tech_set(chan, &console_tech);
@@ -445,7 +444,6 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 	ast_jb_configure(chan, &global_jbconf);
 
 	ast_channel_stage_snapshot_done(chan);
-	ast_channel_unlock(chan);
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(chan)) {

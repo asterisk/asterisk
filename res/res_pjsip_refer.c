@@ -754,9 +754,7 @@ static int refer_incoming_invite_request(struct ast_sip_session *session, struct
 		goto end;
 	}
 
-	ast_channel_lock(session->channel);
 	ast_setstate(session->channel, AST_STATE_RING);
-	ast_channel_unlock(session->channel);
 	ast_raw_answer(session->channel);
 
 	if (!invite.bridge) {

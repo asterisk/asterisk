@@ -310,18 +310,14 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 	}
 
 	if (caller) {
-		ast_channel_lock(caller);
 		caller_snapshot = ast_channel_snapshot_create(caller);
-		ast_channel_unlock(caller);
 		if (!caller_snapshot) {
 			return;
 		}
 		ast_multi_channel_blob_add_channel(payload, "caller", caller_snapshot);
 	}
 
-	ast_channel_lock(peer);
 	peer_snapshot = ast_channel_snapshot_create(peer);
-	ast_channel_unlock(peer);
 	if (!peer_snapshot) {
 		return;
 	}

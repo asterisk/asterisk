@@ -918,12 +918,8 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	}
 
 	if (callid) {
-		ast_channel_lock(owner);
 		ast_channel_callid_set(owner, callid);
-		ast_channel_unlock(owner);
-		ast_channel_lock(chan);
 		ast_channel_callid_set(chan, callid);
-		ast_channel_unlock(chan);
 	}
 
 	ast_channel_tech_set(owner, tech);

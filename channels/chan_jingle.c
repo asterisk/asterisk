@@ -864,7 +864,6 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		return NULL;
 	}
 
-	ast_channel_lock(tmp);
 	ast_channel_stage_snapshot(tmp);
 
 	ast_channel_tech_set(tmp, &jingle_tech);
@@ -942,7 +941,6 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		ast_jb_configure(tmp, &global_jbconf);
 
 	ast_channel_stage_snapshot_done(tmp);
-	ast_channel_unlock(tmp);
 
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
@@ -1117,9 +1115,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 	}
 
 	ast_mutex_unlock(&p->lock);
-	ast_channel_lock(chan);
 	ast_setstate(chan, AST_STATE_RING);
-	ast_channel_unlock(chan);
 	res = ast_pbx_start(chan);
 	
 	switch (res) {

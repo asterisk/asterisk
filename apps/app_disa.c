@@ -381,11 +381,8 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 				ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
 			}
 
-			if (!ast_strlen_zero(acctcode)) {
-				ast_channel_lock(chan);
+			if (!ast_strlen_zero(acctcode))
 				ast_channel_accountcode_set(chan, acctcode);
-				ast_channel_unlock(chan);
-			}
 
 			if (special_noanswer) {
 				ast_clear_flag(&cdr_flags, AST_CDR_FLAG_DISABLE);

@@ -2153,8 +2153,8 @@ int onCallEstablished(ooCallData *call)
 			}
 
 			ast_queue_control(c, AST_CONTROL_ANSWER);
+   			ast_channel_unlock(p->owner);
 			ast_publish_channel_state(c);
-			ast_channel_unlock(p->owner);
 		}
 		ast_mutex_unlock(&p->lock);
 

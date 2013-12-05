@@ -155,9 +155,7 @@ static struct ast_parked_call_payload *parked_call_payload_from_failure(struct a
 	RAII_VAR(struct ast_parked_call_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, parkee_snapshot, NULL, ao2_cleanup);
 
-	ast_channel_lock(chan);
 	parkee_snapshot = ast_channel_snapshot_create(chan);
-	ast_channel_unlock(chan);
 	if (!parkee_snapshot) {
 		return NULL;
 	}
@@ -174,9 +172,7 @@ static struct ast_parked_call_payload *parked_call_payload_from_parked_user(stru
 	struct timeval now = ast_tvnow();
 	const char *lot_name = pu->lot->name;
 
-	ast_channel_lock(pu->chan);
 	parkee_snapshot = ast_channel_snapshot_create(pu->chan);
-	ast_channel_unlock(pu->chan);
 
 	if (!parkee_snapshot) {
 		return NULL;
