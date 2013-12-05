@@ -861,7 +861,6 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 		goto e_return;
 	}
 
-	ast_channel_lock(chn);
 	ast_channel_tech_set(chn, &mbl_tech);
 	ast_format_cap_add(ast_channel_nativeformats(chn), &prefformat);
 	ast_format_copy(ast_channel_rawreadformat(chn), &prefformat);
@@ -879,7 +878,6 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 	if (pvt->sco_socket != -1) {
 		ast_channel_set_fd(chn, 0, pvt->sco_socket);
 	}
-	ast_channel_unlock(chn);
 
 	return chn;
 

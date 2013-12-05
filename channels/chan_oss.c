@@ -799,7 +799,6 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, linkedid, 0, "Console/%s", o->device + 5);
 	if (c == NULL)
 		return NULL;
-	ast_channel_lock(c);
 	ast_channel_tech_set(c, &oss_tech);
 	if (o->sounddev < 0)
 		setformat(o, O_RDWR);
@@ -830,7 +829,6 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	o->owner = c;
 	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(c, &global_jbconf);
-	ast_channel_unlock(c);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(c));

@@ -678,9 +678,7 @@ int ast_str2cause(const char *name)
 static struct stasis_message *create_channel_snapshot_message(struct ast_channel *channel)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	ast_channel_lock(channel);
 	snapshot = ast_channel_snapshot_create(channel);
-	ast_channel_unlock(channel);
 	if (!snapshot) {
 		return NULL;
 	}
@@ -1263,7 +1261,6 @@ int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HOLD };
 	int res;
 
-	ast_channel_lock(chan);
 	if (!ast_strlen_zero(musicclass)) {
 		f.data.ptr = (void *) musicclass;
 		f.datalen = strlen(musicclass) + 1;
@@ -1275,7 +1272,6 @@ int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 	ast_channel_publish_blob(chan, ast_channel_hold_type(), blob);
 
 	res = ast_queue_frame(chan, &f);
-	ast_channel_unlock(chan);
 	return res;
 }
 
@@ -1284,11 +1280,9 @@ int ast_queue_unhold(struct ast_channel *chan)
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_UNHOLD };
 	int res;
 
-	ast_channel_lock(chan);
 	ast_channel_publish_blob(chan, ast_channel_unhold_type(), NULL);
 
 	res = ast_queue_frame(chan, &f);
-	ast_channel_unlock(chan);
 	return res;
 }
 
@@ -2254,9 +2248,7 @@ static void ast_channel_destructor(void *obj)
 
 	/* Things that may possibly raise Stasis messages shouldn't occur after this point */
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEAD);
-	ast_channel_lock(chan);
 	ast_channel_publish_snapshot(chan);
-	ast_channel_unlock(chan);
 	publish_cache_clear(chan);
 
 	ast_channel_lock(chan);
@@ -5326,9 +5318,7 @@ static int set_format(struct ast_channel *chan,
 			generator_write_format_change(chan);
 		}
 
-		ast_channel_lock(chan);
 		ast_channel_publish_snapshot(chan);
-		ast_channel_unlock(chan);
 
 		return 0;
 	}
@@ -5409,9 +5399,7 @@ static int set_format(struct ast_channel *chan,
 		generator_write_format_change(chan);
 	}
 
-	ast_channel_lock(chan);
 	ast_channel_publish_snapshot(chan);
-	ast_channel_unlock(chan);
 
 	return res;
 }
@@ -5628,9 +5616,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	/* Copy/inherit important information into new channel */
 	if (oh) {
 		if (oh->vars) {
-			ast_channel_lock(new_chan);
 			ast_set_variables(new_chan, oh->vars);
-			ast_channel_unlock(new_chan);
 		}
 		if (oh->parent_channel) {
 			call_forward_inherit(new_chan, oh->parent_channel, orig);
@@ -5691,9 +5677,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 
 	if (oh) {
 		if (oh->vars) {
-			ast_channel_lock(chan);
 			ast_set_variables(chan, oh->vars);
-			ast_channel_unlock(chan);
 		}
 		if (!ast_strlen_zero(oh->cid_num) && !ast_strlen_zero(oh->cid_name)) {
 			/*
@@ -5965,9 +5949,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		if (requestor) {
 			struct ast_callid *callid = ast_channel_callid(requestor);
 			if (callid) {
-				ast_channel_lock(c);
 				ast_channel_callid_set(c, callid);
-				ast_channel_unlock(c);
 				callid = ast_callid_unref(callid);
 			}
 		}

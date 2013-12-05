@@ -1667,9 +1667,7 @@ static void publish_dahdichannel(struct ast_channel *chan, int span, const char 
 		return;
 	}
 
-	ast_channel_lock(chan);
 	ast_channel_publish_blob(chan, dahdichannel_type(), blob);
-	ast_channel_unlock(chan);
 }
 
 /*!
@@ -8918,7 +8916,6 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		return NULL;
 	}
 
-	ast_channel_lock(tmp);
 	ast_channel_stage_snapshot(tmp);
 
 	if (callid) {
@@ -9099,7 +9096,6 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		pbx_builtin_setvar_helper(tmp, v->name, v->value);
 
 	ast_channel_stage_snapshot_done(tmp);
-	ast_channel_unlock(tmp);
 
 	ast_module_ref(ast_module_info->self);
 
@@ -9618,7 +9614,6 @@ static void *analog_ss_thread(void *data)
 						getforward = 0;
 					} else {
 						res = tone_zone_play_tone(p->subs[idx].dfd, -1);
-						ast_channel_lock(chan);
 						ast_channel_exten_set(chan, exten);
 						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid)
@@ -9631,7 +9626,6 @@ static void *analog_ss_thread(void *data)
 								ast_set_callerid(chan, NULL, p->cid_name, NULL);
 						}
 						ast_setstate(chan, AST_STATE_RING);
-						ast_channel_unlock(chan);
 						dahdi_ec_enable(p);
 						res = ast_pbx_run(chan);
 						if (res) {
@@ -10395,10 +10389,8 @@ static void *analog_ss_thread(void *data)
 
 		my_handle_notify_message(chan, p, flags, -1);
 
-		ast_channel_lock(chan);
 		ast_setstate(chan, AST_STATE_RING);
 		ast_channel_rings_set(chan, 1);
-		ast_channel_unlock(chan);
 		p->ringt = p->ringt_base;
 		res = ast_pbx_run(chan);
 		if (res) {

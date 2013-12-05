@@ -1551,14 +1551,10 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 	CREATE_ALICE_CHANNEL(chan_alice, &alice_caller);
 	CREATE_BOB_CHANNEL(chan_bob, &bob_caller);
 
-	ast_channel_lock(chan_alice);
 	alice_snapshot = ast_channel_snapshot_create(chan_alice);
-	ast_channel_unlock(chan_alice);
 	ast_test_validate(test, alice_snapshot != NULL);
 
-	ast_channel_lock(chan_bob);
 	bob_snapshot = ast_channel_snapshot_create(chan_bob);
-	ast_channel_unlock(chan_bob);
 	ast_test_validate(test, bob_snapshot != NULL);
 
 	ast_multi_channel_blob_add_channel(mc_blob, "1", alice_snapshot);
@@ -1679,9 +1675,7 @@ static int append_expected_event(
 	const char *peer)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	ast_channel_lock(chan);
 	snapshot = ast_channel_snapshot_create(chan);
-	ast_channel_unlock(chan);
 	if (!snapshot) {
 		return -1;
 	}

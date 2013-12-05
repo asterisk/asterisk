@@ -8106,7 +8106,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		}
 	}
 
-	ast_channel_lock(tmp);
 	ast_channel_stage_snapshot(tmp);
 
 	/* If we sent in a callid, bind it to the channel. */
@@ -8114,6 +8113,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		ast_channel_callid_set(tmp, callid);
 	}
 
+	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
 	ast_channel_cc_params_init(tmp, i->cc_params);
 	ast_channel_caller(tmp)->id.tag = ast_strdup(i->cid_tag);

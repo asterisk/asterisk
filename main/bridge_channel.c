@@ -235,16 +235,12 @@ void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_chann
 		return;
 	}
 
-	ast_channel_lock(bridge_channel->chan);
 	ast_channel_linkedid_set(bridge_channel->chan, oldest_linkedid);
-	ast_channel_unlock(bridge_channel->chan);
 	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
 		if (other == swap) {
 			continue;
 		}
-		ast_channel_lock(other->chan);
 		ast_channel_linkedid_set(other->chan, oldest_linkedid);
-		ast_channel_unlock(other->chan);
 	}
 }
 
@@ -257,7 +253,6 @@ void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_ch
 		if (other == swap) {
 			continue;
 		}
-		ast_channel_lock_both(bridge_channel->chan, other->chan);
 
 		if (!ast_strlen_zero(ast_channel_accountcode(bridge_channel->chan)) && ast_strlen_zero(ast_channel_peeraccount(other->chan))) {
 			ast_debug(1, "Setting peeraccount to %s for %s from data on channel %s\n",
@@ -291,8 +286,6 @@ void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_ch
 				ast_channel_peeraccount_set(bridge_channel->chan, ast_channel_accountcode(other->chan));
 			}
 		}
-		ast_channel_unlock(bridge_channel->chan);
-		ast_channel_unlock(other->chan);
 	}
 }
 
@@ -631,18 +624,14 @@ int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, con
 		datalen = 0;
 	}
 
-	ast_channel_lock(bridge_channel->chan);
 	ast_channel_publish_blob(bridge_channel->chan, ast_channel_hold_type(), blob);
-	ast_channel_unlock(bridge_channel->chan);
 	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
 		moh_class, datalen);
 }
 
 int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
 {
-	ast_channel_lock(bridge_channel->chan);
 	ast_channel_publish_blob(bridge_channel->chan, ast_channel_unhold_type(), NULL);
-	ast_channel_unlock(bridge_channel->chan);
 	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
 }
 

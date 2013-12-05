@@ -2120,7 +2120,6 @@ static void *__analog_ss_thread(void *data)
 						getforward = 0;
 					} else {
 						res = analog_play_tone(p, idx, -1);
-						ast_channel_lock(chan);
 						ast_channel_exten_set(chan, exten);
 						if (!ast_strlen_zero(p->cid_num)) {
 							if (!p->hidecallerid) {
@@ -2135,7 +2134,6 @@ static void *__analog_ss_thread(void *data)
 							}
 						}
 						ast_setstate(chan, AST_STATE_RING);
-						ast_channel_unlock(chan);
 						analog_set_echocanceller(p, 1);
 						res = ast_pbx_run(chan);
 						if (res) {
@@ -2617,10 +2615,8 @@ static void *__analog_ss_thread(void *data)
 
 		analog_handle_notify_message(chan, p, flags, -1);
 
-		ast_channel_lock(chan);
 		ast_setstate(chan, AST_STATE_RING);
 		ast_channel_rings_set(chan, 1);
-		ast_channel_unlock(chan);
 		analog_set_ringtimeout(p, p->ringt_base);
 		res = ast_pbx_run(chan);
 		if (res) {

@@ -2497,13 +2497,7 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 
 	other = ast_bridge_channel_peer(src_bridge_channel);
 	if (other && other->state == BRIDGE_CHANNEL_STATE_WAIT) {
-		unsigned int id;
-
-		if (ast_channel_trylock(other->chan)) {
-			return 1;
-		}
-
-		id = ast_atomic_fetchadd_int((int *) &optimization_id, +1);
+		unsigned int id = ast_atomic_fetchadd_int((int *) &optimization_id, +1);
 
 		ast_verb(3, "Move-swap optimizing %s <-- %s.\n",
 			ast_channel_name(dst_bridge_channel->chan),
@@ -2525,7 +2519,6 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 		if (pvt && pvt->callbacks && pvt->callbacks->optimization_finished) {
 			pvt->callbacks->optimization_finished(pvt, res == 1, id);
 		}
-		ast_channel_unlock(other);
 	}
 	return res;
 }

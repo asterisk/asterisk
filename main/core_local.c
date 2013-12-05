@@ -498,32 +498,29 @@ static void publish_local_bridge_message(struct local_pvt *p)
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, one_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, two_snapshot, NULL, ao2_cleanup);
-	struct ast_channel *owner;
-	struct ast_channel *chan;
-
-	ast_unreal_lock_all(&p->base, &chan, &owner);
+	SCOPED_AO2LOCK(lock, p);
 
 	blob = ast_json_pack("{s: s, s: s, s: b}",
 		"context", p->context,
 		"exten", p->exten,
 		"can_optimize", !ast_test_flag(&p->base, AST_UNREAL_NO_OPTIMIZATION));
 	if (!blob) {
-		goto end;
+		return;
 	}
 
 	multi_blob = ast_multi_channel_blob_create(blob);
 	if (!multi_blob) {
-		goto end;
+		return;
 	}
 
-	one_snapshot = ast_channel_snapshot_create(owner);
+	one_snapshot = ast_channel_snapshot_create(p->base.owner);
 	if (!one_snapshot) {
-		goto end;
+		return;
 	}
 
-	two_snapshot = ast_channel_snapshot_create(chan);
+	two_snapshot = ast_channel_snapshot_create(p->base.chan);
 	if (!two_snapshot) {
-		goto end;
+		return;
 	}
 
 	ast_multi_channel_blob_add_channel(multi_blob, "1", one_snapshot);
@@ -531,15 +528,10 @@ static void publish_local_bridge_message(struct local_pvt *p)
 
 	msg = stasis_message_create(ast_local_bridge_type(), multi_blob);
 	if (!msg) {
-		goto end;
+		return;
 	}
 
-	stasis_publish(ast_channel_topic(owner), msg);
-
-end:
-	ast_channel_unlock(owner);
-	ast_channel_unlock(chan);
-	ao2_unlock(p);
+	stasis_publish(ast_channel_topic(p->base.owner), msg);
 }
 
 int ast_local_setup_bridge(struct ast_channel *ast, struct ast_bridge *bridge, struct ast_channel *swap, struct ast_bridge_features *features)

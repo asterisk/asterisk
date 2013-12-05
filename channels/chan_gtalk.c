@@ -1150,7 +1150,6 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		return NULL;
 	}
 
-	ast_channel_lock(tmp);
 	ast_channel_stage_snapshot(tmp);
 
 	ast_channel_tech_set(tmp, &gtalk_tech);
@@ -1227,7 +1226,6 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		ast_jb_configure(tmp, &global_jbconf);
 
 	ast_channel_stage_snapshot_done(tmp);
-	ast_channel_unlock(tmp);
 
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
@@ -1421,9 +1419,7 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 	ast_format_cap_joint_copy(p->cap, p->peercap, p->jointcap);
 	ast_mutex_unlock(&p->lock);
 
-	ast_channel_lock(chan);
 	ast_setstate(chan, AST_STATE_RING);
-	ast_channel_unlock(chan);
 	if (ast_format_cap_is_empty(p->jointcap)) {
 		ast_log(LOG_WARNING, "Capabilities don't match : us - %s, peer - %s, combined - %s \n", ast_getformatname_multiple(s1, BUFSIZ, p->cap),
 			ast_getformatname_multiple(s2, BUFSIZ, p->peercap),

@@ -223,7 +223,6 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 	struct ast_channel *tmp;
 	tmp = ast_channel_alloc(1, state, 0, 0, "", "s", context, linkedid, 0, "NBS/%s", i->stream);
 	if (tmp) {
-		ast_channel_lock(tmp);
 		ast_channel_tech_set(tmp, &nbs_tech);
 		ast_channel_set_fd(tmp, 0, nbs_fd(i->nbs));
 
@@ -240,7 +239,6 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state, const char *lin
 		ast_channel_language_set(tmp, "");
 		i->owner = tmp;
 		i->u = ast_module_user_add(tmp);
-		ast_channel_unlock(tmp);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));

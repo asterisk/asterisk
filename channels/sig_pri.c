@@ -2160,9 +2160,7 @@ static void *pri_ss_thread(void *data)
 #endif	/* defined(ISSUE_16789) */
 
 		sig_pri_set_echocanceller(p, 1);
-		ast_channel_lock(chan);
 		ast_setstate(chan, AST_STATE_RING);
-		ast_channel_unlock(chan);
 		res = ast_pbx_run(chan);
 		if (res) {
 			ast_log(LOG_WARNING, "PBX exited non-zero!\n");

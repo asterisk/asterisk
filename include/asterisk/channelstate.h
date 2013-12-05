@@ -47,10 +47,7 @@ enum ast_channel_state {
 	AST_STATE_MUTE = (1 << 16),	/*!< Do not transmit voice data */
 };
 
-/*!
- * \brief Change the state of a channel
- * \pre chan is locked
- */
+/*! \brief Change the state of a channel */
 int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
 
 #endif /* __AST_CHANNELSTATE_H__ */
