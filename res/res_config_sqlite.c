@@ -1627,11 +1627,13 @@ static char *handle_cli_sqlite_show_tables(struct ast_cli_entry *e, int cmd, str
 
 static int unload_module(void)
 {
-	if (cli_status_registered)
-		ast_cli_unregister_multiple(cli_status, ARRAY_LEN(cli_status));
+	if (cdr_registered && ast_cdr_unregister(RES_CONFIG_SQLITE_NAME)) {
+		return -1;
+	}
 
-	if (cdr_registered)
-		ast_cdr_unregister(RES_CONFIG_SQLITE_NAME);
+	if (cli_status_registered) {
+		ast_cli_unregister_multiple(cli_status, ARRAY_LEN(cli_status));
+	}
 
 	ast_config_engine_deregister(&sqlite_engine);
 
