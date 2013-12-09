@@ -12,6 +12,9 @@
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------
 
+Applications
+--------------------------
+
 ConfBridge
 --------------------------
  * CONFBRIDGE dialplan function is now capable of creating/modifying dynamic
@@ -42,9 +45,14 @@ Directory
      USEREXIT    user pressed '#' from the selection prompt to exit
      FAILED      directory failed in a way that wasn't accounted for. Dang.
 
+Page
+--------------------------
+ * Added options 'b' and 'B' to apply predial handlers for outgoing calls
+   and for the channel executing Page respectively.
+
 PickupChan
 --------------------------
-* PickupChan now accepts channel uniqueids of channels to pickup.
+ * PickupChan now accepts channel uniqueids of channels to pickup.
 
 Say
 --------------------------

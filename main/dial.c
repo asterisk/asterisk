@@ -145,6 +145,22 @@ static int music_disable(void *data)
 	return 0;
 }
 
+static void *predial_enable(void *data)
+{
+	return ast_strdup(data);
+}
+
+static int predial_disable(void *data)
+{
+	if (!data) {
+		return -1;
+	}
+
+	ast_free(data);
+
+	return 0;
+}
+
 /*! \brief Application execution function for 'ANSWER_EXEC' option */
 static void answer_exec_run(struct ast_dial *dial, struct ast_dial_channel *dial_channel, char *app, char *args)
 {
@@ -186,6 +202,7 @@ static const struct ast_option_types option_types[] = {
 	{ AST_DIAL_OPTION_ANSWER_EXEC, answer_exec_enable, answer_exec_disable }, /*!< Execute application upon answer in async mode */
 	{ AST_DIAL_OPTION_MUSIC, music_enable, music_disable },                   /*!< Play music to the caller instead of ringing */
 	{ AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, NULL, NULL },                  /*!< Disable call forwarding on channels */
+	{ AST_DIAL_OPTION_PREDIAL, predial_enable, predial_disable },             /*!< Execute a subroutine on the outbound channels prior to dialing */
 	{ AST_DIAL_OPTION_MAX, NULL, NULL },                                      /*!< Terminator of list */
 };
 
@@ -259,7 +276,7 @@ int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device)
 }
 
 /*! \brief Helper function that requests all channels */
-static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channel *chan, struct ast_format_cap *cap)
+static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channel *chan, struct ast_format_cap *cap, const char *predial_string)
 {
 	char numsubst[AST_MAX_EXTENSION];
 	struct ast_format_cap *cap_all_audio = NULL;
@@ -316,6 +333,17 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 
 	ast_channel_stage_snapshot_done(channel->owner);
 
+	if (!ast_strlen_zero(predial_string)) {
+		const char *predial_callee = ast_app_expand_sub_args(chan, predial_string);
+		if (!predial_callee) {
+			ast_log(LOG_ERROR, "Could not expand subroutine arguments in predial request '%s'\n", predial_string);
+		}
+		ast_autoservice_start(chan);
+		ast_pre_call(channel->owner, predial_callee);
+		ast_autoservice_stop(chan);
+		ast_free((char *) predial_callee);
+	}
+
 	return 0;
 }
 
@@ -323,10 +351,15 @@ int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_
 {
 	struct ast_dial_channel *channel;
 	int res = -1;
+	char *predial_string = dial->options[AST_DIAL_OPTION_PREDIAL];
+
+	if (!ast_strlen_zero(predial_string)) {
+		ast_replace_subargument_delimiter(predial_string);
+	}
 
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-		if ((res = begin_dial_prerun(channel, chan, cap))) {
+		if ((res = begin_dial_prerun(channel, chan, cap, predial_string))) {
 			break;
 		}
 	}
@@ -336,13 +369,13 @@ int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_
 }
 
 /*! \brief Helper function that does the beginning dialing per-appended channel */
-static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan, int async)
+static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan, int async, const char *predial_string)
 {
 	char numsubst[AST_MAX_EXTENSION];
 	int res = 1;
 
 	/* If no owner channel exists yet execute pre-run */
-	if (!channel->owner && begin_dial_prerun(channel, chan, NULL)) {
+	if (!channel->owner && begin_dial_prerun(channel, chan, NULL, predial_string)) {
 		return 0;
 	}
 
@@ -371,11 +404,16 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan, int async
 {
 	struct ast_dial_channel *channel = NULL;
 	int success = 0;
+	char *predial_string = dial->options[AST_DIAL_OPTION_PREDIAL];
+
+	if (!ast_strlen_zero(predial_string)) {
+		ast_replace_subargument_delimiter(predial_string);
+	}
 
 	/* Iterate through channel list, requesting and calling each one */
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-		success += begin_dial_channel(channel, chan, async);
+		success += begin_dial_channel(channel, chan, async, predial_string);
 	}
 	AST_LIST_UNLOCK(&dial->channels);
 
@@ -389,6 +427,11 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	struct ast_channel *original = channel->owner;
 	char *tmp = ast_strdupa(ast_channel_call_forward(channel->owner));
 	char *tech = "Local", *device = tmp, *stuff;
+	char *predial_string = dial->options[AST_DIAL_OPTION_PREDIAL];
+
+	if (!ast_strlen_zero(predial_string)) {
+		ast_replace_subargument_delimiter(predial_string);
+	}
 
 	/* If call forwarding is disabled just drop the original channel and don't attempt to dial the new one */
 	if (FIND_RELATIVE_OPTION(dial, channel, AST_DIAL_OPTION_DISABLE_CALL_FORWARDING)) {
@@ -428,7 +471,7 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	channel->owner = NULL;
 
 	/* Finally give it a go... send it out into the world */
-	begin_dial_channel(channel, chan, chan ? 0 : 1);
+	begin_dial_channel(channel, chan, chan ? 0 : 1, predial_string);
 
 	return 0;
 }

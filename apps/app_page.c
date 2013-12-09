@@ -65,6 +65,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 			<parameter name="options">
 				<optionlist>
+				<option name="b" argsep="^">
+					<para>Before initiating an outgoing call, Gosub to the specified
+					location using the newly created channel.  The Gosub will be
+					executed for each destination channel.</para>
+					<argument name="context" required="false" />
+					<argument name="exten" required="false" />
+					<argument name="priority" required="true" hasparams="optional" argsep="^">
+						<argument name="arg1" multiple="true" required="true" />
+						<argument name="argN" />
+					</argument>
+				</option>
+				<option name="B" argsep="^">
+					<para>Before initiating the outgoing call(s), Gosub to the specified
+					location using the current channel.</para>
+					<argument name="context" required="false" />
+					<argument name="exten" required="false" />
+					<argument name="priority" required="true" hasparams="optional" argsep="^">
+						<argument name="arg1" multiple="true" required="true" />
+						<argument name="argN" />
+					</argument>
+				</option>
 					<option name="d">
 						<para>Full duplex audio</para>
 					</option>
@@ -118,14 +139,20 @@ enum page_opt_flags {
 	PAGE_IGNORE_FORWARDS = (1 << 4),
 	PAGE_ANNOUNCE = (1 << 5),
 	PAGE_NOCALLERANNOUNCE = (1 << 6),
+	PAGE_PREDIAL_CALLEE = (1 << 7),
+	PAGE_PREDIAL_CALLER = (1 << 8),
 };
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
-	OPT_ARG_ARRAY_SIZE = 1,
+	OPT_ARG_PREDIAL_CALLEE = 1,
+	OPT_ARG_PREDIAL_CALLER = 2,
+	OPT_ARG_ARRAY_SIZE = 3,
 };
 
 AST_APP_OPTIONS(page_opts, {
+	AST_APP_OPTION_ARG('b', PAGE_PREDIAL_CALLEE, OPT_ARG_PREDIAL_CALLEE),
+	AST_APP_OPTION_ARG('B', PAGE_PREDIAL_CALLER, OPT_ARG_PREDIAL_CALLER),
 	AST_APP_OPTION('d', PAGE_DUPLEX),
 	AST_APP_OPTION('q', PAGE_QUIET),
 	AST_APP_OPTION('r', PAGE_RECORD),
@@ -283,6 +310,12 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	if (ast_test_flag(&options.flags, PAGE_PREDIAL_CALLER)
+		&& !ast_strlen_zero(options.opts[OPT_ARG_PREDIAL_CALLER])) {
+		ast_replace_subargument_delimiter(options.opts[OPT_ARG_PREDIAL_CALLER]);
+		ast_app_exec_sub(NULL, chan, options.opts[OPT_ARG_PREDIAL_CALLER], 0);
+	}
+
 	/* Go through parsing/calling each device */
 	while ((tech = strsep(&args.devices, "&"))) {
 		int state = 0;
@@ -326,6 +359,11 @@ static int page_exec(struct ast_channel *chan, const char *data)
 
 		/* Set ANSWER_EXEC as global option */
 		ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, confbridgeopts);
+
+		if (ast_test_flag(&options.flags, PAGE_PREDIAL_CALLEE)
+			&& !ast_strlen_zero(options.opts[OPT_ARG_PREDIAL_CALLEE])) {
+			ast_dial_option_global_enable(dial, AST_DIAL_OPTION_PREDIAL, options.opts[OPT_ARG_PREDIAL_CALLEE]);
+		}
 
 		if (timeout) {
 			ast_dial_set_global_timeout(dial, timeout * 1000);
