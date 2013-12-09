@@ -218,14 +218,20 @@ static void sorcery_astdb_retrieve_multiple(const struct ast_sorcery *sorcery, v
 static void sorcery_astdb_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex)
 {
 	const char *prefix = data;
-	char family[strlen(prefix) + strlen(type) + 2];
+	char family[strlen(prefix) + strlen(type) + 2], tree[strlen(regex) + 1];
 	RAII_VAR(struct ast_db_entry *, entries, NULL, ast_db_freetree);
 	regex_t expression;
 	struct ast_db_entry *entry;
 
 	snprintf(family, sizeof(family), "%s/%s", prefix, type);
 
-	if (!(entries = ast_db_gettree(family, NULL)) || regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
+	if (regex[0] == '^') {
+		snprintf(tree, sizeof(tree), "%s%%", regex + 1);
+	} else {
+		tree[0] = '\0';
+	}
+
+	if (!(entries = ast_db_gettree(family, tree)) || regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
 		return;
 	}
 
