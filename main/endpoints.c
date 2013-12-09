@@ -388,8 +388,14 @@ void ast_endpoint_set_max_channels(struct ast_endpoint *endpoint,
 static void endpoint_snapshot_dtor(void *obj)
 {
 	struct ast_endpoint_snapshot *snapshot = obj;
+	int channel;
 
 	ast_assert(snapshot != NULL);
+
+	for (channel = 0; channel < snapshot->num_channels; channel++) {
+		ao2_ref(snapshot->channel_ids[channel], -1);
+	}
+
 	ast_string_field_free_memory(snapshot);
 }
 
@@ -422,8 +428,8 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 
 	i = ao2_iterator_init(endpoint->channel_ids, 0);
 	while ((obj = ao2_iterator_next(&i))) {
-		RAII_VAR(char *, channel_id, obj, ao2_cleanup);
-		snapshot->channel_ids[snapshot->num_channels++] = channel_id;
+		/* The reference is kept so the channel id does not go away until the snapshot is gone */
+		snapshot->channel_ids[snapshot->num_channels++] = obj;
 	}
 	ao2_iterator_destroy(&i);
 
