@@ -51,6 +51,11 @@ Say
    the background application and jump to the received extension once a match
    is established or after a short period of inactivity.
 
+MixMonitor
+-------------------------
+ * A new function, MIXMONITOR, has been added to allow access to individual
+   instances of MixMonitor on a channel.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------

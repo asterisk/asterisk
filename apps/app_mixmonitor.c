@@ -237,6 +237,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			action on the current channel.</para>
 		</description>
 	</manager>
+	<function name="MIXMONITOR" language="en_US">
+		<synopsis>
+			Retrieve data pertaining to specific instances of MixMonitor on a channel.
+		</synopsis>
+		<syntax>
+			<parameter name="id" required="true">
+				<para>The unique ID of the MixMonitor instance. The unique ID can be retrieved through the channel
+				variable used as an argument to the <replaceable>i</replaceable> option to MixMonitor.</para>
+			</parameter>
+			<parameter name="key" required="true">
+				<para>The piece of data to retrieve from the MixMonitor.</para>
+				<enumlist>
+					<enum name="filename" />
+				</enumlist>
+			</parameter>
+		</syntax>
+	</function>
 
  ***/
 
@@ -338,6 +355,7 @@ struct mixmonitor_ds {
 	struct ast_audiohook *audiohook;
 
 	unsigned int samp_rate;
+	char *filename;
 };
 
 /*!
@@ -381,6 +399,7 @@ static void mixmonitor_ds_destroy(void *data)
 	ast_mutex_lock(&mixmonitor_ds->lock);
 	mixmonitor_ds->audiohook = NULL;
 	mixmonitor_ds->destruction_ok = 1;
+	ast_free(mixmonitor_ds->filename);
 	ast_cond_signal(&mixmonitor_ds->destruction_condition);
 	ast_mutex_unlock(&mixmonitor_ds->lock);
 }
@@ -774,6 +793,7 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 
 	mixmonitor_ds->samp_rate = 8000;
 	mixmonitor_ds->audiohook = &mixmonitor->audiohook;
+	mixmonitor_ds->filename = ast_strdup(mixmonitor->filename);
 	datastore->data = mixmonitor_ds;
 
 	ast_channel_lock(chan);
@@ -835,6 +855,18 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 		return -1;
 	}
 
+	if (!ast_strlen_zero(filename)) {
+		mixmonitor->filename = ast_strdup(filename);
+	}
+
+	if (!ast_strlen_zero(filename_write)) {
+		mixmonitor->filename_write = ast_strdup(filename_write);
+	}
+
+	if (!ast_strlen_zero(filename_read)) {
+		mixmonitor->filename_read = ast_strdup(filename_read);
+	}
+
 	if (setup_mixmonitor_ds(mixmonitor, chan, &datastore_id)) {
 		ast_autochan_destroy(mixmonitor->autochan);
 		mixmonitor_free(mixmonitor);
@@ -853,18 +885,6 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 
 	if (!ast_strlen_zero(postprocess2)) {
 		mixmonitor->post_process = ast_strdup(postprocess2);
-	}
-
-	if (!ast_strlen_zero(filename)) {
-		mixmonitor->filename = ast_strdup(filename);
-	}
-
-	if (!ast_strlen_zero(filename_write)) {
-		mixmonitor->filename_write = ast_strdup(filename_write);
-	}
-
-	if (!ast_strlen_zero(filename_read)) {
-		mixmonitor->filename_read = ast_strdup(filename_read);
 	}
 
 	if (!ast_strlen_zero(recipients)) {
@@ -1368,6 +1388,49 @@ static int manager_stop_mixmonitor(struct mansession *s, const struct message *m
 	return AMI_SUCCESS;
 }
 
+static int func_mixmonitor_read(struct ast_channel *chan, const char *cmd, char *data,
+		char *buf, size_t len)
+{
+	struct ast_datastore *datastore;
+	struct mixmonitor_ds *ds_data;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(id);
+		AST_APP_ARG(key);
+	);
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (ast_strlen_zero(args.id) || ast_strlen_zero(args.key)) {
+		ast_log(LOG_WARNING, "Not enough arguments provided to %s. "
+				"An ID and key must be provided\n", cmd);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, args.id);
+	ast_channel_unlock(chan);
+
+	if (!datastore) {
+		ast_log(LOG_WARNING, "Could not find MixMonitor with ID %s\n", args.id);
+		return -1;
+	}
+
+	ds_data = datastore->data;
+
+	if (!strcasecmp(args.key, "filename")) {
+		ast_copy_string(buf, ds_data->filename, len);
+	} else {
+		ast_log(LOG_WARNING, "Unrecognized %s option %s\n", cmd, args.key);
+		return -1;
+	}
+	return 0;
+}
+
+static struct ast_custom_function mixmonitor_function = {
+	.name = "MIXMONITOR",
+	.read = func_mixmonitor_read,
+};
+
 static struct ast_cli_entry cli_mixmonitor[] = {
 	AST_CLI_DEFINE(handle_cli_mixmonitor, "Execute a MixMonitor command")
 };
@@ -1397,6 +1460,7 @@ static int unload_module(void)
 	res |= ast_manager_unregister("MixMonitorMute");
 	res |= ast_manager_unregister("MixMonitor");
 	res |= ast_manager_unregister("StopMixMonitor");
+	res |= ast_custom_function_unregister(&mixmonitor_function);
 	res |= clear_mixmonitor_methods();
 
 	return res;
@@ -1412,6 +1476,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("MixMonitorMute", 0, manager_mute_mixmonitor);
 	res |= ast_manager_register_xml("MixMonitor", 0, manager_mixmonitor);
 	res |= ast_manager_register_xml("StopMixMonitor", 0, manager_stop_mixmonitor);
+	res |= ast_custom_function_register(&mixmonitor_function);
 	res |= set_mixmonitor_methods();
 
 	return res;
