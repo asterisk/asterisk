@@ -28,10 +28,11 @@
 #include <pjsip_ua.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
 #include "asterisk/acl.h"
 
-static pj_bool_t nat_on_rx_request(pjsip_rx_data *rdata)
+static pj_bool_t nat_on_rx_message(pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
 	pjsip_contact_hdr *contact;
@@ -213,21 +214,60 @@ static pjsip_module nat_module = {
 	.name = { "NAT", 3 },
 	.id = -1,
 	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 2,
-	.on_rx_request = nat_on_rx_request,
+	.on_rx_request = nat_on_rx_message,
+	.on_rx_response = nat_on_rx_message,
 	.on_tx_request = nat_on_tx_message,
 	.on_tx_response = nat_on_tx_message,
 };
 
-static int load_module(void)
+/*! \brief Function called when an INVITE goes out */
+static int nat_incoming_invite_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
-	ast_sip_register_service(&nat_module);
-	return AST_MODULE_LOAD_SUCCESS;
+	if (session->inv_session->state == PJSIP_INV_STATE_INCOMING) {
+		pjsip_dlg_add_usage(session->inv_session->dlg, &nat_module, NULL);
+	}
+
+	return 0;
 }
+
+/*! \brief Function called when an INVITE comes in */
+static void nat_outgoing_invite_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
+{
+	if (session->inv_session->state == PJSIP_INV_STATE_NULL) {
+		pjsip_dlg_add_usage(session->inv_session->dlg, &nat_module, NULL);
+	}
+}
+
+/*! \brief Supplement for adding NAT functionality to dialog */
+static struct ast_sip_session_supplement nat_supplement = {
+	.method = "INVITE",
+	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_FIRST + 1,
+	.incoming_request = nat_incoming_invite_request,
+	.outgoing_request = nat_outgoing_invite_request,
+};
+
 
 static int unload_module(void)
 {
+	ast_sip_session_unregister_supplement(&nat_supplement);
 	ast_sip_unregister_service(&nat_module);
 	return 0;
+}
+
+static int load_module(void)
+{
+	if (ast_sip_register_service(&nat_module)) {
+		ast_log(LOG_ERROR, "Could not register NAT module for incoming and outgoing requests\n");
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (ast_sip_session_register_supplement(&nat_supplement)) {
+		ast_log(LOG_ERROR, "Could not register NAT session supplement for incoming and outgoing INVITE requests\n");
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP NAT Support",
