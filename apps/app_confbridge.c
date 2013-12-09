@@ -109,6 +109,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Enters the user into a specified conference bridge.  The user can
 			exit the conference by hangup or DTMF menu option.</para>
+			<para>This application sets the following channel variable upon completion:</para>
+			<variablelist>
+				<variable name="CONFBRIDGE_RESULT">
+					<value name="FAILED">The channel encountered an error and could not enter the conference.</value>
+					<value name="HANGUP">The channel exited the conference by hanging up.</value>
+					<value name="KICKED">The channel was kicked from the conference.</value>
+					<value name="ENDMARKED">The channel left the conference as a result of the last marked user leaving.</value>
+					<value name="DTMF">The channel pressed a DTMF sequence to exit the conference.</value>
+				</variable>
+			</variablelist>
 		</description>
 		<see-also>
 			<ref type="application">ConfBridge</ref>
@@ -1564,11 +1574,13 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (ast_bridge_features_init(&user.features)) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		res = -1;
 		goto confbridge_cleanup;
 	}
 
 	if (ast_strlen_zero(data)) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		ast_log(LOG_WARNING, "%s requires an argument (conference name[,options])\n", app);
 		res = -1;
 		goto confbridge_cleanup;
@@ -1584,6 +1596,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		b_profile_name = args.b_profile_name;
 	}
 	if (!conf_find_bridge_profile(chan, b_profile_name, &user.b_profile)) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		ast_log(LOG_WARNING, "Conference bridge profile %s does not exist\n", b_profile_name ?
 			b_profile_name : DEFAULT_BRIDGE_PROFILE);
 		res = -1;
@@ -1595,6 +1608,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		u_profile_name = args.u_profile_name;
 	}
 	if (!conf_find_user_profile(chan, u_profile_name, &user.u_profile)) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		ast_log(LOG_WARNING, "Conference user profile %s does not exist\n", u_profile_name ?
 			u_profile_name : DEFAULT_USER_PROFILE);
 		res = -1;
@@ -1607,6 +1621,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	 * prompted for requardless of quiet setting. */
 	if (!ast_strlen_zero(user.u_profile.pin)) {
 		if (conf_get_pin(chan, &user)) {
+			pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 			res = -1; /* invalid PIN */
 			goto confbridge_cleanup;
 		}
@@ -1625,6 +1640,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (conf_set_menu_to_user(chan, &user, menu_profile_name)) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		ast_log(LOG_WARNING, "Conference menu profile %s does not exist\n", menu_profile_name ?
 			menu_profile_name : DEFAULT_MENU_PROFILE);
 		res = -1;
@@ -1651,11 +1667,13 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		char *conf_name = ast_strdup(args.conf_name); /* this is freed during feature cleanup */
 
 		if (!conf_name) {
+			pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 			res = -1;
 			goto confbridge_cleanup;
 		}
 		if (ast_bridge_talk_detector_hook(&user.features, conf_handle_talker_cb,
 			conf_name, conf_handle_talker_destructor, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
+			pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 			ast_free(conf_name);
 			res = -1;
 			goto confbridge_cleanup;
@@ -1664,6 +1682,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* Look for a conference bridge matching the provided name */
 	if (!(conference = join_conference_bridge(args.conf_name, &user))) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		res = -1;
 		goto confbridge_cleanup;
 	}
@@ -1731,6 +1750,11 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		&user.features,
 		&user.tech_args,
 		0);
+
+	if (!user.kicked && ast_check_hangup(chan)) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "HANGUP");
+	}
+
 	send_leave_event(user.chan, conference);
 
 	/* if we're shutting down, don't attempt to do further processing */
@@ -1967,6 +1991,7 @@ static int action_kick_last(struct confbridge_conference *conference,
 			"");
 	} else if (last_user) {
 		last_user->kicked = 1;
+		pbx_builtin_setvar_helper(last_user->chan, "CONFBRIDGE_RESULT", "KICKED");
 		ast_bridge_remove(conference->bridge, last_user->chan);
 		ao2_unlock(conference);
 	}
@@ -2104,6 +2129,7 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 			res |= action_kick_last(conference, bridge_channel, user);
 			break;
 		case MENU_ACTION_LEAVE:
+			pbx_builtin_setvar_helper(bridge_channel->chan, "CONFBRIDGE_RESULT", "DTMF");
 			ao2_lock(conference);
 			ast_bridge_remove(conference->bridge, bridge_channel->chan);
 			ast_test_suite_event_notify("CONF_MENU_LEAVE",
@@ -2152,10 +2178,12 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 		if (!strcasecmp(ast_channel_name(user->chan), channel)) {
 			user->kicked = 1;
+			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
 			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
 		} else if (!strcasecmp("all", channel)) {
 			user->kicked = 1;
+			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
 			ast_bridge_remove(conference->bridge, user->chan);
 			res = 0;
 		}
@@ -2163,10 +2191,12 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 	AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
 		if (!strcasecmp(ast_channel_name(user->chan), channel)) {
 			user->kicked = 1;
+			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
 			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
 		} else if (!strcasecmp("all", channel)) {
 			user->kicked = 1;
+			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
 			ast_bridge_remove(conference->bridge, user->chan);
 			res = 0;
 		}

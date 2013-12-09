@@ -38,6 +38,7 @@
 #include "include/confbridge.h"
 #include "asterisk/musiconhold.h"
 #include "include/conf_state.h"
+#include "asterisk/pbx.h"
 
 static void join_active(struct confbridge_user *user);
 static void join_marked(struct confbridge_user *user);
@@ -105,6 +106,7 @@ static void leave_marked(struct confbridge_user *user)
 					user_iter->conference->waitingusers++;
 				}
 				user_iter->kicked = 1;
+				pbx_builtin_setvar_helper(user_iter->chan, "CONFBRIDGE_RESULT", "ENDMARKED");
 				ast_bridge_remove(user_iter->conference->bridge, user_iter->chan);
 			} else if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
 				&& !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
