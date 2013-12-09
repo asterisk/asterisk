@@ -513,19 +513,21 @@ int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, co
 	struct ast_variable *mapping;
 	int res = 0;
 
-	if (!config || (config == CONFIG_STATUS_FILEMISSING) || (config == CONFIG_STATUS_FILEINVALID)) {
+	if (!config || config == CONFIG_STATUS_FILEINVALID) {
 		return -1;
 	}
 
 	for (mapping = ast_variable_browse(config, name); mapping; mapping = mapping->next) {
 		RAII_VAR(char *, mapping_name, ast_strdup(mapping->name), ast_free);
 		RAII_VAR(char *, mapping_value, ast_strdup(mapping->value), ast_free);
-		char *options = mapping_name, *name = strsep(&options, "/");
-		char *data = mapping_value, *wizard = strsep(&data, ",");
+		char *options = mapping_name;
+		char *type = strsep(&options, "/");
+		char *data = mapping_value;
+		char *wizard = strsep(&data, ",");
 		unsigned int caching = 0;
 
-		/* If no wizard exists just skip, nothing we can do */
-		if (ast_strlen_zero(wizard)) {
+		/* If no object type or wizard exists just skip, nothing we can do */
+		if (ast_strlen_zero(type) || ast_strlen_zero(wizard)) {
 			continue;
 		}
 
@@ -535,7 +537,8 @@ int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, co
 		}
 
 		/* Any error immediately causes us to stop */
-		if ((res = sorcery_apply_wizard_mapping(sorcery, name, module, wizard, data, caching))) {
+		if (sorcery_apply_wizard_mapping(sorcery, type, module, wizard, data, caching)) {
+			res = -1;
 			break;
 		}
 	}
