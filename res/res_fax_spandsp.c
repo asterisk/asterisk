@@ -545,7 +545,7 @@ static void *spandsp_fax_new(struct ast_fax_session *s, struct ast_fax_tech_toke
 
 	p->stats = &spandsp_global_stats.g711;
 
-	if (s->details->caps & AST_FAX_TECH_T38) {
+	if (s->details->caps & (AST_FAX_TECH_T38 | AST_FAX_TECH_AUDIO)) {
 		if ((s->details->caps & AST_FAX_TECH_AUDIO) == 0) {
 			/* audio mode was not requested, start in T.38 mode */
 			p->ist38 = 1;
@@ -555,9 +555,7 @@ static void *spandsp_fax_new(struct ast_fax_session *s, struct ast_fax_tech_toke
 		/* init t38 stuff */
 		t38_terminal_init(&p->t38_state, caller_mode, t38_tx_packet_handler, s);
 		set_logging(&p->t38_state.logging, s->details);
-	}
 
-	if (s->details->caps & AST_FAX_TECH_AUDIO) {
 		/* init audio stuff */
 		fax_init(&p->fax_state, caller_mode);
 		set_logging(&p->fax_state.logging, s->details);
