@@ -841,13 +841,27 @@ static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 struct fixup_data {
 	struct ast_sip_session *session;
 	struct ast_channel *chan;
+	struct ast_channel *oldchan;
 };
+
+static void fixup_data_destroy(struct fixup_data *fix_data)
+{
+	ao2_cleanup(fix_data->session);
+	ast_channel_cleanup(fix_data->chan);
+	ast_channel_cleanup(fix_data->oldchan);
+	ast_free(fix_data);
+}
 
 static int fixup(void *data)
 {
 	struct fixup_data *fix_data = data;
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(fix_data->chan);
 	struct chan_pjsip_pvt *pvt = channel->pvt;
+
+	if (channel->session->channel != fix_data->oldchan) {
+		fixup_data_destroy(fix_data);
+		return -1;
+	}
 
 	channel->session->channel = fix_data->chan;
 	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
@@ -857,6 +871,8 @@ static int fixup(void *data)
 		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(fix_data->chan));
 	}
 
+	fixup_data_destroy(fix_data);
+
 	return 0;
 }
 
@@ -864,16 +880,23 @@ static int fixup(void *data)
 static int chan_pjsip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(newchan);
-	struct fixup_data fix_data;
+	struct fixup_data *fix_data = ast_calloc(1, sizeof(*fix_data));
 
-	fix_data.session = channel->session;
-	fix_data.chan = newchan;
-
-	if (channel->session->channel != oldchan) {
+	if (!fix_data) {
 		return -1;
 	}
 
-	if (ast_sip_push_task_synchronous(channel->session->serializer, fixup, &fix_data)) {
+	fix_data->session = channel->session;
+	ao2_ref(fix_data->session, +1);
+
+	fix_data->chan = newchan;
+	ast_channel_ref(fix_data->chan);
+
+	fix_data->oldchan = oldchan;
+	ast_channel_ref(fix_data->oldchan);
+
+	if (ast_sip_push_task(channel->session->serializer, fixup, fix_data)) {
+		fixup_data_destroy(fix_data);
 		ast_log(LOG_WARNING, "Unable to perform channel fixup\n");
 		return -1;
 	}
