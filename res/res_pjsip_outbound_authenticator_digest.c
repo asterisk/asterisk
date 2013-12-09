@@ -50,15 +50,16 @@ static pjsip_www_authenticate_hdr *get_auth_header(pjsip_rx_data *challenge) {
 }
 
 static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_sess,
-		const struct ast_sip_auth_array *array, pjsip_rx_data *challenge)
+		const struct ast_sip_auth_vector *auth_vector, pjsip_rx_data *challenge)
 {
-	struct ast_sip_auth **auths = ast_alloca(array->num * sizeof(*auths));
-	pjsip_cred_info *auth_creds = ast_alloca(array->num * sizeof(*auth_creds));
+	size_t auth_size = AST_VECTOR_SIZE(auth_vector);
+	struct ast_sip_auth **auths = ast_alloca(auth_size * sizeof(*auths));
+	pjsip_cred_info *auth_creds = ast_alloca(auth_size * sizeof(*auth_creds));
 	pjsip_www_authenticate_hdr *auth_hdr = NULL;
 	int res = 0;
 	int i;
 
-	if (ast_sip_retrieve_auths(array, auths)) {
+	if (ast_sip_retrieve_auths(auth_vector, auths)) {
 		res = -1;
 		goto cleanup;
 	}
@@ -70,7 +71,7 @@ static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_ses
 		goto cleanup;
 	}
 
-	for (i = 0; i < array->num; ++i) {
+	for (i = 0; i < auth_size; ++i) {
 		if (ast_strlen_zero(auths[i]->realm)) {
 			auth_creds[i].realm = auth_hdr->challenge.common.realm;
 		} else {
@@ -93,14 +94,14 @@ static int set_outbound_authentication_credentials(pjsip_auth_clt_sess *auth_ses
 		}
 	}
 
-	pjsip_auth_clt_set_credentials(auth_sess, array->num, auth_creds);
+	pjsip_auth_clt_set_credentials(auth_sess, auth_size, auth_creds);
 
 cleanup:
-	ast_sip_cleanup_auths(auths, array->num);
+	ast_sip_cleanup_auths(auths, auth_size);
 	return res;
 }
 
-static int digest_create_request_with_auth(const struct ast_sip_auth_array *auths, pjsip_rx_data *challenge,
+static int digest_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
 		pjsip_transaction *tsx, pjsip_tx_data **new_request)
 {
 	pjsip_auth_clt_sess auth_sess;

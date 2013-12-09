@@ -192,9 +192,7 @@ struct sip_outbound_registration_client_state {
 	/*! \brief Serializer for stuff and things */
 	struct ast_taskprocessor *serializer;
 	/*! \brief Configured authentication credentials */
-	struct ast_sip_auth_array outbound_auths;
-	/*! \brief Number of configured auths */
-	size_t num_outbound_auths;
+	struct ast_sip_auth_vector outbound_auths;
 	/*! \brief Registration should be destroyed after completion of transaction */
 	unsigned int destroy:1;
 };
@@ -235,9 +233,7 @@ struct sip_outbound_registration {
 	/*! \brief Outbound registration state */
 	struct sip_outbound_registration_state *state;
 	/*! \brief Configured authentication credentials */
-	struct ast_sip_auth_array outbound_auths;
-	/*! \brief Number of configured auths */
-	size_t num_outbound_auths;
+	struct ast_sip_auth_vector outbound_auths;
 };
 
 /*! \brief Helper function which cancels the timer on a client */
@@ -334,7 +330,7 @@ static int handle_client_state_destruction(void *data)
 	pjsip_regc_destroy(client_state->client);
 
 	client_state->status = SIP_REGISTRATION_STOPPED;
-	ast_sip_auth_array_destroy(&client_state->outbound_auths);
+	ast_sip_auth_vector_destroy(&client_state->outbound_auths);
 
 	return 0;
 }
@@ -564,7 +560,7 @@ static void sip_outbound_registration_destroy(void *obj)
 	struct sip_outbound_registration *registration = obj;
 
 	ao2_cleanup(registration->state);
-	ast_sip_auth_array_destroy(&registration->outbound_auths);
+	ast_sip_auth_vector_destroy(&registration->outbound_auths);
 
 	ast_string_field_free_memory(registration);
 }
@@ -657,13 +653,14 @@ static int can_reuse_registration(struct sip_outbound_registration *existing, st
 
 	if (strcmp(existing->server_uri, applied->server_uri) || strcmp(existing->client_uri, applied->client_uri) ||
 		strcmp(existing->transport, applied->transport) || strcmp(existing->contact_user, applied->contact_user) ||
-		strcmp(existing->outbound_proxy, applied->outbound_proxy) || existing->num_outbound_auths != applied->num_outbound_auths ||
+		strcmp(existing->outbound_proxy, applied->outbound_proxy) ||
+		AST_VECTOR_SIZE(&existing->outbound_auths) != AST_VECTOR_SIZE(&applied->outbound_auths) ||
 		existing->auth_rejection_permanent != applied->auth_rejection_permanent) {
 		return 0;
 	}
 
-	for (i = 0; i < existing->num_outbound_auths; ++i) {
-		if (strcmp(existing->outbound_auths.names[i], applied->outbound_auths.names[i])) {
+	for (i = 0; i < AST_VECTOR_SIZE(&existing->outbound_auths); ++i) {
+		if (strcmp(AST_VECTOR_GET(&existing->outbound_auths, i), AST_VECTOR_GET(&applied->outbound_auths, i))) {
 			return 0;
 		}
 	}
@@ -764,13 +761,13 @@ static int sip_outbound_registration_perform(void *data)
 	size_t i;
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
-	ast_sip_auth_array_destroy(&registration->state->client_state->outbound_auths);
+	ast_sip_auth_vector_destroy(&registration->state->client_state->outbound_auths);
 
-	registration->state->client_state->outbound_auths.names = ast_calloc(registration->outbound_auths.num, sizeof(char *));
-	for (i = 0; i < registration->outbound_auths.num; ++i) {
-		registration->state->client_state->outbound_auths.names[i] = ast_strdup(registration->outbound_auths.names[i]);
+	AST_VECTOR_INIT(&registration->state->client_state->outbound_auths, AST_VECTOR_SIZE(&registration->outbound_auths));
+	for (i = 0; i < AST_VECTOR_SIZE(&registration->outbound_auths); ++i) {
+		const char *name = ast_strdup(AST_VECTOR_GET(&registration->outbound_auths, i));
+		AST_VECTOR_APPEND(&registration->state->client_state->outbound_auths, name);
 	}
-	registration->state->client_state->outbound_auths.num = registration->outbound_auths.num;
 	registration->state->client_state->retry_interval = registration->retry_interval;
 	registration->state->client_state->forbidden_retry_interval = registration->forbidden_retry_interval;
 	registration->state->client_state->max_retries = registration->max_retries;
@@ -808,7 +805,7 @@ static int outbound_auth_handler(const struct aco_option *opt, struct ast_variab
 {
 	struct sip_outbound_registration *registration = obj;
 
-	return ast_sip_auth_array_init(&registration->outbound_auths, var->value);
+	return ast_sip_auth_vector_init(&registration->outbound_auths, var->value);
 }
 
 static int outbound_auths_to_str(const void *obj, const intptr_t *args, char **buf)

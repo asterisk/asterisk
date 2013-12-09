@@ -331,55 +331,47 @@ static int timers_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
-void ast_sip_auth_array_destroy(struct ast_sip_auth_array *auths)
+void ast_sip_auth_vector_destroy(struct ast_sip_auth_vector *auths)
 {
 	int i;
+	size_t size;
 
 	if (!auths) {
 		return;
 	}
 
-	for (i = 0; i < auths->num; ++i) {
-		ast_free((char *) auths->names[i]);
+	size = AST_VECTOR_SIZE(auths);
+
+	for (i = 0; i < size; ++i) {
+		const char *name = AST_VECTOR_REMOVE_UNORDERED(auths, 0);
+		ast_free((char *) name);
 	}
-	ast_free(auths->names);
-	auths->names = NULL;
-	auths->num = 0;
+	AST_VECTOR_FREE(auths);
 }
 
-#define AUTH_INCREMENT 4
-
-int ast_sip_auth_array_init(struct ast_sip_auth_array *auths, const char *value)
+int ast_sip_auth_vector_init(struct ast_sip_auth_vector *auths, const char *value)
 {
 	char *auth_names = ast_strdupa(value);
 	char *val;
-	int num_alloced = 0;
-	const char **alloced_auths;
 
 	ast_assert(auths != NULL);
-	ast_assert(auths->names == NULL);
-	ast_assert(!auths->num);
+	ast_assert(AST_VECTOR_SIZE(auths) == 0);
+
+	AST_VECTOR_INIT(auths, 1);
 
 	while ((val = strsep(&auth_names, ","))) {
-		if (auths->num >= num_alloced) {
-			num_alloced += AUTH_INCREMENT;
-			alloced_auths = ast_realloc(auths->names, num_alloced * sizeof(char *));
-			if (!alloced_auths) {
-				goto failure;
-			}
-			auths->names = alloced_auths;
-		}
 		val = ast_strdup(val);
 		if (!val) {
 			goto failure;
 		}
-		auths->names[auths->num] = val;
-		++auths->num;
+		if (AST_VECTOR_APPEND(auths, val)) {
+			goto failure;
+		}
 	}
 	return 0;
 
 failure:
-	ast_sip_auth_array_destroy(auths);
+	ast_sip_auth_vector_destroy(auths);
 	return -1;
 }
 
@@ -387,19 +379,19 @@ static int inbound_auth_handler(const struct aco_option *opt, struct ast_variabl
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
-	return ast_sip_auth_array_init(&endpoint->inbound_auths, var->value);
+	return ast_sip_auth_vector_init(&endpoint->inbound_auths, var->value);
 }
 
 static int outbound_auth_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
-	return ast_sip_auth_array_init(&endpoint->outbound_auths, var->value);
+	return ast_sip_auth_vector_init(&endpoint->outbound_auths, var->value);
 }
 
-int ast_sip_auths_to_str(const struct ast_sip_auth_array *auths, char **buf)
+int ast_sip_auths_to_str(const struct ast_sip_auth_vector *auths, char **buf)
 {
-	if (!auths || !auths->num) {
+	if (!auths || !AST_VECTOR_SIZE(auths)) {
 		return 0;
 	}
 
@@ -407,7 +399,8 @@ int ast_sip_auths_to_str(const struct ast_sip_auth_array *auths, char **buf)
 		return -1;
 	}
 
-	ast_join_delim(*buf, MAX_OBJECT_FIELD, auths->names, auths->num, ',');
+	/* I feel like accessing the vector's elem array directly is cheating...*/
+	ast_join_delim(*buf, MAX_OBJECT_FIELD, auths->elems, AST_VECTOR_SIZE(auths), ',');
 	return 0;
 }
 
@@ -1171,7 +1164,7 @@ static int ami_show_endpoint(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int format_str_append_auth(const struct ast_sip_auth_array *auths,
+static int format_str_append_auth(const struct ast_sip_auth_vector *auths,
 				  struct ast_str **buf)
 {
 	char *str = NULL;
@@ -1473,8 +1466,8 @@ static void endpoint_destructor(void* obj)
 	subscription_configuration_destroy(&endpoint->subscription);
 	info_configuration_destroy(&endpoint->info);
 	media_configuration_destroy(&endpoint->media);
-	ast_sip_auth_array_destroy(&endpoint->inbound_auths);
-	ast_sip_auth_array_destroy(&endpoint->outbound_auths);
+	ast_sip_auth_vector_destroy(&endpoint->inbound_auths);
+	ast_sip_auth_vector_destroy(&endpoint->outbound_auths);
 	ast_party_id_free(&endpoint->id.self);
 	endpoint->pickup.named_callgroups = ast_unref_namedgroups(endpoint->pickup.named_callgroups);
 	endpoint->pickup.named_pickupgroups = ast_unref_namedgroups(endpoint->pickup.named_pickupgroups);
@@ -1535,14 +1528,16 @@ struct ao2_container *ast_sip_get_endpoints(void)
 	return endpoints;
 }
 
-int ast_sip_retrieve_auths(const struct ast_sip_auth_array *auths, struct ast_sip_auth **out)
+int ast_sip_retrieve_auths(const struct ast_sip_auth_vector *auths, struct ast_sip_auth **out)
 {
 	int i;
 
-	for (i = 0; i < auths->num; ++i) {
-		out[i] = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, auths->names[i]);
+	for (i = 0; i < AST_VECTOR_SIZE(auths); ++i) {
+		/* Using AST_VECTOR_GET is safe since the vector is immutable */
+		const char *name = AST_VECTOR_GET(auths, i);
+		out[i] = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, name);
 		if (!out[i]) {
-			ast_log(LOG_NOTICE, "Couldn't find auth '%s'. Cannot authenticate\n", auths->names[i]);
+			ast_log(LOG_NOTICE, "Couldn't find auth '%s'. Cannot authenticate\n", name);
 			return -1;
 		}
 	}

@@ -118,19 +118,20 @@ static int auth_apply(const struct ast_sorcery *sorcery, void *obj)
 	return res;
 }
 
-int ast_sip_for_each_auth(const struct ast_sip_auth_array *array,
+int ast_sip_for_each_auth(const struct ast_sip_auth_vector *vector,
 			  ao2_callback_fn on_auth, void *arg)
 {
 	int i;
 
-	if (!array || !array->num) {
+	if (!vector || !AST_VECTOR_SIZE(vector)) {
 		return 0;
 	}
 
-	for (i = 0; i < array->num; ++i) {
+	for (i = 0; i < AST_VECTOR_SIZE(vector); ++i) {
+		/* AST_VECTOR_GET is safe to use since the vector is immutable */
 		RAII_VAR(struct ast_sip_auth *, auth, ast_sorcery_retrieve_by_id(
 				 ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE,
-				 array->names[i]), ao2_cleanup);
+				 AST_VECTOR_GET(vector,i)), ao2_cleanup);
 
 		if (!auth) {
 			continue;
@@ -175,7 +176,7 @@ static int format_ami_auth_handler(void *obj, void *arg, int flags)
 	return 0;
 }
 
-int ast_sip_format_auths_ami(const struct ast_sip_auth_array *auths,
+int ast_sip_format_auths_ami(const struct ast_sip_auth_vector *auths,
 			     struct ast_sip_ami *ami)
 {
 	return ast_sip_for_each_auth(auths, format_ami_auth_handler, ami);

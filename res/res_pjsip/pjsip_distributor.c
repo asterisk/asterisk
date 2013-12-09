@@ -227,7 +227,7 @@ static int create_artificial_endpoint(void)
 		return -1;
 	}
 
-	artificial_endpoint->inbound_auths.num = 1;
+	AST_VECTOR_INIT(&artificial_endpoint->inbound_auths, 1);
 	return 0;
 }
 

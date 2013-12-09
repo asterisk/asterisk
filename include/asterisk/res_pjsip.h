@@ -38,6 +38,8 @@
 #include <pjlib.h>
 /* Needed for ast_rtp_dtls_cfg struct */
 #include "asterisk/rtp_engine.h"
+/* Needed for AST_VECTOR macro */
+#include "asterisk/vector.h"
 
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
@@ -259,12 +261,7 @@ struct ast_sip_auth {
 	enum ast_sip_auth_type type;
 };
 
-struct ast_sip_auth_array {
-	/*! Array of Sorcery IDs of auth sections */
-	const char **names;
-	/*! Number of credentials in the array */
-	unsigned int num;
-};
+AST_VECTOR(ast_sip_auth_vector, const char *);
 
 /*!
  * \brief Different methods by which incoming requests can be matched to endpoints
@@ -555,9 +552,9 @@ struct ast_sip_endpoint {
 	/*! Call pickup configuration */
 	struct ast_sip_endpoint_pickup_configuration pickup;
 	/*! Inbound authentication credentials */
-	struct ast_sip_auth_array inbound_auths;
+	struct ast_sip_auth_vector inbound_auths;
 	/*! Outbound authentication credentials */
-	struct ast_sip_auth_array outbound_auths;
+	struct ast_sip_auth_vector outbound_auths;
 	/*! DTMF mode to use with this endpoint */
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Method(s) by which the endpoint should be identified. */
@@ -577,21 +574,21 @@ struct ast_sip_endpoint {
 };
 
 /*!
- * \brief Initialize an auth array with the configured values.
+ * \brief Initialize an auth vector with the configured values.
  *
- * \param array Array to initialize
+ * \param vector Vector to initialize
  * \param auth_names Comma-separated list of names to set in the array
  * \retval 0 Success
  * \retval non-zero Failure
  */
-int ast_sip_auth_array_init(struct ast_sip_auth_array *array, const char *auth_names);
+int ast_sip_auth_vector_init(struct ast_sip_auth_vector *vector, const char *auth_names);
 
 /*!
- * \brief Free contents of an auth array.
+ * \brief Free contents of an auth vector.
  *
- * \param array Array whose contents are to be freed
+ * \param array Vector whose contents are to be freed
  */
-void ast_sip_auth_array_destroy(struct ast_sip_auth_array *array);
+void ast_sip_auth_vector_destroy(struct ast_sip_auth_vector *vector);
 
 /*!
  * \brief Possible returns from ast_sip_check_authentication
@@ -643,14 +640,14 @@ struct ast_sip_outbound_authenticator {
 	/*!
 	 * \brief Create a new request with authentication credentials
 	 *
-	 * \param auths An array of IDs of auth sorcery objects
+	 * \param auths A vector of IDs of auth sorcery objects
 	 * \param challenge The SIP response with authentication challenge(s)
 	 * \param tsx The transaction in which the challenge was received
 	 * \param new_request The new SIP request with challenge response(s)
 	 * \retval 0 Successfully created new request
 	 * \retval -1 Failed to create a new request
 	 */
-	int (*create_request_with_auth)(const struct ast_sip_auth_array *auths, struct pjsip_rx_data *challenge,
+	int (*create_request_with_auth)(const struct ast_sip_auth_vector *auths, struct pjsip_rx_data *challenge,
 			struct pjsip_transaction *tsx, struct pjsip_tx_data **new_request);
 };
 
@@ -1263,7 +1260,7 @@ enum ast_sip_check_auth_result ast_sip_check_authentication(struct ast_sip_endpo
  * callback in the \ref ast_sip_outbound_authenticator structure for details about
  * the parameters and return values.
  */
-int ast_sip_create_request_with_auth(const struct ast_sip_auth_array *auths, pjsip_rx_data *challenge,
+int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
 		pjsip_transaction *tsx, pjsip_tx_data **new_request);
 
 /*!
@@ -1307,7 +1304,7 @@ int ast_sip_add_body(pjsip_tx_data *tdata, const struct ast_sip_body *body);
 /*!
  * \brief Add a multipart body to an outbound SIP message
  *
- * This will treat each part of the input array as part of a multipart body and
+ * This will treat each part of the input vector as part of a multipart body and
  * add each part to the SIP message.
  *
  * \param tdata The message to add the body to
@@ -1374,10 +1371,10 @@ struct ao2_container *ast_sip_get_endpoints(void);
 /*!
  * \brief Retrieve relevant SIP auth structures from sorcery
  *
- * \param auths Array of sorcery IDs of auth credentials to retrieve
+ * \param auths Vector of sorcery IDs of auth credentials to retrieve
  * \param[out] out The retrieved auths are stored here
  */
-int ast_sip_retrieve_auths(const struct ast_sip_auth_array *auths, struct ast_sip_auth **out);
+int ast_sip_retrieve_auths(const struct ast_sip_auth_vector *auths, struct ast_sip_auth **out);
 
 /*!
  * \brief Clean up retrieved auth structures from memory
@@ -1385,8 +1382,8 @@ int ast_sip_retrieve_auths(const struct ast_sip_auth_array *auths, struct ast_si
  * Call this function once you have completed operating on auths
  * retrieved from \ref ast_sip_retrieve_auths
  *
- * \param auths An array of auth structures to clean up
- * \param num_auths The number of auths in the array
+ * \param auths An vector of auth structures to clean up
+ * \param num_auths The number of auths in the vector
  */
 void ast_sip_cleanup_auths(struct ast_sip_auth *auths[], size_t num_auths);
 
@@ -1578,7 +1575,7 @@ int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg);
  * \param arg user data passed to handler
  * \retval 0 Success, non-zero on failure
  */
-int ast_sip_for_each_auth(const struct ast_sip_auth_array *array,
+int ast_sip_for_each_auth(const struct ast_sip_auth_vector *array,
 			  ao2_callback_fn on_auth, void *arg);
 
 /*!
@@ -1596,7 +1593,7 @@ const char *ast_sip_auth_type_to_str(enum ast_sip_auth_type type);
  * \param buf the string buffer to write the object data
  * \retval 0 Success, non-zero on failure
  */
-int ast_sip_auths_to_str(const struct ast_sip_auth_array *auths, char **buf);
+int ast_sip_auths_to_str(const struct ast_sip_auth_vector *auths, char **buf);
 
 /*
  * \brief AMI variable container
@@ -1675,7 +1672,7 @@ int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
  * \param ami ami variable container
  * \retval 0 Success, non-zero on failure
  */
-int ast_sip_format_auths_ami(const struct ast_sip_auth_array *auths,
+int ast_sip_format_auths_ami(const struct ast_sip_auth_vector *auths,
 			     struct ast_sip_ami *ami);
 
 #endif /* _RES_PJSIP_H */

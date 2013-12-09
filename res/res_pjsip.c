@@ -1194,7 +1194,7 @@ void ast_sip_unregister_outbound_authenticator(struct ast_sip_outbound_authentic
 	ast_module_unref(ast_module_info->self);
 }
 
-int ast_sip_create_request_with_auth(const struct ast_sip_auth_array *auths, pjsip_rx_data *challenge,
+int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
 		pjsip_transaction *tsx, pjsip_tx_data **new_request)
 {
 	if (!registered_outbound_authenticator) {
