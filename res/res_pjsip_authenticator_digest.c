@@ -41,7 +41,9 @@ AO2_GLOBAL_OBJ_STATIC(entity_id);
  */
 static int digest_requires_authentication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
 {
-	return AST_VECTOR_SIZE(&endpoint->inbound_auths) > 0;
+	RAII_VAR(struct ast_sip_endpoint *, artificial, ast_sip_get_artificial_endpoint(), ao2_cleanup);
+
+	return endpoint == artificial || AST_VECTOR_SIZE(&endpoint->inbound_auths) > 0;
 }
 
 static void auth_store_cleanup(void *data)
