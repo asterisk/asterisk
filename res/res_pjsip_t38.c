@@ -172,6 +172,10 @@ static void t38_change_state(struct ast_sip_session *session, struct ast_sip_ses
 	case T38_LOCAL_REINVITE:
 		/* wait until we get a peer response before responding to local reinvite */
 		break;
+	case T38_MAX_ENUM:
+		/* Well, that shouldn't happen */
+		ast_assert(0);
+		break;
 	}
 
 	if (parameters.request_response) {

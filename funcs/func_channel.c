@@ -280,6 +280,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>   Defaults to <literal>audio</literal> if unspecified.</para>
 					</enum>
 				</enumlist>
+				<xi:include xpointer="xpointer(/docs/info[@name='PJSIPCHANNEL'])" />
 				<para><emphasis>chan_iax2</emphasis> provides the following additional options:</para>
 				<enumlist>
 					<enum name="osptoken">

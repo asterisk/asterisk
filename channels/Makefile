@@ -77,6 +77,9 @@ $(subst .c,.o,$(wildcard iax2/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_iax2)
 $(if $(filter chan_sip,$(EMBEDDED_MODS)),modules.link,chan_sip.so): $(subst .c,.o,$(wildcard sip/*.c))
 $(subst .c,.o,$(wildcard sip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_sip)
 
+$(if $(filter chan_pjsip,$(EMBEDDED_MODS)),modules.link,chan_pjsip.so): $(subst .c,.o,$(wildcard pjsip/*.c))
+$(subst .c,.o,$(wildcard pjsip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_pjsip)
+
 # Additional objects to combine with chan_dahdi.so
 CHAN_DAHDI_OBJS= \
 	$(subst .c,.o,$(wildcard dahdi/*.c))	\
