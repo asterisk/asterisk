@@ -1,4 +1,4 @@
-<xsl:stylesheet version="1.0" 
+<xsl:stylesheet version="1.0"
  xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
     <xsl:output omit-xml-declaration="yes" indent="yes"/>
 
@@ -8,6 +8,19 @@
         <xsl:copy>
             <xsl:apply-templates select="node()|@*"/>
         </xsl:copy>
+    </xsl:template>
+
+    <xsl:template match="configOptionToEnum">
+        <xsl:for-each select="configOption">
+            <xsl:element name="enum">
+                <xsl:attribute name="name">
+                    <xsl:value-of select="@name"/>
+                </xsl:attribute>
+                <xsl:element name="para">
+                    <xsl:value-of select="synopsis"/>
+                </xsl:element>
+            </xsl:element>
+        </xsl:for-each>
     </xsl:template>
 
     <xsl:template match="channel_snapshot">

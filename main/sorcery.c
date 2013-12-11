@@ -34,6 +34,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/format.h"
+#include "asterisk/format_cap.h"
 #include "asterisk/strings.h"
 #include "asterisk/config_options.h"
 #include "asterisk/netsock2.h"
@@ -217,11 +219,19 @@ static int chararray_handler_fn(const void *obj, const intptr_t *args, char **bu
 	return !(*buf = ast_strdup(field)) ? -1 : 0;
 }
 
+static int codec_handler_fn(const void *obj, const intptr_t *args, char **buf)
+{
+	char tmp_buf[256];
+	struct ast_format_cap **cap = (struct ast_format_cap **)(obj + args[1]);
+	return !(*buf = ast_strdup(ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), *cap)));
+}
+
 static sorcery_field_handler sorcery_field_default_handler(enum aco_option_type type)
 {
 	switch(type) {
 	case OPT_BOOL_T: return bool_handler_fn;
 	case OPT_CHAR_ARRAY_T: return chararray_handler_fn;
+	case OPT_CODEC_T: return codec_handler_fn;
 	case OPT_DOUBLE_T: return double_handler_fn;
 	case OPT_INT_T: return int_handler_fn;
 	case OPT_SOCKADDR_T: return sockaddr_handler_fn;
