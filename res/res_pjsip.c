@@ -1025,6 +1025,10 @@
 				<configOption name="user_agent" default="Asterisk &lt;Asterisk Version&gt;">
 					<synopsis>Value used in User-Agent header for SIP requests and Server header for SIP responses.</synopsis>
 				</configOption>
+				<configOption name="default_outbound_endpoint" default="default_outbound_endpoint">
+					<synopsis>Endpoint to use when sending an outbound request to a URI without a specified endpoint.</synopsis>
+				</configOption>
+
 			</configObject>
 		</configFile>
 	</configInfo>

@@ -105,4 +105,15 @@ int ast_sip_for_each_channel_snapshot(const struct ast_endpoint_snapshot *endpoi
 				      on_channel_snapshot_t on_channel_snapshot,
 				      void *arg);
 
+/*!
+ * \brief Retrieve the name of the default outbound endpoint.
+ *
+ * \note This returns a memory allocated copy of the name that
+ *       needs to be freed by the caller.
+ *
+ * \retval The name of the default outbound endpoint.
+ * \retval NULL if configuration not found.
+ */
+char *ast_sip_global_default_outbound_endpoint(void);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */
