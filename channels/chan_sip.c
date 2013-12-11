@@ -30413,6 +30413,10 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->disallowed_methods = sip_cfg.disallowed_methods;
 	peer->transports = default_transports;
 	peer->default_outbound_transport = default_primary_transport;
+	if (peer->outboundproxy) {
+		ao2_ref(peer->outboundproxy, -1);
+		peer->outboundproxy = NULL;
+	}
 }
 
 /*! \brief Create temporary peer (used in autocreatepeer mode) */
