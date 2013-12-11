@@ -99,7 +99,6 @@
  * \page AstAPIChanges Asterisk API Changes
  *
  * \section Changes161 Version 1.6.1
- * \li ast_install_vm_functions()
  * \li vmwi_generate()
  * \li ast_channel_datastore_alloc()
  * \li ast_channel_datastore_free()
