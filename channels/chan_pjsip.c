@@ -61,61 +61,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 
-/*** DOCUMENTATION
-	<function name="PJSIP_DIAL_CONTACTS" language="en_US">
-		<synopsis>
-			Return a dial string for dialing all contacts on an AOR.
-		</synopsis>
-		<syntax>
-			<parameter name="endpoint" required="true">
-				<para>Name of the endpoint</para>
-			</parameter>
-			<parameter name="aor" required="false">
-				<para>Name of an AOR to use, if not specified the configured AORs on the endpoint are used</para>
-			</parameter>
-			<parameter name="request_user" required="false">
-				<para>Optional request user to use in the request URI</para>
-			</parameter>
-		</syntax>
-		<description>
-			<para>Returns a properly formatted dial string for dialing all contacts on an AOR.</para>
-		</description>
-	</function>
-	<function name="PJSIP_MEDIA_OFFER" language="en_US">
-		<synopsis>
-			Media and codec offerings to be set on an outbound SIP channel prior to dialing.
-		</synopsis>
-		<syntax>
-			<parameter name="media" required="true">
-				<para>types of media offered</para>
-			</parameter>
-		</syntax>
-		<description>
-			<para>Returns the codecs offered based upon the media choice</para>
-		</description>
-	</function>
- ***/
+#include "pjsip/include/chan_pjsip.h"
+#include "pjsip/include/dialplan_functions.h"
 
 static const char desc[] = "PJSIP Channel";
 static const char channel_type[] = "PJSIP";
 
 static unsigned int chan_idx;
-
-/*!
- * \brief Positions of various media
- */
-enum sip_session_media_position {
-	/*! \brief First is audio */
-	SIP_MEDIA_AUDIO = 0,
-	/*! \brief Second is video */
-	SIP_MEDIA_VIDEO,
-	/*! \brief Last is the size for media details */
-	SIP_MEDIA_SIZE,
-};
-
-struct chan_pjsip_pvt {
-	struct ast_sip_session_media *media[SIP_MEDIA_SIZE];
-};
 
 static void chan_pjsip_pvt_dtor(void *obj)
 {
@@ -145,7 +97,7 @@ static int chan_pjsip_devicestate(const char *data);
 static int chan_pjsip_queryoption(struct ast_channel *ast, int option, void *data, int *datalen);
 
 /*! \brief PBX interface structure for channel registration */
-static struct ast_channel_tech chan_pjsip_tech = {
+struct ast_channel_tech chan_pjsip_tech = {
 	.type = channel_type,
 	.description = "PJSIP Channel Driver",
 	.requester = chan_pjsip_request,
@@ -164,6 +116,7 @@ static struct ast_channel_tech chan_pjsip_tech = {
 	.fixup = chan_pjsip_fixup,
 	.devicestate = chan_pjsip_devicestate,
 	.queryoption = chan_pjsip_queryoption,
+	.func_channel_read = pjsip_acf_channel_read,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER
 };
 
@@ -189,184 +142,6 @@ static struct ast_sip_session_supplement chan_pjsip_ack_supplement = {
 	.method = "ACK",
 	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL,
 	.incoming_request = chan_pjsip_incoming_ack,
-};
-
-/*! \brief Dialplan function for constructing a dial string for calling all contacts */
-static int chan_pjsip_dial_contacts(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
-{
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_str *, dial, NULL, ast_free_ptr);
-	const char *aor_name;
-	char *rest;
-
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(endpoint_name);
-		AST_APP_ARG(aor_name);
-		AST_APP_ARG(request_user);
-	);
-
-	AST_STANDARD_APP_ARGS(args, data);
-
-	if (ast_strlen_zero(args.endpoint_name)) {
-		ast_log(LOG_WARNING, "An endpoint name must be specified when using the '%s' dialplan function\n", cmd);
-		return -1;
-	} else if (!(endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", args.endpoint_name))) {
-		ast_log(LOG_WARNING, "Specified endpoint '%s' was not found\n", args.endpoint_name);
-		return -1;
-	}
-
-	aor_name = S_OR(args.aor_name, endpoint->aors);
-
-	if (ast_strlen_zero(aor_name)) {
-		ast_log(LOG_WARNING, "No AOR has been provided and no AORs are configured on endpoint '%s'\n", args.endpoint_name);
-		return -1;
-	} else if (!(dial = ast_str_create(len))) {
-		ast_log(LOG_WARNING, "Could not get enough buffer space for dialing contacts\n");
-		return -1;
-	} else if (!(rest = ast_strdupa(aor_name))) {
-		ast_log(LOG_WARNING, "Could not duplicate provided AORs\n");
-		return -1;
-	}
-
-	while ((aor_name = strsep(&rest, ","))) {
-		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
-		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
-		struct ao2_iterator it_contacts;
-		struct ast_sip_contact *contact;
-
-		if (!aor) {
-			/* If the AOR provided is not found skip it, there may be more */
-			continue;
-		} else if (!(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
-			/* No contacts are available, skip it as well */
-			continue;
-		} else if (!ao2_container_count(contacts)) {
-			/* We were given a container but no contacts are in it... */
-			continue;
-		}
-
-		it_contacts = ao2_iterator_init(contacts, 0);
-		for (; (contact = ao2_iterator_next(&it_contacts)); ao2_ref(contact, -1)) {
-			ast_str_append(&dial, -1, "PJSIP/");
-
-			if (!ast_strlen_zero(args.request_user)) {
-				ast_str_append(&dial, -1, "%s@", args.request_user);
-			}
-			ast_str_append(&dial, -1, "%s/%s&", args.endpoint_name, contact->uri);
-		}
-		ao2_iterator_destroy(&it_contacts);
-	}
-
-	/* Trim the '&' at the end off */
-	ast_str_truncate(dial, ast_str_strlen(dial) - 1);
-
-	ast_copy_string(buf, ast_str_buffer(dial), len);
-
-	return 0;
-}
-
-static struct ast_custom_function chan_pjsip_dial_contacts_function = {
-	.name = "PJSIP_DIAL_CONTACTS",
-	.read = chan_pjsip_dial_contacts,
-};
-
-static int media_offer_read_av(struct ast_sip_session *session, char *buf,
-			       size_t len, enum ast_format_type media_type)
-{
-	int i, size = 0;
-	struct ast_format fmt;
-	const char *name;
-
-	for (i = 0; ast_codec_pref_index(&session->override_prefs, i, &fmt); ++i) {
-		if (AST_FORMAT_GET_TYPE(fmt.id) != media_type) {
-			continue;
-		}
-
-		name = ast_getformatname(&fmt);
-
-		if (ast_strlen_zero(name)) {
-			ast_log(LOG_WARNING, "PJSIP_MEDIA_OFFER unrecognized format %s\n", name);
-			continue;
-		}
-
-		/* add one since we'll include a comma */
-		size = strlen(name) + 1;
-		len -= size;
-		if ((len) < 0) {
-			break;
-		}
-
-		/* no reason to use strncat here since we have already ensured buf has
-                   enough space, so strcat can be safely used */
-		strcat(buf, name);
-		strcat(buf, ",");
-	}
-
-	if (size) {
-		/* remove the extra comma */
-		buf[strlen(buf) - 1] = '\0';
-	}
-	return 0;
-}
-
-struct media_offer_data {
-	struct ast_sip_session *session;
-	enum ast_format_type media_type;
-	const char *value;
-};
-
-static int media_offer_write_av(void *obj)
-{
-	struct media_offer_data *data = obj;
-	int i;
-	struct ast_format fmt;
-	/* remove all of the given media type first */
-	for (i = 0; ast_codec_pref_index(&data->session->override_prefs, i, &fmt); ++i) {
-		if (AST_FORMAT_GET_TYPE(fmt.id) == data->media_type) {
-			ast_codec_pref_remove(&data->session->override_prefs, &fmt);
-		}
-	}
-	ast_format_cap_remove_bytype(data->session->req_caps, data->media_type);
-	ast_parse_allow_disallow(&data->session->override_prefs, data->session->req_caps, data->value, 1);
-
-	return 0;
-}
-
-static int media_offer_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
-{
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-
-	if (!strcmp(data, "audio")) {
-		return media_offer_read_av(channel->session, buf, len, AST_FORMAT_TYPE_AUDIO);
-	} else if (!strcmp(data, "video")) {
-		return media_offer_read_av(channel->session, buf, len, AST_FORMAT_TYPE_VIDEO);
-	}
-
-	return 0;
-}
-
-static int media_offer_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
-{
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-
-	struct media_offer_data mdata = {
-		.session = channel->session,
-		.value = value
-	};
-
-	if (!strcmp(data, "audio")) {
-		mdata.media_type = AST_FORMAT_TYPE_AUDIO;
-	} else if (!strcmp(data, "video")) {
-		mdata.media_type = AST_FORMAT_TYPE_VIDEO;
-	}
-
-	return ast_sip_push_task_synchronous(channel->session->serializer, media_offer_write_av, &mdata);
-}
-
-static struct ast_custom_function media_offer_function = {
-	.name = "PJSIP_MEDIA_OFFER",
-	.read = media_offer_read,
-	.write = media_offer_write
 };
 
 /*! \brief Function called by RTP engine to get local audio RTP peer */
@@ -436,6 +211,20 @@ static int send_direct_media_request(void *data)
 	return ast_sip_session_refresh(session, NULL, NULL, NULL,
 			session->endpoint->media.direct_media.method, 1);
 }
+
+/*! \brief Destructor function for \ref transport_info_data */
+static void transport_info_destroy(void *obj)
+{
+	struct transport_info_data *data = obj;
+	ast_free(data);
+}
+
+/*! \brief Datastore used to store local/remote addresses for the
+ * INVITE request that created the PJSIP channel */
+static struct ast_datastore_info transport_info = {
+	.type = "chan_pjsip_transport_info",
+	.destroy = transport_info_destroy,
+};
 
 static struct ast_datastore_info direct_media_mitigation_info = { };
 
@@ -1989,11 +1778,27 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 /*! \brief Function called when a request is received on the session */
 static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
+	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
+	struct transport_info_data *transport_data;
 	pjsip_tx_data *packet = NULL;
 
 	if (session->channel) {
 		return 0;
 	}
+
+	datastore = ast_sip_session_alloc_datastore(&transport_info, "transport_info");
+	if (!datastore) {
+		return -1;
+	}
+
+	transport_data = ast_calloc(1, sizeof(*transport_data));
+	if (!transport_data) {
+		return -1;
+	}
+	pj_sockaddr_cp(&transport_data->local_addr, &rdata->tp_info.transport->local_addr);
+	pj_sockaddr_cp(&transport_data->remote_addr, &rdata->pkt_info.src_addr);
+	datastore->data = transport_data;
+	ast_sip_session_add_datastore(session, datastore);
 
 	if (!(session->channel = chan_pjsip_new(session, AST_STATE_RING, session->exten, NULL, NULL, NULL))) {
 		if (pjsip_inv_end_session(session->inv_session, 503, NULL, &packet) == PJ_SUCCESS) {
@@ -2078,6 +1883,17 @@ static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip
 	return 0;
 }
 
+static struct ast_custom_function chan_pjsip_dial_contacts_function = {
+	.name = "PJSIP_DIAL_CONTACTS",
+	.read = pjsip_acf_dial_contacts_read,
+};
+
+static struct ast_custom_function media_offer_function = {
+	.name = "PJSIP_MEDIA_OFFER",
+	.read = pjsip_acf_media_offer_read,
+	.write = pjsip_acf_media_offer_write
+};
+
 /*!
  * \brief Load the module
  *
@@ -2110,6 +1926,7 @@ static int load_module(void)
 
 	if (ast_custom_function_register(&media_offer_function)) {
 		ast_log(LOG_WARNING, "Unable to register PJSIP_MEDIA_OFFER dialplan function\n");
+		goto end;
 	}
 
 	if (ast_sip_session_register_supplement(&chan_pjsip_supplement)) {
@@ -2150,13 +1967,13 @@ static int reload(void)
 /*! \brief Unload the PJSIP channel from Asterisk */
 static int unload_module(void)
 {
-	ast_custom_function_unregister(&media_offer_function);
-
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
 
+	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
+
 	ast_channel_unregister(&chan_pjsip_tech);
 	ast_rtp_glue_unregister(&chan_pjsip_rtp_glue);
 

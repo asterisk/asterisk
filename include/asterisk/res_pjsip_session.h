@@ -52,6 +52,7 @@ enum ast_sip_session_t38state {
 	T38_PEER_REINVITE,  /*!< Offered from peer - REINVITE */
 	T38_ENABLED,        /*!< Negotiated (enabled) */
 	T38_REJECTED,       /*!< Refused */
+	T38_MAX_ENUM,       /*!< Not an actual state; used as max value in the enum */
 };
 
 struct ast_sip_session_sdp_handler;
