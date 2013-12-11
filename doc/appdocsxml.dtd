@@ -85,6 +85,9 @@
   <!ELEMENT bridge_snapshot (#PCDATA)>
   <!ATTLIST bridge_snapshot prefix CDATA "">
 
+  <!ELEMENT configOptionToEnum (configOption|xi:include)*>
+  <!ATTLIST configOptionToEnum prefix CDATA "">
+
   <!ELEMENT description (para|note|warning|variablelist|enumlist|info|xi:include)*>
 
   <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning|parameter|info|xi:include)*>
@@ -103,7 +106,7 @@
   <!ATTLIST option implies CDATA "">
   <!ATTLIST option hasparams CDATA "">
 
-  <!ELEMENT enumlist (enum+)>
+  <!ELEMENT enumlist (configOptionToEnum|enum+)>
   <!ELEMENT enum (para|note|warning|parameter|enumlist|info|xi:include)*>
   <!ATTLIST enum name CDATA "">
 
