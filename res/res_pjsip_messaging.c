@@ -80,13 +80,17 @@ static enum pjsip_status_code get_destination(const pjsip_rx_data *rdata, const 
  */
 static enum pjsip_status_code check_content_type(const pjsip_rx_data *rdata)
 {
-	if (ast_sip_is_content_type(&rdata->msg_info.msg->body->content_type,
-				    "text",
-				    "plain")) {
-		return PJSIP_SC_OK;
+	int res;
+	if (rdata->msg_info.msg->body && rdata->msg_info.msg->body->len) {
+		res = ast_sip_is_content_type(
+			&rdata->msg_info.msg->body->content_type, "text", "plain");
 	} else {
-		return PJSIP_SC_UNSUPPORTED_MEDIA_TYPE;
+		res = rdata->msg_info.ctype &&
+			!pj_strcmp2(&rdata->msg_info.ctype->media.type, "text") &&
+			!pj_strcmp2(&rdata->msg_info.ctype->media.subtype, "plain");
 	}
+
+	return res ? PJSIP_SC_OK : PJSIP_SC_UNSUPPORTED_MEDIA_TYPE;
 }
 
 /*!
@@ -96,9 +100,9 @@ static enum pjsip_status_code check_content_type(const pjsip_rx_data *rdata)
  *
  * \param fromto 'From' or 'To' field containing 'sip:'
  */
-static const char* skip_sip(const char *fromto)
+static char* skip_sip(char *fromto)
 {
-	const char *p;
+	char *p;
 
 	/* need to be one past 'sip:' or 'sips:' */
 	if (!(p = strstr(fromto, "sip"))) {
@@ -119,6 +123,7 @@ static const char* skip_sip(const char *fromto)
  * Expects the given 'fromto' to be in one of the following formats:
  *      sip[s]:endpoint[/aor]
  *      sip[s]:endpoint[/uri]
+ *      sip[s]:uri <-- will use default outbound endpoint
  *
  * If an optional aor is given it will try to find an associated uri
  * to return.  If an optional uri is given then that will be returned,
@@ -127,30 +132,37 @@ static const char* skip_sip(const char *fromto)
  * \param fromto 'From' or 'To' field with possible endpoint
  * \param uri Optional uri to return
  */
-static struct ast_sip_endpoint* get_endpoint(const char *fromto, char **uri)
+static struct ast_sip_endpoint* get_endpoint(char *fromto, char **uri)
 {
-	const char *name = skip_sip(fromto);
+	char *name, *aor_uri;
 	struct ast_sip_endpoint* endpoint;
-	struct ast_sip_aor *aor;
+	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
 
-	if ((*uri = strchr(name, '/'))) {
-		*(*uri)++ = '\0';
-	} else if ((*uri = strchr(name, '@'))) {
-		*(*uri) = '\0';
+	name = skip_sip(fromto);
+	if ((aor_uri = strchr(name, '/'))) {
+		*aor_uri++ = '\0';
+	} else if ((aor_uri = strchr(name, '@'))) {
+		/* format was endpoint@ */
+		*aor_uri = '\0';
 	}
 
-	/* endpoint is required */
-	if (ast_strlen_zero(name)) {
-		return NULL;
-	}
-
-	if (!(endpoint = ast_sorcery_retrieve_by_id(
+	if (ast_strlen_zero(name) || !(endpoint = ast_sorcery_retrieve_by_id(
 		      ast_sip_get_sorcery(), "endpoint", name))) {
-		return NULL;
+		/* assume sending to direct uri -
+		   use default outbound endpoint */
+		*uri = ast_strdup(fromto);
+		return ast_sip_default_outbound_endpoint();
 	}
 
-	if (*uri && (aor = ast_sip_location_retrieve_aor(*uri))) {
-		*uri = (char*)ast_sip_location_retrieve_first_aor_contact(aor)->uri;
+	*uri = aor_uri;
+	if (*uri) {
+		if ((aor = ast_sip_location_retrieve_aor(*uri)) &&
+			(contact = ast_sip_location_retrieve_first_aor_contact(aor))) {
+			*uri = (char*)contact->uri;
+		}
+		/* need to copy because contact-uri might go away*/
+		*uri = ast_strdup(*uri);
 	}
 
 	return endpoint;
@@ -163,13 +175,12 @@ static struct ast_sip_endpoint* get_endpoint(const char *fromto, char **uri)
  * \param tdata The outgoing message data structure
  * \param from Info to potentially copy into the 'From' header
  */
-static void update_from(pjsip_tx_data *tdata, const char *from)
+static void update_from(pjsip_tx_data *tdata, char *from)
 {
 	pjsip_name_addr *from_name_addr;
 	pjsip_sip_uri *from_uri;
 	pjsip_uri *parsed;
-	char *uri;
-
+	RAII_VAR(char *, uri, NULL, ast_free);
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 
 	if (ast_strlen_zero(from)) {
@@ -182,7 +193,20 @@ static void update_from(pjsip_tx_data *tdata, const char *from)
 
 	if (ast_strlen_zero(uri)) {
 		/* if no aor/uri was specified get one from the endpoint */
-		uri = (char*)ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors)->uri;
+		RAII_VAR(struct ast_sip_contact *, contact,
+			 ast_sip_location_retrieve_contact_from_aor_list(
+				 endpoint->aors), ao2_cleanup);
+
+		if (!contact || ast_strlen_zero(contact->uri)) {
+			ast_log(LOG_WARNING, "No contact found for endpoint %s\n",
+				ast_sorcery_object_get_id(endpoint));
+			return;
+		}
+
+		if (uri) {
+			ast_free(uri);
+		}
+		uri = ast_strdup(contact->uri);
 	}
 
 	/* get current 'from' hdr & uri - going to overwrite some fields */
@@ -341,6 +365,7 @@ static enum pjsip_status_code vars_to_headers(const struct ast_msg *msg, pjsip_t
 static int headers_to_vars(const pjsip_rx_data *rdata, struct ast_msg *msg)
 {
 	char *c;
+	char name[MAX_HDR_SIZE];
 	char buf[MAX_HDR_SIZE];
 	int res = 0;
 	pjsip_hdr *h = rdata->msg_info.msg->hdr.next;
@@ -350,10 +375,11 @@ static int headers_to_vars(const pjsip_rx_data *rdata, struct ast_msg *msg)
 		if ((res = pjsip_hdr_print_on(h, buf, sizeof(buf)-1)) > 0) {
 			buf[res] = '\0';
 			if ((c = strchr(buf, ':'))) {
-				ast_copy_string(buf, ast_skip_blanks(c + 1), sizeof(buf)-(c-buf));
+				ast_copy_string(buf, ast_skip_blanks(c + 1), sizeof(buf));
 			}
 
-			if ((res = ast_msg_set_var(msg, pj_strbuf(&h->name), buf)) != 0) {
+			ast_copy_pj_str(name, &h->name, sizeof(name));
+			if ((res = ast_msg_set_var(msg, name, buf)) != 0) {
 				break;
 			}
 		}
@@ -375,10 +401,14 @@ static int headers_to_vars(const pjsip_rx_data *rdata, struct ast_msg *msg)
  */
 static int print_body(pjsip_rx_data *rdata, char *buf, int len)
 {
-	int res = rdata->msg_info.msg->body->print_body(
-		rdata->msg_info.msg->body, buf, len);
+	int res;
 
-	if (res < 0) {
+	if (!rdata->msg_info.msg->body || !rdata->msg_info.msg->body->len) {
+		return 0;
+	}
+
+	if ((res = rdata->msg_info.msg->body->print_body(
+		     rdata->msg_info.msg->body, buf, len)) < 0) {
 		return res;
 	}
 
@@ -500,30 +530,32 @@ static int msg_send(void *data)
 	};
 
 	pjsip_tx_data *tdata;
-	char *uri;
-
+	RAII_VAR(char *, uri, NULL, ast_free);
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, get_endpoint(
 			 mdata->to, &uri), ao2_cleanup);
+
 	if (!endpoint) {
-		ast_log(LOG_ERROR, "SIP MESSAGE - Endpoint not found in %s\n", mdata->to);
+		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not find endpoint and "
+			"no default outbound endpoint configured\n");
 		return -1;
 	}
 
 	if (ast_sip_create_request("MESSAGE", NULL, endpoint, uri, &tdata)) {
-		ast_log(LOG_ERROR, "SIP MESSAGE - Could not create request\n");
+		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not create request\n");
 		return -1;
 	}
 
 	if (ast_sip_add_body(tdata, &body)) {
 		pjsip_tx_data_dec_ref(tdata);
-		ast_log(LOG_ERROR, "SIP MESSAGE - Could not add body to request\n");
+		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not add body to request\n");
 		return -1;
 	}
 
 	update_from(tdata, mdata->from);
 	vars_to_headers(mdata->msg, tdata);
+
 	if (ast_sip_send_request(tdata, NULL, endpoint)) {
-		ast_log(LOG_ERROR, "SIP MESSAGE - Could not send request\n");
+		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not send request\n");
 		return -1;
 	}
 

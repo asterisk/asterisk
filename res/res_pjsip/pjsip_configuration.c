@@ -1528,6 +1528,13 @@ struct ao2_container *ast_sip_get_endpoints(void)
 	return endpoints;
 }
 
+struct ast_sip_endpoint *ast_sip_default_outbound_endpoint(void)
+{
+	RAII_VAR(char *, name, ast_sip_global_default_outbound_endpoint(), ast_free);
+	return ast_strlen_zero(name) ? NULL : ast_sorcery_retrieve_by_id(
+		sip_sorcery, "endpoint", name);
+}
+
 int ast_sip_retrieve_auths(const struct ast_sip_auth_vector *auths, struct ast_sip_auth **out)
 {
 	int i;

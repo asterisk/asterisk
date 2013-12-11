@@ -603,8 +603,9 @@
 ;user_agent=     ; Value used in User Agent header for SIP requests and Server
                  ; header for SIP responses (default: Populated by Asterisk
                  ; Version)
-
-
+;default_outbound_endpoint= ; Endpoint to use when sending an outbound request
+                            ; to a URI without a specified endpoint.
+                            ; (default: "default_outbound_endpoint")
 
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl

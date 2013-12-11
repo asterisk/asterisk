@@ -1369,6 +1369,13 @@ struct ast_sip_endpoint *ast_pjsip_rdata_get_endpoint(pjsip_rx_data *rdata);
 struct ao2_container *ast_sip_get_endpoints(void);
 
 /*!
+ * \brief Retrieve the default outbound endpoint.
+ *
+ * \retval The default outbound endpoint, NULL if not found.
+ */
+struct ast_sip_endpoint *ast_sip_default_outbound_endpoint(void);
+
+/*!
  * \brief Retrieve relevant SIP auth structures from sorcery
  *
  * \param auths Vector of sorcery IDs of auth credentials to retrieve
