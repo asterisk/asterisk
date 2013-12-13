@@ -220,7 +220,7 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	/* We need to have the parker subscribe to the new local channel before hand. */
 	create_parked_subscription(parker, ast_channel_uniqueid(parkee_side_2));
 
-	pbx_builtin_setvar_helper(parkee_side_2, "BLINDTRANSFER", ast_channel_name(parker));
+	ast_bridge_set_transfer_variables(parkee_side_2, ast_channel_name(parker), 0);
 
 	ast_channel_unref(parkee_side_2);
 
@@ -375,7 +375,7 @@ static int parking_park_bridge_channel(struct ast_bridge_channel *bridge_channel
 		return -1;
 	}
 
-	pbx_builtin_setvar_helper(bridge_channel->chan, "BLINDTRANSFER", ast_channel_name(parker));
+	ast_bridge_set_transfer_variables(bridge_channel->chan, ast_channel_name(parker), 0);
 
 	/* bridge_channel must be locked so we can get a reference to the bridge it is currently on */
 	ao2_lock(bridge_channel);

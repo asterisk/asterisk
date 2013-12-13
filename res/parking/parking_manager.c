@@ -453,7 +453,7 @@ static int manager_park(struct mansession *s, const struct message *m)
 
 	ast_channel_lock(chan);
 	if (!ast_strlen_zero(timeout_channel)) {
-		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", timeout_channel);
+		ast_bridge_set_transfer_variables(chan, timeout_channel, 0);
 	}
 	ast_channel_unlock(chan);
 

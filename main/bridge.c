@@ -122,6 +122,12 @@ static unsigned int optimization_id;
 /* Grow rate of bridge array of channels */
 #define BRIDGE_ARRAY_GROW 32
 
+/* Variable name - stores peer information about the most recent blind transfer */
+#define BLINDTRANSFER "BLINDTRANSFER"
+
+/* Variable name - stores peer information about the most recent attended transfer */
+#define ATTENDEDTRANSFER "ATTENDEDTRANSFER"
+
 static void cleanup_video_mode(struct ast_bridge *bridge);
 static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 
@@ -3688,6 +3694,8 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
+	pbx_builtin_setvar_helper(local, BLINDTRANSFER, ast_channel_name(transferer));
+
 	if (new_channel_cb) {
 		new_channel_cb(local, user_data, AST_BRIDGE_TRANSFER_MULTI_PARTY);
 	}
@@ -3850,6 +3858,8 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
+	pbx_builtin_setvar_helper(local_chan, ATTENDEDTRANSFER, ast_channel_name(chan1));
+
 	if (bridge2) {
 		res = ast_local_setup_bridge(local_chan, bridge2, chan2, NULL);
 	} else {
@@ -3945,19 +3955,38 @@ static enum ast_transfer_result try_parking(struct ast_channel *transferer, cons
 	return AST_BRIDGE_TRANSFER_SUCCESS;
 }
 
+void ast_bridge_set_transfer_variables(struct ast_channel *chan, const char *value, int attended)
+{
+	char *writevar;
+	char *erasevar;
+
+	if (attended) {
+		writevar = ATTENDEDTRANSFER;
+		erasevar = BLINDTRANSFER;
+	} else {
+		writevar = BLINDTRANSFER;
+		erasevar = ATTENDEDTRANSFER;
+	}
+
+	pbx_builtin_setvar_helper(chan, writevar, value);
+	pbx_builtin_setvar_helper(chan, erasevar, value);
+}
+
 /*!
  * \internal
- * \brief Set the BLINDTRANSFER variable as appropriate on channels involved in the transfer
+ * \brief Set the transfer variable as appropriate on channels involved in the transfer
  *
- * The transferer channel will have its BLINDTRANSFER variable set the same as its BRIDGEPEER
+ * The transferer channel will have its variable set the same as its BRIDGEPEER
  * variable. This will account for all channels that it is bridged to. The other channels
- * involved in the transfer will have their BLINDTRANSFER variable set to the transferer
+ * involved in the transfer will have their variable set to the transferer
  * channel's name.
  *
- * \param transferer The channel performing the blind transfer
+ * \param transferer The channel performing the transfer
  * \param channels The channels belonging to the bridge
+ * \param is_attended false  set BLINDTRANSFER and unset ATTENDEDTRANSFER
+ *                    true   set ATTENDEDTRANSFER and unset BLINDTRANSFER
  */
-static void set_blind_transfer_variables(struct ast_channel *transferer, struct ao2_container *channels)
+static void set_transfer_variables_all(struct ast_channel *transferer, struct ao2_container *channels, int is_attended)
 {
 	struct ao2_iterator iter;
 	struct ast_channel *chan;
@@ -3973,9 +4002,9 @@ static void set_blind_transfer_variables(struct ast_channel *transferer, struct 
 			(chan = ao2_iterator_next(&iter));
 			ao2_cleanup(chan)) {
 		if (chan == transferer) {
-			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", transferer_bridgepeer);
+			ast_bridge_set_transfer_variables(chan, transferer_bridgepeer, is_attended);
 		} else {
-			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", transferer_name);
+			ast_bridge_set_transfer_variables(chan, transferer_name, is_attended);
 		}
 	}
 
@@ -4066,7 +4095,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 		goto publish;
 	}
 
-	set_blind_transfer_variables(transferer, channels);
+	set_transfer_variables_all(transferer, channels, 0);
 
 	if (do_bridge_transfer) {
 		transfer_result = blind_transfer_bridge(transferer, bridge, exten, context,
@@ -4167,6 +4196,16 @@ static enum ast_transfer_result two_bridge_attended_transfer(struct ast_channel 
 	};
 	enum ast_transfer_result res;
 	struct ast_bridge *final_bridge = NULL;
+	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
+
+	channels = ast_bridge_peers_nolock(to_transferee_bridge);
+
+	if (!channels) {
+		res = AST_BRIDGE_TRANSFER_FAIL;
+		goto end;
+	}
+
+	set_transfer_variables_all(to_transferee, channels, 1);
 
 	switch (ast_bridges_allow_optimization(to_transferee_bridge, to_target_bridge)) {
 	case AST_BRIDGE_OPTIMIZE_SWAP_TO_CHAN_BRIDGE:
@@ -4337,6 +4376,8 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 		res = AST_BRIDGE_TRANSFER_NOT_PERMITTED;
 		goto end;
 	}
+
+	set_transfer_variables_all(to_transferee, channels, 1);
 
 	if (do_bridge_transfer) {
 		 res = attended_transfer_bridge(chan_bridged, chan_unbridged, the_bridge, NULL, &publication);
