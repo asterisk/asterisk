@@ -66,6 +66,7 @@ clean::
 	rm -f dahdi/*.o dahdi/*.i
 	rm -f sip/*.o sip/*.i
 	rm -f iax2/*.o iax2/*.i
+	rm -f pjsip/*.o pjsip/*.i
 	rm -f h323/libchanh323.a h323/Makefile.ast h323/*.o h323/*.dep
 
 dist-clean::
