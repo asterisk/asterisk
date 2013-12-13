@@ -117,7 +117,6 @@ static void ast_ari_channels_originate_cb(
 	struct ast_ari_channels_originate_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -165,39 +164,7 @@ static void ast_ari_channels_originate_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "endpoint");
-	if (field) {
-		args.endpoint = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "extension");
-	if (field) {
-		args.extension = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "context");
-	if (field) {
-		args.context = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "priority");
-	if (field) {
-		args.priority = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "app");
-	if (field) {
-		args.app = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "appArgs");
-	if (field) {
-		args.app_args = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "callerId");
-	if (field) {
-		args.caller_id = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "timeout");
-	if (field) {
-		args.timeout = ast_json_integer_get(field);
-	}
+	args.variables = ast_json_ref(body);
 	ast_ari_channels_originate(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
