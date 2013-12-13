@@ -23,6 +23,16 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<info name="PJSIPMessageFromInfo" language="en_US" tech="PJSIP">
+		<para>The <literal>from</literal> parameter can be a configured endpoint
+		or in the form of "display-name" &lt;URI&gt;.</para>
+	</info>
+	<info name="PJSIPMessageToInfo" language="en_US" tech="PJSIP">
+		<para>Specifying a prefix of <literal>pjsip:</literal> will send the
+		message as a SIP MESSAGE request.</para>
+	</info>
+ ***/
 #include "asterisk.h"
 
 #include "pjsua-lib/pjsua.h"
