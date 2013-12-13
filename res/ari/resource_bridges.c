@@ -172,6 +172,22 @@ static struct control_list *control_list_create(struct ast_ari_response *respons
 	return list;
 }
 
+static int check_add_remove_channel(struct ast_ari_response *response,
+				    struct stasis_app_control *control,
+				    enum stasis_app_control_channel_result result)
+{
+	switch (result) {
+	case STASIS_APP_CHANNEL_RECORDING :
+		ast_ari_response_error(
+			response, 409, "Conflict", "Channel %s currently recording",
+			stasis_app_control_get_channel_id(control));
+		return -1;
+	case STASIS_APP_CHANNEL_OKAY:
+		return 0;
+	}
+	return 0;
+}
+
 void ast_ari_bridges_add_channel(struct ast_variable *headers,
 	struct ast_ari_bridges_add_channel_args *args,
 	struct ast_ari_response *response)
@@ -179,6 +195,7 @@ void ast_ari_bridges_add_channel(struct ast_variable *headers,
 	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
 	RAII_VAR(struct control_list *, list, NULL, ao2_cleanup);
 	size_t i;
+	int has_error = 0;
 
 	if (!bridge) {
 		/* Response filled in by find_bridge() */
@@ -202,10 +219,16 @@ void ast_ari_bridges_add_channel(struct ast_variable *headers,
 	}
 
 	for (i = 0; i < list->count; ++i) {
-		stasis_app_control_add_channel_to_bridge(list->controls[i], bridge);
+		if ((has_error = check_add_remove_channel(response, list->controls[i],
+			     stasis_app_control_add_channel_to_bridge(
+				    list->controls[i], bridge)))) {
+			break;
+		}
 	}
 
-	ast_ari_response_no_content(response);
+	if (!has_error) {
+		ast_ari_response_no_content(response);
+	}
 }
 
 void ast_ari_bridges_remove_channel(struct ast_variable *headers,

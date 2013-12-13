@@ -140,7 +140,7 @@
 						},
 						{
 							"code": 409,
-							"reason": "Bridge not in Stasis application"
+							"reason": "Bridge not in Stasis application; Channel currently recording"
 						},
 						{
 							"code": 422,

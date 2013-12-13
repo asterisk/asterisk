@@ -37,7 +37,7 @@ struct stasis_app_command {
 	ast_cond_t condition;
 	stasis_app_command_cb callback;
 	void *data;
-	void *retval;
+	int retval;
 	int is_done:1;
 };
 
@@ -67,7 +67,7 @@ struct stasis_app_command *command_create(
 	return command;
 }
 
-static void command_complete(struct stasis_app_command *command, void *retval)
+void command_complete(struct stasis_app_command *command, int retval)
 {
 	SCOPED_MUTEX(lock, &command->lock);
 
@@ -76,7 +76,7 @@ static void command_complete(struct stasis_app_command *command, void *retval)
 	ast_cond_signal(&command->condition);
 }
 
-void *command_join(struct stasis_app_command *command)
+int command_join(struct stasis_app_command *command)
 {
 	SCOPED_MUTEX(lock, &command->lock);
 	while (!command->is_done) {
@@ -89,7 +89,7 @@ void *command_join(struct stasis_app_command *command)
 void command_invoke(struct stasis_app_command *command,
 	struct stasis_app_control *control, struct ast_channel *chan)
 {
-	void *retval = command->callback(control, chan, command->data);
+	int retval = command->callback(control, chan, command->data);
 	command_complete(command, retval);
 }
 

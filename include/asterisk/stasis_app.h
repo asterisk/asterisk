@@ -277,6 +277,60 @@ enum stasis_app_subscribe_res stasis_app_unsubscribe(const char *app_name,
 /*! \brief Handler for controlling a channel that's in a Stasis application */
 struct stasis_app_control;
 
+/*! \brief Rule to check to see if an operation is allowed */
+struct stasis_app_control_rule {
+	/*!
+	 * \brief Checks to see if an operation is allowed on the control
+	 *
+	 * \param control Control object to check
+	 * \return 0 on success, otherwise a failure code
+	 */
+	enum stasis_app_control_channel_result (*check_rule)(
+		const struct stasis_app_control *control);
+	/*! Next item in the list */
+	AST_LIST_ENTRY(stasis_app_control_rule) next;
+};
+
+/*!
+ * \brief Registers an add channel to bridge rule.
+ *
+ * \param control Control object
+ * \param rule The rule to register
+ */
+void stasis_app_control_register_add_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule);
+
+/*!
+ * \brief UnRegister an add channel to bridge rule.
+ *
+ * \param control Control object
+ * \param rule The rule to unregister
+ */
+void stasis_app_control_unregister_add_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule);
+
+/*!
+ * \brief Registers a remove channel from bridge rule.
+ *
+ * \param control Control object
+ * \param rule The rule to register
+ */
+void stasis_app_control_register_remove_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule);
+
+/*!
+ * \brief Unregisters a remove channel from bridge rule.
+ *
+ * \param control Control object
+ * \param rule The rule to unregister
+ */
+void stasis_app_control_unregister_remove_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule);
+
 /*!
  * \brief Returns the handler for the given channel.
  * \param chan Channel to handle.
@@ -580,6 +634,16 @@ struct ast_channel *stasis_app_bridge_moh_channel(
  */
 int stasis_app_bridge_moh_stop(
 	struct ast_bridge *bridge);
+
+/*!
+ * \brief Result codes used when adding/removing channels to/from bridges.
+ */
+enum stasis_app_control_channel_result {
+	/*! The channel is okay to be added/removed */
+	STASIS_APP_CHANNEL_OKAY = 0,
+	/*! The channel is currently recording */
+	STASIS_APP_CHANNEL_RECORDING
+};
 
 /*!
  * \brief Add a channel to the bridge.

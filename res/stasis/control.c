@@ -40,6 +40,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
 
+AST_LIST_HEAD(app_control_rules, stasis_app_control_rule);
+
 struct stasis_app_control {
 	ast_cond_t wait_cond;
 	/*! Queue of commands to dispatch on the channel */
@@ -59,6 +61,14 @@ struct stasis_app_control {
 	 */
 	struct ast_pbx *pbx;
 	/*!
+	 * A list of rules to check before adding a channel to a bridge.
+	 */
+	struct app_control_rules add_rules;
+	/*!
+	 * A list of rules to check before removing a channel from a bridge.
+	 */
+	struct app_control_rules remove_rules;
+	/*!
 	 * Silence generator, when silence is being generated.
 	 */
 	struct ast_silence_generator *silgen;
@@ -71,6 +81,9 @@ struct stasis_app_control {
 static void control_dtor(void *obj)
 {
 	struct stasis_app_control *control = obj;
+
+	AST_LIST_HEAD_DESTROY(&control->add_rules);
+	AST_LIST_HEAD_DESTROY(&control->remove_rules);
 
 	/* We may have a lingering silence generator; free it */
 	ast_channel_stop_silence_generator(control->channel, control->silgen);
@@ -106,22 +119,121 @@ struct stasis_app_control *control_create(struct ast_channel *channel)
 
 	control->channel = channel;
 
+	AST_LIST_HEAD_INIT(&control->add_rules);
+	AST_LIST_HEAD_INIT(&control->remove_rules);
+
 	ao2_ref(control, +1);
 	return control;
 }
 
-static void *noop_cb(struct stasis_app_control *control,
-	struct ast_channel *chan, void *data)
+static void app_control_register_rule(
+	const struct stasis_app_control *control,
+	struct app_control_rules *list, struct stasis_app_control_rule *obj)
 {
-	return NULL;
+	SCOPED_AO2LOCK(lock, control->command_queue);
+	AST_LIST_INSERT_TAIL(list, obj, next);
 }
 
-
-static struct stasis_app_command *exec_command(
-	struct stasis_app_control *control, stasis_app_command_cb command_fn,
-	void *data)
+static void app_control_unregister_rule(
+	const struct stasis_app_control *control,
+	struct app_control_rules *list, struct stasis_app_control_rule *obj)
 {
-	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
+	struct stasis_app_control_rule *rule;
+	SCOPED_AO2LOCK(lock, control->command_queue);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(list, rule, next) {
+		if (rule == obj) {
+			AST_RWLIST_REMOVE_CURRENT(next);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+}
+
+/*!
+ * \internal
+ * \brief Checks to make sure each rule in the given list passes.
+ *
+ * \details Loops over a list of rules checking for rejections or failures.
+ *          If one rule fails its resulting error code is returned.
+ *
+ * \note Command queue should be locked before calling this function.
+ *
+ * \param control The stasis application control
+ * \param list The list of rules to check
+ *
+ * \retval 0 if all rules pass
+ * \retval non-zero error code if a rule fails
+ */
+static enum stasis_app_control_channel_result app_control_check_rules(
+	const struct stasis_app_control *control,
+	struct app_control_rules *list)
+{
+	int res = 0;
+	struct stasis_app_control_rule *rule;
+	AST_LIST_TRAVERSE(list, rule, next) {
+		if ((res = rule->check_rule(control))) {
+			return res;
+		}
+	}
+	return res;
+}
+
+void stasis_app_control_register_add_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule)
+{
+	return app_control_register_rule(control, &control->add_rules, rule);
+}
+
+void stasis_app_control_unregister_add_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule)
+{
+	app_control_unregister_rule(control, &control->add_rules, rule);
+}
+
+void stasis_app_control_register_remove_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule)
+{
+	return app_control_register_rule(control, &control->remove_rules, rule);
+}
+
+void stasis_app_control_unregister_remove_rule(
+	struct stasis_app_control *control,
+	struct stasis_app_control_rule *rule)
+{
+	app_control_unregister_rule(control, &control->remove_rules, rule);
+}
+
+static int app_control_can_add_channel_to_bridge(
+	struct stasis_app_control *control)
+{
+	return app_control_check_rules(control, &control->add_rules);
+}
+
+static int app_control_can_remove_channel_from_bridge(
+	struct stasis_app_control *control)
+{
+	return app_control_check_rules(control, &control->remove_rules);
+}
+
+static int noop_cb(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	return 0;
+}
+
+/*! Callback type to see if the command can execute
+    note: command_queue is locked during callback */
+typedef int (*app_command_can_exec_cb)(struct stasis_app_control *control);
+
+static struct stasis_app_command *exec_command_on_condition(
+	struct stasis_app_control *control, stasis_app_command_cb command_fn,
+	void *data, app_command_can_exec_cb can_exec_fn)
+{
+	int retval;
+	struct stasis_app_command *command;
 
 	command_fn = command_fn ? : noop_cb;
 
@@ -131,12 +243,24 @@ static struct stasis_app_command *exec_command(
 	}
 
 	ao2_lock(control->command_queue);
+	if (can_exec_fn && (retval = can_exec_fn(control))) {
+		ao2_unlock(control->command_queue);
+		command_complete(command, retval);
+		return command;
+	}
+
 	ao2_link_flags(control->command_queue, command, OBJ_NOLOCK);
 	ast_cond_signal(&control->wait_cond);
 	ao2_unlock(control->command_queue);
 
-	ao2_ref(command, +1);
 	return command;
+}
+
+static struct stasis_app_command *exec_command(
+	struct stasis_app_control *control, stasis_app_command_cb command_fn,
+	void *data)
+{
+	return exec_command_on_condition(control, command_fn, data, NULL);
 }
 
 struct stasis_app_control_dial_data {
@@ -144,11 +268,11 @@ struct stasis_app_control_dial_data {
 	int timeout;
 };
 
-static void *app_control_add_channel_to_bridge(
+static int app_control_add_channel_to_bridge(
         struct stasis_app_control *control,
         struct ast_channel *chan, void *data);
 
-static void *app_control_dial(struct stasis_app_control *control,
+static int app_control_dial(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct ast_dial *, dial, ast_dial_create(), ast_dial_destroy);
@@ -160,30 +284,30 @@ static void *app_control_dial(struct stasis_app_control *control,
 
 	tech = dial_data->endpoint;
 	if (!(resource = strchr(tech, '/'))) {
-		return NULL;
+		return -1;
 	}
 	*resource++ = '\0';
 
 	if (!dial) {
 		ast_log(LOG_ERROR, "Failed to create dialing structure.\n");
-		return NULL;
+		return -1;
 	}
 
 	if (ast_dial_append(dial, tech, resource) < 0) {
 		ast_log(LOG_ERROR, "Failed to add %s/%s to dialing structure.\n", tech, resource);
-		return NULL;
+		return -1;
 	}
 
 	ast_dial_set_global_timeout(dial, dial_data->timeout);
 
 	res = ast_dial_run(dial, NULL, 0);
 	if (res != AST_DIAL_RESULT_ANSWERED || !(new_chan = ast_dial_answered_steal(dial))) {
-		return NULL;
+		return -1;
 	}
 
 	if (!(bridge = ast_bridge_basic_new())) {
 		ast_log(LOG_ERROR, "Failed to create basic bridge.\n");
-		return NULL;
+		return -1;
 	}
 
 	if (ast_bridge_impart(bridge, new_chan, NULL, NULL,
@@ -193,7 +317,7 @@ static void *app_control_dial(struct stasis_app_control *control,
 		app_control_add_channel_to_bridge(control, chan, bridge);
 	}
 
-	return NULL;
+	return 0;
 }
 
 int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, const char *exten, const char *context,
@@ -248,7 +372,7 @@ struct stasis_app_control_continue_data {
 	int priority;
 };
 
-static void *app_control_continue(struct stasis_app_control *control,
+static int app_control_continue(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct stasis_app_control_continue_data *, continue_data, data, ast_free);
@@ -266,7 +390,7 @@ static void *app_control_continue(struct stasis_app_control *control,
 
 	control->is_done = 1;
 
-	return NULL;
+	return 0;
 }
 
 int stasis_app_control_continue(struct stasis_app_control *control, const char *context, const char *extension, int priority)
@@ -297,7 +421,7 @@ struct stasis_app_control_dtmf_data {
 	char dtmf[];
 };
 
-static void *app_control_dtmf(struct stasis_app_control *control,
+static int app_control_dtmf(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct stasis_app_control_dtmf_data *, dtmf_data, data, ast_free);
@@ -312,7 +436,7 @@ static void *app_control_dtmf(struct stasis_app_control *control,
 		ast_safe_sleep(chan, dtmf_data->after);
 	}
 
-	return NULL;
+	return 0;
 }
 
 int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf, int before, int between, unsigned int duration, int after)
@@ -334,12 +458,12 @@ int stasis_app_control_dtmf(struct stasis_app_control *control, const char *dtmf
 	return 0;
 }
 
-static void *app_control_ring(struct stasis_app_control *control,
+static int app_control_ring(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	ast_indicate(control->channel, AST_CONTROL_RINGING);
 
-	return NULL;
+	return 0;
 }
 
 int stasis_app_control_ring(struct stasis_app_control *control)
@@ -349,12 +473,12 @@ int stasis_app_control_ring(struct stasis_app_control *control)
 	return 0;
 }
 
-static void *app_control_ring_stop(struct stasis_app_control *control,
+static int app_control_ring_stop(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	ast_indicate(control->channel, -1);
 
-	return NULL;
+	return 0;
 }
 
 int stasis_app_control_ring_stop(struct stasis_app_control *control)
@@ -369,7 +493,7 @@ struct stasis_app_control_mute_data {
 	unsigned int direction;
 };
 
-static void *app_control_mute(struct stasis_app_control *control,
+static int app_control_mute(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct stasis_app_control_mute_data *, mute_data, data, ast_free);
@@ -377,7 +501,7 @@ static void *app_control_mute(struct stasis_app_control *control,
 
 	ast_channel_suppress(control->channel, mute_data->direction, mute_data->frametype);
 
-	return NULL;
+	return 0;
 }
 
 int stasis_app_control_mute(struct stasis_app_control *control, unsigned int direction, enum ast_frame_type frametype)
@@ -396,7 +520,7 @@ int stasis_app_control_mute(struct stasis_app_control *control, unsigned int dir
 	return 0;
 }
 
-static void *app_control_unmute(struct stasis_app_control *control,
+static int app_control_unmute(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct stasis_app_control_mute_data *, mute_data, data, ast_free);
@@ -404,7 +528,7 @@ static void *app_control_unmute(struct stasis_app_control *control,
 
 	ast_channel_unsuppress(control->channel, mute_data->direction, mute_data->frametype);
 
-	return NULL;
+	return 0;
 }
 
 int stasis_app_control_unmute(struct stasis_app_control *control, unsigned int direction, enum ast_frame_type frametype)
@@ -456,12 +580,12 @@ int stasis_app_control_set_channel_var(struct stasis_app_control *control, const
 	return pbx_builtin_setvar_helper(control->channel, variable, value);
 }
 
-static void *app_control_hold(struct stasis_app_control *control,
+static int app_control_hold(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	ast_indicate(control->channel, AST_CONTROL_HOLD);
 
-	return NULL;
+	return 0;
 }
 
 void stasis_app_control_hold(struct stasis_app_control *control)
@@ -469,12 +593,12 @@ void stasis_app_control_hold(struct stasis_app_control *control)
 	stasis_app_send_command_async(control, app_control_hold, NULL);
 }
 
-static void *app_control_unhold(struct stasis_app_control *control,
+static int app_control_unhold(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	ast_indicate(control->channel, AST_CONTROL_UNHOLD);
 
-	return NULL;
+	return 0;
 }
 
 void stasis_app_control_unhold(struct stasis_app_control *control)
@@ -482,7 +606,7 @@ void stasis_app_control_unhold(struct stasis_app_control *control)
 	stasis_app_send_command_async(control, app_control_unhold, NULL);
 }
 
-static void *app_control_moh_start(struct stasis_app_control *control,
+static int app_control_moh_start(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	char *moh_class = data;
@@ -490,7 +614,7 @@ static void *app_control_moh_start(struct stasis_app_control *control,
 	ast_moh_start(chan, moh_class, NULL);
 
 	ast_free(moh_class);
-	return NULL;
+	return 0;
 }
 
 void stasis_app_control_moh_start(struct stasis_app_control *control, const char *moh_class)
@@ -504,11 +628,11 @@ void stasis_app_control_moh_start(struct stasis_app_control *control, const char
 	stasis_app_send_command_async(control, app_control_moh_start, data);
 }
 
-static void *app_control_moh_stop(struct stasis_app_control *control,
+static int app_control_moh_stop(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	ast_moh_stop(chan);
-	return NULL;
+	return 0;
 }
 
 void stasis_app_control_moh_stop(struct stasis_app_control *control)
@@ -516,7 +640,7 @@ void stasis_app_control_moh_stop(struct stasis_app_control *control)
 	stasis_app_send_command_async(control, app_control_moh_stop, NULL);
 }
 
-static void *app_control_silence_start(struct stasis_app_control *control,
+static int app_control_silence_start(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	if (control->silgen) {
@@ -538,7 +662,7 @@ static void *app_control_silence_start(struct stasis_app_control *control,
 			stasis_app_control_get_channel_id(control));
 	}
 
-	return NULL;
+	return 0;
 }
 
 void stasis_app_control_silence_start(struct stasis_app_control *control)
@@ -546,7 +670,7 @@ void stasis_app_control_silence_start(struct stasis_app_control *control)
 	stasis_app_send_command_async(control, app_control_silence_start, NULL);
 }
 
-static void *app_control_silence_stop(struct stasis_app_control *control,
+static int app_control_silence_stop(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	if (control->silgen) {
@@ -557,7 +681,7 @@ static void *app_control_silence_stop(struct stasis_app_control *control,
 		control->silgen = NULL;
 	}
 
-	return NULL;
+	return 0;
 }
 
 void stasis_app_control_silence_stop(struct stasis_app_control *control)
@@ -584,21 +708,29 @@ struct ast_channel_snapshot *stasis_app_control_get_snapshot(
 	return snapshot;
 }
 
-void *stasis_app_send_command(struct stasis_app_control *control,
-	stasis_app_command_cb command_fn, void *data)
+static int app_send_command_on_condition(struct stasis_app_control *control,
+					 stasis_app_command_cb command_fn, void *data,
+					 app_command_can_exec_cb can_exec_fn)
 {
 	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
 
 	if (control == NULL) {
-		return NULL;
+		return -1;
 	}
 
-	command = exec_command(control, command_fn, data);
+	command = exec_command_on_condition(
+		control, command_fn, data, can_exec_fn);
 	if (!command) {
-		return NULL;
+		return -1;
 	}
 
 	return command_join(command);
+}
+
+int stasis_app_send_command(struct stasis_app_control *control,
+	stasis_app_command_cb command_fn, void *data)
+{
+	return app_send_command_on_condition(control, command_fn, data, NULL);
 }
 
 int stasis_app_send_command_async(struct stasis_app_control *control,
@@ -628,7 +760,7 @@ struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control)
 	}
 }
 
-static void *bridge_channel_depart(struct stasis_app_control *control,
+static int bridge_channel_depart(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct ast_bridge_channel *, bridge_channel, data, ao2_cleanup);
@@ -639,7 +771,7 @@ static void *bridge_channel_depart(struct stasis_app_control *control,
 		if (bridge_channel != ast_channel_internal_bridge_channel(chan)) {
 			ast_debug(3, "%s: Channel is no longer in departable state\n",
 				ast_channel_uniqueid(chan));
-			return NULL;
+			return -1;
 		}
 	}
 
@@ -648,7 +780,7 @@ static void *bridge_channel_depart(struct stasis_app_control *control,
 
 	ast_bridge_depart(chan);
 
-	return NULL;
+	return 0;
 }
 
 static void bridge_after_cb(struct ast_channel *chan, void *data)
@@ -691,10 +823,7 @@ static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
 		ast_bridge_after_cb_reason_string(reason));
 }
 
-static int OK = 0;
-static int FAIL = -1;
-
-static void *app_control_add_channel_to_bridge(
+static int app_control_add_channel_to_bridge(
 	struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
@@ -702,7 +831,7 @@ static void *app_control_add_channel_to_bridge(
 	int res;
 
 	if (!control || !bridge) {
-		return NULL;
+		return -1;
 	}
 
 	ast_debug(3, "%s: Adding to bridge %s\n",
@@ -726,7 +855,7 @@ static void *app_control_add_channel_to_bridge(
 		bridge_after_cb_failed, control);
 	if (res != 0) {
 		ast_log(LOG_ERROR, "Error setting after-bridge callback\n");
-		return &FAIL;
+		return -1;
 	}
 
 	{
@@ -752,34 +881,34 @@ static void *app_control_add_channel_to_bridge(
 			ast_log(LOG_ERROR, "Error adding channel to bridge\n");
 			ast_channel_pbx_set(chan, control->pbx);
 			control->pbx = NULL;
-			return &FAIL;
+			return -1;
 		}
 
 		ast_assert(stasis_app_get_bridge(control) == NULL);
 		control->bridge = bridge;
 	}
-	return &OK;
+	return 0;
 }
 
 int stasis_app_control_add_channel_to_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge)
 {
-	int *res;
 	ast_debug(3, "%s: Sending channel add_to_bridge command\n",
 			stasis_app_control_get_channel_id(control));
-	res = stasis_app_send_command(control,
-		app_control_add_channel_to_bridge, bridge);
-	return *res;
+
+	return app_send_command_on_condition(
+		control, app_control_add_channel_to_bridge, bridge,
+		app_control_can_add_channel_to_bridge);
 }
 
-static void *app_control_remove_channel_from_bridge(
+static int app_control_remove_channel_from_bridge(
 	struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	struct ast_bridge *bridge = data;
 
 	if (!control) {
-		return &FAIL;
+		return -1;
 	}
 
 	/* We should only depart from our own bridge */
@@ -791,22 +920,21 @@ static void *app_control_remove_channel_from_bridge(
 		ast_log(LOG_WARNING, "%s: Not in bridge %s; not removing\n",
 			stasis_app_control_get_channel_id(control),
 			bridge->uniqueid);
-		return &FAIL;
+		return -1;
 	}
 
 	ast_bridge_depart(chan);
-	return &OK;
+	return 0;
 }
 
 int stasis_app_control_remove_channel_from_bridge(
 	struct stasis_app_control *control, struct ast_bridge *bridge)
 {
-	int *res;
 	ast_debug(3, "%s: Sending channel remove_from_bridge command\n",
 			stasis_app_control_get_channel_id(control));
-	res = stasis_app_send_command(control,
-		app_control_remove_channel_from_bridge, bridge);
-	return *res;
+	return app_send_command_on_condition(
+		control, app_control_remove_channel_from_bridge, bridge,
+		app_control_can_remove_channel_from_bridge);
 }
 
 const char *stasis_app_control_get_channel_id(

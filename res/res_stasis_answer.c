@@ -35,28 +35,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis_app_impl.h"
 
-static int OK = 0;
-static int FAIL = -1;
-
-static void *app_control_answer(struct stasis_app_control *control,
+static int app_control_answer(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	const int delay = 0;
 	ast_debug(3, "%s: Answering",
 		stasis_app_control_get_channel_id(control));
-	return __ast_answer(chan, delay) == 0 ? &OK : &FAIL;
+	return __ast_answer(chan, delay);
 }
 
 int stasis_app_control_answer(struct stasis_app_control *control)
 {
-	int *retval;
+	int retval;
 
 	ast_debug(3, "%s: Sending answer command\n",
 		stasis_app_control_get_channel_id(control));
 
 	retval = stasis_app_send_command(control, app_control_answer, NULL);
 
-	if (retval == NULL || *retval != 0) {
+	if (retval != 0) {
 		ast_log(LOG_WARNING, "%s: Failed to answer channel",
 			stasis_app_control_get_channel_id(control));
 		return -1;

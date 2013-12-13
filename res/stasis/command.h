@@ -34,9 +34,11 @@ struct stasis_app_command;
 struct stasis_app_command *command_create(
 	stasis_app_command_cb callback, void *data);
 
+void command_complete(struct stasis_app_command *command, int retval);
+
 void command_invoke(struct stasis_app_command *command,
 	struct stasis_app_control *control, struct ast_channel *chan);
 
-void *command_join(struct stasis_app_command *command);
+int command_join(struct stasis_app_command *command);
 
 #endif /* _ASTERISK_RES_STASIS_CONTROL_H */
