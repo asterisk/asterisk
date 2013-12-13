@@ -14225,6 +14225,25 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 }
 #endif /* defined(TEST_FRAMEWORK) */
 
+static const struct ast_vm_functions vm_table = {
+	.module_version = VM_MODULE_VERSION,
+	.module_name = AST_MODULE,
+
+	.has_voicemail = has_voicemail,
+	.inboxcount = inboxcount,
+	.inboxcount2 = inboxcount2,
+	.messagecount = messagecount,
+	.sayname = sayname,
+	.copy_recording_to_vm = msg_create_from_file,
+	.index_to_foldername = vm_index_to_foldername,
+	.mailbox_snapshot_create = vm_mailbox_snapshot_create,
+	.mailbox_snapshot_destroy = vm_mailbox_snapshot_destroy,
+	.msg_move = vm_msg_move,
+	.msg_remove = vm_msg_remove,
+	.msg_forward = vm_msg_forward,
+	.msg_play = vm_msg_play,
+};
+
 static int reload(void)
 {
 	return load_config(1);
@@ -14254,7 +14273,7 @@ static int unload_module(void)
 	res |= AST_TEST_UNREGISTER(test_voicemail_vm_info);
 #endif
 	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
-	ast_uninstall_vm_functions();
+	ast_vm_unregister(vm_table.module_name);
 #ifdef TEST_FRAMEWORK
 	ast_uninstall_vm_test_functions();
 #endif
@@ -14321,16 +14340,12 @@ static int load_module(void)
 	res |= AST_TEST_REGISTER(test_voicemail_vm_info);
 #endif
 
+	res |= ast_vm_register(&vm_table);
 	if (res)
 		return res;
 
 	ast_cli_register_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_data_register_multiple(vm_data_providers, ARRAY_LEN(vm_data_providers));
-
-	ast_install_vm_functions(has_voicemail, inboxcount, inboxcount2, messagecount, sayname, msg_create_from_file,
-				 vm_index_to_foldername,
-				 vm_mailbox_snapshot_create, vm_mailbox_snapshot_destroy,
-				 vm_msg_move, vm_msg_remove, vm_msg_forward, vm_msg_play);
 
 #ifdef TEST_FRAMEWORK
 	ast_install_vm_test_functions(vm_test_create_user, vm_test_destroy_user);

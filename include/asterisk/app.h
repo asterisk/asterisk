@@ -334,19 +334,19 @@ typedef void (ast_vm_msg_play_cb)(struct ast_channel *chan, const char *playfile
 /*!
  * \brief Determines if the given folder has messages.
  *
- * \param mailbox Comma or & delimited list of mailboxes (user@context).
+ * \param mailboxes Comma or & delimited list of mailboxes (user@context).
  *          If no context is found, uses 'default' for the context.
  * \param folder The folder to look in.  Default is INBOX if not provided.
  *
  * \retval 1 if the folder has one or more messages.
  * \retval 0 otherwise.
  */
-typedef int (ast_has_voicemail_fn)(const char *mailbox, const char *folder);
+typedef int (ast_has_voicemail_fn)(const char *mailboxes, const char *folder);
 
 /*!
  * \brief Gets the number of messages that exist for the mailbox list.
  *
- * \param mailbox Comma or space delimited list of mailboxes (user@context).
+ * \param mailboxes Comma or space delimited list of mailboxes (user@context).
  *          If no context is found, uses 'default' for the context.
  * \param newmsgs Where to put the count of new messages. (Can be NULL)
  * \param oldmsgs Where to put the count of old messages. (Can be NULL)
@@ -358,12 +358,12 @@ typedef int (ast_has_voicemail_fn)(const char *mailbox, const char *folder);
  * \retval 0 on success
  * \retval -1 on failure
  */
-typedef int (ast_inboxcount_fn)(const char *mailbox, int *newmsgs, int *oldmsgs);
+typedef int (ast_inboxcount_fn)(const char *mailboxes, int *newmsgs, int *oldmsgs);
 
 /*!
  * \brief Gets the number of messages that exist for the mailbox list.
  *
- * \param mailbox Comma or space delimited list of mailboxes (user@context).
+ * \param mailboxes Comma or space delimited list of mailboxes (user@context).
  *          If no context is found, uses 'default' for the context.
  * \param urgentmsgs Where to put the count of urgent messages. (Can be NULL)
  * \param newmsgs Where to put the count of new messages. (Can be NULL)
@@ -377,13 +377,13 @@ typedef int (ast_inboxcount_fn)(const char *mailbox, int *newmsgs, int *oldmsgs)
  * \retval 0 on success
  * \retval -1 on failure
  */
-typedef int (ast_inboxcount2_fn)(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs);
+typedef int (ast_inboxcount2_fn)(const char *mailboxes, int *urgentmsgs, int *newmsgs, int *oldmsgs);
 
 /*!
  * \brief Gets the number of messages that exist in a mailbox folder.
  *
  * \param context The context part of user@context.  Uses 'default' if not provided.
- * \param mailbox The user part of user@context.
+ * \param user The user part of user@context.
  * \param folder The folder to look in.  Default is INBOX if not provided.
  *
  * \note If requesting INBOX then the returned count is INBOX +
@@ -391,20 +391,20 @@ typedef int (ast_inboxcount2_fn)(const char *mailbox, int *urgentmsgs, int *newm
  *
  * \return The number of messages in this mailbox folder (zero or more).
  */
-typedef int (ast_messagecount_fn)(const char *context, const char *mailbox, const char *folder);
+typedef int (ast_messagecount_fn)(const char *context, const char *user, const char *folder);
 
 /*!
  * \brief Play a recorded user name for the mailbox.
  *
  * \param chan Where to play the recorded name file.
- * \param mailbox The user part of user@context.
+ * \param user The user part of user@context.
  * \param context The context part of user@context.  Must be explicit.
  *
  * \retval 0 Name played without interruption
  * \retval dtmf ASCII value of the DTMF which interrupted playback
  * \retval -1 on failure
  */
-typedef int (ast_sayname_fn)(struct ast_channel *chan, const char *mailbox, const char *context);
+typedef int (ast_sayname_fn)(struct ast_channel *chan, const char *user, const char *context);
 
 /*!
  * \brief Creates a voicemail based on a specified file to a mailbox.
@@ -430,7 +430,7 @@ typedef const char *(ast_vm_index_to_foldername_fn)(int id);
 /*!
  * \brief Create a snapshot of a mailbox which contains information about every msg.
  *
- * \param mailbox The user part of user@context.
+ * \param user The user part of user@context.
  * \param context The context part of user@context.  Must be explicit.
  * \param folder When not NULL only msgs from the specified folder will be included.
  * \param descending list the msgs in descending order rather than ascending order.
@@ -444,7 +444,7 @@ typedef const char *(ast_vm_index_to_foldername_fn)(int id);
  * \retval snapshot on success
  * \retval NULL on failure
  */
-typedef struct ast_vm_mailbox_snapshot *(ast_vm_mailbox_snapshot_create_fn)(const char *mailbox,
+typedef struct ast_vm_mailbox_snapshot *(ast_vm_mailbox_snapshot_create_fn)(const char *user,
 	const char *context, const char *folder, int descending,
 	enum ast_vm_snapshot_sort_val sort_val, int combine_INBOX_and_OLD);
 
@@ -536,45 +536,63 @@ typedef int (ast_vm_msg_forward_fn)(const char *from_mailbox, const char *from_c
 typedef int (ast_vm_msg_play_fn)(struct ast_channel *chan, const char *mailbox,
 	const char *context, const char *folder, const char *msg_num, ast_vm_msg_play_cb *cb);
 
+#define VM_MODULE_VERSION 1
+
+/*! \brief Voicemail function table definition. */
+struct ast_vm_functions {
+	/*!
+	 * \brief The version of this function table.
+	 *
+	 * \note If the ABI for this table changes, the module version
+	 * (\ref VM_MODULE_VERSION) should be incremented.
+	 */
+	unsigned int module_version;
+	/*! \brief The name of the module that provides the voicemail functionality */
+	const char *module_name;
+	/*! \brief The module for the voicemail provider */
+	struct ast_module *module;
+
+	ast_has_voicemail_fn *has_voicemail;
+	ast_inboxcount_fn *inboxcount;
+	ast_inboxcount2_fn *inboxcount2;
+	ast_messagecount_fn *messagecount;
+	ast_sayname_fn *sayname;
+	ast_copy_recording_to_vm_fn *copy_recording_to_vm;
+	ast_vm_index_to_foldername_fn *index_to_foldername;
+	ast_vm_mailbox_snapshot_create_fn *mailbox_snapshot_create;
+	ast_vm_mailbox_snapshot_destroy_fn *mailbox_snapshot_destroy;
+	ast_vm_msg_move_fn *msg_move;
+	ast_vm_msg_remove_fn *msg_remove;
+	ast_vm_msg_forward_fn *msg_forward;
+	ast_vm_msg_play_fn *msg_play;
+};
+
 /*!
  * \brief Set voicemail function callbacks
  *
- * \param has_voicemail_func set function pointer
- * \param inboxcount_func set function pointer
- * \param inboxcount2_func set function pointer
- * \param messagecount_func set function pointer
- * \param sayname_func set function pointer
- * \param copy_recording_to_vm_func set function pointer
- * \param vm_index_to_foldername_func set function pointer
- * \param vm_mailbox_snapshot_create_func set function pointer
- * \param vm_mailbox_snapshot_destroy_func set function pointer
- * \param vm_msg_move_func set function pointer
- * \param vm_msg_remove_func set function pointer
- * \param vm_msg_forward_func set function pointer
- * \param vm_msg_play_func set function pointer
+ * \param vm_table Voicemail function table to install.
+ * \param module Pointer to the module implementing the interface
  *
- * \version 1.6.1 Added inboxcount2_func, sayname_func
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
-void ast_install_vm_functions(ast_has_voicemail_fn *has_voicemail_func,
-	ast_inboxcount_fn *inboxcount_func,
-	ast_inboxcount2_fn *inboxcount2_func,
-	ast_messagecount_fn *messagecount_func,
-	ast_sayname_fn *sayname_func,
-	ast_copy_recording_to_vm_fn *copy_recording_to_vm_func,
-	ast_vm_index_to_foldername_fn *vm_index_to_foldername_func,
-	ast_vm_mailbox_snapshot_create_fn *vm_mailbox_snapshot_create_func,
-	ast_vm_mailbox_snapshot_destroy_fn *vm_mailbox_snapshot_destroy_func,
-	ast_vm_msg_move_fn *vm_msg_move_func,
-	ast_vm_msg_remove_fn *vm_msg_remove_func,
-	ast_vm_msg_forward_fn *vm_msg_forward_func,
-	ast_vm_msg_play_fn *vm_msg_play_func);
+int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module *module);
 
+/*! \brief See \ref __ast_vm_register() */
+#define ast_vm_register(vm_table) __ast_vm_register(vm_table, ast_module_info ? ast_module_info->self : NULL)
 
-void ast_uninstall_vm_functions(void);
+/*!
+ * \brief Unregister the specified voicemail provider
+ *
+ * \param The module name of the provider to unregister
+ *
+ * \return Nothing
+ */
+void ast_vm_unregister(const char *module_name);
 
 #ifdef TEST_FRAMEWORK
-typedef int (ast_vm_test_create_user_fn)(const char *context, const char *mailbox);
-typedef int (ast_vm_test_destroy_user_fn)(const char *context, const char *mailbox);
+typedef int (ast_vm_test_create_user_fn)(const char *context, const char *user);
+typedef int (ast_vm_test_destroy_user_fn)(const char *context, const char *user);
 
 void ast_install_vm_test_functions(ast_vm_test_create_user_fn *vm_test_create_user_func,
 	ast_vm_test_destroy_user_fn *vm_test_destroy_user_func);
@@ -599,12 +617,12 @@ int ast_app_copy_recording_to_vm(struct ast_vm_recording_data *vm_rec_data);
  * \retval -1 Failure
  * \since 1.0
  */
-int ast_app_has_voicemail(const char *mailbox, const char *folder);
+int ast_app_has_voicemail(const char *mailboxes, const char *folder);
 
 /*!
  * \brief Determine number of new/old messages in a mailbox
  * \since 1.0
- * \param[in] mailbox Mailbox specification in the format
+ * \param[in] mailboxes Mailbox specification in the format
  * 	/code
  *	 mbox[\@context][&mbox2[\@context2]][...]
  *	/code
@@ -613,18 +631,18 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder);
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs);
+int ast_app_inboxcount(const char *mailboxes, int *newmsgs, int *oldmsgs);
 
 /*!
  * \brief Determine number of urgent/new/old messages in a mailbox
- * \param[in] mailbox the mailbox context to use
+ * \param[in] mailboxes the mailbox context to use
  * \param[out] urgentmsgs the urgent message count
  * \param[out] newmsgs the new message count
  * \param[out] oldmsgs the old message count
  * \return Returns 0 for success, negative upon error
  * \since 1.6.1
  */
-int ast_app_inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *oldmsgs);
+int ast_app_inboxcount2(const char *mailboxes, int *urgentmsgs, int *newmsgs, int *oldmsgs);
 
 /*!
  * \brief Given a mailbox and context, play that mailbox owner's name to the channel specified
