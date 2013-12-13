@@ -72,7 +72,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * envelope files on the file system
  */
 #define VM_API_TEST_SETUP do { \
-	if (test_vm_api_test_setup()) { \
+	if (!ast_vm_is_registered()) { \
+		ast_test_status_update(test, "No voicemail provider registered.\n"); \
+		return AST_TEST_FAIL; \
+	} else if (test_vm_api_test_setup()) { \
 		VM_API_TEST_CLEANUP; \
 		ast_test_status_update(test, "Failed to set up necessary mock objects for voicemail API test\n"); \
 		return AST_TEST_FAIL; \

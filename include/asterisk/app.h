@@ -568,6 +568,15 @@ struct ast_vm_functions {
 };
 
 /*!
+ * \brief Determine if a voicemail provider is registered.
+ * \since 13.0.0
+ *
+ * \retval 0 if no privider registered.
+ * \retval 1 if a privider is registered.
+ */
+int ast_vm_is_registered(void);
+
+/*!
  * \brief Set voicemail function callbacks
  *
  * \param vm_table Voicemail function table to install.
