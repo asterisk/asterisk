@@ -432,6 +432,17 @@ static AO2_GLOBAL_OBJ_STATIC(vm_provider);
 /*! Voicemail not registered warning */
 static int vm_warnings;
 
+int ast_vm_is_registered(void)
+{
+	struct ast_vm_functions *table;
+	int is_registered;
+
+	table = ao2_global_obj_ref(vm_provider);
+	is_registered = table ? 1 : 0;
+	ao2_cleanup(table);
+	return is_registered;
+}
+
 int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module *module)
 {
 	RAII_VAR(struct ast_vm_functions *, table, NULL, ao2_cleanup);
