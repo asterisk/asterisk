@@ -4214,6 +4214,8 @@ int ast_channel_is_bridged(const struct ast_channel *chan);
  * \note The returned peer channel is the current peer in the
  * bridge when called.
  *
+ * \note Absolutely _NO_ channel locks should be held when calling this function.
+ *
  * \retval NULL Channel not in a bridge or the bridge is not two-party.
  * \retval non-NULL Reffed peer channel at time of calling.
  */

@@ -32667,11 +32667,8 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	struct sip_pvt *p;
 	int changed = 0;
 
-	/* Lock the channel and the private safely. */
-	ast_channel_lock(chan);
 	p = ast_channel_tech_pvt(chan);
 	if (!p) {
-		ast_channel_unlock(chan);
 		return -1;
 	}
 	sip_pvt_lock(p);
@@ -32679,7 +32676,6 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 		/* I suppose it could be argued that if this happens it is a bug. */
 		ast_debug(1, "The private is not owned by channel %s anymore.\n", ast_channel_name(chan));
 		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -32688,14 +32684,12 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 		!ast_channel_is_bridged(chan) &&
 		!sip_cfg.directrtpsetup) {
 		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
 		return 0;
 	}
 
 	if (p->alreadygone) {
 		/* If we're destroyed, don't bother */
 		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -32704,7 +32698,6 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	*/
 	if (nat_active && !ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA_NAT)) {
 		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -32770,7 +32763,6 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 		 */
 		ast_clear_flag(&p->flags[2], SIP_PAGE3_DIRECT_MEDIA_OUTGOING);
 		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
 		return 0;
 	}
 
@@ -32791,7 +32783,6 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	/* Reset lastrtprx timer */
 	p->lastrtprx = p->lastrtptx = time(NULL);
 	sip_pvt_unlock(p);
-	ast_channel_unlock(chan);
 	return 0;
 }
 

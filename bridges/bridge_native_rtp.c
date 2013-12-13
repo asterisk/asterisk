@@ -112,7 +112,16 @@ static enum ast_rtp_glue_result native_rtp_bridge_get(struct ast_channel *c0, st
 	return audio_glue0_res;
 }
 
-static int native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel *target)
+/*!
+ * \internal
+ * \brief Start native RTP bridging of two channels
+ *
+ * \param bridge The bridge that had native RTP bridging happening on it
+ * \param target If remote RTP bridging, the channel that is unheld.
+ *
+ * \note Bridge must be locked when calling this function.
+ */
+static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel *target)
 {
 	struct ast_bridge_channel *c0 = AST_LIST_FIRST(&bridge->channels);
 	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
@@ -128,17 +137,11 @@ static int native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel
 	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
 
 	if (c0 == c1) {
-		return 0;
+		return;
 	}
 
+	ast_channel_lock_both(c0->chan, c1->chan);
 	native_type = native_rtp_bridge_get(c0->chan, c1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
-
-	if (glue0->get_codec) {
-		glue0->get_codec(c0->chan, cap0);
-	}
-	if (glue1->get_codec) {
-		glue1->get_codec(c1->chan, cap1);
-	}
 
 	switch (native_type) {
 	case AST_RTP_GLUE_RESULT_LOCAL:
@@ -155,6 +158,12 @@ static int native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel
 		break;
 
 	case AST_RTP_GLUE_RESULT_REMOTE:
+		if (glue0->get_codec) {
+			glue0->get_codec(c0->chan, cap0);
+		}
+		if (glue1->get_codec) {
+			glue1->get_codec(c1->chan, cap1);
+		}
 
 		/* If we have a target, it's the channel that received the UNHOLD or UPDATE_RTP_PEER frame and was told to resume */
 		if (!target) {
@@ -180,7 +189,8 @@ static int native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel
 		break;
 	}
 
-	return 0;
+	ast_channel_unlock(c0->chan);
+	ast_channel_unlock(c1->chan);
 }
 
 static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel *target)
@@ -202,6 +212,7 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 		return;
 	}
 
+	ast_channel_lock_both(c0->chan, c1->chan);
 	native_type = native_rtp_bridge_get(c0->chan, c1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
 
 	switch (native_type) {
@@ -241,6 +252,9 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 
 	ast_debug(2, "Discontinued RTP bridging of '%s' and '%s' - media will flow through Asterisk core\n",
 		ast_channel_name(c0->chan), ast_channel_name(c1->chan));
+
+	ast_channel_unlock(c0->chan);
+	ast_channel_unlock(c1->chan);
 }
 
 /*! \brief Frame hook that is called to intercept hold/unhold */
@@ -252,16 +266,23 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct a
 		return f;
 	}
 
-	ast_channel_lock(chan);
 	bridge = ast_channel_get_bridge(chan);
-	ast_channel_unlock(chan);
 
 	if (bridge) {
+		/* native_rtp_bridge_start/stop are not being called from bridging
+		   core so we need to lock the bridge prior to calling these functions
+		   Unfortunately that means unlocking the channel, but as it
+		   should not be modified this should be okay...hopefully */
+		ast_channel_unlock(chan);
+		ast_bridge_lock(bridge);
 		if (f->subclass.integer == AST_CONTROL_HOLD) {
 			native_rtp_bridge_stop(bridge, chan);
 		} else if ((f->subclass.integer == AST_CONTROL_UNHOLD) || (f->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER)) {
 			native_rtp_bridge_start(bridge, chan);
 		}
+		ast_bridge_unlock(bridge);
+		ast_channel_lock(chan);
+
 	}
 
 	return f;
@@ -412,7 +433,8 @@ static int native_rtp_bridge_join(struct ast_bridge *bridge, struct ast_bridge_c
 		return -1;
 	}
 
-	return native_rtp_bridge_start(bridge, NULL);
+	native_rtp_bridge_start(bridge, NULL);
+	return 0;
 }
 
 static void native_rtp_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)

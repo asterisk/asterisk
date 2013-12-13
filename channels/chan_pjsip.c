@@ -292,14 +292,11 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 	struct chan_pjsip_pvt *pvt = channel->pvt;
 	struct ast_sip_session *session = channel->session;
 	int changed = 0;
-	struct ast_channel *bridge_peer;
 
 	/* Don't try to do any direct media shenanigans on early bridges */
-	bridge_peer = ast_channel_bridge_peer(chan);
-	if ((rtp || vrtp || tpeer) && !bridge_peer) {
+	if ((rtp || vrtp || tpeer) && !ast_channel_is_bridged(chan)) {
 		return 0;
 	}
-	ast_channel_cleanup(bridge_peer);
 
 	if (nat_active && session->endpoint->media.direct_media.disable_on_nat) {
 		return 0;
