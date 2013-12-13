@@ -250,6 +250,7 @@ static void test_execute(struct ast_test *test)
 		test->state = AST_TEST_FAIL;
 		goto exit;
 	}
+	test->state = AST_TEST_NOT_RUN;
 	result = test->cb(&test->info, TEST_EXECUTE, test);
 	if (test->state != AST_TEST_FAIL) {
 		test->state = result;
