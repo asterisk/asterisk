@@ -955,6 +955,19 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 		struct ast_channel *to_transfer_target);
 
 /*!
+ * \brief Set the relevant transfer variables for a single channel
+ *
+ * Sets either the ATTENDEDTRANSFER or BLINDTRANSFER variable for a channel while clearing
+ * the opposite.
+ *
+ * \param chan Channel the variable is being set for
+ * \param value Value the variable is being set to
+ * \param is_attended false  set BLINDTRANSFER and unset ATTENDEDTRANSFER
+ *                    true   set ATTENDEDTRANSFER and unset BLINDTRANSFER
+ */
+void ast_bridge_set_transfer_variables(struct ast_channel *chan, const char *value, int is_attended);
+
+/*!
  * \brief Get a container of all channels in the bridge
  * \since 12.0.0
  *
