@@ -6869,13 +6869,11 @@ void ast_do_masquerade(struct ast_channel *original)
 	}
 
 	ast_debug(1, "Done Masquerading %s (%d)\n", ast_channel_name(original), ast_channel_state(original));
+	ast_channel_unlock(original);
 
 	if ((bridged = ast_channel_bridge_peer(original))) {
-		ast_channel_unlock(original);
 		ast_indicate(bridged, AST_CONTROL_SRCCHANGE);
 		ast_channel_unref(bridged);
-	} else {
-		ast_channel_unlock(original);
 	}
 	ast_indicate(original, AST_CONTROL_SRCCHANGE);
 
