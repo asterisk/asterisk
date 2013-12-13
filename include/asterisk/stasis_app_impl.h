@@ -49,7 +49,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	char *argv[]);
 
 /*! Callback type for stasis app commands */
-typedef void *(*stasis_app_command_cb)(struct stasis_app_control *control,
+typedef int (*stasis_app_command_cb)(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data);
 
 /*!
@@ -63,10 +63,11 @@ typedef void *(*stasis_app_command_cb)(struct stasis_app_control *control,
  * \param control Control object for the channel to send the command to.
  * \param command Command function to execute.
  * \param data Optional data to pass along with the control function.
- * \return Return value from \a command.
- * \return \c NULL on error.
+ *
+ * \return zero on success.
+ * \return error code otherwise.
  */
-void *stasis_app_send_command(struct stasis_app_control *control,
+int stasis_app_send_command(struct stasis_app_control *control,
 	stasis_app_command_cb command, void *data);
 
 /*!

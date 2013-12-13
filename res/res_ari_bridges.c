@@ -438,7 +438,7 @@ static void ast_ari_bridges_add_channel_cb(
 	case 501: /* Not Implemented */
 	case 400: /* Channel not found */
 	case 404: /* Bridge not found */
-	case 409: /* Bridge not in Stasis application */
+	case 409: /* Bridge not in Stasis application; Channel currently recording */
 	case 422: /* Channel not in Stasis application */
 		is_valid = 1;
 		break;

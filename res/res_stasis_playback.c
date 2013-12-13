@@ -389,7 +389,7 @@ static void remove_from_playbacks(struct stasis_app_playback *playback)
 		OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
 }
 
-static void *play_uri(struct stasis_app_control *control,
+static int play_uri(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL,
@@ -400,7 +400,7 @@ static void *play_uri(struct stasis_app_control *control,
 	playback = data;
 
 	if (!control) {
-		return NULL;
+		return -1;
 	}
 
 	bridge = stasis_app_get_bridge(control);
@@ -435,7 +435,7 @@ static void *play_uri(struct stasis_app_control *control,
 		play_on_channel(playback, chan);
 	}
 
-	return NULL;
+	return 0;
 }
 
 static void set_target_uri(
