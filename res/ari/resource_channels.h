@@ -68,6 +68,8 @@ struct ast_ari_channels_originate_args {
 	const char *caller_id;
 	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
 	int timeout;
+	/*! \brief Variables to be set on the channel. */
+	struct ast_json *variables;
 };
 /*!
  * \brief Create a new channel (originate).

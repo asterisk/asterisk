@@ -88,6 +88,14 @@
 							"allowMultiple": false,
 							"dataType": "int",
 							"defaultValue": 30
+						},
+						{
+							"name": "variables",
+							"description": "Variables to be set on the channel.",
+							"paramType": "body",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "containers"
 						}
 					],
 					"errorResponses": [

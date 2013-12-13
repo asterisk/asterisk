@@ -608,18 +608,30 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 
 #define MAX_POST_CONTENT 1025
 
-static const char *get_content_type(struct ast_variable *headers)
+/*!
+ * \brief Retrieves the content type specified in the "Content-Type" header.
+ *
+ * This function only returns the "type/subtype" and any trailing parameter is
+ * not included.
+ *
+ * \note the return value is an allocated string that needs to be freed.
+ *
+ * \retval the content type/subtype or NULL if the header is not found.
+ */
+static char *get_content_type(struct ast_variable *headers)
 {
 	struct ast_variable *v;
 
 	for (v = headers; v; v = v->next) {
 		if (strcasecmp(v->name, "Content-Type") == 0) {
-			return v->value;
+			const char *param = strchr(v->value, ';');
+			size_t size = (param ? param - v->value :
+				       strlen(v->value)) + 1;
+			return ast_strndup(v->value, size);
 		}
 	}
 
-	/* Missing content type; assume empty string */
-	return "";
+	return NULL;
 }
 
 static int get_content_length(struct ast_variable *headers)
@@ -643,11 +655,12 @@ struct ast_json *ast_http_get_json(
 	int res;
 	struct ast_json *body;
 	RAII_VAR(char *, buf, NULL, ast_free);
+	RAII_VAR(char *, type, get_content_type(headers), ast_free);
 
 	/* Use errno to distinguish errors from no body */
 	errno = 0;
 
-	if (strcasecmp(get_content_type(headers), "application/json") != 0) {
+	if (ast_strlen_zero(type) || strcasecmp(type, "application/json")) {
 		/* Content type is not JSON */
 		return NULL;
 	}
@@ -704,12 +717,14 @@ struct ast_variable *ast_http_get_post_vars(
 	struct ast_variable *v, *post_vars=NULL, *prev = NULL;
 	char *var, *val;
 	RAII_VAR(char *, buf, NULL, ast_free_ptr);
+	RAII_VAR(char *, type, get_content_type(headers), ast_free);
 	int res;
 
 	/* Use errno to distinguish errors from no params */
 	errno = 0;
 
-	if (strcasecmp(get_content_type(headers), "application/x-www-form-urlencoded") != 0) {
+	if (ast_strlen_zero(type) ||
+	    strcasecmp(type, "application/x-www-form-urlencoded")) {
 		/* Content type is not form data */
 		return NULL;
 	}
