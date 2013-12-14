@@ -1007,7 +1007,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			ast_channel_unlock(c);
 
 			ast_channel_lock_both(original, in);
-			ast_channel_publish_dial_forward(in, original, NULL, "CANCEL",
+			ast_channel_publish_dial_forward(in, original, c, NULL, "CANCEL",
 				ast_channel_call_forward(c));
 			ast_channel_unlock(in);
 			ast_channel_unlock(original);

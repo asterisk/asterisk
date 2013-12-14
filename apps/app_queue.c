@@ -4666,7 +4666,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					ast_channel_unlock(qe->chan);
 
 					ast_channel_lock_both(qe->chan, original);
-					ast_channel_publish_dial_forward(qe->chan, original, NULL, "CANCEL",
+					ast_channel_publish_dial_forward(qe->chan, original, o->chan, NULL, "CANCEL",
 						ast_channel_call_forward(original));
 					ast_channel_unlock(original);
 					ast_channel_unlock(qe->chan);

@@ -518,12 +518,14 @@ void ast_channel_publish_dial(struct ast_channel *caller,
  *
  * \param caller The channel performing the dial operation
  * \param peer The channel being dialed
+ * \param forwarded The channel created as a result of the call forwarding
  * \param dialstring The information passed to the dialing application when beginning a dial
  * \param dialstatus The current status of the dial operation
  * \param forward The call forward string provided by the dialed channel
  */
 void ast_channel_publish_dial_forward(struct ast_channel *caller,
 		struct ast_channel *peer,
+		struct ast_channel *forwarded,
 		const char *dialstring,
 		const char *dialstatus,
 		const char *forward);

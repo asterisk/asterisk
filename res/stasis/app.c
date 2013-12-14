@@ -265,6 +265,25 @@ static void app_dtor(void *obj)
 	app->data = NULL;
 }
 
+static void call_forwarded_handler(struct stasis_app *app, struct stasis_message *message)
+{
+	struct ast_multi_channel_blob *payload = stasis_message_data(message);
+	struct ast_channel_snapshot *snapshot = ast_multi_channel_blob_get_channel(payload, "forwarded");
+	struct ast_channel *chan;
+
+	if (!snapshot) {
+		return;
+	}
+
+	chan = ast_channel_get_by_name(snapshot->uniqueid);
+	if (!chan) {
+		return;
+	}
+
+	app_subscribe_channel(app, chan);
+	ast_channel_unref(chan);
+}
+
 static void sub_default_handler(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
@@ -273,6 +292,10 @@ static void sub_default_handler(void *data, struct stasis_subscription *sub,
 
 	if (stasis_subscription_final_message(sub, message)) {
 		ao2_cleanup(app);
+	}
+
+	if (stasis_message_type(message) == ast_channel_dial_type()) {
+		call_forwarded_handler(app, message);
 	}
 
 	/* By default, send any message that has a JSON representation */
