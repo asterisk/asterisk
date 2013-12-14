@@ -258,6 +258,15 @@ static int qualify_contact(struct ast_sip_contact *contact)
 		return -1;
 	}
 
+	/* If an outbound proxy is specified set it on this request */
+	if (!ast_strlen_zero(contact->outbound_proxy) &&
+		ast_sip_set_outbound_proxy(tdata, contact->outbound_proxy)) {
+		pjsip_tx_data_dec_ref(tdata);
+		ast_log(LOG_ERROR, "Unable to apply outbound proxy on request to qualify contact %s\n",
+			contact->uri);
+		return -1;
+	}
+
 	init_start_time(contact);
 
 	ao2_ref(contact, +1);
@@ -795,6 +804,7 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 	struct ast_sip_aor *aor = arg;
 
 	contact->qualify_frequency = aor->qualify_frequency;
+
 	qualify_and_schedule(contact);
 
 	return 0;
