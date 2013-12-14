@@ -422,13 +422,16 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	channel->device = ast_strdup(device);
 	AST_LIST_UNLOCK(&dial->channels);
 
-
 	/* Drop the original channel */
-	ast_hangup(original);
 	channel->owner = NULL;
 
 	/* Finally give it a go... send it out into the world */
 	begin_dial_channel(channel, chan, chan ? 0 : 1);
+
+	ast_channel_publish_dial_forward(chan, original, channel->owner, NULL, "CANCEL",
+		ast_channel_call_forward(original));
+
+	ast_hangup(original);
 
 	return 0;
 }

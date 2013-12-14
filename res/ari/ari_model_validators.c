@@ -2879,6 +2879,137 @@ ari_validator ast_ari_validate_device_state_changed_fn(void)
 	return ast_ari_validate_device_state_changed;
 }
 
+int ast_ari_validate_dial(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_dialstatus = 0;
+	int has_peer = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("caller", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field caller failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("dialstatus", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_dialstatus = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field dialstatus failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("dialstring", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field dialstring failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("forward", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field forward failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("forwarded", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field forwarded failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("peer", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_peer = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Dial field peer failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI Dial has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI Dial missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI Dial missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_dialstatus) {
+		ast_log(LOG_ERROR, "ARI Dial missing required field dialstatus\n");
+		res = 0;
+	}
+
+	if (!has_peer) {
+		ast_log(LOG_ERROR, "ARI Dial missing required field peer\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_dial_fn(void)
+{
+	return ast_ari_validate_dial;
+}
+
 int ast_ari_validate_endpoint_state_change(struct ast_json *json)
 {
 	int res = 1;
@@ -3022,6 +3153,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	} else
 	if (strcmp("DeviceStateChanged", discriminator) == 0) {
 		return ast_ari_validate_device_state_changed(json);
+	} else
+	if (strcmp("Dial", discriminator) == 0) {
+		return ast_ari_validate_dial(json);
 	} else
 	if (strcmp("EndpointStateChange", discriminator) == 0) {
 		return ast_ari_validate_endpoint_state_change(json);
@@ -3172,6 +3306,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("DeviceStateChanged", discriminator) == 0) {
 		return ast_ari_validate_device_state_changed(json);
+	} else
+	if (strcmp("Dial", discriminator) == 0) {
+		return ast_ari_validate_dial(json);
 	} else
 	if (strcmp("EndpointStateChange", discriminator) == 0) {
 		return ast_ari_validate_endpoint_state_change(json);

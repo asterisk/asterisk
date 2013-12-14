@@ -98,6 +98,7 @@
 				"ChannelHangupRequest",
 				"ChannelVarset",
 				"EndpointStateChange",
+				"Dial",
 				"StasisEnd",
 				"StasisStart"
 			]
@@ -408,6 +409,42 @@
 				"endpoint": {
 					"required": true,
 					"type": "Endpoint"
+				}
+			}
+		},
+		"Dial": {
+			"id": "Dial",
+			"description": "Dialing state has changed.",
+			"properties": {
+				"caller": {
+					"required": false,
+					"type": "Channel",
+					"description": "The calling channel."
+				},
+				"peer": {
+					"required": true,
+					"type": "Channel",
+					"description": "The dialed channel."
+				},
+				"forward": {
+					"required": false,
+					"type": "string",
+					"description": "Forwarding target requested by the original dialed channel."
+				},
+				"forwarded": {
+					"required": false,
+					"type": "Channel",
+					"description": "Channel that the caller has been forwarded to."
+				},
+				"dialstring": {
+					"required": false,
+					"type": "string",
+					"description": "The dial string for calling the peer channel."
+				},
+				"dialstatus": {
+					"required": true,
+					"type": "string",
+					"description": "Current status of the dialing attempt to the peer."
 				}
 			}
 		},

@@ -791,6 +791,24 @@ int ast_ari_validate_device_state_changed(struct ast_json *json);
 ari_validator ast_ari_validate_device_state_changed_fn(void);
 
 /*!
+ * \brief Validator for Dial.
+ *
+ * Dialing state has changed.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_dial(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_dial().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_dial_fn(void);
+
+/*!
  * \brief Validator for EndpointStateChange.
  *
  * Endpoint state changed.
@@ -1187,6 +1205,16 @@ ari_validator ast_ari_validate_application_fn(void);
  * - application: string (required)
  * - timestamp: Date
  * - device_state: DeviceState (required)
+ * Dial
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - caller: Channel
+ * - dialstatus: string (required)
+ * - dialstring: string
+ * - forward: string
+ * - forwarded: Channel
+ * - peer: Channel (required)
  * EndpointStateChange
  * - type: string (required)
  * - application: string (required)
