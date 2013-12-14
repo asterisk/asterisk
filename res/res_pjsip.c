@@ -868,6 +868,13 @@
 						If <literal>0</literal> never qualify. Time in seconds.
 					</para></description>
 				</configOption>
+				<configOption name="outbound_proxy">
+					<synopsis>Outbound proxy used when sending OPTIONS request</synopsis>
+					<description><para>
+						If set the provided URI will be used as the outbound proxy when an
+						OPTIONS request is sent to a contact for qualify purposes.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="aor">
 				<synopsis>The configuration for a location of an endpoint</synopsis>
@@ -962,6 +969,13 @@
 					<description><para>
 						If true and a qualify request receives a challenge or authenticate response
 						authentication is attempted before declaring the contact available.
+					</para></description>
+				</configOption>
+				<configOption name="outbound_proxy">
+					<synopsis>Outbound proxy used when sending OPTIONS request</synopsis>
+					<description><para>
+						If set the provided URI will be used as the outbound proxy when an
+						OPTIONS request is sent to a contact for qualify purposes.
 					</para></description>
 				</configOption>
 			</configObject>
@@ -1637,6 +1651,15 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		return -1;
 	}
 
+	/* If an outbound proxy is specified on the endpoint apply it to this request */
+	if (endpoint && !ast_strlen_zero(endpoint->outbound_proxy) &&
+		ast_sip_set_outbound_proxy((*tdata), endpoint->outbound_proxy)) {
+		ast_log(LOG_ERROR, "Unable to apply outbound proxy on request %.*s to endpoint %s\n",
+			(int) pj_strlen(&method->name), pj_strbuf(&method->name), ast_sorcery_object_get_id(endpoint));
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return -1;
+	}
+
 	/* We can release this pool since request creation copied all the necessary
 	 * data into the outbound request's pool
 	 */
@@ -1711,6 +1734,22 @@ int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg, struct 
 	} else {
 		return send_out_of_dialog_request(tdata, endpoint);
 	}
+}
+
+int ast_sip_set_outbound_proxy(pjsip_tx_data *tdata, const char *proxy)
+{
+	pjsip_route_hdr *route;
+	static const pj_str_t ROUTE_HNAME = { "Route", 5 };
+	pj_str_t tmp;
+
+	pj_strdup2_with_null(tdata->pool, &tmp, proxy);
+	if (!(route = pjsip_parse_hdr(tdata->pool, &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL))) {
+		return -1;
+	}
+
+	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)route);
+
+	return 0;
 }
 
 int ast_sip_add_header(pjsip_tx_data *tdata, const char *name, const char *value)

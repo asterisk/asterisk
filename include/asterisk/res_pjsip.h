@@ -144,6 +144,8 @@ struct ast_sip_contact {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Full URI of the contact */
 		AST_STRING_FIELD(uri);
+		/*! Outbound proxy to use for qualify */
+		AST_STRING_FIELD(outbound_proxy);
 	);
 	/*! Absolute time that this contact is no longer valid after */
 	struct timeval expiration_time;
@@ -188,6 +190,8 @@ struct ast_sip_aor {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Voicemail boxes for this AOR */
 		AST_STRING_FIELD(mailboxes);
+		/*! Outbound proxy for OPTIONS requests */
+		AST_STRING_FIELD(outbound_proxy);
 	);
 	/*! Minimum expiration time */
 	unsigned int minimum_expiration;
@@ -1279,6 +1283,16 @@ int ast_sip_create_request_with_auth(const struct ast_sip_auth_array *auths, pjs
  * \retval non-NULL The matching endpoint
  */
 struct ast_sip_endpoint *ast_sip_identify_endpoint(pjsip_rx_data *rdata);
+
+/*!
+ * \brief Set the outbound proxy for an outbound SIP message
+ *
+ * \param tdata The message to set the outbound proxy on
+ * \param proxy SIP uri of the proxy
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_set_outbound_proxy(pjsip_tx_data *tdata, const char *proxy);
 
 /*!
  * \brief Add a header to an outbound SIP message
