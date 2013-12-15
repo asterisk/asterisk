@@ -582,15 +582,15 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 	if (!strcmp(type, "secure")) {
 		snprintf(buf, buflen, "%u", dlg->secure ? 1 : 0);
 	} else if (!strcmp(type, "target_uri")) {
-		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, dlg->target, buf, sizeof(buflen));
+		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, dlg->target, buf, buflen);
 		buf_copy = ast_strdupa(buf);
 		ast_escape_quoted(buf_copy, buf, buflen);
 	} else if (!strcmp(type, "local_uri")) {
-		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->local.info->uri, buf, sizeof(buflen));
+		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->local.info->uri, buf, buflen);
 		buf_copy = ast_strdupa(buf);
 		ast_escape_quoted(buf_copy, buf, buflen);
 	} else if (!strcmp(type, "remote_uri")) {
-		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->remote.info->uri, buf, sizeof(buflen));
+		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, dlg->remote.info->uri, buf, buflen);
 		buf_copy = ast_strdupa(buf);
 		ast_escape_quoted(buf_copy, buf, buflen);
 	} else if (!strcmp(type, "t38state")) {
