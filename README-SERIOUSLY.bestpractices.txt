@@ -26,6 +26,9 @@ Sections
 * Manager Class Authorizations:
         Recognizing potential issues with certain classes of authorization
 
+* Avoid Privilege Escalations:
+        Disable the ability to execute functions that may escalate privileges
+
 ----------------
 Additional Links
 ----------------
@@ -344,3 +347,24 @@ same as the class authorization "system".  Good system configuration, such as
 not running Asterisk as root, can prevent serious problems from arising when
 allowing external connections to originate calls into Asterisk.
 
+===========================
+Avoid Privilege Escalations
+===========================
+
+External control protocols, such as Manager, often have the ability to get and
+set channel variables; which allows the execution of dialplan functions.
+
+Dialplan functions within Asterisk are incredibly powerful, which is wonderful
+for building applications using Asterisk. But during the read or write
+execution, certain diaplan functions do much more. For example, reading the
+SHELL() function can execute arbitrary commands on the system Asterisk is
+running on. Writing to the FILE() function can change any file that Asterisk has
+write access to.
+
+When these functions are executed from an external protocol, that execution
+could result in a privilege escalation. Asterisk can inhibit the execution of
+these functions, if live_dangerously in the [options] section of asterisk.conf
+is set to no.
+
+For backwards compatibility, live_dangerously defaults to yes, and must be
+explicitly set to no to enable this privilege escalation protection.
