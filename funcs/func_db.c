@@ -110,6 +110,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This function will retrieve a value from the Asterisk database
 			and then remove that key from the database. <variable>DB_RESULT</variable>
 			will be set to the key's value if it exists.</para>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be read from the
+				dialplan, and not directly from external protocols. It can, however, be
+				executed as a write operation (<literal>DB_DELETE(family, key)=ignored</literal>)</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="application">DBdel</ref>
@@ -311,10 +317,22 @@ static int function_db_delete(struct ast_channel *chan, const char *cmd,
 	return 0;
 }
 
+/*!
+ * \brief Wrapper to execute DB_DELETE from a write operation. Allows execution
+ * even if live_dangerously is disabled.
+ */
+static int function_db_delete_write(struct ast_channel *chan, const char *cmd, char *parse,
+	const char *value)
+{
+	/* Throwaway to hold the result from the read */
+	char buf[128];
+	return function_db_delete(chan, cmd, parse, buf, sizeof(buf));
+}
 
 static struct ast_custom_function db_delete_function = {
 	.name = "DB_DELETE",
 	.read = function_db_delete,
+	.write = function_db_delete_write,
 };
 
 static int unload_module(void)
@@ -335,7 +353,7 @@ static int load_module(void)
 
 	res |= ast_custom_function_register(&db_function);
 	res |= ast_custom_function_register(&db_exists_function);
-	res |= ast_custom_function_register(&db_delete_function);
+	res |= ast_custom_function_register_escalating(&db_delete_function, AST_CFE_READ);
 	res |= ast_custom_function_register(&db_keys_function);
 
 	return res;

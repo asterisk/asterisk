@@ -140,6 +140,15 @@ struct ast_custom_function {
 	/*! Write function, if write is supported */
 	ast_acf_write_fn_t write;	/*!< Write function, if write is supported */
 	struct ast_module *mod;         /*!< Module this custom function belongs to */
+	unsigned int read_escalates:1;  /*!< The read function is to be considered
+					 * 'dangerous', and should not be run directly
+					 * from external interfaces (AMI, ARI, etc.)
+					 * \since 12 */
+	unsigned int write_escalates:1; /*!< The write function is to be considerd
+					 * 'dangerous', and should not be run directly
+					 * from external interfaces (AMI, ARI, etc.)
+					 * \since 12 */
+
 	AST_RWLIST_ENTRY(ast_custom_function) acflist;
 };
 
@@ -1367,14 +1376,42 @@ struct ast_custom_function* ast_custom_function_find(const char *name);
 int ast_custom_function_unregister(struct ast_custom_function *acf);
 
 /*!
+ * \brief Description of the ways in which a function may escalate privileges.
+ */
+enum ast_custom_function_escalation {
+	AST_CFE_NONE,
+	AST_CFE_READ,
+	AST_CFE_WRITE,
+	AST_CFE_BOTH,
+};
+
+/*!
  * \brief Register a custom function
  */
 #define ast_custom_function_register(acf) __ast_custom_function_register(acf, ast_module_info->self)
 
 /*!
+ * \brief Register a custom function which requires escalated privileges.
+ *
+ * Examples would be SHELL() (for which a read needs permission to execute
+ * arbitrary code) or FILE() (for which write needs permission to change files
+ * on the filesystem).
+ */
+#define ast_custom_function_register_escalating(acf, escalation) __ast_custom_function_register_escalating(acf, escalation, ast_module_info->self)
+
+/*!
  * \brief Register a custom function
  */
 int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod);
+
+/*!
+ * \brief Register a custom function which requires escalated privileges.
+ *
+ * Examples would be SHELL() (for which a read needs permission to execute
+ * arbitrary code) or FILE() (for which write needs permission to change files
+ * on the filesystem).
+ */
+int __ast_custom_function_register_escalating(struct ast_custom_function *acf, enum ast_custom_function_escalation escalation, struct ast_module *mod);
 
 /*!
  * \brief Retrieve the number of active calls
@@ -1488,6 +1525,32 @@ unsigned int ast_hashtab_hash_contexts(const void *obj);
  * complete from the list of available applications.
  */
 char *ast_complete_applications(const char *line, const char *word, int state);
+
+/*!
+ * \brief Enable/disable the execution of 'dangerous' functions from external
+ * protocols (AMI, etc.).
+ *
+ * These dialplan functions (such as \c SHELL) provide an opportunity for
+ * privilege escalation. They are okay to invoke from the dialplan, but external
+ * protocols with permission controls should not normally invoke them.
+ *
+ * This function can globally enable/disable the execution of dangerous
+ * functions from external protocols.
+ *
+ * \param new_live_dangerously If true, enable the execution of escalating
+ * functions from external protocols.
+ */
+void pbx_live_dangerously(int new_live_dangerously);
+
+/*!
+ * \brief Inhibit (in the current thread) the execution of dialplan functions
+ * which cause privilege escalations. If pbx_live_dangerously() has been
+ * called, this function has no effect.
+ *
+ * \return 0 if successfuly marked current thread.
+ * \return Non-zero if marking current thread failed.
+ */
+int ast_thread_inhibit_escalations(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
