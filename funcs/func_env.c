@@ -71,6 +71,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="filename" required="true" />
 		</syntax>
 		<description>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be executed from the
+				dialplan, and not directly from external protocols.</para>
+			</note>
 		</description>
 	</function>
 	<function name="FILE" language="en_US">
@@ -167,6 +172,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>    Set(FILE(/tmp/foo.txt,-1,,l)=bar)</para>
 			<para>    ; Append "bar" to the file with a newline</para>
 			<para>    Set(FILE(/tmp/foo.txt,,,al)=bar)</para>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be executed from the
+				dialplan, and not directly from external protocols.</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="function">FILE_COUNT_LINE</ref>
@@ -197,6 +207,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Returns the number of lines, or <literal>-1</literal> on error.</para>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be executed from the
+				dialplan, and not directly from external protocols.</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="function">FILE</ref>
@@ -216,6 +231,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>'d' - DOS "\r\n" format</para>
 			<para>'m' - Macintosh "\r" format</para>
 			<para>'x' - Cannot be determined</para>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be executed from the
+				dialplan, and not directly from external protocols.</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="function">FILE</ref>
@@ -1258,10 +1278,10 @@ static int load_module(void)
 	int res = 0;
 
 	res |= ast_custom_function_register(&env_function);
-	res |= ast_custom_function_register(&stat_function);
-	res |= ast_custom_function_register(&file_function);
-	res |= ast_custom_function_register(&file_count_line_function);
-	res |= ast_custom_function_register(&file_format_function);
+	res |= ast_custom_function_register_escalating(&stat_function, AST_CFE_READ);
+	res |= ast_custom_function_register_escalating(&file_function, AST_CFE_BOTH);
+	res |= ast_custom_function_register_escalating(&file_count_line_function, AST_CFE_READ);
+	res |= ast_custom_function_register_escalating(&file_format_function, AST_CFE_READ);
 
 	return res;
 }
