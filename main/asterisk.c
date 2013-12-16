@@ -3030,6 +3030,8 @@ static void ast_readconfig(void)
 		unsigned int dbdir:1;
 		unsigned int keydir:1;
 	} found = { 0, 0 };
+	/* Default to true for backward compatibility */
+	int live_dangerously = 1;
 
 	if (ast_opt_override_config) {
 		cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
@@ -3239,8 +3241,11 @@ static void ast_readconfig(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIDE_CONSOLE_CONNECT);
 		} else if (!strcasecmp(v->name, "lockconfdir")) {
 			ast_set2_flag(&ast_options, ast_true(v->value),	AST_OPT_FLAG_LOCK_CONFIG_DIR);
+		} else if (!strcasecmp(v->name, "live_dangerously")) {
+			live_dangerously = ast_true(v->value);
 		}
 	}
+	pbx_live_dangerously(live_dangerously);
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
 		float version;
 		if (sscanf(v->value, "%30f", &version) != 1) {

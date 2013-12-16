@@ -23,6 +23,14 @@ from 1.8.23.0 to 1.8.24.0:
   the function will be RESULT_FAILURE instead of the prior behavior of always
   returning RESULT_SUCCESS even if there was an error. 
 
+* Certain dialplan functions have been marked as 'dangerous', and may only be
+  executed from the dialplan. Execution from extenal sources (AMI's GetVar and
+  SetVar actions; etc.) may be inhibited by setting live_dangerously in the
+  [options] section of asterisk.conf to no. SHELL(), channel locking, and direct
+  file read/write functions are marked as dangerous. DB_DELETE() and
+  REALTIME_DESTROY() are marked as dangerous for reads, but can now safely
+  accept writes (which ignore the provided value).
+
 from 1.8.22.0 to 1.8.23.0:
 * The default settings for chan_sip are now overriden properly by the general
   settings in sip.conf.  Please look over your settings upon upgrading.
