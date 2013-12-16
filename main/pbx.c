@@ -4557,25 +4557,6 @@ void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, 
 	pbx_substitute_variables_helper_full(NULL, headp, cp1, cp2, count, &used);
 }
 
-static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e)
-{
-	const char *tmp;
-
-	/* Nothing more to do */
-	if (!e->data) {
-		*passdata = '\0';
-		return;
-	}
-
-	/* No variables or expressions in e->data, so why scan it? */
-	if ((!(tmp = strchr(e->data, '$'))) || (!strstr(tmp, "${") && !strstr(tmp, "$["))) {
-		ast_copy_string(passdata, e->data, datalen);
-		return;
-	}
-
-	pbx_substitute_variables_helper(c, e->data, passdata, datalen - 1);
-}
-
 /*!
  * \brief The return value depends on the action:
  *
@@ -4600,6 +4581,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 {
 	struct ast_exten *e;
 	struct ast_app *app;
+	char *substitute = NULL;
 	int res;
 	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
 	char passdata[EXT_DATA_SIZE];
@@ -4625,6 +4607,18 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			if (!e->cached_app)
 				e->cached_app = pbx_findapp(e->app);
 			app = e->cached_app;
+			if (ast_strlen_zero(e->data)) {
+				*passdata = '\0';
+			} else {
+				const char *tmp;
+				if ((!(tmp = strchr(e->data, '$'))) || (!strstr(tmp, "${") && !strstr(tmp, "$["))) {
+					/* no variables to substitute, copy on through */
+					ast_copy_string(passdata, e->data, sizeof(passdata));
+				} else {
+					/* save e->data on stack for later processing after lock released */
+					substitute = ast_strdupa(e->data);
+				}
+			}
 			ast_unlock_contexts();
 			if (!app) {
 				ast_log(LOG_WARNING, "No application '%s' for extension (%s, %s, %d)\n", e->app, context, exten, priority);
@@ -4635,7 +4629,9 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			if (ast_channel_exten(c) != exten)
 				ast_channel_exten_set(c, exten);
 			ast_channel_priority_set(c, priority);
-			pbx_substitute_variables(passdata, sizeof(passdata), c, e);
+			if (substitute) {
+				pbx_substitute_variables_helper(c, substitute, passdata, sizeof(passdata)-1);
+			}
 #ifdef CHANNEL_TRACE
 			ast_channel_trace_update(c);
 #endif
