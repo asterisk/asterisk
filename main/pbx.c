@@ -845,6 +845,17 @@ struct ast_app;
 
 AST_THREADSTORAGE(switch_data);
 AST_THREADSTORAGE(extensionstate_buf);
+/*!
+ * \brief A thread local indicating whether the current thread can run
+ * 'dangerous' dialplan functions.
+ */
+AST_THREADSTORAGE(thread_inhibit_escalations_tl);
+
+/*!
+ * \brief Set to true (non-zero) to globally allow all dangerous dialplan
+ * functions to run.
+ */
+static int live_dangerously;
 
 /*!
    \brief ast_exten: An extension
@@ -4001,6 +4012,28 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 	return cur ? 0 : -1;
 }
 
+/*!
+ * \brief Returns true if given custom function escalates privileges on read.
+ *
+ * \param acf Custom function to query.
+ * \return True (non-zero) if reads escalate privileges.
+ * \return False (zero) if reads just read.
+ */
+static int read_escalates(const struct ast_custom_function *acf) {
+	return acf->read_escalates;
+}
+
+/*!
+ * \brief Returns true if given custom function escalates privileges on write.
+ *
+ * \param acf Custom function to query.
+ * \return True (non-zero) if writes escalate privileges.
+ * \return False (zero) if writes just write.
+ */
+static int write_escalates(const struct ast_custom_function *acf) {
+	return acf->write_escalates;
+}
+
 /*! \internal
  *  \brief Retrieve the XML documentation of a specified ast_custom_function,
  *         and populate ast_custom_function string fields.
@@ -4099,6 +4132,33 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 	return 0;
 }
 
+int __ast_custom_function_register_escalating(struct ast_custom_function *acf, enum ast_custom_function_escalation escalation, struct ast_module *mod)
+{
+	int res;
+
+	res = __ast_custom_function_register(acf, mod);
+	if (res != 0) {
+		return -1;
+	}
+
+	switch (escalation) {
+	case AST_CFE_NONE:
+		break;
+	case AST_CFE_READ:
+		acf->read_escalates = 1;
+		break;
+	case AST_CFE_WRITE:
+		acf->write_escalates = 1;
+		break;
+	case AST_CFE_BOTH:
+		acf->read_escalates = 1;
+		acf->write_escalates = 1;
+		break;
+	}
+
+	return 0;
+}
+
 /*! \brief return a pointer to the arguments of the function,
  * and terminates the function name with '\\0'
  */
@@ -4120,6 +4180,124 @@ static char *func_args(char *function)
 	return args;
 }
 
+void pbx_live_dangerously(int new_live_dangerously)
+{
+	if (new_live_dangerously && !live_dangerously) {
+		ast_log(LOG_WARNING, "Privilege escalation protection disabled!\n"
+			"See https://wiki.asterisk.org/wiki/x/1gKfAQ for more details.\n");
+	}
+
+	if (!new_live_dangerously && live_dangerously) {
+		ast_log(LOG_NOTICE, "Privilege escalation protection enabled.\n");
+	}
+	live_dangerously = new_live_dangerously;
+}
+
+int ast_thread_inhibit_escalations(void)
+{
+	int *thread_inhibit_escalations;
+
+	thread_inhibit_escalations = ast_threadstorage_get(
+		&thread_inhibit_escalations_tl, sizeof(*thread_inhibit_escalations));
+
+	if (thread_inhibit_escalations == NULL) {
+		ast_log(LOG_ERROR, "Error inhibiting privilege escalations for current thread\n");
+		return -1;
+	}
+
+	*thread_inhibit_escalations = 1;
+	return 0;
+}
+
+/*!
+ * \brief Indicates whether the current thread inhibits the execution of
+ * dangerous functions.
+ *
+ * \return True (non-zero) if dangerous function execution is inhibited.
+ * \return False (zero) if dangerous function execution is allowed.
+ */
+static int thread_inhibits_escalations(void)
+{
+	int *thread_inhibit_escalations;
+
+	thread_inhibit_escalations = ast_threadstorage_get(
+		&thread_inhibit_escalations_tl, sizeof(*thread_inhibit_escalations));
+
+	if (thread_inhibit_escalations == NULL) {
+		ast_log(LOG_ERROR, "Error checking thread's ability to run dangerous functions\n");
+		/* On error, assume that we are inhibiting */
+		return 1;
+	}
+
+	return *thread_inhibit_escalations;
+}
+
+/*!
+ * \brief Determines whether execution of a custom function's read function
+ * is allowed.
+ *
+ * \param acfptr Custom function to check
+ * \return True (non-zero) if reading is allowed.
+ * \return False (zero) if reading is not allowed.
+ */
+static int is_read_allowed(struct ast_custom_function *acfptr)
+{
+	if (!acfptr) {
+		return 1;
+	}
+
+	if (!read_escalates(acfptr)) {
+		return 1;
+	}
+
+	if (!thread_inhibits_escalations()) {
+		return 1;
+	}
+
+	if (live_dangerously) {
+		/* Global setting overrides the thread's preference */
+		ast_debug(2, "Reading %s from a dangerous context\n",
+			acfptr->name);
+		return 1;
+	}
+
+	/* We have no reason to allow this function to execute */
+	return 0;
+}
+
+/*!
+ * \brief Determines whether execution of a custom function's write function
+ * is allowed.
+ *
+ * \param acfptr Custom function to check
+ * \return True (non-zero) if writing is allowed.
+ * \return False (zero) if writing is not allowed.
+ */
+static int is_write_allowed(struct ast_custom_function *acfptr)
+{
+	if (!acfptr) {
+		return 1;
+	}
+
+	if (!write_escalates(acfptr)) {
+		return 1;
+	}
+
+	if (!thread_inhibits_escalations()) {
+		return 1;
+	}
+
+	if (live_dangerously) {
+		/* Global setting overrides the thread's preference */
+		ast_debug(2, "Writing %s from a dangerous context\n",
+			acfptr->name);
+		return 1;
+	}
+
+	/* We have no reason to allow this function to execute */
+	return 0;
+}
+
 int ast_func_read(struct ast_channel *chan, const char *function, char *workspace, size_t len)
 {
 	char *copy = ast_strdupa(function);
@@ -4132,6 +4310,8 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
 	} else if (!acfptr->read && !acfptr->read2) {
 		ast_log(LOG_ERROR, "Function %s cannot be read\n", copy);
+	} else if (!is_read_allowed(acfptr)) {
+		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else if (acfptr->read) {
 		if (acfptr->mod) {
 			u = __ast_module_user_add(acfptr->mod, chan);
@@ -4169,6 +4349,8 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
 	} else if (!acfptr->read && !acfptr->read2) {
 		ast_log(LOG_ERROR, "Function %s cannot be read\n", copy);
+	} else if (!is_read_allowed(acfptr)) {
+		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else {
 		if (acfptr->mod) {
 			u = __ast_module_user_add(acfptr->mod, chan);
@@ -4208,11 +4390,13 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 	char *args = func_args(copy);
 	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
 
-	if (acfptr == NULL)
+	if (acfptr == NULL) {
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
-	else if (!acfptr->write)
+	} else if (!acfptr->write) {
 		ast_log(LOG_ERROR, "Function %s cannot be written to\n", copy);
-	else {
+	} else if (!is_write_allowed(acfptr)) {
+		ast_log(LOG_ERROR, "Dangerous function %s write blocked\n", copy);
+	} else {
 		int res;
 		struct ast_module_user *u = NULL;
 		if (acfptr->mod)
