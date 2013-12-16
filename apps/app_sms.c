@@ -696,7 +696,7 @@ static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, i
 	}
 	while (l--) {
 		int v = *i++;
-		if (l--) {
+		if (l && l--) {
 			v = (v << 8) + *i++;
 		}
 		*o++ = v;
@@ -714,6 +714,7 @@ static int unpacksms(unsigned char dcs, unsigned char *i, unsigned char *udh, in
 	} else if (is8bit(dcs)) {
 		unpacksms8(i, l, udh, udhl, ud, udl, udhi);
 	} else {
+		l += l % 2;
 		unpacksms16(i, l, udh, udhl, ud, udl, udhi);
 	}
 	return l + 1;

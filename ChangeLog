@@ -1,3 +1,32 @@
+2013-12-16  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.6.1 Released.
+
+	* AST-2013-006 - app_sms: BufferOverflow when receiving odd length 16
+	  bit message
+
+	  This patch prevents an infinite loop overwriting memory when a
+	  message is received into the unpacksms16() function, where the length
+	  of the message is an odd number of bytes.
+	  (closes issue ASTERISK-22590)
+
+	* AST-2013-007 - security: Inhibit execution of privilege escalating
+	  functions
+
+	  This patch allows individual dialplan functions to be marked as
+	  'dangerous', to inhibit their execution from external sources.
+
+	  A 'dangerous' function is one which results in a privilege
+	  escalation. For example, if one were to read the channel variable
+	  SHELL(rm -rf /) Bad Things(TM) could happen; even if the external
+	  source has only read permissions.
+
+	  Execution from external sources may be enabled by setting
+	  'live_dangerously' to 'yes' in the [options] section of
+	  asterisk.conf. Although doing so is not recommended.
+
+	  (closes issue ASTERISK-22905)
+
 2013-10-21  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.6.0 Released.

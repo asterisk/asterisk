@@ -19,6 +19,14 @@
 === UPGRADE-10.txt -- Upgrade info for 1.8 to 10
 ===
 ===========================================================
+* Certain dialplan functions have been marked as 'dangerous', and may only be
+  executed from the dialplan. Execution from extenal sources (AMI's GetVar and
+  SetVar actions; etc.) may be inhibited by setting live_dangerously in the
+  [options] section of asterisk.conf to no. SHELL(), channel locking, and direct
+  file read/write functions are marked as dangerous. DB_DELETE() and
+  REALTIME_DESTROY() are marked as dangerous for reads, but can now safely
+  accept writes (which ignore the provided value).
+
 From 11.5 to 11.6:
 * res_agi will now properly indicate if there was an error in streaming an
   audio file.  The result code will be -1 and the result returned from the
