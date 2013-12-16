@@ -3969,7 +3969,7 @@ void ast_bridge_set_transfer_variables(struct ast_channel *chan, const char *val
 	}
 
 	pbx_builtin_setvar_helper(chan, writevar, value);
-	pbx_builtin_setvar_helper(chan, erasevar, value);
+	pbx_builtin_setvar_helper(chan, erasevar, NULL);
 }
 
 /*!
