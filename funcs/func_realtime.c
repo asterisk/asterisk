@@ -115,6 +115,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>This function acts in the same way as REALTIME(....) does, except that
 			it destroys the matched record in the RT engine.</para>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be read from the
+				dialplan, and not directly from external protocols. It can, however, be
+				executed as a write operation (<literal>REALTIME_DESTROY(family, fieldmatch)=ignored</literal>)</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="function">REALTIME</ref>
@@ -432,18 +438,32 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 		return -1;
 	}
 
-	resultslen = 0;
-	n = 0;
-	for (var = head; var; n++, var = var->next)
-		resultslen += strlen(var->name) + strlen(var->value);
-	/* add space for delimiters and final '\0' */
-	resultslen += n * (strlen(args.delim1) + strlen(args.delim2)) + 1;
+	if (len > 0) {
+		resultslen = 0;
+		n = 0;
+		for (var = head; var; n++, var = var->next) {
+			resultslen += strlen(var->name) + strlen(var->value);
+		}
+		/* add space for delimiters and final '\0' */
+		resultslen += n * (strlen(args.delim1) + strlen(args.delim2)) + 1;
 
-	out = ast_str_alloca(resultslen);
-	for (var = head; var; var = var->next) {
-		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
+		if (resultslen > len) {
+			/* Unfortunately this does mean that we cannot destroy
+			 * the row anymore. But OTOH, we're not destroying
+			 * someones data without giving him the chance to look
+			 * at it. */
+			ast_log(LOG_WARNING, "Failed to fetch/destroy. Realtime data is too large: need %zu, have %zu.\n", resultslen, len);
+			return -1;
+		}
+
+		/* len is going to be sensible, so we don't need to check for
+		 * stack overflows here. */
+		out = ast_str_alloca(resultslen);
+		for (var = head; var; var = var->next) {
+			ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
+		}
+		ast_copy_string(buf, ast_str_buffer(out), len);
 	}
-	ast_copy_string(buf, ast_str_buffer(out), len);
 
 	ast_destroy_realtime(args.family, args.fieldmatch, args.value, SENTINEL);
 	ast_variables_destroy(head);
@@ -452,6 +472,15 @@ static int function_realtime_readdestroy(struct ast_channel *chan, const char *c
 		ast_autoservice_stop(chan);
 
 	return 0;
+}
+
+/*!
+ * \brief Wrapper to execute REALTIME_DESTROY from a write operation. Allows
+ * execution even if live_dangerously is disabled.
+ */
+static int function_realtime_writedestroy(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	return function_realtime_readdestroy(chan, cmd, data, NULL, 0);
 }
 
 static struct ast_custom_function realtime_function = {
@@ -479,6 +508,7 @@ static struct ast_custom_function realtime_store_function = {
 static struct ast_custom_function realtime_destroy_function = {
 	.name = "REALTIME_DESTROY",
 	.read = function_realtime_readdestroy,
+	.write = function_realtime_writedestroy,
 };
 
 static int unload_module(void)
@@ -497,7 +527,7 @@ static int load_module(void)
 	int res = 0;
 	res |= ast_custom_function_register(&realtime_function);
 	res |= ast_custom_function_register(&realtime_store_function);
-	res |= ast_custom_function_register(&realtime_destroy_function);
+	res |= ast_custom_function_register_escalating(&realtime_destroy_function, AST_CFE_READ);
 	res |= ast_custom_function_register(&realtimefield_function);
 	res |= ast_custom_function_register(&realtimehash_function);
 	return res;

@@ -59,6 +59,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Returns <literal>1</literal> if the lock was obtained or <literal>0</literal> on error.</para>
 			<note><para>To avoid the possibility of a deadlock, LOCK will only attempt to
 			obtain the lock for 3 seconds if the channel already has another lock.</para></note>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be executed from the
+				dialplan, and not directly from external protocols.</para>
+			</note>
 		</description>
 	</function>
 	<function name="TRYLOCK" language="en_US">
@@ -72,6 +77,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Attempts to grab a named lock exclusively, and prevents other channels
 			from obtaining the same lock.  Returns <literal>1</literal> if the lock was 
 			available or <literal>0</literal> otherwise.</para>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be executed from the
+				dialplan, and not directly from external protocols.</para>
+			</note>
 		</description>
 	</function>
 	<function name="UNLOCK" language="en_US">
@@ -86,6 +96,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			had a lock or <literal>0</literal> otherwise.</para>
 			<note><para>It is generally unnecessary to unlock in a hangup routine, as any locks 
 			held are automatically freed when the channel is destroyed.</para></note>
+			<note>
+				<para>If <literal>live_dangerously</literal> in <literal>asterisk.conf</literal>
+				is set to <literal>no</literal>, this function can only be executed from the
+				dialplan, and not directly from external protocols.</para>
+			</note>
 		</description>
 	</function>
  ***/
@@ -502,9 +517,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	int res = ast_custom_function_register(&lock_function);
-	res |= ast_custom_function_register(&trylock_function);
-	res |= ast_custom_function_register(&unlock_function);
+	int res = ast_custom_function_register_escalating(&lock_function, AST_CFE_READ);
+	res |= ast_custom_function_register_escalating(&trylock_function, AST_CFE_READ);
+	res |= ast_custom_function_register_escalating(&unlock_function, AST_CFE_READ);
 
 	if (ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL)) {
 		ast_log(LOG_ERROR, "Failed to start lock broker thread. Unloading func_lock module.\n");
