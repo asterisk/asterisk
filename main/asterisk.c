@@ -3184,6 +3184,8 @@ static void ast_readconfig(void)
 		unsigned int dbdir:1;
 		unsigned int keydir:1;
 	} found = { 0, 0 };
+	/* Default to true for backward compatibility */
+	int live_dangerously = 1;
 
 	/* Set default value */
 	option_dtmfminduration = AST_MIN_DTMF_DURATION;
@@ -3415,8 +3417,11 @@ static void ast_readconfig(void)
 					v->value);
 				ast_clear_flag(&ast_options, AST_OPT_FLAG_STDEXTEN_MACRO);
 			}
+		} else if (!strcasecmp(v->name, "live_dangerously")) {
+			live_dangerously = ast_true(v->value);
 		}
 	}
+	pbx_live_dangerously(live_dangerously);
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
 		float version;
 		if (sscanf(v->value, "%30f", &version) != 1) {

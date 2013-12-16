@@ -83,6 +83,12 @@ documentation_language = en_US	; Set the language you want documentation
 				; gosub - Invoke the stdexten using a gosub as
 				;         documented in extensions.conf.sample.
 				; Default gosub.
+;live_dangerously = no		; Enable the execution of 'dangerous' dialplan
+				; functions from external sources (AMI,
+				; etc.) These functions (such as SHELL) are
+				; considered dangerous because they can allow
+				; privilege escalation.
+				; Default yes, for backward compatability.
 
 ; Changing the following lines may compromise your security.
 ;[files]
