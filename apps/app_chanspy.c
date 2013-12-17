@@ -363,7 +363,7 @@ enum {
 	OPTION_NAME              = (1 << 12),   /* Say the name of the person on whom we will spy */
 	OPTION_DTMF_SWITCH_MODES = (1 << 13),   /* Allow numeric DTMF to switch between chanspy modes */
 	OPTION_DTMF_EXIT         = (1 << 14),	/* Set DTMF to exit, added for DAHDIScan integration */
-	OPTION_DTMF_CYCLE        = (1 << 15),	/* Custom DTMF for cycling next avaliable channel, (default is '*') */
+	OPTION_DTMF_CYCLE        = (1 << 15),	/* Custom DTMF for cycling next available channel, (default is '*') */
 	OPTION_DAHDI_SCAN        = (1 << 16),	/* Scan groups in DAHDIScan mode */
 	OPTION_STOP              = (1 << 17),
 	OPTION_EXITONHANGUP      = (1 << 18),   /* Hang up when the spied-on channel hangs up. */
