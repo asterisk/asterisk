@@ -5626,7 +5626,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 			ast_channel_accountcode_set(new_chan, oh->account);
 			ast_channel_unlock(new_chan);
 		}
-	} else if (caller) { /* no outgoing helper so use caller if avaliable */
+	} else if (caller) { /* no outgoing helper so use caller if available */
 		call_forward_inherit(new_chan, caller, orig);
 	}
 	ast_set_flag(ast_channel_flags(new_chan), AST_FLAG_ORIGINATED);
