@@ -49,6 +49,9 @@ struct ast_framehook {
 };
 
 struct ast_framehook_list {
+	/*! the number of hooks currently present */
+	unsigned int count;
+	/*! id for next framehook added */
 	unsigned int id_count;
 	AST_LIST_HEAD_NOLOCK(, ast_framehook) list;
 };
@@ -73,21 +76,49 @@ static void framehook_detach_and_destroy(struct ast_framehook *framehook)
 static struct ast_frame *framehook_list_push_event(struct ast_framehook_list *framehooks, struct ast_frame *frame, enum ast_framehook_event event)
 {
 	struct ast_framehook *framehook;
+	struct ast_frame *original_frame;
+	int *skip;
+	size_t skip_size;
 
 	if (!framehooks) {
 		return frame;
 	}
 
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&framehooks->list, framehook, list) {
-		if (framehook->detach_and_destroy_me) {
-			/* this guy is signaled for destruction */
-			AST_LIST_REMOVE_CURRENT(list);
-			framehook_detach_and_destroy(framehook);
-		} else {
+	skip_size = sizeof(int) * framehooks->count;
+	skip = alloca(skip_size);
+	memset(skip, 0, skip_size);
+
+	do {
+		unsigned int num = 0;
+		original_frame = frame;
+
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&framehooks->list, framehook, list) {
+			if (framehook->detach_and_destroy_me) {
+				/* this guy is signaled for destruction */
+				AST_LIST_REMOVE_CURRENT(list);
+				framehook_detach_and_destroy(framehook);
+				continue;
+			}
+
+			/* If this framehook has been marked as needing to be skipped, do so */
+			if (skip[num]) {
+				num++;
+				continue;
+			}
+
 			frame = framehook->i.event_cb(framehook->chan, frame, event, framehook->i.data);
+
+			if (frame != original_frame) {
+				/* To prevent looping we skip any framehooks that have already provided a modified frame */
+				skip[num] = 1;
+				break;
+			}
+
+			num++;
 		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
+		AST_LIST_TRAVERSE_SAFE_END;
+	} while (frame != original_frame);
+
 	return frame;
 }
 
@@ -116,6 +147,7 @@ int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interfac
 		ast_channel_framehooks_set(chan, fh_list);
 	}
 
+	ast_channel_framehooks(chan)->count++;
 	framehook->id = ++ast_channel_framehooks(chan)->id_count;
 	AST_LIST_INSERT_TAIL(&ast_channel_framehooks(chan)->list, framehook, list);
 
