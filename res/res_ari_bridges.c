@@ -127,6 +127,9 @@ static void ast_ari_bridges_create_cb(
 		if (strcmp(i->name, "type") == 0) {
 			args.type = (i->value);
 		} else
+		if (strcmp(i->name, "name") == 0) {
+			args.name = (i->value);
+		} else
 		{}
 	}
 	/* Look for a JSON request entity */
@@ -148,6 +151,10 @@ static void ast_ari_bridges_create_cb(
 	field = ast_json_object_get(body, "type");
 	if (field) {
 		args.type = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "name");
+	if (field) {
+		args.name = ast_json_string_get(field);
 	}
 	ast_ari_bridges_create(headers, &args, response);
 #if defined(AST_DEVMODE)

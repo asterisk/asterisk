@@ -695,7 +695,7 @@ void ast_ari_bridges_create(struct ast_variable *headers,
 	struct ast_ari_bridges_create_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_bridge *, bridge, stasis_app_bridge_create(args->type), ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, stasis_app_bridge_create(args->type, args->name), ao2_cleanup);
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
 
 	if (!bridge) {

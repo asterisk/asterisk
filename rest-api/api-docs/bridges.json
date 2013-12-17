@@ -38,6 +38,14 @@
 									"holding"
 								]
 							}
+						},
+						{
+							"name": "name",
+							"description": "Name to give to the bridge being created.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					]
 				}
@@ -500,6 +508,16 @@
 				"bridge_class": {
 					"type": "string",
 					"description": "Bridging class",
+					"required": true
+				},
+				"creator": {
+					"type": "string",
+					"description": "Entity that created the bridge",
+					"required": true
+				},
+				"name": {
+					"type": "string",
+					"description": "Name the creator gave the bridge",
 					"required": true
 				},
 				"channels": {

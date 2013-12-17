@@ -156,10 +156,14 @@ struct ast_str *ast_manager_build_bridge_state_string_prefix(
 		"%sBridgeUniqueid: %s\r\n"
 		"%sBridgeType: %s\r\n"
 		"%sBridgeTechnology: %s\r\n"
+		"%sBridgeCreator: %s\r\n"
+		"%sBridgeName: %s\r\n"
 		"%sBridgeNumChannels: %d\r\n",
 		prefix, snapshot->uniqueid,
 		prefix, snapshot->subclass,
 		prefix, snapshot->technology,
+		prefix, ast_strlen_zero(snapshot->creator) ? "<unknown>": snapshot->creator,
+		prefix, ast_strlen_zero(snapshot->name) ? "<unknown>": snapshot->name,
 		prefix, snapshot->num_channels);
 	if (!res) {
 		ast_free(out);

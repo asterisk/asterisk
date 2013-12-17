@@ -533,9 +533,11 @@ static void bridge_tech_deferred_destroy(struct ast_bridge *bridge, struct ast_f
 	struct ast_bridge dummy_bridge = {
 		.technology = deferred->tech,
 		.tech_pvt = deferred->tech_pvt,
+		.creator = bridge->creator,
+		.name = bridge->name,
+		.uniqueid = bridge->uniqueid,
 		};
 
-	ast_copy_string(dummy_bridge.uniqueid, bridge->uniqueid, sizeof(dummy_bridge.uniqueid));
 	ast_debug(1, "Bridge %s: calling %s technology destructor (deferred, dummy)\n",
 		dummy_bridge.uniqueid, dummy_bridge.technology->name);
 	dummy_bridge.technology->destroy(&dummy_bridge);
@@ -679,6 +681,8 @@ static void destroy_bridge(void *obj)
 	cleanup_video_mode(bridge);
 
 	stasis_cp_single_unsubscribe(bridge->topics);
+
+	ast_string_field_free_memory(bridge);
 }
 
 struct ast_bridge *bridge_register(struct ast_bridge *bridge)
@@ -714,19 +718,35 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
 	}
 
 	bridge = ao2_alloc(size, destroy_bridge);
-	if (bridge) {
-		bridge->v_table = v_table;
+	if (!bridge) {
+		return NULL;
 	}
+
+	if (ast_string_field_init(bridge, 80)) {
+		ao2_cleanup(bridge);
+		return NULL;
+	}
+
+	bridge->v_table = v_table;
+
 	return bridge;
 }
 
-struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags)
+struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags, const char *creator, const char *name)
 {
+	char uuid_hold[AST_UUID_STR_LEN];
+
 	if (!self) {
 		return NULL;
 	}
 
-	ast_uuid_generate_str(self->uniqueid, sizeof(self->uniqueid));
+	ast_uuid_generate_str(uuid_hold, AST_UUID_STR_LEN);
+	ast_string_field_set(self, uniqueid, uuid_hold);
+	ast_string_field_set(self, creator, creator);
+	if (!ast_strlen_zero(creator)) {
+		ast_string_field_set(self, name, name);
+	}
+
 	ast_set_flag(&self->feature_flags, flags);
 	self->allowed_capabilities = capabilities;
 
@@ -881,12 +901,12 @@ struct ast_bridge_methods ast_bridge_base_v_table = {
 	.get_merge_priority = bridge_base_get_merge_priority,
 };
 
-struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags)
+struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags, const char *creator, const char *name)
 {
 	void *bridge;
 
 	bridge = bridge_alloc(sizeof(struct ast_bridge), &ast_bridge_base_v_table);
-	bridge = bridge_base_init(bridge, capabilities, flags);
+	bridge = bridge_base_init(bridge, capabilities, flags, creator, name);
 	bridge = bridge_register(bridge);
 	return bridge;
 }
@@ -991,6 +1011,9 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 	struct ast_bridge dummy_bridge = {
 		.technology = bridge->technology,
 		.tech_pvt = bridge->tech_pvt,
+		.creator = bridge->creator,
+		.name = bridge->name,
+		.uniqueid = bridge->uniqueid,
 	};
 
 	if (bridge->dissolved) {
@@ -1042,8 +1065,6 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		ast_module_unref(old_technology->mod);
 		return 0;
 	}
-
-	ast_copy_string(dummy_bridge.uniqueid, bridge->uniqueid, sizeof(dummy_bridge.uniqueid));
 
 	if (old_technology->destroy) {
 		struct tech_deferred_destroy deferred_tech_destroy = {

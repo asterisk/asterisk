@@ -891,7 +891,9 @@ int ast_ari_validate_bridge(struct ast_json *json)
 	int has_bridge_class = 0;
 	int has_bridge_type = 0;
 	int has_channels = 0;
+	int has_creator = 0;
 	int has_id = 0;
+	int has_name = 0;
 	int has_technology = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
@@ -926,6 +928,16 @@ int ast_ari_validate_bridge(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("creator", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_creator = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field creator failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("id", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_id = 1;
@@ -933,6 +945,16 @@ int ast_ari_validate_bridge(struct ast_json *json)
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI Bridge field id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field name failed validation\n");
 				res = 0;
 			}
 		} else
@@ -969,8 +991,18 @@ int ast_ari_validate_bridge(struct ast_json *json)
 		res = 0;
 	}
 
+	if (!has_creator) {
+		ast_log(LOG_ERROR, "ARI Bridge missing required field creator\n");
+		res = 0;
+	}
+
 	if (!has_id) {
 		ast_log(LOG_ERROR, "ARI Bridge missing required field id\n");
+		res = 0;
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI Bridge missing required field name\n");
 		res = 0;
 	}
 

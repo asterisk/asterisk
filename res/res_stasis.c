@@ -585,7 +585,7 @@ static void control_unlink(struct stasis_app_control *control)
 	ao2_cleanup(control);
 }
 
-struct ast_bridge *stasis_app_bridge_create(const char *type)
+struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name)
 {
 	struct ast_bridge *bridge;
 	int capabilities;
@@ -604,7 +604,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type)
 		return NULL;
 	}
 
-	bridge = ast_bridge_base_new(capabilities, flags);
+	bridge = ast_bridge_base_new(capabilities, flags, "Stasis", name);
 	if (bridge) {
 		if (!ao2_link(app_bridges, bridge)) {
 			ast_bridge_destroy(bridge, 0);

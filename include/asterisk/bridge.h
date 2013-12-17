@@ -312,8 +312,15 @@ struct ast_bridge {
 	unsigned int dissolved:1;
 	/*! TRUE if the bridge construction was completed. */
 	unsigned int construction_completed:1;
-	/*! Immutable bridge UUID. */
-	char uniqueid[AST_UUID_STR_LEN];
+
+	AST_DECLARE_STRING_FIELDS(
+		/*! Immutable name of the creator for the bridge */
+		AST_STRING_FIELD(creator);
+		/*! Immutable name given to the bridge by its creator */
+		AST_STRING_FIELD(name);
+		/*! Immutable bridge UUID. */
+		AST_STRING_FIELD(uniqueid);
+	);
 };
 
 /*! \brief Bridge base class virtual method table. */
@@ -324,6 +331,8 @@ extern struct ast_bridge_methods ast_bridge_base_v_table;
  *
  * \param capabilities The capabilities that we require to be used on the bridge
  * \param flags Flags that will alter the behavior of the bridge
+ * \param creator Entity that created the bridge (optional)
+ * \param name Name given to the bridge by its creator (optional, requires named creator)
  *
  * \retval a pointer to a new bridge on success
  * \retval NULL on failure
@@ -338,7 +347,7 @@ extern struct ast_bridge_methods ast_bridge_base_v_table;
  * This creates a no frills two party bridge that will be
  * destroyed once one of the channels hangs up.
  */
-struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags);
+struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags, const char *creator, const char *name);
 
 /*!
  * \brief Try locking the bridge.
