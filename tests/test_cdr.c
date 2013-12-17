@@ -2007,7 +2007,8 @@ AST_TEST_DEFINE(test_cdr_park)
 
 	bridge = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_HOLDING,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
-			| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED);
+			| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED,
+		"test_cdr", "test_cdr_park");
 	ast_test_validate(test, bridge != NULL);
 
 	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
