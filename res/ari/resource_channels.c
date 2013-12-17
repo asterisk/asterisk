@@ -735,10 +735,19 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 	char *cid_num = NULL;
 	char *cid_name = NULL;
 	int timeout = 30000;
+	RAII_VAR(struct ast_format_cap *, cap,
+		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
+	struct ast_format tmp_fmt;
 
 	char *stuff;
 	struct ast_channel *chan;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	if (!cap) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
 
 	if (ast_strlen_zero(args->endpoint)) {
 		ast_ari_response_error(response, 400, "Bad Request",
@@ -789,13 +798,13 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		}
 
 		/* originate a channel, putting it into an application */
-		if (ast_pbx_outgoing_app(dialtech, NULL, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, &chan)) {
+		if (ast_pbx_outgoing_app(dialtech, cap, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, &chan)) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
 	} else if (!ast_strlen_zero(args->extension)) {
 		/* originate a channel, sending it to an extension */
-		if (ast_pbx_outgoing_exten(dialtech, NULL, dialdevice, timeout, S_OR(args->context, "default"), args->extension, args->priority ? args->priority : 1, NULL, 0, cid_num, cid_name, NULL, NULL, &chan, 0)) {
+		if (ast_pbx_outgoing_exten(dialtech, cap, dialdevice, timeout, S_OR(args->context, "default"), args->extension, args->priority ? args->priority : 1, NULL, 0, cid_num, cid_name, NULL, NULL, &chan, 0)) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
