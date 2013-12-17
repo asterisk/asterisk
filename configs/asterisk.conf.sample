@@ -88,7 +88,7 @@ documentation_language = en_US	; Set the language you want documentation
 				; etc.) These functions (such as SHELL) are
 				; considered dangerous because they can allow
 				; privilege escalation.
-				; Default yes, for backward compatability.
+				; Default no
 
 ; Changing the following lines may compromise your security.
 ;[files]

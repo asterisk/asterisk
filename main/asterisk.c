@@ -3332,8 +3332,8 @@ static void ast_readconfig(void)
 		unsigned int dbdir:1;
 		unsigned int keydir:1;
 	} found = { 0, 0 };
-	/* Default to true for backward compatibility */
-	int live_dangerously = 1;
+	/* Default to false for security */
+	int live_dangerously = 0;
 
 	/* Set default value */
 	option_dtmfminduration = AST_MIN_DTMF_DURATION;
