@@ -54,6 +54,8 @@ void ast_ari_bridges_list(struct ast_variable *headers, struct ast_ari_bridges_l
 struct ast_ari_bridges_create_args {
 	/*! \brief Type of bridge to create. */
 	const char *type;
+	/*! \brief Name to give to the bridge being created. */
+	const char *name;
 };
 /*!
  * \brief Create a new bridge.

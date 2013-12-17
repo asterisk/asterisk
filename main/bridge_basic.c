@@ -3239,7 +3239,7 @@ struct ast_bridge *ast_bridge_basic_new(void)
 	bridge = bridge_alloc(sizeof(struct ast_bridge), &ast_bridge_basic_v_table);
 	bridge = bridge_base_init(bridge,
 		AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_1TO1MIX
-			| AST_BRIDGE_CAPABILITY_MULTIMIX, NORMAL_FLAGS);
+			| AST_BRIDGE_CAPABILITY_MULTIMIX, NORMAL_FLAGS, NULL, NULL);
 	bridge = bridge_basic_personality_alloc(bridge);
 	bridge = bridge_register(bridge);
 	return bridge;

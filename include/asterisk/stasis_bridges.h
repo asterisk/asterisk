@@ -42,6 +42,10 @@ struct ast_bridge_snapshot {
 		AST_STRING_FIELD(technology);
 		/*! Bridge subclass that is handling the bridge */
 		AST_STRING_FIELD(subclass);
+		/*! Creator of the bridge */
+		AST_STRING_FIELD(creator);
+		/*! Name given to the bridge by its creator */
+		AST_STRING_FIELD(name);
 	);
 	/*! AO2 container of bare channel uniqueid strings participating in the bridge.
 	 * Allocated from ast_str_container_alloc() */

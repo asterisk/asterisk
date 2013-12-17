@@ -242,6 +242,8 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 	ast_string_field_set(snapshot, uniqueid, bridge->uniqueid);
 	ast_string_field_set(snapshot, technology, bridge->technology->name);
 	ast_string_field_set(snapshot, subclass, bridge->v_table->name);
+	ast_string_field_set(snapshot, creator, bridge->creator);
+	ast_string_field_set(snapshot, name, bridge->name);
 
 	snapshot->feature_flags = bridge->feature_flags;
 	snapshot->capabilities = bridge->technology->capabilities;
@@ -548,11 +550,13 @@ struct ast_json *ast_bridge_snapshot_to_json(
 		return NULL;
 	}
 
-	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: o}",
+	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
 		"id", snapshot->uniqueid,
 		"technology", snapshot->technology,
 		"bridge_type", capability2str(snapshot->capabilities),
 		"bridge_class", snapshot->subclass,
+		"creator", snapshot->creator,
+		"name", snapshot->name,
 		"channels", json_channels);
 	if (!json_bridge) {
 		return NULL;

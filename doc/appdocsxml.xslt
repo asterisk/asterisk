@@ -120,6 +120,18 @@
         </xsl:element>
         <xsl:element name="parameter">
             <xsl:attribute name="name">
+                <xsl:value-of select="concat(@prefix, 'BridgeCreator')"/>
+            </xsl:attribute>
+            <para>Entity that created the bridge if applicable</para>
+        </xsl:element>
+        <xsl:element name="parameter">
+            <xsl:attribute name="name">
+                <xsl:value-of select="concat(@prefix, 'BridgeName')"/>
+            </xsl:attribute>
+            <para>Name used to refer to the bridge by its BridgeCreator if applicable</para>
+        </xsl:element>
+        <xsl:element name="parameter">
+            <xsl:attribute name="name">
                 <xsl:value-of select="concat(@prefix,'BridgeNumChannels')"/>
             </xsl:attribute>
             <para>Number of channels in the bridge</para>
