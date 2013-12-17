@@ -2808,7 +2808,7 @@ static int create_callno_pools(void)
  * \brief Schedules delayed removal of iax2_pvt call number data
  *
  * \note After MIN_REUSE_TIME has passed for a destroyed iax2_pvt, the callno is
- * avaliable again, and the address from the previous connection must be decremented
+ * available again, and the address from the previous connection must be decremented
  * from the peercnts table.  This function schedules these operations to take place.
  */
 static void sched_delay_remove(struct sockaddr_in *sin, struct callno_entry *callno_entry)

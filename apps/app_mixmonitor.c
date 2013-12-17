@@ -1078,7 +1078,7 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 
 	ast_mutex_lock(&mixmonitor_ds->lock);
 
-	/* closing the filestream here guarantees the file is avaliable to the dialplan
+	/* closing the filestream here guarantees the file is available to the dialplan
 	 * after calling StopMixMonitor */
 	mixmonitor_ds_close_fs(mixmonitor_ds);
 
