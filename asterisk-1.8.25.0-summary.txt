@@ -1,0 +1,471 @@
+                                Release Summary
+
+                               asterisk-1.8.25.0
+
+                                Date: 2013-12-17
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.24.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   11 jrose                 1 Ben Smithurst          2 gkelleter              
+   6 rmudgett               1 Dalius M.              2 nbansal                
+   4 bebuild                1 elguero                1 abelbeck               
+   4 wdoekes                1 wdoekes                1 adomjan                
+   3 elguero                                         1 arcanos                
+   3 mjordan                                         1 bensmithurst           
+   2 kmoore                                          1 brianscott             
+   2 NITESH BANSAL                                   1 coreyfarrell           
+   2 sgriepentrog                                    1 dario                  
+   1 abelbeck                                        1 docent                 
+   1 adomjan                                         1 jbigelow               
+   1 coreyfarrell                                    1 jkister                
+   1 Filip Jenicek                                   1 jllull                 
+   1 mmichelson                                      1 jrose                  
+   1 nbougues                                        1 kmoore                 
+   1 Simone Camporeale                               1 mdalius                
+                                                     1 nbougues               
+                                                     1 patrickm               
+                                                     1 phill                  
+                                                     1 rudolf                 
+                                                     1 simone.camporeale      
+                                                     1 tomaso                 
+                                                     1 wdoekes                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_queue
+
+   ASTERISK-22197: [patch] Queuelog EXITWITHKEY only two of four parameters
+   Revision: 400622
+   Reporter: mdalius
+   Testers: Dalius M.
+   Coders: elguero
+
+  Category: Applications/app_voicemail
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Bridges/bridge_native_rtp
+
+   ASTERISK-22424: bridge_native_rtp: Asterisk 12 attempts to remotely bridge
+   on 200OK response to invite when the 200 lacks SDP
+   Revision: 399939
+   Reporter: jrose
+   Coders: jrose
+
+  Category: CDR/cdr_adaptive_odbc
+
+   ASTERISK-22272: [patch] Unexepected behaviour with adaptive odbc filter
+   Revision: 401577
+   Reporter: jllull
+   Coders: rmudgett
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Channels/chan_mgcp
+
+   ASTERISK-21190: chan_mgcp crash on chunked m= sdp line
+   Revision: 401537
+   Reporter: adomjan
+   Coders: adomjan
+
+  Category: Channels/chan_pjsip
+
+   ASTERISK-22667: crash: directmedia with both phones placing each other on
+   hold
+   Revision: 401445
+   Reporter: jbigelow
+   Coders: mjordan
+
+  Category: Channels/chan_sip/CodecHandling
+
+   ASTERISK-21131: [patch] - Asterisk creates SDP with (peer) unsupported
+   audio codec
+   Revision: 401497
+   Reporter: nbougues
+   Coders: nbougues
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-21204: Asterisk increments the session version in 2xx message
+   even if a '183 Session in Progress' with SDP has already been sent in
+   response to initial INVITE.
+   Revision: 400906
+   Reporter: nbansal
+   Coders: NITESH BANSAL
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+   ASTERISK-22477: array calleridname in the function check_user_full is too
+   short
+   Revision: 400013
+   Reporter: docent
+   Coders: rmudgett
+
+   ASTERISK-22621: chan_sip can send two BYEs for a single call
+   Revision: 400970
+   Reporter: kmoore
+   Coders: mmichelson
+
+   ASTERISK-22667: crash: directmedia with both phones placing each other on
+   hold
+   Revision: 401445
+   Reporter: jbigelow
+   Coders: mjordan
+
+  Category: Channels/chan_sip/Registration
+
+   ASTERISK-17138: [patch] Asterisk not re-registering after it receives
+   "Forbidden - wrong password on authentication"
+   Revision: 400137
+   Reporter: rudolf
+   Coders: kmoore
+
+   ASTERISK-22428: [patch] SIP unregister does not fully unregister when
+   using Realtime sip peers and Expires not 0 on 200ok
+   Revision: 399794
+   Reporter: bensmithurst
+   Testers: Ben Smithurst, elguero
+   Coders: elguero
+
+   ASTERISK-22574: [patch]Value of expires= is ignored in the Contact header
+   Revision: 400469
+   Reporter: phill
+   Coders: Filip Jenicek
+
+  Category: Channels/chan_sip/T.38
+
+   ASTERISK-17273: [patch] - Incorrect address specified in SIP re-INVITE
+   with T.38 when directmedia enabled
+   Revision: 399456
+   Reporter: dario
+   Coders: jrose
+
+   ASTERISK-18706: UDPTL fail while using directmedia
+   Revision: 399456
+   Reporter: jkister
+   Coders: jrose
+
+  Category: Codecs/codec_ilbc
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/BuildSystem
+
+   ASTERISK-22351: Segfault in LIBEDIT_INTERNAL after tgetstr(), when
+   libncurses5-dev isn't installed
+   Revision: 401325
+   Reporter: arcanos
+   Coders: wdoekes
+
+  Category: Core/General
+
+   ASTERISK-22351: Segfault in LIBEDIT_INTERNAL after tgetstr(), when
+   libncurses5-dev isn't installed
+   Revision: 401325
+   Reporter: arcanos
+   Coders: wdoekes
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/Jitterbuffer
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/RTP
+
+   ASTERISK-22424: bridge_native_rtp: Asterisk 12 attempts to remotely bridge
+   on 200OK response to invite when the 200 lacks SDP
+   Revision: 399939
+   Reporter: jrose
+   Coders: jrose
+
+  Category: Core/UDPTL
+
+   ASTERISK-18706: UDPTL fail while using directmedia
+   Revision: 399456
+   Reporter: jkister
+   Coders: jrose
+
+  Category: Functions/func_config
+
+   ASTERISK-22483: AST_LIST_INSERT_TAIL doesn't set field.next on added entry
+   Revision: 400694
+   Reporter: brianscott
+   Coders: kmoore
+
+  Category: Functions/func_math
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Resources/res_jabber
+
+   ASTERISK-22410: [patch] Change "Error isn't a PubSub error ..." error log
+   to a debug log
+   Revision: 401119
+   Reporter: abelbeck
+   Coders: abelbeck
+
+  Category: Resources/res_odbc
+
+   ASTERISK-22459: Compiling res_odbc against iODBC instead of unixodbc
+   produces runtime errors
+   Revision: 400767
+   Reporter: patrickm
+   Testers: wdoekes
+   Coders: wdoekes
+
+  Category: Resources/res_rtp_asterisk
+
+   ASTERISK-21170: DTMF timestamp issue
+   Revision: 401619
+   Reporter: nbansal
+   Coders: NITESH BANSAL
+
+   ASTERISK-22667: crash: directmedia with both phones placing each other on
+   hold
+   Revision: 401445
+   Reporter: jbigelow
+   Coders: mjordan
+
+  Category: Resources/res_rtp_multicast
+
+   ASTERISK-22567: [patch]MutlicastRTP does not set SSRC. SSRC is always set
+   to 0
+   Revision: 400393
+   Reporter: simone.camporeale
+   Coders: Simone Camporeale
+
+  Category: Resources/res_xmpp
+
+   ASTERISK-22410: [patch] Change "Error isn't a PubSub error ..." error log
+   to a debug log
+   Revision: 401119
+   Reporter: abelbeck
+   Coders: abelbeck
+
+  Category: Tests/General
+
+   ASTERISK-22467: [patch] memory leaks 1.8+
+   Revision: 401829
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author       | Summary                     | Issues         |
+   |          |              |                             | Referenced     |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | chan_iax2: Prevent some     |                |
+   | 399697   | rmudgett     | needless breaking of the    |                |
+   |          |              | native IAX2 bridge.         |                |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | chan_dahdi: CLI "core stop  |                |
+   | 399818   | rmudgett     | gracefully" has needless    |                |
+   |          |              | delay for PRI and SS7.      |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 400314   | elguero      | Cast Integer Argument To    |                |
+   |          |              | Unsigned Char               |                |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | chan_dahdi: Reflect the set |                |
+   | 400907   | rmudgett     | software gain in the CLI    | ASTERISK-22429 |
+   |          |              | "dahdi show channel"        |                |
+   |          |              | output.                     |                |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | Don't check all realtime    |                |
+   | 401049   | wdoekes      | queues when doing "queue    |                |
+   |          |              | show some_queue".           |                |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | chan_dahdi: Fix unable to   |                |
+   | 401378   | rmudgett     | get index warning when      |                |
+   |          |              | transferring an analog      |                |
+   |          |              | call.                       |                |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | memory leaks: Memory leak   |                |
+   | 401660   | jrose        | cleanup patch by Corey      |                |
+   |          |              | Farrell (first set)         |                |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | memory leaks: Memory leak   |                |
+   | 401704   | jrose        | cleanup patch by Corey      | ASTERISK-22467 |
+   |          |              | Farrell (second set)        |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 401743   | jrose        | app_voicemail: Memory Leaks | ASTERISK-22467 |
+   |          |              | against tests               |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 401781   | jrose        | astobj2: Unregister debug   | ASTERISK-22467 |
+   |          |              | CLI commands at exit        |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 401786   | jrose        | jitterbuf: Fix memory leak  | ASTERISK-22467 |
+   |          |              | on jitter buffer reset      |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 401790   | jrose        | test_linkedlists: Fix       | ASTERISK-22467 |
+   |          |              | memory leak                 |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 401895   | jrose        | revert clicompat-r2.patch   | ASTERISK-22467 |
+   |          |              | from r401704                |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 401914   | jrose        | Put clicompat-r2.patch back | ASTERISK-22467 |
+   |          |              | in                          |                |
+   |----------+--------------+-----------------------------+----------------|
+   |          |              | rtp_engine: fix rtp         |                |
+   | 402000   | sgriepentrog | payloads copy and improve   |                |
+   |          |              | argument names              |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 403843   | bebuild      | Create 1.8.25.0-rc2         |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 403852   | bebuild      | Update version; Remove old  |                |
+   |          |              | summaries                   |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 403968   | bebuild      | Update 1.8.25.0-rc2         |                |
+   |----------+--------------+-----------------------------+----------------|
+   | 403983   | bebuild      | Importing release summary   |                |
+   |          |              | for 1.8.25.0-rc2 release.   |                |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                           |    2
+ ChangeLog                          |   29 ++
+ README-SERIOUSLY.bestpractices.txt |   24 +
+ UPGRADE.txt                        |   12
+ apps/app_queue.c                   |    7
+ apps/app_sms.c                     |    3
+ apps/app_voicemail.c               |    3
+ asterisk-1.8.25.0-rc1-summary.html |  349 ----------------------------
+ asterisk-1.8.25.0-rc1-summary.txt  |  446 -------------------------------------
+ asterisk-1.8.25.0-rc2-summary.html |   73 ++++++
+ asterisk-1.8.25.0-rc2-summary.txt  |  103 ++++++++
+ cdr/cdr_adaptive_odbc.c            |    5
+ channels/chan_dahdi.c              |   55 +++-
+ channels/chan_iax2.c               |   49 ++--
+ channels/chan_mgcp.c               |    6
+ channels/chan_sip.c                |   76 ++++--
+ channels/sig_analog.c              |   52 +---
+ channels/sig_ss7.c                 |    9
+ channels/sip/include/sip.h         |    1
+ channels/sip/reqresp_parser.c      |    6
+ codecs/ilbc/doCPLC.c               |    2
+ configs/asterisk.conf.sample       |    6
+ configs/sip.conf.sample            |    3
+ configure.ac                       |   14 +
+ funcs/func_config.c                |    4
+ funcs/func_db.c                    |   20 +
+ funcs/func_env.c                   |   28 +-
+ funcs/func_lock.c                  |   21 +
+ funcs/func_math.c                  |    3
+ funcs/func_realtime.c              |   60 +++-
+ funcs/func_shell.c                 |   18 -
+ include/asterisk/pbx.h             |   64 +++++
+ include/asterisk/rtp_engine.h      |    6
+ main/app.c                         |    4
+ main/asterisk.c                    |   11
+ main/astobj2.c                     |    6
+ main/channel.c                     |   16 +
+ main/data.c                        |    3
+ main/editline/readline.c           |    7
+ main/editline/term.c               |    6
+ main/jitterbuf.c                   |    8
+ main/pbx.c                         |  317 +++++++++++++++++++++++---
+ main/rtp_engine.c                  |   88 +++----
+ main/tcptls.c                      |   11
+ main/test.c                        |    6
+ main/translate.c                   |    4
+ main/utils.c                       |   14 -
+ res/res_jabber.c                   |    2
+ res/res_rtp_asterisk.c             |   61 +++--
+ res/res_rtp_multicast.c            |    8
+ tests/test_dlinklists.c            |    2
+ tests/test_linkedlists.c           |    3
+ utils/clicompat.c                  |   10
+ 53 files changed, 1096 insertions(+), 1050 deletions(-)
+
+     ----------------------------------------------------------------------
