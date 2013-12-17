@@ -45,7 +45,7 @@
 
    Create a callback function for the test using the AST_TEST_DEFINE macro.
 
-   Each defined test has three arguments avaliable to it's test code.
+   Each defined test has three arguments available to it's test code.
        \param struct ast_test_info *info
        \param enum ast_test_command cmd
        \param struct ast_test *test
