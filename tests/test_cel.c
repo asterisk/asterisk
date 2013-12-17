@@ -1319,7 +1319,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	}
 	/* Create first set of bridged parties */
 	bridge1 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
-		AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
+		AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART,
+		"test_cel", "test_cel_atxfer_bridges_merge_1");
 	ast_test_validate(test, bridge1 != NULL);
 
 	CREATE_ALICE_CHANNEL(chan_alice, &alice_caller);
@@ -1332,7 +1333,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 
 	/* Create second set of bridged parties */
 	bridge2 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
-		AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
+		AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART,
+		"test_cel", "test_cel_atxfer_bridges_merge_2");
 	ast_test_validate(test, bridge2 != NULL);
 
 	CREATE_DAVID_CHANNEL(chan_david, &david_caller);
@@ -1400,7 +1402,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	bridge1 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_TO | AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM
-		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
+		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART,
+		"test_cel", "test_cel_atxfer_bridges_link_1");
 	ast_test_validate(test, bridge1 != NULL);
 
 	CREATE_ALICE_CHANNEL(chan_alice, &alice_caller);
@@ -1415,7 +1418,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	bridge2 = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_1TO1MIX | AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_MULTIMIX,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_TO | AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM
-		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART);
+		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_SMART,
+		"test_cel", "test_cel_atxfer_bridges_link_2");
 	ast_test_validate(test, bridge2 != NULL);
 
 	CREATE_DAVID_CHANNEL(chan_david, &david_caller);
