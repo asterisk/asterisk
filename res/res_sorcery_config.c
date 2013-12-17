@@ -265,14 +265,15 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 
 		if (!(obj = ast_sorcery_alloc(sorcery, type, id)) ||
 		    ast_sorcery_objectset_apply(sorcery, obj, ast_variable_browse(cfg, id))) {
-			ast_debug(1, "Could not create an object of type '%s' with id '%s' from configuration file '%s'\n",
-				  type, id, config->filename);
 
 			if (config->file_integrity) {
 				ast_log(LOG_ERROR, "Config file '%s' could not be loaded due to error with object '%s' of type '%s'\n",
 					config->filename, id, type);
 				ast_config_destroy(cfg);
 				return;
+			} else {
+				ast_log(LOG_ERROR, "Could not create an object of type '%s' with id '%s' from configuration file '%s'\n",
+					type, id, config->filename);
 			}
 
 			ao2_cleanup(obj);
