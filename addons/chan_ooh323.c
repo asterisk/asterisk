@@ -3896,6 +3896,22 @@ static int load_module(void)
 	return 0;
 }
 
+static int reload_module(void)
+{
+	ast_mutex_lock(&h323_reload_lock);
+	if (h323_reloading) {
+		ast_verb(0, "Previous OOH323 reload not yet done\n");
+	} else {
+		h323_reloading = 1;
+	}
+	ast_mutex_unlock(&h323_reload_lock);
+	restart_monitor();
+
+	if (gH323Debug)
+		ast_verb(0, "+++   ooh323_reload\n");
+
+	return 0;
+}
 
 static void *do_monitor(void *data)
 {
@@ -5180,4 +5196,9 @@ void ast_ooh323c_exit()
 }
 #endif
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Objective Systems H323 Channel");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Objective Systems H323 Channel",
+			.load = load_module,
+			.unload = unload_module,
+			.reload = reload_module,
+			.load_pri = AST_MODPRI_CHANNEL_DRIVER
+			);
