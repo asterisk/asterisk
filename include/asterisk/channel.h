@@ -791,7 +791,8 @@ typedef int(*ast_timing_func_t)(const void *data);
  * active channels in the system.  The hash key is based on the channel name.  Because
  * of this, if you want to change the name, you _must_ use ast_change_name(), not change
  * the name field directly.  When ast_channel_alloc() returns a channel pointer, you now
- * hold a reference to that channel.  In most cases this reference is given to ast_pbx_run().
+ * hold both a reference to that channel and a lock on the channel. Once the channel has
+ * been set up the lock can be released. In most cases the reference is given to ast_pbx_run().
  *
  * \par Channel Locking
  * There is a lock associated with every ast_channel.  It is allocated internally via astobj2.
@@ -1122,6 +1123,7 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
  * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \note By default, new channels are set to the "s" extension
  *       and "default" context.
+ * \note Since 12.0.0 this function returns with the newly created channel locked.
  */
 struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
 	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
@@ -1140,6 +1142,7 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
  * \note Absolutely _NO_ channel locks should be held before calling this function.
  * \note By default, new channels are set to the "s" extension
  *       and "default" context.
+ * \note Since 12.0.0 this function returns with the newly created channel locked.
  */
 #define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, ...) \
 	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, \

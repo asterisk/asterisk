@@ -833,6 +833,8 @@ static struct ast_channel *test_vm_api_create_mock_channel(void)
 	ast_format_set(ast_channel_rawreadformat(mock_channel), AST_FORMAT_GSM, 0);
 	ast_channel_tech_set(mock_channel, &mock_channel_tech);
 
+	ast_channel_unlock(mock_channel);
+
 	return mock_channel;
 }
 

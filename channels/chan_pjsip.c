@@ -359,24 +359,14 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	ast_channel_tech_set(chan, &chan_pjsip_tech);
 
 	if (!(channel = ast_sip_channel_pvt_alloc(pvt, session))) {
+		ast_channel_unlock(chan);
 		ast_hangup(chan);
 		return NULL;
 	}
 
 	ast_channel_stage_snapshot(chan);
 
-	/* If res_pjsip_session is ever updated to create/destroy ast_sip_session_media
-	 * during a call such as if multiple same-type stream support is introduced,
-	 * these will need to be recaptured as well */
-	pvt->media[SIP_MEDIA_AUDIO] = ao2_find(session->media, "audio", OBJ_KEY);
-	pvt->media[SIP_MEDIA_VIDEO] = ao2_find(session->media, "video", OBJ_KEY);
 	ast_channel_tech_pvt_set(chan, channel);
-	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(chan));
-	}
-	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(chan));
-	}
 
 	if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->media.codecs)) {
 		ast_format_cap_copy(ast_channel_nativeformats(chan), session->endpoint->media.codecs);
@@ -418,9 +408,22 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		ast_channel_zone_set(chan, zone);
 	}
 
-	ast_endpoint_add_channel(session->endpoint->persistent, chan);
-
 	ast_channel_stage_snapshot_done(chan);
+	ast_channel_unlock(chan);
+
+	/* If res_pjsip_session is ever updated to create/destroy ast_sip_session_media
+	 * during a call such as if multiple same-type stream support is introduced,
+	 * these will need to be recaptured as well */
+	pvt->media[SIP_MEDIA_AUDIO] = ao2_find(session->media, "audio", OBJ_KEY);
+	pvt->media[SIP_MEDIA_VIDEO] = ao2_find(session->media, "video", OBJ_KEY);
+	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(chan));
+	}
+	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(chan));
+	}
+
+	ast_endpoint_add_channel(session->endpoint->persistent, chan);
 
 	return chan;
 }

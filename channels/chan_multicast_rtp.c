@@ -166,6 +166,8 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 
 	ast_channel_tech_pvt_set(chan, instance);
 
+	ast_channel_unlock(chan);
+
 	return chan;
 
 failure:

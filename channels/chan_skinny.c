@@ -5393,6 +5393,8 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		sub = ast_calloc(1, sizeof(*sub));
 		if (!sub) {
 			ast_log(LOG_WARNING, "Unable to allocate Skinny subchannel\n");
+			ast_channel_unlock(tmp);
+			ast_channel_unref(tmp);
 			return NULL;
 		} else {
 			ast_mutex_init(&sub->lock);
@@ -5499,6 +5501,8 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			pbx_builtin_setvar_helper(tmp, v->name, v->value);
 
 		ast_channel_stage_snapshot_done(tmp);
+
+		ast_channel_unlock(tmp);
 
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {

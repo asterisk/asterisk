@@ -1017,6 +1017,12 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_channel_internal_finalize(tmp);
 
 	ast_atomic_fetchadd_int(&chancount, +1);
+
+	/* You might scream "locking inversion" at seeing this but it is actually perfectly fine.
+	 * Since the channel was just created nothing can know about it yet or even acquire it.
+	 */
+	ast_channel_lock(tmp);
+
 	ao2_link(channels, tmp);
 
 	/*

@@ -5628,6 +5628,8 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 
 	ast_channel_stage_snapshot_done(tmp);
 
+	ast_channel_unlock(tmp);
+
 	if (state != AST_STATE_DOWN) {
 		if (unistimdebug) {
 			ast_verb(0, "Starting pbx in unistim_new\n");

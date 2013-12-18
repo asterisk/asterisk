@@ -201,24 +201,28 @@ static void do_sleep(void)
 #define CREATE_ALICE_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "100", "100", "default", NULL, 0, CHANNEL_TECH_NAME "/Alice"); \
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
+	ast_channel_unlock((channel_var)); \
 	} while (0)
 
 /*! \brief Create a \ref test_cel_chan_tech for Bob. */
 #define CREATE_BOB_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "200", "200", "default", NULL, 0, CHANNEL_TECH_NAME "/Bob"); \
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
+	ast_channel_unlock((channel_var)); \
 	} while (0)
 
 /*! \brief Create a \ref test_cel_chan_tech for Charlie. */
 #define CREATE_CHARLIE_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "300", "300", "default", NULL, 0, CHANNEL_TECH_NAME "/Charlie"); \
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
+	ast_channel_unlock((channel_var)); \
 	} while (0)
 
 /*! \brief Create a \ref test_cel_chan_tech for David. */
 #define CREATE_DAVID_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "400", "400", "default", NULL, 0, CHANNEL_TECH_NAME "/David"); \
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
+	ast_channel_unlock((channel_var)); \
 	} while (0)
 
 /*! \brief Emulate a channel entering into an application */
@@ -717,6 +721,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 #define START_DIALED_FULL(caller, callee, number, name) do { \
 	callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, number, NULL, NULL, ast_channel_linkedid(caller), 0, CHANNEL_TECH_NAME "/" name); \
+	ast_channel_unlock(callee); \
 	if (append_expected_event(callee, AST_CEL_CHANNEL_START, NULL, NULL, NULL)) { \
 		return AST_TEST_FAIL; \
 	} \

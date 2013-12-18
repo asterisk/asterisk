@@ -1571,6 +1571,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 
 		ast_channel_stage_snapshot_done(tmp);
 
+		ast_channel_unlock(tmp);
+
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
