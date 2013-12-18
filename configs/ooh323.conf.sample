@@ -72,6 +72,10 @@ e164=100
 ;Default - Same as h323id
 callerid=asterisk
 
+; Whether asterisk send back to caller own connected line id on incoming call as called number
+; Default - no
+aniasdni=no
+
 ;Whether this asterisk server will use gatekeeper.
 ;Default - DISABLE
 ;gatekeeper = DISCOVER

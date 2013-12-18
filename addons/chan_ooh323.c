@@ -205,6 +205,7 @@ static struct ooh323_pvt {
 	char rtpmaskstr[120];
 	int rtdrcount, rtdrinterval;	/* roundtripdelayreq */
 	int faststart, h245tunneling;	/* faststart & h245 tunneling */
+	int aniasdni;			/* use dialed number as answering identification */
 	struct ooh323_pvt *next;	/* Next entity */
 } *iflist = NULL;
 
@@ -237,6 +238,7 @@ struct ooh323_user{
 	int		directrtp;
 	int		earlydirect;
 	int		g729onlyA;
+	int		aniasdni;
 	struct ooh323_user *next;
 };
 
@@ -344,6 +346,7 @@ OOBOOL gH323Debug = FALSE;
 static int gTRCLVL = OOTRCLVLERR;
 static int gRTDRCount = 0, gRTDRInterval = 0;
 static int gNat = FALSE;
+static int gANIasDNI = 0;
 
 static int t35countrycode = 0;
 static int t35extensions = 0;
@@ -556,6 +559,8 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	pvt->amaflags = gAMAFLAGS;
 	ast_format_cap_copy(pvt->cap, gCap);
 	memcpy(&pvt->prefs, &gPrefs, sizeof(pvt->prefs));
+
+	pvt->aniasdni = gANIasDNI;
 
 	ast_mutex_unlock(&pvt->lock); 
 	/* Add to interface list */
@@ -1897,6 +1902,9 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 			p->rtdrcount = user->rtdrcount;
 			p->rtdrinterval = user->rtdrinterval;
 		}
+
+		p->aniasdni = user->aniasdni;
+
 	 	if (user->incominglimit) user->inUse++;
 		ast_mutex_unlock(&user->lock);
 	} else {
@@ -1929,6 +1937,10 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
    	ast_log(LOG_ERROR, "Could not create ast_channel\n");
          return -1;
   	}
+
+	if (p->aniasdni) {
+		ooCallSetCallerId(call, p->exten);
+	}
 	if (!configure_local_rtp(p, call)) {
 		ast_mutex_unlock(&p->lock);
 		ast_log(LOG_ERROR, "Couldn't create rtp structure\n");
@@ -2430,6 +2442,8 @@ static struct ooh323_user *build_user(const char *name, struct ast_variable *v)
 					user->t38support = T38_FAXGW;
 				else if (!strcasecmp(v->value, "yes"))
 					user->t38support = T38_ENABLED;
+			} else if (!strcasecmp(v->name, "aniasdni")) {
+				user->aniasdni = ast_true(v->value);
 			}
 			v = v->next;
 		}
@@ -3049,6 +3063,8 @@ int reload_config(int reload)
 		} else if (!strcasecmp(v->name, "tracelevel")) {
 			gTRCLVL = atoi(v->value);
 			ooH323EpSetTraceLevel(gTRCLVL);
+		} else if (!strcasecmp(v->name, "aniasdni")) {
+			gANIasDNI = ast_true(v->value);
 		}
 		v = v->next;
 	}
