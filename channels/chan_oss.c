@@ -799,7 +799,6 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, linkedid, 0, "Console/%s", o->device + 5);
 	if (c == NULL)
 		return NULL;
-	ast_channel_lock(c);
 	ast_channel_tech_set(c, &oss_tech);
 	if (o->sounddev < 0)
 		setformat(o, O_RDWR);
