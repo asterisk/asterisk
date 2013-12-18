@@ -353,7 +353,7 @@ AST_THREADSTORAGE(tmp_buf);
 			<parameter name="string" required="true" />
 		</syntax>
 		<description>
-			<para>Example: ${QUOTE(ab"c"de)} will return "abcde"</para>
+			<para>Example: ${QUOTE(ab"c"de)} will return ""ab\"c\"de""</para>
 		</description>
 	</function>
 	<function name="CSV_QUOTE" language="en_US">
