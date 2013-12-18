@@ -530,6 +530,7 @@ static int parking_duration_callback(struct ast_bridge_channel *bridge_channel, 
 
 	/* Set parking timeout channel variables */
 	snprintf(parking_space, sizeof(parking_space), "%d", user->parking_space);
+	ast_channel_lock(chan);
 	ast_channel_stage_snapshot(chan);
 	pbx_builtin_setvar_helper(chan, "PARKING_SPACE", parking_space);
 	pbx_builtin_setvar_helper(chan, "PARKINGSLOT", parking_space); /* Deprecated version of PARKING_SPACE */
@@ -538,6 +539,7 @@ static int parking_duration_callback(struct ast_bridge_channel *bridge_channel, 
 	pbx_builtin_setvar_helper(chan, "PARKER_FLAT", dial_string_flat);
 	parking_timeout_set_caller_features(chan, user->lot->cfg);
 	ast_channel_stage_snapshot_done(chan);
+	ast_channel_unlock(chan);
 
 	/* Dialplan generation for park-dial extensions */
 

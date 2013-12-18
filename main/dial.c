@@ -286,6 +286,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	cap_request = NULL;
 	cap_all_audio = ast_format_cap_destroy(cap_all_audio);
 
+	ast_channel_lock(channel->owner);
 	ast_channel_stage_snapshot(channel->owner);
 
 	ast_channel_appl_set(channel->owner, "AppDial2");
@@ -315,6 +316,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	}
 
 	ast_channel_stage_snapshot_done(channel->owner);
+	ast_channel_unlock(channel->owner);
 
 	return 0;
 }

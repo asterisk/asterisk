@@ -601,7 +601,6 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const ch
 	ast_jb_configure(tmp, &global_jbconf);
 
 	ast_channel_stage_snapshot_done(tmp);
-
 	ast_channel_unlock(tmp);
 
 	if (state != AST_STATE_DOWN) {

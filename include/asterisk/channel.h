@@ -1538,8 +1538,7 @@ int ast_channel_cmpwhentohangup_tv(struct ast_channel *chan, struct timeval offs
  * \details
  * This function sets the absolute time out on a channel (when to hang up).
  *
- * \note This function does not require that the channel is locked before
- *       calling it.
+ * \pre chan is locked
  *
  * \return Nothing
  * \sa ast_channel_setwhentohangup_tv()
@@ -1555,8 +1554,7 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset) __attr
  *
  * This function sets the absolute time out on a channel (when to hang up).
  *
- * \note This function does not require that the channel is locked before
- * calling it.
+ * \pre chan is locked
  *
  * \return Nothing
  * \since 1.6.1
@@ -2339,6 +2337,8 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
  * \brief adds a list of channel variables to a channel
  * \param chan the channel
  * \param vars a linked list of variables
+ *
+ * \pre chan is locked
  *
  * \details
  * Variable names can be for a regular channel variable or a dialplan function
@@ -3806,6 +3806,15 @@ void ast_channel_name_set(struct ast_channel *chan, const char *name);
 	void ast_channel_##field##_build_va(struct ast_channel *chan, const char *fmt, va_list ap) __attribute__((format(printf, 2, 0))); \
 	void ast_channel_##field##_build(struct ast_channel *chan, const char *fmt, ...) __attribute__((format(printf, 2, 3)))
 
+/*!
+ * The following string fields result in channel snapshot creation and
+ * should have the channel locked when called:
+ *
+ * \li language
+ * \li accountcode
+ * \li peeracccount
+ * \li linkedid
+ */
 DECLARE_STRINGFIELD_SETTERS_FOR(name);
 DECLARE_STRINGFIELD_SETTERS_FOR(language);
 DECLARE_STRINGFIELD_SETTERS_FOR(musicclass);
@@ -3857,6 +3866,10 @@ void ast_channel_sending_dtmf_digit_set(struct ast_channel *chan, char value);
 struct timeval ast_channel_sending_dtmf_tv(const struct ast_channel *chan);
 void ast_channel_sending_dtmf_tv_set(struct ast_channel *chan, struct timeval value);
 enum ama_flags ast_channel_amaflags(const struct ast_channel *chan);
+
+/*!
+ * \pre chan is locked
+ */
 void ast_channel_amaflags_set(struct ast_channel *chan, enum ama_flags value);
 int ast_channel_epfd(const struct ast_channel *chan);
 void ast_channel_epfd_set(struct ast_channel *chan, int value);
@@ -3940,6 +3953,10 @@ enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan);
 void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe value);
 enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
 struct ast_callid *ast_channel_callid(const struct ast_channel *chan);
+
+/*!
+ * \pre chan is locked
+ */
 void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *value);
 
 /* XXX Internal use only, make sure to move later */
@@ -3980,6 +3997,10 @@ void ast_channel_connected_set(struct ast_channel *chan, struct ast_party_connec
 void ast_channel_dialed_set(struct ast_channel *chan, struct ast_party_dialed *value);
 void ast_channel_redirecting_set(struct ast_channel *chan, struct ast_party_redirecting *value);
 void ast_channel_dtmf_tv_set(struct ast_channel *chan, struct timeval *value);
+
+/*!
+ * \pre chan is locked
+ */
 void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *value);
 void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value);
 struct timeval ast_channel_creationtime(struct ast_channel *chan);
@@ -3995,8 +4016,14 @@ struct ast_readq_list *ast_channel_readq(struct ast_channel *chan);
 
 /* Typedef accessors */
 ast_group_t ast_channel_callgroup(const struct ast_channel *chan);
+/*!
+ * \pre chan is locked
+ */
 void ast_channel_callgroup_set(struct ast_channel *chan, ast_group_t value);
 ast_group_t ast_channel_pickupgroup(const struct ast_channel *chan);
+/*!
+ * \pre chan is locked
+ */
 void ast_channel_pickupgroup_set(struct ast_channel *chan, ast_group_t value);
 struct ast_namedgroups *ast_channel_named_callgroups(const struct ast_channel *chan);
 void ast_channel_named_callgroups_set(struct ast_channel *chan, struct ast_namedgroups *value);
@@ -4043,6 +4070,9 @@ ast_timing_func_t ast_channel_timingfunc(const struct ast_channel *chan);
 void ast_channel_timingfunc_set(struct ast_channel *chan, ast_timing_func_t value);
 
 struct ast_bridge *ast_channel_internal_bridge(const struct ast_channel *chan);
+/*!
+ * \pre chan is locked
+ */
 void ast_channel_internal_bridge_set(struct ast_channel *chan, struct ast_bridge *value);
 
 struct ast_bridge_channel *ast_channel_internal_bridge_channel(const struct ast_channel *chan);

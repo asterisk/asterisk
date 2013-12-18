@@ -878,7 +878,6 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 	if (pvt->sco_socket != -1) {
 		ast_channel_set_fd(chn, 0, pvt->sco_socket);
 	}
-
 	ast_channel_unlock(chn);
 
 	return chn;
