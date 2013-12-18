@@ -168,7 +168,7 @@ Asn1SizeCnst* getSizeConstraint (OOCTXT* pctxt, ASN1BOOL extbit)
 int checkSizeConstraint(OOCTXT* pctxt, int size)
 {
    Asn1SizeCnst* pSize;
-   ASN1UINT lower, upper;
+   ASN1UINT upper;
    ASN1BOOL extbit;
    int      stat;
 
@@ -186,7 +186,6 @@ int checkSizeConstraint(OOCTXT* pctxt, int size)
 
    pSize = getSizeConstraint (pctxt, extbit);
 
-   lower = (pSize) ? pSize->lower : 0;
    upper = (pSize) ? pSize->upper : ASN1UINT_MAX;
 
    if (upper < (ASN1UINT)size) {

@@ -100,8 +100,10 @@ void* ooh323c_call_thread(void* dummy)
 	pfds[0].fd = mycthread->thePipe[0];
 	pfds[0].events = POLLIN;
 	ooSocketPoll(pfds, 1, SEC_TO_HOLD_THREAD * 1000);
-	if (ooPDRead(pfds, 1, mycthread->thePipe[0]))
+	if (ooPDRead(pfds, 1, mycthread->thePipe[0])) {
 		res = read(mycthread->thePipe[0], &c, 1);
+		(void) res;/* Shut up compiler: Set but not used and unused return value of read. */
+	}
 
  	ast_mutex_lock(&callThreadsLock);
 	ast_mutex_lock(&mycthread->lock);
@@ -182,6 +184,7 @@ int ooh323c_start_call_thread(ooCallData *call) {
 	cur->inUse = TRUE;
 	cur->call = call;
 	res = write(cur->thePipe[1], &c, 1);
+	(void) res;/* Shut up compiler: Set but not used and unused return value of write. */
 	ast_mutex_unlock(&cur->lock);
 
  }
