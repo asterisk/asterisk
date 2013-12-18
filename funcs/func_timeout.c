@@ -155,7 +155,9 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	switch (*data) {
 	case 'a':
 	case 'A':
+		ast_channel_lock(chan);
 		ast_channel_setwhentohangup_tv(chan, when);
+		ast_channel_unlock(chan);
 		if (!ast_tvzero(*ast_channel_whentohangup(chan))) {
 			when = ast_tvadd(when, ast_tvnow());
 			ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S.%3q %Z",

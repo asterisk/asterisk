@@ -364,6 +364,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
+
 	ast_channel_stage_snapshot(chan);
 
 	ast_channel_tech_pvt_set(chan, channel);
@@ -1835,9 +1836,11 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 	switch (status.code) {
 	case 180:
 		ast_queue_control(session->channel, AST_CONTROL_RINGING);
+		ast_channel_lock(session->channel);
 		if (ast_channel_state(session->channel) != AST_STATE_UP) {
 			ast_setstate(session->channel, AST_STATE_RINGING);
 		}
+		ast_channel_unlock(session->channel);
 		break;
 	case 183:
 		ast_queue_control(session->channel, AST_CONTROL_PROGRESS);

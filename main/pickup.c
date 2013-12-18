@@ -354,11 +354,17 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 	/* setting the HANGUPCAUSE so the ringing channel knows this call was not a missed call */
 	ast_channel_hangupcause_set(chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 
-	if (!(chan_snapshot = ast_channel_snapshot_create(chan))) {
+	ast_channel_lock(chan);
+	chan_snapshot = ast_channel_snapshot_create(chan);
+	ast_channel_unlock(chan);
+	if (!chan_snapshot) {
 		goto pickup_failed;
 	}
 
-	if (!(target_snapshot = ast_channel_snapshot_create(target))) {
+	ast_channel_lock(target);
+	target_snapshot = ast_channel_snapshot_create(target);
+	ast_channel_unlock(target);
+	if (!target_snapshot) {
 		goto pickup_failed;
 	}
 

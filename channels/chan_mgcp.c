@@ -1570,7 +1570,6 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 		}
 
 		ast_channel_stage_snapshot_done(tmp);
-
 		ast_channel_unlock(tmp);
 
 		if (state != AST_STATE_DOWN) {
@@ -3048,6 +3047,7 @@ static void *mgcp_ss(void *data)
 				} else {
 					/*res = tone_zone_play_tone(p->subs[index].zfd, -1);*/
 					ast_indicate(chan, -1);
+					ast_channel_lock(chan);
 					ast_channel_exten_set(chan, p->dtmf_buf);
 					ast_channel_dialed(chan)->number.str = ast_strdup(p->dtmf_buf);
 					memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
@@ -3056,6 +3056,7 @@ static void *mgcp_ss(void *data)
 						p->hidecallerid ? "" : p->cid_name,
 						ast_channel_caller(chan)->ani.number.valid ? NULL : p->cid_num);
 					ast_setstate(chan, AST_STATE_RING);
+					ast_channel_unlock(chan);
 					if (p->dtmfmode & MGCP_DTMF_HYBRID) {
 						p->dtmfmode |= MGCP_DTMF_INBAND;
 						ast_indicate(chan, -1);
