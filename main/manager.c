@@ -5775,20 +5775,47 @@ static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info
 {
 	/* Notify managers of change */
 	char hint[512];
-	int state = info->exten_state;
-
-	/* only interested in device state for this right now */
-	if (info->reason !=  AST_HINT_UPDATE_DEVICE) {
-		return 0;
-	}
 
 	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when an extension state has changed.</synopsis>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n", exten, context, hint, state);
+
+	switch(info->reason) {
+	case AST_HINT_UPDATE_DEVICE:
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when an extension state has changed.</synopsis>
+			</managerEventInstance>
+		***/
+		manager_event(EVENT_FLAG_CALL, "ExtensionStatus",
+			"Exten: %s\r\n"
+			"Context: %s\r\n"
+			"Hint: %s\r\n"
+			"Status: %d\r\n",
+			exten,
+			context,
+			hint,
+			info->exten_state);
+		break;
+	case AST_HINT_UPDATE_PRESENCE:
+		/*** DOCUMENTATION
+			<managerEventInstance>
+				<synopsis>Raised when a presence state has changed.</synopsis>
+			</managerEventInstance>
+		***/
+		manager_event(EVENT_FLAG_CALL, "PresenceStatus",
+			"Exten: %s\r\n"
+			"Context: %s\r\n"
+			"Hint: %s\r\n"
+			"Status: %s\r\n"
+			"Subtype: %s\r\n"
+			"Message: %s\r\n",
+			exten,
+			context,
+			hint,
+			ast_presence_state2str(info->presence_state),
+			info->presence_subtype,
+			info->presence_message);
+		break;
+	}
 	return 0;
 }
 
