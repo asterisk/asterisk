@@ -766,7 +766,10 @@ static void *do_notify(void *data)
 	datastore->inheritance = DATASTORE_INHERIT_FOREVER;
 
 	ao2_ref(event, +1);
+
+	ast_channel_lock(chan);
 	res = ast_channel_datastore_add(chan, datastore);
+	ast_channel_unlock(chan);
 
 	if (!(tmpstr = ast_str_create(32))) {
 		goto notify_cleanup;
