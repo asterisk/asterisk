@@ -678,9 +678,9 @@ static struct ast_channel *create_msg_q_chan(void)
 		return NULL;
 	}
 
-	ast_channel_unlink(chan);
-
 	ast_channel_tech_set(chan, &msg_chan_tech_hack);
+	ast_channel_unlock(chan);
+	ast_channel_unlink(chan);
 
 	if (!(ds = ast_datastore_alloc(&msg_datastore, NULL))) {
 		ast_hangup(chan);

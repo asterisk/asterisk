@@ -1139,6 +1139,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		}
 		if (pvt->cd.transfer_capability >= 0)
 			ast_channel_transfercapability_set(ch, pvt->cd.transfer_capability);
+		ast_channel_unlock(ch);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(ch));

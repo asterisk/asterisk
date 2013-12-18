@@ -5694,6 +5694,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		if (tmp) {
 			/* unlock and relock iaxsl[callno] to preserve locking order */
 			ast_mutex_unlock(&iaxsl[callno]);
+			ast_channel_unlock(tmp);
 			tmp = ast_channel_release(tmp);
 			ast_mutex_lock(&iaxsl[callno]);
 		}
@@ -5803,6 +5804,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	}
 
 	ast_channel_stage_snapshot_done(tmp);
+
+	ast_channel_unlock(tmp);
 
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {

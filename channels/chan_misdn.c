@@ -8226,6 +8226,8 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		ast_channel_rings_set(tmp, (state == AST_STATE_RING) ? 1 : 0);
 
 		ast_jb_configure(tmp, misdn_get_global_jbconf());
+
+		ast_channel_unlock(tmp);
 	} else {
 		chan_misdn_log(-1, 0, "Unable to allocate channel structure\n");
 	}
@@ -8948,6 +8950,8 @@ static void misdn_cc_pbx_notify(long record_id, const struct misdn_cc_notify *no
 	ast_channel_priority_set(chan, notify->priority);
 	ast_free(ast_channel_dialed(chan)->number.str);
 	ast_channel_dialed(chan)->number.str = ast_strdup(notify->exten);
+
+	ast_channel_unlock(chan);
 
 	if (ast_pbx_start(chan)) {
 		ast_log(LOG_WARNING, "Unable to start pbx channel %s!\n", ast_channel_name(chan));

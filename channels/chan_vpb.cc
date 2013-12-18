@@ -2472,6 +2472,8 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		if (!ast_strlen_zero(me->language))
 			ast_channel_language_set(tmp, me->language);
 
+		ast_channel_unlock(tmp);
+
 		me->owner = tmp;
 
 		me->bridge = NULL;

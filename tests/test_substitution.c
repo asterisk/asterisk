@@ -244,6 +244,7 @@ AST_TEST_DEFINE(test_substitution)
 	ast_test_status_update(test, "Testing variable substitution ...\n");
 
 	c = ast_channel_alloc(0, 0, "", "", "", "", "", "", 0, "Test/substitution");
+	ast_channel_unlock(c);
 
 #define TEST(t) if (t == AST_TEST_FAIL) { res = AST_TEST_FAIL; }
 #if 0

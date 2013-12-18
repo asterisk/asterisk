@@ -9097,6 +9097,8 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 
 	ast_channel_stage_snapshot_done(tmp);
 
+	ast_channel_unlock(tmp);
+
 	ast_module_ref(ast_module_info->self);
 
 	dahdi_ami_channel_event(i, tmp);

@@ -63,6 +63,8 @@ static struct ast_channel *create_alice_channel(void)
 
 	ast_channel_set_caller(alice, &alice_callerid, NULL);
 
+	ast_channel_unlock(alice);
+
 	return alice;
 }
 

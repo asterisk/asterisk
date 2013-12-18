@@ -879,6 +879,8 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 		ast_channel_set_fd(chn, 0, pvt->sco_socket);
 	}
 
+	ast_channel_unlock(chn);
+
 	return chn;
 
 e_return:

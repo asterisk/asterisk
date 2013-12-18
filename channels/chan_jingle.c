@@ -942,6 +942,8 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 
 	ast_channel_stage_snapshot_done(tmp);
 
+	ast_channel_unlock(tmp);
+
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
 		ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ast_channel_name(tmp));
 		ast_channel_hangupcause_set(tmp, AST_CAUSE_SWITCH_CONGESTION);

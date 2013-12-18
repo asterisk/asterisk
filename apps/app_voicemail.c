@@ -13744,6 +13744,8 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 	ast_format_set(ast_channel_rawreadformat(test_channel1), AST_FORMAT_GSM, 0);
 	ast_channel_tech_set(test_channel1, &fake_tech);
 
+	ast_channel_unlock(test_channel1);
+
 	ast_test_status_update(test, "Test playing of extension when greeting is not available...\n");
 	snprintf(dir, sizeof(dir), "%s@%s", TEST_EXTENSION, TEST_CONTEXT); /* not a dir, don't get confused */
 	if (!(res = vmsayname_exec(test_channel1, dir))) {

@@ -8140,6 +8140,8 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 		return AST_TEST_FAIL;
 	}
 
+	ast_channel_unlock(chan);
+
 	cnf = build_conf("9898", "", "1234", 1, 1, 1, chan, test);
 	if (!cnf) {
 		ast_test_status_update(test, "Build of test conference 9898 failed\n");

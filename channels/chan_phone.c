@@ -901,6 +901,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 
 		i->owner = tmp;
 		ast_module_ref(ast_module_info->self);
+		ast_channel_unlock(tmp);
 		if (state != AST_STATE_DOWN) {
 			if (state == AST_STATE_RING) {
 				ioctl(ast_channel_fd(tmp, 0), PHONE_RINGBACK);

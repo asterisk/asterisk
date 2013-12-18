@@ -8100,6 +8100,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	if (i->relatedpeer && i->relatedpeer->endpoint) {
 		if (ast_endpoint_add_channel(i->relatedpeer->endpoint, tmp)) {
+			ast_channel_unlock(tmp);
 			ast_channel_unref(tmp);
 			sip_pvt_lock(i);
 			return NULL;
@@ -8113,7 +8114,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		ast_channel_callid_set(tmp, callid);
 	}
 
-	ast_channel_lock(tmp);
 	sip_pvt_lock(i);
 	ast_channel_cc_params_init(tmp, i->cc_params);
 	ast_channel_caller(tmp)->id.tag = ast_strdup(i->cid_tag);

@@ -66,6 +66,7 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 		return NULL;
 	}
 	if (ast_channel_add_bridge_role(chan, "recorder")) {
+		ast_channel_unlock(chan);
 		ast_channel_release(chan);
 		return NULL;
 	}
@@ -76,6 +77,7 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	ast_format_copy(ast_channel_rawwriteformat(chan), &format);
 	ast_format_copy(ast_channel_readformat(chan), &format);
 	ast_format_copy(ast_channel_rawreadformat(chan), &format);
+	ast_channel_unlock(chan);
 	return chan;
 }
 

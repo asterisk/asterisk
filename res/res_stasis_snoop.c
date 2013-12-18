@@ -274,12 +274,21 @@ static int snoop_setup_audiohook(struct ast_channel *chan, enum ast_audiohook_ty
 	return ast_audiohook_attach(chan, audiohook);
 }
 
+/*! \brief Helper function which gets the format for a Snoop channel based on the channel being snooped on */
+static void snoop_determine_format(struct ast_channel *chan, struct stasis_app_snoop *snoop)
+{
+	SCOPED_CHANNELLOCK(lock, chan);
+	unsigned int rate = MAX(ast_format_rate(ast_channel_rawwriteformat(chan)),
+		ast_format_rate(ast_channel_rawreadformat(chan)));
+
+	ast_format_set(&snoop->spy_format, ast_format_slin_by_rate(rate), 0);
+}
+
 struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	enum stasis_app_snoop_direction spy, enum stasis_app_snoop_direction whisper,
 	const char *app, const char *app_args)
 {
 	RAII_VAR(struct stasis_app_snoop *, snoop, NULL, ao2_cleanup);
-	unsigned int rate;
 	pthread_t thread;
 
 	if (spy == STASIS_SNOOP_DIRECTION_NONE &&
@@ -310,6 +319,9 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	}
 	ast_timer_set_rate(snoop->timer, 1000 / SNOOP_INTERVAL);
 
+	/* Determine which signed linear format should be used */
+	snoop_determine_format(chan, snoop);
+
 	/* Allocate a Snoop channel and set up various parameters */
 	snoop->chan = ast_channel_alloc(1, AST_STATE_UP, "", "", "", "", "", "", 0, "Snoop/%s-%08x", ast_channel_uniqueid(chan),
 		ast_atomic_fetchadd_int((int *)&chan_idx, +1));
@@ -327,39 +339,33 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	ast_channel_tech_pvt_set(snoop->chan, snoop);
 	ast_channel_set_fd(snoop->chan, 0, ast_timer_fd(snoop->timer));
 
-	{
-		SCOPED_CHANNELLOCK(lock, chan);
+	/* The format on the Snoop channel will be this signed linear format, and it will never change */
+	ast_format_cap_set(ast_channel_nativeformats(snoop->chan), &snoop->spy_format);
+	ast_format_copy(ast_channel_writeformat(snoop->chan), &snoop->spy_format);
+	ast_format_copy(ast_channel_rawwriteformat(snoop->chan), &snoop->spy_format);
+	ast_format_copy(ast_channel_readformat(snoop->chan), &snoop->spy_format);
+	ast_format_copy(ast_channel_rawreadformat(snoop->chan), &snoop->spy_format);
 
-		/* Determine the "best" signed linear format capable by the channel we are snooping on */
-		rate = MAX(ast_format_rate(ast_channel_rawwriteformat(chan)), ast_format_rate(ast_channel_rawreadformat(chan)));
-		ast_format_set(&snoop->spy_format, ast_format_slin_by_rate(rate), 0);
+	ast_channel_unlock(snoop->chan);
 
-		/* The format on the Snoop channel will be this signed linear format, and it will never change */
-		ast_format_cap_set(ast_channel_nativeformats(snoop->chan), &snoop->spy_format);
-		ast_format_copy(ast_channel_writeformat(snoop->chan), &snoop->spy_format);
-		ast_format_copy(ast_channel_rawwriteformat(snoop->chan), &snoop->spy_format);
-		ast_format_copy(ast_channel_readformat(snoop->chan), &snoop->spy_format);
-		ast_format_copy(ast_channel_rawreadformat(snoop->chan), &snoop->spy_format);
-
-		if (spy != STASIS_SNOOP_DIRECTION_NONE) {
-			if (snoop_setup_audiohook(chan, AST_AUDIOHOOK_TYPE_SPY, spy, &snoop->spy_direction, &snoop->spy)) {
-				ast_hangup(snoop->chan);
-				return NULL;
-			}
-
-			snoop->spy_samples = rate / (1000 / SNOOP_INTERVAL);
-			snoop->spy_active = 1;
+	if (spy != STASIS_SNOOP_DIRECTION_NONE) {
+		if (snoop_setup_audiohook(chan, AST_AUDIOHOOK_TYPE_SPY, spy, &snoop->spy_direction, &snoop->spy)) {
+			ast_hangup(snoop->chan);
+			return NULL;
 		}
 
-		/* If whispering is enabled set up the audiohook */
-		if (whisper != STASIS_SNOOP_DIRECTION_NONE) {
-			if (snoop_setup_audiohook(chan, AST_AUDIOHOOK_TYPE_WHISPER, whisper, &snoop->whisper_direction, &snoop->whisper)) {
-				ast_hangup(snoop->chan);
-				return NULL;
-			}
+		snoop->spy_samples = ast_format_rate(&snoop->spy_format) / (1000 / SNOOP_INTERVAL);
+		snoop->spy_active = 1;
+	}
 
-			snoop->whisper_active = 1;
+	/* If whispering is enabled set up the audiohook */
+	if (whisper != STASIS_SNOOP_DIRECTION_NONE) {
+		if (snoop_setup_audiohook(chan, AST_AUDIOHOOK_TYPE_WHISPER, whisper, &snoop->whisper_direction, &snoop->whisper)) {
+			ast_hangup(snoop->chan);
+			return NULL;
 		}
+
+		snoop->whisper_active = 1;
 	}
 
 	/* Create the thread which services the Snoop channel */

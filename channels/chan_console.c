@@ -445,6 +445,8 @@ static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext,
 
 	ast_channel_stage_snapshot_done(chan);
 
+	ast_channel_unlock(chan);
+
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(chan)) {
 			ast_channel_hangupcause_set(chan, AST_CAUSE_SWITCH_CONGESTION);

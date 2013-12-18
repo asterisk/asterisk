@@ -10365,6 +10365,8 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 			snprintf(failed_reason, sizeof(failed_reason), "%d", ast_dial_reason(outgoing->dial, 0));
 			pbx_builtin_setvar_helper(failed, "REASON", failed_reason);
 
+			ast_channel_unlock(failed);
+
 			if (ast_pbx_run(failed)) {
 				ast_log(LOG_ERROR, "Unable to run PBX on '%s'\n", ast_channel_name(failed));
 				ast_hangup(failed);

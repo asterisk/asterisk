@@ -853,6 +853,8 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 
 	ast_channel_stage_snapshot_done(chan);
 
+	ast_channel_unlock(chan);
+
 	return chan;
 }
 

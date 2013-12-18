@@ -395,7 +395,6 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 	ast_mutex_lock(&i->lock);
 
 	if (ch) {
-		ast_channel_lock(ch);
 		ast_channel_tech_set(ch, &ooh323_tech);
 
 		if (cap)
