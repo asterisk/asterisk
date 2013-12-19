@@ -893,6 +893,10 @@ chan_dahdi
    specified to be created, or the keyword 'new' can be used to add channels
    not yet created.
 
+ * The script specified by the chan_dahdi.conf mwimonitornotify option now gets
+   the exact configured mailbox name.  For app_voicemail mailboxes this is
+   mailbox@context.
+
  * Added mwi_vm_boxes that also must be configured for ISDN MWI to be enabled.
 
 chan_iax2
