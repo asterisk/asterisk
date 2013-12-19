@@ -1179,7 +1179,7 @@ static int session_outbound_auth(pjsip_dialog *dlg, pjsip_tx_data *tdata, void *
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
 
 	if (inv->state < PJSIP_INV_STATE_CONFIRMED && tdata->msg->line.req.method.id == PJSIP_INVITE_METHOD) {
-		pjsip_inv_uac_restart(inv, PJ_TRUE);
+		pjsip_inv_uac_restart(inv, PJ_FALSE);
 	}
 	ast_sip_session_send_request(session, tdata);
 	return 0;
