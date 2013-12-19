@@ -44,15 +44,6 @@ enum ast_t38_ec_modes {
 extern "C" {
 #endif
 
-struct ast_udptl_protocol {
-	/*! \brief Get UDPTL struct, or NULL if unwilling to transfer */
-	struct ast_udptl *(*get_udptl_info)(struct ast_channel *chan);
-	/*! \brief Set UDPTL peer */
-	int (* const set_udptl_peer)(struct ast_channel *chan, struct ast_udptl *peer);
-	const char * const type;
-	AST_RWLIST_ENTRY(ast_udptl_protocol) list;
-};
-
 struct ast_udptl;
 
 typedef int (*ast_udptl_callback)(struct ast_udptl *udptl, struct ast_frame *f, void *data);
@@ -132,13 +123,6 @@ unsigned int ast_udptl_get_far_max_datagram(const struct ast_udptl *udptl);
 unsigned int ast_udptl_get_far_max_ifp(struct ast_udptl *udptl);
 
 void ast_udptl_setnat(struct ast_udptl *udptl, int nat);
-
-int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
-		     struct ast_frame **fo, struct ast_channel **rc);
-
-int ast_udptl_proto_register(struct ast_udptl_protocol *proto);
-
-void ast_udptl_proto_unregister(struct ast_udptl_protocol *proto);
 
 void ast_udptl_stop(struct ast_udptl *udptl);
 

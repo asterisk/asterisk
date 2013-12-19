@@ -92,9 +92,6 @@ static int ooh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance
 static void ooh323_get_codec(struct ast_channel *chan, struct ast_format_cap *result);
 void setup_rtp_remote(ooCallData *call, const char *remoteIp, int remotePort);
 
-static struct ast_udptl *ooh323_get_udptl_peer(struct ast_channel *chan);
-static int ooh323_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl);
-
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
 
 struct ooh323_peer *find_friend(const char *name, int port);
@@ -129,13 +126,6 @@ static struct ast_rtp_glue ooh323_rtp = {
 	.update_peer = ooh323_set_rtp_peer,
 	.get_codec = ooh323_get_codec,
 };
-
-static struct ast_udptl_protocol ooh323_udptl = {
-	.type = "H323",
-	.get_udptl_info = ooh323_get_udptl_peer,
-	.set_udptl_peer = ooh323_set_udptl_peer,
-};
-
 
 
 struct ooh323_user;
@@ -3796,7 +3786,6 @@ static int load_module(void)
 			return 0;
 		}
 		ast_rtp_glue_register(&ooh323_rtp);
-		ast_udptl_proto_register(&ooh323_udptl);
 		ast_cli_register_multiple(cli_ooh323, sizeof(cli_ooh323) / sizeof(struct ast_cli_entry));
 
 		 /* fire up the H.323 Endpoint */		 
@@ -4233,7 +4222,6 @@ static int unload_module(void)
 	/* First, take us out of the channel loop */
 	ast_cli_unregister_multiple(cli_ooh323, sizeof(cli_ooh323) / sizeof(struct ast_cli_entry));
 	ast_rtp_glue_unregister(&ooh323_rtp);
-	ast_udptl_proto_unregister(&ooh323_udptl);
 	ast_channel_unregister(&ooh323_tech);
 #if 0
 	ast_unregister_atexit(&ast_ooh323c_exit);
@@ -4784,41 +4772,6 @@ void close_rtp_connection(ooCallData *call)
 /*
  udptl handling functions
  */
-
-static struct ast_udptl *ooh323_get_udptl_peer(struct ast_channel *chan)
-{
-	struct ooh323_pvt *p;
-	struct ast_udptl *udptl = NULL;
-
-	p = ast_channel_tech_pvt(chan);
-	if (!p)
-		return NULL;
-
-	ast_mutex_lock(&p->lock);
-	if (p->udptl)
-		udptl = p->udptl;
-	ast_mutex_unlock(&p->lock);
-	return udptl;
-}
-
-static int ooh323_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
-{
-	struct ooh323_pvt *p;
-
-	p = ast_channel_tech_pvt(chan);
-	if (!p)
-		return -1;
-	ast_mutex_lock(&p->lock);
-
-	if (udptl) {
-		ast_udptl_get_peer(udptl, &p->udptlredirip);
-	} else
-		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
-
-	ast_mutex_unlock(&p->lock);
-	/* free(callToken); */
-	return 0;
-}
 
 void setup_udptl_connection(ooCallData *call, const char *remoteIp, 
 								  int remotePort)
