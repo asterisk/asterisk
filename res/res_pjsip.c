@@ -1870,6 +1870,11 @@ int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*si
 {
 	/* This method is an onion */
 	struct sync_task_data std;
+
+	if (ast_sip_thread_is_servant()) {
+		return sip_task(task_data);
+	}
+
 	ast_mutex_init(&std.lock);
 	ast_cond_init(&std.cond, NULL);
 	std.fail = std.complete = 0;

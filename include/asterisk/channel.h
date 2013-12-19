@@ -2014,26 +2014,6 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 int ast_channel_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 
 /*!
- * \brief Weird function made for call transfers
- *
- * \param original channel to make a copy of
- * \param clone copy of the original channel
- *
- * \details
- * This is a very strange and freaky function used primarily for transfer.  Suppose that
- * "original" and "clone" are two channels in random situations.  This function takes
- * the guts out of "clone" and puts them into the "original" channel, then alerts the
- * channel driver of the change, asking it to fixup any private information (like the
- * p->owner pointer) that is affected by the change.  The physical layer of the original
- * channel is hung up.
- *
- * \note Neither channel passed here should be locked before
- * calling this function.  This function performs deadlock
- * avoidance involving these two channels.
- */
-int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone);
-
-/*!
  * \brief Gives the string form of a given cause code.
  *
  * \param state cause to get the description of
@@ -2305,18 +2285,6 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
  * \param dest destination extension for transfer
  */
 int ast_transfer(struct ast_channel *chan, char *dest);
-
-/*!
- * \brief Start masquerading a channel
- * \note absolutely _NO_ channel locks should be held before calling this function.
- * \details
- * XXX This is a seriously whacked out operation.  We're essentially putting the guts of
- *     the clone channel into the original channel.  Start by killing off the original
- *     channel's backend.   I'm not sure we're going to keep this function, because
- *     while the features are nice, the cost is very high in terms of pure nastiness. XXX
- * \param chan Channel to masquerade
- */
-void ast_do_masquerade(struct ast_channel *chan);
 
 /*!
  * \brief Inherits channel variable from parent to child channel
