@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/strings.h"
 #include "asterisk/network.h"
+#include "asterisk/event.h"
 #include "asterisk/security_events.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/stasis.h"
@@ -622,9 +623,10 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 		str = *((const char **)(((const char *) sec) + ie_type->offset));
 
 		if (req && !str) {
-			ast_log(LOG_WARNING, "Required IE '%d' for security event "
-					"type '%d' not present\n", ie_type->ie_type,
-					sec->event_type);
+			ast_log(LOG_WARNING, "Required IE '%d' (%s) for security event "
+					"type '%d' (%s) not present\n", ie_type->ie_type,
+					ast_event_get_ie_type_name(ie_type->ie_type),
+					sec->event_type, ast_security_event_get_name(sec->event_type));
 			res = -1;
 			break;
 		}
@@ -667,9 +669,10 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 		addr = (const struct ast_security_event_ip_addr *)(((const char *) sec) + ie_type->offset);
 
 		if (req && !addr->addr) {
-			ast_log(LOG_WARNING, "Required IE '%d' for security event "
-					"type '%d' not present\n", ie_type->ie_type,
-					sec->event_type);
+			ast_log(LOG_WARNING, "Required IE '%d' (%s) for security event "
+					"type '%d' (%s) not present\n", ie_type->ie_type,
+					ast_event_get_ie_type_name(ie_type->ie_type),
+					sec->event_type, ast_security_event_get_name(sec->event_type));
 			res = -1;
 		}
 
@@ -686,9 +689,10 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 		tval = *((const struct timeval **)(((const char *) sec) + ie_type->offset));
 
 		if (req && !tval) {
-			ast_log(LOG_WARNING, "Required IE '%d' for security event "
-					"type '%d' not present\n", ie_type->ie_type,
-					sec->event_type);
+			ast_log(LOG_WARNING, "Required IE '%d' (%s) for security event "
+					"type '%d' (%s) not present\n", ie_type->ie_type,
+					ast_event_get_ie_type_name(ie_type->ie_type),
+					sec->event_type, ast_security_event_get_name(sec->event_type));
 			res = -1;
 		}
 
@@ -708,8 +712,9 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 		/* Added automatically, nothing to do here. */
 		break;
 	default:
-		ast_log(LOG_WARNING, "Unhandled IE type '%d', this security event "
-				"will be missing data.\n", ie_type->ie_type);
+		ast_log(LOG_WARNING, "Unhandled IE type '%d' (%s), this security event "
+				"will be missing data.\n", ie_type->ie_type,
+				ast_event_get_ie_type_name(ie_type->ie_type));
 		break;
 	}
 
