@@ -2,12 +2,20 @@
 ; Voicemail Configuration
 ;
 
+; ********* NOTICE ************************************************************
 ;
 ; NOTE: Asterisk has to edit this file to change a user's password.  This does
 ; not currently work with the "#include <file>" directive for Asterisk
 ; configuration files, nor when using realtime static configuration.
 ; Do not use them with this configuration file.
 ;
+; NOTE: Mailboxes defined by app_voicemail MUST be referenced by the rest
+; of the system as mailbox@context.  The rest of the system cannot add
+; @default to mailbox identifiers for app_voicemail that do not specify a
+; context any longer.  It is a mailbox identifier format that should only
+; be interpreted by app_voicemail.
+;
+; ********* NOTICE ************************************************************
 
 [general]
 ; Formats for writing Voicemail.  Note that when using IMAP storage for
@@ -410,6 +418,7 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 
 
 [default]
+; Note: The rest of the system must reference mailboxes defined here as mailbox@default.
 
 1234 => 4242,Example Mailbox,root@localhost
 ;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central|maxmsg=10

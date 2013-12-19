@@ -3129,9 +3129,9 @@ struct sig_ss7_callback sig_ss7_callbacks =
 /*!
  * \brief Send MWI state change
  *
- * \arg mailbox_full This is the mailbox associated with the FXO line that the
+ * \param mailbox This is the mailbox associated with the FXO line that the
  *      MWI state has changed on.
- * \arg thereornot This argument should simply be set to 1 or 0, to indicate
+ * \param thereornot This argument should simply be set to 1 or 0, to indicate
  *      whether there are messages waiting or not.
  *
  *  \return nothing
@@ -3144,20 +3144,16 @@ struct sig_ss7_callback sig_ss7_callbacks =
  * 2) It runs the script specified by the mwimonitornotify option to allow
  *    some custom handling of the state change.
  */
-static void notify_message(char *mailbox_full, int thereornot)
+static void notify_message(char *mailbox, int thereornot)
 {
 	char s[sizeof(mwimonitornotify) + 80];
-	char *mailbox, *context;
 
-	/* Strip off @default */
-	context = mailbox = ast_strdupa(mailbox_full);
-	strsep(&context, "@");
-	if (ast_strlen_zero(context))
-		context = "default";
+	if (ast_strlen_zero(mailbox)) {
+		return;
+	}
 
-	ast_publish_mwi_state(mailbox, context, thereornot, thereornot);
-
-	if (!ast_strlen_zero(mailbox) && !ast_strlen_zero(mwimonitornotify)) {
+	ast_publish_mwi_state(mailbox, NULL, thereornot, thereornot);
+	if (!ast_strlen_zero(mwimonitornotify)) {
 		snprintf(s, sizeof(s), "%s %s %d", mwimonitornotify, mailbox, thereornot);
 		ast_safe_system(s);
 	}
@@ -4835,19 +4831,9 @@ static int send_cwcidspill(struct dahdi_pvt *p)
 static int has_voicemail(struct dahdi_pvt *p)
 {
 	int new_msgs;
-	char *mailbox, *context;
 	RAII_VAR(struct stasis_message *, mwi_message, NULL, ao2_cleanup);
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
-	mailbox = context = ast_strdupa(p->mailbox);
-	strsep(&context, "@");
-	if (ast_strlen_zero(context)) {
-		context = "default";
-	}
-
-	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-	mwi_message = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
-
+	mwi_message = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), p->mailbox);
 	if (mwi_message) {
 		struct ast_mwi_state *mwi_state = stasis_message_data(mwi_message);
 		new_msgs = mwi_state->new_msgs;
@@ -12172,6 +12158,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 						ast_copy_string(pris[span].pri.mwi_mailboxes,
 							conf->pri.pri.mwi_mailboxes,
 							sizeof(pris[span].pri.mwi_mailboxes));
+						ast_copy_string(pris[span].pri.mwi_vm_boxes,
+							conf->pri.pri.mwi_vm_boxes,
+							sizeof(pris[span].pri.mwi_vm_boxes));
 						ast_copy_string(pris[span].pri.mwi_vm_numbers,
 							conf->pri.pri.mwi_vm_numbers,
 							sizeof(pris[span].pri.mwi_vm_numbers));
@@ -12434,18 +12423,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->cid_subaddr[0] = '\0';
 		ast_copy_string(tmp->mailbox, conf->chan.mailbox, sizeof(tmp->mailbox));
 		if (channel != CHAN_PSEUDO && !ast_strlen_zero(tmp->mailbox)) {
-			char *mailbox, *context;
-			struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 			struct stasis_topic *mailbox_specific_topic;
 
-			mailbox = context = ast_strdupa(tmp->mailbox);
-			strsep(&context, "@");
-			if (ast_strlen_zero(context))
-				context = "default";
-
-			ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-
-			mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
+			mailbox_specific_topic = ast_mwi_topic(tmp->mailbox);
 			if (mailbox_specific_topic) {
 				tmp->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
 			}
@@ -16997,7 +16977,16 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			ast_copy_string(confp->chan.description, v->value, sizeof(confp->chan.description));
 		} else if (!strcasecmp(v->name, "hasvoicemail")) {
 			if (ast_true(v->value) && ast_strlen_zero(confp->chan.mailbox)) {
-				ast_copy_string(confp->chan.mailbox, cat, sizeof(confp->chan.mailbox));
+				/*
+				 * hasvoicemail is a users.conf legacy voicemail enable method.
+				 * hasvoicemail is only going to work for app_voicemail mailboxes.
+				 */
+				if (strchr(cat, '@')) {
+					ast_copy_string(confp->chan.mailbox, cat, sizeof(confp->chan.mailbox));
+				} else {
+					snprintf(confp->chan.mailbox, sizeof(confp->chan.mailbox),
+						"%s@default", cat);
+				}
 			}
 		} else if (!strcasecmp(v->name, "adsi")) {
 			confp->chan.adsi = ast_true(v->value);
@@ -17685,6 +17674,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "mwi_mailboxes")) {
 				ast_copy_string(confp->pri.pri.mwi_mailboxes, v->value,
 					sizeof(confp->pri.pri.mwi_mailboxes));
+			} else if (!strcasecmp(v->name, "mwi_vm_boxes")) {
+				ast_copy_string(confp->pri.pri.mwi_vm_boxes, v->value,
+					sizeof(confp->pri.pri.mwi_vm_boxes));
 			} else if (!strcasecmp(v->name, "mwi_vm_numbers")) {
 				ast_copy_string(confp->pri.pri.mwi_vm_numbers, v->value,
 					sizeof(confp->pri.pri.mwi_vm_numbers));

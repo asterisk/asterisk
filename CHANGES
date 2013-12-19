@@ -403,6 +403,12 @@ UserEvent
 
 VoiceMail
 ------------------
+ * Mailboxes defined by app_voicemail MUST be referenced by the rest of the
+   system as mailbox@context.  The rest of the system cannot add @default
+   to mailbox identifiers for app_voicemail that do not specify a context
+   any longer.  It is a mailbox identifier format that should only be
+   interpreted by app_voicemail.
+
  * The voicemail.conf configuration file now has an 'alias' configuration
    parameter for use with the Directory application. The voicemail realtime
    database table schema has also been updated with an 'alias' column.
@@ -887,6 +893,8 @@ chan_dahdi
    specified to be created, or the keyword 'new' can be used to add channels
    not yet created.
 
+ * Added mwi_vm_boxes that also must be configured for ISDN MWI to be enabled.
+
 chan_iax2
 ------------------
  * IPv6 support has been added.  We are now able to bind to and
@@ -1032,6 +1040,14 @@ SPEECH_ENGINE
 ------------------
  * The SPEECH_ENGINE function now supports read operations. When read from, it
    will return the current value of the requested attribute.
+
+VMCOUNT:
+------------------
+ * Mailboxes defined by app_voicemail MUST be referenced by the rest of the
+   system as mailbox@context.  The rest of the system cannot add @default
+   to mailbox identifiers for app_voicemail that do not specify a context
+   any longer.  It is a mailbox identifier format that should only be
+   interpreted by app_voicemail.
 
 
 Resources

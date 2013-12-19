@@ -623,6 +623,7 @@ description=Demo System At Digium    ; Description of this peer, as listed by
 ;[dynamichost]
 ;host=dynamic
 ;secret=mysecret
+; Note: app_voicemail mailboxes must be in the form of mailbox@context.
 ;mailbox=1234		; Notify about mailbox 1234
 ;inkeys=key1:key2
 ;peercontext=local	; Default context to request for calls to peer

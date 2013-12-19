@@ -388,7 +388,7 @@ struct sig_pri_chan {
 /*! Typical maximum length of mwi mailbox context */
 #define SIG_PRI_MAX_MWI_CONTEXT_LEN			10
 /*!
- * \brief Maximum mwi_vm_numbers string length.
+ * \brief Maximum mwi_vm_numbers and mwi_vm_boxes string length.
  * \details
  * max_length = #mailboxes * (vm_number + ',')
  * The last ',' is a null terminator instead.
@@ -396,13 +396,20 @@ struct sig_pri_chan {
 #define SIG_PRI_MAX_MWI_VM_NUMBER_STR	(SIG_PRI_MAX_MWI_MAILBOXES \
 	* (SIG_PRI_MAX_MWI_VM_NUMBER_LEN + 1))
 /*!
+ * \brief Maximum length of vm_mailbox string.
+ * \details
+ * max_length = vm_box + '@' + context.
+ */
+#define SIG_PRI_MAX_MWI_VM_MAILBOX		(SIG_PRI_MAX_MWI_MBOX_NUMBER_LEN \
+	+ 1 + SIG_PRI_MAX_MWI_CONTEXT_LEN)
+/*!
  * \brief Maximum mwi_mailboxs string length.
  * \details
- * max_length = #mailboxes * (mbox_number + '@' + context + ',')
+ * max_length = #mailboxes * (vm_mailbox + ',')
  * The last ',' is a null terminator instead.
  */
 #define SIG_PRI_MAX_MWI_MAILBOX_STR		(SIG_PRI_MAX_MWI_MAILBOXES	\
-	* (SIG_PRI_MAX_MWI_MBOX_NUMBER_LEN + 1 + SIG_PRI_MAX_MWI_CONTEXT_LEN + 1))
+	* (SIG_PRI_MAX_MWI_VM_MAILBOX + 1))
 
 struct sig_pri_mbox {
 	/*!
@@ -410,11 +417,11 @@ struct sig_pri_mbox {
 	 * \note NULL if mailbox not configured.
 	 */
 	struct stasis_subscription *sub;
-	/*! \brief Mailbox number */
-	const char *number;
-	/*! \brief Mailbox context. */
-	const char *context;
-	/*! \brief Voicemail controlling number. */
+	/*! \brief Mailbox uniqueid. */
+	const char *uniqueid;
+	/*! \brief Mailbox number sent to span. */
+	const char *vm_box;
+	/*! \brief Voicemail access controlling number sent to span. */
 	const char *vm_number;
 };
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -506,10 +513,17 @@ struct sig_pri_span {
 	/*!
 	 * \brief Comma separated list of mailboxes to indicate MWI.
 	 * \note Empty if disabled.
-	 * \note Format: mailbox_number[@context]{,mailbox_number[@context]}
+	 * \note Format: vm_mailbox{,vm_mailbox}
 	 * \note String is split apart when span is started.
 	 */
 	char mwi_mailboxes[SIG_PRI_MAX_MWI_MAILBOX_STR];
+	/*!
+	 * \brief Comma separated list of mailbox numbers sent over ISDN span for MWI.
+	 * \note Empty if disabled.
+	 * \note Format: vm_box{,vm_box}
+	 * \note String is split apart when span is started.
+	 */
+	char mwi_vm_boxes[SIG_PRI_MAX_MWI_VM_NUMBER_STR];
 	/*!
 	 * \brief Comma separated list of voicemail access controlling numbers for MWI.
 	 * \note Format: vm_number{,vm_number}

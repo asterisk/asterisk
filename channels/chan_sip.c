@@ -20362,10 +20362,8 @@ static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer 
 	struct sip_mailbox *mailbox;
 
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
-		ast_str_append(mailbox_str, 0, "%s%s%s%s",
-			mailbox->mailbox,
-			ast_strlen_zero(mailbox->context) ? "" : "@",
-			S_OR(mailbox->context, ""),
+		ast_str_append(mailbox_str, 0, "%s%s",
+			mailbox->id,
 			AST_LIST_NEXT(mailbox, entry) ? "," : "");
 	}
 }
@@ -27445,16 +27443,12 @@ static int handle_request_publish(struct sip_pvt *p, struct sip_request *req, st
 static void add_peer_mwi_subs(struct sip_peer *peer)
 {
 	struct sip_mailbox *mailbox;
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 		struct stasis_topic *mailbox_specific_topic;
 		mailbox->event_sub = stasis_unsubscribe(mailbox->event_sub);
 
-		ast_str_reset(uniqueid);
-		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
-
-		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(mailbox->id);
 		if (mailbox_specific_topic) {
 			ao2_ref(peer, +1);
 			mailbox->event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, peer);
@@ -28658,17 +28652,13 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 {
 	struct sip_mailbox *mailbox;
 	int in_cache;
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	in_cache = 0;
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 		struct ast_mwi_state *mwi_state;
 
-		ast_str_reset(uniqueid);
-		ast_str_set(&uniqueid, 0, "%s@%s", mailbox->mailbox, S_OR(mailbox->context, "default"));
-
-		msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
+		msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), mailbox->id);
 		if (!msg) {
 			continue;
 		}
@@ -30458,24 +30448,24 @@ static struct sip_peer *temp_peer(const char *name)
 /*! \todo document this function */
 static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 {
-	char *next, *mbox, *context;
+	char *next;
+	char *mbox;
 
 	next = ast_strdupa(value);
 
-	while ((mbox = context = strsep(&next, ","))) {
+	while ((mbox = strsep(&next, ","))) {
 		struct sip_mailbox *mailbox;
 		int duplicate = 0;
+
 		/* remove leading/trailing whitespace from mailbox string */
 		mbox = ast_strip(mbox);
-		strsep(&context, "@");
-
 		if (ast_strlen_zero(mbox)) {
 			continue;
 		}
 
 		/* Check whether the mailbox is already in the list */
 		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
-			if (!strcmp(mailbox->mailbox, mbox) && !strcmp(S_OR(mailbox->context, ""), S_OR(context, ""))) {
+			if (!strcmp(mailbox->id, mbox)) {
 				duplicate = 1;
 				break;
 			}
@@ -30484,15 +30474,11 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 			continue;
 		}
 
-		if (!(mailbox = ast_calloc(1, sizeof(*mailbox) + strlen(mbox) + strlen(S_OR(context, ""))))) {
+		mailbox = ast_calloc(1, sizeof(*mailbox) + strlen(mbox));
+		if (!mailbox) {
 			continue;
 		}
-
-		if (!ast_strlen_zero(context)) {
-			mailbox->context = mailbox->mailbox + strlen(mbox) + 1;
-			strcpy(mailbox->context, context); /* SAFE */
-		}
-		strcpy(mailbox->mailbox, mbox); /* SAFE */
+		strcpy(mailbox->id, mbox); /* SAFE */
 
 		AST_LIST_INSERT_TAIL(&peer->mailboxes, mailbox, entry);
 	}
@@ -30839,7 +30825,18 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				/* People expect that if 'hasvoicemail' is set, that the mailbox will
 				 * be also set, even if not explicitly specified. */
 				if (ast_true(v->value) && AST_LIST_EMPTY(&peer->mailboxes)) {
-					add_peer_mailboxes(peer, name);
+					/*
+					 * hasvoicemail is a users.conf legacy voicemail enable method.
+					 * hasvoicemail is only going to work for app_voicemail mailboxes.
+					 */
+					if (strchr(name, '@')) {
+						add_peer_mailboxes(peer, name);
+					} else {
+						char mailbox[AST_MAX_MAILBOX_UNIQUEID];
+
+						snprintf(mailbox, sizeof(mailbox), "%s@default", name);
+						add_peer_mailboxes(peer, mailbox);
+					}
 				}
 			} else if (!strcasecmp(v->name, "subscribemwi")) {
 				ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_SUBSCRIBEMWIONLY);
@@ -34339,8 +34336,7 @@ static int peers_data_provider_get(const struct ast_data_search *search,
 			if (!data_peer_mailbox) {
 				continue;
 			}
-			ast_data_add_str(data_peer_mailbox, "mailbox", mailbox->mailbox);
-			ast_data_add_str(data_peer_mailbox, "context", mailbox->context);
+			ast_data_add_str(data_peer_mailbox, "id", mailbox->id);
 		}
 
 		/* amaflags */

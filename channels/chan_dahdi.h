@@ -38,6 +38,7 @@
 
 #include "asterisk/channel.h"
 #include "asterisk/dsp.h"
+#include "asterisk/app.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -621,7 +622,7 @@ struct dahdi_pvt {
 	 * \brief Voice mailbox location.
 	 * \note Set from the "mailbox" string read in from chan_dahdi.conf
 	 */
-	char mailbox[AST_MAX_EXTENSION];
+	char mailbox[AST_MAX_MAILBOX_UNIQUEID];
 	/*! \brief Opaque event subscription parameters for message waiting indication support. */
 	struct stasis_subscription *mwi_event_sub;
 	/*! \brief Delayed dialing for E911.  Overlap digits for ISDN. */

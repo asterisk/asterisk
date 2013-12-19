@@ -587,11 +587,11 @@ int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *c
 	return res;
 }
 
-int ast_app_messagecount(const char *context, const char *mailbox, const char *folder)
+int ast_app_messagecount(const char *mailbox_id, const char *folder)
 {
 	int res = 0;
 
-	VM_API_CALL(res, messagecount, (context, mailbox, folder));
+	VM_API_CALL(res, messagecount, (mailbox_id, folder));
 	return res;
 }
 
@@ -2800,10 +2800,8 @@ struct stasis_topic *ast_mwi_topic(const char *uniqueid)
 struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context)
 {
 	RAII_VAR(struct ast_mwi_state *, mwi_state, NULL, ao2_cleanup);
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	ast_assert(!ast_strlen_zero(mailbox));
-	ast_assert(!ast_strlen_zero(context));
 
 	mwi_state = ao2_alloc(sizeof(*mwi_state), mwi_state_dtor);
 	if (!mwi_state) {
@@ -2813,10 +2811,11 @@ struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context)
 	if (ast_string_field_init(mwi_state, 256)) {
 		return NULL;
 	}
-	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-	ast_string_field_set(mwi_state, uniqueid, ast_str_buffer(uniqueid));
-	ast_string_field_set(mwi_state, mailbox, mailbox);
-	ast_string_field_set(mwi_state, context, context);
+	if (!ast_strlen_zero(context)) {
+		ast_string_field_build(mwi_state, uniqueid, "%s@%s", mailbox, context);
+	} else {
+		ast_string_field_set(mwi_state, uniqueid, mailbox);
+	}
 
 	ao2_ref(mwi_state, +1);
 	return mwi_state;

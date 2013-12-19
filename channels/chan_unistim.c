@@ -5504,27 +5504,17 @@ static int unistim_sendtext(struct ast_channel *ast, const char *text)
 static int unistim_send_mwi_to_peer(struct unistim_line *peer, unsigned int tick)
 {
 	int new;
-	char *mailbox, *context;
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
-	context = mailbox = ast_strdupa(peer->mailbox);
-	strsep(&context, "@");
-	if (ast_strlen_zero(context)) {
-		context = "default";
-	}
-
-	ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-
-	msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
-
+	msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), peer->mailbox);
 	if (msg) {
 		struct ast_mwi_state *mwi_state = stasis_message_data(msg);
 		new = mwi_state->new_msgs;
 	} else { /* Fall back on checking the mailbox directly */
-		new = ast_app_has_voicemail(peer->mailbox, "INBOX");
+		new = ast_app_has_voicemail(peer->mailbox, NULL);
 	}
-	ast_debug(3, "MWI Status for mailbox %s is %d, lastmsgsent:%d\n",mailbox,new,peer->parent->lastmsgssent);
+	ast_debug(3, "MWI Status for mailbox %s is %d, lastmsgsent:%d\n",
+		peer->mailbox, new, peer->parent->lastmsgssent);
 	peer->parent->nextmsgcheck = tick + TIMER_MWI;
 
 	/* Return now if it's the same thing we told them last time */

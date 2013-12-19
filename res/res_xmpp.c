@@ -1245,21 +1245,20 @@ static void xmpp_pubsub_create_leaf(struct ast_xmpp_client *client, const char *
 /*!
  * \brief Publish MWI to a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
- * \param mailbox The Mailbox
- * \param context The Context
+ * \param mailbox The mailbox identifier
  * \param oldmsgs Old messages
  * \param newmsgs New Messages
  * \return void
  */
 static void xmpp_pubsub_publish_mwi(struct ast_xmpp_client *client, const char *mailbox,
-				    const char *context, const char *oldmsgs, const char *newmsgs)
+	const char *oldmsgs, const char *newmsgs)
 {
-	char full_mailbox[AST_MAX_EXTENSION+AST_MAX_CONTEXT], eid_str[20];
+	char eid_str[20];
 	iks *mailbox_node, *request;
 
-	snprintf(full_mailbox, sizeof(full_mailbox), "%s@%s", mailbox, context);
-
-	if (!(request = xmpp_pubsub_build_publish_skeleton(client, full_mailbox, "message_waiting", AST_DEVSTATE_CACHABLE))) {
+	request = xmpp_pubsub_build_publish_skeleton(client, mailbox, "message_waiting",
+		AST_DEVSTATE_CACHABLE);
+	if (!request) {
 		return;
 	}
 
@@ -1321,7 +1320,6 @@ static void xmpp_pubsub_publish_device_state(struct ast_xmpp_client *client, con
 static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct ast_xmpp_client *client = data;
-	const char *mailbox, *context;
 	char oldmsgs[10], newmsgs[10];
 	struct ast_mwi_state *mwi_state;
 
@@ -1336,13 +1334,9 @@ static void xmpp_pubsub_mwi_cb(void *data, struct stasis_subscription *sub, stru
 		return;
 	}
 
-	mailbox = mwi_state->mailbox;
-	context = mwi_state->context;
-	snprintf(oldmsgs, sizeof(oldmsgs), "%d",
-		 mwi_state->old_msgs);
-	snprintf(newmsgs, sizeof(newmsgs), "%d",
-		 mwi_state->new_msgs);
-	xmpp_pubsub_publish_mwi(client, mailbox, context, oldmsgs, newmsgs);
+	snprintf(oldmsgs, sizeof(oldmsgs), "%d", mwi_state->old_msgs);
+	snprintf(newmsgs, sizeof(newmsgs), "%d", mwi_state->new_msgs);
+	xmpp_pubsub_publish_mwi(client, mwi_state->uniqueid, oldmsgs, newmsgs);
 }
 
 /*!

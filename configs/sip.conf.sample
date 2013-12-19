@@ -803,7 +803,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;mwi => 1234:password:authuser@myauthprovider.com/1234
 ;mwi => 1234:password:authuser@myauthportprovider.com:6969/1234
 ;
-; MWI received will be stored in the 1234 mailbox of the SIP_Remote context. It can be used by other phones by following the below:
+; MWI received will be stored in the 1234 mailbox of the SIP_Remote context.
+; It can be used by other phones by following the below:
 ; mailbox=1234@SIP_Remote
 ;----------------------------------------- NAT SUPPORT ------------------------
 ;
@@ -1231,6 +1232,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; videosupport
 ; maxcallbitrate
 ; rfc2833compensate
+; Note: app_voicemail mailboxes must be in the form of mailbox@context.
 ; mailbox
 ; session-timers
 ; session-expires
@@ -1450,7 +1452,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;host=dynamic                    ; This peer register with us
 ;dtmfmode=inband                 ; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59          ; IP used until peer registers
-;mailbox=1234@context,2345       ; Mailbox(-es) for message waiting indicator
+;mailbox=1234@context,2345@context ; Mailbox(-es) for message waiting indicator
 ;subscribemwi=yes                ; Only send notifications if this phone
                                  ; subscribes for mailbox notification
 ;vmexten=voicemail               ; dialplan extension to reach mailbox

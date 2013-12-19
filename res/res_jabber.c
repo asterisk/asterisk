@@ -370,7 +370,7 @@ static int aji_delete_node_list(void *data, ikspak* pak);
 static void aji_pubsub_purge_nodes(struct aji_client *client,
 	const char* collection_name);
 static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
-	const char *context, const char *oldmsgs, const char *newmsgs);
+	const char *oldmsgs, const char *newmsgs);
 static void aji_devstate_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg);
 static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg);
 static iks* aji_build_publish_skeleton(struct aji_client *client, const char *node,
@@ -3237,8 +3237,6 @@ int ast_aji_disconnect(struct aji_client *client)
  */
 static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasis_message *msg)
 {
-	const char *mailbox;
-	const char *context;
 	char oldmsgs[10];
 	char newmsgs[10];
 	struct aji_client *client = data;
@@ -3255,13 +3253,9 @@ static void aji_mwi_cb(void *data, struct stasis_subscription *sub, struct stasi
 		return;
 	}
 
-	mailbox = mwi_state->mailbox;
-	context = mwi_state->context;
-	snprintf(oldmsgs, sizeof(oldmsgs), "%d",
-		mwi_state->old_msgs);
-	snprintf(newmsgs, sizeof(newmsgs), "%d",
-		mwi_state->new_msgs);
-	aji_publish_mwi(client, mailbox, context, oldmsgs, newmsgs);
+	snprintf(oldmsgs, sizeof(oldmsgs), "%d", mwi_state->old_msgs);
+	snprintf(newmsgs, sizeof(newmsgs), "%d", mwi_state->new_msgs);
+	aji_publish_mwi(client, mwi_state->uniqueid, oldmsgs, newmsgs);
 }
 /*!
  * \brief Callback function for device state events
@@ -3514,20 +3508,18 @@ static void aji_publish_device_state(struct aji_client *client, const char *devi
 /*!
  * \brief Publish MWI to a PubSub node
  * \param client the configured XMPP client we use to connect to a XMPP server
- * \param mailbox The mailbox
- * \param context The context
+ * \param mailbox The mailbox identifier
  * \param oldmsgs Old messages
  * \param newmsgs New messages
  * \return void
  */
 static void aji_publish_mwi(struct aji_client *client, const char *mailbox,
-	const char *context, const char *oldmsgs, const char *newmsgs)
+	const char *oldmsgs, const char *newmsgs)
 {
-	char full_mailbox[AST_MAX_EXTENSION+AST_MAX_CONTEXT];
 	char eid_str[20];
 	iks *mailbox_node, *request;
-	snprintf(full_mailbox, sizeof(full_mailbox), "%s@%s", mailbox, context);
-	request = aji_build_publish_skeleton(client, full_mailbox, "message_waiting", 1);
+
+	request = aji_build_publish_skeleton(client, mailbox, "message_waiting", 1);
 	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
 	mailbox_node = iks_insert(request, "mailbox");
 	iks_insert_attrib(mailbox_node, "xmlns", "http://asterisk.org");

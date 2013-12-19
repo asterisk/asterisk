@@ -181,6 +181,12 @@ SetAMAFlags
  - This application is deprecated in favor of CHANNEL(amaflags).
 
 VoiceMail:
+ - Mailboxes defined by app_voicemail MUST be referenced by the rest of the
+   system as mailbox@context.  The rest of the system cannot add @default
+   to mailbox identifiers for app_voicemail that do not specify a context
+   any longer.  It is a mailbox identifier format that should only be
+   interpreted by app_voicemail.
+
  - The voicemail.conf configuration file now has an 'alias' configuration
    parameter for use with the Directory application. The voicemail realtime
    database table schema has also been updated with an 'alias' column. Systems
@@ -207,6 +213,12 @@ chan_dahdi:
  - The CLI command 'dahdi destroy channel' is now 'dahdi destroy channels'.
    A range of channels can be specified to be destroyed. Note that this command
    should only be used if you understand the risks it entails.
+
+ - The script specified by the chan_dahdi.conf mwimonitornotify option now gets
+   the exact configured mailbox name.  For app_voicemail mailboxes this is
+   mailbox@context.
+
+ - Added mwi_vm_boxes that also must be configured for ISDN MWI to be enabled.
 
 chan_local:
  - The /b option has been removed.
@@ -441,6 +453,13 @@ CDR: (function)
 
  - The 's' option has been removed, as LOCKED semantics no longer exist in the
    CDR engine.
+
+VMCOUNT:
+ - Mailboxes defined by app_voicemail MUST be referenced by the rest of the
+   system as mailbox@context.  The rest of the system cannot add @default
+   to mailbox identifiers for app_voicemail that do not specify a context
+   any longer.  It is a mailbox identifier format that should only be
+   interpreted by app_voicemail.
 
 res_rtp_asterisk:
  - ICE/STUN/TURN support in res_rtp_asterisk has been made optional. To enable

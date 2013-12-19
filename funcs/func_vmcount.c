@@ -49,27 +49,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Count the voicemails in a specified mailbox.
 		</synopsis>
 		<syntax>
-			<parameter name="vmbox" required="true" argsep="@">
-				<argument name="vmbox" required="true" />
-				<argument name="context" required="false">
-					<para>If not specified, defaults to <literal>default</literal>.</para>
-				</argument>
-			</parameter>
+			<parameter name="vmbox" required="true" />
 			<parameter name="folder" required="false">
 				<para>If not specified, defaults to <literal>INBOX</literal></para>
 			</parameter>
 		</syntax>
 		<description>
 			<para>Count the number of voicemails in a specified mailbox, you could also specify 
-			the <replaceable>context</replaceable> and the mailbox <replaceable>folder</replaceable>.</para>
-			<para>Example: <literal>exten => s,1,Set(foo=${VMCOUNT(125)})</literal></para>
+			the mailbox <replaceable>folder</replaceable>.</para>
+			<para>Example: <literal>exten => s,1,Set(foo=${VMCOUNT(125@default)})</literal></para>
 		</description>
 	</function>
  ***/
 
 static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *argsstr, char *buf, size_t len)
 {
-	char *context;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmbox);
 		AST_APP_ARG(folder);
@@ -82,18 +76,15 @@ static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *arg
 
 	AST_STANDARD_APP_ARGS(args, argsstr);
 
-	if (strchr(args.vmbox, '@')) {
-		context = args.vmbox;
-		args.vmbox = strsep(&context, "@");
-	} else {
-		context = "default";
+	if (ast_strlen_zero(args.vmbox)) {
+		return -1;
 	}
 
 	if (ast_strlen_zero(args.folder)) {
 		args.folder = "INBOX";
 	}
 
-	snprintf(buf, len, "%d", ast_app_messagecount(context, args.vmbox, args.folder));
+	snprintf(buf, len, "%d", ast_app_messagecount(args.vmbox, args.folder));
 	
 	return 0;
 }
