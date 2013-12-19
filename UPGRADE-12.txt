@@ -101,9 +101,18 @@ AgentMonitorOutgoing
  - This application has been removed. It was a holdover from when
    AgentCallbackLogin was removed.
 
+Answer
+ - It is no longer possible to bypass updating the CDR when answering a
+   channel. CDRs are based on the channel state and will be updated when
+   the channel is Answered.
+
 ControlPlayback
  - The channel variable CPLAYBACKSTATUS may now return the value
    'REMOTESTOPPED' when playback is stopped by an external entity.
+
+DISA
+ - This application now has a dependency on the app_cdr module. It uses this
+   module to hide the CDR created prior to execution of the DISA application.
 
 DumpChan:
  - The output of DumpChan no longer includes the DirectBridge or IndirectBridge

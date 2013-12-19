@@ -191,6 +191,12 @@ AlarmReceiver
  * Added configuration option no_group_meta. If enabled, grouping of metadata
    information in the AlarmReceiver log file will be skipped.
 
+Answer
+------------------
+ * It is now no longer possible to bypass updating the CDR on the channel
+   when answering. CDRs reflect the state of the channel and will always
+   reflect the time they were Answered.
+
 BridgeWait
 ------------------
  * A new application in Asterisk, this will place the calling channel

@@ -27,6 +27,7 @@
  */
 
 /*** MODULEINFO
+	<use type="module">app_cdr</use>
 	<support_level>core</support_level>
  ***/
 
@@ -362,7 +363,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 
 	if (k == 3) {
 		int recheck = 0;
-		struct ast_flags cdr_flags = { AST_CDR_FLAG_DISABLE, };
+		struct ast_app *app_reset_cdr;
 
 		if (!ast_exists_extension(chan, args.context, exten, 1,
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
@@ -387,10 +388,12 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 				ast_channel_unlock(chan);
 			}
 
-			if (special_noanswer) {
-				ast_clear_flag(&cdr_flags, AST_CDR_FLAG_DISABLE);
+			app_reset_cdr = pbx_findapp("ResetCDR");
+			if (app_reset_cdr) {
+				pbx_exec(chan, app_reset_cdr, special_noanswer ? "" : "e");
+			} else {
+				ast_log(AST_LOG_NOTICE, "ResetCDR application not found; CDR will not be reset\n");
 			}
-			ast_cdr_reset(ast_channel_name(chan), &cdr_flags);
 			ast_explicit_goto(chan, args.context, exten, 1);
 			return 0;
 		}

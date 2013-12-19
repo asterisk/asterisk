@@ -104,10 +104,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Asterisk will wait this number of milliseconds before returning to
 				the dialplan after answering the call.</para>
 			</parameter>
-			<parameter name="nocdr">
-				<para>Asterisk will send an answer signal to the calling phone, but will not
-				set the disposition or answer time in the CDR for this call.</para>
-			</parameter>
 		</syntax>
 		<description>
 			<para>If the call has not been answered, this application will
@@ -10727,9 +10723,7 @@ static int pbx_builtin_answer(struct ast_channel *chan, const char *data)
 	}
 
 	if (!ast_strlen_zero(args.answer_cdr) && !strcasecmp(args.answer_cdr, "nocdr")) {
-		if (ast_cdr_set_property(ast_channel_name(chan), AST_CDR_FLAG_DISABLE_ALL)) {
-			ast_log(AST_LOG_WARNING, "Failed to disable CDR on %s\n", ast_channel_name(chan));
-		}
+		ast_log(AST_LOG_WARNING, "The nocdr option for the Answer application has been removed and is no longer supported.\n");
 	}
 
 	return __ast_answer(chan, delay);
