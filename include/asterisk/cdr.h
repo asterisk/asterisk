@@ -431,17 +431,13 @@ int ast_cdr_clear_property(const char *channel_name, enum ast_cdr_options option
 /*!
  * \brief Reset the detail record
  * \param channel_name The channel that the CDR is associated with
- * \param options Options that control what the reset operation does.
- *
- * Valid options are:
- * \ref AST_CDR_FLAG_KEEP_VARS - keep the variables during the reset
- * \ref AST_CDR_FLAG_DISABLE_ALL - when used with \ref ast_cdr_reset, re-enables
- * the CDR
+ * \param keep_variables Keep the variables during the reset. If zero,
+ *        variables are discarded during the reset.
  *
  * \retval 0 on success
  * \retval -1 on failure
  */
-int ast_cdr_reset(const char *channel_name, struct ast_flags *options);
+int ast_cdr_reset(const char *channel_name, int keep_variables);
 
 /*!
  * \brief Serializes all the data and variables for a current CDR record

@@ -3269,7 +3269,7 @@ int ast_cdr_clear_property(const char *channel_name, enum ast_cdr_options option
 	return 0;
 }
 
-int ast_cdr_reset(const char *channel_name, struct ast_flags *options)
+int ast_cdr_reset(const char *channel_name, int keep_variables)
 {
 	RAII_VAR(struct cdr_object *, cdr, cdr_object_get_by_name(channel_name), ao2_cleanup);
 	struct ast_var_t *vardata;
@@ -3282,7 +3282,7 @@ int ast_cdr_reset(const char *channel_name, struct ast_flags *options)
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		/* clear variables */
-		if (!ast_test_flag(options, AST_CDR_FLAG_KEEP_VARS)) {
+		if (!keep_variables) {
 			while ((vardata = AST_LIST_REMOVE_HEAD(&it_cdr->party_a.variables, entries))) {
 				ast_var_delete(vardata);
 			}
