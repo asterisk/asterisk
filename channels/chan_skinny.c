@@ -1651,6 +1651,8 @@ static void activatesub(struct skinny_subchannel *sub, int state);
 static void dialandactivatesub(struct skinny_subchannel *sub, char exten[AST_MAX_EXTENSION]);
 static int skinny_nokeepalive_cb(const void *data);
 
+static void transmit_definetimedate(struct skinny_device *d);
+
 static struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
 	.description = tdesc,
@@ -2252,6 +2254,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	struct sockaddr_in sin;
 	socklen_t slen;
 	int instance;
+	int res = -1;
 
 	if (s->auth_timeout_sched && ast_sched_del(sched, s->auth_timeout_sched)) {
 		return 0;
@@ -2262,10 +2265,16 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	AST_LIST_TRAVERSE(&devices, d, list){
 		struct ast_sockaddr addr;
 		ast_sockaddr_from_sin(&addr, &s->sin);
-		if (!d->session && !strcasecmp(req->data.reg.name, d->id)
+		if (!strcasecmp(req->data.reg.name, d->id)
 				&& ast_apply_ha(d->ha, &addr)) {
 			RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
+			if (d->session) {
+				ast_log(LOG_WARNING, "Device already registered.\n");
+				transmit_definetimedate(d);
+				res = 0;
+				break;
+			}
 			s->device = d;
 			d->type = letohl(req->data.reg.type);
 			d->protocolversion = letohl(req->data.reg.protocolVersion);
@@ -2311,14 +2320,12 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 			ast_endpoint_set_state(d->endpoint, AST_ENDPOINT_ONLINE);
 			blob = ast_json_pack("{s: s}", "peer_status", "Registered");
 			ast_endpoint_blob_publish(d->endpoint, ast_endpoint_state_type(), blob);
+			res = 1;
 			break;
 		}
 	}
 	AST_LIST_UNLOCK(&devices);
-	if (!d) {
-		return 0;
-	}
-	return 1;
+	return res;
 }
 
 static void end_session(struct skinnysession *s)
@@ -7276,15 +7283,21 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 	case REGISTER_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received REGISTER_MESSAGE from %s, name %s, type %d, protovers %d\n",
 			d->name, req->data.reg.name, letohl(req->data.reg.type), letohl(req->data.reg.protocolVersion));
-		if (skinny_register(req, s)) {
-			ast_atomic_fetchadd_int(&unauth_sessions, -1);
-			ast_verb(3, "Device '%s' successfully registered (protoVers %d)\n", s->device->name, s->device->protocolversion);
-			transmit_registerack(s->device);
-			transmit_capabilitiesreq(s->device);
-		} else {
+		res = skinny_register(req, s);
+		if (!res) {
+			sleep(2);
+			res = skinny_register(req, s);
+		}
+		if (res != 1) {
 			transmit_registerrej(s);
 			return -1;
 		}
+		ast_atomic_fetchadd_int(&unauth_sessions, -1);
+		ast_verb(3, "Device '%s' successfully registered (protoVers %d)\n", s->device->name, s->device->protocolversion);
+		transmit_registerack(s->device);
+		transmit_capabilitiesreq(s->device);
+		res = 0;
+		break;
 	case IP_PORT_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received IP_PORT_MESSAGE from %s\n", d->name);
 		res = handle_ip_port_message(req, s);
@@ -7564,7 +7577,7 @@ static void *skinny_session(void *data)
 				if (res >= dlen) {
 					break;
 				}
-				ast_log(LOG_WARNING, "Partial data received, waiting\n");
+				ast_log(LOG_WARNING, "Partial data received, waiting (%d bytes read of %d)\n", res, dlen);
 				if (sched_yield() < 0) {
 					ast_log(LOG_WARNING, "Data yield() returned error: %s\n", strerror(errno));
 					break;
