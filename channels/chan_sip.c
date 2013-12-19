@@ -1535,8 +1535,6 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 
 /*------ T38 Support --------- */
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
-static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan);
-static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl);
 static void change_t38_state(struct sip_pvt *p, int state);
 
 /*------ Session-Timers functions --------- */
@@ -3570,13 +3568,6 @@ static struct sip_registry *registry_addref(struct sip_registry *reg, char *tag)
 	ast_debug(3, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount + 1);
 	return ASTOBJ_REF(reg);	/* Add pointer to registry in packet */
 }
-
-/*! \brief Interface structure with callbacks used to connect to UDPTL module*/
-static struct ast_udptl_protocol sip_udptl = {
-	.type = "SIP",
-	.get_udptl_info = sip_get_udptl_peer,
-	.set_udptl_peer = sip_set_udptl_peer,
-};
 
 static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 	__attribute__((format(printf, 2, 3)));
@@ -32457,67 +32448,6 @@ static int reload_config(enum channelreloadreason reason)
 	return 0;
 }
 
-static struct ast_udptl *sip_get_udptl_peer(struct ast_channel *chan)
-{
-	struct sip_pvt *p;
-	struct ast_udptl *udptl = NULL;
-
-	p = ast_channel_tech_pvt(chan);
-	if (!p) {
-		return NULL;
-	}
-
-	sip_pvt_lock(p);
-	if (p->udptl && ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
-		udptl = p->udptl;
-	}
-	sip_pvt_unlock(p);
-	return udptl;
-}
-
-static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
-{
-	struct sip_pvt *p;
-
-	/* Lock the channel and the private safely. */
-	ast_channel_lock(chan);
-	p = ast_channel_tech_pvt(chan);
-	if (!p) {
-		ast_channel_unlock(chan);
-		return -1;
-	}
-	sip_pvt_lock(p);
-	if (p->owner != chan) {
-		/* I suppose it could be argued that if this happens it is a bug. */
-		ast_debug(1, "The private is not owned by channel %s anymore.\n", ast_channel_name(chan));
-		sip_pvt_unlock(p);
-		ast_channel_unlock(chan);
-		return 0;
-	}
-
-	if (udptl) {
-		ast_udptl_get_peer(udptl, &p->udptlredirip);
-	} else {
-		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
-	}
-	if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
-		if (!p->pendinginvite) {
-			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s\n",
-					p->callid, ast_sockaddr_stringify(udptl ? &p->udptlredirip : &p->ourip));
-			transmit_reinvite_with_sdp(p, TRUE, FALSE);
-		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s\n",
-					p->callid, ast_sockaddr_stringify(udptl ? &p->udptlredirip : &p->ourip));
-			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
-		}
-	}
-	/* Reset lastrtprx timer */
-	p->lastrtprx = p->lastrtptx = time(NULL);
-	sip_pvt_unlock(p);
-	ast_channel_unlock(chan);
-	return 0;
-}
-
 static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_rtp_instance *instance, const char *rtptype)
 {
 	struct sip_pvt *p;
@@ -34511,9 +34441,6 @@ static int load_module(void)
 	/* Register all CLI functions for SIP */
 	ast_cli_register_multiple(cli_sip, ARRAY_LEN(cli_sip));
 
-	/* Tell the UDPTL subdriver that we're here */
-	ast_udptl_proto_register(&sip_udptl);
-
 	/* Tell the RTP engine about our RTP glue */
 	ast_rtp_glue_register(&sip_rtp_glue);
 
@@ -34643,9 +34570,6 @@ static int unload_module(void)
 
 	/* Unregister CLI commands */
 	ast_cli_unregister_multiple(cli_sip, ARRAY_LEN(cli_sip));
-
-	/* Disconnect from UDPTL */
-	ast_udptl_proto_unregister(&sip_udptl);
 
 	/* Disconnect from RTP engine */
 	ast_rtp_glue_unregister(&sip_rtp_glue);
