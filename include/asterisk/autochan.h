@@ -98,8 +98,9 @@ void ast_autochan_destroy(struct ast_autochan *autochan);
  * \details
  * Traverses the list of autochans. All autochans which point to
  * old_chan will be updated to point to new_chan instead. Currently
- * this is only called from ast_do_masquerade in channel.c.
- * 
+ * this is only called during an ast_channel_move() operation in
+ * channel.c.
+ *
  * \pre Both channels must be locked before calling this function.
  *
  * \param old_chan The channel that autochans may currently point to
