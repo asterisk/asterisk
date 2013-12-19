@@ -10355,6 +10355,8 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 	ast_format_copy(ast_channel_readformat(yanked_chan), &my_vars.readformat);
 	ast_format_copy(ast_channel_writeformat(yanked_chan), &my_vars.writeformat);
 
+	ast_channel_unlock(yanked_chan);
+
 	if (ast_channel_move(yanked_chan, yankee)) {
 		ast_hangup(yanked_chan);
 		return NULL;
