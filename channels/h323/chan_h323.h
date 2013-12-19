@@ -31,6 +31,7 @@
 
 #include <arpa/inet.h>
 #include "asterisk/format.h"
+#include "asterisk/app.h"
 
 /*
  * Enable support for sending/reception of tunnelled Q.SIG messages and
@@ -94,7 +95,7 @@ struct oh323_user {
    All peers are registered to a GK if there is one */
 struct oh323_peer {
 	ASTOBJ_COMPONENTS(struct oh323_peer);
-	char mailbox[80];
+	char mailbox[AST_MAX_MAILBOX_UNIQUEID];
 	int delme;
 	struct sockaddr_in addr;
 	struct ast_ha *ha;

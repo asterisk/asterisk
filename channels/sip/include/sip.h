@@ -1232,7 +1232,7 @@ struct sip_pkt {
 /*!
  * \brief A peer's mailbox
  *
- * We could use STRINGFIELDS here, but for only two strings, it seems like
+ * We could use STRINGFIELDS here, but for only one string, its
  * too much effort ...
  */
 struct sip_mailbox {
@@ -1240,8 +1240,7 @@ struct sip_mailbox {
 	struct stasis_subscription *event_sub;
 	AST_LIST_ENTRY(sip_mailbox) entry;
 	unsigned int delme:1;
-	char *context;
-	char mailbox[2];
+	char id[1];
 };
 
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host)

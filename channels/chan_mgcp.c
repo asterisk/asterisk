@@ -202,7 +202,7 @@ static int directmedia = DIRECTMEDIA;
 
 static char accountcode[AST_MAX_ACCOUNT_CODE] = "";
 
-static char mailbox[AST_MAX_EXTENSION];
+static char mailbox[AST_MAX_MAILBOX_UNIQUEID];
 
 static int amaflags = 0;
 
@@ -499,19 +499,8 @@ static int has_voicemail(struct mgcp_endpoint *p)
 {
 	int new_msgs;
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
-	char *mbox, *cntx;
 
-	cntx = mbox = ast_strdupa(p->mailbox);
-	strsep(&cntx, "@");
-	if (ast_strlen_zero(cntx)) {
-		cntx = "default";
-	}
-
-	ast_str_set(&uniqueid, 0, "%s@%s", mbox, cntx);
-
-	msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
-
+	msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), p->mailbox);
 	if (msg) {
 		struct ast_mwi_state *mwi_state = stasis_message_data(msg);
 		new_msgs = mwi_state->new_msgs;
@@ -3994,7 +3983,6 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	struct mgcp_endpoint *e;
 	struct mgcp_subchannel *sub;
 	struct ast_variable *chanvars = NULL;
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
 	/*char txident[80];*/
 	int i=0, y=0;
@@ -4138,7 +4126,15 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 			ast_copy_string(mailbox, v->value, sizeof(mailbox));
 		} else if (!strcasecmp(v->name, "hasvoicemail")) {
 			if (ast_true(v->value) && ast_strlen_zero(mailbox)) {
-				ast_copy_string(mailbox, gw->name, sizeof(mailbox));
+				/*
+				 * hasvoicemail is a users.conf legacy voicemail enable method.
+				 * hasvoicemail is only going to work for app_voicemail mailboxes.
+				 */
+				if (strchr(gw->name, '@')) {
+					ast_copy_string(mailbox, gw->name, sizeof(mailbox));
+				} else {
+					snprintf(mailbox, sizeof(mailbox), "%s@default", gw->name);
+				}
 			}
 		} else if (!strcasecmp(v->name, "adsi")) {
 			adsi = ast_true(v->value);
@@ -4190,18 +4186,9 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
 				ast_copy_string(e->parkinglot, parkinglot, sizeof(e->parkinglot));
 				if (!ast_strlen_zero(e->mailbox)) {
-					char *mbox, *cntx;
 					struct stasis_topic *mailbox_specific_topic;
 
-					cntx = mbox = ast_strdupa(e->mailbox);
-					strsep(&cntx, "@");
-					if (ast_strlen_zero(cntx)) {
-						cntx = "default";
-					}
-					ast_str_reset(uniqueid);
-					ast_str_set(&uniqueid, 0, "%s@%s", mbox, cntx);
-
-					mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
+					mailbox_specific_topic = ast_mwi_topic(e->mailbox);
 					if (mailbox_specific_topic) {
 						e->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
 					}

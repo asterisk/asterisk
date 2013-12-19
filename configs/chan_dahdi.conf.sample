@@ -617,8 +617,11 @@ usecallerid=yes
 ;
 ; This option is used in conjunction with mwimonitor.  This will get executed
 ; when incoming MWI state changes.  The script is passed 2 arguments.  The
-; first is the corresponding mailbox, and the second is 1 or 0, indicating if
-; there are messages waiting or not.
+; first is the corresponding configured mailbox, and the second is 1 or 0,
+; indicating if there are messages waiting or not.
+; Note: app_voicemail mailboxes are in the form of mailbox@context.
+;
+; /usr/local/bin/dahdinotify.sh 501@mailboxes 1
 ;
 ;mwimonitornotify=/usr/local/bin/dahdinotify.sh
 ;
@@ -654,11 +657,24 @@ callwaiting=yes
 ; Configure the ISDN span to indicate MWI for the list of mailboxes.
 ; You can give a comma separated list of up to 8 mailboxes per span.
 ; An empty list disables MWI.
-; The default is an empty list.
-;mwi_mailboxes=mailbox_number[@context]{,mailbox_number[@context]}
 ;
-; Configure the ISDN span voicemail numbers for MWI mailboxes.  What number
-; to call for a user to retrieve voicemail messages.
+; The default is an empty list.
+;mwi_mailboxes=vm-mailbox{,vm-mailbox}
+;  vm-mailbox = Internal voicemail mailbox identifier.
+;  Note: app_voicemail mailboxes must be in the form of mailbox@context.
+;mwi_mailboxes=501@mailboxes,502@mailboxes
+
+; Configure the ISDN mailbox number sent over the span for MWI mailboxes.
+; The position of the number in the list corresponds to the position in
+; mwi_mailboxes.  If either position in mwi_mailboxes or mwi_vm_boxes is
+; empty then that position is disabled.
+;
+; The default is an empty list.
+;mwi_vm_boxes=mailbox_number{,mailbox_number}
+;mwi_vm_boxes=501,502
+
+; Configure the ISDN span voicemail controlling numbers for MWI mailboxes.
+; What number to call for a user to retrieve voicemail messages.
 ;
 ; You can give a comma separated list of numbers.  The position of the number
 ; corresponds to the position in mwi_mailboxes.  If a position is empty then
@@ -667,7 +683,7 @@ callwaiting=yes
 ; For example:
 ;  mwi_vm_numbers=700,,800,,900
 ; is equivalent to:
-;  mwi_vm_numbers=700,700,800,800,900
+;  mwi_vm_numbers=700,700,800,800,900,900,900,900
 ;
 ; The default is no number.
 ;mwi_vm_numbers=
@@ -737,19 +753,11 @@ cancallforward=yes
 ;
 callreturn=yes
 ;
-; Stutter dialtone support: If a mailbox is specified without a voicemail
-; context, then when voicemail is received in a mailbox in the default
-; voicemail context in voicemail.conf, taking the phone off hook will cause a
-; stutter dialtone instead of a normal one.
+; Stutter dialtone support: If voicemail is received in the mailbox then
+; taking the phone off hook will cause a stutter dialtone instead of a
+; normal one.
 ;
-; If a mailbox is specified *with* a voicemail context, the same will result
-; if voicemail received in mailbox in the specified voicemail context.
-;
-; for default voicemail context, the example below is fine:
-;
-;mailbox=1234
-;
-; for any other voicemail context, the following will produce the stutter tone:
+; Note: app_voicemail mailboxes must be in the form of mailbox@context.
 ;
 ;mailbox=1234@context
 ;

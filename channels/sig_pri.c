@@ -8847,25 +8847,25 @@ void sig_pri_dial_complete(struct sig_pri_chan *pvt, struct ast_channel *ast)
  *
  * \param pri PRI span control structure.
  * \param vm_number Voicemail controlling number (NULL if not present).
- * \param mbox_number Mailbox number
- * \param mbox_context Mailbox context
+ * \param vm_box Voicemail mailbox number
+ * \param mbox_id Mailbox id
  * \param num_messages Number of messages waiting.
  *
  * \return Nothing
  */
-static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm_number, const char *mbox_number, const char *mbox_context, int num_messages)
+static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm_number, const char *vm_box, const char *mbox_id, int num_messages)
 {
 	struct pri_party_id voicemail;
 	struct pri_party_id mailbox;
 
-	ast_debug(1, "Send MWI indication for %s@%s vm_number:%s num_messages:%d\n",
-		mbox_number, mbox_context, S_OR(vm_number, "<not-present>"), num_messages);
+	ast_debug(1, "Send MWI indication for %s(%s) vm_number:%s num_messages:%d\n",
+		vm_box, mbox_id, S_OR(vm_number, "<not-present>"), num_messages);
 
 	memset(&mailbox, 0, sizeof(mailbox));
 	mailbox.number.valid = 1;
 	mailbox.number.presentation = PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 	mailbox.number.plan = (PRI_TON_UNKNOWN << 4) | PRI_NPI_UNKNOWN;
-	ast_copy_string(mailbox.number.str, mbox_number, sizeof(mailbox.number.str));
+	ast_copy_string(mailbox.number.str, vm_box, sizeof(mailbox.number.str));
 
 	memset(&voicemail, 0, sizeof(voicemail));
 	voicemail.number.valid = 1;
@@ -8902,9 +8902,6 @@ static void sig_pri_send_mwi_indication(struct sig_pri_span *pri, const char *vm
 static void sig_pri_mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
 {
 	struct sig_pri_span *pri = userdata;
-	const char *mbox_context;
-	const char *mbox_number;
-	int num_messages;
 	int idx;
 	struct ast_mwi_state *mwi_state;
 
@@ -8914,26 +8911,16 @@ static void sig_pri_mwi_event_cb(void *userdata, struct stasis_subscription *sub
 
 	mwi_state = stasis_message_data(msg);
 
-	mbox_number = mwi_state->mailbox;
-	if (ast_strlen_zero(mbox_number)) {
-		return;
-	}
-	mbox_context = mwi_state->context;
-	if (ast_strlen_zero(mbox_context)) {
-		return;
-	}
-	num_messages = mwi_state->new_msgs;
-
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
 		if (!pri->mbox[idx].sub) {
 			/* Mailbox slot is empty */
 			continue;
 		}
-		if (!strcmp(pri->mbox[idx].number, mbox_number)
-			&& !strcmp(pri->mbox[idx].context, mbox_context)) {
+
+		if (!strcmp(pri->mbox[idx].uniqueid, mwi_state->uniqueid)) {
 			/* Found the mailbox. */
-			sig_pri_send_mwi_indication(pri, pri->mbox[idx].vm_number, mbox_number,
-				mbox_context, num_messages);
+			sig_pri_send_mwi_indication(pri, pri->mbox[idx].vm_number,
+				pri->mbox[idx].vm_box, pri->mbox[idx].uniqueid, mwi_state->new_msgs);
 			break;
 		}
 	}
@@ -8953,7 +8940,6 @@ static void sig_pri_mwi_event_cb(void *userdata, struct stasis_subscription *sub
 static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 {
 	int idx;
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 	struct ast_mwi_state *mwi_state;
 
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
@@ -8963,18 +8949,16 @@ static void sig_pri_mwi_cache_update(struct sig_pri_span *pri)
 			continue;
 		}
 
-		ast_str_reset(uniqueid);
-		ast_str_set(&uniqueid, 0, "%s@%s", pri->mbox[idx].number, pri->mbox[idx].context);
-
-		msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
+		msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(),
+			pri->mbox[idx].uniqueid);
 		if (!msg) {
 			/* No cached event for this mailbox. */
 			continue;
 		}
 
 		mwi_state = stasis_message_data(msg);
-		sig_pri_send_mwi_indication(pri, pri->mbox[idx].vm_number, pri->mbox[idx].number,
-			pri->mbox[idx].context, mwi_state->new_msgs);
+		sig_pri_send_mwi_indication(pri, pri->mbox[idx].vm_number, pri->mbox[idx].vm_box,
+			pri->mbox[idx].uniqueid, mwi_state->new_msgs);
 	}
 }
 #endif	/* defined(HAVE_PRI_MWI) */
@@ -9059,8 +9043,6 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 #if defined(HAVE_PRI_MWI)
 	char *saveptr;
 	char *prev_vm_number;
-	struct ast_str *mwi_description = ast_str_alloca(64);
-	struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 #endif	/* defined(HAVE_PRI_MWI) */
 
 #if defined(HAVE_PRI_MWI)
@@ -9100,58 +9082,61 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 	}
 
 	/*
+	 * Split the mwi_vm_boxes configuration string into the mbox[].vm_box:
+	 * vm_box{,vm_box}
+	 */
+	saveptr = pri->mwi_vm_boxes;
+	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
+		char *vm_box;
+
+		vm_box = strsep(&saveptr, ",");
+		if (vm_box) {
+			vm_box = ast_strip(vm_box);
+			if (ast_strlen_zero(vm_box)) {
+				vm_box = NULL;
+			}
+		}
+		pri->mbox[i].vm_box = vm_box;
+	}
+
+	/*
 	 * Split the mwi_mailboxes configuration string into the mbox[]:
-	 * mailbox_number[@context]{,mailbox_number[@context]}
+	 * vm_mailbox{,vm_mailbox}
 	 */
 	saveptr = pri->mwi_mailboxes;
 	for (i = 0; i < ARRAY_LEN(pri->mbox); ++i) {
-		char *mbox_number;
-		char *mbox_context;
+		char *mbox_id;
 		struct stasis_topic *mailbox_specific_topic;
 
-		mbox_number = strsep(&saveptr, ",");
-		if (!mbox_number) {
-			/* No more defined mailboxes. */
-			break;
+		mbox_id = strsep(&saveptr, ",");
+		if (mbox_id) {
+			mbox_id = ast_strip(mbox_id);
+			if (ast_strlen_zero(mbox_id)) {
+				mbox_id = NULL;
+			}
 		}
-		/* Split the mailbox_number and context */
-		mbox_context = strchr(mbox_number, '@');
-		if (mbox_context) {
-			*mbox_context++ = '\0';
-			mbox_context = ast_strip(mbox_context);
-		}
-		mbox_number = ast_strip(mbox_number);
-		if (ast_strlen_zero(mbox_number)) {
-			/* There is no mailbox number.  Skip it. */
+		pri->mbox[i].uniqueid = mbox_id;
+		if (!pri->mbox[i].vm_box || !mbox_id) {
+			/* The mailbox position is disabled. */
+			ast_debug(1, "%s span %d MWI position %d disabled.  vm_box:%s mbox_id:%s.\n",
+				sig_pri_cc_type_name, pri->span, i,
+				pri->mbox[i].vm_box ?: "<missing>",
+				mbox_id ?: "<missing>");
 			continue;
 		}
-		if (ast_strlen_zero(mbox_context)) {
-			/* There was no context so use the default. */
-			mbox_context = "default";
-		}
 
-		/* Fill the mbox[] element. */
-		pri->mbox[i].number = mbox_number;
-		pri->mbox[i].context = mbox_context;
-
-		ast_str_reset(uniqueid);
-		ast_str_set(&uniqueid, 0, "%s@%s", mbox_number, mbox_context);
-
-		ast_str_set(&mwi_description, -1, "%s span %d[%d] MWI mailbox %s@%s",
-			sig_pri_cc_type_name, pri->span, i, mbox_number, mbox_context);
-
-		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(mbox_id);
 		if (mailbox_specific_topic) {
 			pri->mbox[i].sub = stasis_subscribe(mailbox_specific_topic, sig_pri_mwi_event_cb, pri);
 		}
 		if (!pri->mbox[i].sub) {
-			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s@%s.",
-				sig_pri_cc_type_name, pri->span, mbox_number, mbox_context);
+			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s(%s).\n",
+				sig_pri_cc_type_name, pri->span, pri->mbox[i].vm_box, mbox_id);
 		}
 #if defined(HAVE_PRI_MWI_V2)
 		if (ast_strlen_zero(pri->mbox[i].vm_number)) {
-			ast_log(LOG_WARNING, "%s span %d MWI voicemail number for %s@%s is empty.\n",
-				sig_pri_cc_type_name, pri->span, mbox_number, mbox_context);
+			ast_log(LOG_WARNING, "%s span %d MWI voicemail number for %s(%s) is empty.\n",
+				sig_pri_cc_type_name, pri->span, pri->mbox[i].vm_box, mbox_id);
 		}
 #endif	/* defined(HAVE_PRI_MWI_V2) */
 	}

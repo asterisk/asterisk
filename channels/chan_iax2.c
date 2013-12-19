@@ -8927,19 +8927,9 @@ static int update_registry(struct ast_sockaddr *addr, int callno, char *devtype,
 		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &peer_addr);
 		if (!ast_strlen_zero(p->mailbox)) {
 			int new, old;
-			char *mailbox, *context;
 			RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-			struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 
-			context = mailbox = ast_strdupa(p->mailbox);
-			strsep(&context, "@");
-			if (ast_strlen_zero(context)) {
-				context = "default";
-			}
-
-			ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-			msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), ast_str_buffer(uniqueid));
-
+			msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), p->mailbox);
 			if (msg) {
 				struct ast_mwi_state *mwi_state = stasis_message_data(msg);
 				new = mwi_state->new_msgs;
@@ -12553,7 +12543,15 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				ast_string_field_set(peer, mailbox, v->value);
 			} else if (!strcasecmp(v->name, "hasvoicemail")) {
 				if (ast_true(v->value) && ast_strlen_zero(peer->mailbox)) {
-					ast_string_field_set(peer, mailbox, name);
+					/*
+					 * hasvoicemail is a users.conf legacy voicemail enable method.
+					 * hasvoicemail is only going to work for app_voicemail mailboxes.
+					 */
+					if (strchr(name, '@')) {
+						ast_string_field_set(peer, mailbox, name);
+					} else {
+						ast_string_field_build(peer, mailbox, "%s@default", name);
+					}
 				}
 			} else if (!strcasecmp(v->name, "mohinterpret")) {
 				ast_string_field_set(peer, mohinterpret, v->value);
@@ -12762,19 +12760,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 	}
 
 	if (!ast_strlen_zero(peer->mailbox)) {
-		char *mailbox, *context;
-		struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 		struct stasis_topic *mailbox_specific_topic;
 
-		context = mailbox = ast_strdupa(peer->mailbox);
-		strsep(&context, "@");
-		if (ast_strlen_zero(context)) {
-			context = "default";
-		}
-
-		ast_str_set(&uniqueid, 0, "%s@%s", mailbox, context);
-
-		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(peer->mailbox);
 		if (mailbox_specific_topic) {
 			peer->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
 		}

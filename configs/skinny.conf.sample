@@ -108,6 +108,7 @@ keepalive=120
 ;[100]
 ;nat=yes
 ;callerid="Customer Support" <810-234-1212>
+; Note: app_voicemail mailboxes must be in the form of mailbox@context.
 ;mailbox=100
 ;vmexten=8500			; Device level voicemailmain pilot number
 ;regexten=100

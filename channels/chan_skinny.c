@@ -1429,7 +1429,7 @@ struct skinny_subchannel {
 	char call_forward_all[AST_MAX_EXTENSION];	\
 	char call_forward_busy[AST_MAX_EXTENSION];	\
 	char call_forward_noanswer[AST_MAX_EXTENSION];	\
-	char mailbox[AST_MAX_EXTENSION];		\
+	char mailbox[AST_MAX_MAILBOX_UNIQUEID];		\
 	char vmexten[AST_MAX_EXTENSION];		\
 	char regexten[AST_MAX_EXTENSION];		\
 	char regcontext[AST_MAX_CONTEXT];		\
@@ -8017,7 +8017,16 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 		} else if (!strcasecmp(v->name, "hasvoicemail")) {
 			if (type & (TYPE_LINE)) {
 				if (ast_true(v->value) && ast_strlen_zero(CLINE->mailbox)) {
-					ast_copy_string(CLINE->mailbox, CLINE->name, sizeof(CLINE->mailbox));
+					/*
+					 * hasvoicemail is a users.conf legacy voicemail enable method.
+					 * hasvoicemail is only going to work for app_voicemail mailboxes.
+					 */
+					if (strchr(CLINE->name, '@')) {
+						ast_copy_string(CLINE->mailbox, CLINE->name, sizeof(CLINE->mailbox));
+					} else {
+						snprintf(CLINE->mailbox, sizeof(CLINE->mailbox), "%s@default",
+							CLINE->name);
+					}
 				}
 				continue;
 			}
@@ -8297,20 +8306,11 @@ static struct skinny_line *config_line(const char *lname, struct ast_variable *v
 	config_parse_variables(TYPE_LINE, l, v);
 
 	if (!ast_strlen_zero(l->mailbox)) {
-		char *cfg_mailbox, *cfg_context;
-		struct ast_str *uniqueid = ast_str_alloca(AST_MAX_MAILBOX_UNIQUEID);
 		struct stasis_topic *mailbox_specific_topic;
 
-		cfg_context = cfg_mailbox = ast_strdupa(l->mailbox);
-		ast_verb(3, "Setting mailbox '%s' on line %s\n", cfg_mailbox, l->name);
-		strsep(&cfg_context, "@");
-		if (ast_strlen_zero(cfg_context)) {
-			cfg_context = "default";
-		}
+		ast_verb(3, "Setting mailbox '%s' on line %s\n", l->mailbox, l->name);
 
-		ast_str_set(&uniqueid, 0, "%s@%s", cfg_mailbox, cfg_context);
-
-		mailbox_specific_topic = ast_mwi_topic(ast_str_buffer(uniqueid));
+		mailbox_specific_topic = ast_mwi_topic(l->mailbox);
 		if (mailbox_specific_topic) {
 			l->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, l);
 		}

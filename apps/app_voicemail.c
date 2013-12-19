@@ -1111,6 +1111,34 @@ static int vm_test_destroy_user(const char *context, const char *mailbox);
 static int vm_test_create_user(const char *context, const char *mailbox);
 #endif
 
+/*!
+ * \internal
+ * \brief Parse the given mailbox_id into mailbox and context.
+ * \since 12.0.0
+ *
+ * \param mailbox_id The mailbox@context string to separate.
+ * \param mailbox Where the mailbox part will start.
+ * \param context Where the context part will start.  ("default" if not present)
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int separate_mailbox(char *mailbox_id, char **mailbox, char **context)
+{
+	if (ast_strlen_zero(mailbox_id) || !mailbox || !context) {
+		return -1;
+	}
+	*context = mailbox_id;
+	*mailbox = strsep(context, "@");
+	if (ast_strlen_zero(*mailbox)) {
+		return -1;
+	}
+	if (ast_strlen_zero(*context)) {
+		*context = "default";
+	}
+	return 0;
+}
+
 struct ao2_container *inprocess_container;
 
 struct inprocess {
@@ -2502,15 +2530,22 @@ static int imap_check_limits(struct ast_channel *chan, struct vm_state *vms, str
 
 /*!
  * \brief Gets the number of messages that exist in a mailbox folder.
- * \param context
- * \param mailbox
+ * \param mailbox_id
  * \param folder
  * 
  * This method is used when IMAP backend is used.
  * \return The number of messages in this mailbox folder (zero or more).
  */
-static int messagecount(const char *context, const char *mailbox, const char *folder)
+static int messagecount(const char *mailbox_id, const char *folder)
 {
+	char *context;
+	char *mailbox;
+
+	if (ast_strlen_zero(mailbox_id)
+		|| separate_mailbox(ast_strdupa(mailbox_id), &mailbox, &context)) {
+		return 0;
+	}
+
 	if (ast_strlen_zero(folder) || !strcmp(folder, "INBOX")) {
 		return __messagecount(context, mailbox, "INBOX") + __messagecount(context, mailbox, "Urgent");
 	} else {
@@ -2533,8 +2568,11 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	STRING str;
 	int ret; /* for better error checking */
 	char *imap_flags = NIL;
-	int msgcount = (messagecount(vmu->context, vmu->mailbox, "INBOX") + messagecount(vmu->context, vmu->mailbox, "Old"));
+	int msgcount;
 	int box = NEW_FOLDER;
+
+	snprintf(mailbox, sizeof(mailbox), "%s@%s", vmu->mailbox, vmu->context);
+	msgcount = messagecount(mailbox, "INBOX") + messagecount(mailbox, "Old");
 
 	/* Back out early if this is a greeting and we don't want to store greetings in IMAP */
 	if (msgnum < 0) {
@@ -5612,16 +5650,17 @@ static int inboxcount2(const char *mailbox, int *urgentmsgs, int *newmsgs, int *
 
 /*!
  * \brief Gets the number of messages that exist in a mailbox folder.
- * \param context
- * \param mailbox
+ * \param mailbox_id
  * \param folder
  * 
  * This method is used when ODBC backend is used.
  * \return The number of messages in this mailbox folder (zero or more).
  */
-static int messagecount(const char *context, const char *mailbox, const char *folder)
+static int messagecount(const char *mailbox_id, const char *folder)
 {
 	struct odbc_obj *obj = NULL;
+	char *context;
+	char *mailbox;
 	int nummsgs = 0;
 	int res;
 	SQLHSTMT stmt = NULL;
@@ -5630,7 +5669,8 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	struct generic_prepare_struct gps = { .sql = sql, .argc = 0 };
 
 	/* If no mailbox, return immediately */
-	if (ast_strlen_zero(mailbox)) {
+	if (ast_strlen_zero(mailbox_id)
+		|| separate_mailbox(ast_strdupa(mailbox_id), &mailbox, &context)) {
 		return 0;
 	}
 
@@ -5681,16 +5721,16 @@ yuck:
  * This invokes the messagecount(). Here we are interested in the presence of messages (> 0) only, not the actual count.
  * \return 1 if the folder has one or more messages. zero otherwise.
  */
-static int has_voicemail(const char *mailbox, const char *folder)
+static int has_voicemail(const char *mailboxes, const char *folder)
 {
-	char tmp[256], *tmp2 = tmp, *box, *context;
-	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	while ((context = box = strsep(&tmp2, ",&"))) {
-		strsep(&context, "@");
-		if (ast_strlen_zero(context))
-			context = "default";
-		if (messagecount(context, box, folder))
+	char *parse;
+	char *mailbox;
+
+	parse = ast_strdupa(mailboxes);
+	while ((mailbox = strsep(&parse, ",&"))) {
+		if (messagecount(mailbox, folder)) {
 			return 1;
+		}
 	}
 	return 0;
 }
@@ -5778,8 +5818,16 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 #endif
 #if !(defined(IMAP_STORAGE) || defined(ODBC_STORAGE))
 
-static int messagecount(const char *context, const char *mailbox, const char *folder)
+static int messagecount(const char *mailbox_id, const char *folder)
 {
+	char *context;
+	char *mailbox;
+
+	if (ast_strlen_zero(mailbox_id)
+		|| separate_mailbox(ast_strdupa(mailbox_id), &mailbox, &context)) {
+		return 0;
+	}
+
 	return __has_voicemail(context, mailbox, folder, 0) + (folder && strcmp(folder, "INBOX") ? 0 : __has_voicemail(context, mailbox, "Urgent", 0));
 }
 
@@ -7742,13 +7790,11 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 
 static void queue_mwi_event(const char *channel_id, const char *box, int urgent, int new, int old)
 {
-	char *mailbox, *context;
+	char *mailbox;
+	char *context;
 
-	/* Strip off @default */
-	context = mailbox = ast_strdupa(box);
-	strsep(&context, "@");
-	if (ast_strlen_zero(context)) {
-		context = "default";
+	if (separate_mailbox(ast_strdupa(box), &mailbox, &context)) {
+		return;
 	}
 
 	ast_publish_mwi_state_channel(mailbox, context, new + urgent, old, channel_id);
@@ -11999,7 +12045,9 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 {
 	struct ast_vm_user svm;
 	struct ast_vm_user *vmu = NULL;
-	char *tmp, *mailbox, *context, *parse;
+	char *parse;
+	char *mailbox;
+	char *context;
 	int res = 0;
 
 	AST_DECLARE_APP_ARGS(arg,
@@ -12018,17 +12066,11 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 	parse = ast_strdupa(args);
 	AST_STANDARD_APP_ARGS(arg, parse);
 
-	if (ast_strlen_zero(arg.mailbox_context) || ast_strlen_zero(arg.attribute)) {
+	if (ast_strlen_zero(arg.mailbox_context)
+		|| ast_strlen_zero(arg.attribute)
+		|| separate_mailbox(ast_strdupa(arg.mailbox_context), &mailbox, &context)) {
 		ast_log(LOG_ERROR, "VM_INFO requires an argument (<mailbox>[@<context>],attribute[,folder])\n");
 		return -1;
-	}
-
-	tmp = ast_strdupa(arg.mailbox_context);
-	mailbox = strsep(&tmp, "@");
-	context = strsep(&tmp, "");
-
-	if (ast_strlen_zero(context)) {
-		 context = "default";
 	}
 
 	vmu = find_user(&svm, context, mailbox);
@@ -12054,8 +12096,13 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 		} else if (!strncasecmp(arg.attribute, "tz", 2)) {
 			ast_copy_string(buf, vmu->zonetag, len);
 		} else if (!strncasecmp(arg.attribute, "count", 5)) {
+			char *mailbox_id;
+
+			mailbox_id = ast_alloca(strlen(mailbox) + strlen(context) + 2);
+			sprintf(mailbox_id, "%s@%s", mailbox, context);/* Safe */
+
 			/* If mbxfolder is empty messagecount will default to INBOX */
-			res = messagecount(context, mailbox, arg.folder);
+			res = messagecount(mailbox_id, arg.folder);
 			if (res < 0) {
 				ast_log(LOG_ERROR, "Unable to retrieve message count for mailbox %s\n", arg.mailbox_context);
 				return -1;
@@ -12592,14 +12639,17 @@ static void mwi_unsub_event_cb(struct stasis_subscription_change *change)
 static void mwi_sub_event_cb(struct stasis_subscription_change *change)
 {
 	struct mwi_sub_task *mwist;
-	char *context = ast_strdupa(stasis_topic_name(change->topic));
+	char *context;
 	char *mailbox;
 
-	if ((mwist = ast_calloc(1, (sizeof(*mwist)))) == NULL) {
+	mwist = ast_calloc(1, (sizeof(*mwist)));
+	if (!mwist) {
 		return;
 	}
 
-	mailbox = strsep(&context, "@");
+	if (separate_mailbox(ast_strdupa(stasis_topic_name(change->topic)), &mailbox, &context)) {
+		return;
+	}
 
 	mwist->mailbox = ast_strdup(mailbox);
 	mwist->context = ast_strdup(context);
@@ -13668,26 +13718,20 @@ static int write_password_to_file(const char *secretfn, const char *password) {
 static int vmsayname_exec(struct ast_channel *chan, const char *data)
 {
 	char *context;
-	char *args_copy;
+	char *mailbox;
 	int res;
 
-	if (ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)
+		|| separate_mailbox(ast_strdupa(data), &mailbox, &context)) {
 		ast_log(LOG_WARNING, "VMSayName requires argument mailbox@context\n");
 		return -1;
 	}
 
-	args_copy = ast_strdupa(data);
-	if ((context = strchr(args_copy, '@'))) {
-		*context++ = '\0';
-	} else {
-		context = "default";
-	}
-
-	if ((res = sayname(chan, args_copy, context)) < 0) {
-		ast_debug(3, "Greeting not found for '%s@%s', falling back to mailbox number.\n", args_copy, context);
+	if ((res = sayname(chan, mailbox, context)) < 0) {
+		ast_debug(3, "Greeting not found for '%s@%s', falling back to mailbox number.\n", mailbox, context);
 		res = ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
 		if (!res) {
-			res = ast_say_character_str(chan, args_copy, AST_DIGIT_ANY, ast_channel_language(chan), AST_SAY_CASE_NONE);
+			res = ast_say_character_str(chan, mailbox, AST_DIGIT_ANY, ast_channel_language(chan), AST_SAY_CASE_NONE);
 		}
 	}
 
@@ -13925,9 +13969,9 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 
 		new = old = urgent = 0;
 		for (j = 0; j < 3; j++) {
-			if (ast_app_messagecount(testcontext, testmailbox, folders[j]) != expected_results[i][9 + j]) {
+			if (ast_app_messagecount(testspec, folders[j]) != expected_results[i][9 + j]) {
 				ast_test_status_update(test, "messagecount(%s, %s) returned %d and we expected %d\n",
-					testspec, folders[j], ast_app_messagecount(testcontext, testmailbox, folders[j]), expected_results[i][9 + j]);
+					testspec, folders[j], ast_app_messagecount(testspec, folders[j]), expected_results[i][9 + j]);
 				res = AST_TEST_FAIL;
 			}
 		}

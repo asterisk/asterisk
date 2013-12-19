@@ -382,16 +382,14 @@ typedef int (ast_inboxcount2_fn)(const char *mailboxes, int *urgentmsgs, int *ne
 /*!
  * \brief Gets the number of messages that exist in a mailbox folder.
  *
- * \param context The context part of user@context.  Uses 'default' if not provided.
- * \param user The user part of user@context.
+ * \param mailbox_id The mailbox name.
  * \param folder The folder to look in.  Default is INBOX if not provided.
  *
- * \note If requesting INBOX then the returned count is INBOX +
- * Urgent.
+ * \note If requesting INBOX then the returned count is INBOX + Urgent.
  *
- * \return The number of messages in this mailbox folder (zero or more).
+ * \return The number of messages in the mailbox folder (zero or more).
  */
-typedef int (ast_messagecount_fn)(const char *context, const char *user, const char *folder);
+typedef int (ast_messagecount_fn)(const char *mailbox_id, const char *folder);
 
 /*!
  * \brief Play a recorded user name for the mailbox.
@@ -569,7 +567,7 @@ struct ast_vm_functions {
 
 /*!
  * \brief Determine if a voicemail provider is registered.
- * \since 13.0.0
+ * \since 12.0.0
  *
  * \retval 0 if no privider registered.
  * \retval 1 if a privider is registered.
@@ -666,14 +664,16 @@ int ast_app_inboxcount2(const char *mailboxes, int *urgentmsgs, int *newmsgs, in
 int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context);
 
 /*!
- * \brief Check number of messages in a given context, mailbox, and folder
- * \since 1.4
- * \param[in] context Mailbox context
- * \param[in] mailbox Mailbox number
- * \param[in] folder Mailbox folder
- * \return Number of messages in the given context, mailbox, and folder.  If folder is NULL, folder "INBOX" is assumed.  If folder is "INBOX", includes number of messages in the "Urgent" folder.
+ * \brief Get the number of messages in a given mailbox folder
+ *
+ * \param[in] mailbox_id Mailbox name
+ * \param[in] folder The folder to look in.  Default is INBOX if not provided.
+ *
+ * \note If requesting INBOX then the returned count is INBOX + Urgent.
+ *
+ * \return The number of messages in the mailbox folder (zero or more).
  */
-int ast_app_messagecount(const char *context, const char *mailbox, const char *folder);
+int ast_app_messagecount(const char *mailbox_id, const char *folder);
 
 /*!
  * \brief Return name of folder, given an id
@@ -1342,7 +1342,7 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen def
  * \since 12
  * \brief Publish a MWI state update via stasis
  * \param[in] mailbox The number identifying this mailbox
- * \param[in] context The context this mailbox resides in
+ * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
  * \retval 0 Success
@@ -1356,7 +1356,7 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen def
  * \since 12
  * \brief Publish a MWI state update associated with some channel
  * \param[in] mailbox The number identifying this mailbox
- * \param[in] context The context this mailbox resides in
+ * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
  * \param[in] channel_id A unique identifier for a channel associated with this
@@ -1372,7 +1372,7 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen def
  * \since 12
  * \brief Publish a MWI state update via stasis with all parameters
  * \param[in] mailbox The number identifying this mailbox
- * \param[in] context The context this mailbox resides in
+ * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
  * \param[in] channel_id A unique identifier for a channel associated with this
@@ -1399,9 +1399,7 @@ int ast_publish_mwi_state_full(
  */
 struct ast_mwi_state {
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(uniqueid);  /*!< Unique identifier for this mailbox/context */
-		AST_STRING_FIELD(mailbox);   /*!< Mailbox for this event */
-		AST_STRING_FIELD(context);   /*!< Context that this mailbox belongs to */
+		AST_STRING_FIELD(uniqueid);  /*!< Unique identifier for this mailbox */
 	);
 	int new_msgs;                    /*!< The current number of new messages for this mailbox */
 	int old_msgs;                    /*!< The current number of old messages for this mailbox */
