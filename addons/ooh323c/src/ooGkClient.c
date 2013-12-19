@@ -2851,13 +2851,13 @@ int ooGkClientHandleClientOrGkFailure(ooGkClient *pGkClient)
       {
          OOTRACEERR1("Error: Gatekeeper error detected. Closing GkClient as "
                      "Gk mode is UseSpecifcGatekeeper\n");
-         ooGkClientDestroy();
+	 pGkClient->state = GkClientStopped;
          return OO_FAILED;
       }
       else{
          OOTRACEERR1("Error: Gatekeeper error detected. Closing GkClient. NEED"
                     " to implement recovery by rediscovering another gk\n");
-         ooGkClientDestroy();
+	 pGkClient->state = GkClientStopped;
          return OO_FAILED;
       }
    }
