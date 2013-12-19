@@ -294,8 +294,6 @@ AST_MUTEX_DEFINE_STATIC(h323_reload_lock);
 static int usecnt = 0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-AST_MUTEX_DEFINE_STATIC(ooh323c_cmd_lock);
-
 static long callnumber = 0;
 AST_MUTEX_DEFINE_STATIC(ooh323c_cn_lock);
 
@@ -694,7 +692,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 			ooh323_destroy(p);
 			ast_mutex_unlock(&iflock);
 			return NULL;
-		} else if (gH323ep.gkClient && gH323ep.gkClient->state != GkClientRegistered) {
+		} else if (!gH323ep.gkClient || (gH323ep.gkClient && gH323ep.gkClient->state != GkClientRegistered)) {
 			ast_log(LOG_ERROR, "Gatekeeper client is configured but not registered\n");
 			*cause = AST_CAUSE_NORMAL_TEMPORARY_FAILURE;
 			return NULL;
@@ -749,7 +747,6 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
       		}
 
       		ast_mutex_unlock(&p->lock);
-      		ast_mutex_lock(&ooh323c_cmd_lock);
 		ast_cond_init(&p->rtpcond, NULL);
       		ooMakeCall(data, p->callToken, AST_MAX_EXTENSION, NULL);
 		ast_mutex_lock(&p->lock);
@@ -758,7 +755,6 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 		}
 		ast_mutex_unlock(&p->lock);
 		ast_cond_destroy(&p->rtpcond);
-      		ast_mutex_unlock(&ooh323c_cmd_lock);
 	}
 
 	restart_monitor();
@@ -3493,6 +3489,9 @@ static char *handle_cli_ooh323_show_gk(struct ast_cli_entry *e, int cmd, struct 
 	case GkClientFailed:
 		ast_cli(a->fd, "%-20s%s\n", "GK state:", "Failed");
 		break;
+	case GkClientStopped:
+		ast_cli(a->fd, "%-20s%s\n", "GK state:", "Shutdown");
+		break;
 	default:
 		break;
 	}
@@ -3917,6 +3916,13 @@ static void *do_monitor(void *data)
 		if (reloading) {
 			ast_verb(1, "Reloading H.323\n");
 			ooh323_do_reload();
+		}
+		if (gH323ep.gkClient && gH323ep.gkClient->state == GkClientStopped) {
+			ooGkClientDestroy();
+			ast_verb(0, "Restart stopped gatekeeper client\n");
+			ooGkClientInit(gRasGkMode, (gRasGkMode == RasUseSpecificGatekeeper) ? 
+									gGatekeeper : 0, 0);
+			ooGkClientStart(gH323ep.gkClient);
 		}
 
 		/* Check for interfaces needing to be killed */

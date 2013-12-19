@@ -108,7 +108,8 @@ enum OOGkClientState {
    GkClientRegistered, /* registered with gk */
    GkClientUnregistered,
    GkClientGkErr,/*Gk is not responding, in discover mode can look for new GK*/
-   GkClientFailed
+   GkClientFailed,
+   GkClientStopped
 };
    
 

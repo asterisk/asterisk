@@ -603,11 +603,7 @@ int ooProcessFDSETsAndTimers
       if(gH323ep.gkClient->state == GkClientFailed ||
          gH323ep.gkClient->state == GkClientGkErr)
       {
-         if(ooGkClientHandleClientOrGkFailure(gH323ep.gkClient)!=OO_OK)
-         {
-            //ooStopMonitorCalls(); //Function calling ooProcessFDSETsAndTimers is responsible for this.
-            return OO_FAILED;
-         }
+         ooGkClientHandleClientOrGkFailure(gH323ep.gkClient);
       }
    }
 
