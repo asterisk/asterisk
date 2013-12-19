@@ -145,12 +145,14 @@ static int init_stmt(sqlite3_stmt **stmt, const char *sql, size_t len)
  * \brief Clean up the prepared SQLite3 statement
  * \note dblock should already be locked prior to calling this method
  */
-static int clean_stmt(sqlite3_stmt *stmt, const char *sql)
+static int clean_stmt(sqlite3_stmt **stmt, const char *sql)
 {
-	if (sqlite3_finalize(stmt) != SQLITE_OK) {
+	if (sqlite3_finalize(*stmt) != SQLITE_OK) {
 		ast_log(LOG_WARNING, "Couldn't finalize statement '%s': %s\n", sql, sqlite3_errmsg(astdb));
+		*stmt = NULL;
 		return -1;
 	}
+	*stmt = NULL;
 	return 0;
 }
 
@@ -160,15 +162,15 @@ static int clean_stmt(sqlite3_stmt *stmt, const char *sql)
  */
 static void clean_statements(void)
 {
-	clean_stmt(get_stmt, get_stmt_sql);
-	clean_stmt(del_stmt, del_stmt_sql);
-	clean_stmt(deltree_stmt, deltree_stmt_sql);
-	clean_stmt(deltree_all_stmt, deltree_all_stmt_sql);
-	clean_stmt(gettree_stmt, gettree_stmt_sql);
-	clean_stmt(gettree_all_stmt, gettree_all_stmt_sql);
-	clean_stmt(showkey_stmt, showkey_stmt_sql);
-	clean_stmt(put_stmt, put_stmt_sql);
-	clean_stmt(create_astdb_stmt, create_astdb_stmt_sql);
+	clean_stmt(&get_stmt, get_stmt_sql);
+	clean_stmt(&del_stmt, del_stmt_sql);
+	clean_stmt(&deltree_stmt, deltree_stmt_sql);
+	clean_stmt(&deltree_all_stmt, deltree_all_stmt_sql);
+	clean_stmt(&gettree_stmt, gettree_stmt_sql);
+	clean_stmt(&gettree_all_stmt, gettree_all_stmt_sql);
+	clean_stmt(&showkey_stmt, showkey_stmt_sql);
+	clean_stmt(&put_stmt, put_stmt_sql);
+	clean_stmt(&create_astdb_stmt, create_astdb_stmt_sql);
 }
 
 static int init_statements(void)
