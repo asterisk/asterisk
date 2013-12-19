@@ -54,9 +54,11 @@ static pj_bool_t outbound_auth(pjsip_rx_data *rdata)
 
 	tsx = pjsip_rdata_get_tsx(rdata);
 	dlg = pjsip_rdata_get_dlg(rdata);
-	ast_assert(dlg != NULL && tsx != NULL);
-	endpoint = ast_sip_dialog_get_endpoint(dlg);
+	if (!dlg || !tsx) {
+		return PJ_FALSE;
+	}
 
+	endpoint = ast_sip_dialog_get_endpoint(dlg);
 	if (!endpoint) {
 		return PJ_FALSE;
 	}
