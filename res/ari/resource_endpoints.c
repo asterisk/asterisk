@@ -74,12 +74,14 @@ void ast_ari_endpoints_list(struct ast_variable *headers,
 		int r;
 
 		if (!json_endpoint) {
+			ao2_iterator_destroy(&i);
 			return;
 		}
 
 		r = ast_json_array_append(
 			json, json_endpoint);
 		if (r != 0) {
+			ao2_iterator_destroy(&i);
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
@@ -144,6 +146,7 @@ void ast_ari_endpoints_list_by_tech(struct ast_variable *headers,
 		r = ast_json_array_append(
 			json, json_endpoint);
 		if (r != 0) {
+			ao2_iterator_destroy(&i);
 			ast_ari_response_alloc_failed(response);
 			return;
 		}

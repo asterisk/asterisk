@@ -254,6 +254,7 @@ AST_TEST_DEFINE(cleanup_order)
 			res = AST_TEST_FAIL;
 		}
 	}
+	ao2_iterator_destroy(&iter);
 
 	if (object->reffed || object->locked) {
 		ast_log(LOG_ERROR, "Test failed due to out of order cleanups\n");

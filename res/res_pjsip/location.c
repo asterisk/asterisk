@@ -304,6 +304,7 @@ int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
 
 		ao2_ref(contact, -1);
 		if (res) {
+			ao2_iterator_destroy(&i);
 			return -1;
 		}
 	}
