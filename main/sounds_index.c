@@ -226,9 +226,9 @@ static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_
 		return NULL;
 	case CLI_GENERATE:
 	{
-                int length = strlen(a->word);
-                int which = 0;
-                struct ao2_iterator it_sounds;
+		int length = strlen(a->word);
+		int which = 0;
+		struct ao2_iterator it_sounds;
 		char *match = NULL;
 		char *filename;
 		RAII_VAR(struct ao2_container *, sound_files, ast_media_get_media(sounds_index), ao2_cleanup);
@@ -237,16 +237,16 @@ static char *handle_cli_sound_show(struct ast_cli_entry *e, int cmd, struct ast_
 		}
 
 		it_sounds = ao2_iterator_init(sound_files, 0);
-                while ((filename = ao2_iterator_next(&it_sounds))) {
-                        if (!strncasecmp(a->word, filename, length) && ++which > a->n) {
-                                match = ast_strdup(filename);
-                                ao2_ref(filename, -1);
-                                break;
-                        }
-                        ao2_ref(filename, -1);
-                }
-                ao2_iterator_destroy(&it_sounds);
-                return match;
+		while ((filename = ao2_iterator_next(&it_sounds))) {
+			if (!strncasecmp(a->word, filename, length) && ++which > a->n) {
+				match = ast_strdup(filename);
+				ao2_ref(filename, -1);
+				break;
+			}
+			ao2_ref(filename, -1);
+		}
+		ao2_iterator_destroy(&it_sounds);
+		return match;
 	}
 	}
 
