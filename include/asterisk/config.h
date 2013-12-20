@@ -691,6 +691,7 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
 void ast_variable_insert(struct ast_category *category, struct ast_variable *variable, const char *line);
 int ast_variable_delete(struct ast_category *category, const char *variable, const char *match, const char *line);
+struct ast_variable *ast_variable_list_sort(struct ast_variable *start);
 
 /*!
  * \brief Update variable value within a config

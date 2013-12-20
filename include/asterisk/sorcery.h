@@ -823,6 +823,12 @@ const char *ast_sorcery_object_get_extended(const void *object, const char *name
  */
 int ast_sorcery_object_set_extended(const void *object, const char *name, const char *value);
 
+/*!
+ * \brief Sorcery object comparator based on id.
+ */
+int ast_sorcery_object_id_compare(const void *obj_left, const void *obj_right, int flags);
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

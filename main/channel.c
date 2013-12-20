@@ -733,6 +733,8 @@ const char *ast_state2str(enum ast_channel_state state)
 		return "Dialing Offhook";
 	case AST_STATE_PRERING:
 		return "Pre-ring";
+	case AST_STATE_MUTE:
+		return "Mute";
 	default:
 		if (!(buf = ast_threadstorage_get(&state2str_threadbuf, STATE2STR_BUFSIZE)))
 			return "Unknown";

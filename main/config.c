@@ -70,6 +70,7 @@ static char *extconfig_conf = "extconfig.conf";
 
 static struct ao2_container *cfg_hooks;
 static void config_hook_exec(const char *filename, const char *module, struct ast_config *cfg);
+inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2);
 
 /*! \brief Structure to keep comments for rewriting configuration files */
 struct ast_comment {
@@ -579,6 +580,39 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 	}
 
 	return (cat) ? cat->root : NULL;
+}
+
+inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2)
+{
+    l1->next = l2->next;
+    l2->next = l1;
+    return l2;
+}
+
+struct ast_variable *ast_variable_list_sort(struct ast_variable *start)
+{
+	struct ast_variable *p, *q, *top;
+	int changed = 1;
+	top = ast_calloc(1, sizeof(struct ast_variable));
+	top->next = start;
+	if (start != NULL && start->next != NULL) {
+		while (changed) {
+			changed = 0;
+			q = top;
+			p = top->next;
+			while (p->next != NULL) {
+				if (p->next != NULL && strcmp(p->name, p->next->name) > 0) {
+					q->next = variable_list_switch(p, p->next);
+
+					changed = 1;
+				}
+				q = p;
+				if (p->next != NULL)
+					p = p->next;
+			}
+		}
+	}
+	return top->next;
 }
 
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
