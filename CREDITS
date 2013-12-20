@@ -276,6 +276,8 @@
 	* Andrew "lathama" Latham <lathama at gmail dot com>
 		Doxygen, HTTP-Static, Phoneprov, make update
 
+	* George Joseph - PJSIP CLI commands, PJSIP_HEADER dialplan function
+
 === OTHER CONTRIBUTIONS ===
 
  We'd like to thank the following for their listed contributions.

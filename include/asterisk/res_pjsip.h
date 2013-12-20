@@ -40,6 +40,9 @@
 #include "asterisk/rtp_engine.h"
 /* Needed for AST_VECTOR macro */
 #include "asterisk/vector.h"
+/* Needed for ast_sip_for_each_channel_snapshot struct */
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_endpoints.h"
 
 /* Forward declarations of PJSIP stuff */
 struct pjsip_rx_data;
@@ -211,6 +214,17 @@ struct ast_sip_aor {
 	unsigned int remove_existing;
 	/*! Any permanent configured contacts */
 	struct ao2_container *permanent_contacts;
+};
+
+/*!
+ * \brief Aor/Contact pair used for ast_sip_for_each_contact callback.
+ */
+struct ast_sip_aor_contact_pair {
+	SORCERY_OBJECT(details);
+	/*! Aor */
+	struct ast_sip_aor *aor;
+	/*! Contact */
+	struct ast_sip_contact *contact;
 };
 
 /*!
@@ -1547,13 +1561,6 @@ void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
 	mod_data[id] = ast_sip_dict_set(pool, mod_data[id], key, val)
 
 /*!
- * \brief Function pointer for contact callbacks.
- */
-typedef int (*on_contact_t)(const struct ast_sip_aor *aor,
-			    const struct ast_sip_contact *contact,
-			    int last, void *arg);
-
-/*!
  * \brief For every contact on an AOR call the given 'on_contact' handler.
  *
  * \param aor the aor containing a list of contacts to iterate
@@ -1561,21 +1568,18 @@ typedef int (*on_contact_t)(const struct ast_sip_aor *aor,
  * \param arg user data passed to handler
  * \retval 0 Success, non-zero on failure
  */
-int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
-			     on_contact_t on_contact, void *arg);
+int ast_sip_for_each_contact(struct ast_sip_aor *aor,
+		ao2_callback_fn on_contact, void *arg);
 
 /*!
  * \brief Handler used to convert a contact to a string.
  *
- * \param aor the aor containing a list of contacts to iterate
- * \param contact the contact to convert
- * \param last is this the last contact
+ * \param object the ast_sip_aor_contact_pair containing a list of contacts to iterate and the contact
  * \param arg user data passed to handler
+ * \param flags
  * \retval 0 Success, non-zero on failure
  */
-int ast_sip_contact_to_str(const struct ast_sip_aor *aor,
-			   const struct ast_sip_contact *contact,
-			   int last, void *arg);
+int ast_sip_contact_to_str(void *object, void *arg, int flags);
 
 /*!
  * \brief For every aor in the comma separated aors string call the
@@ -1695,5 +1699,48 @@ int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
  */
 int ast_sip_format_auths_ami(const struct ast_sip_auth_vector *auths,
 			     struct ast_sip_ami *ami);
+
+/*!
+ * \brief Retrieve the endpoint snapshot for an endpoint
+ *
+ * \param endpoint The endpoint whose snapshot is to be retreieved.
+ * \retval The endpoint snapshot
+ */
+struct ast_endpoint_snapshot *ast_sip_get_endpoint_snapshot(
+	const struct ast_sip_endpoint *endpoint);
+
+/*!
+ * \brief Retrieve the device state for an endpoint.
+ *
+ * \param endpoint The endpoint whose state is to be retrieved.
+ * \retval The device state.
+ */
+const char *ast_sip_get_device_state(const struct ast_sip_endpoint *endpoint);
+
+/*!
+ * \brief For every channel snapshot on an endpoint snapshot call the given
+ *        'on_channel_snapshot' handler.
+ *
+ * \param endpoint_snapshot snapshot of an endpoint
+ * \param on_channel_snapshot callback for each channel snapshot
+ * \param arg user data passed to handler
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_for_each_channel_snapshot(const struct ast_endpoint_snapshot *endpoint_snapshot,
+		ao2_callback_fn on_channel_snapshot,
+				      void *arg);
+
+/*!
+ * \brief For every channel snapshot on an endpoint all the given
+ *        'on_channel_snapshot' handler.
+ *
+ * \param endpoint endpoint
+ * \param on_channel_snapshot callback for each channel snapshot
+ * \param arg user data passed to handler
+ * \retval 0 Success, non-zero on failure
+ */
+int ast_sip_for_each_channel(const struct ast_sip_endpoint *endpoint,
+		ao2_callback_fn on_channel_snapshot,
+				      void *arg);
 
 #endif /* _RES_PJSIP_H */

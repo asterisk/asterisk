@@ -1583,3 +1583,11 @@ void ast_sorcery_observer_remove(const struct ast_sorcery *sorcery, const char *
 	ao2_callback(object_type->observers, OBJ_NODATA | OBJ_UNLINK,
 		sorcery_observer_remove, cbs);
 }
+
+int ast_sorcery_object_id_compare(const void *obj_left, const void *obj_right, int flags)
+{
+	if (!obj_left || !obj_right) {
+		return 0;
+	}
+	return strcmp(ast_sorcery_object_get_id(obj_left), ast_sorcery_object_get_id(obj_right));
+}

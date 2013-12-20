@@ -255,6 +255,7 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
+	ast_sip_unregister_endpoint_formatter(&endpoint_identify_formatter);
 	ast_sip_unregister_endpoint_identifier(&ip_identifier);
 	return 0;
 }

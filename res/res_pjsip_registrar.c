@@ -590,11 +590,9 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 
 /* function pointer to callback needs to be within the module
    in order to avoid problems with an undefined symbol */
-static int sip_contact_to_str(const struct ast_sip_aor *aor,
-			      const struct ast_sip_contact *contact,
-			      int last, void *arg)
+static int sip_contact_to_str(void *acp, void *arg, int flags)
 {
-	return ast_sip_contact_to_str(aor, contact, last, arg);
+	return ast_sip_contact_to_str(acp, arg, flags);
 }
 
 static int ami_registrations_aor(void *obj, void *arg, int flags)

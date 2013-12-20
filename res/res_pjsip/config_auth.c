@@ -23,7 +23,9 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/logger.h"
 #include "asterisk/sorcery.h"
+#include "asterisk/cli.h"
 #include "include/res_pjsip_private.h"
+#include "asterisk/res_pjsip_cli.h"
 
 static void auth_destroy(void *obj)
 {
@@ -197,6 +199,59 @@ static struct ast_sip_endpoint_formatter endpoint_auth_formatter = {
 	.format_ami = format_ami_endpoint_auth
 };
 
+static struct ao2_container *cli_get_auth_container(struct ast_sorcery *sip_sorcery)
+{
+	return ast_sorcery_retrieve_by_fields(sip_sorcery, "auth",
+				AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+}
+
+static int cli_print_auth_header(void *obj, void *arg, int flags) {
+	struct ast_sip_cli_context *context = arg;
+	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
+	int filler = CLI_MAX_WIDTH - indent - 20;
+
+	if (!context->output_buffer) {
+		return -1;
+	}
+
+	ast_str_append(&context->output_buffer, 0,
+		"%*s:  <AuthId/UserName%*.*s>\n", indent, "I/OAuth", filler, filler, CLI_HEADER_FILLER);
+
+	return 0;
+}
+
+static int cli_print_auth_body(void *obj, void *arg, int flags) {
+	struct ast_sip_auth *auth = obj;
+	struct ast_sip_cli_context *context = arg;
+	char title[32];
+
+	context->current_auth = auth;
+
+	if (!context->output_buffer) {
+		return -1;
+	}
+
+	snprintf(title, 32, "%sAuth",context->auth_direction ? context->auth_direction : "");
+
+	ast_str_append(&context->output_buffer, 0, "%*s:  %s/%s\n",
+		CLI_INDENT_TO_SPACES(context->indent_level), title,
+		ast_sorcery_object_get_id(auth), auth->auth_user);
+
+	if (context->show_details || (context->show_details_only_level_0 && context->indent_level == 0)) {
+		ast_str_append(&context->output_buffer, 0, "\n");
+		ast_sip_cli_print_sorcery_objectset(auth, context, 0);
+	}
+
+	return 0;
+}
+
+static struct ast_sip_cli_formatter_entry  cli_auth_formatter = {
+	.name = SIP_SORCERY_AUTH_TYPE,
+	.print_header = cli_print_auth_header,
+	.print_body = cli_print_auth_body,
+	.get_container = cli_get_auth_container,
+};
+
 /*! \brief Initialize sorcery with auth support */
 int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery)
 {
@@ -222,5 +277,7 @@ int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery)
 			"userpass", auth_type_handler, auth_type_to_str, 0, 0);
 
 	ast_sip_register_endpoint_formatter(&endpoint_auth_formatter);
+	ast_sip_register_cli_formatter(&cli_auth_formatter);
+
 	return 0;
 }
