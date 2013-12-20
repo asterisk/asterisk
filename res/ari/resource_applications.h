@@ -88,7 +88,7 @@ void ast_ari_applications_subscribe(struct ast_variable *headers, struct ast_ari
 struct ast_ari_applications_unsubscribe_args {
 	/*! \brief Application's name */
 	const char *application_name;
-	/*! \brief Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, device_state:{deviceName} */
+	/*! \brief Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
 	const char **event_source;
 	/*! \brief Length of event_source array. */
 	size_t event_source_count;

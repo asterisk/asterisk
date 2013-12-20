@@ -39,7 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Scheme for custom device states */
 #define DEVICE_STATE_SCHEME_STASIS "Stasis:"
 /*! Scheme for device state subscriptions */
-#define DEVICE_STATE_SCHEME_SUB "device_state:"
+#define DEVICE_STATE_SCHEME_SUB "deviceState:"
 
 /*! Number of hash buckets for device state subscriptions */
 #define DEVICE_STATE_BUCKETS 37
