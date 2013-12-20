@@ -682,6 +682,7 @@ void ast_ari_bridges_list(struct ast_variable *headers,
 		struct ast_json *json_bridge = ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
 
 		if (!json_bridge || ast_json_array_append(json, json_bridge)) {
+			ao2_iterator_destroy(&i);
 			ast_ari_response_alloc_failed(response);
 			return;
 		}

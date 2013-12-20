@@ -1906,8 +1906,10 @@ static int dump_event(struct ast_test *test, struct ast_event *event)
 
 static int check_events(struct ast_test *test, struct ao2_container *local_expected, struct ao2_container *local_received)
 {
-	struct ao2_iterator expected_it, received_it;
-	struct ast_event *rx_event, *ex_event;
+	struct ao2_iterator received_it;
+	struct ao2_iterator expected_it;
+	RAII_VAR(struct ast_event *, rx_event, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_event *, ex_event, NULL, ao2_cleanup);
 	int debug = 0;
 
 	if (ao2_container_count(local_expected) != ao2_container_count(local_received)) {
@@ -1918,12 +1920,14 @@ static int check_events(struct ast_test *test, struct ao2_container *local_expec
 		debug = 1;
 	}
 
-	expected_it = ao2_iterator_init(local_expected, 0);
 	received_it = ao2_iterator_init(local_received, 0);
+	expected_it = ao2_iterator_init(local_expected, 0);
 	rx_event = ao2_iterator_next(&received_it);
 	ex_event = ao2_iterator_next(&expected_it);
 	while (rx_event && ex_event) {
 		if (!events_are_equal(test, rx_event, ex_event)) {
+			ao2_iterator_destroy(&received_it);
+			ao2_iterator_destroy(&expected_it);
 			ast_test_status_update(test, "Received event:\n");
 			dump_event(test, rx_event);
 			ast_test_status_update(test, "Expected event:\n");
@@ -1931,7 +1935,9 @@ static int check_events(struct ast_test *test, struct ao2_container *local_expec
 			return -1;
 		}
 		if (debug) {
-			ast_test_status_update(test, "Compared events successfully%s\n", ast_event_get_type(ex_event) == AST_EVENT_CUSTOM ? " (wildcard match)" : "");
+			ast_test_status_update(test, "Compared events successfully%s\n",
+				ast_event_get_type(ex_event) == AST_EVENT_CUSTOM
+					? " (wildcard match)" : "");
 			dump_event(test, rx_event);
 		}
 		ao2_cleanup(rx_event);
@@ -1939,17 +1945,17 @@ static int check_events(struct ast_test *test, struct ao2_container *local_expec
 		rx_event = ao2_iterator_next(&received_it);
 		ex_event = ao2_iterator_next(&expected_it);
 	}
+	ao2_iterator_destroy(&received_it);
+	ao2_iterator_destroy(&expected_it);
 
 	if (rx_event) {
 		ast_test_status_update(test, "Received event:\n");
 		dump_event(test, rx_event);
-		ao2_cleanup(rx_event);
 		return -1;
 	}
 	if (ex_event) {
 		ast_test_status_update(test, "Expected event:\n");
 		dump_event(test, ex_event);
-		ao2_cleanup(ex_event);
 		return -1;
 	}
 	return 0;

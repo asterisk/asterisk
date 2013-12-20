@@ -229,7 +229,7 @@ static struct ast_str *manager_build_parked_call_string(const struct ast_parked_
 	return out;
 }
 
-static int manager_parking_status_single_lot(struct mansession *s, const struct message *m, const char *id_text, const char *lot_name)
+static void manager_parking_status_single_lot(struct mansession *s, const struct message *m, const char *id_text, const char *lot_name)
 {
 	RAII_VAR(struct parking_lot *, curlot, NULL, ao2_cleanup);
 	struct parked_user *curuser;
@@ -237,10 +237,9 @@ static int manager_parking_status_single_lot(struct mansession *s, const struct 
 	int total = 0;
 
 	curlot = parking_lot_find_by_name(lot_name);
-
 	if (!curlot) {
 		astman_send_error(s, m, "Requested parking lot could not be found.");
-		return RESULT_SUCCESS;
+		return;
 	}
 
 	astman_send_ack(s, m, "Parked calls will follow");
@@ -252,14 +251,18 @@ static int manager_parking_status_single_lot(struct mansession *s, const struct 
 
 		payload = parked_call_payload_from_parked_user(curuser, PARKED_CALL);
 		if (!payload) {
+			ao2_ref(curuser, -1);
+			ao2_iterator_destroy(&iter_users);
 			astman_send_error(s, m, "Failed to retrieve parking data about a parked user.");
-			return RESULT_FAILURE;
+			return;
 		}
 
 		parked_call_string = manager_build_parked_call_string(payload);
 		if (!parked_call_string) {
-			astman_send_error(s, m, "Failed to retrieve parkingd ata about a parked user.");
-			return RESULT_FAILURE;
+			ao2_ref(curuser, -1);
+			ao2_iterator_destroy(&iter_users);
+			astman_send_error(s, m, "Failed to retrieve parking data about a parked user.");
+			return;
 		}
 
 		total++;
@@ -273,7 +276,6 @@ static int manager_parking_status_single_lot(struct mansession *s, const struct 
 
 		ao2_ref(curuser, -1);
 	}
-
 	ao2_iterator_destroy(&iter_users);
 
 	astman_append(s,
@@ -282,11 +284,9 @@ static int manager_parking_status_single_lot(struct mansession *s, const struct 
 		"%s"
 		"\r\n",
 		total, id_text);
-
-	return RESULT_SUCCESS;
 }
 
-static int manager_parking_status_all_lots(struct mansession *s, const struct message *m, const char *id_text)
+static void manager_parking_status_all_lots(struct mansession *s, const struct message *m, const char *id_text)
 {
 	struct parked_user *curuser;
 	struct ao2_container *lot_container;
@@ -296,17 +296,15 @@ static int manager_parking_status_all_lots(struct mansession *s, const struct me
 	int total = 0;
 
 	lot_container = get_parking_lot_container();
-
 	if (!lot_container) {
 		ast_log(LOG_ERROR, "Failed to obtain parking lot list. Action canceled.\n");
 		astman_send_error(s, m, "Could not create parking lot list");
-		return RESULT_SUCCESS;
+		return;
 	}
-
-	iter_lots = ao2_iterator_init(lot_container, 0);
 
 	astman_send_ack(s, m, "Parked calls will follow");
 
+	iter_lots = ao2_iterator_init(lot_container, 0);
 	while ((curlot = ao2_iterator_next(&iter_lots))) {
 		iter_users = ao2_iterator_init(curlot->parked_users, 0);
 		while ((curuser = ao2_iterator_next(&iter_users))) {
@@ -315,12 +313,20 @@ static int manager_parking_status_all_lots(struct mansession *s, const struct me
 
 			payload = parked_call_payload_from_parked_user(curuser, PARKED_CALL);
 			if (!payload) {
-				return RESULT_FAILURE;
+				ao2_ref(curuser, -1);
+				ao2_iterator_destroy(&iter_users);
+				ao2_ref(curlot, -1);
+				ao2_iterator_destroy(&iter_lots);
+				return;
 			}
 
 			parked_call_string = manager_build_parked_call_string(payload);
-			if (!payload) {
-				return RESULT_FAILURE;
+			if (!parked_call_string) {
+				ao2_ref(curuser, -1);
+				ao2_iterator_destroy(&iter_users);
+				ao2_ref(curlot, -1);
+				ao2_iterator_destroy(&iter_lots);
+				return;
 			}
 
 			total++;
@@ -337,7 +343,6 @@ static int manager_parking_status_all_lots(struct mansession *s, const struct me
 		ao2_iterator_destroy(&iter_users);
 		ao2_ref(curlot, -1);
 	}
-
 	ao2_iterator_destroy(&iter_lots);
 
 	astman_append(s,
@@ -346,8 +351,6 @@ static int manager_parking_status_all_lots(struct mansession *s, const struct me
 		"%s"
 		"\r\n",
 		total, id_text);
-
-	return RESULT_SUCCESS;
 }
 
 static int manager_parking_status(struct mansession *s, const struct message *m)
@@ -361,11 +364,12 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(lot_name)) {
-		return manager_parking_status_single_lot(s, m, id_text, lot_name);
+		manager_parking_status_single_lot(s, m, id_text, lot_name);
+	} else {
+		manager_parking_status_all_lots(s, m, id_text);
 	}
 
-	return manager_parking_status_all_lots(s, m, id_text);
-
+	return 0;
 }
 
 static int manager_append_event_parking_lot_data_cb(void *obj, void *arg, void *data, int flags)
@@ -401,11 +405,10 @@ static int manager_parking_lot_list(struct mansession *s, const struct message *
 	}
 
 	lot_container = get_parking_lot_container();
-
 	if (!lot_container) {
 		ast_log(LOG_ERROR, "Failed to obtain parking lot list. Action canceled.\n");
 		astman_send_error(s, m, "Could not create parking lot list");
-		return -1;
+		return 0;
 	}
 
 	astman_send_ack(s, m, "Parking lots will follow");
@@ -417,7 +420,7 @@ static int manager_parking_lot_list(struct mansession *s, const struct message *
 		"%s"
 		"\r\n",id_text);
 
-	return RESULT_SUCCESS;
+	return 0;
 }
 
 static int manager_park(struct mansession *s, const struct message *m)

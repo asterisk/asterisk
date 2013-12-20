@@ -818,6 +818,7 @@ AST_TEST_DEFINE(cache_dump)
 		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
 		ast_test_validate(test, actual_cache_entry == test_message1_1 || actual_cache_entry == test_message2_1);
 	}
+	ao2_iterator_destroy(&i);
 
 	/* Update snapshot 2 */
 	test_message2_2 = cache_test_message_create(cache_type, "2", "2");
@@ -836,6 +837,7 @@ AST_TEST_DEFINE(cache_dump)
 		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
 		ast_test_validate(test, actual_cache_entry == test_message1_1 || actual_cache_entry == test_message2_2);
 	}
+	ao2_iterator_destroy(&i);
 
 	/* Clear snapshot 1 */
 	test_message1_clear = stasis_cache_clear_create(test_message1_1);
@@ -854,6 +856,7 @@ AST_TEST_DEFINE(cache_dump)
 		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
 		ast_test_validate(test, actual_cache_entry == test_message2_2);
 	}
+	ao2_iterator_destroy(&i);
 
 	/* Dump the cache to ensure that it has no subscription change items in it since those aren't cached */
 	ao2_cleanup(cache_dump);
