@@ -5681,7 +5681,7 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 						if (!res)
 							res = wait_file(chan, ints, "digits/second-a", lang);
 					} else {
-						res = ast_say_number(chan, tm.tm_min, ints, lang, "f");
+						res = ast_say_number(chan, tm.tm_sec, ints, lang, "f");
 						if (!res) {
 							int ten, one;
 							ten = tm.tm_sec / 10;
