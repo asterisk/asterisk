@@ -20,6 +20,7 @@
 
 #include <pjsip.h>
 #include <pjsip_ua.h>
+
 #include "asterisk/res_pjsip.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/res_pjsip_cli.h"
@@ -303,7 +304,7 @@ int ast_sip_initialize_cli(struct ast_sorcery *sorcery)
 
 	if (ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands))) {
 		ast_log(LOG_ERROR, "Failed to register pjsip cli commands.\n");
-		ast_hashtab_destroy(formatter_registry, ast_free);
+		ast_hashtab_destroy(formatter_registry, ast_free_ptr);
 		return -1;
 	}
 	sip_sorcery = sorcery;
@@ -314,6 +315,6 @@ void ast_sip_destroy_cli(void)
 {
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	if (formatter_registry) {
-		ast_hashtab_destroy(formatter_registry, ast_free);
+		ast_hashtab_destroy(formatter_registry, ast_free_ptr);
 	}
 }
