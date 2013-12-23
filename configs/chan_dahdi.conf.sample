@@ -1167,12 +1167,11 @@ pickupgroup=1
 ;
 ;
 ; ignore_failed_channels: Continue even if some channels failed to configure.
-; False by default, as if even a single channel failed to configure, it might
-; mean other channels are misplaced and having them work may not be a good
-; idea. If enabled (set to true), chan_dahdi will nevertheless attempt to
-; configure other channels rather than giving up. This normally makes sense
-; only if you use names (<subdir>!<number>) for DAHDI channels.
-;ignore_failed_channels = true
+; True by default. Disable this if you can guarantee that DAHDI starts before
+; Asterisk and want to be sure chan_dahdi will not start with broken
+; configuration.
+;
+;ignore_failed_channels = false
 ;
 ; Configure jitter buffers in DAHDI (each one is 20ms, default is 4)
 ; This is set globally, rather than per-channel.

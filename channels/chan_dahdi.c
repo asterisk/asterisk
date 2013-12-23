@@ -961,6 +961,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.debouncetime = -1
 		},
 		.is_sig_auto = 1,
+		.ignore_failed_channels = 1,
 		.smdi_port = "/dev/ttyS0",
 	};
 

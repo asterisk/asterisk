@@ -220,6 +220,11 @@ chan_dahdi:
 
  - Added mwi_vm_boxes that also must be configured for ISDN MWI to be enabled.
 
+ - ignore_failed_channels now defaults to True: the channel will continue to
+   be configured even if configuring it has failed. This is generally a
+   better setup for systems with not more than one DAHDI device or with DAHDI
+   >= 2.8.0 .
+
 chan_local:
  - The /b option has been removed.
 
