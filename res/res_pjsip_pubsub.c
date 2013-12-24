@@ -303,6 +303,25 @@ static int datastore_cmp(void *obj, void *arg, int flags)
 	return strcmp(datastore1->uid, uid2) ? 0 : CMP_MATCH | CMP_STOP;
 }
 
+static int subscription_remove_serializer(void *obj)
+{
+	struct ast_sip_subscription *sub = obj;
+
+	/* This is why we keep the dialog on the subscription. When the subscription
+	 * is destroyed, there is no guarantee that the underlying dialog is ready
+	 * to be destroyed. Furthermore, there's no guarantee in the opposite direction
+	 * either. The dialog could be destroyed before our subscription is. We fix
+	 * this problem by keeping a reference to the dialog until it is time to
+	 * destroy the subscription. We need to have the dialog available when the
+	 * subscription is destroyed so that we can guarantee that our attempt to
+	 * remove the serializer will be successful.
+	 */
+	ast_sip_dialog_set_serializer(sub->dlg, NULL);
+	pjsip_dlg_dec_session(sub->dlg, &pubsub_module);
+
+	return 0;
+}
+
 static void subscription_destructor(void *obj)
 {
 	struct ast_sip_subscription *sub = obj;
@@ -314,17 +333,7 @@ static void subscription_destructor(void *obj)
 	ao2_cleanup(sub->endpoint);
 
 	if (sub->dlg) {
-		/* This is why we keep the dialog on the subscription. When the subscription
-		 * is destroyed, there is no guarantee that the underlying dialog is ready
-		 * to be destroyed. Furthermore, there's no guarantee in the opposite direction
-		 * either. The dialog could be destroyed before our subscription is. We fix
-		 * this problem by keeping a reference to the dialog until it is time to
-		 * destroy the subscription. We need to have the dialog available when the
-		 * subscription is destroyed so that we can guarantee that our attempt to
-		 * remove the serializer will be successful.
-		 */
-		ast_sip_dialog_set_serializer(sub->dlg, NULL);
-		pjsip_dlg_dec_session(sub->dlg, &pubsub_module);
+		ast_sip_push_task_synchronous(NULL, subscription_remove_serializer, sub);
 	}
 	ast_taskprocessor_unreference(sub->serializer);
 }
