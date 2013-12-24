@@ -386,6 +386,8 @@ Dialplan Functions:
    direct file read/write functions are marked as dangerous. DB_DELETE() and
    REALTIME_DESTROY() are marked as dangerous for reads, but can now safely
    accept writes (which ignore the provided value).
+ - The default value for live_dangerously was changed from yes (in Asterisk 11
+   and earlier) to no (in Asterisk 12 and greater).
 
 Dialplan:
  - All channel and global variable names are evaluated in a case-sensitive
