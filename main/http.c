@@ -609,6 +609,27 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 #define MAX_POST_CONTENT 1025
 
 /*!
+ * \brief Retrieves the header with the given field name.
+ *
+ * \param headers Headers to search.
+ * \param field_name Name of the header to find.
+ * \return Associated header value.
+ * \return \c NULL if header is not present.
+ */
+static const char *get_header(struct ast_variable *headers,
+	const char *field_name)
+{
+	struct ast_variable *v;
+
+	for (v = headers; v; v = v->next) {
+		if (!strcasecmp(v->name, field_name)) {
+			return v->value;
+		}
+	}
+	return NULL;
+}
+
+/*!
  * \brief Retrieves the content type specified in the "Content-Type" header.
  *
  * This function only returns the "type/subtype" and any trailing parameter is
@@ -620,32 +641,51 @@ void ast_http_uri_unlink_all_with_key(const char *key)
  */
 static char *get_content_type(struct ast_variable *headers)
 {
-	struct ast_variable *v;
+	const char *content_type = get_header(headers, "Content-Type");
+	const char *param;
+	size_t size;
 
-	for (v = headers; v; v = v->next) {
-		if (strcasecmp(v->name, "Content-Type") == 0) {
-			const char *param = strchr(v->value, ';');
-			size_t size = (param ? param - v->value :
-				       strlen(v->value)) + 1;
-			return ast_strndup(v->value, size);
-		}
+	if (!content_type) {
+		return NULL;
 	}
 
-	return NULL;
+	param = strchr(content_type, ';');
+	size = param ? param - content_type : strlen(content_type);
+
+	return ast_strndup(content_type, size);
 }
 
+/*!
+ * \brief Returns the value of the Content-Length header.
+ *
+ * \param headers HTTP headers.
+ * \return Value of the Content-Length header.
+ * \return 0 if header is not present, or is invalid.
+ */
 static int get_content_length(struct ast_variable *headers)
 {
-	struct ast_variable *v;
+	const char *content_length = get_header(headers, "Content-Length");
 
-	for (v = headers; v; v = v->next) {
-		if (!strcasecmp(v->name, "Content-Length")) {
-			return atoi(v->value);
-		}
+	if (!content_length) {
+		/* Missing content length; assume zero */
+		return 0;
 	}
 
-	/* Missing content length; assume zero */
-	return 0;
+	/* atoi() will return 0 for invalid inputs, which is good enough for
+	 * the HTTP parsing. */
+	return atoi(content_length);
+}
+
+/*!
+ * \brief Returns the value of the Transfer-Encoding header.
+ *
+ * \param headers HTTP headers.
+ * \return Value of the Transfer-Encoding header.
+ * \return 0 if header is not present, or is invalid.
+ */
+static const char *get_transfer_encoding(struct ast_variable *headers)
+{
+	return get_header(headers, "Transfer-Encoding");
 }
 
 struct ast_json *ast_http_get_json(
@@ -1068,6 +1108,7 @@ static void *httpd_helper_thread(void *data)
 	struct ast_variable *tail = headers;
 	char *uri, *method;
 	enum ast_http_method http_method = AST_HTTP_UNKNOWN;
+	const char *transfer_encoding;
 
 	if (ast_atomic_fetchadd_int(&session_count, +1) >= session_limit) {
 		goto done;
@@ -1138,6 +1179,22 @@ static void *httpd_helper_thread(void *data)
 			tail->next = ast_variable_new(name, value, __FILE__);
 			tail = tail->next;
 		}
+	}
+
+	transfer_encoding = get_transfer_encoding(headers);
+	/* Transfer encoding defaults to identity */
+	if (!transfer_encoding) {
+		transfer_encoding = "identity";
+	}
+
+	/*
+	 * RFC 2616, section 3.6, we should respond with a 501 for any transfer-
+	 * codings we don't understand.
+	 */
+	if (strcasecmp(transfer_encoding, "identity") != 0) {
+		/* Transfer encodings not supported */
+		ast_http_error(ser, 501, "Unimplemented", "Unsupported Transfer-Encoding.");
+		goto done;
 	}
 
 	if (!*uri) {
