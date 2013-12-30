@@ -289,7 +289,7 @@ static const char *party_number_plan2str(int plan)
 /*! \brief Show channel types - CLI command */
 static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT  "%-10.10s  %-40.40s %-12.12s %-12.12s %-12.12s\n"
+#define FORMAT  "%-15.15s  %-40.40s %-12.12s %-12.12s %-12.12s\n"
 	struct chanlist *cl;
 	int count_chan = 0;
 
@@ -309,7 +309,7 @@ static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd,
 		return CLI_SHOWUSAGE;
 
 	ast_cli(a->fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
-	ast_cli(a->fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
+	ast_cli(a->fd, FORMAT, "-----------", "-----------", "-----------", "-----------", "-----------");
 
 	AST_RWLIST_RDLOCK(&backends);
 	AST_RWLIST_TRAVERSE(&backends, cl, list) {
