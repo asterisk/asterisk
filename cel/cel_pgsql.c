@@ -346,8 +346,9 @@ ast_log_cleanup:
 static int my_unload_module(void)
 {
 	struct columns *current;
-	AST_RWLIST_WRLOCK(&psql_columns);
+
 	ast_cel_backend_unregister(PGSQL_BACKEND_NAME);
+	AST_RWLIST_WRLOCK(&psql_columns);
 	if (conn) {
 		PQfinish(conn);
 		conn = NULL;
