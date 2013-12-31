@@ -345,11 +345,12 @@ ast_log_cleanup:
 static int my_unload_module(void)
 {
 	struct columns *current;
-	AST_RWLIST_WRLOCK(&psql_columns);
+
 	if (event_sub) {
 		event_sub = ast_event_unsubscribe(event_sub);
-		event_sub = NULL;
 	}
+
+	AST_RWLIST_WRLOCK(&psql_columns);
 	if (conn) {
 		PQfinish(conn);
 		conn = NULL;
