@@ -1826,14 +1826,20 @@ static int session_end(struct ast_sip_session *session)
 static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 {
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	pjsip_event_id_e type;
 
-	print_debug_details(inv, NULL, e);
+	if (e) {
+		print_debug_details(inv, NULL, e);
+		type = e->type;
+	} else {
+		type = PJSIP_EVENT_UNKNOWN;
+	}
 
 	if (!session) {
 		return;
 	}
 
-	switch(e->type) {
+	switch(type) {
 	case PJSIP_EVENT_TX_MSG:
 		handle_outgoing(session, e->body.tx_msg.tdata);
 		break;
