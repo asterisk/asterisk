@@ -665,6 +665,14 @@
 						set to <literal>sdes</literal> or <literal>dtls</literal>.
 					</para></description>
 				</configOption>
+				<configOption name="set_var">
+					<synopsis>Variable set on a channel involving the endpoint.</synopsis>
+					<description><para>
+					        When a new channel is created using the endpoint set the specified
+						variable(s) on that channel. For multiple channel variables specify
+						multiple 'set_var'(s).
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

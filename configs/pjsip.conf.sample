@@ -539,7 +539,8 @@
                 ; other party or both (default: "")
 ;srtp_tag_32=no ; Determines whether 32 byte tags should be used instead of 80
                 ; byte tags (default: "no")
-
+;set_var=       ; Variable set on a channel involving the endpoint. For multiple
+		; channel variables specify multiple 'set_var'(s)
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]

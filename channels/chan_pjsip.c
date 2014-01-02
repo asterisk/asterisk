@@ -346,6 +346,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	struct ast_format fmt;
 	RAII_VAR(struct chan_pjsip_pvt *, pvt, NULL, ao2_cleanup);
 	struct ast_sip_channel_pvt *channel;
+	struct ast_variable *var;
 
 	if (!(pvt = ao2_alloc(sizeof(*pvt), chan_pjsip_pvt_dtor))) {
 		return NULL;
@@ -364,6 +365,11 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
+	for (var = session->endpoint->channel_vars; var; var = var->next) {
+		char buf[512];
+		pbx_builtin_setvar_helper(chan, var->name, ast_get_encoded_str(
+						  var->value, buf, sizeof(buf)));
+	}
 
 	ast_channel_stage_snapshot(chan);
 
