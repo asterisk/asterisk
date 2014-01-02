@@ -1177,6 +1177,9 @@ res_pjsip (and many others)
    these modules is performed in pjsip.conf. Other modules may use their
    own configuration files.
 
+ * Added 'set_var' option for an endpoint. For each variable specified that
+   variable gets set upon creation of a channel involving the endpoint.
+
 res_rtp_asterisk
 ------------------
  * ICE/STUN/TURN support in res_rtp_asterisk has been made optional.  To enable

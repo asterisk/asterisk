@@ -589,6 +589,8 @@ struct ast_sip_endpoint {
 	unsigned int allowtransfer;
 	/*! Method used when handling redirects */
 	enum ast_sip_session_redirect redirect_method;
+	/*! Variables set on channel creation */
+	struct ast_variable *channel_vars;
 };
 
 /*!

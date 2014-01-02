@@ -754,6 +754,43 @@ static int t38udptl_ec_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int set_var_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	struct ast_variable *new_var;
+	char *name = ast_strdupa(var->value), *val = strchr(name, '=');
+
+	if (!val) {
+		return -1;
+	}
+
+	*val++ = '\0';
+	if (!(new_var = ast_variable_new(name, val, ""))) {
+		return -1;
+	}
+
+	new_var->next = endpoint->channel_vars;
+	endpoint->channel_vars = new_var;
+
+	return 0;
+}
+
+static int set_var_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	struct ast_str *str = ast_str_create(MAX_OBJECT_FIELD);
+	const struct ast_sip_endpoint *endpoint = obj;
+	struct ast_variable *var;
+
+	for (var = endpoint->channel_vars; var; var = var->next) {
+		ast_str_append(&str, 0, "%s=%s,", var->name, var->value);
+	}
+
+	*buf = ast_strdup(ast_str_truncate(str, -1));
+	ast_free(str);
+	return 0;
+}
+
 static void *sip_nat_hook_alloc(const char *name)
 {
 	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_nat_hook), NULL);
@@ -1476,6 +1513,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_setup", "", dtls_handler, dtlssetup_to_str, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "srtp_tag_32", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.srtp_tag_32));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "redirect_method", "user", redirect_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "set_var", "", set_var_handler, set_var_to_str, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport(sip_sorcery)) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -1581,6 +1619,7 @@ static void endpoint_destructor(void* obj)
 	endpoint->pickup.named_callgroups = ast_unref_namedgroups(endpoint->pickup.named_callgroups);
 	endpoint->pickup.named_pickupgroups = ast_unref_namedgroups(endpoint->pickup.named_pickupgroups);
 	ao2_cleanup(endpoint->persistent);
+	ast_variables_destroy(endpoint->channel_vars);
 }
 
 static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
