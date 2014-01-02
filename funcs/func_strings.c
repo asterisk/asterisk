@@ -841,8 +841,7 @@ static int replace(struct ast_channel *chan, const char *cmd, char *data, struct
 		 * directly there */
 		if (strchr(find, *strptr)) {
 			if (ast_strlen_zero(replace)) {
-				/* Remove character */
-				strcpy(strptr, strptr + 1); /* SAFE */
+				memmove(strptr, strptr + 1, strlen(strptr + 1) + 1);
 				strptr--;
 			} else {
 				/* Replace character */
@@ -1726,6 +1725,76 @@ AST_TEST_DEFINE(test_FIELDNUM)
 	return res;
 }
 
+AST_TEST_DEFINE(test_REPLACE)
+{
+	int i, res = AST_TEST_PASS;
+	struct ast_channel *chan;
+	struct ast_str *str;
+	char expression[256];
+	struct {
+		const char *test_string;
+		const char *find_chars;
+		const char *replace_char;
+		const char *expected;
+	} test_args[] = {
+		{"abc,def", "\\,", "-", "abc-def"},
+		{"abc,abc", "bc",  "a", "aaa,aaa"},
+		{"abc,def", "x",   "?", "abc,def"},
+		{"abc,def", "\\,", "",  "abcdef"}
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "func_REPLACE_test";
+		info->category = "/funcs/func_strings/";
+		info->summary = "Test REPLACE function";
+		info->description = "Verify REPLACE behavior";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(chan = ast_dummy_channel_alloc())) {
+		ast_test_status_update(test, "Unable to allocate dummy channel\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(str = ast_str_create(16))) {
+		ast_test_status_update(test, "Unable to allocate dynamic string buffer\n");
+		ast_channel_release(chan);
+		return AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(test_args); i++) {
+		struct ast_var_t *var = ast_var_assign("TEST_STRING", test_args[i].test_string);
+		if (!var) {
+			ast_test_status_update(test, "Out of memory\n");
+			res = AST_TEST_FAIL;
+			break;
+		}
+
+		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
+
+		snprintf(expression, sizeof(expression), "${REPLACE(%s,%s,%s)}", var->name, test_args[i].find_chars, test_args[i].replace_char);
+		ast_str_substitute_variables(&str, 0, chan, expression);
+
+		AST_LIST_REMOVE(ast_channel_varshead(chan), var, entries);
+		ast_var_delete(var);
+
+		if (strcasecmp(ast_str_buffer(str), test_args[i].expected)) {
+			ast_test_status_update(test, "Evaluation of '%s' returned '%s' instead of the expected value '%s'\n",
+				expression, ast_str_buffer(str), test_args[i].expected);
+			res = AST_TEST_FAIL;
+			break;
+		}
+	}
+
+	ast_free(str);
+	ast_channel_release(chan);
+
+	return res;
+}
+
 AST_TEST_DEFINE(test_FILTER)
 {
 	int i, res = AST_TEST_PASS;
@@ -1843,6 +1912,7 @@ static int unload_module(void)
 	int res = 0;
 
 	AST_TEST_UNREGISTER(test_FIELDNUM);
+	AST_TEST_UNREGISTER(test_REPLACE);
 	AST_TEST_UNREGISTER(test_FILTER);
 	AST_TEST_UNREGISTER(test_STRREPLACE);
 	res |= ast_custom_function_unregister(&fieldqty_function);
@@ -1879,6 +1949,7 @@ static int load_module(void)
 	int res = 0;
 
 	AST_TEST_REGISTER(test_FIELDNUM);
+	AST_TEST_REGISTER(test_REPLACE);
 	AST_TEST_REGISTER(test_FILTER);
 	AST_TEST_REGISTER(test_STRREPLACE);
 	res |= ast_custom_function_register(&fieldqty_function);
