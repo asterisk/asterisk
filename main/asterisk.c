@@ -3421,7 +3421,9 @@ static void ast_readconfig(void)
 			live_dangerously = ast_true(v->value);
 		}
 	}
-	pbx_live_dangerously(live_dangerously);
+	if (!ast_opt_remote) {
+		pbx_live_dangerously(live_dangerously);
+	}
 	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
 		float version;
 		if (sscanf(v->value, "%30f", &version) != 1) {
