@@ -672,8 +672,38 @@ static int can_reuse_registration(struct sip_outbound_registration *existing, st
 static int sip_outbound_registration_regc_alloc(void *data)
 {
 	struct sip_outbound_registration *registration = data;
+	pj_pool_t *pool;
+	pj_str_t tmp;
+	pjsip_uri *uri;
 	pj_str_t server_uri, client_uri, contact_uri;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "URI Validation", 256, 256);
+	if (!pool) {
+		ast_log(LOG_ERROR, "Could not create pool for URI validation on outbound registration '%s'\n",
+			ast_sorcery_object_get_id(registration));
+		return -1;
+	}
+
+	pj_strdup2_with_null(pool, &tmp, registration->server_uri);
+	uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0);
+	if (!uri) {
+		ast_log(LOG_ERROR, "Invalid server URI '%s' specified on outbound registration '%s'\n",
+			registration->server_uri, ast_sorcery_object_get_id(registration));
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return -1;
+	}
+
+	pj_strdup2_with_null(pool, &tmp, registration->client_uri);
+	uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0);
+	if (!uri) {
+		ast_log(LOG_ERROR, "Invalid client URI '%s' specified on outbound registration '%s'\n",
+			registration->client_uri, ast_sorcery_object_get_id(registration));
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return -1;
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 
 	if (!ast_strlen_zero(registration->transport)) {
 		RAII_VAR(struct ast_sip_transport *, transport, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", registration->transport), ao2_cleanup);
@@ -733,9 +763,6 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 {
 	RAII_VAR(struct sip_outbound_registration *, existing, ast_sorcery_retrieve_by_id(sorcery, "registration", ast_sorcery_object_get_id(obj)), ao2_cleanup);
 	struct sip_outbound_registration *applied = obj;
-	pj_pool_t *pool;
-	pj_str_t tmp;
-	pjsip_uri *uri;
 
 	if (ast_strlen_zero(applied->server_uri)) {
 		ast_log(LOG_ERROR, "No server URI specified on outbound registration '%s'",
@@ -746,33 +773,6 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 			ast_sorcery_object_get_id(applied));
 		return -1;
 	}
-
-	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "URI Validation", 256, 256);
-	if (!pool) {
-		ast_log(LOG_ERROR, "Could not create pool for URI validation on outbound registration '%s'\n",
-			ast_sorcery_object_get_id(applied));
-		return -1;
-	}
-
-	pj_strdup2_with_null(pool, &tmp, applied->server_uri);
-	uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0);
-	if (!uri) {
-		ast_log(LOG_ERROR, "Invalid server URI '%s' specified on outbound registration '%s'\n",
-			applied->server_uri, ast_sorcery_object_get_id(applied));
-		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-		return -1;
-	}
-
-	pj_strdup2_with_null(pool, &tmp, applied->client_uri);
-	uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0);
-	if (!uri) {
-		ast_log(LOG_ERROR, "Invalid client URI '%s' specified on outbound registration '%s'\n",
-			applied->client_uri, ast_sorcery_object_get_id(applied));
-		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-		return -1;
-	}
-
-	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 
 	if (!existing) {
 		/* If no existing registration exists we can just start fresh easily */
