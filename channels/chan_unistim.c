@@ -2693,7 +2693,7 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 	}
 	if ((keycode >= KEY_0) && (keycode <= KEY_SHARP)) {
 		char tmpbuf[] = "Number : ...............";
-		int i = 0;
+		unsigned int i = 0; /* changed to unsigned due to weird gcc 4.8.1 compiler complaint */
 
 		if (pte->device->size_phone_number >= 15)
 			return;

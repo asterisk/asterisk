@@ -2547,7 +2547,7 @@ static void meetme_menu_admin(enum menu_modes *menu_mode, int *dtmf, struct ast_
  * \param recordingtmp character buffer which may hold the name of the conference recording file
  * \param dahdic dahdi configuration info used by the main conference loop
  */
-static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan, struct ast_conf_user *user, char *recordingtmp, struct dahdi_confinfo *dahdic)
+static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan, struct ast_conf_user *user, char *recordingtmp, int recordingtmp_size, struct dahdi_confinfo *dahdic)
 {
 	int keepplaying;
 	int playednamerec;
@@ -2668,7 +2668,7 @@ static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, st
 				}
 				ast_channel_unlock(chan);
 				if (!conf->recordingfilename) {
-					snprintf(recordingtmp, sizeof(recordingtmp), "meetme-conf-rec-%s-%s", conf->confno, chan->uniqueid);
+					snprintf(recordingtmp, recordingtmp_size, "meetme-conf-rec-%s-%s", conf->confno, chan->uniqueid);
 					conf->recordingfilename = ast_strdup(recordingtmp);
 				}
 				if (!conf->recordingformat) {
@@ -2731,7 +2731,7 @@ static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, st
  * \param dahdic dahdi configuration info used by the main conference loop
  */
 
-static void meetme_menu(enum menu_modes *menu_mode, int *dtmf, struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan, struct ast_conf_user *user, char *recordingtmp, struct dahdi_confinfo *dahdic)
+static void meetme_menu(enum menu_modes *menu_mode, int *dtmf, struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan, struct ast_conf_user *user, char *recordingtmp, int recordingtmp_size, struct dahdi_confinfo *dahdic)
 {
 	switch (*menu_mode) {
 	case MENU_DISABLED:
@@ -2746,7 +2746,7 @@ static void meetme_menu(enum menu_modes *menu_mode, int *dtmf, struct ast_confer
 			break;
 		}
 	case MENU_ADMIN_EXTENDED:
-		meetme_menu_admin_extended(menu_mode, dtmf, conf, confflags, chan, user, recordingtmp, dahdic);
+		meetme_menu_admin_extended(menu_mode, dtmf, conf, confflags, chan, user, recordingtmp, recordingtmp_size, dahdic);
 		break;
 	}
 }
@@ -3791,7 +3791,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					}
 
 					if (dtmf > 0) {
-						meetme_menu(&menu_mode, &dtmf, conf, confflags, chan, user, recordingtmp, &dahdic);
+						meetme_menu(&menu_mode, &dtmf, conf, confflags, chan, user, recordingtmp, sizeof(recordingtmp), &dahdic);
 					}
 
 					if (musiconhold && !menu_mode) {
