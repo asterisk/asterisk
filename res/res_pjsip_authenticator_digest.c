@@ -200,7 +200,7 @@ static int build_nonce(struct ast_str **nonce, const char *timestamp, const pjsi
 {
 	struct ast_str *str = ast_str_alloca(256);
 	RAII_VAR(char *, eid, ao2_global_obj_ref(entity_id), ao2_cleanup);
-	char hash[32];
+	char hash[33];
 
 	ast_str_append(&str, 0, "%s", timestamp);
 	ast_str_append(&str, 0, ":%s", rdata->pkt_info.src_name);

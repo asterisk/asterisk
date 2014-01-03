@@ -202,7 +202,7 @@ AST_TEST_DEFINE(md5_test)
 	ast_test_status_update(test, "Testing MD5 ...\n");
 
 	for (i = 0; i < ARRAY_LEN(tests); i++) {
-		char md5_hash[32];
+		char md5_hash[33];
 		ast_md5_hash(md5_hash, tests[i].input);
 		if (strcasecmp(md5_hash, tests[i].expected_output)) {
 			ast_test_status_update(test,
