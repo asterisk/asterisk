@@ -810,6 +810,7 @@ AST_TEST_DEFINE(cache_dump)
 	ast_test_validate(test, 2 == actual_len);
 
 	/* Check the cache */
+	ao2_cleanup(cache_dump);
 	cache_dump = stasis_cache_dump(cache, NULL);
 	ast_test_validate(test, NULL != cache_dump);
 	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
@@ -829,6 +830,7 @@ AST_TEST_DEFINE(cache_dump)
 	ast_test_validate(test, 3 == actual_len);
 
 	/* Check the cache */
+	ao2_cleanup(cache_dump);
 	cache_dump = stasis_cache_dump(cache, NULL);
 	ast_test_validate(test, NULL != cache_dump);
 	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
@@ -848,6 +850,7 @@ AST_TEST_DEFINE(cache_dump)
 	ast_test_validate(test, 4 == actual_len);
 
 	/* Check the cache */
+	ao2_cleanup(cache_dump);
 	cache_dump = stasis_cache_dump(cache, NULL);
 	ast_test_validate(test, NULL != cache_dump);
 	ast_test_validate(test, 1 == ao2_container_count(cache_dump));
