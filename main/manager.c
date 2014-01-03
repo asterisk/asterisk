@@ -5170,7 +5170,7 @@ static int action_userevent(struct mansession *s, const struct message *m)
 
 	ast_str_reset(body);
 
-	for (x = 0; x < m->hdrcount; x++) {
+	for (x = 1; x < m->hdrcount; x++) {
 		if (strncasecmp("UserEvent:", m->headers[x], strlen("UserEvent:"))) {
 			ast_str_append(&body, 0, "%s\r\n", m->headers[x]);
 		}
