@@ -542,6 +542,10 @@ static int my_load_module(int reload)
 		return AST_MODULE_LOAD_SUCCESS;
 	}
 
+	if (reload) {
+		my_unload_module();
+	}
+
 	process_my_load_module(cfg);
 	ast_config_destroy(cfg);
 
@@ -562,7 +566,6 @@ static int load_module(void)
 
 static int reload(void)
 {
-	my_unload_module();
 	return my_load_module(1);
 }
 
