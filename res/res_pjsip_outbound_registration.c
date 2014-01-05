@@ -307,27 +307,30 @@ static void schedule_registration(struct sip_outbound_registration_client_state 
 static int handle_client_state_destruction(void *data)
 {
 	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, data, ao2_cleanup);
-	pjsip_regc_info info;
 
 	cancel_registration(client_state);
 
-	pjsip_regc_get_info(client_state->client, &info);
+	if (client_state->client) {
+		pjsip_regc_info info;
 
-	if (info.is_busy == PJ_TRUE) {
-		/* If a client transaction is in progress we defer until it is complete */
-		client_state->destroy = 1;
-		return 0;
-	}
+		pjsip_regc_get_info(client_state->client, &info);
 
-	if (client_state->status != SIP_REGISTRATION_UNREGISTERED && client_state->status != SIP_REGISTRATION_REJECTED_PERMANENT) {
-		pjsip_tx_data *tdata;
-
-		if (pjsip_regc_unregister(client_state->client, &tdata) == PJ_SUCCESS) {
-			pjsip_regc_send(client_state->client, tdata);
+		if (info.is_busy == PJ_TRUE) {
+			/* If a client transaction is in progress we defer until it is complete */
+			client_state->destroy = 1;
+			return 0;
 		}
-	}
 
-	pjsip_regc_destroy(client_state->client);
+		if (client_state->status != SIP_REGISTRATION_UNREGISTERED && client_state->status != SIP_REGISTRATION_REJECTED_PERMANENT) {
+			pjsip_tx_data *tdata;
+
+			if (pjsip_regc_unregister(client_state->client, &tdata) == PJ_SUCCESS) {
+				pjsip_regc_send(client_state->client, tdata);
+			}
+		}
+
+		pjsip_regc_destroy(client_state->client);
+	}
 
 	client_state->status = SIP_REGISTRATION_STOPPED;
 	ast_sip_auth_vector_destroy(&client_state->outbound_auths);
