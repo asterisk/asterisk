@@ -538,10 +538,7 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 		return NULL;
 	}
 
-	if ((pjsip_regc_create(ast_sip_get_pjsip_endpoint(), state->client_state, sip_outbound_registration_response_cb, &state->client_state->client) != PJ_SUCCESS) ||
-		!(state->client_state->serializer = ast_sip_create_serializer())) {
-		/* This is on purpose, normal operation will have it be deallocated within the serializer */
-		pjsip_regc_destroy(state->client_state->client);
+	if (!(state->client_state->serializer = ast_sip_create_serializer())) {
 		ao2_cleanup(state->client_state);
 		ao2_cleanup(state);
 		return NULL;
@@ -723,6 +720,12 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		} else {
 			return -1;
 		}
+	}
+
+	if (!registration->state->client_state->client &&
+		pjsip_regc_create(ast_sip_get_pjsip_endpoint(), registration->state->client_state, sip_outbound_registration_response_cb,
+		&registration->state->client_state->client) != PJ_SUCCESS) {
+		return -1;
 	}
 
 	pjsip_regc_set_transport(registration->state->client_state->client, &selector);
