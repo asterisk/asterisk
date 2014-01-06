@@ -1666,12 +1666,12 @@ AST_TEST_DEFINE(test_REPLACE)
 			break;
 		}
 
-		AST_LIST_INSERT_HEAD(ast_channel_varshead(chan), var, entries);
+		AST_LIST_INSERT_HEAD(&chan->varshead, var, entries);
 
 		snprintf(expression, sizeof(expression), "${REPLACE(%s,%s,%s)}", var->name, test_args[i].find_chars, test_args[i].replace_char);
 		ast_str_substitute_variables(&str, 0, chan, expression);
 
-		AST_LIST_REMOVE(ast_channel_varshead(chan), var, entries);
+		AST_LIST_REMOVE(&chan->varshead, var, entries);
 		ast_var_delete(var);
 
 		if (strcasecmp(ast_str_buffer(str), test_args[i].expected)) {
