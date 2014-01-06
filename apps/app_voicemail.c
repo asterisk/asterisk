@@ -47,6 +47,7 @@
  */
 
 /*** MODULEINFO
+	<conflict>res_mwi_external</conflict>
 	<use type="module">res_adsi</use>
 	<use type="module">res_smdi</use>
 	<support_level>core</support_level>

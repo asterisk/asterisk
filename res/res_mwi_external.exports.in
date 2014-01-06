@@ -1,0 +1,6 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_*;
+	local:
+		*;
+};
