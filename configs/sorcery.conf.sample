@@ -49,6 +49,13 @@ test/cache=test
 test=memory
 
 ;
+; The following object mapping is the default mapping of external MWI mailbox
+; objects to give persistence to the message counts.
+;
+;[res_mwi_external]
+;mailboxes=astdb,mwi_external
+
+;
 ; The following object mappings set PJSIP objects to use realtime database mappings from extconfig
 ; with the table names used when automatically generating configuration from the alembic script.
 ;
