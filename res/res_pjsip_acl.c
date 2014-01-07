@@ -138,7 +138,7 @@ static int extract_contact_addr(pjsip_contact_hdr *contact, struct ast_sockaddr 
 	pjsip_sip_uri *sip_uri;
 	char host[256];
 
-	if (!contact) {
+	if (!contact || contact->star) {
 		return 0;
 	}
 	if (!PJSIP_URI_SCHEME_IS_SIP(contact->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact->uri)) {
