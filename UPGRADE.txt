@@ -54,6 +54,7 @@ From 11.5 to 11.6:
 * The option "register_retry_403" has been added to chan_sip to work around
   servers that are known to erroneously send 403 in response to valid
   REGISTER requests and allows Asterisk to continue attepmting to connect.
+  Due to a failed merge, this option is present, but non-functional until 11.8.0.
 
 From 11.4 to 11.5:
 * The default settings for chan_sip are now overriden properly by the general
