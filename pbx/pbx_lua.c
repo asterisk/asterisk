@@ -872,8 +872,11 @@ static int lua_sort_extensions(lua_State *L)
 		 * table in the extensions_order table */
 		for (lua_pushnil(L); lua_next(L, context); lua_pop(L, 1)) {
 			int exten = lua_gettop(L) - 1;
-
+#if LUA_VERSION_NUM < 502
 			lua_pushinteger(L, lua_objlen(L, context_order) + 1);
+#else
+			lua_pushinteger(L, lua_rawlen(L, context_order) + 1);
+#endif
 			lua_pushvalue(L, exten);
 			lua_settable(L, context_order);
 		}
@@ -1505,9 +1508,13 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 	lua_remove(L, -2);  /* remove the extensions order table */
 
 	context_order_table = lua_gettop(L);
-	
+
 	/* step through the extensions looking for a match */
+#if LUA_VERSION_NUM < 502
 	for (i = 1; i < lua_objlen(L, context_order_table) + 1; i++) {
+#else
+	for (i = 1; i < lua_rawlen(L, context_order_table) + 1; i++) {
+#endif
 		int e_index_copy, match = 0;
 		const char *e;
 
