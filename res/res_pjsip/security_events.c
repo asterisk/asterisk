@@ -150,7 +150,7 @@ void ast_sip_report_auth_failed_challenge_response(struct ast_sip_endpoint *endp
 				.expected_response = "",
 		};
 
-	if (auth && !pj_strcmp2(&auth->scheme, "digest")) {
+	if (auth && !pj_strcmp2(&auth->scheme, "Digest")) {
 		ast_copy_pj_str(nonce, &auth->credential.digest.nonce, sizeof(nonce));
 		ast_copy_pj_str(response, &auth->credential.digest.response, sizeof(response));
 	}
