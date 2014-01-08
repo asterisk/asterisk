@@ -23871,6 +23871,13 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		}
 		break;
 	case 403:	/* Forbidden */
+		if (global_reg_retry_403) {
+			ast_log(LOG_NOTICE, "Treating 403 response to REGISTER as non-fatal for %s@%s\n",
+				p->registry->username, p->registry->hostname);
+			ast_string_field_set(r, nonce, "");
+			ast_string_field_set(p, nonce, "");
+			break;
+		}
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
 		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 403"));
 		r->regstate = REG_STATE_NOAUTH;
