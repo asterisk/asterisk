@@ -555,7 +555,17 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		pj_timer_heap_poll(timerheap, NULL);
 		rtp->ice_started = 1;
 		rtp->strict_rtp_state = STRICT_RTP_OPEN;
+		return;
 	}
+
+	/* even though create check list failed don't stop ice as
+	   it might still work */
+	ast_debug(1, "Failed to create ICE session check list\n");
+	/* however we do need to reset remote candidates since
+	   this function may be re-entered */
+	ao2_ref(rtp->remote_candidates, -1);
+	rtp->remote_candidates = NULL;
+	rtp->ice->rcand_cnt = rtp->ice->clist.count = 0;
 }
 
 static void ast_rtp_ice_stop(struct ast_rtp_instance *instance)
