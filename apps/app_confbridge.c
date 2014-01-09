@@ -1948,7 +1948,7 @@ static int action_kick_last(struct confbridge_conference *conference,
 		ast_stream_and_wait(bridge_channel->chan,
 			conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds),
 			"");
-	} else if (last_user) {
+	} else if (last_user && !last_user->kicked) {
 		last_user->kicked = 1;
 		ast_bridge_remove(conference->bridge, last_user->chan);
 		ao2_unlock(conference);
@@ -2127,7 +2127,7 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 
 	SCOPED_AO2LOCK(bridge_lock, conference);
 	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
-		if (!strcasecmp(ast_channel_name(user->chan), channel)) {
+		if (!strcasecmp(ast_channel_name(user->chan), channel) && !user->kicked) {
 			user->kicked = 1;
 			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
@@ -2138,7 +2138,7 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 		}
 	}
 	AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
-		if (!strcasecmp(ast_channel_name(user->chan), channel)) {
+		if (!strcasecmp(ast_channel_name(user->chan), channel) && !user->kicked) {
 			user->kicked = 1;
 			ast_bridge_remove(conference->bridge, user->chan);
 			return 0;
