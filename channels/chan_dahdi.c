@@ -10828,7 +10828,6 @@ static int dahdi_create_channel_range(int start, int end)
 	struct dahdi_chan_conf default_conf = dahdi_chan_conf_default();
 	struct dahdi_chan_conf base_conf = dahdi_chan_conf_default();
 	struct dahdi_chan_conf conf = dahdi_chan_conf_default();
-	int i, x;
 	int ret = RESULT_FAILURE; /* be pessimistic */
 
 	ast_debug(1, "channel range caps: %d - %d\n", start, end);
@@ -10841,31 +10840,34 @@ static int dahdi_create_channel_range(int start, int end)
 			goto out;
 		}
 	}
-	for (x = 0; x < NUM_SPANS; x++) {
 #ifdef HAVE_PRI
-		struct dahdi_pri *pri = pris + x;
+	{
+		int i, x;
+		for (x = 0; x < NUM_SPANS; x++) {
+			struct dahdi_pri *pri = pris + x;
 
-		if (!pris[x].pri.pvts[0]) {
-			break;
-		}
-		for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
-			int channo = pri->dchannels[i];
-
-			if (!channo) {
+			if (!pris[x].pri.pvts[0]) {
 				break;
 			}
-			if (!pri->pri.fds[i]) {
-				break;
-			}
-			if (channo >= start && channo <= end) {
-				ast_log(LOG_ERROR,
-						"channel range %d-%d is occupied by span %d\n",
-						start, end, x + 1);
-				goto out;
+			for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
+				int channo = pri->dchannels[i];
+
+				if (!channo) {
+					break;
+				}
+				if (!pri->pri.fds[i]) {
+					break;
+				}
+				if (channo >= start && channo <= end) {
+					ast_log(LOG_ERROR,
+							"channel range %d-%d is occupied by span %d\n",
+							start, end, x + 1);
+					goto out;
+				}
 			}
 		}
-#endif
 	}
+#endif
 	if (!default_conf.chan.cc_params || !base_conf.chan.cc_params ||
 		!conf.chan.cc_params) {
 		goto out;
