@@ -1961,7 +1961,7 @@ static int action_kick_last(struct conference_bridge *conference_bridge,
 		ast_stream_and_wait(bridge_channel->chan,
 			conf_get_sound(CONF_SOUND_ERROR_MENU, conference_bridge_user->b_profile.sounds),
 			"");
-	} else if (last_participant) {
+	} else if (last_participant && !last_participant->kicked) {
 		last_participant->kicked = 1;
 		ast_bridge_remove(conference_bridge->bridge, last_participant->chan);
 		ao2_unlock(conference_bridge);
@@ -2139,7 +2139,7 @@ static int kick_conference_participant(struct conference_bridge *bridge, const c
 
 	ao2_lock(bridge);
 	AST_LIST_TRAVERSE(&bridge->active_list, participant, list) {
-		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
+		if (!strcasecmp(ast_channel_name(participant->chan), channel) && !participant->kicked) {
 			participant->kicked = 1;
 			ast_bridge_remove(bridge->bridge, participant->chan);
 			ao2_unlock(bridge);
@@ -2147,7 +2147,7 @@ static int kick_conference_participant(struct conference_bridge *bridge, const c
 		}
 	}
 	AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
-		if (!strcasecmp(ast_channel_name(participant->chan), channel)) {
+		if (!strcasecmp(ast_channel_name(participant->chan), channel) && !participant->kicked) {
 			participant->kicked = 1;
 			ast_bridge_remove(bridge->bridge, participant->chan);
 			ao2_unlock(bridge);

@@ -80,23 +80,16 @@ static void leave_active(struct conference_bridge_user *cbu)
 static void leave_marked(struct conference_bridge_user *cbu)
 {
 	struct conference_bridge_user *cbu_iter;
+	int need_prompt = 0;
 
 	conf_remove_user_marked(cbu->conference_bridge, cbu);
 
 	if (cbu->conference_bridge->markedusers == 0) {
-		/* Play back the audio prompt saying the leader has left the conference */
-		if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET)) {
-			ao2_unlock(cbu->conference_bridge);
-			ast_autoservice_start(cbu->chan);
-			play_sound_file(cbu->conference_bridge,
-				conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, cbu->b_profile.sounds));
-			ast_autoservice_stop(cbu->chan);
-			ao2_lock(cbu->conference_bridge);
-		}
+		need_prompt = 1;
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&cbu->conference_bridge->active_list, cbu_iter, list) {
 			/* Kick ENDMARKED cbu_iters */
-			if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_ENDMARKED)) {
+			if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_ENDMARKED) && !cbu_iter->kicked) {
 				if (ast_test_flag(&cbu_iter->u_profile, USER_OPT_WAITMARKED)
 					&& !ast_test_flag(&cbu_iter->u_profile, USER_OPT_MARKEDUSER)) {
 					AST_LIST_REMOVE_CURRENT(list);
@@ -160,6 +153,18 @@ static void leave_marked(struct conference_bridge_user *cbu)
 			break;
 		default:
 			break; /* Stay in marked */
+		}
+	}
+
+	if (need_prompt) {
+		/* Play back the audio prompt saying the leader has left the conference */
+		if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET)) {
+			ao2_unlock(cbu->conference_bridge);
+			ast_autoservice_start(cbu->chan);
+			play_sound_file(cbu->conference_bridge,
+				conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, cbu->b_profile.sounds));
+			ast_autoservice_stop(cbu->chan);
+			ao2_lock(cbu->conference_bridge);
 		}
 	}
 }
