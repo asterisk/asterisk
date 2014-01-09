@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="level">
-				<para>Minimun verbose level</para>
+				<para>Minimum verbose level</para>
 			</parameter>
 		</syntax>
 		<description>
