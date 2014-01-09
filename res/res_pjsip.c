@@ -1383,8 +1383,7 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	if (!ast_strlen_zero(domain)) {
 		from->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
 		from->slen = pj_ansi_snprintf(from->ptr, PJSIP_MAX_URL_SIZE,
-				"<%s:%s@%s%s%s>",
-				(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
+				"<sip:%s@%s%s%s>",
 				user,
 				domain,
 				(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
@@ -1408,8 +1407,7 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 
 	from->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
 	from->slen = pj_ansi_snprintf(from->ptr, PJSIP_MAX_URL_SIZE,
-				      "<%s:%s@%s%.*s%s:%d%s%s>",
-				      (pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
+				      "<sip:%s@%s%.*s%s:%d%s%s>",
 				      user,
 				      (type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
 				      (int)local_addr.slen,
@@ -1536,8 +1534,7 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 
 	contact.ptr = pj_pool_alloc(rdata->tp_info.pool, PJSIP_MAX_URL_SIZE);
 	contact.slen = pj_ansi_snprintf(contact.ptr, PJSIP_MAX_URL_SIZE,
-			"<%s:%s%.*s%s:%d%s%s>",
-			(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
+			"<sip:%s%.*s%s:%d%s%s>",
 			(type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
 			(int)rdata->tp_info.transport->local_name.host.slen,
 			rdata->tp_info.transport->local_name.host.ptr,
