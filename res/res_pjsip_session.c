@@ -895,9 +895,16 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 	}
 
 	if (!(sdp_info = pjsip_rdata_get_sdp_info(rdata)) ||
-		(sdp_info->sdp_err != PJ_SUCCESS) ||
-		!sdp_info->sdp ||
-		!sdp_requires_deferral(session, sdp_info->sdp)) {
+		(sdp_info->sdp_err != PJ_SUCCESS)) {
+		return PJ_FALSE;
+	}
+
+	if (!sdp_info->sdp) {
+		ast_queue_unhold(session->channel);
+		return PJ_FALSE;
+	}
+
+	if (!sdp_requires_deferral(session, sdp_info->sdp)) {
 		return PJ_FALSE;
 	}
 
