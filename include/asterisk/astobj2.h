@@ -1933,4 +1933,13 @@ void __ao2_cleanup_debug(void *obj, const char *file, int line, const char *func
 #endif
 void ao2_iterator_cleanup(struct ao2_iterator *iter);
 
+/*!
+ * \brief Get a count of the iterated container objects.
+ *
+ * \param iter the iterator to query
+ *
+ * \retval The number of objects in the iterated container
+ */
+int ao2_iterator_count(struct ao2_iterator *iter);
+
 #endif /* _ASTERISK_ASTOBJ2_H */

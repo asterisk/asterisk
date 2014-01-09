@@ -1682,6 +1682,11 @@ void *__ao2_iterator_next(struct ao2_iterator *iter)
 	return internal_ao2_iterator_next(iter, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__);
 }
 
+int ao2_iterator_count(struct ao2_iterator *iter)
+{
+	return ao2_container_count(iter->c);
+}
+
 static void container_destruct(void *_c)
 {
 	struct ao2_container *c = _c;
