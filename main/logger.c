@@ -1304,7 +1304,7 @@ struct ast_callid *ast_create_callid(void)
 {
 	struct ast_callid *call;
 
-	call = ao2_alloc_options(sizeof(struct ast_callid), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	call = ao2_alloc_options(sizeof(*call), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!call) {
 		ast_log(LOG_ERROR, "Could not allocate callid struct.\n");
 		return NULL;
@@ -1320,7 +1320,8 @@ struct ast_callid *ast_create_callid(void)
 struct ast_callid *ast_read_threadstorage_callid(void)
 {
 	struct ast_callid **callid;
-	callid = ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));
+
+	callid = ast_threadstorage_get(&unique_callid, sizeof(*callid));
 	if (callid && *callid) {
 		ast_callid_ref(*callid);
 		return *callid;
@@ -1332,8 +1333,7 @@ struct ast_callid *ast_read_threadstorage_callid(void)
 
 int ast_callid_threadassoc_change(struct ast_callid *callid)
 {
-	struct ast_callid **id =
-		ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));
+	struct ast_callid **id = ast_threadstorage_get(&unique_callid, sizeof(*id));
 
 	if (!id) {
 		ast_log(LOG_ERROR, "Failed to allocate thread storage.\n");
@@ -1363,7 +1363,8 @@ int ast_callid_threadassoc_change(struct ast_callid *callid)
 int ast_callid_threadassoc_add(struct ast_callid *callid)
 {
 	struct ast_callid **pointing;
-	pointing = ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));
+
+	pointing = ast_threadstorage_get(&unique_callid, sizeof(*pointing));
 	if (!(pointing)) {
 		ast_log(LOG_ERROR, "Failed to allocate thread storage.\n");
 		return -1;
@@ -1387,7 +1388,8 @@ int ast_callid_threadassoc_add(struct ast_callid *callid)
 int ast_callid_threadassoc_remove(void)
 {
 	struct ast_callid **pointing;
-	pointing = ast_threadstorage_get(&unique_callid, sizeof(struct ast_callid **));
+
+	pointing = ast_threadstorage_get(&unique_callid, sizeof(*pointing));
 	if (!(pointing)) {
 		ast_log(LOG_ERROR, "Failed to allocate thread storage.\n");
 		return -1;
