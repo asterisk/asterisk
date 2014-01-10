@@ -67,6 +67,13 @@ static void security_event_populate(pjsip_rx_data *rdata, char *call_id, size_t 
 	ast_sockaddr_set_port(remote, rdata->pkt_info.src_port);
 }
 
+static const char *get_account_id(struct ast_sip_endpoint *endpoint)
+{
+	RAII_VAR(struct ast_sip_endpoint *, artificial, ast_sip_get_artificial_endpoint(), ao2_cleanup);
+
+	return endpoint == artificial ? "<unknown>" : ast_sorcery_object_get_id(endpoint);
+}
+
 void ast_sip_report_invalid_endpoint(const char *name, pjsip_rx_data *rdata)
 {
 	enum ast_transport transport = security_event_get_transport(rdata);
@@ -104,7 +111,7 @@ void ast_sip_report_failed_acl(struct ast_sip_endpoint *endpoint, pjsip_rx_data 
 			.common.event_type  = AST_SECURITY_EVENT_FAILED_ACL,
 			.common.version     = AST_SECURITY_EVENT_FAILED_ACL_VERSION,
 			.common.service     = "PJSIP",
-			.common.account_id  = ast_sorcery_object_get_id(endpoint),
+			.common.account_id  = get_account_id(endpoint),
 			.common.local_addr  = {
 					.addr       = &local,
 					.transport  = transport,
@@ -129,12 +136,13 @@ void ast_sip_report_auth_failed_challenge_response(struct ast_sip_endpoint *endp
 	char call_id[pj_strlen(&rdata->msg_info.cid->id) + 1];
 	char nonce[64] = "", response[256] = "";
 	struct ast_sockaddr local, remote;
+	RAII_VAR(struct ast_sip_endpoint *, artificial, ast_sip_get_artificial_endpoint(), ao2_cleanup);
 
 	struct ast_security_event_chal_resp_failed chal_resp_failed = {
 				.common.event_type = AST_SECURITY_EVENT_CHAL_RESP_FAILED,
 				.common.version    = AST_SECURITY_EVENT_CHAL_RESP_FAILED_VERSION,
 				.common.service    = "PJSIP",
-				.common.account_id = ast_sorcery_object_get_id(endpoint),
+				.common.account_id = get_account_id(endpoint),
 				.common.local_addr = {
 						.addr      = &local,
 						.transport = transport,
@@ -148,7 +156,7 @@ void ast_sip_report_auth_failed_challenge_response(struct ast_sip_endpoint *endp
 				.challenge         = nonce,
 				.response          = response,
 				.expected_response = "",
-		};
+	};
 
 	if (auth && !pj_strcmp2(&auth->scheme, "Digest")) {
 		ast_copy_pj_str(nonce, &auth->credential.digest.nonce, sizeof(nonce));
@@ -171,7 +179,7 @@ void ast_sip_report_auth_success(struct ast_sip_endpoint *endpoint, pjsip_rx_dat
 			.common.event_type  = AST_SECURITY_EVENT_SUCCESSFUL_AUTH,
 			.common.version     = AST_SECURITY_EVENT_SUCCESSFUL_AUTH_VERSION,
 			.common.service     = "PJSIP",
-			.common.account_id  = ast_sorcery_object_get_id(endpoint),
+			.common.account_id  = get_account_id(endpoint),
 			.common.local_addr  = {
 					.addr       = &local,
 					.transport  = transport,
@@ -200,7 +208,7 @@ void ast_sip_report_auth_challenge_sent(struct ast_sip_endpoint *endpoint, pjsip
 			.common.event_type = AST_SECURITY_EVENT_CHAL_SENT,
 			.common.version    = AST_SECURITY_EVENT_CHAL_SENT_VERSION,
 			.common.service    = "PJSIP",
-			.common.account_id = ast_sorcery_object_get_id(endpoint),
+			.common.account_id = get_account_id(endpoint),
 			.common.local_addr = {
 					.addr      = &local,
 					.transport = transport,
@@ -233,7 +241,7 @@ void ast_sip_report_req_no_support(struct ast_sip_endpoint *endpoint, pjsip_rx_d
 		.common.event_type  = AST_SECURITY_EVENT_REQ_NO_SUPPORT,
 		.common.version     = AST_SECURITY_EVENT_REQ_NO_SUPPORT_VERSION,
 		.common.service     = "PJSIP",
-		.common.account_id  = ast_sorcery_object_get_id(endpoint),
+		.common.account_id  = get_account_id(endpoint),
 		.common.local_addr  = {
 			.addr       = &local,
 			.transport  = transport,
@@ -261,7 +269,7 @@ void ast_sip_report_mem_limit(struct ast_sip_endpoint *endpoint, pjsip_rx_data *
 		.common.event_type  = AST_SECURITY_EVENT_MEM_LIMIT,
 		.common.version     = AST_SECURITY_EVENT_MEM_LIMIT_VERSION,
 		.common.service     = "PJSIP",
-		.common.account_id  = ast_sorcery_object_get_id(endpoint),
+		.common.account_id  = get_account_id(endpoint),
 		.common.local_addr  = {
 			.addr       = &local,
 			.transport  = transport,
