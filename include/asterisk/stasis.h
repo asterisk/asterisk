@@ -187,6 +187,12 @@ struct stasis_message_type;
 struct stasis_message;
 
 /*!
+ * \brief Opaque type for a Stasis subscription.
+ * \since 12
+ */
+struct stasis_subscription;
+
+/*!
  * \brief Structure containing callbacks for Stasis message sanitization
  *
  * \note If either callback is implemented, both should be implemented since
@@ -377,19 +383,34 @@ const char *stasis_topic_name(const struct stasis_topic *topic);
  * \brief Publish a message to a topic's subscribers.
  * \param topic Topic.
  * \param message Message to publish.
+ *
+ * This call is asynchronous and will return immediately upon queueing
+ * the message for delivery to the topic's subscribers.
+ *
  * \since 12
  */
 void stasis_publish(struct stasis_topic *topic, struct stasis_message *message);
 
+/*!
+ * \brief Publish a message to a topic's subscribers, synchronizing
+ * on the specified subscriber
+ * \param sub Subscription to synchronize on.
+ * \param message Message to publish.
+ *
+ * The caller of stasis_publish_sync will block until the specified
+ * subscriber completes handling of the message.
+ *
+ * All other subscribers to the topic the \ref stasis_subpscription
+ * is subscribed to are also delivered the message; this delivery however
+ * happens asynchronously.
+ *
+ * \since 12.1.0
+ */
+void stasis_publish_sync(struct stasis_subscription *sub, struct stasis_message *message);
+
 /*! @} */
 
 /*! @{ */
-
-/*!
- * \brief Opaque type for a Stasis subscription.
- * \since 12
- */
-struct stasis_subscription;
 
 /*!
  * \brief Callback function type for Stasis subscriptions.

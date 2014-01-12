@@ -93,6 +93,24 @@ void stasis_message_router_unsubscribe_and_join(
 int stasis_message_router_is_done(struct stasis_message_router *router);
 
 /*!
+ * \brief Publish a message to a message router's subscription synchronously
+ *
+ * \param router Router
+ * \param message The \ref stasis message
+ *
+ * This should be used when a message needs to be published synchronously to
+ * the underlying subscription created by a message router. This is analagous
+ * to \ref stasis_publish_sync.
+ *
+ * Note that the caller will be blocked until the thread servicing the message
+ * on the message router's subscription completes handling of the message.
+ *
+ * \since 12.1.0
+ */
+void stasis_message_router_publish_sync(struct stasis_message_router *router,
+	struct stasis_message *message);
+
+/*!
  * \brief Add a route to a message router.
  *
  * A particular \a message_type may have at most one route per \a router. If
