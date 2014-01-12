@@ -35,7 +35,7 @@ void ast_ari_device_states_list(
 	struct ast_ari_device_states_list_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 
 	if (!(json = stasis_app_device_states_to_json())) {
 		ast_ari_response_error(response, 500,
@@ -50,7 +50,7 @@ void ast_ari_device_states_get(struct ast_variable *headers,
 	struct ast_ari_device_states_get_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 
 	if (!(json = stasis_app_device_state_to_json(
 		      args->device_name, ast_device_state(args->device_name)))) {

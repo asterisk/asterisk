@@ -76,7 +76,7 @@ void ast_ari_recordings_get_stored(struct ast_variable *headers,
 {
 	RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
 		ao2_cleanup);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 
 	recording = stasis_app_stored_recording_find_by_name(
 		args->recording_name);
@@ -93,7 +93,7 @@ void ast_ari_recordings_get_stored(struct ast_variable *headers,
 		return;
 	}
 
-	ast_ari_response_ok(response, ast_json_ref(json));
+	ast_ari_response_ok(response, json);
 }
 
 void ast_ari_recordings_delete_stored(struct ast_variable *headers,
@@ -142,7 +142,7 @@ void ast_ari_recordings_get_live(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 
 	recording = stasis_app_recording_find_by_name(args->recording_name);
 	if (recording == NULL) {
@@ -158,7 +158,7 @@ void ast_ari_recordings_get_live(struct ast_variable *headers,
 		return;
 	}
 
-	ast_ari_response_ok(response, ast_json_ref(json));
+	ast_ari_response_ok(response, json);
 }
 
 static void control_recording(const char *name,

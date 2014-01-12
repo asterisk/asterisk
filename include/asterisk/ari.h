@@ -214,7 +214,7 @@ __attribute__((format(printf, 4, 5)));
  * \brief Fill in an \c OK (200) \a ast_ari_response.
  * \param response Response to fill in.
  * \param message JSON response.  This reference is stolen, so just \ref
- *                ast_json_incref if you need to keep a reference to it.
+ *                ast_json_ref if you need to keep a reference to it.
  */
 void ast_ari_response_ok(struct ast_ari_response *response,
 			     struct ast_json *message);
@@ -226,6 +226,10 @@ void ast_ari_response_no_content(struct ast_ari_response *response);
 
 /*!
  * \brief Fill in a <tt>Created</tt> (201) \a ast_ari_response.
+ * \param response Response to fill in.
+ * \param url URL to the created resource.
+ * \param message JSON response.  This reference is stolen, so just \ref
+ *                ast_json_ref if you need to keep a reference to it.
  */
 void ast_ari_response_created(struct ast_ari_response *response,
 	const char *url, struct ast_json *message);

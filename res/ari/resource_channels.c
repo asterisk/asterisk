@@ -362,7 +362,7 @@ void ast_ari_channels_play(struct ast_variable *headers,
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
 	RAII_VAR(char *, playback_url, NULL, ast_free);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 	const char *language;
 
 	ast_assert(response != NULL);
@@ -434,7 +434,7 @@ void ast_ari_channels_record(struct ast_variable *headers,
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
 	RAII_VAR(char *, recording_url, NULL, ast_free);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 	RAII_VAR(struct stasis_app_recording_options *, options, NULL,
 		ao2_cleanup);
 	RAII_VAR(char *, uri_encoded_name, NULL, ast_free);
