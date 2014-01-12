@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis.h"
+#include "asterisk/stasis_message_router.h"
 
 /*** DOCUMENTATION
 	<application name="ForkCDR" language="en_US">
@@ -136,7 +137,7 @@ static int forkcdr_exec(struct ast_channel *chan, const char *data)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	RAII_VAR(struct fork_cdr_message_payload *, payload, ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
-	RAII_VAR(struct stasis_subscription *, subscription, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
 
 	char *parse;
 	struct ast_flags flags = { 0, };
@@ -156,6 +157,12 @@ static int forkcdr_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	if (!router) {
+		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: no message router\n",
+			ast_channel_name(chan));
+		return -1;
+	}
+
 	payload->channel_name = ast_channel_name(chan);
 	payload->flags = &flags;
 	message = stasis_message_create(forkcdr_message_type(), payload);
@@ -164,36 +171,41 @@ static int forkcdr_exec(struct ast_channel *chan, const char *data)
 			ast_channel_name(chan));
 		return -1;
 	}
-
-	subscription = stasis_subscribe(ast_channel_topic(chan), forkcdr_callback, NULL);
-	if (!subscription) {
-		ast_log(AST_LOG_WARNING, "Failed to fork CDR for channel %s: unable to create subscription\n",
-			payload->channel_name);
-		return -1;
-	}
-
-	stasis_publish(ast_channel_topic(chan), message);
-
-	subscription = stasis_unsubscribe_and_join(subscription);
+	stasis_message_router_publish_sync(router, message);
 
 	return 0;
 }
 
 static int unload_module(void)
 {
-	STASIS_MESSAGE_TYPE_CLEANUP(forkcdr_message_type);
+	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
 
-	return ast_unregister_application(app);
+	if (router) {
+		stasis_message_router_remove(router, forkcdr_message_type());
+	}
+	STASIS_MESSAGE_TYPE_CLEANUP(forkcdr_message_type);
+	ast_unregister_application(app);
+	return 0;
 }
 
 static int load_module(void)
 {
+	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
 	int res = 0;
+
+	if (!router) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	res |= STASIS_MESSAGE_TYPE_INIT(forkcdr_message_type);
 	res |= ast_register_application_xml(app, forkcdr_exec);
+	res |= stasis_message_router_add(router, forkcdr_message_type(),
+	                                 forkcdr_callback, NULL);
 
-	return res;
+	if (res) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Fork The CDR into 2 separate entities");
