@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 #include "asterisk/stasis.h"
+#include "asterisk/stasis_message_router.h"
 
 /*** DOCUMENTATION
 	<application name="NoCDR" language="en_US">
@@ -167,7 +168,13 @@ static void appcdr_callback(void *data, struct stasis_subscription *sub, struct 
 static int publish_app_cdr_message(struct ast_channel *chan, struct app_cdr_message_payload *payload)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_subscription *, subscription, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
+
+	if (!router) {
+		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: no message router\n",
+			ast_channel_name(chan));
+		return -1;
+	}
 
 	message = stasis_message_create(appcdr_message_type(), payload);
 	if (!message) {
@@ -175,17 +182,8 @@ static int publish_app_cdr_message(struct ast_channel *chan, struct app_cdr_mess
 			payload->channel_name);
 		return -1;
 	}
+	stasis_message_router_publish_sync(router, message);
 
-	subscription = stasis_subscribe(ast_channel_topic(chan), appcdr_callback, NULL);
-	if (!subscription) {
-		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: unable to create subscription\n",
-			payload->channel_name);
-		return -1;
-	}
-
-	stasis_publish(ast_channel_topic(chan), message);
-
-	subscription = stasis_unsubscribe_and_join(subscription);
 	return 0;
 }
 
@@ -236,6 +234,11 @@ static int nocdr_exec(struct ast_channel *chan, const char *data)
 
 static int unload_module(void)
 {
+	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
+
+	if (router) {
+		stasis_message_router_remove(router, appcdr_message_type());
+	}
 	STASIS_MESSAGE_TYPE_CLEANUP(appcdr_message_type);
 	ast_unregister_application(nocdr_app);
 	ast_unregister_application(resetcdr_app);
@@ -244,11 +247,18 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
 	int res = 0;
+
+	if (!router) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	res |= STASIS_MESSAGE_TYPE_INIT(appcdr_message_type);
 	res |= ast_register_application_xml(nocdr_app, nocdr_exec);
 	res |= ast_register_application_xml(resetcdr_app, resetcdr_exec);
+	res |= stasis_message_router_add(router, appcdr_message_type(),
+	                                 appcdr_callback, NULL);
 
 	if (res) {
 		return AST_MODULE_LOAD_FAILURE;

@@ -3915,17 +3915,21 @@ static void finalize_batch_mode(void)
 	ast_cdr_engine_term();
 }
 
+struct stasis_message_router *ast_cdr_message_router(void)
+{
+	if (!stasis_router) {
+		return NULL;
+	}
+
+	ao2_bump(stasis_router);
+	return stasis_router;
+}
+
 /*!
- * \brief Destroy the active Stasis subscriptions/router/topics
+ * \brief Destroy the active Stasis subscriptions
  */
 static void destroy_subscriptions(void)
 {
-	stasis_message_router_unsubscribe_and_join(stasis_router);
-	stasis_router = NULL;
-
-	ao2_cleanup(cdr_topic);
-	cdr_topic = NULL;
-
 	channel_subscription = stasis_forward_cancel(channel_subscription);
 	bridge_subscription = stasis_forward_cancel(bridge_subscription);
 	parking_subscription = stasis_forward_cancel(parking_subscription);
@@ -3936,14 +3940,12 @@ static void destroy_subscriptions(void)
  */
 static int create_subscriptions(void)
 {
-	/* Use the CDR topic to determine if we've already created this */
-	if (cdr_topic) {
-		return 0;
-	}
-
-	cdr_topic = stasis_topic_create("cdr_engine");
 	if (!cdr_topic) {
 		return -1;
+	}
+
+	if (channel_subscription || bridge_subscription || parking_subscription) {
+		return 0;
 	}
 
 	channel_subscription = stasis_forward_all(ast_channel_topic_all_cached(), cdr_topic);
@@ -3958,16 +3960,6 @@ static int create_subscriptions(void)
 	if (!parking_subscription) {
 		return -1;
 	}
-
-	stasis_router = stasis_message_router_create(cdr_topic);
-	if (!stasis_router) {
-		return -1;
-	}
-	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
-	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
-	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
 
 	return 0;
 }
@@ -4019,6 +4011,12 @@ static void cdr_engine_cleanup(void)
 
 static void cdr_engine_shutdown(void)
 {
+	stasis_message_router_unsubscribe_and_join(stasis_router);
+	stasis_router = NULL;
+
+	ao2_cleanup(cdr_topic);
+	cdr_topic = NULL;
+
 	ao2_callback(active_cdrs_by_channel, OBJ_NODATA, cdr_object_dispatch_all_cb,
 		NULL);
 	finalize_batch_mode();
@@ -4112,6 +4110,21 @@ int ast_cdr_engine_init(void)
 	if (process_config(0)) {
 		return -1;
 	}
+
+	cdr_topic = stasis_topic_create("cdr_engine");
+	if (!cdr_topic) {
+		return -1;
+	}
+
+	stasis_router = stasis_message_router_create(cdr_topic);
+	if (!stasis_router) {
+		return -1;
+	}
+	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
+	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
+	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
+	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
+	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
 
 	active_cdrs_by_channel = ao2_container_alloc(NUM_CDR_BUCKETS,
 		cdr_object_channel_hash_fn, cdr_object_channel_cmp_fn);
