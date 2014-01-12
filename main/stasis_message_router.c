@@ -261,6 +261,16 @@ int stasis_message_router_is_done(struct stasis_message_router *router)
 	return stasis_subscription_is_done(router->subscription);
 }
 
+void stasis_message_router_publish_sync(struct stasis_message_router *router,
+	struct stasis_message *message)
+{
+	ast_assert(router != NULL);
+
+	ao2_bump(router);
+	stasis_publish_sync(router->subscription, message);
+	ao2_cleanup(router);
+}
+
 int stasis_message_router_add(struct stasis_message_router *router,
 	struct stasis_message_type *message_type,
 	stasis_subscription_cb callback, void *data)
