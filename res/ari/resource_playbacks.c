@@ -35,7 +35,7 @@ void ast_ari_playbacks_get(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 
 	playback = stasis_app_playback_find_by_id(args->playback_id);
 	if (playback == NULL) {
@@ -51,7 +51,7 @@ void ast_ari_playbacks_get(struct ast_variable *headers,
 		return;
 	}
 
-	ast_ari_response_ok(response, ast_json_ref(json));
+	ast_ari_response_ok(response, json);
 }
 void ast_ari_playbacks_stop(struct ast_variable *headers,
 	struct ast_ari_playbacks_stop_args *args,

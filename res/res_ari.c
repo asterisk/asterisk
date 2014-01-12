@@ -253,7 +253,7 @@ void ast_ari_response_error(struct ast_ari_response *response,
 void ast_ari_response_ok(struct ast_ari_response *response,
 			     struct ast_json *message)
 {
-	response->message = ast_json_ref(message);
+	response->message = message;
 	response->response_code = 200;
 	response->response_text = "OK";
 }
@@ -275,7 +275,7 @@ void ast_ari_response_alloc_failed(struct ast_ari_response *response)
 void ast_ari_response_created(struct ast_ari_response *response,
 	const char *url, struct ast_json *message)
 {
-	response->message = ast_json_ref(message);
+	response->message = message;
 	response->response_code = 201;
 	response->response_text = "Created";
 	ast_str_append(&response->headers, 0, "Location: %s\r\n", url);
@@ -465,7 +465,7 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 	RAII_VAR(char *, response_text, NULL, ast_free);
 	RAII_VAR(struct stasis_rest_handlers *, root, NULL, ao2_cleanup);
 	struct stasis_rest_handlers *handler;
-	struct ast_variable *path_vars = NULL;
+	RAII_VAR(struct ast_variable *, path_vars, NULL, ast_variables_destroy);
 	char *path = ast_strdupa(uri);
 	char *path_segment;
 	stasis_rest_callback callback;
@@ -839,14 +839,13 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 				struct ast_variable *headers)
 {
 	RAII_VAR(struct ast_ari_conf *, conf, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_str *, response_headers, ast_str_create(40), ast_free);
 	RAII_VAR(struct ast_str *, response_body, ast_str_create(256), ast_free);
 	RAII_VAR(struct ast_ari_conf_user *, user, NULL, ao2_cleanup);
 	struct ast_ari_response response = {};
 	int ret = 0;
 	RAII_VAR(struct ast_variable *, post_vars, NULL, ast_variables_destroy);
 
-	if (!response_headers || !response_body) {
+	if (!response_body) {
 		return -1;
 	}
 
@@ -857,6 +856,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 
 	conf = ast_ari_config_get();
 	if (!conf || !conf->general) {
+		ast_free(response.headers);
 		return -1;
 	}
 
@@ -955,6 +955,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	if (response.no_response) {
 		/* The handler indicates no further response is necessary.
 		 * Probably because it already handled it */
+		ast_free(response.headers);
 		return 0;
 	}
 
@@ -964,13 +965,11 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	ast_assert(response.message != NULL);
 	ast_assert(response.response_code > 0);
 
-	ast_str_append(&response_headers, 0, "%s", ast_str_buffer(response.headers));
-
 	/* response.message could be NULL, in which case the empty response_body
 	 * is correct
 	 */
 	if (response.message && !ast_json_is_null(response.message)) {
-		ast_str_append(&response_headers, 0,
+		ast_str_append(&response.headers, 0,
 			       "Content-type: application/json\r\n");
 		if (ast_json_dump_str_format(response.message, &response_body,
 				conf->general->format) != 0) {
@@ -978,16 +977,15 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 			response.response_code = 500;
 			response.response_text = "Internal Server Error";
 			ast_str_set(&response_body, 0, "%s", "");
-			ast_str_set(&response_headers, 0, "%s", "");
+			ast_str_set(&response.headers, 0, "%s", "");
 			ret = -1;
 		}
 	}
 
 	ast_http_send(ser, method, response.response_code,
-		      response.response_text, response_headers, response_body,
+		      response.response_text, response.headers, response_body,
 		      0, 0);
 	/* ast_http_send takes ownership, so we don't have to free them */
-	response_headers = NULL;
 	response_body = NULL;
 
 	ast_json_unref(response.message);

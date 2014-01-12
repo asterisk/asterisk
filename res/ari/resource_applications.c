@@ -68,15 +68,14 @@ void ast_ari_applications_list(struct ast_variable *headers,
 		return;
 	}
 
-
-	ast_ari_response_ok(response, json);
+	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
 void ast_ari_applications_get(struct ast_variable *headers,
 	struct ast_ari_applications_get_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 
 	json = stasis_app_to_json(args->application_name);
 
@@ -113,7 +112,7 @@ void ast_ari_applications_subscribe(struct ast_variable *headers,
 
 	switch (res) {
 	case STASIS_ASR_OK:
-		ast_ari_response_ok(response, json);
+		ast_ari_response_ok(response, ast_json_ref(json));
 		break;
 	case STASIS_ASR_APP_NOT_FOUND:
 		ast_ari_response_error(response, 404, "Not Found",
@@ -152,7 +151,7 @@ void ast_ari_applications_unsubscribe(struct ast_variable *headers,
 
 	switch (res) {
 	case STASIS_ASR_OK:
-		ast_ari_response_ok(response, json);
+		ast_ari_response_ok(response, ast_json_ref(json));
 		break;
 	case STASIS_ASR_APP_NOT_FOUND:
 		ast_ari_response_error(response, 404, "Not Found",

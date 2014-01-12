@@ -411,7 +411,7 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 	play_channel = NULL;
 	control = NULL;
 
-	ast_ari_response_created(response, playback_url, json);
+	ast_ari_response_created(response, playback_url, ast_json_ref(json));
 }
 
 void ast_ari_bridges_record(struct ast_variable *headers,
@@ -566,7 +566,7 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 	record_channel = NULL;
 	control = NULL;
 
-	ast_ari_response_created(response, recording_url, json);
+	ast_ari_response_created(response, recording_url, ast_json_ref(json));
 }
 
 void ast_ari_bridges_start_moh(struct ast_variable *headers,

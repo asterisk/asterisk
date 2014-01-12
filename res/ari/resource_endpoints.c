@@ -158,7 +158,7 @@ void ast_ari_endpoints_get(struct ast_variable *headers,
 	struct ast_ari_endpoints_get_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	struct ast_json *json;
 	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
 
 	snapshot = ast_endpoint_latest_snapshot(args->tech, args->resource);
@@ -174,5 +174,5 @@ void ast_ari_endpoints_get(struct ast_variable *headers,
 		return;
 	}
 
-	ast_ari_response_ok(response, ast_json_ref(json));
+	ast_ari_response_ok(response, json);
 }
