@@ -70,7 +70,8 @@ clean::
 	@if [ -f pjproject/build.mak ]; then $(MAKE) -C pjproject realclean; fi
 	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i
 
-dist-clean::
+dist-clean:: distclean
+distclean::
 	rm -f pjproject/build.mak
 
 pjproject/build.mak: pjproject/aconfigure
@@ -93,3 +94,4 @@ res_rtp_asterisk.o: _ASTCFLAGS+=$(PJ_CFLAGS)
 res_rtp_asterisk.so: _ASTLDFLAGS+=$(PJ_LDFLAGS)
 res_rtp_asterisk.so: LIBS+=$(PJ_LDLIBS)
 endif
+
