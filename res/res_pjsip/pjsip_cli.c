@@ -132,7 +132,6 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 	const char *object_id = NULL;
 	char formatter_type[64];
 	struct ast_sip_cli_formatter_entry *formatter_entry;
-	int is_plural = 0;
 
 	struct ast_sip_cli_context context = {
 		.peers_mon_online = 0,
@@ -141,6 +140,9 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 		.peers_unmon_offline = 0,
 		.a = a,
 		.indent_level = 0,
+		.show_details = 0,
+		.show_details_only_level_0 = 0,
+		.recurse = 0,
 	};
 
 	if (cmd == CLI_INIT) {
@@ -153,35 +155,35 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 
 	if (!ast_ends_with(cmd2, "s")) {
 		ast_copy_string(formatter_type, cmd2, strlen(cmd2)+1);
-		is_plural = 0;
+		is_container = 0;
 	} else {
 		ast_copy_string(formatter_type, cmd2, strlen(cmd2));
-		is_plural = 1;
-	}
-
-	if (!strcmp(cmd1, "show")) {
-		if (is_plural) {
-			context.recurse = 1;
-			context.show_details = 0;
-			context.show_details_only_level_0 = 0;
-			is_container = 1;
-		} else {
-			context.recurse = 1;
-			context.show_details = 0;
-			context.show_details_only_level_0 = 1;
-			is_container = 0;
-		}
-	} else {
-		context.recurse = 0;
-		context.show_details = 0;
-		context.show_details_only_level_0 = 0;
 		is_container = 1;
 	}
 
+	if (!strcmp(cmd1, "show")) {
+		context.show_details_only_level_0 = !is_container;
+		context.recurse = 1;
+	} else {
+		is_container = 1;
+	}
+
+	if (cmd == CLI_GENERATE
+		&& (is_container
+			|| a->argc > 4
+			|| (a->argc == 4 && ast_strlen_zero(a->word)))) {
+		return CLI_SUCCESS;
+	}
+
 	context.output_buffer = ast_str_create(256);
+	if (!context.output_buffer) {
+		return CLI_FAILURE;
+	}
+
 	formatter_entry = ast_sip_lookup_cli_formatter(formatter_type);
 	if (!formatter_entry) {
 		ast_log(LOG_ERROR, "CLI TRAVERSE failure.  No container found for object type %s\n", formatter_type);
+		ast_free(context.output_buffer);
 		return CLI_FAILURE;
 	}
 	ast_str_append(&context.output_buffer, 0, "\n");
@@ -192,11 +194,13 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 		container = formatter_entry->get_container(sip_sorcery);
 		if (!container) {
 			ast_cli(a->fd, "CLI TRAVERSE failure.  No container found for object type %s\n", formatter_type);
-			return CLI_FAILURE ;
+			ast_free(context.output_buffer);
+			return CLI_FAILURE;
 		}
 	}
 
-	if (!is_container && cmd == CLI_GENERATE) {
+	if (cmd == CLI_GENERATE) {
+		ast_free(context.output_buffer);
 		return complete_show_sorcery_object(container, a->word, a->n);
 	}
 
@@ -204,7 +208,7 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 		if (!ao2_container_count(container)) {
 			dump_str_and_free(a->fd, context.output_buffer);
 			ast_cli(a->fd, "No objects found.\n\n");
-			return CLI_SUCCESS ;
+			return CLI_SUCCESS;
 		}
 
 		if (!strcmp(formatter_type, "channel") || !strcmp(formatter_type, "contact")) {
@@ -221,14 +225,14 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 			ast_sip_get_sorcery(), formatter_type, object_id))) {
 			dump_str_and_free(a->fd, context.output_buffer);
 			ast_cli(a->fd, "Unable to retrieve object %s\n", object_id);
-			return CLI_FAILURE ;
+			return CLI_FAILURE;
 		}
 		formatter_entry->print_body(object, &context, 0);
 	}
 
 	ast_str_append(&context.output_buffer, 0, "\n");
 	dump_str_and_free(a->fd, context.output_buffer);
-	return CLI_SUCCESS ;
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_commands[] = {
