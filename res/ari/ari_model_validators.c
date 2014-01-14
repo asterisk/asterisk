@@ -1419,6 +1419,76 @@ ari_validator ast_ari_validate_device_state_fn(void)
 	return ast_ari_validate_device_state;
 }
 
+int ast_ari_validate_mailbox(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_name = 0;
+	int has_new_messages = 0;
+	int has_old_messages = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Mailbox field name failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("new_messages", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_new_messages = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Mailbox field new_messages failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("old_messages", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_old_messages = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Mailbox field old_messages failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI Mailbox has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI Mailbox missing required field name\n");
+		res = 0;
+	}
+
+	if (!has_new_messages) {
+		ast_log(LOG_ERROR, "ARI Mailbox missing required field new_messages\n");
+		res = 0;
+	}
+
+	if (!has_old_messages) {
+		ast_log(LOG_ERROR, "ARI Mailbox missing required field old_messages\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_mailbox_fn(void)
+{
+	return ast_ari_validate_mailbox;
+}
+
 int ast_ari_validate_application_replaced(struct ast_json *json)
 {
 	int res = 1;
