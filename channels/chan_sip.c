@@ -15221,7 +15221,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 		/* reset tag to consistent value from registry */
 		ast_string_field_set(p, tag, r->localtag);
-		
+
 		if (p->do_history) {
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
 		}
@@ -23469,9 +23469,9 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 200");
 		p->registry = registry_unref(p->registry, "unref registry entry p->registry");
-		/* Let this one hang around until we have all the responses */
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-		/* p->needdestroy = 1; */
+
+		/* destroy dialog now to avoid interference with next register */
+		pvt_set_needdestroy(p, "Registration successfull");
 
 		/* set us up for re-registering
 		 * figure out how long we got registered for
