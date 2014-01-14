@@ -177,19 +177,21 @@ struct ao2_container *ast_str_container_alloc_options(enum ao2_container_opts op
 
 int ast_str_container_add(struct ao2_container *str_container, const char *add)
 {
-	RAII_VAR(char *, ao2_add, ao2_alloc(strlen(add) + 1, NULL), ao2_cleanup);
+	char *ao2_add;
 
+	/* The ao2_add object is immutable so it doesn't need a lock of its own. */
+	ao2_add = ao2_alloc_options(strlen(add) + 1, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!ao2_add) {
 		return -1;
 	}
+	strcpy(ao2_add, add);/* Safe */
 
-	/* safe strcpy */
-	strcpy(ao2_add, add);
 	ao2_link(str_container, ao2_add);
+	ao2_ref(ao2_add, -1);
 	return 0;
 }
 
 void ast_str_container_remove(struct ao2_container *str_container, const char *remove)
 {
-	ao2_find(str_container, remove, OBJ_KEY | OBJ_NODATA | OBJ_UNLINK);
+	ao2_find(str_container, remove, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
 }
