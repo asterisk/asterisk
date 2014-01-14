@@ -228,6 +228,11 @@ static int create_artificial_endpoint(void)
 	}
 
 	AST_VECTOR_INIT(&artificial_endpoint->inbound_auths, 1);
+	/* Pushing a bogus value into the vector will ensure that
+	 * the proper size of the vector is returned. This value is
+	 * not actually used anywhere
+	 */
+	AST_VECTOR_APPEND(&artificial_endpoint->inbound_auths, "artificial-auth");
 	return 0;
 }
 
