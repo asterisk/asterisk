@@ -1,3 +1,143 @@
+2014-01-14  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.6-cert1-rc2 Released.
+
+	* chan_sip: Hangup transferer/transferee when transfer to Parking fails
+
+	  When performing a SIP transfer to a Park extension, if the Park
+	  fails, chan_sip will currently not hang up either the transferer or
+	  the transfer target. This results in the channels being orphaned with
+	  no thread to service frames, resulting in stuck channels.
+
+	  This patch immediately hangs up the two channels if a Park fails.
+
+	  (closes issue ASTERISK-22834)
+	  Reported by: rsw686
+	  Tested by: rsw686
+
+	  (closes issue ASTERISK-23047)
+	  Reported by: Tommy Thompson
+	  Tested by: Tommy Thomspon
+
+	* verbosity: Fix performance of console verbose messages.
+
+	  The per console verbose level feature as previously implemented
+	  caused a large performance penalty.  The fix required some minor
+	  incompatibilities if the new rasterisk is used to connect to an
+	  earlier version.  If the new rasterisk connects to an older Asterisk
+	  version then the root console verbose level is always affected by
+	  the "core set verbose" command of the remote console even though it
+	  may appear to only affect the current console.  If an older version of
+	  rasterisk connects to the new version then the "core set verbose"
+	  command will have no effect.
+
+	  * Fixed the verbose performance by not generating a verbose message
+	    if nothing is going to use it and then filtered any generated
+	    verbose messages before actually sending them to the remote
+	    consoles.
+
+	  * Split the "core set debug" and "core set verbose" CLI commands to
+	    remove the per module verbose support that cannot work with the per
+	    console verbose level.
+
+	  * Added a silent option to the "core set verbose" command.
+
+	  * Fixed "core set debug off" tab completion.
+
+	  * Made "core show settings" list the current console verbosity in
+	    addition to the root console verbosity.
+
+	  * Changed the default verbose level of the 'verbose' setting in the
+	    logger.conf [logfiles] section.  The default is now to once again
+	    follow the current root console level.  As a result, using the AMI
+	    Command action with "core set verbose" could again set the root
+	    console verbose level and affect the verbose level logged.
+
+	(closes issue AST-1252)
+	Reported by: Guenther Kelleter
+
+
+	* app_confbridge: Fix crash caused when waitmarked/marked users leave
+	  together
+
+	  When waitmarked users join a ConfBridge, the conference state is
+	  transitioned from EMPTY -> INACTIVE. In this state, the users are
+	  maintained in a waiting users list. When a marked user joins, the
+	  ConfBridge conference transitions from INACTIVE -> MULTI_MARKED, and
+	  all users are put onto the active list of users. This process works
+	  correctly.
+
+	  When the marked user leaves, if they are the last marked user, the
+	  MULTI_MARKED state does the following:
+	  (1) It plays back a message to the bridge stating that the leader
+	      has left the conference. This requires an unlocking of the
+	      bridge.
+	  (2) It moves waitmarked users back to the waiting list
+	  (3) It transitions to the appropriate state: in this case, INACTIVE
+
+	  However, because it plays the prompt back to the bridge before moving
+	  the users and before finishing the state transition, this creates a
+	  race condition: with the bridge unlocked, waitmarked users who leave
+	  the conference (or are kicked from it) can cause a state transition
+	  of the bridge to another state before the conference is transitioned
+	  to the INACTIVE state. This causes the state machine to get a bit
+	  wonky, often leading to a crash when the MULTI_MARKED state attempts
+	  to conclude its processing.
+
+	  This patch fixes this problem:
+	  (1) It prevents kicked users from being kicked again. That's just a
+	      nicety.
+	  (2) More importantly, it fixes the race condition by only playing the
+	      prompt once the state has transitioned correctly to INACTIVE. If
+	      waitmarked users sneak out during the prompt being played, no
+	      harm no foul.
+
+	  Review: https://reviewboard.asterisk.org/r/3108/
+
+	  (closes issue AST-1258)
+	  Reported by: Steve Pitts
+
+	* astdb: crash in sqlite3 during shutdown
+
+	  When Asterisk is shut down, the astdb_atexit() function releases
+	  (finalize) the previously initiated (prepared) SQL statements in
+	  sqlite3.  Another thread making a subsequent request can cause a
+	  crash in sqlite3.  This patch eliminates that issue by resetting
+	  the statement pointer after it is released/cleared.  The sqlite3
+	  code detects the null pointer, and aborts the operation cleanly.
+
+	  (closes issue AST-1265)
+	  Reported by: Alexander Hömig
+	  (closes issue ASTERISK-22350)
+	  Reported by: Birger "WIMPy" Harzenetter
+	  Review: https://reviewboard.asterisk.org/r/3078/
+
+	* security: Inhibit execution of privilege escalating functions
+	
+	  This patch allows individual dialplan functions to be marked as
+	  'dangerous', to inhibit their execution from external sources.
+	  A 'dangerous' function is one which results in a privilege
+	  escalation. For example, if one were to read the channel
+	  variable SHELL(rm -rf /) Bad Things(TM) could happen; even if
+	  the external source has only read permissions.
+
+	  Execution from external sources may be enabled by setting
+	  'live_dangerously' to 'yes' in the [options] section of
+	  asterisk.conf. Although doing so is not recommended.
+
+	  (closes issue ASTERISK-22905)
+	  Review: http://reviewboard.digium.internal/r/432/
+
+	* app_sms: BufferOverflow when receiving odd length 16 bit message
+
+	  This patch prevents an infinite loop overwriting memory when
+	  a message is received into the unpacksms16() function, where
+	  the length of the message is an odd number of bytes.
+
+	  (closes issue ASTERISK-22590)
+	  Reported by: Jan Juergens
+	  Tested by: Jan Juergens
+
 2013-11-04  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.6-cert1-rc1 Released.
