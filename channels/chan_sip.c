@@ -24184,6 +24184,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 static void *sip_park_thread(void *stuff)
 {
 	struct ast_channel *transferee, *transferer;	/* Chan1: The transferee, Chan2: The transferer */
+	struct sip_pvt *transferer_pvt;
 	struct sip_dual *d;
 	int ext;
 	int res;
@@ -24191,43 +24192,46 @@ static void *sip_park_thread(void *stuff)
 	d = stuff;
 	transferee = d->chan1;
 	transferer = d->chan2;
+	transferer_pvt = ast_channel_tech_pvt(transferer);
 
 	ast_debug(4, "SIP Park: Transferer channel %s, Transferee %s\n", ast_channel_name(transferer), ast_channel_name(transferee));
 
 	res = ast_park_call_exten(transferee, transferer, d->park_exten, d->park_context, 0, &ext);
 
-	sip_pvt_lock(ast_channel_tech_pvt(transferer));
+	sip_pvt_lock(transferer_pvt);
 #ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
 	if (res) {
-		destroy_msg_headers(ast_channel_tech_pvt(transferer));
-		ast_string_field_set(ast_channel_tech_pvt(transferer), msg_body, "Unable to park call.");
-		transmit_message(ast_channel_tech_pvt(transferer), 0, 0);
+		destroy_msg_headers(transferer_pvt);
+		ast_string_field_set(transferer_pvt, msg_body, "Unable to park call.");
+		transmit_message(transferer_pvt, 0, 0);
 	} else {
 		/* Then tell the transferer what happened */
-		destroy_msg_headers(ast_channel_tech_pvt(transferer));
+		destroy_msg_headers(transferer_pvt);
 		sprintf(buf, "Call parked on extension '%d'.", ext);
-		ast_string_field_set(ast_channel_tech_pvt(transferer), msg_body, buf);
-		transmit_message(ast_channel_tech_pvt(transferer), 0, 0);
+		ast_string_field_set(transferer_pvt, msg_body, buf);
+		transmit_message(transferer_pvt, 0, 0);
 	}
 #endif
 
 	/* Any way back to the current call??? */
 	/* Transmit response to the REFER request */
+	ast_set_flag(&transferer_pvt->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 	if (!res)	{
 		/* Transfer succeeded */
-		append_history(ast_channel_tech_pvt(transferer), "SIPpark", "Parked call on %d", ext);
-		transmit_notify_with_sipfrag(ast_channel_tech_pvt(transferer), d->seqno, "200 OK", TRUE);
-		sip_pvt_unlock(ast_channel_tech_pvt(transferer));
+		append_history(transferer_pvt, "SIPpark", "Parked call on %d", ext);
+		transmit_notify_with_sipfrag(transferer_pvt, d->seqno, "200 OK", TRUE);
+		sip_pvt_unlock(transferer_pvt);
 		ast_channel_hangupcause_set(transferer, AST_CAUSE_NORMAL_CLEARING);
-		ast_hangup(transferer); /* This will cause a BYE */
 		ast_debug(1, "SIP Call parked on extension '%d'\n", ext);
 	} else {
-		transmit_notify_with_sipfrag(ast_channel_tech_pvt(transferer), d->seqno, "503 Service Unavailable", TRUE);
-		append_history(ast_channel_tech_pvt(transferer), "SIPpark", "Parking failed\n");
-		sip_pvt_unlock(ast_channel_tech_pvt(transferer));
-		ast_debug(1, "SIP Call parked failed \n");
-		/* Do not hangup call */
+		transmit_notify_with_sipfrag(transferer_pvt, d->seqno, "503 Service Unavailable", TRUE);
+		append_history(transferer_pvt, "SIPpark", "Parking failed\n");
+		sip_pvt_unlock(transferer_pvt);
+		ast_log(AST_LOG_NOTICE, "SIP Call parked failed for %s\n", ast_channel_name(transferee));
+		ast_hangup(transferee);
 	}
+	ast_hangup(transferer);
+
 	deinit_req(&d->req);
 	ast_free(d->park_exten);
 	ast_free(d->park_context);
@@ -24297,6 +24301,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 
 	/* Prepare for taking over the channel */
 	if (ast_channel_masquerade(transferer, chan2)) {
+		ast_hangup(transferee);
 		ast_hangup(transferer);
 		ast_free(d->park_exten);
 		ast_free(d->park_context);
@@ -24318,6 +24323,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	d->seqno = seqno;
 	if (ast_pthread_create_detached_background(&th, NULL, sip_park_thread, d) < 0) {
 		/* Could not start thread */
+		ast_hangup(transferer);
+		ast_hangup(transferee);
 		deinit_req(&d->req);
 		ast_free(d->park_exten);
 		ast_free(d->park_context);
