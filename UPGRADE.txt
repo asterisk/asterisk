@@ -21,7 +21,31 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
+From 12 to 13:
+* The per console verbose level feature as previously implemented caused a
+  large performance penalty.  The fix required some minor incompatibilities
+  if the new rasterisk is used to connect to an earlier version.  If the new
+  rasterisk connects to an older Asterisk version then the root console verbose
+  level is always affected by the "core set verbose" command of the remote
+  console even though it may appear to only affect the current console.  If
+  an older version of rasterisk connects to the new version then the
+  "core set verbose" command will have no effect.
 
+CLI commands:
+ - "core show settings" now lists the current console verbosity in addition
+   to the root console verbosity.
+
+ - "core set verbose" has not been able to support the by module verbose
+   logging levels since verbose logging levels were made per console.  That
+   syntax is now removed and a silence option added in its place.
+
+Configuration Files:
+ - The 'verbose' setting in logger.conf still takes an optional argument,
+   specifying the verbosity level for each logging destination.  However,
+   the default is now to once again follow the current root console level.
+   As a result, using the AMI Command action with "core set verbose" could
+   again set the root console verbose level and affect the verbose level
+   logged.
 
 ===========================================================
 ===========================================================

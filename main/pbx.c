@@ -4886,7 +4886,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				pbx_substitute_variables_helper(c, substitute, passdata, sizeof(passdata)-1);
 			}
 			ast_debug(1, "Launching '%s'\n", app->name);
-			{
+			if (VERBOSITY_ATLEAST(3)) {
 				ast_verb(3, "Executing [%s@%s:%d] " COLORIZE_FMT "(\"" COLORIZE_FMT "\", \"" COLORIZE_FMT "\") %s\n",
 					exten, context, priority,
 					COLORIZE(COLOR_BRCYAN, 0, app->name),
