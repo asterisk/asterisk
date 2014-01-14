@@ -96,9 +96,11 @@ static int verbose_exec(struct ast_channel *chan, const char *data)
 		args.level = "0";
 	}
 
-	if (sscanf(args.level, "%30d", &vsize) != 1) {
+	if (sscanf(args.level, "%30u", &vsize) != 1) {
 		vsize = 0;
 		ast_log(LOG_WARNING, "'%s' is not a verboser number\n", args.level);
+	} else if (4 < vsize) {
+		vsize = 4;
 	}
 
 	ast_verb(vsize, "%s\n", args.msg);
