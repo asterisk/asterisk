@@ -22903,12 +22903,11 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	if (ast_do_masquerade(replacecall)) {
 		ast_log(LOG_WARNING, "Failed to perform masquerade with INVITE replaces\n");
 	}
-	ast_channel_lock(c);
 	if (earlyreplace || oneleggedreplace ) {
+		ast_channel_lock(c);
 		c->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
+		ast_channel_unlock(c);
 	}
-	ast_setstate(c, AST_STATE_DOWN);
-	ast_channel_unlock(c);
 
 	/* The call should be down with no ast_channel, so hang it up */
 	c->tech_pvt = dialog_unref(c->tech_pvt, "unref dialog c->tech_pvt");
