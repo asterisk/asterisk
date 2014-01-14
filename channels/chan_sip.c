@@ -22200,6 +22200,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 static void *sip_park_thread(void *stuff)
 {
 	struct ast_channel *transferee, *transferer;	/* Chan1: The transferee, Chan2: The transferer */
+	struct sip_pvt *transferer_pvt;
 	struct sip_dual *d;
 	int ext;
 	int res;
@@ -22207,6 +22208,7 @@ static void *sip_park_thread(void *stuff)
 	d = stuff;
 	transferee = d->chan1;
 	transferer = d->chan2;
+	transferer_pvt = transferer->tech_pvt;
 
 	ast_debug(4, "SIP Park: Transferer channel %s, Transferee %s\n", transferer->name, transferee->name);
 
@@ -22214,29 +22216,30 @@ static void *sip_park_thread(void *stuff)
 
 #ifdef WHEN_WE_KNOW_THAT_THE_CLIENT_SUPPORTS_MESSAGE
 	if (res) {
-		transmit_message_with_text(transferer->tech_pvt, "Unable to park call.\n");
+		transmit_message_with_text(transferer_pvt, "Unable to park call.\n");
 	} else {
 		/* Then tell the transferer what happened */
 		sprintf(buf, "Call parked on extension '%d'", ext);
-		transmit_message_with_text(transferer->tech_pvt, buf);
+		transmit_message_with_text(transferer_pvt, buf);
 	}
 #endif
 
 	/* Any way back to the current call??? */
 	/* Transmit response to the REFER request */
+	ast_set_flag(&transferer_pvt->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	
 	if (!res)	{
 		/* Transfer succeeded */
-		append_history(transferer->tech_pvt, "SIPpark", "Parked call on %d", ext);
-		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "200 OK", TRUE);
+		append_history(transferer_pvt, "SIPpark", "Parked call on %d", ext);
+		transmit_notify_with_sipfrag(transferer_pvt, d->seqno, "200 OK", TRUE);
 		transferer->hangupcause = AST_CAUSE_NORMAL_CLEARING;
-		ast_hangup(transferer); /* This will cause a BYE */
 		ast_debug(1, "SIP Call parked on extension '%d'\n", ext);
 	} else {
-		transmit_notify_with_sipfrag(transferer->tech_pvt, d->seqno, "503 Service Unavailable", TRUE);
-		append_history(transferer->tech_pvt, "SIPpark", "Parking failed\n");
-		ast_debug(1, "SIP Call parked failed \n");
-		/* Do not hangup call */
+		transmit_notify_with_sipfrag(transferer_pvt, d->seqno, "503 Service Unavailable", TRUE);
+		append_history(transferer_pvt, "SIPpark", "Parking failed\n");
+		ast_log(AST_LOG_NOTICE, "SIP Call parked failed for %s\n", transferee->name);
+		ast_hangup(transferee);
 	}
+	ast_hangup(transferer);
 	deinit_req(&d->req);
 	ast_free(d->park_exten);
 	ast_free(d->park_context);
@@ -22306,6 +22309,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 
 	/* Prepare for taking over the channel */
 	if (ast_channel_masquerade(transferer, chan2)) {
+		ast_hangup(transferee);
 		ast_hangup(transferer);
 		ast_free(d->park_exten);
 		ast_free(d->park_context);
@@ -22327,6 +22331,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	d->seqno = seqno;
 	if (ast_pthread_create_detached_background(&th, NULL, sip_park_thread, d) < 0) {
 		/* Could not start thread */
+		ast_hangup(transferer);
+		ast_hangup(transferee);
 		deinit_req(&d->req);
 		ast_free(d->park_exten);
 		ast_free(d->park_context);
