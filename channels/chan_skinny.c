@@ -68,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/say.h"
 #include "asterisk/astdb.h"
+#include "asterisk/causes.h"
 #include "asterisk/pickup.h"
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
@@ -5770,6 +5771,10 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 		AST_LIST_REMOVE(&l->sub, sub, list);
 		if (sub->related) {
 			sub->related->related = NULL;
+		}
+
+		if ((sub->substate == SUBSTATE_RINGIN || sub->substate == SUBSTATE_CALLWAIT) && ast_channel_hangupcause(sub->owner) == AST_CAUSE_ANSWERED_ELSEWHERE) {
+			transmit_callstate(d, l->instance, sub->callid, SKINNY_CONNECTED);
 		}
 
 		if (sub == l->activesub) {
