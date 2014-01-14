@@ -49,6 +49,10 @@ res_ari_device_states.so: ari/resource_device_states.o
 
 ari/resource_device_states.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_device_states)
 
+res_ari_mailboxes.so: ari/resource_mailboxes.o
+
+ari/resource_mailboxes.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_mailboxes)
+
 res_ari_events.so: ari/resource_events.o
 
 ari/resource_events.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_events)

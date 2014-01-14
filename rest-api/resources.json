@@ -39,6 +39,10 @@
 			"description": "Device state resources"
 		},
 		{
+			"path": "/api-docs/mailboxes.{format}",
+			"description": "Mailboxes resources"
+		},
+		{
 			"path": "/api-docs/events.{format}",
 			"description": "WebSocket resource"
 		},
