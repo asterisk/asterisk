@@ -183,15 +183,17 @@ static int dumpchan_exec(struct ast_channel *chan, const char *data)
 	if (!ast_strlen_zero(data))
 		level = atoi(data);
 
-	serialize_showchan(chan, info, sizeof(info));
-	pbx_builtin_serialize_variables(chan, &vars);
-	ast_verb(level, "\n"
-		 "Dumping Info For Channel: %s:\n"
-		 "%s\n"
-		 "Info:\n"
-		 "%s\n"
-		 "Variables:\n"
-		 "%s%s\n", ast_channel_name(chan), line, info, ast_str_buffer(vars), line);
+	if (VERBOSITY_ATLEAST(level)) {
+		serialize_showchan(chan, info, sizeof(info));
+		pbx_builtin_serialize_variables(chan, &vars);
+		ast_verb(level, "\n"
+			"Dumping Info For Channel: %s:\n"
+			"%s\n"
+			"Info:\n"
+			"%s\n"
+			"Variables:\n"
+			"%s%s\n", ast_channel_name(chan), line, info, ast_str_buffer(vars), line);
+	}
 
 	return 0;
 }

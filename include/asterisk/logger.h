@@ -90,21 +90,29 @@ int logger_reload(void);
 
 void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...);
 
-/*! Send a verbose message (based on verbose level)
- *	\brief This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
- *	ast_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");
- *	This will print the message to the console if the verbose level is set to a level >= 3
- *	Note the absence of a comma after the VERBOSE_PREFIX_3.  This is important.
- *	VERBOSE_PREFIX_1 through VERBOSE_PREFIX_4 are defined.
- *  \version 11 added level parameter
+/*!
+ * \brief Send a verbose message (based on verbose level)
+ *
+ * \details This works like ast_log, but prints verbose messages to the console depending on verbosity level set.
+ *
+ * ast_verbose(VERBOSE_PREFIX_3 "Whatever %s is happening\n", "nothing");
+ *
+ * This will print the message to the console if the verbose level is set to a level >= 3
+ *
+ * Note the absence of a comma after the VERBOSE_PREFIX_3.  This is important.
+ * VERBOSE_PREFIX_1 through VERBOSE_PREFIX_4 are defined.
+ *
+ * \version 11 added level parameter
  */
 void __attribute__((format(printf, 5, 6))) __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...);
 
-/*! Send a verbose message (based on verbose level) with deliberately specified callid
- *  \brief just like __ast_verbose, only __ast_verbose_callid allows you to specify which callid is being used
- *  for the log without needing to bind it to a thread. NULL is a valid argument for this function and will
- *  allow you to specify that a log will never display a call id even when there is a call id bound to the
- *  thread.
+/*!
+ * \brief Send a verbose message (based on verbose level) with deliberately specified callid
+ *
+ * \details just like __ast_verbose, only __ast_verbose_callid allows you to specify which callid is being used
+ * for the log without needing to bind it to a thread. NULL is a valid argument for this function and will
+ * allow you to specify that a log will never display a call id even when there is a call id bound to the
+ * thread.
  */
 void __attribute__((format(printf, 6, 7))) __ast_verbose_callid(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, ...);
 
@@ -117,6 +125,14 @@ void __attribute__((format(printf, 2, 3))) ast_child_verbose(int level, const ch
 
 int ast_register_verbose(void (*verboser)(const char *string)) attribute_warn_unused_result;
 int ast_unregister_verbose(void (*verboser)(const char *string)) attribute_warn_unused_result;
+
+/*
+ * These gymnastics are due to platforms which designate char as unsigned by
+ * default.  Level is the negative character -- offset by 1, because \0 is
+ * the string terminator.
+ */
+#define VERBOSE_MAGIC2LEVEL(x) (((char) -*(signed char *) (x)) - 1)
+#define VERBOSE_HASMAGIC(x)	(*(signed char *) (x) < 0)
 
 void ast_console_puts(const char *string);
 
@@ -225,8 +241,9 @@ unsigned int ast_debug_get_by_module(const char *module);
  * \brief Get the verbose level for a module
  * \param module the name of module
  * \return the verbose level
+ * \version 11.0.0 deprecated
  */
-unsigned int ast_verbose_get_by_module(const char *module);
+unsigned int ast_verbose_get_by_module(const char *module) __attribute__((deprecated));
 
 /*!
  * \brief Register a new logger level
@@ -371,8 +388,62 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *c
 		ast_log(AST_LOG_DEBUG, __VA_ARGS__); \
 } while (0)
 
-#define ast_verb(level, ...) __ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, __VA_ARGS__)
-#define ast_verb_callid(level, callid, ...) __ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, callid, __VA_ARGS__)
+extern int ast_verb_sys_level;
+
+#define VERBOSITY_ATLEAST(level) ((level) <= ast_verb_sys_level)
+
+#define ast_verb(level, ...) \
+	do { \
+		if (VERBOSITY_ATLEAST(level) ) { \
+			__ast_verbose(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, __VA_ARGS__); \
+		} \
+	} while (0)
+
+#define ast_verb_callid(level, callid, ...) \
+	do { \
+		if (VERBOSITY_ATLEAST(level) ) { \
+			__ast_verbose_callid(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, callid, __VA_ARGS__); \
+		} \
+	} while (0)
+
+/*!
+ * \brief Re-evaluate the system max verbosity level (ast_verb_sys_level).
+ *
+ * \return Nothing
+ */
+void ast_verb_update(void);
+
+/*!
+ * \brief Register this thread's console verbosity level pointer.
+ *
+ * \param level Where the verbose level value is.
+ *
+ * \return Nothing
+ */
+void ast_verb_console_register(int *level);
+
+/*!
+ * \brief Unregister this thread's console verbosity level.
+ *
+ * \return Nothing
+ */
+void ast_verb_console_unregister(void);
+
+/*!
+ * \brief Get this thread's console verbosity level.
+ *
+ * \retval verbosity level of the console.
+ */
+int ast_verb_console_get(void);
+
+/*!
+ * \brief Set this thread's console verbosity level.
+ *
+ * \param verb_level New level to set.
+ *
+ * \return Nothing
+ */
+void ast_verb_console_set(int verb_level);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

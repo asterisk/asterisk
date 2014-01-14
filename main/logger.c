@@ -121,7 +121,7 @@ struct logchannel {
 	int disabled;
 	/*! syslog facility */
 	int facility;
-	/*! Verbosity level */
+	/*! Verbosity level. (-1 if use option_verbose for the level.) */
 	int verbosity;
 	/*! Type of log channel */
 	enum logtypes type;
@@ -240,32 +240,48 @@ AST_THREADSTORAGE(log_buf);
 
 static void logger_queue_init(void);
 
-static unsigned int make_components(const char *s, int lineno, int *verbosity)
+static void make_components(struct logchannel *chan)
 {
 	char *w;
-	unsigned int res = 0;
-	char *stringp = ast_strdupa(s);
+	unsigned int logmask = 0;
+	char *stringp = ast_strdupa(chan->components);
 	unsigned int x;
+	int verb_level;
 
-	*verbosity = 3;
+	/* Default to using option_verbose as the verbosity level of the logging channel.  */
+	verb_level = -1;
 
 	while ((w = strsep(&stringp, ","))) {
-		w = ast_skip_blanks(w);
-
+		w = ast_strip(w);
+		if (ast_strlen_zero(w)) {
+			continue;
+		}
 		if (!strcmp(w, "*")) {
-			res = 0xFFFFFFFF;
-			break;
-		} else if (!strncasecmp(w, "verbose(", 8) && sscanf(w + 8, "%d)", verbosity) == 1) {
-			res |= (1 << __LOG_VERBOSE);
-		} else for (x = 0; x < ARRAY_LEN(levels); x++) {
-			if (levels[x] && !strcasecmp(w, levels[x])) {
-				res |= (1 << x);
-				break;
+			logmask = 0xFFFFFFFF;
+		} else if (!strncasecmp(w, "verbose(", 8)) {
+			if (levels[__LOG_VERBOSE] && sscanf(w + 8, "%30u)", &verb_level) == 1) {
+				logmask |= (1 << __LOG_VERBOSE);
+			}
+		} else {
+			for (x = 0; x < ARRAY_LEN(levels); ++x) {
+				if (levels[x] && !strcasecmp(w, levels[x])) {
+					logmask |= (1 << x);
+					break;
+				}
 			}
 		}
 	}
-
-	return res;
+	if (chan->type == LOGTYPE_CONSOLE) {
+		/*
+		 * Force to use the root console verbose level so if the
+		 * user specified any verbose level then it does not interfere
+		 * with calculating the ast_verb_sys_level value.
+		 */
+		chan->verbosity = -1;
+	} else {
+		chan->verbosity = verb_level;
+	}
+	chan->logmask = logmask;
 }
 
 static struct logchannel *make_logchannel(const char *channel, const char *components, int lineno)
@@ -335,7 +351,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 		}
 		chan->type = LOGTYPE_FILE;
 	}
-	chan->logmask = make_components(chan->components, lineno, &chan->verbosity);
+	make_components(chan);
 
 	return chan;
 }
@@ -840,10 +856,12 @@ static int reload_logger(int rotate, const char *altconf)
 	if (logfiles.queue_log) {
 		res = logger_queue_restart(queue_rotate);
 		AST_RWLIST_UNLOCK(&logchannels);
+		ast_verb_update();
 		ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
 		ast_verb(1, "Asterisk Queue Logger restarted\n");
 	} else {
 		AST_RWLIST_UNLOCK(&logchannels);
+		ast_verb_update();
 	}
 
 	return res;
@@ -1028,12 +1046,6 @@ static void ast_log_vsyslog(struct logmsg *msg)
 	syslog(syslog_level, "%s", buf);
 }
 
-/* These gymnastics are due to platforms which designate char as unsigned by
- * default. Level is the negative character -- offset by 1, because \0 is the
- * EOS delimiter. */
-#define VERBOSE_MAGIC2LEVEL(x) (((char) -*(signed char *) (x)) - 1)
-#define VERBOSE_HASMAGIC(x)	(*(signed char *) (x) < 0)
-
 /*! \brief Print a normal log message to the channels */
 static void logger_print_normal(struct logmsg *logmsg)
 {
@@ -1044,7 +1056,9 @@ static void logger_print_normal(struct logmsg *logmsg)
 
 	if (logmsg->level == __LOG_VERBOSE) {
 		char *tmpmsg = ast_strdupa(logmsg->message + 1);
+
 		level = VERBOSE_MAGIC2LEVEL(logmsg->message);
+
 		/* Iterate through the list of verbosers and pass them the log message string */
 		AST_RWLIST_RDLOCK(&verbosers);
 		AST_RWLIST_TRAVERSE(&verbosers, v, list)
@@ -1070,7 +1084,8 @@ static void logger_print_normal(struct logmsg *logmsg)
 			if (chan->disabled) {
 				continue;
 			}
-			if (logmsg->level == __LOG_VERBOSE && level > chan->verbosity) {
+			if (logmsg->level == __LOG_VERBOSE
+				&& (((chan->verbosity < 0) ? option_verbose : chan->verbosity)) < level) {
 				continue;
 			}
 
@@ -1246,6 +1261,7 @@ int init_logger(void)
 
 	/* create log channels */
 	init_logger_chain(0 /* locked */, NULL);
+	ast_verb_update();
 	logger_initialized = 1;
 
 	return 0;
@@ -1707,6 +1723,148 @@ void ast_verbose(const char *fmt, ...)
 	}
 }
 
+/*! Console verbosity level node. */
+struct verb_console {
+	/*! List node link */
+	AST_LIST_ENTRY(verb_console) node;
+	/*! Console verbosity level. */
+	int *level;
+};
+
+/*! Registered console verbosity levels */
+static AST_RWLIST_HEAD_STATIC(verb_consoles, verb_console);
+
+/*! ast_verb_update() reentrancy protection lock. */
+AST_MUTEX_DEFINE_STATIC(verb_update_lock);
+
+void ast_verb_update(void)
+{
+	struct logchannel *log;
+	struct verb_console *console;
+	int verb_level;
+
+	ast_mutex_lock(&verb_update_lock);
+
+	AST_RWLIST_RDLOCK(&verb_consoles);
+
+	/* Default to the root console verbosity. */
+	verb_level = option_verbose;
+
+	/* Determine max remote console level. */
+	AST_LIST_TRAVERSE(&verb_consoles, console, node) {
+		if (verb_level < *console->level) {
+			verb_level = *console->level;
+		}
+	}
+	AST_RWLIST_UNLOCK(&verb_consoles);
+
+	/* Determine max logger channel level. */
+	AST_RWLIST_RDLOCK(&logchannels);
+	AST_RWLIST_TRAVERSE(&logchannels, log, list) {
+		if (verb_level < log->verbosity) {
+			verb_level = log->verbosity;
+		}
+	}
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	ast_verb_sys_level = verb_level;
+
+	ast_mutex_unlock(&verb_update_lock);
+}
+
+/*!
+ * \internal
+ * \brief Unregister a console verbose level.
+ *
+ * \param console Which console to unregister.
+ *
+ * \return Nothing
+ */
+static void verb_console_unregister(struct verb_console *console)
+{
+	AST_RWLIST_WRLOCK(&verb_consoles);
+	console = AST_RWLIST_REMOVE(&verb_consoles, console, node);
+	AST_RWLIST_UNLOCK(&verb_consoles);
+	if (console) {
+		ast_verb_update();
+	}
+}
+
+static void verb_console_free(void *v_console)
+{
+	struct verb_console *console = v_console;
+
+	verb_console_unregister(console);
+	ast_free(console);
+}
+
+/*! Thread specific console verbosity level node. */
+AST_THREADSTORAGE_CUSTOM(my_verb_console, NULL, verb_console_free);
+
+void ast_verb_console_register(int *level)
+{
+	struct verb_console *console;
+
+	console = ast_threadstorage_get(&my_verb_console, sizeof(*console));
+	if (!console || !level) {
+		return;
+	}
+	console->level = level;
+
+	AST_RWLIST_WRLOCK(&verb_consoles);
+	AST_RWLIST_INSERT_HEAD(&verb_consoles, console, node);
+	AST_RWLIST_UNLOCK(&verb_consoles);
+	ast_verb_update();
+}
+
+void ast_verb_console_unregister(void)
+{
+	struct verb_console *console;
+
+	console = ast_threadstorage_get(&my_verb_console, sizeof(*console));
+	if (!console) {
+		return;
+	}
+	verb_console_unregister(console);
+}
+
+int ast_verb_console_get(void)
+{
+	struct verb_console *console;
+	int verb_level;
+
+	console = ast_threadstorage_get(&my_verb_console, sizeof(*console));
+	AST_RWLIST_RDLOCK(&verb_consoles);
+	if (!console) {
+		verb_level = 0;
+	} else if (console->level) {
+		verb_level = *console->level;
+	} else {
+		verb_level = option_verbose;
+	}
+	AST_RWLIST_UNLOCK(&verb_consoles);
+	return verb_level;
+}
+
+void ast_verb_console_set(int verb_level)
+{
+	struct verb_console *console;
+
+	console = ast_threadstorage_get(&my_verb_console, sizeof(*console));
+	if (!console) {
+		return;
+	}
+
+	AST_RWLIST_WRLOCK(&verb_consoles);
+	if (console->level) {
+		*console->level = verb_level;
+	} else {
+		option_verbose = verb_level;
+	}
+	AST_RWLIST_UNLOCK(&verb_consoles);
+	ast_verb_update();
+}
+
 int ast_register_verbose(void (*v)(const char *string))
 {
 	struct verb *verb;
@@ -1750,7 +1908,7 @@ static void update_logchannels(void)
 	global_logmask = 0;
 
 	AST_RWLIST_TRAVERSE(&logchannels, cur, list) {
-		cur->logmask = make_components(cur->components, cur->lineno, &cur->verbosity);
+		make_components(cur);
 		global_logmask |= cur->logmask;
 	}
 

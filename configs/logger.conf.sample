@@ -90,24 +90,25 @@
 ;    fax
 ;    security
 ;
-; Special filename "console" represents the system console
+; Special filename "console" represents the root console
 ;
 ; Filenames can either be relative to the standard Asterisk log directory
 ; (see 'astlogdir' in asterisk.conf), or absolute paths that begin with
 ; '/'.
 ;
+; Verbose takes an optional argument, in the form of an integer level.
+; Verbose messages with higher levels will not be logged to the file.  If
+; the verbose level is not specified, it will log verbose messages following
+; the current level of the root console.
+;
 ; Special level name "*" means all levels, even dynamic levels registered
 ; by modules after the logger has been initialized (this means that loading
 ; and unloading modules that create/remove dynamic logger levels will result
 ; in these levels being included on filenames that have a level name of "*",
-; without any need to perform a 'logger reload' or similar operation). Note
-; that there is no value in specifying both "*" and specific level names for
-; a filename; the "*" level means all levels, and the remaining level names
-; will be ignored.
-;
-; Verbose takes an additional argument, in the form of an integer level.
-; Messages with higher levels will be ignored.  If verbose is specified at
-; all, it will default to 3.
+; without any need to perform a 'logger reload' or similar operation).
+; Note that there is no value in specifying both "*" and specific level names
+; for a filename; the "*" level means all levels.  The only exception is if
+; you need to specify a specific verbose level. e.g, "verbose(3),*".
 ;
 ; We highly recommend that you DO NOT turn on debug mode if you are simply
 ; running a production system.  Debug mode turns on a LOT of extra messages,

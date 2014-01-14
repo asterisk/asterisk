@@ -1860,13 +1860,13 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
  *  \param session manager session to get parameter from.
  *  \return displayconnects config option value.
  */
-static int manager_displayconnects (struct mansession_session *session)
+static int manager_displayconnects(struct mansession_session *session)
 {
 	struct ast_manager_user *user = NULL;
 	int ret = 0;
 
 	AST_RWLIST_RDLOCK(&users);
-	if ((user = get_manager_by_name_locked (session->username))) {
+	if ((user = get_manager_by_name_locked(session->username))) {
 		ret = user->displayconnects;
 	}
 	AST_RWLIST_UNLOCK(&users);
@@ -5888,7 +5888,9 @@ static void purge_sessions(int n_max)
 	while ((session = ao2_iterator_next(&i)) && n_max > 0) {
 		ao2_lock(session);
 		if (session->sessiontimeout && (now > session->sessiontimeout) && !session->inuse) {
-			if (session->authenticated && manager_displayconnects(session)) {
+			if (session->authenticated
+				&& VERBOSITY_ATLEAST(2)
+				&& manager_displayconnects(session)) {
 				ast_verb(2, "HTTP Manager '%s' timed out from %s\n",
 					session->username, ast_sockaddr_stringify_addr(&session->addr));
 			}
