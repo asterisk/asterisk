@@ -69,7 +69,7 @@ MixMonitor
    instances of MixMonitor on a channel.
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 12 to Asterisk 12.1 ------------------
+--- Functionality changes from Asterisk 12.0.0 to Asterisk 12.1.0 ------------
 ------------------------------------------------------------------------------
 
 ARI
