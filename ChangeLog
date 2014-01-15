@@ -1,6 +1,23 @@
-2014-01-14  Asterisk Development Team <asteriskteam@digium.com>
+2014-01-15  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.6-cert1-rc2 Released.
+
+	* pbx.c: put copy of ast_exten.data on stack to prevent memory
+	  corruption
+
+	  During dialplan execution in pbx_extension_helper(), the contexts
+	  global read lock prevents link list corruption, but was released with
+	  a pointer to the ast_exten and data later used in variable
+	  substitution. Instead, this patch removes pbx_substitute_variables()
+	  and locates a copy of the ast_exten data on the stack before
+	  releasing the lock, where ast_exten could get free'd by another
+	  thread performing a module reload.
+
+	  (issue AST-1179)
+	  Reported by: Thomas Arimont
+	  (issue AST-1246)
+	  Reported by: Alexander Hömig
+	  Review: https://reviewboard.asterisk.org/r/3055/
 
 	* chan_sip: Hangup transferer/transferee when transfer to Parking fails
 
