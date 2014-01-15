@@ -1045,6 +1045,7 @@ static void session_destructor(void *obj)
 	}
 	ast_party_id_free(&session->id);
 	ao2_cleanup(session->endpoint);
+	ao2_cleanup(session->contact);
 	ast_format_cap_destroy(session->req_caps);
 	ast_format_cap_destroy(session->direct_media_cap);
 
@@ -1112,7 +1113,8 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
 	return channel;
 }
 
-struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint, pjsip_inv_session *inv_session)
+struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
+	struct ast_sip_contact *contact, pjsip_inv_session *inv_session)
 {
 	RAII_VAR(struct ast_sip_session *, session, ao2_alloc(sizeof(*session), session_destructor), ao2_cleanup);
 	struct ast_sip_session_supplement *iter;
@@ -1140,10 +1142,9 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	ast_sip_dialog_set_serializer(inv_session->dlg, session->serializer);
 	ast_sip_dialog_set_endpoint(inv_session->dlg, endpoint);
 	pjsip_dlg_inc_session(inv_session->dlg, &session_module);
-	ao2_ref(session, +1);
-	inv_session->mod_data[session_module.id] = session;
-	ao2_ref(endpoint, +1);
-	session->endpoint = endpoint;
+	inv_session->mod_data[session_module.id] = ao2_bump(session);
+	session->endpoint = ao2_bump(endpoint);
+	session->contact = ao2_bump(contact);
 	session->inv_session = inv_session;
 	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 
@@ -1192,21 +1193,27 @@ static int session_outbound_auth(pjsip_dialog *dlg, pjsip_tx_data *tdata, void *
 	return 0;
 }
 
-struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint *endpoint, const char *location, const char *request_user, struct ast_format_cap *req_caps)
+struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint *endpoint,
+	struct ast_sip_contact *contact, const char *location, const char *request_user,
+	struct ast_format_cap *req_caps)
 {
 	const char *uri = NULL;
-	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_contact *, found_contact, NULL, ao2_cleanup);
 	pjsip_timer_setting timer;
 	pjsip_dialog *dlg;
 	struct pjsip_inv_session *inv_session;
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 
 	/* If no location has been provided use the AOR list from the endpoint itself */
-	location = S_OR(location, endpoint->aors);
+	if (location || !contact) {
+		location = S_OR(location, endpoint->aors);
 
-	contact = ast_sip_location_retrieve_contact_from_aor_list(location);
-	if (!contact || ast_strlen_zero(contact->uri)) {
-		uri = location;
+		found_contact = ast_sip_location_retrieve_contact_from_aor_list(location);
+		if (!found_contact || ast_strlen_zero(found_contact->uri)) {
+			uri = location;
+		} else {
+			uri = found_contact->uri;
+		}
 	} else {
 		uri = contact->uri;
 	}
@@ -1238,7 +1245,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	timer.sess_expires = endpoint->extensions.timer.sess_expires;
 	pjsip_timer_init_session(inv_session, &timer);
 
-	if (!(session = ast_sip_session_alloc(endpoint, inv_session))) {
+	if (!(session = ast_sip_session_alloc(endpoint, found_contact ? found_contact : contact, inv_session))) {
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		return NULL;
 	}
@@ -1534,7 +1541,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		return;
 	}
 
-	session = ast_sip_session_alloc(endpoint, inv_session);
+	session = ast_sip_session_alloc(endpoint, NULL, inv_session);
 	if (!session) {
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);

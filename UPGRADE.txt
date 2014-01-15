@@ -47,6 +47,14 @@ Configuration Files:
    again set the root console verbose level and affect the verbose level
    logged.
 
+Realtime Configuration:
+ * New columns have been added to realtime tables for 'support_path' on
+   ps_registrations and ps_aors and for 'path' on ps_contacts for the new
+   SIP Path support in chan_pjsip.
+ * New columns have been added to the ps_endpoints realtime table for the
+   'redirect_method' and 'set_var' options.
+
+
 From 11 to 12:
 There are many significant architectural changes in Asterisk 12. It is
 recommended that you not only read through this document for important

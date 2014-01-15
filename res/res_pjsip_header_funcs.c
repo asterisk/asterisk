@@ -596,7 +596,7 @@ static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * td
 
 static struct ast_sip_session_supplement header_funcs_supplement = {
 	.method = "INVITE",
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL - 1000,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL - 1000,
 	.incoming_request = incoming_request,
 	.outgoing_request = outgoing_request,
 };

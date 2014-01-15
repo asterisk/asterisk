@@ -577,7 +577,7 @@ static int msg_send(void *data)
 		return -1;
 	}
 
-	if (ast_sip_create_request("MESSAGE", NULL, endpoint, uri, &tdata)) {
+	if (ast_sip_create_request("MESSAGE", NULL, endpoint, uri, NULL, &tdata)) {
 		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not create request\n");
 		return -1;
 	}
@@ -593,7 +593,7 @@ static int msg_send(void *data)
 
 	vars_to_headers(mdata->msg, tdata);
 
-	if (ast_sip_send_request(tdata, NULL, endpoint)) {
+	if (ast_sip_send_request(tdata, NULL, endpoint, NULL, NULL)) {
 		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not send request\n");
 		return -1;
 	}
@@ -630,9 +630,7 @@ static pj_status_t send_response(pjsip_rx_data *rdata, enum pjsip_status_code co
 	pj_status_t status;
 	pjsip_response_addr res_addr;
 
-	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
-
-	status = pjsip_endpt_create_response(endpt, rdata, code, NULL, &tdata);
+	status = ast_sip_create_response(rdata, code, NULL, &tdata);
 	if (status != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Unable to create response (%d)\n", status);
 		return status;
@@ -647,7 +645,7 @@ static pj_status_t send_response(pjsip_rx_data *rdata, enum pjsip_status_code co
 			ast_log(LOG_ERROR, "Unable to get response address (%d)\n", status);
 			return status;
 		}
-		status = pjsip_endpt_send_response(endpt, &res_addr, tdata, NULL, NULL);
+		status = ast_sip_send_response(&res_addr, tdata, ast_pjsip_rdata_get_endpoint(rdata));
 	}
 
 	if (status != PJ_SUCCESS) {

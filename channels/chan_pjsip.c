@@ -129,7 +129,7 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 /*! \brief SIP session supplement structure */
 static struct ast_sip_session_supplement chan_pjsip_supplement = {
 	.method = "INVITE",
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL,
 	.session_begin = chan_pjsip_session_begin,
 	.session_end = chan_pjsip_session_end,
 	.incoming_request = chan_pjsip_incoming_request,
@@ -140,7 +140,7 @@ static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip
 
 static struct ast_sip_session_supplement chan_pjsip_ack_supplement = {
 	.method = "ACK",
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL,
 	.incoming_request = chan_pjsip_incoming_ack,
 };
 
@@ -863,7 +863,7 @@ static int transmit_info_with_vidupdate(void *data)
 	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
 	struct pjsip_tx_data *tdata;
 
-	if (ast_sip_create_request("INFO", session->inv_session->dlg, session->endpoint, NULL, &tdata)) {
+	if (ast_sip_create_request("INFO", session->inv_session->dlg, session->endpoint, NULL, NULL, &tdata)) {
 		ast_log(LOG_ERROR, "Could not create text video update INFO request\n");
 		return -1;
 	}
@@ -1261,7 +1261,7 @@ static int transmit_info_dtmf(void *data)
 
 	body.body_text = ast_str_buffer(body_text);
 
-	if (ast_sip_create_request("INFO", session->inv_session->dlg, session->endpoint, NULL, &tdata)) {
+	if (ast_sip_create_request("INFO", session->inv_session->dlg, session->endpoint, NULL, NULL, &tdata)) {
 		ast_log(LOG_ERROR, "Could not create DTMF INFO request\n");
 		return -1;
 	}
@@ -1539,7 +1539,7 @@ static int request(void *obj)
 		return -1;
 	}
 
-	if (!(session = ast_sip_session_create_outgoing(endpoint, args.aor, request_user, req_data->caps))) {
+	if (!(session = ast_sip_session_create_outgoing(endpoint, NULL, args.aor, request_user, req_data->caps))) {
 		req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
 		return -1;
 	}
@@ -1618,9 +1618,9 @@ static int sendtext(void *obj)
 
 	ast_debug(3, "Sending in dialog SIP message\n");
 
-	ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, &tdata);
+	ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
 	ast_sip_add_body(tdata, &body);
-	ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint);
+	ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
 
 	return 0;
 }
@@ -1831,7 +1831,7 @@ static int pbx_start_incoming_request(struct ast_sip_session *session, pjsip_rx_
 
 static struct ast_sip_session_supplement pbx_start_supplement = {
 	.method = "INVITE",
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_LAST,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_LAST,
 	.incoming_request = pbx_start_incoming_request,
 };
 

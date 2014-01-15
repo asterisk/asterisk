@@ -98,6 +98,8 @@ struct ast_sip_session {
 	char exten[AST_MAX_EXTENSION];
 	/* The endpoint with which Asterisk is communicating */
 	struct ast_sip_endpoint *endpoint;
+	/* The contact associated with this session */
+	struct ast_sip_contact *contact;
 	/* The PJSIP details of the session, which includes the dialog */
 	struct pjsip_inv_session *inv_session;
 	/* The Asterisk channel associated with the session */
@@ -138,18 +140,6 @@ typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *sessi
 typedef int (*ast_sip_session_response_cb)(struct ast_sip_session *session, pjsip_rx_data *rdata);
 typedef int (*ast_sip_session_sdp_creation_cb)(struct ast_sip_session *session, pjmedia_sdp_session *sdp);
 
-enum ast_sip_session_supplement_priority {
-	/*! Top priority. Supplements with this priority are those that need to run before any others */
-	AST_SIP_SESSION_SUPPLEMENT_PRIORITY_FIRST = 0,
-	/*! Channel creation priority.
-	 * chan_pjsip creates a channel at this priority. If your supplement depends on being run before
-	 * or after channel creation, then set your priority to be lower or higher than this value.
-	 */
-	AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL = 1000000,
-	/*! Lowest priority. Supplements with this priority should be run after all other supplements */
-	AST_SIP_SESSION_SUPPLEMENT_PRIORITY_LAST = INT_MAX,
-};
-
 /*!
  * \brief A supplement to SIP message processing
  *
@@ -160,7 +150,7 @@ struct ast_sip_session_supplement {
     /*! Method on which to call the callbacks. If NULL, call on all methods */
     const char *method;
 	/*! Priority for this supplement. Lower numbers are visited before higher numbers */
-	enum ast_sip_session_supplement_priority priority;
+	enum ast_sip_supplement_priority priority;
     /*!
 	 * \brief Notification that the session has begun
 	 * This method will always be called from a SIP servant thread.
@@ -342,9 +332,11 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
  * this reference when the session is destroyed.
  *
  * \param endpoint The endpoint that this session communicates with
+ * \param contact The contact associated with this session
  * \param inv_session The PJSIP INVITE session data
  */
-struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint, pjsip_inv_session *inv);
+struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
+	struct ast_sip_contact *contact, pjsip_inv_session *inv);
 
 /*!
  * \brief Create a new outgoing SIP session
@@ -354,11 +346,14 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
  * this reference when the session is destroyed.
  *
  * \param endpoint The endpoint that this session uses for settings
- * \param location Optional name of the location to call, be it named location or explicit URI
+ * \param contact The contact that this session will communicate with
+ * \param location Name of the location to call, be it named location or explicit URI. Overrides contact if present.
  * \param request_user Optional request user to place in the request URI if permitted
  * \param req_caps The requested capabilities
  */
-struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint *endpoint, const char *location, const char *request_user, struct ast_format_cap *req_caps);
+struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint *endpoint,
+	struct ast_sip_contact *contact, const char *location, const char *request_user,
+	struct ast_format_cap *req_caps);
 
 /*!
  * \brief Defer local termination of a session until remote side terminates, or an amount of time passes

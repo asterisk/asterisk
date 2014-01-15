@@ -919,7 +919,7 @@ static void refer_outgoing_request(struct ast_sip_session *session, struct pjsip
 }
 
 static struct ast_sip_session_supplement refer_supplement = {
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL + 1,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 1,
 	.incoming_request = refer_incoming_request,
 	.outgoing_request = refer_outgoing_request,
 };
