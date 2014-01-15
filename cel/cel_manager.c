@@ -153,7 +153,12 @@ static int load_config(int reload)
 		return 0;
 	}
 
-	if (!cfg) {
+	if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_WARNING, "Configuration file '%s' is invalid. CEL manager Module not activated.\n",
+			CONF_FILE);
+		enablecel = 0;
+		return -1;
+	} else if (!cfg) {
 		ast_log(LOG_WARNING, "Failed to load configuration file. CEL manager Module not activated.\n");
 		enablecel = 0;
 		return -1;
