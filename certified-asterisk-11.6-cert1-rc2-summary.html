@@ -29,7 +29,7 @@
 </tr>
 <tr valign="top">
 <td>
-6 bebuild<br/>
+7 bebuild<br/>
 </td>
 <td>
 </td>
@@ -47,12 +47,42 @@
 <td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=405539">405539</a></td><td>bebuild</td><td>Importing release summary for 11.6-cert1-rc2 release.</td>
 <td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=405540">405540</a></td><td>bebuild</td><td>Importing release summary for 11.6-cert1-rc2 release.</td>
 <td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=405579">405579</a></td><td>bebuild</td><td>Merge r405578, update ChangeLog/summaries</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=405580">405580</a></td><td>bebuild</td><td>Importing release summary for 11.6-cert1-rc2 release.</td>
 <td></td></tr></table>
 <hr/>
 <a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
 <center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
 <pre>
-0 files changed
+.version                                       |    2
+ChangeLog                                      |  157 ++++++++++
+README-SERIOUSLY.bestpractices.txt             |   24 +
+UPGRADE.txt                                    |   35 ++
+apps/app_confbridge.c                          |    6
+apps/app_dumpchan.c                            |   20 -
+apps/app_sms.c                                 |    3
+apps/app_verbose.c                             |    4
+apps/confbridge/conf_state_multi_marked.c      |   25 +
+certified-asterisk-11.6-cert1-rc2-summary.html |   59 ++++
+certified-asterisk-11.6-cert1-rc2-summary.txt  |   95 ++++++
+channels/chan_sip.c                            |   39 +-
+configs/asterisk.conf.sample                   |    6
+configs/logger.conf.sample                     |   19 -
+funcs/func_db.c                                |   20 +
+funcs/func_env.c                               |   28 +
+funcs/func_lock.c                              |   21 +
+funcs/func_realtime.c                          |   60 ++--
+funcs/func_shell.c                             |   18 -
+funcs/func_timeout.c                           |   16 -
+include/asterisk/logger.h                      |  101 +++++--
+include/asterisk/pbx.h                         |   54 +++
+main/asterisk.c                                |  195 +++++++++----
+main/cli.c                                     |  359 ++++++++++++++++---------
+main/db.c                                      |   24 -
+main/logger.c                                  |  211 ++++++++++++--
+main/manager.c                                 |    8
+main/pbx.c                                     |  292 ++++++++++++++++++--
+main/tcptls.c                                  |   11
+29 files changed, 1552 insertions(+), 360 deletions(-)
 </pre><br/>
 <hr/>
 </body>
