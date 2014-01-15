@@ -241,7 +241,7 @@ static void nat_outgoing_invite_request(struct ast_sip_session *session, struct 
 /*! \brief Supplement for adding NAT functionality to dialog */
 static struct ast_sip_session_supplement nat_supplement = {
 	.method = "INVITE",
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_FIRST + 1,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_FIRST + 1,
 	.incoming_request = nat_incoming_invite_request,
 	.outgoing_request = nat_outgoing_invite_request,
 };

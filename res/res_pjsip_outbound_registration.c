@@ -116,6 +116,14 @@
 				<configOption name="type">
 					<synopsis>Must be of type 'registration'.</synopsis>
 				</configOption>
+				<configOption name="support_path">
+					<synopsis>Enables Path support for outbound REGISTER requests.</synopsis>
+					<description><para>
+						When this option is enabled, outbound REGISTER requests will advertise
+						support for Path headers so that intervening proxies can add to the Path
+						header as necessary.
+					</para></description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
@@ -189,6 +197,8 @@ struct sip_outbound_registration_client_state {
 	unsigned int forbidden_retry_interval;
 	/*! \brief Treat authentication challenges that we cannot handle as permanent failures */
 	unsigned int auth_rejection_permanent;
+	/*! \brief Determines whether SIP Path support should be advertised */
+	unsigned int support_path;
 	/*! \brief Serializer for stuff and things */
 	struct ast_taskprocessor *serializer;
 	/*! \brief Configured authentication credentials */
@@ -234,6 +244,8 @@ struct sip_outbound_registration {
 	struct sip_outbound_registration_state *state;
 	/*! \brief Configured authentication credentials */
 	struct ast_sip_auth_vector outbound_auths;
+	/*! \brief Whether Path support is enabled */
+	unsigned int support_path;
 };
 
 /*! \brief Helper function which cancels the timer on a client */
@@ -244,6 +256,8 @@ static void cancel_registration(struct sip_outbound_registration_client_state *c
 		ao2_ref(client_state, -1);
 	}
 }
+
+static pj_str_t PATH_NAME = { "path", 4 };
 
 /*! \brief Callback function for registering */
 static int handle_client_registration(void *data)
@@ -265,6 +279,24 @@ static int handle_client_registration(void *data)
 	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
 	ast_debug(3, "REGISTER attempt %d to '%s' with client '%s'\n",
 		  client_state->retries + 1, server_uri, client_uri);
+
+	if (client_state->support_path) {
+		pjsip_supported_hdr *hdr;
+
+		hdr = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_SUPPORTED, NULL);
+		if (!hdr) {
+			/* insert a new Supported header */
+			hdr = pjsip_supported_hdr_create(tdata->pool);
+			if (!hdr) {
+				return -1;
+			}
+
+			pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)hdr);
+		}
+
+		/* add on to the existing Supported header */
+		pj_strassign(&hdr->values[hdr->count++], &PATH_NAME);
+	}
 
 	/* Due to the registration the callback may now get called, so bump the ref count */
 	ao2_ref(client_state, +1);
@@ -818,6 +850,7 @@ static int sip_outbound_registration_perform(void *data)
 	registration->state->client_state->forbidden_retry_interval = registration->forbidden_retry_interval;
 	registration->state->client_state->max_retries = registration->max_retries;
 	registration->state->client_state->retries = 0;
+	registration->state->client_state->support_path = registration->support_path;
 
 	pjsip_regc_update_expires(registration->state->client_state->client, registration->expiration);
 
@@ -1100,6 +1133,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "max_retries", "10", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, max_retries));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "auth_rejection_permanent", "yes", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, auth_rejection_permanent));
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, 0, 0);
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, support_path));
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
 	sip_outbound_registration_perform_all();
 

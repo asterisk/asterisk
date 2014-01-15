@@ -34,7 +34,7 @@
 #define DEFAULT_ENCODING "text/plain"
 #define QUALIFIED_BUCKETS 211
 
-static int qualify_contact(struct ast_sip_contact *contact);
+static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_contact *contact);
 
 /*!
  * \internal
@@ -186,7 +186,7 @@ static int on_endpoint(void *obj, void *arg, int flags)
  * \internal
  * \brief Find endpoints associated with the given contact.
  */
-static struct ao2_container *find_endpoints(struct ast_sip_contact *contact)
+static struct ao2_iterator *find_endpoints(struct ast_sip_contact *contact)
 {
 	RAII_VAR(struct ao2_container *, endpoints,
 		 ast_sip_get_endpoints(), ao2_cleanup);
@@ -201,43 +201,15 @@ static struct ao2_container *find_endpoints(struct ast_sip_contact *contact)
 static void qualify_contact_cb(void *token, pjsip_event *e)
 {
 	RAII_VAR(struct ast_sip_contact *, contact, token, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, endpoints, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-
-	pjsip_transaction *tsx = e->body.tsx_state.tsx;
-	pjsip_rx_data *challenge = e->body.tsx_state.src.rdata;
-	pjsip_tx_data *tdata;
 
 	switch(e->body.tsx_state.type) {
 	case PJSIP_EVENT_TRANSPORT_ERROR:
 	case PJSIP_EVENT_TIMER:
 		update_contact_status(contact, UNAVAILABLE);
-		return;
-	default:
 		break;
-	}
-
-	if (!contact->authenticate_qualify || (tsx->status_code != 401 &&
-					       tsx->status_code != 407)) {
+	default:
 		update_contact_status(contact, AVAILABLE);
-		return;
-	}
-
-	/* try to find endpoints that are associated with the contact */
-	if (!(endpoints = find_endpoints(contact))) {
-		ast_log(LOG_ERROR, "No endpoints found for contact %s, cannot authenticate",
-			contact->uri);
-		return;
-	}
-
-	/* find "first" endpoint in order to authenticate - actually any
-	   endpoint should do that matched on the contact */
-	endpoint = ao2_callback(endpoints, 0, NULL, NULL);
-
-	if (!ast_sip_create_request_with_auth(&endpoint->outbound_auths,
-					      challenge, tsx, &tdata)) {
-		pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata,
-					 -1, NULL, NULL);
+		break;
 	}
 }
 
@@ -248,11 +220,25 @@ static void qualify_contact_cb(void *token, pjsip_event *e)
  * \detail Sends a SIP OPTIONS request to the given contact in order to make
  *         sure that contact is available.
  */
-static int qualify_contact(struct ast_sip_contact *contact)
+static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_contact *contact)
 {
 	pjsip_tx_data *tdata;
+	RAII_VAR(struct ast_sip_endpoint *, endpoint_local, ao2_bump(endpoint), ao2_cleanup);
 
-	if (ast_sip_create_request("OPTIONS", NULL, NULL, contact->uri, &tdata)) {
+
+	if (!endpoint_local) {
+		struct ao2_iterator *endpoint_iterator = find_endpoints(contact);
+
+		/* try to find endpoints that are associated with the contact */
+		if (endpoint_iterator) {
+			/* find "first" endpoint in order to authenticate - actually any
+			   endpoint should do that matched on the contact */
+			endpoint_local = ao2_iterator_next(endpoint_iterator);
+			ao2_iterator_destroy(endpoint_iterator);
+		}
+	}
+
+	if (ast_sip_create_request("OPTIONS", NULL, NULL, NULL, contact, &tdata)) {
 		ast_log(LOG_ERROR, "Unable to create request to qualify contact %s\n",
 			contact->uri);
 		return -1;
@@ -270,8 +256,8 @@ static int qualify_contact(struct ast_sip_contact *contact)
 	init_start_time(contact);
 
 	ao2_ref(contact, +1);
-	if (pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(),
-				     tdata, -1, contact, qualify_contact_cb) != PJ_SUCCESS) {
+	if (ast_sip_send_request(tdata, NULL, endpoint_local, contact,
+		qualify_contact_cb) != PJ_SUCCESS) {
 		/* The callback will be called so we don't need to drop the contact ref*/
 		ast_log(LOG_ERROR, "Unable to send request to qualify contact %s\n",
 			contact->uri);
@@ -339,7 +325,7 @@ static struct sched_data *sched_data_create(struct ast_sip_contact *contact)
 static int qualify_contact_task(void *obj)
 {
 	RAII_VAR(struct ast_sip_contact *, contact, obj, ao2_cleanup);
-	return qualify_contact(contact);
+	return qualify_contact(NULL, contact);
 }
 
 /*!
@@ -489,8 +475,7 @@ static pj_status_t send_options_response(pjsip_rx_data *rdata, int code)
 	pj_status_t status;
 
 	/* Make the response object */
-	if ((status = pjsip_endpt_create_response(
-		     endpt, rdata, code, NULL, &tdata) != PJ_SUCCESS)) {
+	if ((status = ast_sip_create_response(rdata, code, NULL, &tdata) != PJ_SUCCESS)) {
 		ast_log(LOG_ERROR, "Unable to create response (%d)\n", status);
 		return status;
 	}
@@ -527,8 +512,8 @@ static pj_status_t send_options_response(pjsip_rx_data *rdata, int code)
 			pjsip_tx_data_dec_ref(tdata);
 			return status;
 		}
-		status = pjsip_endpt_send_response(endpt, &res_addr, tdata,
-						   NULL, NULL);
+		status = ast_sip_send_response(&res_addr, tdata,
+						   ast_pjsip_rdata_get_endpoint(rdata));
 	}
 
 	if (status != PJ_SUCCESS) {
@@ -586,12 +571,13 @@ static pjsip_module options_module = {
  * \internal
  * \brief Send qualify request to the given contact.
  */
-static int cli_on_contact(void *obj, void *arg, int flags)
+static int cli_on_contact(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_sip_contact *contact = obj;
+	struct ast_sip_endpoint *endpoint = data;
 	int *cli_fd = arg;
 	ast_cli(*cli_fd, " contact %s\n", contact->uri);
-	qualify_contact(contact);
+	qualify_contact(endpoint, contact);
 	return 0;
 }
 
@@ -655,7 +641,7 @@ static int cli_qualify_contacts(void *data)
 		}
 
 		ast_cli(cli_fd, "Sending qualify to endpoint %s\n", endpoint_name);
-		ao2_callback(contacts, OBJ_NODATA, cli_on_contact, &cli_fd);
+		ao2_callback_data(contacts, OBJ_NODATA, cli_on_contact, &cli_fd, endpoint);
 	}
 	return 0;
 }

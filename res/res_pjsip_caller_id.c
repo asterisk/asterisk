@@ -689,7 +689,7 @@ static void caller_id_outgoing_response(struct ast_sip_session *session, pjsip_t
 
 static struct ast_sip_session_supplement caller_id_supplement = {
 	.method = "INVITE,UPDATE",
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL - 1000,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL - 1000,
 	.incoming_request = caller_id_incoming_request,
 	.incoming_response = caller_id_incoming_response,
 	.outgoing_request = caller_id_outgoing_request,

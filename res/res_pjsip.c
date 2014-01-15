@@ -883,6 +883,9 @@
 						OPTIONS request is sent to a contact for qualify purposes.
 					</para></description>
 				</configOption>
+				<configOption name="path">
+					<synopsis>Stored Path vector for use in Route headers on outgoing requests.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="aor">
 				<synopsis>The configuration for a location of an endpoint</synopsis>
@@ -984,6 +987,15 @@
 					<description><para>
 						If set the provided URI will be used as the outbound proxy when an
 						OPTIONS request is sent to a contact for qualify purposes.
+					</para></description>
+				</configOption>
+				<configOption name="support_path">
+					<synopsis>Enables Path support for REGISTER requests and Route support for other requests.</synopsis>
+					<description><para>
+						When this option is enabled, the Path headers in register requests will be saved
+						and its contents will be used in Route headers for outbound out-of-dialog requests
+						and in Path headers for outbound 200 responses. Path support will also be indicated
+						in the Supported header.
 					</para></description>
 				</configOption>
 			</configObject>
@@ -1105,6 +1117,7 @@
 	</manager>
  ***/
 
+#define MOD_DATA_CONTACT "contact"
 
 static pjsip_endpoint *ast_pjsip_endpoint;
 
@@ -1598,10 +1611,18 @@ static int create_in_dialog_request(const pjsip_method *method, struct pjsip_dia
 	return 0;
 }
 
+static pj_bool_t supplement_on_rx_request(pjsip_rx_data *rdata);
+static pjsip_module supplement_module = {
+	.name = { "Out of dialog supplement hook", 29 },
+	.id = -1,
+	.priority = PJSIP_MOD_PRIORITY_APPLICATION - 1,
+	.on_rx_request = supplement_on_rx_request,
+};
+
 static int create_out_of_dialog_request(const pjsip_method *method, struct ast_sip_endpoint *endpoint,
-		const char *uri, pjsip_tx_data **tdata)
+		const char *uri, struct ast_sip_contact *provided_contact, pjsip_tx_data **tdata)
 {
-	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_contact *, contact, ao2_bump(provided_contact), ao2_cleanup);
 	pj_str_t remote_uri;
 	pj_str_t from;
 	pj_pool_t *pool;
@@ -1613,7 +1634,9 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 			return -1;
 		}
 
-		contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+		if (!contact) {
+			contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+		}
 		if (!contact || ast_strlen_zero(contact->uri)) {
 			ast_log(LOG_ERROR, "Unable to retrieve contact for endpoint %s\n",
 					ast_sorcery_object_get_id(endpoint));
@@ -1665,6 +1688,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		return -1;
 	}
 
+	ast_sip_mod_data_set((*tdata)->pool, (*tdata)->mod_data, supplement_module.id, MOD_DATA_CONTACT, ao2_bump(contact));
+
 	/* We can release this pool since request creation copied all the necessary
 	 * data into the outbound request's pool
 	 */
@@ -1674,7 +1699,7 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 
 int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 		struct ast_sip_endpoint *endpoint, const char *uri,
-		pjsip_tx_data **tdata)
+		struct ast_sip_contact *contact, pjsip_tx_data **tdata)
 {
 	const pjsip_method *pmethod = get_pjsip_method(method);
 
@@ -1686,8 +1711,46 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 	if (dlg) {
 		return create_in_dialog_request(pmethod, dlg, tdata);
 	} else {
-		return create_out_of_dialog_request(pmethod, endpoint, uri, tdata);
+		return create_out_of_dialog_request(pmethod, endpoint, uri, contact, tdata);
 	}
+}
+
+AST_RWLIST_HEAD_STATIC(supplements, ast_sip_supplement);
+
+int ast_sip_register_supplement(struct ast_sip_supplement *supplement)
+{
+	struct ast_sip_supplement *iter;
+	int inserted = 0;
+	SCOPED_LOCK(lock, &supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&supplements, iter, next) {
+		if (iter->priority > supplement->priority) {
+			AST_RWLIST_INSERT_BEFORE_CURRENT(supplement, next);
+			inserted = 1;
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+
+	if (!inserted) {
+		AST_RWLIST_INSERT_TAIL(&supplements, supplement, next);
+	}
+	ast_module_ref(ast_module_info->self);
+	return 0;
+}
+
+void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement)
+{
+	struct ast_sip_supplement *iter;
+	SCOPED_LOCK(lock, &supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&supplements, iter, next) {
+		if (supplement == iter) {
+			AST_RWLIST_REMOVE_CURRENT(next);
+			ast_module_unref(ast_module_info->self);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
 }
 
 static int send_in_dialog_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg)
@@ -1699,45 +1762,120 @@ static int send_in_dialog_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg
 	return 0;
 }
 
+static pj_bool_t does_method_match(const pj_str_t *message_method, const char *supplement_method)
+{
+	pj_str_t method;
+
+	if (ast_strlen_zero(supplement_method)) {
+		return PJ_TRUE;
+	}
+
+	pj_cstr(&method, supplement_method);
+
+	return pj_stristr(&method, message_method) ? PJ_TRUE : PJ_FALSE;
+}
+
+/*! \brief Structure to hold information about an outbound request */
+struct send_request_data {
+	struct ast_sip_endpoint *endpoint;		/*! The endpoint associated with this request */
+	void *token;					/*! Information to be provided to the callback upon receipt of a response */
+	void (*callback)(void *token, pjsip_event *e);	/*! The callback to be called upon receipt of a response */
+};
+
+static void send_request_data_destroy(void *obj)
+{
+	struct send_request_data *req_data = obj;
+	ao2_cleanup(req_data->endpoint);
+}
+
+static struct send_request_data *send_request_data_alloc(struct ast_sip_endpoint *endpoint,
+	void *token, void (*callback)(void *token, pjsip_event *e))
+{
+	struct send_request_data *req_data = ao2_alloc(sizeof(*req_data), send_request_data_destroy);
+
+	if (!req_data) {
+		return NULL;
+	}
+
+	req_data->endpoint = ao2_bump(endpoint);
+	req_data->token = token;
+	req_data->callback = callback;
+
+	return req_data;
+}
+
 static void send_request_cb(void *token, pjsip_event *e)
 {
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, token, ao2_cleanup);
+	RAII_VAR(struct send_request_data *, req_data, token, ao2_cleanup);
 	pjsip_transaction *tsx = e->body.tsx_state.tsx;
 	pjsip_rx_data *challenge = e->body.tsx_state.src.rdata;
 	pjsip_tx_data *tdata;
+	struct ast_sip_supplement *supplement;
 
-	if (tsx->status_code != 401 && tsx->status_code != 407) {
+	AST_RWLIST_RDLOCK(&supplements);
+	AST_LIST_TRAVERSE(&supplements, supplement, next) {
+		if (supplement->incoming_response && does_method_match(&challenge->msg_info.cseq->method.name, supplement->method)) {
+			supplement->incoming_response(req_data->endpoint, challenge);
+		}
+	}
+	AST_RWLIST_UNLOCK(&supplements);
+
+	if (tsx->status_code == 401 || tsx->status_code == 407) {
+		if (!ast_sip_create_request_with_auth(&req_data->endpoint->outbound_auths, challenge, tsx, &tdata)) {
+			pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, req_data->token, req_data->callback);
+		}
 		return;
 	}
 
-	if (!ast_sip_create_request_with_auth(&endpoint->outbound_auths, challenge, tsx, &tdata)) {
-		pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, NULL, NULL);
+	if (req_data->callback) {
+		req_data->callback(req_data->token, e);
 	}
 }
 
-static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpoint *endpoint)
+static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpoint *endpoint,
+	void *token, void (*callback)(void *token, pjsip_event *e))
 {
-	ao2_ref(endpoint, +1);
-	if (pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, endpoint, send_request_cb) != PJ_SUCCESS) {
+	struct ast_sip_supplement *supplement;
+	struct send_request_data *req_data = send_request_data_alloc(endpoint, token, callback);
+	struct ast_sip_contact *contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
+
+	if (!req_data) {
+		return -1;
+	}
+
+	AST_RWLIST_RDLOCK(&supplements);
+	AST_LIST_TRAVERSE(&supplements, supplement, next) {
+		if (supplement->outgoing_request && does_method_match(&tdata->msg->line.req.method.name, supplement->method)) {
+			supplement->outgoing_request(endpoint, contact, tdata);
+		}
+	}
+	AST_RWLIST_UNLOCK(&supplements);
+
+	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
+	ao2_cleanup(contact);
+
+	if (pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, req_data, send_request_cb) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Error attempting to send outbound %.*s request to endpoint %s\n",
 				(int) pj_strlen(&tdata->msg->line.req.method.name),
 				pj_strbuf(&tdata->msg->line.req.method.name),
 				ast_sorcery_object_get_id(endpoint));
-		ao2_ref(endpoint, -1);
+		ao2_cleanup(req_data);
 		return -1;
 	}
 
 	return 0;
 }
 
-int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg, struct ast_sip_endpoint *endpoint)
+int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
+	struct ast_sip_endpoint *endpoint, void *token,
+	void (*callback)(void *token, pjsip_event *e))
 {
 	ast_assert(tdata->msg->type == PJSIP_REQUEST_MSG);
 
 	if (dlg) {
 		return send_in_dialog_request(tdata, dlg);
 	} else {
-		return send_out_of_dialog_request(tdata, endpoint);
+		return send_out_of_dialog_request(tdata, endpoint, token, callback);
 	}
 }
 
@@ -2011,6 +2149,57 @@ void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
 	return ht;
 }
 
+static pj_bool_t supplement_on_rx_request(pjsip_rx_data *rdata)
+{
+	struct ast_sip_supplement *supplement;
+
+	if (pjsip_rdata_get_dlg(rdata)) {
+		return PJ_FALSE;
+	}
+
+	AST_RWLIST_RDLOCK(&supplements);
+	AST_LIST_TRAVERSE(&supplements, supplement, next) {
+		if (supplement->incoming_request && does_method_match(&rdata->msg_info.msg->line.req.method.name, supplement->method)) {
+			supplement->incoming_request(ast_pjsip_rdata_get_endpoint(rdata), rdata);
+		}
+	}
+	AST_RWLIST_UNLOCK(&supplements);
+
+	return PJ_FALSE;
+}
+
+int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
+{
+	struct ast_sip_supplement *supplement;
+	pjsip_cseq_hdr *cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL);
+	struct ast_sip_contact *contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
+
+	AST_RWLIST_RDLOCK(&supplements);
+	AST_LIST_TRAVERSE(&supplements, supplement, next) {
+		if (supplement->outgoing_response && does_method_match(&cseq->method.name, supplement->method)) {
+			supplement->outgoing_response(sip_endpoint, contact, tdata);
+		}
+	}
+	AST_RWLIST_UNLOCK(&supplements);
+
+	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
+	ao2_cleanup(contact);
+
+	return pjsip_endpt_send_response(ast_sip_get_pjsip_endpoint(), res_addr, tdata, NULL, NULL);
+}
+
+int ast_sip_create_response(const pjsip_rx_data *rdata, int st_code,
+	struct ast_sip_contact *contact, pjsip_tx_data **tdata)
+{
+	int res = pjsip_endpt_create_response(ast_sip_get_pjsip_endpoint(), rdata, st_code, NULL, tdata);
+
+	if (!res) {
+		ast_sip_mod_data_set((*tdata)->pool, (*tdata)->mod_data, supplement_module.id, MOD_DATA_CONTACT, ao2_bump(contact));
+	}
+
+	return res;
+}
+
 static void remove_request_headers(pjsip_endpoint *endpt)
 {
 	const pjsip_hdr *request_headers = pjsip_endpt_get_request_headers(endpt);
@@ -2128,8 +2317,23 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	if (ast_sip_register_service(&supplement_module)) {
+		ast_log(LOG_ERROR, "Failed to initialize supplement hooks. Aborting load\n");
+		ast_sip_destroy_distributor();
+		ast_res_pjsip_destroy_configuration();
+		ast_sip_destroy_global_headers();
+		stop_monitor_thread();
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	if (ast_sip_initialize_outbound_authentication()) {
 		ast_log(LOG_ERROR, "Failed to initialize outbound authentication. Aborting load\n");
+		ast_sip_unregister_service(&supplement_module);
 		ast_sip_destroy_distributor();
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_global_headers();

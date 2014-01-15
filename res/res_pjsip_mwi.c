@@ -273,7 +273,7 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	pjsip_event_hdr *event;
 	const pjsip_hdr *allow_events = pjsip_evsub_get_allow_events_hdr(NULL);
 
-	if (ast_sip_create_request("NOTIFY", NULL, endpoint, contact->uri, &tdata)) {
+	if (ast_sip_create_request("NOTIFY", NULL, endpoint, NULL, contact, &tdata)) {
 		ast_log(LOG_WARNING, "Unable to create unsolicited NOTIFY request to endpoint %s URI %s\n", sub->id, contact->uri);
 		return 0;
 	}
@@ -310,7 +310,7 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	pjsip_msg_add_hdr(tdata->msg, pjsip_hdr_shallow_clone(tdata->pool, allow_events));
 	msg_body = pjsip_msg_body_create(tdata->pool, &mwi_type->type, &mwi_type->subtype, body_text);
 	tdata->msg->body = msg_body;
-	ast_sip_send_request(tdata, NULL, endpoint);
+	ast_sip_send_request(tdata, NULL, endpoint, NULL, NULL);
 
 	return 0;
 }

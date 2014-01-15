@@ -320,7 +320,7 @@ static struct ast_sip_session_supplement diversion_supplement = {
 	.method = "INVITE",
 	/* this supplement needs to be called after caller id
            and after the channel has been created */
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL + 100,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 100,
 	.incoming_request = diversion_incoming_request,
 	.incoming_response = diversion_incoming_response,
 	.outgoing_request = diversion_outgoing_request,

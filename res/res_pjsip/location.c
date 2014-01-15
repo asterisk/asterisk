@@ -178,7 +178,7 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
 	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "contact", contact_name);
 }
 
-int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri, struct timeval expiration_time)
+int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri, struct timeval expiration_time, const char *path_info)
 {
 	char name[AST_UUID_STR_LEN];
 	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
@@ -193,6 +193,9 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri, struc
 	contact->expiration_time = expiration_time;
 	contact->qualify_frequency = aor->qualify_frequency;
 	contact->authenticate_qualify = aor->authenticate_qualify;
+	if (path_info && aor->support_path) {
+		ast_string_field_set(contact, path, path_info);
+	}
 
 	if (!ast_strlen_zero(aor->outbound_proxy)) {
 		ast_string_field_set(contact, outbound_proxy, aor->outbound_proxy);
@@ -610,6 +613,7 @@ int ast_sip_initialize_sorcery_location(struct ast_sorcery *sorcery)
 
 	ast_sorcery_object_field_register(sorcery, "contact", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "contact", "uri", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, uri));
+	ast_sorcery_object_field_register(sorcery, "contact", "path", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, path));
 	ast_sorcery_object_field_register_custom(sorcery, "contact", "expiration_time", "", expiration_str2struct, expiration_struct2str, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "contact", "qualify_frequency", 0, OPT_UINT_T,
 					  PARSE_IN_RANGE, FLDSET(struct ast_sip_contact, qualify_frequency), 0, 86400);
@@ -626,6 +630,7 @@ int ast_sip_initialize_sorcery_location(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register_custom(sorcery, "aor", "contact", "", permanent_uri_handler, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, mailboxes));
 	ast_sorcery_object_field_register(sorcery, "aor", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, outbound_proxy));
+	ast_sorcery_object_field_register(sorcery, "aor", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, support_path));
 
 	ast_sip_register_endpoint_formatter(&endpoint_aor_formatter);
 	ast_sip_register_cli_formatter(&cli_contact_formatter);

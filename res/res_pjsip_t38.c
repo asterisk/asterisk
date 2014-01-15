@@ -498,7 +498,7 @@ static unsigned int t38_get_rate(enum ast_control_t38_rate rate)
 /*! \brief Supplement for adding framehook to session channel */
 static struct ast_sip_session_supplement t38_supplement = {
 	.method = "INVITE",
-	.priority = AST_SIP_SESSION_SUPPLEMENT_PRIORITY_CHANNEL + 1,
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 1,
 	.incoming_request = t38_incoming_invite_request,
 	.outgoing_request = t38_outgoing_invite_request,
 };

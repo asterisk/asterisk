@@ -151,6 +151,8 @@ struct ast_sip_contact {
 		AST_STRING_FIELD(uri);
 		/*! Outbound proxy to use for qualify */
 		AST_STRING_FIELD(outbound_proxy);
+		/*! Path information to place in Route headers */
+		AST_STRING_FIELD(path);
 	);
 	/*! Absolute time that this contact is no longer valid after */
 	struct timeval expiration_time;
@@ -214,6 +216,8 @@ struct ast_sip_aor {
 	unsigned int remove_existing;
 	/*! Any permanent configured contacts */
 	struct ao2_container *permanent_contacts;
+	/*! Determines whether SIP Path headers are supported */
+	unsigned int support_path;
 };
 
 /*!
@@ -901,11 +905,13 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
  * \param aor Pointer to the AOR
  * \param uri Full contact URI
  * \param expiration_time Optional expiration time of the contact
+ * \param path_info Path information
  *
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri, struct timeval expiration_time);
+int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
+	struct timeval expiration_time, const char *path_info);
 
 /*!
  * \brief Update a contact
@@ -1209,18 +1215,22 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
  *
  * \param method The method of the SIP request to send
  * \param dlg Optional. If specified, the dialog on which to request the message.
- * \param endpoint Optional. If specified, the request will be created out-of-dialog
- * to the endpoint.
+ * \param endpoint Optional. If specified, the request will be created out-of-dialog to the endpoint.
  * \param uri Optional. If specified, the request will be sent to this URI rather
- * this value.
  * than one configured for the endpoint.
+ * \param contact The contact with which this request is associated for out-of-dialog requests.
  * \param[out] tdata The newly-created request
+ *
+ * The provided contact is attached to tdata with its reference bumped, but will
+ * not survive for the entire lifetime of tdata since the contact is cleaned up
+ * when all supplements have completed execution.
+ *
  * \retval 0 Success
  * \retval -1 Failure
  */
 int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 		struct ast_sip_endpoint *endpoint, const char *uri,
-		pjsip_tx_data **tdata);
+		struct ast_sip_contact *contact, pjsip_tx_data **tdata);
 
 /*!
  * \brief General purpose method for sending a SIP request
@@ -1235,10 +1245,48 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
  * \param tdata The request to send
  * \param dlg Optional. If specified, the dialog on which the request should be sent
  * \param endpoint Optional. If specified, the request is sent out-of-dialog to the endpoint.
+ * \param token Data to be passed to the callback upon receipt of response
+ * \param callback Callback to be called upon receipt of response
+ *
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg, struct ast_sip_endpoint *endpoint);
+int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
+	struct ast_sip_endpoint *endpoint, void *token,
+	void (*callback)(void *token, pjsip_event *e));
+
+/*!
+ * \brief General purpose method for creating a SIP response
+ *
+ * Its typical use would be to create responses for out of dialog
+ * requests.
+ *
+ * \param rdata The rdata from the incoming request.
+ * \param st_code The response code to transmit.
+ * \param contact The contact with which this request is associated.
+ * \param[out] tdata The newly-created response
+ *
+ * The provided contact is attached to tdata with its reference bumped, but will
+ * not survive for the entire lifetime of tdata since the contact is cleaned up
+ * when all supplements have completed execution.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_create_response(const pjsip_rx_data *rdata, int st_code,
+	struct ast_sip_contact *contact, pjsip_tx_data **p_tdata);
+
+/*!
+ * \brief Send a response to an out of dialog request
+ *
+ * \param res_addr The response address for this response
+ * \param tdata The response to send
+ * \param endpoint The ast_sip_endpoint associated with this response
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint);
 
 /*!
  * \brief Determine if an incoming request requires authentication
@@ -1744,5 +1792,98 @@ int ast_sip_for_each_channel_snapshot(const struct ast_endpoint_snapshot *endpoi
 int ast_sip_for_each_channel(const struct ast_sip_endpoint *endpoint,
 		ao2_callback_fn on_channel_snapshot,
 				      void *arg);
+
+enum ast_sip_supplement_priority {
+	/*! Top priority. Supplements with this priority are those that need to run before any others */
+	AST_SIP_SUPPLEMENT_PRIORITY_FIRST = 0,
+	/*! Channel creation priority.
+	 * chan_pjsip creates a channel at this priority. If your supplement depends on being run before
+	 * or after channel creation, then set your priority to be lower or higher than this value.
+	 */
+	AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL = 1000000,
+	/*! Lowest priority. Supplements with this priority should be run after all other supplements */
+	AST_SIP_SUPPLEMENT_PRIORITY_LAST = INT_MAX,
+};
+
+/*!
+ * \brief A supplement to SIP message processing
+ *
+ * These can be registered by any module in order to add
+ * processing to incoming and outgoing SIP out of dialog
+ * requests and responses
+ */
+struct ast_sip_supplement {
+	/*! Method on which to call the callbacks. If NULL, call on all methods */
+	const char *method;
+	/*! Priority for this supplement. Lower numbers are visited before higher numbers */
+	enum ast_sip_supplement_priority priority;
+	/*!
+	 * \brief Called on incoming SIP request
+	 * This method can indicate a failure in processing in its return. If there
+	 * is a failure, it is required that this method sends a response to the request.
+	 * This method is always called from a SIP servant thread.
+	 *
+	 * \note
+	 * The following PJSIP methods will not work properly:
+	 * pjsip_rdata_get_dlg()
+	 * pjsip_rdata_get_tsx()
+	 * The reason is that the rdata passed into this function is a cloned rdata structure,
+	 * and its module data is not copied during the cloning operation.
+	 * If you need to get the dialog, you can get it via session->inv_session->dlg.
+	 *
+	 * \note
+	 * There is no guarantee that a channel will be present on the session when this is called.
+	 */
+	int (*incoming_request)(struct ast_sip_endpoint *endpoint, struct pjsip_rx_data *rdata);
+	/*!
+	 * \brief Called on an incoming SIP response
+	 * This method is always called from a SIP servant thread.
+	 *
+	 * \note
+	 * The following PJSIP methods will not work properly:
+	 * pjsip_rdata_get_dlg()
+	 * pjsip_rdata_get_tsx()
+	 * The reason is that the rdata passed into this function is a cloned rdata structure,
+	 * and its module data is not copied during the cloning operation.
+	 * If you need to get the dialog, you can get it via session->inv_session->dlg.
+	 *
+	 * \note
+	 * There is no guarantee that a channel will be present on the session when this is called.
+	 */
+	void (*incoming_response)(struct ast_sip_endpoint *endpoint, struct pjsip_rx_data *rdata);
+	/*!
+	 * \brief Called on an outgoing SIP request
+	 * This method is always called from a SIP servant thread.
+	 */
+	void (*outgoing_request)(struct ast_sip_endpoint *endpoint, struct ast_sip_contact *contact, struct pjsip_tx_data *tdata);
+	/*!
+	 * \brief Called on an outgoing SIP response
+	 * This method is always called from a SIP servant thread.
+	 */
+	void (*outgoing_response)(struct ast_sip_endpoint *endpoint, struct ast_sip_contact *contact, struct pjsip_tx_data *tdata);
+	/*! Next item in the list */
+	AST_LIST_ENTRY(ast_sip_supplement) next;
+};
+
+/*!
+ * \brief Register a supplement to SIP out of dialog processing
+ *
+ * This allows for someone to insert themselves in the processing of out
+ * of dialog SIP requests and responses. This, for example could allow for
+ * a module to set channel data based on headers in an incoming message.
+ * Similarly, a module could reject an incoming request if desired.
+ *
+ * \param supplement The supplement to register
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_register_supplement(struct ast_sip_supplement *supplement);
+
+/*!
+ * \brief Unregister a an supplement to SIP out of dialog processing
+ *
+ * \param supplement The supplement to unregister
+ */
+void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
 
 #endif /* _RES_PJSIP_H */

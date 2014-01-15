@@ -326,7 +326,7 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 
 static pjsip_module auth_mod = {
 	.name = {"Request Authenticator", 21},
-	.priority = PJSIP_MOD_PRIORITY_APPLICATION - 1,
+	.priority = PJSIP_MOD_PRIORITY_APPLICATION - 2,
 	.on_rx_request = authenticate,
 };
 

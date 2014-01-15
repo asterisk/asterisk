@@ -347,6 +347,64 @@ static struct rx_task_data *rx_task_data_create(pjsip_rx_data *rdata,
 	return task_data;
 }
 
+static const pj_str_t path_hdr_name = { "Path", 4 };
+
+static int build_path_data(struct rx_task_data *task_data, struct ast_str **path_str)
+{
+	pjsip_generic_string_hdr *path_hdr = pjsip_msg_find_hdr_by_name(task_data->rdata->msg_info.msg, &path_hdr_name, NULL);
+
+	if (!path_hdr) {
+		return 0;
+	}
+
+	*path_str = ast_str_create(64);
+	if (!path_str) {
+		return -1;
+	}
+
+	ast_str_set(path_str, 0, "%.*s", (int)path_hdr->hvalue.slen, path_hdr->hvalue.ptr);
+
+	while ((path_hdr = (pjsip_generic_string_hdr *) pjsip_msg_find_hdr_by_name(task_data->rdata->msg_info.msg, &path_hdr_name, path_hdr->next))) {
+		ast_str_append(path_str, 0, ",%.*s", (int)path_hdr->hvalue.slen, path_hdr->hvalue.ptr);
+	}
+
+	return 0;
+}
+
+static int registrar_validate_path(struct rx_task_data *task_data, struct ast_str **path_str)
+{
+	const pj_str_t path_supported_name = { "path", 4 };
+	pjsip_supported_hdr *supported_hdr;
+	int i;
+
+	if (!task_data->aor->support_path) {
+		return 0;
+	}
+
+	if (build_path_data(task_data, path_str)) {
+		return -1;
+	}
+
+	if (!*path_str) {
+		return 0;
+	}
+
+	supported_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_SUPPORTED, NULL);
+	if (!supported_hdr) {
+		return -1;
+	}
+
+	/* Find advertised path support */
+	for (i = 0; i < supported_hdr->count; i++) {
+		if (!pj_stricmp(&supported_hdr->values[i], &path_supported_name)) {
+			return 0;
+		}
+	}
+
+	/* Path header present, but support not advertised */
+	return -1;
+}
+
 static int rx_task(void *data)
 {
 	RAII_VAR(struct rx_task_data *, task_data, data, ao2_cleanup);
@@ -358,6 +416,8 @@ static int rx_task(void *data)
 	pjsip_tx_data *tdata;
 	pjsip_response_addr addr;
 	const char *aor_name = ast_sorcery_object_get_id(task_data->aor);
+	RAII_VAR(struct ast_str *, path_str, NULL, ast_free);
+	struct ast_sip_contact *response_contact;
 
 	/* Retrieve the current contacts, we'll need to know whether to update or not */
 	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
@@ -370,6 +430,14 @@ static int rx_task(void *data)
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 400, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(task_data->endpoint, task_data->rdata, "registrar_invalid_contacts_provided");
 		ast_log(LOG_WARNING, "Failed to validate contacts in REGISTER request from '%s'\n",
+				ast_sorcery_object_get_id(task_data->endpoint));
+		return PJ_TRUE;
+	}
+
+	if (registrar_validate_path(task_data, &path_str)) {
+		/* Ensure that intervening proxies did not make invalid modifications to the request */
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 420, NULL, NULL, NULL);
+		ast_log(LOG_WARNING, "Invalid modifications made to REGISTER request from '%s' by intervening proxy\n",
 				ast_sorcery_object_get_id(task_data->endpoint));
 		return PJ_TRUE;
 	}
@@ -417,7 +485,8 @@ static int rx_task(void *data)
 				continue;
 			}
 
-			ast_sip_location_add_contact(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1)));
+			ast_sip_location_add_contact(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
+				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL);
 			ast_verb(3, "Added contact '%s' to AOR '%s' with expiration of %d seconds\n",
 				contact_uri, aor_name, expiration);
 			ast_test_suite_event_notify("AOR_CONTACT_ADDED",
@@ -432,6 +501,9 @@ static int rx_task(void *data)
 			updated->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
 			updated->qualify_frequency = task_data->aor->qualify_frequency;
 			updated->authenticate_qualify = task_data->aor->authenticate_qualify;
+			if (path_str) {
+				ast_string_field_set(updated, path, ast_str_buffer(path_str));
+			}
 
 			ast_sip_location_update_contact(updated);
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
@@ -465,12 +537,16 @@ static int rx_task(void *data)
 
 	/* Update the contacts as things will probably have changed */
 	ao2_cleanup(contacts);
+
 	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
+	response_contact = ao2_callback(contacts, 0, NULL, NULL);
 
 	/* Send a response containing all of the contacts (including static) that are present on this AOR */
-	if (pjsip_endpt_create_response(ast_sip_get_pjsip_endpoint(), task_data->rdata, 200, NULL, &tdata) != PJ_SUCCESS) {
+	if (ast_sip_create_response(task_data->rdata, 200, response_contact, &tdata) != PJ_SUCCESS) {
+		ao2_cleanup(response_contact);
 		return PJ_TRUE;
 	}
+	ao2_cleanup(response_contact);
 
 	/* Add the date header to the response, some UAs use this to set their date and time */
 	registrar_add_date_header(tdata);
@@ -478,7 +554,7 @@ static int rx_task(void *data)
 	ao2_callback(contacts, 0, registrar_add_contact, tdata);
 
 	if (pjsip_get_response_addr(tdata->pool, task_data->rdata, &addr) == PJ_SUCCESS) {
-		pjsip_endpt_send_response(ast_sip_get_pjsip_endpoint(), &addr, tdata, NULL, NULL);
+		ast_sip_send_response(&addr, tdata, task_data->endpoint);
 	} else {
 		pjsip_tx_data_dec_ref(tdata);
 	}
@@ -495,8 +571,9 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		 ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
 	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
 	pjsip_sip_uri *uri;
-	char user_name[64], domain_name[64];
+	char *domain_name;
 	char *configured_aors, *aor_name;
+	RAII_VAR(struct ast_str *, id, NULL, ast_free);
 
 	if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_register_method) || !endpoint) {
 		return PJ_FALSE;
@@ -518,29 +595,33 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	}
 
 	uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
-	ast_copy_pj_str(user_name, &uri->user, sizeof(user_name));
-	ast_copy_pj_str(domain_name, &uri->host, sizeof(domain_name));
+	domain_name = ast_alloca(uri->host.slen + 1);
+	ast_copy_pj_str(domain_name, &uri->host, uri->host.slen + 1);
 
 	configured_aors = ast_strdupa(endpoint->aors);
 
 	/* Iterate the configured AORs to see if the user or the user+domain match */
 	while ((aor_name = strsep(&configured_aors, ","))) {
-		char id[AST_UUID_STR_LEN];
-		RAII_VAR(struct ast_sip_domain_alias *, alias, NULL, ao2_cleanup);
+		struct ast_sip_domain_alias *alias = NULL;
 
-		snprintf(id, sizeof(id), "%s@%s", user_name, domain_name);
-		if (!strcmp(aor_name, id)) {
+		if (!pj_strcmp2(&uri->user, aor_name)) {
 			break;
 		}
 
-		if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
-			snprintf(id, sizeof(id), "%s@%s", user_name, alias->domain);
-			if (!strcmp(aor_name, id)) {
-				break;
-			}
+		if (!id && !(id = ast_str_create(uri->user.slen + uri->host.slen + 2))) {
+			return PJ_TRUE;
 		}
 
-		if (!strcmp(aor_name, user_name)) {
+		ast_str_set(&id, 0, "%.*s@", (int)uri->user.slen, uri->user.ptr);
+		if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
+			ast_str_append(&id, 0, "%s", alias->domain);
+			ao2_cleanup(alias);
+		} else {
+			ast_str_append(&id, 0, "%s", domain_name);
+		}
+
+		if (!strcmp(aor_name, ast_str_buffer(id))) {
+			ast_free(id);
 			break;
 		}
 	}
@@ -549,7 +630,7 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		/* The provided AOR name was not found (be it within the configuration or sorcery itself) */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
 		ast_sip_report_req_no_support(endpoint, rdata, "registrar_requested_aor_not_found");
-		ast_log(LOG_WARNING, "AOR '%s' not found for endpoint '%s'\n", user_name, ast_sorcery_object_get_id(endpoint));
+		ast_log(LOG_WARNING, "AOR '%.*s' not found for endpoint '%s'\n", (int)uri->user.slen, uri->user.ptr, ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 

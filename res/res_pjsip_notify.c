@@ -470,7 +470,7 @@ static int notify_contact(void *obj, void *arg, int flags)
 	pjsip_tx_data *tdata;
 
 	if (ast_sip_create_request("NOTIFY", NULL, data->endpoint,
-				   contact->uri, &tdata)) {
+				   NULL, contact, &tdata)) {
 		ast_log(LOG_WARNING, "SIP NOTIFY - Unable to create request for "
 			"contact %s\n",	contact->uri);
 		return -1;
@@ -479,7 +479,7 @@ static int notify_contact(void *obj, void *arg, int flags)
 	ast_sip_add_header(tdata, "Subscription-State", "terminated");
 	data->build_notify(tdata, data->info);
 
-	if (ast_sip_send_request(tdata, NULL, data->endpoint)) {
+	if (ast_sip_send_request(tdata, NULL, data->endpoint, NULL, NULL)) {
 		ast_log(LOG_ERROR, "SIP NOTIFY - Unable to send request for "
 			"contact %s\n",	contact->uri);
 		return -1;
