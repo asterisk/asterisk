@@ -12,12 +12,19 @@
 --- Functionality changes from Asterisk 12.0.0 to Asterisk 12.1.0 ------------
 ------------------------------------------------------------------------------
 
+ARI
+------------------
+ * Added a new ARI resource 'mailboxes' which allows the creation and
+   modification of mailboxes managed by external MWI. Modules res_mwi_external
+   and res_stasis_mailbox must be enabled to use this resource.
+
 chan_pjsip
 ------------------
  * Path support has been added with the 'support_path' option in registration
    and aor sections.
 
 ------------------------------------------------------------------------------
+>>>>>>> .r405584
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------
 
