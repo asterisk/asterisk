@@ -2,7 +2,7 @@
 
                               asterisk-11.8.0-rc1
 
-                                Date: 2014-01-14
+                                Date: 2014-01-15
 
                            <asteriskteam@digium.com>
 
