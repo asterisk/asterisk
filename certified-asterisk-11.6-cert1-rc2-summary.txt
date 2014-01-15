@@ -48,7 +48,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   7 bebuild                
+   8 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -82,6 +82,9 @@
    |----------+---------+--------------------------------------+------------|
    | 405580   | bebuild | Importing release summary for        |            |
    |          |         | 11.6-cert1-rc2 release.              |            |
+   |----------+---------+--------------------------------------+------------|
+   | 405596   | bebuild | Importing release summary for        |            |
+   |          |         | 11.6-cert1-rc2 release.              |            |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -102,8 +105,8 @@
  apps/app_sms.c                                 |    3
  apps/app_verbose.c                             |    4
  apps/confbridge/conf_state_multi_marked.c      |   25 +
- certified-asterisk-11.6-cert1-rc2-summary.html |   59 ++++
- certified-asterisk-11.6-cert1-rc2-summary.txt  |   95 ++++++
+ certified-asterisk-11.6-cert1-rc2-summary.html |   89 ++++++
+ certified-asterisk-11.6-cert1-rc2-summary.txt  |  127 ++++++++
  channels/chan_sip.c                            |   39 +-
  configs/asterisk.conf.sample                   |    6
  configs/logger.conf.sample                     |   19 -
@@ -122,6 +125,6 @@
  main/manager.c                                 |    8
  main/pbx.c                                     |  292 ++++++++++++++++++--
  main/tcptls.c                                  |   11
- 29 files changed, 1552 insertions(+), 360 deletions(-)
+ 29 files changed, 1614 insertions(+), 360 deletions(-)
 
      ----------------------------------------------------------------------
