@@ -17,6 +17,12 @@
 === UPGRADE-1.6.txt -- Upgrade info for 1.4 to 1.6
 ===
 ===========================================================
+from 1.8.26.0 to 1.8.27.0:
+* res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
+  Because of this the default settings would not load, so the minrate (minimum
+  transmission rate) option was changed to default to 4800 since that is the
+  minimum rate for v.27 which is included in the default modem options.
+
 from 1.8.23.0 to 1.8.24.0:
 * res_agi will now properly indicate if there was an error in streaming an
   audio file.  The result code will be -1 and the result returned from the
