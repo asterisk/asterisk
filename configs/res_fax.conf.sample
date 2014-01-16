@@ -8,8 +8,8 @@ maxrate=14400
 
 ; Minimum Transmission Rate
 ; Possible values are { 2400 | 4800 | 7200 | 9600 | 12000 | 14400 }
-; Set this value to the minimum desired transfer rate.  Default: 2400
-minrate=2400
+; Set this value to the minimum desired transfer rate.  Default: 4800
+minrate=4800
 
 ; Send Progress/Status events to manager session
 ; Manager events with 'call' class permissions will receive events indicating the

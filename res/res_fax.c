@@ -333,7 +333,7 @@ struct fax_module {
 };
 static AST_RWLIST_HEAD_STATIC(faxmodules, fax_module);
 
-#define RES_FAX_MINRATE 2400
+#define RES_FAX_MINRATE 4800
 #define RES_FAX_MAXRATE 14400
 #define RES_FAX_STATUSEVENTS 0
 #define RES_FAX_MODEM (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V27 | AST_FAX_MODEM_V29)
@@ -708,7 +708,7 @@ static int check_modem_rate(enum ast_fax_modems modems, unsigned int rate)
 {
 	switch (rate) {
 	case 2400:
-		if (!(modems & (AST_FAX_MODEM_V27 | AST_FAX_MODEM_V34))) {
+		if (!(modems & (AST_FAX_MODEM_V34))) {
 			return 1;
 		}
 		break;
@@ -718,8 +718,12 @@ static int check_modem_rate(enum ast_fax_modems modems, unsigned int rate)
 		}
 		break;
 	case 7200:
-	case 9600:
 		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
+			return 1;
+		}
+		break;
+	case 9600:
+		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V27 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
 			return 1;
 		}
 		break;
