@@ -1629,7 +1629,7 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
 	if (ast_strlen_zero(uri)) {
-		if (!endpoint) {
+		if (!endpoint && !contact) {
 			ast_log(LOG_ERROR, "An endpoint and/or uri must be specified\n");
 			return -1;
 		}
