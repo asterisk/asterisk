@@ -798,12 +798,12 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 
 /*!
  * \internal
- * \brief Qualify and schedule an endpoint's permanent contacts
+ * \brief Qualify and schedule an endpoint's contacts
  *
  * \detail For the given endpoint retrieve its list of aors, qualify all
- *         permanent contacts, and schedule for checks if configured.
+ *         contacts, and schedule for checks if configured.
  */
-static int qualify_and_schedule_permanent_cb(void *obj, void *arg, int flags)
+static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 	char *aor_name, *aors;
@@ -817,31 +817,39 @@ static int qualify_and_schedule_permanent_cb(void *obj, void *arg, int flags)
 	while ((aor_name = strsep(&aors, ","))) {
 		RAII_VAR(struct ast_sip_aor *, aor,
 			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
+		struct ao2_container *contacts;
 
-		if (!aor || !aor->permanent_contacts) {
+		if (!aor || !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
 			continue;
 		}
-		ao2_callback(aor->permanent_contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
+
+		ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
+		ao2_ref(contacts, -1);
 	}
 
 	return 0;
 }
 
-static void qualify_and_schedule_permanent(void)
+static void qualify_and_schedule_all(void)
 {
-	RAII_VAR(struct ao2_container *, endpoints,
-		 ast_sip_get_endpoints(), ao2_cleanup);
+	struct ao2_container *endpoints = ast_sip_get_endpoints();
+
+	if (!endpoints) {
+		return;
+	}
 
 	ao2_callback(endpoints, OBJ_NODATA,
-		     qualify_and_schedule_permanent_cb, NULL);
+		     qualify_and_schedule_all_cb, NULL);
+	ao2_ref(endpoints, -1);
 }
 
 int ast_res_pjsip_init_options_handling(int reload)
 {
 	const pj_str_t STR_OPTIONS = { "OPTIONS", 7 };
 
-	if (sched_qualifies) {
-		ao2_t_ref(sched_qualifies, -1, "Remove old scheduled qualifies");
+	if (reload) {
+		qualify_and_schedule_all();
+		return 0;
 	}
 
 	if (!(sched_qualifies = ao2_t_container_alloc(
@@ -849,11 +857,6 @@ int ast_res_pjsip_init_options_handling(int reload)
 		"Create container for scheduled qualifies"))) {
 
 		return -1;
-	}
-
-	if (reload) {
-		qualify_and_schedule_permanent();
-		return 0;
 	}
 
 	if (pjsip_endpt_register_module(ast_sip_get_pjsip_endpoint(), &options_module) != PJ_SUCCESS) {
@@ -871,7 +874,7 @@ int ast_res_pjsip_init_options_handling(int reload)
 		return -1;
 	}
 
-	qualify_and_schedule_permanent();
+	qualify_and_schedule_all();
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
 	ast_manager_register2("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify, NULL, NULL, NULL);
 
