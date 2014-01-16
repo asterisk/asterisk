@@ -1874,6 +1874,13 @@ static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip
 	return 0;
 }
 
+static int update_devstate(void *obj, void *arg, int flags)
+{
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE,
+			     "PJSIP/%s", ast_sorcery_object_get_id(obj));
+	return 0;
+}
+
 static struct ast_custom_function chan_pjsip_dial_contacts_function = {
 	.name = "PJSIP_DIAL_CONTACTS",
 	.read = pjsip_acf_dial_contacts_read,
@@ -1897,6 +1904,8 @@ static struct ast_custom_function media_offer_function = {
  */
 static int load_module(void)
 {
+	struct ao2_container *endpoints;
+
 	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -1936,6 +1945,13 @@ static int load_module(void)
 		ast_sip_session_unregister_supplement(&pbx_start_supplement);
 		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 		goto end;
+	}
+
+	/* since endpoints are loaded before the channel driver their device
+	   states get set to 'invalid', so they need to be updated */
+	if ((endpoints = ast_sip_get_endpoints())) {
+		ao2_callback(endpoints, OBJ_NODATA, update_devstate, NULL);
+		ao2_ref(endpoints, -1);
 	}
 
 	return 0;
