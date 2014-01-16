@@ -19,6 +19,11 @@
 === UPGRADE-10.txt -- Upgrade info for 1.8 to 10
 ===
 ===========================================================
+from 11.8 to 11.9
+* res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
+  Because of this the default settings would not load, so the minrate (minimum
+  transmission rate) option was changed to default to 4800 since that is the
+  minimum rate for v.27 which is included in the default modem options.
 
 From 11.7 to 11.8:
 * The per console verbose level feature as previously implemented caused a
