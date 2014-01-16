@@ -20,7 +20,6 @@
 === UPGRADE-11.txt  -- Upgrade info for 10 to 11
 ===
 ===========================================================
-
 From 12.0 to 12.1:
 * The per console verbose level feature as previously implemented caused a
   large performance penalty.  The fix required some minor incompatibilities
@@ -46,6 +45,12 @@ Configuration Files:
    As a result, using the AMI Command action with "core set verbose" could
    again set the root console verbose level and affect the verbose level
    logged.
+
+ - res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
+   Because of this the default settings would not load, so the minrate (minimum
+   transmission rate) option in res_fax.conf was changed to default to 4800
+   since that is the minimum rate for v.27 which is included in the default
+   modem options.
 
 Realtime Configuration:
  * New columns have been added to realtime tables for 'support_path' on
