@@ -4695,6 +4695,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 
 	if (!cap) {
 		astman_send_error(s, m, "Internal Error. Memory allocation failure.");
+		return 0;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
 
