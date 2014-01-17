@@ -396,6 +396,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; certain transferred calls to use always use video when
                                 ; available. [yes|NO|always]
 
+;textsupport=no                 ; Support for ITU-T T.140 realtime text.
+                                ; The default value is "no".
+
 ;maxcallbitrate=384             ; Maximum bitrate for video calls (default 384 kb/s)
                                 ; Videosupport and maxcallbitrate is settable
                                 ; for peers and users as well

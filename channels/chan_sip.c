@@ -6417,7 +6417,7 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 		} else if (!strcmp(ast_var_name(current), "SIPFROMDOMAIN")) {
 			ast_string_field_set(p, fromdomain, ast_var_value(current));
 		} else if (!strcmp(ast_var_name(current), "SIPTRANSFER")) {
-			/* This is a transfered call */
+			/* This is a transferred call */
 			p->options->transfer = 1;
 		} else if (!strcmp(ast_var_name(current), "SIPTRANSFER_REFERER")) {
 			/* This is the referrer */
@@ -6474,7 +6474,7 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 
 		if (referer) {
 			if (sipdebug)
-				ast_debug(3, "Call for %s transfered by %s\n", p->username, referer);
+				ast_debug(3, "Call for %s transferred by %s\n", p->username, referer);
 			snprintf(buf, sizeof(buf)-1, "-> %s (via %s)", p->cid_name, referer);
 		} else
 			snprintf(buf, sizeof(buf)-1, "-> %s", p->cid_name);
@@ -24821,7 +24821,7 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 
 		/* EventID for each transfer... EventID is basically the REFER cseq
 
-		 We are getting notifications on a call that we transfered
+		 We are getting notifications on a call that we transferred
 		 We should hangup when we are getting a 200 OK in a sipfrag
 		 Check if we have an owner of this event */
 

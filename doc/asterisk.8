@@ -16,27 +16,27 @@ asterisk
 \fBasterisk\fR \kx
 .if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
 'in \n(.iu+\nxu
-[\fB-BcdfFghiImnpqRtTvVW\fR] [\fB-C \fR\fIfile\fR] [\fB-e \fR\fImemory\fR] [\fB-G \fR\fIgroup\fR] [\fB-L \fR\fIloadaverage\fR] [\fB-M \fR\fIvalue\fR] [\fB-U \fR\fIuser\fR] [\fB-s \fR\fIsocket-file\fR]
+[\fB\-BcdfFghiImnpqRtTvVW\fR] [\fB\-C \fR\fIfile\fR] [\fB\-e \fR\fImemory\fR] [\fB\-G \fR\fIgroup\fR] [\fB\-L \fR\fIloadaverage\fR] [\fB\-M \fR\fIvalue\fR] [\fB\-U \fR\fIuser\fR] [\fB\-s \fR\fIsocket\-file\fR]
+'in \n(.iu\-\nxu
+.ad b
+'hy
+'nh
+.fi
+.ad l
+\fBasterisk \-r\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+[\fB\-v\fR] [\fB\-d\fR] [\fB\-x \fR\fIcommand\fR]
 'in \n(.iu-\nxu
 .ad b
 'hy
 'nh
 .fi
 .ad l
-\fBasterisk -r\fR \kx
+\fBasterisk \-R\fR \kx
 .if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
 'in \n(.iu+\nxu
-[\fB-v\fR] [\fB-d\fR] [\fB-x \fR\fIcommand\fR]
-'in \n(.iu-\nxu
-.ad b
-'hy
-'nh
-.fi
-.ad l
-\fBasterisk -R\fR \kx
-.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
-'in \n(.iu+\nxu
-[\fB-v\fR] [\fB-d\fR] [\fB-x \fR\fIcommand\fR]
+[\fB\-v\fR] [\fB\-d\fR] [\fB\-x \fR\fIcommand\fR]
 'in \n(.iu-\nxu
 .ad b
 'hy
@@ -52,12 +52,12 @@ ISDN BRI and many more.
 .PP
 At start, Asterisk reads the /etc/asterisk/asterisk.conf main configuration
 file and locates the rest of the configuration files from the configuration
-in that file. The -C option specifies an alternate main configuration file.
+in that file. The \-C option specifies an alternate main configuration file.
 Virtually all aspects of the operation of asterisk's configuration files
 can be found in the sample configuration files. The format for those files
 is generally beyond the scope of this man page.
 .PP
-When running with \fB-c\fR, \fB-r\fR or \fB-R\fR
+When running with \fB\-c\fR, \fB\-r\fR or \fB\-R\fR
 options, Asterisk supplies a powerful command line, including command
 completion, which may be used to monitors its status, perform a variety
 of administrative actions and even explore the applications that are
@@ -70,26 +70,26 @@ in the foreground). However running it with \*(T<\fB\-r\fR\*(T> or
 \*(T<\fB\-R\fR\*(T> connects to an existing Asterisk instance through
 a remote console.
 .TP 
--B
+\-B
 Force the background of the terminal to be black, in order for
 terminal colors to show up properly. Equivalent to
 \*(T<\fBforceblackbackground = yes\fR\*(T> in
 \*(T<\fIasterisk.conf\fR\*(T>. See also
 \*(T<\fB\-n\fR\*(T> and \*(T<\fB\-W\fR\*(T>.
 .TP 
--C \fIfile\fR
+\-C \fIfile\fR
 Use \*(T<\fIfile\fR\*(T> as master configuration file
 instead of the default, /etc/asterisk/asterisk.conf
 .TP 
--c
+\-c
 Provide a control console on the calling terminal. The
 console is similar to the remote console provided by
 \*(T<\fB\-r\fR\*(T>. Specifying this option implies 
-\fB-f\fR and will cause asterisk to no longer 
+\fB\-f\fR and will cause asterisk to no longer 
 fork or detach from the controlling terminal. Equivalent 
 to \*(T<\fBconsole = yes\fR\*(T> in \*(T<\fIasterisk.conf\fR\*(T>.
 .TP 
--d
+\-d
 Enable extra debugging statements. This parameter may be used several
 times, and each increases the debug level. Equivalent to \*(T<\fBdebug = \fR\*(T>\fInum\fR
 in \*(T<\fIasterisk.conf\fR\*(T> to explicitly set the initian debug
@@ -104,62 +104,62 @@ has decreased to under \fImemory\fR megabytes.
 Equivalent to \*(T<\fBminmemfree = \fR\*(T>\fImemory\fR in
 \*(T<\fIasterisk.conf\fR\*(T>.
 .TP 
--f
+\-f
 Do not fork or detach from controlling terminal. Overrides any
-preceding specification of \fB-F\fR on the command line.
+preceding specification of \fB\-F\fR on the command line.
 Equivalent to \*(T<\fBnofork = yes\fR\*(T> in \*(T<\fIasterisk.conf\fR\*(T>.
 See also \*(T<\fB\-c\fR\*(T>.
 .TP 
--F
+\-F
 Always fork and detach from controlling terminal. Overrides any
-preceding specification of \fB-f\fR on the command line.
+preceding specification of \fB\-f\fR on the command line.
 May also be used to prevent \*(T<\fB\-d\fR\*(T> and \*(T<\fB\-v\fR\*(T> to imply
 no forking. Equivalent to \*(T<\fBalwaysfork = yes\fR\*(T> in \*(T<\fIasterisk.conf\fR\*(T>.
 .TP 
--g
+\-g
 Remove resource limit on core size, thus forcing Asterisk to dump
 core in the unlikely event of a segmentation fault or abort signal.
 \fBNOTE:\fR in some cases this may be incompatible
-with the \fB-U\fR or \fB-G\fR flags.
+with the \fB\-U\fR or \fB\-G\fR flags.
 .TP 
--G \fIgroup\fR
+\-G \fIgroup\fR
 Run as group \fIgroup\fR instead of the
 calling group. \fBNOTE:\fR this requires substantial work
 to be sure that Asterisk's environment has permission to write
 the files required for its operation, including logs, its comm
 socket, the asterisk database, etc.
 .TP 
--h
+\-h
 Provide brief summary of command line arguments and terminate.
 .TP 
--i
+\-i
 Prompt user to intialize any encrypted private keys for IAX2
 secure authentication during startup.
 .TP 
--I
+\-I
 Enable internal timing if DAHDI timing is available.
 The default behaviour is that outbound packets are phase locked
 to inbound packets. Enabling this switch causes them to be
 locked to the internal DAHDI timer instead.
 .TP 
--L \fIloadaverage\fR
+\-L \fIloadaverage\fR
 Limits the maximum load average before rejecting new calls. This can
 be useful to prevent a system from being brought down by terminating
 too many simultaneous calls.
 .TP 
--m
+\-m
 Temporarily mutes output to the console and logs. To return to normal,
 use \fBlogger mute\fR.
 .TP 
--M \fIvalue\fR
+\-M \fIvalue\fR
 Limits the maximum number of calls to the specified value. This can
 be useful to prevent a system from being brought down by terminating
 too many simultaneous calls.
 .TP 
--n
+\-n
 Disable ANSI colors even on terminals capable of displaying them.
 .TP 
--p
+\-p
 If supported by the operating system (and executing as root),
 attempt to run with realtime priority for increased performance and
 responsiveness within the Asterisk process, at the expense of other
@@ -170,77 +170,77 @@ Note: \fBastcanary\fR will run concurrently with
 running or is killed, \fBasterisk\fR will slow down to
 normal process priority, to avoid locking up the machine.
 .TP 
--q
+\-q
 Reduce default console output when running in conjunction with
-console mode (\fB-c\fR).
+console mode (\fB\-c\fR).
 .TP 
--r
+\-r
 Instead of running a new Asterisk process, attempt to connect
 to a running Asterisk process and provide a console interface
 for controlling it.
 .TP 
--R
-Much like \fB-r\fR. Instead of running a new Asterisk process, attempt to connect
+\-R
+Much like \fB\-r\fR. Instead of running a new Asterisk process, attempt to connect
 to a running Asterisk process and provide a console interface
 for controlling it. Additionally, if connection to the Asterisk 
 process is lost, attempt to reconnect for as long as 30 seconds.
 .TP 
--s \fIsocket file name\fR
-In combination with \fB-r\fR, connect directly to a specified
+\-s \fIsocket file name\fR
+In combination with \fB\-r\fR, connect directly to a specified
 Asterisk server socket.
 .TP 
--t
+\-t
 When recording files, write them first into a temporary holding directory, 
 then move them into the final location when done.
 .TP 
--T
+\-T
 Add timestamp to all non-command related output going to the console
 when running with verbose and/or logging to the console.
 .TP 
--U \fIuser\fR
+\-U \fIuser\fR
 Run as user \fIuser\fR instead of the
 calling user. \fBNOTE:\fR this requires substantial work
 to be sure that Asterisk's environment has permission to write
 the files required for its operation, including logs, its comm
 socket, the asterisk database, etc.
 .TP 
--v
+\-v
 Increase the level of verboseness on the console. The more times
-\fB-v\fR is specified, the more verbose the output is.
-Specifying this option implies \fB-f\fR and will cause
+\fB\-v\fR is specified, the more verbose the output is.
+Specifying this option implies \fB\-f\fR and will cause
 asterisk to no longer fork or detach from the controlling terminal.
-This option may also be used in conjunction with \fB-r\fR
-and \fB-R\fR.
+This option may also be used in conjunction with \fB\-r\fR
+and \fB\-R\fR.
 
 Note: This always sets the verbose level in the asterisk process,
 even if it is running in the background. This will affect the size
 of your log files.
 .TP 
--V
+\-V
 Display version information and exit immediately.
 .TP 
--W
+\-W
 Display colored terminal text as if the background were white
 or otherwise light in color. Normally, terminal text is displayed
 as if the background were black or otherwise dark in color.
 .TP 
--x \fIcommand\fR
+\-x \fIcommand\fR
 Connect to a running Asterisk process and execute a command on
 a command line, passing any output through to standard out and
 then terminating when the command execution completes. Implies
-\fB-r\fR when \fB-R\fR is not explicitly
+\fB\-r\fR when \fB\-R\fR is not explicitly
 supplied.
 .TP 
--X
+\-X
 Enables executing of includes via \fB#exec\fR directive.
 This can be useful if You want to do \fB#exec\fR inside
 \*(T<\fIasterisk.conf\fR\*(T>
 .SH EXAMPLES
 \fBasterisk\fR - Begin Asterisk as a daemon
 .PP
-\fBasterisk -vvvgc\fR - Run on controlling terminal
+\fBasterisk \-vvvgc\fR - Run on controlling terminal
 .PP
-\fBasterisk -rx "core show channels"\fR - Display channels on running server
+\fBasterisk \-rx "core show channels"\fR - Display channels on running server
 .SH BUGS
 Bug reports and feature requests may be filed at https://issues.asterisk.org
 .SH "SEE ALSO"
