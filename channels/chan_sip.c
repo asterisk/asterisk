@@ -13472,7 +13472,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		}
 
 		if (max_audio_packet_size) {
-			ast_str_append(&a_text, 0, "a=maxptime:%d\r\n", max_audio_packet_size);
+			ast_str_append(&a_audio, 0, "a=maxptime:%d\r\n", max_audio_packet_size);
 		}
 
 		if (!doing_directmedia) {
