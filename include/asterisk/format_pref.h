@@ -69,6 +69,9 @@ struct ast_format *ast_codec_pref_index(struct ast_codec_pref *pref, int index, 
 /*! \brief Remove audio a codec from a preference list */
 void ast_codec_pref_remove(struct ast_codec_pref *pref, struct ast_format *format);
 
+/*! \brief Append all codecs to a preference list, without disturbing existing order */
+void ast_codec_pref_append_all(struct ast_codec_pref *pref);
+
 /*! \brief Append a audio codec to a preference list, removing it first if it was already there
 */
 int ast_codec_pref_append(struct ast_codec_pref *pref, struct ast_format *format);

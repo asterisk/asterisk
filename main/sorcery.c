@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/taskprocessor.h"
 #include "asterisk/threadpool.h"
 #include "asterisk/json.h"
+#include "asterisk/format_pref.h"
 
 /* To prevent DEBUG_FD_LEAKS from interfering with things we undef open and close */
 #undef open
@@ -222,8 +223,9 @@ static int chararray_handler_fn(const void *obj, const intptr_t *args, char **bu
 static int codec_handler_fn(const void *obj, const intptr_t *args, char **buf)
 {
 	char tmp_buf[256];
-	struct ast_format_cap **cap = (struct ast_format_cap **)(obj + args[1]);
-	return !(*buf = ast_strdup(ast_getformatname_multiple(tmp_buf, sizeof(tmp_buf), *cap)));
+	struct ast_codec_pref *pref = (struct ast_codec_pref *)(obj + args[0]);
+	ast_codec_pref_string(pref, tmp_buf, sizeof(tmp_buf));
+	return !(*buf = ast_strdup(tmp_buf));
 }
 
 static sorcery_field_handler sorcery_field_default_handler(enum aco_option_type type)

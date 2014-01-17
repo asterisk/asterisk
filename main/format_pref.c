@@ -143,6 +143,42 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, struct ast_format *forma
 	ast_format_list_destroy(f_list);
 }
 
+/*! \brief Append all codecs to a preference list, without distrubing existing order */
+void ast_codec_pref_append_all(struct ast_codec_pref *pref)
+{
+	int x, y, found;
+	size_t f_len = 0;
+	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
+
+	/* leave any existing entries, and don't create duplicates (e.g. allow=ulaw,all) */
+	for (x = 0; x < f_len; x++) {
+		/* x = codec to add */
+		found = 0;
+		for (y = 0; y < f_len; y++) {
+			/* y = scan of existing preferences */
+			if (!pref->order[y]) {
+				break;
+			}
+			if (x + 1 == pref->order[y]) {
+				found = 1;
+				break;
+			}
+		}
+		if (found) {
+			continue;
+		}
+		for (; y < f_len; y++) {
+			/* add x to the end of y */
+			if (!pref->order[y])
+			{
+				pref->order[y] = x + 1;
+				ast_format_copy(&pref->formats[y], &f_list[x].format);
+				break;
+			}
+		}
+	}
+}
+
 /*! \brief Append codec to list */
 int ast_codec_pref_append(struct ast_codec_pref *pref, struct ast_format *format)
 {
