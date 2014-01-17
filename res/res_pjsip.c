@@ -266,7 +266,14 @@
 					</description>
 				</configOption>
 				<configOption name="mailboxes">
-					<synopsis>Mailbox(es) to be associated with</synopsis>
+					<synopsis>NOTIFY the endpoint when state changes for any of the specified mailboxes</synopsis>
+					<description><para>
+						Asterisk will send unsolicited MWI NOTIFY messages to the endpoint when state
+						changes happen for any of the specified mailboxes. More than one mailbox can be
+						specified with a comma-delimited string. Mailboxes must be specified as <mailbox>@<context>.
+						For endpoints that SUBSCRIBE for MWI, you can set the <literal>mailboxes</literal> option in your AOR
+						configuration.
+					</para></description>
 				</configOption>
 				<configOption name="moh_suggest" default="default">
 					<synopsis>Default Music On Hold class</synopsis>
@@ -925,7 +932,10 @@
 					<synopsis>Mailbox(es) to be associated with</synopsis>
 					<description><para>This option applies when an external entity subscribes to an AoR
 					for message waiting indications. The mailboxes specified will be subscribed to.
-					More than one mailbox can be specified with a comma-delimited string.</para></description>
+					More than one mailbox can be specified with a comma-delimited string.
+					For endpoints that cannot SUBSCRIBE for MWI, you can set the <literal>mailboxes</literal> option in your
+					Endpoint configuration section.
+					</para></description>
 				</configOption>
 				<configOption name="maximum_expiration" default="7200">
 					<synopsis>Maximum time to keep an AoR</synopsis>
