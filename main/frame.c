@@ -866,6 +866,8 @@ int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap 
 				}
 			} else if (!iter_allowing) {
 				memset(pref, 0, sizeof(*pref));
+			} else {
+				ast_codec_pref_append_all(pref);
 			}
 		}
 	}

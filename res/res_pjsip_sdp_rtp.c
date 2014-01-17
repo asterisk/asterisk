@@ -936,7 +936,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		}
 
 		if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, &format, 0)) == -1) {
-			return -1;
+			ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n",ast_getformatname(&format));
+			continue;
 		}
 
 		if (!(attr = generate_rtpmap_attr(media, pool, rtp_code, 1, &format, 0))) {
