@@ -45,6 +45,11 @@ Directory
      USEREXIT    user pressed '#' from the selection prompt to exit
      FAILED      directory failed in a way that wasn't accounted for. Dang.
 
+MusicOnHold
+--------------------------
+ * MusicOnHold streams (all modes other than "files") now support wide band
+   audio too.
+
 Page
 --------------------------
  * Added options 'b' and 'B' to apply predial handlers for outgoing calls

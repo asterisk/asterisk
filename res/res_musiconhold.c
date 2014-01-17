@@ -704,7 +704,8 @@ static void *monmp3thread(void *data)
 					ast_log(LOG_ERROR, "Failed to acknowledge timer for mp3player\n");
 					return NULL;
 				}
-				res = 320;
+				/* 25 samples per second => 40ms framerate => 320 samples */
+				res = 320; /* 320/40 = 8 samples/ms */
 			} else {
 				ast_log(LOG_WARNING, "poll() failed: %s\n", strerror(errno));
 				res = 0;
@@ -725,8 +726,12 @@ static void *monmp3thread(void *data)
 				ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
 				deadline = tv_tmp;
 			}
-			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
+			/* 10 samples per second (MOH_MS_INTERVAL) => 100ms framerate => 800 samples */
+			res = 8 * MOH_MS_INTERVAL; /* 800/100 = 8 samples/ms */
 		}
+		/* For non-8000Hz formats, we need to alter the resolution */
+		res = res * ast_format_rate(&class->format) / 8000;
+
 		if ((strncasecmp(class->dir, "http://", 7) && strcasecmp(class->dir, "nodir")) && AST_LIST_EMPTY(&class->members))
 			continue;
 		/* Read mp3 audio */
