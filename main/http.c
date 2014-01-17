@@ -688,11 +688,187 @@ static const char *get_transfer_encoding(struct ast_variable *headers)
 	return get_header(headers, "Transfer-Encoding");
 }
 
+/*!
+ * \brief decode chunked mode hexadecimal value
+ *
+ * \param s string to decode
+ * \param len length of string
+ * \return integer value or -1 for decode error
+ */
+static int chunked_atoh(const char *s, int len)
+{
+	int value = 0;
+	char c;
+
+	if (*s < '0') {
+		/* zero value must be 0\n not just \n */
+		return -1;
+	}
+
+	while (len--)
+	{
+		if (*s == '\x0D') {
+			return value;
+		}
+		value <<= 4;
+		c = *s++;
+		if (c >= '0' && c <= '9') {
+			value += c - '0';
+			continue;
+		}
+		if (c >= 'a' && c <= 'f') {
+			value += 10 + c - 'a';
+			continue;
+		}
+		if (c >= 'A' && c <= 'F') {
+			value += 10 + c - 'A';
+			continue;
+		}
+		/* invalid character */
+		return -1;
+	}
+	/* end of string */
+	return -1;
+}
+
+/*!
+ * \brief Returns the contents (body) of the HTTP request
+ *
+ * \param return_length ptr to int that returns content length
+ * \param aser HTTP TCP/TLS session object
+ * \param headers List of HTTP headers
+ * \return ptr to content (zero terminated) or NULL on failure
+ * \note Since returned ptr is malloc'd, it should be free'd by caller
+ */
+static char *ast_http_get_contents(int *return_length,
+	struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
+{
+	const char *transfer_encoding;
+	int res;
+	int content_length = 0;
+	int chunk_length;
+	char chunk_header[8];
+	int bufsize = 250;
+	char *buf;
+
+	transfer_encoding = get_transfer_encoding(headers);
+
+	if (ast_strlen_zero(transfer_encoding) ||
+		strcasecmp(transfer_encoding, "chunked") != 0) {
+		/* handle regular non-chunked content */
+		content_length = get_content_length(headers);
+		if (content_length <= 0) {
+			/* no content - not an error */
+			return NULL;
+		}
+		if (content_length > MAX_POST_CONTENT - 1) {
+			ast_log(LOG_WARNING,
+				"Excessively long HTTP content. (%d > %d)\n",
+				content_length, MAX_POST_CONTENT);
+			errno = EFBIG;
+			return NULL;
+		}
+		buf = ast_malloc(content_length + 1);
+		if (!buf) {
+			/* Malloc sets ENOMEM */
+			return NULL;
+		}
+		res = fread(buf, 1, content_length, ser->f);
+		if (res < content_length) {
+			/* Error, distinguishable by ferror() or feof(), but neither
+			 * is good. Treat either one as I/O error */
+			ast_log(LOG_WARNING, "Short HTTP request body (%d < %d)\n",
+				res, content_length);
+			errno = EIO;
+			ast_free(buf);
+			return NULL;
+		}
+		buf[content_length] = 0;
+		*return_length = content_length;
+		return buf;
+	}
+
+	/* pre-allocate buffer */
+	buf = ast_malloc(bufsize);
+	if (!buf) {
+		return NULL;
+	}
+
+	/* handled chunked content */
+	do {
+		/* get the line of hexadecimal giving chunk size */
+		if (!fgets(chunk_header, sizeof(chunk_header), ser->f)) {
+			ast_log(LOG_WARNING,
+				"Short HTTP read of chunked header\n");
+			errno = EIO;
+			ast_free(buf);
+			return NULL;
+		}
+		chunk_length = chunked_atoh(chunk_header, sizeof(chunk_header));
+		if (chunk_length < 0) {
+			ast_log(LOG_WARNING, "Invalid HTTP chunk size\n");
+			errno = EIO;
+			ast_free(buf);
+			return NULL;
+		}
+		if (content_length + chunk_length > MAX_POST_CONTENT - 1) {
+			ast_log(LOG_WARNING,
+				"Excessively long HTTP chunk. (%d + %d > %d)\n",
+				content_length, chunk_length, MAX_POST_CONTENT);
+			errno = EFBIG;
+			ast_free(buf);
+			return NULL;
+		}
+
+		/* insure buffer is large enough +1 */
+		if (content_length + chunk_length >= bufsize)
+		{
+			bufsize *= 2;
+			buf = ast_realloc(buf, bufsize);
+			if (!buf) {
+				return NULL;
+			}
+		}
+
+		/* read the chunk */
+		res = fread(buf + content_length, 1, chunk_length, ser->f);
+		if (res < chunk_length) {
+			ast_log(LOG_WARNING, "Short HTTP chunk read (%d < %d)\n",
+				res, chunk_length);
+			errno = EIO;
+			ast_free(buf);
+			return NULL;
+		}
+		content_length += chunk_length;
+
+		/* insure the next 2 bytes are CRLF */
+		res = fread(chunk_header, 1, 2, ser->f);
+		if (res < 2) {
+			ast_log(LOG_WARNING,
+				"Short HTTP chunk sync read (%d < 2)\n", res);
+			errno = EIO;
+			ast_free(buf);
+			return NULL;
+		}
+		if (chunk_header[0] != 0x0D || chunk_header[1] != 0x0A) {
+			ast_log(LOG_WARNING,
+				"Post HTTP chunk sync bytes wrong (%d, %d)\n",
+				chunk_header[0], chunk_header[1]);
+			errno = EIO;
+			ast_free(buf);
+			return NULL;
+		}
+	} while (chunk_length);
+
+	buf[content_length] = 0;
+	*return_length = content_length;
+	return buf;
+}
+
 struct ast_json *ast_http_get_json(
 	struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
 {
 	int content_length = 0;
-	int res;
 	struct ast_json *body;
 	RAII_VAR(char *, buf, NULL, ast_free);
 	RAII_VAR(char *, type, get_content_type(headers), ast_free);
@@ -705,34 +881,10 @@ struct ast_json *ast_http_get_json(
 		return NULL;
 	}
 
-	content_length = get_content_length(headers);
-
-	if (content_length <= 0) {
-		/* No content (or streaming content). */
-		return NULL;
-	}
-
-	if (content_length > MAX_POST_CONTENT - 1) {
-		ast_log(LOG_WARNING,
-			"Excessively long HTTP content. (%d > %d)\n",
-			content_length, MAX_POST_CONTENT);
-		errno = EFBIG;
-		return NULL;
-	}
-
-	buf = ast_malloc(content_length);
-	if (!buf) {
-		/* Malloc sets ENOMEM */
-		return NULL;
-	}
-
-	res = fread(buf, 1, content_length, ser->f);
-	if (res < content_length) {
-		/* Error, distinguishable by ferror() or feof(), but neither
-		 * is good. Treat either one as I/O error */
-		ast_log(LOG_WARNING, "Short HTTP request body (%d < %d)\n",
-			res, content_length);
-		errno = EIO;
+	buf = ast_http_get_contents(&content_length, ser, headers);
+	if (buf == NULL)
+	{
+		/* errno already set */
 		return NULL;
 	}
 
@@ -758,7 +910,6 @@ struct ast_variable *ast_http_get_post_vars(
 	char *var, *val;
 	RAII_VAR(char *, buf, NULL, ast_free_ptr);
 	RAII_VAR(char *, type, get_content_type(headers), ast_free);
-	int res;
 
 	/* Use errno to distinguish errors from no params */
 	errno = 0;
@@ -769,34 +920,10 @@ struct ast_variable *ast_http_get_post_vars(
 		return NULL;
 	}
 
-	content_length = get_content_length(headers);
-
-	if (content_length <= 0) {
+	buf = ast_http_get_contents(&content_length, ser, headers);
+	if (buf == NULL) {
 		return NULL;
 	}
-
-	if (content_length > MAX_POST_CONTENT - 1) {
-		ast_log(LOG_WARNING,
-			"Excessively long HTTP content. (%d > %d)\n",
-			content_length, MAX_POST_CONTENT);
-		errno = EFBIG;
-		return NULL;
-	}
-
-	buf = ast_malloc(content_length + 1);
-	if (!buf) {
-		/* malloc sets errno to ENOMEM */
-		return NULL;
-	}
-
-	res = fread(buf, 1, content_length, ser->f);
-	if (res < content_length) {
-		/* Error, distinguishable by ferror() or feof(), but neither
-		 * is good. Treat either one as I/O error */
-		errno = EIO;
-		return NULL;
-	}
-	buf[content_length] = '\0';
 
 	while ((val = strsep(&buf, "&"))) {
 		var = strsep(&val, "=");
@@ -1191,7 +1318,8 @@ static void *httpd_helper_thread(void *data)
 	 * RFC 2616, section 3.6, we should respond with a 501 for any transfer-
 	 * codings we don't understand.
 	 */
-	if (strcasecmp(transfer_encoding, "identity") != 0) {
+	if (strcasecmp(transfer_encoding, "identity") != 0 &&
+		strcasecmp(transfer_encoding, "chunked") != 0) {
 		/* Transfer encodings not supported */
 		ast_http_error(ser, 501, "Unimplemented", "Unsupported Transfer-Encoding.");
 		goto done;
