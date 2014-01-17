@@ -1009,7 +1009,7 @@ int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *con
  *
  * Split data, check we aren't bridging with ourself, check valid channel,
  * answer call if not already, check compatible channels, setup bridge config
- * now bridge call, if transfered party hangs up return to PBX extension.
+ * now bridge call, if transferred party hangs up return to PBX extension.
  */
 static int bridge_exec(struct ast_channel *chan, const char *data)
 {
