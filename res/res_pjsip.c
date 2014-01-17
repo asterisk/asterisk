@@ -270,7 +270,8 @@
 					<description><para>
 						Asterisk will send unsolicited MWI NOTIFY messages to the endpoint when state
 						changes happen for any of the specified mailboxes. More than one mailbox can be
-						specified with a comma-delimited string. Mailboxes must be specified as <mailbox>@<context>.
+						specified with a comma-delimited string. Mailboxes must be specified as mailbox@context;
+						for example: mailboxes=6001@default.
 						For endpoints that SUBSCRIBE for MWI, you can set the <literal>mailboxes</literal> option in your AOR
 						configuration.
 					</para></description>
