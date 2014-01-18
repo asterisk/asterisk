@@ -3964,15 +3964,15 @@ static char *handle_skinny_reset(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	AST_LIST_LOCK(&devices);
 	AST_LIST_TRAVERSE(&devices, d, list) {
-		int fullrestart = 0;
+		int resetonly = 1;
 		if (!strcasecmp(a->argv[2], d->id) || !strcasecmp(a->argv[2], d->name) || !strcasecmp(a->argv[2], "all")) {
 			if (!(d->session))
 				continue;
 
 			if (a->argc == 4 && !strcasecmp(a->argv[3], "restart"))
-				fullrestart = 1;
+				resetonly = 0;
 
-			transmit_reset(d, fullrestart);
+			transmit_reset(d, resetonly);
 		}
 	}
 	AST_LIST_UNLOCK(&devices);
