@@ -7595,7 +7595,7 @@ static void *skinny_session(void *data)
 
 			bytesread = 0;
 			while (1) {
-				if ((res = read(s->fd, &req->data+bytesread, dlen-bytesread)) < 0) {
+				if ((res = read(s->fd, ((char*)&req->data)+bytesread, dlen-bytesread)) < 0) {
 					ast_log(LOG_WARNING, "Data read() returned error: %s\n", strerror(errno));
 					break;
 				}
