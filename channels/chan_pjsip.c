@@ -677,6 +677,114 @@ static int chan_pjsip_fixup(struct ast_channel *oldchan, struct ast_channel *new
 	return 0;
 }
 
+/*! AO2 hash function for on hold UIDs */
+static int uid_hold_hash_fn(const void *obj, const int flags)
+{
+	const char *key = obj;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		break;
+	case OBJ_SEARCH_OBJECT:
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
+}
+
+/*! AO2 sort function for on hold UIDs */
+static int uid_hold_sort_fn(const void *obj_left, const void *obj_right, const int flags)
+{
+	const char *left = obj_left;
+	const char *right = obj_right;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(left, right);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(left, right, strlen(right));
+		break;
+	default:
+		/* Sort can only work on something with a full or partial key. */
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	return cmp;
+}
+
+static struct ao2_container *pjsip_uids_onhold;
+
+/*!
+ * \brief Add a channel ID to the list of PJSIP channels on hold
+ *
+ * \param chan_uid - Unique ID of the channel being put into the hold list
+ *
+ * \retval 0 Channel has been added to or was already in the hold list
+ * \retval -1 Failed to add channel to the hold list
+ */
+static int chan_pjsip_add_hold(const char *chan_uid)
+{
+	RAII_VAR(char *, hold_uid, NULL, ao2_cleanup);
+
+	hold_uid = ao2_find(pjsip_uids_onhold, chan_uid, OBJ_SEARCH_KEY);
+	if (hold_uid) {
+		/* Device is already on hold. Nothing to do. */
+		return 0;
+	}
+
+	/* Device wasn't in hold list already. Create a new one. */
+	hold_uid = ao2_alloc_options(strlen(chan_uid) + 1, NULL,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!hold_uid) {
+		return -1;
+	}
+
+	ast_copy_string(hold_uid, chan_uid, strlen(chan_uid) + 1);
+
+	if (ao2_link(pjsip_uids_onhold, hold_uid) == 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Remove a channel ID from the list of PJSIP channels on hold
+ *
+ * \param chan_uid - Unique ID of the channel being taken out of the hold list
+ */
+static void chan_pjsip_remove_hold(const char *chan_uid)
+{
+	ao2_find(pjsip_uids_onhold, chan_uid, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+}
+
+/*!
+ * \brief Determine whether a channel ID is in the list of PJSIP channels on hold
+ *
+ * \param chan_uid - Channel being checked
+ *
+ * \retval 0 The channel is not in the hold list
+ * \retval 1 The channel is in the hold list
+ */
+static int chan_pjsip_get_hold(const char *chan_uid)
+{
+	RAII_VAR(char *, hold_uid, NULL, ao2_cleanup);
+
+	hold_uid = ao2_find(pjsip_uids_onhold, chan_uid, OBJ_SEARCH_KEY);
+	if (!hold_uid) {
+		return 0;
+	}
+
+	return 1;
+}
+
 /*! \brief Function called to get the device state of an endpoint */
 static int chan_pjsip_devicestate(const char *data)
 {
@@ -731,7 +839,11 @@ static int chan_pjsip_devicestate(const char *data)
 			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_RINGING);
 		} else if ((snapshot->state == AST_STATE_UP) || (snapshot->state == AST_STATE_RING) ||
 			(snapshot->state == AST_STATE_BUSY)) {
-			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_INUSE);
+			if (chan_pjsip_get_hold(snapshot->uniqueid)) {
+				ast_devstate_aggregate_add(&aggregate, AST_DEVICE_ONHOLD);
+			} else {
+				ast_devstate_aggregate_add(&aggregate, AST_DEVICE_INUSE);
+			}
 			inuse++;
 		}
 	}
@@ -925,6 +1037,8 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 	struct ast_sip_session_media *media;
 	int response_code = 0;
 	int res = 0;
+	char *device_buf;
+	size_t device_buf_size;
 
 	switch (condition) {
 	case AST_CONTROL_RINGING:
@@ -1014,9 +1128,19 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		res = -1;
 		break;
 	case AST_CONTROL_HOLD:
+		chan_pjsip_add_hold(ast_channel_uniqueid(ast));
+		device_buf_size = strlen(ast_channel_name(ast)) + 1;
+		device_buf = alloca(device_buf_size);
+		ast_channel_get_device_name(ast, device_buf, device_buf_size);
+		ast_devstate_changed_literal(AST_DEVICE_ONHOLD, 1, device_buf);
 		ast_moh_start(ast, data, NULL);
 		break;
 	case AST_CONTROL_UNHOLD:
+		chan_pjsip_remove_hold(ast_channel_uniqueid(ast));
+		device_buf_size = strlen(ast_channel_name(ast)) + 1;
+		device_buf = alloca(device_buf_size);
+		ast_channel_get_device_name(ast, device_buf, device_buf_size);
+		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, 1, device_buf);
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_SRCUPDATE:
@@ -1755,6 +1879,8 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 		return;
 	}
 
+	chan_pjsip_remove_hold(ast_channel_uniqueid(session->channel));
+
 	if (!ast_channel_hangupcause(session->channel) && session->inv_session) {
 		int cause = hangup_sip2cause(session->inv_session->cause);
 
@@ -1934,6 +2060,13 @@ static int load_module(void)
 		goto end;
 	}
 
+	if (!(pjsip_uids_onhold = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK,
+			AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, 37, uid_hold_hash_fn,
+			uid_hold_sort_fn, NULL))) {
+		ast_log(LOG_ERROR, "Unable to create held channels container\n");
+		goto end;
+	}
+
 	if (ast_sip_session_register_supplement(&pbx_start_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP pbx start supplement\n");
 		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
@@ -1957,6 +2090,8 @@ static int load_module(void)
 	return 0;
 
 end:
+	ao2_cleanup(pjsip_uids_onhold);
+	pjsip_uids_onhold = NULL;
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 	ast_channel_unregister(&chan_pjsip_tech);
@@ -1974,6 +2109,9 @@ static int reload(void)
 /*! \brief Unload the PJSIP channel from Asterisk */
 static int unload_module(void)
 {
+	ao2_cleanup(pjsip_uids_onhold);
+	pjsip_uids_onhold = NULL;
+
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
