@@ -729,12 +729,7 @@ static int ast_to_pri_char_set(enum AST_PARTY_CHAR_SET ast_char_set)
  */
 static void sig_pri_set_subaddress(struct ast_party_subaddress *ast_subaddress, const struct pri_party_subaddress *pri_subaddress)
 {
-	char *cnum, *ptr;
-	int x, len;
-
-	if (ast_subaddress->str) {
-		ast_free(ast_subaddress->str);
-	}
+	ast_free(ast_subaddress->str);
 	if (pri_subaddress->length <= 0) {
 		ast_party_subaddress_init(ast_subaddress);
 		return;
@@ -744,8 +739,14 @@ static void sig_pri_set_subaddress(struct ast_party_subaddress *ast_subaddress, 
 		/* NSAP */
 		ast_subaddress->str = ast_strdup((char *) pri_subaddress->data);
 	} else {
+		char *cnum;
+		char *ptr;
+		int x;
+		int len;
+
 		/* User Specified */
-		if (!(cnum = ast_malloc(2 * pri_subaddress->length + 1))) {
+		cnum = ast_malloc(2 * pri_subaddress->length + 1);
+		if (!cnum) {
 			ast_party_subaddress_init(ast_subaddress);
 			return;
 		}
@@ -4368,14 +4369,11 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 
 				pri->pvts[chanpos]->cid_subaddr[0] = '\0';
 #if defined(HAVE_PRI_SUBADDR)
-				if (ast_connected.id.subaddress.valid) {
-					ast_party_subaddress_set(&ast_channel_caller(owner)->id.subaddress,
-						&ast_connected.id.subaddress);
-					if (ast_connected.id.subaddress.str) {
-						ast_copy_string(pri->pvts[chanpos]->cid_subaddr,
-							ast_connected.id.subaddress.str,
-							sizeof(pri->pvts[chanpos]->cid_subaddr));
-					}
+				if (ast_connected.id.subaddress.str) {
+					ast_copy_string(pri->pvts[chanpos]->cid_subaddr,
+						ast_connected.id.subaddress.str,
+						sizeof(pri->pvts[chanpos]->cid_subaddr));
+					caller_id_update = 1;
 				}
 #endif	/* defined(HAVE_PRI_SUBADDR) */
 				if (caller_id_update) {
@@ -4389,12 +4387,13 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 					ast_caller.id = ast_connected.id;
 					ast_caller.ani = ast_connected.id;
 					ast_channel_set_caller_event(owner, &ast_caller, NULL);
-				}
 
-				/* Update the connected line information on the other channel */
-				if (event_id != PRI_EVENT_RING) {
-					/* This connected_line update was not from a SETUP message. */
-					ast_channel_queue_connected_line_update(owner, &ast_connected, NULL);
+					/* Update the connected line information on the other channel */
+					if (event_id != PRI_EVENT_RING) {
+						/* This connected_line update was not from a SETUP message. */
+						ast_channel_queue_connected_line_update(owner, &ast_connected,
+							NULL);
+					}
 				}
 
 				ast_party_connected_line_free(&ast_connected);
