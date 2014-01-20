@@ -7471,7 +7471,7 @@ static void skinny_session_cleanup(void *data)
 	struct skinny_line *l;
 	struct skinny_speeddial *sd;
 
-	ast_verb(3, "Ending Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+	ast_verb(3, "Ending Skinny session from %s at %s\n", d ? d->name : "unknown", ast_inet_ntoa(s->sin.sin_addr));
 
 	if (s->lockstate) {
 		ast_mutex_unlock(&s->lock);
@@ -7517,6 +7517,7 @@ static void skinny_session_cleanup(void *data)
 static void *skinny_session(void *data)
 {
 	int res;
+	int bytesread;
 	struct skinny_req *req = NULL;
 	struct skinnysession *s = data;
 
@@ -7592,41 +7593,41 @@ static void *skinny_session(void *data)
 				break;
 			}
 
-			res = 0;
+			bytesread = 0;
 			while (1) {
-				int bytesread = res;
 				if ((res = read(s->fd, &req->data+bytesread, dlen-bytesread)) < 0) {
+					ast_log(LOG_WARNING, "Data read() returned error: %s\n", strerror(errno));
 					break;
 				}
-				res += bytesread;
-				if (res >= dlen) {
+				bytesread += res;
+				if (bytesread >= dlen) {
+					if (res < bytesread) {
+						ast_log(LOG_WARNING, "Rest of partial data received.\n");
+					}
+					if (bytesread > dlen) {
+						ast_log(LOG_WARNING, "Client sent wrong amount of data (%d), expected (%d).\n", bytesread, dlen);
+						res = -1;
+					}
 					break;
 				}
-				ast_log(LOG_WARNING, "Partial data received, waiting (%d bytes read of %d)\n", res, dlen);
+
+				ast_log(LOG_WARNING, "Partial data received, waiting (%d bytes read of %d)\n", bytesread, dlen);
 				if (sched_yield() < 0) {
 					ast_log(LOG_WARNING, "Data yield() returned error: %s\n", strerror(errno));
+					res = -1;
 					break;
 				}
-			}
-			if (res < 0) {
-				ast_log(LOG_WARNING, "Data read() returned error: %s\n", strerror(errno));
-				break;
-			}
-			if (res != dlen) {
-				ast_log(LOG_WARNING, "Client sent wrong amount of data (%d), expected (%d).\n", res, dlen);
-				break;
 			}
 
 			s->lockstate = 0;
 			ast_mutex_unlock(&s->lock);
+			if (res < 0) {
+				break;
+			}
 
 			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 			res = handle_message(req, s);
 			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			if (res < 0) {
-				ast_verb(3, "Ending Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
-				break;
-			}
 		}
 
 		if (req) {
