@@ -203,8 +203,10 @@ class AsteriskProcessor(SwaggerPostProcessor):
 
     def process_parameter(self, parameter, context):
         if parameter.param_type == 'body':
+	    parameter.is_body_parameter = True;
             parameter.c_data_type = 'struct ast_json *'
         else:
+	    parameter.is_body_parameter = False;
             if not parameter.data_type in self.type_mapping:
                 raise SwaggerError(
                     "Invalid parameter type %s" % parameter.data_type, context)

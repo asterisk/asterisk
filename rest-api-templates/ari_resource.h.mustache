@@ -62,6 +62,19 @@ struct ast_ari_{{c_name}}_{{c_nickname}}_args {
 {{/parameters}}
 };
 {{#is_req}}
+{{#parse_body}}
+/*!
+ * \brief Body parsing function for {{path}}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_{{c_name}}_{{c_nickname}}_parse_body(
+	struct ast_json *body,
+	struct ast_ari_{{c_name}}_{{c_nickname}}_args *args);
+
+{{/parse_body}}
 /*!
  * \brief {{summary}}
 {{#notes}}

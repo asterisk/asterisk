@@ -1,0 +1,71 @@
+{{!
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright (C) 2014, Digium, Inc.
+ *
+ * William Kinsey Moore, III <kmoore@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+}}
+{{!
+ * Snippet for decoding parameters into an _args struct.
+}}
+{{#parse_body}}
+int ast_ari_{{c_name}}_{{c_nickname}}_parse_body(
+	struct ast_json *body,
+	struct ast_ari_{{c_name}}_{{c_nickname}}_args *args)
+{
+{{#has_query_parameters}}
+	struct ast_json *field;
+{{/has_query_parameters}}
+	/* Parse query parameters out of it */
+{{#query_parameters}}
+{{^is_body_parameter}}
+	field = ast_json_object_get(body, "{{name}}");
+	if (field) {
+{{^allow_multiple}}
+		args->{{c_name}} = {{json_convert}}(field);
+{{/allow_multiple}}
+{{#allow_multiple}}
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->{{c_name}});
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->{{c_name}}_count = ast_json_array_size(field);
+			args->{{c_name}} = ast_malloc(sizeof(*args->{{c_name}}) * args->{{c_name}}_count);
+
+			if (!args->{{c_name}}) {
+				return -1;
+			}
+
+			for (i = 0; i < args->{{c_name}}_count; ++i) {
+				args->{{c_name}}[i] = {{json_convert}}(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->{{c_name}}_count = 1;
+			args->{{c_name}} = ast_malloc(sizeof(*args->{{c_name}}) * args->{{c_name}}_count);
+			if (!args->{{c_name}}) {
+				return -1;
+			}
+			args->{{c_name}}[0] = {{json_convert}}(field);
+		}
+{{/allow_multiple}}
+	}
+{{/is_body_parameter}}
+{{/query_parameters}}
+	return 0;
+}
+
+{{/parse_body}}

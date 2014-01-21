@@ -71,6 +71,17 @@ struct ast_ari_device_states_update_args {
 	const char *device_state;
 };
 /*!
+ * \brief Body parsing function for /deviceStates/{deviceName}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_device_states_update_parse_body(
+	struct ast_json *body,
+	struct ast_ari_device_states_update_args *args);
+
+/*!
  * \brief Change the state of a device controlled by ARI. (Note - implicitly creates the device state).
  *
  * \param headers HTTP headers

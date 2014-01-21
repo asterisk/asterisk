@@ -102,6 +102,23 @@ static void ast_ari_bridges_list_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_bridges_create_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_create_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "type");
+	if (field) {
+		args->type = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "name");
+	if (field) {
+		args->name = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /bridges.
  * \param get_params GET parameters in the HTTP request.
@@ -117,7 +134,6 @@ static void ast_ari_bridges_create_cb(
 	struct ast_ari_bridges_create_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -147,14 +163,9 @@ static void ast_ari_bridges_create_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "type");
-	if (field) {
-		args.type = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "name");
-	if (field) {
-		args.name = ast_json_string_get(field);
+	if (ast_ari_bridges_create_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_bridges_create(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -306,6 +317,48 @@ static void ast_ari_bridges_destroy_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_bridges_add_channel_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_add_channel_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "channel");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->channel);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->channel_count = ast_json_array_size(field);
+			args->channel = ast_malloc(sizeof(*args->channel) * args->channel_count);
+
+			if (!args->channel) {
+				return -1;
+			}
+
+			for (i = 0; i < args->channel_count; ++i) {
+				args->channel[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->channel_count = 1;
+			args->channel = ast_malloc(sizeof(*args->channel) * args->channel_count);
+			if (!args->channel) {
+				return -1;
+			}
+			args->channel[0] = ast_json_string_get(field);
+		}
+	}
+	field = ast_json_object_get(body, "role");
+	if (field) {
+		args->role = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/addChannel.
  * \param get_params GET parameters in the HTTP request.
@@ -321,7 +374,6 @@ static void ast_ari_bridges_add_channel_cb(
 	struct ast_ari_bridges_add_channel_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -397,41 +449,9 @@ static void ast_ari_bridges_add_channel_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "channel");
-	if (field) {
-		/* If they were silly enough to both pass in a query param and a
-		 * JSON body, free up the query value.
-		 */
-		ast_free(args.channel);
-		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
-			/* Multiple param passed as array */
-			size_t i;
-			args.channel_count = ast_json_array_size(field);
-			args.channel = ast_malloc(sizeof(*args.channel) * args.channel_count);
-
-			if (!args.channel) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-
-			for (i = 0; i < args.channel_count; ++i) {
-				args.channel[i] = ast_json_string_get(ast_json_array_get(field, i));
-			}
-		} else {
-			/* Multiple param passed as single value */
-			args.channel_count = 1;
-			args.channel = ast_malloc(sizeof(*args.channel) * args.channel_count);
-			if (!args.channel) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-			args.channel[0] = ast_json_string_get(field);
-		}
-	}
-	field = ast_json_object_get(body, "role");
-	if (field) {
-		args.role = ast_json_string_get(field);
+	if (ast_ari_bridges_add_channel_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_bridges_add_channel(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -471,6 +491,44 @@ fin: __attribute__((unused))
 	ast_free(args.channel);
 	return;
 }
+int ast_ari_bridges_remove_channel_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_remove_channel_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "channel");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->channel);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->channel_count = ast_json_array_size(field);
+			args->channel = ast_malloc(sizeof(*args->channel) * args->channel_count);
+
+			if (!args->channel) {
+				return -1;
+			}
+
+			for (i = 0; i < args->channel_count; ++i) {
+				args->channel[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->channel_count = 1;
+			args->channel = ast_malloc(sizeof(*args->channel) * args->channel_count);
+			if (!args->channel) {
+				return -1;
+			}
+			args->channel[0] = ast_json_string_get(field);
+		}
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/removeChannel.
  * \param get_params GET parameters in the HTTP request.
@@ -486,7 +544,6 @@ static void ast_ari_bridges_remove_channel_cb(
 	struct ast_ari_bridges_remove_channel_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -559,37 +616,9 @@ static void ast_ari_bridges_remove_channel_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "channel");
-	if (field) {
-		/* If they were silly enough to both pass in a query param and a
-		 * JSON body, free up the query value.
-		 */
-		ast_free(args.channel);
-		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
-			/* Multiple param passed as array */
-			size_t i;
-			args.channel_count = ast_json_array_size(field);
-			args.channel = ast_malloc(sizeof(*args.channel) * args.channel_count);
-
-			if (!args.channel) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-
-			for (i = 0; i < args.channel_count; ++i) {
-				args.channel[i] = ast_json_string_get(ast_json_array_get(field, i));
-			}
-		} else {
-			/* Multiple param passed as single value */
-			args.channel_count = 1;
-			args.channel = ast_malloc(sizeof(*args.channel) * args.channel_count);
-			if (!args.channel) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-			args.channel[0] = ast_json_string_get(field);
-		}
+	if (ast_ari_bridges_remove_channel_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_bridges_remove_channel(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -629,6 +658,19 @@ fin: __attribute__((unused))
 	ast_free(args.channel);
 	return;
 }
+int ast_ari_bridges_start_moh_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_start_moh_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "mohClass");
+	if (field) {
+		args->moh_class = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/moh.
  * \param get_params GET parameters in the HTTP request.
@@ -644,7 +686,6 @@ static void ast_ari_bridges_start_moh_cb(
 	struct ast_ari_bridges_start_moh_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -677,10 +718,9 @@ static void ast_ari_bridges_start_moh_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "mohClass");
-	if (field) {
-		args.moh_class = ast_json_string_get(field);
+	if (ast_ari_bridges_start_moh_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_bridges_start_moh(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -776,6 +816,31 @@ static void ast_ari_bridges_stop_moh_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_bridges_play_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_play_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "media");
+	if (field) {
+		args->media = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "lang");
+	if (field) {
+		args->lang = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "offsetms");
+	if (field) {
+		args->offsetms = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "skipms");
+	if (field) {
+		args->skipms = ast_json_integer_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/play.
  * \param get_params GET parameters in the HTTP request.
@@ -791,7 +856,6 @@ static void ast_ari_bridges_play_cb(
 	struct ast_ari_bridges_play_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -833,22 +897,9 @@ static void ast_ari_bridges_play_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "media");
-	if (field) {
-		args.media = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "lang");
-	if (field) {
-		args.lang = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "offsetms");
-	if (field) {
-		args.offsetms = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "skipms");
-	if (field) {
-		args.skipms = ast_json_integer_get(field);
+	if (ast_ari_bridges_play_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_bridges_play(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -884,6 +935,43 @@ static void ast_ari_bridges_play_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_bridges_record_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_record_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "name");
+	if (field) {
+		args->name = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "format");
+	if (field) {
+		args->format = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "maxDurationSeconds");
+	if (field) {
+		args->max_duration_seconds = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "maxSilenceSeconds");
+	if (field) {
+		args->max_silence_seconds = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "ifExists");
+	if (field) {
+		args->if_exists = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "beep");
+	if (field) {
+		args->beep = ast_json_is_true(field);
+	}
+	field = ast_json_object_get(body, "terminateOn");
+	if (field) {
+		args->terminate_on = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /bridges/{bridgeId}/record.
  * \param get_params GET parameters in the HTTP request.
@@ -899,7 +987,6 @@ static void ast_ari_bridges_record_cb(
 	struct ast_ari_bridges_record_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -950,34 +1037,9 @@ static void ast_ari_bridges_record_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "name");
-	if (field) {
-		args.name = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "format");
-	if (field) {
-		args.format = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "maxDurationSeconds");
-	if (field) {
-		args.max_duration_seconds = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "maxSilenceSeconds");
-	if (field) {
-		args.max_silence_seconds = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "ifExists");
-	if (field) {
-		args.if_exists = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "beep");
-	if (field) {
-		args.beep = ast_json_is_true(field);
-	}
-	field = ast_json_object_get(body, "terminateOn");
-	if (field) {
-		args.terminate_on = ast_json_string_get(field);
+	if (ast_ari_bridges_record_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_bridges_record(headers, &args, response);
 #if defined(AST_DEVMODE)

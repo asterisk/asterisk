@@ -161,6 +161,44 @@ static void ast_ari_applications_get_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_applications_subscribe_parse_body(
+	struct ast_json *body,
+	struct ast_ari_applications_subscribe_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "eventSource");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->event_source);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->event_source_count = ast_json_array_size(field);
+			args->event_source = ast_malloc(sizeof(*args->event_source) * args->event_source_count);
+
+			if (!args->event_source) {
+				return -1;
+			}
+
+			for (i = 0; i < args->event_source_count; ++i) {
+				args->event_source[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->event_source_count = 1;
+			args->event_source = ast_malloc(sizeof(*args->event_source) * args->event_source_count);
+			if (!args->event_source) {
+				return -1;
+			}
+			args->event_source[0] = ast_json_string_get(field);
+		}
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /applications/{applicationName}/subscription.
  * \param get_params GET parameters in the HTTP request.
@@ -176,7 +214,6 @@ static void ast_ari_applications_subscribe_cb(
 	struct ast_ari_applications_subscribe_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -249,37 +286,9 @@ static void ast_ari_applications_subscribe_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "eventSource");
-	if (field) {
-		/* If they were silly enough to both pass in a query param and a
-		 * JSON body, free up the query value.
-		 */
-		ast_free(args.event_source);
-		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
-			/* Multiple param passed as array */
-			size_t i;
-			args.event_source_count = ast_json_array_size(field);
-			args.event_source = ast_malloc(sizeof(*args.event_source) * args.event_source_count);
-
-			if (!args.event_source) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-
-			for (i = 0; i < args.event_source_count; ++i) {
-				args.event_source[i] = ast_json_string_get(ast_json_array_get(field, i));
-			}
-		} else {
-			/* Multiple param passed as single value */
-			args.event_source_count = 1;
-			args.event_source = ast_malloc(sizeof(*args.event_source) * args.event_source_count);
-			if (!args.event_source) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-			args.event_source[0] = ast_json_string_get(field);
-		}
+	if (ast_ari_applications_subscribe_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_applications_subscribe(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -318,6 +327,44 @@ fin: __attribute__((unused))
 	ast_free(args.event_source);
 	return;
 }
+int ast_ari_applications_unsubscribe_parse_body(
+	struct ast_json *body,
+	struct ast_ari_applications_unsubscribe_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "eventSource");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->event_source);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->event_source_count = ast_json_array_size(field);
+			args->event_source = ast_malloc(sizeof(*args->event_source) * args->event_source_count);
+
+			if (!args->event_source) {
+				return -1;
+			}
+
+			for (i = 0; i < args->event_source_count; ++i) {
+				args->event_source[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->event_source_count = 1;
+			args->event_source = ast_malloc(sizeof(*args->event_source) * args->event_source_count);
+			if (!args->event_source) {
+				return -1;
+			}
+			args->event_source[0] = ast_json_string_get(field);
+		}
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /applications/{applicationName}/subscription.
  * \param get_params GET parameters in the HTTP request.
@@ -333,7 +380,6 @@ static void ast_ari_applications_unsubscribe_cb(
 	struct ast_ari_applications_unsubscribe_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -406,37 +452,9 @@ static void ast_ari_applications_unsubscribe_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "eventSource");
-	if (field) {
-		/* If they were silly enough to both pass in a query param and a
-		 * JSON body, free up the query value.
-		 */
-		ast_free(args.event_source);
-		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
-			/* Multiple param passed as array */
-			size_t i;
-			args.event_source_count = ast_json_array_size(field);
-			args.event_source = ast_malloc(sizeof(*args.event_source) * args.event_source_count);
-
-			if (!args.event_source) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-
-			for (i = 0; i < args.event_source_count; ++i) {
-				args.event_source[i] = ast_json_string_get(ast_json_array_get(field, i));
-			}
-		} else {
-			/* Multiple param passed as single value */
-			args.event_source_count = 1;
-			args.event_source = ast_malloc(sizeof(*args.event_source) * args.event_source_count);
-			if (!args.event_source) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-			args.event_source[0] = ast_json_string_get(field);
-		}
+	if (ast_ari_applications_unsubscribe_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_applications_unsubscribe(headers, &args, response);
 #if defined(AST_DEVMODE)

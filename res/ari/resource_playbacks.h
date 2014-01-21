@@ -73,6 +73,17 @@ struct ast_ari_playbacks_control_args {
 	const char *operation;
 };
 /*!
+ * \brief Body parsing function for /playbacks/{playbackId}/control.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_playbacks_control_parse_body(
+	struct ast_json *body,
+	struct ast_ari_playbacks_control_args *args);
+
+/*!
  * \brief Control a playback.
  *
  * \param headers HTTP headers

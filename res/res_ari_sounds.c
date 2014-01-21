@@ -51,6 +51,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_VALS 128
 
+int ast_ari_sounds_list_parse_body(
+	struct ast_json *body,
+	struct ast_ari_sounds_list_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "lang");
+	if (field) {
+		args->lang = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "format");
+	if (field) {
+		args->format = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /sounds.
  * \param get_params GET parameters in the HTTP request.
@@ -66,7 +83,6 @@ static void ast_ari_sounds_list_cb(
 	struct ast_ari_sounds_list_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -96,14 +112,9 @@ static void ast_ari_sounds_list_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "lang");
-	if (field) {
-		args.lang = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "format");
-	if (field) {
-		args.format = ast_json_string_get(field);
+	if (ast_ari_sounds_list_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_sounds_list(headers, &args, response);
 #if defined(AST_DEVMODE)

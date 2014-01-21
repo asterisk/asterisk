@@ -88,6 +88,14 @@
 							"allowMultiple": false,
 							"dataType": "int",
 							"defaultValue": 30
+						},
+						{
+							"name": "variables",
+							"description": "The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } }",
+							"paramType": "body",
+							"required": false,
+							"dataType": "containers",
+							"allowMultiple": false
 						}
 					],
 					"errorResponses": [

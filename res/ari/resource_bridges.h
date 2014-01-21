@@ -58,6 +58,17 @@ struct ast_ari_bridges_create_args {
 	const char *name;
 };
 /*!
+ * \brief Body parsing function for /bridges.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_create_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_create_args *args);
+
+/*!
  * \brief Create a new bridge.
  *
  * This bridge persists until it has been shut down, or Asterisk has been shut down.
@@ -109,6 +120,17 @@ struct ast_ari_bridges_add_channel_args {
 	const char *role;
 };
 /*!
+ * \brief Body parsing function for /bridges/{bridgeId}/addChannel.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_add_channel_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_add_channel_args *args);
+
+/*!
  * \brief Add a channel to a bridge.
  *
  * \param headers HTTP headers
@@ -128,6 +150,17 @@ struct ast_ari_bridges_remove_channel_args {
 	char *channel_parse;
 };
 /*!
+ * \brief Body parsing function for /bridges/{bridgeId}/removeChannel.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_remove_channel_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_remove_channel_args *args);
+
+/*!
  * \brief Remove a channel from a bridge.
  *
  * \param headers HTTP headers
@@ -142,6 +175,17 @@ struct ast_ari_bridges_start_moh_args {
 	/*! \brief Channel's id */
 	const char *moh_class;
 };
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}/moh.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_start_moh_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_start_moh_args *args);
+
 /*!
  * \brief Play music on hold to a bridge or change the MOH class that is playing.
  *
@@ -179,6 +223,17 @@ struct ast_ari_bridges_play_args {
 	int skipms;
 };
 /*!
+ * \brief Body parsing function for /bridges/{bridgeId}/play.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_play_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_play_args *args);
+
+/*!
  * \brief Start playback of media on a bridge.
  *
  * The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
@@ -207,6 +262,17 @@ struct ast_ari_bridges_record_args {
 	/*! \brief DTMF input to terminate recording. */
 	const char *terminate_on;
 };
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}/record.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_record_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_record_args *args);
+
 /*!
  * \brief Start a recording.
  *

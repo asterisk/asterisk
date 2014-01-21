@@ -687,6 +687,43 @@ void ast_ari_channels_list(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
+static int ari_channels_set_channel_var(struct ast_channel *chan,
+	const char *variable, const char *value, struct ast_ari_response *response)
+{
+	if (pbx_builtin_setvar_helper(chan, variable, value)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Unable to set channel variable %s=%s", variable, value);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int ari_channels_set_channel_vars(struct ast_channel *chan,
+	struct ast_json *variables, struct ast_ari_response *response)
+{
+	struct ast_json_iter *i;
+
+	if (!variables) {
+		/* nothing to do */
+		return 0;
+	}
+
+	for (i = ast_json_object_iter(variables); i;
+	     i = ast_json_object_iter_next(variables, i)) {
+		if (ari_channels_set_channel_var(
+			chan, ast_json_object_iter_key(i),
+			ast_json_string_get(ast_json_object_iter_value(i)),
+			response)) {
+			/* response filled in by called function */
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 void ast_ari_channels_originate(struct ast_variable *headers,
 	struct ast_ari_channels_originate_args *args,
 	struct ast_ari_response *response)
@@ -704,12 +741,19 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 	char *stuff;
 	struct ast_channel *chan;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	struct ast_json *variable_list = NULL;
 
 	if (!cap) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+
+	/* Parse any query parameters out of the body parameter */
+	if (args->variables) {
+		ast_ari_channels_originate_parse_body(args->variables, args);
+		variable_list = ast_json_object_get(args->variables, "variables");
+	}
 
 	if (ast_strlen_zero(args->endpoint)) {
 		ast_ari_response_error(response, 400, "Bad Request",
@@ -773,6 +817,11 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 	} else {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Application or extension must be specified");
+		return;
+	}
+
+	if (ari_channels_set_channel_vars(chan, variable_list, response)) {
+		/* response filled in by called function */
 		return;
 	}
 

@@ -102,6 +102,47 @@ static void ast_ari_channels_list_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_originate_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_originate_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "endpoint");
+	if (field) {
+		args->endpoint = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "extension");
+	if (field) {
+		args->extension = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "context");
+	if (field) {
+		args->context = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "priority");
+	if (field) {
+		args->priority = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "app");
+	if (field) {
+		args->app = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "appArgs");
+	if (field) {
+		args->app_args = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "callerId");
+	if (field) {
+		args->caller_id = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "timeout");
+	if (field) {
+		args->timeout = ast_json_integer_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels.
  * \param get_params GET parameters in the HTTP request.
@@ -117,7 +158,6 @@ static void ast_ari_channels_originate_cb(
 	struct ast_ari_channels_originate_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -165,39 +205,7 @@ static void ast_ari_channels_originate_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "endpoint");
-	if (field) {
-		args.endpoint = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "extension");
-	if (field) {
-		args.extension = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "context");
-	if (field) {
-		args.context = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "priority");
-	if (field) {
-		args.priority = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "app");
-	if (field) {
-		args.app = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "appArgs");
-	if (field) {
-		args.app_args = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "callerId");
-	if (field) {
-		args.caller_id = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "timeout");
-	if (field) {
-		args.timeout = ast_json_integer_get(field);
-	}
+	args.variables = ast_json_ref(body);
 	ast_ari_channels_originate(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -290,6 +298,19 @@ static void ast_ari_channels_get_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_hangup_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_hangup_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "reason");
+	if (field) {
+		args->reason = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}.
  * \param get_params GET parameters in the HTTP request.
@@ -305,7 +326,6 @@ static void ast_ari_channels_hangup_cb(
 	struct ast_ari_channels_hangup_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -338,10 +358,9 @@ static void ast_ari_channels_hangup_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "reason");
-	if (field) {
-		args.reason = ast_json_string_get(field);
+	if (ast_ari_channels_hangup_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_hangup(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -377,6 +396,27 @@ static void ast_ari_channels_hangup_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_continue_in_dialplan_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_continue_in_dialplan_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "context");
+	if (field) {
+		args->context = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "extension");
+	if (field) {
+		args->extension = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "priority");
+	if (field) {
+		args->priority = ast_json_integer_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/continue.
  * \param get_params GET parameters in the HTTP request.
@@ -392,7 +432,6 @@ static void ast_ari_channels_continue_in_dialplan_cb(
 	struct ast_ari_channels_continue_in_dialplan_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -431,18 +470,9 @@ static void ast_ari_channels_continue_in_dialplan_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "context");
-	if (field) {
-		args.context = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "extension");
-	if (field) {
-		args.extension = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "priority");
-	if (field) {
-		args.priority = ast_json_integer_get(field);
+	if (ast_ari_channels_continue_in_dialplan_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_continue_in_dialplan(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -658,6 +688,35 @@ static void ast_ari_channels_ring_stop_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_send_dtmf_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_send_dtmf_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "dtmf");
+	if (field) {
+		args->dtmf = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "before");
+	if (field) {
+		args->before = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "between");
+	if (field) {
+		args->between = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "duration");
+	if (field) {
+		args->duration = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "after");
+	if (field) {
+		args->after = ast_json_integer_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/dtmf.
  * \param get_params GET parameters in the HTTP request.
@@ -673,7 +732,6 @@ static void ast_ari_channels_send_dtmf_cb(
 	struct ast_ari_channels_send_dtmf_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -718,26 +776,9 @@ static void ast_ari_channels_send_dtmf_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "dtmf");
-	if (field) {
-		args.dtmf = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "before");
-	if (field) {
-		args.before = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "between");
-	if (field) {
-		args.between = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "duration");
-	if (field) {
-		args.duration = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "after");
-	if (field) {
-		args.after = ast_json_integer_get(field);
+	if (ast_ari_channels_send_dtmf_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_send_dtmf(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -774,6 +815,19 @@ static void ast_ari_channels_send_dtmf_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_mute_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_mute_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "direction");
+	if (field) {
+		args->direction = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/mute.
  * \param get_params GET parameters in the HTTP request.
@@ -789,7 +843,6 @@ static void ast_ari_channels_mute_cb(
 	struct ast_ari_channels_mute_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -822,10 +875,9 @@ static void ast_ari_channels_mute_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "direction");
-	if (field) {
-		args.direction = ast_json_string_get(field);
+	if (ast_ari_channels_mute_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_mute(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -861,6 +913,19 @@ static void ast_ari_channels_mute_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_unmute_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_unmute_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "direction");
+	if (field) {
+		args->direction = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/mute.
  * \param get_params GET parameters in the HTTP request.
@@ -876,7 +941,6 @@ static void ast_ari_channels_unmute_cb(
 	struct ast_ari_channels_unmute_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -909,10 +973,9 @@ static void ast_ari_channels_unmute_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "direction");
-	if (field) {
-		args.direction = ast_json_string_get(field);
+	if (ast_ari_channels_unmute_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_unmute(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -1068,6 +1131,19 @@ static void ast_ari_channels_unhold_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_start_moh_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_start_moh_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "mohClass");
+	if (field) {
+		args->moh_class = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/moh.
  * \param get_params GET parameters in the HTTP request.
@@ -1083,7 +1159,6 @@ static void ast_ari_channels_start_moh_cb(
 	struct ast_ari_channels_start_moh_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1116,10 +1191,9 @@ static void ast_ari_channels_start_moh_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "mohClass");
-	if (field) {
-		args.moh_class = ast_json_string_get(field);
+	if (ast_ari_channels_start_moh_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_start_moh(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -1335,6 +1409,31 @@ static void ast_ari_channels_stop_silence_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_play_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_play_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "media");
+	if (field) {
+		args->media = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "lang");
+	if (field) {
+		args->lang = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "offsetms");
+	if (field) {
+		args->offsetms = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "skipms");
+	if (field) {
+		args->skipms = ast_json_integer_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/play.
  * \param get_params GET parameters in the HTTP request.
@@ -1350,7 +1449,6 @@ static void ast_ari_channels_play_cb(
 	struct ast_ari_channels_play_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1392,22 +1490,9 @@ static void ast_ari_channels_play_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "media");
-	if (field) {
-		args.media = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "lang");
-	if (field) {
-		args.lang = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "offsetms");
-	if (field) {
-		args.offsetms = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "skipms");
-	if (field) {
-		args.skipms = ast_json_integer_get(field);
+	if (ast_ari_channels_play_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_play(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -1443,6 +1528,43 @@ static void ast_ari_channels_play_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_record_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_record_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "name");
+	if (field) {
+		args->name = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "format");
+	if (field) {
+		args->format = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "maxDurationSeconds");
+	if (field) {
+		args->max_duration_seconds = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "maxSilenceSeconds");
+	if (field) {
+		args->max_silence_seconds = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "ifExists");
+	if (field) {
+		args->if_exists = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "beep");
+	if (field) {
+		args->beep = ast_json_is_true(field);
+	}
+	field = ast_json_object_get(body, "terminateOn");
+	if (field) {
+		args->terminate_on = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/record.
  * \param get_params GET parameters in the HTTP request.
@@ -1458,7 +1580,6 @@ static void ast_ari_channels_record_cb(
 	struct ast_ari_channels_record_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1509,34 +1630,9 @@ static void ast_ari_channels_record_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "name");
-	if (field) {
-		args.name = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "format");
-	if (field) {
-		args.format = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "maxDurationSeconds");
-	if (field) {
-		args.max_duration_seconds = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "maxSilenceSeconds");
-	if (field) {
-		args.max_silence_seconds = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "ifExists");
-	if (field) {
-		args.if_exists = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "beep");
-	if (field) {
-		args.beep = ast_json_is_true(field);
-	}
-	field = ast_json_object_get(body, "terminateOn");
-	if (field) {
-		args.terminate_on = ast_json_string_get(field);
+	if (ast_ari_channels_record_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_record(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -1574,6 +1670,19 @@ static void ast_ari_channels_record_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_get_channel_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_get_channel_var_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args->variable = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/variable.
  * \param get_params GET parameters in the HTTP request.
@@ -1589,7 +1698,6 @@ static void ast_ari_channels_get_channel_var_cb(
 	struct ast_ari_channels_get_channel_var_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1622,10 +1730,9 @@ static void ast_ari_channels_get_channel_var_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "variable");
-	if (field) {
-		args.variable = ast_json_string_get(field);
+	if (ast_ari_channels_get_channel_var_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_get_channel_var(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -1662,6 +1769,23 @@ static void ast_ari_channels_get_channel_var_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_set_channel_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_set_channel_var_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args->variable = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "value");
+	if (field) {
+		args->value = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/variable.
  * \param get_params GET parameters in the HTTP request.
@@ -1677,7 +1801,6 @@ static void ast_ari_channels_set_channel_var_cb(
 	struct ast_ari_channels_set_channel_var_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1713,14 +1836,9 @@ static void ast_ari_channels_set_channel_var_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "variable");
-	if (field) {
-		args.variable = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "value");
-	if (field) {
-		args.value = ast_json_string_get(field);
+	if (ast_ari_channels_set_channel_var_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_set_channel_var(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -1757,6 +1875,31 @@ static void ast_ari_channels_set_channel_var_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_snoop_channel_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_snoop_channel_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "spy");
+	if (field) {
+		args->spy = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "whisper");
+	if (field) {
+		args->whisper = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "app");
+	if (field) {
+		args->app = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "appArgs");
+	if (field) {
+		args->app_args = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}/snoop.
  * \param get_params GET parameters in the HTTP request.
@@ -1772,7 +1915,6 @@ static void ast_ari_channels_snoop_channel_cb(
 	struct ast_ari_channels_snoop_channel_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1814,22 +1956,9 @@ static void ast_ari_channels_snoop_channel_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "spy");
-	if (field) {
-		args.spy = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "whisper");
-	if (field) {
-		args.whisper = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "app");
-	if (field) {
-		args.app = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "appArgs");
-	if (field) {
-		args.app_args = ast_json_string_get(field);
+	if (ast_ari_channels_snoop_channel_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_channels_snoop_channel(headers, &args, response);
 #if defined(AST_DEVMODE)

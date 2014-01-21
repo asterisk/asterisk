@@ -75,6 +75,17 @@ struct ast_ari_applications_subscribe_args {
 	char *event_source_parse;
 };
 /*!
+ * \brief Body parsing function for /applications/{applicationName}/subscription.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_applications_subscribe_parse_body(
+	struct ast_json *body,
+	struct ast_ari_applications_subscribe_args *args);
+
+/*!
  * \brief Subscribe an application to a event source.
  *
  * Returns the state of the application after the subscriptions have changed
@@ -95,6 +106,17 @@ struct ast_ari_applications_unsubscribe_args {
 	/*! \brief Parsing context for event_source. */
 	char *event_source_parse;
 };
+/*!
+ * \brief Body parsing function for /applications/{applicationName}/subscription.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_applications_unsubscribe_parse_body(
+	struct ast_json *body,
+	struct ast_ari_applications_unsubscribe_args *args);
+
 /*!
  * \brief Unsubscribe an application from an event source.
  *
