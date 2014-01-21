@@ -1539,7 +1539,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 			pjsip_dlg_terminate(dlg);
 			return NULL;
 		}
-		pj_list_push_back(&route_set, route);
+		pj_list_insert_nodes_before(&route_set, route);
 
 		pjsip_dlg_set_route_set(dlg, &route_set);
 	}
@@ -1901,7 +1901,7 @@ int ast_sip_set_outbound_proxy(pjsip_tx_data *tdata, const char *proxy)
 		return -1;
 	}
 
-	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)route);
+	pj_list_insert_nodes_before(&tdata->msg->hdr, (pjsip_hdr*)route);
 
 	return 0;
 }
