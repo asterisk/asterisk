@@ -161,6 +161,23 @@ static void ast_ari_mailboxes_get_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_mailboxes_update_parse_body(
+	struct ast_json *body,
+	struct ast_ari_mailboxes_update_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "oldMessages");
+	if (field) {
+		args->old_messages = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "newMessages");
+	if (field) {
+		args->new_messages = ast_json_integer_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /mailboxes/{mailboxName}.
  * \param get_params GET parameters in the HTTP request.
@@ -176,7 +193,6 @@ static void ast_ari_mailboxes_update_cb(
 	struct ast_ari_mailboxes_update_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -212,14 +228,9 @@ static void ast_ari_mailboxes_update_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "oldMessages");
-	if (field) {
-		args.old_messages = ast_json_integer_get(field);
-	}
-	field = ast_json_object_get(body, "newMessages");
-	if (field) {
-		args.new_messages = ast_json_integer_get(field);
+	if (ast_ari_mailboxes_update_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_mailboxes_update(headers, &args, response);
 #if defined(AST_DEVMODE)

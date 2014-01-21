@@ -47,6 +47,17 @@ struct ast_ari_sounds_list_args {
 	const char *format;
 };
 /*!
+ * \brief Body parsing function for /sounds.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_sounds_list_parse_body(
+	struct ast_json *body,
+	struct ast_ari_sounds_list_args *args);
+
+/*!
  * \brief List all sounds.
  *
  * \param headers HTTP headers

@@ -68,7 +68,20 @@ struct ast_ari_channels_originate_args {
 	const char *caller_id;
 	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
 	int timeout;
+	/*! \brief The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
+	struct ast_json *variables;
 };
+/*!
+ * \brief Body parsing function for /channels.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_originate_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_originate_args *args);
+
 /*!
  * \brief Create a new channel (originate).
  *
@@ -100,6 +113,17 @@ struct ast_ari_channels_hangup_args {
 	const char *reason;
 };
 /*!
+ * \brief Body parsing function for /channels/{channelId}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_hangup_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_hangup_args *args);
+
+/*!
  * \brief Delete (i.e. hangup) a channel.
  *
  * \param headers HTTP headers
@@ -118,6 +142,17 @@ struct ast_ari_channels_continue_in_dialplan_args {
 	/*! \brief The priority to continue to. */
 	int priority;
 };
+/*!
+ * \brief Body parsing function for /channels/{channelId}/continue.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_continue_in_dialplan_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_continue_in_dialplan_args *args);
+
 /*!
  * \brief Exit application; continue execution in the dialplan.
  *
@@ -181,6 +216,17 @@ struct ast_ari_channels_send_dtmf_args {
 	int after;
 };
 /*!
+ * \brief Body parsing function for /channels/{channelId}/dtmf.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_send_dtmf_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_send_dtmf_args *args);
+
+/*!
  * \brief Send provided DTMF to a given channel.
  *
  * \param headers HTTP headers
@@ -196,6 +242,17 @@ struct ast_ari_channels_mute_args {
 	const char *direction;
 };
 /*!
+ * \brief Body parsing function for /channels/{channelId}/mute.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_mute_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_mute_args *args);
+
+/*!
  * \brief Mute a channel.
  *
  * \param headers HTTP headers
@@ -210,6 +267,17 @@ struct ast_ari_channels_unmute_args {
 	/*! \brief Direction in which to unmute audio */
 	const char *direction;
 };
+/*!
+ * \brief Body parsing function for /channels/{channelId}/mute.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_unmute_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_unmute_args *args);
+
 /*!
  * \brief Unmute a channel.
  *
@@ -251,6 +319,17 @@ struct ast_ari_channels_start_moh_args {
 	/*! \brief Music on hold class to use */
 	const char *moh_class;
 };
+/*!
+ * \brief Body parsing function for /channels/{channelId}/moh.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_start_moh_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_start_moh_args *args);
+
 /*!
  * \brief Play music on hold to a channel.
  *
@@ -316,6 +395,17 @@ struct ast_ari_channels_play_args {
 	int skipms;
 };
 /*!
+ * \brief Body parsing function for /channels/{channelId}/play.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_play_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_play_args *args);
+
+/*!
  * \brief Start playback of media.
  *
  * The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
@@ -345,6 +435,17 @@ struct ast_ari_channels_record_args {
 	const char *terminate_on;
 };
 /*!
+ * \brief Body parsing function for /channels/{channelId}/record.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_record_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_record_args *args);
+
+/*!
  * \brief Start a recording.
  *
  * Record audio from a channel. Note that this will not capture audio sent to the channel. The bridge itself has a record feature if that's what you want.
@@ -362,6 +463,17 @@ struct ast_ari_channels_get_channel_var_args {
 	const char *variable;
 };
 /*!
+ * \brief Body parsing function for /channels/{channelId}/variable.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_get_channel_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_get_channel_var_args *args);
+
+/*!
  * \brief Get the value of a channel variable or function.
  *
  * \param headers HTTP headers
@@ -378,6 +490,17 @@ struct ast_ari_channels_set_channel_var_args {
 	/*! \brief The value to set the variable to */
 	const char *value;
 };
+/*!
+ * \brief Body parsing function for /channels/{channelId}/variable.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_set_channel_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_set_channel_var_args *args);
+
 /*!
  * \brief Set the value of a channel variable or function.
  *
@@ -399,6 +522,17 @@ struct ast_ari_channels_snoop_channel_args {
 	/*! \brief The application arguments to pass to the Stasis application */
 	const char *app_args;
 };
+/*!
+ * \brief Body parsing function for /channels/{channelId}/snoop.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_snoop_channel_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_snoop_channel_args *args);
+
 /*!
  * \brief Start snooping.
  *

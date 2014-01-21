@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 {{#apis}}
 {{#operations}}
 {{#is_req}}
+{{> body_parsing}}
 /*!
  * \brief Parameter parsing callback for {{path}}.
  * \param get_params GET parameters in the HTTP request.
@@ -83,11 +84,6 @@ static void ast_ari_{{c_name}}_{{c_nickname}}_cb(
 	struct ast_variable *i;
 {{/has_parameters}}
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-{{^body_parameter}}
-{{#has_query_parameters}}
-	struct ast_json *field;
-{{/has_query_parameters}}
-{{/body_parameter}}
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;

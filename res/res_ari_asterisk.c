@@ -51,6 +51,44 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_VALS 128
 
+int ast_ari_asterisk_get_info_parse_body(
+	struct ast_json *body,
+	struct ast_ari_asterisk_get_info_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "only");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->only);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->only_count = ast_json_array_size(field);
+			args->only = ast_malloc(sizeof(*args->only) * args->only_count);
+
+			if (!args->only) {
+				return -1;
+			}
+
+			for (i = 0; i < args->only_count; ++i) {
+				args->only[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->only_count = 1;
+			args->only = ast_malloc(sizeof(*args->only) * args->only_count);
+			if (!args->only) {
+				return -1;
+			}
+			args->only[0] = ast_json_string_get(field);
+		}
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /asterisk/info.
  * \param get_params GET parameters in the HTTP request.
@@ -66,7 +104,6 @@ static void ast_ari_asterisk_get_info_cb(
 	struct ast_ari_asterisk_get_info_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -133,37 +170,9 @@ static void ast_ari_asterisk_get_info_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "only");
-	if (field) {
-		/* If they were silly enough to both pass in a query param and a
-		 * JSON body, free up the query value.
-		 */
-		ast_free(args.only);
-		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
-			/* Multiple param passed as array */
-			size_t i;
-			args.only_count = ast_json_array_size(field);
-			args.only = ast_malloc(sizeof(*args.only) * args.only_count);
-
-			if (!args.only) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-
-			for (i = 0; i < args.only_count; ++i) {
-				args.only[i] = ast_json_string_get(ast_json_array_get(field, i));
-			}
-		} else {
-			/* Multiple param passed as single value */
-			args.only_count = 1;
-			args.only = ast_malloc(sizeof(*args.only) * args.only_count);
-			if (!args.only) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-			args.only[0] = ast_json_string_get(field);
-		}
+	if (ast_ari_asterisk_get_info_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_asterisk_get_info(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -199,6 +208,19 @@ fin: __attribute__((unused))
 	ast_free(args.only);
 	return;
 }
+int ast_ari_asterisk_get_global_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_asterisk_get_global_var_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args->variable = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /asterisk/variable.
  * \param get_params GET parameters in the HTTP request.
@@ -214,7 +236,6 @@ static void ast_ari_asterisk_get_global_var_cb(
 	struct ast_ari_asterisk_get_global_var_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -241,10 +262,9 @@ static void ast_ari_asterisk_get_global_var_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "variable");
-	if (field) {
-		args.variable = ast_json_string_get(field);
+	if (ast_ari_asterisk_get_global_var_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_asterisk_get_global_var(headers, &args, response);
 #if defined(AST_DEVMODE)
@@ -279,6 +299,23 @@ static void ast_ari_asterisk_get_global_var_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_asterisk_set_global_var_parse_body(
+	struct ast_json *body,
+	struct ast_ari_asterisk_set_global_var_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "variable");
+	if (field) {
+		args->variable = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "value");
+	if (field) {
+		args->value = ast_json_string_get(field);
+	}
+	return 0;
+}
+
 /*!
  * \brief Parameter parsing callback for /asterisk/variable.
  * \param get_params GET parameters in the HTTP request.
@@ -294,7 +331,6 @@ static void ast_ari_asterisk_set_global_var_cb(
 	struct ast_ari_asterisk_set_global_var_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
-	struct ast_json *field;
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -324,14 +360,9 @@ static void ast_ari_asterisk_set_global_var_cb(
 			goto fin;
 		}
 	}
-	/* Parse query parameters out of it */
-	field = ast_json_object_get(body, "variable");
-	if (field) {
-		args.variable = ast_json_string_get(field);
-	}
-	field = ast_json_object_get(body, "value");
-	if (field) {
-		args.value = ast_json_string_get(field);
+	if (ast_ari_asterisk_set_global_var_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
 	ast_ari_asterisk_set_global_var(headers, &args, response);
 #if defined(AST_DEVMODE)

@@ -104,45 +104,10 @@
 	args.{{c_name}} = ast_json_ref(body);
 {{/body_parameter}}
 {{^body_parameter}}
-	/* Parse query parameters out of it */
-{{#query_parameters}}
-	field = ast_json_object_get(body, "{{name}}");
-	if (field) {
-{{^allow_multiple}}
-		args.{{c_name}} = {{json_convert}}(field);
-{{/allow_multiple}}
-{{#allow_multiple}}
-		/* If they were silly enough to both pass in a query param and a
-		 * JSON body, free up the query value.
-		 */
-		ast_free(args.{{c_name}});
-		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
-			/* Multiple param passed as array */
-			size_t i;
-			args.{{c_name}}_count = ast_json_array_size(field);
-			args.{{c_name}} = ast_malloc(sizeof(*args.{{c_name}}) * args.{{c_name}}_count);
-
-			if (!args.{{c_name}}) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-
-			for (i = 0; i < args.{{c_name}}_count; ++i) {
-				args.{{c_name}}[i] = {{json_convert}}(ast_json_array_get(field, i));
-			}
-		} else {
-			/* Multiple param passed as single value */
-			args.{{c_name}}_count = 1;
-			args.{{c_name}} = ast_malloc(sizeof(*args.{{c_name}}) * args.{{c_name}}_count);
-			if (!args.{{c_name}}) {
-				ast_ari_response_alloc_failed(response);
-				goto fin;
-			}
-			args.{{c_name}}[0] = {{json_convert}}(field);
-		}
-{{/allow_multiple}}
+	if (ast_ari_{{c_name}}_{{c_nickname}}_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
 	}
-{{/query_parameters}}
 {{/body_parameter}}
 {{/parse_body}}
 {{/is_websocket}}

@@ -73,6 +73,17 @@ struct ast_ari_mailboxes_update_args {
 	int new_messages;
 };
 /*!
+ * \brief Body parsing function for /mailboxes/{mailboxName}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_mailboxes_update_parse_body(
+	struct ast_json *body,
+	struct ast_ari_mailboxes_update_args *args);
+
+/*!
  * \brief Change the state of a mailbox. (Note - implicitly creates the mailbox).
  *
  * \param headers HTTP headers
