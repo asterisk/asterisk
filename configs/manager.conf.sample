@@ -94,12 +94,13 @@ bindaddr = 0.0.0.0
 ; user.
 ;
 ;eventfilter=Event: Newchannel
-;eventfilter=!Channel: DAHDI*
-; The eventfilter option is used to whitelist or blacklist events per user to be
-; reported with regular expressions and are allowed if both the regex matches
-; and the user has read access set below. Filters are assumed to be for whitelisting
-; unless preceeded by an exclamation point, which marks it as being black.
-; Evaluation of the filters is as follows:
+;eventfilter=!Channel: DAHDI.*
+; The eventfilter option is used to whitelist or blacklist events per user.
+; A filter consists of a (basic/old-style and unanchored) regular expression
+; that is run on the entire event data. If the first character of the filter
+; is an exclamation mark (!), the filter is appended to the blacklist instead
+; of the whitelist. After first checking the read access below, the regular
+; expression filters are processed as follows:
 ; - If no filters are configured all events are reported as normal.
 ; - If there are white filters only: implied black all filter processed first,
 ; then white filters.
