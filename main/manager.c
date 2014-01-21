@@ -7136,8 +7136,8 @@ static int __init_manager(int reload)
 					} else {
 						is_blackfilter = 0;
 					}
-					if (regcomp(new_filter, value, 0)) {
-						ao2_t_ref(new_filter, -1, "failed to make regx");
+					if (regcomp(new_filter, value, 0)) { /* XXX: the only place we use non-REG_EXTENDED */
+						ao2_t_ref(new_filter, -1, "failed to make regex");
 					} else {
 						if (is_blackfilter) {
 							ao2_t_link(user->blackfilters, new_filter, "link new filter into black user container");
