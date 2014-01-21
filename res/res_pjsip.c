@@ -270,9 +270,12 @@
 					<description><para>
 						Asterisk will send unsolicited MWI NOTIFY messages to the endpoint when state
 						changes happen for any of the specified mailboxes. More than one mailbox can be
-						specified with a comma-delimited string. Mailboxes must be specified as mailbox@context;
-						for example: mailboxes=6001@default.
-						For endpoints that SUBSCRIBE for MWI, you can set the <literal>mailboxes</literal> option in your AOR
+						specified with a comma-delimited string. app_voicemail mailboxes must be specified
+						as mailbox@context; for example: mailboxes=6001@default. For mailboxes provided by
+						external sources, such as through the res_external_mwi module, you must specify
+						strings supported by the external system.
+					</para><para>
+						For endpoints that SUBSCRIBE for MWI, use the <literal>mailboxes</literal> option in your AOR
 						configuration.
 					</para></description>
 				</configOption>
@@ -930,12 +933,17 @@
 					<synopsis>Default expiration time in seconds for contacts that are dynamically bound to an AoR.</synopsis>
 				</configOption>
 				<configOption name="mailboxes">
-					<synopsis>Mailbox(es) to be associated with</synopsis>
+					<synopsis>Allow subscriptions for the specified mailbox(es)</synopsis>
 					<description><para>This option applies when an external entity subscribes to an AoR
-					for message waiting indications. The mailboxes specified will be subscribed to.
-					More than one mailbox can be specified with a comma-delimited string.
-					For endpoints that cannot SUBSCRIBE for MWI, you can set the <literal>mailboxes</literal> option in your
-					Endpoint configuration section.
+						for Message Waiting Indications. The mailboxes specified will be subscribed to.
+						More than one mailbox can be specified with a comma-delimited string.
+						app_voicemail mailboxes must be specified as mailbox@context;
+						for example: mailboxes=6001@default. For mailboxes provided by external sources,
+						such as through the res_external_mwi module, you must specify strings supported by
+						the external system.
+					</para><para>
+						For endpoints that cannot SUBSCRIBE for MWI, you can set the <literal>mailboxes</literal> option in your
+						endpoint configuration section to enable unsolicited MWI NOTIFYs to the endpoint.
 					</para></description>
 				</configOption>
 				<configOption name="maximum_expiration" default="7200">
