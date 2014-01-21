@@ -776,7 +776,7 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		if (!(route = pjsip_parse_hdr(pjsip_regc_get_pool(registration->state->client_state->client), &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL))) {
 			return -1;
 		}
-		pj_list_push_back(&route_set, route);
+		pj_list_insert_nodes_before(&route_set, route);
 
 		pjsip_regc_set_route_set(registration->state->client_state->client, &route_set);
 	}
