@@ -9366,7 +9366,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int image = FALSE;
 		int text = FALSE;
 		int processed_crypto = FALSE;
-		char protocol[5] = {0,};
+		char protocol[18] = {0,};
 		int x;
 
 		numberofports = 0;
@@ -9550,6 +9550,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					 * respond with the EC they want to use */
 					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 				}
+			} else if (sscanf(m, "image %30u %17s t38%n", &x, protocol, &len) == 2 && len > 0) {
+				ast_log(LOG_WARNING, "Declining image stream due to unsupported transport: %s\n", m);
+				continue;
 			} else {
 				ast_log(LOG_WARNING, "Rejecting image media offer due to invalid or unsupported syntax: %s\n", m);
 				return -1;
