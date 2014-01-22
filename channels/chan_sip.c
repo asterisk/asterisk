@@ -10507,6 +10507,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					 * respond with the EC they want to use */
 					ast_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_NONE);
 				}
+			} else if (sscanf(m, "image %30u %17s t38%n", &x, protocol, &len) == 2 && len > 0) {
+				ast_log(LOG_WARNING, "Declining image stream due to unsupported transport: %s\n", m);
+				/* produce zero-port m-line since this is guaranteed to be declined
+				 * length is "m=image 0 strlen(protocol) t38" + "\r\n\0" */
+				if (!(offer->decline_m_line = ast_malloc(10 + strlen(protocol) + 7))) {
+					ast_log(LOG_WARNING, "Failed to allocate memory for SDP offer declination\n");
+					res = -1;
+					goto process_sdp_cleanup;
+				}
+				/* guaranteed to be exactly the right length */
+				sprintf(offer->decline_m_line, "m=image 0 %s t38\r\n", protocol);
+				continue;
 			} else {
 				ast_log(LOG_WARNING, "Rejecting image media offer due to invalid or unsupported syntax: %s\n", m);
 				res = -1;
