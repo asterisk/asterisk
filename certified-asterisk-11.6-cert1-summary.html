@@ -1,0 +1,190 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - certified-asterisk-11.6-cert1</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">certified-asterisk-11.6-cert1</h3>
+<h3 align="center">Date: 2014-01-22</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes new features.  For a list of new features that have been included with this release, please see the CHANGES file inside the source package.  Since this is new major release, users are encouraged to do extended testing before upgrading to this version in a production environment.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, certified-asterisk-11.6.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+10 mjordan<br/>
+3 sgriepentrog<br/>
+1 bebuild<br/>
+1 dlee<br/>
+1 kharwell<br/>
+1 rmudgett<br/>
+</td>
+<td>
+2 rsw686<br/>
+2 Tommy Thomspon<br/>
+1 Jan Juergens<br/>
+</td>
+<td>
+3 gkelleter<br/>
+2 tomaso<br/>
+1 ahoemig<br/>
+1 j_juergens<br/>
+1 jbigelow<br/>
+1 mjordan<br/>
+1 rsw686<br/>
+1 spitts<br/>
+1 tthompson<br/>
+1 wimpy<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_sms</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22590">ASTERISK-22590</a>: BufferOverflow in unpacksms16() when receiving 16 bit multipart SMS with app_sms<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=403860">403860</a><br/>
+Reporter: j_juergens<br/>
+Testers: Jan Juergens<br/>
+Coders: sgriepentrog<br/>
+<br/>
+<h3>Category: Channels/chan_pjsip</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22667">ASTERISK-22667</a>: crash: directmedia with both phones placing each other on hold<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=402382">402382</a><br/>
+Reporter: jbigelow<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22667">ASTERISK-22667</a>: crash: directmedia with both phones placing each other on hold<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=402382">402382</a><br/>
+Reporter: jbigelow<br/>
+Coders: mjordan<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23047">ASTERISK-23047</a>: Orphaned (stuck) channel occurs during a failed SIP transfer to parking space<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=405536">405536</a><br/>
+Reporter: tthompson<br/>
+Testers: rsw686, Tommy Thomspon<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Core/AstDB</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22350">ASTERISK-22350</a>: DUNDI - core dump on shutdown - segfault in sqlite3_reset from /usr/lib/libsqlite3.so.0<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=404349">404349</a><br/>
+Reporter: wimpy<br/>
+Coders: sgriepentrog<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22905">ASTERISK-22905</a>: Prevent Asterisk functions that are 'dangerous' from being executed from external interfaces<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=403956">403956</a><br/>
+Reporter: mjordan<br/>
+Coders: dlee<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22905">ASTERISK-22905</a>: Prevent Asterisk functions that are 'dangerous' from being executed from external interfaces<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=403956">403956</a><br/>
+Reporter: mjordan<br/>
+Coders: dlee<br/>
+<br/>
+<h3>Category: Features/Parking</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22834">ASTERISK-22834</a>: Parking by blind transfer when lot full orphans channels<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=405536">405536</a><br/>
+Reporter: rsw686<br/>
+Testers: rsw686, Tommy Thomspon<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Functions/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22905">ASTERISK-22905</a>: Prevent Asterisk functions that are 'dangerous' from being executed from external interfaces<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=403956">403956</a><br/>
+Reporter: mjordan<br/>
+Coders: dlee<br/>
+<br/>
+<h3>Category: PBX/pbx_dundi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22350">ASTERISK-22350</a>: DUNDI - core dump on shutdown - segfault in sqlite3_reset from /usr/lib/libsqlite3.so.0<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=404349">404349</a><br/>
+Reporter: wimpy<br/>
+Coders: sgriepentrog<br/>
+<br/>
+<h3>Category: Resources/res_agi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22905">ASTERISK-22905</a>: Prevent Asterisk functions that are 'dangerous' from being executed from external interfaces<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=403956">403956</a><br/>
+Reporter: mjordan<br/>
+Coders: dlee<br/>
+<br/>
+<h3>Category: Resources/res_ari</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22905">ASTERISK-22905</a>: Prevent Asterisk functions that are 'dangerous' from being executed from external interfaces<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=403956">403956</a><br/>
+Reporter: mjordan<br/>
+Coders: dlee<br/>
+<br/>
+<h3>Category: Resources/res_rtp_asterisk</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22667">ASTERISK-22667</a>: crash: directmedia with both phones placing each other on hold<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=402382">402382</a><br/>
+Reporter: jbigelow<br/>
+Coders: mjordan<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=401416">401416</a></td><td>bebuild</td><td>Create branch for Certified Asterisk 11.6.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=402377">402377</a></td><td>mjordan</td><td>SVN properties: Add svnmerge properties for 11</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=402383">402383</a></td><td>mjordan</td><td>Remove old summaries</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/11.6?view=revision&revision=405578">405578</a></td><td>mjordan</td><td>pbx.c: put copy of ast_exten.data on stack to prevent memory corruption</td>
+<td><a href="https://issues.asterisk.org/jira/browse/AST-1179">AST-1179</a>, <a href="https://issues.asterisk.org/jira/browse/AST-1246">AST-1246</a></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.version                                  |    2
+ChangeLog                                 |    4
+README-SERIOUSLY.bestpractices.txt        |   24 ++
+UPGRADE.txt                               |   35 ++
+apps/app_confbridge.c                     |    6
+apps/app_dumpchan.c                       |   20 -
+apps/app_sms.c                            |    3
+apps/app_verbose.c                        |    4
+apps/confbridge/conf_state_multi_marked.c |   25 +-
+asterisk-11.6.0-rc2-summary.html          |   62 -----
+asterisk-11.6.0-rc2-summary.txt           |   91 -------
+channels/chan_sip.c                       |   78 ++++--
+configs/asterisk.conf.sample              |    6
+configs/logger.conf.sample                |   19 -
+configure.ac                              |    5
+funcs/func_db.c                           |   20 +
+funcs/func_env.c                          |   28 ++
+funcs/func_lock.c                         |   21 +
+funcs/func_realtime.c                     |   60 +++--
+funcs/func_shell.c                        |   18 +
+funcs/func_timeout.c                      |   16 -
+include/asterisk/logger.h                 |  101 +++++++-
+include/asterisk/pbx.h                    |   64 +++++
+main/asterisk.c                           |  195 +++++++++++-----
+main/cli.c                                |  359 +++++++++++++++++++-----------
+main/db.c                                 |   24 +-
+main/logger.c                             |  211 +++++++++++++++--
+main/manager.c                            |    8
+main/pbx.c                                |  355 +++++++++++++++++++++++++----
+main/tcptls.c                             |   11
+res/res_rtp_asterisk.c                    |    8
+31 files changed, 1333 insertions(+), 550 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
