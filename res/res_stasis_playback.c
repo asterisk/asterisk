@@ -320,7 +320,7 @@ static void play_on_channel(struct stasis_app_playback *playback,
 
 		if (!recording) {
 			ast_log(LOG_ERROR, "Attempted to play recording '%s' on channel '%s' but recording does not exist",
-				ast_channel_name(chan), relname);
+				relname, ast_channel_name(chan));
 			return;
 		}
 
@@ -334,7 +334,7 @@ static void play_on_channel(struct stasis_app_playback *playback,
 
 		if (sscanf(playback->media + strlen(NUMBER_URI_SCHEME), "%30d", &number) != 1) {
 			ast_log(LOG_ERROR, "Attempted to play number '%s' on channel '%s' but number is invalid",
-				ast_channel_name(chan), playback->media + strlen(NUMBER_URI_SCHEME));
+				playback->media + strlen(NUMBER_URI_SCHEME), ast_channel_name(chan));
 			return;
 		}
 
@@ -348,7 +348,7 @@ static void play_on_channel(struct stasis_app_playback *playback,
 	} else {
 		/* Play URL */
 		ast_log(LOG_ERROR, "Attempted to play URI '%s' on channel '%s' but scheme is unsupported",
-			ast_channel_name(chan), playback->media);
+			playback->media, ast_channel_name(chan));
 		return;
 	}
 
