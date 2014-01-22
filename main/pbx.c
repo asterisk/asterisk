@@ -9154,6 +9154,8 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 	char *info;
 	int j, num_fields, last_sep = -1;
 
+	i->timezone = NULL;
+
 	/* Check for empty just in case */
 	if (ast_strlen_zero(info_in)) {
 		return 0;
@@ -9173,8 +9175,6 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 	/* save the timezone, if it is specified */
 	if (num_fields == 5) {
 		i->timezone = ast_strdup(info + last_sep + 1);
-	} else {
-		i->timezone = NULL;
 	}
 
 	/* Assume everything except time */
