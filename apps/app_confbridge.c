@@ -208,7 +208,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="Conference" required="true" />
-			<parameter name="Channel" required="true" />
+			<parameter name="Channel" required="true">
+				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+			</parameter>
 		</syntax>
 		<description>
 		</description>
@@ -220,7 +222,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="Conference" required="true" />
-			<parameter name="Channel" required="true" />
+			<parameter name="Channel" required="true">
+				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+			</parameter>
 		</syntax>
 		<description>
 		</description>
@@ -290,7 +294,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="Conference" required="true" />
-			<parameter name="Channel" required="true" />
+			<parameter name="Channel" required="true">
+				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+			</parameter>
 		</syntax>
 		<description>
 		</description>
@@ -2501,7 +2507,10 @@ static char *handle_cli_confbridge_mute(struct ast_cli_entry *e, int cmd, struct
 		e->command = "confbridge mute";
 		e->usage =
 			"Usage: confbridge mute <conference> <channel>\n"
-			"       Mute a channel in a conference.\n";
+			"       Mute a channel in a conference.\n"
+			"       If the specified channel is a prefix,\n"
+			"       the action will be taken on the first\n"
+			"       matching channel.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
@@ -2528,7 +2537,10 @@ static char *handle_cli_confbridge_unmute(struct ast_cli_entry *e, int cmd, stru
 		e->command = "confbridge unmute";
 		e->usage =
 			"Usage: confbridge unmute <conference> <channel>\n"
-			"       Unmute a channel in a conference.\n";
+			"       Unmute a channel in a conference.\n"
+			"       If the specified channel is a prefix,\n"
+			"       the action will be taken on the first\n"
+			"       matching channel.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
