@@ -870,6 +870,8 @@ struct ast_channel {
 	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
 	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
 	char emulate_dtmf_digit;			/*!< Digit being emulated */
+	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
+	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
 };
 
 /*! \brief ast_channel_tech Properties */

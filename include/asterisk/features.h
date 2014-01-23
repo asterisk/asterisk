@@ -169,6 +169,18 @@ int ast_parking_ext_valid(const char *exten_str, struct ast_channel *chan, const
 /*! \brief Determine system call pickup extension */
 const char *ast_pickup_ext(void);
 
+/*!
+ * \brief Simulate a DTMF end on a broken bridge channel.
+ *
+ * \param chan Channel sending DTMF that has not ended.
+ * \param digit DTMF digit to stop.
+ * \param start DTMF digit start time.
+ * \param why Reason bridge broken.
+ *
+ * \return Nothing
+ */
+void ast_bridge_end_dtmf(struct ast_channel *chan, char digit, struct timeval start, const char *why);
+
 /*! \brief Bridge a call, optionally allowing redirection */
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);
 
