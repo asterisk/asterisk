@@ -115,22 +115,19 @@ static pj_xml_node *create_node(pj_pool_t *pool, pj_xml_node *parent,
 	return node;
 }
 
-static pj_xml_attr *find_node_attr(pj_pool_t* pool, pj_xml_node *parent,
-				   const char *node_name, const char *attr_name)
+static void find_node_attr(pj_pool_t* pool, pj_xml_node *parent,
+				   const char *node_name, const char *attr_name,
+				   pj_xml_node **node, pj_xml_attr **attr)
 {
 	pj_str_t name;
-	pj_xml_node *node;
-	pj_xml_attr *attr;
 
-	if (!(node = pj_xml_find_node(parent, pj_cstr(&name, node_name)))) {
-		node = create_node(pool, parent, node_name);
+	if (!(*node = pj_xml_find_node(parent, pj_cstr(&name, node_name)))) {
+		*node = create_node(pool, parent, node_name);
 	}
 
-	if (!(attr = pj_xml_find_attr(node, pj_cstr(&name, attr_name), NULL))) {
-		attr = create_attr(pool, node, attr_name, "");
+	if (!(*attr = pj_xml_find_attr(*node, pj_cstr(&name, attr_name), NULL))) {
+		*attr = create_attr(pool, *node, attr_name, "");
 	}
-
-	return attr;
 }
 
 /*!
@@ -193,17 +190,29 @@ static void sanitize_xml(const char *input, char *output, size_t len)
 
 	output[0] = '\0';
 
-	while ((break_point = strpbrk(copy, "<>"))) {
-		char bracket = *break_point;
+	while ((break_point = strpbrk(copy, "<>\"&'"))) {
+		char to_escape = *break_point;
 
 		*break_point = '\0';
 		strncat(output, copy, len);
 
-		if (bracket == '<') {
+		switch (to_escape) {
+		case '<':
 			strncat(output, "&lt;", len);
-		} else {
-			strncat(output, "&rt;", len);
-		}
+			break;
+		case '>':
+			strncat(output, "&gt;", len);
+			break;
+		case '"':
+			strncat(output, "&quot;", len);
+			break;
+		case '&':
+			strncat(output, "&amp;", len);
+			break;
+		case '\'':
+			strncat(output, "&apos;", len);
+			break;
+		};
 
 		copy = break_point + 1;
 	}
@@ -252,7 +261,7 @@ static int pidf_xml_create_body(struct ast_sip_exten_state_data *data, const cha
 	pjpidf_tuple_set_contact(pool, tuple, pj_cstr(&contact, sanitized));
 	pjpidf_tuple_set_contact_prio(pool, tuple, pj_cstr(&priority, "1"));
 	pjpidf_status_set_basic_open(pjpidf_tuple_get_status(tuple),
-				     (pidfstate[0] == 'b') || (local_state != NOTIFY_CLOSED));
+			local_state == NOTIFY_OPEN);
 
 	if (!(size = pjpidf_print(pres, ast_str_buffer(*body_text),
 				  ast_str_size(*body_text)))) {
@@ -282,6 +291,11 @@ static int xpidf_xml_create_body(struct ast_sip_exten_state_data *data, const ch
 	pj_str_t name, uri;
 	char *statestring = NULL, *pidfstate = NULL, *pidfnote = NULL;
 	int local_state, size;
+	char sanitized[PJSIP_MAX_URL_SIZE];
+	pj_xml_node *atom;
+	pj_xml_node *address;
+	pj_xml_node *status;
+	pj_xml_node *msnsubstatus;
 
 	RAII_VAR(pj_pool_t *, pool,
 		 pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
@@ -295,25 +309,27 @@ static int xpidf_xml_create_body(struct ast_sip_exten_state_data *data, const ch
 		return -1;
 	}
 
-	attr = find_node_attr(pool, pres, "atom", "id");
+	find_node_attr(pool, pres, "atom", "id", &atom, &attr);
 	pj_strdup2(pool, &attr->value, data->exten);
 
-	attr = find_node_attr(pool, pres, "address", "uri");
+	find_node_attr(pool, atom, "address", "uri", &address, &attr);
 
-	uri.ptr = (char*) pj_pool_alloc(pool, strlen(remote) + STR_ADDR_PARAM.slen);
-	pj_strcpy2( &uri, remote);
+	sanitize_xml(remote, sanitized, sizeof(sanitized));
+
+	uri.ptr = (char*) pj_pool_alloc(pool, strlen(sanitized) + STR_ADDR_PARAM.slen);
+	pj_strcpy2( &uri, sanitized);
+
 	pj_strcat( &uri, &STR_ADDR_PARAM);
 	pj_strdup(pool, &attr->value, &uri);
 
-	create_attr(pool, pj_xml_find_node(pres, pj_cstr(&name, "address")),
-		    "priority", "0.80000");
+	create_attr(pool, address, "priority", "0.80000");
 
-	attr = find_node_attr(pool, pres, "status", "status");
+	find_node_attr(pool, address, "status", "status", &status, &attr);
 	pj_strdup2(pool, &attr->value,
 		   (local_state ==  NOTIFY_OPEN) ? "open" :
 		   (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
 
-	attr = find_node_attr(pool, pres, "msnsubstatus", "substatus");
+	find_node_attr(pool, address, "msnsubstatus", "substatus", &msnsubstatus, &attr);
 	pj_strdup2(pool, &attr->value,
 		   (local_state == NOTIFY_OPEN) ? "online" :
 		   (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
