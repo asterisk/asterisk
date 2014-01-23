@@ -613,7 +613,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 		}
 
 		ESCAPE_STRING(buf, field->value);
-		ast_str_append(&sql, 0, ", `%s` = '%s'", field->value, ast_str_buffer(buf));
+		ast_str_append(&sql, 0, ", `%s` = '%s'", field->name, ast_str_buffer(buf));
 
 		/* If the column length isn't long enough, give a chance to lengthen it. */
 		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
