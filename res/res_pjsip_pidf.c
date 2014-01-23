@@ -320,7 +320,7 @@ static int xpidf_xml_create_body(struct ast_sip_exten_state_data *data, const ch
 	pj_strcpy2( &uri, sanitized);
 
 	pj_strcat( &uri, &STR_ADDR_PARAM);
-	pj_strdup(state_data->pool, &attr->value, &uri);
+	pj_strdup(pool, &attr->value, &uri);
 
 	create_attr(pool, address, "priority", "0.80000");
 
