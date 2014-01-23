@@ -115,22 +115,19 @@ static pj_xml_node *create_node(pj_pool_t *pool, pj_xml_node *parent,
 	return node;
 }
 
-static pj_xml_attr *find_node_attr(pj_pool_t* pool, pj_xml_node *parent,
-				   const char *node_name, const char *attr_name)
+static void find_node_attr(pj_pool_t* pool, pj_xml_node *parent,
+				   const char *node_name, const char *attr_name,
+				   pj_xml_node **node, pj_xml_attr **attr)
 {
 	pj_str_t name;
-	pj_xml_node *node;
-	pj_xml_attr *attr;
 
-	if (!(node = pj_xml_find_node(parent, pj_cstr(&name, node_name)))) {
-		node = create_node(pool, parent, node_name);
+	if (!(*node = pj_xml_find_node(parent, pj_cstr(&name, node_name)))) {
+		*node = create_node(pool, parent, node_name);
 	}
 
-	if (!(attr = pj_xml_find_attr(node, pj_cstr(&name, attr_name), NULL))) {
-		attr = create_attr(pool, node, attr_name, "");
+	if (!(*attr = pj_xml_find_attr(*node, pj_cstr(&name, attr_name), NULL))) {
+		*attr = create_attr(pool, *node, attr_name, "");
 	}
-
-	return attr;
 }
 
 /*!
@@ -312,32 +309,28 @@ static int xpidf_xml_create_body(struct ast_sip_exten_state_data *data, const ch
 		return -1;
 	}
 
-	ast_sip_presence_xml_find_node_attr(state_data->pool, pres, "atom", "id", 
-			&atom, &attr);
-	pj_strdup2(state_data->pool, &attr->value, state_data->exten);
+	find_node_attr(pool, pres, "atom", "id", &atom, &attr);
+	pj_strdup2(pool, &attr->value, data->exten);
 
-	ast_sip_presence_xml_find_node_attr(state_data->pool, atom, "address",
-			"uri", &address, &attr);
+	find_node_attr(pool, atom, "address", "uri", &address, &attr);
 
-	ast_sip_sanitize_xml(state_data->remote, sanitized, sizeof(sanitized));
+	sanitize_xml(remote, sanitized, sizeof(sanitized));
 
-	uri.ptr = (char*) pj_pool_alloc(state_data->pool,
-			strlen(sanitized) + STR_ADDR_PARAM.slen);
+	uri.ptr = (char*) pj_pool_alloc(pool, strlen(sanitized) + STR_ADDR_PARAM.slen);
 	pj_strcpy2( &uri, sanitized);
+
 	pj_strcat( &uri, &STR_ADDR_PARAM);
 	pj_strdup(state_data->pool, &attr->value, &uri);
 
-	ast_sip_presence_xml_create_attr(state_data->pool, address, "priority", "0.80000");
+	create_attr(pool, address, "priority", "0.80000");
 
-	ast_sip_presence_xml_find_node_attr(state_data->pool, address,
-			"status", "status", &status, &attr);
-	pj_strdup2(state_data->pool, &attr->value,
+	find_node_attr(pool, address, "status", "status", &status, &attr);
+	pj_strdup2(pool, &attr->value,
 		   (local_state ==  NOTIFY_OPEN) ? "open" :
 		   (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
 
-	ast_sip_presence_xml_find_node_attr(state_data->pool, address,
-			"msnsubstatus", "substatus", &msnsubstatus, &attr);
-	pj_strdup2(state_data->pool, &attr->value,
+	find_node_attr(pool, address, "msnsubstatus", "substatus", &msnsubstatus, &attr);
+	pj_strdup2(pool, &attr->value,
 		   (local_state == NOTIFY_OPEN) ? "online" :
 		   (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
 
