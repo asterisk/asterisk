@@ -589,11 +589,11 @@ struct thr_lock_info {
 	/*! This is the actual container of info for what locks this thread holds */
 	struct {
 		const char *file;
-		int line_num;
 		const char *func;
 		const char *lock_name;
 		void *lock_addr;
 		int times_locked;
+		int line_num;
 		enum ast_lock_type type;
 		/*! This thread is waiting on this lock */
 		int pending:2;
@@ -607,6 +607,8 @@ struct thr_lock_info {
 	 *  The index (num_locks - 1) has the info on the last one in the
 	 *  locks member */
 	unsigned int num_locks;
+	/*! The LWP id (which GDB prints) */
+	int lwp;
 	/*! Protects the contents of the locks member
 	 * Intentionally not ast_mutex_t */
 	pthread_mutex_t lock;
@@ -1049,8 +1051,13 @@ struct ast_str *ast_dump_locks(void)
 			}
 
 			if (!header_printed) {
-				ast_str_append(&str, 0, "=== Thread ID: 0x%lx (%s)\n", (long) lock_info->thread_id,
-					lock_info->thread_name);
+				if (lock_info->lwp != -1) {
+					ast_str_append(&str, 0, "=== Thread ID: 0x%lx LWP:%d (%s)\n",
+						(long) lock_info->thread_id, lock_info->lwp, lock_info->thread_name);
+				} else {
+					ast_str_append(&str, 0, "=== Thread ID: 0x%lx (%s)\n",
+						(long) lock_info->thread_id, lock_info->thread_name);
+				}
 				header_printed = 1;
 			}
 
@@ -1145,6 +1152,7 @@ static void *dummy_start(void *data)
 		return NULL;
 
 	lock_info->thread_id = pthread_self();
+	lock_info->lwp = ast_get_tid();
 	lock_info->thread_name = strdup(a.name);
 
 	pthread_mutexattr_init(&mutex_attr);
