@@ -1257,7 +1257,8 @@ struct mansession {
 	ast_mutex_t lock;
 };
 
-static struct ao2_container *sessions = NULL;
+/*! Active manager connection sessions container. */
+static AO2_GLOBAL_OBJ_STATIC(mgr_sessions);
 
 /*! \brief user descriptor, as read from the config file.
  *
@@ -1292,7 +1293,7 @@ static AST_RWLIST_HEAD_STATIC(actions, manager_action);
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
 /*! \brief A container of event documentation nodes */
-AO2_GLOBAL_OBJ_STATIC(event_docs);
+static AO2_GLOBAL_OBJ_STATIC(event_docs);
 
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
@@ -1740,7 +1741,7 @@ static struct mansession_session *unref_mansession(struct mansession_session *s)
 	if (manager_debug) {
 		ast_debug(1, "Mansession: %p refcount now %d\n", s, refcount - 1);
 	}
-	return s;
+	return NULL;
 }
 
 static void event_filter_destructor(void *obj)
@@ -1772,12 +1773,10 @@ static void session_destructor(void *obj)
 	}
 
 	if (session->whitefilters) {
-		ao2_t_callback(session->whitefilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all white filters");
 		ao2_t_ref(session->whitefilters, -1 , "decrement ref for white container, should be last one");
 	}
 
 	if (session->blackfilters) {
-		ao2_t_callback(session->blackfilters, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL, "unlink all black filters");
 		ao2_t_ref(session->blackfilters, -1 , "decrement ref for black container, should be last one");
 	}
 }
@@ -1785,19 +1784,18 @@ static void session_destructor(void *obj)
 /*! \brief Allocate manager session structure and add it to the list of sessions */
 static struct mansession_session *build_mansession(const struct ast_sockaddr *addr)
 {
+	struct ao2_container *sessions;
 	struct mansession_session *newsession;
 
-	if (!(newsession = ao2_alloc(sizeof(*newsession), session_destructor))) {
+	newsession = ao2_alloc(sizeof(*newsession), session_destructor);
+	if (!newsession) {
 		return NULL;
 	}
 
-	if (!(newsession->whitefilters = ao2_container_alloc(1, NULL, NULL))) {
+	newsession->whitefilters = ao2_container_alloc(1, NULL, NULL);
+	newsession->blackfilters = ao2_container_alloc(1, NULL, NULL);
+	if (!newsession->whitefilters || !newsession->blackfilters) {
 		ao2_ref(newsession, -1);
-		return NULL;
-	}
-
-	if (!(newsession->blackfilters = ao2_container_alloc(1, NULL, NULL))) {
-		ao2_ref(newsession, -1); /* session_destructor will cleanup the other filter */
 		return NULL;
 	}
 
@@ -1807,7 +1805,11 @@ static struct mansession_session *build_mansession(const struct ast_sockaddr *ad
 	newsession->send_events = -1;
 	ast_sockaddr_copy(&newsession->addr, addr);
 
-	ao2_link(sessions, newsession);
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (sessions) {
+		ao2_link(sessions, newsession);
+		ao2_ref(sessions, -1);
+	}
 
 	return newsession;
 }
@@ -1821,19 +1823,31 @@ static int mansession_cmp_fn(void *obj, void *arg, int flags)
 
 static void session_destroy(struct mansession_session *s)
 {
+	struct ao2_container *sessions;
+
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (sessions) {
+		ao2_unlink(sessions, s);
+		ao2_ref(sessions, -1);
+	}
 	unref_mansession(s);
-	ao2_unlink(sessions, s);
 }
 
 
 static int check_manager_session_inuse(const char *name)
 {
-	struct mansession_session *session = ao2_find(sessions, (char *) name, 0);
+	struct ao2_container *sessions;
+	struct mansession_session *session;
 	int inuse = 0;
 
-	if (session) {
-		inuse = 1;
-		unref_mansession(session);
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (sessions) {
+		session = ao2_find(sessions, (char *) name, 0);
+		ao2_ref(sessions, -1);
+		if (session) {
+			unref_mansession(session);
+			inuse = 1;
+		}
 	}
 	return inuse;
 }
@@ -2139,6 +2153,7 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 /*! \brief CLI command manager list connected */
 static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	struct ao2_container *sessions;
 	struct mansession_session *session;
 	time_t now = time(NULL);
 #define HSMCONN_FORMAT1 "  %-15.15s  %-55.55s  %-10.10s  %-10.10s  %-8.8s  %-8.8s  %-5.5s  %-5.5s\n"
@@ -2160,15 +2175,26 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	ast_cli(a->fd, HSMCONN_FORMAT1, "Username", "IP Address", "Start", "Elapsed", "FileDes", "HttpCnt", "Read", "Write");
 
-	i = ao2_iterator_init(sessions, 0);
-	while ((session = ao2_iterator_next(&i))) {
-		ao2_lock(session);
-		ast_cli(a->fd, HSMCONN_FORMAT2, session->username, ast_sockaddr_stringify_addr(&session->addr), (int)(session->sessionstart), (int)(now - session->sessionstart), session->fd, session->inuse, session->readperm, session->writeperm);
-		count++;
-		ao2_unlock(session);
-		unref_mansession(session);
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (sessions) {
+		i = ao2_iterator_init(sessions, 0);
+		ao2_ref(sessions, -1);
+		while ((session = ao2_iterator_next(&i))) {
+			ao2_lock(session);
+			ast_cli(a->fd, HSMCONN_FORMAT2, session->username,
+				ast_sockaddr_stringify_addr(&session->addr),
+				(int) (session->sessionstart),
+				(int) (now - session->sessionstart),
+				session->fd,
+				session->inuse,
+				session->readperm,
+				session->writeperm);
+			count++;
+			ao2_unlock(session);
+			unref_mansession(session);
+		}
+		ao2_iterator_destroy(&i);
 	}
-	ao2_iterator_destroy(&i);
 	ast_cli(a->fd, "%d users connected.\n", count);
 
 	return CLI_SUCCESS;
@@ -5877,15 +5903,17 @@ done:
 /*! \brief remove at most n_max stale session from the list. */
 static void purge_sessions(int n_max)
 {
+	struct ao2_container *sessions;
 	struct mansession_session *session;
 	time_t now = time(NULL);
 	struct ao2_iterator i;
 
+	sessions = ao2_global_obj_ref(mgr_sessions);
 	if (!sessions) {
 		return;
 	}
-
 	i = ao2_iterator_init(sessions, 0);
+	ao2_ref(sessions, -1);
 	while ((session = ao2_iterator_next(&i)) && n_max > 0) {
 		ao2_lock(session);
 		if (session->sessiontimeout && (now > session->sessiontimeout) && !session->inuse) {
@@ -5954,9 +5982,11 @@ static void append_channel_vars(struct ast_str **pbuf, struct ast_channel *chan)
 AST_THREADSTORAGE(manager_event_buf);
 #define MANAGER_EVENT_BUF_INITSIZE   256
 
-int __ast_manager_event_multichan(int category, const char *event, int chancount, struct
-	ast_channel **chans, const char *file, int line, const char *func, const char *fmt, ...)
+int __ast_manager_event_multichan(int category, const char *event, int chancount,
+	struct ast_channel **chans, const char *file, int line, const char *func,
+	const char *fmt, ...)
 {
+	RAII_VAR(struct ao2_container *, sessions, ao2_global_obj_ref(mgr_sessions), ao2_cleanup);
 	struct mansession_session *session;
 	struct manager_custom_hook *hook;
 	struct ast_str *auth = ast_str_alloca(80);
@@ -6272,6 +6302,7 @@ static const char * const contenttype[] = {
  */
 static struct mansession_session *find_session(uint32_t ident, int incinuse)
 {
+	struct ao2_container *sessions;
 	struct mansession_session *session;
 	struct ao2_iterator i;
 
@@ -6279,7 +6310,12 @@ static struct mansession_session *find_session(uint32_t ident, int incinuse)
 		return NULL;
 	}
 
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!sessions) {
+		return NULL;
+	}
 	i = ao2_iterator_init(sessions, 0);
+	ao2_ref(sessions, -1);
 	while ((session = ao2_iterator_next(&i))) {
 		ao2_lock(session);
 		if (session->managerid == ident && !session->needdestroy) {
@@ -6306,13 +6342,19 @@ static struct mansession_session *find_session(uint32_t ident, int incinuse)
 static struct mansession_session *find_session_by_nonce(const char *username, unsigned long nonce, int *stale)
 {
 	struct mansession_session *session;
+	struct ao2_container *sessions;
 	struct ao2_iterator i;
 
 	if (nonce == 0 || username == NULL || stale == NULL) {
 		return NULL;
 	}
 
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!sessions) {
+		return NULL;
+	}
 	i = ao2_iterator_init(sessions, 0);
+	ao2_ref(sessions, -1);
 	while ((session = ao2_iterator_next(&i))) {
 		ao2_lock(session);
 		if (!strcasecmp(session->username, username) && session->managerid == nonce) {
@@ -6326,6 +6368,7 @@ static struct mansession_session *find_session_by_nonce(const char *username, un
 		unref_mansession(session);
 	}
 	ao2_iterator_destroy(&i);
+
 	return session;
 }
 
@@ -6349,13 +6392,19 @@ int astman_verify_session_readpermissions(uint32_t ident, int perm)
 {
 	int result = 0;
 	struct mansession_session *session;
+	struct ao2_container *sessions;
 	struct ao2_iterator i;
 
 	if (ident == 0) {
 		return 0;
 	}
 
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!sessions) {
+		return 0;
+	}
 	i = ao2_iterator_init(sessions, 0);
+	ao2_ref(sessions, -1);
 	while ((session = ao2_iterator_next(&i))) {
 		ao2_lock(session);
 		if ((session->managerid == ident) && (session->readperm & perm)) {
@@ -6368,6 +6417,7 @@ int astman_verify_session_readpermissions(uint32_t ident, int perm)
 		unref_mansession(session);
 	}
 	ao2_iterator_destroy(&i);
+
 	return result;
 }
 
@@ -6375,13 +6425,19 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm)
 {
 	int result = 0;
 	struct mansession_session *session;
+	struct ao2_container *sessions;
 	struct ao2_iterator i;
 
 	if (ident == 0) {
 		return 0;
 	}
 
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!sessions) {
+		return 0;
+	}
 	i = ao2_iterator_init(sessions, 0);
+	ao2_ref(sessions, -1);
 	while ((session = ao2_iterator_next(&i))) {
 		ao2_lock(session);
 		if ((session->managerid == ident) && (session->writeperm & perm)) {
@@ -6394,6 +6450,7 @@ int astman_verify_session_writepermissions(uint32_t ident, int perm)
 		unref_mansession(session);
 	}
 	ao2_iterator_destroy(&i);
+
 	return result;
 }
 
@@ -7370,7 +7427,13 @@ static int function_amiclient(struct ast_channel *chan, const char *cmd, char *d
 
 	if (!strcasecmp(args.param, "sessions")) {
 		int no_sessions = 0;
-		ao2_callback_data(sessions, 0, get_manager_sessions_cb, /*login name*/ data, &no_sessions);
+		struct ao2_container *sessions;
+
+		sessions = ao2_global_obj_ref(mgr_sessions);
+		if (sessions) {
+			ao2_callback_data(sessions, 0, get_manager_sessions_cb, /*login name*/ data, &no_sessions);
+			ao2_ref(sessions, -1);
+		}
 		snprintf(buf, len, "%d", no_sessions);
 	} else {
 		ast_log(LOG_ERROR, "Invalid arguments provided to function AMI_CLIENT: %s\n", args.param);
@@ -7830,10 +7893,7 @@ static void manager_shutdown(void)
 		ami_tls_cfg.cipher = NULL;
 	}
 
-	if (sessions) {
-		ao2_ref(sessions, -1);
-		sessions = NULL;
-	}
+	ao2_global_obj_release(mgr_sessions);
 
 	while ((user = AST_LIST_REMOVE_HEAD(&users, list))) {
 		manager_free_user(user);
@@ -8368,8 +8428,14 @@ static int __init_manager(int reload, int by_external_config)
 	AST_RWLIST_UNLOCK(&users);
 
 	if (!reload) {
+		struct ao2_container *sessions;
+
 		/* If you have a NULL hash fn, you only need a single bucket */
 		sessions = ao2_container_alloc(1, NULL, mansession_cmp_fn);
+		if (sessions) {
+			ao2_global_obj_replace_unref(mgr_sessions, sessions);
+			ao2_ref(sessions, -1);
+		}
 	}
 
 	if (webmanager_enabled && manager_enabled) {
