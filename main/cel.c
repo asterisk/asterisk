@@ -47,6 +47,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/astobj2.h"
 
+/*! Config file to load for the CEL feature. */
+static const char cel_conf_file[] = "cel.conf";
+
 /*! Is the CEL subsystem enabled ? */
 static unsigned char cel_enabled;
 
@@ -77,13 +80,38 @@ static int64_t eventset;
 #define NUM_APP_BUCKETS		97
 
 /*!
+ * \brief Lock protecting CEL.
+ *
+ * \note It protects during reloads, shutdown, and accesses to
+ * the appset and linkedids containers.
+ */
+AST_MUTEX_DEFINE_STATIC(reload_lock);
+
+/*!
  * \brief Container of Asterisk application names
  *
  * The apps in this container are the applications that were specified
  * in the configuration as applications that CEL events should be generated
  * for when they start and end on a channel.
+ *
+ * \note Accesses to the appset container must be done while
+ * holding the reload_lock.
  */
 static struct ao2_container *appset;
+
+struct cel_linkedid {
+	/*! Number of channels with this linkedid. */
+	unsigned int count;
+	/*! Linkedid stored at end of struct. */
+	char id[0];
+};
+
+/*!
+ * \brief Container of channel references to a linkedid for CEL purposes.
+ *
+ * \note Accesses to the linkedids container must be done while
+ * holding the reload_lock.
+ */
 static struct ao2_container *linkedids;
 
 /*!
@@ -138,15 +166,6 @@ unsigned int ast_cel_check_enabled(void)
 	return cel_enabled;
 }
 
-static int print_app(void *obj, void *arg, int flags)
-{
-	struct ast_cli_args *a = arg;
-
-	ast_cli(a->fd, "CEL Tracking Application: %s\n", (const char *) obj);
-
-	return 0;
-}
-
 static void print_cel_sub(const struct ast_event *event, void *data)
 {
 	struct ast_cli_args *a = data;
@@ -196,7 +215,28 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		}
 	}
 
-	ao2_callback(appset, OBJ_NODATA, print_app, a);
+	/* Accesses to the appset container must be done while holding the reload_lock. */
+	ast_mutex_lock(&reload_lock);
+	if (appset) {
+		struct ao2_iterator iter;
+		char *app;
+
+		iter = ao2_iterator_init(appset, 0);
+		for (;;) {
+			app = ao2_iterator_next(&iter);
+			if (!app) {
+				break;
+			}
+			ast_mutex_unlock(&reload_lock);
+
+			ast_cli(a->fd, "CEL Tracking Application: %s\n", app);
+
+			ao2_ref(app, -1);
+			ast_mutex_lock(&reload_lock);
+		}
+		ao2_iterator_destroy(&iter);
+	}
+	ast_mutex_unlock(&reload_lock);
 
 	if (!(sub = ast_event_subscribe_new(AST_EVENT_SUB, print_cel_sub, a))) {
 		return CLI_FAILURE;
@@ -278,10 +318,12 @@ static void parse_apps(const char *val)
 			continue;
 		}
 
-		if (!(app = ao2_alloc(strlen(cur_app) + 1, NULL))) {
+		/* The app object is immutable so it doesn't need a lock of its own. */
+		app = ao2_alloc_options(strlen(cur_app) + 1, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+		if (!app) {
 			continue;
 		}
-		strcpy(app, cur_app);
+		strcpy(app, cur_app);/* Safe */
 
 		ao2_link(appset, app);
 		ao2_ref(app, -1);
@@ -289,9 +331,15 @@ static void parse_apps(const char *val)
 	}
 }
 
-AST_MUTEX_DEFINE_STATIC(reload_lock);
+static void set_defaults(void)
+{
+	cel_enabled = CEL_ENABLED_DEFAULT;
+	eventset = CEL_DEFAULT_EVENTS;
+	*cel_dateformat = '\0';
+	ao2_callback(appset, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+}
 
-static int do_reload(void)
+static int do_reload(int is_reload)
 {
 	struct ast_config *config;
 	const char *enabled_value;
@@ -302,17 +350,30 @@ static int do_reload(void)
 
 	ast_mutex_lock(&reload_lock);
 
-	/* Reset all settings before reloading configuration */
-	cel_enabled = CEL_ENABLED_DEFAULT;
-	eventset = CEL_DEFAULT_EVENTS;
-	*cel_dateformat = '\0';
-	ao2_callback(appset, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+	if (!is_reload) {
+		/* Initialize all settings before first configuration load. */
+		set_defaults();
+	}
 
-	config = ast_config_load2("cel.conf", "cel", config_flags);
-
-	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEUNCHANGED || config == CONFIG_STATUS_FILEINVALID) {
+	/*
+	 * Unfortunately we have to always load the config file because
+	 * other modules read the same file.
+	 */
+	config = ast_config_load2(cel_conf_file, "cel", config_flags);
+	if (!config || config == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_WARNING, "Could not load %s\n", cel_conf_file);
 		config = NULL;
 		goto return_cleanup;
+	}
+	if (config == CONFIG_STATUS_FILEUNCHANGED) {
+		/* This should never happen because we always load the config file. */
+		config = NULL;
+		goto return_cleanup;
+	}
+
+	if (is_reload) {
+		/* Reset all settings before reloading configuration */
+		set_defaults();
 	}
 
 	if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
@@ -368,24 +429,46 @@ const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag)
 void ast_cel_check_retire_linkedid(struct ast_channel *chan)
 {
 	const char *linkedid = ast_channel_linkedid(chan);
-	char *lid;
+	struct cel_linkedid *lid;
 
-	/* make sure we need to do all this work */
-
-	if (ast_strlen_zero(linkedid) || !ast_cel_track_event(AST_CEL_LINKEDID_END)) {
+	if (ast_strlen_zero(linkedid)) {
 		return;
 	}
 
-	if (!(lid = ao2_find(linkedids, (void *) linkedid, OBJ_POINTER))) {
+	/* Get the lock in case any CEL events are still in flight when we shutdown. */
+	ast_mutex_lock(&reload_lock);
+
+	if (!cel_enabled || !ast_cel_track_event(AST_CEL_LINKEDID_END)
+		|| !linkedids) {
+		/*
+		 * CEL is disabled or we are not tracking linkedids
+		 * or the CEL module is shutdown.
+		 */
+		ast_mutex_unlock(&reload_lock);
+		return;
+	}
+
+	lid = ao2_find(linkedids, (void *) linkedid, OBJ_KEY);
+	if (!lid) {
+		ast_mutex_unlock(&reload_lock);
+
+		/*
+		 * The user may have done a reload to start tracking linkedids
+		 * when a call was already in progress.  This is an unusual kind
+		 * of change to make after starting Asterisk.
+		 */
 		ast_log(LOG_ERROR, "Something weird happened, couldn't find linkedid %s\n", linkedid);
 		return;
 	}
 
-	/* We have a ref for each channel with this linkedid, the link and the above find, so if
-	 * before unreffing the channel we have a refcount of 3, we're done. Unlink and report. */
-	if (ao2_ref(lid, -1) == 3) {
+	if (!--lid->count) {
+		/* No channels use this linkedid anymore. */
 		ao2_unlink(linkedids, lid);
+		ast_mutex_unlock(&reload_lock);
+
 		ast_cel_report_event(chan, AST_CEL_LINKEDID_END, NULL, NULL, NULL);
+	} else {
+		ast_mutex_unlock(&reload_lock);
 	}
 	ao2_ref(lid, -1);
 }
@@ -517,26 +600,47 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 
 int ast_cel_linkedid_ref(const char *linkedid)
 {
-	char *lid;
+	struct cel_linkedid *lid;
 
 	if (ast_strlen_zero(linkedid)) {
 		ast_log(LOG_ERROR, "The linkedid should never be empty\n");
 		return -1;
 	}
 
-	if (!(lid = ao2_find(linkedids, (void *) linkedid, OBJ_POINTER))) {
-		if (!(lid = ao2_alloc(strlen(linkedid) + 1, NULL))) {
-			return -1;
-		}
-		strcpy(lid, linkedid);
-		if (!ao2_link(linkedids, lid)) {
-			ao2_ref(lid, -1);
-			return -1;
-		}
-		/* Leave both the link and the alloc refs to show a count of 1 + the link */
+	/* Get the lock in case any CEL events are still in flight when we shutdown. */
+	ast_mutex_lock(&reload_lock);
+
+	if (!cel_enabled || !ast_cel_track_event(AST_CEL_LINKEDID_END)) {
+		/* CEL is disabled or we are not tracking linkedids. */
+		ast_mutex_unlock(&reload_lock);
+		return 0;
 	}
-	/* If we've found, go ahead and keep the ref to increment count of how many channels
-	 * have this linkedid. We'll clean it up in check_retire */
+	if (!linkedids) {
+		/* The CEL module is shutdown.  Abort. */
+		ast_mutex_unlock(&reload_lock);
+		return -1;
+	}
+
+	lid = ao2_find(linkedids, (void *) linkedid, OBJ_KEY);
+	if (!lid) {
+		/*
+		 * Changes to the lid->count member are protected by the
+		 * reload_lock so the lid object does not need its own lock.
+		 */
+		lid = ao2_alloc_options(sizeof(*lid) + strlen(linkedid) + 1, NULL,
+			AO2_ALLOC_OPT_LOCK_NOLOCK);
+		if (!lid) {
+			ast_mutex_unlock(&reload_lock);
+			return -1;
+		}
+		strcpy(lid->id, linkedid);/* Safe */
+
+		ao2_link(linkedids, lid);
+	}
+	++lid->count;
+	ast_mutex_unlock(&reload_lock);
+	ao2_ref(lid, -1);
+
 	return 0;
 }
 
@@ -553,6 +657,12 @@ int ast_cel_report_event(struct ast_channel *chan, enum ast_cel_event_type event
 	 * is an event that we care about.  We could lose an important event in this
 	 * process otherwise. */
 	ast_mutex_lock(&reload_lock);
+
+	if (!appset) {
+		/* The CEL module is shutdown.  Abort. */
+		ast_mutex_unlock(&reload_lock);
+		return -1;
+	}
 
 	/* Record the linkedid of new channels if we are tracking LINKEDID_END even if we aren't
 	 * reporting on CHANNEL_START so we can track when to send LINKEDID_END */
@@ -702,42 +812,83 @@ static int app_hash(const void *obj, const int flags)
 
 static int app_cmp(void *obj, void *arg, int flags)
 {
-	const char *app1 = obj, *app2 = arg;
+	const char *app1 = obj;
+	const char *app2 = arg;
 
-	return !strcasecmp(app1, app2) ? CMP_MATCH | CMP_STOP : 0;
+	return !strcasecmp(app1, app2) ? CMP_MATCH : 0;
 }
 
-#define lid_hash app_hash
-#define lid_cmp app_cmp
+static int lid_hash(const void *obj, const int flags)
+{
+	const struct cel_linkedid *lid = obj;
+	const char *key = obj;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY)) {
+	case OBJ_POINTER:
+	default:
+		key = lid->id;
+		break;
+	case OBJ_KEY:
+		break;
+	}
+
+	return ast_str_case_hash(key);
+}
+
+static int lid_cmp(void *obj, void *arg, int flags)
+{
+	struct cel_linkedid *lid1 = obj;
+	struct cel_linkedid *lid2 = arg;
+	const char *key = arg;
+
+	switch (flags & (OBJ_POINTER | OBJ_KEY)) {
+	case OBJ_POINTER:
+	default:
+		key = lid2->id;
+		break;
+	case OBJ_KEY:
+		break;
+	}
+
+	return !strcasecmp(lid1->id, key) ? CMP_MATCH : 0;
+}
 
 static void ast_cel_engine_term(void)
 {
-	if (appset) {
-		ao2_ref(appset, -1);
-		appset = NULL;
-	}
-	if (linkedids) {
-		ao2_ref(linkedids, -1);
-		linkedids = NULL;
-	}
+	/* Get the lock in case any CEL events are still in flight when we shutdown. */
+	ast_mutex_lock(&reload_lock);
+
+	ao2_cleanup(appset);
+	appset = NULL;
+	ao2_cleanup(linkedids);
+	linkedids = NULL;
+
+	ast_mutex_unlock(&reload_lock);
+
 	ast_cli_unregister(&cli_status);
 }
 
 int ast_cel_engine_init(void)
 {
-	if (!(appset = ao2_container_alloc(NUM_APP_BUCKETS, app_hash, app_cmp))) {
+	/*
+	 * Accesses to the appset and linkedids containers have to be
+	 * protected by the reload_lock so they don't need a lock of
+	 * their own.
+	 */
+	appset = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, NUM_APP_BUCKETS,
+		app_hash, app_cmp);
+	if (!appset) {
 		return -1;
 	}
-	if (!(linkedids = ao2_container_alloc(NUM_APP_BUCKETS, lid_hash, lid_cmp))) {
-		ao2_ref(appset, -1);
+	linkedids = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, NUM_APP_BUCKETS,
+		lid_hash, lid_cmp);
+	if (!linkedids) {
+		ast_cel_engine_term();
 		return -1;
 	}
 
-	if (do_reload() || ast_cli_register(&cli_status)) {
-		ao2_ref(appset, -1);
-		appset = NULL;
-		ao2_ref(linkedids, -1);
-		linkedids = NULL;
+	if (do_reload(0) || ast_cli_register(&cli_status)) {
+		ast_cel_engine_term();
 		return -1;
 	}
 
@@ -748,6 +899,6 @@ int ast_cel_engine_init(void)
 
 int ast_cel_engine_reload(void)
 {
-	return do_reload();
+	return do_reload(1);
 }
 
