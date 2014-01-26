@@ -251,11 +251,11 @@ conf-file)
   ;;
 run)
   set_ld_env
-  $AST_BIN -C $AST_CONF "$@"
+  exec $AST_BIN -C $AST_CONF "$@"
   ;;
 valgrind)
   set_ld_env
-  valgrind $LIVE_AST_VALGRIND_ARGS $AST_BIN -C $AST_CONF "$@"
+  exec valgrind $LIVE_AST_VALGRIND_ARGS $AST_BIN -C $AST_CONF "$@"
   ;;
 rsync)
   remote_host="$1"
@@ -273,7 +273,7 @@ gen-live-asterisk)
   ;;
 gdb)
   set_ld_env
-  gdb -x $GDB_INIT $AST_BIN
+  exec gdb -x $GDB_INIT $AST_BIN
   ;;
 *)
   echo "$0: Unknown command '$command'. Aborting"
