@@ -1250,7 +1250,11 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 
-	ast_format_cap_copy(session->req_caps, req_caps);
+	if (!ast_format_cap_is_empty(req_caps)) {
+		ast_format_cap_copy(session->req_caps, session->endpoint->media.codecs);
+		ast_format_cap_append(session->req_caps, req_caps);
+	}
+
 	if ((pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS)) {
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		/* Since we are not notifying ourselves that the INVITE session is being terminated
