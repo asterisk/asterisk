@@ -172,6 +172,8 @@ static void *handle_tcptls_connection(void *data)
 	 */
 	if (ast_thread_inhibit_escalations()) {
 		ast_log(LOG_ERROR, "Failed to inhibit privilege escalations; killing connection\n");
+		ast_tcptls_close_session_file(tcptls_session);
+		ao2_ref(tcptls_session, -1);
 		return NULL;
 	}
 
