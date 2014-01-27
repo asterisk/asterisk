@@ -929,6 +929,10 @@ enum {
 	 * publish.
 	 */
 	AST_FLAG_SNAPSHOT_STAGE = (1 << 25),
+	/*!
+	 * The data on chan->timingdata is an astobj2 object.
+	 */
+	AST_FLAG_TIMINGDATA_IS_AO2_OBJ = (1 << 26),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -2275,6 +2279,7 @@ int ast_autoservice_ignore(struct ast_channel *chan, enum ast_frame_type ftype);
  * \version 1.6.1 changed samples parameter to rate, accomodates new timing methods
  */
 int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data);
+int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data, unsigned int is_ao2_obj);
 
 /*!
  * \brief Transfer a channel (if supported).
