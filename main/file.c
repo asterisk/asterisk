@@ -902,7 +902,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 
 			rate = (unsigned int) roundf(samp_rate / ((float) whennext));
 
-			ast_settimeout(s->owner, rate, ast_fsread_audio, s);
+			ast_settimeout_full(s->owner, rate, ast_fsread_audio, s, 1);
 		} else {
 			ast_channel_streamid_set(s->owner, ast_sched_add(ast_channel_sched(s->owner), whennext / (ast_format_rate(&s->fmt->format) / 1000), ast_fsread_audio, s));
 		}
