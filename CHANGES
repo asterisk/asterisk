@@ -666,6 +666,9 @@ AMI (Asterisk Manager Interface)
  * Added a 'security' class to AMI which outputs the required fields for
    security messages similar to the log messages from res_security_log
 
+ * The AMI event 'ExtensionStatus' now contains a 'StatusText' field
+   that describes the status value in a human readable string.
+
 CDR (Call Detail Records)
 ------------------
  * Significant changes have been made to the behavior of CDRs. The CDR engine
