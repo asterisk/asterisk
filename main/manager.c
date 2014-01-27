@@ -4942,8 +4942,10 @@ static int action_extensionstate(struct mansession *s, const struct message *m)
 			   "Exten: %s\r\n"
 			   "Context: %s\r\n"
 			   "Hint: %s\r\n"
-			   "Status: %d\r\n\r\n",
-			   exten, context, hint, status);
+			   "Status: %d\r\n"
+		           "StatusText: %s\r\n\r\n",
+		      exten, context, hint, status,
+		      ast_extension_state2str(status));
 	return 0;
 }
 
@@ -6124,11 +6126,13 @@ static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info
 			"Exten: %s\r\n"
 			"Context: %s\r\n"
 			"Hint: %s\r\n"
-			"Status: %d\r\n",
+			"Status: %d\r\n"
+			"StatusText: %s\r\n",
 			exten,
 			context,
 			hint,
-			info->exten_state);
+			info->exten_state,
+			ast_extension_state2str(info->exten_state));
 		break;
 	case AST_HINT_UPDATE_PRESENCE:
 		/*** DOCUMENTATION
