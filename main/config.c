@@ -2323,7 +2323,6 @@ int read_config_maps(void)
 		ast_log(LOG_ERROR, "Unable to allocate memory for new config\n");
 		return -1;
 	}
-	configtmp->max_include_level = 1;
 	config = ast_config_internal_load(extconfig_conf, configtmp, flags, "", "extconfig");
 	if (config == CONFIG_STATUS_FILEINVALID) {
 		return -1;
