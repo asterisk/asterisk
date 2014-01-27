@@ -47,5 +47,8 @@ Configuration Files:
    again set the root console verbose level and affect the verbose level
    logged.
 
+ - The manager.conf 'eventfilter' now takes an "extended" regular expression
+   instead of a "basic" one.
+
 ===========================================================
 ===========================================================

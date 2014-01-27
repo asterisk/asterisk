@@ -5121,7 +5121,7 @@ static enum add_filter_result manager_add_filter(const char *filter_pattern, str
 		is_blackfilter = 0;
 	}
 
-	if (regcomp(new_filter, filter_pattern, 0)) { /* XXX: the only place we use non-REG_EXTENDED */
+	if (regcomp(new_filter, filter_pattern, REG_EXTENDED | REG_NOSUB)) {
 		ao2_t_ref(new_filter, -1, "failed to make regex");
 		return FILTER_COMPILE_FAIL;
 	}
