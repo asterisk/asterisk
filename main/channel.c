@@ -3545,6 +3545,11 @@ int ast_waitfordigit(struct ast_channel *c, int ms)
 
 int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data)
 {
+	return ast_settimeout_full(c, rate, func, data, 0);
+}
+
+int ast_settimeout_full(struct ast_channel *c, unsigned int rate, int (*func)(const void *data), void *data, unsigned int is_ao2_obj)
+{
 	int res;
 	unsigned int real_rate = rate, max_rate;
 
@@ -3568,8 +3573,19 @@ int ast_settimeout(struct ast_channel *c, unsigned int rate, int (*func)(const v
 
 	res = ast_timer_set_rate(c->timer, real_rate);
 
+	if (c->timingdata && ast_test_flag(c, AST_FLAG_TIMINGDATA_IS_AO2_OBJ)) {
+		ao2_ref(c->timingdata, -1);
+	}
+
 	c->timingfunc = func;
 	c->timingdata = data;
+
+	if (data && is_ao2_obj) {
+		ao2_ref(data, 1);
+		ast_set_flag(c, AST_FLAG_TIMINGDATA_IS_AO2_OBJ);
+	} else {
+		ast_clear_flag(c, AST_FLAG_TIMINGDATA_IS_AO2_OBJ);
+	}
 
 	if (func == NULL && rate == 0 && c->fdno == AST_TIMING_FD) {
 		/* Clearing the timing func and setting the rate to 0
@@ -3877,9 +3893,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				/* save a copy of func/data before unlocking the channel */
 				int (*func)(const void *) = chan->timingfunc;
 				void *data = chan->timingdata;
+				int got_ref = 0;
+				if (data && ast_test_flag(chan, AST_FLAG_TIMINGDATA_IS_AO2_OBJ)) {
+					ao2_ref(data, 1);
+					got_ref = 1;
+				}
 				chan->fdno = -1;
 				ast_channel_unlock(chan);
 				func(data);
+				if (got_ref) {
+					ao2_ref(data, -1);
+				}
 			} else {
 				ast_timer_set_rate(chan->timer, 0);
 				chan->fdno = -1;
