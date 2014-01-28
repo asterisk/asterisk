@@ -224,4 +224,12 @@ float roundf(float x);
 #endif
 #endif
 
+#ifndef INFINITY
+#define INFINITY (1.0/0.0)
+#endif
+
+#ifndef NAN
+#define NAN (0.0/0.0)
+#endif
+
 #endif

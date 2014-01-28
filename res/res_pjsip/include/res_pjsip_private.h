@@ -9,6 +9,7 @@
 #define RES_PJSIP_PRIVATE_H_
 
 #include "asterisk/module.h"
+#include "asterisk/compat.h"
 
 struct ao2_container;
 struct ast_threadpool_options;
