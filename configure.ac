@@ -2134,7 +2134,14 @@ fi
 # Some distributions (like SuSE) remove the 5.1 suffix.
 AST_EXT_LIB_CHECK([LUA], [lua], [luaL_openlib], [lua.h], [-lm])
 
-AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
+# Accept either RADIUS client library, their APIs are fully compatible,
+# just different header filenames and different SONAMEs
+AST_EXT_LIB_CHECK([RADIUS], [freeradius-client], [rc_read_config], [freeradius-client.h])
+if test "x${PBX_RADIUS}" = "x1"; then
+	AC_DEFINE(FREERADIUS_CLIENT, [], [Use the FreeRADIUS-client library])
+else
+	AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
+fi
 
 AST_EXT_LIB_CHECK([COROSYNC], [cpg], [cpg_join], [corosync/cpg.h], [-lcfg])
 AST_EXT_LIB_CHECK([COROSYNC_CFG_STATE_TRACK], [cfg], [corosync_cfg_state_track], [corosync/cfg.h], [-lcfg])
