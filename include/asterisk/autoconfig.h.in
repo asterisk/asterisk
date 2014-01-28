@@ -29,6 +29,9 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
+/* Use the FreeRADIUS-client library */
+#undef FREERADIUS_CLIENT
+
 /* Define to 1 if anonymous semaphores work. */
 #undef HAS_WORKING_SEMAPHORE
 
