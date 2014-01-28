@@ -1234,6 +1234,15 @@ static void pubsub_on_server_timeout(pjsip_evsub *evsub)
 {
 	struct ast_sip_subscription *sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 
+	if (!sub) {
+		/* if a subscription has been terminated and the subscription
+		   timeout/expires is less than the time it takes for all pending
+		   transactions to end then the subscription timer will not have
+		   been canceled yet and sub will be null, so do nothing since
+		   the subscription has already been terminated. */
+		return;
+	}
+
 	ao2_ref(sub, +1);
 	ast_sip_push_task(sub->serializer, serialized_pubsub_on_server_timeout, sub);
 }
