@@ -326,8 +326,8 @@ static int subscribe_device_state(struct stasis_app *app, void *obj)
 	ast_debug(3, "Subscribing to device %s", sub->device_name);
 
 	if (is_subscribed_device_state(app, sub->device_name)) {
-		ast_log(LOG_WARNING, "Already subscribed to %s\n", sub->device_name);
-		return -1;
+		ast_debug(3, "App %s is already subscribed to %s\n", stasis_app_name(app), sub->device_name);
+		return 0;
 	}
 
 	if (!(sub->sub = stasis_subscribe(
