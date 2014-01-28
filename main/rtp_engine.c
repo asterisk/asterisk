@@ -1357,11 +1357,15 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 	}
 
 	glue->get_rtp_info(peer, &peer_instance);
-
-	if (!peer_instance || peer_instance->engine != instance->engine) {
+	if (!peer_instance) {
+		ast_log(LOG_ERROR, "Unable to get_rtp_info for peer type %s\n", glue->type);
+		ast_channel_unlock(peer);
+		return -1;
+	}
+	if (peer_instance->engine != instance->engine) {
+		ast_log(LOG_ERROR, "Peer engine mismatch for type %s\n", glue->type);
 		ast_channel_unlock(peer);
 		ao2_ref(peer_instance, -1);
-		peer_instance = NULL;
 		return -1;
 	}
 
