@@ -87,7 +87,8 @@ static struct timespec to_sleep = {1, 0};
 
 static void do_sleep(void)
 {
-	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR));
+	while ((nanosleep(&to_sleep, &to_sleep) == -1) && (errno == EINTR)) {
+	}
 }
 
 #define APPEND_EVENT(chan, ev_type, userevent, extra) do { \
@@ -357,6 +358,14 @@ static void safe_channel_release(struct ast_channel *chan)
 	ast_channel_release(chan);
 }
 
+static void safe_bridge_destroy(struct ast_bridge *bridge)
+{
+	if (!bridge) {
+		return;
+	}
+	ast_bridge_destroy(bridge, 0);
+}
+
 AST_TEST_DEFINE(test_cel_channel_creation)
 {
 	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_release);
@@ -472,7 +481,7 @@ AST_TEST_DEFINE(test_cel_single_party)
 AST_TEST_DEFINE(test_cel_single_bridge)
 {
 	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 
 	struct ast_party_caller caller = ALICE_CALLERID;
 
@@ -511,7 +520,7 @@ AST_TEST_DEFINE(test_cel_single_bridge)
 AST_TEST_DEFINE(test_cel_single_bridge_continue)
 {
 	RAII_VAR(struct ast_channel *, chan, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller caller = ALICE_CALLERID;
 
 	switch (cmd) {
@@ -553,7 +562,7 @@ AST_TEST_DEFINE(test_cel_single_twoparty_bridge_a)
 {
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller caller_alice = ALICE_CALLERID;
 	struct ast_party_caller caller_bob = BOB_CALLERID;
 
@@ -601,7 +610,7 @@ AST_TEST_DEFINE(test_cel_single_twoparty_bridge_b)
 {
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller caller_alice = ALICE_CALLERID;
 	struct ast_party_caller caller_bob = BOB_CALLERID;
 
@@ -654,7 +663,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller caller_alice = ALICE_CALLERID;
 	struct ast_party_caller caller_bob = BOB_CALLERID;
 	struct ast_party_caller caller_charlie = CHARLIE_CALLERID;
@@ -1003,7 +1012,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_twoparty_bridge_a)
 {
 	RAII_VAR(struct ast_channel *, chan_caller, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_callee, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller caller = ALICE_CALLERID;
 
 	switch (cmd) {
@@ -1050,7 +1059,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_twoparty_bridge_b)
 {
 	RAII_VAR(struct ast_channel *, chan_caller, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_callee, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller caller = ALICE_CALLERID;
 
 	switch (cmd) {
@@ -1099,7 +1108,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_multiparty)
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_david, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller charlie_caller = CHARLIE_CALLERID;
 
@@ -1173,7 +1182,7 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 {
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
 	struct ast_bridge_channel_pair pair;
@@ -1224,8 +1233,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_david, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_bridge *, bridge2, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge1, NULL, safe_bridge_destroy);
+	RAII_VAR(struct ast_bridge *, bridge2, NULL, safe_bridge_destroy);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
 	struct ast_party_caller charlie_caller = CHARLIE_CALLERID;
@@ -1301,8 +1310,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_david, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_bridge *, bridge2, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge1, NULL, safe_bridge_destroy);
+	RAII_VAR(struct ast_bridge *, bridge2, NULL, safe_bridge_destroy);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
 	struct ast_party_caller charlie_caller = CHARLIE_CALLERID;
@@ -1382,8 +1391,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_charlie, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_david, NULL, safe_channel_release);
-	RAII_VAR(struct ast_bridge *, bridge1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_bridge *, bridge2, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge1, NULL, safe_bridge_destroy);
+	RAII_VAR(struct ast_bridge *, bridge2, NULL, safe_bridge_destroy);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
 	struct ast_party_caller charlie_caller = CHARLIE_CALLERID;
@@ -1439,7 +1448,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 
 	/* The following events can not be matched directly since nothing is known
 	 * about the linking local channel.
-	 * local channel ;1 and ;2 creation and ;2 answer */
+	 * ;1 and ;2 CHAN_START and ;2 ANSWER */
 	APPEND_DUMMY_EVENT();
 	APPEND_DUMMY_EVENT();
 	APPEND_DUMMY_EVENT();
@@ -1469,6 +1478,15 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	HANGUP_CHANNEL(chan_david, AST_CAUSE_NORMAL, "");
 	do_sleep();
 	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
+	do_sleep();
+
+	/* ;1 and ;2 BRIDGE_EXIT, HANGUP, and CHAN_END */
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
+	APPEND_DUMMY_EVENT();
 
 	return AST_TEST_PASS;
 }
