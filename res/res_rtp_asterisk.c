@@ -1822,7 +1822,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 		}
 
 		/* See if we ran out of ports or if the bind actually failed because of something other than the address being in use */
-		if (x == startplace || errno != EADDRINUSE) {
+		if (x == startplace || (errno != EADDRINUSE && errno != EACCES)) {
 			ast_log(LOG_ERROR, "Oh dear... we couldn't allocate a port for RTP instance '%p'\n", instance);
 			close(rtp->s);
 			ast_free(rtp);

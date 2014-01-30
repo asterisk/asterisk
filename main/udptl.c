@@ -1051,7 +1051,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, s
 		if (ast_bind(udptl->fd, &udptl->us) == 0) {
 			break;
 		}
-		if (errno != EADDRINUSE) {
+		if (errno != EADDRINUSE && errno != EACCES) {
 			ast_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
 			close(udptl->fd);
 			ast_free(udptl);
