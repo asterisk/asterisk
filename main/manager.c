@@ -3656,7 +3656,8 @@ static int action_hangup(struct mansession *s, const struct message *m)
 
 	if (name_or_regex[0] != '/') {
 		if (!(c = ast_channel_get_by_name(name_or_regex))) {
-			ast_log(LOG_NOTICE, "!!!!!!!!!! Can't find channel to hang up!\n");
+			ast_log(LOG_NOTICE, "Request to hangup non-existent channel: %s\n",
+				name_or_regex);
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
