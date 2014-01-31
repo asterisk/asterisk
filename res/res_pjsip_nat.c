@@ -32,9 +32,8 @@
 #include "asterisk/module.h"
 #include "asterisk/acl.h"
 
-static pj_bool_t nat_on_rx_message(pjsip_rx_data *rdata)
+static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
 {
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
 	pjsip_contact_hdr *contact;
 
 	if (!endpoint) {
@@ -44,9 +43,17 @@ static pj_bool_t nat_on_rx_message(pjsip_rx_data *rdata)
 	if (endpoint->nat.rewrite_contact && (contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL)) &&
 		!contact->star && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
+		pjsip_dialog *dlg = pjsip_rdata_get_dlg(rdata);
 
 		pj_cstr(&uri->host, rdata->pkt_info.src_name);
 		uri->port = rdata->pkt_info.src_port;
+
+		/* rewrite the session target since it may have already been pulled from the contact header */
+		if (dlg && (!dlg->remote.contact
+			|| pjsip_uri_cmp(PJSIP_URI_IN_REQ_URI, dlg->remote.contact->uri, contact->uri))) {
+			dlg->remote.contact = (pjsip_contact_hdr*)pjsip_hdr_clone(dlg->pool, contact);
+			dlg->target = dlg->remote.contact->uri;
+		}
 	}
 
 	if (endpoint->nat.force_rport) {
@@ -54,6 +61,12 @@ static pj_bool_t nat_on_rx_message(pjsip_rx_data *rdata)
 	}
 
 	return PJ_FALSE;
+}
+
+static pj_bool_t nat_on_rx_message(pjsip_rx_data *rdata)
+{
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
+	return handle_rx_message(endpoint, rdata);
 }
 
 /*! \brief Structure which contains information about a transport */
@@ -230,6 +243,12 @@ static int nat_incoming_invite_request(struct ast_sip_session *session, struct p
 	return 0;
 }
 
+/*! \brief Function called when an INVITE response comes in */
+static void nat_incoming_invite_response(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
+{
+	handle_rx_message(session->endpoint, rdata);
+}
+
 /*! \brief Function called when an INVITE comes in */
 static void nat_outgoing_invite_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
 {
@@ -244,6 +263,7 @@ static struct ast_sip_session_supplement nat_supplement = {
 	.priority = AST_SIP_SUPPLEMENT_PRIORITY_FIRST + 1,
 	.incoming_request = nat_incoming_invite_request,
 	.outgoing_request = nat_outgoing_invite_request,
+	.incoming_response = nat_incoming_invite_response,
 };
 
 
