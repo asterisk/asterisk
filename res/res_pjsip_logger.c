@@ -195,10 +195,50 @@ static struct ast_cli_entry cli_pjsip[] = {
 	AST_CLI_DEFINE(pjsip_set_logger, "Enable/Disable PJSIP Logger Output")
 };
 
+static void check_debug(void)
+{
+	RAII_VAR(char *, debug, ast_sip_get_debug(), ast_free);
+
+	if (ast_false(debug)) {
+		logging_mode = LOGGING_MODE_DISABLED;
+		return;
+	}
+
+	logging_mode = LOGGING_MODE_ENABLED;
+
+	if (ast_true(debug)) {
+		ast_sockaddr_setnull(&log_addr);
+		return;
+	}
+
+	/* assume host */
+	if (ast_sockaddr_resolve_first_af(&log_addr, debug, 0, AST_AF_UNSPEC)) {
+		ast_log(LOG_WARNING, "Could not resolve host %s for debug "
+			"logging\n", debug);
+	}
+}
+
+static void global_reloaded(const char *object_type)
+{
+	check_debug();
+}
+
+static const struct ast_sorcery_observer global_observer = {
+	.loaded = global_reloaded
+};
+
 static int load_module(void)
 {
+	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &global_observer)) {
+		ast_log(LOG_WARNING, "Unable to add global observer\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	check_debug();
+
 	ast_sip_register_service(&logging_module);
 	ast_cli_register_multiple(cli_pjsip, ARRAY_LEN(cli_pjsip));
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -206,6 +246,10 @@ static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_pjsip, ARRAY_LEN(cli_pjsip));
 	ast_sip_unregister_service(&logging_module);
+
+	ast_sorcery_observer_remove(
+		ast_sip_get_sorcery(), "global", &global_observer);
+
 	return 0;
 }
 
