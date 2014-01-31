@@ -35,8 +35,8 @@ import sqlalchemy as sa
 def upgrade():
     op.create_table(
         'extensions',
-        sa.Column('id', sa.BigInteger, nullable=False, unique=True,
-                  autoincrement=True),
+        sa.Column('id', sa.BigInteger, primary_key=True, nullable=False,
+                  unique=True, autoincrement=True),
         sa.Column('context', sa.String(40), primary_key=True, nullable=False),
         sa.Column('exten', sa.String(40), primary_key=True, nullable=False),
         sa.Column('priority', sa.Integer, primary_key=True, nullable=False,
