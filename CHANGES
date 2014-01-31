@@ -15,6 +15,11 @@
 Applications
 --------------------------
 
+ChanSpy
+--------------------------
+ * ChanSpy now accepts a channel uniqueid or a fully specified channel name
+   as the chanprefix parameter if the 'u' option is specified.
+
 ConfBridge
 --------------------------
  * CONFBRIDGE dialplan function is now capable of creating/modifying dynamic
