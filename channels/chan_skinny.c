@@ -5799,6 +5799,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 				sub->substate = SUBSTATE_ONHOOK;
 				skinny_unlocksub(sub);
 				ast_hangup(sub->owner);
+				return;
 			} else {
 				sub->substate = SUBSTATE_ONHOOK;
 				ast_queue_hangup(sub->owner);
