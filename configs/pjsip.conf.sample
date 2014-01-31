@@ -645,7 +645,6 @@
                         ; A value of 0 indicates no maximum (default: "0")
 ;type=  ; Must be of type system (default: "")
 
-
 ;==========================GLOBAL SECTION OPTIONS=========================
 ;[global]
 ;  SYNOPSIS: Options that apply globally to all SIP communications
@@ -664,8 +663,8 @@
                                                         ; endpoint (default: "d
                                                         ; efault_outbound_endpo
                                                         ; int")
-
-
+;debug=no ; Enable/Disable SIP debug logging.  Valid options include yes|no
+          ; or a host address (default: "no")
 
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl

@@ -98,6 +98,11 @@ chan_pjsip
  * Path support has been added with the 'support_path' option in registration
    and aor sections.
 
+res_pjsip
+------------------
+ * A 'debug' option has been added to the globals section that will allow
+   sip messages to be logged.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
 ------------------------------------------------------------------------------

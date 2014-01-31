@@ -37,6 +37,8 @@ struct global_config {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(useragent);
 		AST_STRING_FIELD(default_outbound_endpoint);
+		/*! Debug logging yes|no|host */
+		AST_STRING_FIELD(debug);
 	);
 	/* Value to put in Max-Forwards header */
 	unsigned int max_forwards;
@@ -53,7 +55,7 @@ static void *global_alloc(const char *name)
 {
 	struct global_config *cfg = ast_sorcery_generic_alloc(sizeof(*cfg), global_destructor);
 
-	if (!cfg || ast_string_field_init(cfg, 64)) {
+	if (!cfg || ast_string_field_init(cfg, 80)) {
 		return NULL;
 	}
 
@@ -97,6 +99,21 @@ char *ast_sip_global_default_outbound_endpoint(void)
 	return ast_strdup(cfg->default_outbound_endpoint);
 }
 
+char *ast_sip_get_debug(void)
+{
+	char *res;
+	struct global_config *cfg = get_global_cfg();
+
+	if (!cfg) {
+		return 0;
+	}
+
+	res = ast_strdup(cfg->debug);
+	ao2_ref(cfg, -1);
+
+	return res;
+}
+
 int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery)
 {
 	snprintf(default_useragent, sizeof(default_useragent), "%s %s", DEFAULT_USERAGENT_PREFIX, ast_get_version());
@@ -114,6 +131,8 @@ int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery)
 			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, useragent));
 	ast_sorcery_object_field_register(sorcery, "global", "default_outbound_endpoint", DEFAULT_OUTBOUND_ENDPOINT,
 			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_outbound_endpoint));
+	ast_sorcery_object_field_register(sorcery, "global", "debug", "no",
+			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, debug));
 
 	return 0;
 }

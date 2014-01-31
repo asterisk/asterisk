@@ -69,6 +69,8 @@ Realtime Configuration:
    potentially cause a migration problem.  If so, it may be necessary to
    manually alter the affected table/column to bring it back in line with the
    migration scripts.
+ * A new column was added to the 'ps_globals' realtime table for the 'debug'
+   option.
 
 
 ===========================================================

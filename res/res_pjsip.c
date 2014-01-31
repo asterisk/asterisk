@@ -1081,7 +1081,10 @@
 				<configOption name="default_outbound_endpoint" default="default_outbound_endpoint">
 					<synopsis>Endpoint to use when sending an outbound request to a URI without a specified endpoint.</synopsis>
 				</configOption>
-
+				<configOption name="debug" default="no">
+					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes|no or
+                                        a host address</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>

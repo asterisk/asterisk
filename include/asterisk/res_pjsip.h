@@ -1886,4 +1886,13 @@ int ast_sip_register_supplement(struct ast_sip_supplement *supplement);
  */
 void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
 
+/*!
+ * \brief Retrieve the system debug setting (yes|no|host).
+ *
+ * \note returned string needs to be de-allocated by caller.
+ *
+ * \retval the system debug setting.
+ */
+char *ast_sip_get_debug(void);
+
 #endif /* _RES_PJSIP_H */
