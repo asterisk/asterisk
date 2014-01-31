@@ -2760,8 +2760,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					/* perform a transfer to a new extension */
 					if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
 						replace_macro_delimiter(macro_transfer_dest);
-						if (!ast_parseable_goto(chan, macro_transfer_dest))
-							ast_set_flag64(peerflags, OPT_GO_ON);
+					}
+					if (!ast_parseable_goto(chan, macro_transfer_dest)) {
+						ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
 			}
@@ -2872,8 +2873,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 					/* perform a transfer to a new extension */
 					if (strchr(gosub_transfer_dest, '^')) { /* context^exten^priority*/
 						replace_macro_delimiter(gosub_transfer_dest);
-						if (!ast_parseable_goto(chan, gosub_transfer_dest))
-							ast_set_flag64(peerflags, OPT_GO_ON);
+					}
+					if (!ast_parseable_goto(chan, gosub_transfer_dest)) {
+						ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
 			}
