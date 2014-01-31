@@ -477,6 +477,9 @@ int ast_bridge_setup_after_goto(struct ast_channel *chan)
 			ast_pbx_h_exten_run(chan, after_bridge->context);
 		}
 	} else if (!ast_check_hangup(chan)) {
+		/* Clear the outgoing flag */
+		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING);
+
 		if (after_bridge->specific) {
 			goto_failed = ast_explicit_goto(chan, after_bridge->context,
 				after_bridge->exten, after_bridge->priority);

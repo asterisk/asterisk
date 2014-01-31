@@ -5914,18 +5914,18 @@ void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context)
 
 	ast_channel_lock(chan);
 
+	/*
+	 * Make sure that the channel is marked as hungup since we are
+	 * going to run the h exten on it.
+	 */
+	ast_softhangup_nolock(chan, AST_SOFTHANGUP_HANGUP_EXEC);
+
 	/* Set h exten location */
 	if (context != ast_channel_context(chan)) {
 		ast_channel_context_set(chan, context);
 	}
 	ast_channel_exten_set(chan, "h");
 	ast_channel_priority_set(chan, 1);
-
-	/*
-	 * Make sure that the channel is marked as hungup since we are
-	 * going to run the h exten on it.
-	 */
-	ast_softhangup_nolock(chan, AST_SOFTHANGUP_HANGUP_EXEC);
 
 	/* Save autoloop flag */
 	autoloopflag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);

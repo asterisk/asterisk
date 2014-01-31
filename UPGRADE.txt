@@ -22,7 +22,8 @@
 ===========================================================
 
 From 12 to 13:
-* The per console verbose level feature as previously implemented caused a
+
+- The per console verbose level feature as previously implemented caused a
   large performance penalty.  The fix required some minor incompatibilities
   if the new rasterisk is used to connect to an earlier version.  If the new
   rasterisk connects to an older Asterisk version then the root console verbose
@@ -30,6 +31,13 @@ From 12 to 13:
   console even though it may appear to only affect the current console.  If
   an older version of rasterisk connects to the new version then the
   "core set verbose" command will have no effect.
+
+CDRs:
+ - The "endbeforehexten" setting now defaults to "yes", instead of "no".
+   When set to "no", yhis setting will cause a new CDR to be generated when a
+   channel enters into hangup logic (either the 'h' extension or a hangup
+   handler subroutine). In general, this is not the preferred default: this
+   causes extra CDRs to be generated for a channel in many common dialplans.
 
 CLI commands:
  - "core show settings" now lists the current console verbosity in addition
@@ -51,25 +59,25 @@ Configuration Files:
    instead of a "basic" one.
 
 Realtime Configuration:
- * New columns have been added to realtime tables for 'support_path' on
+ - New columns have been added to realtime tables for 'support_path' on
    ps_registrations and ps_aors and for 'path' on ps_contacts for the new
    SIP Path support in chan_pjsip.
- * The following new tables have been added for pjsip realtime: 'ps_systems',
+ - The following new tables have been added for pjsip realtime: 'ps_systems',
    'ps_globals', 'ps_tranports', 'ps_registrations'.
- * The following columns were added to the 'ps_aors' realtime table:
+ - The following columns were added to the 'ps_aors' realtime table:
    'maximum_expiration', 'outbound_proxy', and 'support_path'.
- * The following columns were added to the 'ps_contacts' realtime table:
+ - The following columns were added to the 'ps_contacts' realtime table:
    'outbound_proxy' and 'path'.
- * New columns have been added to the ps_endpoints realtime table for the
+ - New columns have been added to the ps_endpoints realtime table for the
    'media_address', 'redirect_method' and 'set_var' options.  Also the
    'mwi_fromuser' column was renamed to 'mwi_from_user'.
- * WARNING: The database migration script that adds the 'extensions' table for
+ - WARNING: The database migration script that adds the 'extensions' table for
    realtime had to be modified due to an error when installing for MySQL.  The
    'extensions' table's 'id' column was changed to be a primary key.  This could
    potentially cause a migration problem.  If so, it may be necessary to
    manually alter the affected table/column to bring it back in line with the
    migration scripts.
- * A new column was added to the 'ps_globals' realtime table for the 'debug'
+ - A new column was added to the 'ps_globals' realtime table for the 'debug'
    option.
 
 

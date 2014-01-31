@@ -151,12 +151,38 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="DialStatus">
 					<para>The result of the dial operation.</para>
 					<enumlist>
-						<enum name="ANSWER" />
-						<enum name="BUSY" />
-						<enum name="CANCEL" />
-						<enum name="CHANUNAVAIL" />
-						<enum name="CONGESTION" />
-						<enum name="NOANSWER" />
+						<enum name="ABORT">
+							<para>The call was aborted.</para>
+						</enum>
+						<enum name="ANSWER">
+							<para>The caller answered.</para>
+						</enum>
+						<enum name="BUSY">
+							<para>The caller was busy.</para>
+						</enum>
+						<enum name="CANCEL">
+							<para>The caller cancelled the call.</para>
+						</enum>
+						<enum name="CHANUNAVAIL">
+							<para>The requested channel is unavailable.</para>
+						</enum>
+						<enum name="CONGESTION">
+							<para>The called party is congested.</para>
+						</enum>
+						<enum name="CONTINUE">
+							<para>The dial completed, but the caller elected
+							to continue in the dialplan.</para>
+						</enum>
+						<enum name="GOTO">
+							<para>The dial completed, but the caller jumped to
+							a dialplan location.</para>
+							<para>If known, the location the caller is jumping
+							to will be appended to the result following a
+							":".</para>
+						</enum>
+						<enum name="NOANSWER">
+							<para>The called party failed to answer.</para>
+						</enum>
 					</enumlist>
 				</parameter>
 			</syntax>

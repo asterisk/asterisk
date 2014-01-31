@@ -129,7 +129,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						channel. Any statistics are gathered from this new CDR. By enabling
 						this option, no new CDR is created for the dialplan logic that is
 						executed in <literal>h</literal> extensions or attached hangup handler
-						subroutines. The default value is <literal>no</literal>, indicating
+						subroutines. The default value is <literal>yes</literal>, indicating
 						that a CDR will be generated during hangup logic.</para>
 					</description>
 				</configOption>
@@ -203,7 +203,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_BATCHMODE "0"
 #define DEFAULT_UNANSWERED "0"
 #define DEFAULT_CONGESTION "0"
-#define DEFAULT_END_BEFORE_H_EXTEN "0"
+#define DEFAULT_END_BEFORE_H_EXTEN "1"
 #define DEFAULT_INITIATED_SECONDS "0"
 
 #define DEFAULT_BATCH_SIZE "100"
@@ -346,6 +346,9 @@ static struct stasis_forward *parking_subscription;
 
 /*! \brief The parent topic for all topics we want to aggregate for CDRs */
 static struct stasis_topic *cdr_topic;
+
+/*! \brief A message type used to synchronize with the CDR topic */
+STASIS_MESSAGE_TYPE_DEFN_LOCAL(cdr_sync_message_type);
 
 struct cdr_object;
 
@@ -1089,7 +1092,7 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 
 		/* Don't create records for CDRs where the party A was a dialed channel */
 		if (snapshot_is_dialed(it_cdr->party_a.snapshot) && !it_cdr->party_b.snapshot) {
-			CDR_DEBUG(mod_cfg, "%p - %s is dialed and has no Party B; discarding\n", it_cdr,
+			ast_debug(1, "CDR for %s is dialed and has no Party B; discarding\n",
 				it_cdr->party_a.snapshot->name);
 			continue;
 		}
@@ -1347,7 +1350,14 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 
 	ast_assert(strcasecmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
+
 	cdr_object_swap_snapshot(&cdr->party_a, snapshot);
+	/* Ignore any snapshots from a dead or dying channel */
+	if (ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
+			&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)) {
+		cdr_object_check_party_a_hangup(cdr);
+		return 0;
+	}
 
 	/* When Party A is originated to an application and the application exits, the stack
 	 * will attempt to clear the application and restore the dummy originate application
@@ -1359,6 +1369,15 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 			&& !ast_test_flag(&cdr->flags, AST_CDR_LOCK_APP)) {
 		ast_string_field_set(cdr, appl, snapshot->appl);
 		ast_string_field_set(cdr, data, snapshot->data);
+
+		/* Dial (app_dial) is a special case. Because pre-dial handlers, which
+		 * execute before the dial begins, will alter the application/data to
+		 * something people typically don't want to see, if we see a channel enter
+		 * into Dial here, we set the appl/data accordingly and lock it.
+		 */
+		if (!strcmp(snapshot->appl, "Dial")) {
+			ast_set_flag(&cdr->flags, AST_CDR_LOCK_APP);
+		}
 	}
 
 	ast_string_field_set(cdr, linkedid, snapshot->linkedid);
@@ -1434,6 +1453,12 @@ static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_ch
 		cdr_object_swap_snapshot(&cdr->party_b, peer);
 		CDR_DEBUG(mod_cfg, "%p - Updated Party B %s snapshot\n", cdr,
 				cdr->party_b.snapshot->name);
+
+		/* If we have two parties, lock the application that caused the
+		 * two parties to be associated. This prevents mid-call event
+		 * macros/gosubs from perturbing the CDR application/data
+		 */
+		ast_set_flag(&cdr->flags, AST_CDR_LOCK_APP);
 	} else if (!strcasecmp(cdr->party_a.snapshot->name, peer->name)) {
 		/* We're the entity being dialed, i.e., outbound origination */
 		cdr_object_swap_snapshot(&cdr->party_a, peer);
@@ -1822,9 +1847,8 @@ static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_ch
 	RAII_VAR(struct module_config *, mod_cfg,
 		ao2_global_obj_ref(module_configs), ao2_cleanup);
 
-	/* If we ignore hangup logic, indicate that we don't need a new CDR */
-	if (ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)
-		&& ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)) {
+	if (ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
+			&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)) {
 		return 0;
 	}
 
@@ -1922,7 +1946,7 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 				continue;
 			}
 			CDR_DEBUG(mod_cfg, "%p - Processing Dial Begin message for channel %s, peer %s\n",
-					cdr,
+					it_cdr,
 					caller ? caller->name : "(none)",
 					peer ? peer->name : "(none)");
 			res &= it_cdr->fn_table->process_dial_begin(it_cdr,
@@ -1933,7 +1957,7 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 				continue;
 			}
 			CDR_DEBUG(mod_cfg, "%p - Processing Dial End message for channel %s, peer %s\n",
-					cdr,
+					it_cdr,
 					caller ? caller->name : "(none)",
 					peer ? peer->name : "(none)");
 			it_cdr->fn_table->process_dial_end(it_cdr,
@@ -1999,11 +2023,10 @@ static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
 	RAII_VAR(struct module_config *, mod_cfg,
 			ao2_global_obj_ref(module_configs), ao2_cleanup);
 
-	if (!new_snapshot) {
-		return 0;
-	}
-
-	if (ast_test_flag(&new_snapshot->flags, AST_FLAG_DEAD)) {
+	/* If we're dead, we don't need a new CDR */
+	if (!new_snapshot
+		|| (ast_test_flag(&new_snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
+			&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN))) {
 		return 0;
 	}
 
@@ -2194,6 +2217,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	/* Party A */
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
+
 		if (!it_cdr->fn_table->process_bridge_leave) {
 			continue;
 		}
@@ -2560,6 +2584,19 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 
 	ao2_unlock(cdr);
 
+}
+
+/*!
+ * \brief Handler for a synchronization message
+ * \param data Passed on
+ * \param sub The stasis subscription for this message callback
+ * \param topic The topic this message was published for
+ * \param message A blank ao2 object
+ * */
+static void handle_cdr_sync_message(void *data, struct stasis_subscription *sub,
+		struct stasis_message *message)
+{
+	return;
 }
 
 struct ast_cdr_config *ast_cdr_get_config(void)
@@ -3337,6 +3374,11 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 		new_cdr->fn_table = cdr_obj->fn_table;
 		ast_string_field_set(new_cdr, bridge, cdr->bridge);
 		new_cdr->flags = cdr->flags;
+		/* Explicitly clear the AST_CDR_LOCK_APP flag - we want
+		 * the application to be changed on the new CDR if the
+		 * dialplan demands it
+		 */
+		ast_clear_flag(&new_cdr->flags, AST_CDR_LOCK_APP);
 
 		/* If there's a Party B, copy it over as well */
 		if (cdr_obj->party_b.snapshot) {
@@ -4017,6 +4059,8 @@ static void cdr_engine_shutdown(void)
 	ao2_cleanup(cdr_topic);
 	cdr_topic = NULL;
 
+	STASIS_MESSAGE_TYPE_CLEANUP(cdr_sync_message_type);
+
 	ao2_callback(active_cdrs_by_channel, OBJ_NODATA, cdr_object_dispatch_all_cb,
 		NULL);
 	finalize_batch_mode();
@@ -4120,11 +4164,17 @@ int ast_cdr_engine_init(void)
 	if (!stasis_router) {
 		return -1;
 	}
+
+	if (STASIS_MESSAGE_TYPE_INIT(cdr_sync_message_type)) {
+		return -1;
+	}
+
 	stasis_message_router_add_cache_update(stasis_router, ast_channel_snapshot_type(), handle_channel_cache_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_dial_type(), handle_dial_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_entered_bridge_type(), handle_bridge_enter_message, NULL);
 	stasis_message_router_add(stasis_router, ast_channel_left_bridge_type(), handle_bridge_leave_message, NULL);
 	stasis_message_router_add(stasis_router, ast_parked_call_type(), handle_parked_call_message, NULL);
+	stasis_message_router_add(stasis_router, cdr_sync_message_type(), handle_cdr_sync_message, NULL);
 
 	active_cdrs_by_channel = ao2_container_alloc(NUM_CDR_BUCKETS,
 		cdr_object_channel_hash_fn, cdr_object_channel_cmp_fn);
@@ -4149,6 +4199,8 @@ int ast_cdr_engine_init(void)
 void ast_cdr_engine_term(void)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_VAR(void *, payload, ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	/* Since this is called explicitly during process shutdown, we might not have ever
 	 * been initialized. If so, the config object will be NULL.
@@ -4156,10 +4208,22 @@ void ast_cdr_engine_term(void)
 	if (!mod_cfg) {
 		return;
 	}
-	if (!ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
+
+	/* Make sure we have the needed items */
+	if (!stasis_router || !payload) {
 		return;
 	}
-	cdr_submit_batch(ast_test_flag(&mod_cfg->general->batch_settings.settings, BATCH_MODE_SAFE_SHUTDOWN));
+
+	ast_debug(1, "CDR Engine termination request received; waiting on messages...\n");
+
+	message = stasis_message_create(cdr_sync_message_type(), payload);
+	if (message) {
+		stasis_message_router_publish_sync(stasis_router, message);
+	}
+
+	if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {
+		cdr_submit_batch(ast_test_flag(&mod_cfg->general->batch_settings.settings, BATCH_MODE_SAFE_SHUTDOWN));
+	}
 }
 
 int ast_cdr_engine_reload(void)
