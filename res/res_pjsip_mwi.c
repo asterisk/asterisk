@@ -453,48 +453,15 @@ static int add_mwi_datastore(struct mwi_subscription *sub)
 	return 0;
 }
 
-static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
-		pjsip_rx_data *rdata)
+static int mwi_on_aor(void *obj, void *arg, int flags)
 {
-	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
-	/* It's not obvious here, but the reference(s) to this subscription,
-	 * once this function exits, is held by the stasis subscription(s)
-	 * created in mwi_stasis_subscription_alloc()
-	 */
-	RAII_VAR(struct mwi_subscription *, sub, NULL, ao2_cleanup);
-	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
-	pjsip_sip_uri *sip_ruri;
-	pjsip_evsub *evsub;
-	char aor_name[80];
+	struct ast_sip_aor *aor = obj;
+	struct mwi_subscription *sub = arg;
 	char *mailboxes;
 	char *mailbox;
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
-		ast_log(LOG_WARNING, "Attempt to SUBSCRIBE to a non-SIP URI\n");
-		return NULL;
-	}
-	sip_ruri = pjsip_uri_get_uri(ruri);
-	ast_copy_pj_str(aor_name, &sip_ruri->user, sizeof(aor_name));
-
-	aor = ast_sip_location_retrieve_aor(aor_name);
-	if (!aor) {
-		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI subscription failed.\n", aor_name);
-		return NULL;
-	}
-
 	if (ast_strlen_zero(aor->mailboxes)) {
-		ast_log(LOG_WARNING, "AOR %s has no configured mailboxes. MWI subscription failed\n", aor_name);
-		return NULL;
-	}
-
-	sub = mwi_subscription_alloc(endpoint, AST_SIP_NOTIFIER, 1, rdata);
-	if (!sub) {
-		return NULL;
-	}
-
-	if (add_mwi_datastore(sub)) {
-		ast_log(LOG_WARNING, "Unable to allocate datastore on MWI subscription from %s\n", sub->id);
-		return NULL;
+		return 0;
 	}
 
 	mailboxes = ast_strdupa(aor->mailboxes);
@@ -504,6 +471,95 @@ static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *e
 		if (mwi_stasis_sub) {
 			ao2_link(sub->stasis_subs, mwi_stasis_sub);
 		}
+	}
+
+	return 0;
+}
+
+static struct mwi_subscription *mwi_create_subscription(
+	struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+{
+	struct mwi_subscription *sub = mwi_subscription_alloc(
+		endpoint, AST_SIP_NOTIFIER, 1, rdata);
+
+	if (!sub) {
+		return NULL;
+	}
+
+	if (add_mwi_datastore(sub)) {
+		ast_log(LOG_WARNING, "Unable to allocate datastore on MWI "
+			"subscription from %s\n", sub->id);
+		ao2_ref(sub, -1);
+		return NULL;
+	}
+
+	return sub;
+}
+
+static struct mwi_subscription *mwi_subscribe_single(
+	struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, const char *name)
+{
+	RAII_VAR(struct ast_sip_aor *, aor,
+		 ast_sip_location_retrieve_aor(name), ao2_cleanup);
+	struct mwi_subscription *sub;
+
+	if (!aor) {
+		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI "
+			"subscription failed.\n", name);
+		return NULL;
+	}
+
+	if (ast_strlen_zero(aor->mailboxes)) {
+		ast_log(LOG_WARNING, "AOR %s has no configured mailboxes. "
+			"MWI subscription failed\n", name);
+		return NULL;
+	}
+
+	if (!(sub = mwi_create_subscription(endpoint, rdata))) {
+		return NULL;
+	}
+
+	mwi_on_aor(aor, sub, 0);
+	return sub;
+}
+
+static struct mwi_subscription *mwi_subscribe_all(
+	struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+{
+	struct mwi_subscription *sub = mwi_create_subscription(endpoint, rdata);
+
+	if (!sub) {
+		return NULL;
+	}
+
+	ast_sip_for_each_aor(endpoint->aors, mwi_on_aor, sub);
+	return sub;
+}
+
+static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
+		pjsip_rx_data *rdata)
+{
+	/* It's not obvious here, but the reference(s) to this subscription,
+	 * once this function exits, is held by the stasis subscription(s)
+	 * created in mwi_stasis_subscription_alloc()
+	 */
+	RAII_VAR(struct mwi_subscription *, sub, NULL, ao2_cleanup);
+	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
+	pjsip_sip_uri *sip_ruri;
+	pjsip_evsub *evsub;
+	char aor_name[80];
+
+	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
+		ast_log(LOG_WARNING, "Attempt to SUBSCRIBE to a non-SIP URI\n");
+		return NULL;
+	}
+	sip_ruri = pjsip_uri_get_uri(ruri);
+	ast_copy_pj_str(aor_name, &sip_ruri->user, sizeof(aor_name));
+
+	/* no aor in uri? subscribe to all on endpoint */
+	if (!(sub = ast_strlen_zero(aor_name) ? mwi_subscribe_all(endpoint, rdata) :
+	      mwi_subscribe_single(endpoint, rdata, aor_name))) {
+		return NULL;
 	}
 
 	evsub = ast_sip_subscription_get_evsub(sub->sip_sub);
