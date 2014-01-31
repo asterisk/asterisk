@@ -21,6 +21,14 @@
 		LINKER_SYMBOL_PREFIXast_sip_publication_add_datastore;
 		LINKER_SYMBOL_PREFIXast_sip_publication_get_datastore;
 		LINKER_SYMBOL_PREFIXast_sip_publication_remove_datastore;
+		LINKER_SYMBOL_PREFIXast_sip_publication_remove_datastore;
+		LINKER_SYMBOL_PREFIXast_sip_pubsub_register_body_generator;
+		LINKER_SYMBOL_PREFIXast_sip_pubsub_unregister_body_generator;
+		LINKER_SYMBOL_PREFIXast_sip_pubsub_register_body_supplement;
+		LINKER_SYMBOL_PREFIXast_sip_pubsub_unregister_body_supplement;
+		LINKER_SYMBOL_PREFIXast_sip_pubsub_generate_body_content;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_get_body_type;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_get_body_subtype;
 	local:
 		*;
 };

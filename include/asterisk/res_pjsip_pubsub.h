@@ -226,23 +226,22 @@ struct ast_sip_subscription_response_data {
 struct ast_sip_subscription_handler {
 	/*! The name of the event this handler deals with */
 	const char *event_name;
-	/*! The types of body this handler accepts */
+	/*! The types of body this handler accepts.
+	 *
+	 * \note This option has no bearing when the handler is used in the
+	 * notifier role. When in a subscriber role, this header is used to
+	 * populate the Accept: header of an outbound SUBSCRIBE request
+	 */
 	const char *accept[AST_SIP_MAX_ACCEPT];
 	/*!
-	 * \brief Indicates if this handler can be used as a default handler for an event type.
+	 * \brief Default body type defined for the event package this handler handles.
 	 *
 	 * Typically, a SUBSCRIBE request will contain one or more Accept headers that tell
 	 * what format they expect the body of NOTIFY requests to use. However, every event
 	 * package is required to define a default body format type to be used if a SUBSCRIBE
 	 * request for the event contains no Accept header.
-	 *
-	 * If this value is non-zero, then this handler provides the default body format for
-	 * the event package and can handle SUBSCRIBES with no Accept headers present.
-	 * If this value is zero, then this handler provides an alternative body format
-	 * from the default for the event package and cannot handle SUBSCRIBEs with no
-	 * Accept header.
 	 */
-	unsigned int handles_default_accept;
+	const char *default_accept;
 	/*!
 	 * \brief Called when a subscription is to be destroyed
 	 *
@@ -536,5 +535,177 @@ int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *h
  * \brief Unregister a subscription handler
  */
 void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler *handler);
+
+/*!
+ * \brief Pubsub body generator
+ *
+ * A body generator is responsible for taking Asterisk content
+ * and converting it into a body format to be placed in an outbound
+ * SIP NOTIFY or PUBLISH request.
+ */
+struct ast_sip_pubsub_body_generator {
+	/*!
+	 * \brief Content type
+	 * In "plain/text", "plain" is the type
+	 */
+	const char *type;
+	/*!
+	 * \brief Content subtype
+	 * In "plain/text", "text" is the subtype
+	 */
+	const char *subtype;
+	/*!
+	 * \brief allocate body structure.
+	 *
+	 * Body generators will have this method called when a NOTIFY
+	 * or PUBLISH body needs to be created. The type returned depends on
+	 * the type of content being produced for the body. The data parameter
+	 * is provided by the subscription handler and will vary between different
+	 * event types.
+	 *
+	 * \param data The subscription data provided by the event handler
+	 * \retval non-NULL The allocated body
+	 * \retval NULL Failure
+	 */
+	void *(*allocate_body)(void *data);
+	/*!
+	 * \brief Add content to the body of a SIP request
+	 *
+	 * The body of the request has already been allocated by the body generator's
+	 * allocate_body callback.
+	 *
+	 * \param body The body of the SIP request. The type is determined by the
+	 * content type.
+	 * \param data The subscription data used to populate the body. The type is
+	 * determined by the content type.
+	 */
+	int (*generate_body_content)(void *body, void *data);
+	/*!
+	 * \brief Convert the body to a string.
+	 *
+	 * \param body The request body.
+	 * \param str The converted string form of the request body
+	 */
+	void (*to_string)(void *body, struct ast_str **str);
+	/*!
+	 * \brief Deallocate resources created for the body
+	 *
+	 * Optional callback to destroy resources allocated for the
+	 * message body.
+	 *
+	 * \param body Body to be destroyed
+	 */
+	void (*destroy_body)(void *body);
+	AST_LIST_ENTRY(ast_sip_pubsub_body_generator) list;
+};
+
+/*!
+ * \brief Body supplement
+ *
+ * Body supplements provide additions to bodies not already
+ * provided by body generators. This may include proprietary
+ * extensions, optional content, or other nonstandard fare.
+ */
+struct ast_sip_pubsub_body_supplement {
+	/*!
+	 * \brief Content type
+	 * In "plain/text", "plain" is the type
+	 */
+	const char *type;
+	/*!
+	 * \brief Content subtype
+	 * In "plain/text", "text" is the subtype
+	 */
+	const char *subtype;
+	/*!
+	 * \brief Add additional content to a SIP request body.
+	 *
+	 * A body generator will have already allocated a body and populated
+	 * it with base data for the event. The supplement's duty is, if desired,
+	 * to extend the body to have optional data beyond what a base RFC specifies.
+	 *
+	 * \param body The body of the SIP request. The type is determined by the
+	 * body generator that allocated the body.
+	 * \param data The subscription data used to populate the body. The type is
+	 * determined by the content type.
+	 */
+	int (*supplement_body)(void *body, void *data);
+	AST_LIST_ENTRY(ast_sip_pubsub_body_supplement) list;
+};
+
+/*!
+ * \since 13.0.0
+ * \brief Generate body content for a PUBLISH or NOTIFY
+ *
+ * This function takes a pre-allocated body and calls into registered body
+ * generators in order to fill in the body with appropriate details.
+ * The primary body generator will be called first, followed by the
+ * supplementary body generators
+ *
+ * \param content_type The content type of the body
+ * \param content_subtype The content subtype of the body
+ * \param data The data associated with body generation.
+ * \param[out] str The string representation of the generated body
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_pubsub_generate_body_content(const char *content_type,
+		const char *content_subtype, void *data, struct ast_str **str);
+
+/*!
+ * \since 13.0.0
+ * \brief Register a body generator with the pubsub core.
+ *
+ * This may fail if an attempt is made to register a primary body supplement
+ * for a given content type if a primary body supplement for that content type
+ * has already been registered.
+ *
+ * \param generator Body generator to register
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_pubsub_register_body_generator(struct ast_sip_pubsub_body_generator *generator);
+
+/*!
+ * \since 13.0.0
+ * \brief Unregister a body generator with the pubsub core.
+ *
+ * \param generator Body generator to unregister
+ */
+void ast_sip_pubsub_unregister_body_generator(struct ast_sip_pubsub_body_generator *generator);
+
+/*!
+ * \since 13.0.0
+ * \brief Register a body generator with the pubsub core.
+ *
+ * This may fail if an attempt is made to register a primary body supplement
+ * for a given content type if a primary body supplement for that content type
+ * has already been registered.
+ *
+ * \param generator Body generator to register
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_pubsub_register_body_supplement(struct ast_sip_pubsub_body_supplement *supplement);
+
+/*!
+ * \since 13.0.0
+ * \brief Unregister a body generator with the pubsub core.
+ *
+ * \param generator Body generator to unregister
+ */
+void ast_sip_pubsub_unregister_body_supplement(struct ast_sip_pubsub_body_supplement *supplement);
+
+/*!
+ * \since 13.0.0
+ * \brief Get the body type used for this subscription
+ */
+const char *ast_sip_subscription_get_body_type(struct ast_sip_subscription *sub);
+
+/*!
+ * \since 13.0.0
+ * \brief Get the body subtype used for this subscription
+ */
+const char *ast_sip_subscription_get_body_subtype(struct ast_sip_subscription *sub);
 
 #endif /* RES_PJSIP_PUBSUB_H */

@@ -31,7 +31,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_pubsub.h"
-#include "asterisk/res_pjsip_exten_state.h"
+#include "asterisk/res_pjsip_body_generator_types.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/astobj2.h"
@@ -40,43 +40,6 @@
 
 #define BODY_SIZE 1024
 #define EVENT_TYPE_SIZE 50
-
-AST_RWLIST_HEAD_STATIC(providers, ast_sip_exten_state_provider);
-
-/*!
- * \internal
- * \brief Find a provider based on the given accept body type.
- */
-static struct ast_sip_exten_state_provider *provider_by_type(const char *type)
-{
-	struct ast_sip_exten_state_provider *i;
-	SCOPED_LOCK(lock, &providers, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&providers, i, next) {
-		if (!strcmp(i->body_type, type)) {
-			return i;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	return NULL;
-}
-
-/*!
- * \internal
- * \brief Find a provider based on the given accept body types.
- */
-static struct ast_sip_exten_state_provider *provider_by_types(const char *event_name,
-							      char **types, int count)
-{
-	int i;
-	struct ast_sip_exten_state_provider *res;
-	for (i = 0; i < count; ++i) {
-		if ((res = provider_by_type(types[i])) &&
-		    !strcmp(event_name, res->event_name)) {
-			return res;
-		}
-	}
-	return NULL;
-}
 
 /*!
  * \brief A subscription for extension state
@@ -90,12 +53,6 @@ struct exten_state_subscription {
 	int id;
 	/*! The SIP subscription */
 	struct ast_sip_subscription *sip_sub;
-	/*! The name of the event the subscribed to */
-	char event_name[EVENT_TYPE_SIZE];
-	/*! The number of body types */
-	int body_types_count;
-	/*! The subscription body types */
-	char **body_types;
 	/*! Context in which subscription looks for updates */
 	char context[AST_MAX_CONTEXT];
 	/*! Extension within the context to receive updates from */
@@ -104,40 +61,36 @@ struct exten_state_subscription {
 	enum ast_extension_states last_exten_state;
 };
 
+#define DEFAULT_PRESENCE_BODY "application/pidf+xml"
+
+static void subscription_shutdown(struct ast_sip_subscription *sub);
+static struct ast_sip_subscription *new_subscribe(struct ast_sip_endpoint *endpoint,
+						  pjsip_rx_data *rdata);
+static void resubscribe(struct ast_sip_subscription *sub, pjsip_rx_data *rdata,
+			struct ast_sip_subscription_response_data *response_data);
+static void subscription_timeout(struct ast_sip_subscription *sub);
+static void subscription_terminated(struct ast_sip_subscription *sub,
+				    pjsip_rx_data *rdata);
+static void to_ami(struct ast_sip_subscription *sub,
+		   struct ast_str **buf);
+
+struct ast_sip_subscription_handler presence_handler = {
+	.event_name = "presence",
+	.accept = { DEFAULT_PRESENCE_BODY, },
+	.default_accept = DEFAULT_PRESENCE_BODY,
+	.subscription_shutdown = subscription_shutdown,
+	.new_subscribe = new_subscribe,
+	.resubscribe = resubscribe,
+	.subscription_timeout = subscription_timeout,
+	.subscription_terminated = subscription_terminated,
+	.to_ami = to_ami,
+};
+
 static void exten_state_subscription_destructor(void *obj)
 {
 	struct exten_state_subscription *sub = obj;
-	int i;
 
-	for (i = 0; i < sub->body_types_count; ++i) {
-		ast_free(sub->body_types[i]);
-	}
-
-	ast_free(sub->body_types);
 	ao2_cleanup(sub->sip_sub);
-}
-
-/*!
- * \internal
- * \brief Copies the body types the message wishes to subscribe to.
- */
-static void copy_body_types(pjsip_rx_data *rdata,
-			    struct exten_state_subscription *exten_state_sub)
-{
-	int i;
-	pjsip_accept_hdr *hdr = (pjsip_accept_hdr*)
-		pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_ACCEPT, NULL);
-
-	exten_state_sub->body_types_count = hdr->count;
-	exten_state_sub->body_types = ast_malloc(hdr->count * sizeof(char*));
-
-	for (i = 0; i < hdr->count; ++i) {
-		exten_state_sub->body_types[i] =
-			ast_malloc(hdr->values[i].slen * sizeof(char*) + 1);
-
-		ast_copy_string(exten_state_sub->body_types[i],
-				pj_strbuf(&hdr->values[i]), hdr->values[i].slen + 1);
-	}
 }
 
 /*!
@@ -157,11 +110,6 @@ static void copy_body_types(pjsip_rx_data *rdata,
 static struct exten_state_subscription *exten_state_subscription_alloc(
 	struct ast_sip_endpoint *endpoint, enum ast_sip_subscription_role role, pjsip_rx_data *rdata)
 {
-	static const pj_str_t event_name = { "Event", 5 };
-	pjsip_event_hdr *hdr = (pjsip_event_hdr*)pjsip_msg_find_hdr_by_name(
-		rdata->msg_info.msg, &event_name, NULL);
-
-	struct ast_sip_exten_state_provider *provider;
 	RAII_VAR(struct exten_state_subscription *, exten_state_sub,
 		 ao2_alloc(sizeof(*exten_state_sub), exten_state_subscription_destructor), ao2_cleanup);
 
@@ -169,19 +117,8 @@ static struct exten_state_subscription *exten_state_subscription_alloc(
 		return NULL;
 	}
 
-	ast_copy_pj_str(exten_state_sub->event_name, &hdr->event_type,
-			sizeof(exten_state_sub->event_name));
-
-	copy_body_types(rdata, exten_state_sub);
-	if (!(provider = provider_by_types(exten_state_sub->event_name,
-					   exten_state_sub->body_types,
-					   exten_state_sub->body_types_count))) {
-		ast_log(LOG_WARNING, "Unable to locate subscription handler\n");
-		return NULL;
-	}
-
 	if (!(exten_state_sub->sip_sub = ast_sip_create_subscription(
-		      provider->handler, role, endpoint, rdata))) {
+		      &presence_handler, role, endpoint, rdata))) {
 		ast_log(LOG_WARNING, "Unable to create SIP subscription for endpoint %s\n",
 			ast_sorcery_object_get_id(endpoint));
 		return NULL;
@@ -204,27 +141,13 @@ static void create_send_notify(struct exten_state_subscription *exten_state_sub,
 	pj_str_t reason_str;
 	const pj_str_t *reason_str_ptr = NULL;
 	pjsip_tx_data *tdata;
-	pjsip_dialog *dlg;
-	char local[PJSIP_MAX_URL_SIZE], remote[PJSIP_MAX_URL_SIZE];
 	struct ast_sip_body body;
 
-	struct ast_sip_exten_state_provider *provider = provider_by_types(
-		exten_state_sub->event_name, exten_state_sub->body_types,
-		exten_state_sub->body_types_count);
+	body.type = ast_sip_subscription_get_body_type(exten_state_sub->sip_sub);
+	body.subtype = ast_sip_subscription_get_body_subtype(exten_state_sub->sip_sub);
 
-	if (!provider) {
-		ast_log(LOG_ERROR, "Unable to locate provider for subscription\n");
-		return;
-	}
-
-	body.type = provider->type;
-	body.subtype = provider->subtype;
-
-	dlg = ast_sip_subscription_get_dlg(exten_state_sub->sip_sub);
-	ast_copy_pj_str(local, &dlg->local.info_str, sizeof(local));
-	ast_copy_pj_str(remote, &dlg->remote.info_str, sizeof(remote));
-
-	if (provider->create_body(exten_state_data, local, remote, &body_text)) {
+	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype,
+				exten_state_data, &body_text)) {
 		ast_log(LOG_ERROR, "Unable to create body on NOTIFY request\n");
 		return;
 	}
@@ -262,12 +185,18 @@ static void send_notify(struct exten_state_subscription *exten_state_sub, const 
 {
 	RAII_VAR(struct ao2_container*, info, NULL, ao2_cleanup);
 	char *subtype = NULL, *message = NULL;
-
+	pjsip_dialog *dlg;
 	struct ast_sip_exten_state_data exten_state_data = {
 		.exten = exten_state_sub->exten,
 		.presence_state = ast_hint_presence_state(NULL, exten_state_sub->context,
 							  exten_state_sub->exten, &subtype, &message),
 	};
+
+	dlg = ast_sip_subscription_get_dlg(exten_state_sub->sip_sub);
+	ast_copy_pj_str(exten_state_data.local, &dlg->local.info_str,
+			sizeof(exten_state_data.local));
+	ast_copy_pj_str(exten_state_data.remote, &dlg->remote.info_str,
+			sizeof(exten_state_data.remote));
 
 	if ((exten_state_data.exten_state = ast_extension_state_extended(
 		     NULL, exten_state_sub->context, exten_state_sub->exten, &info)) < 0) {
@@ -277,8 +206,12 @@ static void send_notify(struct exten_state_subscription *exten_state_sub, const 
 		return;
 	}
 
+	exten_state_data.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
+			"exten_state", 1024, 1024);
+
 	exten_state_data.device_state_info = info;
 	create_send_notify(exten_state_sub, reason, evsub_state, &exten_state_data);
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), exten_state_data.pool);
 }
 
 struct notify_task_data {
@@ -300,6 +233,7 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 {
 	struct notify_task_data *task_data =
 		ao2_alloc(sizeof(*task_data), notify_task_data_destructor);
+	struct pjsip_dialog *dlg;
 
 	if (!task_data) {
 		ast_log(LOG_WARNING, "Unable to create notify task data\n");
@@ -320,6 +254,12 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 		ao2_ref(task_data->exten_state_data.device_state_info, +1);
 	}
 
+	dlg = ast_sip_subscription_get_dlg(exten_state_sub->sip_sub);
+	ast_copy_pj_str(task_data->exten_state_data.local, &dlg->local.info_str,
+			sizeof(task_data->exten_state_data.local));
+	ast_copy_pj_str(task_data->exten_state_data.remote, &dlg->remote.info_str,
+			sizeof(task_data->exten_state_data.remote));
+
 	if ((info->exten_state == AST_EXTENSION_DEACTIVATED) ||
 	    (info->exten_state == AST_EXTENSION_REMOVED)) {
 		task_data->evsub_state = PJSIP_EVSUB_STATE_TERMINATED;
@@ -334,9 +274,16 @@ static int notify_task(void *obj)
 {
 	RAII_VAR(struct notify_task_data *, task_data, obj, ao2_cleanup);
 
+	/* Pool allocation has to happen here so that we allocate within a PJLIB thread */
+	task_data->exten_state_data.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
+			"exten_state", 1024, 1024);
+
 	create_send_notify(task_data->exten_state_sub, task_data->evsub_state ==
 			   PJSIP_EVSUB_STATE_TERMINATED ? "noresource" : NULL,
 			   task_data->evsub_state, &task_data->exten_state_data);
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(),
+			task_data->exten_state_data.pool);
 	return 0;
 }
 
@@ -527,107 +474,19 @@ static void to_ami(struct ast_sip_subscription *sub,
 			       exten_state_sub->last_exten_state));
 }
 
-#define DEFAULT_PRESENCE_BODY "application/pidf+xml"
-
-/*!
- * \internal
- * \brief Create and register a subscription handler.
- *
- * Creates a subscription handler that can be registered with the pub/sub
- * framework for the given event_name and accept value.
- */
-static struct ast_sip_subscription_handler *create_and_register_handler(
-	const char *event_name, const char *accept)
-{
-	struct ast_sip_subscription_handler *handler =
-		ao2_alloc(sizeof(*handler), NULL);
-
-	if (!handler) {
-		return NULL;
-	}
-
-	handler->event_name = event_name;
-	handler->accept[0] = accept;
-	if (!strcmp(accept, DEFAULT_PRESENCE_BODY)) {
-		handler->handles_default_accept = 1;
-	}
-
-	handler->subscription_shutdown = subscription_shutdown;
-	handler->new_subscribe = new_subscribe;
-	handler->resubscribe = resubscribe;
-	handler->subscription_timeout = subscription_timeout;
-	handler->subscription_terminated = subscription_terminated;
-	handler->to_ami = to_ami;
-
-	if (ast_sip_register_subscription_handler(handler)) {
-		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
-			handler->event_name);
-		ao2_cleanup(handler);
-		return NULL;
-	}
-
-	return handler;
-}
-
-int ast_sip_register_exten_state_provider(struct ast_sip_exten_state_provider *obj)
-{
-	if (ast_strlen_zero(obj->type)) {
-		ast_log(LOG_WARNING, "Type not specified on provider for event %s\n",
-			obj->event_name);
-		return -1;
-	}
-
-	if (ast_strlen_zero(obj->subtype)) {
-		ast_log(LOG_WARNING, "Subtype not specified on provider for event %s\n",
-			obj->event_name);
-		return -1;
-	}
-
-	if (!obj->create_body) {
-		ast_log(LOG_WARNING, "Body handler not specified on provide for event %s\n",
-		    obj->event_name);
-		return -1;
-	}
-
-	if (!(obj->handler = create_and_register_handler(obj->event_name, obj->body_type))) {
-		ast_log(LOG_WARNING, "Handler could not be registered for provider event %s\n",
-		    obj->event_name);
-		return -1;
-	}
-
-	/* scope to avoid mix declarations */
-	{
-		SCOPED_LOCK(lock, &providers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
-		AST_RWLIST_INSERT_TAIL(&providers, obj, next);
-		ast_module_ref(ast_module_info->self);
-	}
-
-	return 0;
-}
-
-void ast_sip_unregister_exten_state_provider(struct ast_sip_exten_state_provider *obj)
-{
-	struct ast_sip_exten_state_provider *i;
-	SCOPED_LOCK(lock, &providers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&providers, i, next) {
-		if (i == obj) {
-			ast_sip_unregister_subscription_handler(i->handler);
-			ao2_cleanup(i->handler);
-			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-}
-
 static int load_module(void)
 {
+	if (ast_sip_register_subscription_handler(&presence_handler)) {
+		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
+			presence_handler.event_name);
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_sip_unregister_subscription_handler(&presence_handler);
 	return 0;
 }
 

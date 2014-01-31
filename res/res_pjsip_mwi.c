@@ -31,6 +31,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_pubsub.h"
+#include "asterisk/res_pjsip_body_generator_types.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/astobj2.h"
@@ -43,6 +44,10 @@ AO2_GLOBAL_OBJ_STATIC(unsolicited_mwi);
 
 #define STASIS_BUCKETS 13
 #define MWI_BUCKETS 53
+
+#define MWI_TYPE "application"
+#define MWI_SUBTYPE "simple-message-summary"
+
 static void mwi_subscription_shutdown(struct ast_sip_subscription *sub);
 static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 		pjsip_rx_data *rdata);
@@ -58,8 +63,8 @@ static void mwi_to_ami(struct ast_sip_subscription *sub, struct ast_str **buf);
 
 static struct ast_sip_subscription_handler mwi_handler = {
 	.event_name = "message-summary",
-	.accept = { "application/simple-message-summary", },
-	.handles_default_accept = 1,
+	.accept = { MWI_TYPE"/"MWI_SUBTYPE, },
+	.default_accept =  MWI_TYPE"/"MWI_SUBTYPE,
 	.subscription_shutdown = mwi_subscription_shutdown,
 	.new_subscribe = mwi_new_subscribe,
 	.resubscribe = mwi_resubscribe,
@@ -223,17 +228,11 @@ static int mwi_sub_cmp(void *obj, void *arg, int flags)
 	return strcmp(mwi_sub1->id, mwi_sub2->id) ? 0 : CMP_MATCH;
 }
 
-struct message_accumulator {
-	int old_msgs;
-	int new_msgs;
-	const char *reason;
-};
-
 static int get_message_count(void *obj, void *arg, int flags)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct mwi_stasis_subscription *mwi_stasis = obj;
-	struct message_accumulator *counter = arg;
+	struct ast_sip_message_accumulator *counter = arg;
 	struct ast_mwi_state *mwi_state;
 
 	msg = stasis_cache_get(ast_mwi_state_cache(), ast_mwi_state_type(), mwi_stasis->mailbox);
@@ -366,11 +365,7 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub, pjsip_evsu
 static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state state, const char *reason)
 {
 	const pj_str_t *reason_str_ptr = NULL;
-	static pjsip_media_type mwi_type = {
-		.type = { "application", 11 },
-		.subtype = { "simple-message-summary", 22 },
-	};
-	struct message_accumulator counter = {
+	struct ast_sip_message_accumulator counter = {
 		.old_msgs = 0,
 		.new_msgs = 0,
 	};
@@ -378,6 +373,13 @@ static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state stat
 	pjsip_tx_data *tdata;
 	pj_str_t reason_str;
 	pj_str_t pj_body;
+	const char *type = sub->is_solicited ?
+		ast_sip_subscription_get_body_type(sub->sip_sub) :
+		MWI_TYPE;
+	const char *subtype = sub->is_solicited ?
+		ast_sip_subscription_get_body_subtype(sub->sip_sub) :
+		MWI_SUBTYPE;
+	pjsip_media_type mwi_type = { { 0,}, };
 
 	ao2_callback(sub->stasis_subs, OBJ_NODATA, get_message_count, &counter);
 
@@ -385,11 +387,17 @@ static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state stat
 		pj_cstr(&reason_str, reason);
 		reason_str_ptr = &reason_str;
 	}
-	ast_str_append(&body, 0, "Messages-Waiting: %s\r\n", counter.new_msgs ? "yes" : "no");
-	ast_str_append(&body, 0, "Voice-Message: %d/%d (0/0)\r\n", counter.new_msgs, counter.old_msgs);
-	pj_cstr(&pj_body, ast_str_buffer(body));
 
-	ast_debug(5, "Sending  %s MWI NOTIFY to endpoint %s, new messages: %d, old messages: %d\n",
+	if (ast_sip_pubsub_generate_body_content(type, subtype, &counter, &body)) {
+		ast_log(LOG_WARNING, "Unable to generate SIP MWI NOTIFY body.\n");
+		return;
+	}
+
+	pj_cstr(&pj_body, ast_str_buffer(body));
+	pj_cstr(&mwi_type.type, type);
+	pj_cstr(&mwi_type.subtype, subtype);
+
+	ast_debug(5, "Sending %s MWI NOTIFY to endpoint %s, new messages: %d, old messages: %d\n",
 			sub->is_solicited ? "solicited" : "unsolicited", sub->id, counter.new_msgs,
 			counter.old_msgs);
 
