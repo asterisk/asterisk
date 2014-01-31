@@ -1279,7 +1279,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							}
 						}
 						peer = c;
-						ast_channel_publish_dial(in, peer, NULL, "ANSWER");
+						/* Inform everyone else that they've been canceled.
+						 * The dial end event for the peer will be sent out after
+						 * other Dial options have been handled.
+						 */
 						publish_dial_end_event(in, out_chans, peer, "CANCEL");
 						ast_copy_flags64(peerflags, o,
 							OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
@@ -2732,6 +2735,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 		if ( (ast_test_flag64(&opts, OPT_PRIVACY) || ast_test_flag64(&opts, OPT_SCREENING)) && pa.privdb_val == AST_PRIVACY_UNKNOWN) {
 			if (do_privacy(chan, peer, &opts, opt_args, &pa)) {
+				ast_channel_publish_dial(chan, peer, NULL, pa.status);
 				res = 0;
 				goto out;
 			}
@@ -2829,6 +2833,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			if (continue_exec)
 				*continue_exec = 1;
 			res = 0;
+			ast_channel_publish_dial(chan, peer, NULL, "ANSWER");
 			goto done;
 		}
 
@@ -2841,7 +2846,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_exten_set(peer, ast_channel_exten(chan));
 			ast_channel_unlock(peer);
 			ast_channel_unlock(chan);
-
 			ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
 			res = ast_app_exec_macro(chan, peer, opt_args[OPT_ARG_CALLEE_MACRO]);
 
@@ -2882,6 +2886,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 						ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
+				ast_channel_publish_dial(chan, peer, NULL, macro_result);
 			} else {
 				ast_channel_unlock(peer);
 			}
@@ -2964,6 +2969,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 						ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
+				ast_channel_publish_dial(chan, peer, NULL, gosub_result);
 			} else {
 				ast_channel_unlock(peer);
 				ast_channel_unlock(chan);
@@ -2971,6 +2977,12 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 
 		if (!res) {
+
+			/* None of the Dial options changed our status; inform
+			 * everyone that this channel answered
+			 */
+			ast_channel_publish_dial(chan, peer, NULL, "ANSWER");
+
 			if (!ast_tvzero(calldurationlimit)) {
 				struct timeval whentohangup = ast_tvadd(ast_tvnow(), calldurationlimit);
 				ast_channel_lock(peer);
