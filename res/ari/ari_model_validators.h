@@ -537,6 +537,42 @@ int ast_ari_validate_application_replaced(struct ast_json *json);
 ari_validator ast_ari_validate_application_replaced_fn(void);
 
 /*!
+ * \brief Validator for BridgeAttendedTransfer.
+ *
+ * Notification that an attended transfer has occurred.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_bridge_attended_transfer(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_bridge_attended_transfer().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_bridge_attended_transfer_fn(void);
+
+/*!
+ * \brief Validator for BridgeBlindTransfer.
+ *
+ * Notification that a blind transfer has occurred.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_bridge_blind_transfer(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_bridge_blind_transfer().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_bridge_blind_transfer_fn(void);
+
+/*!
  * \brief Validator for BridgeCreated.
  *
  * Notification that a bridge has been created.
@@ -1137,6 +1173,33 @@ ari_validator ast_ari_validate_application_fn(void);
  * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
+ * BridgeAttendedTransfer
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - destination_application: string
+ * - destination_bridge: string
+ * - destination_link_first_leg: Channel
+ * - destination_link_second_leg: Channel
+ * - destination_threeway_bridge: Bridge
+ * - destination_threeway_channel: Channel
+ * - destination_type: string (required)
+ * - is_external: boolean (required)
+ * - result: string (required)
+ * - transferer_first_leg: Channel (required)
+ * - transferer_first_leg_bridge: Bridge
+ * - transferer_second_leg: Channel (required)
+ * - transferer_second_leg_bridge: Bridge
+ * BridgeBlindTransfer
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - bridge: Bridge
+ * - channel: Channel (required)
+ * - context: string (required)
+ * - exten: string (required)
+ * - is_external: boolean (required)
+ * - result: string (required)
  * BridgeCreated
  * - type: string (required)
  * - application: string (required)

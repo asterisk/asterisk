@@ -41,8 +41,8 @@ struct stasis_app {
 	struct stasis_topic *topic;
 	/*! Router for handling messages forwarded to \a topic. */
 	struct stasis_message_router *router;
-	/*! Subscription to watch for bridge merge messages */
-	struct stasis_subscription *bridge_merge_sub;
+	/*! Router for handling messages to the bridge all \a topic. */
+	struct stasis_message_router *bridge_router;
 	/*! Container of the channel forwards to this app's topic. */
 	struct ao2_container *forwards;
 	/*! Callback function for this application. */
@@ -255,7 +255,7 @@ static void app_dtor(void *obj)
 	ast_verb(1, "Destroying Stasis app %s\n", app->name);
 
 	ast_assert(app->router == NULL);
-	ast_assert(app->bridge_merge_sub == NULL);
+	ast_assert(app->bridge_router == NULL);
 
 	ao2_cleanup(app->topic);
 	app->topic = NULL;
@@ -589,37 +589,127 @@ static void sub_bridge_update_handler(void *data,
 	app_send(app, json);
 }
 
+
+/*! \brief Helper function for determining if the application is subscribed to a given entity */
+static int bridge_app_subscribed(struct stasis_app *app, const char *uniqueid)
+{
+	struct app_forwards *forwards = NULL;
+
+	forwards = ao2_find(app->forwards, uniqueid, OBJ_SEARCH_KEY);
+	if (!forwards) {
+		return 0;
+	}
+
+	ao2_ref(forwards, -1);
+	return 1;
+}
+
 static void bridge_merge_handler(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct stasis_app *app = data;
 	struct ast_bridge_merge_message *merge;
-	RAII_VAR(struct app_forwards *, forwards, NULL, ao2_cleanup);
-
-	if (stasis_subscription_final_message(sub, message)) {
-		ao2_cleanup(app);
-	}
-
-	if (stasis_message_type(message) != ast_bridge_merge_message_type()) {
-		return;
-	}
 
 	merge = stasis_message_data(message);
 
 	/* Find out if we're subscribed to either bridge */
-	forwards = ao2_find(app->forwards, merge->from->uniqueid,
-		OBJ_SEARCH_KEY);
-	if (!forwards) {
-		forwards = ao2_find(app->forwards, merge->to->uniqueid,
-			OBJ_SEARCH_KEY);
+	if (bridge_app_subscribed(app, merge->from->uniqueid) ||
+		bridge_app_subscribed(app, merge->to->uniqueid)) {
+		/* Forward the message to the app */
+		stasis_publish(app->topic, message);
+	}
+}
+
+/*! \brief Callback function for checking if channels in a bridge are subscribed to */
+static int bridge_app_subscribed_involved(struct stasis_app *app, struct ast_bridge_snapshot *snapshot)
+{
+	int subscribed = 0;
+	struct ao2_iterator iter;
+	char *uniqueid;
+
+	if (bridge_app_subscribed(app, snapshot->uniqueid)) {
+		return 1;
 	}
 
-	if (!forwards) {
-		return;
+	iter = ao2_iterator_init(snapshot->channels, 0);
+	for (; (uniqueid = ao2_iterator_next(&iter)); ao2_ref(uniqueid, -1)) {
+		if (bridge_app_subscribed(app, uniqueid)) {
+			subscribed = 1;
+			ao2_ref(uniqueid, -1);
+			break;
+		}
+	}
+	ao2_iterator_destroy(&iter);
+
+	return subscribed;
+}
+
+static void bridge_blind_transfer_handler(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct stasis_app *app = data;
+	struct ast_bridge_blob *blob = stasis_message_data(message);
+
+	if (bridge_app_subscribed(app, blob->channel->uniqueid) ||
+		bridge_app_subscribed_involved(app, blob->bridge)) {
+		stasis_publish(app->topic, message);
+	}
+}
+
+static void bridge_attended_transfer_handler(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct stasis_app *app = data;
+	struct ast_attended_transfer_message *transfer_msg = stasis_message_data(message);
+	int subscribed = 0;
+
+	subscribed = bridge_app_subscribed(app, transfer_msg->to_transferee.channel_snapshot->uniqueid);
+	if (!subscribed) {
+		subscribed = bridge_app_subscribed(app, transfer_msg->to_transfer_target.channel_snapshot->uniqueid);
+	}
+	if (!subscribed && transfer_msg->to_transferee.bridge_snapshot) {
+		subscribed = bridge_app_subscribed_involved(app, transfer_msg->to_transferee.bridge_snapshot);
+	}
+	if (!subscribed && transfer_msg->to_transfer_target.bridge_snapshot) {
+		subscribed = bridge_app_subscribed_involved(app, transfer_msg->to_transfer_target.bridge_snapshot);
 	}
 
-	/* Forward the message to the app */
-	stasis_publish(app->topic, message);
+	if (!subscribed) {
+		switch (transfer_msg->dest_type) {
+		case AST_ATTENDED_TRANSFER_DEST_BRIDGE_MERGE:
+			subscribed = bridge_app_subscribed(app, transfer_msg->dest.bridge);
+			break;
+		case AST_ATTENDED_TRANSFER_DEST_LINK:
+			subscribed = bridge_app_subscribed(app, transfer_msg->dest.links[0]->uniqueid);
+			if (!subscribed) {
+				subscribed = bridge_app_subscribed(app, transfer_msg->dest.links[1]->uniqueid);
+			}
+			break;
+		break;
+		case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
+			subscribed = bridge_app_subscribed_involved(app, transfer_msg->dest.threeway.bridge_snapshot);
+			if (!subscribed) {
+				subscribed = bridge_app_subscribed(app, transfer_msg->dest.threeway.channel_snapshot->uniqueid);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (subscribed) {
+		stasis_publish(app->topic, message);
+	}
+}
+
+static void bridge_default_handler(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	struct stasis_app *app = data;
+
+	if (stasis_subscription_final_message(sub, message)) {
+		ao2_cleanup(app);
+	}
 }
 
 struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *data)
@@ -652,12 +742,27 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 		return NULL;
 	}
 
-	app->bridge_merge_sub = stasis_subscribe(ast_bridge_topic_all(),
-		bridge_merge_handler, app);
-	if (!app->bridge_merge_sub) {
+	app->bridge_router = stasis_message_router_create(ast_bridge_topic_all());
+	if (!app->bridge_router) {
 		return NULL;
 	}
-	/* Subscription holds a reference */
+
+	res |= stasis_message_router_add(app->bridge_router,
+		ast_bridge_merge_message_type(), bridge_merge_handler, app);
+
+	res |= stasis_message_router_add(app->bridge_router,
+		ast_blind_transfer_type(), bridge_blind_transfer_handler, app);
+
+	res |= stasis_message_router_add(app->bridge_router,
+		ast_attended_transfer_type(), bridge_attended_transfer_handler, app);
+
+	res |= stasis_message_router_set_default(app->bridge_router,
+		bridge_default_handler, app);
+
+	if (res != 0) {
+		return NULL;
+	}
+	/* Bridge router holds a reference */
 	ao2_ref(app, +1);
 
 	app->router = stasis_message_router_create(app->topic);
@@ -739,8 +844,8 @@ void app_shutdown(struct stasis_app *app)
 
 	stasis_message_router_unsubscribe(app->router);
 	app->router = NULL;
-	stasis_unsubscribe(app->bridge_merge_sub);
-	app->bridge_merge_sub = NULL;
+	stasis_message_router_unsubscribe(app->bridge_router);
+	app->bridge_router = NULL;
 }
 
 int app_is_active(struct stasis_app *app)

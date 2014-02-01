@@ -591,7 +591,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name)
 	int capabilities;
 	int flags = AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM | AST_BRIDGE_FLAG_MERGE_INHIBIT_TO
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
-		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED;
+		| AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY;
 
 	if (ast_strlen_zero(type) || !strcmp(type, "mixing")) {
 		capabilities = AST_BRIDGE_CAPABILITY_1TO1MIX |
