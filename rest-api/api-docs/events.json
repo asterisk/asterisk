@@ -86,6 +86,8 @@
 				"BridgeCreated",
 				"BridgeDestroyed",
 				"BridgeMerged",
+				"BridgeBlindTransfer",
+				"BridgeAttendedTransfer",
 				"ChannelCreated",
 				"ChannelDestroyed",
 				"ChannelEnteredBridge",
@@ -207,6 +209,104 @@
 				},
 				"bridge_from": {
 					"required": true,
+					"type": "Bridge"
+				}
+			}
+		},
+		"BridgeBlindTransfer": {
+			"id": "BridgeBlindTransfer",
+			"description": "Notification that a blind transfer has occurred.",
+			"properties": {
+				"channel": {
+					"description": "The channel performing the blind transfer",
+					"required": true,
+					"type": "Channel"
+				},
+				"exten": {
+					"description": "The extension transferred to",
+					"required": true,
+					"type": "string"
+				},
+				"context": {
+					"description": "The context transferred to",
+					"required": true,
+					"type": "string"
+				},
+				"result": {
+					"description": "The result of the transfer attempt",
+					"required": true,
+					"type": "string"
+				},
+				"is_external": {
+					"description": "Whether the transfer was externally initiated or not",
+					"required": true,
+					"type": "boolean"
+				},
+				"bridge": {
+					"description": "The bridge being transferred",
+					"type": "Bridge"
+				}
+			}
+		},
+		"BridgeAttendedTransfer": {
+			"id": "BridgeAttendedTransfer",
+			"description": "Notification that an attended transfer has occurred.",
+			"properties": {
+				"transferer_first_leg": {
+					"description": "First leg of the transferer",
+					"required": true,
+					"type": "Channel"
+				},
+				"transferer_second_leg": {
+					"description": "Second leg of the transferer",
+					"required": true,
+					"type": "Channel"
+				},
+				"result": {
+					"description": "The result of the transfer attempt",
+					"required": true,
+					"type": "string"
+				},
+				"is_external": {
+					"description": "Whether the transfer was externally initiated or not",
+					"required": true,
+					"type": "boolean"
+				},
+				"transferer_first_leg_bridge": {
+					"description": "Bridge the transferer first leg is in",
+					"type": "Bridge"
+				},
+				"transferer_second_leg_bridge": {
+					"description": "Bridge the transferer second leg is in",
+					"type": "Bridge"
+				},
+				"destination_type": {
+					"description": "How the transfer was accomplished",
+					"required": true,
+					"type": "string"
+				},
+				"destination_bridge": {
+					"description": "Bridge that survived the merge result",
+					"type": "string"
+				},
+				"destination_application": {
+					"description": "Application that has been transferred into",
+					"type": "string"
+				},
+				"destination_link_first_leg": {
+					"description": "First leg of a link transfer result",
+					"type": "Channel"
+				},
+				"destination_link_second_leg": {
+					"description": "Second leg of a link transfer result",
+					"type": "Channel"
+				},
+				"destination_threeway_channel": {
+					"description": "Transferer channel that survived the threeway result",
+					"type": "Channel"
+				},
+				"destination_threeway_bridge": {
+					"description": "Bridge that survived the threeway result",
 					"type": "Bridge"
 				}
 			}
