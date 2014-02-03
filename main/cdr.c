@@ -1351,13 +1351,13 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 
 	ast_assert(strcasecmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
 
-	cdr_object_swap_snapshot(&cdr->party_a, snapshot);
 	/* Ignore any snapshots from a dead or dying channel */
 	if (ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
 			&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)) {
 		cdr_object_check_party_a_hangup(cdr);
 		return 0;
 	}
+	cdr_object_swap_snapshot(&cdr->party_a, snapshot);
 
 	/* When Party A is originated to an application and the application exits, the stack
 	 * will attempt to clear the application and restore the dummy originate application
@@ -1447,7 +1447,7 @@ static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_ch
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 
 	if (caller && !strcasecmp(cdr->party_a.snapshot->name, caller->name)) {
-		cdr_object_swap_snapshot(&cdr->party_a, caller);
+		base_process_party_a(cdr, caller);
 		CDR_DEBUG(mod_cfg, "%p - Updated Party A %s snapshot\n", cdr,
 				cdr->party_a.snapshot->name);
 		cdr_object_swap_snapshot(&cdr->party_b, peer);
@@ -1461,7 +1461,7 @@ static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_ch
 		ast_set_flag(&cdr->flags, AST_CDR_LOCK_APP);
 	} else if (!strcasecmp(cdr->party_a.snapshot->name, peer->name)) {
 		/* We're the entity being dialed, i.e., outbound origination */
-		cdr_object_swap_snapshot(&cdr->party_a, peer);
+		base_process_party_a(cdr, peer);
 		CDR_DEBUG(mod_cfg, "%p - Updated Party A %s snapshot\n", cdr,
 				cdr->party_a.snapshot->name);
 	}
