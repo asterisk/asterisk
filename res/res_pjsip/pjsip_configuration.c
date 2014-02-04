@@ -231,9 +231,13 @@ int ast_sip_auth_vector_init(struct ast_sip_auth_vector *auths, const char *valu
 	char *val;
 
 	ast_assert(auths != NULL);
-	ast_assert(AST_VECTOR_SIZE(auths) == 0);
 
-	AST_VECTOR_INIT(auths, 1);
+	if (AST_VECTOR_SIZE(auths)) {
+		ast_sip_auth_vector_destroy(auths);
+	}
+	if (AST_VECTOR_INIT(auths, 1)) {
+		return -1;
+	}
 
 	while ((val = strsep(&auth_names, ","))) {
 		val = ast_strdup(val);
