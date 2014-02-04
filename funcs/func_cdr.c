@@ -293,7 +293,7 @@ static void cdr_read_callback(void *data, struct stasis_subscription *sub, struc
 			}
 			fmt_time.tv_usec = tv_usec;
 			ast_localtime(&fmt_time, &tm, NULL);
-			ast_strftime(tempbuf, sizeof(*tempbuf), "%Y-%m-%d %T", &tm);
+			ast_strftime(tempbuf, sizeof(tempbuf), "%Y-%m-%d %T", &tm);
 		} else if (!strcasecmp("disposition", args.variable)) {
 			int disposition;
 
