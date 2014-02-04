@@ -130,7 +130,6 @@ enum ast_device_state ast_parse_device_state(const char *device);
  * active channels list for the device.
  *
  * \retval an AST_DEVICE_??? state
- * \retval -1 on failure
  */
 enum ast_device_state ast_device_state(const char *device);
 
