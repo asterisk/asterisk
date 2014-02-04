@@ -1384,7 +1384,6 @@ static int matchdigittimeout = 3000;
 #define DIALTYPE_XFER        1<<2
 
 struct skinny_subchannel {
-	ast_mutex_t lock;
 	struct ast_channel *owner;
 	struct ast_rtp_instance *rtp;
 	struct ast_rtp_instance *vrtp;
@@ -3616,10 +3615,10 @@ static enum ast_rtp_glue_result skinny_get_rtp_peer(struct ast_channel *c, struc
 	if (!(sub = ast_channel_tech_pvt(c)))
 		return AST_RTP_GLUE_RESULT_FORBID;
 
-	ast_mutex_lock(&sub->lock);
+	skinny_locksub(sub);
 
 	if (!(sub->rtp)){
-		ast_mutex_unlock(&sub->lock);
+		skinny_unlocksub(sub);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
@@ -3633,7 +3632,7 @@ static enum ast_rtp_glue_result skinny_get_rtp_peer(struct ast_channel *c, struc
 		SKINNY_DEBUG(DEBUG_AUDIO, 4, "skinny_get_rtp_peer() Using AST_RTP_GLUE_RESULT_LOCAL \n");
 	}
 
-	ast_mutex_unlock(&sub->lock);
+	skinny_unlocksub(sub);
 
 	return res;
 
@@ -4802,7 +4801,7 @@ static void start_rtp(struct skinny_subchannel *sub)
 	int hasvideo = 0;
 	struct ast_sockaddr bindaddr_tmp;
 
-	ast_mutex_lock(&sub->lock);
+	skinny_locksub(sub);
 	/* Allocate the RTP */
 	ast_sockaddr_from_sin(&bindaddr_tmp, &bindaddr);
 	sub->rtp = ast_rtp_instance_new("asterisk", sched, &bindaddr_tmp, NULL);
@@ -4840,7 +4839,7 @@ static void start_rtp(struct skinny_subchannel *sub)
 
 	/* Create the RTP connection */
 	transmit_connect(d, sub);
-	ast_mutex_unlock(&sub->lock);
+	skinny_unlocksub(sub);
 }
 
 static void destroy_rtp(struct skinny_subchannel *sub)
@@ -5036,13 +5035,11 @@ static int skinny_hangup(struct ast_channel *ast)
 
 	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %d - Destroying\n", sub->callid);
 
-	ast_mutex_lock(&sub->lock);
 	skinny_set_owner(sub, NULL);
 	ast_channel_tech_pvt_set(ast, NULL);
 	destroy_rtp(sub);
 	ast_free(sub->origtonum);
 	ast_free(sub->origtoname);
-	ast_mutex_unlock(&sub->lock);
 	ast_free(sub);
 	ast_module_unref(ast_module_info->self);
 	return 0;
@@ -5115,9 +5112,9 @@ static struct ast_frame *skinny_read(struct ast_channel *ast)
 {
 	struct ast_frame *fr;
 	struct skinny_subchannel *sub = ast_channel_tech_pvt(ast);
-	ast_mutex_lock(&sub->lock);
+	skinny_locksub(sub);
 	fr = skinny_rtp_read(sub);
-	ast_mutex_unlock(&sub->lock);
+	skinny_unlocksub(sub);
 	return fr;
 }
 
@@ -5144,11 +5141,11 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 	}
 	if (sub) {
-		ast_mutex_lock(&sub->lock);
+		skinny_locksub(sub);
 		if (sub->rtp) {
 			res = ast_rtp_instance_write(sub->rtp, frame);
 		}
-		ast_mutex_unlock(&sub->lock);
+		skinny_unlocksub(sub);
 	}
 	return res;
 }
@@ -5425,8 +5422,6 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			ast_channel_unref(tmp);
 			return NULL;
 		} else {
-			ast_mutex_init(&sub->lock);
-
 			skinny_set_owner(sub, tmp);
 			sub->callid = callnums++;
 			d->lastlineinstance = l->instance;
@@ -7270,9 +7265,14 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_channel_ref(c);
 			sub = ast_channel_tech_pvt(c);
 			ast_pickup_call(c);
-			ast_hangup(c);
-			setsubstate(sub, SUBSTATE_CONNECTED);
-			ast_channel_unref(c);
+			if (sub->owner == c) {
+				ast_channel_unref(c);
+				dumpsub(sub, 1);
+			} else {
+				ast_hangup(c);
+				setsubstate(sub, SUBSTATE_CONNECTED);
+				ast_channel_unref(c);
+			}
 		}
 		break;
 	case SOFTKEY_FORCEDIAL:
@@ -8765,11 +8765,11 @@ static int unload_module(void)
 		AST_LIST_TRAVERSE(&d->lines, l, list){
 			ast_mutex_lock(&l->lock);
 			AST_LIST_TRAVERSE(&l->sub, sub, list) {
-				ast_mutex_lock(&sub->lock);
+				skinny_locksub(sub);
 				if (sub->owner) {
 					ast_softhangup(sub->owner, AST_SOFTHANGUP_APPUNLOAD);
 				}
-				ast_mutex_unlock(&sub->lock);
+				skinny_unlocksub(sub);
 			}
 			if (l->mwi_event_sub) {
 				l->mwi_event_sub = stasis_unsubscribe(l->mwi_event_sub);
