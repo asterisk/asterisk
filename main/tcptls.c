@@ -393,7 +393,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 
 	if (!ast_strlen_zero(cfg->certfile)) {
 		char *tmpprivate = ast_strlen_zero(cfg->pvtfile) ? cfg->certfile : cfg->pvtfile;
-		if (SSL_CTX_use_certificate_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0) {
+		if (SSL_CTX_use_certificate_chain_file(cfg->ssl_ctx, cfg->certfile) == 0) {
 			if (!client) {
 				/* Clients don't need a certificate, but if its setup we can use it */
 				ast_verb(0, "SSL error loading cert file. <%s>\n", cfg->certfile);
