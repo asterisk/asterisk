@@ -233,8 +233,10 @@ int ast_sip_auth_array_init(struct ast_sip_auth_array *auths, const char *value)
 	const char **alloced_auths;
 
 	ast_assert(auths != NULL);
-	ast_assert(auths->names == NULL);
-	ast_assert(!auths->num);
+
+	if (auths->names) {
+		ast_sip_auth_array_destroy(auths);
+	}
 
 	while ((val = strsep(&auth_names, ","))) {
 		if (auths->num >= num_alloced) {
