@@ -77,15 +77,25 @@ static int alias_cmp_cb(void *obj, void *arg, int flags)
 	return (alias0->cli_entry.command == alias1->cli_entry.command ? CMP_MATCH | CMP_STOP : 0);
 }
 
-/*! \brief Destruction function used for aliases */
-static void alias_destroy(void *obj)
+/*! \brief Callback for unregistering an alias */
+static int alias_unregister_cb(void *obj, void *arg, int flags)
 {
 	struct cli_alias *alias = obj;
 
 	/* Unregister the CLI entry from the core */
 	ast_cli_unregister(&alias->cli_entry);
 
-	return;
+	/* We can determine if this worked or not by looking at the cli_entry itself */
+	return !alias->cli_entry.command ? CMP_MATCH : 0;
+}
+
+/*! \brief Callback for finding an alias based on name */
+static int alias_name_cb(void *obj, void *arg, int flags)
+{
+	struct cli_alias *alias = obj;
+	char *name = arg;
+
+	return !strcmp(alias->alias, name) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Function which passes through an aliased CLI command to the real one */
@@ -197,7 +207,7 @@ static void load_config(int reload)
 
 	/* Destroy any existing CLI aliases */
 	if (reload) {
-		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+		ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, alias_unregister_cb, NULL);
 	}
 
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -207,7 +217,16 @@ static void load_config(int reload)
 		}
 		/* Read in those there CLI aliases */
 		for (v1 = ast_variable_browse(cfg, v->value); v1; v1 = v1->next) {
-			if (!(alias = ao2_alloc((sizeof(*alias) + strlen(v1->name) + strlen(v1->value) + 2), alias_destroy))) {
+			struct cli_alias *existing = ao2_callback(cli_aliases, 0, alias_name_cb, (char*)v1->name);
+
+			if (existing) {
+				ast_log(LOG_WARNING, "Alias '%s' could not be unregistered and has been retained\n",
+					existing->alias);
+				ao2_ref(existing, -1);
+				continue;
+			}
+
+			if (!(alias = ao2_alloc((sizeof(*alias) + strlen(v1->name) + strlen(v1->value) + 2), NULL))) {
 				continue;
 			}
 			alias->alias = ((char *) alias) + sizeof(*alias);
@@ -243,6 +262,13 @@ static int reload_module(void)
 /*! \brief Function called to unload the module */
 static int unload_module(void)
 {
+	ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, alias_unregister_cb, NULL);
+
+	if (ao2_container_count(cli_aliases)) {
+		ast_log(LOG_ERROR, "Could not unregister all CLI aliases\n");
+		return -1;
+	}
+
 	ao2_ref(cli_aliases, -1);
 
 	ast_cli_unregister_multiple(cli_alias, ARRAY_LEN(cli_alias));
