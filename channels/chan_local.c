@@ -1006,7 +1006,7 @@ static int local_call(struct ast_channel *ast, const char *dest, int timeout)
 		      "LocalOptimization: %s\r\n",
 			ast_channel_name(p->owner), ast_channel_name(p->chan), ast_channel_uniqueid(p->owner), ast_channel_uniqueid(p->chan),
 			p->context, p->exten,
-			ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "Yes" : "No");
+			ast_test_flag(p, LOCAL_NO_OPTIMIZATION) ? "No" : "Yes");
 
 
 	/* Start switch on sub channel */
