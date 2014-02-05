@@ -14,6 +14,8 @@
 
 Applications
 --------------------------
+ * Record application now has an option 'o' which allows 0 to act as an exit
+   key setting the RECORD_STATUS variable to 'OPERATOR' instead of 'DTMF'
 
 ChanSpy
 --------------------------
