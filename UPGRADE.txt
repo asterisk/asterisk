@@ -32,6 +32,39 @@ From 12 to 13:
   an older version of rasterisk connects to the new version then the
   "core set verbose" command will have no effect.
 
+ARI:
+ - The ARI version has been changed from 1.0.0 to 1.1.0. This is to reflect
+   the backwards compatible changes listed below.
+
+ - Added a new ARI resource 'mailboxes' which allows the creation and
+   modification of mailboxes managed by external MWI. Modules res_mwi_external
+   and res_stasis_mailbox must be enabled to use this resource.
+
+ - Added new events for externally initiated transfers. The event
+   BridgeBlindTransfer is now raised when a channel initiates a blind transfer
+   of a bridge in the ARI controlled application to the dialplan; the
+   BridgeAttendedTransfer event is raised when a channel initiates an
+   attended transfer of a bridge in the ARI controlled application to the
+   dialplan.
+
+ - Channel variables may now be specified as a body parameter to the
+   POST /channels operation. The 'variables' key in the JSON is interpreted
+   as a sequence of key/value pairs that will be added to the created channel
+   as channel variables. Other parameters in the JSON body are treated as
+   query parameters of the same name.
+
+AMI:
+ - The AMI version has been changed from 2.0.0 to 2.1.0. This is to reflect
+   the backwards compatible changes listed below.
+
+ - The DialStatus field in the DialEnd event can now have additional values.
+   This includes ABORT, CONTINUE, and GOTO.
+
+ - The res_mwi_external_ami module can, if loaded, provide additional AMI
+   actions and events that convey MWI state within Asterisk. This includes
+   the MWIGet, MWIUpdate, and MWIDelete actions, as well as the MWIGet and
+   MWIGetComplete events that occur in response to an MWIGet action.
+
 CDRs:
  - The "endbeforehexten" setting now defaults to "yes", instead of "no".
    When set to "no", yhis setting will cause a new CDR to be generated when a
@@ -59,24 +92,30 @@ Configuration Files:
    instead of a "basic" one.
 
 Realtime Configuration:
- - New columns have been added to realtime tables for 'support_path' on
-   ps_registrations and ps_aors and for 'path' on ps_contacts for the new
-   SIP Path support in chan_pjsip.
- - The following new tables have been added for pjsip realtime: 'ps_systems',
-   'ps_globals', 'ps_tranports', 'ps_registrations'.
- - The following columns were added to the 'ps_aors' realtime table:
-   'maximum_expiration', 'outbound_proxy', and 'support_path'.
- - The following columns were added to the 'ps_contacts' realtime table:
-   'outbound_proxy' and 'path'.
- - New columns have been added to the ps_endpoints realtime table for the
-   'media_address', 'redirect_method' and 'set_var' options.  Also the
-   'mwi_fromuser' column was renamed to 'mwi_from_user'.
  - WARNING: The database migration script that adds the 'extensions' table for
    realtime had to be modified due to an error when installing for MySQL.  The
    'extensions' table's 'id' column was changed to be a primary key.  This could
    potentially cause a migration problem.  If so, it may be necessary to
    manually alter the affected table/column to bring it back in line with the
    migration scripts.
+
+ - New columns have been added to realtime tables for 'support_path' on
+   ps_registrations and ps_aors and for 'path' on ps_contacts for the new
+   SIP Path support in chan_pjsip.
+
+ - The following new tables have been added for pjsip realtime: 'ps_systems',
+   'ps_globals', 'ps_tranports', 'ps_registrations'.
+
+ - The following columns were added to the 'ps_aors' realtime table:
+   'maximum_expiration', 'outbound_proxy', and 'support_path'.
+
+ - The following columns were added to the 'ps_contacts' realtime table:
+   'outbound_proxy' and 'path'.
+
+ - New columns have been added to the ps_endpoints realtime table for the
+   'media_address', 'redirect_method' and 'set_var' options.  Also the
+   'mwi_fromuser' column was renamed to 'mwi_from_user'.
+
  - A new column was added to the 'ps_globals' realtime table for the 'debug'
    option.
 

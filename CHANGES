@@ -87,21 +87,64 @@ Debugging
 --- Functionality changes from Asterisk 12.0.0 to Asterisk 12.1.0 ------------
 ------------------------------------------------------------------------------
 
+AMI
+------------------
+ * Added a new module that provides AMI control over MWI within Asterisk,
+   res_mwi_external_ami. Note that this module depends on res_mwi_external;
+   for more information on enabling this module, see res_mwi_external.
+   This module provides the MWIGet/MWIUpdate/MWIDelete actions, as well as
+   the MWIGet/MWIGetComplete events.
+
+ * The DialStatus field in the DialEnd event can now contain additional
+   statuses that convey how the dial operation terminated. This includes
+   ABORT, CONTINUE, and GOTO.
+
 ARI
 ------------------
  * Added a new ARI resource 'mailboxes' which allows the creation and
    modification of mailboxes managed by external MWI. Modules res_mwi_external
-   and res_stasis_mailbox must be enabled to use this resource.
+   and res_stasis_mailbox must be enabled to use this resource. For more
+   information on external MWI control, see res_mwi_external.
 
-chan_pjsip
+ * Added new events for externally initiated transfers. The event
+   BridgeBlindTransfer is now raised when a channel initiates a blind transfer
+   of a bridge in the ARI controlled application to the dialplan; the
+   BridgeAttendedTransfer event is raised when a channel initiates an
+   attended transfer of a bridge in the ARI controlled application to the
+   dialplan.
+
+ * Channel variables may now be specified as a body parameter to the
+   POST /channels operation. The 'variables' key in the JSON is interpreted
+   as a sequence of key/value pairs that will be added to the created channel
+   as channel variables. Other parameters in the JSON body are treated as
+   query parameters of the same name.
+
+res_pjsip
 ------------------
  * Path support has been added with the 'support_path' option in registration
    and aor sections.
 
-res_pjsip
-------------------
  * A 'debug' option has been added to the globals section that will allow
    sip messages to be logged.
+
+ * A 'set_var' option has been added to endpoints that will automatically
+   set the desired variable(s) on a channel created for that endpoint.
+
+ * Several new tables and columns have been added to the realtime schema for
+   the res_pjsip related modules. See the UPGRADE.txt notes for updating
+   the database schema.
+
+res_mwi_external
+------------------
+ * A new module, res_mwi_external, has been added to Asterisk. This module
+   acts as a base framework that other modules can build on top of to allow
+   an external system to control MWI within Asterisk. For implementations
+   that make use of res_mwi_external, see res_mwi_external_ami and
+   res_ari_mailboxes. Note that res_mwi_external canflicts with other modules
+   that may produce MWI themselves, such as app_voicemail. res_mwi_external
+   and other modules that depend on it cannot be built or loaded with
+   app_voicemail present.
+
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
