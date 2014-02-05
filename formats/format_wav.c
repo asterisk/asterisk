@@ -91,7 +91,7 @@ static int check_header_fmt(FILE *f, int hsize, int hz)
 		return -1;
 	}
 	if (ltohs(format) != 1) {
-		ast_log(LOG_WARNING, "Not a wav file %d\n", ltohs(format));
+		ast_log(LOG_WARNING, "Not a supported wav file format (%d). Only PCM encoded, 16 bit, mono, 8kHz files are supported with a lowercase '.wav' extension.\n", ltohs(format));
 		return -1;
 	}
 	if (fread(&chans, 1, 2, f) != 2) {
