@@ -52,6 +52,9 @@ ARI:
    as channel variables. Other parameters in the JSON body are treated as
    query parameters of the same name.
 
+ - Subscribing to the same device state twice now responds with success
+   instead of returning error on the second attempt.
+
 AMI:
  - The AMI version has been changed from 2.0.0 to 2.1.0. This is to reflect
    the backwards compatible changes listed below.
