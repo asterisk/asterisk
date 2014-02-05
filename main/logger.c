@@ -322,13 +322,22 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 		ast_copy_string(chan->filename, channel, sizeof(chan->filename));
 		openlog("asterisk", LOG_PID, chan->facility);
 	} else {
-		if (!ast_strlen_zero(hostname)) {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",
-				 channel[0] != '/' ? ast_config_AST_LOG_DIR : "", channel, hostname);
-		} else {
-			snprintf(chan->filename, sizeof(chan->filename), "%s/%s",
-				 channel[0] != '/' ? ast_config_AST_LOG_DIR : "", channel);
+		const char *log_dir_prefix = "";
+		const char *log_dir_separator = "";
+
+		if (channel[0] != '/') {
+			log_dir_prefix = ast_config_AST_LOG_DIR;
+			log_dir_separator = "/";
 		}
+
+		if (!ast_strlen_zero(hostname)) {
+			snprintf(chan->filename, sizeof(chan->filename), "%s%s%s.%s",
+				log_dir_prefix, log_dir_separator, channel, hostname);
+		} else {
+			snprintf(chan->filename, sizeof(chan->filename), "%s%s%s",
+				log_dir_prefix, log_dir_separator, channel);
+		}
+
 		if (!(chan->fileptr = fopen(chan->filename, "a"))) {
 			/* Can't do real logging here since we're called with a lock
 			 * so log to any attached consoles */
@@ -1007,7 +1016,7 @@ static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_logger_show_channels, "List configured log channels"),
 	AST_CLI_DEFINE(handle_logger_reload, "Reopens the log files"),
 	AST_CLI_DEFINE(handle_logger_rotate, "Rotates and reopens the log files"),
-	AST_CLI_DEFINE(handle_logger_set_level, "Enables/Disables a specific logging level for this console")
+	AST_CLI_DEFINE(handle_logger_set_level, "Enables/Disables a specific logging level for this console"),
 };
 
 static void _handle_SIGXFSZ(int sig)
