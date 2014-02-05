@@ -101,6 +101,10 @@ AMI
 
 ARI
 ------------------
+ * The Bridge object contains new fields 'name' and 'creator'. The name
+   is a special description for the bridge given to it upon creation. The
+   creator is the name of the service/module/etc that created the bridge.
+
  * Added a new ARI resource 'mailboxes' which allows the creation and
    modification of mailboxes managed by external MWI. Modules res_mwi_external
    and res_stasis_mailbox must be enabled to use this resource. For more
