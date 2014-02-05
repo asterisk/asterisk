@@ -402,6 +402,7 @@ class Operation(Stringify):
         if len(self.body_parameter) > 1:
             raise SwaggerError("Cannot have more than one body param", context)
         self.body_parameter = self.body_parameter and self.body_parameter[0]
+        self.has_body_parameter = self.body_parameter and True
 
         self.summary = op_json.get('summary')
         self.notes = op_json.get('notes')
