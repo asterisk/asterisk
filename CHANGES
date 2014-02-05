@@ -101,11 +101,23 @@ AMI
    statuses that convey how the dial operation terminated. This includes
    ABORT, CONTINUE, and GOTO.
 
+ * Bridge related events now have two additional fields: BridgeName and
+   BridgeCreator. BridgeName is a descriptive name for the bridge;
+   BridgeCreator is the name of the entity that created the bridge. This
+   affects the following events: ConfbridgeStart, ConfbridgeEnd,
+   ConfbridgeJoin, ConfbridgeLeave, ConfbridgeRecord, ConfbridgeStopRecord,
+   ConfbridgeMute, ConfbridgeUnmute, ConfbridgeTalking, BlindTransfer,
+   AttendedTransfer, BridgeCreate, BridgeDestroy, BridgeEnter, BridgeLeave
+
 ARI
 ------------------
- * The Bridge object contains new fields 'name' and 'creator'. The name
-   is a special description for the bridge given to it upon creation. The
-   creator is the name of the service/module/etc that created the bridge.
+ * The Bridge data model now contains the additional fields 'name' and
+   'creator'. The 'name' field conveys a descriptive name for the bridge;
+   the 'creator' field conveys the name of the entity that created the bridge.
+   This affects all responses to HTTP requests that return a Bridge data model
+   as well as all event derived data models that contain a Bridge data model.
+   The POST /bridges operation may now optionally specify a name to give to
+   the bridge being created.
 
  * Added a new ARI resource 'mailboxes' which allows the creation and
    modification of mailboxes managed by external MWI. Modules res_mwi_external
