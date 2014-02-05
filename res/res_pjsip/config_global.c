@@ -105,7 +105,7 @@ char *ast_sip_get_debug(void)
 	struct global_config *cfg = get_global_cfg();
 
 	if (!cfg) {
-		return 0;
+		return ast_strdup("no");
 	}
 
 	res = ast_strdup(cfg->debug);
