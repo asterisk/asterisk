@@ -12,6 +12,7 @@ down_revision = '581a4264e537'
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM
 
 YESNO_NAME = 'yesno_values'
 YESNO_VALUES = ['yes', 'no']
@@ -26,20 +27,12 @@ PJSIP_TRANSPORT_METHOD_VALUES = ['default', 'unspecified', 'tlsv1', 'sslv2',
 PJSIP_TRANSPORT_PROTOCOL_NAME = 'pjsip_transport_protocol_values'
 PJSIP_TRANSPORT_PROTOCOL_VALUES = ['udp', 'tcp', 'tls', 'ws', 'wss']
 
-def create_enum(name, check_first, *args):
-    """Create an enumeration with the given name."""
-    res = sa.Enum(*args, name=name)
-    res.create(op.get_bind(), checkfirst=check_first)
-    return res
-
-def drop_enum(name):
-    """Drop the named enumeration from the database."""
-    sa.Enum(name=name).drop(op.get_bind(), checkfirst=False)
-
 def upgrade():
     ############################# Enums ##############################
 
-    yesno_values = sa.Enum(*YESNO_VALUES, name=YESNO_NAME)
+    # yesno_values have already been created, so use postgres enum object
+    # type to get around "already created" issue - works okay with mysql
+    yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
 
     # for some reason when using 'add_column' if you don't create the enum
     # first it will think it already exists and fail
