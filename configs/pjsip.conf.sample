@@ -75,6 +75,33 @@
 ; The following sections show example configurations for various scenarios.
 ; Most require a couple or more configuration types configured in concert.
 
+;=============================================================================
+
+; Naming of Configuration Sections
+;
+; Configuration section names are denoted with enclosing brackets,
+; e.g. [6001]
+; In most cases, you can name a section whatever makes sense to you. For example
+; you might name a transport [transport-udp-nat] to help you remember how that
+; section is being used. However, in some cases, ("endpoint" and "aor" types)
+; the section name has a relationship to its function.
+;
+; Depending on the modules loaded, Asterisk can match SIP requests to an
+; endpoint or aor in a few ways:
+;
+; 1) Match a section name for endpoint type sections to the username in the
+;    "From" header of inbound SIP requests.
+; 2) Match a section name for aor type sections to the username in the "To"
+;    header of inbound SIP REGISTER requests.
+; 3) With an identify type section configured, match an inbound SIP request of
+;    any type to an endpoint or aor based on the IP source address of the
+;    request.
+;
+; Note that sections can have the same name as long as their "type" options are
+; set to different values. In most cases it makes sense to have associated
+; configuration sections use the same name, as you'll see in the examples within
+; this file.
+
 ;===============EXAMPLE TRANSPORTS============================================
 ;
 ; A few examples for potential transport options.
@@ -186,10 +213,6 @@
 ; You can define multiple contact addresses in SIP URI format in multiple
 ; "contact=" entries.
 ;
-; Section Naming
-;
-; Sections can have the same name as long as their "type="
-; options are set to different values.
 
 ;[mytrunk]
 ;type=endpoint
