@@ -33,8 +33,6 @@
 
 static struct ast_hashtab *formatter_registry;
 
-static struct ast_sorcery *sip_sorcery;
-
 struct ast_sip_cli_formatter_entry *ast_sip_lookup_cli_formatter(const char *name)
 {
 	struct ast_sip_cli_formatter_entry fake_entry = {
@@ -115,21 +113,20 @@ static char *complete_show_sorcery_object(struct ao2_container *container,
 	return result;
 }
 
-static void dump_str_and_free(int fd, struct ast_str *buf) {
+static void dump_str_and_free(int fd, struct ast_str *buf)
+{
 	ast_cli(fd, "%s", ast_str_buffer(buf));
 	ast_free(buf);
 }
 
-static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
-	struct ast_cli_args *a)
+char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, s_container, NULL, ao2_cleanup);
 	RAII_VAR(void *, object, NULL, ao2_cleanup);
 	int is_container = 0;
-	const char *cmd1 = NULL;
-	const char *cmd2 = NULL;
-	const char *object_id = NULL;
+	const char *cmd1;
+	const char *cmd2;
+	const char *object_id;
 	char formatter_type[64];
 	struct ast_sip_cli_formatter_entry *formatter_entry;
 
@@ -154,9 +151,10 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 	object_id = a->argv[3];
 
 	if (!ast_ends_with(cmd2, "s")) {
-		ast_copy_string(formatter_type, cmd2, strlen(cmd2)+1);
+		ast_copy_string(formatter_type, cmd2, sizeof(formatter_type));
 		is_container = 0;
 	} else {
+		/* Take the plural "s" off of the object name. */
 		ast_copy_string(formatter_type, cmd2, strlen(cmd2));
 		is_container = 1;
 	}
@@ -182,18 +180,21 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 
 	formatter_entry = ast_sip_lookup_cli_formatter(formatter_type);
 	if (!formatter_entry) {
-		ast_log(LOG_ERROR, "CLI TRAVERSE failure.  No container found for object type %s\n", formatter_type);
+		ast_log(LOG_ERROR, "No formatter registered for object type %s.\n",
+			formatter_type);
 		ast_free(context.output_buffer);
 		return CLI_FAILURE;
 	}
 	ast_str_append(&context.output_buffer, 0, "\n");
 	formatter_entry->print_header(NULL, &context, 0);
-	ast_str_append(&context.output_buffer, 0, " =========================================================================================\n\n");
+	ast_str_append(&context.output_buffer, 0,
+		" =========================================================================================\n\n");
 
 	if (is_container || cmd == CLI_GENERATE) {
-		container = formatter_entry->get_container(sip_sorcery);
+		container = formatter_entry->get_container();
 		if (!container) {
-			ast_cli(a->fd, "CLI TRAVERSE failure.  No container found for object type %s\n", formatter_type);
+			ast_cli(a->fd, "No container returned for object type %s.\n",
+				formatter_type);
 			ast_free(context.output_buffer);
 			return CLI_FAILURE;
 		}
@@ -210,22 +211,19 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 			ast_cli(a->fd, "No objects found.\n\n");
 			return CLI_SUCCESS;
 		}
-
-		if (!strcmp(formatter_type, "channel") || !strcmp(formatter_type, "contact")) {
-			s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
-		} else {
-			s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, &ast_sorcery_object_id_compare, NULL);
-		}
-
-		ao2_container_dup(s_container, container, OBJ_ORDER_ASCENDING);
-
-		ao2_callback(s_container, OBJ_NODATA, formatter_entry->print_body, &context);
+		ao2_callback(container, OBJ_NODATA, formatter_entry->print_body, &context);
 	} else {
-		if (!(object = ast_sorcery_retrieve_by_id(
-			ast_sip_get_sorcery(), formatter_type, object_id))) {
+		if (ast_strlen_zero(object_id)) {
 			dump_str_and_free(a->fd, context.output_buffer);
-			ast_cli(a->fd, "Unable to retrieve object %s\n", object_id);
+			ast_cli(a->fd, "No object specified.\n");
 			return CLI_FAILURE;
+		}
+		object = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), formatter_type,
+			object_id);
+		if (!object) {
+			dump_str_and_free(a->fd, context.output_buffer);
+			ast_cli(a->fd, "Unable to find object %s.\n\n", object_id);
+			return CLI_SUCCESS;
 		}
 		formatter_entry->print_body(object, &context, 0);
 	}
@@ -235,40 +233,8 @@ static char *cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_commands[] = {
-	AST_CLI_DEFINE(cli_traverse_objects, "List PJSIP Channels", .command = "pjsip list channels",
-			.usage = "Usage: pjsip list channels\n       List the active PJSIP channels\n"),
-	AST_CLI_DEFINE(cli_traverse_objects, "Show PJSIP Channels", .command = "pjsip show channels",
-			.usage = "Usage: pjsip show channels\n       List(detailed) the active PJSIP channels\n"),
-
-	AST_CLI_DEFINE(cli_traverse_objects, "List PJSIP Aors", .command = "pjsip list aors",
-			.usage = "Usage: pjsip list aors\n       List the configured PJSIP Aors\n"),
-	AST_CLI_DEFINE(cli_traverse_objects, "Show PJSIP Aors", .command = "pjsip show aors",
-			.usage = "Usage: pjsip show aors\n       Show the configured PJSIP Aors\n"),
-	AST_CLI_DEFINE(cli_traverse_objects, "Show PJSIP Aor", .command = "pjsip show aor",
-			.usage = "Usage: pjsip show aor\n       Show the configured PJSIP Aor\n"),
-
-	AST_CLI_DEFINE(cli_traverse_objects, "List PJSIP Contacts", .command = "pjsip list contacts",
-			.usage = "Usage: pjsip list contacts\n       List the configured PJSIP contacts\n"),
-
-	AST_CLI_DEFINE(cli_traverse_objects, "List PJSIP Endpoints", .command = "pjsip list endpoints",
-			.usage = "Usage: pjsip list endpoints\n       List the configured PJSIP endpoints\n"),
-	AST_CLI_DEFINE(cli_traverse_objects, "Show PJSIP Endpoints", .command = "pjsip show endpoints",
-			.usage = "Usage: pjsip show endpoints\n       List(detailed) the configured PJSIP endpoints\n"),
-	AST_CLI_DEFINE(cli_traverse_objects, "Show PJSIP Endpoint", .command = "pjsip show endpoint",
-			.usage = "Usage: pjsip show endpoint <id>\n       Show the configured PJSIP endpoint\n"),
-
-	AST_CLI_DEFINE(cli_traverse_objects, "List PJSIP Auths", .command = "pjsip list auths",
-			.usage = "Usage: pjsip list auths\n       List the configured PJSIP Auths\n"),
-	AST_CLI_DEFINE(cli_traverse_objects, "Show PJSIP Auths", .command = "pjsip show auths",
-			.usage = "Usage: pjsip show auths\n       Show the configured PJSIP Auths\n"),
-	AST_CLI_DEFINE(cli_traverse_objects, "Show PJSIP Auth", .command = "pjsip show auth",
-			.usage = "Usage: pjsip show auth\n       Show the configured PJSIP Auth\n"),
-
-};
-
-
-static int compare_formatters(const void *a, const void *b) {
+static int compare_formatters(const void *a, const void *b)
+{
 	const struct ast_sip_cli_formatter_entry *afe = a;
 	const struct ast_sip_cli_formatter_entry *bfe = b;
 	if (!afe || !bfe) {
@@ -278,18 +244,22 @@ static int compare_formatters(const void *a, const void *b) {
 	return strcmp(afe->name, bfe->name);
 }
 
-static unsigned int hash_formatters(const void *a) {
+static unsigned int hash_formatters(const void *a)
+{
 	const struct ast_sip_cli_formatter_entry *afe = a;
 	return ast_hashtab_hash_string(afe->name);
 }
 
-int ast_sip_register_cli_formatter(struct ast_sip_cli_formatter_entry *formatter) {
+int ast_sip_register_cli_formatter(struct ast_sip_cli_formatter_entry *formatter)
+{
 	ast_hashtab_insert_safe(formatter_registry, formatter);
 	return 0;
 }
 
-int ast_sip_unregister_cli_formatter(struct ast_sip_cli_formatter_entry *formatter) {
+int ast_sip_unregister_cli_formatter(struct ast_sip_cli_formatter_entry *formatter)
+{
 	struct ast_sip_cli_formatter_entry *entry = ast_hashtab_lookup(formatter_registry, formatter);
+
 	if (!entry) {
 		return -1;
 	}
@@ -297,7 +267,7 @@ int ast_sip_unregister_cli_formatter(struct ast_sip_cli_formatter_entry *formatt
 	return 0;
 }
 
-int ast_sip_initialize_cli(struct ast_sorcery *sorcery)
+int ast_sip_initialize_cli(void)
 {
 	formatter_registry = ast_hashtab_create(17, compare_formatters,
 		ast_hashtab_resize_java, ast_hashtab_newsize_java, hash_formatters, 0);
@@ -306,18 +276,11 @@ int ast_sip_initialize_cli(struct ast_sorcery *sorcery)
 		return -1;
 	}
 
-	if (ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands))) {
-		ast_log(LOG_ERROR, "Failed to register pjsip cli commands.\n");
-		ast_hashtab_destroy(formatter_registry, ast_free_ptr);
-		return -1;
-	}
-	sip_sorcery = sorcery;
 	return 0;
 }
 
 void ast_sip_destroy_cli(void)
 {
-	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	if (formatter_registry) {
 		ast_hashtab_destroy(formatter_registry, ast_free_ptr);
 	}

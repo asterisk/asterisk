@@ -28,6 +28,7 @@
 #include <pjsip_ua.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/res_pjsip_cli.h"
 #include "asterisk/module.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/cli.h"
@@ -1030,10 +1031,6 @@ static int ami_unregister(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static struct ast_cli_entry cli_outbound_registration[] = {
-	AST_CLI_DEFINE(cli_unregister, "Send a REGISTER request to an outbound registration target with a expiration of 0")
-};
-
 struct sip_ami_outbound {
 	struct ast_sip_ami *ami;
 	int registered;
@@ -1113,6 +1110,113 @@ static int ami_show_outbound_registrations(struct mansession *s,
 	return 0;
 }
 
+static struct ao2_container *cli_get_container(void)
+{
+	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, s_container, NULL, ao2_cleanup);
+
+	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "registration",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!container) {
+		return NULL;
+	}
+
+	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		ast_sorcery_object_id_compare, NULL);
+	if (!s_container) {
+		return NULL;
+	}
+
+	if (ao2_container_dup(s_container, container, 0)) {
+		return NULL;
+	}
+	ao2_ref(s_container, +1);
+	return s_container;
+}
+
+static int cli_iterator(const void *container, ao2_callback_fn callback, void *args)
+{
+	struct ao2_container *ao2container = (struct ao2_container *) container;
+
+	ao2_callback(ao2container, OBJ_NODATA, callback, args);
+	return 0;
+}
+
+static int cli_print_header(void *obj, void *arg, int flags)
+{
+	struct ast_sip_cli_context *context = arg;
+
+	if (!context->output_buffer) {
+		return -1;
+	}
+
+	ast_str_append(&context->output_buffer, 0,
+		" <Registration/ServerURI..............................>  <Auth..........>  <Status.......>\n");
+
+	return 0;
+}
+
+static int cli_print_body(void *obj, void *arg, int flags)
+{
+	struct sip_outbound_registration *registration = obj;
+	struct ast_sip_cli_context *context = arg;
+	const char *id = ast_sorcery_object_get_id(registration);
+#define REGISTRATION_URI_FIELD_LEN	53
+
+	if (!context->output_buffer) {
+		return -1;
+	}
+
+	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-16s  %-16s\n",
+		id,
+		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
+		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
+		registration->server_uri,
+		AST_VECTOR_SIZE(&registration->outbound_auths)
+			? AST_VECTOR_GET(&registration->outbound_auths, 0)
+			: "n/a",
+		sip_outbound_registration_status_str[registration->state->client_state->status]);
+
+	if (context->show_details
+		|| (context->show_details_only_level_0 && context->indent_level == 0)) {
+		ast_str_append(&context->output_buffer, 0, "\n");
+		ast_sip_cli_print_sorcery_objectset(registration, context, 0);
+	}
+
+	return 0;
+}
+
+static struct ast_sip_cli_formatter_entry cli_formatter = {
+	.name = "registration",
+	.print_header = cli_print_header,
+	.print_body = cli_print_body,
+	.get_container = cli_get_container,
+	.iterator = cli_iterator,
+	.comparator = ast_sorcery_object_id_compare,
+};
+
+/*
+ * A function pointer to callback needs to be within the
+ * module in order to avoid problems with an undefined
+ * symbol when the module is loaded.
+ */
+static char *my_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	return ast_sip_cli_traverse_objects(e, cmd, a);
+}
+
+static struct ast_cli_entry cli_outbound_registration[] = {
+	AST_CLI_DEFINE(cli_unregister, "Send a REGISTER request to an outbound registration target with a expiration of 0"),
+	AST_CLI_DEFINE(my_cli_traverse_objects, "List PJSIP Registrations",
+		.command = "pjsip list registrations",
+		.usage = "Usage: pjsip list registrations\n"
+				 "       List the configured PJSIP Registrations\n"),
+	AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Registration",
+		.command = "pjsip show registration",
+		.usage = "Usage: pjsip show registration <id>\n"
+				 "       Show the configured PJSIP Registration\n"),
+};
+
 static int load_module(void)
 {
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "registration", "config", "pjsip.conf,criteria=type=registration");
@@ -1140,6 +1244,8 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
 	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING,ami_show_outbound_registrations);
+	ast_sip_register_cli_formatter(&cli_formatter);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -1152,6 +1258,7 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
+	ast_sip_unregister_cli_formatter(&cli_formatter);
 	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
 	ast_manager_unregister("PJSIPUnregister");

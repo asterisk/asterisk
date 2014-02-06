@@ -159,7 +159,7 @@ static char *pjsip_set_logger(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	if (cmd == CLI_INIT) {
 		e->command = "pjsip set logger {on|off|host}";
 		e->usage =
-			"Usage: pjsip set logger {on|off}\n"
+			"Usage: pjsip set logger {on|off|host <name>}\n"
 			"       Enables or disabling logging of SIP packets\n"
 			"       read on ports bound to PJSIP transports either\n"
 			"       globally or enables logging for an individual\n"

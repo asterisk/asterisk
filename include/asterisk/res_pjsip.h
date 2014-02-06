@@ -221,17 +221,6 @@ struct ast_sip_aor {
 };
 
 /*!
- * \brief Aor/Contact pair used for ast_sip_for_each_contact callback.
- */
-struct ast_sip_aor_contact_pair {
-	SORCERY_OBJECT(details);
-	/*! Aor */
-	struct ast_sip_aor *aor;
-	/*! Contact */
-	struct ast_sip_contact *contact;
-};
-
-/*!
  * \brief DTMF modes for SIP endpoints
  */
 enum ast_sip_dtmf_mode {
@@ -824,32 +813,42 @@ struct ast_sorcery *ast_sip_get_sorcery(void);
 /*!
  * \brief Initialize transport support on a sorcery instance
  *
- * \param sorcery The sorcery instance
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_initialize_sorcery_transport(void);
+
+/*!
+ * \brief Destroy transport support on a sorcery instance
  *
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery);
+int ast_sip_destroy_sorcery_transport(void);
 
 /*!
  * \brief Initialize qualify support on a sorcery instance
  *
- * \param sorcery The sorcery instance
- *
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_qualify(struct ast_sorcery *sorcery);
+int ast_sip_initialize_sorcery_qualify(void);
 
 /*!
  * \brief Initialize location support on a sorcery instance
  *
- * \param sorcery The sorcery instance
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_initialize_sorcery_location(void);
+
+/*!
+ * \brief Destroy location support on a sorcery instance
  *
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_location(struct ast_sorcery *sorcery);
+int ast_sip_destroy_sorcery_location(void);
 
 /*!
  * \brief Retrieve a named AOR
@@ -936,22 +935,26 @@ int ast_sip_location_delete_contact(struct ast_sip_contact *contact);
 /*!
  * \brief Initialize domain aliases support on a sorcery instance
  *
- * \param sorcery The sorcery instance
- *
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_domain_alias(struct ast_sorcery *sorcery);
+int ast_sip_initialize_sorcery_domain_alias(void);
 
 /*!
  * \brief Initialize authentication support on a sorcery instance
  *
- * \param sorcery The sorcery instance
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_initialize_sorcery_auth(void);
+
+/*!
+ * \brief Destroy authentication support on a sorcery instance
  *
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery);
+int ast_sip_destroy_sorcery_auth(void);
 
 /*!
  * \brief Callback called when an outbound request with authentication credentials is to be sent in dialog
@@ -1553,7 +1556,7 @@ void ast_sip_destroy_global_headers(void);
 int ast_sip_add_global_request_header(const char *name, const char *value, int replace);
 int ast_sip_add_global_response_header(const char *name, const char *value, int replace);
 
-int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery);
+int ast_sip_initialize_sorcery_global(void);
 
 /*!
  * \brief Retrieves the value associated with the given key.
@@ -1618,7 +1621,7 @@ void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
  * \param arg user data passed to handler
  * \retval 0 Success, non-zero on failure
  */
-int ast_sip_for_each_contact(struct ast_sip_aor *aor,
+int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
 		ao2_callback_fn on_contact, void *arg);
 
 /*!

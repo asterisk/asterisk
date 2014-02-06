@@ -99,7 +99,7 @@ char *ast_sip_global_default_outbound_endpoint(void);
 /*!
  * \brief Functions for initializing and destroying the CLI.
  */
-int ast_sip_initialize_cli(struct ast_sorcery *sip_sorcery);
+int ast_sip_initialize_cli(void);
 void ast_sip_destroy_cli(void);
 
 #endif /* RES_PJSIP_PRIVATE_H_ */

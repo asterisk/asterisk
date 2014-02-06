@@ -199,13 +199,39 @@ static struct ast_sip_endpoint_formatter endpoint_auth_formatter = {
 	.format_ami = format_ami_endpoint_auth
 };
 
-static struct ao2_container *cli_get_auth_container(struct ast_sorcery *sip_sorcery)
+static struct ao2_container *cli_get_auth_container(void)
 {
-	return ast_sorcery_retrieve_by_fields(sip_sorcery, "auth",
-				AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, s_container, NULL, ao2_cleanup);
+
+	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "auth",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!container) {
+		return NULL;
+	}
+
+	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		ast_sorcery_object_id_compare, NULL);
+	if (!s_container) {
+		return NULL;
+	}
+
+	if (ao2_container_dup(s_container, container, 0)) {
+		return NULL;
+	}
+	ao2_ref(s_container, +1);
+	return s_container;
 }
 
-static int cli_print_auth_header(void *obj, void *arg, int flags) {
+static int cli_iterator(const void *container, ao2_callback_fn callback, void *args)
+{
+	const struct ast_sip_auth_vector *vector = container;
+
+	return ast_sip_for_each_auth(vector, callback, args);
+}
+
+static int cli_print_auth_header(void *obj, void *arg, int flags)
+{
 	struct ast_sip_cli_context *context = arg;
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	int filler = CLI_MAX_WIDTH - indent - 20;
@@ -215,12 +241,14 @@ static int cli_print_auth_header(void *obj, void *arg, int flags) {
 	}
 
 	ast_str_append(&context->output_buffer, 0,
-		"%*s:  <AuthId/UserName%*.*s>\n", indent, "I/OAuth", filler, filler, CLI_HEADER_FILLER);
+		"%*s:  <AuthId/UserName%*.*s>\n", indent, "I/OAuth", filler, filler,
+		CLI_HEADER_FILLER);
 
 	return 0;
 }
 
-static int cli_print_auth_body(void *obj, void *arg, int flags) {
+static int cli_print_auth_body(void *obj, void *arg, int flags)
+{
 	struct ast_sip_auth *auth = obj;
 	struct ast_sip_cli_context *context = arg;
 	char title[32];
@@ -231,13 +259,15 @@ static int cli_print_auth_body(void *obj, void *arg, int flags) {
 		return -1;
 	}
 
-	snprintf(title, 32, "%sAuth",context->auth_direction ? context->auth_direction : "");
+	snprintf(title, sizeof(title), "%sAuth",
+		context->auth_direction ? context->auth_direction : "");
 
 	ast_str_append(&context->output_buffer, 0, "%*s:  %s/%s\n",
 		CLI_INDENT_TO_SPACES(context->indent_level), title,
 		ast_sorcery_object_get_id(auth), auth->auth_user);
 
-	if (context->show_details || (context->show_details_only_level_0 && context->indent_level == 0)) {
+	if (context->show_details
+		|| (context->show_details_only_level_0 && context->indent_level == 0)) {
 		ast_str_append(&context->output_buffer, 0, "\n");
 		ast_sip_cli_print_sorcery_objectset(auth, context, 0);
 	}
@@ -245,16 +275,35 @@ static int cli_print_auth_body(void *obj, void *arg, int flags) {
 	return 0;
 }
 
-static struct ast_sip_cli_formatter_entry  cli_auth_formatter = {
+static struct ast_sip_cli_formatter_entry cli_auth_formatter = {
 	.name = SIP_SORCERY_AUTH_TYPE,
 	.print_header = cli_print_auth_header,
 	.print_body = cli_print_auth_body,
 	.get_container = cli_get_auth_container,
+	.iterator = cli_iterator,
+	.comparator = ast_sorcery_object_id_compare,
+};
+
+static struct ast_cli_entry cli_commands[] = {
+	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Auths",
+		.command = "pjsip list auths",
+		.usage = "Usage: pjsip list auths\n"
+				 "       List the configured PJSIP Auths\n"),
+	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Auths",
+		.command = "pjsip show auths",
+		.usage = "Usage: pjsip show auths\n"
+				 "       Show the configured PJSIP Auths\n"),
+	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Auth",
+		.command = "pjsip show auth",
+		.usage = "Usage: pjsip show auth <id>\n"
+				 "       Show the configured PJSIP Auth\n"),
 };
 
 /*! \brief Initialize sorcery with auth support */
-int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery)
+int ast_sip_initialize_sorcery_auth(void)
 {
+	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+
 	ast_sorcery_apply_default(sorcery, SIP_SORCERY_AUTH_TYPE, "config", "pjsip.conf,criteria=type=auth");
 
 	if (ast_sorcery_object_register(sorcery, SIP_SORCERY_AUTH_TYPE, auth_alloc, NULL, auth_apply)) {
@@ -278,6 +327,14 @@ int ast_sip_initialize_sorcery_auth(struct ast_sorcery *sorcery)
 
 	ast_sip_register_endpoint_formatter(&endpoint_auth_formatter);
 	ast_sip_register_cli_formatter(&cli_auth_formatter);
+	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
+	return 0;
+}
+
+int ast_sip_destroy_sorcery_auth(void)
+{
+	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
+	ast_sip_unregister_cli_formatter(&cli_auth_formatter);
 	return 0;
 }

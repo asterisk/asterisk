@@ -19,6 +19,8 @@
 #ifndef RES_PJSIP_CLI_H_
 #define RES_PJSIP_CLI_H_
 
+#include "asterisk/cli.h"
+
 #define CLI_HEADER_FILLER ".........................................................................................."
 #define CLI_DETAIL_FILLER "                                                                                          "
 #define CLI_MAX_WIDTH 90
@@ -54,7 +56,9 @@ struct ast_sip_cli_formatter_entry {
 	const char *name;
 	ao2_callback_fn *print_header;
 	ao2_callback_fn *print_body;
-	struct ao2_container *(* get_container)(struct ast_sorcery *);
+	struct ao2_container *(* get_container)(void);
+	int (* iterator)(const void *container, ao2_callback_fn callback, void *args);
+	ao2_sort_fn *comparator;
 };
 
 /*!
@@ -90,6 +94,8 @@ struct ast_sip_cli_formatter_entry *ast_sip_lookup_cli_formatter(const char *nam
  * \retval 0 Success, non-zero on failure
  */
 int ast_sip_cli_print_sorcery_objectset(void *obj, void *arg, int flags);
+
+char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 
 #endif /* RES_PJSIP_CLI_H_ */
