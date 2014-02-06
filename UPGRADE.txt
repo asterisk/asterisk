@@ -65,6 +65,20 @@ AMI:
    the MWIGet, MWIUpdate, and MWIDelete actions, as well as the MWIGet and
    MWIGetComplete events that occur in response to an MWIGet action.
 
+ - AMI now contains a new class authorization, 'security'. This is used with
+   the following new events: FailedACL, InvalidAccountID, SessionLimit,
+   MemoryLimit, LoadAverageLimit, RequestNotAllowed, AuthMethodNotAllowed,
+   RequestBadFormat, SuccessfulAuth, UnexpectedAddress, ChallengeResponseFailed,
+   InvalidPassword, ChallengeSent, and InvalidTransport.
+
+ - Bridge related events now have two additional fields: BridgeName and
+   BridgeCreator. BridgeName is a descriptive name for the bridge;
+   BridgeCreator is the name of the entity that created the bridge. This
+   affects the following events: ConfbridgeStart, ConfbridgeEnd,
+   ConfbridgeJoin, ConfbridgeLeave, ConfbridgeRecord, ConfbridgeStopRecord,
+   ConfbridgeMute, ConfbridgeUnmute, ConfbridgeTalking, BlindTransfer,
+   AttendedTransfer, BridgeCreate, BridgeDestroy, BridgeEnter, BridgeLeave
+
 CDRs:
  - The "endbeforehexten" setting now defaults to "yes", instead of "no".
    When set to "no", yhis setting will cause a new CDR to be generated when a

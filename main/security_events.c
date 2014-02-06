@@ -28,6 +28,338 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="FailedACL">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request violates an ACL check.</synopsis>
+			<syntax>
+				<parameter name="EventTV">
+					<para>The time the event was detected.</para>
+				</parameter>
+				<parameter name="Severity">
+					<para>A relative severity of the security event.</para>
+					<enumlist>
+						<enum name="Informational"/>
+						<enum name="Error"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Service">
+					<para>The Asterisk service that raised the security event.</para>
+				</parameter>
+				<parameter name="EventVersion">
+					<para>The version of this event.</para>
+				</parameter>
+				<parameter name="AccountID">
+					<para>The Service account associated with the security event
+					notification.</para>
+				</parameter>
+				<parameter name="SessionID">
+					<para>A unique identifier for the session in the service
+					that raised the event.</para>
+				</parameter>
+				<parameter name="LocalAddress">
+					<para>The address of the Asterisk service that raised the
+					security event.</para>
+				</parameter>
+				<parameter name="RemoteAddress">
+					<para>The remote address of the entity that caused the
+					security event to be raised.</para>
+				</parameter>
+				<parameter name="Module" required="False">
+					<para>If available, the name of the module that raised the event.</para>
+				</parameter>
+				<parameter name="ACLName" required="False">
+					<para>If available, the name of the ACL that failed.</para>
+				</parameter>
+				<parameter name="SessionTV" required="False">
+					<para>The timestamp reported by the session.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="InvalidAccountID">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request fails an authentication check due to an invalid account ID.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="SessionLimit">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request fails due to exceeding the number of allowed concurrent sessions for that service.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="MemoryLimit">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request fails due to an internal memory allocation failure.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="LoadAverageLimit">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request fails because a configured load average limit has been reached.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="RequestNotSupported">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request fails due to some aspect of the requested item not being supported by the service.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<parameter name="RequestType">
+					<para>The type of request attempted.</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="RequestNotAllowed">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request is not allowed by the service.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RequestNotSupported']/managerEventInstance/syntax/parameter[@name='RequestType'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+				<parameter name="RequestParams" required="False">
+					<para>Parameters provided to the rejected request.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AuthMethodNotAllowed">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request used an authentication method not allowed by the service.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<parameter name="AuthMethod">
+					<para>The authentication method attempted.</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="RequestBadFormat">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request is received with bad formatting.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RequestNotSupported']/managerEventInstance/syntax/parameter[@name='RequestType'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+				<parameter name="AccountID" required="False">
+					<para>The account ID associated with the rejected request.</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RequestNotAllowed']/managerEventInstance/syntax/parameter[@name='RequestParams'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="SuccessfulAuth">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request successfully authenticates with a service.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<parameter name="UsingPassword">
+					<para>Whether or not the authentication attempt included a password.</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="UnexpectedAddress">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request has a different source address then what is expected for a session already in progress with a service.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<parameter name="ExpectedAddress">
+					<para>The address that the request was expected to use.</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="ChallengeResponseFailed">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request's attempt to authenticate has been challenged, and the request failed the authentication challenge.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<parameter name="Challenge">
+					<para>The challenge that was sent.</para>
+				</parameter>
+				<parameter name="Response">
+					<para>The response that was received.</para>
+				</parameter>
+				<parameter name="ExpectedResponse">
+					<para>The expected response to the challenge.</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="InvalidPassword">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request provides an invalid password during an authentication attempt.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+				<parameter name="Challenge" required="False">
+					<para>The challenge that was sent.</para>
+				</parameter>
+				<parameter name="ReceivedChallenge" required="False">
+					<para>The challenge that was received.</para>
+				</parameter>
+				<parameter name="RecievedHash" required="False">
+					<para>The hash that was received.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="ChallengeSent">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when an Asterisk service sends an authentication challenge to a request.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ChallengeResponseFailed']/managerEventInstance/syntax/parameter[@name='Challenge'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="InvalidTransport">
+		<managerEventInstance class="EVENT_FLAG_SECURITY">
+			<synopsis>Raised when a request attempts to use a transport not allowed by the Asterisk service.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventTV'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Severity'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Service'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='EventVersion'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='AccountID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionID'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='LocalAddress'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
+				<parameter name="AttemptedTransport">
+					<para>The transport type that the request attempted to use.</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -61,7 +393,7 @@ static int append_event_str_single(struct ast_str **str, struct ast_json *json,
 
 	ast_assert(json_string != NULL);
 
-	if (ast_str_append(str, 0, "%s: %s\r\n", ie_type_key, ast_json_string_get(json_string)) == -1) {
+	if (ast_str_append(str, 0, "%s: %s\r\n", ie_type_key, S_OR(ast_json_string_get(json_string), "")) == -1) {
 		return -1;
 	}
 
@@ -72,6 +404,10 @@ static int append_event_str_from_json(struct ast_str **str, struct ast_json *jso
 		const struct ast_security_event_ie_type *ies)
 {
 	unsigned int i;
+
+	if (!ies) {
+		return 0;
+	}
 
 	for (i = 0; ies[i].ie_type != AST_EVENT_IE_END; i++) {
 		if (append_event_str_single(str, json, ies[i].ie_type)) {
@@ -99,7 +435,15 @@ static struct ast_manager_event_blob *security_event_to_ami_blob(struct ast_json
 
 	if (append_event_str_from_json(&str, json,
 			ast_security_event_get_required_ies(event_type))) {
-		ast_log(LOG_ERROR, "Failed to issue a security event to AMI.\n");
+		ast_log(AST_LOG_ERROR, "Failed to issue a security event to AMI: "
+			"error occurred when adding required event fields.\n");
+		return NULL;
+	}
+
+	if (append_event_str_from_json(&str, json,
+			ast_security_event_get_optional_ies(event_type))) {
+		ast_log(AST_LOG_ERROR, "Failed to issue a security event to AMI: "
+			"error occurred when adding optional event fields.\n");
 		return NULL;
 	}
 

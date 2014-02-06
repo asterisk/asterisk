@@ -101,6 +101,35 @@ AMI
    statuses that convey how the dial operation terminated. This includes
    ABORT, CONTINUE, and GOTO.
 
+ * AMI will now emit security events. A new class authorization has been
+   added in manager.conf for the security events, 'security'. The new events
+   are:
+    - FailedACL - raised when a request violates an ACL check
+    - InvalidAccountID - raised when a request fails an authentication
+      check due to an invalid account ID
+    - SessionLimit - raised when a request fails due to exceeding the
+      number of allowed concurrent sessions for a service
+    - MemoryLimit - raised when a request fails due to an internal memory
+      allocation failure
+    - LoadAverageLimit - raised when a request fails because a configured
+      load average limit has been reached
+    - RequestNotAllowed - raised when a request is not allowed by
+      the service
+    - AuthMethodNotAllowed - raised when a request used an authentication
+      method not allowed by the service
+    - RequestBadFormat - raised when a request is received with bad formatting
+    - SuccessfulAuth - raised when a request successfully authenticates
+    - UnexpectedAddress - raised when a request has a different source address
+      then what is expected for a session already in progress with a service
+    - ChallengeResponseFailed - raised when a request's attempt to authenticate
+      has been challenged, and the request failed the authentication challenge
+    - InvalidPassword - raised when a request provides an invalid password
+      during an authentication attempt
+    - ChallengeSent - raised when an Asterisk service send an authentication
+      challenge to a request
+    - InvalidTransport - raised when a request attempts to use a transport not
+      allowed by the Asterisk service
+
  * Bridge related events now have two additional fields: BridgeName and
    BridgeCreator. BridgeName is a descriptive name for the bridge;
    BridgeCreator is the name of the entity that created the bridge. This
@@ -136,6 +165,12 @@ ARI
    as a sequence of key/value pairs that will be added to the created channel
    as channel variables. Other parameters in the JSON body are treated as
    query parameters of the same name.
+
+HTTP
+------------------
+ * Asterisk's HTTP server now supports chunked Transfer-Encoding. This will be
+   automatically handled by the HTTP server if a request is received with a
+   Transfer-Encoding type of "chunked".
 
 res_pjsip
 ------------------
