@@ -48,8 +48,10 @@ static void *domain_alias_alloc(const char *name)
 }
 
 /*! \brief Initialize sorcery with domain alias support */
-int ast_sip_initialize_sorcery_domain_alias(struct ast_sorcery *sorcery)
+int ast_sip_initialize_sorcery_domain_alias(void)
 {
+	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+
 	ast_sorcery_apply_default(sorcery, SIP_SORCERY_DOMAIN_ALIAS_TYPE, "config", "pjsip.conf,criteria=type=domain_alias");
 
 	if (ast_sorcery_object_register(sorcery, SIP_SORCERY_DOMAIN_ALIAS_TYPE, domain_alias_alloc, NULL, NULL)) {

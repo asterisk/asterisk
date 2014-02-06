@@ -576,6 +576,7 @@ static int cli_on_contact(void *obj, void *arg, void *data, int flags)
 	struct ast_sip_contact *contact = obj;
 	struct ast_sip_endpoint *endpoint = data;
 	int *cli_fd = arg;
+
 	ast_cli(*cli_fd, " contact %s\n", contact->uri);
 	qualify_contact(endpoint, contact);
 	return 0;
@@ -765,8 +766,10 @@ static int sched_qualifies_cmp_fn(void *obj, void *arg, int flags)
 		       ast_sorcery_object_get_id(arg));
 }
 
-int ast_sip_initialize_sorcery_qualify(struct ast_sorcery *sorcery)
+int ast_sip_initialize_sorcery_qualify(void)
 {
+	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+
 	/* initialize sorcery ast_sip_contact_status resource */
 	ast_sorcery_apply_default(sorcery, CONTACT_STATUS, "memory", NULL);
 

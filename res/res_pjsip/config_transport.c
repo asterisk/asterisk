@@ -22,6 +22,7 @@
 #include <pjlib.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/res_pjsip_cli.h"
 #include "asterisk/logger.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/sorcery.h"
@@ -276,8 +277,9 @@ static int transport_bind_handler(const struct aco_option *opt, struct ast_varia
 {
 	struct ast_sip_transport *transport = obj;
 	pj_str_t buf;
+	int rc = pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, var->value), &transport->host);
 
-	return (pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, var->value), &transport->host) != PJ_SUCCESS) ? -1 : 0;
+	return rc != PJ_SUCCESS ? -1 : 0;
 }
 
 static int transport_bind_to_str(const void *obj, const intptr_t *args, char **buf)
@@ -446,9 +448,115 @@ static int localnet_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
-/*! \brief Initialize sorcery with transport support */
-int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery)
+static struct ao2_container *cli_get_container(void)
 {
+	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, s_container, NULL, ao2_cleanup);
+
+	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "transport",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!container) {
+		return NULL;
+	}
+
+	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		ast_sorcery_object_id_compare, NULL);
+	if (!s_container) {
+		return NULL;
+	}
+
+	if (ao2_container_dup(s_container, container, 0)) {
+		return NULL;
+	}
+	ao2_ref(s_container, +1);
+	return s_container;
+}
+
+static int cli_iterator(const void *container, ao2_callback_fn callback, void *args)
+{
+	const struct ast_sip_endpoint *endpoint = container;
+	struct ast_sip_transport *transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),
+		"transport", endpoint->transport);
+
+	if (!transport) {
+		return -1;
+	}
+	return callback(transport, args, 0);
+}
+
+static int cli_print_header(void *obj, void *arg, int flags)
+{
+	struct ast_sip_cli_context *context = arg;
+	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
+	int filler = CLI_MAX_WIDTH - indent - 61;
+
+	if (!context->output_buffer) {
+		return -1;
+	}
+
+	ast_str_append(&context->output_buffer, 0,
+		"%*s:  <TransportId........>  <Type>  <cos>  <tos>  <BindAddress%*.*s>\n",
+		indent, "Transport", filler, filler, CLI_HEADER_FILLER);
+
+	return 0;
+}
+
+static int cli_print_body(void *obj, void *arg, int flags)
+{
+	struct ast_sip_transport *transport = obj;
+	struct ast_sip_cli_context *context = arg;
+	char hoststr[PJ_INET6_ADDRSTRLEN];
+
+	if (!context->output_buffer) {
+		return -1;
+	}
+
+	pj_sockaddr_print(&transport->host, hoststr, sizeof(hoststr), 3);
+
+	ast_str_append(&context->output_buffer, 0, "%*s:  %-21s  %6s  %5x  %5x  %s\n",
+		CLI_INDENT_TO_SPACES(context->indent_level), "Transport",
+		ast_sorcery_object_get_id(transport),
+		ARRAY_IN_BOUNDS(transport->type, transport_types) ? transport_types[transport->type] : "Unknown",
+		transport->cos, transport->tos, hoststr);
+
+	if (context->show_details
+		|| (context->show_details_only_level_0 && context->indent_level == 0)) {
+		ast_str_append(&context->output_buffer, 0, "\n");
+		ast_sip_cli_print_sorcery_objectset(transport, context, 0);
+	}
+
+	return 0;
+}
+
+static struct ast_sip_cli_formatter_entry  cli_formatter = {
+	.name = "transport",
+	.print_header = cli_print_header,
+	.print_body = cli_print_body,
+	.get_container = cli_get_container,
+	.iterator = cli_iterator,
+	.comparator = ast_sorcery_object_id_compare,
+};
+
+static struct ast_cli_entry cli_commands[] = {
+	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Transports",
+		.command = "pjsip list transports",
+		.usage = "Usage: pjsip list transports\n"
+				 "       List the configured PJSIP Transports\n"),
+	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Transports",
+		.command = "pjsip show transports",
+		.usage = "Usage: pjsip show transports\n"
+				 "       Show the configured PJSIP Transport\n"),
+	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Transport",
+		.command = "pjsip show transport",
+		.usage = "Usage: pjsip show transport <id>\n"
+				 "       Show the configured PJSIP Transport\n"),
+};
+
+/*! \brief Initialize sorcery with transport support */
+int ast_sip_initialize_sorcery_transport(void)
+{
+	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+
 	ast_sorcery_apply_default(sorcery, "transport", "config", "pjsip.conf,criteria=type=transport");
 
 	if (ast_sorcery_object_register_no_reload(sorcery, "transport", transport_alloc, NULL, transport_apply)) {
@@ -477,5 +585,15 @@ int ast_sip_initialize_sorcery_transport(struct ast_sorcery *sorcery)
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 
 	ast_sip_register_endpoint_formatter(&endpoint_transport_formatter);
+	ast_sip_register_cli_formatter(&cli_formatter);
+	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
+
+	return 0;
+}
+
+int ast_sip_destroy_sorcery_transport(void)
+{
+	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
+	ast_sip_unregister_cli_formatter(&cli_formatter);
 	return 0;
 }

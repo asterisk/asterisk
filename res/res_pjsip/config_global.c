@@ -114,8 +114,10 @@ char *ast_sip_get_debug(void)
 	return res;
 }
 
-int ast_sip_initialize_sorcery_global(struct ast_sorcery *sorcery)
+int ast_sip_initialize_sorcery_global(void)
 {
+	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+
 	snprintf(default_useragent, sizeof(default_useragent), "%s %s", DEFAULT_USERAGENT_PREFIX, ast_get_version());
 
 	ast_sorcery_apply_default(sorcery, "global", "config", "pjsip.conf,criteria=type=global");
