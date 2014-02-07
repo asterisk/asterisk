@@ -291,9 +291,13 @@ static void cdr_read_callback(void *data, struct stasis_subscription *sub, struc
 					args.variable, tempbuf, ast_channel_name(payload->chan));
 				return;
 			}
-			fmt_time.tv_usec = tv_usec;
-			ast_localtime(&fmt_time, &tm, NULL);
-			ast_strftime(tempbuf, sizeof(tempbuf), "%Y-%m-%d %T", &tm);
+			if (fmt_time.tv_sec) {
+				fmt_time.tv_usec = tv_usec;
+				ast_localtime(&fmt_time, &tm, NULL);
+				ast_strftime(tempbuf, sizeof(tempbuf), "%Y-%m-%d %T", &tm);
+			} else {
+				tempbuf[0] = '\0';
+			}
 		} else if (!strcasecmp("disposition", args.variable)) {
 			int disposition;
 
