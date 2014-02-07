@@ -1273,6 +1273,89 @@ static void iax2_lock_owner(int callno)
 	}
 }
 
+/*!
+ * \internal
+ * \brief Check if a control subtype is allowed on the wire.
+ *
+ * \param subtype Control frame subtype to check if allowed to/from the wire.
+ *
+ * \retval non-zero if allowed.
+ */
+static int iax2_is_control_frame_allowed(int subtype)
+{
+	enum ast_control_frame_type control = subtype;
+	int is_allowed;
+
+	/*
+	 * Note: If we compare the enumeration type, which does not have any
+	 * negative constants, the compiler may optimize this code away.
+	 * Therefore, we must perform an integer comparison here.
+	 */
+	if (subtype == -1) {
+		return -1;
+	}
+
+	/* Default to not allowing control frames to pass. */
+	is_allowed = 0;
+
+	/*
+	 * The switch default is not present in order to take advantage
+	 * of the compiler complaining of a missing enum case.
+	 */
+	switch (control) {
+	/*
+	 * These control frames make sense to send/receive across the link.
+	 */
+	case AST_CONTROL_HANGUP:
+	case AST_CONTROL_RING:
+	case AST_CONTROL_RINGING:
+	case AST_CONTROL_ANSWER:
+	case AST_CONTROL_BUSY:
+	case AST_CONTROL_TAKEOFFHOOK:
+	case AST_CONTROL_OFFHOOK:
+	case AST_CONTROL_CONGESTION:
+	case AST_CONTROL_FLASH:
+	case AST_CONTROL_WINK:
+	case AST_CONTROL_OPTION:
+	case AST_CONTROL_RADIO_KEY:
+	case AST_CONTROL_RADIO_UNKEY:
+	case AST_CONTROL_PROGRESS:
+	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_HOLD:
+	case AST_CONTROL_UNHOLD:
+	case AST_CONTROL_VIDUPDATE:
+	case AST_CONTROL_CONNECTED_LINE:
+	case AST_CONTROL_REDIRECTING:
+	case AST_CONTROL_T38_PARAMETERS:
+	case AST_CONTROL_AOC:
+	case AST_CONTROL_INCOMPLETE:
+		is_allowed = -1;
+		break;
+
+	/*
+	 * These control frames do not make sense to send/receive across the link.
+	 */
+	case _XXX_AST_CONTROL_T38:
+		/* The control value is deprecated in favor of AST_CONTROL_T38_PARAMETERS. */
+	case AST_CONTROL_SRCUPDATE:
+		/* Across an IAX link the source is still the same. */
+	case AST_CONTROL_TRANSFER:
+		/* A success/fail status report from calling ast_transfer() on this machine. */
+	case AST_CONTROL_CC:
+		/* The payload contains pointers that are valid for the sending machine only. */
+	case AST_CONTROL_SRCCHANGE:
+		/* Across an IAX link the source is still the same. */
+	case AST_CONTROL_READ_ACTION:
+		/* The action can only be done by the sending machine. */
+	case AST_CONTROL_END_OF_Q:
+		/* This frame would cause the call to unexpectedly hangup. */
+	case AST_CONTROL_UPDATE_RTP_PEER:
+		/* Only meaningful across a bridge on this machine for direct-media exchange. */
+		break;
+	}
+	return is_allowed;
+}
+
 static void mwi_event_cb(const struct ast_event *event, void *userdata)
 {
 	/* The MWI subscriptions exist just so the core knows we care about those
@@ -5688,8 +5771,13 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 		}
 		break;
 	case AST_CONTROL_CONNECTED_LINE:
-		if (!ast_test_flag64(pvt, IAX_SENDCONNECTEDLINE))
+	case AST_CONTROL_REDIRECTING:
+		if (!ast_test_flag64(pvt, IAX_SENDCONNECTEDLINE)) {
+			/* We are not configured to allow sending these updates. */
+			ast_debug(2, "Callno %u: Config blocked sending control frame %d.\n",
+				callno, condition);
 			goto done;
+		}
 		break;
 	}
 
@@ -7517,6 +7605,12 @@ static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsig
 
 static int send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
+	if (type == AST_FRAME_CONTROL && !iax2_is_control_frame_allowed(command)) {
+		/* Control frame should not go out on the wire. */
+		ast_debug(2, "Callno %u: Blocked sending control frame %d.\n",
+			i->callno, command);
+		return 0;
+	}
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 0);
 }
 
@@ -10435,13 +10529,6 @@ static int socket_process(struct iax2_thread *thread)
 				iaxs[fr->callno]->videoformat = f.subclass.codec & ~0x1LL;
 			}
 		}
-		if (f.frametype == AST_FRAME_CONTROL && iaxs[fr->callno]->owner) {
-			if (f.subclass.integer == AST_CONTROL_BUSY) {
-				iaxs[fr->callno]->owner->hangupcause = AST_CAUSE_BUSY;
-			} else if (f.subclass.integer == AST_CONTROL_CONGESTION) {
-				iaxs[fr->callno]->owner->hangupcause = AST_CAUSE_CONGESTION;
-			}
-		}
 		if (f.frametype == AST_FRAME_IAX) {
 			ast_sched_thread_del(sched, iaxs[fr->callno]->initid);
 			/* Handle the IAX pseudo frame itself */
@@ -11641,17 +11728,48 @@ immediatedial:
 		ast_mutex_unlock(&iaxsl[fr->callno]);
 		return 1;
 	}
-	/* Don't allow connected line updates unless we are configured to */
-	if (f.frametype == AST_FRAME_CONTROL && f.subclass.integer == AST_CONTROL_CONNECTED_LINE) {
-		struct ast_party_connected_line connected;
 
-		if (!ast_test_flag64(iaxs[fr->callno], IAX_RECVCONNECTEDLINE)) {
+	if (f.frametype == AST_FRAME_CONTROL) {
+		if (!iax2_is_control_frame_allowed(f.subclass.integer)) {
+			/* Control frame not allowed to come from the wire. */
+			ast_debug(2, "Callno %u: Blocked receiving control frame %d.\n",
+				fr->callno, f.subclass.integer);
 			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
+		if (f.subclass.integer == AST_CONTROL_CONNECTED_LINE
+			|| f.subclass.integer == AST_CONTROL_REDIRECTING) {
+			if (!ast_test_flag64(iaxs[fr->callno], IAX_RECVCONNECTEDLINE)) {
+				/* We are not configured to allow receiving these updates. */
+				ast_debug(2, "Callno %u: Config blocked receiving control frame %d.\n",
+					fr->callno, f.subclass.integer);
+				ast_variables_destroy(ies.vars);
+				ast_mutex_unlock(&iaxsl[fr->callno]);
+				return 1;
+			}
+		}
 
-		/* Initialize defaults */
+		iax2_lock_owner(fr->callno);
+		if (iaxs[fr->callno] && iaxs[fr->callno]->owner) {
+			if (f.subclass.integer == AST_CONTROL_BUSY) {
+				iaxs[fr->callno]->owner->hangupcause = AST_CAUSE_BUSY;
+			} else if (f.subclass.integer == AST_CONTROL_CONGESTION) {
+				iaxs[fr->callno]->owner->hangupcause = AST_CAUSE_CONGESTION;
+			}
+			ast_channel_unlock(iaxs[fr->callno]->owner);
+		}
+	}
+
+	if (f.frametype == AST_FRAME_CONTROL
+		&& f.subclass.integer == AST_CONTROL_CONNECTED_LINE) {
+		struct ast_party_connected_line connected;
+
+		/*
+		 * Process a received connected line update.
+		 *
+		 * Initialize defaults.
+		 */
 		ast_party_connected_line_init(&connected);
 		connected.id.number.presentation = iaxs[fr->callno]->calling_pres;
 		connected.id.name.presentation = iaxs[fr->callno]->calling_pres;
@@ -11674,6 +11792,7 @@ immediatedial:
 		}
 		ast_party_connected_line_free(&connected);
 	}
+
 	/* Common things */
 	f.src = "IAX2";
 	f.mallocd = 0;

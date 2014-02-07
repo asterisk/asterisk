@@ -304,6 +304,18 @@ extern struct ast_frame ast_null_frame;
 /*! Reserved bit - do not use */
 #define AST_FORMAT_RESERVED   (1ULL << 63)
 
+/*!
+ * \brief Internal control frame subtype field values.
+ *
+ * \warning
+ * IAX2 sends these values out over the wire.  To prevent future
+ * incompatibilities, pick the next value in the enum from whatever
+ * is on the current trunk.  If you lose the merge race you need to
+ * fix the previous branches to match what is on trunk.  In addition
+ * you need to change chan_iax2 to explicitly allow the control
+ * frame over the wire if it makes sense for the frame to be passed
+ * to another Asterisk instance.
+ */
 enum ast_control_frame_type {
 	AST_CONTROL_HANGUP = 1,			/*!< Other end has hungup */
 	AST_CONTROL_RING = 2,			/*!< Local ring */
@@ -335,7 +347,21 @@ enum ast_control_frame_type {
 	AST_CONTROL_AOC = 28,			/*!< Advice of Charge with encoded generic AOC payload */
 	AST_CONTROL_END_OF_Q = 29,		/*!< Indicate that this position was the end of the channel queue for a softhangup. */
 	AST_CONTROL_INCOMPLETE = 30,	/*!< Indication that the extension dialed is incomplete */
-	AST_CONTROL_UPDATE_RTP_PEER = 31, /*!< Interrupt the bridge and have it update the peer */
+	AST_CONTROL_UPDATE_RTP_PEER = 32, /*!< Interrupt the bridge and have it update the peer */
+
+	/*
+	 * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+	 *
+	 * IAX2 sends these values out over the wire.  To prevent future
+	 * incompatibilities, pick the next value in the enum from whatever
+	 * is on the current trunk.  If you lose the merge race you need to
+	 * fix the previous branches to match what is on trunk.  In addition
+	 * you need to change chan_iax2 to explicitly allow the control
+	 * frame over the wire if it makes sense for the frame to be passed
+	 * to another Asterisk instance.
+	 *
+	 * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+	 */
 };
 
 enum ast_frame_read_action {
