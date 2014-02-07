@@ -235,6 +235,18 @@ extern struct ast_frame ast_null_frame;
 /*! Reject link request */
 #define AST_HTML_LINKREJECT	20
 
+/*!
+ * \brief Internal control frame subtype field values.
+ *
+ * \warning
+ * IAX2 sends these values out over the wire.  To prevent future
+ * incompatibilities, pick the next value in the enum from whatever
+ * is on the current trunk.  If you lose the merge race you need to
+ * fix the previous branches to match what is on trunk.  In addition
+ * you need to change chan_iax2 to explicitly allow the control
+ * frame over the wire if it makes sense for the frame to be passed
+ * to another Asterisk instance.
+ */
 enum ast_control_frame_type {
 	AST_CONTROL_HANGUP = 1,			/*!< Other end has hungup */
 	AST_CONTROL_RING = 2,			/*!< Local ring */
@@ -269,6 +281,20 @@ enum ast_control_frame_type {
 	AST_CONTROL_MCID = 31,			/*!< Indicate that the caller is being malicious. */
 	AST_CONTROL_UPDATE_RTP_PEER = 32, /*!< Interrupt the bridge and have it update the peer */
 	AST_CONTROL_PVT_CAUSE_CODE = 33, /*!< Contains an update to the protocol-specific cause-code stored for branching dials */
+
+	/*
+	 * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+	 *
+	 * IAX2 sends these values out over the wire.  To prevent future
+	 * incompatibilities, pick the next value in the enum from whatever
+	 * is on the current trunk.  If you lose the merge race you need to
+	 * fix the previous branches to match what is on trunk.  In addition
+	 * you need to change chan_iax2 to explicitly allow the control
+	 * frame over the wire if it makes sense for the frame to be passed
+	 * to another Asterisk instance.
+	 *
+	 * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+	 */
 
 	/* Control frames used to manipulate a stream on a channel. The values for these
 	 * must be greater than the allowed value for a 8-bit char, so that they avoid

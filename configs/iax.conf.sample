@@ -610,14 +610,18 @@ description=Demo System At Digium    ; Description of this peer, as listed by
 ; IPs can also optionally be given but are not required.  Caller*ID can be
 ; suggested to the other side as well if it is for example a phone instead of
 ; another PBX.
-;connectedline=yes ; Set how connected line information is handled for this
-;                  ; peer. If set to "yes", both sending and receiving
-;                  ; connected line information will be enabled. If set to
-;                  ; "send", this peer will send connected line information
-;                  ; but will not process connected line updates. If set to
-;                  ; "receive", connected line updates will be processed
-;                  ; but not sent. If set to "no", connected line updates
-;                  ; will be disabled. Default is "no".
+;connectedline=yes ; Set if connected line and redirecting information updates
+;                  ; are passed between Asterisk servers for this peer.
+;                  ; yes - Sending and receiving updates are enabled.
+;                  ; send - Only send updates.
+;                  ; receive - Only process received updates.
+;                  ; no - Sending and receiving updates are disabled.
+;                  ; Default is "no".
+;                  ;
+;                  ; Note: Because of an incompatibility between Asterisk v1.4
+;                  ; and Asterisk v1.8 or later, this option must be set
+;                  ; to "no" toward the Asterisk v1.4 peer.  A symptom of the
+;                  ; incompatibility is the call gets disconnected unexpectedly.
 
 
 ;[dynamichost]
