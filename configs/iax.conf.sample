@@ -345,12 +345,12 @@ autokill=yes
 ;
 ; Call token validation can be set as optional for a single IP address or IP
 ; address range by using the 'calltokenoptional' option. 'calltokenoptional' is
-; only a global option.  
+; only a global option.
 ;
 ;calltokenoptional=209.16.236.73/255.255.255.0
 ;
 ; By setting 'requirecalltoken=no', call token validation becomes optional for
-; that peer/user.  By setting 'requirecalltoken=auto', call token validation 
+; that peer/user.  By setting 'requirecalltoken=auto', call token validation
 ; is optional until a call token supporting peer registers successfully using
 ; call token validation.  This is used as an indication that from now on, we
 ; can require it from this peer.  So, requirecalltoken is internally set to yes.
@@ -380,7 +380,7 @@ autokill=yes
 ; has been disabled.  Unlike the 'maxcallnumbers' option, this limit is not
 ; separate for each individual IP address.  Any connection resulting in a
 ; non-call token validated call number being allocated contributes to this
-; limit.  For use cases, see the call token user guide.  This option's 
+; limit.  For use cases, see the call token user guide.  This option's
 ; default value of 8192 should be sufficient in most cases.
 ;
 ;maxcallnumbers_nonvalidated=1024
@@ -389,7 +389,7 @@ autokill=yes
 ; for specific IP addresses and IP address ranges.  These limits take precedence
 ; over the global 'maxcallnumbers' option, but may still be overridden by a
 ; peer defined 'maxcallnumbers' entry.  Note that these limits take effect
-; for every individual address within the range, not the range as a whole. 
+; for every individual address within the range, not the range as a whole.
 ;
 ;[callnumberlimits]
 ;10.1.1.0/255.255.255.0 = 24
@@ -530,6 +530,19 @@ host=216.207.245.47
 ; suggested to the other side as well if it is for example a phone instead of
 ; another PBX.
 ;
+;connectedline=yes ; Set if connected line and redirecting information updates
+;                  ; are passed between Asterisk servers for this peer.
+;                  ; yes - Sending and receiving updates are enabled.
+;                  ; send - Only send updates.
+;                  ; receive - Only process received updates.
+;                  ; no - Sending and receiving updates are disabled.
+;                  ; Default is "no".
+;                  ;
+;                  ; Note: Because of an incompatibility between Asterisk v1.4
+;                  ; and Asterisk v1.8 or later, this option must be set
+;                  ; to "no" toward the Asterisk v1.4 peer.  A symptom of the
+;                  ; incompatibility is the call gets disconnected unexpectedly.
+
 
 ;[dynamichost]
 ;host=dynamic
