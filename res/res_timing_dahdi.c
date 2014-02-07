@@ -45,14 +45,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
 static void *timing_funcs_handle;
 
-static int dahdi_timer_open(void);
-static void dahdi_timer_close(int handle);
-static int dahdi_timer_set_rate(int handle, unsigned int rate);
-static int dahdi_timer_ack(int handle, unsigned int quantity);
-static int dahdi_timer_enable_continuous(int handle);
-static int dahdi_timer_disable_continuous(int handle);
-static enum ast_timer_event dahdi_timer_get_event(int handle);
-static unsigned int dahdi_timer_get_max_rate(int handle);
+static void *dahdi_timer_open(void);
+static void dahdi_timer_close(void *data);
+static int dahdi_timer_set_rate(void *data, unsigned int rate);
+static int dahdi_timer_ack(void *data, unsigned int quantity);
+static int dahdi_timer_enable_continuous(void *data);
+static int dahdi_timer_disable_continuous(void *data);
+static enum ast_timer_event dahdi_timer_get_event(void *data);
+static unsigned int dahdi_timer_get_max_rate(void *data);
+static int dahdi_timer_fd(void *data);
 
 static struct ast_timing_interface dahdi_timing = {
 	.name = "DAHDI",
@@ -65,27 +66,48 @@ static struct ast_timing_interface dahdi_timing = {
 	.timer_disable_continuous = dahdi_timer_disable_continuous,
 	.timer_get_event = dahdi_timer_get_event,
 	.timer_get_max_rate = dahdi_timer_get_max_rate,
+	.timer_fd = dahdi_timer_fd,
 };
 
-static int dahdi_timer_open(void)
+struct dahdi_timer {
+	int fd;
+};
+
+static void *dahdi_timer_open(void)
 {
-	return open("/dev/dahdi/timer", O_RDWR);
+	struct dahdi_timer *timer;
+
+	if (!(timer = ast_calloc(1, sizeof(*timer)))) {
+		return NULL;
+	}
+
+	if ((timer->fd = open("/dev/dahdi/timer", O_RDWR)) < 0) {
+		ast_log(LOG_ERROR, "Failed to create dahdi timer: %s\n", strerror(errno));
+		ast_free(timer);
+		return NULL;
+	}
+
+	return timer;
 }
 
-static void dahdi_timer_close(int handle)
+static void dahdi_timer_close(void *data)
 {
-	close(handle);
+	struct dahdi_timer *timer = data;
+
+	close(timer->fd);
+	ast_free(timer);
 }
 
-static int dahdi_timer_set_rate(int handle, unsigned int rate)
+static int dahdi_timer_set_rate(void *data, unsigned int rate)
 {
+	struct dahdi_timer *timer = data;
 	int samples;
 
 	/* DAHDI timers are configured using a number of samples,
 	 * based on an 8 kHz sample rate. */
 	samples = (unsigned int) roundf((8000.0 / ((float) rate)));
 
-	if (ioctl(handle, DAHDI_TIMERCONFIG, &samples)) {
+	if (ioctl(timer->fd, DAHDI_TIMERCONFIG, &samples)) {
 		ast_log(LOG_ERROR, "Failed to configure DAHDI timing fd for %u sample timer ticks\n",
 			samples);
 		return -1;
@@ -94,31 +116,36 @@ static int dahdi_timer_set_rate(int handle, unsigned int rate)
 	return 0;
 }
 
-static int dahdi_timer_ack(int handle, unsigned int quantity)
+static int dahdi_timer_ack(void *data, unsigned int quantity)
 {
-	return ioctl(handle, DAHDI_TIMERACK, &quantity) ? -1 : 0;
+	struct dahdi_timer *timer = data;
+
+	return ioctl(timer->fd, DAHDI_TIMERACK, &quantity) ? -1 : 0;
 }
 
-static int dahdi_timer_enable_continuous(int handle)
+static int dahdi_timer_enable_continuous(void *data)
 {
+	struct dahdi_timer *timer = data;
 	int flags = 1;
 
-	return ioctl(handle, DAHDI_TIMERPING, &flags) ? -1 : 0;
+	return ioctl(timer->fd, DAHDI_TIMERPING, &flags) ? -1 : 0;
 }
 
-static int dahdi_timer_disable_continuous(int handle)
+static int dahdi_timer_disable_continuous(void *data)
 {
+	struct dahdi_timer *timer = data;
 	int flags = -1;
 
-	return ioctl(handle, DAHDI_TIMERPONG, &flags) ? -1 : 0;
+	return ioctl(timer->fd, DAHDI_TIMERPONG, &flags) ? -1 : 0;
 }
 
-static enum ast_timer_event dahdi_timer_get_event(int handle)
+static enum ast_timer_event dahdi_timer_get_event(void *data)
 {
+	struct dahdi_timer *timer = data;
 	int res;
 	int event;
 
-	res = ioctl(handle, DAHDI_GETEVENT, &event);
+	res = ioctl(timer->fd, DAHDI_GETEVENT, &event);
 
 	if (res) {
 		event = DAHDI_EVENT_TIMER_EXPIRED;
@@ -133,9 +160,16 @@ static enum ast_timer_event dahdi_timer_get_event(int handle)
 	}
 }
 
-static unsigned int dahdi_timer_get_max_rate(int handle)
+static unsigned int dahdi_timer_get_max_rate(void *data)
 {
 	return 1000;
+}
+
+static int dahdi_timer_fd(void *data)
+{
+	struct dahdi_timer *timer = data;
+
+	return timer->fd;
 }
 
 #define SEE_TIMING "For more information on Asterisk timing modules, including ways to potentially fix this problem, please see https://wiki.asterisk.org/wiki/display/AST/Timing+Interfaces\n"

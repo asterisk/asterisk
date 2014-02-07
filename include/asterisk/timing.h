@@ -18,33 +18,33 @@
  */
 
 /*!
-  \file timing.h
-  \brief Timing source management
-  \author Kevin P. Fleming <kpfleming@digium.com>
-  \author Russell Bryant <russell@digium.com>
+	\file timing.h
+	\brief Timing source management
+	\author Kevin P. Fleming <kpfleming@digium.com>
+	\author Russell Bryant <russell@digium.com>
 
-  Portions of Asterisk require a timing source, a periodic trigger
-  for media handling activities. The functions in this file allow
-  a loadable module to provide a timing source for Asterisk and its
-  modules, so that those modules can request a 'timing handle' when
-  they require one. These handles are file descriptors, which can be
-  used with select() or poll().
+	Portions of Asterisk require a timing source, a periodic trigger
+	for media handling activities. The functions in this file allow
+	a loadable module to provide a timing source for Asterisk and its
+	modules, so that those modules can request a 'timing handle' when
+	they require one. These handles are file descriptors, which can be
+	used with select() or poll().
 
-  The timing source used by Asterisk must provide the following
-  features:
+	The timing source used by Asterisk must provide the following
+	features:
 
-  1) Periodic triggers, with a configurable interval (specified as
-     number of triggers per second).
+	1) Periodic triggers, with a configurable interval (specified as
+		 number of triggers per second).
 
-  2) Multiple outstanding triggers, each of which must be 'acked'
-     to clear it. Triggers must also be 'ackable' in quantity.
+	2) Multiple outstanding triggers, each of which must be 'acked'
+		 to clear it. Triggers must also be 'ackable' in quantity.
 
-  3) Continuous trigger mode, which when enabled causes every call
-     to poll() on the timer handle to immediately return.
+	3) Continuous trigger mode, which when enabled causes every call
+		 to poll() on the timer handle to immediately return.
 
-  4) Multiple 'event types', so that the code using the timer can
-     know whether the wakeup it received was due to a periodic trigger
-     or a continuous trigger.
+	4) Multiple 'event types', so that the code using the timer can
+		 know whether the wakeup it received was due to a periodic trigger
+		 or a continuous trigger.
  */
 
 #ifndef _ASTERISK_TIMING_H
@@ -71,14 +71,15 @@ struct ast_timing_interface {
 	/*! This handles the case where multiple timing modules are loaded.
 	 *  The highest priority timing interface available will be used. */
 	unsigned int priority;
-	int (*timer_open)(void);
-	void (*timer_close)(int handle);
-	int (*timer_set_rate)(int handle, unsigned int rate);
-	int (*timer_ack)(int handle, unsigned int quantity);
-	int (*timer_enable_continuous)(int handle);
-	int (*timer_disable_continuous)(int handle);
-	enum ast_timer_event (*timer_get_event)(int handle);
-	unsigned int (*timer_get_max_rate)(int handle);
+	void *(*timer_open)(void);
+	void (*timer_close)(void *data);
+	int (*timer_set_rate)(void *data, unsigned int rate);
+	int (*timer_ack)(void *data, unsigned int quantity);
+	int (*timer_enable_continuous)(void *data);
+	int (*timer_disable_continuous)(void *data);
+	enum ast_timer_event (*timer_get_event)(void *data);
+	unsigned int (*timer_get_max_rate)(void *data);
+	int (*timer_fd)(void *data);
 };
 
 /*!
@@ -93,7 +94,7 @@ struct ast_timing_interface {
  */
 #define ast_register_timing_interface(i) _ast_register_timing_interface(i, ast_module_info->self)
 void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
-				     struct ast_module *mod);
+						 struct ast_module *mod);
 
 /*!
  * \brief Unregister a previously registered timing interface.

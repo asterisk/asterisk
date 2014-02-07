@@ -54,7 +54,7 @@ struct timing_holder {
 static struct ast_heap *timing_interfaces;
 
 struct ast_timer {
-	int fd;
+	void *data;
 	struct timing_holder *holder;
 };
 
@@ -84,7 +84,8 @@ void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
 	    !funcs->timer_get_event ||
 	    !funcs->timer_get_max_rate ||
 	    !funcs->timer_enable_continuous ||
-	    !funcs->timer_disable_continuous) {
+	    !funcs->timer_disable_continuous ||
+	    !funcs->timer_fd) {
 		return NULL;
 	}
 
@@ -122,22 +123,22 @@ int ast_unregister_timing_interface(void *handle)
 
 struct ast_timer *ast_timer_open(void)
 {
-	int fd = -1;
+	void *data = NULL;
 	struct timing_holder *h;
 	struct ast_timer *t = NULL;
 
 	ast_heap_rdlock(timing_interfaces);
 
 	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		fd = h->iface->timer_open();
+		data = h->iface->timer_open();
 		ast_module_ref(h->mod);
 	}
 
-	if (fd != -1) {
+	if (data) {
 		if (!(t = ast_calloc(1, sizeof(*t)))) {
-			h->iface->timer_close(fd);
+			h->iface->timer_close(data);
 		} else {
-			t->fd = fd;
+			t->data = data;
 			t->holder = h;
 		}
 	}
@@ -149,69 +150,44 @@ struct ast_timer *ast_timer_open(void)
 
 void ast_timer_close(struct ast_timer *handle)
 {
-	handle->holder->iface->timer_close(handle->fd);
-	handle->fd = -1;
+	handle->holder->iface->timer_close(handle->data);
 	ast_module_unref(handle->holder->mod);
 	ast_free(handle);
 }
 
 int ast_timer_fd(const struct ast_timer *handle)
 {
-	return handle->fd;
+	return handle->holder->iface->timer_fd(handle->data);
 }
 
 int ast_timer_set_rate(const struct ast_timer *handle, unsigned int rate)
 {
-	int res = -1;
-
-	res = handle->holder->iface->timer_set_rate(handle->fd, rate);
-
-	return res;
+	return handle->holder->iface->timer_set_rate(handle->data, rate);
 }
 
 int ast_timer_ack(const struct ast_timer *handle, unsigned int quantity)
 {
-	int res = -1;
-
-	res = handle->holder->iface->timer_ack(handle->fd, quantity);
-
-	return res;
+	return handle->holder->iface->timer_ack(handle->data, quantity);
 }
 
 int ast_timer_enable_continuous(const struct ast_timer *handle)
 {
-	int res = -1;
-
-	res = handle->holder->iface->timer_enable_continuous(handle->fd);
-
-	return res;
+	return handle->holder->iface->timer_enable_continuous(handle->data);
 }
 
 int ast_timer_disable_continuous(const struct ast_timer *handle)
 {
-	int res = -1;
-
-	res = handle->holder->iface->timer_disable_continuous(handle->fd);
-
-	return res;
+	return handle->holder->iface->timer_disable_continuous(handle->data);
 }
 
 enum ast_timer_event ast_timer_get_event(const struct ast_timer *handle)
 {
-	enum ast_timer_event res = -1;
-
-	res = handle->holder->iface->timer_get_event(handle->fd);
-
-	return res;
+	return handle->holder->iface->timer_get_event(handle->data);
 }
 
 unsigned int ast_timer_get_max_rate(const struct ast_timer *handle)
 {
-	unsigned int res = 0;
-
-	res = handle->holder->iface->timer_get_max_rate(handle->fd);
-
-	return res;
+	return handle->holder->iface->timer_get_max_rate(handle->data);
 }
 
 const char *ast_timer_get_name(const struct ast_timer *handle)
