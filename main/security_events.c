@@ -391,7 +391,9 @@ static int append_event_str_single(struct ast_str **str, struct ast_json *json,
 	const char *ie_type_key = ast_event_get_ie_type_name(ie_type);
 	struct ast_json *json_string = ast_json_object_get(json, ie_type_key);
 
-	ast_assert(json_string != NULL);
+	if (!json_string) {
+		return 0;
+	}
 
 	if (ast_str_append(str, 0, "%s: %s\r\n", ie_type_key, S_OR(ast_json_string_get(json_string), "")) == -1) {
 		return -1;
