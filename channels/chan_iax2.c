@@ -11702,8 +11702,10 @@ immediatedial:
 		fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | ntohs(mh->ts);
 		/* FIXME? Surely right here would be the right place to undo timestamp wraparound? */
 	}
+
 	/* Don't pass any packets until we're started */
-	if (!ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
+	if (!iaxs[fr->callno]
+		|| !ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
 		ast_variables_destroy(ies.vars);
 		ast_mutex_unlock(&iaxsl[fr->callno]);
 		return 1;
@@ -11720,7 +11722,8 @@ immediatedial:
 		}
 		if (f.subclass.integer == AST_CONTROL_CONNECTED_LINE
 			|| f.subclass.integer == AST_CONTROL_REDIRECTING) {
-			if (!ast_test_flag64(iaxs[fr->callno], IAX_RECVCONNECTEDLINE)) {
+			if (iaxs[fr->callno]
+				&& !ast_test_flag64(iaxs[fr->callno], IAX_RECVCONNECTEDLINE)) {
 				/* We are not configured to allow receiving these updates. */
 				ast_debug(2, "Callno %u: Config blocked receiving control frame %d.\n",
 					fr->callno, f.subclass.integer);
@@ -11742,7 +11745,8 @@ immediatedial:
 	}
 
 	if (f.frametype == AST_FRAME_CONTROL
-		&& f.subclass.integer == AST_CONTROL_CONNECTED_LINE) {
+		&& f.subclass.integer == AST_CONTROL_CONNECTED_LINE
+		&& iaxs[fr->callno]) {
 		struct ast_party_connected_line connected;
 
 		/*
@@ -11798,9 +11802,11 @@ immediatedial:
 		fr->outoforder = -1;
 	}
 	fr->cacheable = ((f.frametype == AST_FRAME_VOICE) || (f.frametype == AST_FRAME_VIDEO));
-	duped_fr = iaxfrdup2(fr);
-	if (duped_fr) {
-		schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
+	if (iaxs[fr->callno]) {
+		duped_fr = iaxfrdup2(fr);
+		if (duped_fr) {
+			schedule_delivery(duped_fr, updatehistory, 0, &fr->ts);
+		}
 	}
 	if (iaxs[fr->callno] && iaxs[fr->callno]->last < fr->ts) {
 		iaxs[fr->callno]->last = fr->ts;
