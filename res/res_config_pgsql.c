@@ -838,8 +838,8 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 		return -1;
 	}
 
-	ast_str_set(&sql, 0, "UPDATE %s SET ", tablename);
-	ast_str_set(&where, 0, "WHERE");
+	ast_str_set(&sql, 0, "UPDATE %s SET", tablename);
+	ast_str_set(&where, 0, " WHERE");
 
 	for (field = lookup_fields; field; field = field->next) {
 		if (!find_column(table, field->name)) {
@@ -852,7 +852,6 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 		if (pgresult) {
 			ast_log(LOG_ERROR, "PostgreSQL RealTime: detected invalid input: '%s'\n", field->value);
 			release_table(table);
-			ast_free(sql);
 			return -1;
 		}
 		ast_str_append(&where, 0, "%s %s='%s'", first ? "" : " AND", field->name, ast_str_buffer(escapebuf));
@@ -883,15 +882,15 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 		if (pgresult) {
 			ast_log(LOG_ERROR, "PostgreSQL RealTime: detected invalid input: '%s'\n", field->value);
 			release_table(table);
-			ast_free(sql);
 			return -1;
 		}
 
 		ast_str_append(&sql, 0, "%s %s='%s'", first ? "" : ",", field->name, ast_str_buffer(escapebuf));
+		first = 0;
 	}
 	release_table(table);
 
-	ast_str_append(&sql, 0, " %s", ast_str_buffer(where));
+	ast_str_append(&sql, 0, "%s", ast_str_buffer(where));
 
 	ast_debug(1, "PostgreSQL RealTime: Update SQL: %s\n", ast_str_buffer(sql));
 
