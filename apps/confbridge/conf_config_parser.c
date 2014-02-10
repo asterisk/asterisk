@@ -874,6 +874,12 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 	} else if (!strcasecmp(sound_name, "sound_other_in_party")) {
 		ast_string_field_set(sounds, otherinparty, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_place_into_conference")) {
+		static int deprecation_warning = 1;
+		if (deprecation_warning) {
+			ast_log(LOG_WARNING, "sound_place_into_conference is deprecated"
+				" and unused. Use sound_begin for similar functionality.");
+			deprecation_warning = 0;
+		}
 		ast_string_field_set(sounds, placeintoconf, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_wait_for_leader")) {
 		ast_string_field_set(sounds, waitforleader, sound_file);
@@ -899,6 +905,8 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 		ast_string_field_set(sounds, participantsmuted, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_participants_unmuted")) {
 		ast_string_field_set(sounds, participantsunmuted, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_begin")) {
+		ast_string_field_set(sounds, begin, sound_file);
 	} else {
 		return -1;
 	}
@@ -1564,6 +1572,7 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"sound_leave:          %s\n", conf_get_sound(CONF_SOUND_LEAVE, b_profile.sounds));
 	ast_cli(a->fd,"sound_participants_muted:     %s\n", conf_get_sound(CONF_SOUND_PARTICIPANTS_MUTED, b_profile.sounds));
 	ast_cli(a->fd,"sound_participants_unmuted:     %s\n", conf_get_sound(CONF_SOUND_PARTICIPANTS_UNMUTED, b_profile.sounds));
+	ast_cli(a->fd,"sound_begin:          %s\n", conf_get_sound(CONF_SOUND_BEGIN, b_profile.sounds));
 	ast_cli(a->fd,"\n");
 
 	conf_bridge_profile_destroy(&b_profile);
@@ -1906,6 +1915,7 @@ static int bridge_template_handler(const struct aco_option *opt, struct ast_vari
 	ast_string_field_set(sounds, leave, b_profile->sounds->leave);
 	ast_string_field_set(sounds, participantsmuted, b_profile->sounds->participantsmuted);
 	ast_string_field_set(sounds, participantsunmuted, b_profile->sounds->participantsunmuted);
+	ast_string_field_set(sounds, begin, b_profile->sounds->begin);
 
 	ao2_ref(b_profile->sounds, -1); /* sounds struct copied over to it from the template by reference only. */
 	ao2_ref(oldsounds, -1);    /* original sounds struct we don't need anymore */
