@@ -290,6 +290,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "sip/include/dialog.h"
 #include "sip/include/dialplan_functions.h"
 #include "sip/include/security_events.h"
+#include "sip/include/route.h"
 #include "asterisk/sip_api.h"
 #include "asterisk/app.h"
 #include "asterisk/bridge.h"
@@ -1233,11 +1234,8 @@ static void *registry_unref(struct sip_registry *reg, char *tag);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static int auto_congest(const void *arg);
 static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method);
-static void free_old_route(struct sip_route *route);
-static void list_route(struct sip_route *route);
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards, int resp);
-static int build_path(struct sip_pvt *p, struct sip_peer *peer, struct sip_request *req, char *pathbuf);
-static int copy_route(struct sip_route **dst, const struct sip_route *src);
+static int build_path(struct sip_pvt *p, struct sip_peer *peer, struct sip_request *req, const char *pathbuf);
 static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sockaddr *addr,
 					      struct sip_request *req, const char *uri);
 static int get_sip_pvt_from_replaces(const char *callid, const char *totag, const char *fromtag,
@@ -1494,12 +1492,11 @@ static int add_text(struct sip_request *req, struct sip_pvt *p);
 static int add_digit(struct sip_request *req, char digit, unsigned int duration, int mode);
 static int add_rpid(struct sip_request *req, struct sip_pvt *p);
 static int add_vidupdate(struct sip_request *req);
-static void add_route(struct sip_request *req, struct sip_route *route);
-static void make_route_list(struct sip_route *route, char *r, int rem);
+static void add_route(struct sip_request *req, struct sip_route *route, int skip);
 static int copy_header(struct sip_request *req, const struct sip_request *orig, const char *field);
 static int copy_all_header(struct sip_request *req, const struct sip_request *orig, const char *field);
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const struct sip_request *orig, const char *field);
-static void set_destination(struct sip_pvt *p, char *uri);
+static void set_destination(struct sip_pvt *p, const char *uri);
 static void add_date(struct sip_request *req);
 static void add_expires(struct sip_request *req, int expires);
 static void build_contact(struct sip_pvt *p);
@@ -5313,10 +5310,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ast_variables_destroy(peer->chanvars);
 		peer->chanvars = NULL;
 	}
-	if (peer->path) {
-		free_old_route(peer->path);
-		peer->path = NULL;
-	}
+	sip_route_clear(&peer->path);
 
 	register_peer_exten(peer, FALSE);
 	ast_free_acl_list(peer->acl);
@@ -5360,11 +5354,14 @@ static void sip_destroy_peer(struct sip_peer *peer)
 static void update_peer(struct sip_peer *p, int expire)
 {
 	int rtcachefriends = ast_test_flag(&p->flags[1], SIP_PAGE2_RTCACHEFRIENDS);
-	if (sip_cfg.peer_rtupdate &&
-	    (p->is_realtime || rtcachefriends)) {
-		char path[SIPBUFSIZE * 2];
-		make_route_list(p->path, path, sizeof(path));
-		realtime_update_peer(p->name, &p->addr, p->username, p->fullcontact, p->useragent, expire, p->deprecated_username, p->lastms, path);
+	if (sip_cfg.peer_rtupdate && (p->is_realtime || rtcachefriends)) {
+		struct ast_str *r = sip_route_list(&p->path, 0, 0);
+		if (r) {
+			realtime_update_peer(p->name, &p->addr, p->username,
+				p->fullcontact, p->useragent, expire, p->deprecated_username,
+				p->lastms, ast_str_buffer(r));
+			ast_free(r);
+		}
 	}
 }
 
@@ -6101,10 +6098,10 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	dialog->rtptimeout = peer->rtptimeout;
 	dialog->rtpholdtimeout = peer->rtpholdtimeout;
 	dialog->rtpkeepalive = peer->rtpkeepalive;
-	copy_route(&dialog->route, peer->path);
-	if (dialog->route) {
+	sip_route_copy(&dialog->route, &peer->path);
+	if (!sip_route_empty(&dialog->route)) {
 		/* Parse SIP URI of first route-set hop and use it as target address */
-		__set_address_from_contact(dialog->route->hop, &dialog->sa, dialog->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
+		__set_address_from_contact(sip_route_first_uri(&dialog->route), &dialog->sa, dialog->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
 	}
 
 	if (dialog_initialize_rtp(dialog)) {
@@ -6686,10 +6683,7 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_free(p->refer);
 		p->refer = NULL;
 	}
-	if (p->route) {
-		free_old_route(p->route);
-		p->route = NULL;
-	}
+	sip_route_clear(&p->route);
 	deinit_req(&p->initreq);
 
 	/* Clear history */
@@ -11684,39 +11678,18 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 }
 
 /*! \brief Add route header into request per learned route */
-static void add_route(struct sip_request *req, struct sip_route *route)
+static void add_route(struct sip_request *req, struct sip_route *route, int skip)
 {
-	char r[SIPBUFSIZE * 2];
+	struct ast_str *r;
 
-	if (!route)
+	if (sip_route_empty(route)) {
 		return;
-
-	make_route_list(route, r, sizeof(r));
-	add_header(req, "Route", r);
-}
-
-/*! \brief Make the comma separated list of route headers from the route list */
-static void make_route_list(struct sip_route *route, char *r, int rem)
-{
-	char *p;
-	int n;
-
-	p = r;
-	for (;route ; route = route->next) {
-		n = strlen(route->hop);
-		if (rem < n+3) /* we need room for ",<route>" */
-			break;
-		if (p != r) {	/* add a separator after fist route */
-			*p++ = ',';
-			--rem;
-		}
-		*p++ = '<';
-		ast_copy_string(p, route->hop, rem); /* cannot fail */
-		p += n;
-		*p++ = '>';
-		rem -= (n+2);
 	}
-	*p = '\0';
+
+	if ((r = sip_route_list(route, 0, skip))) {
+		add_header(req, "Route", ast_str_buffer(r));
+		ast_free(r);
+	}
 }
 
 /*! \brief Set destination from SIP URI
@@ -11728,9 +11701,10 @@ static void make_route_list(struct sip_route *route, char *r, int rem)
  *
  * If there's a sips: uri scheme, TLS will be required.
  */
-static void set_destination(struct sip_pvt *p, char *uri)
+static void set_destination(struct sip_pvt *p, const char *uri)
 {
-	char *trans, *h, *maddr, hostname[256];
+	char *trans, *maddr, hostname[256];
+	const char *h;
 	int hn;
 	int debug=sip_debug_test_pvt(p);
 	int tls_on = FALSE;
@@ -12053,26 +12027,28 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	}
 
 	/* Check for strict or loose router */
-	if (p->route && !ast_strlen_zero(p->route->hop) && strstr(p->route->hop, ";lr") == NULL) {
+	if (sip_route_is_strict(&p->route)) {
 		is_strict = TRUE;
 		if (sipdebug)
 			ast_debug(1, "Strict routing enforced for session %s\n", p->callid);
 	}
 
-	if (sipmethod == SIP_CANCEL)
+	if (sipmethod == SIP_CANCEL) {
 		c = REQ_OFFSET_TO_STR(&p->initreq, rlpart2);	/* Use original URI */
-	else if (sipmethod == SIP_ACK) {
+	} else if (sipmethod == SIP_ACK) {
 		/* Use URI from Contact: in 200 OK (if INVITE)
 		(we only have the contacturi on INVITEs) */
-		if (!ast_strlen_zero(p->okcontacturi))
-			c = is_strict ? p->route->hop : p->okcontacturi;
-		else
+		if (!ast_strlen_zero(p->okcontacturi)) {
+			c = is_strict ? sip_route_first_uri(&p->route) : p->okcontacturi;
+		} else {
 			c = REQ_OFFSET_TO_STR(&p->initreq, rlpart2);
-	} else if (!ast_strlen_zero(p->okcontacturi))
-		c = is_strict ? p->route->hop : p->okcontacturi; /* Use for BYE or REINVITE */
-	else if (!ast_strlen_zero(p->uri))
+		}
+	} else if (!ast_strlen_zero(p->okcontacturi)) {
+		/* Use for BYE or REINVITE */
+		c = is_strict ? sip_route_first_uri(&p->route) : p->okcontacturi;
+	} else if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
-	else {
+	} else {
 		char *n;
 		/* We have no URI, use To: or From:  header as URI (depending on direction) */
 		ast_copy_string(stripped, sip_get_header(orig, is_outbound ? "To" : "From"),
@@ -12090,7 +12066,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 	 * final response. For a CANCEL or ACK, we have to send to the same destination
 	 * as the original INVITE.
 	 */
-	if (p->route &&
+	if (!sip_route_empty(&p->route) &&
 			!(sipmethod == SIP_CANCEL ||
 				(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)))) {
 		if (p->socket.type != AST_TRANSPORT_UDP && p->socket.tcptls_session) {
@@ -12101,9 +12077,9 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 			 * simply send to the received-from address. No need
 			 * for lookups. */
 		} else {
-			set_destination(p, p->route->hop);
+			set_destination(p, sip_route_first_uri(&p->route));
 		}
-		add_route(req, is_strict ? p->route->next : p->route);
+		add_route(req, &p->route, is_strict ? 1 : 0);
 	}
 	add_max_forwards(p, req);
 
@@ -14117,7 +14093,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	 * NOTIFY messages will use this function for preparing the request and should
 	 * have Route headers present.
 	 */
-	add_route(req, p->route);
+	add_route(req, &p->route, 0);
 
 	add_header(req, "From", from);
 	add_header(req, "To", to);
@@ -16358,10 +16334,12 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		 expire, peer->username, peer->fullcontact);
 	/* We might not immediately be able to reconnect via TCP, but try caching it anyhow */
 	if (!peer->rt_fromcontact || !sip_cfg.peer_rtupdate) {
-		char path[SIPBUFSIZE * 2];
-		if (peer->path) {
-			make_route_list(peer->path, path, sizeof(path));
-			ast_db_put("SIP/RegistryPath", peer->name, path);
+		if (!sip_route_empty(&peer->path)) {
+			struct ast_str *r = sip_route_list(&peer->path, 0, 0);
+			if (r) {
+				ast_db_put("SIP/RegistryPath", peer->name, ast_str_buffer(r));
+				ast_free(r);
+			}
 		}
 		ast_db_put("SIP/Registry", peer->name, data);
 	}
@@ -16394,29 +16372,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	return PARSE_REGISTER_UPDATE;
 }
 
-/*! \brief Remove route from route list */
-static void free_old_route(struct sip_route *route)
-{
-	struct sip_route *next;
-
-	while (route) {
-		next = route->next;
-		ast_free(route);
-		route = next;
-	}
-}
-
-/*! \brief List all routes - mostly for debugging */
-static void list_route(struct sip_route *route)
-{
-	if (!route) {
-		ast_verbose("list_route: no route/path\n");
-	} else {
-		for (;route; route = route->next)
-			ast_verbose("list_route: route/path hop: <%s>\n", route->hop);
-	}
-}
-
 /*! \brief Build route list from Record-Route header
  *
  * \param p
@@ -16427,21 +16382,16 @@ static void list_route(struct sip_route *route)
  */
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards, int resp)
 {
-	struct sip_route *thishop, *head, *tail;
 	int start = 0;
-	int len;
-	const char *rr, *c;
+	const char *header;
 
 	/* Once a persistent route is set, don't fool with it */
-	if (p->route && p->route_persistent) {
-		ast_debug(1, "build_route: Retaining previous route: <%s>\n", p->route->hop);
+	if (!sip_route_empty(&p->route) && p->route_persistent) {
+		ast_debug(1, "build_route: Retaining previous route: <%s>\n", sip_route_first_uri(&p->route));
 		return;
 	}
 
-	if (p->route) {
-		free_old_route(p->route);
-		p->route = NULL;
-	}
+	sip_route_clear(&p->route);
 
 	/* We only want to create the route set the first time this is called except
 	   it is called from a provisional response.*/
@@ -16454,173 +16404,44 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 	 * in reverse order. However, we do need to maintain a correct
 	 * tail pointer because the contact is always at the end.
 	 */
-	head = NULL;
-	tail = head;
 	/* 1st we pass through all the hops in any Record-Route headers */
 	for (;;) {
-		/* Each Record-Route header */
-		int len = 0;
-		const char *uri;
-		rr = __get_header(req, "Record-Route", &start);
-		if (*rr == '\0') {
+		header = __get_header(req, "Record-Route", &start);
+		if (*header == '\0') {
 			break;
 		}
-		while (!get_in_brackets_const(rr, &uri, &len)) {
-			len++;
-			rr = strchr(rr, ',');
-			if(rr >= uri && rr < (uri + len)) {
-				/* comma inside brackets*/
-				const char *next_br = strchr(rr, '<');
-				if (next_br && next_br < (uri + len)) {
-					rr++;
-					continue;
-				}
-				continue;
-			}
-			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
-				ast_copy_string(thishop->hop, uri, len);
-				ast_debug(2, "build_route: Record-Route hop: <%s>\n", thishop->hop);
-				/* Link in */
-				if (backwards) {
-					/* Link in at head so they end up in reverse order */
-					thishop->next = head;
-					head = thishop;
-					/* If this was the first then it'll be the tail */
-					if (!tail) {
-						tail = thishop;
-					}
-				} else {
-					thishop->next = NULL;
-					/* Link in at the end */
-					if (tail) {
-						tail->next = thishop;
-					} else {
-						head = thishop;
-					}
-					tail = thishop;
-				}
-			}
-			rr = strchr(uri + len, ',');
-			if (rr == NULL) {
-				/* No more field-values, we're done with this header */
-				break;
-			}
-			/* Advance past comma */
-			rr++;
-		}
+		sip_route_process_header(&p->route, header, backwards);
 	}
 
-	/* Only append the contact if we are dealing with a strict router */
-	if (!head || (!ast_strlen_zero(head->hop) && strstr(head->hop, ";lr") == NULL) ) {
+	/* Only append the contact if we are dealing with a strict router or have no route */
+	if (sip_route_empty(&p->route) || sip_route_is_strict(&p->route)) {
 		/* 2nd append the Contact: if there is one */
 		/* Can be multiple Contact headers, comma separated values - we just take the first */
-		char *contact = ast_strdupa(sip_get_header(req, "Contact"));
-		if (!ast_strlen_zero(contact)) {
-			ast_debug(2, "build_route: Contact hop: %s\n", contact);
-			/* Look for <: delimited address */
-			c = get_in_brackets(contact);
-			len = strlen(c) + 1;
-			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
-				/* ast_calloc is not needed because all fields are initialized in this block */
-				ast_copy_string(thishop->hop, c, len);
-				thishop->next = NULL;
-				/* Goes at the end */
-				if (tail) {
-					tail->next = thishop;
-				} else {
-					head = thishop;
-				}
-			}
+		int len;
+		header = sip_get_header(req, "Contact");
+		if (strchr(header, '<')) {
+			get_in_brackets_const(header, &header, &len);
+		} else {
+			len = strlen(header);
+		}
+		if (header && len) {
+			sip_route_add(&p->route, header, len, 0);
 		}
 	}
-
-	/* Store as new route */
-	p->route = head;
 
 	/* For debugging dump what we ended up with */
 	if (sip_debug_test_pvt(p)) {
-		list_route(p->route);
+		sip_route_dump(&p->route);
 	}
-}
-
-/*!
- * \internal
- * \brief Create a new route
- *
- * \retval NULL on error
- * \retval sip_route on success
- */
-static struct sip_route *create_route(const char *hop, struct sip_route *prev)
-{
-	struct sip_route *route;
-	int len;
-
-	if (ast_strlen_zero(hop)) {
-		return NULL;
-	}
-	len = strlen(hop) + 1;
-
-	/* ast_calloc is not needed because all fields are initialized in
-	 * this block */
-	route = ast_malloc(sizeof(*route) + len);
-	if (!route) {
-		return NULL;
-	}
-	ast_copy_string(route->hop, hop, len);
-
-	route->next = NULL;
-	if (prev) {
-		prev->next = route;
-	}
-	return route;
-}
-
-/*!
- * \internal
- * \brief copy route-set
- *
- * \retval non-zero on failure
- * \retval 0 on success
- */
-static int copy_route(struct sip_route **dst, const struct sip_route *src)
-{
-	struct sip_route *thishop, *head, *tail;
-
-	/* Build a tailq, then assign it to **d when done. */
-	head = NULL;
-	tail = head;
-	for (; src; src = src->next) {
-		thishop = create_route(src->hop, tail);
-		if (!thishop) {
-			return -1;
-		}
-		if (!head) {
-			head = thishop;
-		}
-		tail = thishop;
-
-		ast_debug(2, "copy_route: copied hop: <%s>\n", thishop->hop);
-	}
-	*dst = head;
-
-	return 0;
 }
 
 /*! \brief Build route list from Path header
  *  RFC 3327 requires that the Path header contains SIP URIs with lr paramter.
  *  Thus, we do not care about strict routing SIP routers
  */
-static int build_path(struct sip_pvt *p, struct sip_peer *peer, struct sip_request *req, char *pathbuf)
+static int build_path(struct sip_pvt *p, struct sip_peer *peer, struct sip_request *req, const char *pathbuf)
 {
-	struct sip_route *thishop, *head, *tail;
-	int start = 0;
-	int len;
-	char *pr;
-
-	if (peer->path) {
-		free_old_route(peer->path);
-		peer->path = NULL;
-	}
+	sip_route_clear(&peer->path);
 
 	if (!ast_test_flag(&peer->flags[0], SIP_USEPATH)) {
 		ast_debug(2, "build_path: do not use Path headers\n");
@@ -16628,51 +16449,26 @@ static int build_path(struct sip_pvt *p, struct sip_peer *peer, struct sip_reque
 	}
 	ast_debug(2, "build_path: try to build pre-loaded route-set by parsing Path headers\n");
 
-	/* Build a tailq, then assign it to peer->path when done. */
-	head = NULL;
-	tail = head;
-	/* 1st we pass through all the hops in any Path headers */
-	for (;;) {
-		/* Either loop over the request's Path headers or parse the buffer */
-		if (req) {
-			pr = ast_strdupa(__get_header(req, "Path", &start));
-			if (*pr == '\0') {
+	if (req) {
+		int start = 0;
+		const char *header;
+		for (;;) {
+			header = __get_header(req, "Path", &start);
+			if (*header == '\0') {
 				break;
 			}
-		} else if (pathbuf) {
-			if (start == 0) {
-				pr = ast_strdupa(pathbuf);
-				start++;
-			} else {
-				break;
-			}
-		} else {
-			break;
+			sip_route_process_header(&peer->path, header, 0);
 		}
-		for (; (pr = strchr(pr, '<')) ; pr += (len + 1)) {
-			/* Parse out each route entry */
-			++pr;
-			len = strcspn(pr, ">");
-			*(pr + len) = '\0';
-			thishop = create_route(pr, tail);
-			if (!thishop) {
-				return -1;
-			}
-
-			if (!head) {
-				head = thishop;
-			}
-			tail = thishop;
-			ast_debug(2, "build_path: Path hop: <%s>\n", thishop->hop);
-		}
+	} else if (pathbuf) {
+		sip_route_process_header(&peer->path, pathbuf, 0);
 	}
 
-	/* Store as new route */
-	peer->path = head;
+	/* Caches result for any dialog->route copied from peer->path */
+	sip_route_is_strict(&peer->path);
 
 	/* For debugging dump what we ended up with */
 	if (p && sip_debug_test_pvt(p)) {
-		list_route(peer->path);
+		sip_route_dump(&peer->path);
 	}
 	return 0;
 }
@@ -20419,6 +20215,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 	}
 	if (peer && type==0 ) { /* Normal listing */
 		struct ast_str *mailbox_str = ast_str_alloca(512);
+		struct ast_str *path;
 		struct sip_auth_container *credentials;
 
 		ao2_lock(peer);
@@ -20504,18 +20301,9 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  Trust RPID   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_TRUSTRPID)));
 		ast_cli(fd, "  Send RPID    : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_SENDRPID)));
 		ast_cli(fd, "  Path support : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_USEPATH)));
-		ast_cli(fd, "  Path         : ");
-		if (!peer->path) {
-			ast_cli(fd, "N/A\n");
-		} else {
-			struct sip_route *r = peer->path;
-			int first = 1;
-			while (r) {
-				ast_cli(fd, "%s<%s>", first ? "" : ", ", r->hop);
-				first = 0;
-				r = r->next;
-			}
-			ast_cli(fd, "\n");
+		if ((path = sip_route_list(&peer->path, 1, 0))) {
+			ast_cli(fd, "  Path         : %s\n", ast_str_buffer(path));
+			ast_free(path);
 		}
 		ast_cli(fd, "  Subscriptions: %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
 		ast_cli(fd, "  Overlap dial : %s\n", allowoverlap2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP)));
@@ -21612,6 +21400,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		sip_pvt_lock(cur);
 
 		if (!strncasecmp(cur->callid, a->argv[3], len)) {
+			struct ast_str *strbuf;
 			char formatbuf[SIPBUFSIZE/2];
 			ast_cli(a->fd, "\n");
 			if (cur->subscribed != NONE) {
@@ -21661,18 +21450,9 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			ast_cli(a->fd, "  Need Destroy:           %s\n", AST_CLI_YESNO(cur->needdestroy));
 			ast_cli(a->fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(a->fd, "  Promiscuous Redir:      %s\n", AST_CLI_YESNO(ast_test_flag(&cur->flags[0], SIP_PROMISCREDIR)));
-			ast_cli(a->fd, "  Route:                  ");
-			if (cur->route) {
-				struct sip_route *route;
-				int first = 1;
-
-				for (route = cur->route; route; route = route->next) {
-					ast_cli(a->fd, "%s<%s>", first ? "" : ", ", route->hop);
-					first = 0;
-				}
-				ast_cli(a->fd, "\n");
-			} else {
-				ast_cli(a->fd, "N/A\n");
+			if ((strbuf = sip_route_list(&cur->route, 1, 0))) {
+				ast_cli(a->fd, "  Route:                  %s\n", ast_str_buffer(strbuf));
+				ast_free(strbuf);
 			}
 			ast_cli(a->fd, "  DTMF Mode:              %s\n", dtmfmode2str(ast_test_flag(&cur->flags[0], SIP_DTMF)));
 			ast_cli(a->fd, "  SIP Options:            ");
@@ -23398,7 +23178,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			if(set_address_from_contact(p)) {
 				/* Bad contact - we don't know how to reach this device */
 				/* We need to ACK, but then send a bye */
-				if (!p->route && !req->ignore) {
+				if (sip_route_empty(&p->route) && !req->ignore) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 				}
 			}
@@ -29534,10 +29314,10 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
-	copy_route(&p->route, peer->path);
-	if (p->route) {
+	sip_route_copy(&p->route, &peer->path);
+	if (!sip_route_empty(&p->route)) {
 		/* Parse SIP URI of first route-set hop and use it as target address */
-		__set_address_from_contact(p->route->hop, &p->sa, p->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
+		__set_address_from_contact(sip_route_first_uri(&p->route), &p->sa, p->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
 	}
 
 	/* Send OPTIONs to peer's fullcontact */

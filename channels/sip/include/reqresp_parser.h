@@ -22,6 +22,30 @@
 #ifndef _SIP_REQRESP_H
 #define _SIP_REQRESP_H
 
+/*! \brief uri parameters */
+struct uriparams {
+	char *transport;
+	char *user;
+	char *method;
+	char *ttl;
+	char *maddr;
+	int lr;
+};
+
+struct contact {
+	AST_LIST_ENTRY(contact) list;
+	char *name;
+	char *user;
+	char *pass;
+	char *hostport;
+	struct uriparams params;
+	char *headers;
+	char *expires;
+	char *q;
+};
+
+AST_LIST_HEAD_NOLOCK(contactliststruct, contact);
+
 /*!
  * \brief parses a URI in its components.
  *

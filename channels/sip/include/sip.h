@@ -39,6 +39,8 @@
 #include "asterisk/netsock2.h"
 #include "asterisk/features_config.h"
 
+#include "route.h"
+
 #ifndef FALSE
 #define FALSE    0
 #endif
@@ -847,12 +849,6 @@ struct sip_invite_param {
 	struct sip_proxy *outboundproxy; /*!< Outbound proxy URI */
 };
 
-/*! \brief Structure to save routing information for a SIP session */
-struct sip_route {
-	struct sip_route *next;
-	char hop[0];
-};
-
 /*! \brief Structure to store Via information */
 struct sip_via {
 	char *via;
@@ -1119,7 +1115,7 @@ struct sip_pvt {
 	struct ast_sockaddr ourip;           /*!< Our IP (as seen from the outside) */
 	enum transfermodes allowtransfer;   /*!< REFER: restriction scheme */
 	struct ast_channel *owner;          /*!< Who owns us (if we have an owner) */
-	struct sip_route *route;            /*!< Head of linked list of routing steps (fm Record-Route) */
+	struct sip_route route;             /*!< List of routing steps (fm Record-Route) */
 	struct sip_notify *notify;          /*!< Custom notify type */
 	struct sip_auth_container *peerauth;/*!< Realm authentication credentials */
 	int noncecount;                     /*!< Nonce-count */
@@ -1346,7 +1342,7 @@ struct sip_peer {
 	int timer_t1;                   /*!<  The maximum T1 value for the peer */
 	int timer_b;                    /*!<  The maximum timer B (transaction timeouts) */
 	int fromdomainport;             /*!<  The From: domain port */
-	struct sip_route *path;         /*!<  Head of linked list of out-of-dialog outgoing routing steps (fm Path headers) */
+	struct sip_route path;          /*!<  List of out-of-dialog outgoing routing steps (fm Path headers) */
 
 	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
@@ -1803,34 +1799,6 @@ struct sip_monitor_instance {
 	struct sip_pvt *subscription_pvt;
 	struct sip_epa_entry *suspension_entry;
 };
-
-/*!
- * \brief uri parameters
- *
- */
-
-struct uriparams {
-	char *transport;
-	char *user;
-	char *method;
-	char *ttl;
-	char *maddr;
-	int lr;
-};
-
-struct contact {
-	AST_LIST_ENTRY(contact) list;
-	char *name;
-	char *user;
-	char *pass;
-	char *hostport;
-	struct uriparams params;
-	char *headers;
-	char *expires;
-	char *q;
-};
-
-AST_LIST_HEAD_NOLOCK(contactliststruct, contact);
 
 /*! \brief List of well-known SIP options. If we get this in a require,
    we should check the list and answer accordingly. */
