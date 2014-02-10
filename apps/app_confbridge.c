@@ -371,6 +371,8 @@ const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds 
 		return S_OR(custom_sounds->participantsmuted, "conf-now-muted");
 	case CONF_SOUND_PARTICIPANTS_UNMUTED:
 		return S_OR(custom_sounds->participantsunmuted, "conf-now-unmuted");
+	case CONF_SOUND_BEGIN:
+		return S_OR(custom_sounds->begin, "confbridge-conf-begin");
 	}
 
 	return "";
@@ -1078,14 +1080,6 @@ static void conf_moh_suspend(struct conference_bridge_user *user)
 		ast_moh_stop(user->chan);
 	}
 	ao2_unlock(user->conference_bridge);
-}
-
-int conf_handle_first_marked_common(struct conference_bridge_user *cbu)
-{
-	if (!ast_test_flag(&cbu->u_profile, USER_OPT_QUIET) && play_prompt_to_user(cbu, conf_get_sound(CONF_SOUND_PLACE_IN_CONF, cbu->b_profile.sounds))) {
-		return -1;
-	}
-	return 0;
 }
 
 int conf_handle_inactive_waitmarked(struct conference_bridge_user *cbu)

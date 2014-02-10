@@ -24,6 +24,11 @@ from 11.8 to 11.9
   Because of this the default settings would not load, so the minrate (minimum
   transmission rate) option was changed to default to 4800 since that is the
   minimum rate for v.27 which is included in the default modem options.
+* The sound_place_into_conference sound used in Confbridge is now deprecated
+  and is no longer functional since it has been broken since its inception
+  and the fix involved using a different method to achieve the same goal. The
+  new method to achieve this functionality is by using sound_begin to play
+  a sound to the conference when waitmarked users are moved into the conference.
 
 From 11.7 to 11.8:
 * The per console verbose level feature as previously implemented caused a

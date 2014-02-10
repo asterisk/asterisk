@@ -160,6 +160,7 @@ enum conf_sounds {
 	CONF_SOUND_LEAVE,
 	CONF_SOUND_PARTICIPANTS_MUTED,
 	CONF_SOUND_PARTICIPANTS_UNMUTED,
+	CONF_SOUND_BEGIN,
 };
 
 struct bridge_profile_sounds {
@@ -186,6 +187,7 @@ struct bridge_profile_sounds {
 		AST_STRING_FIELD(join);
 		AST_STRING_FIELD(participantsmuted);
 		AST_STRING_FIELD(participantsunmuted);
+		AST_STRING_FIELD(begin);
 	);
 };
 
@@ -395,13 +397,6 @@ void conf_moh_start(struct conference_bridge_user *user);
  * \param conference_bridge A conference bridge containing a single user
  */
 void conf_mute_only_active(struct conference_bridge *conference_bridge);
-
-/*! \brief Callback to execute any time we transition from zero to one marked users
- * \param cbu The first marked user joining the conference
- * \retval 0 success
- * \retval -1 failure
- */
-int conf_handle_first_marked_common(struct conference_bridge_user *cbu);
 
 /*! \brief Callback to execute any time we transition from zero to one active users
  * \param conference_bridge The conference bridge with a single active user joined

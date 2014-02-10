@@ -73,7 +73,6 @@ static void join_marked(struct conference_bridge_user *cbu)
 {
 	conf_add_user_marked(cbu->conference_bridge, cbu);
 	conf_handle_first_join(cbu->conference_bridge);
-	conf_add_post_join_action(cbu, conf_handle_first_marked_common);
 
 	conf_change_state(cbu, CONF_STATE_SINGLE_MARKED);
 }

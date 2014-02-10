@@ -227,7 +227,9 @@ type=bridge
                        ; The sounds are stringed together like this.
                        ; "sound_there_are" <number of participants> "sound_other_in_party"
 ;sound_place_into_conference ; The sound played when someone is placed into the conference
-                             ; after waiting for a marked user.
+                             ; after waiting for a marked user. This sound is now deprecated
+                             ; since it was only ever used improperly and correcting that bug
+                             ; made it completely unused.
 ;sound_wait_for_leader  ; The sound played when a user is placed into a conference that
                         ; can not start until a marked user enters.
 ;sound_leader_has_left  ; The sound played when the last marked user leaves the conference.
@@ -237,6 +239,7 @@ type=bridge
 ;sound_locked_now ; The sound played to an admin after toggling the conference to locked mode.
 ;sound_unlocked_now; The sound played to an admin after toggling the conference to unlocked mode.
 ;sound_error_menu ; The sound played when an invalid menu option is entered.
+;sound_begin ; The sound played to the conference when the first marked user enters the conference.
 
 ; --- ConfBridge Menu Options ---
 ; The ConfBridge application also has the ability to

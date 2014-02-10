@@ -169,14 +169,21 @@ static void leave_marked(struct conference_bridge_user *cbu)
 	}
 }
 
+static int post_join_play_begin(struct conference_bridge_user *cbu)
+{
+	int res;
+
+	ast_autoservice_start(cbu->chan);
+	res = play_sound_file(cbu->conference_bridge,
+		conf_get_sound(CONF_SOUND_BEGIN, cbu->b_profile.sounds));
+	ast_autoservice_stop(cbu->chan);
+	return res;
+}
+
 static void transition_to_marked(struct conference_bridge_user *cbu)
 {
 	struct conference_bridge_user *cbu_iter;
-
-	/* Play the audio file stating they are going to be placed into the conference */
-	if (cbu->conference_bridge->markedusers == 1 && ast_test_flag(&cbu->u_profile, USER_OPT_MARKEDUSER)) {
-		conf_handle_first_marked_common(cbu);
-	}
+	int waitmarked_moved = 0;
 
 	/* Move all waiting users to active, stopping MOH and unmuting if necessary */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&cbu->conference_bridge->waiting_list, cbu_iter, list) {
@@ -188,6 +195,15 @@ static void transition_to_marked(struct conference_bridge_user *cbu)
 			conf_moh_stop(cbu_iter);
 		}
 		conf_update_user_mute(cbu_iter);
+		waitmarked_moved++;
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* Play the audio file stating that the conference is beginning */
+	if (cbu->conference_bridge->markedusers == 1
+		&& ast_test_flag(&cbu->u_profile, USER_OPT_MARKEDUSER)
+		&& !ast_test_flag(&cbu->u_profile, USER_OPT_QUIET)
+		&& waitmarked_moved) {
+		conf_add_post_join_action(cbu, post_join_play_begin);
+	}
 }
