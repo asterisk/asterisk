@@ -2569,10 +2569,53 @@ struct ast_config *ast_config_load2(const char *filename, const char *who_asked,
 	return result;
 }
 
-static struct ast_variable *realtime_arguments_to_fields(va_list ap)
+#define realtime_arguments_to_fields(ap) realtime_arguments_to_fields2(ap, 0)
+
+static struct ast_variable *realtime_arguments_to_fields2(va_list ap, int skip)
 {
 	struct ast_variable *first, *fields = NULL;
-	const char *newparam = va_arg(ap, const char *), *newval = va_arg(ap, const char *);
+	const char *newparam;
+	const char *newval;
+
+	/*
+	 * Previously we would do:
+	 *
+	 *     va_start(ap, last);
+	 *     x = realtime_arguments_to_fields(ap);
+	 *     y = realtime_arguments_to_fields(ap);
+	 *     va_end(ap);
+	 *
+	 * While this works on generic amd64 machines (2014), it doesn't on the
+	 * raspberry PI. The va_arg() manpage says:
+	 *
+	 *     If ap is passed to a function that uses va_arg(ap,type) then
+	 *     the value of ap is undefined after the return of that function.
+	 *
+	 * On the raspberry, ap seems to get reset after the call: the contents
+	 * of y would be equal to the contents of x.
+	 *
+	 * So, instead we allow the caller to skip past earlier argument sets
+	 * using the skip parameter:
+	 *
+	 *     va_start(ap, last);
+	 *     x = realtime_arguments_to_fields(ap);
+	 *     va_end(ap);
+	 *     va_start(ap, last);
+	 *     y = realtime_arguments_to_fields2(ap, 1);
+	 *     va_end(ap);
+	 */
+	while (skip--) {
+		/* There must be at least one argument. */
+		newparam = va_arg(ap, const char *);
+		newval = va_arg(ap, const char *);
+		while ((newparam = va_arg(ap, const char *))) {
+			newval = va_arg(ap, const char *);
+		}
+	}
+
+	/* Load up the first vars. */
+	newparam = va_arg(ap, const char *);
+	newval = va_arg(ap, const char *);
 
 	if (!(first = ast_variable_new(newparam, newval, ""))) {
 		return NULL;
@@ -2680,6 +2723,10 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
 
+	if (!fields) {
+		return NULL;
+	}
+
 	return ast_load_realtime_fields(family, fields);
 }
 
@@ -2782,6 +2829,10 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
 
+	if (!fields) {
+		return NULL;
+	}
+
 	return ast_load_realtime_multientry_fields(family, fields);
 }
 
@@ -2815,6 +2866,10 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
 
+	if (!fields) {
+		return -1;
+	}
+
 	return ast_update_realtime_fields(family, keyfield, lookup, fields);
 }
 
@@ -2845,9 +2900,19 @@ int ast_update2_realtime(const char *family, ...)
 	va_list ap;
 
 	va_start(ap, family);
+	/* XXX: If we wanted to pass no lookup fields (select all), we'd be
+	 * out of luck. realtime_arguments_to_fields expects at least one key
+	 * value pair. */
 	lookup_fields = realtime_arguments_to_fields(ap);
-	update_fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
+
+	va_start(ap, family);
+	update_fields = realtime_arguments_to_fields2(ap, 1);
+	va_end(ap);
+
+	if (!lookup_fields || !update_fields) {
+		return -1;
+	}
 
 	return ast_update2_realtime_fields(family, lookup_fields, update_fields);
 }
@@ -2882,6 +2947,10 @@ int ast_store_realtime(const char *family, ...)
 	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
 
+	if (!fields) {
+		return -1;
+	}
+
 	return ast_store_realtime_fields(family, fields);
 }
 
@@ -2913,6 +2982,10 @@ int ast_destroy_realtime(const char *family, const char *keyfield, const char *l
 	va_start(ap, lookup);
 	fields = realtime_arguments_to_fields(ap);
 	va_end(ap);
+
+	if (!fields) {
+		return -1;
+	}
 
 	return ast_destroy_realtime_fields(family, keyfield, lookup, fields);
 }
