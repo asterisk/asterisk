@@ -373,19 +373,11 @@ static pjsip_evsub *allocate_evsub(const char *event, enum ast_sip_subscription_
 	 * built-in events
 	 */
 	if (role == AST_SIP_NOTIFIER) {
-		if (!strcmp(event, "message-summary")) {
-			pjsip_mwi_create_uas(dlg, &pubsub_cb, rdata, &evsub);
-		} else {
-			pjsip_evsub_create_uas(dlg, &pubsub_cb, rdata, 0, &evsub);
-		}
+		pjsip_evsub_create_uas(dlg, &pubsub_cb, rdata, 0, &evsub);
 	} else {
-		if (!strcmp(event, "message-summary")) {
-			pjsip_mwi_create_uac(dlg, &pubsub_cb, 0, &evsub);
-		} else {
-			pj_str_t pj_event;
-			pj_cstr(&pj_event, event);
-			pjsip_evsub_create_uac(dlg, &pubsub_cb, &pj_event, 0, &evsub);
-		}
+		pj_str_t pj_event;
+		pj_cstr(&pj_event, event);
+		pjsip_evsub_create_uac(dlg, &pubsub_cb, &pj_event, 0, &evsub);
 	}
 	return evsub;
 }
@@ -678,11 +670,7 @@ int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *h
 
 	pj_cstr(&event, handler->event_name);
 
-	if (!strcmp(handler->event_name, "message-summary")) {
-		pjsip_mwi_init_module(ast_sip_get_pjsip_endpoint(), pjsip_evsub_instance());
-	} else {
-		pjsip_evsub_register_pkg(&pubsub_module, &event, DEFAULT_EXPIRES, i, accept);
-	}
+	pjsip_evsub_register_pkg(&pubsub_module, &event, DEFAULT_EXPIRES, i, accept);
 
 	sub_add_handler(handler);
 	return 0;
