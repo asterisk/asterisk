@@ -251,8 +251,7 @@ struct unsolicited_mwi_data {
 	struct ast_sip_endpoint *endpoint;
 	pjsip_evsub_state state;
 	const char *reason;
-	const pjsip_media_type *mwi_type;
-	const pj_str_t *body_text;
+	const struct ast_sip_body *body;
 };
 
 static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flags)
@@ -262,12 +261,10 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	struct ast_sip_endpoint *endpoint = mwi_data->endpoint;
 	pjsip_evsub_state state = mwi_data->state;
 	const char *reason = mwi_data->reason;
-	const pjsip_media_type *mwi_type = mwi_data->mwi_type;
-	const pj_str_t *body_text = mwi_data->body_text;
+	const struct ast_sip_body *body = mwi_data->body;
 	struct ast_sip_contact *contact = obj;
 	const char *state_name;
 	pjsip_tx_data *tdata;
-	pjsip_msg_body *msg_body;
 	pjsip_sub_state_hdr *sub_state;
 	pjsip_event_hdr *event;
 	const pjsip_hdr *allow_events = pjsip_evsub_get_allow_events_hdr(NULL);
@@ -307,15 +304,14 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) event);
 
 	pjsip_msg_add_hdr(tdata->msg, pjsip_hdr_shallow_clone(tdata->pool, allow_events));
-	msg_body = pjsip_msg_body_create(tdata->pool, &mwi_type->type, &mwi_type->subtype, body_text);
-	tdata->msg->body = msg_body;
+	ast_sip_add_body(tdata, body);
 	ast_sip_send_request(tdata, NULL, endpoint, NULL, NULL);
 
 	return 0;
 }
 
 static void send_unsolicited_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state state, const char *reason,
-		const pjsip_media_type *mwi_type, const pj_str_t *body_text)
+		struct ast_sip_body *body)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),
 				"endpoint", sub->id), ao2_cleanup);
@@ -343,8 +339,7 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub, pjsip_evsu
 			.endpoint = endpoint,
 			.state = state,
 			.reason = reason,
-			.mwi_type = mwi_type,
-			.body_text = body_text,
+			.body = body,
 		};
 
 		if (!aor) {
@@ -369,17 +364,18 @@ static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state stat
 		.old_msgs = 0,
 		.new_msgs = 0,
 	};
-	RAII_VAR(struct ast_str *, body, ast_str_create(64), ast_free_ptr);
+	RAII_VAR(struct ast_str *, body_text, ast_str_create(64), ast_free_ptr);
 	pjsip_tx_data *tdata;
 	pj_str_t reason_str;
-	pj_str_t pj_body;
-	const char *type = sub->is_solicited ?
+	struct ast_sip_body body;
+
+	body.type = sub->is_solicited ?
 		ast_sip_subscription_get_body_type(sub->sip_sub) :
 		MWI_TYPE;
-	const char *subtype = sub->is_solicited ?
+
+	body.subtype = sub->is_solicited ?
 		ast_sip_subscription_get_body_subtype(sub->sip_sub) :
 		MWI_SUBTYPE;
-	pjsip_media_type mwi_type = { { 0,}, };
 
 	ao2_callback(sub->stasis_subs, OBJ_NODATA, get_message_count, &counter);
 
@@ -388,28 +384,25 @@ static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state stat
 		reason_str_ptr = &reason_str;
 	}
 
-	if (ast_sip_pubsub_generate_body_content(type, subtype, &counter, &body)) {
+	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, &counter, &body_text)) {
 		ast_log(LOG_WARNING, "Unable to generate SIP MWI NOTIFY body.\n");
 		return;
 	}
 
-	pj_cstr(&pj_body, ast_str_buffer(body));
-	pj_cstr(&mwi_type.type, type);
-	pj_cstr(&mwi_type.subtype, subtype);
+	body.body_text = ast_str_buffer(body_text);
 
 	ast_debug(5, "Sending %s MWI NOTIFY to endpoint %s, new messages: %d, old messages: %d\n",
 			sub->is_solicited ? "solicited" : "unsolicited", sub->id, counter.new_msgs,
 			counter.old_msgs);
 
 	if (sub->is_solicited) {
-		if (pjsip_mwi_notify(ast_sip_subscription_get_evsub(sub->sip_sub),
-				state,
-				NULL,
-				reason_str_ptr,
-				&mwi_type,
-				&pj_body,
-				&tdata) != PJ_SUCCESS) {
+		if (pjsip_evsub_notify(ast_sip_subscription_get_evsub(sub->sip_sub),
+					state, NULL, reason_str_ptr, &tdata) != PJ_SUCCESS) {
 			ast_log(LOG_WARNING, "Unable to create MWI NOTIFY request to %s.\n", sub->id);
+			return;
+		}
+		if (ast_sip_add_body(tdata, &body)) {
+			ast_log(LOG_WARNING, "Unable to add body to MWI NOTIFY request\n");
 			return;
 		}
 		if (ast_sip_subscription_send_request(sub->sip_sub, tdata) != PJ_SUCCESS) {
@@ -417,7 +410,7 @@ static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state stat
 			return;
 		}
 	} else {
-		send_unsolicited_mwi_notify(sub, state, reason, &mwi_type, &pj_body);
+		send_unsolicited_mwi_notify(sub, state, reason, &body);
 	}
 }
 
@@ -580,10 +573,21 @@ static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *e
 static void mwi_resubscribe(struct ast_sip_subscription *sub,
 		pjsip_rx_data *rdata, struct ast_sip_subscription_response_data *response_data)
 {
-	pjsip_tx_data *tdata;
+	struct mwi_subscription *mwi_sub;
+	pjsip_evsub_state state;
+	pjsip_evsub *evsub;
+	RAII_VAR(struct ast_datastore *, mwi_datastore,
+			ast_sip_subscription_get_datastore(sub, "MWI datastore"), ao2_cleanup);
 
-	pjsip_mwi_current_notify(ast_sip_subscription_get_evsub(sub), &tdata);
-	ast_sip_subscription_send_request(sub, tdata);
+	if (!mwi_datastore) {
+		return;
+	}
+
+	mwi_sub = mwi_datastore->data;
+	evsub = ast_sip_subscription_get_evsub(sub);
+	state = pjsip_evsub_get_state(evsub);
+
+	send_mwi_notify(mwi_sub, state, NULL);
 }
 
 static void mwi_subscription_timeout(struct ast_sip_subscription *sub)
