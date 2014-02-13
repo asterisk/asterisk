@@ -349,7 +349,8 @@ static int format_ami_aor_handler(void *obj, void *arg, int flags)
 	RAII_VAR(struct ast_str *, buf,
 		 ast_sip_create_ami_event("AorDetail", ami), ast_free);
 
-	int num;
+	int total_contacts;
+	int num_permanent;
 	RAII_VAR(struct ao2_container *, contacts,
 		 ast_sip_location_retrieve_aor_contacts(aor), ao2_cleanup);
 
@@ -363,10 +364,13 @@ static int format_ami_aor_handler(void *obj, void *arg, int flags)
 	ast_str_truncate(buf, -1);
 	ast_str_append(&buf, 0, "\r\n");
 
-	num = ao2_container_count(contacts);
-	ast_str_append(&buf, 0, "TotalContacts: %d\r\n", num);
+	total_contacts = ao2_container_count(contacts);
+	num_permanent = aor->permanent_contacts ?
+		ao2_container_count(aor->permanent_contacts) : 0;
+
+	ast_str_append(&buf, 0, "TotalContacts: %d\r\n", total_contacts);
 	ast_str_append(&buf, 0, "ContactsRegistered: %d\r\n",
-		       num - ao2_container_count(aor->permanent_contacts));
+		       total_contacts - num_permanent);
 	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
 		       ast_sorcery_object_get_id(endpoint));
 
