@@ -133,6 +133,8 @@ struct logchannel {
 	AST_LIST_ENTRY(logchannel) list;
 	/*! Line number from configuration file */
 	int lineno;
+	/*! Whether this log channel was created dynamically */
+	int dynamic;
 	/*! Components (levels) from last config load */
 	char components[0];
 };
@@ -284,7 +286,7 @@ static void make_components(struct logchannel *chan)
 	chan->logmask = logmask;
 }
 
-static struct logchannel *make_logchannel(const char *channel, const char *components, int lineno)
+static struct logchannel *make_logchannel(const char *channel, const char *components, int lineno, int dynamic)
 {
 	struct logchannel *chan;
 	char *facility;
@@ -297,6 +299,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 
 	strcpy(chan->components, components);
 	chan->lineno = lineno;
+	chan->dynamic = dynamic;
 
 	if (!strcasecmp(channel, "console")) {
 		chan->type = LOGTYPE_CONSOLE;
@@ -474,7 +477,7 @@ static void init_logger_chain(int locked, const char *altconf)
 	}
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
-		if (!(chan = make_logchannel(var->name, var->value, var->lineno))) {
+		if (!(chan = make_logchannel(var->name, var->value, var->lineno, 0))) {
 			/* Print error message directly to the consoles since the lock is held
 			 * and we don't want to unlock with the list partially built */
 			ast_console_puts_mutable("ERROR: Unable to create log channel '", __LOG_ERROR);
@@ -1005,6 +1008,117 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+static char *handle_logger_add_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct logchannel *chan;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger add channel";
+		e->usage =
+			"Usage: logger add channel <name> <levels>\n"
+			"       Adds a temporary logger channel. This logger channel\n"
+			"       will exist until removed or until Asterisk is restarted.\n"
+			"       <levels> is a comma-separated list of desired logger\n"
+			"       levels such as: verbose,warning,error\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_RWLIST_WRLOCK(&logchannels);
+	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
+		if (!strcmp(chan->filename, a->argv[3])) {
+			break;
+		}
+	}
+
+	if (chan) {
+		AST_RWLIST_UNLOCK(&logchannels);
+		ast_cli(a->fd, "Logger channel '%s' already exists\n", a->argv[3]);
+		return CLI_SUCCESS;
+	}
+
+	chan = make_logchannel(a->argv[3], a->argv[4], 0, 1);
+	if (chan) {
+		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
+		global_logmask |= chan->logmask;
+		AST_RWLIST_UNLOCK(&logchannels);
+		return CLI_SUCCESS;
+	}
+
+	AST_RWLIST_UNLOCK(&logchannels);
+	ast_cli(a->fd, "ERROR: Unable to create log channel '%s'\n", a->argv[3]);
+
+	return CLI_FAILURE;
+}
+
+static char *handle_logger_remove_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct logchannel *chan;
+	int gen_count = 0;
+	char *gen_ret = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger remove channel";
+		e->usage =
+			"Usage: logger remove channel <name>\n"
+			"       Removes a temporary logger channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->argc > 4 || (a->argc == 4 && a->pos > 3)) {
+			return NULL;
+		}
+		AST_RWLIST_RDLOCK(&logchannels);
+		AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
+			if (chan->dynamic && (ast_strlen_zero(a->argv[3])
+				|| !strncmp(a->argv[3], chan->filename, strlen(a->argv[3])))) {
+				if (gen_count == a->n) {
+					gen_ret = ast_strdup(chan->filename);
+					break;
+				}
+				gen_count++;
+			}
+		}
+		AST_RWLIST_UNLOCK(&logchannels);
+		return gen_ret;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	AST_RWLIST_WRLOCK(&logchannels);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&logchannels, chan, list) {
+		if (chan->dynamic && !strcmp(chan->filename, a->argv[3])) {
+			AST_RWLIST_REMOVE_CURRENT(list);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	if (!chan) {
+		ast_cli(a->fd, "Unable to find dynamic logger channel '%s'\n", a->argv[3]);
+		return CLI_SUCCESS;
+	}
+
+	ast_cli(a->fd, "Removed dynamic logger channel '%s'\n", chan->filename);
+	if (chan->fileptr) {
+		fclose(chan->fileptr);
+		chan->fileptr = NULL;
+	}
+	ast_free(chan);
+	chan = NULL;
+
+	return CLI_SUCCESS;
+}
+
 struct verb {
 	void (*verboser)(const char *string);
 	AST_LIST_ENTRY(verb) list;
@@ -1017,6 +1131,8 @@ static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_logger_reload, "Reopens the log files"),
 	AST_CLI_DEFINE(handle_logger_rotate, "Rotates and reopens the log files"),
 	AST_CLI_DEFINE(handle_logger_set_level, "Enables/Disables a specific logging level for this console"),
+	AST_CLI_DEFINE(handle_logger_add_channel, "Adds a new logging channel"),
+	AST_CLI_DEFINE(handle_logger_remove_channel, "Removes a logging channel"),
 };
 
 static void _handle_SIGXFSZ(int sig)
