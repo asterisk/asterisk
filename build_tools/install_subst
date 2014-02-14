@@ -1,0 +1,43 @@
+#!/bin/sh
+
+# install_subst: install a script while doing path substitution
+
+# install_subst [-d] source destination
+#
+# -d: file is data (rather than script)
+
+install_args=
+if [ "$1" = '-d' ]; then
+	install_args="-m 644"
+	shift
+fi
+
+set -e
+
+tmp=`mktemp install_subst_XXXXXX`
+
+cleanup_tmp() {
+	rm -f "$tmp"
+}
+
+# Delete it on exit
+trap cleanup_tmp 0
+
+src="$1"
+dst="$2"
+sed <"$src" \
+	-e "s|__ASTERISK_DATA_DIR__|$ASTDATADIR|g" \
+	-e "s|__ASTERISK_DB_DIR__|$ASTDBDIR|g" \
+	-e "s|__ASTERISK_ETC_DIR__|$ASTETCDIR|g" \
+	-e "s|__ASTERISK_HEADER_DIR__|$ASTHEADERDIR|g" \
+	-e "s|__ASTERISK_LIB_DIR__|$ASTLIBDIR|g" \
+	-e "s|__ASTERISK_LOG_DIR__|$ASTLOGDIR|g" \
+	-e "s|__ASTERISK_MOD_DIR__|$ASTMODDIR|g" \
+	-e "s|__ASTERISK_MAN_DIR__|$ASTMANDIR|g" \
+	-e "s|__ASTERISK_SBIN_DIR__|$ASTSBINDIR|g" \
+	-e "s|__ASTERISK_SPOOL_DIR__|$ASTSPOOLDIR|g" \
+	-e "s|__ASTERISK_VARLIB_DIR__|$ASTVARLIBDIR|g" \
+	-e "s|__ASTERISK_VARRUN_DIR__|$ASTVARRUNDIR|g" \
+	> "$tmp"
+
+install $install_args "$tmp" "$dst"
