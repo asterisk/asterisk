@@ -99,6 +99,8 @@ export LDCONFIG_FLAGS
 export PYTHON
 
 -include makeopts
+# we want the MENUSELECT_EMBED var
+-include menuselect.makeopts
 
 # start the primary CFLAGS and LDFLAGS with any that were provided
 # to the configure script
@@ -363,12 +365,16 @@ makeopts.embed_rules: menuselect.makeopts
 $(SUBDIRS): makeopts .lastclean main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
+  ifneq ($(MENUSELECT_EMBED),)
     # Non-windows:
     # ensure that all module subdirectories are processed before 'main' during
     # a parallel build, since if there are modules selected to be embedded the
     # directories containing them must be completed before the main Asterisk
-    # binary can be built
+    # binary can be built.
+    # If MENUSELECT_EMBED is empty, we don't need this and allow 'main' to be
+    # be built without building all dependencies first.
 main: $(filter-out main,$(MOD_SUBDIRS))
+  endif
 else
     # Windows: we need to build main (i.e. the asterisk dll) first,
     # followed by res, followed by the other directories, because
