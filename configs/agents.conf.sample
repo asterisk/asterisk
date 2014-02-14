@@ -54,11 +54,6 @@
 ;
 ;musiconhold => default
 ;
-; Define the default good bye sound file for agents
-; default to vm-goodbye
-;
-;goodbye => goodbye_file
-;
 ; Define updatecdr. This is whether or not to change the source
 ; channel in the CDR record for this call to agent/agent_id so
 ; that we know which agent generates the call
