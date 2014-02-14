@@ -3957,6 +3957,7 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&escalation_root, cur_escalation, list) {
 		if (cur_escalation->acf == acf) {
 			AST_RWLIST_REMOVE_CURRENT(list);
+			ast_free(cur_escalation);
 			break;
 		}
 	}
