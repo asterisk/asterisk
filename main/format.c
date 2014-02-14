@@ -129,7 +129,7 @@ int ast_format_sdp_parse(struct ast_format *format, const char *attributes)
 	}
 
 	ao2_rdlock(wrapper);
-	if (!(wrapper->interface || !wrapper->interface->format_attr_sdp_parse)) {
+	if (!wrapper->interface || !wrapper->interface->format_attr_sdp_parse) {
 		ao2_unlock(wrapper);
 		ao2_ref(wrapper, -1);
 		return 0;
@@ -152,7 +152,7 @@ void ast_format_sdp_generate(const struct ast_format *format, unsigned int paylo
 	}
 
 	ao2_rdlock(wrapper);
-	if (!(wrapper->interface || !wrapper->interface->format_attr_sdp_generate)) {
+	if (!wrapper->interface || !wrapper->interface->format_attr_sdp_generate) {
 		ao2_unlock(wrapper);
 		ao2_ref(wrapper, -1);
 		return;
