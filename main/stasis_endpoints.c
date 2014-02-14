@@ -197,6 +197,7 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 	if (!id) {
 		return NULL;
 	}
+	ast_tech_to_upper(id);
 
 	msg = stasis_cache_get(ast_endpoint_cache(),
 		ast_endpoint_snapshot_type(), id);
