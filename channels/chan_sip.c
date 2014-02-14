@@ -25960,16 +25960,19 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct ast_channe
 		transferer->refer->status = REFER_FAILED;
 		transmit_notify_with_sipfrag(transferer, seqno, "500 Internal Server Error", TRUE);
 		append_history(transferer, "Xfer", "Refer failed (internal error)");
+		ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 		return -1;
 	case AST_BRIDGE_TRANSFER_INVALID:
 		transferer->refer->status = REFER_FAILED;
 		transmit_notify_with_sipfrag(transferer, seqno, "503 Service Unavailable", TRUE);
 		append_history(transferer, "Xfer", "Refer failed (invalid bridge state)");
+		ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 		return -1;
 	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
 		transferer->refer->status = REFER_FAILED;
 		transmit_notify_with_sipfrag(transferer, seqno, "403 Forbidden", TRUE);
 		append_history(transferer, "Xfer", "Refer failed (operation not permitted)");
+		ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 		return -1;
 	default:
 		break;
@@ -26253,6 +26256,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, uint
 		*nounlock = 1;
 	}
 
+	ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 	sip_pvt_unlock(p);
 	transfer_res = ast_bridge_transfer_blind(1, transferer, refer_to, refer_to_context, blind_transfer_cb, &cb_data);
 	sip_pvt_lock(p);
@@ -26263,24 +26267,26 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, uint
 		p->refer->status = REFER_FAILED;
 		transmit_notify_with_sipfrag(p, seqno, "503 Service Unavailable (can't handle one-legged xfers)", TRUE);
 		append_history(p, "Xfer", "Refer failed (only bridged calls).");
+		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 		break;
 	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
 		res = -1;
 		p->refer->status = REFER_FAILED;
 		transmit_notify_with_sipfrag(p, seqno, "403 Forbidden", TRUE);
 		append_history(p, "Xfer", "Refer failed (bridge does not permit transfers)");
+		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 		break;
 	case AST_BRIDGE_TRANSFER_FAIL:
 		res = -1;
 		p->refer->status = REFER_FAILED;
 		transmit_notify_with_sipfrag(p, seqno, "500 Internal Server Error", TRUE);
 		append_history(p, "Xfer", "Refer failed (internal error)");
+		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 		break;
 	case AST_BRIDGE_TRANSFER_SUCCESS:
 		res = 0;
 		p->refer->status = REFER_200OK;
 		transmit_notify_with_sipfrag(p, seqno, "200 OK", TRUE);
-		ast_set_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 		append_history(p, "Xfer", "Refer succeeded.");
 		break;
 	default:
