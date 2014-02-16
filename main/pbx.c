@@ -8804,6 +8804,16 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	begintime = ast_tvnow();
 	ast_mutex_lock(&context_merge_lock);/* Serialize ast_merge_contexts_and_delete */
 	ast_wrlock_contexts();
+
+	if (!contexts_table) {
+		/* Well, that's odd. There are no contexts. */
+		contexts_table = exttable;
+		contexts = *extcontexts;
+		ast_unlock_contexts();
+		ast_mutex_unlock(&context_merge_lock);
+		return;
+	}
+
 	iter = ast_hashtab_start_traversal(contexts_table);
 	while ((tmp = ast_hashtab_next(iter))) {
 		context_merge(extcontexts, exttable, tmp, registrar);
