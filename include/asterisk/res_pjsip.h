@@ -153,6 +153,8 @@ struct ast_sip_contact {
 		AST_STRING_FIELD(outbound_proxy);
 		/*! Path information to place in Route headers */
 		AST_STRING_FIELD(path);
+		/*! Content of the User-Agent header in REGISTER request */
+		AST_STRING_FIELD(user_agent);
 	);
 	/*! Absolute time that this contact is no longer valid after */
 	struct timeval expiration_time;
@@ -905,12 +907,13 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
  * \param uri Full contact URI
  * \param expiration_time Optional expiration time of the contact
  * \param path_info Path information
+ * \param user_agent User-Agent header from REGISTER request
  *
  * \retval -1 failure
  * \retval 0 success
  */
 int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
-	struct timeval expiration_time, const char *path_info);
+	struct timeval expiration_time, const char *path_info, const char *user_agent);
 
 /*!
  * \brief Update a contact
