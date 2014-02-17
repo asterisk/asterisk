@@ -897,6 +897,13 @@
 				<configOption name="path">
 					<synopsis>Stored Path vector for use in Route headers on outgoing requests.</synopsis>
 				</configOption>
+				<configOption name="user_agent">
+					<synopsis>User-Agent header from registration.</synopsis>
+					<description><para>
+						The User-Agent is automatically stored based on data present in incoming SIP
+						REGISTER requests and is not intended to be configured manually.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="aor">
 				<synopsis>The configuration for a location of an endpoint</synopsis>

@@ -178,7 +178,8 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
 	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "contact", contact_name);
 }
 
-int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri, struct timeval expiration_time, const char *path_info)
+int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
+		struct timeval expiration_time, const char *path_info, const char *user_agent)
 {
 	char name[AST_UUID_STR_LEN];
 	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
@@ -199,6 +200,10 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri, struc
 
 	if (!ast_strlen_zero(aor->outbound_proxy)) {
 		ast_string_field_set(contact, outbound_proxy, aor->outbound_proxy);
+	}
+
+	if (!ast_strlen_zero(user_agent)) {
+		ast_string_field_set(contact, user_agent, user_agent);
 	}
 
 	return ast_sorcery_create(ast_sip_get_sorcery(), contact);
@@ -665,6 +670,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "contact", "qualify_frequency", 0, OPT_UINT_T,
 					  PARSE_IN_RANGE, FLDSET(struct ast_sip_contact, qualify_frequency), 0, 86400);
 	ast_sorcery_object_field_register(sorcery, "contact", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, outbound_proxy));
+	ast_sorcery_object_field_register(sorcery, "contact", "user_agent", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, user_agent));
 
 	ast_sorcery_object_field_register(sorcery, "aor", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "minimum_expiration", "60", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, minimum_expiration));

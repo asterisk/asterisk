@@ -170,9 +170,11 @@ static int registrar_delete_contact(void *obj, void *arg, int flags)
 		ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact->uri, aor_name);
 		ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
 				"Contact: %s\r\n"
-				"AOR: %s",
+				"AOR: %s\r\n"
+				"UserAgent: %s",
 				contact->uri,
-				aor_name);
+				aor_name,
+				contact->user_agent);
 	}
 
 	return 0;
@@ -407,6 +409,8 @@ static int registrar_validate_path(struct rx_task_data *task_data, struct ast_st
 
 static int rx_task(void *data)
 {
+	static const pj_str_t USER_AGENT = { "User-Agent", 10 };
+
 	RAII_VAR(struct rx_task_data *, task_data, data, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
 
@@ -418,6 +422,8 @@ static int rx_task(void *data)
 	const char *aor_name = ast_sorcery_object_get_id(task_data->aor);
 	RAII_VAR(struct ast_str *, path_str, NULL, ast_free);
 	struct ast_sip_contact *response_contact;
+	char *user_agent = NULL;
+	pjsip_user_agent_hdr *user_agent_hdr;
 
 	/* Retrieve the current contacts, we'll need to know whether to update or not */
 	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
@@ -456,6 +462,13 @@ static int rx_task(void *data)
 		return PJ_TRUE;
 	}
 
+	user_agent_hdr = pjsip_msg_find_hdr_by_name(task_data->rdata->msg_info.msg, &USER_AGENT, NULL);
+	if (user_agent_hdr) {
+		size_t alloc_size = pj_strlen(&user_agent_hdr->hvalue) + 1;
+		user_agent = ast_alloca(alloc_size);
+		ast_copy_pj_str(user_agent, &user_agent_hdr->hvalue, alloc_size);
+	}
+
 	/* Iterate each provided Contact header and add, update, or delete */
 	while ((contact_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
 		int expiration;
@@ -485,17 +498,25 @@ static int rx_task(void *data)
 				continue;
 			}
 
-			ast_sip_location_add_contact(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
-				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL);
+			if (ast_sip_location_add_contact(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
+				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL,
+					user_agent)) {
+				ast_log(LOG_ERROR, "Unable to bind contact '%s' to AOR '%s'\n",
+						contact_uri, aor_name);
+				continue;
+			}
+
 			ast_verb(3, "Added contact '%s' to AOR '%s' with expiration of %d seconds\n",
 				contact_uri, aor_name, expiration);
 			ast_test_suite_event_notify("AOR_CONTACT_ADDED",
 					"Contact: %s\r\n"
 					"AOR: %s\r\n"
-					"Expiration: %d",
+					"Expiration: %d\r\n"
+					"UserAgent: %s",
 					contact_uri,
 					aor_name,
-					expiration);
+					expiration,
+					user_agent);
 		} else if (expiration) {
 			RAII_VAR(struct ast_sip_contact *, updated, ast_sorcery_copy(ast_sip_get_sorcery(), contact), ao2_cleanup);
 			updated->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
@@ -504,6 +525,9 @@ static int rx_task(void *data)
 			if (path_str) {
 				ast_string_field_set(updated, path, ast_str_buffer(path_str));
 			}
+			if (user_agent) {
+				ast_string_field_set(updated, user_agent, user_agent);
+			}
 
 			ast_sip_location_update_contact(updated);
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
@@ -511,18 +535,24 @@ static int rx_task(void *data)
 			ast_test_suite_event_notify("AOR_CONTACT_REFRESHED",
 					"Contact: %s\r\n"
 					"AOR: %s\r\n"
-					"Expiration: %d",
+					"Expiration: %d\r\n"
+					"UserAgent: %s",
 					contact_uri,
 					aor_name,
-					expiration);
+					expiration,
+					updated->user_agent);
 		} else {
+			/* We want to report the user agent that was actually in the removed contact */
+			user_agent = ast_strdupa(contact->user_agent);
 			ast_sip_location_delete_contact(contact);
 			ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact_uri, aor_name);
 			ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
 					"Contact: %s\r\n"
-					"AOR: %s",
+					"AOR: %s\r\n"
+					"UserAgent: %s",
 					contact_uri,
-					aor_name);
+					aor_name,
+					user_agent);
 		}
 	}
 
