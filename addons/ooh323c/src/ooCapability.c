@@ -2940,6 +2940,22 @@ int ooCapabilityUpdateJointCapabilities
       break;
 
 
+   case T_H245Capability_receiveAndTransmitUserInputCapability:
+      if((cap->u.receiveAndTransmitUserInputCapability->t == 
+                                 T_H245UserInputCapability_basicString) &&
+         (call->dtmfmode & OO_CAP_DTMF_H245_alphanumeric))
+      {
+         call->jointDtmfMode |= OO_CAP_DTMF_H245_alphanumeric;
+         return OO_OK;
+      }
+      else if((cap->u.receiveAndTransmitUserInputCapability->t ==
+               T_H245UserInputCapability_dtmf) &&
+               (call->dtmfmode & OO_CAP_DTMF_H245_signal))
+      {
+         call->jointDtmfMode |= OO_CAP_DTMF_H245_signal;
+         return OO_OK;
+      }
+
    case T_H245Capability_receiveUserInputCapability:
       if((cap->u.receiveUserInputCapability->t == 
                                  T_H245UserInputCapability_basicString) &&
