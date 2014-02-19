@@ -89,7 +89,12 @@ struct cache_file_mtime {
 	AST_LIST_ENTRY(cache_file_mtime) list;
 	AST_LIST_HEAD_NOLOCK(includes, cache_file_include) includes;
 	unsigned int has_exec:1;
-	time_t mtime;
+	/*! stat() file size */
+	unsigned long stat_size;
+	/*! stat() file modtime nanoseconds */
+	unsigned long stat_mtime_nsec;
+	/*! stat() file modtime seconds since epoc */
+	time_t stat_mtime;
 
 	/*! String stuffed in filename[] after the filename string. */
 	const char *who_asked;
@@ -1214,6 +1219,61 @@ enum config_cache_attribute_enum {
 	ATTRIBUTE_EXEC = 1,
 };
 
+/*!
+ * \internal
+ * \brief Clear the stat() data in the cached file modtime struct.
+ *
+ * \param cfmtime Cached file modtime.
+ *
+ * \return Nothing
+ */
+static void cfmstat_clear(struct cache_file_mtime *cfmtime)
+{
+	cfmtime->stat_size = 0;
+	cfmtime->stat_mtime_nsec = 0;
+	cfmtime->stat_mtime = 0;
+}
+
+/*!
+ * \internal
+ * \brief Save the stat() data to the cached file modtime struct.
+ *
+ * \param cfmtime Cached file modtime.
+ * \param statbuf Buffer filled in by stat().
+ *
+ * \return Nothing
+ */
+static void cfmstat_save(struct cache_file_mtime *cfmtime, struct stat *statbuf)
+{
+	cfmtime->stat_size = statbuf->st_size;
+#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || (defined(_POSIX_C_SOURCE) && 200809L <= _POSIX_C_SOURCE) || (defined(_XOPEN_SOURCE) && 700 <= _XOPEN_SOURCE)
+	cfmtime->stat_mtime_nsec = statbuf->st_mtim.tv_nsec;
+#else
+	cfmtime->stat_mtime_nsec = statbuf->st_mtimensec;
+#endif
+	cfmtime->stat_mtime = statbuf->st_mtime;
+}
+
+/*!
+ * \internal
+ * \brief Compare the stat() data with the cached file modtime struct.
+ *
+ * \param cfmtime Cached file modtime.
+ * \param statbuf Buffer filled in by stat().
+ *
+ * \retval non-zero if different.
+ */
+static int cfmstat_cmp(struct cache_file_mtime *cfmtime, struct stat *statbuf)
+{
+	struct cache_file_mtime cfm_buf;
+
+	cfmstat_save(&cfm_buf, statbuf);
+
+	return cfmtime->stat_size != cfm_buf.stat_size
+		|| cfmtime->stat_mtime != cfm_buf.stat_mtime
+		|| cfmtime->stat_mtime_nsec != cfm_buf.stat_mtime_nsec;
+}
+
 static void config_cache_attribute(const char *configfile, enum config_cache_attribute_enum attrtype, const char *filename, const char *who_asked)
 {
 	struct cache_file_mtime *cfmtime;
@@ -1236,10 +1296,11 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 		AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 	}
 
-	if (!stat(configfile, &statbuf))
-		cfmtime->mtime = 0;
-	else
-		cfmtime->mtime = statbuf.st_mtime;
+	if (!stat(configfile, &statbuf)) {
+		cfmstat_clear(cfmtime);
+	} else {
+		cfmstat_save(cfmtime, &statbuf);
+	}
 
 	switch (attrtype) {
 	case ATTRIBUTE_INCLUDE:
@@ -1621,14 +1682,19 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			}
 			if (!cfmtime) {
 				cfmtime = cfmtime_new(fn, who_asked);
-				if (!cfmtime)
+				if (!cfmtime) {
+					AST_LIST_UNLOCK(&cfmtime_head);
 					continue;
+				}
 				/* Note that the file mtime is initialized to 0, i.e. 1970 */
 				AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 			}
 		}
 
-		if (cfmtime && (!cfmtime->has_exec) && (cfmtime->mtime == statbuf.st_mtime) && ast_test_flag(&flags, CONFIG_FLAG_FILEUNCHANGED)) {
+		if (cfmtime
+			&& !cfmtime->has_exec
+			&& !cfmstat_cmp(cfmtime, &statbuf)
+			&& ast_test_flag(&flags, CONFIG_FLAG_FILEUNCHANGED)) {
 			/* File is unchanged, what about the (cached) includes (if any)? */
 			int unchanged = 1;
 			AST_LIST_TRAVERSE(&cfmtime->includes, cfinclude, list) {
@@ -1685,8 +1751,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			return NULL;
 		}
 
-		if (cfmtime)
-			cfmtime->mtime = statbuf.st_mtime;
+		if (cfmtime) {
+			cfmstat_save(cfmtime, &statbuf);
+		}
 
 		if (!(f = fopen(fn, "r"))) {
 			ast_debug(1, "No file to parse: %s\n", fn);
