@@ -535,11 +535,13 @@ int ooOnReceivedSetup(OOH323CallData *call, Q931Message *q931Msg)
       }
    }
 
+/* Allow sourceCallSignallAddress different with socket IP for gk routed calls */
    if (strncmp(remoteIP, call->remoteIP, strlen(remoteIP))) {
-     OOTRACEERR5("ERROR: Security denial remote sig IP isn't a socket ip, %s not %s "
-		     "(%s, %s)\n", remoteIP, call->remoteIP, call->callType, 
-		     call->callToken);
-     return OO_FAILED;
+	if(!gH323ep.gkClient || OO_TESTFLAG(call->flags, OO_M_DISABLEGK) || (gH323ep.gkClient->state != GkClientRegistered)) {
+     		OOTRACEERR5("ERROR: Security denial remote sig IP isn't a socket ip, %s not %s "
+		     	"(%s, %s)\n", remoteIP, call->remoteIP, call->callType, call->callToken);
+     		return OO_FAILED;
+	}
    }
    
    /* check for fast start */
