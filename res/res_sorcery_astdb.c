@@ -215,10 +215,67 @@ static void sorcery_astdb_retrieve_multiple(const struct ast_sorcery *sorcery, v
 	sorcery_astdb_retrieve_fields_common(sorcery, data, type, fields, objects);
 }
 
+/*!
+ * \internal
+ * \brief Convert regex prefix pattern to astDB prefix pattern if possible.
+ *
+ * \param tree astDB prefix pattern buffer to fill.
+ * \param regex Extended regular expression with the start anchor character '^'.
+ *
+ * \note Since this is a helper function, the tree buffer is
+ * assumed to always be large enough.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.  regex is invalid.
+ */
+static int make_astdb_prefix_pattern(char *tree, const char *regex)
+{
+	const char *src;
+	char *dst;
+
+	for (dst = tree, src = regex + 1; *src; ++src) {
+		if (*src == '\\') {
+			/* Escaped regex char. */
+			++src;
+			if (!*src) {
+				/* Invalid regex.  The caller escaped the string terminator. */
+				return -1;
+			}
+		} else if (*src == '$') {
+			if (!src[1]) {
+				/* Remove the tail anchor character. */
+				*dst = '\0';
+				return 0;
+			}
+		} else if (strchr(".?*+{[(|", *src)) {
+			/*
+			 * The regex is not a simple prefix pattern.
+			 *
+			 * XXX With more logic, it is possible to simply
+			 * use the current prefix pattern.  The last character
+			 * needs to be removed if possible when the current regex
+			 * token is "?*{".  Also the rest of the regex pattern
+			 * would need to be checked for subgroup/alternation.
+			 * Subgroup/alternation is too complex for a simple prefix
+			 * match.
+			 */
+			dst = tree;
+			break;
+		}
+		*dst++ = *src;
+	}
+	if (dst != tree) {
+		*dst++ = '%';
+	}
+	*dst = '\0';
+	return 0;
+}
+
 static void sorcery_astdb_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex)
 {
 	const char *prefix = data;
-	char family[strlen(prefix) + strlen(type) + 2], tree[strlen(regex) + 1];
+	char family[strlen(prefix) + strlen(type) + 2];
+	char tree[strlen(regex) + 1];
 	RAII_VAR(struct ast_db_entry *, entries, NULL, ast_db_freetree);
 	regex_t expression;
 	struct ast_db_entry *entry;
@@ -226,12 +283,20 @@ static void sorcery_astdb_retrieve_regex(const struct ast_sorcery *sorcery, void
 	snprintf(family, sizeof(family), "%s/%s", prefix, type);
 
 	if (regex[0] == '^') {
-		snprintf(tree, sizeof(tree), "%s%%", regex + 1);
+		/*
+		 * For performance reasons, try to create an astDB prefix
+		 * pattern from the regex to reduce the number of entries
+		 * retrieved from astDB for regex to then match.
+		 */
+		if (make_astdb_prefix_pattern(tree, regex)) {
+			return;
+		}
 	} else {
 		tree[0] = '\0';
 	}
 
-	if (!(entries = ast_db_gettree(family, tree)) || regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
+	if (!(entries = ast_db_gettree(family, tree))
+		|| regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
 		return;
 	}
 
