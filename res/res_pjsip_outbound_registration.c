@@ -1211,6 +1211,10 @@ static struct ast_cli_entry cli_outbound_registration[] = {
 		.command = "pjsip list registrations",
 		.usage = "Usage: pjsip list registrations\n"
 				 "       List the configured PJSIP Registrations\n"),
+	AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Registrations",
+		.command = "pjsip show registrations",
+		.usage = "Usage: pjsip show registrations\n"
+				 "       Show the configured PJSIP Registrations\n"),
 	AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Registration",
 		.command = "pjsip show registration",
 		.usage = "Usage: pjsip show registration <id>\n"
