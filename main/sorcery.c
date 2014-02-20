@@ -55,6 +55,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Number of buckets for types (should be prime for performance reasons) */
 #define TYPE_BUCKETS 53
 
+/*! \brief Number of buckets for instances (should be prime for performance reasons) */
+#define INSTANCE_BUCKETS 17
+
 /*! \brief Thread pool for observers */
 static struct ast_threadpool *threadpool;
 
@@ -161,6 +164,8 @@ struct ast_sorcery_object_wizard {
 struct ast_sorcery {
 	/*! \brief Container for known object types */
 	struct ao2_container *types;
+	/*! \brief The name of the module owning this sorcery instance */
+	char module_name[0];
 };
 
 /*! \brief Structure for passing load/reload details */
@@ -176,7 +181,10 @@ struct sorcery_load_details {
 };
 
 /*! \brief Registered sorcery wizards */
-struct ao2_container *wizards;
+static struct ao2_container *wizards;
+
+/*! \brief Registered sorcery instances */
+static struct ao2_container *instances;
 
 static int int_handler_fn(const void *obj, const intptr_t *args, char **buf)
 {
@@ -250,19 +258,50 @@ static sorcery_field_handler sorcery_field_default_handler(enum aco_option_type 
 /*! \brief Hashing function for sorcery wizards */
 static int sorcery_wizard_hash(const void *obj, const int flags)
 {
-	const struct ast_sorcery_wizard *wizard = obj;
-	const char *name = obj;
+    const struct ast_sorcery_wizard *object;
+    const char *key;
 
-	return ast_str_hash(flags & OBJ_KEY ? name : wizard->name);
+    switch (flags & OBJ_SEARCH_MASK) {
+    case OBJ_SEARCH_KEY:
+        key = obj;
+        break;
+    case OBJ_SEARCH_OBJECT:
+        object = obj;
+        key = object->name;
+        break;
+    default:
+        ast_assert(0);
+        return 0;
+    }
+    return ast_str_hash(key);
 }
 
 /*! \brief Comparator function for sorcery wizards */
 static int sorcery_wizard_cmp(void *obj, void *arg, int flags)
 {
-	struct ast_sorcery_wizard *wizard1 = obj, *wizard2 = arg;
-	const char *name = arg;
+	const struct ast_sorcery_wizard *object_left = obj;
+	const struct ast_sorcery_wizard *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	return !strcmp(wizard1->name, flags & OBJ_KEY ? name : wizard2->name) ? CMP_MATCH | CMP_STOP : 0;
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(object_left->name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
 }
 
 /*! \brief Cleanup function */
@@ -276,6 +315,58 @@ static void sorcery_exit(void)
 static void sorcery_cleanup(void)
 {
 	ao2_cleanup(wizards);
+	wizards = NULL;
+	ao2_cleanup(instances);
+	instances = NULL;
+}
+
+/*! \brief Compare function for sorcery instances */
+static int sorcery_instance_cmp(void *obj, void *arg, int flags)
+{
+	const struct ast_sorcery *object_left = obj;
+	const struct ast_sorcery *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->module_name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->module_name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(object_left->module_name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
+/*! \brief Hashing function for sorcery instances */
+static int sorcery_instance_hash(const void *obj, const int flags)
+{
+    const struct ast_sorcery *object;
+    const char *key;
+
+    switch (flags & OBJ_SEARCH_MASK) {
+    case OBJ_SEARCH_KEY:
+        key = obj;
+        break;
+    case OBJ_SEARCH_OBJECT:
+        object = obj;
+        key = object->module_name;
+        break;
+    default:
+        ast_assert(0);
+        return 0;
+    }
+    return ast_str_hash(key);
 }
 
 int ast_sorcery_init(void)
@@ -296,6 +387,14 @@ int ast_sorcery_init(void)
 
 	if (!(wizards = ao2_container_alloc(WIZARD_BUCKETS, sorcery_wizard_hash, sorcery_wizard_cmp))) {
 		ast_threadpool_shutdown(threadpool);
+		return -1;
+	}
+
+	instances = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, INSTANCE_BUCKETS,
+		sorcery_instance_hash, sorcery_instance_cmp);
+	if (!instances) {
+		sorcery_cleanup();
+		sorcery_exit();
 		return -1;
 	}
 
@@ -362,35 +461,85 @@ static void sorcery_destructor(void *obj)
 /*! \brief Hashing function for sorcery types */
 static int sorcery_type_hash(const void *obj, const int flags)
 {
-	const struct ast_sorcery_object_type *type = obj;
-	const char *name = obj;
+    const struct ast_sorcery_object_type *object;
+    const char *key;
 
-	return ast_str_hash(flags & OBJ_KEY ? name : type->name);
+    switch (flags & OBJ_SEARCH_MASK) {
+    case OBJ_SEARCH_KEY:
+        key = obj;
+        break;
+    case OBJ_SEARCH_OBJECT:
+        object = obj;
+        key = object->name;
+        break;
+    default:
+        ast_assert(0);
+        return 0;
+    }
+    return ast_str_hash(key);
 }
 
 /*! \brief Comparator function for sorcery types */
 static int sorcery_type_cmp(void *obj, void *arg, int flags)
 {
-	struct ast_sorcery_object_type *type1 = obj, *type2 = arg;
-	const char *name = arg;
+	const struct ast_sorcery_object_type *object_left = obj;
+	const struct ast_sorcery_object_type *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	return !strcmp(type1->name, flags & OBJ_KEY ? name : type2->name) ? CMP_MATCH | CMP_STOP : 0;
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(object_left->name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
 }
 
-struct ast_sorcery *ast_sorcery_open(void)
+struct ast_sorcery *__ast_sorcery_open(const char *module_name)
 {
 	struct ast_sorcery *sorcery;
 
-	if (!(sorcery = ao2_alloc(sizeof(*sorcery), sorcery_destructor))) {
-		return NULL;
+	ast_assert(module_name != NULL);
+
+	ao2_wrlock(instances);
+	if ((sorcery = ao2_find(instances, module_name, OBJ_SEARCH_KEY | OBJ_NOLOCK))) {
+		goto done;
+	}
+
+	if (!(sorcery = ao2_alloc(sizeof(*sorcery) + strlen(module_name) + 1, sorcery_destructor))) {
+		goto done;
 	}
 
 	if (!(sorcery->types = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, TYPE_BUCKETS, sorcery_type_hash, sorcery_type_cmp))) {
 		ao2_ref(sorcery, -1);
 		sorcery = NULL;
+		goto done;
 	}
 
+	strcpy(sorcery->module_name, module_name); /* Safe */
+	ao2_link_flags(instances, sorcery, OBJ_NOLOCK);
+
+done:
+	ao2_unlock(instances);
 	return sorcery;
+}
+
+/*! \brief Search function for sorcery instances */
+struct ast_sorcery *ast_sorcery_retrieve_by_module_name(const char *module_name)
+{
+	return ao2_find(instances, module_name, OBJ_SEARCH_KEY);
 }
 
 /*! \brief Destructor function for object types */
@@ -1480,7 +1629,14 @@ int ast_sorcery_delete(const struct ast_sorcery *sorcery, void *object)
 
 void ast_sorcery_unref(struct ast_sorcery *sorcery)
 {
-	ao2_cleanup(sorcery);
+	if (sorcery) {
+		/* One ref for what we just released, the other for the instances container. */
+		ao2_wrlock(instances);
+		if (ao2_ref(sorcery, -1) == 2) {
+			ao2_unlink_flags(instances, sorcery, OBJ_NOLOCK);
+		}
+		ao2_unlock(instances);
+	}
 }
 
 const char *ast_sorcery_object_get_id(const void *object)

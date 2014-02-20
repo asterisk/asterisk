@@ -302,10 +302,28 @@ int ast_sorcery_wizard_unregister(const struct ast_sorcery_wizard *interface);
 /*!
  * \brief Open a new sorcery structure
  *
+ * \param module The module name (AST_MODULE)
+ *
  * \retval non-NULL success
  * \retval NULL if allocation failed
  */
-struct ast_sorcery *ast_sorcery_open(void);
+struct ast_sorcery *__ast_sorcery_open(const char *module);
+
+#define ast_sorcery_open() __ast_sorcery_open(AST_MODULE)
+
+/*!
+ * \brief Retrieves an existing sorcery instance by module name
+ *
+ * \param module The module name
+ *
+ * \retval non-NULL success
+ * \retval NULL if no instance was found
+ *
+ * \note The returned instance has its reference count incremented.  The caller
+ * must decrement the count when they're finished with it.
+ *
+ */
+struct ast_sorcery *ast_sorcery_retrieve_by_module_name(const char *module);
 
 /*!
  * \brief Apply configured wizard mappings
