@@ -71,9 +71,8 @@ int ast_sip_cli_print_sorcery_objectset(void *obj, void *arg, int flags)
 		}
 	}
 
-	if (!(separator = alloca(max_name_width + max_value_width + 8))) {
-		return -1;
-	}
+	separator = ast_alloca(max_name_width + max_value_width + 8);
+
 	memset(separator, '=', max_name_width + max_value_width + 3);
 	separator[max_name_width + max_value_width + 3] = 0;
 
@@ -85,6 +84,8 @@ int ast_sip_cli_print_sorcery_objectset(void *obj, void *arg, int flags)
 	for (i = objset; i; i = i->next) {
 		ast_str_append(&context->output_buffer, 0, " %-*s : %s\n", max_name_width, i->name, i->value);
 	}
+
+	ast_variables_destroy(objset);
 
 	return 0;
 }

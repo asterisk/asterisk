@@ -596,19 +596,19 @@ inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct
 
 struct ast_variable *ast_variable_list_sort(struct ast_variable *start)
 {
-	struct ast_variable *p, *q, *top;
+	struct ast_variable *p, *q;
+	struct ast_variable top;
 	int changed = 1;
-	top = ast_calloc(1, sizeof(struct ast_variable));
-	top->next = start;
+	memset(&top, 0, sizeof(top));
+	top.next = start;
 	if (start != NULL && start->next != NULL) {
 		while (changed) {
 			changed = 0;
-			q = top;
-			p = top->next;
+			q = &top;
+			p = top.next;
 			while (p->next != NULL) {
 				if (p->next != NULL && strcmp(p->name, p->next->name) > 0) {
 					q->next = variable_list_switch(p, p->next);
-
 					changed = 1;
 				}
 				q = p;
@@ -617,7 +617,7 @@ struct ast_variable *ast_variable_list_sort(struct ast_variable *start)
 			}
 		}
 	}
-	return top->next;
+	return top.next;
 }
 
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
