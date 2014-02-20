@@ -2296,6 +2296,7 @@ static int load_module(void)
 	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
 	if (!sip_threadpool) {
 		ast_log(LOG_ERROR, "Failed to create SIP threadpool. Aborting load\n");
+		ast_sip_destroy_system();
 		pj_pool_release(memory_pool);
 		memory_pool = NULL;
 		pjsip_endpt_destroy(ast_pjsip_endpoint);
@@ -2312,6 +2313,7 @@ static int load_module(void)
 			NULL, PJ_THREAD_DEFAULT_STACK_SIZE * 2, 0, &monitor_thread);
 	if (status != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to start SIP monitor thread. Aborting load\n");
+		ast_sip_destroy_system();
 		pj_pool_release(memory_pool);
 		memory_pool = NULL;
 		pjsip_endpt_destroy(ast_pjsip_endpoint);
@@ -2326,6 +2328,7 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
 		ast_sip_destroy_global_headers();
 		stop_monitor_thread();
+		ast_sip_destroy_system();
 		pj_pool_release(memory_pool);
 		memory_pool = NULL;
 		pjsip_endpt_destroy(ast_pjsip_endpoint);
@@ -2339,6 +2342,7 @@ static int load_module(void)
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_global_headers();
 		stop_monitor_thread();
+		ast_sip_destroy_system();
 		pj_pool_release(memory_pool);
 		memory_pool = NULL;
 		pjsip_endpt_destroy(ast_pjsip_endpoint);
@@ -2353,6 +2357,7 @@ static int load_module(void)
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_global_headers();
 		stop_monitor_thread();
+		ast_sip_destroy_system();
 		pj_pool_release(memory_pool);
 		memory_pool = NULL;
 		pjsip_endpt_destroy(ast_pjsip_endpoint);
@@ -2368,6 +2373,7 @@ static int load_module(void)
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_global_headers();
 		stop_monitor_thread();
+		ast_sip_destroy_system();
 		pj_pool_release(memory_pool);
 		memory_pool = NULL;
 		pjsip_endpt_destroy(ast_pjsip_endpoint);

@@ -120,7 +120,7 @@ int ast_sip_initialize_system(void)
 
 	ast_sorcery_apply_default(system_sorcery, "system", "config", "pjsip.conf,criteria=type=system");
 
-	if (ast_sorcery_object_register(system_sorcery, "system", system_alloc, NULL, system_apply)) {
+	if (ast_sorcery_object_register_no_reload(system_sorcery, "system", system_alloc, NULL, system_apply)) {
 		ast_log(LOG_ERROR, "Failed to register with sorcery (is res_sorcery_config loaded?)\n");
 		ast_sorcery_unref(system_sorcery);
 		system_sorcery = NULL;
@@ -156,13 +156,21 @@ int ast_sip_initialize_system(void)
 	system = ast_sorcery_alloc(system_sorcery, "system", NULL);
 	if (!system) {
 		ast_log(LOG_ERROR, "Unable to allocate default system config.\n");
+		ast_sorcery_unref(system_sorcery);
 		return -1;
 	}
 
 	if (system_apply(system_sorcery, system)) {
 		ast_log(LOG_ERROR, "Failed to apply default system config.\n");
+		ast_sorcery_unref(system_sorcery);
 		return -1;
 	}
 
 	return 0;
 }
+
+void ast_sip_destroy_system(void)
+{
+	ast_sorcery_unref(system_sorcery);
+}
+

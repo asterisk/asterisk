@@ -68,6 +68,11 @@ int ast_sip_initialize_outbound_authentication(void);
 int ast_sip_initialize_system(void);
 
 /*!
+ * \brief Destroy system configuration
+ */
+void ast_sip_destroy_system(void);
+
+/*!
  * \brief Initialize global configuration
  *
  * \retval 0 Success

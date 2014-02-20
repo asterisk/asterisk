@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "")
 
 #include "asterisk/test.h"
 #include "asterisk/module.h"
+#include "asterisk/astobj2.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/logger.h"
 #include "asterisk/json.h"
@@ -294,21 +295,71 @@ AST_TEST_DEFINE(wizard_registration)
 AST_TEST_DEFINE(sorcery_open)
 {
 	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct ast_sorcery *, sorcery2, NULL, ast_sorcery_unref);
+	int refcount;
 
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "open";
 		info->category = "/main/sorcery/";
-		info->summary = "sorcery open unit test";
+		info->summary = "sorcery open/close unit test";
 		info->description =
-			"Test opening of sorcery";
+			"Test opening of sorcery and registry operations";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
 	}
 
+	if ((sorcery = ast_sorcery_retrieve_by_module_name(AST_MODULE))) {
+		ast_test_status_update(test, "There should NOT have been an existing sorcery instance\n");
+		return AST_TEST_FAIL;
+	}
+
 	if (!(sorcery = ast_sorcery_open())) {
 		ast_test_status_update(test, "Failed to open new sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(sorcery2 = ast_sorcery_retrieve_by_module_name(AST_MODULE))) {
+		ast_test_status_update(test, "Failed to find sorcery structure in registry\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (sorcery2 != sorcery) {
+		ast_test_status_update(test, "Should have gotten same sorcery on retrieve\n");
+		return AST_TEST_FAIL;
+	}
+	ast_sorcery_unref(sorcery2);
+
+	if ((refcount = ao2_ref(sorcery, 0)) != 2) {
+		ast_test_status_update(test, "Should have been 2 references to sorcery instead of %d\n", refcount);
+		return AST_TEST_FAIL;
+	}
+
+	if (!(sorcery2 = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open second sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (sorcery2 != sorcery) {
+		ast_test_status_update(test, "Should have gotten same sorcery on 2nd open\n");
+		return AST_TEST_FAIL;
+	}
+
+	if ((refcount = ao2_ref(sorcery, 0)) != 3) {
+		ast_test_status_update(test, "Should have been 3 references to sorcery instead of %d\n", refcount);
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_unref(sorcery);
+	ast_sorcery_unref(sorcery2);
+
+	sorcery2 = NULL;
+
+	if ((sorcery = ast_sorcery_retrieve_by_module_name(AST_MODULE))) {
+		ast_sorcery_unref(sorcery);
+		sorcery = NULL;
+		ast_test_status_update(test, "Should NOT have found sorcery structure in registry\n");
 		return AST_TEST_FAIL;
 	}
 
