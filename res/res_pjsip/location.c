@@ -649,6 +649,10 @@ static struct ast_cli_entry cli_commands[] = {
 		.command = "pjsip list contacts",
 		.usage = "Usage: pjsip list contacts\n"
 				 "       List the configured PJSIP contacts\n"),
+	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Contacts",
+		.command = "pjsip show contacts",
+		.usage = "Usage: pjsip show contacts\n"
+				 "       Show the configured PJSIP contacts\n"),
 };
 
 /*! \brief Initialize sorcery with location support */
