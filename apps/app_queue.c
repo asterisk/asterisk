@@ -241,7 +241,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				connected to a queue member.</para>
 			</parameter>
 			<parameter name="macro">
-				<para>Will run a macro on the calling party's channel once they are connected to a queue member.</para>
+				<para>Will run a macro on the called party's channel (the queue member) once the parties are connected.</para>
 			</parameter>
 			<parameter name="gosub">
 				<para>Will run a gosub on the called party's channel (the queue member) once the parties are connected.</para>
