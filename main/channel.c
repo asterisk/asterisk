@@ -6406,6 +6406,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	unsigned int clone_disablestatecache;
 	int visible_indication;
 	int clone_hold_state;
+	int moh_is_playing;
 	struct ast_frame *current;
 	const struct ast_channel_tech *t;
 	void *t_pvt;
@@ -6451,6 +6452,8 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* unlink from channels container as name (which is the hash value) will change */
 	ao2_unlink(channels, original);
 	ao2_unlink(channels, clonechan);
+
+	moh_is_playing = ast_test_flag(ast_channel_flags(original), AST_FLAG_MOH);
 
 	/*
 	 * Stop any visible indication on the original channel so we can
@@ -6751,6 +6754,12 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 		} else {
 			ast_indicate(original, visible_indication);
 		}
+	}
+
+	/* if moh is playing on the original channel then it needs to be
+	   maintained on the channel that is replacing it. */
+	if (moh_is_playing) {
+		ast_moh_start(original, NULL, NULL);
 	}
 
 	ast_channel_lock(original);
