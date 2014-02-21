@@ -1095,8 +1095,7 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 			for (field = tmp; field; field = field->next) {
 				struct ast_json *value = ast_json_string_create(field->value);
 
-				if (value && ast_json_object_set(json, field->name, value)) {
-					ast_json_unref(value);
+				if (!value || ast_json_object_set(json, field->name, value)) {
 					res = -1;
 				}
 			}
@@ -1106,10 +1105,9 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 			char *buf = NULL;
 			struct ast_json *value = NULL;
 
-			if ((res = object_field->handler(object, object_field->args, &buf)) ||
-				!(value = ast_json_string_create(buf)) ||
-				ast_json_object_set(json, object_field->name, value)) {
-				ast_json_unref(value);
+			if ((res = object_field->handler(object, object_field->args, &buf))
+				|| !(value = ast_json_string_create(buf))
+				|| ast_json_object_set(json, object_field->name, value)) {
 				res = -1;
 			}
 

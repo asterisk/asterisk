@@ -977,6 +977,9 @@ static struct ast_json *dial_to_json(
 		"forward", ast_json_object_get(blob, "forward"),
 		"dialstring", ast_json_object_get(blob, "dialstring"));
 	if (!json) {
+		ast_json_unref(caller_json);
+		ast_json_unref(peer_json);
+		ast_json_unref(forwarded_json);
 		return NULL;
 	}
 
