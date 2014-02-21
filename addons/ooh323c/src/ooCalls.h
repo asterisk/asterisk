@@ -228,7 +228,7 @@ typedef struct OOH323CallData {
    char			lastDTMF;
    ASN1UINT		nextDTMFstamp;
    int			rtdrInterval, rtdrCount;	/* roundTripDelay interval and unreplied count */
-   ASN1UINT		rtdrSend, rtdrRecv;		/* last sended/replied RTD request */
+   ASN1UINT8		rtdrSend, rtdrRecv;		/* last sended/replied RTD request */
    void                 *usrData; /*!<User can set this to user specific data*/
    struct OOH323CallData* next;
    struct OOH323CallData* prev;
