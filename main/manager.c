@@ -3878,7 +3878,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	}
 
 	/* if we look by name, we break after the first iteration */
-	for (; msg; ao2_ref(msg, -1), msg = ao2_iterator_next(&it_chans)) {
+	for (; msg; ao2_ref(msg, -1), msg = all ? ao2_iterator_next(&it_chans) : NULL) {
 		struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
 		struct ast_channel *c;
 		struct ast_str *built = ast_manager_build_channel_state_string_prefix(snapshot, "");
@@ -3961,11 +3961,6 @@ static int action_status(struct mansession *s, const struct message *m)
 			idText);
 
 		ast_free(built);
-
-		if (!all) {
-			ao2_ref(msg, -1);
-			break;
-		}
 	}
 
 	if (all) {
