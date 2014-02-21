@@ -466,8 +466,13 @@ int ast_json_object_update_existing(struct ast_json *object, struct ast_json *ot
 
 	while (iter != NULL && ret == 0) {
 		const char *key = ast_json_object_iter_key(iter);
+
 		if (ast_json_object_get(object, key) != NULL) {
-			ret = ast_json_object_set(object, key, ast_json_object_iter_value(iter));
+			struct ast_json *value = ast_json_object_iter_value(iter);
+
+			if (!value || ast_json_object_set(object, key, ast_json_ref(value))) {
+				ret = -1;
+			}
 		}
 		iter = ast_json_object_iter_next(other, iter);
 	}
@@ -488,8 +493,13 @@ int ast_json_object_update_missing(struct ast_json *object, struct ast_json *oth
 
 	while (iter != NULL && ret == 0) {
 		const char *key = ast_json_object_iter_key(iter);
+
 		if (ast_json_object_get(object, key) == NULL) {
-			ret = ast_json_object_set(object, key, ast_json_object_iter_value(iter));
+			struct ast_json *value = ast_json_object_iter_value(iter);
+
+			if (!value || ast_json_object_set(object, key, ast_json_ref(value))) {
+				ret = -1;
+			}
 		}
 		iter = ast_json_object_iter_next(other, iter);
 	}
