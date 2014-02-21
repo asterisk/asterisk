@@ -839,6 +839,14 @@ static int rtp_payload_type_find_format(void *obj, void *arg, int flags)
 	return (type->asterisk_format && (ast_format_cmp(&type->format, format) != AST_FORMAT_CMP_NOT_EQUAL)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+static int rtp_payload_type_find_nonast_format(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_payload_type *type = obj;
+	int *rtp_code = arg;
+
+	return ((!type->asterisk_format && (type->rtp_code == *rtp_code)) ? CMP_MATCH | CMP_STOP : 0);
+}
+
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code)
 {
 	struct ast_rtp_payload_type *type;
@@ -848,7 +856,7 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 		res = type->payload;
 		ao2_ref(type, -1);
 		return res;
-	} else if (!asterisk_format && (type = ao2_find(codecs->payloads, &code, OBJ_NOLOCK | OBJ_KEY))) {
+	} else if (!asterisk_format && (type = ao2_callback(codecs->payloads, OBJ_NOLOCK, rtp_payload_type_find_nonast_format, (void*)&code))) {
 		res = type->payload;
 		ao2_ref(type, -1);
 		return res;
