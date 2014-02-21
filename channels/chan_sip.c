@@ -22445,7 +22445,9 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 
 	if (peera && peerb && peerc && (peerb != peerc)) {
 		ast_quiet_chan(peera);		/* Stop generators */
-		ast_quiet_chan(peerb);	
+		/* no need to quiet peerb since it should be hungup after the
+		   transfer and the masquerade needs to be able to see if MOH is
+		   playing on it */
 		ast_quiet_chan(peerc);
 		if (peerd)
 			ast_quiet_chan(peerd);
@@ -24048,7 +24050,6 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 
 		ast_do_masquerade(target.chan1);
 
-		ast_indicate(target.chan1, AST_CONTROL_UNHOLD);
 		if (target.chan2) {
 			ast_indicate(target.chan2, AST_CONTROL_UNHOLD);
 		}

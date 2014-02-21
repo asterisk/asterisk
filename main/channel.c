@@ -6532,6 +6532,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	unsigned int orig_disablestatecache;
 	unsigned int clone_disablestatecache;
 	int visible_indication;
+	int moh_is_playing;
 	int clone_was_zombie = 0;/*!< TRUE if the clonechan was a zombie before the masquerade. */
 	struct ast_frame *current;
 	const struct ast_channel_tech *t;
@@ -6624,6 +6625,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	} else {
 		xfer_colp = NULL;
 	}
+
+	moh_is_playing = ast_test_flag(original, AST_FLAG_MOH);
 
 	/*
 	 * Stop any visible indication on the original channel so we can
@@ -6947,6 +6950,12 @@ int ast_do_masquerade(struct ast_channel *original)
 	 */
 	if (visible_indication) {
 		ast_indicate(original, visible_indication);
+	}
+
+	/* if moh is playing on the original channel then it needs to be
+	   maintained on the channel that is replacing it. */
+	if (moh_is_playing) {
+		ast_moh_start(original, NULL, NULL);
 	}
 
 	ast_channel_lock(original);
