@@ -443,8 +443,8 @@ struct ast_json *ast_json_array_get(const struct ast_json *array, size_t index);
  * \brief Change an element in an array.
  * \since 12.0.0
  *
- * The \a array steals the \a value reference; use ast_json_ref() to safely keep a pointer
- * to it.
+ * \note The \a array steals the \a value reference even if it returns error;
+ * use ast_json_ref() to safely keep a pointer to it.
  *
  * \param array JSON array to modify.
  * \param index Zero-based index into array.
@@ -458,8 +458,8 @@ int ast_json_array_set(struct ast_json *array, size_t index, struct ast_json *va
  * \brief Append to an array.
  * \since 12.0.0
  *
- * The array steals the \a value reference; use ast_json_ref() to safely keep a pointer
- * to it.
+ * \note The \a array steals the \a value reference even if it returns error;
+ * use ast_json_ref() to safely keep a pointer to it.
  *
  * \param array JSON array to modify.
  * \param value New JSON value to store at the end of \a array.
@@ -472,8 +472,8 @@ int ast_json_array_append(struct ast_json *array, struct ast_json *value);
  * \brief Insert into an array.
  * \since 12.0.0
  *
- * The array steals the \a value reference; use ast_json_ref() to safely keep a pointer
- * to it.
+ * \note The \a array steals the \a value reference even if it returns error;
+ * use ast_json_ref() to safely keep a pointer to it.
  *
  * \param array JSON array to modify.
  * \param index Zero-based index into array.
@@ -554,8 +554,8 @@ struct ast_json *ast_json_object_get(struct ast_json *object, const char *key);
  * \brief Set a field in a JSON object.
  * \since 12.0.0
  *
- * The object steals the \a value reference; use ast_json_ref() to safely keep a pointer
- * to it.
+ * \note The object steals the \a value reference even if it returns error;
+ * use ast_json_ref() to safely keep a pointer to it.
  *
  * \param object JSON object to modify.
  * \param key Key of field to set.
@@ -701,8 +701,8 @@ struct ast_json *ast_json_object_iter_value(struct ast_json_iter *iter);
  * \brief Set the value of the field pointed to by an iterator.
  * \since 12.0.0
  *
- * The array steals the value reference; use ast_json_ref() to safely keep a
- * pointer to it.
+ * \note The object steals the \a value reference even if it returns error;
+ * use ast_json_ref() to safely keep a pointer to it.
  *
  * \param object JSON object \a iter was obtained from.
  * \param iter JSON object iterator.

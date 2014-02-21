@@ -76,7 +76,6 @@ static struct ast_json *sorcery_objectset_to_json(const struct ast_variable *obj
 			ast_json_unref(json);
 			return NULL;
 		} else if (ast_json_object_set(json, field->name, value)) {
-			ast_json_unref(value);
 			ast_json_unref(json);
 			return NULL;
 		}

@@ -71,16 +71,8 @@ void ast_ari_endpoints_list(struct ast_variable *headers,
 		RAII_VAR(struct stasis_message *, msg, obj, ao2_cleanup);
 		struct ast_endpoint_snapshot *snapshot = stasis_message_data(msg);
 		struct ast_json *json_endpoint = ast_endpoint_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
-		int r;
 
-		if (!json_endpoint) {
-			ao2_iterator_destroy(&i);
-			return;
-		}
-
-		r = ast_json_array_append(
-			json, json_endpoint);
-		if (r != 0) {
+		if (!json_endpoint || ast_json_array_append(json, json_endpoint)) {
 			ao2_iterator_destroy(&i);
 			ast_ari_response_alloc_failed(response);
 			return;

@@ -1774,6 +1774,7 @@ static int report_receive_fax_status(struct ast_channel *chan, const char *filen
 	struct ast_json *json_filename = ast_json_string_create(filename);
 
 	if (!json_array || !json_filename) {
+		ast_json_unref(json_filename);
 		return -1;
 	}
 	ast_json_array_append(json_array, json_filename);

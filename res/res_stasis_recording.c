@@ -229,7 +229,6 @@ static void recording_publish(struct stasis_app_recording *recording, const char
 		}
 
 		if (ast_json_object_set(json, "cause", failure_cause)) {
-			ast_json_unref(failure_cause);
 			return;
 		}
 	}

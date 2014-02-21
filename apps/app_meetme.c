@@ -1362,25 +1362,20 @@ static void meetme_stasis_generate_msg(struct ast_conference *meetme_conference,
 	if (user) {
 		struct timeval now = ast_tvnow();
 		long duration = (long)(now.tv_sec - user->jointime);
-		RAII_VAR(struct ast_json *, json_user, ast_json_integer_create(user->user_no), ast_json_unref);
-		RAII_VAR(struct ast_json *, json_user_duration, NULL, ast_json_unref);
+		struct ast_json *json_user;
+		struct ast_json *json_user_duration;
 
-		if (ast_json_object_set(json_object, "user", json_user)) {
+		json_user = ast_json_integer_create(user->user_no);
+		if (!json_user || ast_json_object_set(json_object, "user", json_user)) {
 			return;
 		}
-		json_user = NULL;
 
 		if (duration > 0) {
 			json_user_duration = ast_json_integer_create(duration);
-
-			if (!json_user_duration) {
+			if (!json_user_duration
+				|| ast_json_object_set(json_object, "duration", json_user_duration)) {
 				return;
 			}
-
-			if (ast_json_object_set(json_object, "duration", json_user_duration)) {
-				return;
-			}
-			json_user_duration = NULL;
 		}
 	}
 
