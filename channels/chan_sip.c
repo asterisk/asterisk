@@ -11687,7 +11687,9 @@ static void add_route(struct sip_request *req, struct sip_route *route, int skip
 	}
 
 	if ((r = sip_route_list(route, 0, skip))) {
-		add_header(req, "Route", ast_str_buffer(r));
+		if (ast_str_strlen(r)) {
+			add_header(req, "Route", ast_str_buffer(r));
+		}
 		ast_free(r);
 	}
 }
