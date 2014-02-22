@@ -1625,10 +1625,6 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	return res;
 }
 
-
-/*! Go no deeper than this through includes (not counting loops) */
-#define AST_PBX_MAX_STACK	128
-
 static struct ast_app *pbx_findapp_nolock(const char *name)
 {
 	struct ast_app *cur;
