@@ -75,8 +75,6 @@ static int autofallthrough_config = 0;
 static int clearglobalvars_config = 0;
 char ast_config_AST_SYSTEM_NAME[20] = ""; */
 
-/*! Go no deeper than this through includes (not counting loops) */
-#define AST_PBX_MAX_STACK	128
 /* static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function); */
 //extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
 int option_debug = 0;
