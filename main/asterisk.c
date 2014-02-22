@@ -4427,6 +4427,36 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_features_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_pickup_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_bridging_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_parking_stasis_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_device_state_engine_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_presence_state_engine_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);
@@ -4454,37 +4484,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (ast_features_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_pickup_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_bridging_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_parking_stasis_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
 	if (ast_cdr_engine_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_device_state_engine_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_presence_state_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);
 	}
