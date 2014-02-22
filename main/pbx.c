@@ -1486,10 +1486,6 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	return res;
 }
 
-
-/*! Go no deeper than this through includes (not counting loops) */
-#define AST_PBX_MAX_STACK	128
-
 /*! \brief Find application handle in linked list
  */
 struct ast_app *pbx_findapp(const char *app)
