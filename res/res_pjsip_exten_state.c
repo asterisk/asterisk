@@ -57,8 +57,12 @@ struct exten_state_subscription {
 	char context[AST_MAX_CONTEXT];
 	/*! Extension within the context to receive updates from */
 	char exten[AST_MAX_EXTENSION];
+	/*! The subscription's user agent */
+	char *user_agent;
 	/*! The last known extension state */
 	enum ast_extension_states last_exten_state;
+	/*! The last known presence state */
+	enum ast_presence_state last_presence_state;
 };
 
 #define DEFAULT_PRESENCE_BODY "application/pidf+xml"
@@ -90,7 +94,27 @@ static void exten_state_subscription_destructor(void *obj)
 {
 	struct exten_state_subscription *sub = obj;
 
+	ast_free(sub->user_agent);
 	ao2_cleanup(sub->sip_sub);
+}
+
+static char *get_user_agent(pjsip_rx_data *rdata)
+{
+	static const pj_str_t USER_AGENT = { "User-Agent", 10 };
+
+	size_t size;
+	char *user_agent = NULL;
+	pjsip_user_agent_hdr *user_agent_hdr = pjsip_msg_find_hdr_by_name(
+		rdata->msg_info.msg, &USER_AGENT, NULL);
+
+	if (!user_agent_hdr) {
+		return NULL;
+	}
+
+	size = pj_strlen(&user_agent_hdr->hvalue) + 1;
+	user_agent = ast_malloc(size);
+	ast_copy_pj_str(user_agent, &user_agent_hdr->hvalue, size);
+	return ast_str_to_lower(user_agent);
 }
 
 /*!
@@ -125,7 +149,8 @@ static struct exten_state_subscription *exten_state_subscription_alloc(
 	}
 
 	exten_state_sub->last_exten_state = INITIAL_LAST_EXTEN_STATE;
-
+	exten_state_sub->last_presence_state = AST_PRESENCE_NOT_SET;
+	exten_state_sub->user_agent = get_user_agent(rdata);
 	ao2_ref(exten_state_sub, +1);
 	return exten_state_sub;
 }
@@ -190,6 +215,9 @@ static void send_notify(struct exten_state_subscription *exten_state_sub, const 
 		.exten = exten_state_sub->exten,
 		.presence_state = ast_hint_presence_state(NULL, exten_state_sub->context,
 							  exten_state_sub->exten, &subtype, &message),
+		.presence_subtype = subtype,
+		.presence_message = message,
+		.user_agent = exten_state_sub->user_agent
 	};
 
 	dlg = ast_sip_subscription_get_dlg(exten_state_sub->sip_sub);
@@ -226,6 +254,9 @@ static void notify_task_data_destructor(void *obj)
 
 	ao2_ref(task_data->exten_state_sub, -1);
 	ao2_cleanup(task_data->exten_state_data.device_state_info);
+	ast_free(task_data->exten_state_data.presence_subtype);
+	ast_free(task_data->exten_state_data.presence_message);
+	ast_free(task_data->exten_state_data.user_agent);
 }
 
 static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten_state_subscription *exten_state_sub,
@@ -243,11 +274,15 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 	task_data->evsub_state = PJSIP_EVSUB_STATE_ACTIVE;
 	task_data->exten_state_sub = exten_state_sub;
 	task_data->exten_state_sub->last_exten_state = info->exten_state;
+	task_data->exten_state_sub->last_presence_state = info->presence_state;
 	ao2_ref(task_data->exten_state_sub, +1);
 
 	task_data->exten_state_data.exten = exten_state_sub->exten;
 	task_data->exten_state_data.exten_state = info->exten_state;
 	task_data->exten_state_data.presence_state = info->presence_state;
+	task_data->exten_state_data.presence_subtype = ast_strdup(info->presence_subtype);
+	task_data->exten_state_data.presence_message = ast_strdup(info->presence_message);
+	task_data->exten_state_data.user_agent = ast_strdup(exten_state_sub->user_agent);
 	task_data->exten_state_data.device_state_info = info->device_state_info;
 
 	if (task_data->exten_state_data.device_state_info) {
@@ -299,7 +334,8 @@ static int state_changed(char *context, char *exten,
 	struct notify_task_data *task_data;
 	struct exten_state_subscription *exten_state_sub = data;
 
-	if (exten_state_sub->last_exten_state == info->exten_state) {
+	if (exten_state_sub->last_exten_state == info->exten_state &&
+		exten_state_sub->last_presence_state == info->presence_state) {
 		return 0;
 	}
 
