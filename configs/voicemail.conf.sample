@@ -177,7 +177,8 @@ pagerdateformat=%A, %B %d, %Y at %r
 ; Short 24h date format for pager use
 ;pagerdateformat=%T %D
 ;
-; You can override the default program to send e-mail if you wish, too
+; Using the mailcmd option, you can specify what command is called for
+; outbound E-mail. The default is shown below.
 ;
 ;mailcmd=/usr/sbin/sendmail -t
 ;
