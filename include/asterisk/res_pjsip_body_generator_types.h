@@ -36,6 +36,12 @@ struct ast_sip_exten_state_data {
 	enum ast_extension_states exten_state;
 	/*! The presence state of the change */
 	enum ast_presence_state presence_state;
+	/*! The presence subtype of the change */
+	char *presence_subtype;
+	/*! The presence message of the change */
+	char *presence_message;
+	/*! Subscriber user agent */
+	char *user_agent;
 	/*! Current device state information */
 	struct ao2_container *device_state_info;
 	/*! Local dialog URI */
