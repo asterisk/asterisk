@@ -908,8 +908,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		 * WWW-Authenticate header field containing at least one
 		 * challenge applicable to the requested resource.
 		 */
-		response.response_code = 401;
-		response.response_text = "Unauthorized";
+		ast_ari_response_error(&response, 401, "Unauthorized", "Authentication required");
 
 		/* Section 1.2:
 		 *   realm       = "realm" "=" realm-value
@@ -920,28 +919,16 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		ast_str_append(&response.headers, 0,
 			"WWW-Authenticate: Basic realm=\"%s\"\r\n",
 			conf->general->auth_realm);
-		response.message = ast_json_pack("{s: s}",
-			"error", "Authentication required");
 	} else if (!ast_fully_booted) {
-		response.response_code = 503;
-		response.response_text = "Service Unavailable";
-		response.message = ast_json_pack("{s: s}",
-			"error", "Asterisk not booted");
+		ast_ari_response_error(&response, 503, "Service Unavailable", "Asterisk not booted");
 	} else if (user->read_only && method != AST_HTTP_GET && method != AST_HTTP_OPTIONS) {
-		response.message = ast_json_pack("{s: s}",
-			"error", "Write access denied");
-		response.response_code = 403;
-		response.response_text = "Forbidden";
+		ast_ari_response_error(&response, 403, "Forbidden", "Write access denied");
 	} else if (ast_ends_with(uri, "/")) {
 		remove_trailing_slash(uri, &response);
 	} else if (ast_begins_with(uri, "api-docs/")) {
 		/* Serving up API docs */
 		if (method != AST_HTTP_GET) {
-			response.message =
-				ast_json_pack("{s: s}",
-					      "message", "Unsupported method");
-			response.response_code = 405;
-			response.response_text = "Method Not Allowed";
+			ast_ari_response_error(&response, 405, "Method Not Allowed", "Unsupported method");
 		} else {
 			/* Skip the api-docs prefix */
 			ast_ari_get_docs(strchr(uri, '/') + 1, headers, &response);
