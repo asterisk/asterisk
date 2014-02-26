@@ -89,7 +89,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Size of the transmit buffer */
 #define MAX_BUF_SIZE	    64
 /*! Number of slots for the transmit queue */
-#define MAX_BUF_NUMBER	  50
+#define MAX_BUF_NUMBER	  150
 /*! Number of digits displayed on screen */
 #define MAX_SCREEN_NUMBER   15
 /*! Try x times before removing the phone */
@@ -196,6 +196,7 @@ enum autoprov_extn {
 #define FAV_MAX_LENGTH		  0x0A
 
 #define FAVNUM                    6
+#define EXPNUM                    24
 #define FAV_LINE_ICON         FAV_ICON_ONHOOK_BLACK
 
 static void dummy(char *unused, ...)
@@ -380,6 +381,8 @@ static struct unistim_device {
 	char redial_number[AST_MAX_EXTENSION];	 /*!< the last phone number entered by the user */
 	char id[18];			    /*!< mac address of the current phone in ascii */
 	char name[DEVICE_NAME_LEN];     /*!< name of the device */
+	int hasexp;                          /*!< if device have expansion connected */
+	char expsoftkeylabel[EXPNUM][11];       /*!< soft key label */
 	char softkeylabel[FAVNUM][11];       /*!< soft key label */
 	char softkeynumber[FAVNUM][AST_MAX_EXTENSION];      /*!< number dialed when the soft key is pressed */
 	char softkeyicon[FAVNUM];	    /*!< icon number */
@@ -496,6 +499,15 @@ static const unsigned char packet_recv_pick_up[] =
 static const unsigned char packet_recv_hangup[] =
 	{ 0x00, 0x00, 0x00, 0x13, 0x99, 0x03, 0x03 };
 static const unsigned char packet_recv_r2[] = { 0x00, 0x00, 0x00, 0x13, 0x96, 0x03, 0x03 };
+
+/*! Expansion module (i2004 KEM) */
+static const unsigned char packet_recv_expansion_pressed_key[] =
+	{ 0x00, 0x00, 0x00, 0x13, 0x89, 0x04, 0x59 };
+static const unsigned char packet_send_expansion_next[] = { 0x09, 0x03, 0x17 };
+static const unsigned char packet_send_expansion_icon[] = { 0x09, 0x06, 0x59, 0x05, /*pos */ 0x47, /*icon */ 0x20 };      /* display an icon in front of the text zone */
+static const unsigned char packet_send_expansion_text[] = { 0x09, 0x0f, 0x57, 0x19, /*pos */ 0x47, /*text */ 0x20,
+	0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 /*end_text */ };
+
 
 /*! TransportAdapter */
 static const unsigned char packet_recv_resume_connection_with_server[] =
@@ -1103,6 +1115,48 @@ static void send_icon(unsigned char pos, unsigned char status, struct unistimses
 	send_client(SIZE_HEADER + sizeof(packet_send_icon), buffsend, pte);
 }
 
+static void send_expansion_next(struct unistimsession *pte)
+{
+	BUFFSEND;
+	memcpy(buffsend + SIZE_HEADER, packet_send_expansion_next, sizeof(packet_send_expansion_next));
+	send_client(SIZE_HEADER + sizeof(packet_send_expansion_next), buffsend, pte);
+}
+
+
+static void send_expansion_icon(unsigned char pos, unsigned char status, struct unistimsession *pte)
+{
+	BUFFSEND;
+	if (unistimdebug) {
+		ast_verb(0, "Sending expansion icon pos %d with status 0x%.2x\n", pos, status);
+	}
+	memcpy(buffsend + SIZE_HEADER, packet_send_expansion_icon, sizeof(packet_send_expansion_icon));
+	buffsend[10] = pos;
+	buffsend[11] = status;
+	send_client(SIZE_HEADER + sizeof(packet_send_expansion_icon), buffsend, pte);
+}
+
+/* inverse : TEXT_INVERSE : yes, TEXT_NORMAL  : no */
+static void send_expansion_text(unsigned char pos, struct unistimsession *pte, const char *text)
+{
+	int i;
+	BUFFSEND;
+	if (!text) {
+		ast_log(LOG_ERROR, "[expansion] Asked to display NULL text (pos %d)\n", pos);
+		return;
+	}
+	if (unistimdebug) {
+		ast_verb(0, "[expansion] Sending text at pos %d\n", pos);
+	}
+	memcpy(buffsend + SIZE_HEADER, packet_send_expansion_text, sizeof(packet_send_expansion_text));
+	buffsend[10] = pos;
+	i = strlen(text);
+	if (i > TEXT_LENGTH_MAX) {
+		i = TEXT_LENGTH_MAX;
+	}
+	memcpy(buffsend + 11, text, i);
+	send_client(SIZE_HEADER + sizeof(packet_send_expansion_text), buffsend, pte);
+}
+
 static void send_tone(struct unistimsession *pte, uint16_t tone1, uint16_t tone2)
 {
 	BUFFSEND;
@@ -1193,6 +1247,13 @@ static void send_favorite_selected(unsigned char status, struct unistimsession *
 	return;
 }
 
+static void send_expansion_short(unsigned char pos, unsigned char status, struct unistimsession *pte) {
+	send_expansion_icon(pos, status, pte);
+	send_expansion_text(pos, pte, ustmtext(pte->device->expsoftkeylabel[pos], pte));
+	send_expansion_next(pte);
+	return;
+}
+
 static int soft_key_visible(struct unistim_device* d, unsigned char num)
 {
 	if(d->height == 1 && num % 3 == 2) {
@@ -1224,6 +1285,11 @@ static void refresh_all_favorite(struct unistimsession *pte)
 		}
 
 		send_favorite_short(i, status, pte);
+	}
+	if (pte->device->hasexp) {
+		for (i = 0; i < EXPNUM; i++) {
+			send_expansion_short(i, FAV_ICON_NONE, pte);
+		}
 	}
 }
 
@@ -1453,8 +1519,7 @@ static int send_retransmit(struct unistimsession *pte)
 }
 
 /* inverse : TEXT_INVERSE : yes, TEXT_NORMAL  : no */
-static void
-send_text(unsigned char pos, unsigned char inverse, struct unistimsession *pte,
+static void send_text(unsigned char pos, unsigned char inverse, struct unistimsession *pte,
 		 const char *text)
 {
 	int i;
@@ -4352,6 +4417,14 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		}
 		return;
 	}
+	if (!memcmp(buf + SIZE_HEADER, packet_recv_expansion_pressed_key, sizeof(packet_recv_expansion_pressed_key))) {
+		char keycode = buf[13];
+		
+		if (unistimdebug) {
+			ast_verb(0, "Expansion key pressed: keycode = 0x%.2x - current state: %s\n", keycode,
+						ptestate_tostr(pte->state));
+		}
+	}
 	if (!memcmp(buf + SIZE_HEADER, packet_recv_pressed_key, sizeof(packet_recv_pressed_key))) {
 		char keycode = buf[13];
 
@@ -6136,12 +6209,12 @@ static int parse_bookmark(const char *text, struct unistim_device *d)
 		memmove(line, line + 2, sizeof(line) - 2);
 	} else {
 		/* No position specified, looking for a free slot */
-		for (p = 0; p <= 5; p++) {
+		for (p = 0; p < FAVNUM; p++) {
 			if (!d->softkeyicon[p]) {
 				break;
 			}
 		}
-		if (p > 5) {
+		if (p == FAVNUM) {
 			ast_log(LOG_WARNING, "No more free bookmark position\n");
 			return 0;
 		}
@@ -6347,6 +6420,8 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			}
 		} else if (!strcasecmp(v->name, "nat")) {
 			d->nat = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "hasexp")) {
+			d->hasexp = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "ringvolume")) {
 			ringvolume = atoi(v->value);
 		} else if (!strcasecmp(v->name, "ringstyle")) {
