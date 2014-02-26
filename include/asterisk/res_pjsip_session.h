@@ -147,31 +147,31 @@ typedef int (*ast_sip_session_sdp_creation_cb)(struct ast_sip_session *session, 
  * processing to incoming and outgoing SIP requests and responses
  */
 struct ast_sip_session_supplement {
-    /*! Method on which to call the callbacks. If NULL, call on all methods */
-    const char *method;
+	/*! Method on which to call the callbacks. If NULL, call on all methods */
+	const char *method;
 	/*! Priority for this supplement. Lower numbers are visited before higher numbers */
 	enum ast_sip_supplement_priority priority;
-    /*!
+	/*!
 	 * \brief Notification that the session has begun
 	 * This method will always be called from a SIP servant thread.
 	 */
-    void (*session_begin)(struct ast_sip_session *session);
-    /*! 
+	void (*session_begin)(struct ast_sip_session *session);
+	/*! 
 	 * \brief Notification that the session has ended
 	 *
 	 * This method may or may not be called from a SIP servant thread. Do
 	 * not make assumptions about being able to call PJSIP methods from within
 	 * this method.
 	 */
-    void (*session_end)(struct ast_sip_session *session);
+	void (*session_end)(struct ast_sip_session *session);
 	/*!
 	 * \brief Notification that the session is being destroyed
 	 */
 	void (*session_destroy)(struct ast_sip_session *session);
-    /*!
-     * \brief Called on incoming SIP request
-     * This method can indicate a failure in processing in its return. If there
-     * is a failure, it is required that this method sends a response to the request.
+	/*!
+	 * \brief Called on incoming SIP request
+	 * This method can indicate a failure in processing in its return. If there
+	 * is a failure, it is required that this method sends a response to the request.
 	 * This method is always called from a SIP servant thread.
 	 *
 	 * \note
@@ -184,9 +184,9 @@ struct ast_sip_session_supplement {
 	 *
 	 * \note
 	 * There is no guarantee that a channel will be present on the session when this is called.
-     */
-    int (*incoming_request)(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
-    /*! 
+	 */
+	int (*incoming_request)(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
+	/*! 
 	 * \brief Called on an incoming SIP response
 	 * This method is always called from a SIP servant thread.
 	 *
@@ -201,17 +201,17 @@ struct ast_sip_session_supplement {
 	 * \note
 	 * There is no guarantee that a channel will be present on the session when this is called.
 	 */
-    void (*incoming_response)(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
-    /*!
+	void (*incoming_response)(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
+	/*!
 	 * \brief Called on an outgoing SIP request
 	 * This method is always called from a SIP servant thread.
 	 */
-    void (*outgoing_request)(struct ast_sip_session *session, struct pjsip_tx_data *tdata);
-    /*! 
+	void (*outgoing_request)(struct ast_sip_session *session, struct pjsip_tx_data *tdata);
+	/*! 
 	 * \brief Called on an outgoing SIP response
 	 * This method is always called from a SIP servant thread.
 	 */
-    void (*outgoing_response)(struct ast_sip_session *session, struct pjsip_tx_data *tdata);
+	void (*outgoing_response)(struct ast_sip_session *session, struct pjsip_tx_data *tdata);
 	/*! Next item in the list */
 	AST_LIST_ENTRY(ast_sip_session_supplement) next;
 };
