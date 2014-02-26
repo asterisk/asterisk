@@ -421,6 +421,10 @@ static int refer_attended(void *data)
 	RAII_VAR(struct refer_attended *, attended, data, ao2_cleanup);
 	int response = 0;
 
+	if (!attended->transferer_second->channel) {
+		return -1;
+	}
+
 	ast_debug(3, "Performing a REFER attended transfer - Transferer #1: %s Transferer #2: %s\n",
 		ast_channel_name(attended->transferer_chan), ast_channel_name(attended->transferer_second->channel));
 
