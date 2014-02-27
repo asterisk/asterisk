@@ -1224,10 +1224,12 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 		if (tinstance1) {
 			ast_rtp_instance_get_remote_address(tinstance1, &tt1);
 		}
-		if (glue1->get_codec) {
+		ast_channel_lock(c1);
+		if (glue1->get_codec && ast_channel_tech_pvt(c1)) {
 			ast_format_cap_remove_all(cap1);
 			glue1->get_codec(c1, cap1);
 		}
+		ast_channel_unlock(c1);
 
 		ast_rtp_instance_get_remote_address(instance0, &t0);
 		if (vinstance0) {
@@ -1236,10 +1238,12 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 		if (tinstance0) {
 			ast_rtp_instance_get_remote_address(tinstance0, &tt0);
 		}
-		if (glue0->get_codec) {
+		ast_channel_lock(c0);
+		if (glue0->get_codec && ast_channel_tech_pvt(c0)) {
 			ast_format_cap_remove_all(cap0);
 			glue0->get_codec(c0, cap0);
 		}
+		ast_channel_unlock(c0);
 
 		if ((ast_sockaddr_cmp(&t1, &ac1)) ||
 		    (vinstance1 && ast_sockaddr_cmp(&vt1, &vac1)) ||
@@ -1353,6 +1357,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 				ast_rtp_instance_get_remote_address(instance1, &t1);
 				ast_sockaddr_copy(&ac1, &t1);
 				/* Update codec information */
+				ast_channel_lock(c0);
 				if (glue0->get_codec && ast_channel_tech_pvt(c0)) {
 					ast_format_cap_remove_all(cap0);
 					ast_format_cap_remove_all(oldcap0);
@@ -1360,12 +1365,15 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 					ast_format_cap_append(oldcap0, cap0);
 
 				}
+				ast_channel_unlock(c0);
+				ast_channel_lock(c1);
 				if (glue1->get_codec && ast_channel_tech_pvt(c1)) {
 					ast_format_cap_remove_all(cap1);
 					ast_format_cap_remove_all(oldcap1);
 					glue1->get_codec(c1, cap1);
 					ast_format_cap_append(oldcap1, cap1);
 				}
+				ast_channel_unlock(c1);
 				/* Since UPDATE_BRIDGE_PEER is only used by the bridging code, don't forward it */
 				if (fr->subclass.integer != AST_CONTROL_UPDATE_RTP_PEER) {
 					ast_indicate_data(other, fr->subclass.integer, fr->data.ptr, fr->datalen);
