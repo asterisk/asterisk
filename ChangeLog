@@ -1,3 +1,24 @@
+2014-02-27  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.8.0-rc2 Released.
+
+	* res_rtp_asterisk: Fix checklist creating problems in ICE sessions
+
+	  Prior to this patch, local candidate lists including SRFLX would
+	  fail to start properly when building ICE candidate check lists. This
+	  patch fixes that problem by making sure that each SRFLX candidate is
+	  associated with the proper base address so that the check list can
+	  create matches properly. This patch was written by jcolp. Note that
+	  the issue will be left open to await testing by the issue
+	  participants.
+
+	  (issue ASTERISK-23213)
+	  Reported by: Andrea Suisani
+	  Review: https://reviewboard.asterisk.org/r/3256
+
+	  revisions 409129,409130 from
+	  https://svn.asterisk.org/svn/asterisk/branches/11
+
 2014-01-14  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.8.0-rc1 Released.
