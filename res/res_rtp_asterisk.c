@@ -1688,11 +1688,10 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 
 		if (!ast_stun_request(component == AST_RTP_ICE_COMPONENT_RTCP ? rtp->rtcp->s : rtp->s, &stunaddr, NULL, &answer)) {
 			pj_sockaddr base;
+			pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
 
 			/* Use the first local host candidate as the base */
 			pj_sockaddr_cp(&base, &address[0]);
-
-			pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
 
 			pj_sockaddr_init(pj_AF_INET(), &address[0], &mapped, ntohs(answer.sin_port));
 
