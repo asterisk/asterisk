@@ -65,13 +65,13 @@
 					<para>The remote address of the entity that caused the
 					security event to be raised.</para>
 				</parameter>
-				<parameter name="Module" required="False">
+				<parameter name="Module" required="false">
 					<para>If available, the name of the module that raised the event.</para>
 				</parameter>
-				<parameter name="ACLName" required="False">
+				<parameter name="ACLName" required="false">
 					<para>If available, the name of the ACL that failed.</para>
 				</parameter>
-				<parameter name="SessionTV" required="False">
+				<parameter name="SessionTV" required="false">
 					<para>The timestamp reported by the session.</para>
 				</parameter>
 			</syntax>
@@ -180,7 +180,7 @@
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RequestNotSupported']/managerEventInstance/syntax/parameter[@name='RequestType'])" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
-				<parameter name="RequestParams" required="False">
+				<parameter name="RequestParams" required="false">
 					<para>Parameters provided to the rejected request.</para>
 				</parameter>
 			</syntax>
@@ -221,7 +221,7 @@
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RequestNotSupported']/managerEventInstance/syntax/parameter[@name='RequestType'])" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
-				<parameter name="AccountID" required="False">
+				<parameter name="AccountID" required="false">
 					<para>The account ID associated with the rejected request.</para>
 				</parameter>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RequestNotAllowed']/managerEventInstance/syntax/parameter[@name='RequestParams'])" />
@@ -308,13 +308,13 @@
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='RemoteAddress'])" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='Module'])" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FailedACL']/managerEventInstance/syntax/parameter[@name='SessionTV'])" />
-				<parameter name="Challenge" required="False">
+				<parameter name="Challenge" required="false">
 					<para>The challenge that was sent.</para>
 				</parameter>
-				<parameter name="ReceivedChallenge" required="False">
+				<parameter name="ReceivedChallenge" required="false">
 					<para>The challenge that was received.</para>
 				</parameter>
-				<parameter name="RecievedHash" required="False">
+				<parameter name="RecievedHash" required="false">
 					<para>The hash that was received.</para>
 				</parameter>
 			</syntax>
@@ -390,7 +390,9 @@ static int append_event_str_single(struct ast_str **str, struct ast_json *json,
 	const char *ie_type_key = ast_event_get_ie_type_name(ie_type);
 	struct ast_json *json_string = ast_json_object_get(json, ie_type_key);
 
-	ast_assert(json_string != NULL);
+	if (!json_string) {
+		return 0;
+	}
 
 	if (ast_str_append(str, 0, "%s: %s\r\n", ie_type_key, S_OR(ast_json_string_get(json_string), "")) == -1) {
 		return -1;

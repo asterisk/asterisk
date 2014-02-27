@@ -687,37 +687,30 @@ void ast_ari_channels_list(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-static int ari_channels_set_channel_var(struct ast_channel *chan,
-	const char *variable, const char *value, struct ast_ari_response *response)
+static int json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables)
 {
-	if (pbx_builtin_setvar_helper(chan, variable, value)) {
-		ast_ari_response_error(
-			response, 400, "Bad Request",
-			"Unable to set channel variable %s=%s", variable, value);
-		return -1;
-	}
+	struct ast_variable *current = NULL;
+	struct ast_json_iter *it_json_var;
 
-	return 0;
-}
+	for (it_json_var = ast_json_object_iter(json_variables); it_json_var;
+		 it_json_var = ast_json_object_iter_next(json_variables, it_json_var)) {
+		struct ast_variable *new_var;
 
-static int ari_channels_set_channel_vars(struct ast_channel *chan,
-	struct ast_json *variables, struct ast_ari_response *response)
-{
-	struct ast_json_iter *i;
+		new_var = ast_variable_new(ast_json_object_iter_key(it_json_var),
+		                           ast_json_string_get(ast_json_object_iter_value(it_json_var)),
+		                           "");
+		if (!new_var) {
+			ast_variables_destroy(*variables);
+			*variables = NULL;
+			return 1;
+		}
 
-	if (!variables) {
-		/* nothing to do */
-		return 0;
-	}
-
-	for (i = ast_json_object_iter(variables); i;
-	     i = ast_json_object_iter_next(variables, i)) {
-		if (ari_channels_set_channel_var(
-			chan, ast_json_object_iter_key(i),
-			ast_json_string_get(ast_json_object_iter_value(i)),
-			response)) {
-			/* response filled in by called function */
-			return -1;
+		if (!current) {
+			*variables = new_var;
+			current = *variables;
+		} else {
+			current->next = new_var;
+			current = new_var;
 		}
 	}
 
@@ -737,11 +730,10 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 	RAII_VAR(struct ast_format_cap *, cap,
 		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
 	struct ast_format tmp_fmt;
-
+	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
 	char *stuff;
 	struct ast_channel *chan;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	struct ast_json *variable_list = NULL;
 
 	if (!cap) {
 		ast_ari_response_alloc_failed(response);
@@ -751,8 +743,17 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 
 	/* Parse any query parameters out of the body parameter */
 	if (args->variables) {
+		struct ast_json *json_variables;
+
 		ast_ari_channels_originate_parse_body(args->variables, args);
-		variable_list = ast_json_object_get(args->variables, "variables");
+		json_variables = ast_json_object_get(args->variables, "variables");
+		if (json_variables) {
+			if (json_to_ast_variables(json_variables, &variables)) {
+				ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to channel variables\n");
+				ast_ari_response_alloc_failed(response);
+				return;
+			}
+		}
 	}
 
 	if (ast_strlen_zero(args->endpoint)) {
@@ -804,24 +805,19 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		}
 
 		/* originate a channel, putting it into an application */
-		if (ast_pbx_outgoing_app(dialtech, cap, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, NULL, NULL, &chan)) {
+		if (ast_pbx_outgoing_app(dialtech, cap, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, variables, NULL, &chan)) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
 	} else if (!ast_strlen_zero(args->extension)) {
 		/* originate a channel, sending it to an extension */
-		if (ast_pbx_outgoing_exten(dialtech, cap, dialdevice, timeout, S_OR(args->context, "default"), args->extension, args->priority ? args->priority : 1, NULL, 0, cid_num, cid_name, NULL, NULL, &chan, 0)) {
+		if (ast_pbx_outgoing_exten(dialtech, cap, dialdevice, timeout, S_OR(args->context, "default"), args->extension, args->priority ? args->priority : 1, NULL, 0, cid_num, cid_name, variables, NULL, &chan, 0)) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
 	} else {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Application or extension must be specified");
-		return;
-	}
-
-	if (ari_channels_set_channel_vars(chan, variable_list, response)) {
-		/* response filled in by called function */
 		return;
 	}
 

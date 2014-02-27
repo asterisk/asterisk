@@ -1,3 +1,103 @@
+2013-02-27  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.1.0-rc2 Released.
+
+	* res_rtp_asterisk: Fix checklist creating problems in ICE sessions
+	  
+	  Prior to this patch, local candidate lists including SRFLX would
+	  fail to start properly when building ICE candidate check lists. This
+	  patch fixes that problem by making sure that each SRFLX candidate is
+	  associated with the proper base address so that the check list can
+	  create matches properly.
+
+	  This patch was written by jcolp. The issue will be left open to await
+	  testing by the issue participants.       
+
+	  (issue ASTERISK-23213)
+	  Reported by: Andrea Suisani
+	  Review: https://reviewboard.asterisk.org/r/3256/
+
+	* res_fax: Warn that minrate=2400 is not valid for V.27 instead of
+	  failing load.
+
+	  Change minrate from 2400 to 4800 on config reload in response to
+	  changes from ASTERISK-22790 only.  Any config with minrate of
+	  2400 that would fail before r405693 will still fail.
+
+	  Comment out many settings in res_fax.conf.sample. The defaults are
+	  set in res_fax.c, so setting the same value in sample config does
+	  nothing but make the sample config more fragile.
+
+	  (closes issue ASTERISK-23231)
+	  Reported by: David Brillert
+	  Review: https://reviewboard.asterisk.org/r/3261/
+
+	* main: Initialize dialplan providing core components prior to module
+	  pre-load
+
+	  It is possible to pre-load pbx_config. As a result, pbx_config -
+	  which will load and parse the dialplan - will attempt to use various
+	  dialplan components, such as device state providers and presence
+	  state providers, prior to them being initialized by the core. This
+	  would lead to a crash, as the components had not created their Stasis
+	  cache entries.
+
+	  This patch moves a number of core component initializations before
+	  the module pre-load. This guarantees that if someone does pre-load
+	  pbx_config - or other pbx modules - that the Stasis caches for the
+	  various core components are created.
+
+	  (closes issue ASTERISK-23320)
+	  Reported by: xrobau
+
+	  (closes issue ASTERISK-23265)
+	  Reported by: Andrew Nagy
+	  Tested by: Andrew Nagy, Rusty Newton
+
+	* ari/resource_channels: Add channel variables earlier in the creation
+	  process
+
+	  This patch tweaks the behaviour of POST /channels with channel
+	  variables such that the variables are passed into the pbx.c routines
+	  that perform the origination. This allows the variables to be
+	  assigned to the newly	created	channels immediately upon their
+	  construction, as opposed to be assigned after the originate has
+	  completed.
+
+	  The upshot of this is that the variables are available on the
+	  channels if they execute in the dialplan, as opposed to only being
+	  available once the channels are answered.
+
+	* security_events: Fix assertion failure in dev-mode on optional IE
+	  parsing
+
+	  When formatting an optional IE, the value is, of course, optional. As
+	  such, it is entirely appropriate for ast_json_object_get to return
+	  NULL. If that occurs, we now simply skip the IE that was requested,
+	  as it was not provided by the entity that raised the event.
+
+	  Thanks to George Joseph (gtjoseph) for catching this and reporting it
+	  in #asterisk-dev
+
+	* funcs/func_cdr: Handle empty time values when extracting parsed
+	  values
+
+	  When extracting timestamps that are parsed, time stamp values that
+	  are not set (time values of 0.000000) should not actually result in
+	  a parsed string. The value should be skipped, and the result of the
+	  CDR function should be an empty string.
+
+	  Prior to this patch, the result was fed to the time formatting, which
+	  would result in an output of a date/time in 1969.
+
+	* security_events: Fix error caused by DTD validation error
+
+	  The appdocsxml.dtd specifies that a "required" attribute in a
+	  parameter may have a value of yes, no, true, or false. On some
+	  systems, specifying "False" instead of "false" would cause a
+	  validation error. This patch fixes the casing to explicitly match
+	  the DTD.
+
 2013-02-06  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.1.0-rc1 Released.

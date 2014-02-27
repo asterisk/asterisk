@@ -3952,6 +3952,13 @@ static int set_config(int reload)
 		goto end;
 	}
 
+	if (options.minrate == 2400 && (options.modems & AST_FAX_MODEM_V27) && !(options.modems & (AST_FAX_MODEM_V34))) {
+		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
+		ast_log(LOG_WARNING, "'modems' setting '%s' is no longer accepted with 'minrate' setting %d\n", modems, options.minrate);
+		ast_log(LOG_WARNING, "'minrate' has been reset to 4800, please update res_fax.conf.\n");
+		options.minrate = 4800;
+	}
+
 	if (check_modem_rate(options.modems, options.minrate)) {
 		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
 		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, options.minrate);
