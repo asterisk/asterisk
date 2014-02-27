@@ -737,7 +737,6 @@ static int manager_login(char *hostname)
 					show_message("Login Failed", get_header(m, "Message"));
 				}
 			} else {
-				memset(m, 0, sizeof(*m));
 				manager_action("Login", 
 					"Username: %s\r\n"
 					"Secret: %s\r\n",
