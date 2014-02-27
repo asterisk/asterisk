@@ -679,7 +679,7 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 		return;
 	}
 
-	if (pj_ice_sess_add_cand(rtp->ice, comp_id, transport_id, type, local_pref, &foundation, addr, addr, rel_addr, addr_len, NULL) != PJ_SUCCESS) {
+	if (pj_ice_sess_add_cand(rtp->ice, comp_id, transport_id, type, local_pref, &foundation, addr, base_addr, rel_addr, addr_len, NULL) != PJ_SUCCESS) {
 		ao2_ref(candidate, -1);
 		return;
 	}
@@ -1684,15 +1684,19 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	}
 
 	/* If configured to use a STUN server to get our external mapped address do so */
-	if (stunaddr.sin_addr.s_addr && ast_sockaddr_is_ipv4(addr)) {
+	if (stunaddr.sin_addr.s_addr && ast_sockaddr_is_ipv4(addr) && count) {
 		struct sockaddr_in answer;
 
-		if (!ast_stun_request(rtp->s, &stunaddr, NULL, &answer)) {
+		if (!ast_stun_request(component == AST_RTP_ICE_COMPONENT_RTCP ? rtp->rtcp->s : rtp->s, &stunaddr, NULL, &answer)) {
+			pj_sockaddr base;
 			pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
+
+			/* Use the first local host candidate as the base */
+			pj_sockaddr_cp(&base, &address[0]);
 
 			pj_sockaddr_init(pj_AF_INET(), &address[0], &mapped, ntohs(answer.sin_port));
 
-			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_SRFLX, 65535, &address[0], &address[0],
+			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_SRFLX, 65535, &address[0], &base,
 					     NULL, pj_sockaddr_get_len(&address[0]));
 		}
 	}
