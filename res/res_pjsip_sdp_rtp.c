@@ -258,7 +258,7 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	}
 
 	ast_rtp_codecs_payloads_destroy(&codecs);
-	return 1;
+	return 0;
 }
 
 static pjmedia_sdp_attr* generate_rtpmap_attr(pjmedia_sdp_media *media, pj_pool_t *pool, int rtp_code,
@@ -733,7 +733,15 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 		return -1;
 	}
 
-	return set_caps(session, session_media, stream);
+	if (set_caps(session, session_media, stream)) {
+		return -1;
+	}
+
+	if (media_type == AST_FORMAT_TYPE_AUDIO) {
+		apply_packetization(session, session_media, stream);
+	}
+
+	return 1;
 }
 
 static int add_crypto_to_stream(struct ast_sip_session *session,
@@ -1052,7 +1060,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	ast_sockaddr_set_port(addrs, remote_stream->desc.port);
 	ast_rtp_instance_set_remote_address(session_media->rtp, addrs);
 
-	if (set_caps(session, session_media, local_stream) < 1) {
+	if (set_caps(session, session_media, local_stream)) {
 		return -1;
 	}
 
