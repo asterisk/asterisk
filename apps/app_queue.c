@@ -981,7 +981,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
-	<managerEvent language="en_US" name="QueueMemberPaused">
+	<managerEvent language="en_US" name="QueueMemberPause">
 		<managerEventInstance class="EVENT_FLAG_AGENT">
 			<synopsis>Raised when a member is paused/unpaused in the queue.</synopsis>
 			<syntax>
