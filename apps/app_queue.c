@@ -6276,22 +6276,25 @@ static int set_member_paused(const char *queuename, const char *interface, const
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
 
-				/*** DOCUMENTATION
-				<managerEventInstance>
-					<synopsis>Raised when a member is paused/unpaused in the queue with a reason.</synopsis>
-					<syntax>
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-						<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
-					</syntax>
-					<see-also>
-						<ref type="application">PauseQueueMember</ref>
-						<ref type="application">UnPauseQueueMember</ref>
-					</see-also>
-				</managerEventInstance>
-				***/
 				if (!ast_strlen_zero(reason)) {
+					/*** DOCUMENTATION
+					<managerEventInstance>
+						<synopsis>Raised when a member is paused/unpaused in the queue with a reason.</synopsis>
+						<syntax>
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
+							<parameter name="Reason">
+								<para>The reason given for pausing or unpausing a queue member.</para>
+							</parameter>
+						</syntax>
+						<see-also>
+							<ref type="application">PauseQueueMember</ref>
+							<ref type="application">UnPauseQueueMember</ref>
+						</see-also>
+					</managerEventInstance>
+					***/
 					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
 						"Queue: %s\r\n"
 						"Location: %s\r\n"
