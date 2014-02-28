@@ -6674,10 +6674,12 @@ static int sip_hangup(struct ast_channel *ast)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		p->needdestroy = 0;
-		p->owner->tech_pvt = dialog_unref(p->owner->tech_pvt, "unref p->owner->tech_pvt");
-		sip_pvt_lock(p);
-		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
-		sip_pvt_unlock(p);
+		if (p->owner) {
+			p->owner->tech_pvt = dialog_unref(p->owner->tech_pvt, "unref p->owner->tech_pvt");
+			sip_pvt_lock(p);
+			p->owner = NULL;  /* Owner will be gone after we return, so take it away */
+			sip_pvt_unlock(p);
+		}
 		ast_module_unref(ast_module_info->self);
 		return 0;
 	}
@@ -6706,7 +6708,7 @@ static int sip_hangup(struct ast_channel *ast)
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
-	append_history(p, needcancel ? "Cancel" : "Hangup", "Cause %s", p->owner ? ast_cause2str(p->hangupcause) : "Unknown");
+	append_history(p, needcancel ? "Cancel" : "Hangup", "Cause %s", ast_cause2str(p->hangupcause));
 
 	/* Disconnect */
 	disable_dsp_detect(p);
@@ -7206,7 +7208,9 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 			parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
 			parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
-			ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
+			if (p->owner) {
+				ast_queue_control_data(p->owner, AST_CONTROL_T38_PARAMETERS, &parameters, sizeof(parameters));
+			}
 			/* we need to return a positive value here, so that applications that
 			 * send this request can determine conclusively whether it was accepted or not...
 			 * older versions of chan_sip would just silently accept it and return zero.
@@ -11395,8 +11399,8 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 {
 	struct ast_str *tmp = ast_str_alloca(256);
 	char tmp2[256];
-	char *lid_num = NULL;
-	char *lid_name = NULL;
+	char *lid_num;
+	char *lid_name;
 	int lid_pres;
 	const char *fromdomain;
 	const char *privacy = NULL;
@@ -11407,20 +11411,23 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		return 0;
 	}
 
-	if (p->owner && p->owner->connected.id.number.valid
-		&& p->owner->connected.id.number.str) {
-		lid_num = p->owner->connected.id.number.str;
-	}
-	if (p->owner && p->owner->connected.id.name.valid
-		&& p->owner->connected.id.name.str) {
-		lid_name = p->owner->connected.id.name.str;
-	}
-	lid_pres = (p->owner) ? ast_party_id_presentation(&p->owner->connected.id) : AST_PRES_NUMBER_NOT_AVAILABLE;
-
-	if (ast_strlen_zero(lid_num))
+	if (!p->owner) {
 		return 0;
-	if (ast_strlen_zero(lid_name))
+	}
+	lid_num = S_COR(p->owner->connected.id.number.valid,
+		p->owner->connected.id.number.str,
+		NULL);
+	if (!lid_num) {
+		return 0;
+	}
+	lid_name = S_COR(p->owner->connected.id.name.valid,
+		p->owner->connected.id.name.str,
+		NULL);
+	if (!lid_name) {
 		lid_name = lid_num;
+	}
+	lid_pres = ast_party_id_presentation(&p->owner->connected.id);
+
 	fromdomain = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
 
 	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), 0);
@@ -16414,13 +16421,15 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	}
 
 	/* Determine transfer context */
-	if (transferer->owner)	/* Mimic behaviour in res_features.c */
+	if (transferer->owner) {
+		/* By default, use the context in the channel sending the REFER */
 		transfer_context = pbx_builtin_getvar_helper(transferer->owner, "TRANSFER_CONTEXT");
-
-	/* By default, use the context in the channel sending the REFER */
+		if (ast_strlen_zero(transfer_context)) {
+			transfer_context = transferer->owner->macrocontext;
+		}
+	}
 	if (ast_strlen_zero(transfer_context)) {
-		transfer_context = S_OR(transferer->owner->macrocontext,
-					S_OR(transferer->context, sip_cfg.default_context));
+		transfer_context = S_OR(transferer->context, sip_cfg.default_context);
 	}
 
 	ast_copy_string(referdata->refer_to_context, transfer_context, sizeof(referdata->refer_to_context));
@@ -16474,14 +16483,18 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 
-	if (p->owner)	/* Mimic behaviour in res_features.c */
+	/* Determine transfer context */
+	if (p->owner) {
+		/* By default, use the context in the channel sending the REFER */
 		transfer_context = pbx_builtin_getvar_helper(p->owner, "TRANSFER_CONTEXT");
-
-	/* By default, use the context in the channel sending the REFER */
-	if (ast_strlen_zero(transfer_context)) {
-		transfer_context = S_OR(p->owner->macrocontext,
-					S_OR(p->context, sip_cfg.default_context));
+		if (ast_strlen_zero(transfer_context)) {
+			transfer_context = p->owner->macrocontext;
+		}
 	}
+	if (ast_strlen_zero(transfer_context)) {
+		transfer_context = S_OR(p->context, sip_cfg.default_context);
+	}
+
 	if (ast_exists_extension(NULL, transfer_context, c, 1, NULL)) {
 		/* This is a blind transfer */
 		ast_debug(1, "SIP Bye-also transfer to Extension %s@%s \n", c, transfer_context);
@@ -23455,12 +23468,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_debug(2, "No SDP in Invite, third party call control\n");
 		}
 
-		/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
-		/* This seems redundant ... see !p-owner above */
-		if (p->owner)
-			ast_queue_frame(p->owner, &ast_null_frame);
-
-
 		/* Initialize the context if it hasn't been already */
 		if (ast_strlen_zero(p->context))
 			ast_string_field_set(p, context, sip_cfg.default_context);
@@ -27515,7 +27522,7 @@ static struct ast_channel *sip_request_call(const char *type, format_t format, c
 	if (sip_cfg.callevents)
 		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
 			"Channel: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
-			p->owner? p->owner->name : "", "SIP", p->callid, p->fullcontact, p->peername);
+			p->owner ? p->owner->name : "", "SIP", p->callid, p->fullcontact, p->peername);
 	sip_pvt_unlock(p);
 	if (!tmpc) {
 		dialog_unlink_all(p);
