@@ -1384,7 +1384,7 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		return NULL;
 	}
-	if (pjsip_inv_create_uas(dlg, rdata, NULL, 0, &inv_session) != PJ_SUCCESS) {
+	if (pjsip_inv_create_uas(dlg, rdata, NULL, options, &inv_session) != PJ_SUCCESS) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		pjsip_dlg_terminate(dlg);
 		return NULL;
