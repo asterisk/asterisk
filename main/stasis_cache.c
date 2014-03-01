@@ -57,7 +57,8 @@ struct stasis_caching_topic {
 	struct stasis_subscription *sub;
 };
 
-static void stasis_caching_topic_dtor(void *obj) {
+static void stasis_caching_topic_dtor(void *obj)
+{
 	struct stasis_caching_topic *caching_topic = obj;
 
 	/* Caching topics contain subscriptions, and must be manually
@@ -84,26 +85,28 @@ struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *cachi
 
 struct stasis_caching_topic *stasis_caching_unsubscribe(struct stasis_caching_topic *caching_topic)
 {
-	if (caching_topic) {
-		RAII_VAR(struct stasis_caching_topic *, hold_ref, NULL,
-			ao2_cleanup);
-
-		/* The subscription may hold the last reference to this caching
-		 * topic, but we want to make sure the unsubscribe finishes
-		 * before kicking of the caching topic's dtor.
-		 */
-		ao2_ref(caching_topic, +1);
-		hold_ref = caching_topic;
-
-		if (stasis_subscription_is_subscribed(caching_topic->sub)) {
-			/* Increment the reference to hold on to it past the
-			 * unsubscribe. Will be cleaned up in dtor. */
-			ao2_ref(caching_topic->sub, +1);
-			stasis_unsubscribe(caching_topic->sub);
-		} else {
-			ast_log(LOG_ERROR, "stasis_caching_topic unsubscribed multiple times\n");
-		}
+	if (!caching_topic) {
+		return NULL;
 	}
+
+	/*
+	 * The subscription may hold the last reference to this caching
+	 * topic, but we want to make sure the unsubscribe finishes
+	 * before kicking of the caching topic's dtor.
+	 */
+	ao2_ref(caching_topic, +1);
+
+	if (stasis_subscription_is_subscribed(caching_topic->sub)) {
+		/*
+		 * Increment the reference to hold on to it past the
+		 * unsubscribe. Will be cleaned up in dtor.
+		 */
+		ao2_ref(caching_topic->sub, +1);
+		stasis_unsubscribe(caching_topic->sub);
+	} else {
+		ast_log(LOG_ERROR, "stasis_caching_topic unsubscribed multiple times\n");
+	}
+	ao2_cleanup(caching_topic);
 	return NULL;
 }
 
@@ -325,20 +328,13 @@ STASIS_MESSAGE_TYPE_DEFN(stasis_cache_update_type);
 
 struct stasis_message *stasis_cache_clear_create(struct stasis_message *id_message)
 {
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-
-	msg = stasis_message_create(stasis_cache_clear_type(), id_message);
-	if (!msg) {
-		return NULL;
-	}
-
-	ao2_ref(msg, +1);
-	return msg;
+	return stasis_message_create(stasis_cache_clear_type(), id_message);
 }
 
 static void stasis_cache_update_dtor(void *obj)
 {
 	struct stasis_cache_update *update = obj;
+
 	ao2_cleanup(update->old_snapshot);
 	update->old_snapshot = NULL;
 	ao2_cleanup(update->new_snapshot);
@@ -349,8 +345,8 @@ static void stasis_cache_update_dtor(void *obj)
 
 static struct stasis_message *update_create(struct stasis_message *old_snapshot, struct stasis_message *new_snapshot)
 {
-	RAII_VAR(struct stasis_cache_update *, update, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct stasis_cache_update *update;
+	struct stasis_message *msg;
 
 	ast_assert(old_snapshot != NULL || new_snapshot != NULL);
 
@@ -376,11 +372,8 @@ static struct stasis_message *update_create(struct stasis_message *old_snapshot,
 	}
 
 	msg = stasis_message_create(stasis_cache_update_type(), update);
-	if (!msg) {
-		return NULL;
-	}
 
-	ao2_ref(msg, +1);
+	ao2_cleanup(update);
 	return msg;
 }
 
