@@ -1,3 +1,19 @@
+2014-03-01  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.8.0-rc3 Released.
+
+	* chan_sip: Fix crash in ast_channel_hangupcause_set().
+
+	  Fix crash in ast_channel_hangupcause_set() because p->owner not
+	  checked before calling.  Regression introduced by the fix for
+	  ASTERISK-22621.
+
+	  (closes issue ASTERISK-23135)
+	  Reported by: OK
+
+	  (issue ASTERISK-23323)
+	  Reported by: Walter Doekes
+
 2014-02-27  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.8.0-rc2 Released.
