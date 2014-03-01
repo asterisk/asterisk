@@ -297,14 +297,11 @@ static enum ast_device_state devstate_cached(const char *device)
 /*! \brief Check device state through channel specific function or generic function */
 static enum ast_device_state _ast_device_state(const char *device, int check_cache)
 {
-	char *buf;
 	char *number;
 	const struct ast_channel_tech *chan_tech;
 	enum ast_device_state res;
 	/*! \brief Channel driver that provides device state */
 	char *tech;
-	/*! \brief Another provider of device state */
-	char *provider = NULL;
 
 	/* If the last known state is cached, just return that */
 	if (check_cache) {
@@ -314,16 +311,18 @@ static enum ast_device_state _ast_device_state(const char *device, int check_cac
 		}
 	}
 
-	buf = ast_strdupa(device);
-	tech = strsep(&buf, "/");
-	if (!(number = buf)) {
+	number = ast_strdupa(device);
+	tech = strsep(&number, "/");
+	if (!number) {
+		/*! \brief Another provider of device state */
+		char *provider;
+
 		provider = strsep(&tech, ":");
 		if (!tech) {
 			return AST_DEVICE_INVALID;
 		}
 		/* We have a provider */
 		number = tech;
-		tech = NULL;
 
 		ast_debug(3, "Checking if I can find provider for \"%s\" - number: %s\n", provider, number);
 		return getproviderstate(provider, number);
@@ -331,18 +330,21 @@ static enum ast_device_state _ast_device_state(const char *device, int check_cac
 
 	ast_debug(4, "No provider found, checking channel drivers for %s - %s\n", tech, number);
 
-	if (!(chan_tech = ast_get_channel_tech(tech)))
+	chan_tech = ast_get_channel_tech(tech);
+	if (!chan_tech) {
 		return AST_DEVICE_INVALID;
+	}
 
-	if (!(chan_tech->devicestate)) /* Does the channel driver support device state notification? */
-		return ast_parse_device_state(device); /* No, try the generic function */
+	/* Does the channel driver support device state notification? */
+	if (!chan_tech->devicestate) {
+		/* No, try the generic function */
+		return ast_parse_device_state(device);
+	}
 
 	res = chan_tech->devicestate(number);
-
-	if (res != AST_DEVICE_UNKNOWN)
-		return res;
-
-	res = ast_parse_device_state(device);
+	if (res == AST_DEVICE_UNKNOWN) {
+		res = ast_parse_device_state(device);
+	}
 
 	return res;
 }
