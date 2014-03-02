@@ -35,7 +35,7 @@ else
     CMD_PREFIX=
 endif
 
-OPTIMIZE?=-O6
+OPTIMIZE?=-O3
 ifneq ($(findstring darwin,$(OSARCH)),)
   ifeq ($(shell if test `/usr/bin/sw_vers -productVersion | cut -c4` -gt 5; then echo 6; else echo 0; fi),6)
     # Snow Leopard/Lion has an issue with this optimization flag on large files (like chan_sip)
