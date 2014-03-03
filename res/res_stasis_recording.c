@@ -351,6 +351,7 @@ static void recording_dtor(void *obj)
 {
 	struct stasis_app_recording *recording = obj;
 
+	ast_free(recording->absolute_name);
 	ao2_cleanup(recording->options);
 }
 
