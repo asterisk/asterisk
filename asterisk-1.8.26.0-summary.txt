@@ -1,0 +1,406 @@
+                                Release Summary
+
+                               asterisk-1.8.26.0
+
+                                Date: 2014-03-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.25.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   5 sgriepentrog           1 Jan Juergens           2 gareth                 
+   4 kmoore                 1 Rusty Newton           2 rnewton                
+   4 mjordan                1 Torrey Searle          1 awinters               
+   3 newtonr                                         1 coreyfarrell           
+   2 dlee                                            1 eisvogel               
+   2 Gareth Palmer                                   1 gtj                    
+   2 kharwell                                        1 hexanol                
+   1 awinters                                        1 intelafone             
+   1 coreyfarrell                                    1 j_juergens             
+   1 file                                            1 jimcredland            
+   1 hexanol                                         1 mike@farsouthnet.com   
+   1 Jeremy LainA(c)                                 1 mjordan                
+   1 Michael Walton                                  1 mpiazzatnetbug         
+   1 outtolunc                                       1 outtolunc              
+   1 rmudgett                                        1 rsw686                 
+   1 russell                                         1 rudolf                 
+   1 tsearle                                         1 schmoozecom            
+   1 tzafrir                                         1 sharky                 
+   1 veilen                                          1 tthompson              
+   1 wdoekes                                         1 tzafrir                
+                                                     1 urtho                  
+                                                     1 veilen                 
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Applications/app_queue
+
+   ASTERISK-20862: Asterisk min and max member penalties not honored when set
+   with 0
+   Revision: 402645
+   Reporter: schmoozecom
+   Coders: kmoore
+
+  Category: Applications/app_sayunixtime
+
+   ASTERISK-22856: [patch]SayUnixTime in polish reads minutes instead of
+   seconds
+   Revision: 404456
+   Reporter: veilen
+   Coders: veilen
+
+  Category: Applications/app_sms
+
+   ASTERISK-22590: BufferOverflow in unpacksms16() when receiving 16 bit
+   multipart SMS with app_sms
+   Revision: 403853
+   Reporter: j_juergens
+   Testers: Jan Juergens
+   Coders: sgriepentrog
+
+  Category: CEL/cel_pgsql
+
+   ASTERISK-22854: [patch] - Deadlock between cel_pgsql unload and
+   core_event_dispatcher taskprocessor thread
+   Revision: 404603
+   Reporter: hexanol
+   Coders: hexanol
+
+   ASTERISK-22871: cel_pgsql module not loading after "reload" or "reload
+   cel_pgsql.so" command
+   Revision: 404857
+   Reporter: mpiazzatnetbug
+   Coders: kharwell
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-22746: [patch]Crash in chan_dahdi during caller id read
+   Revision: 402708
+   Reporter: mike@farsouthnet.com
+   Coders: Michael Walton
+
+   ASTERISK-22918: dahdi show channels slices PRI channel dnid on output
+   Revision: 404784
+   Reporter: outtolunc
+   Coders: outtolunc
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-23010: No BYE message sent when sip INVITE is received
+   Revision: 405486
+   Reporter: intelafone
+   Coders: sgriepentrog
+
+   ASTERISK-23047: Orphaned (stuck) channel occurs during a failed SIP
+   transfer to parking space
+   Revision: 405379
+   Reporter: tthompson
+   Coders: mjordan
+
+  Category: Channels/chan_sip/Registration
+
+   ASTERISK-12117: chan_sip creates a new local tag (from-tag) for every
+   register message
+   Revision: 402604
+   Reporter: urtho
+   Coders: sgriepentrog
+
+   ASTERISK-17138: [patch] Asterisk not re-registering after it receives
+   "Forbidden - wrong password on authentication"
+   Revision: 405033
+   Reporter: rudolf
+   Coders: kmoore
+
+   ASTERISK-22946: Local From tag regression with sipgate.de
+   Revision: 405433
+   Reporter: eisvogel
+   Coders: sgriepentrog
+
+  Category: Core/General
+
+   ASTERISK-22788: [patch] main/translate.c: access to variable f after free
+   in ast_translate()
+   Revision: 403014
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+   ASTERISK-22905: Prevent Asterisk functions that are 'dangerous' from being
+   executed from external interfaces
+   Revision: 403913
+   Reporter: mjordan
+   Coders: dlee
+
+   ASTERISK-23084: [patch]rasterisk needlessly prints the AST-2013-007
+   warning
+   Revision: 404861
+   Reporter: tzafrir
+   Coders: tzafrir
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-22905: Prevent Asterisk functions that are 'dangerous' from being
+   executed from external interfaces
+   Revision: 403913
+   Reporter: mjordan
+   Coders: dlee
+
+  Category: Documentation
+
+   ASTERISK-22970: [patch]Documentation fix for QUOTE()
+   Revision: 404081
+   Reporter: gareth
+   Coders: Gareth Palmer
+
+   ASTERISK-23021: Typos in code : "avaliable" instead of "available"
+   Revision: 404044
+   Reporter: sharky
+   Testers: Rusty Newton
+   Coders: Jeremy LainA(c)
+
+  Category: Features/Parking
+
+   ASTERISK-22834: Parking by blind transfer when lot full orphans channels
+   Revision: 405379
+   Reporter: rsw686
+   Coders: mjordan
+
+  Category: Functions/General
+
+   ASTERISK-22905: Prevent Asterisk functions that are 'dangerous' from being
+   executed from external interfaces
+   Revision: 403913
+   Reporter: mjordan
+   Coders: dlee
+
+  Category: Functions/func_strings
+
+   ASTERISK-22910: [patch] - REPLACE() calls strcpy on overlapping memory
+   when is empty
+   Revision: 404674
+   Reporter: gareth
+   Coders: Gareth Palmer
+
+   ASTERISK-22970: [patch]Documentation fix for QUOTE()
+   Revision: 404081
+   Reporter: gareth
+   Coders: Gareth Palmer
+
+  Category: General
+
+   ASTERISK-23021: Typos in code : "avaliable" instead of "available"
+   Revision: 404044
+   Reporter: sharky
+   Testers: Rusty Newton
+   Coders: Jeremy LainA(c)
+
+  Category: PBX/pbx_lua
+
+   ASTERISK-23011: [patch]configure.ac and pbx_lua don't support lua 5.2
+   Revision: 405090
+   Reporter: gtj
+   Coders: kmoore
+
+  Category: Resources/res_agi
+
+   ASTERISK-22905: Prevent Asterisk functions that are 'dangerous' from being
+   executed from external interfaces
+   Revision: 403913
+   Reporter: mjordan
+   Coders: dlee
+
+  Category: Resources/res_ari
+
+   ASTERISK-22905: Prevent Asterisk functions that are 'dangerous' from being
+   executed from external interfaces
+   Revision: 403913
+   Reporter: mjordan
+   Coders: dlee
+
+  Category: Resources/res_fax
+
+   ASTERISK-21242: Segfault when T.38 re-invite retransmission receives 200
+   OK
+   Revision: 403449
+   Reporter: awinters
+   Testers: Torrey Searle
+   Coders: awinters, tsearle
+
+  Category: Resources/res_fax_spandsp
+
+   ASTERISK-21242: Segfault when T.38 re-invite retransmission receives 200
+   OK
+   Revision: 403449
+   Reporter: awinters
+   Testers: Torrey Searle
+   Coders: awinters, tsearle
+
+  Category: Sounds
+
+   ASTERISK-22411: British English Sound Packs
+   Revision: 402224
+   Reporter: jimcredland
+   Coders: newtonr
+
+   ASTERISK-22544: Italian prompt vm-options has advertisement in it
+   Revision: 402224
+   Reporter: rnewton
+   Coders: newtonr
+
+   ASTERISK-22659: Make a new core and extra sounds release
+   Revision: 402224
+   Reporter: rnewton
+   Coders: newtonr
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author       | Summary                  | Issues Referenced |
+   |----------+--------------+--------------------------+-------------------|
+   |          |              | Remove some spammy debug |                   |
+   | 402150   | mjordan      | messages; improve        |                   |
+   |          |              | clarity of others        |                   |
+   |----------+--------------+--------------------------+-------------------|
+   |          |              | Backport r373119 from 11 |                   |
+   | 402192   | dlee         | to go along with         |                   |
+   |          |              | RAII_VAR support.        |                   |
+   |----------+--------------+--------------------------+-------------------|
+   | 402287   | mjordan      | core/loader: Don't call  |                   |
+   |          |              | dlclose in a while loop  |                   |
+   |----------+--------------+--------------------------+-------------------|
+   | 403634   | russell      | Reset peer outboundproxy |                   |
+   |          |              | on sip.conf reload       |                   |
+   |----------+--------------+--------------------------+-------------------|
+   |          |              | res_calendar: Protect    |                   |
+   | 404135   | file         | channel when adding      |                   |
+   |          |              | datastore.               |                   |
+   |----------+--------------+--------------------------+-------------------|
+   | 404212   | rmudgett     | ooh323c: Fix gcc 4.6.3   |                   |
+   |          |              | compiler warnings.       |                   |
+   |----------+--------------+--------------------------+-------------------|
+   |          |              | chan_unistim.c,          |                   |
+   | 404742   | kharwell     | app_meetme: compiler     |                   |
+   |          |              | warnings                 |                   |
+   |----------+--------------+--------------------------+-------------------|
+   | 404951   | sgriepentrog | func_strings: fix for    | ASTERISK-22910    |
+   |          |              | memmove patch test       |                   |
+   |----------+--------------+--------------------------+-------------------|
+   | 405088   | kmoore       | UPGRADE: Add a note      |                   |
+   |          |              | about non-functionality  |                   |
+   |----------+--------------+--------------------------+-------------------|
+   | 405160   | wdoekes      | "Minimun" typo.          |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ Makefile                           |    2
+ README-SERIOUSLY.bestpractices.txt |   24 +++
+ UPGRADE.txt                        |    9 +
+ addons/ooh323c/src/memheap.c       |    3
+ addons/ooh323c/src/ooCapability.c  |    4
+ addons/ooh323c/src/ooSocket.c      |    6
+ addons/ooh323c/src/ooTimer.c       |    3
+ addons/ooh323c/src/ooq931.c        |    8 -
+ addons/ooh323c/src/perutil.c       |    3
+ addons/ooh323cDriver.c             |    5
+ apps/app_chanspy.c                 |    2
+ apps/app_dumpchan.c                |    2
+ apps/app_meetme.c                  |   10 -
+ apps/app_mixmonitor.c              |    2
+ apps/app_queue.c                   |   79 ++++++---
+ apps/app_sms.c                     |    3
+ cel/cel_pgsql.c                    |   10 -
+ channels/chan_dahdi.c              |   11 -
+ channels/chan_iax2.c               |    2
+ channels/chan_sip.c                |  100 +++++++++---
+ channels/chan_unistim.c            |    2
+ channels/sip/include/sip.h         |    1
+ configs/asterisk.conf.sample       |    6
+ configure.ac                       |   27 +++
+ funcs/func_db.c                    |   20 ++
+ funcs/func_env.c                   |   28 +++
+ funcs/func_lock.c                  |   21 ++
+ funcs/func_realtime.c              |   60 +++++--
+ funcs/func_shell.c                 |   18 +-
+ funcs/func_strings.c               |   77 +++++++++
+ include/asterisk/pbx.h             |   54 ++++++
+ include/asterisk/test.h            |    2
+ main/asterisk.c                    |    7
+ main/channel.c                     |    9 -
+ main/loader.c                      |   28 ++-
+ main/pbx.c                         |  294 +++++++++++++++++++++++++++++++++----
+ main/say.c                         |    4
+ main/tcptls.c                      |   11 +
+ main/translate.c                   |   61 ++++---
+ main/xmldoc.c                      |    1
+ makeopts.in                        |    1
+ pbx/pbx_lua.c                      |   11 +
+ res/res_calendar.c                 |    3
+ res/res_fax_spandsp.c              |    4
+ sounds/Makefile                    |    9 -
+ 45 files changed, 842 insertions(+), 205 deletions(-)
+
+     ----------------------------------------------------------------------
