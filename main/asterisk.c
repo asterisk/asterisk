@@ -55,7 +55,7 @@
  *
  * Copyright (C) 1999 - 2013, Digium, Inc.
  * Asterisk is a <a href="http://www.digium.com/en/company/view-policy.php?id=Trademark-Policy">registered trademark</a>
- * of <a href="http://www.digium.com">Digium, Inc</a>.
+ * of <a rel="nofollow" href="http://www.digium.com">Digium, Inc</a>.
  *
  * \author Mark Spencer <markster@digium.com>
  *
