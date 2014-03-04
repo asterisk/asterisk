@@ -228,6 +228,11 @@ static int func_inheritance_write(struct ast_channel *chan, const char *function
 		return -1;
 	}
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to INHERITANCE function.\n");
+		return -1;
+	}
+
 	allow = ast_true(value);
 
 	/* Step 2: retrieve or set up datastore */
