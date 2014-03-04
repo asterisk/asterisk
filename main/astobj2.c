@@ -157,6 +157,7 @@ static inline struct astobj2 *INTERNAL_OBJ(void *user_data)
 				"bad magic number for object %p. Object is likely destroyed.\n",
 				user_data);
 		}
+		ast_assert(0);
 		return NULL;
 	}
 
