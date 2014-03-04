@@ -95,9 +95,6 @@ ifneq ($(wildcard makeopts),)
   include makeopts
 endif
 
-# we want the MENUSELECT_EMBED var
--include menuselect.makeopts
-
 # start the primary CFLAGS and LDFLAGS with any that were provided
 # to the configure script
 _ASTCFLAGS:=$(CONFIG_CFLAGS)
@@ -330,7 +327,7 @@ makeopts.embed_rules: menuselect.makeopts
 $(SUBDIRS): main/version.c include/asterisk/version.h include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  ifneq ($(MENUSELECT_EMBED),)
+  ifeq ($(shell grep ^MENUSELECT_EMBED=$$ menuselect.makeopts 2>/dev/null),)
     # Non-windows:
     # ensure that all module subdirectories are processed before 'main' during
     # a parallel build, since if there are modules selected to be embedded the
