@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/unaligned.h"
 #include "asterisk/module.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/test.h"
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -263,7 +264,7 @@ struct ast_rtp {
 	pj_turn_sock *turn_rtcp;    /*!< RTCP TURN relay */
 	pj_turn_state_t turn_state; /*!< Current state of the TURN relay session */
 	unsigned int passthrough:1; /*!< Bit to indicate that the received packet should be passed through */
-	unsigned int ice_started:1; /*!< Bit to indicate ICE connectivity checks have started */
+	unsigned int ice_port;      /*!< Port that ICE was started with if it was previously started */
 
 	char remote_ufrag[256];  /*!< The remote ICE username */
 	char remote_passwd[256]; /*!< The remote ICE password */
@@ -271,8 +272,10 @@ struct ast_rtp {
 	char local_ufrag[256];  /*!< The local ICE username */
 	char local_passwd[256]; /*!< The local ICE password */
 
-	struct ao2_container *local_candidates;   /*!< The local ICE candidates */
-	struct ao2_container *remote_candidates;  /*!< The remote ICE candidates */
+	struct ao2_container *ice_local_candidates;           /*!< The local ICE candidates */
+	struct ao2_container *ice_active_remote_candidates;   /*!< The remote ICE candidates */
+	struct ao2_container *ice_proposed_remote_candidates; /*!< Incoming remote ICE candidates for new session */
+	struct ast_sockaddr ice_original_rtp_addr;            /*!< rtp address that ICE started on first session */
 #endif
 
 #ifdef HAVE_OPENSSL_SRTP
@@ -446,17 +449,32 @@ static void ast_rtp_ice_set_authentication(struct ast_rtp_instance *instance, co
 	}
 }
 
+static int ice_candidate_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_engine_ice_candidate *candidate1 = obj, *candidate2 = arg;
+
+	if (strcmp(candidate1->foundation, candidate2->foundation) ||
+			candidate1->id != candidate2->id ||
+			ast_sockaddr_cmp(&candidate1->address, &candidate2->address) ||
+			candidate1->type != candidate1->type) {
+		return 0;
+	}
+
+	return CMP_MATCH | CMP_STOP;
+}
+
 static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, const struct ast_rtp_engine_ice_candidate *candidate)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_rtp_engine_ice_candidate *remote_candidate;
 
-	if (!rtp->remote_candidates && !(rtp->remote_candidates = ao2_container_alloc(1, NULL, NULL))) {
+	if (!rtp->ice_proposed_remote_candidates &&
+			!(rtp->ice_proposed_remote_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
 		return;
 	}
 
 	/* If this is going to exceed the maximum number of ICE candidates don't even add it */
-	if (ao2_container_count(rtp->remote_candidates) == PJ_ICE_MAX_CAND) {
+	if (ao2_container_count(rtp->ice_proposed_remote_candidates) == PJ_ICE_MAX_CAND) {
 		return;
 	}
 
@@ -472,7 +490,7 @@ static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, 
 	ast_sockaddr_copy(&remote_candidate->relay_address, &candidate->relay_address);
 	remote_candidate->type = candidate->type;
 
-	ao2_link(rtp->remote_candidates, remote_candidate);
+	ao2_link(rtp->ice_proposed_remote_candidates, remote_candidate);
 	ao2_ref(remote_candidate, -1);
 }
 
@@ -501,6 +519,58 @@ static void pj_thread_register_check(void)
 	return;
 }
 
+static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *addr,
+	int port, int replace);
+
+static void ast_rtp_ice_stop(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!rtp->ice) {
+		return;
+	}
+
+	pj_thread_register_check();
+
+	pj_ice_sess_destroy(rtp->ice);
+	rtp->ice = NULL;
+}
+
+static int ice_reset_session(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	ast_rtp_ice_stop(instance);
+	return ice_create(instance, &rtp->ice_original_rtp_addr, rtp->ice_port, 1);
+}
+
+static int ice_candidates_compare(struct ao2_container *left, struct ao2_container *right)
+{
+	struct ao2_iterator i;
+	struct ast_rtp_engine_ice_candidate *right_candidate;
+
+	if (ao2_container_count(left) != ao2_container_count(right)) {
+		return -1;
+	}
+
+	i = ao2_iterator_init(right, 0);
+	while ((right_candidate = ao2_iterator_next(&i))) {
+		struct ast_rtp_engine_ice_candidate *left_candidate = ao2_find(left, right_candidate, OBJ_POINTER);
+
+		if (!left_candidate) {
+			ao2_ref(right_candidate, -1);
+			ao2_iterator_destroy(&i);
+			return -1;
+		}
+
+		ao2_ref(left_candidate, -1);
+		ao2_ref(right_candidate, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	return 0;
+}
+
 static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -510,13 +580,32 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	struct ast_rtp_engine_ice_candidate *candidate;
 	int cand_cnt = 0;
 
-	if (!rtp->ice || !rtp->remote_candidates || rtp->ice_started) {
+	if (!rtp->ice || !rtp->ice_proposed_remote_candidates) {
+		return;
+	}
+
+	/* Check for equivalence in the lists */
+	if (rtp->ice_active_remote_candidates &&
+			!ice_candidates_compare(rtp->ice_proposed_remote_candidates, rtp->ice_active_remote_candidates)) {
+		ao2_cleanup(rtp->ice_proposed_remote_candidates);
+		rtp->ice_proposed_remote_candidates = NULL;
+		return;
+	}
+
+	/* Out with the old, in with the new */
+	ao2_cleanup(rtp->ice_active_remote_candidates);
+	rtp->ice_active_remote_candidates = rtp->ice_proposed_remote_candidates;
+	rtp->ice_proposed_remote_candidates = NULL;
+
+	/* Reset the ICE session. Is this going to work? */
+	if (ice_reset_session(instance)) {
+		ast_log(LOG_NOTICE, "Failed to create replacement ICE session\n");
 		return;
 	}
 
 	pj_thread_register_check();
 
-	i = ao2_iterator_init(rtp->remote_candidates, 0);
+	i = ao2_iterator_init(rtp->ice_active_remote_candidates, 0);
 
 	while ((candidate = ao2_iterator_next(&i)) && (cand_cnt < PJ_ICE_MAX_CAND)) {
 		pj_str_t address;
@@ -546,40 +635,29 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		}
 
 		cand_cnt++;
+		ao2_ref(candidate, -1);
 	}
 
 	ao2_iterator_destroy(&i);
 
-	if (pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(rtp->remote_candidates), &candidates[0]) == PJ_SUCCESS) {
+	if (pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(rtp->ice_active_remote_candidates), &candidates[0]) == PJ_SUCCESS) {
+		ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: SUCCESS");
 		pj_ice_sess_start_check(rtp->ice);
 		pj_timer_heap_poll(timerheap, NULL);
-		rtp->ice_started = 1;
 		rtp->strict_rtp_state = STRICT_RTP_OPEN;
 		return;
 	}
+
+	ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: FAILURE");
 
 	/* even though create check list failed don't stop ice as
 	   it might still work */
 	ast_debug(1, "Failed to create ICE session check list\n");
 	/* however we do need to reset remote candidates since
 	   this function may be re-entered */
-	ao2_ref(rtp->remote_candidates, -1);
-	rtp->remote_candidates = NULL;
+	ao2_ref(rtp->ice_active_remote_candidates, -1);
+	rtp->ice_active_remote_candidates = NULL;
 	rtp->ice->rcand_cnt = rtp->ice->clist.count = 0;
-}
-
-static void ast_rtp_ice_stop(struct ast_rtp_instance *instance)
-{
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-
-	if (!rtp->ice) {
-		return;
-	}
-
-	pj_thread_register_check();
-
-	pj_ice_sess_destroy(rtp->ice);
-	rtp->ice = NULL;
 }
 
 static const char *ast_rtp_ice_get_ufrag(struct ast_rtp_instance *instance)
@@ -600,11 +678,11 @@ static struct ao2_container *ast_rtp_ice_get_local_candidates(struct ast_rtp_ins
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if (rtp->local_candidates) {
-		ao2_ref(rtp->local_candidates, +1);
+	if (rtp->ice_local_candidates) {
+		ao2_ref(rtp->ice_local_candidates, +1);
 	}
 
-	return rtp->local_candidates;
+	return rtp->ice_local_candidates;
 }
 
 static void ast_rtp_ice_lite(struct ast_rtp_instance *instance)
@@ -620,20 +698,6 @@ static void ast_rtp_ice_lite(struct ast_rtp_instance *instance)
 	pj_ice_sess_change_role(rtp->ice, PJ_ICE_SESS_ROLE_CONTROLLING);
 }
 
-static int ice_candidate_cmp(void *obj, void *arg, int flags)
-{
-	struct ast_rtp_engine_ice_candidate *candidate1 = obj, *candidate2 = arg;
-
-	if ((strcmp(candidate1->foundation, candidate2->foundation)) ||
-	    (candidate1->id != candidate2->id) ||
-	    (ast_sockaddr_cmp(&candidate1->address, &candidate2->address)) ||
-	    (candidate1->type != candidate1->type)) {
-		return 0;
-	}
-
-	return CMP_MATCH | CMP_STOP;
-}
-
 static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned transport_id, pj_ice_cand_type type, pj_uint16_t local_pref,
 					const pj_sockaddr_t *addr, const pj_sockaddr_t *base_addr, const pj_sockaddr_t *rel_addr, int addr_len)
 {
@@ -645,7 +709,7 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 
 	pj_ice_calc_foundation(rtp->ice->pool, &foundation, type, addr);
 
-	if (!rtp->local_candidates && !(rtp->local_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
+	if (!rtp->ice_local_candidates && !(rtp->ice_local_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
 		return;
 	}
 
@@ -673,7 +737,7 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 		candidate->type = AST_RTP_ICE_CANDIDATE_TYPE_RELAYED;
 	}
 
-	if ((existing = ao2_find(rtp->local_candidates, candidate, OBJ_POINTER))) {
+	if ((existing = ao2_find(rtp->ice_local_candidates, candidate, OBJ_POINTER))) {
 		ao2_ref(existing, -1);
 		ao2_ref(candidate, -1);
 		return;
@@ -687,7 +751,7 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 	/* By placing the candidate into the ICE session it will have produced the priority, so update the local candidate with it */
 	candidate->priority = rtp->ice->lcand[rtp->ice->lcand_cnt - 1].prio;
 
-	ao2_link(rtp->local_candidates, candidate);
+	ao2_link(rtp->ice_local_candidates, candidate);
 	ao2_ref(candidate, -1);
 }
 
@@ -1767,16 +1831,68 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 	return (unsigned int) ms;
 }
 
+#ifdef HAVE_PJPROJECT
+/*!
+ * \internal
+ * \brief Creates an ICE session. Can be used to replace a destroyed ICE session.
+ *
+ * \param instance RTP instance for which the ICE session is being replaced
+ * \param addr ast_sockaddr to use for adding RTP candidates to the ICE session
+ * \param port port to use for adding RTP candidates to the ICE session
+ * \param replace 0 when creating a new session, 1 when replacing a destroyed session
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *addr,
+	int port, int replace)
+{
+	pj_stun_config stun_config;
+	pj_str_t ufrag, passwd;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	ao2_cleanup(rtp->ice_local_candidates);
+	rtp->ice_local_candidates = NULL;
+
+	pj_thread_register_check();
+
+	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, ioqueue, timerheap);
+
+	ufrag = pj_str(rtp->local_ufrag);
+	passwd = pj_str(rtp->local_passwd);
+
+	/* Create an ICE session for ICE negotiation */
+	if (pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN, 2,
+			&ast_rtp_ice_sess_cb, &ufrag, &passwd, NULL, &rtp->ice) == PJ_SUCCESS) {
+		/* Make this available for the callbacks */
+		rtp->ice->user_data = rtp;
+
+		/* Add all of the available candidates to the ICE session */
+		rtp_add_candidates_to_ice(instance, rtp, addr, port, AST_RTP_ICE_COMPONENT_RTP,
+			TRANSPORT_SOCKET_RTP, &ast_rtp_turn_rtp_sock_cb, &rtp->turn_rtp);
+
+		/* Only add the RTCP candidates to ICE when replacing the session. New sessions
+		 * handle this in a separate part of the setup phase */
+		if (replace && rtp->rtcp) {
+			rtp_add_candidates_to_ice(instance, rtp, &rtp->rtcp->us,
+				ast_sockaddr_port(&rtp->rtcp->us), AST_RTP_ICE_COMPONENT_RTCP,
+				TRANSPORT_SOCKET_RTCP, &ast_rtp_turn_rtcp_sock_cb, &rtp->turn_rtcp);
+		}
+
+		return 0;
+	}
+
+	return -1;
+
+}
+#endif
+
 static int ast_rtp_new(struct ast_rtp_instance *instance,
 		       struct ast_sched_context *sched, struct ast_sockaddr *addr,
 		       void *data)
 {
 	struct ast_rtp *rtp = NULL;
 	int x, startplace;
-#ifdef HAVE_PJPROJECT
-	pj_stun_config stun_config;
-	pj_str_t ufrag, passwd;
-#endif
 
 	/* Create a new RTP structure to hold all of our data */
 	if (!(rtp = ast_calloc(1, sizeof(*rtp)))) {
@@ -1835,24 +1951,19 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	}
 
 #ifdef HAVE_PJPROJECT
-	pj_thread_register_check();
-
-	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, ioqueue, timerheap);
-
 	generate_random_string(rtp->local_ufrag, sizeof(rtp->local_ufrag));
-	ufrag = pj_str(rtp->local_ufrag);
 	generate_random_string(rtp->local_passwd, sizeof(rtp->local_passwd));
-	passwd = pj_str(rtp->local_passwd);
 #endif
 	ast_rtp_instance_set_data(instance, rtp);
 #ifdef HAVE_PJPROJECT
 	/* Create an ICE session for ICE negotiation */
-	if (icesupport && pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN, 2, &ast_rtp_ice_sess_cb, &ufrag, &passwd, NULL, &rtp->ice) == PJ_SUCCESS) {
-		/* Make this available for the callbacks */
-		rtp->ice->user_data = rtp;
-
-		/* Add all of the available candidates to the ICE session */
-		rtp_add_candidates_to_ice(instance, rtp, addr, x, AST_RTP_ICE_COMPONENT_RTP, TRANSPORT_SOCKET_RTP, &ast_rtp_turn_rtp_sock_cb, &rtp->turn_rtp);
+	if (icesupport) {
+		if (ice_create(instance, addr, x, 0)) {
+			ast_log(LOG_NOTICE, "Failed to start ICE session\n");
+		} else {
+			rtp->ice_port = x;
+			ast_sockaddr_copy(&rtp->ice_original_rtp_addr, addr);
+		}
 	}
 #endif
 
@@ -1918,12 +2029,12 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	}
 
 	/* Destroy any candidates */
-	if (rtp->local_candidates) {
-		ao2_ref(rtp->local_candidates, -1);
+	if (rtp->ice_local_candidates) {
+		ao2_ref(rtp->ice_local_candidates, -1);
 	}
 
-	if (rtp->remote_candidates) {
-		ao2_ref(rtp->remote_candidates, -1);
+	if (rtp->ice_active_remote_candidates) {
+		ao2_ref(rtp->ice_active_remote_candidates, -1);
 	}
 #endif
 
