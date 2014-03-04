@@ -1399,7 +1399,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 				*rc = who;
 				ast_debug(1, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, ast_channel_name(who));
 				res = AST_BRIDGE_COMPLETE;
-				goto remote_bridge_cleanup;
+				break;
 			}
 		} else {
 			if ((fr->frametype == AST_FRAME_DTMF_BEGIN) ||
