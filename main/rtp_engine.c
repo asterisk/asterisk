@@ -1211,7 +1211,8 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0, struct 
 				*fo = fr;
 				*rc = who;
 				ast_debug(1, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass.integer, who->name);
-				return AST_BRIDGE_COMPLETE;
+				res = AST_BRIDGE_COMPLETE;
+				break;
 			}
 		} else {
 			if ((fr->frametype == AST_FRAME_DTMF_BEGIN) ||
