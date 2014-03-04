@@ -18302,7 +18302,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		print_codec_to_cli(fd, &peer->prefs);
 		ast_cli(fd, ")\n");
 
-		ast_cli(fd, "  Auto-Framing :  %s \n", AST_CLI_YESNO(peer->autoframing));
+		ast_cli(fd, "  Auto-Framing : %s\n", AST_CLI_YESNO(peer->autoframing));
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));
 		ast_cli(fd, "%s\n", status);
