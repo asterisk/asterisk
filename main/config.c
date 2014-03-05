@@ -1146,7 +1146,7 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 		AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 	}
 
-	if (!stat(configfile, &statbuf)) {
+	if (stat(configfile, &statbuf)) {
 		cfmstat_clear(cfmtime);
 	} else {
 		cfmstat_save(cfmtime, &statbuf);
