@@ -562,6 +562,12 @@ AC_HEADER_TIME
 AC_STRUCT_TM
 AC_C_VOLATILE
 AC_CHECK_TYPES([ptrdiff_t])
+stat_nsec_found=no
+AC_CHECK_MEMBERS([struct stat.st_mtim, struct stat.st_mtimensec, struct stat.st_mtimespec], [stat_nsec_found=yes], [], [[#include <sys/stat.h>]])
+
+if test "${stat_nsec_found}" != yes; then
+	AC_MSG_WARN(Cannot determine nanosecond field of struct stat)
+fi
 
 # Checks for library functions.
 AC_FUNC_CHOWN

@@ -1212,10 +1212,14 @@ static void cfmstat_clear(struct cache_file_mtime *cfmtime)
 static void cfmstat_save(struct cache_file_mtime *cfmtime, struct stat *statbuf)
 {
 	cfmtime->stat_size = statbuf->st_size;
-#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || (defined(_POSIX_C_SOURCE) && 200809L <= _POSIX_C_SOURCE) || (defined(_XOPEN_SOURCE) && 700 <= _XOPEN_SOURCE)
+#if defined(HAVE_STRUCT_STAT_ST_MTIM)
 	cfmtime->stat_mtime_nsec = statbuf->st_mtim.tv_nsec;
-#else
+#elif defined(HAVE_STRUCT_STAT_ST_MTIMENSEC)
 	cfmtime->stat_mtime_nsec = statbuf->st_mtimensec;
+#elif defined(HAVE_STRUCT_STAT_ST_MTIMESPEC)
+	cfmtime->stat_mtime_nsec = statbuf->st_mtimespec.tv_nsec;
+#else
+	cfmtime->stat_mtime_nsec = 0;
 #endif
 	cfmtime->stat_mtime = statbuf->st_mtime;
 }
