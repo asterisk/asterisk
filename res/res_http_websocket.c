@@ -433,7 +433,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		}
 
 		if (!(new_payload = ast_realloc(session->payload, (session->payload_len + *payload_len)))) {
-			ast_log(LOG_WARNING, "Failed allocation: %p, %zd, %lu\n",
+			ast_log(LOG_WARNING, "Failed allocation: %p, %zd, %"PRIu64"\n",
 				session->payload, session->payload_len, *payload_len);
 			*payload_len = 0;
 			ast_websocket_close(session, 1009);
