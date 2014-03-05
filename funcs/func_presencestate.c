@@ -90,7 +90,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Set(BASE64_LAMP3_PRESENCE=${PRESENCE_STATE(CustomPresence:lamp3,subtype,e)})</para>
 			<para>You can subscribe to the status of a custom presence state using a hint in
 			the dialplan:</para>
-			<para>exten => 1234,hint,CustomPresence:lamp1</para>
+			<para>exten => 1234,hint,,CustomPresence:lamp1</para>
 			<para>The possible values for both uses of this function are:</para>
 			<para>not_set | unavailable | available | away | xa | chat | dnd</para>
 		</description>
