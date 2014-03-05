@@ -4196,6 +4196,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 		s->device->missed_call = 0;
 		break;
 	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_UPDATE_RTP_PEER:
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
@@ -5114,14 +5115,14 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			return NULL;
 		}
 		ast_copy_string(d->name, cat, sizeof(d->name));
+		d->contrast = -1;
+		d->output = OUTPUT_HANDSET;
+		d->previous_output = OUTPUT_HANDSET;
+		d->volume = VOLUME_LOW;
+		d->mute = MUTE_OFF;
+		d->height = DEFAULTHEIGHT;
 	}
 	ast_copy_string(context, DEFAULTCONTEXT, sizeof(context));
-	d->contrast = -1;
-	d->output = OUTPUT_HANDSET;
-	d->previous_output = OUTPUT_HANDSET;
-	d->volume = VOLUME_LOW;
-	d->mute = MUTE_OFF;
-	d->height = DEFAULTHEIGHT;
 	linelabel[0] = '\0';
 	dateformat = 1;
 	timeformat = 1;
@@ -5614,15 +5615,51 @@ static enum ast_rtp_glue_result unistim_get_rtp_peer(struct ast_channel *chan, s
 {
 	struct unistim_subchannel *sub = chan->tech_pvt;
 
+	if (!sub) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+	if (!sub->rtp) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
 	ao2_ref(sub->rtp, +1);
 	*instance = sub->rtp;
 
 	return AST_RTP_GLUE_RESULT_LOCAL;
 }
 
+static int unistim_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, format_t codecs, int nat_active)
+{
+	struct unistim_subchannel *sub;
+	struct sockaddr_in them = { 0, };
+	struct sockaddr_in us = { 0, };
+
+	if (!rtp) {
+		return 0;
+	}
+	
+	sub = chan->tech_pvt;
+	if (!sub) {
+		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
+		return -1;
+	}
+	{
+		struct ast_sockaddr tmp;
+		ast_rtp_instance_get_remote_address(rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &them);
+		ast_rtp_instance_get_local_address(rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &us);
+	}
+	
+	/* TODO: Set rtp on phone in case of direct rtp (not implemented) */
+	
+	return 0;
+}
+
 static struct ast_rtp_glue unistim_rtp_glue = {
 	.type = channel_type,
 	.get_rtp_info = unistim_get_rtp_peer,
+	.update_peer = unistim_set_rtp_peer,
 };
 
 /*--- load_module: PBX load module - initialization ---*/
