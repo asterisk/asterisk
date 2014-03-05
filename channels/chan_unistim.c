@@ -3234,6 +3234,11 @@ static void handle_call_incoming(struct unistimsession *s)
 		ast_verb(0, "Handle Call Incoming for %s@%s\n", sub->parent->name,
 					s->device->name);
 	}
+	start_rtp(sub);
+	if (!sub->rtp) {
+		ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, s->device->name);
+		return;
+	}
 	if (sub->owner) {
 		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 	}
@@ -4477,7 +4482,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (memcmp(buf + SIZE_HEADER, packet_recv_pick_up, sizeof(packet_recv_pick_up)) == 0) {
 		if (unistimdebug) {
-			ast_verb(0, "Handset off hook\n");
+			ast_verb(0, "Handset off hook, current state: %s\n", ptestate_tostr(pte->state));
 		}
 		if (!pte->device) {	       /* We are not yet registered (asking for a TN in AUTOPROVISIONING_TN) */
 			return;
@@ -4503,7 +4508,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (memcmp(buf + SIZE_HEADER, packet_recv_hangup, sizeof(packet_recv_hangup)) == 0) {
 		if (unistimdebug) {
-			ast_verb(0, "Handset on hook\n");
+			ast_verb(0, "Handset on hook, current state: %s\n", ptestate_tostr(pte->state));
 		}
 		if (!pte->device) {
 			return;
@@ -4878,7 +4883,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		unistim_unalloc_sub(d, sub);
 		return 0;
 	}
-	if (sub_real && (sub_real->owner) && (sub->subtype == SUB_THREEWAY)) { /* 3way call cancelled by softkey pressed */
+	if (sub_real && (sub_real->owner) && (sub->subtype == SUB_THREEWAY) && (s->state == STATE_CALL)) { /* 3way call cancelled by softkey pressed */
 		if (unistimdebug) {
 			ast_verb(0, "Real call disconnected, stay in call\n");
 		}
@@ -4966,9 +4971,6 @@ static int unistim_answer(struct ast_channel *ast)
 	l = sub->parent;
 	d = l->parent;
 
-	if ((!sub->rtp) && (!get_sub(d, SUB_THREEWAY))) {
-		start_rtp(sub);
-	}
 	if (unistimdebug) {
 		ast_verb(0, "unistim_answer(%s) on %s@%s-%d\n", ast_channel_name(ast), l->name,
 					l->parent->name, sub->softkey);
@@ -5223,8 +5225,7 @@ static void in_band_indication(struct ast_channel *ast, const struct ast_tone_zo
 	}
 }
 
-static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
-	size_t datalen)
+static int unistim_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen)
 {
 	struct unistim_subchannel *sub;
 	struct unistim_line *l;
@@ -5282,6 +5283,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_SRCUPDATE:
 	case AST_CONTROL_PROCEEDING:
+	case AST_CONTROL_UPDATE_RTP_PEER:
 		break;
 	case -1:
 		ast_playtones_stop(ast);
@@ -5296,7 +5298,9 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 		}
 		break;
 	case AST_CONTROL_SRCCHANGE:
-		ast_rtp_instance_change_source(sub->rtp);
+		if (sub->rtp) {
+			ast_rtp_instance_change_source(sub->rtp);
+		}
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
@@ -5908,14 +5912,7 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 	if (unistimdebug) {
 		ast_verb(0, "unistim_request owner = %p\n", sub->owner);
 	}
-	start_rtp(sub);
-	if (!sub->rtp) {
-		ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, d->name);
-                                    return NULL;
-	}
-
 	restart_monitor();
-
 	/* and finish */
 	return tmpc;
 }
@@ -6345,6 +6342,16 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		}
 		ast_mutex_init(&d->lock);
 		ast_copy_string(d->name, cat, sizeof(d->name));
+		
+		ast_copy_string(d->context, DEFAULTCONTEXT, sizeof(d->context));
+		d->contrast = -1;
+		d->output = OUTPUT_HANDSET;
+		d->previous_output = OUTPUT_HANDSET;
+		d->volume = VOLUME_LOW;
+		d->mute = MUTE_OFF;
+		d->height = DEFAULTHEIGHT;
+		d->selected = -1;
+		d->interdigit_timer = DEFAULT_INTERDIGIT_TIMER;
 	} else {
 		/* Delete existing line information */
 		AST_LIST_LOCK(&d->lines);
@@ -6364,16 +6371,6 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		memset(d->sline, 0, sizeof(d->sline));
 		memset(d->sp, 0, sizeof(d->sp));
 	}
-
-	ast_copy_string(d->context, DEFAULTCONTEXT, sizeof(d->context));
-	d->contrast = -1;
-	d->output = OUTPUT_HANDSET;
-	d->previous_output = OUTPUT_HANDSET;
-	d->volume = VOLUME_LOW;
-	d->mute = MUTE_OFF;
-	d->height = DEFAULTHEIGHT;
-	d->selected = -1;
-	d->interdigit_timer = DEFAULT_INTERDIGIT_TIMER;
 	linelabel[0] = '\0';
 	dateformat = 1;
 	timeformat = 1;
@@ -6905,15 +6902,51 @@ static enum ast_rtp_glue_result unistim_get_rtp_peer(struct ast_channel *chan, s
 {
 	struct unistim_subchannel *sub = ast_channel_tech_pvt(chan);
 
+	if (!sub) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+	if (!sub->rtp) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
 	ao2_ref(sub->rtp, +1);
 	*instance = sub->rtp;
 
 	return AST_RTP_GLUE_RESULT_LOCAL;
 }
 
+static int unistim_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *rtp, struct ast_rtp_instance *vrtp, struct ast_rtp_instance *trtp, const struct ast_format_cap *codecs, int nat_active)
+{
+	struct unistim_subchannel *sub = ast_channel_tech_pvt(chan);
+	struct sockaddr_in them = { 0, };
+	struct sockaddr_in us = { 0, };
+
+	if (!rtp) {
+		return 0;
+	}
+	
+	sub = (struct unistim_subchannel *) ast_channel_tech_pvt(chan);
+	if (!sub) {
+		ast_log(LOG_ERROR, "No Private Structure, this is bad\n");
+		return -1;
+	}
+	{
+		struct ast_sockaddr tmp;
+		ast_rtp_instance_get_remote_address(rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &them);
+		ast_rtp_instance_get_local_address(rtp, &tmp);
+		ast_sockaddr_to_sin(&tmp, &us);
+	}
+	
+	/* TODO: Set rtp on phone in case of direct rtp (not implemented) */
+	
+	return 0;
+}
+
 static struct ast_rtp_glue unistim_rtp_glue = {
 	.type = channel_type,
 	.get_rtp_info = unistim_get_rtp_peer,
+	.update_peer = unistim_set_rtp_peer,
 };
 
 /*--- load_module: PBX load module - initialization ---*/
