@@ -58,6 +58,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Maximum reconstruction size for multi-frame payload reconstruction. */
 #define MAXIMUM_RECONSTRUCTION_CEILING 16384
 
+/*! \brief Maximum size of a websocket frame header
+ * 1 byte flags and opcode
+ * 1 byte mask flag + payload len
+ * 8 bytes max extended length
+ * 4 bytes optional masking key
+ * ... payload follows ...
+ * */
+#define MAX_WS_HDR_SZ 14
+#define MIN_WS_HDR_SZ 2
+
 /*! \brief Structure definition for session */
 struct ast_websocket {
 	FILE *f;                          /*!< Pointer to the file instance used for writing and reading */
@@ -230,6 +240,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	if (fwrite(payload, 1, actual_length, session->f) != actual_length) {
 		return -1;
 	}
+	fflush(session->f);
 
 	return 0;
 }
@@ -286,111 +297,131 @@ int AST_OPTIONAL_API_NAME(ast_websocket_set_nonblock)(struct ast_websocket *sess
 	return 0;
 }
 
+/* MAINTENANCE WARNING on ast_websocket_read()!
+ *
+ * We have to keep in mind during this function that the fact that session->fd seems ready
+ * (via poll) does not necessarily mean we have application data ready, because in the case
+ * of an SSL socket, there is some encryption data overhead that needs to be read from the
+ * TCP socket, so poll() may say there are bytes to be read, but whether it is just 1 byte
+ * or N bytes we do not know that, and we do not know how many of those bytes (if any) are
+ * for application data (for us) and not just for the SSL protocol consumption
+ *
+ * There used to be a couple of nasty bugs here that were fixed in last refactoring but I
+ * want to document them so the constraints are clear and we do not re-introduce them:
+ *
+ * - This function would incorrectly assume that fread() would necessarily return more than
+ *   1 byte of data, just because a websocket frame is always >= 2 bytes, but the thing
+ *   is we're dealing with a TCP bitstream here, we could read just one byte and that's normal.
+ *   The problem before was that if just one byte was read, the function bailed out and returned
+ *   an error, effectively dropping the first byte of a websocket frame header!
+ *
+ * - Another subtle bug was that it would just read up to MAX_WS_HDR_SZ (14 bytes) via fread()
+ *   then assume that executing poll() would tell you if there is more to read, but since
+ *   we're dealing with a buffered stream (session->f is a FILE*), poll would say there is
+ *   nothing else to read (in the real tcp socket session->fd) and we would get stuck here
+ *   without processing the rest of the data in session->f internal buffers until another packet
+ *   came on the network to unblock us!
+ *
+ * Note during the header parsing stage we try to read in small chunks just what we need, this
+ * is buffered data anyways, no expensive syscall required most of the time ...
+ */
+static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len, enum ast_websocket_opcode *opcode)
+{
+	int sanity;
+	size_t rlen;
+	int xlen = len;
+	char *rbuf = buf;
+	for (sanity = 10; sanity; sanity--) {
+		clearerr(session->f);
+		rlen = fread(rbuf, 1, xlen, session->f);
+		if (0 == rlen && ferror(session->f) && errno != EAGAIN) {
+			ast_log(LOG_ERROR, "Error reading from web socket: %s\n", strerror(errno));
+			(*opcode) = AST_WEBSOCKET_OPCODE_CLOSE;
+			session->closing = 1;
+			return -1;
+		}
+		xlen = (xlen - rlen);
+		rbuf = rbuf + rlen;
+		if (0 == xlen) {
+			break;
+		}
+		if (ast_wait_for_input(session->fd, 1000) < 0) {
+			ast_log(LOG_ERROR, "ast_wait_for_input returned err: %s\n", strerror(errno));
+			(*opcode) = AST_WEBSOCKET_OPCODE_CLOSE;
+			session->closing = 1;
+			return -1;
+		}
+	}
+	if (!sanity) {
+		ast_log(LOG_WARNING, "Websocket seems unresponsive, disconnecting ...\n");
+		(*opcode) = AST_WEBSOCKET_OPCODE_CLOSE;
+		session->closing = 1;
+		return -1;
+	}
+	return 0;
+}
+
 int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented)
 {
 	char buf[MAXIMUM_FRAME_SIZE] = "";
-	size_t frame_size, expected = 2;
+	int fin = 0;
+	int mask_present = 0;
+	char *mask = NULL, *new_payload = NULL;
+	size_t options_len = 0, frame_size = 0;
 
 	*payload = NULL;
 	*payload_len = 0;
 	*fragmented = 0;
 
-	/* We try to read in 14 bytes, which is the largest possible WebSocket header */
-	if ((frame_size = fread(&buf, 1, 14, session->f)) < 1) {
-		return -1;
+	if (ws_safe_read(session, &buf[0], MIN_WS_HDR_SZ, opcode)) {
+		return 0;
 	}
+	frame_size += MIN_WS_HDR_SZ;
 
-	/* The minimum size for a WebSocket frame is 2 bytes */
-	if (frame_size < expected) {
-		return -1;
-	}
-
+	/* ok, now we have the first 2 bytes, so we know some flags, opcode and payload length (or whether payload length extension will be required) */
 	*opcode = buf[0] & 0xf;
-
+	*payload_len = buf[1] & 0x7f;
 	if (*opcode == AST_WEBSOCKET_OPCODE_TEXT || *opcode == AST_WEBSOCKET_OPCODE_BINARY || *opcode == AST_WEBSOCKET_OPCODE_CONTINUATION ||
 	    *opcode == AST_WEBSOCKET_OPCODE_PING || *opcode == AST_WEBSOCKET_OPCODE_PONG) {
-		int fin = (buf[0] >> 7) & 1;
-		int mask_present = (buf[1] >> 7) & 1;
-		char *mask = NULL, *new_payload;
-		size_t remaining;
+		fin = (buf[0] >> 7) & 1;
+		mask_present = (buf[1] >> 7) & 1;
 
-		if (mask_present) {
-			/* The mask should take up 4 bytes */
-			expected += 4;
-
-			if (frame_size < expected) {
-				/* Per the RFC 1009 means we received a message that was too large for us to process */
-				ast_websocket_close(session, 1009);
+		/* Based on the mask flag and payload length, determine how much more we need to read before start parsing the rest of the header */
+		options_len += mask_present ? 4 : 0;
+		options_len += (*payload_len == 126) ? 2 : (*payload_len == 127) ? 8 : 0;
+		if (options_len) {
+			/* read the rest of the header options */
+			if (ws_safe_read(session, &buf[frame_size], options_len, opcode)) {
 				return 0;
 			}
+			frame_size += options_len;
 		}
 
-		/* Assume no extended length and no masking at the beginning */
-		*payload_len = buf[1] & 0x7f;
-		*payload = &buf[2];
-
-		/* Determine if extended length is being used */
 		if (*payload_len == 126) {
-			/* Use the next 2 bytes to get a uint16_t */
-			expected += 2;
-			*payload += 2;
-
-			if (frame_size < expected) {
-				ast_websocket_close(session, 1009);
-				return 0;
-			}
-
+			/* Grab the 2-byte payload length  */
 			*payload_len = ntohs(get_unaligned_uint16(&buf[2]));
+			mask = &buf[4];
 		} else if (*payload_len == 127) {
-			/* Use the next 8 bytes to get a uint64_t */
-			expected += 8;
-			*payload += 8;
-
-			if (frame_size < expected) {
-				ast_websocket_close(session, 1009);
-				return 0;
-			}
-
+			/* Grab the 8-byte payload length  */
 			*payload_len = ntohl(get_unaligned_uint64(&buf[2]));
+			mask = &buf[10];
+		} else {
+			/* Just set the mask after the small 2-byte header */
+			mask = &buf[2];
 		}
 
-		/* If masking is present the payload currently points to the mask, so move it over 4 bytes to the actual payload */
-		if (mask_present) {
-			mask = *payload;
-			*payload += 4;
-		}
-
-		/* Determine how much payload we need to read in as we may have already read some in */
-		remaining = *payload_len - (frame_size - expected);
-
-		/* If how much payload they want us to read in exceeds what we are capable of close the session, things
-		 * will fail no matter what most likely */
-		if (remaining > (MAXIMUM_FRAME_SIZE - frame_size)) {
+		/* Now read the rest of the payload */
+		*payload = &buf[frame_size]; /* payload will start here, at the end of the options, if any */
+		frame_size = frame_size + (*payload_len); /* final frame size is header + optional headers + payload data */
+		if (frame_size > MAXIMUM_FRAME_SIZE) {
+			ast_log(LOG_WARNING, "Cannot fit huge websocket frame of %zd bytes\n", frame_size);
+			/* The frame won't fit :-( */
 			ast_websocket_close(session, 1009);
-			return 0;
+			return -1;
 		}
 
-		new_payload = *payload + (frame_size - expected);
-
-		/* Read in the remaining payload */
-		while (remaining > 0) {
-			size_t payload_read;
-
-			/* Wait for data to come in */
-			if (ast_wait_for_input(session->fd, -1) <= 0) {
-				*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
-				*payload = NULL;
-				session->closing = 1;
-				return 0;
-			}
-
-			/* If some sort of failure occurs notify the caller */
-			if ((payload_read = fread(new_payload, 1, remaining, session->f)) < 1) {
-				return -1;
-			}
-
-			remaining -= payload_read;
-			new_payload += payload_read;
+		if (ws_safe_read(session, (*payload), (*payload_len), opcode)) {
+			return 0;
 		}
 
 		/* If a mask is present unmask the payload */
@@ -401,7 +432,9 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			}
 		}
 
-		if (!(new_payload = ast_realloc(session->payload, session->payload_len + *payload_len))) {
+		if (!(new_payload = ast_realloc(session->payload, (session->payload_len + *payload_len)))) {
+			ast_log(LOG_WARNING, "Failed allocation: %p, %zd, %lu\n",
+				session->payload, session->payload_len, *payload_len);
 			*payload_len = 0;
 			ast_websocket_close(session, 1009);
 			return 0;
@@ -413,7 +446,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		}
 
 		session->payload = new_payload;
-		memcpy(session->payload + session->payload_len, *payload, *payload_len);
+		memcpy((session->payload + session->payload_len), (*payload), (*payload_len));
 		session->payload_len += *payload_len;
 
 		if (!fin && session->reconstruct && (session->payload_len < session->reconstruct)) {
@@ -439,15 +472,15 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			session->payload_len = 0;
 		}
 	} else if (*opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
-		char *new_payload;
-
-		*payload_len = buf[1] & 0x7f;
-
 		/* Make the payload available so the user can look at the reason code if they so desire */
 		if ((*payload_len) && (new_payload = ast_realloc(session->payload, *payload_len))) {
+			if (ws_safe_read(session, &buf[frame_size], (*payload_len), opcode)) {
+				return 0;
+			}
 			session->payload = new_payload;
-			memcpy(session->payload, &buf[2], *payload_len);
+			memcpy(session->payload, &buf[frame_size], *payload_len);
 			*payload = session->payload;
+			frame_size += (*payload_len);
 		}
 
 		if (!session->closing) {
@@ -458,6 +491,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		session->f = NULL;
 		ast_verb(2, "WebSocket connection from '%s' closed\n", ast_sockaddr_stringify(&session->address));
 	} else {
+		ast_log(LOG_WARNING, "WebSocket unknown opcode %d\n", *opcode);
 		/* We received an opcode that we don't understand, the RFC states that 1003 is for a type of data that can't be accepted... opcodes
 		 * fit that, I think. */
 		ast_websocket_close(session, 1003);
@@ -578,6 +612,7 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 			upgrade,
 			base64,
 			protocol);
+		fflush(ser->f);
 	} else {
 
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75 or completely unknown */
@@ -634,6 +669,8 @@ static void websocket_echo_callback(struct ast_websocket *session, struct ast_va
 {
 	int flags, res;
 
+	ast_debug(1, "Entering WebSocket echo loop\n");
+
 	if ((flags = fcntl(ast_websocket_fd(session), F_GETFL)) == -1) {
 		goto end;
 	}
@@ -652,6 +689,7 @@ static void websocket_echo_callback(struct ast_websocket *session, struct ast_va
 
 		if (ast_websocket_read(session, &payload, &payload_len, &opcode, &fragmented)) {
 			/* We err on the side of caution and terminate the session if any error occurs */
+			ast_log(LOG_WARNING, "Read failure during WebSocket echo loop\n");
 			break;
 		}
 
@@ -659,10 +697,13 @@ static void websocket_echo_callback(struct ast_websocket *session, struct ast_va
 			ast_websocket_write(session, opcode, payload, payload_len);
 		} else if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
 			break;
+		} else {
+			ast_debug(1, "Ignored WebSocket opcode %d\n", opcode);
 		}
 	}
 
 end:
+	ast_debug(1, "Exitting WebSocket echo loop\n");
 	ast_websocket_unref(session);
 }
 
