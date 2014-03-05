@@ -3192,6 +3192,11 @@ static void handle_call_incoming(struct unistimsession *s)
 		ast_verb(0, "Handle Call Incoming for %s@%s\n", sub->parent->name,
 					s->device->name);
 	}
+	start_rtp(sub);
+	if (!sub->rtp) {
+		ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, s->device->name);
+		return;
+	}
 	if (sub->owner) {
 		ast_queue_control(sub->owner, AST_CONTROL_ANSWER);
 	}
@@ -4421,7 +4426,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (memcmp(buf + SIZE_HEADER, packet_recv_pick_up, sizeof(packet_recv_pick_up)) == 0) {
 		if (unistimdebug) {
-			ast_verb(0, "Handset off hook\n");
+			ast_verb(0, "Handset off hook, current state: %s\n", ptestate_tostr(pte->state));
 		}
 		if (!pte->device) {	       /* We are not yet registered (asking for a TN in AUTOPROVISIONING_TN) */
 			return;
@@ -4447,7 +4452,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	}
 	if (memcmp(buf + SIZE_HEADER, packet_recv_hangup, sizeof(packet_recv_hangup)) == 0) {
 		if (unistimdebug) {
-			ast_verb(0, "Handset on hook\n");
+			ast_verb(0, "Handset on hook, current state: %s\n", ptestate_tostr(pte->state));
 		}
 		if (!pte->device) {
 			return;
@@ -4824,7 +4829,7 @@ static int unistim_hangup(struct ast_channel *ast)
 		unistim_unalloc_sub(d, sub);
 		return 0;
 	}
-	if (sub_real && (sub_real->owner) && (sub->subtype == SUB_THREEWAY)) { /* 3way call cancelled by softkey pressed */
+	if (sub_real && (sub_real->owner) && (sub->subtype == SUB_THREEWAY) && (s->state == STATE_CALL)) { /* 3way call cancelled by softkey pressed */
 		if (unistimdebug) {
 			ast_verb(0, "Real call disconnected, stay in call\n");
 		}
@@ -4912,9 +4917,6 @@ static int unistim_answer(struct ast_channel *ast)
 	l = sub->parent;
 	d = l->parent;
 
-	if ((!sub->rtp) && (!get_sub(d, SUB_THREEWAY))) {
-		start_rtp(sub);
-	}
 	if (unistimdebug) {
 		ast_verb(0, "unistim_answer(%s) on %s@%s-%d\n", ast_channel_name(ast), l->name,
 					l->parent->name, sub->softkey);
@@ -5243,7 +5245,9 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data,
 	case AST_CONTROL_UPDATE_RTP_PEER:
 		break;
 	case AST_CONTROL_SRCCHANGE:
-		ast_rtp_instance_change_source(sub->rtp);
+		if (sub->rtp) {
+			ast_rtp_instance_change_source(sub->rtp);
+		}
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
@@ -5850,14 +5854,7 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 	if (unistimdebug) {
 		ast_verb(0, "unistim_request owner = %p\n", sub->owner);
 	}
-	start_rtp(sub);
-	if (!sub->rtp) {
-		ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, d->name);
-                                    return NULL;
-	}
-
 	restart_monitor();
-
 	/* and finish */
 	return tmpc;
 }
