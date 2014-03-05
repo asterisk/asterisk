@@ -452,9 +452,19 @@ static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 	native_rtp_bridge_framehook_detach(bridge_channel);
 
 	glue = ast_rtp_instance_get_glue(ast_channel_tech(bridge_channel->chan)->type);
+	if (!glue) {
+		return;
+	}
+
 	glue->get_rtp_info(bridge_channel->chan, &instance);
-	glue->get_vrtp_info ? glue->get_vrtp_info(bridge_channel->chan, &vinstance) : AST_RTP_GLUE_RESULT_FORBID;
-	glue->get_trtp_info ? glue->get_trtp_info(bridge_channel->chan, &tinstance) : AST_RTP_GLUE_RESULT_FORBID;
+
+	if (glue->get_vrtp_info) {
+		glue->get_vrtp_info(bridge_channel->chan, &vinstance);
+	}
+
+	if (glue->get_trtp_info) {
+		glue->get_trtp_info(bridge_channel->chan, &tinstance);
+	}
 
 	/* Tear down P2P bridges */
 	if (instance) {
