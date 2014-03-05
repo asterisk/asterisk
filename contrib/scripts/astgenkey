@@ -32,7 +32,7 @@ if [ "$QUIET" != 'y' ]; then
 	echo "need to be moved to /var/lib/asterisk/keys if you want"
 	echo "to use them, and any private keys (.key files) will"
 	echo "need to be initialized at runtime either by running"
-	echo "Asterisk with the '-i' option, or with the 'init keys'"
+	echo "Asterisk with the '-i' option, or with the 'keys init'"
 	echo "command once Asterisk is running."
 	echo ""
 	echo "Press ENTER to continue or ^C to cancel."
