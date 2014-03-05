@@ -16,9 +16,6 @@
  * at the top of the source tree.
  */
 
-#ifndef STASIS_INTERNAL_H_
-#define STASIS_INTERNAL_H_
-
 /*! \file
  *
  * \brief Internal Stasis APIs.
@@ -33,9 +30,10 @@
  * \author Matt Jordan <mjordan@digium.com>
  */
 
-struct stasis_topic;
-struct stasis_subscription;
-struct stasis_message;
+#include "asterisk/stasis.h"
+
+#ifndef STASIS_INTERNAL_H_
+#define STASIS_INTERNAL_H_
 
 /*!
  * \brief Create a subscription.
@@ -62,7 +60,7 @@ struct stasis_message;
  */
 struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
-	void (*stasis_subscription_cb)(void *data, struct stasis_subscription *sub, struct stasis_message *message),
+	stasis_subscription_cb callback,
 	void *data,
 	int needs_mailbox);
 
