@@ -649,6 +649,8 @@ static void spandsp_v21_tone(void *data, int code, int level, int delay)
 
 static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame *f) {
 	struct spandsp_pvt *p = s->tech_pvt;
+	int16_t *slndata;
+	g711_state_t *decoder;
 
 	if (p->v21_detected) {
 		return 0;
@@ -659,10 +661,33 @@ static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame 
 		return -1;
 	}
 
-	modem_connect_tones_rx(p->tone_state, f->data.ptr, f->samples);
+	ast_debug(5, "frame={ datalen=%d, samples=%d, mallocd=%d, src=%s, flags=%d, ts=%ld, len=%ld, seqno=%d, data.ptr=%p, subclass.format.id=%d  }\n", f->datalen, f->samples, f->mallocd, f->src, f->flags, f->ts, f->len, f->seqno, f->data.ptr, f->subclass.format.id);
+
+	/* slinear frame can be passed to spandsp */
+	if (f->subclass.format.id == AST_FORMAT_SLINEAR) {
+		modem_connect_tones_rx(p->tone_state, f->data.ptr, f->samples);
+
+	/* alaw/ulaw frame must be converted to slinear before passing to spandsp */
+	} else if (f->subclass.format.id == AST_FORMAT_ALAW || f->subclass.format.id == AST_FORMAT_ULAW) {
+		if (!(slndata = ast_malloc(sizeof(*slndata) * f->samples))) {
+			return -1;
+		}
+		decoder = g711_init(NULL, (f->subclass.format.id == AST_FORMAT_ALAW ? G711_ALAW : G711_ULAW));
+		g711_decode(decoder, slndata, f->data.ptr, f->samples);
+		ast_debug(5, "spandsp transcoding frame from %s to slinear for v21 detection\n", (f->subclass.format.id == AST_FORMAT_ALAW ? "G711_ALAW" : "G711_ULAW"));
+		modem_connect_tones_rx(p->tone_state, slndata, f->samples);
+		g711_release(decoder);
+		ast_free(slndata);
+
+	/* frame in other formats cannot be passed to spandsp, it could cause segfault */
+	} else {
+		ast_log(LOG_WARNING, "Unknown frame format %d, v.21 detection skipped\n", f->subclass.format.id);
+		return -1;
+	}
 
 	if (p->v21_detected) {
 		s->details->option.v21_detected = 1;
+		ast_debug(5, "v.21 detected\n");
 	}
 
 	return 0;
