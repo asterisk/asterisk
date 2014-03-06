@@ -476,10 +476,11 @@ struct ast_json *stasis_app_recording_to_json(
 		return NULL;
 	}
 
-	json = ast_json_pack("{s: s, s: s, s: s}",
+	json = ast_json_pack("{s: s, s: s, s: s, s: s}",
 		"name", recording->options->name,
 		"format", recording->options->format,
-		"state", state_to_string(recording->state));
+		"state", state_to_string(recording->state),
+		"target_uri", recording->options->target);
 
 	return ast_json_ref(json);
 }

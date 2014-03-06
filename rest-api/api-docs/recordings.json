@@ -292,6 +292,11 @@
 					"type": "string",
 					"description": "Recording format (wav, gsm, etc.)"
 				},
+				"target_uri": {
+					"required": true,
+					"type": "string",
+					"description": "URI for the channel or bridge being recorded"
+				},
 				"state": {
 					"required": false,
 					"type": "string",
