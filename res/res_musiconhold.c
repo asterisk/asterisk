@@ -1486,12 +1486,6 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 				if (state && state->class) {
 					/* Class already exist for this channel */
 					ast_log(LOG_NOTICE, "This channel already has a MOH class attached (%s)!\n", state->class->name);
-					if (state->class->realtime && !ast_test_flag(global_flags, MOH_CACHERTCLASSES) && !strcasecmp(mohclass->name, state->class->name)) {
-						/* we found RT class with the same name, seems like we should continue playing existing one */
-						/* XXX This code is impossible to reach */
-						mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (channel already has a class)");
-						mohclass = state->class;
-					}
 				}
 				/* We don't want moh_register to unref the mohclass because we do it at the end of this function as well.
 				 * If we allowed moh_register to unref the mohclass,too, then the count would be off by one. The result would
@@ -1544,7 +1538,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 						if (state->class->realtime && !ast_test_flag(global_flags, MOH_CACHERTCLASSES) && !strcasecmp(mohclass->name, state->class->name)) {
 							/* we found RT class with the same name, seems like we should continue playing existing one */
 							mohclass = mohclass_unref(mohclass, "unreffing potential mohclass (channel already has one)");
-							mohclass = state->class;
+							mohclass = mohclass_ref(state->class, "using existing class from state");
 						}
 					} else {
 						if (ast_pthread_create_background(&mohclass->thread, NULL, monmp3thread, mohclass)) {
