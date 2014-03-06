@@ -755,7 +755,9 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags
 			ao2_cleanup(sub);
 		}
 	}
-	ao2_link(mwi_subscriptions, aggregate_sub);
+	if (aggregate_sub) {
+		ao2_link(mwi_subscriptions, aggregate_sub);
+	}
 	return 0;
 }
 
