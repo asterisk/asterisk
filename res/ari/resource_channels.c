@@ -468,6 +468,7 @@ void ast_ari_channels_record(struct ast_variable *headers,
 			response, 500, "Internal Server Error",
 			"Out of memory");
 	}
+	ast_string_field_build(options, target, "channel:%s", args->channel_id);
 	options->max_silence_seconds = args->max_silence_seconds;
 	options->max_duration_seconds = args->max_duration_seconds;
 	options->terminate_on =

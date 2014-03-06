@@ -140,6 +140,7 @@ struct stasis_app_recording_options {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(name);	/*!< name Name of the recording. */
 		AST_STRING_FIELD(format);	/*!< Format to be recorded (wav, gsm, etc.) */
+		AST_STRING_FIELD(target); /*!< URI of what is being recorded */
 		);
 	/*! Number of seconds of silence before ending the recording. */
 	int max_silence_seconds;

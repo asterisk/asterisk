@@ -1146,6 +1146,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - format: string (required)
  * - name: string (required)
  * - state: string (required)
+ * - target_uri: string (required)
  * StoredRecording
  * - format: string (required)
  * - name: string (required)

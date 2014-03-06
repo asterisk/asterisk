@@ -1026,6 +1026,7 @@ int ast_ari_validate_live_recording(struct ast_json *json)
 	int has_format = 0;
 	int has_name = 0;
 	int has_state = 0;
+	int has_target_uri = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
 		if (strcmp("cause", ast_json_object_iter_key(iter)) == 0) {
@@ -1067,6 +1068,16 @@ int ast_ari_validate_live_recording(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("target_uri", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_target_uri = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LiveRecording field target_uri failed validation\n");
+				res = 0;
+			}
+		} else
 		{
 			ast_log(LOG_ERROR,
 				"ARI LiveRecording has undocumented field %s\n",
@@ -1087,6 +1098,11 @@ int ast_ari_validate_live_recording(struct ast_json *json)
 
 	if (!has_state) {
 		ast_log(LOG_ERROR, "ARI LiveRecording missing required field state\n");
+		res = 0;
+	}
+
+	if (!has_target_uri) {
+		ast_log(LOG_ERROR, "ARI LiveRecording missing required field target_uri\n");
 		res = 0;
 	}
 

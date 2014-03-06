@@ -462,6 +462,7 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 		return;
 	}
 
+	ast_string_field_build(options, target, "bridge:%s", args->bridge_id);
 	options->max_silence_seconds = args->max_silence_seconds;
 	options->max_duration_seconds = args->max_duration_seconds;
 	options->terminate_on =
