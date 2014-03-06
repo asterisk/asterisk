@@ -1281,7 +1281,7 @@ static int init_app_class(struct mohclass *class)
 /*!
  * \note This function owns the reference it gets to moh if unref is true
  */
-#define moh_register(a,b,c)	_moh_register(a,b,c,__FILE__,__LINE__,__PRETTY_FUNCTION__)
+#define moh_register(moh, reload, unref) _moh_register(moh, reload, unref, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 static int _moh_register(struct mohclass *moh, int reload, int unref, const char *file, int line, const char *funcname)
 {
 	struct mohclass *mohclass = NULL;
@@ -1385,8 +1385,8 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	struct mohclass *mohclass = NULL;
 	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_variable *var = NULL;
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	struct stasis_message *message;
+	struct ast_json *json_object;
 	int res;
 	int realtime_possible = ast_check_realtime("musiconhold");
 
@@ -1603,6 +1603,8 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	if (message) {
 		stasis_publish(ast_channel_topic(chan), message);
 	}
+	ao2_cleanup(message);
+	ast_json_unref(json_object);
 
 	mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass in local_ast_moh_start");
 
@@ -1611,7 +1613,8 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 static void local_ast_moh_stop(struct ast_channel *chan)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct stasis_message *message;
+
 	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 	ast_deactivate_generator(chan);
 
@@ -1628,6 +1631,7 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 		stasis_publish(ast_channel_topic(chan), message);
 	}
 	ast_channel_unlock(chan);
+	ao2_cleanup(message);
 }
 
 static void moh_class_destructor(void *obj)
