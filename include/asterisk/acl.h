@@ -358,6 +358,17 @@ int ast_str2tos(const char *value, unsigned int *tos);
 const char *ast_tos2str(unsigned int tos);
 
 /*!
+ * \brief Convert a TOS value into its string representation
+ *        and create a dynamically allocated copy
+ *
+ * \param tos The TOS value to look up
+ * \param buf pointer to character pointer where string will be duplicated to
+ *
+ * \note The string allocated at buf must be free'd
+ */
+void ast_tos2str_buf(unsigned int tos, char **buf);
+
+/*!
  * \brief Retrieve a named ACL
  *
  * \details
