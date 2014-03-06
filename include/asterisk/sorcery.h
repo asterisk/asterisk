@@ -119,6 +119,24 @@ enum ast_sorcery_retrieve_flags {
 	AST_RETRIEVE_FLAG_ALL = (1 << 1),
 };
 
+/*!
+ * \brief Field handler flags
+ */
+enum ast_sorcery_field_handler_flags {
+	/*! \brief Try both handlers, string first */
+	AST_HANDLER_PREFER_STRING,
+
+	/*! \brief Try both handlers, list first */
+	AST_HANDLER_PREFER_LIST,
+
+	/*! \brief Use string handler only */
+	AST_HANDLER_ONLY_STRING,
+
+	/*! \brief Use list handler only */
+	AST_HANDLER_ONLY_LIST,
+};
+
+
 /*! \brief Forward declaration for the sorcery main structure */
 struct ast_sorcery;
 
@@ -465,15 +483,19 @@ int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *
  * \param type Type of object
  * \param name Name of the field
  * \param default_val Default value of the field
+ * \param config_handler A custom handler for translating the string representation of the fields
+ * \param sorcery_handler A custom handler for translating the native representation of the fields
+ * \param multiple_handler A custom handler for translating the native representation of the fields
  * \param opt_type Option type
  * \param flags Option type specific flags
  *
  * \retval 0 success
  * \retval -1 failure
  */
-int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type, const char *name, const char *default_val, enum aco_option_type opt_type,
-                                        aco_option_handler config_handler, sorcery_field_handler sorcery_handler, unsigned int flags, unsigned int no_doc,
-                                        size_t argc, ...);
+int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type,
+	const char *name, const char *default_val, enum aco_option_type opt_type,
+	aco_option_handler config_handler, sorcery_field_handler sorcery_handler,
+	sorcery_fields_handler multiple_handler, unsigned int flags, unsigned int no_doc, size_t argc, ...);
 
 /*!
  * \brief Register a field within an object
@@ -489,7 +511,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, NULL, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 /*!
  * \brief Register a field within an object without documentation
@@ -505,7 +527,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register_nodoc(sorcery, type, name, default_val, opt_type, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, NULL, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 /*!
  * \brief Register a field within an object with custom handlers
@@ -516,13 +538,14 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \param default_val Default value of the field
  * \param config_handler Custom configuration handler
  * \param sorcery_handler Custom sorcery handler
+ * \param multiple_handler Custom multiple handler
  * \param flags Option type specific flags
  *
  * \retval 0 success
  * \retval -1 failure
  */
-#define ast_sorcery_object_field_register_custom(sorcery, type, name, default_val, config_handler, sorcery_handler, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+#define ast_sorcery_object_field_register_custom(sorcery, type, name, default_val, config_handler, sorcery_handler, multiple_handler, flags, ...) \
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, multiple_handler, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*!
  * \brief Register a field within an object with custom handlers without documentation
@@ -533,13 +556,14 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \param default_val Default value of the field
  * \param config_handler Custom configuration handler
  * \param sorcery_handler Custom sorcery handler
+ * \param multiple_handler Custom multiple handler
  * \param flags Option type specific flags
  *
  * \retval 0 success
  * \retval -1 failure
  */
-#define ast_sorcery_object_field_register_custom_nodoc(sorcery, type, name, default_val, config_handler, sorcery_handler, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+#define ast_sorcery_object_field_register_custom_nodoc(sorcery, type, name, default_val, config_handler, sorcery_handler, multiple_handler, flags, ...) \
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, multiple_handler, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*!
  * \brief Inform any wizards to load persistent objects
@@ -578,6 +602,22 @@ void ast_sorcery_reload_object(const struct ast_sorcery *sorcery, const char *ty
  */
 void ast_sorcery_ref(struct ast_sorcery *sorcery);
 
+
+/*!
+ * \brief Create an object set (KVP list) for an object
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param object Pointer to a sorcery object
+ * \param flags Flags indicating which handler to use and in what order.
+ *
+ * \retval non-NULL success
+ * \retval NULL if error occurred
+ *
+ * \note The returned ast_variable list must be destroyed using ast_variables_destroy
+ */
+struct ast_variable *ast_sorcery_objectset_create2(const struct ast_sorcery *sorcery,
+	const void *object, enum ast_sorcery_field_handler_flags flags);
+
 /*!
  * \brief Create an object set (KVP list) for an object
  *
@@ -588,8 +628,14 @@ void ast_sorcery_ref(struct ast_sorcery *sorcery);
  * \retval NULL if error occurred
  *
  * \note The returned ast_variable list must be destroyed using ast_variables_destroy
+ *
+ * \note This function attempts to use a field's sorcery_fields_handler first and if that
+ * doesn't exist or fails, a field's sorcery_field_handler is used.  The difference is
+ * that the former may return multiple list entries for the same field and the latter will only
+ * return 1.  It's up to the field itself to determine what the appropriate content is.
  */
-struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorcery, const void *object);
+#define ast_sorcery_objectset_create(sorcery, object) \
+	ast_sorcery_objectset_create2(sorcery, object, AST_HANDLER_PREFER_LIST)
 
 /*!
  * \brief Create an object set in JSON format for an object

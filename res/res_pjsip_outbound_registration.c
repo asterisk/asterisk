@@ -894,7 +894,25 @@ static int outbound_auth_handler(const struct aco_option *opt, struct ast_variab
 static int outbound_auths_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct sip_outbound_registration *registration = obj;
+
 	return ast_sip_auths_to_str(&registration->outbound_auths, buf);
+}
+
+static int outbound_auths_to_vl(const void *obj, struct ast_variable **fields)
+{
+	const struct sip_outbound_registration *registration = obj;
+	int i;
+	struct ast_variable *head = NULL;
+
+	for (i = 0; i < registration->outbound_auths.num ; i++) {
+		ast_variable_list_append(&head, ast_variable_new("outbound_auth", registration->outbound_auths.names[i], ""));
+	}
+
+	if (head) {
+		*fields = head;
+	}
+
+	return 0;
 }
 
 static struct sip_outbound_registration *retrieve_registration(const char *registration_name)
@@ -1086,7 +1104,7 @@ static int ami_outbound_registration_detail(void *obj, void *arg, int flags)
 static int ami_show_outbound_registrations(struct mansession *s,
 					   const struct message *m)
 {
-	struct ast_sip_ami ami = { s = s, m = m };
+	struct ast_sip_ami ami = { .s = s, .m = m };
 	struct sip_ami_outbound ami_outbound = { .ami = &ami };
 	RAII_VAR(struct ao2_container *, regs, ast_sorcery_retrieve_by_fields(
 			 ast_sip_get_sorcery(), "registration", AST_RETRIEVE_FLAG_MULTIPLE |
@@ -1243,7 +1261,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "forbidden_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, forbidden_retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "max_retries", "10", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, max_retries));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "auth_rejection_permanent", "yes", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, auth_rejection_permanent));
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, outbound_auths_to_vl, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, support_path));
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
 	sip_outbound_registration_perform_all();

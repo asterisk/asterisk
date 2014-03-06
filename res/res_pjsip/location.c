@@ -279,6 +279,25 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 	return 0;
 }
 
+static int contact_to_vl(void *object, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = object;
+	struct ast_variable **var = arg;
+
+	ast_variable_list_append(&*var, ast_variable_new("contact", contact->uri, ""));
+
+	return 0;
+}
+
+static int contacts_to_vl(const void *obj, struct ast_variable **fields)
+{
+	const struct ast_sip_aor *aor = obj;
+
+	ast_sip_for_each_contact(aor, contact_to_vl, fields);
+
+	return 0;
+}
+
 int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg)
 {
 	char *copy, *name;
@@ -343,7 +362,46 @@ int ast_sip_contact_to_str(void *object, void *arg, int flags)
 
 static int sip_aor_to_ami(const struct ast_sip_aor *aor, struct ast_str **buf)
 {
-	return ast_sip_sorcery_object_to_ami(aor, buf);
+	RAII_VAR(struct ast_variable *, objset, ast_sorcery_objectset_create2(
+			 ast_sip_get_sorcery(), aor, AST_HANDLER_ONLY_STRING), ast_variables_destroy);
+	struct ast_variable *i;
+
+	if (!objset) {
+		return -1;
+	}
+
+	ast_str_append(buf, 0, "ObjectType: %s\r\n",
+		       ast_sorcery_object_get_type(aor));
+	ast_str_append(buf, 0, "ObjectName: %s\r\n",
+		       ast_sorcery_object_get_id(aor));
+
+	for (i = objset; i; i = i->next) {
+		char *camel = ast_to_camel_case(i->name);
+		if (strcmp(camel, "Contact") == 0) {
+			ast_free(camel);
+			camel = NULL;
+		}
+		ast_str_append(buf, 0, "%s: %s\r\n", S_OR(camel, "Contacts"), i->value);
+		ast_free(camel);
+	}
+
+	return 0;
+}
+
+static int contacts_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_aor *aor = obj;
+	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
+
+	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, &str);
+	ast_str_truncate(str, -1);
+
+	*buf = ast_strdup(ast_str_buffer(str));
+	if (!*buf) {
+		return -1;
+	}
+
+	return 0;
 }
 
 static int format_ami_aor_handler(void *obj, void *arg, int flags)
@@ -364,11 +422,6 @@ static int format_ami_aor_handler(void *obj, void *arg, int flags)
 	}
 
 	sip_aor_to_ami(aor, &buf);
-	ast_str_append(&buf, 0, "Contacts: ");
-	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, &buf);
-	ast_str_truncate(buf, -1);
-	ast_str_append(&buf, 0, "\r\n");
-
 	total_contacts = ao2_container_count(contacts);
 	num_permanent = aor->permanent_contacts ?
 		ao2_container_count(aor->permanent_contacts) : 0;
@@ -670,7 +723,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "contact", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "contact", "uri", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, uri));
 	ast_sorcery_object_field_register(sorcery, "contact", "path", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, path));
-	ast_sorcery_object_field_register_custom(sorcery, "contact", "expiration_time", "", expiration_str2struct, expiration_struct2str, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "contact", "expiration_time", "", expiration_str2struct, expiration_struct2str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "contact", "qualify_frequency", 0, OPT_UINT_T,
 					  PARSE_IN_RANGE, FLDSET(struct ast_sip_contact, qualify_frequency), 0, 86400);
 	ast_sorcery_object_field_register(sorcery, "contact", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, outbound_proxy));
@@ -684,7 +737,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "aor", "authenticate_qualify", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, authenticate_qualify));
 	ast_sorcery_object_field_register(sorcery, "aor", "max_contacts", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, max_contacts));
 	ast_sorcery_object_field_register(sorcery, "aor", "remove_existing", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, remove_existing));
-	ast_sorcery_object_field_register_custom(sorcery, "aor", "contact", "", permanent_uri_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "aor", "contact", "", permanent_uri_handler, contacts_to_str, contacts_to_vl, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, mailboxes));
 	ast_sorcery_object_field_register(sorcery, "aor", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, outbound_proxy));
 	ast_sorcery_object_field_register(sorcery, "aor", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, support_path));

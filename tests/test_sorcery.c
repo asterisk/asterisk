@@ -26,6 +26,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
+	<depend>func_sorcery</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -36,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "")
 #include "asterisk/test.h"
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/pbx.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/logger.h"
 #include "asterisk/json.h"
@@ -45,12 +47,22 @@ struct test_sorcery_object {
 	SORCERY_OBJECT(details);
 	unsigned int bob;
 	unsigned int joe;
+	struct ast_variable *jim;
+	struct ast_variable *jack;
 };
+
+/*! \brief Internal function to destroy a test object */
+static void test_sorcery_object_destroy(void *obj)
+{
+	struct test_sorcery_object *tobj = obj;
+	ast_variables_destroy(tobj->jim);
+	ast_variables_destroy(tobj->jack);
+}
 
 /*! \brief Internal function to allocate a test object */
 static void *test_sorcery_object_alloc(const char *id)
 {
-	return ast_sorcery_generic_alloc(sizeof(struct test_sorcery_object), NULL);
+	return ast_sorcery_generic_alloc(sizeof(struct test_sorcery_object), test_sorcery_object_destroy);
 }
 
 /*! \brief Internal function for object set transformation */
@@ -85,6 +97,8 @@ static int test_sorcery_copy(const void *src, void *dst)
 	struct test_sorcery_object *obj = dst;
 	obj->bob = 10;
 	obj->joe = 20;
+	obj->jim = ast_variable_new("jim", "444", "");
+	obj->jack = ast_variable_new("jack", "999,000", "");
 	return 0;
 }
 
@@ -235,6 +249,55 @@ static const struct ast_sorcery_observer test_observer = {
 	.loaded = sorcery_observer_loaded,
 };
 
+/*  This handler takes a simple value and creates new list entry for it*/
+static int jim_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct test_sorcery_object *tobj = obj;
+
+	ast_variable_list_append(&tobj->jim, ast_variables_dup(var));
+
+	return 0;
+}
+
+/*  This handler takes a CSV string and creates new a new list entry for each value */
+static int jack_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct test_sorcery_object *tobj = obj;
+
+	char *jacks = ast_strdupa(var->value);
+	char *val;
+
+	while ((val = strsep(&jacks, ","))) {
+		ast_variable_list_append(&tobj->jack, ast_variable_new("jack", val, ""));
+	}
+	return 0;
+}
+
+static int jim_vl(const void *obj, struct ast_variable **fields)
+{
+	const struct test_sorcery_object *tobj = obj;
+	if (tobj->jim) {
+		*fields = ast_variables_dup(tobj->jim);
+	}
+	return 0;
+}
+
+static int jack_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct test_sorcery_object *tobj = obj;
+	struct ast_variable *curr = tobj->jack;
+	RAII_VAR(struct ast_str *, str,	ast_str_create(128), ast_free);
+
+	while(curr) {
+		ast_str_append(&str, 0, "%s,", curr->value);
+		curr = curr->next;
+	}
+	ast_str_truncate(str, -1);
+	*buf = ast_strdup(ast_str_buffer(str));
+	str = NULL;
+	return 0;
+}
+
 static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 {
 	struct ast_sorcery *sorcery;
@@ -251,6 +314,8 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 
 	ast_sorcery_object_field_register_nodoc(sorcery, "test", "bob", "5", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, bob));
 	ast_sorcery_object_field_register_nodoc(sorcery, "test", "joe", "10", OPT_UINT_T, 0, FLDSET(struct test_sorcery_object, joe));
+	ast_sorcery_object_field_register_custom_nodoc(sorcery, "test", "jim", "444", jim_handler, NULL, jim_vl, 0, 0);
+	ast_sorcery_object_field_register_custom_nodoc(sorcery, "test", "jack", "888,999", jack_handler, jack_str, NULL, 0, 0);
 
 	return sorcery;
 }
@@ -727,6 +792,8 @@ AST_TEST_DEFINE(object_copy)
 
 	obj->bob = 50;
 	obj->joe = 100;
+	jim_handler(NULL, ast_variable_new("jim", "444", ""), obj);
+	jim_handler(NULL, ast_variable_new("jim", "555", ""), obj);
 
 	if (!(copy = ast_sorcery_copy(sorcery, obj))) {
 		ast_test_status_update(test, "Failed to create a copy of a known valid object\n");
@@ -739,6 +806,22 @@ AST_TEST_DEFINE(object_copy)
 		res = AST_TEST_FAIL;
 	} else if (copy->joe != obj->joe) {
 		ast_test_status_update(test, "Value of 'joe' on newly created copy is not the same as original\n");
+		res = AST_TEST_FAIL;
+	} else if (!copy->jim) {
+		ast_test_status_update(test, "A new ast_variable was not created for 'jim'\n");
+		res = AST_TEST_FAIL;
+	} else if (copy->jim == obj->jim) {
+		ast_test_status_update(test, "Created copy of 'jim' is actually the ogirinal 'jim'\n");
+		res = AST_TEST_FAIL;
+	} else if (strcmp(copy->jim->value, obj->jim->value)) {
+		ast_test_status_update(test, "Value of 1st 'jim' on newly created copy is not the same as original\n");
+		res = AST_TEST_FAIL;
+	} else if (!copy->jim->next) {
+		ast_test_status_update(test, "A new ast_variable was not created for 2nd 'jim'\n");
+		res = AST_TEST_FAIL;
+	} else if (strcmp(copy->jim->next->value, obj->jim->next->value)) {
+		ast_test_status_update(test, "Value of 2nd 'jim' (%s %s) on newly created copy is not the same as original (%s %s)\n",
+			copy->jim->value, copy->jim->next->value, obj->jim->value, obj->jim->next->value);
 		res = AST_TEST_FAIL;
 	}
 
@@ -791,6 +874,12 @@ AST_TEST_DEFINE(object_copy_native)
 	} else if (copy->joe != 20) {
 		ast_test_status_update(test, "Value of 'joe' on newly created copy is not the predefined native copy value\n");
 		res = AST_TEST_FAIL;
+	} else if (!copy->jim) {
+		ast_test_status_update(test, "A new ast_variable was not created for 'jim'\n");
+		res = AST_TEST_FAIL;
+	} else if (strcmp(copy->jim->value, "444")) {
+		ast_test_status_update(test, "Value of 'jim' on newly created copy is not the predefined native copy value\n");
+		res = AST_TEST_FAIL;
 	}
 
 	return res;
@@ -804,6 +893,7 @@ AST_TEST_DEFINE(object_diff)
        RAII_VAR(struct ast_variable *, changes, NULL, ast_variables_destroy);
        struct ast_variable *field;
        int res = AST_TEST_PASS;
+       int jims = 0;
 
        switch (cmd) {
        case TEST_INIT:
@@ -829,6 +919,8 @@ AST_TEST_DEFINE(object_diff)
 
        obj1->bob = 99;
        obj1->joe = 55;
+       jim_handler(NULL, ast_variable_new("jim", "444", ""), obj1);
+       jim_handler(NULL, ast_variable_new("jim", "555", ""), obj1);
 
        if (!(obj2 = ast_sorcery_alloc(sorcery, "test", "blah2"))) {
 	       ast_test_status_update(test, "Failed to allocate a second known object type\n");
@@ -837,6 +929,9 @@ AST_TEST_DEFINE(object_diff)
 
        obj2->bob = 99;
        obj2->joe = 42;
+       jim_handler(NULL, ast_variable_new("jim", "444", ""), obj2);
+       jim_handler(NULL, ast_variable_new("jim", "666", ""), obj2);
+       jim_handler(NULL, ast_variable_new("jim", "777", ""), obj2);
 
        if (ast_sorcery_diff(sorcery, obj1, obj2, &changes)) {
 	       ast_test_status_update(test, "Failed to diff obj1 and obj2\n");
@@ -845,16 +940,30 @@ AST_TEST_DEFINE(object_diff)
 	       return AST_TEST_FAIL;
        }
 
-       for (field = changes; field; field = field->next) {
-	       if (!strcmp(field->name, "joe")) {
-		       if (strcmp(field->value, "42")) {
-			       ast_test_status_update(test, "Object diff produced unexpected value '%s' for joe\n", field->value);
-			       res = AST_TEST_FAIL;
-		       }
-	       } else {
-		       ast_test_status_update(test, "Object diff produced unexpected field '%s'\n", field->name);
-		       res = AST_TEST_FAIL;
-	       }
+	for (field = changes; field; field = field->next) {
+		if (!strcmp(field->name, "joe")) {
+			if (strcmp(field->value, "42")) {
+				ast_test_status_update(test,
+					"Object diff produced unexpected value '%s' for joe\n", field->value);
+				res = AST_TEST_FAIL;
+			}
+		} else if (!strcmp(field->name, "jim")) {
+			jims++;
+			if (!strcmp(field->value, "555")) {
+				ast_test_status_update(test,
+					"Object diff produced unexpected value '%s' for jim\n", field->value);
+				res = AST_TEST_FAIL;
+			}
+		} else {
+			ast_test_status_update(test, "Object diff produced unexpected field '%s'\n",
+				field->name);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+       if (jims != 2) {
+	       ast_test_status_update(test, "Object diff didn't produce 2 jims\n");
+	       res = AST_TEST_FAIL;
        }
 
        return res;
@@ -972,6 +1081,16 @@ AST_TEST_DEFINE(objectset_create)
 				ast_test_status_update(test, "Object set failed to create proper value for 'joe'\n");
 				res = AST_TEST_FAIL;
 			}
+		} else if (!strcmp(field->name, "jim")) {
+			if (strcmp(field->value, "444")) {
+				ast_test_status_update(test, "Object set failed to create proper value for 'jim'\n");
+				res = AST_TEST_FAIL;
+			}
+		} else if (!strcmp(field->name, "jack")) {
+			if (strcmp(field->value, "888,999")) {
+				ast_test_status_update(test, "Object set failed to create proper value (%s) for 'jack'\n", field->value);
+				res = AST_TEST_FAIL;
+			}
 		} else {
 			ast_test_status_update(test, "Object set created field '%s' which is unknown\n", field->name);
 			res = AST_TEST_FAIL;
@@ -1027,6 +1146,16 @@ AST_TEST_DEFINE(objectset_json_create)
 		} else if (!strcmp(ast_json_object_iter_key(field), "joe")) {
 			if (strcmp(ast_json_string_get(value), "10")) {
 				ast_test_status_update(test, "Object set failed to create proper value for 'joe'\n");
+				res = AST_TEST_FAIL;
+			}
+		} else if (!strcmp(ast_json_object_iter_key(field), "jim")) {
+			if (strcmp(ast_json_string_get(value), "444")) {
+				ast_test_status_update(test, "Object set failed to create proper value for 'jim'\n");
+				res = AST_TEST_FAIL;
+			}
+		} else if (!strcmp(ast_json_object_iter_key(field), "jack")) {
+			if (strcmp(ast_json_string_get(value), "888,999")) {
+				ast_test_status_update(test, "Object set failed to create proper value for 'jack'\n");
 				res = AST_TEST_FAIL;
 			}
 		} else {
@@ -2696,6 +2825,176 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_multiple_all)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(dialplan_function)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
+	struct ast_str *buf;
+	char expression[256];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "dialplan_function";
+		info->category = "/main/sorcery/";
+		info->summary = "AST_SORCERY dialplan function";
+		info->description =
+			"Test the AST_SORCERY dialplan function";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(buf = ast_str_create(16))) {
+		ast_test_status_update(test, "Failed to allocate return buffer\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s)", "notest_sorcery", "test", "blah", "bob");
+	if (!ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Retrieved a non-existent module\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s)", "test_sorcery", "notest", "blah", "bob");
+	if (!ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Retrieved a non-existent type\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s)", "test_sorcery", "test", "noid", "bob");
+	if (!ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Retrieved a non-existent id\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s)", "test_sorcery", "test", "blah", "nobob");
+	if (!ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Retrieved a non-existent field\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s)", "test_sorcery", "test", "blah", "bob");
+	if (ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Failed retrieve field 'bob'\n");
+		return AST_TEST_FAIL;
+	}
+	if (strcmp(ast_str_buffer(buf), "5")) {
+		ast_free(buf);
+		ast_test_status_update(test, "Failed retrieve field.  Got '%d', should be '5'\n", obj->bob);
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s,single,1)", "test_sorcery", "test", "blah", "bob");
+	if (ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Failed retrieve field 'bob'\n");
+		return AST_TEST_FAIL;
+	}
+	if (strcmp(ast_str_buffer(buf), "5")) {
+		ast_free(buf);
+		ast_test_status_update(test, "Failed retrieve field.  Got '%d', should be '5'\n", obj->bob);
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s,single,2)", "test_sorcery", "test", "blah", "bob");
+	if (!ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Got a second 'bob' and shouldn't have\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* 444 is already the first item in the list */
+	jim_handler(NULL, ast_variable_new("jim", "555", ""), obj);
+	jim_handler(NULL, ast_variable_new("jim", "666", ""), obj);
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s)", "test_sorcery", "test", "blah", "jim");
+	if (ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Couldn't retrieve 'jim'\n");
+		return AST_TEST_FAIL;
+	}
+	if (strcmp(ast_str_buffer(buf), "444,555,666")) {
+		ast_free(buf);
+		ast_test_status_update(test, "Failed retrieve jim.  Got '%s', should be '444,555,666'\n", ast_str_buffer(buf));
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s,single,2)", "test_sorcery", "test", "blah", "jim");
+	if (ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Couldn't retrieve 2nd jim\n");
+		return AST_TEST_FAIL;
+	}
+	if (strcmp(ast_str_buffer(buf), "555")) {
+		ast_free(buf);
+		ast_test_status_update(test, "Failed retrieve 2nd jim.  Got '%s', should be '555'\n", ast_str_buffer(buf));
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s,concat,|)", "test_sorcery", "test", "blah", "jim");
+	if (ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Couldn't retrieve any 'jim'\n");
+		return AST_TEST_FAIL;
+	}
+	if (strcmp(ast_str_buffer(buf), "444|555|666")) {
+		ast_free(buf);
+		ast_test_status_update(test, "Failed retrieve 'jim'.  Got '%s', should be '444|555|666'\n", ast_str_buffer(buf));
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s,noconcat,3)", "test_sorcery", "test", "blah", "jim");
+	if (!ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Should have failed with invalid retrieval_type\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_str_reset(buf);
+	snprintf(expression, sizeof(expression), "AST_SORCERY(%s,%s,%s,%s,single,|)", "test_sorcery", "test", "blah", "jim");
+	if (!ast_func_read2(NULL, expression, &buf, 16)) {
+		ast_free(buf);
+		ast_test_status_update(test, "Should have failed with invalid occurrence_number\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_free(buf);
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(wizard_registration);
@@ -2741,6 +3040,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_field);
 	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_multiple);
 	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_multiple_all);
+	AST_TEST_UNREGISTER(dialplan_function);
 	return 0;
 }
 
@@ -2789,6 +3089,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(configuration_file_wizard_retrieve_field);
 	AST_TEST_REGISTER(configuration_file_wizard_retrieve_multiple);
 	AST_TEST_REGISTER(configuration_file_wizard_retrieve_multiple_all);
+	AST_TEST_REGISTER(dialplan_function);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

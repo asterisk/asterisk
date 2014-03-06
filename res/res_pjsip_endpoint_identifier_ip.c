@@ -184,13 +184,37 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 	return error;
 }
 
-static int ip_identify_match_to_str(const void *obj, const intptr_t *args, char **buf)
+
+static int match_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
 	const struct ip_identify_match *identify = obj;
 
 	ast_ha_join(identify->matches, &str);
 	*buf = ast_strdup(ast_str_buffer(str));
+	return 0;
+}
+
+static int match_to_var_list(const void *obj, struct ast_variable **fields)
+{
+	char str[MAX_OBJECT_FIELD];
+	const struct ip_identify_match *identify = obj;
+	struct ast_variable *head = NULL;
+	struct ast_ha *ha = identify->matches;
+
+	for (; ha; ha = ha->next) {
+		const char *addr = ast_strdupa(ast_sockaddr_stringify_addr(&ha->addr));
+		snprintf(str, MAX_OBJECT_FIELD, "%s%s/%s", ha->sense == AST_SENSE_ALLOW ? "!" : "",
+			addr, ast_sockaddr_stringify_addr(&ha->netmask));
+
+		ast_variable_list_append(&head, ast_variable_new("match", str, ""));
+
+	}
+
+	if (head) {
+		*fields = head;
+	}
+
 	return 0;
 }
 
@@ -374,7 +398,7 @@ static int load_module(void)
 
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, endpoint_name));
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, ip_identify_match_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, match_to_str, match_to_var_list, 0, 0);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "identify");
 
 	ast_sip_register_endpoint_identifier(&ip_identifier);

@@ -944,8 +944,8 @@ int ast_bucket_init(void)
 	}
 
 	ast_sorcery_object_field_register(bucket_sorcery, "bucket", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket, scheme));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "created", "", timeval_str2struct, timeval_struct2str, 0, FLDSET(struct ast_bucket, created));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "modified", "", timeval_str2struct, timeval_struct2str, 0, FLDSET(struct ast_bucket, modified));
+	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, created));
+	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, modified));
 
 	if (ast_sorcery_apply_default(bucket_sorcery, "file", "bucket_file", NULL)) {
 		ast_log(LOG_ERROR, "Failed to apply intermediary for 'file' object type in Bucket sorcery\n");
@@ -958,8 +958,8 @@ int ast_bucket_init(void)
 	}
 
 	ast_sorcery_object_field_register(bucket_sorcery, "file", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket_file, scheme));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "created", "", timeval_str2struct, timeval_struct2str, 0, FLDSET(struct ast_bucket_file, created));
-	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "modified", "", timeval_str2struct, timeval_struct2str, 0, FLDSET(struct ast_bucket_file, modified));
+	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, created));
+	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, modified));
 
 	return 0;
 }

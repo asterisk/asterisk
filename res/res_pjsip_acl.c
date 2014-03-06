@@ -278,12 +278,12 @@ static int load_module(void)
 	}
 
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "type", "", OPT_NOOP_T, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "permit", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "deny", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "acl", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_permit", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_deny", "", acl_handler, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_acl", "", acl_handler, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "permit", "", acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "deny", "", acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "acl", "", acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_permit", "", acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_deny", "", acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_acl", "", acl_handler, NULL, NULL, 0, 0);
 
 	ast_sip_register_service(&acl_module);
 	return AST_MODULE_LOAD_SUCCESS;
