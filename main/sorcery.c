@@ -1056,8 +1056,8 @@ struct ast_variable *ast_sorcery_objectset_create2(const struct ast_sorcery *sor
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	struct ao2_iterator i;
 	struct ast_sorcery_object_field *object_field;
-	struct ast_variable *head = NULL, *tail = NULL;
-	int res = 0;
+	struct ast_variable *head = NULL;
+	struct ast_variable *tail = NULL;
 
 	if (!object_type) {
 		return NULL;
@@ -1065,8 +1065,8 @@ struct ast_variable *ast_sorcery_objectset_create2(const struct ast_sorcery *sor
 
 	i = ao2_iterator_init(object_type->fields, 0);
 
-	for (; (object_field = ao2_iterator_next(&i)) && !res; ao2_ref(object_field, -1)) {
-		struct ast_variable *tmp = NULL;
+	for (; (object_field = ao2_iterator_next(&i)); ao2_ref(object_field, -1)) {
+		struct ast_variable *tmp;
 
 		switch (flags) {
 		case AST_HANDLER_PREFER_LIST:
@@ -1096,16 +1096,9 @@ struct ast_variable *ast_sorcery_objectset_create2(const struct ast_sorcery *sor
 		}
 
 		tail = ast_variable_list_append_hint(&head, tail, tmp);
-
 	}
 
 	ao2_iterator_destroy(&i);
-
-	/* If any error occurs we destroy all fields handled before so a partial objectset is not returned */
-	if (res) {
-		ast_variables_destroy(head);
-		head = NULL;
-	}
 
 	return head;
 }
@@ -1125,12 +1118,13 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 
 	i = ao2_iterator_init(object_type->fields, 0);
 
-	for (; (object_field = ao2_iterator_next(&i)) && !res; ao2_ref(object_field, -1)) {
+	for (; !res && (object_field = ao2_iterator_next(&i)); ao2_ref(object_field, -1)) {
 		if (object_field->multiple_handler) {
 			struct ast_variable *tmp = NULL;
 			struct ast_variable *field;
 
 			if ((res = object_field->multiple_handler(object, &tmp))) {
+				ast_variables_destroy(tmp);
 				ao2_ref(object_field, -1);
 				break;
 			}
@@ -1140,6 +1134,7 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 
 				if (!value || ast_json_object_set(json, field->name, value)) {
 					res = -1;
+					break;
 				}
 			}
 
