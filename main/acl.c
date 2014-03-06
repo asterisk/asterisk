@@ -894,6 +894,12 @@ const char *ast_tos2str(unsigned int tos)
 	return "unknown";
 }
 
+void ast_tos2str_buf(unsigned int tos, char **buf)
+{
+	const char *tos_string = ast_tos2str(tos);
+	*buf = ast_strdup(tos_string);
+}
+
 int ast_get_ip(struct ast_sockaddr *addr, const char *hostname)
 {
 	return ast_get_ip_or_srv(addr, hostname, NULL);

@@ -27,6 +27,13 @@ PJSIP:
    PJSIP contacts, this means that the schema has been updated to add a user_agent
    column. An alembic revision has been added to facilitate this update.
 
+Realtime Configuration:
+ - PJSIP endpoint columns 'tos_audio' and 'tos_video' have been changed from yes/no
+   enumerators to string values. 'cos_audio' and 'cos_video' have been changed from
+   yes/no enumerators to integer values. PJSIP transport column 'tos' has been
+   changed from a yes/no enumerator to a string value. 'cos' has been changed from
+   a yes/no enumerator to an integer value.
+
 From 12.0.0 to 12.1.0:
 * The sound_place_into_conference sound used in Confbridge is now deprecated
   and is no longer functional since it has been broken since its inception

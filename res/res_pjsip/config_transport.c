@@ -121,9 +121,11 @@ static void *transport_alloc(const char *name)
 
 static void set_qos(struct ast_sip_transport *transport, pj_qos_params *qos)
 {
+	int tos_as_dscp = transport->tos >> 2;
+
 	if (transport->tos) {
 		qos->flags |= PJ_QOS_PARAM_HAS_DSCP;
-		qos->dscp_val = transport->tos;
+		qos->dscp_val = tos_as_dscp;
 	}
 	if (transport->cos) {
 		qos->flags |= PJ_QOS_PARAM_HAS_SO_PRIO;
@@ -448,6 +450,39 @@ static int localnet_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+/*! \brief Custom handler for TOS setting */
+static int transport_tos_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_transport *transport = obj;
+	unsigned int value;
+
+	if (ast_str2tos(var->value, &value)) {
+		ast_log(LOG_ERROR, "Error configuring transport '%s' - Could not "
+			"interpret 'tos' value '%s'\n",
+			ast_sorcery_object_get_id(transport), var->value);
+		return -1;
+	}
+
+	if (value % 4) {
+		value = value >> 2;
+		value = value << 2;
+		ast_log(LOG_WARNING,
+			"transport '%s' - 'tos' value '%s' uses bits that are "
+			"discarded when converted to DSCP. Using equivalent %d instead.\n",
+			ast_sorcery_object_get_id(transport), var->value, value);
+	}
+
+	transport->tos = value;
+	return 0;
+}
+
+static int tos_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+	ast_tos2str_buf(transport->tos, buf);
+	return 0;
+}
+
 static struct ao2_container *cli_get_container(void)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
@@ -581,7 +616,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "method", "", transport_tls_method_handler, tls_method_to_str, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "cipher", "", transport_tls_cipher_handler, transport_tls_cipher_to_str, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "local_net", "", transport_localnet_handler, localnet_to_str, 0, 0);
-	ast_sorcery_object_field_register(sorcery, "transport", "tos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, tos));
+	ast_sorcery_object_field_register_custom(sorcery, "transport", "tos", "0", transport_tos_handler, tos_to_str, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 
 	ast_sip_register_endpoint_formatter(&endpoint_transport_formatter);

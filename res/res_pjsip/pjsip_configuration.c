@@ -758,6 +758,45 @@ static int t38udptl_ec_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static int tos_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	unsigned int value;
+
+	if (ast_str2tos(var->value, &value)) {
+		ast_log(LOG_ERROR, "Error configuring endpoint '%s' - Could not "
+			"interpret '%s' value '%s'\n",
+			ast_sorcery_object_get_id(endpoint), var->name, var->value);
+		return -1;
+	}
+
+	if (!strcmp(var->name, "tos_audio")) {
+		endpoint->media.tos_audio = value;
+	} else if (!strcmp(var->name, "tos_video")) {
+		endpoint->media.tos_video = value;
+	} else {
+		/* If we reach this point, someone called the tos_handler when they shouldn't have. */
+		ast_assert(0);
+		return -1;
+	}
+	return 0;
+}
+
+static int tos_audio_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	ast_tos2str_buf(endpoint->media.tos_audio, buf);
+	return 0;
+}
+
+static int tos_video_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	ast_tos2str_buf(endpoint->media.tos_video, buf);
+	return 0;
+}
+
 static int set_var_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -1586,8 +1625,8 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_transfer", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, allowtransfer));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdp_owner", "-", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.sdpowner));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "sdp_session", "Asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.sdpsession));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.tos_audio));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "tos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.tos_video));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "tos_audio", "0", tos_handler, tos_audio_to_str, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "tos_video", "0", tos_handler, tos_video_to_str, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_audio", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_audio));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "cos_video", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_endpoint, media.cos_video));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "allow_subscribe", "yes", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, subscription.allow));
