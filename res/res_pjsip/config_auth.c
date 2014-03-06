@@ -323,7 +323,7 @@ int ast_sip_initialize_sorcery_auth(void)
 	ast_sorcery_object_field_register(sorcery, SIP_SORCERY_AUTH_TYPE, "nonce_lifetime",
 			"32", OPT_UINT_T, 0, FLDSET(struct ast_sip_auth, nonce_lifetime));
 	ast_sorcery_object_field_register_custom(sorcery, SIP_SORCERY_AUTH_TYPE, "auth_type",
-			"userpass", auth_type_handler, auth_type_to_str, 0, 0);
+			"userpass", auth_type_handler, auth_type_to_str, NULL, 0, 0);
 
 	ast_sip_register_endpoint_formatter(&endpoint_auth_formatter);
 	ast_sip_register_cli_formatter(&cli_auth_formatter);

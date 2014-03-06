@@ -620,6 +620,26 @@ struct ast_variable *ast_variable_list_sort(struct ast_variable *start)
 	return top.next;
 }
 
+struct ast_variable *ast_variable_list_append_hint(struct ast_variable **head, struct ast_variable *search_hint, struct ast_variable *newvar)
+{
+	struct ast_variable *curr;
+	ast_assert(head != NULL);
+
+	if (!*head) {
+		*head = newvar;
+	} else {
+		if (search_hint == NULL) {
+			search_hint = *head;
+		}
+		for (curr = search_hint; curr->next; curr = curr->next);
+		curr->next = newvar;
+	}
+
+	for (curr = newvar; curr->next; curr = curr->next);
+
+	return curr;
+}
+
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var)
 {
 	const char *tmp;

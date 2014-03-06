@@ -691,7 +691,34 @@ void ast_include_rename(struct ast_config *conf, const char *from_file, const ch
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
 void ast_variable_insert(struct ast_category *category, struct ast_variable *variable, const char *line);
 int ast_variable_delete(struct ast_category *category, const char *variable, const char *match, const char *line);
-struct ast_variable *ast_variable_list_sort(struct ast_variable *start);
+
+/*!
+ * \brief Performs an in-place sort on the variable list by ascending name
+ *
+ * \param head The variable list head
+ *
+ * \return The new list head
+ */
+struct ast_variable *ast_variable_list_sort(struct ast_variable *head);
+
+/*!
+ * \brief Appends a variable list to the end of another list
+ *
+ * \param head A pointer to an ast_variable * of the existing variable list head. May NOT be NULL
+ * but the content may be to initialize a new list.  If so, upon return, this parameter will be updated
+ * with a pointer to the new list head.
+ * \param search_hint The place in the current list to start searching for the end of the list.
+ * Might help performance on longer lists.  If NULL, it defaults to head.
+ * \param new_var The head of the new variable list to be appended
+ *
+ * \return The tail of the resulting list.
+ *
+ * \note If the existing *head is NULL, it will be updated to new_var.  This allows you to call
+ * ast_variable_list_append in a loop or callback without initializing the list first.
+ */
+struct ast_variable *ast_variable_list_append_hint(struct ast_variable **head, struct ast_variable *search_hint,
+	struct ast_variable *new_var);
+#define ast_variable_list_append(head, new_var) ast_variable_list_append_hint(head, NULL, new_var)
 
 /*!
  * \brief Update variable value within a config

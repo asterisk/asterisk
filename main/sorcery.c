@@ -811,7 +811,7 @@ int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *
 }
 
 int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type, const char *name, const char *default_val, enum aco_option_type opt_type,
-					aco_option_handler config_handler, sorcery_field_handler sorcery_handler, unsigned int flags, unsigned int no_doc, size_t argc, ...)
+					aco_option_handler config_handler, sorcery_field_handler sorcery_handler, sorcery_fields_handler multiple_handler, unsigned int flags, unsigned int no_doc, size_t argc, ...)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_field *, object_field, NULL, ao2_cleanup);
@@ -832,6 +832,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
 
 	ast_copy_string(object_field->name, name, sizeof(object_field->name));
 	object_field->handler = sorcery_handler;
+	object_field->multiple_handler = multiple_handler;
 
 	va_start(args, argc);
 	for (pos = 0; pos < argc; pos++) {
@@ -1015,13 +1016,47 @@ void ast_sorcery_ref(struct ast_sorcery *sorcery)
 	ao2_ref(sorcery, +1);
 }
 
-struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorcery, const void *object)
+static struct ast_variable *get_single_field_as_var_list(const void *object, struct ast_sorcery_object_field *object_field)
+{
+	struct ast_variable *tmp = NULL;
+	char *buf = NULL;
+
+	if (!object_field->handler) {
+		return NULL;
+	}
+
+	if (!(object_field->handler(object, object_field->args, &buf))) {
+		tmp = ast_variable_new(object_field->name, S_OR(buf, ""), "");
+	}
+	ast_free(buf);
+
+	return tmp;
+}
+
+static struct ast_variable *get_multiple_fields_as_var_list(const void *object, struct ast_sorcery_object_field *object_field)
+{
+	struct ast_variable *tmp = NULL;
+
+	if (!object_field->multiple_handler) {
+		return NULL;
+	}
+
+	if (object_field->multiple_handler(object, &tmp)) {
+		ast_variables_destroy(tmp);
+		tmp = NULL;
+	}
+
+	return tmp;
+}
+
+struct ast_variable *ast_sorcery_objectset_create2(const struct ast_sorcery *sorcery,
+	const void *object,	enum ast_sorcery_field_handler_flags flags)
 {
 	const struct ast_sorcery_object_details *details = object;
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
 	struct ao2_iterator i;
 	struct ast_sorcery_object_field *object_field;
-	struct ast_variable *fields = NULL;
+	struct ast_variable *head = NULL, *tail = NULL;
 	int res = 0;
 
 	if (!object_type) {
@@ -1033,38 +1068,46 @@ struct ast_variable *ast_sorcery_objectset_create(const struct ast_sorcery *sorc
 	for (; (object_field = ao2_iterator_next(&i)) && !res; ao2_ref(object_field, -1)) {
 		struct ast_variable *tmp = NULL;
 
-		if (object_field->multiple_handler) {
-			if ((res = object_field->multiple_handler(object, &tmp))) {
-				ast_variables_destroy(tmp);
+		switch (flags) {
+		case AST_HANDLER_PREFER_LIST:
+			if ((tmp = get_multiple_fields_as_var_list(object, object_field)) ||
+				(tmp = get_single_field_as_var_list(object, object_field))) {
+				break;
 			}
-		} else if (object_field->handler) {
-			char *buf = NULL;
-
-			if ((res = object_field->handler(object, object_field->args, &buf)) ||
-				!(tmp = ast_variable_new(object_field->name, S_OR(buf, ""), ""))) {
-				res = -1;
+			continue;
+		case AST_HANDLER_PREFER_STRING:
+			if ((tmp = get_single_field_as_var_list(object, object_field)) ||
+				(tmp = get_multiple_fields_as_var_list(object, object_field))) {
+				break;
 			}
-
-			ast_free(buf);
-		} else {
+			continue;
+		case AST_HANDLER_ONLY_LIST:
+			if ((tmp = get_multiple_fields_as_var_list(object, object_field))) {
+				break;
+			}
+			continue;
+		case AST_HANDLER_ONLY_STRING:
+			if ((tmp = get_single_field_as_var_list(object, object_field))) {
+				break;
+			}
+			continue;
+		default:
 			continue;
 		}
 
-		if (!res && tmp) {
-			tmp->next = fields;
-			fields = tmp;
-		}
+		tail = ast_variable_list_append_hint(&head, tail, tmp);
+
 	}
 
 	ao2_iterator_destroy(&i);
 
 	/* If any error occurs we destroy all fields handled before so a partial objectset is not returned */
 	if (res) {
-		ast_variables_destroy(fields);
-		fields = NULL;
+		ast_variables_destroy(head);
+		head = NULL;
 	}
 
-	return fields;
+	return head;
 }
 
 struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sorcery, const void *object)
