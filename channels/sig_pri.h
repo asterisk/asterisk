@@ -192,7 +192,9 @@ struct sig_pri_callback {
 	int (* const train_echocanceller)(void *pvt);
 	int (* const dsp_reset_and_flush_digits)(void *pvt);
 
-	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, enum sig_pri_law law, char *exten, const struct ast_channel *chan);
+	struct ast_channel * (* const new_ast_channel)(void *pvt, int state,
+		enum sig_pri_law law, char *exten, const struct ast_assigned_ids *assignedids,
+		const struct ast_channel *requestor);
 
 	void (* const fixup_chans)(void *old_chan, void *new_chan);
 
@@ -667,7 +669,9 @@ int sig_pri_is_alarm_ignored(struct sig_pri_span *pri);
 void pri_event_alarm(struct sig_pri_span *pri, int index, int before_start_pri);
 void pri_event_noalarm(struct sig_pri_span *pri, int index, int before_start_pri);
 
-struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability);
+struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law,
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,
+	int transfercapability);
 
 struct sig_pri_chan *sig_pri_chan_new(void *pvt_data, struct sig_pri_span *pri, int logicalspan, int channo, int trunkgroup);
 void sig_pri_chan_delete(struct sig_pri_chan *doomed);

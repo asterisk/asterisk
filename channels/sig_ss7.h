@@ -135,7 +135,9 @@ struct sig_ss7_callback {
 	int (* const set_echocanceller)(void *pvt, int enable);
 	void (* const set_loopback)(void *pvt, int enable);
 
-	struct ast_channel * (* const new_ast_channel)(void *pvt, int state, enum sig_ss7_law law, char *exten, const struct ast_channel *requestor);
+	struct ast_channel * (* const new_ast_channel)(void *pvt, int state,
+		enum sig_ss7_law law, char *exten, const struct ast_assigned_ids *assignedids,
+		const struct ast_channel *requestor);
 	int (* const play_tone)(void *pvt, enum sig_ss7_tone tone);
 
 	void (* const handle_link_exception)(struct sig_ss7_linkset *linkset, int which);
@@ -290,7 +292,9 @@ int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast);
 int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast);
 void sig_ss7_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, struct sig_ss7_chan *pchan);
 int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condition, const void *data, size_t datalen);
-struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law, const struct ast_channel *requestor, int transfercapability);
+struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law,
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,
+	int transfercapability);
 void sig_ss7_chan_delete(struct sig_ss7_chan *doomed);
 struct sig_ss7_chan *sig_ss7_chan_new(void *pvt_data, struct sig_ss7_linkset *ss7);
 void sig_ss7_init_linkset(struct sig_ss7_linkset *ss7);

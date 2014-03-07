@@ -1028,12 +1028,14 @@ static int sig_pri_play_tone(struct sig_pri_chan *p, enum sig_pri_tone tone)
 	}
 }
 
-static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, int ulaw, int transfercapability, char *exten, const struct ast_channel *requestor)
+static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state,
+	int ulaw, int transfercapability, char *exten,
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
 
 	if (sig_pri_callbacks.new_ast_channel) {
-		c = sig_pri_callbacks.new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
+		c = sig_pri_callbacks.new_ast_channel(p->chan_pvt, state, ulaw, exten, assignedids, requestor);
 	} else {
 		return NULL;
 	}
@@ -1098,14 +1100,17 @@ static void sig_pri_ami_channel_event(struct sig_pri_chan *p)
 	}
 }
 
-struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law, const struct ast_channel *requestor, int transfercapability)
+struct ast_channel *sig_pri_request(struct sig_pri_chan *p, enum sig_pri_law law,
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,
+	int transfercapability)
 {
 	struct ast_channel *ast;
 
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 
 	sig_pri_set_outgoing(p, 1);
-	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, law, transfercapability, p->exten, requestor);
+	ast = sig_pri_new_ast_channel(p, AST_STATE_RESERVED, law, transfercapability,
+		p->exten, assignedids, requestor);
 	if (!ast) {
 		sig_pri_set_outgoing(p, 0);
 	}
@@ -5859,7 +5864,7 @@ static void *pri_dchannel(void *vpri)
 					 */
 					sig_pri_lock_private(pri->pvts[nextidle]);
 					sig_pri_unlock_private(pri->pvts[nextidle]);
-					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW, NULL, 0);
+					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW, NULL, NULL, 0);
 					ast_mutex_lock(&pri->lock);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
@@ -6470,7 +6475,7 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_unlock(&pri->lock);
 						c = sig_pri_new_ast_channel(pri->pvts[chanpos],
 							AST_STATE_RESERVED, law, e->ring.ctype,
-							pri->pvts[chanpos]->exten, NULL);
+							pri->pvts[chanpos]->exten, NULL, NULL);
 						ast_mutex_lock(&pri->lock);
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						if (c) {
@@ -6593,7 +6598,7 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_unlock(&pri->lock);
 						c = sig_pri_new_ast_channel(pri->pvts[chanpos],
 							AST_STATE_RING, law, e->ring.ctype,
-							pri->pvts[chanpos]->exten, NULL);
+							pri->pvts[chanpos]->exten, NULL, NULL);
 						ast_mutex_lock(&pri->lock);
 						sig_pri_lock_private(pri->pvts[chanpos]);
 						if (c) {
