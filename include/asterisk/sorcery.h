@@ -530,7 +530,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register_alias(sorcery, type, name, default_val, opt_type, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, flags, 1, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, NULL, flags, 1, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 /*!
  * \brief Register a field within an object without documentation
@@ -580,8 +580,8 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval 0 success
  * \retval -1 failure
  */
-#define ast_sorcery_object_field_register_custom_alias(sorcery, type, name, default_val, config_handler, sorcery_handler, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 1, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+#define ast_sorcery_object_field_register_custom_alias(sorcery, type, name, default_val, config_handler, sorcery_handler, multiple_handler, flags, ...) \
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, multiple_handler, flags, 1, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*!
  * \brief Register a field within an object with custom handlers without documentation
@@ -599,7 +599,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register_custom_nodoc(sorcery, type, name, default_val, config_handler, sorcery_handler, multiple_handler, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 1, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, multiple_handler, flags, 1, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*!
  * \brief Inform any wizards to load persistent objects
