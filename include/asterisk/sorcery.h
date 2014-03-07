@@ -488,6 +488,8 @@ int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *
  * \param multiple_handler A custom handler for translating the native representation of the fields
  * \param opt_type Option type
  * \param flags Option type specific flags
+ * \param no_doc Field should not be documented
+ * \param alias Interpret and apply field value only
  *
  * \retval 0 success
  * \retval -1 failure
@@ -495,7 +497,8 @@ int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *
 int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type,
 	const char *name, const char *default_val, enum aco_option_type opt_type,
 	aco_option_handler config_handler, sorcery_field_handler sorcery_handler,
-	sorcery_fields_handler multiple_handler, unsigned int flags, unsigned int no_doc, size_t argc, ...);
+	sorcery_fields_handler multiple_handler, unsigned int flags, unsigned int no_doc,
+	unsigned int alias, size_t argc, ...);
 
 /*!
  * \brief Register a field within an object
@@ -511,7 +514,23 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, NULL, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, NULL, flags, 0, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+
+/*!
+ * \brief Register a field within an object as an alias
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param name Name of the field
+ * \param default_val Default value of the field
+ * \param opt_type Option type
+ * \param flags Option type specific flags
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+#define ast_sorcery_object_field_register_alias(sorcery, type, name, default_val, opt_type, flags, ...) \
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, flags, 1, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 /*!
  * \brief Register a field within an object without documentation
@@ -527,7 +546,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register_nodoc(sorcery, type, name, default_val, opt_type, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, NULL, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, opt_type, NULL, NULL, NULL, flags, 1, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 /*!
  * \brief Register a field within an object with custom handlers
@@ -545,7 +564,24 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register_custom(sorcery, type, name, default_val, config_handler, sorcery_handler, multiple_handler, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, multiple_handler, flags, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, multiple_handler, flags, 0, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+
+/*!
+ * \brief Register a field within an object with custom handlers as an alias
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param name Name of the field
+ * \param default_val Default value of the field
+ * \param config_handler Custom configuration handler
+ * \param sorcery_handler Custom sorcery handler
+ * \param flags Option type specific flags
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+#define ast_sorcery_object_field_register_custom_alias(sorcery, type, name, default_val, config_handler, sorcery_handler, flags, ...) \
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 1, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*!
  * \brief Register a field within an object with custom handlers without documentation
@@ -563,7 +599,7 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
  * \retval -1 failure
  */
 #define ast_sorcery_object_field_register_custom_nodoc(sorcery, type, name, default_val, config_handler, sorcery_handler, multiple_handler, flags, ...) \
-    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, multiple_handler, flags, 1, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
+    __ast_sorcery_object_field_register(sorcery, type, name, default_val, OPT_CUSTOM_T, config_handler, sorcery_handler, flags, 1, 0, VA_NARGS(__VA_ARGS__), __VA_ARGS__);
 
 /*!
  * \brief Inform any wizards to load persistent objects
