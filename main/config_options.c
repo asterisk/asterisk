@@ -1200,6 +1200,11 @@ static void cli_show_module_options(struct ast_cli_args *a)
 				ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(ast_str_buffer(tmp->description), 1));
 			}
 
+			if (ast_str_strlen(tmp->seealso)) {
+				ast_cli(a->fd, "See Also:\n");
+				ast_cli(a->fd, "%s\n\n", ast_xmldoc_printable(ast_str_buffer(tmp->seealso), 1));
+			}
+
 			match = 1;
 		}
 	}
