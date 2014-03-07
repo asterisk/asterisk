@@ -2237,7 +2237,7 @@ static int recalling_enter(struct attended_transfer_properties *props)
 		return -1;
 	}
 
-	if (ast_dial_append(props->dial, props->transferer_type, props->transferer_addr)) {
+	if (ast_dial_append(props->dial, props->transferer_type, props->transferer_addr, NULL)) {
 		return -1;
 	}
 
@@ -2360,7 +2360,7 @@ static int retransfer_enter(struct attended_transfer_properties *props)
 	ast_format_cap_add(cap, ast_format_set(&fmt, AST_FORMAT_SLINEAR, 0));
 
 	/* Get a channel that is the destination we wish to call */
-	props->recall_target = ast_request("Local", cap, NULL, destination, &cause);
+	props->recall_target = ast_request("Local", cap, NULL, NULL, destination, &cause);
 	if (!props->recall_target) {
 		ast_log(LOG_ERROR, "Unable to request outbound channel for recall target\n");
 		return -1;
@@ -2920,7 +2920,7 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
 	int cause;
 
 	/* Now we request a local channel to prepare to call the destination */
-	chan = ast_request("Local", ast_channel_nativeformats(caller), caller, destination,
+	chan = ast_request("Local", ast_channel_nativeformats(caller), NULL, caller, destination,
 		&cause);
 	if (!chan) {
 		return NULL;
@@ -3239,7 +3239,7 @@ struct ast_bridge *ast_bridge_basic_new(void)
 	bridge = bridge_alloc(sizeof(struct ast_bridge), &ast_bridge_basic_v_table);
 	bridge = bridge_base_init(bridge,
 		AST_BRIDGE_CAPABILITY_NATIVE | AST_BRIDGE_CAPABILITY_1TO1MIX
-			| AST_BRIDGE_CAPABILITY_MULTIMIX, NORMAL_FLAGS, NULL, NULL);
+			| AST_BRIDGE_CAPABILITY_MULTIMIX, NORMAL_FLAGS, NULL, NULL, NULL);
 	bridge = bridge_basic_personality_alloc(bridge);
 	bridge = bridge_register(bridge);
 	return bridge;

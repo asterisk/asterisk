@@ -314,7 +314,7 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
 		return NULL;
 	}
 
-	return ast_request(type, cap, NULL, "ARI", NULL);
+	return ast_request(type, cap, NULL, NULL, "ARI", NULL);
 }
 
 void ast_ari_bridges_play(struct ast_variable *headers,
@@ -370,7 +370,7 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 
 	playback = stasis_app_control_play_uri(control, args->media, language,
 		args->bridge_id, STASIS_PLAYBACK_TARGET_BRIDGE, args->skipms,
-		args->offsetms);
+		args->offsetms, NULL);
 
 	if (!playback) {
 		ast_ari_response_alloc_failed(response);
@@ -697,9 +697,55 @@ void ast_ari_bridges_create(struct ast_variable *headers,
 	struct ast_ari_bridges_create_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_bridge *, bridge, stasis_app_bridge_create(args->type, args->name), ao2_cleanup);
+	RAII_VAR(struct ast_bridge *, bridge, stasis_app_bridge_create(args->type, args->name, args->bridge_id), ao2_cleanup);
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
 
+	if (!bridge) {
+		ast_ari_response_error(
+			response, 500, "Internal Error",
+			"Unable to create bridge");
+		return;
+	}
+
+	snapshot = ast_bridge_snapshot_create(bridge);
+	if (!snapshot) {
+		ast_ari_response_error(
+			response, 500, "Internal Error",
+			"Unable to create snapshot for new bridge");
+		return;
+	}
+
+	ast_ari_response_ok(response,
+		ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer()));
+}
+
+void ast_ari_bridges_create_or_update_with_id(struct ast_variable *headers,
+	struct ast_ari_bridges_create_or_update_with_id_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
+	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	if (bridge) {
+		/* update */
+		if (strcmp(args->name, bridge->name)) {
+			ast_ari_response_error(
+				response, 500, "Internal Error",
+				"Changing bridge name is not implemented");
+			return;
+		}
+		if (!ast_strlen_zero(args->type)) {
+			ast_ari_response_error(
+				response, 500, "Internal Error",
+				"Changing bridge type is not implemented");
+			return;
+		}
+		ast_ari_response_ok(response,
+			ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer()));
+		return;
+	}
+
+	bridge = stasis_app_bridge_create(args->type, args->name, args->bridge_id);
 	if (!bridge) {
 		ast_ari_response_error(
 			response, 500, "Internal Error",

@@ -1122,12 +1122,15 @@ int ast_async_goto_by_name(const char *chan, const char *context, const char *ex
  * \param locked_channel Optional. The outbound channel that was created. This is returned
  *  both locked and reference bumped. If a caller provides a channel parameter, it must
  *  unlock the channel and decrement the reference count.
+ *  \param assignedid Optional. The uniqueid to assign the channel that was created.
+ *  \param assignedid2 Optional. The uniqueid to assign the second local channel.
  * \param early_media If non-zero, allow early-media on the originated channel
  */
 int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr,
     int timeout, const char *context, const char *exten, int priority, int *reason,
     int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars,
-    const char *account, struct ast_channel **locked_channel, int early_media);
+    const char *account, struct ast_channel **locked_channel, int early_media,
+	const struct ast_assigned_ids *assignedids);
 
 /*! \brief Synchronously or asynchronously make an outbound call and execute an
  *  application on the channel.
@@ -1148,13 +1151,16 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
  * \param vars Variables to set on the outbound channel
  * \param account The accountcode for the outbound channel
  * \param locked_channel Optional. The outbound channel that was created. This is returned
+ *  \param assignedid Optional. The uniqueid to assign the channel that was created.
+ *  \param assignedid2 Optional. The uniqueid to assign the second local channel.
  *  both locked and reference bumped. If a caller provides a channel parameter, it must
  *  unlock the channel and decrement the reference count.
  */
 int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr,
     int timeout, const char *app, const char *appdata, int *reason, int sync,
     const char *cid_num, const char *cid_name, struct ast_variable *vars,
-    const char *account, struct ast_channel **locked_channel);
+    const char *account, struct ast_channel **locked_channel,
+	const struct ast_assigned_ids *assignedids);
 
 /*!
  * \brief Evaluate a condition

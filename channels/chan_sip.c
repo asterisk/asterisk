@@ -1167,7 +1167,7 @@ struct show_peers_context;
 	in coming releases. */
 
 /*--- PBX interface functions */
-static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
+static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest, int *cause);
 static int sip_devicestate(const char *data);
 static int sip_sendtext(struct ast_channel *ast, const char *text);
 static int sip_call(struct ast_channel *ast, const char *dest, int timeout);
@@ -8057,7 +8057,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
  *
  * \return New ast_channel locked.
  */
-static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *title, const char *linkedid, struct ast_callid *callid)
+static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *title, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid)
 {
 	struct ast_channel *tmp;
 	struct ast_variable *v = NULL;
@@ -8079,7 +8079,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 		sip_pvt_unlock(i);
 		/* Don't hold a sip pvt lock while we allocate a channel */
-		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "SIP/%s-%08x", my_name, ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "SIP/%s-%08x", my_name, ast_atomic_fetchadd_int((int *)&chan_idx, +1));
 	}
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
@@ -25484,7 +25484,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			/* First invitation - create the channel.  Allocation
 			 * failures are handled below. */
 
-			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL), NULL, p->logger_callid);
+			c = sip_new(p, AST_STATE_DOWN, S_OR(p->peername, NULL), NULL, NULL, p->logger_callid);
 
 			if (cc_recall_core_id != -1) {
 				ast_setup_cc_recall_datastore(c, cc_recall_core_id);
@@ -29496,7 +29496,7 @@ static int sip_devicestate(const char *data)
  *	To: header.
  * \endverbatim
  */
-static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
+static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct sip_pvt *p;
 	struct ast_channel *tmpc = NULL;
@@ -29707,7 +29707,7 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 
 	sip_pvt_lock(p);
 
-	tmpc = sip_new(p, AST_STATE_DOWN, host, requestor ? ast_channel_linkedid(requestor) : NULL, callid);	/* Place the call */
+	tmpc = sip_new(p, AST_STATE_DOWN, host, assignedids, requestor, callid);	/* Place the call */
 	if (callid) {
 		callid = ast_callid_unref(callid);
 	}

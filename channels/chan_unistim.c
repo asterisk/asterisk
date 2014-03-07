@@ -681,14 +681,14 @@ static const char tdesc[] = "UNISTIM Channel Driver";
 static const char channel_type[] = "USTM";
 
 /*! Protos */
-static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state, const char *linkedid);
+static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor);
 static int load_module(void);
 static int reload(void);
 static int unload_module(void);
 static int reload_config(void);
 static void unistim_set_owner(struct unistim_subchannel *sub, struct ast_channel *chan);
 static void show_main_page(struct unistimsession *pte);
-static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor,
+static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,
 	const char *dest, int *cause);
 static int unistim_call(struct ast_channel *ast, const char *dest, int timeout);
 static int unistim_hangup(struct ast_channel *ast);
@@ -3071,7 +3071,7 @@ static void handle_call_outgoing(struct unistimsession *s)
 		sub_stop_silence(s, sub);
 		send_tone(s, 0, 0);
 		/* Make new channel */
-		c = unistim_new(sub_trans, AST_STATE_DOWN, NULL);
+		c = unistim_new(sub_trans, AST_STATE_DOWN, NULL, NULL);
 		if (!c) {
 			ast_log(LOG_WARNING, "Cannot allocate new structure on channel %p\n", sub->parent);
 			return;
@@ -3127,7 +3127,7 @@ static void handle_call_outgoing(struct unistimsession *s)
 		RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
 		const char *pickupexten;
 
-		c = unistim_new(sub, AST_STATE_DOWN, NULL);   /* No, starting a new one */
+		c = unistim_new(sub, AST_STATE_DOWN, NULL, NULL);   /* No, starting a new one */
 		if (!sub->rtp) { /* Need to start RTP before calling ast_pbx_run */
 			start_rtp(sub);
 		}
@@ -5607,7 +5607,7 @@ static int unistim_send_mwi_to_peer(struct unistim_line *peer, unsigned int tick
 
 /*--- unistim_new: Initiate a call in the UNISTIM channel */
 /*      called from unistim_request (calls from the pbx ) */
-static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state, const char *linkedid)
+static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *tmp;
 	struct unistim_line *l;
@@ -5623,7 +5623,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	}
 	l = sub->parent;
 	tmp = ast_channel_alloc(1, state, l->cid_num, NULL, l->accountcode, l->exten,
-		l->parent->context, linkedid, l->amaflags, "USTM/%s@%s-%p", l->name, l->parent->name, sub);
+		l->parent->context, assignedids, requestor, l->amaflags, "USTM/%s@%s-%p", l->name, l->parent->name, sub);
 	if (unistimdebug) {
 		ast_verb(0, "unistim_new sub=%d (%p) chan=%p line=%s\n", sub->subtype, sub, tmp, l->name);
 	}
@@ -5841,7 +5841,7 @@ static int restart_monitor(void)
 
 /*--- unistim_request: PBX interface function ---*/
 /* UNISTIM calls initiated by the PBX arrive here */
-static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest,
+static struct ast_channel *unistim_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest,
 										   int *cause)
 {
 	struct unistim_subchannel *sub, *sub_ring, *sub_trans;
@@ -5905,7 +5905,7 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 	sub->subtype = SUB_RING;
 	sub->softkey = -1;
 	ast_format_cap_copy(sub->parent->cap, cap);
-	tmpc = unistim_new(sub, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
+	tmpc = unistim_new(sub, AST_STATE_DOWN, assignedids, requestor);
 	if (!tmpc) {
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	}

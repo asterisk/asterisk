@@ -72,7 +72,7 @@ struct ast_dial *ast_dial_create(void);
  * \note Appends a channel to a dialing structure
  * \return Returns channel reference number on success, -1 on failure
  */
-int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device);
+int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device, const struct ast_assigned_ids *assignedids);
 
 /*! \brief Request all appended channels, but do not dial
  * \param dial Dialing structure

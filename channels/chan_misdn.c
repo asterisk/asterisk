@@ -675,7 +675,7 @@ static int *misdn_ports;
 static void chan_misdn_log(int level, int port, char *tmpl, ...)
 	__attribute__((format(printf, 3, 4)));
 
-static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, struct ast_format_cap *cap, const char *linkedid, int port, int c);
+static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit);
 
 static int pbx_start_chan(struct chan_list *ch);
@@ -7853,7 +7853,7 @@ static struct chan_list *chan_list_init(int orig)
 	return cl;
 }
 
-static struct ast_channel *misdn_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *misdn_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *ast;
 	char group[BUFFERSIZE + 1] = "";
@@ -8087,7 +8087,7 @@ static struct ast_channel *misdn_request(const char *type, struct ast_format_cap
 	}
 	cl->bc = newbc;
 
-	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, cap, requestor ? ast_channel_linkedid(requestor) : NULL, port, channel);
+	ast = misdn_new(cl, AST_STATE_RESERVED, args.ext, NULL, cap, assignedids, requestor, port, channel);
 	if (!ast) {
 		chan_list_unref(cl, "Failed to create a new channel");
 		misdn_lib_release(newbc);
@@ -8172,7 +8172,7 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 	}
 }
 
-static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, struct ast_format_cap *cap, const char *linkedid, int port, int c)
+static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, int port, int c)
 {
 	struct ast_channel *tmp;
 	char *cid_name = NULL;
@@ -8195,7 +8195,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		ast_callerid_parse(callerid, &cid_name, &cid_num);
 	}
 
-	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", linkedid, 0, "%s/%s%d-u%d", misdn_type, c ? "" : "tmp", chan_offset + c, glob_channel++);
+	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", assignedids, requestor, 0, "%s/%s%d-u%d", misdn_type, c ? "" : "tmp", chan_offset + c, glob_channel++);
 	if (tmp) {
 		chan_misdn_log(2, port, " --> * NEW CHANNEL dialed:%s caller:%s\n", exten, callerid);
 
@@ -10213,7 +10213,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				return RESPONSE_ERR;
 			}
 			ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
-			chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, cap, NULL, bc->port, bc->channel);
+			chan = misdn_new(ch, AST_STATE_RESERVED, bc->dialed.number, bc->caller.number, cap, NULL, NULL, bc->port, bc->channel);
 			cap = ast_format_cap_destroy(cap);
 		}
 		if (!chan) {

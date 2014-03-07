@@ -81,7 +81,7 @@ static void chan_pjsip_pvt_dtor(void *obj)
 }
 
 /* \brief Asterisk core interaction functions */
-static struct ast_channel *chan_pjsip_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *chan_pjsip_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text);
 static int chan_pjsip_digit_begin(struct ast_channel *ast, char digit);
 static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -340,7 +340,7 @@ static struct ast_rtp_glue chan_pjsip_rtp_glue = {
 };
 
 /*! \brief Function called to create a new PJSIP Asterisk channel */
-static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int state, const char *exten, const char *title, const char *linkedid, const char *cid_name)
+static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int state, const char *exten, const char *title, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *cid_name)
 {
 	struct ast_channel *chan;
 	struct ast_format fmt;
@@ -352,7 +352,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
-	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), "", "", "", linkedid, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
+	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), "", "", "", assignedids, requestor, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
 		ast_atomic_fetchadd_int((int *)&chan_idx, +1)))) {
 		return NULL;
 	}
@@ -1677,7 +1677,7 @@ static int request(void *obj)
 }
 
 /*! \brief Function called by core to create a new outgoing PJSIP session */
-static struct ast_channel *chan_pjsip_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *chan_pjsip_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct request_data req_data;
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
@@ -1692,7 +1692,7 @@ static struct ast_channel *chan_pjsip_request(const char *type, struct ast_forma
 
 	session = req_data.session;
 
-	if (!(session->channel = chan_pjsip_new(session, AST_STATE_DOWN, NULL, NULL, requestor ? ast_channel_linkedid(requestor) : NULL, NULL))) {
+	if (!(session->channel = chan_pjsip_new(session, AST_STATE_DOWN, NULL, NULL, assignedids, requestor, NULL))) {
 		/* Session needs to be terminated prematurely */
 		return NULL;
 	}
@@ -1918,7 +1918,7 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 	datastore->data = transport_data;
 	ast_sip_session_add_datastore(session, datastore);
 
-	if (!(session->channel = chan_pjsip_new(session, AST_STATE_RING, session->exten, NULL, NULL, NULL))) {
+	if (!(session->channel = chan_pjsip_new(session, AST_STATE_RING, session->exten, NULL, NULL, NULL, NULL))) {
 		if (pjsip_inv_end_session(session->inv_session, 503, NULL, &packet) == PJ_SUCCESS) {
 			ast_sip_session_send_response(session, packet);
 		}

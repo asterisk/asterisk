@@ -873,7 +873,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 		cause = AST_CAUSE_BUSY;
 	} else {
 		/* Setup parameters */
-		c = o->chan = ast_request(tech, ast_channel_nativeformats(in), in, stuff, &cause);
+		c = o->chan = ast_request(tech, ast_channel_nativeformats(in), NULL, in, stuff, &cause);
 		if (c) {
 			if (single && !caller_entertained) {
 				ast_channel_make_compatible(in, o->chan);
@@ -2429,7 +2429,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			AST_LIST_UNLOCK(dialed_interfaces);
 		}
 
-		tc = ast_request(tmp->tech, ast_channel_nativeformats(chan), chan, tmp->number, &cause);
+		tc = ast_request(tmp->tech, ast_channel_nativeformats(chan), NULL, chan, tmp->number, &cause);
 		if (!tc) {
 			/* If we can't, just go on to the next call */
 			ast_log(LOG_WARNING, "Unable to create channel of type '%s' (cause %d - %s)\n",

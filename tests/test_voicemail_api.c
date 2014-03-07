@@ -821,7 +821,7 @@ static struct ast_channel *test_vm_api_create_mock_channel(void)
 	struct ast_channel *mock_channel;
 	struct ast_format_cap *native_formats;
 
-	if (!(mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, 0, 0, "TestChannel"))) {
+	if (!(mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "TestChannel"))) {
 		return NULL;
 	}
 

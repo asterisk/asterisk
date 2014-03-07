@@ -40,6 +40,14 @@
 							}
 						},
 						{
+							"name": "bridgeId",
+							"description": "Unique ID to give to the bridge being created.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
 							"name": "name",
 							"description": "Name to give to the bridge being created.",
 							"paramType": "query",
@@ -55,6 +63,46 @@
 			"path": "/bridges/{bridgeId}",
 			"description": "Individual bridge",
 			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Create a new bridge or updates an existing one.",
+					"notes": "This bridge persists until it has been shut down, or Asterisk has been shut down.",
+					"nickname": "create_or_update_with_id",
+					"responseClass": "Bridge",
+					"parameters": [
+						{
+							"name": "type",
+							"description": "Set the type of bridge.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string",
+							"allowableValues": {
+								"valueType": "LIST",
+								"values": [
+									"mixing",
+									"holding"
+								]
+							}
+						},
+						{
+							"name": "bridgeId",
+							"description": "Unique ID to give to the bridge being created.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "name",
+							"description": "Set the name of the bridge.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				},
 				{
 					"httpMethod": "GET",
 					"summary": "Get bridge details.",

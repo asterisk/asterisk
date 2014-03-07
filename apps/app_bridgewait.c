@@ -361,7 +361,7 @@ static struct wait_bridge_wrapper *get_wait_bridge_wrapper(const char *bridge_na
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_TO | AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM
 		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_DISSOLVE_EMPTY,
-		APP_NAME, bridge_name);
+		APP_NAME, bridge_name, NULL);
 
 	if (!bridge) {
 		return NULL;

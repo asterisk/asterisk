@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ne_redirect.h>
 
 #include "asterisk/module.h"
+#include "asterisk/channel.h"
 #include "asterisk/calendar.h"
 #include "asterisk/lock.h"
 #include "asterisk/config.h"

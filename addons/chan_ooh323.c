@@ -71,7 +71,7 @@ static struct ast_jb_conf global_jbconf;
 
 /* Channel Definition */
 static struct ast_channel *ooh323_request(const char *type, struct ast_format_cap *cap,
-			const struct ast_channel *requestor,  const char *data, int *cause);
+			const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,  const char *data, int *cause);
 static int ooh323_digit_begin(struct ast_channel *ast, char digit);
 static int ooh323_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int ooh323_call(struct ast_channel *ast, const char *dest, int timeout);
@@ -363,7 +363,8 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 
 static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
-                                             const char *host, struct ast_format_cap *cap, const char *linkedid)
+                                             const char *host, struct ast_format_cap *cap, 
+											 const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *ch = NULL;
 	struct ast_format tmpfmt;
@@ -378,7 +379,7 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 	ast_mutex_unlock(&i->lock);
    	ast_mutex_lock(&ooh323c_cn_lock);
    	ch = ast_channel_alloc(1, state, i->callerid_num, i->callerid_name, 
-				i->accountcode, i->exten, i->context, linkedid, i->amaflags,
+				i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags,
 				"OOH323/%s-%ld", host, callnumber);
    	callnumber++;
    	ast_mutex_unlock(&ooh323c_cn_lock);
@@ -569,7 +570,7 @@ static struct ooh323_pvt *ooh323_alloc(int callref, char *callToken)
 	Possible data values - peername, exten/peername, exten@ip
  */
 static struct ast_channel *ooh323_request(const char *type, struct ast_format_cap *cap,
-		const struct ast_channel *requestor, const char *data, int *cause)
+		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 
 {
 	struct ast_channel *chan = NULL;
@@ -718,7 +719,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 
 
 	chan = ooh323_new(p, AST_STATE_DOWN, p->username, cap,
-				 requestor ? ast_channel_linkedid(requestor) : NULL);
+				 assignedids, requestor);
 	
 	ast_mutex_unlock(&p->lock);
 
@@ -1918,7 +1919,7 @@ int ooh323_onReceivedSetup(ooCallData *call, Q931Message *pmsg)
 	ooh323c_set_capability_for_call(call, &p->prefs, p->cap, p->dtmfmode, p->dtmfcodec,
 					 p->t38support, p->g729onlyA);
 /* Incoming call */
-  	c = ooh323_new(p, AST_STATE_RING, p->username, 0, NULL);
+  	c = ooh323_new(p, AST_STATE_RING, p->username, 0, NULL, NULL);
   	if(!c) {
    	ast_mutex_unlock(&p->lock);
    	ast_log(LOG_ERROR, "Could not create ast_channel\n");

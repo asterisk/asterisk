@@ -89,6 +89,7 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
  * \param flags Flags that will alter the behavior of the bridge
  * \param creator Entity that created the bridge (optional)
  * \param name Name given to the bridge by its creator (optional, requires named creator)
+ * \param id Unique ID given to the bridge by its creator (optional)
  *
  * \retval self on success
  * \retval NULL on failure, self is already destroyed
@@ -98,13 +99,13 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
  * \code
  * struct ast_bridge *bridge;
  * bridge = bridge_alloc(sizeof(*bridge), &ast_bridge_base_v_table);
- * bridge = bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_1TO1MIX, AST_BRIDGE_FLAG_DISSOLVE_HANGUP, NULL, NULL);
+ * bridge = bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_1TO1MIX, AST_BRIDGE_FLAG_DISSOLVE_HANGUP, NULL, NULL, NULL);
  * \endcode
  *
  * This creates a no frills two party bridge that will be
  * destroyed once one of the channels hangs up.
  */
-struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags, const char *creator, const char *name);
+struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags, const char *creator, const char *name, const char *id);
 
 /*!
  * \internal

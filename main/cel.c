@@ -829,8 +829,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	ast_channel_exten_set(tchan, record.extension);
 	ast_channel_context_set(tchan, record.context);
 	ast_channel_name_set(tchan, record.channel_name);
-	ast_channel_uniqueid_set(tchan, record.unique_id);
-	ast_channel_linkedid_set(tchan, record.linked_id);
+	ast_channel_internal_set_fake_ids(tchan, record.unique_id, record.linked_id);
 	ast_channel_accountcode_set(tchan, record.account_code);
 	ast_channel_peeraccount_set(tchan, record.peer_account);
 	ast_channel_userfield_set(tchan, record.user_field);

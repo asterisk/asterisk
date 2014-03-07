@@ -286,10 +286,11 @@ static void snoop_determine_format(struct ast_channel *chan, struct stasis_app_s
 
 struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	enum stasis_app_snoop_direction spy, enum stasis_app_snoop_direction whisper,
-	const char *app, const char *app_args)
+	const char *app, const char *app_args, const char *snoop_id)
 {
 	RAII_VAR(struct stasis_app_snoop *, snoop, NULL, ao2_cleanup);
 	pthread_t thread;
+	struct ast_assigned_ids assignedids = {snoop_id, NULL};
 
 	if (spy == STASIS_SNOOP_DIRECTION_NONE &&
 		whisper == STASIS_SNOOP_DIRECTION_NONE) {
@@ -323,7 +324,7 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	snoop_determine_format(chan, snoop);
 
 	/* Allocate a Snoop channel and set up various parameters */
-	snoop->chan = ast_channel_alloc(1, AST_STATE_UP, "", "", "", "", "", "", 0, "Snoop/%s-%08x", ast_channel_uniqueid(chan),
+	snoop->chan = ast_channel_alloc(1, AST_STATE_UP, "", "", "", "", "", &assignedids, NULL, 0, "Snoop/%s-%08x", ast_channel_uniqueid(chan),
 		ast_atomic_fetchadd_int((int *)&chan_idx, +1));
 	if (!snoop->chan) {
 		return NULL;

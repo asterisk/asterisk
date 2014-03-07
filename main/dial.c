@@ -69,6 +69,8 @@ struct ast_dial_channel {
 	void *options[AST_DIAL_OPTION_MAX];	/*!< Channel specific options */
 	int cause;				/*!< Cause code in case of failure */
 	unsigned int is_running_app:1;		/*!< Is this running an application? */
+	char *assignedid1;				/*!< UniqueID to assign channel */
+	char *assignedid2;				/*!< UniqueID to assign 2nd channel */
 	struct ast_channel *owner;		/*!< Asterisk channel */
 	AST_LIST_ENTRY(ast_dial_channel) list;	/*!< Linked list information */
 };
@@ -247,7 +249,7 @@ struct ast_dial *ast_dial_create(void)
  * \note Appends a channel to a dialing structure
  * \return Returns channel reference number on success, -1 on failure
  */
-int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device)
+int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device, const struct ast_assigned_ids *assignedids)
 {
 	struct ast_dial_channel *channel = NULL;
 
@@ -262,6 +264,16 @@ int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device)
 	/* Record technology and device for when we actually dial */
 	channel->tech = ast_strdup(tech);
 	channel->device = ast_strdup(device);
+
+	/* Store the assigned id */
+	if (assignedids && !ast_strlen_zero(assignedids->uniqueid))
+	{
+		channel->assignedid1 = ast_strdup(assignedids->uniqueid);
+
+		if (!ast_strlen_zero(assignedids->uniqueid2)) {
+			channel->assignedid2 = ast_strdup(assignedids->uniqueid2);
+		}
+	}
 
 	/* Grab reference number from dial structure */
 	channel->num = ast_atomic_fetchadd_int(&dial->num, +1);
@@ -281,6 +293,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	char numsubst[AST_MAX_EXTENSION];
 	struct ast_format_cap *cap_all_audio = NULL;
 	struct ast_format_cap *cap_request;
+	struct ast_assigned_ids assignedids = {channel->assignedid1, channel->assignedid2};
 
 	/* Copy device string over */
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
@@ -296,7 +309,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	}
 
 	/* If we fail to create our owner channel bail out */
-	if (!(channel->owner = ast_request(channel->tech, cap_request, chan, numsubst, &channel->cause))) {
+	if (!(channel->owner = ast_request(channel->tech, cap_request, &assignedids, chan, numsubst, &channel->cause))) {
 		cap_all_audio = ast_format_cap_destroy(cap_all_audio);
 		return -1;
 	}
@@ -461,6 +474,14 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	/* Drop old destination information */
 	ast_free(channel->tech);
 	ast_free(channel->device);
+	if (channel->assignedid1) {
+		ast_free(channel->assignedid1);
+		channel->assignedid1 = NULL;
+	}
+	if (channel->assignedid2) {
+		ast_free(channel->assignedid2);
+		channel->assignedid2 = NULL;
+	}
 
 	/* Update the dial channel with the new destination information */
 	channel->tech = ast_strdup(tech);
@@ -1045,6 +1066,13 @@ int ast_dial_destroy(struct ast_dial *dial)
 		/* Free structure */
 		ast_free(channel->tech);
 		ast_free(channel->device);
+		if (channel->assignedid1) {
+			ast_free(channel->assignedid1);
+		}
+		if (channel->assignedid2) {
+			ast_free(channel->assignedid2);
+		}
+
 		AST_LIST_REMOVE_CURRENT(list);
 		ast_free(channel);
 	}

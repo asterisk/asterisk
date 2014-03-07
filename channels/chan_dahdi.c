@@ -969,7 +969,7 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 }
 
 
-static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int dahdi_digit_begin(struct ast_channel *ast, char digit);
 static int dahdi_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int dahdi_sendtext(struct ast_channel *c, const char *text);
@@ -2103,9 +2103,9 @@ static void my_swap_subchannels(void *pvt, enum analog_sub a, struct ast_channel
  *
  * \param callid_created value returned from ast_callid_threadstorage_auto()
  */
-static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const char *linked, struct ast_callid *callid, int callid_created);
+static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid, int callid_created);
 
-static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const char *linkedid, struct ast_callid *callid);
+static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid);
 
 static struct ast_channel *my_new_analog_ast_channel(void *pvt, int state, int startpbx, enum analog_sub sub, const struct ast_channel *requestor)
 {
@@ -2114,7 +2114,7 @@ static struct ast_channel *my_new_analog_ast_channel(void *pvt, int state, int s
 	struct dahdi_pvt *p = pvt;
 	int dsub = analogsub_to_dahdisub(sub);
 
-	return dahdi_new_callid_clean(p, state, startpbx, dsub, 0, requestor ? ast_channel_linkedid(requestor) : "", callid, callid_created);
+	return dahdi_new_callid_clean(p, state, startpbx, dsub, 0, NULL, requestor, callid, callid_created);
 }
 
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
@@ -2129,7 +2129,7 @@ static int dahdi_setlaw(int dfd, int law)
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 
 #if defined(HAVE_PRI)
-static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, enum sig_pri_law law, char *exten, const struct ast_channel *requestor)
+static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, enum sig_pri_law law, char *exten, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct dahdi_pvt *p = pvt;
 	int audio;
@@ -2172,7 +2172,7 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, enum sig
 			break;
 	}
 
-	return dahdi_new_callid_clean(p, state, 0, SUB_REAL, newlaw, requestor ? ast_channel_linkedid(requestor) : "", callid, callid_created);
+	return dahdi_new_callid_clean(p, state, 0, SUB_REAL, newlaw, assignedids, requestor, callid, callid_created);
 }
 #endif	/* defined(HAVE_PRI) */
 
@@ -3030,7 +3030,7 @@ static void my_ss7_set_loopback(void *pvt, int enable)
  * \retval ast_channel on success.
  * \retval NULL on error.
  */
-static struct ast_channel *my_new_ss7_ast_channel(void *pvt, int state, enum sig_ss7_law law, char *exten, const struct ast_channel *requestor)
+static struct ast_channel *my_new_ss7_ast_channel(void *pvt, int state, enum sig_ss7_law law, char *exten, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct dahdi_pvt *p = pvt;
 	int audio;
@@ -3063,7 +3063,7 @@ static struct ast_channel *my_new_ss7_ast_channel(void *pvt, int state, enum sig
 		newlaw = DAHDI_LAW_MULAW;
 		break;
 	}
-	return dahdi_new_callid_clean(p, state, 0, SUB_REAL, newlaw, requestor ? ast_channel_linkedid(requestor) : "", callid, callid_created);
+	return dahdi_new_callid_clean(p, state, 0, SUB_REAL, newlaw, assignedids, requestor, callid, callid_created);
 }
 #endif	/* defined(HAVE_SS7) */
 
@@ -3553,7 +3553,7 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 	}
 	if (!p->mfcr2_accept_on_offer) {
 		/* The user wants us to start the PBX thread right away without accepting the call first */
-		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, NULL, callid);
+		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, NULL, NULL, callid);
 		if (c) {
 			/* Done here, don't disable reading now since we still need to generate MF tones to accept
 			   the call or reject it and detect the tone off condition of the other end, all of this
@@ -3607,7 +3607,7 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 			}
 			goto dahdi_r2_on_call_accepted_cleanup;
 		}
-		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, NULL, callid);
+		c = dahdi_new(p, AST_STATE_RING, 1, SUB_REAL, DAHDI_LAW_ALAW, NULL, NULL, callid);
 		if (c) {
 			/* chan_dahdi will take care of reading from now on in the PBX thread, tell the
 			   library to forget about it */
@@ -7784,7 +7784,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					 */
 					ast_mutex_unlock(&p->lock);
 					ast_channel_unlock(ast);
-					chan = dahdi_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, NULL, callid);
+					chan = dahdi_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, NULL, NULL, callid);
 					ast_channel_lock(ast);
 					ast_mutex_lock(&p->lock);
 					if (p->dahditrcallerid) {
@@ -8860,16 +8860,16 @@ static struct ast_str *create_channel_name(struct dahdi_pvt *i)
 	return chan_name;
 }
 
-static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const char *linkedid, struct ast_callid *callid, int callid_created)
+static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid, int callid_created)
 {
-	struct ast_channel *new_channel = dahdi_new(i, state, startpbx, idx, law, linkedid, callid);
+	struct ast_channel *new_channel = dahdi_new(i, state, startpbx, idx, law, assignedids, requestor, callid);
 
 	ast_callid_threadstorage_auto_clean(callid, callid_created);
 
 	return new_channel;
 }
 
-static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const char *linkedid, struct ast_callid *callid)
+static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid)
 {
 	struct ast_channel *tmp;
 	struct ast_format deflaw;
@@ -8899,7 +8899,7 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		return NULL;
 	}
 
-	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "DAHDI/%s", ast_str_buffer(chan_name));
+	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "DAHDI/%s", ast_str_buffer(chan_name));
 	ast_free(chan_name);
 	if (!tmp) {
 		return NULL;
@@ -10502,7 +10502,7 @@ static void *mwi_thread(void *data)
 				restore_gains(mtd->pvt);
 				mtd->pvt->ringt = mtd->pvt->ringt_base;
 
-				if ((chan = dahdi_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, NULL, callid))) {
+				if ((chan = dahdi_new(mtd->pvt, AST_STATE_RING, 0, SUB_REAL, 0, NULL, NULL, callid))) {
 					int result;
 
 					if (dahdi_analog_lib_handles(mtd->pvt->sig, mtd->pvt->radio, mtd->pvt->oprmode)) {
@@ -10929,7 +10929,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 				dahdi_ec_enable(i);
 				/* The channel is immediately up.  Start right away */
 				res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, DAHDI_TONE_RINGTONE);
-				chan = dahdi_new(i, AST_STATE_RING, 1, SUB_REAL, 0, NULL, callid);
+				chan = dahdi_new(i, AST_STATE_RING, 1, SUB_REAL, 0, NULL, NULL, callid);
 				if (!chan) {
 					ast_log(LOG_WARNING, "Unable to start PBX on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, DAHDI_TONE_CONGESTION);
@@ -10938,7 +10938,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 				}
 			} else {
 				/* Check for callerid, digits, etc */
-				chan = dahdi_new(i, AST_STATE_RESERVED, 0, SUB_REAL, 0, NULL, callid);
+				chan = dahdi_new(i, AST_STATE_RESERVED, 0, SUB_REAL, 0, NULL, NULL, callid);
 				if (chan) {
 					if (has_voicemail(i))
 						res = tone_zone_play_tone(i->subs[SUB_REAL].dfd, DAHDI_TONE_STUTTER);
@@ -10982,9 +10982,9 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 			/* Check for callerid, digits, etc */
 			callid_created = ast_callid_threadstorage_auto(&callid);
 			if (i->cid_start == CID_START_POLARITY_IN) {
-				chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, NULL, callid);
+				chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, NULL, NULL, callid);
 			} else {
-				chan = dahdi_new(i, AST_STATE_RING, 0, SUB_REAL, 0, NULL, callid);
+				chan = dahdi_new(i, AST_STATE_RING, 0, SUB_REAL, 0, NULL, NULL, callid);
 			}
 
 			if (!chan) {
@@ -11112,7 +11112,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 				ast_verb(2, "Starting post polarity "
 					"CID detection on channel %d\n",
 					i->channel);
-				chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, NULL, callid);
+				chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, NULL, NULL, callid);
 				if (!chan) {
 					ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", i->channel);
 				} else if (ast_pthread_create_detached(&threadid, NULL, analog_ss_thread, chan)) {
@@ -11383,7 +11383,7 @@ static void *do_monitor(void *data)
 									} else {
 										struct ast_callid *callid = NULL;
 										int callid_created = ast_callid_threadstorage_auto(&callid);
-										chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, NULL, callid);
+										chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, NULL, NULL, callid);
 										if (!chan) {
 											ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", i->channel);
 										} else {
@@ -13161,7 +13161,7 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	return p;
 }
 
-static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	int callwait = 0;
 	struct dahdi_pvt *p;
@@ -13262,7 +13262,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 				tmp = sig_ss7_request(p->sig_pvt, SIG_SS7_DEFLAW, requestor, transcapdigital);
 #endif	/* defined(HAVE_SS7) */
 			} else {
-				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, requestor ? ast_channel_linkedid(requestor) : "", callid);
+				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, assignedids, requestor, callid);
 			}
 			if (!tmp) {
 				p->outgoing = 0;

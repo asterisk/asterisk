@@ -209,9 +209,9 @@ static char *mblsendsms_desc =
 "  Message - text of the message\n";
 
 static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num,
-		const struct ast_channel *requestor);
+		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor);
 static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *cap,
-		const struct ast_channel *requestor, const char *data, int *cause);
+		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int mbl_call(struct ast_channel *ast, const char *dest, int timeout);
 static int mbl_hangup(struct ast_channel *ast);
 static int mbl_answer(struct ast_channel *ast);
@@ -838,7 +838,7 @@ e_return:
 */
 
 static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num,
-		const struct ast_channel *requestor)
+		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 
 	struct ast_channel *chn;
@@ -855,7 +855,7 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 	ast_dsp_digitreset(pvt->dsp);
 
 	chn = ast_channel_alloc(1, state, cid_num, pvt->id, 0, 0, pvt->context,
-			requestor ? ast_channel_linkedid(requestor) : "", 0,
+			assignedids, requestor, 0,
 			"Mobile/%s-%04lx", pvt->id, ast_random() & 0xffff);
 	if (!chn) {
 		goto e_return;
@@ -887,7 +887,7 @@ e_return:
 }
 
 static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *cap,
-		const struct ast_channel *requestor, const char *data, int *cause)
+		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 
 	struct ast_channel *chn = NULL;
@@ -946,7 +946,7 @@ static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *
 	}
 
 	ast_mutex_lock(&pvt->lock);
-	chn = mbl_new(AST_STATE_DOWN, pvt, NULL, requestor);
+	chn = mbl_new(AST_STATE_DOWN, pvt, NULL, assignedids, requestor);
 	ast_mutex_unlock(&pvt->lock);
 	if (!chn) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure.\n");
@@ -3591,7 +3591,7 @@ static int handle_response_clip(struct mbl_pvt *pvt, char *buf)
 			ast_debug(1, "[%s] error parsing CLIP: %s\n", pvt->id, buf);
 		}
 
-		if (!(chan = mbl_new(AST_STATE_RING, pvt, clip, NULL))) {
+		if (!(chan = mbl_new(AST_STATE_RING, pvt, clip, NULL, NULL))) {
 			ast_log(LOG_ERROR, "[%s] unable to allocate channel for incoming call\n", pvt->id);
 			hfp_send_chup(pvt->hfp);
 			msg_queue_push(pvt, AT_OK, AT_CHUP);
@@ -3681,7 +3681,7 @@ static int handle_response_cmgr(struct mbl_pvt *pvt, char *buf)
 		pvt->incoming_sms = 0;
 
 		/* XXX this channel probably does not need to be associated with this pvt */
-		if (!(chan = mbl_new(AST_STATE_DOWN, pvt, NULL, NULL))) {
+		if (!(chan = mbl_new(AST_STATE_DOWN, pvt, NULL, NULL, NULL))) {
 			ast_debug(1, "[%s] error creating sms message channel, disconnecting\n", pvt->id);
 			return -1;
 		}
@@ -4140,7 +4140,7 @@ static void *do_monitor_headset(void *data)
 
 				pvt->incoming = 1;
 
-				if (!(chan = mbl_new(AST_STATE_UP, pvt, NULL, NULL))) {
+				if (!(chan = mbl_new(AST_STATE_UP, pvt, NULL, NULL, NULL))) {
 					ast_log(LOG_ERROR, "[%s] unable to allocate channel for incoming call\n", pvt->id);
 					ast_mutex_unlock(&pvt->lock);
 					goto e_cleanup;

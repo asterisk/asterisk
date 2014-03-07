@@ -125,10 +125,10 @@ static void playback_dtor(void *obj)
 }
 
 static struct stasis_app_playback *playback_create(
-	struct stasis_app_control *control)
+	struct stasis_app_control *control, const char *id)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
-	char id[AST_UUID_STR_LEN];
+	char uuid[AST_UUID_STR_LEN];
 	int res;
 
 	if (!control) {
@@ -147,8 +147,12 @@ static struct stasis_app_playback *playback_create(
 		return NULL;
 	}
 
-	ast_uuid_generate_str(id, sizeof(id));
-	ast_string_field_set(playback, id, id);
+	if (!ast_strlen_zero(id)) {
+		ast_string_field_set(playback, id, id);
+	} else {
+		ast_uuid_generate_str(uuid, sizeof(uuid));
+		ast_string_field_set(playback, id, uuid);
+	}
 
 	playback->control = control;
 
@@ -462,7 +466,7 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 	struct stasis_app_control *control, const char *uri,
 	const char *language, const char *target_id,
 	enum stasis_app_playback_target_type target_type,
-	int skipms, long offsetms)
+	int skipms, long offsetms, const char *id)
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
 
@@ -473,7 +477,7 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 	ast_debug(3, "%s: Sending play(%s) command\n",
 		stasis_app_control_get_channel_id(control), uri);
 
-	playback = playback_create(control);
+	playback = playback_create(control, id);
 
 	if (skipms == 0) {
 		skipms = PLAYBACK_DEFAULT_SKIPMS;

@@ -65,10 +65,10 @@ static int media_hangup(struct ast_channel *ast)
 }
 
 static struct ast_channel *announce_request(const char *type, struct ast_format_cap *cap,
-	const struct ast_channel *requestor, const char *data, int *cause);
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 
 static struct ast_channel *record_request(const char *type, struct ast_format_cap *cap,
-	const struct ast_channel *requestor, const char *data, int *cause);
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 
 static struct ast_channel_tech announce_tech = {
 	.type = "Announcer",
@@ -114,7 +114,7 @@ static struct ast_channel_tech record_tech = {
 	.properties = AST_CHAN_TP_INTERNAL,
 };
 
-static struct ast_channel *media_request_helper(struct ast_format_cap *cap,
+static struct ast_channel *media_request_helper(struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids,
 	const struct ast_channel *requestor, const char *data, struct ast_channel_tech *tech, const char *role)
 {
 	struct ast_channel *chan;
@@ -133,7 +133,7 @@ static struct ast_channel *media_request_helper(struct ast_format_cap *cap,
 	callid = ast_read_threadstorage_callid();
 
 	chan = ast_unreal_new_channels(pvt, tech,
-		AST_STATE_UP, AST_STATE_UP, NULL, NULL, requestor, callid);
+		AST_STATE_UP, AST_STATE_UP, NULL, NULL, assignedids, requestor, callid);
 	if (!chan) {
 		return NULL;
 	}
@@ -150,15 +150,15 @@ static struct ast_channel *media_request_helper(struct ast_format_cap *cap,
 }
 
 static struct ast_channel *announce_request(const char *type, struct ast_format_cap *cap,
-	const struct ast_channel *requestor, const char *data, int *cause)
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
-	return media_request_helper(cap, requestor, data, &announce_tech, "announcer");
+	return media_request_helper(cap, assignedids, requestor, data, &announce_tech, "announcer");
 }
 
 static struct ast_channel *record_request(const char *type, struct ast_format_cap *cap,
-	const struct ast_channel *requestor, const char *data, int *cause)
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
-	return media_request_helper(cap, requestor, data, &record_tech, "recorder");
+	return media_request_helper(cap, assignedids, requestor, data, &record_tech, "recorder");
 }
 
 static void cleanup_capabilities(void)

@@ -10213,7 +10213,7 @@ static void pbx_outgoing_state_callback(struct ast_dial *dial)
 
 static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context,
 	const char *exten, int priority, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num,
-	const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media)
+	const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media, const struct ast_assigned_ids *assignedids)
 {
 	RAII_VAR(struct pbx_outgoing *, outgoing, ao2_alloc(sizeof(*outgoing), pbx_outgoing_destroy), ao2_cleanup);
 	struct ast_channel *dialed;
@@ -10240,7 +10240,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		return -1;
 	}
 
-	if (ast_dial_append(outgoing->dial, type, addr)) {
+	if (ast_dial_append(outgoing->dial, type, addr, assignedids)) {
 		return -1;
 	}
 
@@ -10355,7 +10355,7 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 
 	if ((synchronous > 1) && ast_dial_state(outgoing->dial) != AST_DIAL_RESULT_ANSWERED &&
 		ast_strlen_zero(app) &&	ast_exists_extension(NULL, context, "failed", 1, NULL)) {
-		struct ast_channel *failed = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", NULL, 0, "OutgoingSpoolFailed");
+		struct ast_channel *failed = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", NULL, NULL, 0, "OutgoingSpoolFailed");
 
 		if (failed) {
 			char failed_reason[4] = "";
@@ -10384,20 +10384,20 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	return 0;
 }
 
-int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media)
+int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media, const struct ast_assigned_ids *assignedids)
 {
 	return pbx_outgoing_attempt(type, cap, addr, timeout, context, exten, priority, NULL, NULL, reason, synchronous, cid_num,
-		cid_name, vars, account, channel, early_media);
+		cid_name, vars, account, channel, early_media, assignedids);
 }
 
-int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
+int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel, const struct ast_assigned_ids *assignedids)
 {
 	if (ast_strlen_zero(app)) {
 		return -1;
 	}
 
 	return pbx_outgoing_attempt(type, cap, addr, timeout, NULL, NULL, 0, app, appdata, reason, synchronous, cid_num,
-		cid_name, vars, account, locked_channel, 0);
+		cid_name, vars, account, locked_channel, 0, assignedids);
 }
 
 /* this is the guts of destroying a context --

@@ -1253,7 +1253,7 @@ static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, c
 static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_locked(unsigned short callno, char, int, unsigned int, const unsigned char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int);
-static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static struct ast_frame *iax2_read(struct ast_channel *c);
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int temponly);
@@ -5775,7 +5775,7 @@ static int iax2_getpeertrunk(struct ast_sockaddr addr)
 }
 
 /*! \brief  Create new call, interface with the PBX core */
-static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capability, const char *linkedid, unsigned int cachable)
+static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capability, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, unsigned int cachable)
 {
 	struct ast_channel *tmp;
 	struct chan_iax2_pvt *i;
@@ -5790,7 +5790,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 
 	/* Don't hold call lock */
 	ast_mutex_unlock(&iaxsl[callno]);
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
 	ast_mutex_lock(&iaxsl[callno]);
 	if (i != iaxs[callno]) {
 		if (tmp) {
@@ -10405,7 +10405,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 		    (f.frametype == AST_FRAME_IAX)) {
 			if (ast_test_flag64(iaxs[fr->callno], IAX_DELAYPBXSTART)) {
 				ast_clear_flag64(iaxs[fr->callno], IAX_DELAYPBXSTART);
-				if (!ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->chosenformat, NULL,
+				if (!ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->chosenformat, NULL, NULL,
 						  ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED))) {
 					ast_variables_destroy(ies.vars);
 					ast_mutex_unlock(&iaxsl[fr->callno]);
@@ -11259,7 +11259,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 											using_prefs);
 
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-							if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, NULL, 1)))
+							if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, NULL, NULL, 1)))
 								iax2_destroy(fr->callno);
 							else if (ies.vars) {
 								struct ast_datastore *variablestore;
@@ -11333,7 +11333,7 @@ immediatedial:
 								iax2_getformatname_multiple(tmp, sizeof(tmp), iaxs[fr->callno]->peerformat));
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 						send_command(iaxs[fr->callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
-						if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->peerformat, NULL, 1)))
+						if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->peerformat, NULL, NULL, 1)))
 							iax2_destroy(fr->callno);
 						else if (ies.vars) {
 							struct ast_datastore *variablestore;
@@ -12297,7 +12297,7 @@ static void free_context(struct iax2_context *con)
 	}
 }
 
-static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *iax2_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	int callno;
 	int res;
@@ -12358,7 +12358,7 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 		ast_string_field_set(iaxs[callno], host, pds.peer);
 	}
 
-	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability, requestor ? ast_channel_linkedid(requestor) : NULL, cai.found);
+	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability, assignedids, requestor, cai.found);
 
 	ast_mutex_unlock(&iaxsl[callno]);
 

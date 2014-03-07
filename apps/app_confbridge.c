@@ -691,7 +691,7 @@ static int conf_start_record(struct confbridge_conference *conference)
 
 	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
 
-	conference->record_chan = ast_request("CBRec", cap, NULL,
+	conference->record_chan = ast_request("CBRec", cap, NULL, NULL,
 		conference->name, NULL);
 	cap = ast_format_cap_destroy(cap);
 	if (!conference->record_chan) {
@@ -1219,7 +1219,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		/* Create an actual bridge that will do the audio mixing */
 		conference->bridge = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_MULTIMIX,
 			AST_BRIDGE_FLAG_MASQUERADE_ONLY | AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY,
-			app, conference_name);
+			app, conference_name, NULL);
 		if (!conference->bridge) {
 			ao2_ref(conference, -1);
 			conference = NULL;
@@ -1371,7 +1371,7 @@ static int alloc_playback_chan(struct confbridge_conference *conference)
 		return -1;
 	}
 	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
-	conference->playback_chan = ast_request("CBAnn", cap, NULL,
+	conference->playback_chan = ast_request("CBAnn", cap, NULL, NULL,
 		conference->name, NULL);
 	cap = ast_format_cap_destroy(cap);
 	if (!conference->playback_chan) {

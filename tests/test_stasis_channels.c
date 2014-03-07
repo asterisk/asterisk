@@ -72,7 +72,7 @@ AST_TEST_DEFINE(channel_blob_create)
 	}
 
 	type = stasis_message_type_create("test-type", NULL);
-	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, 0, "TEST/Alice");
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, NULL, 0, "TEST/Alice");
 	ast_channel_unlock(chan);
 	json = ast_json_pack("{s: s}",
 		     "foo", "bar");
@@ -127,7 +127,7 @@ AST_TEST_DEFINE(null_blob)
 	}
 
 	type = stasis_message_type_create("test-type", NULL);
-	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, 0, "TEST/Alice");
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, NULL, 0, "TEST/Alice");
 	ast_channel_unlock(chan);
 	json = ast_json_pack("{s: s}",
 		     "foo", "bar");
@@ -197,11 +197,11 @@ AST_TEST_DEFINE(multi_channel_blob_snapshots)
 
 	json = ast_json_pack("{s: s}",
 		     "type", "test");
-	chan_alice = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, 0, "TEST/Alice");
+	chan_alice = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, NULL, 0, "TEST/Alice");
 	ast_channel_unlock(chan_alice);
-	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, "200", "Bob", "200", "200", "default", NULL, 0, "TEST/Bob");
+	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, "200", "Bob", "200", "200", "default", NULL, NULL, 0, "TEST/Bob");
 	ast_channel_unlock(chan_bob);
-	chan_charlie = ast_channel_alloc(0, AST_STATE_DOWN, "300", "Bob", "300", "300", "default", NULL, 0, "TEST/Charlie");
+	chan_charlie = ast_channel_alloc(0, AST_STATE_DOWN, "300", "Bob", "300", "300", "default", NULL, NULL, 0, "TEST/Charlie");
 	ast_channel_unlock(chan_charlie);
 
 	blob = ast_multi_channel_blob_create(json);
@@ -265,7 +265,7 @@ AST_TEST_DEFINE(channel_snapshot_json)
 
 	ast_test_validate(test, NULL == ast_channel_snapshot_to_json(NULL, NULL));
 
-	chan = ast_channel_alloc(0, AST_STATE_DOWN, "cid_num", "cid_name", "acctcode", "exten", "context", NULL, 0, "TEST/name");
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, "cid_num", "cid_name", "acctcode", "exten", "context", NULL, NULL, 0, "TEST/name");
 	ast_channel_unlock(chan);
 	ast_test_validate(test, NULL != chan);
 	ast_channel_lock(chan);

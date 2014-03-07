@@ -55,6 +55,6 @@ enum stasis_app_snoop_direction {
  */
 struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	enum stasis_app_snoop_direction spy, enum stasis_app_snoop_direction whisper,
-	const char *app, const char *app_args);
+	const char *app, const char *app_args, const char *snoop_id);
 
 #endif /* _ASTERISK_STASIS_APP_SNOOP_H */

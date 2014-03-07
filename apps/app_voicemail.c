@@ -13779,7 +13779,7 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 		break;
 	}
 
-	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
+	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL,
         NULL, NULL, 0, 0, "TestChannel1"))) {
 		goto exit_vmsayname_test;
 	}

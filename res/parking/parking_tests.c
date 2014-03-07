@@ -54,7 +54,7 @@ static const struct ast_party_caller alice_callerid = {
 static struct ast_channel *create_alice_channel(void)
 {
 	struct ast_channel *alice = ast_channel_alloc(0, AST_STATE_DOWN,
-		"100", "Alice", "100", "100", "default", NULL, 0,
+		"100", "Alice", "100", "100", "default", NULL, NULL, 0,
 		CHANNEL_TECH_NAME "/Alice");
 
 	if (!alice) {

@@ -222,28 +222,27 @@ void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_chann
 {
 	struct ast_bridge_channel *other = NULL;
 	struct ast_bridge *bridge = bridge_channel->bridge;
-	const char *oldest_linkedid = ast_channel_linkedid(bridge_channel->chan);
+	struct ast_channel *oldest_linkedid_chan = bridge_channel->chan;
 
 	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
 		if (other == swap) {
 			continue;
 		}
-		oldest_linkedid = ast_channel_oldest_linkedid(oldest_linkedid, ast_channel_linkedid(other->chan));
-	}
-
-	if (ast_strlen_zero(oldest_linkedid)) {
-		return;
+		oldest_linkedid_chan = ast_channel_internal_oldest_linkedid(
+			oldest_linkedid_chan, other->chan);
 	}
 
 	ast_channel_lock(bridge_channel->chan);
-	ast_channel_linkedid_set(bridge_channel->chan, oldest_linkedid);
+	ast_channel_internal_copy_linkedid(bridge_channel->chan,
+		oldest_linkedid_chan);
 	ast_channel_unlock(bridge_channel->chan);
 	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
 		if (other == swap) {
 			continue;
 		}
 		ast_channel_lock(other->chan);
-		ast_channel_linkedid_set(other->chan, oldest_linkedid);
+		ast_channel_internal_copy_linkedid(other->chan,
+			oldest_linkedid_chan);
 		ast_channel_unlock(other->chan);
 	}
 }

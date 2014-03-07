@@ -137,7 +137,7 @@ static const char tdesc[] = "Local Proxy Channel Driver";
 
 static struct ao2_container *locals;
 
-static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int local_call(struct ast_channel *ast, const char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_devicestate(const char *data);
@@ -869,7 +869,7 @@ static struct local_pvt *local_alloc(const char *data, struct ast_format_cap *ca
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *local_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct local_pvt *p;
 	struct ast_channel *chan;
@@ -882,7 +882,7 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 	}
 	callid = ast_read_threadstorage_callid();
 	chan = ast_unreal_new_channels(&p->base, &local_tech, AST_STATE_DOWN, AST_STATE_RING,
-		p->exten, p->context, requestor, callid);
+		p->exten, p->context, assignedids, requestor, callid);
 	if (chan) {
 		ao2_link(locals, p);
 	}

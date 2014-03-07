@@ -857,8 +857,8 @@ static void ast_dummy_channel_destructor(void *obj);
 /*! \brief Create a new channel structure */
 static struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 0)))
 __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
-		       const char *acctcode, const char *exten, const char *context,
-		       const char *linkedid, enum ama_flags amaflag, const char *file, int line,
+		       const char *acctcode, const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
+		       const struct ast_channel *requestor, enum ama_flags amaflag, const char *file, int line,
 		       const char *function, const char *name_fmt, va_list ap)
 {
 	struct ast_channel *tmp;
@@ -876,7 +876,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return NULL;
 	}
 
-	if (!(tmp = ast_channel_internal_alloc(ast_channel_destructor, linkedid))) {
+	if (!(tmp = ast_channel_internal_alloc(ast_channel_destructor, assignedids, requestor))) {
 		/* Channel structure allocation failure. */
 		return NULL;
 	}
@@ -1039,8 +1039,8 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 					const char *cid_name, const char *acctcode,
-					const char *exten, const char *context,
-					const char *linkedid, enum ama_flags amaflag,
+					const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
+					const struct ast_channel *requestor, enum ama_flags amaflag,
 					const char *file, int line, const char *function,
 					const char *name_fmt, ...)
 {
@@ -1049,7 +1049,7 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 
 	va_start(ap, name_fmt);
 	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
-					linkedid, amaflag, file, line, function, name_fmt, ap);
+					assignedids, requestor, amaflag, file, line, function, name_fmt, ap);
 	va_end(ap);
 
 	return result;
@@ -1066,7 +1066,7 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	struct ast_channel *tmp;
 	struct varshead *headp;
 
-	if (!(tmp = ast_channel_internal_alloc(ast_dummy_channel_destructor, NULL))) {
+	if (!(tmp = ast_channel_internal_alloc(ast_dummy_channel_destructor, NULL, NULL))) {
 		/* Dummy channel structure allocation failure. */
 		return NULL;
 	}
@@ -5595,7 +5595,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 		data = tmpchan;
 		type = "Local";
 	}
-	if (!(new_chan = ast_request(type, cap, orig, data, &cause))) {
+	if (!(new_chan = ast_request(type, cap, NULL, orig, data, &cause))) {
 		ast_log(LOG_NOTICE, "Unable to create channel for call forward to '%s/%s' (cause = %d)\n", type, data, cause);
 		handle_cause(cause, outstate);
 		ast_hangup(orig);
@@ -5645,7 +5645,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	return new_chan;
 }
 
-struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
+struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int timeout, int *outstate, const char *cid_num, const char *cid_name, struct outgoing_helper *oh)
 {
 	int dummy_outstate;
 	int cause = 0;
@@ -5659,7 +5659,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	else
 		outstate = &dummy_outstate;	/* make outstate always a valid pointer */
 
-	chan = ast_request(type, cap, requestor, addr, &cause);
+	chan = ast_request(type, cap, assignedids, requestor, addr, &cause);
 	if (!chan) {
 		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, addr);
 		handle_cause(cause, outstate);
@@ -5831,9 +5831,9 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 	return chan;
 }
 
-struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr, int timeout, int *outstate, const char *cidnum, const char *cidname)
+struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int timeout, int *outstate, const char *cidnum, const char *cidname)
 {
-	return __ast_request_and_dial(type, cap, requestor, addr, timeout, outstate, cidnum, cidname, NULL);
+	return __ast_request_and_dial(type, cap, assignedids, requestor, addr, timeout, outstate, cidnum, cidname, NULL);
 }
 
 static int set_security_requirements(const struct ast_channel *requestor, struct ast_channel *out)
@@ -5876,7 +5876,7 @@ static int set_security_requirements(const struct ast_channel *requestor, struct
 	return 0;
 }
 
-struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_channel *requestor, const char *addr, int *cause)
+struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause)
 {
 	struct chanlist *chan;
 	struct ast_channel *c;
@@ -5933,7 +5933,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		ast_format_cap_remove_bytype(joint_cap, AST_FORMAT_TYPE_AUDIO);
 		ast_format_cap_add(joint_cap, &best_audio_fmt);
 
-		if (!(c = chan->tech->requester(type, joint_cap, requestor, addr, cause))) {
+		if (!(c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause))) {
 			ast_format_cap_destroy(joint_cap);
 			return NULL;
 		}
@@ -6330,55 +6330,6 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 	}
 }
 
-const char *ast_channel_oldest_linkedid(const char *a, const char *b)
-{
-	const char *satime, *saseq;
-	const char *sbtime, *sbseq;
-	const char *dash;
-	unsigned int atime, aseq, btime, bseq;
-
-	if (ast_strlen_zero(a)) {
-		return b;
-	}
-
-	if (ast_strlen_zero(b)) {
-		return a;
-	}
-
-	satime = a;
-	sbtime = b;
-
-	/* jump over the system name */
-	if ((dash = strrchr(satime, '-'))) {
-		satime = dash+1;
-	}
-	if ((dash = strrchr(sbtime, '-'))) {
-		sbtime = dash+1;
-	}
-
-	/* the sequence comes after the '.' */
-	saseq = strchr(satime, '.');
-	sbseq = strchr(sbtime, '.');
-	if (!saseq || !sbseq) {
-		return NULL;
-	}
-	saseq++;
-	sbseq++;
-
-	/* convert it all to integers */
-	atime = atoi(satime); /* note that atoi is ignoring the '.' after the time string */
-	btime = atoi(sbtime); /* note that atoi is ignoring the '.' after the time string */
-	aseq = atoi(saseq);
-	bseq = atoi(sbseq);
-
-	/* and finally compare */
-	if (atime == btime) {
-		return (aseq < bseq) ? a : b;
-	}
-	else {
-		return (atime < btime) ? a : b;
-	}
-}
 
 void ast_channel_name_to_dial_string(char *channel_name)
 {
@@ -6422,7 +6373,6 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	struct ast_format wformat;
 	struct ast_format tmp_format;
 	char tmp_name[AST_CHANNEL_NAME];
-	const char *tmp_id;
 	char clone_sending_dtmf_digit;
 	struct timeval clone_sending_dtmf_tv;
 
@@ -6488,9 +6438,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* Swap uniqueid's of the channels. This needs to happen before channel renames,
 	 * so rename events get the proper id's.
 	 */
-	tmp_id = ast_strdupa(ast_channel_uniqueid(clonechan));
-	ast_channel_uniqueid_set(clonechan, ast_channel_uniqueid(original));
-	ast_channel_uniqueid_set(original, tmp_id);
+	ast_channel_internal_swap_uniqueid_and_linkedid(clonechan, original);
 
 	/* Swap channel names. This uses ast_channel_name_set directly, so we
 	 * don't get any spurious rename events.
@@ -10203,7 +10151,6 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 		char *accountcode;
 		char *exten;
 		char *context;
-		char *linkedid;
 		char *name;
 		int amaflags;
 		struct ast_format readformat;
@@ -10214,7 +10161,6 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 	my_vars.accountcode = ast_strdupa(ast_channel_accountcode(yankee));
 	my_vars.exten = ast_strdupa(ast_channel_exten(yankee));
 	my_vars.context = ast_strdupa(ast_channel_context(yankee));
-	my_vars.linkedid = ast_strdupa(ast_channel_linkedid(yankee));
 	my_vars.name = ast_strdupa(ast_channel_name(yankee));
 	my_vars.amaflags = ast_channel_amaflags(yankee);
 	ast_format_copy(&my_vars.writeformat, ast_channel_writeformat(yankee));
@@ -10224,7 +10170,7 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 	/* Do not hold any channel locks while calling channel_alloc() since the function
 	 * locks the channel container when linking the new channel in. */
 	if (!(yanked_chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, my_vars.accountcode,
-					my_vars.exten, my_vars.context, my_vars.linkedid, my_vars.amaflags,
+					my_vars.exten, my_vars.context, NULL, yankee, my_vars.amaflags,
 					"Surrogate/%s", my_vars.name))) {
 		return NULL;
 	}
