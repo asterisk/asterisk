@@ -515,8 +515,8 @@
 				<configOption name="one_touch_recording" default="no">
 					<synopsis>Determines whether one-touch recording is allowed for this endpoint.</synopsis>
 					<see-also>
-						<ref type="configOption">recordonfeature</ref>
-						<ref type="configOption">recordofffeature</ref>
+						<ref type="configOption">record_on_feature</ref>
+						<ref type="configOption">record_off_feature</ref>
 					</see-also>
 				</configOption>
 				<configOption name="record_on_feature" default="automixmon">
@@ -529,7 +529,7 @@
 					</description>
 					<see-also>
 						<ref type="configOption">one_touch_recording</ref>
-						<ref type="configOption">recordofffeature</ref>
+						<ref type="configOption">record_off_feature</ref>
 					</see-also>
 				</configOption>
 				<configOption name="record_off_feature" default="automixmon">
@@ -542,7 +542,7 @@
 					</description>
 					<see-also>
 						<ref type="configOption">one_touch_recording</ref>
-						<ref type="configOption">recordonfeature</ref>
+						<ref type="configOption">record_on_feature</ref>
 					</see-also>
 				</configOption>
 				<configOption name="rtp_engine" default="asterisk">
