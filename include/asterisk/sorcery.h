@@ -928,6 +928,26 @@ int ast_sorcery_object_set_extended(const void *object, const char *name, const 
  */
 int ast_sorcery_object_id_compare(const void *obj_left, const void *obj_right, int flags);
 
+/*!
+ * \brief Get the sorcery object type given a type name.
+ *
+ * \param sorcery The sorcery from which to retrieve the object type
+ * \param type The type name
+ */
+struct ast_sorcery_object_type *ast_sorcery_get_object_type(const struct ast_sorcery *sorcery,
+		const char *type);
+
+/*!
+ * \brief Determine if a particular object field has been registered with sorcery
+ *
+ * \param object_type The object type to check against
+ * \param field_name The name of the field to check
+ *
+ * \retval 0 The field is not registered for this sorcery type
+ * \retval 1 The field is registered for this sorcery type
+ */
+int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type *object_type,
+		const char *field_name);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

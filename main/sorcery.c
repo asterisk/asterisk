@@ -58,6 +58,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Number of buckets for instances (should be prime for performance reasons) */
 #define INSTANCE_BUCKETS 17
 
+/*! \brief Number of buckets for object fields (should be prime for performance reasons) */
+#define OBJECT_FIELD_BUCKETS 29
+
 /*! \brief Thread pool for observers */
 static struct ast_threadpool *threadpool;
 
@@ -258,22 +261,22 @@ static sorcery_field_handler sorcery_field_default_handler(enum aco_option_type 
 /*! \brief Hashing function for sorcery wizards */
 static int sorcery_wizard_hash(const void *obj, const int flags)
 {
-    const struct ast_sorcery_wizard *object;
-    const char *key;
+	const struct ast_sorcery_wizard *object;
+	const char *key;
 
-    switch (flags & OBJ_SEARCH_MASK) {
-    case OBJ_SEARCH_KEY:
-        key = obj;
-        break;
-    case OBJ_SEARCH_OBJECT:
-        object = obj;
-        key = object->name;
-        break;
-    default:
-        ast_assert(0);
-        return 0;
-    }
-    return ast_str_hash(key);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->name;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 /*! \brief Comparator function for sorcery wizards */
@@ -293,6 +296,54 @@ static int sorcery_wizard_cmp(void *obj, void *arg, int flags)
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
 		cmp = strncmp(object_left->name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
+/*! \brief Hashing function for sorcery wizards */
+static int object_type_field_hash(const void *obj, const int flags)
+{
+	const struct ast_sorcery_object_field *object_field;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object_field = obj;
+		key = object_field->name;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
+}
+
+static int object_type_field_cmp(void *obj, void *arg, int flags)
+{
+	const struct ast_sorcery_object_field *field_left = obj;
+	const struct ast_sorcery_object_field *field_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = field_right->name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(field_left->name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(field_left->name, right_key, strlen(right_key));
 		break;
 	default:
 		cmp = 0;
@@ -351,22 +402,22 @@ static int sorcery_instance_cmp(void *obj, void *arg, int flags)
 /*! \brief Hashing function for sorcery instances */
 static int sorcery_instance_hash(const void *obj, const int flags)
 {
-    const struct ast_sorcery *object;
-    const char *key;
+	const struct ast_sorcery *object;
+	const char *key;
 
-    switch (flags & OBJ_SEARCH_MASK) {
-    case OBJ_SEARCH_KEY:
-        key = obj;
-        break;
-    case OBJ_SEARCH_OBJECT:
-        object = obj;
-        key = object->module_name;
-        break;
-    default:
-        ast_assert(0);
-        return 0;
-    }
-    return ast_str_hash(key);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->module_name;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 int ast_sorcery_init(void)
@@ -461,22 +512,22 @@ static void sorcery_destructor(void *obj)
 /*! \brief Hashing function for sorcery types */
 static int sorcery_type_hash(const void *obj, const int flags)
 {
-    const struct ast_sorcery_object_type *object;
-    const char *key;
+	const struct ast_sorcery_object_type *object;
+	const char *key;
 
-    switch (flags & OBJ_SEARCH_MASK) {
-    case OBJ_SEARCH_KEY:
-        key = obj;
-        break;
-    case OBJ_SEARCH_OBJECT:
-        object = obj;
-        key = object->name;
-        break;
-    default:
-        ast_assert(0);
-        return 0;
-    }
-    return ast_str_hash(key);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->name;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 /*! \brief Comparator function for sorcery types */
@@ -577,7 +628,8 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 		return NULL;
 	}
 
-	if (!(object_type->fields = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+	if (!(object_type->fields = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, OBJECT_FIELD_BUCKETS,
+					object_type_field_hash, object_type_field_cmp))) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
@@ -1786,4 +1838,27 @@ int ast_sorcery_object_id_compare(const void *obj_left, const void *obj_right, i
 		return 0;
 	}
 	return strcmp(ast_sorcery_object_get_id(obj_left), ast_sorcery_object_get_id(obj_right));
+}
+
+struct ast_sorcery_object_type *ast_sorcery_get_object_type(const struct ast_sorcery *sorcery,
+		const char *type)
+{
+	return ao2_find(sorcery->types, type, OBJ_SEARCH_KEY);
+}
+
+int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type *object_type,
+		const char *field_name)
+{
+	struct ast_sorcery_object_field *object_field;
+	int res = 1;
+
+	ast_assert(object_type != NULL);
+
+	object_field = ao2_find(object_type->fields, field_name, OBJ_SEARCH_KEY);
+	if (!object_field) {
+		res = 0;
+	}
+
+	ao2_cleanup(object_field);
+	return res;
 }

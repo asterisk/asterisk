@@ -753,6 +753,108 @@ AST_TEST_DEFINE(object_delete_uncreated)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(object_allocate_on_retrieval)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	struct ast_category *cat;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_allocate_on_retrieval";
+		info->category = "/res/sorcery_realtime/";
+		info->summary = "sorcery object allocation upon retrieval unit test";
+		info->description =
+			"This test creates data in a realtime backend, not through sorcery. Sorcery is then\n"
+			"instructed to retrieve an object with the id of the object that was created in the\n"
+			"realtime backend. Sorcery should be able to allocate the object appropriately";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	cat = ast_category_new("blah", "", 0);
+	ast_variable_append(cat, ast_variable_new("id", "blah", ""));
+	ast_variable_append(cat, ast_variable_new("bob", "42", ""));
+	ast_variable_append(cat, ast_variable_new("joe", "93", ""));
+	ast_category_append(realtime_objects, cat);
+
+	if (!(obj = ast_sorcery_retrieve_by_id(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate object 'blah' base on realtime data\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (obj->bob != 42) {
+		ast_test_status_update(test, "Object's 'bob' field does not have expected value: %d != 42\n",
+				obj->bob);
+		return AST_TEST_FAIL;
+	} else if (obj->joe != 93) {
+		ast_test_status_update(test, "Object's 'joe' field does not have expected value: %d != 93\n",
+				obj->joe);
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+
+AST_TEST_DEFINE(object_filter)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	struct ast_category *cat;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_filter";
+		info->category = "/res/sorcery_realtime/";
+		info->summary = "sorcery object field filter unit test";
+		info->description =
+			"This test creates data in a realtime backend, not through sorcery. In addition to\n"
+			"the object fields that have been registered with sorcery, there is data in the\n"
+			"realtime backend that is unknown to sorcery. When sorcery attempts to retrieve\n"
+			"the object from the realtime backend, the data unknown to sorcery should be\n"
+			"filtered out of the returned objectset, and the object should be successfully\n"
+			"allocated by sorcery\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	cat = ast_category_new("blah", "", 0);
+	ast_variable_append(cat, ast_variable_new("id", "blah", ""));
+	ast_variable_append(cat, ast_variable_new("bob", "42", ""));
+	ast_variable_append(cat, ast_variable_new("joe", "93", ""));
+	ast_variable_append(cat, ast_variable_new("fred", "50", ""));
+	ast_category_append(realtime_objects, cat);
+
+	if (!(obj = ast_sorcery_retrieve_by_id(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to retrieve properly created object using id of 'blah'\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (obj->bob != 42) {
+		ast_test_status_update(test, "Object's 'bob' field does not have expected value: %d != 42\n",
+				obj->bob);
+		return AST_TEST_FAIL;
+	} else if (obj->joe != 93) {
+		ast_test_status_update(test, "Object's 'joe' field does not have expected value: %d != 93\n",
+				obj->joe);
+		return AST_TEST_FAIL;
+	}
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	ast_config_engine_deregister(&sorcery_config_engine);
@@ -766,6 +868,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_update_uncreated);
 	AST_TEST_UNREGISTER(object_delete);
 	AST_TEST_UNREGISTER(object_delete_uncreated);
+	AST_TEST_UNREGISTER(object_allocate_on_retrieval);
+	AST_TEST_UNREGISTER(object_filter);
 
 	return 0;
 }
@@ -784,6 +888,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_update_uncreated);
 	AST_TEST_REGISTER(object_delete);
 	AST_TEST_REGISTER(object_delete_uncreated);
+	AST_TEST_REGISTER(object_allocate_on_retrieval);
+	AST_TEST_REGISTER(object_filter);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
