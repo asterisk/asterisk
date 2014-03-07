@@ -333,7 +333,7 @@ extern struct ast_bridge_methods ast_bridge_base_v_table;
  * \param flags Flags that will alter the behavior of the bridge
  * \param creator Entity that created the bridge (optional)
  * \param name Name given to the bridge by its creator (optional, requires named creator)
- * \param name id Unique ID given to the bridge by its creator (optional)
+ * \param id Unique ID given to the bridge by its creator (optional)
  *
  * \retval a pointer to a new bridge on success
  * \retval NULL on failure

@@ -969,7 +969,9 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 }
 
 
-static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap,
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,
+	const char *data, int *cause);
 static int dahdi_digit_begin(struct ast_channel *ast, char digit);
 static int dahdi_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int dahdi_sendtext(struct ast_channel *c, const char *text);
@@ -2129,7 +2131,9 @@ static int dahdi_setlaw(int dfd, int law)
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 
 #if defined(HAVE_PRI)
-static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state, enum sig_pri_law law, char *exten, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
+static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state,
+	enum sig_pri_law law, char *exten, const struct ast_assigned_ids *assignedids,
+	const struct ast_channel *requestor)
 {
 	struct dahdi_pvt *p = pvt;
 	int audio;
@@ -13161,7 +13165,9 @@ static struct dahdi_pvt *determine_starting_point(const char *data, struct dahdi
 	return p;
 }
 
-static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap *cap,
+	const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,
+	const char *data, int *cause)
 {
 	int callwait = 0;
 	struct dahdi_pvt *p;
@@ -13255,11 +13261,11 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 
 				sig_pri_extract_called_num_subaddr(p->sig_pvt, data, p->dnid,
 					sizeof(p->dnid));
-				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, requestor, transcapdigital);
+				tmp = sig_pri_request(p->sig_pvt, SIG_PRI_DEFLAW, assignedids, requestor, transcapdigital);
 #endif
 #if defined(HAVE_SS7)
 			} else if (p->sig == SIG_SS7) {
-				tmp = sig_ss7_request(p->sig_pvt, SIG_SS7_DEFLAW, requestor, transcapdigital);
+				tmp = sig_ss7_request(p->sig_pvt, SIG_SS7_DEFLAW, assignedids, requestor, transcapdigital);
 #endif	/* defined(HAVE_SS7) */
 			} else {
 				tmp = dahdi_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, assignedids, requestor, callid);
