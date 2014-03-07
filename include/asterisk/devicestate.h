@@ -274,13 +274,20 @@ struct ast_devstate_aggregate {
  * \since 12
  */
 struct ast_device_state_message {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(cache_id);	/*!< A unique ID used for hashing */
-		AST_STRING_FIELD(device);	/*!< The name of the device */
-	);
-	enum ast_device_state state;		/*!< The state of the device */
-	struct ast_eid *eid;			/*!< The EID of the server where this message originated, NULL EID means aggregate state */
-	enum ast_devstate_cache cachable;	/*!< Flag designating the cachability of this device state */
+	/*! The name of the device */
+	const char *device;
+	/*!
+	 * \brief The EID of the server where this message originated.
+	 *
+	 * \note A NULL EID means aggregate state.
+	 */
+	const struct ast_eid *eid;
+	/*! The state of the device */
+	enum ast_device_state state;
+	/*! Flag designating the cachability of this device state */
+	enum ast_devstate_cache cachable;
+	/*! The device and eid data is stuffed here when the struct is allocated. */
+	struct ast_eid stuff[0];
 };
 
 /*!

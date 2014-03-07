@@ -53,7 +53,7 @@ static void message_type_dtor(void *obj)
 struct stasis_message_type *stasis_message_type_create(const char *name,
 	struct stasis_message_vtable *vtable)
 {
-	RAII_VAR(struct stasis_message_type *, type, NULL, ao2_cleanup);
+	struct stasis_message_type *type;
 
 	type = ao2_alloc(sizeof(*type), message_type_dtor);
 	if (!type) {
@@ -66,11 +66,11 @@ struct stasis_message_type *stasis_message_type_create(const char *name,
 
 	type->name = ast_strdup(name);
 	if (!type->name) {
+		ao2_cleanup(type);
 		return NULL;
 	}
 	type->vtable = vtable;
 
-	ao2_ref(type, +1);
 	return type;
 }
 
@@ -85,8 +85,12 @@ struct stasis_message {
 	struct timeval timestamp;
 	/*! Type of the message */
 	struct stasis_message_type *type;
+	/*! Where this message originated.  NULL if aggregate message. */
+	const struct ast_eid *eid_ptr;
 	/*! Message content */
 	void *data;
+	/*! Where this message originated. */
+	struct ast_eid eid;
 };
 
 static void stasis_message_dtor(void *obj)
@@ -96,9 +100,9 @@ static void stasis_message_dtor(void *obj)
 	ao2_cleanup(message->data);
 }
 
-struct stasis_message *stasis_message_create(struct stasis_message_type *type, void *data)
+struct stasis_message *stasis_message_create_full(struct stasis_message_type *type, void *data, const struct ast_eid *eid)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct stasis_message *message;
 
 	if (type == NULL || data == NULL) {
 		return NULL;
@@ -114,9 +118,25 @@ struct stasis_message *stasis_message_create(struct stasis_message_type *type, v
 	message->type = type;
 	ao2_ref(data, +1);
 	message->data = data;
+	if (eid) {
+		message->eid_ptr = &message->eid;
+		message->eid = *eid;
+	}
 
-	ao2_ref(message, +1);
 	return message;
+}
+
+struct stasis_message *stasis_message_create(struct stasis_message_type *type, void *data)
+{
+	return stasis_message_create_full(type, data, &ast_eid_default);
+}
+
+const struct ast_eid *stasis_message_eid(const struct stasis_message *msg)
+{
+	if (msg == NULL) {
+		return NULL;
+	}
+	return msg->eid_ptr;
 }
 
 struct stasis_message_type *stasis_message_type(const struct stasis_message *msg)

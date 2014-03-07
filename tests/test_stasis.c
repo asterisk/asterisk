@@ -94,11 +94,13 @@ AST_TEST_DEFINE(message_type)
 AST_TEST_DEFINE(message)
 {
 	RAII_VAR(struct stasis_message_type *, type, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, uut, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, uut1, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, uut2, NULL, ao2_cleanup);
 	RAII_VAR(char *, data, NULL, ao2_cleanup);
 	char *expected = "SomeData";
 	struct timeval expected_timestamp;
 	struct timeval time_diff;
+	struct ast_eid foreign_eid;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -112,29 +114,42 @@ AST_TEST_DEFINE(message)
 	}
 
 
+	memset(&foreign_eid, 0xFF, sizeof(foreign_eid));
+
 	type = stasis_message_type_create("SomeMessage", NULL);
 
-	ast_test_validate(test, NULL == stasis_message_create(NULL, NULL));
-	ast_test_validate(test, NULL == stasis_message_create(type, NULL));
+	ast_test_validate(test, NULL == stasis_message_create_full(NULL, NULL, NULL));
+	ast_test_validate(test, NULL == stasis_message_create_full(type, NULL, NULL));
 
 	data = ao2_alloc(strlen(expected) + 1, NULL);
-	strcpy(data, expected);
+	strcpy(data, expected);/* Safe */
 	expected_timestamp = ast_tvnow();
-	uut = stasis_message_create(type, data);
+	uut1 = stasis_message_create_full(type, data, &foreign_eid);
+	uut2 = stasis_message_create_full(type, data, NULL);
 
-	ast_test_validate(test, NULL != uut);
-	ast_test_validate(test, type == stasis_message_type(uut));
-	ast_test_validate(test, 0 == strcmp(expected, stasis_message_data(uut)));
-	ast_test_validate(test, 2 == ao2_ref(data, 0)); /* uut has ref to data */
+	ast_test_validate(test, NULL != uut1);
+	ast_test_validate(test, NULL != uut2);
+	ast_test_validate(test, type == stasis_message_type(uut1));
+	ast_test_validate(test, type == stasis_message_type(uut2));
+	ast_test_validate(test, 0 == strcmp(expected, stasis_message_data(uut1)));
+	ast_test_validate(test, 0 == strcmp(expected, stasis_message_data(uut2)));
+	ast_test_validate(test, NULL != stasis_message_eid(uut1));
+	ast_test_validate(test, NULL == stasis_message_eid(uut2));
+	ast_test_validate(test, !ast_eid_cmp(&foreign_eid, stasis_message_eid(uut1)));
 
-	time_diff = ast_tvsub(*stasis_message_timestamp(uut), expected_timestamp);
+	ast_test_validate(test, 3 == ao2_ref(data, 0)); /* uut1 and uut2 have ref to data */
+
+	time_diff = ast_tvsub(*stasis_message_timestamp(uut1), expected_timestamp);
 	/* 10ms is certainly long enough for the two calls to complete */
 	ast_test_validate(test, time_diff.tv_sec == 0);
 	ast_test_validate(test, time_diff.tv_usec < 10000);
 
-	ao2_ref(uut, -1);
-	uut = NULL;
-	ast_test_validate(test, 1 == ao2_ref(data, 0)); /* uut unreffed data */
+	ao2_ref(uut1, -1);
+	uut1 = NULL;
+	ast_test_validate(test, 2 == ao2_ref(data, 0)); /* uut1 unreffed data */
+	ao2_ref(uut2, -1);
+	uut2 = NULL;
+	ast_test_validate(test, 1 == ao2_ref(data, 0)); /* uut2 unreffed data */
 
 	return AST_TEST_PASS;
 }
@@ -643,11 +658,12 @@ struct cache_test_data {
 static void cache_test_data_dtor(void *obj)
 {
 	struct cache_test_data *data = obj;
+
 	ast_free(data->id);
 	ast_free(data->value);
 }
 
-static struct stasis_message *cache_test_message_create(struct stasis_message_type *type, const char *name, const char *value)
+static struct stasis_message *cache_test_message_create_full(struct stasis_message_type *type, const char *name, const char *value, struct ast_eid *eid)
 {
 	RAII_VAR(struct cache_test_data *, data, NULL, ao2_cleanup);
 
@@ -665,7 +681,12 @@ static struct stasis_message *cache_test_message_create(struct stasis_message_ty
 		return NULL;
 	}
 
-	return stasis_message_create(type, data);
+	return stasis_message_create_full(type, data, eid);
+}
+
+static struct stasis_message *cache_test_message_create(struct stasis_message_type *type, const char *name, const char *value)
+{
+	return cache_test_message_create_full(type, name, value, &ast_eid_default);
 }
 
 static const char *cache_test_data_id(struct stasis_message *message)
@@ -676,6 +697,81 @@ static const char *cache_test_data_id(struct stasis_message *message)
 		return NULL;
 	}
 	return cachable->id;
+}
+
+static struct stasis_message *cache_test_aggregate_calc_fn(struct stasis_cache_entry *entry, struct stasis_message *new_snapshot)
+{
+	struct stasis_message *aggregate_snapshot;
+	struct stasis_message *snapshot;
+	struct stasis_message_type *type = NULL;
+	struct cache_test_data *test_data = NULL;
+	int idx;
+	int accumulated = 0;
+	char aggregate_str[30];
+
+	/* Accumulate the aggregate value. */
+	snapshot = stasis_cache_entry_get_local(entry);
+	if (snapshot) {
+		type = stasis_message_type(snapshot);
+		test_data = stasis_message_data(snapshot);
+		accumulated += atoi(test_data->value);
+	}
+	for (idx = 0; ; ++idx) {
+		snapshot = stasis_cache_entry_get_remote(entry, idx);
+		if (!snapshot) {
+			break;
+		}
+
+		type = stasis_message_type(snapshot);
+		test_data = stasis_message_data(snapshot);
+		accumulated += atoi(test_data->value);
+	}
+
+	if (!test_data) {
+		/* There are no test entries cached.  Delete the aggregate. */
+		return NULL;
+	}
+
+	snapshot = stasis_cache_entry_get_aggregate(entry);
+	if (snapshot) {
+		type = stasis_message_type(snapshot);
+		test_data = stasis_message_data(snapshot);
+		if (accumulated == atoi(test_data->value)) {
+			/* Aggregate test entry did not change. */
+			return ao2_bump(snapshot);
+		}
+	}
+
+	snprintf(aggregate_str, sizeof(aggregate_str), "%d", accumulated);
+	aggregate_snapshot = cache_test_message_create_full(type, test_data->id, aggregate_str, NULL);
+	if (!aggregate_snapshot) {
+		/* Bummer.  We have to keep the old aggregate snapshot. */
+		ast_log(LOG_ERROR, "Could not create aggregate snapshot.\n");
+		return ao2_bump(snapshot);
+	}
+
+	return aggregate_snapshot;
+}
+
+static void cache_test_aggregate_publish_fn(struct stasis_topic *topic, struct stasis_message *aggregate)
+{
+	stasis_publish(topic, aggregate);
+}
+
+static int check_cache_aggregate(struct stasis_cache *cache, struct stasis_message_type *cache_type, const char *id, const char *value)
+{
+	RAII_VAR(struct stasis_message *, aggregate, NULL, ao2_cleanup);
+	struct cache_test_data *test_data;
+
+	aggregate = stasis_cache_get_by_eid(cache, cache_type, id, NULL);
+	if (!aggregate) {
+		/* No aggregate, return true if given no value. */
+		return !value;
+	}
+
+	/* Return true if the given value matches the aggregate value. */
+	test_data = stasis_message_data(aggregate);
+	return value && !strcmp(value, test_data->value);
 }
 
 AST_TEST_DEFINE(cache_filter)
@@ -845,8 +941,8 @@ AST_TEST_DEFINE(cache_dump)
 	case TEST_INIT:
 		info->name = __func__;
 		info->category = test_category;
-		info->summary = "Test passing messages through cache topic unscathed.";
-		info->description = "Test passing messages through cache topic unscathed.";
+		info->summary = "Test cache dump routines.";
+		info->description = "Test cache dump routines.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -933,6 +1029,266 @@ AST_TEST_DEFINE(cache_dump)
 	ao2_cleanup(cache_dump);
 	cache_dump = stasis_cache_dump(cache, stasis_subscription_change_type());
 	ast_test_validate(test, 0 == ao2_container_count(cache_dump));
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(cache_eid_aggregate)
+{
+	RAII_VAR(struct stasis_message_type *, cache_type, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_topic *, topic, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_cache *, cache, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, stasis_caching_unsubscribe);
+	RAII_VAR(struct consumer *, cache_consumer, NULL, ao2_cleanup);
+	RAII_VAR(struct consumer *, topic_consumer, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_subscription *, topic_sub, NULL, stasis_unsubscribe);
+	RAII_VAR(struct stasis_subscription *, cache_sub, NULL, stasis_unsubscribe);
+	RAII_VAR(struct stasis_message *, test_message1_1, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message2_1, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message2_2, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message2_3, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message2_4, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message1_clear, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, test_message2_clear, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, cache_dump, NULL, ao2_cleanup);
+	int actual_len;
+	struct ao2_iterator i;
+	void *obj;
+	struct ast_eid foreign_eid1;
+	struct ast_eid foreign_eid2;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = test_category;
+		info->summary = "Test cache eid and aggregate support.";
+		info->description = "Test cache eid and aggregate support.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	memset(&foreign_eid1, 0xAA, sizeof(foreign_eid1));
+	memset(&foreign_eid2, 0xBB, sizeof(foreign_eid2));
+
+	cache_type = stasis_message_type_create("Cacheable", NULL);
+	ast_test_validate(test, NULL != cache_type);
+
+	topic = stasis_topic_create("SomeTopic");
+	ast_test_validate(test, NULL != topic);
+
+	/* To consume events published to the topic. */
+	topic_consumer = consumer_create(1);
+	ast_test_validate(test, NULL != topic_consumer);
+
+	topic_sub = stasis_subscribe(topic, consumer_exec, topic_consumer);
+	ast_test_validate(test, NULL != topic_sub);
+	ao2_ref(topic_consumer, +1);
+
+	cache = stasis_cache_create_full(cache_test_data_id,
+		cache_test_aggregate_calc_fn, cache_test_aggregate_publish_fn);
+	ast_test_validate(test, NULL != cache);
+
+	caching_topic = stasis_caching_topic_create(topic, cache);
+	ast_test_validate(test, NULL != caching_topic);
+
+	/* To consume update events published to the caching_topic. */
+	cache_consumer = consumer_create(1);
+	ast_test_validate(test, NULL != cache_consumer);
+
+	cache_sub = stasis_subscribe(stasis_caching_get_topic(caching_topic), consumer_exec, cache_consumer);
+	ast_test_validate(test, NULL != cache_sub);
+	ao2_ref(cache_consumer, +1);
+
+	/* Create test messages. */
+	test_message1_1 = cache_test_message_create_full(cache_type, "1", "1", &ast_eid_default);
+	ast_test_validate(test, NULL != test_message1_1);
+	test_message2_1 = cache_test_message_create_full(cache_type, "2", "1", &ast_eid_default);
+	ast_test_validate(test, NULL != test_message2_1);
+	test_message2_2 = cache_test_message_create_full(cache_type, "2", "2", &foreign_eid1);
+	ast_test_validate(test, NULL != test_message2_2);
+	test_message2_3 = cache_test_message_create_full(cache_type, "2", "3", &foreign_eid2);
+	ast_test_validate(test, NULL != test_message2_3);
+	test_message2_4 = cache_test_message_create_full(cache_type, "2", "4", &foreign_eid2);
+	ast_test_validate(test, NULL != test_message2_4);
+
+	/* Post some snapshots */
+	stasis_publish(topic, test_message1_1);
+	ast_test_validate(test, check_cache_aggregate(cache, cache_type, "1", "1"));
+	stasis_publish(topic, test_message2_1);
+	ast_test_validate(test, check_cache_aggregate(cache, cache_type, "2", "1"));
+	stasis_publish(topic, test_message2_2);
+	ast_test_validate(test, check_cache_aggregate(cache, cache_type, "2", "3"));
+
+	actual_len = consumer_wait_for(cache_consumer, 6);
+	ast_test_validate(test, 6 == actual_len);
+	actual_len = consumer_wait_for(topic_consumer, 6);
+	ast_test_validate(test, 6 == actual_len);
+
+	/* Check the cache */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_dump_all(cache, NULL);
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 3 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test,
+			actual_cache_entry == test_message1_1
+			|| actual_cache_entry == test_message2_1
+			|| actual_cache_entry == test_message2_2);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Check the local cached items */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_dump_by_eid(cache, NULL, &ast_eid_default);
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test,
+			actual_cache_entry == test_message1_1
+			|| actual_cache_entry == test_message2_1);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Post snapshot 2 from another eid. */
+	stasis_publish(topic, test_message2_3);
+	ast_test_validate(test, check_cache_aggregate(cache, cache_type, "2", "6"));
+
+	actual_len = consumer_wait_for(cache_consumer, 8);
+	ast_test_validate(test, 8 == actual_len);
+	actual_len = consumer_wait_for(topic_consumer, 8);
+	ast_test_validate(test, 8 == actual_len);
+
+	/* Check the cache */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_dump_all(cache, NULL);
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 4 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test,
+			actual_cache_entry == test_message1_1
+			|| actual_cache_entry == test_message2_1
+			|| actual_cache_entry == test_message2_2
+			|| actual_cache_entry == test_message2_3);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Check the remote cached items */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_dump_by_eid(cache, NULL, &foreign_eid1);
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 1 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test, actual_cache_entry == test_message2_2);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Post snapshot 2 from a repeated eid. */
+	stasis_publish(topic, test_message2_4);
+	ast_test_validate(test, check_cache_aggregate(cache, cache_type, "2", "7"));
+
+	actual_len = consumer_wait_for(cache_consumer, 10);
+	ast_test_validate(test, 10 == actual_len);
+	actual_len = consumer_wait_for(topic_consumer, 10);
+	ast_test_validate(test, 10 == actual_len);
+
+	/* Check the cache */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_dump_all(cache, NULL);
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 4 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test,
+			actual_cache_entry == test_message1_1
+			|| actual_cache_entry == test_message2_1
+			|| actual_cache_entry == test_message2_2
+			|| actual_cache_entry == test_message2_4);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Check all snapshot 2 cache entries. */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_get_all(cache, cache_type, "2");
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 3 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test,
+			actual_cache_entry == test_message2_1
+			|| actual_cache_entry == test_message2_2
+			|| actual_cache_entry == test_message2_4);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Clear snapshot 1 */
+	test_message1_clear = stasis_cache_clear_create(test_message1_1);
+	ast_test_validate(test, NULL != test_message1_clear);
+	stasis_publish(topic, test_message1_clear);
+	ast_test_validate(test, check_cache_aggregate(cache, cache_type, "1", NULL));
+
+	actual_len = consumer_wait_for(cache_consumer, 12);
+	ast_test_validate(test, 12 == actual_len);
+	actual_len = consumer_wait_for(topic_consumer, 11);
+	ast_test_validate(test, 11 == actual_len);
+
+	/* Check the cache */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_dump_all(cache, NULL);
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 3 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test,
+			actual_cache_entry == test_message2_1
+			|| actual_cache_entry == test_message2_2
+			|| actual_cache_entry == test_message2_4);
+	}
+	ao2_iterator_destroy(&i);
+
+	/* Clear snapshot 2 from a remote eid */
+	test_message2_clear = stasis_cache_clear_create(test_message2_2);
+	ast_test_validate(test, NULL != test_message2_clear);
+	stasis_publish(topic, test_message2_clear);
+	ast_test_validate(test, check_cache_aggregate(cache, cache_type, "2", "5"));
+
+	actual_len = consumer_wait_for(cache_consumer, 14);
+	ast_test_validate(test, 14 == actual_len);
+	actual_len = consumer_wait_for(topic_consumer, 13);
+	ast_test_validate(test, 13 == actual_len);
+
+	/* Check the cache */
+	ao2_cleanup(cache_dump);
+	cache_dump = stasis_cache_dump_all(cache, NULL);
+	ast_test_validate(test, NULL != cache_dump);
+	ast_test_validate(test, 2 == ao2_container_count(cache_dump));
+	i = ao2_iterator_init(cache_dump, 0);
+	while ((obj = ao2_iterator_next(&i))) {
+		RAII_VAR(struct stasis_message *, actual_cache_entry, obj, ao2_cleanup);
+
+		ast_test_validate(test,
+			actual_cache_entry == test_message2_1
+			|| actual_cache_entry == test_message2_4);
+	}
+	ao2_iterator_destroy(&i);
 
 	return AST_TEST_PASS;
 }
@@ -1399,6 +1755,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(cache_filter);
 	AST_TEST_UNREGISTER(cache);
 	AST_TEST_UNREGISTER(cache_dump);
+	AST_TEST_UNREGISTER(cache_eid_aggregate);
 	AST_TEST_UNREGISTER(router);
 	AST_TEST_UNREGISTER(router_cache_updates);
 	AST_TEST_UNREGISTER(interleaving);
@@ -1423,6 +1780,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(cache_filter);
 	AST_TEST_REGISTER(cache);
 	AST_TEST_REGISTER(cache_dump);
+	AST_TEST_REGISTER(cache_eid_aggregate);
 	AST_TEST_REGISTER(router);
 	AST_TEST_REGISTER(router_cache_updates);
 	AST_TEST_REGISTER(interleaving);
