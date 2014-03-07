@@ -82,14 +82,47 @@ static int sorcery_realtime_create(const struct ast_sorcery *sorcery, void *data
 	return ast_store_realtime_fields(family, fields) ? -1 : 0;
 }
 
-/*! \brief Internal helper function which returns a filtered objectset, basically removes the id field */
-static struct ast_variable *sorcery_realtime_filter_objectset(struct ast_variable *objectset, struct ast_variable **id)
+/*! \brief Internal helper function which returns a filtered objectset. 
+ *
+ * The following are filtered out of the objectset:
+ * \li The id field. This is returned to the caller in an out parameter.
+ * \li Fields that are not registered with sorcery.
+ *
+ * \param objectset Objectset to filter.
+ * \param[out] id The ID of the sorcery object, as found in the objectset.
+ * \param sorcery The sorcery instance that is requesting an objectset.
+ * \param type The object type
+ *
+ * \return The filtered objectset
+ */
+static struct ast_variable *sorcery_realtime_filter_objectset(struct ast_variable *objectset, struct ast_variable **id,
+		const struct ast_sorcery *sorcery, const char *type)
 {
-	struct ast_variable *previous = NULL, *field;
+	struct ast_variable *previous = NULL, *field = objectset;
+	struct ast_sorcery_object_type *object_type;
 
-	for (field = objectset; field; field = field->next) {
+	object_type = ast_sorcery_get_object_type(sorcery, type);
+	if (!object_type) {
+		ast_log(LOG_WARNING, "Unknown sorcery object type %s. Expect errors\n", type);
+		/* Continue since we still want to filter out the id */
+	}
+
+	while (field) {
+		int remove_field = 0;
+		int delete_field = 0;
+
 		if (!strcmp(field->name, UUID_FIELD)) {
 			*id = field;
+			remove_field = 1;
+		} else if (object_type &&
+				!ast_sorcery_is_object_field_registered(object_type, field->name)) {
+			ast_debug(1, "Filtering out realtime field '%s' from retrieval\n", field->name);
+			remove_field = 1;
+			delete_field = 1;
+		}
+
+		if (remove_field) {
+			struct ast_variable *removed;
 
 			if (previous) {
 				previous->next = field->next;
@@ -97,10 +130,16 @@ static struct ast_variable *sorcery_realtime_filter_objectset(struct ast_variabl
 				objectset = field->next;
 			}
 
-			field->next = NULL;
-			break;
+			removed = field;
+			field = field->next;
+			removed->next = NULL;
+			if (delete_field) {
+				ast_variables_destroy(removed);
+			}
+		} else {
+			previous = field;
+			field = field->next;
 		}
-		previous = field;
 	}
 
 	return objectset;
@@ -117,7 +156,7 @@ static void *sorcery_realtime_retrieve_fields(const struct ast_sorcery *sorcery,
 		return NULL;
 	}
 
-	objectset = sorcery_realtime_filter_objectset(objectset, &id);
+	objectset = sorcery_realtime_filter_objectset(objectset, &id, sorcery, type);
 
 	if (!id || !(object = ast_sorcery_alloc(sorcery, type, id->value)) || ast_sorcery_objectset_apply(sorcery, object, objectset)) {
 		return NULL;
@@ -159,20 +198,18 @@ static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery
 	}
 
 	while ((row = ast_category_browse(rows, row))) {
-		struct ast_variable *objectset = ast_category_root(rows, row);
+		struct ast_category *cat = ast_category_get(rows, row);
+		struct ast_variable *objectset = ast_category_detach_variables(cat);
 		RAII_VAR(struct ast_variable *, id, NULL, ast_variables_destroy);
 		RAII_VAR(void *, object, NULL, ao2_cleanup);
 
-		objectset = sorcery_realtime_filter_objectset(objectset, &id);
+		objectset = sorcery_realtime_filter_objectset(objectset, &id, sorcery, type);
 
 		if (id && (object = ast_sorcery_alloc(sorcery, type, id->value)) && !ast_sorcery_objectset_apply(sorcery, object, objectset)) {
 			ao2_link(objects, object);
 		}
 
-		/* If the id is the root of the row it will be destroyed during ast_config_destroy */
-		if (id == ast_category_root(rows, row)) {
-			id = NULL;
-		}
+		ast_variables_destroy(objectset);
 	}
 }
 
