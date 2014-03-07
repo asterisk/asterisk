@@ -811,7 +811,7 @@ int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *
 }
 
 int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char *type, const char *name, const char *default_val, enum aco_option_type opt_type,
-					aco_option_handler config_handler, sorcery_field_handler sorcery_handler, sorcery_fields_handler multiple_handler, unsigned int flags, unsigned int no_doc, size_t argc, ...)
+					aco_option_handler config_handler, sorcery_field_handler sorcery_handler, sorcery_fields_handler multiple_handler, unsigned int flags, unsigned int no_doc, unsigned int alias, size_t argc, ...)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_field *, object_field, NULL, ao2_cleanup);
@@ -840,7 +840,9 @@ int __ast_sorcery_object_field_register(struct ast_sorcery *sorcery, const char 
 	}
 	va_end(args);
 
-	ao2_link(object_type->fields, object_field);
+	if (!alias) {
+		ao2_link(object_type->fields, object_field);
+	}
 
 	/* TODO: Improve this hack */
 	if (!argc) {
