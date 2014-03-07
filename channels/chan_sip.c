@@ -30967,21 +30967,26 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		peer->socket.port = htons(((peer->socket.type & AST_TRANSPORT_TLS) ? STANDARD_TLS_PORT : STANDARD_SIP_PORT));
 	}
 
-	if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
-		time_t nowtime = time(NULL);
+	if (realtime) {
+		int enablepoke = 1;
 
-		if ((nowtime - regseconds) > 0) {
-			destroy_association(peer);
-			memset(&peer->addr, 0, sizeof(peer->addr));
-			peer->lastms = -1;
-			ast_debug(1, "Bah, we're expired (%d/%d/%d)!\n", (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
+		if (!sip_cfg.ignore_regexpire && peer->host_dynamic) {
+			time_t nowtime = time(NULL);
+
+			if ((nowtime - regseconds) > 0) {
+				destroy_association(peer);
+				memset(&peer->addr, 0, sizeof(peer->addr));
+				peer->lastms = -1;
+				enablepoke = 0;
+				ast_debug(1, "Bah, we're expired (%d/%d/%d)!\n", (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
+			}
 		}
-	}
 
-	/* Startup regular pokes */
-	if (!devstate_only && realtime && peer->lastms > 0) {
-		sip_ref_peer(peer, "schedule qualify");
-		sip_poke_peer(peer, 0);
+		/* Startup regular pokes */
+		if (!devstate_only && enablepoke) {
+			sip_ref_peer(peer, "schedule qualify");
+			sip_poke_peer(peer, 0);
+		}
 	}
 
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
