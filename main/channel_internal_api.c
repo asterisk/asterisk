@@ -51,6 +51,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 
 /*!
+ * \brief Channel UniqueId structure
+ * \note channel creation time used for determining LinkedId Propagation
+ */
+struct ast_channel_id {
+	time_t creation_time;				/*!< Creation time */
+	int creation_unique;				/*!< sub-second unique value */
+	char unique_id[AST_MAX_UNIQUEID];	/*< Unique Identifier */
+};
+
+/*!
  * \brief Main Channel structure associated with a channel.
  *
  * \note When adding fields to this structure, it is important to add the field
@@ -101,12 +111,13 @@ struct ast_channel {
 		AST_STRING_FIELD(peeraccount);  /*!< Peer account code for billing */
 		AST_STRING_FIELD(userfield);    /*!< Userfield for CEL billing */
 		AST_STRING_FIELD(call_forward); /*!< Where to forward to if asked to dial on this interface */
-		AST_STRING_FIELD(uniqueid);     /*!< Unique Channel Identifier */
-		AST_STRING_FIELD(linkedid);     /*!< Linked Channel Identifier -- gets propagated by linkage */
 		AST_STRING_FIELD(parkinglot);   /*! Default parking lot, if empty, default parking lot  */
 		AST_STRING_FIELD(hangupsource); /*! Who is responsible for hanging up this channel */
 		AST_STRING_FIELD(dialcontext);  /*!< Dial: Extension context that we were called from */
 	);
+
+	struct ast_channel_id uniqueid;		/*!< Unique Channel Identifier - can be specified on creation */
+	struct ast_channel_id linkedid;		/*!< Linked Channel Identifier - oldest propagated when bridged */
 
 	struct timeval whentohangup; /*!< Non-zero, set to actual time when channel is to be hung up */
 	pthread_t blocker;           /*!< If anyone is blocking, this is them */
@@ -239,8 +250,6 @@ AST_DATA_STRUCTURE(ast_callerid, DATA_EXPORT_CALLERID);
 	MEMBER(ast_channel, peeraccount, AST_DATA_STRING)			\
 	MEMBER(ast_channel, userfield, AST_DATA_STRING)				\
 	MEMBER(ast_channel, call_forward, AST_DATA_STRING)			\
-	MEMBER(ast_channel, uniqueid, AST_DATA_STRING)				\
-	MEMBER(ast_channel, linkedid, AST_DATA_STRING)				\
 	MEMBER(ast_channel, parkinglot, AST_DATA_STRING)			\
 	MEMBER(ast_channel, hangupsource, AST_DATA_STRING)			\
 	MEMBER(ast_channel, dialcontext, AST_DATA_STRING)			\
@@ -313,6 +322,9 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 			ast_channel_data_add_structure(data_bridged, bc, 0);
 		}
 	}
+
+	ast_data_add_str(tree, "uniqueid", ast_channel_uniqueid(chan));
+	ast_data_add_str(tree, "linkedid", ast_channel_linkedid(chan));
 
 	ast_data_add_codec(tree, "oldwriteformat", ast_channel_oldwriteformat(chan));
 	ast_data_add_codec(tree, "readformat", ast_channel_readformat(chan));
@@ -450,8 +462,6 @@ DEFINE_STRINGFIELD_SETTERS_FOR(accountcode, 1, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(peeraccount, 1, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(userfield, 0, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(call_forward, 0, 0);
-DEFINE_STRINGFIELD_SETTERS_FOR(uniqueid, 0, 1);
-DEFINE_STRINGFIELD_SETTERS_FOR(linkedid, 1, 1);
 DEFINE_STRINGFIELD_SETTERS_FOR(parkinglot, 0, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(hangupsource, 0, 0);
 DEFINE_STRINGFIELD_SETTERS_FOR(dialcontext, 0, 0);
@@ -469,11 +479,21 @@ DEFINE_STRINGFIELD_GETTER_FOR(accountcode);
 DEFINE_STRINGFIELD_GETTER_FOR(peeraccount);
 DEFINE_STRINGFIELD_GETTER_FOR(userfield);
 DEFINE_STRINGFIELD_GETTER_FOR(call_forward);
-DEFINE_STRINGFIELD_GETTER_FOR(uniqueid);
-DEFINE_STRINGFIELD_GETTER_FOR(linkedid);
 DEFINE_STRINGFIELD_GETTER_FOR(parkinglot);
 DEFINE_STRINGFIELD_GETTER_FOR(hangupsource);
 DEFINE_STRINGFIELD_GETTER_FOR(dialcontext);
+
+const char *ast_channel_uniqueid(const struct ast_channel *chan)
+{
+	ast_assert(chan->uniqueid.unique_id[0] != '\0');
+	return chan->uniqueid.unique_id;
+}
+
+const char *ast_channel_linkedid(const struct ast_channel *chan)
+{
+	ast_assert(chan->linkedid.unique_id[0] != '\0');
+	return chan->linkedid.unique_id;
+}
 
 const char *ast_channel_appl(const struct ast_channel *chan)
 {
@@ -1379,7 +1399,7 @@ static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
 
 #define DIALED_CAUSES_BUCKETS 37
 
-struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const char *linkedid, const char *file, int line, const char *function)
+struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *file, int line, const char *function)
 {
 	struct ast_channel *tmp;
 #if defined(REF_DEBUG)
@@ -1400,21 +1420,73 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 		return ast_channel_unref(tmp);
 	}
 
-	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
-		ast_channel_uniqueid_build(tmp, "%li.%d", (long)time(NULL),
-			ast_atomic_fetchadd_int(&uniqueint, 1));
+	/* set the creation time in the uniqueid */
+	tmp->uniqueid.creation_time = time(NULL);
+	tmp->uniqueid.creation_unique = ast_atomic_fetchadd_int(&uniqueint, 1);
+
+	/* use provided id or default to historical {system-}time.# format */
+	if (assignedids && !ast_strlen_zero(assignedids->uniqueid)) {
+		ast_copy_string(tmp->uniqueid.unique_id, assignedids->uniqueid, sizeof(tmp->uniqueid.unique_id));
+	} else if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
+		snprintf(tmp->uniqueid.unique_id, sizeof(tmp->uniqueid.unique_id), "%li.%d",
+			(long)(tmp->uniqueid.creation_time),
+			tmp->uniqueid.creation_unique);
 	} else {
-		ast_channel_uniqueid_build(tmp, "%s-%li.%d", ast_config_AST_SYSTEM_NAME,
-			(long)time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
+		snprintf(tmp->uniqueid.unique_id, sizeof(tmp->uniqueid.unique_id), "%s-%li.%d",
+			ast_config_AST_SYSTEM_NAME,
+			(long)(tmp->uniqueid.creation_time),
+			tmp->uniqueid.creation_unique);
 	}
 
-	if (!ast_strlen_zero(linkedid)) {
-		ast_string_field_set(tmp, linkedid, linkedid);
+	/* copy linked id from parent channel if known */
+	if (requestor) {
+		tmp->linkedid = requestor->linkedid;
 	} else {
-		ast_string_field_set(tmp, linkedid, tmp->uniqueid);
+		tmp->linkedid = tmp->uniqueid;
 	}
 
 	return tmp;
+}
+
+struct ast_channel *ast_channel_internal_oldest_linkedid(struct ast_channel *a, struct ast_channel *b)
+{
+	ast_assert(a->linkedid.creation_time != 0);
+	ast_assert(b->linkedid.creation_time != 0);
+
+	if (a->linkedid.creation_time < b->linkedid.creation_time) {
+		return a;
+	}
+	if (b->linkedid.creation_time < a->linkedid.creation_time) {
+		return b;
+	}
+	if (a->linkedid.creation_unique < b->linkedid.creation_unique) {
+		return a;
+	}
+	return b;
+}
+
+void ast_channel_internal_copy_linkedid(struct ast_channel *dest, struct ast_channel *source)
+{
+	dest->linkedid = source->linkedid;
+}
+
+void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, struct ast_channel *b)
+{
+	struct ast_channel_id temp;
+
+	temp = a->uniqueid;
+	a->uniqueid = b->uniqueid;
+	b->uniqueid = temp;
+
+	temp = a->linkedid;
+	a->linkedid = b->linkedid;
+	b->linkedid = temp;
+}
+
+void ast_channel_internal_set_fake_ids(struct ast_channel *chan, const char *uniqueid, const char *linkedid)
+{
+	strncpy(chan->uniqueid.unique_id, uniqueid, sizeof(chan->uniqueid.unique_id));
+	strncpy(chan->linkedid.unique_id, linkedid, sizeof(chan->linkedid.unique_id));
 }
 
 void ast_channel_internal_cleanup(struct ast_channel *chan)
@@ -1480,7 +1552,7 @@ int ast_channel_forward_endpoint(struct ast_channel *chan,
 
 int ast_channel_internal_setup_topics(struct ast_channel *chan)
 {
-	const char *topic_name = chan->uniqueid;
+	const char *topic_name = chan->uniqueid.unique_id;
 	ast_assert(chan->topics == NULL);
 
 	if (ast_strlen_zero(topic_name)) {

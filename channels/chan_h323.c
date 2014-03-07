@@ -252,7 +252,7 @@ static void prune_peers(void);
 
 static void oh323_set_owner(struct oh323_pvt *pvt, struct ast_channel *c);
 
-static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
+static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest, int *cause);
 static int oh323_digit_begin(struct ast_channel *c, char digit);
 static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int oh323_call(struct ast_channel *c, const char *dest, int timeout);
@@ -1039,7 +1039,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 }
 
 /*! \brief Private structure should be locked on a call */
-static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const char *host, const char *linkedid)
+static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const char *host, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *ch;
 	char *cid_num, *cid_name;
@@ -1058,7 +1058,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 	
 	/* Don't hold a oh323_pvt lock while we allocate a chanel */
 	ast_mutex_unlock(&pvt->lock);
-	ch = ast_channel_alloc(1, state, cid_num, cid_name, pvt->accountcode, pvt->exten, pvt->context, linkedid, pvt->amaflags, "H323/%s", host);
+	ch = ast_channel_alloc(1, state, cid_num, cid_name, pvt->accountcode, pvt->exten, pvt->context, assignedids, requestor, pvt->amaflags, "H323/%s", host);
 	/* Update usage counter */
 	ast_module_ref(ast_module_info->self);
 	ast_mutex_lock(&pvt->lock);
@@ -1819,7 +1819,7 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 		return 0;
 	}
 }
-static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
+static struct ast_channel *oh323_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct oh323_pvt *pvt;
 	struct ast_channel *tmpc = NULL;
@@ -1891,7 +1891,7 @@ static struct ast_channel *oh323_request(const char *type, struct ast_format_cap
 	ast_mutex_unlock(&caplock);
 
 	ast_mutex_lock(&pvt->lock);
-	tmpc = __oh323_new(pvt, AST_STATE_DOWN, tmp1, requestor ? ast_channel_linkedid(requestor) : NULL);
+	tmpc = __oh323_new(pvt, AST_STATE_DOWN, tmp1, assignedids, requestor);
 	ast_mutex_unlock(&pvt->lock);
 	if (!tmpc) {
 		oh323_destroy(pvt);
@@ -2394,7 +2394,7 @@ static int answer_call(unsigned call_reference, const char *token)
 	}
 
 	/* allocate a channel and tell asterisk about it */
-	c = __oh323_new(pvt, AST_STATE_RINGING, pvt->cd.call_token, NULL);
+	c = __oh323_new(pvt, AST_STATE_RINGING, pvt->cd.call_token, NULL, NULL);
 
 	/* And release when done */
 	ast_mutex_unlock(&pvt->lock);

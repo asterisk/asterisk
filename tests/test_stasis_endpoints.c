@@ -234,7 +234,7 @@ AST_TEST_DEFINE(channel_messages)
 	ast_test_validate(test, NULL != sub);
 
 	chan = ast_channel_alloc(0, AST_STATE_DOWN, "100", __func__, "100",
-		"100", "default", NULL, 0, "TEST/test_res");
+		"100", "default", NULL, NULL, 0, "TEST/test_res");
 	ast_test_validate(test, NULL != chan);
 
 	ast_endpoint_add_channel(uut, chan);

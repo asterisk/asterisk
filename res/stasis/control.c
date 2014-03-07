@@ -293,7 +293,7 @@ static int app_control_dial(struct stasis_app_control *control,
 		return -1;
 	}
 
-	if (ast_dial_append(dial, tech, resource) < 0) {
+	if (ast_dial_append(dial, tech, resource, NULL) < 0) {
 		ast_log(LOG_ERROR, "Failed to add %s/%s to dialing structure.\n", tech, resource);
 		return -1;
 	}

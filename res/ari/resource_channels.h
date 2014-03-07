@@ -70,6 +70,10 @@ struct ast_ari_channels_originate_args {
 	int timeout;
 	/*! \brief The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
 	struct ast_json *variables;
+	/*! \brief The unique id to assign the channel on creation. */
+	const char *channel_id;
+	/*! \brief The unique id to assign the second channel when using local channels. */
+	const char *other_channel_id;
 };
 /*!
  * \brief Body parsing function for /channels.
@@ -105,6 +109,52 @@ struct ast_ari_channels_get_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_get(struct ast_variable *headers, struct ast_ari_channels_get_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_originate_with_id() */
+struct ast_ari_channels_originate_with_id_args {
+	/*! \brief The unique id to assign the channel on creation. */
+	const char *channel_id;
+	/*! \brief Endpoint to call. */
+	const char *endpoint;
+	/*! \brief The extension to dial after the endpoint answers */
+	const char *extension;
+	/*! \brief The context to dial after the endpoint answers. If omitted, uses 'default' */
+	const char *context;
+	/*! \brief The priority to dial after the endpoint answers. If omitted, uses 1 */
+	long priority;
+	/*! \brief The application that is subscribed to the originated channel, and passed to the Stasis application. */
+	const char *app;
+	/*! \brief The application arguments to pass to the Stasis application. */
+	const char *app_args;
+	/*! \brief CallerID to use when dialing the endpoint or extension. */
+	const char *caller_id;
+	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
+	int timeout;
+	/*! \brief The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
+	struct ast_json *variables;
+	/*! \brief The unique id to assign the second channel when using local channels. */
+	const char *other_channel_id;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_originate_with_id_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_originate_with_id_args *args);
+
+/*!
+ * \brief Create a new channel (originate with id).
+ *
+ * The new channel is created immediately and a snapshot of it returned. If a Stasis application is provided it will be automatically subscribed to the originated channel for further events and updates.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_originate_with_id(struct ast_variable *headers, struct ast_ari_channels_originate_with_id_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_channels_hangup() */
 struct ast_ari_channels_hangup_args {
 	/*! \brief Channel's id */
@@ -393,6 +443,8 @@ struct ast_ari_channels_play_args {
 	int offsetms;
 	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;
+	/*! \brief Playback ID. */
+	const char *playback_id;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}/play.
@@ -415,6 +467,42 @@ int ast_ari_channels_play_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_play(struct ast_variable *headers, struct ast_ari_channels_play_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_play_with_id() */
+struct ast_ari_channels_play_with_id_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+	/*! \brief Playback ID. */
+	const char *playback_id;
+	/*! \brief Media's URI to play. */
+	const char *media;
+	/*! \brief For sounds, selects language for sound. */
+	const char *lang;
+	/*! \brief Number of media to skip before playing. */
+	int offsetms;
+	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	int skipms;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/play/{playbackId}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_play_with_id_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_play_with_id_args *args);
+
+/*!
+ * \brief Start playback of media and specify the playbackId.
+ *
+ * The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_play_with_id(struct ast_variable *headers, struct ast_ari_channels_play_with_id_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_channels_record() */
 struct ast_ari_channels_record_args {
 	/*! \brief Channel's id */
@@ -521,6 +609,8 @@ struct ast_ari_channels_snoop_channel_args {
 	const char *app;
 	/*! \brief The application arguments to pass to the Stasis application */
 	const char *app_args;
+	/*! \brief Unique ID to assign to snooping channel */
+	const char *snoop_id;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}/snoop.
@@ -543,5 +633,41 @@ int ast_ari_channels_snoop_channel_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_snoop_channel(struct ast_variable *headers, struct ast_ari_channels_snoop_channel_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_channels_snoop_channel_with_id() */
+struct ast_ari_channels_snoop_channel_with_id_args {
+	/*! \brief Channel's id */
+	const char *channel_id;
+	/*! \brief Unique ID to assign to snooping channel */
+	const char *snoop_id;
+	/*! \brief Direction of audio to spy on */
+	const char *spy;
+	/*! \brief Direction of audio to whisper into */
+	const char *whisper;
+	/*! \brief Application the snooping channel is placed into */
+	const char *app;
+	/*! \brief The application arguments to pass to the Stasis application */
+	const char *app_args;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/snoop/{snoopId}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_snoop_channel_with_id_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_snoop_channel_with_id_args *args);
+
+/*!
+ * \brief Start snooping.
+ *
+ * Snoop (spy/whisper) on a specific channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_snoop_channel_with_id(struct ast_variable *headers, struct ast_ari_channels_snoop_channel_with_id_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */

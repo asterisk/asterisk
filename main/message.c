@@ -671,7 +671,7 @@ static struct ast_channel *create_msg_q_chan(void)
 
 	chan = ast_channel_alloc(1, AST_STATE_UP,
 			NULL, NULL, NULL,
-			NULL, NULL, NULL, 0,
+			NULL, NULL, NULL, NULL, 0,
 			"%s", "Message/ast_msg_queue");
 
 	if (!chan) {

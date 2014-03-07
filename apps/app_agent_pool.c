@@ -1367,7 +1367,7 @@ static struct ast_bridge *bridge_agent_hold_new(void)
 	bridge = bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_HOLDING,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
 			| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_TRANSFER_PROHIBITED,
-		"AgentPool", NULL);
+		"AgentPool", NULL, NULL);
 	bridge = bridge_register(bridge);
 	return bridge;
 }

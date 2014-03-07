@@ -54,6 +54,8 @@ void ast_ari_bridges_list(struct ast_variable *headers, struct ast_ari_bridges_l
 struct ast_ari_bridges_create_args {
 	/*! \brief Type of bridge to create. */
 	const char *type;
+	/*! \brief Unique ID to give to the bridge being created. */
+	const char *bridge_id;
 	/*! \brief Name to give to the bridge being created. */
 	const char *name;
 };
@@ -78,6 +80,36 @@ int ast_ari_bridges_create_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_create(struct ast_variable *headers, struct ast_ari_bridges_create_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_bridges_create_or_update_with_id() */
+struct ast_ari_bridges_create_or_update_with_id_args {
+	/*! \brief Set the type of bridge. */
+	const char *type;
+	/*! \brief Unique ID to give to the bridge being created. */
+	const char *bridge_id;
+	/*! \brief Set the name of the bridge. */
+	const char *name;
+};
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_create_or_update_with_id_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_create_or_update_with_id_args *args);
+
+/*!
+ * \brief Create a new bridge or updates an existing one.
+ *
+ * This bridge persists until it has been shut down, or Asterisk has been shut down.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_create_or_update_with_id(struct ast_variable *headers, struct ast_ari_bridges_create_or_update_with_id_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_bridges_get() */
 struct ast_ari_bridges_get_args {
 	/*! \brief Bridge's id */

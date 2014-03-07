@@ -542,6 +542,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Codecs">
 				<para>Comma-separated list of codecs to use for this call.</para>
 			</parameter>
+			<parameter name="ChannelId">
+				<para>Channel UniqueId to be set on the channel.</para>
+			</parameter>
+			<parameter name="OtherChannelId">
+				<para>Channel UniqueId to be set on the second local channel.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Generates an outgoing call to a
@@ -4381,6 +4387,8 @@ struct fast_originate_helper {
 		AST_STRING_FIELD(exten);
 		AST_STRING_FIELD(idtext);
 		AST_STRING_FIELD(account);
+		AST_STRING_FIELD(channelid);
+		AST_STRING_FIELD(otherchannelid);
 	);
 	int priority;
 	struct ast_variable *vars;
@@ -4408,19 +4416,20 @@ static void *fast_originate(void *data)
 	int reason = 0;
 	struct ast_channel *chan = NULL, *chans[1];
 	char requested_channel[AST_CHANNEL_NAME];
+	struct ast_assigned_ids assignedids = {in->channelid, in->otherchannelid};
 
 	if (!ast_strlen_zero(in->app)) {
 		res = ast_pbx_outgoing_app(in->tech, in->cap, in->data,
 			in->timeout, in->app, in->appdata, &reason, 1,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
-			in->vars, in->account, &chan);
+			in->vars, in->account, &chan, &assignedids);
 	} else {
 		res = ast_pbx_outgoing_exten(in->tech, in->cap, in->data,
 			in->timeout, in->context, in->exten, in->priority, &reason, 1,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
-			in->vars, in->account, &chan, in->early_media);
+			in->vars, in->account, &chan, in->early_media, &assignedids);
 	}
 	/* Any vars memory was passed to the ast_pbx_outgoing_xxx() calls. */
 	in->vars = NULL;
@@ -4701,6 +4710,10 @@ static int action_originate(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	const char *codecs = astman_get_header(m, "Codecs");
 	const char *early_media = astman_get_header(m, "Earlymedia");
+	struct ast_assigned_ids assignedids = {
+		astman_get_header(m, "ChannelId"),
+		astman_get_header(m, "OtherChannelId")
+	};
 	struct ast_variable *vars = NULL;
 	char *tech, *data;
 	char *l = NULL, *n = NULL;
@@ -4714,6 +4727,11 @@ static int action_originate(struct mansession *s, const struct message *m)
 	struct ast_format tmp_fmt;
 	pthread_t th;
 	int bridge_early = 0;
+
+	if (strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID ||
+		strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID) {
+		ast_log(LOG_WARNING, "Uniqueid length exceeds maximum of %d\n", AST_MAX_UNIQUEID);
+	}
 
 	if (!cap) {
 		astman_send_error(s, m, "Internal Error. Memory allocation failure.");
@@ -4842,6 +4860,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 			ast_string_field_set(fast, context, context);
 			ast_string_field_set(fast, exten, exten);
 			ast_string_field_set(fast, account, account);
+			ast_string_field_set(fast, channelid, assignedids.uniqueid);
+			ast_string_field_set(fast, otherchannelid, assignedids.uniqueid2);
 			fast->vars = vars;
 			fast->cap = cap;
 			cap = NULL; /* transfered originate helper the capabilities structure.  It is now responsible for freeing it. */
@@ -4856,11 +4876,11 @@ static int action_originate(struct mansession *s, const struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-		res = ast_pbx_outgoing_app(tech, cap, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
+		res = ast_pbx_outgoing_app(tech, cap, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL, assignedids.uniqueid ? &assignedids : NULL);
 		/* Any vars memory was passed to ast_pbx_outgoing_app(). */
 	} else {
 		if (exten && context && pi) {
-			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL, bridge_early);
+			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL, bridge_early, assignedids.uniqueid ? &assignedids : NULL);
 			/* Any vars memory was passed to ast_pbx_outgoing_exten(). */
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");

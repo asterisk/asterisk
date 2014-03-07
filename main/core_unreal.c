@@ -888,14 +888,28 @@ struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructo
 
 struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	const struct ast_channel_tech *tech, int semi1_state, int semi2_state,
-	const char *exten, const char *context, const struct ast_channel *requestor,
-	struct ast_callid *callid)
+	const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
+	const struct ast_channel *requestor, struct ast_callid *callid)
 {
 	struct ast_channel *owner;
 	struct ast_channel *chan;
-	const char *linkedid = requestor ? ast_channel_linkedid(requestor) : NULL;
 	struct ast_format fmt;
+	struct ast_assigned_ids id1 = {NULL, NULL};
+	struct ast_assigned_ids id2 = {NULL, NULL};
 	int generated_seqno = ast_atomic_fetchadd_int((int *) &name_sequence, +1);
+
+	/* set unique ids for the two channels */
+	if (assignedids && !ast_strlen_zero(assignedids->uniqueid)) {
+		id1.uniqueid = assignedids->uniqueid;
+		id2.uniqueid = assignedids->uniqueid2;
+	}
+
+	/* if id1 given but not id2, use default of id1;2 */
+	if (id1.uniqueid && ast_strlen_zero(id2.uniqueid)) {
+		char *uniqueid2;
+		ast_asprintf(&uniqueid2, "%s;2", id1.uniqueid);
+		id2.uniqueid = uniqueid2;
+	}
 
 	/*
 	 * Allocate two new Asterisk channels
@@ -905,7 +919,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	 * isn't set, then each channel will generate its own linkedid.
 	 */
 	if (!(owner = ast_channel_alloc(1, semi1_state, NULL, NULL, NULL,
-			exten, context, linkedid, 0,
+			exten, context, &id1, requestor, 0,
 			"%s/%s-%08x;1", tech->type, p->name, generated_seqno))) {
 		ast_log(LOG_WARNING, "Unable to allocate owner channel structure\n");
 		return NULL;
@@ -944,7 +958,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ast_channel_unlock(owner);
 
 	if (!(chan = ast_channel_alloc(1, semi2_state, NULL, NULL, NULL,
-			exten, context, ast_channel_linkedid(owner), 0,
+			exten, context, &id2, owner, 0,
 			"%s/%s-%08x;2", tech->type, p->name, generated_seqno))) {
 		ast_log(LOG_WARNING, "Unable to allocate chan channel structure\n");
 		ao2_ref(p, -1);

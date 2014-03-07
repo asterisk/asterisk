@@ -333,7 +333,7 @@ static AO2_GLOBAL_OBJ_STATIC(globals);
 static struct ast_sched_context *sched; /*!< Scheduling context for RTCP */
 
 /* \brief Asterisk core interaction functions */
-static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int jingle_sendtext(struct ast_channel *ast, const char *text);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
 static int jingle_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -772,7 +772,7 @@ static struct jingle_session *jingle_alloc(struct jingle_endpoint *endpoint, con
 }
 
 /*! \brief Function called to create a new Jingle Asterisk channel */
-static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct jingle_session *session, int state, const char *title, const char *linkedid, const char *cid_name)
+static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct jingle_session *session, int state, const char *title, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *cid_name)
 {
 	struct ast_channel *chan;
 	const char *str = S_OR(title, session->remote);
@@ -782,7 +782,7 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 		return NULL;
 	}
 
-	if (!(chan = ast_channel_alloc(1, state, S_OR(title, ""), S_OR(cid_name, ""), "", "", "", linkedid, 0, "Motif/%s-%04lx", str, ast_random() & 0xffff))) {
+	if (!(chan = ast_channel_alloc(1, state, S_OR(title, ""), S_OR(cid_name, ""), "", "", "", assignedids, requestor, 0, "Motif/%s-%04lx", str, ast_random() & 0xffff))) {
 		return NULL;
 	}
 
@@ -1892,7 +1892,7 @@ static int jingle_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Function called by core to create a new outgoing Jingle session */
-static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	RAII_VAR(struct jingle_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct jingle_endpoint *, endpoint, NULL, ao2_cleanup);
@@ -1993,7 +1993,7 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 		/* Note that for Google-V1 and Google-V2 we don't stop built-in ICE support, this will happen in jingle_new */
 	}
 
-	if (!(chan = jingle_new(endpoint, session, AST_STATE_DOWN, target, requestor ? ast_channel_linkedid(requestor) : NULL, NULL))) {
+	if (!(chan = jingle_new(endpoint, session, AST_STATE_DOWN, target, assignedids, requestor, NULL))) {
 		ast_log(LOG_ERROR, "Unable to create Jingle channel on endpoint '%s'\n", args.name);
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		ao2_ref(session, -1);
@@ -2405,7 +2405,7 @@ static void jingle_action_session_initiate(struct jingle_endpoint *endpoint, str
 	}
 
 	/* Create a new Asterisk channel using the above local session */
-	if (!(chan = jingle_new(endpoint, session, AST_STATE_DOWN, pak->from->user, NULL, pak->from->full))) {
+	if (!(chan = jingle_new(endpoint, session, AST_STATE_DOWN, pak->from->user, NULL, NULL, pak->from->full))) {
 		ao2_ref(session, -1);
 		jingle_send_error_response(endpoint->connection, pak, "cancel", "service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'", NULL);
 		return;

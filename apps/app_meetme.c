@@ -1667,7 +1667,7 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 	cnf->dahdiconf = dahdic.confno;
 
 	/* Setup a new channel for playback of audio files */
-	cnf->chan = ast_request("DAHDI", cap_slin, chan, "pseudo", NULL);
+	cnf->chan = ast_request("DAHDI", cap_slin, NULL, chan, "pseudo", NULL);
 	if (cnf->chan) {
 		ast_set_read_format_by_id(cnf->chan, AST_FORMAT_SLINEAR);
 		ast_set_write_format_by_id(cnf->chan, AST_FORMAT_SLINEAR);
@@ -3087,7 +3087,7 @@ static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, st
 			}
 
 			ast_mutex_lock(&conf->recordthreadlock);
-			if ((conf->recordthread == AST_PTHREADT_NULL) && ast_test_flag64(confflags, CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("DAHDI", cap_slin, chan, "pseudo", NULL)))) {
+			if ((conf->recordthread == AST_PTHREADT_NULL) && ast_test_flag64(confflags, CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("DAHDI", cap_slin, NULL, chan, "pseudo", NULL)))) {
 				ast_set_read_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
 				ast_set_write_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
 				dahdic->chan = 0;
@@ -3341,7 +3341,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 
 	ast_mutex_lock(&conf->recordthreadlock);
 	if ((conf->recordthread == AST_PTHREADT_NULL) && ast_test_flag64(confflags, CONFFLAG_RECORDCONF) &&
-		((conf->lchan = ast_request("DAHDI", cap_slin, chan, "pseudo", NULL)))) {
+		((conf->lchan = ast_request("DAHDI", cap_slin, NULL, chan, "pseudo", NULL)))) {
 		ast_set_read_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
 		ast_set_write_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
 		dahdic.chan = 0;
@@ -6344,7 +6344,7 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 	tech_data = ast_strdupa(station->device);
 	tech = strsep(&tech_data, "/");
 
-	if (ast_dial_append(dial, tech, tech_data) == -1) {
+	if (ast_dial_append(dial, tech, tech_data, NULL) == -1) {
 		ast_dial_destroy(dial);
 		return -1;
 	}
@@ -6850,7 +6850,7 @@ static void *dial_trunk(void *data)
 
 	tech_data = ast_strdupa(trunk_ref->trunk->device);
 	tech = strsep(&tech_data, "/");
-	if (ast_dial_append(dial, tech, tech_data) == -1) {
+	if (ast_dial_append(dial, tech, tech_data, NULL) == -1) {
 		ast_mutex_lock(args->cond_lock);
 		ast_cond_signal(args->cond);
 		ast_mutex_unlock(args->cond_lock);
@@ -8132,7 +8132,7 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 		break;
 	}
 
-	chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, 0, 0, "MeetMeTest");
+	chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "MeetMeTest");
 	if (!chan) {
 		ast_test_status_update(test, "Channel allocation failed\n");
 		return AST_TEST_FAIL;

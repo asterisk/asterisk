@@ -53,13 +53,13 @@ static int rec_write(struct ast_channel *ast, struct ast_frame *f)
 	return 0;
 }
 
-static struct ast_channel *rec_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *rec_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *chan;
 	struct ast_format format;
 	const char *conf_name = data;
 
-	chan = ast_channel_alloc(1, AST_STATE_UP, NULL, NULL, NULL, NULL, NULL, NULL, 0,
+	chan = ast_channel_alloc(1, AST_STATE_UP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
 		"CBRec/conf-%s-uid-%d",
 		conf_name, (int) ast_random());
 	if (!chan) {

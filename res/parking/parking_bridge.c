@@ -456,7 +456,7 @@ struct ast_bridge *bridge_parking_new(struct parking_lot *bridge_lot)
 	bridge = bridge_alloc(sizeof(struct ast_bridge_parking), &ast_bridge_parking_v_table);
 	bridge = bridge_base_init(bridge, AST_BRIDGE_CAPABILITY_HOLDING,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
-		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM,  "Parking", bridge_lot->name);
+		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM,  "Parking", bridge_lot->name, NULL);
 	bridge = ast_bridge_parking_init(bridge, bridge_lot);
 	bridge = bridge_register(bridge);
 	return bridge;

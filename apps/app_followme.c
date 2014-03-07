@@ -1056,7 +1056,7 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 						? "/n" : "/m");
 			}
 
-			outbound = ast_request("Local", ast_channel_nativeformats(caller), caller,
+			outbound = ast_request("Local", ast_channel_nativeformats(caller), NULL, caller,
 				tmpuser->dialarg, &dg);
 			if (!outbound) {
 				ast_log(LOG_WARNING, "Unable to allocate a channel for Local/%s cause: %s\n",

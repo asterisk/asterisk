@@ -186,7 +186,7 @@ static struct ast_format_cap *global_capability;
 AST_MUTEX_DEFINE_STATIC(gtalklock); /*!< Protect the interface list (of gtalk_pvt's) */
 
 /* Forward declarations */
-static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 /*static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration);*/
 static int gtalk_sendtext(struct ast_channel *ast, const char *text);
 static int gtalk_digit_begin(struct ast_channel *ast, char digit);
@@ -1133,7 +1133,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 }
 
 /*! \brief Start new gtalk channel */
-static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, int state, const char *title, const char *linkedid)
+static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, int state, const char *title, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *tmp;
 	const char *n2;
@@ -1144,7 +1144,7 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		n2 = title;
 	else
 		n2 = i->us;
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, linkedid, client->accountcode, i->exten, client->context, client->amaflags, "Gtalk/%s-%04lx", n2, ast_random() & 0xffff);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, client->accountcode, i->exten, client->context, assignedids, requestor, client->amaflags, "Gtalk/%s-%04lx", n2, ast_random() & 0xffff);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate Gtalk channel structure!\n");
 		return NULL;
@@ -1367,7 +1367,7 @@ static int gtalk_newcall(struct gtalk *client, ikspak *pak)
 		return -1;
 	}
 
-	chan = gtalk_new(client, p, AST_STATE_DOWN, pak->from->user, NULL);
+	chan = gtalk_new(client, p, AST_STATE_DOWN, pak->from->user, NULL, NULL);
 	if (!chan) {
 		gtalk_free_pvt(client, p);
 		return -1;
@@ -1925,7 +1925,7 @@ static int gtalk_hangup(struct ast_channel *ast)
 }
 
 /*!\brief Part of PBX interface */
-static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct gtalk_pvt *p = NULL;
 	struct gtalk *client = NULL;
@@ -1970,7 +1970,7 @@ static struct ast_channel *gtalk_request(const char *type, struct ast_format_cap
 	ASTOBJ_WRLOCK(client);
 	p = gtalk_alloc(client, strchr(sender, '@') ? sender : client->connection->jid->full, strchr(to, '@') ? to : client->user, NULL);
 	if (p) {
-		chan = gtalk_new(client, p, AST_STATE_DOWN, to, requestor ? ast_channel_linkedid(requestor) : NULL);
+		chan = gtalk_new(client, p, AST_STATE_DOWN, to, assignedids, requestor);
 	}
 	ASTOBJ_UNLOCK(client);
 	return chan;

@@ -175,22 +175,22 @@ AST_TEST_DEFINE(app_group)
 		"'%s', '%s', '%s', '%s'\n", group1_full, group2_full, category1_full, category2_full);
 
 	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
-		NULL, NULL, 0, 0, "TestChannel1"))) {
+		NULL, NULL, NULL, NULL, 0, "TestChannel1"))) {
 		goto exit_group_test;
 	}
 	ast_channel_unlock(test_channel1);
 	if (!(test_channel2 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
-		NULL, NULL, 0, 0, "TestChannel2"))) {
+		NULL, NULL, NULL, NULL, 0, "TestChannel2"))) {
 		goto exit_group_test;
 	}
 	ast_channel_unlock(test_channel2);
 	if (!(test_channel3 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
-		NULL, NULL, 0, 0, "TestChannel3"))) {
+		NULL, NULL, NULL, NULL, 0, "TestChannel3"))) {
 		goto exit_group_test;
 	}
 	ast_channel_unlock(test_channel3);
 	if (!(test_channel4 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
-		NULL, NULL, 0, 0, "TestChannel4"))) {
+		NULL, NULL, NULL, NULL, 0, "TestChannel4"))) {
 		goto exit_group_test;
 	}
 	ast_channel_unlock(test_channel4);

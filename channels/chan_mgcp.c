@@ -451,7 +451,7 @@ static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 static char *mgcp_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int reload_config(int reload);
 
-static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause);
+static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest, int *cause);
 static int mgcp_call(struct ast_channel *ast, const char *dest, int timeout);
 static int mgcp_hangup(struct ast_channel *ast);
 static int mgcp_answer(struct ast_channel *ast);
@@ -1488,14 +1488,14 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 	return res;
 }
 
-static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, const char *linkedid)
+static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *tmp;
 	struct ast_variable *v = NULL;
 	struct mgcp_endpoint *i = sub->parent;
 	struct ast_format tmpfmt;
 
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, linkedid, i->accountcode, i->exten, i->context, i->amaflags, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 	if (tmp) {
 		ast_channel_stage_snapshot(tmp);
 		ast_channel_tech_set(tmp, &mgcp_tech);
@@ -3336,7 +3336,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 #else
 				transmit_notify_request(sub, p->ncs ? "L/rt" : "G/rt");
 #endif
-				c = mgcp_new(sub, AST_STATE_RING, NULL);
+				c = mgcp_new(sub, AST_STATE_RING, NULL, NULL);
 				if (!c) {
 					ast_log(LOG_WARNING, "Unable to start PBX on channel %s@%s\n", p->name, p->parent->name);
 					transmit_notify_request(sub, p->ncs ? "L/cg" : "G/cg");
@@ -3348,7 +3348,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				} else {
 					transmit_notify_request(sub, "L/dl");
 				}
-				c = mgcp_new(sub, AST_STATE_DOWN, NULL);
+				c = mgcp_new(sub, AST_STATE_DOWN, NULL, NULL);
 				if (c) {
 					if (ast_pthread_create_detached(&t, NULL, mgcp_ss, c)) {
 						ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
@@ -3942,7 +3942,7 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *dest, int *cause)
+static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest, int *cause)
 {
 	struct mgcp_subchannel *sub;
 	struct ast_channel *tmpc = NULL;
@@ -3981,7 +3981,7 @@ static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap 
 		ast_mutex_unlock(&sub->lock);
 		return NULL;
 	}
-	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
+	tmpc = mgcp_new(sub->owner ? sub->next : sub, AST_STATE_DOWN, assignedids, requestor);
 	ast_mutex_unlock(&sub->lock);
 	if (!tmpc)
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);

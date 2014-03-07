@@ -2827,7 +2827,7 @@ static void *generic_recall(void *data)
 	}
 
 	ast_format_cap_add(tmp_cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
-	if (!(chan = ast_request_and_dial(tech, tmp_cap, NULL, target, recall_timer, &reason, generic_pvt->cid_num, generic_pvt->cid_name))) {
+	if (!(chan = ast_request_and_dial(tech, tmp_cap, NULL, NULL, target, recall_timer, &reason, generic_pvt->cid_num, generic_pvt->cid_name))) {
 		/* Hmm, no channel. Sucks for you, bud.
 		 */
 		ast_log_dynamic_level(cc_logger_level, "Core %d: Failed to call back %s for reason %d\n",

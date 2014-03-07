@@ -181,7 +181,7 @@ static struct ast_format_cap *global_capability;
 AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of jingle_pvt's) */
 
 /* Forward declarations */
-static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause);
+static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
 static int jingle_sendtext(struct ast_channel *ast, const char *text);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
 static int jingle_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -847,7 +847,7 @@ static void jingle_set_owner(struct jingle_pvt *pvt, struct ast_channel *chan)
 }
 
 /*! \brief Start new jingle channel */
-static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *i, int state, const char *title, const char *linkedid)
+static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *i, int state, const char *title, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *tmp;
 	struct ast_format_cap *what;  /* SHALLOW COPY DO NOT DESTROY */
@@ -858,7 +858,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		str = title;
 	else
 		str = i->them;
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "", "", "", linkedid, 0, "Jingle/%s-%04lx", str, ast_random() & 0xffff);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "", "", "", assignedids, requestor, 0, "Jingle/%s-%04lx", str, ast_random() & 0xffff);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate Jingle channel structure!\n");
 		return NULL;
@@ -1068,7 +1068,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		ast_log(LOG_WARNING, "Unable to allocate jingle structure!\n");
 		return -1;
 	}
-	chan = jingle_new(client, p, AST_STATE_DOWN, pak->from->user, NULL);
+	chan = jingle_new(client, p, AST_STATE_DOWN, pak->from->user, NULL, NULL);
 	if (!chan) {
 		jingle_free_pvt(client, p);
 		return -1;
@@ -1575,7 +1575,7 @@ static int jingle_hangup(struct ast_channel *ast)
 }
 
 /*! \brief Part of PBX interface */
-static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *jingle_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct jingle_pvt *p = NULL;
 	struct jingle *client = NULL;
@@ -1618,7 +1618,7 @@ static struct ast_channel *jingle_request(const char *type, struct ast_format_ca
 	ASTOBJ_WRLOCK(client);
 	p = jingle_alloc(client, to, NULL);
 	if (p)
-		chan = jingle_new(client, p, AST_STATE_DOWN, to, requestor ? ast_channel_linkedid(requestor) : NULL);
+		chan = jingle_new(client, p, AST_STATE_DOWN, to, assignedids, requestor);
 	ASTOBJ_UNLOCK(client);
 
 	return chan;

@@ -704,7 +704,7 @@ static void announce_to_dial(char *dial_string, char *announce_string, int parki
 
 	snprintf(buf, sizeof(buf), "%d", parkingspace);
 	oh.vars = ast_variable_new("_PARKEDAT", buf, "");
-	dchan = __ast_request_and_dial(dial_tech, cap_slin, NULL, dial_string, 30000,
+	dchan = __ast_request_and_dial(dial_tech, cap_slin, NULL, NULL, dial_string, 30000,
 		&outstate,
 		parkee_snapshot->caller_number,
 		parkee_snapshot->caller_name,

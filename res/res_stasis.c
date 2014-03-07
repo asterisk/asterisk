@@ -441,7 +441,7 @@ static struct ast_channel *prepare_bridge_moh_channel(void)
 
 	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
 
-	return ast_request("Announcer", cap, NULL, "ARI_MOH", NULL);
+	return ast_request("Announcer", cap, NULL, NULL, "ARI_MOH", NULL);
 }
 
 /*! Provides the moh channel with a thread so it can actually play its music */
@@ -585,7 +585,7 @@ static void control_unlink(struct stasis_app_control *control)
 	ao2_cleanup(control);
 }
 
-struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name)
+struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id)
 {
 	struct ast_bridge *bridge;
 	int capabilities;
@@ -604,7 +604,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name)
 		return NULL;
 	}
 
-	bridge = ast_bridge_base_new(capabilities, flags, "Stasis", name);
+	bridge = ast_bridge_base_new(capabilities, flags, "Stasis", name, id);
 	if (bridge) {
 		if (!ao2_link(app_bridges, bridge)) {
 			ast_bridge_destroy(bridge, 0);

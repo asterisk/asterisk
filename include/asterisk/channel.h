@@ -562,6 +562,15 @@ typedef struct {
 } ast_chan_write_info_t;
 
 /*!
+ * \brief Structure to pass both assignedid values to channel drivers
+ * \note The second value is used only by core_unreal (LOCAL)
+ */
+struct ast_assigned_ids {
+	const char *uniqueid;
+	const char *uniqueid2;
+};
+
+/*!
  * \brief
  * Structure to describe a channel "technology", ie a channel driver
  * See for examples:
@@ -588,6 +597,7 @@ struct ast_channel_tech {
 	 *
 	 * \param type type of channel to request
 	 * \param cap Format capabilities for requested channel
+	 * \param assignedid Unique ID string to assign to channel
 	 * \param requestor channel asking for data
 	 * \param addr destination of the call
 	 * \param cause Cause of failure
@@ -599,7 +609,7 @@ struct ast_channel_tech {
 	 * \retval NULL failure
 	 * \retval non-NULL channel on success
 	 */
-	struct ast_channel *(* const requester)(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr, int *cause);
+	struct ast_channel *(* const requester)(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
 
 	int (* const devicestate)(const char *device_number);	/*!< Devicestate call back */
 
@@ -1129,11 +1139,11 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
  *       and "default" context.
  * \note Since 12.0.0 this function returns with the newly created channel locked.
  */
-struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
+struct ast_channel * attribute_malloc __attribute__((format(printf, 14, 15)))
 	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 		const char *cid_name, const char *acctcode,
-		const char *exten, const char *context,
-		const char *linkedid, enum ama_flags amaflag,
+		const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
+		const struct ast_channel *requestor, enum ama_flags amaflag,
 		const char *file, int line, const char *function,
 		const char *name_fmt, ...);
 
@@ -1148,8 +1158,8 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 14)))
  *       and "default" context.
  * \note Since 12.0.0 this function returns with the newly created channel locked.
  */
-#define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, ...) \
-	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, linkedid, amaflag, \
+#define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, ...) \
+	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, \
 		__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 #if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
@@ -1338,6 +1348,7 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  *
  * \param type type of channel to request
  * \param request_cap Format capabilities for requested channel
+ * \param assignedids Unique ID to create channel with
  * \param requestor channel asking for data
  * \param addr destination of the call
  * \param cause Cause of failure
@@ -1349,7 +1360,7 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  * \retval NULL failure
  * \retval non-NULL channel on success
  */
-struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_channel *requestor, const char *addr, int *cause);
+struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
 
 /*!
  * \brief Request a channel of a given type, with data as optional information used
@@ -1357,6 +1368,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
  *
  * \param type type of channel to request
  * \param cap format capabilities for requested channel
+ * \param assignedids Unique Id to assign to channel
  * \param requestor channel asking for data
  * \param addr destination of the call
  * \param timeout maximum amount of time to wait for an answer
@@ -1367,7 +1379,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr,
+struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr,
 	int timeout, int *reason, const char *cid_num, const char *cid_name);
 
 /*!
@@ -1375,6 +1387,7 @@ struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap
  * by the low level module and attempt to place a call on it
  * \param type type of channel to request
  * \param cap format capabilities for requested channel
+ * \param assignedids Unique Id to assign to channel
  * \param requestor channel requesting data
  * \param addr destination of the call
  * \param timeout maximum amount of time to wait for an answer
@@ -1385,7 +1398,7 @@ struct ast_channel *ast_request_and_dial(const char *type, struct ast_format_cap
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
-struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *addr,
+struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr,
 	int timeout, int *reason, const char *cid_num, const char *cid_name, struct outgoing_helper *oh);
 
 /*!
@@ -2364,6 +2377,46 @@ void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_sil
  * device is available.
  */
 int ast_internal_timing_enabled(struct ast_channel *chan);
+
+/*!
+ * \brief Determine which channel has an older linkedid
+ * \param a First channel
+ * \param b Second channel
+ * \return Returns an ast_channel structure that has oldest linkedid
+ */
+struct ast_channel *ast_channel_internal_oldest_linkedid(struct ast_channel *a, struct ast_channel *b);
+
+/*!
+ * \brief Copy the full linkedid channel id structure from one channel to another
+ * \param dest Destination to copy linkedid to
+ * \param source Source channel to copy linkedid from
+ * \return void
+ */
+void ast_channel_internal_copy_linkedid(struct ast_channel *dest, struct ast_channel *source);
+
+/*!
+ * \brief Swap uniqueid and linkedid beteween two channels
+ * \param a First channel
+ * \param b Second channel
+ * \return void
+ *
+ * \note
+ * This is used in masquerade to exchange identities
+ */
+void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, struct ast_channel *b);
+
+/*!
+ * \brief Set uniqueid and linkedid string value only (not time)
+ * \param chan The channel to set the uniqueid to
+ * \param uniqueid The uniqueid to set
+ * \param linkedid The linkedid to set
+ * \return void
+ *
+ * \note
+ * This is used only by ast_cel_fabricate_channel_from_event()
+ * to create a temporary fake channel - time values are invalid
+ */
+void ast_channel_internal_set_fake_ids(struct ast_channel *chan, const char *uniqueid, const char *linkedid);
 
 /* Misc. functions below */
 

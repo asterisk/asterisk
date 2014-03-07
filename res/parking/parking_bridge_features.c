@@ -200,7 +200,7 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	snprintf(destination, sizeof(destination), "%s@%s", exten, context);
 
 	/* Now we request that chan_local prepare to call the destination */
-	parkee = ast_request("Local", ast_channel_nativeformats(parker), parker, destination,
+	parkee = ast_request("Local", ast_channel_nativeformats(parker), NULL, parker, destination,
 		&cause);
 	if (!parkee) {
 		return NULL;

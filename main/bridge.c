@@ -732,7 +732,7 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
 	return bridge;
 }
 
-struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags, const char *creator, const char *name)
+struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabilities, unsigned int flags, const char *creator, const char *name, const char *id)
 {
 	char uuid_hold[AST_UUID_STR_LEN];
 
@@ -740,8 +740,12 @@ struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabiliti
 		return NULL;
 	}
 
-	ast_uuid_generate_str(uuid_hold, AST_UUID_STR_LEN);
-	ast_string_field_set(self, uniqueid, uuid_hold);
+	if (!ast_strlen_zero(id)) {
+		ast_string_field_set(self, uniqueid, id);
+	} else {
+		ast_uuid_generate_str(uuid_hold, AST_UUID_STR_LEN);
+		ast_string_field_set(self, uniqueid, uuid_hold);
+	}
 	ast_string_field_set(self, creator, creator);
 	if (!ast_strlen_zero(creator)) {
 		ast_string_field_set(self, name, name);
@@ -901,12 +905,12 @@ struct ast_bridge_methods ast_bridge_base_v_table = {
 	.get_merge_priority = bridge_base_get_merge_priority,
 };
 
-struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags, const char *creator, const char *name)
+struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags, const char *creator, const char *name, const char *id)
 {
 	void *bridge;
 
 	bridge = bridge_alloc(sizeof(struct ast_bridge), &ast_bridge_base_v_table);
-	bridge = bridge_base_init(bridge, capabilities, flags, creator, name);
+	bridge = bridge_base_init(bridge, capabilities, flags, creator, name, id);
 	bridge = bridge_register(bridge);
 	return bridge;
 }
@@ -3716,7 +3720,7 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
 	int cause;
 
 	snprintf(chan_name, sizeof(chan_name), "%s@%s", exten, context);
-	local = ast_request("Local", ast_channel_nativeformats(transferer), transferer,
+	local = ast_request("Local", ast_channel_nativeformats(transferer), NULL, transferer,
 			chan_name, &cause);
 	if (!local) {
 		return AST_BRIDGE_TRANSFER_FAIL;
@@ -3879,7 +3883,7 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 	int res;
 	const char *app = NULL;
 
-	local_chan = ast_request("Local", ast_channel_nativeformats(chan1), chan1,
+	local_chan = ast_request("Local", ast_channel_nativeformats(chan1), NULL, chan1,
 			dest, &cause);
 
 	if (!local_chan) {

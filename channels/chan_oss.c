@@ -334,7 +334,7 @@ static struct chan_oss_pvt oss_default = {
 
 static int setformat(struct chan_oss_pvt *o, int mode);
 
-static struct ast_channel *oss_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor,
+static struct ast_channel *oss_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor,
 									   const char *data, int *cause);
 static int oss_digit_begin(struct ast_channel *c, char digit);
 static int oss_digit_end(struct ast_channel *c, char digit, unsigned int duration);
@@ -792,11 +792,11 @@ static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_
 /*!
  * \brief allocate a new channel.
  */
-static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx, int state, const char *linkedid)
+static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx, int state, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
 
-	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, linkedid, 0, "Console/%s", o->device + 5);
+	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", ext, ctx, assignedids, requestor, 0, "Console/%s", o->device + 5);
 	if (c == NULL)
 		return NULL;
 	ast_channel_tech_set(c, &oss_tech);
@@ -842,7 +842,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	return c;
 }
 
-static struct ast_channel *oss_request(const char *type, struct ast_format_cap *cap, const struct ast_channel *requestor, const char *data, int *cause)
+static struct ast_channel *oss_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *c;
 	struct chan_oss_pvt *o;
@@ -872,7 +872,7 @@ static struct ast_channel *oss_request(const char *type, struct ast_format_cap *
 		*cause = AST_CAUSE_BUSY;
 		return NULL;
 	}
-	c = oss_new(o, NULL, NULL, AST_STATE_DOWN, requestor ? ast_channel_linkedid(requestor) : NULL);
+	c = oss_new(o, NULL, NULL, AST_STATE_DOWN, assignedids, requestor);
 	if (c == NULL) {
 		ast_log(LOG_WARNING, "Unable to create new OSS channel\n");
 		return NULL;
@@ -1131,7 +1131,7 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		myc = o->ctx;
 	if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
 		o->hookstate = 1;
-		oss_new(o, mye, myc, AST_STATE_RINGING, NULL);
+		oss_new(o, mye, myc, AST_STATE_RINGING, NULL, NULL);
 	} else
 		ast_cli(a->fd, "No such extension '%s' in context '%s'\n", mye, myc);
 	if (s)

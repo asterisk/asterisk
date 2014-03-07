@@ -333,6 +333,7 @@ extern struct ast_bridge_methods ast_bridge_base_v_table;
  * \param flags Flags that will alter the behavior of the bridge
  * \param creator Entity that created the bridge (optional)
  * \param name Name given to the bridge by its creator (optional, requires named creator)
+ * \param name id Unique ID given to the bridge by its creator (optional)
  *
  * \retval a pointer to a new bridge on success
  * \retval NULL on failure
@@ -347,7 +348,7 @@ extern struct ast_bridge_methods ast_bridge_base_v_table;
  * This creates a no frills two party bridge that will be
  * destroyed once one of the channels hangs up.
  */
-struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags, const char *creator, const char *name);
+struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags, const char *creator, const char *name, const char *id);
 
 /*!
  * \brief Try locking the bridge.

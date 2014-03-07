@@ -598,11 +598,12 @@ int stasis_app_control_queue_control(struct stasis_app_control *control,
  *
  * \param type The type of bridge to be created
  * \param name Optional name to give to the bridge
+ * \param id Optional Unique ID to give to the bridge
  *
  * \return New bridge.
  * \return \c NULL on error.
  */
-struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name);
+struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id);
 
 /*!
  * \brief Returns the bridge with the given id.

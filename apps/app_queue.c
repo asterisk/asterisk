@@ -4058,7 +4058,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	}
 
 	/* Request the peer */
-	tmp->chan = ast_request(tech, ast_channel_nativeformats(qe->chan), qe->chan, location, &status);
+	tmp->chan = ast_request(tech, ast_channel_nativeformats(qe->chan), NULL, qe->chan, location, &status);
 	if (!tmp->chan) {			/* If we can't, just go on to the next call */
 		ao2_lock(qe->parent);
 		qe->parent->rrpos++;
@@ -4586,7 +4586,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 					ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", inchan_name, tech, stuff, ochan_name);
 					/* Setup parameters */
-					o->chan = ast_request(tech, ast_channel_nativeformats(in), in, stuff, &status);
+					o->chan = ast_request(tech, ast_channel_nativeformats(in), NULL, in, stuff, &status);
 					if (!o->chan) {
 						ast_log(LOG_NOTICE,
 							"Forwarding failed to create channel to dial '%s/%s'\n",

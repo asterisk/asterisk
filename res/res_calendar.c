@@ -41,6 +41,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/_private.h"
+#include "asterisk/channel.h"
 #include "asterisk/calendar.h"
 #include "asterisk/utils.h"
 #include "asterisk/astobj2.h"
@@ -745,7 +746,7 @@ static void *do_notify(void *data)
 		goto notify_cleanup;
 	}
 
-	if (ast_dial_append(dial, tech, dest) < 0) {
+	if (ast_dial_append(dial, tech, dest, NULL) < 0) {
 		ast_log(LOG_ERROR, "Could not append channel\n");
 		goto notify_cleanup;
 	}
@@ -753,7 +754,7 @@ static void *do_notify(void *data)
 	ast_dial_set_global_timeout(dial, event->owner->notify_waittime);
 	generate_random_string(buf, sizeof(buf));
 
-	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, 0, 0, 0, 0, 0, 0, 0, "Calendar/%s-%s", event->owner->name, buf))) {
+	if (!(chan = ast_channel_alloc(1, AST_STATE_DOWN, 0, 0, 0, 0, 0, NULL, NULL, 0, "Calendar/%s-%s", event->owner->name, buf))) {
 		ast_log(LOG_ERROR, "Could not allocate notification channel\n");
 		goto notify_cleanup;
 	}
