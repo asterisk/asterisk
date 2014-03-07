@@ -34430,12 +34430,16 @@ static int unload_module(void)
 
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
-		pthread_cancel(monitor_thread);
-		pthread_kill(monitor_thread, SIGURG);
-		pthread_join(monitor_thread, NULL);
+		pthread_t th = monitor_thread;
+		monitor_thread = AST_PTHREADT_STOP;
+		pthread_cancel(th);
+		pthread_kill(th, SIGURG);
+		ast_mutex_unlock(&monlock);
+		pthread_join(th, NULL);
+	} else {
+		monitor_thread = AST_PTHREADT_STOP;
+		ast_mutex_unlock(&monlock);
 	}
-	monitor_thread = AST_PTHREADT_STOP;
-	ast_mutex_unlock(&monlock);
 
 	/* Destroy all the dialogs and free their memory */
 	i = ao2_iterator_init(dialogs, 0);
