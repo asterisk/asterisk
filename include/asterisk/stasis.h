@@ -290,11 +290,49 @@ const char *stasis_message_type_name(const struct stasis_message_type *type);
  *
  * \param type Type of the message
  * \param data Immutable data that is the actual contents of the message
+ *
  * \return New message
  * \return \c NULL on error
+ *
  * \since 12
  */
 struct stasis_message *stasis_message_create(struct stasis_message_type *type, void *data);
+
+/*!
+ * \brief Create a new message for an entity.
+ *
+ * This message is an \c ao2 object, and must be ao2_cleanup()'ed when you are done
+ * with it. Messages are also immutable, and must not be modified after they
+ * are initialized. Especially the \a data in the message.
+ *
+ * \param type Type of the message
+ * \param data Immutable data that is the actual contents of the message
+ * \param eid What entity originated this message. (NULL for aggregate)
+ *
+ * \note An aggregate message is a combined representation of the local
+ * and remote entities publishing the message data.  e.g., An aggregate
+ * device state represents the combined device state from the local and
+ * any remote entities publishing state for a device.  e.g., An aggregate
+ * MWI message is the old/new MWI counts accumulated from the local and
+ * any remote entities publishing to a mailbox.
+ *
+ * \retval New message
+ * \retval \c NULL on error
+ *
+ * \since 12.2.0
+ */
+struct stasis_message *stasis_message_create_full(struct stasis_message_type *type, void *data, const struct ast_eid *eid);
+
+/*!
+ * \brief Get the entity id for a \ref stasis_message.
+ * \since 12.2.0
+ *
+ * \param msg Message to get eid.
+ *
+ * \retval Entity id of \a msg
+ * \retval \c NULL if \a msg is an aggregate or \a msg is \c NULL.
+ */
+const struct ast_eid *stasis_message_eid(const struct stasis_message *msg);
 
 /*!
  * \brief Get the message type for a \ref stasis_message.
@@ -503,8 +541,8 @@ struct stasis_forward;
  * \brief Create a subscription which forwards all messages from one topic to
  * another.
  *
- * Note that the \a topic parameter of the invoked callback will the be \a topic
- * the message was sent to, not the topic the subscriber subscribed to.
+ * Note that the \a topic parameter of the invoked callback will the be the
+ * \a topic the message was sent to, not the topic the subscriber subscribed to.
  *
  * \param from_topic Topic to forward.
  * \param to_topic Destination topic of forwarded messages.
@@ -640,6 +678,9 @@ struct stasis_message_type *stasis_cache_clear_type(void);
  */
 struct stasis_cache;
 
+/*! Cache entry used for calculating the aggregate snapshot. */
+struct stasis_cache_entry;
+
 /*!
  * \brief A topic wrapper, which caches certain messages.
  * \since 12
@@ -661,6 +702,101 @@ struct stasis_caching_topic;
 typedef const char *(*snapshot_get_id)(struct stasis_message *message);
 
 /*!
+ * \brief Callback to calculate the aggregate cache entry.
+ * \since 12.2.0
+ *
+ * \param entry Cache entry to calculate a new aggregate snapshot.
+ * \param new_snapshot The shapshot that is being updated.
+ *
+ * \note Return a ref bumped pointer from stasis_cache_entry_get_aggregate()
+ * if a new aggregate could not be calculated because of error.
+ *
+ * \note An aggregate message is a combined representation of the local
+ * and remote entities publishing the message data.  e.g., An aggregate
+ * device state represents the combined device state from the local and
+ * any remote entities publishing state for a device.  e.g., An aggregate
+ * MWI message is the old/new MWI counts accumulated from the local and
+ * any remote entities publishing to a mailbox.
+ *
+ * \return New aggregate-snapshot calculated on success.
+ * Caller has a reference on return.
+ */
+typedef struct stasis_message *(*cache_aggregate_calc_fn)(struct stasis_cache_entry *entry, struct stasis_message *new_snapshot);
+
+/*!
+ * \brief Callback to publish the aggregate cache entry message.
+ * \since 12.2.0
+ *
+ * \details
+ * Once an aggregate message is calculated.  This callback publishes the
+ * message so subscribers will know the new value of an aggregated state.
+ *
+ * \param topic The aggregate message may be published to this topic.
+ *        It is the topic to which the cache itself is subscribed.
+ * \param aggregate The aggregate shapshot message to publish.
+ *
+ * \note It is up to the function to determine if there is a better topic
+ * the aggregate message should be published over.
+ *
+ * \note An aggregate message is a combined representation of the local
+ * and remote entities publishing the message data.  e.g., An aggregate
+ * device state represents the combined device state from the local and
+ * any remote entities publishing state for a device.  e.g., An aggregate
+ * MWI message is the old/new MWI counts accumulated from the local and
+ * any remote entities publishing to a mailbox.
+ *
+ * \return Nothing
+ */
+typedef void (*cache_aggregate_publish_fn)(struct stasis_topic *topic, struct stasis_message *aggregate);
+
+/*!
+ * \brief Get the aggregate cache entry snapshot.
+ * \since 12.2.0
+ *
+ * \param entry Cache entry to get the aggregate snapshot.
+ *
+ * \note A reference is not given to the returned pointer so don't unref it.
+ *
+ * \note An aggregate message is a combined representation of the local
+ * and remote entities publishing the message data.  e.g., An aggregate
+ * device state represents the combined device state from the local and
+ * any remote entities publishing state for a device.  e.g., An aggregate
+ * MWI message is the old/new MWI counts accumulated from the local and
+ * any remote entities publishing to a mailbox.
+ *
+ * \retval Aggregate-snapshot in cache.
+ * \retval NULL if not present.
+ */
+struct stasis_message *stasis_cache_entry_get_aggregate(struct stasis_cache_entry *entry);
+
+/*!
+ * \brief Get the local entity's cache entry snapshot.
+ * \since 12.2.0
+ *
+ * \param entry Cache entry to get the local entity's snapshot.
+ *
+ * \note A reference is not given to the returned pointer so don't unref it.
+ *
+ * \retval Internal-snapshot in cache.
+ * \retval NULL if not present.
+ */
+struct stasis_message *stasis_cache_entry_get_local(struct stasis_cache_entry *entry);
+
+/*!
+ * \brief Get a remote entity's cache entry snapshot by index.
+ * \since 12.2.0
+ *
+ * \param entry Cache entry to get a remote entity's snapshot.
+ * \param idx Which remote entity's snapshot to get.
+ *
+ * \note A reference is not given to the returned pointer so don't unref it.
+ *
+ * \retval Remote-entity-snapshot in cache.
+ * \retval NULL if not present.
+ */
+struct stasis_message *stasis_cache_entry_get_remote(struct stasis_cache_entry *entry, int idx);
+
+/*!
  * \brief Create a cache.
  *
  * This is the backend store for a \ref stasis_caching_topic. The cache is
@@ -669,11 +805,39 @@ typedef const char *(*snapshot_get_id)(struct stasis_message *message);
  * The returned object is AO2 managed, so ao2_cleanup() when you're done.
  *
  * \param id_fn Callback to extract the id from a snapshot message.
- * \return New cache indexed by \a id_fn.
- * \return \c NULL on error
+ *
+ * \retval New cache indexed by \a id_fn.
+ * \retval \c NULL on error
+ *
  * \since 12
  */
 struct stasis_cache *stasis_cache_create(snapshot_get_id id_fn);
+
+/*!
+ * \brief Create a cache.
+ *
+ * This is the backend store for a \ref stasis_caching_topic. The cache is
+ * thread safe, allowing concurrent reads and writes.
+ *
+ * The returned object is AO2 managed, so ao2_cleanup() when you're done.
+ *
+ * \param id_fn Callback to extract the id from a snapshot message.
+ * \param aggregate_calc_fn Callback to calculate the aggregate cache entry.
+ * \param aggregate_publish_fn Callback to publish the aggregate cache entry.
+ *
+ * \note An aggregate message is a combined representation of the local
+ * and remote entities publishing the message data.  e.g., An aggregate
+ * device state represents the combined device state from the local and
+ * any remote entities publishing state for a device.  e.g., An aggregate
+ * MWI message is the old/new MWI counts accumulated from the local and
+ * any remote entities publishing to a mailbox.
+ *
+ * \retval New cache indexed by \a id_fn.
+ * \retval \c NULL on error
+ *
+ * \since 12.2.0
+ */
+struct stasis_cache *stasis_cache_create_full(snapshot_get_id id_fn, cache_aggregate_calc_fn aggregate_calc_fn, cache_aggregate_publish_fn aggregate_publish_fn);
 
 /*!
  * \brief Create a topic which monitors and caches messages from another topic.
@@ -749,31 +913,95 @@ struct stasis_topic *stasis_caching_get_topic(
 struct stasis_message *stasis_cache_clear_create(struct stasis_message *message);
 
 /*!
- * \brief Retrieve an item from the cache.
+ * \brief Retrieve an item from the cache for the ast_eid_default entity.
  *
  * The returned item is AO2 managed, so ao2_cleanup() when you're done with it.
  *
  * \param cache The cache to query.
  * \param type Type of message to retrieve.
  * \param id Identity of the snapshot to retrieve.
- * \return Message from the cache.
- * \return \c NULL if message is not found.
+ *
+ * \retval Message from the cache.
+ * \retval \c NULL if message is not found.
+ *
  * \since 12
  */
-struct stasis_message *stasis_cache_get(
-	struct stasis_cache *cache, struct stasis_message_type *type,
-	const char *id);
+struct stasis_message *stasis_cache_get(struct stasis_cache *cache, struct stasis_message_type *type, const char *id);
 
 /*!
- * \brief Dump cached items to a subscription
+ * \brief Retrieve an item from the cache for a specific entity.
+ *
+ * The returned item is AO2 managed, so ao2_cleanup() when you're done with it.
+ *
+ * \param cache The cache to query.
+ * \param type Type of message to retrieve.
+ * \param id Identity of the snapshot to retrieve.
+ * \param eid Specific entity id to retrieve.  NULL for aggregate.
+ *
+ * \note An aggregate message is a combined representation of the local
+ * and remote entities publishing the message data.  e.g., An aggregate
+ * device state represents the combined device state from the local and
+ * any remote entities publishing state for a device.  e.g., An aggregate
+ * MWI message is the old/new MWI counts accumulated from the local and
+ * any remote entities publishing to a mailbox.
+ *
+ * \retval Message from the cache.
+ * \retval \c NULL if message is not found.
+ *
+ * \since 12.2.0
+ */
+struct stasis_message *stasis_cache_get_by_eid(struct stasis_cache *cache, struct stasis_message_type *type, const char *id, const struct ast_eid *eid);
+
+/*!
+ * \brief Retrieve all matching entity items from the cache.
+ * \since 12.2.0
+ *
+ * \param cache The cache to query.
+ * \param type Type of message to retrieve.
+ * \param id Identity of the snapshot to retrieve.
+ *
+ * \retval Container of matching items found.
+ * \retval \c NULL if error.
+ */
+struct ao2_container *stasis_cache_get_all(struct stasis_cache *cache, struct stasis_message_type *type, const char *id);
+
+/*!
+ * \brief Dump cached items to a subscription for the ast_eid_default entity.
+ *
  * \param cache The cache to query.
  * \param type Type of message to dump (any type if \c NULL).
- * \return ao2_container containing all matches (must be unreffed by caller)
- * \return \c NULL on allocation error
+ *
+ * \retval ao2_container containing all matches (must be unreffed by caller)
+ * \retval \c NULL on allocation error
+ *
  * \since 12
  */
-struct ao2_container *stasis_cache_dump(struct stasis_cache *cache,
-	struct stasis_message_type *type);
+struct ao2_container *stasis_cache_dump(struct stasis_cache *cache, struct stasis_message_type *type);
+
+/*!
+ * \brief Dump cached items to a subscription for a specific entity.
+ * \since 12.2.0
+ *
+ * \param cache The cache to query.
+ * \param type Type of message to dump (any type if \c NULL).
+ * \param eid Specific entity id to retrieve.  NULL for aggregate.
+ *
+ * \retval ao2_container containing all matches (must be unreffed by caller)
+ * \retval \c NULL on allocation error
+ */
+struct ao2_container *stasis_cache_dump_by_eid(struct stasis_cache *cache, struct stasis_message_type *type, const struct ast_eid *eid);
+
+/*!
+ * \brief Dump all entity items from the cache to a subscription.
+ * \since 12.2.0
+ *
+ * \param cache The cache to query.
+ * \param type Type of message to dump (any type if \c NULL).
+ *
+ * \retval ao2_container containing all matches (must be unreffed by caller)
+ * \retval \c NULL on allocation error
+ */
+struct ao2_container *stasis_cache_dump_all(struct stasis_cache *cache, struct stasis_message_type *type);
 
 /*! @} */
 

@@ -2821,7 +2821,6 @@ struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context)
 	return mwi_state;
 }
 
-
 int ast_publish_mwi_state_full(
 			const char *mailbox,
 			const char *context,
@@ -2857,10 +2856,19 @@ int ast_publish_mwi_state_full(
 	if (eid) {
 		mwi_state->eid = *eid;
 	} else {
-		ast_set_default_eid(&mwi_state->eid);
+		mwi_state->eid = ast_eid_default;
 	}
 
-	message = stasis_message_create(ast_mwi_state_type(), mwi_state);
+	/*
+	 * As far as stasis is concerned, all MWI events are internal.
+	 *
+	 * We may in the future want to make MWI aggregate internal/external
+	 * message counts similar to how device state aggregates state.
+	 */
+	message = stasis_message_create_full(ast_mwi_state_type(), mwi_state, &ast_eid_default);
+	if (!message) {
+		return -1;
+	}
 
 	mailbox_specific_topic = ast_mwi_topic(mwi_state->uniqueid);
 	if (!mailbox_specific_topic) {
@@ -2911,6 +2919,7 @@ struct stasis_message *ast_mwi_blob_create(struct ast_mwi_state *mwi_state,
 	ao2_ref(obj->mwi_state, +1);
 	obj->blob = ast_json_ref(blob);
 
+	/* This is not a normal MWI event.  Only used by the MinivmNotify app. */
 	msg = stasis_message_create(message_type, obj);
 	if (!msg) {
 		return NULL;
