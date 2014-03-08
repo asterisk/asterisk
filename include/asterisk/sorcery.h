@@ -924,9 +924,19 @@ const char *ast_sorcery_object_get_extended(const void *object, const char *name
 int ast_sorcery_object_set_extended(const void *object, const char *name, const char *value);
 
 /*!
- * \brief Sorcery object comparator based on id.
+ * \brief ao2 object comparator based on sorcery id.
  */
-int ast_sorcery_object_id_compare(const void *obj_left, const void *obj_right, int flags);
+int ast_sorcery_object_id_compare(void *obj, void *arg, int flags);
+
+/*!
+ * \brief ao2 object sorter based on sorcery id.
+ */
+int ast_sorcery_object_id_sort(const void *obj, const void *arg, int flags);
+
+/*!
+ * \brief ao2 object hasher based on sorcery id.
+ */
+int ast_sorcery_object_id_hash(const void *obj, int flags);
 
 /*!
  * \brief Get the sorcery object type given a type name.

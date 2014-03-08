@@ -29,23 +29,20 @@
 #define CLI_INDENT_TO_SPACES(x) ((x * 2) + 1 + CLI_MAX_TITLE_NAME)
 
 /*
- * \brief CLI Formatter Context
+ * \brief CLI Formatter Context passed to all formatters.
  */
 struct ast_sip_cli_context {
-	int peers_mon_online;
-	int peers_mon_offline;
-	int peers_unmon_offline;
-	int peers_unmon_online;
+	/*! Buffer used to accumulate cli output. */
 	struct ast_str *output_buffer;
-	const struct ast_cli_args *a;
-	const struct ast_sip_endpoint *current_endpoint;
-	const struct ast_sip_auth *current_auth;
-	const struct ast_sip_aor *current_aor;
+	/*! Used to indicate which direction an auth is used for. "I" or "O" */
 	char *auth_direction;
-	unsigned int print_flags;
+	/*! Allows formatters to know how far to indent their output. */
 	int indent_level;
+	/*! Tells a formatter to dump its object_set. */
 	unsigned show_details : 1;
+	/*! Tells a formatter to descend into child objects. */
 	unsigned recurse : 1;
+	/*! Tells a formatter to dump it's object_set only if it's the root object. */
 	unsigned show_details_only_level_0 : 1;
 };
 
@@ -53,12 +50,24 @@ struct ast_sip_cli_context {
  * \brief CLI Formatter Registry Entry
  */
 struct ast_sip_cli_formatter_entry {
+	/*! A globally unique name for this formatter.  If this formatter entry
+	 * is for an existing sorcery object type, then this name must match
+	 * the sorcery object type.  Otherwise it can be any string as long as
+	 * it's globally unique.
+	 */
 	const char *name;
+	/*! The callback used to print the object's column headers. */
 	ao2_callback_fn *print_header;
+	/*! The callback used to print the details of the object. */
 	ao2_callback_fn *print_body;
+	/*! The function used to retrieve a container of all objects of this type. */
 	struct ao2_container *(* get_container)(void);
-	int (* iterator)(const void *container, ao2_callback_fn callback, void *args);
-	ao2_sort_fn *comparator;
+	/*! The function used to iterate over a container of objects. */
+	int (* iterate)(void *container, ao2_callback_fn callback, void *args);
+	/*! The function used to retrieve a specific object from it's container. */
+	void *(* retrieve_by_id)(const char *id);
+	/*! The function used to retrieve an id string from an object. */
+	const char *(* get_id)(const void *obj);
 };
 
 /*!

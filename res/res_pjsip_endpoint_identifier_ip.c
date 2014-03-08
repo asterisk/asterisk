@@ -270,16 +270,14 @@ struct ast_sip_endpoint_formatter endpoint_identify_formatter = {
 	.format_ami = format_ami_endpoint_identify
 };
 
-static int populate_identify_container(void *obj, void *arg, int flags)
+static int cli_populate_container(void *obj, void *arg, int flags)
 {
-	struct ast_sip_ip_identify_match *ident = obj;
-	struct ao2_container *container = arg;
+	ao2_link(arg, obj);
 
-	ao2_link(container, ident);
 	return 0;
 }
 
-static int cli_iterator(const void *container, ao2_callback_fn callback, void *args)
+static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
 {
 	const struct ast_sip_endpoint *endpoint = container;
 	struct ao2_container *identifies;
@@ -301,16 +299,17 @@ static int cli_iterator(const void *container, ao2_callback_fn callback, void *a
 	return 0;
 }
 
-static int gather_endpoint_identifies(void *obj, void *arg, int flags)
+static int cli_endpoint_gather_identifies(void *obj, void *arg, int flags)
 {
 	struct ast_sip_endpoint *endpoint = obj;
 	struct ao2_container *container = arg;
 
-	cli_iterator(endpoint, populate_identify_container, container);
+	cli_iterator(endpoint, cli_populate_container, container);
+
 	return 0;
 }
 
-static struct ao2_container *cli_get_identify_container(void)
+static struct ao2_container *cli_get_container(void)
 {
 	RAII_VAR(struct ao2_container *, parent_container, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, s_parent_container, NULL, ao2_cleanup);
@@ -323,7 +322,7 @@ static struct ao2_container *cli_get_identify_container(void)
 	}
 
 	s_parent_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
-		ast_sorcery_object_id_compare, NULL);
+		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 	if (!s_parent_container) {
 		return NULL;
 	}
@@ -333,26 +332,28 @@ static struct ao2_container *cli_get_identify_container(void)
 	}
 
 	child_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
-		ast_sorcery_object_id_compare, NULL);
+		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 	if (!child_container) {
 		return NULL;
 	}
 
-	ao2_callback(s_parent_container, OBJ_NODATA, gather_endpoint_identifies, child_container);
-	ao2_ref(child_container, +1);
+	ao2_callback(s_parent_container, OBJ_NODATA, cli_endpoint_gather_identifies, child_container);
+
 	return child_container;
 }
 
+static void *cli_retrieve_by_id(const char *id)
+{
+	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "identify", id);
+}
 
-static int cli_print_identify_header(void *obj, void *arg, int flags)
+static int cli_print_header(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	int filler = CLI_MAX_WIDTH - indent - 14;
 
-	if (!context->output_buffer) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
 		"%*s:  <MatchList%*.*s>\n",
@@ -361,15 +362,13 @@ static int cli_print_identify_header(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static int cli_print_identify_body(void *obj, void *arg, int flags)
+static int cli_print_body(void *obj, void *arg, int flags)
 {
 	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
 	struct ip_identify_match *ident = obj;
 	struct ast_sip_cli_context *context = arg;
 
-	if (!context->output_buffer || !str) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0, "%*s:  ",
 		CLI_INDENT_TO_SPACES(context->indent_level), "Identify");
@@ -379,14 +378,7 @@ static int cli_print_identify_body(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static struct ast_sip_cli_formatter_entry  cli_identify_formatter = {
-	.name = "identify",
-	.print_header = cli_print_identify_header,
-	.print_body = cli_print_identify_body,
-	.get_container = cli_get_identify_container,
-	.comparator = ast_sorcery_object_id_compare,
-	.iterator = cli_iterator,
-};
+static struct ast_sip_cli_formatter_entry *cli_formatter;
 
 static int load_module(void)
 {
@@ -403,7 +395,21 @@ static int load_module(void)
 
 	ast_sip_register_endpoint_identifier(&ip_identifier);
 	ast_sip_register_endpoint_formatter(&endpoint_identify_formatter);
-	ast_sip_register_cli_formatter(&cli_identify_formatter);
+
+	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
+	if (!cli_formatter) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
+		return -1;
+	}
+	cli_formatter->name = "identify";
+	cli_formatter->print_header = cli_print_header;
+	cli_formatter->print_body = cli_print_body;
+	cli_formatter->get_container = cli_get_container;
+	cli_formatter->iterate = cli_iterator;
+	cli_formatter->get_id = ast_sorcery_object_get_id;
+	cli_formatter->retrieve_by_id = cli_retrieve_by_id;
+
+	ast_sip_register_cli_formatter(cli_formatter);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -411,14 +417,16 @@ static int load_module(void)
 static int reload_module(void)
 {
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "identify");
+
 	return 0;
 }
 
 static int unload_module(void)
 {
-	ast_sip_unregister_cli_formatter(&cli_identify_formatter);
+	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_sip_unregister_endpoint_formatter(&endpoint_identify_formatter);
 	ast_sip_unregister_endpoint_identifier(&ip_identifier);
+
 	return 0;
 }
 
