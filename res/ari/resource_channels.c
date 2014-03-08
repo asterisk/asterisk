@@ -778,8 +778,8 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	struct ast_assigned_ids assignedids = {args_channel_id, args_other_channel_id};
 
-	if (strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID || 
-		strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID) {
+	if ((!ast_strlen_zero(assignedids.uniqueid) && strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID) || 
+		(!ast_strlen_zero(assignedids.uniqueid) && strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID)) {
 		ast_log(LOG_WARNING, "Uniqueid length exceeds maximum of %d\n", AST_MAX_UNIQUEID);
 	}
 
