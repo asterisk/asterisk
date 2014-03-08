@@ -199,10 +199,10 @@ static struct ast_sip_endpoint_formatter endpoint_auth_formatter = {
 	.format_ami = format_ami_endpoint_auth
 };
 
-static struct ao2_container *cli_get_auth_container(void)
+static struct ao2_container *cli_get_container(void)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, s_container, NULL, ao2_cleanup);
+	struct ao2_container *s_container;
 
 	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "auth",
 		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
@@ -211,34 +211,36 @@ static struct ao2_container *cli_get_auth_container(void)
 	}
 
 	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
-		ast_sorcery_object_id_compare, NULL);
+		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 	if (!s_container) {
 		return NULL;
 	}
 
 	if (ao2_container_dup(s_container, container, 0)) {
+		ao2_ref(s_container, -1);
 		return NULL;
 	}
-	ao2_ref(s_container, +1);
+
 	return s_container;
 }
 
-static int cli_iterator(const void *container, ao2_callback_fn callback, void *args)
+static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
 {
-	const struct ast_sip_auth_vector *vector = container;
-
-	return ast_sip_for_each_auth(vector, callback, args);
+	return ast_sip_for_each_auth(container, callback, args);
 }
 
-static int cli_print_auth_header(void *obj, void *arg, int flags)
+static void *cli_retrieve_by_id(const char *id)
+{
+	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, id);
+}
+
+static int cli_print_header(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	int filler = CLI_MAX_WIDTH - indent - 20;
 
-	if (!context->output_buffer) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
 		"%*s:  <AuthId/UserName%*.*s>\n", indent, "I/OAuth", filler, filler,
@@ -247,17 +249,13 @@ static int cli_print_auth_header(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static int cli_print_auth_body(void *obj, void *arg, int flags)
+static int cli_print_body(void *obj, void *arg, int flags)
 {
 	struct ast_sip_auth *auth = obj;
 	struct ast_sip_cli_context *context = arg;
 	char title[32];
 
-	context->current_auth = auth;
-
-	if (!context->output_buffer) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	snprintf(title, sizeof(title), "%sAuth",
 		context->auth_direction ? context->auth_direction : "");
@@ -275,15 +273,6 @@ static int cli_print_auth_body(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static struct ast_sip_cli_formatter_entry cli_auth_formatter = {
-	.name = SIP_SORCERY_AUTH_TYPE,
-	.print_header = cli_print_auth_header,
-	.print_body = cli_print_auth_body,
-	.get_container = cli_get_auth_container,
-	.iterator = cli_iterator,
-	.comparator = ast_sorcery_object_id_compare,
-};
-
 static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Auths",
 		.command = "pjsip list auths",
@@ -298,6 +287,8 @@ static struct ast_cli_entry cli_commands[] = {
 		.usage = "Usage: pjsip show auth <id>\n"
 				 "       Show the configured PJSIP Auth\n"),
 };
+
+static struct ast_sip_cli_formatter_entry *cli_formatter;
 
 /*! \brief Initialize sorcery with auth support */
 int ast_sip_initialize_sorcery_auth(void)
@@ -326,7 +317,21 @@ int ast_sip_initialize_sorcery_auth(void)
 			"userpass", auth_type_handler, auth_type_to_str, NULL, 0, 0);
 
 	ast_sip_register_endpoint_formatter(&endpoint_auth_formatter);
-	ast_sip_register_cli_formatter(&cli_auth_formatter);
+
+	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
+	if (!cli_formatter) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
+		return -1;
+	}
+	cli_formatter->name = SIP_SORCERY_AUTH_TYPE;
+	cli_formatter->print_header = cli_print_header;
+	cli_formatter->print_body = cli_print_body;
+	cli_formatter->get_container = cli_get_container;
+	cli_formatter->iterate = cli_iterator;
+	cli_formatter->get_id = ast_sorcery_object_get_id;
+	cli_formatter->retrieve_by_id = cli_retrieve_by_id;
+
+	ast_sip_register_cli_formatter(cli_formatter);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	return 0;
@@ -335,6 +340,7 @@ int ast_sip_initialize_sorcery_auth(void)
 int ast_sip_destroy_sorcery_auth(void)
 {
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
-	ast_sip_unregister_cli_formatter(&cli_auth_formatter);
+	ast_sip_unregister_cli_formatter(cli_formatter);
+
 	return 0;
 }

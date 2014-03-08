@@ -223,6 +223,19 @@ struct ast_sip_aor {
 };
 
 /*!
+ * \brief A wrapper for contact that adds the aor_id and
+ * a consistent contact id.  Used by ast_sip_for_each_contact.
+ */
+struct ast_sip_contact_wrapper {
+	/*! The id of the parent aor. */
+	char *aor_id;
+	/*! The id of contact in form of aor_id/contact_uri. */
+	char *contact_id;
+	/*! Pointer to the actual contact. */
+	struct ast_sip_contact *contact;
+};
+
+/*!
  * \brief DTMF modes for SIP endpoints
  */
 enum ast_sip_dtmf_mode {
@@ -1620,7 +1633,8 @@ void *ast_sip_dict_set(pj_pool_t* pool, void *ht,
  * \brief For every contact on an AOR call the given 'on_contact' handler.
  *
  * \param aor the aor containing a list of contacts to iterate
- * \param on_contact callback on each contact on an AOR
+ * \param on_contact callback on each contact on an AOR.  The object
+ * received by the callback will be a ast_sip_contact_wrapper structure.
  * \param arg user data passed to handler
  * \retval 0 Success, non-zero on failure
  */

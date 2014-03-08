@@ -509,7 +509,7 @@ static int tos_to_str(const void *obj, const intptr_t *args, char **buf)
 static struct ao2_container *cli_get_container(void)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, s_container, NULL, ao2_cleanup);
+	struct ao2_container *s_container;
 
 	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "transport",
 		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
@@ -518,19 +518,20 @@ static struct ao2_container *cli_get_container(void)
 	}
 
 	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
-		ast_sorcery_object_id_compare, NULL);
+		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 	if (!s_container) {
 		return NULL;
 	}
 
 	if (ao2_container_dup(s_container, container, 0)) {
+		ao2_ref(s_container, -1);
 		return NULL;
 	}
-	ao2_ref(s_container, +1);
+
 	return s_container;
 }
 
-static int cli_iterator(const void *container, ao2_callback_fn callback, void *args)
+static int cli_iterate(void *container, ao2_callback_fn callback, void *args)
 {
 	const struct ast_sip_endpoint *endpoint = container;
 	struct ast_sip_transport *transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),
@@ -539,7 +540,13 @@ static int cli_iterator(const void *container, ao2_callback_fn callback, void *a
 	if (!transport) {
 		return -1;
 	}
+
 	return callback(transport, args, 0);
+}
+
+static void *cli_retrieve_by_id(const char *id)
+{
+	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", id);
 }
 
 static int cli_print_header(void *obj, void *arg, int flags)
@@ -548,9 +555,7 @@ static int cli_print_header(void *obj, void *arg, int flags)
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	int filler = CLI_MAX_WIDTH - indent - 61;
 
-	if (!context->output_buffer) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
 		"%*s:  <TransportId........>  <Type>  <cos>  <tos>  <BindAddress%*.*s>\n",
@@ -565,9 +570,7 @@ static int cli_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_cli_context *context = arg;
 	char hoststr[PJ_INET6_ADDRSTRLEN];
 
-	if (!context->output_buffer) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	pj_sockaddr_print(&transport->host, hoststr, sizeof(hoststr), 3);
 
@@ -586,15 +589,6 @@ static int cli_print_body(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static struct ast_sip_cli_formatter_entry  cli_formatter = {
-	.name = "transport",
-	.print_header = cli_print_header,
-	.print_body = cli_print_body,
-	.get_container = cli_get_container,
-	.iterator = cli_iterator,
-	.comparator = ast_sorcery_object_id_compare,
-};
-
 static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Transports",
 		.command = "pjsip list transports",
@@ -609,6 +603,8 @@ static struct ast_cli_entry cli_commands[] = {
 		.usage = "Usage: pjsip show transport <id>\n"
 				 "       Show the configured PJSIP Transport\n"),
 };
+
+static struct ast_sip_cli_formatter_entry *cli_formatter;
 
 /*! \brief Initialize sorcery with transport support */
 int ast_sip_initialize_sorcery_transport(void)
@@ -643,7 +639,21 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 
 	ast_sip_register_endpoint_formatter(&endpoint_transport_formatter);
-	ast_sip_register_cli_formatter(&cli_formatter);
+
+	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
+	if (!cli_formatter) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
+		return -1;
+	}
+	cli_formatter->name = "transport";
+	cli_formatter->print_header = cli_print_header;
+	cli_formatter->print_body = cli_print_body;
+	cli_formatter->get_container = cli_get_container;
+	cli_formatter->iterate = cli_iterate;
+	cli_formatter->get_id = ast_sorcery_object_get_id;
+	cli_formatter->retrieve_by_id = cli_retrieve_by_id;
+
+	ast_sip_register_cli_formatter(cli_formatter);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	return 0;
@@ -652,6 +662,7 @@ int ast_sip_initialize_sorcery_transport(void)
 int ast_sip_destroy_sorcery_transport(void)
 {
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
-	ast_sip_unregister_cli_formatter(&cli_formatter);
+	ast_sip_unregister_cli_formatter(cli_formatter);
+
 	return 0;
 }

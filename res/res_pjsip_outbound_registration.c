@@ -1132,7 +1132,7 @@ static int ami_show_outbound_registrations(struct mansession *s,
 static struct ao2_container *cli_get_container(void)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, s_container, NULL, ao2_cleanup);
+	struct ao2_container *s_container;
 
 	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "registration",
 		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
@@ -1141,33 +1141,36 @@ static struct ao2_container *cli_get_container(void)
 	}
 
 	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
-		ast_sorcery_object_id_compare, NULL);
+		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
 	if (!s_container) {
 		return NULL;
 	}
 
 	if (ao2_container_dup(s_container, container, 0)) {
+		ao2_ref(s_container, -1);
 		return NULL;
 	}
-	ao2_ref(s_container, +1);
+
 	return s_container;
 }
 
-static int cli_iterator(const void *container, ao2_callback_fn callback, void *args)
+static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
 {
-	struct ao2_container *ao2container = (struct ao2_container *) container;
+	ao2_callback(container, OBJ_NODATA, callback, args);
 
-	ao2_callback(ao2container, OBJ_NODATA, callback, args);
 	return 0;
+}
+
+static void *cli_retrieve_by_id(const char *id)
+{
+	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "registration", id);
 }
 
 static int cli_print_header(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
 
-	if (!context->output_buffer) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
 		" <Registration/ServerURI..............................>  <Auth..........>  <Status.......>\n");
@@ -1182,9 +1185,7 @@ static int cli_print_body(void *obj, void *arg, int flags)
 	const char *id = ast_sorcery_object_get_id(registration);
 #define REGISTRATION_URI_FIELD_LEN	53
 
-	if (!context->output_buffer) {
-		return -1;
-	}
+	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-16s  %-16s\n",
 		id,
@@ -1204,15 +1205,6 @@ static int cli_print_body(void *obj, void *arg, int flags)
 
 	return 0;
 }
-
-static struct ast_sip_cli_formatter_entry cli_formatter = {
-	.name = "registration",
-	.print_header = cli_print_header,
-	.print_body = cli_print_body,
-	.get_container = cli_get_container,
-	.iterator = cli_iterator,
-	.comparator = ast_sorcery_object_id_compare,
-};
 
 /*
  * A function pointer to callback needs to be within the
@@ -1240,6 +1232,8 @@ static struct ast_cli_entry cli_outbound_registration[] = {
 				 "       Show the configured PJSIP Registration\n"),
 };
 
+static struct ast_sip_cli_formatter_entry *cli_formatter;
+
 static int load_module(void)
 {
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "registration", "config", "pjsip.conf,criteria=type=registration");
@@ -1264,10 +1258,24 @@ static int load_module(void)
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
 	sip_outbound_registration_perform_all();
 
-	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
 	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING,ami_show_outbound_registrations);
-	ast_sip_register_cli_formatter(&cli_formatter);
+
+	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
+	if (!cli_formatter) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
+		return -1;
+	}
+	cli_formatter->name = "registration";
+	cli_formatter->print_header = cli_print_header;
+	cli_formatter->print_body = cli_print_body;
+	cli_formatter->get_container = cli_get_container;
+	cli_formatter->iterate = cli_iterator;
+	cli_formatter->get_id = ast_sorcery_object_get_id;
+	cli_formatter->retrieve_by_id = cli_retrieve_by_id;
+
+	ast_sip_register_cli_formatter(cli_formatter);
+	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -1281,10 +1289,11 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-	ast_sip_unregister_cli_formatter(&cli_formatter);
 	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
+	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
 	ast_manager_unregister("PJSIPUnregister");
+
 	return 0;
 }
 

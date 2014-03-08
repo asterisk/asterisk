@@ -31,15 +31,7 @@
 #include "asterisk/utils.h"
 #include "asterisk/sorcery.h"
 
-static struct ast_hashtab *formatter_registry;
-
-struct ast_sip_cli_formatter_entry *ast_sip_lookup_cli_formatter(const char *name)
-{
-	struct ast_sip_cli_formatter_entry fake_entry = {
-		.name = name,
-	};
-	return ast_hashtab_lookup(formatter_registry, &fake_entry);
-}
+static struct ao2_container *formatter_registry;
 
 int ast_sip_cli_print_sorcery_objectset(void *obj, void *arg, int flags)
 {
@@ -91,6 +83,7 @@ int ast_sip_cli_print_sorcery_objectset(void *obj, void *arg, int flags)
 }
 
 static char *complete_show_sorcery_object(struct ao2_container *container,
+	struct ast_sip_cli_formatter_entry *formatter_entry,
 	const char *word, int state)
 {
 	char *result = NULL;
@@ -101,9 +94,10 @@ static char *complete_show_sorcery_object(struct ao2_container *container,
 	void *object;
 
 	while ((object = ao2_t_iterator_next(&i, "iterate thru endpoints table"))) {
-		if (!strncasecmp(word, ast_sorcery_object_get_id(object), wordlen)
+		const char *id = formatter_entry->get_id(object);
+		if (!strncasecmp(word, id, wordlen)
 			&& ++which > state) {
-			result = ast_strdup(ast_sorcery_object_get_id(object));
+			result = ast_strdup(id);
 		}
 		ao2_t_ref(object, -1, "toss iterator endpoint ptr before break");
 		if (result) {
@@ -111,6 +105,7 @@ static char *complete_show_sorcery_object(struct ao2_container *container,
 		}
 	}
 	ao2_iterator_destroy(&i);
+
 	return result;
 }
 
@@ -123,20 +118,15 @@ static void dump_str_and_free(int fd, struct ast_str *buf)
 char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_cli_formatter_entry *, formatter_entry, NULL, ao2_cleanup);
 	RAII_VAR(void *, object, NULL, ao2_cleanup);
 	int is_container = 0;
 	const char *cmd1;
 	const char *cmd2;
 	const char *object_id;
 	char formatter_type[64];
-	struct ast_sip_cli_formatter_entry *formatter_entry;
 
 	struct ast_sip_cli_context context = {
-		.peers_mon_online = 0,
-		.peers_mon_offline = 0,
-		.peers_unmon_online = 0,
-		.peers_unmon_offline = 0,
-		.a = a,
 		.indent_level = 0,
 		.show_details = 0,
 		.show_details_only_level_0 = 0,
@@ -203,7 +193,7 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 
 	if (cmd == CLI_GENERATE) {
 		ast_free(context.output_buffer);
-		return complete_show_sorcery_object(container, a->word, a->n);
+		return complete_show_sorcery_object(container, formatter_entry, a->word, a->n);
 	}
 
 	if (is_container) {
@@ -219,8 +209,8 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 			ast_cli(a->fd, "No object specified.\n");
 			return CLI_FAILURE;
 		}
-		object = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), formatter_type,
-			object_id);
+
+		object = formatter_entry->retrieve_by_id(object_id);
 		if (!object) {
 			dump_str_and_free(a->fd, context.output_buffer);
 			ast_cli(a->fd, "Unable to find object %s.\n\n", object_id);
@@ -234,44 +224,110 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 	return CLI_SUCCESS;
 }
 
-static int compare_formatters(const void *a, const void *b)
+static int formatter_sort(const void *obj, const void *arg, int flags)
 {
-	const struct ast_sip_cli_formatter_entry *afe = a;
-	const struct ast_sip_cli_formatter_entry *bfe = b;
-	if (!afe || !bfe) {
-		ast_log(LOG_ERROR, "One of the arguments to compare_formatters was NULL\n");
-		return -1;
+	const struct ast_sip_cli_formatter_entry *left_obj = obj;
+	const struct ast_sip_cli_formatter_entry *right_obj = arg;
+	const char *right_key = arg;
+	int cmp = 0;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = right_obj->name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(left_obj->name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(left_obj->name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
 	}
-	return strcmp(afe->name, bfe->name);
+
+	return cmp;
 }
 
-static unsigned int hash_formatters(const void *a)
+static int formatter_compare(void *obj, void *arg, int flags)
 {
-	const struct ast_sip_cli_formatter_entry *afe = a;
-	return ast_hashtab_hash_string(afe->name);
+	const struct ast_sip_cli_formatter_entry *left_obj = obj;
+	const struct ast_sip_cli_formatter_entry *right_obj = arg;
+	const char *right_key = arg;
+	int cmp = 0;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = right_obj->name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		if (strcmp(left_obj->name, right_key) == 0) {;
+			cmp = CMP_MATCH | CMP_STOP;
+		}
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		if (strncmp(left_obj->name, right_key, strlen(right_key)) == 0) {
+			cmp = CMP_MATCH;
+		}
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+
+	return cmp;
+}
+
+static int formatter_hash(const void *obj, int flags)
+{
+	const struct ast_sip_cli_formatter_entry *left_obj = obj;
+	if (flags & OBJ_SEARCH_OBJECT) {
+		return ast_str_hash(left_obj->name);
+	} else if (flags & OBJ_SEARCH_KEY) {
+		return ast_str_hash(obj);
+	}
+
+	return -1;
+}
+
+struct ast_sip_cli_formatter_entry *ast_sip_lookup_cli_formatter(const char *name)
+{
+	return ao2_find(formatter_registry, name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 }
 
 int ast_sip_register_cli_formatter(struct ast_sip_cli_formatter_entry *formatter)
 {
-	ast_hashtab_insert_safe(formatter_registry, formatter);
+	ast_assert(formatter != NULL);
+	ast_assert(formatter->name != NULL);
+	ast_assert(formatter->print_body != NULL);
+	ast_assert(formatter->print_header != NULL);
+	ast_assert(formatter->get_container != NULL);
+	ast_assert(formatter->iterate != NULL);
+	ast_assert(formatter->get_id != NULL);
+	ast_assert(formatter->retrieve_by_id != NULL);
+
+	ao2_link(formatter_registry, formatter);
+
 	return 0;
 }
 
 int ast_sip_unregister_cli_formatter(struct ast_sip_cli_formatter_entry *formatter)
 {
-	struct ast_sip_cli_formatter_entry *entry = ast_hashtab_lookup(formatter_registry, formatter);
-
-	if (!entry) {
-		return -1;
+	if (formatter) {
+		ao2_wrlock(formatter_registry);
+		if (ao2_ref(formatter, -1) == 2) {
+			ao2_unlink_flags(formatter_registry, formatter, OBJ_NOLOCK);
+		}
+		ao2_unlock(formatter_registry);
 	}
-	ast_hashtab_remove_this_object(formatter_registry, entry);
 	return 0;
 }
 
 int ast_sip_initialize_cli(void)
 {
-	formatter_registry = ast_hashtab_create(17, compare_formatters,
-		ast_hashtab_resize_java, ast_hashtab_newsize_java, hash_formatters, 0);
+	formatter_registry = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, 17,
+		formatter_hash, formatter_sort, formatter_compare);
+
 	if (!formatter_registry) {
 		ast_log(LOG_ERROR, "Unable to create formatter_registry.\n");
 		return -1;
@@ -282,7 +338,5 @@ int ast_sip_initialize_cli(void)
 
 void ast_sip_destroy_cli(void)
 {
-	if (formatter_registry) {
-		ast_hashtab_destroy(formatter_registry, ast_free_ptr);
-	}
+	ao2_ref(formatter_registry, -1);
 }

@@ -1832,12 +1832,61 @@ void ast_sorcery_observer_remove(const struct ast_sorcery *sorcery, const char *
 		sorcery_observer_remove, cbs);
 }
 
-int ast_sorcery_object_id_compare(const void *obj_left, const void *obj_right, int flags)
+int ast_sorcery_object_id_sort(const void *obj, const void *arg, int flags)
 {
-	if (!obj_left || !obj_right) {
-		return 0;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = ast_sorcery_object_get_id(arg);
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(ast_sorcery_object_get_id(obj), right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(ast_sorcery_object_get_id(obj), right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
 	}
-	return strcmp(ast_sorcery_object_get_id(obj_left), ast_sorcery_object_get_id(obj_right));
+	return cmp;
+}
+
+int ast_sorcery_object_id_compare(void *obj, void *arg, int flags)
+{
+	const char *right_key = arg;
+	int cmp = 0;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = ast_sorcery_object_get_id(arg);
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		if (strcmp(ast_sorcery_object_get_id(obj), right_key) == 0) {
+			cmp = CMP_MATCH | CMP_STOP;
+		}
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		if (strncmp(ast_sorcery_object_get_id(obj), right_key, strlen(right_key)) == 0) {
+			cmp = CMP_MATCH;
+		}
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	return cmp;
+}
+
+int ast_sorcery_object_id_hash(const void *obj, int flags) {
+	if (flags & OBJ_SEARCH_OBJECT) {
+		return ast_str_hash(ast_sorcery_object_get_id(obj));
+	} else if (flags & OBJ_SEARCH_KEY) {
+		return ast_str_hash(obj);
+	}
+	return -1;
 }
 
 struct ast_sorcery_object_type *ast_sorcery_get_object_type(const struct ast_sorcery *sorcery,
