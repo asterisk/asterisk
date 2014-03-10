@@ -1,3 +1,32 @@
+2014-03-10  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.8.1 Released.
+
+	* AST-2012-002: chan_sip: Exit early on bad session timers request
+
+	  This change allows chan_sip to avoid creation of the channel and
+	  consumption of associated file descriptors altogether if the inbound
+	  request is going to be rejected anyway.
+
+	  (closes issue ASTERISK-23373)
+	  Reported by: Corey Farrell
+	  Patches:
+	    chan_sip-earlier-st-1.8.patch uploaded by Corey Farrell (license 5909)
+	    chan_sip-earlier-st-11.patch uploaded by Corey Farrell (license 5909)
+
+	* AST-2014-001: Stack overflow in HTTP processing of Cookie headers.
+
+	  Sending a HTTP request that is handled by Asterisk with a large
+	  number of Cookie headers could overflow the stack.
+
+	  Another vulnerability along similar lines is any HTTP request with a
+	  ridiculous number of headers in the request could exhaust system
+	  memory.
+
+	  (closes issue ASTERISK-23340)
+	  Reported by: Lucas Molas, researcher at Programa STIC, Fundacion;
+	               and Dr. Manuel Sadosky, Buenos Aires, Argentina
+
 2014-03-03  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.8.0 Released.
