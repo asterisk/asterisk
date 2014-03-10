@@ -226,7 +226,7 @@ static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_con
 	RAII_VAR(struct ast_sip_endpoint *, endpoint_local, ao2_bump(endpoint), ao2_cleanup);
 
 
-	if (!endpoint_local) {
+	if (!endpoint_local && contact->authenticate_qualify) {
 		struct ao2_iterator *endpoint_iterator = find_endpoints(contact);
 
 		/* try to find endpoints that are associated with the contact */
@@ -256,7 +256,7 @@ static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_con
 	init_start_time(contact);
 
 	ao2_ref(contact, +1);
-	if (ast_sip_send_request(tdata, NULL, endpoint_local, contact,
+	if (ast_sip_send_request(tdata, NULL, contact->authenticate_qualify ? endpoint_local : NULL, contact,
 		qualify_contact_cb) != PJ_SUCCESS) {
 		/* The callback will be called so we don't need to drop the contact ref*/
 		ast_log(LOG_ERROR, "Unable to send request to qualify contact %s\n",
