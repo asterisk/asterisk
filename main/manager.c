@@ -4728,8 +4728,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 	pthread_t th;
 	int bridge_early = 0;
 
-	if (strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID ||
-		strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID) {
+	if ((!ast_strlen_zero(assignedids.uniqueid) && strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID) ||
+		(!ast_strlen_zero(assignedids.uniqueid2) && strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID)) {
 		ast_log(LOG_WARNING, "Uniqueid length exceeds maximum of %d\n", AST_MAX_UNIQUEID);
 	}
 

@@ -779,7 +779,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	struct ast_assigned_ids assignedids = {args_channel_id, args_other_channel_id};
 
 	if ((!ast_strlen_zero(assignedids.uniqueid) && strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID) || 
-		(!ast_strlen_zero(assignedids.uniqueid) && strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID)) {
+		(!ast_strlen_zero(assignedids.uniqueid2) && strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID)) {
 		ast_log(LOG_WARNING, "Uniqueid length exceeds maximum of %d\n", AST_MAX_UNIQUEID);
 	}
 
