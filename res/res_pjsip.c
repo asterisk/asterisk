@@ -1842,7 +1842,7 @@ static void send_request_cb(void *token, pjsip_event *e)
 	}
 	AST_RWLIST_UNLOCK(&supplements);
 
-	if (tsx->status_code == 401 || tsx->status_code == 407) {
+	if ((tsx->status_code == 401 || tsx->status_code == 407) && req_data->endpoint) {
 		if (!ast_sip_create_request_with_auth(&req_data->endpoint->outbound_auths, challenge, tsx, &tdata)) {
 			pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, req_data->token, req_data->callback);
 		}
