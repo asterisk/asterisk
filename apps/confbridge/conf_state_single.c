@@ -72,6 +72,9 @@ static void join_marked(struct conference_bridge_user *cbu)
 static void leave_unmarked(struct conference_bridge_user *cbu)
 {
 	conf_remove_user_active(cbu->conference_bridge, cbu);
+	if (cbu->playing_moh) {
+		conf_moh_stop(cbu);
+	}
 
 	if (cbu->conference_bridge->waitingusers) {
 		conf_change_state(cbu, CONF_STATE_INACTIVE);
