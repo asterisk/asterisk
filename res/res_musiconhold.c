@@ -264,6 +264,42 @@ static struct mohclass *_mohclass_unref(struct mohclass *class, const char *tag,
 }
 #endif
 
+static void moh_post_start(struct ast_channel *chan, const char *moh_class_name)
+{
+	struct stasis_message *message;
+	struct ast_json *json_object;
+
+	ast_verb(3, "Started music on hold, class '%s', on channel '%s'\n",
+		moh_class_name, ast_channel_name(chan));
+
+	json_object = ast_json_pack("{s: s}", "class", moh_class_name);
+	if (!json_object) {
+		return;
+	}
+
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
+		ast_channel_moh_start_type(), json_object);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+	ao2_cleanup(message);
+	ast_json_unref(json_object);
+}
+
+static void moh_post_stop(struct ast_channel *chan)
+{
+	struct stasis_message *message;
+
+	ast_verb(3, "Stopped music on hold on %s\n", ast_channel_name(chan));
+
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
+		ast_channel_moh_stop_type(), NULL);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+	ao2_cleanup(message);
+}
+
 static void moh_files_release(struct ast_channel *chan, void *data)
 {
 	struct moh_files_state *state;
@@ -278,8 +314,8 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		ast_closestream(ast_channel_stream(chan));
 		ast_channel_stream_set(chan, NULL);
 	}
-	
-	ast_verb(3, "Stopped music on hold on %s\n", ast_channel_name(chan));
+
+	moh_post_stop(chan);
 
 	ast_format_clear(&state->mohwfmt); /* make sure to clear this format before restoring the original format. */
 	if (state->origwfmt.id && ast_set_write_format(chan, &state->origwfmt)) {
@@ -451,11 +487,11 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	struct moh_files_state *state;
 	struct mohclass *class = params;
 
-	if (!ast_channel_music_state(chan) && (state = ast_calloc(1, sizeof(*state)))) {
+	state = ast_channel_music_state(chan);
+	if (!state && (state = ast_calloc(1, sizeof(*state)))) {
 		ast_channel_music_state_set(chan, state);
 		ast_module_ref(ast_module_info->self);
 	} else {
-		state = ast_channel_music_state(chan);
 		if (!state) {
 			return NULL;
 		}
@@ -485,9 +521,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	ast_copy_string(state->name, class->name, sizeof(state->name));
 	state->save_total = class->total_files;
 
-	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, ast_channel_name(chan));
-	
-	return ast_channel_music_state(chan);
+	moh_post_start(chan, class->name);
+
+	return state;
 }
 
 static int moh_digit_match(void *obj, void *arg, int flags)
@@ -518,8 +554,7 @@ static void moh_handle_digit(struct ast_channel *chan, char digit)
 	}
 }
 
-static struct ast_generator moh_file_stream = 
-{
+static struct ast_generator moh_file_stream = {
 	.alloc    = moh_files_alloc,
 	.release  = moh_files_release,
 	.generate = moh_files_generator,
@@ -982,7 +1017,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 					ast_channel_name(chan), ast_getformatname(&oldwfmt));
 		}
 
-		ast_verb(3, "Stopped music on hold on %s\n", ast_channel_name(chan));
+		moh_post_stop(chan);
 	}
 }
 
@@ -993,11 +1028,11 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	struct moh_files_state *state;
 
 	/* Initiating music_state for current channel. Channel should know name of moh class */
-	if (!ast_channel_music_state(chan) && (state = ast_calloc(1, sizeof(*state)))) {
+	state = ast_channel_music_state(chan);
+	if (!state && (state = ast_calloc(1, sizeof(*state)))) {
 		ast_channel_music_state_set(chan, state);
 		ast_module_ref(ast_module_info->self);
 	} else {
-		state = ast_channel_music_state(chan);
 		if (!state) {
 			return NULL;
 		}
@@ -1016,8 +1051,8 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 			res = NULL;
 		} else {
 			state->class = mohclass_ref(class, "Placing reference into state container");
+			moh_post_start(chan, class->name);
 		}
-		ast_verb(3, "Started music on hold, class '%s', on channel '%s'\n", class->name, ast_channel_name(chan));
 	}
 	return res;
 }
@@ -1385,8 +1420,6 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	struct mohclass *mohclass = NULL;
 	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_variable *var = NULL;
-	struct stasis_message *message;
-	struct ast_json *json_object;
 	int res;
 	int realtime_possible = ast_check_realtime("musiconhold");
 
@@ -1575,30 +1608,15 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		}
 	}
 
-	ast_channel_latest_musicclass_set(chan, mohclass->name);
-	ast_set_flag(ast_channel_flags(chan), AST_FLAG_MOH);
-
 	if (mohclass->total_files) {
 		res = ast_activate_generator(chan, &moh_file_stream, mohclass);
 	} else {
 		res = ast_activate_generator(chan, &mohgen, mohclass);
 	}
-
-	json_object = ast_json_pack("{s: s}",
-			"class", mohclass->name);
-	if (!json_object) {
-		mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass in local_ast_moh_start");
-		return -1;
+	if (!res) {
+		ast_channel_latest_musicclass_set(chan, mohclass->name);
+		ast_set_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 	}
-
-	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
-			ast_channel_moh_start_type(),
-			json_object);
-	if (message) {
-		stasis_publish(ast_channel_topic(chan), message);
-	}
-	ao2_cleanup(message);
-	ast_json_unref(json_object);
 
 	mohclass = mohclass_unref(mohclass, "unreffing local reference to mohclass in local_ast_moh_start");
 
@@ -1607,8 +1625,6 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 static void local_ast_moh_stop(struct ast_channel *chan)
 {
-	struct stasis_message *message;
-
 	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_MOH);
 	ast_deactivate_generator(chan);
 
@@ -1619,13 +1635,7 @@ static void local_ast_moh_stop(struct ast_channel *chan)
 			ast_channel_stream_set(chan, NULL);
 		}
 	}
-
-	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), ast_channel_moh_stop_type(), NULL);
-	if (message) {
-		stasis_publish(ast_channel_topic(chan), message);
-	}
 	ast_channel_unlock(chan);
-	ao2_cleanup(message);
 }
 
 static void moh_class_destructor(void *obj)
