@@ -102,9 +102,12 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 	}
 
 	/* If the transport it is going out on is different reflect it in the message */
-	transport = multihomed_get_udp_transport(&prm.ret_addr, prm.ret_port);
-	if (transport && (tdata->tp_info.transport != transport)) {
-		tdata->tp_info.transport = transport;
+	if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
+		tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
+		transport = multihomed_get_udp_transport(&prm.ret_addr, prm.ret_port);
+		if (transport && (tdata->tp_info.transport != transport)) {
+			tdata->tp_info.transport = transport;
+		}
 	}
 
 	/* If the message needs to be updated with new address do so */
