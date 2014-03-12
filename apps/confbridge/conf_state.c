@@ -74,6 +74,9 @@ void conf_default_join_waitmarked(struct confbridge_user *user)
 void conf_default_leave_waitmarked(struct confbridge_user *user)
 {
 	conf_remove_user_waiting(user->conference, user);
+	if (user->playing_moh) {
+		conf_moh_stop(user);
+	}
 }
 
 void conf_change_state(struct confbridge_user *user, struct confbridge_state *newstate)

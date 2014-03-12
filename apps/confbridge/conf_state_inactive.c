@@ -66,7 +66,7 @@ static void join_marked(struct confbridge_user *user)
 
 static void leave_waitmarked(struct confbridge_user *user)
 {
-	conf_remove_user_waiting(user->conference, user);
+	conf_default_leave_waitmarked(user);
 	if (user->conference->waitingusers == 0) {
 		conf_change_state(user, CONF_STATE_EMPTY);
 	}
