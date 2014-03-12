@@ -71,6 +71,9 @@ static void join_marked(struct confbridge_user *user)
 static void leave_marked(struct confbridge_user *user)
 {
 	conf_remove_user_marked(user->conference, user);
+	if (user->playing_moh) {
+		conf_moh_stop(user);
+	}
 
 	conf_change_state(user, CONF_STATE_EMPTY);
 }
