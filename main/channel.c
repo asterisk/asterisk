@@ -6404,6 +6404,10 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	ao2_unlink(channels, clonechan);
 
 	moh_is_playing = ast_test_flag(ast_channel_flags(original), AST_FLAG_MOH);
+	if (moh_is_playing) {
+		/* Stop MOH on the old original channel. */
+		ast_moh_stop(original);
+	}
 
 	/*
 	 * Stop any visible indication on the original channel so we can
@@ -6704,9 +6708,12 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 		}
 	}
 
-	/* if moh is playing on the original channel then it needs to be
-	   maintained on the channel that is replacing it. */
+	/*
+	 * If MOH was playing on the original channel then it needs to be
+	 * maintained on the channel that is replacing it.
+	 */
 	if (moh_is_playing) {
+		/* Start MOH on the new original channel. */
 		ast_moh_start(original, NULL, NULL);
 	}
 
