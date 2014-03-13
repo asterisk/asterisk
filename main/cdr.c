@@ -1973,6 +1973,7 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 		new_cdr = cdr_object_create_and_append(cdr);
 		if (!new_cdr) {
+			ao2_unlock(cdr);
 			return;
 		}
 		new_cdr->fn_table->process_dial_begin(new_cdr,
@@ -2217,7 +2218,6 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	/* Party A */
 	ao2_lock(cdr);
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-
 		if (!it_cdr->fn_table->process_bridge_leave) {
 			continue;
 		}
@@ -2228,11 +2228,10 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 			left_bridge = 1;
 		}
 	}
+	ao2_unlock(cdr);
 	if (!left_bridge) {
-		ao2_unlock(cdr);
 		return;
 	}
-	ao2_unlock(cdr);
 
 	if (strcmp(bridge->subclass, "parking")) {
 		/* Party B */
@@ -2436,10 +2435,10 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 				if (!handled_cdr) {
 					handled_cdr = it_cdr;
 				}
-			break;
+				break;
 			case BRIDGE_ENTER_NEED_CDR:
 				/* Pass */
-			break;
+				break;
 			case BRIDGE_ENTER_NO_PARTY_B:
 				/* We didn't win on any - end this CDR. If someone else comes in later
 				 * that is Party B to this CDR, it can re-activate this CDR.
@@ -2448,7 +2447,7 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 					handled_cdr = it_cdr;
 				}
 				cdr_object_finalize(cdr);
-			break;
+				break;
 			}
 		}
 	}
@@ -3355,6 +3354,7 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 
 	{
 		SCOPED_AO2LOCK(lock, cdr);
+
 		cdr_obj = cdr->last;
 		if (cdr_obj->fn_table == &finalized_state_fn_table) {
 			/* If the last CDR in the chain is finalized, don't allow a fork -
