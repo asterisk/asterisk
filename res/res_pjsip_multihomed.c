@@ -87,7 +87,7 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 {
 	pjsip_tpmgr_fla2_param prm;
 	pjsip_transport *transport;
-	pjsip_contact_hdr *contact;
+	pjsip_cseq_hdr *cseq;
 	pjsip_via_hdr *via;
 
 	/* Use the destination information to determine what local interface this message will go out on */
@@ -111,15 +111,18 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 	}
 
 	/* If the message needs to be updated with new address do so */
-	contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
-	if (contact && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
-		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
+	if (tdata->msg->type == PJSIP_REQUEST_MSG || !(cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL)) ||
+		pj_strcmp2(&cseq->method.name, "REGISTER")) {
+		pjsip_contact_hdr *contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
+		if (contact && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
+			pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 
-		/* prm.ret_addr is allocated from the tdata pool so it is perfectly fine to just do an assignment like this */
-		pj_strassign(&uri->host, &prm.ret_addr);
-		uri->port = prm.ret_port;
+			/* prm.ret_addr is allocated from the tdata pool so it is perfectly fine to just do an assignment like this */
+			pj_strassign(&uri->host, &prm.ret_addr);
+			uri->port = prm.ret_port;
 
-		pjsip_tx_data_invalidate_msg(tdata);
+			pjsip_tx_data_invalidate_msg(tdata);
+		}
 	}
 
 	if (tdata->msg->type == PJSIP_REQUEST_MSG && (via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL))) {
