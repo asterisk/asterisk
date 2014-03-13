@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "command.h"
 #include "control.h"
+#include "app.h"
 #include "asterisk/dial.h"
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_after.h"
@@ -73,6 +74,10 @@ struct stasis_app_control {
 	 */
 	struct ast_silence_generator *silgen;
 	/*!
+	 * The app for which this control was created
+	 */
+	struct stasis_app *app;
+	/*!
 	 * When set, /c app_stasis should exit and continue in the dialplan.
 	 */
 	int is_done:1;
@@ -91,9 +96,10 @@ static void control_dtor(void *obj)
 
 	ao2_cleanup(control->command_queue);
 	ast_cond_destroy(&control->wait_cond);
+	ao2_cleanup(control->app);
 }
 
-struct stasis_app_control *control_create(struct ast_channel *channel)
+struct stasis_app_control *control_create(struct ast_channel *channel, struct stasis_app *app)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	int res;
@@ -102,6 +108,8 @@ struct stasis_app_control *control_create(struct ast_channel *channel)
 	if (!control) {
 		return NULL;
 	}
+
+	control->app = ao2_bump(app);
 
 	res = ast_cond_init(&control->wait_cond, NULL);
 	if (res != 0) {
@@ -798,6 +806,8 @@ static void bridge_after_cb(struct ast_channel *chan, void *data)
 	ast_channel_pbx_set(control->channel, control->pbx);
 	control->pbx = NULL;
 
+	app_unsubscribe_bridge(control->app, control->bridge);
+
 	/* No longer in the bridge */
 	control->bridge = NULL;
 
@@ -864,6 +874,12 @@ static int app_control_add_channel_to_bridge(
 		 * for the memory fence.
 		 */
 		SCOPED_AO2LOCK(lock, control);
+
+		/* Ensure the controlling application is subscribed early enough
+		 * to receive the ChannelEnteredBridge message. This works in concert
+		 * with the subscription handled in the Stasis application execution
+		 * loop */
+		app_subscribe_bridge(control->app, bridge);
 
 		/* Save off the channel's PBX */
 		ast_assert(control->pbx == NULL);

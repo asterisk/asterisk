@@ -33,10 +33,12 @@
  * \brief Create a control object.
  *
  * \param channel Channel to control.
+ * \param app stasis_app for which this control is being created.
+ *
  * \return New control object.
  * \return \c NULL on error.
  */
-struct stasis_app_control *control_create(struct ast_channel *channel);
+struct stasis_app_control *control_create(struct ast_channel *channel, struct stasis_app *app);
 
 /*!
  * \brief Dispatch all commands enqueued to this control.

@@ -258,7 +258,7 @@ static void cleanup(void)
 
 struct stasis_app_control *stasis_app_control_create(struct ast_channel *chan)
 {
-	return control_create(chan);
+	return control_create(chan, NULL);
 }
 
 struct stasis_app_control *stasis_app_control_find_by_channel(
@@ -742,7 +742,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		return -1;
 	}
 
-	control = control_create(chan);
+	control = control_create(chan, app);
 	if (!control) {
 		ast_log(LOG_ERROR, "Allocated failed\n");
 		return -1;
