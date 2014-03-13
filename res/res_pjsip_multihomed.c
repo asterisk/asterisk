@@ -112,7 +112,7 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 
 	/* If the message needs to be updated with new address do so */
 	if (tdata->msg->type == PJSIP_REQUEST_MSG || !(cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL)) ||
-		!pj_strcmp2(&cseq->method.name, "REGISTER")) {
+		pj_strcmp2(&cseq->method.name, "REGISTER")) {
 		pjsip_contact_hdr *contact = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
 		if (contact && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 			pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
