@@ -168,7 +168,7 @@ static int realtime_sorcery_store(const char *database, const char *table, const
 	ast_variable_append(object, ast_variables_dup((struct ast_variable*)fields));
 	ast_category_append(realtime_objects, object);
 
-	return 0;
+	return 1;
 }
 
 static int realtime_sorcery_destroy(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields)
