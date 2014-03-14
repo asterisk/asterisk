@@ -145,19 +145,51 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 	return mwi_stasis_sub;
 }
 
-static int stasis_sub_hash(const void *obj, int flags)
+static int stasis_sub_hash(const void *obj, const int flags)
 {
-	const struct mwi_stasis_subscription *mwi_stasis = obj;
+	const struct mwi_stasis_subscription *object;
+	const char *key;
 
-	return ast_str_hash(mwi_stasis->mailbox);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->mailbox;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 static int stasis_sub_cmp(void *obj, void *arg, int flags)
 {
-	struct mwi_stasis_subscription *mwi_stasis1 = obj;
-	struct mwi_stasis_subscription *mwi_stasis2 = arg;
+	const struct mwi_stasis_subscription *sub_left = obj;
+	const struct mwi_stasis_subscription *sub_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	return strcmp(mwi_stasis1->mailbox, mwi_stasis2->mailbox) ? 0 : CMP_MATCH;
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = sub_right->mailbox;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(sub_left->mailbox, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(sub_left->mailbox, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
 }
 
 static void mwi_subscription_destructor(void *obj)
@@ -213,19 +245,51 @@ static struct mwi_subscription *mwi_subscription_alloc(struct ast_sip_endpoint *
 	return sub;
 }
 
-static int mwi_sub_hash(const void *obj, int flags)
+static int mwi_sub_hash(const void *obj, const int flags)
 {
-	const struct mwi_subscription *mwi_sub = obj;
+	const struct mwi_subscription *object;
+	const char *key;
 
-	return ast_str_hash(mwi_sub->id);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->id;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 static int mwi_sub_cmp(void *obj, void *arg, int flags)
 {
-	struct mwi_subscription *mwi_sub1 = obj;
-	struct mwi_subscription *mwi_sub2 = arg;
+	const struct mwi_subscription *sub_left = obj;
+	const struct mwi_subscription *sub_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	return strcmp(mwi_sub1->id, mwi_sub2->id) ? 0 : CMP_MATCH;
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = sub_right->id;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(sub_left->id, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(sub_left->id, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
 }
 
 static int get_message_count(void *obj, void *arg, int flags)
@@ -454,6 +518,84 @@ static int add_mwi_datastore(struct mwi_subscription *sub)
 	return 0;
 }
 
+/*!
+ * \brief Determines if an endpoint is receiving unsolicited MWI for a particular mailbox.
+ *
+ * \param endpoint The endpoint to check
+ * \param mailbox The candidate mailbox
+ * \retval 0 The endpoint does not receive unsolicited MWI for this mailbox
+ * \retval 1 The endpoint receives unsolicited MWI for this mailbox
+ */
+static int endpoint_receives_unsolicited_mwi_for_mailbox(struct ast_sip_endpoint *endpoint,
+		const char *mailbox)
+{
+	struct ao2_container *unsolicited = ao2_global_obj_ref(unsolicited_mwi);
+	struct ao2_iterator *mwi_subs;
+	struct mwi_subscription *mwi_sub;
+	const char *endpoint_id = ast_sorcery_object_get_id(endpoint);
+	int ret = 0;
+
+	if (!unsolicited) {
+		return 0;
+	}
+
+	mwi_subs = ao2_find(unsolicited, endpoint_id, OBJ_SEARCH_KEY | OBJ_MULTIPLE);
+	ao2_cleanup(unsolicited);
+
+	if (!mwi_subs) {
+		return 0;
+	}
+
+	for (; (mwi_sub = ao2_iterator_next(mwi_subs)) && !ret; ao2_cleanup(mwi_sub)) {
+		struct mwi_stasis_subscription *mwi_stasis;
+
+		mwi_stasis = ao2_find(mwi_sub->stasis_subs, mailbox, OBJ_SEARCH_KEY);
+		if (mwi_stasis) {
+			ret = 1;
+			ao2_cleanup(mwi_stasis);
+		}
+	}
+
+	ao2_iterator_destroy(mwi_subs);
+	return ret;
+}
+
+/*!
+ * \brief Determine if an endpoint is a candidate to be able to subscribe for MWI
+ *
+ * Currently, this just makes sure that the endpoint is not already receiving unsolicted
+ * MWI for any of an AOR's configured mailboxes.
+ *
+ * \param obj The AOR to which the endpoint is subscribing.
+ * \param arg The endpoint that is attempting to subscribe.
+ * \param flags Unused.
+ * \retval 0 Endpoint is a candidate to subscribe to MWI on the AOR.
+ * \retval -1 The endpoint cannot subscribe to MWI on the AOR.
+ */
+static int mwi_validate_for_aor(void *obj, void *arg, int flags)
+{
+	struct ast_sip_aor *aor = obj;
+	struct ast_sip_endpoint *endpoint = arg;
+	char *mailboxes;
+	char *mailbox;
+
+	if (ast_strlen_zero(aor->mailboxes)) {
+		return 0;
+	}
+
+	mailboxes = ast_strdupa(aor->mailboxes);
+	while ((mailbox = strsep(&mailboxes, ","))) {
+		if (endpoint_receives_unsolicited_mwi_for_mailbox(endpoint, mailbox)) {
+			ast_log(LOG_NOTICE, "Endpoint '%s' already configured for unsolicited MWI for mailbox '%s'. "
+					"Denying MWI subscription to %s\n", ast_sorcery_object_get_id(endpoint), mailbox,
+					ast_sorcery_object_get_id(aor));
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static int mwi_on_aor(void *obj, void *arg, int flags)
 {
 	struct ast_sip_aor *aor = obj;
@@ -516,6 +658,10 @@ static struct mwi_subscription *mwi_subscribe_single(
 		return NULL;
 	}
 
+	if (mwi_validate_for_aor(aor, endpoint, 0)) {
+		return NULL;
+	}
+
 	if (!(sub = mwi_create_subscription(endpoint, rdata))) {
 		return NULL;
 	}
@@ -527,7 +673,13 @@ static struct mwi_subscription *mwi_subscribe_single(
 static struct mwi_subscription *mwi_subscribe_all(
 	struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
 {
-	struct mwi_subscription *sub = mwi_create_subscription(endpoint, rdata);
+	struct mwi_subscription *sub;
+
+	if (ast_sip_for_each_aor(endpoint->aors, mwi_validate_for_aor, endpoint)) {
+		return NULL;
+	}
+
+	sub = mwi_create_subscription(endpoint, rdata);
 
 	if (!sub) {
 		return NULL;
