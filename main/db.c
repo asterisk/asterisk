@@ -112,6 +112,7 @@ static ast_cond_t dbcond;
 static sqlite3 *astdb;
 static pthread_t syncthread;
 static int doexit;
+static int dosync;
 
 static void db_sync(void);
 
@@ -939,6 +940,7 @@ static int manager_dbdeltree(struct mansession *s, const struct message *m)
  */
 static void db_sync(void)
 {
+	dosync = 1;
 	ast_cond_signal(&dbcond);
 }
 
@@ -957,6 +959,14 @@ static void *db_sync_thread(void *data)
 	ast_mutex_lock(&dblock);
 	ast_db_begin_transaction();
 	for (;;) {
+		/* If dosync is set, db_sync() was called during sleep(1), 
+		 * and the pending transaction should be committed. 
+		 * Otherwise, block until db_sync() is called.
+		 */
+		while (!dosync) {
+			ast_cond_wait(&dbcond, &dblock);
+		}
+		dosync = 0;
 		/* We're ok with spurious wakeups, so we don't worry about a predicate */
 		ast_cond_wait(&dbcond, &dblock);
 		if (ast_db_commit_transaction()) {
@@ -970,15 +980,6 @@ static void *db_sync_thread(void *data)
 		ast_mutex_unlock(&dblock);
 		sleep(1);
 		ast_mutex_lock(&dblock);
-		/* Unfortunately, it is possible for signaling to happen
-		 * when we're not waiting: in the bit when we're unlocked
-		 * above. Do the do-exit check here again. (We could do
-		 * it once, but that would impose a forced delay of 1
-		 * second always.) */
-		if (doexit) {
-			ast_mutex_unlock(&dblock);
-			break;
-		}
 	}
 
 	return NULL;
@@ -998,8 +999,8 @@ static void astdb_atexit(void)
 
 	/* Set doexit to 1 to kill thread. db_sync must be called with
 	 * mutex held. */
-	doexit = 1;
 	ast_mutex_lock(&dblock);
+	doexit = 1;
 	db_sync();
 	ast_mutex_unlock(&dblock);
 
