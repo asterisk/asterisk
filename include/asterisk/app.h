@@ -1341,13 +1341,14 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen def
 /*!
  * \since 12
  * \brief Publish a MWI state update via stasis
- * \param[in] mailbox The number identifying this mailbox
+ *
+ * \param[in] mailbox The mailbox identifier string.
  * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
+ *
  * \retval 0 Success
  * \retval -1 Failure
- * \since 12
  */
 #define ast_publish_mwi_state(mailbox, context, new_msgs, old_msgs) \
 	ast_publish_mwi_state_full(mailbox, context, new_msgs, old_msgs, NULL, NULL)
@@ -1355,15 +1356,16 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen def
 /*!
  * \since 12
  * \brief Publish a MWI state update associated with some channel
- * \param[in] mailbox The number identifying this mailbox
+ *
+ * \param[in] mailbox The mailbox identifier string.
  * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
  * \param[in] channel_id A unique identifier for a channel associated with this
  * change in mailbox state
+ *
  * \retval 0 Success
  * \retval -1 Failure
- * \since 12
  */
 #define ast_publish_mwi_state_channel(mailbox, context, new_msgs, old_msgs, channel_id) \
 	ast_publish_mwi_state_full(mailbox, context, new_msgs, old_msgs, channel_id, NULL)
@@ -1371,23 +1373,51 @@ int ast_app_parse_timelen(const char *timestr, int *result, enum ast_timelen def
 /*!
  * \since 12
  * \brief Publish a MWI state update via stasis with all parameters
- * \param[in] mailbox The number identifying this mailbox
+ *
+ * \param[in] mailbox The mailbox identifier string.
  * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  * \param[in] new_msgs The number of new messages in this mailbox
  * \param[in] old_msgs The number of old messages in this mailbox
  * \param[in] channel_id A unique identifier for a channel associated with this
+ * change in mailbox state
  * \param[in] eid The EID of the server that originally published the message
+ *
  * \retval 0 Success
  * \retval -1 Failure
- * \since 12
  */
 int ast_publish_mwi_state_full(
-			const char *mailbox,
-			const char *context,
-			int new_msgs,
-			int old_msgs,
-			const char *channel_id,
-			struct ast_eid *eid);
+	const char *mailbox,
+	const char *context,
+	int new_msgs,
+	int old_msgs,
+	const char *channel_id,
+	struct ast_eid *eid);
+
+/*!
+ * \since 12.2.0
+ * \brief Delete MWI state cached by stasis
+ *
+ * \param[in] mailbox The mailbox identifier string.
+ * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+#define ast_delete_mwi_state(mailbox, context) \
+	ast_delete_mwi_state_full(mailbox, context, NULL)
+
+/*!
+ * \since 12.2.0
+ * \brief Delete MWI state cached by stasis with all parameters
+ *
+ * \param[in] mailbox The mailbox identifier string.
+ * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
+ * \param[in] eid The EID of the server that originally published the message
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_delete_mwi_state_full(const char *mailbox, const char *context, struct ast_eid *eid);
 
 /*! \addtogroup StasisTopicsAndMessages
  * @{
@@ -1420,6 +1450,9 @@ struct ast_mwi_blob {
 /*!
  * \since 12
  * \brief Create a \ref ast_mwi_state object
+ *
+ * \param[in] mailbox The mailbox identifier string.
+ * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
  *
  * \retval \ref ast_mwi_state object on success
  * \retval NULL on error

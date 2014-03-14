@@ -123,13 +123,13 @@ static void mwi_observe_delete(const void *obj)
 {
 	const struct ast_mwi_mailbox_object *mailbox = obj;
 
-	if (!mailbox->msgs_new && !mailbox->msgs_old) {
-		/* No need to post a count clearing event. */
-		return;
+	if (mailbox->msgs_new || mailbox->msgs_old) {
+		/* Post a count clearing event. */
+		ast_publish_mwi_state(ast_sorcery_object_get_id(mailbox), NULL, 0, 0);
 	}
 
-	/* Post a count clearing event. */
-	ast_publish_mwi_state(ast_sorcery_object_get_id(mailbox), NULL, 0, 0);
+	/* Post a cache remove event. */
+	ast_delete_mwi_state(ast_sorcery_object_get_id(mailbox), NULL);
 }
 
 static const struct ast_sorcery_observer mwi_observers = {
