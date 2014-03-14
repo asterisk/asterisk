@@ -103,6 +103,26 @@ Core
  * Exposed sorcery-based configuration files like pjsip.conf to dialplans via
    the new AST_SORCERY diaplan function.
 
+ * A channelId can now be provided when creating a channel, either in the
+   uri (POST channels/my-channel-id) or as query parameter.  A local channel
+   will suffix the second channel id with ';2' unless provided as query
+   parameter otherChannelId.
+
+ * A bridgeId can now be provided when creating a bridge, either in the uri
+   (POST bridges/my-bridge-id) or as a query parameter.
+
+ * A playbackId can be provided when starting a playback, either in the uri
+   (POST channels/my-channel-id/play/my-playback-id) or as a query parameter.
+
+ * A snoop channel can be started with a snoopId, in the uri or query.
+
+AMI
+------------------
+ * Originate now takes optional parameters ChannelId and OtherChannelId,
+   used to set the UniqueId on creation.  The other id is assigned to the
+   second channel when dialing LOCAL, or defaults to appending ;2 if only
+   the single Id is given.
+
 res_pjsip
 ------------------
  * transport and endpoint ToS options (tos, tos_audio, and tos_video) may now
