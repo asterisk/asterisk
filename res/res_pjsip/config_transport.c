@@ -502,7 +502,10 @@ static int transport_tos_handler(const struct aco_option *opt, struct ast_variab
 static int tos_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_transport *transport = obj;
-	ast_tos2str_buf(transport->tos, buf);
+
+	if (ast_asprintf(buf, "%d", transport->tos) == -1) {
+		return -1;
+	}
 	return 0;
 }
 
@@ -574,7 +577,7 @@ static int cli_print_body(void *obj, void *arg, int flags)
 
 	pj_sockaddr_print(&transport->host, hoststr, sizeof(hoststr), 3);
 
-	ast_str_append(&context->output_buffer, 0, "%*s:  %-21s  %6s  %5x  %5x  %s\n",
+	ast_str_append(&context->output_buffer, 0, "%*s:  %-21s  %6s  %5d  %5d  %s\n",
 		CLI_INDENT_TO_SPACES(context->indent_level), "Transport",
 		ast_sorcery_object_get_id(transport),
 		ARRAY_IN_BOUNDS(transport->type, transport_types) ? transport_types[transport->type] : "Unknown",

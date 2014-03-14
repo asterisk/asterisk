@@ -786,14 +786,20 @@ static int tos_handler(const struct aco_option *opt,
 static int tos_audio_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	ast_tos2str_buf(endpoint->media.tos_audio, buf);
+
+	if (ast_asprintf(buf, "%d", endpoint->media.tos_audio) == -1) {
+		return -1;
+	}
 	return 0;
 }
 
 static int tos_video_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	ast_tos2str_buf(endpoint->media.tos_video, buf);
+
+	if (ast_asprintf(buf, "%d", endpoint->media.tos_video) == -1) {
+		return -1;
+	}
 	return 0;
 }
 
