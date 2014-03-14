@@ -274,6 +274,7 @@ void ast_ari_bridges_remove_channel(struct ast_variable *headers,
 struct bridge_channel_control_thread_data {
 	struct ast_channel *bridge_channel;
 	struct stasis_app_control *control;
+	struct stasis_forward *forward;
 };
 
 static void *bridge_channel_control_thread(void *data)
@@ -281,6 +282,7 @@ static void *bridge_channel_control_thread(void *data)
 	struct bridge_channel_control_thread_data *thread_data = data;
 	struct ast_channel *bridge_channel = thread_data->bridge_channel;
 	struct stasis_app_control *control = thread_data->control;
+	struct stasis_forward *forward = thread_data->forward;
 
 	RAII_VAR(struct ast_callid *, callid, ast_channel_callid(bridge_channel), ast_callid_cleanup);
 
@@ -295,6 +297,7 @@ static void *bridge_channel_control_thread(void *data)
 
 	ast_hangup(bridge_channel);
 	ao2_cleanup(control);
+	stasis_forward_cancel(forward);
 	return NULL;
 }
 
@@ -328,7 +331,10 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
 	RAII_VAR(char *, playback_url, NULL, ast_free);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+	RAII_VAR(struct stasis_forward *, channel_forward, NULL, stasis_forward_cancel);
 
+	struct stasis_topic *channel_topic;
+	struct stasis_topic *bridge_topic;
 	struct bridge_channel_control_thread_data *thread_data;
 	const char *language;
 	pthread_t threadid;
@@ -345,6 +351,19 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 		return;
 	}
 	ast_debug(1, "Created announcer channel '%s'\n", ast_channel_name(play_channel));
+
+	bridge_topic = ast_bridge_topic(bridge);
+	channel_topic = ast_channel_topic(play_channel);
+
+	/* Forward messages from the playback channel topic to the bridge topic so that anything listening for
+	 * messages on the bridge topic will receive the playback start/stop messages. Other messages that would
+	 * go to this channel will be suppressed since the channel is marked as internal.
+	 */
+	if (!bridge_topic || !channel_topic || !(channel_forward = stasis_forward_all(channel_topic, bridge_topic))) {
+		ast_ari_response_error(
+			response, 500, "Internal Error", "Could not forward playback channel stasis messages to bridge topic");
+		return;
+	}
 
 	if (ast_unreal_channel_push_to_bridge(play_channel, bridge,
 		AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE | AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
@@ -400,6 +419,7 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 
 	thread_data->bridge_channel = play_channel;
 	thread_data->control = control;
+	thread_data->forward = channel_forward;
 
 	if (ast_pthread_create_detached(&threadid, NULL, bridge_channel_control_thread, thread_data)) {
 		ast_ari_response_alloc_failed(response);
@@ -410,6 +430,7 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 	/* These are owned by the other thread now, so we don't want RAII_VAR disposing of them. */
 	play_channel = NULL;
 	control = NULL;
+	channel_forward = NULL;
 
 	ast_ari_response_created(response, playback_url, ast_json_ref(json));
 }
@@ -426,7 +447,10 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	RAII_VAR(struct stasis_app_recording_options *, options, NULL, ao2_cleanup);
 	RAII_VAR(char *, uri_encoded_name, NULL, ast_free);
+	RAII_VAR(struct stasis_forward *, channel_forward, NULL, stasis_forward_cancel);
 
+	struct stasis_topic *channel_topic;
+	struct stasis_topic *bridge_topic;
 	size_t uri_name_maxlen;
 	struct bridge_channel_control_thread_data *thread_data;
 	pthread_t threadid;
@@ -440,6 +464,19 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 	if (!(record_channel = prepare_bridge_media_channel("Recorder"))) {
 		ast_ari_response_error(
 			response, 500, "Internal Server Error", "Failed to create recording channel");
+		return;
+	}
+
+	bridge_topic = ast_bridge_topic(bridge);
+	channel_topic = ast_channel_topic(record_channel);
+
+	/* Forward messages from the recording channel topic to the bridge topic so that anything listening for
+	 * messages on the bridge topic will receive the recording start/stop messages. Other messages that would
+	 * go to this channel will be suppressed since the channel is marked as internal.
+	 */
+	if (!bridge_topic || !channel_topic || !(channel_forward = stasis_forward_all(channel_topic, bridge_topic))) {
+		ast_ari_response_error(
+			response, 500, "Internal Error", "Could not forward record channel stasis messages to bridge topic");
 		return;
 	}
 
@@ -556,6 +593,7 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 
 	thread_data->bridge_channel = record_channel;
 	thread_data->control = control;
+	thread_data->forward = channel_forward;
 
 	if (ast_pthread_create_detached(&threadid, NULL, bridge_channel_control_thread, thread_data)) {
 		ast_ari_response_alloc_failed(response);
@@ -566,6 +604,7 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 	/* These are owned by the other thread now, so we don't want RAII_VAR disposing of them. */
 	record_channel = NULL;
 	control = NULL;
+	channel_forward = NULL;
 
 	ast_ari_response_created(response, recording_url, ast_json_ref(json));
 }
