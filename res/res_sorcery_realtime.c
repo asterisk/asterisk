@@ -79,7 +79,7 @@ static int sorcery_realtime_create(const struct ast_sorcery *sorcery, void *data
 	id->next = fields;
 	fields = id;
 
-	return ast_store_realtime_fields(family, fields) ? -1 : 0;
+	return (ast_store_realtime_fields(family, fields) <= 0) ? -1 : 0;
 }
 
 /*! \brief Internal helper function which returns a filtered objectset. 

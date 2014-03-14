@@ -2936,8 +2936,8 @@ int ast_update_realtime_fields(const char *family, const char *keyfield, const c
 
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			/* If the update succeeds, it returns 0. */
-			if (eng->update_func && !(res = eng->update_func(db, table, keyfield, lookup, fields))) {
+			/* If the update succeeds, it returns >= 0. */
+			if (eng->update_func && ((res = eng->update_func(db, table, keyfield, lookup, fields)) >= 0)) {
 				break;
 			}
 		} else {
@@ -3017,8 +3017,8 @@ int ast_store_realtime_fields(const char *family, const struct ast_variable *fie
 
 	for (i = 1; ; i++) {
 		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			/* If the store succeeds, it returns 0. */
-			if (eng->store_func && !(res = eng->store_func(db, table, fields))) {
+			/* If the store succeeds, it returns >= 0*/
+			if (eng->store_func && ((res = eng->store_func(db, table, fields)) >= 0)) {
 				break;
 			}
 		} else {
