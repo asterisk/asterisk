@@ -967,8 +967,6 @@ static void *db_sync_thread(void *data)
 			ast_cond_wait(&dbcond, &dblock);
 		}
 		dosync = 0;
-		/* We're ok with spurious wakeups, so we don't worry about a predicate */
-		ast_cond_wait(&dbcond, &dblock);
 		if (ast_db_commit_transaction()) {
 			ast_db_rollback_transaction();
 		}
