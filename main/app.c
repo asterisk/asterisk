@@ -2821,36 +2821,51 @@ struct ast_mwi_state *ast_mwi_create(const char *mailbox, const char *context)
 	return mwi_state;
 }
 
-int ast_publish_mwi_state_full(
-			const char *mailbox,
-			const char *context,
-			int new_msgs,
-			int old_msgs,
-			const char *channel_id,
-			struct ast_eid *eid)
+/*!
+ * \internal
+ * \brief Create a MWI state snapshot message.
+ * \since 12.2.0
+ *
+ * \param[in] mailbox The mailbox identifier string.
+ * \param[in] context The context this mailbox resides in (NULL or "" if only using mailbox)
+ * \param[in] new_msgs The number of new messages in this mailbox
+ * \param[in] old_msgs The number of old messages in this mailbox
+ * \param[in] channel_id A unique identifier for a channel associated with this
+ * change in mailbox state
+ * \param[in] eid The EID of the server that originally published the message
+ *
+ * \retval message on success.  Use ao2_cleanup() when done with it.
+ * \retval NULL on error.
+ */
+static struct stasis_message *mwi_state_create_message(
+	const char *mailbox,
+	const char *context,
+	int new_msgs,
+	int old_msgs,
+	const char *channel_id,
+	struct ast_eid *eid)
 {
-	RAII_VAR(struct ast_mwi_state *, mwi_state, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	struct stasis_topic *mailbox_specific_topic;
+	struct ast_mwi_state *mwi_state;
+	struct stasis_message *message;
 
 	mwi_state = ast_mwi_create(mailbox, context);
 	if (!mwi_state) {
-		return -1;
+		return NULL;
 	}
 
 	mwi_state->new_msgs = new_msgs;
 	mwi_state->old_msgs = old_msgs;
 
 	if (!ast_strlen_zero(channel_id)) {
-		RAII_VAR(struct stasis_message *, chan_message,
-			stasis_cache_get(ast_channel_cache(),
-					ast_channel_snapshot_type(),
-					channel_id),
-			ao2_cleanup);
+		struct stasis_message *chan_message;
+
+		chan_message = stasis_cache_get(ast_channel_cache(), ast_channel_snapshot_type(),
+			channel_id);
 		if (chan_message) {
 			mwi_state->snapshot = stasis_message_data(chan_message);
 			ao2_ref(mwi_state->snapshot, +1);
 		}
+		ao2_cleanup(chan_message);
 	}
 
 	if (eid) {
@@ -2860,16 +2875,34 @@ int ast_publish_mwi_state_full(
 	}
 
 	/*
-	 * As far as stasis is concerned, all MWI events are internal.
+	 * XXX As far as stasis is concerned, all MWI events are local.
 	 *
-	 * We may in the future want to make MWI aggregate internal/external
+	 * We may in the future want to make MWI aggregate local/remote
 	 * message counts similar to how device state aggregates state.
 	 */
 	message = stasis_message_create_full(ast_mwi_state_type(), mwi_state, &ast_eid_default);
+	ao2_cleanup(mwi_state);
+	return message;
+}
+
+int ast_publish_mwi_state_full(
+	const char *mailbox,
+	const char *context,
+	int new_msgs,
+	int old_msgs,
+	const char *channel_id,
+	struct ast_eid *eid)
+{
+	struct ast_mwi_state *mwi_state;
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct stasis_topic *mailbox_specific_topic;
+
+	message = mwi_state_create_message(mailbox, context, new_msgs, old_msgs, channel_id, eid);
 	if (!message) {
 		return -1;
 	}
 
+	mwi_state = stasis_message_data(message);
 	mailbox_specific_topic = ast_mwi_topic(mwi_state->uniqueid);
 	if (!mailbox_specific_topic) {
 		return -1;
@@ -2877,6 +2910,54 @@ int ast_publish_mwi_state_full(
 
 	stasis_publish(mailbox_specific_topic, message);
 
+	return 0;
+}
+
+int ast_delete_mwi_state_full(const char *mailbox, const char *context, struct ast_eid *eid)
+{
+	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct stasis_message *cached_msg;
+	struct stasis_message *clear_msg;
+	struct ast_mwi_state *mwi_state;
+	struct stasis_topic *mailbox_specific_topic;
+
+	msg = mwi_state_create_message(mailbox, context, 0, 0, NULL, eid);
+	if (!msg) {
+		return -1;
+	}
+
+	mwi_state = stasis_message_data(msg);
+
+	/*
+	 * XXX As far as stasis is concerned, all MWI events are local.
+	 *
+	 * For now, it is assumed that there is only one entity
+	 * maintaining the state of a particular mailbox.
+	 *
+	 * If we ever have multiple MWI event entities maintaining
+	 * the same mailbox that wish to delete their cached entry
+	 * we will need to do something about the race condition
+	 * potential between checking the cache and removing the
+	 * cache entry.
+	 */
+	cached_msg = stasis_cache_get_by_eid(ast_mwi_state_cache(),
+		ast_mwi_state_type(), mwi_state->uniqueid, &ast_eid_default);
+	if (!cached_msg) {
+		/* Nothing to clear */
+		return -1;
+	}
+	ao2_cleanup(cached_msg);
+
+	mailbox_specific_topic = ast_mwi_topic(mwi_state->uniqueid);
+	if (!mailbox_specific_topic) {
+		return -1;
+	}
+
+	clear_msg = stasis_cache_clear_create(msg);
+	if (clear_msg) {
+		stasis_publish(mailbox_specific_topic, clear_msg);
+	}
+	ao2_cleanup(clear_msg);
 	return 0;
 }
 
