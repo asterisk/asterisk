@@ -222,7 +222,7 @@ struct ast_framehook_interface {
  * \param chan ast_channel The channel to attach the hook on to.
  * \param i framehook interface, The framehook's callback functions and stored data.
  *
- * \pre The Channel must be locked during this function all.
+ * \pre The Channel must be locked during this function call.
  *
  * \note The data pointer is never touched by the framehook API except to
  * provide it during the event and destruction callbacks.  It is entirely up to the
@@ -237,7 +237,7 @@ int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interfac
  * \brief Detach an framehook from a channel.
  * \since 1.8
  * 
- * \pre The Channel must be locked during this function all.
+ * \pre The Channel must be locked during this function call.
  * If this function is never called after attaching an framehook,
  * the framehook will be detached and destroyed during channel
  * destruction.
@@ -256,7 +256,7 @@ int ast_framehook_detach(struct ast_channel *chan, int framehook_id);
  * framehooks on a channel during channel destruction.
  * \since 1.8
  *
- * \pre The Channel must be locked during this function all.
+ * \pre The Channel must be locked during this function call.
  * 
  * \param chan channel containing the framehook list to destroy.
  * \retval 0 success
@@ -272,7 +272,7 @@ int ast_framehook_list_destroy(struct ast_channel *chan);
  * even NULL.  There is nothing to keep up with after this function. If the frame is modified, the
  * framehook callback is in charge of any memory management associated with that modification.
  *
- * \pre The Channel must be locked during this function all.
+ * \pre The Channel must be locked during this function call.
  *
  * \param framehooks list to push event to.
  * \param frame being pushed to the framehook list.
@@ -289,7 +289,7 @@ struct ast_frame *ast_framehook_list_read_event(struct ast_framehook_list *frame
  * even NULL.  There is nothing to keep up with after this function. If the frame is modified, the
  * framehook callback is in charge of any memory management associated with that modification.
  *
- * \pre The Channel must be locked during this function all.
+ * \pre The Channel must be locked during this function call.
  *
  * \param framehooks list to push event to.
  * \param frame being pushed to the framehook list.
@@ -301,7 +301,7 @@ struct ast_frame *ast_framehook_list_write_event(struct ast_framehook_list *fram
 /*!
  * \brief Determine if an framehook list is empty or not
  * \since 1.8
- * \pre The Channel must be locked during this function all.
+ * \pre The Channel must be locked during this function call.
  *
  * \param framehooks the framehook list
  * \retval 0, not empty
@@ -312,7 +312,7 @@ int ast_framehook_list_is_empty(struct ast_framehook_list *framehooks);
 /*!
  * \brief Determine if a framehook list is free of active framehooks or not
  * \since 12.0.0
- * \pre The channel must be locked during this function all.
+ * \pre The channel must be locked during this function call.
  *
  * \param framehooks the framehook list
  * \retval 0, not empty
