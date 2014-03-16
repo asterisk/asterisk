@@ -970,6 +970,7 @@ int app_subscribe_channel(struct stasis_app *app, struct ast_channel *chan)
 		}
 
 		++forwards->interested;
+		ast_debug(3, "Channel '%s' is %d interested in %s\n", ast_channel_uniqueid(chan), forwards->interested, app->name);
 		return 0;
 	}
 }
@@ -991,9 +992,12 @@ static int unsubscribe(struct stasis_app *app, const char *kind, const char *id)
 			app->name, kind, id);
 		return -1;
 	}
+	forwards->interested--;
 
-	if (--forwards->interested == 0) {
+	ast_debug(3, "%s '%s': is %d interested in %s\n", kind, id, forwards->interested, app->name);
+	if (forwards->interested == 0) {
 		/* No one is interested any more; unsubscribe */
+		ast_debug(3, "%s '%s' unsubscribed from %s\n", kind, id, app->name);
 		forwards_unsubscribe(forwards);
 		ao2_find(app->forwards, forwards,
 			OBJ_POINTER | OBJ_NOLOCK | OBJ_UNLINK |
@@ -1062,6 +1066,7 @@ int app_subscribe_bridge(struct stasis_app *app, struct ast_bridge *bridge)
 		}
 
 		++forwards->interested;
+		ast_debug(3, "Bridge '%s' is %d interested in %s\n", bridge->uniqueid, forwards->interested, app->name);
 		return 0;
 	}
 }
@@ -1130,6 +1135,7 @@ int app_subscribe_endpoint(struct stasis_app *app, struct ast_endpoint *endpoint
 		}
 
 		++forwards->interested;
+		ast_debug(3, "Endpoint '%s' is %d interested in %s\n", ast_endpoint_get_id(endpoint), forwards->interested, app->name);
 		return 0;
 	}
 }
