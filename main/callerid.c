@@ -621,7 +621,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, stru
 				}
 				break;
 			case 5: /* Check checksum */
-				if ((b + cid->cksum) & 0xff)) {
+				if ((b + cid->cksum) & 0xff) {
 					ast_log(LOG_NOTICE, "Caller*ID failed checksum\n");
 					/* Try again */
 					cid->sawflag = 0;
