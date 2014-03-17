@@ -306,7 +306,7 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 		return NULL;
 	}
 
-	if ((ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) ||
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
 		ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_sorcery_unref(sorcery);
 		return NULL;
@@ -452,17 +452,17 @@ AST_TEST_DEFINE(apply_default)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "dummy", NULL) != AST_SORCERY_APPLY_FAIL) {
+	if (!ast_sorcery_apply_default(sorcery, "test", "dummy", NULL)) {
 		ast_test_status_update(test, "Successfully set a default wizard that doesn't exist\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL)) {
 		ast_test_status_update(test, "Failed to set a known wizard as a default\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_DEFAULT_UNNECESSARY) {
+	if (!ast_sorcery_apply_default(sorcery, "test", "memory", NULL)) {
 		ast_test_status_update(test, "Successfully set a default wizard on a type twice\n");
 		return AST_TEST_FAIL;
 	}
@@ -493,7 +493,7 @@ AST_TEST_DEFINE(apply_config)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (!ast_category_get(config, "test_sorcery_section")) {
+	if (!ast_category_get(config, "test_sorcery")) {
 		ast_test_status_update(test, "Sorcery configuration file does not have test_sorcery section\n");
 		ast_config_destroy(config);
 		return AST_TEST_NOT_RUN;
@@ -506,7 +506,7 @@ AST_TEST_DEFINE(apply_config)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_config(sorcery, "test_sorcery_section") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_config(sorcery, "test_sorcery")) {
 		ast_test_status_update(test, "Failed to apply configured object mappings\n");
 		return AST_TEST_FAIL;
 	}
@@ -535,7 +535,7 @@ AST_TEST_DEFINE(object_register)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL)) {
 		ast_test_status_update(test, "Failed to set a known wizard as a default\n");
 		return AST_TEST_FAIL;
 	}
@@ -608,7 +608,7 @@ AST_TEST_DEFINE(object_field_register)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL)) {
 		ast_test_status_update(test, "Failed to set a known wizard as a default\n");
 		return AST_TEST_FAIL;
 	}
@@ -657,7 +657,7 @@ AST_TEST_DEFINE(object_fields_register)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL)) {
 		ast_test_status_update(test, "Failed to set a known wizard as a default\n");
 		return AST_TEST_FAIL;
 	}
@@ -1192,7 +1192,7 @@ AST_TEST_DEFINE(objectset_create_regex)
 		return AST_TEST_FAIL;
 	}
 
-	if ((ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) ||
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
 	    ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
 		ast_test_status_update(test, "Failed to register 'test' object type\n");
 		return AST_TEST_FAIL;
@@ -1292,7 +1292,7 @@ AST_TEST_DEFINE(objectset_apply_handler)
 		return AST_TEST_FAIL;
 	}
 
-	if ((ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) ||
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
 	    ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
 		ast_test_status_update(test, "Failed to register 'test' object type\n");
 		return AST_TEST_FAIL;
@@ -1387,7 +1387,7 @@ AST_TEST_DEFINE(objectset_transform)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL)) {
 		ast_test_status_update(test, "Failed to set a known wizard as a default\n");
 		return AST_TEST_FAIL;
 	}
@@ -1453,7 +1453,7 @@ AST_TEST_DEFINE(objectset_apply_fields)
 		return AST_TEST_FAIL;
 	}
 
-	if ((ast_sorcery_apply_default(sorcery, "test", "memory", NULL) != AST_SORCERY_APPLY_SUCCESS) ||
+	if (ast_sorcery_apply_default(sorcery, "test", "memory", NULL) ||
 	    ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, test_apply_handler)) {
 		ast_test_status_update(test, "Failed to register 'test' object type\n");
 		return AST_TEST_FAIL;
@@ -2244,7 +2244,7 @@ AST_TEST_DEFINE(caching_wizard_behavior)
 		goto end;
 	}
 
-	if (ast_sorcery_apply_config(sorcery, "test_sorcery_cache") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_config(sorcery, "test_sorcery_cache")) {
 		ast_test_status_update(test, "Failed to apply configured object mappings\n");
 		goto end;
 	}
@@ -2489,7 +2489,7 @@ AST_TEST_DEFINE(configuration_file_wizard)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf")) {
 		ast_test_status_update(test, "Could not set a default wizard of the 'config' type, so skipping since it may not be loaded\n");
 		return AST_TEST_NOT_RUN;
 	}
@@ -2552,7 +2552,7 @@ AST_TEST_DEFINE(configuration_file_wizard_with_file_integrity)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf,integrity=file") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf,integrity=file")) {
 		ast_test_status_update(test, "Could not set a default wizard of the 'config' type, so skipping since it may not be loaded\n");
 		return AST_TEST_NOT_RUN;
 	}
@@ -2606,7 +2606,7 @@ AST_TEST_DEFINE(configuration_file_wizard_with_criteria)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf,criteria=type=zombies") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf,criteria=type=zombies")) {
 		ast_test_status_update(test, "Could not set a default wizard of the 'config' type, so skipping since it may not be loaded\n");
 		return AST_TEST_NOT_RUN;
 	}
@@ -2665,7 +2665,7 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_field)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf")) {
 		ast_test_status_update(test, "Could not set a default wizard of the 'config' type, so skipping since it may not be loaded\n");
 		return AST_TEST_NOT_RUN;
 	}
@@ -2728,7 +2728,7 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_multiple)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf")) {
 		ast_test_status_update(test, "Could not set a default wizard of the 'config' type, so skipping since it may not be loaded\n");
 		return AST_TEST_NOT_RUN;
 	}
@@ -2799,7 +2799,7 @@ AST_TEST_DEFINE(configuration_file_wizard_retrieve_multiple_all)
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf") != AST_SORCERY_APPLY_SUCCESS) {
+	if (ast_sorcery_apply_default(sorcery, "test", "config", "test_sorcery.conf")) {
 		ast_test_status_update(test, "Could not set a default wizard of the 'config' type, so skipping since it may not be loaded\n");
 		return AST_TEST_NOT_RUN;
 	}

@@ -163,8 +163,10 @@ static int mwi_sorcery_init(void)
 	}
 
 	/* Map the external MWI wizards. */
-	if (ast_sorcery_apply_default(mwi_sorcery, MWI_MAILBOX_TYPE, "astdb",
-			MWI_ASTDB_PREFIX) == AST_SORCERY_APPLY_FAIL) {
+	res = !!ast_sorcery_apply_config(mwi_sorcery, "res_mwi_external");
+	res &= !!ast_sorcery_apply_default(mwi_sorcery, MWI_MAILBOX_TYPE, "astdb",
+		MWI_ASTDB_PREFIX);
+	if (res) {
 		ast_log(LOG_ERROR, "MWI external: Sorcery could not setup wizards.\n");
 		return -1;
 	}
