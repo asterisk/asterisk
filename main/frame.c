@@ -639,6 +639,10 @@ void ast_frame_subclass2str(struct ast_frame *f, char *subclass, size_t slen, ch
 		/* Should never happen */
 		snprintf(subclass, slen, "Bridge Frametype %d", f->subclass.integer);
 		break;
+	case AST_FRAME_BRIDGE_ACTION_SYNC:
+		/* Should never happen */
+		snprintf(subclass, slen, "Synchronous Bridge Frametype %d", f->subclass.integer);
+		break;
 	case AST_FRAME_TEXT:
 		ast_copy_string(subclass, "N/A", slen);
 		if (moreinfo) {
@@ -727,6 +731,10 @@ void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
 		ast_copy_string(ftype, "IAX Specific", len);
 		break;
 	case AST_FRAME_BRIDGE_ACTION:
+		/* Should never happen */
+		ast_copy_string(ftype, "Bridge Specific", len);
+		break;
+	case AST_FRAME_BRIDGE_ACTION_SYNC:
 		/* Should never happen */
 		ast_copy_string(ftype, "Bridge Specific", len);
 		break;

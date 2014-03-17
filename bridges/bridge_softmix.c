@@ -661,6 +661,9 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 	case AST_FRAME_BRIDGE_ACTION:
 		res = ast_bridge_queue_everyone_else(bridge, bridge_channel, frame);
 		break;
+	case AST_FRAME_BRIDGE_ACTION_SYNC:
+		ast_log(LOG_ERROR, "Synchronous bridge action written to a softmix bridge.\n");
+		ast_assert(0);
 	default:
 		ast_debug(3, "Frame type %d unsupported\n", frame->frametype);
 		/* "Accept" the frame and discard it. */

@@ -529,6 +529,28 @@ int ast_bridge_channel_write_playfile(struct ast_bridge_channel *bridge_channel,
 int ast_bridge_channel_queue_playfile(struct ast_bridge_channel *bridge_channel, ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
 
 /*!
+ * \brief Synchronously queue a bridge action play file frame onto the bridge channel.
+ * \since 12.2.0
+ *
+ * \param bridge_channel Which channel to put the frame onto.
+ * \param custom_play Call this function to play the playfile. (NULL if normal sound file to play)
+ * \param playfile Sound filename to play.
+ * \param moh_class MOH class to request bridge peers to hear while file is played.
+ *     NULL if no MOH.
+ *     Empty if default MOH class.
+ *
+ * This function will block until the queued frame has been destroyed. This will happen
+ * either if an error occurs or if the queued playback finishes.
+ *
+ * \note No locks may be held when calling this function.
+ *
+ * \retval 0 The playback was successfully queued.
+ * \retval -1 The playback could not be queued.
+ */
+int ast_bridge_channel_queue_playfile_sync(struct ast_bridge_channel *bridge_channel,
+		ast_bridge_custom_play_fn custom_play, const char *playfile, const char *moh_class);
+
+/*!
  * \brief Custom callback run on a bridge channel.
  *
  * \param bridge_channel Which channel to operate on.

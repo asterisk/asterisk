@@ -122,6 +122,12 @@ enum ast_frame_type {
 	AST_FRAME_DTMF_BEGIN,
 	/*! Internal bridge module action. */
 	AST_FRAME_BRIDGE_ACTION,
+	/*! Internal synchronous bridge module action.
+	 * Synchronous bridge actions may be queued onto bridge
+	 * channels, but they absolutely must not ever be written
+	 * directly into bridges.
+	 */
+	AST_FRAME_BRIDGE_ACTION_SYNC,
 };
 #define AST_FRAME_DTMF AST_FRAME_DTMF_END
 

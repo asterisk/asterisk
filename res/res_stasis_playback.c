@@ -78,14 +78,10 @@ struct stasis_app_playback {
 	long offsetms;
 	/*! Number of milliseconds to skip for forward/reverse operations */
 	int skipms;
-	/*! Condition for waiting on done to be set */
-	ast_cond_t done_cond;
 	/*! Number of milliseconds of media that has been played */
 	long playedms;
 	/*! Current playback state */
 	enum stasis_app_playback_state state;
-	/*! Set when playback has been completed */
-	unsigned int done:1;
 	/*! Set when the playback can be controlled */
 	unsigned int controllable:1;
 };
@@ -121,7 +117,6 @@ static void playback_dtor(void *obj)
 	struct stasis_app_playback *playback = obj;
 
 	ast_string_field_free_memory(playback);
-	ast_cond_destroy(&playback->done_cond);
 }
 
 static struct stasis_app_playback *playback_create(
@@ -129,7 +124,6 @@ static struct stasis_app_playback *playback_create(
 {
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
 	char uuid[AST_UUID_STR_LEN];
-	int res;
 
 	if (!control) {
 		return NULL;
@@ -137,13 +131,6 @@ static struct stasis_app_playback *playback_create(
 
 	playback = ao2_alloc(sizeof(*playback), playback_dtor);
 	if (!playback || ast_string_field_init(playback, 128)) {
-		return NULL;
-	}
-
-	res = ast_cond_init(&playback->done_cond, NULL);
-	if (res != 0) {
-		ast_log(LOG_ERROR, "Error creating done condition: %s\n",
-			strerror(errno));
 		return NULL;
 	}
 
@@ -266,21 +253,9 @@ static void playback_final_update(struct stasis_app_playback *playback,
 	playback_publish(playback);
 }
 
-/*!
- * \brief RAII_VAR function to mark a playback as done when leaving scope.
- */
-static void mark_as_done(struct stasis_app_playback *playback)
-{
-	SCOPED_AO2LOCK(lock, playback);
-	playback->done = 1;
-	ast_cond_broadcast(&playback->done_cond);
-}
-
 static void play_on_channel(struct stasis_app_playback *playback,
 	struct ast_channel *chan)
 {
-	RAII_VAR(struct stasis_app_playback *, mark_when_done, playback,
-		mark_as_done);
 	int res;
 	long offsetms;
 
@@ -399,7 +374,6 @@ static int play_uri(struct stasis_app_control *control,
 	RAII_VAR(struct stasis_app_playback *, playback, NULL,
 		remove_from_playbacks);
 	struct ast_bridge *bridge;
-	int res;
 
 	playback = data;
 
@@ -413,28 +387,16 @@ static int play_uri(struct stasis_app_control *control,
 
 		/* Queue up playback on the bridge */
 		ast_bridge_lock(bridge);
-		bridge_chan = bridge_find_channel(bridge, chan);
+		bridge_chan = ao2_bump(bridge_find_channel(bridge, chan));
+		ast_bridge_unlock(bridge);
 		if (bridge_chan) {
-			ast_bridge_channel_queue_playfile(
+			ast_bridge_channel_queue_playfile_sync(
 				bridge_chan,
 				play_on_channel_in_bridge,
 				playback->id,
 				NULL); /* moh_class */
 		}
-		ast_bridge_unlock(bridge);
-
-		/* Wait for playback to complete */
-		ao2_lock(playback);
-		while (!playback->done) {
-			res = ast_cond_wait(&playback->done_cond,
-				ao2_object_get_lockaddr(playback));
-			if (res != 0) {
-				ast_log(LOG_ERROR,
-					"Error waiting for playback to complete: %s\n",
-					strerror(errno));
-			}
-		}
-		ao2_unlock(playback);
+		ao2_cleanup(bridge_chan);
 	} else {
 		play_on_channel(playback, chan);
 	}

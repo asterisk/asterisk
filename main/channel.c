@@ -1531,6 +1531,7 @@ int ast_is_deferrable_frame(const struct ast_frame *frame)
 	 */
 	switch (frame->frametype) {
 	case AST_FRAME_BRIDGE_ACTION:
+	case AST_FRAME_BRIDGE_ACTION_SYNC:
 	case AST_FRAME_CONTROL:
 	case AST_FRAME_TEXT:
 	case AST_FRAME_IMAGE:
@@ -2875,6 +2876,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 				case AST_FRAME_CONTROL:
 				case AST_FRAME_IAX:
 				case AST_FRAME_BRIDGE_ACTION:
+				case AST_FRAME_BRIDGE_ACTION_SYNC:
 				case AST_FRAME_NULL:
 				case AST_FRAME_CNG:
 					break;
