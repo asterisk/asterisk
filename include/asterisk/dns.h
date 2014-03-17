@@ -36,4 +36,7 @@
 int ast_search_dns(void *context, const char *dname, int class, int type,
 	 int (*callback)(void *context, unsigned char *answer, int len, unsigned char *fullanswer));
 
+/*! \brief Retrieve the configured nameservers of the system */
+struct ao2_container *ast_dns_get_nameservers(void);
+
 #endif /* _ASTERISK_DNS_H */

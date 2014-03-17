@@ -25,6 +25,7 @@
 #include "asterisk/sorcery.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/threadpool.h"
+#include "asterisk/dns.h"
 
 #define TIMER_T1_MIN 100
 #define DEFAULT_TIMER_T1 500
@@ -174,3 +175,70 @@ void ast_sip_destroy_system(void)
 	ast_sorcery_unref(system_sorcery);
 }
 
+static int system_create_resolver_and_set_nameservers(void *data)
+{
+	struct ao2_container *discovered_nameservers;
+	struct ao2_iterator it_nameservers;
+	char *nameserver;
+	pj_status_t status;
+	pj_dns_resolver *resolver;
+	pj_str_t nameservers[PJ_DNS_RESOLVER_MAX_NS];
+	unsigned int count = 0;
+
+	discovered_nameservers = ast_dns_get_nameservers();
+	if (!discovered_nameservers) {
+		ast_log(LOG_ERROR, "Could not retrieve local system nameservers, resorting to system resolution\n");
+		return 0;
+	}
+
+	if (!ao2_container_count(discovered_nameservers)) {
+		ast_log(LOG_ERROR, "There are no local system nameservers configured, resorting to system resolution\n");
+		ao2_ref(discovered_nameservers, -1);
+		return -1;
+	}
+
+	if (!(resolver = pjsip_endpt_get_resolver(ast_sip_get_pjsip_endpoint()))) {
+		status = pjsip_endpt_create_resolver(ast_sip_get_pjsip_endpoint(), &resolver);
+		if (status != PJ_SUCCESS) {
+			ast_log(LOG_ERROR, "Could not create DNS resolver(%d), resorting to system resolution\n", status);
+			return 0;
+		}
+	}
+
+	it_nameservers = ao2_iterator_init(discovered_nameservers, 0);
+	while ((nameserver = ao2_iterator_next(&it_nameservers))) {
+		pj_strset2(&nameservers[count++], nameserver);
+		ao2_ref(nameserver, -1);
+
+		if (count == (PJ_DNS_RESOLVER_MAX_NS - 1)) {
+			break;
+		}
+	}
+	ao2_iterator_destroy(&it_nameservers);
+
+	status = pj_dns_resolver_set_ns(resolver, count, nameservers, NULL);
+
+	/* Since we no longer need the nameservers we can drop the list of them */
+	ao2_ref(discovered_nameservers, -1);
+
+	if (status != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Could not set nameservers on DNS resolver in PJSIP(%d), resorting to system resolution\n",
+			status);
+		return 0;
+	}
+
+	if (!pjsip_endpt_get_resolver(ast_sip_get_pjsip_endpoint())) {
+		status = pjsip_endpt_set_resolver(ast_sip_get_pjsip_endpoint(), resolver);
+		if (status != PJ_SUCCESS) {
+			ast_log(LOG_ERROR, "Could not set DNS resolver in PJSIP(%d), resorting to system resolution\n", status);
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+void ast_sip_initialize_dns(void)
+{
+	ast_sip_push_task_synchronous(NULL, system_create_resolver_and_set_nameservers, NULL);
+}
