@@ -41,7 +41,7 @@
 ;
 ; The following object mappings are used by the unit test to test certain functionality of sorcery.
 ;
-[test_sorcery]
+[test_sorcery_section]
 test=memory
 
 [test_sorcery_cache]

@@ -60,7 +60,7 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 		return NULL;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "test", "astdb", "test") ||
+	if ((ast_sorcery_apply_default(sorcery, "test", "astdb", "test") != AST_SORCERY_APPLY_SUCCESS) ||
 		ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL)) {
 		ast_sorcery_unref(sorcery);
 		return NULL;

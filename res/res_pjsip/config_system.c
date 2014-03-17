@@ -116,8 +116,6 @@ int ast_sip_initialize_system(void)
 		return -1;
 	}
 
-	ast_sorcery_apply_config(system_sorcery, "res_pjsip");
-
 	ast_sorcery_apply_default(system_sorcery, "system", "config", "pjsip.conf,criteria=type=system");
 
 	if (ast_sorcery_object_register_no_reload(system_sorcery, "system", system_alloc, NULL, system_apply)) {
