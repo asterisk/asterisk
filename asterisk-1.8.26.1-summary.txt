@@ -2,7 +2,7 @@
 
                                asterisk-1.8.26.1
 
-                                Date: 2014-03-10
+                                Date: 2014-03-17
 
                            <asteriskteam@digium.com>
 
@@ -31,7 +31,7 @@
    Security Advisories: AST-2014-001, AST-2014-002
 
    The data in this summary reflects changes that have been made since the
-   previous release, asterisk-1.8.16.0.
+   previous release, asterisk-1.8.26.0.
 
      ----------------------------------------------------------------------
 
@@ -49,7 +49,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   3 bebuild                
+   4 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -72,6 +72,9 @@
    |----------+---------+-------------------------------+-------------------|
    | 410382   | bebuild | AST-2014-001: AST-2014-002:   |                   |
    |          |         | Merge into 1.8.26.1           |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 410440   | bebuild | Importing release summary for |                   |
+   |          |         | 1.8.26.1 release.             |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -87,8 +90,10 @@
  ChangeLog                      |   29 ++
  asterisk-1.8.26.0-summary.html |  336 ---------------------------------
  asterisk-1.8.26.0-summary.txt  |  406 -----------------------------------------
+ asterisk-1.8.26.1-summary.html |   63 ++++++
+ asterisk-1.8.26.1-summary.txt  |   94 +++++++++
  channels/chan_sip.c            |  303 ++++++++++++++++--------------
  main/http.c                    |   49 +++-
- 6 files changed, 220 insertions(+), 905 deletions(-)
+ 8 files changed, 377 insertions(+), 905 deletions(-)
 
      ----------------------------------------------------------------------
