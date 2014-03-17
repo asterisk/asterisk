@@ -83,10 +83,31 @@ static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 	return 0;
 }
 
+/*! \brief Helper function which determines if the existing address has priority over new one */
+static int multihomed_rewrite_header(pj_str_t *source, pjsip_transport *transport)
+{
+	pj_uint32_t loop6[4] = {0, 0, 0, 0};
+
+	/* If the transport is bound to any it should always rewrite */
+	if ((transport->local_addr.addr.sa_family == pj_AF_INET() &&
+		transport->local_addr.ipv4.sin_addr.s_addr == PJ_INADDR_ANY) ||
+		(transport->local_addr.addr.sa_family == pj_AF_INET6() &&
+		!pj_memcmp(&transport->local_addr.ipv6.sin6_addr, loop6, sizeof(loop6)))) {
+		return 1;
+	}
+
+	/* If the transport is explicitly bound but the determined source differs favor the transport */
+	if (!pj_strcmp(source, &transport->local_name.host)) {
+		return 1;
+	}
+
+	return 0;
+}
+
 static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 {
 	pjsip_tpmgr_fla2_param prm;
-	pjsip_transport *transport;
+	pjsip_transport *transport = NULL;
 	pjsip_cseq_hdr *cseq;
 	pjsip_via_hdr *via;
 
@@ -105,10 +126,20 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 	if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
 		tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
 		transport = multihomed_get_udp_transport(&prm.ret_addr, prm.ret_port);
-		if (transport && (tdata->tp_info.transport != transport)) {
-			tdata->tp_info.transport = transport;
-		}
 	}
+
+	/* If no new transport use the one provided by the message */
+	if (!transport) {
+		transport = tdata->tp_info.transport;
+	}
+
+	/* If the message should not be rewritten then abort early */
+	if (!multihomed_rewrite_header(&prm.ret_addr, transport)) {
+		return PJ_SUCCESS;
+	}
+
+	/* Update the transport in case it has changed - we do this now in case we don't want to touch the message above */
+	tdata->tp_info.transport = transport;
 
 	/* If the message needs to be updated with new address do so */
 	if (tdata->msg->type == PJSIP_REQUEST_MSG || !(cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL)) ||
