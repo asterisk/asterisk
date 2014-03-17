@@ -75,6 +75,7 @@ static void announce_pvt_destructor(void *vdoomed)
 
 	ao2_cleanup(doomed->bridge);
 	doomed->bridge = NULL;
+	ast_unreal_destructor(&doomed->base);
 }
 
 static struct ast_channel *announce_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
