@@ -73,6 +73,11 @@ int ast_sip_initialize_system(void);
 void ast_sip_destroy_system(void);
 
 /*!
+ * \brief Initialize nameserver configuration
+ */
+void ast_sip_initialize_dns(void);
+
+/*!
  * \brief Initialize global configuration
  *
  * \retval 0 Success

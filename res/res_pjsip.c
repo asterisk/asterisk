@@ -2305,6 +2305,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	ast_sip_initialize_dns();
+
 	pjsip_tsx_layer_init_module(ast_pjsip_endpoint);
 	pjsip_ua_init_module(ast_pjsip_endpoint, NULL);
 
@@ -2395,6 +2397,7 @@ static int reload_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_res_pjsip_init_options_handling(1);
+	ast_sip_initialize_dns();
 	return 0;
 }
 

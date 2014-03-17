@@ -241,6 +241,13 @@ res_mwi_external
    and other modules that depend on it cannot be built or loaded with
    app_voicemail present.
 
+res_pjsip
+------------------
+ * DNS functionality will now automatically be enabled if the system configured
+   nameservers can be retrieved. If the system configured nameservers can not be
+   retrieved the functionality will resort to using system resolution. Functionalty
+   such as SRV records and failover will not be available if system resolution
+   is in use.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 11 to Asterisk 12 --------------------
