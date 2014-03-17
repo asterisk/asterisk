@@ -212,7 +212,7 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 		return NULL;
 	}
 
-	if ((ast_sorcery_apply_default(sorcery, "test", "realtime", "sorcery_realtime_test") != AST_SORCERY_APPLY_SUCCESS) ||
+	if (ast_sorcery_apply_default(sorcery, "test", "realtime", "sorcery_realtime_test") ||
 		ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL) ||
 		!(realtime_objects = ast_config_new())) {
 		ast_sorcery_unref(sorcery);
