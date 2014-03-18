@@ -1936,6 +1936,7 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", caller ? caller->name : peer->name);
+		ast_assert(0);
 		return;
 	}
 
@@ -2087,6 +2088,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 	}
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", name);
+		ast_assert(0);
 	} else {
 		ao2_lock(cdr);
 		if (new_snapshot) {
@@ -2212,6 +2214,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		ast_assert(0);
 		return;
 	}
 
@@ -2509,6 +2512,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		ast_assert(0);
 		return;
 	}
 
@@ -2559,6 +2563,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 	cdr = ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY);
 	if (!cdr) {
 		ast_log(AST_LOG_WARNING, "No CDR for channel %s\n", channel->name);
+		ast_assert(0);
 		return;
 	}
 
