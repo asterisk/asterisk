@@ -236,7 +236,7 @@ static int cache_entry_cmp(void *obj, void *arg, int flags)
 {
 	const struct stasis_cache_entry *object_left = obj;
 	const struct stasis_cache_entry *object_right = arg;
-	const struct cache_entry_key *right_key = obj;
+	const struct cache_entry_key *right_key = arg;
 	int cmp;
 
 	switch (flags & OBJ_SEARCH_MASK) {
