@@ -677,6 +677,9 @@ static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame 
 		ast_debug(5, "spandsp transcoding frame from %s to slinear for v21 detection\n", (f->subclass.format.id == AST_FORMAT_ALAW ? "G711_ALAW" : "G711_ULAW"));
 		modem_connect_tones_rx(p->tone_state, slndata, f->samples);
 		g711_release(decoder);
+#if SPANDSP_RELEASE_DATE >= 20090220
+		g711_free(decoder);
+#endif
 		ast_free(slndata);
 
 	/* frame in other formats cannot be passed to spandsp, it could cause segfault */
