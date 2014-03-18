@@ -201,6 +201,7 @@ static int system_create_resolver_and_set_nameservers(void *data)
 		status = pjsip_endpt_create_resolver(ast_sip_get_pjsip_endpoint(), &resolver);
 		if (status != PJ_SUCCESS) {
 			ast_log(LOG_ERROR, "Could not create DNS resolver(%d), resorting to system resolution\n", status);
+			ao2_ref(discovered_nameservers, -1);
 			return 0;
 		}
 	}
