@@ -880,9 +880,13 @@ struct ast_json *ast_http_get_json(
 	}
 
 	buf = ast_http_get_contents(&content_length, ser, headers);
-	if (buf == NULL)
-	{
+	if (buf == NULL) {
 		/* errno already set */
+		return NULL;
+	}
+
+	if (!content_length) {
+		/* it is not an error to have zero content */
 		return NULL;
 	}
 
