@@ -52,7 +52,7 @@ struct ast_ari_bridges_list_args {
 void ast_ari_bridges_list(struct ast_variable *headers, struct ast_ari_bridges_list_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_bridges_create() */
 struct ast_ari_bridges_create_args {
-	/*! \brief Type of bridge to create. */
+	/*! \brief Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media). */
 	const char *type;
 	/*! \brief Unique ID to give to the bridge being created. */
 	const char *bridge_id;
@@ -82,7 +82,7 @@ int ast_ari_bridges_create_parse_body(
 void ast_ari_bridges_create(struct ast_variable *headers, struct ast_ari_bridges_create_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_bridges_create_or_update_with_id() */
 struct ast_ari_bridges_create_or_update_with_id_args {
-	/*! \brief Set the type of bridge. */
+	/*! \brief Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media) to set. */
 	const char *type;
 	/*! \brief Unique ID to give to the bridge being created. */
 	const char *bridge_id;

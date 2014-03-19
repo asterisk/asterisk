@@ -588,19 +588,29 @@ static void control_unlink(struct stasis_app_control *control)
 struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id)
 {
 	struct ast_bridge *bridge;
-	int capabilities;
+	char *requested_type, *requested_types = ast_strdupa(type);
+	int capabilities = 0;
 	int flags = AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM | AST_BRIDGE_FLAG_MERGE_INHIBIT_TO
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
 		| AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY;
 
-	if (ast_strlen_zero(type) || !strcmp(type, "mixing")) {
-		capabilities = AST_BRIDGE_CAPABILITY_1TO1MIX |
-			AST_BRIDGE_CAPABILITY_MULTIMIX |
-			AST_BRIDGE_CAPABILITY_NATIVE;
-		flags |= AST_BRIDGE_FLAG_SMART;
-	} else if (!strcmp(type, "holding")) {
-		capabilities = AST_BRIDGE_CAPABILITY_HOLDING;
-	} else {
+	while ((requested_type = strsep(&requested_types, ","))) {
+		requested_type = ast_strip(requested_type);
+
+		if (!strcmp(requested_type, "mixing")) {
+			capabilities |= AST_BRIDGE_CAPABILITY_1TO1MIX |
+				AST_BRIDGE_CAPABILITY_MULTIMIX |
+				AST_BRIDGE_CAPABILITY_NATIVE;
+			flags |= AST_BRIDGE_FLAG_SMART;
+		} else if (!strcmp(requested_type, "holding")) {
+			capabilities |= AST_BRIDGE_CAPABILITY_HOLDING;
+		} else if (!strcmp(requested_type, "dtmf_events") ||
+			!strcmp(requested_type, "proxy_media")) {
+			capabilities &= ~AST_BRIDGE_CAPABILITY_NATIVE;
+		}
+	}
+
+	if (!capabilities) {
 		return NULL;
 	}
 
