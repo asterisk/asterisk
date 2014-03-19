@@ -588,7 +588,7 @@ static void control_unlink(struct stasis_app_control *control)
 struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id)
 {
 	struct ast_bridge *bridge;
-	char *requested_type, *requested_types = ast_strdupa(type);
+	char *requested_type, *requested_types = ast_strdupa(S_OR(type, "mixing"));
 	int capabilities = 0;
 	int flags = AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM | AST_BRIDGE_FLAG_MERGE_INHIBIT_TO
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
