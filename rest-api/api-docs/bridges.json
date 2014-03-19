@@ -26,18 +26,11 @@
 					"parameters": [
 						{
 							"name": "type",
-							"description": "Type of bridge to create.",
+							"description": "Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media).",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
-							"dataType": "string",
-							"allowableValues": {
-								"valueType": "LIST",
-								"values": [
-									"mixing",
-									"holding"
-								]
-							}
+							"dataType": "string"
 						},
 						{
 							"name": "bridgeId",
@@ -72,18 +65,11 @@
 					"parameters": [
 						{
 							"name": "type",
-							"description": "Set the type of bridge.",
+							"description": "Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media) to set.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
-							"dataType": "string",
-							"allowableValues": {
-								"valueType": "LIST",
-								"values": [
-									"mixing",
-									"holding"
-								]
-							}
+							"dataType": "string"
 						},
 						{
 							"name": "bridgeId",

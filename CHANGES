@@ -103,6 +103,16 @@ Core
  * Exposed sorcery-based configuration files like pjsip.conf to dialplans via
    the new AST_SORCERY diaplan function.
 
+=======
+ARI
+------------------
+ * The live recording object on recording events now contains a target_uri
+   field which contains the URI of what is being recorded.
+
+ * The bridge type used when creating a bridge is now a comma separated list of
+   bridge properties. Valid options are: mixing, holding, dtmf_events, and
+   proxy_media.
+
  * A channelId can now be provided when creating a channel, either in the
    uri (POST channels/my-channel-id) or as query parameter.  A local channel
    will suffix the second channel id with ';2' unless provided as query
