@@ -776,18 +776,23 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	char *stuff;
 	struct ast_channel *chan;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	struct ast_assigned_ids assignedids = {args_channel_id, args_other_channel_id};
-
-	if ((!ast_strlen_zero(assignedids.uniqueid) && strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID) || 
-		(!ast_strlen_zero(assignedids.uniqueid2) && strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID)) {
-		ast_log(LOG_WARNING, "Uniqueid length exceeds maximum of %d\n", AST_MAX_UNIQUEID);
-	}
+	struct ast_assigned_ids assignedids = {
+		.uniqueid = args_channel_id,
+		.uniqueid2 = args_other_channel_id,
+	};
 
 	if (!cap) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+
+	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
+		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Uniqueid length exceeds maximum of %d\n", AST_MAX_PUBLIC_UNIQUEID);
+		return;
+	}
 
 	if (ast_strlen_zero(args_endpoint)) {
 		ast_ari_response_error(response, 400, "Bad Request",

@@ -907,7 +907,10 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	/* if id1 given but not id2, use default of id1;2 */
 	if (id1.uniqueid && ast_strlen_zero(id2.uniqueid)) {
 		char *uniqueid2;
-		ast_asprintf(&uniqueid2, "%s;2", id1.uniqueid);
+
+		uniqueid2 = ast_alloca(strlen(id1.uniqueid) + 2);
+		strcpy(uniqueid2, id1.uniqueid);/* Safe */
+		strcat(uniqueid2, ";2");/* Safe */
 		id2.uniqueid = uniqueid2;
 	}
 
