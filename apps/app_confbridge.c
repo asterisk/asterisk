@@ -992,6 +992,13 @@ void conf_update_user_mute(struct conference_bridge_user *user)
 		ast_channel_name(user->chan), mute_effective ? "muted" : "unmuted",
 		mute_user, mute_system);
 	user->features.mute = mute_effective;
+	ast_test_suite_event_notify("CONF_MUTE_UPDATE",
+		"Mode: %s\r\n"
+		"Conference: %s\r\n"
+		"Channel: %s",
+		mute_effective ? "muted" : "unmuted",
+		user->b_profile.name,
+		ast_channel_name(user->chan));
 }
 
 void conf_moh_stop(struct conference_bridge_user *user)
@@ -1664,6 +1671,12 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 			conf_name);
 	}
 
+	/* If the caller should be joined already muted, set the flag before we join. */
+	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_STARTMUTED)) {
+		/* Set user level mute request. */
+		conference_bridge_user.muted = 1;
+	}
+
 	/* Look for a conference bridge matching the provided name */
 	if (!(conference_bridge = join_conference_bridge(args.conf_name, &conference_bridge_user))) {
 		res = -1;
@@ -1673,12 +1686,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	/* Keep a copy of volume adjustments so we can restore them later if need be */
 	volume_adjustments[0] = ast_audiohook_volume_get(chan, AST_AUDIOHOOK_DIRECTION_READ);
 	volume_adjustments[1] = ast_audiohook_volume_get(chan, AST_AUDIOHOOK_DIRECTION_WRITE);
-
-	/* If the caller should be joined already muted, make it so */
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_STARTMUTED)) {
-		/* Set user level mute request. */
-		conference_bridge_user.muted = 1;
-	}
 
 	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_DROP_SILENCE)) {
 		conference_bridge_user.tech_args.drop_silence = 1;
