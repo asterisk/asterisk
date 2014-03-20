@@ -290,7 +290,9 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 {
 	RAII_VAR(struct stasis_app_snoop *, snoop, NULL, ao2_cleanup);
 	pthread_t thread;
-	struct ast_assigned_ids assignedids = {snoop_id, NULL};
+	struct ast_assigned_ids assignedids = {
+		.uniqueid = snoop_id,
+	};
 
 	if (spy == STASIS_SNOOP_DIRECTION_NONE &&
 		whisper == STASIS_SNOOP_DIRECTION_NONE) {

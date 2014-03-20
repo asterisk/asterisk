@@ -266,8 +266,7 @@ int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device,
 	channel->device = ast_strdup(device);
 
 	/* Store the assigned id */
-	if (assignedids && !ast_strlen_zero(assignedids->uniqueid))
-	{
+	if (assignedids && !ast_strlen_zero(assignedids->uniqueid)) {
 		channel->assignedid1 = ast_strdup(assignedids->uniqueid);
 
 		if (!ast_strlen_zero(assignedids->uniqueid2)) {
@@ -293,7 +292,10 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	char numsubst[AST_MAX_EXTENSION];
 	struct ast_format_cap *cap_all_audio = NULL;
 	struct ast_format_cap *cap_request;
-	struct ast_assigned_ids assignedids = {channel->assignedid1, channel->assignedid2};
+	struct ast_assigned_ids assignedids = {
+		.uniqueid = channel->assignedid1,
+		.uniqueid2 = channel->assignedid2,
+	};
 
 	/* Copy device string over */
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
@@ -474,14 +476,10 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	/* Drop old destination information */
 	ast_free(channel->tech);
 	ast_free(channel->device);
-	if (channel->assignedid1) {
-		ast_free(channel->assignedid1);
-		channel->assignedid1 = NULL;
-	}
-	if (channel->assignedid2) {
-		ast_free(channel->assignedid2);
-		channel->assignedid2 = NULL;
-	}
+	ast_free(channel->assignedid1);
+	channel->assignedid1 = NULL;
+	ast_free(channel->assignedid2);
+	channel->assignedid2 = NULL;
 
 	/* Update the dial channel with the new destination information */
 	channel->tech = ast_strdup(tech);
@@ -1066,12 +1064,8 @@ int ast_dial_destroy(struct ast_dial *dial)
 		/* Free structure */
 		ast_free(channel->tech);
 		ast_free(channel->device);
-		if (channel->assignedid1) {
-			ast_free(channel->assignedid1);
-		}
-		if (channel->assignedid2) {
-			ast_free(channel->assignedid2);
-		}
+		ast_free(channel->assignedid1);
+		ast_free(channel->assignedid2);
 
 		AST_LIST_REMOVE_CURRENT(list);
 		ast_free(channel);

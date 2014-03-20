@@ -86,11 +86,14 @@ extern "C" {
 /* Maximum number of generations */
 #define AST_RED_MAX_GENERATION 5
 
-/* Maximum size of an Asterisk channel unique ID. Should match AST_MAX_UNIQUEID.
- * Note that we don't use that defined value directly here to avoid a hard dependency
- * on channel.h
+/*!
+ * Maximum size of an internal Asterisk channel unique ID.
+ *
+ * \note Must match the AST_MAX_UNIQUEID(AST_MAX_PUBLIC_UNIQUEID) value.
+ * We don't use that defined value directly here to avoid a hard
+ * dependency on channel.h.
  */
-#define MAX_CHANNEL_ID 150
+#define MAX_CHANNEL_ID 152
 
 struct ast_rtp_instance;
 struct ast_rtp_glue;

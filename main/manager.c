@@ -4416,7 +4416,10 @@ static void *fast_originate(void *data)
 	int reason = 0;
 	struct ast_channel *chan = NULL, *chans[1];
 	char requested_channel[AST_CHANNEL_NAME];
-	struct ast_assigned_ids assignedids = {in->channelid, in->otherchannelid};
+	struct ast_assigned_ids assignedids = {
+		.uniqueid = in->channelid,
+		.uniqueid2 = in->otherchannelid
+	};
 
 	if (!ast_strlen_zero(in->app)) {
 		res = ast_pbx_outgoing_app(in->tech, in->cap, in->data,
@@ -4711,8 +4714,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 	const char *codecs = astman_get_header(m, "Codecs");
 	const char *early_media = astman_get_header(m, "Earlymedia");
 	struct ast_assigned_ids assignedids = {
-		astman_get_header(m, "ChannelId"),
-		astman_get_header(m, "OtherChannelId")
+		.uniqueid = astman_get_header(m, "ChannelId"),
+		.uniqueid2 = astman_get_header(m, "OtherChannelId"),
 	};
 	struct ast_variable *vars = NULL;
 	char *tech, *data;
@@ -4728,16 +4731,19 @@ static int action_originate(struct mansession *s, const struct message *m)
 	pthread_t th;
 	int bridge_early = 0;
 
-	if ((!ast_strlen_zero(assignedids.uniqueid) && strlen(assignedids.uniqueid) >= AST_MAX_UNIQUEID) ||
-		(!ast_strlen_zero(assignedids.uniqueid2) && strlen(assignedids.uniqueid2) >= AST_MAX_UNIQUEID)) {
-		ast_log(LOG_WARNING, "Uniqueid length exceeds maximum of %d\n", AST_MAX_UNIQUEID);
-	}
-
 	if (!cap) {
 		astman_send_error(s, m, "Internal Error. Memory allocation failure.");
 		return 0;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+
+	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
+		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
+		astman_send_error_va(s, m, "Uniqueid length exceeds maximum of %d\n",
+			AST_MAX_PUBLIC_UNIQUEID);
+		res = 0;
+		goto fast_orig_cleanup;
+	}
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");

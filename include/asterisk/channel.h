@@ -133,12 +133,31 @@ extern "C" {
 
 #define AST_MAX_EXTENSION       80  /*!< Max length of an extension */
 #define AST_MAX_CONTEXT         80  /*!< Max length of a context */
-#define AST_MAX_UNIQUEID       150  /*!< Max length of a channel uniqueid */
-/*                                   150 = 127 (max systemname) + "-" + 10 (epoch
- *                                   timestamp) + "." + 10 (monotonically incrementing
- *                                   integer) + NULL. Note that if this value is ever
- *                                   changed, MAX_CHANNEL_ID should be updated in
- *                                   rtp_engine.h */
+
+/*!
+ * Max length of a channel uniqueid reported to the outside world.
+ *
+ * \details
+ * 149 = 127 (max systemname) + "-" + 10 (epoch timestamp)
+ *     + "." + 10 (monotonically incrementing integer).
+ *
+ * \note If this value is ever changed, MAX_CHANNEL_ID should
+ * be updated in rtp_engine.h.
+ */
+#define AST_MAX_PUBLIC_UNIQUEID 149
+
+/*!
+ * Maximum size of an internal Asterisk channel unique ID.
+ *
+ * \details
+ * Add two for the Local;2 channel to append a ';2' if needed
+ * plus nul terminator.
+ *
+ * \note If this value is ever changed, MAX_CHANNEL_ID should
+ * be updated in rtp_engine.h.
+ */
+#define AST_MAX_UNIQUEID        (AST_MAX_PUBLIC_UNIQUEID + 2 + 1)
+
 #define AST_MAX_ACCOUNT_CODE    20  /*!< Max length of an account code */
 #define AST_CHANNEL_NAME        80  /*!< Max length of an ast_channel name */
 #define MAX_LANGUAGE            40  /*!< Max length of the language setting */

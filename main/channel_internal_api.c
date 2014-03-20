@@ -1485,8 +1485,8 @@ void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, stru
 
 void ast_channel_internal_set_fake_ids(struct ast_channel *chan, const char *uniqueid, const char *linkedid)
 {
-	strncpy(chan->uniqueid.unique_id, uniqueid, sizeof(chan->uniqueid.unique_id));
-	strncpy(chan->linkedid.unique_id, linkedid, sizeof(chan->linkedid.unique_id));
+	ast_copy_string(chan->uniqueid.unique_id, uniqueid, sizeof(chan->uniqueid.unique_id));
+	ast_copy_string(chan->linkedid.unique_id, linkedid, sizeof(chan->linkedid.unique_id));
 }
 
 void ast_channel_internal_cleanup(struct ast_channel *chan)
