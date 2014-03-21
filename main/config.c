@@ -2492,8 +2492,6 @@ int ast_config_engine_register(struct ast_config_engine *new)
 		ptr->next = new;
 	}
 
-	ast_log(LOG_NOTICE,"Registered Config Engine %s\n", new->name);
-
 	return 1;
 }
 
