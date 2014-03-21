@@ -518,18 +518,26 @@ static int rx_task(void *data)
 					expiration,
 					user_agent);
 		} else if (expiration) {
-			RAII_VAR(struct ast_sip_contact *, updated, ast_sorcery_copy(ast_sip_get_sorcery(), contact), ao2_cleanup);
-			updated->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
-			updated->qualify_frequency = task_data->aor->qualify_frequency;
-			updated->authenticate_qualify = task_data->aor->authenticate_qualify;
-			if (path_str) {
-				ast_string_field_set(updated, path, ast_str_buffer(path_str));
-			}
-			if (user_agent) {
-				ast_string_field_set(updated, user_agent, user_agent);
+			struct ast_sip_contact *contact_update;
+
+			contact_update = ast_sorcery_copy(ast_sip_get_sorcery(), contact);
+			if (!contact_update) {
+				ast_log(LOG_ERROR, "Failed to update contact '%s' expiration time to %d seconds.\n",
+					contact->uri, expiration);
+				continue;
 			}
 
-			ast_sip_location_update_contact(updated);
+			contact_update->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
+			contact_update->qualify_frequency = task_data->aor->qualify_frequency;
+			contact_update->authenticate_qualify = task_data->aor->authenticate_qualify;
+			if (path_str) {
+				ast_string_field_set(contact_update, path, ast_str_buffer(path_str));
+			}
+			if (user_agent) {
+				ast_string_field_set(contact_update, user_agent, user_agent);
+			}
+
+			ast_sip_location_update_contact(contact_update);
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
 				contact_uri, aor_name, expiration);
 			ast_test_suite_event_notify("AOR_CONTACT_REFRESHED",
@@ -540,7 +548,8 @@ static int rx_task(void *data)
 					contact_uri,
 					aor_name,
 					expiration,
-					updated->user_agent);
+					contact_update->user_agent);
+			ao2_cleanup(contact_update);
 		} else {
 			/* We want to report the user agent that was actually in the removed contact */
 			user_agent = ast_strdupa(contact->user_agent);
