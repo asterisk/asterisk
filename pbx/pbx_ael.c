@@ -161,7 +161,7 @@ static int pbx_load_module(void)
 	
 	struct pval *parse_tree;
 
-	ast_log(LOG_NOTICE, "Starting AEL load process.\n");
+	ast_debug(1, "Starting AEL load process.\n");
 	if (config[0] == '/')
 		rfilename = (char *)config;
 	else {
@@ -174,25 +174,25 @@ static int pbx_load_module(void)
 	}
 	
 	parse_tree = ael2_parse(rfilename, &errs);
-	ast_log(LOG_NOTICE, "AEL load process: parsed config file name '%s'.\n", rfilename);
+	ast_debug(1, "AEL load process: parsed config file name '%s'.\n", rfilename);
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
 	if (errs == 0 && sem_err == 0) {
-		ast_log(LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
+		ast_debug(1, "AEL load process: checked config file name '%s'.\n", rfilename);
 		local_table = ast_hashtab_create(11, ast_hashtab_compare_contexts, ast_hashtab_resize_java, ast_hashtab_newsize_java, ast_hashtab_hash_contexts, 0);
 		if (ast_compile_ael2(&local_contexts, local_table, parse_tree)) {
 			ast_log(LOG_ERROR, "AEL compile failed! Aborting.\n");
 			destroy_pval(parse_tree); /* free up the memory */
 			return AST_MODULE_LOAD_DECLINE;
 		}
-		ast_log(LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
+		ast_debug(1, "AEL load process: compiled config file name '%s'.\n", rfilename);
 		
 		ast_merge_contexts_and_delete(&local_contexts, local_table, registrar);
 		local_table = NULL; /* it's the dialplan global now */
 		local_contexts = NULL;
-		ast_log(LOG_NOTICE, "AEL load process: merged config file name '%s'.\n", rfilename);
+		ast_debug(1, "AEL load process: merged config file name '%s'.\n", rfilename);
 		for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
 			ast_context_verify_includes(con);
-		ast_log(LOG_NOTICE, "AEL load process: verified config file name '%s'.\n", rfilename);
+		ast_debug(1, "AEL load process: verified config file name '%s'.\n", rfilename);
 	} else {
 		ast_log(LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errs, sem_err);
 		destroy_pval(parse_tree); /* free up the memory */

@@ -142,10 +142,16 @@ aelbison.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res/ael -DYYENABLE_NLS=0
 pbx_ael.c: $(ASTTOPDIR)/pbx/pbx_ael.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
+	$(ECHO_PREFIX) echo "   [SED] $@"
+	$(CMD_PREFIX) sed 's/ast_debug([[:digit:]][[:digit:]]*/ast_log(LOG_DEBUG/' "$@" > "$@.new"
+	$(CMD_PREFIX) mv "$@.new" "$@"
 
 aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
+	$(ECHO_PREFIX) echo "   [SED] $@"
+	$(CMD_PREFIX) sed 's/ast_debug([[:digit:]][[:digit:]]*/ast_log(LOG_DEBUG/' "$@" > "$@.new"
+	$(CMD_PREFIX) mv "$@.new" "$@"
 
 aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
 aelparse: LIBS+=-lm
