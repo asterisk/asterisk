@@ -3458,7 +3458,7 @@ static void setup_filestack(char *fnamebuf2, int fnamebuf_siz, glob_t *globbuf, 
 				ast_log(LOG_ERROR, "fread() failed: %s\n", strerror(errno));
 			}			
 			buffer[stats.st_size] = 0;
-			ast_log(LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf2, (int)stats.st_size);
+			ast_debug(1, "  --Read in included file %s, %d chars\n",fnamebuf2, (int)stats.st_size);
 			fclose(in1);
 			if (include_stack[include_stack_index].fname) {
 			   	free(include_stack[include_stack_index].fname);
