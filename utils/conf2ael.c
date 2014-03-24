@@ -80,6 +80,12 @@ char ast_config_AST_SYSTEM_NAME[20] = ""; */
 int option_debug = 0;
 int option_verbose = 0;
 
+void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function);
+void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function)
+{
+	/*! \todo BUGBUG Put here only to allow utils to compile in AST_DEVMODE */
+}
+
 void ast_register_file_version(const char *file, const char *version);
 void ast_register_file_version(const char *file, const char *version)
 {

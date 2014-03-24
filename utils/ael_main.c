@@ -37,6 +37,12 @@ void ast_register_file_version(const char *file, const char *version) { }
 void ast_unregister_file_version(const char *file) { }
 #endif
 
+void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function);
+void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function)
+{
+	/*! \todo BUGBUG Put here only to allow utils to compile in AST_DEVMODE */
+}
+
 struct ast_flags ast_compat = { 7 };
 
 /*** MODULEINFO
