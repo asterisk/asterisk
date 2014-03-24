@@ -13819,7 +13819,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Init: %s", sip_methods[sipmethod].text);
 
-	d = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
+	if (ast_strlen_zero(p->fromdomain)) {
+		d = ast_sockaddr_stringify_host_remote(&p->ourip);
+	}
 	if (p->owner) {
 		connected_id = ast_channel_connected_effective_id(p->owner);
 
@@ -13869,6 +13871,12 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		n = p->fromname;
 	else /* Save for any further attempts */
 		ast_string_field_set(p, fromname, n);
+
+	/* Allow domain to be overridden */
+	if (!ast_strlen_zero(p->fromdomain))
+		d = p->fromdomain;
+	else /* Save for any further attempts */
+		ast_string_field_set(p, fromdomain, d);
 
 	ast_copy_string(tmp_l, l, sizeof(tmp_l));
 	if (sip_cfg.pedanticsipchecking) {
