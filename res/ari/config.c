@@ -290,11 +290,13 @@ static int process_config(int reload)
 		return -1;
 	}
 
-	if (ao2_container_count(conf->users) == 0) {
-		ast_log(LOG_ERROR, "No configured users for ARI\n");
+	if (conf->general->enabled) {
+		if (ao2_container_count(conf->users) == 0) {
+			ast_log(LOG_ERROR, "No configured users for ARI\n");
+		} else {
+			ao2_callback(conf->users, OBJ_NODATA, validate_user_cb, NULL);
+		}
 	}
-
-	ao2_callback(conf->users, OBJ_NODATA, validate_user_cb, NULL);
 
 	return 0;
 }
