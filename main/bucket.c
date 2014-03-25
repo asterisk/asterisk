@@ -933,7 +933,7 @@ int ast_bucket_init(void)
 		return -1;
 	}
 
-	if (ast_sorcery_apply_default(bucket_sorcery, "bucket", "bucket", NULL)) {
+	if (ast_sorcery_apply_default(bucket_sorcery, "bucket", "bucket", NULL) == AST_SORCERY_APPLY_FAIL) {
 		ast_log(LOG_ERROR, "Failed to apply intermediary for 'bucket' object type in Bucket sorcery\n");
 		return -1;
 	}
@@ -947,7 +947,7 @@ int ast_bucket_init(void)
 	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, created));
 	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, modified));
 
-	if (ast_sorcery_apply_default(bucket_sorcery, "file", "bucket_file", NULL)) {
+	if (ast_sorcery_apply_default(bucket_sorcery, "file", "bucket_file", NULL) == AST_SORCERY_APPLY_FAIL) {
 		ast_log(LOG_ERROR, "Failed to apply intermediary for 'file' object type in Bucket sorcery\n");
 		return -1;
 	}

@@ -39,7 +39,11 @@
  * object types to their respective wizards (object storage modules). If the developer would like
  * to allow the user to configure this using the sorcery.conf configuration file the
  * \ref ast_sorcery_apply_config API call can be used to read in the configuration file and apply the
- * mappings. If the storage of the object types are such that a default wizard can be used this can
+ * mappings. \ref ast_sorcery_open will automatically call \ref ast_sorcery_apply_config to allow
+ * for configuration of objects using the same category name as the module that is opening the
+ * sorcery instance. Direct calls to \ref ast_sorcery_apply_config should only be performed if a
+ * module wishes to allow for additional configuration sections in sorcery.conf to be used.
+ * If the storage of the object types are such that a default wizard can be used this can
  * be applied using the \ref ast_sorcery_apply_default API call. Note that the default mappings will not
  * override configured mappings. They are only used in the case where no configured mapping exists.
  *
@@ -322,6 +326,9 @@ int ast_sorcery_wizard_unregister(const struct ast_sorcery_wizard *interface);
  *
  * \param module The module name (AST_MODULE)
  *
+ * When called, this will automatically also call __ast_sorcery_apply_config()
+ * with the module name as the configuration section.
+ *
  * \retval non-NULL success
  * \retval NULL if allocation failed
  */
@@ -343,6 +350,19 @@ struct ast_sorcery *__ast_sorcery_open(const char *module);
  */
 struct ast_sorcery *ast_sorcery_retrieve_by_module_name(const char *module);
 
+enum ast_sorcery_apply_result {
+	/*! Sorcery wizard failed to apply. */
+	AST_SORCERY_APPLY_FAIL = -1,
+	/*! Sorcery wizard applied successfully. */
+	AST_SORCERY_APPLY_SUCCESS = 0,
+	/*! Sorcery wizard has already been applied to the object type. */
+	AST_SORCERY_APPLY_DUPLICATE = 1,
+	/*! Default sorcery wizard is unnecessary since a wizard has already been applied to the object type. */
+	AST_SORCERY_APPLY_DEFAULT_UNNECESSARY = 2,
+	/*! No sorcery.conf configuration file was found to apply. */
+	AST_SORCERY_APPLY_NO_CONFIGURATION = 3,
+};
+
 /*!
  * \brief Apply configured wizard mappings
  *
@@ -350,10 +370,17 @@ struct ast_sorcery *ast_sorcery_retrieve_by_module_name(const char *module);
  * \param name Name of the category to use within the configuration file, normally the module name
  * \param module The module name (AST_MODULE)
  *
- * \retval 0 success
- * \retval -1 failure
+ * This function is called automatically by __ast_sorcery_open() using the module name as the
+ * configuration category. The only reason you should call this function is if your module
+ * wishes to apply configuration from additional sections of sorcery.conf.
+ *
+ * If a configuration section attempts to apply the same sorcery wizard to an object type
+ * more than once, the wizard will only be applied one time.
+ *
+ * \return What happened when attempting to apply the config.
  */
-int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, const char *module);
+enum ast_sorcery_apply_result __ast_sorcery_apply_config(struct ast_sorcery *sorcery,
+		const char *name, const char *module);
 
 #define ast_sorcery_apply_config(sorcery, name) \
 	__ast_sorcery_apply_config((sorcery), (name), AST_MODULE)
@@ -367,14 +394,14 @@ int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, co
  * \param name Name of the wizard to use
  * \param data Data to be passed to wizard
  *
- * \retval 0 success
- * \retval -1 failure
+ * \return What occurred when applying the default
  *
  * \note This should be called *after* applying configuration sourced mappings
  *
  * \note Only a single default can exist per object type
  */
-int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, const char *module, const char *name, const char *data);
+enum ast_sorcery_apply_result __ast_sorcery_apply_default(struct ast_sorcery *sorcery,
+		const char *type, const char *module, const char *name, const char *data);
 
 #define ast_sorcery_apply_default(sorcery, type, name, data) \
 	__ast_sorcery_apply_default((sorcery), (type), AST_MODULE, (name), (data))
