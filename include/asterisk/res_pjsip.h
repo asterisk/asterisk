@@ -1262,13 +1262,13 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
  * they arrive.
  *
  * \param tdata The request to send
- * \param dlg Optional. If specified, the dialog on which the request should be sent
- * \param endpoint Optional. If specified, the request is sent out-of-dialog to the endpoint.
- * \param token Data to be passed to the callback upon receipt of response
- * \param callback Callback to be called upon receipt of response
+ * \param dlg Optional. The dialog in which the request is sent.  Otherwise it is out-of-dialog.
+ * \param endpoint Optional. If specified, the out-of-dialog request is sent to the endpoint.
+ * \param token Data to be passed to the callback upon receipt of out-of-dialog response.
+ * \param callback Callback to be called upon receipt of out-of-dialog response.
  *
  * \retval 0 Success
- * \retval -1 Failure
+ * \retval -1 Failure (out-of-dialog callback will not be called.)
  */
 int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
 	struct ast_sip_endpoint *endpoint, void *token,
