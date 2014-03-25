@@ -311,7 +311,6 @@ int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
 	}
 #endif /* DEBUG_THREADS */
 
-	ast_assert(res == 0);/*!< \todo BUGBUG Test to ensure that lock/unlock does not fail. */
 	return res;
 }
 
@@ -418,7 +417,6 @@ int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *fun
 			__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized and unable to initialize.\n",
 					 filename, lineno, func, mutex_name);
 		}
-		ast_assert(res == 0);/*!< \todo BUGBUG Test to ensure that lock/unlock does not fail. */
 		return res;
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
@@ -479,7 +477,6 @@ int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *fun
 	}
 #endif /* DEBUG_THREADS */
 
-	ast_assert(res == 0);/*!< \todo BUGBUG Test to ensure that lock/unlock does not fail. */
 	return res;
 }
 
