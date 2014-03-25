@@ -464,13 +464,14 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	const char *field;
 	pjsip_status_code code;
 	struct ast_sip_endpoint *endpt = ast_pjsip_rdata_get_endpoint(rdata);
+	const char *context = S_OR(endpt->message_context, endpt->context);
 
 	/* make sure there is an appropriate context and extension*/
-	if ((code = get_destination(rdata, endpt->context, buf)) != PJSIP_SC_OK) {
+	if ((code = get_destination(rdata, context, buf)) != PJSIP_SC_OK) {
 		return code;
 	}
 
-	CHECK_RES(ast_msg_set_context(msg, "%s", endpt->context));
+	CHECK_RES(ast_msg_set_context(msg, "%s", context));
 	CHECK_RES(ast_msg_set_exten(msg, "%s", buf));
 
 	/* to header */
