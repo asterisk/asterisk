@@ -1850,10 +1850,11 @@ static void send_request_cb(void *token, pjsip_event *e)
 	}
 	AST_RWLIST_UNLOCK(&supplements);
 
-	if ((tsx->status_code == 401 || tsx->status_code == 407) && req_data->endpoint) {
-		if (!ast_sip_create_request_with_auth(&req_data->endpoint->outbound_auths, challenge, tsx, &tdata)) {
-			pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, req_data->token, req_data->callback);
-		}
+	if ((tsx->status_code == 401 || tsx->status_code == 407)
+		&& req_data->endpoint
+		&& !ast_sip_create_request_with_auth(&req_data->endpoint->outbound_auths, challenge, tsx, &tdata)
+		&& pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, req_data->token, req_data->callback)
+			== PJ_SUCCESS) {
 		return;
 	}
 
@@ -1870,6 +1871,7 @@ static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpo
 	struct ast_sip_contact *contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
 
 	if (!req_data) {
+		pjsip_tx_data_dec_ref(tdata);
 		return -1;
 	}
 
@@ -1888,7 +1890,7 @@ static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpo
 		ast_log(LOG_ERROR, "Error attempting to send outbound %.*s request to endpoint %s\n",
 				(int) pj_strlen(&tdata->msg->line.req.method.name),
 				pj_strbuf(&tdata->msg->line.req.method.name),
-				ast_sorcery_object_get_id(endpoint));
+				endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
 		ao2_cleanup(req_data);
 		return -1;
 	}

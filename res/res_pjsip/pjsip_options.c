@@ -34,8 +34,6 @@
 #define DEFAULT_ENCODING "text/plain"
 #define QUALIFIED_BUCKETS 211
 
-static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_contact *contact);
-
 /*!
  * \internal
  * \brief Create a ast_sip_contact_status object.
@@ -152,12 +150,33 @@ static void init_start_time(const struct ast_sip_contact *contact)
 
 /*!
  * \internal
- * \brief For an endpoint try to match on a given contact.
+ * \brief Match a container contact object with the contact sorcery id looking for.
+ *
+ * \param obj pointer to the (user-defined part) of an object.
+ * \param arg callback argument from ao2_callback()
+ * \param flags flags from ao2_callback()
+ *
+ * \return Values are a combination of enum _cb_results.
+ */
+static int match_contact_id(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	const char *looking_for = arg;
+
+	return strcmp(ast_sorcery_object_get_id(contact), looking_for) ? 0 : CMP_MATCH;
+}
+
+/*!
+ * \internal
+ * \brief For an endpoint try to match the given contact sorcery id.
  */
 static int on_endpoint(void *obj, void *arg, int flags)
 {
 	struct ast_sip_endpoint *endpoint = obj;
-	char *aor_name, *aors;
+	struct ast_sip_contact *contact;
+	char *looking_for = arg;
+	char *aor_name;
+	char *aors;
 
 	if (!arg || ast_strlen_zero(endpoint->aors)) {
 		return 0;
@@ -174,7 +193,9 @@ static int on_endpoint(void *obj, void *arg, int flags)
 			continue;
 		}
 
-		if (ao2_find(contacts, arg, OBJ_NODATA | OBJ_POINTER)) {
+		contact = ao2_callback(contacts, 0, match_contact_id, looking_for);
+		if (contact) {
+			ao2_ref(contact,  -1);
 			return CMP_MATCH;
 		}
 	}
@@ -184,14 +205,14 @@ static int on_endpoint(void *obj, void *arg, int flags)
 
 /*!
  * \internal
- * \brief Find endpoints associated with the given contact.
+ * \brief Find an endpoint associated with the given contact.
  */
-static struct ao2_iterator *find_endpoints(struct ast_sip_contact *contact)
+static struct ast_sip_endpoint *find_an_endpoint(struct ast_sip_contact *contact)
 {
-	RAII_VAR(struct ao2_container *, endpoints,
-		 ast_sip_get_endpoints(), ao2_cleanup);
+	RAII_VAR(struct ao2_container *, endpoints, ast_sip_get_endpoints(), ao2_cleanup);
+	char *looking_for = (char *) ast_sorcery_object_get_id(contact);
 
-	return ao2_callback(endpoints, OBJ_MULTIPLE, on_endpoint, contact);
+	return ao2_callback(endpoints, 0, on_endpoint, looking_for);
 }
 
 /*!
@@ -200,7 +221,7 @@ static struct ao2_iterator *find_endpoints(struct ast_sip_contact *contact)
  */
 static void qualify_contact_cb(void *token, pjsip_event *e)
 {
-	RAII_VAR(struct ast_sip_contact *, contact, token, ao2_cleanup);
+	struct ast_sip_contact *contact = token;
 
 	switch(e->body.tsx_state.type) {
 	case PJSIP_EVENT_TRANSPORT_ERROR:
@@ -211,30 +232,34 @@ static void qualify_contact_cb(void *token, pjsip_event *e)
 		update_contact_status(contact, AVAILABLE);
 		break;
 	}
+	ao2_cleanup(contact);
 }
 
 /*!
  * \internal
  * \brief Attempt to qualify the contact
  *
- * \detail Sends a SIP OPTIONS request to the given contact in order to make
+ * \details Sends a SIP OPTIONS request to the given contact in order to make
  *         sure that contact is available.
  */
 static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_contact *contact)
 {
 	pjsip_tx_data *tdata;
-	RAII_VAR(struct ast_sip_endpoint *, endpoint_local, ao2_bump(endpoint), ao2_cleanup);
+	RAII_VAR(struct ast_sip_endpoint *, endpoint_local, NULL, ao2_cleanup);
 
-
-	if (!endpoint_local && contact->authenticate_qualify) {
-		struct ao2_iterator *endpoint_iterator = find_endpoints(contact);
-
-		/* try to find endpoints that are associated with the contact */
-		if (endpoint_iterator) {
-			/* find "first" endpoint in order to authenticate - actually any
-			   endpoint should do that matched on the contact */
-			endpoint_local = ao2_iterator_next(endpoint_iterator);
-			ao2_iterator_destroy(endpoint_iterator);
+	if (contact->authenticate_qualify) {
+		endpoint_local = ao2_bump(endpoint);
+		if (!endpoint_local) {
+			/*
+			 * Find the "first" endpoint to completely qualify the contact - any
+			 * endpoint that is associated with the contact should do.
+			 */
+			endpoint_local = find_an_endpoint(contact);
+			if (!endpoint_local) {
+				ast_log(LOG_ERROR, "Unable to find an endpoint to qualify contact %s\n",
+					contact->uri);
+				return -1;
+			}
 		}
 	}
 
@@ -256,11 +281,11 @@ static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_con
 	init_start_time(contact);
 
 	ao2_ref(contact, +1);
-	if (ast_sip_send_request(tdata, NULL, contact->authenticate_qualify ? endpoint_local : NULL, contact,
-		qualify_contact_cb) != PJ_SUCCESS) {
-		/* The callback will be called so we don't need to drop the contact ref*/
+	if (ast_sip_send_request(tdata, NULL, endpoint_local, contact, qualify_contact_cb)
+		!= PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Unable to send request to qualify contact %s\n",
 			contact->uri);
+		ao2_ref(contact, -1);
 		return -1;
 	}
 
@@ -793,6 +818,7 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 	struct ast_sip_aor *aor = arg;
 
 	contact->qualify_frequency = aor->qualify_frequency;
+	contact->authenticate_qualify = aor->authenticate_qualify;
 
 	qualify_and_schedule(contact);
 
@@ -803,7 +829,7 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
  * \internal
  * \brief Qualify and schedule an endpoint's contacts
  *
- * \detail For the given endpoint retrieve its list of aors, qualify all
+ * \details For the given endpoint retrieve its list of aors, qualify all
  *         contacts, and schedule for checks if configured.
  */
 static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
