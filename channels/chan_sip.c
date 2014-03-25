@@ -4632,8 +4632,20 @@ static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
 	const char *msg = NULL;
 	struct ast_channel *chan;
 	int res = 0;
+	int old_sched_id = pvt->provisional_keepalive_sched_id;
 
 	chan = sip_pvt_lock_full(pvt);
+	/* Check that nothing has changed while we were waiting for the lock */
+	if (old_sched_id != pvt->provisional_keepalive_sched_id) {
+		/* Keepalive has been cancelled or rescheduled, clean up and leave */
+		if (chan) {
+			ast_channel_unlock(chan);
+			chan = ast_channel_unref(chan);
+		}
+		sip_pvt_unlock(pvt);
+		dialog_unref(pvt, "dialog ref for provisional keepalive");
+		return 0;
+	}
 
 	if (!pvt->last_provisional || !strncasecmp(pvt->last_provisional, "100", 3)) {
 		msg = "183 Session Progress";
@@ -4659,20 +4671,9 @@ static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
 
 	sip_pvt_unlock(pvt);
 
-#if 0
-	/*
-	 * XXX BUG TODO
-	 *
-	 * Without this code, it appears as if this function is leaking its
-	 * reference to the sip_pvt.  However, adding it introduces a crash.
-	 * This points to some sort of reference count imbalance elsewhere,
-	 * but I'm not sure where ...
-	 */
 	if (!res) {
 		dialog_unref(pvt, "dialog ref for provisional keepalive");
 	}
-#endif
-
 	return res;
 }
 
