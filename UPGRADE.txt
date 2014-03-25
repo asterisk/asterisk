@@ -26,6 +26,9 @@ PJSIP:
    REGISTER requests for each contact that is registered. If using realtime for
    PJSIP contacts, this means that the schema has been updated to add a user_agent
    column. An alembic revision has been added to facilitate this update.
+ 
+ - PJSIP endpoints now have a "message_context" option that can be used to determine
+   where to route incoming MESSAGE requests from the endpoint.
 
 Realtime Configuration:
  - PJSIP endpoint columns 'tos_audio' and 'tos_video' have been changed from yes/no

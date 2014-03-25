@@ -685,6 +685,14 @@
 						multiple 'set_var'(s).
 					</para></description>
 				</configOption>
+				<configOption name="message_context">
+					<synopsis>Context to route incoming MESSAGE requests to.</synopsis>
+					<description><para>
+						If specified, incoming MESSAGE requests will be routed to the indicated
+						dialplan context. If no <replaceable>message_context</replaceable> is
+						specified, then the <replaceable>context</replaceable> setting is used.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

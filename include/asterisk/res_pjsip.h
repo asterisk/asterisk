@@ -562,6 +562,8 @@ struct ast_sip_endpoint {
 		AST_STRING_FIELD(fromuser);
 		/*! Domain to place in From header */
 		AST_STRING_FIELD(fromdomain);
+		/*! Context to route incoming MESSAGE requests to */
+		AST_STRING_FIELD(message_context);
 	);
 	/*! Configuration for extensions */
 	struct ast_sip_endpoint_extensions extensions;
