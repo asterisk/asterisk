@@ -1414,7 +1414,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;allow=g723.1                    ; Asterisk only supports g723.1 pass-thru!
 ;allow=g729                      ; Pass-thru only unless g729 license obtained
 ;callingpres=allowed_passed_screen ; Set caller ID presentation
-                                 ; See README.callingpres for more information
+                                 ; See function CALLERPRES documentation for possible
+                                 ; values.
 
 ;[xlite1]
 ; Turn off silence suppression in X-Lite ("Transmit Silence"=YES)!
