@@ -1,7 +1,7 @@
 """Fix tos and cos field types
 
 Revision ID: 4c573e7135bd
-Revises: 21e526ad3040
+Revises: 28887f25a46f
 Create Date: 2014-03-05 12:16:56.618630
 
 """
