@@ -202,6 +202,11 @@ static int speex_write(struct ast_channel *chan, const char *cmd, char *data, co
 	struct speex_direction_info **sdi = NULL;
 	int is_new = 0;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (strcasecmp(data, "rx") && strcasecmp(data, "tx")) {
 		ast_log(LOG_ERROR, "Invalid argument provided to the %s function\n", cmd);
 		return -1;

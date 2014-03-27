@@ -74,6 +74,11 @@ static int acf_cc_read(struct ast_channel *chan, const char *name, char *data,
 	struct ast_cc_config_params *cc_params;
 	int res;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", name);
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 	if (!(cc_params = ast_channel_get_cc_config_params(chan))) {
 		ast_channel_unlock(chan);
@@ -90,6 +95,11 @@ static int acf_cc_write(struct ast_channel *chan, const char *cmd, char *data,
 {
 	struct ast_cc_config_params *cc_params;
 	int res;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	ast_channel_lock(chan);
 	if (!(cc_params = ast_channel_get_cc_config_params(chan))) {

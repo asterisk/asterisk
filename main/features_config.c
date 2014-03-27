@@ -1535,7 +1535,7 @@ static int features_pre_apply_config(void)
 	return err;
 }
 
-static int feature_read(struct ast_channel *chan, const char *cmd, char *data,
+static int internal_feature_read(struct ast_channel *chan, const char *cmd, char *data,
 	       char *buf, size_t len)
 {
 	int res;
@@ -1566,7 +1566,7 @@ static int feature_read(struct ast_channel *chan, const char *cmd, char *data,
 	return res;
 }
 
-static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
+static int internal_feature_write(struct ast_channel *chan, const char *cmd, char *data,
 		const char *value)
 {
 	int res;
@@ -1596,7 +1596,7 @@ static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
 	return res;
 }
 
-static int featuremap_read(struct ast_channel *chan, const char *cmd, char *data,
+static int internal_featuremap_read(struct ast_channel *chan, const char *cmd, char *data,
 	       char *buf, size_t len)
 {
 	int res;
@@ -1611,7 +1611,7 @@ static int featuremap_read(struct ast_channel *chan, const char *cmd, char *data
 	return res;
 }
 
-static int featuremap_write(struct ast_channel *chan, const char *cmd, char *data,
+static int internal_featuremap_write(struct ast_channel *chan, const char *cmd, char *data,
 		const char *value)
 {
 	int res;
@@ -1629,6 +1629,50 @@ static int featuremap_write(struct ast_channel *chan, const char *cmd, char *dat
 	}
 
 	return 0;
+}
+
+static int feature_read(struct ast_channel *chan, const char *cmd, char *data,
+		char *buf, size_t len)
+{
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	return internal_feature_read(chan, cmd, data, buf, len);
+}
+
+static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
+		const char *value)
+{
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	return internal_feature_write(chan, cmd, data, value);
+}
+
+static int featuremap_read(struct ast_channel *chan, const char *cmd, char *data,
+		char *buf, size_t len)
+{
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	return internal_featuremap_read(chan, cmd, data, buf, len);
+}
+
+static int featuremap_write(struct ast_channel *chan, const char *cmd, char *data,
+		const char *value)
+{
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	return internal_featuremap_write(chan, cmd, data, value);
 }
 
 static struct ast_custom_function feature_function = {

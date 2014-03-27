@@ -682,7 +682,7 @@ static int read_pjsip(void *data)
 int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct pjsip_func_args func_args = { 0, };
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel;
 	char *parse = ast_strdupa(data);
 
 	AST_DECLARE_APP_ARGS(args,
@@ -690,6 +690,12 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 		AST_APP_ARG(type);
 		AST_APP_ARG(field);
 	);
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+	channel = ast_channel_tech_pvt(chan);
 
 	/* Check for zero arguments */
 	if (ast_strlen_zero(parse)) {
@@ -863,7 +869,14 @@ static int media_offer_write_av(void *obj)
 
 int pjsip_acf_media_offer_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	channel = ast_channel_tech_pvt(chan);
 
 	if (!strcmp(data, "audio")) {
 		return media_offer_read_av(channel->session, buf, len, AST_FORMAT_TYPE_AUDIO);
@@ -876,12 +889,18 @@ int pjsip_acf_media_offer_read(struct ast_channel *chan, const char *cmd, char *
 
 int pjsip_acf_media_offer_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-
+	struct ast_sip_channel_pvt *channel;
 	struct media_offer_data mdata = {
-		.session = channel->session,
 		.value = value
 	};
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	channel = ast_channel_tech_pvt(chan);
+	mdata.session = channel->session;
 
 	if (!strcmp(data, "audio")) {
 		mdata.media_type = AST_FORMAT_TYPE_AUDIO;

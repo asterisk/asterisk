@@ -871,6 +871,11 @@ static int msg_func_read(struct ast_channel *chan, const char *function,
 	struct ast_datastore *ds;
 	struct ast_msg *msg;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 
 	if (!(ds = ast_channel_datastore_find(chan, &msg_datastore, NULL))) {
@@ -906,6 +911,11 @@ static int msg_func_write(struct ast_channel *chan, const char *function,
 {
 	struct ast_datastore *ds;
 	struct ast_msg *msg;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
 
 	ast_channel_lock(chan);
 
@@ -963,6 +973,11 @@ static int msg_data_func_read(struct ast_channel *chan, const char *function,
 	struct ast_msg *msg;
 	const char *val;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 
 	if (!(ds = ast_channel_datastore_find(chan, &msg_datastore, NULL))) {
@@ -992,6 +1007,11 @@ static int msg_data_func_write(struct ast_channel *chan, const char *function,
 {
 	struct ast_datastore *ds;
 	struct ast_msg *msg;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
 
 	ast_channel_lock(chan);
 

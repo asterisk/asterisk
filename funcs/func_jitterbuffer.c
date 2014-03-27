@@ -85,6 +85,11 @@ static int jb_helper(struct ast_channel *chan, const char *cmd, char *data, cons
 {
 	struct ast_jb_conf jb_conf;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	/* Initialize and set jb_conf */
 	ast_jb_conf_default(&jb_conf);
 
