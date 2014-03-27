@@ -688,6 +688,8 @@ static void sorcery_object_wizard_destructor(void *obj)
 	if (object_wizard->wizard) {
 		ast_module_unref(object_wizard->wizard->module);
 	}
+
+	ao2_cleanup(object_wizard->wizard);
 }
 
 /*! \brief Internal function which creates an object type and adds a wizard mapping */
@@ -728,7 +730,7 @@ static enum ast_sorcery_apply_result sorcery_apply_wizard_mapping(struct ast_sor
 
 	ast_module_ref(wizard->module);
 
-	object_wizard->wizard = wizard;
+	object_wizard->wizard = ao2_bump(wizard);
 	object_wizard->caching = caching;
 
 	ao2_link(object_type->wizards, object_wizard);
