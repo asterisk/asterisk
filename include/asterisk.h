@@ -90,7 +90,7 @@ int ast_pbx_init(void);				/*!< Provided by pbx.c */
 int ast_register_atexit(void (*func)(void));
 
 /*!
- * \since 12
+ * \since 11.9
  * \brief Register a function to be executed before Asterisk gracefully exits.
  *
  * If Asterisk is immediately shutdown (core stop now, or sending the TERM
