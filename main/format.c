@@ -1128,7 +1128,7 @@ int ast_format_attr_init(void)
 	}
 
 	ast_cli_register_multiple(my_clis, ARRAY_LEN(my_clis));
-	ast_register_atexit(format_attr_shutdown);
+	ast_register_cleanup(format_attr_shutdown);
 	return 0;
 }
 

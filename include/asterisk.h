@@ -90,6 +90,22 @@ int ast_pbx_init(void);				/*!< Provided by pbx.c */
 int ast_register_atexit(void (*func)(void));
 
 /*!
+ * \since 11.9
+ * \brief Register a function to be executed before Asterisk gracefully exits.
+ *
+ * If Asterisk is immediately shutdown (core stop now, or sending the TERM
+ * signal), the callback is not run. When the callbacks are run, they are run in
+ * sequence with ast_register_atexit() callbacks, in the reverse order of
+ * registration.
+ *
+ * \param func The callback function to use.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_register_cleanup(void (*func)(void));
+
+/*!
  * \brief Unregister a function registered with ast_register_atexit().
  * \param func The callback function to unregister.
  */

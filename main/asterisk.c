@@ -228,6 +228,7 @@ struct console {
 
 struct ast_atexit {
 	void (*func)(void);
+	int is_cleanup;
 	AST_LIST_ENTRY(ast_atexit) list;
 };
 
@@ -970,13 +971,13 @@ static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct 
 
 #endif /* ! LOW_MEMORY */
 
-static void ast_run_atexits(void)
+static void ast_run_atexits(int run_cleanups)
 {
 	struct ast_atexit *ae;
 
 	AST_LIST_LOCK(&atexits);
 	while ((ae = AST_LIST_REMOVE_HEAD(&atexits, list))) {
-		if (ae->func) {
+		if (ae->func && (!ae->is_cleanup || run_cleanups)) {
 			ae->func();
 		}
 		ast_free(ae);
@@ -998,7 +999,7 @@ static void __ast_unregister_atexit(void (*func)(void))
 	AST_LIST_TRAVERSE_SAFE_END;
 }
 
-int ast_register_atexit(void (*func)(void))
+static int register_atexit(void (*func)(void), int is_cleanup)
 {
 	struct ast_atexit *ae;
 
@@ -1007,6 +1008,7 @@ int ast_register_atexit(void (*func)(void))
 		return -1;
 	}
 	ae->func = func;
+	ae->is_cleanup = is_cleanup;
 
 	AST_LIST_LOCK(&atexits);
 	__ast_unregister_atexit(func);
@@ -1014,6 +1016,16 @@ int ast_register_atexit(void (*func)(void))
 	AST_LIST_UNLOCK(&atexits);
 
 	return 0;
+}
+
+int ast_register_atexit(void (*func)(void))
+{
+	return register_atexit(func, 0);
+}
+
+int ast_register_cleanup(void (*func)(void))
+{
+	return register_atexit(func, 1);
 }
 
 void ast_unregister_atexit(void (*func)(void))
@@ -1802,8 +1814,9 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 static void really_quit(int num, shutdown_nice_t niceness, int restart)
 {
 	int active_channels;
+	int run_cleanups = niceness >= SHUTDOWN_NICE;
 
-	if (niceness >= SHUTDOWN_NICE) {
+	if (run_cleanups) {
 		ast_module_shutdown();
 	}
 
@@ -1861,7 +1874,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		active_channels ? "uncleanly" : "cleanly", num);
 
 	ast_verb(0, "Executing last minute cleanups\n");
-	ast_run_atexits();
+	ast_run_atexits(run_cleanups);
 
 	ast_debug(1, "Asterisk ending (%d).\n", num);
 	if (ast_socket > -1) {
