@@ -392,6 +392,11 @@ static int crement_function_read(struct ast_channel *chan, const char *cmd,
 		return -1;
 	}
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 
 	if (!(var = pbx_builtin_getvar_helper(chan, data))) {

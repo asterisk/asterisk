@@ -827,7 +827,7 @@ static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, ch
 
 	start = ast_tvnow();
 
-	if (ast_autoservice_start(chan) < 0) {
+	if (chan && ast_autoservice_start(chan) < 0) {
 		ast_log(LOG_WARNING, "Cannot start autoservice for channel %s\n", chan->name);
 		ASTOBJ_UNREF(client, ast_aji_client_destroy);
 		return -1;
@@ -899,7 +899,7 @@ static int acf_jabberreceive_read(struct ast_channel *chan, const char *name, ch
 	}
 
 	ASTOBJ_UNREF(client, ast_aji_client_destroy);
-	if (ast_autoservice_stop(chan) < 0) {
+	if (chan && ast_autoservice_stop(chan) < 0) {
 		ast_log(LOG_WARNING, "Cannot stop autoservice for channel %s\n", chan->name);
 	}
 

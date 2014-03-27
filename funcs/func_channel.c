@@ -338,6 +338,11 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 {
 	int ret = 0;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
+
 	if (!strcasecmp(data, "audionativeformat"))
 		/* use the _multiple version when chan->nativeformats holds multiple formats */
 		/* ast_getformatname_multiple(buf, len, chan->nativeformats & AST_FORMAT_AUDIO_MASK); */
@@ -580,6 +585,11 @@ static int func_channel_write(struct ast_channel *chan, const char *function, ch
 		.value = value,
 	};
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
+
 	res = func_channel_write_real(chan, function, data, value);
 	ast_channel_setoption(chan, AST_OPTION_CHANNEL_WRITE, &write_info, sizeof(write_info), 0);
 
@@ -653,8 +663,15 @@ static struct ast_custom_function channels_function = {
 static int func_mchan_read(struct ast_channel *chan, const char *function,
 			     char *data, struct ast_str **buf, ssize_t len)
 {
-	struct ast_channel *mchan = ast_channel_get_by_name(chan->linkedid);
+	struct ast_channel *mchan;
 	char *template = ast_alloca(4 + strlen(data));
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
+
+	mchan = ast_channel_get_by_name(chan->linkedid);
 	sprintf(template, "${%s}", data); /* SAFE */
 	ast_str_substitute_variables(buf, len, mchan ? mchan : chan, template);
 	if (mchan) {
@@ -666,7 +683,14 @@ static int func_mchan_read(struct ast_channel *chan, const char *function,
 static int func_mchan_write(struct ast_channel *chan, const char *function,
 			      char *data, const char *value)
 {
-	struct ast_channel *mchan = ast_channel_get_by_name(chan->linkedid);
+	struct ast_channel *mchan;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
+
+	mchan = ast_channel_get_by_name(chan->linkedid);
 	pbx_builtin_setvar_helper(mchan ? mchan : chan, data, value);
 	if (mchan) {
 		ast_channel_unref(mchan);

@@ -289,6 +289,11 @@ static int acf_isexten_exec(struct ast_channel *chan, const char *cmd, char *par
 		AST_APP_ARG(priority);
 	);
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.context))

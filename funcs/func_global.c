@@ -155,6 +155,9 @@ static int shared_read(struct ast_channel *chan, const char *cmd, char *data, ch
 			return -1;
 		}
 		chan = c_ref;
+	} else if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
 	}
 
 	ast_channel_lock(chan);
@@ -213,6 +216,9 @@ static int shared_write(struct ast_channel *chan, const char *cmd, char *data, c
 			return -1;
 		}
 		chan = c_ref;
+	} else if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
 	}
 
 	ast_channel_lock(chan);
