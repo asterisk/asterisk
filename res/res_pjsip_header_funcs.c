@@ -444,7 +444,7 @@ static int remove_header(void *obj)
 static int func_read_header(struct ast_channel *chan, const char *function, char *data,
 							char *buf, size_t len)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
 	struct header_data header_data;
 	int number;
 	AST_DECLARE_APP_ARGS(args,
@@ -503,7 +503,7 @@ static int func_read_header(struct ast_channel *chan, const char *function, char
 static int func_write_header(struct ast_channel *chan, const char *cmd, char *data,
 							 const char *value)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
+	struct ast_sip_channel_pvt *channel = chan ? ast_channel_tech_pvt(chan) : NULL;
 	struct header_data header_data;
 	int header_number;
 	AST_DECLARE_APP_ARGS(args,

@@ -441,6 +441,11 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
 	struct cdr_func_data output = { 0, };
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (!payload) {
 		return -1;
 	}
@@ -489,6 +494,11 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 	RAII_VAR(struct stasis_message_router *, router,
 		     ast_cdr_message_router(), ao2_cleanup);
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (!router) {
 		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: no message router\n",
 			ast_channel_name(chan));
@@ -521,6 +531,11 @@ static int cdr_prop_write(struct ast_channel *chan, const char *cmd, char *parse
 	RAII_VAR(struct cdr_func_payload *, payload,
 		ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
 	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	if (!router) {
 		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: no message router\n",

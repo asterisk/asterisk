@@ -1097,6 +1097,11 @@ static int hashkeys_read(struct ast_channel *chan, const char *cmd, char *data, 
 	struct ast_var_t *newvar;
 	struct ast_str *prefix = ast_str_alloca(80);
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	ast_str_set(&prefix, -1, HASH_PREFIX, data);
 	memset(buf, 0, len);
 
@@ -1118,6 +1123,11 @@ static int hashkeys_read2(struct ast_channel *chan, const char *cmd, char *data,
 	struct ast_var_t *newvar;
 	struct ast_str *prefix = ast_str_alloca(80);
 	char *tmp;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	ast_str_set(&prefix, -1, HASH_PREFIX, data);
 
@@ -1187,6 +1197,11 @@ static int hash_read(struct ast_channel *chan, const char *cmd, char *data, char
 		AST_DECLARE_APP_ARGS(arg2,
 			AST_APP_ARG(col)[100];
 		);
+
+		if (!chan) {
+			ast_log(LOG_WARNING, "No channel and only 1 parameter was provided to %s function.\n", cmd);
+			return -1;
+		}
 
 		/* Get column names, in no particular order */
 		hashkeys_read(chan, "HASHKEYS", arg.hashname, colnames, sizeof(colnames));

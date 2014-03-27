@@ -96,20 +96,23 @@ static int isexten_function_read(struct ast_channel *chan, const char *cmd, char
 		int priority_num;
 		if (sscanf(args.priority, "%30d", &priority_num) == 1 && priority_num > 0) {
 			int res;
-			res = ast_exists_extension(chan, args.context, args.exten, priority_num, 
+			res = ast_exists_extension(chan, args.context, args.exten, priority_num,
+				!chan ? NULL :
 				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
 			if (res)
 				strcpy(buf, "1");
 		} else {
 			int res;
 			res = ast_findlabel_extension(chan, args.context, args.exten, args.priority,
+				!chan ? NULL :
 				S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
 			if (res > 0)
 				strcpy(buf, "1");
 		}
 	} else if (!ast_strlen_zero(args.exten)) {
 		int res;
-		res = ast_exists_extension(chan, args.context, args.exten, 1, 
+		res = ast_exists_extension(chan, args.context, args.exten, 1,
+			!chan ? NULL :
 			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL));
 		if (res)
 			strcpy(buf, "1");
@@ -132,6 +135,11 @@ static int acf_isexten_exec(struct ast_channel *chan, const char *cmd, char *par
 		AST_APP_ARG(extension);
 		AST_APP_ARG(priority);
 	);
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

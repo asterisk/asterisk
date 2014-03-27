@@ -155,6 +155,11 @@ static int mute_channel(struct ast_channel *chan, const char *direction, int mut
 /*! \brief Mute dialplan function */
 static int func_mute_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	return mute_channel(chan, data, ast_true(value));
 }
 

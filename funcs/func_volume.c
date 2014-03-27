@@ -156,12 +156,17 @@ static int volume_write(struct ast_channel *chan, const char *cmd, char *data, c
 	int is_new = 0;
 
 	/* Separate options from argument */
-	
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(direction);
 		AST_APP_ARG(options);
 	);
-	
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	AST_STANDARD_APP_ARGS(args, data);
 
 	ast_channel_lock(chan);

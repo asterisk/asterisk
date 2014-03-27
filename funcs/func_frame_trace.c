@@ -157,6 +157,11 @@ static int frame_trace_helper(struct ast_channel *chan, const char *cmd, char *d
 	};
 	int i = 0;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (!(framedata = ast_calloc(1, sizeof(*framedata)))) {
 		return 0;
 	}
