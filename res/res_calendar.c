@@ -1673,6 +1673,11 @@ static int calendar_event_read(struct ast_channel *chan, const char *cmd, char *
 	struct ast_datastore *datastore;
 	struct ast_calendar_event *event;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument\n", cmd);
 		return -1;

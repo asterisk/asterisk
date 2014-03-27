@@ -235,6 +235,11 @@ static int func_mute_write(struct ast_channel *chan, const char *cmd, char *data
 	int is_new = 0;
 	int turnon;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 	if (!(datastore = ast_channel_datastore_find(chan, &mute_datastore, NULL))) {
 		if (!(datastore = initialize_mutehook(chan))) {

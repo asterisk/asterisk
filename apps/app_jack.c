@@ -951,6 +951,11 @@ static int jack_hook_write(struct ast_channel *chan, const char *cmd, char *data
 {
 	int res;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (!strcasecmp(value, "on"))
 		res = enable_jack_hook(chan, data);
 	else if (!strcasecmp(value, "off"))

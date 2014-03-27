@@ -900,6 +900,11 @@ static int callerpres_deprecate_notify;
  */
 static int callerpres_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (!callerpres_deprecate_notify) {
 		callerpres_deprecate_notify = 1;
 		ast_log(LOG_WARNING, "CALLERPRES is deprecated."
@@ -925,6 +930,11 @@ static int callerpres_read(struct ast_channel *chan, const char *cmd, char *data
 static int callerpres_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	int pres;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	if (!callerpres_deprecate_notify) {
 		callerpres_deprecate_notify = 1;

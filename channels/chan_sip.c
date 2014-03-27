@@ -21992,7 +21992,12 @@ static int func_header_read(struct ast_channel *chan, const char *function, char
 	);
 	int i, number, start = 0;
 
- 	if (ast_strlen_zero(data)) {
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", function);
+		return -1;
+	}
+
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "This function requires a header name.\n");
 		return -1;
 	}
@@ -22177,8 +22182,13 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 	static int deprecated = 0;
 
 	*buf = 0;
-	
- 	if (!data) {
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	if (!data) {
 		ast_log(LOG_WARNING, "This function requires a parameter name.\n");
 		return -1;
 	}

@@ -8913,6 +8913,11 @@ static int feature_read(struct ast_channel *chan, const char *cmd, char *data,
 {
 	int res = 0;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	if (!strcasecmp(data, "parkingtime")) {
 		snprintf(buf, len, "%u", get_parkingtime(chan, NULL) / 1000);
 	} else {
@@ -8928,6 +8933,11 @@ static int feature_write(struct ast_channel *chan, const char *cmd, char *data,
 {
 	int res = 0;
 	struct feature_ds *feature_ds;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	ast_channel_lock(chan);
 
@@ -8961,6 +8971,11 @@ static int featuremap_read(struct ast_channel *chan, const char *cmd, char *data
 {
 	int res;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	ast_rdlock_call_features();
 
 	if ((res = builtin_feature_get_exten(chan, data, buf, len))) {
@@ -8977,6 +8992,11 @@ static int featuremap_write(struct ast_channel *chan, const char *cmd, char *dat
 {
 	struct feature_ds *feature_ds;
 	struct feature_exten *fe;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	if (!ast_find_call_feature(data)) {
 		ast_log(LOG_WARNING, "Invalid argument '%s' to FEATUREMAP()\n", data);

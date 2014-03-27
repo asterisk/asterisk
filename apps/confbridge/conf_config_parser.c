@@ -354,6 +354,11 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 		AST_APP_ARG(option);
 	);
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	/* parse all the required arguments and make sure they exist. */
 	if (ast_strlen_zero(data)) {
 		return -1;

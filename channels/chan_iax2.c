@@ -10013,10 +10013,16 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 
 static int acf_iaxvar_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_datastore *variablestore = ast_channel_datastore_find(chan, &iax2_variable_datastore_info, NULL);
+	struct ast_datastore *variablestore;
 	AST_LIST_HEAD(, ast_var_t) *varlist;
 	struct ast_var_t *var;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	variablestore = ast_channel_datastore_find(chan, &iax2_variable_datastore_info, NULL);
 	if (!variablestore) {
 		*buf = '\0';
 		return 0;
@@ -10036,10 +10042,16 @@ static int acf_iaxvar_read(struct ast_channel *chan, const char *cmd, char *data
 
 static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct ast_datastore *variablestore = ast_channel_datastore_find(chan, &iax2_variable_datastore_info, NULL);
+	struct ast_datastore *variablestore;
 	AST_LIST_HEAD(, ast_var_t) *varlist;
 	struct ast_var_t *var;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	variablestore = ast_channel_datastore_find(chan, &iax2_variable_datastore_info, NULL);
 	if (!variablestore) {
 		variablestore = ast_datastore_alloc(&iax2_variable_datastore_info, NULL);
 		if (!variablestore) {
@@ -14307,8 +14319,9 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(peername,"CURRENTCHANNEL")) {
 	        unsigned short callno;
-		if (ast_channel_tech(chan) != &iax2_tech)
+		if (!chan || ast_channel_tech(chan) != &iax2_tech) {
 			return -1;
+		}
 		callno = PTR_TO_CALLNO(ast_channel_tech_pvt(chan));	
 		ast_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? ast_inet_ntoa(iaxs[callno]->addr.sin_addr) : "", len);
 		return 0;

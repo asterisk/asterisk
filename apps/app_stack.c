@@ -687,6 +687,11 @@ static int local_read(struct ast_channel *chan, const char *cmd, char *data, cha
 	struct gosub_stack_frame *frame;
 	struct ast_var_t *variables;
 
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
 	ast_channel_lock(chan);
 	if (!(stack_store = ast_channel_datastore_find(chan, &stack_info, NULL))) {
 		ast_channel_unlock(chan);
@@ -720,6 +725,11 @@ static int local_write(struct ast_channel *chan, const char *cmd, char *var, con
 	struct ast_datastore *stack_store;
 	struct gosub_stack_list *oldlist;
 	struct gosub_stack_frame *frame;
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
 
 	ast_channel_lock(chan);
 	if (!(stack_store = ast_channel_datastore_find(chan, &stack_info, NULL))) {
