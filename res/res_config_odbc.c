@@ -69,6 +69,12 @@ static void decode_chunk(char *chunk)
 	}
 }
 
+static inline int is_text(const struct odbc_cache_columns *column)
+{
+	return column->type == SQL_CHAR || column->type == SQL_VARCHAR || column->type == SQL_LONGVARCHAR
+		|| column->type == SQL_WCHAR || column->type == SQL_WVARCHAR || column->type == SQL_WLONGVARCHAR;
+}
+
 static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 {
 	int res, x = 1, count = 0;
@@ -484,15 +490,15 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	SQLHSTMT stmt;
 	char sql[256];
 	SQLLEN rowcount=0;
-	const char *newparam;
-	int res, count = 1;
+	const char *newparam, *newval;
+	int res, count = 0, paramcount = 0;
 	va_list aq;
 	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
 	struct odbc_cache_tables *tableptr;
 	struct odbc_cache_columns *column = NULL;
 	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
-	if (!table) {
+	if (!table || !keyfield) {
 		return -1;
 	}
 
@@ -507,39 +513,31 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 		return -1;
 	}
 
+	if (tableptr && !ast_odbc_find_column(tableptr, keyfield)) {
+		ast_log(LOG_WARNING, "Key field '%s' does not exist in table '%s@%s'.  Update will fail\n", keyfield, table, database);
+	}
+
 	va_copy(aq, ap);
-	newparam = va_arg(aq, const char *);
-	if (!newparam)  {
-		va_end(aq);
-		ast_odbc_release_obj(obj);
-		ast_odbc_release_table(tableptr);
-		ast_string_field_free_memory(&cps);
-		return -1;
-	}
-	va_arg(aq, const char *);
 
-	if (tableptr && !ast_odbc_find_column(tableptr, newparam)) {
-		ast_log(LOG_WARNING, "Key field '%s' does not exist in table '%s@%s'.  Update will fail\n", newparam, table, database);
-	}
-
-	snprintf(sql, sizeof(sql), "UPDATE %s SET %s=?", table, newparam);
+	snprintf(sql, sizeof(sql), "UPDATE %s SET ", table);
 	while((newparam = va_arg(aq, const char *))) {
-		va_arg(aq, const char *);
-		if ((tableptr && (column = ast_odbc_find_column(tableptr, newparam))) || count > 63) {
-			/* NULL test for integer-based columns */
-			if (ast_strlen_zero(newparam) && tableptr && column && column->nullable && count < 64 &&
-				(column->type == SQL_INTEGER || column->type == SQL_BIGINT ||
-				 column->type == SQL_SMALLINT || column->type == SQL_TINYINT ||
-				 column->type == SQL_NUMERIC || column->type == SQL_DECIMAL)) {
-				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=NULL", newparam);
+		newval = va_arg(aq, const char *);
+		if ((tableptr && (column = ast_odbc_find_column(tableptr, newparam))) || count >= 64) {
+			if (paramcount++) {
+				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", ");
+			}
+			/* NULL test for non-text columns */
+			if (count < 64 && ast_strlen_zero(newval) && column->nullable && !is_text(column) && !ast_odbc_allow_empty_string_in_nontext(obj)) {
+				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s=NULL", newparam);
 				cps.skip |= (1LL << count);
 			} else {
-				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
+				/* Value is not an empty string, or column accepts empty strings, or we couldn't fit any more into cps.skip (count >= 64 ?!). */
+				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s=?", newparam);
 			}
 		} else { /* the column does not exist in the table */
 			cps.skip |= (1LL << count);
 		}
-		count++;
+		++count;
 	}
 	va_end(aq);
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s=?", keyfield);
