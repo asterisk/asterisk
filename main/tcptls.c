@@ -625,12 +625,22 @@ error:
 void ast_tcptls_close_session_file(struct ast_tcptls_session_instance *tcptls_session)
 {
 	if (tcptls_session->f) {
+		/*
+		 * Issuing shutdown() is necessary here to avoid a race
+		 * condition where the last data written may not appear
+		 * in the TCP stream.  See ASTERISK-23548
+		*/
+		fflush(tcptls_session->f);
+		if (tcptls_session->fd != -1) {
+			shutdown(tcptls_session->fd, SHUT_RDWR);
+		}
 		if (fclose(tcptls_session->f)) {
 			ast_log(LOG_ERROR, "fclose() failed: %s\n", strerror(errno));
 		}
 		tcptls_session->f = NULL;
 		tcptls_session->fd = -1;
 	} else if (tcptls_session->fd != -1) {
+		shutdown(tcptls_session->fd, SHUT_RDWR);
 		if (close(tcptls_session->fd)) {
 			ast_log(LOG_ERROR, "close() failed: %s\n", strerror(errno));
 		}
