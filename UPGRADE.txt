@@ -21,16 +21,25 @@
 ===========================================================
 
 from 11.8 to 11.9
-* res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
+- res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
   Because of this the default settings would not load, so the minrate (minimum
   transmission rate) option was changed to default to 4800 since that is the
   minimum rate for v.27 which is included in the default modem options.
-* The sound_place_into_conference sound used in Confbridge is now deprecated
+
+- The sound_place_into_conference sound used in Confbridge is now deprecated
   and is no longer functional since it has been broken since its inception
   and the fix involved using a different method to achieve the same goal. The
   new method to achieve this functionality is by using sound_begin to play
   a sound to the conference when waitmarked users are moved into the conference.
-* A compatibility setting, allow_empty_string_in_nontext, has been added to
+
+- When communicating with a peer on an Asterisk 1.4 or earlier system, the
+  chan_iax2 parameter 'connectedline' must be set to "no" in iax.conf. This
+  prevents an incompatible connected line frame from an Astersik 1.8 or later
+  system from causing a hangup in an Asterisk 1.4 or earlier system. Note that
+  this particular incompatibility has always existed between 1.4 and 1.8 and
+  later versions; this upgrade note is simply informing users of its existance.
+
+- A compatibility setting, allow_empty_string_in_nontext, has been added to
   res_odbc.conf. When enabled (default behavior), empty column values are
   stored as empty strings during realtime updates. Disabling this option
   causes empty column values to be stored as NULLs for non-text columns.
@@ -40,7 +49,7 @@ from 11.8 to 11.9
   (sipppeers,sipregs)
 
 From 11.7 to 11.8:
-* The per console verbose level feature as previously implemented caused a
+- The per console verbose level feature as previously implemented caused a
   large performance penalty.  The fix required some minor incompatibilities
   if the new rasterisk is used to connect to an earlier version.  If the new
   rasterisk connects to an older Asterisk version then the root console verbose
