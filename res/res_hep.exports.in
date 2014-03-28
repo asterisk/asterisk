@@ -1,0 +1,7 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*hepv3_send_packet;
+		LINKER_SYMBOL_PREFIX*hepv3_create_capture_info;
+	local:
+		*;
+};

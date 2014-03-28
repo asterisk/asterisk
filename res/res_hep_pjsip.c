@@ -1,0 +1,144 @@
+/*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright (C) 1999 - 2014, Digium, Inc.
+ *
+ * Matt Jordan <mjordan@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*!
+ * \file
+ * \brief PJSIP logging with Homer
+ *
+ * \author Matt Jordan <mjordan@digium.com>
+ *
+ */
+
+/*** MODULEINFO
+	<depend>pjproject</depend>
+	<depend>res_pjsip</depend>
+	<depend>res_hep</depend>
+	<defaultenabled>no</defaultenabled>
+	<support_level>extended</support_level>
+ ***/
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include <pjsip.h>
+
+#include "asterisk/res_pjsip.h"
+#include "asterisk/res_hep.h"
+#include "asterisk/module.h"
+#include "asterisk/netsock2.h"
+
+static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
+{
+	char local_buf[256];
+	char remote_buf[256];
+	char *uuid;
+	struct hepv3_capture_info *capture_info;
+	pjsip_cid_hdr *cid_hdr;
+
+	capture_info = hepv3_create_capture_info(tdata->buf.start, (size_t)(tdata->buf.cur - tdata->buf.start));
+	if (!capture_info) {
+		return PJ_SUCCESS;
+	}
+
+	pj_sockaddr_print(&tdata->tp_info.transport->local_addr, local_buf, sizeof(local_buf), 3);
+	pj_sockaddr_print(&tdata->tp_info.dst_addr, remote_buf, sizeof(remote_buf), 3);
+
+	cid_hdr = PJSIP_MSG_CID_HDR(tdata->msg);
+	uuid = ast_malloc(pj_strlen(&cid_hdr->id) + 1);
+	if (!uuid) {
+		ao2_ref(capture_info, -1);
+		return PJ_SUCCESS;
+	}
+	ast_copy_pj_str(uuid, &cid_hdr->id, pj_strlen(&cid_hdr->id) + 1);
+
+	ast_sockaddr_parse(&capture_info->src_addr, local_buf, PARSE_PORT_REQUIRE);
+	ast_sockaddr_parse(&capture_info->dst_addr, remote_buf, PARSE_PORT_REQUIRE);
+
+	capture_info->capture_time = ast_tvnow();
+	capture_info->capture_type = HEPV3_CAPTURE_TYPE_SIP;
+	capture_info->uuid = uuid;
+	capture_info->zipped = 0;
+
+	hepv3_send_packet(capture_info);
+
+	return PJ_SUCCESS;
+}
+
+static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
+{
+	char local_buf[256];
+	char remote_buf[256];
+	char *uuid;
+	struct hepv3_capture_info *capture_info;
+
+	capture_info = hepv3_create_capture_info(&rdata->pkt_info.packet, rdata->pkt_info.len);
+	if (!capture_info) {
+		return PJ_SUCCESS;
+	}
+
+	pj_sockaddr_print(&rdata->tp_info.transport->local_addr, local_buf, sizeof(local_buf), 3);
+	pj_sockaddr_print(&rdata->pkt_info.src_addr, remote_buf, sizeof(remote_buf), 3);
+
+	uuid = ast_malloc(pj_strlen(&rdata->msg_info.cid->id) + 1);
+	if (!uuid) {
+		ao2_ref(capture_info, -1);
+		return PJ_SUCCESS;
+	}
+	ast_copy_pj_str(uuid, &rdata->msg_info.cid->id, pj_strlen(&rdata->msg_info.cid->id) + 1);
+
+	ast_sockaddr_parse(&capture_info->src_addr, remote_buf, PARSE_PORT_REQUIRE);
+	ast_sockaddr_parse(&capture_info->dst_addr, local_buf, PARSE_PORT_REQUIRE);
+	capture_info->capture_time.tv_sec = rdata->pkt_info.timestamp.sec;
+	capture_info->capture_time.tv_usec = rdata->pkt_info.timestamp.msec * 1000;
+	capture_info->capture_type = HEPV3_CAPTURE_TYPE_SIP;
+	capture_info->uuid = uuid;
+	capture_info->zipped = 0;
+
+	hepv3_send_packet(capture_info);
+
+	return PJ_FALSE;
+}
+
+static pjsip_module logging_module = {
+	.name = { "HEPv3 Logging Module", 20 },
+	.priority = 0,
+	.on_rx_request = logging_on_rx_msg,
+	.on_rx_response = logging_on_rx_msg,
+	.on_tx_request = logging_on_tx_msg,
+	.on_tx_response = logging_on_tx_msg,
+};
+
+
+static int load_module(void)
+{
+	ast_sip_register_service(&logging_module);
+	return AST_MODULE_LOAD_SUCCESS;
+}
+
+static int unload_module(void)
+{
+	ast_sip_unregister_service(&logging_module);
+	return 0;
+}
+
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP HEPv3 Logger",
+		.load = load_module,
+		.unload = unload_module,
+		.load_pri = AST_MODPRI_DEFAULT,
+	       );

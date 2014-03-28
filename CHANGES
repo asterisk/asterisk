@@ -51,6 +51,19 @@ RealTime
  * A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
 
+res_hep
+------------------
+ * A new module, res_hep, has been added, that acts as a generic packet
+   capture agent for the Homer Encapsulation Protocol (HEP) version 3.
+   It can be configured via hep.conf. Other modules can use res_hep to send
+   message traffic to a HEP capture server.
+
+res_hep_pjsip
+------------------
+ * A new module, res_hep_pjsip, has been added that will forward PJSIP
+   message traffic to a HEP capture server. See res_hep for more
+   information.
+
 res_pjsip
 ------------------
  * transport and endpoint ToS options (tos, tos_audio, and tos_video) may now
