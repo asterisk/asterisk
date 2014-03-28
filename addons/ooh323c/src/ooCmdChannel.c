@@ -172,11 +172,6 @@ int ooReadAndProcessStackCommand()
       if(cmd.type == OO_CMD_NOOP)
          continue;
 
-      if(gH323ep.gkClient && gH323ep.gkClient->state != GkClientRegistered && cmd.type != OO_CMD_STOPMONITOR)
-      {
-         OOTRACEINFO1("Ignoring stack command as Gk Client is not registered"
-                      " yet\n");
-      }
       else {
          switch(cmd.type) {
             case OO_CMD_MAKECALL: 
@@ -336,11 +331,6 @@ int ooReadAndProcessCallStackCommand(OOH323CallData* call)
       if(cmd.type == OO_CMD_NOOP)
          continue;
 
-      if(gH323ep.gkClient && gH323ep.gkClient->state != GkClientRegistered)
-      {
-         OOTRACEINFO1("Ignoring stack command as Gk Client is not registered"
-                      " yet\n");
-      }
       else {
          switch(cmd.type) {
             case OO_CMD_MAKECALL: 
