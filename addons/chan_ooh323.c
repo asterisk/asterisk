@@ -2205,6 +2205,10 @@ int onCallCleared(ooCallData *call)
 		ast_module_unref(myself);
 	}
 
+	if (!p->rtp) {
+		ast_cond_signal(&p->rtpcond);
+	}
+
 	ast_set_flag(p, H323_NEEDDESTROY);
 
    	ooh323c_stop_call_thread(call);
