@@ -444,7 +444,9 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	/* send content */
 	if (method != AST_HTTP_HEAD || status_code >= 400) {
 		if (out) {
-			fprintf(ser->f, "%s", ast_str_buffer(out));
+			if (fwrite(ast_str_buffer(out), content_length, 1, ser->f) != 1) {
+				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+			}
 		}
 
 		if (fd) {
@@ -466,8 +468,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		ast_free(out);
 	}
 
-	fclose(ser->f);
-	ser->f = 0;
+	ast_tcptls_close_session_file(ser);
 	return;
 }
 
