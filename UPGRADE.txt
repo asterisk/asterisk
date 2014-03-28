@@ -24,6 +24,13 @@ from 1.8.26.0 to 1.8.27.0:
   transmission rate) option was changed to default to 4800 since that is the
   minimum rate for v.27 which is included in the default modem options.
 
+* When communicating with a peer on an Asterisk 1.4 or earlier system, the
+  chan_iax2 parameter 'connectedline' must be set to "no" in iax.conf. This
+  prevents an incompatible connected line frame from an Astersik 1.8 or later
+  system from causing a hangup in an Asterisk 1.4 or earlier system. Note that
+  this particular incompatibility has always existed between 1.4 and 1.8 and
+  later versions; this upgrade note is simply informing users of its existance.
+
 * A compatibility setting, allow_empty_string_in_nontext, has been added to
   res_odbc.conf. When enabled (default behavior), empty column values are
   stored as empty strings during realtime updates. Disabling this option
