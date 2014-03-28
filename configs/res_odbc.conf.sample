@@ -64,6 +64,14 @@ pre-connect => yes
 ; MS SQL Server, the answer is no.
 ;backslash_is_escape => yes
 ;
+; When enabled (default behavior), empty column values are stored as empty strings
+; during realtime updates. Disabling this option causes empty column values to be
+; stored as NULLs for non-text columns.
+; Disable it for PostgreSQL backend in order to avoid errors caused by updating
+; integer columns with an empty string instead of NULL (sipppeers,sipregs)
+; NOTE: This option will be removed in asterisk 13. At that point, it will always behave as if it was set to 'no'.
+;allow_empty_string_in_nontext => yes
+;
 ; How long (in seconds) should we attempt to connect before considering the
 ; connection dead?  The default is 10 seconds, but you may wish to reduce it,
 ; to increase responsiveness.

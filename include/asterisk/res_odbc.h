@@ -221,4 +221,10 @@ int ast_odbc_clear_cache(const char *database, const char *tablename);
  */
 SQLRETURN ast_odbc_ast_str_SQLGetData(struct ast_str **buf, int pmaxlen, SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLLEN *StrLen_or_Ind);
 
+/*! \brief Checks if the database natively supports implicit conversion from an empty string to a number (0).
+ * \param obj The ODBC object
+ * \return Returns 1 if the implicit conversion is valid and non-text columns can take empty strings, 0 if the conversion is not valid and NULLs should be used instead '\'
+ */
+int ast_odbc_allow_empty_string_in_nontext(struct odbc_obj *obj);
+
 #endif /* _ASTERISK_RES_ODBC_H */

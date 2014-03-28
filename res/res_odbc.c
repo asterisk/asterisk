@@ -128,6 +128,7 @@ struct odbc_class
 	unsigned int delme:1;                /*!< Purge the class */
 	unsigned int backslash_is_escape:1;  /*!< On this database, the backslash is a native escape sequence */
 	unsigned int forcecommit:1;          /*!< Should uncommitted transactions be auto-committed on handle release? */
+	unsigned int allow_empty_strings:1;  /*!< Implicit conversion from an empty string to a number is valid for this database */
 	unsigned int isolation;              /*!< Flags for how the DB should deal with data in other, uncommitted transactions */
 	unsigned int limit;                  /*!< Maximum number of database handles we will allow */
 	int count;                           /*!< Running count of pooled connections */
@@ -772,7 +773,7 @@ static int load_odbc_config(void)
 	struct ast_variable *v;
 	char *cat;
 	const char *dsn, *username, *password, *sanitysql;
-	int enabled, pooling, limit, bse, conntimeout, forcecommit, isolation;
+	int enabled, pooling, limit, bse, conntimeout, forcecommit, isolation, allow_empty_strings;
 	struct timeval ncache = { 0, 0 };
 	unsigned int idlecheck;
 	int preconnect = 0, res = 0;
@@ -801,6 +802,7 @@ static int load_odbc_config(void)
 			bse = 1;
 			conntimeout = 10;
 			forcecommit = 0;
+			allow_empty_strings = 1;
 			isolation = SQL_TXN_READ_COMMITTED;
 			for (v = ast_variable_browse(config, cat); v; v = v->next) {
 				if (!strcasecmp(v->name, "pooling")) {
@@ -836,6 +838,8 @@ static int load_odbc_config(void)
 					sanitysql = v->value;
 				} else if (!strcasecmp(v->name, "backslash_is_escape")) {
 					bse = ast_true(v->value);
+				} else if (!strcasecmp(v->name, "allow_empty_string_in_nontext")) {
+					allow_empty_strings = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "connect_timeout")) {
 					if (sscanf(v->value, "%d", &conntimeout) != 1 || conntimeout < 1) {
 						ast_log(LOG_WARNING, "connect_timeout must be a positive integer\n");
@@ -897,6 +901,7 @@ static int load_odbc_config(void)
 				new->idlecheck = idlecheck;
 				new->conntimeout = conntimeout;
 				new->negative_connection_cache = ncache;
+				new->allow_empty_strings = allow_empty_strings ? 1 : 0;
 
 				if (cat)
 					ast_copy_string(new->name, cat, sizeof(new->name));
@@ -1112,6 +1117,11 @@ void ast_odbc_release_obj(struct odbc_obj *obj)
 int ast_odbc_backslash_is_escape(struct odbc_obj *obj)
 {
 	return obj->parent->backslash_is_escape;
+}
+
+int ast_odbc_allow_empty_string_in_nontext(struct odbc_obj *obj)
+{
+	return obj->parent->allow_empty_strings;
 }
 
 static int commit_exec(struct ast_channel *chan, const char *data)

@@ -19,6 +19,7 @@
 === UPGRADE-10.txt -- Upgrade info for 1.8 to 10
 ===
 ===========================================================
+
 from 11.8 to 11.9
 * res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
   Because of this the default settings would not load, so the minrate (minimum
@@ -29,6 +30,14 @@ from 11.8 to 11.9
   and the fix involved using a different method to achieve the same goal. The
   new method to achieve this functionality is by using sound_begin to play
   a sound to the conference when waitmarked users are moved into the conference.
+* A compatibility setting, allow_empty_string_in_nontext, has been added to
+  res_odbc.conf. When enabled (default behavior), empty column values are
+  stored as empty strings during realtime updates. Disabling this option
+  causes empty column values to be stored as NULLs for non-text columns.
+
+  Disable it for PostgreSQL backends in order to avoid errors caused by
+  updating integer columns with an empty string instead of NULL
+  (sipppeers,sipregs)
 
 From 11.7 to 11.8:
 * The per console verbose level feature as previously implemented caused a
