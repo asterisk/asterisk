@@ -136,6 +136,10 @@ Configuration Files:
  - The manager.conf 'eventfilter' now takes an "extended" regular expression
    instead of a "basic" one.
 
+ODBC:
+- The compatibility setting, allow_empty_string_in_nontext, has been removed.
+  Empty column values will be stored as empty strings during realtime updates.
+
 Realtime Configuration:
  - WARNING: The database migration script that adds the 'extensions' table for
    realtime had to be modified due to an error when installing for MySQL.  The
