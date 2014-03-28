@@ -30,6 +30,14 @@ PJSIP:
  - PJSIP endpoints now have a "message_context" option that can be used to determine
    where to route incoming MESSAGE requests from the endpoint.
 
+IAX2:
+ - When communicating with a peer on an Asterisk 1.4 or earlier system, the
+   chan_iax2 parameter 'connectedline' must be set to "no" in iax.conf. This
+   prevents an incompatible connected line frame from an Astersik 1.8 or later
+   system from causing a hangup in an Asterisk 1.4 or earlier system. Note that
+   this particular incompatibility has always existed between 1.4 and 1.8 and
+   later versions; this upgrade note is simply informing users of its existance.
+
 Realtime Configuration:
  - PJSIP endpoint columns 'tos_audio' and 'tos_video' have been changed from yes/no
    enumerators to string values. 'cos_audio' and 'cos_video' have been changed from
