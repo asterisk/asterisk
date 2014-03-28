@@ -2604,11 +2604,11 @@ int ooH323MakeCall(char *dest, char *callToken, ooCallOptions *opts)
    {
      if(gH323ep.gkClient->state == GkClientRegistered) {
        call->callState = OO_CALL_WAITING_ADMISSION;
+       ast_mutex_lock(&call->GkLock);
        ret = ooGkClientSendAdmissionRequest(gH323ep.gkClient, call, FALSE);
        tv = ast_tvnow();
        ts.tv_sec = tv.tv_sec + 24;
        ts.tv_nsec = tv.tv_usec * 1000;
-       ast_mutex_lock(&call->GkLock);
        if (call->callState == OO_CALL_WAITING_ADMISSION)
           ast_cond_timedwait(&call->gkWait, &call->GkLock, &ts);
        if (call->callState == OO_CALL_WAITING_ADMISSION)

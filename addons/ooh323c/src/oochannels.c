@@ -822,7 +822,8 @@ int ooMonitorChannels()
       if(OO_OK != ooGkClientStart(gH323ep.gkClient))
       {
          OOTRACEERR1("Error:Failed to start Gatekeeper client\n");
-         ooGkClientDestroy();
+	 // not need more, now it can be restarted correctly
+         // ooGkClientDestroy();
       }
    }
    

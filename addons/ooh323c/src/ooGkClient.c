@@ -210,7 +210,7 @@ int ooGkClientStart(ooGkClient *pGkClient)
    if(iRet != OO_OK)
    {
       OOTRACEERR1("Error:Failed to send GRQ message\n");
-      pGkClient->state = GkClientFailed;
+      pGkClient->state = GkClientGkErr;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
    }
@@ -433,7 +433,7 @@ int ooGkClientReceive(ooGkClient *pGkClient)
       if(iRet != OO_OK)
       {
          OOTRACEERR1("Error: Failed to handle received RAS message\n");
-         pGkClient->state = GkClientFailed;
+         pGkClient->state = GkClientGkErr;
       }
       memReset(pctxt);
    }
@@ -702,7 +702,7 @@ int ooGkClientSendGRQ(ooGkClient *pGkClient)
    {
       OOTRACEERR1("Error: Failed to send GRQ message\n");
       memReset(&pGkClient->msgCtxt);
-      pGkClient->state = GkClientFailed;
+      pGkClient->state = GkClientGkErr;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
    }
@@ -1530,7 +1530,7 @@ int ooGkClientSendURQ(ooGkClient *pGkClient, ooAliases *aliases)
    {
       OOTRACEERR1("Error:Failed to send UnregistrationRequest message\n");
       memReset(pctxt);
-      pGkClient->state = GkClientFailed;
+      pGkClient->state = GkClientGkErr;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
    }
@@ -1909,7 +1909,7 @@ int ooGkClientSendAdmissionRequest
    {
       OOTRACEERR1("Error:Failed to send AdmissionRequest message\n");
       memReset(pctxt);
-      pGkClient->state = GkClientFailed;
+      pGkClient->state = GkClientGkErr;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
    }
@@ -2423,7 +2423,7 @@ int ooGkClientSendIRR
    {
       OOTRACEERR1("Error:Failed to send IRR message\n");
       memReset(pctxt);
-      pGkClient->state = GkClientFailed;
+      pGkClient->state = GkClientGkErr;
       ast_mutex_unlock(&pGkClient->Lock);
       return OO_FAILED;
    }
@@ -2576,7 +2576,7 @@ int ooGkClientSendDisengageRequest(ooGkClient *pGkClient, OOH323CallData *call)
    if(iRet != OO_OK)
    {
       OOTRACEERR1("Error: Failed to send DRQ message\n");
-      pGkClient->state = GkClientFailed;
+      pGkClient->state = GkClientGkErr;
    }
    
 
@@ -2736,7 +2736,7 @@ int ooGkClientREGTimerExpired(void *pdata)
    if(ret != OO_OK)
    {
       OOTRACEERR1("Error:Failed to send Additive RRQ message\n");
-      pGkClient->state = GkClientFailed;
+      pGkClient->state = GkClientGkErr;
       return OO_FAILED;
    }
    return OO_OK;
