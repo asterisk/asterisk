@@ -133,10 +133,45 @@ AMI
    second channel when dialing LOCAL, or defaults to appending ;2 if only
    the single Id is given.
 
+RealTime
+------------------
+ * A new set of Alembic scripts has been added for CDR tables. This will create
+   a 'cdr' table with the default schema that Asterisk expects.
+
 res_pjsip
 ------------------
  * transport and endpoint ToS options (tos, tos_audio, and tos_video) may now
    be set as the named set of ToS values (cs0-cs7, af11-af43, ef).
+
+ * Added the following new CLI commands:
+   - "pjsip show contacts" - list all current PJSIP contacts.
+   - "pjsip show contact" - show specific information about a current PJSIP
+     contact.
+   - "pjsip show channel" - show detailed information about a PJSIP channel.
+
+res_pjsip_multihomed
+------------------
+ * A new module, res_pjsip_multihomed handles situations where the system
+   Asterisk is running out has multiple interfaces. res_pjsip_multihomed
+   determines which interface should be used during message sending.
+
+res_pjsip_pidf_digium_body_supplement
+------------------
+ * A new module, res_pjsip_pidf_digium_body_supplement provides NOTIFY
+   request body formatting for presence support in Digium phones.
+
+res_pjsip_send_to_voicemail
+------------------
+ * A new module, res_pjsip_send_to_voicemail allows for REFER requests with
+   particular headers to transfer a PJSIP channel directly to a particular
+   extension that has VoiceMail. This is intended to be used with Digium
+   phones that support this feature.
+
+res_pjsip_outbound_registration
+------------------
+ * A new CLI command has been added: "pjsip show registrations", which lists
+   all configured PJSIP registrations
+
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.0.0 to Asterisk 12.1.0 ------------
