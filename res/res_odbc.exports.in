@@ -2,6 +2,7 @@
 	global:
 		LINKER_SYMBOL_PREFIXast_odbc_ast_str_SQLGetData;
 		LINKER_SYMBOL_PREFIXast_odbc_backslash_is_escape;
+		LINKER_SYMBOL_PREFIXast_odbc_allow_empty_string_in_nontext;
 		LINKER_SYMBOL_PREFIXast_odbc_clear_cache;
 		LINKER_SYMBOL_PREFIXast_odbc_direct_execute;
 		LINKER_SYMBOL_PREFIXast_odbc_find_column;

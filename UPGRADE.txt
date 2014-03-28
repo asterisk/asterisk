@@ -21,6 +21,24 @@
 ===
 ===========================================================
 From 12.1.0 to 12.2.0:
+IAX2:
+ - When communicating with a peer on an Asterisk 1.4 or earlier system, the
+   chan_iax2 parameter 'connectedline' must be set to "no" in iax.conf. This
+   prevents an incompatible connected line frame from an Astersik 1.8 or later
+   system from causing a hangup in an Asterisk 1.4 or earlier system. Note that
+   this particular incompatibility has always existed between 1.4 and 1.8 and
+   later versions; this upgrade note is simply informing users of its existance.
+
+ODBC:
+- A compatibility setting, allow_empty_string_in_nontext, has been added to
+  res_odbc.conf. When enabled (default behavior), empty column values are
+  stored as empty strings during realtime updates. Disabling this option
+  causes empty column values to be stored as NULLs for non-text columns.
+
+  Disable it for PostgreSQL backends in order to avoid errors caused by
+  updating integer columns with an empty string instead of NULL
+  (sipppeers,sipregs)
+
 PJSIP:
  - The PJSIP registrar now stores the contents of the User-Agent header of incoming
    REGISTER requests for each contact that is registered. If using realtime for
@@ -30,14 +48,6 @@ PJSIP:
  - PJSIP endpoints now have a "message_context" option that can be used to determine
    where to route incoming MESSAGE requests from the endpoint.
 
-IAX2:
- - When communicating with a peer on an Asterisk 1.4 or earlier system, the
-   chan_iax2 parameter 'connectedline' must be set to "no" in iax.conf. This
-   prevents an incompatible connected line frame from an Astersik 1.8 or later
-   system from causing a hangup in an Asterisk 1.4 or earlier system. Note that
-   this particular incompatibility has always existed between 1.4 and 1.8 and
-   later versions; this upgrade note is simply informing users of its existance.
-
 Realtime Configuration:
  - PJSIP endpoint columns 'tos_audio' and 'tos_video' have been changed from yes/no
    enumerators to string values. 'cos_audio' and 'cos_video' have been changed from
@@ -46,7 +56,7 @@ Realtime Configuration:
    a yes/no enumerator to an integer value.
 
 From 12.0.0 to 12.1.0:
-* The sound_place_into_conference sound used in Confbridge is now deprecated
+- The sound_place_into_conference sound used in Confbridge is now deprecated
   and is no longer functional since it has been broken since its inception
   and the fix involved using a different method to achieve the same goal. The
   new method to achieve this functionality is by using sound_begin to play
