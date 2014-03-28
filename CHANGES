@@ -89,21 +89,11 @@ Debugging
    without configuration changes. These dynamic logger channels will only
    exist until the next restart of asterisk.
 
-------------------------------------------------------------------------------
---- Functionality changes from Asterisk 12.1.0 to Asterisk 12.2.0 ------------
-------------------------------------------------------------------------------
-
-ARI
-------------------
- * The live recording object on recording events now contains a target_uri
-   field which contains the URI of what is being recorded.
-
 Core
 ------------------
  * Exposed sorcery-based configuration files like pjsip.conf to dialplans via
    the new AST_SORCERY diaplan function.
 
-=======
 ARI
 ------------------
  * The live recording object on recording events now contains a target_uri
@@ -137,6 +127,19 @@ RealTime
 ------------------
  * A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
+
+res_hep
+------------------
+ * A new module, res_hep, has been added, that acts as a generic packet
+   capture agent for the Homer Encapsulation Protocol (HEP) version 3.
+   It can be configured via hep.conf. Other modules can use res_hep to send
+   message traffic to a HEP capture server.
+
+res_hep_pjsip
+------------------
+ * A new module, res_hep_pjsip, has been added that will forward PJSIP
+   message traffic to a HEP capture server. See res_hep for more
+   information.
 
 res_pjsip
 ------------------
