@@ -1129,7 +1129,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_autochans(tmp));
 
-	ast_channel_language_set(tmp, defaultlanguage);
+	ast_channel_language_set(tmp, ast_defaultlanguage);
 
 	ast_channel_tech_set(tmp, &null_tech);
 
