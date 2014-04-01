@@ -366,14 +366,9 @@ void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *pe
 static struct stasis_message *create_channel_blob_message(struct ast_channel_snapshot *snapshot,
 		struct stasis_message_type *type,
 		struct ast_json *blob)
-
 {
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel_blob *, obj, NULL, ao2_cleanup);
-
-	if (blob == NULL) {
-		blob = ast_json_null();
-	}
+	struct stasis_message *msg;
+	struct ast_channel_blob *obj;
 
 	obj = ao2_alloc(sizeof(*obj), channel_blob_dtor);
 	if (!obj) {
@@ -384,14 +379,13 @@ static struct stasis_message *create_channel_blob_message(struct ast_channel_sna
 		obj->snapshot = snapshot;
 		ao2_ref(obj->snapshot, +1);
 	}
+	if (!blob) {
+		blob = ast_json_null();
+	}
 	obj->blob = ast_json_ref(blob);
 
 	msg = stasis_message_create(type, obj);
-	if (!msg) {
-		return NULL;
-	}
-
-	ao2_ref(msg, +1);
+	ao2_cleanup(obj);
 	return msg;
 }
 
