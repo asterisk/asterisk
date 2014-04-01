@@ -221,13 +221,14 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 
 	if (swap) {
 		int use_ringing = 0;
-		ao2_lock(swap);
+
+		ast_bridge_channel_lock(swap);
 		pu = swap->bridge_pvt;
 		if (!pu) {
 			/* This should be impossible since the only way a channel can enter in the first place
 			 * is if it has a parked user associated with it */
 			publish_parked_call_failure(bridge_channel->chan);
-			ao2_unlock(swap);
+			ast_bridge_channel_unlock(swap);
 			return -1;
 		}
 
@@ -236,16 +237,15 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 		bridge_channel->bridge_pvt = pu;
 		swap->bridge_pvt = NULL;
 
-		/* TODO Add a parked call swap message type to relay information about parked channel swaps */
-
 		if (ast_bridge_channel_has_role(swap, "holding_participant")) {
 			const char *idle_mode = ast_bridge_channel_get_role_option(swap, "holding_participant", "idle_mode");
+
 			if (!ast_strlen_zero(idle_mode) && !strcmp(idle_mode, "ringing")) {
 				use_ringing = 1;
 			}
 		}
 
-		ao2_unlock(swap);
+		ast_bridge_channel_unlock(swap);
 
 		parking_set_duration(bridge_channel->features, pu);
 
@@ -278,6 +278,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 
 	if (parker == bridge_channel->chan) {
 		struct ast_channel *real_parker = ast_channel_get_by_name(blind_transfer);
+
 		if (real_parker) {
 			ao2_cleanup(parker);
 			parker = real_parker;
@@ -286,7 +287,6 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 
 	pu = generate_parked_user(self->lot, bridge_channel->chan, parker,
 		park_datastore->parker_dial_string, park_datastore->randomize, park_datastore->time_limit);
-
 	if (!pu) {
 		publish_parked_call_failure(bridge_channel->chan);
 		return -1;
@@ -294,8 +294,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 
 	/* If a comeback_override was provided, set it for the parked user's comeback string. */
 	if (park_datastore->comeback_override) {
-		strncpy(pu->comeback, park_datastore->comeback_override, sizeof(pu->comeback));
-		pu->comeback[sizeof(pu->comeback) - 1] = '\0';
+		ast_copy_string(pu->comeback, park_datastore->comeback_override, sizeof(pu->comeback));
 	}
 
 	/* Generate ParkedCall Stasis Message */
@@ -304,6 +303,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	/* If the parkee and the parker are the same and silence_announce isn't set, play the announcement to the parkee */
 	if (!strcmp(blind_transfer, ast_channel_name(bridge_channel->chan)) && !park_datastore->silence_announce) {
 		char saynum_buf[16];
+
 		snprintf(saynum_buf, sizeof(saynum_buf), "%u %u", 0, pu->parking_space);
 		ast_bridge_channel_queue_playfile(bridge_channel, say_parking_space, saynum_buf, NULL);
 	}
@@ -339,6 +339,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 static void bridge_parking_pull(struct ast_bridge_parking *self, struct ast_bridge_channel *bridge_channel)
 {
 	RAII_VAR(struct parked_user *, pu, NULL, ao2_cleanup);
+
 	ast_bridge_base_v_table.pull(&self->base, bridge_channel);
 
 	/* Take over the bridge channel's pu reference. It will be released when we are done. */
