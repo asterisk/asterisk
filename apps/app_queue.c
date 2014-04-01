@@ -7936,7 +7936,7 @@ static void reload_single_member(const char *memberdata, struct call_queue *q)
 static int mark_member_dead(void *obj, void *arg, int flags)
 {
 	struct member *member = obj;
-	if (!member->dynamic) {
+	if (!member->dynamic && !member->realtime) {
 		member->delme = 1;
 	}
 	return 0;
