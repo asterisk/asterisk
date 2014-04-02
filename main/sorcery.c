@@ -580,6 +580,14 @@ struct ast_sorcery *__ast_sorcery_open(const char *module_name)
 	}
 
 	strcpy(sorcery->module_name, module_name); /* Safe */
+
+	if (__ast_sorcery_apply_config(sorcery, module_name, module_name) == AST_SORCERY_APPLY_FAIL) {
+		ast_log(LOG_ERROR, "Error attempting to apply configuration %s to sorcery.\n", module_name);
+		ao2_cleanup(sorcery);
+		sorcery = NULL;
+		goto done;
+	}
+
 	ao2_link_flags(instances, sorcery, OBJ_NOLOCK);
 
 done:
@@ -623,7 +631,7 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 	}
 
 	/* Order matters for object wizards */
-	if (!(object_type->wizards = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) {
+	if (!(object_type->wizards = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, sorcery_wizard_cmp))) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
@@ -685,7 +693,8 @@ static void sorcery_object_wizard_destructor(void *obj)
 }
 
 /*! \brief Internal function which creates an object type and adds a wizard mapping */
-static int sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery, const char *type, const char *module, const char *name, const char *data, unsigned int caching)
+static enum ast_sorcery_apply_result sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery,
+		const char *type, const char *module, const char *name, const char *data, unsigned int caching)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_wizard *, wizard, ao2_find(wizards, name, OBJ_KEY), ao2_cleanup);
@@ -693,18 +702,30 @@ static int sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery, const char 
 	int created = 0;
 
 	if (!wizard || !object_wizard) {
-		return -1;
+		return AST_SORCERY_APPLY_FAIL;
 	}
 
 	if (!object_type) {
 		if (!(object_type = sorcery_object_type_alloc(type, module))) {
-			return -1;
+			return AST_SORCERY_APPLY_FAIL;
 		}
 		created = 1;
 	}
 
+	if (!created) {
+		struct ast_sorcery_wizard *found;
+
+		found = ao2_find(object_type->wizards, wizard, OBJ_SEARCH_OBJECT);
+		if (found) {
+			ast_debug(1, "Wizard %s already applied to object type %s\n",
+					wizard->name, object_type->name);
+			ao2_cleanup(found);
+			return AST_SORCERY_APPLY_DUPLICATE;
+		}
+	}
+
 	if (wizard->open && !(object_wizard->data = wizard->open(data))) {
-		return -1;
+		return AST_SORCERY_APPLY_FAIL;
 	}
 
 	ast_module_ref(wizard->module);
@@ -718,18 +739,22 @@ static int sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery, const char 
 		ao2_link(sorcery->types, object_type);
 	}
 
-	return 0;
+	return AST_SORCERY_APPLY_SUCCESS;
 }
 
-int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, const char *module)
+enum ast_sorcery_apply_result  __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, const char *module)
 {
 	struct ast_flags flags = { 0 };
 	struct ast_config *config = ast_config_load2("sorcery.conf", "sorcery", flags);
 	struct ast_variable *mapping;
-	int res = 0;
+	int res = AST_SORCERY_APPLY_SUCCESS;
 
-	if (!config || config == CONFIG_STATUS_FILEINVALID) {
-		return -1;
+	if (!config) {
+		return AST_SORCERY_APPLY_NO_CONFIGURATION;
+	}
+
+	if (config == CONFIG_STATUS_FILEINVALID) {
+		return AST_SORCERY_APPLY_FAIL;
 	}
 
 	for (mapping = ast_variable_browse(config, name); mapping; mapping = mapping->next) {
@@ -752,8 +777,8 @@ int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, co
 		}
 
 		/* Any error immediately causes us to stop */
-		if (sorcery_apply_wizard_mapping(sorcery, type, module, wizard, data, caching)) {
-			res = -1;
+		if (sorcery_apply_wizard_mapping(sorcery, type, module, wizard, data, caching) == AST_SORCERY_APPLY_FAIL) {
+			res = AST_SORCERY_APPLY_FAIL;
 			break;
 		}
 	}
@@ -763,13 +788,13 @@ int __ast_sorcery_apply_config(struct ast_sorcery *sorcery, const char *name, co
 	return res;
 }
 
-int __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, const char *module, const char *name, const char *data)
+enum ast_sorcery_apply_result __ast_sorcery_apply_default(struct ast_sorcery *sorcery, const char *type, const char *module, const char *name, const char *data)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 
 	/* Defaults can not be added if any existing mapping exists */
 	if (object_type) {
-		return -1;
+		return AST_SORCERY_APPLY_DEFAULT_UNNECESSARY;
 	}
 
 	return sorcery_apply_wizard_mapping(sorcery, type, module, name, data, 0);

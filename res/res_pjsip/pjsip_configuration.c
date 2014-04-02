@@ -1619,8 +1619,6 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 		return -1;
 	}
 
-	ast_sorcery_apply_config(sip_sorcery, "res_pjsip");
-
 	ast_sip_initialize_cli();
 
 	if (ast_sip_initialize_sorcery_auth()) {
