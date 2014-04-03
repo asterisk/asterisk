@@ -532,7 +532,7 @@ int hepv3_send_packet(struct hepv3_capture_info *capture_info)
 	RAII_VAR(struct module_config *, config, ao2_global_obj_ref(global_config), ao2_cleanup);
 	int res;
 
-	if (!config->general->enabled) {
+	if (!config || !config->general->enabled) {
 		return 0;
 	}
 
