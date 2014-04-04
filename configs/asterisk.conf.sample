@@ -28,7 +28,6 @@ astsbindir => /usr/sbin
 ;dontwarn = yes			; Disable some warnings.
 ;dumpcore = yes			; Dump core on crash (same as -g at startup).
 ;languageprefix = yes		; Use the new sound prefix path syntax.
-;internal_timing = yes
 ;systemname = my_system_name	; Prefix uniqueid with a system name for
 				; Global uniqueness issues.
 ;autosystemname = yes		; Automatically set systemname to hostname,
