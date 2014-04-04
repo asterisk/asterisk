@@ -20,6 +20,10 @@
 ===
 ===========================================================
 
+from 11.9 to 11.10
+ - The asterisk command line -I option and the asterisk.conf internal_timing
+   option are removed and always enabled if any timing module is loaded.
+
 from 11.8 to 11.9
 - res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
   Because of this the default settings would not load, so the minrate (minimum
