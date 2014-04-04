@@ -416,7 +416,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 
 	/* calc content length */
 	if (out) {
-		content_length += strlen(ast_str_buffer(out));
+		content_length += ast_str_strlen(out);
 	}
 
 	if (fd) {
@@ -443,7 +443,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 
 	/* send content */
 	if (method != AST_HTTP_HEAD || status_code >= 400) {
-		if (out) {
+		if (content_length) {
 			if (fwrite(ast_str_buffer(out), content_length, 1, ser->f) != 1) {
 				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
 			}
