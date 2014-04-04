@@ -884,9 +884,8 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_channel_stage_snapshot(tmp);
 
 	if (!(nativeformats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_CACHE_STRINGS))) {
-		ao2_ref(tmp, -1);
 		/* format capabilities structure allocation failure */
-		return NULL;
+		return ast_channel_unref(tmp);
 	}
 	ast_channel_nativeformats_set(tmp, nativeformats);
 
@@ -2263,10 +2262,16 @@ static void ast_channel_destructor(void *obj)
 
 	/* Things that may possibly raise Stasis messages shouldn't occur after this point */
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEAD);
-	ast_channel_lock(chan);
-	ast_channel_publish_snapshot(chan);
-	ast_channel_unlock(chan);
-	publish_cache_clear(chan);
+
+	if (ast_channel_internal_is_finalized(chan)) {
+		/* A channel snapshot should not be in the process of being staged now. */
+		ast_assert(!ast_test_flag(ast_channel_flags(chan), AST_FLAG_SNAPSHOT_STAGE));
+
+		ast_channel_lock(chan);
+		ast_channel_publish_snapshot(chan);
+		ast_channel_unlock(chan);
+		publish_cache_clear(chan);
+	}
 
 	ast_channel_lock(chan);
 
