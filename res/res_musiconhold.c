@@ -280,6 +280,9 @@ static void moh_post_start(struct ast_channel *chan, const char *moh_class_name)
 	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
 		ast_channel_moh_start_type(), json_object);
 	if (message) {
+		/* A channel snapshot must have been in the cache. */
+		ast_assert(((struct ast_channel_blob *) stasis_message_data(message))->snapshot != NULL);
+
 		stasis_publish(ast_channel_topic(chan), message);
 	}
 	ao2_cleanup(message);
@@ -295,6 +298,9 @@ static void moh_post_stop(struct ast_channel *chan)
 	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan),
 		ast_channel_moh_stop_type(), NULL);
 	if (message) {
+		/* A channel snapshot must have been in the cache. */
+		ast_assert(((struct ast_channel_blob *) stasis_message_data(message))->snapshot != NULL);
+
 		stasis_publish(ast_channel_topic(chan), message);
 	}
 	ao2_cleanup(message);

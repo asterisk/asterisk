@@ -343,10 +343,17 @@ struct stasis_message *stasis_cache_entry_get_remote(struct stasis_cache_entry *
 static struct stasis_cache_entry *cache_find(struct ao2_container *entries, struct stasis_message_type *type, const char *id)
 {
 	struct cache_entry_key search_key;
+	struct stasis_cache_entry *entry;
 
 	search_key.type = type;
 	search_key.id = id;
-	return ao2_find(entries, &search_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	entry = ao2_find(entries, &search_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+
+	/* Ensure that what we looked for is what we found. */
+	ast_assert(!entry
+		|| (!strcmp(stasis_message_type_name(entry->key.type),
+			stasis_message_type_name(type)) && !strcmp(entry->key.id, id)));
+	return entry;
 }
 
 /*!

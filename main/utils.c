@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sha1.h"
 #include "asterisk/cli.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/astobj2.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "asterisk/strings.h"
@@ -2523,6 +2524,10 @@ void __ast_assert_failed(int condition, const char *condition_str, const char *f
 		condition_str, condition);
 	fprintf(stderr, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
 		condition_str, condition, line, function, file);
+
+	/* Generate a backtrace for the assert */
+	ao2_bt();
+
 	/*
 	 * Give the logger a chance to get the message out, just in case
 	 * we abort(), or Asterisk crashes due to whatever problem just
