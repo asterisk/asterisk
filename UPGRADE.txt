@@ -23,14 +23,17 @@
 
 From 12 to 13:
 
-- The per console verbose level feature as previously implemented caused a
-  large performance penalty.  The fix required some minor incompatibilities
-  if the new rasterisk is used to connect to an earlier version.  If the new
-  rasterisk connects to an older Asterisk version then the root console verbose
-  level is always affected by the "core set verbose" command of the remote
-  console even though it may appear to only affect the current console.  If
-  an older version of rasterisk connects to the new version then the
-  "core set verbose" command will have no effect.
+ - The asterisk command line -I option and the asterisk.conf internal_timing
+   option are removed and always enabled if any timing module is loaded.
+
+ - The per console verbose level feature as previously implemented caused a
+   large performance penalty.  The fix required some minor incompatibilities
+   if the new rasterisk is used to connect to an earlier version.  If the new
+   rasterisk connects to an older Asterisk version then the root console verbose
+   level is always affected by the "core set verbose" command of the remote
+   console even though it may appear to only affect the current console.  If
+   an older version of rasterisk connects to the new version then the
+   "core set verbose" command will have no effect.
 
 ARI:
  - The ARI version has been changed from 1.0.0 to 1.1.0. This is to reflect
