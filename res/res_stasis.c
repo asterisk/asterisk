@@ -777,7 +777,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		RAII_VAR(struct ast_frame *, f, NULL, ast_frame_dtor);
 		int r;
 		int command_count;
-		struct ast_bridge *last_bridge;
+		RAII_VAR(struct ast_bridge *, last_bridge, NULL, ao2_cleanup);
 
 		/* Check to see if a bridge absorbed our hangup frame */
 		if (ast_check_hangup_locked(chan)) {
@@ -785,7 +785,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		}
 
 		last_bridge = bridge;
-		bridge = stasis_app_get_bridge(control);
+		bridge = ao2_bump(stasis_app_get_bridge(control));
 
 		if (bridge != last_bridge) {
 			app_unsubscribe_bridge(app, last_bridge);
@@ -839,6 +839,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 	app_unsubscribe_bridge(app, stasis_app_get_bridge(control));
 	app_unsubscribe_channel(app, chan);
+	ao2_cleanup(bridge);
 
 	res = send_end_msg(app, chan);
 	if (res != 0) {
