@@ -71,7 +71,7 @@ ODBC:
 
   Disable it for PostgreSQL backends in order to avoid errors caused by
   updating integer columns with an empty string instead of NULL
-  (sipppeers,sipregs)
+  (sippeers, sipregs, ..).
 
 PJSIP:
  - The PJSIP registrar now stores the contents of the User-Agent header of
