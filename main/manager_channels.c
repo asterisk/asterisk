@@ -530,8 +530,8 @@ static struct ast_manager_event_blob *channel_newexten(
 		return NULL;
 	}
 
-	if (old_snapshot && ast_channel_snapshot_cep_equal(old_snapshot, new_snapshot)
-		&& !strcmp(old_snapshot->appl, new_snapshot->appl)) {
+	/* Ignore updates if the CEP is unchanged */
+	if (old_snapshot && ast_channel_snapshot_cep_equal(old_snapshot, new_snapshot)) {
 		return NULL;
 	}
 
