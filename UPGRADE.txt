@@ -50,7 +50,7 @@ from 11.8 to 11.9
 
   Disable it for PostgreSQL backends in order to avoid errors caused by
   updating integer columns with an empty string instead of NULL
-  (sipppeers,sipregs)
+  (sippeers, sipregs, ..).
 
 From 11.7 to 11.8:
 - The per console verbose level feature as previously implemented caused a
