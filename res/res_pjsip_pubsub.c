@@ -466,16 +466,21 @@ pjsip_dialog *ast_sip_subscription_get_dlg(struct ast_sip_subscription *sub)
 int ast_sip_subscription_send_request(struct ast_sip_subscription *sub, pjsip_tx_data *tdata)
 {
 	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sub);
+	int res;
+
+	ao2_ref(sub, +1);
+	res = pjsip_evsub_send_request(ast_sip_subscription_get_evsub(sub),
+			tdata) == PJ_SUCCESS ? 0 : -1;
 
 	ast_test_suite_event_notify("SUBSCRIPTION_STATE_SET",
 		"StateText: %s\r\n"
 		"Endpoint: %s\r\n",
 		pjsip_evsub_get_state_name(ast_sip_subscription_get_evsub(sub)),
 		ast_sorcery_object_get_id(endpoint));
+	ao2_cleanup(sub);
 	ao2_cleanup(endpoint);
 
-	return pjsip_evsub_send_request(ast_sip_subscription_get_evsub(sub),
-			tdata) == PJ_SUCCESS ? 0 : -1;
+	return res;
 }
 
 static void subscription_datastore_destroy(void *obj)
