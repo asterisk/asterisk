@@ -4332,7 +4332,7 @@ static void record_abandoned(struct queue_ent *qe)
 
 	set_queue_variables(qe->parent, qe->chan);
 	ao2_lock(qe->parent);
-	blob = ast_json_pack("{s: s, s: i, s: i}",
+	blob = ast_json_pack("{s: s, s: i, s: i, s: i}",
 			     "Queue", qe->parent->name,
 			     "Position", qe->pos,
 			     "OriginalPosition", qe->opos,
