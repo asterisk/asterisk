@@ -3400,6 +3400,13 @@ static void ast_readconfig(void)
 		/* Transmit SLINEAR silence while a channel is being recorded or DTMF is being generated on a channel */
 		} else if (!strcasecmp(v->name, "transmit_silence_during_record") || !strcasecmp(v->name, "transmit_silence")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSMIT_SILENCE);
+		/* Enable internal timing */
+		} else if (!strcasecmp(v->name, "internal_timing")) {
+			if (!ast_opt_remote) {
+				fprintf(stderr,
+					"NOTICE: The internal_timing option is no longer needed.\n"
+					"  It will always be enabled if you have a timing module loaded.\n");
+			}
 		} else if (!strcasecmp(v->name, "mindtmfduration")) {
 			if (sscanf(v->value, "%30u", &option_dtmfminduration) != 1) {
 				option_dtmfminduration = AST_MIN_DTMF_DURATION;
@@ -3725,6 +3732,11 @@ int main(int argc, char *argv[])
 		case 'h':
 			show_cli_help();
 			exit(0);
+		case 'I':
+			fprintf(stderr,
+				"NOTICE: The -I option is no longer needed.\n"
+				"  It will always be enabled if you have a timing module loaded.\n");
+			break;
 		case 'i':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_INIT_KEYS);
 			break;
