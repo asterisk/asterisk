@@ -1494,6 +1494,12 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 	} else if (transport->state->factory) {
 		selector->type = PJSIP_TPSELECTOR_LISTENER;
 		selector->u.listener = transport->state->factory;
+	} else if (transport->type == AST_TRANSPORT_WS || transport->type == AST_TRANSPORT_WSS) {
+		/* The WebSocket transport has no factory as it can not create outgoing connections, so
+		 * even if an endpoint is locked to a WebSocket transport we let the PJSIP logic
+		 * find the existing connection if available and use it.
+		 */
+		return 0;
 	} else {
 		return -1;
 	}
