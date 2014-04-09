@@ -39,7 +39,7 @@ static int app_control_answer(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
 	const int delay = 0;
-	ast_debug(3, "%s: Answering",
+	ast_debug(3, "%s: Answering\n",
 		stasis_app_control_get_channel_id(control));
 	return __ast_answer(chan, delay);
 }
@@ -54,7 +54,7 @@ int stasis_app_control_answer(struct stasis_app_control *control)
 	retval = stasis_app_send_command(control, app_control_answer, NULL);
 
 	if (retval != 0) {
-		ast_log(LOG_WARNING, "%s: Failed to answer channel",
+		ast_log(LOG_WARNING, "%s: Failed to answer channel\n",
 			stasis_app_control_get_channel_id(control));
 		return -1;
 	}
