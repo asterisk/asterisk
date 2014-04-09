@@ -128,6 +128,9 @@ AMI
    used to set the UniqueId on creation.  The other id is assigned to the
    second channel when dialing LOCAL, or defaults to appending ;2 if only
    the single Id is given.
+ 
+ * The Mixmonitor action now has a "Command" header that can be used to
+   indicate a post-process command to run once recording finishes.
 
 RealTime
 ------------------

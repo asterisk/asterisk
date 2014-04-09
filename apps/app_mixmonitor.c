@@ -208,6 +208,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				would apply if invoked from the MixMonitor application. For a list of
 				available options, see the documentation for the mixmonitor application. </para>
 			</parameter>
+			<parameter name="Command">
+				<para>Will be executed when the recording is over.
+				Any strings matching <literal>^{X}</literal> will be unescaped to <variable>X</variable>.
+				All variables will be evaluated at the time MixMonitor is called.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>This action records the audio on the current channel to the specified file.</para>
@@ -1292,6 +1297,7 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	const char *file = astman_get_header(m, "File");
 	const char *options = astman_get_header(m, "Options");
+	const char *command = astman_get_header(m, "Command");
 	char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
 	struct ast_flags flags = { 0 };
 	char *uid_channel_var = NULL;
@@ -1314,7 +1320,7 @@ static int manager_mixmonitor(struct mansession *s, const struct message *m)
 		ast_app_parse_options(mixmonitor_opts, &flags, opts, ast_strdupa(options));
 	}
 
-	snprintf(args, sizeof(args), "%s,%s", file, options);
+	snprintf(args, sizeof(args), "%s,%s,%s", file, options, command);
 
 	res = mixmonitor_exec(c, args);
 
