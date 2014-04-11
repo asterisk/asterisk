@@ -453,10 +453,13 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 		ast_json_object_update(json_object, extras);
 	}
 
+	ast_bridge_lock(conference->bridge);
 	msg = ast_bridge_blob_create(type,
 		conference->bridge,
 		chan,
 		json_object);
+	ast_bridge_unlock(conference->bridge);
+
 	if (!msg) {
 		return;
 	}
