@@ -36,10 +36,6 @@
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
   </member>
-  <member name="refcounter">
-	<defaultenabled>no</defaultenabled>
-	<support_level>extended</support_level>
-  </member>
   <member name="smsq">
 	<defaultenabled>no</defaultenabled>
 	<depend>popt</depend>

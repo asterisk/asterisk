@@ -174,5 +174,9 @@ Realtime Configuration:
  - A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
 
+Utilities:
+ - The refcounter program has been removed in favor of the refcounter.py script
+   in contrib/scripts.
+
 ===========================================================
 ===========================================================

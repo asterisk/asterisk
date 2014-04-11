@@ -141,11 +141,10 @@ list. However there is no ordering among elements.
 \note DEBUGGING REF COUNTS BIBLE:
 An interface to help debug refcounting is provided
 in this package. It is dependent on the REF_DEBUG macro being
-defined in a source file, before the #include of astobj2.h,
-and in using variants of the normal ao2_xxx functions
-that are named ao2_t_xxx instead, with an extra argument, a string,
-that will be printed out into /tmp/refs when the refcount for an
-object is changed.
+defined via menuselect and in using variants of the normal ao2_xxxx
+function that are named ao2_t_xxxx instead, with an extra argument,
+a string that will be printed out into the refs log file when the
+refcount for an object is changed.
 
   these ao2_t_xxx variants are provided:
 
@@ -164,45 +163,56 @@ each case is supposed to be a string pointer, a "tag", that should contain
 enough of an explanation, that you can pair operations that increment the
 ref count, with operations that are meant to decrement the refcount.
 
-Each of these calls will generate at least one line of output in /tmp/refs.
-These lines look like this:
+Each of these calls will generate at least one line of output in in the refs
+log files. These lines look like this:
 ...
-0x8756f00 =1   chan_sip.c:22240:load_module (allocate users)
-0x86e3408 =1   chan_sip.c:22241:load_module (allocate peers)
-0x86dd380 =1   chan_sip.c:22242:load_module (allocate peers_by_ip)
-0x822d020 =1   chan_sip.c:22243:load_module (allocate dialogs)
-0x8930fd8 =1   chan_sip.c:20025:build_peer (allocate a peer struct)
-0x8930fd8 +1   chan_sip.c:21467:reload_config (link peer into peer table) [@1]
-0x8930fd8 -1   chan_sip.c:2370:unref_peer (unref_peer: from reload_config) [@2]
-0x89318b0 =1   chan_sip.c:20025:build_peer (allocate a peer struct)
-0x89318b0 +1   chan_sip.c:21467:reload_config (link peer into peer table) [@1]
-0x89318b0 -1   chan_sip.c:2370:unref_peer (unref_peer: from reload_config) [@2]
-0x8930218 =1   chan_sip.c:20025:build_peer (allocate a peer struct)
-0x8930218 +1   chan_sip.c:21539:reload_config (link peer into peers table) [@1]
-0x868c040 -1   chan_sip.c:2424:dialog_unlink_all (unset the relatedpeer->call field in tandem with relatedpeer field itself) [@2]
-0x868c040 -1   chan_sip.c:2443:dialog_unlink_all (Let's unbump the count in the unlink so the poor pvt can disappear if it is time) [@1]
-0x868c040 **call destructor** chan_sip.c:2443:dialog_unlink_all (Let's unbump the count in the unlink so the poor pvt can disappear if it is time)
-0x8cc07e8 -1   chan_sip.c:2370:unref_peer (unsetting a dialog relatedpeer field in sip_destroy) [@3]
-0x8cc07e8 +1   chan_sip.c:3876:find_peer (ao2_find in peers table) [@2]
-0x8cc07e8 -1   chan_sip.c:2370:unref_peer (unref_peer, from sip_devicestate, release ref from find_peer) [@3]
+0x8756f00,+1,1234,chan_sip.c,22240,load_module,**constructor**,allocate users
+0x86e3408,+1,1234,chan_sip.c,22241,load_module,**constructor**,allocate peers
+0x86dd380,+1,1234,chan_sip.c,22242,load_module,**constructor**,allocate peers_by_ip
+0x822d020,+1,1234,chan_sip.c,22243,load_module,**constructor**,allocate dialogs
+0x8930fd8,+1,1234,chan_sip.c,20025,build_peer,**constructor**,allocate a peer struct
+0x8930fd8,+1,1234,chan_sip.c,21467,reload_config,1,link peer into peer table
+0x8930fd8,-1,1234,chan_sip.c,2370,unref_peer,2,unref_peer: from reload_config
+0x89318b0,1,5678,chan_sip.c,20025,build_peer,**constructor**,allocate a peer struct
+0x89318b0,+1,5678,chan_sip.c,21467,reload_config,1,link peer into peer table
+0x89318b0,-1,1234,chan_sip.c,2370,unref_peer,2,unref_peer: from reload_config
+0x8930218,+1,1234,chan_sip.c,20025,build_peer,**constructor**,allocate a peer struct
+0x8930218,+1,1234,chan_sip.c,21539,reload_config,1,link peer into peers table
+0x868c040,-1,1234,chan_sip.c,2424,dialog_unlink_all,2,unset the relatedpeer->call field in tandem with relatedpeer field itself
+0x868c040,-1,1234,chan_sip.c,2443,dialog_unlink_all,1,Let's unbump the count in the unlink so the poor pvt can disappear if it is time
+0x868c040,-1,1234,chan_sip.c,2443,dialog_unlink_all,**destructor**,Let's unbump the count in the unlink so the poor pvt can disappear if it is time
+0x8cc07e8,-1,1234,chan_sip.c,2370,unref_peer,3,unsetting a dialog relatedpeer field in sip_destroy
+0x8cc07e8,+1,1234,chan_sip.c,3876,find_peer,2,ao2_find in peers table
+0x8cc07e8,-1,1234,chan_sip.c,2370,unref_peer,3,unref_peer, from sip_devicestate, release ref from find_peer
 ...
 
-The first column is the object address.
-The second column reflects how the operation affected the ref count
-    for that object. Creation sets the ref count to 1 (=1).
-    increment or decrement and amount are specified (-1/+1).
-The remainder of the line specifies where in the file the call was made,
-    and the function name, and the tag supplied in the function call.
-
-The **call destructor** is specified when the destroy routine is
-run for an object. It does not affect the ref count, but is important
-in debugging, because it is possible to have the astobj2 system run it
-multiple times on the same object, commonly fatal to asterisk.
+This uses a comma delineated format. The columns in the format are as
+follows:
+- The first column is the object address.
+- The second column reflects how the operation affected the ref count
+    for that object. A change in the ref count is reflected either as
+    an increment (+) or decrement (-), as well as the amount it changed
+    by.
+- The third column is the ID of the thread that modified the reference
+  count.
+- The fourth column is the source file that the change in reference was
+  issued from.
+- The fifth column is the line number of the source file that the ref
+  change was issued from.
+- The sixth column is the name of the function that the ref change was
+  issued from.
+- The seventh column indicates either (a) construction of the object via
+  the special tag **constructor**; (b) destruction of the object via
+  the special tag **destructor**; (c) the previous reference count
+  prior to this reference change.
+- The eighth column is a special tag added by the developer to provide
+  context for the ref change. Note that any subsequent columns are
+  considered to be part of this tag.
 
 Sometimes you have some helper functions to do object ref/unref
 operations. Using these normally hides the place where these
 functions were called. To get the location where these functions
-were called to appear in /tmp/refs, you can do this sort of thing:
+were called to appear in /refs, you can do this sort of thing:
 
 #ifdef REF_DEBUG
 #define dialog_ref(arg1,arg2) dialog_ref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -250,13 +260,14 @@ file, function, and line number info provided. You might find this
 well worth the effort to help track these function calls in the code.
 
 To find out why objects are not destroyed (a common bug), you can
-edit the source file to use the ao2_t_* variants, add the #define REF_DEBUG 1
-before the #include "asterisk/astobj2.h" line, and add a descriptive
-tag to each call. Recompile, and run Asterisk, exit asterisk with
-"stop gracefully", which should result in every object being destroyed.
-Then, you can "sort -k 1 /tmp/refs > x1" to get a sorted list of
-all the objects, or you can use "util/refcounter" to scan the file
-for you and output any problems it finds.
+edit the source file to use the ao2_t_* variants, enable REF_DEBUG
+in menuselect, and add a descriptive tag to each call. Recompile,
+and run Asterisk, exit asterisk with "core stop gracefully", which should
+result in every object being destroyed.
+
+Then, you can "sort -k 1 {AST_LOG_DIR}/refs > x1" to get a sorted list of
+all the objects, or you can use "contrib/script/refcounter.py" to scan
+the file for you and output any problems it finds.
 
 The above may seem astronomically more work than it is worth to debug
 reference counts, which may be true in "simple" situations, but for
@@ -272,29 +283,29 @@ For instance, here is an example of this for a dialog object in
 chan_sip, that was not getting destroyed, after I moved the lines around
 to pair operations:
 
-   0x83787a0 =1   chan_sip.c:5733:sip_alloc (allocate a dialog(pvt) struct)
-   0x83787a0 -1   chan_sip.c:19173:sip_poke_peer (unref dialog at end of sip_poke_peer, obtained from sip_alloc, just before it goes out of scope) [@4]
+   0x83787a0,+1,1234,chan_sip.c,5733,sip_alloc,**constructor**,(allocate a dialog(pvt) struct)
+   0x83787a0,-1,1234,chan_sip.c,19173,sip_poke_peer,4,(unref dialog at end of sip_poke_peer, obtained from sip_alloc, just before it goes out of scope)
 
-   0x83787a0 +1   chan_sip.c:5854:sip_alloc (link pvt into dialogs table) [@1]
-   0x83787a0 -1   chan_sip.c:19150:sip_poke_peer (About to change the callid -- remove the old name) [@3]
-   0x83787a0 +1   chan_sip.c:19152:sip_poke_peer (Linking in under new name) [@2]
-   0x83787a0 -1   chan_sip.c:2399:dialog_unlink_all (unlinking dialog via ao2_unlink) [@5]
+   0x83787a0,+1,1234,chan_sip.c,5854,sip_alloc,1,(link pvt into dialogs table)
+   0x83787a0,-1,1234,chan_sip.c,19150,sip_poke_peer,3,(About to change the callid -- remove the old name)
+   0x83787a0,+1,1234,chan_sip.c,19152,sip_poke_peer,2,(Linking in under new name)
+   0x83787a0,-1,1234,chan_sip.c,2399,dialog_unlink_all,5,(unlinking dialog via ao2_unlink)
 
-   0x83787a0 +1   chan_sip.c:19130:sip_poke_peer (copy sip alloc from p to peer->call) [@2]
-
-
-   0x83787a0 +1   chan_sip.c:2996:__sip_reliable_xmit (__sip_reliable_xmit: setting pkt->owner) [@3]
-   0x83787a0 -1   chan_sip.c:2425:dialog_unlink_all (remove all current packets in this dialog, and the pointer to the dialog too as part of __sip_destroy) [@4]
-
-   0x83787a0 +1   chan_sip.c:22356:unload_module (iterate thru dialogs) [@4]
-   0x83787a0 -1   chan_sip.c:22359:unload_module (toss dialog ptr from iterator_next) [@5]
+   0x83787a0,+1,1234,chan_sip.c,19130,sip_poke_peer,2,(copy sip alloc from p to peer->call)
 
 
-   0x83787a0 +1   chan_sip.c:22373:unload_module (iterate thru dialogs) [@3]
-   0x83787a0 -1   chan_sip.c:22375:unload_module (throw away iterator result) [@2]
+   0x83787a0,+1,1234,chan_sip.c,2996,__sip_reliable_xmit,3,(__sip_reliable_xmit: setting pkt->owner)
+   0x83787a0,-1,1234,chan_sip.c,2425,dialog_unlink_all,4,(remove all current packets in this dialog, and the pointer to the dialog too as part of __sip_destroy)
 
-   0x83787a0 +1   chan_sip.c:2397:dialog_unlink_all (Let's bump the count in the unlink so it doesn't accidentally become dead before we are done) [@4]
-   0x83787a0 -1   chan_sip.c:2436:dialog_unlink_all (Let's unbump the count in the unlink so the poor pvt can disappear if it is time) [@3]
+   0x83787a0,+1,1234,chan_sip.c,22356,unload_module,4,(iterate thru dialogs)
+   0x83787a0,-1,1234,chan_sip.c,22359,unload_module,5,(toss dialog ptr from iterator_next)
+
+
+   0x83787a0,+1,1234,chan_sip.c,22373,unload_module,3,(iterate thru dialogs)
+   0x83787a0,-1,1234,chan_sip.c,22375,unload_module,2,(throw away iterator result)
+
+   0x83787a0,+1,1234,chan_sip.c,2397,dialog_unlink_all,4,(Let's bump the count in the unlink so it doesn't accidentally become dead before we are done)
+   0x83787a0,-1,1234,chan_sip.c,2436,dialog_unlink_all,3,(Let's unbump the count in the unlink so the poor pvt can disappear if it is time)
 
 As you can see, only one unbalanced operation is in the list, a ref count increment when
 the peer->call was set, but no corresponding decrement was made...
