@@ -746,7 +746,10 @@ void ast_ari_bridges_create(struct ast_variable *headers,
 		return;
 	}
 
+	ast_bridge_lock(bridge);
 	snapshot = ast_bridge_snapshot_create(bridge);
+	ast_bridge_unlock(bridge);
+
 	if (!snapshot) {
 		ast_ari_response_error(
 			response, 500, "Internal Error",
@@ -792,7 +795,10 @@ void ast_ari_bridges_create_or_update_with_id(struct ast_variable *headers,
 		return;
 	}
 
+	ast_bridge_lock(bridge);
 	snapshot = ast_bridge_snapshot_create(bridge);
+	ast_bridge_unlock(bridge);
+
 	if (!snapshot) {
 		ast_ari_response_error(
 			response, 500, "Internal Error",

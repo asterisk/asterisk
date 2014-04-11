@@ -65,6 +65,8 @@ struct ast_bridge_snapshot {
  * \brief Generate a snapshot of the bridge state. This is an ao2 object, so
  * ao2_cleanup() to deallocate.
  *
+ * \pre Bridge is locked
+ *
  * \param bridge The bridge from which to generate a snapshot
  *
  * \retval AO2 refcounted snapshot on success
@@ -136,6 +138,8 @@ struct stasis_cache *ast_bridge_cache(void);
  * \since 12
  * \brief Publish the state of a bridge
  *
+ * \pre Bridge is locked
+ *
  * \param bridge The bridge for which to publish state
  */
 void ast_bridge_publish_state(struct ast_bridge *bridge);
@@ -157,6 +161,8 @@ struct stasis_message_type *ast_bridge_merge_message_type(void);
 /*!
  * \since 12
  * \brief Publish a bridge merge
+ *
+ * \pre Bridges involved are locked
  *
  * \param to The bridge to which channels are being added
  * \param from The bridge from which channels are being removed
@@ -281,7 +287,7 @@ struct stasis_message_type *ast_blind_transfer_type(void);
 /*!
  * \brief Publish a blind transfer event
  *
- * \pre No channels or bridges are locked
+ * \pre Bridges involved are locked. Channels involved are not locked.
  *
  * \param is_external Whether the blind transfer was initiated externally (e.g. via AMI or native protocol)
  * \param result The success or failure of the transfer
@@ -346,7 +352,7 @@ struct stasis_message_type *ast_attended_transfer_type(void);
  * Publish an \ref ast_attended_transfer_message with the dest_type set to
  * \c AST_ATTENDED_TRANSFER_DEST_FAIL.
  *
- * \pre No channels or bridges are locked
+ * \pre Bridges involved are locked. Channels involved are not locked.
  *
  * \param is_external Indicates if the transfer was initiated externally
  * \param result The result of the transfer. Will always be a type of failure.
@@ -369,7 +375,7 @@ void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfe
  *
  * In either case, two bridges enter, one leaves.
  *
- * \pre No channels or bridges are locked
+ * \pre Bridges involved are locked. Channels involved are not locked.
  *
  * \param is_external Indicates if the transfer was initiated externally
  * \param result The result of the transfer.
@@ -390,7 +396,7 @@ void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast
  * this results from merging two bridges together. The difference is that a
  * transferer channel survives the bridge merge
  *
- * \pre No channels or bridges are locked
+ * \pre Bridges involved are locked. Channels involved are not locked.
  *
  * \param is_external Indicates if the transfer was initiated externally
  * \param result The result of the transfer.
@@ -413,7 +419,7 @@ void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_tra
  * \li A transferee channel leaving a bridge to run an app
  * \li A bridge of transferees running an app (via a local channel)
  *
- * \pre No channels or bridges are locked
+ * \pre Bridges involved are locked. Channels involved are not locked.
  *
  * \param is_external Indicates if the transfer was initiated externally
  * \param result The result of the transfer.
@@ -438,7 +444,7 @@ void ast_bridge_publish_attended_transfer_app(int is_external, enum ast_transfer
  * When this type of transfer occurs, the two bridges continue to exist after the
  * transfer and a local channel is used to link the two bridges together.
  *
- * \pre No channels or bridges are locked
+ * \pre Bridges involved are locked. Channels involved are not locked.
  *
  * \param is_external Indicates if the transfer was initiated externally
  * \param result The result of the transfer.
