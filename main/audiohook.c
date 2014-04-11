@@ -659,9 +659,9 @@ int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audioho
 
 	if (audiohook->type == AST_AUDIOHOOK_TYPE_SPY) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->spy_list, audiohook, list);
-	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER) {
+	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->whisper_list, audiohook, list);
-	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE) {
+	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->manipulate_list, audiohook, list);
 	}
 
