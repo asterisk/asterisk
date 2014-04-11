@@ -227,16 +227,19 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 	ast_format_set(&frame.subclass.format, ast_format_slin_by_rate(audiohook->hook_internal_samp_rate), 0);
 
 	/* Ensure the factory is able to give us the samples we want */
-	if (samples > ast_slinfactory_available(factory))
+	if (samples > ast_slinfactory_available(factory)) {
 		return NULL;
+	}
 
 	/* Read data in from factory */
-	if (!ast_slinfactory_read(factory, buf, samples))
+	if (!ast_slinfactory_read(factory, buf, samples)) {
 		return NULL;
+	}
 
 	/* If a volume adjustment needs to be applied apply it */
-	if (vol)
+	if (vol) {
 		ast_frame_adjust_volume(&frame, vol);
+	}
 
 	return ast_frdup(&frame);
 }
@@ -284,10 +287,11 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 				int count = 0;
 				short adjust_value = abs(audiohook->options.read_volume);
 				for (count = 0; count < samples; count++) {
-					if (audiohook->options.read_volume > 0)
+					if (audiohook->options.read_volume > 0) {
 						ast_slinear_saturated_multiply(&buf1[count], &adjust_value);
-					else if (audiohook->options.read_volume < 0)
+					} else if (audiohook->options.read_volume < 0) {
 						ast_slinear_saturated_divide(&buf1[count], &adjust_value);
+					}
 				}
 			}
 		}
@@ -304,10 +308,11 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 				int count = 0;
 				short adjust_value = abs(audiohook->options.write_volume);
 				for (count = 0; count < samples; count++) {
-					if (audiohook->options.write_volume > 0)
+					if (audiohook->options.write_volume > 0) {
 						ast_slinear_saturated_multiply(&buf2[count], &adjust_value);
-					else if (audiohook->options.write_volume < 0)
+					} else if (audiohook->options.write_volume < 0) {
 						ast_slinear_saturated_divide(&buf2[count], &adjust_value);
+					}
 				}
 			}
 		}
@@ -455,12 +460,13 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 	}
 
 	/* Drop into respective list */
-	if (audiohook->type == AST_AUDIOHOOK_TYPE_SPY)
+	if (audiohook->type == AST_AUDIOHOOK_TYPE_SPY) {
 		AST_LIST_INSERT_TAIL(&ast_channel_audiohooks(chan)->spy_list, audiohook, list);
-	else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER)
+	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER) {
 		AST_LIST_INSERT_TAIL(&ast_channel_audiohooks(chan)->whisper_list, audiohook, list);
-	else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE)
+	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE) {
 		AST_LIST_INSERT_TAIL(&ast_channel_audiohooks(chan)->manipulate_list, audiohook, list);
+	}
 
 
 	audiohook_set_internal_rate(audiohook, ast_channel_audiohooks(chan)->list_internal_samp_rate, 1);
@@ -498,13 +504,15 @@ void ast_audiohook_update_status(struct ast_audiohook *audiohook, enum ast_audio
  */
 int ast_audiohook_detach(struct ast_audiohook *audiohook)
 {
-	if (audiohook->status == AST_AUDIOHOOK_STATUS_NEW || audiohook->status == AST_AUDIOHOOK_STATUS_DONE)
+	if (audiohook->status == AST_AUDIOHOOK_STATUS_NEW || audiohook->status == AST_AUDIOHOOK_STATUS_DONE) {
 		return 0;
+	}
 
 	ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_SHUTDOWN);
 
-	while (audiohook->status != AST_AUDIOHOOK_STATUS_DONE)
+	while (audiohook->status != AST_AUDIOHOOK_STATUS_DONE) {
 		ast_audiohook_trigger_wait(audiohook);
+	}
 
 	return 0;
 }
@@ -536,10 +544,12 @@ void ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 
 	/* Drop translation paths if present */
 	for (i = 0; i < 2; i++) {
-		if (audiohook_list->in_translate[i].trans_pvt)
+		if (audiohook_list->in_translate[i].trans_pvt) {
 			ast_translator_free_path(audiohook_list->in_translate[i].trans_pvt);
-		if (audiohook_list->out_translate[i].trans_pvt)
+		}
+		if (audiohook_list->out_translate[i].trans_pvt) {
 			ast_translator_free_path(audiohook_list->out_translate[i].trans_pvt);
+		}
 	}
 
 	/* Free ourselves */
@@ -556,18 +566,21 @@ static struct ast_audiohook *find_audiohook_by_source(struct ast_audiohook_list 
 	struct ast_audiohook *audiohook = NULL;
 
 	AST_LIST_TRAVERSE(&audiohook_list->spy_list, audiohook, list) {
-		if (!strcasecmp(audiohook->source, source))
+		if (!strcasecmp(audiohook->source, source)) {
 			return audiohook;
+		}
 	}
 
 	AST_LIST_TRAVERSE(&audiohook_list->whisper_list, audiohook, list) {
-		if (!strcasecmp(audiohook->source, source))
+		if (!strcasecmp(audiohook->source, source)) {
 			return audiohook;
+		}
 	}
 
 	AST_LIST_TRAVERSE(&audiohook_list->manipulate_list, audiohook, list) {
-		if (!strcasecmp(audiohook->source, source))
+		if (!strcasecmp(audiohook->source, source)) {
 			return audiohook;
+		}
 	}
 
 	return NULL;
@@ -618,8 +631,9 @@ int ast_audiohook_detach_source(struct ast_channel *chan, const char *source)
 
 	ast_channel_unlock(chan);
 
-	if (audiohook && audiohook->status != AST_AUDIOHOOK_STATUS_DONE)
+	if (audiohook && audiohook->status != AST_AUDIOHOOK_STATUS_DONE) {
 		ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_SHUTDOWN);
+	}
 
 	return (audiohook ? 0 : -1);
 }
@@ -643,12 +657,13 @@ int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audioho
 		return -1;
 	}
 
-	if (audiohook->type == AST_AUDIOHOOK_TYPE_SPY)
+	if (audiohook->type == AST_AUDIOHOOK_TYPE_SPY) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->spy_list, audiohook, list);
-	else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER)
+	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_WHISPER) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->whisper_list, audiohook, list);
-	else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE)
+	} else if (audiohook->type == AST_AUDIOHOOK_TYPE_MANIPULATE) {
 		AST_LIST_REMOVE(&ast_channel_audiohooks(chan)->manipulate_list, audiohook, list);
+	}
 
 	audiohook_list_set_samplerate_compatibility(ast_channel_audiohooks(chan));
 	ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
@@ -680,8 +695,9 @@ static struct ast_frame *dtmf_audiohook_write_list(struct ast_channel *chan, str
 			audiohook->manipulate_callback(audiohook, NULL, NULL, 0);
 			continue;
 		}
-		if (ast_test_flag(audiohook, AST_AUDIOHOOK_WANTS_DTMF))
+		if (ast_test_flag(audiohook, AST_AUDIOHOOK_WANTS_DTMF)) {
 			audiohook->manipulate_callback(audiohook, chan, frame, direction);
+		}
 		ast_audiohook_unlock(audiohook);
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -829,8 +845,9 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 			if (ast_slinfactory_available(factory) >= samples && ast_slinfactory_read(factory, read_buf, samples)) {
 				/* Take audio from this whisper source and combine it into our main buffer */
-				for (i = 0, data1 = combine_buf, data2 = read_buf; i < samples; i++, data1++, data2++)
+				for (i = 0, data1 = combine_buf, data2 = read_buf; i < samples; i++, data1++, data2++) {
 					ast_slinear_saturated_add(data1, data2);
+				}
 			}
 			ast_audiohook_unlock(audiohook);
 		}
@@ -911,12 +928,13 @@ int ast_audiohook_write_list_empty(struct ast_audiohook_list *audiohook_list)
 struct ast_frame *ast_audiohook_write_list(struct ast_channel *chan, struct ast_audiohook_list *audiohook_list, enum ast_audiohook_direction direction, struct ast_frame *frame)
 {
 	/* Pass off frame to it's respective list write function */
-	if (frame->frametype == AST_FRAME_VOICE)
+	if (frame->frametype == AST_FRAME_VOICE) {
 		return audio_audiohook_write_list(chan, audiohook_list, direction, frame);
-	else if (frame->frametype == AST_FRAME_DTMF)
+	} else if (frame->frametype == AST_FRAME_DTMF) {
 		return dtmf_audiohook_write_list(chan, audiohook_list, direction, frame);
-	else
+	} else {
 		return frame;
+	}
 }
 
 /*! \brief Wait for audiohook trigger to be triggered
@@ -942,8 +960,9 @@ int ast_channel_audiohook_count_by_source(struct ast_channel *chan, const char *
 	int count = 0;
 	struct ast_audiohook *ah = NULL;
 
-	if (!ast_channel_audiohooks(chan))
+	if (!ast_channel_audiohooks(chan)) {
 		return -1;
+	}
 
 	switch (type) {
 		case AST_AUDIOHOOK_TYPE_SPY:
