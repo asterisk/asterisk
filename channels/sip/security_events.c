@@ -32,8 +32,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-/* #define  REF_DEBUG 1 */
-
 #include "include/sip.h"
 #include "include/security_events.h"
 
