@@ -219,21 +219,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/network.h"
 #include "asterisk/paths.h"	/* need ast_config_AST_SYSTEM_NAME */
-/*
-   Uncomment the define below,  if you are having refcount related memory leaks.
-   With this uncommented, this module will generate a file, /tmp/refs, which contains
-   a history of the ao2_ref() calls. To be useful, all calls to ao2_* functions should
-   be modified to ao2_t_* calls, and include a tag describing what is happening with
-   enough detail, to make pairing up a reference count increment with its corresponding decrement.
-   The refcounter program in utils/ can be invaluable in highlighting objects that are not
-   balanced, along with the complete history for that object.
-   In normal operation, the macros defined will throw away the tags, so they do not
-   affect the speed of the program at all. They can be considered to be documentation.
-
-   Note: This must also be enabled in channels/sip/security_events.c
-*/
-/* #define  REF_DEBUG 1 */
-
 #include "asterisk/lock.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"

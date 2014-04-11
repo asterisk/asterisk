@@ -33,7 +33,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <ctype.h>
 #include <sys/stat.h>
-#include <sys/stat.h>
+
+#include <sys/syscall.h>
+#include <unistd.h>
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#elif defined(HAVE_SYS_THR_H)
+#include <sys/thr.h>
+#endif
 
 #ifdef HAVE_DEV_URANDOM
 #include <fcntl.h>
