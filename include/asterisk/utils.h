@@ -838,6 +838,15 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
  */
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 
+/*!
+ * \brief Get current thread ID
+ *
+ * \since 1.8.28.0
+ *
+ * \return the ID if platform is supported, else -1
+ */
+int ast_get_tid(void);
+
 /*!\brief Resolve a binary to a full pathname
  * \param binary Name of the executable to resolve
  * \param fullpath Buffer to hold the complete pathname

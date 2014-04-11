@@ -66,15 +66,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #  endif
 #endif
 
-#if defined(__linux__) && !defined(__NR_gettid)
-#include <asm/unistd.h>
-#endif
-
-#if defined(__linux__) && defined(__NR_gettid)
-#define GETTID() syscall(__NR_gettid)
-#else
-#define GETTID() getpid()
-#endif
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 static char queue_log_name[256] = QUEUELOG;
@@ -1289,7 +1280,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	ast_string_field_set(logmsg, level_name, levels[level]);
 	ast_string_field_set(logmsg, file, file);
 	ast_string_field_set(logmsg, function, function);
-	logmsg->process_id = (long) GETTID();
+	logmsg->process_id = (long) ast_get_tid();
 
 	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
 	if (logthread != AST_PTHREADT_NULL) {

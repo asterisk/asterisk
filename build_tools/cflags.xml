@@ -5,6 +5,9 @@
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 			<support_level>core</support_level>
 		</member>
+		<member name="REF_DEBUG" displayname="Enable reference count debugging">
+			<support_level>extended</support_level>
+		</member>
 		<member name="STATIC_BUILD" displayname="Build static binaries">
 			<support_level>extended</support_level>
 		</member>
