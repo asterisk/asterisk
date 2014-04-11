@@ -852,6 +852,7 @@ static int stackpeek_read(struct ast_channel *chan, const char *cmd, char *data,
 		if (!ast_true(args.suppress)) {
 			ast_log(LOG_ERROR, "Stack peek of '%s' is more stack frames than I have\n", args.n);
 		}
+		AST_LIST_UNLOCK(oldlist);
 		ast_channel_unlock(chan);
 		return -1;
 	}
