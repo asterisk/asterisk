@@ -639,7 +639,20 @@ int AST_OPTIONAL_API_NAME(ast_monitor_change_fname)(struct ast_channel *chan, co
 	return 0;
 }
 
- 
+enum {
+	MON_FLAG_BRIDGED =  (1 << 0),
+	MON_FLAG_MIX =      (1 << 1),
+	MON_FLAG_DROP_IN =  (1 << 2),
+	MON_FLAG_DROP_OUT = (1 << 3),
+};
+
+AST_APP_OPTIONS(monitor_opts, {
+	AST_APP_OPTION('b', MON_FLAG_BRIDGED),
+	AST_APP_OPTION('m', MON_FLAG_MIX),
+	AST_APP_OPTION('i', MON_FLAG_DROP_IN),
+	AST_APP_OPTION('o', MON_FLAG_DROP_OUT),
+});
+
 /*!
  * \brief Start monitor
  * \param chan
@@ -656,9 +669,9 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 	char tmp[256];
 	int stream_action = X_REC_IN | X_REC_OUT;
 	int joinfiles = 0;
-	int waitforbridge = 0;
 	int res = 0;
 	char *parse;
+	struct ast_flags flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(format);
 		AST_APP_ARG(fname_base);
@@ -675,14 +688,17 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.options)) {
-		if (strchr(args.options, 'm'))
+		ast_app_parse_options(monitor_opts, &flags, NULL, args.options);
+
+		if (ast_test_flag(&flags, MON_FLAG_MIX)) {
 			stream_action |= X_JOIN;
-		if (strchr(args.options, 'b'))
-			waitforbridge = 1;
-		if (strchr(args.options, 'i'))
+		}
+		if (ast_test_flag(&flags, MON_FLAG_DROP_IN)) {
 			stream_action &= ~X_REC_IN;
-		if (strchr(args.options, 'o'))
+		}
+		if (ast_test_flag(&flags, MON_FLAG_DROP_OUT)) {
 			stream_action &= ~X_REC_OUT;
+		}
 	}
 
 	arg = strchr(args.format, ':');
@@ -698,7 +714,7 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 		ast_cdr_setuserfield(ast_channel_name(chan), tmp);
 		ast_channel_unlock(chan);
 	}
-	if (waitforbridge) {
+	if (ast_test_flag(&flags, MON_FLAG_BRIDGED)) {
 		/* We must remove the "b" option if listed.  In principle none of
 		   the following could give NULL results, but we check just to
 		   be pedantic. Reconstructing with checks for 'm' option does not
