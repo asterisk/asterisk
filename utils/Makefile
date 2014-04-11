@@ -88,7 +88,8 @@ clean:
 	rm -f *.s *.i
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c lock.c
 	rm -f aelparse.c aelbison.c conf2ael
-	rm -f utils.c strings.c threadstorage.c sha1.c astobj2.c refcounter
+	rm -f threadstorage.c
+	rm -f utils.c strings.c poll.c version.c sha1.c astobj2.c refcounter
 	rm -f db1-ast/.*.d
 	@$(MAKE) -C db1-ast clean
 
@@ -157,37 +158,10 @@ aelparse.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res -Wno-unused
 aelparse: LIBS+=-lm
 aelparse: aelparse.o aelbison.o pbx_ael.o hashtab.o lock.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
-version.c: $(ASTTOPDIR)/main/version.c
-	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
-	$(CMD_PREFIX) cp "$<" "$@"
-
-astobj2.c: $(ASTTOPDIR)/main/astobj2.c
-	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
-	$(CMD_PREFIX) cp "$<" "$@"
-
-utils.c: $(ASTTOPDIR)/main/utils.c
-	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
-	$(CMD_PREFIX) cp "$<" "$@"
-
-poll.c: $(ASTTOPDIR)/main/poll.c
-	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
-	$(CMD_PREFIX) cp "$<" "$@"
-
-strings.c: $(ASTTOPDIR)/main/strings.c
-	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
-	$(CMD_PREFIX) cp "$<" "$@"
-
-sha1.c: $(ASTTOPDIR)/main/sha1.c
-	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
-	$(CMD_PREFIX) cp "$<" "$@"
-
 threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
 
-
-refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o version.o astobj2.o
-refcounter.o: _ASTCFLAGS+=-O0
 
 extconf.o: extconf.c
 
