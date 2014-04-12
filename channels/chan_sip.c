@@ -17691,7 +17691,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 
 	uri = ast_strdupa(get_in_brackets(tmp));
 
-	if (parse_uri_legacy_check(uri, "sip:,sips:", &uri, &unused_password, &domain, NULL)) {
+	if (parse_uri_legacy_check(uri, "sip:,sips:,tel:", &uri, &unused_password, &domain, NULL)) {
 		ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", uri);
 		return SIP_GET_DEST_INVALID_URI;
 	}
@@ -17719,7 +17719,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	ast_copy_string(tmpf, sip_get_header(req, "From"), sizeof(tmpf));
 	if (!ast_strlen_zero(tmpf)) {
 		from = get_in_brackets(tmpf);
-		if (parse_uri_legacy_check(from, "sip:,sips:", &from, NULL, &domain, NULL)) {
+		if (parse_uri_legacy_check(from, "sip:,sips:,tel:", &from, NULL, &domain, NULL)) {
 			ast_log(LOG_WARNING, "Not a SIP header (%s)?\n", from);
 			return SIP_GET_DEST_INVALID_URI;
 		}
@@ -18607,10 +18607,13 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 
 	if (ast_strlen_zero(p->exten)) {
 		char *t = uri2;
-		if (!strncasecmp(t, "sip:", 4))
-			t+= 4;
-		else if (!strncasecmp(t, "sips:", 5))
+		if (!strncasecmp(t, "sip:", 4)) {
+			t += 4;
+		} else if (!strncasecmp(t, "sips:", 5)) {
 			t += 5;
+		} else if (!strncasecmp(t, "tel:", 4)) {	/* TEL URI INVITE */
+			t += 4;
+		}
 		ast_string_field_set(p, exten, t);
 		t = strchr(p->exten, '@');
 		if (t)
@@ -18625,7 +18628,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	/* save the URI part of the From header */
 	ast_string_field_set(p, from, of);
 
-	if (parse_uri_legacy_check(of, "sip:,sips:", &name, &unused_password, &domain, NULL)) {
+	if (parse_uri_legacy_check(of, "sip:,sips:,tel:", &name, &unused_password, &domain, NULL)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	}
 

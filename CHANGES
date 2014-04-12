@@ -86,6 +86,17 @@ MixMonitor
  * A new function, MIXMONITOR, has been added to allow access to individual
    instances of MixMonitor on a channel.
 
+
+Channel Drivers
+-------------------------
+
+chan_sip
+-------------------------
+ * TEL URI support for inbound INVITE requests has been added. chan_sip will
+   now handle TEL schemes in the Request and From URIs. The phone-context in
+   the Request URI will be stored in the TELPHONECONTEXT channel variable on
+   the inbound channel.
+
 Debugging
 -------------------------
  * Core Show Locks output now includes Thread/LWP ID if the platform
