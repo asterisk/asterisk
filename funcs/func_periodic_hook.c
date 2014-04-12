@@ -135,6 +135,8 @@ static void hook_datastore_destroy_callback(void *data)
 	ast_free(state->context);
 	ast_free(state->exten);
 	ast_free(state);
+
+	ast_module_unref(ast_module_info->self);
 }
 
 static const struct ast_datastore_info hook_datastore = {
@@ -298,10 +300,13 @@ static int init_hook(struct ast_channel *chan, const char *context, const char *
 
 	snprintf(uid, sizeof(uid), "%u", hook_id);
 
+	ast_module_ref(ast_module_info->self);
 	if (!(datastore = ast_datastore_alloc(&hook_datastore, uid))) {
+		ast_module_unref(ast_module_info->self);
 		return -1;
 	}
 	if (!(state = hook_state_alloc(context, exten, interval, hook_id))) {
+		ast_module_unref(ast_module_info->self);
 		ast_datastore_free(datastore);
 		return -1;
 	}
