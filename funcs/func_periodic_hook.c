@@ -300,13 +300,11 @@ static int init_hook(struct ast_channel *chan, const char *context, const char *
 
 	snprintf(uid, sizeof(uid), "%u", hook_id);
 
-	ast_module_ref(ast_module_info->self);
 	if (!(datastore = ast_datastore_alloc(&hook_datastore, uid))) {
-		ast_module_unref(ast_module_info->self);
 		return -1;
 	}
+	ast_module_ref(ast_module_info->self);
 	if (!(state = hook_state_alloc(context, exten, interval, hook_id))) {
-		ast_module_unref(ast_module_info->self);
 		ast_datastore_free(datastore);
 		return -1;
 	}
