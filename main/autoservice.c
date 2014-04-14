@@ -131,6 +131,9 @@ static void *autoservice_run(void *ign)
 
 		callid = ast_channel_callid(chan);
 		ast_callid_threadassoc_change(callid);
+		if (callid) {
+			callid = ast_callid_unref(callid);
+		}
 
 		f = ast_read(chan);
 
@@ -178,11 +181,6 @@ static void *autoservice_run(void *ign)
 		 * mons array must have triggered the return. It's
 		 * therefore impossible that we got here while (i >= x).
 		 * If we did, we'd need to ast_frfree(f) if (f). */
-	}
-
-	if (callid) {
-		ast_callid_threadassoc_remove();
-		callid = ast_callid_unref(callid);
 	}
 
 	asthread = AST_PTHREADT_NULL;
