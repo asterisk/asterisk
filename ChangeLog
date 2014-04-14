@@ -1,3 +1,60 @@
+2014-04-14  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.2.0-rc2 Released.
+
+	* autoservice: fix reference leak of logger callid.
+
+	  autoservice acquires a local reference to the logger callid of each
+	  channel in a loop. This local reference was not released, causing the
+	  callid of every channel in autoservice to leak. This change moves the
+	  callid unref inside the loop.
+
+	  ASTERISK-23616 #close
+	  Reported by: ibercom
+
+	* res_hep_pjsip: Use the channel name instead of the call ID when it is
+	  available
+
+	  During discussions with Alexandr Dubovikov at Kamailio World, it
+	  became apparent that while the SIP call ID is a useful identifier
+	  prior to an Asterisk channel being created, it is far more preferable
+	  to use the channel name (or some channel based identifier) when the
+	  channel is available. Homer is smart enough to tie the various
+	  messages together. This patch opts to use the channel name when it
+	  is available, falling back to the call ID otherwise.
+
+	* res_pjsip_pubsub: Set the body generation result to 0 for a valid
+	  path
+
+	  The result of the "ast_sip_pubsub_generate_body_content" was not
+	  set/initialized.  Consequently, the nominal path potentially returned
+	  an invalid value, thus not sending mwi notifications.
+
+	* Stasis: Fix Stasis() bridge refcount issue
+
+	  The Stasis() dialplan application monitors what bridge a channel is
+	  in and so necessarily holds on to a bridge pointer. This change
+	  ensures that it also holds on to a reference for that bridge to
+	  prevent the bridge pointer from becoming a dangling pointer.
+
+	* http: Fix spurious ERROR message in responses with no content
+
+	  When a response has a content length of 0, fwrite would be called
+	  to write a buffer with no data in it. This resulted in the following
+	  classic error message:
+
+	   [Apr  3 11:49:17] ERROR[26421] http.c: fwrite() failed: Success
+
+	  This patch makes it so that we only attempt to write out the content
+	  if the calculated content_length is non-zero.
+
+	* res_hep: Fix crash when hep.conf not available
+
+	  Parts of res_hep properly checked for a valid configuration object
+	  before attempting to access the configuration. A check, however,
+	  was missed when a packet is sent. This patch fixes the crash caused
+	  by not checking if the configuration object is valid.
+
 2014-03-28  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.2.0-rc1 Released.

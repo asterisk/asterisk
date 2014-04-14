@@ -1161,7 +1161,7 @@ int ast_sip_pubsub_generate_body_content(const char *type, const char *subtype,
 {
 	struct ast_sip_pubsub_body_supplement *supplement;
 	struct ast_sip_pubsub_body_generator *generator;
-	int res;
+	int res = 0;
 	void *body;
 
 	generator = find_body_generator_type_subtype(type, subtype);

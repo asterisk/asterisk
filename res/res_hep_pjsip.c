@@ -27,6 +27,7 @@
 /*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
+	<depend>res_pjsip_session</depend>
 	<depend>res_hep</depend>
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
@@ -37,11 +38,36 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <pjsip.h>
+#include <pjsip_ua.h>
+#include <pjlib.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/res_pjsip_session.h"
 #include "asterisk/res_hep.h"
 #include "asterisk/module.h"
 #include "asterisk/netsock2.h"
+
+static char *assign_uuid(const pj_str_t *call_id, const pj_str_t *local_tag, const pj_str_t *remote_tag)
+{
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	pjsip_dialog *dlg;
+	char *uuid = NULL;
+
+	if ((dlg = pjsip_ua_find_dialog(call_id, local_tag, remote_tag, PJ_FALSE))
+	    && (session = ast_sip_dialog_get_session(dlg))
+	    && (session->channel)) {
+
+		uuid = ast_strdup(ast_channel_name(session->channel));
+	} else {
+
+		uuid = ast_malloc(pj_strlen(call_id) + 1);
+		if (uuid) {
+			ast_copy_pj_str(uuid, call_id, pj_strlen(call_id) + 1);
+		}
+	}
+
+	return uuid;
+}
 
 static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 {
@@ -50,6 +76,8 @@ static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 	char *uuid;
 	struct hepv3_capture_info *capture_info;
 	pjsip_cid_hdr *cid_hdr;
+	pjsip_from_hdr *from_hdr;
+	pjsip_to_hdr *to_hdr;
 
 	capture_info = hepv3_create_capture_info(tdata->buf.start, (size_t)(tdata->buf.cur - tdata->buf.start));
 	if (!capture_info) {
@@ -60,12 +88,14 @@ static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 	pj_sockaddr_print(&tdata->tp_info.dst_addr, remote_buf, sizeof(remote_buf), 3);
 
 	cid_hdr = PJSIP_MSG_CID_HDR(tdata->msg);
-	uuid = ast_malloc(pj_strlen(&cid_hdr->id) + 1);
+	from_hdr = PJSIP_MSG_FROM_HDR(tdata->msg);
+	to_hdr = PJSIP_MSG_TO_HDR(tdata->msg);
+
+	uuid = assign_uuid(&cid_hdr->id, &to_hdr->tag, &from_hdr->tag);
 	if (!uuid) {
 		ao2_ref(capture_info, -1);
 		return PJ_SUCCESS;
 	}
-	ast_copy_pj_str(uuid, &cid_hdr->id, pj_strlen(&cid_hdr->id) + 1);
 
 	ast_sockaddr_parse(&capture_info->src_addr, local_buf, PARSE_PORT_REQUIRE);
 	ast_sockaddr_parse(&capture_info->dst_addr, remote_buf, PARSE_PORT_REQUIRE);
@@ -95,12 +125,11 @@ static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
 	pj_sockaddr_print(&rdata->tp_info.transport->local_addr, local_buf, sizeof(local_buf), 3);
 	pj_sockaddr_print(&rdata->pkt_info.src_addr, remote_buf, sizeof(remote_buf), 3);
 
-	uuid = ast_malloc(pj_strlen(&rdata->msg_info.cid->id) + 1);
+	uuid = assign_uuid(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag);
 	if (!uuid) {
 		ao2_ref(capture_info, -1);
 		return PJ_SUCCESS;
 	}
-	ast_copy_pj_str(uuid, &rdata->msg_info.cid->id, pj_strlen(&rdata->msg_info.cid->id) + 1);
 
 	ast_sockaddr_parse(&capture_info->src_addr, remote_buf, PARSE_PORT_REQUIRE);
 	ast_sockaddr_parse(&capture_info->dst_addr, local_buf, PARSE_PORT_REQUIRE);
