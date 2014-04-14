@@ -1,3 +1,27 @@
+2014-04-14  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.9.0-rc2 Released.
+
+	* autoservice: fix reference leak of logger callid.
+
+	  autoservice acquires a local reference to the logger callid of each
+	  channel in a loop.  This local reference was not released, causing
+	  the callid of every channel in autoservice to leak. This change moves
+	  the callid unref inside the loop.
+
+	  ASTERISK-23616 #close
+	  Reported by: ibercom
+
+	* app_voicemail: fix missing symbol
+
+	  ASTERISK-23391 caused a regression where the symbol 'defaultlanguage'
+	  was used by app_voicemail but not exported by main/asterisk. This
+	  change renames the variable to ast_defaultlanguage. The variable was
+	  already renamed in Asterisk 12+.
+
+	  (closes issue ASTERISK-23559)
+	  Reported by: Corey Farrell
+
 2014-03-28  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.9.0-rc1 Released.

@@ -12046,7 +12046,7 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 			ast_copy_string(buf, vmu->pager, len);
 		} else if (!strncasecmp(arg.attribute, "language", 8)) {
 			const char *lang = S_OR(vmu->language, chan ?
-				ast_channel_language(chan) : defaultlanguage);
+				ast_channel_language(chan) : ast_defaultlanguage);
 			ast_copy_string(buf, lang, len);
 		} else if (!strncasecmp(arg.attribute, "locale", 6)) {
 			ast_copy_string(buf, vmu->locale, len);

@@ -162,7 +162,7 @@ extern double option_maxload;
 #if defined(HAVE_SYSINFO)
 extern long option_minmemfree;		/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
-extern char defaultlanguage[];
+extern char ast_defaultlanguage[];
 
 extern struct timeval ast_startuptime;
 extern struct timeval ast_lastreloadtime;
