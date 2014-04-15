@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/config.h"
 #include "asterisk/options.h"
+#include "asterisk/beep.h"
 
 /*** DOCUMENTATION
 	<application name="Monitor" language="en_US">
@@ -83,6 +84,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</option>
 					<option name="b">
 						<para>Don't begin recording unless a call is bridged to another channel.</para>
+					</option>
+					<option name="B">
+						<para>Play a periodic beep while this call is being recorded.</para>
+						<argument name="interval"><para>Interval, in seconds. Default is 15.</para></argument>
 					</option>
 					<option name="i">
 						<para>Skip recording of input stream (disables <literal>m</literal> option).</para>
@@ -290,7 +295,8 @@ static int ast_monitor_set_state(struct ast_channel *chan, int state)
  * \retval -1 on failure
  */
 int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const char *format_spec,
-					     const char *fname_base, int need_lock, int stream_action)
+					     const char *fname_base, int need_lock, int stream_action,
+					     const char *beep_id)
 {
 	int res = 0;
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
@@ -307,6 +313,10 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 		if (!(monitor = ast_calloc(1, sizeof(*monitor)))) {
 			UNLOCK_IF_NEEDED(chan, need_lock);
 			return -1;
+		}
+
+		if (!ast_strlen_zero(beep_id)) {
+			ast_copy_string(monitor->beep_id, beep_id, sizeof(monitor->beep_id));
 		}
 
 		/* Determine file names */
@@ -511,7 +521,11 @@ int AST_OPTIONAL_API_NAME(ast_monitor_stop)(struct ast_channel *chan, int need_l
 			if (ast_safe_system(tmp) == -1)
 				ast_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}
-		
+
+		if (!ast_strlen_zero(ast_channel_monitor(chan)->beep_id)) {
+			ast_beep_stop(chan, ast_channel_monitor(chan)->beep_id);
+		}
+
 		ast_free(ast_channel_monitor(chan)->format);
 		ast_free(ast_channel_monitor(chan));
 		ast_channel_monitor_set(chan, NULL);
@@ -644,6 +658,12 @@ enum {
 	MON_FLAG_MIX =      (1 << 1),
 	MON_FLAG_DROP_IN =  (1 << 2),
 	MON_FLAG_DROP_OUT = (1 << 3),
+	MON_FLAG_BEEP =     (1 << 4),
+};
+
+enum {
+	OPT_ARG_BEEP_INTERVAL,
+	OPT_ARG_ARRAY_SIZE,	/* Always last element of the enum */
 };
 
 AST_APP_OPTIONS(monitor_opts, {
@@ -651,6 +671,7 @@ AST_APP_OPTIONS(monitor_opts, {
 	AST_APP_OPTION('m', MON_FLAG_MIX),
 	AST_APP_OPTION('i', MON_FLAG_DROP_IN),
 	AST_APP_OPTION('o', MON_FLAG_DROP_OUT),
+	AST_APP_OPTION_ARG('B', MON_FLAG_BEEP, OPT_ARG_BEEP_INTERVAL),
 });
 
 /*!
@@ -672,6 +693,8 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 	int res = 0;
 	char *parse;
 	struct ast_flags flags = { 0 };
+	char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
+	char beep_id[64] = "";
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(format);
 		AST_APP_ARG(fname_base);
@@ -688,7 +711,7 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.options)) {
-		ast_app_parse_options(monitor_opts, &flags, NULL, args.options);
+		ast_app_parse_options(monitor_opts, &flags, opts, args.options);
 
 		if (ast_test_flag(&flags, MON_FLAG_MIX)) {
 			stream_action |= X_JOIN;
@@ -698,6 +721,20 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 		}
 		if (ast_test_flag(&flags, MON_FLAG_DROP_OUT)) {
 			stream_action &= ~X_REC_OUT;
+		}
+		if (ast_test_flag(&flags, MON_FLAG_BEEP)) {
+			const char *interval_str = S_OR(opts[OPT_ARG_BEEP_INTERVAL], "15");
+			unsigned int interval = 15;
+
+			if (sscanf(interval_str, "%30u", &interval) != 1) {
+				ast_log(LOG_WARNING, "Invalid interval '%s' for periodic beep. Using default of %u\n",
+						interval_str, interval);
+			}
+
+			if (ast_beep_start(chan, interval, beep_id, sizeof(beep_id))) {
+				ast_log(LOG_WARNING, "Unable to enable periodic beep, please ensure func_periodic_hook is loaded.\n");
+				return -1;
+			}
 		}
 	}
 
@@ -731,7 +768,7 @@ static int start_monitor_exec(struct ast_channel *chan, const char *data)
 		return 0;
 	}
 
-	res = ast_monitor_start(chan, args.format, args.fname_base, 1, stream_action);
+	res = ast_monitor_start(chan, args.format, args.fname_base, 1, stream_action, beep_id);
 	if (res < 0)
 		res = ast_monitor_change_fname(chan, args.fname_base, 1);
 
@@ -790,7 +827,7 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 		}
 	}
 
-	if (ast_monitor_start(c, format, fname, 1, X_REC_IN | X_REC_OUT)) {
+	if (ast_monitor_start(c, format, fname, 1, X_REC_IN | X_REC_OUT, NULL)) {
 		if (ast_monitor_change_fname(c, fname, 1)) {
 			astman_send_error(s, m, "Could not start monitoring channel");
 			c = ast_channel_unref(c);

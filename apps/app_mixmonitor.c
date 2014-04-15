@@ -57,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/test.h"
 #include "asterisk/mixmonitor.h"
+#include "asterisk/beep.h"
 
 /*** DOCUMENTATION
 	<application name="MixMonitor" language="en_US">
@@ -82,6 +83,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<note><para>If you utilize this option inside a Local channel, you must make sure the Local
 						channel is not optimized away. To do this, be sure to call your Local channel with the
 						<literal>/n</literal> option. For example: Dial(Local/start@mycontext/n)</para></note>
+					</option>
+					<option name="B">
+						<para>Play a periodic beep while this call is being recorded.</para>
+						<argument name="interval"><para>Interval, in seconds. Default is 15.</para></argument>
 					</option>
 					<option name="v">
 						<para>Adjust the <emphasis>heard</emphasis> volume by a factor of <replaceable>x</replaceable>
@@ -319,6 +324,7 @@ enum mixmonitor_flags {
 	MUXFLAG_COMBINED = (1 << 8),
 	MUXFLAG_UID = (1 << 9),
 	MUXFLAG_VMRECIPIENTS = (1 << 10),
+	MUXFLAG_BEEP = (1 << 11),
 };
 
 enum mixmonitor_args {
@@ -329,12 +335,14 @@ enum mixmonitor_args {
 	OPT_ARG_READNAME,
 	OPT_ARG_UID,
 	OPT_ARG_VMRECIPIENTS,
+	OPT_ARG_BEEP_INTERVAL,
 	OPT_ARG_ARRAY_SIZE,	/* Always last element of the enum */
 };
 
 AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION('a', MUXFLAG_APPEND),
 	AST_APP_OPTION('b', MUXFLAG_BRIDGED),
+	AST_APP_OPTION_ARG('B', MUXFLAG_BEEP, OPT_ARG_BEEP_INTERVAL),
 	AST_APP_OPTION_ARG('v', MUXFLAG_READVOLUME, OPT_ARG_READVOLUME),
 	AST_APP_OPTION_ARG('V', MUXFLAG_WRITEVOLUME, OPT_ARG_WRITEVOLUME),
 	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
@@ -361,6 +369,7 @@ struct mixmonitor_ds {
 
 	unsigned int samp_rate;
 	char *filename;
+	char *beep_id;
 };
 
 /*!
@@ -405,6 +414,7 @@ static void mixmonitor_ds_destroy(void *data)
 	mixmonitor_ds->audiohook = NULL;
 	mixmonitor_ds->destruction_ok = 1;
 	ast_free(mixmonitor_ds->filename);
+	ast_free(mixmonitor_ds->beep_id);
 	ast_cond_signal(&mixmonitor_ds->destruction_condition);
 	ast_mutex_unlock(&mixmonitor_ds->lock);
 }
@@ -772,7 +782,7 @@ static void *mixmonitor_thread(void *obj)
 	return NULL;
 }
 
-static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel *chan, char **datastore_id)
+static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel *chan, char **datastore_id, const char *beep_id)
 {
 	struct ast_datastore *datastore = NULL;
 	struct mixmonitor_ds *mixmonitor_ds;
@@ -799,6 +809,9 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 	mixmonitor_ds->samp_rate = 8000;
 	mixmonitor_ds->audiohook = &mixmonitor->audiohook;
 	mixmonitor_ds->filename = ast_strdup(mixmonitor->filename);
+	if (!ast_strlen_zero(beep_id)) {
+		mixmonitor_ds->beep_id = ast_strdup(beep_id);
+	}
 	datastore->data = mixmonitor_ds;
 
 	ast_channel_lock(chan);
@@ -813,7 +826,7 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 				  unsigned int flags, int readvol, int writevol,
 				  const char *post_process, const char *filename_write,
 				  char *filename_read, const char *uid_channel_var,
-				  const char *recipients)
+				  const char *recipients, const char *beep_id)
 {
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
@@ -872,7 +885,7 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 		mixmonitor->filename_read = ast_strdup(filename_read);
 	}
 
-	if (setup_mixmonitor_ds(mixmonitor, chan, &datastore_id)) {
+	if (setup_mixmonitor_ds(mixmonitor, chan, &datastore_id, beep_id)) {
 		ast_autochan_destroy(mixmonitor->autochan);
 		mixmonitor_free(mixmonitor);
 		ast_free(datastore_id);
@@ -973,6 +986,7 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 	char *filename_write = NULL;
 	char filename_buffer[1024] = "";
 	char *uid_channel_var = NULL;
+	char beep_id[64] = "";
 
 	struct ast_flags flags = { 0 };
 	char *recipients = NULL;
@@ -1046,6 +1060,21 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 		if (ast_test_flag(&flags, MUXFLAG_UID)) {
 			uid_channel_var = opts[OPT_ARG_UID];
 		}
+
+		if (ast_test_flag(&flags, MUXFLAG_BEEP)) {
+			const char *interval_str = S_OR(opts[OPT_ARG_BEEP_INTERVAL], "15");
+			unsigned int interval = 15;
+
+			if (sscanf(interval_str, "%30u", &interval) != 1) {
+				ast_log(LOG_WARNING, "Invalid interval '%s' for periodic beep. Using default of %u\n",
+						interval_str, interval);
+			}
+
+			if (ast_beep_start(chan, interval, beep_id, sizeof(beep_id))) {
+				ast_log(LOG_WARNING, "Unable to enable periodic beep, please ensure func_periodic_hook is loaded.\n");
+				return -1;
+			}
+		}
 	}
 	/* If there are no file writing arguments/options for the mix monitor, send a warning message and return -1 */
 
@@ -1072,7 +1101,8 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 			filename_write,
 			filename_read,
 			uid_channel_var,
-			recipients)) {
+			recipients,
+			beep_id)) {
 		ast_module_unref(ast_module_info->self);
 	}
 
@@ -1084,6 +1114,7 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 	struct ast_datastore *datastore = NULL;
 	char *parse = "";
 	struct mixmonitor_ds *mixmonitor_ds;
+	const char *beep_id = NULL;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(mixmonid);
@@ -1123,6 +1154,10 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 		mixmonitor_ds->audiohook = NULL;
 	}
 
+	if (!ast_strlen_zero(mixmonitor_ds->beep_id)) {
+		beep_id = ast_strdupa(mixmonitor_ds->beep_id);
+	}
+
 	ast_mutex_unlock(&mixmonitor_ds->lock);
 
 	/* Remove the datastore so the monitor thread can exit */
@@ -1130,6 +1165,10 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 		ast_datastore_free(datastore);
 	}
 	ast_channel_unlock(chan);
+
+	if (!ast_strlen_zero(beep_id)) {
+		ast_beep_stop(chan, beep_id);
+	}
 
 	return 0;
 }

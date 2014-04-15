@@ -42,6 +42,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 #include "asterisk/audiohook.h"
+#define AST_API_MODULE
+#include "asterisk/beep.h"
 
 /*** DOCUMENTATION
 	<function name="PERIODIC_HOOK" language="en_US">
@@ -92,6 +94,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char context_name[] = "__func_periodic_hook_context__";
 static const char exten_name[] = "hook";
 static const char full_exten_name[] = "hook@__func_periodic_hook_context__";
+
+static const char beep_exten[] = "beep";
 
 /*!
  * \brief Last used hook ID
@@ -485,9 +489,35 @@ static int load_module(void)
 	ast_add_extension(context_name, 1, exten_name, 6, "", "",
 			"ChanSpy", "${ChannelToSpy},qEB", NULL, AST_MODULE);
 
+	res = ast_add_extension(context_name, 1, beep_exten, 1, "", "",
+			"Answer", "", NULL, AST_MODULE);
+	res |= ast_add_extension(context_name, 1, beep_exten, 2, "", "",
+			"Playback", "beep", NULL, AST_MODULE);
+
 	res = ast_custom_function_register_escalating(&hook_function, AST_CFE_BOTH);
 
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
+}
+
+int AST_OPTIONAL_API_NAME(ast_beep_start)(struct ast_channel *chan,
+		unsigned int interval, char *beep_id, size_t len)
+{
+	char args[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 32];
+
+	snprintf(args, sizeof(args), "%s,%s,%u",
+			context_name, beep_exten, interval);
+
+	if (hook_read(chan, NULL, args, beep_id, len)) {
+		ast_log(LOG_WARNING, "Failed to enable periodic beep.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int AST_OPTIONAL_API_NAME(ast_beep_stop)(struct ast_channel *chan, const char *beep_id)
+{
+	return hook_write(chan, NULL, (char *) beep_id, "off");
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Periodic dialplan hooks.");

@@ -43,6 +43,7 @@ struct ast_channel_monitor {
 	char read_filename[FILENAME_MAX];
 	char write_filename[FILENAME_MAX];
 	char filename_base[FILENAME_MAX];
+	char beep_id[64];
 	int filename_changed;
 	char *format;
 	int joinfiles;
@@ -53,7 +54,8 @@ struct ast_channel_monitor {
 /* Start monitoring a channel */
 AST_OPTIONAL_API(int, ast_monitor_start,
 		 (struct ast_channel *chan, const char *format_spec,
-		  const char *fname_base, int need_lock, int stream_action),
+		  const char *fname_base, int need_lock, int stream_action,
+		  const char *beep_id),
 		 { return -1; });
 
 /* Stop monitoring a channel */

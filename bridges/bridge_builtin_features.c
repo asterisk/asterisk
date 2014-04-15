@@ -196,7 +196,7 @@ static void start_automonitor(struct ast_bridge_channel *bridge_channel, struct 
 
 	ast_verb(3, "AutoMonitor used to record call. Filename: %s\n", touch_filename);
 
-	if (ast_monitor_start(peer_chan, touch_format, touch_filename, 1, X_REC_IN | X_REC_OUT)) {
+	if (ast_monitor_start(peer_chan, touch_format, touch_filename, 1, X_REC_IN | X_REC_OUT, NULL)) {
 		ast_verb(3, "automon feature was tried by '%s' but monitor failed to start.\n",
 			ast_channel_name(bridge_channel->chan));
 		return;

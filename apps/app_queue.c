@@ -6562,13 +6562,13 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 				}
 				ast_channel_unlock(qe->chan);
 				if (monitorfilename) {
-					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT);
+					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT, NULL);
 				} else if (qe->chan) {
-					ast_monitor_start(which, qe->parent->monfmt, ast_channel_uniqueid(qe->chan), 1, X_REC_IN | X_REC_OUT);
+					ast_monitor_start(which, qe->parent->monfmt, ast_channel_uniqueid(qe->chan), 1, X_REC_IN | X_REC_OUT, NULL);
 				} else {
 					/* Last ditch effort -- no channel, make up something */
 					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
-					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
+					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT, NULL);
 				}
 				if (!ast_strlen_zero(monexec)) {
 					ast_monitor_setjoinfiles(which, 1);
