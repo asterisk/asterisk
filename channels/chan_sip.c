@@ -7038,10 +7038,11 @@ static int sip_hangup(struct ast_channel *ast)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		if (p->owner) {
-			ast_channel_tech_pvt_set(p->owner, dialog_unref(ast_channel_tech_pvt(p->owner), "unref p->owner->tech_pvt"));
 			sip_pvt_lock(p);
+			oldowner = p->owner;
 			p->owner = NULL;  /* Owner will be gone after we return, so take it away */
 			sip_pvt_unlock(p);
+			ast_channel_tech_pvt_set(oldowner, dialog_unref(ast_channel_tech_pvt(oldowner), "unref oldowner->tech_pvt"));
 		}
 		ast_module_unref(ast_module_info->self);
 		return 0;
@@ -7077,7 +7078,7 @@ static int sip_hangup(struct ast_channel *ast)
 	disable_dsp_detect(p);
 
 	p->owner = NULL;
-	ast_channel_tech_pvt_set(ast, dialog_unref(ast_channel_tech_pvt(ast), "unref ast->tech_pvt"));
+	ast_channel_tech_pvt_set(ast, NULL);
 
 	ast_module_unref(ast_module_info->self);
 	/* Do not destroy this pvt until we have timeout or
@@ -7209,6 +7210,7 @@ static int sip_hangup(struct ast_channel *ast)
 		pvt_set_needdestroy(p, "hangup");
 	}
 	sip_pvt_unlock(p);
+	dialog_unref(p, "unref ast->tech_pvt");
 	return 0;
 }
 
@@ -28550,12 +28552,12 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 		ast_channel_unref(owner_chan_ref);
 	}
 	sip_pvt_unlock(p);
-	ao2_t_ref(p, -1, "throw away dialog ptr from find_call at end of routine"); /* p is gone after the return */
 	ast_mutex_unlock(&netlock);
 
 	if (p->logger_callid) {
 		ast_callid_threadassoc_remove();
 	}
+	ao2_t_ref(p, -1, "throw away dialog ptr from find_call at end of routine"); /* p is gone after the return */
 
 	return 1;
 }
