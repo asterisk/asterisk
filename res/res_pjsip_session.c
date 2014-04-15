@@ -302,7 +302,7 @@ static int validate_incoming_sdp(const pjmedia_sdp_session *sdp)
 	for (i = 0; i < sdp->media_count; ++i) {
 		RAII_VAR(int *, port, ao2_alloc(sizeof(int), NULL), ao2_cleanup);
 		RAII_VAR(int *, port_match, NULL, ao2_cleanup);
-		RAII_VAR(int *, bundle_match, NULL, ao2_cleanup);
+
 		*port = sdp->media[i]->desc.port;
 		port_match = ao2_find(portlist, port, OBJ_KEY);
 		if (port_match) {

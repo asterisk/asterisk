@@ -464,7 +464,6 @@ void ast_ari_channels_record(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
 	RAII_VAR(char *, recording_url, NULL, ast_free);
 	struct ast_json *json;

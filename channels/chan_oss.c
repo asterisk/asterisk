@@ -1175,7 +1175,6 @@ static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 static char *console_transfer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
-	RAII_VAR(struct ast_channel *, b, NULL, ast_channel_cleanup);
 	char *tmp, *ext, *ctx;
 
 	switch (cmd) {

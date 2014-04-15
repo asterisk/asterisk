@@ -472,7 +472,6 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(char *, response_text, NULL, ast_free);
 	RAII_VAR(struct stasis_rest_handlers *, root, NULL, ao2_cleanup);
 	struct stasis_rest_handlers *handler;
 	RAII_VAR(struct ast_variable *, path_vars, NULL, ast_variables_destroy);

@@ -192,7 +192,6 @@ static const char *state_to_string(enum stasis_app_playback_state state)
 static void playback_publish(struct stasis_app_playback *playback)
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	ast_assert(playback != NULL);

@@ -4834,8 +4834,6 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	struct pbx_find_info q = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
 	char passdata[EXT_DATA_SIZE];
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 	ast_rdlock_contexts();
 	if (found)

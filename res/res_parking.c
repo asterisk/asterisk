@@ -689,7 +689,6 @@ static int parking_add_extension(struct ast_context *context, int replace, const
 
 static int extension_is_compatible(struct parking_lot_cfg *lot_cfg, const char *app_type, struct ast_exten *extension)
 {
-	RAII_VAR(struct parking_lot_cfg *, owner, NULL, ao2_cleanup);
 	const char *extension_registrar = ast_get_extension_registrar(extension);
 	const char *extension_context = ast_get_context_name(ast_get_extension_context(extension));
 	const char *extension_name = ast_get_extension_name(extension);

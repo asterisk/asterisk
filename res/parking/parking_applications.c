@@ -553,7 +553,6 @@ static int parked_call_app_exec(struct ast_channel *chan, const char *data)
 {
 	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
 	RAII_VAR(struct parked_user *, pu, NULL, ao2_cleanup); /* Parked user being retrieved */
-	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
 	struct ast_bridge *retrieval_bridge;
 	int res;
 	int target_space = -1;

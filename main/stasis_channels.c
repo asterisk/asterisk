@@ -716,7 +716,6 @@ static struct ast_manager_event_blob *varset_to_ami(struct stasis_message *msg)
 static struct ast_manager_event_blob *agent_login_to_ami(struct stasis_message *msg)
 {
 	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
-	RAII_VAR(struct ast_str *, party_string, ast_str_create(256), ast_free);
 	struct ast_channel_blob *obj = stasis_message_data(msg);
 	const char *agent = ast_json_string_get(ast_json_object_get(obj->blob, "agent"));
 
@@ -734,7 +733,6 @@ static struct ast_manager_event_blob *agent_login_to_ami(struct stasis_message *
 static struct ast_manager_event_blob *agent_logoff_to_ami(struct stasis_message *msg)
 {
 	RAII_VAR(struct ast_str *, channel_string, NULL, ast_free);
-	RAII_VAR(struct ast_str *, party_string, ast_str_create(256), ast_free);
 	struct ast_channel_blob *obj = stasis_message_data(msg);
 	const char *agent = ast_json_string_get(ast_json_object_get(obj->blob, "agent"));
 	long logintime = ast_json_integer_get(ast_json_object_get(obj->blob, "logintime"));
