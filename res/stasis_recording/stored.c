@@ -247,7 +247,6 @@ static int scan_file(struct ao2_container *recordings,
 {
 	RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
 		ao2_cleanup);
-	RAII_VAR(struct ast_str *, name, NULL, ast_free);
 	const char *ext;
 	char *dot;
 

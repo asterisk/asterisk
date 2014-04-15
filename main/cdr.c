@@ -1085,7 +1085,6 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 	struct ast_var_t *it_var, *it_copy_var;
 	struct ast_channel_snapshot *party_a;
 	struct ast_channel_snapshot *party_b;
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 		struct ast_cdr *cdr_copy;
@@ -1239,9 +1238,6 @@ static void cdr_object_set_disposition(struct cdr_object *cdr, int hangupcause)
  */
 static void cdr_object_finalize(struct cdr_object *cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
-
 	if (!ast_tvzero(cdr->end)) {
 		return;
 	}
@@ -1644,8 +1640,6 @@ static enum ast_cdr_disposition dial_status_to_disposition(const char *dial_stat
 
 static int dial_state_process_dial_end(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer, const char *dial_status)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
 	struct ast_channel_snapshot *party_a;
 
 	if (caller) {

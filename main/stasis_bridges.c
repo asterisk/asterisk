@@ -346,11 +346,11 @@ static struct ast_json *ast_bridge_merge_message_to_json(
 		return NULL;
 	}
 
-        return ast_json_pack("{s: s, s: o, s: O, s: O}",
-                "type", "BridgeMerged",
-                "timestamp", ast_json_timeval(*stasis_message_timestamp(msg), NULL),
-                "bridge", json_bridge_to,
-                "bridge_from", json_bridge_from);
+	return ast_json_pack("{s: s, s: o, s: O, s: O}",
+		"type", "BridgeMerged",
+		"timestamp", ast_json_timeval(*stasis_message_timestamp(msg), NULL),
+		"bridge", json_bridge_to,
+		"bridge_from", json_bridge_from);
 }
 
 void ast_bridge_publish_merge(struct ast_bridge *to, struct ast_bridge *from)
@@ -466,10 +466,10 @@ void ast_bridge_publish_leave(struct ast_bridge *bridge, struct ast_channel *cha
 }
 
 static struct ast_json *simple_bridge_channel_event(
-        const char *type,
-        struct ast_bridge_snapshot *bridge_snapshot,
-        struct ast_channel_snapshot *channel_snapshot,
-        const struct timeval *tv,
+	const char *type,
+	struct ast_bridge_snapshot *bridge_snapshot,
+	struct ast_channel_snapshot *channel_snapshot,
+	const struct timeval *tv,
 	const struct stasis_message_sanitizer *sanitize)
 {
 	RAII_VAR(struct ast_json *, json_bridge,
@@ -481,31 +481,31 @@ static struct ast_json *simple_bridge_channel_event(
 		return NULL;
 	}
 
-        return ast_json_pack("{s: s, s: o, s: O, s: O}",
-                "type", type,
-                "timestamp", ast_json_timeval(*tv, NULL),
-                "bridge", json_bridge,
-                "channel", json_channel);
+	return ast_json_pack("{s: s, s: o, s: O, s: O}",
+		"type", type,
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"bridge", json_bridge,
+		"channel", json_channel);
 }
 
 struct ast_json *ast_channel_entered_bridge_to_json(
 	struct stasis_message *msg,
 	const struct stasis_message_sanitizer *sanitize)
 {
-        struct ast_bridge_blob *obj = stasis_message_data(msg);
+	struct ast_bridge_blob *obj = stasis_message_data(msg);
 
 	return simple_bridge_channel_event("ChannelEnteredBridge", obj->bridge,
-                obj->channel, stasis_message_timestamp(msg), sanitize);
+		obj->channel, stasis_message_timestamp(msg), sanitize);
 }
 
 struct ast_json *ast_channel_left_bridge_to_json(
 	struct stasis_message *msg,
 	const struct stasis_message_sanitizer *sanitize)
 {
-        struct ast_bridge_blob *obj = stasis_message_data(msg);
+	struct ast_bridge_blob *obj = stasis_message_data(msg);
 
 	return simple_bridge_channel_event("ChannelLeftBridge", obj->bridge,
-                obj->channel, stasis_message_timestamp(msg), sanitize);
+		obj->channel, stasis_message_timestamp(msg), sanitize);
 }
 
 static struct ast_json *container_to_json_array(struct ao2_container *items,

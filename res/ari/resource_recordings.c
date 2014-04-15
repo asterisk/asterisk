@@ -166,7 +166,6 @@ static void control_recording(const char *name,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	enum stasis_app_recording_oper_results res;
 
 	recording = stasis_app_recording_find_by_name(name);

@@ -7202,8 +7202,6 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 
 		if ((sub && sub->owner) && (ast_channel_state(sub->owner) ==  AST_STATE_UP)) {
-			RAII_VAR(struct ast_channel *, bridged, NULL, ast_channel_cleanup);
-
 			c = sub->owner;
 			ast_channel_lock(c);
 			bridge_channel = ast_channel_get_bridge_channel(c);

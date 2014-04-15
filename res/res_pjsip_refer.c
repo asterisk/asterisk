@@ -732,7 +732,6 @@ static int refer_incoming_invite_request(struct ast_sip_session *session, struct
 	int response = 0;
 	RAII_VAR(struct ast_sip_session *, other_session, NULL, ao2_cleanup);
 	struct invite_replaces invite;
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
 
 	/* If a Replaces header is present make sure it is valid */
 	if (pjsip_replaces_verify_request(rdata, &other_dlg, PJ_TRUE, &packet) != PJ_SUCCESS) {

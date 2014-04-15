@@ -158,7 +158,6 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const ch
 
 	while ((aor_name = strsep(&rest, ","))) {
 		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
-		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
 
 		if (!aor) {
 			continue;

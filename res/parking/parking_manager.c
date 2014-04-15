@@ -152,7 +152,6 @@ static struct stasis_subscription *parking_sub;
 
 static struct ast_parked_call_payload *parked_call_payload_from_failure(struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_parked_call_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, parkee_snapshot, NULL, ao2_cleanup);
 
 	ast_channel_lock(chan);
@@ -167,7 +166,6 @@ static struct ast_parked_call_payload *parked_call_payload_from_failure(struct a
 
 static struct ast_parked_call_payload *parked_call_payload_from_parked_user(struct parked_user *pu, enum ast_parked_call_event_type event_type)
 {
-	RAII_VAR(struct ast_parked_call_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, parkee_snapshot, NULL, ao2_cleanup);
 	long int timeout;
 	long int duration;
@@ -177,7 +175,6 @@ static struct ast_parked_call_payload *parked_call_payload_from_parked_user(stru
 	ast_channel_lock(pu->chan);
 	parkee_snapshot = ast_channel_snapshot_create(pu->chan);
 	ast_channel_unlock(pu->chan);
-
 	if (!parkee_snapshot) {
 		return NULL;
 	}

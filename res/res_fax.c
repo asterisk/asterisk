@@ -1175,7 +1175,6 @@ static char *generate_filenames_string(struct ast_fax_session_details *details, 
 static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_details *details, const char *status)
 {
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	struct ast_json *json_filenames = NULL;
 

@@ -387,7 +387,6 @@ static struct ast_json *channel_dialplan(
 	struct ast_channel_snapshot *new_snapshot,
 	const struct timeval *tv)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ast_json *json_channel;
 
 	/* No Newexten event on cache clear or first event */
@@ -422,7 +421,6 @@ static struct ast_json *channel_callerid(
 	struct ast_channel_snapshot *new_snapshot,
 	const struct timeval *tv)
 {
-	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	struct ast_json *json_channel;
 
 	/* No NewCallerid event on cache clear or first event */

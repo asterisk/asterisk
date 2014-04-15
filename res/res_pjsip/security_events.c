@@ -136,7 +136,6 @@ void ast_sip_report_auth_failed_challenge_response(struct ast_sip_endpoint *endp
 	char call_id[pj_strlen(&rdata->msg_info.cid->id) + 1];
 	char nonce[64] = "", response[256] = "";
 	struct ast_sockaddr local, remote;
-	RAII_VAR(struct ast_sip_endpoint *, artificial, ast_sip_get_artificial_endpoint(), ao2_cleanup);
 
 	struct ast_security_event_chal_resp_failed chal_resp_failed = {
 				.common.event_type = AST_SECURITY_EVENT_CHAL_RESP_FAILED,
