@@ -890,11 +890,10 @@ static void generate_or_link_lots_to_configs(void)
 	struct parking_lot_cfg *lot_cfg;
 	struct ao2_iterator iter;
 
-	for (iter = ao2_iterator_init(cfg->parking_lots, 0); (lot_cfg = ao2_iterator_next(&iter)); ao2_ref(lot_cfg, -1)) {
-		RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
-		lot = parking_lot_build_or_update(lot_cfg, 0);
+	iter = ao2_iterator_init(cfg->parking_lots, 0);
+	for (; (lot_cfg = ao2_iterator_next(&iter)); ao2_ref(lot_cfg, -1)) {
+		ao2_cleanup(parking_lot_build_or_update(lot_cfg, 0));
 	}
-
 	ao2_iterator_destroy(&iter);
 }
 

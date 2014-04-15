@@ -172,8 +172,8 @@ static void channel_snapshot_dtor(void *obj)
 
 struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	struct ast_channel_snapshot *snapshot;
+	struct ast_bridge *bridge;
 	char nativeformats[256];
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
@@ -187,6 +187,7 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 
 	snapshot = ao2_alloc(sizeof(*snapshot), channel_snapshot_dtor);
 	if (!snapshot || ast_string_field_init(snapshot, 1024)) {
+		ao2_cleanup(snapshot);
 		return NULL;
 	}
 
@@ -231,6 +232,7 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 
 	if ((bridge = ast_channel_get_bridge(chan))) {
 		ast_string_field_set(snapshot, bridgeid, bridge->uniqueid);
+		ao2_cleanup(bridge);
 	}
 
 	ast_string_field_set(snapshot, nativeformats, ast_getformatname_multiple(nativeformats, sizeof(nativeformats),
@@ -267,7 +269,6 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	snapshot->channel_vars = ast_channel_get_vars(chan);
 	snapshot->tech_properties = ast_channel_tech(chan)->properties;
 
-	ao2_ref(snapshot, +1);
 	return snapshot;
 }
 
