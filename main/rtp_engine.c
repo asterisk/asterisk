@@ -1915,28 +1915,22 @@ void ast_rtp_publish_rtcp_message(struct ast_rtp_instance *rtp,
 		struct ast_rtp_rtcp_report *report,
 		struct ast_json *blob)
 {
-	RAII_VAR(struct rtcp_message_payload *, payload,
-			ao2_alloc(sizeof(*payload), rtcp_message_payload_dtor), ao2_cleanup);
-	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct rtcp_message_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
+	payload = ao2_alloc(sizeof(*payload), rtcp_message_payload_dtor);
 	if (!payload || !report) {
 		return;
 	}
 
 	if (!ast_strlen_zero(rtp->channel_uniqueid)) {
-		snapshot = ast_channel_snapshot_get_latest(rtp->channel_uniqueid);
-		if (snapshot) {
-			ao2_ref(snapshot, +1);
-		}
+		payload->snapshot = ast_channel_snapshot_get_latest(rtp->channel_uniqueid);
 	}
-
 	if (blob) {
+		payload->blob = blob;
 		ast_json_ref(blob);
 	}
-	ao2_ref(report, 1);
-	payload->snapshot = snapshot;
-	payload->blob = blob;
+	ao2_ref(report, +1);
 	payload->report = report;
 
 	message = stasis_message_create(message_type, payload);

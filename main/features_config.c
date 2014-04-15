@@ -1081,7 +1081,8 @@ static struct ast_datastore *get_feature_chan_ds(struct ast_channel *chan)
 
 	if (!(ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL))) {
 		/* Hasn't been created yet.  Trigger creation. */
-		RAII_VAR(struct features_config *, cfg, get_feature_ds(chan), ao2_cleanup);
+		ao2_cleanup(get_feature_ds(chan));
+
 		ds = ast_channel_datastore_find(chan, &feature_ds_info, NULL);
 	}
 
