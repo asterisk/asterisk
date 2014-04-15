@@ -1745,6 +1745,8 @@ int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp
  * \param chan Channel to set the statistics on
  * \param instance The RTP instance that statistics will be retrieved from
  *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
  * Example usage:
  *
  * \code
