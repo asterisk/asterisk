@@ -12503,6 +12503,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	const char *privacy = NULL;
 	const char *screen = NULL;
 	struct ast_party_id connected_id;
+	const char *anonymous_string = "\"Anonymous\" <sip:anonymous@anonymous.invalid>";
 
 	if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
 		return 0;
@@ -12527,11 +12528,12 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), ast_uri_sip_user);
 
 	if (ast_test_flag(&p->flags[0], SIP_SENDRPID_PAI)) {
-		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name, lid_num, fromdomain);
-		add_header(req, "P-Asserted-Identity", ast_str_buffer(tmp));
 		if ((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
-			add_header(req, "Privacy", "id");
+			ast_str_set(&tmp, -1, "%s", anonymous_string);
+		} else {
+			ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name, lid_num, fromdomain);
 		}
+		add_header(req, "P-Asserted-Identity", ast_str_buffer(tmp));
 	} else {
 		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>;party=%s", lid_name, lid_num, fromdomain, p->outgoing_call ? "calling" : "called");
 
