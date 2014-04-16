@@ -675,6 +675,10 @@ int stasis_app_control_remove_channel_from_bridge(
  * \since 12
  * \brief Gets the bridge currently associated with a control object.
  *
+ * \note If the bridge returned by this function is to be held for any
+ *       length of time, its refcount should be incremented until the
+ *       caller is finished with it.
+ *
  * \param control Control object for the channel to query.
  *
  * \return Associated \ref ast_bridge.
