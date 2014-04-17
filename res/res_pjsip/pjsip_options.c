@@ -403,14 +403,15 @@ static void schedule_qualify(struct ast_sip_contact *contact)
  */
 static void unschedule_qualify(struct ast_sip_contact *contact)
 {
-	RAII_VAR(struct sched_data *, data, ao2_find(
-			 sched_qualifies, contact, OBJ_UNLINK), ao2_cleanup);
+	struct sched_data *data;
 
+	data = ao2_find(sched_qualifies, contact, OBJ_UNLINK | OBJ_SEARCH_KEY);
 	if (!data) {
 		return;
 	}
 
 	AST_SCHED_DEL_UNREF(sched, data->id, ao2_cleanup(data));
+	ao2_ref(data, -1);
 }
 
 /*!
@@ -778,17 +779,60 @@ static struct ast_cli_entry cli_options[] = {
 
 static int sched_qualifies_hash_fn(const void *obj, int flags)
 {
-	const struct sched_data *data = obj;
+	const struct sched_data *object;
+	const struct ast_sip_contact *key;
 
-	return ast_str_hash(ast_sorcery_object_get_id(data->contact));
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->contact;
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(ast_sorcery_object_get_id(key));
 }
 
 static int sched_qualifies_cmp_fn(void *obj, void *arg, int flags)
 {
-	struct sched_data *data = obj;
+	const struct sched_data *object_left = obj;
+	const struct sched_data *object_right = arg;
+	struct ast_sip_contact *right_key = arg;
+	int cmp;
 
-	return !strcmp(ast_sorcery_object_get_id(data->contact),
-		       ast_sorcery_object_get_id(arg));
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->contact;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(ast_sorcery_object_get_id(object_left->contact),
+			ast_sorcery_object_get_id(right_key));
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/* Not supported by container. */
+		ast_assert(0);
+		return 0;
+	default:
+		/*
+		 * What arg points to is specific to this traversal callback
+		 * and has no special meaning to astobj2.
+		 */
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	/*
+	 * At this point the traversal callback is identical to a sorted
+	 * container.
+	 */
+	return CMP_MATCH;
 }
 
 int ast_sip_initialize_sorcery_qualify(void)
@@ -884,7 +928,6 @@ int ast_res_pjsip_init_options_handling(int reload)
 	if (!(sched_qualifies = ao2_t_container_alloc(
 		QUALIFIED_BUCKETS, sched_qualifies_hash_fn, sched_qualifies_cmp_fn,
 		"Create container for scheduled qualifies"))) {
-
 		return -1;
 	}
 

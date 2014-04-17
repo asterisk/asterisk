@@ -2258,6 +2258,18 @@ static void remove_request_headers(pjsip_endpoint *endpt)
 	}
 }
 
+/*!
+ * \internal
+ * \brief Reload configuration within a PJSIP thread
+ */
+static int reload_configuration_task(void *obj)
+{
+	ast_res_pjsip_reload_configuration();
+	ast_res_pjsip_init_options_handling(1);
+	ast_sip_initialize_dns();
+	return 0;
+}
+
 static int load_module(void)
 {
 	/* The third parameter is just copied from
@@ -2409,11 +2421,11 @@ static int load_module(void)
 
 static int reload_module(void)
 {
-	if (ast_res_pjsip_reload_configuration()) {
-		return AST_MODULE_LOAD_DECLINE;
+	if (ast_sip_push_task(NULL, reload_configuration_task, NULL)) {
+		ast_log(LOG_WARNING, "Failed to reload PJSIP\n");
+		return -1;
 	}
-	ast_res_pjsip_init_options_handling(1);
-	ast_sip_initialize_dns();
+
 	return 0;
 }
 

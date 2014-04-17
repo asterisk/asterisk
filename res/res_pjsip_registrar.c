@@ -159,7 +159,7 @@ static int registrar_prune_static(void *obj, void *arg, int flags)
 	return ast_tvzero(contact->expiration_time) ? CMP_MATCH : 0;
 }
 
-/*! \brief Internal function used to delete all contacts from an AOR */
+/*! \brief Internal function used to delete a contact from an AOR */
 static int registrar_delete_contact(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
