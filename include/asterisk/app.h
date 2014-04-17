@@ -880,6 +880,14 @@ int ast_control_streamfile_lang(struct ast_channel *chan, const char *file,
 	const char *restart, int skipms, const char *lang, long *offsetms);
 
 /*!
+ * \brief Controls playback of a tone
+ *
+ * \retval 0 on success
+ * \retval Non-zero on failure
+ */
+int ast_control_tone(struct ast_channel *chan, const char *tone);
+
+/*!
  * \brief Stream a file with fast forward, pause, reverse, restart.
  * \param chan
  * \param file filename

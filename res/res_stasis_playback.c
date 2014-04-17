@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/uuid.h"
 #include "asterisk/say.h"
+#include "asterisk/indications.h"
 
 /*! Number of hash buckets for playback container. Keep it prime! */
 #define PLAYBACK_BUCKETS 127
@@ -60,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define NUMBER_URI_SCHEME "number:"
 #define DIGITS_URI_SCHEME "digits:"
 #define CHARACTERS_URI_SCHEME "characters:"
+#define TONE_URI_SCHEME "tone:"
 
 /*! Container of all current playbacks */
 static struct ao2_container *playbacks;
@@ -323,6 +325,9 @@ static void play_on_channel(struct stasis_app_playback *playback,
 	} else if (ast_begins_with(playback->media, CHARACTERS_URI_SCHEME)) {
 		res = ast_say_character_str(chan, playback->media + strlen(CHARACTERS_URI_SCHEME),
 			stop, playback->language, AST_SAY_CASE_NONE);
+	} else if (ast_begins_with(playback->media, TONE_URI_SCHEME)) {
+		playback->controllable = 1;
+		res = ast_control_tone(chan, playback->media + strlen(TONE_URI_SCHEME));
 	} else {
 		/* Play URL */
 		ast_log(LOG_ERROR, "Attempted to play URI '%s' on channel '%s' but scheme is unsupported",
