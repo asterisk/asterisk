@@ -98,7 +98,7 @@ chan_sip
 -------------------------
  * TEL URI support for inbound INVITE requests has been added. chan_sip will
    now handle TEL schemes in the Request and From URIs. The phone-context in
-   the Request URI will be stored in the TELPHONECONTEXT channel variable on
+   the Request URI will be stored in the SIPURIPHONECONTEXT channel variable on
    the inbound channel.
 
 Debugging

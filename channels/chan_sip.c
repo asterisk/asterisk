@@ -8249,6 +8249,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_strlen_zero(i->domain)) {
 		pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
 	}
+	if (!ast_strlen_zero(i->tel_phone_context)) {
+		pbx_builtin_setvar_helper(tmp, "SIPURIPHONECONTEXT", i->tel_phone_context);
+	}
 	if (!ast_strlen_zero(i->callid)) {
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
 	}
@@ -17694,6 +17697,12 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 
 	extract_host_from_hostport(&domain);
 
+	if (strncasecmp(get_in_brackets(tmp), "tel:", 4)) {
+		ast_string_field_set(p, domain, domain);
+	} else {
+		ast_string_field_set(p, tel_phone_context, domain);
+	}
+
 	if (ast_strlen_zero(uri)) {
 		/*
 		 * Either there really was no extension found or the request
@@ -17702,8 +17711,6 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 		 */
 		uri = "s";
 	}
-
-	ast_string_field_set(p, domain, domain);
 
 	/* Now find the From: caller ID and name */
 	/* XXX Why is this done in get_destination? Isn't it already done?
@@ -18358,7 +18365,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		if (!peer) {
 			char *uri_tmp, *callback = NULL, *dummy;
 			uri_tmp = ast_strdupa(uri2);
-			parse_uri(uri_tmp, "sip:,sips:", &callback, &dummy, &dummy, &dummy);
+			parse_uri(uri_tmp, "sip:,sips:,tel:", &callback, &dummy, &dummy, &dummy);
 			if (!ast_strlen_zero(callback) && (peer = sip_find_peer_by_ip_and_exten(&p->recv, callback, p->socket.type))) {
 				; /* found, fall through */
 			} else {
