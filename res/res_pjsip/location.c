@@ -255,25 +255,66 @@ static int permanent_contact_validate(void *data)
 	return 0;
 }
 
+static int permanent_uri_sort_fn(const void *obj_left, const void *obj_right, int flags)
+{
+	const struct ast_sip_contact *object_left = obj_left;
+	const struct ast_sip_contact *object_right = obj_right;
+	const char *right_key = obj_right;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = ast_sorcery_object_get_id(object_right);
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(ast_sorcery_object_get_id(object_left), right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/*
+		 * We could also use a partial key struct containing a length
+		 * so strlen() does not get called for every comparison instead.
+		 */
+		cmp = strncmp(ast_sorcery_object_get_id(object_left), right_key, strlen(right_key));
+		break;
+	default:
+		/* Sort can only work on something with a full or partial key. */
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	return cmp;
+}
+
 /*! \brief Custom handler for permanent URIs */
 static int permanent_uri_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_aor *aor = obj;
-	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	const char *aor_id = ast_sorcery_object_get_id(aor);
+	struct ast_sip_contact *contact;
+	char contact_id[strlen(aor_id) + strlen(var->value) + 2 + 1];
 
-	if (ast_sip_push_task_synchronous(NULL, permanent_contact_validate, (char*)var->value)) {
+	if (ast_sip_push_task_synchronous(NULL, permanent_contact_validate, (char *) var->value)) {
 		ast_log(LOG_ERROR, "Permanent URI on aor '%s' with contact '%s' failed to parse\n",
-			ast_sorcery_object_get_id(aor), var->value);
+			aor_id, var->value);
 		return -1;
 	}
 
-	if ((!aor->permanent_contacts && !(aor->permanent_contacts = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL))) ||
-		!(contact = ast_sorcery_alloc(ast_sip_get_sorcery(), "contact", NULL))) {
-		return -1;
+	if (!aor->permanent_contacts) {
+		aor->permanent_contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
+			AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, permanent_uri_sort_fn, NULL);
+		if (!aor->permanent_contacts) {
+			return -1;
+		}
 	}
 
+	snprintf(contact_id, sizeof(contact_id), "%s@@%s", aor_id, var->value);
+	contact = ast_sorcery_alloc(ast_sip_get_sorcery(), "contact", contact_id);
+	if (!contact) {
+		return -1;
+	}
 	ast_string_field_set(contact, uri, var->value);
 	ao2_link(aor->permanent_contacts, contact);
+	ao2_ref(contact, -1);
 
 	return 0;
 }

@@ -1812,24 +1812,11 @@ void ast_res_pjsip_destroy_configuration(void)
 	ast_sorcery_unref(sip_sorcery);
 }
 
-/*!
- * \internal
- * \brief Reload configuration within a PJSIP thread
- */
-static int reload_configuration_task(void *obj)
+int ast_res_pjsip_reload_configuration(void)
 {
 	if (sip_sorcery) {
 		ast_sorcery_reload(sip_sorcery);
 	}
-	return 0;
-}
-
-int ast_res_pjsip_reload_configuration(void)
-{
-	if (ast_sip_push_task(NULL, reload_configuration_task, NULL)) {
-		ast_log(LOG_WARNING, "Failed to reload PJSIP configuration\n");
-	}
-
 	return 0;
 }
 
