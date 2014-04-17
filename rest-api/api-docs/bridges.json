@@ -314,7 +314,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Start playback of media on a bridge.",
-					"notes": "The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
+					"notes": "The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
 					"nickname": "play",
 					"responseClass": "Playback",
 					"parameters": [

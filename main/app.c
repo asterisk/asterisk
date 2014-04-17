@@ -1070,6 +1070,143 @@ int ast_control_streamfile_lang(struct ast_channel *chan, const char *file,
 	return control_streamfile(chan, file, fwd, rev, stop, suspend, restart, skipms, offsetms, lang, NULL);
 }
 
+enum control_tone_frame_response_result {
+	CONTROL_TONE_RESPONSE_FAILED = -1,
+	CONTROL_TONE_RESPONSE_NORMAL = 0,
+	CONTROL_TONE_RESPONSE_FINISHED = 1,
+};
+
+static enum control_tone_frame_response_result control_tone_frame_response(struct ast_channel *chan, struct ast_frame *fr, struct ast_tone_zone_sound *ts, const char *tone, int *paused)
+{
+	switch (fr->subclass.integer) {
+	case AST_CONTROL_STREAM_STOP:
+		ast_playtones_stop(chan);
+		return CONTROL_TONE_RESPONSE_FINISHED;
+	case AST_CONTROL_STREAM_SUSPEND:
+		if (*paused) {
+			*paused = 0;
+			if (ast_playtones_start(chan, 0, ts ? ts->data : tone, 0)) {
+				return CONTROL_TONE_RESPONSE_FAILED;
+			}
+		} else {
+			*paused = 1;
+			ast_playtones_stop(chan);
+		}
+		return CONTROL_TONE_RESPONSE_NORMAL;
+	case AST_CONTROL_STREAM_RESTART:
+		ast_playtones_stop(chan);
+		if (ast_playtones_start(chan, 0, ts ? ts->data : tone, 0)) {
+			return CONTROL_TONE_RESPONSE_FAILED;
+		}
+		return CONTROL_TONE_RESPONSE_NORMAL;
+	case AST_CONTROL_STREAM_REVERSE:
+		ast_log(LOG_NOTICE, "Media control operation 'reverse' not supported for media type 'tone'\n");
+		return CONTROL_TONE_RESPONSE_NORMAL;
+	case AST_CONTROL_STREAM_FORWARD:
+		ast_log(LOG_NOTICE, "Media control operation 'forward' not supported for media type 'tone'\n");
+		return CONTROL_TONE_RESPONSE_NORMAL;
+	case AST_CONTROL_HANGUP:
+	case AST_CONTROL_BUSY:
+	case AST_CONTROL_CONGESTION:
+		return CONTROL_TONE_RESPONSE_FINISHED;
+	}
+
+	return CONTROL_TONE_RESPONSE_NORMAL;
+}
+
+static int parse_tone_uri(char *tone_parser,
+	const char **tone_indication,
+	const char **tone_zone)
+{
+	*tone_indication = strsep(&tone_parser, ";");
+
+	if (ast_strlen_zero(tone_parser)) {
+		/* Only the indication is included */
+		return 0;
+	}
+
+	if (!(strncmp(tone_parser, "tonezone=", 9))) {
+		*tone_zone = tone_parser + 9;
+	} else {
+		ast_log(LOG_ERROR, "Unexpected Tone URI component: %s\n", tone_parser);
+		return -1;
+	}
+
+	return 0;
+}
+
+int ast_control_tone(struct ast_channel *chan, const char *tone)
+{
+	struct ast_tone_zone *zone = NULL;
+	struct ast_tone_zone_sound *ts;
+	int paused = 0;
+	int res;
+
+	const char *tone_indication = NULL;
+	const char *tone_zone = NULL;
+	char *tone_uri_parser;
+
+	if (ast_strlen_zero(tone)) {
+		return -1;
+	}
+
+	tone_uri_parser = ast_strdupa(tone);
+
+	if (parse_tone_uri(tone_uri_parser, &tone_indication, &tone_zone)) {
+		return -1;
+	}
+
+	if (tone_zone) {
+		zone = ast_get_indication_zone(tone_zone);
+	}
+
+	ts = ast_get_indication_tone(zone ? zone : ast_channel_zone(chan), tone_indication);
+
+	if (ast_playtones_start(chan, 0, ts ? ts->data : tone_indication, 0)) {
+		return -1;
+	}
+
+	for (;;) {
+		struct ast_frame *fr;
+		int res;
+
+		if (ast_waitfor(chan, -1) < 0) {
+			res = -1;
+			break;
+		}
+
+		fr = ast_read_noaudio(chan);
+
+		if (!fr) {
+			res = -1;
+			break;
+		}
+
+		if (fr->frametype != AST_FRAME_CONTROL) {
+			continue;
+		}
+
+		res = control_tone_frame_response(chan, fr, ts, tone_indication, &paused);
+		if (res == CONTROL_TONE_RESPONSE_FINISHED) {
+			res = 0;
+			break;
+		} else if (res == CONTROL_TONE_RESPONSE_FAILED) {
+			res = -1;
+			break;
+		}
+	}
+
+	if (ts) {
+		ast_tone_zone_sound_unref(ts);
+	}
+
+	if (zone) {
+		ast_tone_zone_unref(zone);
+	}
+
+	return res;
+}
+
 int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 {
 	int d = 0;
