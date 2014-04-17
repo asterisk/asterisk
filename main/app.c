@@ -1140,7 +1140,7 @@ int ast_control_tone(struct ast_channel *chan, const char *tone)
 	struct ast_tone_zone *zone = NULL;
 	struct ast_tone_zone_sound *ts;
 	int paused = 0;
-	int res;
+	int res = 0;
 
 	const char *tone_indication = NULL;
 	const char *tone_zone = NULL;
@@ -1168,7 +1168,6 @@ int ast_control_tone(struct ast_channel *chan, const char *tone)
 
 	for (;;) {
 		struct ast_frame *fr;
-		int res;
 
 		if (ast_waitfor(chan, -1) < 0) {
 			res = -1;
