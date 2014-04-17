@@ -680,6 +680,7 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	refer.context = context;
 	refer.progress = progress;
 	refer.rdata = rdata;
+	refer.refer_to = target;
 
 	switch (ast_bridge_transfer_blind(1, session->channel, exten, context, refer_blind_callback, &refer)) {
 	case AST_BRIDGE_TRANSFER_INVALID:
