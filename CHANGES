@@ -150,7 +150,8 @@ ARI
    (POST bridges/my-bridge-id) or as a query parameter.
 
  * A playbackId can be provided when starting a playback, either in the uri
-   (POST channels/my-channel-id/play/my-playback-id) or as a query parameter.
+   (POST channels/my-channel-id/play/my-playback-id /
+    POST bridges/my-bridge-id/play/my-playback-id)  or as a query parameter.
 
  * A snoop channel can be started with a snoopId, in the uri or query.
 

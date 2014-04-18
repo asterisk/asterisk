@@ -58,6 +58,15 @@ int control_dispatch_all(struct stasis_app_control *control,
 void control_wait(struct stasis_app_control *control);
 
 /*!
+ * \brief Returns the count of items in a control's command queue.
+ *
+ * \param control Control to count commands on
+ *
+ * \retval number of commands in the command que
+ */
+int control_command_count(struct stasis_app_control *control);
+
+/*!
  * \brief Returns true if control_continue() has been called on this \a control.
  *
  * \param control Control to query.
@@ -65,6 +74,8 @@ void control_wait(struct stasis_app_control *control);
  * \return False (zero) otherwise.
  */
 int control_is_done(struct stasis_app_control *control);
+
+void control_mark_done(struct stasis_app_control *control);
 
 
 #endif /* _ASTERISK_RES_STASIS_CONTROL_H */

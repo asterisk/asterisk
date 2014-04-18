@@ -330,7 +330,7 @@ static void play_on_channel(struct stasis_app_playback *playback,
 		res = ast_control_tone(chan, playback->media + strlen(TONE_URI_SCHEME));
 	} else {
 		/* Play URL */
-		ast_log(LOG_ERROR, "Attempted to play URI '%s' on channel '%s' but scheme is unsupported",
+		ast_log(LOG_ERROR, "Attempted to play URI '%s' on channel '%s' but scheme is unsupported\n",
 			playback->media, ast_channel_name(chan));
 		return;
 	}

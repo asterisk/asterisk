@@ -375,6 +375,15 @@ void stasis_app_control_execute_until_exhausted(
 	struct stasis_app_control *control);
 
 /*!
+ * \brief Check if a control is marked as done
+ * \since 12.2.0
+ *
+ * \param control Which control object is being evaluated
+ */
+int stasis_app_control_is_done(
+	struct stasis_app_control *control);
+
+/*!
  * \brief Returns the uniqueid of the channel associated with this control
  *
  * \param control Control object.
@@ -636,6 +645,30 @@ struct ast_channel *stasis_app_bridge_moh_channel(
  */
 int stasis_app_bridge_moh_stop(
 	struct ast_bridge *bridge);
+
+/*!
+ * \brief Finds an existing ARI playback channel in a bridge
+ *
+ * \param bridge Bridge we want to find the playback channel for
+ *
+ * \return NULL if the playback channel can not be found for any reason.
+ * \return Pointer to the ;1 end of the playback channel chain.
+ */
+struct ast_channel *stasis_app_bridge_playback_channel_find(
+	struct ast_bridge *bridge);
+
+/*!
+ * \brief Adds a channel to the list of ARI playback channels for bridges.
+ *
+ * \param bridge Bridge we are adding the playback channel for
+ * \param chan Channel being added as a playback channel (must be ;1)
+ *
+ * \retval -1 failed to add channel for any reason
+ * \retval 0 on success
+ */
+int stasis_app_bridge_playback_channel_add(struct ast_bridge *bridge,
+	struct ast_channel *chan,
+	struct stasis_app_control *control);
 
 /*!
  * \brief Result codes used when adding/removing channels to/from bridges.

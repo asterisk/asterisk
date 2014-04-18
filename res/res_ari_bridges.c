@@ -948,6 +948,10 @@ int ast_ari_bridges_play_parse_body(
 	if (field) {
 		args->skipms = ast_json_integer_get(field);
 	}
+	field = ast_json_object_get(body, "playbackId");
+	if (field) {
+		args->playback_id = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -983,6 +987,9 @@ static void ast_ari_bridges_play_cb(
 		} else
 		if (strcmp(i->name, "skipms") == 0) {
 			args.skipms = atoi(i->value);
+		} else
+		if (strcmp(i->name, "playbackId") == 0) {
+			args.playback_id = (i->value);
 		} else
 		{}
 	}
@@ -1037,6 +1044,128 @@ static void ast_ari_bridges_play_cb(
 
 	if (!is_valid) {
 		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/play\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
+int ast_ari_bridges_play_with_id_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_play_with_id_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "media");
+	if (field) {
+		args->media = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "lang");
+	if (field) {
+		args->lang = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "offsetms");
+	if (field) {
+		args->offsetms = ast_json_integer_get(field);
+	}
+	field = ast_json_object_get(body, "skipms");
+	if (field) {
+		args->skipms = ast_json_integer_get(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /bridges/{bridgeId}/play/{playbackId}.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_bridges_play_with_id_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_ari_bridges_play_with_id_args args = {};
+	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "media") == 0) {
+			args.media = (i->value);
+		} else
+		if (strcmp(i->name, "lang") == 0) {
+			args.lang = (i->value);
+		} else
+		if (strcmp(i->name, "offsetms") == 0) {
+			args.offsetms = atoi(i->value);
+		} else
+		if (strcmp(i->name, "skipms") == 0) {
+			args.skipms = atoi(i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "bridgeId") == 0) {
+			args.bridge_id = (i->value);
+		} else
+		if (strcmp(i->name, "playbackId") == 0) {
+			args.playback_id = (i->value);
+		} else
+		{}
+	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	if (ast_ari_bridges_play_with_id_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
+	}
+	ast_ari_bridges_play_with_id(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 404: /* Bridge not found */
+	case 409: /* Bridge not in a Stasis application */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_playback(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /bridges/{bridgeId}/play/{playbackId}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /bridges/{bridgeId}/play/{playbackId}\n");
 		ast_ari_response_error(response, 500,
 			"Internal Server Error", "Response validation failed");
 	}
@@ -1217,13 +1346,23 @@ static struct stasis_rest_handlers bridges_bridgeId_moh = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
+static struct stasis_rest_handlers bridges_bridgeId_play_playbackId = {
+	.path_segment = "playbackId",
+	.is_wildcard = 1,
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_bridges_play_with_id_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/bridges.{format} */
 static struct stasis_rest_handlers bridges_bridgeId_play = {
 	.path_segment = "play",
 	.callbacks = {
 		[AST_HTTP_POST] = ast_ari_bridges_play_cb,
 	},
-	.num_children = 0,
-	.children = {  }
+	.num_children = 1,
+	.children = { &bridges_bridgeId_play_playbackId, }
 };
 /*! \brief REST handler for /api-docs/bridges.{format} */
 static struct stasis_rest_handlers bridges_bridgeId_record = {

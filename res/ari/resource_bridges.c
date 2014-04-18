@@ -320,30 +320,92 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
 	return ast_request(type, cap, NULL, NULL, "ARI", NULL);
 }
 
-void ast_ari_bridges_play(struct ast_variable *headers,
-	struct ast_ari_bridges_play_args *args,
-	struct ast_ari_response *response)
+/*!
+ * \brief Performs common setup for a bridge playback operation
+ * with both new controls and when existing controls are  found.
+ *
+ * \param args_media media string split from arguments
+ * \param args_lang language string split from arguments
+ * \param args_offset_ms milliseconds offset split from arguments
+ * \param args_playback_id string to use for playback split from
+ *        arguments (null valid)
+ * \param response ARI response being built
+ * \param bridge Bridge the playback is being peformed on
+ * \param control Control being used for the playback channel
+ * \param json contents of the response to ARI
+ * \param playback_url stores playback URL for use with response
+ *
+ * \retval -1 operation failed
+ * \retval operation was successful
+ */
+static int ari_bridges_play_helper(const char *args_media,
+	const char *args_lang,
+	int args_offset_ms,
+	int args_skipms,
+	const char *args_playback_id,
+	struct ast_ari_response *response,
+	struct ast_bridge *bridge,
+	struct stasis_app_control *control,
+	struct ast_json **json,
+	char **playback_url)
 {
-	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
-	RAII_VAR(struct ast_channel *, play_channel, NULL, ast_hangup);
-	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
-	RAII_VAR(char *, playback_url, NULL, ast_free);
+
+	const char *language;
+
+	snapshot = stasis_app_control_get_snapshot(control);
+	if (!snapshot) {
+		ast_ari_response_error(
+			response, 500, "Internal Error", "Failed to get control snapshot");
+		return -1;
+	}
+
+	language = S_OR(args_lang, snapshot->language);
+
+	playback = stasis_app_control_play_uri(control, args_media, language,
+		bridge->uniqueid, STASIS_PLAYBACK_TARGET_BRIDGE, args_skipms,
+		args_offset_ms, args_playback_id);
+
+	if (!playback) {
+		ast_ari_response_alloc_failed(response);
+		return -1;
+	}
+
+	if (ast_asprintf(playback_url, "/playback/%s",
+			stasis_app_playback_get_id(playback)) == -1) {
+		playback_url = NULL;
+		ast_ari_response_alloc_failed(response);
+		return -1;
+	}
+
+	*json = stasis_app_playback_to_json(playback);
+	if (!*json) {
+		ast_ari_response_alloc_failed(response);
+		return -1;
+	}
+
+	return 0;
+}
+
+static void ari_bridges_play_new(const char *args_media,
+	const char *args_lang,
+	int args_offset_ms,
+	int args_skipms,
+	const char *args_playback_id,
+	struct ast_ari_response *response,
+	struct ast_bridge *bridge)
+{
+	RAII_VAR(struct ast_channel *, play_channel, NULL, ast_hangup);
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	RAII_VAR(struct stasis_forward *, channel_forward, NULL, stasis_forward_cancel);
+	RAII_VAR(char *, playback_url, NULL, ast_free);
 
 	struct stasis_topic *channel_topic;
 	struct stasis_topic *bridge_topic;
 	struct bridge_channel_control_thread_data *thread_data;
-	const char *language;
 	pthread_t threadid;
-
-	ast_assert(response != NULL);
-
-	if (!bridge) {
-		return;
-	}
 
 	if (!(play_channel = prepare_bridge_media_channel("Announcer"))) {
 		ast_ari_response_error(
@@ -378,34 +440,16 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 		return;
 	}
 
-	snapshot = stasis_app_control_get_snapshot(control);
-	if (!snapshot) {
-		ast_ari_response_error(
-			response, 500, "Internal Error", "Failed to get control snapshot");
+	ao2_lock(control);
+	if (ari_bridges_play_helper(args_media, args_lang, args_offset_ms,
+			args_skipms, args_playback_id, response, bridge, control,
+			&json, &playback_url)) {
+		ao2_unlock(control);
 		return;
 	}
+	ao2_unlock(control);
 
-	language = S_OR(args->lang, snapshot->language);
-
-	playback = stasis_app_control_play_uri(control, args->media, language,
-		args->bridge_id, STASIS_PLAYBACK_TARGET_BRIDGE, args->skipms,
-		args->offsetms, NULL);
-
-	if (!playback) {
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-
-	ast_asprintf(&playback_url, "/playback/%s",
-		stasis_app_playback_get_id(playback));
-
-	if (!playback_url) {
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-
-	json = stasis_app_playback_to_json(playback);
-	if (!json) {
+	if (stasis_app_bridge_playback_channel_add(bridge, play_channel, control)) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
@@ -433,6 +477,134 @@ void ast_ari_bridges_play(struct ast_variable *headers,
 	channel_forward = NULL;
 
 	ast_ari_response_created(response, playback_url, ast_json_ref(json));
+}
+
+enum play_found_result {
+	PLAY_FOUND_SUCCESS,
+	PLAY_FOUND_FAILURE,
+	PLAY_FOUND_CHANNEL_UNAVAILABLE,
+};
+
+/*!
+ * \brief Performs common setup for a bridge playback operation
+ * with both new controls and when existing controls are  found.
+ *
+ * \param args_media media string split from arguments
+ * \param args_lang language string split from arguments
+ * \param args_offset_ms milliseconds offset split from arguments
+ * \param args_playback_id string to use for playback split from
+ *        arguments (null valid)
+ * \param response ARI response being built
+ * \param bridge Bridge the playback is being peformed on
+ * \param found_channel The channel that was found controlling playback
+ *
+ * \retval PLAY_FOUND_SUCCESS The operation was successful
+ * \retval PLAY_FOUND_FAILURE The operation failed (terminal failure)
+ * \retval PLAY_FOUND_CHANNEL_UNAVAILABLE The operation failed because
+ * the channel requested to playback with is breaking down.
+ */
+static enum play_found_result ari_bridges_play_found(const char *args_media,
+	const char *args_lang,
+	int args_offset_ms,
+	int args_skipms,
+	const char *args_playback_id,
+	struct ast_ari_response *response,
+	struct ast_bridge *bridge,
+	struct ast_channel *found_channel)
+{
+	RAII_VAR(struct ast_channel *, play_channel, found_channel, ao2_cleanup);
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(char *, playback_url, NULL, ast_free);
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+
+	control = stasis_app_control_find_by_channel(play_channel);
+	if (!control) {
+		ast_ari_response_error(
+			response, 500, "Internal Error", "Failed to get control snapshot");
+		return PLAY_FOUND_FAILURE;
+	}
+
+	ao2_lock(control);
+	if (stasis_app_control_is_done(control)) {
+		/* We failed to queue the action. Bailout and return that we aren't terminal. */
+		ao2_unlock(control);
+		return PLAY_FOUND_CHANNEL_UNAVAILABLE;
+	}
+
+	if (ari_bridges_play_helper(args_media, args_lang, args_offset_ms,
+			args_skipms, args_playback_id, response, bridge, control,
+			&json, &playback_url)) {
+		ao2_unlock(control);
+		return PLAY_FOUND_FAILURE;
+	}
+	ao2_unlock(control);
+
+	ast_ari_response_created(response, playback_url, ast_json_ref(json));
+	return PLAY_FOUND_SUCCESS;
+}
+
+static void ari_bridges_handle_play(
+	const char *args_bridge_id,
+	const char *args_media,
+	const char *args_lang,
+	int args_offset_ms,
+	int args_skipms,
+	const char *args_playback_id,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args_bridge_id), ao2_cleanup);
+	struct ast_channel *play_channel;
+
+	ast_assert(response != NULL);
+
+	if (!bridge) {
+		return;
+	}
+
+	while ((play_channel = stasis_app_bridge_playback_channel_find(bridge))) {
+		/* If ari_bridges_play_found fails because the channel is unavailable for
+		 * playback, The channel will be removed from the playback list soon. We
+		 * can keep trying to get channels from the list until we either get one
+		 * that will work or else there isn't a channel for this bridge anymore,
+		 * in which case we'll revert to ari_bridges_play_new.
+		 */
+		if (ari_bridges_play_found(args_media, args_lang, args_offset_ms,
+				args_skipms, args_playback_id, response,bridge,
+				play_channel) == PLAY_FOUND_CHANNEL_UNAVAILABLE) {
+			continue;
+		}
+		return;
+	}
+
+	ari_bridges_play_new(args_media, args_lang, args_offset_ms,
+		args_skipms, args_playback_id, response, bridge);
+}
+
+
+void ast_ari_bridges_play(struct ast_variable *headers,
+	struct ast_ari_bridges_play_args *args,
+	struct ast_ari_response *response)
+{
+	ari_bridges_handle_play(args->bridge_id,
+	args->media,
+	args->lang,
+	args->offsetms,
+	args->skipms,
+	args->playback_id,
+	response);
+}
+
+void ast_ari_bridges_play_with_id(struct ast_variable *headers,
+	struct ast_ari_bridges_play_with_id_args *args,
+	struct ast_ari_response *response)
+{
+	ari_bridges_handle_play(args->bridge_id,
+	args->media,
+	args->lang,
+	args->offsetms,
+	args->skipms,
+	args->playback_id,
+	response);
 }
 
 void ast_ari_bridges_record(struct ast_variable *headers,
@@ -573,8 +745,9 @@ void ast_ari_bridges_record(struct ast_variable *headers,
 	}
 	ast_uri_encode(args->name, uri_encoded_name, uri_name_maxlen, ast_uri_http);
 
-	ast_asprintf(&recording_url, "/recordings/live/%s", uri_encoded_name);
-	if (!recording_url) {
+	if (ast_asprintf(&recording_url, "/recordings/live/%s",
+			uri_encoded_name) == -1) {
+		recording_url = NULL;
 		ast_ari_response_alloc_failed(response);
 		return;
 	}

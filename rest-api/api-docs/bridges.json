@@ -368,7 +368,14 @@
 								"valueType": "RANGE",
 								"min": 0
 							}
-
+						},
+						{
+							"name": "playbackId",
+							"description": "Playback Id.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -381,6 +388,90 @@
 							"reason": "Bridge not in a Stasis application"
 						}
 					]
+				}
+			]
+		},
+		{
+			"path": "/bridges/{bridgeId}/play/{playbackId}",
+			"description": "Play media to a bridge",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Start playback of media on a bridge.",
+					"notes": "The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
+					"nickname": "playWithId",
+					"responseClass": "Playback",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "playbackId",
+							"description": "Playback ID.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "media",
+							"description": "Media's URI to play.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "lang",
+							"description": "For sounds, selects language for sound.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "offsetms",
+							"description": "Number of media to skip before playing.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 0,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
+						},
+						{
+							"name": "skipms",
+							"description": "Number of milliseconds to skip for forward/reverse operations.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 3000,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						},
+						{
+							"code": 409,
+							"reason": "Bridge not in a Stasis application"
+						}
+					]
+
 				}
 			]
 		},
