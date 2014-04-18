@@ -10092,8 +10092,6 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 struct pbx_outgoing {
 	/*! \brief Dialing structure being used */
 	struct ast_dial *dial;
-	/*! \brief Mutex lock for synchronous dialing */
-	ast_mutex_t lock;
 	/*! \brief Condition for synchronous dialing */
 	ast_cond_t cond;
 	/*! \brief Application to execute */
@@ -10123,7 +10121,6 @@ static void pbx_outgoing_destroy(void *obj)
 		ast_dial_destroy(outgoing->dial);
 	}
 
-	ast_mutex_destroy(&outgoing->lock);
 	ast_cond_destroy(&outgoing->cond);
 
 	ast_free(outgoing->appdata);
@@ -10136,12 +10133,12 @@ static void *pbx_outgoing_exec(void *data)
 	enum ast_dial_result res;
 
 	/* Notify anyone interested that dialing is complete */
-	ast_mutex_lock(&outgoing->lock);
 	res = ast_dial_run(outgoing->dial, NULL, 0);
+	ao2_lock(outgoing);
 	outgoing->dial_res = res;
 	outgoing->dialed = 1;
 	ast_cond_signal(&outgoing->cond);
-	ast_mutex_unlock(&outgoing->lock);
+	ao2_unlock(outgoing);
 
 	/* If the outgoing leg was not answered we can immediately return and go no further */
 	if (res != AST_DIAL_RESULT_ANSWERED) {
@@ -10182,10 +10179,10 @@ static void *pbx_outgoing_exec(void *data)
 	}
 
 	/* Notify anyone else again that may be interested that execution is complete */
-	ast_mutex_lock(&outgoing->lock);
+	ao2_lock(outgoing);
 	outgoing->executed = 1;
 	ast_cond_signal(&outgoing->cond);
-	ast_mutex_unlock(&outgoing->lock);
+	ao2_unlock(outgoing);
 
 	return NULL;
 }
@@ -10209,21 +10206,69 @@ static void pbx_outgoing_state_callback(struct ast_dial *dial)
 	ast_queue_control(channel, AST_CONTROL_ANSWER);
 }
 
-static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context,
-	const char *exten, int priority, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num,
-	const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media, const struct ast_assigned_ids *assignedids)
+/*!
+ * \brief Attempt to convert disconnect cause to old originate reason.
+ *
+ * \todo XXX The old originate reasons need to be trashed and replaced
+ * with normal disconnect cause codes if the call was not answered.
+ * The internal consumers of the reason values would also need to be
+ * updated: app_originate, call files, and AMI OriginateResponse.
+ */
+static enum ast_control_frame_type pbx_dial_reason(enum ast_dial_result dial_result, int cause)
 {
-	RAII_VAR(struct pbx_outgoing *, outgoing, ao2_alloc(sizeof(*outgoing), pbx_outgoing_destroy), ao2_cleanup);
+	enum ast_control_frame_type pbx_reason;
+
+	if (dial_result == AST_DIAL_RESULT_ANSWERED) {
+		/* Remote end answered. */
+		pbx_reason = AST_CONTROL_ANSWER;
+	} else if (dial_result == AST_DIAL_RESULT_HANGUP) {
+		/* Caller hungup */
+		pbx_reason = AST_CONTROL_HANGUP;
+	} else {
+		switch (cause) {
+		case AST_CAUSE_USER_BUSY:
+			pbx_reason = AST_CONTROL_BUSY;
+			break;
+		case AST_CAUSE_CALL_REJECTED:
+		case AST_CAUSE_NETWORK_OUT_OF_ORDER:
+		case AST_CAUSE_DESTINATION_OUT_OF_ORDER:
+		case AST_CAUSE_NORMAL_TEMPORARY_FAILURE:
+		case AST_CAUSE_SWITCH_CONGESTION:
+		case AST_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+			pbx_reason = AST_CONTROL_CONGESTION;
+			break;
+		case AST_CAUSE_ANSWERED_ELSEWHERE:
+		case AST_CAUSE_NO_ANSWER:
+			/* Remote end was ringing (but isn't anymore) */
+			pbx_reason = AST_CONTROL_RINGING;
+			break;
+		case AST_CAUSE_UNALLOCATED:
+		default:
+			/* Call Failure (not BUSY, and not NO_ANSWER, maybe Circuit busy or down?) */
+			pbx_reason = 0;
+			break;
+		}
+	}
+
+	return pbx_reason;
+}
+
+static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap,
+	const char *addr, int timeout, const char *context, const char *exten, int priority,
+	const char *app, const char *appdata, int *reason, int synchronous,
+	const char *cid_num, const char *cid_name, struct ast_variable *vars,
+	const char *account, struct ast_channel **locked_channel, int early_media,
+	const struct ast_assigned_ids *assignedids)
+{
+	RAII_VAR(struct pbx_outgoing *, outgoing, NULL, ao2_cleanup);
 	struct ast_channel *dialed;
 	pthread_t thread;
 
+	outgoing = ao2_alloc(sizeof(*outgoing), pbx_outgoing_destroy);
 	if (!outgoing) {
 		return -1;
 	}
-
-	if (channel) {
-		*channel = NULL;
-	}
+	ast_cond_init(&outgoing->cond, NULL);
 
 	if (!ast_strlen_zero(app)) {
 		ast_copy_string(outgoing->app, app, sizeof(outgoing->app));
@@ -10245,6 +10290,10 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	ast_dial_set_global_timeout(outgoing->dial, timeout);
 
 	if (ast_dial_prerun(outgoing->dial, NULL, cap)) {
+		if (synchronous && reason) {
+			*reason = pbx_dial_reason(AST_DIAL_RESULT_FAILED,
+				ast_dial_reason(outgoing->dial, 0));
+		}
 		return -1;
 	}
 
@@ -10257,7 +10306,6 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 	if (vars) {
 		ast_set_variables(dialed, vars);
 	}
-
 	if (account) {
 		ast_channel_accountcode_set(dialed, account);
 	}
@@ -10295,107 +10343,148 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap, co
 		ast_dial_set_state_callback(outgoing->dial, pbx_outgoing_state_callback);
 	}
 
-	if (channel) {
-		*channel = dialed;
-		ast_channel_ref(*channel);
-		ast_channel_lock(*channel);
+	if (locked_channel) {
+		/*
+		 * Keep a dialed channel ref since the caller wants
+		 * the channel returned.  We must get the ref before
+		 * spawning off pbx_outgoing_exec().
+		 */
+		ast_channel_ref(dialed);
+		if (!synchronous) {
+			/*
+			 * Lock it now to hold off pbx_outgoing_exec() in case the
+			 * calling function needs the channel state/snapshot before
+			 * dialing actually happens.
+			 */
+			ast_channel_lock(dialed);
+		}
 	}
 
-	ast_mutex_init(&outgoing->lock);
-	ast_cond_init(&outgoing->cond, NULL);
-
 	ao2_ref(outgoing, +1);
-
-	ast_mutex_lock(&outgoing->lock);
-
 	if (ast_pthread_create_detached(&thread, NULL, pbx_outgoing_exec, outgoing)) {
 		ast_log(LOG_WARNING, "Unable to spawn dialing thread for '%s/%s'\n", type, addr);
-		if (channel) {
-			ast_channel_unlock(*channel);
-			ast_channel_unref(*channel);
-		}
-		ast_mutex_unlock(&outgoing->lock);
 		ao2_ref(outgoing, -1);
+		if (locked_channel) {
+			if (!synchronous) {
+				ast_channel_unlock(dialed);
+			}
+			ast_channel_unref(dialed);
+		}
 		return -1;
 	}
 
-	/* Wait for dialing to complete */
 	if (synchronous) {
-		if (channel && *channel) {
-			ast_channel_unlock(*channel);
-		}
+		ao2_lock(outgoing);
+		/* Wait for dialing to complete */
 		while (!outgoing->dialed) {
-			ast_cond_wait(&outgoing->cond, &outgoing->lock);
-
-			if (outgoing->dial_res != AST_DIAL_RESULT_ANSWERED) {
-				ast_mutex_unlock(&outgoing->lock);
-				/* The dial operation failed. */
-				return -1;
+			ast_cond_wait(&outgoing->cond, ao2_object_get_lockaddr(outgoing));
+		}
+		if (1 < synchronous
+			&& outgoing->dial_res == AST_DIAL_RESULT_ANSWERED) {
+			/* Wait for execution to complete */
+			while (!outgoing->executed) {
+				ast_cond_wait(&outgoing->cond, ao2_object_get_lockaddr(outgoing));
 			}
 		}
-		if (channel && *channel) {
-			ast_channel_lock(*channel);
+		ao2_unlock(outgoing);
+
+		/* Determine the outcome of the dialing attempt up to it being answered. */
+		if (reason) {
+			*reason = pbx_dial_reason(outgoing->dial_res,
+				ast_dial_reason(outgoing->dial, 0));
+		}
+
+		if (outgoing->dial_res != AST_DIAL_RESULT_ANSWERED) {
+			/* The dial operation failed. */
+			if (locked_channel) {
+				ast_channel_unref(dialed);
+			}
+			return -1;
+		}
+		if (locked_channel) {
+			ast_channel_lock(dialed);
 		}
 	}
 
-	/* Wait for execution to complete */
-	if (synchronous > 1) {
-		while (!outgoing->executed) {
-			ast_cond_wait(&outgoing->cond, &outgoing->lock);
-		}
+	if (locked_channel) {
+		*locked_channel = dialed;
+	}
+	return 0;
+}
+
+int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr,
+	int timeout, const char *context, const char *exten, int priority, int *reason,
+	int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars,
+	const char *account, struct ast_channel **locked_channel, int early_media,
+	const struct ast_assigned_ids *assignedids)
+{
+	int res;
+	int my_reason;
+
+	if (!reason) {
+		reason = &my_reason;
+	}
+	*reason = 0;
+	if (locked_channel) {
+		*locked_channel = NULL;
 	}
 
-	ast_mutex_unlock(&outgoing->lock);
+	res = pbx_outgoing_attempt(type, cap, addr, timeout, context, exten, priority,
+		NULL, NULL, reason, synchronous, cid_num, cid_name, vars, account, locked_channel,
+		early_media, assignedids);
 
-	if (reason) {
-		*reason = ast_dial_reason(outgoing->dial, 0);
-	}
+	if (res < 0 /* Call failed to get connected for some reason. */
+		&& 1 < synchronous
+		&& ast_exists_extension(NULL, context, "failed", 1, NULL)) {
+		struct ast_channel *failed;
 
-	if ((synchronous > 1) && ast_dial_state(outgoing->dial) != AST_DIAL_RESULT_ANSWERED &&
-		ast_strlen_zero(app) &&	ast_exists_extension(NULL, context, "failed", 1, NULL)) {
-		struct ast_channel *failed = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", NULL, NULL, 0, "OutgoingSpoolFailed");
+		/* We do not have to worry about a locked_channel if dialing failed. */
+		ast_assert(!locked_channel || !*locked_channel);
 
+		/*!
+		 * \todo XXX Not good.  The channel name is not unique if more than
+		 * one originate fails at a time.
+		 */
+		failed = ast_channel_alloc(0, AST_STATE_DOWN, cid_num, cid_name, account,
+			"failed", context, NULL, NULL, 0, "OutgoingSpoolFailed");
 		if (failed) {
-			char failed_reason[4] = "";
+			char failed_reason[12];
 
-			if (!ast_strlen_zero(context)) {
-				ast_channel_context_set(failed, context);
-			}
-
-			if (account) {
-				ast_channel_accountcode_set(failed, account);
-			}
-
-			set_ext_pri(failed, "failed", 1);
 			ast_set_variables(failed, vars);
-			snprintf(failed_reason, sizeof(failed_reason), "%d", ast_dial_reason(outgoing->dial, 0));
+			snprintf(failed_reason, sizeof(failed_reason), "%d", *reason);
 			pbx_builtin_setvar_helper(failed, "REASON", failed_reason);
 			ast_channel_unlock(failed);
 
 			if (ast_pbx_run(failed)) {
-				ast_log(LOG_ERROR, "Unable to run PBX on '%s'\n", ast_channel_name(failed));
+				ast_log(LOG_ERROR, "Unable to run PBX on '%s'\n",
+					ast_channel_name(failed));
 				ast_hangup(failed);
 			}
 		}
 	}
 
-	return 0;
+	return res;
 }
 
-int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *context, const char *exten, int priority, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel, int early_media, const struct ast_assigned_ids *assignedids)
+int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr,
+	int timeout, const char *app, const char *appdata, int *reason, int synchronous,
+	const char *cid_num, const char *cid_name, struct ast_variable *vars,
+	const char *account, struct ast_channel **locked_channel,
+	const struct ast_assigned_ids *assignedids)
 {
-	return pbx_outgoing_attempt(type, cap, addr, timeout, context, exten, priority, NULL, NULL, reason, synchronous, cid_num,
-		cid_name, vars, account, channel, early_media, assignedids);
-}
-
-int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const char *addr, int timeout, const char *app, const char *appdata, int *reason, int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel, const struct ast_assigned_ids *assignedids)
-{
+	if (reason) {
+		*reason = 0;
+	}
+	if (locked_channel) {
+		*locked_channel = NULL;
+	}
 	if (ast_strlen_zero(app)) {
 		return -1;
 	}
 
-	return pbx_outgoing_attempt(type, cap, addr, timeout, NULL, NULL, 0, app, appdata, reason, synchronous, cid_num,
-		cid_name, vars, account, locked_channel, 0, assignedids);
+	return pbx_outgoing_attempt(type, cap, addr, timeout, NULL, NULL, 0, app, appdata,
+		reason, synchronous, cid_num, cid_name, vars, account, locked_channel, 0,
+		assignedids);
 }
 
 /* this is the guts of destroying a context --
