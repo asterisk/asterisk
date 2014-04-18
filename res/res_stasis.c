@@ -103,6 +103,8 @@ struct ao2_container *app_bridges;
 
 struct ao2_container *app_bridges_moh;
 
+struct ao2_container *app_bridges_playback;
+
 const char *stasis_app_name(const struct stasis_app *app)
 {
 	return app_name(app);
@@ -341,26 +343,26 @@ static int bridges_compare(void *obj, void *arg, int flags)
 }
 
 /*!
- *  Used with app_bridges_moh, provides links between bridges and existing music
- *  on hold channels that are being used with them.
+ *  Used with app_bridges_moh and app_bridge_control, they provide links
+ *  between bridges and channels used for ARI application purposes
  */
-struct stasis_app_bridge_moh_wrapper {
+struct stasis_app_bridge_channel_wrapper {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(channel_id);
 		AST_STRING_FIELD(bridge_id);
 	);
 };
 
-static void stasis_app_bridge_moh_wrapper_destructor(void *obj)
+static void stasis_app_bridge_channel_wrapper_destructor(void *obj)
 {
-	struct stasis_app_bridge_moh_wrapper *wrapper = obj;
+	struct stasis_app_bridge_channel_wrapper *wrapper = obj;
 	ast_string_field_free_memory(wrapper);
 }
 
 /*! AO2 hash function for the bridges moh container */
-static int bridges_moh_hash_fn(const void *obj, const int flags)
+static int bridges_channel_hash_fn(const void *obj, const int flags)
 {
-	const struct stasis_app_bridge_moh_wrapper *wrapper;
+	const struct stasis_app_bridge_channel_wrapper *wrapper;
 	const char *key;
 
 	switch (flags & OBJ_SEARCH_MASK) {
@@ -379,10 +381,10 @@ static int bridges_moh_hash_fn(const void *obj, const int flags)
 	return ast_str_hash(key);
 }
 
-static int bridges_moh_sort_fn(const void *obj_left, const void *obj_right, const int flags)
+static int bridges_channel_sort_fn(const void *obj_left, const void *obj_right, const int flags)
 {
-	const struct stasis_app_bridge_moh_wrapper *left = obj_left;
-	const struct stasis_app_bridge_moh_wrapper *right = obj_right;
+	const struct stasis_app_bridge_channel_wrapper *left = obj_left;
+	const struct stasis_app_bridge_channel_wrapper *right = obj_right;
 	const char *right_key = obj_right;
 	int cmp;
 
@@ -469,7 +471,7 @@ static void *moh_channel_thread(void *data)
  */
 static struct ast_channel *bridge_moh_create(struct ast_bridge *bridge)
 {
-	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, new_wrapper, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app_bridge_channel_wrapper *, new_wrapper, NULL, ao2_cleanup);
 	RAII_VAR(char *, bridge_id, ast_strdup(bridge->uniqueid), ast_free);
 	struct ast_channel *chan;
 	pthread_t threadid;
@@ -498,7 +500,7 @@ static struct ast_channel *bridge_moh_create(struct ast_bridge *bridge)
 	}
 
 	new_wrapper = ao2_alloc_options(sizeof(*new_wrapper),
-		stasis_app_bridge_moh_wrapper_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+		stasis_app_bridge_channel_wrapper_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!new_wrapper) {
 		ast_hangup(chan);
 		return NULL;
@@ -528,7 +530,7 @@ static struct ast_channel *bridge_moh_create(struct ast_bridge *bridge)
 
 struct ast_channel *stasis_app_bridge_moh_channel(struct ast_bridge *bridge)
 {
-	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, moh_wrapper, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app_bridge_channel_wrapper *, moh_wrapper, NULL, ao2_cleanup);
 
 	{
 		SCOPED_AO2LOCK(lock, app_bridges_moh);
@@ -544,7 +546,7 @@ struct ast_channel *stasis_app_bridge_moh_channel(struct ast_bridge *bridge)
 
 int stasis_app_bridge_moh_stop(struct ast_bridge *bridge)
 {
-	RAII_VAR(struct stasis_app_bridge_moh_wrapper *, moh_wrapper, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_app_bridge_channel_wrapper *, moh_wrapper, NULL, ao2_cleanup);
 	struct ast_channel *chan;
 
 	moh_wrapper = ao2_find(app_bridges_moh, bridge->uniqueid, OBJ_SEARCH_KEY | OBJ_UNLINK);
@@ -562,6 +564,92 @@ int stasis_app_bridge_moh_stop(struct ast_bridge *bridge)
 	ao2_cleanup(chan);
 
 	return 0;
+}
+
+/*! Removes the bridge to playback channel link */
+static void remove_bridge_playback(char *bridge_id)
+{
+	struct stasis_app_bridge_channel_wrapper *wrapper;
+	struct stasis_app_control *control;
+
+	wrapper = ao2_find(app_bridges_playback, bridge_id, OBJ_SEARCH_KEY | OBJ_UNLINK);
+
+	if (wrapper) {
+		control = stasis_app_control_find_by_channel_id(wrapper->channel_id);
+		if (control) {
+			ao2_unlink(app_controls, control);
+			ao2_ref(control, -1);
+		}
+		ao2_ref(wrapper, -1);
+	}
+	ast_free(bridge_id);
+}
+
+static void playback_after_bridge_cb_failed(enum ast_bridge_after_cb_reason reason, void *data)
+{
+	char *bridge_id = data;
+
+	remove_bridge_playback(bridge_id);
+}
+
+static void playback_after_bridge_cb(struct ast_channel *chan, void *data)
+{
+	char *bridge_id = data;
+
+	remove_bridge_playback(bridge_id);
+}
+
+int stasis_app_bridge_playback_channel_add(struct ast_bridge *bridge,
+	struct ast_channel *chan,
+	struct stasis_app_control *control)
+{
+	RAII_VAR(struct stasis_app_bridge_channel_wrapper *, new_wrapper, NULL, ao2_cleanup);
+	char *bridge_id = ast_strdup(bridge->uniqueid);
+
+	if (!bridge_id) {
+		return -1;
+	}
+
+	if (ast_bridge_set_after_callback(chan,
+		playback_after_bridge_cb, playback_after_bridge_cb_failed, bridge_id)) {
+		ast_free(bridge_id);
+		return -1;
+	}
+
+	new_wrapper = ao2_alloc_options(sizeof(*new_wrapper),
+		stasis_app_bridge_channel_wrapper_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!new_wrapper) {
+		return -1;
+	}
+
+	if (ast_string_field_init(new_wrapper, 32)) {
+		return -1;
+	}
+
+	ast_string_field_set(new_wrapper, bridge_id, bridge->uniqueid);
+	ast_string_field_set(new_wrapper, channel_id, ast_channel_uniqueid(chan));
+
+	if (!ao2_link(app_bridges_playback, new_wrapper)) {
+		return -1;
+	}
+
+	ao2_link(app_controls, control);
+	return 0;
+}
+
+struct ast_channel *stasis_app_bridge_playback_channel_find(struct ast_bridge *bridge)
+{
+	struct stasis_app_bridge_channel_wrapper *playback_wrapper;
+	struct ast_channel *chan;
+
+	playback_wrapper = ao2_find(app_bridges_playback, bridge->uniqueid, OBJ_SEARCH_KEY);
+	if (!playback_wrapper) {
+		return NULL;
+	}
+
+	chan = ast_channel_get_by_name(playback_wrapper->channel_id);
+	ao2_ref(playback_wrapper, -1);
+	return chan;
 }
 
 struct ast_bridge *stasis_app_bridge_find_by_id(
@@ -720,11 +808,29 @@ static int send_end_msg(struct stasis_app *app, struct ast_channel *chan)
 void stasis_app_control_execute_until_exhausted(struct ast_channel *chan, struct stasis_app_control *control)
 {
 	while (!control_is_done(control)) {
-		int command_count = control_dispatch_all(control, chan);
+		int command_count;
+		command_count = control_dispatch_all(control, chan);
+
+		ao2_lock(control);
+
+		if (control_command_count(control)) {
+			/* If the command queue isn't empty, something added to the queue before it was locked. */
+			ao2_unlock(control);
+			continue;
+		}
+
 		if (command_count == 0 || ast_channel_fdno(chan) == -1) {
+			control_mark_done(control);
+			ao2_unlock(control);
 			break;
 		}
+		ao2_unlock(control);
 	}
+}
+
+int stasis_app_control_is_done(struct stasis_app_control *control)
+{
+	return control_is_done(control);
 }
 
 /*! /brief Stasis dialplan application callback */
@@ -1230,6 +1336,9 @@ static int unload_module(void)
 	ao2_cleanup(app_bridges_moh);
 	app_bridges_moh = NULL;
 
+	ao2_cleanup(app_bridges_playback);
+	app_bridges_playback = NULL;
+
 	return 0;
 }
 
@@ -1268,8 +1377,11 @@ static int load_module(void)
 	app_bridges = ao2_container_alloc(BRIDGES_NUM_BUCKETS, bridges_hash, bridges_compare);
 	app_bridges_moh = ao2_container_alloc_hash(
 		AO2_ALLOC_OPT_LOCK_MUTEX, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
-		37, bridges_moh_hash_fn, bridges_moh_sort_fn, NULL);
-	if (!apps_registry || !app_controls || !app_bridges || !app_bridges_moh) {
+		37, bridges_channel_hash_fn, bridges_channel_sort_fn, NULL);
+	app_bridges_playback = ao2_container_alloc_hash(
+		AO2_ALLOC_OPT_LOCK_MUTEX, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
+		37, bridges_channel_hash_fn, bridges_channel_sort_fn, NULL);
+	if (!apps_registry || !app_controls || !app_bridges || !app_bridges_moh || !app_bridges_playback) {
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}

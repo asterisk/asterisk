@@ -368,10 +368,20 @@ void stasis_app_control_clear_roles(struct stasis_app_control *control)
 	ast_channel_clear_bridge_roles(control->channel);
 }
 
+int control_command_count(struct stasis_app_control *control)
+{
+	return ao2_container_count(control->command_queue);
+}
+
 int control_is_done(struct stasis_app_control *control)
 {
 	/* Called from stasis_app_exec thread; no lock needed */
 	return control->is_done;
+}
+
+void control_mark_done(struct stasis_app_control *control)
+{
+	control->is_done = 1;
 }
 
 struct stasis_app_control_continue_data {

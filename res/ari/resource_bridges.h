@@ -253,6 +253,8 @@ struct ast_ari_bridges_play_args {
 	int offsetms;
 	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;
+	/*! \brief Playback Id. */
+	const char *playback_id;
 };
 /*!
  * \brief Body parsing function for /bridges/{bridgeId}/play.
@@ -275,6 +277,42 @@ int ast_ari_bridges_play_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_play(struct ast_variable *headers, struct ast_ari_bridges_play_args *args, struct ast_ari_response *response);
+/*! \brief Argument struct for ast_ari_bridges_play_with_id() */
+struct ast_ari_bridges_play_with_id_args {
+	/*! \brief Bridge's id */
+	const char *bridge_id;
+	/*! \brief Playback ID. */
+	const char *playback_id;
+	/*! \brief Media's URI to play. */
+	const char *media;
+	/*! \brief For sounds, selects language for sound. */
+	const char *lang;
+	/*! \brief Number of media to skip before playing. */
+	int offsetms;
+	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	int skipms;
+};
+/*!
+ * \brief Body parsing function for /bridges/{bridgeId}/play/{playbackId}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_bridges_play_with_id_parse_body(
+	struct ast_json *body,
+	struct ast_ari_bridges_play_with_id_args *args);
+
+/*!
+ * \brief Start playback of media on a bridge.
+ *
+ * The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_play_with_id(struct ast_variable *headers, struct ast_ari_bridges_play_with_id_args *args, struct ast_ari_response *response);
 /*! \brief Argument struct for ast_ari_bridges_record() */
 struct ast_ari_bridges_record_args {
 	/*! \brief Bridge's id */

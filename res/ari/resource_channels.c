@@ -411,9 +411,9 @@ static void ari_channels_handle_play(
 		return;
 	}
 
-	ast_asprintf(&playback_url, "/playback/%s",
-		stasis_app_playback_get_id(playback));
-	if (!playback_url) {
+	if (ast_asprintf(&playback_url, "/playback/%s",
+			stasis_app_playback_get_id(playback)) == -1) {
+		playback_url = NULL;
 		ast_ari_response_error(
 			response, 500, "Internal Server Error",
 			"Out of memory");
@@ -579,8 +579,9 @@ void ast_ari_channels_record(struct ast_variable *headers,
 	ast_uri_encode(args->name, uri_encoded_name, uri_name_maxlen,
 		ast_uri_http);
 
-	ast_asprintf(&recording_url, "/recordings/live/%s", uri_encoded_name);
-	if (!recording_url) {
+	if (ast_asprintf(&recording_url, "/recordings/live/%s",
+			uri_encoded_name) == -1) {
+		recording_url = NULL;
 		ast_ari_response_error(
 			response, 500, "Internal Server Error",
 			"Out of memory");
