@@ -39,7 +39,7 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_endpoints_list() */
+/*! Argument struct for ast_ari_endpoints_list() */
 struct ast_ari_endpoints_list_args {
 };
 /*!
@@ -50,9 +50,9 @@ struct ast_ari_endpoints_list_args {
  * \param[out] response HTTP response
  */
 void ast_ari_endpoints_list(struct ast_variable *headers, struct ast_ari_endpoints_list_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_endpoints_list_by_tech() */
+/*! Argument struct for ast_ari_endpoints_list_by_tech() */
 struct ast_ari_endpoints_list_by_tech_args {
-	/*! \brief Technology of the endpoints (sip,iax2,...) */
+	/*! Technology of the endpoints (sip,iax2,...) */
 	const char *tech;
 };
 /*!
@@ -63,11 +63,11 @@ struct ast_ari_endpoints_list_by_tech_args {
  * \param[out] response HTTP response
  */
 void ast_ari_endpoints_list_by_tech(struct ast_variable *headers, struct ast_ari_endpoints_list_by_tech_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_endpoints_get() */
+/*! Argument struct for ast_ari_endpoints_get() */
 struct ast_ari_endpoints_get_args {
-	/*! \brief Technology of the endpoint */
+	/*! Technology of the endpoint */
 	const char *tech;
-	/*! \brief ID of the endpoint */
+	/*! ID of the endpoint */
 	const char *resource;
 };
 /*!

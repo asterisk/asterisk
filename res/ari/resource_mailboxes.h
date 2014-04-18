@@ -39,7 +39,7 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_mailboxes_list() */
+/*! Argument struct for ast_ari_mailboxes_list() */
 struct ast_ari_mailboxes_list_args {
 };
 /*!
@@ -50,9 +50,9 @@ struct ast_ari_mailboxes_list_args {
  * \param[out] response HTTP response
  */
 void ast_ari_mailboxes_list(struct ast_variable *headers, struct ast_ari_mailboxes_list_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_mailboxes_get() */
+/*! Argument struct for ast_ari_mailboxes_get() */
 struct ast_ari_mailboxes_get_args {
-	/*! \brief Name of the mailbox */
+	/*! Name of the mailbox */
 	const char *mailbox_name;
 };
 /*!
@@ -63,13 +63,13 @@ struct ast_ari_mailboxes_get_args {
  * \param[out] response HTTP response
  */
 void ast_ari_mailboxes_get(struct ast_variable *headers, struct ast_ari_mailboxes_get_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_mailboxes_update() */
+/*! Argument struct for ast_ari_mailboxes_update() */
 struct ast_ari_mailboxes_update_args {
-	/*! \brief Name of the mailbox */
+	/*! Name of the mailbox */
 	const char *mailbox_name;
-	/*! \brief Count of old messages in the mailbox */
+	/*! Count of old messages in the mailbox */
 	int old_messages;
-	/*! \brief Count of new messages in the mailbox */
+	/*! Count of new messages in the mailbox */
 	int new_messages;
 };
 /*!
@@ -91,9 +91,9 @@ int ast_ari_mailboxes_update_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_mailboxes_update(struct ast_variable *headers, struct ast_ari_mailboxes_update_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_mailboxes_delete() */
+/*! Argument struct for ast_ari_mailboxes_delete() */
 struct ast_ari_mailboxes_delete_args {
-	/*! \brief Name of the mailbox */
+	/*! Name of the mailbox */
 	const char *mailbox_name;
 };
 /*!

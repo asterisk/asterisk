@@ -39,13 +39,13 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_events_event_websocket() */
+/*! Argument struct for ast_ari_events_event_websocket() */
 struct ast_ari_events_event_websocket_args {
-	/*! \brief Array of Applications to subscribe to. */
+	/*! Array of Applications to subscribe to. */
 	const char **app;
-	/*! \brief Length of app array. */
+	/*! Length of app array. */
 	size_t app_count;
-	/*! \brief Parsing context for app. */
+	/*! Parsing context for app. */
 	char *app_parse;
 };
 /*!

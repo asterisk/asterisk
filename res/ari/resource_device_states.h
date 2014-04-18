@@ -39,7 +39,7 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_device_states_list() */
+/*! Argument struct for ast_ari_device_states_list() */
 struct ast_ari_device_states_list_args {
 };
 /*!
@@ -50,9 +50,9 @@ struct ast_ari_device_states_list_args {
  * \param[out] response HTTP response
  */
 void ast_ari_device_states_list(struct ast_variable *headers, struct ast_ari_device_states_list_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_device_states_get() */
+/*! Argument struct for ast_ari_device_states_get() */
 struct ast_ari_device_states_get_args {
-	/*! \brief Name of the device */
+	/*! Name of the device */
 	const char *device_name;
 };
 /*!
@@ -63,11 +63,11 @@ struct ast_ari_device_states_get_args {
  * \param[out] response HTTP response
  */
 void ast_ari_device_states_get(struct ast_variable *headers, struct ast_ari_device_states_get_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_device_states_update() */
+/*! Argument struct for ast_ari_device_states_update() */
 struct ast_ari_device_states_update_args {
-	/*! \brief Name of the device */
+	/*! Name of the device */
 	const char *device_name;
-	/*! \brief Device state value */
+	/*! Device state value */
 	const char *device_state;
 };
 /*!
@@ -89,9 +89,9 @@ int ast_ari_device_states_update_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_device_states_update(struct ast_variable *headers, struct ast_ari_device_states_update_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_device_states_delete() */
+/*! Argument struct for ast_ari_device_states_delete() */
 struct ast_ari_device_states_delete_args {
-	/*! \brief Name of the device */
+	/*! Name of the device */
 	const char *device_name;
 };
 /*!

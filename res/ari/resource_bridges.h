@@ -39,7 +39,7 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_bridges_list() */
+/*! Argument struct for ast_ari_bridges_list() */
 struct ast_ari_bridges_list_args {
 };
 /*!
@@ -50,13 +50,13 @@ struct ast_ari_bridges_list_args {
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_list(struct ast_variable *headers, struct ast_ari_bridges_list_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_create() */
+/*! Argument struct for ast_ari_bridges_create() */
 struct ast_ari_bridges_create_args {
-	/*! \brief Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media). */
+	/*! Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media). */
 	const char *type;
-	/*! \brief Unique ID to give to the bridge being created. */
+	/*! Unique ID to give to the bridge being created. */
 	const char *bridge_id;
-	/*! \brief Name to give to the bridge being created. */
+	/*! Name to give to the bridge being created. */
 	const char *name;
 };
 /*!
@@ -80,13 +80,13 @@ int ast_ari_bridges_create_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_create(struct ast_variable *headers, struct ast_ari_bridges_create_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_create_or_update_with_id() */
+/*! Argument struct for ast_ari_bridges_create_or_update_with_id() */
 struct ast_ari_bridges_create_or_update_with_id_args {
-	/*! \brief Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media) to set. */
+	/*! Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media) to set. */
 	const char *type;
-	/*! \brief Unique ID to give to the bridge being created. */
+	/*! Unique ID to give to the bridge being created. */
 	const char *bridge_id;
-	/*! \brief Set the name of the bridge. */
+	/*! Set the name of the bridge. */
 	const char *name;
 };
 /*!
@@ -110,9 +110,9 @@ int ast_ari_bridges_create_or_update_with_id_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_create_or_update_with_id(struct ast_variable *headers, struct ast_ari_bridges_create_or_update_with_id_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_get() */
+/*! Argument struct for ast_ari_bridges_get() */
 struct ast_ari_bridges_get_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
 };
 /*!
@@ -123,9 +123,9 @@ struct ast_ari_bridges_get_args {
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_get(struct ast_variable *headers, struct ast_ari_bridges_get_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_destroy() */
+/*! Argument struct for ast_ari_bridges_destroy() */
 struct ast_ari_bridges_destroy_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
 };
 /*!
@@ -138,17 +138,17 @@ struct ast_ari_bridges_destroy_args {
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_destroy(struct ast_variable *headers, struct ast_ari_bridges_destroy_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_add_channel() */
+/*! Argument struct for ast_ari_bridges_add_channel() */
 struct ast_ari_bridges_add_channel_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
-	/*! \brief Array of Ids of channels to add to bridge */
+	/*! Array of Ids of channels to add to bridge */
 	const char **channel;
-	/*! \brief Length of channel array. */
+	/*! Length of channel array. */
 	size_t channel_count;
-	/*! \brief Parsing context for channel. */
+	/*! Parsing context for channel. */
 	char *channel_parse;
-	/*! \brief Channel's role in the bridge */
+	/*! Channel's role in the bridge */
 	const char *role;
 };
 /*!
@@ -170,15 +170,15 @@ int ast_ari_bridges_add_channel_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_add_channel(struct ast_variable *headers, struct ast_ari_bridges_add_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_remove_channel() */
+/*! Argument struct for ast_ari_bridges_remove_channel() */
 struct ast_ari_bridges_remove_channel_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
-	/*! \brief Array of Ids of channels to remove from bridge */
+	/*! Array of Ids of channels to remove from bridge */
 	const char **channel;
-	/*! \brief Length of channel array. */
+	/*! Length of channel array. */
 	size_t channel_count;
-	/*! \brief Parsing context for channel. */
+	/*! Parsing context for channel. */
 	char *channel_parse;
 };
 /*!
@@ -200,11 +200,11 @@ int ast_ari_bridges_remove_channel_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_remove_channel(struct ast_variable *headers, struct ast_ari_bridges_remove_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_start_moh() */
+/*! Argument struct for ast_ari_bridges_start_moh() */
 struct ast_ari_bridges_start_moh_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *moh_class;
 };
 /*!
@@ -226,9 +226,9 @@ int ast_ari_bridges_start_moh_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_start_moh(struct ast_variable *headers, struct ast_ari_bridges_start_moh_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_stop_moh() */
+/*! Argument struct for ast_ari_bridges_stop_moh() */
 struct ast_ari_bridges_stop_moh_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
 };
 /*!
@@ -241,19 +241,19 @@ struct ast_ari_bridges_stop_moh_args {
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_stop_moh(struct ast_variable *headers, struct ast_ari_bridges_stop_moh_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_play() */
+/*! Argument struct for ast_ari_bridges_play() */
 struct ast_ari_bridges_play_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
-	/*! \brief Media's URI to play. */
+	/*! Media's URI to play. */
 	const char *media;
-	/*! \brief For sounds, selects language for sound. */
+	/*! For sounds, selects language for sound. */
 	const char *lang;
-	/*! \brief Number of media to skip before playing. */
+	/*! Number of media to skip before playing. */
 	int offsetms;
-	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	/*! Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;
-	/*! \brief Playback Id. */
+	/*! Playback Id. */
 	const char *playback_id;
 };
 /*!
@@ -277,19 +277,19 @@ int ast_ari_bridges_play_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_play(struct ast_variable *headers, struct ast_ari_bridges_play_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_play_with_id() */
+/*! Argument struct for ast_ari_bridges_play_with_id() */
 struct ast_ari_bridges_play_with_id_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
-	/*! \brief Playback ID. */
+	/*! Playback ID. */
 	const char *playback_id;
-	/*! \brief Media's URI to play. */
+	/*! Media's URI to play. */
 	const char *media;
-	/*! \brief For sounds, selects language for sound. */
+	/*! For sounds, selects language for sound. */
 	const char *lang;
-	/*! \brief Number of media to skip before playing. */
+	/*! Number of media to skip before playing. */
 	int offsetms;
-	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	/*! Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;
 };
 /*!
@@ -313,23 +313,23 @@ int ast_ari_bridges_play_with_id_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_play_with_id(struct ast_variable *headers, struct ast_ari_bridges_play_with_id_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_bridges_record() */
+/*! Argument struct for ast_ari_bridges_record() */
 struct ast_ari_bridges_record_args {
-	/*! \brief Bridge's id */
+	/*! Bridge's id */
 	const char *bridge_id;
-	/*! \brief Recording's filename */
+	/*! Recording's filename */
 	const char *name;
-	/*! \brief Format to encode audio in */
+	/*! Format to encode audio in */
 	const char *format;
-	/*! \brief Maximum duration of the recording, in seconds. 0 for no limit. */
+	/*! Maximum duration of the recording, in seconds. 0 for no limit. */
 	int max_duration_seconds;
-	/*! \brief Maximum duration of silence, in seconds. 0 for no limit. */
+	/*! Maximum duration of silence, in seconds. 0 for no limit. */
 	int max_silence_seconds;
-	/*! \brief Action to take if a recording with the same name already exists. */
+	/*! Action to take if a recording with the same name already exists. */
 	const char *if_exists;
-	/*! \brief Play beep when recording begins */
+	/*! Play beep when recording begins */
 	int beep;
-	/*! \brief DTMF input to terminate recording. */
+	/*! DTMF input to terminate recording. */
 	const char *terminate_on;
 };
 /*!

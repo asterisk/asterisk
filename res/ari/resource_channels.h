@@ -39,7 +39,7 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_channels_list() */
+/*! Argument struct for ast_ari_channels_list() */
 struct ast_ari_channels_list_args {
 };
 /*!
@@ -50,29 +50,29 @@ struct ast_ari_channels_list_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_list(struct ast_variable *headers, struct ast_ari_channels_list_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_originate() */
+/*! Argument struct for ast_ari_channels_originate() */
 struct ast_ari_channels_originate_args {
-	/*! \brief Endpoint to call. */
+	/*! Endpoint to call. */
 	const char *endpoint;
-	/*! \brief The extension to dial after the endpoint answers */
+	/*! The extension to dial after the endpoint answers */
 	const char *extension;
-	/*! \brief The context to dial after the endpoint answers. If omitted, uses 'default' */
+	/*! The context to dial after the endpoint answers. If omitted, uses 'default' */
 	const char *context;
-	/*! \brief The priority to dial after the endpoint answers. If omitted, uses 1 */
+	/*! The priority to dial after the endpoint answers. If omitted, uses 1 */
 	long priority;
-	/*! \brief The application that is subscribed to the originated channel, and passed to the Stasis application. */
+	/*! The application that is subscribed to the originated channel, and passed to the Stasis application. */
 	const char *app;
-	/*! \brief The application arguments to pass to the Stasis application. */
+	/*! The application arguments to pass to the Stasis application. */
 	const char *app_args;
-	/*! \brief CallerID to use when dialing the endpoint or extension. */
+	/*! CallerID to use when dialing the endpoint or extension. */
 	const char *caller_id;
-	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
+	/*! Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
 	int timeout;
-	/*! \brief The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
+	/*! The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
 	struct ast_json *variables;
-	/*! \brief The unique id to assign the channel on creation. */
+	/*! The unique id to assign the channel on creation. */
 	const char *channel_id;
-	/*! \brief The unique id to assign the second channel when using local channels. */
+	/*! The unique id to assign the second channel when using local channels. */
 	const char *other_channel_id;
 };
 /*!
@@ -96,9 +96,9 @@ int ast_ari_channels_originate_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_originate(struct ast_variable *headers, struct ast_ari_channels_originate_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_get() */
+/*! Argument struct for ast_ari_channels_get() */
 struct ast_ari_channels_get_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -109,29 +109,29 @@ struct ast_ari_channels_get_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_get(struct ast_variable *headers, struct ast_ari_channels_get_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_originate_with_id() */
+/*! Argument struct for ast_ari_channels_originate_with_id() */
 struct ast_ari_channels_originate_with_id_args {
-	/*! \brief The unique id to assign the channel on creation. */
+	/*! The unique id to assign the channel on creation. */
 	const char *channel_id;
-	/*! \brief Endpoint to call. */
+	/*! Endpoint to call. */
 	const char *endpoint;
-	/*! \brief The extension to dial after the endpoint answers */
+	/*! The extension to dial after the endpoint answers */
 	const char *extension;
-	/*! \brief The context to dial after the endpoint answers. If omitted, uses 'default' */
+	/*! The context to dial after the endpoint answers. If omitted, uses 'default' */
 	const char *context;
-	/*! \brief The priority to dial after the endpoint answers. If omitted, uses 1 */
+	/*! The priority to dial after the endpoint answers. If omitted, uses 1 */
 	long priority;
-	/*! \brief The application that is subscribed to the originated channel, and passed to the Stasis application. */
+	/*! The application that is subscribed to the originated channel, and passed to the Stasis application. */
 	const char *app;
-	/*! \brief The application arguments to pass to the Stasis application. */
+	/*! The application arguments to pass to the Stasis application. */
 	const char *app_args;
-	/*! \brief CallerID to use when dialing the endpoint or extension. */
+	/*! CallerID to use when dialing the endpoint or extension. */
 	const char *caller_id;
-	/*! \brief Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
+	/*! Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
 	int timeout;
-	/*! \brief The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
+	/*! The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
 	struct ast_json *variables;
-	/*! \brief The unique id to assign the second channel when using local channels. */
+	/*! The unique id to assign the second channel when using local channels. */
 	const char *other_channel_id;
 };
 /*!
@@ -155,11 +155,11 @@ int ast_ari_channels_originate_with_id_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_originate_with_id(struct ast_variable *headers, struct ast_ari_channels_originate_with_id_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_hangup() */
+/*! Argument struct for ast_ari_channels_hangup() */
 struct ast_ari_channels_hangup_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Reason for hanging up the channel */
+	/*! Reason for hanging up the channel */
 	const char *reason;
 };
 /*!
@@ -181,15 +181,15 @@ int ast_ari_channels_hangup_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_hangup(struct ast_variable *headers, struct ast_ari_channels_hangup_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_continue_in_dialplan() */
+/*! Argument struct for ast_ari_channels_continue_in_dialplan() */
 struct ast_ari_channels_continue_in_dialplan_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief The context to continue to. */
+	/*! The context to continue to. */
 	const char *context;
-	/*! \brief The extension to continue to. */
+	/*! The extension to continue to. */
 	const char *extension;
-	/*! \brief The priority to continue to. */
+	/*! The priority to continue to. */
 	int priority;
 };
 /*!
@@ -211,9 +211,9 @@ int ast_ari_channels_continue_in_dialplan_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_continue_in_dialplan(struct ast_variable *headers, struct ast_ari_channels_continue_in_dialplan_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_answer() */
+/*! Argument struct for ast_ari_channels_answer() */
 struct ast_ari_channels_answer_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -224,9 +224,9 @@ struct ast_ari_channels_answer_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_answer(struct ast_variable *headers, struct ast_ari_channels_answer_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_ring() */
+/*! Argument struct for ast_ari_channels_ring() */
 struct ast_ari_channels_ring_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -237,9 +237,9 @@ struct ast_ari_channels_ring_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_ring(struct ast_variable *headers, struct ast_ari_channels_ring_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_ring_stop() */
+/*! Argument struct for ast_ari_channels_ring_stop() */
 struct ast_ari_channels_ring_stop_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -250,19 +250,19 @@ struct ast_ari_channels_ring_stop_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_ring_stop(struct ast_variable *headers, struct ast_ari_channels_ring_stop_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_send_dtmf() */
+/*! Argument struct for ast_ari_channels_send_dtmf() */
 struct ast_ari_channels_send_dtmf_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief DTMF To send. */
+	/*! DTMF To send. */
 	const char *dtmf;
-	/*! \brief Amount of time to wait before DTMF digits (specified in milliseconds) start. */
+	/*! Amount of time to wait before DTMF digits (specified in milliseconds) start. */
 	int before;
-	/*! \brief Amount of time in between DTMF digits (specified in milliseconds). */
+	/*! Amount of time in between DTMF digits (specified in milliseconds). */
 	int between;
-	/*! \brief Length of each DTMF digit (specified in milliseconds). */
+	/*! Length of each DTMF digit (specified in milliseconds). */
 	int duration;
-	/*! \brief Amount of time to wait after DTMF digits (specified in milliseconds) end. */
+	/*! Amount of time to wait after DTMF digits (specified in milliseconds) end. */
 	int after;
 };
 /*!
@@ -284,11 +284,11 @@ int ast_ari_channels_send_dtmf_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_send_dtmf(struct ast_variable *headers, struct ast_ari_channels_send_dtmf_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_mute() */
+/*! Argument struct for ast_ari_channels_mute() */
 struct ast_ari_channels_mute_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Direction in which to mute audio */
+	/*! Direction in which to mute audio */
 	const char *direction;
 };
 /*!
@@ -310,11 +310,11 @@ int ast_ari_channels_mute_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_mute(struct ast_variable *headers, struct ast_ari_channels_mute_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_unmute() */
+/*! Argument struct for ast_ari_channels_unmute() */
 struct ast_ari_channels_unmute_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Direction in which to unmute audio */
+	/*! Direction in which to unmute audio */
 	const char *direction;
 };
 /*!
@@ -336,9 +336,9 @@ int ast_ari_channels_unmute_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_unmute(struct ast_variable *headers, struct ast_ari_channels_unmute_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_hold() */
+/*! Argument struct for ast_ari_channels_hold() */
 struct ast_ari_channels_hold_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -349,9 +349,9 @@ struct ast_ari_channels_hold_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_hold(struct ast_variable *headers, struct ast_ari_channels_hold_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_unhold() */
+/*! Argument struct for ast_ari_channels_unhold() */
 struct ast_ari_channels_unhold_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -362,11 +362,11 @@ struct ast_ari_channels_unhold_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_unhold(struct ast_variable *headers, struct ast_ari_channels_unhold_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_start_moh() */
+/*! Argument struct for ast_ari_channels_start_moh() */
 struct ast_ari_channels_start_moh_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Music on hold class to use */
+	/*! Music on hold class to use */
 	const char *moh_class;
 };
 /*!
@@ -390,9 +390,9 @@ int ast_ari_channels_start_moh_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_start_moh(struct ast_variable *headers, struct ast_ari_channels_start_moh_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_stop_moh() */
+/*! Argument struct for ast_ari_channels_stop_moh() */
 struct ast_ari_channels_stop_moh_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -403,9 +403,9 @@ struct ast_ari_channels_stop_moh_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_stop_moh(struct ast_variable *headers, struct ast_ari_channels_stop_moh_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_start_silence() */
+/*! Argument struct for ast_ari_channels_start_silence() */
 struct ast_ari_channels_start_silence_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -418,9 +418,9 @@ struct ast_ari_channels_start_silence_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_start_silence(struct ast_variable *headers, struct ast_ari_channels_start_silence_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_stop_silence() */
+/*! Argument struct for ast_ari_channels_stop_silence() */
 struct ast_ari_channels_stop_silence_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
 };
 /*!
@@ -431,19 +431,19 @@ struct ast_ari_channels_stop_silence_args {
  * \param[out] response HTTP response
  */
 void ast_ari_channels_stop_silence(struct ast_variable *headers, struct ast_ari_channels_stop_silence_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_play() */
+/*! Argument struct for ast_ari_channels_play() */
 struct ast_ari_channels_play_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Media's URI to play. */
+	/*! Media's URI to play. */
 	const char *media;
-	/*! \brief For sounds, selects language for sound. */
+	/*! For sounds, selects language for sound. */
 	const char *lang;
-	/*! \brief Number of media to skip before playing. */
+	/*! Number of media to skip before playing. */
 	int offsetms;
-	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	/*! Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;
-	/*! \brief Playback ID. */
+	/*! Playback ID. */
 	const char *playback_id;
 };
 /*!
@@ -467,19 +467,19 @@ int ast_ari_channels_play_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_play(struct ast_variable *headers, struct ast_ari_channels_play_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_play_with_id() */
+/*! Argument struct for ast_ari_channels_play_with_id() */
 struct ast_ari_channels_play_with_id_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Playback ID. */
+	/*! Playback ID. */
 	const char *playback_id;
-	/*! \brief Media's URI to play. */
+	/*! Media's URI to play. */
 	const char *media;
-	/*! \brief For sounds, selects language for sound. */
+	/*! For sounds, selects language for sound. */
 	const char *lang;
-	/*! \brief Number of media to skip before playing. */
+	/*! Number of media to skip before playing. */
 	int offsetms;
-	/*! \brief Number of milliseconds to skip for forward/reverse operations. */
+	/*! Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;
 };
 /*!
@@ -503,23 +503,23 @@ int ast_ari_channels_play_with_id_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_play_with_id(struct ast_variable *headers, struct ast_ari_channels_play_with_id_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_record() */
+/*! Argument struct for ast_ari_channels_record() */
 struct ast_ari_channels_record_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Recording's filename */
+	/*! Recording's filename */
 	const char *name;
-	/*! \brief Format to encode audio in */
+	/*! Format to encode audio in */
 	const char *format;
-	/*! \brief Maximum duration of the recording, in seconds. 0 for no limit */
+	/*! Maximum duration of the recording, in seconds. 0 for no limit */
 	int max_duration_seconds;
-	/*! \brief Maximum duration of silence, in seconds. 0 for no limit */
+	/*! Maximum duration of silence, in seconds. 0 for no limit */
 	int max_silence_seconds;
-	/*! \brief Action to take if a recording with the same name already exists. */
+	/*! Action to take if a recording with the same name already exists. */
 	const char *if_exists;
-	/*! \brief Play beep when recording begins */
+	/*! Play beep when recording begins */
 	int beep;
-	/*! \brief DTMF input to terminate recording */
+	/*! DTMF input to terminate recording */
 	const char *terminate_on;
 };
 /*!
@@ -543,11 +543,11 @@ int ast_ari_channels_record_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_record(struct ast_variable *headers, struct ast_ari_channels_record_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_get_channel_var() */
+/*! Argument struct for ast_ari_channels_get_channel_var() */
 struct ast_ari_channels_get_channel_var_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief The channel variable or function to get */
+	/*! The channel variable or function to get */
 	const char *variable;
 };
 /*!
@@ -569,13 +569,13 @@ int ast_ari_channels_get_channel_var_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_get_channel_var(struct ast_variable *headers, struct ast_ari_channels_get_channel_var_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_set_channel_var() */
+/*! Argument struct for ast_ari_channels_set_channel_var() */
 struct ast_ari_channels_set_channel_var_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief The channel variable or function to set */
+	/*! The channel variable or function to set */
 	const char *variable;
-	/*! \brief The value to set the variable to */
+	/*! The value to set the variable to */
 	const char *value;
 };
 /*!
@@ -597,19 +597,19 @@ int ast_ari_channels_set_channel_var_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_set_channel_var(struct ast_variable *headers, struct ast_ari_channels_set_channel_var_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_snoop_channel() */
+/*! Argument struct for ast_ari_channels_snoop_channel() */
 struct ast_ari_channels_snoop_channel_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Direction of audio to spy on */
+	/*! Direction of audio to spy on */
 	const char *spy;
-	/*! \brief Direction of audio to whisper into */
+	/*! Direction of audio to whisper into */
 	const char *whisper;
-	/*! \brief Application the snooping channel is placed into */
+	/*! Application the snooping channel is placed into */
 	const char *app;
-	/*! \brief The application arguments to pass to the Stasis application */
+	/*! The application arguments to pass to the Stasis application */
 	const char *app_args;
-	/*! \brief Unique ID to assign to snooping channel */
+	/*! Unique ID to assign to snooping channel */
 	const char *snoop_id;
 };
 /*!
@@ -633,19 +633,19 @@ int ast_ari_channels_snoop_channel_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_snoop_channel(struct ast_variable *headers, struct ast_ari_channels_snoop_channel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_channels_snoop_channel_with_id() */
+/*! Argument struct for ast_ari_channels_snoop_channel_with_id() */
 struct ast_ari_channels_snoop_channel_with_id_args {
-	/*! \brief Channel's id */
+	/*! Channel's id */
 	const char *channel_id;
-	/*! \brief Unique ID to assign to snooping channel */
+	/*! Unique ID to assign to snooping channel */
 	const char *snoop_id;
-	/*! \brief Direction of audio to spy on */
+	/*! Direction of audio to spy on */
 	const char *spy;
-	/*! \brief Direction of audio to whisper into */
+	/*! Direction of audio to whisper into */
 	const char *whisper;
-	/*! \brief Application the snooping channel is placed into */
+	/*! Application the snooping channel is placed into */
 	const char *app;
-	/*! \brief The application arguments to pass to the Stasis application */
+	/*! The application arguments to pass to the Stasis application */
 	const char *app_args;
 };
 /*!
