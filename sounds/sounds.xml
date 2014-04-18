@@ -27,6 +27,60 @@
 		<member name="CORE-SOUNDS-EN-SIREN14" displayname="English, G.722.1C (Siren14) format">
 			<support_level>core</support_level>
 		</member>
+		<member name="CORE-SOUNDS-EN_AU-WAV" displayname="English (Australian Accent), WAV format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-ULAW" displayname="English (Australian Accent), mu-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-ALAW" displayname="English (Australian Accent), a-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-GSM" displayname="English (Australian Accent), GSM format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-G729" displayname="English (Australian Accent), G.729 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-G722" displayname="English (Australian Accent), G.722 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-SLN16" displayname="English (Australian Accent), Signed-linear 16kHz format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-SIREN7" displayname="English (Australian Accent), G.722.1 (Siren7) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_AU-SIREN14" displayname="English (Australian Accent), G.722.1C (Siren14) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-WAV" displayname="English (British Accent), WAV format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-ULAW" displayname="English (British Accent), mu-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-ALAW" displayname="English (British Accent), a-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-GSM" displayname="English (British Accent), GSM format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-G729" displayname="English (British Accent), G.729 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-G722" displayname="English (British Accent), G.722 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-SLN16" displayname="English (British Accent), Signed-linear 16kHz format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-SIREN7" displayname="English (British Accent), G.722.1 (Siren7) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-EN_GB-SIREN14" displayname="English (British Accent), G.722.1C (Siren14) format">
+			<support_level>core</support_level>
+		</member>
 		<member name="CORE-SOUNDS-ES-WAV" displayname="Spanish, WAV format">
 			<support_level>core</support_level>
 		</member>
@@ -81,32 +135,32 @@
 		<member name="CORE-SOUNDS-FR-SIREN14" displayname="French, G.722.1C (Siren14) format">
 			<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-WAV" displayname="English (Australian Accent), WAV format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-WAV" displayname="Italian, WAV format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-ULAW" displayname="English (Australian Accent), mu-Law format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-ULAW" displayname="Italian, mu-Law format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-ALAW" displayname="English (Australian Accent), a-Law format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-ALAW" displayname="Italian, a-Law format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-GSM" displayname="English (Australian Accent), GSM format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-GSM" displayname="Italian, GSM format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-G729" displayname="English (Australian Accent), G.729 format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-G729" displayname="Italian, G.729 format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-G722" displayname="English (Australian Accent), G.722 format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-G722" displayname="Italian, G.722 format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-SLN16" displayname="English (Australian Accent), Signed-linear 16kHz format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-SLN16" displayname="Italian, Signed-linear 16kHz format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-SIREN7" displayname="English (Australian Accent), G.722.1 (Siren7) format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-SIREN7" displayname="Italian, G.722.1 (Siren7) format">
+                	<support_level>core</support_level>
 		</member>
-		<member name="CORE-SOUNDS-EN_AU-SIREN14" displayname="English (Australian Accent), G.722.1C (Siren14) format">
-			<support_level>core</support_level>
+                <member name="CORE-SOUNDS-IT-SIREN14" displayname="Italian, G.722.1C (Siren14) format">
+                	<support_level>core</support_level>
 		</member>
 		<member name="CORE-SOUNDS-RU-WAV" displayname="Russian, WAV format">
 			<support_level>core</support_level>
@@ -192,6 +246,33 @@
 			<support_level>core</support_level>
 		</member>
 		<member name="EXTRA-SOUNDS-EN-SIREN14" displayname="English, G.722.1C (Siren14) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-WAV" displayname="English (British Accent), WAV format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-ULAW" displayname="English (British Accent), mu-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-ALAW" displayname="English (British Accent), a-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-GSM" displayname="English (British Accent), GSM format" >
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-G729" displayname="English (British Accent), G.729 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-G722" displayname="English (British Accent), G.722 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-SLN16" displayname="English (British Accent), Signed-linear 16kHz format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-SIREN7" displayname="English (British Accent), G.722.1 (Siren7) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="EXTRA-SOUNDS-EN_GB-SIREN14" displayname="English (British Accent), G.722.1C (Siren14) format">
 			<support_level>core</support_level>
 		</member>
 		<member name="EXTRA-SOUNDS-FR-WAV" displayname="French, WAV format">

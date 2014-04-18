@@ -42,8 +42,8 @@ MCS:=$(subst -SIREN14,-siren14,$(MCS))
 CORE_SOUNDS:=$(MCS:CORE-SOUNDS-%=asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION).tar.gz)
 CORE_SOUND_TAGS:=$(MCS:CORE-SOUNDS-%=.asterisk-core-sounds-%-$(CORE_SOUNDS_VERSION))
 MES:=$(subst -EN-,-en-,$(MENUSELECT_EXTRA_SOUNDS))
+MES:=$(subst -EN_GB-,-en_GB-,$(MES))
 MES:=$(subst -FR-,-fr-,$(MES))
-MES:=$(subst -ES-,-es-,$(MES))
 MES:=$(subst -WAV,-wav,$(MES))
 MES:=$(subst -ULAW,-ulaw,$(MES))
 MES:=$(subst -ALAW,-alaw,$(MES))
@@ -152,11 +152,9 @@ $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,ru,$(CORE_SOUNDS_
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,en,$(EXTRA_SOUNDS_VERSION)))
 
-$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,es,$(EXTRA_SOUNDS_VERSION)))
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,en_GB,$(EXTRA_SOUNDS_VERSION)))
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,fr,$(EXTRA_SOUNDS_VERSION)))
-
-$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,en_GB,$(EXTRA_SOUNDS_VERSION)))
 
 $(eval $(call sound_format_lang_rule,$(MOH_DIR),moh,,$(MOH_VERSION)))
 
