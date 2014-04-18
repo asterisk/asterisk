@@ -978,6 +978,8 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		}
 	}
 
+	ast_debug(3, "Examining ARI response:\n%d %s\n%s\n%s\n", response.response_code,
+		response.response_text, ast_str_buffer(response.headers), ast_str_buffer(response_body));
 	ast_http_send(ser, method, response.response_code,
 		      response.response_text, response.headers, response_body,
 		      0, 0);
