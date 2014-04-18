@@ -162,6 +162,7 @@ int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 		return -1;
 	}
 
+	ast_debug(3, "Examining ARI event: \n%s\n", str);
 	return ast_websocket_write(session->ws_session,
 		AST_WEBSOCKET_OPCODE_TEXT, str,	strlen(str));
 }
