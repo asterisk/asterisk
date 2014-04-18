@@ -336,7 +336,9 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 	ast_multi_channel_blob_add_channel(payload, "peer", peer_snapshot);
 
 	if (forwarded) {
+		ast_channel_lock(forwarded);
 		forwarded_snapshot = ast_channel_snapshot_create(forwarded);
+		ast_channel_unlock(forwarded);
 		if (!forwarded_snapshot) {
 			return;
 		}

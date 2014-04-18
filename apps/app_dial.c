@@ -1001,16 +1001,9 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			c = o->chan = NULL;
 			num->nochan++;
 		} else {
-			ast_channel_lock_both(c, in);
 			ast_channel_publish_dial(in, c, stuff, NULL);
-			ast_channel_unlock(in);
-			ast_channel_unlock(c);
-
-			ast_channel_lock_both(original, in);
 			ast_channel_publish_dial_forward(in, original, c, NULL, "CANCEL",
-				ast_channel_call_forward(c));
-			ast_channel_unlock(in);
-			ast_channel_unlock(original);
+				ast_channel_call_forward(original));
 
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);
