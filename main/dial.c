@@ -498,12 +498,14 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			ast_verb(3, "%s is busy\n", ast_channel_name(channel->owner));
 			ast_channel_publish_dial(chan, channel->owner, channel->device, "BUSY");
 			ast_hangup(channel->owner);
+			channel->cause = AST_CAUSE_USER_BUSY;
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_CONGESTION:
 			ast_verb(3, "%s is circuit-busy\n", ast_channel_name(channel->owner));
 			ast_channel_publish_dial(chan, channel->owner, channel->device, "CONGESTION");
 			ast_hangup(channel->owner);
+			channel->cause = AST_CAUSE_NORMAL_CIRCUIT_CONGESTION;
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_INCOMPLETE:
@@ -550,7 +552,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			break;
 		case AST_CONTROL_HOLD:
 			ast_verb(3, "Call on %s placed on hold\n", ast_channel_name(chan));
-			ast_indicate(chan, AST_CONTROL_HOLD);
+			ast_indicate_data(chan, AST_CONTROL_HOLD, fr->data.ptr, fr->datalen);
 			break;
 		case AST_CONTROL_UNHOLD:
 			ast_verb(3, "Call on %s left from hold\n", ast_channel_name(chan));
@@ -570,8 +572,6 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			break;
 		}
 	}
-
-	return;
 }
 
 /*! \brief Helper function that handles control frames WITHOUT owner */
@@ -595,12 +595,25 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 		ast_verb(3, "%s is busy\n", ast_channel_name(channel->owner));
 		ast_channel_publish_dial(NULL, channel->owner, channel->device, "BUSY");
 		ast_hangup(channel->owner);
+		channel->cause = AST_CAUSE_USER_BUSY;
 		channel->owner = NULL;
 		break;
 	case AST_CONTROL_CONGESTION:
 		ast_verb(3, "%s is circuit-busy\n", ast_channel_name(channel->owner));
 		ast_channel_publish_dial(NULL, channel->owner, channel->device, "CONGESTION");
 		ast_hangup(channel->owner);
+		channel->cause = AST_CAUSE_NORMAL_CIRCUIT_CONGESTION;
+		channel->owner = NULL;
+		break;
+	case AST_CONTROL_INCOMPLETE:
+		/*
+		 * Nothing to do but abort the call since we have no
+		 * controlling channel to ask for more digits.
+		 */
+		ast_verb(3, "%s dialed Incomplete extension %s\n",
+			ast_channel_name(channel->owner), ast_channel_exten(channel->owner));
+		ast_hangup(channel->owner);
+		channel->cause = AST_CAUSE_UNALLOCATED;
 		channel->owner = NULL;
 		break;
 	case AST_CONTROL_RINGING:
@@ -618,8 +631,6 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 	default:
 		break;
 	}
-
-	return;
 }
 
 /*! \brief Helper function to handle when a timeout occurs on dialing attempt */
@@ -643,6 +654,7 @@ static int handle_timeout_trip(struct ast_dial *dial, struct timeval start)
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
 		if (dial->state == AST_DIAL_RESULT_TIMEOUT || diff >= channel->timeout) {
 			ast_hangup(channel->owner);
+			channel->cause = AST_CAUSE_NO_ANSWER;
 			channel->owner = NULL;
 		} else if ((lowest_timeout == -1) || (lowest_timeout > channel->timeout)) {
 			lowest_timeout = channel->timeout;
@@ -792,6 +804,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 				ast_poll_channel_del(chan, channel->owner);
 			ast_channel_publish_dial(chan, channel->owner, channel->device, "CANCEL");
 			ast_hangup(channel->owner);
+			channel->cause = AST_CAUSE_ANSWERED_ELSEWHERE;
 			channel->owner = NULL;
 		}
 		AST_LIST_UNLOCK(&dial->channels);
@@ -816,6 +829,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 				ast_poll_channel_del(chan, channel->owner);
 			ast_channel_publish_dial(chan, channel->owner, channel->device, "CANCEL");
 			ast_hangup(channel->owner);
+			channel->cause = AST_CAUSE_NORMAL_CLEARING;
 			channel->owner = NULL;
 		}
 		AST_LIST_UNLOCK(&dial->channels);
