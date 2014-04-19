@@ -216,6 +216,7 @@ static const unsigned short escapes[] = {
 typedef struct sms_s {
 	unsigned char hangup;        /*!< we are done... */
 	unsigned char err;           /*!< set for any errors */
+	unsigned char sent_rel:1;     /*!< have sent REL message... */
 	unsigned char smsc:1;        /*!< we are SMSC */
 	unsigned char rx:1;          /*!< this is a received message */
 	char queue[30];              /*!< queue name */
@@ -1465,6 +1466,7 @@ static void sms_nextoutgoing (sms_t * h)
 		} else {
 			h->omsg[0] = 0x94;              /* SMS_REL */
 			h->omsg[1] = 0;
+			h->sent_rel = 1;
 		}
 	}
 	sms_messagetx(h);
@@ -1802,8 +1804,12 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 				h->iphasep -= 80;
 				if (h->ibitn++ == 9) {      /* end of byte */
 					if (!bit) {             /* bad stop bit */
-						ast_log(LOG_NOTICE, "bad stop bit\n");
-						h->ierr = 0xFF;     /* unknown error */
+						if (h->sent_rel) {
+							h->hangup = 1;
+						} else {
+							ast_log(LOG_NOTICE, "Bad stop bit\n");
+							h->ierr = 0xFF;     /* unknown error */
+						}
 					} else {
 						if (h->ibytep < sizeof(h->imsg)) {
 							h->imsg[h->ibytep] = h->ibytev;
@@ -1865,7 +1871,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 	int res = -1;
 	sms_t h = { 0 };
 	/* argument parsing support */
-	struct ast_flags flags;
+	struct ast_flags flags = { 0 };
 	char *parse, *sms_opts[OPTION_ARG_ARRAY_SIZE] = { 0, };
 	char *p;
 	AST_DECLARE_APP_ARGS(sms_args,
