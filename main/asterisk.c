@@ -4430,11 +4430,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (ast_features_init()) {
-		printf("%s", term_quit());
-		exit(1);
-	}
-
 	if (ast_pickup_init()) {
 		printf("%s", term_quit());
 		exit(1);
@@ -4463,6 +4458,11 @@ int main(int argc, char *argv[])
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
 		printf("%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);
+	}
+
+	if (ast_features_init()) {
+		printf("%s", term_quit());
+		exit(1);
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
