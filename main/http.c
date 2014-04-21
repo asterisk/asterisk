@@ -864,9 +864,25 @@ static void *httpd_helper_thread(void *data)
 	char *uri, *method;
 	enum ast_http_method http_method = AST_HTTP_UNKNOWN;
 	int remaining_headers;
+	struct protoent *p;
 
 	if (ast_atomic_fetchadd_int(&session_count, +1) >= session_limit) {
 		goto done;
+	}
+
+	/* here we set TCP_NODELAY on the socket to disable Nagle's algorithm.
+	 * This is necessary to prevent delays (caused by buffering) as we
+	 * write to the socket in bits and pieces. */
+	p = getprotobyname("tcp");
+	if (p) {
+		int arg = 1;
+		if( setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
+			ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
+		}
+	} else {
+		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection, getprotobyname(\"tcp\") failed\n");
+		ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
 	}
 
 	if (!fgets(buf, sizeof(buf), ser->f)) {

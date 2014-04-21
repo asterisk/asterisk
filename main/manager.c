@@ -5536,7 +5536,7 @@ static void *session_do(void *data)
 
 	/* here we set TCP_NODELAY on the socket to disable Nagle's algorithm.
 	 * This is necessary to prevent delays (caused by buffering) as we
-	 * write to the socket in bits and peices. */
+	 * write to the socket in bits and pieces. */
 	p = getprotobyname("tcp");
 	if (p) {
 		int arg = 1;
