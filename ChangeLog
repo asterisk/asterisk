@@ -1,3 +1,28 @@
+2014-04-21  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.2.0-rc3 Released.
+
+	* chan_sip: Add sendrpid trust options
+
+	  In r411189, some behavior was changed which made sendrpid behavior
+	  act in a more trusting manner by sending full user data for peers
+	  set with private caller presence in P-Asserted-Identity headers.
+	  Since this changed long time expected behaviors, we decided to pull
+	  that patch when that was pointed out by the community. Instead, this
+	  patch provides a trust_id_outbound setting which will expose the data
+	  per RFC-3325 if set to 'yes' and simply not send the PAI/RPID headers
+	  at all if set to 'no'. By default trust_id_outbound will be set to
+	  'legacy' which will preserve the behavior prior to these patches.
+	  Extra special thanks to Walter Doekes for providing advice and
+	  feedback.
+
+	* main/asterisk: Fix startup sequence for realtime features
+
+	  When ASTERISK-23265/ASTERISK-23320 was fixed, it inadvertently led to
+	  realtime features breaking. This was due to features loading prior to
+	  realtime. This patch fixes this by loading features after loading
+	  dynamic modules.
+
 2014-04-14  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.2.0-rc2 Released.

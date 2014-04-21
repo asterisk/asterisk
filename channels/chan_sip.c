@@ -12668,6 +12668,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	const char *privacy = NULL;
 	const char *screen = NULL;
 	struct ast_party_id connected_id;
+	const char *anonymous_string = "\"Anonymous\" <sip:anonymous@anonymous.invalid>";
 
 	if (!ast_test_flag(&p->flags[0], SIP_SENDRPID)) {
 		return 0;
@@ -12687,16 +12688,41 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	}
 	lid_pres = ast_party_id_presentation(&connected_id);
 
-	fromdomain = S_OR(p->fromdomain, ast_sockaddr_stringify_host_remote(&p->ourip));
+	if (((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) &&
+			(ast_test_flag(&p->flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND) == SIP_PAGE2_TRUST_ID_OUTBOUND_NO)) {
+		/* If pres is not allowed and we don't trust the peer, we don't apply an RPID header */
+		return 0;
+	}
+
+	fromdomain = p->fromdomain;
+	if (!fromdomain ||
+			((ast_test_flag(&p->flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND) == SIP_PAGE2_TRUST_ID_OUTBOUND_YES) &&
+			!strcmp("anonymous.invalid", fromdomain))) {
+		/* If the fromdomain is NULL or if it was set to anonymous.invalid due to privacy settings and we trust the peer,
+		 * use the host IP address */
+		fromdomain = ast_sockaddr_stringify_host_remote(&p->ourip);
+	}
 
 	lid_num = ast_uri_encode(lid_num, tmp2, sizeof(tmp2), ast_uri_sip_user);
 
 	if (ast_test_flag(&p->flags[0], SIP_SENDRPID_PAI)) {
-		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name, lid_num, fromdomain);
-		add_header(req, "P-Asserted-Identity", ast_str_buffer(tmp));
-		if ((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
-			add_header(req, "Privacy", "id");
+		if (ast_test_flag(&p->flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND) != SIP_PAGE2_TRUST_ID_OUTBOUND_LEGACY) {
+			/* trust_id_outbound = yes - Always give full information even if it's private, but append a privacy header
+			 * When private data is included */
+			ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name, lid_num, fromdomain);
+			if ((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
+				add_header(req, "Privacy", "id");
+			}
+		} else {
+			/* trust_id_outbound = legacy - behave in a non RFC-3325 compliant manner and send anonymized data when
+			 * when handling private data. */
+			if ((lid_pres & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+				ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name, lid_num, fromdomain);
+			} else {
+				ast_str_set(&tmp, -1, "%s", anonymous_string);
+			}
 		}
+		add_header(req, "P-Asserted-Identity", ast_str_buffer(tmp));
 	} else {
 		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>;party=%s", lid_name, lid_num, fromdomain, p->outgoing_call ? "calling" : "called");
 
@@ -19857,6 +19883,18 @@ static const char *allowoverlap2str(int mode)
 	return map_x_s(allowoverlapstr, mode, "<error>");
 }
 
+static const struct _map_x_s trust_id_outboundstr[] = {
+	{ SIP_PAGE2_TRUST_ID_OUTBOUND_LEGACY,  "Legacy" },
+	{ SIP_PAGE2_TRUST_ID_OUTBOUND_NO,      "No" },
+	{ SIP_PAGE2_TRUST_ID_OUTBOUND_YES,     "Yes" },
+	{ -1,                                  NULL }, /* terminator */
+};
+
+static const char *trust_id_outbound2str(int mode)
+{
+	return map_x_s(trust_id_outboundstr, mode, "<error>");
+}
+
 /*! \brief Destroy disused contexts between reloads
 	Only used in reload_config so the code for regcontext doesn't get ugly
 */
@@ -20532,6 +20570,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 			}
 			ast_cli(fd, "\n");
 		}
+		ast_cli(fd, "  TrustIDOutbnd: %s\n", trust_id_outbound2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND)));
 		ast_cli(fd, "  Subscriptions: %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)));
 		ast_cli(fd, "  Overlap dial : %s\n", allowoverlap2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP)));
 		if (peer->outboundproxy)
@@ -30074,6 +30113,19 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "rpid_immediate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RPID_IMMEDIATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RPID_IMMEDIATE);
+	} else if (!strcasecmp(v->name, "trust_id_outbound")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_TRUST_ID_OUTBOUND);
+		ast_clear_flag(&flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND);
+		if (!strcasecmp(v->value, "legacy")) {
+			ast_set_flag(&flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND_LEGACY);
+		} else if (ast_true(v->value)) {
+			ast_set_flag(&flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND_YES);
+		} else if (ast_false(v->value)) {
+			ast_set_flag(&flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND_NO);
+		} else {
+			ast_log(LOG_WARNING, "Unknown trust_id_outbound mode '%s' on line %d, using legacy\n", v->value, v->lineno);
+			ast_set_flag(&flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND_LEGACY);
+		}
 	} else if (!strcasecmp(v->name, "g726nonstandard")) {
 		ast_set_flag(&mask[0], SIP_G726_NONSTANDARD);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_G726_NONSTANDARD);
