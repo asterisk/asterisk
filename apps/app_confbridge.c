@@ -222,7 +222,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="Conference" required="true" />
-			<parameter name="Channel" required="true" />
+			<parameter name="Channel" required="true" >
+				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+				<para>If this parameter is "all", all channels will be kicked from the conference.</para>
+			</parameter>
 		</syntax>
 		<description>
 		</description>
@@ -2910,7 +2913,7 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 	ao2_ref(conference, -1);
 
 	if (found) {
-		astman_send_ack(s, m, "User kicked");
+		astman_send_ack(s, m, !strcmp("all", channel) ? "All participants kicked" : "User kicked");
 	} else {
 		astman_send_error(s, m, "No Channel by that name found in Conference.");
 	}
