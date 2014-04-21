@@ -2825,9 +2825,6 @@ static void send_dial_tone(struct unistimsession *pte)
 		ind = ast_strdupa(ts->data);
 		s = strsep(&ind, ",");
 		ast_tone_zone_part_parse(s, &tone_data);
-		if (tone_data.modulate) {
-			tone_data.freq2 = 0;
-		}
 		send_tone(pte, tone_data.freq1, tone_data.freq2);
 		if (unistimdebug) {
 			ast_verb(0, "Country code found (%s), freq1=%d freq2=%d\n",
