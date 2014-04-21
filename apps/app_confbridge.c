@@ -2253,6 +2253,11 @@ static char *complete_confbridge_participant(const char *conference_name, const 
 		return NULL;
 	}
 
+	if (!state) {
+		return ast_strdup("all");
+	}
+	state--;
+
 	{
 		SCOPED_AO2LOCK(bridge_lock, conference);
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
@@ -2281,7 +2286,7 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 		e->command = "confbridge kick";
 		e->usage =
 			"Usage: confbridge kick <conference> <channel>\n"
-			"       Kicks a channel out of the conference bridge.\n";
+			"       Kicks a channel out of the conference bridge (all to kick everyone).\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
