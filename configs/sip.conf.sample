@@ -350,6 +350,17 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; transmit such UPDATE messages to it, then you must enable this option.
                                 ; Otherwise, we will have to wait until we can send a reinvite to
                                 ; transmit the information.
+;trust_id_outbound = no         ; Controls whether or not we trust this peer with private identity
+                                ; information (when the remote party has callingpres=prohib or equivalent).
+                                ; no - RPID/PAI headers will not be included for private peer information
+                                ; yes - RPID/PAI headers will include the private peer information. Privacy
+                                ;       requirements will be indicated in a Privacy header for sendrpid=pai
+                                ; legacy - RPID/PAI will be included for private peer information. In the
+                                ;       case of sendrpid=pai, private data that would be included in them
+                                ;       will be anonymized. For sendrpid=rpid, private data may be included
+                                ;       but the remote party's domain will be anonymized. The way legacy
+                                ;       behaves may violate RFC-3325, but it follows historic behavior.
+                                ; This option is set to 'legacy' by default
 ;prematuremedia=no              ; Some ISDN links send empty media frames before 
                                 ; the call is in ringing or progress state. The SIP 
                                 ; channel will then send 183 indicating early media
@@ -1205,6 +1216,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; autoframing
 ; insecure
 ; trustrpid
+; trust_id_outbound
 ; progressinband
 ; promiscredir
 ; useclientcode
@@ -1414,7 +1426,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;allow=g723.1                    ; Asterisk only supports g723.1 pass-thru!
 ;allow=g729                      ; Pass-thru only unless g729 license obtained
 ;callingpres=allowed_passed_screen ; Set caller ID presentation
-                                 ; See README.callingpres for more information
+                                 ; See function CALLERPRES documentation for possible
+                                 ; values.
 
 ;[xlite1]
 ; Turn off silence suppression in X-Lite ("Transmit Silence"=YES)!
