@@ -9,6 +9,29 @@
 ======================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 1.8.26.1 ----------------------------
+------------------------------------------------------------------------------
+
+chan_sip
+-----------
+ * SIP peers can now specify 'trust_id_outbound' which affects RPID/PAI
+   fields for prohibited callingpres information. Values are legacy, no, and
+   yes. By default, legacy is used.
+   trust_id_outbound=legacy - behavior remains the same as 1.8.26.1. When
+     dealing with prohibited callingpres and sendrpid=pai/rpid, RPID/PAI
+     headers are appended to outbound SIP messages just as they are with
+     allowed callingpres values, but data about the remote party's identity is
+     anonymized.
+     When sendrpid=rpid, only the remote party's domain is anonymized.
+   trust_id_outbound=no - when dealing with prohibited callingpres, RPID/PAI
+     headers are not sent.
+   trust_id_outbound=yes - RPID/PAI headers are applied with the full remote
+     party information in tact even for prohibited callingpres information.
+     In the case of PAI, a Privacy: id header will be appended for prohibited
+     calling information to communicate that the private information should
+     not be relayed to untrusted parties.
+
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 1.8.19.1 ----------------------------
 ------------------------------------------------------------------------------
 
