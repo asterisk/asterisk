@@ -2,7 +2,7 @@
 
                              asterisk-1.8.27.0-rc2
 
-                                Date: 2014-04-21
+                                Date: 2014-04-22
 
                            <asteriskteam@digium.com>
 
@@ -48,7 +48,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   3 bebuild                
+   4 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -71,6 +71,9 @@
    |----------+---------+--------------------------------------+------------|
    | 412872   | bebuild | Merge r412328,412744,412764,412821   |            |
    |          |         | for ASTERISK-19465                   |            |
+   |----------+---------+--------------------------------------+------------|
+   | 412875   | bebuild | Importing release summary for        |            |
+   |          |         | 1.8.27.0-rc2 release.                |            |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -87,9 +90,11 @@
  ChangeLog                          |   18
  asterisk-1.8.27.0-rc1-summary.html |  564 -----------------------------
  asterisk-1.8.27.0-rc1-summary.txt  |  711 -------------------------------------
+ asterisk-1.8.27.0-rc2-summary.html |   64 +++
+ asterisk-1.8.27.0-rc2-summary.txt  |   95 ++++
  channels/chan_sip.c                |   62 ++-
  channels/sip/include/sip.h         |    7
  configs/sip.conf.sample            |   12
- 8 files changed, 117 insertions(+), 1282 deletions(-)
+ 10 files changed, 276 insertions(+), 1282 deletions(-)
 
      ----------------------------------------------------------------------
