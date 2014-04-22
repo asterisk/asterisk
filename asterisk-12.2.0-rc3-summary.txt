@@ -48,7 +48,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   3 bebuild                
+   4 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -71,6 +71,9 @@
    |----------+---------+--------------------------------------+------------|
    | 412874   | bebuild | Merge r412823,412747,412330,412698   |            |
    |          |         | for ASTERISK-23487,ASTERISK-19465    |            |
+   |----------+---------+--------------------------------------+------------|
+   | 412899   | bebuild | Importing release summary for        |            |
+   |          |         | 12.2.0-rc3 release.                  |            |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -83,14 +86,16 @@
    release that was generated using the diffstat utility.
 
  .version                         |    2
- CHANGES                          |   23 +++++++++
+ CHANGES                          |   23 ++++++++-
  ChangeLog                        |   25 ++++++++++
  asterisk-12.2.0-rc2-summary.html |   64 --------------------------
- asterisk-12.2.0-rc2-summary.txt  |   94 ---------------------------------------
+ asterisk-12.2.0-rc2-summary.txt  |   94 --------------------------------------
+ asterisk-12.2.0-rc3-summary.html |   65 ++++++++++++++++++++++++++
+ asterisk-12.2.0-rc3-summary.txt  |   96 +++++++++++++++++++++++++++++++++++++++
  channels/chan_sip.c              |   62 +++++++++++++++++++++++--
  channels/sip/include/sip.h       |    7 ++
  configs/sip.conf.sample          |   12 ++++
  main/asterisk.c                  |   10 ++--
- 9 files changed, 128 insertions(+), 171 deletions(-)
+ 11 files changed, 289 insertions(+), 171 deletions(-)
 
      ----------------------------------------------------------------------
