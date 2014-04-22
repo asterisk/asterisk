@@ -48,7 +48,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   4 bebuild                
+   5 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -74,6 +74,9 @@
    |----------+---------+--------------------------------------+------------|
    | 412875   | bebuild | Importing release summary for        |            |
    |          |         | 1.8.27.0-rc2 release.                |            |
+   |----------+---------+--------------------------------------+------------|
+   | 412896   | bebuild | Importing release summary for        |            |
+   |          |         | 1.8.27.0-rc2 release.                |            |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -90,11 +93,11 @@
  ChangeLog                          |   18
  asterisk-1.8.27.0-rc1-summary.html |  564 -----------------------------
  asterisk-1.8.27.0-rc1-summary.txt  |  711 -------------------------------------
- asterisk-1.8.27.0-rc2-summary.html |   64 +++
- asterisk-1.8.27.0-rc2-summary.txt  |   95 ++++
+ asterisk-1.8.27.0-rc2-summary.html |   67 +++
+ asterisk-1.8.27.0-rc2-summary.txt  |  100 +++++
  channels/chan_sip.c                |   62 ++-
  channels/sip/include/sip.h         |    7
  configs/sip.conf.sample            |   12
- 10 files changed, 276 insertions(+), 1282 deletions(-)
+ 10 files changed, 284 insertions(+), 1282 deletions(-)
 
      ----------------------------------------------------------------------
