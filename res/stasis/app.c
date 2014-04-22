@@ -649,7 +649,7 @@ static void bridge_blind_transfer_handler(void *data, struct stasis_subscription
 	struct ast_bridge_blob *blob = stasis_message_data(message);
 
 	if (bridge_app_subscribed(app, blob->channel->uniqueid) ||
-		bridge_app_subscribed_involved(app, blob->bridge)) {
+		(blob->bridge && bridge_app_subscribed_involved(app, blob->bridge))) {
 		stasis_publish(app->topic, message);
 	}
 }
