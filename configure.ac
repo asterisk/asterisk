@@ -818,6 +818,22 @@ AC_DEFINE([HAVE_PTHREAD_MUTEX_RECURSIVE_NP], 1, [Define to 1 if your system defi
 AC_MSG_RESULT(no)
 )
 
+AC_MSG_CHECKING(for PTHREAD_MUTEX_ADAPTIVE_NP in pthread.h)
+AC_LINK_IFELSE(
+[AC_LANG_PROGRAM([#include <pthread.h>], [int a = PTHREAD_MUTEX_ADAPTIVE_NP;])],
+AC_MSG_RESULT(yes)
+AC_DEFINE([HAVE_PTHREAD_MUTEX_ADAPTIVE_NP], 1, [Define to 1 if your system defines PTHREAD_MUTEX_ADAPTIVE_NP in pthread.h]),
+AC_MSG_RESULT(no)
+)
+
+AC_MSG_CHECKING(for pthread_spinlock_t in pthread.h)
+AC_LINK_IFELSE(
+[AC_LANG_PROGRAM([#include <pthread.h>], [pthread_spinlock_t spin;])],
+AC_MSG_RESULT(yes)
+AC_DEFINE([HAVE_PTHREAD_SPINLOCK], 1, [Define to 1 if your system has pthread_spinlock_t in pthread.h]),
+AC_MSG_RESULT(no)
+)
+
 save_LIBS="$LIBS"
 save_CFLAGS="$CFLAGS"
 LIBS="$PTHREAD_LIBS $LIBS"
