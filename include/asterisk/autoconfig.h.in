@@ -667,6 +667,10 @@
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 
+/* Define to 1 if your system defines PTHREAD_MUTEX_ADAPTIVE_NP in pthread.h
+   */
+#undef HAVE_PTHREAD_MUTEX_ADAPTIVE_NP
+
 /* Define to 1 if your system defines PTHREAD_MUTEX_RECURSIVE_NP in pthread.h
    */
 #undef HAVE_PTHREAD_MUTEX_RECURSIVE_NP
@@ -684,6 +688,9 @@
 
 /* Define if your system has pthread_rwlock_timedwrlock() */
 #undef HAVE_PTHREAD_RWLOCK_TIMEDWRLOCK
+
+/* Define to 1 if your system has pthread_spinlock_t in pthread.h */
+#undef HAVE_PTHREAD_SPINLOCK
 
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
