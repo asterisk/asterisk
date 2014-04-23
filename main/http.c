@@ -443,8 +443,8 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 
 	/* send content */
 	if (method != AST_HTTP_HEAD || status_code >= 400) {
-		if (content_length) {
-			if (fwrite(ast_str_buffer(out), content_length, 1, ser->f) != 1) {
+		if (out && ast_str_strlen(out)) {
+			if (fwrite(ast_str_buffer(out), ast_str_strlen(out), 1, ser->f) != 1) {
 				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
 			}
 		}
