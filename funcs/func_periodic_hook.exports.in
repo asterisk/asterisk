@@ -1,0 +1,7 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIX*ast_beep_start;
+		LINKER_SYMBOL_PREFIX*ast_beep_stop;
+	local:
+		*;
+};

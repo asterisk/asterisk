@@ -1,6 +1,7 @@
 {
 	*ast_adsi_*;
 	*ast_agi_*;
+	*ast_beep_*;
 	*ast_pktccops_*;
 	*ast_smdi_*;
 	*ast_monitor_*;

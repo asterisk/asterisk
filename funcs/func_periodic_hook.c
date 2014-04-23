@@ -520,4 +520,7 @@ int AST_OPTIONAL_API_NAME(ast_beep_stop)(struct ast_channel *chan, const char *b
 	return hook_write(chan, NULL, (char *) beep_id, "off");
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Periodic dialplan hooks.");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Periodic dialplan hooks.",
+		.load = load_module,
+		.unload = unload_module,
+		);

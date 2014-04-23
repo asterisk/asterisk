@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #define AST_API_MODULE
 #include "asterisk/monitor.h"
+#undef AST_API_MODULE
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 #include "asterisk/config.h"
