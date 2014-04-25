@@ -286,6 +286,7 @@ struct ast_rtp {
 	SSL *ssl;         /*!< SSL session */
 	BIO *read_bio;    /*!< Memory buffer for reading */
 	BIO *write_bio;   /*!< Memory buffer for writing */
+	ast_mutex_t dtls_timer_lock;           /*!< Lock for synchronization purposes */
 	enum ast_rtp_dtls_setup dtls_setup; /*!< Current setup state */
 	enum ast_srtp_suite suite;   /*!< SRTP crypto suite */
 	char local_fingerprint[160]; /*!< Fingerprint of our certificate */
@@ -294,6 +295,7 @@ struct ast_rtp {
 	unsigned int dtls_failure:1; /*!< Failure occurred during DTLS negotiation */
 	unsigned int rekey; /*!< Interval at which to renegotiate and rekey */
 	int rekeyid; /*!< Scheduled item id for rekeying */
+	int dtlstimerid; /*!< Scheduled item id for DTLS retransmission for RTP */
 #endif
 };
 
@@ -403,6 +405,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level);
 
 #ifdef HAVE_OPENSSL_SRTP
 static int ast_rtp_activate(struct ast_rtp_instance *instance);
+static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp);
 #endif
 
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice, int use_srtp);
@@ -1319,9 +1322,43 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 }
 
 #ifdef HAVE_OPENSSL_SRTP
+
+static int dtls_srtp_handle_timeout(const void *data)
+{
+	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!rtp)
+	{
+		return 0;
+	}
+
+	ast_mutex_lock(&rtp->dtls_timer_lock);
+	if (rtp->dtlstimerid == -1)
+	{
+		ast_mutex_unlock(&rtp->dtls_timer_lock);
+		ao2_ref(instance, -1);
+		return 0;
+	}
+
+	rtp->dtlstimerid = -1;
+	ast_mutex_unlock(&rtp->dtls_timer_lock);
+
+	if (rtp->ssl) {
+		DTLSv1_handle_timeout(rtp->ssl);
+	}
+
+	dtls_srtp_check_pending(instance, rtp);
+
+	ao2_ref(instance, -1);
+
+	return 0;
+}
+
 static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
 {
 	size_t pending = BIO_ctrl_pending(rtp->write_bio);
+	struct timeval dtls_timeout; /* timeout on DTLS  */
 
 	if (pending > 0) {
 		char outgoing[pending];
@@ -1337,6 +1374,23 @@ static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct as
 		}
 
 		out = BIO_read(rtp->write_bio, outgoing, sizeof(outgoing));
+
+		/* Stop existing DTLS timer if running */
+		ast_mutex_lock(&rtp->dtls_timer_lock);
+		if (rtp->dtlstimerid > -1) {
+			AST_SCHED_DEL_UNREF(rtp->sched, rtp->dtlstimerid, ao2_ref(instance, -1));
+			rtp->dtlstimerid = -1;
+		}
+
+		if (DTLSv1_get_timeout(rtp->ssl, &dtls_timeout)) {
+			int timeout = dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+			ao2_ref(instance, +1);
+			if ((rtp->dtlstimerid = ast_sched_add(rtp->sched, timeout, dtls_srtp_handle_timeout, instance)) < 0) {
+				ao2_ref(instance, -1);
+				ast_log(LOG_WARNING, "scheduling DTLS retransmission for RTP instance [%p] failed.\n", instance);
+			}
+		}
+		ast_mutex_unlock(&rtp->dtls_timer_lock);
 
 		__rtp_sendto(instance, outgoing, out, 0, &remote_address, 0, &ice, 0);
 	}
@@ -1973,6 +2027,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 
 #ifdef HAVE_OPENSSL_SRTP
 	rtp->rekeyid = -1;
+	rtp->dtlstimerid = -1;
 #endif
 
 	return 0;
@@ -4295,6 +4350,9 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 
 #ifdef HAVE_OPENSSL_SRTP
 	AST_SCHED_DEL_UNREF(rtp->sched, rtp->rekeyid, ao2_ref(instance, -1));
+	ast_mutex_lock(&rtp->dtls_timer_lock);
+	AST_SCHED_DEL_UNREF(rtp->sched, rtp->dtlstimerid, ao2_ref(instance, -1));
+	ast_mutex_unlock(&rtp->dtls_timer_lock);
 #endif
 
 	if (rtp->rtcp && rtp->rtcp->schedid > 0) {
