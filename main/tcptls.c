@@ -191,7 +191,7 @@ static void *handle_tcptls_connection(void *data)
 	else if ( (tcptls_session->ssl = SSL_new(tcptls_session->parent->tls_cfg->ssl_ctx)) ) {
 		SSL_set_fd(tcptls_session->ssl, tcptls_session->fd);
 		if ((ret = ssl_setup(tcptls_session->ssl)) <= 0) {
-			ast_verb(2, "Problem setting up ssl connection: %s\n", ERR_error_string(ERR_get_error(), err));
+			ast_log(LOG_ERROR, "Problem setting up ssl connection: %s\n", ERR_error_string(ERR_get_error(), err));
 		} else {
 #if defined(HAVE_FUNOPEN)	/* the BSD interface */
 			tcptls_session->f = funopen(tcptls_session->ssl, ssl_read, ssl_write, NULL, ssl_close);
@@ -274,7 +274,7 @@ static void *handle_tcptls_connection(void *data)
 		ast_log(LOG_WARNING, "FILE * open failed!\n");
 #ifndef DO_SSL
 		if (tcptls_session->parent->tls_cfg) {
-			ast_log(LOG_WARNING, "Attempted a TLS connection without OpenSSL support. This will not work!\n");
+			ast_log(LOG_ERROR, "Attempted a TLS connection without OpenSSL support. This will not work!\n");
 		}
 #endif
 		ao2_ref(tcptls_session, -1);
@@ -309,7 +309,7 @@ void *ast_tcptls_server_root(void *data)
 		fd = ast_accept(desc->accept_fd, &addr);
 		if (fd < 0) {
 			if ((errno != EAGAIN) && (errno != EINTR)) {
-				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
+				ast_log(LOG_ERROR, "Accept failed: %s\n", strerror(errno));
 			}
 			continue;
 		}
@@ -333,7 +333,7 @@ void *ast_tcptls_server_root(void *data)
 
 		/* This thread is now the only place that controls the single ref to tcptls_session */
 		if (ast_pthread_create_detached_background(&launched, NULL, handle_tcptls_connection, tcptls_session)) {
-			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
+			ast_log(LOG_ERROR, "Unable to launch helper thread: %s\n", strerror(errno));
 			ast_tcptls_close_session_file(tcptls_session);
 			ao2_ref(tcptls_session, -1);
 		}
@@ -396,7 +396,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		if (SSL_CTX_use_certificate_chain_file(cfg->ssl_ctx, cfg->certfile) == 0) {
 			if (!client) {
 				/* Clients don't need a certificate, but if its setup we can use it */
-				ast_verb(0, "SSL error loading cert file. <%s>\n", cfg->certfile);
+				ast_log(LOG_ERROR, "TLS/SSL error loading cert file. <%s>\n", cfg->certfile);
 				cfg->enabled = 0;
 				SSL_CTX_free(cfg->ssl_ctx);
 				cfg->ssl_ctx = NULL;
@@ -406,7 +406,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		if ((SSL_CTX_use_PrivateKey_file(cfg->ssl_ctx, tmpprivate, SSL_FILETYPE_PEM) == 0) || (SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 )) {
 			if (!client) {
 				/* Clients don't need a private key, but if its setup we can use it */
-				ast_verb(0, "SSL error loading private key file. <%s>\n", tmpprivate);
+				ast_log(LOG_ERROR, "TLS/SSL error loading private key file. <%s>\n", tmpprivate);
 				cfg->enabled = 0;
 				SSL_CTX_free(cfg->ssl_ctx);
 				cfg->ssl_ctx = NULL;
@@ -417,7 +417,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (!ast_strlen_zero(cfg->cipher)) {
 		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
 			if (!client) {
-				ast_verb(0, "SSL cipher error <%s>\n", cfg->cipher);
+				ast_log(LOG_ERROR, "TLS/SSL cipher error <%s>\n", cfg->cipher);
 				cfg->enabled = 0;
 				SSL_CTX_free(cfg->ssl_ctx);
 				cfg->ssl_ctx = NULL;
@@ -427,11 +427,11 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	}
 	if (!ast_strlen_zero(cfg->cafile) || !ast_strlen_zero(cfg->capath)) {
 		if (SSL_CTX_load_verify_locations(cfg->ssl_ctx, S_OR(cfg->cafile, NULL), S_OR(cfg->capath,NULL)) == 0) {
-			ast_verb(0, "SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
+			ast_log(LOG_ERROR, "TLS/SSL CA file(%s)/path(%s) error\n", cfg->cafile, cfg->capath);
 		}
 	}
 
-	ast_verb(0, "SSL certificate ok\n");
+	ast_verb(2, "TLS/SSL certificate ok\n");	/* We should log which one that is ok. This message doesn't really make sense in production use */
 	return 1;
 #endif
 }
@@ -509,7 +509,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 	desc->accept_fd = socket(ast_sockaddr_is_ipv6(&desc->remote_address) ?
 				 AF_INET6 : AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (desc->accept_fd < 0) {
-		ast_log(LOG_WARNING, "Unable to allocate socket for %s: %s\n",
+		ast_log(LOG_ERROR, "Unable to allocate socket for %s: %s\n",
 			desc->name, strerror(errno));
 		return NULL;
 	}
@@ -690,7 +690,7 @@ int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_
 		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_DONT_VERIFY_SERVER);
 	} else if (!strcasecmp(varname, "tlsbindaddr") || !strcasecmp(varname, "sslbindaddr")) {
 		if (ast_parse_arg(value, PARSE_ADDR, &tls_desc->local_address))
-			ast_log(LOG_WARNING, "Invalid %s '%s'\n", varname, value);
+			ast_log(LOG_ERROR, "Invalid %s '%s'\n", varname, value);
 	} else if (!strcasecmp(varname, "tlsclientmethod") || !strcasecmp(varname, "sslclientmethod")) {
 		if (!strcasecmp(value, "tlsv1")) {
 			ast_set_flag(&tls_cfg->flags, AST_SSL_TLSV1_CLIENT);
