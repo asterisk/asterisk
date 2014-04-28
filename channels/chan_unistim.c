@@ -92,6 +92,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_BUF_NUMBER	  150
 /*! Number of digits displayed on screen */
 #define MAX_SCREEN_NUMBER   15
+/*! Length of month label size */
+#define MONTH_LABEL_SIZE 3
 /*! Try x times before removing the phone */
 #define NB_MAX_RETRANSMIT       8
 /*! Nb of milliseconds waited when no events are scheduled */
@@ -145,6 +147,21 @@ enum autoprov_extn {
 #define MUTE_OFF		0x00
 #define MUTE_ON		 0xFF
 #define MUTE_ON_DISCRET	 0xCE
+
+#define LED_BAR_OFF			0x00 /* bar off */
+#define LED_BAR_ON			0x01 /* bar on */
+#define LED_BAR_P2			0x02 /* bar 1s on/1s */
+#define LED_BAR_P3			0x03 /* bar 2.5s on/0.5s off */
+#define LED_BAR_P4			0x04 /* bar 0.6s on/0.3s off */
+#define LED_BAR_P5			0x05 /* bar 0.5s on/0.5s off */
+#define LED_BAR_P6			0x06 /* bar 2s on/0.5s off */
+#define LED_BAR_P7			0x07 /* bar off */
+#define LED_SPEAKER_OFF			0x08
+#define LED_SPEAKER_ON			0x09
+#define LED_HEADPHONE_OFF		0x010
+#define LED_HEADPHONE_ON		0x011
+#define LED_MUTE_OFF			0x018
+#define LED_MUTE_ON			0x019
 
 #define SIZE_HEADER	     6
 #define SIZE_MAC_ADDR	   17
@@ -405,6 +422,7 @@ static struct unistim_device {
 	char cwvolume;			/*!< Ring volume on call waiting */
 	char cwstyle;			 /*!< Ring melody on call waiting */
 	int interdigit_timer;		/*!< Interdigit timer for dialing number by timeout */
+	int dtmfduration;		/*!< DTMF playback duration */
 	time_t nextdial;		/*!< Timer used for dial by timeout */
 	int rtp_port;			   /*!< RTP port used by the phone */
 	int rtp_method;			 /*!< Select the unistim data used to establish a RTP session */
@@ -420,7 +438,7 @@ static struct unistim_device {
 	int previous_output;	    /*!< Previous output */
 	int volume;				     /*!< Default volume */
 	int selected;                           /*!< softkey selected */
-	int mute;				       /*!< Mute mode */
+	int microphone;				/*!< Microphone mode (audio tx) */
 	int lastmsgssent;                                                   /*! Used by MWI */
 	time_t nextmsgcheck;                                            /*! Used by MWI */
 	int nat;					/*!< Used by the obscure ast_rtp_setnat */
@@ -547,9 +565,9 @@ static const unsigned char packet_send_call[] =
 static const unsigned char packet_send_stream_based_tone_off[] =
 	{ 0x16, 0x05, 0x1c, 0x00, 0x00 };
 
-/* static const unsigned char packet_send_Mute[] = { 0x16, 0x05, 0x04, 0x00, 0x00 };
+static const unsigned char packet_send_mute[] = { 0x16, 0x05, 0x04, 0x00, 0x00 };
 static const unsigned char packet_send_CloseAudioStreamRX[] = { 0x16, 0x05, 0x31, 0x00, 0xff };
-static const unsigned char packet_send_CloseAudioStreamTX[] = { 0x16, 0x05, 0x31, 0xff, 0x00 };*/
+static const unsigned char packet_send_CloseAudioStreamTX[] = { 0x16, 0x05, 0x31, 0xff, 0x00 };
 static const unsigned char packet_send_stream_based_tone_on[] =
 	{ 0x16, 0x06, 0x1b, 0x00, 0x00, 0x05 };
 static const unsigned char packet_send_stream_based_tone_single_freq[] =
@@ -558,16 +576,17 @@ static const unsigned char packet_send_stream_based_tone_dial_freq[] =
 	{ 0x16, 0x08, 0x1d, 0x00, 0x01, 0xb8, 0x01, 0x5e };
 static const unsigned char packet_send_select_output[] =
 	{ 0x16, 0x06, 0x32, 0xc0, 0x01, 0x00 };
+
 static const unsigned char packet_send_ring[] =
 	{ 0x16, 0x06, 0x32, 0xdf, 0x00, 0xff, 0x16, 0x05, 0x1c, 0x00, 0x00, 0x16,
 	0x04, 0x1a, 0x01, 0x16, 0x05, 0x12, 0x13 /* Ring type 10 to 17 */ , 0x18, 0x16, 0x04, 0x18,     /* volume 00, 10, 20... */
 	0x20, 0x16, 0x04, 0x10, 0x00
 };
+//static const unsigned char packet_send_end_call[] =
+//	{ 0x16, 0x06, 0x32, 0xdf, 0x00, 0xff, 0x16, 0x05, 0x31, 0x00, 0x00, /* Headset LED off */ 0x19, 0x04, 0x00,
+//0x10, /* Mute LED off */ 0x19, 0x04, 0x00, 0x18,/* Stream unmute */ 0x16, 0x05, 0x04, 0x00, 0x00, /* Query RTCP */ 0x16, 0x04, 0x37, 0x10 };
 static const unsigned char packet_send_end_call[] =
-	{ 0x16, 0x06, 0x32, 0xdf, 0x00, 0xff, 0x16, 0x05, 0x31, 0x00, 0x00, 0x19, 0x04, 0x00,
-0x10, 0x19, 0x04, 0x00, 0x18, 0x16, 0x05,
-	0x04, 0x00, 0x00, 0x16, 0x04, 0x37, 0x10
-};
+	{ 0x16, 0x06, 0x32, 0xdf, 0x00, 0xff, 0x16, 0x05, 0x31, 0x00, 0x00, /* Query RTCP */ 0x16, 0x04, 0x37, 0x10 };
 static const unsigned char packet_send_s9[] =
 	{ 0x16, 0x06, 0x32, 0xdf, 0x00, 0xff, 0x19, 0x04, 0x00, 0x10, 0x16, 0x05, 0x1c, 0x00,
 0x00 };
@@ -616,15 +635,18 @@ static const unsigned char packet_send_Contrast[] =
 	{ 0x17, 0x04, 0x24, /*Contrast */ 0x08 };
 static const unsigned char packet_send_start_timer[] =
 	{ 0x17, 0x05, 0x0b, /*Timer option*/0x05, /* Timer ID */0x00, 0x17, 0x08, 0x16,
-	/* Text */ 0x44, 0x75, 0x72, 0xe9, 0x65 };
+	/* Text */ 'T', 'i', 'm', 'e', 'r' };
 static const unsigned char packet_send_stop_timer[] = { 0x17, 0x05, 0x0b, 0x02, 0x00 };
 static const unsigned char packet_send_icon[] = { 0x17, 0x05, 0x14, /*pos */ 0x00, /*icon */ 0x25 };      /* display an icon in front of the text zone */
 static const unsigned char packet_send_S7[] = { 0x17, 0x06, 0x0f, 0x30, 0x07, 0x07 };
 static const unsigned char packet_send_set_pos_cursor[] =
 	{ 0x17, 0x06, 0x10, 0x81, 0x04, /*pos */ 0x20 };
 
-/*static unsigned char packet_send_MonthLabelsDownload[] =
-  { 0x17, 0x0a, 0x15,  Month (3 char)  0x46, 0x65, 0x62, 0x4d, 0xe4, 0x72, 0x20 }; */
+static unsigned char monthlabels[] =
+	{ 'J', 'a', 'n', 'F', 'e', 'b', 'M', 'a', 'r', 'A', 'p', 'r', 'M', 'a', 'y', 'J', 'u', 'n',
+		'J', 'u', 'l', 'A', 'u', 'g', 'S', 'e', 'p', 'O', 'c', 't', 'N', 'o', 'v', 'D', 'e', 'c' };
+static unsigned char packet_send_monthlabels_download[] =
+  { 0x17, 0x0a, 0x15, /* Month (3 char) */ '-', '-', '-', '-', '-', '-', 0x20 };
 static const unsigned char packet_send_favorite[] =
 	{ 0x17, 0x0f, 0x19, 0x10, /*pos */ 0x01, /*name */ 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
 0x20, 0x20, 0x20, 0x20, /*end_name */ 0x19,
@@ -1210,6 +1232,24 @@ static void send_tone(struct unistimsession *pte, uint16_t tone1, uint16_t tone2
  |  5	         2    | <-- not on screen in i2002
  |  4	         1    |
  |  3	         0    |
+
+
+ KEM Positions
+
+ |--------------------|
+ |  12	         24   |
+ |  11	         23   |
+ |  10	         22   |
+ |  9	         21   |
+ |  8	         20   |
+ |  7	         19   |
+ |  6	         18   |
+ |  5	         17   |
+ |  4	         16   |
+ |  3	         15   |
+ |  2	         14   |
+ |  1	         13   |
+
 */
 
 /* status (icons) : 00 = nothing, 2x/3x = see parser.h, 4x/5x = blink fast, 6x/7x = blink slow */
@@ -1570,7 +1610,6 @@ static void send_text_status(struct unistimsession *pte, const char *text)
 		}
 	}
 
-
 	memcpy(buffsend + SIZE_HEADER, packet_send_status, sizeof(packet_send_status));
 	i = strlen(text);
 	if (i > STATUS_LENGTH_MAX) {
@@ -1581,10 +1620,6 @@ static void send_text_status(struct unistimsession *pte, const char *text)
 
 }
 
-/* led values in hexa : 0 = bar off, 1 = bar on, 2 = bar 1s on/1s off, 3 = bar 2.5s on/0.5s off
- * 4 = bar 0.6s on/0.3s off, 5 = bar 0.5s on/0.5s off, 6 = bar 2s on/0.5s off
- * 7 = bar off, 8 = speaker off, 9 = speaker on, 10 = headphone off, 11 = headphone on
- * 18 = mute off, 19 mute on */
 static void send_led_update(struct unistimsession *pte, unsigned char led)
 {
 	BUFFSEND;
@@ -1596,6 +1631,22 @@ static void send_led_update(struct unistimsession *pte, unsigned char led)
 	send_client(SIZE_HEADER + sizeof(packet_send_led_update), buffsend, pte);
 }
 
+static void send_mute(struct unistimsession *pte, unsigned char mute)
+{
+/*
+	0x00 = unmute TX, 0x01 = mute TX
+	0x20 = unmute RX, 0x21 = mute RX
+*/
+	BUFFSEND;
+	if (unistimdebug) {
+		ast_verb(0, "Sending mute packet (%x)\n", mute);
+	}
+	memcpy(buffsend + SIZE_HEADER, packet_send_mute, sizeof(packet_send_mute));
+	buffsend[9] = mute;
+	send_client(SIZE_HEADER + sizeof(packet_send_mute), buffsend, pte);
+}
+
+
 /* output = OUTPUT_HANDSET, OUTPUT_HEADPHONE or OUTPUT_SPEAKER
  * volume = VOLUME_LOW, VOLUME_NORMAL, VOLUME_INSANELY_LOUD
  * mute = MUTE_OFF, MUTE_ON */
@@ -1604,6 +1655,7 @@ send_select_output(struct unistimsession *pte, unsigned char output, unsigned ch
 				 unsigned char mute)
 {
 	BUFFSEND;
+	int mute_icon = -1;
 	if (unistimdebug) {
 		ast_verb(0, "Sending select output packet output=%x volume=%x mute=%x\n", output,
 					volume, mute);
@@ -1611,10 +1663,8 @@ send_select_output(struct unistimsession *pte, unsigned char output, unsigned ch
 	memcpy(buffsend + SIZE_HEADER, packet_send_select_output,
 		   sizeof(packet_send_select_output));
 	buffsend[9] = output;
-	if (output == OUTPUT_SPEAKER) {
+	if (output == OUTPUT_SPEAKER && volume == VOLUME_LOW) {
 		volume = VOLUME_LOW_SPEAKER;
-	} else {
-		volume = VOLUME_LOW;
 	}
 	buffsend[10] = volume;
 	if (mute == MUTE_ON_DISCRET) {
@@ -1623,53 +1673,33 @@ send_select_output(struct unistimsession *pte, unsigned char output, unsigned ch
 		buffsend[11] = mute;
 	}
 	send_client(SIZE_HEADER + sizeof(packet_send_select_output), buffsend, pte);
-	if (mute == MUTE_OFF) {
-		send_led_update(pte, 0x18);
-	} else if (mute == MUTE_ON) {
-		send_led_update(pte, 0x19);
-	}
-	pte->device->mute = mute;
 	if (output == OUTPUT_HANDSET) {
-		if (mute == MUTE_ON) {
-			change_favorite_icon(pte, FAV_ICON_ONHOLD_BLACK);
-		} else {
-			change_favorite_icon(pte, FAV_ICON_OFFHOOK_BLACK);
-		}
-		send_led_update(pte, 0x08);
-		send_led_update(pte, 0x10);
+		mute_icon = (mute == MUTE_ON) ? FAV_ICON_ONHOLD_BLACK : FAV_ICON_OFFHOOK_BLACK;
+		send_led_update(pte, LED_SPEAKER_OFF);
+		send_led_update(pte, LED_HEADPHONE_OFF);
 	} else if (output == OUTPUT_HEADPHONE) {
-		if (mute == MUTE_ON) {
-			change_favorite_icon(pte, FAV_ICON_HEADPHONES_ONHOLD);
-		} else {
-			change_favorite_icon(pte, FAV_ICON_HEADPHONES);
-		}
-		send_led_update(pte, 0x08);
-		send_led_update(pte, 0x11);
+		mute_icon = (mute == MUTE_ON)? FAV_ICON_HEADPHONES_ONHOLD : FAV_ICON_HEADPHONES;
+		send_led_update(pte, LED_SPEAKER_OFF);
+		send_led_update(pte, LED_HEADPHONE_ON);
 	} else if (output == OUTPUT_SPEAKER) {
-		send_led_update(pte, 0x10);
-		send_led_update(pte, 0x09);
+		send_led_update(pte, LED_SPEAKER_ON);
+		send_led_update(pte, LED_HEADPHONE_OFF);
 		if (pte->device->receiver_state == STATE_OFFHOOK) {
-			if (mute == MUTE_ON) {
-				change_favorite_icon(pte, FAV_ICON_SPEAKER_ONHOLD_BLACK);
-			} else {
-				change_favorite_icon(pte, FAV_ICON_SPEAKER_ONHOOK_BLACK);
-			}
+			mute_icon = (mute == MUTE_ON)? FAV_ICON_SPEAKER_ONHOLD_BLACK : FAV_ICON_SPEAKER_ONHOOK_BLACK;
 		} else {
-			if (mute == MUTE_ON) {
-				change_favorite_icon(pte, FAV_ICON_SPEAKER_ONHOLD_BLACK);
-			} else {
-				change_favorite_icon(pte, FAV_ICON_SPEAKER_OFFHOOK_BLACK);
-			}
+			mute_icon = (mute == MUTE_ON)? FAV_ICON_SPEAKER_ONHOLD_BLACK : FAV_ICON_SPEAKER_OFFHOOK_BLACK;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Invalid output (%d)\n", output);
+	}
+	if (mute_icon != -1) {
+		change_favorite_icon(pte, mute_icon);
 	}
 	if (output != pte->device->output) {
 		pte->device->previous_output = pte->device->output;
 	}
 	pte->device->output = output;
 }
-
 static void send_ring(struct unistimsession *pte, char volume, char style)
 {
 	BUFFSEND;
@@ -1706,13 +1736,34 @@ static void send_texttitle(struct unistimsession *pte, const char *text)
 	}
 	memcpy(buffsend + 10, text, i);
 	send_client(SIZE_HEADER + sizeof(packet_send_title), buffsend, pte);
-
 }
 
 static void send_idle_clock(struct unistimsession *pte)
 {
 	send_text(TEXT_LINE0, TEXT_NORMAL, pte, "");
 }
+
+static void send_month_labels(struct unistimsession *pte, int month)
+{
+	BUFFSEND;
+	char month_name[MONTH_LABEL_SIZE + 1];
+	int i = 0;
+	if (unistimdebug) {
+	        ast_verb(0, "Sending Month Labels\n");
+	}
+	month_name[MONTH_LABEL_SIZE] = '\0';
+	memcpy(buffsend + SIZE_HEADER, packet_send_monthlabels_download, sizeof(packet_send_monthlabels_download));
+	while (i < 2) {
+		memcpy(month_name, &monthlabels[month * MONTH_LABEL_SIZE], MONTH_LABEL_SIZE);
+		memcpy(buffsend + SIZE_HEADER + 3 + i*MONTH_LABEL_SIZE, ustmtext(month_name, pte), MONTH_LABEL_SIZE);
+		ast_log(LOG_WARNING,"%s\n", month_name);
+		ast_log(LOG_WARNING,"%s\n", ustmtext(month_name, pte));
+		month = (month + 1)%12;
+		i++;
+	}
+	send_client(SIZE_HEADER + sizeof(packet_send_monthlabels_download), buffsend, pte);
+}
+
 
 static void send_date_time(struct unistimsession *pte)
 {
@@ -1730,6 +1781,7 @@ static void send_date_time(struct unistimsession *pte)
 	buffsend[12] = (unsigned char) atm.tm_hour;
 	buffsend[13] = (unsigned char) atm.tm_min;
 	send_client(SIZE_HEADER + sizeof(packet_send_date_time), buffsend, pte);
+	send_month_labels(pte, atm.tm_mon);
 }
 
 static void send_date_time2(struct unistimsession *pte)
@@ -2904,7 +2956,7 @@ static void show_phone_number(struct unistimsession *pte)
 	send_text(line, TEXT_NORMAL, pte, tmp);
 	send_blink_cursor(pte);
 	send_cursor_pos(pte, (unsigned char) (line + offset));
-	send_led_update(pte, 0);
+	send_led_update(pte, LED_BAR_OFF);
 }
 
 static void handle_dial_page(struct unistimsession *pte)
@@ -2918,7 +2970,7 @@ static void handle_dial_page(struct unistimsession *pte)
 			ast_copy_string(pte->device->phone_number, pte->device->call_forward + 1,
 							sizeof(pte->device->phone_number));
 			show_phone_number(pte);
-			send_led_update(pte, 0);
+			send_led_update(pte, LED_BAR_OFF);
 			return;
 		}
 	} else {
@@ -2947,7 +2999,7 @@ static void handle_dial_page(struct unistimsession *pte)
 	change_favorite_icon(pte, FAV_ICON_PHONE_BLACK);
 	send_icon(TEXT_LINE0, FAV_ICON_NONE, pte);
 	pte->device->missed_call = 0;
-	send_led_update(pte, 0);
+	send_led_update(pte, LED_BAR_OFF);
 	pte->device->lastmsgssent = -1;
 	return;
 }
@@ -3267,27 +3319,28 @@ static int unistim_do_senddigit(struct unistimsession *pte, char digit)
 
 	/* Send DTMF indication _before_ playing sounds */
 	ast_queue_frame(sub->owner, &f);
-
 	if (unistimdebug) {
-		ast_verb(0, "Send Digit %c\n", digit);
+		ast_verb(0, "Send Digit %c (%i ms)\n", digit, pte->device->dtmfduration);
 	}
-	row = (digit - '1') % 3;
-	col = (digit - '1' - row) / 3;
-	if (digit >= '1' && digit <='9') {
-		send_tone(pte, dtmf_row[row], dtmf_col[col]);
-	} else if (digit >= 'A' && digit <= 'D') {
-		send_tone(pte, dtmf_row[digit-'A'], dtmf_col[3]);
-	} else if (digit == '*') {
-		send_tone(pte, dtmf_row[3], dtmf_col[0]);
-	} else if (digit == '0') {
-		send_tone(pte, dtmf_row[3], dtmf_col[1]);
-	} else if (digit == '#') {
-		send_tone(pte, dtmf_row[3], dtmf_col[2]);
-	} else {
-		send_tone(pte, 500, 2000);
+	if (pte->device->dtmfduration > 0) {
+		row = (digit - '1') % 3;
+		col = (digit - '1' - row) / 3;
+		if (digit >= '1' && digit <='9') {
+			send_tone(pte, dtmf_row[row], dtmf_col[col]);
+		} else if (digit >= 'A' && digit <= 'D') {
+			send_tone(pte, dtmf_row[digit-'A'], dtmf_col[3]);
+		} else if (digit == '*') {
+			send_tone(pte, dtmf_row[3], dtmf_col[0]);
+		} else if (digit == '0') {
+			send_tone(pte, dtmf_row[3], dtmf_col[1]);
+		} else if (digit == '#') {
+			send_tone(pte, dtmf_row[3], dtmf_col[2]);
+		} else {
+			send_tone(pte, 500, 2000);
+		}
+		usleep(pte->device->dtmfduration * 1000);	 /* XXX Less than perfect, blocking an important thread is not a good idea */
+		send_tone(pte, 0, 0);
 	}
-	usleep(150000);			 /* XXX Less than perfect, blocking an important thread is not a good idea */
-	send_tone(pte, 0, 0);
 	return 0;
 }
 
@@ -3402,20 +3455,6 @@ static void key_call(struct unistimsession *pte, char keycode)
 			send_select_output(pte, pte->device->previous_output, pte->device->volume,
 							 MUTE_OFF);
 		break;
-	case KEY_MUTE:
-		if (!sub || !sub->owner) {
-			ast_log(LOG_WARNING, "Unable to find subchannel for music on hold\n");
-			return;
-		}
-		if (!sub->moh) {
-			if (pte->device->mute == MUTE_ON) {
-				send_select_output(pte, pte->device->output, pte->device->volume, MUTE_OFF);
-			} else {
-				send_select_output(pte, pte->device->output, pte->device->volume, MUTE_ON);
-			}
-			break;
-		}
-		break;
 	case KEY_ONHOLD:
 		if (!sub) {
 			if(pte->device->ssub[pte->device->selected]) {
@@ -3511,7 +3550,7 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 
 		if (ast_exists_extension(NULL, pte->device->context, pte->device->phone_number, 1, NULL) &&
 			!ast_matchmore_extension(NULL, pte->device->context, pte->device->phone_number, 1, NULL)) {
-		    keycode = KEY_FUNC1;
+			keycode = KEY_FUNC1;
 		} else {
 			if (pte->device->interdigit_timer) {
 				pte->device->nextdial = get_tick_count() + pte->device->interdigit_timer;
@@ -3531,8 +3570,8 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 			show_main_page(pte);
 		} else if ((keycode == KEY_FUNC2) || (keycode == KEY_HANGUP)) {
 			pte->device->call_forward[0] = '\0';
-			send_led_update(pte, 0x08);
-			send_led_update(pte, 0x10);
+			send_led_update(pte, LED_SPEAKER_OFF);
+			send_led_update(pte, LED_HEADPHONE_OFF);
 			show_main_page(pte);
 		}
 		return;
@@ -3559,8 +3598,8 @@ static void key_dial_page(struct unistimsession *pte, char keycode)
 			send_text_status(pte, ustmtext("       Transf        Hangup", pte));
 			send_callerid_screen(pte, sub);
 		} else {
-			send_led_update(pte, 0x08);
-			send_led_update(pte, 0x10);
+			send_led_update(pte, LED_SPEAKER_OFF);
+			send_led_update(pte, LED_HEADPHONE_OFF);
 			show_main_page(pte);
 		}
 		break;
@@ -4035,14 +4074,14 @@ static void show_main_page(struct unistimsession *pte)
 	}
 
 	pte->state = STATE_MAINPAGE;
-	send_led_update(pte, 0);
+	send_led_update(pte, LED_BAR_OFF);
 	pte->device->lastmsgssent = -1;
 
 	send_tone(pte, 0, 0);
 	send_stop_timer(pte); /* case of holding call */
 	send_select_output(pte, pte->device->output, pte->device->volume, MUTE_ON_DISCRET);
-	send_led_update(pte, 0x08);
-	send_led_update(pte, 0x10);
+	send_led_update(pte, LED_SPEAKER_OFF);
+	send_led_update(pte, LED_HEADPHONE_OFF);
 
 	if (!ast_strlen_zero(pte->device->call_forward)) {
 		if (pte->device->height == 1) {
@@ -4331,7 +4370,7 @@ static void init_phone_step2(struct unistimsession *pte)
 	}
 	memcpy(buffsend + SIZE_HEADER, packet_send_S7, sizeof(packet_send_S7));
 	send_client(SIZE_HEADER + sizeof(packet_send_S7), buffsend, pte);
-	send_led_update(pte, 0);
+	send_led_update(pte, LED_BAR_OFF);
 	send_ping(pte);
 	if (unistimdebug) {
 		ast_verb(0, "Sending init language\n");
@@ -4368,6 +4407,19 @@ static void init_phone_step2(struct unistimsession *pte)
 	memcpy(buffsend + SIZE_HEADER, packet_send_arrow, sizeof(packet_send_arrow));
 	send_client(SIZE_HEADER + sizeof(packet_send_arrow), buffsend, pte);
 	return;
+}
+
+/* Toggles the state of microphone muting */
+static void microphone_mute_toggle(struct unistimsession *pte)
+{
+	if (pte->device->microphone == MUTE_OFF) {
+		pte->device->microphone = MUTE_ON;
+		send_led_update(pte, LED_MUTE_ON);
+	} else if (pte->device->microphone == MUTE_ON) {
+		pte->device->microphone = MUTE_OFF;
+		send_led_update(pte, LED_MUTE_OFF);
+	}
+	send_mute(pte, (pte->device->microphone & 0x01));
 }
 
 static void process_request(int size, unsigned char *buf, struct unistimsession *pte)
@@ -4433,6 +4485,9 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		if (unistimdebug) {
 			ast_verb(0, "Key pressed: keycode = 0x%.2x - current state: %s\n", keycode,
 						ptestate_tostr(pte->state));
+		}
+		if (keycode == KEY_MUTE) {
+			microphone_mute_toggle(pte);
 		}
 		switch (pte->state) {
 		case STATE_INIT:
@@ -5597,7 +5652,7 @@ static int unistim_send_mwi_to_peer(struct unistim_line *peer, unsigned int tick
 	}
 
 	peer->parent->lastmsgssent = new;
-	send_led_update(peer->parent->session, (new > 0));
+	send_led_update(peer->parent->session, (new > 0)?LED_BAR_ON:LED_BAR_OFF);
 
 	return 0;
 }
@@ -6345,7 +6400,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		d->output = OUTPUT_HANDSET;
 		d->previous_output = OUTPUT_HANDSET;
 		d->volume = VOLUME_LOW;
-		d->mute = MUTE_OFF;
+		d->microphone = MUTE_OFF;
 		d->height = DEFAULTHEIGHT;
 		d->selected = -1;
 		d->interdigit_timer = DEFAULT_INTERDIGIT_TIMER;
@@ -6379,6 +6434,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 	cwstyle = 2;
 	nbsoftkey = 0;
 	linecnt = 0;
+	d->dtmfduration = 0;
 	while (v) {
 		if (!strcasecmp(v->name, "rtp_port")) {
 			d->rtp_port = atoi(v->value);
@@ -6430,6 +6486,11 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			sharpdial = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "interdigit_timer")) {
 			d->interdigit_timer = atoi(v->value);
+		} else if (!strcasecmp(v->name, "dtmf_duration")) {
+			d->dtmfduration = atoi(v->value);
+			if (d->dtmfduration > 150) {
+				d->dtmfduration = 150;
+			}
 		} else if (!strcasecmp(v->name, "callerid")) {
 			if (!strcasecmp(v->value, "asreceived")) {
 				lt->cid_num[0] = '\0';
@@ -6567,7 +6628,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		ast_log(LOG_WARNING, "Country '%s' was not found in indications.conf\n",
 				d->country);
 	}
-	d->datetimeformat = 56 + (dateformat * 4);
+	d->datetimeformat = 48 + (dateformat * 4);
 	d->datetimeformat += timeformat;
 	if ((autoprovisioning == AUTOPROVISIONING_TN) &&
 		(!ast_strlen_zero(d->extension_number))) {

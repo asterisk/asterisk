@@ -57,15 +57,17 @@ port=5000                    ; UDP port
 ;maintext0="you can insert"  ; default = "Welcome", 24 characters max
 ;maintext1="a custom text"   ; default = the name of the device, 24 characters max
 ;maintext2="(main page)"     ; default = the public IP of the phone, 24 characters max
-;dateformat=1                ; 0 = month/day, 1 (default) = day/month
+;dateformat=0                ; 0 (default) = 31Jan, 1 = Jan31, 2 = month/day, 3 = day/month
 ;timeformat=1                ; 0 = 0:00am ; 1 (default) = 0h00, 2 = 0:00
 ;contrast=8                  ; define the contrast of the LCD. From 0 to 15. Default = 8
 ;country=us                  ; country (ccTLD) for dial tone frequency. See README, default = us
+;language=ru                 ; language used for audio files and onscreen messages translate
 ;ringvolume=2                ; ring volume : 0,1,2,3, can be overrided by Dial(), default = 2
 ;ringstyle=3                 ; ring style : 0 to 7, can be overrided by Dial(), default = 3
 ;cwvolume=2                  ; ring volume : 0,1,2,3, default = 0
 ;cwstyle=3                   ; ring style : 0 to 7, default = 2
 ;sharpdial=1                 ; dial number by pressing #, default = 0
+;dtmf_duration=0             ; DTMF playback duration (in milliseconds) 0..150 (0 = off (default), 150 = maximum)
 ;interdigit_timer=4000       ; timer for automatic dial after several digits of number entered (in ms, 0 is off)
 ;callhistory=1               ; 0 = disable, 1 = enable call history, default = 1
 ;callerid="Customer Support" <555-234-5678>

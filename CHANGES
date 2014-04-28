@@ -1894,6 +1894,15 @@ chan_skinny
 
 chan_unistim
 --------------------
+ * Added option 'dtmf_duration' allowing playback time of DTMF tones to be set
+
+ * Modified option 'date_format' to allow options to display date in 31Jan and Jan31
+   formats as options 0 and 1. The previous options 0 and 1 now map to options 2 and 3
+   as per the UNISTIM protocol.
+
+ * Fixed issues with dialtone not matching indications.conf and mute stopping rx
+   as well as tx. Also fixed issue with call "Timer" displaying as French "Durée"
+
  * Added ability to use multiple lines for a single phone.  This allows multiple
    calls to occur on a single phone, using callwaiting and switching between calls.
 

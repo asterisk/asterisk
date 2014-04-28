@@ -128,6 +128,9 @@ Configuration Files:
  - The manager.conf 'eventfilter' now takes an "extended" regular expression
    instead of a "basic" one.
 
+ - The unistim.conf 'dateformat' has changed meaning of options values to conform
+   values used inside Unistim protocol
+
 ODBC:
 - The compatibility setting, allow_empty_string_in_nontext, has been removed.
   Empty column values will be stored as empty strings during realtime updates.
@@ -173,6 +176,10 @@ Realtime Configuration:
 
  - A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
+
+Unistim:
+ - Added 'dtmf_duration' option with changing default operation to disable
+   receivied dtmf playback on unistim phone
 
 Utilities:
  - The refcounter program has been removed in favor of the refcounter.py script
