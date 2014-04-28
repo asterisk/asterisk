@@ -25,6 +25,36 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="PresenceStateChange">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a presence state changes</synopsis>
+			<syntax>
+				<parameter name="Presentity">
+					<para>The entity whose presence state has changed</para>
+				</parameter>
+				<parameter name="Status">
+					<para>The new status of the presentity</para>
+				</parameter>
+				<parameter name="Subtype">
+					<para>The new subtype of the presentity</para>
+				</parameter>
+				<parameter name="Message">
+					<para>The new message of the presentity</para>
+				</parameter>
+			</syntax>
+			<description>
+				<para>This differs from the <literal>PresenceStatus</literal>
+				event because this event is raised for all presence state changes,
+				not only for changes that affect dialplan hints.</para>
+			</description>
+			<see-also>
+				<ref type="managerEvent">PresenceStatus</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -52,7 +82,11 @@ static const struct {
 	{ "dnd", AST_PRESENCE_DND},
 };
 
-STASIS_MESSAGE_TYPE_DEFN(ast_presence_state_message_type);
+static struct ast_manager_event_blob *presence_state_to_ami(struct stasis_message *msg);
+
+STASIS_MESSAGE_TYPE_DEFN(ast_presence_state_message_type,
+	.to_ami = presence_state_to_ami,
+);
 struct stasis_topic *presence_state_topic_all;
 struct stasis_cache *presence_state_cache;
 struct stasis_caching_topic *presence_state_topic_cached;
@@ -351,3 +385,17 @@ int ast_presence_state_engine_init(void)
 	return 0;
 }
 
+static struct ast_manager_event_blob *presence_state_to_ami(struct stasis_message *msg)
+{
+	struct ast_presence_state_message *presence_state = stasis_message_data(msg);
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "PresenceStateChange",
+		"Presentity: %s\r\n"
+		"Status: %s\r\n"
+		"Subtype: %s\r\n"
+		"Message: %s\r\n",
+		presence_state->provider,
+		ast_presence_state2str(presence_state->state),
+		presence_state->subtype,
+		presence_state->message);
+}

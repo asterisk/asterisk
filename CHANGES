@@ -12,6 +12,14 @@
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------
 
+AMI
+------------------
+ * New DeviceStateChanged and PresenceStateChanged AMI events have been added.
+   These events are emitted whenever a device state or presence state change
+   occurs. The events are controlled by res_manager_device_state.so and
+   res_manager_presence_state.so. If the high frequency of these events is
+   problematic for you, do not load these modules.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.2.0 to Asterisk 12.3.0 ------------
 ------------------------------------------------------------------------------

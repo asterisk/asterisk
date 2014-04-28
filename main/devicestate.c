@@ -117,6 +117,30 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="DeviceStateChange">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a device state changes</synopsis>
+			<syntax>
+				<parameter name="Device">
+					<para>The device whose state has changed</para>
+				</parameter>
+				<parameter name="State">
+					<para>The new state of the device</para>
+				</parameter>
+			</syntax>
+			<description>
+				<para>This differs from the <literal>ExtensionStatus</literal>
+				event because this event is raised for all device state changes,
+				not only for changes that affect dialplan hints.</para>
+			</description>
+			<see-also>
+				<ref type="managerEvent">ExtensionStatus</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -199,7 +223,11 @@ static struct stasis_cache *device_state_cache;
 static struct stasis_caching_topic *device_state_topic_cached;
 static struct stasis_topic_pool *device_state_topic_pool;
 
-STASIS_MESSAGE_TYPE_DEFN(ast_device_state_message_type);
+static struct ast_manager_event_blob *devstate_to_ami(struct stasis_message *msg);
+
+STASIS_MESSAGE_TYPE_DEFN(ast_device_state_message_type,
+	.to_ami = devstate_to_ami,
+);
 
 /* Forward declarations */
 static int getproviderstate(const char *provider, const char *address);
@@ -879,4 +907,21 @@ int devstate_init(void)
 	}
 
 	return 0;
+}
+
+static struct ast_manager_event_blob *devstate_to_ami(struct stasis_message *msg)
+{
+	struct ast_device_state_message *dev_state;
+
+	dev_state = stasis_message_data(msg);
+
+	/* Ignore non-aggregate states */
+	if (dev_state->eid) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "DeviceStateChange",
+		"Device: %s\r\n"
+		"State: %s\r\n",
+		dev_state->device, ast_devstate_str(dev_state->state));
 }
