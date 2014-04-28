@@ -4072,9 +4072,13 @@ static void publish_blind_transfer(int is_external, enum ast_transfer_result res
 	struct ast_bridge_channel_pair pair;
 	pair.channel = transferer;
 	pair.bridge = bridge;
-	ast_bridge_lock(bridge);
+	if (bridge) {
+		ast_bridge_lock(bridge);
+	}
 	ast_bridge_publish_blind_transfer(is_external, result, &pair, context, exten);
-	ast_bridge_unlock(bridge);
+	if (bridge) {
+		ast_bridge_unlock(bridge);
+	}
 }
 
 enum ast_transfer_result ast_bridge_transfer_blind(int is_external,

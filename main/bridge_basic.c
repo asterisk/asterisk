@@ -1534,11 +1534,23 @@ static void publish_transfer_success(struct attended_transfer_properties *props)
 		.bridge = props->target_bridge,
 	};
 
-	ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
+	if (transferee.bridge && transfer_target.bridge) {
+		ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
+	} else if (transferee.bridge) {
+		ast_bridge_lock(transferee.bridge);
+	} else if (transfer_target.bridge) {
+		ast_bridge_lock(transfer_target.bridge);
+	}
+
 	ast_bridge_publish_attended_transfer_bridge_merge(0, AST_BRIDGE_TRANSFER_SUCCESS,
 			&transferee, &transfer_target, props->transferee_bridge);
-	ast_bridge_unlock(transferee.bridge);
-	ast_bridge_unlock(transfer_target.bridge);
+
+	if (transferee.bridge) {
+		ast_bridge_unlock(transferee.bridge);
+	}
+	if (transfer_target.bridge) {
+		ast_bridge_unlock(transfer_target.bridge);
+	}
 }
 
 /*!
@@ -1559,11 +1571,23 @@ static void publish_transfer_threeway(struct attended_transfer_properties *props
 		.bridge = props->transferee_bridge,
 	};
 
-	ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
+	if (transferee.bridge && transfer_target.bridge) {
+		ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
+	} else if (transferee.bridge) {
+		ast_bridge_lock(transferee.bridge);
+	} else if (transfer_target.bridge) {
+		ast_bridge_lock(transfer_target.bridge);
+	}
+
 	ast_bridge_publish_attended_transfer_threeway(0, AST_BRIDGE_TRANSFER_SUCCESS,
 			&transferee, &transfer_target, &threeway);
-	ast_bridge_unlock(transferee.bridge);
-	ast_bridge_unlock(transfer_target.bridge);
+
+	if (transferee.bridge) {
+		ast_bridge_unlock(transferee.bridge);
+	}
+	if (transfer_target.bridge) {
+		ast_bridge_unlock(transfer_target.bridge);
+	}
 }
 
 /*!
@@ -1580,11 +1604,23 @@ static void publish_transfer_fail(struct attended_transfer_properties *props)
 		.bridge = props->target_bridge,
 	};
 
-	ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
+	if (transferee.bridge && transfer_target.bridge) {
+		ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
+	} else if (transferee.bridge) {
+		ast_bridge_lock(transferee.bridge);
+	} else if (transfer_target.bridge) {
+		ast_bridge_lock(transfer_target.bridge);
+	}
+
 	ast_bridge_publish_attended_transfer_fail(0, AST_BRIDGE_TRANSFER_FAIL,
 			&transferee, &transfer_target);
-	ast_bridge_unlock(transferee.bridge);
-	ast_bridge_unlock(transfer_target.bridge);
+
+	if (transferee.bridge) {
+		ast_bridge_unlock(transferee.bridge);
+	}
+	if (transfer_target.bridge) {
+		ast_bridge_unlock(transfer_target.bridge);
+	}
 }
 
 /*!
