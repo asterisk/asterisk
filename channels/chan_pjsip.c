@@ -57,12 +57,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/indications.h"
+#include "asterisk/threadstorage.h"
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
 
 #include "pjsip/include/chan_pjsip.h"
 #include "pjsip/include/dialplan_functions.h"
+
+AST_THREADSTORAGE(uniqueid_threadbuf);
+#define UNIQUEID_BUFSIZE 256
 
 static const char desc[] = "PJSIP Channel";
 static const char channel_type[] = "PJSIP";
@@ -95,6 +99,7 @@ static int chan_pjsip_transfer(struct ast_channel *ast, const char *target);
 static int chan_pjsip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int chan_pjsip_devicestate(const char *data);
 static int chan_pjsip_queryoption(struct ast_channel *ast, int option, void *data, int *datalen);
+static const char *chan_pjsip_get_uniqueid(struct ast_channel *ast);
 
 /*! \brief PBX interface structure for channel registration */
 struct ast_channel_tech chan_pjsip_tech = {
@@ -117,6 +122,7 @@ struct ast_channel_tech chan_pjsip_tech = {
 	.devicestate = chan_pjsip_devicestate,
 	.queryoption = chan_pjsip_queryoption,
 	.func_channel_read = pjsip_acf_channel_read,
+	.get_pvt_uniqueid = chan_pjsip_get_uniqueid,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER
 };
 
@@ -897,6 +903,36 @@ static int chan_pjsip_queryoption(struct ast_channel *ast, int option, void *dat
 	}
 
 	return res;
+}
+
+struct uniqueid_data {
+	struct ast_sip_session *session;
+	char *uniqueid;
+};
+
+static int get_uniqueid(void *data)
+{
+	struct uniqueid_data *uid_data = data;
+
+	ast_copy_pj_str(uid_data->uniqueid, &uid_data->session->inv_session->dlg->call_id->id, UNIQUEID_BUFSIZE);
+
+	return 0;
+}
+
+static const char *chan_pjsip_get_uniqueid(struct ast_channel *ast)
+{
+	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct uniqueid_data uid_data = {
+		.session = channel->session,
+		.uniqueid = ast_threadstorage_get(&uniqueid_threadbuf, UNIQUEID_BUFSIZE),
+	};
+
+	if (!uid_data.uniqueid ||
+		ast_sip_push_task_synchronous(channel->session->serializer, get_uniqueid, &uid_data)) {
+		return NULL;
+	}
+
+	return uid_data.uniqueid;
 }
 
 struct indicate_data {
