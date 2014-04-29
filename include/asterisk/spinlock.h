@@ -95,6 +95,11 @@ static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock)
 	__sync_lock_release(lock);
 	return 0;
 }
+
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock)
+{
+	return 0;
+}
 #endif
 
 /*!
@@ -143,6 +148,11 @@ static force_inline int ast_spinlock_trylock(ast_spinlock_t *lock)
 static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock)
 {
 	x86chgl(lock, 0);
+	return 0;
+}
+
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock)
+{
 	return 0;
 }
 #endif
@@ -221,6 +231,11 @@ static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock)
 
 	return 0;
 }
+
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock)
+{
+	return 0;
+}
 #endif
 
 /*!
@@ -288,6 +303,11 @@ static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock)
 
 	return 0;
 }
+
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock)
+{
+	return 0;
+}
 #endif
 
 /*!
@@ -321,6 +341,11 @@ static force_inline int ast_spinlock_trylock(ast_spinlock_t *lock)
 static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock)
 {
 	return pthread_spin_unlock(lock);
+}
+
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock)
+{
+	return pthread_spin_destroy(lock);
 }
 #endif
 
@@ -361,6 +386,11 @@ static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock)
 	OSSpinLockUnlock(lock);
 	return 0;
 }
+
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock)
+{
+	return 0;
+}
 #endif
 
 /*!
@@ -395,6 +425,11 @@ static force_inline int ast_spinlock_trylock(ast_spinlock_t *lock)
 static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock)
 {
 	return pthread_mutex_unlock(lock);
+}
+
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock)
+{
+	return pthread_mutex_destroy(lock);
 }
 #endif
 
@@ -441,5 +476,13 @@ static force_inline int ast_spinlock_trylock(ast_spinlock_t *lock);
  * \retval other Failure
  */
 static force_inline int ast_spinlock_unlock(ast_spinlock_t *lock);
+
+/*!
+ * \brief Destroy a spin lock
+ * \param lock Address of the lock
+ * \retval 0 Success
+ * \retval other Failure
+ */
+static force_inline int ast_spinlock_destroy(ast_spinlock_t *lock);
 
 #endif /* _ASTERISK_SPINLOCK_H */
