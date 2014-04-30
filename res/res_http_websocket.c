@@ -79,6 +79,7 @@ struct ast_websocket {
 	size_t reconstruct;               /*!< Number of bytes before a reconstructed payload will be returned and a new one started */
 	unsigned int secure:1;            /*!< Bit to indicate that the transport is secure */
 	unsigned int closing:1;           /*!< Bit to indicate that the session is in the process of being closed */
+	unsigned int close_sent:1;        /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
 };
 
 /*! \brief Structure definition for protocols */
@@ -119,6 +120,8 @@ static void protocol_destroy_fn(void *obj)
 static void session_destroy_fn(void *obj)
 {
 	struct ast_websocket *session = obj;
+
+	ast_websocket_close(session, 0);
 
 	if (session->f) {
 		fclose(session->f);
@@ -188,6 +191,11 @@ int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_w
 int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, uint16_t reason)
 {
 	char frame[4] = { 0, }; /* The header is 2 bytes and the reason code takes up another 2 bytes */
+	int res;
+
+	if (session->close_sent) {
+		return 0;
+	}
 
 	frame[0] = AST_WEBSOCKET_OPCODE_CLOSE | 0x80;
 	frame[1] = 2; /* The reason code is always 2 bytes */
@@ -196,8 +204,12 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 	put_unaligned_uint16(&frame[2], htons(reason ? reason : 1000));
 
 	session->closing = 1;
+	session->close_sent = 1;
 
-	return (fwrite(frame, 1, 4, session->f) == 4) ? 0 : -1;
+	ao2_lock(session);
+	res = (fwrite(frame, 1, 4, session->f) == 4) ? 0 : -1;
+	ao2_unlock(session);
+	return res;
 }
 
 
@@ -233,14 +245,23 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 		put_unaligned_uint64(&frame[2], htonl(actual_length));
 	}
 
+	ao2_lock(session);
+	if (session->closing) {
+		ao2_unlock(session);
+		return -1;
+	}
+
 	if (fwrite(frame, 1, header_size, session->f) != header_size) {
+		ao2_unlock(session);
 		return -1;
 	}
 
 	if (fwrite(payload, 1, actual_length, session->f) != actual_length) {
+		ao2_unlock(session);
 		return -1;
 	}
 	fflush(session->f);
+	ao2_unlock(session);
 
 	return 0;
 }
@@ -483,13 +504,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			frame_size += (*payload_len);
 		}
 
-		if (!session->closing) {
-			ast_websocket_close(session, 0);
-		}
-
-		fclose(session->f);
-		session->f = NULL;
-		ast_verb(2, "WebSocket connection from '%s' closed\n", ast_sockaddr_stringify(&session->address));
+		session->closing = 1;
 	} else {
 		ast_log(LOG_WARNING, "WebSocket unknown opcode %d\n", *opcode);
 		/* We received an opcode that we don't understand, the RFC states that 1003 is for a type of data that can't be accepted... opcodes
