@@ -907,34 +907,18 @@ static int chan_pjsip_queryoption(struct ast_channel *ast, int option, void *dat
 	return res;
 }
 
-struct uniqueid_data {
-	struct ast_sip_session *session;
-	char *uniqueid;
-};
-
-static int get_uniqueid(void *data)
-{
-	struct uniqueid_data *uid_data = data;
-
-	ast_copy_pj_str(uid_data->uniqueid, &uid_data->session->inv_session->dlg->call_id->id, UNIQUEID_BUFSIZE);
-
-	return 0;
-}
-
 static const char *chan_pjsip_get_uniqueid(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
-	struct uniqueid_data uid_data = {
-		.session = channel->session,
-		.uniqueid = ast_threadstorage_get(&uniqueid_threadbuf, UNIQUEID_BUFSIZE),
-	};
+	char *uniqueid = ast_threadstorage_get(&uniqueid_threadbuf, UNIQUEID_BUFSIZE);
 
-	if (!uid_data.uniqueid ||
-		ast_sip_push_task_synchronous(channel->session->serializer, get_uniqueid, &uid_data)) {
-		return NULL;
+	if (!uniqueid) {
+		return "";
 	}
 
-	return uid_data.uniqueid;
+	ast_copy_pj_str(uniqueid, &channel->session->inv_session->dlg->call_id->id, UNIQUEID_BUFSIZE);
+
+	return uniqueid;
 }
 
 struct indicate_data {
