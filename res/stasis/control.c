@@ -444,6 +444,10 @@ static int app_control_dtmf(struct stasis_app_control *control,
 {
 	RAII_VAR(struct stasis_app_control_dtmf_data *, dtmf_data, data, ast_free);
 
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_indicate(chan, AST_CONTROL_PROGRESS);
+	}
+
 	if (dtmf_data->before) {
 		ast_safe_sleep(chan, dtmf_data->before);
 	}
@@ -629,6 +633,10 @@ static int app_control_moh_start(struct stasis_app_control *control,
 {
 	char *moh_class = data;
 
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_indicate(chan, AST_CONTROL_PROGRESS);
+	}
+
 	ast_moh_start(chan, moh_class, NULL);
 
 	ast_free(moh_class);
@@ -661,6 +669,10 @@ void stasis_app_control_moh_stop(struct stasis_app_control *control)
 static int app_control_silence_start(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
+	if (ast_channel_state(chan) != AST_STATE_UP) {
+		ast_indicate(chan, AST_CONTROL_PROGRESS);
+	}
+
 	if (control->silgen) {
 		/* We have a silence generator, but it may have been implicitly
 		 * disabled by media actions (music on hold, playing media,
