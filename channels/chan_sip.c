@@ -26995,12 +26995,11 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 		return -1;
 	}
 
-        for (iter = ast_msg_var_iterator_init(msg);
-	     ast_msg_var_iterator_next(msg, iter, &var, &val);
-	     ast_msg_var_unref_current(iter)) {
+	for (iter = ast_msg_var_iterator_init(msg);
+		ast_msg_var_iterator_next(msg, iter, &var, &val);
+		ast_msg_var_unref_current(iter)) {
 		if (!strcasecmp(var, "Request-URI")) {
 			ast_string_field_set(pvt, fullcontact, val);
-			ast_msg_var_unref_current(iter);
 			break;
 		}
 	}
@@ -27085,6 +27084,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 		if (!strcasecmp(var, "Max-Forwards")) {
 			/* Decrement Max-Forwards for SIP loop prevention. */
 			if (sscanf(val, "%30d", &pvt->maxforwards) != 1 || pvt->maxforwards < 1) {
+				ast_msg_var_iterator_destroy(iter);
 				sip_pvt_unlock(pvt);
 				dialog_unlink_all(pvt);
 				dialog_unref(pvt, "MESSAGE(Max-Forwards) reached zero.");
