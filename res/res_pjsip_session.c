@@ -43,6 +43,8 @@
 #include "asterisk/sdp_srtp.h"
 #include "asterisk/dsp.h"
 #include "asterisk/acl.h"
+#include "asterisk/features_config.h"
+#include "asterisk/pickup.h"
 
 #define SDP_HANDLER_BUCKETS 11
 
@@ -1349,12 +1351,27 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 {
 	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
 	pjsip_sip_uri *sip_ruri;
+	struct ast_features_pickup_config *pickup_cfg;
+	const char *pickupexten;
+
 	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
 		return SIP_GET_DEST_UNSUPPORTED_URI;
 	}
+
 	sip_ruri = pjsip_uri_get_uri(ruri);
 	ast_copy_pj_str(session->exten, &sip_ruri->user, sizeof(session->exten));
-	if (ast_exists_extension(NULL, session->endpoint->context, session->exten, 1, NULL)) {
+
+	pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
+	if (!pickup_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
+		pickupexten = "";
+	} else {
+		pickupexten = ast_strdupa(pickup_cfg->pickupexten);
+		ao2_ref(pickup_cfg, -1);
+	}
+
+	if (!strcmp(session->exten, pickupexten) ||
+		ast_exists_extension(NULL, session->endpoint->context, session->exten, 1, NULL)) {
 		return SIP_GET_DEST_EXTEN_FOUND;
 	}
 	/* XXX In reality, we'll likely have further options so that partial matches

@@ -58,6 +58,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #include "asterisk/indications.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/features_config.h"
+#include "asterisk/pickup.h"
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
@@ -1967,6 +1969,49 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 	return 0;
 }
 
+static int call_pickup_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	struct ast_features_pickup_config *pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
+	struct ast_channel *chan;
+
+	if (!pickup_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension.\n");
+		return 0;
+	}
+
+	if (strcmp(session->exten, pickup_cfg->pickupexten)) {
+		ao2_ref(pickup_cfg, -1);
+		return 0;
+	}
+	ao2_ref(pickup_cfg, -1);
+
+	/* We can't directly use session->channel because the pickup operation will cause a masquerade to occur,
+	 * changing the channel pointer in session to a different channel. To ensure we work on the right channel
+	 * we store a pointer locally before we begin and keep a reference so it remains valid no matter what.
+	 */
+	chan = ast_channel_ref(session->channel);
+	if (ast_pickup_call(chan)) {
+		ast_channel_hangupcause_set(chan, AST_CAUSE_CALL_REJECTED);
+	} else {
+		ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL_CLEARING);
+	}
+	/* A hangup always occurs because the pickup operation will have either failed resulting in the call
+	 * needing to be hung up OR the pickup operation was a success and the channel we now have is actually
+	 * the channel that was replaced, which should be hung up since it is literally in limbo not connected
+	 * to anything at all.
+	 */
+	ast_hangup(chan);
+	ast_channel_unref(chan);
+
+	return 1;
+}
+
+static struct ast_sip_session_supplement call_pickup_supplement = {
+	.method = "INVITE",
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_LAST - 1,
+	.incoming_request = call_pickup_incoming_request,
+};
+
 static int pbx_start_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	int res;
@@ -2106,9 +2151,16 @@ static int load_module(void)
 		goto end;
 	}
 
+	if (ast_sip_session_register_supplement(&call_pickup_supplement)) {
+		ast_log(LOG_ERROR, "Unable to register PJSIP call pickup supplement\n");
+		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
+		goto end;
+	}
+
 	if (ast_sip_session_register_supplement(&pbx_start_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP pbx start supplement\n");
 		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
+		ast_sip_session_unregister_supplement(&call_pickup_supplement);
 		goto end;
 	}
 
@@ -2116,6 +2168,7 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to register PJSIP ACK supplement\n");
 		ast_sip_session_unregister_supplement(&pbx_start_supplement);
 		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
+		ast_sip_session_unregister_supplement(&call_pickup_supplement);
 		goto end;
 	}
 
@@ -2154,6 +2207,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
+	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
