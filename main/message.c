@@ -610,28 +610,34 @@ const char *ast_msg_get_var(struct ast_msg *msg, const char *name)
 }
 
 struct ast_msg_var_iterator {
-	struct ao2_iterator i;
+	struct ao2_iterator iter;
 	struct msg_data *current_used;
 };
 
 struct ast_msg_var_iterator *ast_msg_var_iterator_init(const struct ast_msg *msg)
 {
-	struct ast_msg_var_iterator *i;
-	if (!(i = ast_calloc(1, sizeof(*i)))) {
+	struct ast_msg_var_iterator *iter;
+
+	iter = ast_calloc(1, sizeof(*iter));
+	if (!iter) {
 		return NULL;
 	}
 
-	i->i = ao2_iterator_init(msg->vars, 0);
+	iter->iter = ao2_iterator_init(msg->vars, 0);
 
-	return i;
+	return iter;
 }
 
-int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iterator *i, const char **name, const char **value)
+int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iterator *iter, const char **name, const char **value)
 {
 	struct msg_data *data;
 
+	if (!iter) {
+		return 0;
+	}
+
 	/* Skip any that aren't marked for sending out */
-	while ((data = ao2_iterator_next(&i->i)) && !data->send) {
+	while ((data = ao2_iterator_next(&iter->iter)) && !data->send) {
 		ao2_ref(data, -1);
 	}
 
@@ -646,22 +652,24 @@ int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iter
 
 	/* Leave the refcount to be cleaned up by the caller with
 	 * ast_msg_var_unref_current after they finish with the pointers to the data */
-	i->current_used = data;
+	iter->current_used = data;
 
 	return 1;
 }
 
-void ast_msg_var_unref_current(struct ast_msg_var_iterator *i) {
-	if (i->current_used) {
-		ao2_ref(i->current_used, -1);
-	}
-	i->current_used = NULL;
+void ast_msg_var_unref_current(struct ast_msg_var_iterator *iter)
+{
+	ao2_cleanup(iter->current_used);
+	iter->current_used = NULL;
 }
 
-void ast_msg_var_iterator_destroy(struct ast_msg_var_iterator *i)
+void ast_msg_var_iterator_destroy(struct ast_msg_var_iterator *iter)
 {
-	ao2_iterator_destroy(&i->i);
-	ast_free(i);
+	if (iter) {
+		ao2_iterator_destroy(&iter->iter);
+		ast_msg_var_unref_current(iter);
+		ast_free(iter);
+	}
 }
 
 static struct ast_channel *create_msg_q_chan(void)

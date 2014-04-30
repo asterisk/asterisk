@@ -246,25 +246,25 @@ struct ast_msg_var_iterator *ast_msg_var_iterator_init(const struct ast_msg *msg
 /*!
  * \brief Get the next variable name and value that is set for sending outbound
  * \param msg The message with the variables
- * \param i An iterator created with ast_msg_var_iterator_init
+ * \param iter An iterator created with ast_msg_var_iterator_init
  * \param name A pointer to the name result pointer
  * \param value A pointer to the value result pointer
  *
  * \retval 0 No more entries
  * \retval 1 Valid entry
  */
-int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iterator *i, const char **name, const char **value);
+int ast_msg_var_iterator_next(const struct ast_msg *msg, struct ast_msg_var_iterator *iter, const char **name, const char **value);
 
 /*!
  * \brief Destroy a message variable iterator
- * \param i Iterator to be destroyed
+ * \param iter Iterator to be destroyed
  */
-void ast_msg_var_iterator_destroy(struct ast_msg_var_iterator *i);
+void ast_msg_var_iterator_destroy(struct ast_msg_var_iterator *iter);
 
 /*!
  * \brief Unref a message var from inside an iterator loop
  */
-void ast_msg_var_unref_current(struct ast_msg_var_iterator *i);
+void ast_msg_var_unref_current(struct ast_msg_var_iterator *iter);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
