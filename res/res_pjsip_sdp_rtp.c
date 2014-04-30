@@ -1077,30 +1077,29 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	/* If ICE support is enabled find all the needed attributes */
 	process_ice_attributes(session, session_media, remote, remote_stream);
 
+	/* Ensure the RTP instance is active */
+	ast_rtp_instance_activate(session_media->rtp);
+
 	/* audio stream handles music on hold */
 	if (media_type != AST_FORMAT_TYPE_AUDIO) {
 		return 1;
 	}
 
-	/* Music on hold for audio streams only */
-	if (session_media->held &&
-	    (!ast_sockaddr_isnull(addrs) ||
-	     !pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL))) {
+	if (ast_sockaddr_isnull(addrs) ||
+		ast_sockaddr_is_any(addrs) ||
+		pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
+		if (!session_media->held) {
+			/* The remote side has put us on hold */
+			ast_queue_hold(session->channel, session->endpoint->mohsuggest);
+			ast_rtp_instance_stop(session_media->rtp);
+			ast_queue_frame(session->channel, &ast_null_frame);
+			session_media->held = 1;
+		}
+	} else if (session_media->held) {
 		/* The remote side has taken us off hold */
 		ast_queue_unhold(session->channel);
 		ast_queue_frame(session->channel, &ast_null_frame);
 		session_media->held = 0;
-	} else if (ast_sockaddr_isnull(addrs) ||
-		   ast_sockaddr_is_any(addrs) ||
-		   pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
-		/* The remote side has put us on hold */
-		ast_queue_hold(session->channel, session->endpoint->mohsuggest);
-		ast_rtp_instance_stop(session_media->rtp);
-		ast_queue_frame(session->channel, &ast_null_frame);
-		session_media->held = 1;
-	} else {
-		/* The remote side has not changed state, but make sure the instance is active */
-		ast_rtp_instance_activate(session_media->rtp);
 	}
 
 	return 1;
