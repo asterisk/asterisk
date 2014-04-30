@@ -318,22 +318,26 @@ static enum pjsip_status_code vars_to_headers(const struct ast_msg *msg, pjsip_t
 	const char *name;
 	const char *value;
 	int max_forwards;
+	struct ast_msg_var_iterator *iter;
 
-	RAII_VAR(struct ast_msg_var_iterator *, i, ast_msg_var_iterator_init(msg), ast_msg_var_iterator_destroy);
-	while (ast_msg_var_iterator_next(msg, i, &name, &value)) {
+	for (iter = ast_msg_var_iterator_init(msg);
+		ast_msg_var_iterator_next(msg, iter, &name, &value);
+		ast_msg_var_unref_current(iter)) {
 		if (!strcasecmp(name, "Max-Forwards")) {
 			/* Decrement Max-Forwards for SIP loop prevention. */
 			if (sscanf(value, "%30d", &max_forwards) != 1 || --max_forwards == 0) {
+				ast_msg_var_iterator_destroy(iter);
 				ast_log(LOG_NOTICE, "MESSAGE(Max-Forwards) reached zero.  MESSAGE not sent.\n");
 				return -1;
 			}
-			sprintf((char*)value, "%d", max_forwards);
+			sprintf((char *) value, "%d", max_forwards);
 			ast_sip_add_header(tdata, name, value);
 		} else if (!is_msg_var_blocked(name)) {
 			ast_sip_add_header(tdata, name, value);
 		}
-		ast_msg_var_unref_current(i);
 	}
+	ast_msg_var_iterator_destroy(iter);
+
 	return PJSIP_SC_OK;
 }
 
