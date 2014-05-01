@@ -379,6 +379,30 @@ static int tls_method_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+/*! \brief Helper function which turns a cipher name into an identifier */
+static pj_ssl_cipher cipher_name_to_id(const char *name)
+{
+	pj_ssl_cipher ciphers[100], id = 0;
+	unsigned int cipher_num = PJ_ARRAY_SIZE(ciphers);
+	int pos;
+
+	if (pj_ssl_cipher_get_availables(ciphers, &cipher_num)) {
+		return 0;
+	}
+
+	for (pos = 0; pos < cipher_num; ++pos) {
+		if (!pj_ssl_cipher_name(ciphers[pos]) ||
+			strcmp(pj_ssl_cipher_name(ciphers[pos]), name)) {
+			continue;
+		}
+
+		id = ciphers[pos];
+		break;
+	}
+
+	return id;
+}
+
 /*! \brief Custom handler for TLS cipher setting */
 static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -389,12 +413,16 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 		return -1;
 	}
 
-	/* TODO: Check this over/tweak - it's taken from pjsua for now */
-	if (!strnicmp(var->value, "0x", 2)) {
-		pj_str_t cipher_st = pj_str((char*)var->value + 2);
-		cipher = pj_strtoul2(&cipher_st, NULL, 16);
-	} else {
-		cipher = atoi(var->value);
+	cipher = cipher_name_to_id(var->value);
+
+	if (!cipher) {
+		/* TODO: Check this over/tweak - it's taken from pjsua for now */
+		if (!strnicmp(var->value, "0x", 2)) {
+			pj_str_t cipher_st = pj_str((char*)var->value + 2);
+			cipher = pj_strtoul2(&cipher_st, NULL, 16);
+		} else {
+			cipher = atoi(var->value);
+		}
 	}
 
 	if (pj_ssl_cipher_is_supported(cipher)) {
