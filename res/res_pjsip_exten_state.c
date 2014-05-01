@@ -334,11 +334,6 @@ static int state_changed(char *context, char *exten,
 	struct notify_task_data *task_data;
 	struct exten_state_subscription *exten_state_sub = data;
 
-	if (exten_state_sub->last_exten_state == info->exten_state &&
-		exten_state_sub->last_presence_state == info->presence_state) {
-		return 0;
-	}
-
 	if (!(task_data = alloc_notify_task_data(exten, exten_state_sub, info))) {
 		return -1;
 	}
