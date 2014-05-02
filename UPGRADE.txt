@@ -25,6 +25,10 @@ From 12.2.0 to 12.3.0:
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
 
+chan_sip:
+ - Made set SIPREFERREDBYHDR as inheritable for better chan_pjsip
+   interoperability.
+
 From 12.1.0 to 12.2.0:
 
 AMI:

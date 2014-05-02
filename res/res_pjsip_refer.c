@@ -476,8 +476,9 @@ struct refer_blind {
 static void refer_blind_callback(struct ast_channel *chan, void *user_data, enum ast_transfer_type transfer_type)
 {
 	struct refer_blind *refer = user_data;
-	const pj_str_t str_referred_by = { "Referred-By", 11 };
-	pjsip_generic_string_hdr *referred_by = pjsip_msg_find_hdr_by_name(refer->rdata->msg_info.msg, &str_referred_by, NULL);
+	pjsip_generic_string_hdr *referred_by;
+
+	static const pj_str_t str_referred_by = { "Referred-By", 11 };
 
 	pbx_builtin_setvar_helper(chan, "SIPTRANSFER", "yes");
 
@@ -544,29 +545,36 @@ static void refer_blind_callback(struct ast_channel *chan, void *user_data, enum
 		}
 	}
 
-	if (!ast_strlen_zero(refer->context)) {
-		pbx_builtin_setvar_helper(chan, "SIPREFERRINGCONTEXT", refer->context);
-	}
+	pbx_builtin_setvar_helper(chan, "SIPREFERRINGCONTEXT", S_OR(refer->context, NULL));
 
+	referred_by = pjsip_msg_find_hdr_by_name(refer->rdata->msg_info.msg,
+		&str_referred_by, NULL);
 	if (referred_by) {
-		char *uri = referred_by->hvalue.ptr;
+		size_t uri_size = pj_strlen(&referred_by->hvalue) + 1;
+		char *uri = ast_alloca(uri_size);
 
-		uri[referred_by->hvalue.slen] = '\0';
-		pbx_builtin_setvar_helper(chan, "SIPREFERREDBYHDR", uri);
+		ast_copy_pj_str(uri, &referred_by->hvalue, uri_size);
+		pbx_builtin_setvar_helper(chan, "__SIPREFERREDBYHDR", S_OR(uri, NULL));
+	} else {
+		pbx_builtin_setvar_helper(chan, "SIPREFERREDBYHDR", NULL);
 	}
 
 	if (refer->replaces) {
 		char replaces[512];
 
 		pjsip_hdr_print_on(refer->replaces, replaces, sizeof(replaces));
-		pbx_builtin_setvar_helper(chan, "SIPREPLACESHDR", replaces);
+		pbx_builtin_setvar_helper(chan, "__SIPREPLACESHDR", S_OR(replaces, NULL));
+	} else {
+		pbx_builtin_setvar_helper(chan, "SIPREPLACESHDR", NULL);
 	}
 
 	if (refer->refer_to) {
 		char refer_to[PJSIP_MAX_URL_SIZE];
 
 		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, refer->refer_to, refer_to, sizeof(refer_to));
-		pbx_builtin_setvar_helper(chan, "SIPREFERTOHDR", refer_to);
+		pbx_builtin_setvar_helper(chan, "SIPREFERTOHDR", S_OR(refer_to, NULL));
+	} else {
+		pbx_builtin_setvar_helper(chan, "SIPREFERTOHDR", NULL);
 	}
 }
 
@@ -811,16 +819,16 @@ end:
 
 static int refer_incoming_refer_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
-	const pj_str_t str_refer_to = { "Refer-To", 8 };
 	pjsip_generic_string_hdr *refer_to;
-	char *uri;
-	const pj_str_t str_to = { "To", 2 };
 	pjsip_fromto_hdr *target;
 	pjsip_sip_uri *target_uri;
 	RAII_VAR(struct refer_progress *, progress, NULL, ao2_cleanup);
-	const pj_str_t str_replaces = { "Replaces", 8 };
 	pjsip_param *replaces;
 	int response;
+
+	static const pj_str_t str_refer_to = { "Refer-To", 8 };
+	static const pj_str_t str_to = { "To", 2 };
+	static const pj_str_t str_replaces = { "Replaces", 8 };
 
 	if (!session->endpoint->allowtransfer) {
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 603, NULL, NULL, NULL);
@@ -830,18 +838,25 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 	}
 
 	/* A Refer-To header is required */
-	if (!(refer_to = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_refer_to, NULL))) {
+	refer_to = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_refer_to, NULL);
+	if (!refer_to) {
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 400, NULL, NULL, NULL);
 		ast_debug(3, "Received a REFER without Refer-To on channel '%s' from endpoint '%s'\n",
 			ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint));
 		return 0;
 	}
-	uri = refer_to->hvalue.ptr;
-	uri[refer_to->hvalue.slen] = '\0';
 
 	/* Parse the provided URI string as a To header so we can get the target */
-	if (!(target = pjsip_parse_hdr(rdata->tp_info.pool, &str_to, refer_to->hvalue.ptr, refer_to->hvalue.slen, NULL)) ||
-		(!PJSIP_URI_SCHEME_IS_SIP(target->uri) && !PJSIP_URI_SCHEME_IS_SIPS(target->uri))) {
+	target = pjsip_parse_hdr(rdata->tp_info.pool, &str_to,
+		(char *) pj_strbuf(&refer_to->hvalue), pj_strlen(&refer_to->hvalue), NULL);
+	if (!target
+		|| (!PJSIP_URI_SCHEME_IS_SIP(target->uri)
+			&& !PJSIP_URI_SCHEME_IS_SIPS(target->uri))) {
+		size_t uri_size = pj_strlen(&refer_to->hvalue) + 1;
+		char *uri = ast_alloca(uri_size);
+
+		ast_copy_pj_str(uri, &refer_to->hvalue, uri_size);
+
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 400, NULL, NULL, NULL);
 		ast_debug(3, "Received a REFER without a parseable Refer-To ('%s') on channel '%s' from endpoint '%s'\n",
 			uri, ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint));
@@ -910,16 +925,25 @@ static int refer_incoming_request(struct ast_sip_session *session, pjsip_rx_data
 
 static void refer_outgoing_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
 {
-	const char *replaces;
+	const char *hdr;
 
-	if (pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_invite_method) ||
-		!session->channel ||
-		(session->inv_session->state != PJSIP_INV_STATE_CALLING) ||
-		!(replaces = pbx_builtin_getvar_helper(session->channel, "SIPREPLACESHDR"))) {
+	if (pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_invite_method)
+		|| !session->channel
+		|| session->inv_session->state != PJSIP_INV_STATE_NULL) {
 		return;
 	}
 
-	ast_sip_add_header(tdata, "Replaces", replaces);
+	ast_channel_lock(session->channel);
+	hdr = pbx_builtin_getvar_helper(session->channel, "SIPREPLACESHDR");
+	if (!ast_strlen_zero(hdr)) {
+		ast_sip_add_header(tdata, "Replaces", hdr);
+	}
+
+	hdr = pbx_builtin_getvar_helper(session->channel, "SIPREFERREDBYHDR");
+	if (!ast_strlen_zero(hdr)) {
+		ast_sip_add_header(tdata, "Referred-By", hdr);
+	}
+	ast_channel_unlock(session->channel);
 }
 
 static struct ast_sip_session_supplement refer_supplement = {
