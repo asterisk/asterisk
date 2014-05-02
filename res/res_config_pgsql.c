@@ -882,7 +882,7 @@ static int update2_pgsql(const char *database, const char *tablename, va_list ap
 static int store_pgsql(const char *database, const char *table, va_list ap)
 {
 	RAII_VAR(PGresult *, result, NULL, PQclear);
-	Oid insertid;
+	int numrows;
 	struct ast_str *buf = ast_str_thread_get(&escapebuf_buf, 256);
 	struct ast_str *sql1 = ast_str_thread_get(&sql_buf, 256);
 	struct ast_str *sql2 = ast_str_thread_get(&where_buf, 256);
@@ -959,10 +959,10 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 		}
 	}
 
-	insertid = PQoidValue(result);
+	numrows = atoi(PQcmdTuples(result));
 	ast_mutex_unlock(&pgsql_lock);
 
-	ast_debug(1, "PostgreSQL RealTime: row inserted on table: %s, id: %u\n", table, insertid);
+	ast_debug(1, "PostgreSQL RealTime: row inserted on table: %s.", table);
 
 	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -970,8 +970,9 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 	 * -1 indicates that the query returned an error (although, if the query failed, it should have been caught above.)
 	 */
 
-	if (insertid >= 0)
-		return (int) insertid;
+	if (numrows >= 0) {
+		return numrows;
+	}
 
 	return -1;
 }
