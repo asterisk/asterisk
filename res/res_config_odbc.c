@@ -490,7 +490,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	}
 
 	snprintf(sql, sizeof(sql), "UPDATE %s SET ", table);
-	while ((field = field->next)) {
+	while (field) {
 		if ((tableptr && (column = ast_odbc_find_column(tableptr, field->name))) || count >= 64) {
 			if (paramcount++) {
 				snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", ");
