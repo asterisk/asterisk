@@ -101,6 +101,10 @@ CDRs:
    handler subroutine). In general, this is not the preferred default: this
    causes extra CDRs to be generated for a channel in many common dialplans.
 
+chan_sip:
+ - Made set SIPREFERREDBYHDR as inheritable for better chan_pjsip
+   interoperability.
+
 CLI commands:
  - "core show settings" now lists the current console verbosity in addition
    to the root console verbosity.

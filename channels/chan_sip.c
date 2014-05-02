@@ -18008,8 +18008,10 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 		peer = ast_channel_bridge_peer(owner_ref);
 		if (peer) {
-			pbx_builtin_setvar_helper(peer, "SIPREFERRINGCONTEXT", transferer->context);
-			pbx_builtin_setvar_helper(peer, "SIPREFERREDBYHDR", p_referred_by);
+			pbx_builtin_setvar_helper(peer, "SIPREFERRINGCONTEXT",
+				S_OR(transferer->context, NULL));
+			pbx_builtin_setvar_helper(peer, "__SIPREFERREDBYHDR",
+				S_OR(p_referred_by, NULL));
 			ast_channel_unlock(peer);
 		}
 
