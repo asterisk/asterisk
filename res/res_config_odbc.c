@@ -691,6 +691,10 @@ static int store_odbc(const char *database, const char *table, const struct ast_
 		return -1;
 	}
 
+	if (ast_string_field_init(&cps, 256)) {
+		return -1;
+	}
+
 	obj = ast_odbc_request_obj2(database, connected_flag);
 	if (!obj) {
 		return -1;
@@ -753,6 +757,10 @@ static int destroy_odbc(const char *database, const char *table, const char *key
 	struct ast_flags connected_flag = { RES_ODBC_CONNECTED };
 
 	if (!table) {
+		return -1;
+	}
+
+	if (ast_string_field_init(&cps, 256)) {
 		return -1;
 	}
 
