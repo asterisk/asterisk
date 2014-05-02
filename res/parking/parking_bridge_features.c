@@ -50,6 +50,7 @@ struct parked_subscription_datastore {
 
 struct parked_subscription_data {
 	char *parkee_uuid;
+	int hangup_after:1;
 	char parker_uuid[0];
 };
 
@@ -114,7 +115,7 @@ static void parker_parked_call_message_response(struct ast_parked_call_payload *
 
 	if (message->event_type == PARKED_CALL) {
 		/* queue the saynum on the bridge channel and hangup */
-		snprintf(saynum_buf, sizeof(saynum_buf), "%u %u", 1, message->parkingspace);
+		snprintf(saynum_buf, sizeof(saynum_buf), "%u %u", data->hangup_after, message->parkingspace);
 		ast_bridge_channel_queue_playfile(bridge_channel, say_parking_space, saynum_buf, NULL);
 		wipe_subscription_datastore(bridge_channel->chan);
 	}
@@ -138,7 +139,7 @@ static void parker_update_cb(void *data, struct stasis_subscription *sub, struct
 	}
 }
 
-static int create_parked_subscription(struct ast_channel *chan, const char *parkee_uuid)
+int create_parked_subscription(struct ast_channel *chan, const char *parkee_uuid, int hangup_after)
 {
 	struct ast_datastore *datastore;
 	struct parked_subscription_datastore *parked_datastore;
@@ -166,6 +167,7 @@ static int create_parked_subscription(struct ast_channel *chan, const char *park
 		return -1;
 	}
 
+	subscription_data->hangup_after = hangup_after;
 	subscription_data->parkee_uuid = subscription_data->parker_uuid + parker_uuid_size;
 	strcpy(subscription_data->parkee_uuid, parkee_uuid);
 	strcpy(subscription_data->parker_uuid, parker_uuid);
@@ -218,7 +220,7 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	ast_channel_unlock(parkee);
 
 	/* We need to have the parker subscribe to the new local channel before hand. */
-	create_parked_subscription(parker, ast_channel_uniqueid(parkee_side_2));
+	create_parked_subscription(parker, ast_channel_uniqueid(parkee_side_2), 1);
 
 	ast_bridge_set_transfer_variables(parkee_side_2, ast_channel_name(parker), 0);
 
@@ -325,7 +327,7 @@ static int parking_blind_transfer_park(struct ast_bridge_channel *bridge_channel
 	}
 
 	/* Subscribe to park messages with the other channel entering */
-	if (create_parked_subscription(bridge_channel->chan, ast_channel_uniqueid(other->chan))) {
+	if (create_parked_subscription(bridge_channel->chan, ast_channel_uniqueid(other->chan), 1)) {
 		return -1;
 	}
 

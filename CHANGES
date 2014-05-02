@@ -52,6 +52,15 @@ chan_sip
      calling information to communicate that the private information should
      not be relayed to untrusted parties.
 
+res_parking
+------------------
+ * Manager action 'Park' now takes an additional argument 'AnnounceChannel'
+   which can be used to announce the parked call's location to an arbitrary
+   channel in a bridge. If 'Channel' and 'TimeoutChannel' are now the two
+   parties in a one to one bridge, 'TimeoutChannel' is treated as having
+   parked 'Channel' like with the Park Call DTMF feature and will receive
+   announcements prior to being hung up.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.1.0 to Asterisk 12.2.0 ------------
 ------------------------------------------------------------------------------
@@ -1526,7 +1535,6 @@ sip_to_res_pjsip.py
    what the script provides will be needed.
 
 ------------------------------------------------------------------------------
->>>>>>> .merge-right.r412746
 --- Functionality changes from Asterisk 10 to Asterisk 11 --------------------
 ------------------------------------------------------------------------------
 

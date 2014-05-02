@@ -74,11 +74,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Channel name to park.</para>
 			</parameter>
 			<parameter name="TimeoutChannel" required="false">
-				<para>Channel name to use when constructing the dial string that will be dialed if the parked channel times out.</para>
+				<para>Channel name to use when constructing the dial string that will be dialed if the parked channel
+				times out. If <literal>TimeoutChannel</literal> is in a two party bridge with
+				<literal>Channel</literal>, then <literal>TimeoutChannel</literal> will receive an announcement and be
+				treated as having parked <literal>Channel</literal> in the same manner as the Park Call DTMF feature.
+				</para>
+			</parameter>
+			<parameter name="AnnounceChannel" required="false">
+				<para>If specified, then this channel will receive an announcement when <literal>Channel</literal>
+				is parked if <literal>AnnounceChannel</literal> is in a state where it can receive announcements
+				(AnnounceChannel must be bridged). <literal>AnnounceChannel</literal> has no bearing on the actual
+				state of the parked call.</para>
 			</parameter>
 			<parameter name="Timeout" required="false">
 				<para>Overrides the timeout of the parking lot for this park action. Specified in milliseconds, but will be converted to
-					seconds. Use a value of 0 to nullify the timeout.
+					seconds. Use a value of 0 to disable the timeout.
 				</para>
 			</parameter>
 			<parameter name="Parkinglot" required="false">
@@ -420,17 +430,85 @@ static int manager_parking_lot_list(struct mansession *s, const struct message *
 	return 0;
 }
 
+static void manager_park_unbridged(struct mansession *s, const struct message *m,
+		struct ast_channel *chan, const char *parkinglot, int timeout_override)
+{
+	struct ast_bridge *parking_bridge = park_common_setup(chan,
+		chan, parkinglot, NULL, 0, 0, timeout_override, 1);
+
+	if (!parking_bridge) {
+		astman_send_error(s, m, "Park action failed\n");
+		return;
+	}
+
+	if (ast_bridge_add_channel(parking_bridge, chan, NULL, 0, NULL)) {
+		astman_send_error(s, m, "Park action failed\n");
+		ao2_cleanup(parking_bridge);
+		return;
+	}
+
+	astman_send_ack(s, m, "Park successful\n");
+	ao2_cleanup(parking_bridge);
+}
+
+static void manager_park_bridged(struct mansession *s, const struct message *m,
+		struct ast_channel *chan, struct ast_channel *parker_chan,
+		const char *parkinglot, int timeout_override)
+{
+	struct ast_bridge_channel *bridge_channel;
+	char *app_data;
+
+	if (timeout_override != -1) {
+		if (ast_asprintf(&app_data, "%s,t(%d)", parkinglot, timeout_override) == -1) {
+			astman_send_error(s, m, "Park action failed\n");
+			return;
+		}
+	} else {
+		if (ast_asprintf(&app_data, "%s", parkinglot) == -1) {
+			astman_send_error(s, m, "Park action failed\n");
+			return;
+		}
+	}
+
+	ast_channel_lock(parker_chan);
+	bridge_channel = ast_channel_get_bridge_channel(parker_chan);
+	ast_channel_unlock(parker_chan);
+
+	if (!bridge_channel) {
+		ast_free(app_data);
+		astman_send_error(s, m, "Park action failed\n");
+		return;
+	}
+
+	/* Subscribe to park messages for the channel being parked */
+	if (create_parked_subscription(parker_chan, ast_channel_uniqueid(chan), 1)) {
+		ast_free(app_data);
+		astman_send_error(s, m, "Park action failed\n");
+		ao2_cleanup(bridge_channel);
+		return;
+	}
+
+	ast_bridge_channel_write_park(bridge_channel, ast_channel_uniqueid(chan),
+			ast_channel_uniqueid(parker_chan), app_data);
+
+	ast_free(app_data);
+
+	astman_send_ack(s, m, "Park successful\n");
+	ao2_cleanup(bridge_channel);
+}
+
 static int manager_park(struct mansession *s, const struct message *m)
 {
 	const char *channel = astman_get_header(m, "Channel");
 	const char *timeout_channel = S_OR(astman_get_header(m, "TimeoutChannel"), astman_get_header(m, "Channel2"));
+	const char *announce_channel = astman_get_header(m, "AnnounceChannel");
 	const char *timeout = astman_get_header(m, "Timeout");
 	const char *parkinglot = astman_get_header(m, "Parkinglot");
 	char buf[BUFSIZ];
 	int timeout_override = -1;
 
+	RAII_VAR(struct ast_channel *, parker_chan, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_bridge *, parking_bridge, NULL, ao2_cleanup);
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "Channel not specified");
@@ -461,17 +539,37 @@ static int manager_park(struct mansession *s, const struct message *m)
 	}
 	ast_channel_unlock(chan);
 
-	if (!(parking_bridge = park_common_setup(chan, chan, parkinglot, NULL, 0, 0, timeout_override, 0))) {
-		astman_send_error(s, m, "Park action failed\n");
+	parker_chan = ast_channel_bridge_peer(chan);
+	if (!parker_chan || strcmp(ast_channel_name(parker_chan), timeout_channel)) {
+		if (!ast_strlen_zero(announce_channel)) {
+			struct ast_channel *announce_chan = ast_channel_get_by_name(announce_channel);
+			if (!announce_channel) {
+				astman_send_error(s, m, "AnnounceChannel does not exist");
+				return 0;
+			}
+
+			create_parked_subscription(announce_chan, ast_channel_uniqueid(chan), 0);
+			ast_channel_cleanup(announce_chan);
+		}
+
+		manager_park_unbridged(s, m, chan, parkinglot, timeout_override);
 		return 0;
 	}
 
-	if (ast_bridge_add_channel(parking_bridge, chan, NULL, 0, NULL)) {
-		astman_send_error(s, m, "Park action failed\n");
-		return 0;
+	if (!ast_strlen_zero(announce_channel) && strcmp(announce_channel, timeout_channel)) {
+		/* When using an announce_channel in bridge mode, only add the announce channel if it isn't
+		 * the same as the timeout channel (which will play announcements anyway) */
+		struct ast_channel *announce_chan = ast_channel_get_by_name(announce_channel);
+		if (!announce_channel) {
+			astman_send_error(s, m, "AnnounceChannel does not exist");
+			return 0;
+		}
+
+		create_parked_subscription(announce_chan, ast_channel_uniqueid(chan), 0);
+		ast_channel_cleanup(announce_chan);
 	}
 
-	astman_send_ack(s, m, "Park successful\n");
+	manager_park_bridged(s, m, chan, parker_chan, parkinglot, timeout_override);
 	return 0;
 }
 

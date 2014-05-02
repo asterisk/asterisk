@@ -386,6 +386,19 @@ void publish_parked_call_failure(struct ast_channel *parkee);
 void publish_parked_call(struct parked_user *pu, enum ast_parked_call_event_type event_type);
 
 /*!
+ * \since 12.3.0
+ * \brief Create a parking announcement subscription
+ *
+ * \param chan Channel that will receive the announcement
+ * \param parkee_uuid Unique ID of the channel being parked
+ * \param hangup_after if non-zero, have the channel hangup after hearing the announcement
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int create_parked_subscription(struct ast_channel *chan, const char *parkee_uuid, int hangup_after);
+
+/*!
  * \since 12.0.0
  * \brief Setup a parked call on a parking bridge without needing to parse appdata
  *
