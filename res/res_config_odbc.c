@@ -59,6 +59,26 @@ struct custom_prepare_struct {
 	unsigned long long skip;
 };
 
+#define ENCODE_CHUNK(buffer, s) \
+	do { \
+		char *eptr = buffer; \
+		const char *vptr = s; \
+		for (; *vptr && eptr < buffer + sizeof(buffer); vptr++) { \
+			if (strchr("^;", *vptr)) { \
+				/* We use ^XX, instead of %XX because '%' is a special character in SQL */ \
+				snprintf(eptr, buffer + sizeof(buffer) - eptr, "^%02hhX", *vptr); \
+				eptr += 3; \
+			} else { \
+				*eptr++ = *vptr; \
+			} \
+		} \
+		if (eptr < buffer + sizeof(buffer)) { \
+			*eptr = '\0'; \
+		} else { \
+			buffer[sizeof(buffer) - 1] = '\0'; \
+		} \
+	} while(0)
+
 static void decode_chunk(char *chunk)
 {
 	for (; *chunk; chunk++) {
@@ -107,30 +127,23 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 		}
 		ast_debug(1, "Parameter %d ('%s') = '%s'\n", x, field->name, newval);
 		if (strchr(newval, ';') || strchr(newval, '^')) {
-			char *eptr = encodebuf;
-			const char *vptr = newval;
-			for (; *vptr && eptr < encodebuf + sizeof(encodebuf); vptr++) {
-				if (strchr("^;", *vptr)) {
-					/* We use ^XX, instead of %XX because '%' is a special character in SQL */
-					snprintf(eptr, encodebuf + sizeof(encodebuf) - eptr, "^%02hhX", *vptr);
-					eptr += 3;
-				} else {
-					*eptr++ = *vptr;
-				}
-			}
-			if (eptr < encodebuf + sizeof(encodebuf)) {
-				*eptr = '\0';
-			} else {
-				encodebuf[sizeof(encodebuf) - 1] = '\0';
-			}
+			ENCODE_CHUNK(encodebuf, newval);
 			ast_string_field_set(cps, encoding[x], encodebuf);
 			newval = cps->encoding[x];
 		}
 		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
 	}
 
-	if (!ast_strlen_zero(cps->extra))
-		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(cps->extra), 0, (void *)cps->extra, 0, NULL);
+	if (!ast_strlen_zero(cps->extra)) {
+		if (strchr(cps->extra, ';') || strchr(cps->extra, '^')) {
+			ENCODE_CHUNK(encodebuf, cps->extra);
+			SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(encodebuf), 0, (void *)encodebuf, 0, NULL);
+		} 
+		else {
+			SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(cps->extra), 0, (void *)cps->extra, 0, NULL);
+		}
+	}
+
 	return stmt;
 }
 
