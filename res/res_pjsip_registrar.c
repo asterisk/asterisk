@@ -537,7 +537,12 @@ static int rx_task(void *data)
 				ast_string_field_set(contact_update, user_agent, user_agent);
 			}
 
-			ast_sip_location_update_contact(contact_update);
+			if (ast_sip_location_update_contact(contact_update)) {
+				ast_log(LOG_ERROR, "Failed to update contact '%s' expiration time to %d seconds.\n",
+					contact->uri, expiration);
+				ast_sorcery_delete(ast_sip_get_sorcery(), contact);
+				continue;
+			}
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
 				contact_uri, aor_name, expiration);
 			ast_test_suite_event_notify("AOR_CONTACT_REFRESHED",
