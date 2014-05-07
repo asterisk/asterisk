@@ -263,6 +263,7 @@ static enum ast_presence_state custom_presence_callback(const char *data, char *
 
 	if ((strchr(_options, 'e'))) {
 		char tmp[1301];
+
 		if (ast_strlen_zero(_subtype)) {
 			*subtype = NULL;
 		} else {
@@ -848,20 +849,16 @@ static int load_module(void)
 	db_entry = db_tree = ast_db_gettree(astdb_family, NULL);
 	for (; db_entry; db_entry = db_entry->next) {
 		const char *dev_name = strrchr(db_entry->key, '/') + 1;
-		char state_info[1301];
 		enum ast_presence_state state;
 		char *message;
 		char *subtype;
-		char *options;
 		if (dev_name <= (const char *) 1) {
 			continue;
 		}
-		ast_copy_string(state_info, db_entry->data, sizeof(state_info));
-		if (parse_data(state_info, &state, &subtype, &message, &options)) {
-			ast_log(LOG_WARNING, "Invalid CustomPresence entry %s encountered\n", db_entry->data);
-			continue;
-		}
+		state = custom_presence_callback(dev_name, &subtype, &message);
 		ast_presence_state_changed(state, subtype, message, "CustomPresence:%s", dev_name);
+		ast_free(subtype);
+		ast_free(message);
 	}
 	ast_db_freetree(db_tree);
 	db_tree = NULL;
