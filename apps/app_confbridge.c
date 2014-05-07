@@ -447,7 +447,6 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 
 	json_object = ast_json_pack("{s: s}",
 		"conference", conference->name);
-
 	if (!json_object) {
 		return;
 	}
@@ -462,7 +461,6 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 		chan,
 		json_object);
 	ast_bridge_unlock(conference->bridge);
-
 	if (!msg) {
 		return;
 	}
@@ -472,7 +470,6 @@ static void send_conf_stasis(struct confbridge_conference *conference, struct as
 	} else {
 		stasis_publish(ast_bridge_topic(conference->bridge), msg);
 	}
-
 }
 
 static void send_conf_start_event(struct confbridge_conference *conference)
@@ -1462,9 +1459,10 @@ static void conf_handle_talker_destructor(void *pvt_data)
 static int conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void *hook_pvt, int talking)
 {
 	const char *conf_name = hook_pvt;
-	struct confbridge_conference *conference = ao2_find(conference_bridges, conf_name, OBJ_KEY);
+	RAII_VAR(struct confbridge_conference *, conference, NULL, ao2_cleanup);
 	struct ast_json *talking_extras;
 
+	conference = ao2_find(conference_bridges, conf_name, OBJ_KEY);
 	if (!conference) {
 		/* Remove the hook since the conference does not exist. */
 		return -1;
@@ -2191,6 +2189,7 @@ static int kick_conference_participant(struct confbridge_conference *conference,
 	struct confbridge_user *user = NULL;
 
 	SCOPED_AO2LOCK(bridge_lock, conference);
+
 	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 		if (!strcasecmp(ast_channel_name(user->chan), channel) && !user->kicked) {
 			user->kicked = 1;
