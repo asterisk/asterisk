@@ -40,6 +40,7 @@ static int pidf_supplement_body(void *body, void *data)
 {
 	struct ast_sip_exten_state_data *state_data = data;
 	pj_xml_node *node;
+	char sanitized[256];
 
 	if (ast_strlen_zero(state_data->user_agent) ||
 	    !strstr(state_data->user_agent, "digium")) {
@@ -69,8 +70,8 @@ static int pidf_supplement_body(void *body, void *data)
 	}
 
 	if (!ast_strlen_zero(state_data->presence_message)) {
-			pj_strdup2(state_data->pool, &node->content,
-				   state_data->presence_message);
+		ast_sip_sanitize_xml(state_data->presence_message, sanitized, sizeof(sanitized));
+		pj_strdup2(state_data->pool, &node->content, sanitized);
 	}
 
 	ast_sip_presence_xml_create_attr(
@@ -78,9 +79,9 @@ static int pidf_supplement_body(void *body, void *data)
 			state_data->presence_state));
 
 	if (!ast_strlen_zero(state_data->presence_subtype)) {
+		ast_sip_sanitize_xml(state_data->presence_subtype, sanitized, sizeof(sanitized));
 		ast_sip_presence_xml_create_attr(
-			state_data->pool, node, "subtype",
-			state_data->presence_subtype);
+			state_data->pool, node, "subtype", sanitized);
 	}
 
 	return 0;

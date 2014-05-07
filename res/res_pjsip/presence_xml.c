@@ -43,7 +43,7 @@ void ast_sip_sanitize_xml(const char *input, char *output, size_t len)
 
 	output[0] = '\0';
 
-	while ((break_point = strpbrk(copy, "<>\"&'"))) {
+	while ((break_point = strpbrk(copy, "<>\"&'\n\r"))) {
 		char to_escape = *break_point;
 
 		*break_point = '\0';
@@ -64,6 +64,12 @@ void ast_sip_sanitize_xml(const char *input, char *output, size_t len)
 			break;
 		case '\'':
 			strncat(output, "&apos;", len);
+			break;
+		case '\r':
+			strncat(output, "&#13;", len);
+			break;
+		case '\n':
+			strncat(output, "&#10;", len);
 			break;
 		};
 
