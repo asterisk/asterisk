@@ -135,13 +135,13 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 	}
 
 	if (!ast_strlen_zero(cps->extra)) {
-		if (strchr(cps->extra, ';') || strchr(cps->extra, '^')) {
-			ENCODE_CHUNK(encodebuf, cps->extra);
-			SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(encodebuf), 0, (void *)encodebuf, 0, NULL);
+		const char *newval = cps->extra;
+		if (strchr(newval, ';') || strchr(newval, '^')) {
+			ENCODE_CHUNK(encodebuf, newval);
+			ast_string_field_set(cps, encoding[x], encodebuf);
+			newval = cps->encoding[x];
 		} 
-		else {
-			SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(cps->extra), 0, (void *)cps->extra, 0, NULL);
-		}
+		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
 	}
 
 	return stmt;
