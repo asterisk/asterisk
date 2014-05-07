@@ -2228,6 +2228,7 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 {
 	struct conference_bridge *bridge = NULL;
 	struct conference_bridge tmp;
+	int not_found;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -2256,11 +2257,12 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 		return CLI_SUCCESS;
 	}
-	if (kick_conference_participant(bridge, a->argv[3])) {
+	not_found = kick_conference_participant(bridge, a->argv[3]);
+	ao2_ref(bridge, -1);
+	if (not_found) {
 		ast_cli(a->fd, "No participant named '%s' found!\n", a->argv[3]);
 		return CLI_SUCCESS;
 	}
-	ao2_ref(bridge, -1);
 	ast_cli(a->fd, "Participant '%s' kicked out of conference '%s'\n", a->argv[3], a->argv[2]);
 	return CLI_SUCCESS;
 }
@@ -2857,7 +2859,7 @@ static int action_confbridgekick(struct mansession *s, const struct message *m)
 	const char *channel = astman_get_header(m, "Channel");
 	struct conference_bridge *bridge = NULL;
 	struct conference_bridge tmp;
-	int found = 0;
+	int found;
 
 	if (ast_strlen_zero(conference)) {
 		astman_send_error(s, m, "No Conference name provided.");
