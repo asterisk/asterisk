@@ -847,6 +847,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Check if module is loaded.
 		</synopsis>
 		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="Module" required="true">
 				<para>Asterisk module name (not including extension).</para>
 			</parameter>
