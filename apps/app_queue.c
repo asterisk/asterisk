@@ -685,6 +685,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<syntax>
 		</syntax>
 		<description>
+			<para>Show queues information.</para>
 		</description>
 	</manager>
 	<manager name="QueueStatus" language="en_US">
@@ -693,10 +694,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Queue" />
-			<parameter name="Member" />
+			<parameter name="Queue">
+				<para>Limit the response to the status of the specified queue.</para>
+			</parameter>
+			<parameter name="Member">
+				<para>Limit the response to the status of the specified member.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Check the status of one or more queues.</para>
 		</description>
 	</manager>
 	<manager name="QueueSummary" language="en_US">
@@ -705,9 +711,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Queue" />
+			<parameter name="Queue">
+				<para>Queue for which the summary is requested.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Request the manager to send a QueueSummary event.</para>
 		</description>
 	</manager>
 	<manager name="QueueAdd" language="en_US">
@@ -716,11 +725,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Queue" required="true" />
-			<parameter name="Interface" required="true" />
-			<parameter name="Penalty" />
-			<parameter name="Paused" />
-			<parameter name="MemberName" />
+			<parameter name="Queue" required="true">
+				<para>Queue's name.</para>
+			</parameter>
+			<parameter name="Interface" required="true">
+				<para>The name of the interface (tech/name) to add to the queue.</para>
+			</parameter>
+			<parameter name="Penalty">
+				<para>A penalty (number) to apply to this member. Asterisk will distribute calls to members with higher penalties only after attempting to distribute calls to those with lower penalty.</para>
+			</parameter>
+			<parameter name="Paused">
+				<para>To pause or not the member initially (true/false or 1/0).</para>
+			</parameter>
+			<parameter name="MemberName">
+				<para>Text alias for the interface.</para>
+			</parameter>
 			<parameter name="StateInterface" />
 		</syntax>
 		<description>
@@ -732,8 +751,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Queue" required="true" />
-			<parameter name="Interface" required="true" />
+			<parameter name="Queue" required="true">
+				<para>The name of the queue to take action on.</para>
+			</parameter>
+			<parameter name="Interface" required="true">
+				<para>The interface (tech/name) to remove from queue.</para>
+			</parameter>
 		</syntax>
 		<description>
 		</description>
@@ -744,12 +767,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Interface" required="true" />
-			<parameter name="Paused" required="true" />
-			<parameter name="Queue" />
-			<parameter name="Reason" />
+			<parameter name="Interface" required="true">
+				<para>The name of the interface (tech/name) to pause or unpause.</para>
+			</parameter>
+			<parameter name="Paused" required="true">
+				<para>Pause or unpause the interface. Set to 'true' to pause the member or 'false' to unpause.</para>
+			</parameter>
+			<parameter name="Queue">
+				<para>The name of the queue in which to pause or unpause this member. If not specified, the member will be paused or unpaused in all the queues it is a member of.</para>
+			</parameter>
+			<parameter name="Reason">
+				<para>Text description, returned in the event QueueMemberPaused.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Pause or unpause a member in a queue.</para>
 		</description>
 	</manager>
 	<manager name="QueueLog" language="en_US">
@@ -773,11 +805,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Interface" required="true" />
-			<parameter name="Penalty" required="true" />
-			<parameter name="Queue" />
+			<parameter name="Interface" required="true">
+				<para>The interface (tech/name) of the member whose penalty to change.</para>
+			</parameter>
+			<parameter name="Penalty" required="true">
+				<para>The new penalty (number) for the member. Must be nonnegative.</para>
+			</parameter>
+			<parameter name="Queue">
+				<para>If specified, only set the penalty for the member of this queue. Otherwise, set the penalty for the member in all queues to which the member belongs.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Change the penalty of a queue member</para>
 		</description>
 	</manager>
 	<manager name="QueueRule" language="en_US">
@@ -786,9 +825,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Rule" />
+			<parameter name="Rule">
+				<para>The name of the rule in queuerules.conf whose contents to list.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>List queue rules defined in queuerules.conf</para>
 		</description>
 	</manager>
 	<manager name="QueueReload" language="en_US">
@@ -797,20 +839,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Queue" />
+			<parameter name="Queue">
+				<para>The name of the queue to take action on. If no queue name is specified, then all queues are affected.</para>
+			</parameter>
 			<parameter name="Members">
+				<para>Whether to reload the queue's members.</para>
 				<enumlist>
 					<enum name="yes" />
 					<enum name="no" />
 				</enumlist>
 			</parameter>
 			<parameter name="Rules">
+				<para>Whether to reload queuerules.conf</para>
 				<enumlist>
 					<enum name="yes" />
 					<enum name="no" />
 				</enumlist>
 			</parameter>
 			<parameter name="Parameters">
+				<para>Whether to reload the other queue options.</para>
 				<enumlist>
 					<enum name="yes" />
 					<enum name="no" />
@@ -826,9 +873,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Queue" />
+			<parameter name="Queue">
+				<para>The name of the queue on which to reset statistics.</para>
+			</parameter>
 		</syntax>
 		<description>
+			<para>Reset the statistics for a queue.</para>
 		</description>
 	</manager>
  ***/
