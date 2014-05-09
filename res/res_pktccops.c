@@ -397,7 +397,7 @@ static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 		return -1;
 	}
 
-	ast_debug(3, "COPS: sending opcode: %i len: %i\n", sendmsg->opcode, sendmsg->length);
+	ast_debug(3, "COPS: sending opcode: %i len: %u\n", sendmsg->opcode, sendmsg->length);
 	if (sendmsg->length < COPS_HEADER_SIZE) {
 		ast_log(LOG_WARNING, "COPS: invalid msg size!!!\n");
 		return -1;
@@ -418,7 +418,7 @@ static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 		while(pobject != NULL) {
 			ast_debug(3, "COPS: Sending Object : cnum: %i ctype %i len: %i\n", pobject->cnum, pobject->ctype, pobject->length);
 			if (sendmsg->length < bufpos + pobject->length) {
-				ast_log(LOG_WARNING, "COPS: Invalid msg size len: %i objectlen: %i\n", sendmsg->length, pobject->length);
+				ast_log(LOG_WARNING, "COPS: Invalid msg size len: %u objectlen: %i\n", sendmsg->length, pobject->length);
 				free(buf);
 				return -1;
 			}
@@ -426,7 +426,7 @@ static int cops_sendmsg (int sfd, struct copsmsg * sendmsg)
 			*(buf + bufpos + 2) = pobject->cnum;
 			*(buf + bufpos + 3) = pobject->ctype;
 			if (sendmsg->length < pobject->length + bufpos) {
-				ast_log(LOG_WARNING, "COPS: Error sum of object len more the msg len %i < %i\n", sendmsg->length, pobject->length + bufpos);
+				ast_log(LOG_WARNING, "COPS: Error sum of object len more the msg len %u < %i\n", sendmsg->length, pobject->length + bufpos);
 				free(buf);
 				return -1;
 			}
@@ -726,7 +726,7 @@ static void *do_pktccops(void *data)
 		AST_LIST_TRAVERSE(&cmts_list, cmts, list) {
 			if (last_exec != time(NULL)) {
 				if (cmts->state == 2 && cmts->katimer + cmts->keepalive < time(NULL)) {
-					ast_log(LOG_WARNING, "KA timer (%is) expired cmts: %s\n",  cmts->keepalive, cmts->name);
+					ast_log(LOG_WARNING, "KA timer (%us) expired cmts: %s\n",  cmts->keepalive, cmts->name);
 					cmts->state = 0;
 					cmts->katimer = -1;
 					close(cmts->sfd);
@@ -799,15 +799,16 @@ static void *do_pktccops(void *data)
 				if ((idx = ast_poll_fd_index(pfds, nfds, cmts->sfd)) > -1 && (pfds[idx].revents & POLLIN)) {
 					len = cops_getmsg(cmts->sfd, recmsg);
 					if (len > 0) {
-						ast_debug(3, "COPS: got from %s:\n Header: versflag=0x%.2x opcode=%i clienttype=0x%.4x msglength=%i\n",
-							cmts->name, recmsg->verflag, recmsg->opcode, recmsg->clienttype, recmsg->length);
+						ast_debug(3, "COPS: got from %s:\n Header: versflag=0x%.2x opcode=%i clienttype=0x%.4x msglength=%u\n",
+							cmts->name, (unsigned)recmsg->verflag,
+							recmsg->opcode, (unsigned)recmsg->clienttype, recmsg->length);
 						if (recmsg->object != NULL) {
 							pobject = recmsg->object;
 							while (pobject != NULL) {
 								ast_debug(3, " OBJECT: length=%i cnum=%i ctype=%i\n", pobject->length, pobject->cnum, pobject->ctype);
 								if (recmsg->opcode == 1 && pobject->cnum == 1 && pobject->ctype == 1 ) {
 									cmts->handle = ntohl(*((uint32_t *) pobject->contents));
-									ast_debug(3, "    REQ client handle: %i\n", cmts->handle);
+									ast_debug(3, "    REQ client handle: %u\n", cmts->handle);
 									cmts->state = 2;
 									cmts->katimer = time(NULL);
 								} else if (pobject->cnum == 9 && pobject->ctype == 1) {
@@ -823,7 +824,7 @@ static void *do_pktccops(void *data)
 									while (sobjp < (pobject->contents + pobject->length - 4)) {
 										sobjlen = ntohs(*((uint16_t *) sobjp));
 										snst = ntohs(*((uint16_t *) (sobjp + 2)));
-										ast_debug(3, "   S-Num S-type: 0x%.4x len: %i\n", snst, sobjlen);
+										ast_debug(3, "   S-Num S-type: 0x%.4x len: %i\n", (unsigned)snst, sobjlen);
 										if (snst == 0x0101 ) {
 											recvtrid = ntohs(*((uint16_t *) (sobjp + 4)));
 											scommand = ntohs(*((uint16_t *) (sobjp + 6)));					
@@ -843,7 +844,7 @@ static void *do_pktccops(void *data)
 										} else if (snst == 0x0d01) {
 											reason = ntohs(*((uint16_t *) (sobjp + 4)));
 											subreason = ntohs(*((uint16_t *) (sobjp + 6)));
-											ast_debug(3, "      Reason: %u Subreason: %u\n", reason, subreason);
+											ast_debug(3, "      Reason: %d Subreason: %d\n", reason, subreason);
 										}
 										sobjp += sobjlen;
 										if (!sobjlen)

@@ -903,7 +903,7 @@ static int timeval_str2struct(const struct aco_option *opt, struct ast_variable 
 static int timeval_struct2str(const void *obj, const intptr_t *args, char **buf)
 {
 	struct timeval *field = (struct timeval *)(obj + args[0]);
-	return (ast_asprintf(buf, "%lu.%06lu", field->tv_sec, (unsigned long)field->tv_usec) < 0) ? -1 : 0;
+	return (ast_asprintf(buf, "%lu.%06lu", (unsigned long)field->tv_sec, (unsigned long)field->tv_usec) < 0) ? -1 : 0;
 }
 
 /*! \brief Initialize bucket support */

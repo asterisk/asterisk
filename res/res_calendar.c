@@ -697,7 +697,7 @@ static void *event_notification_duplicate(void *data)
 /*! \brief Generate 32 byte random string (stolen from chan_sip.c)*/
 static char *generate_random_string(char *buf, size_t size)
 {
-	long val[4];
+	unsigned long val[4];
 	int x;
 
 	for (x = 0; x < 4; x++) {
@@ -1368,7 +1368,7 @@ static int calendar_query_result_exec(struct ast_channel *chan, const char *cmd,
 		} else if (!strcasecmp(args.field, "end")) {
 			snprintf(buf, len, "%ld", (long) entry->event->end);
 		} else if (!strcasecmp(args.field, "busystate")) {
-			snprintf(buf, len, "%d", entry->event->busy_state);
+			snprintf(buf, len, "%u", entry->event->busy_state);
 		} else if (!strcasecmp(args.field, "attendees")) {
 			calendar_join_attendees(entry->event, buf, len);
 		} else {
@@ -1429,7 +1429,7 @@ static int calendar_write_exec(struct ast_channel *chan, const char *cmd, char *
 	}
 
 	if (fields.argc - 1 != values.argc) {
-		ast_log(LOG_WARNING, "CALENDAR_WRITE should have the same number of fields (%d) and values (%d)!\n", fields.argc - 1, values.argc);
+		ast_log(LOG_WARNING, "CALENDAR_WRITE should have the same number of fields (%u) and values (%u)!\n", fields.argc - 1, values.argc);
 		goto write_cleanup;
 	}
 
@@ -1729,7 +1729,7 @@ static int calendar_event_read(struct ast_channel *chan, const char *cmd, char *
 	} else if (!strcasecmp(data, "end")) {
 		snprintf(buf, len, "%ld", (long)event->end);
 	} else if (!strcasecmp(data, "busystate")) {
-		snprintf(buf, len, "%d", event->busy_state);
+		snprintf(buf, len, "%u", event->busy_state);
 	} else if (!strcasecmp(data, "attendees")) {
 		calendar_join_attendees(event, buf, len);
 	}

@@ -923,7 +923,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	 */
 	if (!(owner = ast_channel_alloc(1, semi1_state, NULL, NULL, NULL,
 			exten, context, &id1, requestor, 0,
-			"%s/%s-%08x;1", tech->type, p->name, generated_seqno))) {
+			"%s/%s-%08x;1", tech->type, p->name, (unsigned)generated_seqno))) {
 		ast_log(LOG_WARNING, "Unable to allocate owner channel structure\n");
 		return NULL;
 	}
@@ -962,7 +962,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 
 	if (!(chan = ast_channel_alloc(1, semi2_state, NULL, NULL, NULL,
 			exten, context, &id2, owner, 0,
-			"%s/%s-%08x;2", tech->type, p->name, generated_seqno))) {
+			"%s/%s-%08x;2", tech->type, p->name, (unsigned)generated_seqno))) {
 		ast_log(LOG_WARNING, "Unable to allocate chan channel structure\n");
 		ao2_ref(p, -1);
 		ast_channel_release(owner);

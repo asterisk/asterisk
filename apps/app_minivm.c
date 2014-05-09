@@ -1406,7 +1406,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		}
 	} 
 
-	fprintf(p, "Message-ID: <Asterisk-%d-%s-%d-%s>\n", (unsigned int)ast_random(), vmu->username, (int)getpid(), who);
+	fprintf(p, "Message-ID: <Asterisk-%u-%s-%d-%s>\n", (unsigned int)ast_random(), vmu->username, (int)getpid(), who);
 
 	if (ast_strlen_zero(vmu->email)) {
 		snprintf(email, sizeof(email), "%s@%s", vmu->username, vmu->domain);
@@ -1457,7 +1457,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	fprintf(p, "MIME-Version: 1.0\n");
 
 	/* Something unique. */
-	snprintf(bound, sizeof(bound), "voicemail_%s%d%d", vmu->username, (int)getpid(), (unsigned int)ast_random());
+	snprintf(bound, sizeof(bound), "voicemail_%s%d%u", vmu->username, (int)getpid(), (unsigned int)ast_random());
 
 	fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"\n\n\n", bound);
 

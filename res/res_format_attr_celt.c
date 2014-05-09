@@ -65,7 +65,7 @@ static void celt_sdp_generate(const struct ast_format_attr *format_attr, unsigne
 		return;
 	}
 
-	ast_str_append(str, 0, "a=fmtp:%d framesize=%d\r\n", payload, attr->framesize);
+	ast_str_append(str, 0, "a=fmtp:%u framesize=%u\r\n", payload, attr->framesize);
 }
 
 static enum ast_format_cmp_res celt_cmp(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2)
@@ -127,7 +127,7 @@ static int celt_isset(const struct ast_format_attr *fattr, va_list ap)
 			}
 			break;
 		default:
-			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
 			return -1;
 		}
 	}
@@ -172,7 +172,7 @@ static void celt_set(struct ast_format_attr *fattr, va_list ap)
 			attr->framesize = (va_arg(ap, int));
 			break;
 		default:
-			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
 		}
 	}
 }

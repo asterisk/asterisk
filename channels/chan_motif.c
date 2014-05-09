@@ -727,7 +727,7 @@ static struct jingle_session *jingle_alloc(struct jingle_endpoint *endpoint, con
 	}
 
 	if (ast_strlen_zero(sid)) {
-		ast_string_field_build(session, sid, "%08lx%08lx", ast_random(), ast_random());
+		ast_string_field_build(session, sid, "%08lx%08lx", (unsigned long)ast_random(), (unsigned long)ast_random());
 		session->outgoing = 1;
 		ast_string_field_set(session, audio_name, "audio");
 		ast_string_field_set(session, video_name, "video");
@@ -782,7 +782,7 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 		return NULL;
 	}
 
-	if (!(chan = ast_channel_alloc(1, state, S_OR(title, ""), S_OR(cid_name, ""), "", "", "", assignedids, requestor, 0, "Motif/%s-%04lx", str, ast_random() & 0xffff))) {
+	if (!(chan = ast_channel_alloc(1, state, S_OR(title, ""), S_OR(cid_name, ""), "", "", "", assignedids, requestor, 0, "Motif/%s-%04lx", str, (unsigned long)(ast_random() & 0xffff)))) {
 		return NULL;
 	}
 
@@ -941,13 +941,13 @@ static int jingle_add_ice_udp_candidates_to_transport(struct ast_rtp_instance *r
 			break;
 		}
 
-		snprintf(tmp, sizeof(tmp), "%d", candidate->id);
+		snprintf(tmp, sizeof(tmp), "%u", candidate->id);
 		iks_insert_attrib(local_candidate, "component", tmp);
 		snprintf(tmp, sizeof(tmp), "%d", ast_str_hash(candidate->foundation));
 		iks_insert_attrib(local_candidate, "foundation", tmp);
 		iks_insert_attrib(local_candidate, "generation", "0");
 		iks_insert_attrib(local_candidate, "network", "0");
-		snprintf(tmp, sizeof(tmp), "%04lx", ast_random() & 0xffff);
+		snprintf(tmp, sizeof(tmp), "%04lx", (unsigned long)(ast_random() & 0xffff));
 		iks_insert_attrib(local_candidate, "id", tmp);
 		iks_insert_attrib(local_candidate, "ip", ast_sockaddr_stringify_host(&candidate->address));
 		iks_insert_attrib(local_candidate, "port", ast_sockaddr_stringify_port(&candidate->address));
@@ -1339,7 +1339,7 @@ static int jingle_add_payloads_to_description(struct jingle_session *session, st
 		if ((format.id == AST_FORMAT_G722) && ((session->transport == JINGLE_TRANSPORT_GOOGLE_V1) || (session->transport == JINGLE_TRANSPORT_GOOGLE_V2))) {
 			iks_insert_attrib(payload, "clockrate", "16000");
 		} else {
-			snprintf(tmp, sizeof(tmp), "%d", ast_rtp_lookup_sample_rate2(1, &format, 0));
+			snprintf(tmp, sizeof(tmp), "%u", ast_rtp_lookup_sample_rate2(1, &format, 0));
 			iks_insert_attrib(payload, "clockrate", tmp);
 		}
 
@@ -1715,7 +1715,7 @@ static int jingle_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 		break;
 	default:
-		ast_log(LOG_WARNING, "Can't send %d type frames with Jingle write\n",
+		ast_log(LOG_WARNING, "Can't send %u type frames with Jingle write\n",
 			frame->frametype);
 		return 0;
 	}
@@ -2145,7 +2145,7 @@ static int jingle_interpret_ice_udp_transport(struct jingle_session *session, ik
 		}
 
 		if ((sscanf(component, "%30u", &local_candidate.id) != 1) ||
-		    (sscanf(priority, "%30u", &local_candidate.priority) != 1) ||
+		    (sscanf(priority, "%30u", (unsigned *)&local_candidate.priority) != 1) ||
 		    (sscanf(port, "%30d", &real_port) != 1)) {
 			jingle_queue_hangup_with_cause(session, AST_CAUSE_PROTOCOL_ERROR);
 			ast_log(LOG_ERROR, "Invalid ICE-UDP candidate information received on session '%s'\n", session->sid);

@@ -291,7 +291,7 @@ static int stat_read(struct ast_channel *chan, const char *cmd, char *data,
 			strcpy(buf, "1");
 			break;
 		case 's':
-			snprintf(buf, len, "%d", (unsigned int) s.st_size);
+			snprintf(buf, len, "%u", (unsigned int) s.st_size);
 			break;
 		case 'f':
 			snprintf(buf, len, "%d", S_ISREG(s.st_mode) ? 1 : 0);
@@ -309,7 +309,7 @@ static int stat_read(struct ast_channel *chan, const char *cmd, char *data,
 			snprintf(buf, len, "%d", (int) s.st_ctime);
 			break;
 		case 'm':
-			snprintf(buf, len, "%o", (int) s.st_mode);
+			snprintf(buf, len, "%o", s.st_mode);
 			break;
 		}
 	}
@@ -699,7 +699,7 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 			if (fread(fbuf, 1, i + sizeof(fbuf) > flength ? flength - i : sizeof(fbuf), ff) < (i + sizeof(fbuf) > flength ? flength - i : sizeof(fbuf))) {
 				ast_log(LOG_ERROR, "Short read?!!\n");
 			}
-			ast_debug(3, "Appending first %" PRId64" bytes of fbuf=%s\n", i + sizeof(fbuf) > length_offset ? length_offset - i : sizeof(fbuf), fbuf);
+			ast_debug(3, "Appending first %" PRId64" bytes of fbuf=%s\n", (long)(i + sizeof(fbuf) > length_offset ? length_offset - i : sizeof(fbuf)), fbuf);
 			ast_str_append_substr(buf, len, fbuf, i + sizeof(fbuf) > length_offset ? length_offset - i : sizeof(fbuf));
 		}
 	} else if (length == 0) {

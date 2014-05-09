@@ -447,7 +447,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 						case 0x06: /* short dial number */
 						case 0x07: /* reserved */
 						default:   /* reserved */
-							ast_debug(2, "cid info:#1=%X\n", cid->rawdata[x]);
+							ast_debug(2, "cid info:#1=%X\n", (unsigned)cid->rawdata[x]);
 							break ;
 						}
 						x++;
@@ -463,7 +463,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 						case 0x09: /* private dial plan */
 						case 0x05: /* reserved */
 						default:   /* reserved */
-							ast_debug(2, "cid info:#2=%X\n", cid->rawdata[x]);
+							ast_debug(2, "cid info:#2=%X\n", (unsigned)cid->rawdata[x]);
 							break ;
 						}
 						x++;
@@ -503,7 +503,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 						case 0x07: /* reserved */
 						default:   /* reserved */
 							if (option_debug > 1)
-								ast_log(LOG_NOTICE, "did info:#1=%X\n", cid->rawdata[x]);
+								ast_log(LOG_NOTICE, "did info:#1=%X\n", (unsigned)cid->rawdata[x]);
 							break ;
 						}
 						x++;
@@ -519,7 +519,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, s
 						case 0x09: /* private dial plan */
 						case 0x05: /* reserved */
 						default:   /* reserved */
-							ast_debug(2, "did info:#2=%X\n", cid->rawdata[x]);
+							ast_debug(2, "did info:#2=%X\n", (unsigned)cid->rawdata[x]);
 							break ;
 						}
 						x++;

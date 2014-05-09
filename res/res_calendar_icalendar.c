@@ -246,7 +246,7 @@ static void icalendar_add_event(icalcomponent *comp, struct icaltime_span *span,
 			ast_string_field_set(event, uid, event->summary);
 		} else {
 			char tmp[100];
-			snprintf(tmp, sizeof(tmp), "%lu", event->start);
+			snprintf(tmp, sizeof(tmp), "%ld", event->start);
 			ast_string_field_set(event, uid, tmp);
 		}
 	}

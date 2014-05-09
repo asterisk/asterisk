@@ -383,7 +383,7 @@ static unsigned int parse_ie(char *data, unsigned int maxdatalen, unsigned char 
 	srclen--;
 
 	if (len > srclen) {
-		ast_log(LOG_WARNING, "ENUM parsing failed: Wanted %d characters, got %d\n", len, srclen);
+		ast_log(LOG_WARNING, "ENUM parsing failed: Wanted %u characters, got %u\n", len, srclen);
 		return -1;
 	}
 
@@ -661,7 +661,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		return -1;
 	}
 
-	ast_debug(2, "num='%s', tech='%s', suffix='%s', options='%s', record=%d\n", number, tech, suffix, options, record);
+	ast_debug(2, "num='%s', tech='%s', suffix='%s', options='%s', record=%u\n", number, tech, suffix, options, record);
 
 /*
   We don't need that any more, that "n" preceding the number has been replaced by a flag

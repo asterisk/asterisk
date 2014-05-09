@@ -320,7 +320,7 @@ static void *sorcery_config_open(const char *data)
 		char *name = strsep(&option, "="), *value = option;
 
 		if (!strcasecmp(name, "buckets")) {
-			if (sscanf(value, "%30d", &config->buckets) != 1) {
+			if (sscanf(value, "%30u", &config->buckets) != 1) {
 				ast_log(LOG_ERROR, "Unsupported bucket size of '%s' used for configuration file '%s', defaulting to '%d'\n",
 					value, filename, DEFAULT_OBJECT_BUCKETS);
 			}

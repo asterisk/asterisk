@@ -2115,17 +2115,17 @@ static void data_get_xml_add_child(struct ast_data *parent_data,
 			ast_xml_set_text(child_xml, node->payload.str);
 			break;
 		case AST_DATA_TIMESTAMP:
-			snprintf(node_content, sizeof(node_content), "%d",
+			snprintf(node_content, sizeof(node_content), "%u",
 				node->payload.uint);
 			ast_xml_set_text(child_xml, node_content);
 			break;
 		case AST_DATA_SECONDS:
-			snprintf(node_content, sizeof(node_content), "%d",
+			snprintf(node_content, sizeof(node_content), "%u",
 				node->payload.uint);
 			ast_xml_set_text(child_xml, node_content);
 			break;
 		case AST_DATA_MILLISECONDS:
-			snprintf(node_content, sizeof(node_content), "%d",
+			snprintf(node_content, sizeof(node_content), "%u",
 				node->payload.uint);
 			ast_xml_set_text(child_xml, node_content);
 			break;
@@ -2754,17 +2754,17 @@ static void data_result_print_cli_node(int fd, const struct ast_data *node, uint
 				node->name);
 		break;
 	case AST_DATA_TIMESTAMP:
-		ast_str_append(&output, 0, "%s%s: %d\n", ast_str_buffer(tabs),
+		ast_str_append(&output, 0, "%s%s: %u\n", ast_str_buffer(tabs),
 				node->name,
 				node->payload.uint);
 		break;
 	case AST_DATA_SECONDS:
-		ast_str_append(&output, 0, "%s%s: %d\n", ast_str_buffer(tabs),
+		ast_str_append(&output, 0, "%s%s: %u\n", ast_str_buffer(tabs),
 				node->name,
 				node->payload.uint);
 		break;
 	case AST_DATA_MILLISECONDS:
-		ast_str_append(&output, 0, "%s%s: %d\n", ast_str_buffer(tabs),
+		ast_str_append(&output, 0, "%s%s: %u\n", ast_str_buffer(tabs),
 				node->name,
 				node->payload.uint);
 		break;
@@ -2815,6 +2815,7 @@ static void data_result_print_cli_node(int fd, const struct ast_data *node, uint
  * \param[in] root The root node of the tree.
  * \param[in] depth Actual depth.
  */
+
 static void __data_result_print_cli(int fd, const struct ast_data *root, uint32_t depth)
 {
 	struct ao2_iterator iter;

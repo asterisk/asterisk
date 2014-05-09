@@ -75,7 +75,7 @@ static int try_firmware(char *s)
 	else
 		last = s;
 
-	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)ast_random());
+	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, ast_random());
 
 	if (stat(s, &stbuf) < 0) {
 		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));

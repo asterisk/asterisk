@@ -538,7 +538,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 				/* XXX lock e ? */
 				priority = NULL;
 				while ( !ret && (priority = ast_walk_extension_priorities(e, priority)) ) {
-					snprintf(buffer, sizeof(buffer), "%u", ast_get_extension_priority(priority));
+					snprintf(buffer, sizeof(buffer), "%d", ast_get_extension_priority(priority));
 					if (partial_match(buffer, a->word, len) && ++which > a->n) /* n-th match */
 						ret = strdup(buffer);
 				}

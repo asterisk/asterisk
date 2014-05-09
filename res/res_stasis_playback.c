@@ -632,7 +632,7 @@ enum stasis_playback_oper_results stasis_app_playback_operation(
 	ast_assert(playback->state >= 0 && playback->state < STASIS_PLAYBACK_STATE_MAX);
 
 	if (operation < 0 || operation >= STASIS_PLAYBACK_MEDIA_OP_MAX) {
-		ast_log(LOG_ERROR, "Invalid playback operation %d\n", operation);
+		ast_log(LOG_ERROR, "Invalid playback operation %u\n", operation);
 		return -1;
 	}
 
@@ -646,7 +646,7 @@ enum stasis_playback_oper_results stasis_app_playback_operation(
 			/* And, really, all operations should be valid during
 			 * playback */
 			ast_log(LOG_ERROR,
-				"Unhandled operation during playback: %d\n",
+				"Unhandled operation during playback: %u\n",
 				operation);
 			return STASIS_PLAYBACK_OPER_FAILED;
 		}

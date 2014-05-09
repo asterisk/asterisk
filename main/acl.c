@@ -658,7 +658,7 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 		parsed_addr = ast_strdupa(ast_sockaddr_stringify(&ha->addr));
 		parsed_mask = ast_strdupa(ast_sockaddr_stringify(&ha->netmask));
 
-		ast_debug(3, "%s/%s sense %d appended to ACL\n", parsed_addr, parsed_mask, ha->sense);
+		ast_debug(3, "%s/%s sense %u appended to ACL\n", parsed_addr, parsed_mask, ha->sense);
 	}
 
 	return ret;

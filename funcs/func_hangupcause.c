@@ -128,7 +128,7 @@ static int hangupcause_read(struct ast_channel *chan, const char *cmd, char *dat
 	AST_STANDARD_APP_ARGS(args, parms);
 	if (args.argc != 2) {
 		/* Must have two arguments. */
-		ast_log(LOG_WARNING, "The HANGUPCAUSE function must have 2 parameters, not %d\n", args.argc);
+		ast_log(LOG_WARNING, "The HANGUPCAUSE function must have 2 parameters, not %u\n", args.argc);
 		return -1;
 	}
 

@@ -346,7 +346,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 	/* Invalid type */
 	if (type >= AST_EVENT_TOTAL) {
 		ast_log(LOG_WARNING, "Someone tried to create an event of invalid "
-			"type '%d'!\n", type);
+			"type '%u'!\n", type);
 		return NULL;
 	}
 

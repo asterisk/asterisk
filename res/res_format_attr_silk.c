@@ -70,11 +70,11 @@ static void silk_sdp_generate(const struct ast_format_attr *format_attr, unsigne
 	struct silk_attr *attr = (struct silk_attr *) format_attr;
 
 	if ((attr->maxbitrate > 5000) && (attr->maxbitrate < 40000)) { 
-		ast_str_append(str, 0, "a=fmtp:%d maxaveragebitrate=%d\r\n", payload, attr->maxbitrate);
+		ast_str_append(str, 0, "a=fmtp:%u maxaveragebitrate=%u\r\n", payload, attr->maxbitrate);
 	}
 
-	ast_str_append(str, 0, "a=fmtp:%d usedtx=%d\r\n", payload, attr->dtx);
-	ast_str_append(str, 0, "a=fmtp:%d useinbandfec=%d\r\n", payload, attr->fec);
+	ast_str_append(str, 0, "a=fmtp:%u usedtx=%u\r\n", payload, attr->dtx);
+	ast_str_append(str, 0, "a=fmtp:%u useinbandfec=%u\r\n", payload, attr->fec);
 }
 
 static enum ast_format_cmp_res silk_cmp(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2)
@@ -152,7 +152,7 @@ static int silk_isset(const struct ast_format_attr *fattr, va_list ap)
 			}
 			break;
 		default:
-			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
 			return -1;
 		}
 	}
@@ -213,7 +213,7 @@ static void silk_set(struct ast_format_attr *fattr, va_list ap)
 			attr->packetloss_percentage = (va_arg(ap, int));
 			break;
 		default:
-			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
 		}
 	}
 }

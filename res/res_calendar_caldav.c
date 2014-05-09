@@ -202,7 +202,10 @@ static int caldav_write_event(struct ast_calendar_event *event)
 		for (x = 0; x < 8; x++) {
 			val[x] = ast_random();
 		}
-		ast_string_field_build(event, uid, "%04x%04x-%04x-%04x-%04x-%04x%04x%04x", val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
+		ast_string_field_build(event, uid, "%04x%04x-%04x-%04x-%04x-%04x%04x%04x",
+			(unsigned)val[0], (unsigned)val[1], (unsigned)val[2],
+			(unsigned)val[3], (unsigned)val[4], (unsigned)val[5],
+			(unsigned)val[6], (unsigned)val[7]);
 	}
 
 	calendar = icalcomponent_new(ICAL_VCALENDAR_COMPONENT);
@@ -401,7 +404,7 @@ static void caldav_add_event(icalcomponent *comp, struct icaltime_span *span, vo
 			ast_string_field_set(event, uid, event->summary);
 		} else {
 			char tmp[100];
-			snprintf(tmp, sizeof(tmp), "%lu", event->start);
+			snprintf(tmp, sizeof(tmp), "%ld", event->start);
 			ast_string_field_set(event, uid, tmp);
 		}
 	}

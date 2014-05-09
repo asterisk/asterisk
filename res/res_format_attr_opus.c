@@ -97,11 +97,11 @@ static void opus_sdp_generate(const struct ast_format_attr *format_attr, unsigne
 
 	/* FIXME should we only generate attributes that were explicitly set? */
 	ast_str_append(str, 0,
-				"a=fmtp:%d "
-					"maxplaybackrate=%d;"
-					"sprop-maxcapturerate=%d;"
-					"minptime=%d;"
-					"maxaveragebitrate=%d;"
+				"a=fmtp:%u "
+					"maxplaybackrate=%u;"
+					"sprop-maxcapturerate=%u;"
+					"minptime=%u;"
+					"maxaveragebitrate=%u;"
 					"stereo=%d;"
 					"sprop-stereo=%d;"
 					"cbr=%d;"
@@ -216,7 +216,7 @@ static int opus_isset(const struct ast_format_attr *fattr, va_list ap)
 			}
 			break;
 		default:
-			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
 			return -1;
 		}
 	}
@@ -284,7 +284,7 @@ static void opus_set(struct ast_format_attr *fattr, va_list ap)
 			attr->spropstereo = (va_arg(ap, int));
 			break;
 		default:
-			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
 		}
 	}
 }

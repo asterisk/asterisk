@@ -211,10 +211,10 @@ char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid)
 			*s = '\0';
 	} else {
 		for (x = 0; x < 5; x++) {
-			sprintf(s, "%02x:", eid->eid[x]);
+			sprintf(s, "%02x:", (unsigned)eid->eid[x]);
 			s += 3;
 		}
-		sprintf(s, "%02x", eid->eid[5]);
+		sprintf(s, "%02x", (unsigned)eid->eid[5]);
 	}
 	return os;
 }
@@ -246,7 +246,7 @@ void ast_set_default_eid(struct ast_eid *eid)
 			/* Try pciX#[1..N] */
 			for (i = 0; i < MAXIF; i++) {
 				memset(&ifr, 0, sizeof(ifr));
-				snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "pci%u#%u", x, i);
+				snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "pci%d#%u", x, i);
 				if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
 					break;
 				}

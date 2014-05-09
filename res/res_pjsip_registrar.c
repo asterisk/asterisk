@@ -452,7 +452,7 @@ static int rx_task(void *data)
 		/* Enforce the maximum number of contacts */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 403, NULL, NULL, NULL);
 		ast_sip_report_failed_acl(task_data->endpoint, task_data->rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
-		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %d\n",
+		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %u\n",
 				ast_sorcery_object_get_id(task_data->endpoint), ast_sorcery_object_get_id(task_data->aor), task_data->aor->max_contacts);
 		return PJ_TRUE;
 	}

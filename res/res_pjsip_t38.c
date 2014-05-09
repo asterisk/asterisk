@@ -131,7 +131,7 @@ static void t38_change_state(struct ast_sip_session *session, struct ast_sip_ses
 	}
 
 	session->t38state = new_state;
-	ast_debug(2, "T.38 state changed to '%d' from '%d' on channel '%s'\n", new_state, old_state, ast_channel_name(session->channel));
+	ast_debug(2, "T.38 state changed to '%u' from '%u' on channel '%s'\n", new_state, old_state, ast_channel_name(session->channel));
 
 	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &state->timer)) {
 		ast_debug(2, "Automatic T.38 rejection on channel '%s' terminated\n", ast_channel_name(session->channel));
@@ -695,10 +695,10 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	media->desc.port_count = 1;
 	media->desc.fmt[media->desc.fmt_count++] = STR_T38;
 
-	snprintf(tmp, sizeof(tmp), "%d", state->our_parms.version);
+	snprintf(tmp, sizeof(tmp), "%u", state->our_parms.version);
 	media->attr[media->attr_count++] = pjmedia_sdp_attr_create(pool, "T38FaxVersion", pj_cstr(&stmp, tmp));
 
-	snprintf(tmp, sizeof(tmp), "%d", t38_get_rate(state->our_parms.rate));
+	snprintf(tmp, sizeof(tmp), "%u", t38_get_rate(state->our_parms.rate));
 	media->attr[media->attr_count++] = pjmedia_sdp_attr_create(pool, "T38MaxBitRate", pj_cstr(&stmp, tmp));
 
 	if (state->our_parms.fill_bit_removal) {
@@ -722,7 +722,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		break;
 	}
 
-	snprintf(tmp, sizeof(tmp), "%d", ast_udptl_get_local_max_datagram(session_media->udptl));
+	snprintf(tmp, sizeof(tmp), "%u", ast_udptl_get_local_max_datagram(session_media->udptl));
 	media->attr[media->attr_count++] = pjmedia_sdp_attr_create(pool, "T38FaxMaxDatagram", pj_cstr(&stmp, tmp));
 
 	switch (ast_udptl_get_error_correction_scheme(session_media->udptl)) {

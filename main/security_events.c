@@ -969,7 +969,7 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 
 		if (req && !str) {
 			ast_log(LOG_WARNING, "Required IE '%d' for security event "
-					"type '%d' not present\n", ie_type->ie_type,
+					"type '%u' not present\n", ie_type->ie_type,
 					sec->event_type);
 			res = -1;
 			break;
@@ -995,7 +995,7 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 		uint32_t val;
 		val = *((const uint32_t *)(((const char *) sec) + ie_type->offset));
 
-		json_string = ast_json_stringf("%d", val);
+		json_string = ast_json_stringf("%u", val);
 		if (!json_string) {
 			res = -1;
 			break;
@@ -1014,7 +1014,7 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 
 		if (req && !addr->addr) {
 			ast_log(LOG_WARNING, "Required IE '%d' for security event "
-					"type '%d' not present\n", ie_type->ie_type,
+					"type '%u' not present\n", ie_type->ie_type,
 					sec->event_type);
 			res = -1;
 		}
@@ -1033,7 +1033,7 @@ static int add_json_object(struct ast_json *json, const struct ast_security_even
 
 		if (req && !tval) {
 			ast_log(LOG_WARNING, "Required IE '%d' for security event "
-					"type '%d' not present\n", ie_type->ie_type,
+					"type '%u' not present\n", ie_type->ie_type,
 					sec->event_type);
 			res = -1;
 		}
@@ -1082,7 +1082,7 @@ static struct ast_json *alloc_security_event_json_object(const struct ast_securi
 		return NULL;
 	}
 
-	json_temp = ast_json_stringf("%d", sec->version);
+	json_temp = ast_json_stringf("%u", sec->version);
 	if (!json_temp || ast_json_object_set(json_object, ast_event_get_ie_type_name(AST_EVENT_IE_EVENT_VERSION), json_temp)) {
 		return NULL;
 	}

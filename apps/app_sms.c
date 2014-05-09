@@ -782,7 +782,7 @@ static void sms_log(sms_t * h, char status)
 		unsigned char n;
 
 		if (h->mr >= 0) {
-			snprintf(mrs, sizeof(mrs), "%02X", h->mr);
+			snprintf(mrs, sizeof(mrs), "%02X", (unsigned)h->mr);
 		}
 		snprintf(line, sizeof(line), "%s %c%c%c%s %s %s %s ",
 			isodate(time(NULL), buf, sizeof(buf)),
@@ -999,7 +999,7 @@ static void sms_writefile(sms_t * h)
 	snprintf(fn, sizeof(fn), "%s/sms/%s", ast_config_AST_SPOOL_DIR, h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
 	ast_mkdir(fn, 0777);                    /* ensure it exists */
 	ast_copy_string(fn2, fn, sizeof(fn2));
-	snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%d", h->queue, isodate(h->scts.tv_sec, buf, sizeof(buf)), seq++);
+	snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%u", h->queue, isodate(h->scts.tv_sec, buf, sizeof(buf)), seq++);
 	snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/.%s", fn2 + strlen(fn) + 1);
 	if ((o = fopen(fn, "w")) == NULL) {
 		return;
@@ -1015,7 +1015,7 @@ static void sms_writefile(sms_t * h)
 		unsigned int p;
 		fprintf(o, "udh#");
 		for (p = 0; p < h->udhl; p++) {
-			fprintf(o, "%02X", h->udh[p]);
+			fprintf(o, "%02X", (unsigned)h->udh[p]);
 		}
 		fprintf(o, "\n");
 	}
@@ -1048,13 +1048,13 @@ static void sms_writefile(sms_t * h)
 			if (p == h->udl) {              /* can write in ucs-1 hex */
 				fprintf(o, "ud#");
 				for (p = 0; p < h->udl; p++) {
-					fprintf(o, "%02X", h->ud[p]);
+					fprintf(o, "%02X", (unsigned)h->ud[p]);
 				}
 				fprintf(o, "\n");
 			} else {                        /* write in UCS-2 */
 				fprintf(o, "ud##");
 				for (p = 0; p < h->udl; p++) {
-					fprintf(o, "%04X", h->ud[p]);
+					fprintf(o, "%04X", (unsigned)h->ud[p]);
 				}
 				fprintf(o, "\n");
 			}
@@ -1071,7 +1071,7 @@ static void sms_writefile(sms_t * h)
 		fprintf(o, "dcs=%d\n", h->dcs);
 	}
 	if (h->vp) {
-		fprintf(o, "vp=%d\n", h->vp);
+		fprintf(o, "vp=%u\n", h->vp);
 	}
 	if (h->srr) {
 		fprintf(o, "srr=1\n");
@@ -1139,7 +1139,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 				return 0xFF;		  /* duh! */
 			}
 		} else {
-			ast_log(LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
+			ast_log(LOG_WARNING, "Unknown message type %02X\n", (unsigned)h->imsg[2]);
 			return 0xFF;
 		}
 	} else {                                /* client */
@@ -1162,7 +1162,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 				return 0xFF;                /* duh! */
 			}
 		} else {
-			ast_log(LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
+			ast_log(LOG_WARNING, "Unknown message type %02X\n", (unsigned)h->imsg[2]);
 			return 0xFF;
 		}
 	}
@@ -1244,7 +1244,7 @@ static char *sms_hexdump(unsigned char buf[], int size, char *s /* destination *
 	int f;
 
 	for (p = s, f = 0; f < size && f < MAX_DEBUG_LEN; f++, p += 3) {
-		sprintf(p, "%02X ", (unsigned char)buf[f]);
+		sprintf(p, "%02X ", (unsigned)buf[f]);
 	}
 	return(s);
 }
@@ -1270,7 +1270,7 @@ static int sms_handleincoming_proto2(sms_t *h)
 		msgsz += (h->imsg[f++] * 256);
 		switch (msg) {
 		case 0x13:                          /* Body */
-			ast_verb(3, "SMS-P2 Body#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_verb(3, "SMS-P2 Body#%02X=[%.*s]\n", (unsigned)msg, msgsz, &h->imsg[f]);
 			if (msgsz >= sizeof(h->ud)) {
 				msgsz = sizeof(h->ud) - 1;
 			}
@@ -1288,27 +1288,27 @@ static int sms_handleincoming_proto2(sms_t *h)
 			tm.tm_min = ( (h->imsg[f + 6] * 10) + h->imsg[f + 7] );
 			tm.tm_sec = 0;
 			h->scts = ast_mktime(&tm, NULL);
-			ast_verb(3, "SMS-P2 Date#%02X=%02d/%02d %02d:%02d\n", msg, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
+			ast_verb(3, "SMS-P2 Date#%02X=%02d/%02d %02d:%02d\n", (unsigned)msg, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
 			break;
 		case 0x15:                          /* Calling line (from SMSC) */
 			if (msgsz >= 20) {
 				msgsz = 20 - 1;
 			}
-			ast_verb(3, "SMS-P2 Origin#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_verb(3, "SMS-P2 Origin#%02X=[%.*s]\n", (unsigned)msg, msgsz, &h->imsg[f]);
 			ast_copy_string(h->oa, (char *)(&h->imsg[f]), msgsz + 1);
 			break;
 		case 0x18:                          /* Destination(from TE/phone) */
 			if (msgsz >= 20) {
 				msgsz = 20 - 1;
 			}
-			ast_verb(3, "SMS-P2 Destination#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_verb(3, "SMS-P2 Destination#%02X=[%.*s]\n", (unsigned)msg, msgsz, &h->imsg[f]);
 			ast_copy_string(h->da, (char *)(&h->imsg[f]), msgsz + 1);
 			break;
 		case 0x1C:                          /* Notify */
-			ast_verb(3, "SMS-P2 Notify#%02X=%s\n", msg, sms_hexdump(&h->imsg[f], 3, debug_buf));
+			ast_verb(3, "SMS-P2 Notify#%02X=%s\n", (unsigned)msg, sms_hexdump(&h->imsg[f], 3, debug_buf));
 			break;
 		default:
-			ast_verb(3, "SMS-P2 Par#%02X [%d]: %s\n", msg, msgsz, sms_hexdump(&h->imsg[f], msgsz, debug_buf));
+			ast_verb(3, "SMS-P2 Par#%02X [%d]: %s\n", (unsigned)msg, msgsz, sms_hexdump(&h->imsg[f], msgsz, debug_buf));
 			break;
 		}
 		f+=msgsz;                           /* Skip to next */
@@ -1482,7 +1482,7 @@ static void sms_debug (int dir, sms_t *h)
 	int n = (dir == DIR_RX) ? h->ibytep : msg[1] + 2;
 	int q = 0;
 	while (q < n && q < 30) {
-		sprintf(p, " %02X", msg[q++]);
+		sprintf(p, " %02X", (unsigned)msg[q++]);
 		p += 3;
 	}
 	if (q < n) {
@@ -1892,7 +1892,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(sms_options, &flags, sms_opts, sms_args.options);
 	}
 
-	ast_verb(1, "sms argc %d queue <%s> opts <%s> addr <%s> body <%s>\n",
+	ast_verb(1, "sms argc %u queue <%s> opts <%s> addr <%s> body <%s>\n",
 		sms_args.argc, S_OR(sms_args.queue, ""),
 		S_OR(sms_args.options, ""),
 		S_OR(sms_args.addr, ""),

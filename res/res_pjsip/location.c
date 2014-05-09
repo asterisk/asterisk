@@ -229,7 +229,7 @@ static int expiration_str2struct(const struct aco_option *opt, struct ast_variab
 static int expiration_struct2str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_contact *contact = obj;
-	return (ast_asprintf(buf, "%lu", contact->expiration_time.tv_sec) < 0) ? -1 : 0;
+	return (ast_asprintf(buf, "%ld", contact->expiration_time.tv_sec) < 0) ? -1 : 0;
 }
 
 /*! \brief Helper function which validates a permanent contact */
@@ -765,7 +765,7 @@ static int cli_aor_print_body(void *obj, void *arg, int flags)
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	flexwidth = CLI_LAST_TABSTOP - indent - 12;
 
-	ast_str_append(&context->output_buffer, 0, "%*s:  %-*.*s %12d\n",
+	ast_str_append(&context->output_buffer, 0, "%*s:  %-*.*s %12u\n",
 		indent,
 		"Aor",
 		flexwidth, flexwidth,

@@ -1811,7 +1811,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 		aji_handle_iq(client, node);
 		break;
 	default:
-		ast_debug(1, "JABBER: I don't know anything about paktype '%d'\n", pak->type);
+		ast_debug(1, "JABBER: I don't know anything about paktype '%u'\n", pak->type);
 		break;
 	}
 
@@ -2539,35 +2539,35 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	}
 	switch (pak->subtype) {
 	case IKS_TYPE_AVAILABLE:
-		ast_debug(3, "JABBER: I am available ^_* %i\n", pak->subtype);
+		ast_debug(3, "JABBER: I am available ^_* %u\n", pak->subtype);
 		break;
 	case IKS_TYPE_UNAVAILABLE:
-		ast_debug(3, "JABBER: I am unavailable ^_* %i\n", pak->subtype);
+		ast_debug(3, "JABBER: I am unavailable ^_* %u\n", pak->subtype);
 		break;
 	default:
-		ast_debug(3, "JABBER: Ohh sexy and the wrong type: %i\n", pak->subtype);
+		ast_debug(3, "JABBER: Ohh sexy and the wrong type: %u\n", pak->subtype);
 	}
 	switch (pak->show) {
 	case IKS_SHOW_UNAVAILABLE:
-		ast_debug(3, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_debug(3, "JABBER: type: %u subtype %u\n", pak->subtype, pak->show);
 		break;
 	case IKS_SHOW_AVAILABLE:
 		ast_debug(3, "JABBER: type is available\n");
 		break;
 	case IKS_SHOW_CHAT:
-		ast_debug(3, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_debug(3, "JABBER: type: %u subtype %u\n", pak->subtype, pak->show);
 		break;
 	case IKS_SHOW_AWAY:
 		ast_debug(3, "JABBER: type is away\n");
 		break;
 	case IKS_SHOW_XA:
-		ast_debug(3, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_debug(3, "JABBER: type: %u subtype %u\n", pak->subtype, pak->show);
 		break;
 	case IKS_SHOW_DND:
-		ast_debug(3, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_debug(3, "JABBER: type: %u subtype %u\n", pak->subtype, pak->show);
 		break;
 	default:
-		ast_debug(3, "JABBER: Kinky! how did that happen %i\n", pak->show);
+		ast_debug(3, "JABBER: Kinky! how did that happen %u\n", pak->show);
 	}
 
 	if (found) {
@@ -2578,7 +2578,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 			found->priority, S_OR(found->description, ""));
 	} else {
 		manager_event(EVENT_FLAG_USER, "JabberStatus",
-			"Account: %s\r\nJID: %s\r\nStatus: %d\r\n",
+			"Account: %s\r\nJID: %s\r\nStatus: %u\r\n",
 			client->name, pak->from->partial, pak->show ? pak->show : IKS_SHOW_UNAVAILABLE);
 	}
 }
@@ -3344,7 +3344,7 @@ static int aji_handle_pubsub_event(void *data, ikspak *pak)
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
 		if ((cachable_str = iks_find_attrib(item_content, "cachable"))) {
-			sscanf(cachable_str, "%30d", &cachable);
+			sscanf(cachable_str, "%30u", &cachable);
 		}
 		device_state = iks_find_cdata(item, "state");
 		ast_publish_device_state_full(item_id,

@@ -260,7 +260,7 @@ static void h264_format_attr_sdp_generate(const struct ast_format_attr *format_a
 			ast_base64encode(pps, ppsdecoded, format_attr->format_attr[H264_ATTR_KEY_PPS_LEN], H264_MAX_SPS_PPS_SIZE);
 
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%d sprop-parameter-sets=%s,%s", payload, sps, pps);
+				ast_str_append(str, 0, "a=fmtp:%u sprop-parameter-sets=%s,%s", payload, sps, pps);
 				added = 1;
 			} else {
 				ast_str_append(str, 0, ";sprop-parameter-sets=%s,%s", sps, pps);
@@ -268,7 +268,7 @@ static void h264_format_attr_sdp_generate(const struct ast_format_attr *format_a
 		} else if (i == H264_ATTR_KEY_PROFILE_IDC && format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC] &&
 		    format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP] && format_attr->format_attr[H264_ATTR_KEY_LEVEL]) {
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%d profile-level-id=%X%X%X", payload, format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
+				ast_str_append(str, 0, "a=fmtp:%u profile-level-id=%X%X%X", payload, format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
 					       format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP], format_attr->format_attr[H264_ATTR_KEY_LEVEL]);
 				added = 1;
 			} else {
@@ -277,7 +277,7 @@ static void h264_format_attr_sdp_generate(const struct ast_format_attr *format_a
 			}
 		} else if ((name = h264_attr_key_to_str(i)) && h264_attr_key_addable(format_attr, i)) {
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%d %s=%u", payload, name, format_attr->format_attr[i]);
+				ast_str_append(str, 0, "a=fmtp:%u %s=%u", payload, name, format_attr->format_attr[i]);
 				added = 1;
 			} else {
 				ast_str_append(str, 0, ";%s=%u", name, format_attr->format_attr[i]);

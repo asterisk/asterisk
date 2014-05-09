@@ -211,7 +211,7 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 		if (!(argtype & ARG_NUMBER))
 			return -1;
 		/* Octal value */
-		if (sscanf(src, "%30o", (int *)out) != 1)
+		if (sscanf(src, "%30o", (unsigned *)out) != 1)
 			return -1;
 		if (argtype & ARG_STRING) {
 			/* Convert */

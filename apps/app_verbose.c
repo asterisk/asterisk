@@ -78,7 +78,7 @@ static char *app_log = "Log";
 
 static int verbose_exec(struct ast_channel *chan, const char *data)
 {
-	int vsize;
+	unsigned int vsize;
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(level);

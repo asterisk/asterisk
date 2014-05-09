@@ -657,10 +657,10 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	ours1->port = ntohs(sin.sin_port);
 	ours1->priority = 1678246398;
 	ours1->protocol = AJI_PROTOCOL_UDP;
-	snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
+	snprintf(pass, sizeof(pass), "%08lx%08lx", (unsigned long)ast_random(), (unsigned long)ast_random());
 	ast_copy_string(ours1->password, pass, sizeof(ours1->password));
 	ours1->type = AJI_CONNECT_HOST;
-	snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
+	snprintf(user, sizeof(user), "%08lx%08lx", (unsigned long)ast_random(), (unsigned long)ast_random());
 	ast_copy_string(ours1->ufrag, user, sizeof(ours1->ufrag));
 	p->ourcandidates = ours1;
 
@@ -677,11 +677,11 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 		ours2->port = ntohs(sin.sin_port);
 		ours2->priority = 1678246397;
 		ours2->protocol = AJI_PROTOCOL_UDP;
-		snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
+		snprintf(pass, sizeof(pass), "%08lx%08lx", (unsigned long)ast_random(), (unsigned long)ast_random());
 		ast_copy_string(ours2->password, pass, sizeof(ours2->password));
 		ours2->type = AJI_CONNECT_PRFLX;
 
-		snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
+		snprintf(user, sizeof(user), "%08lx%08lx", (unsigned long)ast_random(), (unsigned long)ast_random());
 		ast_copy_string(ours2->ufrag, user, sizeof(ours2->ufrag));
 		ours1->next = ours2;
 		ours2 = NULL;
@@ -814,7 +814,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 		ast_copy_string(tmp->sid, sid, sizeof(tmp->sid));
 		ast_copy_string(tmp->them, from, sizeof(tmp->them));
 	} else {
-		snprintf(tmp->sid, sizeof(tmp->sid), "%08lx%08lx", ast_random(), ast_random());
+		snprintf(tmp->sid, sizeof(tmp->sid), "%08lx%08lx", (unsigned long)ast_random(), (unsigned long)ast_random());
 		ast_copy_string(tmp->them, idroster, sizeof(tmp->them));
 		tmp->initiator = 1;
 	}
@@ -1326,7 +1326,7 @@ static int jingle_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 		break;
 	default:
-		ast_log(LOG_WARNING, "Can't send %d type frames with Jingle write\n",
+		ast_log(LOG_WARNING, "Can't send %u type frames with Jingle write\n",
 				frame->frametype);
 		return 0;
 	}

@@ -333,7 +333,7 @@ static int printdigest(const unsigned char *d)
 	char buf[256]; /* large enough so we don't have to worry */
 
 	for (pos = 0, x = 0; x < 16; x++)
-		pos += sprintf(buf + pos, " %02x", *d++);
+		pos += sprintf(buf + pos, " %02x", (unsigned)*d++);
 
 	ast_debug(1, "Unexpected signature:%s\n", buf);
 
@@ -802,7 +802,7 @@ static void publish_reload_message(const char *name, enum ast_module_reload_resu
 	RAII_VAR(struct ast_json *, event_object, NULL, ast_json_unref);
 	char res_buffer[8];
 
-	snprintf(res_buffer, sizeof(res_buffer), "%d", result);
+	snprintf(res_buffer, sizeof(res_buffer), "%u", result);
 	event_object = ast_json_pack("{s: s, s: s}",
 			"Module", S_OR(name, "All"),
 			"Status", res_buffer);
@@ -1320,7 +1320,7 @@ int load_modules(unsigned int preload_only)
 		load_count++;
 
 	if (load_count)
-		ast_log(LOG_NOTICE, "%d modules will be loaded.\n", load_count);
+		ast_log(LOG_NOTICE, "%u modules will be loaded.\n", load_count);
 
 	/* first, load only modules that provide global symbols */
 	if ((res = load_resource_list(&load_order, 1, &modulecount)) < 0) {

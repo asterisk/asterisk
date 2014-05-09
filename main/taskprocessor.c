@@ -444,7 +444,7 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		qsize = p->tps_queue_size;
 		maxqsize = p->stats->max_qsize;
 		processed = p->stats->_tasks_processed_count;
-		ast_cli(a->fd, "\n%24s   %17ld %12ld %12ld", name, processed, qsize, maxqsize);
+		ast_cli(a->fd, "\n%24s   %17lu %12lu %12lu", name, processed, qsize, maxqsize);
 		ao2_ref(p, -1);
 	}
 	ao2_iterator_destroy(&i);

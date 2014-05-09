@@ -757,7 +757,7 @@ void ast_frame_type2str(enum ast_frame_type frame_type, char *ftype, size_t len)
 		ast_copy_string(ftype, "Video", len);
 		break;
 	default:
-		snprintf(ftype, len, "Unknown Frametype '%d'", frame_type);
+		snprintf(ftype, len, "Unknown Frametype '%u'", frame_type);
 		break;
 	}
 }
@@ -798,7 +798,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 	ast_frame_subclass2str(f, subclass, sizeof(subclass), moreinfo, sizeof(moreinfo));
 
 	if (!ast_strlen_zero(moreinfo))
-		ast_verb(-1, "%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",
+		ast_verb(-1, "%s [ TYPE: %s (%u) SUBCLASS: %s (%d) '%s' ] [%s]\n",
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
 			    f->frametype,
@@ -807,7 +807,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			    term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
 			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 	else
-		ast_verb(-1, "%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",
+		ast_verb(-1, "%s [ TYPE: %s (%u) SUBCLASS: %s (%d) ] [%s]\n",
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
 			    f->frametype,
@@ -900,7 +900,7 @@ static int g723_len(unsigned char buf)
 		return 20;
 		break;
 	default:
-		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", type);
+		ast_log(LOG_WARNING, "Badly encoded frame (%u)\n", type);
 	}
 	return -1;
 }

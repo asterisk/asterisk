@@ -2827,7 +2827,7 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, co
 {
 	if (argc == 2) {
 		/* no argument: supply info on the current channel */
-		ast_agi_send(agi->fd, chan, "200 result=%d\n", ast_channel_state(chan));
+		ast_agi_send(agi->fd, chan, "200 result=%u\n", ast_channel_state(chan));
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
 		RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -2836,7 +2836,7 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, co
 		if ((msg = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(), argv[2]))) {
 			struct ast_channel_snapshot *snapshot = stasis_message_data(msg);
 
-			ast_agi_send(agi->fd, chan, "200 result=%d\n", snapshot->state);
+			ast_agi_send(agi->fd, chan, "200 result=%u\n", snapshot->state);
 			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */

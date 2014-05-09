@@ -432,9 +432,9 @@ static int channel_read_rtp(struct ast_channel *chan, const char *type, const ch
 	} else if (!strcmp(type, "direct")) {
 		ast_copy_string(buf, ast_sockaddr_stringify(&media->direct_media_addr), buflen);
 	} else if (!strcmp(type, "secure")) {
-		snprintf(buf, buflen, "%u", media->srtp ? 1 : 0);
+		snprintf(buf, buflen, "%d", media->srtp ? 1 : 0);
 	} else if (!strcmp(type, "hold")) {
-		snprintf(buf, buflen, "%u", media->held ? 1 : 0);
+		snprintf(buf, buflen, "%d", media->held ? 1 : 0);
 	} else {
 		ast_log(AST_LOG_WARNING, "Unknown type field '%s' specified for 'rtp' information\n", type);
 		return -1;
@@ -580,7 +580,7 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 	dlg = channel->session->inv_session->dlg;
 
 	if (!strcmp(type, "secure")) {
-		snprintf(buf, buflen, "%u", dlg->secure ? 1 : 0);
+		snprintf(buf, buflen, "%d", dlg->secure ? 1 : 0);
 	} else if (!strcmp(type, "target_uri")) {
 		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, dlg->target, buf, buflen);
 		buf_copy = ast_strdupa(buf);

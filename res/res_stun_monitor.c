@@ -370,7 +370,7 @@ static void _stun_show_status(int fd)
 {
 	const char *status;
 
-#define DATALN "%-25s %-5d %-7d %-8d %-7s %-16s %-d\n"
+#define DATALN "%-25s %-5u %-7u %-8d %-7s %-16s %-d\n"
 #define HEADER "%-25s %-5s %-7s %-8s %-7s %-16s %-s\n"
 
 	/*! we only have one stun server, but start to play well with more */
