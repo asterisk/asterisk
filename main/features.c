@@ -2776,7 +2776,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 				if (atxferloopdelay) {
 					/* Transfer failed, sleeping */
-					ast_debug(1, "Sleeping for %d ms before retrying atxfer.\n",
+					ast_debug(1, "Sleeping for %u ms before retrying atxfer.\n",
 						atxferloopdelay);
 					ast_safe_sleep(transferee, atxferloopdelay);
 					if (ast_check_hangup(transferee)) {
@@ -3403,7 +3403,7 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 
 	snprintf(dynamic_features_buf, sizeof(dynamic_features_buf), "%s%s%s", S_OR(chan_dynamic_features, ""), chan_dynamic_features && peer_dynamic_features ? "#" : "", S_OR(peer_dynamic_features,""));
 
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", chan->name, peer->name, code, sense, features.flags, dynamic_features_buf);
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%u, dynamic=%s\n", chan->name, peer->name, code, sense, features.flags, dynamic_features_buf);
 
 	return feature_interpret_helper(chan, peer, config, code, sense, dynamic_features_buf, &features, FEATURE_INTERPRET_DO, &feature);
 }
@@ -3813,7 +3813,7 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
        ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
                        chan->name, chan->appl, chan->data, chan->context, chan->exten, chan->priority);
        ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
-                       chan->accountcode, chan->dialcontext, chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
+                       chan->accountcode, chan->dialcontext, (unsigned)chan->amaflags, chan->macrocontext, chan->macroexten, chan->macropriority);
        ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
                        chan->masq, chan->masqr,
                        chan->_bridge, chan->uniqueid, chan->linkedid);
@@ -5138,7 +5138,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 	struct ast_context *con;
 	char *parse;
 	const char *pl_name;
-	int park = 0;
+	unsigned int park = 0;
 	struct ast_bridge_config config;
 	struct ast_parkinglot *parkinglot;
 	AST_DECLARE_APP_ARGS(app_args,
@@ -5321,7 +5321,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		}
 		/* This runs sorta backwards, since we give the incoming channel control, as if it
 		   were the person called. */
-		ast_verb(3, "Channel %s connected to parked call %d\n", chan->name, park);
+		ast_verb(3, "Channel %s connected to parked call %u\n", chan->name, park);
 
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
 		ast_cdr_setdestchan(chan->cdr, peer->name);
@@ -5373,7 +5373,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 			ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark",
 				chan->name);
 		}
-		ast_verb(3, "Channel %s tried to retrieve nonexistent parked call %d\n",
+		ast_verb(3, "Channel %s tried to retrieve nonexistent parked call %u\n",
 			chan->name, park);
 		res = -1;
 	}

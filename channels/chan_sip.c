@@ -757,7 +757,7 @@ static int regobjs = 0;       /*!< Registry objects */
 /* }@ */
 
 static struct ast_flags global_flags[3] = {{0}};  /*!< global SIP_ flags */
-static int global_t38_maxdatagram;                /*!< global T.38 FaxMaxDatagram override */
+static unsigned int global_t38_maxdatagram;                /*!< global T.38 FaxMaxDatagram override */
 
 static struct ast_event_sub *network_change_event_subscription; /*!< subscription id for network change events */
 static int network_change_event_sched_id = -1;
@@ -3058,7 +3058,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 				}
 				break;
 			default:
-				ast_log(LOG_ERROR, "Unknown tcptls thread alert '%d'\n", alert);
+				ast_log(LOG_ERROR, "Unknown tcptls thread alert '%u'\n", alert);
 			}
 		}
 	}
@@ -3304,7 +3304,7 @@ void dialog_unlink_all(struct sip_pvt *dialog)
 
 void *registry_unref(struct sip_registry *reg, char *tag)
 {
-	ast_debug(3, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount - 1);
+	ast_debug(3, "SIP Registry %s: refcount now %u\n", reg->hostname, reg->refcount - 1);
 	ASTOBJ_UNREF(reg, sip_registry_destroy);
 	return NULL;
 }
@@ -3312,7 +3312,7 @@ void *registry_unref(struct sip_registry *reg, char *tag)
 /*! \brief Add object reference to SIP registry */
 static struct sip_registry *registry_addref(struct sip_registry *reg, char *tag)
 {
-	ast_debug(3, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount + 1);
+	ast_debug(3, "SIP Registry %s: refcount now %u\n", reg->hostname, reg->refcount + 1);
 	return ASTOBJ_REF(reg);	/* Add pointer to registry in packet */
 }
 
@@ -3716,7 +3716,7 @@ static void build_via(struct sip_pvt *p)
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/%s %s;branch=z9hG4bK%08x%s",
 		 get_transport_pvt(p),
 		 ast_sockaddr_stringify_remote(&p->ourip),
-		 (int) p->branch, rport);
+		 (unsigned)p->branch, rport);
 }
 
 /*! \brief NAT fix - decide which IP address to use for Asterisk server?
@@ -4074,7 +4074,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, uint32_t seqno, in
 	struct sip_pkt *pkt = NULL;
 	int siptimer_a = DEFAULT_RETRANS;
 	int xmitres = 0;
-	int respid;
+	unsigned respid;
 
 	if (sipmethod == SIP_INVITE) {
 		/* Note this is a pending invite */
@@ -4791,7 +4791,7 @@ static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data
 	ast_string_field_build(p, url, "<%s>;mode=active", data);
 
 	if (sip_debug_test_pvt(p))
-		ast_debug(1, "Send URL %s, state = %d!\n", data, chan->_state);
+		ast_debug(1, "Send URL %s, state = %u!\n", data, chan->_state);
 
 	switch (chan->_state) {
 	case AST_STATE_RING:
@@ -4808,7 +4808,7 @@ static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data
 		}	
 		break;
 	default:
-		ast_log(LOG_WARNING, "Don't know how to send URI when state is %d!\n", chan->_state);
+		ast_log(LOG_WARNING, "Don't know how to send URI when state is %u!\n", chan->_state);
 	}
 
 	return 0;
@@ -5491,7 +5491,7 @@ static void change_t38_state(struct sip_pvt *p, int state)
 		return;
 
 	p->t38.state = state;
-	ast_debug(2, "T38 state changed to %d on channel %s\n", p->t38.state, chan ? chan->name : "<none>");
+	ast_debug(2, "T38 state changed to %u on channel %s\n", p->t38.state, chan ? chan->name : "<none>");
 
 	/* If no channel was provided we can't send off a control frame */
 	if (!chan)
@@ -6997,7 +6997,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 		break;
 	default:
-		ast_log(LOG_WARNING, "Can't send %d type frames with SIP write\n", frame->frametype);
+		ast_log(LOG_WARNING, "Can't send %u type frames with SIP write\n", frame->frametype);
 		return 0;
 	}
 
@@ -7481,7 +7481,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 		sip_pvt_unlock(i);
 		/* Don't hold a sip pvt lock while we allocate a channel */
-		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "SIP/%s-%08x", my_name, ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, linkedid, i->amaflags, "SIP/%s-%08x", my_name, (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
 	}
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
@@ -7857,7 +7857,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 				ast_verbose("%c", (arr[i] > ' ' && arr[i] < '}') ? arr[i] : '.');
 			ast_verbose(" -> ");
 			for (i=0; i < f->datalen; i++)
-				ast_verbose("%02X ", arr[i]);
+				ast_verbose("%02X ", (unsigned)arr[i]);
 			ast_verbose("\n");
 		}
 		break;
@@ -7976,7 +7976,7 @@ static char *generate_random_string(char *buf, size_t size)
 
 	for (x=0; x<4; x++)
 		val[x] = ast_random();
-	snprintf(buf, size, "%08lx%08lx%08lx%08lx", val[0], val[1], val[2], val[3]);
+	snprintf(buf, size, "%08lx%08lx%08lx%08lx", (unsigned long)val[0], (unsigned long)val[1], (unsigned long)val[2], (unsigned long)val[3]);
 
 	return buf;
 }
@@ -8068,13 +8068,13 @@ static void build_callid_registry(struct sip_registry *reg, const struct ast_soc
 /*! \brief Build SIP From tag value for REGISTER */
 static void build_localtag_registry(struct sip_registry *reg)
 {
-	ast_string_field_build(reg, localtag, "as%08lx", ast_random());
+	ast_string_field_build(reg, localtag, "as%08lx", (unsigned long)ast_random());
 }
 
 /*! \brief Make our SIP dialog tag */
 static void make_our_tag(struct sip_pvt *pvt)
 {
-	ast_string_field_build(pvt, tag, "as%08lx", ast_random());
+	ast_string_field_build(pvt, tag, "as%08lx", (unsigned long)ast_random());
 }
 
 /*! \brief Allocate Session-Timers struct w/in dialog */
@@ -9159,8 +9159,8 @@ static int get_ip_and_port_from_sdp(struct sip_request *req, const enum media_ty
 	const char *c;
 	int miterator = req->sdp_start;
 	int citerator = req->sdp_start;
-	int x = 0;
-	int numberofports;
+	unsigned int x = 0;
+	unsigned int numberofports;
 	int len;
 	int af;
 	char proto[4], host[258] = ""; /*Initialize to empty so we will know if we have any input */
@@ -9265,7 +9265,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int newnoncodeccapability;
 
 	const char *codecs;
-	int codec;
+	unsigned int codec;
 
 	/* SRTP */
 	int secure_audio = FALSE;
@@ -9273,7 +9273,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	/* Others */
 	int sendonly = -1;
-	int numberofports;
+	unsigned int numberofports;
 	int numberofmediastreams = 0;
 	int last_rtpmap_codec = 0;
 	int red_data_pt[10];		/* For T.140 RED */
@@ -9360,7 +9360,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		int text = FALSE;
 		int processed_crypto = FALSE;
 		char protocol[18] = {0,};
-		int x;
+		unsigned int x;
 
 		numberofports = 0;
 		len = -1;
@@ -9380,7 +9380,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 				/* Check number of ports offered for stream */
 				if (numberofports > 1) {
-					ast_log(LOG_WARNING, "%d ports offered for audio media, not supported by Asterisk. Will try anyway...\n", numberofports);
+					ast_log(LOG_WARNING, "%u ports offered for audio media, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
 				if (!strcmp(protocol, "SAVP")) {
@@ -9408,7 +9408,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						return -1;
 					}
 					if (debug) {
-						ast_verbose("Found RTP audio format %d\n", codec);
+						ast_verbose("Found RTP audio format %u\n", codec);
 					}
 
 					ast_rtp_codecs_payloads_set_m_type(&newaudiortp, NULL, codec);
@@ -9429,7 +9429,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 				/* Check number of ports offered for stream */
 				if (numberofports > 1) {
-					ast_log(LOG_WARNING, "%d ports offered for video media, not supported by Asterisk. Will try anyway...\n", numberofports);
+					ast_log(LOG_WARNING, "%u ports offered for video media, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
 				if (!strcmp(protocol, "SAVP")) {
@@ -9458,7 +9458,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						return -1;
 					}
 					if (debug) {
-						ast_verbose("Found RTP video format %d\n", codec);
+						ast_verbose("Found RTP video format %u\n", codec);
 					}
 					ast_rtp_codecs_payloads_set_m_type(&newvideortp, NULL, codec);
 				}
@@ -9478,7 +9478,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 				/* Check number of ports offered for stream */
 				if (numberofports > 1) {
-					ast_log(LOG_WARNING, "%d ports offered for text media, not supported by Asterisk. Will try anyway...\n", numberofports);
+					ast_log(LOG_WARNING, "%u ports offered for text media, not supported by Asterisk. Will try anyway...\n", numberofports);
 				}
 
 				if (p->offered_media[SDP_TEXT].order_offered) {
@@ -9500,7 +9500,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						return -1;
 					}
 					if (debug) {
-						ast_verbose("Found RTP text format %d\n", codec);
+						ast_verbose("Found RTP text format %u\n", codec);
 					}
 					ast_rtp_codecs_payloads_set_m_type(&newtextrtp, NULL, codec);
 				}
@@ -10046,7 +10046,7 @@ static int process_sdp_a_sendonly(const char *a, int *sendonly)
 static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newaudiortp, int *last_rtpmap_codec)
 {
 	int found = FALSE;
-	int codec;
+	unsigned int codec;
 	char mimeSubtype[128];
 	char fmtp_string[64];
 	unsigned int sample_rate;
@@ -10082,18 +10082,18 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 			if (!(ast_rtp_codecs_payloads_set_rtpmap_type_rate(newaudiortp, NULL, codec, "audio", mimeSubtype,
 			    ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0, sample_rate))) {
 				if (debug)
-					ast_verbose("Found audio description format %s for ID %d\n", mimeSubtype, codec);
+					ast_verbose("Found audio description format %s for ID %u\n", mimeSubtype, codec);
 				//found_rtpmap_codecs[last_rtpmap_codec] = codec;
 				(*last_rtpmap_codec)++;
 				found = TRUE;
 			} else {
 				ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
 				if (debug)
-					ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+					ast_verbose("Found unknown media description format %s for ID %u\n", mimeSubtype, codec);
 			}
 		} else {
 			if (debug)
-				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
+				ast_verbose("Discarded description format %s for ID %u\n", mimeSubtype, codec);
 		}
 	} else if (sscanf(a, "fmtp: %30u %63s", &codec, fmtp_string) == 2) {
 		struct ast_rtp_payload_type payload;
@@ -10106,7 +10106,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 			case AST_FORMAT_SIREN7:
 				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
 					if (bit_rate != 32000) {
-						ast_log(LOG_WARNING, "Got Siren7 offer at %d bps, but only 32000 bps supported; ignoring.\n", bit_rate);
+						ast_log(LOG_WARNING, "Got Siren7 offer at %u bps, but only 32000 bps supported; ignoring.\n", bit_rate);
 						ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
 					} else {
 						found = TRUE;
@@ -10116,7 +10116,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 			case AST_FORMAT_SIREN14:
 				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
 					if (bit_rate != 48000) {
-						ast_log(LOG_WARNING, "Got Siren14 offer at %d bps, but only 48000 bps supported; ignoring.\n", bit_rate);
+						ast_log(LOG_WARNING, "Got Siren14 offer at %u bps, but only 48000 bps supported; ignoring.\n", bit_rate);
 						ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
 					} else {
 						found = TRUE;
@@ -10126,7 +10126,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 			case AST_FORMAT_G719:
 				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
 					if (bit_rate != 64000) {
-						ast_log(LOG_WARNING, "Got G.719 offer at %d bps, but only 64000 bps supported; ignoring.\n", bit_rate);
+						ast_log(LOG_WARNING, "Got G.719 offer at %u bps, but only 64000 bps supported; ignoring.\n", bit_rate);
 						ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
 					} else {
 						found = TRUE;
@@ -10142,7 +10142,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newvideortp, int *last_rtpmap_codec)
 {
 	int found = FALSE;
-	int codec;
+	unsigned int codec;
 	char mimeSubtype[128];
 	unsigned int sample_rate;
 	int debug = sip_debug_test_pvt(p);
@@ -10154,19 +10154,19 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_
 			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {
 				if (!(ast_rtp_codecs_payloads_set_rtpmap_type_rate(newvideortp, NULL, codec, "video", mimeSubtype, 0, sample_rate))) {
 					if (debug)
-						ast_verbose("Found video description format %s for ID %d\n", mimeSubtype, codec);
+						ast_verbose("Found video description format %s for ID %u\n", mimeSubtype, codec);
 					//found_rtpmap_codecs[last_rtpmap_codec] = codec;
 					(*last_rtpmap_codec)++;
 					found = TRUE;
 				} else {
 					ast_rtp_codecs_payloads_unset(newvideortp, NULL, codec);
 					if (debug)
-						ast_verbose("Found unknown media description format %s for ID %d\n", mimeSubtype, codec);
+						ast_verbose("Found unknown media description format %s for ID %u\n", mimeSubtype, codec);
 				}
 			}
 		} else {
 			if (debug)
-				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
+				ast_verbose("Discarded description format %s for ID %u\n", mimeSubtype, codec);
 		}
 	}
 
@@ -10176,7 +10176,7 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_
 static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp_codecs *newtextrtp, char *red_fmtp, int *red_num_gen, int *red_data_pt, int *last_rtpmap_codec)
 {
 	int found = FALSE;
-	int codec;
+	unsigned int codec;
 	char mimeSubtype[128];
 	unsigned int sample_rate;
 	char *red_cp;
@@ -10194,25 +10194,25 @@ static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp_c
 			} else if (!strncasecmp(mimeSubtype, "RED", 3)) { /* Text with Redudancy */
 				if (p->trtp) {
 					ast_rtp_codecs_payloads_set_rtpmap_type_rate(newtextrtp, NULL, codec, "text", mimeSubtype, 0, sample_rate);
-					sprintf(red_fmtp, "fmtp:%d ", codec);
+					sprintf(red_fmtp, "fmtp:%u ", codec);
 					if (debug)
-						ast_verbose("RED submimetype has payload type: %d\n", codec);
+						ast_verbose("RED submimetype has payload type: %u\n", codec);
 					found = TRUE;
 				}
 			}
 		} else {
 			if (debug)
-				ast_verbose("Discarded description format %s for ID %d\n", mimeSubtype, codec);
+				ast_verbose("Discarded description format %s for ID %u\n", mimeSubtype, codec);
 		}
 	} else if (!strncmp(a, red_fmtp, strlen(red_fmtp))) {
 		/* count numbers of generations in fmtp */
 		red_cp = &red_fmtp[strlen(red_fmtp)];
 		strncpy(red_fmtp, a, 100);
 
-		sscanf(red_cp, "%30u", &red_data_pt[*red_num_gen]);
+		sscanf(red_cp, "%30u", (unsigned *)&red_data_pt[*red_num_gen]);
 		red_cp = strtok(red_cp, "/");
 		while (red_cp && (*red_num_gen)++ < AST_RED_MAX_GENERATION) {
-			sscanf(red_cp, "%30u", &red_data_pt[*red_num_gen]);
+			sscanf(red_cp, "%30u", (unsigned *)&red_data_pt[*red_num_gen]);
 			red_cp = strtok(NULL, "/");
 		}
 		red_cp = red_fmtp;
@@ -10244,10 +10244,10 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 	}
 
 	if ((sscanf(attrib, "t38faxmaxbuffer:%30u", &x) == 1)) {
-		ast_debug(3, "MaxBufferSize:%d\n", x);
+		ast_debug(3, "MaxBufferSize:%u\n", x);
 		found = TRUE;
 	} else if ((sscanf(attrib, "t38maxbitrate:%30u", &x) == 1) || (sscanf(attrib, "t38faxmaxrate:%30u", &x) == 1)) {
-		ast_debug(3, "T38MaxBitRate: %d\n", x);
+		ast_debug(3, "T38MaxBitRate: %u\n", x);
 		switch (x) {
 		case 14400:
 			p->t38.their_parms.rate = AST_T38_RATE_14400;
@@ -10276,7 +10276,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 	} else if ((sscanf(attrib, "t38faxmaxdatagram:%30u", &x) == 1) || (sscanf(attrib, "t38maxdatagram:%30u", &x) == 1)) {
 		/* override the supplied value if the configuration requests it */
 		if (((signed int) p->t38_maxdatagram >= 0) && ((unsigned int) p->t38_maxdatagram > x)) {
-			ast_debug(1, "Overriding T38FaxMaxDatagram '%d' with '%d'\n", x, p->t38_maxdatagram);
+			ast_debug(1, "Overriding T38FaxMaxDatagram '%u' with '%u'\n", x, p->t38_maxdatagram);
 			x = p->t38_maxdatagram;
 		}
 		ast_debug(3, "FaxMaxDatagram: %u\n", x);
@@ -10284,7 +10284,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		found = TRUE;
 	} else if ((strncmp(attrib, "t38faxfillbitremoval", 20) == 0)) {
 		if (sscanf(attrib, "t38faxfillbitremoval:%30u", &x) == 1) {
-			ast_debug(3, "FillBitRemoval: %d\n", x);
+			ast_debug(3, "FillBitRemoval: %u\n", x);
 			if (x == 1) {
 				p->t38.their_parms.fill_bit_removal = TRUE;
 			}
@@ -10295,7 +10295,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		found = TRUE;
 	} else if ((strncmp(attrib, "t38faxtranscodingmmr", 20) == 0)) {
 		if (sscanf(attrib, "t38faxtranscodingmmr:%30u", &x) == 1) {
-			ast_debug(3, "Transcoding MMR: %d\n", x);
+			ast_debug(3, "Transcoding MMR: %u\n", x);
 			if (x == 1) {
 				p->t38.their_parms.transcoding_mmr = TRUE;
 			}
@@ -10306,7 +10306,7 @@ static int process_sdp_a_image(const char *a, struct sip_pvt *p)
 		found = TRUE;
 	} else if ((strncmp(attrib, "t38faxtranscodingjbig", 21) == 0)) {
 		if (sscanf(attrib, "t38faxtranscodingjbig:%30u", &x) == 1) {
-			ast_debug(3, "Transcoding JBIG: %d\n", x);
+			ast_debug(3, "Transcoding JBIG: %u\n", x);
 			if (x == 1) {
 				p->t38.their_parms.transcoding_jbig = TRUE;
 			}
@@ -10399,7 +10399,7 @@ static int finalize_content(struct sip_request *req)
 		return -1;
 	}
 
-	snprintf(clen, sizeof(clen), "%zd", ast_str_strlen(req->content));
+	snprintf(clen, sizeof(clen), "%zu", ast_str_strlen(req->content));
 	add_header(req, "Content-Length", clen);
 
 	if (ast_str_strlen(req->content)) {
@@ -11526,7 +11526,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, format_t codec,
 
 
 	if (debug)
-		ast_verbose("Adding codec 0x%" PRIx64 " (%s) to SDP\n", codec, ast_getformatname(codec));
+		ast_verbose("Adding codec 0x%" PRIx64 " (%s) to SDP\n", (long unsigned)codec, ast_getformatname(codec));
 	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->rtp), 1, codec)) == -1)
 		return;
 
@@ -11536,7 +11536,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, format_t codec,
 	} else /* I don't see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
 		return;
 	ast_str_append(m_buf, 0, " %d", rtp_code);
-	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u\r\n", rtp_code,
 		       ast_rtp_lookup_mime_subtype2(1, codec,
 						   ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0),
 		       ast_rtp_lookup_sample_rate2(1, codec));
@@ -11588,13 +11588,13 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, format_t codec,
 		return;
 
 	if (debug)
-		ast_verbose("Adding video codec 0x%" PRIx64 " (%s) to SDP\n", codec, ast_getformatname(codec));
+		ast_verbose("Adding video codec 0x%" PRIx64 " (%s) to SDP\n", (long unsigned)codec, ast_getformatname(codec));
 
 	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->vrtp), 1, codec)) == -1)
 		return;
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
-	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u\r\n", rtp_code,
 		       ast_rtp_lookup_mime_subtype2(1, codec, 0),
 		       ast_rtp_lookup_sample_rate2(1, codec));
 	/* Add fmtp code here */
@@ -11611,13 +11611,13 @@ static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec,
 		return;
 
 	if (debug)
-		ast_verbose("Adding text codec 0x%x (%s) to SDP\n", codec, ast_getformatname(codec));
+		ast_verbose("Adding text codec 0x%x (%s) to SDP\n", (unsigned)codec, ast_getformatname(codec));
 
 	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->trtp), 1, codec)) == -1)
 		return;
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
-	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u\r\n", rtp_code,
 		       ast_rtp_lookup_mime_subtype2(1, codec, 0),
 		       ast_rtp_lookup_sample_rate2(1, codec));
 	/* Add fmtp code here */
@@ -11662,12 +11662,12 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format,
 	int rtp_code;
 
 	if (debug)
-		ast_verbose("Adding non-codec 0x%x (%s) to SDP\n", format, ast_rtp_lookup_mime_subtype2(0, format, 0));
+		ast_verbose("Adding non-codec 0x%x (%s) to SDP\n", (unsigned)format, ast_rtp_lookup_mime_subtype2(0, format, 0));
 	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->rtp), 0, format)) == -1)
 		return;
 
 	ast_str_append(m_buf, 0, " %d", rtp_code);
-	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u\r\n", rtp_code,
 		       ast_rtp_lookup_mime_subtype2(0, format, 0),
 		       ast_rtp_lookup_sample_rate2(0, format));
 	if (format == AST_RTP_DTMF)	/* Indicate we support DTMF and FLASH... */
@@ -12074,8 +12074,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 					"IP6" : "IP4", ast_sockaddr_stringify_addr_remote(&udptldest));
 		}
 
-		ast_str_append(&a_modem, 0, "a=T38FaxVersion:%d\r\n", p->t38.our_parms.version);
-		ast_str_append(&a_modem, 0, "a=T38MaxBitRate:%d\r\n", t38_get_rate(p->t38.our_parms.rate));
+		ast_str_append(&a_modem, 0, "a=T38FaxVersion:%u\r\n", p->t38.our_parms.version);
+		ast_str_append(&a_modem, 0, "a=T38MaxBitRate:%u\r\n", t38_get_rate(p->t38.our_parms.rate));
 		if (p->t38.our_parms.fill_bit_removal) {
 			ast_str_append(&a_modem, 0, "a=T38FaxFillBitRemoval\r\n");
 		}
@@ -12865,7 +12865,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 	if (sdp) {
 		memset(p->offered_media, 0, sizeof(p->offered_media));
 		if (p->udptl && p->t38.state == T38_LOCAL_REINVITE) {
-			ast_debug(1, "T38 is in state %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
+			ast_debug(1, "T38 is in state %u on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 			add_sdp(&req, p, FALSE, FALSE, TRUE);
 		} else if (p->rtp) {
 			try_suggested_sip_codec(p);
@@ -13331,7 +13331,7 @@ static int transmit_cc_notify(struct ast_cc_agent *agent, struct sip_pvt *subscr
 	char subscription_state_hdr[64];
 
 	if (state < CC_QUEUED || state > CC_READY) {
-		ast_log(LOG_WARNING, "Invalid state provided for transmit_cc_notify (%d)\n", state);
+		ast_log(LOG_WARNING, "Invalid state provided for transmit_cc_notify (%u)\n", state);
 		return -1;
 	}
 
@@ -14273,7 +14273,7 @@ static void auth_headers(enum sip_auth_type code, char **header, char **resphead
 		*header = "Proxy-Authenticate";
 		*respheader = "Proxy-Authorization";
 	} else {
-		ast_verbose("-- wrong response code %d\n", code);
+		ast_verbose("-- wrong response code %u\n", code);
 		*header = *respheader = "Invalid";
 	}
 }
@@ -14954,7 +14954,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 static void set_nonce_randdata(struct sip_pvt *p, int forceupdate)
 {
 	if (p->stalenonce || forceupdate || ast_strlen_zero(p->randdata)) {
-		ast_string_field_build(p, randdata, "%08lx", ast_random());	/* Create nonce for challenge */
+		ast_string_field_build(p, randdata, "%08lx", (unsigned long)ast_random());	/* Create nonce for challenge */
 		p->stalenonce = 0;
 	}
 }
@@ -18288,7 +18288,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		ast_cli(fd, "  DirectMedACL : %s\n", AST_CLI_YESNO(peer->directmediaha != NULL));
 		ast_cli(fd, "  T.38 support : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
 		ast_cli(fd, "  T.38 EC mode : %s\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
-		ast_cli(fd, "  T.38 MaxDtgrm: %d\n", peer->t38_maxdatagram);
+		ast_cli(fd, "  T.38 MaxDtgrm: %u\n", peer->t38_maxdatagram);
 		ast_cli(fd, "  DirectMedia  : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_DIRECT_MEDIA)));
 		ast_cli(fd, "  PromiscRedir : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)));
 		ast_cli(fd, "  User=Phone   : %s\n", AST_CLI_YESNO(ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)));
@@ -18406,7 +18406,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 		astman_append(s, "SIP-TextSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)?"Y":"N"));
 		astman_append(s, "SIP-T.38Support: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)?"Y":"N"));
 		astman_append(s, "SIP-T.38EC: %s\r\n", faxec2str(ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT)));
-		astman_append(s, "SIP-T.38MaxDtgrm: %d\r\n", peer->t38_maxdatagram);
+		astman_append(s, "SIP-T.38MaxDtgrm: %u\r\n", peer->t38_maxdatagram);
 		astman_append(s, "SIP-Sess-Timers: %s\r\n", stmode2str(peer->stimer.st_mode_oper));
 		astman_append(s, "SIP-Sess-Refresh: %s\r\n", strefresherparam2str(peer->stimer.st_ref));
 		astman_append(s, "SIP-Sess-Expires: %d\r\n", peer->stimer.st_max_se);
@@ -18908,7 +18908,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 	ast_cli(a->fd, "  T.38 support:           %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
 	ast_cli(a->fd, "  T.38 EC mode:           %s\n", faxec2str(ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT)));
-	ast_cli(a->fd, "  T.38 MaxDtgrm:          %d\n", global_t38_maxdatagram);
+	ast_cli(a->fd, "  T.38 MaxDtgrm:          %u\n", global_t38_maxdatagram);
 	if (!realtimepeers && !realtimeregs)
 		ast_cli(a->fd, "  SIP realtime:           Disabled\n" );
 	else
@@ -18922,10 +18922,10 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  IP ToS RTP audio:       %s\n", ast_tos2str(global_tos_audio));
 	ast_cli(a->fd, "  IP ToS RTP video:       %s\n", ast_tos2str(global_tos_video));
 	ast_cli(a->fd, "  IP ToS RTP text:        %s\n", ast_tos2str(global_tos_text));
-	ast_cli(a->fd, "  802.1p CoS SIP:         %d\n", global_cos_sip);
-	ast_cli(a->fd, "  802.1p CoS RTP audio:   %d\n", global_cos_audio);
-	ast_cli(a->fd, "  802.1p CoS RTP video:   %d\n", global_cos_video);
-	ast_cli(a->fd, "  802.1p CoS RTP text:    %d\n", global_cos_text);
+	ast_cli(a->fd, "  802.1p CoS SIP:         %u\n", global_cos_sip);
+	ast_cli(a->fd, "  802.1p CoS RTP audio:   %u\n", global_cos_audio);
+	ast_cli(a->fd, "  802.1p CoS RTP video:   %u\n", global_cos_video);
+	ast_cli(a->fd, "  802.1p CoS RTP text:    %u\n", global_cos_text);
 	ast_cli(a->fd, "  Jitterbuffer enabled:   %s\n", AST_CLI_YESNO(ast_test_flag(&global_jbconf, AST_JB_ENABLED)));
 	if (ast_test_flag(&global_jbconf, AST_JB_ENABLED)) {
 		ast_cli(a->fd, "  Jitterbuffer forced:    %s\n", AST_CLI_YESNO(ast_test_flag(&global_jbconf, AST_JB_FORCED)));
@@ -20055,7 +20055,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else
 		snprintf(uri, sizeof(uri), "%s:%s@%s", p->socket.type == SIP_TRANSPORT_TLS ? "sips" : "sip", p->username, ast_sockaddr_stringify_host_remote(&p->sa));
 
-	snprintf(cnonce, sizeof(cnonce), "%08lx", ast_random());
+	snprintf(cnonce, sizeof(cnonce), "%08lx", (unsigned long)ast_random());
 
 	/* Check if we have peer credentials */
 	ao2_lock(p);
@@ -20113,7 +20113,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 
 	p->noncecount++;
 	if (!ast_strlen_zero(p->qop))
-		snprintf(resp, sizeof(resp), "%s:%s:%08x:%s:%s:%s", a1_hash, p->nonce, p->noncecount, cnonce, "auth", a2_hash);
+		snprintf(resp, sizeof(resp), "%s:%s:%08x:%s:%s:%s", a1_hash, p->nonce, (unsigned)p->noncecount, cnonce, "auth", a2_hash);
 	else
 		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, p->nonce, a2_hash);
 	ast_md5_hash(resp_hash, resp);
@@ -20125,7 +20125,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
-		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\"%s, qop=auth, cnonce=\"%s\", nc=%08x", username, p->realm, uri, p->nonce, resp_hash, opaque, cnonce, p->noncecount);
+		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\"%s, qop=auth, cnonce=\"%s\", nc=%08x", username, p->realm, uri, p->nonce, resp_hash, opaque, cnonce, (unsigned)p->noncecount);
 	else
 		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\"%s", username, p->realm, uri, p->nonce, resp_hash, opaque);
 
@@ -20282,7 +20282,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	} else  if (!strcasecmp(colname, "codecs")) {
 		ast_getformatname_multiple(buf, len -1, peer->capability);
 	} else if (!strcasecmp(colname, "encryption")) {
-		snprintf(buf, len, "%d", ast_test_flag(&peer->flags[1], SIP_PAGE2_USE_SRTP));
+		snprintf(buf, len, "%u", ast_test_flag(&peer->flags[1], SIP_PAGE2_USE_SRTP));
 	} else  if (!strncasecmp(colname, "chanvar[", 8)) {
 		char *chanvar=colname + 8;
 		struct ast_variable *v;
@@ -23171,7 +23171,7 @@ static int handle_request_invite_st(struct sip_pvt *p, struct sip_request *req,
 			break;
 
 		default:
-			ast_log(LOG_ERROR, "Internal Error %d at %s:%d\n", st_get_mode(p, 1), __FILE__, __LINE__);
+			ast_log(LOG_ERROR, "Internal Error %u at %s:%d\n", st_get_mode(p, 1), __FILE__, __LINE__);
 			break;
 		}
 	} else {
@@ -23933,7 +23933,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			p->invitestate = INV_TERMINATED;
 			break;
 		default:
-			ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
+			ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %u\n", c->_state);
 			transmit_response(p, "100 Trying", req);
 			break;
 		}
@@ -26015,7 +26015,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 	 */			
 	
 	p->method = req->method;	/* Find out which SIP method they are using */
-	ast_debug(4, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd);
+	ast_debug(4, "**** Received %s (%u) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd);
 
 	if (p->icseq && (p->icseq > seqno) ) {
 		if (p->pendinginvite && seqno == p->pendinginvite && (req->method == SIP_ACK || req->method == SIP_CANCEL)) {
@@ -27626,7 +27626,7 @@ static void set_insecure_flags (struct ast_flags *flags, const char *value, int 
   \returns non-zero if any config options were handled, zero otherwise
 */
 static int handle_t38_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v,
-			      int *maxdatagram)
+			      unsigned int *maxdatagram)
 {
 	int res = 1;
 

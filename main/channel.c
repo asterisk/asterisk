@@ -1032,7 +1032,7 @@ const char *ast_state2str(enum ast_channel_state state)
 	default:
 		if (!(buf = ast_threadstorage_get(&state2str_threadbuf, STATE2STR_BUFSIZE)))
 			return "Unknown";
-		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%d)", state);
+		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%u)", state);
 		return buf;
 	}
 }
@@ -1541,7 +1541,7 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 
 		memset(blah, 1, sizeof(blah));
 		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != (sizeof(blah))) {
-			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s (qlen = %d): %s!\n",
+			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s (qlen = %u): %s!\n",
 				chan->name, queued_frames, strerror(errno));
 		}
 	} else if (chan->timingfd > -1) {
@@ -3014,7 +3014,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay, int cdr_answer)
 					break;
 				}
 				if (ms == 0) {
-					ast_debug(2, "Didn't receive a media frame from %s within %d ms of answering. Continuing anyway\n", chan->name, MAX(delay, 500));
+					ast_debug(2, "Didn't receive a media frame from %s within %u ms of answering. Continuing anyway\n", chan->name, MAX(delay, 500));
 					break;
 				}
 				cur = ast_read(chan);
@@ -4620,14 +4620,14 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	if (ts) {
 		/* We have a tone to play, yay. */
-		ast_debug(1, "Driver for channel '%s' does not support indication %d, emulating it\n", chan->name, condition);
+		ast_debug(1, "Driver for channel '%s' does not support indication %u, emulating it\n", chan->name, condition);
 		res = ast_playtones_start(chan, 0, ts->data, 1);
 		ts = ast_tone_zone_sound_unref(ts);
 	}
 
 	if (res) {
 		/* not handled */
-		ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
+		ast_log(LOG_WARNING, "Unable to handle indication %u for '%s'\n", condition, chan->name);
 	}
 
 indicate_cleanup:
@@ -6666,7 +6666,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Start the masquerade channel contents rearangement. */
 	ast_channel_lock_both(original, clonechan);
 
-	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
+	ast_debug(4, "Actually Masquerading %s(%u) into the structure of %s(%u)\n",
 		clonechan->name, clonechan->_state, original->name, original->_state);
 
 	chans[0] = clonechan;
@@ -6984,7 +6984,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		pthread_kill(original->blocker, SIGURG);
 	}
 
-	ast_debug(1, "Done Masquerading %s (%d)\n", original->name, original->_state);
+	ast_debug(1, "Done Masquerading %s (%u)\n", original->name, original->_state);
 
 	if ((bridged = ast_bridged_channel(original))) {
 		ast_channel_ref(bridged);
@@ -7134,7 +7134,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 	/* setstate used to conditionally report Newchannel; this is no more */
 	ast_manager_event(chan, EVENT_FLAG_CALL, "Newstate",
 		"Channel: %s\r\n"
-		"ChannelState: %d\r\n"
+		"ChannelState: %u\r\n"
 		"ChannelStateDesc: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n"

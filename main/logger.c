@@ -1660,7 +1660,7 @@ int ast_logger_register_level(const char *name)
 
 	AST_RWLIST_UNLOCK(&logchannels);
 
-	ast_debug(1, "Registered dynamic logger level '%s' with index %d.\n", name, available);
+	ast_debug(1, "Registered dynamic logger level '%s' with index %u.\n", name, available);
 
 	update_logchannels();
 
@@ -1698,7 +1698,7 @@ void ast_logger_unregister_level(const char *name)
 		levels[x] = NULL;
 		AST_RWLIST_UNLOCK(&logchannels);
 
-		ast_debug(1, "Unregistered dynamic logger level '%s' with index %d.\n", name, x);
+		ast_debug(1, "Unregistered dynamic logger level '%s' with index %u.\n", name, x);
 
 		update_logchannels();
 	} else {

@@ -4680,7 +4680,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		}
 	}
 
-	fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>" ENDL, msgnum + 1,
+	fprintf(p, "Message-ID: <Asterisk-%d-%u-%s-%d@%s>" ENDL, msgnum + 1,
 		(unsigned int) ast_random(), mailbox, (int) getpid(), host);
 	if (imap) {
 		/* additional information needed for IMAP searching */
@@ -4718,7 +4718,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	fprintf(p, "MIME-Version: 1.0" ENDL);
 	if (attach_user_voicemail) {
 		/* Something unique. */
-		snprintf(bound, sizeof(bound), "----voicemail_%d%s%d%d", msgnum + 1, mailbox,
+		snprintf(bound, sizeof(bound), "----voicemail_%d%s%d%u", msgnum + 1, mailbox,
 			(int) getpid(), (unsigned int) ast_random());
 
 		fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"" ENDL, bound);
@@ -4893,7 +4893,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
-	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
+	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %u\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
 	if ((p = vm_mkftemp(tmp)) == NULL) {
@@ -11909,7 +11909,7 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 	const char *val;
 	char *q, *stringp, *tmp;
 	int x;
-	int tmpadsi[4];
+	unsigned int tmpadsi[4];
 	char secretfn[PATH_MAX] = "";
 
 #ifdef IMAP_STORAGE

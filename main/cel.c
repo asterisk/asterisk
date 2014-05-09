@@ -417,7 +417,7 @@ const char *ast_cel_get_type_name(enum ast_cel_event_type type)
 const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag)
 {
 	if (flag < 0 || flag >= ARRAY_LEN(cel_ama_flags)) {
-		ast_log(LOG_WARNING, "Invalid AMA flag: %d\n", flag);
+		ast_log(LOG_WARNING, "Invalid AMA flag: %u\n", flag);
 		return "Unknown";
 	}
 

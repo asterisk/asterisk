@@ -312,7 +312,7 @@ void ast_io_dump(struct io_context *ioc)
 	 */
 	int x;
 
-	ast_debug(1, "Asterisk IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
+	ast_debug(1, "Asterisk IO Dump: %u entries, %u max entries\n", ioc->fdcnt, ioc->maxfdcnt);
 	ast_debug(1, "================================================\n");
 	ast_debug(1, "| ID    FD     Callback    Data        Events  |\n");
 	ast_debug(1, "+------+------+-----------+-----------+--------+\n");
@@ -322,7 +322,7 @@ void ast_io_dump(struct io_context *ioc)
 				ioc->fds[x].fd,
 				ioc->ior[x].callback,
 				ioc->ior[x].data,
-				ioc->fds[x].events);
+				(unsigned)ioc->fds[x].events);
 	}
 	ast_debug(1, "================================================\n");
 }

@@ -363,7 +363,7 @@ static int enum_result_read(struct ast_channel *chan, const char *cmd, char *dat
 	erds = datastore->data;
 
 	if (!strcasecmp(args.resultnum, "getnum")) {
-		snprintf(buf, len, "%u", erds->context->naptr_rrs_count);
+		snprintf(buf, len, "%d", erds->context->naptr_rrs_count);
 		res = 0;
 		goto finish;
 	}

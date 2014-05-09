@@ -1034,7 +1034,7 @@ struct sip_pvt {
 	int jointnoncodeccapability;      /*!< Joint Non codec capability */
 	format_t redircodecs;             /*!< Redirect codecs */
 	int maxcallbitrate;               /*!< Maximum Call Bitrate for Video Calls */	
-	int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
+	unsigned int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
 	int request_queue_sched_id;       /*!< Scheduler ID of any scheduled action to process queued requests */
 	int provisional_keepalive_sched_id;   /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
 	const char *last_provisional;         /*!< The last successfully transmitted provisonal response message */
@@ -1237,7 +1237,7 @@ struct sip_peer {
 	int inRinging;                  /*!< Number of calls ringing */
 	int onHold;                     /*!< Peer has someone on hold */
 	int call_limit;                 /*!< Limit of concurrent calls */
-	int t38_maxdatagram;            /*!< T.38 FaxMaxDatagram override */
+	unsigned int t38_maxdatagram;            /*!< T.38 FaxMaxDatagram override */
 	int busy_level;                 /*!< Level of active channels where we signal busy */
 	int maxforwards;                /*!< SIP Loop prevention */
 	enum transfermodes allowtransfer;   /*! SIP Refer restriction scheme */

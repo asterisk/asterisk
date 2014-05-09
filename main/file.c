@@ -535,7 +535,7 @@ static format_t ast_filehelper(const char *filename, const void *arg2, const cha
 				break;
 
 			default:
-				ast_log(LOG_WARNING, "Unknown helper %d\n", action);
+				ast_log(LOG_WARNING, "Unknown helper %u\n", action);
 			}
 			ast_free(fn);
 		}

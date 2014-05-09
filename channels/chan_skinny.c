@@ -3992,7 +3992,7 @@ static int skinny_hangup(struct ast_channel *ast)
 	}
 
 	if (skinnydebug)
-		ast_verb(3,"Hanging up %s/%d\n",d->name,sub->callid);
+		ast_verb(3,"Hanging up %s/%u\n", d->name, sub->callid);
 
 	AST_LIST_REMOVE(&l->sub, sub, list);
 
@@ -4005,7 +4005,7 @@ static int skinny_hangup(struct ast_channel *ast)
 
 			}
 			if (sub == l->activesub) {      /* we are killing the active sub, but there are other subs on the line*/
-				ast_verb(4,"Killing active sub %d\n", sub->callid);
+				ast_verb(4,"Killing active sub %u\n", sub->callid);
 				if (sub->related) {
 					l->activesub = sub->related;
 				} else {
@@ -4022,7 +4022,7 @@ static int skinny_hangup(struct ast_channel *ast)
 				transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 				transmit_stop_tone(d, l->instance, sub->callid);
 			} else {    /* we are killing a background sub on the line with other subs*/
-				ast_verb(4,"Killing inactive sub %d\n", sub->callid);
+				ast_verb(4,"Killing inactive sub %u\n", sub->callid);
 				if (AST_LIST_NEXT(sub, list)) {
 					transmit_lamp_indication(d, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 				} else {
@@ -4030,7 +4030,7 @@ static int skinny_hangup(struct ast_channel *ast)
 				}
 			}
 		} else {                                                /* no more subs on line so make idle */
-			ast_verb(4,"Killing only sub %d\n", sub->callid);
+			ast_verb(4,"Killing only sub %u\n", sub->callid);
 			l->hookstate = SKINNY_ONHOOK;
 			transmit_closereceivechannel(d, sub);
 			transmit_stopmediatransmission(d, sub);
@@ -4077,7 +4077,7 @@ static int skinny_answer(struct ast_channel *ast)
 
 	if (sub->blindxfer) {
 		if (skinnydebug)
-			ast_debug(1, "skinny_answer(%s) on %s@%s-%d with BlindXFER, transferring\n",
+			ast_debug(1, "skinny_answer(%s) on %s@%s-%u with BlindXFER, transferring\n",
 				ast->name, l->name, d->name, sub->callid);
 		ast_setstate(ast, AST_STATE_UP);
 		skinny_transfer(sub);
@@ -4089,7 +4089,7 @@ static int skinny_answer(struct ast_channel *ast)
 		start_rtp(sub);
 	}
 	if (skinnydebug)
-		ast_verb(1, "skinny_answer(%s) on %s@%s-%d\n", ast->name, l->name, d->name, sub->callid);
+		ast_verb(1, "skinny_answer(%s) on %s@%s-%u\n", ast->name, l->name, d->name, sub->callid);
 	if (ast->_state != AST_STATE_UP) {
 		ast_setstate(ast, AST_STATE_UP);
 	}
@@ -4176,7 +4176,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (frame->frametype == AST_FRAME_IMAGE) {
 			return 0;
 		} else {
-			ast_log(LOG_WARNING, "Can't send %d type frames with skinny_write\n", frame->frametype);
+			ast_log(LOG_WARNING, "Can't send %u type frames with skinny_write\n", frame->frametype);
 			return 0;
 		}
 	} else {
@@ -5498,7 +5498,7 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 			sub->alreadygone = 1;
 			ast_queue_hangup(sub->owner);
 		} else {
-			ast_log(LOG_WARNING, "Skinny(%s@%s-%d) channel already destroyed\n",
+			ast_log(LOG_WARNING, "Skinny(%s@%s-%u) channel already destroyed\n",
 				l->name, d->name, sub->callid);
 		}
 		/* Not ideal, but let's send updated time at onhook and offhook, as it clears the display */
@@ -5903,7 +5903,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				l->hookstate = SKINNY_OFFHOOK;
 				transmit_speaker_mode(d, SKINNY_SPEAKERON);
 			}
-			ast_verb(1, "Call-id: %d\n", sub->callid);
+			ast_verb(1, "Call-id: %u\n", sub->callid);
 
 			transmit_callstate(d, l->instance, sub->callid, SKINNY_OFFHOOK);
 			transmit_activatecallplane(d, l);
@@ -6068,7 +6068,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 					sub->alreadygone = 1;
 					ast_queue_hangup(sub->owner);
 				} else {
-					ast_log(LOG_WARNING, "Skinny(%s@%s-%d) channel already destroyed\n",
+					ast_log(LOG_WARNING, "Skinny(%s@%s-%u) channel already destroyed\n",
 						l->name, d->name, sub->callid);
 				}
 			}
@@ -6214,7 +6214,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		int callReference;
 
 		if (skinnydebug)
-			ast_verb(1, "Collected digit: [%d]\n", letohl(req->data.keypad.button));
+			ast_verb(1, "Collected digit: [%u]\n", letohl(req->data.keypad.button));
 
 		lineInstance = letohl(req->data.keypad.lineInstance);
 		callReference = letohl(req->data.keypad.callReference);
@@ -6351,7 +6351,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		break;
 	default:
 		if (skinnydebug)
-			ast_verb(1, "RECEIVED UNKNOWN MESSAGE TYPE:  %x\n", letohl(req->e));
+			ast_verb(1, "RECEIVED UNKNOWN MESSAGE TYPE:  %x\n", (unsigned)letohl(req->e));
 		break;
 	}
 	if (res >= 0 && req)

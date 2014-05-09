@@ -719,8 +719,8 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			}
 		}
 
-		snprintf(hex, sizeof(hex), "(0x%llx)", 1LL << i);
-		ast_cli(a->fd, "%19llu (1 << %2d) %20s  %5s   %8s   (%s)\n", 1LL << i, i, hex,
+		snprintf(hex, sizeof(hex), "(0x%llx)", 1ULL << i);
+		ast_cli(a->fd, "%19llu (1 << %2d) %20s  %5s   %8s   (%s)\n", 1ULL << i, i, hex,
 			((1LL << i) & AST_FORMAT_AUDIO_MASK) ? "audio" :
 			i == 16 || i == 17 ? "image" :
 			((1LL << i) & AST_FORMAT_VIDEO_MASK) ? "video" :
@@ -765,7 +765,7 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	for (i = 0; i < 63; i++)
 		if (codec & (1LL << i)) {
 			found = 1;
-			ast_cli(a->fd, "%11llu (1 << %2d)  %s\n", 1LL << i, i, ast_codec2str(1LL << i));
+			ast_cli(a->fd, "%11llu (1 << %2d)  %s\n", 1ULL << i, i, ast_codec2str(1LL << i));
 		}
 
 	if (!found)
@@ -959,10 +959,10 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 		}
 		break;
 	default:
-		snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
+		snprintf(ftype, sizeof(ftype), "Unknown Frametype '%u'", f->frametype);
 	}
 	if (!ast_strlen_zero(moreinfo))
-		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",  
+		ast_verbose("%s [ TYPE: %s (%u) SUBCLASS: %s (%d) '%s' ] [%s]\n",  
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
 			    f->frametype, 
@@ -971,7 +971,7 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 			    term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
 			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 	else
-		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",  
+		ast_verbose("%s [ TYPE: %s (%u) SUBCLASS: %s (%d) ] [%s]\n",  
 			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
 			    f->frametype, 
@@ -1338,7 +1338,7 @@ static int g723_len(unsigned char buf)
 		return 20;
 		break;
 	default:
-		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", type);
+		ast_log(LOG_WARNING, "Badly encoded frame (%u)\n", type);
 	}
 	return -1;
 }

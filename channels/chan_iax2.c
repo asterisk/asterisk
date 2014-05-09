@@ -356,7 +356,7 @@ static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 			break; \
 		\
 		for (idx = 0; idx < 16; idx++) \
-			sprintf(digest + (idx << 1), "%2.2x", (unsigned char) key[idx]); \
+			sprintf(digest + (idx << 1), "%2.2x", (unsigned) key[idx]); \
 		\
 		ast_log(LOG_NOTICE, msg " IAX_COMMAND_RTKEY to rotate key to '%s'\n", digest); \
 	} while(0)
@@ -2326,7 +2326,7 @@ static int calltoken_required(struct sockaddr_in *sin, const char *name, int sub
 		user_unref(user);
 	}
 
-	ast_debug(1, "Determining if address %s with username %s requires calltoken validation.  Optional = %d  calltoken_required = %d \n", ast_inet_ntoa(sin->sin_addr), name, optional, calltoken_required);
+	ast_debug(1, "Determining if address %s with username %s requires calltoken validation.  Optional = %d  calltoken_required = %u\n", ast_inet_ntoa(sin->sin_addr), name, optional, calltoken_required);
 	if (((calltoken_required == CALLTOKEN_NO) || (calltoken_required == CALLTOKEN_AUTO)) ||
 		(optional && (calltoken_required == CALLTOKEN_DEFAULT))) {
 		res = 0;
@@ -3125,7 +3125,7 @@ static int try_firmware(char *s)
 	else
 		last = s;
 
-	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)ast_random());
+	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, ast_random());
 
 	if ((res = stat(s, &stbuf) < 0)) {
 		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
@@ -3426,7 +3426,7 @@ static int send_packet(struct iax_frame *f)
 	
 	/* Called with iaxsl held */
 	if (iaxdebug)
-		ast_debug(3, "Sending %d on %d/%d to %s:%d\n", f->ts, callno, iaxs[callno]->peercallno, ast_inet_ntoa(iaxs[callno]->addr.sin_addr), ntohs(iaxs[callno]->addr.sin_port));
+		ast_debug(3, "Sending %u on %d/%d to %s:%d\n", f->ts, callno, iaxs[callno]->peercallno, ast_inet_ntoa(iaxs[callno]->addr.sin_addr), ntohs(iaxs[callno]->addr.sin_port));
 	
 	if (f->transfer) {
 		iax_outputframe(f, NULL, 0, &iaxs[callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
@@ -3589,7 +3589,7 @@ static void __attempt_transmit(const void *data)
 				iax2_destroy(callno);
 			} else {
 				if (iaxs[callno]->owner) {
-					ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %d, subclass = %u, ts=%d, seqno=%d)\n",
+					ast_log(LOG_WARNING, "Max retries exceeded to host %s on %s (type = %u, subclass = %d, ts=%u, seqno=%d)\n",
 						ast_inet_ntoa(iaxs[f->callno]->addr.sin_addr),
 						iaxs[f->callno]->owner->name,
 						f->af.frametype,
@@ -5490,7 +5490,7 @@ static int iax2_key_rotate(const void *vpvt)
 	pvt->keyrotateid = 
 		ast_sched_thread_add(sched, 120000 + (ast_random() % 180001), iax2_key_rotate, vpvt);
 
-	snprintf(key, sizeof(key), "%lX", ast_random());
+	snprintf(key, sizeof(key), "%lX", (unsigned long)ast_random());
 
 	MD5Init(&md5);
 	MD5Update(&md5, (unsigned char *) key, strlen(key));
@@ -5774,7 +5774,7 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 	case AST_CONTROL_REDIRECTING:
 		if (!ast_test_flag64(pvt, IAX_SENDCONNECTEDLINE)) {
 			/* We are not configured to allow sending these updates. */
-			ast_debug(2, "Callno %u: Config blocked sending control frame %d.\n",
+			ast_debug(2, "Callno %d: Config blocked sending control frame %d.\n",
 				callno, condition);
 			goto done;
 		}
@@ -6096,7 +6096,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* frame size too) */
 
 				if (iaxdebug && abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW )
-					ast_debug(1, "predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
+					ast_debug(1, "predicted timestamp skew (%d) > max (%d), using real ts instead.\n",
 						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
 
 				if (f->samples >= rate) /* check to make sure we don't core dump */
@@ -6151,7 +6151,7 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 	if (ast_tvzero(p->rxcore)) {
 		p->rxcore = ast_tvnow();
 		if (iaxdebug)
-			ast_debug(1, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n",
+			ast_debug(1, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %ums\n",
 					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset);
 		p->rxcore = ast_tvsub(p->rxcore, ast_samp2tv(offset, 1000));
 #if 1
@@ -6236,7 +6236,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 				
 				tpeer->trunkdataalloc += DEFAULT_TRUNKDATA;
 				tpeer->trunkdata = tmp;
-				ast_debug(1, "Expanded trunk '%s:%d' to %d bytes\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
+				ast_debug(1, "Expanded trunk '%s:%d' to %u bytes\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
 			} else {
 				ast_log(LOG_WARNING, "Maximum trunk data space exceeded to %s:%d\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 				ast_mutex_unlock(&tpeer->lock);
@@ -6376,7 +6376,7 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 
 		padding = 16 + (workspace[15] & 0x0f);
 		if (iaxdebug)
-			ast_debug(1, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
+			ast_debug(1, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, (unsigned)workspace[15]);
 		if (*datalen < padding + sizeof(struct ast_iax2_full_hdr))
 			return -1;
 
@@ -6423,7 +6423,7 @@ static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh,
 		workspace[15] &= 0xf0;
 		workspace[15] |= (padding & 0xf);
 		if (iaxdebug)
-			ast_debug(1, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
+			ast_debug(1, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, (unsigned)workspace[15]);
 		*datalen += padding;
 		memcpy_encrypt(efh->encdata, workspace, *datalen - sizeof(struct ast_iax2_full_enc_hdr), ecx);
 		if (*datalen >= 32 + sizeof(struct ast_iax2_full_enc_hdr))
@@ -6919,10 +6919,10 @@ static char *handle_cli_iax2_show_threads(struct ast_cli_entry *e, int cmd, stru
 	AST_LIST_LOCK(&idle_list);
 	AST_LIST_TRAVERSE(&idle_list, thread, list) {
 #ifdef DEBUG_SCHED_MULTITHREAD
-		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d, func='%s'\n", 
+		ast_cli(a->fd, "Thread %d: state=%u, update=%d, actions=%d, func='%s'\n", 
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
 #else
-		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d\n", 
+		ast_cli(a->fd, "Thread %d: state=%u, update=%d, actions=%d\n", 
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
 #endif
 		threadcount++;
@@ -6936,10 +6936,10 @@ static char *handle_cli_iax2_show_threads(struct ast_cli_entry *e, int cmd, stru
 		else
 			type = 'P';
 #ifdef DEBUG_SCHED_MULTITHREAD
-		ast_cli(a->fd, "Thread %c%d: state=%d, update=%d, actions=%d, func='%s'\n", 
+		ast_cli(a->fd, "Thread %c%d: state=%u, update=%d, actions=%d, func='%s'\n", 
 			type, thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
 #else
-		ast_cli(a->fd, "Thread %c%d: state=%d, update=%d, actions=%d\n", 
+		ast_cli(a->fd, "Thread %c%d: state=%u, update=%d, actions=%d\n", 
 			type, thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
 #endif
 		threadcount++;
@@ -6949,10 +6949,10 @@ static char *handle_cli_iax2_show_threads(struct ast_cli_entry *e, int cmd, stru
 	AST_LIST_LOCK(&dynamic_list);
 	AST_LIST_TRAVERSE(&dynamic_list, thread, list) {
 #ifdef DEBUG_SCHED_MULTITHREAD
-		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d, func='%s'\n",
+		ast_cli(a->fd, "Thread %d: state=%u, update=%d, actions=%d, func='%s'\n",
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
 #else
-		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d\n",
+		ast_cli(a->fd, "Thread %d: state=%u, update=%d, actions=%d\n",
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
 #endif
 		dynamiccount++;
@@ -7349,8 +7349,8 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 	int numchans = 0;
 	char first_message[10] = { 0, };
 	char last_message[10] = { 0, };
-#define ACN_FORMAT1 "%-20.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d %s%s %4s%s\n"
-#define ACN_FORMAT2 "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %s%s %s%s\n"
+#define ACN_FORMAT1 "%-20.25s %4u %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d %s%s %4s%s\n"
+#define ACN_FORMAT2 "%s %u %d %d %d %d %d %d %d %d %d %d %d %d %d %d %s%s %s%s\n"
 	for (x = 0; x < ARRAY_LEN(iaxs); x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
@@ -7607,7 +7607,7 @@ static int send_command(struct chan_iax2_pvt *i, char type, int command, unsigne
 {
 	if (type == AST_FRAME_CONTROL && !iax2_is_control_frame_allowed(command)) {
 		/* Control frame should not go out on the wire. */
-		ast_debug(2, "Callno %u: Blocked sending control frame %d.\n",
+		ast_debug(2, "Callno %d: Blocked sending control frame %d.\n",
 			i->callno, command);
 		return 0;
 	}
@@ -8047,7 +8047,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 			MD5Final(digest, &md5);
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
-				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
+				sprintf(requeststr + (x << 1), "%2.2x", (unsigned)digest[x]); /* safe */
 			if (!strcasecmp(requeststr, md5secret)) {
 				res = 0;
 				break;
@@ -8177,7 +8177,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
 			MD5Final(digest, &md5);
 			for (x=0;x<16;x++)
-				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
+				sprintf(requeststr + (x << 1), "%2.2x", (unsigned)digest[x]); /* safe */
 			if (!strcasecmp(requeststr, md5secret))
 				break;
 		}
@@ -8260,7 +8260,7 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 			MD5Final(digest, &md5);
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
-				sprintf(digres + (x << 1),  "%2.2x", digest[x]); /* safe */
+				sprintf(digres + (x << 1),  "%2.2x", (unsigned)digest[x]); /* safe */
 			if (pvt) {
 				build_encryption_keys(digest, pvt);
 			}
@@ -9314,7 +9314,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 			res = send_trunk(tpeer, &now);
 			trunk_timed++; 
 			if (iaxtrunkdebug)
-				ast_verbose(" - Trunk peer (%s:%d) has %d call chunk%s in transit, %d bytes backloged and has hit a high water mark of %d bytes\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, (res != 1) ? "s" : "", tpeer->trunkdatalen, tpeer->trunkdataalloc);
+				ast_verbose(" - Trunk peer (%s:%d) has %d call chunk%s in transit, %u bytes backloged and has hit a high water mark of %u bytes\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, (res != 1) ? "s" : "", tpeer->trunkdatalen, tpeer->trunkdataalloc);
 		}		
 		totalcalls += res;	
 		res = 0;
@@ -9624,7 +9624,7 @@ static void log_jitterstats(unsigned short callno)
 			localooo = jbinfo.frames_ooo;
 			localpackets = jbinfo.frames_in;
 		}
-		ast_debug(3, "JB STATS:%s ping=%d ljitterms=%d ljbdelayms=%d ltotlost=%d lrecentlosspct=%d ldropped=%d looo=%d lrecvd=%d rjitterms=%d rjbdelayms=%d rtotlost=%d rrecentlosspct=%d rdropped=%d rooo=%d rrecvd=%d\n",
+		ast_debug(3, "JB STATS:%s ping=%u ljitterms=%d ljbdelayms=%d ltotlost=%d lrecentlosspct=%d ldropped=%d looo=%d lrecvd=%d rjitterms=%d rjbdelayms=%d rtotlost=%d rrecentlosspct=%d rdropped=%d rooo=%d rrecvd=%d\n",
 			iaxs[callno]->owner->name,
 			iaxs[callno]->pingtime,
 			localjitter,
@@ -9641,7 +9641,7 @@ static void log_jitterstats(unsigned short callno)
 			iaxs[callno]->remote_rr.dropped,
 			iaxs[callno]->remote_rr.ooo,
 			iaxs[callno]->remote_rr.packets);
-		manager_event(EVENT_FLAG_REPORTING, "JitterBufStats", "Owner: %s\r\nPing: %d\r\nLocalJitter: %d\r\nLocalJBDelay: %d\r\nLocalTotalLost: %d\r\nLocalLossPercent: %d\r\nLocalDropped: %d\r\nLocalooo: %d\r\nLocalReceived: %d\r\nRemoteJitter: %d\r\nRemoteJBDelay: %d\r\nRemoteTotalLost: %d\r\nRemoteLossPercent: %d\r\nRemoteDropped: %d\r\nRemoteooo: %d\r\nRemoteReceived: %d\r\n",
+		manager_event(EVENT_FLAG_REPORTING, "JitterBufStats", "Owner: %s\r\nPing: %u\r\nLocalJitter: %d\r\nLocalJBDelay: %d\r\nLocalTotalLost: %d\r\nLocalLossPercent: %d\r\nLocalDropped: %d\r\nLocalooo: %d\r\nLocalReceived: %d\r\nRemoteJitter: %d\r\nRemoteJBDelay: %d\r\nRemoteTotalLost: %d\r\nRemoteLossPercent: %d\r\nRemoteDropped: %d\r\nRemoteooo: %d\r\nRemoteReceived: %d\r\n",
 			iaxs[callno]->owner->name,
 			iaxs[callno]->pingtime,
 			localjitter,
@@ -10279,7 +10279,7 @@ static int socket_process(struct iax2_thread *thread)
 	}
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (iaxdebug)
-			ast_debug(1, "Received packet %d, (%d, %u)\n", fh->oseqno, f.frametype, f.subclass.integer);
+			ast_debug(1, "Received packet %d, (%u, %d)\n", fh->oseqno, f.frametype, f.subclass.integer);
 		/* Check if it's out of order (and not an ACK or INVAL) */
 		fr->oseqno = fh->oseqno;
 		fr->iseqno = fh->iseqno;
@@ -10319,7 +10319,7 @@ static int socket_process(struct iax2_thread *thread)
 			  (f.subclass.integer != IAX_COMMAND_VNAK)) ||
 			  (f.frametype != AST_FRAME_IAX)) {
 			 	/* If it's not an ACK packet, it's out of order. */
-				ast_debug(1, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
+				ast_debug(1, "Packet arrived out of order (expecting %d, got %d) (frametype = %u, subclass = %d)\n", 
 					iaxs[fr->callno]->iseqno, fr->oseqno, f.frametype, f.subclass.integer);
 				/* Check to see if we need to request retransmission,
 				 * and take sequence number wraparound into account */
@@ -10556,7 +10556,7 @@ static int socket_process(struct iax2_thread *thread)
                             f.subclass.integer != IAX_COMMAND_LAGRP) {
 				iaxs[fr->callno]->last = fr->ts;
 				if (iaxdebug)
-					ast_debug(1, "For call=%d, set last=%d\n", fr->callno, fr->ts);
+					ast_debug(1, "For call=%d, set last=%u\n", fr->callno, fr->ts);
 			}
 			iaxs[fr->callno]->last_iax_message = f.subclass.integer;
 			if (!iaxs[fr->callno]->first_iax_message) {
@@ -11051,14 +11051,14 @@ static int socket_process(struct iax2_thread *thread)
 					peer = iaxs[fr->callno]->peerpoke;
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[fr->callno]->pingtime <= peer->maxms) {
-							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr->callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
+							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %u\n", peer->name, iaxs[fr->callno]->pingtime);
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %u\r\n", peer->name, iaxs[fr->callno]->pingtime); 
 							ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "IAX2/%s", peer->name); /* Activate notification */
 						}
 					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[fr->callno]->pingtime > peer->maxms) {
-							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr->callno]->pingtime);
-							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr->callno]->pingtime); 
+							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%u ms)!\n", peer->name, iaxs[fr->callno]->pingtime);
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "ChannelType: IAX2\r\nPeer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %u\r\n", peer->name, iaxs[fr->callno]->pingtime); 
 							ast_devstate_changed(AST_DEVICE_UNAVAILABLE, AST_DEVSTATE_CACHABLE, "IAX2/%s", peer->name); /* Activate notification */
 						}
 					}
@@ -11748,7 +11748,7 @@ immediatedial:
 	if (f.frametype == AST_FRAME_CONTROL) {
 		if (!iax2_is_control_frame_allowed(f.subclass.integer)) {
 			/* Control frame not allowed to come from the wire. */
-			ast_debug(2, "Callno %u: Blocked receiving control frame %d.\n",
+			ast_debug(2, "Callno %d: Blocked receiving control frame %d.\n",
 				fr->callno, f.subclass.integer);
 			ast_variables_destroy(ies.vars);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
@@ -11759,7 +11759,7 @@ immediatedial:
 			if (iaxs[fr->callno]
 				&& !ast_test_flag64(iaxs[fr->callno], IAX_RECVCONNECTEDLINE)) {
 				/* We are not configured to allow receiving these updates. */
-				ast_debug(2, "Callno %u: Config blocked receiving control frame %d.\n",
+				ast_debug(2, "Callno %d: Config blocked receiving control frame %d.\n",
 					fr->callno, f.subclass.integer);
 				ast_variables_destroy(ies.vars);
 				ast_mutex_unlock(&iaxsl[fr->callno]);
@@ -11831,7 +11831,7 @@ immediatedial:
 		fr->outoforder = 0;
 	} else {
 		if (iaxdebug && iaxs[fr->callno]) {
-			ast_debug(1, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass.integer, fr->ts, iaxs[fr->callno]->last);
+			ast_debug(1, "Received out of order packet... (type=%u, subclass %d, ts = %u, last = %u)\n", f.frametype, f.subclass.integer, fr->ts, iaxs[fr->callno]->last);
 		}
 		fr->outoforder = -1;
 	}
@@ -11846,7 +11846,7 @@ immediatedial:
 		iaxs[fr->callno]->last = fr->ts;
 #if 1
 		if (iaxdebug)
-			ast_debug(1, "For call=%d, set last=%d\n", fr->callno, fr->ts);
+			ast_debug(1, "For call=%d, set last=%u\n", fr->callno, fr->ts);
 #endif
 	}
 
@@ -14263,7 +14263,7 @@ static int iax2_devicestate(void *data)
 		return res;
 
 	res = AST_DEVICE_UNAVAILABLE;
-	ast_debug(3, "Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
+	ast_debug(3, "Found peer. What's device state of %s? addr=%u, defaddr=%u maxms=%d, lastms=%d\n",
 		pds.peer, ast_sockaddr_ipv4(&p->addr), p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 	
 	if ((ast_sockaddr_ipv4(&p->addr) || p->defaddr.sin_addr.s_addr) &&

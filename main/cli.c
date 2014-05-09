@@ -509,14 +509,14 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			if (AST_RWLIST_EMPTY(mll))
 				ast_clear_flag(&ast_options, is_debug ? AST_OPT_FLAG_DEBUG_MODULE : AST_OPT_FLAG_VERBOSE_MODULE);
 			AST_RWLIST_UNLOCK(mll);
-			ast_cli(fd, "%s was %d and has been set to 0 for '%s'\n", what, ml->level, mod);
+			ast_cli(fd, "%s was %u and has been set to 0 for '%s'\n", what, ml->level, mod);
 			ast_free(ml);
 			return CLI_SUCCESS;
 		}
 
 		if (ml) {
 			if ((atleast && newlevel < ml->level) || ml->level == newlevel) {
-				ast_cli(fd, "%s is %d for '%s'\n", what, ml->level, mod);
+				ast_cli(fd, "%s is %u for '%s'\n", what, ml->level, mod);
 				AST_RWLIST_UNLOCK(mll);
 				return CLI_SUCCESS;
 			}
@@ -538,7 +538,7 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 		AST_RWLIST_UNLOCK(mll);
 
-		ast_cli(fd, "%s was %d and has been set to %d for '%s'\n", what, oldval, ml->level, ml->module);
+		ast_cli(fd, "%s was %d and has been set to %u for '%s'\n", what, oldval, ml->level, ml->module);
 
 		return CLI_SUCCESS;
 	} else if (!newlevel) {
@@ -1456,7 +1456,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"Connected Line ID Name: %s\n"
 		"    DNID Digits: %s\n"
 		"       Language: %s\n"
-		"          State: %s (%d)\n"
+		"          State: %s (%u)\n"
 		"          Rings: %d\n"
 		"  NativeFormats: %s\n"
 		"    WriteFormat: %s\n"
@@ -1464,8 +1464,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		" WriteTranscode: %s %s\n"
 		"  ReadTranscode: %s %s\n"
 		"1st File Descriptor: %d\n"
-		"      Frames in: %d%s\n"
-		"     Frames out: %d%s\n"
+		"      Frames in: %u%s\n"
+		"     Frames out: %u%s\n"
 		" Time to Hangup: %ld\n"
 		"   Elapsed Time: %s\n"
 		"  Direct Bridge: %s\n"

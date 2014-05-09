@@ -5133,7 +5133,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1, X_REC_IN | X_REC_OUT);
 				} else {
 					/* Last ditch effort -- no CDR, make up something */
-					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
+					snprintf(tmpid, sizeof(tmpid), "chan-%lx", (unsigned long)ast_random());
 					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
 				}
 				if (!ast_strlen_zero(monexec)) {
@@ -5148,7 +5148,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 						if (qe->chan->cdr)
 							ast_copy_string(tmpid, qe->chan->cdr->uniqueid, sizeof(tmpid));
 						else
-							snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
+							snprintf(tmpid, sizeof(tmpid), "chan-%lx", (unsigned long)ast_random());
 					} else {
 						const char *m = monitorfilename;
 						for (p = tmpid2; p < tmpid2 + sizeof(tmpid2) - 1; p++, m++) {

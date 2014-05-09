@@ -532,7 +532,7 @@ void ast_sched_report(struct sched_context *con, struct ast_str **buf, struct as
 	size_t heap_size;
 	
 	memset(countlist, 0, sizeof(countlist));
-	ast_str_set(buf, 0, " Highwater = %d\n schedcnt = %d\n", con->highwater, con->schedcnt);
+	ast_str_set(buf, 0, " Highwater = %u\n schedcnt = %u\n", con->highwater, con->schedcnt);
 
 	ast_mutex_lock(&con->lock);
 
@@ -569,9 +569,9 @@ void ast_sched_dump(struct sched_context *con)
 	int x;
 	size_t heap_size;
 #ifdef SCHED_MAX_CACHE
-	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache, %d high-water)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt, con->highwater);
+	ast_debug(1, "Asterisk Schedule Dump (%u in Q, %u Total, %u Cache, %u high-water)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt, con->highwater);
 #else
-	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total, %d high-water)\n", con->schedcnt, con->eventcnt - 1, con->highwater);
+	ast_debug(1, "Asterisk Schedule Dump (%u in Q, %u Total, %u high-water)\n", con->schedcnt, con->eventcnt - 1, con->highwater);
 #endif
 
 	ast_debug(1, "=============================================================\n");

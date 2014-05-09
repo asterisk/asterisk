@@ -439,7 +439,7 @@ static void devstate_event(const char *device, enum ast_device_state state, int 
 		event_type = AST_EVENT_DEVICE_STATE;
 	}
 
-	ast_debug(3, "device '%s' state '%d'\n", device, state);
+	ast_debug(3, "device '%s' state '%u'\n", device, state);
 
 	if (!(event = ast_event_new(event_type,
 				    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
@@ -464,7 +464,7 @@ static void do_state_change(const char *device, int cachable)
 
 	state = _ast_device_state(device, 0);
 
-	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, ast_devstate2str(state));
+	ast_debug(3, "Changing state for %s - state %u (%s)\n", device, state, ast_devstate2str(state));
 
 	devstate_event(device, state, cachable);
 }

@@ -384,7 +384,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			   frame. */
 			path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(out->subclass.codec)));
 			if (f->samples != out->samples && ast_test_flag(out, AST_FRFLAG_HAS_TIMING_INFO)) {
-				ast_debug(4, "Sample size different %u vs %u\n", f->samples, out->samples);
+				ast_debug(4, "Sample size different %d vs %d\n", f->samples, out->samples);
 				ast_clear_flag(out, AST_FRFLAG_HAS_TIMING_INFO);
 			}
 		} else {
@@ -616,7 +616,7 @@ static void rebuild_matrix(int samples)
 					 * then this is a up sample down sample conversion scenario. */
 					tr_matrix[x][z].rate_change = tr_matrix[x][y].rate_change + tr_matrix[y][z].rate_change;
 
-					ast_debug(10, "Discovered %d cost path from %s to %s, via %s\n", tr_matrix[x][z].cost,
+					ast_debug(10, "Discovered %u cost path from %s to %s, via %s\n", tr_matrix[x][z].cost,
 						  ast_getformatname(1LL << x), ast_getformatname(1LL << z), ast_getformatname(1LL << y));
 					changed++;
 				}
@@ -823,7 +823,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 				curlen = 5;
 			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
 				/* Actual codec output */
-				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost);
+				ast_str_append(&out, -1, "%*u", curlen + 1, tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
 				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1LL << (y)) );

@@ -729,7 +729,7 @@ static void display_last_error(const char *sz_msg)
 	time(&cur_time);
 
 	/* Display the error message */
-	ast_log(LOG_WARNING, "%s %s : (%u) %s\n", ctime(&cur_time), sz_msg, errno,
+	ast_log(LOG_WARNING, "%s %s : (%d) %s\n", ctime(&cur_time), sz_msg, errno,
 			strerror(errno));
 }
 
@@ -821,7 +821,7 @@ static void send_client(int size, const unsigned char *data, struct unistimsessi
 
 /*#ifdef DUMP_PACKET */
 	if (unistimdebug)
-		ast_verb(6, "Sending datas with seq #0x%.4x Using slot #%d :\n", pte->seq_server, buf_pos);
+		ast_verb(6, "Sending datas with seq #0x%.4x Using slot #%d :\n", (unsigned)pte->seq_server, buf_pos);
 /*#endif */
 	send_raw_client(pte->wsabufsend[buf_pos].len, pte->wsabufsend[buf_pos].buf, &(pte->sin),
 				  &(pte->sout));
@@ -973,7 +973,7 @@ static void Sendicon(unsigned char pos, unsigned char status, struct unistimsess
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verb(0, "Sending icon pos %d with status 0x%.2x\n", pos, status);
+		ast_verb(0, "Sending icon pos %d with status 0x%.2x\n", pos, (unsigned)status);
 	memcpy(buffsend + SIZE_HEADER, packet_send_icon, sizeof(packet_send_icon));
 	buffsend[9] = pos;
 	buffsend[10] = status;
@@ -1041,7 +1041,7 @@ send_favorite(unsigned char pos, unsigned char status, struct unistimsession *pt
 	int i;
 
 	if (unistimdebug)
-		ast_verb(0, "Sending favorite pos %d with status 0x%.2x\n", pos, status);
+		ast_verb(0, "Sending favorite pos %d with status 0x%.2x\n", pos, (unsigned)status);
 	memcpy(buffsend + SIZE_HEADER, packet_send_favorite, sizeof(packet_send_favorite));
 	buffsend[10] = pos;
 	buffsend[24] = pos;
@@ -1186,7 +1186,7 @@ static int send_retransmit(struct unistimsession *pte)
 		if (i < 0) {
 			ast_log(LOG_WARNING,
 					"Asked to retransmit an ACKed slot ! last_buf_available=%d, seq_server = #0x%.4x last_seq_ack = #0x%.4x\n",
-					pte->last_buf_available, pte->seq_server, pte->last_seq_ack);
+					pte->last_buf_available, (unsigned)pte->seq_server, (unsigned)pte->last_seq_ack);
 			continue;
 		}
 
@@ -1196,7 +1196,7 @@ static int send_retransmit(struct unistimsession *pte)
 
 			seq = ntohs(sbuf[1]);
 			ast_verb(0, "Retransmit slot #%d (seq=#0x%.4x), last ack was #0x%.4x\n", i,
-						seq, pte->last_seq_ack);
+						(unsigned)seq, (unsigned)pte->last_seq_ack);
 		}
 		send_raw_client(pte->wsabufsend[i].len, pte->wsabufsend[i].buf, &pte->sin,
 					  &pte->sout);
@@ -1266,7 +1266,7 @@ static void send_led_update(struct unistimsession *pte, unsigned char led)
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verb(0, "Sending led_update (%x)\n", led);
+		ast_verb(0, "Sending led_update (%x)\n", (unsigned)led);
 	memcpy(buffsend + SIZE_HEADER, packet_send_led_update, sizeof(packet_send_led_update));
 	buffsend[9] = led;
 	send_client(SIZE_HEADER + sizeof(packet_send_led_update), buffsend, pte);
@@ -1281,8 +1281,8 @@ send_select_output(struct unistimsession *pte, unsigned char output, unsigned ch
 {
 	BUFFSEND;
 	if (unistimdebug)
-		ast_verb(0, "Sending select output packet output=%x volume=%x mute=%x\n", output,
-					volume, mute);
+		ast_verb(0, "Sending select output packet output=%x volume=%x mute=%x\n", (unsigned)output,
+					(unsigned)volume, (unsigned)mute);
 	memcpy(buffsend + SIZE_HEADER, packet_send_select_output,
 		   sizeof(packet_send_select_output));
 	buffsend[9] = output;
@@ -1527,7 +1527,7 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 	char addrmac[19];
 	int res = 0;
 	for (tmp = 15; tmp < 15 + SIZE_HEADER; tmp++) {
-		sprintf(&addrmac[i], "%.2x", (unsigned char) buf[tmp]);
+		sprintf(&addrmac[i], "%.2x", (unsigned) buf[tmp]);
 		i += 2;
 	}
 	if (unistimdebug) {
@@ -1614,7 +1614,7 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 					"Autoprovisioning with database is not yet functional\n");
 			break;
 		default:
-			ast_log(LOG_WARNING, "Internal error : unknown autoprovisioning value = %d\n",
+			ast_log(LOG_WARNING, "Internal error : unknown autoprovisioning value = %u\n",
 					autoprovisioning);
 		}
 	}
@@ -1649,7 +1649,7 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 			pte->state = STATE_MAINPAGE;
 			break;
 		default:
-			ast_log(LOG_WARNING, "Internal error, extension value unknown : %d\n",
+			ast_log(LOG_WARNING, "Internal error, extension value unknown : %u\n",
 					pte->device->extension);
 			pte->state = STATE_AUTHDENY;
 			break;
@@ -1983,7 +1983,7 @@ static void close_call(struct unistimsession *pte)
 			else
 				ast_log(LOG_WARNING, "threeway sub without owner\n");
 		} else
-			ast_verb(0, "USTM(%s@%s-%d) channel already destroyed\n", sub->parent->name,
+			ast_verb(0, "USTM(%s@%s-%u) channel already destroyed\n", sub->parent->name,
 						sub->parent->parent->name, sub->subtype);
 	}
 	change_callerid(pte, 0, pte->device->redial_number);
@@ -2008,7 +2008,7 @@ static void *unistim_ss(void *data)
 	struct unistimsession *s = l->parent->session;
 	int res;
 
-	ast_verb(3, "Starting switch on '%s@%s-%d' to %s\n", l->name, l->parent->name, sub->subtype, s->device->phone_number);
+	ast_verb(3, "Starting switch on '%s@%s-%u' to %s\n", l->name, l->parent->name, sub->subtype, s->device->phone_number);
 	ast_copy_string(chan->exten, s->device->phone_number, sizeof(chan->exten));
 	ast_copy_string(s->device->redial_number, s->device->phone_number,
 					sizeof(s->device->redial_number));
@@ -2459,7 +2459,7 @@ static void HandleCallOutgoing(struct unistimsession *s)
 				return;
 			}
 			if (unistimdebug)
-				ast_verb(0, "Started three way call on channel %p (%s) subchan %d\n",
+				ast_verb(0, "Started three way call on channel %p (%s) subchan %u\n",
 					 p->subs[SUB_THREEWAY]->owner, p->subs[SUB_THREEWAY]->owner->name,
 					 p->subs[SUB_THREEWAY]->subtype);
 		} else
@@ -3429,7 +3429,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		char keycode = buf[13];
 
 		if (unistimdebug)
-			ast_verb(0, "Key pressed : keycode = 0x%.2x - current state : %d\n", keycode,
+			ast_verb(0, "Key pressed : keycode = 0x%.2x - current state : %d\n", (unsigned)keycode,
 						pte->state);
 
 		switch (pte->state) {
@@ -3574,14 +3574,14 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 	}
 	if (buf[5] != 2) {
 		ast_log(LOG_NOTICE, "%s Wrong direction : got 0x%.2x expected 0x02\n", tmpbuf,
-				buf[5]);
+				(unsigned)buf[5]);
 		return;
 	}
 	seq = ntohs(sbuf[1]);
 	if (buf[4] == 1) {
 		ast_mutex_lock(&pte->lock);
 		if (unistimdebug)
-			ast_verb(6, "ACK received for packet #0x%.4x\n", seq);
+			ast_verb(6, "ACK received for packet #0x%.4x\n", (unsigned)seq);
 		pte->nb_retransmit = 0;
 
 		if ((pte->last_seq_ack) + 1 == seq) {
@@ -3597,20 +3597,20 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 			} else
 				ast_log(LOG_NOTICE,
 						"%s Warning : ACK received for an already ACKed packet : #0x%.4x we are at #0x%.4x\n",
-						tmpbuf, seq, pte->last_seq_ack);
+						tmpbuf, (unsigned)seq, (unsigned)pte->last_seq_ack);
 			ast_mutex_unlock(&pte->lock);
 			return;
 		}
 		if (pte->seq_server < seq) {
 			ast_log(LOG_NOTICE,
 					"%s Error : ACK received for a non-existent packet : #0x%.4x\n",
-					tmpbuf, pte->seq_server);
+					tmpbuf, (unsigned)pte->seq_server);
 			ast_mutex_unlock(&pte->lock);
 			return;
 		}
 		if (unistimdebug)
 			ast_verb(0, "%s ACK gap : Received ACK #0x%.4x, previous was #0x%.4x\n",
-						tmpbuf, seq, pte->last_seq_ack);
+						tmpbuf, (unsigned)seq, (unsigned)pte->last_seq_ack);
 		pte->last_seq_ack = seq;
 		check_send_queue(pte);
 		ast_mutex_unlock(&pte->lock);
@@ -3632,7 +3632,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		if (pte->seq_phone > seq) {
 			ast_log(LOG_NOTICE,
 					"%s Warning : received a retransmitted packet : #0x%.4x (we are at #0x%.4x)\n",
-					tmpbuf, seq, pte->seq_phone);
+					tmpbuf, (unsigned)seq, (unsigned)pte->seq_phone);
 			/* BUG ? pte->device->seq_phone = seq; */
 			/* Send ACK */
 			buf[4] = 1;
@@ -3642,28 +3642,28 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		}
 		ast_log(LOG_NOTICE,
 				"%s Warning : we lost a packet : received #0x%.4x (we are at #0x%.4x)\n",
-				tmpbuf, seq, pte->seq_phone);
+				tmpbuf, (unsigned)seq, (unsigned)pte->seq_phone);
 		return;
 	}
 	if (buf[4] == 0) {
-		ast_log(LOG_NOTICE, "%s Retransmit request for packet #0x%.4x\n", tmpbuf, seq);
+		ast_log(LOG_NOTICE, "%s Retransmit request for packet #0x%.4x\n", tmpbuf, (unsigned)seq);
 		if (pte->last_seq_ack > seq) {
 			ast_log(LOG_NOTICE,
 					"%s Error : received a request for an already ACKed packet : #0x%.4x\n",
-					tmpbuf, pte->last_seq_ack);
+					tmpbuf, (unsigned)pte->last_seq_ack);
 			return;
 		}
 		if (pte->seq_server < seq) {
 			ast_log(LOG_NOTICE,
 					"%s Error : received a request for a non-existent packet : #0x%.4x\n",
-					tmpbuf, pte->seq_server);
+					tmpbuf, (unsigned)pte->seq_server);
 			return;
 		}
 		send_retransmit(pte);
 		return;
 	}
 	ast_log(LOG_NOTICE, "%s Unknown request : got 0x%.2x expected 0x00,0x01 or 0x02\n",
-			tmpbuf, buf[4]);
+			tmpbuf, (unsigned)buf[4]);
 	return;
 }
 
@@ -3891,7 +3891,7 @@ static int unistim_answer(struct ast_channel *ast)
 	if ((!sub->rtp) && (!l->subs[SUB_THREEWAY]))
 		start_rtp(sub);
 	if (unistimdebug)
-		ast_verb(0, "unistim_answer(%s) on %s@%s-%d\n", ast->name, l->name,
+		ast_verb(0, "unistim_answer(%s) on %s@%s-%u\n", ast->name, l->name,
 					l->parent->name, sub->subtype);
 	send_text(TEXT_LINE2, TEXT_NORMAL, l->parent->session, "is now on-line");
 	if (l->subs[SUB_THREEWAY])
@@ -3975,7 +3975,7 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 	}
 
 	if (!sub->rtp) {
-		ast_log(LOG_WARNING, "RTP handle NULL while reading on subchannel %d\n",
+		ast_log(LOG_WARNING, "RTP handle NULL while reading on subchannel %u\n",
 				sub->subtype);
 		return &ast_null_frame;
 	}
@@ -4031,7 +4031,7 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (frame->frametype == AST_FRAME_IMAGE)
 			return 0;
 		else {
-			ast_log(LOG_WARNING, "Can't send %d type frames with unistim_write\n",
+			ast_log(LOG_WARNING, "Can't send %u type frames with unistim_write\n",
 					frame->frametype);
 			return 0;
 		}
@@ -4066,7 +4066,7 @@ static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newcha
 
 	ast_mutex_lock(&p->lock);
 
-	ast_debug(1, "New owner for channel USTM/%s@%s-%d is %s\n", l->name,
+	ast_debug(1, "New owner for channel USTM/%s@%s-%u is %s\n", l->name,
 			l->parent->name, p->subtype, newchan->name);
 
 	if (p->owner != oldchan) {
@@ -4506,9 +4506,9 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	}
 	l = sub->parent;
 	tmp = ast_channel_alloc(1, state, l->cid_num, NULL, l->accountcode, l->exten,
-		l->context, linkedid, l->amaflags, "%s@%s-%d", l->name, l->parent->name, sub->subtype);
+		l->context, linkedid, l->amaflags, "%s@%s-%u", l->name, l->parent->name, sub->subtype);
 	if (unistimdebug)
-		ast_verb(0, "unistim_new sub=%d (%p) chan=%p\n", sub->subtype, sub, tmp);
+		ast_verb(0, "unistim_new sub=%u (%p) chan=%p\n", sub->subtype, sub, tmp);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
@@ -4794,10 +4794,10 @@ static char *unistim_info(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 				else
 					tmp = sub->owner->_bridge;
 				if (sub->subtype != i)
-					ast_cli(a->fd, "Warning ! subchannel->subs[%d] have a subtype=%d\n", i,
+					ast_cli(a->fd, "Warning ! subchannel->subs[%d] have a subtype=%u\n", i,
 							sub->subtype);
 				ast_cli(a->fd,
-						"-->subtype=%d chan=%p rtp=%p bridge=%p line=%p alreadygone=%d\n",
+						"-->subtype=%u chan=%p rtp=%p bridge=%p line=%p alreadygone=%d\n",
 						sub->subtype, sub->owner, sub->rtp, tmp, sub->parent,
 						sub->alreadygone);
 			}
@@ -4810,7 +4810,7 @@ static char *unistim_info(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	s = sessions;
 	while (s) {
 		ast_cli(a->fd,
-				"sin=%s timeout=%u state=%d macaddr=%s device=%p session=%p\n",
+				"sin=%s timeout=%d state=%d macaddr=%s device=%p session=%p\n",
 				ast_inet_ntoa(s->sin.sin_addr), s->timeout, s->state, s->macaddr,
 				s->device, s);
 		s = s->next;
@@ -5045,7 +5045,7 @@ static int ParseBookmark(const char *text, struct unistim_device *d)
 	ast_copy_string(d->softkeynumber[p], number, sizeof(d->softkeynumber[p]));
 	if (unistimdebug)
 		ast_verb(0, "New bookmark at pos %d label='%s' number='%s' icon=%x\n",
-					p, d->softkeylabel[p], d->softkeynumber[p], d->softkeyicon[p]);
+					p, d->softkeylabel[p], d->softkeynumber[p], (unsigned)d->softkeyicon[p]);
 	return 1;
 }
 

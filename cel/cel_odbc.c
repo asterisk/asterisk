@@ -437,7 +437,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				} else if (strcmp(entry->celname, "peer") == 0) {
 					ast_copy_string(colbuf, record.peer, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "amaflags") == 0) {
-					snprintf(colbuf, sizeof(colbuf), "%d", record.amaflag);
+					snprintf(colbuf, sizeof(colbuf), "%u", record.amaflag);
 				} else if (strcmp(entry->celname, "extra") == 0) {
 					ast_copy_string(colbuf, record.extra, sizeof(colbuf));
 				} else {
@@ -631,7 +631,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					break;
 				case SQL_TINYINT:
 					{
-						char integer = 0;
+						signed char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
 						} else if (ast_strlen_zero(colptr)) {
@@ -648,7 +648,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					break;
 				case SQL_BIT:
 					{
-						char integer = 0;
+						signed char integer = 0;
 						if (strcasecmp(entry->name, "eventtype") == 0) {
 							integer = (char) record.event_type;
 						} else if (ast_strlen_zero(colptr)) {

@@ -674,15 +674,15 @@ static void sig_pri_set_subaddress(struct ast_party_subaddress *ast_subaddress, 
 		ptr = cnum;
 		len = pri_subaddress->length - 1; /* -1 account for zero based indexing */
 		for (x = 0; x < len; ++x) {
-			ptr += sprintf(ptr, "%02x", pri_subaddress->data[x]);
+			ptr += sprintf(ptr, "%02x", (unsigned)pri_subaddress->data[x]);
 		}
 
 		if (pri_subaddress->odd_even_indicator) {
 			/* ODD */
-			sprintf(ptr, "%01x", (pri_subaddress->data[len]) >> 4);
+			sprintf(ptr, "%01x", (unsigned)((pri_subaddress->data[len]) >> 4));
 		} else {
 			/* EVEN */
-			sprintf(ptr, "%02x", pri_subaddress->data[len]);
+			sprintf(ptr, "%02x", (unsigned)pri_subaddress->data[len]);
 		}
 		ast_subaddress->str = cnum;
 	}
@@ -2180,7 +2180,7 @@ static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, str
 
 	/* Party number */
 	ast_str_append(msg, 0, "%sNumValid: %d\r\n", prefix,
-		(unsigned) party->number.valid);
+		party->number.valid);
 	ast_str_append(msg, 0, "%sNum: %s\r\n", prefix,
 		S_COR(party->number.valid, party->number.str, ""));
 	ast_str_append(msg, 0, "%ston: %d\r\n", prefix, party->number.plan);
@@ -2193,7 +2193,7 @@ static void sig_pri_event_party_id(struct ast_str **msg, const char *prefix, str
 
 	/* Party name */
 	ast_str_append(msg, 0, "%sNameValid: %d\r\n", prefix,
-		(unsigned) party->name.valid);
+		party->name.valid);
 	ast_str_append(msg, 0, "%sName: %s\r\n", prefix,
 		S_COR(party->name.valid, party->name.str, ""));
 	if (party->name.valid) {
@@ -6739,7 +6739,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, char *rdest, i
 	if (p->pri->facilityenable)
 		pri_facility_enable(p->pri->pri);
 
-	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", ast->transfercapability, ast_transfercapability2str(ast->transfercapability));
+	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", (unsigned)ast->transfercapability, ast_transfercapability2str(ast->transfercapability));
 	dp_strip = 0;
 	pridialplan = p->pri->dialplan - 1;
 	if (pridialplan == -2 || pridialplan == -3) { /* compute dynamically */
@@ -7419,7 +7419,7 @@ int sig_pri_digit_begin(struct sig_pri_chan *pvt, struct ast_channel *ast, char 
 		}
 		if (pvt->call_level < SIG_PRI_CALL_LEVEL_CONNECT) {
 			ast_log(LOG_WARNING,
-				"Span %d: Digit '%c' may be ignored by peer. (Call level:%d(%s))\n",
+				"Span %d: Digit '%c' may be ignored by peer. (Call level:%u(%s))\n",
 				pvt->pri->span, digit, pvt->call_level,
 				sig_pri_call_level2str(pvt->call_level));
 		}

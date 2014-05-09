@@ -389,7 +389,7 @@ static struct ast_bridge_technology *find_best_technology(enum ast_bridge_capabi
 
 	AST_RWLIST_RDLOCK(&bridge_technologies);
 	AST_RWLIST_TRAVERSE(&bridge_technologies, current, entry) {
-		ast_debug(1, "Bridge technology %s has capabilities %d and we want %d\n", current->name, current->capabilities, capabilities);
+		ast_debug(1, "Bridge technology %s has capabilities %d and we want %u\n", current->name, current->capabilities, capabilities);
 		if (current->suspended) {
 			ast_debug(1, "Bridge technology %s is suspended. Skipping.\n", current->name);
 			continue;
@@ -399,7 +399,7 @@ static struct ast_bridge_technology *find_best_technology(enum ast_bridge_capabi
 			continue;
 		}
 		if (best && best->preference < current->preference) {
-			ast_debug(1, "Bridge technology %s has preference %d while %s has preference %d. Skipping.\n", current->name, current->preference, best->name, best->preference);
+			ast_debug(1, "Bridge technology %s has preference %u while %s has preference %u. Skipping.\n", current->name, current->preference, best->name, best->preference);
 			continue;
 		}
 		best = current;
@@ -468,7 +468,7 @@ struct ast_bridge *ast_bridge_new(enum ast_bridge_capability capabilities, int f
 
 	/* If no bridge technology was found we can't possibly do bridging so fail creation of the bridge */
 	if (!bridge_technology) {
-		ast_debug(1, "Failed to find a bridge technology to satisfy capabilities %d\n", capabilities);
+		ast_debug(1, "Failed to find a bridge technology to satisfy capabilities %u\n", capabilities);
 		return NULL;
 	}
 
@@ -622,7 +622,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge, struct ast_bridge_c
 
 	/* Attempt to find a new bridge technology to satisfy the capabilities */
 	if (!(new_technology = find_best_technology(new_capabilities))) {
-		ast_debug(1, "Smart bridge operation was unable to find new bridge technology with capabilities %d to satisfy bridge %p\n", new_capabilities, bridge);
+		ast_debug(1, "Smart bridge operation was unable to find new bridge technology with capabilities %u to satisfy bridge %p\n", new_capabilities, bridge);
 		return -1;
 	}
 
@@ -1299,7 +1299,7 @@ int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_br
 		dtmf = builtin_features_dtmf[feature];
 		/* If no DTMF is still available (ie: it has been disabled) then error out now */
 		if (ast_strlen_zero(dtmf)) {
-			ast_debug(1, "Failed to enable built in feature %d on %p, no DTMF string is available for it.\n", feature, features);
+			ast_debug(1, "Failed to enable built in feature %u on %p, no DTMF string is available for it.\n", feature, features);
 			return -1;
 		}
 	}

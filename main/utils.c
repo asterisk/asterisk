@@ -254,7 +254,7 @@ void ast_md5_hash(char *output, const char *input)
 	MD5Final(digest, &md5);
 	ptr = output;
 	for (x = 0; x < 16; x++)
-		ptr += sprintf(ptr, "%2.2x", digest[x]);
+		ptr += sprintf(ptr, "%2.2x", (unsigned)digest[x]);
 }
 
 /*! \brief Produce 40 char SHA1 hash of value. */
@@ -272,7 +272,7 @@ void ast_sha1_hash(char *output, const char *input)
 	SHA1Result(&sha, Message_Digest);
 	ptr = output;
 	for (x = 0; x < 20; x++)
-		ptr += sprintf(ptr, "%2.2x", Message_Digest[x]);
+		ptr += sprintf(ptr, "%2.2x", (unsigned)Message_Digest[x]);
 }
 
 /*! \brief decode BASE64 encoded text */
@@ -412,7 +412,7 @@ char *ast_uri_encode(const char *string, char *outbuf, int buflen, int do_specia
 				break;
 			}
 
-			out += sprintf(out, "%%%02X", (unsigned char) *ptr);
+			out += sprintf(out, "%%%02X", (unsigned) *ptr);
 		} else {
 			*out = *ptr;	/* Continue copying the string */
 			out++;

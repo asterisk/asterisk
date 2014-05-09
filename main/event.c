@@ -278,7 +278,7 @@ const char *ast_event_get_type_name(const struct ast_event *event)
 	type = ast_event_get_type(event);
 
 	if (type < 0 || type >= ARRAY_LEN(event_names)) {
-		ast_log(LOG_ERROR, "Invalid event type - '%d'\n", type);
+		ast_log(LOG_ERROR, "Invalid event type - '%u'\n", type);
 		return "";
 	}
 
@@ -1211,7 +1211,7 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 	/* Invalid type */
 	if (type >= AST_EVENT_TOTAL) {
 		ast_log(LOG_WARNING, "Someone tried to create an event of invalid "
-			"type '%d'!\n", type);
+			"type '%u'!\n", type);
 		return NULL;
 	}
 
