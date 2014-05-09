@@ -348,7 +348,7 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 	for (; (candidate = ao2_iterator_next(&it_candidates)); ao2_ref(candidate, -1)) {
 		struct ast_str *attr_candidate = ast_str_create(128);
 
-		ast_str_set(&attr_candidate, -1, "%s %d %s %d %s ", candidate->foundation, candidate->id, candidate->transport,
+		ast_str_set(&attr_candidate, -1, "%s %u %s %d %s ", candidate->foundation, candidate->id, candidate->transport,
 					candidate->priority, ast_sockaddr_stringify_host(&candidate->address));
 		ast_str_append(&attr_candidate, -1, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
 
@@ -409,7 +409,7 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 	/* Find all of the candidates */
 	for (attr_i = 0; attr_i < remote_stream->attr_count; ++attr_i) {
 		char foundation[32], transport[32], address[PJ_INET6_ADDRSTRLEN + 1], cand_type[6], relay_address[PJ_INET6_ADDRSTRLEN + 1] = "";
-		int port, relay_port = 0;
+		unsigned int port, relay_port = 0;
 		struct ast_rtp_engine_ice_candidate candidate = { 0, };
 
 		attr = remote_stream->attr[attr_i];
@@ -422,7 +422,7 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		ast_copy_pj_str(attr_value, (pj_str_t*)&attr->value, sizeof(attr_value));
 
 		if (sscanf(attr_value, "%31s %30u %31s %30u %46s %30u typ %5s %*s %23s %*s %30u", foundation, &candidate.id, transport,
-			&candidate.priority, address, &port, cand_type, relay_address, &relay_port) < 7) {
+			(unsigned *)&candidate.priority, address, &port, cand_type, relay_address, &relay_port) < 7) {
 			/* Candidate did not parse properly */
 			continue;
 		}

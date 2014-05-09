@@ -365,7 +365,7 @@ static int encode_open_type(const struct ast_udptl *udptl, uint8_t *buf, unsigne
 		if ((enclen = encode_length(buf, len, num_octets)) < 0)
 			return -1;
 		if (enclen + *len > buflen) {
-			ast_log(LOG_ERROR, "UDPTL (%s): Buffer overflow detected (%d + %d > %d)\n",
+			ast_log(LOG_ERROR, "UDPTL (%s): Buffer overflow detected (%u + %u > %u)\n",
 				LOG_TAG(udptl), enclen, *len, buflen);
 			return -1;
 		}
@@ -443,7 +443,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 				if (seq_no - i >= s->rx_seq_no) {
 					/* This one wasn't seen before */
 					/* Decode the secondary IFP packet */
-					ast_debug(3, "Recovering lost packet via secondary %d, len %d\n", seq_no - i, lengths[i - 1]);
+					ast_debug(3, "Recovering lost packet via secondary %d, len %u\n", seq_no - i, lengths[i - 1]);
 					s->f[ifp_no].frametype = AST_FRAME_MODEM;
 					s->f[ifp_no].subclass.integer = AST_MODEM_T38;
 
@@ -1158,7 +1158,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 
 	if (len > s->far_max_ifp) {
 		ast_log(LOG_WARNING,
-			"UDPTL (%s): UDPTL asked to send %d bytes of IFP when far end only prepared to accept %d bytes; data loss will occur."
+			"UDPTL (%s): UDPTL asked to send %u bytes of IFP when far end only prepared to accept %d bytes; data loss will occur."
 			"You may need to override the T38FaxMaxDatagram value for this endpoint in the channel driver configuration.\n",
 			LOG_TAG(s), len, s->far_max_ifp);
 		len = s->far_max_ifp;
@@ -1176,7 +1176,7 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 				LOG_TAG(s), ast_sockaddr_stringify(&s->them), strerror(errno));
 		}
 		if (udptl_debug_test_addr(&s->them)) {
-			ast_verb(1, "UDPTL (%s): packet to %s (seq %d, len %d)\n",
+			ast_verb(1, "UDPTL (%s): packet to %s (seq %u, len %u)\n",
 				LOG_TAG(s), ast_sockaddr_stringify(&s->them), seq, len);
 		}
 	}
@@ -1330,7 +1330,7 @@ static int udptl_pre_apply_config(void) {
 	/* Fix up any global config values that we can handle before replacing the config */
 	if (cfg->general->use_even_ports && (cfg->general->start & 1)) {
 		++cfg->general->start;
-		ast_log(LOG_NOTICE, "Odd numbered udptlstart specified but use_even_ports enabled. udptlstart is now %d\n", cfg->general->start);
+		ast_log(LOG_NOTICE, "Odd numbered udptlstart specified but use_even_ports enabled. udptlstart is now %u\n", cfg->general->start);
 	}
 	if (cfg->general->start > cfg->general->end) {
 		ast_log(LOG_WARNING, "Unreasonable values for UDPTL start/end ports; defaulting to %s-%s.\n", __stringify(DEFAULT_UDPTLSTART), __stringify(DEFAULT_UDPTLEND));
@@ -1339,7 +1339,7 @@ static int udptl_pre_apply_config(void) {
 	}
 	if (cfg->general->use_even_ports && (cfg->general->end & 1)) {
 		--cfg->general->end;
-		ast_log(LOG_NOTICE, "Odd numbered udptlend specified but use_even_ports enabled. udptlend is now %d\n", cfg->general->end);
+		ast_log(LOG_NOTICE, "Odd numbered udptlend specified but use_even_ports enabled. udptlend is now %u\n", cfg->general->end);
 	}
 
 	return 0;

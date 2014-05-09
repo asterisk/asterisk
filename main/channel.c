@@ -738,7 +738,7 @@ const char *ast_state2str(enum ast_channel_state state)
 	default:
 		if (!(buf = ast_threadstorage_get(&state2str_threadbuf, STATE2STR_BUFSIZE)))
 			return "Unknown";
-		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%d)", state);
+		snprintf(buf, STATE2STR_BUFSIZE, "Unknown (%u)", state);
 		return buf;
 	}
 }
@@ -1198,7 +1198,7 @@ static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, in
 
 	if (ast_channel_alert_writable(chan)) {
 		if (ast_channel_alert_write(chan)) {
-			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s (qlen = %d): %s!\n",
+			ast_log(LOG_WARNING, "Unable to write to alert pipe on %s (qlen = %u): %s!\n",
 				ast_channel_name(chan), queued_frames, strerror(errno));
 		}
 	} else if (ast_channel_timingfd(chan) > -1) {
@@ -2838,7 +2838,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 					break;
 				}
 				if (ms == 0) {
-					ast_debug(2, "Didn't receive a media frame from %s within %d ms of answering. Continuing anyway\n", ast_channel_name(chan), MAX(delay, 500));
+					ast_debug(2, "Didn't receive a media frame from %s within %u ms of answering. Continuing anyway\n", ast_channel_name(chan), MAX(delay, 500));
 					break;
 				}
 				cur = ast_read(chan);
@@ -4075,7 +4075,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					f->len = option_dtmfminduration;
 				}
 				if (f->len < option_dtmfminduration && !ast_test_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY)) {
-					ast_log(LOG_DTMF, "DTMF end '%c' has duration %ld but want minimum %d, emulating on %s\n", f->subclass.integer, f->len, option_dtmfminduration, ast_channel_name(chan));
+					ast_log(LOG_DTMF, "DTMF end '%c' has duration %ld but want minimum %u, emulating on %s\n", f->subclass.integer, f->len, option_dtmfminduration, ast_channel_name(chan));
 					ast_set_flag(ast_channel_flags(chan), AST_FLAG_EMULATE_DTMF);
 					ast_channel_dtmf_digit_to_emulate_set(chan, f->subclass.integer);
 					ast_channel_emulate_dtmf_duration_set(chan, option_dtmfminduration - f->len);
@@ -4663,14 +4663,14 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	if (ts) {
 		/* We have a tone to play, yay. */
-		ast_debug(1, "Driver for channel '%s' does not support indication %d, emulating it\n", ast_channel_name(chan), condition);
+		ast_debug(1, "Driver for channel '%s' does not support indication %u, emulating it\n", ast_channel_name(chan), condition);
 		res = ast_playtones_start(chan, 0, ts->data, 1);
 		ts = ast_tone_zone_sound_unref(ts);
 	}
 
 	if (res) {
 		/* not handled */
-		ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, ast_channel_name(chan));
+		ast_log(LOG_WARNING, "Unable to handle indication %u for '%s'\n", condition, ast_channel_name(chan));
 	}
 
 indicate_cleanup:
@@ -6443,7 +6443,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* Start the masquerade channel contents rearangement. */
 	ast_channel_lock_both(original, clonechan);
 
-	ast_debug(4, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
+	ast_debug(4, "Actually Masquerading %s(%u) into the structure of %s(%u)\n",
 		ast_channel_name(clonechan), ast_channel_state(clonechan), ast_channel_name(original), ast_channel_state(original));
 
 	/*
@@ -6746,7 +6746,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 		pthread_kill(ast_channel_blocker(original), SIGURG);
 	}
 
-	ast_debug(1, "Done Masquerading %s (%d)\n", ast_channel_name(original), ast_channel_state(original));
+	ast_debug(1, "Done Masquerading %s (%u)\n", ast_channel_name(original), ast_channel_state(original));
 	ast_channel_unlock(original);
 
 	if ((bridged = ast_channel_bridge_peer(original))) {
@@ -10334,7 +10334,7 @@ int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum 
 	int framehook_id;
 
 	if (!(datastore_info = suppress_get_datastore_information(frametype))) {
-		ast_log(LOG_WARNING, "Attempted to suppress an unsupported frame type (%d).\n", frametype);
+		ast_log(LOG_WARNING, "Attempted to suppress an unsupported frame type (%u).\n", frametype);
 		return -1;
 	}
 
@@ -10392,7 +10392,7 @@ int ast_channel_unsuppress(struct ast_channel *chan, unsigned int direction, enu
 	struct suppress_data *suppress;
 
 	if (!(datastore_info = suppress_get_datastore_information(frametype))) {
-		ast_log(LOG_WARNING, "Attempted to unsuppress an unsupported frame type (%d).\n", frametype);
+		ast_log(LOG_WARNING, "Attempted to unsuppress an unsupported frame type (%u).\n", frametype);
 		return -1;
 	}
 

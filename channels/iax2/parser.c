@@ -108,7 +108,7 @@ static void dump_string_hex(char *output, int maxlen, void *value, int len)
 	int i = 0;
 
 	while (len-- && (i + 1) * 4 < maxlen) {
-		sprintf(output + (4 * i), "\\x%2.2x", *((unsigned char *)value + i));
+		sprintf(output + (4 * i), "\\x%2.2x", (unsigned)*((unsigned char *)value + i));
 		i++;
 	}
 }
@@ -1149,7 +1149,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				ies->osptokenblock[count] = (char *)data + 2 + 1;
 				ies->ospblocklength[count] = len - 1;
 			} else {
-				snprintf(tmp, (int)sizeof(tmp), "Expected OSP token block index to be 0~%d but was %d\n", IAX_MAX_OSPBLOCK_NUM - 1, count);
+				snprintf(tmp, (int)sizeof(tmp), "Expected OSP token block index to be 0~%d but was %u\n", IAX_MAX_OSPBLOCK_NUM - 1, count);
 				errorf(tmp);
 			}
 			break;

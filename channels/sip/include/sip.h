@@ -1304,7 +1304,7 @@ struct sip_peer {
 	int ringing;                    /*!< Number of calls ringing */
 	int onhold;                     /*!< Peer has someone on hold */
 	int call_limit;                 /*!< Limit of concurrent calls */
-	int t38_maxdatagram;            /*!< T.38 FaxMaxDatagram override */
+	unsigned int t38_maxdatagram;            /*!< T.38 FaxMaxDatagram override */
 	int busy_level;                 /*!< Level of active channels where we signal busy */
 	int maxforwards;                /*!< SIP Loop prevention */
 	enum transfermodes allowtransfer;   /*! SIP Refer restriction scheme */

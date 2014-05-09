@@ -2105,7 +2105,7 @@ static struct ast_cc_monitor *cc_extension_monitor_init(const char * const exten
 	cc_interface->monitor_class = AST_CC_EXTENSION_MONITOR;
 	strcpy(cc_interface->device_name, ast_str_buffer(str));
 	monitor->interface = cc_interface;
-	ast_log_dynamic_level(cc_logger_level, "Created an extension cc interface for '%s' with id %d and parent %d\n", cc_interface->device_name, monitor->id, monitor->parent_id);
+	ast_log_dynamic_level(cc_logger_level, "Created an extension cc interface for '%s' with id %u and parent %u\n", cc_interface->device_name, monitor->id, monitor->parent_id);
 	return monitor;
 }
 
@@ -2284,7 +2284,7 @@ static struct ast_cc_monitor *cc_device_monitor_init(const char * const device_n
 	monitor->interface = cc_interface;
 	monitor->available_timer_id = -1;
 	ast_cc_copy_config_params(cc_interface->config_params, &cc_data->config_params);
-	ast_log_dynamic_level(cc_logger_level, "Core %d: Created a device cc interface for '%s' with id %d and parent %d\n",
+	ast_log_dynamic_level(cc_logger_level, "Core %d: Created a device cc interface for '%s' with id %u and parent %u\n",
 			monitor->core_id, cc_interface->device_name, monitor->id, monitor->parent_id);
 	return monitor;
 }
@@ -2579,7 +2579,7 @@ static struct ast_cc_agent *cc_agent_init(struct ast_channel *caller_chan,
 		cc_unref(agent, "Agent init callback failed.");
 		return NULL;
 	}
-	ast_log_dynamic_level(cc_logger_level, "Core %d: Created an agent for caller %s\n",
+	ast_log_dynamic_level(cc_logger_level, "Core %u: Created an agent for caller %s\n",
 			agent->core_id, agent->device_name);
 	return agent;
 }
@@ -2684,7 +2684,7 @@ static int offer_timer_expire(const void *data)
 {
 	struct ast_cc_agent *agent = (struct ast_cc_agent *) data;
 	struct cc_generic_agent_pvt *agent_pvt = agent->private_data;
-	ast_log_dynamic_level(cc_logger_level, "Core %d: Queuing change request because offer timer has expired.\n",
+	ast_log_dynamic_level(cc_logger_level, "Core %u: Queuing change request because offer timer has expired.\n",
 			agent->core_id);
 	agent_pvt->offer_timer_id = -1;
 	ast_cc_failed(agent->core_id, "Generic agent %s offer timer expired", agent->device_name);
@@ -2702,7 +2702,7 @@ static int cc_generic_agent_start_offer_timer(struct ast_cc_agent *agent)
 	ast_assert(agent->cc_params != NULL);
 
 	when = ast_get_cc_offer_timer(agent->cc_params) * 1000;
-	ast_log_dynamic_level(cc_logger_level, "Core %d: About to schedule offer timer expiration for %d ms\n",
+	ast_log_dynamic_level(cc_logger_level, "Core %u: About to schedule offer timer expiration for %d ms\n",
 			agent->core_id, when);
 	if ((sched_id = ast_sched_add(cc_sched_context, when, offer_timer_expire, cc_ref(agent, "Give scheduler an agent ref"))) == -1) {
 		return -1;
@@ -2830,7 +2830,7 @@ static void *generic_recall(void *data)
 	if (!(chan = ast_request_and_dial(tech, tmp_cap, NULL, NULL, target, recall_timer, &reason, generic_pvt->cid_num, generic_pvt->cid_name))) {
 		/* Hmm, no channel. Sucks for you, bud.
 		 */
-		ast_log_dynamic_level(cc_logger_level, "Core %d: Failed to call back %s for reason %d\n",
+		ast_log_dynamic_level(cc_logger_level, "Core %u: Failed to call back %s for reason %d\n",
 				agent->core_id, agent->device_name, reason);
 		ast_cc_failed(agent->core_id, "Failed to call back device %s/%s", tech, target);
 		ast_format_cap_destroy(tmp_cap);
@@ -2854,7 +2854,7 @@ static void *generic_recall(void *data)
 	pbx_builtin_setvar_helper(chan, "CC_CONTEXT", generic_pvt->context);
 
 	if (!ast_strlen_zero(callback_macro)) {
-		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback macro configured for agent %s\n",
+		ast_log_dynamic_level(cc_logger_level, "Core %u: There's a callback macro configured for agent %s\n",
 				agent->core_id, agent->device_name);
 		if (ast_app_exec_macro(NULL, chan, callback_macro)) {
 			ast_cc_failed(agent->core_id, "Callback macro to %s failed. Maybe a hangup?", agent->device_name);
@@ -2864,7 +2864,7 @@ static void *generic_recall(void *data)
 	}
 
 	if (!ast_strlen_zero(callback_sub)) {
-		ast_log_dynamic_level(cc_logger_level, "Core %d: There's a callback subroutine configured for agent %s\n",
+		ast_log_dynamic_level(cc_logger_level, "Core %u: There's a callback subroutine configured for agent %s\n",
 				agent->core_id, agent->device_name);
 		if (ast_app_exec_sub(NULL, chan, callback_sub, 0)) {
 			ast_cc_failed(agent->core_id, "Callback subroutine to %s failed. Maybe a hangup?", agent->device_name);
@@ -2993,7 +2993,7 @@ static int is_state_change_valid(enum cc_state current_state, const enum cc_stat
 	int is_valid = 0;
 	switch (new_state) {
 	case CC_AVAILABLE:
-		ast_log_dynamic_level(cc_logger_level, "Core %d: Asked to change to state %d? That should never happen.\n",
+		ast_log_dynamic_level(cc_logger_level, "Core %u: Asked to change to state %u? That should never happen.\n",
 				agent->core_id, new_state);
 		break;
 	case CC_CALLER_OFFERED:
@@ -3036,7 +3036,7 @@ static int is_state_change_valid(enum cc_state current_state, const enum cc_stat
 		is_valid = 1;
 		break;
 	default:
-		ast_log_dynamic_level(cc_logger_level, "Core %d: Asked to change to unknown state %d\n",
+		ast_log_dynamic_level(cc_logger_level, "Core %u: Asked to change to unknown state %u\n",
 				agent->core_id, new_state);
 		break;
 	}
@@ -3279,7 +3279,7 @@ static int cc_do_state_change(void *datap)
 	enum cc_state previous_state;
 	int res;
 
-	ast_log_dynamic_level(cc_logger_level, "Core %d: State change to %d requested. Reason: %s\n",
+	ast_log_dynamic_level(cc_logger_level, "Core %d: State change to %u requested. Reason: %s\n",
 			args->core_id, args->state, args->debug);
 
 	core_instance = args->core_instance;

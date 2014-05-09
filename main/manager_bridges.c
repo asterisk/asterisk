@@ -158,7 +158,7 @@ struct ast_str *ast_manager_build_bridge_state_string_prefix(
 		"%sBridgeTechnology: %s\r\n"
 		"%sBridgeCreator: %s\r\n"
 		"%sBridgeName: %s\r\n"
-		"%sBridgeNumChannels: %d\r\n",
+		"%sBridgeNumChannels: %u\r\n",
 		prefix, snapshot->uniqueid,
 		prefix, snapshot->subclass,
 		prefix, snapshot->technology,

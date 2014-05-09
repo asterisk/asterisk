@@ -519,7 +519,7 @@ static int transport_tos_handler(const struct aco_option *opt, struct ast_variab
 		value = value << 2;
 		ast_log(LOG_WARNING,
 			"transport '%s' - 'tos' value '%s' uses bits that are "
-			"discarded when converted to DSCP. Using equivalent %d instead.\n",
+			"discarded when converted to DSCP. Using equivalent %u instead.\n",
 			ast_sorcery_object_get_id(transport), var->value, value);
 	}
 
@@ -531,7 +531,7 @@ static int tos_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_transport *transport = obj;
 
-	if (ast_asprintf(buf, "%d", transport->tos) == -1) {
+	if (ast_asprintf(buf, "%u", transport->tos) == -1) {
 		return -1;
 	}
 	return 0;
@@ -605,7 +605,7 @@ static int cli_print_body(void *obj, void *arg, int flags)
 
 	pj_sockaddr_print(&transport->host, hoststr, sizeof(hoststr), 3);
 
-	ast_str_append(&context->output_buffer, 0, "%*s:  %-21s  %6s  %5d  %5d  %s\n",
+	ast_str_append(&context->output_buffer, 0, "%*s:  %-21s  %6s  %5u  %5u  %s\n",
 		CLI_INDENT_TO_SPACES(context->indent_level), "Transport",
 		ast_sorcery_object_get_id(transport),
 		ARRAY_IN_BOUNDS(transport->type, transport_types) ? transport_types[transport->type] : "Unknown",

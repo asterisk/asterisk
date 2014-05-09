@@ -1109,7 +1109,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 				}
 				break;
 			default:
-				ast_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
+				ast_log(LOG_WARNING, "Can't process in unknown prog mode '%u'\n", dsp->progmode);
 			}
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;

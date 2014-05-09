@@ -533,7 +533,7 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			   frame. */
 			path->nextout = ast_tvadd(path->nextout, ast_samp2tv(out->samples, ast_format_rate(&out->subclass.format)));
 			if (f->samples != out->samples && ast_test_flag(out, AST_FRFLAG_HAS_TIMING_INFO)) {
-				ast_debug(4, "Sample size different %u vs %u\n", f->samples, out->samples);
+				ast_debug(4, "Sample size different %d vs %d\n", f->samples, out->samples);
 				ast_clear_flag(out, AST_FRFLAG_HAS_TIMING_INFO);
 			}
 		} else {
@@ -770,7 +770,7 @@ static void matrix_rebuild(int samples)
 						matrix_get(x, z)->table_cost = newtablecost;
 						matrix_get(x, z)->multistep = 1;
 						changed++;
-						ast_debug(10, "Discovered %d cost path from %s to %s, via %s\n",
+						ast_debug(10, "Discovered %u cost path from %s to %s, via %s\n",
 							matrix_get(x, z)->table_cost,
 							ast_getformatname(ast_format_set(&tmpx, index2format(x), 0)),
 							ast_getformatname(ast_format_set(&tmpy, index2format(z), 0)),
@@ -910,7 +910,7 @@ static char *handle_show_translation_table(struct ast_cli_args *a)
 
 			if (x >= 0 && y >= 0 && matrix_get(x, y)->step) {
 				/* Actual codec output */
-				ast_str_append(&out, 0, "%*d", curlen + 1, (matrix_get(x, y)->table_cost/100));
+				ast_str_append(&out, 0, "%*u", curlen + 1, (matrix_get(x, y)->table_cost/100));
 			} else if (i == -1 && k >= 0) {
 				/* Top row - use a dynamic size */
 				ast_str_append(&out, 0, "%*s", curlen + 1, ast_getformatname(&f_list[k].format));

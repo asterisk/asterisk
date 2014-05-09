@@ -773,7 +773,7 @@ static void linear_release(struct ast_channel *chan, void *params)
 	struct linear_state *ls = params;
 
 	if (ls->origwfmt.id && ast_set_write_format(chan, &ls->origwfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", ast_channel_name(chan), ls->origwfmt.id);
+		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%u'\n", ast_channel_name(chan), ls->origwfmt.id);
 	}
 
 	if (ls->autoclose) {
@@ -1254,7 +1254,7 @@ static struct ast_frame *make_silence(const struct ast_frame *orig)
 		samples += orig->samples;
 	}
 
-	ast_verb(4, "Silencing %zd samples\n", samples);
+	ast_verb(4, "Silencing %zu samples\n", samples);
 
 
 	datalen = sizeof(short) * samples;
@@ -2004,7 +2004,7 @@ static enum AST_LOCK_RESULT ast_lock_path_lockfile(const char *path)
 	s = ast_alloca(lp + 10);
 	fs = ast_alloca(lp + 20);
 
-	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, ast_random());
+	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, (unsigned long)ast_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, AST_FILE_MODE);
 	if (fd < 0) {
 		ast_log(LOG_ERROR, "Unable to create lock file '%s': %s\n", path, strerror(errno));
@@ -2382,7 +2382,7 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 		ast_stopstream(chan);
 		return res;
 	default:
-		ast_log(LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);
+		ast_log(LOG_NOTICE, "Unknown dispatch function %u, ignoring!\n", option->action);
 		return 0;
 	}
 	return -1;

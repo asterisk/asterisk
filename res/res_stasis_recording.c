@@ -576,13 +576,13 @@ enum stasis_app_recording_oper_results stasis_app_recording_operation(
 	SCOPED_AO2LOCK(lock, recording);
 
 	if (recording->state < 0 || recording->state >= STASIS_APP_RECORDING_STATE_MAX) {
-		ast_log(LOG_WARNING, "Invalid recording state %d\n",
+		ast_log(LOG_WARNING, "Invalid recording state %u\n",
 			recording->state);
 		return -1;
 	}
 
 	if (operation < 0 || operation >= STASIS_APP_RECORDING_OPER_MAX) {
-		ast_log(LOG_WARNING, "Invalid recording operation %d\n",
+		ast_log(LOG_WARNING, "Invalid recording operation %u\n",
 			operation);
 		return -1;
 	}
@@ -597,7 +597,7 @@ enum stasis_app_recording_oper_results stasis_app_recording_operation(
 			/* And, really, all operations should be valid during
 			 * recording */
 			ast_log(LOG_ERROR,
-				"Unhandled operation during recording: %d\n",
+				"Unhandled operation during recording: %u\n",
 				operation);
 			return STASIS_APP_RECORDING_OPER_FAILED;
 		}

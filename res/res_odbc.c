@@ -990,7 +990,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 			if (class->haspool) {
 				struct ao2_iterator aoi2 = ao2_iterator_init(class->obj_container, 0);
 
-				ast_cli(a->fd, "  Pooled: Yes\n  Limit:  %d\n  Connections in use: %d\n", class->limit, class->count);
+				ast_cli(a->fd, "  Pooled: Yes\n  Limit:  %u\n  Connections in use: %d\n", class->limit, class->count);
 
 				while ((current = ao2_iterator_next(&aoi2))) {
 					ao2_lock(current);

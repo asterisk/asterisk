@@ -924,8 +924,8 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 	ast_copy_string(ours1->name, "rtp", sizeof(ours1->name));
 	ours1->port = ntohs(sin.sin_port);
 	ours1->preference = 1;
-	snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
-	snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
+	snprintf(user, sizeof(user), "%08lx%08lx", (long unsigned)ast_random(), (long unsigned)ast_random());
+	snprintf(pass, sizeof(pass), "%08lx%08lx", (long unsigned)ast_random(), (long unsigned)ast_random());
 	ast_copy_string(ours1->username, user, sizeof(ours1->username));
 	ast_copy_string(ours1->password, pass, sizeof(ours1->password));
 	ast_copy_string(ours1->ip, ast_sockaddr_stringify_addr(&us),
@@ -1081,7 +1081,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 		ast_copy_string(tmp->them, them, sizeof(tmp->them));
 		ast_copy_string(tmp->us, us, sizeof(tmp->us));
 	} else {
-		snprintf(tmp->sid, sizeof(tmp->sid), "%08lx%08lx", ast_random(), ast_random());
+		snprintf(tmp->sid, sizeof(tmp->sid), "%08lx%08lx", (long unsigned)ast_random(), (long unsigned)ast_random());
 		ast_copy_string(tmp->them, idroster, sizeof(tmp->them));
 		ast_copy_string(tmp->us, us, sizeof(tmp->us));
 		tmp->initiator = 1;
@@ -1716,7 +1716,7 @@ static int gtalk_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 		break;
 	default:
-		ast_log(LOG_WARNING, "Can't send %d type frames with Gtalk write\n",
+		ast_log(LOG_WARNING, "Can't send %u type frames with Gtalk write\n",
 				frame->frametype);
 		return 0;
 	}

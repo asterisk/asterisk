@@ -200,7 +200,7 @@ int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_ta
 
 	if (fn_table->module_version != PARKING_MODULE_VERSION) {
 		ast_log(AST_LOG_WARNING, "Parking module provided incorrect parking module "
-			"version: %d (expected: %d)\n", fn_table->module_version, PARKING_MODULE_VERSION);
+			"version: %u (expected: %d)\n", fn_table->module_version, PARKING_MODULE_VERSION);
 		return -1;
 	}
 

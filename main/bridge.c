@@ -268,7 +268,7 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology)
  */
 static void bridge_queue_action_nodup(struct ast_bridge *bridge, struct ast_frame *action)
 {
-	ast_debug(1, "Bridge %s: queueing action type:%d sub:%d\n",
+	ast_debug(1, "Bridge %s: queueing action type:%u sub:%d\n",
 		bridge->uniqueid, action->frametype, action->subclass.integer);
 
 	ast_bridge_lock(bridge);
@@ -487,7 +487,7 @@ static struct ast_bridge_technology *find_best_technology(uint32_t capabilities,
 			continue;
 		}
 		if (best && current->preference <= best->preference) {
-			ast_debug(1, "Bridge technology %s has less preference than %s (%d <= %d). Skipping.\n",
+			ast_debug(1, "Bridge technology %s has less preference than %s (%u <= %u). Skipping.\n",
 				current->name, best->name, current->preference, best->preference);
 			continue;
 		}
@@ -3144,7 +3144,7 @@ int ast_bridge_features_enable(struct ast_bridge_features *features,
 		dtmf = builtin_features_dtmf[feature];
 		/* If no DTMF is still available (ie: it has been disabled) then error out now */
 		if (ast_strlen_zero(dtmf)) {
-			ast_debug(1, "Failed to enable built in feature %d on %p, no DTMF string is available for it.\n",
+			ast_debug(1, "Failed to enable built in feature %u on %p, no DTMF string is available for it.\n",
 				feature, features);
 			return -1;
 		}
@@ -4930,7 +4930,7 @@ static const char *tech_capability2str(uint32_t capabilities)
 static char *handle_bridge_technology_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT_HDR "%-20s %-20s %8s %s\n"
-#define FORMAT_ROW "%-20s %-20s %8d %s\n"
+#define FORMAT_ROW "%-20s %-20s %8u %s\n"
 
 	struct ast_bridge_technology *cur;
 
@@ -5117,7 +5117,7 @@ static int manager_bridge_tech_list(struct mansession *s, const struct message *
 			"Event: BridgeTechnologyListItem\r\n"
 			"BridgeTechnology: %s\r\n"
 			"BridgeType: %s\r\n"
-			"BridgePriority: %d\r\n"
+			"BridgePriority: %u\r\n"
 			"BridgeSuspended: %s\r\n"
 			"%s"
 			"\r\n",
@@ -5153,7 +5153,7 @@ static void bridge_prnt_obj(void *v_obj, void *where, ao2_prnt_fn *prnt)
 	if (!bridge) {
 		return;
 	}
-	prnt(where, "%s %s chans:%d",
+	prnt(where, "%s %s chans:%u",
 		bridge->uniqueid, bridge->v_table->name, bridge->num_channels);
 }
 

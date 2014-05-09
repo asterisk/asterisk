@@ -670,7 +670,7 @@ static int dtlsrekey_to_str(const void *obj, const intptr_t *args, char **buf)
 	const struct ast_sip_endpoint *endpoint = obj;
 
 	return ast_asprintf(
-		buf, "%d", endpoint->media.rtp.dtls_cfg.rekey) >=0 ? 0 : -1;
+		buf, "%u", endpoint->media.rtp.dtls_cfg.rekey) >=0 ? 0 : -1;
 }
 
 static int dtlscertfile_to_str(const void *obj, const intptr_t *args, char **buf)
@@ -787,7 +787,7 @@ static int tos_audio_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
 
-	if (ast_asprintf(buf, "%d", endpoint->media.tos_audio) == -1) {
+	if (ast_asprintf(buf, "%u", endpoint->media.tos_audio) == -1) {
 		return -1;
 	}
 	return 0;
@@ -797,7 +797,7 @@ static int tos_video_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
 
-	if (ast_asprintf(buf, "%d", endpoint->media.tos_video) == -1) {
+	if (ast_asprintf(buf, "%u", endpoint->media.tos_video) == -1) {
 		return -1;
 	}
 	return 0;

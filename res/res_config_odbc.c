@@ -83,7 +83,7 @@ static void decode_chunk(char *chunk)
 {
 	for (; *chunk; chunk++) {
 		if (*chunk == '^' && strchr("0123456789ABCDEF", chunk[1]) && strchr("0123456789ABCDEF", chunk[2])) {
-			sscanf(chunk + 1, "%02hhX", chunk);
+			sscanf(chunk + 1, "%02hhX", (unsigned char *)chunk);
 			memmove(chunk + 1, chunk + 3, strlen(chunk + 3) + 1);
 		}
 	}
@@ -109,7 +109,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 		return NULL;
 	}
 
-	ast_debug(1, "Skip: %lld; SQL: %s\n", cps->skip, cps->sql);
+	ast_debug(1, "Skip: %llu; SQL: %s\n", cps->skip, cps->sql);
 
 	res = SQLPrepare(stmt, (unsigned char *)cps->sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -122,7 +122,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 		const char *newval = field->value;
 
 		if ((1LL << count++) & cps->skip) {
-			ast_debug(1, "Skipping field '%s'='%s' (%llo/%llo)\n", field->name, newval, 1LL << (count - 1), cps->skip);
+			ast_debug(1, "Skipping field '%s'='%s' (%llo/%llo)\n", field->name, newval, 1ULL << (count - 1), cps->skip);
 			continue;
 		}
 		ast_debug(1, "Parameter %d ('%s') = '%s'\n", x, field->name, newval);

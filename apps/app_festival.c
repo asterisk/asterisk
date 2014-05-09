@@ -424,7 +424,7 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 	/* Convert to HEX and look if there is any matching file in the cache 
 		directory */
 	for (i = 0; i < 16; i++) {
-		snprintf(koko, sizeof(koko), "%X", MD5Res[i]);
+		snprintf(koko, sizeof(koko), "%X", (unsigned)MD5Res[i]);
 		strncat(MD5Hex, koko, sizeof(MD5Hex) - strlen(MD5Hex) - 1);
 	}
 	readcache = 0;

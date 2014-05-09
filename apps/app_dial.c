@@ -1493,7 +1493,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				/* Fall through */
 			case AST_FRAME_TEXT:
 				if (single && ast_write(in, f)) {
-					ast_log(LOG_WARNING, "Unable to write frametype: %d\n",
+					ast_log(LOG_WARNING, "Unable to write frametype: %u\n",
 						f->frametype);
 				}
 				break;
@@ -1598,7 +1598,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				case AST_FRAME_DTMF_BEGIN:
 				case AST_FRAME_DTMF_END:
 					if (ast_write(o->chan, f)) {
-						ast_log(LOG_WARNING, "Unable to forward frametype: %d\n",
+						ast_log(LOG_WARNING, "Unable to forward frametype: %u\n",
 							f->frametype);
 					}
 					break;

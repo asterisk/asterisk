@@ -3007,7 +3007,7 @@ static int cdr_object_format_property(struct cdr_object *cdr_obj, const char *na
 	} else if (!strcasecmp(name, "billsec")) {
 		snprintf(value, length, "%ld", cdr_object_get_billsec(cdr_obj));
 	} else if (!strcasecmp(name, "disposition")) {
-		snprintf(value, length, "%d", cdr_obj->disposition);
+		snprintf(value, length, "%u", cdr_obj->disposition);
 	} else if (!strcasecmp(name, "amaflags")) {
 		snprintf(value, length, "%d", party_a->amaflags);
 	} else if (!strcasecmp(name, "accountcode")) {
@@ -3025,7 +3025,7 @@ static int cdr_object_format_property(struct cdr_object *cdr_obj, const char *na
 	} else if (!strcasecmp(name, "userfield")) {
 		ast_copy_string(value, cdr_obj->party_a.userfield, length);
 	} else if (!strcasecmp(name, "sequence")) {
-		snprintf(value, length, "%d", cdr_obj->sequence);
+		snprintf(value, length, "%u", cdr_obj->sequence);
 	} else {
 		return 1;
 	}
@@ -3860,8 +3860,8 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			ast_cli(a->fd, "  Safe shutdown:              %s\n", ast_test_flag(&mod_cfg->general->batch_settings.settings, BATCH_MODE_SAFE_SHUTDOWN) ? "Enabled" : "Disabled");
 			ast_cli(a->fd, "  Threading model:            %s\n", ast_test_flag(&mod_cfg->general->batch_settings.settings, BATCH_MODE_SCHEDULER_ONLY) ? "Scheduler only" : "Scheduler plus separate threads");
 			ast_cli(a->fd, "  Current batch size:         %d record%s\n", cnt, ESS(cnt));
-			ast_cli(a->fd, "  Maximum batch size:         %d record%s\n", mod_cfg->general->batch_settings.size, ESS(mod_cfg->general->batch_settings.size));
-			ast_cli(a->fd, "  Maximum batch time:         %d second%s\n", mod_cfg->general->batch_settings.time, ESS(mod_cfg->general->batch_settings.time));
+			ast_cli(a->fd, "  Maximum batch size:         %u record%s\n", mod_cfg->general->batch_settings.size, ESS(mod_cfg->general->batch_settings.size));
+			ast_cli(a->fd, "  Maximum batch time:         %u second%s\n", mod_cfg->general->batch_settings.time, ESS(mod_cfg->general->batch_settings.time));
 			ast_cli(a->fd, "  Next batch processing time: %ld second%s\n\n", nextbatchtime, ESS(nextbatchtime));
 		}
 		ast_cli(a->fd, "* Registered Backends\n");
@@ -4093,7 +4093,7 @@ static void cdr_enable_batch_mode(struct ast_cdr_config *config)
 	/* Kill the currently scheduled item */
 	AST_SCHED_DEL(sched, cdr_sched);
 	cdr_sched = ast_sched_add(sched, config->batch_settings.time * 1000, submit_scheduled_batch, NULL);
-	ast_log(LOG_NOTICE, "CDR batch mode logging enabled, first of either size %d or time %d seconds.\n",
+	ast_log(LOG_NOTICE, "CDR batch mode logging enabled, first of either size %u or time %u seconds.\n",
 			config->batch_settings.size, config->batch_settings.time);
 }
 

@@ -338,7 +338,7 @@ static void analog_swap_subs(struct analog_pvt *p, enum analog_sub a, enum analo
 	int tinthreeway;
 	struct ast_channel *towner;
 
-	ast_debug(1, "Swapping %d and %d\n", a, b);
+	ast_debug(1, "Swapping %u and %u\n", a, b);
 
 	towner = p->subs[a].owner;
 	p->subs[a].owner = p->subs[b].owner;
@@ -1555,7 +1555,7 @@ void analog_handle_dtmf(struct analog_pvt *p, struct ast_channel *ast, enum anal
 
 	ast_debug(1, "%s DTMF digit: 0x%02X '%c' on %s\n",
 		f->frametype == AST_FRAME_DTMF_BEGIN ? "Begin" : "End",
-		f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
+		(unsigned)f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
 
 	if (analog_check_confirmanswer(p)) {
 		if (f->frametype == AST_FRAME_DTMF_END) {
@@ -2705,7 +2705,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 
 	res = analog_get_event(p);
 
-	ast_debug(1, "Got event %s(%d) on channel %d (index %d)\n", analog_event2str(res), res, p->channel, idx);
+	ast_debug(1, "Got event %s(%d) on channel %d (index %u)\n", analog_event2str(res), res, p->channel, idx);
 
 	if (res & (ANALOG_EVENT_PULSEDIGIT | ANALOG_EVENT_DTMFUP)) {
 		analog_set_pulsedial(p, (res & ANALOG_EVENT_PULSEDIGIT) ? 1 : 0);
@@ -2884,7 +2884,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					}
 
 					mssinceflash = ast_tvdiff_ms(ast_tvnow(), p->flashtime);
-					ast_debug(1, "Last flash was %d ms ago\n", mssinceflash);
+					ast_debug(1, "Last flash was %u ms ago\n", mssinceflash);
 					if (mssinceflash < MIN_MS_SINCE_FLASH) {
 						/* It hasn't been long enough since the last flashook.  This is probably a bounce on
 						   hanging up.  Hangup both channels now */
@@ -2930,7 +2930,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					}
 				}
 			} else {
-				ast_log(LOG_WARNING, "Got a hangup and my index is %d?\n", idx);
+				ast_log(LOG_WARNING, "Got a hangup and my index is %u?\n", idx);
 			}
 			/* Fall through */
 		default:
@@ -3038,7 +3038,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				}
 				break;
 			default:
-				ast_log(LOG_WARNING, "FXO phone off hook in weird state %d??\n", ast_channel_state(ast));
+				ast_log(LOG_WARNING, "FXO phone off hook in weird state %u??\n", ast_channel_state(ast));
 			}
 			break;
 		case ANALOG_SIG_FXSLS:
@@ -3090,7 +3090,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 				}
 				/* Fall through */
 			default:
-				ast_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", ast_channel_state(ast), p->channel);
+				ast_log(LOG_WARNING, "Ring/Off-hook in strange state %u on channel %d\n", ast_channel_state(ast), p->channel);
 				break;
 			}
 			break;
@@ -3142,7 +3142,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 		case ANALOG_SIG_FXOLS:
 		case ANALOG_SIG_FXOGS:
 		case ANALOG_SIG_FXOKS:
-			ast_debug(1, "Winkflash, index: %d, normal: %d, callwait: %d, thirdcall: %d\n",
+			ast_debug(1, "Winkflash, index: %u, normal: %d, callwait: %d, thirdcall: %d\n",
 				idx, analog_get_sub_fd(p, ANALOG_SUB_REAL), analog_get_sub_fd(p, ANALOG_SUB_CALLWAIT), analog_get_sub_fd(p, ANALOG_SUB_THREEWAY));
 
 			/* Cancel any running CallerID spill */
@@ -3150,7 +3150,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 			p->callwaitcas = 0;
 
 			if (idx != ANALOG_SUB_REAL) {
-				ast_log(LOG_WARNING, "Got flash hook with index %d on channel %d?!?\n", idx, p->channel);
+				ast_log(LOG_WARNING, "Got flash hook with index %u on channel %d?!?\n", idx, p->channel);
 				goto winkflashdone;
 			}
 
@@ -3352,7 +3352,7 @@ winkflashdone:
 			if (p->dialing) {
 				ast_debug(1, "Ignoring wink on channel %d\n", p->channel);
 			} else {
-				ast_debug(1, "Got wink in weird state %d on channel %d\n", ast_channel_state(ast), p->channel);
+				ast_debug(1, "Got wink in weird state %u on channel %d\n", ast_channel_state(ast), p->channel);
 			}
 			break;
 		case ANALOG_SIG_FEATDMF_TA:
@@ -3490,7 +3490,7 @@ winkflashdone:
 				case AST_STATE_PRERING:				/*!< Channel has detected an incoming call and is waiting for ring */
 				default:
 					if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
-						ast_debug(1, "Ignoring Polarity switch on channel %d, state %d\n", p->channel, ast_channel_state(ast));
+						ast_debug(1, "Ignoring Polarity switch on channel %d, state %u\n", p->channel, ast_channel_state(ast));
 					}
 					break;
 				}
@@ -3501,20 +3501,20 @@ winkflashdone:
 				case AST_STATE_DIALING:		/*!< Digits (or equivalent) have been dialed */
 				case AST_STATE_RINGING:		/*!< Remote end is ringing */
 					if (p->answeronpolarityswitch) {
-						ast_debug(1, "Polarity switch detected but NOT answering (too close to OffHook event) on channel %d, state %d\n", p->channel, ast_channel_state(ast));
+						ast_debug(1, "Polarity switch detected but NOT answering (too close to OffHook event) on channel %d, state %u\n", p->channel, ast_channel_state(ast));
 					}
 					break;
 
 				case AST_STATE_UP:			/*!< Line is up */
 				case AST_STATE_RING:		/*!< Line is ringing */
 					if (p->hanguponpolarityswitch) {
-						ast_debug(1, "Polarity switch detected but NOT hanging up (too close to Answer event) on channel %d, state %d\n", p->channel, ast_channel_state(ast));
+						ast_debug(1, "Polarity switch detected but NOT hanging up (too close to Answer event) on channel %d, state %u\n", p->channel, ast_channel_state(ast));
 					}
 					break;
 
 				default:
 					if (p->answeronpolarityswitch || p->hanguponpolarityswitch) {
-						ast_debug(1, "Polarity switch detected (too close to previous event) on channel %d, state %d\n", p->channel, ast_channel_state(ast));
+						ast_debug(1, "Polarity switch detected (too close to previous event) on channel %d, state %u\n", p->channel, ast_channel_state(ast));
 					}
 					break;
 				}
@@ -3522,7 +3522,7 @@ winkflashdone:
 		}
 
 		/* Added more log_debug information below to provide a better indication of what is going on */
-		ast_debug(1, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %" PRIi64 "\n", p->channel, ast_channel_state(ast), p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
+		ast_debug(1, "Polarity Reversal event occured - DEBUG 2: channel %d, state %u, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %" PRIi64 "\n", p->channel, ast_channel_state(ast), p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
 		break;
 	default:
 		ast_debug(1, "Dunno what to do with event %d on channel %d\n", res, p->channel);

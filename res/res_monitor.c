@@ -340,9 +340,9 @@ int AST_OPTIONAL_API_NAME(ast_monitor_start)(struct ast_channel *chan, const cha
 			}
 		} else {
 			ast_mutex_lock(&monitorlock);
-			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
+			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%lu",
 						ast_config_AST_MONITOR_DIR, seq);
-			snprintf(monitor->write_filename, FILENAME_MAX, "%s/audio-out-%ld",
+			snprintf(monitor->write_filename, FILENAME_MAX, "%s/audio-out-%lu",
 						ast_config_AST_MONITOR_DIR, seq);
 			seq++;
 			ast_mutex_unlock(&monitorlock);

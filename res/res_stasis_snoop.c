@@ -327,7 +327,7 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 
 	/* Allocate a Snoop channel and set up various parameters */
 	snoop->chan = ast_channel_alloc(1, AST_STATE_UP, "", "", "", "", "", &assignedids, NULL, 0, "Snoop/%s-%08x", ast_channel_uniqueid(chan),
-		ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+		(unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
 	if (!snoop->chan) {
 		return NULL;
 	}

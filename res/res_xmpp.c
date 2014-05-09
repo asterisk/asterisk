@@ -1463,7 +1463,7 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
 		if ((cachable_str = iks_find_attrib(item_content, "cachable"))) {
-			sscanf(cachable_str, "%30d", &cachable);
+			sscanf(cachable_str, "%30u", &cachable);
 		}
 		device_state = iks_find_cdata(item, "state");
 		ast_publish_device_state_full(item_id,
@@ -3374,7 +3374,7 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 		}
 
 		manager_event(EVENT_FLAG_USER, "JabberStatus",
-			      "Account: %s\r\nJID: %s\r\nStatus: %d\r\n",
+			      "Account: %s\r\nJID: %s\r\nStatus: %u\r\n",
 			      client->name, pak->from->partial, pak->show ? pak->show : IKS_SHOW_UNAVAILABLE);
 	}
 

@@ -177,7 +177,7 @@ int ast_ari_validate_list(struct ast_json *json, int (*fn)(struct ast_json *))
 		member_res = fn(ast_json_array_get(json, i));
 		if (!member_res) {
 			ast_log(LOG_ERROR,
-				"Array member %zd failed validation\n", i);
+				"Array member %zu failed validation\n", i);
 			res = 0;
 		}
 	}

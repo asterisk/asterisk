@@ -95,7 +95,7 @@ static int iconv_read(struct ast_channel *chan, const char *cmd, char *arguments
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (args.argc < 3) {
-		ast_log(LOG_WARNING, "Syntax: ICONV(<in-charset>,<out-charset>,<text>) %d\n", args.argc);
+		ast_log(LOG_WARNING, "Syntax: ICONV(<in-charset>,<out-charset>,<text>) %u\n", args.argc);
 		return -1;
 	}
 

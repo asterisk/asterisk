@@ -262,7 +262,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	if (!usable_read && !usable_write) {
 		/* If both factories are unusable bail out */
-		ast_debug(1, "Read factory %p and write factory %p both fail to provide %zd samples\n", &audiohook->read_factory, &audiohook->write_factory, samples);
+		ast_debug(1, "Read factory %p and write factory %p both fail to provide %zu samples\n", &audiohook->read_factory, &audiohook->write_factory, samples);
 		return NULL;
 	}
 
@@ -987,7 +987,7 @@ int ast_channel_audiohook_count_by_source(struct ast_channel *chan, const char *
 			}
 			break;
 		default:
-			ast_debug(1, "Invalid audiohook type supplied, (%d)\n", type);
+			ast_debug(1, "Invalid audiohook type supplied, (%u)\n", type);
 			return -1;
 	}
 
@@ -1022,7 +1022,7 @@ int ast_channel_audiohook_count_by_source_running(struct ast_channel *chan, cons
 			}
 			break;
 		default:
-			ast_debug(1, "Invalid audiohook type supplied, (%d)\n", type);
+			ast_debug(1, "Invalid audiohook type supplied, (%u)\n", type);
 			return -1;
 	}
 	return count;

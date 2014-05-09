@@ -110,7 +110,7 @@ static int refer_progress_notify(void *data)
 
 	/* If the subscription has already been terminated we can't send a notification */
 	if (!(sub = notification->progress->sub)) {
-		ast_debug(3, "Not sending NOTIFY of response '%d' and state '%d' on progress monitor '%p' as subscription has been terminated\n",
+		ast_debug(3, "Not sending NOTIFY of response '%d' and state '%u' on progress monitor '%p' as subscription has been terminated\n",
 			notification->response, notification->state, notification->progress);
 		return 0;
 	}
@@ -131,7 +131,7 @@ static int refer_progress_notify(void *data)
 		notification->progress->sub = NULL;
 	}
 
-	ast_debug(3, "Sending NOTIFY with response '%d' and state '%d' on subscription '%p' and progress monitor '%p'\n",
+	ast_debug(3, "Sending NOTIFY with response '%d' and state '%u' on subscription '%p' and progress monitor '%p'\n",
 		notification->response, notification->state, sub, notification->progress);
 
 	/* Actually send the notification */

@@ -926,7 +926,7 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 		/* Skip anything with an illegal pipe in it */
 		if (strchr(req->dr[x].dest, '|'))
 			continue;
-		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%d/%d/%d/%s/%s|",
+		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%u/%d/%d/%s/%s|",
 			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest,
 			dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), &req->dr[x].eid));
 	}
@@ -1185,7 +1185,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 			if (expiration > 0) {
 				ast_debug(1, "Found cache expiring in %d seconds!\n", expiration);
 				ptr += length + 1;
-				while((sscanf(ptr, "%30d/%30d/%30d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
+				while((sscanf(ptr, "%30d/%30d/%30d/%n", (int *)&(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
 					term = strchr(ptr, '|');
 					if (term) {
@@ -1255,7 +1255,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, uint32_t
 	ast_eid_to_str(eid_str_full, sizeof(eid_str_full), peer_eid);
 	snprintf(key, sizeof(key), "%s/%s/%s/e%08x", eid_str, req->number, req->dcontext, crc);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
-	snprintf(key, sizeof(key), "%s/%s/%s/e%08x", eid_str, req->number, req->dcontext, 0);
+	snprintf(key, sizeof(key), "%s/%s/%s/e%08x", eid_str, req->number, req->dcontext, (unsigned)0);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 	snprintf(key, sizeof(key), "%s/%s/%s/r%s", eid_str, req->number, req->dcontext, eidroot_str);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -1270,7 +1270,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, uint32_t
 			/* Check for hints */
 			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08x", eid_str, tmp, req->dcontext, crc);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
-			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08x", eid_str, tmp, req->dcontext, 0);
+			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08x", eid_str, tmp, req->dcontext, (unsigned)0);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 			snprintf(key, sizeof(key), "hint/%s/%s/%s/r%s", eid_str, tmp, req->dcontext, eidroot_str);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -2967,7 +2967,7 @@ static char *dundi_show_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 		ptr = db_entry->data + length + 1;
 
-		if ((sscanf(ptr, "%30d/%30d/%30d/%n", &(flags.flags), &weight, &tech, &length) != 3)) {
+		if ((sscanf(ptr, "%30u/%30d/%30d/%n", &(flags.flags), &weight, &tech, &length) != 3)) {
 			continue;
 		}
 

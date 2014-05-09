@@ -239,7 +239,7 @@ static int reload(void);
 #define mohclass_ref(class,string)   (ao2_t_ref((class), +1, (string)), class)
 
 #ifndef REF_DEBUG
-#define mohclass_unref(class,string) (ao2_t_ref((class), -1, (string)), (struct mohclass *) NULL)
+#define mohclass_unref(class,string) ({ ao2_t_ref((class), -1, (string)); (struct mohclass *) NULL; })
 #else
 #define mohclass_unref(class,string) _mohclass_unref(class, string, __FILE__,__LINE__,__PRETTY_FUNCTION__)
 static struct mohclass *_mohclass_unref(struct mohclass *class, const char *tag, const char *file, int line, const char *funcname)

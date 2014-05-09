@@ -416,7 +416,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 
 	res = ast_str_set(&out, 0,
 		"%sChannel: %s\r\n"
-		"%sChannelState: %d\r\n"
+		"%sChannelState: %u\r\n"
 		"%sChannelStateDesc: %s\r\n"
 		"%sCallerIDNum: %s\r\n"
 		"%sCallerIDName: %s\r\n"

@@ -456,7 +456,7 @@ static void do_state_change(const char *device, enum ast_devstate_cache cachable
 
 	state = _ast_device_state(device, 0);
 
-	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, ast_devstate2str(state));
+	ast_debug(3, "Changing state for %s - state %u (%s)\n", device, state, ast_devstate2str(state));
 
 	ast_publish_device_state(device, state, cachable);
 }

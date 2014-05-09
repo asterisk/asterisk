@@ -641,7 +641,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 		frame_set_var(chan, newframe, argname, i < args2.argc ? args2.argval[i] : "");
 		ast_debug(1, "Setting '%s' to '%s'\n", argname, i < args2.argc ? args2.argval[i] : "");
 	}
-	snprintf(argname, sizeof(argname), "%d", args2.argc);
+	snprintf(argname, sizeof(argname), "%u", args2.argc);
 	frame_set_var(chan, newframe, "ARGC", argname);
 
 	/* And finally, save our return address */

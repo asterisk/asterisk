@@ -270,7 +270,7 @@ static int policy_set_suite(crypto_policy_t *p, enum ast_srtp_suite suite)
 		return 0;
 
 	default:
-		ast_log(LOG_ERROR, "Invalid crypto suite: %d\n", suite);
+		ast_log(LOG_ERROR, "Invalid crypto suite: %u\n", suite);
 		return -1;
 	}
 }
@@ -495,18 +495,18 @@ static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *po
 			return -1;
 		} else {
 			if (srtp_remove_stream(srtp->session, match->sp.ssrc.value) != err_status_ok) {
-				ast_log(AST_LOG_WARNING, "Failed to remove SRTP stream for SSRC %d\n", match->sp.ssrc.value);
+				ast_log(AST_LOG_WARNING, "Failed to remove SRTP stream for SSRC %u\n", match->sp.ssrc.value);
 			}
 			ao2_t_unlink(srtp->policies, match, "Remove existing match policy");
 			ao2_t_ref(match, -1, "Unreffing already existing policy");
 		}
 	}
 
-	ast_debug(3, "Adding new policy for %s %d\n",
+	ast_debug(3, "Adding new policy for %s %u\n",
 		policy->sp.ssrc.type == ssrc_specific ? "SSRC" : "type",
 		policy->sp.ssrc.type == ssrc_specific ? policy->sp.ssrc.value : policy->sp.ssrc.type);
 	if (srtp_add_stream(srtp->session, &policy->sp) != err_status_ok) {
-		ast_log(AST_LOG_WARNING, "Failed to add SRTP stream for %s %d\n",
+		ast_log(AST_LOG_WARNING, "Failed to add SRTP stream for %s %u\n",
 			policy->sp.ssrc.type == ssrc_specific ? "SSRC" : "type",
 			policy->sp.ssrc.type == ssrc_specific ? policy->sp.ssrc.value : policy->sp.ssrc.type);
 		return -1;
@@ -534,7 +534,7 @@ static int ast_srtp_change_source(struct ast_srtp *srtp, unsigned int from_ssrc,
 		if (ast_srtp_add_stream(srtp, match)) {
 			ast_log(LOG_WARNING, "Couldn't add stream\n");
 		} else if ((status = srtp_remove_stream(srtp->session, from_ssrc))) {
-			ast_debug(3, "Couldn't remove stream (%d)\n", status);
+			ast_debug(3, "Couldn't remove stream (%u)\n", status);
 		}
 		ao2_t_ref(match, -1, "Unreffing found policy in change_source");
 	}

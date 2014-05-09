@@ -248,7 +248,7 @@ static void make_components(struct logchannel *chan)
 	unsigned int logmask = 0;
 	char *stringp = ast_strdupa(chan->components);
 	unsigned int x;
-	int verb_level;
+	unsigned int verb_level;
 
 	/* Default to using option_verbose as the verbosity level of the logging channel.  */
 	verb_level = -1;
@@ -1153,7 +1153,7 @@ static void ast_log_vsyslog(struct logmsg *msg)
 	char call_identifier_str[13];
 
 	if (msg->callid) {
-		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", msg->callid->call_identifier);
+		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", (unsigned)msg->callid->call_identifier);
 	} else {
 		call_identifier_str[0] = '\0';
 	}
@@ -1199,7 +1199,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 			char call_identifier_str[13];
 
 			if (logmsg->callid) {
-				snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", logmsg->callid->call_identifier);
+				snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", (unsigned)logmsg->callid->call_identifier);
 			} else {
 				call_identifier_str[0] = '\0';
 			}
@@ -1438,7 +1438,7 @@ void close_logger(void)
 
 void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *callid)
 {
-	snprintf(buffer, buffer_size, "[C-%08x]", callid->call_identifier);
+	snprintf(buffer, buffer_size, "[C-%08x]", (unsigned)callid->call_identifier);
 }
 
 struct ast_callid *ast_create_callid(void)
@@ -2076,7 +2076,7 @@ int ast_logger_register_level(const char *name)
 
 	AST_RWLIST_UNLOCK(&logchannels);
 
-	ast_debug(1, "Registered dynamic logger level '%s' with index %d.\n", name, available);
+	ast_debug(1, "Registered dynamic logger level '%s' with index %u.\n", name, available);
 
 	update_logchannels();
 
@@ -2114,7 +2114,7 @@ void ast_logger_unregister_level(const char *name)
 		levels[x] = NULL;
 		AST_RWLIST_UNLOCK(&logchannels);
 
-		ast_debug(1, "Unregistered dynamic logger level '%s' with index %d.\n", name, x);
+		ast_debug(1, "Unregistered dynamic logger level '%s' with index %u.\n", name, x);
 
 		update_logchannels();
 	} else {

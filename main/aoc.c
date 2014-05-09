@@ -1534,7 +1534,7 @@ static void aoc_d_event(const struct ast_aoc_decoded *decoded, struct ast_str **
 					decoded->unit_list[idx].amount);
 			}
 			if (decoded->unit_list[idx].valid_type) {
-				ast_str_append(msg, 0, "%s/TypeOf: %d\r\n", prefix,
+				ast_str_append(msg, 0, "%s/TypeOf: %u\r\n", prefix,
 					decoded->unit_list[idx].type);
 			}
 		}
@@ -1597,7 +1597,7 @@ static void aoc_e_event(const struct ast_aoc_decoded *decoded, struct ast_str **
 					decoded->unit_list[idx].amount);
 			}
 			if (decoded->unit_list[idx].valid_type) {
-				ast_str_append(msg, 0, "%s/TypeOf: %d\r\n", prefix,
+				ast_str_append(msg, 0, "%s/TypeOf: %u\r\n", prefix,
 					decoded->unit_list[idx].type);
 			}
 		}
@@ -1628,7 +1628,7 @@ static struct ast_json *units_to_json(const struct ast_aoc_decoded *decoded)
 		if (decoded->unit_list[i].valid_type) {
 			ast_json_object_set(
 				unit, "TypeOf", ast_json_stringf(
-					"%d", decoded->unit_list[i].type));
+					"%u", decoded->unit_list[i].type));
 		}
 
 		if (ast_json_array_append(units, unit)) {

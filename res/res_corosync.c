@@ -231,13 +231,13 @@ static void *dispatch_thread_handler(void *data)
 
 		if (pfd[0].revents & POLLIN) {
 			if ((cs_err = cpg_dispatch(cpg_handle, CS_DISPATCH_ALL)) != CS_OK) {
-				ast_log(LOG_WARNING, "Failed CPG dispatch: %d\n", cs_err);
+				ast_log(LOG_WARNING, "Failed CPG dispatch: %u\n", cs_err);
 			}
 		}
 
 		if (pfd[1].revents & POLLIN) {
 			if ((cs_err = corosync_cfg_dispatch(cfg_handle, CS_DISPATCH_ALL)) != CS_OK) {
-				ast_log(LOG_WARNING, "Failed CFG dispatch: %d\n", cs_err);
+				ast_log(LOG_WARNING, "Failed CFG dispatch: %u\n", cs_err);
 			}
 		}
 
@@ -314,7 +314,7 @@ static void ast_event_cb(const struct ast_event *event, void *data)
 	 * these events, so just send away. */
 
 	if ((cs_err = cpg_mcast_joined(cpg_handle, CPG_TYPE_FIFO, &iov, 1)) != CS_OK) {
-		ast_log(LOG_WARNING, "CPG mcast failed (%d)\n", cs_err);
+		ast_log(LOG_WARNING, "CPG mcast failed (%u)\n", cs_err);
 	}
 }
 
@@ -368,7 +368,7 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 			continue;
 		}
 
-		ast_cli(a->fd, "=== Node %d\n", i);
+		ast_cli(a->fd, "=== Node %u\n", i);
 		ast_cli(a->fd, "=== --> Group: %s\n", cpg_desc.group.value);
 
 		for (j = 0; j < num_addrs; j++) {
@@ -378,7 +378,7 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 
 			getnameinfo(sa, sa_len, buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
 
-			ast_cli(a->fd, "=== --> Address %d: %s\n", j + 1, buf);
+			ast_cli(a->fd, "=== --> Address %u: %s\n", j + 1, buf);
 		}
 
 	}

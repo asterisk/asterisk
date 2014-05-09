@@ -483,7 +483,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		*payload = &buf[frame_size]; /* payload will start here, at the end of the options, if any */
 		frame_size = frame_size + (*payload_len); /* final frame size is header + optional headers + payload data */
 		if (frame_size > MAXIMUM_FRAME_SIZE) {
-			ast_log(LOG_WARNING, "Cannot fit huge websocket frame of %zd bytes\n", frame_size);
+			ast_log(LOG_WARNING, "Cannot fit huge websocket frame of %zu bytes\n", frame_size);
 			/* The frame won't fit :-( */
 			ast_websocket_close(session, 1009);
 			return -1;
@@ -502,7 +502,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		}
 
 		if (!(new_payload = ast_realloc(session->payload, (session->payload_len + *payload_len)))) {
-			ast_log(LOG_WARNING, "Failed allocation: %p, %zd, %"PRIu64"\n",
+			ast_log(LOG_WARNING, "Failed allocation: %p, %zu, %"PRIu64"\n",
 				session->payload, session->payload_len, *payload_len);
 			*payload_len = 0;
 			ast_websocket_close(session, 1009);
@@ -554,7 +554,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 
 		session->closing = 1;
 	} else {
-		ast_log(LOG_WARNING, "WebSocket unknown opcode %d\n", *opcode);
+		ast_log(LOG_WARNING, "WebSocket unknown opcode %u\n", *opcode);
 		/* We received an opcode that we don't understand, the RFC states that 1003 is for a type of data that can't be accepted... opcodes
 		 * fit that, I think. */
 		ast_websocket_close(session, 1003);
@@ -799,7 +799,7 @@ static void websocket_echo_callback(struct ast_websocket *session, struct ast_va
 		} else if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
 			break;
 		} else {
-			ast_debug(1, "Ignored WebSocket opcode %d\n", opcode);
+			ast_debug(1, "Ignored WebSocket opcode %u\n", opcode);
 		}
 	}
 

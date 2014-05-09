@@ -1111,7 +1111,7 @@ static int add_action_to_menu_entry(struct conf_menu_entry *menu_entry, enum con
 			}
 			menu_action->data.dialplan_args.priority = 1; /* 1 by default */
 			if (!ast_strlen_zero(args.priority) &&
-				(sscanf(args.priority, "%30u", &menu_action->data.dialplan_args.priority) != 1)) {
+				(sscanf(args.priority, "%30d", &menu_action->data.dialplan_args.priority) != 1)) {
 				/* invalid priority */
 				ast_free(menu_action);
 				return -1;
@@ -1378,9 +1378,9 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"Drop_silence:            %s\n",
 		u_profile.flags & USER_OPT_DROP_SILENCE ?
 		"enabled" : "disabled");
-	ast_cli(a->fd,"Silence Threshold:       %dms\n",
+	ast_cli(a->fd,"Silence Threshold:       %ums\n",
 		u_profile.silence_threshold);
-	ast_cli(a->fd,"Talking Threshold:       %dms\n",
+	ast_cli(a->fd,"Talking Threshold:       %ums\n",
 		u_profile.talking_threshold);
 	ast_cli(a->fd,"Denoise:                 %s\n",
 		u_profile.flags & USER_OPT_DENOISE ?
@@ -1504,14 +1504,14 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"Language:             %s\n", b_profile.language);
 
 	if (b_profile.internal_sample_rate) {
-		snprintf(tmp, sizeof(tmp), "%d", b_profile.internal_sample_rate);
+		snprintf(tmp, sizeof(tmp), "%u", b_profile.internal_sample_rate);
 	} else {
 		ast_copy_string(tmp, "auto", sizeof(tmp));
 	}
 	ast_cli(a->fd,"Internal Sample Rate: %s\n", tmp);
 
 	if (b_profile.mix_interval) {
-		ast_cli(a->fd,"Mixing Interval:      %d\n", b_profile.mix_interval);
+		ast_cli(a->fd,"Mixing Interval:      %u\n", b_profile.mix_interval);
 	} else {
 		ast_cli(a->fd,"Mixing Interval:      Default 20ms\n");
 	}
@@ -1529,7 +1529,7 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		b_profile.rec_file);
 
 	if (b_profile.max_members) {
-		ast_cli(a->fd,"Max Members:          %d\n", b_profile.max_members);
+		ast_cli(a->fd,"Max Members:          %u\n", b_profile.max_members);
 	} else {
 		ast_cli(a->fd,"Max Members:          No Limit\n");
 	}

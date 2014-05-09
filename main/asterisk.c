@@ -823,14 +823,14 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	ast_cli(a->fd, "\nSystem Statistics\n");
 	ast_cli(a->fd, "-----------------\n");
-	ast_cli(a->fd, "  System Uptime:             %lu hours\n", uptime);
+	ast_cli(a->fd, "  System Uptime:             %ld hours\n", uptime);
 	ast_cli(a->fd, "  Total RAM:                 %" PRIu64 " KiB\n", physmem / 1024);
 	ast_cli(a->fd, "  Free RAM:                  %" PRIu64 " KiB\n", freeram);
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Buffer RAM:                %" PRIu64 " KiB\n", ((uint64_t) sys_info.bufferram * sys_info.mem_unit) / 1024);
 #endif
 #if defined (HAVE_SYSCTL) || defined(HAVE_SWAPCTL)
-	ast_cli(a->fd, "  Total Swap Space:          %u KiB\n", totalswap);
+	ast_cli(a->fd, "  Total Swap Space:          %d KiB\n", totalswap);
 	ast_cli(a->fd, "  Free Swap Space:           %" PRIu64 " KiB\n\n", freeswap);
 #endif
 	ast_cli(a->fd, "  Number of Processes:       %d \n\n", nprocs);
@@ -1706,7 +1706,7 @@ static int ast_makesocket(void)
 		ast_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
 
 	if (!ast_strlen_zero(ast_config_AST_CTL_PERMISSIONS)) {
-		int p1;
+		unsigned int p1;
 		mode_t p;
 		sscanf(ast_config_AST_CTL_PERMISSIONS, "%30o", &p1);
 		p = p1;

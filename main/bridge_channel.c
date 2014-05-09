@@ -283,7 +283,7 @@ void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_ch
 		return;
 	}
 
-	ast_debug(1, "Setting %p(%s) state from:%d to:%d\n",
+	ast_debug(1, "Setting %p(%s) state from:%u to:%u\n",
 		bridge_channel, ast_channel_name(bridge_channel->chan), bridge_channel->state,
 		new_state);
 

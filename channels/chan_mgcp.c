@@ -1245,7 +1245,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (frame->frametype == AST_FRAME_IMAGE)
 			return 0;
 		else {
-			ast_log(LOG_WARNING, "Can't send %d type frames with MGCP write\n", frame->frametype);
+			ast_log(LOG_WARNING, "Can't send %u type frames with MGCP write\n", frame->frametype);
 			return 0;
 		}
 	} else {
@@ -2023,7 +2023,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
 		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
-		if (sscanf(a, "rtpmap: %30u %127[^/]/", &codec, mimeSubtype) != 2)
+		if (sscanf(a, "rtpmap: %30d %127[^/]/", &codec, mimeSubtype) != 2)
 			continue;
 		/* Note: should really look at the 'freq' and '#chans' params too */
 		ast_rtp_codecs_payloads_set_rtpmap_type(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp, codec, "audio", mimeSubtype, 0);
@@ -2123,9 +2123,9 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, char *ver
 	req->header[req->headers] = req->data + req->len;
 	/* check if we need brackets around the gw name */
 	if (p->parent->isnamedottedip) {
-		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %d %s@[%s] MGCP 1.0%s\r\n", verb, oseq, p->name, p->parent->name, p->ncs ? " NCS 1.0" : "");
+		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %u %s@[%s] MGCP 1.0%s\r\n", verb, oseq, p->name, p->parent->name, p->ncs ? " NCS 1.0" : "");
 	} else {
-+		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %d %s@%s MGCP 1.0%s\r\n", verb, oseq, p->name, p->parent->name, p->ncs ? " NCS 1.0" : "");
++		snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %u %s@%s MGCP 1.0%s\r\n", verb, oseq, p->name, p->parent->name, p->ncs ? " NCS 1.0" : "");
 	}
 	req->len += strlen(req->header[req->headers]);
 	if (req->headers < MGCP_MAX_HEADERS) {
@@ -2794,7 +2794,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 		req = find_command(p, sub, &p->cmd_queue, &p->cmd_queue_lock, ident);
 
 	if (!req) {
-		ast_verb(3, "No command found on [%s] for transaction %d. Ignoring...\n",
+		ast_verb(3, "No command found on [%s] for transaction %u. Ignoring...\n",
 				gw->name, ident);
 		return;
 	}
@@ -2808,10 +2808,10 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 			p->hookstate = MGCP_ONHOOK;
 			break;
 		case 406:
-			ast_log(LOG_NOTICE, "Transaction %d timed out\n", ident);
+			ast_log(LOG_NOTICE, "Transaction %u timed out\n", ident);
 			break;
 		case 407:
-			ast_log(LOG_NOTICE, "Transaction %d aborted\n", ident);
+			ast_log(LOG_NOTICE, "Transaction %u aborted\n", ident);
 			break;
 		}
 		if (sub) {
@@ -2964,7 +2964,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
 		ast_rtp_instance_set_prop(sub->rtp, AST_RTP_PROPERTY_NAT, sub->nat);
 	}
 	/* Make a call*ID */
-	snprintf(sub->callid, sizeof(sub->callid), "%08lx%s", ast_random(), sub->txident);
+	snprintf(sub->callid, sizeof(sub->callid), "%08lx%s", (unsigned long)ast_random(), sub->txident);
 	/* Transmit the connection create */
 	if(!sub->parent->pktcgatealloc) {
 		transmit_connect_with_sdp(sub, NULL);
@@ -4207,7 +4207,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						e->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
 					}
 				}
-				snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", ast_random());
+				snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", (unsigned long)ast_random());
 				e->msgstate = -1;
 				e->amaflags = amaflags;
 				ast_format_cap_copy(e->cap, global_capability);
@@ -4236,7 +4236,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				e->hookstate = MGCP_ONHOOK;
 				e->chanvars = copy_vars(chanvars);
 				if (!ep_reload) {
-					/*snprintf(txident, sizeof(txident), "%08lx", ast_random());*/
+					/*snprintf(txident, sizeof(txident), "%08lx", (unsigned long)ast_random());*/
 					for (i = 0; i < MAX_SUBS; i++) {
 						sub = ast_calloc(1, sizeof(*sub));
 						if (sub) {
@@ -4245,7 +4245,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 							ast_mutex_init(&sub->cx_queue_lock);
 							sub->parent = e;
 							sub->id = i;
-							snprintf(sub->txident, sizeof(sub->txident), "%08lx", ast_random());
+							snprintf(sub->txident, sizeof(sub->txident), "%08lx", (unsigned long)ast_random());
 							/*stnrcpy(sub->txident, txident, sizeof(sub->txident) - 1);*/
 							sub->cxmode = MGCP_CX_INACTIVE;
 							sub->nat = nat;
@@ -4347,7 +4347,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->onhooktime = time(NULL);
 					/* ASSUME we're onhook */
 					e->hookstate = MGCP_ONHOOK;
-					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", ast_random());
+					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", (unsigned long)ast_random());
 				}
 
 				for (i = 0, sub = NULL; i < MAX_SUBS; i++) {
@@ -4369,7 +4369,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 							ast_copy_string(sub->magic, MGCP_SUBCHANNEL_MAGIC, sizeof(sub->magic));
 							sub->parent = e;
 							sub->id = i;
-							snprintf(sub->txident, sizeof(sub->txident), "%08lx", ast_random());
+							snprintf(sub->txident, sizeof(sub->txident), "%08lx", (unsigned long)ast_random());
 							sub->cxmode = MGCP_CX_INACTIVE;
 							sub->next = e->sub;
 							e->sub = sub;

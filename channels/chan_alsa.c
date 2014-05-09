@@ -207,12 +207,12 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	direction = 0;
 	err = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
 	if (rate != DESIRED_RATE)
-		ast_log(LOG_WARNING, "Rate not correct, requested %d, got %d\n", DESIRED_RATE, rate);
+		ast_log(LOG_WARNING, "Rate not correct, requested %d, got %u\n", DESIRED_RATE, rate);
 
 	direction = 0;
 	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
 	if (err < 0)
-		ast_log(LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
+		ast_log(LOG_ERROR, "period_size(%lu frames) is bad: %s\n", period_size, snd_strerror(err));
 	else {
 		ast_debug(1, "Period size is %d\n", err);
 	}
@@ -220,7 +220,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	buffer_size = 4096 * 2;		/* period_size * 16; */
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
 	if (err < 0)
-		ast_log(LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
+		ast_log(LOG_WARNING, "Problem setting buffer size of %lu: %s\n", buffer_size, snd_strerror(err));
 	else {
 		ast_debug(1, "Buffer size is set to %d frames\n", err);
 	}

@@ -1546,7 +1546,7 @@ static void my_handle_dtmf(void *pvt, struct ast_channel *ast, enum analog_sub a
 
 	ast_debug(1, "%s DTMF digit: 0x%02X '%c' on %s\n",
 		f->frametype == AST_FRAME_DTMF_BEGIN ? "Begin" : "End",
-		f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
+		(unsigned)f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
 
 	if (f->subclass.integer == 'f') {
 		if (f->frametype == AST_FRAME_DTMF_END) {
@@ -1645,7 +1645,7 @@ static struct ast_manager_event_blob *dahdichannel_to_ami(struct stasis_message 
 
 	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "DAHDIChannel",
 		"%s"
-		"DAHDISpan: %d\r\n"
+		"DAHDISpan: %u\r\n"
 		"DAHDIChannel: %s\r\n",
 		ast_str_buffer(channel_string),
 		(unsigned int)ast_json_integer_get(span),
@@ -2550,7 +2550,7 @@ static int my_dial_digits(void *pvt, enum analog_sub sub, struct analog_dialoper
 	}
 
 	if (sub != ANALOG_SUB_REAL) {
-		ast_log(LOG_ERROR, "Trying to dial_digits '%s' on channel %d subchannel %d\n",
+		ast_log(LOG_ERROR, "Trying to dial_digits '%s' on channel %d subchannel %u\n",
 			dop->dialstr, p->channel, sub);
 		return -1;
 	}
@@ -6988,7 +6988,7 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 
 	ast_debug(1, "%s DTMF digit: 0x%02X '%c' on %s\n",
 		f->frametype == AST_FRAME_DTMF_BEGIN ? "Begin" : "End",
-		f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
+		(unsigned)f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
 
 	if (p->confirmanswer) {
 		if (f->frametype == AST_FRAME_DTMF_END) {
@@ -7430,7 +7430,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 						return NULL;
 					}
 					mssinceflash = ast_tvdiff_ms(ast_tvnow(), p->flashtime);
-					ast_debug(1, "Last flash was %d ms ago\n", mssinceflash);
+					ast_debug(1, "Last flash was %u ms ago\n", mssinceflash);
 					if (mssinceflash < MIN_MS_SINCE_FLASH) {
 						/* It hasn't been long enough since the last flashook.  This is probably a bounce on
 						   hanging up.  Hangup both channels now */
@@ -7593,7 +7593,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					res = tone_zone_play_tone(p->subs[SUB_REAL].dfd, DAHDI_TONE_DIALTONE);
 				break;
 			default:
-				ast_log(LOG_WARNING, "FXO phone off hook in weird state %d??\n", ast_channel_state(ast));
+				ast_log(LOG_WARNING, "FXO phone off hook in weird state %u??\n", ast_channel_state(ast));
 			}
 			break;
 		case SIG_FXSLS:
@@ -7643,7 +7643,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					ast_setstate(ast, AST_STATE_UP);
 				}
 			} else if (ast_channel_state(ast) != AST_STATE_RING)
-				ast_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", ast_channel_state(ast), p->channel);
+				ast_log(LOG_WARNING, "Ring/Off-hook in strange state %u on channel %d\n", ast_channel_state(ast), p->channel);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
@@ -7887,7 +7887,7 @@ winkflashdone:
 			if (p->dialing)
 				ast_debug(1, "Ignoring wink on channel %d\n", p->channel);
 			else
-				ast_debug(1, "Got wink in weird state %d on channel %d\n", ast_channel_state(ast), p->channel);
+				ast_debug(1, "Got wink in weird state %u on channel %d\n", ast_channel_state(ast), p->channel);
 			break;
 		case SIG_FEATDMF_TA:
 			switch (p->whichwink) {
@@ -7990,7 +7990,7 @@ winkflashdone:
 					p->polaritydelaytv = ast_tvnow();
 				}
 			} else
-				ast_debug(1, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast_channel_state(ast));
+				ast_debug(1, "Ignore switch to REVERSED Polarity on channel %d, state %u\n", p->channel, ast_channel_state(ast));
 		}
 		/* Removed else statement from here as it was preventing hangups from ever happening*/
 		/* Added AST_STATE_RING in if statement below to deal with calling party hangups that take place when ringing */
@@ -7999,21 +7999,21 @@ winkflashdone:
 			(p->polarity == POLARITY_REV) &&
 			((ast_channel_state(ast) == AST_STATE_UP) || (ast_channel_state(ast) == AST_STATE_RING)) ) {
 			/* Added log_debug information below to provide a better indication of what is going on */
-			ast_debug(1, "Polarity Reversal event occured - DEBUG 1: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %" PRIi64 "\n", p->channel, ast_channel_state(ast), p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
+			ast_debug(1, "Polarity Reversal event occured - DEBUG 1: channel %d, state %u, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %" PRIi64 "\n", p->channel, ast_channel_state(ast), p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
 
 			if (ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) > p->polarityonanswerdelay) {
 				ast_debug(1, "Polarity Reversal detected and now Hanging up on channel %d\n", p->channel);
 				ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
 				p->polarity = POLARITY_IDLE;
 			} else
-				ast_debug(1, "Polarity Reversal detected but NOT hanging up (too close to answer event) on channel %d, state %d\n", p->channel, ast_channel_state(ast));
+				ast_debug(1, "Polarity Reversal detected but NOT hanging up (too close to answer event) on channel %d, state %u\n", p->channel, ast_channel_state(ast));
 
 		} else {
 			p->polarity = POLARITY_IDLE;
-			ast_debug(1, "Ignoring Polarity switch to IDLE on channel %d, state %d\n", p->channel, ast_channel_state(ast));
+			ast_debug(1, "Ignoring Polarity switch to IDLE on channel %d, state %u\n", p->channel, ast_channel_state(ast));
 		}
 		/* Added more log_debug information below to provide a better indication of what is going on */
-		ast_debug(1, "Polarity Reversal event occured - DEBUG 2: channel %d, state %d, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %" PRIi64 "\n", p->channel, ast_channel_state(ast), p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
+		ast_debug(1, "Polarity Reversal event occured - DEBUG 2: channel %d, state %u, pol= %d, aonp= %d, honp= %d, pdelay= %d, tv= %" PRIi64 "\n", p->channel, ast_channel_state(ast), p->polarity, p->answeronpolarityswitch, p->hanguponpolarityswitch, p->polarityonanswerdelay, ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) );
 		break;
 	default:
 		ast_debug(1, "Dunno what to do with event %d on channel %d\n", res, p->channel);
@@ -8533,7 +8533,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 					/* Don't accept in-band DTMF when in overlap dial mode */
 					ast_debug(1, "Absorbing inband %s DTMF digit: 0x%02X '%c' on %s\n",
 						f->frametype == AST_FRAME_DTMF_BEGIN ? "begin" : "end",
-						f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
+						(unsigned)f->subclass.integer, f->subclass.integer, ast_channel_name(ast));
 
 					f->frametype = AST_FRAME_NULL;
 					f->subclass.integer = 0;
@@ -8644,7 +8644,7 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
 		if (frame->frametype != AST_FRAME_IMAGE)
-			ast_log(LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
+			ast_log(LOG_WARNING, "Don't know what to do with frame type '%u'\n", frame->frametype);
 		return 0;
 	}
 	if ((frame->subclass.format.id != AST_FORMAT_SLINEAR) &&
@@ -8836,15 +8836,15 @@ static struct ast_str *create_channel_name(struct dahdi_pvt *i)
 		ast_mutex_lock(&i->pri->lock);
 		y = ++i->pri->new_chan_seq;
 		if (is_outgoing) {
-			ast_str_set(&chan_name, 0, "i%d/%s-%x", i->pri->span, address, y);
+			ast_str_set(&chan_name, 0, "i%d/%s-%x", i->pri->span, address, (unsigned)y);
 			address[0] = '\0';
 		} else if (ast_strlen_zero(i->cid_subaddr)) {
 			/* Put in caller-id number only since there is no subaddress. */
-			ast_str_set(&chan_name, 0, "i%d/%s-%x", i->pri->span, i->cid_num, y);
+			ast_str_set(&chan_name, 0, "i%d/%s-%x", i->pri->span, i->cid_num, (unsigned)y);
 		} else {
 			/* Put in caller-id number and subaddress. */
 			ast_str_set(&chan_name, 0, "i%d/%s:%s-%x", i->pri->span, i->cid_num,
-				i->cid_subaddr, y);
+				i->cid_subaddr, (unsigned)y);
 		}
 		ast_mutex_unlock(&i->pri->lock);
 #endif	/* defined(HAVE_PRI) */
@@ -15122,9 +15122,9 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			ast_cli(a->fd, "Echo Cancellation:\n");
 
 			if (tmp->echocancel.head.tap_length) {
-				ast_cli(a->fd, "\t%d taps\n", tmp->echocancel.head.tap_length);
+				ast_cli(a->fd, "\t%u taps\n", tmp->echocancel.head.tap_length);
 				for (x = 0; x < tmp->echocancel.head.param_count; x++) {
-					ast_cli(a->fd, "\t\t%s: %ud\n", tmp->echocancel.params[x].name, tmp->echocancel.params[x].value);
+					ast_cli(a->fd, "\t\t%s: %dd\n", tmp->echocancel.params[x].name, tmp->echocancel.params[x].value);
 				}
 				ast_cli(a->fd, "\t%scurrently %s\n", tmp->echocanbridged ? "" : "(unless TDM bridged) ", tmp->echocanon ? "ON" : "OFF");
 			} else {
@@ -15185,7 +15185,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 				ast_cli(a->fd, "PRI Flags: ");
 				if (chan->resetting != SIG_PRI_RESET_IDLE) {
-					ast_cli(a->fd, "Resetting=%d ", chan->resetting);
+					ast_cli(a->fd, "Resetting=%u ", chan->resetting);
 				}
 				if (chan->call)
 					ast_cli(a->fd, "Call ");
@@ -15204,7 +15204,7 @@ static char *dahdi_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli
 			if (tmp->subs[SUB_REAL].dfd > -1) {
 				memset(&ci, 0, sizeof(ci));
 				if (!ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GETCONF, &ci)) {
-					ast_cli(a->fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
+					ast_cli(a->fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, (unsigned)ci.confmode);
 				}
 				if (!ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GETCONFMUTE, &x)) {
 					ast_cli(a->fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
@@ -16741,12 +16741,12 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 		} param;
 
 		if (ast_app_separate_args(params[x], '=', (char **) &param, 2) < 1) {
-			ast_log(LOG_WARNING, "Invalid echocancel parameter supplied at line %d: '%s'\n", line, params[x]);
+			ast_log(LOG_WARNING, "Invalid echocancel parameter supplied at line %u: '%s'\n", line, params[x]);
 			continue;
 		}
 
 		if (ast_strlen_zero(param.name) || (strlen(param.name) > sizeof(confp->chan.echocancel.params[0].name)-1)) {
-			ast_log(LOG_WARNING, "Invalid echocancel parameter supplied at line %d: '%s'\n", line, param.name);
+			ast_log(LOG_WARNING, "Invalid echocancel parameter supplied at line %u: '%s'\n", line, param.name);
 			continue;
 		}
 
@@ -16754,7 +16754,7 @@ static void process_echocancel(struct dahdi_chan_conf *confp, const char *data, 
 
 		if (param.value) {
 			if (sscanf(param.value, "%30d", &confp->chan.echocancel.params[confp->chan.echocancel.head.param_count].value) != 1) {
-				ast_log(LOG_WARNING, "Invalid echocancel parameter value supplied at line %d: '%s'\n", line, param.value);
+				ast_log(LOG_WARNING, "Invalid echocancel parameter value supplied at line %u: '%s'\n", line, param.value);
 				continue;
 			}
 		}

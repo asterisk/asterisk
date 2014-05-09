@@ -541,7 +541,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		ast_bridge_read_after_goto(chan, buf, len);
 	} else if (!strcasecmp(data, "amaflags")) {
 		ast_channel_lock(chan);
-		snprintf(buf, len, "%d", ast_channel_amaflags(chan));
+		snprintf(buf, len, "%u", ast_channel_amaflags(chan));
 		ast_channel_unlock(chan);
 	} else if (!strncasecmp(data, "secure_bridge_", 14)) {
 		struct ast_datastore *ds;

@@ -537,7 +537,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 				ast_setstate(ast, AST_STATE_UP);
 				return &p->fr;
 			}  else 
-				ast_log(LOG_WARNING, "Got off hook in weird state %d\n", ast_channel_state(ast));
+				ast_log(LOG_WARNING, "Got off hook in weird state %u\n", ast_channel_state(ast));
 		}
 	}
 #if 1
@@ -666,7 +666,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE && p->mode != MODE_FXS) {
 		if (frame->frametype != AST_FRAME_IMAGE)
-			ast_log(LOG_WARNING, "Don't know what to do with  frame type '%d'\n", frame->frametype);
+			ast_log(LOG_WARNING, "Don't know what to do with  frame type '%u'\n", frame->frametype);
 		return 0;
 	}
 	if (!(frame->subclass.format.id == AST_FORMAT_G723_1 ||

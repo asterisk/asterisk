@@ -326,7 +326,7 @@ int __aco_option_register(struct aco_info *info, const char *name, enum aco_matc
 
 	if (!opt->handler && !(opt->handler = ast_config_option_default_handler(opt->type))) {
 		/* This should never happen */
-		ast_log(LOG_ERROR, "No handler provided, and no default handler exists for type %d\n", opt->type);
+		ast_log(LOG_ERROR, "No handler provided, and no default handler exists for type %u\n", opt->type);
 		ao2_ref(opt, -1);
 		return -1;
 	};
@@ -1336,10 +1336,10 @@ static int uint_handler_fn(const struct aco_option *opt, struct ast_variable *va
 			ast_parse_arg(var->value, flags, field, (unsigned int) opt->args[1], (unsigned int) opt->args[2]);
 		if (res) {
 			if (opt->flags & PARSE_RANGE_DEFAULTS) {
-				ast_log(LOG_WARNING, "Failed to set %s=%s. Set to %d instead due to range limit (%d, %d)\n", var->name, var->value, *field, (int) opt->args[1], (int) opt->args[2]);
+				ast_log(LOG_WARNING, "Failed to set %s=%s. Set to %u instead due to range limit (%d, %d)\n", var->name, var->value, *field, (int) opt->args[1], (int) opt->args[2]);
 				res = 0;
 			} else if (opt->flags & PARSE_DEFAULT) {
-				ast_log(LOG_WARNING, "Failed to set %s=%s, Set to default value %d instead.\n", var->name, var->value, *field);
+				ast_log(LOG_WARNING, "Failed to set %s=%s, Set to default value %u instead.\n", var->name, var->value, *field);
 				res = 0;
 			}
 		}

@@ -278,7 +278,7 @@ static int handle_client_registration(void *data)
 	pjsip_regc_get_info(client_state->client, &info);
 	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
 	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
-	ast_debug(3, "REGISTER attempt %d to '%s' with client '%s'\n",
+	ast_debug(3, "REGISTER attempt %u to '%s' with client '%s'\n",
 		  client_state->retries + 1, server_uri, client_uri);
 
 	if (client_state->support_path) {
@@ -427,11 +427,11 @@ static void schedule_retry(struct registration_response *response, unsigned int 
 
 	if (response->rdata) {
 		ast_log(LOG_WARNING, "Temporal response '%d' received from '%s' on "
-			"registration attempt to '%s', retrying in '%d'\n",
+			"registration attempt to '%s', retrying in '%u'\n",
 			response->code, server_uri, client_uri, interval);
 	} else {
 		ast_log(LOG_WARNING, "No response received from '%s' on "
-			"registration attempt to '%s', retrying in '%d'\n",
+			"registration attempt to '%s', retrying in '%u'\n",
 			server_uri, client_uri, interval);
 	}
 }
@@ -492,7 +492,7 @@ static int handle_registration_response(void *data)
 			response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
 			response->client_state->retries++;
 			schedule_registration(response->client_state, response->client_state->forbidden_retry_interval);
-			ast_log(LOG_WARNING, "403 Forbidden fatal response received from '%s' on registration attempt to '%s', retrying in '%d' seconds\n",
+			ast_log(LOG_WARNING, "403 Forbidden fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
 				server_uri, client_uri, response->client_state->forbidden_retry_interval);
 		} else {
 			/* Finally if there's no hope of registering give up */

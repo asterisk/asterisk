@@ -620,7 +620,7 @@ static int odbc_log(struct ast_cdr *cdr)
 					if (ast_strlen_zero(colptr)) {
 						continue;
 					} else {
-						char integer = 0;
+						signed char integer = 0;
 						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
 							continue;
@@ -635,7 +635,7 @@ static int odbc_log(struct ast_cdr *cdr)
 					if (ast_strlen_zero(colptr)) {
 						continue;
 					} else {
-						char integer = 0;
+						signed char integer = 0;
 						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CDR variable %s is not an integer.\n", entry->name);
 							continue;

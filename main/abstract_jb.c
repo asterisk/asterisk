@@ -284,7 +284,7 @@ int ast_jb_put(struct ast_channel *chan, struct ast_frame *f)
 	/* We consider an enabled jitterbuffer should receive frames with valid timing info. */
 	if (!ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO) || f->len < 2 || f->ts < 0) {
 		ast_log(LOG_WARNING, "%s received frame with invalid timing info: "
-			"has_timing_info=%d, len=%ld, ts=%ld, src=%s\n",
+			"has_timing_info=%u, len=%ld, ts=%ld, src=%s\n",
 			ast_channel_name(chan), ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO), f->len, f->ts, f->src);
 		return -1;
 	}

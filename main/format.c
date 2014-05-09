@@ -912,7 +912,7 @@ static char *show_codec_n(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	}
 
 	if (!found) {
-		ast_cli(a->fd, "Codec %d not found\n", format_id);
+		ast_cli(a->fd, "Codec %u not found\n", format_id);
 	}
 
 	f_list = ast_format_list_destroy(f_list);
@@ -1163,7 +1163,7 @@ static int custom_celt_format(struct ast_format_list *entry, unsigned int maxbit
 		return -1;
 	}
 
-	snprintf(entry->desc, sizeof(entry->desc), "CELT Custom Format %dkhz", entry->samplespersecond/1000);
+	snprintf(entry->desc, sizeof(entry->desc), "CELT Custom Format %ukhz", entry->samplespersecond/1000);
 
 	ast_format_append(&entry->format,
 		CELT_ATTR_KEY_SAMP_RATE, entry->samplespersecond,
@@ -1216,7 +1216,7 @@ static int custom_silk_format(struct ast_format_list *entry, unsigned int maxbit
 			AST_FORMAT_ATTR_END);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Custom SILK format definition '%s' can not support sample rate %d\n", entry->name, entry->samplespersecond);
+		ast_log(LOG_WARNING, "Custom SILK format definition '%s' can not support sample rate %u\n", entry->name, entry->samplespersecond);
 		return -1;
 	}
 	ast_format_append(&entry->format,
@@ -1385,7 +1385,7 @@ int ast_format_attr_reg_interface(const struct ast_format_attr_interface *interf
 	/* check for duplicates first*/
 	if ((wrapper = ao2_find(interfaces, &tmp_wrapper, (OBJ_POINTER | OBJ_NOLOCK)))) {
 		ao2_unlock(interfaces);
-		ast_log(LOG_WARNING, "Can not register attribute interface for format id %d, interface already exists.\n", interface->id);
+		ast_log(LOG_WARNING, "Can not register attribute interface for format id %u, interface already exists.\n", interface->id);
 		ao2_ref(wrapper, -1);
 		return -1;
 	}

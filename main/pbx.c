@@ -3632,7 +3632,7 @@ const char *ast_str_retrieve_variable(struct ast_str **str, ssize_t maxlen, stru
 	}
 	if (s == &not_found) { /* look for more */
 		if (!strcmp(var, "EPOCH")) {
-			ast_str_set(str, maxlen, "%u", (int) time(NULL));
+			ast_str_set(str, maxlen, "%d", (int) time(NULL));
 			s = ast_str_buffer(*str);
 		} else if (!strcmp(var, "SYSTEMNAME")) {
 			s = ast_config_AST_SYSTEM_NAME;
