@@ -362,7 +362,7 @@ static void t30_phase_e_handler(t30_state_t *t30_state, void *data, int completi
 	const char *c;
 	t30_stats_t stats;
 
-	ast_debug(5, "FAX session '%d' entering phase E\n", s->id);
+	ast_debug(5, "FAX session '%u' entering phase E\n", s->id);
 
 	p->isdone = 1;
 
@@ -379,7 +379,7 @@ static void t30_phase_e_handler(t30_state_t *t30_state, void *data, int completi
 
 	ast_string_field_set(s->details, resultstr, t30_completion_code_to_str(completion_code));
 
-	ast_debug(5, "FAX session '%d' completed with result: %s (%s)\n", s->id, s->details->result, s->details->resultstr);
+	ast_debug(5, "FAX session '%u' completed with result: %s (%s)\n", s->id, s->details->result, s->details->resultstr);
 
 	if ((c = t30_get_tx_ident(t30_state))) {
 		ast_string_field_set(s->details, localstationid, c);
@@ -537,7 +537,7 @@ static void *spandsp_fax_new(struct ast_fax_session *s, struct ast_fax_tech_toke
 	}
 
 	if (!(p->timer = ast_timer_open())) {
-		ast_log(LOG_ERROR, "Channel '%s' FAX session '%d' failed to create timing source.\n", s->channame, s->id);
+		ast_log(LOG_ERROR, "Channel '%s' FAX session '%u' failed to create timing source.\n", s->channame, s->id);
 		goto e_free;
 	}
 
@@ -611,14 +611,14 @@ static struct ast_frame *spandsp_fax_read(struct ast_fax_session *s)
 	ast_format_set(&fax_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 
 	if (ast_timer_ack(p->timer, 1) < 0) {
-		ast_log(LOG_ERROR, "Failed to acknowledge timer for FAX session '%d'\n", s->id);
+		ast_log(LOG_ERROR, "Failed to acknowledge timer for FAX session '%u'\n", s->id);
 		return NULL;
 	}
 
 	/* XXX do we need to lock here? */
 	if (p->isdone) {
 		s->state = AST_FAX_STATE_COMPLETE;
-		ast_debug(5, "FAX session '%d' is complete.\n", s->id);
+		ast_debug(5, "FAX session '%u' is complete.\n", s->id);
 		return NULL;
 	}
 
@@ -661,7 +661,7 @@ static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame 
 		return -1;
 	}
 
-	ast_debug(5, "frame={ datalen=%d, samples=%d, mallocd=%d, src=%s, flags=%d, ts=%ld, len=%ld, seqno=%d, data.ptr=%p, subclass.format.id=%d  }\n", f->datalen, f->samples, f->mallocd, f->src, f->flags, f->ts, f->len, f->seqno, f->data.ptr, f->subclass.format.id);
+	ast_debug(5, "frame={ datalen=%d, samples=%d, mallocd=%d, src=%s, flags=%u, ts=%ld, len=%ld, seqno=%d, data.ptr=%p, subclass.format.id=%u  }\n", f->datalen, f->samples, f->mallocd, f->src, f->flags, f->ts, f->len, f->seqno, f->data.ptr, f->subclass.format.id);
 
 	/* slinear frame can be passed to spandsp */
 	if (f->subclass.format.id == AST_FORMAT_SLINEAR) {
@@ -684,7 +684,7 @@ static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame 
 
 	/* frame in other formats cannot be passed to spandsp, it could cause segfault */
 	} else {
-		ast_log(LOG_WARNING, "Unknown frame format %d, v.21 detection skipped\n", f->subclass.format.id);
+		ast_log(LOG_WARNING, "Unknown frame format %u, v.21 detection skipped\n", f->subclass.format.id);
 		return -1;
 	}
 
@@ -720,7 +720,7 @@ static int spandsp_fax_write(struct ast_fax_session *s, const struct ast_frame *
 
 	/* XXX do we need to lock here? */
 	if (s->state == AST_FAX_STATE_COMPLETE) {
-		ast_log(LOG_WARNING, "FAX session '%d' is in the '%s' state.\n", s->id, ast_fax_state_to_str(s->state));
+		ast_log(LOG_WARNING, "FAX session '%u' is in the '%s' state.\n", s->id, ast_fax_state_to_str(s->state));
 		return -1;
 	}
 
@@ -964,7 +964,7 @@ static int spandsp_fax_start(struct ast_fax_session *s)
 
 	/* start the timer */
 	if (ast_timer_set_rate(p->timer, SPANDSP_FAX_TIMER_RATE)) {
-		ast_log(LOG_ERROR, "FAX session '%d' error setting rate on timing source.\n", s->id);
+		ast_log(LOG_ERROR, "FAX session '%u' error setting rate on timing source.\n", s->id);
 		return -1;
 	}
 
@@ -1022,7 +1022,7 @@ static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd)
 	if (s->details->caps & AST_FAX_TECH_GATEWAY) {
 		struct spandsp_pvt *p = s->tech_pvt;
 
-		ast_cli(fd, "%-22s : %d\n", "session", s->id);
+		ast_cli(fd, "%-22s : %u\n", "session", s->id);
 		ast_cli(fd, "%-22s : %s\n", "operation", "Gateway");
 		ast_cli(fd, "%-22s : %s\n", "state", ast_fax_state_to_str(s->state));
 		if (s->state != AST_FAX_STATE_UNINITIALIZED) {
@@ -1033,13 +1033,13 @@ static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd)
 			ast_cli(fd, "%-22s : %d\n", "Page Number", stats.pages_transferred + 1);
 		}
 	} else if (s->details->caps & AST_FAX_TECH_V21_DETECT) {
-		ast_cli(fd, "%-22s : %d\n", "session", s->id);
+		ast_cli(fd, "%-22s : %u\n", "session", s->id);
 		ast_cli(fd, "%-22s : %s\n", "operation", "V.21 Detect");
 		ast_cli(fd, "%-22s : %s\n", "state", ast_fax_state_to_str(s->state));
 	} else {
 		struct spandsp_pvt *p = s->tech_pvt;
 
-		ast_cli(fd, "%-22s : %d\n", "session", s->id);
+		ast_cli(fd, "%-22s : %u\n", "session", s->id);
 		ast_cli(fd, "%-22s : %s\n", "operation", (s->details->caps & AST_FAX_TECH_RECEIVE) ? "Receive" : "Transmit");
 		ast_cli(fd, "%-22s : %s\n", "state", ast_fax_state_to_str(s->state));
 		if (s->state != AST_FAX_STATE_UNINITIALIZED) {

@@ -247,7 +247,9 @@ static struct ast_str *generate_exchange_uuid(struct ast_str *uid)
 	for (x = 0; x < 8; x++) {
 		val[x] = ast_random();
 	}
-	ast_str_set(&uid, 0, "%04x%04x-%04x-%04x-%04x-%04x%04x%04x", val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]);
+	ast_str_set(&uid, 0, "%04x%04x-%04x-%04x-%04x-%04x%04x%04x", (unsigned)val[0],
+		(unsigned)val[1], (unsigned)val[2], (unsigned)val[3], (unsigned)val[4],
+		(unsigned)val[5], (unsigned)val[6], (unsigned)val[7]);
 
 	return uid;
 }

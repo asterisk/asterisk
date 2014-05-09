@@ -513,7 +513,7 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 					ast_clear_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
 				}
 				AST_RWLIST_UNLOCK(&debug_modules);
-				ast_cli(a->fd, "Core debug was %d and has been set to 0 for '%s'.\n",
+				ast_cli(a->fd, "Core debug was %u and has been set to 0 for '%s'.\n",
 					ml->level, mod);
 				ast_free(ml);
 				return CLI_SUCCESS;
@@ -521,7 +521,7 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 			if (ml) {
 				if ((atleast && newlevel < ml->level) || ml->level == newlevel) {
-					ast_cli(a->fd, "Core debug is still %d for '%s'.\n", ml->level, mod);
+					ast_cli(a->fd, "Core debug is still %u for '%s'.\n", ml->level, mod);
 					AST_RWLIST_UNLOCK(&debug_modules);
 					return CLI_SUCCESS;
 				}
@@ -540,7 +540,7 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			}
 			ast_set_flag(&ast_options, AST_OPT_FLAG_DEBUG_MODULE);
 
-			ast_cli(a->fd, "Core debug was %d and has been set to %d for '%s'.\n",
+			ast_cli(a->fd, "Core debug was %d and has been set to %u for '%s'.\n",
 				oldval, ml->level, ml->module);
 
 			AST_RWLIST_UNLOCK(&debug_modules);
@@ -1571,7 +1571,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"Eff. Connected Line ID Name: %s\n"
 		"    DNID Digits: %s\n"
 		"       Language: %s\n"
-		"          State: %s (%d)\n"
+		"          State: %s (%u)\n"
 		"          Rings: %d\n"
 		"  NativeFormats: %s\n"
 		"    WriteFormat: %s\n"
@@ -1579,8 +1579,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		" WriteTranscode: %s %s\n"
 		"  ReadTranscode: %s %s\n"
 		"1st File Descriptor: %d\n"
-		"      Frames in: %d%s\n"
-		"     Frames out: %d%s\n"
+		"      Frames in: %u%s\n"
+		"     Frames out: %u%s\n"
 		" Time to Hangup: %ld\n"
 		"   Elapsed Time: %s\n"
 		"  Direct Bridge: %s\n"

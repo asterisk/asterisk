@@ -236,11 +236,11 @@ static int srv_result_read(struct ast_channel *chan, const char *cmd, char *data
 	if (!strcasecmp(args.field, "host")) {
 		ast_copy_string(buf, host, len);
 	} else if (!strcasecmp(args.field, "port")) {
-		snprintf(buf, len, "%u", port);
+		snprintf(buf, len, "%d", port);
 	} else if (!strcasecmp(args.field, "priority")) {
-		snprintf(buf, len, "%u", priority);
+		snprintf(buf, len, "%d", priority);
 	} else if (!strcasecmp(args.field, "weight")) {
-		snprintf(buf, len, "%u", weight);
+		snprintf(buf, len, "%d", weight);
 	} else {
 		ast_log(LOG_WARNING, "Unrecognized SRV field '%s'\n", args.field);
 		return -1;

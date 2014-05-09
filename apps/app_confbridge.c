@@ -2305,7 +2305,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 		ast_cli(a->fd, "================================ ====== ====== ========\n");
 		i = ao2_iterator_init(conference_bridges, 0);
 		while ((bridge = ao2_iterator_next(&i))) {
-			ast_cli(a->fd, "%-32s %6i %6i %s\n", bridge->name, bridge->activeusers + bridge->waitingusers, bridge->markedusers, (bridge->locked ? "locked" : "unlocked"));
+			ast_cli(a->fd, "%-32s %6u %6u %s\n", bridge->name, bridge->activeusers + bridge->waitingusers, bridge->markedusers, (bridge->locked ? "locked" : "unlocked"));
 			ao2_ref(bridge, -1);
 		}
 		ao2_iterator_destroy(&i);
@@ -2757,8 +2757,8 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 		"Event: ConfbridgeListRooms\r\n"
 		"%s"
 		"Conference: %s\r\n"
-		"Parties: %d\r\n"
-		"Marked: %d\r\n"
+		"Parties: %u\r\n"
+		"Marked: %u\r\n"
 		"Locked: %s\r\n"
 		"\r\n",
 		id_text,

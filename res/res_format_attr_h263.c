@@ -193,7 +193,7 @@ static void h263_format_attr_sdp_generate(const struct ast_format_attr *format_a
 			}
 
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%d CUSTOM=%u,%u,%u", payload, format_attr->format_attr[H263_ATTR_KEY_CUSTOM_XMAX],
+				ast_str_append(str, 0, "a=fmtp:%u CUSTOM=%u,%u,%u", payload, format_attr->format_attr[H263_ATTR_KEY_CUSTOM_XMAX],
 					       format_attr->format_attr[H263_ATTR_KEY_CUSTOM_YMAX], format_attr->format_attr[H263_ATTR_KEY_CUSTOM_MPI]);
 				added = 1;
 			} else {
@@ -206,7 +206,7 @@ static void h263_format_attr_sdp_generate(const struct ast_format_attr *format_a
 			}
 
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%d PAR=%u:%u", payload, format_attr->format_attr[H263_ATTR_KEY_PAR_WIDTH],
+				ast_str_append(str, 0, "a=fmtp:%u PAR=%u:%u", payload, format_attr->format_attr[H263_ATTR_KEY_PAR_WIDTH],
 					       format_attr->format_attr[H263_ATTR_KEY_PAR_HEIGHT]);
 				added = 1;
 			} else {
@@ -219,7 +219,7 @@ static void h263_format_attr_sdp_generate(const struct ast_format_attr *format_a
 			}
 
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%d P=%u", payload, format_attr->format_attr[H263_ATTR_KEY_P_SUB1]);
+				ast_str_append(str, 0, "a=fmtp:%u P=%u", payload, format_attr->format_attr[H263_ATTR_KEY_P_SUB1]);
 				added = 1;
 			} else {
 				ast_str_append(str, 0, ";P=%u", format_attr->format_attr[H263_ATTR_KEY_P_SUB1]);
@@ -237,7 +237,7 @@ static void h263_format_attr_sdp_generate(const struct ast_format_attr *format_a
 
 		} else if ((name = h263_attr_key_to_str(i, format_attr))) {
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%d %s=%u", payload, name, format_attr->format_attr[i]);
+				ast_str_append(str, 0, "a=fmtp:%u %s=%u", payload, name, format_attr->format_attr[i]);
 				added = 1;
 			} else {
 				ast_str_append(str, 0, ";%s=%u", name, format_attr->format_attr[i]);

@@ -1198,9 +1198,9 @@ static void xmpp_pubsub_mwi_cb(const struct ast_event *ast_event, void *data)
 
 	mailbox = ast_event_get_ie_str(ast_event, AST_EVENT_IE_MAILBOX);
 	context = ast_event_get_ie_str(ast_event, AST_EVENT_IE_CONTEXT);
-	snprintf(oldmsgs, sizeof(oldmsgs), "%d",
+	snprintf(oldmsgs, sizeof(oldmsgs), "%u",
 		 ast_event_get_ie_uint(ast_event, AST_EVENT_IE_OLDMSGS));
-	snprintf(newmsgs, sizeof(newmsgs), "%d",
+	snprintf(newmsgs, sizeof(newmsgs), "%u",
 		 ast_event_get_ie_uint(ast_event, AST_EVENT_IE_NEWMSGS));
 	xmpp_pubsub_publish_mwi(client, mailbox, context, oldmsgs, newmsgs);
 }
@@ -1329,7 +1329,7 @@ static int xmpp_pubsub_handle_event(void *data, ikspak *pak)
 	}
 	if (!strcasecmp(iks_name(item_content), "state")) {
 		if ((cachable_str = iks_find_attrib(item_content, "cachable"))) {
-			sscanf(cachable_str, "%30d", &cachable);
+			sscanf(cachable_str, "%30u", &cachable);
 		}
 		device_state = iks_find_cdata(item, "state");
 		if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
@@ -3247,7 +3247,7 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 		}
 
 		manager_event(EVENT_FLAG_USER, "JabberStatus",
-			      "Account: %s\r\nJID: %s\r\nStatus: %d\r\n",
+			      "Account: %s\r\nJID: %s\r\nStatus: %u\r\n",
 			      client->name, pak->from->partial, pak->show ? pak->show : IKS_SHOW_UNAVAILABLE);
 	}
 

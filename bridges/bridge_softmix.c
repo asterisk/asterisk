@@ -663,7 +663,7 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 		 * from the current rate we are using. */
 		if (softmix_data->internal_rate != stats->locked_rate) {
 			softmix_data->internal_rate = stats->locked_rate;
-			ast_debug(1, " Bridge is locked in at sample rate %d\n", softmix_data->internal_rate);
+			ast_debug(1, " Bridge is locked in at sample rate %u\n", softmix_data->internal_rate);
 			return 1;
 		}
 	} else if (stats->num_above_internal_rate >= 2) {
@@ -702,13 +702,13 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 			}
 		}
 
-		ast_debug(1, " Bridge changed from %d To %d\n", softmix_data->internal_rate, best_rate);
+		ast_debug(1, " Bridge changed from %u To %u\n", softmix_data->internal_rate, best_rate);
 		softmix_data->internal_rate = best_rate;
 		return 1;
 	} else if (!stats->num_at_internal_rate && !stats->num_above_internal_rate) {
 		/* In this case, the highest supported rate is actually lower than the internal rate */
 		softmix_data->internal_rate = stats->highest_supported_rate;
-		ast_debug(1, " Bridge changed from %d to %d\n", softmix_data->internal_rate, stats->highest_supported_rate);
+		ast_debug(1, " Bridge changed from %u to %u\n", softmix_data->internal_rate, stats->highest_supported_rate);
 		return 1;
 	}
 	return 0;

@@ -549,7 +549,7 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 				break;
 
 			default:
-				ast_log(LOG_WARNING, "Unknown helper %d\n", action);
+				ast_log(LOG_WARNING, "Unknown helper %u\n", action);
 			}
 			ast_free(fn);
 		}

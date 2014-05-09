@@ -417,7 +417,7 @@ static struct ast_bridge_technology *find_best_technology(uint32_t capabilities)
 			continue;
 		}
 		if (best && best->preference < current->preference) {
-			ast_debug(1, "Bridge technology %s has preference %d while %s has preference %d. Skipping.\n", current->name, current->preference, best->name, best->preference);
+			ast_debug(1, "Bridge technology %s has preference %u while %s has preference %u. Skipping.\n", current->name, current->preference, best->name, best->preference);
 			continue;
 		}
 		best = current;
@@ -1054,15 +1054,15 @@ static enum ast_bridge_channel_state bridge_channel_join(struct ast_bridge_chann
 
 	/* Restore original formats of the channel as they came in */
 	if (ast_format_cmp(ast_channel_readformat(bridge_channel->chan), &formats[0]) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_debug(1, "Bridge is returning %p to read format %s(%d)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
+		ast_debug(1, "Bridge is returning %p to read format %s(%u)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
 		if (ast_set_read_format(bridge_channel->chan, &formats[0])) {
-			ast_debug(1, "Bridge failed to return channel %p to read format %s(%d)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
+			ast_debug(1, "Bridge failed to return channel %p to read format %s(%u)\n", bridge_channel, ast_getformatname(&formats[0]), formats[0].id);
 		}
 	}
 	if (ast_format_cmp(ast_channel_writeformat(bridge_channel->chan), &formats[1]) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_debug(1, "Bridge is returning %p to write format %s(%d)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);
+		ast_debug(1, "Bridge is returning %p to write format %s(%u)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);
 		if (ast_set_write_format(bridge_channel->chan, &formats[1])) {
-			ast_debug(1, "Bridge failed to return channel %p to write format %s(%d)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);
+			ast_debug(1, "Bridge failed to return channel %p to write format %s(%u)\n", bridge_channel, ast_getformatname(&formats[1]), formats[1].id);
 		}
 	}
 
@@ -1429,7 +1429,7 @@ int ast_bridge_features_enable(struct ast_bridge_features *features, enum ast_br
 		dtmf = builtin_features_dtmf[feature];
 		/* If no DTMF is still available (ie: it has been disabled) then error out now */
 		if (ast_strlen_zero(dtmf)) {
-			ast_debug(1, "Failed to enable built in feature %d on %p, no DTMF string is available for it.\n", feature, features);
+			ast_debug(1, "Failed to enable built in feature %u on %p, no DTMF string is available for it.\n", feature, features);
 			return -1;
 		}
 	}

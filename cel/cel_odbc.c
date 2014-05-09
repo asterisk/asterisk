@@ -473,11 +473,11 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				} else if (strcmp(entry->celname, "peer") == 0) {
 					ast_copy_string(colbuf, record.peer, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "amaflags") == 0) {
-					snprintf(colbuf, sizeof(colbuf), "%d", record.amaflag);
+					snprintf(colbuf, sizeof(colbuf), "%u", record.amaflag);
 				} else if (strcmp(entry->celname, "extra") == 0) {
 					ast_copy_string(colbuf, record.extra, sizeof(colbuf));
 				} else if (strcmp(entry->celname, "eventtype") == 0) {
-					snprintf(colbuf, sizeof(colbuf), "%d", record.event_type);
+					snprintf(colbuf, sizeof(colbuf), "%u", record.event_type);
 				} else {
 					colbuf[0] = 0;
 					unknown = 1;
@@ -691,7 +691,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					break;
 				case SQL_TINYINT:
 					{
-						char integer = 0;
+						signed char integer = 0;
 						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;
@@ -704,7 +704,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					break;
 				case SQL_BIT:
 					{
-						char integer = 0;
+						signed char integer = 0;
 						if (sscanf(colptr, "%30hhd", &integer) != 1) {
 							ast_log(LOG_WARNING, "CEL variable %s is not an integer.\n", entry->name);
 							continue;

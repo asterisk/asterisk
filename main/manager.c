@@ -2637,7 +2637,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 			MD5Update(&md5, (unsigned char *) user->secret, strlen(user->secret));
 			MD5Final(digest, &md5);
 			for (x = 0; x < 16; x++)
-				len += sprintf(md5key + len, "%2.2x", digest[x]);
+				len += sprintf(md5key + len, "%2.2x", (unsigned)digest[x]);
 			if (!strcmp(md5key, key)) {
 				error = 0;
 			} else {
@@ -3642,7 +3642,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			"ConnectedLineNum: %s\r\n"
 			"ConnectedLineName: %s\r\n"
 			"Accountcode: %s\r\n"
-			"ChannelState: %d\r\n"
+			"ChannelState: %u\r\n"
 			"ChannelStateDesc: %s\r\n"
 			"Context: %s\r\n"
 			"Extension: %s\r\n"
@@ -5053,7 +5053,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 			"Context: %s\r\n"
 			"Extension: %s\r\n"
 			"Priority: %d\r\n"
-			"ChannelState: %d\r\n"
+			"ChannelState: %u\r\n"
 			"ChannelStateDesc: %s\r\n"
 			"Application: %s\r\n"
 			"ApplicationData: %s\r\n"

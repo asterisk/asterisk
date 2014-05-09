@@ -403,7 +403,7 @@ static void debug_check_frame_for_silence(struct ast_fax_session *s, unsigned in
 		history->consec_ms = 0;
 
 		if ((last_consec_frames != 0)) {
-			ast_verb(6, "Channel '%s' fax session '%d', [ %.3ld.%.6ld ], %s sent %d frames (%d ms) of %s.\n",
+			ast_verb(6, "Channel '%s' fax session '%u', [ %.3ld.%.6ld ], %s sent %u frames (%u ms) of %s.\n",
 				 s->channame, s->id, (long) diff.tv_sec, (long int) diff.tv_usec,
 				 (c2s) ? "channel" : "stack", last_consec_frames, last_consec_ms,
 				 (wassil) ? "silence" : "energy");
@@ -803,7 +803,7 @@ const char *ast_fax_state_to_str(enum ast_fax_state state)
 	case AST_FAX_STATE_INACTIVE:
 		return "Inactive";
 	default:
-		ast_log(LOG_WARNING, "unhandled FAX state: %d\n", state);
+		ast_log(LOG_WARNING, "unhandled FAX state: %u\n", state);
 		return "Unknown";
 	}
 }
@@ -1077,11 +1077,11 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 	}
 	/* link the session to the session container */
 	if (!(ao2_link(faxregistry.container, s))) {
-		ast_log(LOG_ERROR, "failed to add FAX session '%d' to container.\n", s->id);
+		ast_log(LOG_ERROR, "failed to add FAX session '%u' to container.\n", s->id);
 		ao2_ref(s, -1);
 		return NULL;
 	}
-	ast_debug(4, "channel '%s' using FAX session '%d'\n", s->channame, s->id);
+	ast_debug(4, "channel '%s' using FAX session '%u'\n", s->channame, s->id);
 
 	return s;
 }
@@ -1192,7 +1192,7 @@ static void set_channel_variables(struct ast_channel *chan, struct ast_fax_sessi
 	pbx_builtin_setvar_helper(chan, "FAXBITRATE", S_OR(details->transfer_rate, NULL));
 	pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", S_OR(details->resolution, NULL));
 
-	snprintf(buf, sizeof(buf), "%d", details->pages_transferred);
+	snprintf(buf, sizeof(buf), "%u", details->pages_transferred);
 	pbx_builtin_setvar_helper(chan, "FAXPAGES", buf);
 }
 
@@ -1214,7 +1214,7 @@ static void set_channel_variables(struct ast_channel *chan, struct ast_fax_sessi
 
 #define GENERIC_FAX_EXEC_ERROR(fax, chan, errorstr, reason)	\
 	do {	\
-		ast_log(LOG_ERROR, "channel '%s' FAX session '%d' failure, reason: '%s' (%s)\n", ast_channel_name(chan), fax->id, reason, errorstr); \
+		ast_log(LOG_ERROR, "channel '%s' FAX session '%u' failure, reason: '%s' (%s)\n", ast_channel_name(chan), fax->id, reason, errorstr); \
 		GENERIC_FAX_EXEC_ERROR_QUIET(fax, chan, errorstr, reason); \
 	} while (0)
 
@@ -1387,7 +1387,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 			fax->smoother = NULL;
 		}
 		if (!(fax->smoother = ast_smoother_new(320))) {
-			ast_log(LOG_WARNING, "Channel '%s' FAX session '%d' failed to obtain a smoother.\n", ast_channel_name(chan), fax->id);
+			ast_log(LOG_WARNING, "Channel '%s' FAX session '%u' failed to obtain a smoother.\n", ast_channel_name(chan), fax->id);
 		}
 	} else {
 		expected_frametype = AST_FRAME_MODEM;
@@ -1475,7 +1475,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 
 					report_fax_status(chan, details, "T.38 Negotiated");
 
-					ast_verb(3, "Channel '%s' switched to T.38 FAX session '%d'.\n", ast_channel_name(chan), fax->id);
+					ast_verb(3, "Channel '%s' switched to T.38 FAX session '%u'.\n", ast_channel_name(chan), fax->id);
 				}
 			} else if ((frame->frametype == expected_frametype) &&
 				   (!memcmp(&frame->subclass, &expected_framesubclass, sizeof(frame->subclass)))) {
@@ -1783,14 +1783,14 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
 		set_channel_variables(chan, details);
-		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
+		ast_log(LOG_ERROR, "maxrate %u is less than minrate %u\n", details->maxrate, details->minrate);
 		ao2_ref(details, -1);
 		return -1;
 	}
 
 	if (check_modem_rate(details->modems, details->minrate)) {
 		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, details->minrate);
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %u\n", modems, details->minrate);
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
 		set_channel_variables(chan, details);
@@ -1800,7 +1800,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 
 	if (check_modem_rate(details->modems, details->maxrate)) {
 		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, details->maxrate);
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %u\n", modems, details->maxrate);
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
 		set_channel_variables(chan, details);
@@ -2269,14 +2269,14 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "maxrate is less than minrate");
 		set_channel_variables(chan, details);
-		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", details->maxrate, details->minrate);
+		ast_log(LOG_ERROR, "maxrate %u is less than minrate %u\n", details->maxrate, details->minrate);
 		ao2_ref(details, -1);
 		return -1;
 	}
 
 	if (check_modem_rate(details->modems, details->minrate)) {
 		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, details->minrate);
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %u\n", modems, details->minrate);
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'minrate' settings");
 		set_channel_variables(chan, details);
@@ -2286,7 +2286,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 
 	if (check_modem_rate(details->modems, details->maxrate)) {
 		ast_fax_modem_to_str(details->modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, details->maxrate);
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %u\n", modems, details->maxrate);
 		ast_string_field_set(details, error, "INVALID_ARGUMENTS");
 		ast_string_field_set(details, resultstr, "incompatible 'modems' and 'maxrate' settings");
 		set_channel_variables(chan, details);
@@ -3104,7 +3104,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		active = chan;
 		break;
 	default:
-		ast_log(LOG_WARNING, "unhandled framehook event %i\n", event);
+		ast_log(LOG_WARNING, "unhandled framehook event %u\n", event);
 		ao2_ref(details, -1);
 		return f;
 	}
@@ -3491,7 +3491,7 @@ static char *fax_session_tab_complete(struct ast_cli_args *a)
 	tklen = strlen(a->word);
 	i = ao2_iterator_init(faxregistry.container, 0);
 	while ((s = ao2_iterator_next(&i))) {
-		snprintf(tbuf, sizeof(tbuf), "%d", s->id);
+		snprintf(tbuf, sizeof(tbuf), "%u", s->id);
 		if (!strncasecmp(a->word, tbuf, tklen) && ++wordnum > a->n) {
 			name = ast_strdup(tbuf);
 			ao2_ref(s, -1);
@@ -3594,7 +3594,7 @@ static char *cli_fax_show_capabilities(struct ast_cli_entry *e, int cmd, struct 
 		num_modules++;
 	}
 	AST_RWLIST_UNLOCK(&faxmodules);
-	ast_cli(a->fd, "%d registered modules\n\n", num_modules);
+	ast_cli(a->fd, "%u registered modules\n\n", num_modules);
 
 	return CLI_SUCCESS;
 }
@@ -3622,8 +3622,8 @@ static char *cli_fax_show_settings(struct ast_cli_entry *e, int cmd, struct ast_
 	ast_cli(a->fd, "FAX For Asterisk Settings:\n");
 	ast_cli(a->fd, "\tECM: %s\n", options.ecm ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "\tStatus Events: %s\n",  options.statusevents ? "On" : "Off");
-	ast_cli(a->fd, "\tMinimum Bit Rate: %d\n", options.minrate);
-	ast_cli(a->fd, "\tMaximum Bit Rate: %d\n", options.maxrate);
+	ast_cli(a->fd, "\tMinimum Bit Rate: %u\n", options.minrate);
+	ast_cli(a->fd, "\tMaximum Bit Rate: %u\n", options.maxrate);
 	ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
 	ast_cli(a->fd, "\tModem Modulations Allowed: %s\n", modems);
 	ast_cli(a->fd, "\n\nFAX Technology Modules:\n\n");
@@ -3657,7 +3657,7 @@ static char *cli_fax_show_session(struct ast_cli_entry *e, int cmd, struct ast_c
 		return CLI_SHOWUSAGE;
 	}
 
-	if (sscanf(a->argv[3], "%d", &tmp.id) != 1) {
+	if (sscanf(a->argv[3], "%u", &tmp.id) != 1) {
 		ast_log(LOG_ERROR, "invalid session id: '%s'\n", a->argv[3]);
 		return RESULT_SUCCESS;
 	}
@@ -3764,7 +3764,7 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 
 		filenames = generate_filenames_string(s->details, "", ", ");
 
-		ast_cli(a->fd, "%-20.20s %-10.10s %-10d %-5.5s %-10.10s %-15.15s %-30s\n",
+		ast_cli(a->fd, "%-20.20s %-10.10s %-10u %-5.5s %-10.10s %-15.15s %-30s\n",
 			s->channame, s->tech->type, s->id,
 			cli_session_type(s),
 			cli_session_operation(s),
@@ -3878,28 +3878,28 @@ static int set_config(int reload)
 	}
 
 	if (options.maxrate < options.minrate) {
-		ast_log(LOG_ERROR, "maxrate %d is less than minrate %d\n", options.maxrate, options.minrate);
+		ast_log(LOG_ERROR, "maxrate %u is less than minrate %u\n", options.maxrate, options.minrate);
 		res = -1;
 		goto end;
 	}
 
 	if (options.minrate == 2400 && (options.modems & AST_FAX_MODEM_V27) && !(options.modems & (AST_FAX_MODEM_V34))) {
 		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
-		ast_log(LOG_WARNING, "'modems' setting '%s' is no longer accepted with 'minrate' setting %d\n", modems, options.minrate);
+		ast_log(LOG_WARNING, "'modems' setting '%s' is no longer accepted with 'minrate' setting %u\n", modems, options.minrate);
 		ast_log(LOG_WARNING, "'minrate' has been reset to 4800, please update res_fax.conf.\n");
 		options.minrate = 4800;
 	}
 
 	if (check_modem_rate(options.modems, options.minrate)) {
 		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %d\n", modems, options.minrate);
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'minrate' setting %u\n", modems, options.minrate);
 		res = -1;
 		goto end;
 	}
 
 	if (check_modem_rate(options.modems, options.maxrate)) {
 		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
-		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %d\n", modems, options.maxrate);
+		ast_log(LOG_ERROR, "'modems' setting '%s' is incompatible with 'maxrate' setting %u\n", modems, options.maxrate);
 		res = -1;
 		goto end;
 	}
@@ -3954,11 +3954,11 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 	} else if (!strcasecmp(data, "localstationid")) {
 		ast_copy_string(buf, details->localstationid, len);
 	} else if (!strcasecmp(data, "maxrate")) {
-		snprintf(buf, len, "%d", details->maxrate);
+		snprintf(buf, len, "%u", details->maxrate);
 	} else if (!strcasecmp(data, "minrate")) {
-		snprintf(buf, len, "%d", details->minrate);
+		snprintf(buf, len, "%u", details->minrate);
 	} else if (!strcasecmp(data, "pages")) {
-		snprintf(buf, len, "%d", details->pages_transferred);
+		snprintf(buf, len, "%u", details->pages_transferred);
 	} else if (!strcasecmp(data, "rate")) {
 		ast_copy_string(buf, details->transfer_rate, len);
 	} else if (!strcasecmp(data, "remotestationid")) {
@@ -3966,7 +3966,7 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 	} else if (!strcasecmp(data, "resolution")) {
 		ast_copy_string(buf, details->resolution, len);
 	} else if (!strcasecmp(data, "sessionid")) {
-		snprintf(buf, len, "%d", details->id);
+		snprintf(buf, len, "%u", details->id);
 	} else if (!strcasecmp(data, "status")) {
 		ast_copy_string(buf, details->result, len);
 	} else if (!strcasecmp(data, "statusstr")) {

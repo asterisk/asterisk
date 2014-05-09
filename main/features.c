@@ -2948,7 +2948,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 				if (atxferloopdelay) {
 					/* Transfer failed, sleeping */
-					ast_debug(1, "Sleeping for %d ms before retrying atxfer.\n",
+					ast_debug(1, "Sleeping for %u ms before retrying atxfer.\n",
 						atxferloopdelay);
 					ast_safe_sleep(transferee, atxferloopdelay);
 					if (ast_check_hangup(transferee)) {
@@ -3737,7 +3737,7 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 
 	snprintf(dynamic_features_buf, sizeof(dynamic_features_buf), "%s%s%s", S_OR(chan_dynamic_features, ""), chan_dynamic_features && peer_dynamic_features ? "#" : "", S_OR(peer_dynamic_features,""));
 
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%d, dynamic=%s\n", ast_channel_name(chan), ast_channel_name(peer), code, sense, features.flags, dynamic_features_buf);
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, code=%s, sense=%d, features=%u, dynamic=%s\n", ast_channel_name(chan), ast_channel_name(peer), code, sense, features.flags, dynamic_features_buf);
 
 	return feature_interpret_helper(chan, peer, config, code, sense, dynamic_features_buf, &features, FEATURE_INTERPRET_DO, &feature);
 }
@@ -4165,7 +4165,7 @@ void ast_channel_log(char *title, struct ast_channel *chan) /* for debug, this i
 	ast_log(LOG_NOTICE, "CHAN: name: %s;  appl: %s; data: %s; contxt: %s;  exten: %s; pri: %d;\n",
 		ast_channel_name(chan), ast_channel_appl(chan), ast_channel_data(chan), ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan));
 	ast_log(LOG_NOTICE, "CHAN: acctcode: %s;  dialcontext: %s; amaflags: %x; maccontxt: %s;  macexten: %s; macpri: %d;\n",
-		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), ast_channel_amaflags(chan), ast_channel_macrocontext(chan), ast_channel_macroexten(chan), ast_channel_macropriority(chan));
+		ast_channel_accountcode(chan), ast_channel_dialcontext(chan), (unsigned)ast_channel_amaflags(chan), ast_channel_macrocontext(chan), ast_channel_macroexten(chan), ast_channel_macropriority(chan));
 	ast_log(LOG_NOTICE, "CHAN: masq: %p;  masqr: %p; _bridge: %p; uniqueID: %s; linkedID:%s\n",
 		ast_channel_masq(chan), ast_channel_masqr(chan),
 		ast_channel_internal_bridged_channel(chan), ast_channel_uniqueid(chan), ast_channel_linkedid(chan));
@@ -5493,7 +5493,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 	struct ast_context *con;
 	char *parse;
 	const char *pl_name;
-	int park = 0;
+	unsigned int park = 0;
 	struct ast_bridge_config config;
 	struct ast_parkinglot *parkinglot;
 	AST_DECLARE_APP_ARGS(app_args,
@@ -5702,7 +5702,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 		}
 		/* This runs sorta backwards, since we give the incoming channel control, as if it
 		   were the person called. */
-		ast_verb(3, "Channel %s connected to parked call %d\n", ast_channel_name(chan), park);
+		ast_verb(3, "Channel %s connected to parked call %u\n", ast_channel_name(chan), park);
 
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", ast_channel_name(peer));
 		ast_cdr_setdestchan(ast_channel_cdr(chan), ast_channel_name(peer));
@@ -5754,7 +5754,7 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 			ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark",
 				ast_channel_name(chan));
 		}
-		ast_verb(3, "Channel %s tried to retrieve nonexistent parked call %d\n",
+		ast_verb(3, "Channel %s tried to retrieve nonexistent parked call %u\n",
 			ast_channel_name(chan), park);
 		res = -1;
 	}
@@ -7225,7 +7225,7 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ast_cli(a->fd,"%-22s:      %s%s\n", "Comeback context",
 				curlot->cfg.comebackcontext, (curlot->cfg.comebacktoorigin ?
 					" (comebacktoorigin=yes, not used)" : ""));
-		ast_cli(a->fd,"%-22s:      %d\n", "Comeback dial time",
+		ast_cli(a->fd,"%-22s:      %u\n", "Comeback dial time",
 				curlot->cfg.comebackdialtime);
 		ast_cli(a->fd,"%-22s:      %s\n", "MusicOnHold class", curlot->cfg.mohclass);
 		ast_cli(a->fd,"%-22s:      %s\n", "Enabled", AST_CLI_YESNO(!curlot->disabled));
@@ -7562,7 +7562,7 @@ static int manager_parkinglot_list(struct mansession *s, const struct message *m
 			"Name: %s\r\n"
 			"StartExten: %d\r\n"
 			"StopExten: %d\r\n"
-			"Timeout: %d\r\n"
+			"Timeout: %u\r\n"
 			"\r\n",
 			curlot->name,
 			curlot->cfg.parking_start,

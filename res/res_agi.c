@@ -2599,12 +2599,12 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, co
 	struct ast_channel *c;
 	if (argc == 2) {
 		/* no argument: supply info on the current channel */
-		ast_agi_send(agi->fd, chan, "200 result=%d\n", ast_channel_state(chan));
+		ast_agi_send(agi->fd, chan, "200 result=%u\n", ast_channel_state(chan));
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
 		/* one argument: look for info on the specified channel */
 		if ((c = ast_channel_get_by_name(argv[2]))) {
-			ast_agi_send(agi->fd, chan, "200 result=%d\n", ast_channel_state(c));
+			ast_agi_send(agi->fd, chan, "200 result=%u\n", ast_channel_state(c));
 			c = ast_channel_unref(c);
 			return RESULT_SUCCESS;
 		}
