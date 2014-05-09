@@ -593,12 +593,43 @@ static void publish_chanspy_message(struct ast_channel *spyer,
 	stasis_publish(ast_channel_topic(spyer), message);
 }
 
+static int attach_barge(struct ast_autochan *spyee_autochan,
+	struct ast_autochan **spyee_bridge_autochan, struct ast_audiohook *bridge_whisper_audiohook,
+	const char *spyer_name, const char *name)
+{
+	int retval = 0;
+	struct ast_autochan *internal_bridge_autochan;
+	RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(spyee_autochan->chan), ast_channel_cleanup);
+
+	if (!bridged) {
+		return -1;
+	}
+
+	ast_audiohook_init(bridge_whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "Chanspy", 0);
+
+	internal_bridge_autochan = ast_autochan_setup(bridged);
+	if (!internal_bridge_autochan) {
+		return -1;
+	}
+
+	ast_channel_lock(internal_bridge_autochan->chan);
+	if (start_spying(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook)) {
+		ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee '%s'. Barge mode disabled.\n", name);
+		retval = -1;
+	}
+	ast_channel_unlock(internal_bridge_autochan->chan);
+
+	*spyee_bridge_autochan = internal_bridge_autochan;
+
+	return retval;
+}
+
 static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_autochan,
 	int *volfactor, int fd, struct spy_dtmf_options *user_options, struct ast_flags *flags,
 	char *exitcontext)
 {
 	struct chanspy_translation_helper csth;
-	int running = 0, res, x = 0;
+	int running = 0, bridge_connected = 0, res, x = 0;
 	char inp[24] = {0};
 	char *name;
 	struct ast_frame *f;
@@ -646,23 +677,6 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 		}
 	}
 
-	if (ast_test_flag(flags, OPTION_BARGE | OPTION_DTMF_SWITCH_MODES)) {
-		RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(spyee_autochan->chan), ast_channel_cleanup);
-
-		/* And this hook lets us inject audio into the channel that the spied on
-		   channel is currently bridged with.
-		*/
-		ast_audiohook_init(&csth.bridge_whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "Chanspy", 0);
-
-		if ((spyee_bridge_autochan = ast_autochan_setup(bridged))) {
-			ast_channel_lock(spyee_bridge_autochan->chan);
-			if (start_spying(spyee_bridge_autochan, spyer_name, &csth.bridge_whisper_audiohook)) {
-				ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee %s. Barge mode disabled!\n", name);
-			}
-			ast_channel_unlock(spyee_bridge_autochan->chan);
-		}
-	}
-
 	ast_channel_lock(chan);
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
 	ast_channel_unlock(chan);
@@ -702,6 +716,19 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 		}
 
 		if (ast_test_flag(flags, OPTION_BARGE) && f->frametype == AST_FRAME_VOICE) {
+			/* This hook lets us inject audio into the channel that the spyee is currently
+			 * bridged with. If the spyee isn't bridged with anything yet, nothing will
+			 * be attached and we'll need to continue attempting to attach the barge
+			 * audio hook. */
+			if (!bridge_connected && attach_barge(spyee_autochan, &spyee_bridge_autochan,
+					&csth.bridge_whisper_audiohook, spyer_name, name) == 0) {
+				bridge_connected = 1;
+			}
+
+			if (!bridge_connected) {
+				continue;
+			}
+
 			ast_audiohook_lock(&csth.whisper_audiohook);
 			ast_audiohook_lock(&csth.bridge_whisper_audiohook);
 			ast_audiohook_write_frame(&csth.whisper_audiohook, AST_AUDIOHOOK_DIRECTION_WRITE, f);
@@ -717,7 +744,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 			ast_frfree(f);
 			continue;
 		}
-		
+
 		res = (f->frametype == AST_FRAME_DTMF) ? f->subclass.integer : 0;
 		ast_frfree(f);
 		if (!res)
