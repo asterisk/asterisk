@@ -72,11 +72,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_TLS_PORT 8089
 #define DEFAULT_SESSION_LIMIT 100
 
-/* See http.h for more information about the SSL implementation */
-#if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
-#define	DO_SSL	/* comment in/out if you want to support ssl */
-#endif
-
 static int session_limit = DEFAULT_SESSION_LIMIT;
 static int session_count = 0;
 
@@ -1040,51 +1035,6 @@ cleanup:
 	ast_variables_destroy(get_vars);
 	return res;
 }
-
-#ifdef DO_SSL
-#if defined(HAVE_FUNOPEN)
-#define HOOK_T int
-#define LEN_T int
-#else
-#define HOOK_T ssize_t
-#define LEN_T size_t
-#endif
-
-/*!
- * replacement read/write functions for SSL support.
- * We use wrappers rather than SSL_read/SSL_write directly so
- * we can put in some debugging.
- */
-/*static HOOK_T ssl_read(void *cookie, char *buf, LEN_T len)
-{
-	int i = SSL_read(cookie, buf, len-1);
-#if 0
-	if (i >= 0)
-		buf[i] = '\0';
-	ast_verbose("ssl read size %d returns %d <%s>\n", (int)len, i, buf);
-#endif
-	return i;
-}
-
-static HOOK_T ssl_write(void *cookie, const char *buf, LEN_T len)
-{
-#if 0
-	char *s = ast_alloca(len+1);
-	strncpy(s, buf, len);
-	s[len] = '\0';
-	ast_verbose("ssl write size %d <%s>\n", (int)len, s);
-#endif
-	return SSL_write(cookie, buf, len);
-}
-
-static int ssl_close(void *cookie)
-{
-	close(SSL_get_fd(cookie));
-	SSL_shutdown(cookie);
-	SSL_free(cookie);
-	return 0;
-}*/
-#endif	/* DO_SSL */
 
 static struct ast_variable *parse_cookies(const char *cookies)
 {
