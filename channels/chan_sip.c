@@ -11526,7 +11526,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, format_t codec,
 
 
 	if (debug)
-		ast_verbose("Adding codec 0x%" PRIx64 " (%s) to SDP\n", (long unsigned)codec, ast_getformatname(codec));
+		ast_verbose("Adding codec 0x%" PRIx64 " (%s) to SDP\n", (uint64_t)codec, ast_getformatname(codec));
 	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->rtp), 1, codec)) == -1)
 		return;
 
@@ -11588,7 +11588,7 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, format_t codec,
 		return;
 
 	if (debug)
-		ast_verbose("Adding video codec 0x%" PRIx64 " (%s) to SDP\n", (long unsigned)codec, ast_getformatname(codec));
+		ast_verbose("Adding video codec 0x%" PRIx64 " (%s) to SDP\n", (uint64_t)codec, ast_getformatname(codec));
 
 	if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(p->vrtp), 1, codec)) == -1)
 		return;
