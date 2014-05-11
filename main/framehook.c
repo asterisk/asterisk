@@ -160,6 +160,10 @@ int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interfac
 		ast_frfree(frame);
 	}
 
+	if (ast_channel_is_bridged(chan)) {
+		ast_softhangup_nolock(chan, AST_SOFTHANGUP_UNBRIDGE);
+	}
+
 	return framehook->id;
 }
 
@@ -215,6 +219,12 @@ int ast_framehook_list_is_empty(struct ast_framehook_list *framehooks)
 
 int ast_framehook_list_contains_no_active(struct ast_framehook_list *framehooks)
 {
+	return ast_framehook_list_contains_no_active_of_type(framehooks, 0);
+}
+
+int ast_framehook_list_contains_no_active_of_type(struct ast_framehook_list *framehooks,
+	enum ast_frame_type type)
+{
 	struct ast_framehook *cur;
 
 	if (!framehooks) {
@@ -227,6 +237,9 @@ int ast_framehook_list_contains_no_active(struct ast_framehook_list *framehooks)
 
 	AST_LIST_TRAVERSE(&framehooks->list, cur, list) {
 		if (cur->detach_and_destroy_me) {
+			continue;
+		}
+		if (type && cur->i.consume_cb && !cur->i.consume_cb(cur->i.data, type)) {
 			continue;
 		}
 		return 0;
