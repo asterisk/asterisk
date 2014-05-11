@@ -1049,8 +1049,8 @@ enum {
 	 */
 	AST_SOFTHANGUP_EXPLICIT =  (1 << 5),
 	/*!
-	 * Used to request that the bridge core re-evaluate the current
-	 * bridging technology in use by the bridge this channel is in.
+	 * Used to break a bridge so the channel can be spied upon
+	 * instead of actually hanging up.
 	 */
 	AST_SOFTHANGUP_UNBRIDGE =  (1 << 6),
 	/*!
@@ -4400,16 +4400,6 @@ const char *ast_channel_oldest_linkedid(const char *a, const char *b);
  * \retval non-zero if channel has active audiohooks, framehooks, or monitor.
  */
 int ast_channel_has_audio_frame_or_monitor(struct ast_channel *chan);
-
-/*!
- * \brief Check if the channel has any active hooks that require audio.
- * \since 12.3.0
- *
- * \param chan The channel to check.
- *
- * \retval non-zero if channel has active audiohooks, audio framehooks, or monitor.
- */
-int ast_channel_has_hook_requiring_audio(struct ast_channel *chan);
 
 /*!
  * \brief Removes the trailing identifiers from a channel name string

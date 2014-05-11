@@ -288,12 +288,6 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct a
 	return f;
 }
 
-/*! \brief Callback function which informs upstream if we are consuming a frame of a specific type */
-static int native_rtp_framehook_consume(void *data, enum ast_frame_type type)
-{
-	return (type == AST_FRAME_CONTROL ? 1 : 0);
-}
-
 /*! \brief Internal helper function which checks whether the channels are compatible with our native bridging */
 static int native_rtp_bridge_capable(struct ast_channel *chan)
 {
@@ -398,7 +392,6 @@ static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_
 	static struct ast_framehook_interface hook = {
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = native_rtp_framehook,
-		.consume_cb = native_rtp_framehook_consume,
 	};
 
 	if (!data) {

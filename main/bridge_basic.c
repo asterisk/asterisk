@@ -2614,12 +2614,6 @@ static struct ast_frame *transfer_target_framehook_cb(struct ast_channel *chan,
 	return frame;
 }
 
-/*! \brief Callback function which informs upstream if we are consuming a frame of a specific type */
-static int transfer_target_framehook_consume(void *data, enum ast_frame_type type)
-{
-	return (type == AST_FRAME_CONTROL ? 1 : 0);
-}
-
 static void transfer_target_framehook_destroy_cb(void *data)
 {
 	struct attended_transfer_properties *props = data;
@@ -2853,7 +2847,6 @@ static int attach_framehook(struct attended_transfer_properties *props, struct a
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = transfer_target_framehook_cb,
 		.destroy_cb = transfer_target_framehook_destroy_cb,
-		.consume_cb = transfer_target_framehook_consume,
 	};
 
 	ao2_ref(props, +1);

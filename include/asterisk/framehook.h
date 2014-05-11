@@ -25,114 +25,114 @@
 \page AstFrameHookAPI Asterisk FrameHook API
 
 \section FrameHookFunctionality How FrameHooks Work
-	FrameHooks work by intercepting all frames being written and read off
-	a channel and allowing those frames to be viewed and manipulated within a
-	call back function.  Frame interception occurs before any processing is
-	done on the frame, which means this hook can be used to transparently
-	manipulate a frame before it is read from the channel or written
-	to the tech_pvt.  This API can be thought of as a layer between the
-	channel API and the Asterisk core when going in the READ direction, and
-	as a layer between the Channel API and the tech_pvt when going in the
-	WRITE direction.
+    FrameHooks work by intercepting all frames being written and read off
+    a channel and allowing those frames to be viewed and manipulated within a
+    call back function.  Frame interception occurs before any processing is
+    done on the frame, which means this hook can be used to transparently
+    manipulate a frame before it is read from the channel or written
+    to the tech_pvt.  This API can be thought of as a layer between the
+    channel API and the Asterisk core when going in the READ direction, and
+    as a layer between the Channel API and the tech_pvt when going in the
+    WRITE direction.
 
 \section FrameHookAPIUsage How to Use an FrameHook
-	Attaching and detaching an FrameHook to a channel is very simple.  There are only
-	two functions involved, ast_framehook_attach() which will return an id representing
-	the new FrameHook on the channel, and ast_framehook_detach() which signals the
-	FrameHook for detachment and destruction. Below is detailed information each of these
-	functions and their usage.
+    Attaching and detaching an FrameHook to a channel is very simple.  There are only
+    two functions involved, ast_framehook_attach() which will return an id representing
+    the new FrameHook on the channel, and ast_framehook_detach() which signals the
+    FrameHook for detachment and destruction. Below is detailed information each of these
+    functions and their usage.
 
 \code
-	struct ast_framehook_interface interface = {
-		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
-		.event_cb = hook_event_cb,
-		.destroy_cb = hook_destroy_cb,
-		.data = data, // where the data ptr points to any custom data used later by the hook cb.
-	};
-	int id = ast_framehook_attach(channel, &interface);
+    struct ast_framehook_interface interface = {
+        .version = AST_FRAMEHOOK_INTERFACE_VERSION,
+        .event_cb = hook_event_cb,
+        .destroy_cb = hook_destroy_cb,
+        .data = data, // where the data ptr points to any custom data used later by the hook cb.
+    };
+    int id = ast_framehook_attach(channel, &interface);
 \endcode
 
-	The ast_framehook_attach() function creates and attaches a new FrameHook onto
-	a channel. Once attached to the channel, the FrameHook will call the event_callback
-	function each time a frame is written or read on the channel.  A custom data
-	pointer can be provided to this function to store on the FrameHook as well.  This
-	pointer can be used to keep up with any statefull information associated with the FrameHook
-	and is provided during the event_callback function.  The destroy_callback function is optional.
-	This function exists so any custom data stored on the FrameHook can be destroyed before
-	the Framehook if destroyed.
+    The ast_framehook_attach() function creates and attaches a new FrameHook onto
+    a channel. Once attached to the channel, the FrameHook will call the event_callback
+    function each time a frame is written or read on the channel.  A custom data
+    pointer can be provided to this function to store on the FrameHook as well.  This
+    pointer can be used to keep up with any statefull information associated with the FrameHook
+    and is provided during the event_callback function.  The destroy_callback function is optional.
+    This function exists so any custom data stored on the FrameHook can be destroyed before
+    the Framehook if destroyed.
 
 \code
-	ast_framehook_detach(channel, id);
+    ast_framehook_detach(channel, id);
 \endcode
 
-	The ast_framehook_detach() function signals the FrameHook represented by an id to
-	be detached and destroyed on a channel.  Since it is possible this function may be called
-	during the FrameHook's event callback, it is impossible to synchronously detach the
-	FrameHook from the channel during this function call.  It is guaranteed that the next
-	event proceeding the ast_framehook_detach() will be of type AST_FRAMEHOOK_EVENT_DETACH,
-	and that after that event occurs no other event will ever be issued for that FrameHook.
-	Once the FrameHook is destroyed, the destroy callback function will be called if it was
-	provided. Note that if this function is never called, the FrameHook will be detached
-	on channel destruction.
+    The ast_framehook_detach() function signals the FrameHook represented by an id to
+    be detached and destroyed on a channel.  Since it is possible this function may be called
+    during the FrameHook's event callback, it is impossible to synchronously detach the
+    FrameHook from the channel during this function call.  It is guaranteed that the next
+    event proceeding the ast_framehook_detach() will be of type AST_FRAMEHOOK_EVENT_DETACH,
+    and that after that event occurs no other event will ever be issued for that FrameHook.
+    Once the FrameHook is destroyed, the destroy callback function will be called if it was
+    provided. Note that if this function is never called, the FrameHook will be detached
+    on channel destruction.
 
 \section FrameHookAPICodeExample FrameHook Example Code
-	The example code below attaches an FrameHook on a channel, and then detachs it when
-	the first ast_frame is read or written to the event callback function.  The Framehook's id
-	is stored on the FrameHook's data pointer so it can be detached within the callback.
+    The example code below attaches an FrameHook on a channel, and then detachs it when
+    the first ast_frame is read or written to the event callback function.  The Framehook's id
+    is stored on the FrameHook's data pointer so it can be detached within the callback.
 
 \code
-	static void destroy_cb(void *data) {
-		ast_free(data);
-	}
+    static void destroy_cb(void *data) {
+	    ast_free(data);
+    }
 
-	static struct ast_frame *event_cb(struct ast_channel *chan,
-			struct ast_frame *frame,
-			enum ast_framehook_event event,
-			void *data) {
+    static struct ast_frame *event_cb(struct ast_channel *chan,
+            struct ast_frame *frame,
+            enum ast_framehook_event event,
+            void *data) {
 
-		int *id = data;
+        int *id = data;
 
-		if (!frame) {
-			return frame;
-		}
+        if (!frame) {
+            return frame;
+        }
 
-		if (event == AST_FRAMEHOOK_EVENT_WRITE) {
-			ast_log(LOG_NOTICE, "YAY we received a frame in the write direction, Type: %d\n", frame->frametype)
-			ast_framehook_detach(chan, id); // the channel is guaranteed to be locked during this function call.
-		} else if (event == AST_FRAMEHOOK_EVENT_READ) {
-			ast_log(LOG_NOTICE, "YAY we received a frame in the read direction: Type: %d\n", frame->frametype);
-			ast_framehook_detach(chan, id); // the channel is guaranteed to be locked during this function call.
-		}
+        if (event == AST_FRAMEHOOK_EVENT_WRITE) {
+            ast_log(LOG_NOTICE, "YAY we received a frame in the write direction, Type: %d\n", frame->frametype)
+            ast_framehook_detach(chan, id); // the channel is guaranteed to be locked during this function call.
+        } else if (event == AST_FRAMEHOOK_EVENT_READ) {
+            ast_log(LOG_NOTICE, "YAY we received a frame in the read direction: Type: %d\n", frame->frametype);
+            ast_framehook_detach(chan, id); // the channel is guaranteed to be locked during this function call.
+        }
 
-		return frame;
-	{
+        return frame;
+    {
 
-	int some_function()
-	{
-		struct ast_framehook_interface interface = {
-			.version = AST_FRAMEHOOK_INTERFACE_VERSION,
-			.event_cb = hook_event_cb,
-			.destroy_cb = hook_destroy_cb,
-		};
-		int *id = ast_calloc(1, sizeof(int));
+    int some_function()
+    {
+        struct ast_framehook_interface interface = {
+            .version = AST_FRAMEHOOK_INTERFACE_VERSION,
+            .event_cb = hook_event_cb,
+            .destroy_cb = hook_destroy_cb,
+        };
+        int *id = ast_calloc(1, sizeof(int));
 
-		if (!id) {
-			return -1;
-		}
+        if (!id) {
+            return -1;
+        }
 
-		interface.data = id; // This data will be returned to us in the callbacks.
+        interface.data = id; // This data will be returned to us in the callbacks.
 
-		ast_channel_lock(chan);
-		*id = ast_framehook_attach(chan, &interface);
-		ast_channel_unlock(chan);
+        ast_channel_lock(chan);
+        *id = ast_framehook_attach(chan, &interface);
+        ast_channel_unlock(chan);
 
-		if (*id < 0) {
-			// framehook attach failed, free data
-			ast_free(id);
-			return -1;
-		}
-		return 0;
-	}
+        if (*id < 0) {
+            // framehook attach failed, free data
+            ast_free(id);
+            return -1;
+        }
+        return 0;
+    }
 \endcode
 */
 
@@ -199,20 +199,7 @@ typedef struct ast_frame *(*ast_framehook_event_callback)(
  */
 typedef void (*ast_framehook_destroy_callback)(void *data);
 
-/*!
- * \brief This callback is called to determine if the framehook is currently consuming
- * frames of a given type
- * \since 12
- *
- * \param data, The data pointer provided at framehook initilization.
- * \param type, The type of frame.
- *
- * \return 0 if frame type is being ignored
- * \return 1 if frame type is not being ignored
- */
-typedef int (*ast_framehook_consume_callback)(void *data, enum ast_frame_type type);
-
-#define AST_FRAMEHOOK_INTERFACE_VERSION 2
+#define AST_FRAMEHOOK_INTERFACE_VERSION 1
 /*! This interface is required for attaching a framehook to a channel. */
 struct ast_framehook_interface {
 	/*! framehook interface version number */
@@ -222,10 +209,6 @@ struct ast_framehook_interface {
 	/*! destroy_cb is optional.  This function is called immediately before the framehook
 	 * is destroyed to allow for stored_data cleanup. */
 	ast_framehook_destroy_callback destroy_cb;
-	/*! consume_cb is optional. This function is called to query whether the framehook is consuming
-	* frames of a specific type at this time. If this callback is not implemented it is assumed that the
-	* framehook will consume frames of all types. */
-	ast_framehook_consume_callback consume_cb;
 	 /*! This pointer can represent any custom data to be stored on the !framehook. This
 	 * data pointer will be provided during each event callback which allows the framehook
 	 * to store any stateful data associated with the application using the hook. */
@@ -339,20 +322,5 @@ int ast_framehook_list_is_empty(struct ast_framehook_list *framehooks);
  *       framehooks to see if they have been marked for destruction and doesn't count them if they are.
  */
 int ast_framehook_list_contains_no_active(struct ast_framehook_list *framehooks);
-
-/*!
- * \brief Determine if a framehook list is free of active framehooks consuming a specific type of frame
- * \since 12.3.0
- * \pre The channel must be locked during this function call.
- *
- * \param framehooks the framehook list
- * \retval 0, not empty
- * \retval 1, is empty (aside from dying framehooks)
- *
- * \note This function is very similar to ast_framehook_list_is_empty, but it checks individual
- *       framehooks to see if they have been marked for destruction and doesn't count them if they are.
- */
-int ast_framehook_list_contains_no_active_of_type(struct ast_framehook_list *framehooks,
-	enum ast_frame_type type);
 
 #endif /* _AST_FRAMEHOOK_H */
