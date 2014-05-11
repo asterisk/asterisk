@@ -2668,6 +2668,13 @@ int ast_channel_has_audio_frame_or_monitor(struct ast_channel *chan)
 		|| !ast_framehook_list_contains_no_active(ast_channel_framehooks(chan));
 }
 
+int ast_channel_has_hook_requiring_audio(struct ast_channel *chan)
+{
+	return ast_channel_monitor(chan)
+		|| !ast_audiohook_write_list_empty(ast_channel_audiohooks(chan))
+		|| !ast_framehook_list_contains_no_active_of_type(ast_channel_framehooks(chan), AST_FRAME_VOICE);
+}
+
 static void destroy_hooks(struct ast_channel *chan)
 {
 	if (ast_channel_audiohooks(chan)) {
