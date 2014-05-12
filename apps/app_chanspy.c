@@ -725,16 +725,16 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 				bridge_connected = 1;
 			}
 
-			if (!bridge_connected) {
-				continue;
+			ast_audiohook_lock(&csth.whisper_audiohook);
+			ast_audiohook_write_frame(&csth.whisper_audiohook, AST_AUDIOHOOK_DIRECTION_WRITE, f);
+			ast_audiohook_unlock(&csth.whisper_audiohook);
+
+			if (bridge_connected) {
+				ast_audiohook_lock(&csth.bridge_whisper_audiohook);
+				ast_audiohook_write_frame(&csth.bridge_whisper_audiohook, AST_AUDIOHOOK_DIRECTION_WRITE, f);
+				ast_audiohook_unlock(&csth.bridge_whisper_audiohook);
 			}
 
-			ast_audiohook_lock(&csth.whisper_audiohook);
-			ast_audiohook_lock(&csth.bridge_whisper_audiohook);
-			ast_audiohook_write_frame(&csth.whisper_audiohook, AST_AUDIOHOOK_DIRECTION_WRITE, f);
-			ast_audiohook_write_frame(&csth.bridge_whisper_audiohook, AST_AUDIOHOOK_DIRECTION_WRITE, f);
-			ast_audiohook_unlock(&csth.whisper_audiohook);
-			ast_audiohook_unlock(&csth.bridge_whisper_audiohook);
 			ast_frfree(f);
 			continue;
 		} else if (ast_test_flag(flags, OPTION_WHISPER) && f->frametype == AST_FRAME_VOICE) {
