@@ -2427,7 +2427,7 @@ static void party_json_to_ami(struct ast_str **msg, const char *prefix, struct a
 	struct ast_json *subaddress = ast_json_object_get(party, "subaddress");
 
 	/* Combined party presentation */
-	ast_str_append(msg, 0, "%sPres: %zd (%s)\r\n", prefix,
+	ast_str_append(msg, 0, "%sPres: %jd (%s)\r\n", prefix,
 		ast_json_integer_get(presentation),
 		ast_json_string_get(presentation_txt));
 
