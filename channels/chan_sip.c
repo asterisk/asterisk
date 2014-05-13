@@ -21163,6 +21163,24 @@ static char *complete_sip_notify(const char *line, const char *word, int pos, in
 	return NULL;
 }
 
+static const char *transport2str(enum sip_transport transport)
+{
+	switch (transport) {
+	case SIP_TRANSPORT_TLS:
+		return "TLS";
+	case SIP_TRANSPORT_UDP:
+		return "UDP";
+	case SIP_TRANSPORT_TCP:
+		return "TCP";
+	case SIP_TRANSPORT_WS:
+		return "WS";
+	case SIP_TRANSPORT_WSS:
+		return "WSS";
+	}
+
+	return "Undefined";
+}
+
 /*! \brief Show details of one active dialog */
 static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -21281,6 +21299,10 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
  					ast_cli(a->fd, "  S-Timer Cached Mode:    %s\n", stmode2str(cur->stimer->st_cached_mode));
  				}
 			}
+
+			/* add transport and media types */
+			ast_cli(a->fd, "  Transport:              %s\n", transport2str(cur->socket.type));
+			ast_cli(a->fd, "  Media:                  %s\n", cur->srtp ? "SRTP" : cur->rtp ? "RTP" : "None");
 
 			ast_cli(a->fd, "\n\n");
 
