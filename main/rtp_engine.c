@@ -124,7 +124,7 @@ static const struct ast_rtp_mime_type {
 	{{1, AST_FORMAT_PNG}, "video", "PNG", 90000},
 	{{1, AST_FORMAT_H261}, "video", "H261", 90000},
 	{{1, AST_FORMAT_H263}, "video", "H263", 90000},
-	{{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998", 90000},
+	{{1, AST_FORMAT_H263_PLUS}, "video", "H263-1998", 90000},
 	{{1, AST_FORMAT_H264}, "video", "H264", 90000},
 	{{1, AST_FORMAT_MP4_VIDEO}, "video", "MP4V-ES", 90000},
 	{{1, AST_FORMAT_T140RED}, "text", "RED", 1000},
