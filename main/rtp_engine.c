@@ -2010,7 +2010,7 @@ int ast_rtp_engine_init()
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_PNG, 0), 0, "video", "PNG", 90000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_H261, 0), 0, "video", "H261", 90000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_H263, 0), 0, "video", "H263", 90000);
-	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_H263_PLUS, 0), 0, "video", "h263-1998", 90000);
+	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_H263_PLUS, 0), 0, "video", "H263-1998", 90000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_H264, 0), 0, "video", "H264", 90000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_MP4_VIDEO, 0), 0, "video", "MP4V-ES", 90000);
 	set_next_mime_type(ast_format_set(&tmpfmt, AST_FORMAT_T140RED, 0), 0, "text", "RED", 1000);
