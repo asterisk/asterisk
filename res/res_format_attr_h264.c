@@ -268,11 +268,11 @@ static void h264_format_attr_sdp_generate(const struct ast_format_attr *format_a
 		} else if (i == H264_ATTR_KEY_PROFILE_IDC && format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC] &&
 		    format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP] && format_attr->format_attr[H264_ATTR_KEY_LEVEL]) {
 			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%u profile-level-id=%X%X%X", payload, format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
+				ast_str_append(str, 0, "a=fmtp:%u profile-level-id=%02X%02X%02X", payload, format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
 					       format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP], format_attr->format_attr[H264_ATTR_KEY_LEVEL]);
 				added = 1;
 			} else {
-				ast_str_append(str, 0, ";profile-level-id=%X%X%X", format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
+				ast_str_append(str, 0, ";profile-level-id=%02X%02X%02X", format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
 					       format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP], format_attr->format_attr[H264_ATTR_KEY_LEVEL]);
 			}
 		} else if ((name = h264_attr_key_to_str(i)) && h264_attr_key_addable(format_attr, i)) {
