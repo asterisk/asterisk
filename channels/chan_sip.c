@@ -22939,7 +22939,15 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	/* Answer the incoming call and set channel to UP state */
 	transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE, FALSE, FALSE);
 
-	ast_setstate(c, AST_STATE_UP);
+	/* Is this a call pickup? */
+	if (earlyreplace || oneleggedreplace) {
+		/* Report pickup event, in this order: PICKUP, CHAN_UP, ANSWER */
+		ast_cel_report_event(replacecall, AST_CEL_PICKUP, NULL, NULL, c);
+		ast_setstate(c, AST_STATE_UP);
+		ast_cel_report_event(c, AST_CEL_ANSWER, NULL, NULL, NULL);
+	} else {
+		ast_setstate(c, AST_STATE_UP);
+	}
 
 	/* Stop music on hold and other generators */
 	ast_quiet_chan(replacecall);
