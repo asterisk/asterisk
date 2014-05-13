@@ -489,6 +489,24 @@ int ast_sockaddr_hash(const struct ast_sockaddr *addr)
 	}
 }
 
+const char *ast_transport2str(enum ast_transport transport)
+{
+	switch (transport) {
+	case AST_TRANSPORT_TLS:
+		return "TLS";
+	case AST_TRANSPORT_UDP:
+		return "UDP";
+	case AST_TRANSPORT_TCP:
+		return "TCP";
+	case AST_TRANSPORT_WS:
+		return "WS";
+	case AST_TRANSPORT_WSS:
+		return "WSS";
+	}
+
+	return "Undefined";
+}
+
 int ast_accept(int sockfd, struct ast_sockaddr *addr)
 {
 	addr->len = sizeof(addr->ss);

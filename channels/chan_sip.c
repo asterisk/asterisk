@@ -21527,6 +21527,10 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
  				}
 			}
 
+			/* add transport and media types */
+			ast_cli(a->fd, "  Transport:              %s\n", ast_transport2str(cur->socket.type));
+			ast_cli(a->fd, "  Media:                  %s\n", cur->srtp ? "SRTP" : cur->rtp ? "RTP" : "None");
+
 			ast_cli(a->fd, "\n\n");
 
 			found++;
