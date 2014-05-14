@@ -155,13 +155,11 @@ static int respawn_time = 20;
 struct moh_files_state {
 	/*! Holds a reference to the MOH class. */
 	struct mohclass *class;
-	char name[MAX_MUSICCLASS];
 	format_t origwfmt;
 	int samples;
 	int sample_queue;
 	int pos;
 	int save_pos;
-	int save_total;
 	char save_pos_filename[PATH_MAX];
 };
 
@@ -379,25 +377,26 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 
 	while (state->sample_queue > 0) {
 		ast_channel_lock(chan);
-		if ((f = moh_files_readframe(chan))) {
-			/* We need to be sure that we unlock
-			 * the channel prior to calling
-			 * ast_write. Otherwise, the recursive locking
-			 * that occurs can cause deadlocks when using
-			 * indirect channels, like local channels
-			 */
-			ast_channel_unlock(chan);
-			state->samples += f->samples;
-			state->sample_queue -= f->samples;
-			res = ast_write(chan, f);
-			ast_frfree(f);
-			if (res < 0) {
-				ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
-				return -1;
-			}
-		} else {
-			ast_channel_unlock(chan);
-			return -1;	
+		f = moh_files_readframe(chan);
+
+		/* We need to be sure that we unlock
+		 * the channel prior to calling
+		 * ast_write. Otherwise, the recursive locking
+		 * that occurs can cause deadlocks when using
+		 * indirect channels, like local channels
+		 */
+		ast_channel_unlock(chan);
+		if (!f) {
+			return -1;
+		}
+
+		state->samples += f->samples;
+		state->sample_queue -= f->samples;
+		res = ast_write(chan, f);
+		ast_frfree(f);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+			return -1;
 		}
 	}
 	return res;
@@ -422,12 +421,11 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 		}
 	}
 
-	/* LOGIC: Comparing an unrefcounted pointer is a really bad idea, because
-	 * malloc may allocate a different class to the same memory block.  This
-	 * might only happen when two reloads are generated in a short period of
-	 * time, but it's still important to protect against.
-	 * PROG: Compare the quick operation first, to save CPU. */
-	if (state->save_total != class->total_files || strcmp(state->name, class->name) != 0) {
+	/* class is reffed, so we can safely compare it against the (possibly
+	 * recently unreffed) state->class. The unref was done after the ref
+	 * of class, so we're sure that they won't point to the same memory
+	 * by accident. */
+	if (state->class != class) {
 		memset(state, 0, sizeof(*state));
 		if (ast_test_flag(class, MOH_RANDOMIZE) && class->total_files) {
 			state->pos = ast_random() % class->total_files;
@@ -436,9 +434,6 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 	state->class = mohclass_ref(class, "Reffing music class for channel");
 	state->origwfmt = chan->writeformat;
-	/* For comparison on restart of MOH (see above) */
-	ast_copy_string(state->name, class->name, sizeof(state->name));
-	state->save_total = class->total_files;
 
 	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, chan->name);
 	
@@ -1146,13 +1141,6 @@ static int init_files_class(struct mohclass *class)
 		return -1;
 	}
 
-#if 0
-	/* XXX This isn't correct.  Args is an application for custom mode. XXX */
-	if (strchr(class->args, 'r')) {
-		ast_set_flag(class, MOH_RANDOMIZE);
-	}
-#endif
-
 	return 0;
 }
 
@@ -1572,7 +1560,7 @@ static void moh_class_destructor(void *obj)
 
 	ao2_lock(class);
 	while ((member = AST_LIST_REMOVE_HEAD(&class->members, list))) {
-		free(member);
+		ast_free(member);
 	}
 	ao2_unlock(class);
 
@@ -1633,9 +1621,9 @@ static void moh_class_destructor(void *obj)
 	if (class->filearray) {
 		int i;
 		for (i = 0; i < class->total_files; i++) {
-			free(class->filearray[i]);
+			ast_free(class->filearray[i]);
 		}
-		free(class->filearray);
+		ast_free(class->filearray);
 		class->filearray = NULL;
 	}
 
