@@ -2952,10 +2952,11 @@ static void meetme_menu_admin(enum menu_modes *menu_mode, int *dtmf, struct ast_
  * \param chan ast_channel belonging to the user who called the menu
  * \param user which meetme conference user invoked the menu
  * \param recordingtmp character buffer which may hold the name of the conference recording file
- * \param dahdic dahdi configuration info used by the main conference loop
  */
-
-static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan, struct ast_conf_user *user, char *recordingtmp, int recordingtmp_size, struct dahdi_confinfo *dahdic, struct ast_format_cap *cap_slin)
+static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf,
+	struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan,
+	struct ast_conf_user *user, char *recordingtmp, int recordingtmp_size,
+	struct ast_format_cap *cap_slin)
 {
 	int keepplaying;
 	int playednamerec;
@@ -3088,12 +3089,14 @@ static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, st
 
 			ast_mutex_lock(&conf->recordthreadlock);
 			if ((conf->recordthread == AST_PTHREADT_NULL) && ast_test_flag64(confflags, CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("DAHDI", cap_slin, NULL, chan, "pseudo", NULL)))) {
+				struct dahdi_confinfo dahdic;
+
 				ast_set_read_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
 				ast_set_write_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
-				dahdic->chan = 0;
-				dahdic->confno = conf->dahdiconf;
-				dahdic->confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
-				if (ioctl(ast_channel_fd(conf->lchan, 0), DAHDI_SETCONF, dahdic)) {
+				dahdic.chan = 0;
+				dahdic.confno = conf->dahdiconf;
+				dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
+				if (ioctl(ast_channel_fd(conf->lchan, 0), DAHDI_SETCONF, &dahdic)) {
 					ast_log(LOG_WARNING, "Error starting listen channel\n");
 					ast_hangup(conf->lchan);
 					conf->lchan = NULL;
@@ -3136,10 +3139,11 @@ static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf, st
  * \param chan ast_channel belonging to the user who called the menu
  * \param user which meetme conference user invoked the menu
  * \param recordingtmp character buffer which may hold the name of the conference recording file
- * \param dahdic dahdi configuration info used by the main conference loop
  */
-
-static void meetme_menu(enum menu_modes *menu_mode, int *dtmf, struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan, struct ast_conf_user *user, char *recordingtmp, int recordingtmp_size, struct dahdi_confinfo *dahdic, struct ast_format_cap *cap_slin)
+static void meetme_menu(enum menu_modes *menu_mode, int *dtmf,
+	struct ast_conference *conf, struct ast_flags64 *confflags, struct ast_channel *chan,
+	struct ast_conf_user *user, char *recordingtmp, int recordingtmp_size,
+	struct ast_format_cap *cap_slin)
 {
 	switch (*menu_mode) {
 	case MENU_DISABLED:
@@ -3154,7 +3158,8 @@ static void meetme_menu(enum menu_modes *menu_mode, int *dtmf, struct ast_confer
 			break;
 		}
 	case MENU_ADMIN_EXTENDED:
-		meetme_menu_admin_extended(menu_mode, dtmf, conf, confflags, chan, user, recordingtmp, recordingtmp_size, dahdic, cap_slin);
+		meetme_menu_admin_extended(menu_mode, dtmf, conf, confflags, chan, user,
+			recordingtmp, recordingtmp_size, cap_slin);
 		break;
 	}
 }
@@ -3400,9 +3405,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	if (rt_schedule && conf->maxusers) {
 		if (conf->users >= conf->maxusers) {
 			/* Sorry, but this confernce has reached the participant limit! */	
+			ast_mutex_unlock(&conf->playlock);
 			if (!ast_streamfile(chan, "conf-full", ast_channel_language(chan)))
 				ast_waitstream(chan, "");
-			ast_mutex_unlock(&conf->playlock);
 			goto outrun;
 		}
 	}
@@ -4168,6 +4173,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					if (ast_test_flag64(confflags, CONFFLAG_PASS_DTMF)) {
 						conf_queue_dtmf(conf, user, f);
 					}
+					/* Take out of conference */
 					if (ioctl(fd, DAHDI_SETCONF, &dahdic_empty)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
@@ -4205,13 +4211,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					}
 
 					if (dtmf > 0) {
-						meetme_menu(&menu_mode, &dtmf, conf, confflags, chan, user, recordingtmp, sizeof(recordingtmp), &dahdic, cap_slin);
+						meetme_menu(&menu_mode, &dtmf, conf, confflags,
+							chan, user, recordingtmp, sizeof(recordingtmp), cap_slin);
 					}
 
 					if (musiconhold && !menu_mode) {
 						conf_start_moh(chan, optargs[OPT_ARG_MOH_CLASS]);
 					}
 
+					/* Put back into conference */
 					if (ioctl(fd, DAHDI_SETCONF, &dahdic)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
