@@ -3025,7 +3025,9 @@ out:
 	}
 
 	ast_channel_early_bridge(chan, NULL);
-	hanguptree(outgoing, NULL, 0); /* In this case, there's no answer anywhere */
+	/* When dialing local channels, the hangupcause of the parent channel
+	 * tells us whether the call was answered elsewhere. */
+	hanguptree(outgoing, NULL, chan->hangupcause == AST_CAUSE_ANSWERED_ELSEWHERE ? 1 : 0);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 	senddialendevent(chan, pa.status);
 	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);

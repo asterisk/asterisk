@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/signal.h>
 
 #include "asterisk/lock.h"
+#include "asterisk/causes.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"
@@ -1018,6 +1019,7 @@ static int local_hangup(struct ast_channel *ast)
 	struct ast_frame f = { AST_FRAME_CONTROL, { AST_CONTROL_HANGUP }, .data.uint32 = ast->hangupcause };
 	struct ast_channel *owner = NULL;
 	struct ast_channel *chan = NULL;
+	int answered_elsewhere = 0;
 
 	if (!p) {
 		return -1;
@@ -1040,6 +1042,7 @@ static int local_hangup(struct ast_channel *ast)
 	isoutbound = IS_OUTBOUND(ast, p); /* just comparing pointer of ast */
 
 	if (p->chan && ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
+		answered_elsewhere = 1;
 		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 		ast_debug(2, "This local call has the ANSWERED_ELSEWHERE flag set.\n");
 	}
@@ -1056,7 +1059,13 @@ static int local_hangup(struct ast_channel *ast)
 		p->chan = NULL;
 	} else {
 		if (p->chan) {
-			ast_queue_hangup(p->chan);
+			/* Use the hangupcause to propagate the fact that the
+			 * call was answered somewhere. */
+			if (answered_elsewhere) {
+				ast_queue_hangup_with_cause(p->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
+			} else {
+				ast_queue_hangup(p->chan);
+			}
 		}
 		p->owner = NULL;
 	}
