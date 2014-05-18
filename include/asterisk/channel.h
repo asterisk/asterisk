@@ -4273,6 +4273,22 @@ struct ast_bridge *ast_channel_get_bridge(const struct ast_channel *chan);
 int ast_channel_is_bridged(const struct ast_channel *chan);
 
 /*!
+ * \brief Determine if a channel is leaving a bridge, but \em not hung up
+ * \since 12.3.0
+ *
+ * \param chan The channel to test
+ *
+ * \note If a channel is hung up, it is implicitly leaving any bridge it
+ * may be in. This function is used to test if a channel is leaving a bridge
+ * but may survive the experience, if it has a place to go to (dialplan or
+ * otherwise)
+ *
+ * \retval 0 The channel is not leaving the bridge or is hung up
+ * \retval non-zero The channel is leaving the bridge
+ */
+int ast_channel_is_leaving_bridge(struct ast_channel *chan);
+
+/*!
  * \brief Get the channel's bridge peer only if the bridge is two-party.
  * \since 12.0.0
  *

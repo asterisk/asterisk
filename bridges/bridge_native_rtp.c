@@ -230,8 +230,10 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 		break;
 	case AST_RTP_GLUE_RESULT_REMOTE:
 		if (!target) {
-			glue0->update_peer(c0->chan, NULL, NULL, NULL, NULL, 0);
-			if (glue1) {
+			if (ast_channel_is_leaving_bridge(c0->chan)) {
+				glue0->update_peer(c0->chan, NULL, NULL, NULL, NULL, 0);
+			}
+			if (glue1 && ast_channel_is_leaving_bridge(c1->chan)) {
 				glue1->update_peer(c1->chan, NULL, NULL, NULL, NULL, 0);
 			}
 		} else {
@@ -485,8 +487,9 @@ static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge
 	}
 
 	/* Direct RTP may have occurred, tear it down */
-	glue->update_peer(bridge_channel->chan, NULL, NULL, NULL, NULL, 0);
-
+	if (ast_channel_is_leaving_bridge(bridge_channel->chan)) {
+		glue->update_peer(bridge_channel->chan, NULL, NULL, NULL, NULL, 0);
+	}
 	native_rtp_bridge_stop(bridge, NULL);
 }
 
