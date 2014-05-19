@@ -38,10 +38,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int app_control_answer(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	const int delay = 0;
 	ast_debug(3, "%s: Answering\n",
 		stasis_app_control_get_channel_id(control));
-	return __ast_answer(chan, delay);
+	return ast_raw_answer(chan);
 }
 
 int stasis_app_control_answer(struct stasis_app_control *control)
