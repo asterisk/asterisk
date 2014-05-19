@@ -1756,9 +1756,9 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
 	/* If we are not going to be hung up after leaving a bridge, and we were an
 	 * outgoing channel, clear the outgoing flag.
 	 */
-	if (ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING) &&
-	    (ast_channel_is_leaving_bridge(bridge_channel->chan) ||
-	     bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT)) {
+	if (ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING)
+			&& (ast_channel_softhangup_internal_flag(bridge_channel->chan) & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE)
+			    || bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT)) {
 		ast_debug(2, "Channel %s will survive this bridge; clearing outgoing (dialed) flag\n", ast_channel_name(bridge_channel->chan));
 		ast_clear_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING);
 	}

@@ -780,9 +780,6 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 			return -1;
 		}
 	}
-	ast_debug(3, "Sending session refresh SDP via %s to %s\n",
-		method == AST_SIP_SESSION_REFRESH_METHOD_INVITE ? "re-INVITE" : "UPDATE",
-		ast_sorcery_object_get_id(session->endpoint));
 	ast_sip_session_send_request_with_cb(session, tdata, on_response);
 	return 0;
 }

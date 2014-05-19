@@ -191,7 +191,6 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 		/* Media is passing without progress, this means the call has been answered */
 		notification = refer_progress_notification_alloc(progress, 200, PJSIP_EVSUB_STATE_TERMINATED);
 	} else if (f->frametype == AST_FRAME_CONTROL) {
-
 		/* Based on the control frame being written we can send a NOTIFY advising of the progress */
 		if ((f->subclass.integer == AST_CONTROL_RING) || (f->subclass.integer == AST_CONTROL_RINGING)) {
 			progress->subclass = f->subclass.integer;

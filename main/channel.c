@@ -10146,18 +10146,6 @@ int ast_channel_is_bridged(const struct ast_channel *chan)
 	return ast_channel_internal_bridge(chan) != NULL;
 }
 
-int ast_channel_is_leaving_bridge(struct ast_channel *chan)
-{
-	int flags = ast_channel_softhangup_internal_flag(chan);
-
-	/* We test the flags independently here in case they are masked with
-	 * actual "hangup" soft-hangup flags
-	 */
-	return (flags == AST_SOFTHANGUP_ASYNCGOTO ||
-	        flags == AST_SOFTHANGUP_UNBRIDGE ||
-	        flags == (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE));
-}
-
 struct ast_channel *ast_channel_bridge_peer(struct ast_channel *chan)
 {
 	struct ast_channel *peer;
