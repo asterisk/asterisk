@@ -23,6 +23,7 @@
  ***/
 
 #include "chan_ooh323.h"
+#include "asterisk/paths.h"
 #include <math.h>
 
 #define FORMAT_STRING_SIZE	512
@@ -30,7 +31,7 @@
 /* Defaults */
 #define DEFAULT_CONTEXT "default"
 #define DEFAULT_H323ID "Asterisk PBX"
-#define DEFAULT_LOGFILE "/var/log/asterisk/h323_log"
+#define DEFAULT_LOGFILE "h323_log"
 #define DEFAULT_H323ACCNT "ast_h323"
 
 /* Flags */
@@ -2569,7 +2570,7 @@ int reload_config(int reload)
 	}
 
 	/* Inintialize everything to default */
-	strcpy(gLogFile, DEFAULT_LOGFILE);
+	snprintf(gLogFile, sizeof(gLogFile), "%s/%s", ast_config_AST_LOG_DIR, DEFAULT_LOGFILE);
 	gPort = 1720;
 	gIP[0] = '\0';
 	strcpy(gCallerID, DEFAULT_H323ID);
