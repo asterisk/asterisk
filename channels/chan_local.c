@@ -429,8 +429,11 @@ static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_fra
 		return 0;
 	}
 
-	/* do not queue frame if generator is on both local channels */
-	if (us && ast_channel_generator(us) && ast_channel_generator(other)) {
+	/* do not queue media frames if a generator is on both local channels */
+	if (us
+		&& (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)
+		&& ast_channel_generator(us)
+		&& ast_channel_generator(other)) {
 		return 0;
 	}
 
