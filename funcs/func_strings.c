@@ -798,7 +798,7 @@ static int replace(struct ast_channel *chan, const char *cmd, char *data, struct
 		AST_APP_ARG(replace);
 	);
 	char *strptr, *varsubst;
-	struct ast_str *str = ast_str_thread_get(&result_buf, 16);
+	RAII_VAR(struct ast_str *, str, ast_str_create(16), ast_free);
 	char find[256]; /* Only 256 characters possible */
 	char replace[2] = "";
 	size_t unused;
