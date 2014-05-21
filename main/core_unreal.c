@@ -211,8 +211,11 @@ static int unreal_queue_frame(struct ast_unreal_pvt *p, int isoutbound, struct a
 		return 0;
 	}
 
-	/* do not queue frame if generator is on both unreal channels */
-	if (us && ast_channel_generator(us) && ast_channel_generator(other)) {
+	/* do not queue media frames if a generator is on both unreal channels */
+	if (us
+		&& (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)
+		&& ast_channel_generator(us)
+		&& ast_channel_generator(other)) {
 		return 0;
 	}
 
