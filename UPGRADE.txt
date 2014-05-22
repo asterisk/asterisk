@@ -24,6 +24,14 @@ from 11.9 to 11.10
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
 
+ - Added a new Compiler Flag, REF_DEBUG. When enabled, reference counted
+   objects will emit additional debug information to the refs log file located
+   in the standard Asterisk log file directory. This log file is useful in
+   tracking down object leaks and other reference counting issues. Prior to
+   this version, this option was only available by modifying the source code
+   directly. This change also includes a new script, refcounter.py, in the
+   contrib folder that will process the refs log file.
+
 from 11.8 to 11.9
 - res_fax now returns the correct rates for V.27ter (4800 or 9600 bit/s).
   Because of this the default settings would not load, so the minrate (minimum
