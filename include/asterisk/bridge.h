@@ -904,6 +904,22 @@ enum ast_transfer_type {
 };
 
 /*!
+ * \brief AO2 object that wraps data for transfer_channel_cb
+ */
+struct transfer_channel_data {
+	void *data;    /*! Data to be used by the transfer_channel_cb -- note that this
+	                *  pointer is going to be pointing to something on the stack, so
+	                *  it must not be used at any point after returning from the
+	                *  transfer_channel_cb. */
+	int completed; /*! Initially 0, This will be set to 1 by either the transfer
+	                *  code or by transfer code hooks (e.g. parking) when the
+	                *  transfer is completed and any remaining actions have taken
+	                *  place (e.g. parking announcements). It will never be reset
+	                *  to 0. This is used for deferring progress for channel
+	                *  drivers that support deferred progress. */
+};
+
+/*!
  * \brief Callback function type called during blind transfers
  *
  * A caller of ast_bridge_transfer_blind() may wish to set data on
@@ -914,7 +930,7 @@ enum ast_transfer_type {
  * \param user_data User-provided data needed in the callback
  * \param transfer_type The type of transfer being completed
  */
-typedef void (*transfer_channel_cb)(struct ast_channel *chan, void *user_data,
+typedef void (*transfer_channel_cb)(struct ast_channel *chan, struct transfer_channel_data *user_data,
 		enum ast_transfer_type transfer_type);
 
 /*!

@@ -9741,7 +9741,7 @@ static void *analog_ss_thread(void *data)
 				bridge_channel = ast_channel_get_bridge_channel(p->subs[SUB_THREEWAY].owner);
 				ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 				if (bridge_channel) {
-					if (!ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), exten)) {
+					if (!ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), exten, NULL, NULL)) {
 						/*
 						 * Swap things around between the three-way and real call so we
 						 * can hear where the channel got parked.

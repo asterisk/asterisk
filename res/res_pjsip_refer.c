@@ -55,6 +55,8 @@ struct refer_progress {
 	struct ast_taskprocessor *serializer;
 	/*! \brief Stasis subscription for bridge events */
 	struct stasis_subscription *bridge_sub;
+	/*! \brief Reference to transfer_channel_data related to the refer */
+	struct transfer_channel_data *transfer_data;
 	/*! \brief Uniqueid of transferee channel */
 	char *transferee;
 };
@@ -165,6 +167,12 @@ static void refer_progress_bridge(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
+	if (!progress->transfer_data->completed) {
+		/* We can't act on this message because the transfer_channel_data doesn't show that
+		 * the transfer is ready to progress */
+		return;
+	}
+
 	/* OMG the transferee is joining a bridge. His call got answered! */
 	notification = refer_progress_notification_alloc(progress, 200, PJSIP_EVSUB_STATE_TERMINATED);
 	if (notification) {
@@ -183,6 +191,11 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 
 	/* We only care about frames *to* the channel */
 	if (!f || (event != AST_FRAMEHOOK_EVENT_WRITE)) {
+		return f;
+	}
+
+	/* If the completed flag hasn't been raised, skip this pass. */
+	if (!progress->transfer_data->completed) {
 		return f;
 	}
 
@@ -240,6 +253,10 @@ static void refer_progress_framehook_destroy(void *data)
 		ao2_cleanup(notification);
 	}
 
+	if (progress->bridge_sub) {
+		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
+	}
+
 	ao2_cleanup(progress);
 }
 
@@ -295,6 +312,8 @@ static void refer_progress_destroy(void *obj)
 	if (progress->bridge_sub) {
 		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
 	}
+
+	ao2_cleanup(progress->transfer_data);
 
 	ast_free(progress->transferee);
 	ast_taskprocessor_unreference(progress->serializer);
@@ -472,9 +491,10 @@ struct refer_blind {
 };
 
 /*! \brief Blind transfer callback function */
-static void refer_blind_callback(struct ast_channel *chan, void *user_data, enum ast_transfer_type transfer_type)
+static void refer_blind_callback(struct ast_channel *chan, struct transfer_channel_data *user_data_wrapper,
+	enum ast_transfer_type transfer_type)
 {
-	struct refer_blind *refer = user_data;
+	struct refer_blind *refer = user_data_wrapper->data;
 	pjsip_generic_string_hdr *referred_by;
 
 	static const pj_str_t str_referred_by = { "Referred-By", 11 };
@@ -502,6 +522,10 @@ static void refer_blind_callback(struct ast_channel *chan, void *user_data, enum
 				refer_progress_notify(notification);
 			}
 		}
+
+		/* Progress needs a reference to the transfer_channel_data so that it can track the completed status of the transfer */
+		ao2_ref(user_data_wrapper, +1);
+		refer->progress->transfer_data = user_data_wrapper;
 
 		/* We need to bump the reference count up on the progress structure since it is in the frame hook now */
 		ao2_ref(refer->progress, +1);

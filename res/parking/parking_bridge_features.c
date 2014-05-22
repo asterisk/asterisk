@@ -49,6 +49,7 @@ struct parked_subscription_datastore {
 };
 
 struct parked_subscription_data {
+	struct transfer_channel_data *transfer_data;
 	char *parkee_uuid;
 	int hangup_after:1;
 	char parker_uuid[0];
@@ -89,7 +90,7 @@ static void parker_parked_call_message_response(struct ast_parked_call_payload *
 	const char *parkee_to_act_on = data->parkee_uuid;
 	char saynum_buf[16];
 	struct ast_channel_snapshot *parkee_snapshot = message->parkee;
-	RAII_VAR(struct ast_channel *, parker, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, parker, NULL, ast_channel_cleanup);
 	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 
 	if (strcmp(parkee_to_act_on, parkee_snapshot->uniqueid)) {
@@ -113,22 +114,35 @@ static void parker_parked_call_message_response(struct ast_parked_call_payload *
 		return;
 	}
 
+	/* This subscription callback will block for the duration of the announcement if
+	 * parked_subscription_data is tracking a transfer_channel_data struct. */
 	if (message->event_type == PARKED_CALL) {
 		/* queue the saynum on the bridge channel and hangup */
 		snprintf(saynum_buf, sizeof(saynum_buf), "%d %u", data->hangup_after, message->parkingspace);
-		ast_bridge_channel_queue_playfile(bridge_channel, say_parking_space, saynum_buf, NULL);
-		wipe_subscription_datastore(bridge_channel->chan);
-	}
-
-	if (message->event_type == PARKED_CALL_FAILED) {
-		ast_bridge_channel_queue_playfile(bridge_channel, NULL, "pbx-parkingfailed", NULL);
-		wipe_subscription_datastore(bridge_channel->chan);
+		if (!data->transfer_data) {
+			ast_bridge_channel_queue_playfile(bridge_channel, say_parking_space, saynum_buf, NULL);
+		} else {
+			ast_bridge_channel_queue_playfile_sync(bridge_channel, say_parking_space, saynum_buf, NULL);
+			data->transfer_data->completed = 1;
+		}
+		wipe_subscription_datastore(parker);
+	} else if (message->event_type == PARKED_CALL_FAILED) {
+		if (!data->transfer_data) {
+			ast_bridge_channel_queue_playfile(bridge_channel, NULL, "pbx-parkingfailed", NULL);
+		} else {
+			ast_bridge_channel_queue_playfile_sync(bridge_channel, NULL, "pbx-parkingfailed", NULL);
+			data->transfer_data->completed = 1;
+		}
+		wipe_subscription_datastore(parker);
 	}
 }
 
 static void parker_update_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	if (stasis_subscription_final_message(sub, message)) {
+		struct parked_subscription_data *ps_data = data;
+		ao2_cleanup(ps_data->transfer_data);
+		ps_data->transfer_data = NULL;
 		ast_free(data);
 		return;
 	}
@@ -139,7 +153,8 @@ static void parker_update_cb(void *data, struct stasis_subscription *sub, struct
 	}
 }
 
-int create_parked_subscription(struct ast_channel *chan, const char *parkee_uuid, int hangup_after)
+static int create_parked_subscription_full(struct ast_channel *chan, const char *parkee_uuid, int hangup_after,
+	struct transfer_channel_data *parked_channel_data)
 {
 	struct ast_datastore *datastore;
 	struct parked_subscription_datastore *parked_datastore;
@@ -167,6 +182,11 @@ int create_parked_subscription(struct ast_channel *chan, const char *parkee_uuid
 		return -1;
 	}
 
+	if (parked_channel_data) {
+		subscription_data->transfer_data = parked_channel_data;
+		ao2_ref(parked_channel_data, +1);
+	}
+
 	subscription_data->hangup_after = hangup_after;
 	subscription_data->parkee_uuid = subscription_data->parker_uuid + parker_uuid_size;
 	strcpy(subscription_data->parkee_uuid, parkee_uuid);
@@ -185,13 +205,18 @@ int create_parked_subscription(struct ast_channel *chan, const char *parkee_uuid
 	return 0;
 }
 
+int create_parked_subscription(struct ast_channel *chan, const char *parkee_uuid, int hangup_after)
+{
+	return create_parked_subscription_full(chan, parkee_uuid, hangup_after, NULL);
+}
+
 /*!
  * \internal
  * \brief Helper function that creates an outgoing channel and returns it immediately. This function is nearly
  *        identical to the dial_transfer function in bridge_basic.c, however it doesn't swap the
  *        local channel and the channel that instigated the park.
  */
-static struct ast_channel *park_local_transfer(struct ast_channel *parker, const char *context, const char *exten)
+static struct ast_channel *park_local_transfer(struct ast_channel *parker, const char *context, const char *exten, struct transfer_channel_data *parked_channel_data)
 {
 	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 1];
 	struct ast_channel *parkee;
@@ -220,7 +245,11 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	ast_channel_unlock(parkee);
 
 	/* We need to have the parker subscribe to the new local channel before hand. */
-	create_parked_subscription(parker, ast_channel_uniqueid(parkee_side_2), 1);
+	if (create_parked_subscription_full(parker, ast_channel_uniqueid(parkee_side_2), 1, parked_channel_data)) {
+		ast_channel_unref(parkee_side_2);
+		ast_hangup(parkee);
+		return NULL;
+	}
 
 	ast_bridge_set_transfer_variables(parkee_side_2, ast_channel_name(parker), 0);
 
@@ -272,14 +301,21 @@ static int parking_is_exten_park(const char *context, const char *exten)
  * \param bridge_channel The bridge_channel representing the channel performing the park
  * \param context The context to blind transfer to
  * \param exten The extension to blind transfer to
+ * \param parked_channel_cb Optional callback executed prior to sending the parked channel into the bridge
+ * \param parked_channel_data Data for the parked_channel_cb
  *
  * \retval 0 on success
  * \retval non-zero on error
  */
 static int parking_blind_transfer_park(struct ast_bridge_channel *bridge_channel,
-		const char *context, const char *exten)
+		const char *context, const char *exten, transfer_channel_cb parked_channel_cb,
+		struct transfer_channel_data *parked_channel_data)
 {
 	RAII_VAR(struct ast_bridge_channel *, other, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, other_chan, NULL, ast_channel_cleanup);
+
+	struct ast_exten *e;
+	struct pbx_find_info find_info = { .stacklen = 0 };
 	int peer_count;
 
 	if (ast_strlen_zero(context) || ast_strlen_zero(exten)) {
@@ -299,6 +335,8 @@ static int parking_blind_transfer_park(struct ast_bridge_channel *bridge_channel
 	if (peer_count == 2) {
 		other = ast_bridge_channel_peer(bridge_channel);
 		ao2_ref(other, +1);
+		other_chan = other->chan;
+		ast_channel_ref(other_chan);
 	}
 	ast_bridge_unlock(bridge_channel->bridge);
 
@@ -313,33 +351,47 @@ static int parking_blind_transfer_park(struct ast_bridge_channel *bridge_channel
 	if (peer_count > 2) {
 		struct ast_channel *transfer_chan = NULL;
 
-		transfer_chan = park_local_transfer(bridge_channel->chan, context, exten);
+		transfer_chan = park_local_transfer(bridge_channel->chan, context, exten, parked_channel_data);
 		if (!transfer_chan) {
 			return -1;
+		}
+		ast_channel_ref(transfer_chan);
+
+		if (parked_channel_cb) {
+			parked_channel_cb(transfer_chan, parked_channel_data, AST_BRIDGE_TRANSFER_MULTI_PARTY);
 		}
 
 		if (ast_bridge_impart(bridge_channel->bridge, transfer_chan, NULL, NULL,
 			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			ast_hangup(transfer_chan);
+			ast_channel_unref(transfer_chan);
 			return -1;
 		}
+
+		ast_channel_unref(transfer_chan);
+
 		return 0;
 	}
 
 	/* Subscribe to park messages with the other channel entering */
-	if (create_parked_subscription(bridge_channel->chan, ast_channel_uniqueid(other->chan), 1)) {
+	if (create_parked_subscription_full(bridge_channel->chan, ast_channel_uniqueid(other->chan), 1, parked_channel_data)) {
 		return -1;
 	}
 
+	if (parked_channel_cb) {
+		parked_channel_cb(other_chan, parked_channel_data, AST_BRIDGE_TRANSFER_SINGLE_PARTY);
+	}
+
+	e = pbx_find_extension(NULL, NULL, &find_info, context, exten, 1, NULL, NULL, E_MATCH);
+
 	/* Write the park frame with the intended recipient and other data out to the bridge. */
 	ast_bridge_channel_write_park(bridge_channel,
-		ast_channel_uniqueid(other->chan),
+		ast_channel_uniqueid(other_chan),
 		ast_channel_uniqueid(bridge_channel->chan),
-		NULL);
+		e ? ast_get_extension_app_data(e) : NULL);
 
 	return 0;
 }
-
 
 /*!
  * \internal
@@ -444,7 +496,7 @@ static int parking_park_call(struct ast_bridge_channel *parker, char *exten, siz
 	if (exten) {
 		ast_copy_string(exten, lot->cfg->parkext, length);
 	}
-	return parking_blind_transfer_park(parker, lot->cfg->parking_con, lot->cfg->parkext);
+	return parking_blind_transfer_park(parker, lot->cfg->parking_con, lot->cfg->parkext, NULL, NULL);
 }
 
 static int feature_park_call(struct ast_bridge_channel *bridge_channel, void *hook_pvt)

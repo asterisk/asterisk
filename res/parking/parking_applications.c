@@ -516,6 +516,7 @@ static int park_app_exec(struct ast_channel *chan, const char *data)
 		if (!silence_announcements && !transferer) {
 			ast_stream_and_wait(chan, "pbx-parkingfailed", "");
 		}
+		publish_parked_call_failure(chan);
 		return 0;
 	}
 
@@ -523,6 +524,7 @@ static int park_app_exec(struct ast_channel *chan, const char *data)
 	res = ast_bridge_features_init(&chan_features);
 	if (res) {
 		ast_bridge_features_cleanup(&chan_features);
+		publish_parked_call_failure(chan);
 		return -1;
 	}
 

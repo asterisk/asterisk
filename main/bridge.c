@@ -3718,7 +3718,7 @@ struct ast_channel *ast_bridge_peer(struct ast_bridge *bridge, struct ast_channe
  */
 static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transferer,
 		struct ast_bridge *bridge, const char *exten, const char *context,
-		transfer_channel_cb new_channel_cb, void *user_data)
+		transfer_channel_cb new_channel_cb, struct transfer_channel_data *user_data_wrapper)
 {
 	struct ast_channel *local;
 	char chan_name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
@@ -3734,7 +3734,7 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
 	pbx_builtin_setvar_helper(local, BLINDTRANSFER, ast_channel_name(transferer));
 
 	if (new_channel_cb) {
-		new_channel_cb(local, user_data, AST_BRIDGE_TRANSFER_MULTI_PARTY);
+		new_channel_cb(local, user_data_wrapper, AST_BRIDGE_TRANSFER_MULTI_PARTY);
 	}
 
 	if (ast_call(local, chan_name, 0)) {
@@ -3968,7 +3968,9 @@ static struct ast_channel *get_transferee(struct ao2_container *channels, struct
 	return transferee;
 }
 
-static enum ast_transfer_result try_parking(struct ast_channel *transferer, const char *context, const char *exten)
+static enum ast_transfer_result try_parking(struct ast_channel *transferer,
+	const char *context, const char *exten, transfer_channel_cb new_channel_cb,
+	struct transfer_channel_data *user_data_wrapper)
 {
 	RAII_VAR(struct ast_bridge_channel *, transferer_bridge_channel, NULL, ao2_cleanup);
 
@@ -3985,7 +3987,7 @@ static enum ast_transfer_result try_parking(struct ast_channel *transferer, cons
 	}
 
 	if (ast_parking_blind_transfer_park(transferer_bridge_channel,
-		context, exten)) {
+		context, exten, new_channel_cb, user_data_wrapper)) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
@@ -4089,6 +4091,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, transferee, NULL, ast_channel_cleanup);
+	RAII_VAR(struct transfer_channel_data *, user_data_wrapper, NULL, ao2_cleanup);
 	int do_bridge_transfer;
 	int transfer_prohibited;
 	enum ast_transfer_result transfer_result;
@@ -4106,13 +4109,24 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 		goto publish;
 	}
 
+	user_data_wrapper = ao2_alloc(sizeof(*user_data_wrapper), NULL);
+	if (!user_data_wrapper) {
+		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
+		goto publish;
+	}
+
+	user_data_wrapper->data = user_data;
+
 	/* Take off hold if they are on hold. */
 	ast_bridge_channel_write_unhold(bridge_channel);
 
-	transfer_result = try_parking(transferer, context, exten);
+	transfer_result = try_parking(transferer, context, exten, new_channel_cb, user_data_wrapper);
 	if (transfer_result == AST_BRIDGE_TRANSFER_SUCCESS) {
 		goto publish;
 	}
+
+	/* Since parking didn't take control of the user_data_wrapper, we are just going to raise the completed flag now. */
+	user_data_wrapper->completed = 1;
 
 	{
 		SCOPED_LOCK(lock, bridge, ast_bridge_lock, ast_bridge_unlock);
@@ -4142,7 +4156,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 
 	if (do_bridge_transfer) {
 		transfer_result = blind_transfer_bridge(transferer, bridge, exten, context,
-				new_channel_cb, user_data);
+				new_channel_cb, user_data_wrapper);
 		goto publish;
 	}
 
@@ -4155,7 +4169,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	}
 
 	if (bridge_channel_internal_queue_blind_transfer(transferee, exten, context,
-				new_channel_cb, user_data)) {
+				new_channel_cb, user_data_wrapper)) {
 		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
 		goto publish;
 	}
