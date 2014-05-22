@@ -35,6 +35,14 @@ From 12 to 13:
    an older version of rasterisk connects to the new version then the
    "core set verbose" command will have no effect.
 
+ - Added a new Compiler Flag, REF_DEBUG. When enabled, reference counted
+   objects will emit additional debug information to the refs log file located
+   in the standard Asterisk log file directory. This log file is useful in
+   tracking down object leaks and other reference counting issues. Prior to
+   this version, this option was only available by modifying the source code
+   directly. This change also includes a new script, refcounter.py, in the
+   contrib folder that will process the refs log file.
+
 ARI:
  - The ARI version has been changed from 1.0.0 to 1.1.0. This is to reflect
    the backwards compatible changes listed below.
