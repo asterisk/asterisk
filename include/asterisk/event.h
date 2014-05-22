@@ -25,33 +25,27 @@
 /*!
  * \page AstGenericEvents Generic event system
  *
- * The purpose of this API is to provide a generic way to share events between
- * Asterisk modules.  Code can generate events, and other code can subscribe to
- * them.
+ * Prior to the creation of \ref stasis, the purpose of this API was to provide
+ * a generic way to share events between Asterisk modules. Once there was a need
+ * to disseminate data whose definition was provided by the producers/consumers,
+ * it was no longer possible to use the binary representation in the generic
+ * event system.
+ *
+ * That aside, the generic event system is still useful and used by several
+ * modules in Asterisk.
+ *  - CEL uses the \ref ast_event representation to pass information to registered
+ *    backends.
+ *  - The \file res_corosync module publishes \ref ast_event representations of
+ *    information to other Asterisk instances in a cluster.
+ *  - Security event represent their event types and data using this system.
+ *  - Theoretically, any \ref stasis message can use this system to pass
+ *    information around in a binary format.
  *
  * Events have an associated event type, as well as information elements.  The
  * information elements are the meta data that go along with each event.  For
  * example, in the case of message waiting indication, the event type is MWI,
  * and each MWI event contains at least three information elements: the
  * mailbox, the number of new messages, and the number of old messages.
- *
- * Subscriptions to events consist of an event type and information elements,
- * as well.  Subscriptions can be to all events, or a certain subset of events.
- * If an event type is provided, only events of that type will be sent to this
- * subscriber.  Furthermore, if information elements are supplied with the
- * subscription, only events that contain the specified information elements
- * with specified values will be sent to the subscriber.  For example, when a
- * SIP phone subscribes to MWI for mailbox 1234, then chan_sip can subscribe
- * to internal Asterisk MWI events with the MAILBOX information element with
- * a value of "1234".
- *
- * Another key feature of this event system is the ability to cache events.
- * It is useful for some types of events to be able to remember the last known
- * value.  These are usually events that indicate some kind of state change.
- * In the example of MWI, app_voicemail can instruct the event core to cache
- * these events based on the mailbox.  So, the last known MWI state of each
- * mailbox will be cached, and other modules can retrieve this information
- * on demand without having to poll the mailbox directly.
  */
 
 #ifndef AST_EVENT_H
@@ -109,9 +103,6 @@ struct ast_event *ast_event_new(enum ast_event_type event_type, ...);
  *
  * \return Nothing
  *
- * \note Events that have been queued should *not* be destroyed by the code that
- *       created the event.  It will be automatically destroyed after being
- *       dispatched to the appropriate subscribers.
  */
 void ast_event_destroy(struct ast_event *event);
 
@@ -150,6 +141,55 @@ int ast_event_append_ie_uint(struct ast_event **event, enum ast_event_ie_type ie
 	uint32_t data);
 
 /*!
+ * \brief Append an information element that has a bitflags payload
+ *
+ * \param event the event that the IE will be appended to
+ * \param ie_type the type of IE to append
+ * \param bitflags the flags that are the payload of the IE
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ * \since 1.8
+ *
+ * The pointer to the event will get updated with the new location for the event
+ * that now contains the appended information element.  If the re-allocation of
+ * the memory for this event fails, it will be set to NULL.
+ */
+int ast_event_append_ie_bitflags(struct ast_event **event, enum ast_event_ie_type ie_type,
+	uint32_t bitflags);
+
+/*!
+ * \brief Append an information element that has a raw payload
+ *
+ * \param event the event that the IE will be appended to
+ * \param ie_type the type of IE to append
+ * \param data A pointer to the raw data for the payload of the IE
+ * \param data_len The amount of data to copy into the payload
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * The pointer to the event will get updated with the new location for the event
+ * that now contains the appended information element.  If the re-allocation of
+ * the memory for this event fails, it will be set to NULL.
+ */
+int ast_event_append_ie_raw(struct ast_event **event, enum ast_event_ie_type ie_type,
+	const void *data, size_t data_len);
+
+/*!
+ * \brief Append the global EID IE
+ *
+ * \param event the event to append IE to
+ *
+ * \note For ast_event_new() that includes IEs, this is done automatically
+ *       for you.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_event_append_eid(struct ast_event **event);
+
+/*!
  * \brief Get the value of an information element that has an integer payload
  *
  * \param event The event to get the IE from
@@ -171,6 +211,38 @@ uint32_t ast_event_get_ie_uint(const struct ast_event *event, enum ast_event_ie_
  *         If the information element isn't found, NULL will be returned.
  */
 const char *ast_event_get_ie_str(const struct ast_event *event, enum ast_event_ie_type ie_type);
+
+/*!
+ * \brief Get the value of an information element that has a raw payload
+ *
+ * \param event The event to get the IE from
+ * \param ie_type the type of information element to retrieve
+ *
+ * \return This returns the payload of the information element with the given type.
+ *         If the information element isn't found, NULL will be returned.
+ */
+const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_ie_type ie_type);
+
+/*!
+ * \brief Get the length of the raw payload for a particular IE
+ *
+ * \param event The event to get the IE payload length from
+ * \param ie_type the type of information element to get the length of
+ *
+ * \return If an IE of type ie_type is found, its payload length is returned.
+ *         Otherwise, 0 is returned.
+ */
+uint16_t ast_event_get_ie_raw_payload_len(const struct ast_event *event, enum ast_event_ie_type ie_type);
+
+/*!
+ * \brief Get the string representation of the type of the given event
+ *
+ * \arg event the event to get the type of
+ *
+ * \return the string representation of the event type of the provided event
+ * \since 1.6.1
+ */
+const char *ast_event_get_type_name(const struct ast_event *event);
 
 /*!
  * \brief Get the string representation of an information element type
@@ -272,6 +344,13 @@ uint32_t ast_event_iterator_get_ie_uint(struct ast_event_iterator *iterator);
  * \return This returns the payload of the information element as a string.
  */
 const char *ast_event_iterator_get_ie_str(struct ast_event_iterator *iterator);
+
+/*!
+ * \brief Get the minimum length of an ast_event.
+ *
+ * \return minimum amount of memory that will be consumed by any ast_event.
+ */
+size_t ast_event_minimum_length(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

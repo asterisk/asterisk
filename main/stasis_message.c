@@ -187,3 +187,8 @@ struct ast_json *stasis_message_to_json(
 {
 	return INVOKE_VIRTUAL(to_json, msg, sanitize);
 }
+
+struct ast_event *stasis_message_to_event(struct stasis_message *msg)
+{
+	return INVOKE_VIRTUAL(to_event, msg);
+}

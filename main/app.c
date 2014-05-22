@@ -96,10 +96,43 @@ static struct stasis_topic *queue_topic_all;
 static struct stasis_topic_pool *queue_topic_pool;
 /* @} */
 
+/*! \brief Convert a MWI \ref stasis_message to a \ref ast_event */
+static struct ast_event *mwi_to_event(struct stasis_message *message)
+{
+	struct ast_event *event;
+	struct ast_mwi_state *mwi_state;
+	char *mailbox;
+	char *context;
+
+	if (!message) {
+		return NULL;
+	}
+
+	mwi_state = stasis_message_data(message);
+
+	/* Strip off @context */
+	context = mailbox = ast_strdupa(mwi_state->uniqueid);
+	strsep(&context, "@");
+	if (ast_strlen_zero(context)) {
+		context = "default";
+	}
+
+	event = ast_event_new(AST_EVENT_MWI,
+				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+				AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
+				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, mwi_state->new_msgs,
+				AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, mwi_state->old_msgs,
+				AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW, &mwi_state->eid, sizeof(mwi_state->eid),
+				AST_EVENT_IE_END);
+
+	return event;
+}
+
 /*
  * @{ \brief Define \ref stasis message types for MWI
  */
-STASIS_MESSAGE_TYPE_DEFN(ast_mwi_state_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_mwi_state_type,
+	.to_event = mwi_to_event, );
 STASIS_MESSAGE_TYPE_DEFN(ast_mwi_vm_app_type);
 /* @} */
 

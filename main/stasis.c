@@ -686,15 +686,17 @@ struct stasis_forward *stasis_forward_cancel(struct stasis_forward *forward)
 	from = forward->from_topic;
 	to = forward->to_topic;
 
-	topic_lock_both(to, from);
-	AST_VECTOR_REMOVE_ELEM_UNORDERED(&to->upstream_topics, from,
-		AST_VECTOR_ELEM_CLEANUP_NOOP);
+	if (from && to) {
+		topic_lock_both(to, from);
+		AST_VECTOR_REMOVE_ELEM_UNORDERED(&to->upstream_topics, from,
+			AST_VECTOR_ELEM_CLEANUP_NOOP);
 
-	for (idx = 0; idx < AST_VECTOR_SIZE(&to->subscribers); ++idx) {
-		topic_remove_subscription(from, AST_VECTOR_GET(&to->subscribers, idx));
+		for (idx = 0; idx < AST_VECTOR_SIZE(&to->subscribers); ++idx) {
+			topic_remove_subscription(from, AST_VECTOR_GET(&to->subscribers, idx));
+		}
+		ao2_unlock(from);
+		ao2_unlock(to);
 	}
-	ao2_unlock(from);
-	ao2_unlock(to);
 
 	ao2_cleanup(forward);
 
@@ -715,6 +717,11 @@ struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 	forward = ao2_alloc_options(sizeof(*forward), forward_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!forward) {
 		return NULL;
+	}
+
+	/* Forwards to ourselves are implicit. */
+	if (to_topic == from_topic) {
+		return ao2_bump(forward);
 	}
 
 	forward->from_topic = ao2_bump(from_topic);

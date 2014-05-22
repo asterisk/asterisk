@@ -199,7 +199,38 @@ static struct stasis_cache *device_state_cache;
 static struct stasis_caching_topic *device_state_topic_cached;
 static struct stasis_topic_pool *device_state_topic_pool;
 
-STASIS_MESSAGE_TYPE_DEFN(ast_device_state_message_type);
+/*! \brief Convert a \ref stasis_message to a \ref ast_event */
+static struct ast_event *device_state_to_event(struct stasis_message *message)
+{
+	struct ast_event *event;
+	struct ast_device_state_message *device_state;
+
+	if (!message) {
+		return NULL;
+	}
+
+	device_state = stasis_message_data(message);
+
+	if (device_state->eid) {
+		event = ast_event_new(AST_EVENT_DEVICE_STATE_CHANGE,
+					    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device_state->device,
+					    AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, device_state->state,
+					    AST_EVENT_IE_CACHABLE, AST_EVENT_IE_PLTYPE_UINT, device_state->cachable,
+					    AST_EVENT_IE_EID, AST_EVENT_IE_PLTYPE_RAW, device_state->eid, sizeof(*device_state->eid),
+					    AST_EVENT_IE_END);
+	} else {
+		event = ast_event_new(AST_EVENT_DEVICE_STATE,
+					    AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device_state->device,
+					    AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, device_state->state,
+					    AST_EVENT_IE_CACHABLE, AST_EVENT_IE_PLTYPE_UINT, device_state->cachable,
+					    AST_EVENT_IE_END);
+	}
+
+	return event;
+}
+
+STASIS_MESSAGE_TYPE_DEFN(ast_device_state_message_type,
+	.to_event = device_state_to_event);
 
 /* Forward declarations */
 static int getproviderstate(const char *provider, const char *address);
