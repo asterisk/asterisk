@@ -3167,7 +3167,7 @@ static void *mgcp_ss(void *data)
 			ast_channel_lock(chan);
 			bridge_channel = ast_channel_get_bridge_channel(chan);
 			ast_channel_unlock(chan);
-			if (bridge_channel && !ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), p->dtmf_buf)) {
+			if (bridge_channel && !ast_parking_blind_transfer_park(bridge_channel, ast_channel_context(chan), p->dtmf_buf, NULL, NULL)) {
 				ast_verb(3, "Parking call to '%s'\n", ast_channel_name(chan));
 			}
 			break;

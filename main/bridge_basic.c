@@ -3145,10 +3145,10 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 	return 0;
 }
 
-static void blind_transfer_cb(struct ast_channel *new_channel, void *user_data,
+static void blind_transfer_cb(struct ast_channel *new_channel, struct transfer_channel_data *user_data_wrapper,
 		enum ast_transfer_type transfer_type)
 {
-	struct ast_channel *transferer_channel = user_data;
+	struct ast_channel *transferer_channel = user_data_wrapper->data;
 
 	if (transfer_type == AST_BRIDGE_TRANSFER_MULTI_PARTY) {
 		copy_caller_data(new_channel, transferer_channel);

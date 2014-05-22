@@ -24,6 +24,7 @@
  */
 
 #include "asterisk/stringfields.h"
+#include "asterisk/bridge.h"
 
 /*!
  * \brief The default parking application that Asterisk expects.
@@ -163,6 +164,8 @@ struct ast_parking_bridge_feature_fn_table {
 	 * \param parker The \ref bridge_channel object that is initiating the parking
 	 * \param context The context to blind transfer to
 	 * \param exten The extension to blind transfer to
+	 * \param parked_channel_cb Execute the following function on the the channel that gets parked
+	 * \param parked_channel_data Data for the parked_channel_cb
 	 *
 	 * \note If the bridge \ref parker is in has more than one other occupant, the entire
 	 * bridge will be parked using a Local channel
@@ -172,7 +175,8 @@ struct ast_parking_bridge_feature_fn_table {
 	 * \retval 0 on success
 	 * \retval non-zero on error
 	 */
-	int (* parking_blind_transfer_park)(struct ast_bridge_channel *parker, const char *context, const char *exten);
+	int (* parking_blind_transfer_park)(struct ast_bridge_channel *parker, const char *context,
+		const char *exten, transfer_channel_cb parked_channel_cb, struct transfer_channel_data *parked_channel_data);
 
 	/*!
 	 * \brief Perform a direct park on a channel in a bridge.
@@ -224,6 +228,9 @@ int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t
  * \param parker The \ref bridge_channel object that is initiating the parking
  * \param context The context to blind transfer to
  * \param exten The extension to blind transfer to
+ * \param exten The extension to blind transfer to
+ * \param parked_channel_cb Execute the following function on the the channel that gets parked
+ * \param parked_channel_data Data for the parked_channel_cb
  *
  * \note If the bridge \ref parker is in has more than one other occupant, the entire
  * bridge will be parked using a Local channel
@@ -233,7 +240,8 @@ int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t
  * \retval 0 on success
  * \retval non-zero on error
  */
-int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker, const char *context, const char *exten);
+int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker, const char *context,
+	const char *exten, transfer_channel_cb parked_channel_cb, struct transfer_channel_data *parked_channel_data);
 
 /*!
  * \brief Perform a direct park on a channel in a bridge.

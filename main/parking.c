@@ -142,7 +142,9 @@ int ast_parking_park_bridge_channel(struct ast_bridge_channel *parkee, const cha
 	return table->parking_park_bridge_channel(parkee, parkee_uuid, parker_uuid, app_data);
 }
 
-int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker, const char *context, const char *exten)
+int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker,
+	const char *context, const char *exten, transfer_channel_cb parked_channel_cb,
+	struct transfer_channel_data *parked_channel_data)
 {
 	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
 		ao2_global_obj_ref(parking_provider), ao2_cleanup);
@@ -153,10 +155,10 @@ int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker, const cha
 
 	if (table->module_info) {
 		SCOPED_MODULE_USE(table->module_info->self);
-		return table->parking_blind_transfer_park(parker, context, exten);
+		return table->parking_blind_transfer_park(parker, context, exten, parked_channel_cb, parked_channel_data);
 	}
 
-	return table->parking_blind_transfer_park(parker, context, exten);
+	return table->parking_blind_transfer_park(parker, context, exten, parked_channel_cb, parked_channel_data);
 }
 
 int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t length)
