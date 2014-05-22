@@ -629,54 +629,6 @@ static void channel_snapshot_update(void *data, struct stasis_subscription *sub,
 	}
 }
 
-static int userevent_exclusion_cb(const char *key)
-{
-	if (!strcmp("type", key)) {
-		return 1;
-	}
-	if (!strcmp("eventname", key)) {
-		return 1;
-	}
-	return 0;
-}
-
-static void channel_user_event_cb(void *data, struct stasis_subscription *sub,
-	struct stasis_message *message)
-{
-	struct ast_channel_blob *obj = stasis_message_data(message);
-	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
-	RAII_VAR(struct ast_str *, body, NULL, ast_free);
-	const char *eventname;
-
-	eventname = ast_json_string_get(ast_json_object_get(obj->blob, "eventname"));
-	body = ast_manager_str_from_json_object(obj->blob, userevent_exclusion_cb);
-	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
-
-	if (!channel_event_string || !body) {
-		return;
-	}
-
-	/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>A user defined event raised from the dialplan.</synopsis>
-			<syntax>
-				<channel_snapshot/>
-				<parameter name="UserEvent">
-					<para>The event name, as specified in the dialplan.</para>
-				</parameter>
-			</syntax>
-			<see-also>
-				<ref type="application">UserEvent</ref>
-			</see-also>
-		</managerEventInstance>
-	***/
-	manager_event(EVENT_FLAG_USER, "UserEvent",
-		      "%s"
-		      "UserEvent: %s\r\n"
-		      "%s",
-		      ast_str_buffer(channel_event_string), eventname, ast_str_buffer(body));
-}
-
 static void publish_basic_channel_event(const char *event, int class, struct ast_channel_snapshot *snapshot)
 {
 	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
@@ -1158,9 +1110,6 @@ int manager_channels_init(void)
 
 	ret |= stasis_message_router_add_cache_update(message_router,
 		ast_channel_snapshot_type(), channel_snapshot_update, NULL);
-
-	ret |= stasis_message_router_add(message_router,
-		ast_channel_user_event_type(), channel_user_event_cb, NULL);
 
 	ret |= stasis_message_router_add(message_router,
 		ast_channel_dtmf_begin_type(), channel_dtmf_begin_cb, NULL);

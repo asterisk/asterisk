@@ -1278,7 +1278,9 @@ ari_validator ast_ari_validate_application_fn(void);
  * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
- * - channel: Channel (required)
+ * - bridge: Bridge
+ * - channel: Channel
+ * - endpoint: Endpoint
  * - eventname: string (required)
  * - userevent: object (required)
  * ChannelVarset

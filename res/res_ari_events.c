@@ -149,14 +149,202 @@ fin: __attribute__((unused))
 	ast_free(args.app_parse);
 	ast_free(args.app);
 }
+int ast_ari_events_user_event_parse_body(
+	struct ast_json *body,
+	struct ast_ari_events_user_event_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "application");
+	if (field) {
+		args->application = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "source");
+	if (field) {
+		/* If they were silly enough to both pass in a query param and a
+		 * JSON body, free up the query value.
+		 */
+		ast_free(args->source);
+		if (ast_json_typeof(field) == AST_JSON_ARRAY) {
+			/* Multiple param passed as array */
+			size_t i;
+			args->source_count = ast_json_array_size(field);
+			args->source = ast_malloc(sizeof(*args->source) * args->source_count);
 
+			if (!args->source) {
+				return -1;
+			}
+
+			for (i = 0; i < args->source_count; ++i) {
+				args->source[i] = ast_json_string_get(ast_json_array_get(field, i));
+			}
+		} else {
+			/* Multiple param passed as single value */
+			args->source_count = 1;
+			args->source = ast_malloc(sizeof(*args->source) * args->source_count);
+			if (!args->source) {
+				return -1;
+			}
+			args->source[0] = ast_json_string_get(field);
+		}
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /events/user/{eventName}.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_events_user_event_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_ari_events_user_event_args args = {};
+	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "application") == 0) {
+			args.application = (i->value);
+		} else
+		if (strcmp(i->name, "source") == 0) {
+			/* Parse comma separated list */
+			char *vals[MAX_VALS];
+			size_t j;
+
+			args.source_parse = ast_strdup(i->value);
+			if (!args.source_parse) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (strlen(args.source_parse) == 0) {
+				/* ast_app_separate_args can't handle "" */
+				args.source_count = 1;
+				vals[0] = args.source_parse;
+			} else {
+				args.source_count = ast_app_separate_args(
+					args.source_parse, ',', vals,
+					ARRAY_LEN(vals));
+			}
+
+			if (args.source_count == 0) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			if (args.source_count >= MAX_VALS) {
+				ast_ari_response_error(response, 400,
+					"Bad Request",
+					"Too many values for source");
+				goto fin;
+			}
+
+			args.source = ast_malloc(sizeof(*args.source) * args.source_count);
+			if (!args.source) {
+				ast_ari_response_alloc_failed(response);
+				goto fin;
+			}
+
+			for (j = 0; j < args.source_count; ++j) {
+				args.source[j] = (vals[j]);
+			}
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "eventName") == 0) {
+			args.event_name = (i->value);
+		} else
+		{}
+	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	args.variables = ast_json_ref(body);
+	ast_ari_events_user_event(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 404: /* Application does not exist. */
+	case 422: /* Event source not found. */
+	case 400: /* Invalid even tsource URI or userevent data. */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /events/user/{eventName}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /events/user/{eventName}\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	ast_free(args.source_parse);
+	ast_free(args.source);
+	return;
+}
+
+/*! \brief REST handler for /api-docs/events.{format} */
+static struct stasis_rest_handlers events_user_eventName = {
+	.path_segment = "eventName",
+	.is_wildcard = 1,
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_events_user_event_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/events.{format} */
+static struct stasis_rest_handlers events_user = {
+	.path_segment = "user",
+	.callbacks = {
+	},
+	.num_children = 1,
+	.children = { &events_user_eventName, }
+};
 /*! \brief REST handler for /api-docs/events.{format} */
 static struct stasis_rest_handlers events = {
 	.path_segment = "events",
 	.callbacks = {
 	},
-	.num_children = 0,
-	.children = {  }
+	.num_children = 1,
+	.children = { &events_user, }
 };
 
 static int load_module(void)

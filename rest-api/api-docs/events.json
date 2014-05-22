@@ -30,6 +30,66 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/events/user/{eventName}",
+			"description": "Stasis application user events",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Generate a user event.",
+					"nickname": "userEvent",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "eventName",
+							"description": "Event name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "application",
+							"description": "The name of the application that will receive this event",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "source",
+							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName}",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": true,
+							"dataType": "string"
+						},
+						{
+							"name": "variables",
+							"description": "custom key/value pairs added to the user event",
+							"paramType": "body",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "containers"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Application does not exist."
+						},
+						{
+							"code": 422,
+							"reason": "Event source not found."
+						},
+						{
+							"code": 400,
+							"reason": "Invalid even tsource URI or userevent data."
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
@@ -451,9 +511,19 @@
 					"description": "The name of the user event."
 				},
 				"channel": {
-					"required": true,
+					"required": false,
 					"type": "Channel",
-					"description": "The channel that signaled the user event."
+					"description": "A channel that is signaled with the user event."
+				},
+				"bridge": {
+					"required": false,
+					"type": "Bridge",
+					"description": "A bridge that is signaled with the user event."
+				},
+				"endpoint": {
+					"required": false,
+					"type": "Endpoint",
+					"description": "A endpoint that is signaled with the user event."
 				},
 				"userevent": {
 					"required": true,

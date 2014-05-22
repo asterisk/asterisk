@@ -193,7 +193,11 @@ struct ast_endpoint_snapshot *ast_endpoint_latest_snapshot(const char *tech,
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_endpoint_snapshot *snapshot;
 
-	ast_asprintf(&id, "%s/%s", tech, name);
+	if (ast_strlen_zero(name)) {
+		ast_asprintf(&id, "%s", tech);
+	} else {
+		ast_asprintf(&id, "%s/%s", tech, name);
+	}
 	if (!id) {
 		return NULL;
 	}
