@@ -115,7 +115,7 @@ static int userevent_exec(struct ast_channel *chan, const char *data)
 	}
 
 	ast_channel_lock(chan);
-	ast_channel_publish_blob(chan, ast_channel_user_event_type(), blob);
+	ast_multi_object_blob_single_channel_publish(chan, ast_multi_user_event_type(), blob);
 	ast_channel_unlock(chan);
 	return 0;
 }

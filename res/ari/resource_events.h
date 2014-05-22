@@ -56,5 +56,39 @@ struct ast_ari_events_event_websocket_args {
  * \param args Swagger parameters.
  */
 void ast_ari_websocket_events_event_websocket(struct ast_ari_websocket_session *session, struct ast_variable *headers, struct ast_ari_events_event_websocket_args *args);
+/*! Argument struct for ast_ari_events_user_event() */
+struct ast_ari_events_user_event_args {
+	/*! Event name */
+	const char *event_name;
+	/*! The name of the application that will receive this event */
+	const char *application;
+	/*! Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
+	const char **source;
+	/*! Length of source array. */
+	size_t source_count;
+	/*! Parsing context for source. */
+	char *source_parse;
+	/*! custom key/value pairs added to the user event */
+	struct ast_json *variables;
+};
+/*!
+ * \brief Body parsing function for /events/user/{eventName}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_events_user_event_parse_body(
+	struct ast_json *body,
+	struct ast_ari_events_user_event_args *args);
+
+/*!
+ * \brief Generate a user event.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_events_user_event(struct ast_variable *headers, struct ast_ari_events_user_event_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_EVENTS_H */

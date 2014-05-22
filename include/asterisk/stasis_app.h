@@ -228,6 +228,33 @@ void stasis_app_unregister_event_source(struct stasis_app_event_source *obj);
  */
 void stasis_app_unregister_event_sources(void);
 
+/*! \brief Return code for stasis_app_user_event */
+enum stasis_app_user_event_res {
+	STASIS_APP_USER_OK,
+	STASIS_APP_USER_APP_NOT_FOUND,
+	STASIS_APP_USER_EVENT_SOURCE_NOT_FOUND,
+	STASIS_APP_USER_EVENT_SOURCE_BAD_SCHEME,
+	STASIS_APP_USER_USEREVENT_INVALID,
+	STASIS_APP_USER_INTERNAL_ERROR,
+};
+
+/*!
+ * \brief Generate a Userevent for stasis app (echo to AMI)
+ *
+ * \param app_name Name of the application to generate event for/to.
+ * \param event_name Name of the Userevent.
+ * \param source_uris URIs for the source objects to attach to event.
+ * \param sources_count Array size of source_uris.
+ * \param userevent_data Custom parameters for the user event
+ * \param userevents_count Array size of userevent_data
+ *
+ * \return \ref stasis_app_user_event_res return code.
+ */
+enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
+	const char *event_name,
+	const char **source_uris, int sources_count,
+	struct ast_json *json_variables);
+
 
 /*! \brief Return code for stasis_app_[un]subscribe */
 enum stasis_app_subscribe_res {
@@ -589,6 +616,13 @@ struct ast_channel_snapshot *stasis_app_control_get_snapshot(
  */
 void stasis_app_control_publish(
 	struct stasis_app_control *control, struct stasis_message *message);
+
+/*!
+ * \brief Returns the stasis topic for an app
+ *
+ * \param app Stasis app to get topic of
+ */
+struct stasis_topic *ast_app_get_topic(struct stasis_app *app);
 
 /*!
  * \brief Queue a control frame without payload.

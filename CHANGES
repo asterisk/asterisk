@@ -33,6 +33,15 @@ ARI
    a channel's ARI control queue until they are stopped. They also can not
    be rewound or fastforwarded.
 
+ * User events can now be generated from ARI.  Events can be signalled with
+   arbitrary json variables, and include one or more of channel, bridge, or
+   endpoint snapshots.  An application must be specified which will receive
+   the event message (other applications can subscribe to it).  The message
+   will also be delivered via AMI provided a channel is attached.  Dialplan
+   generated user event messages are still transmitted via the channel, and
+   will only be received by a stasis application they are attached to or if
+   the channel is subscribed to.
+
 chan_sip
 -----------
  * SIP peers can now specify 'trust_id_outbound' which affects RPID/PAI

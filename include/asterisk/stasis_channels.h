@@ -381,14 +381,6 @@ struct stasis_message_type *ast_channel_varset_type(void);
 
 /*!
  * \since 12
- * \brief Message type for when a custom user event is sent on a channel.
- *
- * \retval A stasis message type
- */
-struct stasis_message_type *ast_channel_user_event_type(void);
-
-/*!
- * \since 12
  * \brief Message type for when a hangup is requested on a channel.
  *
  * \retval A stasis message type

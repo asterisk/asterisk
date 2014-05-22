@@ -3076,7 +3076,6 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 	struct ast_json_iter *iter;
 	int has_type = 0;
 	int has_application = 0;
-	int has_channel = 0;
 	int has_eventname = 0;
 	int has_userevent = 0;
 
@@ -3110,13 +3109,30 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("bridge", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_bridge(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelUserevent field bridge failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
-			has_channel = 1;
 			prop_is_valid = ast_ari_validate_channel(
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI ChannelUserevent field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("endpoint", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_endpoint(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelUserevent field endpoint failed validation\n");
 				res = 0;
 			}
 		} else
@@ -3155,11 +3171,6 @@ int ast_ari_validate_channel_userevent(struct ast_json *json)
 
 	if (!has_application) {
 		ast_log(LOG_ERROR, "ARI ChannelUserevent missing required field application\n");
-		res = 0;
-	}
-
-	if (!has_channel) {
-		ast_log(LOG_ERROR, "ARI ChannelUserevent missing required field channel\n");
 		res = 0;
 	}
 

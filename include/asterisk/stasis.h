@@ -1032,6 +1032,77 @@ struct ao2_container *stasis_cache_dump_by_eid(struct stasis_cache *cache, struc
  */
 struct ao2_container *stasis_cache_dump_all(struct stasis_cache *cache, struct stasis_message_type *type);
 
+/*!
+ * \brief Object type code for multi user object snapshots
+ */
+enum stasis_user_multi_object_snapshot_type {
+	STASIS_UMOS_CHANNEL = 0,     /*!< Channel Snapshots */
+	STASIS_UMOS_BRIDGE,          /*!< Bridge Snapshots */
+	STASIS_UMOS_ENDPOINT,        /*!< Endpoint Snapshots */
+};
+
+/*! \brief Number of snapshot types */
+#define STASIS_UMOS_MAX (STASIS_UMOS_ENDPOINT + 1)
+
+/*!
+ * \brief Message type for custom user defined events with multi object blobs
+ * \return The stasis_message_type for user event
+ * \since 12.3.0
+ */
+struct stasis_message_type *ast_multi_user_event_type(void);
+
+/*!
+ * \brief Create a stasis multi object blob
+ * \since 12.3.0
+ *
+ * \details
+ * Multi object blob can store a combination of arbitrary json values
+ * (the blob) and also snapshots of various other system objects (such
+ * as channels, bridges, etc) for delivery through a stasis message.
+ * The multi object blob is first created, then optionally objects
+ * are added to it, before being attached to a message and delivered
+ * to stasis topic.
+ *
+ * \param blob Json blob
+ *
+ * \note When used for an ast_multi_user_event_type message, the
+ * json blob should contain at minimum {eventname: name}.
+ *
+ * \retval ast_multi_object_blob* if succeeded
+ * \retval NULL if creation failed
+ */
+struct ast_multi_object_blob *ast_multi_object_blob_create(struct ast_json *blob);
+
+/*!
+ * \brief Add an object to a multi object blob previously created
+ * \since 12.3.0
+ *
+ * \param multi The multi object blob previously created
+ * \param type Type code for the object such as channel, bridge, etc.
+ * \param object Snapshot object of the type supplied to typename
+ *
+ * \return Nothing
+ */
+void ast_multi_object_blob_add(struct ast_multi_object_blob *multi, enum stasis_user_multi_object_snapshot_type type, void *object);
+
+/*!
+ * \brief Create and publish a stasis message blob on a channel with it's snapshot
+ * \since 12.3.0
+ *
+ * \details
+ * For compatibility with app_userevent, this creates a multi object
+ * blob message, attaches the channel snapshot to it, and publishes it
+ * to the channel's topic.
+ *
+ * \param chan The channel to snapshot and publish event to
+ * \param type The message type
+ * \param blob A json blob to publish with the snapshot
+ *
+ * \return Nothing
+ */
+void ast_multi_object_blob_single_channel_publish(struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *blob);
+
+
 /*! @} */
 
 /*! @{ */

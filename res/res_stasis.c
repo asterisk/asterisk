@@ -61,6 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_app_impl.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridges.h"
+#include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/strings.h"
 #include "stasis/app.h"
@@ -1308,6 +1309,89 @@ enum stasis_app_subscribe_res stasis_app_unsubscribe(const char *app_name,
 	return app_handle_subscriptions(
 		app_name, event_source_uris, event_sources_count,
 		json, app_unsubscribe);
+}
+
+enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
+	const char *event_name,
+	const char **source_uris, int sources_count,
+	struct ast_json *json_variables)
+{
+	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
+	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	RAII_VAR(struct ast_multi_object_blob *, multi, NULL, ao2_cleanup);
+	RAII_VAR(void *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	enum stasis_app_subscribe_res res = STASIS_APP_USER_INTERNAL_ERROR;
+	struct ast_json *json_value;
+	int have_channel = 0;
+	int i;
+
+	if (!app) {
+		ast_log(LOG_WARNING, "App %s not found\n", app_name);
+		return STASIS_APP_USER_APP_NOT_FOUND;
+	}
+
+	blob = json_variables;
+	if (!blob) {
+		blob = ast_json_pack("{}");
+	}
+	json_value = ast_json_string_create(event_name);
+	if (!json_value) {
+		ast_log(LOG_ERROR, "unable to create json string\n");
+		return res;
+	}
+	if (ast_json_object_set(blob, "eventname", json_value)) {
+		ast_log(LOG_ERROR, "unable to set eventname to blob\n");
+		return res;
+	}
+
+	multi = ast_multi_object_blob_create(blob);
+
+	for (i = 0; i < sources_count; ++i) {
+		const char *uri = source_uris[i];
+		void *snapshot=NULL;
+		enum stasis_user_multi_object_snapshot_type type;
+
+		if (ast_begins_with(uri, "channel:")) {
+			type = STASIS_UMOS_CHANNEL;
+			snapshot = ast_channel_snapshot_get_latest(uri + 8);
+			have_channel = 1;
+		} else if (ast_begins_with(uri, "bridge:")) {
+			type = STASIS_UMOS_BRIDGE;
+			snapshot = ast_bridge_snapshot_get_latest(uri + 7);
+		} else if (ast_begins_with(uri, "endpoint:")) {
+			type = STASIS_UMOS_ENDPOINT;
+			snapshot = ast_endpoint_latest_snapshot(uri + 9, NULL);
+		} else {
+			ast_log(LOG_WARNING, "Invalid scheme: %s\n", uri);
+			return STASIS_APP_USER_EVENT_SOURCE_BAD_SCHEME;
+		}
+		if (!snapshot) {
+			ast_log(LOG_ERROR, "Unable to get snapshot for %s\n", uri);
+			return STASIS_APP_USER_EVENT_SOURCE_NOT_FOUND;
+		}
+		ast_multi_object_blob_add(multi, type, snapshot);
+	}
+
+	message = stasis_message_create(ast_multi_user_event_type(), multi);
+	if (!message) {
+		ast_log(LOG_ERROR, "Unable to create stasis user event message\n");
+		return res;
+	}
+
+	/*
+	 * Publishing to two different topics is normally to be avoided -- except
+	 * in this case both are final destinations with no forwards (only listeners).
+	 * The message has to be delivered to the application topic for ARI, but a
+	 * copy is also delivered directly to the manager for AMI if there is a channel.
+	 */
+	stasis_publish(ast_app_get_topic(app), message);
+
+	if (have_channel) {
+		stasis_publish(ast_manager_get_topic(), message);
+	}
+
+	return STASIS_APP_USER_OK;
 }
 
 void stasis_app_ref(void)

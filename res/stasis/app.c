@@ -795,6 +795,10 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 	return app;
 }
 
+struct stasis_topic *ast_app_get_topic(struct stasis_app *app) {
+	return app->topic;
+}
+
 /*!
  * \brief Send a message to the given application.
  * \param app App to send the message to.

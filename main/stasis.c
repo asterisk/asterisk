@@ -38,6 +38,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/utils.h"
 #include "asterisk/uuid.h"
 #include "asterisk/vector.h"
+#include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_bridges.h"
+#include "asterisk/stasis_endpoints.h"
+
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="UserEvent">
+		<managerEventInstance class="EVENT_FLAG_USER">
+			<synopsis>A user defined event raised from the dialplan.</synopsis>
+			<syntax>
+				<channel_snapshot/>
+				<parameter name="UserEvent">
+					<para>The event name, as specified in the dialplan.</para>
+				</parameter>
+			</syntax>
+			<description>
+				<para>Event may contain additional arbitrary parameters in addition to optional bridge and endpoint snapshots.  Multiple snapshots of the same type are prefixed with a numeric value.</para>
+			</description>
+			<see-also>
+				<ref type="application">UserEvent</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+***/
 
 /*!
  * \page stasis-impl Stasis Implementation Notes
@@ -974,10 +997,241 @@ void stasis_log_bad_type_access(const char *name)
 	ast_log(LOG_ERROR, "Use of %s() before init/after destruction\n", name);
 }
 
+/*! \brief A multi object blob data structure to carry user event stasis messages */
+struct ast_multi_object_blob {
+	struct ast_json *blob;                             /*< A blob of JSON data */
+	AST_VECTOR(, void *) snapshots[STASIS_UMOS_MAX];   /*< Vector of snapshots for each type */
+};
+
+/*!
+ * \internal
+ * \brief Destructor for \ref ast_multi_object_blob objects
+ */
+static void multi_object_blob_dtor(void *obj)
+{
+	struct ast_multi_object_blob *multi = obj;
+	int type;
+	int i;
+
+	for (type = 0; type < STASIS_UMOS_MAX; ++type) {
+		for (i = 0; i < AST_VECTOR_SIZE(&multi->snapshots[type]); ++i) {
+			ao2_cleanup(AST_VECTOR_GET(&multi->snapshots[type], i));
+		}
+		AST_VECTOR_FREE(&multi->snapshots[type]);
+	}
+	ast_json_unref(multi->blob);
+}
+
+/*! \brief Create a stasis user event multi object blob */
+struct ast_multi_object_blob *ast_multi_object_blob_create(struct ast_json *blob)
+{
+	int type;
+	RAII_VAR(struct ast_multi_object_blob *, multi,
+			ao2_alloc(sizeof(*multi), multi_object_blob_dtor),
+			ao2_cleanup);
+
+	ast_assert(blob != NULL);
+
+	if (!multi) {
+		return NULL;
+	}
+
+	for (type = 0; type < STASIS_UMOS_MAX; ++type) {
+		if (AST_VECTOR_INIT(&multi->snapshots[type], 0)) {
+			return NULL;
+		}
+	}
+
+	multi->blob = ast_json_ref(blob);
+
+	ao2_ref(multi, +1);
+	return multi;
+}
+
+/*! \brief Add an object (snapshot) to the blob */
+void ast_multi_object_blob_add(struct ast_multi_object_blob *multi,
+	enum stasis_user_multi_object_snapshot_type type, void *object)
+{
+	if (!multi || !object) {
+		return;
+	}
+	AST_VECTOR_APPEND(&multi->snapshots[type],object);
+}
+
+/*! \brief Publish single channel user event (for app_userevent compatibility) */
+void ast_multi_object_blob_single_channel_publish(struct ast_channel *chan,
+	struct stasis_message_type *type, struct ast_json *blob)
+{
+	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, channel_snapshot, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_multi_object_blob *, multi, NULL, ao2_cleanup);
+
+	multi = ast_multi_object_blob_create(blob);
+	if (!multi) {
+		return;
+	}
+
+	channel_snapshot = ast_channel_snapshot_create(chan);
+	ao2_ref(channel_snapshot, +1);
+	ast_multi_object_blob_add(multi, STASIS_UMOS_CHANNEL, channel_snapshot);
+
+	message = stasis_message_create(type, multi);
+	if (message) {
+		/* app_userevent still publishes to channel */
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+}
+
+/*! \internal \brief convert multi object blob to ari json */
+static struct ast_json *multi_user_event_to_json(
+	struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	RAII_VAR(struct ast_json *, out, NULL, ast_json_unref);
+	struct ast_multi_object_blob *multi = stasis_message_data(message);
+	struct ast_json *blob = multi->blob;
+	const struct timeval *tv = stasis_message_timestamp(message);
+	enum stasis_user_multi_object_snapshot_type type;
+	int i;
+
+	out = ast_json_object_create();
+	if (!out) {
+		return NULL;
+	}
+
+	ast_json_object_set(out, "type", ast_json_string_create("ChannelUserevent"));
+	ast_json_object_set(out, "timestamp", ast_json_timeval(*tv, NULL));
+	ast_json_object_set(out, "eventname", ast_json_ref(ast_json_object_get(blob, "eventname")));
+	ast_json_object_set(out, "userevent", ast_json_ref(blob)); /* eventname gets duplicated, that's ok */
+
+	for (type = 0; type < STASIS_UMOS_MAX; ++type) {
+		for (i = 0; i < AST_VECTOR_SIZE(&multi->snapshots[type]); ++i) {
+			struct ast_json *json_object = NULL;
+			char *name = NULL;
+			void *snapshot = AST_VECTOR_GET(&multi->snapshots[type], i);
+
+			switch (type) {
+			case STASIS_UMOS_CHANNEL:
+				json_object = ast_channel_snapshot_to_json(snapshot, sanitize);
+				name = "channel";
+				break;
+			case STASIS_UMOS_BRIDGE:
+				json_object = ast_bridge_snapshot_to_json(snapshot, sanitize);
+				name = "bridge";
+				break;
+			case STASIS_UMOS_ENDPOINT:
+				json_object = ast_endpoint_snapshot_to_json(snapshot, sanitize);
+				name = "endpoint";
+				break;
+			}
+			if (json_object) {
+				ast_json_object_set(out, name, json_object);
+			}
+		}
+	}
+	return ast_json_ref(out);
+}
+
+/*! \internal \brief convert multi object blob to ami string */
+static struct ast_str *multi_object_blob_to_ami(void *obj)
+{
+	struct ast_str *ami_str=ast_str_create(1024);
+	struct ast_str *ami_snapshot;
+	const struct ast_multi_object_blob *multi = obj;
+	enum stasis_user_multi_object_snapshot_type type;
+	int i;
+
+	if (!ami_str) {
+		return NULL;
+	}
+	if (!multi) {
+		ast_free(ami_str);
+		return NULL;
+	}
+
+	for (type = 0; type < STASIS_UMOS_MAX; ++type) {
+		for (i = 0; i < AST_VECTOR_SIZE(&multi->snapshots[type]); ++i) {
+			char *name = "";
+			void *snapshot = AST_VECTOR_GET(&multi->snapshots[type], i);
+			ami_snapshot = NULL;
+
+			if (i > 0) {
+				ast_asprintf(&name, "%d", i + 1);
+			}
+
+			switch (type) {
+			case STASIS_UMOS_CHANNEL:
+				ami_snapshot = ast_manager_build_channel_state_string_prefix(snapshot, name);
+				break;
+
+			case STASIS_UMOS_BRIDGE:
+				ami_snapshot = ast_manager_build_bridge_state_string_prefix(snapshot, name);
+				break;
+
+			case STASIS_UMOS_ENDPOINT:
+				/* currently not sending endpoint snapshots to AMI */
+				break;
+			}
+			if (ami_snapshot) {
+				ast_str_append(&ami_str, 0, "%s", ast_str_buffer(ami_snapshot));
+				ast_free(ami_snapshot);
+			}
+		}
+	}
+
+	return ami_str;
+}
+
+/*! \internal \brief Callback to pass only user defined parameters from blob */
+static int userevent_exclusion_cb(const char *key)
+{
+	if (!strcmp("eventname", key)) {
+		return 1;
+	}
+	return 0;
+}
+
+static struct ast_manager_event_blob *multi_user_event_to_ami(
+	struct stasis_message *message)
+{
+	RAII_VAR(struct ast_str *, object_string, NULL, ast_free);
+	RAII_VAR(struct ast_str *, body, NULL, ast_free);
+	struct ast_multi_object_blob *multi = stasis_message_data(message);
+	const char *eventname;
+
+	eventname = ast_json_string_get(ast_json_object_get(multi->blob, "eventname"));
+	body = ast_manager_str_from_json_object(multi->blob, userevent_exclusion_cb);
+	object_string = multi_object_blob_to_ami(multi);
+	if (!object_string || !body) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(EVENT_FLAG_USER, "UserEvent",
+		"%s"
+		"UserEvent: %s\r\n"
+		"%s",
+		ast_str_buffer(object_string),
+		eventname,
+		ast_str_buffer(body));
+}
+
+
+/*!
+ * @{ \brief Define multi user event message type(s).
+ */
+
+STASIS_MESSAGE_TYPE_DEFN(ast_multi_user_event_type,
+	.to_json = multi_user_event_to_json,
+	.to_ami = multi_user_event_to_ami,
+	);
+
+/*! @} */
+
 /*! \brief Cleanup function for graceful shutdowns */
 static void stasis_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(ast_multi_user_event_type);
 }
 
 int stasis_init(void)
@@ -995,6 +1249,10 @@ int stasis_init(void)
 	if (STASIS_MESSAGE_TYPE_INIT(stasis_subscription_change_type) != 0) {
 		return -1;
 	}
+	if (STASIS_MESSAGE_TYPE_INIT(ast_multi_user_event_type) != 0) {
+		return -1;
+	}
 
 	return 0;
 }
+
