@@ -171,6 +171,7 @@
 #include "asterisk/json.h"
 #include "asterisk/manager.h"
 #include "asterisk/utils.h"
+#include "asterisk/event.h"
 
 /*! @{ */
 
@@ -254,6 +255,21 @@ struct stasis_message_vtable {
 	 * \return \c NULL if AMI format is not supported.
 	 */
 	struct ast_manager_event_blob *(*to_ami)(
+		struct stasis_message *message);
+
+	/*!
+	 * \since 12.3.0
+	 * \brief Build the \ref ast_event representation of the message.
+	 *
+	 * May be \c NULL, or may return \c NULL, to indicate no representation.
+	 * The returned object should be free'd.
+	 *
+	 * \param message Message to convert to an \ref ast_event.
+	 * \return Newly allocated \ref ast_event.
+	 * \return \c NULL on error.
+	 * \return \c NULL if AMI format is not supported.
+	 */
+	struct ast_event *(*to_event)(
 		struct stasis_message *message);
 };
 
@@ -387,6 +403,19 @@ struct ast_json *stasis_message_to_json(struct stasis_message *message, struct s
  * \return \c NULL if AMI format is not supported.
  */
 struct ast_manager_event_blob *stasis_message_to_ami(
+	struct stasis_message *message);
+
+/*!
+ * \brief Build the \ref AstGenericEvents representation of the message.
+ *
+ * May return \c NULL, to indicate no representation. The returned object should
+ * be disposed of via \ref ast_event_destroy.
+ *
+ * \param message Message to convert to AMI.
+ * \return \c NULL on error.
+ * \return \c NULL if AMI format is not supported.
+ */
+struct ast_event *stasis_message_to_event(
 	struct stasis_message *message);
 
 /*! @} */
@@ -1020,6 +1049,7 @@ void stasis_log_bad_type_access(const char *name);
  *	STASIS_MESSAGE_TYPE_DEFN(ast_foo_type,
  *		.to_ami = foo_to_ami,
  *		.to_json = foo_to_json,
+ *		.to_event = foo_to_event,
  *		);
  * \endcode
  *
@@ -1046,6 +1076,7 @@ void stasis_log_bad_type_access(const char *name);
  *	STASIS_MESSAGE_TYPE_DEFN_LOCAL(ast_foo_type,
  *		.to_ami = foo_to_ami,
  *		.to_json = foo_to_json,
+ *		.to_event = foo_to_event,
  *		);
  * \endcode
  *

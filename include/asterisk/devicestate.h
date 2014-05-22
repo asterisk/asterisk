@@ -59,7 +59,7 @@ enum ast_device_state {
 	AST_DEVICE_RINGING,      /*!< Device is ringing */
 	AST_DEVICE_RINGINUSE,    /*!< Device is ringing *and* in use */
 	AST_DEVICE_ONHOLD,       /*!< Device is on hold */
-	AST_DEVICE_TOTAL,        /*/ Total num of device states, used for testing */
+	AST_DEVICE_TOTAL,        /*!< Total num of device states, used for testing */
 };
 
 /*! \brief Device State Cachability
