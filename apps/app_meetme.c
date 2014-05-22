@@ -4313,7 +4313,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						ast_mutex_lock(&conf->listenlock);
 						if (!conf->transframe[idx]) {
 							if (conf->origframe) {
-								if (musiconhold && !ast_dsp_silence(dsp, conf->origframe, &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
+								if (musiconhold
+									&& !ast_test_flag64(confflags, CONFFLAG_WAITMARKED)
+									&& !ast_dsp_silence(dsp, conf->origframe, &confsilence)
+									&& confsilence < MEETME_DELAYDETECTTALK) {
 									ast_moh_stop(chan);
 									mohtempstopped = 1;
 								}
@@ -4357,7 +4360,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						ast_mutex_unlock(&conf->listenlock);
 					} else {
 bailoutandtrynormal:
-						if (musiconhold && !ast_dsp_silence(dsp, &fr, &confsilence) && confsilence < MEETME_DELAYDETECTTALK) {
+						if (musiconhold
+							&& !ast_test_flag64(confflags, CONFFLAG_WAITMARKED)
+							&& !ast_dsp_silence(dsp, &fr, &confsilence)
+							&& confsilence < MEETME_DELAYDETECTTALK) {
 							ast_moh_stop(chan);
 							mohtempstopped = 1;
 						}
