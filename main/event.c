@@ -200,7 +200,7 @@ const char *ast_event_get_type_name(const struct ast_event *event)
 	type = ast_event_get_type(event);
 
 	if (type < 0 || type >= ARRAY_LEN(event_names)) {
-		ast_log(LOG_ERROR, "Invalid event type - '%d'\n", type);
+		ast_log(LOG_ERROR, "Invalid event type - '%u'\n", type);
 		return "";
 	}
 
