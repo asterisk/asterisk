@@ -389,7 +389,7 @@ static int manager_append_event_parking_lot_data_cb(void *obj, void *arg, void *
 		"Name: %s\r\n"
 		"StartSpace: %d\r\n"
 		"StopSpace: %d\r\n"
-		"Timeout: %d\r\n"
+		"Timeout: %u\r\n"
 		"%s" /* The Action ID */
 		"\r\n",
 		curlot->name,

@@ -361,7 +361,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	}
 
 	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), "", "", "", assignedids, requestor, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
-		ast_atomic_fetchadd_int((int *)&chan_idx, +1)))) {
+		(unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1)))) {
 		return NULL;
 	}
 
@@ -638,7 +638,7 @@ static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 	case AST_FRAME_MODEM:
 		break;
 	default:
-		ast_log(LOG_WARNING, "Can't send %d type frames with PJSIP\n", frame->frametype);
+		ast_log(LOG_WARNING, "Can't send %u type frames with PJSIP\n", frame->frametype);
 		break;
 	}
 

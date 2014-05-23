@@ -118,7 +118,7 @@ static void parker_parked_call_message_response(struct ast_parked_call_payload *
 	 * parked_subscription_data is tracking a transfer_channel_data struct. */
 	if (message->event_type == PARKED_CALL) {
 		/* queue the saynum on the bridge channel and hangup */
-		snprintf(saynum_buf, sizeof(saynum_buf), "%u %u", data->hangup_after, message->parkingspace);
+		snprintf(saynum_buf, sizeof(saynum_buf), "%d %u", data->hangup_after, message->parkingspace);
 		if (!data->transfer_data) {
 			ast_bridge_channel_queue_playfile(bridge_channel, say_parking_space, saynum_buf, NULL);
 		} else {
@@ -664,7 +664,7 @@ void say_parking_space(struct ast_bridge_channel *bridge_channel, const char *pa
 	int numeric_value;
 	int hangup_after;
 
-	if (sscanf(payload, "%u %u", &hangup_after, &numeric_value) != 2) {
+	if (sscanf(payload, "%d %d", &hangup_after, &numeric_value) != 2) {
 		/* If say_parking_space is called with a non-numeric string, we have a problem. */
 		ast_assert(0);
 		ast_bridge_channel_leave_bridge(bridge_channel,

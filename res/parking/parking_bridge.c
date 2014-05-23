@@ -304,7 +304,7 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	if (!strcmp(blind_transfer, ast_channel_name(bridge_channel->chan)) && !park_datastore->silence_announce) {
 		char saynum_buf[16];
 
-		snprintf(saynum_buf, sizeof(saynum_buf), "%u %u", 0, pu->parking_space);
+		snprintf(saynum_buf, sizeof(saynum_buf), "%d %d", 0, pu->parking_space);
 		ast_bridge_channel_queue_playfile(bridge_channel, say_parking_space, saynum_buf, NULL);
 	}
 
