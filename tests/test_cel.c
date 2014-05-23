@@ -1856,6 +1856,10 @@ static int match_ie_val(
 
 		return !strcmp(str1, str2);
 	}
+	case AST_EVENT_IE_PLTYPE_RAW:
+	case AST_EVENT_IE_PLTYPE_BITFLAGS:
+		/* Fall through: just pass on these types */
+		return 1;
 	default:
 		break;
 	}
