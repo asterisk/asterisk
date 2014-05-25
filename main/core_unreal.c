@@ -955,6 +955,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	if (ast_channel_cc_params_init(owner, requestor
 		? ast_channel_get_cc_config_params((struct ast_channel *) requestor) : NULL)) {
 		ao2_ref(p, -1);
+		ast_channel_tech_pvt_set(owner, NULL);
 		ast_channel_unlock(owner);
 		ast_channel_release(owner);
 		return NULL;
@@ -968,6 +969,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 			"%s/%s-%08x;2", tech->type, p->name, (unsigned)generated_seqno))) {
 		ast_log(LOG_WARNING, "Unable to allocate chan channel structure\n");
 		ao2_ref(p, -1);
+		ast_channel_tech_pvt_set(owner, NULL);
 		ast_channel_release(owner);
 		return NULL;
 	}
