@@ -7403,6 +7403,11 @@ static int sip_answer(struct ast_channel *ast)
 		ast_rtp_instance_update_source(p->rtp);
 		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL, oldsdp, TRUE);
 		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
+		/* RFC says the session timer starts counting on 200,
+		 * not on INVITE. */
+		if (p->stimer->st_active == TRUE) {
+			start_session_timer(p);
+		}
 	}
 	sip_pvt_unlock(p);
 	return res;
@@ -25721,12 +25726,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	/* Check if OLI/ANI-II is present in From: */
 	parse_oli(req, p->owner);
 
-	if (p->stimer->st_active == TRUE) {
-		if (reinvite == 0) {
-			start_session_timer(p);
-		} else {
-			restart_session_timer(p);
-		}
+	if (reinvite && p->stimer->st_active == TRUE) {
+		restart_session_timer(p);
 	}
 
 	if (!req->ignore && p)
@@ -26574,7 +26575,9 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
-	stop_session_timer(p); /* Stop Session-Timer */
+	if (p->stimer) {
+		stop_session_timer(p); /* Stop Session-Timer */
+	}
 
 	if (!ast_strlen_zero(sip_get_header(req, "Also"))) {
 		ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
@@ -28935,11 +28938,6 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
 /*! \brief Session-Timers: Restart session timer */
 static void restart_session_timer(struct sip_pvt *p)
 {
-	if (!p->stimer) {
-		ast_log(LOG_WARNING, "Null stimer in restart_session_timer - %s\n", p->callid);
-		return;
-	}
-
 	if (p->stimer->st_active == TRUE) {
 		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
 		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
@@ -28952,11 +28950,6 @@ static void restart_session_timer(struct sip_pvt *p)
 /*! \brief Session-Timers: Stop session timer */
 static void stop_session_timer(struct sip_pvt *p)
 {
-	if (!p->stimer) {
-		ast_log(LOG_WARNING, "Null stimer in stop_session_timer - %s\n", p->callid);
-		return;
-	}
-
 	if (p->stimer->st_active == TRUE) {
 		p->stimer->st_active = FALSE;
 		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
@@ -28970,11 +28963,6 @@ static void stop_session_timer(struct sip_pvt *p)
 static void start_session_timer(struct sip_pvt *p)
 {
 	unsigned int timeout_ms;
-
-	if (!p->stimer) {
-		ast_log(LOG_WARNING, "Null stimer in start_session_timer - %s\n", p->callid);
-		return;
-	}
 
 	if (p->stimer->st_schedid > -1) {
 		/* in the event a timer is already going, stop it */
@@ -29066,7 +29054,11 @@ return_unref:
 		/* An error occurred.  Stop session timer processing */
 		if (p->stimer) {
 			ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
+			/* Don't pass go, don't collect $200.. we are the scheduled
+			 * callback. We can rip ourself out here. */
 			p->stimer->st_schedid = -1;
+			/* Calling stop_session_timer is nice for consistent debug
+			 * logs. */
 			stop_session_timer(p);
 		}
 
