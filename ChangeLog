@@ -1,3 +1,53 @@
+2014-05-28  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.3.0-rc2 Released.
+
+	* test_cel: Fix unit tests broken due to event def changes from
+	  res_corosync
+
+	  This patch instructs test_cel to skip any IE types it doesn't
+	  care about. The addition of the raw and bitfield types caused
+	  the tests to fail.
+
+
+	* res_pjsip_session: Fix leaked video RTP ports.
+
+	  Simply enabling PJSIP to negotiage a video codec (e.g., h264)
+	  would leak video RTP ports if the codec were not negotiated by
+	  an incoming call.
+
+	  - Made add_sdp_streams() associate the handler with the media
+	    stream if the handler handled the media stream.  Otherwise,
+	    when the ast_sip_session_media object was destroyed it didn't
+	    know how to clean up the RTP resources.
+
+	  - Fixed sdp_requires_deferral() associating the handler with the
+	    media stream when deciding if the SDP processing needs to be
+	    deferred for T.38. Like the leaked video RTP ports, the T.38
+	    handler needs to clean up allocated resources from deciding if
+	    SDP processing needs to be deffered.
+
+	  - Cleaned up some dead code in handle_incoming_sdp() and
+	    sdp_requires_deferral().
+
+	  ASTERISK-23721 #close
+	  Reported by: cervajs
+
+	* ast-db-manage/cdr/env.py: Don't fail if a config file can't be
+	  loaded
+
+	  When generating SQL files via the repotools alembic_creator.py
+	  script, a configuration object is used programatically with
+	  SQLAlechemy, as opposed to a configuration file. This patch
+	  ignores failures to interpret a config file, as ... there isn't
+	  one in this case.
+
+	* AMI/ARI: Update version numbers
+
+	  Update the semantic versioning of ARI to 1.3.0 and AMI to 2.3.0
+	  to account for backwards compatible changes going from 12.2.0
+	  to 12.3.0.
+
 2014-05-22  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.3.0-rc1 Released.
