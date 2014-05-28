@@ -569,21 +569,22 @@ static void t38_interpret_sdp(struct t38_state *state, struct ast_sip_session *s
 }
 
 /*! \brief Function which defers an incoming media stream */
-static int defer_incoming_sdp_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
-					 const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream)
+static enum ast_sip_session_sdp_stream_defer defer_incoming_sdp_stream(
+	struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream)
 {
 	struct t38_state *state;
 
 	if (!session->endpoint->media.t38.enabled) {
-		return 0;
+		return AST_SIP_SESSION_SDP_DEFER_NOT_HANDLED;
 	}
 
 	if (t38_initialize_session(session, session_media)) {
-		return 0;
+		return AST_SIP_SESSION_SDP_DEFER_ERROR;
 	}
 
 	if (!(state = t38_state_get_or_alloc(session))) {
-		return 0;
+		return AST_SIP_SESSION_SDP_DEFER_ERROR;
 	}
 
 	t38_interpret_sdp(state, session, session_media, stream);
@@ -591,10 +592,10 @@ static int defer_incoming_sdp_stream(struct ast_sip_session *session, struct ast
 	/* If they are initiating the re-invite we need to defer responding until later */
 	if (session->t38state == T38_DISABLED) {
 		t38_change_state(session, session_media, state, T38_PEER_REINVITE);
-		return 1;
+		return AST_SIP_SESSION_SDP_DEFER_NEEDED;
 	}
 
-	return 0;
+	return AST_SIP_SESSION_SDP_DEFER_NOT_NEEDED;
 }
 
 /*! \brief Function which negotiates an incoming media stream */
