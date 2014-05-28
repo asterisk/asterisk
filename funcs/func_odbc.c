@@ -109,9 +109,9 @@ struct acf_odbc_query {
 	AST_RWLIST_ENTRY(acf_odbc_query) list;
 	char readhandle[5][30];
 	char writehandle[5][30];
-	char sql_read[2048];
-	char sql_write[2048];
-	char sql_insert[2048];
+	char *sql_read;
+	char *sql_write;
+	char *sql_insert;
 	unsigned int flags;
 	int rowlimit;
 	struct ast_custom_function *acf;
@@ -855,6 +855,23 @@ static int exec_odbcfinish(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
+static int free_acf_query(struct acf_odbc_query *query)
+{
+	if (query) {
+		if (query->acf) {
+			if (query->acf->name)
+				ast_free((char *)query->acf->name);
+			ast_string_field_free_memory(query->acf);
+			ast_free(query->acf);
+		}
+		ast_free(query->sql_read);
+		ast_free(query->sql_write);
+		ast_free(query->sql_insert);
+		ast_free(query);
+	}
+	return 0;
+}
+
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {
 	const char *tmp;
@@ -899,35 +916,35 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
  	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "readsql")))
-		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
+		(*query)->sql_read = ast_strdup(tmp);
 	else if ((tmp = ast_variable_retrieve(cfg, catg, "read"))) {
 		ast_log(LOG_WARNING, "Parameter 'read' is deprecated for category %s.  Please use 'readsql' instead.\n", catg);
-		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
+		(*query)->sql_read = ast_strdup(tmp);
 	}
 
 	if (!ast_strlen_zero((*query)->sql_read) && ast_strlen_zero((*query)->readhandle[0])) {
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for reading: %s\n", catg);
 		return EINVAL;
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "writesql")))
-		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
+		(*query)->sql_write = ast_strdup(tmp);
 	else if ((tmp = ast_variable_retrieve(cfg, catg, "write"))) {
 		ast_log(LOG_WARNING, "Parameter 'write' is deprecated for category %s.  Please use 'writesql' instead.\n", catg);
-		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
+		(*query)->sql_write = ast_strdup(tmp);
 	}
 
 	if (!ast_strlen_zero((*query)->sql_write) && ast_strlen_zero((*query)->writehandle[0])) {
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for writing: %s\n", catg);
 		return EINVAL;
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "insertsql"))) {
-		ast_copy_string((*query)->sql_insert, tmp, sizeof((*query)->sql_insert));
+		(*query)->sql_insert = ast_strdup(tmp);
 	}
 
 	/* Allow escaping of embedded commas in fields to be turned off */
@@ -946,13 +963,12 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));
 	if (! (*query)->acf) {
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
 	if (ast_string_field_init((*query)->acf, 128)) {
-		ast_free((*query)->acf);
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -968,9 +984,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (!((*query)->acf->name)) {
-		ast_string_field_free_memory((*query)->acf);
-		ast_free((*query)->acf);
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -982,10 +996,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (ast_strlen_zero((*query)->acf->syntax)) {
-		ast_free((char *)(*query)->acf->name);
-		ast_string_field_free_memory((*query)->acf);
-		ast_free((*query)->acf);
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -997,10 +1008,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (ast_strlen_zero((*query)->acf->synopsis)) {
-		ast_free((char *)(*query)->acf->name);
-		ast_string_field_free_memory((*query)->acf);
-		ast_free((*query)->acf);
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -1042,19 +1050,14 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					ast_strlen_zero((*query)->sql_insert) ? "" : (*query)->sql_insert,
 					ast_strlen_zero((*query)->sql_insert) ? "" : "\n");
 	} else {
-		ast_string_field_free_memory((*query)->acf);
-		ast_free((char *)(*query)->acf->name);
-		ast_free((*query)->acf);
-		ast_free(*query);
+		free_acf_query(*query);
+		*query = NULL;
 		ast_log(LOG_WARNING, "Section '%s' was found, but there was no SQL to execute.  Ignoring.\n", catg);
 		return EINVAL;
 	}
 
 	if (ast_strlen_zero((*query)->acf->desc)) {
-		ast_string_field_free_memory((*query)->acf);
-		ast_free((char *)(*query)->acf->name);
-		ast_free((*query)->acf);
-		ast_free(*query);
+		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -1071,20 +1074,6 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		(*query)->acf->write = acf_odbc_write;
 	}
 
-	return 0;
-}
-
-static int free_acf_query(struct acf_odbc_query *query)
-{
-	if (query) {
-		if (query->acf) {
-			if (query->acf->name)
-				ast_free((char *)query->acf->name);
-			ast_string_field_free_memory(query->acf);
-			ast_free(query->acf);
-		}
-		ast_free(query);
-	}
 	return 0;
 }
 
