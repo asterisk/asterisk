@@ -147,7 +147,7 @@
 ;protocol=tls
 ;bind=0.0.0.0
 ;cert_file=/path/mycert.crt
-;privkey_file=/path/mykey.key
+;priv_key_file=/path/mykey.key
 ;cipher=ALL
 ;method=tlsv1
 
@@ -282,7 +282,7 @@
 ; Use the "contact=" line instead of max_contacts= if you want to statically
 ; define the location of the device.
 ;
-; If using the TLS enabled transport, you may want the "media_encryption=yes"
+; If using the TLS enabled transport, you may want the "media_encryption=sdes"
 ; option to additionally enable SRTP, though they are not mutually inclusive.
 ;
 ; Use the "rtp_ipv6=yes" option if you want to utilize RTP over an ipv6 transport.
@@ -304,7 +304,7 @@
 ; A few more transports to pick from, and some related options below them.
 ;
 ;transport=transport-tls
-;media_encryption=yes
+;media_encryption=sdes
 ;transport=transport-udp-ipv6
 ;rtp_ipv6=yes
 ;transport=transport-udp-nat
