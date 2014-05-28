@@ -108,13 +108,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="AgentId" required="true" />
 		</syntax>
 		<description>
-			<para>Request an agent to connect with the channel.  Failure to find and
-			alert an agent will continue in the dialplan with <variable>AGENT_STATUS</variable> set.</para>
+			<para>Request an agent to connect with the channel.  Failure to find,
+			alert the agent, or acknowledge the call will continue in the dialplan
+			with <variable>AGENT_STATUS</variable> set.</para>
 			<para><variable>AGENT_STATUS</variable> enumeration values:</para>
 			<enumlist>
 				<enum name = "INVALID"><para>The specified agent is invalid.</para></enum>
 				<enum name = "NOT_LOGGED_IN"><para>The agent is not available.</para></enum>
 				<enum name = "BUSY"><para>The agent is on another call.</para></enum>
+				<enum name = "NOT_CONNECTED"><para>The agent did not connect with the
+				call.  The agent most likely did not acknowledge the call.</para></enum>
 				<enum name = "ERROR"><para>Alerting the agent failed.</para></enum>
 			</enumlist>
 		</description>
@@ -545,7 +548,7 @@ static int load_config(void)
 	aco_option_register(&cfg_info, "wrapuptime", ACO_EXACT, agent_types, "0", OPT_UINT_T, 0, FLDSET(struct agent_cfg, wrapup_time));
 	aco_option_register(&cfg_info, "musiconhold", ACO_EXACT, agent_types, "default", OPT_STRINGFIELD_T, 0, STRFLDSET(struct agent_cfg, moh));
 	aco_option_register(&cfg_info, "recordagentcalls", ACO_EXACT, agent_types, "no", OPT_BOOL_T, 1, FLDSET(struct agent_cfg, record_agent_calls));
-	aco_option_register(&cfg_info, "custom_beep", ACO_EXACT, agent_types, "beep", OPT_STRINGFIELD_T, 1, STRFLDSET(struct agent_cfg, beep_sound));
+	aco_option_register(&cfg_info, "custom_beep", ACO_EXACT, agent_types, "beep", OPT_STRINGFIELD_T, 0, STRFLDSET(struct agent_cfg, beep_sound));
 	aco_option_register(&cfg_info, "fullname", ACO_EXACT, agent_types, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct agent_cfg, full_name));
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
@@ -761,7 +764,7 @@ static void agent_pvt_destructor(void *vdoomed)
 
 	ast_party_connected_line_free(&doomed->waiting_colp);
 	if (doomed->caller_bridge) {
-		ast_bridge_destroy(doomed->caller_bridge, AST_CAUSE_USER_BUSY);
+		ast_bridge_destroy(doomed->caller_bridge, 0);
 		doomed->caller_bridge = NULL;
 	}
 	if (doomed->logged) {
@@ -995,6 +998,23 @@ AST_MUTEX_DEFINE_STATIC(agent_holding_lock);
 
 /*!
  * \internal
+ * \brief Callback to clear AGENT_STATUS on the caller channel.
+ *
+ * \param bridge_channel Which channel to operate on.
+ * \param payload Data to pass to the callback. (NULL if none).
+ * \param payload_size Size of the payload if payload is non-NULL.  A number otherwise.
+ *
+ * \note The payload MUST NOT have any resources that need to be freed.
+ *
+ * \return Nothing
+ */
+static void clear_agent_status(struct ast_bridge_channel *bridge_channel, const void *payload, size_t payload_size)
+{
+	pbx_builtin_setvar_helper(bridge_channel->chan, "AGENT_STATUS", NULL);
+}
+
+/*!
+ * \internal
  * \brief Connect the agent with the waiting caller.
  * \since 12.0.0
  *
@@ -1028,12 +1048,18 @@ static void agent_connect_caller(struct ast_bridge_channel *bridge_channel, stru
 		NULL, 0);
 	if (res) {
 		/* Reset agent. */
-		ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
+		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
 			AST_CAUSE_NORMAL_CLEARING);
 		return;
 	}
-	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_ANSWER, NULL, 0);
+	res = ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_ANSWER, NULL, 0)
+		|| ast_bridge_channel_write_callback(bridge_channel, 0, clear_agent_status, NULL, 0);
+	if (res) {
+		/* Reset agent. */
+		ast_bridge_destroy(caller_bridge, 0);
+		return;
+	}
 
 	if (record_agent_calls) {
 		struct ast_bridge_features_automixmonitor options = {
@@ -1046,6 +1072,8 @@ static void agent_connect_caller(struct ast_bridge_channel *bridge_channel, stru
 		 */
 		ast_bridge_features_do(AST_BRIDGE_BUILTIN_AUTOMIXMON, bridge_channel, &options);
 	}
+
+	ao2_t_ref(caller_bridge, -1, "Agent successfully in caller_bridge");
 }
 
 static int bridge_agent_hold_ack(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
@@ -1462,7 +1490,7 @@ static void agent_logout(struct agent_pvt *agent)
 	agent_devstate_changed(agent->username);
 
 	if (caller_bridge) {
-		ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
+		ast_bridge_destroy(caller_bridge, 0);
 	}
 
 	ast_channel_lock(logged);
@@ -1548,7 +1576,7 @@ static void agent_run(struct agent_pvt *agent, struct ast_channel *logged)
 		agent_unlock(agent);
 		ao2_ref(cfg_old, -1);
 		if (caller_bridge) {
-			ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
+			ast_bridge_destroy(caller_bridge, 0);
 		}
 
 		if (agent->state == AGENT_STATE_LOGGING_OUT
@@ -1674,7 +1702,7 @@ static void caller_abort_agent(struct agent_pvt *agent)
 		agent->caller_bridge = NULL;
 		agent_unlock(agent);
 		if (caller_bridge) {
-			ast_bridge_destroy(caller_bridge, AST_CAUSE_USER_BUSY);
+			ast_bridge_destroy(caller_bridge, 0);
 		}
 		return;
 	}
@@ -1690,9 +1718,11 @@ static int caller_safety_timeout(struct ast_bridge_channel *bridge_channel, void
 	struct agent_pvt *agent = hook_pvt;
 
 	if (agent->state == AGENT_STATE_CALL_PRESENT) {
-		ast_verb(3, "Agent '%s' did not respond.  Safety timeout.\n", agent->username);
-		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
-			AST_CAUSE_USER_BUSY);
+		ast_log(LOG_WARNING, "Agent '%s' process did not respond.  Safety timeout.\n",
+			agent->username);
+		pbx_builtin_setvar_helper(bridge_channel->chan, "AGENT_STATUS", "ERROR");
+
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, 0);
 		caller_abort_agent(agent);
 	}
 
@@ -1770,6 +1800,49 @@ static int send_colp_to_agent(struct ast_bridge_channel *bridge_channel, struct 
 }
 
 /*!
+ * \internal
+ * \brief Caller joined the bridge event callback.
+ *
+ * \param bridge_channel Channel executing the feature
+ * \param hook_pvt Private data passed in when the hook was created
+ *
+ * \retval 0 Keep the callback hook.
+ * \retval -1 Remove the callback hook.
+ */
+static int caller_joined_bridge(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
+{
+	struct agent_pvt *agent = hook_pvt;
+	struct ast_bridge_channel *logged;
+	int res;
+
+	logged = agent_bridge_channel_get_lock(agent);
+	if (!logged) {
+		ast_verb(3, "Agent '%s' not logged in.\n", agent->username);
+		pbx_builtin_setvar_helper(bridge_channel->chan, "AGENT_STATUS", "NOT_LOGGED_IN");
+
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, 0);
+		caller_abort_agent(agent);
+		return -1;
+	}
+
+	res = send_alert_to_agent(logged, agent->username);
+	ast_bridge_channel_unlock(logged);
+	ao2_ref(logged, -1);
+	if (res) {
+		ast_verb(3, "Agent '%s': Failed to alert the agent.\n", agent->username);
+		pbx_builtin_setvar_helper(bridge_channel->chan, "AGENT_STATUS", "ERROR");
+
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, 0);
+		caller_abort_agent(agent);
+		return -1;
+	}
+
+	pbx_builtin_setvar_helper(bridge_channel->chan, "AGENT_STATUS", "NOT_CONNECTED");
+	ast_indicate(bridge_channel->chan, AST_CONTROL_RINGING);
+	return -1;
+}
+
+/*!
  * \brief Dialplan AgentRequest application to locate an agent to talk with.
  *
  * \param chan Channel wanting to talk with an agent.
@@ -1826,24 +1899,26 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	/* Setup the alert agent on caller joining the bridge hook. */
+	ao2_ref(agent, +1);
+	if (ast_bridge_join_hook(&caller_features, caller_joined_bridge, agent,
+		__ao2_cleanup, 0)) {
+		ao2_ref(agent, -1);
+		ast_bridge_features_cleanup(&caller_features);
+		return -1;
+	}
+
 	caller_bridge = ast_bridge_basic_new();
 	if (!caller_bridge) {
 		ast_bridge_features_cleanup(&caller_features);
 		return -1;
 	}
 
-	/* Get COLP for agent. */
-	ast_party_connected_line_init(&connected);
-	ast_channel_lock(chan);
-	ast_connected_line_copy_from_caller(&connected, ast_channel_caller(chan));
-	ast_channel_unlock(chan);
-
 	agent_lock(agent);
 	switch (agent->state) {
 	case AGENT_STATE_LOGGED_OUT:
 	case AGENT_STATE_LOGGING_OUT:
 		agent_unlock(agent);
-		ast_party_connected_line_free(&connected);
 		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_features_cleanup(&caller_features);
 		ast_verb(3, "Agent '%s' not logged in.\n", agent->username);
@@ -1857,7 +1932,6 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 		break;
 	default:
 		agent_unlock(agent);
-		ast_party_connected_line_free(&connected);
 		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_features_cleanup(&caller_features);
 		ast_verb(3, "Agent '%s' is busy.\n", agent->username);
@@ -1867,38 +1941,55 @@ static int agent_request_exec(struct ast_channel *chan, const char *data)
 	agent_unlock(agent);
 	agent_devstate_changed(agent->username);
 
+	/* Get COLP for agent. */
+	ast_party_connected_line_init(&connected);
+	ast_channel_lock(chan);
+	ast_connected_line_copy_from_caller(&connected, ast_channel_caller(chan));
+	ast_channel_unlock(chan);
+
 	logged = agent_bridge_channel_get_lock(agent);
 	if (!logged) {
 		ast_party_connected_line_free(&connected);
+		caller_abort_agent(agent);
 		ast_bridge_destroy(caller_bridge, 0);
 		ast_bridge_features_cleanup(&caller_features);
 		ast_verb(3, "Agent '%s' not logged in.\n", agent->username);
 		pbx_builtin_setvar_helper(chan, "AGENT_STATUS", "NOT_LOGGED_IN");
-		caller_abort_agent(agent);
 		return 0;
 	}
 
 	send_colp_to_agent(logged, &connected);
-	ast_party_connected_line_free(&connected);
-
-	res = send_alert_to_agent(logged, agent->username);
 	ast_bridge_channel_unlock(logged);
 	ao2_ref(logged, -1);
-	if (res) {
-		ast_bridge_destroy(caller_bridge, 0);
-		ast_bridge_features_cleanup(&caller_features);
-		ast_verb(3, "Agent '%s': Failed to alert the agent.\n", agent->username);
-		pbx_builtin_setvar_helper(chan, "AGENT_STATUS", "ERROR");
-		caller_abort_agent(agent);
-		return 0;
-	}
+	ast_party_connected_line_free(&connected);
 
-	ast_indicate(chan, AST_CONTROL_RINGING);
-	ast_bridge_join(caller_bridge, chan, NULL, &caller_features, NULL,
-		AST_BRIDGE_JOIN_PASS_REFERENCE);
+	if (ast_bridge_join(caller_bridge, chan, NULL, &caller_features, NULL,
+		AST_BRIDGE_JOIN_PASS_REFERENCE)) {
+		caller_abort_agent(agent);
+		ast_verb(3, "Agent '%s': Caller %s failed to join the bridge.\n",
+			agent->username, ast_channel_name(chan));
+		pbx_builtin_setvar_helper(chan, "AGENT_STATUS", "ERROR");
+	}
 	ast_bridge_features_cleanup(&caller_features);
 
-	return -1;
+	/* Determine if we need to continue in the dialplan after the bridge. */
+	ast_channel_lock(chan);
+	if (ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO) {
+		/*
+		 * The bridge was broken for a hangup that isn't real.
+		 * Don't run the h extension, because the channel isn't
+		 * really hung up.  This should really only happen with
+		 * AST_SOFTHANGUP_ASYNCGOTO.
+		 */
+		res = 0;
+	} else {
+		res = ast_check_hangup(chan)
+			|| ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)
+			|| ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENT_STATUS"));
+	}
+	ast_channel_unlock(chan);
+
+	return res ? -1 : 0;
 }
 
 /*!
@@ -2040,9 +2131,8 @@ static int agent_login_exec(struct ast_channel *chan, const char *data)
 
 	agent_login_channel_config(agent, chan);
 
-	if (!ast_test_flag(&opts, OPT_SILENT)
-		&& !ast_streamfile(chan, "agent-loginok", ast_channel_language(chan))) {
-		ast_waitstream(chan, "");
+	if (!ast_test_flag(&opts, OPT_SILENT)) {
+		ast_stream_and_wait(chan, "agent-loginok", AST_DIGIT_NONE);
 	}
 
 	ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", agent->username,
