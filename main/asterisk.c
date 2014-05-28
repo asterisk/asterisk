@@ -2068,13 +2068,14 @@ static void __remote_quit_handler(int num)
 	sig_flags.need_quit = 1;
 }
 
-static const char *fix_header(char *outbuf, int maxout, const char *s, char level)
+static void set_header(char *outbuf, int maxout, char level)
 {
 	const char *cmp;
+	char date[40];
 
 	switch (level) {
-	case 0: *outbuf = '\0';
-		return s;
+	case 0: cmp = NULL;
+		break;
 	case 1: cmp = VERBOSE_PREFIX_1;
 		break;
 	case 2: cmp = VERBOSE_PREFIX_2;
@@ -2085,12 +2086,20 @@ static const char *fix_header(char *outbuf, int maxout, const char *s, char leve
 		break;
 	}
 
-	if (!strncmp(s, cmp, strlen(cmp))) {
-		s += strlen(cmp);
+	if (ast_opt_timestamp) {
+		struct ast_tm tm;
+		struct timeval now = ast_tvnow();
+		ast_localtime(&now, &tm, NULL);
+		ast_strftime(date, sizeof(date), ast_logger_get_dateformat(), &tm);
 	}
-	term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
 
-	return s;
+	snprintf(outbuf, maxout, "%s%s%s%s%s%s",
+		ast_opt_timestamp ? "[" : "",
+		ast_opt_timestamp ? date : "",
+		ast_opt_timestamp ? "] " : "",
+		cmp ? ast_term_color(COLOR_GRAY, 0) : "",
+		cmp ? cmp : "",
+		cmp ? ast_term_reset() : "");
 }
 
 struct console_state_data {
@@ -2118,16 +2127,15 @@ static int console_print(const char *s, int local)
 
 	do {
 		if (VERBOSE_HASMAGIC(s)) {
+
 			/* always use the given line's level, otherwise
 			   we'll use the last line's level */
 			state->verbose_line_level = VERBOSE_MAGIC2LEVEL(s);
+
 			/* move past magic */
 			s++;
 
-			if (local) {
-				s = fix_header(prefix, sizeof(prefix), s,
-					       state->verbose_line_level);
-			}
+			set_header(prefix, sizeof(prefix), state->verbose_line_level);
 		} else {
 			*prefix = '\0';
 		}
@@ -2149,7 +2157,7 @@ static int console_print(const char *s, int local)
 			continue;
 		}
 
-		if (local && !ast_strlen_zero(prefix)) {
+		if (!ast_strlen_zero(prefix)) {
 			fputs(prefix, stdout);
 		}
 
@@ -2572,8 +2580,6 @@ static char *show_license(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 #define ASTERISK_PROMPT "*CLI> "
 
-#define ASTERISK_PROMPT2 "%s*CLI> "
-
 /*!
  * \brief Shutdown Asterisk CLI commands.
  *
@@ -2841,10 +2847,10 @@ static char *cli_prompt(EditLine *editline)
 			/* Force colors back to normal at end */
 			ast_term_color_code(&prompt, 0, 0);
 		}
-	} else if (remotehostname) {
-		ast_str_set(&prompt, 0, ASTERISK_PROMPT2, remotehostname);
 	} else {
-		ast_str_set(&prompt, 0, "%s", ASTERISK_PROMPT);
+		ast_str_set(&prompt, 0, "%s%s",
+			remotehostname ? remotehostname : "",
+			ASTERISK_PROMPT);
 	}
 
 	return ast_str_buffer(prompt);
@@ -4552,9 +4558,6 @@ int main(int argc, char *argv[])
 
 	dnsmgr_start_refresh();
 
-	/* We might have the option of showing a console, but for now just
-	   do nothing... */
-	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_BRWHITE, COLOR_BLACK, "Asterisk Ready."));
 	if (ast_opt_no_fork) {
 		consolethread = pthread_self();
 	}
@@ -4580,6 +4583,8 @@ int main(int argc, char *argv[])
 	ast_register_atexit(main_atexit);
 
 	run_startup_commands();
+
+	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_BRGREEN, 0, "Asterisk Ready."));
 
 	if (ast_opt_console) {
 		/* Console stuff now... */

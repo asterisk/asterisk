@@ -8613,7 +8613,6 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		*local_contexts = tmp;
 		ast_hashtab_insert_safe(contexts_table, tmp); /*put this context into the tree */
 		ast_unlock_contexts();
-		ast_debug(1, "Registered context '%s'(%p) in table %p registrar: %s\n", tmp->name, tmp, contexts_table, registrar);
 		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	} else {
 		tmp->next = *local_contexts;
@@ -8621,7 +8620,6 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 			ast_hashtab_insert_immediate(exttable, tmp); /*put this context into the tree */
 
 		*local_contexts = tmp;
-		ast_debug(1, "Registered context '%s'(%p) in local table %p; registrar: %s\n", tmp->name, tmp, exttable, registrar);
 		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	}
 	return tmp;
@@ -11927,7 +11925,7 @@ int load_pbx(void)
 	/* Initialize the PBX */
 	ast_verb(1, "Asterisk PBX Core Initializing\n");
 
-	ast_verb(1, "Registering builtin applications:\n");
+	ast_verb(2, "Registering builtin applications and functions:\n");
 	ast_cli_register_multiple(pbx_cli, ARRAY_LEN(pbx_cli));
 	ast_data_register_multiple_core(pbx_data_providers, ARRAY_LEN(pbx_data_providers));
 	__ast_custom_function_register(&exception_function, NULL);
@@ -11935,7 +11933,6 @@ int load_pbx(void)
 
 	/* Register builtin applications */
 	for (x = 0; x < ARRAY_LEN(builtins); x++) {
-		ast_verb(1, "[%s]\n", builtins[x].name);
 		if (ast_register_application2(builtins[x].name, builtins[x].execute, NULL, NULL, NULL)) {
 			ast_log(LOG_ERROR, "Unable to register builtin application '%s'\n", builtins[x].name);
 			return -1;

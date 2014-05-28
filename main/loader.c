@@ -185,7 +185,7 @@ void ast_module_register(const struct ast_module_info *info)
 		mod = resource_being_loaded;
 	}
 
-	ast_verb(5, "Registering module %s\n", info->name);
+	ast_debug(5, "Registering module %s\n", info->name);
 
 	mod->info = info;
 	AST_LIST_HEAD_INIT(&mod->users);
@@ -232,7 +232,7 @@ void ast_module_unregister(const struct ast_module_info *info)
 	AST_LIST_UNLOCK(&module_list);
 
 	if (mod) {
-		ast_verb(5, "Unregistering module %s\n", info->name);
+		ast_debug(5, "Unregistering module %s\n", info->name);
 		AST_LIST_HEAD_DESTROY(&mod->users);
 		ast_free(mod);
 	}
@@ -440,20 +440,16 @@ static int is_module_loaded(const char *resource_name)
 	char fn[PATH_MAX] = "";
 	void *lib;
 
-	ast_verb(10, "Checking if %s is loaded\n", resource_name);
-
 	snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_MODULE_DIR,
 		resource_name);
 
 	lib = dlopen(fn, RTLD_LAZY | RTLD_NOLOAD);
 
 	if (lib) {
-		ast_verb(10, "  %s loaded\n", resource_name);
 		logged_dlclose(resource_name, lib);
 		return 1;
 	}
 
-	ast_verb(10, "  %s not loaded\n", resource_name);
 	return 0;
 }
 #endif
@@ -843,7 +839,7 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 	}
 
 	if (ast_mutex_trylock(&reloadlock)) {
-		ast_verbose("The previous reload command didn't finish yet\n");
+		ast_verb(3, "The previous reload command didn't finish yet\n");
 		res = AST_MODULE_RELOAD_IN_PROGRESS;
 		goto module_reload_exit;
 	}
@@ -859,7 +855,7 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 			}
 		}
 		if (res != AST_LOCK_SUCCESS) {
-			ast_verbose("Cannot grab lock on %s\n", ast_config_AST_CONFIG_DIR);
+			ast_log(AST_LOG_WARNING, "Cannot grab lock on %s\n", ast_config_AST_CONFIG_DIR);
 			ast_mutex_unlock(&reloadlock);
 			res = AST_MODULE_RELOAD_ERROR;
 			goto module_reload_exit;
@@ -977,12 +973,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
 	switch (res) {
 	case AST_MODULE_LOAD_SUCCESS:
 		if (!ast_fully_booted) {
-			ast_verb(1, "%s => (%s)\n", mod->resource, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
-			if (ast_opt_console && !option_verbose) {
-				/* This never looks good on anything but the root console, so
-				 * it's best not to try to funnel it through the logger. */
-				fprintf(stdout, ".");
-			}
+			ast_verb(2, "%s => (%s)\n", mod->resource, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
 		} else {
 			ast_verb(1, "Loaded %s => (%s)\n", mod->resource, mod->info->description);
 		}

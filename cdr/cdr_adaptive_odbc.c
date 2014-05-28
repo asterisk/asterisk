@@ -196,7 +196,7 @@ static int load_config(void)
 					ast_trim_blanks(cdrvar);
 				}
 
-				ast_verb(3, "Found filter %s'%s' for cdr variable %s in %s@%s\n", negate ? "!" : "", var->value, cdrvar, tableptr->table, tableptr->connection);
+				ast_verb(3, "Found filter %s'%s' for CDR variable %s in %s@%s\n", negate ? "!" : "", var->value, cdrvar, tableptr->table, tableptr->connection);
 
 				entry = ast_calloc(sizeof(char), sizeof(*entry) + strlen(cdrvar) + 1 + strlen(var->value) + 1);
 				if (!entry) {
@@ -281,7 +281,7 @@ static int load_config(void)
 			if (entry->octetlen == 0)
 				entry->octetlen = entry->size;
 
-			ast_verb(10, "Found %s column with type %hd with len %ld, octetlen %ld, and numlen (%hd,%hd)\n", entry->name, entry->type, (long) entry->size, (long) entry->octetlen, entry->decimals, entry->radix);
+			ast_verb(4, "Found %s column with type %hd with len %ld, octetlen %ld, and numlen (%hd,%hd)\n", entry->name, entry->type, (long) entry->size, (long) entry->octetlen, entry->decimals, entry->radix);
 			/* Insert column info into column list */
 			AST_LIST_INSERT_TAIL(&(tableptr->columns), entry, list);
 			res = 0;
@@ -723,7 +723,7 @@ static int odbc_log(struct ast_cdr *cdr)
 			} else if (entry->filtervalue
 				&& ((!entry->negatefiltervalue && entry->filtervalue[0] != '\0')
 					|| (entry->negatefiltervalue && entry->filtervalue[0] == '\0'))) {
-				ast_verb(4, "CDR column '%s' was not set and does not match filter of"
+				ast_log(AST_LOG_WARNING, "CDR column '%s' was not set and does not match filter of"
 					" %s'%s'.  Cancelling this CDR.\n",
 					entry->cdrname, entry->negatefiltervalue ? "!" : "",
 					entry->filtervalue);
@@ -737,7 +737,7 @@ static int odbc_log(struct ast_cdr *cdr)
 		ast_str_append(&sql2, 0, ")");
 		ast_str_append(&sql, 0, "%s", ast_str_buffer(sql2));
 
-		ast_verb(11, "[%s]\n", ast_str_buffer(sql));
+		ast_debug(3, "Executing [%s]\n", ast_str_buffer(sql));
 
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, ast_str_buffer(sql));
 		if (stmt) {

@@ -2627,7 +2627,7 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 			ASTOBJ_UNREF(buddy, ast_aji_buddy_destroy);
 		}
 	default:
-		ast_verb(5, "JABBER: This is a subcription of type %i\n", pak->subtype);
+		ast_debug(3, "JABBER: This is a subcription of type %i\n", pak->subtype);
 	}
 }
 

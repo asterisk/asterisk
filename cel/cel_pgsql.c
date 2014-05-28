@@ -288,9 +288,8 @@ static void pgsql_log(struct ast_event *event)
 		AST_RWLIST_UNLOCK(&psql_columns);
 		LENGTHEN_BUF1(ast_str_strlen(sql2) + 2);
 		ast_str_append(&sql, 0, ")%s)", ast_str_buffer(sql2));
-		ast_verb(11, "[%s]\n", ast_str_buffer(sql));
 
-		ast_debug(2, "inserting a CEL record.\n");
+		ast_debug(3, "Inserting a CEL record: [%s].\n", ast_str_buffer(sql));
 		/* Test to be sure we're still connected... */
 		/* If we're connected, and connection is working, good. */
 		/* Otherwise, attempt reconnect.  If it fails... sorry... */

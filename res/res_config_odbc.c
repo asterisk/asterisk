@@ -1205,14 +1205,13 @@ static int unload_module (void)
 {
 	ast_config_engine_deregister(&odbc_engine);
 
-	ast_verb(1, "res_config_odbc unloaded.\n");
 	return 0;
 }
 
 static int load_module (void)
 {
 	ast_config_engine_register(&odbc_engine);
-	ast_verb(1, "res_config_odbc loaded.\n");
+
 	return 0;
 }
 

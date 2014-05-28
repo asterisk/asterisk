@@ -973,7 +973,7 @@ static void send_client(int size, const unsigned char *data, struct unistimsessi
 
 /*#ifdef DUMP_PACKET */
 	if (unistimdebug) {
-		ast_verb(6, "Sending datas with seq #0x%.4x Using slot #%d :\n", (unsigned)pte->seq_server, buf_pos);
+		ast_verb(0, "Sending datas with seq #0x%.4x Using slot #%d :\n", (unsigned)pte->seq_server, buf_pos);
 	}
 /*#endif */
 	send_raw_client(pte->wsabufsend[buf_pos].len, pte->wsabufsend[buf_pos].buf, &(pte->sin),
@@ -986,7 +986,7 @@ static void send_ping(struct unistimsession *pte)
 {
 	BUFFSEND;
 	if (unistimdebug) {
-		ast_verb(6, "Sending ping\n");
+		ast_verb(0, "Sending ping\n");
 	}
 	pte->tick_next_ping = get_tick_count() + unistim_keepalive;
 	memcpy(buffsend + SIZE_HEADER, packet_send_ping, sizeof(packet_send_ping));
@@ -1084,7 +1084,7 @@ static void check_send_queue(struct unistimsession *pte)
 	/* Check if our send queue contained only one element */
 	if (pte->last_buf_available == 1) {
 		if (unistimdebug) {
-			ast_verb(6, "Our single packet was ACKed.\n");
+			ast_verb(0, "Our single packet was ACKed.\n");
 		}
 		pte->last_buf_available--;
 		set_ping_timer(pte);
@@ -1093,14 +1093,14 @@ static void check_send_queue(struct unistimsession *pte)
 	/* Check if this ACK catch up our latest packet */
 	else if (pte->last_seq_ack + 1 == pte->seq_server + 1) {
 		if (unistimdebug) {
-			ast_verb(6, "Our send queue is completely ACKed.\n");
+			ast_verb(0, "Our send queue is completely ACKed.\n");
 		}
 		pte->last_buf_available = 0;    /* Purge the send queue */
 		set_ping_timer(pte);
 		return;
 	}
 	if (unistimdebug) {
-		ast_verb(6, "We still have packets in our send queue\n");
+		ast_verb(0, "We still have packets in our send queue\n");
 	}
 	return;
 }
@@ -4659,7 +4659,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 	if (buf[4] == 1) {
 		ast_mutex_lock(&pte->lock);
 		if (unistimdebug) {
-			ast_verb(6, "ACK received for packet #0x%.4x\n", (unsigned)seq);
+			ast_verb(0, "ACK received for packet #0x%.4x\n", (unsigned)seq);
 		}
 		pte->nb_retransmit = 0;
 

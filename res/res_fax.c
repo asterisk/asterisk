@@ -407,7 +407,7 @@ static void debug_check_frame_for_silence(struct ast_fax_session *s, unsigned in
 		history->consec_ms = 0;
 
 		if ((last_consec_frames != 0)) {
-			ast_verb(6, "Channel '%s' fax session '%u', [ %.3ld.%.6ld ], %s sent %u frames (%u ms) of %s.\n",
+			ast_verb(0, "Channel '%s' fax session '%u', [ %.3ld.%.6ld ], %s sent %u frames (%u ms) of %s.\n",
 				 s->channame, s->id, (long) diff.tv_sec, (long int) diff.tv_usec,
 				 (c2s) ? "channel" : "stack", last_consec_frames, last_consec_ms,
 				 (wassil) ? "silence" : "energy");

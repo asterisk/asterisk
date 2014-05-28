@@ -252,9 +252,6 @@ static int odbc_load_module(int reload)
 			break;
 		}
 
-		ast_verb(3, "cdr_odbc: dsn is %s\n", dsn);
-		ast_verb(3, "cdr_odbc: table is %s\n", table);
-
 		if (!ast_test_flag(&config, CONFIG_REGISTERED)) {
 			res = ast_cdr_register(name, ast_module_info->description, odbc_log);
 			if (res) {
@@ -290,11 +287,9 @@ static int unload_module(void)
 	}
 
 	if (dsn) {
-		ast_verb(11, "cdr_odbc: free dsn\n");
 		ast_free(dsn);
 	}
 	if (table) {
-		ast_verb(11, "cdr_odbc: free table\n");
 		ast_free(table);
 	}
 

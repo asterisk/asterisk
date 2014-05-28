@@ -179,7 +179,7 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 			ast_frfree(f);
 		}
 
-		ast_verb(6, "Got %dms %s < %dms required\n", dsptime, wait_for_silence ? "silence" : "noise", timereqd);
+		ast_debug(1, "Got %dms %s < %dms required\n", dsptime, wait_for_silence ? "silence" : "noise", timereqd);
 
 		if (dsptime >= timereqd) {
 			ast_verb(3, "Exiting with %dms %s >= %dms required\n", dsptime, wait_for_silence ? "silence" : "noise", timereqd);

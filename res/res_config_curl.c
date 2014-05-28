@@ -630,7 +630,7 @@ static int reload_module(void)
 static int unload_module(void)
 {
 	ast_config_engine_deregister(&curl_engine);
-	ast_verb(1, "res_config_curl unloaded.\n");
+
 	return 0;
 }
 
@@ -653,7 +653,7 @@ static int load_module(void)
 	reload_module();
 
 	ast_config_engine_register(&curl_engine);
-	ast_verb(1, "res_config_curl loaded.\n");
+
 	return 0;
 }
 

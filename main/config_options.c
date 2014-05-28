@@ -1191,7 +1191,7 @@ static void cli_show_module_options(struct ast_cli_args *a)
 				ast_cli(a->fd, "\n");
 			}
 			term_color(option_name, tmp->ref, COLOR_MAGENTA, COLOR_BLACK, sizeof(option_name));
-			ast_cli(a->fd, "[%s%s]\n", option_name, term_end());
+			ast_cli(a->fd, "[%s%s]\n", option_name, ast_term_reset());
 			if (ast_str_strlen(tmp->syntax)) {
 				ast_cli(a->fd, "%s\n", ast_xmldoc_printable(ast_str_buffer(tmp->syntax), 1));
 			}

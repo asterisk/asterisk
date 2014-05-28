@@ -106,12 +106,12 @@ static enum set_touch_variables_res set_touch_variables(struct ast_channel *chan
 
 static void stop_automonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg, const char *stop_message)
 {
-	ast_verb(3, "AutoMonitor used to stop recording call.\n");
+	ast_verb(4, "AutoMonitor used to stop recording call.\n");
 
 	ast_channel_lock(peer_chan);
 	if (ast_channel_monitor(peer_chan)) {
 		if (ast_channel_monitor(peer_chan)->stop(peer_chan, 1)) {
-			ast_verb(3, "Cannot stop AutoMonitor for %s\n", ast_channel_name(bridge_channel->chan));
+			ast_verb(4, "Cannot stop AutoMonitor for %s\n", ast_channel_name(bridge_channel->chan));
 			if (features_cfg && !(ast_strlen_zero(features_cfg->recordingfailsound))) {
 				ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
 			}
@@ -194,10 +194,10 @@ static void start_automonitor(struct ast_bridge_channel *bridge_channel, struct 
 		}
 	}
 
-	ast_verb(3, "AutoMonitor used to record call. Filename: %s\n", touch_filename);
+	ast_verb(4, "AutoMonitor used to record call. Filename: %s\n", touch_filename);
 
 	if (ast_monitor_start(peer_chan, touch_format, touch_filename, 1, X_REC_IN | X_REC_OUT, NULL)) {
-		ast_verb(3, "automon feature was tried by '%s' but monitor failed to start.\n",
+		ast_verb(4, "AutoMonitor feature was tried by '%s' but monitor failed to start.\n",
 			ast_channel_name(bridge_channel->chan));
 		return;
 	}
@@ -232,7 +232,7 @@ static int feature_automonitor(struct ast_bridge_channel *bridge_channel, void *
 	ast_bridge_unlock(bridge_channel->bridge);
 
 	if (!peer_chan) {
-		ast_verb(3, "Cannot start AutoMonitor for %s - can not determine peer in bridge.\n",
+		ast_verb(4, "Cannot start AutoMonitor for %s - can not determine peer in bridge.\n",
 			ast_channel_name(bridge_channel->chan));
 		if (features_cfg && !ast_strlen_zero(features_cfg->recordingfailsound)) {
 			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
@@ -263,14 +263,14 @@ static int feature_automonitor(struct ast_bridge_channel *bridge_channel, void *
 			start_automonitor(bridge_channel, peer_chan, features_cfg, start_message);
 			return 0;
 		}
-		ast_verb(3, "AutoMonitor already recording call.\n");
+		ast_verb(4, "AutoMonitor already recording call.\n");
 		break;
 	case AUTO_MONITOR_STOP:
 		if (is_monitoring) {
 			stop_automonitor(bridge_channel, peer_chan, features_cfg, stop_message);
 			return 0;
 		}
-		ast_verb(3, "AutoMonitor already not recording call.\n");
+		ast_verb(4, "AutoMonitor already stopped on call.\n");
 		break;
 	}
 
@@ -295,10 +295,10 @@ static int feature_automonitor(struct ast_bridge_channel *bridge_channel, void *
 
 static void stop_automixmonitor(struct ast_bridge_channel *bridge_channel, struct ast_channel *peer_chan, struct ast_features_general_config *features_cfg, const char *stop_message)
 {
-	ast_verb(3, "AutoMixMonitor used to stop recording call.\n");
+	ast_verb(4, "AutoMixMonitor used to stop recording call.\n");
 
 	if (ast_stop_mixmonitor(peer_chan, NULL)) {
-		ast_verb(3, "Failed to stop Mixmonitor for %s.\n", ast_channel_name(bridge_channel->chan));
+		ast_verb(4, "Failed to stop AutoMixMonitor for %s.\n", ast_channel_name(bridge_channel->chan));
 		if (features_cfg && !(ast_strlen_zero(features_cfg->recordingfailsound))) {
 			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
 		}
@@ -375,10 +375,10 @@ static void start_automixmonitor(struct ast_bridge_channel *bridge_channel, stru
 		}
 	}
 
-	ast_verb(3, "AutoMixMonitor used to record call. Filename: %s\n", touch_filename);
+	ast_verb(4, "AutoMixMonitor used to record call. Filename: %s\n", touch_filename);
 
 	if (ast_start_mixmonitor(peer_chan, touch_filename, "b")) {
-		ast_verb(3, "automixmon feature was tried by '%s' but mixmonitor failed to start.\n",
+		ast_verb(4, "AutoMixMonitor feature was tried by '%s' but MixMonitor failed to start.\n",
 			ast_channel_name(bridge_channel->chan));
 
 		if (features_cfg && !ast_strlen_zero(features_cfg->recordingfailsound)) {
@@ -418,7 +418,7 @@ static int feature_automixmonitor(struct ast_bridge_channel *bridge_channel, voi
 	ast_bridge_unlock(bridge_channel->bridge);
 
 	if (!peer_chan) {
-		ast_verb(3, "Cannot do AutoMixMonitor for %s - cannot determine peer in bridge.\n",
+		ast_verb(4, "Cannot start AutoMixMonitor for %s - cannot determine peer in bridge.\n",
 			ast_channel_name(bridge_channel->chan));
 		if (features_cfg && !ast_strlen_zero(features_cfg->recordingfailsound)) {
 			ast_bridge_channel_queue_playfile(bridge_channel, NULL, features_cfg->recordingfailsound, NULL);
@@ -450,14 +450,14 @@ static int feature_automixmonitor(struct ast_bridge_channel *bridge_channel, voi
 			start_automixmonitor(bridge_channel, peer_chan, features_cfg, start_message);
 			return 0;
 		}
-		ast_verb(3, "AutoMixMonitor already recording call.\n");
+		ast_verb(4, "AutoMixMonitor already recording call.\n");
 		break;
 	case AUTO_MONITOR_STOP:
 		if (is_monitoring) {
 			stop_automixmonitor(bridge_channel, peer_chan, features_cfg, stop_message);
 			return 0;
 		}
-		ast_verb(3, "AutoMixMonitor already not recording call.\n");
+		ast_verb(4, "AutoMixMonitor already stopped on call.\n");
 		break;
 	}
 

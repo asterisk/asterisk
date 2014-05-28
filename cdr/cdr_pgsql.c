@@ -348,9 +348,8 @@ static int pgsql_log(struct ast_cdr *cdr)
 		LENGTHEN_BUF1(ast_str_strlen(sql2) + 2);
 		AST_RWLIST_UNLOCK(&psql_columns);
 		ast_str_append(&sql, 0, ")%s)", ast_str_buffer(sql2));
-		ast_verb(11, "[%s]\n", ast_str_buffer(sql));
 
-		ast_debug(2, "inserting a CDR record.\n");
+		ast_debug(3, "Inserting a CDR record: [%s]\n", ast_str_buffer(sql));
 
 		/* Test to be sure we're still connected... */
 		/* If we're connected, and connection is working, good. */
@@ -691,7 +690,7 @@ static int config_module(int reload)
 				/* For varchar columns, the maximum length is encoded in a different field */
 				flen = PQgetvalue(result, i, 5);
 			}
-			ast_verb(4, "Found column '%s' of type '%s'\n", fname, ftype);
+
 			cur = ast_calloc(1, sizeof(*cur) + strlen(fname) + strlen(ftype) + 2);
 			if (cur) {
 				sscanf(flen, "%30d", &cur->len);

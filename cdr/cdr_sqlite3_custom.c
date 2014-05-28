@@ -197,7 +197,7 @@ static int load_config(int reload)
 		return -1;
 	}
 
-	ast_verb(3, "cdr_sqlite3_custom: Logging CDR records to table '%s' in 'master.db'\n", table);
+	ast_verb(4, "cdr_sqlite3_custom: Logging CDR records to table '%s' in 'master.db'\n", table);
 
 	ast_config_destroy(cfg);
 

@@ -356,7 +356,7 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 
 	if (!ast_strlen_zero(parker_dial_string)) {
 		ast_channel_name_to_dial_string(parker_dial_string);
-		ast_verb(5, "Setting dial string to %s from %s value", parker_dial_string, attended_transfer ? "ATTENDEDTRANSFER" : "BLINDTRANSFER");
+		ast_verb(4, "Setting Parker dial string to %s from %s value", parker_dial_string, attended_transfer ? "ATTENDEDTRANSFER" : "BLINDTRANSFER");
 		park_datastore->parker_dial_string = ast_strdup(parker_dial_string);
 	}
 

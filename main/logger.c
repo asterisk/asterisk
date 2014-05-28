@@ -235,6 +235,7 @@ static const int colors[NUMLOGLEVELS] = {
 };
 
 AST_THREADSTORAGE(verbose_buf);
+AST_THREADSTORAGE(verbose_build_buf);
 #define VERBOSE_BUF_INIT_SIZE   256
 
 AST_THREADSTORAGE(log_buf);
@@ -1171,25 +1172,50 @@ static void ast_log_vsyslog(struct logmsg *msg)
 	syslog(syslog_level, "%s", buf);
 }
 
+static char *logger_strip_verbose_magic(const char *message, int level)
+{
+	char *p;
+	char *stripped_message = ast_strdup(message);
+	char magic = -(level + 1);
+
+	if (!stripped_message) {
+		return NULL;
+	}
+
+	do {
+		p = strchr(stripped_message, (char)magic);
+		if (p) {
+			*p++ = ' ';
+		}
+	} while (p && *p);
+
+	return stripped_message;
+}
+
 /*! \brief Print a normal log message to the channels */
 static void logger_print_normal(struct logmsg *logmsg)
 {
 	struct logchannel *chan = NULL;
 	char buf[BUFSIZ];
 	struct verb *v = NULL;
+	char *tmpmsg;
 	int level = 0;
 
 	if (logmsg->level == __LOG_VERBOSE) {
-		char *tmpmsg = ast_strdupa(logmsg->message + 1);
-
-		level = VERBOSE_MAGIC2LEVEL(logmsg->message);
 
 		/* Iterate through the list of verbosers and pass them the log message string */
 		AST_RWLIST_RDLOCK(&verbosers);
 		AST_RWLIST_TRAVERSE(&verbosers, v, list)
 			v->verboser(logmsg->message);
 		AST_RWLIST_UNLOCK(&verbosers);
-		ast_string_field_set(logmsg, message, tmpmsg);
+
+		level = VERBOSE_MAGIC2LEVEL(logmsg->message);
+
+		tmpmsg = logger_strip_verbose_magic(logmsg->message, level);
+		if (tmpmsg) {
+			ast_string_field_set(logmsg, message, tmpmsg);
+			ast_free(tmpmsg);
+		}
 	}
 
 	AST_RWLIST_RDLOCK(&logchannels);
@@ -1746,9 +1772,8 @@ void ast_log_backtrace(void)
 void __ast_verbose_ap(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, va_list ap)
 {
 	const char *p;
-	struct ast_str *prefixed, *buf = NULL;
+	struct ast_str *prefixed, *buf;
 	int res = 0;
-	const char *prefix = level >= 4 ? VERBOSE_PREFIX_4 : level == 3 ? VERBOSE_PREFIX_3 : level == 2 ? VERBOSE_PREFIX_2 : level == 1 ? VERBOSE_PREFIX_1 : "";
 	signed char magic = level > 9 ? -10 : -level - 1; /* 0 => -1, 1 => -2, etc.  Can't pass NUL, as it is EOS-delimiter */
 
 	/* For compatibility with modules still calling ast_verbose() directly instead of using ast_verb() */
@@ -1767,18 +1792,18 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, s
 	}
 
 	if (!(prefixed = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)) ||
-	    !(buf = ast_str_create(VERBOSE_BUF_INIT_SIZE))) {
+	    !(buf = ast_str_thread_get(&verbose_build_buf, VERBOSE_BUF_INIT_SIZE))) {
 		return;
 	}
 
 	res = ast_str_set_va(&buf, 0, fmt, ap);
 	/* If the build failed then we can drop this allocated message */
 	if (res == AST_DYNSTR_BUILD_FAILED) {
-		ast_free(buf);
 		return;
 	}
 
 	ast_str_reset(prefixed);
+
 	/* for every newline found in the buffer add verbose prefix data */
 	fmt = ast_str_buffer(buf);
 	do {
@@ -1787,22 +1812,12 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, s
 		}
 		++p;
 
-		if (ast_opt_timestamp) {
-			struct ast_tm tm;
-			char date[40];
-			struct timeval now = ast_tvnow();
-			ast_localtime(&now, &tm, NULL);
-			ast_strftime(date, sizeof(date), dateformat, &tm);
-			ast_str_append(&prefixed, 0, "%c[%s] %s", (char) magic, date, prefix);
-		} else {
-			ast_str_append(&prefixed, 0, "%c%s", (char) magic, prefix);
-		}
+		ast_str_append(&prefixed, 0, "%c", (char)magic);
 		ast_str_append_substr(&prefixed, 0, fmt, p - fmt);
 		fmt = p;
 	} while (p && *p);
 
 	ast_log_callid(__LOG_VERBOSE, file, line, func, callid, "%s", ast_str_buffer(prefixed));
-	ast_free(buf);
 }
 
 void __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...)
@@ -2121,3 +2136,9 @@ void ast_logger_unregister_level(const char *name)
 		AST_RWLIST_UNLOCK(&logchannels);
 	}
 }
+
+const char *ast_logger_get_dateformat(void)
+{
+	return dateformat;
+}
+

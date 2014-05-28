@@ -502,7 +502,7 @@ static void add_vm_recipients_from_string(struct mixmonitor *mixmonitor, const c
 			ast_copy_string(recipient->folder, cur_folder, sizeof(recipient->folder));
 
 			/* Add to list */
-			ast_verb(5, "Adding %s@%s to recipient list\n", recipient->mailbox, recipient->context);
+			ast_verb(4, "Adding %s@%s to recipient list\n", recipient->mailbox, recipient->context);
 			AST_LIST_INSERT_HEAD(&mixmonitor->recipient_list, recipient, list);
 		} else {
 			ast_log(LOG_ERROR, "Failed to properly parse extension and/or context from element %d of recipient string: %s\n", elements_processed, vm_recipients);

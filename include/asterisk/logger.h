@@ -263,6 +263,15 @@ int ast_logger_register_level(const char *name);
 void ast_logger_unregister_level(const char *name);
 
 /*!
+ * \brief Get the logger configured date format
+ *
+ * \retval The date format string
+ *
+ * \since 13.0.0
+ */
+const char *ast_logger_get_dateformat(void);
+
+/*!
  * \brief factory function to create a new uniquely identifying callid.
  *
  * \retval ast_callid struct pointer containing the call id

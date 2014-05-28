@@ -2541,7 +2541,7 @@ static int try_swap_optimize_out(struct ast_bridge *chan_bridge,
 
 		id = ast_atomic_fetchadd_int((int *) &optimization_id, +1);
 
-		ast_verb(3, "Move-swap optimizing %s <-- %s.\n",
+		ast_verb(4, "Move-swap optimizing %s <-- %s.\n",
 			ast_channel_name(dst_bridge_channel->chan),
 			ast_channel_name(other->chan));
 
@@ -2658,7 +2658,7 @@ static int try_merge_optimize_out(struct ast_bridge *chan_bridge,
 		return 0;
 	}
 
-	ast_verb(3, "Merge optimizing %s -- %s out.\n",
+	ast_verb(4, "Merge optimizing %s -- %s out.\n",
 		ast_channel_name(chan_bridge_channel->chan),
 		ast_channel_name(peer_bridge_channel->chan));
 

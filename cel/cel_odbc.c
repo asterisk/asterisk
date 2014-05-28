@@ -761,8 +761,7 @@ static void odbc_log(struct ast_event *event)
 		ast_str_append(&sql2, 0, ")");
 		ast_str_append(&sql, 0, "%s", ast_str_buffer(sql2));
 
-		ast_verb(11, "[%s]\n", ast_str_buffer(sql));
-
+		ast_debug(3, "Executing SQL statement: [%s]\n", ast_str_buffer(sql));
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, ast_str_buffer(sql));
 		if (stmt) {
 			SQLRowCount(stmt, &rows);

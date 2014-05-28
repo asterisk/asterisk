@@ -546,7 +546,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 				entry->octetlen = entry->size;
 			}
 
-			ast_verb(10, "Found %s column with type %hd with len %ld, octetlen %ld, and numlen (%hd,%hd)\n", entry->name, entry->type, (long) entry->size, (long) entry->octetlen, entry->decimals, entry->radix);
+			ast_debug(3, "Found %s column with type %hd with len %ld, octetlen %ld, and numlen (%hd,%hd)\n", entry->name, entry->type, (long) entry->size, (long) entry->octetlen, entry->decimals, entry->radix);
 			/* Insert column info into column list */
 			AST_LIST_INSERT_TAIL(&(tableptr->columns), entry, list);
 		}

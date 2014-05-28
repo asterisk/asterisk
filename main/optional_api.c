@@ -135,7 +135,6 @@ static struct optional_api *optional_api_create(const char *symname)
 	struct optional_api *api;
 	size_t size;
 
-	ast_verb(6, "%s: building api object\n", symname);
 	size = sizeof(*api) + strlen(symname) + 1;
 	api = ast_std_calloc(1, size);
 	if (!api) {
@@ -219,11 +218,8 @@ static void optional_api_user_relink(struct optional_api_user *user,
 	struct optional_api *api)
 {
 	if (api->impl && *user->optional_ref != api->impl) {
-		ast_verb(4, "%s: linking for %s\n", api->symname, user->module);
 		*user->optional_ref = api->impl;
 	} else if (!api->impl && *user->optional_ref != user->stub) {
-		ast_verb(4, "%s: stubbing for %s\n", api->symname,
-			user->module);
 		*user->optional_ref = user->stub;
 	}
 }
@@ -252,8 +248,6 @@ void ast_optional_api_provide(const char *symname, ast_optional_fn impl)
 {
 	struct optional_api *api;
 
-	ast_verb(4, "%s: providing\n", symname);
-
 	api = get_api(symname);
 	if (!api) {
 		ast_log(LOG_ERROR, "%s: Allocation failed\n", symname);
@@ -267,8 +261,6 @@ void ast_optional_api_provide(const char *symname, ast_optional_fn impl)
 void ast_optional_api_unprovide(const char *symname, ast_optional_fn impl)
 {
 	struct optional_api *api;
-
-	ast_verb(4, "%s: un-providing\n", symname);
 
 	api = get_api(symname);
 	if (!api) {
@@ -341,8 +333,6 @@ void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 
 		if (user->optional_ref == optional_ref) {
 			if (*user->optional_ref != user->stub) {
-				ast_verb(4, "%s: stubbing for %s\n", symname,
-					module);
 				*user->optional_ref = user->stub;
 			}
 

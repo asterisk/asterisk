@@ -7557,7 +7557,7 @@ static int get_folder(struct ast_channel *chan, int start)
 			if (ast_fileexists(fn, NULL, NULL)) {
 				d = vm_play_folder_name(chan, fn);
 			} else {
-				ast_verb(1, "failed to find %s\n", fn);
+				ast_verb(4, "Failed to find file %s; falling back to INBOX\n", fn);
 				d = vm_play_folder_name(chan, "vm-INBOX");
 			}
 		} else {

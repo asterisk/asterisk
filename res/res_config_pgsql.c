@@ -1334,7 +1334,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 
 	ast_config_engine_register(&pgsql_engine);
-	ast_verb(1, "PostgreSQL RealTime driver loaded.\n");
+
 	ast_cli_register_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 
 	return 0;
@@ -1352,7 +1352,6 @@ static int unload_module(void)
 	}
 	ast_cli_unregister_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 	ast_config_engine_deregister(&pgsql_engine);
-	ast_verb(1, "PostgreSQL RealTime unloaded.\n");
 
 	/* Destroy cached table info */
 	AST_LIST_LOCK(&psql_tables);
