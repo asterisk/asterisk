@@ -216,6 +216,17 @@ struct ast_sip_session_supplement {
 	AST_LIST_ENTRY(ast_sip_session_supplement) next;
 };
 
+enum ast_sip_session_sdp_stream_defer {
+	/*! The stream was not handled by this handler. If there are other registered handlers for this stream type, they will be called. */
+	AST_SIP_SESSION_SDP_DEFER_NOT_HANDLED,
+	/*! There was an error encountered. No further operations will take place and the current negotiation will be abandoned. */
+	AST_SIP_SESSION_SDP_DEFER_ERROR,
+	/*! Re-invite is not needed */
+	AST_SIP_SESSION_SDP_DEFER_NOT_NEEDED,
+	/*! Re-invite should be deferred and will be resumed later. No further operations will take place. */
+	AST_SIP_SESSION_SDP_DEFER_NEEDED,
+};
+
 /*!
  * \brief A handler for SDPs in SIP sessions
  *
@@ -230,14 +241,17 @@ struct ast_sip_session_sdp_handler {
 	 * If a stream can not be immediately negotiated the re-invite can be deferred and
 	 * resumed at a later time. It is up to the handler which caused deferral to occur
 	 * to resume it.
+	 *
 	 * \param session The session for which the media is being re-invited
 	 * \param session_media The media being reinvited
-	 * \param sdp The entire SDP.
-	 * \retval 0 The stream was unhandled or does not need the re-invite to be deferred.
-	 * \retval 1 Re-invite should be deferred and will be resumed later. No further operations will take place.
+	 * \param sdp The entire SDP. Useful for getting "global" information, such as connections or attributes
+	 * \param stream PJSIP incoming SDP media lines to parse by handler.
+	 *
+	 * \return enum ast_sip_session_defer_stream
+	 *
 	 * \note This is optional, if not implemented the stream is assumed to not be deferred.
 	 */
-	int (*defer_incoming_sdp_stream)(struct ast_sip_session *session, struct ast_sip_session_media *session_media, const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream);
+	enum ast_sip_session_sdp_stream_defer (*defer_incoming_sdp_stream)(struct ast_sip_session *session, struct ast_sip_session_media *session_media, const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream);
 	/*!
 	 * \brief Set session details based on a stream in an incoming SDP offer or answer
 	 * \param session The session for which the media is being negotiated

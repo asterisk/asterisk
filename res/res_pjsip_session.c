@@ -337,6 +337,7 @@ static int validate_incoming_sdp(const pjmedia_sdp_session *sdp)
 static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
+
 	if (validate_incoming_sdp(sdp)) {
 		return -1;
 	}
@@ -347,6 +348,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
 		RAII_VAR(struct ast_sip_session_media *, session_media, NULL, ao2_cleanup);
+		int res;
 
 		/* We need a null-terminated version of the media string */
 		ast_copy_pj_str(media, &sdp->media[i]->desc.media, sizeof(media));
@@ -359,18 +361,15 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 		}
 
 		if (session_media->handler) {
-			int res;
 			handler = session_media->handler;
-			res = handler->negotiate_incoming_sdp_stream(
-				session, session_media, sdp, sdp->media[i]);
+			res = handler->negotiate_incoming_sdp_stream(session, session_media, sdp,
+				sdp->media[i]);
 			if (res <= 0) {
 				/* Catastrophic failure or ignored by assigned handler. Abort! */
 				return -1;
 			}
-			if (res > 0) {
-				/* Handled by this handler. Move to the next stream */
-				continue;
-			}
+			/* Handled by this handler. Move to the next stream */
+			continue;
 		}
 
 		handler_list = ao2_find(sdp_handlers, media, OBJ_KEY);
@@ -379,13 +378,8 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
-			int res;
-			if (session_media->handler) {
-				/* There is only one slot for this stream type and it has already been claimed
-				 * so it will go unhandled */
-				break;
-			}
-			res = handler->negotiate_incoming_sdp_stream(session, session_media, sdp, sdp->media[i]);
+			res = handler->negotiate_incoming_sdp_stream(session, session_media, sdp,
+				sdp->media[i]);
 			if (res < 0) {
 				/* Catastrophic failure. Abort! */
 				return -1;
@@ -420,6 +414,7 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 		char media[20];
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
+		int res;
 
 		if (!remote->media[i]) {
 			continue;
@@ -435,7 +430,8 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 
 		handler = session_media->handler;
 		if (handler) {
-			int res = handler->apply_negotiated_sdp_stream(session, session_media, local, local->media[i], remote, remote->media[i]);
+			res = handler->apply_negotiated_sdp_stream(session, session_media, local,
+				local->media[i], remote, remote->media[i]);
 			if (res >= 0) {
 				return CMP_MATCH;
 			}
@@ -448,7 +444,8 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
-			int res = handler->apply_negotiated_sdp_stream(session, session_media, local, local->media[i], remote, remote->media[i]);
+			res = handler->apply_negotiated_sdp_stream(session, session_media, local,
+				local->media[i], remote, remote->media[i]);
 			if (res < 0) {
 				/* Catastrophic failure. Abort! */
 				return 0;
@@ -807,6 +804,7 @@ static pjsip_module session_module = {
 static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
+
 	if (validate_incoming_sdp(sdp)) {
 		return 0;
 	}
@@ -817,6 +815,7 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 		struct ast_sip_session_sdp_handler *handler;
 		RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
 		RAII_VAR(struct ast_sip_session_media *, session_media, NULL, ao2_cleanup);
+		enum ast_sip_session_sdp_stream_defer res;
 
 		/* We need a null-terminated version of the media string */
 		ast_copy_pj_str(media, &sdp->media[i]->desc.media, sizeof(media));
@@ -828,14 +827,24 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 			continue;
 		}
 
-		if (session_media->handler && session_media->handler->defer_incoming_sdp_stream) {
-			int res;
+		if (session_media->handler) {
 			handler = session_media->handler;
-			res = handler->defer_incoming_sdp_stream(
-				session, session_media, sdp, sdp->media[i]);
-			if (res) {
-				return 1;
+			if (handler->defer_incoming_sdp_stream) {
+				res = handler->defer_incoming_sdp_stream(session, session_media, sdp,
+					sdp->media[i]);
+				switch (res) {
+				case AST_SIP_SESSION_SDP_DEFER_NOT_HANDLED:
+					break;
+				case AST_SIP_SESSION_SDP_DEFER_ERROR:
+					return 0;
+				case AST_SIP_SESSION_SDP_DEFER_NOT_NEEDED:
+					break;
+				case AST_SIP_SESSION_SDP_DEFER_NEEDED:
+					return 1;
+				}
 			}
+			/* Handled by this handler. Move to the next stream */
+			continue;
 		}
 
 		handler_list = ao2_find(sdp_handlers, media, OBJ_KEY);
@@ -844,19 +853,28 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
-			int res;
-			if (session_media->handler) {
-				/* There is only one slot for this stream type and it has already been claimed
-				 * so it will go unhandled */
-				break;
-			}
 			if (!handler->defer_incoming_sdp_stream) {
 				continue;
 			}
-			res = handler->defer_incoming_sdp_stream(session, session_media, sdp, sdp->media[i]);
-			if (res) {
+			res = handler->defer_incoming_sdp_stream(session, session_media, sdp,
+				sdp->media[i]);
+			switch (res) {
+			case AST_SIP_SESSION_SDP_DEFER_NOT_HANDLED:
+				continue;
+			case AST_SIP_SESSION_SDP_DEFER_ERROR:
+				session_media->handler = handler;
+				return 0;
+			case AST_SIP_SESSION_SDP_DEFER_NOT_NEEDED:
+				/* Handled by this handler. */
+				session_media->handler = handler;
+				break;
+			case AST_SIP_SESSION_SDP_DEFER_NEEDED:
+				/* Handled by this handler. */
+				session_media->handler = handler;
 				return 1;
 			}
+			/* Move to the next stream */
+			break;
 		}
 	}
 	return 0;
@@ -2003,10 +2021,12 @@ static int add_sdp_streams(void *obj, void *arg, void *data, int flags)
 	struct ast_sip_session *session = data;
 	struct ast_sip_session_sdp_handler *handler = session_media->handler;
 	RAII_VAR(struct sdp_handler_list *, handler_list, NULL, ao2_cleanup);
+	int res;
 
 	if (handler) {
 		/* if an already assigned handler does not handle the session_media or reports a catastrophic error, fail */
-		if (handler->create_outgoing_sdp_stream(session, session_media, answer) <= 0) {
+		res = handler->create_outgoing_sdp_stream(session, session_media, answer);
+		if (res <= 0) {
 			return 0;
 		}
 		return CMP_MATCH;
@@ -2019,13 +2039,14 @@ static int add_sdp_streams(void *obj, void *arg, void *data, int flags)
 
 	/* no handler for this stream type and we have a list to search */
 	AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
-		int res = handler->create_outgoing_sdp_stream(session, session_media, answer);
+		res = handler->create_outgoing_sdp_stream(session, session_media, answer);
 		if (res < 0) {
 			/* catastrophic error */
 			return 0;
 		}
 		if (res > 0) {
-			/* handled */
+			/* Handled by this handler. Move to the next stream */
+			session_media->handler = handler;
 			return CMP_MATCH;
 		}
 	}
