@@ -6384,10 +6384,10 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		}
 		d = d->next;
 	}
+	ast_mutex_unlock(&devicelock);
 	if (!(lt = ast_calloc(1, sizeof(*lt)))) {
 		return NULL;
 	}
-	ast_mutex_unlock(&devicelock);
 	if (create) {
 		if (!(d = ast_calloc(1, sizeof(*d)))) {
 			return NULL;
