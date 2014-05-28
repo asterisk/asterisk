@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 
 AST_THREADSTORAGE(sql_buf);
+AST_THREADSTORAGE(rowdata_buf);
 
 struct custom_prepare_struct {
 	const char *sql;
@@ -166,7 +167,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	SQLHSTMT stmt;
 	char sql[1024];
 	char coltitle[256];
-	char rowdata[2048];
+	struct ast_str *rowdata = ast_str_thread_get(&rowdata_buf, 128);
 	char *op;
 	const struct ast_variable *field = fields;
 	char *stringp;
@@ -237,7 +238,6 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		return NULL;
 	}
 	for (x = 0; x < colcount; x++) {
-		rowdata[0] = '\0';
 		colsize = 0;
 		collen = sizeof(coltitle);
 		res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
@@ -250,14 +250,25 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			return NULL;
 		}
 
+		ast_str_reset(rowdata);
 		indicator = 0;
-		res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &indicator);
-		if (indicator == SQL_NULL_DATA)
-			rowdata[0] = '\0';
-		else if (ast_strlen_zero(rowdata)) {
+
+		res = SQLGetData(stmt, x + 1, SQL_CHAR, ast_str_buffer(rowdata), ast_str_size(rowdata), &indicator);
+		ast_str_update(rowdata);
+		if (indicator == SQL_NULL_DATA) {
+			ast_str_reset(rowdata);
+		} else if (!ast_str_strlen(rowdata)) {
 			/* Because we encode the empty string for a NULL, we will encode
 			 * actual empty strings as a string containing a single whitespace. */
-			ast_copy_string(rowdata, " ", sizeof(rowdata));
+			ast_str_set(&rowdata, -1, "%s", " ");
+		} else if ((res == SQL_SUCCESS) || (res == SQL_SUCCESS_WITH_INFO)) {
+			if (indicator != ast_str_strlen(rowdata)) {
+				/* If the available space was not enough to contain the row data enlarge and read in the rest */
+				ast_str_make_space(&rowdata, indicator + 1);
+				res = SQLGetData(stmt, x + 1, SQL_CHAR, ast_str_buffer(rowdata) + ast_str_strlen(rowdata),
+					ast_str_size(rowdata) - ast_str_strlen(rowdata), &indicator);
+				ast_str_update(rowdata);
+			}
 		}
 
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -267,7 +278,8 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			ast_odbc_release_obj(obj);
 			return NULL;
 		}
-		stringp = rowdata;
+
+		stringp = ast_str_buffer(rowdata);
 		while (stringp) {
 			chunk = strsep(&stringp, ";");
 			if (!ast_strlen_zero(ast_strip(chunk))) {
@@ -311,7 +323,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	SQLHSTMT stmt;
 	char sql[1024];
 	char coltitle[256];
-	char rowdata[2048];
+	struct ast_str *rowdata = ast_str_thread_get(&rowdata_buf, 128);
 	const char *initfield;
 	char *op;
 	const struct ast_variable *field = fields;
@@ -397,7 +409,6 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			continue;
 		}
 		for (x=0;x<colcount;x++) {
-			rowdata[0] = '\0';
 			colsize = 0;
 			collen = sizeof(coltitle);
 			res = SQLDescribeCol(stmt, x + 1, (unsigned char *)coltitle, sizeof(coltitle), &collen, 
@@ -408,17 +419,31 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 				goto next_sql_fetch;
 			}
 
+			ast_str_reset(rowdata);
 			indicator = 0;
-			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &indicator);
-			if (indicator == SQL_NULL_DATA)
+
+			res = SQLGetData(stmt, x + 1, SQL_CHAR, ast_str_buffer(rowdata), ast_str_size(rowdata), &indicator);
+			ast_str_update(rowdata);
+			if (indicator == SQL_NULL_DATA) {
 				continue;
+			}
+
+			if ((res == SQL_SUCCESS) || (res == SQL_SUCCESS_WITH_INFO)) {
+				if (indicator != ast_str_strlen(rowdata)) {
+					/* If the available space was not enough to contain the row data enlarge and read in the rest */
+					ast_str_make_space(&rowdata, indicator + 1);
+					res = SQLGetData(stmt, x + 1, SQL_CHAR, ast_str_buffer(rowdata) + ast_str_strlen(rowdata),
+						ast_str_size(rowdata) - ast_str_strlen(rowdata), &indicator);
+					ast_str_update(rowdata);
+				}
+			}
 
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 				ast_category_destroy(cat);
 				goto next_sql_fetch;
 			}
-			stringp = rowdata;
+			stringp = ast_str_buffer(rowdata);
 			while (stringp) {
 				chunk = strsep(&stringp, ";");
 				if (!ast_strlen_zero(ast_strip(chunk))) {
@@ -799,15 +824,40 @@ static int destroy_odbc(const char *database, const char *table, const char *key
 	return -1;
 }
 
-
 struct config_odbc_obj {
 	char *sql;
 	unsigned long cat_metric;
 	char category[128];
 	char var_name[128];
-	char var_val[1024]; /* changed from 128 to 1024 via bug 8251 */
+	char *var_val;
+	unsigned long var_val_size;
 	SQLLEN err;
 };
+
+
+static SQLHSTMT length_determination_odbc_prepare(struct odbc_obj *obj, void *data)
+{
+	struct config_odbc_obj *q = data;
+	SQLHSTMT sth;
+	int res;
+
+	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &sth);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_verb(4, "Failure in AllocStatement %d\n", res);
+		return NULL;
+	}
+
+	res = SQLPrepare(sth, (unsigned char *)q->sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_verb(4, "Error in PREPARE %d\n", res);
+		SQLFreeHandle(SQL_HANDLE_STMT, sth);
+		return NULL;
+	}
+
+	SQLBindCol(sth, 1, SQL_C_ULONG, &q->var_val_size, sizeof(q->var_val_size), &q->err);
+
+	return sth;
+}
 
 static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 {
@@ -831,7 +881,7 @@ static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 	SQLBindCol(sth, 1, SQL_C_ULONG, &q->cat_metric, sizeof(q->cat_metric), &q->err);
 	SQLBindCol(sth, 2, SQL_C_CHAR, q->category, sizeof(q->category), &q->err);
 	SQLBindCol(sth, 3, SQL_C_CHAR, q->var_name, sizeof(q->var_name), &q->err);
-	SQLBindCol(sth, 4, SQL_C_CHAR, q->var_val, sizeof(q->var_val), &q->err);
+	SQLBindCol(sth, 4, SQL_C_CHAR, q->var_val, q->var_val_size, &q->err);
 
 	return sth;
 }
@@ -862,12 +912,11 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	if (!obj)
 		return NULL;
 
-	ast_build_string(&sql, &sqlleft, "SELECT cat_metric, category, var_name, var_val FROM %s ", table);
-	ast_build_string(&sql, &sqlleft, "WHERE filename='%s' AND commented=0 ", file);
-	ast_build_string(&sql, &sqlleft, "ORDER BY cat_metric DESC, var_metric ASC, category, var_name ");
 	q.sql = sqlbuf;
 
-	stmt = ast_odbc_prepare_and_execute(obj, config_odbc_prepare, &q);
+	ast_build_string(&sql, &sqlleft, "SELECT MAX(LENGTH(var_val)) FROM %s WHERE filename='%s'", table, file);
+
+	stmt = ast_odbc_prepare_and_execute(obj, length_determination_odbc_prepare, &q);
 
 	if (!stmt) {
 		ast_log(LOG_WARNING, "SQL select error!\n[%s]\n\n", sql);
@@ -890,6 +939,57 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 		return cfg;
 	}
 
+	/* There will be only one result for this, the maximum length of a variable value */
+	if (SQLFetch(stmt) == SQL_NO_DATA) {
+		ast_log(LOG_NOTICE, "Failed to determine maximum length of a configuration value\n");
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+		return NULL;
+	}
+
+	/* Reset stuff to a fresh state for the actual query which will retrieve all configuration */
+	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	sql = sqlbuf;
+	sqlleft = sizeof(sqlbuf);
+
+	ast_build_string(&sql, &sqlleft, "SELECT cat_metric, category, var_name, var_val FROM %s ", table);
+	ast_build_string(&sql, &sqlleft, "WHERE filename='%s' AND commented=0 ", file);
+	ast_build_string(&sql, &sqlleft, "ORDER BY cat_metric DESC, var_metric ASC, category, var_name ");
+
+	q.var_val_size += 1;
+	q.var_val = ast_malloc(q.var_val_size);
+	if (!q.var_val) {
+		ast_log(LOG_WARNING, "Could not create buffer for reading in configuration values for '%s'\n", file);
+		ast_odbc_release_obj(obj);
+		return NULL;
+	}
+
+	stmt = ast_odbc_prepare_and_execute(obj, config_odbc_prepare, &q);
+
+	if (!stmt) {
+		ast_log(LOG_WARNING, "SQL select error!\n[%s]\n\n", sql);
+		ast_odbc_release_obj(obj);
+		ast_free(q.var_val);
+		return NULL;
+	}
+
+	res = SQLNumResultCols(stmt, &rowcount);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL NumResultCols error!\n[%s]\n\n", sql);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		ast_odbc_release_obj(obj);
+		ast_free(q.var_val);
+		return NULL;
+	}
+
+	if (!rowcount) {
+		ast_log(LOG_NOTICE, "found nothing\n");
+		ast_odbc_release_obj(obj);
+		ast_free(q.var_val);
+		return cfg;
+	}
+
 	cur_cat = ast_config_get_current_category(cfg);
 
 	while ((res = SQLFetch(stmt)) != SQL_NO_DATA) {
@@ -897,6 +997,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 			if (!ast_config_internal_load(q.var_val, cfg, loader_flags, "", who_asked)) {
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				ast_odbc_release_obj(obj);
+				ast_free(q.var_val);
 				return NULL;
 			}
 			continue;
@@ -918,6 +1019,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
+	ast_free(q.var_val);
 	return cfg;
 }
 
