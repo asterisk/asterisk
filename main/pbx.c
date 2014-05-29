@@ -5247,7 +5247,11 @@ static int ast_add_hint(struct ast_exten *e)
 		return -1;
 	}
 	hint_new->exten = e;
-	hint_new->laststate = ast_extension_state2(e);
+	if (strstr(e->app, "${") && e->exten[0] == '_') {
+		hint_new->laststate = AST_DEVICE_INVALID;
+	} else {
+		hint_new->laststate = ast_extension_state2(e);
+	}
 
 	/* Prevent multiple add hints from adding the same hint at the same time. */
 	ao2_lock(hints);
@@ -6867,7 +6871,11 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 		struct ast_exten *e;
 		struct ast_include *i;
 		struct ast_ignorepat *ip;
+#ifndef LOW_MEMORY
+		char buf[1024], buf2[1024];
+#else
 		char buf[256], buf2[256];
+#endif
 		int context_info_printed = 0;
 
 		if (context && strcmp(ast_get_context_name(c), context))
