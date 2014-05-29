@@ -5752,12 +5752,18 @@ static int ast_add_hint(struct ast_exten *e)
 		return -1;
 	}
 	hint_new->exten = e;
-	hint_new->laststate = ast_extension_state2(e, NULL);
-	if ((presence_state = extension_presence_state_helper(e, &subtype, &message)) > 0) {
-		hint_new->last_presence_state = presence_state;
-		hint_new->last_presence_subtype = subtype;
-		hint_new->last_presence_message = message;
-		message = subtype = NULL;
+	if (strstr(e->app, "${") && e->exten[0] == '_') {
+		/* The hint is dynamic and hasn't been evaluted yet */
+		hint_new->laststate = AST_DEVICE_INVALID;
+		hint_new->last_presence_state = AST_PRESENCE_INVALID;
+	} else {
+		hint_new->laststate = ast_extension_state2(e, NULL);
+		if ((presence_state = extension_presence_state_helper(e, &subtype, &message)) > 0) {
+			hint_new->last_presence_state = presence_state;
+			hint_new->last_presence_subtype = subtype;
+			hint_new->last_presence_message = message;
+			message = subtype = NULL;
+		}
 	}
 
 	/* Prevent multiple add hints from adding the same hint at the same time. */
@@ -7750,7 +7756,11 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 		struct ast_exten *e;
 		struct ast_include *i;
 		struct ast_ignorepat *ip;
+#ifndef LOW_MEMORY
+		char buf[1024], buf2[1024];
+#else
 		char buf[256], buf2[256];
+#endif
 		int context_info_printed = 0;
 
 		if (context && strcmp(ast_get_context_name(c), context))
