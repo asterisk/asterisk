@@ -1168,7 +1168,7 @@ int ast_category_empty(struct ast_config *cfg, const char *category)
 	struct ast_category *cat;
 
 	for (cat = cfg->root; cat; cat = cat->next) {
-		if (!strcasecmp(cat->name, category))
+		if (strcasecmp(cat->name, category))
 			continue;
 		ast_variables_destroy(cat->root);
 		cat->root = NULL;
