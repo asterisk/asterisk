@@ -691,11 +691,16 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_sip_uri *target,
 	struct refer_progress *progress)
 {
-	const char *context = (session->channel ? pbx_builtin_getvar_helper(session->channel, "TRANSFER_CONTEXT") : "");
+	const char *context;
 	char exten[AST_MAX_EXTENSION];
 	struct refer_blind refer = { 0, };
 
+	if (!session->channel) {
+		return 404;
+	}
+
 	/* If no explicit transfer context has been provided use their configured context */
+	context = pbx_builtin_getvar_helper(session->channel, "TRANSFER_CONTEXT");
 	if (ast_strlen_zero(context)) {
 		context = session->endpoint->context;
 	}
