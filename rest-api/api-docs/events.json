@@ -159,6 +159,8 @@
 				"ChannelUserevent",
 				"ChannelHangupRequest",
 				"ChannelVarset",
+				"ChannelTalkingStarted",
+				"ChannelTalkingFinished",
 				"EndpointStateChange",
 				"Dial",
 				"StasisEnd",
@@ -569,6 +571,33 @@
 					"required": false,
 					"type": "Channel",
 					"description": "The channel on which the variable was set.\n\nIf missing, the variable is a global variable."
+				}
+			}
+		},
+		"ChannelTalkingStarted": {
+			"id": "ChannelTalkingStarted",
+			"description": "Talking was detected on the channel.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which talking started."
+				}
+			}
+		},
+		"ChannelTalkingFinished": {
+			"id": "ChannelTalkingFinished",
+			"description": "Talking is no longer detected on the channel.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel on which talking completed."
+				},
+				"duration": {
+					"required": true,
+					"type": "int",
+					"description": "The length of time, in milliseconds, that talking was detected on the channel"
 				}
 			}
 		},

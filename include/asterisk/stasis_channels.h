@@ -500,6 +500,22 @@ struct stasis_message_type *ast_channel_moh_start_type(void);
 struct stasis_message_type *ast_channel_moh_stop_type(void);
 
 /*!
+ * \since 12.4.0
+ * \brief Message type for a channel starting talking
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_talking_start(void);
+
+/*!
+ * \since 12.4.0
+ * \brief Message type for a channel stopping talking
+ *
+ * \retval A stasis message type
+ */
+struct stasis_message_type *ast_channel_talking_stop(void);
+
+/*!
  * \since 12
  * \brief Publish in the \ref ast_channel_topic or \ref ast_channel_topic_all
  * topics a stasis message for the channels involved in a dial operation.

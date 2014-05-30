@@ -791,6 +791,42 @@ int ast_ari_validate_channel_state_change(struct ast_json *json);
 ari_validator ast_ari_validate_channel_state_change_fn(void);
 
 /*!
+ * \brief Validator for ChannelTalkingFinished.
+ *
+ * Talking is no longer detected on the channel.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_channel_talking_finished(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_talking_finished().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_channel_talking_finished_fn(void);
+
+/*!
+ * \brief Validator for ChannelTalkingStarted.
+ *
+ * Talking was detected on the channel.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_channel_talking_started(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_talking_started().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_channel_talking_started_fn(void);
+
+/*!
  * \brief Validator for ChannelUserevent.
  *
  * User-generated event with additional user-defined fields in the object.
@@ -1270,6 +1306,17 @@ ari_validator ast_ari_validate_application_fn(void);
  * - bridge: Bridge (required)
  * - channel: Channel (required)
  * ChannelStateChange
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - channel: Channel (required)
+ * ChannelTalkingFinished
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - channel: Channel (required)
+ * - duration: int (required)
+ * ChannelTalkingStarted
  * - type: string (required)
  * - application: string (required)
  * - timestamp: Date

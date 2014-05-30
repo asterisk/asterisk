@@ -874,17 +874,15 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			}
 			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 			/* Feed in frame to manipulation. */
-			if (audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
-				/* XXX IGNORE FAILURE */
-
+			if (!audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
 				/* If the manipulation fails then the frame will be returned in its original state.
 				 * Since there are potentially more manipulator callbacks in the list, no action should
 				 * be taken here to exit early. */
+				 middle_frame_manipulated = 1;
 			}
 			ast_audiohook_unlock(audiohook);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
-		middle_frame_manipulated = 1;
 	}
 
 	/* ---Part_3: Decide what to do with the end_frame (whether to transcode or not) */

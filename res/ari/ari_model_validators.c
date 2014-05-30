@@ -3070,6 +3070,180 @@ ari_validator ast_ari_validate_channel_state_change_fn(void)
 	return ast_ari_validate_channel_state_change;
 }
 
+int ast_ari_validate_channel_talking_finished(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_channel = 0;
+	int has_duration = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingFinished field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingFinished field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingFinished field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingFinished field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("duration", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_duration = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingFinished field duration failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ChannelTalkingFinished has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingFinished missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingFinished missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingFinished missing required field channel\n");
+		res = 0;
+	}
+
+	if (!has_duration) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingFinished missing required field duration\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_channel_talking_finished_fn(void)
+{
+	return ast_ari_validate_channel_talking_finished;
+}
+
+int ast_ari_validate_channel_talking_started(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_channel = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingStarted field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingStarted field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingStarted field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelTalkingStarted field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ChannelTalkingStarted has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingStarted missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingStarted missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI ChannelTalkingStarted missing required field channel\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_channel_talking_started_fn(void)
+{
+	return ast_ari_validate_channel_talking_started;
+}
+
 int ast_ari_validate_channel_userevent(struct ast_json *json)
 {
 	int res = 1;
@@ -3647,6 +3821,12 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("ChannelStateChange", discriminator) == 0) {
 		return ast_ari_validate_channel_state_change(json);
 	} else
+	if (strcmp("ChannelTalkingFinished", discriminator) == 0) {
+		return ast_ari_validate_channel_talking_finished(json);
+	} else
+	if (strcmp("ChannelTalkingStarted", discriminator) == 0) {
+		return ast_ari_validate_channel_talking_started(json);
+	} else
 	if (strcmp("ChannelUserevent", discriminator) == 0) {
 		return ast_ari_validate_channel_userevent(json);
 	} else
@@ -3805,6 +3985,12 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("ChannelStateChange", discriminator) == 0) {
 		return ast_ari_validate_channel_state_change(json);
+	} else
+	if (strcmp("ChannelTalkingFinished", discriminator) == 0) {
+		return ast_ari_validate_channel_talking_finished(json);
+	} else
+	if (strcmp("ChannelTalkingStarted", discriminator) == 0) {
+		return ast_ari_validate_channel_talking_started(json);
 	} else
 	if (strcmp("ChannelUserevent", discriminator) == 0) {
 		return ast_ari_validate_channel_userevent(json);

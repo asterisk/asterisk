@@ -31,6 +31,26 @@ AgentRequest
    of the incoming caller.  The most likely reason this would happen is
    the agent did not acknowledge the call in time.
 
+AMI
+------------------
+ * New events have been added for the TALK_DETECT function. When the function
+   is used on a channel, ChannelTalkingStart/ChannelTalkingStop events will be
+   emitted to connected AMI clients indicating the start/stop of talking on
+   the channel.
+
+ARI
+------------------
+ * New event models have been aded for the TALK_DETECT function. When the
+   function is used on a channel, ChannelTalkingStarted/ChannelTalkingFinished
+   events will be emitted to connected WebSockets subscribed to the channel,
+   indicating the start/stop of talking on the channel.
+
+Functions
+------------------
+ * A new function, TALK_DETECT, has been added. When set on a channel, this
+   fucntion causes events indicating the starting/stoping of talking on said
+   channel to be emitted to both AMI and ARI clients.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.2.0 to Asterisk 12.3.0 ------------
 ------------------------------------------------------------------------------
