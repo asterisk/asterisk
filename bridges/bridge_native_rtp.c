@@ -103,13 +103,17 @@ static enum ast_rtp_glue_result native_rtp_bridge_get(struct ast_channel *c0, st
 		audio_glue1_res = AST_RTP_GLUE_RESULT_FORBID;
 	}
 
-	/* If any sort of bridge is forbidden just completely bail out and go back to generic bridging */
-	if (audio_glue0_res == AST_RTP_GLUE_RESULT_FORBID
-		|| audio_glue1_res == AST_RTP_GLUE_RESULT_FORBID) {
+	/* The order of preference is: forbid, local, and remote. */
+	if (audio_glue0_res == AST_RTP_GLUE_RESULT_FORBID ||
+		audio_glue1_res == AST_RTP_GLUE_RESULT_FORBID) {
+		/* If any sort of bridge is forbidden just completely bail out and go back to generic bridging */
 		return AST_RTP_GLUE_RESULT_FORBID;
+	} else if (audio_glue0_res == AST_RTP_GLUE_RESULT_LOCAL ||
+		audio_glue1_res == AST_RTP_GLUE_RESULT_LOCAL) {
+		return AST_RTP_GLUE_RESULT_LOCAL;
+	} else {
+		return AST_RTP_GLUE_RESULT_REMOTE;
 	}
-
-	return audio_glue0_res;
 }
 
 /*!
