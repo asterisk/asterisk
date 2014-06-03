@@ -93,7 +93,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Used in SQL templates to escape data which may contain single ticks 
 			<literal>'</literal> which are otherwise used to delimit data.</para>
-		  	<para>Example: SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'</para>
+			<para>Example: SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'</para>
 		</description>
 	</function>
  ***/
@@ -260,7 +260,10 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	}
 
 	ast_str_make_space(&buf, strlen(query->sql_write) * 2 + 300);
-	ast_str_make_space(&insertbuf, strlen(query->sql_insert) * 2 + 300);
+	/* We only get here if sql_write is set. sql_insert is optional however. */
+	if (query->sql_insert) {
+		ast_str_make_space(&insertbuf, strlen(query->sql_insert) * 2 + 300);
+	}
 
 	/* Parse our arguments */
 	t = value ? ast_strdupa(value) : "";
@@ -294,7 +297,9 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	pbx_builtin_pushvar_helper(chan, "VALUE", value ? value : "");
 
 	ast_str_substitute_variables(&buf, 0, chan, query->sql_write);
-	ast_str_substitute_variables(&insertbuf, 0, chan, query->sql_insert);
+	if (query->sql_insert) {
+		ast_str_substitute_variables(&insertbuf, 0, chan, query->sql_insert);
+	}
 
 	if (bogus_chan) {
 		chan = ast_channel_unref(chan);
@@ -345,44 +350,47 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 
 	if (stmt) {
 		SQLRowCount(stmt, &rows);
-	}
-
-	if (stmt && rows == 0 && ast_str_strlen(insertbuf) != 0) {
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-		if (obj && !transactional) {
-			ast_odbc_release_obj(obj);
-			obj = NULL;
-		}
 
-		for (transactional = 0, dsn = 0; dsn < 5; dsn++) {
-			if (!ast_strlen_zero(query->writehandle[dsn])) {
-				if (transactional) {
-					/* This can only happen second time through or greater. */
-					ast_log(LOG_WARNING, "Transactions do not work well with multiple DSNs for 'writehandle'\n");
-				} else if (obj) {
-					ast_odbc_release_obj(obj);
-					obj = NULL;
-				}
+		if (rows != 0) {
+			status = "SUCCESS";
 
-				if ((obj = ast_odbc_retrieve_transaction_obj(chan, query->writehandle[dsn]))) {
-					transactional = 1;
-				} else {
-					obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
-					transactional = 0;
+		} else if (query->sql_insert) {
+			if (obj && !transactional) {
+				ast_odbc_release_obj(obj);
+				obj = NULL;
+			}
+
+			for (transactional = 0, dsn = 0; dsn < 5; dsn++) {
+				if (!ast_strlen_zero(query->writehandle[dsn])) {
+					if (transactional) {
+						/* This can only happen second time through or greater. */
+						ast_log(LOG_WARNING, "Transactions do not work well with multiple DSNs for 'writehandle'\n");
+					} else if (obj) {
+						ast_odbc_release_obj(obj);
+						obj = NULL;
+					}
+
+					if ((obj = ast_odbc_retrieve_transaction_obj(chan, query->writehandle[dsn]))) {
+						transactional = 1;
+					} else {
+						obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
+						transactional = 0;
+					}
+					if (obj) {
+						stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(insertbuf));
+					}
 				}
-				if (obj) {
-					stmt = ast_odbc_direct_execute(obj, generic_execute, ast_str_buffer(insertbuf));
+				if (stmt) {
+					status = "FAILOVER";
+					SQLRowCount(stmt, &rows);
+					SQLCloseCursor(stmt);
+					SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+					break;
 				}
 			}
-			if (stmt) {
-				status = "FAILOVER";
-				SQLRowCount(stmt, &rows);
-				break;
-			}
 		}
-	} else if (stmt) {
-		status = "SUCCESS";
 	}
 
 	AST_RWLIST_UNLOCK(&queries);
@@ -397,10 +405,6 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		pbx_builtin_setvar_helper(chan, "ODBCSTATUS", status);
 	}
 
-	if (stmt) {
-		SQLCloseCursor(stmt);
-		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-	}
 	if (obj && !transactional) {
 		ast_odbc_release_obj(obj);
 		obj = NULL;
@@ -875,15 +879,16 @@ static int free_acf_query(struct acf_odbc_query *query)
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {
 	const char *tmp;
+	const char *tmp2;
 	int i;
 
 	if (!cfg || !catg) {
 		return EINVAL;
 	}
 
-	*query = ast_calloc(1, sizeof(struct acf_odbc_query));
-	if (! (*query))
+	if (!(*query = ast_calloc(1, sizeof(**query)))) {
 		return ENOMEM;
+	}
 
 	if (((tmp = ast_variable_retrieve(cfg, catg, "writehandle"))) || ((tmp = ast_variable_retrieve(cfg, catg, "dsn")))) {
 		char *tmp2 = ast_strdupa(tmp);
@@ -913,30 +918,46 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 			if (!ast_strlen_zero((*query)->writehandle[i]))
 				ast_copy_string((*query)->readhandle[i], (*query)->writehandle[i], sizeof((*query)->readhandle[i]));
 		}
- 	}
-
-	if ((tmp = ast_variable_retrieve(cfg, catg, "readsql")))
-		(*query)->sql_read = ast_strdup(tmp);
-	else if ((tmp = ast_variable_retrieve(cfg, catg, "read"))) {
-		ast_log(LOG_WARNING, "Parameter 'read' is deprecated for category %s.  Please use 'readsql' instead.\n", catg);
-		(*query)->sql_read = ast_strdup(tmp);
 	}
 
-	if (!ast_strlen_zero((*query)->sql_read) && ast_strlen_zero((*query)->readhandle[0])) {
+	if ((tmp = ast_variable_retrieve(cfg, catg, "readsql")) ||
+			(tmp2 = ast_variable_retrieve(cfg, catg, "read"))) {
+		if (!tmp) {
+			ast_log(LOG_WARNING, "Parameter 'read' is deprecated for category %s.  Please use 'readsql' instead.\n", catg);
+			tmp = tmp2;
+		}
+		if (*tmp != '\0') { /* non-empty string */
+			if (!((*query)->sql_read = ast_strdup(tmp))) {
+				free_acf_query(*query);
+				*query = NULL;
+				return ENOMEM;
+			}
+		}
+	}
+
+	if ((*query)->sql_read && ast_strlen_zero((*query)->readhandle[0])) {
 		free_acf_query(*query);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for reading: %s\n", catg);
 		return EINVAL;
 	}
 
-	if ((tmp = ast_variable_retrieve(cfg, catg, "writesql")))
-		(*query)->sql_write = ast_strdup(tmp);
-	else if ((tmp = ast_variable_retrieve(cfg, catg, "write"))) {
-		ast_log(LOG_WARNING, "Parameter 'write' is deprecated for category %s.  Please use 'writesql' instead.\n", catg);
-		(*query)->sql_write = ast_strdup(tmp);
+	if ((tmp = ast_variable_retrieve(cfg, catg, "writesql")) ||
+			(tmp2 = ast_variable_retrieve(cfg, catg, "write"))) {
+		if (!tmp) {
+			ast_log(LOG_WARNING, "Parameter 'write' is deprecated for category %s.  Please use 'writesql' instead.\n", catg);
+			tmp = tmp2;
+		}
+		if (*tmp != '\0') { /* non-empty string */
+			if (!((*query)->sql_write = ast_strdup(tmp))) {
+				free_acf_query(*query);
+				*query = NULL;
+				return ENOMEM;
+			}
+		}
 	}
 
-	if (!ast_strlen_zero((*query)->sql_write) && ast_strlen_zero((*query)->writehandle[0])) {
+	if ((*query)->sql_write && ast_strlen_zero((*query)->writehandle[0])) {
 		free_acf_query(*query);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for writing: %s\n", catg);
@@ -944,7 +965,13 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "insertsql"))) {
-		(*query)->sql_insert = ast_strdup(tmp);
+		if (*tmp != '\0') { /* non-empty string */
+			if (!((*query)->sql_insert = ast_strdup(tmp))) {
+				free_acf_query(*query);
+				*query = NULL;
+				return ENOMEM;
+			}
+		}
 	}
 
 	/* Allow escaping of embedded commas in fields to be turned off */
@@ -962,7 +989,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));
-	if (! (*query)->acf) {
+	if (!(*query)->acf) {
 		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
@@ -983,7 +1010,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		}
 	}
 
-	if (!((*query)->acf->name)) {
+	if (!(*query)->acf->name) {
 		free_acf_query(*query);
 		*query = NULL;
 		return ENOMEM;
@@ -1013,42 +1040,40 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return ENOMEM;
 	}
 
-	if (!ast_strlen_zero((*query)->sql_read) && !ast_strlen_zero((*query)->sql_write)) {
+	if ((*query)->sql_read && (*query)->sql_write) {
 		ast_string_field_build((*query)->acf, desc,
 					"Runs the following query, as defined in func_odbc.conf, performing\n"
-				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
+					"substitution of the arguments into the query as specified by ${ARG1},\n"
 					"${ARG2}, ... ${ARGn}.  When setting the function, the values are provided\n"
 					"either in whole as ${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
 					"%s"
-					"\nRead:\n%s\n\nWrite:\n%s\n%s%s%s",
-					ast_strlen_zero((*query)->sql_insert) ? "" :
+					"\nRead:\n%s\n\nWrite:\n%s%s%s",
+					(*query)->sql_insert ?
 						"If the write query affects no rows, the insert query will be\n"
-						"performed.\n",
+						"performed.\n" : "",
 					(*query)->sql_read,
 					(*query)->sql_write,
-					ast_strlen_zero((*query)->sql_insert) ? "" : "Insert:\n",
-					ast_strlen_zero((*query)->sql_insert) ? "" : (*query)->sql_insert,
-					ast_strlen_zero((*query)->sql_insert) ? "" : "\n");
-	} else if (!ast_strlen_zero((*query)->sql_read)) {
+					(*query)->sql_insert ? "\n\nInsert:\n" : "",
+					(*query)->sql_insert ? (*query)->sql_insert : "");
+	} else if ((*query)->sql_read) {
 		ast_string_field_build((*query)->acf, desc,
-						"Runs the following query, as defined in func_odbc.conf, performing\n"
-					   	"substitution of the arguments into the query as specified by ${ARG1},\n"
-						"${ARG2}, ... ${ARGn}.  This function may only be read, not set.\n\nSQL:\n%s\n",
-						(*query)->sql_read);
-	} else if (!ast_strlen_zero((*query)->sql_write)) {
-		ast_string_field_build((*query)->acf, desc,	
 					"Runs the following query, as defined in func_odbc.conf, performing\n"
-				   	"substitution of the arguments into the query as specified by ${ARG1},\n"
+					"substitution of the arguments into the query as specified by ${ARG1},\n"
+					"${ARG2}, ... ${ARGn}.  This function may only be read, not set.\n\nSQL:\n%s",
+					(*query)->sql_read);
+	} else if ((*query)->sql_write) {
+		ast_string_field_build((*query)->acf, desc,
+					"Runs the following query, as defined in func_odbc.conf, performing\n"
+					"substitution of the arguments into the query as specified by ${ARG1},\n"
 					"${ARG2}, ... ${ARGn}.  The values are provided either in whole as\n"
 					"${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
-					"This function may only be set.\n%sSQL:\n%s\n%s%s%s",
-					ast_strlen_zero((*query)->sql_insert) ? "" :
+					"This function may only be set.\n%s\nSQL:\n%s%s%s",
+					(*query)->sql_insert ?
 						"If the write query affects no rows, the insert query will be\n"
-						"performed.\n",
+						"performed.\n" : "",
 					(*query)->sql_write,
-					ast_strlen_zero((*query)->sql_insert) ? "" : "Insert:\n",
-					ast_strlen_zero((*query)->sql_insert) ? "" : (*query)->sql_insert,
-					ast_strlen_zero((*query)->sql_insert) ? "" : "\n");
+					(*query)->sql_insert ? "\n\nInsert:\n" : "",
+					(*query)->sql_insert ? (*query)->sql_insert : "");
 	} else {
 		free_acf_query(*query);
 		*query = NULL;
@@ -1062,15 +1087,11 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return ENOMEM;
 	}
 
-	if (ast_strlen_zero((*query)->sql_read)) {
-		(*query)->acf->read = NULL;
-	} else {
+	if ((*query)->sql_read) {
 		(*query)->acf->read = acf_odbc_read;
 	}
 
-	if (ast_strlen_zero((*query)->sql_write)) {
-		(*query)->acf->write = NULL;
-	} else {
+	if ((*query)->sql_write) {
 		(*query)->acf->write = acf_odbc_write;
 	}
 
@@ -1142,7 +1163,7 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 		return CLI_SHOWUSAGE;
 	}
 
-	if (ast_strlen_zero(query->sql_read)) {
+	if (!query->sql_read) {
 		ast_cli(a->fd, "The function %s has no readsql parameter.\n", a->argv[2]);
 		AST_RWLIST_UNLOCK(&queries);
 		return CLI_SUCCESS;
@@ -1355,11 +1376,14 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	}
 
-	if (ast_strlen_zero(query->sql_write)) {
+	if (!query->sql_write) {
 		ast_cli(a->fd, "The function %s has no writesql parameter.\n", a->argv[2]);
 		AST_RWLIST_UNLOCK(&queries);
 		return CLI_SUCCESS;
 	}
+
+	/* FIXME: The code below duplicates code found in acf_odbc_write but
+	 * lacks the newer sql_insert additions. */
 
 	ast_str_make_space(&sql, strlen(query->sql_write) * 2 + 300);
 
