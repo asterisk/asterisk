@@ -303,10 +303,12 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 
 	/* Don't try to do any direct media shenanigans on early bridges */
 	if ((rtp || vrtp || tpeer) && !ast_channel_is_bridged(chan)) {
+		ast_debug(4, "Disregarding setting RTP on %s: channel is not bridged\n", ast_channel_name(chan));
 		return 0;
 	}
 
 	if (nat_active && session->endpoint->media.direct_media.disable_on_nat) {
+		ast_debug(4, "Disregarding setting RTP on %s: NAT is active\n", ast_channel_name(chan));
 		return 0;
 	}
 
@@ -318,6 +320,7 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 	}
 
 	if (direct_media_mitigate_glare(session)) {
+		ast_debug(4, "Disregarding setting RTP on %s: mitigating re-INVITE glare\n", ast_channel_name(chan));
 		return 0;
 	}
 
@@ -329,7 +332,7 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 	if (changed) {
 		ao2_ref(session, +1);
 
-
+		ast_debug(4, "RTP changed on %s; initiating direct media update\n", ast_channel_name(chan));
 		if (ast_sip_push_task(session->serializer, send_direct_media_request, session)) {
 			ao2_cleanup(session);
 		}
