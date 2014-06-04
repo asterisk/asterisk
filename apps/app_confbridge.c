@@ -1593,17 +1593,24 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		goto confbridge_cleanup;
 	}
 
-	if (ast_strlen_zero(data)) {
+	/* We need to make a copy of the input string if we are going to modify it! */
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.conf_name)) {
 		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
 		ast_log(LOG_WARNING, "%s requires an argument (conference name[,options])\n", app);
 		res = -1;
 		goto confbridge_cleanup;
 	}
 
-	/* We need to make a copy of the input string if we are going to modify it! */
-	parse = ast_strdupa(data);
-
-	AST_STANDARD_APP_ARGS(args, parse);
+	if (strlen(args.conf_name) >= MAX_CONF_NAME) {
+		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
+		ast_log(LOG_WARNING, "%s does not accept conference names longer than %d\n", app, MAX_CONF_NAME - 1);
+		res = -1;
+		goto confbridge_cleanup;
+	}
 
 	/* bridge profile name */
 	if (args.argc > 1 && !ast_strlen_zero(args.b_profile_name)) {
