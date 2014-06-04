@@ -31,7 +31,7 @@
 #include "conf_state.h"
 
 /* Maximum length of a conference bridge name */
-#define MAX_CONF_NAME 32
+#define MAX_CONF_NAME AST_MAX_EXTENSION
 /* Maximum length of a conference pin */
 #define MAX_PIN     80
 
