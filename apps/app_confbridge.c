@@ -149,7 +149,7 @@ AST_APP_OPTIONS(app_opts,{
 });
 
 /* Maximum length of a conference bridge name */
-#define MAX_CONF_NAME 32
+#define MAX_CONF_NAME AST_MAX_EXTENSION
 
 /* Number of buckets our conference bridges container can have */
 #define CONFERENCE_BRIDGE_BUCKETS 53
@@ -735,15 +735,20 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 	);
 
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "%s requires an argument (conference name[,options])\n", app);
-		return -1;
-	}
-
 	/* We need to make a copy of the input string if we are going to modify it! */
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.conf_name)) {
+		ast_log(LOG_WARNING, "%s requires an argument (conference name[,options])\n", app);
+		return -1;
+	}
+
+	if (strlen(args.conf_name) >= MAX_CONF_NAME) {
+		ast_log(LOG_WARNING, "%s does not accept conference names longer than %d\n", app, MAX_CONF_NAME - 1);
+		return -1;
+	}
 
 	if (args.argc == 2) {
 		ast_app_parse_options(app_opts, &conference_bridge_user.flags, conference_bridge_user.opt_args, args.options);
