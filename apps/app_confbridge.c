@@ -2392,6 +2392,14 @@ static int generic_mute_unmute_helper(int mute, const char *conference, const ch
 			break;
 		}
 	}
+	if (!participant) {
+		/* user is not in the active list so check the waiting list as well */
+		AST_LIST_TRAVERSE(&bridge->waiting_list, participant, list) {
+			if (!strncmp(user, ast_channel_name(participant->chan), strlen(user))) {
+				break;
+			}
+		}
+	}
 	if (participant) {
 		/* Set user level mute request. */
 		participant->muted = mute ? 1 : 0;
