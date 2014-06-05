@@ -1467,6 +1467,38 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 	return res;
 }
 
+static void update_initial_connected_line(struct ast_sip_session *session)
+{
+	struct ast_party_connected_line connected;
+	struct ast_set_party_connected_line update_connected;
+	struct ast_sip_endpoint_id_configuration *id = &session->endpoint->id;
+
+	if (!id->self.number.valid && !id->self.name.valid) {
+		return;
+	}
+
+	/* Supply initial connected line information if available. */
+	memset(&update_connected, 0, sizeof(update_connected));
+	ast_party_connected_line_init(&connected);
+	connected.id.number = id->self.number;
+	connected.id.name = id->self.name;
+	connected.id.tag = id->self.tag;
+	connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+
+	if (connected.id.number.valid) {
+		update_connected.id.number = 1;
+	}
+
+	if (connected.id.name.valid) {
+		update_connected.id.name = 1;
+	}
+
+	/* Invalidate any earlier private connected id representation */
+	ast_set_party_id_all(&update_connected.priv);
+
+	ast_channel_queue_connected_line_update(session->channel, &connected, &update_connected);
+}
+
 static int call(void *data)
 {
 	struct ast_sip_session *session = data;
@@ -1477,6 +1509,7 @@ static int call(void *data)
 	if (res) {
 		ast_queue_hangup(session->channel);
 	} else {
+		update_initial_connected_line(session);
 		ast_sip_session_send_request(session, tdata);
 	}
 	ao2_ref(session, -1);
