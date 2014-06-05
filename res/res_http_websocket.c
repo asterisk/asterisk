@@ -37,12 +37,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/file.h"
 #include "asterisk/unaligned.h"
+#include "asterisk/uri.h"
 
 #define AST_API_MODULE
 #include "asterisk/http_websocket.h"
 
 /*! \brief GUID used to compute the accept key, defined in the specifications */
 #define WEBSOCKET_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
+/*! \brief Length of a websocket's client key */
+#define CLIENT_KEY_SIZE 16
 
 /*! \brief Number of buckets for registered protocols */
 #define MAX_PROTOCOL_BUCKETS 7
@@ -80,6 +84,7 @@ struct ast_websocket {
 	unsigned int secure:1;            /*!< Bit to indicate that the transport is secure */
 	unsigned int closing:1;           /*!< Bit to indicate that the session is in the process of being closed */
 	unsigned int close_sent:1;        /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
+	struct websocket_client *client;  /*!< Client object when connected as a client websocket */
 };
 
 /*! \brief Structure definition for protocols */
@@ -165,13 +170,13 @@ static void session_destroy_fn(void *obj)
 {
 	struct ast_websocket *session = obj;
 
-	ast_websocket_close(session, 0);
-
 	if (session->f) {
+		ast_websocket_close(session, 0);
 		fclose(session->f);
 		ast_verb(2, "WebSocket connection from '%s' closed\n", ast_sockaddr_stringify(&session->address));
 	}
 
+	ao2_cleanup(session->client);
 	ast_free(session->payload);
 }
 
@@ -578,6 +583,19 @@ static struct websocket_protocol *one_protocol(
 	return ao2_callback(server->protocols, OBJ_NOLOCK, NULL, NULL);
 }
 
+static char *websocket_combine_key(const char *key, char *res, int res_size)
+{
+	char *combined;
+	unsigned combined_length = strlen(key) + strlen(WEBSOCKET_GUID) + 1;
+	uint8_t sha[20];
+
+	combined = ast_alloca(combined_length);
+	snprintf(combined, combined_length, "%s%s", key, WEBSOCKET_GUID);
+	ast_sha1_hash_uint(sha, combined);
+	ast_base64encode(res, (const unsigned char*)sha, 20, res_size);
+	return res;
+}
+
 int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
 	struct ast_variable *v;
@@ -662,15 +680,9 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 
 	/* Determine how to respond depending on the version */
 	if (version == 7 || version == 8 || version == 13) {
-		/* Version 7 defined in specification http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07 */
-		/* Version 8 defined in specification http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10 */
-		/* Version 13 defined in specification http://tools.ietf.org/html/rfc6455 */
-		char *combined, base64[64];
-		unsigned combined_length;
-		uint8_t sha[20];
+		char base64[64];
 
-		combined_length = (key ? strlen(key) : 0) + strlen(WEBSOCKET_GUID) + 1;
-		if (!key || combined_length > 8192) { /* no stack overflows please */
+		if (!key || strlen(key) + strlen(WEBSOCKET_GUID) + 1 > 8192) { /* no stack overflows please */
 			fputs("HTTP/1.1 400 Bad Request\r\n"
 			      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
 			ao2_ref(protocol_handler, -1);
@@ -686,17 +698,12 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			return 0;
 		}
 
-		combined = ast_alloca(combined_length);
-		snprintf(combined, combined_length, "%s%s", key, WEBSOCKET_GUID);
-		ast_sha1_hash_uint(sha, combined);
-		ast_base64encode(base64, (const unsigned char*)sha, 20, sizeof(base64));
-
 		fprintf(ser->f, "HTTP/1.1 101 Switching Protocols\r\n"
 			"Upgrade: %s\r\n"
 			"Connection: Upgrade\r\n"
 			"Sec-WebSocket-Accept: %s\r\n",
 			upgrade,
-			base64);
+			websocket_combine_key(key, base64, sizeof(base64)));
 
 		/* RFC 6455, Section 4.1:
 		 *
@@ -842,6 +849,392 @@ int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_w
 		ast_module_unref(ast_module_info->self);
 	}
 	return res;
+}
+
+/*! \brief Parse the given uri into a path and remote address.
+ *
+ * Expected uri form: [ws[s]]://<host>[:port][/<path>]
+ *
+ * The returned host will contain the address and optional port while
+ * path will contain everything after the address/port if included.
+ */
+static int websocket_client_parse_uri(const char *uri, char **host, char **path)
+{
+	struct ast_uri *parsed_uri = ast_uri_parse_websocket(uri);
+
+	if (!parsed_uri) {
+		return -1;
+	}
+
+	*host = ast_uri_make_host_with_port(parsed_uri);
+
+	if (ast_uri_path(parsed_uri) && !(*path = ast_strdup(ast_uri_path(parsed_uri)))) {
+		ao2_ref(parsed_uri, -1);
+		return -1;
+	}
+
+	ao2_ref(parsed_uri, -1);
+	return 0;
+}
+
+static void websocket_client_args_destroy(void *obj)
+{
+	struct ast_tcptls_session_args *args = obj;
+
+	if (args->tls_cfg) {
+		ast_free(args->tls_cfg->certfile);
+		ast_free(args->tls_cfg->pvtfile);
+		ast_free(args->tls_cfg->cipher);
+		ast_free(args->tls_cfg->cafile);
+		ast_free(args->tls_cfg->capath);
+
+		ast_ssl_teardown(args->tls_cfg);
+	}
+	ast_free(args->tls_cfg);
+}
+
+static struct ast_tcptls_session_args *websocket_client_args_create(
+	const char *host, struct ast_tls_config *tls_cfg,
+	enum ast_websocket_result *result)
+{
+	struct ast_sockaddr *addr;
+	struct ast_tcptls_session_args *args = ao2_alloc(
+		sizeof(*args), websocket_client_args_destroy);
+
+	if (!args) {
+		*result = WS_ALLOCATE_ERROR;
+		return NULL;
+	}
+
+	args->accept_fd = -1;
+	args->tls_cfg = tls_cfg;
+	args->name = "websocket client";
+
+	if (!ast_sockaddr_resolve(&addr, host, 0, 0)) {
+		ast_log(LOG_ERROR, "Unable to resolve address %s\n",
+			host);
+		ao2_ref(args, -1);
+		*result = WS_URI_RESOLVE_ERROR;
+		return NULL;
+	}
+	ast_sockaddr_copy(&args->remote_address, addr);
+	ast_free(addr);
+	return args;
+}
+
+static char *websocket_client_create_key(void)
+{
+	static int encoded_size = CLIENT_KEY_SIZE * 2 * sizeof(char) + 1;
+	/* key is randomly selected 16-byte base64 encoded value */
+	unsigned char key[CLIENT_KEY_SIZE + sizeof(long) - 1];
+	char *encoded = ast_malloc(encoded_size);
+	long i = 0;
+
+	if (!encoded) {
+		ast_log(LOG_ERROR, "Unable to allocate client websocket key\n");
+		return NULL;
+	}
+
+	while (i < CLIENT_KEY_SIZE) {
+		long num = ast_random();
+		memcpy(key + i, &num, sizeof(long));
+		i += sizeof(long);
+	}
+
+	ast_base64encode(encoded, key, CLIENT_KEY_SIZE, encoded_size);
+	return encoded;
+}
+
+struct websocket_client {
+	/*! host portion of client uri */
+	char *host;
+	/*! path for logical websocket connection */
+	char *resource_name;
+	/*! unique key used during server handshaking */
+	char *key;
+	/*! container for registered protocols */
+	char *protocols;
+	/*! the protocol accepted by the server */
+	char *accept_protocol;
+	/*! websocket protocol version */
+	int version;
+	/*! tcptls connection arguments */
+	struct ast_tcptls_session_args *args;
+	/*! tcptls connection instance */
+	struct ast_tcptls_session_instance *ser;
+};
+
+static void websocket_client_destroy(void *obj)
+{
+	struct websocket_client *client = obj;
+
+	ao2_cleanup(client->ser);
+	ao2_cleanup(client->args);
+
+	ast_free(client->accept_protocol);
+	ast_free(client->protocols);
+	ast_free(client->key);
+	ast_free(client->resource_name);
+	ast_free(client->host);
+}
+
+static struct ast_websocket * websocket_client_create(
+	const char *uri, const char *protocols,	struct ast_tls_config *tls_cfg,
+	enum ast_websocket_result *result)
+{
+	struct ast_websocket *ws = ao2_alloc(sizeof(*ws), session_destroy_fn);
+
+	if (!ws) {
+		ast_log(LOG_ERROR, "Unable to allocate websocket\n");
+		*result = WS_ALLOCATE_ERROR;
+		return NULL;
+	}
+
+	if (!(ws->client = ao2_alloc(
+		      sizeof(*ws->client), websocket_client_destroy))) {
+		ast_log(LOG_ERROR, "Unable to allocate websocket client\n");
+		*result = WS_ALLOCATE_ERROR;
+		return NULL;
+	}
+
+	if (!(ws->client->key = websocket_client_create_key())) {
+		ao2_ref(ws, -1);
+		*result = WS_KEY_ERROR;
+		return NULL;
+	}
+
+	if (websocket_client_parse_uri(
+		    uri, &ws->client->host, &ws->client->resource_name)) {
+		ao2_ref(ws, -1);
+		*result = WS_URI_PARSE_ERROR;
+		return NULL;
+	}
+
+	if (!(ws->client->args = websocket_client_args_create(
+		      ws->client->host, tls_cfg, result))) {
+		ao2_ref(ws, -1);
+		return NULL;
+	}
+	ws->client->protocols = ast_strdup(protocols);
+
+	ws->client->version = 13;
+	ws->opcode = -1;
+	ws->reconstruct = DEFAULT_RECONSTRUCTION_CEILING;
+	return ws;
+}
+
+const char * AST_OPTIONAL_API_NAME(
+	ast_websocket_client_accept_protocol)(struct ast_websocket *ws)
+{
+	return ws->client->accept_protocol;
+}
+
+static enum ast_websocket_result websocket_client_handle_response_code(
+	struct websocket_client *client, int response_code)
+{
+	if (response_code <= 0) {
+		return WS_INVALID_RESPONSE;
+	}
+
+	switch (response_code) {
+	case 101:
+		return 0;
+	case 400:
+		ast_log(LOG_ERROR, "Received response 400 - Bad Request "
+			"- from %s\n", client->host);
+		return WS_BAD_REQUEST;
+	case 404:
+		ast_log(LOG_ERROR, "Received response 404 - Request URL not "
+			"found - from %s\n", client->host);
+		return WS_URL_NOT_FOUND;
+	}
+
+	ast_log(LOG_ERROR, "Invalid HTTP response code %d from %s\n",
+		response_code, client->host);
+	return WS_INVALID_RESPONSE;
+}
+
+static enum ast_websocket_result websocket_client_handshake_get_response(
+	struct websocket_client *client)
+{
+	enum ast_websocket_result res;
+	char buf[4096];
+	char base64[64];
+	int has_upgrade = 0;
+	int has_connection = 0;
+	int has_accept = 0;
+	int has_protocol = 0;
+
+	if (!fgets(buf, sizeof(buf), client->ser->f)) {
+		ast_log(LOG_ERROR, "Unable to retrieve HTTP status line.");
+		return WS_BAD_STATUS;
+	}
+
+	if ((res = websocket_client_handle_response_code(client,
+		    ast_http_response_status_line(
+			    buf, "HTTP/1.1", 101))) != WS_OK) {
+		return res;
+	}
+
+	/* Ignoring line folding - assuming header field values are contained
+	   within a single line */
+	while (fgets(buf, sizeof(buf), client->ser->f)) {
+		char *name, *value;
+		int parsed = ast_http_header_parse(buf, &name, &value);
+
+		if (parsed < 0) {
+			break;
+		}
+
+		if (parsed > 0) {
+			continue;
+		}
+
+		if (!has_upgrade &&
+		    (has_upgrade = ast_http_header_match(
+			    name, "upgrade", value, "websocket")) < 0) {
+			return WS_HEADER_MISMATCH;
+		} else if (!has_connection &&
+			   (has_connection = ast_http_header_match(
+				   name, "connection", value, "upgrade")) < 0) {
+			return WS_HEADER_MISMATCH;
+		} else if (!has_accept &&
+			   (has_accept = ast_http_header_match(
+				   name, "sec-websocket-accept", value,
+			    websocket_combine_key(
+				    client->key, base64, sizeof(base64)))) < 0) {
+			return WS_HEADER_MISMATCH;
+		} else if (!has_protocol &&
+			   (has_protocol = ast_http_header_match_in(
+				   name, "sec-websocket-protocol", value, client->protocols))) {
+			if (has_protocol < 0) {
+				return WS_HEADER_MISMATCH;
+			}
+			client->accept_protocol = ast_strdup(value);
+		} else if (!strcasecmp(name, "sec-websocket-extensions")) {
+			ast_log(LOG_ERROR, "Extensions received, but not "
+				"supported by client\n");
+			return WS_NOT_SUPPORTED;
+		}
+	}
+	return has_upgrade && has_connection && has_accept ?
+		WS_OK : WS_HEADER_MISSING;
+}
+
+static enum ast_websocket_result websocket_client_handshake(
+	struct websocket_client *client)
+{
+	char protocols[100] = "";
+
+	if (!ast_strlen_zero(client->protocols)) {
+		sprintf(protocols, "Sec-WebSocket-Protocol: %s\r\n",
+			client->protocols);
+	}
+
+	if (fprintf(client->ser->f,
+		    "GET /%s HTTP/1.1\r\n"
+		    "Sec-WebSocket-Version: %d\r\n"
+		    "Upgrade: websocket\r\n"
+		    "Connection: Upgrade\r\n"
+		    "Host: %s\r\n"
+		    "Sec-WebSocket-Key: %s\r\n"
+		    "%s\r\n",
+		    client->resource_name,
+		    client->version,
+		    client->host,
+		    client->key,
+		    protocols) < 0) {
+		ast_log(LOG_ERROR, "Failed to send handshake.\n");
+		return WS_WRITE_ERROR;
+	}
+	/* wait for a response before doing anything else */
+	return websocket_client_handshake_get_response(client);
+}
+
+static enum ast_websocket_result websocket_client_connect(struct ast_websocket *ws)
+{
+	enum ast_websocket_result res;
+	/* create and connect the client - note client_start
+	   releases the session instance on failure */
+	if (!(ws->client->ser = ast_tcptls_client_start(
+		      ast_tcptls_client_create(ws->client->args)))) {
+		return WS_CLIENT_START_ERROR;
+	}
+
+	if ((res = websocket_client_handshake(ws->client)) != WS_OK) {
+		ao2_ref(ws->client->ser, -1);
+		ws->client->ser = NULL;
+		return res;
+	}
+
+	ws->f = ws->client->ser->f;
+	ws->fd = ws->client->ser->fd;
+	ws->secure = ws->client->ser->ssl ? 1 : 0;
+	ast_sockaddr_copy(&ws->address, &ws->client->ser->remote_address);
+	return WS_OK;
+}
+
+struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
+	(const char *uri, const char *protocols, struct ast_tls_config *tls_cfg,
+	 enum ast_websocket_result *result)
+{
+	struct ast_websocket *ws = websocket_client_create(
+		uri, protocols, tls_cfg, result);
+
+	if (!ws) {
+		return NULL;
+	}
+
+	if ((*result = websocket_client_connect(ws)) != WS_OK) {
+		ao2_ref(ws, -1);
+		return NULL;
+	}
+
+	return ws;
+}
+
+int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
+	(struct ast_websocket *ws, struct ast_str **buf)
+{
+	char *payload;
+	uint64_t payload_len;
+	enum ast_websocket_opcode opcode;
+	int fragmented = 1;
+
+	if (!*buf && !(*buf = ast_str_create(512))) {
+		ast_log(LOG_ERROR, "Client Websocket string read - "
+			"Unable to allocate string buffer");
+		return -1;
+	}
+
+	while (fragmented) {
+		if (ast_websocket_read(ws, &payload, &payload_len,
+				       &opcode, &fragmented)) {
+			ast_log(LOG_ERROR, "Client WebSocket string read - "
+				"error reading string data\n");
+			return -1;
+		}
+
+		if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
+			return -1;
+		}
+
+		if (opcode != AST_WEBSOCKET_OPCODE_TEXT) {
+			ast_log(LOG_ERROR, "Client WebSocket string read - "
+				"non string data received\n");
+			return -1;
+		}
+
+		ast_str_append(buf, 0, "%s", payload);
+	}
+	return ast_str_size(*buf);
+}
+
+int AST_OPTIONAL_API_NAME(ast_websocket_write_string)
+	(struct ast_websocket *ws, const struct ast_str *buf)
+{
+	return ast_websocket_write(ws, AST_WEBSOCKET_OPCODE_TEXT,
+				   ast_str_buffer(buf), ast_str_strlen(buf));
 }
 
 static int load_module(void)

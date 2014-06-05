@@ -26,7 +26,15 @@
 
 /*!
  * \file http_websocket.h
- * \brief Support for WebSocket connections within the Asterisk HTTP server.
+ * \brief Support for WebSocket connections within the Asterisk HTTP server and client
+ *        WebSocket connections to a server.
+ *
+ * Supported WebSocket versions in server implementation:
+ *     Version 7 defined in specification http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07
+ *     Version 8 defined in specification http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10
+ *     Version 13 defined in specification http://tools.ietf.org/html/rfc6455
+ * Supported WebSocket versions in client implementation:
+ *     Version 13 defined in specification http://tools.ietf.org/html/rfc6455
  *
  * \author Joshua Colp <jcolp@digium.com>
  *
@@ -146,6 +154,20 @@ AST_OPTIONAL_API(int, ast_websocket_server_remove_protocol, (struct ast_websocke
 AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented), { errno = ENOSYS; return -1;});
 
 /*!
+ * \brief Read a WebSocket frame containing string data.
+ *
+ * \param ws pointer to the websocket
+ * \param buf string buffer to populate with data read from socket
+ * \retval -1 on error
+ * \retval number of bytes read on success
+ *
+ * \note Once an AST_WEBSOCKET_OPCODE_CLOSE opcode is received the socket will be closed
+ */
+AST_OPTIONAL_API(int, ast_websocket_read_string,
+		 (struct ast_websocket *ws, struct ast_str **buf),
+		 { errno = ENOSYS; return -1;});
+
+/*!
  * \brief Construct and transmit a WebSocket frame
  *
  * \param session Pointer to the WebSocket session
@@ -158,6 +180,17 @@ AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char *
  */
 AST_OPTIONAL_API(int, ast_websocket_write, (struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length), { errno = ENOSYS; return -1;});
 
+/*!
+ * \brief Construct and transmit a WebSocket frame containing string data.
+ *
+ * \param ws pointer to the websocket
+ * \param buf string data to write to socket
+ * \retval 0 if successfully written
+ * \retval -1 if error occurred
+ */
+AST_OPTIONAL_API(int, ast_websocket_write_string,
+		 (struct ast_websocket *ws, const struct ast_str *buf),
+		 { errno = ENOSYS; return -1;});
 /*!
  * \brief Close a WebSocket session by sending a message with the CLOSE opcode and an optional code
  *
@@ -234,4 +267,59 @@ AST_OPTIONAL_API(int, ast_websocket_is_secure, (struct ast_websocket *session), 
  */
 AST_OPTIONAL_API(int, ast_websocket_set_nonblock, (struct ast_websocket *session), { errno = ENOSYS; return -1;});
 
+/*!
+ * \brief Result code for a websocket client.
+ */
+enum ast_websocket_result {
+	WS_OK,
+	WS_ALLOCATE_ERROR,
+	WS_KEY_ERROR,
+	WS_URI_PARSE_ERROR,
+	WS_URI_RESOLVE_ERROR,
+	WS_BAD_STATUS,
+	WS_INVALID_RESPONSE,
+	WS_BAD_REQUEST,
+	WS_URL_NOT_FOUND,
+	WS_HEADER_MISMATCH,
+	WS_HEADER_MISSING,
+	WS_NOT_SUPPORTED,
+	WS_WRITE_ERROR,
+	WS_CLIENT_START_ERROR,
+};
+
+/*!
+ * \brief Create, and connect, a websocket client.
+ *
+ * \detail If the client websocket successfully connects, then the accepted protocol
+ *         can be checked via a call to ast_websocket_client_accept_protocol.
+ *
+ * \note While connecting this *will* block until a response is
+ *       received from the remote host.
+ * \note Expected uri form: ws[s]://<address>[:port][/<path>] The address (can be a
+ *       host name) and port are parsed out and used to connect to the remote server.
+ *       If multiple IPs are returned during address resolution then the first one is
+ *       chosen.
+ *
+ * \param uri uri to connect to
+ * \param protocols a comma separated string of supported protocols
+ * \param tls_cfg secure websocket credentials
+ * \param result result code set on client failure
+ * \retval a client websocket.
+ * \retval NULL if object could not be created or connected
+ * \since 13
+ */
+AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create,
+		 (const char *uri, const char *protocols,
+		  struct ast_tls_config *tls_cfg,
+		  enum ast_websocket_result *result), { return NULL;});
+
+/*!
+ * \brief Retrieve the server accepted sub-protocol on the client.
+ *
+ * \param ws the websocket client
+ * \retval the accepted client sub-protocol.
+ * \since 13
+ */
+AST_OPTIONAL_API(const char *, ast_websocket_client_accept_protocol,
+		 (struct ast_websocket *ws), { return NULL;});
 #endif

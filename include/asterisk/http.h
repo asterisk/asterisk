@@ -225,4 +225,63 @@ struct ast_json;
 struct ast_json *ast_http_get_json(
 	struct ast_tcptls_session_instance *ser, struct ast_variable *headers);
 
+/*!\brief Parse the http response status line.
+ *
+ * \param buf the http response line information
+ * \param version the expected http version (e.g. HTTP/1.1)
+ * \param code the expected status code
+ * \return -1 if version didn't match or status code conversion fails.
+ * \return status code (>0)
+ * \since 13
+ */
+int ast_http_response_status_line(const char *buf, const char *version, int code);
+
+/*!\brief Parse a header into the given name/value strings.
+ *
+ * \note This modifies the given buffer and the out parameters point (not
+ *       allocated) to the start of the header name and header value,
+ *       respectively.
+ *
+ * \param buf a string containing the name/value to point to
+ * \param name out parameter pointing to the header name
+ * \param value out parameter pointing to header value
+ * \return -1 if buf is empty
+ * \return 0 if buf could be separated into into name and value
+ * \return 1 if name or value portion don't exist
+ * \since 13
+ */
+int ast_http_header_parse(char *buf, char **name, char **value);
+
+/*!\brief Check if the header and value match (case insensitive) their
+ *        associated expected values.
+ *
+ * \param name header name to check
+ * \param expected_name the expected name of the header
+ * \param value header value to check
+ * \param expected_value the expected value of the header
+ * \return 0 if the name and expected name do not match
+ * \return -1 if the value and expected value do not match
+ * \return 1 if the both the name and value match their expected value
+ * \since 13
+ */
+int ast_http_header_match(const char *name, const char *expected_name,
+			  const char *value, const char *expected_value);
+
+/*!\brief Check if the header name matches the expected header name.  If so,
+ *        then check to see if the value can be located in the expected value.
+ *
+ * \note Both header and value checks are case insensitive.
+ *
+ * \param name header name to check
+ * \param expected_name the expected name of the header
+ * \param value header value to check if in expected value
+ * \param expected_value the expected value(s)
+ * \return 0 if the name and expected name do not match
+ * \return -1 if the value and is not in the expected value
+ * \return 1 if the name matches expected name and value is in expected value
+ * \since 13
+ */
+int ast_http_header_match_in(const char *name, const char *expected_name,
+			     const char *value, const char *expected_value);
+
 #endif /* _ASTERISK_SRV_H */

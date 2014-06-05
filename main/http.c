@@ -1176,6 +1176,113 @@ struct ast_http_auth *ast_http_get_auth(struct ast_variable *headers)
 	return NULL;
 }
 
+int ast_http_response_status_line(const char *buf, const char *version, int code)
+{
+	int status_code;
+	size_t size = strlen(version);
+
+	if (strncmp(buf, version, size) || buf[size] != ' ') {
+		ast_log(LOG_ERROR, "HTTP version not supported - "
+			"expected %s\n", version);
+		return -1;
+	}
+
+	/* skip to status code (version + space) */
+	buf += size + 1;
+
+	if (sscanf(buf, "%d", &status_code) != 1) {
+		ast_log(LOG_ERROR, "Could not read HTTP status code - "
+			"%s\n", buf);
+		return -1;
+	}
+
+	return status_code;
+}
+
+static void remove_excess_lws(char *s)
+{
+	char *p, *res = s;
+	char *buf = ast_malloc(strlen(s) + 1);
+	char *buf_end;
+
+	if (!buf) {
+		return;
+	}
+
+	buf_end = buf;
+
+	while (*s && *(s = ast_skip_blanks(s))) {
+		p = s;
+		s = ast_skip_nonblanks(s);
+
+		if (buf_end != buf) {
+			*buf_end++ = ' ';
+		}
+
+		memcpy(buf_end, p, s - p);
+		buf_end += s - p;
+	}
+	*buf_end = '\0';
+	/* safe since buf will always be less than or equal to res */
+	strcpy(res, buf);
+	ast_free(buf);
+}
+
+int ast_http_header_parse(char *buf, char **name, char **value)
+{
+	ast_trim_blanks(buf);
+	if (ast_strlen_zero(buf)) {
+		return -1;
+	}
+
+	*value = buf;
+	*name = strsep(value, ":");
+	if (!*value) {
+		return 1;
+	}
+
+	*value = ast_skip_blanks(*value);
+	if (ast_strlen_zero(*value) || ast_strlen_zero(*name)) {
+		return 1;
+	}
+
+	remove_excess_lws(*value);
+	return 0;
+}
+
+int ast_http_header_match(const char *name, const char *expected_name,
+			  const char *value, const char *expected_value)
+{
+	if (strcasecmp(name, expected_name)) {
+		/* no value to validate if names don't match */
+		return 0;
+	}
+
+	if (strcasecmp(value, expected_value)) {
+		ast_log(LOG_ERROR, "Invalid header value - expected %s "
+			"received %s", value, expected_value);
+		return -1;
+	}
+	return 1;
+}
+
+int ast_http_header_match_in(const char *name, const char *expected_name,
+			     const char *value, const char *expected_value)
+{
+	if (strcasecmp(name, expected_name)) {
+		/* no value to validate if names don't match */
+		return 0;
+	}
+
+	if (!strcasestr(expected_value, value)) {
+		ast_log(LOG_ERROR, "Header '%s' - could not locate '%s' "
+			"in '%s'\n", name, value, expected_value);
+		return -1;
+
+	}
+	return 1;
+}
+
 /*! Limit the number of request headers in case the sender is being ridiculous. */
 #define MAX_HTTP_REQUEST_HEADERS	100
 
