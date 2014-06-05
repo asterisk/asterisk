@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
 	<replacement>func_callerid</replacement>
  ***/
 

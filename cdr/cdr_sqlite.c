@@ -37,6 +37,7 @@
 /*** MODULEINFO
 	<depend>sqlite</depend>
 	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
 	<replacement>sqlite3_custom</replacement>
  ***/
 

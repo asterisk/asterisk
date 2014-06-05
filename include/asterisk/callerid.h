@@ -400,6 +400,7 @@ enum AST_REDIRECTING_REASON {
 	AST_REDIRECTING_REASON_OUT_OF_ORDER,
 	AST_REDIRECTING_REASON_AWAY,
 	AST_REDIRECTING_REASON_CALL_FWD_DTE,           /* This is something defined in Q.931, and no I don't know what it means */
+	AST_REDIRECTING_REASON_SEND_TO_VM,
 };
 
 /*!

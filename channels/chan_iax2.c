@@ -1351,6 +1351,8 @@ static int iax2_is_control_frame_allowed(int subtype)
 		/* This frame would cause the call to unexpectedly hangup. */
 	case AST_CONTROL_UPDATE_RTP_PEER:
 		/* Only meaningful across a bridge on this machine for direct-media exchange. */
+	case AST_CONTROL_CUSTOM:
+		/* Only meaningful to interested local channel drivers, of which IAX2 is not */
 		break;
 	}
 	return is_allowed;

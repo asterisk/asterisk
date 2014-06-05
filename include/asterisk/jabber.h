@@ -157,6 +157,7 @@ struct aji_client {
 	char name_space[256];
 	char sid[10]; /* Session ID */
 	char mid[6]; /* Message ID */
+	char context[AST_MAX_CONTEXT];
 	iksid *jid;
 	iksparser *p;
 	iksfilter *f;
@@ -179,6 +180,7 @@ struct aji_client {
 	int message_timeout;
 	int authorized;
 	int distribute_events;
+	int send_to_dialplan;
 	struct ast_flags flags;
 	int component; /* 0 client,  1 component */
 	struct aji_buddy_container buddies;

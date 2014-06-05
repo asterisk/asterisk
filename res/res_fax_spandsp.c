@@ -29,6 +29,7 @@
 	<depend>spandsp</depend>
 	<depend>res_fax</depend>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
 ***/
 
 #include "asterisk.h"

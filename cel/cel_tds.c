@@ -57,6 +57,7 @@ CREATE TABLE [dbo].[cdr] (
 /*** MODULEINFO
 	<depend>freetds</depend>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
