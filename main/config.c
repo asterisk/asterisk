@@ -1687,9 +1687,14 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	/*! Growable string buffer */
 	struct ast_str *comment_buffer = NULL;	/*!< this will be a comment collector.*/
 	struct ast_str *lline_buffer = NULL;	/*!< A buffer for stuff behind the ; */
+#ifdef AST_INCLUDE_GLOB
+	int glob_ret;
+	glob_t globbuf;
+#endif
 
-	if (cfg)
+	if (cfg) {
 		cat = ast_config_get_current_category(cfg);
+	}
 
 	if (filename[0] == '/') {
 		ast_copy_string(fn, filename, sizeof(fn));
@@ -1699,8 +1704,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 
 	if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
 		comment_buffer = ast_str_create(CB_SIZE);
-		if (comment_buffer)
+		if (comment_buffer) {
 			lline_buffer = ast_str_create(CB_SIZE);
+		}
 		if (!lline_buffer) {
 			ast_free(comment_buffer);
 			ast_log(LOG_ERROR, "Failed to initialize the comment buffer!\n");
@@ -1708,273 +1714,284 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 	}
 #ifdef AST_INCLUDE_GLOB
-	{
-		int glob_ret;
-		glob_t globbuf;
+	globbuf.gl_offs = 0;	/* initialize it to silence gcc */
+	glob_ret = glob(fn, MY_GLOB_FLAGS, NULL, &globbuf);
+	if (glob_ret == GLOB_NOSPACE) {
+		ast_log(LOG_WARNING,
+			"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
+	} else if (glob_ret  == GLOB_ABORTED) {
+		ast_log(LOG_WARNING,
+			"Glob Expansion of pattern '%s' failed: Read error\n", fn);
+	} else {
+		/* loop over expanded files */
+		int i;
 
-		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
-		glob_ret = glob(fn, MY_GLOB_FLAGS, NULL, &globbuf);
-		if (glob_ret == GLOB_NOSPACE) {
-			ast_log(LOG_WARNING,
-				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
-		} else if (glob_ret  == GLOB_ABORTED) {
-			ast_log(LOG_WARNING,
-				"Glob Expansion of pattern '%s' failed: Read error\n", fn);
-		} else {
-			/* loop over expanded files */
-			int i;
-
-			if (!cfg && (globbuf.gl_pathc != 1 || strcmp(fn, globbuf.gl_pathv[0]))) {
-				/*
-				 * We just want a file changed answer and since we cannot
-				 * tell if a file was deleted with wildcard matching we will
-				 * assume that something has always changed.  Also without
-				 * a lot of refactoring we couldn't check more than one file
-				 * for changes in the glob loop anyway.
-				 */
-				globfree(&globbuf);
-				ast_free(comment_buffer);
-				ast_free(lline_buffer);
-				return NULL;
-			}
-			for (i=0; i<globbuf.gl_pathc; i++) {
-				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
+		if (!cfg && (globbuf.gl_pathc != 1 || strcmp(fn, globbuf.gl_pathv[0]))) {
+			/*
+			 * We just want a file changed answer and since we cannot
+			 * tell if a file was deleted with wildcard matching we will
+			 * assume that something has always changed.  Also without
+			 * a lot of refactoring we couldn't check more than one file
+			 * for changes in the glob loop anyway.
+			 */
+			globfree(&globbuf);
+			ast_free(comment_buffer);
+			ast_free(lline_buffer);
+			return NULL;
+		}
+		for (i=0; i<globbuf.gl_pathc; i++) {
+			ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
-	/*
-	 * The following is not a loop, but just a convenient way to define a block
-	 * (using do { } while(0) ), and be able to exit from it with 'continue'
-	 * or 'break' in case of errors. Nice trick.
-	 */
-	do {
-		if (stat(fn, &statbuf)) {
-			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
-				config_cache_remove(fn, who_asked);
-			}
-			continue;
-		}
+			/*
+			 * The following is not a loop, but just a convenient way to define a block
+			 * (using do { } while(0) ), and be able to exit from it with 'continue'
+			 * or 'break' in case of errors. Nice trick.
+			 */
+			do {
+				if (stat(fn, &statbuf)) {
+					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
+						config_cache_remove(fn, who_asked);
+					}
+					continue;
+				}
 
-		if (!S_ISREG(statbuf.st_mode)) {
-			ast_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
-			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
-				config_cache_remove(fn, who_asked);
-			}
-			continue;
-		}
+				if (!S_ISREG(statbuf.st_mode)) {
+					ast_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
+					if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
+						config_cache_remove(fn, who_asked);
+					}
+					continue;
+				}
 
-		if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
-			/* Find our cached entry for this configuration file */
-			AST_LIST_LOCK(&cfmtime_head);
-			AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
-				if (!strcmp(cfmtime->filename, fn) && !strcmp(cfmtime->who_asked, who_asked))
-					break;
-			}
-			if (!cfmtime) {
-				cfmtime = cfmtime_new(fn, who_asked);
-				if (!cfmtime) {
+				if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
+					/* Find our cached entry for this configuration file */
+					AST_LIST_LOCK(&cfmtime_head);
+					AST_LIST_TRAVERSE(&cfmtime_head, cfmtime, list) {
+						if (!strcmp(cfmtime->filename, fn) && !strcmp(cfmtime->who_asked, who_asked)) {
+							break;
+						}
+					}
+					if (!cfmtime) {
+						cfmtime = cfmtime_new(fn, who_asked);
+						if (!cfmtime) {
+							AST_LIST_UNLOCK(&cfmtime_head);
+							continue;
+						}
+						/* Note that the file mtime is initialized to 0, i.e. 1970 */
+						AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
+					}
+				}
+
+				if (cfmtime
+					&& !cfmtime->has_exec
+					&& !cfmstat_cmp(cfmtime, &statbuf)
+					&& ast_test_flag(&flags, CONFIG_FLAG_FILEUNCHANGED)) {
+					int unchanged = 1;
+
+					/* File is unchanged, what about the (cached) includes (if any)? */
+					AST_LIST_TRAVERSE(&cfmtime->includes, cfinclude, list) {
+						if (!config_text_file_load(NULL, NULL, cfinclude->include,
+							NULL, flags, "", who_asked)) {
+							/* One change is enough to short-circuit and reload the whole shebang */
+							unchanged = 0;
+							break;
+						}
+					}
+
+					if (unchanged) {
+						AST_LIST_UNLOCK(&cfmtime_head);
+#ifdef AST_INCLUDE_GLOB
+						globfree(&globbuf);
+#endif
+						ast_free(comment_buffer);
+						ast_free(lline_buffer);
+						return CONFIG_STATUS_FILEUNCHANGED;
+					}
+				}
+
+				/* If cfg is NULL, then we just want a file changed answer. */
+				if (cfg == NULL) {
+					if (cfmtime) {
+						AST_LIST_UNLOCK(&cfmtime_head);
+					}
+					continue;
+				}
+
+				if (cfmtime) {
+					/* Forget about what we thought we knew about this file's includes. */
+					cfmtime->has_exec = 0;
+					config_cache_flush_includes(cfmtime);
+
+					cfmstat_save(cfmtime, &statbuf);
 					AST_LIST_UNLOCK(&cfmtime_head);
+				}
+
+				if (!(f = fopen(fn, "r"))) {
+					ast_debug(1, "No file to parse: %s\n", fn);
+					ast_verb(2, "Parsing '%s': Not found (%s)\n", fn, strerror(errno));
 					continue;
 				}
-				/* Note that the file mtime is initialized to 0, i.e. 1970 */
-				AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
-			}
-		}
-
-		if (cfmtime
-			&& !cfmtime->has_exec
-			&& !cfmstat_cmp(cfmtime, &statbuf)
-			&& ast_test_flag(&flags, CONFIG_FLAG_FILEUNCHANGED)) {
-			int unchanged = 1;
-
-			/* File is unchanged, what about the (cached) includes (if any)? */
-			AST_LIST_TRAVERSE(&cfmtime->includes, cfinclude, list) {
-				if (!config_text_file_load(NULL, NULL, cfinclude->include,
-					NULL, flags, "", who_asked)) {
-					/* One change is enough to short-circuit and reload the whole shebang */
-					unchanged = 0;
-					break;
-				}
-			}
-
-			if (unchanged) {
-				AST_LIST_UNLOCK(&cfmtime_head);
-#ifdef AST_INCLUDE_GLOB
-				globfree(&globbuf);
-#endif
-				ast_free(comment_buffer);
-				ast_free(lline_buffer);
-				return CONFIG_STATUS_FILEUNCHANGED;
-			}
-		}
-
-		/* If cfg is NULL, then we just want a file changed answer. */
-		if (cfg == NULL) {
-			if (cfmtime) {
-				AST_LIST_UNLOCK(&cfmtime_head);
-			}
-			continue;
-		}
-
-		if (cfmtime) {
-			/* Forget about what we thought we knew about this file's includes. */
-			cfmtime->has_exec = 0;
-			config_cache_flush_includes(cfmtime);
-
-			cfmstat_save(cfmtime, &statbuf);
-			AST_LIST_UNLOCK(&cfmtime_head);
-		}
-
-		if (!(f = fopen(fn, "r"))) {
-			ast_debug(1, "No file to parse: %s\n", fn);
-			ast_verb(2, "Parsing '%s': Not found (%s)\n", fn, strerror(errno));
-			continue;
-		}
-		count++;
-		/* If we get to this point, then we're loading regardless */
-		ast_clear_flag(&flags, CONFIG_FLAG_FILEUNCHANGED);
-		ast_debug(1, "Parsing %s\n", fn);
-		ast_verb(2, "Parsing '%s': Found\n", fn);
-		while (!feof(f)) {
-			lineno++;
-			if (fgets(buf, sizeof(buf), f)) {
-				/* Skip lines that are too long */
-				if (strlen(buf) == sizeof(buf) - 1 && buf[sizeof(buf) - 1] != '\n') {
-					ast_log(LOG_WARNING, "Line %d too long, skipping. It begins with: %.32s...\n", lineno, buf);
-					while (fgets(buf, sizeof(buf), f)) {
-						if (strlen(buf) != sizeof(buf) - 1 || buf[sizeof(buf) - 1] == '\n') {
-							break;
-						}
-					}
-					continue;
-				}
-
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && lline_buffer && ast_str_strlen(lline_buffer)) {
-					CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer));       /* add the current lline buffer to the comment buffer */
-					ast_str_reset(lline_buffer);        /* erase the lline buffer */
-				}
-
-				new_buf = buf;
-				if (comment)
-					process_buf = NULL;
-				else
-					process_buf = buf;
-
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer) && (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
-					/* blank line? really? Can we add it to an existing comment and maybe preserve inter- and post- comment spacing? */
-					CB_ADD(&comment_buffer, "\n");       /* add a newline to the comment buffer */
-					continue; /* go get a new line, then */
-				}
-
-				while ((comment_p = strchr(new_buf, COMMENT_META))) {
-					if ((comment_p > new_buf) && (*(comment_p - 1) == '\\')) {
-						/* Escaped semicolons aren't comments. */
-						new_buf = comment_p;
-						/* write over the \ and bring the null terminator with us */
-						memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
-					} else if (comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
-						/* Meta-Comment start detected ";--" */
-						if (comment < MAX_NESTED_COMMENTS) {
-							*comment_p = '\0';
-							new_buf = comment_p + 3;
-							comment++;
-							nest[comment-1] = lineno;
-						} else {
-							ast_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
-						}
-					} else if ((comment_p >= new_buf + 2) &&
-						   (*(comment_p - 1) == COMMENT_TAG) &&
-						   (*(comment_p - 2) == COMMENT_TAG)) {
-						/* Meta-Comment end detected "--;" */
-						comment--;
-						new_buf = comment_p + 1;
-						if (!comment) {
-							/* Back to non-comment now */
-							if (process_buf) {
-								/* Actually have to move what's left over the top, then continue */
-								char *oldptr;
-								oldptr = process_buf + strlen(process_buf);
-								if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-									CB_ADD(&comment_buffer, ";");
-									CB_ADD_LEN(&comment_buffer, oldptr+1, new_buf-oldptr-1);
+				count++;
+				/* If we get to this point, then we're loading regardless */
+				ast_clear_flag(&flags, CONFIG_FLAG_FILEUNCHANGED);
+				ast_debug(1, "Parsing %s\n", fn);
+				ast_verb(2, "Parsing '%s': Found\n", fn);
+				while (!feof(f)) {
+					lineno++;
+					if (fgets(buf, sizeof(buf), f)) {
+						/* Skip lines that are too long */
+						if (strlen(buf) == sizeof(buf) - 1 && buf[sizeof(buf) - 1] != '\n') {
+							ast_log(LOG_WARNING, "Line %d too long, skipping. It begins with: %.32s...\n", lineno, buf);
+							while (fgets(buf, sizeof(buf), f)) {
+								if (strlen(buf) != sizeof(buf) - 1 || buf[sizeof(buf) - 1] == '\n') {
+									break;
 								}
-
-								memmove(oldptr, new_buf, strlen(new_buf) + 1);
-								new_buf = oldptr;
-							} else
-								process_buf = new_buf;
-						}
-					} else {
-						if (!comment) {
-							/* If ; is found, and we are not nested in a comment,
-							   we immediately stop all comment processing */
-							if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-								CB_ADD(&lline_buffer, comment_p);
 							}
-							*comment_p = '\0';
-							new_buf = comment_p;
-						} else
-							new_buf = comment_p + 1;
-					}
-				}
-				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment && !process_buf ) {
-					CB_ADD(&comment_buffer, buf);  /* the whole line is a comment, store it */
-				}
+							continue;
+						}
 
-				if (process_buf) {
-					char *buffer = ast_strip(process_buf);
-					if (!ast_strlen_zero(buffer)) {
-						if (process_text_line(cfg, &cat, buffer, lineno, fn, flags, comment_buffer, lline_buffer, suggested_include_file, &last_cat, &last_var, who_asked)) {
-							cfg = CONFIG_STATUS_FILEINVALID;
-							break;
+						if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)
+							&& lline_buffer
+							&& ast_str_strlen(lline_buffer)) {
+							CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer)); /* add the current lline buffer to the comment buffer */
+							ast_str_reset(lline_buffer);        /* erase the lline buffer */
+						}
+
+						new_buf = buf;
+						if (comment) {
+							process_buf = NULL;
+						} else {
+							process_buf = buf;
+						}
+
+						if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)
+							&& comment_buffer
+							&& ast_str_strlen(comment_buffer)
+							&& (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
+							/* blank line? really? Can we add it to an existing comment and maybe preserve inter- and post- comment spacing? */
+							CB_ADD(&comment_buffer, "\n"); /* add a newline to the comment buffer */
+							continue; /* go get a new line, then */
+						}
+
+						while ((comment_p = strchr(new_buf, COMMENT_META))) {
+							if ((comment_p > new_buf) && (*(comment_p - 1) == '\\')) {
+								/* Escaped semicolons aren't comments. */
+								new_buf = comment_p;
+								/* write over the \ and bring the null terminator with us */
+								memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
+							} else if (comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
+								/* Meta-Comment start detected ";--" */
+								if (comment < MAX_NESTED_COMMENTS) {
+									*comment_p = '\0';
+									new_buf = comment_p + 3;
+									comment++;
+									nest[comment-1] = lineno;
+								} else {
+									ast_log(LOG_ERROR, "Maximum nest limit of %d reached.\n", MAX_NESTED_COMMENTS);
+								}
+							} else if ((comment_p >= new_buf + 2) &&
+								   (*(comment_p - 1) == COMMENT_TAG) &&
+								   (*(comment_p - 2) == COMMENT_TAG)) {
+								/* Meta-Comment end detected "--;" */
+								comment--;
+								new_buf = comment_p + 1;
+								if (!comment) {
+									/* Back to non-comment now */
+									if (process_buf) {
+										/* Actually have to move what's left over the top, then continue */
+										char *oldptr;
+
+										oldptr = process_buf + strlen(process_buf);
+										if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
+											CB_ADD(&comment_buffer, ";");
+											CB_ADD_LEN(&comment_buffer, oldptr+1, new_buf-oldptr-1);
+										}
+
+										memmove(oldptr, new_buf, strlen(new_buf) + 1);
+										new_buf = oldptr;
+									} else {
+										process_buf = new_buf;
+									}
+								}
+							} else {
+								if (!comment) {
+									/* If ; is found, and we are not nested in a comment,
+									   we immediately stop all comment processing */
+									if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
+										CB_ADD(&lline_buffer, comment_p);
+									}
+									*comment_p = '\0';
+									new_buf = comment_p;
+								} else {
+									new_buf = comment_p + 1;
+								}
+							}
+						}
+						if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment && !process_buf ) {
+							CB_ADD(&comment_buffer, buf); /* the whole line is a comment, store it */
+						}
+
+						if (process_buf) {
+							char *buffer = ast_strip(process_buf);
+
+							if (!ast_strlen_zero(buffer)) {
+								if (process_text_line(cfg, &cat, buffer, lineno, fn,
+									flags, comment_buffer, lline_buffer,
+									suggested_include_file, &last_cat, &last_var,
+									who_asked)) {
+									cfg = CONFIG_STATUS_FILEINVALID;
+									break;
+								}
+							}
 						}
 					}
 				}
-			}
-		}
-		/* end of file-- anything in a comment buffer? */
-		if (last_cat) {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
-				if (lline_buffer && ast_str_strlen(lline_buffer)) {
-					CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer));       /* add the current lline buffer to the comment buffer */
-					ast_str_reset(lline_buffer);        /* erase the lline buffer */
-				}
-				last_cat->trailing = ALLOC_COMMENT(comment_buffer);
-			}
-		} else if (last_var) {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
-				if (lline_buffer && ast_str_strlen(lline_buffer)) {
-					CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer));       /* add the current lline buffer to the comment buffer */
-					ast_str_reset(lline_buffer);        /* erase the lline buffer */
-				}
-				last_var->trailing = ALLOC_COMMENT(comment_buffer);
-			}
-		} else {
-			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
-				ast_debug(1, "Nothing to attach comments to, discarded: %s\n", ast_str_buffer(comment_buffer));
-			}
-		}
-		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
-			CB_RESET(comment_buffer, lline_buffer);
-
-		fclose(f);
-	} while (0);
-	if (comment) {
-		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment - 1]);
-	}
-#ifdef AST_INCLUDE_GLOB
-					if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
-						break;
+				/* end of file-- anything in a comment buffer? */
+				if (last_cat) {
+					if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
+						if (lline_buffer && ast_str_strlen(lline_buffer)) {
+							CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer)); /* add the current lline buffer to the comment buffer */
+							ast_str_reset(lline_buffer); /* erase the lline buffer */
+						}
+						last_cat->trailing = ALLOC_COMMENT(comment_buffer);
+					}
+				} else if (last_var) {
+					if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
+						if (lline_buffer && ast_str_strlen(lline_buffer)) {
+							CB_ADD(&comment_buffer, ast_str_buffer(lline_buffer)); /* add the current lline buffer to the comment buffer */
+							ast_str_reset(lline_buffer); /* erase the lline buffer */
+						}
+						last_var->trailing = ALLOC_COMMENT(comment_buffer);
+					}
+				} else {
+					if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && ast_str_strlen(comment_buffer)) {
+						ast_debug(1, "Nothing to attach comments to, discarded: %s\n", ast_str_buffer(comment_buffer));
 					}
 				}
-				globfree(&globbuf);
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
+					CB_RESET(comment_buffer, lline_buffer);
+				}
+
+				fclose(f);
+			} while (0);
+			if (comment) {
+				ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment - 1]);
+			}
+#ifdef AST_INCLUDE_GLOB
+			if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+				break;
 			}
 		}
+		globfree(&globbuf);
+	}
 #endif
 
 	ast_free(comment_buffer);
 	ast_free(lline_buffer);
 
-	if (count == 0)
+	if (count == 0) {
 		return NULL;
+	}
 
 	return cfg;
 }
