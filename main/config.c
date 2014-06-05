@@ -82,6 +82,7 @@ struct ast_comment {
 /*! \brief Hold the mtime for config files, so if we don't need to reread our config, don't. */
 struct cache_file_include {
 	AST_LIST_ENTRY(cache_file_include) list;
+	/*! Filename or wildcard pattern as specified by the including file. */
 	char include[0];
 };
 
@@ -1229,9 +1230,9 @@ static struct cache_file_mtime *cfmtime_new(const char *filename, const char *wh
 		return NULL;
 	}
 	dst = cfmtime->filename;	/* writable space starts here */
-	strcpy(dst, filename);
+	strcpy(dst, filename); /* Safe */
 	dst += strlen(dst) + 1;
-	cfmtime->who_asked = strcpy(dst, who_asked);
+	cfmtime->who_asked = strcpy(dst, who_asked); /* Safe */
 
 	return cfmtime;
 }
@@ -1240,21 +1241,6 @@ enum config_cache_attribute_enum {
 	ATTRIBUTE_INCLUDE = 0,
 	ATTRIBUTE_EXEC = 1,
 };
-
-/*!
- * \internal
- * \brief Clear the stat() data in the cached file modtime struct.
- *
- * \param cfmtime Cached file modtime.
- *
- * \return Nothing
- */
-static void cfmstat_clear(struct cache_file_mtime *cfmtime)
-{
-	cfmtime->stat_size = 0;
-	cfmtime->stat_mtime_nsec = 0;
-	cfmtime->stat_mtime = 0;
-}
 
 /*!
  * \internal
@@ -1300,11 +1286,71 @@ static int cfmstat_cmp(struct cache_file_mtime *cfmtime, struct stat *statbuf)
 		|| cfmtime->stat_mtime_nsec != cfm_buf.stat_mtime_nsec;
 }
 
+/*!
+ * \internal
+ * \brief Clear the cached file modtime include list.
+ *
+ * \param cfmtime Cached file modtime.
+ *
+ * \note cfmtime_head is assumed already locked.
+ *
+ * \return Nothing
+ */
+static void config_cache_flush_includes(struct cache_file_mtime *cfmtime)
+{
+	struct cache_file_include *cfinclude;
+
+	while ((cfinclude = AST_LIST_REMOVE_HEAD(&cfmtime->includes, list))) {
+		ast_free(cfinclude);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Destroy the given cached file modtime entry.
+ *
+ * \param cfmtime Cached file modtime.
+ *
+ * \note cfmtime_head is assumed already locked.
+ *
+ * \return Nothing
+ */
+static void config_cache_destroy_entry(struct cache_file_mtime *cfmtime)
+{
+	config_cache_flush_includes(cfmtime);
+	ast_free(cfmtime);
+}
+
+/*!
+ * \internal
+ * \brief Remove and destroy the config cache entry for the filename and who_asked.
+ *
+ * \param filename Config filename.
+ * \param who_asked Which module asked.
+ *
+ * \return Nothing
+ */
+static void config_cache_remove(const char *filename, const char *who_asked)
+{
+	struct cache_file_mtime *cfmtime;
+
+	AST_LIST_LOCK(&cfmtime_head);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&cfmtime_head, cfmtime, list) {
+		if (!strcmp(cfmtime->filename, filename)
+			&& !strcmp(cfmtime->who_asked, who_asked)) {
+			AST_LIST_REMOVE_CURRENT(list);
+			config_cache_destroy_entry(cfmtime);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&cfmtime_head);
+}
+
 static void config_cache_attribute(const char *configfile, enum config_cache_attribute_enum attrtype, const char *filename, const char *who_asked)
 {
 	struct cache_file_mtime *cfmtime;
 	struct cache_file_include *cfinclude;
-	struct stat statbuf = { 0, };
 
 	/* Find our cached entry for this configuration file */
 	AST_LIST_LOCK(&cfmtime_head);
@@ -1322,12 +1368,6 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 		AST_LIST_INSERT_SORTALPHA(&cfmtime_head, cfmtime, list, filename);
 	}
 
-	if (stat(configfile, &statbuf)) {
-		cfmstat_clear(cfmtime);
-	} else {
-		cfmstat_save(cfmtime, &statbuf);
-	}
-
 	switch (attrtype) {
 	case ATTRIBUTE_INCLUDE:
 		AST_LIST_TRAVERSE(&cfmtime->includes, cfinclude, list) {
@@ -1341,7 +1381,7 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 			AST_LIST_UNLOCK(&cfmtime_head);
 			return;
 		}
-		strcpy(cfinclude->include, filename);
+		strcpy(cfinclude->include, filename); /* Safe */
 		AST_LIST_INSERT_TAIL(&cfmtime->includes, cfinclude, list);
 		break;
 	case ATTRIBUTE_EXEC:
@@ -1671,17 +1711,32 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	{
 		int glob_ret;
 		glob_t globbuf;
+
 		globbuf.gl_offs = 0;	/* initialize it to silence gcc */
 		glob_ret = glob(fn, MY_GLOB_FLAGS, NULL, &globbuf);
-		if (glob_ret == GLOB_NOSPACE)
+		if (glob_ret == GLOB_NOSPACE) {
 			ast_log(LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Not enough memory\n", fn);
-		else if (glob_ret  == GLOB_ABORTED)
+		} else if (glob_ret  == GLOB_ABORTED) {
 			ast_log(LOG_WARNING,
 				"Glob Expansion of pattern '%s' failed: Read error\n", fn);
-		else  {
+		} else {
 			/* loop over expanded files */
 			int i;
+
+			if (!cfg && (globbuf.gl_pathc != 1 || strcmp(fn, globbuf.gl_pathv[0]))) {
+				/*
+				 * We just want a file changed answer and since we cannot
+				 * tell if a file was deleted with wildcard matching we will
+				 * assume that something has always changed.  Also without
+				 * a lot of refactoring we couldn't check more than one file
+				 * for changes in the glob loop anyway.
+				 */
+				globfree(&globbuf);
+				ast_free(comment_buffer);
+				ast_free(lline_buffer);
+				return NULL;
+			}
 			for (i=0; i<globbuf.gl_pathc; i++) {
 				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
@@ -1691,11 +1746,18 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	 * or 'break' in case of errors. Nice trick.
 	 */
 	do {
-		if (stat(fn, &statbuf))
+		if (stat(fn, &statbuf)) {
+			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
+				config_cache_remove(fn, who_asked);
+			}
 			continue;
+		}
 
 		if (!S_ISREG(statbuf.st_mode)) {
 			ast_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
+			if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE)) {
+				config_cache_remove(fn, who_asked);
+			}
 			continue;
 		}
 
@@ -1721,64 +1783,44 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			&& !cfmtime->has_exec
 			&& !cfmstat_cmp(cfmtime, &statbuf)
 			&& ast_test_flag(&flags, CONFIG_FLAG_FILEUNCHANGED)) {
-			/* File is unchanged, what about the (cached) includes (if any)? */
 			int unchanged = 1;
+
+			/* File is unchanged, what about the (cached) includes (if any)? */
 			AST_LIST_TRAVERSE(&cfmtime->includes, cfinclude, list) {
-				/* We must glob here, because if we did not, then adding a file to globbed directory would
-				 * incorrectly cause no reload to be necessary. */
-				char fn2[256];
-#ifdef AST_INCLUDE_GLOB
-				int glob_return;
-				glob_t glob_buf = { .gl_offs = 0 };
-				glob_return = glob(cfinclude->include, MY_GLOB_FLAGS, NULL, &glob_buf);
-				/* On error, we reparse */
-				if (glob_return == GLOB_NOSPACE || glob_return  == GLOB_ABORTED)
+				if (!config_text_file_load(NULL, NULL, cfinclude->include,
+					NULL, flags, "", who_asked)) {
+					/* One change is enough to short-circuit and reload the whole shebang */
 					unchanged = 0;
-				else  {
-					/* loop over expanded files */
-					int j;
-					for (j = 0; j < glob_buf.gl_pathc; j++) {
-						ast_copy_string(fn2, glob_buf.gl_pathv[j], sizeof(fn2));
-#else
-						ast_copy_string(fn2, cfinclude->include);
-#endif
-						if (config_text_file_load(NULL, NULL, fn2, NULL, flags, "", who_asked) == NULL) {
-							/* that second-to-last field needs to be looked at in this case... TODO */
-							unchanged = 0;
-							/* One change is enough to short-circuit and reload the whole shebang */
-							break;
-						}
-#ifdef AST_INCLUDE_GLOB
-					}
+					break;
 				}
-#endif
 			}
 
 			if (unchanged) {
 				AST_LIST_UNLOCK(&cfmtime_head);
-				ast_free(comment_buffer);
-				ast_free(lline_buffer);
 #ifdef AST_INCLUDE_GLOB
 				globfree(&globbuf);
 #endif
+				ast_free(comment_buffer);
+				ast_free(lline_buffer);
 				return CONFIG_STATUS_FILEUNCHANGED;
 			}
 		}
-		if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
-			AST_LIST_UNLOCK(&cfmtime_head);
 
-		/* If cfg is NULL, then we just want an answer */
+		/* If cfg is NULL, then we just want a file changed answer. */
 		if (cfg == NULL) {
-			ast_free(comment_buffer);
-			ast_free(lline_buffer);
-#ifdef AST_INCLUDE_GLOB
-				globfree(&globbuf);
-#endif
-			return NULL;
+			if (cfmtime) {
+				AST_LIST_UNLOCK(&cfmtime_head);
+			}
+			continue;
 		}
 
 		if (cfmtime) {
+			/* Forget about what we thought we knew about this file's includes. */
+			cfmtime->has_exec = 0;
+			config_cache_flush_includes(cfmtime);
+
 			cfmstat_save(cfmtime, &statbuf);
+			AST_LIST_UNLOCK(&cfmtime_head);
 		}
 
 		if (!(f = fopen(fn, "r"))) {
@@ -1928,12 +1970,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 #endif
 
-	if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS)) {
-		ast_free(comment_buffer);
-		ast_free(lline_buffer);
-		comment_buffer = NULL;
-		lline_buffer = NULL;
-	}
+	ast_free(comment_buffer);
+	ast_free(lline_buffer);
 
 	if (count == 0)
 		return NULL;
@@ -3460,11 +3498,7 @@ static void config_shutdown(void)
 
 	AST_LIST_LOCK(&cfmtime_head);
 	while ((cfmtime = AST_LIST_REMOVE_HEAD(&cfmtime_head, list))) {
-		struct cache_file_include *cfinclude;
-		while ((cfinclude = AST_LIST_REMOVE_HEAD(&cfmtime->includes, list))) {
-			ast_free(cfinclude);
-		}
-		ast_free(cfmtime);
+		config_cache_destroy_entry(cfmtime);
 	}
 	AST_LIST_UNLOCK(&cfmtime_head);
 
