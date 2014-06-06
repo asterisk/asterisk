@@ -522,6 +522,13 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 #endif
 
 /*!
+ * \brief Retrieve the ao2 options used to create the object.
+ * \param obj pointer to the (user-defined part) of an object.
+ * \return options from enum ao2_alloc_opts.
+ */
+unsigned int ao2_options_get(void *obj);
+
+/*!
  * \since 12
  * \brief Bump refcount on an AO2 object by one, returning the object.
  *
