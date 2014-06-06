@@ -15073,7 +15073,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 static int manager_sipnotify(struct mansession *s, const struct message *m)
 {
 	const char *channame = astman_get_header(m, "Channel");
-	struct ast_variable *vars = astman_get_variables(m);
+	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
 	struct sip_pvt *p;
 	struct ast_variable *header, *var;
 
