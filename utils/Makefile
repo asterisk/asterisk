@@ -88,7 +88,8 @@ clean:
 	rm -f *.s *.i
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2.h ast_expr2f.c pbx_ael.c pval.c hashtab.c lock.c
 	rm -f aelparse.c aelbison.c conf2ael
-	rm -f utils.c strings.c threadstorage.c sha1.c astobj2.c refcounter
+	rm -f astobj2.c astobj2_private.h astobj2_container_private.h astobj2_container.c astobj2_hash.c astobj2_rbtree.c
+	rm -f utils.c strings.c threadstorage.c sha1.c refcounter
 	rm -f db1-ast/.*.d
 	@$(MAKE) -C db1-ast clean
 
@@ -155,7 +156,27 @@ version.c: $(ASTTOPDIR)/main/version.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
 
-astobj2.c: $(ASTTOPDIR)/main/astobj2.c
+astobj2.c: $(ASTTOPDIR)/main/astobj2.c astobj2_private.h astobj2_container_private.h 
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+
+astobj2_container_private.h: $(ASTTOPDIR)/main/astobj2_container_private.h
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+
+astobj2_private.h: $(ASTTOPDIR)/main/astobj2_private.h
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+
+astobj2_hash.c: $(ASTTOPDIR)/main/astobj2_hash.c astobj2_private.h astobj2_container_private.h
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+
+astobj2_rbtree.c: $(ASTTOPDIR)/main/astobj2_rbtree.c astobj2_private.h astobj2_container_private.h
+	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
+	$(CMD_PREFIX) cp "$<" "$@"
+
+astobj2_container.c: $(ASTTOPDIR)/main/astobj2_container.c astobj2_private.h astobj2_container_private.h
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
 
@@ -180,8 +201,7 @@ threadstorage.c: $(ASTTOPDIR)/main/threadstorage.c
 	$(CMD_PREFIX) cp "$<" "$@"
 
 
-refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o version.o astobj2.o
-refcounter.o: _ASTCFLAGS+=-O0
+refcounter: refcounter.o md5.o hashtab.o lock.o utils.o strings.o sha1.o strcompat.o threadstorage.o clicompat.o poll.o version.o astobj2.o astobj2_container.o astobj2_hash.o astobj2_rbtree.o
 
 extconf.o: extconf.c
 
