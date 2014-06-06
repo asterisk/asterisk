@@ -10,8 +10,8 @@
 ; the first alias defined will win.
 ;
 template = friendly		; By default, include friendly aliases
-;template = asterisk12		; Asterisk 1.2 style syntax
-;template = asterisk14		; Asterisk 1.4 style syntax
+;template = asterisk_1dot2	; Asterisk 1.2 style syntax
+;template = asterisk_1dot4	; Asterisk 1.4 style syntax
 ;template = individual_custom	; see [individual_custom] example below which
 				; includes a list of aliases from an external
 				; file
@@ -28,6 +28,7 @@ originate=channel originate
 help=core show help
 pri intense debug span=pri set debug intense span
 reload=module reload
+pjsip reload=module reload res_pjsip.so
 
 ; CLI Alias Templates
 ; -------------------
@@ -41,7 +42,7 @@ reload=module reload
 ;
 ;die die die=stop now
 
-;[asterisk16](asterisk)
+;[asterisk_1dot6](asterisk)
 ; Alias for making voicemail reload actually do module reload app_voicemail.so
 ;voicemail reload=module reload app_voicemail.so
 ; This will make the CLI command "mr" behave as though it is "module reload".
@@ -73,7 +74,7 @@ reload=module reload
 ; if you would like to use the Asterisk 1.2 style syntax, define in the
 ; [general] section
 
-[asterisk12_tpl](!)
+[asterisk_1dot2_tpl](!)
 show channeltypes=core show channeltypes
 show channeltype=core show channeltype
 show manager command=manager show command
@@ -155,11 +156,11 @@ show profile=core show profile
 clear profile=core clear profile
 soft hangup=channel request hangup
 
-[asterisk12](asterisk12_tpl)
+[asterisk_1dot2](asterisk_1dot2_tpl)
 ; add any additional custom commands you want below here, for example:
 ;die quickly=stop now
 
-[asterisk14_tpl](!)
+[asterisk_1dot4_tpl](!)
 cdr status=cdr show status
 rtp debug=rtp set debug on
 rtcp debug=rtcp set debug on
@@ -184,10 +185,10 @@ restart gracefully=core restart gracefully
 restart when convenient=core restart when convenient
 soft hangup=channel request hangup
 
-[asterisk14](asterisk14_tpl)
+[asterisk_1dot4](asterisk_1dot4_tpl)
 ; add any additional custom commands you want below here.
 
-[asterisk11_tpl](!)
+[asterisk_11_tpl](!)
 jabber list nodes=xmpp list nodes
 jabber purge nodes=xmpp purge nodes
 jabber delete node=xmpp delete node
@@ -196,6 +197,7 @@ jabber create leaf=xmpp create leaf
 jabber set debug=xmpp set debug
 jabber show connections=xmpp show connections
 jabber show buddies=xmpp show buddies
+features reload=module reload features
 
-[asterisk11](asterisk11_tpl)
+[asterisk_11](asterisk_11_tpl)
 ; add any additional custom commands you want below here.
