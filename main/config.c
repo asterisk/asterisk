@@ -562,6 +562,30 @@ struct ast_variable *ast_variables_dup(struct ast_variable *var)
 	return cloned;
 }
 
+struct ast_variable *ast_variables_reverse(struct ast_variable *var)
+{
+	struct ast_variable *var1, *var2;
+
+	var1 = var;
+
+	if (!var1 || !var1->next) {
+		return var1;
+	}
+
+	var2 = var1->next;
+	var1->next = NULL;
+
+	while (var2) {
+		struct ast_variable *next = var2->next;
+
+		var2->next = var1;
+		var1 = var2;
+		var2 = next;
+	}
+
+	return var1;
+}
+
 void ast_variables_destroy(struct ast_variable *v)
 {
 	struct ast_variable *vn;

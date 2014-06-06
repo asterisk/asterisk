@@ -560,6 +560,16 @@ int ast_realtime_enabled(void);
 struct ast_variable *ast_variables_dup(struct ast_variable *var);
 
 /*!
+ * \brief Reverse a variable list
+ * \param var the linked list of variables to reverse
+ * \return The head of the reversed variable list
+ *
+ * \note The variable list var is not preserved in this function and should
+ * not be used after reversing it.
+ */
+struct ast_variable *ast_variables_reverse(struct ast_variable *var);
+
+/*!
  * \brief Free variable list
  * \param var the linked list of variables to free
  *

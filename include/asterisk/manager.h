@@ -260,8 +260,20 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 /*! \brief Get header from mananger transaction */
 const char *astman_get_header(const struct message *m, char *var);
 
-/*! \brief Get a linked list of the Variable: headers */
+/*! \brief Get a linked list of the Variable: headers
+ *
+ *  \note Order of variables is reversed from the order they are specified in
+ *        the manager message
+ */
 struct ast_variable *astman_get_variables(const struct message *m);
+
+enum variable_orders {
+	ORDER_NATURAL,
+	ORDER_REVERSE
+};
+
+/*! \brief Get a linked list of the Variable: headers with order specified */
+struct ast_variable *astman_get_variables_order(const struct message *m, enum variable_orders order);
 
 /*! \brief Send error in manager transaction */
 void astman_send_error(struct mansession *s, const struct message *m, char *error);
