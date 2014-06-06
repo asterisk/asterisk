@@ -41,7 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "")
 #include "asterisk/http_websocket.h"
 
 #define CATEGORY "/res/websocket/"
-#define REMOTE_URL "ws://localhost:8088/ws"
+#define REMOTE_URL "ws://127.0.0.1:8088/ws"
 
 AST_TEST_DEFINE(websocket_client_create_and_connect)
 {

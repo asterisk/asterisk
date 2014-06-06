@@ -229,6 +229,8 @@ struct ast_uri *ast_uri_parse(const char *uri)
 	if ((p = strchr(uri, '?'))) {
 		query = p + 1;
 		size_query = strlen(query) + 1;
+	} else {
+		p = uri + strlen(uri);
 	}
 
 	if (!host) {
@@ -313,9 +315,9 @@ char *ast_uri_make_host_with_port(const struct ast_uri *uri)
 	if (ast_uri_port(uri)) {
 		res[host_size] = ':';
 		memcpy(res + host_size + 1,
-		       ast_uri_port(uri), port_size);
+		       ast_uri_port(uri), port_size - 1);
 	}
 
-	res[host_size + port_size + 1] = '\0';
+	res[host_size + port_size] = '\0';
 	return res;
 }
