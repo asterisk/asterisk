@@ -1924,12 +1924,123 @@ AST_TEST_DEFINE(astobj2_test_4)
 	return res;
 }
 
+static enum ast_test_result_state test_performance(struct ast_test *test,
+	enum test_container_type type, unsigned int copt)
+{
+#define OBJS 256
+	int res = AST_TEST_PASS;
+	struct ao2_container *c1 = NULL;
+	struct test_obj *tobj[OBJS];
+	struct test_obj *tobj2;
+	int i;
+
+	switch (type) {
+	case TEST_CONTAINER_HASH:
+		c1 = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, copt, 17,
+			test_hash_cb, test_sort_cb, test_cmp_cb);
+		break;
+	case TEST_CONTAINER_LIST:
+		c1 = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, copt,
+			test_sort_cb, test_cmp_cb);
+		break;
+	case TEST_CONTAINER_RBTREE:
+		c1 = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_MUTEX, copt,
+			test_sort_cb, test_cmp_cb);
+		break;
+	}
+
+	for (i = 0; i < OBJS; i++) {
+		tobj[i] = NULL;
+	}
+
+	if (!c1) {
+		ast_test_status_update(test, "Container c1 creation failed.\n");
+		res = AST_TEST_FAIL;
+		goto test_cleanup;
+	}
+
+	for (i = 0; i < OBJS; i++) {
+		tobj[i] = ao2_alloc(sizeof(struct test_obj), test_obj_destructor);
+		if (!tobj[i]) {
+			ast_test_status_update(test, "test object creation failed.\n");
+			res = AST_TEST_FAIL;
+			goto test_cleanup;
+		}
+		tobj[i]->i = i;
+		ao2_link(c1, tobj[i]);
+	}
+
+	for (i = 0; i < OBJS; i++) {
+		if ((!(tobj2 = ao2_find(c1, &i, OBJ_KEY)))) {
+			ast_test_status_update(test, "Should have found object %d in container.\n", i);
+			res = AST_TEST_FAIL;
+			goto test_cleanup;
+		}
+		ao2_ref(tobj2, -1);
+		tobj2 = NULL;
+	}
+
+test_cleanup:
+	for (i = 0; i < OBJS ; i++) {
+		ao2_cleanup(tobj[i]);
+	}
+	ao2_cleanup(c1);
+	return res;
+}
+
+static enum ast_test_result_state testloop(struct ast_test *test,
+	enum test_container_type type, int copt)
+{
+#define ITERATIONS 2500
+	int res = AST_TEST_PASS;
+	int i;
+	struct timeval start;
+
+	start = ast_tvnow();
+	for (i = 1 ; i <= ITERATIONS && res == AST_TEST_PASS ; i++) {
+		res = test_performance(test, type, copt);
+	}
+	ast_test_status_update(test, "%dK traversals, %9s : %5lu ms\n",
+		ITERATIONS / 1000, test_container2str(type), (unsigned long)ast_tvdiff_ms(ast_tvnow(), start));
+	return res;
+}
+
+AST_TEST_DEFINE(astobj2_test_perf)
+{
+	int res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "astobj2_test_perf";
+		info->category = "/main/astobj2/";
+		info->summary = "Test container performance";
+		info->description =
+			"Runs 100000 container traversal tests.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	res = testloop(test, TEST_CONTAINER_LIST, 0);
+	if (!res) {
+		return res;
+	}
+	res = testloop(test, TEST_CONTAINER_HASH, 0);
+	if (!res) {
+		return res;
+	}
+	res = testloop(test, TEST_CONTAINER_RBTREE, 0);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(astobj2_test_1);
 	AST_TEST_UNREGISTER(astobj2_test_2);
 	AST_TEST_UNREGISTER(astobj2_test_3);
 	AST_TEST_UNREGISTER(astobj2_test_4);
+	AST_TEST_UNREGISTER(astobj2_test_perf);
 	return 0;
 }
 
@@ -1939,6 +2050,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(astobj2_test_2);
 	AST_TEST_REGISTER(astobj2_test_3);
 	AST_TEST_REGISTER(astobj2_test_4);
+	AST_TEST_REGISTER(astobj2_test_perf);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
