@@ -243,8 +243,6 @@ struct ast_bridge_methods {
 	ast_bridge_merge_priority_fn get_merge_priority;
 };
 
-struct ast_bridge_channel;
-
 /*! Softmix technology parameters. */
 struct ast_bridge_softmix {
 	/*! The video mode softmix is using */
