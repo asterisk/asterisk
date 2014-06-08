@@ -2596,7 +2596,7 @@ void ast_channel_clear_softhangup(struct ast_channel *chan, int flag)
 /*! \brief Softly hangup a channel, don't lock */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
-	ast_debug(1, "Soft-Hanging up channel '%s'\n", ast_channel_name(chan));
+	ast_debug(1, "Soft-Hanging (%#04x) up channel '%s'\n", cause, ast_channel_name(chan));
 	/* Inform channel driver that we need to be hung up, if it cares */
 	ast_channel_softhangup_internal_flag_add(chan, cause);
 	ast_queue_frame(chan, &ast_null_frame);
@@ -10144,6 +10144,18 @@ struct ast_bridge *ast_channel_get_bridge(const struct ast_channel *chan)
 int ast_channel_is_bridged(const struct ast_channel *chan)
 {
 	return ast_channel_internal_bridge(chan) != NULL;
+}
+
+int ast_channel_is_leaving_bridge(struct ast_channel *chan)
+{
+	int hangup_flags = ast_channel_softhangup_internal_flag(chan);
+	int hangup_test = hangup_flags & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE);
+
+	/* This function should only return true if either ASYNCGOTO
+	 * or UNBRIDGE is set, or both flags are set. It should return
+	 * false if any other flag is set.
+	 */
+	return (hangup_test && (hangup_test == hangup_flags));
 }
 
 struct ast_channel *ast_channel_bridge_peer(struct ast_channel *chan)

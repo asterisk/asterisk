@@ -189,6 +189,10 @@ int ast_framehook_detach(struct ast_channel *chan, int id)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
+	if (ast_channel_is_bridged(chan)) {
+		ast_softhangup_nolock(chan, AST_SOFTHANGUP_UNBRIDGE);
+	}
+
 	return res;
 }
 

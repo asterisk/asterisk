@@ -451,6 +451,11 @@ int ast_bridge_setup_after_goto(struct ast_channel *chan)
 	struct after_bridge_goto_ds *after_bridge;
 	int goto_failed = -1;
 
+	/* We are going to be leaving the bridging system now;
+	 * clear any pending UNBRIDGE flags
+	 */
+	ast_channel_clear_softhangup(chan, AST_SOFTHANGUP_UNBRIDGE);
+
 	/* Determine if we are going to setup a dialplan location and where. */
 	if (ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO) {
 		/* An async goto has already setup a location. */
