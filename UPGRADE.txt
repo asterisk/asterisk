@@ -23,6 +23,12 @@
 
 From 12 to 13:
 
+ - Changed a log message in safe_asterisk and the $NOTIFY mail subject. If
+   you use tools to parse either of them, update your parse functions
+   accordingly. The changed strings are:
+   - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
+   - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
+
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
 
