@@ -20,6 +20,15 @@
 === UPGRADE-11.txt  -- Upgrade info for 10 to 11
 ===
 ===========================================================
+
+From 12.3.0 to 12.4.0:
+
+ - Changed a log message in safe_asterisk and the $NOTIFY mail subject. If
+   you use tools to parse either of them, update your parse functions
+   accordingly. The changed strings are:
+   - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
+   - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
+
 From 12.2.0 to 12.3.0:
 
  - The asterisk command line -I option and the asterisk.conf internal_timing
