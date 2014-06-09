@@ -72,6 +72,7 @@ static AST_LIST_HEAD_STATIC(aslist, asent);
 static ast_cond_t as_cond;
 
 static pthread_t asthread = AST_PTHREADT_NULL;
+static volatile int asexit = 0;
 
 static int as_chan_list_state;
 
@@ -83,7 +84,7 @@ static void *autoservice_run(void *ign)
 		.subclass.integer = AST_CONTROL_HANGUP,
 	};
 
-	for (;;) {
+	while (!asexit) {
 		struct ast_channel *mons[MAX_AUTOMONS];
 		struct asent *ents[MAX_AUTOMONS];
 		struct ast_channel *chan;
@@ -183,6 +184,7 @@ static void *autoservice_run(void *ign)
 		 * If we did, we'd need to ast_frfree(f) if (f). */
 	}
 
+	ast_callid_threadassoc_change(NULL);
 	asthread = AST_PTHREADT_NULL;
 
 	return NULL;
@@ -343,7 +345,19 @@ int ast_autoservice_ignore(struct ast_channel *chan, enum ast_frame_type ftype)
 	return res;
 }
 
+static void autoservice_shutdown(void)
+{
+	pthread_t th = asthread;
+	asexit = 1;
+	if (th != AST_PTHREADT_NULL) {
+		ast_cond_signal(&as_cond);
+		pthread_kill(th, SIGURG);
+		pthread_join(th, NULL);
+	}
+}
+
 void ast_autoservice_init(void)
 {
+	ast_register_cleanup(autoservice_shutdown);
 	ast_cond_init(&as_cond, NULL);
 }
