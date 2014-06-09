@@ -161,11 +161,10 @@ run_asterisk()
 			exit 0
 		elif test $EXITSTATUS -gt 128; then
 			EXITSIGNAL=$((EXITSTATUS - 128))
-			echo "Asterisk exited on signal $EXITSIGNAL."
+			message "Exited on signal $EXITSIGNAL"
 			if test -n "$NOTIFY"; then
 				echo "Asterisk on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
 				mail -s "Asterisk Died" $NOTIFY
-				message "Exited on signal $EXITSIGNAL"
 			fi
 			if test -n "$EXEC"; then
 				$EXEC
