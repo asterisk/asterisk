@@ -592,6 +592,7 @@ static void outgoing_request(struct ast_sip_session *session, pjsip_tx_data * td
 	AST_LIST_TRAVERSE(list, le, nextptr) {
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) pjsip_hdr_clone(pool, le->hdr));
 	}
+	ast_sip_session_remove_datastore(session, datastore->uid);
 }
 
 static struct ast_sip_session_supplement header_funcs_supplement = {
