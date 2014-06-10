@@ -2596,7 +2596,7 @@ void ast_channel_clear_softhangup(struct ast_channel *chan, int flag)
 /*! \brief Softly hangup a channel, don't lock */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
-	ast_debug(1, "Soft-Hanging (%#04x) up channel '%s'\n", cause, ast_channel_name(chan));
+	ast_debug(1, "Soft-Hanging (%#04x) up channel '%s'\n", (unsigned)cause, ast_channel_name(chan));
 	/* Inform channel driver that we need to be hung up, if it cares */
 	ast_channel_softhangup_internal_flag_add(chan, cause);
 	ast_queue_frame(chan, &ast_null_frame);
