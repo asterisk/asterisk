@@ -44,10 +44,17 @@
 			<parameter name="Endpoint" required="true">
 				<para>The endpoint to which to send the NOTIFY.</para>
 			</parameter>
+			<parameter name="Variable" required="true">
+				<para>Appends variables as headers/content to the NOTIFY. If the variable is
+				named <literal>Content</literal>, then the value will compose the body
+				of the message if another variable sets <literal>Content-Type</literal>.
+				<replaceable>name</replaceable>=<replaceable>value</replaceable></para>
+			</parameter>
 		</syntax>
 		<description>
-			<para>Send a NOTIFY to an endpoint.</para>
-			<para>Parameters will be placed into the notify as SIP headers.</para>
+			<para>Sends a NOTIFY to an endpoint.</para>
+			<para>All parameters for this event must be specified in the body of this request
+			via multiple <literal>Variable: name=value</literal> sequences.</para>
 		</description>
 	</manager>
 	<configInfo name="res_pjsip_notify" language="en_US">
@@ -452,6 +459,10 @@ static void build_ami_notify(pjsip_tx_data *tdata, void *info)
 	struct ast_variable *i;
 
 	for (i = vars; i; i = i->next) {
+		if (!strcasecmp(i->name, "Content-Length")) {
+			ast_log(LOG_NOTICE, "It is not necessary to specify Content-Length, ignoring.\n");
+			continue;
+		}
 		build_notify(tdata, i->name, i->value,
 			     &content_type, &content);
 	}
@@ -699,10 +710,11 @@ static struct ast_cli_entry cli_options[] = {
 static int manager_notify(struct mansession *s, const struct message *m)
 {
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
-	struct ast_variable *vars = astman_get_variables(m);
+	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
 
 	if (ast_strlen_zero(endpoint_name)) {
 		astman_send_error(s, m, "PJSIPNotify requires an endpoint name");
+		ast_variables_destroy(vars);
 		return 0;
 	}
 
@@ -710,22 +722,29 @@ static int manager_notify(struct mansession *s, const struct message *m)
 		endpoint_name += 4;
 	}
 
+	if (!strncasecmp(endpoint_name, "pjsip/", 6)) {
+		endpoint_name += 6;
+	}
+
 	switch (push_notify(endpoint_name, vars, notify_ami_data_create)) {
 	case INVALID_ENDPOINT:
+		ast_variables_destroy(vars);
 		astman_send_error_va(s, m, "Unable to retrieve endpoint %s\n",
 			endpoint_name);
-		return 0;
+		break;
 	case ALLOC_ERROR:
+		ast_variables_destroy(vars);
 		astman_send_error(s, m, "Unable to allocate NOTIFY task data\n");
-		return 0;
+		break;
 	case TASK_PUSH_ERROR:
+		/* Don't need to destroy vars since it is handled by cleanup in push_notify */
 		astman_send_error(s, m, "Unable to push NOTIFY task\n");
-		return 0;
-	default:
+		break;
+	case SUCCESS:
+		astman_send_ack(s, m, "NOTIFY sent");
 		break;
 	}
 
-	astman_send_ack(s, m, "NOTIFY sent");
 	return 0;
 }
 

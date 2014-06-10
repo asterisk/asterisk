@@ -1217,7 +1217,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 		return -1;
 	}
 
-	data = astman_get_variables(m);
+	data = astman_get_variables_order(m, ORDER_NATURAL);
 	for (vars = data; vars; vars = vars->next) {
 		ast_msg_set_var_outbound(msg, vars->name, vars->value);
 	}
