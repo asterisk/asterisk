@@ -3317,7 +3317,7 @@ static int load_module(void)
 		/* Make sure we can register our OOH323 channel type */
 		if (ast_channel_register(&ooh323_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-			return 0;
+			return AST_MODULE_LOAD_FAILURE;
 		}
 		ast_rtp_glue_register(&ooh323_rtp);
 		ast_udptl_proto_register(&ooh323_udptl);
@@ -3325,9 +3325,9 @@ static int load_module(void)
 
 		 /* fire up the H.323 Endpoint */		 
 		if (OO_OK != ooH323EpInitialize(OO_CALLMODE_AUDIOCALL, gLogFile)) {
-         ast_log(LOG_ERROR, "Failed to initialize OOH323 endpoint-"
+			ast_log(LOG_ERROR, "Failed to initialize OOH323 endpoint-"
                             "OOH323 Disabled\n");
-			return 1;
+			return AST_MODULE_LOAD_FAILURE;
 		}
 
 		if (gIsGateway)
@@ -3341,10 +3341,9 @@ static int load_module(void)
 		ooH323EpSetLocalAddress(gIP, gPort);
 		ooH323EpSetCallerID(gCallerID);
  
-      if(ooH323EpSetTCPPortRange(ooconfig.mTCPPortStart, 
-                                 ooconfig.mTCPPortEnd) == OO_FAILED) {
-         ast_log(LOG_ERROR, "h225portrange: Failed to set range\n");
-      }
+		if(ooH323EpSetTCPPortRange(ooconfig.mTCPPortStart, ooconfig.mTCPPortEnd) == OO_FAILED) {
+			ast_log(LOG_ERROR, "h225portrange: Failed to set range\n");
+		}
 
 		/* Set aliases if any */
 		for (pNewAlias = gAliasList; pNewAlias; pNewAlias = pNewAlias->next) {
@@ -3358,8 +3357,8 @@ static int load_module(void)
 			case T_H225AliasAddress_email_ID:	
 				ooH323EpAddAliasEmailID(pNewAlias->value);
 				break;
-         default:
-            ;
+			default:
+				;
 			}
 		}
 
@@ -3426,6 +3425,9 @@ static int load_module(void)
 		}
 		/* And start the monitor for the first time */
 		restart_monitor();
+	} else {
+		ast_log(LOG_ERROR, "Can't load ooh323 config file, OOH323 Disabled\n");
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return 0;
