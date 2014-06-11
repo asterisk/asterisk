@@ -984,10 +984,6 @@ static int list_cmp_cb(void *obj, void *arg, int flags)
 
 	return (ast_format_cmp(&entry1->format, &entry2->format) == AST_FORMAT_CMP_EQUAL) ? CMP_MATCH | CMP_STOP : 0;
 }
-static int list_hash_cb(const void *obj, const int flags)
-{
-	return ao2_container_count(format_list);
-}
 
 const struct ast_format_list *ast_format_list_get(size_t *size)
 {
@@ -1040,7 +1036,7 @@ static int build_format_list_array(void)
 static int format_list_init(void)
 {
 	struct ast_format tmpfmt;
-	if (!(format_list = ao2_container_alloc(283, list_hash_cb, list_cmp_cb))) {
+	if (!(format_list = ao2_container_alloc(1, NULL, list_cmp_cb))) {
 		return -1;
 	}
 	/* initiate static entries XXX DO NOT CHANGE THIS ORDER! */
