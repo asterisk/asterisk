@@ -1,5 +1,6 @@
 #!/bin/sh
 
+ASTETCDIR="__ASTERISK_ETC_DIR__"
 ASTSBINDIR="__ASTERISK_SBIN_DIR__"
 ASTVARRUNDIR="__ASTERISK_VARRUN_DIR__"
 ASTVARLOGDIR="__ASTERISK_LOG_DIR__"
@@ -146,10 +147,10 @@ trap '' PIPE
 # Run scripts to set any environment variables or do any other system-specific setup needed
 #
 
-if test -d /etc/asterisk/startup.d; then
-	for script in /etc/asterisk/startup.d/*.sh; do
-		if test -r ${script}; then
-			. ${script}
+if test -d "${ASTETCDIR}/startup.d"; then
+	for script in "${ASTETCDIR}/startup.d/"*.sh; do
+		if test -r "${script}"; then
+			. "${script}"
 		fi
 	done
 fi
