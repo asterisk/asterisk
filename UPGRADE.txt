@@ -20,6 +20,12 @@
 ===
 ===========================================================
 
+From 11.6-cert1 to 11.6-cert3:
+* MixMonitor AMI actions now require users to have authorization classes.
+  * MixMonitor - system
+  * MixMonitorMute - call or system
+  * StopMixMonitor - call or system
+
 From 11.6 to 11.6-cert1:
 * Certain dialplan functions have been marked as 'dangerous', and may only be
   executed from the dialplan. Execution from extenal sources (AMI's GetVar and
