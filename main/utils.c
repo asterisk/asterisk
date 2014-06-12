@@ -859,7 +859,7 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 	ast_mutex_t *lock;
 	struct ast_lock_track *lt;
 	
-	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
+	ast_str_append(str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n",
 				   lock_info->locks[i].pending > 0 ? "Waiting for " : 
 				   lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
 				   lock_info->locks[i].file, 
@@ -1154,13 +1154,24 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 int ast_wait_for_input(int fd, int ms)
 {
 	struct pollfd pfd[1];
+
 	memset(pfd, 0, sizeof(pfd));
 	pfd[0].fd = fd;
-	pfd[0].events = POLLIN|POLLPRI;
+	pfd[0].events = POLLIN | POLLPRI;
 	return ast_poll(pfd, 1, ms);
 }
 
-static int ast_wait_for_output(int fd, int timeoutms)
+int ast_wait_for_output(int fd, int ms)
+{
+	struct pollfd pfd[1];
+
+	memset(pfd, 0, sizeof(pfd));
+	pfd[0].fd = fd;
+	pfd[0].events = POLLOUT;
+	return ast_poll(pfd, 1, ms);
+}
+
+static int wait_for_output(int fd, int timeoutms)
 {
 	struct pollfd pfd = {
 		.fd = fd,
@@ -1220,7 +1231,7 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	int elapsed = 0;
 
 	while (len) {
-		if (ast_wait_for_output(fd, timeoutms - elapsed)) {
+		if (wait_for_output(fd, timeoutms - elapsed)) {
 			return -1;
 		}
 
@@ -1261,7 +1272,7 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 	int elapsed = 0;
 
 	while (len) {
-		if (ast_wait_for_output(fd, timeoutms - elapsed)) {
+		if (wait_for_output(fd, timeoutms - elapsed)) {
 			/* poll returned a fatal error, so bail out immediately. */
 			return -1;
 		}
@@ -1492,6 +1503,23 @@ struct timeval ast_tvsub(struct timeval a, struct timeval b)
 	}
 	return a;
 }
+
+int ast_remaining_ms(struct timeval start, int max_ms)
+{
+	int ms;
+
+	if (max_ms < 0) {
+		ms = max_ms;
+	} else {
+		ms = max_ms - ast_tvdiff_ms(ast_tvnow(), start);
+		if (ms < 0) {
+			ms = 0;
+		}
+	}
+
+	return ms;
+}
+
 #undef ONE_MILLION
 
 /*! \brief glibc puts a lock inside random(3), so that the results are thread-safe.
