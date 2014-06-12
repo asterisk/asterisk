@@ -1,3 +1,96 @@
+2014-06-12  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.3.1 Released.
+
+	* AST-2014-005 res_pjsip_pubsub: unauthenticated remote crash in PJSIP
+	  pub/sub framework
+
+	  A remotely exploitable crash vulnerability exists in the PJSIP channel
+	  driver's pub/sub framework. If an attempt is made to unsubscribe when
+	  not currently subscribed and the endpoint's "sub_min_expiry" is set
+	  to zero, Asterisk tries to create an expiration timer with zero
+	  seconds, which is not allowed, so an assertion raised.
+
+	  The fix was to reject a subscription that is attempting to
+	  unsubscribe when not being already subscribed. Asterisk now checks
+	  for this situation appropriately and responds with a 400 instead of
+	  crashing.
+
+	  ASTERISK-23489 #close
+
+	* AST-2014-006: Add class authorization requirements to MixMonitor AMI
+	  commands
+
+	  MixMonitor AMI commands StartMixMonitor and StopMixMonitor lacked
+	  class authorization. StopMixMonitor now requires that the manager
+	  user either have the call or system class authorization.
+	  StartMixMonitor is a slightly larger issue since it can execute shell
+	  commands if the right arguments are passed into it, and we consider
+	  this a permission escalation.
+
+	  ASTERISK-23609 #close
+	  Reported by: Corey Farrell
+
+	* AST-2014-007: Fix DOS by consuming the number of allowed HTTP
+	  connections.
+
+	  Simply establishing a TCP connection and never sending anything to
+	  the configured HTTP port in http.conf will tie up a HTTP connection.
+	  Since there is a maximum number of open HTTP sessions allowed at a
+	  time you can block legitimate connections.
+
+	  A similar problem exists if a HTTP request is started but never
+	  finished.
+
+	  * Added http.conf session_inactivity timer option to close HTTP
+	    connections that aren't doing anything.  Defaults to 30000 ms.
+
+	  * Removed the undocumented manager.conf block-sockets option.  It
+	    interferes with TCP/TLS inactivity timeouts.
+
+	  * AMI and SIP TLS connections now have better authentication timeout
+	    protection. Though I didn't remove the bizzare TLS timeout polling
+	    code from chan_sip.
+
+	  * chan_sip can now handle SSL certificate renegotiations in the
+	    middle of a session. It couldn't do that before because the socket
+	    was non-blocking and the SSL calls were not restarted as documented
+	    by the OpenSSL documentation.
+
+	  * Fixed an off nominal leak of the ssl struct in
+	    handle_tcptls_connection() if the FILE stream failed to open and
+	    the SSL certificate negotiations failed.
+
+	  The patch creates a custom FILE stream handler to give the created FILE
+	  streams inactivity timeout and timeout after a specific moment in time
+	  capability.  This approach eliminates the need for code using the FILE
+	  stream to be redesigned to deal with the timeouts.
+
+	  This patch indirectly fixes most of ASTERISK-18345 by fixing the usage
+	  of the SSL_read/SSL_write operations.
+
+	  ASTERISK-23673 #close
+	  Reported by: Richard Mudgett
+
+	* AST-2014-008: Fix potential deadlock situation in res_pjsip.
+
+	  SIP transaction timeouts are handled in the PJSIP monitor thread.
+	  When this happens on a subscription, and the subscription is
+	  destroyed, the subscription destruction is dispatched synchronously
+	  to the threadpool.
+
+	  The issue is that the PJSIP dialog is locked by the monitor thread,
+	  and then the dispatched task attempts to lock the dialog. This leads
+	  to a deadlock that causes SIP traffic to no longer be accepted on the
+	  Asterisk server.
+
+	  The fix here is to treat the monitor thread as if it were a
+	  threadpool thread when it attempts to dispatch synchronous tasks.
+	  This way, the dispatched task turns into a simple function call within
+	  the same thread, and the locking issue is averted.
+
+	  ASTERISK-23802 #close
+
 2014-05-29  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.3.0 Released.
