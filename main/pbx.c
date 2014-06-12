@@ -7574,7 +7574,12 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		e->command = "core show hints";
 		e->usage =
 			"Usage: core show hints\n"
-			"       List registered hints\n";
+			"       List registered hints.\n"
+			"       Hint details are shown in four columns. In order from left to right, they are:\n"
+			"       1. Hint extension URI.\n"
+			"       2. Mapped device state identifiers.\n"
+			"       3. Current extension state. The aggregate of mapped device states.\n"
+			"       4. Watchers - number of subscriptions and other entities watching this hint.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -7660,7 +7665,13 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		e->command = "core show hint";
 		e->usage =
 			"Usage: core show hint <exten>\n"
-			"       List registered hint\n";
+			"       List registered hint.\n"
+			"       Hint details are shown in four columns. In order from left to right, they are:\n"
+			"       1. Hint extension URI.\n"
+			"       2. Mapped device state identifiers.\n"
+			"       3. Current extension state. The aggregate of mapped device states.\n"
+			"       4. Watchers - number of subscriptions and other entities watching this hint.\n";
+
 		return NULL;
 	case CLI_GENERATE:
 		return complete_core_show_hint(a->line, a->word, a->pos, a->n);
