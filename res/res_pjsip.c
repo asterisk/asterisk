@@ -2194,6 +2194,11 @@ int ast_sip_thread_is_servant(void)
 {
 	uint32_t *servant_id;
 
+	if (monitor_thread &&
+			pthread_self() == *(pthread_t *)pj_thread_get_os_handle(monitor_thread)) {
+		return 1;
+	}
+
 	servant_id = ast_threadstorage_get(&servant_id_storage, sizeof(*servant_id));
 	if (!servant_id) {
 		return 0;
