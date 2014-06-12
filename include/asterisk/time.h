@@ -152,6 +152,20 @@ struct timeval ast_tvadd(struct timeval a, struct timeval b);
 struct timeval ast_tvsub(struct timeval a, struct timeval b);
 
 /*!
+ * \brief Calculate remaining milliseconds given a starting timestamp
+ * and upper bound
+ *
+ * If the upper bound is negative, then this indicates that there is no
+ * upper bound on the amount of time to wait. This will result in a
+ * negative return.
+ *
+ * \param start When timing started being calculated
+ * \param max_ms The maximum number of milliseconds to wait from start. May be negative.
+ * \return The number of milliseconds left to wait for. May be negative.
+ */
+int ast_remaining_ms(struct timeval start, int max_ms);
+
+/*!
  * \brief Returns a timeval from sec, usec
  */
 AST_INLINE_API(
