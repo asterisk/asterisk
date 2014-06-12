@@ -664,8 +664,13 @@ static int websocket_callback(struct ast_tcptls_session_instance *ser, const str
 	protocol_handler->callback(session, get_vars, headers);
 	ao2_ref(protocol_handler, -1);
 
-	/* By dropping the FILE* from the session it won't get closed when the HTTP server cleans up */
+	/*
+	 * By dropping the FILE* and fd from the session the connection
+	 * won't get closed when the HTTP server cleans up because we
+	 * passed the connection to the protocol handler.
+	 */
 	ser->f = NULL;
+	ser->fd = -1;
 
 	return 0;
 }

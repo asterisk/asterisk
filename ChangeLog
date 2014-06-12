@@ -1,3 +1,61 @@
+2014-06-12  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.10.1 Released.
+
+	* AST-2014-006: Add class authorization requirements to MixMonitor AMI
+	  commands
+
+	  MixMonitor AMI commands StartMixMonitor and StopMixMonitor lacked
+	  class authorization. StopMixMonitor now requires that the manager
+	  user either have the call or system class authorization.
+	  StartMixMonitor is a slightly larger issue since it can execute shell
+	  commands if the right arguments are passed into it, and we consider
+	  this a permission escalation.
+
+	  ASTERISK-23609 #close
+	  Reported by: Corey Farrell
+
+	* AST-2014-007: Fix DOS by consuming the number of allowed HTTP
+	  connections.
+
+	  Simply establishing a TCP connection and never sending anything to
+	  the configured HTTP port in http.conf will tie up a HTTP connection.
+	  Since there is a maximum number of open HTTP sessions allowed at a
+	  time you can block legitimate connections.
+
+	  A similar problem exists if a HTTP request is started but never
+	  finished.
+
+	  * Added http.conf session_inactivity timer option to close HTTP
+	    connections that aren't doing anything.  Defaults to 30000 ms.
+
+	  * Removed the undocumented manager.conf block-sockets option.  It
+	    interferes with TCP/TLS inactivity timeouts.
+
+	  * AMI and SIP TLS connections now have better authentication timeout
+	    protection. Though I didn't remove the bizzare TLS timeout polling
+	    code from chan_sip.
+
+	  * chan_sip can now handle SSL certificate renegotiations in the
+	    middle of a session. It couldn't do that before because the socket
+	    was non-blocking and the SSL calls were not restarted as documented
+	    by the OpenSSL documentation.
+
+	  * Fixed an off nominal leak of the ssl struct in
+	    handle_tcptls_connection() if the FILE stream failed to open and
+	    the SSL certificate negotiations failed.
+
+	  The patch creates a custom FILE stream handler to give the created FILE
+	  streams inactivity timeout and timeout after a specific moment in time
+	  capability.  This approach eliminates the need for code using the FILE
+	  stream to be redesigned to deal with the timeouts.
+
+	  This patch indirectly fixes most of ASTERISK-18345 by fixing the usage
+	  of the SSL_read/SSL_write operations.
+
+	  ASTERISK-23673 #close
+	  Reported by: Richard Mudgett
+
 2014-05-29  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.10.0 Released.
