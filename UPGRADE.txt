@@ -20,6 +20,18 @@
 ===
 ===========================================================
 
+From 11.6-cert2 to 11.6-cert3:
+* MixMonitor AMI actions now require users to have authorization classes.
+  * MixMonitor - system
+  * MixMonitorMute - call or system
+  * StopMixMonitor - call or system
+
+* Added http.conf session_inactivity timer option to close HTTP connections
+  that aren't doing anything.
+
+* Removed the undocumented manager.conf block-sockets option.  It interferes with
+  TCP/TLS inactivity timeouts.
+
 From 11.6 to 11.6-cert1:
 * Certain dialplan functions have been marked as 'dangerous', and may only be
   executed from the dialplan. Execution from extenal sources (AMI's GetVar and
