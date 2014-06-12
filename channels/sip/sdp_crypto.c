@@ -280,7 +280,7 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 	}
 
 	if (!p->tag) {
-		ast_log(LOG_DEBUG, "Accepting crypto tag %s\n", tag);
+		ast_debug(1, "Accepting crypto tag %s\n", tag);
 		p->tag = ast_strdup(tag);
 		if (!p->tag) {
 			ast_log(LOG_ERROR, "Could not allocate memory for tag\n");
@@ -310,7 +310,7 @@ int sdp_crypto_offer(struct sdp_crypto *p)
 		return -1;
 	}
 
-	ast_log(LOG_DEBUG, "Crypto line: %s", p->a_crypto);
+	ast_debug(1, "Crypto line: %s", p->a_crypto);
 
 	return 0;
 }
