@@ -3183,11 +3183,15 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 		goto cleanup;
 	}
 
+	ast_tcptls_stream_set_timeout_sequence(tcptls_session->stream_cookie, ast_tvnow(),
+		tcptls_session->client ? -1 : (authtimeout * 1000));
+
 	for (;;) {
 		struct ast_str *str_save;
 
 		if (!tcptls_session->client && req.authenticated && !authenticated) {
 			authenticated = 1;
+			ast_tcptls_stream_set_timeout_disable(tcptls_session->stream_cookie);
 			ast_atomic_fetchadd_int(&unauth_sessions, -1);
 		}
 

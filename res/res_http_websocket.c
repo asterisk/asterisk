@@ -757,8 +757,13 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	protocol_handler->callback(session, get_vars, headers);
 	ao2_ref(protocol_handler, -1);
 
-	/* By dropping the FILE* from the session it won't get closed when the HTTP server cleans up */
+	/*
+	 * By dropping the FILE* and fd from the session the connection
+	 * won't get closed when the HTTP server cleans up because we
+	 * passed the connection to the protocol handler.
+	 */
 	ser->f = NULL;
+	ser->fd = -1;
 
 	return 0;
 }

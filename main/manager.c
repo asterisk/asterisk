@@ -1123,7 +1123,6 @@ static char *manager_channelvars;
 #define DEFAULT_REALM		"asterisk"
 static char global_realm[MAXHOSTNAMELEN];	/*!< Default realm */
 
-static int block_sockets;
 static int unauth_sessions = 0;
 static struct stasis_subscription *acl_change_sub;
 
@@ -1770,15 +1769,7 @@ static void session_destructor(void *obj)
 	}
 
 	if (session->f != NULL) {
-		/*
-		 * Issuing shutdown() is necessary here to avoid a race
-		 * condition where the last data written may not appear
-		 * in the the TCP stream.  See ASTERISK-23548
-		*/
 		fflush(session->f);
-		if (session->fd != -1) {
-			shutdown(session->fd, SHUT_RDWR);
-		}
 		fclose(session->f);
 	}
 	if (eqe) {
@@ -5888,12 +5879,9 @@ static void *session_do(void *data)
 		ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY, getprotobyname(\"tcp\") failed\nSome manager actions may be slow to respond.\n");
 	}
 
+	/* make sure socket is non-blocking */
 	flags = fcntl(ser->fd, F_GETFL);
-	if (!block_sockets) { /* make sure socket is non-blocking */
-		flags |= O_NONBLOCK;
-	} else {
-		flags &= ~O_NONBLOCK;
-	}
+	flags |= O_NONBLOCK;
 	fcntl(ser->fd, F_SETFL, flags);
 
 	ao2_lock(session);
@@ -5919,10 +5907,16 @@ static void *session_do(void *data)
 	}
 	ao2_unlock(session);
 
+	ast_tcptls_stream_set_timeout_sequence(ser->stream_cookie,
+		ast_tvnow(), authtimeout * 1000);
+
 	astman_append(&s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
 		if ((res = do_message(&s)) < 0 || s.write_error) {
 			break;
+		}
+		if (session->authenticated) {
+			ast_tcptls_stream_set_timeout_disable(ser->stream_cookie);
 		}
 	}
 	/* session is over, explain why and terminate */
@@ -6732,6 +6726,30 @@ static void xml_translate(struct ast_str **out, char *in, struct ast_variable *g
 	}
 }
 
+static void close_mansession_file(struct mansession *s)
+{
+	if (s->f) {
+		if (fclose(s->f)) {
+			ast_log(LOG_ERROR, "fclose() failed: %s\n", strerror(errno));
+		}
+		s->f = NULL;
+		s->fd = -1;
+	} else if (s->fd != -1) {
+		/*
+		 * Issuing shutdown() is necessary here to avoid a race
+		 * condition where the last data written may not appear
+		 * in the TCP stream.  See ASTERISK-23548
+		 */
+		shutdown(s->fd, SHUT_RDWR);
+		if (close(s->fd)) {
+			ast_log(LOG_ERROR, "close() failed: %s\n", strerror(errno));
+		}
+		s->fd = -1;
+	} else {
+		ast_log(LOG_ERROR, "Attempted to close file/file descriptor on mansession without a valid file or file descriptor.\n");
+	}
+}
+
 static void process_output(struct mansession *s, struct ast_str **out, struct ast_variable *params, enum output_format format)
 {
 	char *buf;
@@ -6759,29 +6777,7 @@ static void process_output(struct mansession *s, struct ast_str **out, struct as
 		xml_translate(out, "", params, format);
 	}
 
-	if (s->f) {
-		/*
-		 * Issuing shutdown() is necessary here to avoid a race
-		 * condition where the last data written may not appear
-		 * in the the TCP stream.  See ASTERISK-23548
-		*/
-		if (s->fd != -1) {
-			shutdown(s->fd, SHUT_RDWR);
-		}
-		if (fclose(s->f)) {
-			ast_log(LOG_ERROR, "fclose() failed: %s\n", strerror(errno));
-		}
-		s->f = NULL;
-		s->fd = -1;
-	} else if (s->fd != -1) {
-		shutdown(s->fd, SHUT_RDWR);
-		if (close(s->fd)) {
-			ast_log(LOG_ERROR, "close() failed: %s\n", strerror(errno));
-		}
-		s->fd = -1;
-	} else {
-		ast_log(LOG_ERROR, "process output attempted to close file/file descriptor on mansession without a valid file or file descriptor.\n");
-	}
+	close_mansession_file(s);
 }
 
 static int generic_http_callback(struct ast_tcptls_session_instance *ser,
@@ -7572,7 +7568,6 @@ static char *handle_manager_show_settings(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, FORMAT, "Timestamp events:", AST_CLI_YESNO(timestampevents));
 	ast_cli(a->fd, FORMAT, "Channel vars:", S_OR(manager_channelvars, ""));
 	ast_cli(a->fd, FORMAT, "Debug:", AST_CLI_YESNO(manager_debug));
-	ast_cli(a->fd, FORMAT, "Block sockets:", AST_CLI_YESNO(block_sockets));
 #undef FORMAT
 #undef FORMAT2
 
@@ -8175,8 +8170,6 @@ static int __init_manager(int reload, int by_external_config)
 
 		if (!strcasecmp(var->name, "enabled")) {
 			manager_enabled = ast_true(val);
-		} else if (!strcasecmp(var->name, "block-sockets")) {
-			block_sockets = ast_true(val);
 		} else if (!strcasecmp(var->name, "webenabled")) {
 			webmanager_enabled = ast_true(val);
 		} else if (!strcasecmp(var->name, "port")) {

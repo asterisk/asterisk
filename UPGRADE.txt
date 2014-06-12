@@ -107,6 +107,9 @@ AMI:
    * MixMonitorMute - call or system
    * StopMixMonitor - call or system
 
+ - Removed the undocumented manager.conf block-sockets option.  It interferes with
+   TCP/TLS inactivity timeouts.
+
 CDRs:
  - The "endbeforehexten" setting now defaults to "yes", instead of "no".
    When set to "no", yhis setting will cause a new CDR to be generated when a
@@ -147,6 +150,10 @@ Configuration Files:
 
  - The unistim.conf 'dateformat' has changed meaning of options values to conform
    values used inside Unistim protocol
+
+HTTP:
+ - Added http.conf session_inactivity timer option to close HTTP connections
+   that aren't doing anything.
 
 ODBC:
 - The compatibility setting, allow_empty_string_in_nontext, has been removed.

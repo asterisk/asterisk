@@ -1260,13 +1260,24 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 int ast_wait_for_input(int fd, int ms)
 {
 	struct pollfd pfd[1];
+
 	memset(pfd, 0, sizeof(pfd));
 	pfd[0].fd = fd;
-	pfd[0].events = POLLIN|POLLPRI;
+	pfd[0].events = POLLIN | POLLPRI;
 	return ast_poll(pfd, 1, ms);
 }
 
-static int ast_wait_for_output(int fd, int timeoutms)
+int ast_wait_for_output(int fd, int ms)
+{
+	struct pollfd pfd[1];
+
+	memset(pfd, 0, sizeof(pfd));
+	pfd[0].fd = fd;
+	pfd[0].events = POLLOUT;
+	return ast_poll(pfd, 1, ms);
+}
+
+static int wait_for_output(int fd, int timeoutms)
 {
 	struct pollfd pfd = {
 		.fd = fd,
@@ -1326,7 +1337,7 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	int elapsed = 0;
 
 	while (len) {
-		if (ast_wait_for_output(fd, timeoutms - elapsed)) {
+		if (wait_for_output(fd, timeoutms - elapsed)) {
 			return -1;
 		}
 
@@ -1367,7 +1378,7 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 	int elapsed = 0;
 
 	while (len) {
-		if (ast_wait_for_output(fd, timeoutms - elapsed)) {
+		if (wait_for_output(fd, timeoutms - elapsed)) {
 			/* poll returned a fatal error, so bail out immediately. */
 			return -1;
 		}

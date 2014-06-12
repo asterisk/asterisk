@@ -369,6 +369,7 @@ static force_inline void ast_slinear_saturated_divide(short *input, short *value
 
 int ast_utils_init(void);
 int ast_wait_for_input(int fd, int ms);
+int ast_wait_for_output(int fd, int ms);
 
 /*!
  * \brief Try to write string, but wait no more than ms milliseconds
