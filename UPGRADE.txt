@@ -18,6 +18,13 @@
 ===
 ===========================================================
 
+from 1.8.28.0 to 1.8.28.1:
+* Added http.conf session_inactivity timer option to close HTTP connections
+  that aren't doing anything.
+
+* Removed the undocumented manager.conf block-sockets option.  It interferes with
+  TCP/TLS inactivity timeouts.
+
 from 1.8.27.0 to 1.8.28.0:
 * The asterisk command line -I option and the asterisk.conf internal_timing
   option are removed and always enabled if any timing module is loaded.
