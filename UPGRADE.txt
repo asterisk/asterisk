@@ -102,6 +102,11 @@ AMI:
    ConfbridgeMute, ConfbridgeUnmute, ConfbridgeTalking, BlindTransfer,
    AttendedTransfer, BridgeCreate, BridgeDestroy, BridgeEnter, BridgeLeave
 
+ - MixMonitor AMI actions now require users to have authorization classes.
+   * MixMonitor - system
+   * MixMonitorMute - call or system
+   * StopMixMonitor - call or system
+
 CDRs:
  - The "endbeforehexten" setting now defaults to "yes", instead of "no".
    When set to "no", yhis setting will cause a new CDR to be generated when a

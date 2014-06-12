@@ -1518,9 +1518,9 @@ static int load_module(void)
 	ast_cli_register_multiple(cli_mixmonitor, ARRAY_LEN(cli_mixmonitor));
 	res = ast_register_application_xml(app, mixmonitor_exec);
 	res |= ast_register_application_xml(stop_app, stop_mixmonitor_exec);
-	res |= ast_manager_register_xml("MixMonitorMute", 0, manager_mute_mixmonitor);
-	res |= ast_manager_register_xml("MixMonitor", 0, manager_mixmonitor);
-	res |= ast_manager_register_xml("StopMixMonitor", 0, manager_stop_mixmonitor);
+	res |= ast_manager_register_xml("MixMonitorMute", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, manager_mute_mixmonitor);
+	res |= ast_manager_register_xml("MixMonitor", EVENT_FLAG_SYSTEM, manager_mixmonitor);
+	res |= ast_manager_register_xml("StopMixMonitor", EVENT_FLAG_SYSTEM | EVENT_FLAG_CALL, manager_stop_mixmonitor);
 	res |= ast_custom_function_register(&mixmonitor_function);
 	res |= set_mixmonitor_methods();
 
