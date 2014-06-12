@@ -1221,6 +1221,23 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
 
 /*!
+ * \brief General purpose method for creating an rdata structure using specific information
+ *
+ * \param rdata[out] The rdata structure that will be populated
+ * \param packet A SIP message
+ * \param src_name The source IP address of the message
+ * \param src_port The source port of the message
+ * \param transport_type The type of transport the message was received on
+ * \param local_name The local IP address the message was received on
+ * \param local_port The local port the message was received on
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_name, int src_port, char *transport_type,
+	const char *local_name, int local_port);
+
+/*!
  * \brief General purpose method for creating a SIP request
  *
  * Its typical use would be to create one-off requests such as an out of dialog
