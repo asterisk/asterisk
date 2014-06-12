@@ -445,8 +445,7 @@ static struct ast_sip_subscription *new_subscribe(struct ast_sip_endpoint *endpo
 		return NULL;
 	}
 
-	if (pjsip_evsub_accept(ast_sip_subscription_get_evsub(exten_state_sub->sip_sub),
-			       rdata, 200, NULL) != PJ_SUCCESS) {
+	if (ast_sip_subscription_accept(exten_state_sub->sip_sub, rdata, 200)) {
 		ast_log(LOG_WARNING, "Unable to accept the incoming extension state subscription.\n");
 		pjsip_evsub_terminate(ast_sip_subscription_get_evsub(exten_state_sub->sip_sub), PJ_FALSE);
 		return NULL;

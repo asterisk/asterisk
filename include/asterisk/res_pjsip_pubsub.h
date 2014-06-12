@@ -456,6 +456,18 @@ pjsip_evsub *ast_sip_subscription_get_evsub(struct ast_sip_subscription *sub);
 pjsip_dialog *ast_sip_subscription_get_dlg(struct ast_sip_subscription *sub);
 
 /*!
+ * \brief Accept a subscription request
+ *
+ * \param sub The subscription to be accepted
+ * \param rdata The received subscription request
+ * \param response The response code to send
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+int ast_sip_subscription_accept(struct ast_sip_subscription *sub, pjsip_rx_data *rdata, int response);
+
+/*!
  * \brief Send a request created via a PJSIP evsub method
  *
  * Callers of this function should take care to do so within a SIP servant

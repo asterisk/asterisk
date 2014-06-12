@@ -1613,6 +1613,36 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 	return dlg;
 }
 
+int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_name, int src_port,
+	char *transport_type, const char *local_name, int local_port)
+{
+	pj_str_t tmp;
+
+	rdata->tp_info.transport = PJ_POOL_ZALLOC_T(rdata->tp_info.pool, pjsip_transport);
+	if (!rdata->tp_info.transport) {
+		return -1;
+	}
+
+	ast_copy_string(rdata->pkt_info.packet, packet, sizeof(rdata->pkt_info.packet));
+	ast_copy_string(rdata->pkt_info.src_name, src_name, sizeof(rdata->pkt_info.src_name));
+	rdata->pkt_info.src_port = src_port;
+
+	pjsip_parse_rdata(packet, strlen(packet), rdata);
+	if (!rdata->msg_info.msg) {
+		return -1;
+	}
+
+	pj_strdup2(rdata->tp_info.pool, &rdata->msg_info.via->recvd_param, rdata->pkt_info.src_name);
+	rdata->msg_info.via->rport_param = -1;
+
+	rdata->tp_info.transport->key.type = pjsip_transport_get_type_from_name(pj_cstr(&tmp, transport_type));
+	rdata->tp_info.transport->type_name = transport_type;
+	pj_strdup2(rdata->tp_info.pool, &rdata->tp_info.transport->local_name.host, local_name);
+	rdata->tp_info.transport->local_name.port = local_port;
+
+	return 0;
+}
+
 /* PJSIP doesn't know about the INFO method, so we have to define it ourselves */
 static const pjsip_method info_method = {PJSIP_OTHER_METHOD, {"INFO", 4} };
 static const pjsip_method message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };

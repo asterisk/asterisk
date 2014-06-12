@@ -5,6 +5,7 @@
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_serializer;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_evsub;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_dlg;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_accept;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_send_request;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_alloc_datastore;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_add_datastore;

@@ -699,7 +699,6 @@ static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *e
 	RAII_VAR(struct mwi_subscription *, sub, NULL, ao2_cleanup);
 	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
 	pjsip_sip_uri *sip_ruri;
-	pjsip_evsub *evsub;
 	char aor_name[80];
 
 	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
@@ -715,8 +714,7 @@ static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *e
 		return NULL;
 	}
 
-	evsub = ast_sip_subscription_get_evsub(sub->sip_sub);
-	pjsip_evsub_accept(evsub, rdata, 200, NULL);
+	ast_sip_subscription_accept(sub->sip_sub, rdata, 200);
 	send_mwi_notify(sub, PJSIP_EVSUB_STATE_ACTIVE, NULL);
 
 	return sub->sip_sub;
