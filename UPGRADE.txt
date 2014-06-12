@@ -28,11 +28,17 @@ From 12.3.0 to 12.4.0:
    safe_asterisk script is customized, be sure to keep your changes. Custom
    values for variables should be created in *.sh file(s) inside
    ASTETCDIR/startup.d/. See ASTERISK-21965.
+
  - Changed a log message in safe_asterisk and the $NOTIFY mail subject. If
    you use tools to parse either of them, update your parse functions
    accordingly. The changed strings are:
    - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
    - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
+
+ - MixMonitor AMI actions now require users to have authorization classes.
+   * MixMonitor - system
+   * MixMonitorMute - call or system
+   * StopMixMonitor - call or system
 
 From 12.2.0 to 12.3.0:
 
