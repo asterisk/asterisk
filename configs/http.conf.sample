@@ -39,6 +39,12 @@ bindaddr=127.0.0.1
 ;
 ;sessionlimit=100
 ;
+; session_inactivity specifies the number of milliseconds to wait for
+; more data over the HTTP connection before closing it.
+;
+; Default: 30000
+;session_inactivity=30000
+;
 ; Whether Asterisk should serve static content from http-static
 ; Default is no.
 ;

@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_PORT 8088
 #define DEFAULT_TLS_PORT 8089
 #define DEFAULT_SESSION_LIMIT 100
+#define DEFAULT_SESSION_INACTIVITY 30000	/* (ms) Idle time waiting for data. */
 
 /* See http.h for more information about the SSL implementation */
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
@@ -69,6 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 static int session_limit = DEFAULT_SESSION_LIMIT;
+static int session_inactivity = DEFAULT_SESSION_INACTIVITY;
 static int session_count = 0;
 
 static struct ast_tls_config http_tls_cfg;
@@ -864,6 +866,7 @@ static void *httpd_helper_thread(void *data)
 	char *uri, *method;
 	enum ast_http_method http_method = AST_HTTP_UNKNOWN;
 	int remaining_headers;
+	int flags;
 	struct protoent *p;
 
 	if (ast_atomic_fetchadd_int(&session_count, +1) >= session_limit) {
@@ -885,7 +888,14 @@ static void *httpd_helper_thread(void *data)
 		ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
 	}
 
-	if (!fgets(buf, sizeof(buf), ser->f)) {
+	/* make sure socket is non-blocking */
+	flags = fcntl(ser->fd, F_GETFL);
+	flags |= O_NONBLOCK;
+	fcntl(ser->fd, F_SETFL, flags);
+
+	ast_tcptls_stream_set_timeout_inactivity(ser->stream_cookie, session_inactivity);
+
+	if (!fgets(buf, sizeof(buf), ser->f) || feof(ser->f)) {
 		goto done;
 	}
 
@@ -921,12 +931,19 @@ static void *httpd_helper_thread(void *data)
 
 	/* process "Request Headers" lines */
 	remaining_headers = MAX_HTTP_REQUEST_HEADERS;
-	while (fgets(header_line, sizeof(header_line), ser->f)) {
-		char *name, *value;
+	for (;;) {
+		char *name;
+		char *value;
+
+		if (!fgets(header_line, sizeof(header_line), ser->f) || feof(ser->f)) {
+			ast_http_error(ser, 400, "Bad Request", "Timeout");
+			goto done;
+		}
 
 		/* Trim trailing characters */
 		ast_trim_blanks(header_line);
 		if (ast_strlen_zero(header_line)) {
+			/* A blank line ends the request header section. */
 			break;
 		}
 
@@ -977,7 +994,7 @@ done:
 	ast_variables_destroy(headers);
 
 	if (ser->f) {
-		fclose(ser->f);
+		ast_tcptls_close_session_file(ser);
 	}
 	ao2_ref(ser, -1);
 	ser = NULL;
@@ -1087,6 +1104,9 @@ static int __ast_http_load(int reload)
 
 	ast_sockaddr_setnull(&https_desc.local_address);
 
+	session_limit = DEFAULT_SESSION_LIMIT;
+	session_inactivity = DEFAULT_SESSION_INACTIVITY;
+
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
 		for (; v; v = v->next) {
@@ -1131,6 +1151,12 @@ static int __ast_http_load(int reload)
 							&session_limit, DEFAULT_SESSION_LIMIT, 1, INT_MAX)) {
 					ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
 							v->name, v->value, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "session_inactivity")) {
+				if (ast_parse_arg(v->value, PARSE_INT32 |PARSE_DEFAULT | PARSE_IN_RANGE,
+					&session_inactivity, DEFAULT_SESSION_INACTIVITY, 1, INT_MAX)) {
+					ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
+						v->name, v->value, v->lineno);
 				}
 			} else {
 				ast_log(LOG_WARNING, "Ignoring unknown option '%s' in http.conf\n", v->name);

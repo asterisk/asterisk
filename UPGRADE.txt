@@ -20,11 +20,17 @@
 ===
 ===========================================================
 
-from 11.10 to 11.10.1
+from 11.10.0 to 11.10.1
  - MixMonitor AMI actions now require users to have authorization classes.
    * MixMonitor - system
    * MixMonitorMute - call or system
    * StopMixMonitor - call or system
+
+ - Added http.conf session_inactivity timer option to close HTTP connections
+   that aren't doing anything.
+
+ - Removed the undocumented manager.conf block-sockets option.  It interferes with
+   TCP/TLS inactivity timeouts.
 
 from 11.9 to 11.10
  - The asterisk command line -I option and the asterisk.conf internal_timing
