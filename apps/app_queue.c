@@ -1448,7 +1448,7 @@ static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, st
  * is available, the function immediately returns 0. If no members are available,
  * then -1 is returned.
  */
-static int get_member_status(struct call_queue *q, int max_penalty, int min_penalty, enum empty_conditions conditions)
+static int get_member_status(struct call_queue *q, int max_penalty, int min_penalty, enum empty_conditions conditions, int devstate)
 {
 	struct member *member;
 	struct ao2_iterator mem_iter;
@@ -1463,7 +1463,7 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 			}
 		}
 
-		switch (member->status) {
+		switch (devstate ? ast_device_state(member->state_interface) : member->status) {
 		case AST_DEVICE_INVALID:
 			if (conditions & QUEUE_EMPTY_INVALID) {
 				ast_debug(4, "%s is unavailable because his device state is 'invalid'\n", member->membername);
@@ -1513,8 +1513,12 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 		}
 	}
 	ao2_iterator_destroy(&mem_iter);
-
 	ao2_unlock(q);
+
+	if (!devstate && (conditions & QUEUE_EMPTY_RINGING)) {
+		/* member state still may be RINGING due to lag in event message - check again with device state */
+		return get_member_status(q, max_penalty, min_penalty, conditions, 1);
+	}
 	return -1;
 }
 
@@ -2610,7 +2614,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	/* This is our one */
 	if (q->joinempty) {
 		int status = 0;
-		if ((status = get_member_status(q, qe->max_penalty, qe->min_penalty, q->joinempty))) {
+		if ((status = get_member_status(q, qe->max_penalty, qe->min_penalty, q->joinempty, 0))) {
 			*reason = QUEUE_JOINEMPTY;
 			ao2_unlock(q);
 			queue_t_unref(q, "Done with realtime queue");
@@ -4303,7 +4307,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		if (qe->parent->leavewhenempty) {
 			int status = 0;
 
-			if ((status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty, qe->parent->leavewhenempty))) {
+			if ((status = get_member_status(qe->parent, qe->max_penalty, qe->min_penalty, qe->parent->leavewhenempty, 0))) {
 				*reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				leave_queue(qe);
@@ -6372,7 +6376,7 @@ check_turns:
 
 		if (qe.parent->leavewhenempty) {
 			int status = 0;
-			if ((status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty, qe.parent->leavewhenempty))) {
+			if ((status = get_member_status(qe.parent, qe.max_penalty, qe.min_penalty, qe.parent->leavewhenempty, 0))) {
 				record_abandoned(&qe);
 				reason = QUEUE_LEAVEEMPTY;
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
