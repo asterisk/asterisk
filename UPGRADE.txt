@@ -23,12 +23,6 @@
 
 From 12 to 13:
 
- - Changed a log message in safe_asterisk and the $NOTIFY mail subject. If
-   you use tools to parse either of them, update your parse functions
-   accordingly. The changed strings are:
-   - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
-   - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
-
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
 
@@ -194,6 +188,19 @@ Realtime Configuration:
 
  - A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
+
+safe_asterisk:
+ - The safe_asterisk script was previously not installed on top of an existing
+   version. This caused bug-fixes in that script not to be deployed. If your
+   safe_asterisk script is customized, be sure to keep your changes. Custom
+   values for variables should be created in *.sh file(s) inside
+   ASTETCDIR/startup.d/. See ASTERISK-21965.
+
+ - Changed a log message in safe_asterisk and the $NOTIFY mail subject. If
+   you use tools to parse either of them, update your parse functions
+   accordingly. The changed strings are:
+   - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
+   - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
 
 Unistim:
  - Added 'dtmf_duration' option with changing default operation to disable
