@@ -24,6 +24,11 @@ from 11.9 to 11.10
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
 
+ - MixMonitor AMI actions now require users to have authorization classes.
+   * MixMonitor - system
+   * MixMonitorMute - call or system
+   * StopMixMonitor - call or system
+
  - Added a new Compiler Flag, REF_DEBUG. When enabled, reference counted
    objects will emit additional debug information to the refs log file located
    in the standard Asterisk log file directory. This log file is useful in
