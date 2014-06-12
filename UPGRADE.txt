@@ -35,6 +35,8 @@ From 12.3.0 to 12.4.0:
    - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
    - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
 
+From 12.3.0 to 12.3.1:
+
  - MixMonitor AMI actions now require users to have authorization classes.
    * MixMonitor - system
    * MixMonitorMute - call or system
