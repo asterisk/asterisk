@@ -1326,6 +1326,9 @@ static void *httpd_helper_thread(void *data)
 	flags |= O_NONBLOCK;
 	fcntl(ser->fd, F_SETFL, flags);
 
+	/* We can let the stream wait for data to arrive. */
+	ast_tcptls_stream_set_exclusive_input(ser->stream_cookie, 1);
+
 	ast_tcptls_stream_set_timeout_inactivity(ser->stream_cookie, session_inactivity);
 
 	if (!fgets(buf, sizeof(buf), ser->f) || feof(ser->f)) {
