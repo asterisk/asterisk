@@ -1,3 +1,14 @@
+2014-06-13  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.10.2 Released.
+
+	* AST-2014-007: Fix of fix to allow AMI and SIP TCP to send messages.
+
+	  The original fix for AST-2014-007 inadvertently introduced a
+	  regression in Asterisk's TCP and TLS handling that prevented
+	  Asterisk from sending data over these transports. This patch fixes
+	  that regression.
+
 2014-06-12  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.10.1 Released.
