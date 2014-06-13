@@ -189,7 +189,21 @@ void ast_tcptls_stream_set_timeout_inactivity(struct ast_tcptls_stream *stream, 
  */
 void ast_tcptls_stream_set_timeout_sequence(struct ast_tcptls_stream *stream, struct timeval start, int timeout);
 
-/*! \brief 
+/*!
+ * \brief Set the TCP/TLS stream I/O if it can exclusively depend upon the set timeouts.
+ *
+ * \param stream TCP/TLS stream control data.
+ * \param exclusive_input TRUE if stream can exclusively wait for fd input.
+ * Otherwise, the stream will not wait for fd input.  It will wait while
+ * trying to send data.
+ *
+ * \note The stream timeouts still need to be set.
+ *
+ * \return Nothing
+ */
+void ast_tcptls_stream_set_exclusive_input(struct ast_tcptls_stream *stream, int exclusive_input);
+
+/*! \brief
  * describes a server instance
  */
 struct ast_tcptls_session_instance {
