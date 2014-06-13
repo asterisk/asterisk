@@ -127,9 +127,17 @@ struct stasis_caching_topic *stasis_caching_unsubscribe_and_join(struct stasis_c
 	return NULL;
 }
 
+/*!
+ * \brief The key for an entry in the cache
+ * \note The items in this struct must be immutable for the item in the cache
+ */
 struct cache_entry_key {
+	/*! The message type of the item stored in the cache */
 	struct stasis_message_type *type;
+	/*! The unique ID of the item stored in the cache */
 	const char *id;
+	/*! The hash, computed from \c type and \c id */
+	unsigned int hash;
 };
 
 struct stasis_cache_entry {
@@ -166,6 +174,12 @@ static void cache_entry_dtor(void *obj)
 	AST_VECTOR_FREE(&entry->remote);
 }
 
+static void cache_entry_compute_hash(struct cache_entry_key *key)
+{
+	key->hash = ast_hashtab_hash_string(stasis_message_type_name(key->type));
+	key->hash += ast_hashtab_hash_string(key->id);
+}
+
 static struct stasis_cache_entry *cache_entry_create(struct stasis_message_type *type, const char *id, struct stasis_message *snapshot)
 {
 	struct stasis_cache_entry *entry;
@@ -187,6 +201,7 @@ static struct stasis_cache_entry *cache_entry_create(struct stasis_message_type 
 		return NULL;
 	}
 	entry->key.type = ao2_bump(type);
+	cache_entry_compute_hash(&entry->key);
 
 	is_remote = ast_eid_cmp(&ast_eid_default, stasis_message_eid(snapshot)) ? 1 : 0;
 	if (AST_VECTOR_INIT(&entry->remote, is_remote)) {
@@ -211,7 +226,6 @@ static int cache_entry_hash(const void *obj, int flags)
 {
 	const struct stasis_cache_entry *object;
 	const struct cache_entry_key *key;
-	int hash = 0;
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_KEY:
@@ -227,9 +241,7 @@ static int cache_entry_hash(const void *obj, int flags)
 		return 0;
 	}
 
-	hash += ast_hashtab_hash_string(stasis_message_type_name(key->type));
-	hash += ast_hashtab_hash_string(key->id);
-	return hash;
+	return (int)key->hash;
 }
 
 static int cache_entry_cmp(void *obj, void *arg, int flags)
@@ -347,6 +359,7 @@ static struct stasis_cache_entry *cache_find(struct ao2_container *entries, stru
 
 	search_key.type = type;
 	search_key.id = id;
+	cache_entry_compute_hash(&search_key);
 	entry = ao2_find(entries, &search_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 
 	/* Ensure that what we looked for is what we found. */

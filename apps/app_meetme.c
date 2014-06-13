@@ -1379,9 +1379,7 @@ static void meetme_stasis_generate_msg(struct ast_conference *meetme_conference,
 		}
 	}
 
-	ast_channel_lock(chan);
-	msg = ast_channel_blob_create(chan, message_type, json_object);
-	ast_channel_unlock(chan);
+	msg = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), message_type, json_object);
 
 	if (!msg) {
 		return;

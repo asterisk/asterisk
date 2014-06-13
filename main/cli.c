@@ -1513,8 +1513,7 @@ static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, str
 
 static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_channel_snapshot *snapshot;
+	struct ast_channel *chan;
 	struct timeval now;
 	char cdrtime[256];
 	struct ast_str *obuf;/*!< Buffer for CDR variables. */
@@ -1522,6 +1521,12 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 	struct ast_var_t *var;
+	char nativeformats[256];
+	struct ast_str *write_transpath = ast_str_alloca(256);
+	struct ast_str *read_transpath = ast_str_alloca(256);
+	struct ast_bridge *bridge;
+	struct ast_callid *callid;
+	char callid_buf[32];
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1538,31 +1543,43 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		return CLI_SHOWUSAGE;
 	}
 
-	now = ast_tvnow();
-
-	if (!(msg = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
-		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
-		return CLI_SUCCESS;
-	}
-	snapshot = stasis_message_data(msg);
-
 	obuf = ast_str_thread_get(&ast_str_thread_global_buf, 16);
 	if (!obuf) {
 		return CLI_FAILURE;
 	}
+
 	output = ast_str_create(8192);
 	if (!output) {
 		return CLI_FAILURE;
 	}
 
-	if (!ast_tvzero(snapshot->creationtime)) {
-		elapsed_seconds = now.tv_sec - snapshot->creationtime.tv_sec;
+	chan = ast_channel_get_by_name(a->argv[3]);
+	if (!chan) {
+		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
+		return CLI_SUCCESS;
+	}
+
+	now = ast_tvnow();
+	ast_channel_lock(chan);
+
+	if (!ast_tvzero(ast_channel_creationtime(chan))) {
+		elapsed_seconds = now.tv_sec - ast_channel_creationtime(chan).tv_sec;
 		hour = elapsed_seconds / 3600;
 		min = (elapsed_seconds % 3600) / 60;
 		sec = elapsed_seconds % 60;
 		snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
 	} else {
 		strcpy(cdrtime, "N/A");
+	}
+
+	ast_translate_path_to_str(ast_channel_writetrans(chan), &write_transpath);
+	ast_translate_path_to_str(ast_channel_readtrans(chan), &read_transpath);
+
+	bridge = ast_channel_get_bridge(chan);
+	callid = ast_channel_callid(chan);
+	if (callid) {
+		ast_callid_strnprint(callid_buf, sizeof(callid_buf), callid);
+		ast_callid_unref(callid);
 	}
 
 	ast_str_append(&output, 0,
@@ -1597,51 +1614,63 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		"    Application: %s\n"
 		"           Data: %s\n"
 		" Call Identifer: %s\n",
-		snapshot->name,
-		snapshot->type,
-		snapshot->uniqueid,
-		snapshot->linkedid,
-		S_OR(snapshot->caller_number, "(N/A)"),
-		S_OR(snapshot->caller_name, "(N/A)"),
-		S_OR(snapshot->connected_number, "(N/A)"),
-		S_OR(snapshot->connected_name, "(N/A)"),
-		S_OR(snapshot->effective_number, "(N/A)"),
-		S_OR(snapshot->effective_name, "(N/A)"),
-		S_OR(snapshot->caller_dnid, "(N/A)"),
-		snapshot->language,
-		ast_state2str(snapshot->state),
-		snapshot->state,
-		snapshot->nativeformats,
-		snapshot->writeformat,
-		snapshot->readformat,
-		!ast_strlen_zero(snapshot->writetrans) ? "Yes" : "No",
-		snapshot->writetrans,
-		!ast_strlen_zero(snapshot->readtrans) ? "Yes" : "No",
-		snapshot->readtrans,
-		(long) snapshot->hanguptime.tv_sec,
+		ast_channel_name(chan),
+		ast_channel_tech(chan)->type,
+		ast_channel_uniqueid(chan),
+		ast_channel_linkedid(chan),
+		S_COR(ast_channel_caller(chan)->id.number.valid,
+		      ast_channel_caller(chan)->id.number.str, "(N/A)"),
+		S_COR(ast_channel_caller(chan)->id.name.valid,
+		      ast_channel_caller(chan)->id.name.str, "(N/A)"),
+		S_COR(ast_channel_connected(chan)->id.number.valid,
+		      ast_channel_connected(chan)->id.number.str, "(N/A)"),
+		S_COR(ast_channel_connected(chan)->id.name.valid,
+		      ast_channel_connected(chan)->id.name.str, "(N/A)"),
+		S_COR(ast_channel_connected_effective_id(chan).number.valid,
+		      ast_channel_connected_effective_id(chan).number.str, "(N/A)"),
+		S_COR(ast_channel_connected_effective_id(chan).name.valid,
+		      ast_channel_connected_effective_id(chan).name.str, "(N/A)"),
+		S_OR(ast_channel_dialed(chan)->number.str, "(N/A)"),
+		ast_channel_language(chan),
+		ast_state2str(ast_channel_state(chan)),
+		ast_channel_state(chan),
+		ast_getformatname_multiple(nativeformats, sizeof(nativeformats), ast_channel_nativeformats(chan)),
+		ast_getformatname(ast_channel_writeformat(chan)),
+		ast_getformatname(ast_channel_readformat(chan)),
+		ast_str_strlen(write_transpath) ? "Yes" : "No",
+		ast_str_buffer(write_transpath),
+		ast_str_strlen(read_transpath) ? "Yes" : "No",
+		ast_str_buffer(read_transpath),
+		ast_channel_whentohangup(chan)->tv_sec,
 		cdrtime,
-		S_OR(snapshot->bridgeid, "(Not bridged)"),
-		snapshot->context,
-		snapshot->exten,
-		snapshot->priority,
-		snapshot->callgroup,
-		snapshot->pickupgroup,
-		S_OR(snapshot->appl, "(N/A)"),
-		S_OR(snapshot->data, "(Empty)"),
-		S_OR(snapshot->callid, "(None)"));
-
+		bridge ? bridge->uniqueid : "(Not bridged)",
+		ast_channel_context(chan),
+		ast_channel_exten(chan),
+		ast_channel_priority(chan),
+		ast_channel_callgroup(chan),
+		ast_channel_pickupgroup(chan),
+		S_OR(ast_channel_appl(chan), "(N/A)"),
+		S_OR(ast_channel_data(chan), "(Empty)"),
+		S_OR(callid_buf, "(None)")
+		);
 	ast_str_append(&output, 0, "      Variables:\n");
 
-	AST_LIST_TRAVERSE(snapshot->channel_vars, var, entries) {
+	AST_LIST_TRAVERSE(ast_channel_varshead(chan), var, entries) {
 		ast_str_append(&output, 0, "%s=%s\n", ast_var_name(var), ast_var_value(var));
 	}
 
-	if (ast_cdr_serialize_variables(snapshot->name, &obuf, '=', '\n')) {
+	if (ast_cdr_serialize_variables(ast_channel_name(chan), &obuf, '=', '\n')) {
 		ast_str_append(&output, 0, "  CDR Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 
+	ast_channel_unlock(chan);
+
 	ast_cli(a->fd, "%s", ast_str_buffer(output));
 	ast_free(output);
+
+	ao2_cleanup(bridge);
+	ast_channel_unref(chan);
+
 	return CLI_SUCCESS;
 }
 

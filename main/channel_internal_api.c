@@ -943,9 +943,8 @@ void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *callid)
 		ast_channel_name(chan),
 		call_identifier_to,
 		call_identifier_from);
-
-	ast_channel_publish_snapshot(chan);
 }
+
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state value)
 {
 	chan->state = value;
@@ -1073,7 +1072,6 @@ void ast_channel_dtmf_tv_set(struct ast_channel *chan, struct timeval *value)
 void ast_channel_whentohangup_set(struct ast_channel *chan, struct timeval *value)
 {
 	chan->whentohangup = *value;
-	ast_channel_publish_snapshot(chan);
 }
 void ast_channel_varshead_set(struct ast_channel *chan, struct varshead *value)
 {
@@ -1131,7 +1129,6 @@ ast_group_t ast_channel_callgroup(const struct ast_channel *chan)
 void ast_channel_callgroup_set(struct ast_channel *chan, ast_group_t value)
 {
 	chan->callgroup = value;
-	ast_channel_publish_snapshot(chan);
 }
 ast_group_t ast_channel_pickupgroup(const struct ast_channel *chan)
 {
@@ -1140,7 +1137,6 @@ ast_group_t ast_channel_pickupgroup(const struct ast_channel *chan)
 void ast_channel_pickupgroup_set(struct ast_channel *chan, ast_group_t value)
 {
 	chan->pickupgroup = value;
-	ast_channel_publish_snapshot(chan);
 }
 struct ast_namedgroups *ast_channel_named_callgroups(const struct ast_channel *chan)
 {

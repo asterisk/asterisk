@@ -1871,7 +1871,7 @@ int ast_aoc_manager_event(const struct ast_aoc_decoded *decoded, struct ast_chan
 		return 0;
 	}
 
-	ast_channel_publish_blob(chan, msg_type, blob);
+	ast_channel_publish_cached_blob(chan, msg_type, blob);
 	return 0;
 }
 

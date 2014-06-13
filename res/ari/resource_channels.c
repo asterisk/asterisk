@@ -859,7 +859,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		return;
 	}
 
-	snapshot = ast_channel_snapshot_create(chan);
+	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
 	ast_channel_unlock(chan);
 
 	if (!ast_strlen_zero(args_app)) {
@@ -1086,7 +1086,7 @@ static void ari_channels_handle_snoop_channel(
 		return;
 	}
 
-	snapshot = ast_channel_snapshot_create(snoop);
+	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(snoop));
 	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
 }
 

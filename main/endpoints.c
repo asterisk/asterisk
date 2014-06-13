@@ -203,9 +203,6 @@ int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 	ast_str_container_add(endpoint->channel_ids, ast_channel_uniqueid(chan));
 	ao2_unlock(endpoint);
 
-	ast_channel_lock(chan);
-	ast_publish_channel_state(chan);
-	ast_channel_unlock(chan);
 	endpoint_publish_snapshot(endpoint);
 
 	return 0;

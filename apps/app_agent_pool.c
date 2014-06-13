@@ -1442,7 +1442,7 @@ static void send_agent_login(struct ast_channel *chan, const char *agent)
 		return;
 	}
 
-	ast_channel_publish_blob(chan, ast_channel_agent_login_type(), blob);
+	ast_channel_publish_cached_blob(chan, ast_channel_agent_login_type(), blob);
 }
 
 static void send_agent_logoff(struct ast_channel *chan, const char *agent, long logintime)
@@ -1458,7 +1458,7 @@ static void send_agent_logoff(struct ast_channel *chan, const char *agent, long 
 		return;
 	}
 
-	ast_channel_publish_blob(chan, ast_channel_agent_logoff_type(), blob);
+	ast_channel_publish_cached_blob(chan, ast_channel_agent_logoff_type(), blob);
 }
 
 /*!

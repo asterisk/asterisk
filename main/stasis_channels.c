@@ -195,18 +195,12 @@ static void channel_snapshot_dtor(void *obj)
 
 	ast_string_field_free_memory(snapshot);
 	ao2_cleanup(snapshot->manager_vars);
-	ao2_cleanup(snapshot->channel_vars);
 }
 
 struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
 {
 	struct ast_channel_snapshot *snapshot;
 	struct ast_bridge *bridge;
-	char nativeformats[256];
-	struct ast_str *write_transpath = ast_str_alloca(256);
-	struct ast_str *read_transpath = ast_str_alloca(256);
-	struct ast_party_id effective_connected_id;
-	struct ast_callid *callid;
 
 	/* no snapshots for dummy channels */
 	if (!ast_channel_tech(chan)) {
@@ -263,38 +257,16 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 		ao2_cleanup(bridge);
 	}
 
-	ast_string_field_set(snapshot, nativeformats, ast_getformatname_multiple(nativeformats, sizeof(nativeformats),
-		ast_channel_nativeformats(chan)));
-	ast_string_field_set(snapshot, readformat, ast_getformatname(ast_channel_readformat(chan)));
-	ast_string_field_set(snapshot, writeformat, ast_getformatname(ast_channel_writeformat(chan)));
-	ast_string_field_set(snapshot, writetrans, ast_translate_path_to_str(ast_channel_writetrans(chan), &write_transpath));
-	ast_string_field_set(snapshot, readtrans, ast_translate_path_to_str(ast_channel_readtrans(chan), &read_transpath));
-
-	effective_connected_id = ast_channel_connected_effective_id(chan);
-	ast_string_field_set(snapshot, effective_name,
-		S_COR(effective_connected_id.name.valid, effective_connected_id.name.str, ""));
-	ast_string_field_set(snapshot, effective_number,
-		S_COR(effective_connected_id.number.valid, effective_connected_id.number.str, ""));
-
-	if ((callid = ast_channel_callid(chan))) {
-		ast_callid_strnprint(snapshot->callid, sizeof(snapshot->callid), callid);
-		ast_callid_unref(callid);
-	}
-
 	snapshot->creationtime = ast_channel_creationtime(chan);
-	snapshot->hanguptime = *(ast_channel_whentohangup(chan));
 	snapshot->state = ast_channel_state(chan);
 	snapshot->priority = ast_channel_priority(chan);
 	snapshot->amaflags = ast_channel_amaflags(chan);
 	snapshot->hangupcause = ast_channel_hangupcause(chan);
 	ast_copy_flags(&snapshot->flags, ast_channel_flags(chan), 0xFFFFFFFF);
 	snapshot->caller_pres = ast_party_id_presentation(&ast_channel_caller(chan)->id);
-	snapshot->callgroup = ast_channel_callgroup(chan);
-	snapshot->pickupgroup = ast_channel_pickupgroup(chan);
 	ast_set_flag(&snapshot->softhangup_flags, ast_channel_softhangup_internal_flag(chan));
 
 	snapshot->manager_vars = ast_channel_get_manager_vars(chan);
-	snapshot->channel_vars = ast_channel_get_vars(chan);
 	snapshot->tech_properties = ast_channel_tech(chan)->properties;
 
 	return snapshot;
@@ -347,7 +319,11 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 
 	if (caller) {
 		ast_channel_lock(caller);
-		caller_snapshot = ast_channel_snapshot_create(caller);
+		if (ast_strlen_zero(dialstatus)) {
+			caller_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(caller));
+		} else {
+			caller_snapshot = ast_channel_snapshot_create(caller);
+		}
 		ast_channel_unlock(caller);
 		if (!caller_snapshot) {
 			return;
@@ -356,7 +332,11 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 	}
 
 	ast_channel_lock(peer);
-	peer_snapshot = ast_channel_snapshot_create(peer);
+	if (ast_strlen_zero(dialstatus)) {
+		peer_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(peer));
+	} else {
+		peer_snapshot = ast_channel_snapshot_create(peer);
+	}
 	ast_channel_unlock(peer);
 	if (!peer_snapshot) {
 		return;
@@ -682,9 +662,24 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 	stasis_publish(ast_channel_topic(chan), message);
 }
 
+void ast_channel_publish_cached_blob(struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *blob)
+{
+	struct stasis_message *message;
+
+	if (!blob) {
+		blob = ast_json_null();
+	}
+
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), type, blob);
+	if (message) {
+		stasis_publish(ast_channel_topic(chan), message);
+	}
+	ao2_cleanup(message);
+}
+
 void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *blob)
 {
-	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct stasis_message *message;
 
 	if (!blob) {
 		blob = ast_json_null();
@@ -694,11 +689,12 @@ void ast_channel_publish_blob(struct ast_channel *chan, struct stasis_message_ty
 	if (message) {
 		stasis_publish(ast_channel_topic(chan), message);
 	}
+	ao2_cleanup(message);
 }
 
 void ast_channel_publish_varset(struct ast_channel *chan, const char *name, const char *value)
 {
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	struct ast_json *blob;
 
 	ast_assert(name != NULL);
 	ast_assert(value != NULL);
@@ -711,7 +707,15 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 		return;
 	}
 
-	ast_channel_publish_blob(chan, ast_channel_varset_type(), blob);
+	if (chan && !ast_channel_has_manager_vars()) {
+		ast_channel_publish_cached_blob(chan, ast_channel_varset_type(), blob);
+	} else {
+		/* This function is NULL safe. If there are manager variables,
+		 * we have to produce the full snapshot.
+		 */
+		ast_channel_publish_blob(chan, ast_channel_varset_type(), blob);
+	}
+	ast_json_unref(blob);
 }
 
 static struct ast_manager_event_blob *varset_to_ami(struct stasis_message *msg)
@@ -1179,3 +1183,4 @@ int ast_stasis_channels_init(void)
 
 	return res;
 }
+
