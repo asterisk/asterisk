@@ -1241,7 +1241,14 @@ static void cel_parking_cb(
 		break;
 	}
 
-	extra = ast_json_pack("{s: s}", "reason", reason);
+	if (parked_payload->retriever) {
+		extra = ast_json_pack("{s: s, s: s}",
+			"reason", reason,
+			"retriever", parked_payload->retriever->name);
+	} else {
+		extra = ast_json_pack("{s: s}", "reason", reason);
+	}
+
 	if (extra) {
 		cel_report_event(parked_payload->parkee, AST_CEL_PARK_END, NULL, extra, NULL);
 	}
