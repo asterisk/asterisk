@@ -1413,7 +1413,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	struct mohclass *mohclass = NULL;
 	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_variable *var = NULL;
-	int res;
+	int res = 0;
 	int realtime_possible = ast_check_realtime("musiconhold");
 
 	/* The following is the order of preference for which class to use:
@@ -1601,10 +1601,12 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 		}
 	}
 
-	if (mohclass->total_files) {
-		res = ast_activate_generator(chan, &moh_file_stream, mohclass);
-	} else {
-		res = ast_activate_generator(chan, &mohgen, mohclass);
+	if (!state || strcmp(mohclass->name, state->class->name)) {
+		if (mohclass->total_files) {
+			res = ast_activate_generator(chan, &moh_file_stream, mohclass);
+		} else {
+			res = ast_activate_generator(chan, &mohgen, mohclass);
+		}
 	}
 	if (!res) {
 		ast_channel_latest_musicclass_set(chan, mohclass->name);
