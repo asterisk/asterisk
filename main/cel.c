@@ -1798,9 +1798,7 @@ void ast_cel_publish_event(struct ast_channel *chan,
 		"event_type", event_type,
 		"event_details", blob);
 
-	ast_channel_lock(chan);
-	message = ast_channel_blob_create(chan, cel_generic_type(), cel_blob);
-	ast_channel_unlock(chan);
+	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(chan), cel_generic_type(), cel_blob);
 	if (message) {
 		stasis_publish(ast_cel_topic(), message);
 	}

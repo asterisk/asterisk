@@ -328,12 +328,12 @@ static struct ast_multi_channel_blob *local_channel_optimization_blob(struct loc
 	RAII_VAR(struct ast_channel_snapshot *, local_one_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, local_two_snapshot, NULL, ao2_cleanup);
 
-	local_one_snapshot = ast_channel_snapshot_create(p->base.owner);
+	local_one_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(p->base.owner));
 	if (!local_one_snapshot) {
 		return NULL;
 	}
 
-	local_two_snapshot = ast_channel_snapshot_create(p->base.chan);
+	local_two_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(p->base.chan));
 	if (!local_two_snapshot) {
 		return NULL;
 	}
@@ -371,7 +371,7 @@ static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct as
 
 	if (source) {
 		RAII_VAR(struct ast_channel_snapshot *, source_snapshot, NULL, ao2_cleanup);
-		source_snapshot = ast_channel_snapshot_create(source);
+		source_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(source));
 		if (!source_snapshot) {
 			return;
 		}
@@ -516,12 +516,12 @@ static void publish_local_bridge_message(struct local_pvt *p)
 		goto end;
 	}
 
-	one_snapshot = ast_channel_snapshot_create(owner);
+	one_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(owner));
 	if (!one_snapshot) {
 		goto end;
 	}
 
-	two_snapshot = ast_channel_snapshot_create(chan);
+	two_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
 	if (!two_snapshot) {
 		goto end;
 	}

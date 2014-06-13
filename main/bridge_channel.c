@@ -838,18 +838,16 @@ int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, con
 		datalen = 0;
 	}
 
-	ast_channel_lock(bridge_channel->chan);
-	ast_channel_publish_blob(bridge_channel->chan, ast_channel_hold_type(), blob);
-	ast_channel_unlock(bridge_channel->chan);
+	ast_channel_publish_cached_blob(bridge_channel->chan, ast_channel_hold_type(), blob);
+
 	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
 		moh_class, datalen);
 }
 
 int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
 {
-	ast_channel_lock(bridge_channel->chan);
-	ast_channel_publish_blob(bridge_channel->chan, ast_channel_unhold_type(), NULL);
-	ast_channel_unlock(bridge_channel->chan);
+	ast_channel_publish_cached_blob(bridge_channel->chan, ast_channel_unhold_type(), NULL);
+
 	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_UNHOLD, NULL, 0);
 }
 

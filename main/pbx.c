@@ -8369,8 +8369,7 @@ static char *handle_show_device2extenstate(struct ast_cli_entry *e, int cmd, str
 /*! \brief CLI support for listing chanvar's variables in a parseable way */
 static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	struct ast_channel_snapshot *snapshot;
+	struct ast_channel *chan;
 	struct ast_var_t *var;
 
 	switch (cmd) {
@@ -8384,19 +8383,23 @@ static char *handle_show_chanvar(struct ast_cli_entry *e, int cmd, struct ast_cl
 		return ast_complete_channels(a->line, a->word, a->pos, a->n, 3);
 	}
 
-	if (a->argc != e->args + 1)
+	if (a->argc != e->args + 1) {
 		return CLI_SHOWUSAGE;
+	}
 
-	if (!(msg = stasis_cache_get(ast_channel_cache_by_name(), ast_channel_snapshot_type(), a->argv[3]))) {
+	chan = ast_channel_get_by_name(a->argv[e->args]);
+	if (!chan) {
 		ast_cli(a->fd, "Channel '%s' not found\n", a->argv[e->args]);
 		return CLI_FAILURE;
 	}
-	snapshot = stasis_message_data(msg);
 
-	AST_LIST_TRAVERSE(snapshot->channel_vars, var, entries) {
+	ast_channel_lock(chan);
+	AST_LIST_TRAVERSE(ast_channel_varshead(chan), var, entries) {
 		ast_cli(a->fd, "%s=%s\n", ast_var_name(var), ast_var_value(var));
 	}
+	ast_channel_unlock(chan);
 
+	ast_channel_unref(chan);
 	return CLI_SUCCESS;
 }
 
@@ -10187,7 +10190,7 @@ static void *pbx_outgoing_exec(void *data)
 		struct ast_app *app = pbx_findapp(outgoing->app);
 
 		if (app) {
-			ast_verb(4, "Launching %s(%s) on %s\n", outgoing->app, outgoing->appdata,
+			ast_verb(4, "Launching %s(%s) on %s\n", outgoing->app, S_OR(outgoing->appdata, ""),
 				ast_channel_name(ast_dial_answered(outgoing->dial)));
 			pbx_exec(ast_dial_answered(outgoing->dial), app, outgoing->appdata);
 		} else {
@@ -11444,14 +11447,11 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 	AST_LIST_TRAVERSE_SAFE_END;
 
 	if (value && (newvariable = ast_var_assign(name, value))) {
-		if (headp == &globals)
+		if (headp == &globals) {
 			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
+		}
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		ast_channel_publish_varset(chan, name, value);
-
-		if (headp != &globals) {
-			ast_channel_publish_snapshot(chan);
-		}
 	}
 
 	if (chan)

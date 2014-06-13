@@ -407,9 +407,7 @@ struct stasis_message *ast_bridge_blob_create(
 	}
 
 	if (chan) {
-		ast_channel_lock(chan);
-		obj->channel = ast_channel_snapshot_create(chan);
-		ast_channel_unlock(chan);
+		obj->channel = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
 		if (obj->channel == NULL) {
 			return NULL;
 		}
@@ -593,9 +591,7 @@ static int bridge_channel_snapshot_pair_init(struct ast_bridge_channel_pair *pai
 		}
 	}
 
-	ast_channel_lock(pair->channel);
-	snapshot_pair->channel_snapshot = ast_channel_snapshot_create(pair->channel);
-	ast_channel_unlock(pair->channel);
+	snapshot_pair->channel_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(pair->channel));
 	if (!snapshot_pair->channel_snapshot) {
 		return -1;
 	}
@@ -1072,9 +1068,7 @@ void ast_bridge_publish_attended_transfer_link(int is_external, enum ast_transfe
 
 	transfer_msg->dest_type = AST_ATTENDED_TRANSFER_DEST_LINK;
 	for (i = 0; i < 2; ++i) {
-		ast_channel_lock(locals[i]);
-		transfer_msg->dest.links[i] = ast_channel_snapshot_create(locals[i]);
-		ast_channel_unlock(locals[i]);
+		transfer_msg->dest.links[i] = ast_channel_snapshot_get_latest(ast_channel_uniqueid(locals[i]));
 		if (!transfer_msg->dest.links[i]) {
 			return;
 		}

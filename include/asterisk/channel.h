@@ -4179,6 +4179,15 @@ void ast_channel_dialed_causes_clear(const struct ast_channel *chan);
 struct ast_flags *ast_channel_flags(struct ast_channel *chan);
 
 /*!
+ * \since 12.4.0
+ * \brief Return whether or not any manager variables have been set
+ *
+ * \retval 0 if no manager variables are expected
+ * \retval 1 if manager variables are expected
+ */
+int ast_channel_has_manager_vars(void);
+
+/*!
  * \since 12
  * \brief Sets the variables to be stored in the \a manager_vars field of all
  * snapshots.

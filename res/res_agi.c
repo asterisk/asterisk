@@ -1481,11 +1481,11 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, int argc, char 
 	   to execute based on the setup info */
 	ast_uri_encode(agi_buffer, ami_buffer, AMI_BUF_SIZE, ast_uri_http);
 	startblob = ast_json_pack("{s: s}", "Env", ami_buffer);
-	ast_channel_lock(chan);
-	ast_channel_publish_blob(chan, agi_async_start_type(), startblob);
 
-	hungup = ast_check_hangup(chan);
-	ast_channel_unlock(chan);
+	ast_channel_publish_cached_blob(chan, agi_async_start_type(), startblob);
+
+	hungup = ast_check_hangup_locked(chan);
+
 	for (;;) {
 		/*
 		 * Process as many commands as we can.  Commands are added via
@@ -1529,9 +1529,7 @@ static enum agi_result launch_asyncagi(struct ast_channel *chan, int argc, char 
 			if (execblob && !ast_strlen_zero(cmd->cmd_id)) {
 				ast_json_object_set(execblob, "CommandId", ast_json_string_create(cmd->cmd_id));
 			}
-			ast_channel_lock(chan);
-			ast_channel_publish_blob(chan, agi_async_exec_type(), execblob);
-			ast_channel_unlock(chan);
+			ast_channel_publish_cached_blob(chan, agi_async_exec_type(), execblob);
 
 			free_agi_cmd(cmd);
 
@@ -1591,9 +1589,7 @@ async_agi_done:
 		ast_speech_destroy(async_agi.speech);
 	}
 	/* notify manager users this channel cannot be controlled anymore by Async AGI */
-	ast_channel_lock(chan);
-	ast_channel_publish_blob(chan, agi_async_end_type(), NULL);
-	ast_channel_unlock(chan);
+	ast_channel_publish_cached_blob(chan, agi_async_end_type(), NULL);
 
 async_agi_abort:
 	/* close the pipe */
@@ -3665,9 +3661,7 @@ static void publish_async_exec_end(struct ast_channel *chan, int command_id, con
 			     "Command", command,
 			     "ResultCode", result_code,
 			     "Result", result);
-	ast_channel_lock(chan);
-	ast_channel_publish_blob(chan, agi_exec_end_type(), blob);
-	ast_channel_unlock(chan);
+	ast_channel_publish_cached_blob(chan, agi_exec_end_type(), blob);
 }
 
 static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int dead)
@@ -3685,9 +3679,7 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 	startblob = ast_json_pack("{s: i, s: s}",
 			     "CommandId", command_id,
 			     "Command", ami_cmd);
-	ast_channel_lock(chan);
-	ast_channel_publish_blob(chan, agi_exec_start_type(), startblob);
-	ast_channel_unlock(chan);
+	ast_channel_publish_cached_blob(chan, agi_exec_start_type(), startblob);
 
 	parse_args(buf, &argc, argv);
 	c = find_command(argv, 0);

@@ -1393,8 +1393,8 @@ static int cli_channel_print_header(void *obj, void *arg, int flags)
 		indent = CLI_INDENT_TO_SPACES(context->indent_level);
 		filler = CLI_LAST_TABSTOP - indent - 38;
 		ast_str_append(&context->output_buffer, 0,
-			"%*s:  <Codec>  Exten: <DialedExten%*.*s>  CLCID: <ConnectedLineCID.......>\n",
-			indent, "Codec", filler, filler, CLI_HEADER_FILLER);
+			"%*s: <DialedExten%*.*s>  CLCID: <ConnectedLineCID.......>\n",
+			indent, "Exten", filler, filler, CLI_HEADER_FILLER);
 		context->indent_level--;
 	}
 
@@ -1438,9 +1438,8 @@ static int cli_channel_print_body(void *obj, void *arg, int flags)
 		flexwidth = CLI_LAST_TABSTOP - indent - 25;
 
 		ast_str_append(&context->output_buffer, 0,
-			"%*s:  %-7s  Exten: %-*.*s  CLCID: \"%s\" <%s>\n",
-			indent, "Codec",
-			snapshot->nativeformats,
+			"%*s: %-*.*s  CLCID: \"%s\" <%s>\n",
+			indent, "Exten",
 			flexwidth, flexwidth,
 			snapshot->exten,
 			snapshot->connected_name,

@@ -3510,9 +3510,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 				     "Queue", q->name,
 				     "Position", qe->pos,
 				     "Count", q->count);
-		ast_channel_lock(qe->chan);
-		ast_channel_publish_blob(qe->chan, queue_caller_join_type(), blob);
-		ast_channel_unlock(qe->chan);
+		ast_channel_publish_cached_blob(qe->chan, queue_caller_join_type(), blob);
 		ast_debug(1, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, ast_channel_name(qe->chan), qe->pos );
 	}
 	ao2_unlock(q);
@@ -3791,9 +3789,7 @@ static void leave_queue(struct queue_ent *qe)
 					     "Queue", q->name,
 					     "Position", qe->pos,
 					     "Count", q->count);
-			ast_channel_lock(qe->chan);
-			ast_channel_publish_blob(qe->chan, queue_caller_leave_type(), blob);
-			ast_channel_unlock(qe->chan);
+			ast_channel_publish_cached_blob(qe->chan, queue_caller_leave_type(), blob);
 			ast_debug(1, "Queue '%s' Leave, Channel '%s'\n", q->name, ast_channel_name(qe->chan));
 			/* Take us out of the queue */
 			if (prev) {
@@ -4395,9 +4391,7 @@ static void record_abandoned(struct queue_ent *qe)
 	qe->parent->callsabandoned++;
 	ao2_unlock(qe->parent);
 
-	ast_channel_lock(qe->chan);
-	ast_channel_publish_blob(qe->chan, queue_caller_abandon_type(), blob);
-	ast_channel_unlock(qe->chan);
+	ast_channel_publish_cached_blob(qe->chan, queue_caller_abandon_type(), blob);
 }
 
 /*! \brief RNA == Ring No Answer. Common code that is executed when we try a queue member and they don't answer. */

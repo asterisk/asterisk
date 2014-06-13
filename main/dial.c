@@ -323,7 +323,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 
 	ast_channel_appl_set(channel->owner, "AppDial2");
 	ast_channel_data_set(channel->owner, "(Outgoing Line)");
-	ast_publish_channel_state(channel->owner);
+
 	memset(ast_channel_whentohangup(channel->owner), 0, sizeof(*ast_channel_whentohangup(channel->owner)));
 
 	/* Inherit everything from he who spawned this dial */

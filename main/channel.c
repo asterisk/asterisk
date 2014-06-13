@@ -1270,7 +1270,6 @@ int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HOLD };
 	int res;
 
-	ast_channel_lock(chan);
 	if (!ast_strlen_zero(musicclass)) {
 		f.data.ptr = (void *) musicclass;
 		f.datalen = strlen(musicclass) + 1;
@@ -1279,10 +1278,10 @@ int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 				     "musicclass", musicclass);
 	}
 
-	ast_channel_publish_blob(chan, ast_channel_hold_type(), blob);
+	ast_channel_publish_cached_blob(chan, ast_channel_hold_type(), blob);
 
 	res = ast_queue_frame(chan, &f);
-	ast_channel_unlock(chan);
+
 	return res;
 }
 
@@ -1291,11 +1290,10 @@ int ast_queue_unhold(struct ast_channel *chan)
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_UNHOLD };
 	int res;
 
-	ast_channel_lock(chan);
-	ast_channel_publish_blob(chan, ast_channel_unhold_type(), NULL);
+	ast_channel_publish_cached_blob(chan, ast_channel_unhold_type(), NULL);
 
 	res = ast_queue_frame(chan, &f);
-	ast_channel_unlock(chan);
+
 	return res;
 }
 
@@ -3639,7 +3637,7 @@ static void send_dtmf_begin_event(struct ast_channel *chan,
 		return;
 	}
 
-	ast_channel_publish_blob(chan, ast_channel_dtmf_begin_type(), blob);
+	ast_channel_publish_cached_blob(chan, ast_channel_dtmf_begin_type(), blob);
 }
 
 static void send_dtmf_end_event(struct ast_channel *chan,
@@ -3656,7 +3654,7 @@ static void send_dtmf_end_event(struct ast_channel *chan,
 		return;
 	}
 
-	ast_channel_publish_blob(chan, ast_channel_dtmf_end_type(), blob);
+	ast_channel_publish_cached_blob(chan, ast_channel_dtmf_end_type(), blob);
 }
 
 static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
@@ -3988,7 +3986,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_frfree(f);
 					f = &ast_null_frame;
 				} else {
-					/* Answer the CDR */
 					ast_setstate(chan, AST_STATE_UP);
 				}
 			} else if (f->subclass.integer == AST_CONTROL_READ_ACTION) {
@@ -5332,10 +5329,6 @@ static int set_format(struct ast_channel *chan,
 			generator_write_format_change(chan);
 		}
 
-		ast_channel_lock(chan);
-		ast_channel_publish_snapshot(chan);
-		ast_channel_unlock(chan);
-
 		return 0;
 	}
 
@@ -5414,10 +5407,6 @@ static int set_format(struct ast_channel *chan,
 	if (direction && ast_channel_generatordata(chan)) {
 		generator_write_format_change(chan);
 	}
-
-	ast_channel_lock(chan);
-	ast_channel_publish_snapshot(chan);
-	ast_channel_unlock(chan);
 
 	return res;
 }
@@ -7414,6 +7403,17 @@ static void free_channelvars(void)
 	AST_RWLIST_UNLOCK(&channelvars);
 }
 
+int ast_channel_has_manager_vars(void)
+{
+	int vars_present;
+
+	AST_RWLIST_RDLOCK(&channelvars);
+	vars_present = !AST_LIST_EMPTY(&channelvars);
+	AST_RWLIST_UNLOCK(&channelvars);
+
+	return vars_present;
+}
+
 void ast_channel_set_manager_vars(size_t varc, char **vars)
 {
 	size_t i;
@@ -7644,12 +7644,9 @@ void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars)
 {
 	struct ast_variable *cur;
 
-	ast_channel_stage_snapshot(chan);
-
-	for (cur = vars; cur; cur = cur->next)
+	for (cur = vars; cur; cur = cur->next) {
 		pbx_builtin_setvar_helper(chan, cur->name, cur->value);
-
-	ast_channel_stage_snapshot_done(chan);
+	}
 }
 
 static void *silence_generator_alloc(struct ast_channel *chan, void *data)

@@ -361,9 +361,7 @@ int ast_do_pickup(struct ast_channel *chan, struct ast_channel *target)
 		goto pickup_failed;
 	}
 
-	ast_channel_lock(target);
-	target_snapshot = ast_channel_snapshot_create(target);
-	ast_channel_unlock(target);
+	target_snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(target));
 	if (!target_snapshot) {
 		goto pickup_failed;
 	}
