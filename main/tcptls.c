@@ -77,6 +77,8 @@ struct ast_tcptls_stream {
 	 * feature to work correctly.
 	 */
 	int timeout;
+	/*! TRUE if stream can exclusively wait for fd input. */
+	int exclusive_input;
 };
 
 void ast_tcptls_stream_set_timeout_disable(struct ast_tcptls_stream *stream)
@@ -100,6 +102,13 @@ void ast_tcptls_stream_set_timeout_sequence(struct ast_tcptls_stream *stream, st
 
 	stream->start = start;
 	stream->timeout = timeout;
+}
+
+void ast_tcptls_stream_set_exclusive_input(struct ast_tcptls_stream *stream, int exclusive_input)
+{
+	ast_assert(stream != NULL);
+
+	stream->exclusive_input = exclusive_input;
 }
 
 /*!
@@ -151,6 +160,11 @@ static HOOK_T tcptls_stream_read(void *cookie, char *buf, LEN_T size)
 				ast_debug(1, "TLS clean shutdown alert reading data\n");
 				return 0;
 			case SSL_ERROR_WANT_READ:
+				if (!stream->exclusive_input) {
+					/* We cannot wait for data now. */
+					errno = EAGAIN;
+					return -1;
+				}
 				while ((ms = ast_remaining_ms(start, stream->timeout))) {
 					res = ast_wait_for_input(stream->fd, ms);
 					if (0 < res) {
@@ -202,7 +216,8 @@ static HOOK_T tcptls_stream_read(void *cookie, char *buf, LEN_T size)
 
 	for (;;) {
 		res = read(stream->fd, buf, size);
-		if (0 <= res) {
+		if (0 <= res || !stream->exclusive_input) {
+			/* Got data or we cannot wait for it. */
 			return res;
 		}
 		if (errno != EINTR && errno != EAGAIN) {
