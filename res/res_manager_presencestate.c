@@ -16,6 +16,10 @@
  * at the top of the source tree.
  */
 
+/*** MODULEINFO
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 #include "asterisk/module.h"
 #include "asterisk/stasis.h"
