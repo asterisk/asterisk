@@ -57,7 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 struct ast_channel_id {
 	time_t creation_time;				/*!< Creation time */
 	int creation_unique;				/*!< sub-second unique value */
-	char unique_id[AST_MAX_UNIQUEID];	/*< Unique Identifier */
+	char unique_id[AST_MAX_UNIQUEID];	/*!< Unique Identifier */
 };
 
 /*!
@@ -1463,7 +1463,13 @@ struct ast_channel *ast_channel_internal_oldest_linkedid(struct ast_channel *a, 
 
 void ast_channel_internal_copy_linkedid(struct ast_channel *dest, struct ast_channel *source)
 {
+	if (dest->linkedid.creation_time == source->linkedid.creation_time
+		&& dest->linkedid.creation_unique == source->linkedid.creation_unique
+		&& !strcmp(dest->linkedid.unique_id, source->linkedid.unique_id)) {
+		return;
+	}
 	dest->linkedid = source->linkedid;
+	ast_channel_publish_snapshot(dest);
 }
 
 void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, struct ast_channel *b)
