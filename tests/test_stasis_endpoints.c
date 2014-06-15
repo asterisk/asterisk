@@ -239,15 +239,11 @@ AST_TEST_DEFINE(channel_messages)
 
 	ast_endpoint_add_channel(uut, chan);
 
-	actual_count = stasis_message_sink_wait_for_count(sink, 2,
+	actual_count = stasis_message_sink_wait_for_count(sink, 1,
 		STASIS_SINK_DEFAULT_WAIT);
-	ast_test_validate(test, 2 == actual_count);
+	ast_test_validate(test, 1 == actual_count);
 
 	msg = sink->messages[0];
-	type = stasis_message_type(msg);
-	ast_test_validate(test, ast_channel_snapshot_type() == type);
-
-	msg = sink->messages[1];
 	type = stasis_message_type(msg);
 	ast_test_validate(test, ast_endpoint_snapshot_type() == type);
 	actual_snapshot = stasis_message_data(msg);
@@ -256,20 +252,20 @@ AST_TEST_DEFINE(channel_messages)
 	ast_hangup(chan);
 	chan = NULL;
 
-	actual_count = stasis_message_sink_wait_for_count(sink, 5,
+	actual_count = stasis_message_sink_wait_for_count(sink, 4,
 		STASIS_SINK_DEFAULT_WAIT);
-	ast_test_validate(test, 5 == actual_count);
+	ast_test_validate(test, 4 == actual_count);
 
-	msg = sink->messages[2];
+	msg = sink->messages[1];
 	type = stasis_message_type(msg);
 	ast_test_validate(test, ast_channel_snapshot_type() == type);
 
 	/* The ordering of the cache clear and endpoint snapshot are
 	 * unspecified */
-	msg = sink->messages[3];
+	msg = sink->messages[2];
 	if (stasis_message_type(msg) == stasis_cache_clear_type()) {
 		/* Okay; the next message should be the endpoint snapshot */
-		msg = sink->messages[4];
+		msg = sink->messages[3];
 	}
 
 	type = stasis_message_type(msg);
