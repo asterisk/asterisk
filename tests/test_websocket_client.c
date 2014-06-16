@@ -48,8 +48,8 @@ AST_TEST_DEFINE(websocket_client_create_and_connect)
 	RAII_VAR(struct ast_websocket *, client, NULL, ao2_cleanup);
 
 	enum ast_websocket_result result;
-	struct ast_str *write_buf;
-	struct ast_str *read_buf;
+	const char write_buf[] = "this is only a test";
+	RAII_VAR(char *, read_buf, NULL, ast_free);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -62,16 +62,12 @@ AST_TEST_DEFINE(websocket_client_create_and_connect)
 		break;
 	}
 
-	write_buf = ast_str_alloca(20);
-	read_buf = ast_str_alloca(20);
-
 	ast_test_validate(test, (client = ast_websocket_client_create(
 					 REMOTE_URL, "echo", NULL, &result)));
 
-	ast_str_set(&write_buf, 0, "this is only a test");
 	ast_test_validate(test, !ast_websocket_write_string(client, write_buf));
 	ast_test_validate(test, ast_websocket_read_string(client, &read_buf) > 0);
-	ast_test_validate(test, !strcmp(ast_str_buffer(write_buf), ast_str_buffer(read_buf)));
+	ast_test_validate(test, !strcmp(write_buf, read_buf));
 
 	return AST_TEST_PASS;
 }

@@ -156,6 +156,8 @@ AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char *
 /*!
  * \brief Read a WebSocket frame containing string data.
  *
+ * \note The caller is responsible for freeing the output "buf".
+ *
  * \param ws pointer to the websocket
  * \param buf string buffer to populate with data read from socket
  * \retval -1 on error
@@ -164,7 +166,7 @@ AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char *
  * \note Once an AST_WEBSOCKET_OPCODE_CLOSE opcode is received the socket will be closed
  */
 AST_OPTIONAL_API(int, ast_websocket_read_string,
-		 (struct ast_websocket *ws, struct ast_str **buf),
+		 (struct ast_websocket *ws, char **buf),
 		 { errno = ENOSYS; return -1;});
 
 /*!
@@ -189,7 +191,7 @@ AST_OPTIONAL_API(int, ast_websocket_write, (struct ast_websocket *session, enum 
  * \retval -1 if error occurred
  */
 AST_OPTIONAL_API(int, ast_websocket_write_string,
-		 (struct ast_websocket *ws, const struct ast_str *buf),
+		 (struct ast_websocket *ws, const char *buf),
 		 { errno = ENOSYS; return -1;});
 /*!
  * \brief Close a WebSocket session by sending a message with the CLOSE opcode and an optional code

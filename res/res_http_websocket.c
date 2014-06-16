@@ -497,7 +497,6 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		if (ws_safe_read(session, (*payload), (*payload_len), opcode)) {
 			return 0;
 		}
-
 		/* If a mask is present unmask the payload */
 		if (mask_present) {
 			unsigned int pos;
@@ -1199,18 +1198,12 @@ struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
 }
 
 int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
-	(struct ast_websocket *ws, struct ast_str **buf)
+	(struct ast_websocket *ws, char **buf)
 {
 	char *payload;
 	uint64_t payload_len;
 	enum ast_websocket_opcode opcode;
 	int fragmented = 1;
-
-	if (!*buf && !(*buf = ast_str_create(512))) {
-		ast_log(LOG_ERROR, "Client Websocket string read - "
-			"Unable to allocate string buffer");
-		return -1;
-	}
 
 	while (fragmented) {
 		if (ast_websocket_read(ws, &payload, &payload_len,
@@ -1218,6 +1211,10 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
 			ast_log(LOG_ERROR, "Client WebSocket string read - "
 				"error reading string data\n");
 			return -1;
+		}
+
+		if (opcode == AST_WEBSOCKET_OPCODE_CONTINUATION) {
+			continue;
 		}
 
 		if (opcode == AST_WEBSOCKET_OPCODE_CLOSE) {
@@ -1229,17 +1226,21 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
 				"non string data received\n");
 			return -1;
 		}
-
-		ast_str_append(buf, 0, "%s", payload);
 	}
-	return ast_str_size(*buf);
+
+	if (!(*buf = ast_malloc(payload_len + 1))) {
+		return -1;
+	}
+
+	ast_copy_string(*buf, payload, payload_len + 1);
+	return payload_len + 1;
 }
 
 int AST_OPTIONAL_API_NAME(ast_websocket_write_string)
-	(struct ast_websocket *ws, const struct ast_str *buf)
+	(struct ast_websocket *ws, const char *buf)
 {
 	return ast_websocket_write(ws, AST_WEBSOCKET_OPCODE_TEXT,
-				   ast_str_buffer(buf), ast_str_strlen(buf));
+				   (char *)buf, strlen(buf));
 }
 
 static int load_module(void)
