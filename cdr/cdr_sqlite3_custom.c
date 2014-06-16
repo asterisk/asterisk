@@ -228,7 +228,6 @@ static int write_cdr(struct ast_cdr *cdr)
 	int res = 0;
 	char *error = NULL;
 	char *sql = NULL;
-	int count = 0;
 
 	if (db == NULL) {
 		/* Should not have loaded, but be failsafe. */
@@ -264,16 +263,7 @@ static int write_cdr(struct ast_cdr *cdr)
 		ast_free(value_string);
 	}
 
-	/* XXX This seems awful arbitrary... */
-	for (count = 0; count < 5; count++) {
-		res = sqlite3_exec(db, sql, NULL, NULL, &error);
-		if (res != SQLITE_BUSY && res != SQLITE_LOCKED) {
-			break;
-		}
-		usleep(200);
-	}
-
-	if (error) {
+	if (sqlite3_exec(db, sql, NULL, NULL, &error) != SQLITE_OK) {
 		ast_log(LOG_ERROR, "%s. SQL: %s.\n", error, sql);
 		sqlite3_free(error);
 	}
@@ -317,7 +307,7 @@ static int load_module(void)
 		free_config(0);
 		return AST_MODULE_LOAD_DECLINE;
 	}
-
+	sqlite3_busy_timeout(db, 1000);
 	/* is the table there? */
 	sql = sqlite3_mprintf("SELECT COUNT(AcctId) FROM %q;", table);
 	res = sqlite3_exec(db, sql, NULL, NULL, NULL);

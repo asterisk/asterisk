@@ -257,6 +257,7 @@ static int db_open(void)
 		ast_mutex_unlock(&dblock);
 		return -1;
 	}
+
 	ast_mutex_unlock(&dblock);
 
 	return 0;
@@ -283,9 +284,8 @@ static int db_execute_sql(const char *sql, int (*callback)(void *, int, char **,
 	char *errmsg = NULL;
 	int res =0;
 
-	sqlite3_exec(astdb, sql, callback, arg, &errmsg);
-	if (errmsg) {
-		ast_log(LOG_WARNING, "Error executing SQL: %s\n", errmsg);
+	if (sqlite3_exec(astdb, sql, callback, arg, &errmsg) != SQLITE_OK) {
+		ast_log(LOG_WARNING, "Error executing SQL (%s): %s\n", sql, errmsg);
 		sqlite3_free(errmsg);
 		res = -1;
 	}

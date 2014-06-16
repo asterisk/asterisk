@@ -234,7 +234,6 @@ static void write_cel(struct ast_event *event)
 {
 	char *error = NULL;
 	char *sql = NULL;
-	int count = 0;
 
 	if (db == NULL) {
 		/* Should not have loaded, but be failsafe. */
@@ -269,18 +268,7 @@ static void write_cel(struct ast_event *event)
 		ast_free(value_string);
 	}
 
-	/* XXX This seems awful arbitrary... */
-	for (count = 0; count < 5; count++) {
-		int res = sqlite3_exec(db, sql, NULL, NULL, &error);
-		if (res != SQLITE_BUSY && res != SQLITE_LOCKED) {
-			break;
-		}
-		usleep(200);
-	}
-
-	ast_mutex_unlock(&lock);
-
-	if (error) {
+	if (sqlite3_exec(db, sql, NULL, NULL, &error) != SQLITE_OK) {
 		ast_log(LOG_ERROR, "%s. SQL: %s.\n", error, sql);
 		sqlite3_free(error);
 	}
@@ -288,6 +276,7 @@ static void write_cel(struct ast_event *event)
 	if (sql) {
 		sqlite3_free(sql);
 	}
+	ast_mutex_unlock(&lock);
 
 	return;
 }
@@ -320,7 +309,7 @@ static int load_module(void)
 		free_config();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-
+	sqlite3_busy_timeout(db, 1000);
 	/* is the table there? */
 	sql = sqlite3_mprintf("SELECT COUNT(*) FROM %q;", table);
 	res = sqlite3_exec(db, sql, NULL, NULL, NULL);
