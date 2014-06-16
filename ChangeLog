@@ -1,3 +1,101 @@
+2014-06-16  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 1.8.28-cert1-rc1 Released.
+
+2014-06-13 05:25 +0000 [r415975-416095]  Richard Mudgett <rmudgett@digium.com>
+
+	* main/http.c, include/asterisk/tcptls.h, main/tcptls.c,
+	  main/manager.c, /, channels/chan_sip.c: AST-2014-007: Fix of fix
+	  to allow AMI and SIP TCP to send messages. ASTERISK-23673 #close
+	  Reported by: Richard Mudgett Review:
+	  https://reviewboard.asterisk.org/r/3617/ ........ Merged
+	  revisions 416066 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+	* /, channels/chan_sip.c, main/http.c, UPGRADE.txt, main/utils.c,
+	  include/asterisk/tcptls.h, configs/http.conf.sample,
+	  include/asterisk/utils.h, main/tcptls.c, main/manager.c:
+	  AST-2014-007: Fix DOS by consuming the number of allowed HTTP
+	  connections. Simply establishing a TCP connection and never
+	  sending anything to the configured HTTP port in http.conf will
+	  tie up a HTTP connection. Since there is a maximum number of open
+	  HTTP sessions allowed at a time you can block legitimate
+	  connections. A similar problem exists if a HTTP request is
+	  started but never finished. * Added http.conf session_inactivity
+	  timer option to close HTTP connections that aren't doing
+	  anything. Defaults to 30000 ms. * Removed the undocumented
+	  manager.conf block-sockets option. It interferes with TCP/TLS
+	  inactivity timeouts. * AMI and SIP TLS connections now have
+	  better authentication timeout protection. Though I didn't remove
+	  the bizzare TLS timeout polling code from chan_sip. * chan_sip
+	  can now handle SSL certificate renegotiations in the middle of a
+	  session. It couldn't do that before because the socket was
+	  non-blocking and the SSL calls were not restarted as documented
+	  by the OpenSSL documentation. * Fixed an off nominal leak of the
+	  ssl struct in handle_tcptls_connection() if the FILE stream
+	  failed to open and the SSL certificate negotiations failed. The
+	  patch creates a custom FILE stream handler to give the created
+	  FILE streams inactivity timeout and timeout after a specific
+	  moment in time capability. This approach eliminates the need for
+	  code using the FILE stream to be redesigned to deal with the
+	  timeouts. This patch indirectly fixes most of ASTERISK-18345 by
+	  fixing the usage of the SSL_read/SSL_write operations.
+	  ASTERISK-23673 #close Reported by: Richard Mudgett ........
+	  Merged revisions 415841 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+2014-06-05 19:17 +0000 [r415246-415290]  Matthew Jordan <mjordan@digium.com>
+
+	* res/res_config_sqlite.c, main/presencestate.c (added),
+	  cdr/cdr_csv.c, main/channel.c, include/asterisk/callerid.h,
+	  include/asterisk/file.h, channels/chan_phone.c, main/manager.c,
+	  apps/app_setcallerid.c, apps/app_osplookup.c,
+	  funcs/func_frame_trace.c, cdr/cdr_sqlite.c,
+	  tests/test_voicemail_api.c (added), apps/app_minivm.c,
+	  apps/app_mp3.c, main/app.c, apps/app_confbridge.c,
+	  res/res_config_ldap.c, include/asterisk/frame.h, main/message.c
+	  (added), channels/chan_mgcp.c, apps/app_adsiprog.c,
+	  apps/app_jack.c, apps/app_nbscat.c, res/res_config_pgsql.c,
+	  channels/chan_sip.c, apps/app_festival.c,
+	  apps/app_waitforsilence.c, include/asterisk/config.h,
+	  pbx/pbx_lua.c, configs/manager.conf.sample,
+	  channels/chan_console.c, include/asterisk/_private.h,
+	  apps/app_getcpeid.c, apps/app_queue.c, channels/chan_oss.c,
+	  cdr/cdr_tds.c, channels/chan_jingle.c,
+	  funcs/func_presence_state.c (added), formats/format_vox.c,
+	  res/res_timing_pthread.c, main/file.c, main/callerid.c,
+	  channels/chan_h323.c, cel/cel_sqlite3_custom.c, pbx/pbx_dundi.c,
+	  apps/app_sms.c, main/event.c, channels/chan_nbs.c,
+	  include/asterisk/pbx.h, cel/cel_pgsql.c, apps/app_dahdibarge.c,
+	  apps/app_readfile.c, cdr/cdr_sqlite3_custom.c, /,
+	  apps/app_test.c, apps/app_alarmreceiver.c,
+	  apps/app_chanisavail.c, apps/app_image.c, apps/app_ices.c,
+	  channels/chan_iax2.c, main/config.c, funcs/func_pitchshift.c,
+	  include/asterisk/event_defs.h, channels/chan_skinny.c, configure,
+	  include/asterisk/custom_control_frame.h (added), main/features.c,
+	  pbx/pbx_ael.c, channels/chan_alsa.c, apps/app_amd.c,
+	  pbx/pbx_realtime.c, apps/app_url.c, apps/app_externalivr.c,
+	  configs/sip.conf.sample, cdr/cdr_odbc.c, formats/format_jpeg.c,
+	  channels/sip/include/sip.h, main/pbx.c, res/res_ais.c,
+	  cel/cel_tds.c, include/asterisk/presencestate.h (added),
+	  apps/app_dahdiras.c, apps/app_morsecode.c,
+	  include/asterisk/channel.h, res/res_ael_share.c,
+	  include/asterisk/manager.h, apps/app_talkdetect.c,
+	  include/asterisk/app.h, apps/app_waitforring.c,
+	  channels/chan_misdn.c, configs/jabber.conf.sample,
+	  include/asterisk/message.h (added), include/asterisk/jabber.h,
+	  tests/test_config.c, apps/app_zapateller.c,
+	  res/res_timing_kqueue.c, main/custom_control_frame.c (added),
+	  apps/app_mixmonitor.c, res/res_fax_spandsp.c, main/asterisk.c,
+	  apps/app_voicemail.c, tests/test_custom_control.c (added),
+	  channels/chan_unistim.c, cel/cel_radius.c, res/res_snmp.c,
+	  apps/app_dictate.c, res/res_phoneprov.c, cdr/cdr_pgsql.c,
+	  channels/chan_gtalk.c, cdr/cdr_radius.c, res/res_jabber.c: Merge
+	  changes for Digium phone support, and default module building.
+	  All of these changes were merged from certified/branches/1.8.15/
+
+	* / (added): Create branch for Certified Asterisk 1.8.28
+
 2014-05-29  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.28.0 Released.
