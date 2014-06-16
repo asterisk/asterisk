@@ -32441,6 +32441,19 @@ static enum ast_rtp_glue_result sip_get_rtp_peer(struct ast_channel *chan, struc
 		res = AST_RTP_GLUE_RESULT_FORBID;
 	}
 
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT)) {
+		switch (p->t38.state) {
+		case T38_LOCAL_REINVITE:
+		case T38_PEER_REINVITE:
+		case T38_ENABLED:
+			res = AST_RTP_GLUE_RESULT_LOCAL;
+			break;
+		case T38_REJECTED:
+		default:
+			break;
+		}
+	}
+
 	if (p->srtp) {
 		res = AST_RTP_GLUE_RESULT_FORBID;
 	}
