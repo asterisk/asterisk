@@ -117,6 +117,9 @@ CDRs:
    handler subroutine). In general, this is not the preferred default: this
    causes extra CDRs to be generated for a channel in many common dialplans.
 
+chan_dahdi:
+ - SS7 support now requires libss7 v2.0 or later.
+
 chan_sip:
  - Made set SIPREFERREDBYHDR as inheritable for better chan_pjsip
    interoperability.

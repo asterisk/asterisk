@@ -20,6 +20,18 @@ AMI
    res_manager_presence_state.so. If the high frequency of these events is
    problematic for you, do not load these modules.
 
+chan_dahdi
+------------------
+ * SS7 support now requires libss7 v2.0 or later.
+
+ * Added SS7 support for connected line and redirecting.
+
+ * Most SS7 CLI commands are reworked as well as new SS7 commands added.
+   See online CLI help.
+
+ * Added several SS7 config option parameters described in
+   chan_dahdi.conf.sample.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.3.0 to Asterisk 12.4.0 ------------
 ------------------------------------------------------------------------------

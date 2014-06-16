@@ -1371,11 +1371,34 @@ pickupgroup=1
 
 ; This option is used to disable automatic sending of ACM when the call is started
 ; in the dialplan.  If you do use this option, you will need to use the Proceeding()
-; application in the dialplan to send ACM.
-;ss7_explictacm=yes
+; application in the dialplan to send ACM or enable ss7_autoacm below.
+;ss7_explicitacm=yes
+
+; Use this option to automatically send ACM when the call rings or is answered and
+; has not seen proceeding yet. If you use this option, you should disable ss7_explicitacm.
+; You may still use Proceeding() to explicitly send an ACM from the dialplan.
+;ss7_autoacm=yes
+
+; Create the linkset with all CICs in hardware remotely blocked state.
+;ss7_initialhwblo=yes
+
+; This option is whether or not to trust the remote echo control indication.  This means
+; that in cases where echo control is reported by the remote end, we will trust them and
+; not enable echo cancellation on the call.
+;ss7_use_echocontrol=yes
+
+; This option is to set what our echo control indication is to the other end.  Set to
+; yes to indicate that we are using echo cancellation or no if we are not.
+;ss7_default_echocontrol=yes
 
 ; All settings apply to linkset 1
 ;linkset = 1
+
+; Set the Signaling Link Code (SLC) for each sigchan.
+; If you manually set any you need to manually set all.
+; Should be defined before sigchan.
+; The default SLC starts with zero and increases for each defined sigchan.
+;slc=
 
 ; Point code of the linkset.  For ITU, this is the decimal number
 ; format of the point code.  For ANSI, this can either be in decimal
@@ -1410,6 +1433,30 @@ pickupgroup=1
 ; Channels to associate with CICs on this linkset
 ;channel = 25-47
 ;
+
+; Set this option if you wish to send an Information Request Message (INR) request
+; if no calling party number is specified. This will attempt to tell the other end
+; to send it anyways. Should be defined after sigchan.
+;inr_if_no_calling=yes
+
+; Set this to set whether or not the originating access is (non) ISDN in the forward and
+; backward call indicators. Should be defined after sigchan
+;non_isdn_access=yes
+
+; This sets the number of binary places to shift the CIC when doing load balancing between
+; sigchans on a linkset. Should be defined after sigchan. Default 0
+;sls_shift = 0
+
+; Send custom cause_location value
+; Should be defined after sigchan. Default 1 (private local)
+;cause_location=1
+
+; SS7 timers (ISUP and MTP3) should be explicitly defined for each linkset to be used.
+; For a full list of supported timers and their default values (applicable for both ITU
+; and ANSI) see ss7.timers
+; Should be defined after sigchan
+;#include ss7.timers
+
 ; For more information on setting up SS7, see the README file in libss7 or
 ; https://wiki.asterisk.org/wiki/display/AST/Signaling+System+Number+7
 ; ----------------- SS7 Options ----------------------------------------

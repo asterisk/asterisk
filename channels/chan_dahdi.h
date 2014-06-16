@@ -389,19 +389,27 @@ struct dahdi_pvt {
 	unsigned int mwisendactive:1;
 	/*!
 	 * \brief TRUE if channel is out of reset and ready
-	 * \note Set but not used.
+	 * \note Used by SS7.  Otherwise set but not used.
 	 */
 	unsigned int inservice:1;
 	/*!
-	 * \brief TRUE if the channel is locally blocked.
+	 * \brief Bitmask for the channel being locally blocked.
 	 * \note Applies to SS7 and MFCR2 channels.
+	 * \note For MFCR2 only the first bit is used - TRUE if blocked
+	 * \note For SS7 two bits are used
+	 * \note Bit 0 - TRUE if maintenance blocked
+	 * \note Bit 1 - TRUE if hardware blocked
 	 */
-	unsigned int locallyblocked:1;
+	unsigned int locallyblocked:2;
 	/*!
-	 * \brief TRUE if the channel is remotely blocked.
+	 * \brief Bitmask for the channel being remotely blocked. 1 maintenance, 2 blocked in hardware.
 	 * \note Applies to SS7 and MFCR2 channels.
+	 * \note For MFCR2 only the first bit is used - TRUE if blocked
+	 * \note For SS7 two bits are used
+	 * \note Bit 0 - TRUE if maintenance blocked
+	 * \note Bit 1 - TRUE if hardware blocked
 	 */
-	unsigned int remotelyblocked:1;
+	unsigned int remotelyblocked:2;
 	/*!
 	 * \brief TRUE if the channel alarms will be managed also as Span ones
 	 * \note Applies to all channels

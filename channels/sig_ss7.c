@@ -41,11 +41,14 @@
 #include "asterisk/causes.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/cli.h"
+#include "asterisk/callerid.h"
 #include "asterisk/transcap.h"
 #include "asterisk/stasis_channels.h"
 
 #include "sig_ss7.h"
-#if defined(LIBSS7_ABI_COMPATIBILITY)
+#if !defined(LIBSS7_ABI_COMPATIBILITY)
+#error "Upgrade your libss7"
+#elif LIBSS7_ABI_COMPATIBILITY != 2
 #error "Your installed libss7 is not compatible"
 #endif
 
@@ -68,8 +71,6 @@ static const char *sig_ss7_call_level2str(enum sig_ss7_call_level level)
 		return "Alerting";
 	case SIG_SS7_CALL_LEVEL_CONNECT:
 		return "Connect";
-	case SIG_SS7_CALL_LEVEL_GLARE:
-		return "Glare";
 	}
 	return "Unknown";
 }
@@ -132,24 +133,35 @@ static void sig_ss7_set_outgoing(struct sig_ss7_chan *p, int is_outgoing)
 
 static void sig_ss7_set_inservice(struct sig_ss7_chan *p, int is_inservice)
 {
+	p->inservice = is_inservice;
 	if (sig_ss7_callbacks.set_inservice) {
 		sig_ss7_callbacks.set_inservice(p->chan_pvt, is_inservice);
 	}
 }
 
-static void sig_ss7_set_locallyblocked(struct sig_ss7_chan *p, int is_blocked)
+static void sig_ss7_set_locallyblocked(struct sig_ss7_chan *p, int is_blocked, int type)
 {
-	p->locallyblocked = is_blocked;
+	if (is_blocked) {
+		p->locallyblocked |= type;
+	} else {
+		p->locallyblocked &= ~type;
+	}
+
 	if (sig_ss7_callbacks.set_locallyblocked) {
-		sig_ss7_callbacks.set_locallyblocked(p->chan_pvt, is_blocked);
+		sig_ss7_callbacks.set_locallyblocked(p->chan_pvt, p->locallyblocked);
 	}
 }
 
-static void sig_ss7_set_remotelyblocked(struct sig_ss7_chan *p, int is_blocked)
+static void sig_ss7_set_remotelyblocked(struct sig_ss7_chan *p, int is_blocked, int type)
 {
-	p->remotelyblocked = is_blocked;
+	if (is_blocked) {
+		p->remotelyblocked |= type;
+	} else {
+		p->remotelyblocked &= ~type;
+	}
+
 	if (sig_ss7_callbacks.set_remotelyblocked) {
-		sig_ss7_callbacks.set_remotelyblocked(p->chan_pvt, is_blocked);
+		sig_ss7_callbacks.set_remotelyblocked(p->chan_pvt, p->remotelyblocked);
 	}
 }
 
@@ -277,7 +289,13 @@ static struct ast_channel *sig_ss7_new_ast_channel(struct sig_ss7_chan *p, int s
 	if (!p->owner) {
 		p->owner = ast;
 	}
-	p->alreadyhungup = 0;
+
+	if (p->outgoing) {
+		p->do_hangup = SS7_HANGUP_FREE_CALL;
+	} else {
+		p->do_hangup = SS7_HANGUP_SEND_REL;
+	}
+
 	ast_channel_transfercapability_set(ast, transfercapability);
 	pbx_builtin_setvar_helper(ast, "TRANSFERCAPABILITY",
 		ast_transfercapability2str(transfercapability));
@@ -295,6 +313,14 @@ static void sig_ss7_handle_link_exception(struct sig_ss7_linkset *linkset, int w
 	}
 }
 
+static struct sig_ss7_linkset *sig_ss7_find_linkset(struct ss7 *ss7)
+{
+	if (sig_ss7_callbacks.find_linkset) {
+		return sig_ss7_callbacks.find_linkset(ss7);
+	}
+	return NULL;
+}
+
 /*!
  * \internal
  * \brief Determine if a private channel structure is available.
@@ -305,7 +331,7 @@ static void sig_ss7_handle_link_exception(struct sig_ss7_linkset *linkset, int w
  */
 static int sig_ss7_is_chan_available(struct sig_ss7_chan *pvt)
 {
-	if (!pvt->inalarm && !pvt->owner && !pvt->ss7call
+	if (pvt->inservice && !pvt->inalarm && !pvt->owner && !pvt->ss7call
 		&& pvt->call_level == SIG_SS7_CALL_LEVEL_IDLE
 		&& !pvt->locallyblocked && !pvt->remotelyblocked) {
 		return 1;
@@ -398,7 +424,7 @@ static void sig_ss7_queue_control(struct sig_ss7_linkset *ss7, int chanpos, int 
 /*!
  * \internal
  * \brief Queue a PVT_CAUSE_CODE frame onto the owner channel.
- * \since 11
+ * \since 11.0
  *
  * \param owner Owner channel of the pvt.
  * \param cause String describing the cause to be placed into the frame.
@@ -425,7 +451,6 @@ static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *caus
 
 
 /*!
- * \internal
  * \brief Find the channel position by CIC/DPC.
  *
  * \param linkset SS7 linkset control structure.
@@ -435,7 +460,7 @@ static void ss7_queue_pvt_cause_data(struct ast_channel *owner, const char *caus
  * \retval chanpos on success.
  * \retval -1 on error.
  */
-static int ss7_find_cic(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc)
+int sig_ss7_find_cic(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc)
 {
 	int i;
 	int winner = -1;
@@ -464,45 +489,206 @@ static int ss7_find_cic_gripe(struct sig_ss7_linkset *linkset, int cic, unsigned
 {
 	int chanpos;
 
-	chanpos = ss7_find_cic(linkset, cic, dpc);
+	chanpos = sig_ss7_find_cic(linkset, cic, dpc);
 	if (chanpos < 0) {
-		ast_log(LOG_WARNING, "Linkset %d: SS7 %s requested unconfigured CIC/DPC %d/%d.\n",
+		ast_log(LOG_WARNING, "Linkset %d: SS7 %s requested on unconfigured CIC/DPC %d/%d.\n",
 			linkset->span, msg_name, cic, dpc);
 		return -1;
 	}
 	return chanpos;
 }
 
-static void ss7_handle_cqm(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc)
+static struct sig_ss7_chan *ss7_find_pvt(struct ss7 *ss7, int cic, unsigned int dpc)
 {
-	unsigned char status[32];
-	struct sig_ss7_chan *p = NULL;
-	int i, offset;
+	int chanpos;
+	struct sig_ss7_linkset *winner;
+
+	winner = sig_ss7_find_linkset(ss7);
+	if (winner && (chanpos = sig_ss7_find_cic(winner, cic, dpc)) > -1) {
+		return winner->pvts[chanpos];
+	}
+	return NULL;
+}
+
+int sig_ss7_cb_hangup(struct ss7 *ss7, int cic, unsigned int dpc, int cause, int do_hangup)
+{
+	struct sig_ss7_chan *p;
+	int res;
+
+	if (!(p = ss7_find_pvt(ss7, cic, dpc))) {
+		return SS7_CIC_NOT_EXISTS;
+	}
+
+	sig_ss7_lock_private(p);
+	if (p->owner) {
+		ast_channel_hangupcause_set(p->owner, cause);
+		ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
+		p->do_hangup = do_hangup;
+		res = SS7_CIC_USED;
+	} else {
+		res = SS7_CIC_IDLE;
+	}
+	sig_ss7_unlock_private(p);
+
+	return res;
+}
+
+void sig_ss7_cb_call_null(struct ss7 *ss7, struct isup_call *call, int lock)
+{
+	int i;
+	struct sig_ss7_linkset *winner;
+
+	winner = sig_ss7_find_linkset(ss7);
+	if (!winner) {
+		return;
+	}
+	for (i = 0; i < winner->numchans; i++) {
+		if (winner->pvts[i] && (winner->pvts[i]->ss7call == call)) {
+			if (lock) {
+				sig_ss7_lock_private(winner->pvts[i]);
+			}
+			winner->pvts[i]->ss7call = NULL;
+			if (winner->pvts[i]->owner) {
+				ast_channel_hangupcause_set(winner->pvts[i]->owner, AST_CAUSE_NORMAL_TEMPORARY_FAILURE);
+				ast_channel_softhangup_internal_flag_add(winner->pvts[i]->owner, AST_SOFTHANGUP_DEV);
+			}
+			if (lock) {
+				sig_ss7_unlock_private(winner->pvts[i]);
+			}
+			ast_log(LOG_WARNING, "libss7 asked set ss7 call to NULL on CIC %d DPC %d\n", winner->pvts[i]->cic, winner->pvts[i]->dpc);
+		}
+	}
+}
+
+void sig_ss7_cb_notinservice(struct ss7 *ss7, int cic, unsigned int dpc)
+{
+	struct sig_ss7_chan *p;
+
+	if (!(p = ss7_find_pvt(ss7, cic, dpc))) {
+		return;
+	}
+
+	sig_ss7_lock_private(p);
+	sig_ss7_set_inservice(p, 0);
+	sig_ss7_unlock_private(p);
+}
+
+/*!
+ * \internal
+ * \brief Check if CICs in a range belong to the linkset for a given DPC.
+ * \since 11.0
+ *
+ * \param linkset SS7 linkset control structure.
+ * \param startcic Circuit Identification Code to start from
+ * \param endcic Circuit Identification Code to search up-to
+ * \param dpc Destination Point Code
+ * \param state Array containing the status of the search
+ *
+ * \retval Nothing.
+ */
+static void ss7_check_range(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc, unsigned char *state)
+{
+	int cic;
+
+	for (cic = startcic; cic <= endcic; cic++) {
+		if (state[cic - startcic] && sig_ss7_find_cic(linkset, cic, dpc) == -1) {
+			state[cic - startcic] = 0;
+		}
+	}
+}
+
+static int ss7_match_range(struct sig_ss7_chan *pvt, int startcic, int endcic, unsigned int dpc)
+{
+	if (pvt && pvt->dpc == dpc && pvt->cic >= startcic && pvt->cic <= endcic) {
+		return 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Check if a range is defined for the given DPC.
+ * \since 11.0
+ *
+ * \param linkset SS7 linkset control structure.
+ * \param startcic Start CIC of the range to clear.
+ * \param endcic End CIC of the range to clear.
+ * \param dpc Destination Point Code.
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ *
+ * \return TRUE if all CICs in the range are present
+ */
+int sig_ss7_find_cic_range(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc)
+{
+	int i, found = 0;
 
 	for (i = 0; i < linkset->numchans; i++) {
-		if (linkset->pvts[i] && (linkset->pvts[i]->dpc == dpc && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic)))) {
-			p = linkset->pvts[i];
-			offset = p->cic - startcic;
-			status[offset] = 0;
-			if (p->locallyblocked)
-				status[offset] |= (1 << 0) | (1 << 4);
-			if (p->remotelyblocked)
-				status[offset] |= (1 << 1) | (1 << 5);
-			if (p->ss7call) {
-				if (p->outgoing)
-					status[offset] |= (1 << 3);
-				else
-					status[offset] |= (1 << 2);
-			} else
-				status[offset] |= 0x3 << 2;
+		if (ss7_match_range(linkset->pvts[i], startcic, endcic, dpc)) {
+			found++;
 		}
 	}
 
-	if (p)
-		isup_cqr(linkset->ss7, startcic, endcic, dpc, status);
-	else
-		ast_log(LOG_WARNING, "Could not find any equipped circuits within CQM CICs\n");
+	if (found == endcic - startcic + 1) {
+		return  1;
+	}
 
+	return 0;
+}
+
+static void ss7_handle_cqm(struct sig_ss7_linkset *linkset, ss7_event *e)
+{
+	unsigned char status[32];
+	struct sig_ss7_chan *p = NULL;
+	int i;
+	int offset;
+	int chanpos;
+
+	memset(status, 0, sizeof(status));
+	for (i = 0; i < linkset->numchans; i++) {
+		if (ss7_match_range(linkset->pvts[i], e->cqm.startcic, e->cqm.endcic, e->cqm.opc)) {
+			p = linkset->pvts[i];
+			sig_ss7_lock_private(p);
+			offset = p->cic - e->cqm.startcic;
+			status[offset] = 0;
+			if (p->locallyblocked) {
+				status[offset] |= (1 << 0) | (1 << 4);
+			}
+			if (p->remotelyblocked) {
+				status[offset] |= (1 << 1) | (1 << 5);
+			}
+			if (p->ss7call) {
+				if (p->outgoing) {
+					status[offset] |= (1 << 3);
+				} else {
+					status[offset] |= (1 << 2);
+				}
+			} else {
+				status[offset] |= 0x3 << 2;
+			}
+			sig_ss7_unlock_private(p);
+		}
+	}
+
+	if (p) {
+		isup_cqr(linkset->ss7, e->cqm.startcic, e->cqm.endcic, e->cqm.opc, status);
+	} else {
+		ast_log(LOG_WARNING, "Could not find any equipped circuits within CQM CICs\n");
+	}
+
+	chanpos = sig_ss7_find_cic(linkset, e->cqm.startcic, e->cqm.opc);
+	if (chanpos < 0) {
+		isup_free_call(linkset->ss7, e->cqm.call);
+		return;
+	}
+	p = linkset->pvts[chanpos];
+	sig_ss7_lock_private(p);
+	p->ss7call = e->cqm.call;
+	if (!p->owner) {
+		p->ss7call = isup_free_call_if_clear(linkset->ss7, e->cqm.call);
+	}
+	sig_ss7_unlock_private(p);
 }
 
 static inline void ss7_hangup_cics(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc)
@@ -510,7 +696,7 @@ static inline void ss7_hangup_cics(struct sig_ss7_linkset *linkset, int startcic
 	int i;
 
 	for (i = 0; i < linkset->numchans; i++) {
-		if (linkset->pvts[i] && (linkset->pvts[i]->dpc == dpc && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic)))) {
+		if (ss7_match_range(linkset->pvts[i], startcic, endcic, dpc)) {
 			sig_ss7_lock_private(linkset->pvts[i]);
 			sig_ss7_lock_owner(linkset, i);
 			if (linkset->pvts[i]->owner) {
@@ -522,67 +708,274 @@ static inline void ss7_hangup_cics(struct sig_ss7_linkset *linkset, int startcic
 	}
 }
 
-static inline void ss7_block_cics(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc, unsigned char state[], int block)
+/*!
+ * \param linkset SS7 linkset control structure.
+ * \param startcic Start CIC of the range to clear.
+ * \param endcic End CIC of the range to clear.
+ * \param dpc Destination Point Code.
+ * \param state Affected CICs from the operation. NULL for all CICs in the range.
+ * \param block Operation to perform. TRUE to block.
+ * \param remotely Direction of the blocking. TRUE to block/unblock remotely.
+ * \param type Blocking type - hardware or maintenance.
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ * \note Must be called without sig_ss7_lock_private() obtained.
+ *
+ * \return Nothing.
+ */
+static inline void ss7_block_cics(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc, unsigned char state[], int block, int remotely, int type)
 {
 	int i;
 
-	/* XXX the use of state here seems questionable about matching up with the linkset channels */
 	for (i = 0; i < linkset->numchans; i++) {
-		if (linkset->pvts[i] && (linkset->pvts[i]->dpc == dpc && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic)))) {
+		if (ss7_match_range(linkset->pvts[i], startcic, endcic, dpc)) {
+			sig_ss7_lock_private(linkset->pvts[i]);
 			if (state) {
-				if (state[i])
-					sig_ss7_set_remotelyblocked(linkset->pvts[i], block);
-			} else
-				sig_ss7_set_remotelyblocked(linkset->pvts[i], block);
+				if (state[linkset->pvts[i]->cic - startcic]) {
+
+					if (remotely) {
+						sig_ss7_set_remotelyblocked(linkset->pvts[i], block, type);
+					} else {
+						sig_ss7_set_locallyblocked(linkset->pvts[i], block, type);
+					}
+
+					sig_ss7_lock_owner(linkset, i);
+					if (linkset->pvts[i]->owner) {
+						if (ast_channel_state(linkset->pvts[i]->owner) == AST_STATE_DIALING
+							&& linkset->pvts[i]->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING) {
+							ast_channel_hangupcause_set(linkset->pvts[i]->owner, SS7_CAUSE_TRY_AGAIN);
+						}
+						ast_channel_unlock(linkset->pvts[i]->owner);
+					}
+				}
+			} else {
+				if (remotely) {
+					sig_ss7_set_remotelyblocked(linkset->pvts[i], block, type);
+				} else {
+					sig_ss7_set_locallyblocked(linkset->pvts[i], block, type);
+				}
+			}
+			sig_ss7_unlock_private(linkset->pvts[i]);
 		}
 	}
 }
 
+/*!
+ * \param linkset SS7 linkset control structure.
+ * \param startcic Start CIC of the range to set in service.
+ * \param endcic End CIC of the range to set in service.
+ * \param dpc Destination Point Code.
+ *
+ * \note Must be called without sig_ss7_lock_private() obtained.
+ *
+ * \return Nothing.
+ */
 static void ss7_inservice(struct sig_ss7_linkset *linkset, int startcic, int endcic, unsigned int dpc)
 {
 	int i;
 
 	for (i = 0; i < linkset->numchans; i++) {
-		if (linkset->pvts[i] && (linkset->pvts[i]->dpc == dpc && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic))))
+		if (ss7_match_range(linkset->pvts[i], startcic, endcic, dpc)) {
+			sig_ss7_lock_private(linkset->pvts[i]);
 			sig_ss7_set_inservice(linkset->pvts[i], 1);
+			sig_ss7_unlock_private(linkset->pvts[i]);
+		}
 	}
 }
 
+static int ss7_find_alloc_call(struct sig_ss7_chan *p)
+{
+	if (!p) {
+		return 0;
+	}
+
+	if (!p->ss7call) {
+		p->ss7call = isup_new_call(p->ss7->ss7, p->cic, p->dpc, 0);
+		if (!p->ss7call) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+/*
+ * XXX This routine is not tolerant of holes in the pvts[] array.
+ * XXX This routine assumes the cic's in the pvts[] array are sorted.
+ *
+ * Probably the easiest way to deal with the invalid assumptions
+ * is to have a local pvts[] array and sort it by dpc and cic.
+ * Then the existing algorithm could work.
+ */
 static void ss7_reset_linkset(struct sig_ss7_linkset *linkset)
 {
-	int i, startcic = -1, endcic, dpc;
+	int i, startcic, endcic, dpc;
+	struct sig_ss7_chan *p;
 
-	if (linkset->numchans <= 0)
+	if (linkset->numchans <= 0) {
 		return;
+	}
 
 	startcic = linkset->pvts[0]->cic;
+	p = linkset->pvts[0];
 	/* DB: CIC's DPC fix */
 	dpc = linkset->pvts[0]->dpc;
 
 	for (i = 0; i < linkset->numchans; i++) {
-		if (linkset->pvts[i+1] && linkset->pvts[i+1]->dpc == dpc && ((linkset->pvts[i+1]->cic - linkset->pvts[i]->cic) == 1) && (linkset->pvts[i]->cic - startcic < 31)) {
+		if (linkset->pvts[i+1]
+			&& linkset->pvts[i+1]->dpc == dpc
+			&& linkset->pvts[i+1]->cic - linkset->pvts[i]->cic == 1
+			&& linkset->pvts[i]->cic - startcic < (linkset->type == SS7_ANSI ? 24 : 31)) {
 			continue;
 		} else {
 			endcic = linkset->pvts[i]->cic;
-			ast_verbose("Resetting CICs %d to %d\n", startcic, endcic);
-			isup_grs(linkset->ss7, startcic, endcic, dpc);
+			ast_verb(1, "Resetting CICs %d to %d\n", startcic, endcic);
+
+			sig_ss7_lock_private(p);
+			if (!ss7_find_alloc_call(p)) {
+				ast_log(LOG_ERROR, "Unable to allocate new ss7call\n");
+			} else if (!(endcic - startcic)) {	/* GRS range can not be 0 - use RSC instead */
+				isup_rsc(linkset->ss7, p->ss7call);
+			} else {
+				isup_grs(linkset->ss7, p->ss7call, endcic);
+			}
+			sig_ss7_unlock_private(p);
 
 			/* DB: CIC's DPC fix */
 			if (linkset->pvts[i+1]) {
 				startcic = linkset->pvts[i+1]->cic;
 				dpc = linkset->pvts[i+1]->dpc;
+				p = linkset->pvts[i+1];
 			}
 		}
 	}
 }
 
-/* This function is assumed to be called with the private channel lock and linkset lock held */
+/*!
+ * \internal
+ * \brief Complete the RSC procedure started earlier
+ * \since 11.0
+ *
+ * \param p Signaling private structure pointer.
+ *
+ * \note Assumes the ss7->lock is already obtained.
+ * \note Assumes sig_ss7_lock_private(p) is already obtained.
+ *
+ * \return Nothing.
+ */
+static void ss7_do_rsc(struct sig_ss7_chan *p)
+{
+	if (!p || !p->ss7call) {
+		return;
+	}
+
+	isup_rsc(p->ss7->ss7, p->ss7call);
+
+	if (p->locallyblocked & SS7_BLOCKED_MAINTENANCE) {
+		isup_blo(p->ss7->ss7, p->ss7call);
+	} else {
+		sig_ss7_set_locallyblocked(p, 0, SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Start RSC procedure on a specific link
+ * \since 11.0
+ *
+ * \param ss7 SS7 linkset control structure.
+ * \param which Channel position in the span.
+ *
+ * \note Assumes the ss7->lock is already obtained.
+ * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
+ *
+ * \return TRUE on success
+ */
+static int ss7_start_rsc(struct sig_ss7_linkset *linkset, int which)
+{
+	if (!linkset->pvts[which]) {
+		return 0;
+	}
+
+	if (!ss7_find_alloc_call(linkset->pvts[which])) {
+		return 0;
+	}
+
+	sig_ss7_set_remotelyblocked(linkset->pvts[which], 0, SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+	sig_ss7_set_inservice(linkset->pvts[which], 0);
+	sig_ss7_loopback(linkset->pvts[which], 0);
+
+	sig_ss7_lock_owner(linkset, which);
+	if (linkset->pvts[which]->owner) {
+		ast_channel_hangupcause_set(linkset->pvts[which]->owner, AST_CAUSE_NORMAL_CLEARING);
+		ast_softhangup_nolock(linkset->pvts[which]->owner, AST_SOFTHANGUP_DEV);
+		ast_channel_unlock(linkset->pvts[which]->owner);
+		linkset->pvts[which]->do_hangup = SS7_HANGUP_SEND_RSC;
+	} else {
+		ss7_do_rsc(linkset->pvts[which]);
+	}
+
+	return 1;
+}
+
+/*!
+ * \internal
+ * \brief Determine if a private channel structure is available.
+ * \since 11.0
+ *
+ * \param linkset SS7 linkset control structure.
+ * \param startcic Start CIC of the range to clear.
+ * \param endcic End CIC of the range to clear.
+ * \param dpc Destination Point Code.
+ * \param do_hangup What we have to do to clear the call.
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ * \note Must be called without sig_ss7_lock_private() obtained.
+ *
+ * \return Nothing.
+ */
+static void ss7_clear_channels(struct sig_ss7_linkset *linkset, int startcic, int endcic, int dpc, int do_hangup)
+{
+	int i;
+
+	for (i = 0; i < linkset->numchans; i++) {
+		if (ss7_match_range(linkset->pvts[i], startcic, endcic, dpc)) {
+			sig_ss7_lock_private(linkset->pvts[i]);
+			sig_ss7_set_inservice(linkset->pvts[i], 0);
+			sig_ss7_lock_owner(linkset, i);
+			if (linkset->pvts[i]->owner) {
+				ast_channel_hangupcause_set(linkset->pvts[i]->owner,
+											AST_CAUSE_NORMAL_CLEARING);
+				ast_softhangup_nolock(linkset->pvts[i]->owner, AST_SOFTHANGUP_DEV);
+				ast_channel_unlock(linkset->pvts[i]->owner);
+				linkset->pvts[i]->do_hangup = (linkset->pvts[i]->cic != startcic) ?
+											do_hangup : SS7_HANGUP_DO_NOTHING;
+			} else if (linkset->pvts[i] && linkset->pvts[i]->cic != startcic) {
+				isup_free_call(linkset->pvts[i]->ss7->ss7, linkset->pvts[i]->ss7call);
+				linkset->pvts[i]->ss7call = NULL;
+			}
+			sig_ss7_unlock_private(linkset->pvts[i]);
+		}
+	}
+}
+
+/*!
+ * \internal
+ *
+ * \param p Signaling private structure pointer.
+ * \param linkset SS7 linkset control structure.
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing.
+ */
 static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *linkset)
 {
 	struct ss7 *ss7 = linkset->ss7;
 	int law;
 	struct ast_channel *c;
 	char tmp[256];
+	char *strp;
 	struct ast_callid *callid = NULL;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 
@@ -600,6 +993,8 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		law = SIG_SS7_ULAW;
 	}
 
+	isup_set_echocontrol(p->ss7call, (linkset->flags & LINKSET_FLAG_DEFAULTECHOCONTROL) ? 1 : 0);
+
 	/*
 	 * Release the SS7 lock while we create the channel so other
 	 * threads can send messages.  We must also release the private
@@ -614,7 +1009,6 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		sig_ss7_lock_private(p);
 		isup_rel(linkset->ss7, p->ss7call, AST_CAUSE_SWITCH_CONGESTION);
 		p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
-		p->alreadyhungup = 1;
 		ast_callid_threadstorage_auto_clean(callid, callid_created);
 		return;
 	}
@@ -622,8 +1016,6 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	/* Hold the channel and private lock while we setup the channel. */
 	ast_channel_lock(c);
 	sig_ss7_lock_private(p);
-
-	sig_ss7_set_echocanceller(p, 1);
 
 	ast_channel_stage_snapshot(c);
 
@@ -658,11 +1050,6 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 		/* Clear this after we set it */
 		p->gen_dig_number[0] = 0;
 	}
-	if (!ast_strlen_zero(p->orig_called_num)) {
-		pbx_builtin_setvar_helper(c, "SS7_ORIG_CALLED_NUM", p->orig_called_num);
-		/* Clear this after we set it */
-		p->orig_called_num[0] = 0;
-	}
 
 	snprintf(tmp, sizeof(tmp), "%d", p->gen_dig_type);
 	pbx_builtin_setvar_helper(c, "SS7_GENERIC_DIGTYPE", tmp);
@@ -695,15 +1082,174 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	/* Clear this after we set it */
 	p->calling_party_cat = 0;
 
-	if (!ast_strlen_zero(p->redirecting_num)) {
-		pbx_builtin_setvar_helper(c, "SS7_REDIRECTING_NUMBER", p->redirecting_num);
+	if (p->redirect_counter) {
+		struct ast_party_redirecting redirecting;
+
+		switch (p->redirect_info_ind) {
+		case 0:
+			strp = "NO_REDIRECTION";
+			break;
+		case 1:
+			strp = "CALL_REROUTED_PRES_ALLOWED";
+			break;
+		case 2:
+			strp = "CALL_REROUTED_INFO_RESTRICTED";
+			break;
+		case 3:
+			strp = "CALL_DIVERTED_PRES_ALLOWED";
+			break;
+		case 4:
+			strp = "CALL_DIVERTED_INFO_RESTRICTED";
+			break;
+		case 5:
+			strp = "CALL_REROUTED_PRES_RESTRICTED";
+			break;
+		case 6:
+			strp = "CALL_DIVERTED_PRES_RESTRICTED";
+			break;
+		case 7:
+			strp = "SPARE";
+			break;
+		default:
+			strp = "NO_REDIRECTION";
+			break;
+		}
+		pbx_builtin_setvar_helper(c, "SS7_REDIRECT_INFO_IND", strp);
 		/* Clear this after we set it */
-		p->redirecting_num[0] = 0;
+		p->redirect_info_ind = 0;
+
+		ast_party_redirecting_init(&redirecting);
+
+		if (p->redirect_info_counter) {
+			redirecting.count = p->redirect_info_counter;
+			if (p->redirect_info_counter != p->redirect_counter) {
+				if (p->redirect_info_counter < p->redirect_counter) {
+					redirecting.count = p->redirect_counter;
+				}
+				ast_log(LOG_WARNING, "Redirect counters differ: %u while info says %u - using %u\n",
+					p->redirect_counter, p->redirect_info_counter, redirecting.count);
+			}
+			/* Clear this after we set it */
+			p->redirect_info_counter = 0;
+			p->redirect_counter = 0;
+		}
+
+		if (p->redirect_counter) {
+			redirecting.count = p->redirect_counter;
+			/* Clear this after we set it */
+			p->redirect_counter = 0;
+		}
+
+		switch (p->redirect_info_orig_reas) {
+		case SS7_REDIRECTING_REASON_UNKNOWN:
+			redirecting.orig_reason.code = AST_REDIRECTING_REASON_UNKNOWN;
+			break;
+		case SS7_REDIRECTING_REASON_USER_BUSY:
+			redirecting.orig_reason.code = AST_REDIRECTING_REASON_USER_BUSY;
+			break;
+		case SS7_REDIRECTING_REASON_NO_ANSWER:
+			redirecting.orig_reason.code = AST_REDIRECTING_REASON_NO_ANSWER;
+			break;
+		case SS7_REDIRECTING_REASON_UNCONDITIONAL:
+			redirecting.orig_reason.code = AST_REDIRECTING_REASON_UNCONDITIONAL;
+			break;
+		default:
+			redirecting.orig_reason.code = AST_REDIRECTING_REASON_UNKNOWN;
+			break;
+		}
+
+		switch (p->redirect_info_reas) {
+		case SS7_REDIRECTING_REASON_UNKNOWN:
+			redirecting.reason.code = AST_REDIRECTING_REASON_UNKNOWN;
+			break;
+		case SS7_REDIRECTING_REASON_USER_BUSY:
+			redirecting.reason.code = AST_REDIRECTING_REASON_USER_BUSY;
+			if (!p->redirect_info_orig_reas && redirecting.count == 1) {
+				redirecting.orig_reason.code = AST_REDIRECTING_REASON_USER_BUSY;
+			}
+			break;
+		case SS7_REDIRECTING_REASON_NO_ANSWER:
+			redirecting.reason.code = AST_REDIRECTING_REASON_NO_ANSWER;
+			if (!p->redirect_info_orig_reas && redirecting.count == 1) {
+				redirecting.orig_reason.code = AST_REDIRECTING_REASON_NO_ANSWER;
+			}
+			break;
+		case SS7_REDIRECTING_REASON_UNCONDITIONAL:
+			redirecting.reason.code = AST_REDIRECTING_REASON_UNCONDITIONAL;
+			if (!p->redirect_info_orig_reas && redirecting.count == 1) {
+				redirecting.orig_reason.code = AST_REDIRECTING_REASON_UNCONDITIONAL;
+			}
+			break;
+		case SS7_REDIRECTING_REASON_DEFLECTION_DURING_ALERTING:
+		case SS7_REDIRECTING_REASON_DEFLECTION_IMMEDIATE_RESPONSE:
+			redirecting.reason.code = AST_REDIRECTING_REASON_DEFLECTION;
+			break;
+		case SS7_REDIRECTING_REASON_UNAVAILABLE:
+			redirecting.reason.code = AST_REDIRECTING_REASON_UNAVAILABLE;
+			break;
+		default:
+			redirecting.reason.code = AST_REDIRECTING_REASON_UNKNOWN;
+			break;
+		}
+		/* Clear this after we set it */
+		p->redirect_info_orig_reas = 0;
+		p->redirect_info_reas = 0;
+
+		if (!ast_strlen_zero(p->redirecting_num)) {
+			redirecting.from.number.str = ast_strdup(p->redirecting_num);
+			redirecting.from.number.presentation = p->redirecting_presentation;
+			redirecting.from.number.valid = 1;
+			/* Clear this after we set it */
+			p->redirecting_num[0] = 0;
+		}
+
+		if (!ast_strlen_zero(p->generic_name)) {
+			redirecting.from.name.str = ast_strdup(p->generic_name);
+			redirecting.from.name.presentation = p->redirecting_presentation;
+			redirecting.from.name.valid = 1;
+			/* Clear this after we set it */
+			p->generic_name[0] = 0;
+		}
+
+		if (!ast_strlen_zero(p->orig_called_num)) {
+			redirecting.orig.number.str = ast_strdup(p->orig_called_num);
+			redirecting.orig.number.presentation = p->orig_called_presentation;
+			redirecting.orig.number.valid = 1;
+			/* Clear this after we set it */
+			p->orig_called_num[0] = 0;
+		} else if (redirecting.count == 1) {
+			ast_party_id_copy(&redirecting.orig, &redirecting.from);
+		}
+
+		ast_channel_update_redirecting(c, &redirecting, NULL);
+		ast_party_redirecting_free(&redirecting);
 	}
-	if (!ast_strlen_zero(p->generic_name)) {
-		pbx_builtin_setvar_helper(c, "SS7_GENERIC_NAME", p->generic_name);
-		/* Clear this after we set it */
-		p->generic_name[0] = 0;
+
+	if (p->cug_indicator != ISUP_CUG_NON) {
+		sprintf(tmp, "%d", p->cug_interlock_code);
+		pbx_builtin_setvar_helper(c, "SS7_CUG_INTERLOCK_CODE", tmp);
+
+		switch (p->cug_indicator) {
+		case ISUP_CUG_NON:
+			strp = "NON_CUG";
+			break;
+		case ISUP_CUG_OUTGOING_ALLOWED:
+			strp = "OUTGOING_ALLOWED";
+			break;
+		case ISUP_CUG_OUTGOING_NOT_ALLOWED:
+			strp = "OUTGOING_NOT_ALLOWED";
+			break;
+		default:
+			strp = "SPARE";
+			break;
+		}
+		pbx_builtin_setvar_helper(c, "SS7_CUG_INDICATOR", strp);
+
+		if (!ast_strlen_zero(p->cug_interlock_ni)) {
+			pbx_builtin_setvar_helper(c, "SS7_CUG_INTERLOCK_NI", p->cug_interlock_ni);
+		}
+
+		p->cug_indicator = ISUP_CUG_NON;
 	}
 
 	ast_channel_stage_snapshot_done(c);
@@ -744,6 +1290,9 @@ static void ss7_apply_plan_to_number(char *buf, size_t size, const struct sig_ss
 		break;
 	case SS7_NAI_UNKNOWN:
 		snprintf(buf, size, "%s%s", ss7->unknownprefix, number);
+		break;
+	case SS7_NAI_NETWORKROUTED:
+		snprintf(buf, size, "%s%s", ss7->networkroutedprefix, number);
 		break;
 	default:
 		snprintf(buf, size, "%s", number);
@@ -786,6 +1335,50 @@ static struct ast_callid *func_ss7_linkset_callid(struct sig_ss7_linkset *linkse
 	return callid;
 }
 
+/*!
+ * \internal
+ * \brief Proceed with the call based on the extension matching status
+ * is matching in the dialplan.
+ * \since 11.0
+ *
+ * \param linkset ss7 span control structure.
+ * \param p Signaling private structure pointer.
+ * \param e Event causing the match.
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
+ *
+ * \return Nothing.
+ */
+static void ss7_match_extension(struct sig_ss7_linkset *linkset, struct sig_ss7_chan *p, ss7_event *e)
+{
+	ast_verb(3, "SS7 exten: %s complete: %d\n", p->exten, p->called_complete);
+
+	if (!p->called_complete
+		&& linkset->type == SS7_ITU /* ANSI does not support overlap dialing. */
+		&& ast_matchmore_extension(NULL, p->context, p->exten, 1, p->cid_num)
+		&& !isup_start_digittimeout(linkset->ss7, p->ss7call)) {
+		/* Wait for more digits. */
+		return;
+	}
+	if (ast_exists_extension(NULL, p->context, p->exten, 1, p->cid_num)) {
+		/* DNID is complete */
+		p->called_complete = 1;
+		sig_ss7_set_dnid(p, p->exten);
+
+		/* If COT successful start call! */
+		if ((e->e == ISUP_EVENT_IAM)
+			? !(e->iam.cot_check_required || e->iam.cot_performed_on_previous_cic)
+			: (!(e->sam.cot_check_required || e->sam.cot_performed_on_previous_cic) || e->sam.cot_check_passed)) {
+			ss7_start_call(p, linkset);
+		}
+		return;
+	}
+
+	ast_debug(1, "Call on CIC for unconfigured extension %s\n", p->exten);
+	isup_rel(linkset->ss7, (e->e == ISUP_EVENT_IAM) ? e->iam.call : e->sam.call, AST_CAUSE_UNALLOCATED);
+}
+
 /* This is a thread per linkset that handles all received events from libss7. */
 void *ss7_linkset(void *data)
 {
@@ -796,6 +1389,7 @@ void *ss7_linkset(void *data)
 	ss7_event *e = NULL;
 	struct sig_ss7_chan *p;
 	struct pollfd pollers[SIG_SS7_NUM_DCHANS];
+	unsigned char mb_state[255];
 	int nextms;
 
 #define SS7_MAX_POLL	60000	/* Maximum poll time in ms. */
@@ -843,16 +1437,13 @@ void *ss7_linkset(void *data)
 		pthread_testcancel();
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
+		ast_mutex_lock(&linkset->lock);
 		if ((res < 0) && (errno != EINTR)) {
 			ast_log(LOG_ERROR, "poll(%s)\n", strerror(errno));
 		} else if (!res) {
-			ast_mutex_lock(&linkset->lock);
 			ss7_schedule_run(ss7);
-			ast_mutex_unlock(&linkset->lock);
-			continue;
 		}
 
-		ast_mutex_lock(&linkset->lock);
 		for (i = 0; i < linkset->numsigchans; i++) {
 			if (pollers[i].revents & POLLPRI) {
 				sig_ss7_handle_link_exception(linkset, i);
@@ -881,23 +1472,26 @@ void *ss7_linkset(void *data)
 			switch (e->e) {
 			case SS7_EVENT_UP:
 				if (linkset->state != LINKSET_STATE_UP) {
-					ast_verbose("--- SS7 Up ---\n");
+					ast_verb(1, "--- SS7 Up ---\n");
 					ss7_reset_linkset(linkset);
 				}
 				linkset->state = LINKSET_STATE_UP;
 				break;
 			case SS7_EVENT_DOWN:
-				ast_verbose("--- SS7 Down ---\n");
+				ast_verb(1, "--- SS7 Down ---\n");
 				linkset->state = LINKSET_STATE_DOWN;
 				for (i = 0; i < linkset->numchans; i++) {
 					p = linkset->pvts[i];
 					if (p) {
-						sig_ss7_set_alarm(p, 1);
+						sig_ss7_set_inservice(p, 0);
+						if (linkset->flags & LINKSET_FLAG_INITIALHWBLO) {
+							sig_ss7_set_remotelyblocked(p, 1, SS7_BLOCKED_HARDWARE);
+						}
 					}
 				}
 				break;
 			case MTP2_LINK_UP:
-				ast_verbose("MTP2 link up (SLC %d)\n", e->gen.data);
+				ast_verb(1, "MTP2 link up (SLC %d)\n", e->gen.data);
 				break;
 			case MTP2_LINK_DOWN:
 				ast_log(LOG_WARNING, "MTP2 link down (SLC %d)\n", e->gen.data);
@@ -905,6 +1499,7 @@ void *ss7_linkset(void *data)
 			case ISUP_EVENT_CPG:
 				chanpos = ss7_find_cic_gripe(linkset, e->cpg.cic, e->cpg.opc, "CPG");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->cpg.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
@@ -919,6 +1514,21 @@ void *ss7_linkset(void *data)
 					sig_ss7_lock_owner(linkset, chanpos);
 					if (p->owner) {
 						ast_setstate(p->owner, AST_STATE_RINGING);
+						if (!ast_strlen_zero(e->cpg.connected_num)) {
+							struct ast_party_connected_line ast_connected;
+							char connected_num[AST_MAX_EXTENSION];
+
+							ast_party_connected_line_init(&ast_connected);
+							ast_connected.id.number.presentation =
+								ss7_pres_scr2cid_pres(e->cpg.connected_presentation_ind,
+								e->cpg.connected_screening_ind);
+							ss7_apply_plan_to_number(connected_num, sizeof(connected_num),
+								linkset, e->cpg.connected_num, e->cpg.connected_nai);
+							ast_connected.id.number.str = ast_strdup(connected_num);
+							ast_connected.id.number.valid = 1;
+							ast_channel_queue_connected_line_update(p->owner, &ast_connected, NULL);
+							ast_party_connected_line_free(&ast_connected);
+						}
 						ast_channel_unlock(p->owner);
 					}
 					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_RINGING);
@@ -941,95 +1551,201 @@ void *ss7_linkset(void *data)
 				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_RSC:
-				ast_verbose("Resetting CIC %d\n", e->rsc.cic);
+				ast_verb(1, "Resetting CIC %d\n", e->rsc.cic);
 				chanpos = ss7_find_cic_gripe(linkset, e->rsc.cic, e->rsc.opc, "RSC");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->rsc.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
+				p->ss7call = e->rsc.call;
 				callid = func_ss7_linkset_callid(linkset, chanpos);
 				sig_ss7_set_inservice(p, 1);
-				sig_ss7_set_remotelyblocked(p, 0);
+				sig_ss7_set_remotelyblocked(p, 0, SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+
+				if (p->locallyblocked & SS7_BLOCKED_MAINTENANCE) {
+					isup_blo(ss7, e->rsc.call);
+				} else if (p->locallyblocked & SS7_BLOCKED_HARDWARE) {
+					sig_ss7_set_locallyblocked(p, 0, SS7_BLOCKED_HARDWARE);
+				}
+
 				isup_set_call_dpc(e->rsc.call, p->dpc);
 				sig_ss7_lock_owner(linkset, chanpos);
-				p->ss7call = NULL;
 				if (p->owner) {
+					p->do_hangup = SS7_HANGUP_SEND_RLC;
+					if (!(e->rsc.got_sent_msg & ISUP_SENT_IAM)) {
+						/* Q.784 6.2.3 */
+						ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CLEARING);
+					} else {
+						ast_channel_hangupcause_set(p->owner, SS7_CAUSE_TRY_AGAIN);
+					}
+
 					ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_RSC", AST_CAUSE_INTERWORKING);
+
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
 					ast_channel_unlock(p->owner);
+				} else {
+					isup_rlc(ss7, e->rsc.call);
+					p->ss7call = isup_free_call_if_clear(ss7, e->rsc.call);
 				}
+				/* End the loopback if we have one */
+				sig_ss7_loopback(p, 0);
+
 				sig_ss7_unlock_private(p);
-				isup_rlc(ss7, e->rsc.call);
 				break;
 			case ISUP_EVENT_GRS:
-				ast_debug(1, "Got Reset for CICs %d to %d: Acknowledging\n", e->grs.startcic, e->grs.endcic);
-				chanpos = ss7_find_cic_gripe(linkset, e->grs.startcic, e->grs.opc, "GRS");
+				if (!sig_ss7_find_cic_range(linkset, e->grs.startcic, e->grs.endcic,
+					e->grs.opc)) {
+					ast_log(LOG_WARNING, "GRS on unconfigured range CIC %d - %d PC %d\n",
+						e->grs.startcic, e->grs.endcic, e->grs.opc);
+					chanpos = sig_ss7_find_cic(linkset, e->grs.startcic, e->grs.opc);
+					if (chanpos < 0) {
+						isup_free_call(ss7, e->grs.call);
+						break;
+					}
+					p = linkset->pvts[chanpos];
+					sig_ss7_lock_private(p);
+					p->ss7call = isup_free_call_if_clear(ss7, e->grs.call);
+					sig_ss7_unlock_private(p);
+					break;
+				}
+
+				/* Leave startcic last to collect all cics mb_state */
+				for (i = e->grs.endcic - e->grs.startcic; 0 <= i; --i) {
+					/*
+					 * We are guaranteed to find chanpos because
+					 * sig_ss7_find_cic_range() includes it.
+					 */
+					chanpos = sig_ss7_find_cic(linkset, e->grs.startcic + i, e->grs.opc);
+					p = linkset->pvts[chanpos];
+					sig_ss7_lock_private(p);
+
+					if (p->locallyblocked & SS7_BLOCKED_MAINTENANCE) {
+						mb_state[i] = 1;
+					} else {
+						mb_state[i] = 0;
+						sig_ss7_set_locallyblocked(p, 0, SS7_BLOCKED_HARDWARE);
+					}
+
+					sig_ss7_set_remotelyblocked(p, 0, SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+
+					if (!i) {
+						p->ss7call = e->grs.call;
+						isup_gra(ss7, p->ss7call, e->grs.endcic, mb_state);
+					}
+
+					sig_ss7_lock_owner(linkset, chanpos);
+					if (p->owner) {
+						ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
+						if (ast_channel_state(p->owner) == AST_STATE_DIALING
+							&& linkset->pvts[i]->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING) {
+							ast_channel_hangupcause_set(p->owner, SS7_CAUSE_TRY_AGAIN);
+						} else {
+							ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CLEARING);
+						}
+						p->do_hangup = SS7_HANGUP_FREE_CALL;
+						ast_channel_unlock(p->owner);
+					} else if (!i) {
+						p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+					} else if (p->ss7call) {
+						/* clear any other session */
+						isup_free_call(ss7, p->ss7call);
+						p->ss7call = NULL;
+					}
+					sig_ss7_set_inservice(p, 1);
+					sig_ss7_unlock_private(p);
+				}
+				break;
+			case ISUP_EVENT_CQM:
+				ast_debug(1, "Got Circuit group query message from CICs %d to %d\n",
+							e->cqm.startcic, e->cqm.endcic);
+				ss7_handle_cqm(linkset, e);
+				break;
+			case ISUP_EVENT_GRA:
+				if (!sig_ss7_find_cic_range(linkset, e->gra.startcic,
+							e->gra.endcic, e->gra.opc)) {	/* Never will be true */
+					ast_log(LOG_WARNING, "GRA on unconfigured range CIC %d - %d PC %d\n",
+							e->gra.startcic, e->gra.endcic, e->gra.opc);
+					isup_free_call(ss7, e->gra.call);
+					break;
+				}
+				ast_verb(1, "Got reset acknowledgement from CIC %d to %d DPC: %d\n",
+					e->gra.startcic, e->gra.endcic, e->gra.opc);
+				ss7_block_cics(linkset, e->gra.startcic, e->gra.endcic, e->gra.opc,
+					e->gra.status, 1, 1, SS7_BLOCKED_MAINTENANCE);
+				ss7_inservice(linkset, e->gra.startcic, e->gra.endcic, e->gra.opc);
+
+				chanpos = sig_ss7_find_cic(linkset, e->gra.startcic, e->gra.opc);
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->gra.call);
+					break;
+				}
+
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+
+				/* we may send a CBD with GRS! */
+				p->ss7call = isup_free_call_if_clear(ss7, e->gra.call);
+				sig_ss7_unlock_private(p);
+				break;
+			case ISUP_EVENT_SAM:
+				chanpos = ss7_find_cic_gripe(linkset, e->sam.cic, e->sam.opc, "SAM");
+				if (chanpos < 0) {
+					isup_free_call(ss7, e->sam.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				isup_gra(ss7, e->grs.startcic, e->grs.endcic, e->grs.opc);
-				ss7_block_cics(linkset, e->grs.startcic, e->grs.endcic, e->grs.opc, NULL, 0);
-				ss7_hangup_cics(linkset, e->grs.startcic, e->grs.endcic, e->grs.opc);
-				break;
-			case ISUP_EVENT_CQM:
-				ast_debug(1, "Got Circuit group query message from CICs %d to %d\n", e->cqm.startcic, e->cqm.endcic);
-				ss7_handle_cqm(linkset, e->cqm.startcic, e->cqm.endcic, e->cqm.opc);
-				break;
-			case ISUP_EVENT_GRA:
-				ast_verbose("Got reset acknowledgement from CIC %d to %d.\n", e->gra.startcic, e->gra.endcic);
-				ss7_inservice(linkset, e->gra.startcic, e->gra.endcic, e->gra.opc);
-				ss7_block_cics(linkset, e->gra.startcic, e->gra.endcic, e->gra.opc, e->gra.status, 1);
+				sig_ss7_lock_private(p);
+				sig_ss7_lock_owner(linkset, chanpos);
+				if (p->owner) {
+					ast_log(LOG_WARNING, "SAM on CIC %d PC %d already have call\n", e->sam.cic, e->sam.opc);
+					ast_channel_unlock(p->owner);
+					sig_ss7_unlock_private(p);
+					break;
+				}
+				p->called_complete = 0;
+				if (!ast_strlen_zero(e->sam.called_party_num)) {
+					char *st;
+					strncat(p->exten, e->sam.called_party_num, sizeof(p->exten) - strlen(p->exten) - 1);
+					st = strchr(p->exten, '#');
+					if (st) {
+						*st = '\0';
+						p->called_complete = 1;
+					}
+					ss7_match_extension(linkset, p, e);
+				}
+				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_IAM:
 				ast_debug(1, "Got IAM for CIC %d and called number %s, calling number %s\n", e->iam.cic, e->iam.called_party_num, e->iam.calling_party_num);
 				chanpos = ss7_find_cic_gripe(linkset, e->iam.cic, e->iam.opc, "IAM");
 				if (chanpos < 0) {
-					isup_rel(ss7, e->iam.call, -1);
+					isup_free_call(ss7, e->iam.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
-				sig_ss7_lock_owner(linkset, chanpos);
-				if (p->call_level != SIG_SS7_CALL_LEVEL_IDLE) {
-					/*
-					 * Detected glare/dual-seizure
-					 *
-					 * Always abort both calls since we can't implement the dual
-					 * seizure procedures due to our channel assignment architecture
-					 * and the fact that we cannot tell libss7 to discard its call
-					 * structure to ignore the incoming IAM.
-					 */
-					ast_debug(1,
-						"Linkset %d: SS7 IAM glare on CIC/DPC %d/%d.  Dropping both calls.\n",
-						linkset->span, e->iam.cic, e->iam.opc);
-					if (p->call_level == SIG_SS7_CALL_LEVEL_ALLOCATED) {
-						/*
-						 * We have not sent our IAM yet and we never will at this point.
-						 */
-						p->alreadyhungup = 1;
-						isup_rel(ss7, e->iam.call, AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
-					}
-					p->call_level = SIG_SS7_CALL_LEVEL_GLARE;
-					if (p->owner) {
-						ss7_queue_pvt_cause_data(p->owner, "SS7 ISUP_EVENT_IAM (glare)", AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
-						ast_channel_hangupcause_set(p->owner, AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
-						ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
-						ast_channel_unlock(p->owner);
-					}
-					sig_ss7_unlock_private(p);
-					break;
-				}
 				/*
-				 * The channel should not have an owner at this point since we
+				 * The channel should be idle and not have an owner at this point since we
 				 * are in the process of creating an owner for it.
 				 */
-				ast_assert(!p->owner);
+				ast_assert(!p->owner && p->call_level == SIG_SS7_CALL_LEVEL_IDLE);
+
+				if (p->remotelyblocked) {
+					ast_log(LOG_NOTICE, "Got IAM on remotely blocked CIC %d DPC %d remove blocking\n", e->iam.cic, e->iam.opc);
+					sig_ss7_set_remotelyblocked(p, 0, SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+					sig_ss7_set_inservice(p, 1);
+				}
 
 				if (!sig_ss7_is_chan_available(p)) {
 					/* Circuit is likely blocked or in alarm. */
 					isup_rel(ss7, e->iam.call, AST_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+					if (p->locallyblocked) {
+						isup_clear_callflags(ss7, e->iam.call, ISUP_GOT_IAM);
+						p->ss7call = isup_free_call_if_clear(ss7, e->iam.call);
+						ast_log(LOG_WARNING, "Got IAM on locally blocked CIC %d DPC %d, ignore\n", e->iam.cic, e->iam.opc);
+					}
 					sig_ss7_unlock_private(p);
 					break;
 				}
@@ -1043,18 +1759,14 @@ void *ss7_linkset(void *data)
 				if ((p->use_callerid) && (!ast_strlen_zero(e->iam.calling_party_num))) {
 					ss7_apply_plan_to_number(p->cid_num, sizeof(p->cid_num), linkset, e->iam.calling_party_num, e->iam.calling_nai);
 					p->callingpres = ss7_pres_scr2cid_pres(e->iam.presentation_ind, e->iam.screening_ind);
-				} else
-					p->cid_num[0] = 0;
-
-				/* Set DNID */
-				if (!ast_strlen_zero(e->iam.called_party_num)) {
-					ss7_apply_plan_to_number(p->exten, sizeof(p->exten), linkset,
-						e->iam.called_party_num, e->iam.called_nai);
 				} else {
-					p->exten[0] = '\0';
+					p->cid_num[0] = 0;
+					if (e->iam.presentation_ind) {
+						p->callingpres = ss7_pres_scr2cid_pres(e->iam.presentation_ind, e->iam.screening_ind);
+					}
 				}
-				sig_ss7_set_dnid(p, p->exten);
 
+				p->called_complete = 0;
 				if (p->immediate) {
 					p->exten[0] = 's';
 					p->exten[1] = '\0';
@@ -1064,16 +1776,18 @@ void *ss7_linkset(void *data)
 					st = strchr(p->exten, '#');
 					if (st) {
 						*st = '\0';
+						p->called_complete = 1;
 					}
 				} else {
 					p->exten[0] = '\0';
 				}
 
 				p->cid_ani[0] = '\0';
-				if ((p->use_callerid) && (!ast_strlen_zero(e->iam.generic_name)))
+				if ((p->use_callerid) && (!ast_strlen_zero(e->iam.generic_name))) {
 					ast_copy_string(p->cid_name, e->iam.generic_name, sizeof(p->cid_name));
-				else
+				} else {
 					p->cid_name[0] = '\0';
+				}
 
 				p->cid_ani2 = e->iam.oli_ani2;
 				p->cid_ton = 0;
@@ -1087,81 +1801,162 @@ void *ss7_linkset(void *data)
 				p->gen_dig_type = e->iam.gen_dig_type;
 				p->gen_dig_scheme = e->iam.gen_dig_scheme;
 				ast_copy_string(p->jip_number, e->iam.jip_number, sizeof(p->jip_number));
-				ast_copy_string(p->orig_called_num, e->iam.orig_called_num, sizeof(p->orig_called_num));
-				ast_copy_string(p->redirecting_num, e->iam.redirecting_num, sizeof(p->redirecting_num));
+				if (!ast_strlen_zero(e->iam.orig_called_num)) {
+					ss7_apply_plan_to_number(p->orig_called_num, sizeof(p->orig_called_num), linkset, e->iam.orig_called_num, e->iam.orig_called_nai);
+					p->orig_called_presentation = ss7_pres_scr2cid_pres(e->iam.orig_called_pres_ind, e->iam.orig_called_screening_ind);
+				}
+				if (!ast_strlen_zero(e->iam.redirecting_num)) {
+					ss7_apply_plan_to_number(p->redirecting_num, sizeof(p->redirecting_num), linkset, e->iam.redirecting_num, e->iam.redirecting_num_nai);
+					p->redirecting_presentation = ss7_pres_scr2cid_pres(e->iam.redirecting_num_presentation_ind, e->iam.redirecting_num_screening_ind);
+				}
 				ast_copy_string(p->generic_name, e->iam.generic_name, sizeof(p->generic_name));
 				p->calling_party_cat = e->iam.calling_party_cat;
+				p->redirect_counter = e->iam.redirect_counter;
+				p->redirect_info = e->iam.redirect_info;
+				p->redirect_info_ind = e->iam.redirect_info_ind;
+				p->redirect_info_orig_reas = e->iam.redirect_info_orig_reas;
+				p->redirect_info_counter = e->iam.redirect_info_counter;
+				if (p->redirect_info_counter && !p->redirect_counter) {
+					p->redirect_counter = p->redirect_info_counter;
+				}
+				p->redirect_info_reas = e->iam.redirect_info_reas;
+				p->cug_indicator = e->iam.cug_indicator;
+				p->cug_interlock_code = e->iam.cug_interlock_code;
+				ast_copy_string(p->cug_interlock_ni, e->iam.cug_interlock_ni, sizeof(p->cug_interlock_ni));
 
+				if (e->iam.cot_check_required) {
+					sig_ss7_loopback(p, 1);
+				}
+
+				p->echocontrol_ind = e->iam.echocontrol_ind;
 				sig_ss7_set_caller_id(p);
+				ss7_match_extension(linkset, p, e);
+				sig_ss7_unlock_private(p);
 
-				if (ast_exists_extension(NULL, p->context, p->exten, 1, p->cid_num)) {
-					if (e->iam.cot_check_required) {
-						p->call_level = SIG_SS7_CALL_LEVEL_CONTINUITY;
+				if (e->iam.cot_performed_on_previous_cic) {
+					chanpos = sig_ss7_find_cic(linkset, (e->iam.cic - 1), e->iam.opc);
+					if (chanpos < 0) {
+						/* some stupid switch do this */
+						ast_verb(1, "COT request on previous nonexistent CIC %d in IAM PC %d\n", (e->iam.cic - 1), e->iam.opc);
+						break;
+					}
+					ast_verb(1, "COT request on previous CIC %d in IAM PC %d\n", (e->iam.cic - 1), e->iam.opc);
+					p = linkset->pvts[chanpos];
+					sig_ss7_lock_private(p);
+					if (sig_ss7_is_chan_available(p)) {
+						sig_ss7_set_inservice(p, 0);	/* to prevent to use this circuit */
 						sig_ss7_loopback(p, 1);
-					} else {
+					} /* If already have a call don't loop */
+					sig_ss7_unlock_private(p);
+				}
+				break;
+			case ISUP_EVENT_DIGITTIMEOUT:
+				chanpos = ss7_find_cic_gripe(linkset, e->digittimeout.cic, e->digittimeout.opc, "DIGITTIMEOUT");
+				if (chanpos < 0) {
+					isup_free_call(ss7, e->digittimeout.call);
+					break;
+				}
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				ast_debug(1, "Digittimeout on CIC: %d PC: %d\n", e->digittimeout.cic, e->digittimeout.opc);
+				if (ast_exists_extension(NULL, p->context, p->exten, 1, p->cid_num)) {
+					/* DNID is complete */
+					p->called_complete = 1;
+					sig_ss7_set_dnid(p, p->exten);
+
+					/* If COT successful start call! */
+					if (!(e->digittimeout.cot_check_required || e->digittimeout.cot_performed_on_previous_cic) || e->digittimeout.cot_check_passed) {
 						ss7_start_call(p, linkset);
 					}
 				} else {
 					ast_debug(1, "Call on CIC for unconfigured extension %s\n", p->exten);
-					p->alreadyhungup = 1;
-					isup_rel(ss7, e->iam.call, AST_CAUSE_UNALLOCATED);
+					isup_rel(linkset->ss7, e->digittimeout.call, AST_CAUSE_UNALLOCATED);
 				}
 				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_COT:
+				if (e->cot.cot_performed_on_previous_cic) {
+					chanpos = sig_ss7_find_cic(linkset, (e->cot.cic - 1), e->cot.opc);
+					/* some stupid switches do this!!! */
+					if (-1 < chanpos) {
+						p = linkset->pvts[chanpos];
+						sig_ss7_lock_private(p);
+						sig_ss7_set_inservice(p, 1);
+						sig_ss7_loopback(p, 0);
+						sig_ss7_unlock_private(p);;
+						ast_verb(1, "Loop turned off on CIC: %d PC: %d\n",  (e->cot.cic - 1), e->cot.opc);
+					}
+				}
+
 				chanpos = ss7_find_cic_gripe(linkset, e->cot.cic, e->cot.opc, "COT");
 				if (chanpos < 0) {
-					isup_rel(ss7, e->cot.call, -1);
+					isup_free_call(ss7, e->cot.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
 
 				sig_ss7_lock_private(p);
+				p->ss7call = e->cot.call;
+
 				if (p->loopedback) {
 					sig_ss7_loopback(p, 0);
+					ast_verb(1, "Loop turned off on CIC: %d PC: %d\n",  e->cot.cic, e->cot.opc);
+				}
+
+				/* Don't start call if we didn't get IAM or COT failed! */
+				if ((e->cot.got_sent_msg & ISUP_GOT_IAM) && e->cot.passed && p->called_complete) {
 					ss7_start_call(p, linkset);
 				}
+
+				p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
 				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_CCR:
 				ast_debug(1, "Got CCR request on CIC %d\n", e->ccr.cic);
 				chanpos = ss7_find_cic_gripe(linkset, e->ccr.cic, e->ccr.opc, "CCR");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->ccr.call);
 					break;
 				}
 
 				p = linkset->pvts[chanpos];
 
 				sig_ss7_lock_private(p);
+				p->ss7call = e->ccr.call;
 				sig_ss7_loopback(p, 1);
+				if (linkset->type == SS7_ANSI) {
+					isup_lpa(linkset->ss7, e->ccr.cic, p->dpc);
+				}
 				sig_ss7_unlock_private(p);
-
-				isup_lpa(linkset->ss7, e->ccr.cic, p->dpc);
 				break;
 			case ISUP_EVENT_CVT:
 				ast_debug(1, "Got CVT request on CIC %d\n", e->cvt.cic);
 				chanpos = ss7_find_cic_gripe(linkset, e->cvt.cic, e->cvt.opc, "CVT");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->cvt.call);
 					break;
 				}
 
 				p = linkset->pvts[chanpos];
 
 				sig_ss7_lock_private(p);
+				p->ss7call = e->cvt.call;
 				sig_ss7_loopback(p, 1);
-				sig_ss7_unlock_private(p);
-
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, e->cvt.call);
+				}
 				isup_cvr(linkset->ss7, e->cvt.cic, p->dpc);
+				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_REL:
 				chanpos = ss7_find_cic_gripe(linkset, e->rel.cic, e->rel.opc, "REL");
 				if (chanpos < 0) {
-					/* Continue hanging up the call anyway. */
-					isup_rlc(ss7, e->rel.call);
+					isup_free_call(ss7, e->rel.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
+				p->ss7call = e->rel.call;
 				callid = func_ss7_linkset_callid(linkset, chanpos);
 				sig_ss7_lock_owner(linkset, chanpos);
 				if (p->owner) {
@@ -1170,128 +1965,193 @@ void *ss7_linkset(void *data)
 
 					ast_channel_hangupcause_set(p->owner, e->rel.cause);
 					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+					p->do_hangup = SS7_HANGUP_SEND_RLC;
 					ast_channel_unlock(p->owner);
+				} else {
+					ast_verb(1, "REL on CIC %d DPC %d without owner!\n", p->cic, p->dpc);
+					isup_rlc(ss7, p->ss7call);
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
 				}
 
 				/* End the loopback if we have one */
 				sig_ss7_loopback(p, 0);
 
-				isup_rlc(ss7, e->rel.call);
-				p->ss7call = NULL;
-
+				/* the rel is not complete here!!! */
 				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_ACM:
 				chanpos = ss7_find_cic_gripe(linkset, e->acm.cic, e->acm.opc, "ACM");
 				if (chanpos < 0) {
-					isup_rel(ss7, e->acm.call, -1);
+					isup_free_call(ss7, e->acm.call);
 					break;
 				}
-				{
-					p = linkset->pvts[chanpos];
 
-					ast_debug(1, "Queueing frame from SS7_EVENT_ACM on CIC %d\n", p->cic);
+				p = linkset->pvts[chanpos];
 
-					if (e->acm.call_ref_ident > 0) {
-						p->rlt = 1; /* Setting it but not using it here*/
-					}
+				ast_debug(1, "Queueing frame from SS7_EVENT_ACM on CIC %d\n", p->cic);
 
-					sig_ss7_lock_private(p);
-					callid = func_ss7_linkset_callid(linkset, chanpos);
-					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_PROCEEDING);
-					if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING) {
-						p->call_level = SIG_SS7_CALL_LEVEL_PROCEEDING;
-					}
-					sig_ss7_set_dialing(p, 0);
-					/* Send alerting if subscriber is free */
-					if (e->acm.called_party_status_ind == 1) {
-						if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING) {
-							p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
-						}
-						sig_ss7_lock_owner(linkset, chanpos);
-						if (p->owner) {
-							ast_setstate(p->owner, AST_STATE_RINGING);
-							ast_channel_unlock(p->owner);
-						}
-						sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_RINGING);
-					}
-					sig_ss7_unlock_private(p);
+				if (e->acm.call_ref_ident > 0) {
+					p->rlt = 1; /* Setting it but not using it here*/
 				}
+
+				sig_ss7_lock_private(p);
+				p->ss7call = e->acm.call;
+				callid = func_ss7_linkset_callid(linkset, chanpos);
+				sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_PROCEEDING);
+				if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING) {
+					p->call_level = SIG_SS7_CALL_LEVEL_PROCEEDING;
+				}
+				sig_ss7_set_dialing(p, 0);
+				/* Send alerting if subscriber is free */
+				if (e->acm.called_party_status_ind == 1) {
+					if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING) {
+						p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
+					}
+					sig_ss7_lock_owner(linkset, chanpos);
+					if (p->owner) {
+						ast_setstate(p->owner, AST_STATE_RINGING);
+						ast_channel_unlock(p->owner);
+					}
+					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_RINGING);
+				}
+				p->echocontrol_ind = e->acm.echocontrol_ind;
+				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_CGB:
 				chanpos = ss7_find_cic_gripe(linkset, e->cgb.startcic, e->cgb.opc, "CGB");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->cgb.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				ss7_block_cics(linkset, e->cgb.startcic, e->cgb.endcic, e->cgb.opc, e->cgb.status, 1);
-				isup_cgba(linkset->ss7, e->cgb.startcic, e->cgb.endcic, e->cgb.opc, e->cgb.status, e->cgb.type);
+				ss7_check_range(linkset, e->cgb.startcic, e->cgb.endcic,
+					e->cgb.opc, e->cgb.status);
+				ss7_block_cics(linkset, e->cgb.startcic, e->cgb.endcic,
+					e->cgb.opc, e->cgb.status, 1, 1,
+					(e->cgb.type) ? SS7_BLOCKED_HARDWARE : SS7_BLOCKED_MAINTENANCE);
+
+				sig_ss7_lock_private(p);
+				p->ss7call = e->cgb.call;
+
+				isup_cgba(linkset->ss7, p->ss7call, e->cgb.endcic, e->cgb.status);
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, e->cgb.call);
+				}
+				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_CGU:
 				chanpos = ss7_find_cic_gripe(linkset, e->cgu.startcic, e->cgu.opc, "CGU");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->cgu.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				ss7_block_cics(linkset, e->cgu.startcic, e->cgu.endcic, e->cgu.opc, e->cgu.status, 0);
-				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, e->cgu.opc, e->cgu.status, e->cgu.type);
+				ss7_check_range(linkset, e->cgu.startcic, e->cgu.endcic,
+					e->cgu.opc, e->cgu.status);
+				ss7_block_cics(linkset, e->cgu.startcic, e->cgu.endcic,
+					e->cgu.opc, e->cgu.status, 0, 1,
+					e->cgu.type ? SS7_BLOCKED_HARDWARE : SS7_BLOCKED_MAINTENANCE);
+
+				sig_ss7_lock_private(p);
+				p->ss7call = e->cgu.call;
+
+				isup_cgua(linkset->ss7, p->ss7call, e->cgu.endcic, e->cgu.status);
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, e->cgu.call);
+				}
+				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_UCIC:
 				chanpos = ss7_find_cic_gripe(linkset, e->ucic.cic, e->ucic.opc, "UCIC");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->ucic.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
 				ast_debug(1, "Unequiped Circuit Id Code on CIC %d\n", e->ucic.cic);
 				sig_ss7_lock_private(p);
-				sig_ss7_set_remotelyblocked(p, 1);
+				sig_ss7_lock_owner(linkset, chanpos);
+				if (p->owner) {
+					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+					ast_channel_unlock(p->owner);
+				}
+				sig_ss7_set_remotelyblocked(p, 1, SS7_BLOCKED_MAINTENANCE);
 				sig_ss7_set_inservice(p, 0);
+				p->ss7call = NULL;
+				isup_free_call(ss7, e->ucic.call);
 				sig_ss7_unlock_private(p);/* doesn't require a SS7 acknowledgement */
 				break;
 			case ISUP_EVENT_BLO:
 				chanpos = ss7_find_cic_gripe(linkset, e->blo.cic, e->blo.opc, "BLO");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->blo.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
 				ast_debug(1, "Blocking CIC %d\n", e->blo.cic);
 				sig_ss7_lock_private(p);
-				sig_ss7_set_remotelyblocked(p, 1);
+				p->ss7call = e->blo.call;
+				sig_ss7_set_remotelyblocked(p, 1, SS7_BLOCKED_MAINTENANCE);
+				isup_bla(linkset->ss7, e->blo.call);
+				sig_ss7_lock_owner(linkset, chanpos);
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, e->blo.call);
+				} else {
+					if (e->blo.got_sent_msg & ISUP_SENT_IAM) {
+						/* Q.784 6.2.2 */
+						ast_channel_hangupcause_set(p->owner, SS7_CAUSE_TRY_AGAIN);
+					}
+					ast_channel_unlock(p->owner);
+				}
 				sig_ss7_unlock_private(p);
-				isup_bla(linkset->ss7, e->blo.cic, p->dpc);
 				break;
 			case ISUP_EVENT_BLA:
 				chanpos = ss7_find_cic_gripe(linkset, e->bla.cic, e->bla.opc, "BLA");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->bla.call);
 					break;
 				}
-				ast_debug(1, "Blocking CIC %d\n", e->bla.cic);
+				ast_debug(1, "Locally blocking CIC %d\n", e->bla.cic);
 				p = linkset->pvts[chanpos];
 				sig_ss7_lock_private(p);
-				sig_ss7_set_locallyblocked(p, 1);
+				p->ss7call = e->bla.call;
+				sig_ss7_set_locallyblocked(p, 1, SS7_BLOCKED_MAINTENANCE);
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+				}
 				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_UBL:
 				chanpos = ss7_find_cic_gripe(linkset, e->ubl.cic, e->ubl.opc, "UBL");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->ubl.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				ast_debug(1, "Unblocking CIC %d\n", e->ubl.cic);
+				ast_debug(1, "Remotely unblocking CIC %d PC %d\n", e->ubl.cic, e->ubl.opc);
 				sig_ss7_lock_private(p);
-				sig_ss7_set_remotelyblocked(p, 0);
+				p->ss7call = e->ubl.call;
+				sig_ss7_set_remotelyblocked(p, 0, SS7_BLOCKED_MAINTENANCE);
+				isup_uba(linkset->ss7, e->ubl.call);
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+				}
 				sig_ss7_unlock_private(p);
-				isup_uba(linkset->ss7, e->ubl.cic, p->dpc);
 				break;
 			case ISUP_EVENT_UBA:
 				chanpos = ss7_find_cic_gripe(linkset, e->uba.cic, e->uba.opc, "UBA");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->uba.call);
 					break;
 				}
 				p = linkset->pvts[chanpos];
-				ast_debug(1, "Unblocking CIC %d\n", e->uba.cic);
+				ast_debug(1, "Locally unblocking CIC %d PC %d\n", e->uba.cic, e->uba.opc);
 				sig_ss7_lock_private(p);
-				sig_ss7_set_locallyblocked(p, 0);
+				p->ss7call = e->uba.call;
+				sig_ss7_set_locallyblocked(p, 0, SS7_BLOCKED_MAINTENANCE);
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+				}
 				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_CON:
@@ -1299,49 +2159,92 @@ void *ss7_linkset(void *data)
 				if (e->e == ISUP_EVENT_CON) {
 					chanpos = ss7_find_cic_gripe(linkset, e->con.cic, e->con.opc, "CON");
 					if (chanpos < 0) {
-						isup_rel(ss7, e->con.call, -1);
+						isup_free_call(ss7, e->con.call);
 						break;
 					}
 				} else {
 					chanpos = ss7_find_cic_gripe(linkset, e->anm.cic, e->anm.opc, "ANM");
 					if (chanpos < 0) {
-						isup_rel(ss7, e->anm.call, -1);
+						isup_free_call(ss7, e->anm.call);
 						break;
 					}
 				}
 
-				{
-					p = linkset->pvts[chanpos];
-					sig_ss7_lock_private(p);
-					callid = func_ss7_linkset_callid(linkset, chanpos);
-					if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
-						p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
-					}
-					sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_ANSWER);
-					sig_ss7_set_dialing(p, 0);
-					sig_ss7_open_media(p);
-					sig_ss7_set_echocanceller(p, 1);
-					sig_ss7_unlock_private(p);
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				p->ss7call = (e->e == ISUP_EVENT_ANM) ?  e->anm.call : e->con.call;
+				callid = func_ss7_linkset_callid(linkset, chanpos);
+				if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+					p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
 				}
+
+				if (!ast_strlen_zero((e->e == ISUP_EVENT_ANM)
+					? e->anm.connected_num : e->con.connected_num)) {
+					sig_ss7_lock_owner(linkset, chanpos);
+					if (p->owner) {
+						struct ast_party_connected_line ast_connected;
+						char connected_num[AST_MAX_EXTENSION];
+
+						ast_party_connected_line_init(&ast_connected);
+						if (e->e == ISUP_EVENT_ANM) {
+							ast_connected.id.number.presentation = ss7_pres_scr2cid_pres(
+								e->anm.connected_presentation_ind,
+								e->anm.connected_screening_ind);
+							ss7_apply_plan_to_number(connected_num, sizeof(connected_num),
+								linkset, e->anm.connected_num, e->anm.connected_nai);
+							ast_connected.id.number.str = ast_strdup(connected_num);
+						} else {
+							ast_connected.id.number.presentation = ss7_pres_scr2cid_pres(
+								e->con.connected_presentation_ind,
+								e->con.connected_screening_ind);
+							ss7_apply_plan_to_number(connected_num, sizeof(connected_num),
+								linkset, e->con.connected_num, e->con.connected_nai);
+							ast_connected.id.number.str = ast_strdup(connected_num);
+						}
+						ast_connected.id.number.valid = 1;
+						ast_connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+						ast_channel_queue_connected_line_update(p->owner, &ast_connected, NULL);
+						ast_party_connected_line_free(&ast_connected);
+						ast_channel_unlock(p->owner);
+					}
+				}
+
+				sig_ss7_queue_control(linkset, chanpos, AST_CONTROL_ANSWER);
+				sig_ss7_set_dialing(p, 0);
+				sig_ss7_open_media(p);
+				if (((e->e == ISUP_EVENT_ANM) ? !e->anm.echocontrol_ind  :
+						!e->con.echocontrol_ind) || !(linkset->flags & LINKSET_FLAG_USEECHOCONTROL)) {
+					sig_ss7_set_echocanceller(p, 1);
+				}
+				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_RLC:
-				/* XXX Call ptr should be passed up from libss7! */
 				chanpos = ss7_find_cic_gripe(linkset, e->rlc.cic, e->rlc.opc, "RLC");
 				if (chanpos < 0) {
+					isup_free_call(ss7, e->rlc.call);
 					break;
 				}
-				{
-					p = linkset->pvts[chanpos];
-					sig_ss7_lock_private(p);
-					callid = func_ss7_linkset_callid(linkset, chanpos);
-					if (p->alreadyhungup) {
-						if (!p->owner) {
-							p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
-						}
-						p->ss7call = NULL;
+
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				p->ss7call = e->rlc.call;
+				callid = func_ss7_linkset_callid(linkset, chanpos);
+				if (e->rlc.got_sent_msg & (ISUP_SENT_RSC | ISUP_SENT_REL)) {
+					sig_ss7_loopback(p, 0);
+					if (e->rlc.got_sent_msg & ISUP_SENT_RSC) {
+						sig_ss7_set_inservice(p, 1);
 					}
-					sig_ss7_unlock_private(p);
 				}
+				sig_ss7_lock_owner(linkset, chanpos);
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, e->rlc.call);
+					p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
+				} else {
+					p->do_hangup = SS7_HANGUP_DO_NOTHING;
+					ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
+					ast_channel_unlock(p->owner);
+				}
+				sig_ss7_unlock_private(p);
 				break;
 			case ISUP_EVENT_FAA:
 				/*!
@@ -1350,25 +2253,87 @@ void *ss7_linkset(void *data)
 				 */
 				chanpos = ss7_find_cic_gripe(linkset, e->faa.cic, e->faa.opc, "FAA");
 				if (chanpos < 0) {
-					isup_rel(linkset->ss7, e->faa.call, -1);
+					isup_free_call(ss7, e->faa.call);
 					break;
 				}
-				{
-					/* XXX FAR and FAA used for something dealing with transfers? */
-					p = linkset->pvts[chanpos];
-					ast_debug(1, "FAA received on CIC %d\n", e->faa.cic);
-					sig_ss7_lock_private(p);
-					callid = func_ss7_linkset_callid(linkset, chanpos);
-					if (p->alreadyhungup){
-						if (!p->owner) {
-							p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
-						}
-						/* XXX We seem to be leaking the isup call structure here. */
-						p->ss7call = NULL;
-						ast_log(LOG_NOTICE, "Received FAA and we haven't sent FAR.  Ignoring.\n");
-					}
-					sig_ss7_unlock_private(p);
+
+				/* XXX FAR and FAA used for something dealing with transfers? */
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				callid = func_ss7_linkset_callid(linkset, chanpos);
+				ast_debug(1, "FAA received on CIC %d\n", e->faa.cic);
+				p->ss7call = isup_free_call_if_clear(ss7, e->faa.call);
+				sig_ss7_unlock_private(p);
+				break;
+			case ISUP_EVENT_CGBA:
+				chanpos = ss7_find_cic_gripe(linkset, e->cgba.startcic, e->cgba.opc, "CGBA");
+				if (chanpos < 0) {	/* Never will be true */
+					isup_free_call(ss7, e->cgba.call);
+					break;
 				}
+
+				ss7_block_cics(linkset, e->cgba.startcic, e->cgba.endcic,
+					e->cgba.opc, e->cgba.status, 1, 0,
+					e->cgba.type ? SS7_BLOCKED_HARDWARE : SS7_BLOCKED_MAINTENANCE);
+
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				p->ss7call = e->cgba.call;
+
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+				}
+				sig_ss7_unlock_private(p);
+				break;
+			case ISUP_EVENT_CGUA:
+				chanpos = ss7_find_cic_gripe(linkset, e->cgua.startcic, e->cgua.opc, "CGUA");
+				if (chanpos < 0) { /* Never will be true */
+					isup_free_call(ss7, e->cgua.call);
+					break;
+				}
+
+				ss7_block_cics(linkset, e->cgua.startcic, e->cgua.endcic,
+					e->cgua.opc, e->cgua.status, 0, 0,
+					e->cgba.type ? SS7_BLOCKED_HARDWARE : SS7_BLOCKED_MAINTENANCE);
+
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				p->ss7call = e->cgua.call;
+
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+				}
+				sig_ss7_unlock_private(p);
+				break;
+			case ISUP_EVENT_SUS:
+				chanpos = ss7_find_cic_gripe(linkset, e->sus.cic, e->sus.opc, "SUS");
+				if (chanpos < 0) {
+					isup_free_call(ss7, e->sus.call);
+					break;
+				}
+
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				p->ss7call = e->sus.call;
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+				}
+				sig_ss7_unlock_private(p);
+				break;
+			case ISUP_EVENT_RES:
+				chanpos = ss7_find_cic_gripe(linkset, e->res.cic, e->res.opc, "RES");
+				if (chanpos < 0) {
+					isup_free_call(ss7, e->res.call);
+					break;
+				}
+
+				p = linkset->pvts[chanpos];
+				sig_ss7_lock_private(p);
+				p->ss7call = e->res.call;
+				if (!p->owner) {
+					p->ss7call = isup_free_call_if_clear(ss7, p->ss7call);
+				}
+				sig_ss7_unlock_private(p);
 				break;
 			default:
 				ast_debug(1, "Unknown event %s\n", ss7_event2str(e->e));
@@ -1387,9 +2352,15 @@ void *ss7_linkset(void *data)
 	return 0;
 }
 
-static inline void ss7_rel(struct sig_ss7_linkset *ss7)
+static void ss7_rel(struct sig_ss7_linkset *ss7)
 {
+	/* Release the lock first */
 	ast_mutex_unlock(&ss7->lock);
+
+	/* Then break the poll to send our messages */
+	if (ss7->master != AST_PTHREADT_NULL) {
+		pthread_kill(ss7->master, SIGURG);
+	}
 }
 
 static void ss7_grab(struct sig_ss7_chan *pvt, struct sig_ss7_linkset *ss7)
@@ -1399,10 +2370,177 @@ static void ss7_grab(struct sig_ss7_chan *pvt, struct sig_ss7_linkset *ss7)
 		/* Avoid deadlock */
 		sig_ss7_deadlock_avoidance_private(pvt);
 	}
-	/* Then break the poll */
-	if (ss7->master != AST_PTHREADT_NULL) {
-		pthread_kill(ss7->master, SIGURG);
+}
+
+/*!
+ * \brief Reset a specific CIC.
+ * \since 11.0
+ *
+ * \param linkset linkset control structure.
+ * \param cic Circuit Identification Code
+ * \param dpc Destination Point Code
+ *
+ * \return TRUE on success
+ */
+int sig_ss7_reset_cic(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc)
+{
+	int i;
+
+	ast_mutex_lock(&linkset->lock);
+	for (i = 0; i < linkset->numchans; i++) {
+		if (linkset->pvts[i] && linkset->pvts[i]->cic == cic && linkset->pvts[i]->dpc == dpc) {
+			int res;
+
+			sig_ss7_lock_private(linkset->pvts[i]);
+			sig_ss7_set_locallyblocked(linkset->pvts[i], 0, SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+			res = ss7_start_rsc(linkset, i);
+			sig_ss7_unlock_private(linkset->pvts[i]);
+			ss7_rel(linkset);	/* Also breaks the poll to send our messages */
+			return res;
+		}
 	}
+	ss7_rel(linkset);
+
+	return 0;
+}
+
+/*!
+ * \brief Block or Unblock a specific CIC.
+ * \since 11.0
+ *
+ * \param linkset linkset control structure.
+ * \param do_block Action to perform. Block if TRUE.
+ * \param which On which CIC to perform the operation.
+ *
+ * \return 0 on success
+ */
+int sig_ss7_cic_blocking(struct sig_ss7_linkset *linkset, int do_block, int which)
+{
+	ast_mutex_lock(&linkset->lock);
+	sig_ss7_lock_private(linkset->pvts[which]);
+	if (!ss7_find_alloc_call(linkset->pvts[which])) {
+		sig_ss7_unlock_private(linkset->pvts[which]);
+		ss7_rel(linkset);
+		return -1;
+	}
+
+	if (do_block) {
+		isup_blo(linkset->ss7, linkset->pvts[which]->ss7call);
+	} else {
+		isup_ubl(linkset->ss7, linkset->pvts[which]->ss7call);
+	}
+
+	sig_ss7_unlock_private(linkset->pvts[which]);
+	ss7_rel(linkset);	/* Also breaks the poll to send our messages */
+
+	return 0;
+}
+
+/*!
+ * \brief Block or Unblock a range of CICs.
+ * \since 11.0
+ *
+ * \param linkset linkset control structure.
+ * \param do_block Action to perform. Block if TRUE.
+ * \param chanpos Channel position to start from.
+ * \param endcic Circuit Identification Code of the end of the range.
+ * \param state Array of CIC blocking status.
+ * \param type Type of the blocking - maintenance or hardware
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ *
+ * \return 0 on success
+ */
+int sig_ss7_group_blocking(struct sig_ss7_linkset *linkset, int do_block, int chanpos, int endcic, unsigned char state[], int type)
+{
+	sig_ss7_lock_private(linkset->pvts[chanpos]);
+	if (!ss7_find_alloc_call(linkset->pvts[chanpos])) {
+		sig_ss7_unlock_private(linkset->pvts[chanpos]);
+		return -1;
+	}
+
+	if (do_block) {
+		isup_cgb(linkset->ss7, linkset->pvts[chanpos]->ss7call, endcic, state, type);
+	} else {
+		isup_cgu(linkset->ss7, linkset->pvts[chanpos]->ss7call, endcic, state, type);
+	}
+
+	sig_ss7_unlock_private(linkset->pvts[chanpos]);
+	return 0;
+}
+
+/*!
+ * \brief Reset a group of CICs.
+ * \since 11.0
+ *
+ * \param linkset linkset control structure.
+ * \param cic Circuit Identification Code
+ * \param dpc Destination Point Code
+ * \param range Range of the CICs to reset
+ *
+ * \note Assumes the linkset->lock is already obtained.
+ *
+ * \return 0 on success
+ */
+int sig_ss7_reset_group(struct sig_ss7_linkset *linkset, int cic, unsigned int dpc, int range)
+{
+	int i;
+
+	for (i = 0; i < linkset->numchans; i++) {
+		if (linkset->pvts[i] && linkset->pvts[i]->cic == cic && linkset->pvts[i]->dpc == dpc) {
+			ss7_clear_channels(linkset, cic, cic + range, dpc, SS7_HANGUP_FREE_CALL);
+			ss7_block_cics(linkset, cic, cic + range, dpc, NULL, 0, 1,
+				SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+			ss7_block_cics(linkset, cic, cic + range, dpc, NULL, 0, 0,
+				SS7_BLOCKED_MAINTENANCE | SS7_BLOCKED_HARDWARE);
+
+			sig_ss7_lock_private(linkset->pvts[i]);
+			if (!ss7_find_alloc_call(linkset->pvts[i])) {
+				sig_ss7_unlock_private(linkset->pvts[i]);
+				return -1;
+			}
+			isup_grs(linkset->ss7, linkset->pvts[i]->ss7call, linkset->pvts[i]->cic + range);
+			sig_ss7_unlock_private(linkset->pvts[i]);
+			break;
+		}
+	}
+	return 0;
+}
+
+void sig_ss7_free_isup_call(struct sig_ss7_linkset *linkset, int channel)
+{
+	sig_ss7_lock_private(linkset->pvts[channel]);
+	if (linkset->pvts[channel]->ss7call) {
+		isup_free_call(linkset->ss7, linkset->pvts[channel]->ss7call);
+		linkset->pvts[channel]->ss7call = NULL;
+	}
+	sig_ss7_unlock_private(linkset->pvts[channel]);
+}
+
+static int ss7_parse_prefix(struct sig_ss7_chan *p, const char *number, char *nai)
+{
+	int strip = 0;
+
+	if (strncmp(number, p->ss7->internationalprefix, strlen(p->ss7->internationalprefix)) == 0) {
+		strip = strlen(p->ss7->internationalprefix);
+		*nai = SS7_NAI_INTERNATIONAL;
+	} else if (strncmp(number, p->ss7->nationalprefix, strlen(p->ss7->nationalprefix)) == 0) {
+		strip = strlen(p->ss7->nationalprefix);
+		*nai = SS7_NAI_NATIONAL;
+	} else if (strncmp(number, p->ss7->networkroutedprefix, strlen(p->ss7->networkroutedprefix)) == 0) {
+		strip = strlen(p->ss7->networkroutedprefix);
+		*nai = SS7_NAI_NETWORKROUTED;
+	} else if (strncmp(number, p->ss7->unknownprefix, strlen(p->ss7->unknownprefix)) == 0) {
+		strip = strlen(p->ss7->unknownprefix);
+		*nai = SS7_NAI_UNKNOWN;
+	} else if (strncmp(number, p->ss7->subscriberprefix, strlen(p->ss7->subscriberprefix)) == 0) {
+		strip = strlen(p->ss7->subscriberprefix);
+		*nai = SS7_NAI_SUBSCRIBER;
+	} else {
+		*nai = SS7_NAI_SUBSCRIBER;
+	}
+
+	return strip;
 }
 
 /*!
@@ -1453,7 +2591,7 @@ void sig_ss7_link_noalarm(struct sig_ss7_linkset *linkset, int which)
  * \retval 0 on success.
  * \retval -1 on error.
  */
-int sig_ss7_add_sigchan(struct sig_ss7_linkset *linkset, int which, int ss7type, int transport, int inalarm, int networkindicator, int pointcode, int adjpointcode)
+int sig_ss7_add_sigchan(struct sig_ss7_linkset *linkset, int which, int ss7type, int transport, int inalarm, int networkindicator, int pointcode, int adjpointcode, int cur_slc)
 {
 	if (!linkset->ss7) {
 		linkset->type = ss7type;
@@ -1467,7 +2605,7 @@ int sig_ss7_add_sigchan(struct sig_ss7_linkset *linkset, int which, int ss7type,
 	ss7_set_network_ind(linkset->ss7, networkindicator);
 	ss7_set_pc(linkset->ss7, pointcode);
 
-	if (ss7_add_link(linkset->ss7, transport, linkset->fds[which])) {
+	if (ss7_add_link(linkset->ss7, transport, linkset->fds[which], cur_slc, adjpointcode)) {
 		ast_log(LOG_WARNING, "Could not add SS7 link!\n");
 	}
 
@@ -1478,8 +2616,6 @@ int sig_ss7_add_sigchan(struct sig_ss7_linkset *linkset, int which, int ss7type,
 		linkset->linkstate[which] = LINKSTATE_DOWN;
 		ss7_link_noalarm(linkset->ss7, linkset->fds[which]);
 	}
-
-	ss7_set_adjpc(linkset->ss7, linkset->fds[which], adjpointcode);
 
 	return 0;
 }
@@ -1505,7 +2641,13 @@ int sig_ss7_available(struct sig_ss7_chan *p)
 	ast_mutex_lock(&p->ss7->lock);
 	available = sig_ss7_is_chan_available(p);
 	if (available) {
-		p->call_level = SIG_SS7_CALL_LEVEL_ALLOCATED;
+		p->ss7call = isup_new_call(p->ss7->ss7, p->cic, p->dpc, 1);
+		if (!p->ss7call) {
+			ast_log(LOG_ERROR, "Unable to allocate new SS7 call!\n");
+			available = 0;
+		} else {
+			p->call_level = SIG_SS7_CALL_LEVEL_ALLOCATED;
+		}
 	}
 	ast_mutex_unlock(&p->ss7->lock);
 
@@ -1520,6 +2662,159 @@ static unsigned char cid_pres2ss7pres(int cid_pres)
 static unsigned char cid_pres2ss7screen(int cid_pres)
 {
 	return cid_pres & 0x03;
+}
+
+static void ss7_connected_line_update(struct sig_ss7_chan *p, struct ast_party_connected_line *connected)
+{
+	int connected_strip = 0;
+	char connected_nai;
+	unsigned char connected_pres;
+	unsigned char connected_screen;
+	const char *connected_num;
+
+	if (!connected->id.number.valid) {
+		return;
+	}
+
+	connected_num = S_OR(connected->id.number.str, "");
+	if (p->ss7->called_nai ==  SS7_NAI_DYNAMIC) {
+		connected_strip = ss7_parse_prefix(p, connected_num, &connected_nai);
+	} else {
+		connected_nai = p->ss7->called_nai;
+	}
+
+	connected_pres = cid_pres2ss7pres(connected->id.number.presentation);
+	connected_screen = cid_pres2ss7screen(connected->id.number.presentation);
+
+	isup_set_connected(p->ss7call, connected_num + connected_strip, connected_nai, connected_pres, connected_screen);
+}
+
+static unsigned char ss7_redirect_reason(struct sig_ss7_chan *p, struct ast_party_redirecting *redirecting, int orig)
+{
+	int reason = (orig) ? redirecting->orig_reason.code : redirecting->reason.code;
+
+	switch (reason) {
+	case AST_REDIRECTING_REASON_USER_BUSY:
+		return SS7_REDIRECTING_REASON_USER_BUSY;
+	case AST_REDIRECTING_REASON_NO_ANSWER:
+		return SS7_REDIRECTING_REASON_NO_ANSWER;
+	case AST_REDIRECTING_REASON_UNCONDITIONAL:
+		return SS7_REDIRECTING_REASON_UNCONDITIONAL;
+	}
+
+	if (orig || reason == AST_REDIRECTING_REASON_UNKNOWN) {
+		return SS7_REDIRECTING_REASON_UNKNOWN;
+	}
+
+	if (reason == AST_REDIRECTING_REASON_UNAVAILABLE) {
+		return SS7_REDIRECTING_REASON_UNAVAILABLE;
+	}
+
+	if (reason == AST_REDIRECTING_REASON_DEFLECTION) {
+		if (p->call_level > SIG_SS7_CALL_LEVEL_PROCEEDING) {
+			return SS7_REDIRECTING_REASON_DEFLECTION_DURING_ALERTING;
+		}
+		return SS7_REDIRECTING_REASON_DEFLECTION_IMMEDIATE_RESPONSE;
+	}
+
+	return SS7_REDIRECTING_REASON_UNKNOWN;
+}
+
+static unsigned char ss7_redirect_info_ind(struct ast_channel *ast)
+{
+	const char *redirect_info_ind;
+	struct ast_party_redirecting *redirecting = ast_channel_redirecting(ast);
+
+	redirect_info_ind = pbx_builtin_getvar_helper(ast, "SS7_REDIRECT_INFO_IND");
+	if (!ast_strlen_zero(redirect_info_ind)) {
+		if (!strcasecmp(redirect_info_ind, "CALL_REROUTED_PRES_ALLOWED")) {
+			return SS7_INDICATION_REROUTED_PRES_ALLOWED;
+		}
+		if (!strcasecmp(redirect_info_ind, "CALL_REROUTED_INFO_RESTRICTED")) {
+			return SS7_INDICATION_REROUTED_INFO_RESTRICTED;
+		}
+		if (!strcasecmp(redirect_info_ind, "CALL_DIVERTED_PRES_ALLOWED")) {
+			return SS7_INDICATION_DIVERTED_PRES_ALLOWED;
+		}
+		if (!strcasecmp(redirect_info_ind, "CALL_DIVERTED_INFO_RESTRICTED")) {
+			return SS7_INDICATION_DIVERTED_INFO_RESTRICTED;
+		}
+		if (!strcasecmp(redirect_info_ind, "CALL_REROUTED_PRES_RESTRICTED")) {
+			return SS7_INDICATION_REROUTED_PRES_RESTRICTED;
+		}
+		if (!strcasecmp(redirect_info_ind, "CALL_DIVERTED_PRES_RESTRICTED")) {
+			return SS7_INDICATION_DIVERTED_PRES_RESTRICTED;
+		}
+		if (!strcasecmp(redirect_info_ind, "SPARE")) {
+			return SS7_INDICATION_SPARE;
+		}
+		return SS7_INDICATION_NO_REDIRECTION;
+	}
+
+	if (redirecting->reason.code == AST_REDIRECTING_REASON_DEFLECTION) {
+		if ((redirecting->to.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			if ((redirecting->orig.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+				return SS7_INDICATION_DIVERTED_PRES_ALLOWED;
+			}
+			return SS7_INDICATION_DIVERTED_PRES_RESTRICTED;
+		}
+		return SS7_INDICATION_DIVERTED_INFO_RESTRICTED;
+	}
+
+	if ((redirecting->to.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+		if ((redirecting->orig.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			return SS7_INDICATION_REROUTED_PRES_ALLOWED;
+		}
+		return SS7_INDICATION_REROUTED_PRES_RESTRICTED;
+	}
+	return SS7_INDICATION_REROUTED_INFO_RESTRICTED;
+}
+
+static void ss7_redirecting_update(struct sig_ss7_chan *p, struct ast_channel *ast)
+{
+	int num_nai_strip = 0;
+	struct ast_party_redirecting *redirecting = ast_channel_redirecting(ast);
+
+	if (!redirecting->count) {
+		return;
+	}
+
+	isup_set_redirect_counter(p->ss7call, redirecting->count);
+
+	if (redirecting->orig.number.valid) {
+		char ss7_orig_called_nai = p->ss7->called_nai;
+		const char *ss7_orig_called_num = S_OR(redirecting->orig.number.str, "");
+
+		if (ss7_orig_called_nai == SS7_NAI_DYNAMIC) {
+			num_nai_strip = ss7_parse_prefix(p, ss7_orig_called_num, &ss7_orig_called_nai);
+		} else {
+			num_nai_strip = 0;
+		}
+		isup_set_orig_called_num(p->ss7call, ss7_orig_called_num + num_nai_strip,
+			ss7_orig_called_nai,
+			cid_pres2ss7pres(redirecting->orig.number.presentation),
+			cid_pres2ss7screen(redirecting->orig.number.presentation));
+	}
+
+	if (redirecting->from.number.valid) {
+		char ss7_redirecting_num_nai = p->ss7->calling_nai;
+		const char *redirecting_number = S_OR(redirecting->from.number.str, "");
+
+		if (ss7_redirecting_num_nai == SS7_NAI_DYNAMIC) {
+			num_nai_strip = ss7_parse_prefix(p, redirecting_number, &ss7_redirecting_num_nai);
+		} else {
+			num_nai_strip = 0;
+		}
+
+		isup_set_redirecting_number(p->ss7call, redirecting_number + num_nai_strip,
+			ss7_redirecting_num_nai,
+			cid_pres2ss7pres(redirecting->from.number.presentation),
+			cid_pres2ss7screen(redirecting->from.number.presentation));
+	}
+
+	isup_set_redirection_info(p->ss7call, ss7_redirect_info_ind(ast),
+		ss7_redirect_reason(p, ast_channel_redirecting(ast), 1),
+		redirecting->count, ss7_redirect_reason(p, ast_channel_redirecting(ast), 0));
 }
 
 /*!
@@ -1539,6 +2834,13 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rd
 	int called_nai_strip;
 	char ss7_calling_nai;
 	int calling_nai_strip;
+	const char *col_req = NULL;
+	const char *ss7_cug_indicator_str;
+	const char *ss7_cug_interlock_ni;
+	const char *ss7_cug_interlock_code;
+	const char *ss7_interworking_indicator;
+	const char *ss7_forward_indicator_pmbits;
+	unsigned char ss7_cug_indicator;
 	const char *charge_str = NULL;
 	const char *gen_address = NULL;
 	const char *gen_digits = NULL;
@@ -1551,6 +2853,7 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rd
 	const char *call_ref_id = NULL;
 	const char *call_ref_pc = NULL;
 	const char *send_far = NULL;
+	const char *tmr = NULL;
 	char *c;
 	char *l;
 	char dest[256];
@@ -1582,47 +2885,27 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rd
 		return -1;
 	}
 
-	p->ss7call = isup_new_call(p->ss7->ss7);
-	if (!p->ss7call) {
-		ss7_rel(p->ss7);
-		ast_log(LOG_ERROR, "Unable to allocate new SS7 call!\n");
-		return -1;
-	}
-
 	called_nai_strip = 0;
 	ss7_called_nai = p->ss7->called_nai;
 	if (ss7_called_nai == SS7_NAI_DYNAMIC) { /* compute dynamically */
-		if (strncmp(c + p->stripmsd, p->ss7->internationalprefix, strlen(p->ss7->internationalprefix)) == 0) {
-			called_nai_strip = strlen(p->ss7->internationalprefix);
-			ss7_called_nai = SS7_NAI_INTERNATIONAL;
-		} else if (strncmp(c + p->stripmsd, p->ss7->nationalprefix, strlen(p->ss7->nationalprefix)) == 0) {
-			called_nai_strip = strlen(p->ss7->nationalprefix);
-			ss7_called_nai = SS7_NAI_NATIONAL;
-		} else {
-			ss7_called_nai = SS7_NAI_SUBSCRIBER;
-		}
+		called_nai_strip = ss7_parse_prefix(p, c + p->stripmsd, &ss7_called_nai);
 	}
 	isup_set_called(p->ss7call, c + p->stripmsd + called_nai_strip, ss7_called_nai, p->ss7->ss7);
 
 	calling_nai_strip = 0;
 	ss7_calling_nai = p->ss7->calling_nai;
 	if ((l != NULL) && (ss7_calling_nai == SS7_NAI_DYNAMIC)) { /* compute dynamically */
-		if (strncmp(l, p->ss7->internationalprefix, strlen(p->ss7->internationalprefix)) == 0) {
-			calling_nai_strip = strlen(p->ss7->internationalprefix);
-			ss7_calling_nai = SS7_NAI_INTERNATIONAL;
-		} else if (strncmp(l, p->ss7->nationalprefix, strlen(p->ss7->nationalprefix)) == 0) {
-			calling_nai_strip = strlen(p->ss7->nationalprefix);
-			ss7_calling_nai = SS7_NAI_NATIONAL;
-		} else {
-			ss7_calling_nai = SS7_NAI_SUBSCRIBER;
-		}
+		calling_nai_strip = ss7_parse_prefix(p, l, &ss7_calling_nai);
 	}
+
 	isup_set_calling(p->ss7call, l ? (l + calling_nai_strip) : NULL, ss7_calling_nai,
-		p->use_callingpres ? cid_pres2ss7pres(ast_channel_connected(ast)->id.number.presentation) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
+		p->use_callingpres ? cid_pres2ss7pres(ast_channel_connected(ast)->id.number.presentation)
+			: (l ? SS7_PRESENTATION_ALLOWED
+				: (ast_channel_connected(ast)->id.number.presentation == AST_PRES_UNAVAILABLE
+					? SS7_PRESENTATION_ADDR_NOT_AVAILABLE : SS7_PRESENTATION_RESTRICTED)),
 		p->use_callingpres ? cid_pres2ss7screen(ast_channel_connected(ast)->id.number.presentation) : SS7_SCREENING_USER_PROVIDED);
 
 	isup_set_oli(p->ss7call, ast_channel_connected(ast)->ani2);
-	isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);
 
 	/* Set the charge number if it is set */
 	charge_str = pbx_builtin_getvar_helper(ast, "SS7_CHARGE_NUMBER");
@@ -1664,10 +2947,66 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rd
 	}
 
 	send_far = pbx_builtin_getvar_helper(ast, "SS7_SEND_FAR");
-	if ((send_far) && ((strncmp("NO", send_far, strlen(send_far))) != 0 ))
-		(isup_far(p->ss7->ss7, p->ss7call));
+	if (send_far && strncmp("NO", send_far, strlen(send_far)) != 0) {
+		isup_far(p->ss7->ss7, p->ss7call);
+	}
+
+	tmr = pbx_builtin_getvar_helper(ast, "SS7_TMR_NUM");
+	if (tmr) {
+		isup_set_tmr(p->ss7call, atoi(tmr));
+	} else if ((tmr = pbx_builtin_getvar_helper(ast, "SS7_TMR")) && tmr[0] != '\0') {
+		if (!strcasecmp(tmr, "SPEECH")) {
+			isup_set_tmr(p->ss7call, SS7_TMR_SPEECH);
+		} else if (!strcasecmp(tmr, "SPARE")) {
+			isup_set_tmr(p->ss7call, SS7_TMR_SPARE);
+		} else if (!strcasecmp(tmr, "3K1_AUDIO")) {
+			isup_set_tmr(p->ss7call, SS7_TMR_3K1_AUDIO);
+		} else if (!strcasecmp(tmr, "64K_UNRESTRICTED")) {
+			isup_set_tmr(p->ss7call, SS7_TMR_64K_UNRESTRICTED);
+		} else {
+			isup_set_tmr(p->ss7call, SS7_TMR_N64K_OR_SPARE);
+		}
+	}
+
+	col_req = pbx_builtin_getvar_helper(ast, "SS7_COL_REQUEST");
+	if (ast_true(col_req)) {
+		isup_set_col_req(p->ss7call);
+	}
+
+	ss7_cug_indicator_str = pbx_builtin_getvar_helper(ast, "SS7_CUG_INDICATOR");
+	if (!ast_strlen_zero(ss7_cug_indicator_str)) {
+		if (!strcasecmp(ss7_cug_indicator_str, "OUTGOING_ALLOWED")) {
+			ss7_cug_indicator = ISUP_CUG_OUTGOING_ALLOWED;
+		} else if (!strcasecmp(ss7_cug_indicator_str, "OUTGOING_NOT_ALLOWED")) {
+			ss7_cug_indicator = ISUP_CUG_OUTGOING_NOT_ALLOWED;
+		} else {
+			ss7_cug_indicator = ISUP_CUG_NON;
+		}
+
+		if (ss7_cug_indicator != ISUP_CUG_NON) {
+			ss7_cug_interlock_code = pbx_builtin_getvar_helper(ast, "SS7_CUG_INTERLOCK_CODE");
+			ss7_cug_interlock_ni = pbx_builtin_getvar_helper(ast, "SS7_CUG_INTERLOCK_NI");
+			if (ss7_cug_interlock_code && ss7_cug_interlock_ni && strlen(ss7_cug_interlock_ni) == 4) {
+				isup_set_cug(p->ss7call, ss7_cug_indicator, ss7_cug_interlock_ni, atoi(ss7_cug_interlock_code));
+			}
+		}
+	}
+
+	ss7_redirecting_update(p, ast);
+
+	isup_set_echocontrol(p->ss7call, (p->ss7->flags & LINKSET_FLAG_DEFAULTECHOCONTROL) ? 1 : 0);
+	ss7_interworking_indicator = pbx_builtin_getvar_helper(ast, "SS7_INTERWORKING_INDICATOR");
+	if (ss7_interworking_indicator) {
+		isup_set_interworking_indicator(p->ss7call, ast_true(ss7_interworking_indicator));
+	}
+
+	ss7_forward_indicator_pmbits = pbx_builtin_getvar_helper(ast, "SS7_FORWARD_INDICATOR_PMBITS");
+	if (ss7_forward_indicator_pmbits) {
+		isup_set_forward_indicator_pmbits(p->ss7call, atoi(ss7_forward_indicator_pmbits));
+	}
 
 	p->call_level = SIG_SS7_CALL_LEVEL_SETUP;
+	p->do_hangup = SS7_HANGUP_SEND_REL;
 	isup_iam(p->ss7->ss7, p->ss7call);
 	sig_ss7_set_dialing(p, 1);
 	ast_setstate(ast, AST_STATE_DIALING);
@@ -1687,8 +3026,6 @@ int sig_ss7_call(struct sig_ss7_chan *p, struct ast_channel *ast, const char *rd
  */
 int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast)
 {
-	int res = 0;
-
 	if (!ast_channel_tech_pvt(ast)) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
@@ -1704,22 +3041,51 @@ int sig_ss7_hangup(struct sig_ss7_chan *p, struct ast_channel *ast)
 	ss7_grab(p, p->ss7);
 	p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
 	if (p->ss7call) {
-		if (!p->alreadyhungup) {
-			const char *cause = pbx_builtin_getvar_helper(ast,"SS7_CAUSE");
-			int icause = ast_channel_hangupcause(ast) ? ast_channel_hangupcause(ast) : -1;
+		switch (p->do_hangup) {
+		case SS7_HANGUP_SEND_REL:
+			{
+				const char *cause = pbx_builtin_getvar_helper(ast,"SS7_CAUSE");
+				int icause = ast_channel_hangupcause(ast) ? ast_channel_hangupcause(ast) : -1;
 
-			if (cause) {
-				if (atoi(cause)) {
-					icause = atoi(cause);
+				if (cause) {
+					if (atoi(cause)) {
+						icause = atoi(cause);
+					}
 				}
+				if (icause > 255) {
+					icause = 16;
+				}
+
+				isup_rel(p->ss7->ss7, p->ss7call, icause);
+				p->do_hangup = SS7_HANGUP_DO_NOTHING;
 			}
-			isup_rel(p->ss7->ss7, p->ss7call, icause);
-			p->alreadyhungup = 1;
+			break;
+		case SS7_HANGUP_SEND_RSC:
+			ss7_do_rsc(p);
+			p->do_hangup = SS7_HANGUP_DO_NOTHING;
+			break;
+		case SS7_HANGUP_SEND_RLC:
+			isup_rlc(p->ss7->ss7, p->ss7call);
+			p->do_hangup = SS7_HANGUP_DO_NOTHING;
+			p->ss7call = isup_free_call_if_clear(p->ss7->ss7, p->ss7call);
+			break;
+		case SS7_HANGUP_FREE_CALL:
+			p->do_hangup = SS7_HANGUP_DO_NOTHING;
+			isup_free_call(p->ss7->ss7, p->ss7call);
+			p->ss7call = NULL;
+			break;
+		case SS7_HANGUP_REEVENT_IAM:
+			isup_event_iam(p->ss7->ss7, p->ss7call, p->dpc);
+			p->do_hangup = SS7_HANGUP_SEND_REL;
+			break;
+		case SS7_HANGUP_DO_NOTHING:
+			p->ss7call = isup_free_call_if_clear(p->ss7->ss7, p->ss7call);
+			break;
 		}
 	}
 	ss7_rel(p->ss7);
 
-	return res;
+	return 0;
 }
 
 /*!
@@ -1738,10 +3104,14 @@ int sig_ss7_answer(struct sig_ss7_chan *p, struct ast_channel *ast)
 
 	ss7_grab(p, p->ss7);
 	if (p->call_level < SIG_SS7_CALL_LEVEL_CONNECT) {
+		if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING && (p->ss7->flags & LINKSET_FLAG_AUTOACM)) {
+			isup_acm(p->ss7->ss7, p->ss7call);
+		}
 		p->call_level = SIG_SS7_CALL_LEVEL_CONNECT;
 	}
-	sig_ss7_open_media(p);
+
 	res = isup_anm(p->ss7->ss7, p->ss7call);
+	sig_ss7_open_media(p);
 	ss7_rel(p->ss7);
 	return res;
 }
@@ -1764,7 +3134,7 @@ void sig_ss7_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, str
 }
 
 /*!
- * \brief SS7 answer channel.
+ * \brief SS7 indication.
  * \since 1.8
  *
  * \param p Signaling private structure pointer.
@@ -1793,15 +3163,20 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 	case AST_CONTROL_RINGING:
 		ss7_grab(p, p->ss7);
 		if (p->call_level < SIG_SS7_CALL_LEVEL_ALERTING && !p->outgoing) {
-			p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
 			if ((isup_far(p->ss7->ss7, p->ss7call)) != -1) {
 				p->rlt = 1;
+			}
+
+			if (p->call_level < SIG_SS7_CALL_LEVEL_PROCEEDING && (p->ss7->flags & LINKSET_FLAG_AUTOACM)) {
+				isup_acm(p->ss7->ss7, p->ss7call);
 			}
 
 			/* No need to send CPG if call will be RELEASE */
 			if (p->rlt != 1) {
 				isup_cpg(p->ss7->ss7, p->ss7call, CPG_EVENT_ALERTING);
 			}
+
+			p->call_level = SIG_SS7_CALL_LEVEL_ALERTING;
 		}
 		ss7_rel(p->ss7);
 
@@ -1833,15 +3208,15 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		ast_debug(1,"Received AST_CONTROL_PROGRESS on %s\n",ast_channel_name(chan));
 		ss7_grab(p, p->ss7);
 		if (!p->progress && p->call_level < SIG_SS7_CALL_LEVEL_ALERTING && !p->outgoing) {
-			p->progress = 1;/* No need to send inband-information progress again. */
+			p->progress = 1;	/* No need to send inband-information progress again. */
 			isup_cpg(p->ss7->ss7, p->ss7call, CPG_EVENT_INBANDINFO);
-			ss7_rel(p->ss7);
 
 			/* enable echo canceler here on SS7 calls */
-			sig_ss7_set_echocanceller(p, 1);
-		} else {
-			ss7_rel(p->ss7);
+			if (!p->echocontrol_ind || !(p->ss7->flags & LINKSET_FLAG_USEECHOCONTROL)) {
+				sig_ss7_set_echocanceller(p, 1);
+			}
 		}
+		ss7_rel(p->ss7);
 		/* don't continue in ast_indicate */
 		res = 0;
 		break;
@@ -1871,6 +3246,14 @@ int sig_ss7_indicate(struct sig_ss7_chan *p, struct ast_channel *chan, int condi
 		ast_moh_stop(chan);
 		break;
 	case AST_CONTROL_SRCUPDATE:
+		res = 0;
+		break;
+	case AST_CONTROL_CONNECTED_LINE:
+		ss7_connected_line_update(p, ast_channel_connected(chan));
+		res = 0;
+		break;
+	case AST_CONTROL_REDIRECTING:
+		ss7_redirecting_update(p, chan);
 		res = 0;
 		break;
 	case -1:
@@ -1914,6 +3297,7 @@ struct ast_channel *sig_ss7_request(struct sig_ss7_chan *p, enum sig_ss7_law law
 		/* Release the allocated channel.  Only have to deal with the linkset lock. */
 		ast_mutex_lock(&p->ss7->lock);
 		p->call_level = SIG_SS7_CALL_LEVEL_IDLE;
+		isup_free_call(p->ss7->ss7, p->ss7call);
 		ast_mutex_unlock(&p->ss7->lock);
 	}
 	return ast;

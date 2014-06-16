@@ -81,7 +81,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #if defined(HAVE_SS7)
 #include "sig_ss7.h"
-#if defined(LIBSS7_ABI_COMPATIBILITY)
+#if !defined(LIBSS7_ABI_COMPATIBILITY)
+#error "Upgrade your libss7"
+#elif LIBSS7_ABI_COMPATIBILITY != 2
 #error "Your installed libss7 is not compatible"
 #endif
 #endif	/* defined(HAVE_SS7) */
@@ -611,6 +613,7 @@ struct dahdi_ss7 {
 static struct dahdi_ss7 linksets[NUM_SPANS];
 
 static int cur_ss7type = -1;
+static int cur_slc = -1;
 static int cur_linkset = -1;
 static int cur_pointcode = -1;
 static int cur_cicbeginswith = -1;
@@ -758,8 +761,8 @@ const char * const subnames[] = {
 	MEMBER(dahdi_pvt, mwimonitoractive, AST_DATA_BOOLEAN)			\
 	MEMBER(dahdi_pvt, mwisendactive, AST_DATA_BOOLEAN)			\
 	MEMBER(dahdi_pvt, inservice, AST_DATA_BOOLEAN)				\
-	MEMBER(dahdi_pvt, locallyblocked, AST_DATA_BOOLEAN)			\
-	MEMBER(dahdi_pvt, remotelyblocked, AST_DATA_BOOLEAN)			\
+	MEMBER(dahdi_pvt, locallyblocked, AST_DATA_UNSIGNED_INTEGER)		\
+	MEMBER(dahdi_pvt, remotelyblocked, AST_DATA_UNSIGNED_INTEGER)		\
 	MEMBER(dahdi_pvt, manages_span_alarms, AST_DATA_BOOLEAN)		\
 	MEMBER(dahdi_pvt, use_smdi, AST_DATA_BOOLEAN)				\
 	MEMBER(dahdi_pvt, context, AST_DATA_STRING)				\
@@ -873,7 +876,8 @@ static struct dahdi_chan_conf dahdi_chan_conf_default(void)
 			.internationalprefix = "",
 			.nationalprefix = "",
 			.subscriberprefix = "",
-			.unknownprefix = ""
+			.unknownprefix = "",
+			.networkroutedprefix = ""
 		},
 #endif	/* defined(HAVE_SS7) */
 #ifdef HAVE_OPENR2
@@ -3022,6 +3026,34 @@ static void my_ss7_set_loopback(void *pvt, int enable)
 #if defined(HAVE_SS7)
 /*!
  * \internal
+ * \brief Find the linkset to which SS7 belongs.
+ * \since 11.0
+ *
+ * \param ss7 structure to match on.
+ *
+ * \retval linkset if found.
+ * \retval NULL if not found.
+ */
+static struct sig_ss7_linkset *my_ss7_find_linkset(struct ss7 *ss7)
+{
+	int idx;
+
+	if (!ss7) {
+		return NULL;
+	}
+
+	for (idx = 0; idx < NUM_SPANS; ++idx) {
+		if (linksets[idx].ss7.ss7 == ss7) {
+			return &linksets[idx].ss7;
+		}
+	}
+	return NULL;
+}
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
+/*!
+ * \internal
  * \brief Create a new asterisk channel structure for SS7.
  * \since 1.8
  *
@@ -3128,6 +3160,7 @@ struct sig_ss7_callback sig_ss7_callbacks =
 	.set_callerid = my_set_callerid,
 	.set_dnid = my_set_dnid,
 	.open_media = my_pri_ss7_open_media,
+	.find_linkset = my_ss7_find_linkset,
 };
 #endif	/* defined(HAVE_SS7) */
 
@@ -10688,9 +10721,10 @@ static int mwi_send_process_buffer(struct dahdi_pvt * pvt, int num_read)
 			break;
 		case MWI_SEND_SPILL:
 			/* We read some number of bytes.  Write an equal amount of data */
-			if(0 < num_read) {
-				if (num_read > pvt->cidlen - pvt->cidpos)
+			if (0 < num_read) {
+				if (num_read > pvt->cidlen - pvt->cidpos) {
 					num_read = pvt->cidlen - pvt->cidpos;
+				}
 				res = write(pvt->subs[SUB_REAL].dfd, pvt->cidspill + pvt->cidpos, num_read);
 				if (res > 0) {
 					pvt->cidpos += res;
@@ -10741,7 +10775,7 @@ static int mwi_send_process_event(struct dahdi_pvt * pvt, int event)
 	if (MWI_SEND_DONE != pvt->mwisend_data.mwisend_current) {
 		switch (event) {
 		case DAHDI_EVENT_RINGEROFF:
-			if(pvt->mwisend_data.mwisend_current == MWI_SEND_SA_WAIT) {
+			if (pvt->mwisend_data.mwisend_current == MWI_SEND_SA_WAIT) {
 				handled = 1;
 
 				if (dahdi_set_hook(pvt->subs[SUB_REAL].dfd, DAHDI_RINGOFF) ) {
@@ -11946,6 +11980,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				ast_copy_string(ss7->ss7.nationalprefix, conf->ss7.ss7.nationalprefix, sizeof(ss7->ss7.nationalprefix));
 				ast_copy_string(ss7->ss7.subscriberprefix, conf->ss7.ss7.subscriberprefix, sizeof(ss7->ss7.subscriberprefix));
 				ast_copy_string(ss7->ss7.unknownprefix, conf->ss7.ss7.unknownprefix, sizeof(ss7->ss7.unknownprefix));
+				ast_copy_string(ss7->ss7.networkroutedprefix, conf->ss7.ss7.networkroutedprefix, sizeof(ss7->ss7.networkroutedprefix));
 
 				ss7->ss7.called_nai = conf->ss7.ss7.called_nai;
 				ss7->ss7.calling_nai = conf->ss7.ss7.calling_nai;
@@ -12452,12 +12487,12 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->named_pickupgroups = ast_ref_namedgroups(conf->chan.named_pickupgroups);
 		if (conf->chan.vars) {
 			struct ast_variable *v, *tmpvar;
-	                for (v = conf->chan.vars ; v ; v = v->next) {
-        	                if ((tmpvar = ast_variable_new(v->name, v->value, v->file))) {
-                	                tmpvar->next = tmp->vars;
-                        	        tmp->vars = tmpvar;
-                        	}
-                	}
+			for (v = conf->chan.vars ; v ; v = v->next) {
+				if ((tmpvar = ast_variable_new(v->name, v->value, v->file))) {
+					tmpvar->next = tmp->vars;
+					tmp->vars = tmpvar;
+				}
+			}
 		}
 		tmp->hwrxgain_enabled = conf->chan.hwrxgain_enabled;
 		tmp->hwtxgain_enabled = conf->chan.hwtxgain_enabled;
@@ -12566,6 +12601,9 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #if defined(HAVE_SS7)
 			case SIG_SS7:
 				tmp->inservice = 0;
+				if (tmp->ss7->flags & LINKSET_FLAG_INITIALHWBLO) {
+					tmp->remotelyblocked |= SS7_BLOCKED_HARDWARE;
+				}
 				break;
 #endif	/* defined(HAVE_SS7) */
 			default:
@@ -12600,6 +12638,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		case SIG_SS7:
 			if (ss7_chan) {
 				ss7_chan->inalarm = tmp->inalarm;
+				ss7_chan->inservice = tmp->inservice;
 
 				ss7_chan->stripmsd = tmp->stripmsd;
 				ss7_chan->hidecallerid = tmp->hidecallerid;
@@ -14891,6 +14930,9 @@ static int dahdi_restart(void)
 	}
 	ss7_set_error(dahdi_ss7_error);
 	ss7_set_message(dahdi_ss7_message);
+	ss7_set_hangup(sig_ss7_cb_hangup);
+	ss7_set_notinservice(sig_ss7_cb_notinservice);
+	ss7_set_call_null(sig_ss7_cb_call_null);
 #endif	/* defined(HAVE_SS7) */
 
 	if (setup_dahdi(2) != 0) {
@@ -14943,9 +14985,8 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 	ast_group_t targetnum = 0;
 	int filtertype = 0;
 	struct dahdi_pvt *tmp = NULL;
-	char tmps[20] = "";
-	char statestr[20] = "";
-	char blockstr[20] = "";
+	char tmps[20];
+	char blockstr[20];
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -14961,8 +15002,9 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 	/* syntax: dahdi show channels [ group <group> | context <context> ] */
 
-	if (!((a->argc == 3) || (a->argc == 5)))
+	if (!((a->argc == 3) || (a->argc == 5))) {
 		return CLI_SHOWUSAGE;
+	}
 
 	if (a->argc == 5) {
 		if (!strcasecmp(a->argv[3], "group")) {
@@ -14977,7 +15019,7 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 	}
 
-	ast_cli(a->fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State", "Description");
+	ast_cli(a->fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "In Service", "Description");
 	ast_mutex_lock(&iflock);
 	for (tmp = iflist; tmp; tmp = tmp->next) {
 		if (filtertype) {
@@ -14998,24 +15040,15 @@ static char *dahdi_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		}
 		if (tmp->channel > 0) {
 			snprintf(tmps, sizeof(tmps), "%d", tmp->channel);
-		} else
+		} else {
 			ast_copy_string(tmps, "pseudo", sizeof(tmps));
+		}
 
-		if (tmp->locallyblocked)
-			blockstr[0] = 'L';
-		else
-			blockstr[0] = ' ';
-
-		if (tmp->remotelyblocked)
-			blockstr[1] = 'R';
-		else
-			blockstr[1] = ' ';
-
+		blockstr[0] = tmp->locallyblocked ? 'L' : ' ';
+		blockstr[1] = tmp->remotelyblocked ? 'R' : ' ';
 		blockstr[2] = '\0';
 
-		snprintf(statestr, sizeof(statestr), "%s", "In Service");
-
-		ast_cli(a->fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, statestr, tmp->description);
+		ast_cli(a->fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, tmp->inservice ? "Yes" : "No", tmp->description);
 	}
 	ast_mutex_unlock(&iflock);
 	return CLI_SUCCESS;
@@ -16023,7 +16056,7 @@ static int linkset_addsigchan(int sigchan)
 		(params.sigtype == DAHDI_SIG_MTP2)
 			? SS7_TRANSPORT_DAHDIMTP2
 			: SS7_TRANSPORT_DAHDIDCHAN,
-		si.alarms, cur_networkindicator, cur_pointcode, cur_adjpointcode);
+		si.alarms, cur_networkindicator, cur_pointcode, cur_adjpointcode, cur_slc);
 	if (res) {
 		dahdi_close_ss7_fd(link, curfd);
 		return -1;
@@ -16049,8 +16082,11 @@ static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc < 6)
+
+	if (a->argc < 6) {
 		return CLI_SHOWUSAGE;
+	}
+
 	span = atoi(a->argv[5]);
 	if ((span < 1) || (span > NUM_SPANS)) {
 		ast_cli(a->fd, "Invalid linkset %s.  Should be a number from %d to %d\n", a->argv[5], 1, NUM_SPANS);
@@ -16075,24 +16111,35 @@ static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 #endif	/* defined(HAVE_SS7) */
 
 #if defined(HAVE_SS7)
-static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_ss7_cic_blocking(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset, cic;
-	int blocked = -1, i;
+	int blocked, i;
+	int do_block = 0;
+	unsigned int dpc;
+
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "ss7 block cic";
+		e->command = "ss7 {block|unblock} cic";
 		e->usage =
-			"Usage: ss7 block cic <linkset> <CIC>\n"
-			"       Sends a remote blocking request for the given CIC on the specified linkset\n";
+			"Usage: ss7 {block|unblock} cic <linkset> <dpc> <CIC>\n"
+			"       Sends a remote {blocking|unblocking} request for the given CIC on the specified linkset\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc == 5)
+
+	if (a->argc == 6) {
 		linkset = atoi(a->argv[3]);
-	else
+	} else {
 		return CLI_SHOWUSAGE;
+	}
+
+	if (!strcasecmp(a->argv[1], "block")) {
+		do_block = 1;
+	} else if (strcasecmp(a->argv[1], "unblock")) {
+		return CLI_SHOWUSAGE;
+	}
 
 	if ((linkset < 1) || (linkset > NUM_SPANS)) {
 		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
@@ -16104,60 +16151,311 @@ static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_c
 		return CLI_SUCCESS;
 	}
 
-	cic = atoi(a->argv[4]);
+	cic = atoi(a->argv[5]);
+	if (cic < 1) {
+		ast_cli(a->fd, "Invalid CIC specified!\n");
+		return CLI_SUCCESS;
+	}
+
+	dpc = atoi(a->argv[4]);
+	if (dpc < 1) {
+		ast_cli(a->fd, "Invalid DPC specified!\n");
+		return CLI_SUCCESS;
+	}
+
+	for (i = 0; i < linksets[linkset-1].ss7.numchans; i++) {
+		if (linksets[linkset-1].ss7.pvts[i] && linksets[linkset-1].ss7.pvts[i]->cic == cic && linksets[linkset-1].ss7.pvts[i]->dpc == dpc) {
+			blocked = linksets[linkset-1].ss7.pvts[i]->locallyblocked;
+			if (!do_block ^ !(blocked & SS7_BLOCKED_MAINTENANCE)) {
+				if (sig_ss7_cic_blocking(&linksets[linkset-1].ss7, do_block, i) < 0) {
+					ast_cli(a->fd, "Unable to allocate new ss7call\n");
+				} else {
+					ast_cli(a->fd, "Sent %sblocking request for linkset %d on CIC %d DPC %d\n", (do_block) ? "" : "un", linkset, cic, dpc);
+				}
+			} else if (!do_block && blocked) {
+				ast_cli(a->fd, "CIC %d is hardware locally blocked!\n", cic);
+			} else {
+				ast_cli(a->fd, "CIC %d %s locally blocked\n", cic, do_block ? "already" : "is not");
+			}
+			return CLI_SUCCESS;
+		}
+	}
+
+	ast_cli(a->fd, "Invalid CIC specified!\n");
+	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
+static char *handle_ss7_linkset_mng(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int linkset, i;
+	enum {
+		DO_BLOCK,
+		DO_UNBLOCK,
+		DO_RESET,
+	} do_what;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 {reset|block|unblock} linkset";
+		e->usage =
+			"Usage: ss7 {reset|block|unblock} linkset <linkset number>\n"
+			"       Sends a remote {reset|blocking|unblocking} request for all CICs on the given linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 4) {
+		linkset = atoi(a->argv[3]);
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (!strcasecmp(a->argv[1], "block")) {
+		do_what = DO_BLOCK;
+	} else if (!strcasecmp(a->argv[1], "unblock")) {
+		do_what = DO_UNBLOCK;
+	} else if (!strcasecmp(a->argv[1], "reset")) {
+		do_what = DO_RESET;
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+
+	if (!linksets[linkset - 1].ss7.ss7) {
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
+	}
+
+	for (i = 0; i < linksets[linkset - 1].ss7.numchans; i++) {
+		/* XXX Should be done with GRS/CGB/CGU instead - see ss7_reset_linkset() */
+		if (linksets[linkset - 1].ss7.pvts[i]) {
+			switch (do_what) {
+			case DO_BLOCK:
+			case DO_UNBLOCK:
+				if (sig_ss7_cic_blocking(&linksets[linkset - 1].ss7, do_what == DO_BLOCK, i)) {
+					ast_cli(a->fd, "Sent remote %s request on CIC %d\n",
+						(do_what == DO_BLOCK) ? "blocking" : "unblocking",
+						linksets[linkset - 1].ss7.pvts[i]->cic);
+				}
+				break;
+			case DO_RESET:
+				if (sig_ss7_reset_cic(&linksets[linkset - 1].ss7,
+					linksets[linkset - 1].ss7.pvts[i]->cic,
+					linksets[linkset - 1].ss7.pvts[i]->dpc)) {
+					ast_cli(a->fd, "Sent reset request on CIC %d\n",
+						linksets[linkset - 1].ss7.pvts[i]->cic);
+				}
+				break;
+			}
+		}
+	}
+
+	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
+static char *handle_ss7_group_blocking(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int linkset, cic, range, chanpos;
+	int i, dpc, orient = 0;
+	int do_block = 0;
+	unsigned char state[255];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 {block|unblock} group";
+		e->usage =
+			"Usage: ss7 {block|unblock} group <linkset> <dpc> <1st. CIC> <range> [H]\n"
+			"       Sends a remote {blocking|unblocking} request for CIC range on the specified linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 7 || a->argc == 8) {
+		linkset = atoi(a->argv[3]);
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (!strcasecmp(a->argv[1], "block")) {
+		do_block = 1;
+	} else if (strcasecmp(a->argv[1], "unblock")) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 8) {
+		if (!strcasecmp(a->argv[7], "H")) {
+			orient = 1;
+		} else {
+			return CLI_SHOWUSAGE;
+		}
+	}
+
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[4], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+
+	if (!linksets[linkset-1].ss7.ss7) {
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
+	}
+
+	cic = atoi(a->argv[5]);
+	if (cic < 1) {
+		ast_cli(a->fd, "Invalid CIC specified!\n");
+		return CLI_SUCCESS;
+	}
+
+	range = atoi(a->argv[6]);
+	/* ITU-T Q.763 3.43 - range 0 is reserved, which makes a range of 2 CICs a minimum group */
+	if (range < 1 || range > (linksets[linkset - 1].ss7.type == SS7_ANSI ? 24 : 31)) {
+		ast_cli(a->fd, "Invalid range specified!\n");
+		return CLI_SUCCESS;
+	}
+
+	dpc = atoi(a->argv[4]);
+	if (dpc < 1) {
+		ast_cli(a->fd, "Invalid DPC specified!\n");
+		return CLI_SUCCESS;
+	}
+
+	ast_mutex_lock(&linksets[linkset-1].ss7.lock);
+	if (!sig_ss7_find_cic_range(&linksets[linkset-1].ss7, cic, cic + range, dpc)) {
+		ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
+		ast_cli(a->fd, "Invalid CIC/RANGE\n");
+		return CLI_SHOWUSAGE;
+	}
+
+	memset(state, 0, sizeof(state));
+	for (i = 0; i <= range; ++i) {
+		state[i] = 1;
+	}
+
+	/* We are guaranteed to find chanpos because of sig_ss7_find_cic_range() includes it. */
+	chanpos = sig_ss7_find_cic(&linksets[linkset-1].ss7, cic, dpc);
+	if (sig_ss7_group_blocking(&linksets[linkset-1].ss7, do_block, chanpos, cic + range, state, orient)) {
+		ast_cli(a->fd, "Unable allocate new ss7call\n");
+	} else {
+		ast_cli(a->fd, "Sending remote%s %sblocking request linkset %d on CIC %d range %d\n",
+			orient ? " hardware" : "", do_block ? "" : "un", linkset, cic, range);
+	}
+
+	ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
+
+	/* Break poll on the linkset so it sends our messages */
+	if (linksets[linkset-1].ss7.master != AST_PTHREADT_NULL) {
+		pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
+	}
+	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
+static char *handle_ss7_group_reset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int linkset, cic, range;
+	unsigned int dpc;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 reset group";
+		e->usage =
+			"Usage: ss7 reset group <linkset> <dpc> <1st CIC> <range>\n"
+			"       Send a GRS for the given CIC range on the specified linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 7) {
+		linkset = atoi(a->argv[3]);
+	} else {
+		return CLI_SHOWUSAGE;
+	}
+
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[4], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+
+	if (!linksets[linkset-1].ss7.ss7) {
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
+	}
+
+	cic = atoi(a->argv[5]);
 
 	if (cic < 1) {
 		ast_cli(a->fd, "Invalid CIC specified!\n");
 		return CLI_SUCCESS;
 	}
 
-	for (i = 0; i < linksets[linkset-1].ss7.numchans; i++) {
-		if (linksets[linkset-1].ss7.pvts[i]->cic == cic) {
-			blocked = linksets[linkset-1].ss7.pvts[i]->locallyblocked;
-			if (!blocked) {
-				ast_mutex_lock(&linksets[linkset-1].ss7.lock);
-				isup_blo(linksets[linkset-1].ss7.ss7, cic, linksets[linkset-1].ss7.pvts[i]->dpc);
-				ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
-			}
-		}
-	}
-
-	if (blocked < 0) {
-		ast_cli(a->fd, "Invalid CIC specified!\n");
+	range = atoi(a->argv[6]);
+	if (range < 1 || range > (linksets[linkset - 1].ss7.type == SS7_ANSI ? 24 : 31)) {
+		ast_cli(a->fd, "Invalid range specified!\n");
 		return CLI_SUCCESS;
 	}
 
-	if (!blocked)
-		ast_cli(a->fd, "Sent blocking request for linkset %d on CIC %d\n", linkset, cic);
-	else
-		ast_cli(a->fd, "CIC %d already locally blocked\n", cic);
+	dpc = atoi(a->argv[4]);
+	if (dpc < 1) {
+		ast_cli(a->fd, "Invalid DPC specified!\n");
+		return CLI_SUCCESS;
+	}
+
+	ast_mutex_lock(&linksets[linkset-1].ss7.lock);
+	if (!sig_ss7_find_cic_range(&linksets[linkset-1].ss7, cic, cic + range, dpc)) {
+		ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
+		ast_cli(a->fd, "Invalid CIC/RANGE\n");
+		return CLI_SHOWUSAGE;
+	}
+
+	if (sig_ss7_reset_group(&linksets[linkset-1].ss7, cic, dpc, range)) {
+		ast_cli(a->fd, "Unable to allocate new ss7call\n");
+	} else {
+		ast_cli(a->fd, "GRS sent ... \n");
+	}
+
+	ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
 
 	/* Break poll on the linkset so it sends our messages */
-	pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
-
+	if (linksets[linkset-1].ss7.master != AST_PTHREADT_NULL) {
+		pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
+	}
 	return CLI_SUCCESS;
 }
 #endif	/* defined(HAVE_SS7) */
 
 #if defined(HAVE_SS7)
-static char *handle_ss7_block_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_ss7_show_calls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset;
-	int i;
+
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "ss7 block linkset";
+		e->command = "ss7 show calls";
 		e->usage =
-			"Usage: ss7 block linkset <linkset number>\n"
-			"       Sends a remote blocking request for all CICs on the given linkset\n";
+			"Usage: ss7 show calls <linkset>\n"
+			"       Show SS7 calls on the specified linkset\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
-	if (a->argc == 4)
+
+	if (a->argc == 4) {
 		linkset = atoi(a->argv[3]);
-	else
+	} else {
 		return CLI_SHOWUSAGE;
+	}
 
 	if ((linkset < 1) || (linkset > NUM_SPANS)) {
 		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
@@ -16169,40 +16467,36 @@ static char *handle_ss7_block_linkset(struct ast_cli_entry *e, int cmd, struct a
 		return CLI_SUCCESS;
 	}
 
-	for (i = 0; i < linksets[linkset-1].ss7.numchans; i++) {
-		ast_cli(a->fd, "Sending remote blocking request on CIC %d\n", linksets[linkset-1].ss7.pvts[i]->cic);
-		ast_mutex_lock(&linksets[linkset-1].ss7.lock);
-		isup_blo(linksets[linkset-1].ss7.ss7, linksets[linkset-1].ss7.pvts[i]->cic, linksets[linkset-1].ss7.pvts[i]->dpc);
-		ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
-	}
-
-	/* Break poll on the linkset so it sends our messages */
-	pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
+	ast_mutex_lock(&linksets[linkset-1].ss7.lock);
+	isup_show_calls(linksets[linkset-1].ss7.ss7, &ast_cli, a->fd);
+	ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
 
 	return CLI_SUCCESS;
 }
 #endif	/* defined(HAVE_SS7) */
 
 #if defined(HAVE_SS7)
-static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_ss7_reset_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int linkset, cic;
-	int i, blocked = -1;
+	int linkset, cic, res;
+	unsigned int dpc;
+
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "ss7 unblock cic";
+		e->command = "ss7 reset cic";
 		e->usage =
-			"Usage: ss7 unblock cic <linkset> <CIC>\n"
-			"       Sends a remote unblocking request for the given CIC on the specified linkset\n";
+			"Usage: ss7 reset cic <linkset> <dpc> <CIC>\n"
+			"       Send a RSC for the given CIC on the specified linkset\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc == 5)
+	if (a->argc == 6) {
 		linkset = atoi(a->argv[3]);
-	else
+	} else {
 		return CLI_SHOWUSAGE;
+	}
 
 	if ((linkset < 1) || (linkset > NUM_SPANS)) {
 		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
@@ -16214,74 +16508,123 @@ static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast
 		return CLI_SUCCESS;
 	}
 
-	cic = atoi(a->argv[4]);
+	cic = atoi(a->argv[5]);
 
 	if (cic < 1) {
 		ast_cli(a->fd, "Invalid CIC specified!\n");
 		return CLI_SUCCESS;
 	}
 
-	for (i = 0; i < linksets[linkset-1].ss7.numchans; i++) {
-		if (linksets[linkset-1].ss7.pvts[i]->cic == cic) {
-			blocked = linksets[linkset-1].ss7.pvts[i]->locallyblocked;
-			if (blocked) {
-				ast_mutex_lock(&linksets[linkset-1].ss7.lock);
-				isup_ubl(linksets[linkset-1].ss7.ss7, cic, linksets[linkset-1].ss7.pvts[i]->dpc);
-				ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
-			}
-		}
+	dpc = atoi(a->argv[4]);
+	if (dpc < 1) {
+		ast_cli(a->fd, "Invalid DPC specified!\n");
+		return CLI_SUCCESS;
 	}
 
-	if (blocked > 0)
-		ast_cli(a->fd, "Sent unblocking request for linkset %d on CIC %d\n", linkset, cic);
+	res = sig_ss7_reset_cic(&linksets[linkset-1].ss7, cic, dpc);
 
-	/* Break poll on the linkset so it sends our messages */
-	pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
+	ast_cli(a->fd, "%s RSC for linkset %d on CIC %d DPC %d\n", res ? "Sent" : "Failed", linkset, cic, dpc);
 
 	return CLI_SUCCESS;
 }
 #endif	/* defined(HAVE_SS7) */
 
 #if defined(HAVE_SS7)
-static char *handle_ss7_unblock_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_ss7_net_mng(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset;
-	int i;
+	unsigned int slc;
+	unsigned int arg = 0;
+	const char *res;
+
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "ss7 unblock linkset";
+		e->command = "ss7 mtp3";
 		e->usage =
-			"Usage: ss7 unblock linkset <linkset number>\n"
-			"       Sends a remote unblocking request for all CICs on the specified linkset\n";
+			"Usage: ss7 mtp3 <linkset> <slc> coo|coa|cbd|cba|eco|eca|tfp|tfa|lin|lun|lia|lua|lid|lfu <arg>\n"
+			"       Send a NET MNG message\n"
+			"       WARNING!!! WARNING!!! We are not a STP, just for testing/development purposes\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
 
-	if (a->argc == 4)
-		linkset = atoi(a->argv[3]);
-	else
+	if (a->argc < 5) {
 		return CLI_SHOWUSAGE;
-
-	if ((linkset < 1) || (linkset > NUM_SPANS)) {
-		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
-		return CLI_SUCCESS;
 	}
 
+	linkset = atoi(a->argv[2]);
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[2], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
 	if (!linksets[linkset-1].ss7.ss7) {
 		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
 		return CLI_SUCCESS;
 	}
 
-	for (i = 0; i < linksets[linkset-1].ss7.numchans; i++) {
-		ast_cli(a->fd, "Sending remote unblock request on CIC %d\n", linksets[linkset-1].ss7.pvts[i]->cic);
-		ast_mutex_lock(&linksets[linkset-1].ss7.lock);
-		isup_ubl(linksets[linkset-1].ss7.ss7, linksets[linkset-1].ss7.pvts[i]->cic, linksets[linkset-1].ss7.pvts[i]->dpc);
-		ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
+	slc = atoi(a->argv[3]);
+
+	if (a->argc == 6) {
+		arg = atoi(a->argv[5]);
 	}
 
+	ast_mutex_lock(&linksets[linkset-1].ss7.lock);
+	res = mtp3_net_mng(linksets[linkset-1].ss7.ss7, slc, a->argv[4], arg);
+	ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
+
 	/* Break poll on the linkset so it sends our messages */
-	pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
+	if (linksets[linkset-1].ss7.master != AST_PTHREADT_NULL) {
+		pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
+	}
+
+	ast_cli(a->fd, "%s", res);
+
+	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
+static char *handle_ss7_mtp3_restart(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int linkset;
+	unsigned int slc = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 restart mtp3";
+		e->usage =
+			"Usage: ss7 restart mtp3 <linkset> <slc>\n"
+			"       Restart link\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	linkset = atoi(a->argv[3]);
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[2], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+	if (!linksets[linkset-1].ss7.ss7) {
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
+	}
+
+	slc = atoi(a->argv[4]);
+
+	ast_mutex_lock(&linksets[linkset-1].ss7.lock);
+	mtp3_init_restart(linksets[linkset-1].ss7.ss7, slc);
+	ast_mutex_unlock(&linksets[linkset-1].ss7.lock);
+
+	/* Break poll on the linkset so it sends our messages */
+	if (linksets[linkset-1].ss7.master != AST_PTHREADT_NULL) {
+		pthread_kill(linksets[linkset-1].ss7.master, SIGURG);
+	}
 
 	return CLI_SUCCESS;
 }
@@ -16303,8 +16646,10 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 		return NULL;
 	}
 
-	if (a->argc < 4)
+	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
+	}
+
 	linkset = atoi(a->argv[3]);
 	if ((linkset < 1) || (linkset > NUM_SPANS)) {
 		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
@@ -16316,7 +16661,16 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 		return CLI_SUCCESS;
 	}
 
+	ast_cli(a->fd, "SS7 flags: 0x%x\n", ss7->flags);
 	ast_cli(a->fd, "SS7 linkset %d status: %s\n", linkset, (ss7->state == LINKSET_STATE_UP) ? "Up" : "Down");
+	ast_cli(a->fd, "SS7 calling nai: %i\n", ss7->calling_nai);
+	ast_cli(a->fd, "SS7 called nai: %i\n", ss7->called_nai);
+	ast_cli(a->fd, "SS7 nationalprefix: %s\n", ss7->nationalprefix);
+	ast_cli(a->fd, "SS7 internationalprefix: %s\n", ss7->internationalprefix);
+	ast_cli(a->fd, "SS7 unknownprefix: %s\n", ss7->unknownprefix);
+	ast_cli(a->fd, "SS7 networkroutedprefix: %s\n", ss7->networkroutedprefix);
+	ast_cli(a->fd, "SS7 subscriberprefix: %s\n", ss7->subscriberprefix);
+	ss7_show_linkset(ss7->ss7, &ast_cli, a->fd);
 
 	return CLI_SUCCESS;
 }
@@ -16338,8 +16692,9 @@ static char *handle_ss7_show_channels(struct ast_cli_entry *e, int cmd, struct a
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
+	}
 
 	sig_ss7_cli_show_channels_header(a->fd);
 	for (linkset = 0; linkset < NUM_SPANS; ++linkset) {
@@ -16348,6 +16703,110 @@ static char *handle_ss7_show_channels(struct ast_cli_entry *e, int cmd, struct a
 		}
 	}
 	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_SS7) */
+
+#if defined(HAVE_SS7)
+static char *handle_ss7_show_cics(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT "%5s %5s %6s %12s   %-12s\n"
+#define FORMAT2 "%5i %5i %6i %12s   %-12s\n"
+	int i, linkset, dpc = 0;
+	struct sig_ss7_linkset *ss7;
+	char *state;
+	char blocking[12];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 show cics";
+		e->usage =
+			"Usage: ss7 show cics <linkset> [dpc]\n"
+			"       Shows the cics of an SS7 linkset.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 4 || a->argc > 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	linkset = atoi(a->argv[3]);
+
+	if ((linkset < 1) || (linkset > NUM_SPANS)) {
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
+	}
+
+	if (!linksets[linkset-1].ss7.ss7) {
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
+	}
+	ss7 = &linksets[linkset-1].ss7;
+
+	if (a->argc == 5) {
+		dpc = atoi(a->argv[4]);
+		if (dpc < 1) {
+			ast_cli(a->fd, "Invalid DPC specified!\n");
+			return CLI_SUCCESS;
+		}
+	}
+
+	ast_cli(a->fd, FORMAT, "CIC", "DPC", "DAHDI", "STATE", "BLOCKING");
+
+	for (i = 0; i < ss7->numchans; i++) {
+		if (!dpc || (ss7->pvts[i] && ss7->pvts[i]->dpc == dpc)) {
+			struct dahdi_pvt *p = ss7->pvts[i]->chan_pvt;
+
+			if (ss7->pvts[i]->owner) {
+				state = "Used";
+			} else if (ss7->pvts[i]->ss7call) {
+				state = "Pending";
+			} else if (!p->inservice) {
+				state = "NotInServ";
+			} else {
+				state = "Idle";
+			}
+
+			if (p->locallyblocked) {
+				strcpy(blocking, "L:");
+				if (p->locallyblocked & SS7_BLOCKED_MAINTENANCE) {
+					strcat(blocking, "M");
+				} else {
+					strcat(blocking, " ");
+				}
+
+				if (p->locallyblocked & SS7_BLOCKED_HARDWARE) {
+					strcat(blocking, "H");
+				} else {
+					strcat(blocking, " ");
+				}
+			} else {
+				strcpy(blocking, "    ");
+			}
+
+			if (p->remotelyblocked) {
+				strcat(blocking, " R:");
+				if (p->remotelyblocked & SS7_BLOCKED_MAINTENANCE) {
+					strcat(blocking, "M");
+				} else {
+					strcat(blocking, " ");
+				}
+
+				if (p->remotelyblocked & SS7_BLOCKED_HARDWARE) {
+					strcat(blocking, "H");
+				} else {
+					strcat(blocking, " ");
+				}
+			}
+
+			ast_cli(a->fd, FORMAT2, ss7->pvts[i]->cic, ss7->pvts[i]->dpc, ss7->pvts[i]->channel, state, blocking);
+		}
+	}
+
+	return CLI_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
 }
 #endif	/* defined(HAVE_SS7) */
 
@@ -16374,12 +16833,17 @@ static char *handle_ss7_version(struct ast_cli_entry *e, int cmd, struct ast_cli
 #if defined(HAVE_SS7)
 static struct ast_cli_entry dahdi_ss7_cli[] = {
 	AST_CLI_DEFINE(handle_ss7_debug, "Enables SS7 debugging on a linkset"),
-	AST_CLI_DEFINE(handle_ss7_block_cic, "Blocks the given CIC"),
-	AST_CLI_DEFINE(handle_ss7_unblock_cic, "Unblocks the given CIC"),
-	AST_CLI_DEFINE(handle_ss7_block_linkset, "Blocks all CICs on a linkset"),
-	AST_CLI_DEFINE(handle_ss7_unblock_linkset, "Unblocks all CICs on a linkset"),
+	AST_CLI_DEFINE(handle_ss7_cic_blocking, "Blocks/Unblocks the given CIC"),
+	AST_CLI_DEFINE(handle_ss7_linkset_mng, "Resets/Blocks/Unblocks all CICs on a linkset"),
+	AST_CLI_DEFINE(handle_ss7_group_blocking, "Blocks/Unblocks the given CIC range"),
+	AST_CLI_DEFINE(handle_ss7_reset_cic, "Resets the given CIC"),
+	AST_CLI_DEFINE(handle_ss7_group_reset, "Resets the given CIC range"),
+	AST_CLI_DEFINE(handle_ss7_mtp3_restart, "Restart a link"),
+	AST_CLI_DEFINE(handle_ss7_net_mng, "Send an NET MNG message"),
 	AST_CLI_DEFINE(handle_ss7_show_linkset, "Shows the status of a linkset"),
 	AST_CLI_DEFINE(handle_ss7_show_channels, "Displays SS7 channel information"),
+	AST_CLI_DEFINE(handle_ss7_show_calls, "Show ss7 calls"),
+	AST_CLI_DEFINE(handle_ss7_show_cics, "Show cics on a linkset"),
 	AST_CLI_DEFINE(handle_ss7_version, "Displays libss7 version"),
 };
 #endif	/* defined(HAVE_SS7) */
@@ -16580,6 +17044,10 @@ static int __unload_module(void)
 		}
 		for (j = 0; j < SIG_SS7_NUM_DCHANS; j++) {
 			dahdi_close_ss7_fd(&(linksets[i]), j);
+		}
+		if (linksets[i].ss7.ss7) {
+			ss7_destroy(linksets[i].ss7.ss7);
+			linksets[i].ss7.ss7 = NULL;
 		}
 	}
 #endif	/* defined(HAVE_SS7) */
@@ -16856,7 +17324,7 @@ static void parse_busy_pattern(struct ast_variable *v, struct ast_dsp_busy_patte
 
 	for (; ;) {
 		/* Scans the string for the next value in the pattern. If none, it checks to see if any have been entered so far. */
-		if(!sscanf(v->value, "%30d", &norval) && count_pattern == 0) {
+		if (!sscanf(v->value, "%30d", &norval) && count_pattern == 0) {
 			ast_log(LOG_ERROR, "busypattern= expects either busypattern=tonelength,quietlength or busypattern=t1length, q1length, t2length, q2length at line %d.\n", v->lineno);
 			break;
 		}
@@ -17220,23 +17688,23 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 #else
 			/* Default is fsk, to turn it off you must specify nofsk */
 			memset(&confp->chan.mwisend_setting, 0, sizeof(confp->chan.mwisend_setting));
-			if (strcasestr(v->value, "nofsk")) { 		/* NoFSK */
+			if (strcasestr(v->value, "nofsk")) {		/* NoFSK */
 				confp->chan.mwisend_fsk = 0;
 			} else {					/* Default FSK */
 				confp->chan.mwisend_fsk = 1;
 			}
-			if (strcasestr(v->value, "rpas")) { 		/* Ring Pulse Alert Signal, normally followed by FSK */
+			if (strcasestr(v->value, "rpas")) {		/* Ring Pulse Alert Signal, normally followed by FSK */
 				confp->chan.mwisend_rpas = 1;
 			} else {
 				confp->chan.mwisend_rpas = 0;
 			}
-			if (strcasestr(v->value, "lrev")) { 		/* Line Reversal */
+			if (strcasestr(v->value, "lrev")) {		/* Line Reversal */
 				confp->chan.mwisend_setting.vmwi_type |= DAHDI_VMWI_LREV;
 			}
-			if (strcasestr(v->value, "hvdc")) { 		/* HV 90VDC */
+			if (strcasestr(v->value, "hvdc")) {		/* HV 90VDC */
 				confp->chan.mwisend_setting.vmwi_type |= DAHDI_VMWI_HVDC;
 			}
-			if ( (strcasestr(v->value, "neon")) || (strcasestr(v->value, "hvac")) ){ 	/* 90V DC pulses */
+			if ( (strcasestr(v->value, "neon")) || (strcasestr(v->value, "hvac")) ) {	/* 90V DC pulses */
 				confp->chan.mwisend_setting.vmwi_type |= DAHDI_VMWI_HVAC;
 			}
 #endif
@@ -17744,8 +18212,11 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					cur_ss7type = SS7_ITU;
 				} else if (!strcasecmp(v->value, "ansi")) {
 					cur_ss7type = SS7_ANSI;
-				} else
+				} else {
 					ast_log(LOG_WARNING, "'%s' is an unknown ss7 switch type at line %d.!\n", v->value, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "slc")) {
+				cur_slc = atoi(v->value);
 			} else if (!strcasecmp(v->name, "linkset")) {
 				cur_linkset = atoi(v->value);
 			} else if (!strcasecmp(v->name, "pointcode")) {
@@ -17757,16 +18228,17 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			} else if (!strcasecmp(v->name, "cicbeginswith")) {
 				cur_cicbeginswith = atoi(v->value);
 			} else if (!strcasecmp(v->name, "networkindicator")) {
-				if (!strcasecmp(v->value, "national"))
+				if (!strcasecmp(v->value, "national")) {
 					cur_networkindicator = SS7_NI_NAT;
-				else if (!strcasecmp(v->value, "national_spare"))
+				} else if (!strcasecmp(v->value, "national_spare")) {
 					cur_networkindicator = SS7_NI_NAT_SPARE;
-				else if (!strcasecmp(v->value, "international"))
+				} else if (!strcasecmp(v->value, "international")) {
 					cur_networkindicator = SS7_NI_INT;
-				else if (!strcasecmp(v->value, "international_spare"))
+				} else if (!strcasecmp(v->value, "international_spare")) {
 					cur_networkindicator = SS7_NI_INT_SPARE;
-				else
+				} else {
 					cur_networkindicator = -1;
+				}
 			} else if (!strcasecmp(v->name, "ss7_internationalprefix")) {
 				ast_copy_string(confp->ss7.ss7.internationalprefix, v->value, sizeof(confp->ss7.ss7.internationalprefix));
 			} else if (!strcasecmp(v->name, "ss7_nationalprefix")) {
@@ -17775,6 +18247,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				ast_copy_string(confp->ss7.ss7.subscriberprefix, v->value, sizeof(confp->ss7.ss7.subscriberprefix));
 			} else if (!strcasecmp(v->name, "ss7_unknownprefix")) {
 				ast_copy_string(confp->ss7.ss7.unknownprefix, v->value, sizeof(confp->ss7.ss7.unknownprefix));
+			} else if (!strcasecmp(v->name, "ss7_networkroutedprefix")) {
+				ast_copy_string(confp->ss7.ss7.networkroutedprefix, v->value, sizeof(confp->ss7.ss7.networkroutedprefix));
 			} else if (!strcasecmp(v->name, "ss7_called_nai")) {
 				if (!strcasecmp(v->value, "national")) {
 					confp->ss7.ss7.called_nai = SS7_NAI_NATIONAL;
@@ -17807,9 +18281,9 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				int sigchan, res;
 				sigchan = atoi(v->value);
 				res = linkset_addsigchan(sigchan);
-				if (res < 0)
+				if (res < 0) {
 					return -1;
-
+				}
 			} else if (!strcasecmp(v->name, "ss7_explicitacm")) {
 				struct dahdi_ss7 *link;
 				link = ss7_resolve_linkset(cur_linkset);
@@ -17817,8 +18291,148 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
 					return -1;
 				}
-				if (ast_true(v->value))
+				if (ast_true(v->value)) {
 					link->ss7.flags |= LINKSET_FLAG_EXPLICITACM;
+				} else {
+					link->ss7.flags &= ~LINKSET_FLAG_EXPLICITACM;
+				}
+			} else if (!strcasecmp(v->name, "ss7_autoacm")) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (ast_true(v->value)) {
+					link->ss7.flags |= LINKSET_FLAG_AUTOACM;
+				} else {
+					link->ss7.flags &= ~LINKSET_FLAG_AUTOACM;
+				}
+			} else if (!strcasecmp(v->name, "ss7_initialhwblo")) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (ast_true(v->value)) {
+					link->ss7.flags |= LINKSET_FLAG_INITIALHWBLO;
+				} else {
+					link->ss7.flags &= ~LINKSET_FLAG_INITIALHWBLO;
+				}
+			} else if (!strcasecmp(v->name, "ss7_use_echocontrol")) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (ast_true(v->value)) {
+					link->ss7.flags |= LINKSET_FLAG_USEECHOCONTROL;
+				} else {
+					link->ss7.flags &= ~LINKSET_FLAG_USEECHOCONTROL;
+				}
+			} else if (!strcasecmp(v->name, "ss7_default_echocontrol")) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (ast_true(v->value)) {
+					link->ss7.flags |= LINKSET_FLAG_DEFAULTECHOCONTROL;
+				} else {
+					link->ss7.flags &= ~LINKSET_FLAG_DEFAULTECHOCONTROL;
+				}
+			} else if (!strncasecmp(v->name, "isup_timer.", 11)) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (!link->ss7.ss7) {
+					ast_log(LOG_ERROR, "Please specify isup timers after sigchan!\n");
+				} else if (!ss7_set_isup_timer(link->ss7.ss7, strstr(v->name, ".") + 1, atoi(v->value))) {
+					ast_log(LOG_ERROR, "Invalid isup timer %s\n", v->name);
+				}
+			} else if (!strncasecmp(v->name, "mtp3_timer.", 11)) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (!link->ss7.ss7) {
+					ast_log(LOG_ERROR, "Please specify mtp3 timers after sigchan!\n");
+				} else if (!ss7_set_mtp3_timer(link->ss7.ss7, strstr(v->name, ".") + 1, atoi(v->value))) {
+					ast_log(LOG_ERROR, "Invalid mtp3 timer %s\n", v->name);
+				}
+			} else if (!strcasecmp(v->name, "inr_if_no_calling")) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (!link->ss7.ss7) {
+					ast_log(LOG_ERROR, "Please specify inr_if_no_calling after sigchan!\n");
+				} else if (ast_true(v->value)) {
+					ss7_set_flags(link->ss7.ss7, SS7_INR_IF_NO_CALLING);
+				} else {
+					ss7_clear_flags(link->ss7.ss7, SS7_INR_IF_NO_CALLING);
+				}
+			} else if (!strcasecmp(v->name, "non_isdn_access")) {
+				struct dahdi_ss7 *link;
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (!link->ss7.ss7) {
+					ast_log(LOG_ERROR, "Please specify non_isdn_access after sigchan!\n");
+				} else if (ast_true(v->value)) {
+					ss7_clear_flags(link->ss7.ss7, SS7_ISDN_ACCESS_INDICATOR);
+				} else {
+					ss7_set_flags(link->ss7.ss7, SS7_ISDN_ACCESS_INDICATOR);
+				}
+			} else if (!strcasecmp(v->name, "sls_shift")) {
+				struct dahdi_ss7 *link;
+				int sls_shift = atoi(v->value);
+
+				if (sls_shift < 0 || sls_shift > 7) {
+					ast_log(LOG_ERROR, "Invalid sls_shift value.  Must be between 0 and 7\n");
+					return -1;
+				}
+
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (!link->ss7.ss7) {
+					ast_log(LOG_ERROR, "Please specify sls_shift after sigchan!\n");
+				} else {
+					ss7_set_sls_shift(link->ss7.ss7, sls_shift);
+				}
+			} else if (!strcasecmp(v->name, "cause_location")) {
+				struct dahdi_ss7 *link;
+				int cause_location = atoi(v->value);
+
+				if (cause_location < 0 || cause_location > 15) {
+					ast_log(LOG_ERROR, "Invalid cause_location value.  Must be between 0 and 15\n");
+					return -1;
+				}
+				link = ss7_resolve_linkset(cur_linkset);
+				if (!link) {
+					ast_log(LOG_ERROR, "Invalid linkset number.  Must be between 1 and %d\n", NUM_SPANS + 1);
+					return -1;
+				}
+				if (!link->ss7.ss7) {
+					ast_log(LOG_ERROR, "Please specify cause_location after sigchan!\n");
+				} else {
+					ss7_set_cause_location(link->ss7.ss7, cause_location);
+				}
 #endif	/* defined(HAVE_SS7) */
 #ifdef HAVE_OPENR2
 			} else if (!strcasecmp(v->name, "mfcr2_advanced_protocol_file")) {
@@ -17881,12 +18495,12 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->mfcr2.call_files = ast_true(v->value) ? 1 : 0;
 			} else if (!strcasecmp(v->name, "mfcr2_max_ani")) {
 				confp->mfcr2.max_ani = atoi(v->value);
-				if (confp->mfcr2.max_ani >= AST_MAX_EXTENSION){
+				if (confp->mfcr2.max_ani >= AST_MAX_EXTENSION) {
 					confp->mfcr2.max_ani = AST_MAX_EXTENSION - 1;
 				}
 			} else if (!strcasecmp(v->name, "mfcr2_max_dnis")) {
 				confp->mfcr2.max_dnis = atoi(v->value);
-				if (confp->mfcr2.max_dnis >= AST_MAX_EXTENSION){
+				if (confp->mfcr2.max_dnis >= AST_MAX_EXTENSION) {
 					confp->mfcr2.max_dnis = AST_MAX_EXTENSION - 1;
 				}
 			} else if (!strcasecmp(v->name, "mfcr2_category")) {
@@ -18677,6 +19291,9 @@ static int load_module(void)
 	}
 	ss7_set_error(dahdi_ss7_error);
 	ss7_set_message(dahdi_ss7_message);
+	ss7_set_hangup(sig_ss7_cb_hangup);
+	ss7_set_notinservice(sig_ss7_cb_notinservice);
+	ss7_set_call_null(sig_ss7_cb_call_null);
 #endif	/* defined(HAVE_SS7) */
 	res = setup_dahdi(0);
 	/* Make sure we can register our DAHDI channel type */
