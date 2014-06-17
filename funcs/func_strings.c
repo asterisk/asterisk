@@ -1610,6 +1610,7 @@ static int unshift_push(struct ast_channel *chan, const char *cmd, char *data, c
 		AST_APP_ARG(var);
 		AST_APP_ARG(delimiter);
 	);
+	const char *stripped_var;
 
 	if (!(buf = ast_str_thread_get(&result_buf, 16)) ||
 		!(previous_value = ast_str_thread_get(&tmp_buf, 16))) {
@@ -1627,8 +1628,15 @@ static int unshift_push(struct ast_channel *chan, const char *cmd, char *data, c
 		ast_get_encoded_char(args.delimiter, delimiter, &unused);
 	}
 
-	varsubst = ast_alloca(strlen(args.var) + 4);
-	sprintf(varsubst, "${%s}", args.var);
+	/* UNSHIFT and PUSH act as ways of setting a variable, so we need to be
+	 * sure to skip leading underscores if they appear. However, we only want
+	 * to skip up to two since that is the maximum number that can be used to
+	 * indicate variable inheritance. Any further underscores are part of the
+	 * variable name.
+	 */
+	stripped_var = args.var + MIN(strspn(args.var, "_"), 2);
+	varsubst = ast_alloca(strlen(stripped_var) + 4);
+	sprintf(varsubst, "${%s}", stripped_var);
 	ast_str_substitute_variables(&previous_value, 0, chan, varsubst);
 
 	if (!ast_str_strlen(previous_value)) {
