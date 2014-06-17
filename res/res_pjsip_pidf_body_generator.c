@@ -80,6 +80,7 @@ static int pidf_generate_body_content(void *body, void *data)
 }
 
 #define MAX_STRING_GROWTHS 3
+#define XML_PROLOG 39
 
 static void pidf_to_string(void *body, struct ast_str **str)
 {
@@ -89,14 +90,13 @@ static void pidf_to_string(void *body, struct ast_str **str)
 
 	do {
 		size = pjpidf_print(pres, ast_str_buffer(*str), ast_str_size(*str) - 1);
-		if (size < 0) {
+		if (size == XML_PROLOG) {
 			ast_str_make_space(str, ast_str_size(*str) * 2);
 			++growths;
-			return;
 		}
-	} while (size < 0 && growths < MAX_STRING_GROWTHS);
+	} while (size == XML_PROLOG && growths < MAX_STRING_GROWTHS);
 
-	if (size < 0) {
+	if (size == XML_PROLOG) {
 		ast_log(LOG_WARNING, "PIDF body text too large\n");
 		return;
 	}
