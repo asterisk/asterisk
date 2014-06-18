@@ -85,6 +85,7 @@ TRUNKMSD = 1
 --
 --    app.Dial("DAHDI/1")
 --    app.dial("DAHDI/1")
+--    app["dial"]("DAHDI/1")
 --
 -- More examples can be found below.
 --
@@ -96,6 +97,24 @@ TRUNKMSD = 1
 -- restarted afterwards.  The autoservice_status() function can be used to
 -- check the current status of the autoservice and will return true if an
 -- autoservice is currently running.
+--
+-- Note about naming conflicts:
+-- Lua allows you to refer to table entries using the '.' notation,
+-- I.E. app.goto(something), only if the entry doesn't conflict with an Lua
+-- reserved word.  In the 'goto' example, with Lua 5.1 or earlier, 'goto' is
+-- not a reserved word so you'd be calling the Asterisk dialplan application
+-- 'goto'.  Lua 5.2 however, introduced the 'goto' control statement which
+-- makes 'goto' a reserved word.  This casues the interpreter to fail parsing
+-- the file and pbx_lua.so will fail to load.  The same applies to any use of
+-- Lua tables including extensions, channels and any tables you create.
+--
+-- There are two ways around this:  Since Lua is case-sensitive, you can use
+-- capitalized names, I.E. app.Goto(something) to refer to the Asterisk apps,
+-- functions, etc. Or you can use the full syntax, I.E. app["goto"](something).
+-- Both syntaxes are backwards compatible with earlier Lua versions.  To make
+-- your Lua dialplans easier to maintain and to reduce the chance of future
+-- conflicts you may want to use the app["goto"](something) syntax for all
+-- table accesses.
 --
 
 function outgoing_local(c, e)
@@ -144,7 +163,8 @@ extensions = {
 		end;
 
 		["1000"] = function()
-			app.goto("demo", "s", 1)
+--	See the naming conflict note above.
+			app['goto']("default", "s", 1)
 		end;
 
 		["1234"] = function()
