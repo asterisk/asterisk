@@ -707,14 +707,18 @@ void ast_channel_publish_varset(struct ast_channel *chan, const char *name, cons
 		return;
 	}
 
-	if (chan && !ast_channel_has_manager_vars()) {
+	/*! If there are manager variables, force a cache update */
+	if (chan && ast_channel_has_manager_vars()) {
+		ast_channel_publish_snapshot(chan);
+	}
+
+	if (chan) {
 		ast_channel_publish_cached_blob(chan, ast_channel_varset_type(), blob);
 	} else {
-		/* This function is NULL safe. If there are manager variables,
-		 * we have to produce the full snapshot.
-		 */
-		ast_channel_publish_blob(chan, ast_channel_varset_type(), blob);
+		/* This function is NULL safe for global variables */
+		ast_channel_publish_blob(NULL, ast_channel_varset_type(), blob);
 	}
+
 	ast_json_unref(blob);
 }
 
