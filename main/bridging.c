@@ -1540,7 +1540,7 @@ void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_
 	cleanup_video_mode(bridge);
 	bridge->video_mode.mode = AST_BRIDGE_VIDEO_MODE_SINGLE_SRC;
 	bridge->video_mode.mode_data.single_src_data.chan_vsrc = ast_channel_ref(video_src_chan);
-	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %d\r\nVideo Channel: %s", bridge->video_mode.mode, ast_channel_name(video_src_chan));
+	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %u\r\nVideo Channel: %s", bridge->video_mode.mode, ast_channel_name(video_src_chan));
 	ast_indicate(video_src_chan, AST_CONTROL_VIDUPDATE);
 	ao2_unlock(bridge);
 }
@@ -1550,7 +1550,7 @@ void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge)
 	ao2_lock(bridge);
 	cleanup_video_mode(bridge);
 	bridge->video_mode.mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
-	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to talker source\r\nVideo Mode: %d", bridge->video_mode.mode);
+	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to talker source\r\nVideo Mode: %u", bridge->video_mode.mode);
 	ao2_unlock(bridge);
 }
 
