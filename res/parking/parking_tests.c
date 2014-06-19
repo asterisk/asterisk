@@ -275,12 +275,12 @@ static int parked_users_match(const struct parked_user *actual, const struct par
 	}
 
 	if (expected->time_limit != actual->time_limit) {
-		ast_test_status_update(test, "time_limit expected: %d - got: %d\n", expected->time_limit, actual->time_limit);
+		ast_test_status_update(test, "time_limit expected: %u - got: %u\n", expected->time_limit, actual->time_limit);
 		return 0;
 	}
 
 	if (expected->resolution != actual->resolution) {
-		ast_test_status_update(test, "resolution expected: %d - got: %d\n", expected->resolution, actual->resolution);
+		ast_test_status_update(test, "resolution expected: %u - got: %u\n", expected->resolution, actual->resolution);
 		return 0;
 	}
 
@@ -300,22 +300,22 @@ static int parking_lot_cfgs_match(const struct parking_lot_cfg *actual, const st
 	}
 
 	if (expected->parkingtime != actual->parkingtime) {
-		ast_test_status_update(test, "parkingtime expected: %d - got: %d\n", expected->parkingtime, actual->parkingtime);
+		ast_test_status_update(test, "parkingtime expected: %u - got: %u\n", expected->parkingtime, actual->parkingtime);
 		return 0;
 	}
 
 	if (expected->comebackdialtime != actual->comebackdialtime) {
-		ast_test_status_update(test, "comebackdialtime expected: %d - got: %d\n", expected->comebackdialtime, actual->comebackdialtime);
+		ast_test_status_update(test, "comebackdialtime expected: %u - got: %u\n", expected->comebackdialtime, actual->comebackdialtime);
 		return 0;
 	}
 
 	if (expected->parkfindnext != actual->parkfindnext) {
-		ast_test_status_update(test, "parkfindnext expected: %d - got: %d\n", expected->parkfindnext, actual->parkfindnext);
+		ast_test_status_update(test, "parkfindnext expected: %u - got: %u\n", expected->parkfindnext, actual->parkfindnext);
 		return 0;
 	}
 
 	if (expected->parkext_exclusive != actual->parkext_exclusive) {
-		ast_test_status_update(test, "parkext_exclusive expected: %d - got: %d\n", expected->parkext_exclusive, actual->parkext_exclusive);
+		ast_test_status_update(test, "parkext_exclusive expected: %u - got: %u\n", expected->parkext_exclusive, actual->parkext_exclusive);
 		return 0;
 	}
 

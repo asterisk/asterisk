@@ -1479,7 +1479,7 @@ struct ast_callid *ast_create_callid(void)
 
 	call->call_identifier = ast_atomic_fetchadd_int(&next_unique_callid, +1);
 #ifdef TEST_FRAMEWORK
-	ast_debug(3, "CALL_ID [C-%08x] created by thread.\n", call->call_identifier);
+	ast_debug(3, "CALL_ID [C-%08x] created by thread.\n", (unsigned)call->call_identifier);
 #endif
 	return call;
 }
@@ -1509,7 +1509,7 @@ int ast_callid_threadassoc_change(struct ast_callid *callid)
 
 	if (*id && (*id != callid)) {
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", (*id)->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", (unsigned)(*id)->call_identifier);
 #endif
 		*id = ast_callid_unref(*id);
 		*id = NULL;
@@ -1520,7 +1520,7 @@ int ast_callid_threadassoc_change(struct ast_callid *callid)
 		ast_callid_ref(callid);
 		*id = callid;
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", callid->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", (unsigned)callid->call_identifier);
 #endif
 	}
 
@@ -1542,7 +1542,7 @@ int ast_callid_threadassoc_add(struct ast_callid *callid)
 		ast_callid_ref(callid);
 		*pointing = callid;
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", callid->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", (unsigned)callid->call_identifier);
 #endif
 	} else {
 		ast_log(LOG_WARNING, "Attempted to ast_callid_threadassoc_add on thread already associated with a callid.\n");
@@ -1567,7 +1567,7 @@ int ast_callid_threadassoc_remove(void)
 		return -1;
 	} else {
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", (*pointing)->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", (unsigned)(*pointing)->call_identifier);
 #endif
 		*pointing = ast_callid_unref(*pointing);
 		return 0;
