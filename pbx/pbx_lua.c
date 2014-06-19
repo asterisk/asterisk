@@ -1636,6 +1636,9 @@ static int load_or_reload_lua_stuff(void)
 		res = AST_MODULE_LOAD_DECLINE;
 	}
 
+	if (!res) {
+		ast_log(LOG_NOTICE, "Lua PBX Switch loaded.\n");
+	}
 	lua_close(L);
 	return res;
 }
@@ -1645,6 +1648,7 @@ static int unload_module(void)
 	ast_context_destroy(NULL, registrar);
 	ast_unregister_switch(&lua_switch);
 	lua_free_extensions();
+	ast_log(LOG_NOTICE, "Lua PBX Switch unloaded.\n");
 	return 0;
 }
 
@@ -1668,7 +1672,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Lua PBX Switch",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Lua PBX Switch",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
