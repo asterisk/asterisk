@@ -263,6 +263,16 @@ static inline char *ast_sockaddr_stringify_addr(const struct ast_sockaddr *addr)
 }
 
 /*!
+ * \since 12.4
+ *
+ * \brief
+ * Count the 1 bits in a netmask
+ *
+ * \return number of 1 bits
+ */
+int ast_sockaddr_cidr_bits(const struct ast_sockaddr *sa);
+
+/*!
  * \since 1.8
  *
  * \brief

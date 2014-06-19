@@ -372,7 +372,7 @@ static int cli_print_body(void *obj, void *arg, int flags)
 
 	ast_str_append(&context->output_buffer, 0, "%*s:  ",
 		CLI_INDENT_TO_SPACES(context->indent_level), "Identify");
-	ast_ha_join(ident->matches, &str);
+	ast_ha_join_cidr(ident->matches, &str);
 	ast_str_append(&context->output_buffer, 0, "%s\n", ast_str_buffer(str));
 
 	return 0;
