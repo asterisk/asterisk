@@ -2489,8 +2489,8 @@ AST_TEST_DEFINE(parse_via_test)
 
 		if (testdataptr->expected_port && testdataptr->expected_port != via->port) {
 			ast_test_status_update(test, "TEST#%d FAILED: VIA = \"%s\"\n"
-				"parsed port = \"%d\"\n"
-				"expected = \"%d\"\n"
+				"parsed port = \"%u\"\n"
+				"expected = \"%u\"\n"
 				"failed to parse port\n",
 			i, testdataptr->in, via->port, testdataptr->expected_port);
 			res = AST_TEST_FAIL;
