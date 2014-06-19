@@ -129,6 +129,40 @@ char *ast_sockaddr_stringify_fmt(const struct ast_sockaddr *sa, int format)
 	return ast_str_buffer(str);
 }
 
+int ast_sockaddr_cidr_bits(const struct ast_sockaddr *sa)
+{
+	struct ast_sockaddr sa_ipv4;
+	const struct ast_sockaddr *sa_tmp;
+	int bits = 0;
+	int bytes;
+	int i;
+	int j;
+	char *addr;
+
+	if (ast_sockaddr_isnull(sa)) {
+		return 0;
+	}
+
+	if (ast_sockaddr_ipv4_mapped(sa, &sa_ipv4)) {
+		sa_tmp = &sa_ipv4;
+	} else {
+		sa_tmp = sa;
+	}
+
+	bytes = sa_tmp->len;
+	addr = ((struct sockaddr *)&sa_tmp->ss)->sa_data;
+
+	for (i = 0; i < bytes ; ++i) {
+		for (j = 0; j < 8; ++j) {
+			if ((addr[i] >> j) & 1) {
+				bits++;
+			}
+		}
+	}
+
+	return bits;
+}
+
 int ast_sockaddr_split_hostport(char *str, char **host, char **port, int flags)
 {
 	char *s = str;

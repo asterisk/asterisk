@@ -142,6 +142,13 @@ struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha
 void ast_ha_join(const struct ast_ha *ha, struct ast_str **buf);
 
 /*!
+ * \brief Convert HAs to a comma separated string value using CIDR notation
+ * \param ha the starting ha head
+ * \param buf string buffer to convert data to
+ */
+void ast_ha_join_cidr(const struct ast_ha *ha, struct ast_str **buf);
+
+/*!
  * \brief Add a rule to an ACL struct
  *
  * \details

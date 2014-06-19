@@ -677,6 +677,19 @@ void ast_ha_join(const struct ast_ha *ha, struct ast_str **buf)
 	}
 }
 
+void ast_ha_join_cidr(const struct ast_ha *ha, struct ast_str **buf)
+{
+	for (; ha; ha = ha->next) {
+		const char *addr = ast_sockaddr_stringify_addr(&ha->addr);
+		ast_str_append(buf, 0, "%s%s/%d",
+			       ha->sense == AST_SENSE_ALLOW ? "!" : "",
+			       addr, ast_sockaddr_cidr_bits(&ha->netmask));
+		if (ha->next) {
+			ast_str_append(buf, 0, ",");
+		}
+	}
+}
+
 enum ast_acl_sense ast_apply_acl(struct ast_acl_list *acl_list, const struct ast_sockaddr *addr, const char *purpose)
 {
 	struct ast_acl *acl;
