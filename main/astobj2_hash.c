@@ -51,12 +51,12 @@ struct hash_bucket_node {
 struct hash_bucket {
 	/*! List of objects held in the bucket. */
 	AST_DLLIST_HEAD_NOLOCK(, hash_bucket_node) list;
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	/*! Number of elements currently in the bucket. */
 	int elements;
 	/*! Maximum number of elements in the bucket. */
 	int max_elements;
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 };
 
 /*!
@@ -188,18 +188,12 @@ static void hash_ao2_node_destructor(void *v_doomed)
 		my_container = (struct ao2_container_hash *) doomed->common.my_container;
 		__adjust_lock(my_container, AO2_LOCK_REQ_WRLOCK, 1);
 
-#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
-		/*
-		 * XXX chan_iax2 plays games with the hash function so we cannot
-		 * routinely do an integrity check on this type of container.
-		 * chan_iax2 should be changed to not abuse the hash function.
-		 */
+#if defined(AO2_DEBUG)
 		if (!my_container->common.destroying
-			&& my_container->common.sort_fn
 			&& ao2_container_check(doomed->common.my_container, OBJ_NOLOCK)) {
 			ast_log(LOG_ERROR, "Container integrity failed before node deletion.\n");
 		}
-#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 		bucket = &my_container->buckets[doomed->my_bucket];
 		AST_DLLIST_REMOVE(&bucket->list, doomed, links);
 		AO2_DEVMODE_STAT(--my_container->common.nodes);
@@ -210,8 +204,7 @@ static void hash_ao2_node_destructor(void *v_doomed)
 	 * destroyed or the node had not been linked in yet.
 	 */
 	if (doomed->common.obj) {
-		ao2_t_ref(doomed->common.obj, -1, "Container node destruction");
-		doomed->common.obj = NULL;
+		__container_unlink_node(&doomed->common, AO2_UNLINK_NODE_UNLINK_OBJECT);
 	}
 }
 
@@ -265,7 +258,8 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
  *
  * \return enum ao2_container_insert value.
  */
-static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash *self, struct hash_bucket_node *node)
+static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash *self,
+	struct hash_bucket_node *node)
 {
 	int cmp;
 	struct hash_bucket *bucket;
@@ -303,6 +297,7 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
 					break;
 				case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 					SWAP(cur->common.obj, node->common.obj);
+					ao2_t_ref(node, -1, "Discard the new node.");
 					return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 				}
 			}
@@ -335,6 +330,7 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
 					break;
 				case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 					SWAP(cur->common.obj, node->common.obj);
+					ao2_t_ref(node, -1, "Discard the new node.");
 					return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 				}
 			}
@@ -708,7 +704,7 @@ static struct hash_bucket_node *hash_ao2_iterator_next(struct ao2_container_hash
 	return NULL;
 }
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Increment the hash container linked object statistic.
@@ -719,7 +715,7 @@ static struct hash_bucket_node *hash_ao2_iterator_next(struct ao2_container_hash
  *
  * \return Nothing
  */
-void hash_ao2_link_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node)
+static void hash_ao2_link_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node)
 {
 	struct ao2_container_hash *self = (struct ao2_container_hash *) hash;
 	struct hash_bucket_node *node = (struct hash_bucket_node *) hash_node;
@@ -730,9 +726,9 @@ void hash_ao2_link_node_stat(struct ao2_container *hash, struct ao2_container_no
 		self->buckets[i].max_elements = self->buckets[i].elements;
 	}
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Decrement the hash container linked object statistic.
@@ -743,14 +739,14 @@ void hash_ao2_link_node_stat(struct ao2_container *hash, struct ao2_container_no
  *
  * \return Nothing
  */
-void hash_ao2_unlink_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node)
+static void hash_ao2_unlink_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node)
 {
 	struct ao2_container_hash *self = (struct ao2_container_hash *) hash;
 	struct hash_bucket_node *node = (struct hash_bucket_node *) hash_node;
 
 	--self->buckets[node->my_bucket].elements;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
 /*!
  * \internal
@@ -776,7 +772,7 @@ static void hash_ao2_destroy(struct ao2_container_hash *self)
 	}
 }
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Display contents of the specified container.
@@ -828,9 +824,9 @@ static void hash_ao2_dump(struct ao2_container_hash *self, void *where, ao2_prnt
 #undef FORMAT
 #undef FORMAT2
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Display statistics of the specified container.
@@ -869,9 +865,9 @@ static void hash_ao2_stats(struct ao2_container_hash *self, void *where, ao2_prn
 #undef FORMAT
 #undef FORMAT2
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Perform an integrity check on the specified container.
@@ -1034,11 +1030,10 @@ static int hash_ao2_integrity(struct ao2_container_hash *self)
 
 	return 0;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
 /*! Hash container virtual method table. */
 static const struct ao2_container_methods v_table_hash = {
-	.type = AO2_CONTAINER_RTTI_HASH,
 	.alloc_empty_clone = (ao2_container_alloc_empty_clone_fn) hash_ao2_alloc_empty_clone,
 	.alloc_empty_clone_debug =
 		(ao2_container_alloc_empty_clone_debug_fn) hash_ao2_alloc_empty_clone_debug,
@@ -1048,11 +1043,13 @@ static const struct ao2_container_methods v_table_hash = {
 	.traverse_next = (ao2_container_find_next_fn) hash_ao2_find_next,
 	.iterator_next = (ao2_iterator_next_fn) hash_ao2_iterator_next,
 	.destroy = (ao2_container_destroy_fn) hash_ao2_destroy,
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
+	.link_stat = hash_ao2_link_node_stat,
+	.unlink_stat = hash_ao2_unlink_node_stat,
 	.dump = (ao2_container_display) hash_ao2_dump,
 	.stats = (ao2_container_statistics) hash_ao2_stats,
 	.integrity = (ao2_container_integrity) hash_ao2_integrity,
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 };
 
 /*!
@@ -1098,7 +1095,7 @@ static struct ao2_container *hash_ao2_container_init(
 
 #ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_containers, 1);
-#endif
+#endif	/* defined(AO2_DEBUG) */
 
 	return (struct ao2_container *) self;
 }

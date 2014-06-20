@@ -1927,7 +1927,10 @@ AST_TEST_DEFINE(astobj2_test_4)
 static enum ast_test_result_state test_performance(struct ast_test *test,
 	enum test_container_type type, unsigned int copt)
 {
-#define OBJS 256
+/*!
+ * \brief The number of objects inserted and searched for in the container under test.
+ */
+#define OBJS 73
 	int res = AST_TEST_PASS;
 	struct ao2_container *c1 = NULL;
 	struct test_obj *tobj[OBJS];
@@ -1989,47 +1992,58 @@ test_cleanup:
 }
 
 static enum ast_test_result_state testloop(struct ast_test *test,
-	enum test_container_type type, int copt)
+	enum test_container_type type, int copt, int iterations)
 {
-#define ITERATIONS 2500
 	int res = AST_TEST_PASS;
 	int i;
 	struct timeval start;
 
 	start = ast_tvnow();
-	for (i = 1 ; i <= ITERATIONS && res == AST_TEST_PASS ; i++) {
+	for (i = 1 ; i <= iterations && res == AST_TEST_PASS ; i++) {
 		res = test_performance(test, type, copt);
 	}
-	ast_test_status_update(test, "%dK traversals, %9s : %5lu ms\n",
-		ITERATIONS / 1000, test_container2str(type), (unsigned long)ast_tvdiff_ms(ast_tvnow(), start));
+	ast_test_status_update(test, "%5.2fK traversals, %9s : %5lu ms\n",
+		iterations / 1000.0, test_container2str(type), (unsigned long)ast_tvdiff_ms(ast_tvnow(), start));
 	return res;
 }
 
 AST_TEST_DEFINE(astobj2_test_perf)
 {
+/*!
+ * \brief The number of iteration of testloop to be performed.
+ * \note
+ * In order to keep the elapsed time sane, if AO2_DEBUG is defined in menuselect,
+ * only 25000 iterations are performed.   Otherwise 100000.
+ */
+#ifdef AO2_DEBUG
+#define ITERATIONS 25000
+#else
+#define ITERATIONS 100000
+#endif
+
 	int res = AST_TEST_PASS;
 
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "astobj2_test_perf";
-		info->category = "/main/astobj2/";
+		info->category = "/main/astobj2/perf";
 		info->summary = "Test container performance";
 		info->description =
-			"Runs 100000 container traversal tests.";
+			"Runs container traversal tests.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
 	}
 
-	res = testloop(test, TEST_CONTAINER_LIST, 0);
+	res = testloop(test, TEST_CONTAINER_LIST, 0, ITERATIONS);
 	if (!res) {
 		return res;
 	}
-	res = testloop(test, TEST_CONTAINER_HASH, 0);
+	res = testloop(test, TEST_CONTAINER_HASH, 0, ITERATIONS);
 	if (!res) {
 		return res;
 	}
-	res = testloop(test, TEST_CONTAINER_RBTREE, 0);
+	res = testloop(test, TEST_CONTAINER_RBTREE, 0, ITERATIONS);
 
 	return res;
 }
