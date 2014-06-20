@@ -88,6 +88,9 @@ void ast_log_backtrace(void);
 /*! \brief Reload logger without rotating log files */
 int logger_reload(void);
 
+/*! \brief Reload logger while rotating log files */
+int ast_logger_rotate(void);
+
 void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...);
 
 /*!

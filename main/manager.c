@@ -802,6 +802,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>List currently defined channels and some information about them.</para>
 		</description>
 	</manager>
+	<manager name="LoggerRotate" language="en_US">
+		<synopsis>
+			Reload and rotate the Asterisk logger.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Reload and rotate the logger. Analogous to the CLI command 'logger rotate'.</para>
+		</description>
+	</manager>
 	<manager name="ModuleLoad" language="en_US">
 		<synopsis>
 			Module management.
@@ -5444,6 +5455,19 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	return 0;
 }
 
+/*! \brief  Manager command "LoggerRotate" - reloads and rotates the logger in
+ *          the same manner as the CLI command 'logger rotate'. */
+static int action_loggerrotate(struct mansession *s, const struct message *m)
+{
+	if (ast_logger_rotate()) {
+		astman_send_error(s, m, "Failed to reload the logger and rotate log files");
+		return 0;
+	}
+
+	astman_send_ack(s, m, "Reloaded the logger and rotated log files");
+	return 0;
+}
+
 /*! \brief Manager function to check if module is loaded */
 static int manager_modulecheck(struct mansession *s, const struct message *m)
 {
@@ -7930,6 +7954,7 @@ static void manager_shutdown(void)
 	ast_manager_unregister("CoreSettings");
 	ast_manager_unregister("CoreStatus");
 	ast_manager_unregister("Reload");
+	ast_manager_unregister("LoggerRotate");
 	ast_manager_unregister("CoreShowChannels");
 	ast_manager_unregister("ModuleLoad");
 	ast_manager_unregister("ModuleCheck");
@@ -8126,6 +8151,7 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("CoreSettings", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coresettings);
 		ast_manager_register_xml_core("CoreStatus", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_corestatus);
 		ast_manager_register_xml_core("Reload", EVENT_FLAG_CONFIG | EVENT_FLAG_SYSTEM, action_reload);
+		ast_manager_register_xml_core("LoggerRotate", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_loggerrotate);
 		ast_manager_register_xml_core("CoreShowChannels", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, action_coreshowchannels);
 		ast_manager_register_xml_core("ModuleLoad", EVENT_FLAG_SYSTEM, manager_moduleload);
 		ast_manager_register_xml_core("ModuleCheck", EVENT_FLAG_SYSTEM, manager_modulecheck);

@@ -928,6 +928,11 @@ static char *handle_logger_rotate(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+int ast_logger_rotate()
+{
+	return reload_logger(1, NULL);
+}
+
 static char *handle_logger_set_level(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int x;

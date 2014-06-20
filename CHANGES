@@ -20,6 +20,9 @@ AMI
    res_manager_presence_state.so. If the high frequency of these events is
    problematic for you, do not load these modules.
 
+ * New AMI action LoggerRotate reloads and rotates logger in the same manner
+   as CLI command 'logger rotate'
+
 chan_dahdi
 ------------------
  * SS7 support now requires libss7 v2.0 or later.
