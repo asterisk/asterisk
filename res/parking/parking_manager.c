@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features.h"
 #include "asterisk/manager.h"
 #include "asterisk/bridge.h"
+#include "asterisk/module.h"
 
 /*** DOCUMENTATION
 	<manager name="Parkinglots" language="en_US">
@@ -665,10 +666,11 @@ static void parking_manager_enable_stasis(void)
 int load_parking_manager(void)
 {
 	int res;
+	const struct ast_module_info *module = parking_get_module_info();
 
-	res = ast_manager_register_xml_core("Parkinglots", EVENT_FLAG_CALL, manager_parking_lot_list);
-	res |= ast_manager_register_xml_core("ParkedCalls", EVENT_FLAG_CALL, manager_parking_status);
-	res |= ast_manager_register_xml_core("Park", EVENT_FLAG_CALL, manager_park);
+	res = ast_manager_register2("Parkinglots", EVENT_FLAG_CALL, manager_parking_lot_list, module->self, NULL, NULL);
+	res |= ast_manager_register2("ParkedCalls", EVENT_FLAG_CALL, manager_parking_status, module->self, NULL, NULL);
+	res |= ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park, module->self, NULL, NULL);
 	parking_manager_enable_stasis();
 	return res ? -1 : 0;
 }
