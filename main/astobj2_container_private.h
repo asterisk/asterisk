@@ -26,6 +26,22 @@
 
 #include "asterisk/astobj2.h"
 
+/*!
+ * \internal
+ * \brief Enum for internal_ao2_unlink_node.
+ */
+enum ao2_unlink_node_flags {
+	/*! Remove the node from the object's weak link list
+	 * OR unref the object if it's a strong reference. */
+	AO2_UNLINK_NODE_UNLINK_OBJECT = (1 << 0),
+	/*! Modified unlink_object to skip the unref of the object. */
+	AO2_UNLINK_NODE_NOUNREF_OBJECT = (1 << 1),
+	/*! Unref the node. */
+	AO2_UNLINK_NODE_UNREF_NODE = (1 << 2),
+	/*! Decrement the container's element count. */
+	AO2_UNLINK_NODE_DEC_COUNT = (1 << 3),
+};
+
 enum ao2_callback_type {
 	AO2_CALLBACK_DEFAULT,
 	AO2_CALLBACK_WITH_DATA,
@@ -38,13 +54,6 @@ enum ao2_container_insert {
 	AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED,
 	/*! The node was rejected (duplicate). */
 	AO2_CONTAINER_INSERT_NODE_REJECTED,
-};
-
-enum ao2_container_rtti {
-	/*! This is a hash container */
-	AO2_CONTAINER_RTTI_HASH,
-	/*! This is a red-black tree container */
-	AO2_CONTAINER_RTTI_RBTREE,
 };
 
 /*! Allow enough room for container specific traversal state structs */
@@ -211,10 +220,32 @@ typedef void (*ao2_container_statistics)(struct ao2_container *self, void *where
  */
 typedef int (*ao2_container_integrity)(struct ao2_container *self);
 
+/*!
+ * \internal
+ * \brief Increment the container linked object statistic.
+ * \since 12.4.0
+ *
+ * \param container Container to operate upon.
+ * \param node Container node linking object to.
+ *
+ * \return Nothing
+ */
+typedef void (*ao2_link_node_stat_fn)(struct ao2_container *container, struct ao2_container_node *node);
+
+/*!
+ * \internal
+ * \brief Decrement the container linked object statistic.
+ * \since 12.4.0
+ *
+ * \param container Container to operate upon.
+ * \param node Container node unlinking object from.
+ *
+ * \return Nothing
+ */
+typedef void (*ao2_unlink_node_stat_fn)(struct ao2_container *container, struct ao2_container_node *node);
+
 /*! Container virtual methods template. */
 struct ao2_container_methods {
-	/*! Run Time Type Identification */
-	enum ao2_container_rtti type;
 	/*! Destroy this container. */
 	ao2_container_destroy_fn destroy;
 	/*! \brief Create an empty copy of this container. */
@@ -233,14 +264,18 @@ struct ao2_container_methods {
 	ao2_container_find_cleanup_fn traverse_cleanup;
 	/*! Find the next iteration element in the container. */
 	ao2_iterator_next_fn iterator_next;
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
+	/*! Increment the container linked object statistic. */
+	ao2_link_node_stat_fn link_stat;
+	/*! Deccrement the container linked object statistic. */
+	ao2_unlink_node_stat_fn unlink_stat;
 	/*! Display container contents. (Method for debug purposes) */
 	ao2_container_display dump;
 	/*! Display container debug statistics. (Method for debug purposes) */
 	ao2_container_statistics stats;
 	/*! Perform an integrity check on the container. (Method for debug purposes) */
 	ao2_container_integrity integrity;
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 };
 
 /*!
@@ -268,12 +303,12 @@ struct ao2_container {
 	uint32_t options;
 	/*! Number of elements in the container. */
 	int elements;
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	/*! Number of nodes in the container. */
 	int nodes;
 	/*! Maximum number of empty nodes in the container. (nodes - elements) */
 	int max_empty_nodes;
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 	/*!
 	 * \brief TRUE if the container is being destroyed.
 	 *
@@ -287,10 +322,21 @@ struct ao2_container {
 	unsigned int destroying:1;
 };
 
-#if defined(AST_DEVMODE)
-void hash_ao2_link_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node);
-void hash_ao2_unlink_node_stat(struct ao2_container *hash, struct ao2_container_node *hash_node);
-#endif	/* defined(AST_DEVMODE) */
+/*!
+ * \internal
+ * \brief Unlink a node from this container.
+ *
+ * \param node Node to operate upon.
+ * \param flags ao2_unlink_node_flags governing behavior.
+ *
+ * \retval 0 on errors.
+ * \retval 1 on success.
+ */
+int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flags,
+	const char *tag, const char *file, int line, const char *func);
+
+#define __container_unlink_node(node, flags) \
+	__container_unlink_node_debug(node, flags, NULL, NULL, 0, NULL)
 
 void container_destruct(void *_c);
 void container_destruct_debug(void *_c);

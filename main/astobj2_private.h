@@ -26,16 +26,11 @@
 
 #include "asterisk/astobj2.h"
 
-#if defined(TEST_FRAMEWORK)
-/* We are building with the test framework enabled so enable AO2 debug tests as well. */
-#define AO2_DEBUG 1
-#endif	/* defined(TEST_FRAMEWORK) */
-
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 #define AO2_DEVMODE_STAT(stat)	stat
 #else
 #define AO2_DEVMODE_STAT(stat)
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
 #ifdef AO2_DEBUG
 struct ao2_stats {
@@ -46,7 +41,7 @@ struct ao2_stats {
 	volatile int total_locked;
 };
 extern struct ao2_stats ao2;
-#endif
+#endif	/* defined(AO2_DEBUG) */
 
 int is_ao2_object(void *user_data);
 enum ao2_lock_req __adjust_lock(void *user_data, enum ao2_lock_req lock_how, int keep_stronger);

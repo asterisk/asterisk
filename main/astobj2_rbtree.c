@@ -79,7 +79,7 @@ struct ao2_container_rbtree {
 	struct ao2_container common;
 	/*! Root node of the tree.  NULL if the tree is empty. */
 	struct rbtree_node *root;
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	struct {
 		/*! Fixup insert left cases 1-3 */
 		int fixup_insert_left[3];
@@ -92,7 +92,7 @@ struct ao2_container_rbtree {
 		/*! Deletion of node with number of children (0-2). */
 		int delete_children[3];
 	} stats;
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 };
 
 enum equal_node_bias {
@@ -880,19 +880,19 @@ static void rb_ao2_node_destructor(void *v_doomed)
 		my_container = (struct ao2_container_rbtree *) doomed->common.my_container;
 		__adjust_lock(my_container, AO2_LOCK_REQ_WRLOCK, 1);
 
-#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 		if (!my_container->common.destroying
 			&& ao2_container_check(doomed->common.my_container, OBJ_NOLOCK)) {
 			ast_log(LOG_ERROR, "Container integrity failed before node deletion.\n");
 		}
-#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 		rb_delete_node(my_container, doomed);
-#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 		if (!my_container->common.destroying
 			&& ao2_container_check(doomed->common.my_container, OBJ_NOLOCK)) {
 			ast_log(LOG_ERROR, "Container integrity failed after node deletion.\n");
 		}
-#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 	}
 
 	/*
@@ -900,8 +900,7 @@ static void rb_ao2_node_destructor(void *v_doomed)
 	 * destroyed or the node had not been linked in yet.
 	 */
 	if (doomed->common.obj) {
-		ao2_t_ref(doomed->common.obj, -1, "Container node destruction");
-		doomed->common.obj = NULL;
+		__container_unlink_node(&doomed->common, AO2_UNLINK_NODE_UNLINK_OBJECT);
 	}
 }
 
@@ -1266,6 +1265,7 @@ static enum ao2_container_insert rb_ao2_insert_node(struct ao2_container_rbtree 
 		break;
 	case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 		SWAP(cur->common.obj, node->common.obj);
+		ao2_t_ref(node, -1, "Don't need the new node.");
 		return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 	}
 
@@ -1707,7 +1707,7 @@ static void rb_ao2_destroy(struct ao2_container_rbtree *self)
 	}
 }
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Display contents of the specified container.
@@ -1745,9 +1745,9 @@ static void rb_ao2_dump(struct ao2_container_rbtree *self, void *where, ao2_prnt
 #undef FORMAT
 #undef FORMAT2
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Display statistics of the specified container.
@@ -1787,9 +1787,9 @@ static void rb_ao2_stats(struct ao2_container_rbtree *self, void *where, ao2_prn
 			self->stats.fixup_delete_right[idx]);
 	}
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Check the black height of the given node.
@@ -1831,9 +1831,9 @@ static int rb_check_black_height(struct rbtree_node *node)
 	return height_left;
 }
 
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*!
  * \internal
  * \brief Perform an integrity check on the specified container.
@@ -2011,11 +2011,10 @@ static int rb_ao2_integrity(struct ao2_container_rbtree *self)
 
 	return res;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
 /*! rbtree container virtual method table. */
 static const struct ao2_container_methods v_table_rbtree = {
-	.type = AO2_CONTAINER_RTTI_RBTREE,
 	.alloc_empty_clone = (ao2_container_alloc_empty_clone_fn) rb_ao2_alloc_empty_clone,
 	.alloc_empty_clone_debug =
 		(ao2_container_alloc_empty_clone_debug_fn) rb_ao2_alloc_empty_clone_debug,
@@ -2025,11 +2024,11 @@ static const struct ao2_container_methods v_table_rbtree = {
 	.traverse_next = (ao2_container_find_next_fn) rb_ao2_find_next,
 	.iterator_next = (ao2_iterator_next_fn) rb_ao2_iterator_next,
 	.destroy = (ao2_container_destroy_fn) rb_ao2_destroy,
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	.dump = (ao2_container_display) rb_ao2_dump,
 	.stats = (ao2_container_statistics) rb_ao2_stats,
 	.integrity = (ao2_container_integrity) rb_ao2_integrity,
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 };
 
 /*!
@@ -2056,7 +2055,7 @@ static struct ao2_container *rb_ao2_container_init(struct ao2_container_rbtree *
 
 #ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_containers, 1);
-#endif
+#endif	/* defined(AO2_DEBUG) */
 
 	return (struct ao2_container *) self;
 }

@@ -38,6 +38,49 @@ int ao2_container_count(struct ao2_container *c)
 	return ast_atomic_fetchadd_int(&c->elements, 0);
 }
 
+int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flags,
+	const char *tag, const char *file, int line, const char *func)
+{
+	struct ao2_container *container = node->my_container;
+
+	if (container == NULL && (flags & AO2_UNLINK_NODE_DEC_COUNT)) {
+		return 0;
+	}
+
+	if ((flags & AO2_UNLINK_NODE_UNLINK_OBJECT)
+		&& !(flags & AO2_UNLINK_NODE_NOUNREF_OBJECT)) {
+		if (tag) {
+			__ao2_ref_debug(node->obj, -1, tag, file, line, func);
+		} else {
+			ao2_t_ref(node->obj, -1, "Remove obj from container");
+		}
+	}
+
+	node->obj = NULL;
+
+	if (flags & AO2_UNLINK_NODE_DEC_COUNT) {
+		ast_atomic_fetchadd_int(&container->elements, -1);
+#if defined(AO2_DEBUG)
+		{
+			int empty = container->nodes - container->elements;
+
+			if (container->max_empty_nodes < empty) {
+				container->max_empty_nodes = empty;
+			}
+			if (container->v_table->unlink_stat) {
+				container->v_table->unlink_stat(container, node);
+			}
+		}
+#endif	/* defined(AO2_DEBUG) */
+	}
+
+	if (flags & AO2_UNLINK_NODE_UNREF_NODE) {
+		ao2_t_ref(node, -1, "Remove node from container");
+	}
+
+	return 1;
+}
+
 /*!
  * \internal
  * \brief Link an object into this container.  (internal)
@@ -76,71 +119,36 @@ static int internal_ao2_link(struct ao2_container *self, void *obj_new, int flag
 	res = 0;
 	node = self->v_table->new_node(self, obj_new, tag, file, line, func);
 	if (node) {
-#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
-		switch (self->v_table->type) {
-		case AO2_CONTAINER_RTTI_HASH:
-			if (!self->sort_fn) {
-				/*
-				 * XXX chan_iax2 plays games with the hash function so we cannot
-				 * routinely do an integrity check on this type of container.
-				 * chan_iax2 should be changed to not abuse the hash function.
-				 */
-				break;
-			}
-			/* Fall through. */
-		case AO2_CONTAINER_RTTI_RBTREE:
-			if (ao2_container_check(self, OBJ_NOLOCK)) {
-				ast_log(LOG_ERROR, "Container integrity failed before insert.\n");
-			}
-			break;
+#if defined(AO2_DEBUG)
+		if (ao2_container_check(self, OBJ_NOLOCK)) {
+			ast_log(LOG_ERROR, "Container integrity failed before insert.\n");
 		}
-#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
+
 		/* Insert the new node. */
 		switch (self->v_table->insert(self, node)) {
 		case AO2_CONTAINER_INSERT_NODE_INSERTED:
 			node->is_linked = 1;
 			ast_atomic_fetchadd_int(&self->elements, 1);
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 			AO2_DEVMODE_STAT(++self->nodes);
-			switch (self->v_table->type) {
-			case AO2_CONTAINER_RTTI_HASH:
-				hash_ao2_link_node_stat(self, node);
-				break;
-			case AO2_CONTAINER_RTTI_RBTREE:
-				break;
+			if (self->v_table->link_stat) {
+				self->v_table->link_stat(self, node);
 			}
-#endif	/* defined(AST_DEVMODE) */
-
+#endif	/* defined(AO2_DEBUG) */
+			/* Fall through */
+		case AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED:
+#if defined(AO2_DEBUG)
+			if (ao2_container_check(self, OBJ_NOLOCK)) {
+				ast_log(LOG_ERROR, "Container integrity failed after insert or replace.\n");
+			}
+#endif	/* defined(AO2_DEBUG) */
 			res = 1;
 			break;
-		case AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED:
-			res = 1;
-			/* Fall through */
 		case AO2_CONTAINER_INSERT_NODE_REJECTED:
 			__ao2_ref(node, -1);
 			break;
 		}
-#if defined(AO2_DEBUG) && defined(AST_DEVMODE)
-		if (res) {
-			switch (self->v_table->type) {
-			case AO2_CONTAINER_RTTI_HASH:
-				if (!self->sort_fn) {
-					/*
-					 * XXX chan_iax2 plays games with the hash function so we cannot
-					 * routinely do an integrity check on this type of container.
-					 * chan_iax2 should be changed to not abuse the hash function.
-					 */
-					break;
-				}
-				/* Fall through. */
-			case AO2_CONTAINER_RTTI_RBTREE:
-				if (ao2_container_check(self, OBJ_NOLOCK)) {
-					ast_log(LOG_ERROR, "Container integrity failed after insert.\n");
-				}
-				break;
-			}
-		}
-#endif	/* defined(AO2_DEBUG) && defined(AST_DEVMODE) */
 	}
 
 	if (flags & OBJ_NOLOCK) {
@@ -391,48 +399,11 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 			}
 
 			if (flags & OBJ_UNLINK) {
-				/* update number of elements */
-				ast_atomic_fetchadd_int(&self->elements, -1);
-#if defined(AST_DEVMODE)
-				{
-					int empty = self->nodes - self->elements;
-
-					if (self->max_empty_nodes < empty) {
-						self->max_empty_nodes = empty;
-					}
-				}
-				switch (self->v_table->type) {
-				case AO2_CONTAINER_RTTI_HASH:
-					hash_ao2_unlink_node_stat(self, node);
-					break;
-				case AO2_CONTAINER_RTTI_RBTREE:
-					break;
-				}
-#endif	/* defined(AST_DEVMODE) */
-
-				/*
-				 * - When unlinking and not returning the result, OBJ_NODATA is
-				 * set, the ref from the container must be decremented.
-				 *
-				 * - When unlinking with a multi_container the ref from the
-				 * original container must be decremented.  This is because the
-				 * result is returned in a new container that already holds its
-				 * own ref for the object.
-				 *
-				 * If the ref from the original container is not accounted for
-				 * here a memory leak occurs.
-				 */
+				int ulflag = AO2_UNLINK_NODE_UNREF_NODE | AO2_UNLINK_NODE_DEC_COUNT;
 				if (multi_container || (flags & OBJ_NODATA)) {
-					if (tag) {
-						__ao2_ref_debug(node->obj, -1, tag, file, line, func);
-					} else {
-						ao2_t_ref(node->obj, -1, "Unlink container obj reference.");
-					}
+					ulflag |= AO2_UNLINK_NODE_UNLINK_OBJECT;
 				}
-				node->obj = NULL;
-
-				/* Unref the node from the container. */
-				__ao2_ref(node, -1);
+				__container_unlink_node_debug(node, ulflag, tag, file, line, func);
 			}
 		}
 
@@ -630,27 +601,8 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *iter, const char *t
 		ret = node->obj;
 
 		if (iter->flags & AO2_ITERATOR_UNLINK) {
-			/* update number of elements */
-			ast_atomic_fetchadd_int(&iter->c->elements, -1);
-#if defined(AST_DEVMODE)
-			{
-				int empty = iter->c->nodes - iter->c->elements;
-
-				if (iter->c->max_empty_nodes < empty) {
-					iter->c->max_empty_nodes = empty;
-				}
-			}
-			switch (iter->c->v_table->type) {
-			case AO2_CONTAINER_RTTI_HASH:
-				hash_ao2_unlink_node_stat(iter->c, node);
-				break;
-			case AO2_CONTAINER_RTTI_RBTREE:
-				break;
-			}
-#endif	/* defined(AST_DEVMODE) */
-
 			/* Transfer the object ref from the container to the returned object. */
-			node->obj = NULL;
+			__container_unlink_node_debug(node, AO2_UNLINK_NODE_DEC_COUNT, tag, file, line, func);
 
 			/* Transfer the container's node ref to the iterator. */
 		} else {
@@ -713,7 +665,7 @@ void container_destruct(void *_c)
 		c->v_table->destroy(c);
 	}
 
-#ifdef AO2_DEBUG
+#if defined(AO2_DEBUG)
 	ast_atomic_fetchadd_int(&ao2.total_containers, -1);
 #endif
 }
@@ -732,7 +684,7 @@ void container_destruct_debug(void *_c)
 		c->v_table->destroy(c);
 	}
 
-#ifdef AO2_DEBUG
+#if defined(AO2_DEBUG)
 	ast_atomic_fetchadd_int(&ao2.total_containers, -1);
 #endif
 }
@@ -863,11 +815,11 @@ void ao2_container_dump(struct ao2_container *self, enum search_flags flags, con
 	if (name) {
 		prnt(where, "Container name: %s\n", name);
 	}
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	if (self->v_table->dump) {
 		self->v_table->dump(self, where, prnt, prnt_obj);
 	} else
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 	{
 		prnt(where, "Container dump not available.\n");
 	}
@@ -891,7 +843,7 @@ void ao2_container_stats(struct ao2_container *self, enum search_flags flags, co
 		prnt(where, "Container name: %s\n", name);
 	}
 	prnt(where, "Number of objects: %d\n", self->elements);
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	prnt(where, "Number of nodes: %d\n", self->nodes);
 	prnt(where, "Number of empty nodes: %d\n", self->nodes - self->elements);
 	/*
@@ -907,7 +859,7 @@ void ao2_container_stats(struct ao2_container *self, enum search_flags flags, co
 	if (self->v_table->stats) {
 		self->v_table->stats(self, where, prnt);
 	}
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 	if (!(flags & OBJ_NOLOCK)) {
 		ao2_unlock(self);
 	}
@@ -922,7 +874,7 @@ int ao2_container_check(struct ao2_container *self, enum search_flags flags)
 		ast_assert(0);
 		return -1;
 	}
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	if (!self->v_table->integrity) {
 		/* No ingetrigy check available.  Assume container is ok. */
 		return 0;
@@ -935,11 +887,11 @@ int ao2_container_check(struct ao2_container *self, enum search_flags flags)
 	if (!(flags & OBJ_NOLOCK)) {
 		ao2_unlock(self);
 	}
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 	return res;
 }
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 static struct ao2_container *reg_containers;
 
 struct ao2_reg_container {
@@ -964,9 +916,9 @@ struct ao2_reg_match {
 	/*! Count of the matches already found. */
 	int count;
 };
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 static int ao2_reg_sort_cb(const void *obj_left, const void *obj_right, int flags)
 {
 	const struct ao2_reg_container *reg_left = obj_left;
@@ -1002,9 +954,9 @@ static int ao2_reg_sort_cb(const void *obj_left, const void *obj_right, int flag
 	}
 	return cmp;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 static void ao2_reg_destructor(void *v_doomed)
 {
 	struct ao2_reg_container *doomed = v_doomed;
@@ -1013,12 +965,12 @@ static void ao2_reg_destructor(void *v_doomed)
 		ao2_t_ref(doomed->registered, -1, "Releasing registered container.");
 	}
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
 int ao2_container_register(const char *name, struct ao2_container *self, ao2_prnt_obj_fn *prnt_obj)
 {
 	int res = 0;
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	struct ao2_reg_container *reg;
 
 	reg = ao2_t_alloc_options(sizeof(*reg) + strlen(name), ao2_reg_destructor,
@@ -1038,19 +990,19 @@ int ao2_container_register(const char *name, struct ao2_container *self, ao2_prn
 	}
 
 	ao2_t_ref(reg, -1, "Done registering container.");
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 	return res;
 }
 
 void ao2_container_unregister(const char *name)
 {
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	ao2_t_find(reg_containers, name, OBJ_UNLINK | OBJ_NODATA | OBJ_SEARCH_KEY,
 		"Unregister container");
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 }
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 static int ao2_complete_reg_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ao2_reg_match *which = data;
@@ -1058,9 +1010,9 @@ static int ao2_complete_reg_cb(void *obj, void *arg, void *data, int flags)
 	/* ao2_reg_sort_cb() has already filtered the search to matching keys */
 	return (which->find_nth < ++which->count) ? (CMP_MATCH | CMP_STOP) : 0;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 static char *complete_container_names(struct ast_cli_args *a)
 {
 	struct ao2_reg_partial_key partial_key;
@@ -1086,9 +1038,9 @@ static char *complete_container_names(struct ast_cli_args *a)
 	}
 	return name;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 AST_THREADSTORAGE(ao2_out_buf);
 
 /*!
@@ -1120,9 +1072,9 @@ static void cli_output(void *where, const char *fmt, ...)
 		ast_cli(*(int *) where, "%s", ast_str_buffer(buf));
 	}
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*! \brief Show container contents - CLI command */
 static char *handle_cli_astobj2_container_dump(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -1156,9 +1108,9 @@ static char *handle_cli_astobj2_container_dump(struct ast_cli_entry *e, int cmd,
 
 	return CLI_SUCCESS;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*! \brief Show container statistics - CLI command */
 static char *handle_cli_astobj2_container_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -1191,9 +1143,9 @@ static char *handle_cli_astobj2_container_stats(struct ast_cli_entry *e, int cmd
 
 	return CLI_SUCCESS;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 /*! \brief Show container check results - CLI command */
 static char *handle_cli_astobj2_container_check(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -1227,17 +1179,17 @@ static char *handle_cli_astobj2_container_check(struct ast_cli_entry *e, int cmd
 
 	return CLI_SUCCESS;
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 static struct ast_cli_entry cli_astobj2[] = {
 	AST_CLI_DEFINE(handle_cli_astobj2_container_dump, "Show container contents"),
 	AST_CLI_DEFINE(handle_cli_astobj2_container_stats, "Show container statistics"),
 	AST_CLI_DEFINE(handle_cli_astobj2_container_check, "Perform a container integrity check"),
 };
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 static void container_cleanup(void)
 {
 	ao2_t_ref(reg_containers, -1, "Releasing container registration container");
@@ -1245,11 +1197,11 @@ static void container_cleanup(void)
 
 	ast_cli_unregister_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
 }
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
 int container_init(void)
 {
-#if defined(AST_DEVMODE)
+#if defined(AO2_DEBUG)
 	reg_containers = ao2_t_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, ao2_reg_sort_cb, NULL,
 		"Container registration container.");
@@ -1259,7 +1211,7 @@ int container_init(void)
 
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
 	ast_register_atexit(container_cleanup);
-#endif	/* defined(AST_DEVMODE) */
+#endif	/* defined(AO2_DEBUG) */
 
 	return 0;
 }
