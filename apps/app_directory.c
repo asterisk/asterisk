@@ -26,7 +26,6 @@
  */
 
 /*** MODULEINFO
-	<depend>app_voicemail</depend>
 	<support_level>core</support_level>
  ***/
 #include "asterisk.h"
@@ -290,7 +289,13 @@ static int play_mailbox_owner(struct ast_channel *chan, const char *context,
 	const char *ext, const char *name, struct ast_flags *flags)
 {
 	int res = 0;
-	if ((res = ast_app_sayname(chan, ext, context)) >= 0) {
+	char *mailbox_id;
+
+	mailbox_id = ast_alloca(strlen(ext) + strlen(context) + 2);
+	sprintf(mailbox_id, "%s@%s", ext, context); /* Safe */
+
+	res = ast_app_sayname(chan, mailbox_id);
+	if (res >= 0) {
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (ast_test_flag(flags, OPT_SAYEXTENSION)) {

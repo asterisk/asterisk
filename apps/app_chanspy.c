@@ -864,6 +864,15 @@ static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
 	return NULL;
 }
 
+static int spy_sayname(struct ast_channel *chan, const char *mailbox, const char *context)
+{
+	char *mailbox_id;
+
+	mailbox_id = ast_alloca(strlen(mailbox) + strlen(context) + 2);
+	sprintf(mailbox_id, "%s@%s", mailbox, context); /* Safe */
+	return ast_app_sayname(chan, mailbox_id);
+}
+
 static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 	int volfactor, const int fd, struct spy_dtmf_options *user_options,
 	const char *mygroup, const char *myenforced, const char *spec, const char *exten,
@@ -1078,8 +1087,9 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				if (ast_test_flag(flags, OPTION_NAME)) {
 					const char *local_context = S_OR(name_context, "default");
 					const char *local_mailbox = S_OR(mailbox, ptr);
+
 					if (local_mailbox) {
-						res = ast_app_sayname(chan, local_mailbox, local_context);
+						res = spy_sayname(chan, local_mailbox, local_context);
 					} else {
 						res = -1;
 					}

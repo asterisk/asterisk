@@ -392,17 +392,16 @@ typedef int (ast_inboxcount2_fn)(const char *mailboxes, int *urgentmsgs, int *ne
 typedef int (ast_messagecount_fn)(const char *mailbox_id, const char *folder);
 
 /*!
- * \brief Play a recorded user name for the mailbox.
+ * \brief Play a recorded user name for the mailbox to the specified channel.
  *
  * \param chan Where to play the recorded name file.
- * \param user The user part of user@context.
- * \param context The context part of user@context.  Must be explicit.
+ * \param mailbox_id The mailbox name.
  *
  * \retval 0 Name played without interruption
- * \retval dtmf ASCII value of the DTMF which interrupted playback
- * \retval -1 on failure
+ * \retval dtmf ASCII value of the DTMF which interrupted playback.
+ * \retval -1 Unable to locate mailbox or hangup occurred.
  */
-typedef int (ast_sayname_fn)(struct ast_channel *chan, const char *user, const char *context);
+typedef int (ast_sayname_fn)(struct ast_channel *chan, const char *mailbox_id);
 
 /*!
  * \brief Creates a voicemail based on a specified file to a mailbox.
@@ -534,7 +533,7 @@ typedef int (ast_vm_msg_forward_fn)(const char *from_mailbox, const char *from_c
 typedef int (ast_vm_msg_play_fn)(struct ast_channel *chan, const char *mailbox,
 	const char *context, const char *folder, const char *msg_num, ast_vm_msg_play_cb *cb);
 
-#define VM_MODULE_VERSION 1
+#define VM_MODULE_VERSION 2
 
 /*! \brief Voicemail function table definition. */
 struct ast_vm_functions {
@@ -554,7 +553,6 @@ struct ast_vm_functions {
 	ast_inboxcount_fn *inboxcount;
 	ast_inboxcount2_fn *inboxcount2;
 	ast_messagecount_fn *messagecount;
-	ast_sayname_fn *sayname;
 	ast_copy_recording_to_vm_fn *copy_recording_to_vm;
 	ast_vm_index_to_foldername_fn *index_to_foldername;
 	ast_vm_mailbox_snapshot_create_fn *mailbox_snapshot_create;
@@ -569,8 +567,8 @@ struct ast_vm_functions {
  * \brief Determine if a voicemail provider is registered.
  * \since 12.0.0
  *
- * \retval 0 if no privider registered.
- * \retval 1 if a privider is registered.
+ * \retval 0 if no provider registered.
+ * \retval 1 if a provider is registered.
  */
 int ast_vm_is_registered(void);
 
@@ -596,6 +594,59 @@ int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module
  * \return Nothing
  */
 void ast_vm_unregister(const char *module_name);
+
+#define VM_GREETER_MODULE_VERSION 1
+
+/*! \brief Voicemail greeter function table definition. */
+struct ast_vm_greeter_functions {
+	/*!
+	 * \brief The version of this function table.
+	 *
+	 * \note If the ABI for this table changes, the module version
+	 * (\ref VM_GREETER_MODULE_VERSION) should be incremented.
+	 */
+	unsigned int module_version;
+	/*! \brief The name of the module that provides the voicemail greeter functionality */
+	const char *module_name;
+	/*! \brief The module for the voicemail greeter provider */
+	struct ast_module *module;
+
+	ast_sayname_fn *sayname;
+};
+
+/*!
+ * \brief Determine if a voicemail greeter provider is registered.
+ * \since 13.0.0
+ *
+ * \retval 0 if no provider registered.
+ * \retval 1 if a provider is registered.
+ */
+int ast_vm_greeter_is_registered(void);
+
+/*!
+ * \brief Set voicemail greeter function callbacks
+ * \since 13.0.0
+ *
+ * \param vm_table Voicemail greeter function table to install.
+ * \param module Pointer to the module implementing the interface
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int __ast_vm_greeter_register(const struct ast_vm_greeter_functions *vm_table, struct ast_module *module);
+
+/*! \brief See \ref __ast_vm_greeter_register() */
+#define ast_vm_greeter_register(vm_table) __ast_vm_greeter_register(vm_table, ast_module_info ? ast_module_info->self : NULL)
+
+/*!
+ * \brief Unregister the specified voicemail greeter provider
+ * \since 13.0.0
+ *
+ * \param The module name of the provider to unregister
+ *
+ * \return Nothing
+ */
+void ast_vm_greeter_unregister(const char *module_name);
 
 #ifdef TEST_FRAMEWORK
 typedef int (ast_vm_test_create_user_fn)(const char *context, const char *user);
@@ -652,16 +703,16 @@ int ast_app_inboxcount(const char *mailboxes, int *newmsgs, int *oldmsgs);
 int ast_app_inboxcount2(const char *mailboxes, int *urgentmsgs, int *newmsgs, int *oldmsgs);
 
 /*!
- * \brief Given a mailbox and context, play that mailbox owner's name to the channel specified
- * \param[in] chan Channel on which to play the name
- * \param[in] mailbox Mailbox number from which to retrieve the recording
- * \param[in] context Mailbox context from which to locate the mailbox number
+ * \brief Play a recorded user name for the mailbox to the specified channel.
+ *
+ * \param chan Where to play the recorded name file.
+ * \param mailbox_id The mailbox name.
+ *
  * \retval 0 Name played without interruption
  * \retval dtmf ASCII value of the DTMF which interrupted playback.
  * \retval -1 Unable to locate mailbox or hangup occurred.
- * \since 1.6.1
  */
-int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context);
+int ast_app_sayname(struct ast_channel *chan, const char *mailbox_id);
 
 /*!
  * \brief Get the number of messages in a given mailbox folder

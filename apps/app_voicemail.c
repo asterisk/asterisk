@@ -13669,6 +13669,29 @@ static int sayname(struct ast_channel *chan, const char *mailbox, const char *co
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief Play a recorded user name for the mailbox to the specified channel.
+ *
+ * \param chan Where to play the recorded name file.
+ * \param mailbox_id The mailbox name.
+ *
+ * \retval 0 Name played without interruption
+ * \retval dtmf ASCII value of the DTMF which interrupted playback.
+ * \retval -1 Unable to locate mailbox or hangup occurred.
+ */
+static int vm_sayname(struct ast_channel *chan, const char *mailbox_id)
+{
+	char *context;
+	char *mailbox;
+
+	if (ast_strlen_zero(mailbox_id)
+		|| separate_mailbox(ast_strdupa(mailbox_id), &mailbox, &context)) {
+		return -1;
+	}
+	return sayname(chan, mailbox, context);
+}
+
 static void read_password_from_file(const char *secretfn, char *password, int passwordlen) {
 	struct ast_config *pwconf;
 	struct ast_flags config_flags = { 0 };
@@ -14286,7 +14309,6 @@ static const struct ast_vm_functions vm_table = {
 	.inboxcount = inboxcount,
 	.inboxcount2 = inboxcount2,
 	.messagecount = messagecount,
-	.sayname = sayname,
 	.copy_recording_to_vm = msg_create_from_file,
 	.index_to_foldername = vm_index_to_foldername,
 	.mailbox_snapshot_create = vm_mailbox_snapshot_create,
@@ -14295,6 +14317,13 @@ static const struct ast_vm_functions vm_table = {
 	.msg_remove = vm_msg_remove,
 	.msg_forward = vm_msg_forward,
 	.msg_play = vm_msg_play,
+};
+
+static const struct ast_vm_greeter_functions vm_greeter_table = {
+	.module_version = VM_GREETER_MODULE_VERSION,
+	.module_name = AST_MODULE,
+
+	.sayname = vm_sayname,
 };
 
 static int reload(void)
@@ -14327,6 +14356,7 @@ static int unload_module(void)
 #endif
 	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_vm_unregister(vm_table.module_name);
+	ast_vm_greeter_unregister(vm_greeter_table.module_name);
 #ifdef TEST_FRAMEWORK
 	ast_uninstall_vm_test_functions();
 #endif
@@ -14394,8 +14424,10 @@ static int load_module(void)
 #endif
 
 	res |= ast_vm_register(&vm_table);
-	if (res)
+	res |= ast_vm_greeter_register(&vm_greeter_table);
+	if (res) {
 		return res;
+	}
 
 	ast_cli_register_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
 	ast_data_register_multiple(vm_data_providers, ARRAY_LEN(vm_data_providers));

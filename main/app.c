@@ -519,6 +519,66 @@ void ast_vm_unregister(const char *module_name)
 	ao2_cleanup(table);
 }
 
+/*! \brief The container for the voicemail greeter provider */
+static AO2_GLOBAL_OBJ_STATIC(vm_greeter_provider);
+
+/*! Voicemail greeter not registered warning */
+static int vm_greeter_warnings;
+
+int ast_vm_greeter_is_registered(void)
+{
+	struct ast_vm_greeter_functions *table;
+	int is_registered;
+
+	table = ao2_global_obj_ref(vm_greeter_provider);
+	is_registered = table ? 1 : 0;
+	ao2_cleanup(table);
+	return is_registered;
+}
+
+int __ast_vm_greeter_register(const struct ast_vm_greeter_functions *vm_table, struct ast_module *module)
+{
+	RAII_VAR(struct ast_vm_greeter_functions *, table, NULL, ao2_cleanup);
+
+	if (!vm_table->module_name) {
+		ast_log(LOG_ERROR, "Voicemail greeter provider missing required information.\n");
+		return -1;
+	}
+	if (vm_table->module_version != VM_GREETER_MODULE_VERSION) {
+		ast_log(LOG_ERROR, "Voicemail greeter provider '%s' has incorrect version\n",
+			vm_table->module_name);
+		return -1;
+	}
+
+	table = ao2_global_obj_ref(vm_greeter_provider);
+	if (table) {
+		ast_log(LOG_WARNING, "Voicemail greeter provider already registered by %s.\n",
+			table->module_name);
+		return -1;
+	}
+
+	table = ao2_alloc_options(sizeof(*table), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!table) {
+		return -1;
+	}
+	*table = *vm_table;
+	table->module = module;
+
+	ao2_global_obj_replace_unref(vm_greeter_provider, table);
+	return 0;
+}
+
+void ast_vm_greeter_unregister(const char *module_name)
+{
+	struct ast_vm_greeter_functions *table;
+
+	table = ao2_global_obj_ref(vm_greeter_provider);
+	if (table && !strcmp(table->module_name, module_name)) {
+		ao2_global_obj_release(vm_greeter_provider);
+	}
+	ao2_cleanup(table);
+}
+
 #ifdef TEST_FRAMEWORK
 static ast_vm_test_create_user_fn *ast_vm_test_create_user_func = NULL;
 static ast_vm_test_destroy_user_fn *ast_vm_test_destroy_user_func = NULL;
@@ -546,9 +606,31 @@ static void vm_warn_no_provider(void)
 
 #define VM_API_CALL(res, api_call, api_parms)								\
 	do {																	\
-		struct ast_vm_functions *table = ao2_global_obj_ref(vm_provider);	\
+		struct ast_vm_functions *table;										\
+		table = ao2_global_obj_ref(vm_provider);							\
 		if (!table) {														\
 			vm_warn_no_provider();											\
+		} else if (table->api_call) {										\
+			ast_module_ref(table->module);									\
+			(res) = table->api_call api_parms;								\
+			ast_module_unref(table->module);								\
+		}																	\
+		ao2_cleanup(table);													\
+	} while (0)
+
+static void vm_greeter_warn_no_provider(void)
+{
+	if (vm_greeter_warnings++ % 10 == 0) {
+		ast_verb(3, "No voicemail greeter provider registered.\n");
+	}
+}
+
+#define VM_GREETER_API_CALL(res, api_call, api_parms)						\
+	do {																	\
+		struct ast_vm_greeter_functions *table;								\
+		table = ao2_global_obj_ref(vm_greeter_provider);					\
+		if (!table) {														\
+			vm_greeter_warn_no_provider();									\
 		} else if (table->api_call) {										\
 			ast_module_ref(table->module);									\
 			(res) = table->api_call api_parms;								\
@@ -612,11 +694,11 @@ int ast_app_inboxcount2(const char *mailboxes, int *urgentmsgs, int *newmsgs, in
 	return res;
 }
 
-int ast_app_sayname(struct ast_channel *chan, const char *mailbox, const char *context)
+int ast_app_sayname(struct ast_channel *chan, const char *mailbox_id)
 {
 	int res = -1;
 
-	VM_API_CALL(res, sayname, (chan, mailbox, context));
+	VM_GREETER_API_CALL(res, sayname, (chan, mailbox_id));
 	return res;
 }
 
