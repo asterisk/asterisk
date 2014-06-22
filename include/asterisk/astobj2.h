@@ -550,6 +550,26 @@ unsigned int ao2_options_get(void *obj);
 int __ao2_ref_debug(void *o, int delta, const char *tag, const char *file, int line, const char *func);
 int __ao2_ref(void *o, int delta);
 
+/*!
+ * \since 12.4.0
+ * \brief Replace one object reference with another cleaning up the original.
+ *
+ * \param dst Pointer to the object that will be cleaned up.
+ * \param src Pointer to the object replacing it.
+ */
+#define ao2_replace(dst, src) \
+	{\
+		typeof(dst) *__dst_ ## __LINE__ = &dst; \
+		typeof(src) __src_ ## __LINE__ = src; \
+		if (__src_ ## __LINE__) {\
+			ao2_ref(__src_ ## __LINE__, +1); \
+		} \
+		if (*__dst_ ## __LINE__) {\
+			ao2_ref(*__dst_ ## __LINE__, -1); \
+		} \
+		*__dst_ ## __LINE__ = __src_ ## __LINE__; \
+	}
+
 /*! @} */
 
 /*! \brief Which lock to request. */

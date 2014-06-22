@@ -82,6 +82,8 @@ CXX_LIBS=$(PTHREAD_LIBS) $(LIBS)
 # and if that doesn't fail then compile again with optimizer disabled
 ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_DEVMODE),DONT_OPTIMIZEyes)
 COMPILE_DOUBLE=yes
+else
+_ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
 endif
 
 ifeq ($(findstring BUILD_NATIVE,$(MENUSELECT_CFLAGS)),BUILD_NATIVE)
