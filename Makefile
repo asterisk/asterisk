@@ -176,7 +176,6 @@ ifeq ($(AST_DEVMODE),yes)
   _ASTCFLAGS+=-Werror
   _ASTCFLAGS+=-Wunused
   _ASTCFLAGS+=$(AST_DECLARATION_AFTER_STATEMENT)
-  _ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
   _ASTCFLAGS+=-Wundef 
   _ASTCFLAGS+=-Wmissing-format-attribute
   _ASTCFLAGS+=-Wformat=2
