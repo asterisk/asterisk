@@ -1658,7 +1658,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 
 		if (pj_ice_sess_send_data(rtp->ice, rtcp ? AST_RTP_ICE_COMPONENT_RTCP : AST_RTP_ICE_COMPONENT_RTP, temp, len) == PJ_SUCCESS) {
 			*ice = 1;
-			return 0;
+			return len;
 		}
 	}
 #endif
