@@ -780,6 +780,14 @@ static struct dahdi_pvt *iflist = NULL;	/*!< Main interface list start */
 static struct dahdi_pvt *ifend = NULL;	/*!< Main interface list end */
 
 #if defined(HAVE_PRI)
+struct doomed_pri {
+	struct sig_pri_span *pri;
+	AST_LIST_ENTRY(doomed_pri) list;
+};
+static AST_LIST_HEAD_STATIC(doomed_pris, doomed_pri);
+
+static void pri_destroy_span(struct sig_pri_span *pri);
+
 static struct dahdi_parms_pseudo {
 	int buf_no;					/*!< Number of buffers */
 	int buf_policy;				/*!< Buffer policy */
@@ -1111,6 +1119,69 @@ static int analogsub_to_dahdisub(enum analog_sub analogsub)
 
 	return index;
 }
+
+/*!
+ * \internal
+ * \brief release all members on the doomed pris list
+ * \since 13.0
+ *
+ * Called priodically by the monitor threads to release spans marked for
+ * removal.
+ */
+static void release_doomed_pris(void)
+{
+#ifdef HAVE_PRI
+	struct doomed_pri *entry;
+
+	AST_LIST_LOCK(&doomed_pris);
+	while ((entry = AST_LIST_REMOVE_HEAD(&doomed_pris, list))) {
+		/* The span destruction must be done with this lock not held */
+		AST_LIST_UNLOCK(&doomed_pris);
+		ast_debug(4, "Destroying span %d from doomed queue.\n",
+				entry->pri->span);
+		pri_destroy_span(entry->pri);
+		ast_free(entry);
+		AST_LIST_LOCK(&doomed_pris);
+	}
+	AST_LIST_UNLOCK(&doomed_pris);
+#endif
+}
+
+#ifdef HAVE_PRI
+/*!
+ * \brief Queue a span for destruction
+ * \since 13.0
+ *
+ * \param pri the span to destroy
+ *
+ * Add a span to the list of spans to be destroyed later on
+ * by the monitor thread. Allows destroying a span while holding its
+ * lock.
+ */
+static void pri_queue_for_destruction(struct sig_pri_span *pri)
+{
+	struct doomed_pri *entry;
+
+	AST_LIST_LOCK(&doomed_pris);
+	AST_LIST_TRAVERSE(&doomed_pris, entry, list) {
+		if (entry->pri == pri) {
+			AST_LIST_UNLOCK(&doomed_pris);
+			return;
+		}
+	}
+	entry = ast_calloc(sizeof(struct doomed_pri), 1);
+	if (!entry) {
+		/* Nothing useful to do here. Panic? */
+		ast_log(LOG_WARNING, "Failed allocating memory for a doomed_pri.\n");
+		AST_LIST_UNLOCK(&doomed_pris);
+		return;
+	}
+	entry->pri = pri;
+	ast_debug(4, "Queue span %d for destruction.\n", pri->span);
+	AST_LIST_INSERT_TAIL(&doomed_pris, entry, list);
+	AST_LIST_UNLOCK(&doomed_pris);
+}
+#endif
 
 /*!
  * \internal
@@ -2654,8 +2725,6 @@ static int sig_pri_tone_to_dahditone(enum sig_pri_tone tone)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
-static void pri_destroy_span(struct sig_pri_span *pri);
-
 static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 {
 	int x;
@@ -2684,7 +2753,7 @@ static void my_handle_dchan_exception(struct sig_pri_span *pri, int index)
 		pri_event_noalarm(pri, index, 0);
 		break;
 	case DAHDI_EVENT_REMOVED:
-		pri_destroy_span(pri);
+		pri_queue_for_destruction(pri);
 		break;
 	default:
 		break;
@@ -2967,6 +3036,7 @@ struct sig_pri_callback sig_pri_callbacks =
 	.dial_digits = my_pri_dial_digits,
 	.open_media = my_pri_ss7_open_media,
 	.ami_channel_event = my_ami_channel_event,
+	.destroy_later = pri_queue_for_destruction,
 };
 #endif	/* defined(HAVE_PRI) */
 
@@ -11469,6 +11539,7 @@ static void *do_monitor(void *data)
 			}
 		}
 		ast_mutex_unlock(&iflock);
+		release_doomed_pris();
 	}
 	/* Never reached */
 	pthread_cleanup_pop(1);
@@ -14217,6 +14288,7 @@ static void pri_destroy_span(struct sig_pri_span *pri)
 	for (i = 0; i < SIG_PRI_NUM_DCHANS; i++) {
 		ast_debug(4, "closing pri_fd %d\n", i);
 		dahdi_close_pri_fd(dahdi_pri, i);
+		dahdi_pri->dchannels[i] = 0;
 	}
 	sig_pri_init_pri(pri);
 	ast_debug(1, "PRI span %d destroyed\n", pri->span);

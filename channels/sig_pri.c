@@ -1452,6 +1452,27 @@ static int pri_find_principle_by_call(struct sig_pri_span *pri, q931_call *call)
 
 /*!
  * \internal
+ * \brief Queue the span for destruction
+ * \since 13.0
+ *
+ * \param pri PRI span control structure.
+ *
+ * Asks the channel driver to queue the span for destruction at a
+ * possibly later time, if (e.g.) locking considerations don't allow
+ * destroying it right now.
+ *
+ * \return Nothing
+ */
+static void pri_destroy_later(struct sig_pri_span *pri)
+{
+	if (!sig_pri_callbacks.destroy_later) {
+		return;
+	}
+	sig_pri_callbacks.destroy_later(pri);
+}
+
+/*!
+ * \internal
  * \brief Kill the call.
  * \since 10.0
  *
@@ -6427,6 +6448,14 @@ static void *pri_dchannel(void *vpri)
 				}
 				if (e)
 					break;
+
+				if ((errno != 0) && (errno != EINTR)) {
+					ast_log(LOG_NOTICE, "pri_check_event returned error %d (%s)\n",
+						errno, strerror(errno));
+				}
+				if (errno == ENODEV) {
+					pri_destroy_later(pri);
+				}
 			}
 		} else if (errno != EINTR)
 			ast_log(LOG_WARNING, "pri_event returned error %d (%s)\n", errno, strerror(errno));

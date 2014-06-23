@@ -231,6 +231,8 @@ struct sig_pri_callback {
 	void (*module_ref)(void);
 	/*! Unreference the parent module. */
 	void (*module_unref)(void);
+	/*! Mark the span for destruction. */
+	void (*destroy_later)(struct sig_pri_span *pri);
 };
 
 /*! Global sig_pri callbacks to the upper layer. */
