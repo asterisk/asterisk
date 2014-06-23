@@ -911,7 +911,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	if (id1.uniqueid && ast_strlen_zero(id2.uniqueid)) {
 		char *uniqueid2;
 
-		uniqueid2 = ast_alloca(strlen(id1.uniqueid) + 2);
+		uniqueid2 = ast_alloca(strlen(id1.uniqueid) + 3);
 		strcpy(uniqueid2, id1.uniqueid);/* Safe */
 		strcat(uniqueid2, ";2");/* Safe */
 		id2.uniqueid = uniqueid2;
@@ -924,9 +924,10 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	 * You can't pass linkedid to both allocations since if linkedid
 	 * isn't set, then each channel will generate its own linkedid.
 	 */
-	if (!(owner = ast_channel_alloc(1, semi1_state, NULL, NULL, NULL,
-			exten, context, &id1, requestor, 0,
-			"%s/%s-%08x;1", tech->type, p->name, (unsigned)generated_seqno))) {
+	owner = ast_channel_alloc(1, semi1_state, NULL, NULL, NULL,
+		exten, context, &id1, requestor, 0,
+		"%s/%s-%08x;1", tech->type, p->name, (unsigned)generated_seqno);
+	if (!owner) {
 		ast_log(LOG_WARNING, "Unable to allocate owner channel structure\n");
 		return NULL;
 	}
@@ -964,9 +965,10 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	p->owner = owner;
 	ast_channel_unlock(owner);
 
-	if (!(chan = ast_channel_alloc(1, semi2_state, NULL, NULL, NULL,
-			exten, context, &id2, owner, 0,
-			"%s/%s-%08x;2", tech->type, p->name, (unsigned)generated_seqno))) {
+	chan = ast_channel_alloc(1, semi2_state, NULL, NULL, NULL,
+		exten, context, &id2, owner, 0,
+		"%s/%s-%08x;2", tech->type, p->name, (unsigned)generated_seqno);
+	if (!chan) {
 		ast_log(LOG_WARNING, "Unable to allocate chan channel structure\n");
 		ao2_ref(p, -1);
 		ast_channel_tech_pvt_set(owner, NULL);
