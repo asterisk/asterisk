@@ -19,6 +19,8 @@
 
 /*! \file
  * \brief Network socket handling
+ *
+ * \deprecated Use netsock2.h instead
  */
 
 #ifndef _ASTERISK_NETSOCK_H

@@ -25,7 +25,7 @@
 /* Needed for AST_MAX_EXTENSION constant */
 #include "asterisk/channel.h"
 /* Needed for ast_sockaddr struct */
-#include "asterisk/netsock.h"
+#include "asterisk/netsock2.h"
 /* Needed for ast_sdp_srtp struct */
 #include "asterisk/sdp_srtp.h"
 
