@@ -75,7 +75,8 @@ int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flag
 	}
 
 	if (flags & AO2_UNLINK_NODE_UNREF_NODE) {
-		ao2_t_ref(node, -1, "Remove node from container");
+		/* Remove node from container */
+		__ao2_ref(node, -1);
 	}
 
 	return 1;
