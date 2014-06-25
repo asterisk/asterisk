@@ -1,7 +1,7 @@
 {
 	global:
 		LINKER_SYMBOL_PREFIXast_sip_create_subscription;
-		LINKER_SYMBOL_PREFIXast_sip_subsription_get_endpoint;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_get_endpoint;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_serializer;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_evsub;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_dlg;
@@ -30,6 +30,11 @@
 		LINKER_SYMBOL_PREFIXast_sip_pubsub_generate_body_content;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_body_type;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_body_subtype;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_get_resource_name;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_notify;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_get_local_uri;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_get_remote_uri;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_get_header;
 	local:
 		*;
 };

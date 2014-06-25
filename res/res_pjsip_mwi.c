@@ -49,31 +49,24 @@ AO2_GLOBAL_OBJ_STATIC(unsolicited_mwi);
 #define MWI_SUBTYPE "simple-message-summary"
 
 static void mwi_subscription_shutdown(struct ast_sip_subscription *sub);
-static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
-		pjsip_rx_data *rdata);
-static void mwi_resubscribe(struct ast_sip_subscription *sub, pjsip_rx_data *rdata,
-		struct ast_sip_subscription_response_data *response_data);
-static void mwi_subscription_timeout(struct ast_sip_subscription *sub);
-static void mwi_subscription_terminated(struct ast_sip_subscription *sub, pjsip_rx_data *rdata);
-static void mwi_notify_response(struct ast_sip_subscription *sub, pjsip_rx_data *rdata);
-static void mwi_notify_request(struct ast_sip_subscription *sub, pjsip_rx_data *rdata,
-		struct ast_sip_subscription_response_data *response_data);
-static int mwi_refresh_subscription(struct ast_sip_subscription *sub);
 static void mwi_to_ami(struct ast_sip_subscription *sub, struct ast_str **buf);
+static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
+		const char *resource);
+static int mwi_notify_required(struct ast_sip_subscription *sip_sub,
+		enum ast_sip_subscription_notify_reason reason);
+
+static struct ast_sip_notifier mwi_notifier = {
+	.default_accept = MWI_TYPE"/"MWI_SUBTYPE,
+	.new_subscribe = mwi_new_subscribe,
+	.notify_required = mwi_notify_required,
+};
 
 static struct ast_sip_subscription_handler mwi_handler = {
 	.event_name = "message-summary",
 	.accept = { MWI_TYPE"/"MWI_SUBTYPE, },
-	.default_accept =  MWI_TYPE"/"MWI_SUBTYPE,
 	.subscription_shutdown = mwi_subscription_shutdown,
-	.new_subscribe = mwi_new_subscribe,
-	.resubscribe = mwi_resubscribe,
-	.subscription_timeout = mwi_subscription_timeout,
-	.subscription_terminated = mwi_subscription_terminated,
-	.notify_response = mwi_notify_response,
-	.notify_request = mwi_notify_request,
-	.refresh_subscription = mwi_refresh_subscription,
 	.to_ami = mwi_to_ami,
+	.notifier = &mwi_notifier,
 };
 
 /*!
@@ -202,7 +195,7 @@ static void mwi_subscription_destructor(void *obj)
 }
 
 static struct mwi_subscription *mwi_subscription_alloc(struct ast_sip_endpoint *endpoint,
-		enum ast_sip_subscription_role role, unsigned int is_solicited, pjsip_rx_data *rdata)
+		unsigned int is_solicited, struct ast_sip_subscription *sip_sub)
 {
 	struct mwi_subscription *sub;
 	const char *endpoint_id = ast_sorcery_object_get_id(endpoint);
@@ -216,6 +209,7 @@ static struct mwi_subscription *mwi_subscription_alloc(struct ast_sip_endpoint *
 
 	/* Safe strcpy */
 	strcpy(sub->id, endpoint_id);
+
 	/* Unsolicited MWI doesn't actually result in a SIP subscription being
 	 * created. This is because a SIP subscription associates with a dialog.
 	 * Most devices expect unsolicited MWI NOTIFYs to appear out of dialog. If
@@ -224,13 +218,7 @@ static struct mwi_subscription *mwi_subscription_alloc(struct ast_sip_endpoint *
 	 * state not being updated on the device
 	 */
 	if (is_solicited) {
-		sub->sip_sub = ast_sip_create_subscription(&mwi_handler,
-				role, endpoint, rdata);
-		if (!sub->sip_sub) {
-			ast_log(LOG_WARNING, "Unable to create MWI SIP subscription for endpoint %s\n", sub->id);
-			ao2_cleanup(sub);
-			return NULL;
-		}
+		sub->sip_sub = ao2_bump(sip_sub);
 	}
 
 	sub->stasis_subs = ao2_container_alloc(STASIS_BUCKETS, stasis_sub_hash, stasis_sub_cmp);
@@ -314,7 +302,6 @@ struct unsolicited_mwi_data {
 	struct mwi_subscription *sub;
 	struct ast_sip_endpoint *endpoint;
 	pjsip_evsub_state state;
-	const char *reason;
 	const struct ast_sip_body *body;
 };
 
@@ -324,7 +311,6 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	struct mwi_subscription *sub = mwi_data->sub;
 	struct ast_sip_endpoint *endpoint = mwi_data->endpoint;
 	pjsip_evsub_state state = mwi_data->state;
-	const char *reason = mwi_data->reason;
 	const struct ast_sip_body *body = mwi_data->body;
 	struct ast_sip_contact *contact = obj;
 	const char *state_name;
@@ -358,9 +344,6 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 
 	sub_state = pjsip_sub_state_hdr_create(tdata->pool);
 	pj_cstr(&sub_state->sub_state, state_name);
-	if (reason) {
-		pj_cstr(&sub_state->reason_param, reason);
-	}
 	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) sub_state);
 
 	event = pjsip_event_hdr_create(tdata->pool);
@@ -374,13 +357,15 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	return 0;
 }
 
-static void send_unsolicited_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state state, const char *reason,
-		struct ast_sip_body *body)
+static void send_unsolicited_mwi_notify(struct mwi_subscription *sub,
+		struct ast_sip_message_accumulator *counter)
 {
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),
 				"endpoint", sub->id), ao2_cleanup);
 	char *endpoint_aors;
 	char *aor_name;
+	struct ast_sip_body body;
+	struct ast_str *body_text;
 
 	if (!endpoint) {
 		ast_log(LOG_WARNING, "Unable to send unsolicited MWI to %s because endpoint does not exist\n",
@@ -393,7 +378,27 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub, pjsip_evsu
 		return;
 	}
 
+	body.type = MWI_TYPE;
+	body.subtype = MWI_SUBTYPE;
+
+	body_text = ast_str_create(64);
+
+	if (!body_text) {
+		return;
+	}
+
+	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, counter, &body_text)) {
+		ast_log(LOG_WARNING, "Unable to generate SIP MWI NOTIFY body.\n");
+		ast_free(body_text);
+		return;
+	}
+
+	body.body_text = ast_str_buffer(body_text);
+
 	endpoint_aors = ast_strdupa(endpoint->aors);
+
+	ast_debug(5, "Sending unsolicited MWI NOTIFY to endpoint %s, new messages: %d, old messages: %d\n",
+			sub->id, counter->new_msgs, counter->old_msgs);
 
 	while ((aor_name = strsep(&endpoint_aors, ","))) {
 		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
@@ -401,9 +406,7 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub, pjsip_evsu
 		struct unsolicited_mwi_data mwi_data = {
 			.sub = sub,
 			.endpoint = endpoint,
-			.state = state,
-			.reason = reason,
-			.body = body,
+			.body = &body,
 		};
 
 		if (!aor) {
@@ -419,63 +422,25 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub, pjsip_evsu
 
 		ao2_callback(contacts, OBJ_NODATA, send_unsolicited_mwi_notify_to_contact, &mwi_data);
 	}
+
+	ast_free(body_text);
 }
 
-static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state state, const char *reason)
+static void send_mwi_notify(struct mwi_subscription *sub)
 {
-	const pj_str_t *reason_str_ptr = NULL;
 	struct ast_sip_message_accumulator counter = {
 		.old_msgs = 0,
 		.new_msgs = 0,
 	};
-	RAII_VAR(struct ast_str *, body_text, ast_str_create(64), ast_free_ptr);
-	pjsip_tx_data *tdata;
-	pj_str_t reason_str;
-	struct ast_sip_body body;
-
-	body.type = sub->is_solicited ?
-		ast_sip_subscription_get_body_type(sub->sip_sub) :
-		MWI_TYPE;
-
-	body.subtype = sub->is_solicited ?
-		ast_sip_subscription_get_body_subtype(sub->sip_sub) :
-		MWI_SUBTYPE;
 
 	ao2_callback(sub->stasis_subs, OBJ_NODATA, get_message_count, &counter);
 
-	if (reason) {
-		pj_cstr(&reason_str, reason);
-		reason_str_ptr = &reason_str;
-	}
-
-	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, &counter, &body_text)) {
-		ast_log(LOG_WARNING, "Unable to generate SIP MWI NOTIFY body.\n");
+	if (sub->is_solicited) {
+		ast_sip_subscription_notify(sub->sip_sub, &counter, 0);
 		return;
 	}
 
-	body.body_text = ast_str_buffer(body_text);
-
-	ast_debug(5, "Sending %s MWI NOTIFY to endpoint %s, new messages: %d, old messages: %d\n",
-			sub->is_solicited ? "solicited" : "unsolicited", sub->id, counter.new_msgs,
-			counter.old_msgs);
-
-	if (sub->is_solicited) {
-		if (pjsip_evsub_notify(ast_sip_subscription_get_evsub(sub->sip_sub),
-					state, NULL, reason_str_ptr, &tdata) != PJ_SUCCESS) {
-			ast_log(LOG_WARNING, "Unable to create MWI NOTIFY request to %s.\n", sub->id);
-			return;
-		}
-		if (ast_sip_add_body(tdata, &body)) {
-			ast_log(LOG_WARNING, "Unable to add body to MWI NOTIFY request\n");
-			return;
-		}
-		if (ast_sip_subscription_send_request(sub->sip_sub, tdata) != PJ_SUCCESS) {
-			ast_log(LOG_WARNING, "Unable to send MWI NOTIFY request to %s\n", sub->id);
-			return;
-		}
-	} else {
-		send_unsolicited_mwi_notify(sub, state, reason, &body);
-	}
+	send_unsolicited_mwi_notify(sub, &counter);
 }
 
 static int unsubscribe_stasis(void *obj, void *arg, int flags)
@@ -620,10 +585,9 @@ static int mwi_on_aor(void *obj, void *arg, int flags)
 }
 
 static struct mwi_subscription *mwi_create_subscription(
-	struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+	struct ast_sip_endpoint *endpoint, struct ast_sip_subscription *sip_sub)
 {
-	struct mwi_subscription *sub = mwi_subscription_alloc(
-		endpoint, AST_SIP_NOTIFIER, 1, rdata);
+	struct mwi_subscription *sub = mwi_subscription_alloc(endpoint, 1, sip_sub);
 
 	if (!sub) {
 		return NULL;
@@ -640,29 +604,23 @@ static struct mwi_subscription *mwi_create_subscription(
 }
 
 static struct mwi_subscription *mwi_subscribe_single(
-	struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, const char *name)
+	struct ast_sip_endpoint *endpoint, struct ast_sip_subscription *sip_sub, const char *name)
 {
 	RAII_VAR(struct ast_sip_aor *, aor,
 		 ast_sip_location_retrieve_aor(name), ao2_cleanup);
 	struct mwi_subscription *sub;
 
 	if (!aor) {
+		/*! I suppose it's possible for the AOR to disappear on us
+		 * between accepting the subscription and sending the first
+		 * NOTIFY...
+		 */
 		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI "
 			"subscription failed.\n", name);
 		return NULL;
 	}
 
-	if (ast_strlen_zero(aor->mailboxes)) {
-		ast_log(LOG_WARNING, "AOR %s has no configured mailboxes. "
-			"MWI subscription failed\n", name);
-		return NULL;
-	}
-
-	if (mwi_validate_for_aor(aor, endpoint, 0)) {
-		return NULL;
-	}
-
-	if (!(sub = mwi_create_subscription(endpoint, rdata))) {
+	if (!(sub = mwi_create_subscription(endpoint, sip_sub))) {
 		return NULL;
 	}
 
@@ -671,15 +629,11 @@ static struct mwi_subscription *mwi_subscribe_single(
 }
 
 static struct mwi_subscription *mwi_subscribe_all(
-	struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+	struct ast_sip_endpoint *endpoint, struct ast_sip_subscription *sip_sub)
 {
 	struct mwi_subscription *sub;
 
-	if (ast_sip_for_each_aor(endpoint->aors, mwi_validate_for_aor, endpoint)) {
-		return NULL;
-	}
-
-	sub = mwi_create_subscription(endpoint, rdata);
+	sub = mwi_create_subscription(endpoint, sip_sub);
 
 	if (!sub) {
 		return NULL;
@@ -689,106 +643,89 @@ static struct mwi_subscription *mwi_subscribe_all(
 	return sub;
 }
 
-static struct ast_sip_subscription *mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
-		pjsip_rx_data *rdata)
+static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
+		const char *resource)
 {
-	/* It's not obvious here, but the reference(s) to this subscription,
-	 * once this function exits, is held by the stasis subscription(s)
-	 * created in mwi_stasis_subscription_alloc()
-	 */
-	RAII_VAR(struct mwi_subscription *, sub, NULL, ao2_cleanup);
-	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
-	pjsip_sip_uri *sip_ruri;
-	char aor_name[80];
+	struct ast_sip_aor *aor;
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
-		ast_log(LOG_WARNING, "Attempt to SUBSCRIBE to a non-SIP URI\n");
-		return NULL;
+	if (ast_strlen_zero(resource)) {
+		if (ast_sip_for_each_aor(endpoint->aors, mwi_validate_for_aor, endpoint)) {
+			return 500;
+		}
+		return 200;
 	}
-	sip_ruri = pjsip_uri_get_uri(ruri);
-	ast_copy_pj_str(aor_name, &sip_ruri->user, sizeof(aor_name));
+
+	aor = ast_sip_location_retrieve_aor(resource);
+
+	if (!aor) {
+		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI "
+			"subscription failed.\n", resource);
+		return 404;
+	}
+
+	if (ast_strlen_zero(aor->mailboxes)) {
+		ast_log(LOG_WARNING, "AOR %s has no configured mailboxes. "
+			"MWI subscription failed\n", resource);
+		return 404;
+	}
+
+	if (mwi_validate_for_aor(aor, endpoint, 0)) {
+		return 500;
+	}
+
+	return 200;
+}
+
+static int mwi_initial_subscription(struct ast_sip_subscription *sip_sub)
+{
+	const char *resource = ast_sip_subscription_get_resource_name(sip_sub);
+	struct mwi_subscription *sub;
+	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sip_sub);
 
 	/* no aor in uri? subscribe to all on endpoint */
-	if (!(sub = ast_strlen_zero(aor_name) ? mwi_subscribe_all(endpoint, rdata) :
-	      mwi_subscribe_single(endpoint, rdata, aor_name))) {
-		return NULL;
+	if (ast_strlen_zero(resource)) {
+		sub = mwi_subscribe_all(endpoint, sip_sub);
+	} else {
+		sub = mwi_subscribe_single(endpoint, sip_sub, resource);
 	}
 
-	ast_sip_subscription_accept(sub->sip_sub, rdata, 200);
-	send_mwi_notify(sub, PJSIP_EVSUB_STATE_ACTIVE, NULL);
+	if (!sub) {
+		ao2_cleanup(endpoint);
+		return -1;
+	}
 
-	return sub->sip_sub;
+	send_mwi_notify(sub);
+
+	ao2_cleanup(sub);
+	ao2_cleanup(endpoint);
+	return 0;
 }
 
-static void mwi_resubscribe(struct ast_sip_subscription *sub,
-		pjsip_rx_data *rdata, struct ast_sip_subscription_response_data *response_data)
+static int mwi_notify_required(struct ast_sip_subscription *sip_sub,
+		enum ast_sip_subscription_notify_reason reason)
 {
 	struct mwi_subscription *mwi_sub;
-	pjsip_evsub_state state;
-	pjsip_evsub *evsub;
-	RAII_VAR(struct ast_datastore *, mwi_datastore,
-			ast_sip_subscription_get_datastore(sub, "MWI datastore"), ao2_cleanup);
+	struct ast_datastore *mwi_datastore;
 
-	if (!mwi_datastore) {
-		return;
+	switch (reason) {
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_STARTED:
+		return mwi_initial_subscription(sip_sub);
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_RENEWED:
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_TERMINATED:
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_OTHER:
+		mwi_datastore = ast_sip_subscription_get_datastore(sip_sub, "MWI datastore");
+
+		if (!mwi_datastore) {
+			return -1;
+		}
+
+		mwi_sub = mwi_datastore->data;
+
+		send_mwi_notify(mwi_sub);
+		ao2_cleanup(mwi_datastore);
+		break;
 	}
 
-	mwi_sub = mwi_datastore->data;
-	evsub = ast_sip_subscription_get_evsub(sub);
-	state = pjsip_evsub_get_state(evsub);
-
-	send_mwi_notify(mwi_sub, state, NULL);
-}
-
-static void mwi_subscription_timeout(struct ast_sip_subscription *sub)
-{
-	struct mwi_subscription *mwi_sub;
-	RAII_VAR(struct ast_datastore *, mwi_datastore,
-			ast_sip_subscription_get_datastore(sub, "MWI datastore"), ao2_cleanup);
-
-	if (!mwi_datastore) {
-		return;
-	}
-
-
-	mwi_sub = mwi_datastore->data;
-
-	ast_log(LOG_NOTICE, "MWI subscription for %s has timed out.\n", mwi_sub->id);
-
-	send_mwi_notify(mwi_sub, PJSIP_EVSUB_STATE_TERMINATED, "timeout");
-}
-
-static void mwi_subscription_terminated(struct ast_sip_subscription *sub, pjsip_rx_data *rdata)
-{
-	struct mwi_subscription *mwi_sub;
-	RAII_VAR(struct ast_datastore *, mwi_datastore,
-			ast_sip_subscription_get_datastore(sub, "MWI datastore"), ao2_cleanup);
-
-	if (!mwi_datastore) {
-		return;
-	}
-
-	mwi_sub = mwi_datastore->data;
-
-	ast_log(LOG_NOTICE, "MWI subscription for %s has been terminated\n", mwi_sub->id);
-
-	send_mwi_notify(mwi_sub, PJSIP_EVSUB_STATE_TERMINATED, NULL);
-}
-
-static void mwi_notify_response(struct ast_sip_subscription *sub, pjsip_rx_data *rdata)
-{
-	/* We don't really care about NOTIFY responses for the moment */
-}
-
-static void mwi_notify_request(struct ast_sip_subscription *sub, pjsip_rx_data *rdata,
-		struct ast_sip_subscription_response_data *response_data)
-{
-	ast_log(LOG_WARNING, "Received an MWI NOTIFY request? This should not happen\n");
-}
-
-static int mwi_refresh_subscription(struct ast_sip_subscription *sub)
-{
-	ast_log(LOG_WARNING, "Being told to refresh an MWI subscription? This should not happen\n");
 	return 0;
 }
 
@@ -834,7 +771,7 @@ static int serialized_notify(void *userdata)
 {
 	struct mwi_subscription *mwi_sub = userdata;
 
-	send_mwi_notify(mwi_sub, PJSIP_EVSUB_STATE_ACTIVE, NULL);
+	send_mwi_notify(mwi_sub);
 	ao2_ref(mwi_sub, -1);
 	return 0;
 }
@@ -885,7 +822,7 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags
 	}
 
 	if (endpoint->subscription.mwi.aggregate) {
-		aggregate_sub = mwi_subscription_alloc(endpoint, AST_SIP_NOTIFIER, 0, NULL);
+		aggregate_sub = mwi_subscription_alloc(endpoint, 0, NULL);
 		if (!aggregate_sub) {
 			return 0;
 		}
@@ -894,7 +831,7 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags
 	mailboxes = ast_strdupa(endpoint->subscription.mwi.mailboxes);
 	while ((mailbox = strsep(&mailboxes, ","))) {
 		struct mwi_subscription *sub = aggregate_sub ?:
-			mwi_subscription_alloc(endpoint, AST_SIP_SUBSCRIBER, 0, NULL);
+			mwi_subscription_alloc(endpoint, 0, NULL);
 		RAII_VAR(struct mwi_stasis_subscription *, mwi_stasis_sub,
 				mwi_stasis_subscription_alloc(mailbox, sub), ao2_cleanup);
 		if (mwi_stasis_sub) {

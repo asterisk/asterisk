@@ -68,26 +68,24 @@ struct exten_state_subscription {
 #define DEFAULT_PRESENCE_BODY "application/pidf+xml"
 
 static void subscription_shutdown(struct ast_sip_subscription *sub);
-static struct ast_sip_subscription *new_subscribe(struct ast_sip_endpoint *endpoint,
-						  pjsip_rx_data *rdata);
-static void resubscribe(struct ast_sip_subscription *sub, pjsip_rx_data *rdata,
-			struct ast_sip_subscription_response_data *response_data);
-static void subscription_timeout(struct ast_sip_subscription *sub);
-static void subscription_terminated(struct ast_sip_subscription *sub,
-				    pjsip_rx_data *rdata);
+static int new_subscribe(struct ast_sip_endpoint *endpoint, const char *resource);
+static int notify_required(struct ast_sip_subscription *sub,
+		enum ast_sip_subscription_notify_reason reason);
 static void to_ami(struct ast_sip_subscription *sub,
 		   struct ast_str **buf);
+
+struct ast_sip_notifier presence_notifier = {
+	.default_accept = DEFAULT_PRESENCE_BODY,
+	.new_subscribe = new_subscribe,
+	.notify_required = notify_required,
+};
 
 struct ast_sip_subscription_handler presence_handler = {
 	.event_name = "presence",
 	.accept = { DEFAULT_PRESENCE_BODY, },
-	.default_accept = DEFAULT_PRESENCE_BODY,
 	.subscription_shutdown = subscription_shutdown,
-	.new_subscribe = new_subscribe,
-	.resubscribe = resubscribe,
-	.subscription_timeout = subscription_timeout,
-	.subscription_terminated = subscription_terminated,
 	.to_ami = to_ami,
+	.notifier = &presence_notifier,
 };
 
 static void exten_state_subscription_destructor(void *obj)
@@ -98,14 +96,12 @@ static void exten_state_subscription_destructor(void *obj)
 	ao2_cleanup(sub->sip_sub);
 }
 
-static char *get_user_agent(pjsip_rx_data *rdata)
+static char *get_user_agent(const struct ast_sip_subscription *sip_sub)
 {
-	static const pj_str_t USER_AGENT = { "User-Agent", 10 };
-
 	size_t size;
 	char *user_agent = NULL;
-	pjsip_user_agent_hdr *user_agent_hdr = pjsip_msg_find_hdr_by_name(
-		rdata->msg_info.msg, &USER_AGENT, NULL);
+	pjsip_user_agent_hdr *user_agent_hdr = ast_sip_subscription_get_header(
+			sip_sub, "User-Agent");
 
 	if (!user_agent_hdr) {
 		return NULL;
@@ -132,85 +128,30 @@ static char *get_user_agent(pjsip_rx_data *rdata)
  * sure that there are registered handler and provider objects available.
  */
 static struct exten_state_subscription *exten_state_subscription_alloc(
-	struct ast_sip_endpoint *endpoint, enum ast_sip_subscription_role role, pjsip_rx_data *rdata)
+		struct ast_sip_subscription *sip_sub, struct ast_sip_endpoint *endpoint)
 {
-	RAII_VAR(struct exten_state_subscription *, exten_state_sub,
-		 ao2_alloc(sizeof(*exten_state_sub), exten_state_subscription_destructor), ao2_cleanup);
+	struct exten_state_subscription * exten_state_sub;
 
+	exten_state_sub = ao2_alloc(sizeof(*exten_state_sub), exten_state_subscription_destructor);
 	if (!exten_state_sub) {
 		return NULL;
 	}
 
-	if (!(exten_state_sub->sip_sub = ast_sip_create_subscription(
-		      &presence_handler, role, endpoint, rdata))) {
-		ast_log(LOG_WARNING, "Unable to create SIP subscription for endpoint %s\n",
-			ast_sorcery_object_get_id(endpoint));
-		return NULL;
-	}
-
+	exten_state_sub->sip_sub = ao2_bump(sip_sub);
 	exten_state_sub->last_exten_state = INITIAL_LAST_EXTEN_STATE;
 	exten_state_sub->last_presence_state = AST_PRESENCE_NOT_SET;
-	exten_state_sub->user_agent = get_user_agent(rdata);
-	ao2_ref(exten_state_sub, +1);
+	exten_state_sub->user_agent = get_user_agent(sip_sub);
 	return exten_state_sub;
-}
-
-/*!
- * \internal
- * \brief Create and send a NOTIFY request to the subscriber.
- */
-static void create_send_notify(struct exten_state_subscription *exten_state_sub, const char *reason,
-			       pjsip_evsub_state evsub_state, struct ast_sip_exten_state_data *exten_state_data)
-{
-	RAII_VAR(struct ast_str *, body_text, ast_str_create(BODY_SIZE), ast_free_ptr);
-	pj_str_t reason_str;
-	const pj_str_t *reason_str_ptr = NULL;
-	pjsip_tx_data *tdata;
-	struct ast_sip_body body;
-
-	body.type = ast_sip_subscription_get_body_type(exten_state_sub->sip_sub);
-	body.subtype = ast_sip_subscription_get_body_subtype(exten_state_sub->sip_sub);
-
-	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype,
-				exten_state_data, &body_text)) {
-		ast_log(LOG_ERROR, "Unable to create body on NOTIFY request\n");
-		return;
-	}
-
-	body.body_text = ast_str_buffer(body_text);
-
-	if (reason) {
-		pj_cstr(&reason_str, reason);
-		reason_str_ptr = &reason_str;
-	}
-
-	if (pjsip_evsub_notify(ast_sip_subscription_get_evsub(exten_state_sub->sip_sub),
-			      evsub_state, NULL, reason_str_ptr, &tdata) != PJ_SUCCESS) {
-		ast_log(LOG_WARNING, "Unable to create NOTIFY request\n");
-		return;
-	}
-
-	if (ast_sip_add_body(tdata, &body)) {
-		ast_log(LOG_WARNING, "Unable to add body to NOTIFY request\n");
-		pjsip_tx_data_dec_ref(tdata);
-		return;
-	}
-
-	if (ast_sip_subscription_send_request(exten_state_sub->sip_sub, tdata) != PJ_SUCCESS) {
-		ast_log(LOG_WARNING, "Unable to send NOTIFY request\n");
-	}
 }
 
 /*!
  * \internal
  * \brief Get device state information and send notification to the subscriber.
  */
-static void send_notify(struct exten_state_subscription *exten_state_sub, const char *reason,
-	pjsip_evsub_state evsub_state)
+static void send_notify(struct exten_state_subscription *exten_state_sub)
 {
 	RAII_VAR(struct ao2_container*, info, NULL, ao2_cleanup);
 	char *subtype = NULL, *message = NULL;
-	pjsip_dialog *dlg;
 	struct ast_sip_exten_state_data exten_state_data = {
 		.exten = exten_state_sub->exten,
 		.presence_state = ast_hint_presence_state(NULL, exten_state_sub->context,
@@ -220,11 +161,10 @@ static void send_notify(struct exten_state_subscription *exten_state_sub, const 
 		.user_agent = exten_state_sub->user_agent
 	};
 
-	dlg = ast_sip_subscription_get_dlg(exten_state_sub->sip_sub);
-	ast_copy_pj_str(exten_state_data.local, &dlg->local.info_str,
-			sizeof(exten_state_data.local));
-	ast_copy_pj_str(exten_state_data.remote, &dlg->remote.info_str,
-			sizeof(exten_state_data.remote));
+	ast_sip_subscription_get_local_uri(exten_state_sub->sip_sub,
+			exten_state_data.local, sizeof(exten_state_data.local));
+	ast_sip_subscription_get_remote_uri(exten_state_sub->sip_sub,
+			exten_state_data.remote, sizeof(exten_state_data.remote));
 
 	if ((exten_state_data.exten_state = ast_extension_state_extended(
 		     NULL, exten_state_sub->context, exten_state_sub->exten, &info)) < 0) {
@@ -238,14 +178,14 @@ static void send_notify(struct exten_state_subscription *exten_state_sub, const 
 			"exten_state", 1024, 1024);
 
 	exten_state_data.device_state_info = info;
-	create_send_notify(exten_state_sub, reason, evsub_state, &exten_state_data);
+	ast_sip_subscription_notify(exten_state_sub->sip_sub, &exten_state_data, 0);
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), exten_state_data.pool);
 }
 
 struct notify_task_data {
 	struct ast_sip_exten_state_data exten_state_data;
 	struct exten_state_subscription *exten_state_sub;
-	pjsip_evsub_state evsub_state;
+	int terminate;
 };
 
 static void notify_task_data_destructor(void *obj)
@@ -264,14 +204,12 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 {
 	struct notify_task_data *task_data =
 		ao2_alloc(sizeof(*task_data), notify_task_data_destructor);
-	struct pjsip_dialog *dlg;
 
 	if (!task_data) {
 		ast_log(LOG_WARNING, "Unable to create notify task data\n");
 		return NULL;
 	}
 
-	task_data->evsub_state = PJSIP_EVSUB_STATE_ACTIVE;
 	task_data->exten_state_sub = exten_state_sub;
 	task_data->exten_state_sub->last_exten_state = info->exten_state;
 	task_data->exten_state_sub->last_presence_state = info->presence_state;
@@ -289,17 +227,16 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 		ao2_ref(task_data->exten_state_data.device_state_info, +1);
 	}
 
-	dlg = ast_sip_subscription_get_dlg(exten_state_sub->sip_sub);
-	ast_copy_pj_str(task_data->exten_state_data.local, &dlg->local.info_str,
-			sizeof(task_data->exten_state_data.local));
-	ast_copy_pj_str(task_data->exten_state_data.remote, &dlg->remote.info_str,
-			sizeof(task_data->exten_state_data.remote));
+	ast_sip_subscription_get_local_uri(exten_state_sub->sip_sub,
+			task_data->exten_state_data.local, sizeof(task_data->exten_state_data.local));
+	ast_sip_subscription_get_remote_uri(exten_state_sub->sip_sub,
+			task_data->exten_state_data.remote, sizeof(task_data->exten_state_data.remote));
 
 	if ((info->exten_state == AST_EXTENSION_DEACTIVATED) ||
 	    (info->exten_state == AST_EXTENSION_REMOVED)) {
-		task_data->evsub_state = PJSIP_EVSUB_STATE_TERMINATED;
 		ast_log(LOG_WARNING, "Watcher for hint %s %s\n", exten, info->exten_state
 			 == AST_EXTENSION_REMOVED ? "removed" : "deactivated");
+		task_data->terminate = 1;
 	}
 
 	return task_data;
@@ -313,9 +250,8 @@ static int notify_task(void *obj)
 	task_data->exten_state_data.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
 			"exten_state", 1024, 1024);
 
-	create_send_notify(task_data->exten_state_sub, task_data->evsub_state ==
-			   PJSIP_EVSUB_STATE_TERMINATED ? "noresource" : NULL,
-			   task_data->evsub_state, &task_data->exten_state_data);
+	ast_sip_subscription_notify(task_data->exten_state_sub->sip_sub, &task_data->exten_state_data,
+			task_data->terminate);
 
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(),
 			task_data->exten_state_data.pool);
@@ -407,24 +343,30 @@ static void subscription_shutdown(struct ast_sip_subscription *sub)
 	ao2_cleanup(exten_state_sub);
 }
 
-static struct ast_sip_subscription *new_subscribe(struct ast_sip_endpoint *endpoint,
-						  pjsip_rx_data *rdata)
+static int new_subscribe(struct ast_sip_endpoint *endpoint,
+		const char *resource)
 {
-	pjsip_uri *uri = rdata->msg_info.msg->line.req.uri;
-	pjsip_sip_uri *sip_uri = pjsip_uri_get_uri(uri);
-	RAII_VAR(struct exten_state_subscription *, exten_state_sub, NULL, ao2_cleanup);
-
-	if (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri)) {
-		ast_log(LOG_WARNING, "Attempt to SUBSCRIBE to a non-SIP URI\n");
-		return NULL;
+	if (!ast_exists_extension(NULL, endpoint->context, resource, PRIORITY_HINT, NULL)) {
+		ast_log(LOG_WARNING, "Extension %s does not exist or has no associated hint\n", resource);
+		return 404;
 	}
 
-	if (!(exten_state_sub = exten_state_subscription_alloc(endpoint, AST_SIP_NOTIFIER, rdata))) {
-		return NULL;
+	return 200;
+}
+
+static int initial_subscribe(struct ast_sip_subscription *sip_sub)
+{
+	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sip_sub);
+	const char *resource = ast_sip_subscription_get_resource_name(sip_sub);
+	struct exten_state_subscription *exten_state_sub;
+
+	if (!(exten_state_sub = exten_state_subscription_alloc(sip_sub, endpoint))) {
+		ao2_cleanup(endpoint);
+		return -1;
 	}
 
 	ast_copy_string(exten_state_sub->context, endpoint->context, sizeof(exten_state_sub->context));
-	ast_copy_pj_str(exten_state_sub->exten, &sip_uri->user, sizeof(exten_state_sub->exten));
+	ast_copy_string(exten_state_sub->exten, resource, sizeof(exten_state_sub->exten));
 
 	if ((exten_state_sub->id = ast_extension_state_add_destroy_extended(
 		     exten_state_sub->context, exten_state_sub->exten,
@@ -432,64 +374,50 @@ static struct ast_sip_subscription *new_subscribe(struct ast_sip_endpoint *endpo
 		ast_log(LOG_WARNING, "Unable to subscribe endpoint '%s' to extension '%s@%s'\n",
 			ast_sorcery_object_get_id(endpoint), exten_state_sub->exten,
 			exten_state_sub->context);
-		pjsip_evsub_terminate(ast_sip_subscription_get_evsub(exten_state_sub->sip_sub), PJ_FALSE);
-		return NULL;
+		ao2_cleanup(endpoint);
+		ao2_cleanup(exten_state_sub);
+		return -1;
 	}
+
+	/* Go ahead and cleanup the endpoint since we don't need it anymore */
+	ao2_cleanup(endpoint);
 
 	/* bump the ref since ast_extension_state_add holds a reference */
 	ao2_ref(exten_state_sub, +1);
 
 	if (add_datastore(exten_state_sub)) {
 		ast_log(LOG_WARNING, "Unable to add to subscription datastore.\n");
-		pjsip_evsub_terminate(ast_sip_subscription_get_evsub(exten_state_sub->sip_sub), PJ_FALSE);
-		return NULL;
+		ao2_cleanup(exten_state_sub);
+		return -1;
 	}
 
-	if (ast_sip_subscription_accept(exten_state_sub->sip_sub, rdata, 200)) {
-		ast_log(LOG_WARNING, "Unable to accept the incoming extension state subscription.\n");
-		pjsip_evsub_terminate(ast_sip_subscription_get_evsub(exten_state_sub->sip_sub), PJ_FALSE);
-		return NULL;
-	}
-
-	send_notify(exten_state_sub, NULL, PJSIP_EVSUB_STATE_ACTIVE);
-	return exten_state_sub->sip_sub;
+	send_notify(exten_state_sub);
+	ao2_cleanup(exten_state_sub);
+	return 0;
 }
 
-static void resubscribe(struct ast_sip_subscription *sub, pjsip_rx_data *rdata,
-			struct ast_sip_subscription_response_data *response_data)
+static int notify_required(struct ast_sip_subscription *sub,
+		enum ast_sip_subscription_notify_reason reason)
 {
-	struct exten_state_subscription *exten_state_sub = get_exten_state_sub(sub);
+	struct exten_state_subscription *exten_state_sub;
 
-	if (!exten_state_sub) {
-		return;
+	switch (reason) {
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_STARTED:
+		return initial_subscribe(sub);
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_RENEWED:
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_TERMINATED:
+	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_OTHER:
+		exten_state_sub = get_exten_state_sub(sub);
+
+		if (!exten_state_sub) {
+			return -1;
+		}
+
+		send_notify(exten_state_sub);
+		break;
 	}
 
-	send_notify(exten_state_sub, NULL, PJSIP_EVSUB_STATE_ACTIVE);
-}
-
-static void subscription_timeout(struct ast_sip_subscription *sub)
-{
-	struct exten_state_subscription *exten_state_sub = get_exten_state_sub(sub);
-
-	if (!exten_state_sub) {
-		return;
-	}
-
-	ast_verbose(VERBOSE_PREFIX_3 "Subscription has timed out.\n");
-	send_notify(exten_state_sub, "timeout", PJSIP_EVSUB_STATE_TERMINATED);
-}
-
-static void subscription_terminated(struct ast_sip_subscription *sub,
-				    pjsip_rx_data *rdata)
-{
-	struct exten_state_subscription *exten_state_sub = get_exten_state_sub(sub);
-
-	if (!exten_state_sub) {
-		return;
-	}
-
-	ast_verbose(VERBOSE_PREFIX_3 "Subscription has been terminated.\n");
-	send_notify(exten_state_sub, NULL, PJSIP_EVSUB_STATE_TERMINATED);
+	return 0;
 }
 
 static void to_ami(struct ast_sip_subscription *sub,

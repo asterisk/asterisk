@@ -79,7 +79,7 @@ static int pidf_generate_body_content(void *body, void *data)
 	return 0;
 }
 
-#define MAX_STRING_GROWTHS 3
+#define MAX_STRING_GROWTHS 5
 #define XML_PROLOG 39
 
 static void pidf_to_string(void *body, struct ast_str **str)
