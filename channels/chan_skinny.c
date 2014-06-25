@@ -7403,6 +7403,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		break;
 	case UNREGISTER_MESSAGE:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received UNREGISTER_MESSAGE from %s\n", d->name);
+		ast_log(LOG_NOTICE, "Received UNREGISTER_MESSAGE from %s\n", d->name);
 		end_session(s);
 		break;
 	case SOFT_KEY_TEMPLATE_REQ_MESSAGE:
@@ -7470,7 +7471,7 @@ static void skinny_session_cleanup(void *data)
 	struct skinny_line *l;
 	struct skinny_speeddial *sd;
 
-	ast_verb(3, "Ending Skinny session from %s at %s\n", d ? d->name : "unknown", ast_inet_ntoa(s->sin.sin_addr));
+	ast_log(LOG_NOTICE, "Ending Skinny session from %s at %s\n", d ? d->name : "unknown", ast_inet_ntoa(s->sin.sin_addr));
 
 	if (s->lockstate) {
 		ast_mutex_unlock(&s->lock);
@@ -7524,11 +7525,11 @@ static void *skinny_session(void *data)
 	struct pollfd fds[1];
 
 	if (!s) {
-		ast_verb(3, "Bad Skinny Session\n");
+		ast_log(LOG_WARNING, "Bad Skinny Session\n");
 		return 0;
 	}
 
-	ast_verb(3, "Starting Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+	ast_log(LOG_NOTICE, "Starting Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 
 	pthread_cleanup_push(skinny_session_cleanup, s);
 
@@ -7635,7 +7636,7 @@ static void *skinny_session(void *data)
 		}
 	}
 
-	ast_debug(3, "Skinny Session returned: %s\n", strerror(errno));
+	ast_log(LOG_NOTICE, "Skinny Session returned: %s\n", strerror(errno));
 	if (req) {
 		ast_free(req);
 	}
