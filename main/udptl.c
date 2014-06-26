@@ -535,6 +535,12 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 				int k;
 				int which;
 				int limit = (l + m) & UDPTL_BUF_MASK;
+
+				/* only repair buffers that actually exist! */
+				if (seq_no <= (s->rx[l].fec_span * s->rx[l].fec_entries) - m) {
+					continue;
+				}
+
 				for (which = -1, k = (limit - s->rx[l].fec_span * s->rx[l].fec_entries) & UDPTL_BUF_MASK; k != limit; k = (k + s->rx[l].fec_entries) & UDPTL_BUF_MASK) {
 					if (s->rx[k].buf_len <= 0)
 						which = (which == -1) ? k : -2;
