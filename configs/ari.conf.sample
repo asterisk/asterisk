@@ -1,19 +1,25 @@
 [general]
-enabled = yes		; When set to no, ARI support is disabled.
-;pretty = no		; When set to yes, responses from ARI are
-;			; formatted to be human readable.
-;allowed_origins =	; Comma separated list of allowed origins, for
-;			; Cross-Origin Resource Sharing. May be set to * to
-;			; allow all origins.
-;auth_realm =		; Realm to use for authentication. Defaults to Asterisk
-;			; REST Interface.
+enabled = yes       ; When set to no, ARI support is disabled.
+;pretty = no        ; When set to yes, responses from ARI are
+;                   ; formatted to be human readable.
+;allowed_origins =  ; Comma separated list of allowed origins, for
+;                   ; Cross-Origin Resource Sharing. May be set to * to
+;                   ; allow all origins.
+;auth_realm =       ; Realm to use for authentication. Defaults to Asterisk
+;                   ; REST Interface.
+;
+; Default write timeout to set on websockets. This value may need to be adjusted
+; for connections where Asterisk must write a substantial amount of data and the
+; receiving clients are slow to process the received information. Value is in
+; milliseconds; default is 100 ms.
+;websocket_write_timeout = 100
 
 ;[username]
-;type = user		; Specifies user configuration
-;read_only = no		; When set to yes, user is only authorized for
-;			; read-only requests.
+;type = user        ; Specifies user configuration
+;read_only = no     ; When set to yes, user is only authorized for
+;                   ; read-only requests.
 ;
-;password =		; Crypted or plaintext password (see password_format).
+;password =         ; Crypted or plaintext password (see password_format).
 ;
 ; password_format may be set to plain (the default) or crypt. When set to crypt,
 ; crypt(3) is used to validate the password. A crypted password can be generated
@@ -22,3 +28,4 @@ enabled = yes		; When set to no, ARI support is disabled.
 ; When set to plain, the password is in plaintext.
 ;
 ;password_format = plain
+

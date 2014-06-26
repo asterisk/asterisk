@@ -207,6 +207,37 @@ static int transport_read(void *data)
 	return (read_data->payload_len == recvd) ? 0 : -1;
 }
 
+static int get_write_timeout(void)
+{
+	int write_timeout = -1;
+	struct ao2_container *transports;
+
+	transports = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "transport", AST_RETRIEVE_FLAG_ALL, NULL);
+
+	if (transports) {
+		struct ao2_iterator it_transports = ao2_iterator_init(transports, 0);
+		struct ast_sip_transport *transport;
+
+		for (; (transport = ao2_iterator_next(&it_transports)); ao2_cleanup(transport)) {
+			if (transport->type != AST_TRANSPORT_WS && transport->type != AST_TRANSPORT_WSS) {
+				continue;
+			}
+			ast_debug(5, "Found %s transport with write timeout: %d\n",
+				transport->type == AST_TRANSPORT_WS ? "WS" : "WSS",
+				transport->write_timeout);
+			write_timeout = MAX(write_timeout, transport->write_timeout);
+		}
+		ao2_cleanup(transports);
+	}
+
+	if (write_timeout < 0) {
+		write_timeout = AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
+	}
+
+	ast_debug(1, "Write timeout for WS/WSS transports: %d\n", write_timeout);
+	return write_timeout;
+}
+
 /*!
  \brief WebSocket connection handler.
  */
@@ -218,6 +249,11 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 	struct transport_read_data read_data;
 
 	if (ast_websocket_set_nonblock(session)) {
+		ast_websocket_unref(session);
+		return;
+	}
+
+	if (ast_websocket_set_timeout(session, get_write_timeout())) {
 		ast_websocket_unref(session);
 		return;
 	}

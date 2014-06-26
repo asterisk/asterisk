@@ -56,8 +56,13 @@ struct ast_ari_websocket_session *ast_ari_websocket_session_create(
 	struct ast_websocket *ws_session, int (*validator)(struct ast_json *))
 {
 	RAII_VAR(struct ast_ari_websocket_session *, session, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_ari_conf *, config, ast_ari_config_get(), ao2_cleanup);
 
 	if (ws_session == NULL) {
+		return NULL;
+	}
+
+	if (config == NULL || config->general == NULL) {
 		return NULL;
 	}
 
@@ -70,6 +75,11 @@ struct ast_ari_websocket_session *ast_ari_websocket_session_create(
 			"ARI web socket failed to set nonblock; closing: %s\n",
 			strerror(errno));
 		return NULL;
+	}
+
+	if (ast_websocket_set_timeout(ws_session, config->general->write_timeout)) {
+		ast_log(LOG_WARNING, "Failed to set write timeout %d on ARI web socket\n",
+			config->general->write_timeout);
 	}
 
 	session = ao2_alloc(sizeof(*session), websocket_session_dtor);

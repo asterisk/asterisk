@@ -35,6 +35,12 @@ From 12.3.0 to 12.4.0:
    - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
    - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
 
+ - Added a compatibility option for ari, chan_sip, and chan_pjsip
+   'websocket_write_timeout'. When a websocket connection exists where Asterisk
+   writes a substantial amount of data to the connected client, and the connected
+   client is slow to process the received data, the socket may be disconnected.
+   In such cases, it may be necessary to adjust this value. Default is 100 ms.
+
 From 12.3.0 to 12.3.1:
 
  - MixMonitor AMI actions now require users to have authorization classes.
