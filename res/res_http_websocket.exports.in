@@ -17,6 +17,7 @@
 		LINKER_SYMBOL_PREFIX*ast_websocket_server_create;
 		LINKER_SYMBOL_PREFIX*ast_websocket_server_add_protocol;
 		LINKER_SYMBOL_PREFIX*ast_websocket_server_remove_protocol;
+		LINKER_SYMBOL_PREFIX*ast_websocket_set_timeout;
 	local:
 		*;
 };
