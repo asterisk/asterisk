@@ -17700,7 +17700,8 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_request *oreq, int *cc_recall_core_id)
 {
 	char tmp[256] = "", *uri, *unused_password, *domain;
-	char tmpf[256] = "", *from = NULL;
+	RAII_VAR(char *, tmpf, NULL, ast_free);
+	char *from = NULL;
 	struct sip_request *req;
 	char *decoded_uri;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, ast_get_chan_features_pickup_config(p->owner), ao2_cleanup);
@@ -17755,7 +17756,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 	/* XXX Why is this done in get_destination? Isn't it already done?
 	   Needs to be checked
         */
-	ast_copy_string(tmpf, sip_get_header(req, "From"), sizeof(tmpf));
+	tmpf = ast_strdup(sip_get_header(req, "From"));
 	if (!ast_strlen_zero(tmpf)) {
 		from = get_in_brackets(tmpf);
 		if (parse_uri_legacy_check(from, "sip:,sips:,tel:", &from, NULL, &domain, NULL)) {
@@ -18626,19 +18627,21 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					      int sipmethod, const char *uri, enum xmittype reliable,
 					      struct ast_sockaddr *addr, struct sip_peer **authpeer)
 {
-	char from[256], *of, *name, *unused_password, *domain;
+	char *of, *name, *unused_password, *domain;
+	RAII_VAR(char *, ofbuf, NULL, ast_free); /* beware, everyone starts pointing to this */
+	RAII_VAR(char *, namebuf, NULL, ast_free);
 	enum check_auth_result res = AUTH_DONT_KNOW;
 	char calleridname[256];
 	char *uri2 = ast_strdupa(uri);
 
 	terminate_uri(uri2);	/* trim extra stuff */
 
-	ast_copy_string(from, sip_get_header(req, "From"), sizeof(from));
+	ofbuf = ast_strdup(sip_get_header(req, "From"));
 	/* XXX here tries to map the username for invite things */
 
 	/* strip the display-name portion off the beginning of the FROM header. */
-	if (!(of = (char *) get_calleridname(from, calleridname, sizeof(calleridname)))) {
-		ast_log(LOG_ERROR, "FROM header can not be parsed \n");
+	if (!(of = (char *) get_calleridname(ofbuf, calleridname, sizeof(calleridname)))) {
+		ast_log(LOG_ERROR, "FROM header can not be parsed\n");
 		return res;
 	}
 
@@ -18717,8 +18720,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		}
 
 		if (!ast_strlen_zero(hdr) && (hdr = strstr(hdr, "username=\""))) {
-			ast_copy_string(from, hdr + strlen("username=\""), sizeof(from));
-			name = from;
+			namebuf = name = ast_strdup(hdr + strlen("username=\""));
 			name = strsep(&name, "\"");
 		}
 	}
