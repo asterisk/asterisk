@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/features_config.h"
 #include "asterisk/pickup.h"
+#include "asterisk/test.h"
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
@@ -1140,7 +1141,9 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 					ao2_cleanup(channel->session);
 				}
 			}
+			ast_test_suite_event_notify("AST_CONTROL_VIDUPDATE", "Result: Success");
 		} else {
+			ast_test_suite_event_notify("AST_CONTROL_VIDUPDATE", "Result: Failure");
 			res = -1;
 		}
 		break;
