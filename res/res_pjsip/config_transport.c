@@ -28,6 +28,7 @@
 #include "asterisk/sorcery.h"
 #include "asterisk/acl.h"
 #include "include/res_pjsip_private.h"
+#include "asterisk/http_websocket.h"
 
 static int sip_transport_to_ami(const struct ast_sip_transport *transport,
 				struct ast_str **buf)
@@ -668,6 +669,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "local_net", "", transport_localnet_handler, localnet_to_str, localnet_to_vl, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "tos", "0", transport_tos_handler, tos_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
+	ast_sorcery_object_field_register(sorcery, "transport", "websocket_write_timeout", AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, write_timeout), 1, INT_MAX);
 
 	ast_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 

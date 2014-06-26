@@ -773,6 +773,7 @@ struct sip_settings {
 	struct ast_format_cap *caps; /*!< Supported codecs */
 	int tcp_enabled;
 	int default_max_forwards;    /*!< Default max forwards (SIP Anti-loop) */
+	int websocket_write_timeout; /*!< Socket write timeout for websocket transports, in ms */
 };
 
 struct ast_websocket;

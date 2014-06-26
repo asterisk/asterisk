@@ -27,6 +27,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/config_options.h"
+#include "asterisk/http_websocket.h"
 #include "internal.h"
 
 /*! \brief Locking container for safe configuration access. */
@@ -320,6 +321,9 @@ int ast_ari_config_init(void)
 	aco_option_register(&cfg_info, "allowed_origins", ACO_EXACT, general_options,
 		"", OPT_STRINGFIELD_T, 0,
 		STRFLDSET(struct ast_ari_conf_general, allowed_origins));
+	aco_option_register(&cfg_info, "websocket_write_timeout", ACO_EXACT, general_options,
+		AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE,
+		FLDSET(struct ast_ari_conf_general, write_timeout), 1, INT_MAX);
 
 	aco_option_register(&cfg_info, "type", ACO_EXACT, user, NULL,
 		OPT_NOOP_T, 0, 0);

@@ -65,6 +65,8 @@ struct ast_ari_conf {
 struct ast_ari_conf_general {
 	/*! Enabled by default, disabled if false. */
 	int enabled;
+	/*! Write timeout for websocket connections */
+	int write_timeout;
 	/*! Encoding format used during output (default compact). */
 	enum ast_json_encoding_format format;
 	/*! Authentication realm */

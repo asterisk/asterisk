@@ -225,5 +225,13 @@ Utilities:
  - The refcounter program has been removed in favor of the refcounter.py script
    in contrib/scripts.
 
+WebSockets:
+ - Added a compatibility option for ari, chan_sip, and chan_pjsip
+   'websocket_write_timeout'. When a websocket connection exists where Asterisk
+   writes a substantial amount of data to the connected client, and the connected
+   client is slow to process the received data, the socket may be disconnected.
+   In such cases, it may be necessary to adjust this value. Default is 100 ms.
+
+
 ===========================================================
 ===========================================================

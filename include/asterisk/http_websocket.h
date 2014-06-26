@@ -24,6 +24,12 @@
 
 #include <errno.h>
 
+/*! \brief Default websocket write timeout, in ms */
+#define AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT 100
+
+/*! \brief Default websocket write timeout, in ms (as a string) */
+#define AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR "100"
+
 /*!
  * \file http_websocket.h
  * \brief Support for WebSocket connections within the Asterisk HTTP server and client
@@ -324,4 +330,16 @@ AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create,
  */
 AST_OPTIONAL_API(const char *, ast_websocket_client_accept_protocol,
 		 (struct ast_websocket *ws), { return NULL;});
+
+/*!
+ * \brief Set the timeout on a non-blocking WebSocket session.
+ *
+ * \since 11.11.0
+ * \since 12.4.0
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+AST_OPTIONAL_API(int, ast_websocket_set_timeout, (struct ast_websocket *session, int timeout), {return -1;});
+
 #endif

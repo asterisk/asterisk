@@ -81,6 +81,7 @@ struct ast_websocket {
 	size_t payload_len;               /*!< Length of the payload */
 	char *payload;                    /*!< Pointer to the payload */
 	size_t reconstruct;               /*!< Number of bytes before a reconstructed payload will be returned and a new one started */
+	int timeout;                      /*!< The timeout for operations on the socket */
 	unsigned int secure:1;            /*!< Bit to indicate that the transport is secure */
 	unsigned int closing:1;           /*!< Bit to indicate that the session is in the process of being closed */
 	unsigned int close_sent:1;        /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
@@ -260,7 +261,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 	session->close_sent = 1;
 
 	ao2_lock(session);
-	res = (fwrite(frame, 1, 4, session->f) == 4) ? 0 : -1;
+	res = ast_careful_fwrite(session->f, session->fd, frame, 4, session->timeout);
 	ao2_unlock(session);
 	return res;
 }
@@ -303,13 +304,12 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 		ao2_unlock(session);
 		return -1;
 	}
-
-	if (fwrite(frame, 1, header_size, session->f) != header_size) {
+	if (ast_careful_fwrite(session->f, session->fd, frame, header_size, session->timeout)) {
 		ao2_unlock(session);
 		return -1;
 	}
 
-	if (fwrite(payload, 1, actual_length, session->f) != actual_length) {
+	if (ast_careful_fwrite(session->f, session->fd, payload, actual_length, session->timeout)) {
 		ao2_unlock(session);
 		return -1;
 	}
@@ -367,6 +367,13 @@ int AST_OPTIONAL_API_NAME(ast_websocket_set_nonblock)(struct ast_websocket *sess
 	if ((flags = fcntl(session->fd, F_SETFL, flags)) == -1) {
 		return -1;
 	}
+
+	return 0;
+}
+
+int AST_OPTIONAL_API_NAME(ast_websocket_set_timeout)(struct ast_websocket *session, int timeout)
+{
+	session->timeout = timeout;
 
 	return 0;
 }
@@ -514,8 +521,10 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		}
 
 		/* Per the RFC for PING we need to send back an opcode with the application data as received */
-		if (*opcode == AST_WEBSOCKET_OPCODE_PING) {
-			ast_websocket_write(session, AST_WEBSOCKET_OPCODE_PONG, *payload, *payload_len);
+		if ((*opcode == AST_WEBSOCKET_OPCODE_PING) && (ast_websocket_write(session, AST_WEBSOCKET_OPCODE_PONG, *payload, *payload_len))) {
+			*payload_len = 0;
+			ast_websocket_close(session, 1009);
+			return 0;
 		}
 
 		session->payload = new_payload;
@@ -696,6 +705,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			ao2_ref(protocol_handler, -1);
 			return 0;
 		}
+		session->timeout =  AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
 
 		fprintf(ser->f, "HTTP/1.1 101 Switching Protocols\r\n"
 			"Upgrade: %s\r\n"

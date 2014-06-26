@@ -869,6 +869,14 @@
 					or the <replaceable>wss</replaceable> protocols.</para></note>
 					</description>
 				</configOption>
+				<configOption name="websocket_write_timeout">
+					<synopsis>The timeout (in milliseconds) to set on WebSocket connections.</synopsis>
+					<description>
+						<para>If a websocket connection accepts input slowly, the timeout
+						for writes to it can be increased to keep it from being disconnected.
+						Value is in milliseconds; default is 100 ms.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="contact">
 				<synopsis>A way of creating an aliased name to a SIP URI</synopsis>

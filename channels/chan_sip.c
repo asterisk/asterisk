@@ -2665,6 +2665,10 @@ static void sip_websocket_callback(struct ast_websocket *session, struct ast_var
 		goto end;
 	}
 
+	if (ast_websocket_set_timeout(session, sip_cfg.websocket_write_timeout)) {
+		goto end;
+	}
+
 	while ((res = ast_wait_for_input(ast_websocket_fd(session), -1)) > 0) {
 		char *payload;
 		uint64_t payload_len;
@@ -32009,6 +32013,12 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_parkinglot, v->value, sizeof(default_parkinglot));
 		} else if (!strcasecmp(v->name, "refer_addheaders")) {
 			global_refer_addheaders = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "websocket_write_timeout")) {
+			if (sscanf(v->value, "%30d", &sip_cfg.websocket_write_timeout) != 1
+				|| sip_cfg.websocket_write_timeout < 0) {
+				ast_log(LOG_WARNING, "'%s' is not a valid websocket_write_timeout value at line %d. Using default '%d'.\n", v->value, v->lineno, AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT);
+				sip_cfg.websocket_write_timeout = AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
+			}
 		}
 	}
 

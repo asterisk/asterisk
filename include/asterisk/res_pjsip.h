@@ -128,6 +128,8 @@ struct ast_sip_transport {
 	unsigned int tos;
 	/*! QOS COS value */
 	unsigned int cos;
+	/*! Write timeout */
+	int write_timeout;
 };
 
 /*!
