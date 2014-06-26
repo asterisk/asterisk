@@ -23,6 +23,11 @@ AMI
  * New AMI action LoggerRotate reloads and rotates logger in the same manner
    as CLI command 'logger rotate'
 
+CEL
+------------------
+ * The "bridge_technology" extra field key has been added to BRIDGE_ENTER
+   and BRIDGE_EXIT events.
+
 chan_dahdi
 ------------------
  * SS7 support now requires libss7 v2.0 or later.
@@ -34,6 +39,14 @@ chan_dahdi
 
  * Added several SS7 config option parameters described in
    chan_dahdi.conf.sample.
+
+Features
+------------------
+ * The ast_channel_feature_hooks* functions have been added to allow features
+   such as DTMF hooks, interval hooks, and bridge event hooks to be made
+   available to a channel when the channel is bridged. Previously, these
+   features were provided exclusively by the caller of ast_bridge_join()
+   outside of "basic" type bridges.
 
 JACK_HOOK
 ------------------
