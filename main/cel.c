@@ -1167,7 +1167,9 @@ static void cel_bridge_enter_cb(
 		return;
 	}
 
-	extra = ast_json_pack("{s: s}", "bridge_id", snapshot->uniqueid);
+	extra = ast_json_pack("{s: s, s: s}",
+		"bridge_id", snapshot->uniqueid,
+		"bridge_technology", snapshot->technology);
 	if (!extra) {
 		return;
 	}
@@ -1194,7 +1196,9 @@ static void cel_bridge_leave_cb(
 		return;
 	}
 
-	extra = ast_json_pack("{s: s}", "bridge_id", snapshot->uniqueid);
+	extra = ast_json_pack("{s: s, s: s}",
+		"bridge_id", snapshot->uniqueid,
+		"bridge_technology", snapshot->technology);
 	if (!extra) {
 		return;
 	}
