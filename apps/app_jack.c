@@ -61,7 +61,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define RESAMPLE_QUALITY 1
 
-#define RINGBUFFER_SIZE 16384
+/* The number of frames the ringbuffers can store. The actual size is RINGBUFFER_FRAME_CAPACITY * jack_data->frame_datalen */
+#define RINGBUFFER_FRAME_CAPACITY 100
 
 /*! \brief Common options between the Jack() app and JACK_HOOK() function */
 #define COMMON_OPTIONS \
@@ -128,6 +129,9 @@ struct jack_data {
 	jack_port_t *output_port;
 	jack_ringbuffer_t *input_rb;
 	jack_ringbuffer_t *output_rb;
+	enum ast_format_id audiohook_format_id;
+	unsigned int audiohook_rate;
+	unsigned int frame_datalen;
 	void *output_resampler;
 	double output_resample_factor;
 	void *input_resampler;
@@ -201,10 +205,8 @@ static int alloc_resampler(struct jack_data *jack_data, int input)
 
 	jack_srate = jack_get_sample_rate(jack_data->client);
 
-	/* XXX Hard coded 8 kHz */
-
-	to_srate = input ? 8000.0 : jack_srate;
-	from_srate = input ? jack_srate : 8000.0;
+	to_srate = input ? jack_data->audiohook_rate : jack_srate;
+	from_srate = input ? jack_srate : jack_data->audiohook_rate;
 
 	resample_factor = input ? &jack_data->input_resample_factor :
 		&jack_data->output_resample_factor;
@@ -289,7 +291,7 @@ static void handle_input(void *buf, jack_nframes_t nframes,
 
 	res = jack_ringbuffer_write(jack_data->input_rb, (const char *) s_buf, write_len);
 	if (res != write_len) {
-		ast_debug(2, "Tried to write %d bytes to the ringbuffer, but only wrote %d\n",
+		ast_log(LOG_WARNING, "Tried to write %d bytes to the ringbuffer, but only wrote %d\n",
 			(int) sizeof(s_buf), (int) res);
 	}
 }
@@ -392,6 +394,28 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 	jack_status_t status = 0;
 	jack_options_t jack_options = JackNullOption;
 
+	struct ast_format format_slin;
+	unsigned int channel_rate;
+
+	unsigned int ringbuffer_size;
+
+	/* Deducing audiohook sample rate from channel format
+	   ATTENTION: Might be problematic, if channel has different sampling than used by audiohook!
+	*/
+	channel_rate = ast_format_rate(ast_channel_readformat(chan));
+	jack_data->audiohook_format_id = ast_format_slin_by_rate(channel_rate);
+
+	ast_format_set(&format_slin, jack_data->audiohook_format_id, 0);
+	jack_data->audiohook_rate = ast_format_rate(&format_slin);
+
+	/* Guessing frame->datalen assuming a ptime of 20ms */
+	jack_data->frame_datalen = jack_data->audiohook_rate / 50;
+
+	ringbuffer_size = jack_data->frame_datalen * RINGBUFFER_FRAME_CAPACITY;
+
+	ast_debug(1, "Audiohook parameters: slin-format:%d, rate:%d, frame-len:%d, ringbuffer_size: %d\n",
+	    jack_data->audiohook_format_id, jack_data->audiohook_rate, jack_data->frame_datalen, ringbuffer_size);
+
 	if (!ast_strlen_zero(jack_data->client_name)) {
 		client_name = jack_data->client_name;
 	} else {
@@ -400,10 +424,10 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 		ast_channel_unlock(chan);
 	}
 
-	if (!(jack_data->output_rb = jack_ringbuffer_create(RINGBUFFER_SIZE)))
+	if (!(jack_data->output_rb = jack_ringbuffer_create(ringbuffer_size)))
 		return -1;
 
-	if (!(jack_data->input_rb = jack_ringbuffer_create(RINGBUFFER_SIZE)))
+	if (!(jack_data->input_rb = jack_ringbuffer_create(ringbuffer_size)))
 		return -1;
 
 	if (jack_data->no_start_server)
@@ -573,10 +597,9 @@ static int queue_voice_frame(struct jack_data *jack_data, struct ast_frame *f)
 
 	res = jack_ringbuffer_write(jack_data->output_rb, (const char *) f_buf, f_buf_used * sizeof(float));
 	if (res != (f_buf_used * sizeof(float))) {
-		ast_debug(2, "Tried to write %d bytes to the ringbuffer, but only wrote %d\n",
+		ast_log(LOG_WARNING, "Tried to write %d bytes to the ringbuffer, but only wrote %d\n",
 			(int) (f_buf_used * sizeof(float)), (int) res);
 	}
-
 	return 0;
 }
 
@@ -602,7 +625,7 @@ static int queue_voice_frame(struct jack_data *jack_data, struct ast_frame *f)
 static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_data,
 	struct ast_frame *out_frame)
 {
-	short buf[160];
+	short buf[jack_data->frame_datalen];
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
 		.src = "JACK",
@@ -610,7 +633,7 @@ static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_d
 		.datalen = sizeof(buf),
 		.samples = ARRAY_LEN(buf),
 	};
-	ast_format_set(&f.subclass.format, AST_FORMAT_SLINEAR, 0);
+	ast_format_set(&f.subclass.format, jack_data->audiohook_format_id, 0);
 
 	for (;;) {
 		size_t res, read_len;
@@ -755,12 +778,12 @@ static int jack_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+	if (ast_set_read_format_by_id(chan, jack_data->audiohook_format_id)) {
 		destroy_jack_data(jack_data);
 		return -1;
 	}
 
-	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+	if (ast_set_write_format_by_id(chan, jack_data->audiohook_format_id)) {
 		destroy_jack_data(jack_data);
 		return -1;
 	}
@@ -826,12 +849,6 @@ static int jack_hook_callback(struct ast_audiohook *audiohook, struct ast_channe
 	if (frame->frametype != AST_FRAME_VOICE)
 		return 0;
 
-	if (frame->subclass.format.id != AST_FORMAT_SLINEAR) {
-		ast_log(LOG_WARNING, "Expected frame in SLINEAR for the audiohook, but got format %s\n",
-			ast_getformatname(&frame->subclass.format));
-		return 0;
-	}
-
 	ast_channel_lock(chan);
 
 	if (!(datastore = ast_channel_datastore_find(chan, &jack_hook_ds_info, NULL))) {
@@ -841,6 +858,13 @@ static int jack_hook_callback(struct ast_audiohook *audiohook, struct ast_channe
 	}
 
 	jack_data = datastore->data;
+
+	if (frame->subclass.format.id != jack_data->audiohook_format_id) {
+		ast_log(LOG_WARNING, "Expected frame in SLINEAR with id %d for the audiohook, but got format %s\n",
+		    jack_data->audiohook_format_id, ast_getformatname(&frame->subclass.format));
+		ast_channel_unlock(chan);
+		return 0;
+	}
 
 	queue_voice_frame(jack_data, frame);
 
@@ -888,7 +912,7 @@ static int enable_jack_hook(struct ast_channel *chan, char *data)
 		goto return_error;
 
 	jack_data->has_audiohook = 1;
-	ast_audiohook_init(&jack_data->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "JACK_HOOK", 0);
+	ast_audiohook_init(&jack_data->audiohook, AST_AUDIOHOOK_TYPE_MANIPULATE, "JACK_HOOK", AST_AUDIOHOOK_MANIPULATE_ALL_RATES);
 	jack_data->audiohook.manipulate_callback = jack_hook_callback;
 
 	datastore->data = jack_data;

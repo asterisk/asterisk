@@ -35,6 +35,11 @@ chan_dahdi
  * Added several SS7 config option parameters described in
    chan_dahdi.conf.sample.
 
+JACK_HOOK
+------------------
+ * The JACK_HOOK function now supports audio with a sample rate higher than
+   8kHz.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.3.0 to Asterisk 12.4.0 ------------
 ------------------------------------------------------------------------------
