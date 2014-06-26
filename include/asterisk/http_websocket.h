@@ -21,6 +21,9 @@
 
 #include "asterisk/optional_api.h"
 
+/*! \brief Default websocket write timeout, in ms */
+#define AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT 100
+
 /*!
  * \file http_websocket.h
  * \brief Support for WebSocket connections within the Asterisk HTTP server.
@@ -183,5 +186,15 @@ AST_OPTIONAL_API(int, ast_websocket_is_secure, (struct ast_websocket *session), 
  * \retval -1 on failure
  */
 AST_OPTIONAL_API(int, ast_websocket_set_nonblock, (struct ast_websocket *session), {return -1;});
+
+/*!
+ * \brief Set the timeout on a non-blocking WebSocket session.
+ *
+ * \since 11.11.0
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+AST_OPTIONAL_API(int, ast_websocket_set_timeout, (struct ast_websocket *session, int timeout), {return -1;});
 
 #endif

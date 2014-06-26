@@ -229,6 +229,12 @@ tcpbindaddr=0.0.0.0             ; IP address for TCP server to bind to (0.0.0.0 
 				; unauthenticated sessions that will be allowed
                                 ; to connect at any given time. (default: 100)
 
+;websocket_write_timeout = 100  ; Default write timeout to set on websocket transports.
+                                ; This value may need to be adjusted for connections where
+                                ; Asterisk must write a substantial amount of data and the
+                                ; receiving clients are slow to process the received information.
+                                ; Value is in milliseconds; default is 100 ms.
+
 transport=udp                   ; Set the default transports.  The order determines the primary default transport.
                                 ; If tcpenable=no and the transport set is tcp, we will fallback to UDP.
 

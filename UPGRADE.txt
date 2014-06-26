@@ -20,6 +20,13 @@
 ===
 ===========================================================
 
+from 11.10.0 to 11.11.0
+ - Added a compatibility option for chan_sip, 'websocket_write_timeout'.
+   When a websocket connection exists where Asterisk writes a substantial
+   amount of data to the connected client, and the connected client is slow
+   to process the received data, the socket may be disconnected. In such
+   cases, it may be necessary to adjust this value. Default is 100 ms.
+
 from 11.10.0 to 11.10.1
  - MixMonitor AMI actions now require users to have authorization classes.
    * MixMonitor - system
