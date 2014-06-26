@@ -1,6 +1,7 @@
 {
 	global:
 		LINKER_SYMBOL_PREFIX*ast_websocket_*;
+		LINKER_SYMBOL_PREFIX*ast_websocket_set_timeout;
 	local:
 		*;
 };
