@@ -722,6 +722,14 @@ int ast_bridge_features_set_limits(struct ast_bridge_features *features, struct 
 void ast_bridge_features_set_flag(struct ast_bridge_features *features, unsigned int flag);
 
 /*!
+ * \brief Merge one ast_bridge_features into another
+ *
+ * \param into The ast_bridge_features that will be merged into
+ * \param from The ast_bridge_features that will be merged from
+ */
+void ast_bridge_features_merge(struct ast_bridge_features *into, const struct ast_bridge_features *from);
+
+/*!
  * \brief Initialize bridge features structure
  *
  * \param features Bridge featues structure

@@ -10453,3 +10453,71 @@ void ast_channel_end_dtmf(struct ast_channel *chan, char digit, struct timeval s
 	ast_log(LOG_DTMF, "DTMF end '%c' simulated on %s due to %s, duration %ld ms\n",
 		digit, ast_channel_name(chan), why, duration);
 }
+
+static void features_destroy(void *obj)
+{
+	ast_bridge_features_destroy(obj);
+}
+
+static const struct ast_datastore_info bridge_features_info = {
+	.type = "bridge-features",
+	.destroy = features_destroy,
+};
+
+struct ast_bridge_features *ast_channel_feature_hooks_get(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore;
+
+	datastore = ast_channel_datastore_find(chan, &bridge_features_info, NULL);
+	if (!datastore) {
+		return NULL;
+	}
+	return datastore->data;
+}
+
+static int channel_feature_hooks_set_full(struct ast_channel *chan, struct ast_bridge_features *features, int replace)
+{
+	struct ast_datastore *datastore;
+	struct ast_bridge_features *ds_features;
+
+	datastore = ast_channel_datastore_find(chan, &bridge_features_info, NULL);
+	if (datastore) {
+		ds_features = datastore->data;
+		if (replace) {
+			ast_bridge_features_cleanup(ds_features);
+			ast_bridge_features_init(ds_features);
+		}
+		if (features) {
+			ast_bridge_features_merge(ds_features, features);
+		}
+		return 0;
+	}
+
+	datastore = ast_datastore_alloc(&bridge_features_info, NULL);
+	if (!datastore) {
+		return -1;
+	}
+
+	ds_features = ast_bridge_features_new();
+	if (!ds_features) {
+		ast_datastore_free(datastore);
+		return -1;
+	}
+
+	if (features) {
+		ast_bridge_features_merge(ds_features, features);
+	}
+	datastore->data = ds_features;
+	ast_channel_datastore_add(chan, datastore);
+	return 0;
+}
+
+int ast_channel_feature_hooks_append(struct ast_channel *chan, struct ast_bridge_features *features)
+{
+	return channel_feature_hooks_set_full(chan, features, 0);
+}
+
+int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridge_features *features)
+{
+	return channel_feature_hooks_set_full(chan, features, 1);
+}

@@ -2187,6 +2187,7 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 {
 	int res = 0;
+	struct ast_bridge_features *channel_features;
 
 	ast_format_copy(&bridge_channel->read_format, ast_channel_readformat(bridge_channel->chan));
 	ast_format_copy(&bridge_channel->write_format, ast_channel_writeformat(bridge_channel->chan));
@@ -2201,8 +2202,8 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	 */
 	ast_bridge_lock(bridge_channel->bridge);
 
-	/* Make sure we're still good to be put into a bridge */
 	ast_channel_lock(bridge_channel->chan);
+	/* Make sure we're still good to be put into a bridge */
 	if (ast_channel_internal_bridge(bridge_channel->chan)
 		|| ast_test_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_ZOMBIE)) {
 		ast_channel_unlock(bridge_channel->chan);
@@ -2214,6 +2215,12 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		return -1;
 	}
 	ast_channel_internal_bridge_set(bridge_channel->chan, bridge_channel->bridge);
+
+	/* Attach features requested by the channel */
+	channel_features = ast_channel_feature_hooks_get(bridge_channel->chan);
+	if (channel_features) {
+		ast_bridge_features_merge(bridge_channel->features, channel_features);
+	}
 	ast_channel_unlock(bridge_channel->chan);
 
 	/* Add the jitterbuffer if the channel requires it */

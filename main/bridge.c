@@ -3327,6 +3327,64 @@ static int bridge_dtmf_hook_sort(const void *obj_left, const void *obj_right, in
 	return cmp;
 }
 
+/*! \brief Callback for merging hook ao2_containers */
+static int merge_container_cb(void *obj, void *data, int flags)
+{
+	ao2_link(data, obj);
+	return 0;
+}
+
+/*! \brief Wrapper for interval hooks that calls into the wrapped hook */
+static int interval_wrapper_cb(struct ast_bridge_channel *bridge_channel, void *obj)
+{
+	struct ast_bridge_hook_timer *hook = obj;
+
+	return hook->generic.callback(bridge_channel, hook->generic.hook_pvt);
+}
+
+/*! \brief Destructor for the hook wrapper */
+static void interval_wrapper_pvt_dtor(void *obj)
+{
+	ao2_cleanup(obj);
+}
+
+/*! \brief Wrap the provided interval hook and add it to features */
+static void wrap_hook(struct ast_bridge_features *features, struct ast_bridge_hook_timer *hook)
+{
+	/* Break out of the current wrapper if it exists to avoid multiple layers */
+	if (hook->generic.callback == interval_wrapper_cb) {
+		hook = hook->generic.hook_pvt;
+	}
+
+	ast_bridge_interval_hook(features, hook->timer.flags, hook->timer.interval,
+		interval_wrapper_cb, ao2_bump(hook), interval_wrapper_pvt_dtor,
+		hook->generic.remove_flags.flags);
+}
+
+void ast_bridge_features_merge(struct ast_bridge_features *into, const struct ast_bridge_features *from)
+{
+	struct ast_bridge_hook_timer *hook;
+	int idx;
+
+	/* Merge hook containers */
+	ao2_callback(from->dtmf_hooks, 0, merge_container_cb, into->dtmf_hooks);
+	ao2_callback(from->other_hooks, 0, merge_container_cb, into->other_hooks);
+
+	/* Merge hook heaps */
+	ast_heap_wrlock(from->interval_hooks);
+	for (idx = 1; (hook = ast_heap_peek(from->interval_hooks, idx)); idx++) {
+		wrap_hook(into, hook);
+	}
+	ast_heap_unlock(from->interval_hooks);
+
+	/* Merge feature flags */
+	into->feature_flags.flags |= from->feature_flags.flags;
+	into->usable |= from->usable;
+
+	into->mute |= from->mute;
+	into->dtmf_passthrough |= from->dtmf_passthrough;
+}
+
 /* XXX ASTERISK-21271 make ast_bridge_features_init() static when make ast_bridge_join() requires features to be allocated. */
 int ast_bridge_features_init(struct ast_bridge_features *features)
 {

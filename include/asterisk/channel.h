@@ -4488,4 +4488,44 @@ int ast_channel_unsuppress(struct ast_channel *chan, unsigned int direction, enu
  */
 void ast_channel_end_dtmf(struct ast_channel *chan, char digit, struct timeval start, const char *why);
 
+struct ast_bridge_features;
+
+/*!
+ * \brief Gets the channel-attached features a channel has access to upon being bridged.
+ *
+ * \note The channel must be locked when calling this function.
+ *
+ * \param chan Which channel to get features for
+ *
+ * \retval non-NULL The features currently set for this channel
+ * \retval NULL if the features have not been set
+ */
+struct ast_bridge_features *ast_channel_feature_hooks_get(struct ast_channel *chan);
+
+/*!
+ * \brief Appends to the channel-attached features a channel has access to upon being bridged.
+ *
+ * \note The channel must be locked when calling this function.
+ *
+ * \param chan Which channel to set features for
+ * \param features The feature set to append to the channel's features
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_channel_feature_hooks_append(struct ast_channel *chan, struct ast_bridge_features *features);
+
+/*!
+ * \brief Sets the channel-attached features a channel has access to upon being bridged.
+ *
+ * \note The channel must be locked when calling this function.
+ *
+ * \param chan Which channel to set features for
+ * \param features The feature set with which to replace the channel's features
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridge_features *features);
+
 #endif /* _ASTERISK_CHANNEL_H */
