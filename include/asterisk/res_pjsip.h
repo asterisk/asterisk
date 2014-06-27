@@ -1719,6 +1719,8 @@ struct ast_sip_ami {
 	struct mansession *s;
 	/*! Manager message */
 	const struct message *m;
+	/*! Manager Action ID */
+	const char *action_id;
 	/*! user specified argument data */
 	void *arg;
 };

@@ -1102,7 +1102,7 @@ static int ami_outbound_registration_detail(void *obj, void *arg, int flags)
 static int ami_show_outbound_registrations(struct mansession *s,
 					   const struct message *m)
 {
-	struct ast_sip_ami ami = { .s = s, .m = m };
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
 	struct sip_ami_outbound ami_outbound = { .ami = &ami };
 	RAII_VAR(struct ao2_container *, regs, ast_sorcery_retrieve_by_fields(
 			 ast_sip_get_sorcery(), "registration", AST_RETRIEVE_FLAG_MULTIPLE |
@@ -1119,9 +1119,11 @@ static int ami_show_outbound_registrations(struct mansession *s,
 
 	ao2_callback(regs, OBJ_NODATA, ami_outbound_registration_detail, &ami_outbound);
 
-	astman_append(s,
-		      "Event: OutboundRegistrationDetailComplete\r\n"
-		      "EventList: Complete\r\n"
+	astman_append(s, "Event: OutboundRegistrationDetailComplete\r\n");
+	if (!ast_strlen_zero(ami.action_id)) {
+		astman_append(s, "ActionID: %s\r\n", ami.action_id);
+	}
+	astman_append(s, "EventList: Complete\r\n"
 		      "Registered: %d\r\n"
 		      "NotRegistered: %d\r\n\r\n",
 		      ami_outbound.registered,
@@ -1259,7 +1261,7 @@ static int load_module(void)
 	sip_outbound_registration_perform_all();
 
 	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
-	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING,ami_show_outbound_registrations);
+	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_show_outbound_registrations);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!cli_formatter) {

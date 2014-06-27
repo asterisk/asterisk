@@ -1024,6 +1024,9 @@ struct ast_str *ast_sip_create_ami_event(const char *event, struct ast_sip_ami *
 	}
 
 	ast_str_set(&buf, 0, "Event: %s\r\n", event);
+	if (!ast_strlen_zero(ami->action_id)) {
+		ast_str_append(&buf, 0, "ActionID: %s\r\n", ami->action_id);
+	}
 	return buf;
 }
 
@@ -1104,7 +1107,7 @@ static int format_ami_endpoint(const struct ast_sip_endpoint *endpoint,
 
 static int ami_show_endpoint(struct mansession *s, const struct message *m)
 {
-	struct ast_sip_ami ami = { .s = s, .m = m };
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
 	int count = 0;
@@ -1136,9 +1139,11 @@ static int ami_show_endpoint(struct mansession *s, const struct message *m)
 			endpoint_name);
 	}
 
-	astman_append(s,
-		      "Event: EndpointDetailComplete\r\n"
-		      "EventList: Complete\r\n"
+	astman_append(s, "Event: EndpointDetailComplete\r\n");
+	if (!ast_strlen_zero(ami.action_id)) {
+		astman_append(s, "ActionID: %s\r\n", ami.action_id);
+	}
+	astman_append(s, "EventList: Complete\r\n"
 		      "ListItems: %d\r\n\r\n", count + 1);
 	return 0;
 }
@@ -1197,7 +1202,7 @@ static int format_ami_endpoints(void *obj, void *arg, int flags)
 
 static int ami_show_endpoints(struct mansession *s, const struct message *m)
 {
-	struct ast_sip_ami ami = { .s = s, .m = m };
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
 	RAII_VAR(struct ao2_container *, endpoints, NULL, ao2_cleanup);
 	int num;
 
@@ -1216,9 +1221,11 @@ static int ami_show_endpoints(struct mansession *s, const struct message *m)
 
 	ao2_callback(endpoints, OBJ_NODATA, format_ami_endpoints, &ami);
 
-	astman_append(s,
-		      "Event: EndpointListComplete\r\n"
-		      "EventList: Complete\r\n"
+	astman_append(s, "Event: EndpointListComplete\r\n");
+	if (!ast_strlen_zero(ami.action_id)) {
+		astman_append(s, "ActionID: %s\r\n", ami.action_id);
+	}
+	astman_append(s, "EventList: Complete\r\n"
 		      "ListItems: %d\r\n\r\n", num);
 	return 0;
 }
