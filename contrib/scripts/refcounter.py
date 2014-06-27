@@ -23,6 +23,7 @@ import os
 
 from optparse import OptionParser
 
+
 def parse_line(line):
     """Parse out a line into its constituent parts.
 
@@ -46,11 +47,11 @@ def parse_line(line):
                       'function': tokens[5],
                       'state': tokens[6],
                       'tag': tokens[7],
-                     }
+                      }
     return processed_line
 
 
-def process_file(filename):
+def process_file(options):
     """The routine that kicks off processing a ref file
 
     Keyword Arguments:
@@ -67,6 +68,7 @@ def process_file(filename):
     leaked_objects = []
     skewed_objects = []
     current_objects = {}
+    filename = options.filepath
 
     with open(filename, 'r') as ref_file:
         for line in ref_file:
@@ -78,16 +80,25 @@ def process_file(filename):
 
             if obj not in current_objects:
                 current_objects[obj] = []
-                if 'constructor' not in parsed_line['state']:
-                    skewed_objects.append(current_objects[obj])
-            current_objects[obj].append(parsed_line)
+                if options.skewed and 'constructor' not in parsed_line['state']:
+                    skewed_objects.append((obj, current_objects[obj]))
+            current_objects[obj].append("[%s] %s:%s %s: %s %s - [%s]" % (
+                parsed_line['thread_id'],
+                parsed_line['file'],
+                parsed_line['line'],
+                parsed_line['function'],
+                parsed_line['delta'],
+                parsed_line['tag'],
+                parsed_line['state']))
 
             if 'destructor' in parsed_line['state']:
-                lifetime = current_objects.get(obj)
-                finished_objects.append(lifetime)
+                if options.normal:
+                    finished_objects.append((obj, current_objects[obj]))
                 del current_objects[obj]
 
-    leaked_objects = current_objects.values()
+    if options.leaks:
+        for key, lines in current_objects.iteritems():
+            leaked_objects.append((key, lines))
     return (finished_objects, leaked_objects, skewed_objects)
 
 
@@ -103,13 +114,9 @@ def print_objects(objects, prefix=""):
     print "======== %s Objects ========" % prefix
     print "\n"
     for obj in objects:
-        print "==== %s Object %s history ====" % (prefix, obj[0]['addr'])
-        for entry in obj:
-            print "[%s] %s:%s %s: %s %s - [%s]" % (entry['thread_id'],
-                                              entry['file'], entry['line'],
-                                              entry['function'],
-                                              entry['delta'], entry['tag'],
-                                              entry['state'])
+        print "==== %s Object %s history ====" % (prefix, obj[0])
+        for line in obj[1]:
+            print line
         print "\n"
 
 
@@ -131,14 +138,18 @@ def main(argv=None):
                       help="If specified, don't output leaked objects")
     parser.add_option("-n", "--suppress-normal", action="store_false",
                       dest="normal", default=True,
-                      help="If specified, don't output objects with a " \
+                      help="If specified, don't output objects with a "
                            "complete lifetime")
     parser.add_option("-s", "--suppress-skewed", action="store_false",
                       dest="skewed", default=True,
-                      help="If specified, don't output objects with a " \
+                      help="If specified, don't output objects with a "
                            "skewed lifetime")
 
     (options, args) = parser.parse_args(argv)
+
+    if not options.leaks and not options.skewed and not options.normal:
+        print >>sys.stderr, "All options disabled"
+        return -1
 
     if not os.path.isfile(options.filepath):
         print >>sys.stderr, "File not found: %s" % options.filepath
@@ -147,7 +158,7 @@ def main(argv=None):
     try:
         (finished_objects,
          leaked_objects,
-         skewed_objects) = process_file(options.filepath)
+         skewed_objects) = process_file(options)
 
         if options.leaks and len(leaked_objects):
             print_objects(leaked_objects, "Leaked")
