@@ -220,12 +220,8 @@ int __ao2_ref_debug(void *user_data, const int delta, const char *tag, const cha
 {
 	struct astobj2 *obj = INTERNAL_OBJ(user_data);
 
-	if (obj == NULL) {
-		return -1;
-	}
-
-	if (ref_log) {
-		if (obj->priv_data.ref_counter + delta == 0) {
+	if (ref_log && user_data) {
+		if (obj && obj->priv_data.ref_counter + delta == 0) {
 			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n", user_data, delta, ast_get_tid(), file, line, funcname, tag);
 			fflush(ref_log);
 		} else if (delta != 0) {
@@ -234,6 +230,11 @@ int __ao2_ref_debug(void *user_data, const int delta, const char *tag, const cha
 			fflush(ref_log);
 		}
 	}
+
+	if (obj == NULL) {
+		return -1;
+	}
+
 	return internal_ao2_ref(user_data, delta);
 }
 
