@@ -130,7 +130,7 @@ static void do_sleep(void)
 
 #define BRIDGE_EXIT_EVENT_PEER(channel, bridge, peer) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
-	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
+	extra = ast_json_pack("{s: s, s: s}", "bridge_id", bridge->uniqueid, "bridge_technology", bridge->technology->name); \
 	ast_test_validate(test, extra != NULL); \
 	APPEND_EVENT_PEER(channel, AST_CEL_BRIDGE_EXIT, NULL, extra, peer); \
 	} while (0)
@@ -140,7 +140,7 @@ static void do_sleep(void)
 	RAII_VAR(struct ast_str *, peer_str, NULL, ast_free); \
 	peer_str = test_cel_generate_peer_str_snapshot(channel, bridge); \
 	ast_test_validate(test, peer_str != NULL); \
-	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
+	extra = ast_json_pack("{s: s, s: s}", "bridge_id", bridge->uniqueid, "bridge_technology", bridge->technology->name); \
 	ast_test_validate(test, extra != NULL); \
 	APPEND_EVENT_SNAPSHOT(channel, AST_CEL_BRIDGE_EXIT, NULL, extra, ast_str_buffer(peer_str)); \
 	} while (0)
@@ -161,7 +161,7 @@ static void do_sleep(void)
 
 #define BRIDGE_ENTER_EVENT_PEER(channel, bridge, peer) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
-	extra = ast_json_pack("{s: s}", "bridge_id", bridge->uniqueid); \
+	extra = ast_json_pack("{s: s, s: s}", "bridge_id", bridge->uniqueid, "bridge_technology", bridge->technology->name); \
 	ast_test_validate(test, extra != NULL); \
 	APPEND_EVENT_PEER(channel, AST_CEL_BRIDGE_ENTER, NULL, extra, peer); \
 	} while (0)
