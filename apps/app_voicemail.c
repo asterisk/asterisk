@@ -755,6 +755,15 @@ For vm_intro_it:
 \arg \b vm-vecchio	old
 \arg \b vm-vecchi	old plural
 
+Japanese requires the following additional soundfile:
+\arg \b jp-arimasu          there is
+\arg \b jp-arimasen         there is not
+\arg \b jp-oshitekudasai    please press
+\arg \b jp-ni               article ni
+\arg \b jp-ga               article ga
+\arg \b jp-wa               article wa
+\arg \b jp-wo               article wo
+
 Chinese (Taiwan) requires the following additional soundfile:
 \arg \b vm-tong		A class-word for call (tong1)
 \arg \b vm-ri		A class-word for day (ri4)
@@ -7579,6 +7588,34 @@ static int get_folder(struct ast_channel *chan, int start)
 	return d;
 }
 
+/* Japanese Syntax */
+static int get_folder_ja(struct ast_channel *chan, int start)
+{
+        int x;
+        int d;
+        char fn[256];
+        for (x = start; x< 5; x++) {    /* For all folders */
+                if ((d = ast_say_number(chan, x, AST_DIGIT_ANY, ast_channel_language(chan), (char *) NULL))) {
+                        return d;
+		}
+		snprintf(fn, sizeof(fn), "vm-%s", mbox(NULL, x));     /* Folder name */
+		d = vm_play_folder_name(chan, fn);
+		if (d) {
+                        return d;
+		}
+                d = ast_waitfordigit(chan, 500);
+                if (d) {
+                        return d;
+		}
+        }
+        d = ast_play_and_wait(chan, "vm-tocancel"); /* "or pound to cancel" */
+        if (d) {
+                return d;
+	}
+        d = ast_waitfordigit(chan, 4000);
+        return d;
+}
+
 /*!
  * \brief plays a prompt and waits for a keypress.
  * \param chan
@@ -7600,7 +7637,12 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
 	while (((res < '0') || (res > '9')) &&
 			(res != '#') && (res >= 0) &&
 			loops < 4) {
-		res = get_folder(chan, 0);
+                /* res = get_folder(chan, 0); */
+                if (!strcasecmp(ast_channel_language(chan),"ja")) {   /* Japanese syntax */
+                      res = get_folder_ja(chan, 0);
+                } else { /* Default syntax */
+		      res = get_folder(chan, 0);
+		}
 		loops++;
 	}
 	if (loops == 4) { /* give up */
@@ -8326,6 +8368,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "'vm-received' q  H 'digits/kai' M ", NULL);
 	} else if (!strncasecmp(ast_channel_language(chan), "it", 2)) {     /* ITALIAN syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "'vm-received' q 'digits/at' 'digits/hours' k 'digits/e' M 'digits/minutes'", NULL);
+	} else if (!strcasecmp(ast_channel_language(chan),"ja")) {     /* Japanese syntax */
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "PHM q 'jp-ni' 'vm-received'", NULL);
 	} else if (!strncasecmp(ast_channel_language(chan), "nl", 2)) {     /* DUTCH syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "'vm-received' q 'digits/nl-om' HM", NULL);
 	} else if (!strncasecmp(ast_channel_language(chan), "no", 2)) {     /* NORWEGIAN syntax */
@@ -8891,6 +8935,19 @@ static int vm_play_folder_name_gr(struct ast_channel *chan, char *box)
 	}
 }
 
+static int vm_play_folder_name_ja(struct ast_channel *chan, char *box)
+{
+        int cmd;
+
+        if (!strcasecmp(box, "vm-INBOX") || !strcasecmp(box, "vm-Old")) {
+                cmd = ast_play_and_wait(chan, box);
+                return cmd ? cmd : ast_play_and_wait(chan, "vm-messages");
+        } else {
+                cmd = ast_play_and_wait(chan, box);
+                return cmd;
+        }
+}
+
 static int vm_play_folder_name_pl(struct ast_channel *chan, char *box)
 {
 	int cmd;
@@ -8933,6 +8990,8 @@ static int vm_play_folder_name(struct ast_channel *chan, char *box)
 		return vm_play_folder_name_gr(chan, box);
 	} else if (!strncasecmp(ast_channel_language(chan), "he", 2)) {  /* Hebrew syntax */
 		return ast_play_and_wait(chan, box);
+        } else if (!strncasecmp(ast_channel_language(chan), "ja", 2)) {  /* Japanese syntax */
+                return vm_play_folder_name_ja(chan, box);
 	} else if (!strncasecmp(ast_channel_language(chan), "pl", 2)) {
 		return vm_play_folder_name_pl(chan, box);
 	} else if (!strncasecmp(ast_channel_language(chan), "ua", 2)) {  /* Ukrainian syntax */
@@ -9156,6 +9215,45 @@ static int vm_intro_he(struct ast_channel *chan, struct vm_state *vms)
 	}
 	return res;
 }
+
+/* Japanese syntax */
+static int vm_intro_ja(struct ast_channel *chan,struct vm_state *vms)
+{
+      /* Introduce messages they have */
+      int res;
+      if (vms->newmessages) {
+              res = ast_play_and_wait(chan, "vm-INBOX");
+              if (!res)
+                      res = ast_play_and_wait(chan, "vm-message");
+              if (!res)
+                      res = ast_play_and_wait(chan, "jp-ga");
+              if (!res)
+                      res = say_and_wait(chan, vms->newmessages, ast_channel_language(chan));
+              if (vms->oldmessages && !res)
+                      res = ast_play_and_wait(chan, "silence/1");
+
+      }
+      if (vms->oldmessages) {
+              res = ast_play_and_wait(chan, "vm-Old");
+              if (!res)
+                      res = ast_play_and_wait(chan, "vm-message");
+              if (!res)
+                      res = ast_play_and_wait(chan, "jp-ga");
+              if (!res)
+                      res = say_and_wait(chan, vms->oldmessages, ast_channel_language(chan));
+      }
+      if (!vms->oldmessages && !vms->newmessages) {
+              res = ast_play_and_wait(chan, "vm-messages");
+              if (!res)
+                      res = ast_play_and_wait(chan, "jp-wa");
+              if (!res)
+                      res = ast_play_and_wait(chan, "jp-arimasen");
+      }
+      else {
+              res = ast_play_and_wait(chan, "jp-arimasu");
+      }
+      return res;
+} /* Japanese */
 	
 /* Default English syntax */
 static int vm_intro_en(struct ast_channel *chan, struct vm_state *vms)
@@ -9880,6 +9978,8 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_he(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "it", 2)) {  /* ITALIAN syntax */
 		return vm_intro_it(chan, vms);
+	} else if (!strncasecmp(ast_channel_language(chan), "ja", 2)) {  /* JAPANESE syntax */
+		return vm_intro_ja(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "nl", 2)) {  /* DUTCH syntax */
 		return vm_intro_nl(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "no", 2)) {  /* NORWEGIAN syntax */
@@ -9993,6 +10093,102 @@ static int vm_instructions_en(struct ast_channel *chan, struct ast_vm_user *vmu,
 	return res;
 }
 
+static int vm_instructions_ja(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms,  int skipadvanced, int in_urgent)
+{
+        int res = 0;
+        /* Play instructions and wait for new command */
+        while (!res) {
+                if (vms->starting) {
+                        if (vms->lastmsg > -1) {
+                                res = vm_play_folder_name(chan, vms->vmbox);
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "jp-wa");
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "digits/1");
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "jp-wo");
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "silence/1");
+                        }
+                        if (!res)
+                                res = ast_play_and_wait(chan, "vm-opts");
+                } else {
+                        /* Added for additional help */
+                        if (skipadvanced) {
+                                res = vm_play_folder_name(chan, vms->vmbox);
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "jp-wa");
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "digits/1");
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "jp-wo");
+                                if (!res)
+                                        res = ast_play_and_wait(chan, "silence/1");
+                                res = ast_play_and_wait(chan, "vm-opts-full");
+                        }
+                        /* Logic:
+                         * If the current message is not the first OR
+                         * if we're listening to the first new message and there are
+                         * also urgent messages, then prompt for navigation to the
+                         * previous message
+                         */
+                        if (vms->curmsg || (!in_urgent && vms->urgentmessages > 0) || (ast_test_flag(vmu, VM_MESSAGEWRAP) && vms->lastmsg > 0)) {
+                                res = ast_play_and_wait(chan, "vm-prev");
+                        }
+                        if (!res && !skipadvanced)
+                                res = ast_play_and_wait(chan, "vm-advopts");
+                        if (!res)
+                                res = ast_play_and_wait(chan, "vm-repeat");
+                        /* Logic:
+                         * If we're not listening to the last message OR
+                         * we're listening to the last urgent message and there are
+                         * also new non-urgent messages, then prompt for navigation
+                         * to the next message
+                         */
+                        if (!res && ((vms->curmsg != vms->lastmsg) || (in_urgent && vms->newmessages > 0) ||
+                                (ast_test_flag(vmu, VM_MESSAGEWRAP) && vms->lastmsg > 0) )) {
+                                res = ast_play_and_wait(chan, "vm-next");
+                        }
+                        if (!res) {
+                                int curmsg_deleted;
+#ifdef IMAP_STORAGE
+                                ast_mutex_lock(&vms->lock);
+#endif
+                                curmsg_deleted = vms->deleted[vms->curmsg];
+#ifdef IMAP_STORAGE
+                                ast_mutex_unlock(&vms->lock);
+#endif
+                                if (!curmsg_deleted) {
+                                        res = ast_play_and_wait(chan, "vm-delete");
+                                } else {
+                                        res = ast_play_and_wait(chan, "vm-undelete");
+                                }
+                                if (!res) {
+                                        res = ast_play_and_wait(chan, "vm-toforward");
+                                }
+                                if (!res) {
+                                        res = ast_play_and_wait(chan, "vm-savemessage");
+                                }
+                        }
+                }
+
+		if (!res) {
+			res = ast_play_and_wait(chan, "vm-helpexit");
+		}
+		if (!res)
+			res = ast_waitfordigit(chan, 6000);
+		if (!res) {
+			vms->repeats++;
+			if (vms->repeats > 2) {
+				res = 't';
+			}
+		}
+
+	}
+
+        return res;
+}
+
 static int vm_instructions_zh(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms,  int skipadvanced, int in_urgent)
 {
 	int res = 0;
@@ -10019,7 +10215,9 @@ static int vm_instructions_zh(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 static int vm_instructions(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int skipadvanced, int in_urgent)
 {
-	if (vms->starting && !strncasecmp(ast_channel_language(chan), "zh", 2)) { /* CHINESE (Taiwan) syntax */
+        if (!strncasecmp(ast_channel_language(chan), "ja", 2)) { /* Japanese syntax */
+                return vm_instructions_ja(chan, vmu, vms, skipadvanced, in_urgent);
+        } else if (vms->starting && !strncasecmp(ast_channel_language(chan), "zh", 2)) { /* CHINESE (Taiwan) syntax */
 		return vm_instructions_zh(chan, vmu, vms, skipadvanced, in_urgent);
 	} else {					/* Default to ENGLISH */
 		return vm_instructions_en(chan, vmu, vms, skipadvanced, in_urgent);
@@ -10440,6 +10638,33 @@ static int vm_browse_messages_it(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
+/*!
+ * \brief Japanese syntax for 'You have N messages' greeting.
+ * \param chan
+ * \param vms
+ * \param vmu
+ *
+ * \return zero on success, -1 on error.
+ */
+static int vm_browse_messages_ja(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+{
+        int cmd = 0;
+
+        if (vms->lastmsg > -1) {
+                cmd = play_message(chan, vmu, vms);
+        } else {
+                snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+                cmd = ast_play_and_wait(chan, vms->fn);
+                if (!cmd)
+                        cmd = ast_play_and_wait(chan, "vm-messages");
+                if (!cmd)
+                        cmd = ast_play_and_wait(chan, "jp-wa");
+                if (!cmd)
+                        cmd = ast_play_and_wait(chan, "jp-arimasen");
+        }
+        return cmd;
+}
+
 /*! 
  * \brief Spanish syntax for 'You have N messages' greeting.
  * \param chan
@@ -10565,6 +10790,8 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 		return vm_browse_messages_he(chan, vms, vmu);
 	} else if (!strncasecmp(ast_channel_language(chan), "it", 2)) {  /* ITALIAN */
 		return vm_browse_messages_it(chan, vms, vmu);
+        } else if (!strncasecmp(ast_channel_language(chan), "ja", 2)) {  /* JAPANESE */
+                return vm_browse_messages_ja(chan, vms, vmu);
 	} else if (!strncasecmp(ast_channel_language(chan), "pt", 2)) {  /* PORTUGUESE */
 		return vm_browse_messages_pt(chan, vms, vmu);
 	} else if (!strncasecmp(ast_channel_language(chan), "vi", 2)) {  /* VIETNAMESE */
@@ -11510,6 +11737,22 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 			break;
 		case '*': /* Help */
 			if (!vms.starting) {
+                                if (!strncasecmp(ast_channel_language(chan), "ja", 2)) {
+                                        cmd = vm_play_folder_name(chan, vms.vmbox);
+                                        if (!cmd)
+                                                cmd = ast_play_and_wait(chan, "jp-wa");
+                                        if (!cmd)
+                                                cmd = ast_play_and_wait(chan, "digits/1");
+                                        if (!cmd)
+                                                cmd = ast_play_and_wait(chan, "jp-wo");
+                                        if (!cmd)
+                                                cmd = ast_play_and_wait(chan, "silence/1");
+                                        if (!cmd)
+                                                cmd = ast_play_and_wait(chan, "vm-opts");
+                                        if (!cmd)
+                                                cmd = vm_instructions(chan, vmu, &vms, 1, in_urgent);
+                                        break;
+                                }
 				cmd = ast_play_and_wait(chan, "vm-onefor");
 				if (!strncasecmp(ast_channel_language(chan), "he", 2)) {
 					cmd = ast_play_and_wait(chan, "vm-for");
@@ -12092,9 +12335,7 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 		} else if (!strncasecmp(arg.attribute, "pager", 5)) {
 			ast_copy_string(buf, vmu->pager, len);
 		} else if (!strncasecmp(arg.attribute, "language", 8)) {
-			const char *lang = S_OR(vmu->language, chan ?
-				ast_channel_language(chan) : ast_defaultlanguage);
-			ast_copy_string(buf, lang, len);
+			ast_copy_string(buf, S_OR(vmu->language, ast_channel_language(chan)), len);
 		} else if (!strncasecmp(arg.attribute, "locale", 6)) {
 			ast_copy_string(buf, vmu->locale, len);
 		} else if (!strncasecmp(arg.attribute, "tz", 2)) {
@@ -13804,7 +14045,7 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 		break;
 	}
 
-	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL,
+	if (!(test_channel1 = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL,
         NULL, NULL, 0, 0, "TestChannel1"))) {
 		goto exit_vmsayname_test;
 	}

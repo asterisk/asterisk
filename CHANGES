@@ -53,6 +53,28 @@ JACK_HOOK
  * The JACK_HOOK function now supports audio with a sample rate higher than
    8kHz.
 
+Say
+------------------
+ * The 'say' family of dialplan applications now support the Japanese
+   language. The 'language' parameter in say.conf now recognizes a setting of
+   'ja', which will enable Japanese language specific mechanisms for playing
+   back numbers, dates, and other items.
+
+VoiceMail
+------------------
+ * VoiceMail and VoiceMailMain now support the Japanese language. The
+   'language' parameter in voicemail.conf now recognizes a setting of 'ja',
+   which will enable prompts to be played back using a Japanese grammatical
+   structure. Additional prompts are necessary for this functionality,
+   including:
+   - jb-arimasu: there is
+   - jb-arimasen: there is not
+   - jb-oshitekudasai: please press
+   - jb-ni: article ni
+   - jb-ga: article ga
+   - jb-wa: article wa
+   - jb-wo: article wo
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.3.0 to Asterisk 12.4.0 ------------
 ------------------------------------------------------------------------------
