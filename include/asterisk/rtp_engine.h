@@ -390,6 +390,12 @@ enum ast_rtp_ice_component_type {
 	AST_RTP_ICE_COMPONENT_RTCP = 2,
 };
 
+/*! \brief ICE role during negotiation */
+enum ast_rtp_ice_role {
+	AST_RTP_ICE_ROLE_CONTROLLED,
+	AST_RTP_ICE_ROLE_CONTROLLING,
+};
+
 /*! \brief Structure for an ICE candidate */
 struct ast_rtp_engine_ice_candidate {
 	char *foundation;                     /*!< Foundation identifier */
@@ -419,6 +425,8 @@ struct ast_rtp_engine_ice {
 	struct ao2_container *(*get_local_candidates)(struct ast_rtp_instance *instance);
 	/*! Callback for telling the ICE support that it is talking to an ice-lite implementation */
 	void (*ice_lite)(struct ast_rtp_instance *instance);
+	/*! Callback for changing our role in negotiation */
+	void (*set_role)(struct ast_rtp_instance *instance, enum ast_rtp_ice_role role);
 };
 
 /*! \brief DTLS setup types */
@@ -431,22 +439,31 @@ enum ast_rtp_dtls_setup {
 
 /*! \brief DTLS connection states */
 enum ast_rtp_dtls_connection {
-        AST_RTP_DTLS_CONNECTION_NEW,      /*!< Endpoint wants to use a new connection */
+	AST_RTP_DTLS_CONNECTION_NEW,      /*!< Endpoint wants to use a new connection */
 	AST_RTP_DTLS_CONNECTION_EXISTING, /*!< Endpoint wishes to use existing connection */
 };
 
 /*! \brief DTLS fingerprint hashes */
 enum ast_rtp_dtls_hash {
-	AST_RTP_DTLS_HASH_SHA1, /*!< SHA-1 fingerprint hash */
+	AST_RTP_DTLS_HASH_SHA256, /*!< SHA-256 fingerprint hash */
+	AST_RTP_DTLS_HASH_SHA1,   /*!< SHA-1 fingerprint hash */
+};
+
+/*! \brief DTLS verification settings */
+enum ast_rtp_dtls_verify {
+	AST_RTP_DTLS_VERIFY_NONE = 0,               /*!< Don't verify anything */
+	AST_RTP_DTLS_VERIFY_FINGERPRINT = (1 << 0), /*!< Verify the fingerprint */
+	AST_RTP_DTLS_VERIFY_CERTIFICATE = (1 << 1), /*!< Verify the certificate */
 };
 
 /*! \brief DTLS configuration structure */
 struct ast_rtp_dtls_cfg {
 	unsigned int enabled:1;                /*!< Whether DTLS support is enabled or not */
-	unsigned int verify:1;                 /*!< Whether to request and verify a client certificate when acting as server */
 	unsigned int rekey;                    /*!< Interval at which to renegotiate and rekey - defaults to 0 (off) */
 	enum ast_rtp_dtls_setup default_setup; /*!< Default setup type to use for outgoing */
 	enum ast_srtp_suite suite;             /*!< Crypto suite in use */
+	enum ast_rtp_dtls_hash hash;		   /*!< Hash to use for fingerprint */
+	enum ast_rtp_dtls_verify verify;	   /*!< What should be verified */
 	char *certfile;                        /*!< Certificate file */
 	char *pvtfile;                         /*!< Private key file */
 	char *cipher;                          /*!< Cipher to use */
@@ -472,8 +489,10 @@ struct ast_rtp_engine_dtls {
 	void (*set_setup)(struct ast_rtp_instance *instance, enum ast_rtp_dtls_setup setup);
 	/*! Set the remote fingerprint */
 	void (*set_fingerprint)(struct ast_rtp_instance *instance, enum ast_rtp_dtls_hash hash, const char *fingerprint);
+	/*! Get the local fingerprint hash type */
+	enum ast_rtp_dtls_hash (*get_fingerprint_hash)(struct ast_rtp_instance *instance);
 	/*! Get the local fingerprint */
-	const char *(*get_fingerprint)(struct ast_rtp_instance *instance, enum ast_rtp_dtls_hash hash);
+	const char *(*get_fingerprint)(struct ast_rtp_instance *instance);
 };
 
 /*! Structure that represents an RTP stack (engine) */

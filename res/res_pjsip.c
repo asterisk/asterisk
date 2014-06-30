@@ -390,6 +390,28 @@
 						media offers.
 					</para></description>
 				</configOption>
+				<configOption name="force_avp" default="no">
+					<synopsis>Determines whether res_pjsip will use and enforce usage of AVP,
+					regardless of the RTP profile in use for this endpoint.</synopsis>
+					<description><para>
+						If set to <literal>yes</literal>, res_pjsip will use the AVP, AVPF, SAVP, or
+						SAVPF RTP profile for all media offers on outbound calls and media updates including
+						those for DTLS-SRTP streams.
+					</para><para>
+						If set to <literal>no</literal>, res_pjsip will use the respective RTP profile
+						depending on configuration.
+					</para></description>
+				</configOption>
+				<configOption name="media_use_received_transport" default="no">
+					<synopsis>Determines whether res_pjsip will use the media transport received in the
+					offer SDP in the corresponding answer SDP.</synopsis>
+					<description><para>
+						If set to <literal>yes</literal>, res_pjsip will use the received media transport.
+					</para><para>
+						If set to <literal>no</literal>, res_pjsip will use the respective RTP profile
+						depending on configuration.
+					</para></description>
+				</configOption>
 				<configOption name="media_encryption" default="no">
 					<synopsis>Determines whether res_pjsip will use and enforce usage of media encryption
 					for this endpoint.</synopsis>

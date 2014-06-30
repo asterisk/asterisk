@@ -473,6 +473,10 @@ struct ast_sip_media_rtp_configuration {
 	unsigned int use_ptime;
 	/*! Do we use AVPF exclusively for this endpoint? */
 	unsigned int use_avpf;
+	/*! Do we force AVP, AVPF, SAVP, or SAVPF even for DTLS media streams? */
+	unsigned int force_avp;
+	/*! Do we use the received media transport in our answer SDP */
+	unsigned int use_received_transport;
 	/*! \brief DTLS-SRTP configuration information */
 	struct ast_rtp_dtls_cfg dtls_cfg;
 	/*! Should SRTP use a 32 byte tag instead of an 80 byte tag? */

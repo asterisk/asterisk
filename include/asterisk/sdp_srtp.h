@@ -118,8 +118,10 @@ const char *ast_sdp_srtp_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled,
  * \param sdes_active Whether the media session is using SDES-SRTP
  * \param instance The RTP instance associated with this media session
  * \param using_avpf Whether the media session is using early feedback (AVPF)
+ * \param force_avp Force SAVP or SAVPF profile when DTLS is in use
  *
  * \retval A non-allocated string describing the profile in use (does not need to be freed)
  */
-char *ast_sdp_get_rtp_profile(unsigned int sdes_active, struct ast_rtp_instance *instance, unsigned int using_avpf);
+char *ast_sdp_get_rtp_profile(unsigned int sdes_active, struct ast_rtp_instance *instance, unsigned int using_avpf,
+	unsigned int force_avp);
 #endif	/* _SDP_CRYPTO_H */

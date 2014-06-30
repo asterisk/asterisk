@@ -1556,7 +1556,17 @@ int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, 
 	if (!strcasecmp(name, "dtlsenable")) {
 		dtls_cfg->enabled = ast_true(value) ? 1 : 0;
 	} else if (!strcasecmp(name, "dtlsverify")) {
-		dtls_cfg->verify = ast_true(value) ? 1 : 0;
+		if (!strcasecmp(value, "yes")) {
+			dtls_cfg->verify = AST_RTP_DTLS_VERIFY_FINGERPRINT | AST_RTP_DTLS_VERIFY_CERTIFICATE;
+		} else if (!strcasecmp(value, "fingerprint")) {
+			dtls_cfg->verify = AST_RTP_DTLS_VERIFY_FINGERPRINT;
+		} else if (!strcasecmp(value, "certificate")) {
+			dtls_cfg->verify = AST_RTP_DTLS_VERIFY_CERTIFICATE;
+		} else if (!strcasecmp(value, "no")) {
+			dtls_cfg->verify = AST_RTP_DTLS_VERIFY_NONE;
+		} else {
+			return -1;
+		}
 	} else if (!strcasecmp(name, "dtlsrekey")) {
 		if (sscanf(value, "%30u", &dtls_cfg->rekey) != 1) {
 			return -1;
@@ -1584,6 +1594,12 @@ int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, 
 		} else if (!strcasecmp(value, "actpass")) {
 			dtls_cfg->default_setup = AST_RTP_DTLS_SETUP_ACTPASS;
 		}
+	} else if (!strcasecmp(name, "dtlsfingerprint")) {
+		if (!strcasecmp(value, "sha-256")) {
+			dtls_cfg->hash = AST_RTP_DTLS_HASH_SHA256;
+		} else if (!strcasecmp(value, "sha-1")) {
+			dtls_cfg->hash = AST_RTP_DTLS_HASH_SHA1;
+		}
 	} else {
 		return -1;
 	}
@@ -1597,6 +1613,7 @@ void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rt
 	dst_cfg->verify = src_cfg->verify;
 	dst_cfg->rekey = src_cfg->rekey;
 	dst_cfg->suite = src_cfg->suite;
+	dst_cfg->hash = src_cfg->hash;
 	dst_cfg->certfile = ast_strdup(src_cfg->certfile);
 	dst_cfg->pvtfile = ast_strdup(src_cfg->pvtfile);
 	dst_cfg->cipher = ast_strdup(src_cfg->cipher);
