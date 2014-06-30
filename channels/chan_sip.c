@@ -10110,7 +10110,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 			if (debug)
 				ast_verbose("Discarded description format %s for ID %u\n", mimeSubtype, codec);
 		}
-	} else if (sscanf(a, "fmtp: %30u %63s", &codec, fmtp_string) == 2) {
+	} else if (sscanf(a, "fmtp: %30u %63[^\t\n]", &codec, fmtp_string) == 2) {
 		struct ast_rtp_payload_type payload;
 
 		payload = ast_rtp_codecs_payload_lookup(newaudiortp, codec);
