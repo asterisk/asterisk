@@ -11316,7 +11316,7 @@ static int process_sdp_a_video(const char *a, struct sip_pvt *p, struct ast_rtp_
 			if (debug)
 				ast_verbose("Discarded description format %s for ID %u\n", mimeSubtype, codec);
 		}
-	} else if (sscanf(a, "fmtp: %30u %255s", &codec, fmtp_string) == 2) {
+	} else if (sscanf(a, "fmtp: %30u %255[^\t\n]", &codec, fmtp_string) == 2) {
 		struct ast_format *format;
 
 		if ((format = ast_rtp_codecs_get_payload_format(newvideortp, codec))) {
