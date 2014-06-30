@@ -566,7 +566,7 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 			pubsub_module.id, MOD_DATA_PERSISTENCE, persistence);
 
 	resp = handler->notifier->new_subscribe(endpoint, resource);
-	if (!PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
+	if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		sub = notifier_create_subscription(handler, endpoint, &rdata, resource, generator);
 		sub->persistence = ao2_bump(persistence);
 		subscription_persistence_update(sub, &rdata);
