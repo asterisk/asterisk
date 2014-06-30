@@ -365,12 +365,17 @@ const char *ast_sdp_srtp_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled,
 	return NULL;
 }
 
-char *ast_sdp_get_rtp_profile(unsigned int sdes_active, struct ast_rtp_instance *instance, unsigned int using_avpf)
+char *ast_sdp_get_rtp_profile(unsigned int sdes_active, struct ast_rtp_instance *instance, unsigned int using_avpf,
+	unsigned int force_avp)
 {
 	struct ast_rtp_engine_dtls *dtls;
 
 	if ((dtls = ast_rtp_instance_get_dtls(instance)) && dtls->active(instance)) {
-		return using_avpf ? "UDP/TLS/RTP/SAVPF" : "UDP/TLS/RTP/SAVP";
+		if (force_avp) {
+			return using_avpf ? "RTP/SAVPF" : "RTP/SAVP";
+		} else {
+			return using_avpf ? "UDP/TLS/RTP/SAVPF" : "UDP/TLS/RTP/SAVP";
+		}
 	} else {
 		if (using_avpf) {
 			return sdes_active ? "RTP/SAVPF" : "RTP/AVPF";

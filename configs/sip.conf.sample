@@ -1046,6 +1046,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;avpf=yes                       ; Enable inter-operability with media streams using the AVPF RTP profile.
 				; This will cause all offers and answers to use AVPF (or SAVPF). This
 				; option may be specified at the global or peer scope.
+;force_avp=yes			; Force 'RTP/AVP', 'RTP/AVPF', 'RTP/SAVP', and 'RTP/SAVPF' to be used for
+				; media streams when appropriate, even if a DTLS stream is present.
 ;----------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
@@ -1302,6 +1304,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; dtlscafile
 ; dtlscapath
 ; dtlssetup
+; dtlsfingerprint
 ; ignore_requested_pref ; Ignore the requested codec and determine the preferred codec
 ;						; from the peer's configuration.
 ;
@@ -1312,7 +1315,11 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; DTLS-SRTP support is available if the underlying RTP engine in use supports it.
 ;
 ; dtlsenable = yes                   ; Enable or disable DTLS-SRTP support
-; dtlsverify = yes                   ; Verify that the provided peer certificate is valid
+; dtlsverify = yes                   ; Verify that provided peer certificate and fingerprint are valid
+;				     ; A value of 'yes' will perform both certificate and fingerprint verification
+;				     ; A value of 'no' will perform no certificate or fingerprint verification
+;				     ; A value of 'fingerprint' will perform ONLY fingerprint verification
+;				     ; A value of 'certificate' will perform ONLY certficiate verification
 ; dtlsrekey = 60                     ; Interval at which to renegotiate the TLS session and rekey the SRTP session
 ;                                    ; If this is not set or the value provided is 0 rekeying will be disabled
 ; dtlscertfile = file                ; Path to certificate file to present
@@ -1327,6 +1334,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;                                    ; accept connections only), and actpass (we will do both). This value will be used in
 ;                                    ; the outgoing SDP when offering and for incoming SDP offers when the remote party sends
 ;                                    ; actpass
+; dtlsfingerprint = sha-1            ; The hash to use for the fingerprint in SDP (valid options are sha-1 and sha-256)
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)

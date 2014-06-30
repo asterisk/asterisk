@@ -390,14 +390,26 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		return;
 	}
 
-	if ((attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-ufrag", NULL))) {
+	attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-ufrag", NULL);
+	if (!attr) {
+		attr = pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-ufrag", NULL);
+	}
+	if (attr) {
 		ast_copy_pj_str(attr_value, (pj_str_t*)&attr->value, sizeof(attr_value));
 		ice->set_authentication(session_media->rtp, attr_value, NULL);
+	} else {
+		return;
 	}
 
-	if ((attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-pwd", NULL))) {
+	attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-pwd", NULL);
+	if (!attr) {
+		pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-pwd", NULL);
+	}
+	if (attr) {
 		ast_copy_pj_str(attr_value, (pj_str_t*)&attr->value, sizeof(attr_value));
 		ice->set_authentication(session_media->rtp, NULL, attr_value);
+	} else {
+		return;
 	}
 
 	if (pjmedia_sdp_media_find_attr2(remote_stream, "ice-lite", NULL)) {
@@ -452,6 +464,8 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 		ice->add_remote_candidate(session_media->rtp, &candidate);
 	}
 
+	ice->set_role(session_media->rtp, pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_TRUE ?
+		AST_RTP_ICE_ROLE_CONTROLLING : AST_RTP_ICE_ROLE_CONTROLLED);
 	ice->start(session_media->rtp);
 }
 
@@ -526,6 +540,10 @@ static enum ast_sip_session_media_encryption check_endpoint_media_transport(
 	incoming_encryption = get_media_encryption_type(stream->desc.transport);
 
 	if (incoming_encryption == endpoint->media.rtp.encryption) {
+		return incoming_encryption;
+	}
+
+	if (endpoint->media.rtp.force_avp) {
 		return incoming_encryption;
 	}
 
@@ -615,13 +633,15 @@ static int parse_dtls_attrib(struct ast_sip_session_media *session_media,
 				ast_log(LOG_WARNING, "Unsupported connection attribute value '%*s'\n", (int)value->slen, value->ptr);
 			}
 		} else if (!pj_strcmp2(&attr->name, "fingerprint")) {
-			char hash_value[256], hash[6];
+			char hash_value[256], hash[32];
 			char fingerprint_text[value->slen + 1];
 			ast_copy_pj_str(fingerprint_text, value, sizeof(fingerprint_text));
 
-			if (sscanf(fingerprint_text, "%5s %255s", hash, hash_value) == 2) {
+			if (sscanf(fingerprint_text, "%31s %255s", hash, hash_value) == 2) {
 				if (!strcasecmp(hash, "sha-1")) {
 					dtls->set_fingerprint(session_media->rtp, AST_RTP_DTLS_HASH_SHA1, hash_value);
+				} else if (!strcasecmp(hash, "sha-256")) {
+					dtls->set_fingerprint(session_media->rtp, AST_RTP_DTLS_HASH_SHA256, hash_value);
 				} else {
 					ast_log(LOG_WARNING, "Unsupported fingerprint hash type '%s'\n",
 					hash);
@@ -710,7 +730,8 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	}
 
 	/* Ensure incoming transport is compatible with the endpoint's configuration */
-	if (check_endpoint_media_transport(session->endpoint, stream) == AST_SIP_MEDIA_TRANSPORT_INVALID) {
+	if (!session->endpoint->media.rtp.use_received_transport &&
+		check_endpoint_media_transport(session->endpoint, stream) == AST_SIP_MEDIA_TRANSPORT_INVALID) {
 		return -1;
 	}
 
@@ -725,6 +746,10 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	/* Using the connection information create an appropriate RTP instance */
 	if (!session_media->rtp && create_rtp(session, session_media, ast_sockaddr_is_ipv6(addrs))) {
 		return -1;
+	}
+
+	if (session->endpoint->media.rtp.use_received_transport) {
+		pj_strdup(session->inv_session->pool, &session_media->transport, &stream->desc.transport);
 	}
 
 	if (setup_media_encryption(session, session_media, stream)) {
@@ -748,6 +773,7 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 {
 	pj_str_t stmp;
 	pjmedia_sdp_attr *attr;
+	enum ast_rtp_dtls_hash hash;
 	const char *crypto_attribute;
 	struct ast_rtp_engine_dtls *dtls;
 	static const pj_str_t STR_NEW = { "new", 3 };
@@ -824,13 +850,19 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 			break;
 		}
 
-		if ((crypto_attribute = dtls->get_fingerprint(session_media->rtp, AST_RTP_DTLS_HASH_SHA1))) {
+		hash = dtls->get_fingerprint_hash(session_media->rtp);
+		crypto_attribute = dtls->get_fingerprint(session_media->rtp);
+		if (crypto_attribute && (hash == AST_RTP_DTLS_HASH_SHA1 || hash == AST_RTP_DTLS_HASH_SHA256)) {
 			RAII_VAR(struct ast_str *, fingerprint, ast_str_create(64), ast_free);
 			if (!fingerprint) {
 				return -1;
 			}
 
-			ast_str_set(&fingerprint, 0, "SHA-1 %s", crypto_attribute);
+			if (hash == AST_RTP_DTLS_HASH_SHA1) {
+				ast_str_set(&fingerprint, 0, "SHA-1 %s", crypto_attribute);
+			} else {
+				ast_str_set(&fingerprint, 0, "SHA-256 %s", crypto_attribute);
+			}
 
 			attr = pjmedia_sdp_attr_create(pool, "fingerprint", pj_cstr(&stmp, ast_str_buffer(fingerprint)));
 			media->attr[media->attr_count++] = attr;
@@ -889,9 +921,14 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	media->desc.media = pj_str(session_media->stream_type);
-	media->desc.transport = pj_str(ast_sdp_get_rtp_profile(
-		session->endpoint->media.rtp.encryption == AST_SIP_MEDIA_ENCRYPT_SDES,
-		session_media->rtp, session->endpoint->media.rtp.use_avpf));
+	if (session->endpoint->media.rtp.use_received_transport && pj_strlen(&session_media->transport)) {
+		media->desc.transport = session_media->transport;
+	} else {
+		media->desc.transport = pj_str(ast_sdp_get_rtp_profile(
+			session->endpoint->media.rtp.encryption == AST_SIP_MEDIA_ENCRYPT_SDES,
+			session_media->rtp, session->endpoint->media.rtp.use_avpf,
+			session->endpoint->media.rtp.force_avp));
+	}
 
 	/* Add connection level details */
 	if (direct_media_enabled) {
@@ -1033,7 +1070,8 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	}
 
 	/* Ensure incoming transport is compatible with the endpoint's configuration */
-	if (check_endpoint_media_transport(session->endpoint, remote_stream) == AST_SIP_MEDIA_TRANSPORT_INVALID) {
+	if (!session->endpoint->media.rtp.use_received_transport &&
+		check_endpoint_media_transport(session->endpoint, remote_stream) == AST_SIP_MEDIA_TRANSPORT_INVALID) {
 		return -1;
 	}
 
