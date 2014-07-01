@@ -902,6 +902,10 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		return -1;
 	}
 
+	if (rtp->ssl_ctx) {
+		return 0;
+	}
+
 	if (!(rtp->ssl_ctx = SSL_CTX_new(DTLSv1_method()))) {
 		return -1;
 	}
