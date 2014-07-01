@@ -70,6 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/unaligned.h"
 #include "asterisk/module.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/test.h"
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -176,14 +177,21 @@ static int worker_terminate;
 #define TRANSPORT_TURN_RTP 3
 #define TRANSPORT_TURN_RTCP 4
 
-#define COMPONENT_RTP 1
-#define COMPONENT_RTCP 2
-
 /*! \brief RTP learning mode tracking information */
 struct rtp_learning_info {
 	int max_seq;	/*!< The highest sequence number received */
 	int packets;	/*!< The number of remaining packets before the source is accepted */
 };
+
+#ifdef HAVE_OPENSSL_SRTP
+struct dtls_details {
+	SSL *ssl;         /*!< SSL session */
+	BIO *read_bio;    /*!< Memory buffer for reading */
+	BIO *write_bio;   /*!< Memory buffer for writing */
+	enum ast_rtp_dtls_setup dtls_setup; /*!< Current setup state */
+	enum ast_rtp_dtls_connection connection; /*!< Whether this is a new or existing connection */
+};
+#endif
 
 /*! \brief RTP session description */
 struct ast_rtp {
@@ -268,7 +276,7 @@ struct ast_rtp {
 	pj_turn_state_t turn_state; /*!< Current state of the TURN relay session */
 	ast_cond_t cond;            /*!< Condition for signaling */
 	unsigned int passthrough:1; /*!< Bit to indicate that the received packet should be passed through */
-	unsigned int ice_started:1; /*!< Bit to indicate ICE connectivity checks have started */
+	unsigned int ice_port;      /*!< Port that ICE was started with if it was previously started */
 
 	char remote_ufrag[256];  /*!< The remote ICE username */
 	char remote_passwd[256]; /*!< The remote ICE password */
@@ -276,23 +284,25 @@ struct ast_rtp {
 	char local_ufrag[256];  /*!< The local ICE username */
 	char local_passwd[256]; /*!< The local ICE password */
 
-	struct ao2_container *local_candidates;   /*!< The local ICE candidates */
-	struct ao2_container *remote_candidates;  /*!< The remote ICE candidates */
+	struct ao2_container *ice_local_candidates;           /*!< The local ICE candidates */
+	struct ao2_container *ice_active_remote_candidates;   /*!< The remote ICE candidates */
+	struct ao2_container *ice_proposed_remote_candidates; /*!< Incoming remote ICE candidates for new session */
+	struct ast_sockaddr ice_original_rtp_addr;            /*!< rtp address that ICE started on first session */
 #endif
 
 #ifdef HAVE_OPENSSL_SRTP
 	SSL_CTX *ssl_ctx; /*!< SSL context */
-	SSL *ssl;         /*!< SSL session */
-	BIO *read_bio;    /*!< Memory buffer for reading */
-	BIO *write_bio;   /*!< Memory buffer for writing */
-	enum ast_rtp_dtls_setup dtls_setup; /*!< Current setup state */
+	ast_mutex_t dtls_timer_lock;           /*!< Lock for synchronization purposes */
+	enum ast_rtp_dtls_verify dtls_verify; /*!< What to verify */
 	enum ast_srtp_suite suite;   /*!< SRTP crypto suite */
+	enum ast_rtp_dtls_hash local_hash; /*!< Local hash used for the fingerprint */
 	char local_fingerprint[160]; /*!< Fingerprint of our certificate */
+	enum ast_rtp_dtls_hash remote_hash; /*!< Remote hash used for the fingerprint */
 	unsigned char remote_fingerprint[EVP_MAX_MD_SIZE]; /*!< Fingerprint of the peer certificate */
-	enum ast_rtp_dtls_connection connection; /*!< Whether this is a new or existing connection */
-	unsigned int dtls_failure:1; /*!< Failure occurred during DTLS negotiation */
 	unsigned int rekey; /*!< Interval at which to renegotiate and rekey */
 	int rekeyid; /*!< Scheduled item id for rekeying */
+	int dtlstimerid; /*!< Scheduled item id for DTLS retransmission for RTP */
+	struct dtls_details dtls; /*!< DTLS state information */
 #endif
 };
 
@@ -355,6 +365,10 @@ struct ast_rtcp {
 	double normdevrtt;
 	double stdevrtt;
 	unsigned int rtt_count;
+
+#ifdef HAVE_OPENSSL_SRTP
+	struct dtls_details dtls; /*!< DTLS state information */
+#endif
 };
 
 struct rtp_red {
@@ -402,6 +416,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level);
 
 #ifdef HAVE_OPENSSL_SRTP
 static int ast_rtp_activate(struct ast_rtp_instance *instance);
+static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
 #endif
 
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice, int use_srtp);
@@ -434,17 +449,32 @@ static void ast_rtp_ice_set_authentication(struct ast_rtp_instance *instance, co
 	}
 }
 
+static int ice_candidate_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_rtp_engine_ice_candidate *candidate1 = obj, *candidate2 = arg;
+
+	if (strcmp(candidate1->foundation, candidate2->foundation) ||
+			candidate1->id != candidate2->id ||
+			ast_sockaddr_cmp(&candidate1->address, &candidate2->address) ||
+			candidate1->type != candidate1->type) {
+		return 0;
+	}
+
+	return CMP_MATCH | CMP_STOP;
+}
+
 static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, const struct ast_rtp_engine_ice_candidate *candidate)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_rtp_engine_ice_candidate *remote_candidate;
 
-	if (!rtp->remote_candidates && !(rtp->remote_candidates = ao2_container_alloc(1, NULL, NULL))) {
+	if (!rtp->ice_proposed_remote_candidates &&
+			!(rtp->ice_proposed_remote_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
 		return;
 	}
 
 	/* If this is going to exceed the maximum number of ICE candidates don't even add it */
-	if (ao2_container_count(rtp->remote_candidates) == PJ_ICE_MAX_CAND) {
+	if (ao2_container_count(rtp->ice_proposed_remote_candidates) == PJ_ICE_MAX_CAND) {
 		return;
 	}
 
@@ -460,7 +490,7 @@ static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, 
 	ast_sockaddr_copy(&remote_candidate->relay_address, &candidate->relay_address);
 	remote_candidate->type = candidate->type;
 
-	ao2_link(rtp->remote_candidates, remote_candidate);
+	ao2_link(rtp->ice_proposed_remote_candidates, remote_candidate);
 	ao2_ref(remote_candidate, -1);
 }
 
@@ -502,6 +532,67 @@ static void update_address_with_ice_candidate(struct ast_rtp *rtp, int component
 	ast_sockaddr_set_port(cand_address, pj_sockaddr_get_port(&rtp->ice->comp[component - 1].valid_check->rcand->addr));
 }
 
+static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *addr,
+	int port, int replace);
+
+static void ast_rtp_ice_stop(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!rtp->ice) {
+		return;
+	}
+
+	pj_thread_register_check();
+
+	pj_ice_sess_destroy(rtp->ice);
+	rtp->ice = NULL;
+}
+
+static int ice_reset_session(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	pj_ice_sess_role role = rtp->ice->role;
+	int res;
+
+	ast_rtp_ice_stop(instance);
+
+	res = ice_create(instance, &rtp->ice_original_rtp_addr, rtp->ice_port, 1);
+	if (!res) {
+		/* Preserve the role that the old ICE session used */
+		pj_ice_sess_change_role(rtp->ice, role);
+	}
+
+	return res;
+}
+
+static int ice_candidates_compare(struct ao2_container *left, struct ao2_container *right)
+{
+	struct ao2_iterator i;
+	struct ast_rtp_engine_ice_candidate *right_candidate;
+
+	if (ao2_container_count(left) != ao2_container_count(right)) {
+		return -1;
+	}
+
+	i = ao2_iterator_init(right, 0);
+	while ((right_candidate = ao2_iterator_next(&i))) {
+		struct ast_rtp_engine_ice_candidate *left_candidate = ao2_find(left, right_candidate, OBJ_POINTER);
+
+		if (!left_candidate) {
+			ao2_ref(right_candidate, -1);
+			ao2_iterator_destroy(&i);
+			return -1;
+		}
+
+		ao2_ref(left_candidate, -1);
+		ao2_ref(right_candidate, -1);
+	}
+	ao2_iterator_destroy(&i);
+
+	return 0;
+}
+
 static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -511,13 +602,32 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	struct ast_rtp_engine_ice_candidate *candidate;
 	int cand_cnt = 0;
 
-	if (!rtp->ice || !rtp->remote_candidates || rtp->ice_started) {
+	if (!rtp->ice || !rtp->ice_proposed_remote_candidates) {
+		return;
+	}
+
+	/* Check for equivalence in the lists */
+	if (rtp->ice_active_remote_candidates &&
+			!ice_candidates_compare(rtp->ice_proposed_remote_candidates, rtp->ice_active_remote_candidates)) {
+		ao2_cleanup(rtp->ice_proposed_remote_candidates);
+		rtp->ice_proposed_remote_candidates = NULL;
+		return;
+	}
+
+	/* Out with the old, in with the new */
+	ao2_cleanup(rtp->ice_active_remote_candidates);
+	rtp->ice_active_remote_candidates = rtp->ice_proposed_remote_candidates;
+	rtp->ice_proposed_remote_candidates = NULL;
+
+	/* Reset the ICE session. Is this going to work? */
+	if (ice_reset_session(instance)) {
+		ast_log(LOG_NOTICE, "Failed to create replacement ICE session\n");
 		return;
 	}
 
 	pj_thread_register_check();
 
-	i = ao2_iterator_init(rtp->remote_candidates, 0);
+	i = ao2_iterator_init(rtp->ice_active_remote_candidates, 0);
 
 	while ((candidate = ao2_iterator_next(&i)) && (cand_cnt < PJ_ICE_MAX_CAND)) {
 		pj_str_t address;
@@ -540,37 +650,36 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 			candidates[cand_cnt].type = PJ_ICE_CAND_TYPE_RELAYED;
 		}
 
-		if (candidate->id == COMPONENT_RTP && rtp->turn_rtp) {
+		if (candidate->id == AST_RTP_ICE_COMPONENT_RTP && rtp->turn_rtp) {
 			pj_turn_sock_set_perm(rtp->turn_rtp, 1, &candidates[cand_cnt].addr, 1);
-		} else if (candidate->id == COMPONENT_RTCP && rtp->turn_rtcp) {
+		} else if (candidate->id == AST_RTP_ICE_COMPONENT_RTCP && rtp->turn_rtcp) {
 			pj_turn_sock_set_perm(rtp->turn_rtcp, 1, &candidates[cand_cnt].addr, 1);
 		}
 
 		cand_cnt++;
+		ao2_ref(candidate, -1);
 	}
 
 	ao2_iterator_destroy(&i);
 
-	if (pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(rtp->remote_candidates), &candidates[0]) == PJ_SUCCESS) {
+	if (pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(rtp->ice_active_remote_candidates), &candidates[0]) == PJ_SUCCESS) {
+		ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: SUCCESS");
 		pj_ice_sess_start_check(rtp->ice);
 		pj_timer_heap_poll(timerheap, NULL);
-		rtp->ice_started = 1;
 		rtp->strict_rtp_state = STRICT_RTP_OPEN;
-	}
-}
-
-static void ast_rtp_ice_stop(struct ast_rtp_instance *instance)
-{
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-
-	if (!rtp->ice) {
 		return;
 	}
 
-	pj_thread_register_check();
+	ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: FAILURE");
 
-	pj_ice_sess_destroy(rtp->ice);
-	rtp->ice = NULL;
+	/* even though create check list failed don't stop ice as
+	   it might still work */
+	ast_debug(1, "Failed to create ICE session check list\n");
+	/* however we do need to reset remote candidates since
+	   this function may be re-entered */
+	ao2_ref(rtp->ice_active_remote_candidates, -1);
+	rtp->ice_active_remote_candidates = NULL;
+	rtp->ice->rcand_cnt = rtp->ice->clist.count = 0;
 }
 
 static const char *ast_rtp_ice_get_ufrag(struct ast_rtp_instance *instance)
@@ -591,11 +700,11 @@ static struct ao2_container *ast_rtp_ice_get_local_candidates(struct ast_rtp_ins
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if (rtp->local_candidates) {
-		ao2_ref(rtp->local_candidates, +1);
+	if (rtp->ice_local_candidates) {
+		ao2_ref(rtp->ice_local_candidates, +1);
 	}
 
-	return rtp->local_candidates;
+	return rtp->ice_local_candidates;
 }
 
 static void ast_rtp_ice_lite(struct ast_rtp_instance *instance)
@@ -611,18 +720,18 @@ static void ast_rtp_ice_lite(struct ast_rtp_instance *instance)
 	pj_ice_sess_change_role(rtp->ice, PJ_ICE_SESS_ROLE_CONTROLLING);
 }
 
-static int ice_candidate_cmp(void *obj, void *arg, int flags)
+static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp_ice_role role)
 {
-	struct ast_rtp_engine_ice_candidate *candidate1 = obj, *candidate2 = arg;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if ((strcmp(candidate1->foundation, candidate2->foundation)) ||
-	    (candidate1->id != candidate2->id) ||
-	    (ast_sockaddr_cmp(&candidate1->address, &candidate2->address)) ||
-	    (candidate1->type != candidate1->type)) {
-		return 0;
+	if (!rtp->ice) {
+		return;
 	}
 
-	return CMP_MATCH | CMP_STOP;
+	pj_thread_register_check();
+
+	pj_ice_sess_change_role(rtp->ice, role == AST_RTP_ICE_ROLE_CONTROLLED ?
+		PJ_ICE_SESS_ROLE_CONTROLLED : PJ_ICE_SESS_ROLE_CONTROLLING);
 }
 
 static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned transport_id, pj_ice_cand_type type, pj_uint16_t local_pref,
@@ -636,7 +745,7 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 
 	pj_ice_calc_foundation(rtp->ice->pool, &foundation, type, addr);
 
-	if (!rtp->local_candidates && !(rtp->local_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
+	if (!rtp->ice_local_candidates && !(rtp->ice_local_candidates = ao2_container_alloc(1, NULL, ice_candidate_cmp))) {
 		return;
 	}
 
@@ -664,13 +773,13 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 		candidate->type = AST_RTP_ICE_CANDIDATE_TYPE_RELAYED;
 	}
 
-	if ((existing = ao2_find(rtp->local_candidates, candidate, OBJ_POINTER))) {
+	if ((existing = ao2_find(rtp->ice_local_candidates, candidate, OBJ_POINTER))) {
 		ao2_ref(existing, -1);
 		ao2_ref(candidate, -1);
 		return;
 	}
 
-	if (pj_ice_sess_add_cand(rtp->ice, comp_id, transport_id, type, local_pref, &foundation, addr, addr, rel_addr, addr_len, NULL) != PJ_SUCCESS) {
+	if (pj_ice_sess_add_cand(rtp->ice, comp_id, transport_id, type, local_pref, &foundation, addr, base_addr, rel_addr, addr_len, NULL) != PJ_SUCCESS) {
 		ao2_ref(candidate, -1);
 		return;
 	}
@@ -678,7 +787,7 @@ static void ast_rtp_ice_add_cand(struct ast_rtp *rtp, unsigned comp_id, unsigned
 	/* By placing the candidate into the ICE session it will have produced the priority, so update the local candidate with it */
 	candidate->priority = rtp->ice->lcand[rtp->ice->lcand_cnt - 1].prio;
 
-	ao2_link(rtp->local_candidates, candidate);
+	ao2_link(rtp->ice_local_candidates, candidate);
 	ao2_ref(candidate, -1);
 }
 
@@ -704,25 +813,83 @@ static struct ast_rtp_engine_ice ast_rtp_ice = {
 	.get_password = ast_rtp_ice_get_password,
 	.get_local_candidates = ast_rtp_ice_get_local_candidates,
 	.ice_lite = ast_rtp_ice_lite,
+	.set_role = ast_rtp_ice_set_role,
 };
 #endif
 
 #ifdef HAVE_OPENSSL_SRTP
-static void dtls_info_callback(const SSL *ssl, int where, int ret)
+static int dtls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
-	struct ast_rtp *rtp = SSL_get_ex_data(ssl, 0);
+	/* We don't want to actually verify the certificate so just accept what they have provided */
+	return 1;
+}
 
-	/* We only care about alerts */
-	if (!(where & SSL_CB_ALERT)) {
-		return;
+static int dtls_details_initialize(struct dtls_details *dtls, SSL_CTX *ssl_ctx,
+	enum ast_rtp_dtls_setup setup)
+{
+	dtls->dtls_setup = setup;
+
+	if (!(dtls->ssl = SSL_new(ssl_ctx))) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for SSL\n");
+		goto error;
 	}
 
-	rtp->dtls_failure = 1;
+	if (!(dtls->read_bio = BIO_new(BIO_s_mem()))) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for inbound SSL traffic\n");
+		goto error;
+	}
+	BIO_set_mem_eof_return(dtls->read_bio, -1);
+
+	if (!(dtls->write_bio = BIO_new(BIO_s_mem()))) {
+		ast_log(LOG_ERROR, "Failed to allocate memory for outbound SSL traffic\n");
+		goto error;
+	}
+	BIO_set_mem_eof_return(dtls->write_bio, -1);
+
+	SSL_set_bio(dtls->ssl, dtls->read_bio, dtls->write_bio);
+
+	if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+		SSL_set_accept_state(dtls->ssl);
+	} else {
+		SSL_set_connect_state(dtls->ssl);
+	}
+	dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
+
+	return 0;
+
+error:
+	if (dtls->read_bio) {
+		BIO_free(dtls->read_bio);
+		dtls->read_bio = NULL;
+	}
+
+	if (dtls->write_bio) {
+		BIO_free(dtls->write_bio);
+		dtls->write_bio = NULL;
+	}
+
+	if (dtls->ssl) {
+		SSL_free(dtls->ssl);
+		dtls->ssl = NULL;
+	}
+	return -1;
+}
+
+static int dtls_setup_rtcp(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!rtp->ssl_ctx || !rtp->rtcp) {
+		return 0;
+	}
+
+	return dtls_details_initialize(&rtp->rtcp->dtls, rtp->ssl_ctx, rtp->dtls.dtls_setup);
 }
 
 static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, const struct ast_rtp_dtls_cfg *dtls_cfg)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	int res;
 
 	if (!dtls_cfg->enabled) {
 		return 0;
@@ -736,7 +903,11 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		return -1;
 	}
 
-	SSL_CTX_set_verify(rtp->ssl_ctx, dtls_cfg->verify ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT : SSL_VERIFY_NONE, NULL);
+	rtp->dtls_verify = dtls_cfg->verify;
+
+	SSL_CTX_set_verify(rtp->ssl_ctx, (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) || (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_CERTIFICATE) ?
+		SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT : SSL_VERIFY_NONE, !(rtp->dtls_verify & AST_RTP_DTLS_VERIFY_CERTIFICATE) ?
+		dtls_verify_callback : NULL);
 
 	if (dtls_cfg->suite == AST_AES_CM_128_HMAC_SHA1_80) {
 		SSL_CTX_set_tlsext_use_srtp(rtp->ssl_ctx, "SRTP_AES128_CM_SHA1_80");
@@ -744,13 +915,16 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		SSL_CTX_set_tlsext_use_srtp(rtp->ssl_ctx, "SRTP_AES128_CM_SHA1_32");
 	} else {
 		ast_log(LOG_ERROR, "Unsupported suite specified for DTLS-SRTP on RTP instance '%p'\n", instance);
-		goto error;
+		return -1;
 	}
+
+	rtp->local_hash = dtls_cfg->hash;
 
 	if (!ast_strlen_zero(dtls_cfg->certfile)) {
 		char *private = ast_strlen_zero(dtls_cfg->pvtfile) ? dtls_cfg->certfile : dtls_cfg->pvtfile;
 		BIO *certbio;
 		X509 *cert;
+		const EVP_MD *type;
 		unsigned int size, i;
 		unsigned char fingerprint[EVP_MAX_MD_SIZE];
 		char *local_fingerprint = rtp->local_fingerprint;
@@ -758,30 +932,40 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		if (!SSL_CTX_use_certificate_file(rtp->ssl_ctx, dtls_cfg->certfile, SSL_FILETYPE_PEM)) {
 			ast_log(LOG_ERROR, "Specified certificate file '%s' for RTP instance '%p' could not be used\n",
 				dtls_cfg->certfile, instance);
-			goto error;
+			return -1;
 		}
 
 		if (!SSL_CTX_use_PrivateKey_file(rtp->ssl_ctx, private, SSL_FILETYPE_PEM) ||
 		    !SSL_CTX_check_private_key(rtp->ssl_ctx)) {
 			ast_log(LOG_ERROR, "Specified private key file '%s' for RTP instance '%p' could not be used\n",
 				private, instance);
-			goto error;
+			return -1;
 		}
 
 		if (!(certbio = BIO_new(BIO_s_file()))) {
 			ast_log(LOG_ERROR, "Failed to allocate memory for certificate fingerprinting on RTP instance '%p'\n",
 				instance);
-			goto error;
+			return -1;
+		}
+
+		if (rtp->local_hash == AST_RTP_DTLS_HASH_SHA1) {
+			type = EVP_sha1();
+		} else if (rtp->local_hash == AST_RTP_DTLS_HASH_SHA256) {
+			type = EVP_sha256();
+		} else {
+			ast_log(LOG_ERROR, "Unsupported fingerprint hash type on RTP instance '%p'\n",
+				instance);
+			return -1;
 		}
 
 		if (!BIO_read_filename(certbio, dtls_cfg->certfile) ||
 		    !(cert = PEM_read_bio_X509(certbio, NULL, 0, NULL)) ||
-		    !X509_digest(cert, EVP_sha1(), fingerprint, &size) ||
+		    !X509_digest(cert, type, fingerprint, &size) ||
 		    !size) {
 			ast_log(LOG_ERROR, "Could not produce fingerprint from certificate '%s' for RTP instance '%p'\n",
 				dtls_cfg->certfile, instance);
 			BIO_free_all(certbio);
-			goto error;
+			return -1;
 		}
 
 		for (i = 0; i < size; i++) {
@@ -798,7 +982,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		if (!SSL_CTX_set_cipher_list(rtp->ssl_ctx, dtls_cfg->cipher)) {
 			ast_log(LOG_ERROR, "Invalid cipher specified in cipher list '%s' for RTP instance '%p'\n",
 				dtls_cfg->cipher, instance);
-			goto error;
+			return -1;
 		}
 	}
 
@@ -806,69 +990,19 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		if (!SSL_CTX_load_verify_locations(rtp->ssl_ctx, S_OR(dtls_cfg->cafile, NULL), S_OR(dtls_cfg->capath, NULL))) {
 			ast_log(LOG_ERROR, "Invalid certificate authority file '%s' or path '%s' specified for RTP instance '%p'\n",
 				S_OR(dtls_cfg->cafile, ""), S_OR(dtls_cfg->capath, ""), instance);
-			goto error;
+			return -1;
 		}
 	}
 
 	rtp->rekey = dtls_cfg->rekey;
-	rtp->dtls_setup = dtls_cfg->default_setup;
 	rtp->suite = dtls_cfg->suite;
 
-	if (!(rtp->ssl = SSL_new(rtp->ssl_ctx))) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for SSL context on RTP instance '%p'\n",
-			instance);
-		goto error;
+	res = dtls_details_initialize(&rtp->dtls, rtp->ssl_ctx, dtls_cfg->default_setup);
+	if (!res) {
+		dtls_setup_rtcp(instance);
 	}
 
-	SSL_set_ex_data(rtp->ssl, 0, rtp);
-	SSL_set_info_callback(rtp->ssl, dtls_info_callback);
-
-	if (!(rtp->read_bio = BIO_new(BIO_s_mem()))) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for inbound SSL traffic on RTP instance '%p'\n",
-			instance);
-		goto error;
-	}
-	BIO_set_mem_eof_return(rtp->read_bio, -1);
-
-	if (!(rtp->write_bio = BIO_new(BIO_s_mem()))) {
-		ast_log(LOG_ERROR, "Failed to allocate memory for outbound SSL traffic on RTP instance '%p'\n",
-			instance);
-		goto error;
-	}
-	BIO_set_mem_eof_return(rtp->write_bio, -1);
-
-	SSL_set_bio(rtp->ssl, rtp->read_bio, rtp->write_bio);
-
-	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
-		SSL_set_accept_state(rtp->ssl);
-	} else {
-		SSL_set_connect_state(rtp->ssl);
-	}
-
-	rtp->connection = AST_RTP_DTLS_CONNECTION_NEW;
-
-	return 0;
-
-error:
-	if (rtp->read_bio) {
-		BIO_free(rtp->read_bio);
-		rtp->read_bio = NULL;
-	}
-
-	if (rtp->write_bio) {
-		BIO_free(rtp->write_bio);
-		rtp->write_bio = NULL;
-	}
-
-	if (rtp->ssl) {
-		SSL_free(rtp->ssl);
-		rtp->ssl = NULL;
-	}
-
-	SSL_CTX_free(rtp->ssl_ctx);
-	rtp->ssl_ctx = NULL;
-
-	return -1;
+	return res;
 }
 
 static int ast_rtp_dtls_active(struct ast_rtp_instance *instance)
@@ -887,9 +1021,14 @@ static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
 		rtp->ssl_ctx = NULL;
 	}
 
-	if (rtp->ssl) {
-		SSL_free(rtp->ssl);
-		rtp->ssl = NULL;
+	if (rtp->dtls.ssl) {
+		SSL_free(rtp->dtls.ssl);
+		rtp->dtls.ssl = NULL;
+	}
+
+	if (rtp->rtcp && rtp->rtcp->dtls.ssl) {
+		SSL_free(rtp->rtcp->dtls.ssl);
+		rtp->rtcp->dtls.ssl = NULL;
 	}
 }
 
@@ -897,49 +1036,50 @@ static void ast_rtp_dtls_reset(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	/* If the SSL session is not yet finalized don't bother resetting */
-	if (!SSL_is_init_finished(rtp->ssl)) {
-		return;
+	if (SSL_is_init_finished(rtp->dtls.ssl)) {
+		SSL_shutdown(rtp->dtls.ssl);
+		rtp->dtls.connection = AST_RTP_DTLS_CONNECTION_NEW;
 	}
 
-	SSL_shutdown(rtp->ssl);
-	rtp->connection = AST_RTP_DTLS_CONNECTION_NEW;
+	if (rtp->rtcp && SSL_is_init_finished(rtp->rtcp->dtls.ssl)) {
+		SSL_shutdown(rtp->rtcp->dtls.ssl);
+		rtp->rtcp->dtls.connection = AST_RTP_DTLS_CONNECTION_NEW;
+	}
 }
 
 static enum ast_rtp_dtls_connection ast_rtp_dtls_get_connection(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	return rtp->connection;
+	return rtp->dtls.connection;
 }
 
 static enum ast_rtp_dtls_setup ast_rtp_dtls_get_setup(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	return rtp->dtls_setup;
+	return rtp->dtls.dtls_setup;
 }
 
-static void ast_rtp_dtls_set_setup(struct ast_rtp_instance *instance, enum ast_rtp_dtls_setup setup)
+static void dtls_set_setup(enum ast_rtp_dtls_setup *dtls_setup, enum ast_rtp_dtls_setup setup, SSL *ssl)
 {
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	enum ast_rtp_dtls_setup old = rtp->dtls_setup;
+	enum ast_rtp_dtls_setup old = *dtls_setup;
 
 	switch (setup) {
 	case AST_RTP_DTLS_SETUP_ACTIVE:
-		rtp->dtls_setup = AST_RTP_DTLS_SETUP_PASSIVE;
+		*dtls_setup = AST_RTP_DTLS_SETUP_PASSIVE;
 		break;
 	case AST_RTP_DTLS_SETUP_PASSIVE:
-		rtp->dtls_setup = AST_RTP_DTLS_SETUP_ACTIVE;
+		*dtls_setup = AST_RTP_DTLS_SETUP_ACTIVE;
 		break;
 	case AST_RTP_DTLS_SETUP_ACTPASS:
 		/* We can't respond to an actpass setup with actpass ourselves... so respond with active, as we can initiate connections */
-		if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTPASS) {
-			rtp->dtls_setup = AST_RTP_DTLS_SETUP_ACTIVE;
+		if (*dtls_setup == AST_RTP_DTLS_SETUP_ACTPASS) {
+			*dtls_setup = AST_RTP_DTLS_SETUP_ACTIVE;
 		}
 		break;
 	case AST_RTP_DTLS_SETUP_HOLDCONN:
-		rtp->dtls_setup = AST_RTP_DTLS_SETUP_HOLDCONN;
+		*dtls_setup = AST_RTP_DTLS_SETUP_HOLDCONN;
 		break;
 	default:
 		/* This should never occur... if it does exit early as we don't know what state things are in */
@@ -947,21 +1087,34 @@ static void ast_rtp_dtls_set_setup(struct ast_rtp_instance *instance, enum ast_r
 	}
 
 	/* If the setup state did not change we go on as if nothing happened */
-	if (old == rtp->dtls_setup) {
+	if (old == *dtls_setup) {
 		return;
 	}
 
 	/* If they don't want us to establish a connection wait until later */
-	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_HOLDCONN) {
+	if (*dtls_setup == AST_RTP_DTLS_SETUP_HOLDCONN) {
 		return;
 	}
 
-	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTIVE) {
-		SSL_set_connect_state(rtp->ssl);
-	} else if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
-		SSL_set_accept_state(rtp->ssl);
+	if (*dtls_setup == AST_RTP_DTLS_SETUP_ACTIVE) {
+		SSL_set_connect_state(ssl);
+	} else if (*dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+		SSL_set_accept_state(ssl);
 	} else {
 		return;
+	}
+}
+
+static void ast_rtp_dtls_set_setup(struct ast_rtp_instance *instance, enum ast_rtp_dtls_setup setup)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (rtp->dtls.ssl) {
+		dtls_set_setup(&rtp->dtls.dtls_setup, setup, rtp->dtls.ssl);
+	}
+
+	if (rtp->rtcp && rtp->rtcp->dtls.ssl) {
+		dtls_set_setup(&rtp->rtcp->dtls.dtls_setup, setup, rtp->rtcp->dtls.ssl);
 	}
 }
 
@@ -971,22 +1124,27 @@ static void ast_rtp_dtls_set_fingerprint(struct ast_rtp_instance *instance, enum
 	int pos = 0;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if (hash != AST_RTP_DTLS_HASH_SHA1) {
+	if (hash != AST_RTP_DTLS_HASH_SHA1 && hash != AST_RTP_DTLS_HASH_SHA256) {
 		return;
 	}
+
+	rtp->remote_hash = hash;
 
 	while ((value = strsep(&tmp, ":")) && (pos != (EVP_MAX_MD_SIZE - 1))) {
 		sscanf(value, "%02x", (unsigned int*)&rtp->remote_fingerprint[pos++]);
 	}
 }
 
-static const char *ast_rtp_dtls_get_fingerprint(struct ast_rtp_instance *instance, enum ast_rtp_dtls_hash hash)
+static enum ast_rtp_dtls_hash ast_rtp_dtls_get_fingerprint_hash(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if (hash != AST_RTP_DTLS_HASH_SHA1) {
-		return NULL;
-	}
+	return rtp->local_hash;
+}
+
+static const char *ast_rtp_dtls_get_fingerprint(struct ast_rtp_instance *instance)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	return rtp->local_fingerprint;
 }
@@ -1001,6 +1159,7 @@ static struct ast_rtp_engine_dtls ast_rtp_dtls = {
 	.get_setup = ast_rtp_dtls_get_setup,
 	.set_setup = ast_rtp_dtls_set_setup,
 	.set_fingerprint = ast_rtp_dtls_set_fingerprint,
+	.get_fingerprint_hash = ast_rtp_dtls_get_fingerprint_hash,
 	.get_fingerprint = ast_rtp_dtls_get_fingerprint,
 };
 
@@ -1044,10 +1203,42 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 
 static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq);
 
+#ifdef HAVE_OPENSSL_SRTP
+static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtls_details *dtls, int rtcp)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!dtls->ssl) {
+		return;
+	}
+
+	if (SSL_is_init_finished(dtls->ssl)) {
+		SSL_clear(dtls->ssl);
+		if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+			SSL_set_accept_state(dtls->ssl);
+		} else {
+			SSL_set_connect_state(dtls->ssl);
+		}
+		dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
+	}
+	SSL_do_handshake(dtls->ssl);
+	dtls_srtp_check_pending(instance, rtp, rtcp);
+}
+#endif
+
 #ifdef USE_PJPROJECT
 static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 {
-	struct ast_rtp *rtp = ice->user_data;
+	struct ast_rtp_instance *instance = ice->user_data;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+#ifdef HAVE_OPENSSL_SRTP
+	dtls_perform_handshake(instance, &rtp->dtls, 0);
+
+	if (rtp->rtcp) {
+		dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
+	}
+#endif
 
 	if (!strictrtp) {
 		return;
@@ -1059,7 +1250,8 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 
 static void ast_rtp_on_ice_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, void *pkt, pj_size_t size, const pj_sockaddr_t *src_addr, unsigned src_addr_len)
 {
-	struct ast_rtp *rtp = ice->user_data;
+	struct ast_rtp_instance *instance = ice->user_data;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	/* Instead of handling the packet here (which really doesn't work with our architecture) we set a bit to indicate that it should be handled after pj_ice_sess_on_rx_pkt
 	 * returns */
@@ -1068,7 +1260,8 @@ static void ast_rtp_on_ice_rx_data(pj_ice_sess *ice, unsigned comp_id, unsigned 
 
 static pj_status_t ast_rtp_on_ice_tx_pkt(pj_ice_sess *ice, unsigned comp_id, unsigned transport_id, const void *pkt, pj_size_t size, const pj_sockaddr_t *dst_addr, unsigned dst_addr_len)
 {
-	struct ast_rtp *rtp = ice->user_data;
+	struct ast_rtp_instance *instance = ice->user_data;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	pj_status_t status = PJ_EINVALIDOP;
 	pj_ssize_t _size = (pj_ssize_t)size;
 
@@ -1247,9 +1440,54 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 }
 
 #ifdef HAVE_OPENSSL_SRTP
-static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
+
+static int dtls_srtp_handle_timeout(const void *data)
 {
-	size_t pending = BIO_ctrl_pending(rtp->write_bio);
+	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	if (!rtp)
+	{
+		return 0;
+	}
+
+	ast_mutex_lock(&rtp->dtls_timer_lock);
+	if (rtp->dtlstimerid == -1)
+	{
+		ast_mutex_unlock(&rtp->dtls_timer_lock);
+		ao2_ref(instance, -1);
+		return 0;
+	}
+
+	rtp->dtlstimerid = -1;
+	ast_mutex_unlock(&rtp->dtls_timer_lock);
+
+	if (rtp->dtls.ssl && !SSL_is_init_finished(rtp->dtls.ssl)) {
+		DTLSv1_handle_timeout(rtp->dtls.ssl);
+	}
+	dtls_srtp_check_pending(instance, rtp, 0);
+
+	if (rtp->rtcp && rtp->rtcp->dtls.ssl && !SSL_is_init_finished(rtp->rtcp->dtls.ssl)) {
+		DTLSv1_handle_timeout(rtp->rtcp->dtls.ssl);
+	}
+	dtls_srtp_check_pending(instance, rtp, 1);
+
+	ao2_ref(instance, -1);
+
+	return 0;
+}
+
+static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp)
+{
+	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+	size_t pending;
+	struct timeval dtls_timeout; /* timeout on DTLS  */
+
+	if (!dtls->ssl || !dtls->write_bio) {
+		return;
+	}
+
+	pending = BIO_ctrl_pending(dtls->write_bio);
 
 	if (pending > 0) {
 		char outgoing[pending];
@@ -1257,16 +1495,37 @@ static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct as
 		struct ast_sockaddr remote_address = { {0, } };
 		int ice;
 
-		ast_rtp_instance_get_remote_address(instance, &remote_address);
+		if (!rtcp) {
+			ast_rtp_instance_get_remote_address(instance, &remote_address);
+		} else {
+			ast_sockaddr_copy(&remote_address, &rtp->rtcp->them);
+		}
 
 		/* If we do not yet know an address to send this to defer it until we do */
 		if (ast_sockaddr_isnull(&remote_address)) {
 			return;
 		}
 
-		out = BIO_read(rtp->write_bio, outgoing, sizeof(outgoing));
+		out = BIO_read(dtls->write_bio, outgoing, sizeof(outgoing));
 
-		__rtp_sendto(instance, outgoing, out, 0, &remote_address, 0, &ice, 0);
+		/* Stop existing DTLS timer if running */
+		ast_mutex_lock(&rtp->dtls_timer_lock);
+		if (rtp->dtlstimerid > -1) {
+			AST_SCHED_DEL_UNREF(rtp->sched, rtp->dtlstimerid, ao2_ref(instance, -1));
+			rtp->dtlstimerid = -1;
+		}
+
+		if (DTLSv1_get_timeout(dtls->ssl, &dtls_timeout)) {
+			int timeout = dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+			ao2_ref(instance, +1);
+			if ((rtp->dtlstimerid = ast_sched_add(rtp->sched, timeout, dtls_srtp_handle_timeout, instance)) < 0) {
+				ao2_ref(instance, -1);
+				ast_log(LOG_WARNING, "scheduling DTLS retransmission for RTP instance [%p] failed.\n", instance);
+			}
+		}
+		ast_mutex_unlock(&rtp->dtls_timer_lock);
+
+		__rtp_sendto(instance, outgoing, out, 0, &remote_address, rtcp, &ice, 0);
 	}
 }
 
@@ -1275,9 +1534,15 @@ static int dtls_srtp_renegotiate(const void *data)
 	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	SSL_renegotiate(rtp->ssl);
-	SSL_do_handshake(rtp->ssl);
-	dtls_srtp_check_pending(instance, rtp);
+	SSL_renegotiate(rtp->dtls.ssl);
+	SSL_do_handshake(rtp->dtls.ssl);
+	dtls_srtp_check_pending(instance, rtp, 0);
+
+	if (rtp->rtcp && rtp->rtcp->dtls.ssl) {
+		SSL_renegotiate(rtp->rtcp->dtls.ssl);
+		SSL_do_handshake(rtp->rtcp->dtls.ssl);
+		dtls_srtp_check_pending(instance, rtp, 1);
+	}
 
 	rtp->rekeyid = -1;
 	ao2_ref(instance, -1);
@@ -1293,20 +1558,30 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 	struct ast_rtp_instance_stats stats = { 0, };
 
 	/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
-	if (SSL_CTX_get_verify_mode(rtp->ssl_ctx) != SSL_VERIFY_NONE) {
+	if (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) {
 		X509 *certificate;
 
-		if (!(certificate = SSL_get_peer_certificate(rtp->ssl))) {
+		if (!(certificate = SSL_get_peer_certificate(rtp->dtls.ssl))) {
 			ast_log(LOG_WARNING, "No certificate was provided by the peer on RTP instance '%p'\n", instance);
 			return -1;
 		}
 
 		/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
 		if (rtp->remote_fingerprint[0]) {
+			const EVP_MD *type;
 			unsigned char fingerprint[EVP_MAX_MD_SIZE];
 			unsigned int size;
 
-			if (!X509_digest(certificate, EVP_sha1(), fingerprint, &size) ||
+			if (rtp->remote_hash == AST_RTP_DTLS_HASH_SHA1) {
+				type = EVP_sha1();
+			} else if (rtp->remote_hash == AST_RTP_DTLS_HASH_SHA256) {
+				type = EVP_sha256();
+			} else {
+				ast_log(LOG_WARNING, "Unsupported fingerprint hash type on RTP instance '%p'\n", instance);
+				return -1;
+			}
+
+			if (!X509_digest(certificate, type, fingerprint, &size) ||
 			    !size ||
 			    memcmp(fingerprint, rtp->remote_fingerprint, size)) {
 				X509_free(certificate);
@@ -1320,21 +1595,21 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 	}
 
 	/* Ensure that certificate verification was successful */
-	if (SSL_get_verify_result(rtp->ssl) != X509_V_OK) {
+	if ((rtp->dtls_verify & AST_RTP_DTLS_VERIFY_CERTIFICATE) && SSL_get_verify_result(rtp->dtls.ssl) != X509_V_OK) {
 		ast_log(LOG_WARNING, "Peer certificate on RTP instance '%p' failed verification test\n",
 			instance);
 		return -1;
 	}
 
 	/* Produce key information and set up SRTP */
-	if (!SSL_export_keying_material(rtp->ssl, material, SRTP_MASTER_LEN * 2, "EXTRACTOR-dtls_srtp", 19, NULL, 0, 0)) {
+	if (!SSL_export_keying_material(rtp->dtls.ssl, material, SRTP_MASTER_LEN * 2, "EXTRACTOR-dtls_srtp", 19, NULL, 0, 0)) {
 		ast_log(LOG_WARNING, "Unable to extract SRTP keying material from DTLS-SRTP negotiation on RTP instance '%p'\n",
 			instance);
 		return -1;
 	}
 
 	/* Whether we are acting as a server or client determines where the keys/salts are */
-	if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTIVE) {
+	if (rtp->dtls.dtls_setup == AST_RTP_DTLS_SETUP_ACTIVE) {
 		local_key = material;
 		remote_key = local_key + SRTP_MASTER_KEY_LEN;
 		local_salt = remote_key + SRTP_MASTER_KEY_LEN;
@@ -1420,50 +1695,51 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	}
 
 #ifdef HAVE_OPENSSL_SRTP
-	if (!rtcp) {
-		dtls_srtp_check_pending(instance, rtp);
+	dtls_srtp_check_pending(instance, rtp, rtcp);
 
-		/* If this is an SSL packet pass it to OpenSSL for processing */
-		if ((*in >= 20) && (*in <= 64)) {
-			int res = 0;
+	/* If this is an SSL packet pass it to OpenSSL for processing */
+	if ((*in >= 20) && (*in <= 64)) {
+		struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+		int res = 0;
 
-			/* If no SSL session actually exists terminate things */
-			if (!rtp->ssl) {
-				ast_log(LOG_ERROR, "Received SSL traffic on RTP instance '%p' without an SSL session\n",
-					instance);
-				return -1;
-			}
+		/* If no SSL session actually exists terminate things */
+		if (!dtls->ssl) {
+			ast_log(LOG_ERROR, "Received SSL traffic on RTP instance '%p' without an SSL session\n",
+				instance);
+			return -1;
+		}
 
-			/* If we don't yet know if we are active or passive and we receive a packet... we are obviously passive */
-			if (rtp->dtls_setup == AST_RTP_DTLS_SETUP_ACTPASS) {
-				rtp->dtls_setup = AST_RTP_DTLS_SETUP_PASSIVE;
-				SSL_set_accept_state(rtp->ssl);
-			}
+		/* If we don't yet know if we are active or passive and we receive a packet... we are obviously passive */
+		if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_ACTPASS) {
+			dtls->dtls_setup = AST_RTP_DTLS_SETUP_PASSIVE;
+			SSL_set_accept_state(dtls->ssl);
+		}
 
-			dtls_srtp_check_pending(instance, rtp);
+		dtls_srtp_check_pending(instance, rtp, rtcp);
 
-			BIO_write(rtp->read_bio, buf, len);
+		BIO_write(dtls->read_bio, buf, len);
 
-			len = SSL_read(rtp->ssl, buf, len);
+		len = SSL_read(dtls->ssl, buf, len);
 
-			dtls_srtp_check_pending(instance, rtp);
+		if ((len < 0) && (SSL_get_error(dtls->ssl, len) == SSL_ERROR_SSL)) {
+			unsigned long error = ERR_get_error();
+			ast_log(LOG_ERROR, "DTLS failure occurred on RTP instance '%p' due to reason '%s', terminating\n",
+				instance, ERR_reason_error_string(error));
+			return -1;
+		}
 
-			if (rtp->dtls_failure) {
-				ast_log(LOG_ERROR, "DTLS failure occurred on RTP instance '%p', terminating\n",
-					instance);
-				return -1;
-			}
+		dtls_srtp_check_pending(instance, rtp, rtcp);
 
-			if (SSL_is_init_finished(rtp->ssl)) {
-				/* Any further connections will be existing since this is now established */
-				rtp->connection = AST_RTP_DTLS_CONNECTION_EXISTING;
-
+		if (SSL_is_init_finished(dtls->ssl)) {
+			/* Any further connections will be existing since this is now established */
+			dtls->connection = AST_RTP_DTLS_CONNECTION_EXISTING;
+			if (!rtcp) {
 				/* Use the keying material to set up key/salt information */
 				res = dtls_srtp_setup(rtp, srtp, instance);
 			}
-
-			return res;
 		}
+
+		return res;
 	}
 #endif
 
@@ -1477,7 +1753,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 
 		pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &combined, &address);
 
-		status = pj_ice_sess_on_rx_pkt(rtp->ice, rtcp ? COMPONENT_RTCP : COMPONENT_RTP,
+		status = pj_ice_sess_on_rx_pkt(rtp->ice, rtcp ? AST_RTP_ICE_COMPONENT_RTCP : AST_RTP_ICE_COMPONENT_RTP,
 			rtcp ? TRANSPORT_SOCKET_RTCP : TRANSPORT_SOCKET_RTP, buf, len, &address,
 			pj_sockaddr_get_len(&address));
 		if (status != PJ_SUCCESS) {
@@ -1529,9 +1805,9 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	if (rtp->ice) {
 		pj_thread_register_check();
 
-		if (pj_ice_sess_send_data(rtp->ice, rtcp ? COMPONENT_RTCP : COMPONENT_RTP, temp, len) == PJ_SUCCESS) {
+		if (pj_ice_sess_send_data(rtp->ice, rtcp ? AST_RTP_ICE_COMPONENT_RTCP : AST_RTP_ICE_COMPONENT_RTP, temp, len) == PJ_SUCCESS) {
 			*ice = 1;
-			return 0;
+			return len;
 		}
 	}
 #endif
@@ -1669,15 +1945,19 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	}
 
 	/* If configured to use a STUN server to get our external mapped address do so */
-	if (stunaddr.sin_addr.s_addr && ast_sockaddr_is_ipv4(addr)) {
+	if (stunaddr.sin_addr.s_addr && ast_sockaddr_is_ipv4(addr) && count) {
 		struct sockaddr_in answer;
 
-		if (!ast_stun_request(rtp->s, &stunaddr, NULL, &answer)) {
+		if (!ast_stun_request(component == AST_RTP_ICE_COMPONENT_RTCP ? rtp->rtcp->s : rtp->s, &stunaddr, NULL, &answer)) {
+			pj_sockaddr base;
 			pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
+
+			/* Use the first local host candidate as the base */
+			pj_sockaddr_cp(&base, &address[0]);
 
 			pj_sockaddr_init(pj_AF_INET(), &address[0], &mapped, ntohs(answer.sin_port));
 
-			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_SRFLX, 65535, &address[0], &address[0],
+			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_SRFLX, 65535, &address[0], &base,
 					     NULL, pj_sockaddr_get_len(&address[0]));
 		}
 	}
@@ -1719,16 +1999,68 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 }
 #endif
 
+#ifdef USE_PJPROJECT
+/*!
+ * \internal
+ * \brief Creates an ICE session. Can be used to replace a destroyed ICE session.
+ *
+ * \param instance RTP instance for which the ICE session is being replaced
+ * \param addr ast_sockaddr to use for adding RTP candidates to the ICE session
+ * \param port port to use for adding RTP candidates to the ICE session
+ * \param replace 0 when creating a new session, 1 when replacing a destroyed session
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *addr,
+	int port, int replace)
+{
+	pj_stun_config stun_config;
+	pj_str_t ufrag, passwd;
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	ao2_cleanup(rtp->ice_local_candidates);
+	rtp->ice_local_candidates = NULL;
+
+	pj_thread_register_check();
+
+	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, ioqueue, timerheap);
+
+	ufrag = pj_str(rtp->local_ufrag);
+	passwd = pj_str(rtp->local_passwd);
+
+	/* Create an ICE session for ICE negotiation */
+	if (pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN, 2,
+			&ast_rtp_ice_sess_cb, &ufrag, &passwd, &rtp->ice) == PJ_SUCCESS) {
+		/* Make this available for the callbacks */
+		rtp->ice->user_data = instance;
+
+		/* Add all of the available candidates to the ICE session */
+		rtp_add_candidates_to_ice(instance, rtp, addr, port, AST_RTP_ICE_COMPONENT_RTP,
+			TRANSPORT_SOCKET_RTP, &ast_rtp_turn_rtp_sock_cb, &rtp->turn_rtp);
+
+		/* Only add the RTCP candidates to ICE when replacing the session. New sessions
+		 * handle this in a separate part of the setup phase */
+		if (replace && rtp->rtcp) {
+			rtp_add_candidates_to_ice(instance, rtp, &rtp->rtcp->us,
+				ast_sockaddr_port(&rtp->rtcp->us), AST_RTP_ICE_COMPONENT_RTCP,
+				TRANSPORT_SOCKET_RTCP, &ast_rtp_turn_rtcp_sock_cb, &rtp->turn_rtcp);
+		}
+
+		return 0;
+	}
+
+	return -1;
+
+}
+#endif
+
 static int ast_rtp_new(struct ast_rtp_instance *instance,
 		       struct ast_sched_context *sched, struct ast_sockaddr *addr,
 		       void *data)
 {
 	struct ast_rtp *rtp = NULL;
 	int x, startplace;
-#ifdef USE_PJPROJECT
-	pj_stun_config stun_config;
-	pj_str_t ufrag, passwd;
-#endif
 
 	/* Create a new RTP structure to hold all of our data */
 	if (!(rtp = ast_calloc(1, sizeof(*rtp)))) {
@@ -1791,22 +2123,17 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	ast_rtp_instance_set_data(instance, rtp);
 
 #ifdef USE_PJPROJECT
-	pj_thread_register_check();
-
-	pj_stun_config_init(&stun_config, &cachingpool.factory, 0, ioqueue, timerheap);
-
 	generate_random_string(rtp->local_ufrag, sizeof(rtp->local_ufrag));
-	ufrag = pj_str(rtp->local_ufrag);
 	generate_random_string(rtp->local_passwd, sizeof(rtp->local_passwd));
-	passwd = pj_str(rtp->local_passwd);
 
 	/* Create an ICE session for ICE negotiation */
-	if (icesupport && pj_ice_sess_create(&stun_config, NULL, PJ_ICE_SESS_ROLE_UNKNOWN, 2, &ast_rtp_ice_sess_cb, &ufrag, &passwd, &rtp->ice) == PJ_SUCCESS) {
-		/* Make this available for the callbacks */
-		rtp->ice->user_data = rtp;
-
-		/* Add all of the available candidates to the ICE session */
-		rtp_add_candidates_to_ice(instance, rtp, addr, x, COMPONENT_RTP, TRANSPORT_SOCKET_RTP, &ast_rtp_turn_rtp_sock_cb, &rtp->turn_rtp);
+	if (icesupport) {
+		if (ice_create(instance, addr, x, 0)) {
+			ast_log(LOG_NOTICE, "Failed to start ICE session\n");
+		} else {
+			rtp->ice_port = x;
+			ast_sockaddr_copy(&rtp->ice_original_rtp_addr, addr);
+		}
 	}
 #endif
 
@@ -1815,6 +2142,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 
 #ifdef HAVE_OPENSSL_SRTP
 	rtp->rekeyid = -1;
+	rtp->dtlstimerid = -1;
 #endif
 
 	return 0;
@@ -1842,6 +2170,11 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 		 * RTP instance while it's active.
 		 */
 		close(rtp->rtcp->s);
+#ifdef HAVE_OPENSSL_SRTP
+		if (rtp->rtcp->dtls.ssl) {
+			SSL_free(rtp->rtcp->dtls.ssl);
+		}
+#endif
 		ast_free(rtp->rtcp);
 	}
 
@@ -1872,12 +2205,12 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	}
 
 	/* Destroy any candidates */
-	if (rtp->local_candidates) {
-		ao2_ref(rtp->local_candidates, -1);
+	if (rtp->ice_local_candidates) {
+		ao2_ref(rtp->ice_local_candidates, -1);
 	}
 
-	if (rtp->remote_candidates) {
-		ao2_ref(rtp->remote_candidates, -1);
+	if (rtp->ice_active_remote_candidates) {
+		ao2_ref(rtp->ice_active_remote_candidates, -1);
 	}
 
 	/* Destroy synchronization items */
@@ -1892,8 +2225,8 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	}
 
 	/* Destroy the SSL session if present */
-	if (rtp->ssl) {
-		SSL_free(rtp->ssl);
+	if (rtp->dtls.ssl) {
+		SSL_free(rtp->dtls.ssl);
 	}
 #endif
 
@@ -1971,7 +2304,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 				strerror(errno));
 		}
 #ifdef USE_PJPROJECT
-		update_address_with_ice_candidate(rtp, COMPONENT_RTP, &remote_address);
+		update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTP, &remote_address);
 #endif
 		if (rtp_debug_test_addr(&remote_address)) {
 			ast_verbose("Sent RTP DTMF packet to %s%s (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
@@ -2023,7 +2356,7 @@ static int ast_rtp_dtmf_continuation(struct ast_rtp_instance *instance)
 	}
 
 #ifdef USE_PJPROJECT
-	update_address_with_ice_candidate(rtp, COMPONENT_RTP, &remote_address);
+	update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTP, &remote_address);
 #endif
 
 	if (rtp_debug_test_addr(&remote_address)) {
@@ -2100,7 +2433,7 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 		}
 
 #ifdef USE_PJPROJECT
-		update_address_with_ice_candidate(rtp, COMPONENT_RTP, &remote_address);
+		update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTP, &remote_address);
 #endif
 
 		if (rtp_debug_test_addr(&remote_address)) {
@@ -2285,7 +2618,7 @@ static int ast_rtcp_write_rr(struct ast_rtp_instance *instance)
 	rtp->rtcp->rr_count++;
 
 #ifdef USE_PJPROJECT
-	update_address_with_ice_candidate(rtp, COMPONENT_RTCP, &remote_address);
+	update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTCP, &remote_address);
 #endif
 
 	if (rtcp_debug_test_addr(&remote_address)) {
@@ -2398,7 +2731,7 @@ static int ast_rtcp_write_sr(struct ast_rtp_instance *instance)
 	rtp->rtcp->lastsrtxcount = rtp->txcount;
 
 #ifdef USE_PJPROJECT
-	update_address_with_ice_candidate(rtp, COMPONENT_RTCP, &remote_address);
+	update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTCP, &remote_address);
 #endif
 
 	if (rtcp_debug_test_addr(&rtp->rtcp->them)) {
@@ -2589,7 +2922,7 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		}
 
 #ifdef USE_PJPROJECT
-		update_address_with_ice_candidate(rtp, COMPONENT_RTP, &remote_address);
+		update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTP, &remote_address);
 #endif
 
 		if (rtp_debug_test_addr(&remote_address)) {
@@ -3470,7 +3803,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	}
 
 #ifdef USE_PJPROJECT
-	update_address_with_ice_candidate(rtp, COMPONENT_RTP, &remote_address);
+	update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTP, &remote_address);
 #endif
 
 	if (rtp_debug_test_addr(&remote_address)) {
@@ -3930,9 +4263,13 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 
 #ifdef USE_PJPROJECT
 			if (rtp->ice) {
-				rtp_add_candidates_to_ice(instance, rtp, &rtp->rtcp->us, ast_sockaddr_port(&rtp->rtcp->us), COMPONENT_RTCP, TRANSPORT_SOCKET_RTCP,
+				rtp_add_candidates_to_ice(instance, rtp, &rtp->rtcp->us, ast_sockaddr_port(&rtp->rtcp->us), AST_RTP_ICE_COMPONENT_RTCP, TRANSPORT_SOCKET_RTCP,
 							  &ast_rtp_turn_rtcp_sock_cb, &rtp->turn_rtcp);
 			}
+#endif
+
+#ifdef HAVE_OPENSSL_SRTP
+			dtls_setup_rtcp(instance);
 #endif
 
 			return;
@@ -3950,6 +4287,11 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					rtp->rtcp->schedid = -1;
 				}
 				close(rtp->rtcp->s);
+#ifdef HAVE_OPENSSL_SRTP
+				if (rtp->rtcp->dtls.ssl) {
+					SSL_free(rtp->rtcp->dtls.ssl);
+				}
+#endif
 				ast_free(rtp->rtcp);
 				rtp->rtcp = NULL;
 			}
@@ -4154,6 +4496,9 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 
 #ifdef HAVE_OPENSSL_SRTP
 	AST_SCHED_DEL_UNREF(rtp->sched, rtp->rekeyid, ao2_ref(instance, -1));
+	ast_mutex_lock(&rtp->dtls_timer_lock);
+	AST_SCHED_DEL_UNREF(rtp->sched, rtp->dtlstimerid, ao2_ref(instance, -1));
+	ast_mutex_unlock(&rtp->dtls_timer_lock);
 #endif
 
 	if (rtp->rtcp && rtp->rtcp->schedid > 0) {
@@ -4223,7 +4568,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 	}
 
 #ifdef USE_PJPROJECT
-	update_address_with_ice_candidate(rtp, COMPONENT_RTP, &remote_address);
+	update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTP, &remote_address);
 #endif
 
 	if (rtp_debug_test_addr(&remote_address)) {
@@ -4243,13 +4588,18 @@ static int ast_rtp_activate(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if (!rtp->ssl) {
+	/* If ICE negotiation is enabled the DTLS Handshake will be performed upon completion of it */
+#ifdef USE_PJPROJECT
+	if (rtp->ice) {
 		return 0;
 	}
+#endif
 
-	SSL_do_handshake(rtp->ssl);
+	dtls_perform_handshake(instance, &rtp->dtls, 0);
 
-	dtls_srtp_check_pending(instance, rtp);
+	if (rtp->rtcp) {
+		dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
+	}
 
 	return 0;
 }

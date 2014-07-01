@@ -1401,7 +1401,7 @@ static int process_sdp_a_text(const char *a, struct sip_pvt *p, struct ast_rtp_c
 static int process_sdp_a_image(const char *a, struct sip_pvt *p);
 static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf);
 static void add_dtls_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf);
-static void start_ice(struct ast_rtp_instance *instance);
+static void start_ice(struct ast_rtp_instance *instance, int offer);
 static void add_codec_to_sdp(const struct sip_pvt *p, struct ast_format *codec,
 			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size);
@@ -10040,12 +10040,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 			if (process_sdp_a_dtls(value, p, p->rtp)) {
 				processed = TRUE;
+				if (p->srtp) {
+					ast_set_flag(p->srtp, SRTP_CRYPTO_OFFER_OK);
+				}
 			}
 			if (process_sdp_a_dtls(value, p, p->vrtp)) {
 				processed = TRUE;
+				if (p->vsrtp) {
+					ast_set_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK);
+				}
 			}
 			if (process_sdp_a_dtls(value, p, p->trtp)) {
 				processed = TRUE;
+				if (p->tsrtp) {
+					ast_set_flag(p->tsrtp, SRTP_CRYPTO_OFFER_OK);
+				}
 			}
 
 			break;
@@ -10412,7 +10421,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					if (process_sdp_a_ice(value, p, p->rtp)) {
 						processed = TRUE;
 					} else if (process_sdp_a_dtls(value, p, p->rtp)) {
+						processed_crypto = TRUE;
 						processed = TRUE;
+						if (p->srtp) {
+							ast_set_flag(p->srtp, SRTP_CRYPTO_OFFER_OK);
+						}
 					} else if (process_sdp_a_sendonly(value, &sendonly)) {
 						processed = TRUE;
 					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value)) {
@@ -10427,7 +10440,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					if (process_sdp_a_ice(value, p, p->vrtp)) {
 						processed = TRUE;
 					} else if (process_sdp_a_dtls(value, p, p->vrtp)) {
+						processed_crypto = TRUE;
 						processed = TRUE;
+						if (p->vsrtp) {
+							ast_set_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK);
+						}
 					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
@@ -10578,7 +10595,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup audio address and port */
 	if (p->rtp) {
 		if (sa && portno > 0) {
-			start_ice(p->rtp);
+			start_ice(p->rtp, (req->method != SIP_RESPONSE) ? 0 : 1);
 			ast_sockaddr_set_port(sa, portno);
 			ast_rtp_instance_set_remote_address(p->rtp, sa);
 			if (debug) {
@@ -10626,7 +10643,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup video address and port */
 	if (p->vrtp) {
 		if (vsa && vportno > 0) {
-			start_ice(p->vrtp);
+			start_ice(p->vrtp, (req->method != SIP_RESPONSE) ? 0 : 1);
 			ast_sockaddr_set_port(vsa, vportno);
 			ast_rtp_instance_set_remote_address(p->vrtp, vsa);
 			if (debug) {
@@ -10644,7 +10661,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup text address and port */
 	if (p->trtp) {
 		if (tsa && tportno > 0) {
-			start_ice(p->trtp);
+			start_ice(p->trtp, (req->method != SIP_RESPONSE) ? 0 : 1);
 			ast_sockaddr_set_port(tsa, tportno);
 			ast_rtp_instance_set_remote_address(p->trtp, tsa);
 			if (debug) {
@@ -10971,7 +10988,7 @@ static int process_sdp_a_dtls(const char *a, struct sip_pvt *p, struct ast_rtp_i
 {
 	struct ast_rtp_engine_dtls *dtls;
 	int found = FALSE;
-	char value[256], hash[6];
+	char value[256], hash[32];
 
 	if (!instance || !p->dtls_cfg.enabled || !(dtls = ast_rtp_instance_get_dtls(instance))) {
 		return found;
@@ -11003,11 +11020,13 @@ static int process_sdp_a_dtls(const char *a, struct sip_pvt *p, struct ast_rtp_i
 			ast_log(LOG_WARNING, "Unsupported connection attribute value '%s' received on dialog '%s'\n",
 				value, p->callid);
 		}
-	} else if (sscanf(a, "fingerprint: %5s %255s", hash, value) == 2) {
+	} else if (sscanf(a, "fingerprint: %31s %255s", hash, value) == 2) {
 		found = TRUE;
 
 		if (!strcasecmp(hash, "sha-1")) {
 			dtls->set_fingerprint(instance, AST_RTP_DTLS_HASH_SHA1, value);
+		} else if (!strcasecmp(hash, "sha-256")) {
+			dtls->set_fingerprint(instance, AST_RTP_DTLS_HASH_SHA256, value);
 		} else {
 			ast_log(LOG_WARNING, "Unsupported fingerprint hash type '%s' received on dialog '%s'\n",
 				hash, p->callid);
@@ -12594,7 +12613,13 @@ static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a
 	while ((candidate = ao2_iterator_next(&i))) {
 		ast_str_append(a_buf, 0, "a=candidate:%s %d %s %d ", candidate->foundation, candidate->id, candidate->transport, candidate->priority);
 		ast_str_append(a_buf, 0, "%s ", ast_sockaddr_stringify_host(&candidate->address));
-		ast_str_append(a_buf, 0, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
+
+		if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_SRFLX
+			&& candidate->id == AST_RTP_ICE_COMPONENT_RTCP) {
+			ast_str_append(a_buf, 0, "%d typ ", ast_sockaddr_port(&candidate->address) + 1);
+		} else {
+			ast_str_append(a_buf, 0, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
+		}
 
 		if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_HOST) {
 			ast_str_append(a_buf, 0, "host");
@@ -12619,7 +12644,7 @@ static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a
 }
 
 /*! \brief Start ICE negotiation on an RTP instance */
-static void start_ice(struct ast_rtp_instance *instance)
+static void start_ice(struct ast_rtp_instance *instance, int offer)
 {
 	struct ast_rtp_engine_ice *ice = ast_rtp_instance_get_ice(instance);
 
@@ -12627,6 +12652,8 @@ static void start_ice(struct ast_rtp_instance *instance)
 		return;
 	}
 
+	/* If we are the offerer then we are the controlling agent, otherwise they are */
+	ice->set_role(instance, offer ? AST_RTP_ICE_ROLE_CONTROLLING : AST_RTP_ICE_ROLE_CONTROLLED);
 	ice->start(instance);
 }
 
@@ -12634,6 +12661,7 @@ static void start_ice(struct ast_rtp_instance *instance)
 static void add_dtls_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a_buf)
 {
 	struct ast_rtp_engine_dtls *dtls;
+	enum ast_rtp_dtls_hash hash;
 	const char *fingerprint;
 
 	if (!instance || !(dtls = ast_rtp_instance_get_dtls(instance)) || !dtls->active(instance)) {
@@ -12668,8 +12696,11 @@ static void add_dtls_to_sdp(struct ast_rtp_instance *instance, struct ast_str **
 		break;
 	}
 
-	if ((fingerprint = dtls->get_fingerprint(instance, AST_RTP_DTLS_HASH_SHA1))) {
-		ast_str_append(a_buf, 0, "a=fingerprint:SHA-1 %s\r\n", fingerprint);
+	hash = dtls->get_fingerprint_hash(instance);
+	fingerprint = dtls->get_fingerprint(instance);
+	if (fingerprint && (hash == AST_RTP_DTLS_HASH_SHA1 || hash == AST_RTP_DTLS_HASH_SHA256)) {
+		ast_str_append(a_buf, 0, "a=fingerprint:%s %s\r\n", hash == AST_RTP_DTLS_HASH_SHA1 ? "SHA-1" : "SHA-256",
+			fingerprint);
 	}
 }
 
@@ -12977,7 +13008,11 @@ static char *get_sdp_rtp_profile(const struct sip_pvt *p, unsigned int secure, s
 	struct ast_rtp_engine_dtls *dtls;
 
 	if ((dtls = ast_rtp_instance_get_dtls(instance)) && dtls->active(instance)) {
-		return ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF) ? "UDP/TLS/RTP/SAVPF" : "UDP/TLS/RTP/SAVP";
+		if (ast_test_flag(&p->flags[2], SIP_PAGE3_FORCE_AVP)) {
+			return ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF) ? "RTP/SAVPF" : "RTP/SAVP";
+		} else {
+			return ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF) ? "UDP/TLS/RTP/SAVPF" : "UDP/TLS/RTP/SAVP";
+		}
 	} else {
 		if (ast_test_flag(&p->flags[2], SIP_PAGE3_USE_AVPF)) {
 			return secure ? "RTP/SAVPF" : "RTP/AVPF";
@@ -30925,6 +30960,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_USE_AVPF);
 			} else if (!strcasecmp(v->name, "icesupport")) {
 				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_ICE_SUPPORT);
+			} else if (!strcasecmp(v->name, "force_avp")) {
+				ast_set2_flag(&peer->flags[2], ast_true(v->value), SIP_PAGE3_FORCE_AVP);
 			} else {
 				ast_rtp_dtls_cfg_parse(&peer->dtls_cfg, v->name, v->value);
 			}
