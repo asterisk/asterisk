@@ -39,11 +39,11 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_sounds_list() */
+/*! Argument struct for ast_ari_sounds_list() */
 struct ast_ari_sounds_list_args {
-	/*! \brief Lookup sound for a specific language. */
+	/*! Lookup sound for a specific language. */
 	const char *lang;
-	/*! \brief Lookup sound in a specific format. */
+	/*! Lookup sound in a specific format. */
 	const char *format;
 };
 /*!
@@ -65,9 +65,9 @@ int ast_ari_sounds_list_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_sounds_list(struct ast_variable *headers, struct ast_ari_sounds_list_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_sounds_get() */
+/*! Argument struct for ast_ari_sounds_get() */
 struct ast_ari_sounds_get_args {
-	/*! \brief Sound's id */
+	/*! Sound's id */
 	const char *sound_id;
 };
 /*!

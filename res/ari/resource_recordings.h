@@ -39,7 +39,7 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_recordings_list_stored() */
+/*! Argument struct for ast_ari_recordings_list_stored() */
 struct ast_ari_recordings_list_stored_args {
 };
 /*!
@@ -50,9 +50,9 @@ struct ast_ari_recordings_list_stored_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_list_stored(struct ast_variable *headers, struct ast_ari_recordings_list_stored_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_get_stored() */
+/*! Argument struct for ast_ari_recordings_get_stored() */
 struct ast_ari_recordings_get_stored_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -63,9 +63,9 @@ struct ast_ari_recordings_get_stored_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_get_stored(struct ast_variable *headers, struct ast_ari_recordings_get_stored_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_delete_stored() */
+/*! Argument struct for ast_ari_recordings_delete_stored() */
 struct ast_ari_recordings_delete_stored_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -76,9 +76,9 @@ struct ast_ari_recordings_delete_stored_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_delete_stored(struct ast_variable *headers, struct ast_ari_recordings_delete_stored_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_get_live() */
+/*! Argument struct for ast_ari_recordings_get_live() */
 struct ast_ari_recordings_get_live_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -89,9 +89,9 @@ struct ast_ari_recordings_get_live_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_get_live(struct ast_variable *headers, struct ast_ari_recordings_get_live_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_cancel() */
+/*! Argument struct for ast_ari_recordings_cancel() */
 struct ast_ari_recordings_cancel_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -102,9 +102,9 @@ struct ast_ari_recordings_cancel_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_cancel(struct ast_variable *headers, struct ast_ari_recordings_cancel_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_stop() */
+/*! Argument struct for ast_ari_recordings_stop() */
 struct ast_ari_recordings_stop_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -115,9 +115,9 @@ struct ast_ari_recordings_stop_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_stop(struct ast_variable *headers, struct ast_ari_recordings_stop_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_pause() */
+/*! Argument struct for ast_ari_recordings_pause() */
 struct ast_ari_recordings_pause_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -130,9 +130,9 @@ struct ast_ari_recordings_pause_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_pause(struct ast_variable *headers, struct ast_ari_recordings_pause_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_unpause() */
+/*! Argument struct for ast_ari_recordings_unpause() */
 struct ast_ari_recordings_unpause_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -143,9 +143,9 @@ struct ast_ari_recordings_unpause_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_unpause(struct ast_variable *headers, struct ast_ari_recordings_unpause_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_mute() */
+/*! Argument struct for ast_ari_recordings_mute() */
 struct ast_ari_recordings_mute_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!
@@ -158,9 +158,9 @@ struct ast_ari_recordings_mute_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_mute(struct ast_variable *headers, struct ast_ari_recordings_mute_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_recordings_unmute() */
+/*! Argument struct for ast_ari_recordings_unmute() */
 struct ast_ari_recordings_unmute_args {
-	/*! \brief The name of the recording */
+	/*! The name of the recording */
 	const char *recording_name;
 };
 /*!

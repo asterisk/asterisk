@@ -39,13 +39,13 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_asterisk_get_info() */
+/*! Argument struct for ast_ari_asterisk_get_info() */
 struct ast_ari_asterisk_get_info_args {
-	/*! \brief Array of Filter information returned */
+	/*! Array of Filter information returned */
 	const char **only;
-	/*! \brief Length of only array. */
+	/*! Length of only array. */
 	size_t only_count;
-	/*! \brief Parsing context for only. */
+	/*! Parsing context for only. */
 	char *only_parse;
 };
 /*!
@@ -67,9 +67,9 @@ int ast_ari_asterisk_get_info_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_asterisk_get_info(struct ast_variable *headers, struct ast_ari_asterisk_get_info_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_asterisk_get_global_var() */
+/*! Argument struct for ast_ari_asterisk_get_global_var() */
 struct ast_ari_asterisk_get_global_var_args {
-	/*! \brief The variable to get */
+	/*! The variable to get */
 	const char *variable;
 };
 /*!
@@ -91,11 +91,11 @@ int ast_ari_asterisk_get_global_var_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers, struct ast_ari_asterisk_get_global_var_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_asterisk_set_global_var() */
+/*! Argument struct for ast_ari_asterisk_set_global_var() */
 struct ast_ari_asterisk_set_global_var_args {
-	/*! \brief The variable to set */
+	/*! The variable to set */
 	const char *variable;
-	/*! \brief The value to set the variable to */
+	/*! The value to set the variable to */
 	const char *value;
 };
 /*!

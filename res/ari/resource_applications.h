@@ -39,7 +39,7 @@
 
 #include "asterisk/ari.h"
 
-/*! \brief Argument struct for ast_ari_applications_list() */
+/*! Argument struct for ast_ari_applications_list() */
 struct ast_ari_applications_list_args {
 };
 /*!
@@ -50,9 +50,9 @@ struct ast_ari_applications_list_args {
  * \param[out] response HTTP response
  */
 void ast_ari_applications_list(struct ast_variable *headers, struct ast_ari_applications_list_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_applications_get() */
+/*! Argument struct for ast_ari_applications_get() */
 struct ast_ari_applications_get_args {
-	/*! \brief Application's name */
+	/*! Application's name */
 	const char *application_name;
 };
 /*!
@@ -63,15 +63,15 @@ struct ast_ari_applications_get_args {
  * \param[out] response HTTP response
  */
 void ast_ari_applications_get(struct ast_variable *headers, struct ast_ari_applications_get_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_applications_subscribe() */
+/*! Argument struct for ast_ari_applications_subscribe() */
 struct ast_ari_applications_subscribe_args {
-	/*! \brief Application's name */
+	/*! Application's name */
 	const char *application_name;
-	/*! \brief Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
+	/*! Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
 	const char **event_source;
-	/*! \brief Length of event_source array. */
+	/*! Length of event_source array. */
 	size_t event_source_count;
-	/*! \brief Parsing context for event_source. */
+	/*! Parsing context for event_source. */
 	char *event_source_parse;
 };
 /*!
@@ -95,15 +95,15 @@ int ast_ari_applications_subscribe_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_applications_subscribe(struct ast_variable *headers, struct ast_ari_applications_subscribe_args *args, struct ast_ari_response *response);
-/*! \brief Argument struct for ast_ari_applications_unsubscribe() */
+/*! Argument struct for ast_ari_applications_unsubscribe() */
 struct ast_ari_applications_unsubscribe_args {
-	/*! \brief Application's name */
+	/*! Application's name */
 	const char *application_name;
-	/*! \brief Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
+	/*! Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
 	const char **event_source;
-	/*! \brief Length of event_source array. */
+	/*! Length of event_source array. */
 	size_t event_source_count;
-	/*! \brief Parsing context for event_source. */
+	/*! Parsing context for event_source. */
 	char *event_source_parse;
 };
 /*!

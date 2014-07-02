@@ -40,23 +40,23 @@
 
 {{#apis}}
 {{#operations}}
-/*! \brief Argument struct for ast_ari_{{c_name}}_{{c_nickname}}() */
+/*! Argument struct for ast_ari_{{c_name}}_{{c_nickname}}() */
 struct ast_ari_{{c_name}}_{{c_nickname}}_args {
 {{#parameters}}
 {{#description}}
 {{/description}}
 {{^allow_multiple}}
 {{#description}}
-	/*! \brief {{{description}}} */
+	/*! {{{description}}} */
 {{/description}}
 	{{c_data_type}}{{c_space}}{{c_name}};
 {{/allow_multiple}}
 {{#allow_multiple}}
-	/*! \brief Array of {{{description}}} */
+	/*! Array of {{{description}}} */
 	{{c_data_type}}{{c_space}}*{{c_name}};
-	/*! \brief Length of {{c_name}} array. */
+	/*! Length of {{c_name}} array. */
 	size_t {{c_name}}_count;
-	/*! \brief Parsing context for {{c_name}}. */
+	/*! Parsing context for {{c_name}}. */
 	char *{{c_name}}_parse;
 {{/allow_multiple}}
 {{/parameters}}
