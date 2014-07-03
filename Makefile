@@ -157,6 +157,8 @@ LINKER_SYMBOL_PREFIX=
 # The file /etc/asterisk.makeopts will also be included but can be overridden
 # by the file in your home directory.
 
+DAHDI_UDEV_HOOK_DIR = /usr/share/dahdi/span_config.d
+
 GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
 USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
@@ -589,6 +591,8 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL) main-bininstall
 	if [ -f contrib/firmware/iax/iaxy.bin ] ; then \
 		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin "$(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin"; \
 	fi
+	$(INSTALL) -d $(DESTDIR)/$(DAHDI_UDEV_HOOK_DIR)
+	$(INSTALL) -m 644 contrib/scripts/dahdi_span_config_hook $(DESTDIR)$(DAHDI_UDEV_HOOK_DIR)/40-asterisk
 
 $(SUBDIRS_INSTALL):
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(SUBMAKE) -C $(@:-install=) install

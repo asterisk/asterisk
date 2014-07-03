@@ -1,0 +1,32 @@
+#! /bin/sh
+
+# This script is intended to be called from
+# /usr/share/dahdi/dahdi_span_config, which is is typically called from
+# a udev hook script.
+#
+# Environment is set in
+# http://git.asterisk.org/gitweb/?p=dahdi/tools.git;a=blob;f=hotplug/dahdi_span_config
+
+if [ "$ACTION" != 'add' ]; then
+	# Nothing to do here
+	exit 0
+fi
+
+# Add to asterisk
+asterisk -rx "dahdi create channels $BASECHAN $ENDCHAN"
+#! /bin/sh
+
+# This script is intended to be called from
+# /usr/share/dahdi/dahdi_span_config, which is is typically called from
+# a udev hook script.
+#
+# Environment is set in
+# http://git.asterisk.org/gitweb/?p=dahdi/tools.git;a=blob;f=hotplug/dahdi_span_config
+
+if [ "$ACTION" != 'add' ]; then
+	# Nothing to do here
+	exit 0
+fi
+
+# Add to asterisk
+asterisk -rx "dahdi create channels $BASECHAN $ENDCHAN"
