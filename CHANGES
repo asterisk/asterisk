@@ -27,6 +27,9 @@ AMI
  * New AMI action LoggerRotate reloads and rotates logger in the same manner
    as CLI command 'logger rotate'
 
+ * New AMI actions PRIDebugSet, PRIDebugFileSet, and PRIDebugFileUnset
+   enable manager control over PRI debugging levels and file output.
+
 CEL
 ------------------
  * The "bridge_technology" extra field key has been added to BRIDGE_ENTER

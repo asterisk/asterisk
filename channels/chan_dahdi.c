@@ -296,6 +296,51 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Similar to the CLI command "pri show spans".</para>
 		</description>
 	</manager>
+	<manager name="PRIDebugSet" language="en_US">
+		<synopsis>
+			Set PRI debug levels for a span
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Span" required="true">
+				<para>Which span to affect.</para>
+			</parameter>
+			<parameter name="Level" required="true">
+				<para>What debug level to set. May be a numerical value or a text value from the list below</para>
+				<enumlist>
+					<enum name="off" />
+					<enum name="on" />
+					<enum name="hex" />
+					<enum name="intense" />
+				</enumlist>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Equivalent to the CLI command "pri set debug &lt;level&gt; span &lt;span&gt;".</para>
+		</description>
+	</manager>
+	<manager name="PRIDebugFileSet" language="en_US">
+		<synopsis>
+			Set the file used for PRI debug message output
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="File" required="true">
+				<para>Path of file to write debug output.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Equivalent to the CLI command "pri set debug file &lt;output-file&gt;"</para>
+		</description>
+	</manager>
+	<manager name="PRIDebugFileUnset" language="en_US">
+		<synopsis>
+			Disables file output for PRI debug messages
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+	</manager>
 	<managerEvent language="en_US" name="AlarmClear">
 		<managerEventInstance class="EVENT_FLAG_SYSTEM">
 			<synopsis>Raised when an alarm is cleared on a DAHDI channel.</synopsis>
@@ -13951,6 +13996,55 @@ static char *handle_pri_set_debug_file(struct ast_cli_entry *e, int cmd, struct 
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
+static int action_pri_debug_file_set(struct mansession *s, const struct message *m)
+{
+	const char *output_file = astman_get_header(m, "File");
+	int myfd;
+
+	if (ast_strlen_zero(output_file)) {
+		astman_send_error(s, m, "Action must define a 'File'");
+	}
+
+	myfd = open(output_file, O_CREAT|O_WRONLY, AST_FILE_MODE);
+	if (myfd < 0) {
+		astman_send_error(s, m, "Unable to open requested file for writing");
+		return 0;
+	}
+
+	ast_mutex_lock(&pridebugfdlock);
+
+	if (pridebugfd >= 0) {
+		close(pridebugfd);
+	}
+
+	pridebugfd = myfd;
+	ast_copy_string(pridebugfilename, output_file, sizeof(pridebugfilename));
+	ast_mutex_unlock(&pridebugfdlock);
+	astman_send_ack(s, m, "PRI debug output will now be sent to requested file.");
+
+	return 0;
+}
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
+static int action_pri_debug_file_unset(struct mansession *s, const struct message *m)
+{
+	ast_mutex_lock(&pridebugfdlock);
+
+	if (pridebugfd >= 0) {
+		close(pridebugfd);
+	}
+
+	pridebugfd = -1;
+
+	ast_mutex_unlock(&pridebugfdlock);
+
+	astman_send_ack(s, m, "PRI Debug output to file disabled");
+	return 0;
+}
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
 static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
@@ -14025,6 +14119,95 @@ static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	pris[span - 1].pri.debug = (level) ? 1 : 0;
 	ast_cli(a->fd, "%s debugging on span %d\n", (level) ? "Enabled" : "Disabled", span);
 	return CLI_SUCCESS;
+}
+#endif	/* defined(HAVE_PRI) */
+
+#if defined(HAVE_PRI)
+static int action_pri_debug_set(struct mansession *s, const struct message *m)
+{
+	const char *level = astman_get_header(m, "Level");
+	const char *span = astman_get_header(m, "Span");
+	int level_val;
+	int span_val;
+	int x;
+	int debugmask = 0;
+
+	if (ast_strlen_zero(level)) {
+		astman_send_error(s, m, "'Level' was not specified");
+		return 0;
+	}
+
+	if (ast_strlen_zero(span)) {
+		astman_send_error(s, m, "'Span' was not specified");
+		return 0;
+	}
+
+	if (!strcasecmp(level, "on")) {
+		level_val = 3;
+	} else if (!strcasecmp(level, "off")) {
+		level_val = 0;
+	} else if (!strcasecmp(level, "intense")) {
+		level_val = 15;
+	} else if (!strcasecmp(level, "hex")) {
+		level_val = 8;
+	} else {
+		if (sscanf(level, "%30d", &level_val) != 1) {
+			astman_send_error(s, m, "Invalid value for 'Level'");
+			return 0;
+		}
+	}
+
+	if (sscanf(span, "%30d", &span_val) != 1) {
+		astman_send_error(s, m, "Invalid value for 'Span'");
+	}
+
+	if ((span_val < 1) || (span_val > NUM_SPANS)) {
+		const char *id = astman_get_header(m, "ActionID");
+		char id_text[256] = "";
+
+		if (!ast_strlen_zero(id)) {
+			snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
+		}
+
+		astman_append(s, "Response: Error\r\n"
+			"%s" /* id_text */
+			"Message: Invalid span '%s' - Should be a number from 1 to %d\r\n"
+			"\r\n",
+			id_text,
+			span, NUM_SPANS);
+
+		return 0;
+	}
+
+	if (!pris[span_val-1].pri.pri) {
+		astman_send_error(s, m, "No PRI running on requested span");
+		return 0;
+	}
+
+	if (level_val & 1) {
+		debugmask |= SIG_PRI_DEBUG_NORMAL;
+	}
+	if (level_val & 2) {
+		debugmask |= PRI_DEBUG_Q931_DUMP;
+	}
+	if (level_val & 4) {
+		debugmask |= PRI_DEBUG_Q921_DUMP;
+	}
+	if (level_val & 8) {
+		debugmask |= PRI_DEBUG_Q921_RAW;
+	}
+
+	/* Set debug level in libpri */
+	for (x = 0; x < SIG_PRI_NUM_DCHANS; x++) {
+		if (pris[span_val - 1].pri.dchans[x]) {
+			pri_set_debug(pris[span_val - 1].pri.dchans[x], debugmask);
+		}
+	}
+
+	pris[span_val - 1].pri.debug = (level_val) ? 1 : 0;
+	astman_send_ack(s, m, "Debug level set for requested span");
+
+	return 0;
 }
 #endif	/* defined(HAVE_PRI) */
 
@@ -17069,6 +17252,9 @@ static int __unload_module(void)
 	ast_manager_unregister("DAHDIRestart");
 #if defined(HAVE_PRI)
 	ast_manager_unregister("PRIShowSpans");
+	ast_manager_unregister("PRIDebugSet");
+	ast_manager_unregister("PRIDebugFileSet");
+	ast_manager_unregister("PRIDebugFileUnset");
 #endif	/* defined(HAVE_PRI) */
 	ast_data_unregister(NULL);
 	ast_channel_unregister(&dahdi_tech);
@@ -19400,6 +19586,9 @@ static int load_module(void)
 	ast_manager_register_xml("DAHDIRestart", 0, action_dahdirestart);
 #if defined(HAVE_PRI)
 	ast_manager_register_xml("PRIShowSpans", 0, action_prishowspans);
+	ast_manager_register_xml("PRIDebugSet", 0, action_pri_debug_set);
+	ast_manager_register_xml("PRIDebugFileSet", EVENT_FLAG_SYSTEM, action_pri_debug_file_set);
+	ast_manager_register_xml("PRIDebugFileUnset", 0, action_pri_debug_file_unset);
 #endif	/* defined(HAVE_PRI) */
 
 	ast_cond_init(&ss_thread_complete, NULL);
