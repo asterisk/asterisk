@@ -68,7 +68,7 @@ struct ast_ari_events_user_event_args {
 	size_t source_count;
 	/*! Parsing context for source. */
 	char *source_parse;
-	/*! custom key/value pairs added to the user event */
+	/*! The "variables" key in the body object holds custom key/value pairs to add to the user event. Ex. { "variables": { "key": "value" } } */
 	struct ast_json *variables;
 };
 /*!
