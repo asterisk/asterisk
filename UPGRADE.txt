@@ -20,7 +20,7 @@
 ===
 ===========================================================
 
-from 11.10.0 to 11.11.0
+from 11.10.2 to 11.11.0
  - Added a compatibility option for chan_sip, 'websocket_write_timeout'.
    When a websocket connection exists where Asterisk writes a substantial
    amount of data to the connected client, and the connected client is slow
@@ -40,6 +40,10 @@ from 11.10.0 to 11.11.0
  - A 'dtlsfingerprint' option has been added to chan_sip which allows the
    hash to be specified for the DTLS fingerprint placed in SDP. Supported
    values are 'sha-1' and 'sha-256' with 'sha-256' being the default.
+
+ - Added the inband_on_setup_ack compatibility option to chan_dahdi.conf to
+   deal with switches that don't send an inband progress indication in the
+   SETUP ACKNOWLEDGE message.
 
 from 11.10.0 to 11.10.1
  - MixMonitor AMI actions now require users to have authorization classes.
