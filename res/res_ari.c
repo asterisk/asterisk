@@ -860,22 +860,27 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	RAII_VAR(struct ast_str *, response_body, ast_str_create(256), ast_free);
 	RAII_VAR(struct ast_ari_conf_user *, user, NULL, ao2_cleanup);
 	struct ast_ari_response response = {};
-	int ret = 0;
 	RAII_VAR(struct ast_variable *, post_vars, NULL, ast_variables_destroy);
 
 	if (!response_body) {
-		return -1;
+		ast_http_request_close_on_completion(ser);
+		ast_http_error(ser, 500, "Server Error", "Out of memory");
+		return 0;
 	}
 
 	response.headers = ast_str_create(40);
 	if (!response.headers) {
-		return -1;
+		ast_http_request_close_on_completion(ser);
+		ast_http_error(ser, 500, "Server Error", "Out of memory");
+		return 0;
 	}
 
 	conf = ast_ari_config_get();
 	if (!conf || !conf->general) {
 		ast_free(response.headers);
-		return -1;
+		ast_http_request_close_on_completion(ser);
+		ast_http_error(ser, 500, "Server Error", "URI handler config missing");
+		return 0;
 	}
 
 	process_cors_request(headers, &response);
@@ -893,9 +898,10 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 				"Request body too large");
 			goto request_failed;
 		case ENOMEM:
+			ast_http_request_close_on_completion(ser);
 			ast_ari_response_error(&response, 500,
 				"Internal Server Error",
-				"Error processing request");
+				"Out of memory");
 			goto request_failed;
 		case EIO:
 			ast_ari_response_error(&response, 400,
@@ -940,6 +946,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 			"WWW-Authenticate: Basic realm=\"%s\"\r\n",
 			conf->general->auth_realm);
 	} else if (!ast_fully_booted) {
+		ast_http_request_close_on_completion(ser);
 		ast_ari_response_error(&response, 503, "Service Unavailable", "Asterisk not booted");
 	} else if (user->read_only && method != AST_HTTP_GET && method != AST_HTTP_OPTIONS) {
 		ast_ari_response_error(&response, 403, "Forbidden", "Write access denied");
@@ -986,7 +993,6 @@ request_failed:
 			response.response_text = "Internal Server Error";
 			ast_str_set(&response_body, 0, "%s", "");
 			ast_str_set(&response.headers, 0, "%s", "");
-			ret = -1;
 		}
 	}
 
@@ -999,7 +1005,7 @@ request_failed:
 	response_body = NULL;
 
 	ast_json_unref(response.message);
-	return ret;
+	return 0;
 }
 
 static struct ast_http_uri http_uri = {

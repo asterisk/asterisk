@@ -790,7 +790,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
 		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
 		ast_ari_response_error(response, 400, "Bad Request",
-			"Uniqueid length exceeds maximum of %d\n", AST_MAX_PUBLIC_UNIQUEID);
+			"Uniqueid length exceeds maximum of %d", AST_MAX_PUBLIC_UNIQUEID);
 		return;
 	}
 

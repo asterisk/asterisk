@@ -6873,7 +6873,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		 */
 		if (!(session = build_mansession(remote_address))) {
 			ast_http_request_close_on_completion(ser);
-			ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)\n");
+			ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)");
 			return 0;
 		}
 		ao2_lock(session);
@@ -6899,7 +6899,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 
 	if (http_header == NULL || out == NULL) {
 		ast_http_request_close_on_completion(ser);
-		ast_http_error(ser, 500, "Server Error", "Internal Server Error (ast_str_create() out of memory)\n");
+		ast_http_error(ser, 500, "Server Error", "Internal Server Error (ast_str_create() out of memory)");
 		goto generic_callback_out;
 	}
 
@@ -6907,13 +6907,13 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	s.fd = mkstemp(template);	/* create a temporary file for command output */
 	unlink(template);
 	if (s.fd <= -1) {
-		ast_http_error(ser, 500, "Server Error", "Internal Server Error (mkstemp failed)\n");
+		ast_http_error(ser, 500, "Server Error", "Internal Server Error (mkstemp failed)");
 		goto generic_callback_out;
 	}
 	s.f = fdopen(s.fd, "w+");
 	if (!s.f) {
 		ast_log(LOG_WARNING, "HTTP Manager, fdopen failed: %s!\n", strerror(errno));
-		ast_http_error(ser, 500, "Server Error", "Internal Server Error (fdopen failed)\n");
+		ast_http_error(ser, 500, "Server Error", "Internal Server Error (fdopen failed)");
 		close(s.fd);
 		goto generic_callback_out;
 	}
@@ -7109,7 +7109,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	/* Digest found - parse */
 	if (ast_string_field_init(&d, 128)) {
 		ast_http_request_close_on_completion(ser);
-		ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)\n");
+		ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)");
 		return 0;
 	}
 
@@ -7138,7 +7138,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		AST_RWLIST_UNLOCK(&users);
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_sockaddr_stringify_addr(&session->addr), d.username);
 		ast_http_request_close_on_completion(ser);
-		ast_http_error(ser, 403, "Permission denied", "Permission denied\n");
+		ast_http_error(ser, 403, "Permission denied", "Permission denied");
 		return 0;
 	}
 
@@ -7189,7 +7189,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		 */
 		if (!(session = build_mansession(remote_address))) {
 			ast_http_request_close_on_completion(ser);
-			ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)\n");
+			ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)");
 			return 0;
 		}
 		ao2_lock(session);
@@ -7257,13 +7257,13 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	s.fd = mkstemp(template);	/* create a temporary file for command output */
 	unlink(template);
 	if (s.fd <= -1) {
-		ast_http_error(ser, 500, "Server Error", "Internal Server Error (mkstemp failed)\n");
+		ast_http_error(ser, 500, "Server Error", "Internal Server Error (mkstemp failed)");
 		goto auth_callback_out;
 	}
 	s.f = fdopen(s.fd, "w+");
 	if (!s.f) {
 		ast_log(LOG_WARNING, "HTTP Manager, fdopen failed: %s!\n", strerror(errno));
-		ast_http_error(ser, 500, "Server Error", "Internal Server Error (fdopen failed)\n");
+		ast_http_error(ser, 500, "Server Error", "Internal Server Error (fdopen failed)");
 		close(s.fd);
 		goto auth_callback_out;
 	}
@@ -7321,7 +7321,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	out = ast_str_create(result_size * 2 + 512);
 	if (http_header == NULL || out == NULL) {
 		ast_http_request_close_on_completion(ser);
-		ast_http_error(ser, 500, "Server Error", "Internal Server Error (ast_str_create() out of memory)\n");
+		ast_http_error(ser, 500, "Server Error", "Internal Server Error (ast_str_create() out of memory)");
 		close_mansession_file(&s);
 		goto auth_callback_out;
 	}
