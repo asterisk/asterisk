@@ -262,6 +262,7 @@ void ast_ari_response_error(struct ast_ari_response *response,
 
 	va_start(ap, message_fmt);
 	message = ast_json_vstringf(message_fmt, ap);
+	va_end(ap);
 	response->message = ast_json_pack("{s: o}",
 					  "message", ast_json_ref(message));
 	response->response_code = response_code;
@@ -884,23 +885,25 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	 * with us.
 	 */
 	post_vars = ast_http_get_post_vars(ser, headers);
-	if (get_params == NULL) {
+	if (!post_vars) {
 		switch (errno) {
 		case EFBIG:
 			ast_ari_response_error(&response, 413,
 				"Request Entity Too Large",
 				"Request body too large");
-			break;
+			goto request_failed;
 		case ENOMEM:
 			ast_ari_response_error(&response, 500,
 				"Internal Server Error",
 				"Error processing request");
-			break;
+			goto request_failed;
 		case EIO:
 			ast_ari_response_error(&response, 400,
 				"Bad Request", "Error parsing request body");
-			break;
+			goto request_failed;
 		}
+	}
+	if (get_params == NULL) {
 		get_params = post_vars;
 	} else if (get_params && post_vars) {
 		/* Has both post_vars and get_params */
@@ -963,6 +966,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		return 0;
 	}
 
+request_failed:
 	/* If you explicitly want to have no content, set message to
 	 * ast_json_null().
 	 */

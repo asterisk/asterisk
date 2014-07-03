@@ -213,7 +213,7 @@ static int find_sequence(char * inbuf, int inlen, char * matchbuf, int matchlen)
 * This function has two modes.  The first to find a boundary marker.  The
 * second is to find the filename immediately after the boundary.
 */
-static int readmimefile(FILE * fin, FILE * fout, char * boundary, int contentlen)
+static int readmimefile(FILE *fin, FILE *fout, char *boundary, int contentlen)
 {
 	int find_filename = 0;
 	char buf[4096];
@@ -313,53 +313,41 @@ static int readmimefile(FILE * fin, FILE * fout, char * boundary, int contentlen
 
 static int http_post_callback(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
-	struct ast_variable *var, *cookies;
-	unsigned long ident = 0;
+	struct ast_variable *var;
+	uint32_t ident;
 	FILE *f;
 	int content_len = 0;
 	struct ast_str *post_dir;
 	GMimeMessage *message;
-	char * boundary_marker = NULL;
+	char *boundary_marker = NULL;
 
 	if (method != AST_HTTP_POST) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
-		return -1;
-	}
-
-	if (!astman_is_authed(ast_http_manid_from_vars(headers))) {
-		ast_http_error(ser, 403, "Access Denied", "Sorry, I cannot let you do that, Dave.");
-		return -1;
+		return 0;
 	}
 
 	if (!urih) {
 		ast_http_error(ser, 400, "Missing URI handle", "There was an error parsing the request");
-	        return -1;
+		return 0;
 	}
 
-	cookies = ast_http_get_cookies(headers);
-	for (var = cookies; var; var = var->next) {
-		if (!strcasecmp(var->name, "mansession_id")) {
-			sscanf(var->value, "%30lx", &ident);
-			break;
-		}
-	}
-	if (cookies) {
-		ast_variables_destroy(cookies);
+	ident = ast_http_manid_from_vars(headers);
+	if (!ident || !astman_is_authed(ident)) {
+		ast_http_request_close_on_completion(ser);
+		ast_http_error(ser, 403, "Access Denied", "Sorry, I cannot let you do that, Dave.");
+		return 0;
 	}
 
-	if (ident == 0) {
-		ast_http_error(ser, 401, "Unauthorized", "You are not authorized to make this request.");
-		return -1;
-	}
 	if (!astman_verify_session_writepermissions(ident, EVENT_FLAG_CONFIG)) {
+		ast_http_request_close_on_completion(ser);
 		ast_http_error(ser, 401, "Unauthorized", "You are not authorized to make this request.");
-		return -1;
+		return 0;
 	}
 
 	if (!(f = tmpfile())) {
 		ast_log(LOG_ERROR, "Could not create temp file.\n");
 		ast_http_error(ser, 500, "Internal server error", "Could not create temp file.");
-		return -1;
+		return 0;
 	}
 
 	for (var = headers; var; var = var->next) {
@@ -369,8 +357,9 @@ static int http_post_callback(struct ast_tcptls_session_instance *ser, const str
 			if ((sscanf(var->value, "%30u", &content_len)) != 1) {
 				ast_log(LOG_ERROR, "Invalid Content-Length in POST request!\n");
 				fclose(f);
-				ast_http_error(ser, 500, "Internal server error", "Invalid Content-Length in POST request!");
-				return -1;
+				ast_http_request_close_on_completion(ser);
+				ast_http_error(ser, 400, "Bad Request", "Invalid Content-Length in POST request!");
+				return 0;
 			}
 			ast_debug(1, "Got a Content-Length of %d\n", content_len);
 		} else if (!strcasecmp(var->name, "Content-Type")) {
@@ -380,42 +369,50 @@ static int http_post_callback(struct ast_tcptls_session_instance *ser, const str
 			}
 		}
 	}
-
 	fprintf(f, "\r\n");
+
+	/*
+	 * Always mark the body read as failed.
+	 *
+	 * XXX Should change readmimefile() to always be sure to read
+	 * the entire body so we can update the read status and
+	 * potentially keep the connection open.
+	 */
+	ast_http_body_read_status(ser, 0);
 
 	if (0 > readmimefile(ser->f, f, boundary_marker, content_len)) {
 		ast_debug(1, "Cannot find boundary marker in POST request.\n");
 		fclose(f);
-
-		return -1;
+		ast_http_error(ser, 400, "Bad Request", "Cannot find boundary marker in POST request.");
+		return 0;
 	}
 
 	if (fseek(f, SEEK_SET, 0)) {
 		ast_log(LOG_ERROR, "Failed to seek temp file back to beginning.\n");
 		fclose(f);
 		ast_http_error(ser, 500, "Internal server error", "Failed to seek temp file back to beginning.");
-		return -1;
+		return 0;
 	}
 
 	post_dir = urih->data;
 
 	message = parse_message(f); /* Takes ownership and will close f */
-
 	if (!message) {
 		ast_log(LOG_ERROR, "Error parsing MIME data\n");
 
-		ast_http_error(ser, 400, "Bad Request", "The was an error parsing the request.");
-		return -1;
+		ast_http_error(ser, 400, "Bad Request", "There was an error parsing the request.");
+		return 0;
 	}
 
 	if (!process_message(message, ast_str_buffer(post_dir))) {
 		ast_log(LOG_ERROR, "Invalid MIME data, found no parts!\n");
 		g_object_unref(message);
-		ast_http_error(ser, 400, "Bad Request", "The was an error parsing the request.");
-		return -1;
+		ast_http_error(ser, 400, "Bad Request", "There was an error parsing the request.");
+		return 0;
 	}
 	g_object_unref(message);
 
+	/* XXX Passing 200 to the error response routine? */
 	ast_http_error(ser, 200, "OK", "File successfully uploaded.");
 	return 0;
 }
@@ -427,7 +424,7 @@ static int __ast_http_post_load(int reload)
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	cfg = ast_config_load2("http.conf", "http", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
 	}
 
@@ -435,45 +432,43 @@ static int __ast_http_post_load(int reload)
 		ast_http_uri_unlink_all_with_key(__FILE__);
 	}
 
-	if (cfg) {
-		for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
-			if (!strcasecmp(v->name, "prefix")) {
-				ast_copy_string(prefix, v->value, sizeof(prefix));
-				if (prefix[strlen(prefix)] == '/') {
-					prefix[strlen(prefix)] = '\0';
-				}
+	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
+		if (!strcasecmp(v->name, "prefix")) {
+			ast_copy_string(prefix, v->value, sizeof(prefix));
+			if (prefix[strlen(prefix)] == '/') {
+				prefix[strlen(prefix)] = '\0';
 			}
 		}
-
-		for (v = ast_variable_browse(cfg, "post_mappings"); v; v = v->next) {
-			struct ast_http_uri *urih;
-			struct ast_str *ds;
-
-			if (!(urih = ast_calloc(sizeof(*urih), 1))) {
-				ast_config_destroy(cfg);
-				return -1;
-			}
-
-			if (!(ds = ast_str_create(32))) {
-				ast_free(urih);
-				ast_config_destroy(cfg);
-				return -1;
-			}
-
-			urih->description = ast_strdup("HTTP POST mapping");
-			urih->uri = ast_strdup(v->name);
-			ast_str_set(&ds, 0, "%s", v->value);
-			urih->data = ds;
-			urih->has_subtree = 0;
-			urih->callback = http_post_callback;
-			urih->key = __FILE__;
-			urih->mallocd = urih->dmallocd = 1;
-
-			ast_http_uri_link(urih);
-		}
-
-		ast_config_destroy(cfg);
 	}
+
+	for (v = ast_variable_browse(cfg, "post_mappings"); v; v = v->next) {
+		struct ast_http_uri *urih;
+		struct ast_str *ds;
+
+		if (!(urih = ast_calloc(sizeof(*urih), 1))) {
+			ast_config_destroy(cfg);
+			return -1;
+		}
+
+		if (!(ds = ast_str_create(32))) {
+			ast_free(urih);
+			ast_config_destroy(cfg);
+			return -1;
+		}
+
+		urih->description = ast_strdup("HTTP POST mapping");
+		urih->uri = ast_strdup(v->name);
+		ast_str_set(&ds, 0, "%s", v->value);
+		urih->data = ds;
+		urih->has_subtree = 0;
+		urih->callback = http_post_callback;
+		urih->key = __FILE__;
+		urih->mallocd = urih->dmallocd = 1;
+
+		ast_http_uri_link(urih);
+	}
+
+	ast_config_destroy(cfg);
 	return 0;
 }
 

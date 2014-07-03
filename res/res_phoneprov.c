@@ -428,7 +428,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
-		return -1;
+		return 0;
 	}
 
 	if (!(route = ao2_find(http_routes, &search_route, OBJ_POINTER))) {
@@ -542,12 +542,12 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 
 out404:
 	ast_http_error(ser, 404, "Not Found", "Nothing to see here.  Move along.");
-	return -1;
+	return 0;
 
 out500:
 	route = unref_route(route);
 	ast_http_error(ser, 500, "Internal Error", "An internal error has occured.");
-	return -1;
+	return 0;
 }
 
 /*! \brief Build a route structure and add it to the list of available http routes

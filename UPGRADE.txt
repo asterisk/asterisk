@@ -158,6 +158,11 @@ HTTP:
  - Added http.conf session_inactivity timer option to close HTTP connections
    that aren't doing anything.
 
+ - Added support for persistent HTTP connections.  To enable persistent
+   HTTP connections configure the keep alive time between HTTP requests.  The
+   keep alive time between HTTP requests is configured in http.conf with the
+   session_keep_alive parameter.
+
 ODBC:
 - The compatibility setting, allow_empty_string_in_nontext, has been removed.
   Empty column values will be stored as empty strings during realtime updates.

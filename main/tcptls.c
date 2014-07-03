@@ -543,6 +543,7 @@ static void session_instance_destructor(void *obj)
 		i->stream_cookie = NULL;
 	}
 	ast_free(i->overflow_buf);
+	ao2_cleanup(i->private_data);
 }
 
 /*! \brief

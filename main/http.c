@@ -71,10 +71,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_PORT 8088
 #define DEFAULT_TLS_PORT 8089
 #define DEFAULT_SESSION_LIMIT 100
-#define DEFAULT_SESSION_INACTIVITY 30000	/* (ms) Idle time waiting for data. */
+/*! (ms) Idle time waiting for data. */
+#define DEFAULT_SESSION_INACTIVITY 30000
+/*! (ms) Min timeout for initial HTTP request to start coming in. */
+#define MIN_INITIAL_REQUEST_TIMEOUT	10000
+/*! (ms) Idle time between HTTP requests */
+#define DEFAULT_SESSION_KEEP_ALIVE 15000
+
+/*! Maximum application/json or application/x-www-form-urlencoded body content length. */
+#if !defined(LOW_MEMORY)
+#define MAX_CONTENT_LENGTH 4096
+#else
+#define MAX_CONTENT_LENGTH 1024
+#endif	/* !defined(LOW_MEMORY) */
+
+/*! Maximum line length for HTTP requests. */
+#if !defined(LOW_MEMORY)
+#define MAX_HTTP_LINE_LENGTH 4096
+#else
+#define MAX_HTTP_LINE_LENGTH 1024
+#endif	/* !defined(LOW_MEMORY) */
 
 static int session_limit = DEFAULT_SESSION_LIMIT;
 static int session_inactivity = DEFAULT_SESSION_INACTIVITY;
+static int session_keep_alive = DEFAULT_SESSION_KEEP_ALIVE;
 static int session_count = 0;
 
 static struct ast_tls_config http_tls_cfg;
@@ -226,7 +246,7 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
-		return -1;
+		return 0;
 	}
 
 	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration
@@ -295,9 +315,12 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 		}
 	}
 
-	if ( (http_header = ast_str_create(255)) == NULL) {
+	http_header = ast_str_create(255);
+	if (!http_header) {
+		ast_http_request_close_on_completion(ser);
+		ast_http_error(ser, 500, "Server Error", "Out of memory");
 		close(fd);
-		return -1;
+		return 0;
 	}
 
 	ast_str_set(&http_header, 0, "Content-type: %s\r\n"
@@ -318,11 +341,12 @@ static int static_callback(struct ast_tcptls_session_instance *ser,
 
 out404:
 	ast_http_error(ser, 404, "Not Found", "The requested URL was not found on this server.");
-	return -1;
+	return 0;
 
 out403:
+	ast_http_request_close_on_completion(ser);
 	ast_http_error(ser, 403, "Access Denied", "You do not have permission to access the requested URL.");
-	return -1;
+	return 0;
 }
 
 static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
@@ -335,11 +359,14 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
-		return -1;
+		return 0;
 	}
 
-	if ( (out = ast_str_create(512)) == NULL) {
-		return -1;
+	out = ast_str_create(512);
+	if (!out) {
+		ast_http_request_close_on_completion(ser);
+		ast_http_error(ser, 500, "Server Error", "Out of memory");
+		return 0;
 	}
 
 	ast_str_append(&out, 0,
@@ -392,21 +419,61 @@ static struct ast_http_uri staticuri = {
 	.key= __FILE__,
 };
 
+enum http_private_flags {
+	/*! TRUE if the HTTP request has a body. */
+	HTTP_FLAG_HAS_BODY = (1 << 0),
+	/*! TRUE if the HTTP request body has been read. */
+	HTTP_FLAG_BODY_READ = (1 << 1),
+	/*! TRUE if the HTTP request must close when completed. */
+	HTTP_FLAG_CLOSE_ON_COMPLETION = (1 << 2),
+};
 
-/* send http/1.1 response */
-/* free content variable and close socket*/
+/*! HTTP tcptls worker_fn private data. */
+struct http_worker_private_data {
+	/*! Body length or -1 if chunked.  Valid if HTTP_FLAG_HAS_BODY is TRUE. */
+	int body_length;
+	/*! HTTP body tracking flags */
+	struct ast_flags flags;
+};
+
 void ast_http_send(struct ast_tcptls_session_instance *ser,
 	enum ast_http_method method, int status_code, const char *status_title,
-	struct ast_str *http_header, struct ast_str *out, const int fd,
+	struct ast_str *http_header, struct ast_str *out, int fd,
 	unsigned int static_content)
 {
 	struct timeval now = ast_tvnow();
 	struct ast_tm tm;
 	char timebuf[80];
 	int content_length = 0;
+	int close_connection;
 
-	if (!ser || 0 == ser->f) {
+	if (!ser || !ser->f) {
+		/* The connection is not open. */
+		ast_free(http_header);
+		ast_free(out);
 		return;
+	}
+
+	/*
+	 * We shouldn't be sending non-final status codes to this
+	 * function because we may close the connection before
+	 * returning.
+	 */
+	ast_assert(200 <= status_code);
+
+	if (session_keep_alive <= 0) {
+		close_connection = 1;
+	} else {
+		struct http_worker_private_data *request;
+
+		request = ser->private_data;
+		if (!request
+			|| ast_test_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION)
+			|| ast_http_body_discard(ser)) {
+			close_connection = 1;
+		} else {
+			close_connection = 0;
+		}
 	}
 
 	ast_strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", ast_localtime(&now, &tm, "GMT"));
@@ -422,20 +489,22 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	}
 
 	/* send http header */
-	fprintf(ser->f, "HTTP/1.1 %d %s\r\n"
+	fprintf(ser->f,
+		"HTTP/1.1 %d %s\r\n"
 		"Server: Asterisk/%s\r\n"
 		"Date: %s\r\n"
-		"Connection: close\r\n"
+		"%s"
+		"%s"
 		"%s"
 		"Content-Length: %d\r\n"
-		"%s"
 		"\r\n",
 		status_code, status_title ? status_title : "OK",
 		ast_get_version(),
 		timebuf,
+		close_connection ? "Connection: close\r\n" : "",
 		static_content ? "" : "Cache-Control: no-cache, no-store\r\n",
-		content_length,
-		http_header ? ast_str_buffer(http_header) : ""
+		http_header ? ast_str_buffer(http_header) : "",
+		content_length
 		);
 
 	/* send content */
@@ -443,33 +512,35 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		if (out && ast_str_strlen(out)) {
 			if (fwrite(ast_str_buffer(out), ast_str_strlen(out), 1, ser->f) != 1) {
 				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+				close_connection = 1;
 			}
 		}
 
 		if (fd) {
 			char buf[256];
 			int len;
+
 			while ((len = read(fd, buf, sizeof(buf))) > 0) {
 				if (fwrite(buf, len, 1, ser->f) != 1) {
 					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
+					close_connection = 1;
 					break;
 				}
 			}
 		}
 	}
 
-	if (http_header) {
-		ast_free(http_header);
-	}
-	if (out) {
-		ast_free(out);
-	}
+	ast_free(http_header);
+	ast_free(out);
 
-	ast_tcptls_close_session_file(ser);
-	return;
+	if (close_connection) {
+		ast_debug(1, "HTTP closing session.  status_code:%d\n", status_code);
+		ast_tcptls_close_session_file(ser);
+	} else {
+		ast_debug(1, "HTTP keeping session open.  status_code:%d\n", status_code);
+	}
 }
 
-/* Send http "401 Unauthorized" responce and close socket*/
 void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm,
 	const unsigned long nonce, const unsigned long opaque, int stale,
 	const char *text)
@@ -480,6 +551,10 @@ void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm,
 	if (!http_headers || !out) {
 		ast_free(http_headers);
 		ast_free(out);
+		if (ser && ser->f) {
+			ast_debug(1, "HTTP closing session.  Auth OOM\n");
+			ast_tcptls_close_session_file(ser);
+		}
 		return;
 	}
 
@@ -504,10 +579,8 @@ void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm,
 		text ? text : "");
 
 	ast_http_send(ser, AST_HTTP_UNKNOWN, 401, "Unauthorized", http_headers, out, 0, 0);
-	return;
 }
 
-/* send http error response and close socket*/
 void ast_http_error(struct ast_tcptls_session_instance *ser, int status_code, const char *status_title, const char *text)
 {
 	struct ast_str *http_headers = ast_str_create(40);
@@ -516,6 +589,10 @@ void ast_http_error(struct ast_tcptls_session_instance *ser, int status_code, co
 	if (!http_headers || !out) {
 		ast_free(http_headers);
 		ast_free(out);
+		if (ser && ser->f) {
+			ast_debug(1, "HTTP closing session.  error OOM\n");
+			ast_tcptls_close_session_file(ser);
+		}
 		return;
 	}
 
@@ -531,14 +608,13 @@ void ast_http_error(struct ast_tcptls_session_instance *ser, int status_code, co
 		"<hr />\r\n"
 		"<address>Asterisk Server</address>\r\n"
 		"</body></html>\r\n",
-			status_code, status_title, status_title, text);
+		status_code, status_title, status_title, text);
 
 	ast_http_send(ser, AST_HTTP_UNKNOWN, status_code, status_title, http_headers, out, 0, 0);
-	return;
 }
 
-/*! \brief
- * Link the new uri into the list.
+/*!
+ * \brief Link the new uri into the list.
  *
  * They are sorted by length of
  * the string, not alphabetically. Duplicate entries are not replaced,
@@ -602,8 +678,6 @@ void ast_http_uri_unlink_all_with_key(const char *key)
 	AST_RWLIST_UNLOCK(&uris);
 }
 
-#define MAX_POST_CONTENT 1025
-
 /*!
  * \brief Retrieves the header with the given field name.
  *
@@ -612,8 +686,7 @@ void ast_http_uri_unlink_all_with_key(const char *key)
  * \return Associated header value.
  * \return \c NULL if header is not present.
  */
-static const char *get_header(struct ast_variable *headers,
-	const char *field_name)
+static const char *get_header(struct ast_variable *headers, const char *field_name)
 {
 	struct ast_variable *v;
 
@@ -655,29 +728,35 @@ static char *get_content_type(struct ast_variable *headers)
  * \brief Returns the value of the Content-Length header.
  *
  * \param headers HTTP headers.
- * \return Value of the Content-Length header.
- * \return 0 if header is not present, or is invalid.
+ *
+ * \retval length Value of the Content-Length header.
+ * \retval 0 if header is not present.
+ * \retval -1 if header is invalid.
  */
 static int get_content_length(struct ast_variable *headers)
 {
 	const char *content_length = get_header(headers, "Content-Length");
+	int length;
 
 	if (!content_length) {
 		/* Missing content length; assume zero */
 		return 0;
 	}
 
-	/* atoi() will return 0 for invalid inputs, which is good enough for
-	 * the HTTP parsing. */
-	return atoi(content_length);
+	length = 0;
+	if (sscanf(content_length, "%30d", &length) != 1) {
+		/* Invalid Content-Length value */
+		length = -1;
+	}
+	return length;
 }
 
 /*!
  * \brief Returns the value of the Transfer-Encoding header.
  *
  * \param headers HTTP headers.
- * \return Value of the Transfer-Encoding header.
- * \return 0 if header is not present, or is invalid.
+ * \retval string Value of the Transfer-Encoding header.
+ * \retval NULL if header is not present.
  */
 static const char *get_transfer_encoding(struct ast_variable *headers)
 {
@@ -685,11 +764,176 @@ static const char *get_transfer_encoding(struct ast_variable *headers)
 }
 
 /*!
+ * \internal
+ * \brief Determine if the HTTP peer wants the connection closed.
+ *
+ * \param headers List of HTTP headers
+ *
+ * \retval 0 keep connection open.
+ * \retval -1 close connection.
+ */
+static int http_check_connection_close(struct ast_variable *headers)
+{
+	const char *connection = get_header(headers, "Connection");
+	int close_connection = 0;
+
+	if (connection && !strcasecmp(connection, "close")) {
+		close_connection = -1;
+	}
+	return close_connection;
+}
+
+void ast_http_request_close_on_completion(struct ast_tcptls_session_instance *ser)
+{
+	struct http_worker_private_data *request = ser->private_data;
+
+	ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+}
+
+/*!
+ * \internal
+ * \brief Initialize the request tracking information in case of early failure.
+ * \since 12.4.0
+ *
+ * \param request Request tracking information.
+ *
+ * \return Nothing
+ */
+static void http_request_tracking_init(struct http_worker_private_data *request)
+{
+	ast_set_flags_to(&request->flags,
+		HTTP_FLAG_HAS_BODY | HTTP_FLAG_BODY_READ | HTTP_FLAG_CLOSE_ON_COMPLETION,
+		/* Assume close in case request fails early */
+		HTTP_FLAG_CLOSE_ON_COMPLETION);
+}
+
+/*!
+ * \internal
+ * \brief Setup the HTTP request tracking information.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ * \param headers List of HTTP headers.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int http_request_tracking_setup(struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
+{
+	struct http_worker_private_data *request = ser->private_data;
+	const char *transfer_encoding;
+
+	ast_set_flags_to(&request->flags,
+		HTTP_FLAG_HAS_BODY | HTTP_FLAG_BODY_READ | HTTP_FLAG_CLOSE_ON_COMPLETION,
+		http_check_connection_close(headers) ? HTTP_FLAG_CLOSE_ON_COMPLETION : 0);
+
+	transfer_encoding = get_transfer_encoding(headers);
+	if (transfer_encoding && !strcasecmp(transfer_encoding, "chunked")) {
+		request->body_length = -1;
+		ast_set_flag(&request->flags, HTTP_FLAG_HAS_BODY);
+		return 0;
+	}
+
+	request->body_length = get_content_length(headers);
+	if (0 < request->body_length) {
+		ast_set_flag(&request->flags, HTTP_FLAG_HAS_BODY);
+	} else if (request->body_length < 0) {
+		/* Invalid Content-Length */
+		ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+		ast_http_error(ser, 400, "Bad Request", "Invalid Content-Length in request!");
+		return -1;
+	}
+	return 0;
+}
+
+void ast_http_body_read_status(struct ast_tcptls_session_instance *ser, int read_success)
+{
+	struct http_worker_private_data *request;
+
+	request = ser->private_data;
+	if (!ast_test_flag(&request->flags, HTTP_FLAG_HAS_BODY)
+		|| ast_test_flag(&request->flags, HTTP_FLAG_BODY_READ)) {
+		/* No body to read. */
+		return;
+	}
+	ast_set_flag(&request->flags, HTTP_FLAG_BODY_READ);
+	if (!read_success) {
+		ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Read the next length bytes from the HTTP body.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ * \param buf Where to put the contents reading.
+ * \param length How much contents to read.
+ * \param what_getting Name of the contents reading.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int http_body_read_contents(struct ast_tcptls_session_instance *ser, char *buf, int length, const char *what_getting)
+{
+	int res;
+
+	/* Stay in fread until get all the expected data or timeout. */
+	res = fread(buf, length, 1, ser->f);
+	if (res < 1) {
+		ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %d)\n",
+			what_getting, length);
+		return -1;
+	}
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Read and discard the next length bytes from the HTTP body.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ * \param length How much contents to discard
+ * \param what_getting Name of the contents discarding.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int http_body_discard_contents(struct ast_tcptls_session_instance *ser, int length, const char *what_getting)
+{
+	int res;
+	char buf[MAX_HTTP_LINE_LENGTH];/* Discard buffer */
+
+	/* Stay in fread until get all the expected data or timeout. */
+	while (sizeof(buf) < length) {
+		res = fread(buf, sizeof(buf), 1, ser->f);
+		if (res < 1) {
+			ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %zu of remaining %d)\n",
+				what_getting, sizeof(buf), length);
+			return -1;
+		}
+		length -= sizeof(buf);
+	}
+	res = fread(buf, length, 1, ser->f);
+	if (res < 1) {
+		ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %d of remaining %d)\n",
+			what_getting, length, length);
+		return -1;
+	}
+	return 0;
+}
+
+/*!
+ * \internal
  * \brief decode chunked mode hexadecimal value
  *
  * \param s string to decode
  * \param len length of string
- * \return integer value or -1 for decode error
+ *
+ * \retval length on success.
+ * \retval -1 on error.
  */
 static int chunked_atoh(const char *s, int len)
 {
@@ -701,13 +945,21 @@ static int chunked_atoh(const char *s, int len)
 		return -1;
 	}
 
-	while (len--)
-	{
-		if (*s == '\x0D') {
+	while (len--) {
+		c = *s++;
+		if (c == '\x0D') {
 			return value;
 		}
+		if (c == ';') {
+			/* We have a chunk-extension that we don't care about. */
+			while (len--) {
+				if (*s++ == '\x0D') {
+					return value;
+				}
+			}
+			break;
+		}
 		value <<= 4;
-		c = *s++;
 		if (c >= '0' && c <= '9') {
 			value += c - '0';
 			continue;
@@ -728,10 +980,151 @@ static int chunked_atoh(const char *s, int len)
 }
 
 /*!
+ * \internal
+ * \brief Read and convert the chunked body header length.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ *
+ * \retval length Size of chunk to expect.
+ * \retval -1 on error.
+ */
+static int http_body_get_chunk_length(struct ast_tcptls_session_instance *ser)
+{
+	int length;
+	char header_line[MAX_HTTP_LINE_LENGTH];
+
+	/* get the line of hexadecimal giving chunk-size w/ optional chunk-extension */
+	if (!fgets(header_line, sizeof(header_line), ser->f)) {
+		ast_log(LOG_WARNING, "Short HTTP read of chunked header\n");
+		return -1;
+	}
+	length = chunked_atoh(header_line, strlen(header_line));
+	if (length < 0) {
+		ast_log(LOG_WARNING, "Invalid HTTP chunk size\n");
+		return -1;
+	}
+	return length;
+}
+
+/*!
+ * \internal
+ * \brief Read and check the chunk contents line termination.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int http_body_check_chunk_sync(struct ast_tcptls_session_instance *ser)
+{
+	int res;
+	char chunk_sync[2];
+
+	/* Stay in fread until get the expected CRLF or timeout. */
+	res = fread(chunk_sync, sizeof(chunk_sync), 1, ser->f);
+	if (res < 1) {
+		ast_log(LOG_WARNING, "Short HTTP chunk sync read (Wanted %zu)\n",
+			sizeof(chunk_sync));
+		return -1;
+	}
+	if (chunk_sync[0] != 0x0D || chunk_sync[1] != 0x0A) {
+		ast_log(LOG_WARNING, "HTTP chunk sync bytes wrong (0x%02X, 0x%02X)\n",
+			chunk_sync[0], chunk_sync[1]);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Read and discard any chunked trailer entity-header lines.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int http_body_discard_chunk_trailer_headers(struct ast_tcptls_session_instance *ser)
+{
+	char header_line[MAX_HTTP_LINE_LENGTH];
+
+	for (;;) {
+		if (!fgets(header_line, sizeof(header_line), ser->f)) {
+			ast_log(LOG_WARNING, "Short HTTP read of chunked trailer header\n");
+			return -1;
+		}
+
+		/* Trim trailing whitespace */
+		ast_trim_blanks(header_line);
+		if (ast_strlen_zero(header_line)) {
+			/* A blank line ends the chunked-body */
+			break;
+		}
+	}
+	return 0;
+}
+
+int ast_http_body_discard(struct ast_tcptls_session_instance *ser)
+{
+	struct http_worker_private_data *request;
+
+	request = ser->private_data;
+	if (!ast_test_flag(&request->flags, HTTP_FLAG_HAS_BODY)
+		|| ast_test_flag(&request->flags, HTTP_FLAG_BODY_READ)) {
+		/* No body to read or it has already been read. */
+		return 0;
+	}
+	ast_set_flag(&request->flags, HTTP_FLAG_BODY_READ);
+
+	ast_debug(1, "HTTP discarding unused request body\n");
+
+	ast_assert(request->body_length != 0);
+	if (0 < request->body_length) {
+		if (http_body_discard_contents(ser, request->body_length, "body")) {
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+			return -1;
+		}
+		return 0;
+	}
+
+	/* parse chunked-body */
+	for (;;) {
+		int length;
+
+		length = http_body_get_chunk_length(ser);
+		if (length < 0) {
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+			return -1;
+		}
+		if (length == 0) {
+			/* parsed last-chunk */
+			break;
+		}
+
+		if (http_body_discard_contents(ser, length, "chunk-data")
+			|| http_body_check_chunk_sync(ser)) {
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+			return -1;
+		}
+	}
+
+	/* Read and discard any trailer entity-header lines. */
+	if (http_body_discard_chunk_trailer_headers(ser)) {
+		ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+		return -1;
+	}
+	return 0;
+}
+
+/*!
  * \brief Returns the contents (body) of the HTTP request
  *
  * \param return_length ptr to int that returns content length
- * \param aser HTTP TCP/TLS session object
+ * \param ser HTTP TCP/TLS session object
  * \param headers List of HTTP headers
  * \return ptr to content (zero terminated) or NULL on failure
  * \note Since returned ptr is malloc'd, it should be free'd by caller
@@ -739,122 +1132,130 @@ static int chunked_atoh(const char *s, int len)
 static char *ast_http_get_contents(int *return_length,
 	struct ast_tcptls_session_instance *ser, struct ast_variable *headers)
 {
-	const char *transfer_encoding;
-	int res;
-	int content_length = 0;
-	int chunk_length;
-	char chunk_header[8];
-	int bufsize = 250;
+	struct http_worker_private_data *request;
+	int content_length;
+	int bufsize;
 	char *buf;
 
-	transfer_encoding = get_transfer_encoding(headers);
+	request = ser->private_data;
+	if (!ast_test_flag(&request->flags, HTTP_FLAG_HAS_BODY)) {
+		/* no content - not an error */
+		return NULL;
+	}
+	if (ast_test_flag(&request->flags, HTTP_FLAG_BODY_READ)) {
+		/* Already read the body.  Cannot read again.  Assume no content. */
+		ast_assert(0);
+		return NULL;
+	}
+	ast_set_flag(&request->flags, HTTP_FLAG_BODY_READ);
 
-	if (ast_strlen_zero(transfer_encoding) ||
-		strcasecmp(transfer_encoding, "chunked") != 0) {
+	ast_debug(2, "HTTP consuming request body\n");
+
+	ast_assert(request->body_length != 0);
+	if (0 < request->body_length) {
 		/* handle regular non-chunked content */
-		content_length = get_content_length(headers);
-		if (content_length <= 0) {
-			/* no content - not an error */
-			return NULL;
-		}
-		if (content_length > MAX_POST_CONTENT - 1) {
-			ast_log(LOG_WARNING,
-				"Excessively long HTTP content. (%d > %d)\n",
-				content_length, MAX_POST_CONTENT);
+		content_length = request->body_length;
+		if (content_length > MAX_CONTENT_LENGTH) {
+			ast_log(LOG_WARNING, "Excessively long HTTP content. (%d > %d)\n",
+				content_length, MAX_CONTENT_LENGTH);
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
 			errno = EFBIG;
 			return NULL;
 		}
 		buf = ast_malloc(content_length + 1);
 		if (!buf) {
 			/* Malloc sets ENOMEM */
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
 			return NULL;
 		}
-		res = fread(buf, 1, content_length, ser->f);
-		if (res < content_length) {
-			/* Error, distinguishable by ferror() or feof(), but neither
-			 * is good. Treat either one as I/O error */
-			ast_log(LOG_WARNING, "Short HTTP request body (%d < %d)\n",
-				res, content_length);
+
+		if (http_body_read_contents(ser, buf, content_length, "body")) {
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
 			errno = EIO;
 			ast_free(buf);
 			return NULL;
 		}
+
 		buf[content_length] = 0;
 		*return_length = content_length;
 		return buf;
 	}
 
 	/* pre-allocate buffer */
+	bufsize = 250;
 	buf = ast_malloc(bufsize);
 	if (!buf) {
+		ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
 		return NULL;
 	}
 
-	/* handled chunked content */
-	do {
-		/* get the line of hexadecimal giving chunk size */
-		if (!fgets(chunk_header, sizeof(chunk_header), ser->f)) {
-			ast_log(LOG_WARNING,
-				"Short HTTP read of chunked header\n");
-			errno = EIO;
-			ast_free(buf);
-			return NULL;
-		}
-		chunk_length = chunked_atoh(chunk_header, sizeof(chunk_header));
+	/* parse chunked-body */
+	content_length = 0;
+	for (;;) {
+		int chunk_length;
+
+		chunk_length = http_body_get_chunk_length(ser);
 		if (chunk_length < 0) {
-			ast_log(LOG_WARNING, "Invalid HTTP chunk size\n");
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
 			errno = EIO;
 			ast_free(buf);
 			return NULL;
 		}
-		if (content_length + chunk_length > MAX_POST_CONTENT - 1) {
+		if (chunk_length == 0) {
+			/* parsed last-chunk */
+			break;
+		}
+		if (content_length + chunk_length > MAX_CONTENT_LENGTH) {
 			ast_log(LOG_WARNING,
-				"Excessively long HTTP chunk. (%d + %d > %d)\n",
-				content_length, chunk_length, MAX_POST_CONTENT);
+				"Excessively long HTTP accumulated chunked body. (%d + %d > %d)\n",
+				content_length, chunk_length, MAX_CONTENT_LENGTH);
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
 			errno = EFBIG;
 			ast_free(buf);
 			return NULL;
 		}
 
 		/* insure buffer is large enough +1 */
-		if (content_length + chunk_length >= bufsize)
-		{
-			bufsize *= 2;
-			buf = ast_realloc(buf, bufsize);
-			if (!buf) {
+		if (content_length + chunk_length >= bufsize) {
+			char *new_buf;
+
+			/* Increase bufsize until it can handle the expected data. */
+			do {
+				bufsize *= 2;
+			} while (content_length + chunk_length >= bufsize);
+
+			new_buf = ast_realloc(buf, bufsize);
+			if (!new_buf) {
+				ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+				ast_free(buf);
 				return NULL;
 			}
+			buf = new_buf;
 		}
 
-		/* read the chunk */
-		res = fread(buf + content_length, 1, chunk_length, ser->f);
-		if (res < chunk_length) {
-			ast_log(LOG_WARNING, "Short HTTP chunk read (%d < %d)\n",
-				res, chunk_length);
+		if (http_body_read_contents(ser, buf + content_length, chunk_length, "chunk-data")
+			|| http_body_check_chunk_sync(ser)) {
+			ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
 			errno = EIO;
 			ast_free(buf);
 			return NULL;
 		}
 		content_length += chunk_length;
+	}
 
-		/* insure the next 2 bytes are CRLF */
-		res = fread(chunk_header, 1, 2, ser->f);
-		if (res < 2) {
-			ast_log(LOG_WARNING,
-				"Short HTTP chunk sync read (%d < 2)\n", res);
-			errno = EIO;
-			ast_free(buf);
-			return NULL;
-		}
-		if (chunk_header[0] != 0x0D || chunk_header[1] != 0x0A) {
-			ast_log(LOG_WARNING,
-				"Post HTTP chunk sync bytes wrong (%d, %d)\n",
-				chunk_header[0], chunk_header[1]);
-			errno = EIO;
-			ast_free(buf);
-			return NULL;
-		}
-	} while (chunk_length);
+	/*
+	 * Read and discard any trailer entity-header lines
+	 * which we don't care about.
+	 *
+	 * XXX In the future we may need to add the trailer headers
+	 * to the passed in headers list rather than discarding them.
+	 */
+	if (http_body_discard_chunk_trailer_headers(ser)) {
+		ast_set_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION);
+		errno = EIO;
+		ast_free(buf);
+		return NULL;
+	}
 
 	buf[content_length] = 0;
 	*return_length = content_length;
@@ -873,23 +1274,21 @@ struct ast_json *ast_http_get_json(
 	errno = 0;
 
 	if (ast_strlen_zero(type) || strcasecmp(type, "application/json")) {
-		/* Content type is not JSON */
+		/* Content type is not JSON.  Don't read the body. */
 		return NULL;
 	}
 
 	buf = ast_http_get_contents(&content_length, ser, headers);
-	if (buf == NULL) {
-		/* errno already set */
-		return NULL;
-	}
-
-	if (!content_length) {
-		/* it is not an error to have zero content */
+	if (!buf || !content_length) {
+		/*
+		 * errno already set
+		 * or it is not an error to have zero content
+		 */
 		return NULL;
 	}
 
 	body = ast_json_load_buf(buf, content_length, NULL);
-	if (body == NULL) {
+	if (!body) {
 		/* Failed to parse JSON; treat as an I/O error */
 		errno = EIO;
 		return NULL;
@@ -908,7 +1307,7 @@ struct ast_variable *ast_http_get_post_vars(
 	int content_length = 0;
 	struct ast_variable *v, *post_vars=NULL, *prev = NULL;
 	char *var, *val;
-	RAII_VAR(char *, buf, NULL, ast_free_ptr);
+	RAII_VAR(char *, buf, NULL, ast_free);
 	RAII_VAR(char *, type, get_content_type(headers), ast_free);
 
 	/* Use errno to distinguish errors from no params */
@@ -916,12 +1315,16 @@ struct ast_variable *ast_http_get_post_vars(
 
 	if (ast_strlen_zero(type) ||
 	    strcasecmp(type, "application/x-www-form-urlencoded")) {
-		/* Content type is not form data */
+		/* Content type is not form data.  Don't read the body. */
 		return NULL;
 	}
 
 	buf = ast_http_get_contents(&content_length, ser, headers);
-	if (buf == NULL) {
+	if (!buf || !content_length) {
+		/*
+		 * errno already set
+		 * or it is not an error to have zero content
+		 */
 		return NULL;
 	}
 
@@ -950,7 +1353,7 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 	enum ast_http_method method, struct ast_variable *headers)
 {
 	char *c;
-	int res = -1;
+	int res = 0;
 	char *params = uri;
 	struct ast_http_uri *urih = NULL;
 	int l;
@@ -987,9 +1390,14 @@ static int handle_uri(struct ast_tcptls_session_instance *ser, char *uri,
 	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry) {
 		if (!strcasecmp(uri, redirect->target)) {
 			struct ast_str *http_header = ast_str_create(128);
+
+			if (!http_header) {
+				ast_http_request_close_on_completion(ser);
+				ast_http_error(ser, 500, "Server Error", "Out of memory");
+				break;
+			}
 			ast_str_set(&http_header, 0, "Location: %s\r\n", redirect->dest);
 			ast_http_send(ser, method, 302, "Moved Temporarily", http_header, NULL, 0, 0);
-
 			break;
 		}
 	}
@@ -1085,10 +1493,9 @@ struct ast_variable *ast_http_get_cookies(struct ast_variable *headers)
 	return cookies;
 }
 
-static struct ast_http_auth *auth_create(const char *userid,
-	const char *password)
+static struct ast_http_auth *auth_create(const char *userid, const char *password)
 {
-	RAII_VAR(struct ast_http_auth *, auth, NULL, ao2_cleanup);
+	struct ast_http_auth *auth;
 	size_t userid_len;
 	size_t password_len;
 
@@ -1114,7 +1521,6 @@ static struct ast_http_auth *auth_create(const char *userid,
 	auth->password = auth->userid + userid_len;
 	strcpy(auth->password, password);
 
-	ao2_ref(auth, +1);
 	return auth;
 }
 
@@ -1288,96 +1694,31 @@ int ast_http_header_match_in(const char *name, const char *expected_name,
 /*! Limit the number of request headers in case the sender is being ridiculous. */
 #define MAX_HTTP_REQUEST_HEADERS	100
 
-static void *httpd_helper_thread(void *data)
+/*!
+ * \internal
+ * \brief Read the request headers.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ * \param headers Where to put the request headers list pointer.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int http_request_headers_get(struct ast_tcptls_session_instance *ser, struct ast_variable **headers)
 {
-	char buf[4096];
-	char header_line[4096];
-	struct ast_tcptls_session_instance *ser = data;
-	struct ast_variable *headers = NULL;
-	struct ast_variable *tail = headers;
-	char *uri, *method;
-	enum ast_http_method http_method = AST_HTTP_UNKNOWN;
-	const char *transfer_encoding;
+	struct ast_variable *tail = *headers;
 	int remaining_headers;
-	int flags;
-	struct protoent *p;
+	char header_line[MAX_HTTP_LINE_LENGTH];
 
-	if (ast_atomic_fetchadd_int(&session_count, +1) >= session_limit) {
-		goto done;
-	}
-
-	/* here we set TCP_NODELAY on the socket to disable Nagle's algorithm.
-	 * This is necessary to prevent delays (caused by buffering) as we
-	 * write to the socket in bits and pieces. */
-	p = getprotobyname("tcp");
-	if (p) {
-		int arg = 1;
-		if( setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
-			ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
-			ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
-		}
-	} else {
-		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection, getprotobyname(\"tcp\") failed\n");
-		ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
-	}
-
-	/* make sure socket is non-blocking */
-	flags = fcntl(ser->fd, F_GETFL);
-	flags |= O_NONBLOCK;
-	fcntl(ser->fd, F_SETFL, flags);
-
-	/* We can let the stream wait for data to arrive. */
-	ast_tcptls_stream_set_exclusive_input(ser->stream_cookie, 1);
-
-	ast_tcptls_stream_set_timeout_inactivity(ser->stream_cookie, session_inactivity);
-
-	if (!fgets(buf, sizeof(buf), ser->f) || feof(ser->f)) {
-		goto done;
-	}
-
-	/* Get method */
-	method = ast_skip_blanks(buf);
-	uri = ast_skip_nonblanks(method);
-	if (*uri) {
-		*uri++ = '\0';
-	}
-
-	if (!strcasecmp(method,"GET")) {
-		http_method = AST_HTTP_GET;
-	} else if (!strcasecmp(method,"POST")) {
-		http_method = AST_HTTP_POST;
-	} else if (!strcasecmp(method,"HEAD")) {
-		http_method = AST_HTTP_HEAD;
-	} else if (!strcasecmp(method,"PUT")) {
-		http_method = AST_HTTP_PUT;
-	} else if (!strcasecmp(method,"DELETE")) {
-		http_method = AST_HTTP_DELETE;
-	} else if (!strcasecmp(method,"OPTIONS")) {
-		http_method = AST_HTTP_OPTIONS;
-	}
-
-	uri = ast_skip_blanks(uri);	/* Skip white space */
-
-	if (*uri) {			/* terminate at the first blank */
-		char *c = ast_skip_nonblanks(uri);
-
-		if (*c) {
-			*c = '\0';
-		}
-	} else {
-		ast_http_error(ser, 400, "Bad Request", "Invalid Request");
-		goto done;
-	}
-
-	/* process "Request Headers" lines */
 	remaining_headers = MAX_HTTP_REQUEST_HEADERS;
 	for (;;) {
 		char *name;
 		char *value;
 
-		if (!fgets(header_line, sizeof(header_line), ser->f) || feof(ser->f)) {
+		if (!fgets(header_line, sizeof(header_line), ser->f)) {
 			ast_http_error(ser, 400, "Bad Request", "Timeout");
-			goto done;
+			return -1;
 		}
 
 		/* Trim trailing characters */
@@ -1403,11 +1744,11 @@ static void *httpd_helper_thread(void *data)
 		if (!remaining_headers--) {
 			/* Too many headers. */
 			ast_http_error(ser, 413, "Request Entity Too Large", "Too many headers");
-			goto done;
+			return -1;
 		}
-		if (!headers) {
-			headers = ast_variable_new(name, value, __FILE__);
-			tail = headers;
+		if (!*headers) {
+			*headers = ast_variable_new(name, value, __FILE__);
+			tail = *headers;
 		} else {
 			tail->next = ast_variable_new(name, value, __FILE__);
 			tail = tail->next;
@@ -1417,12 +1758,82 @@ static void *httpd_helper_thread(void *data)
 			 * Variable allocation failure.
 			 * Try to make some room.
 			 */
-			ast_variables_destroy(headers);
-			headers = NULL;
+			ast_variables_destroy(*headers);
+			*headers = NULL;
 
 			ast_http_error(ser, 500, "Server Error", "Out of memory");
-			goto done;
+			return -1;
 		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Process a HTTP request.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ *
+ * \retval 0 Continue and process the next HTTP request.
+ * \retval -1 Fatal HTTP connection error.  Force the HTTP connection closed.
+ */
+static int httpd_process_request(struct ast_tcptls_session_instance *ser)
+{
+	RAII_VAR(struct ast_variable *, headers, NULL, ast_variables_destroy);
+	char *uri;
+	char *method;
+	const char *transfer_encoding;
+	struct http_worker_private_data *request;
+	enum ast_http_method http_method = AST_HTTP_UNKNOWN;
+	int res;
+	char request_line[MAX_HTTP_LINE_LENGTH];
+
+	if (!fgets(request_line, sizeof(request_line), ser->f)) {
+		return -1;
+	}
+
+	/* Re-initialize the request body tracking data. */
+	request = ser->private_data;
+	http_request_tracking_init(request);
+
+	/* Get method */
+	method = ast_skip_blanks(request_line);
+	uri = ast_skip_nonblanks(method);
+	if (*uri) {
+		*uri++ = '\0';
+	}
+
+	if (!strcasecmp(method,"GET")) {
+		http_method = AST_HTTP_GET;
+	} else if (!strcasecmp(method,"POST")) {
+		http_method = AST_HTTP_POST;
+	} else if (!strcasecmp(method,"HEAD")) {
+		http_method = AST_HTTP_HEAD;
+	} else if (!strcasecmp(method,"PUT")) {
+		http_method = AST_HTTP_PUT;
+	} else if (!strcasecmp(method,"DELETE")) {
+		http_method = AST_HTTP_DELETE;
+	} else if (!strcasecmp(method,"OPTIONS")) {
+		http_method = AST_HTTP_OPTIONS;
+	}
+
+	uri = ast_skip_blanks(uri);	/* Skip white space */
+	if (*uri) {			/* terminate at the first blank */
+		char *c = ast_skip_nonblanks(uri);
+
+		if (*c) {
+			*c = '\0';
+		}
+	} else {
+		ast_http_error(ser, 400, "Bad Request", "Invalid Request");
+		return -1;
+	}
+
+	/* process "Request Headers" lines */
+	if (http_request_headers_get(ser, &headers)) {
+		return -1;
 	}
 
 	transfer_encoding = get_transfer_encoding(headers);
@@ -1439,22 +1850,117 @@ static void *httpd_helper_thread(void *data)
 		strcasecmp(transfer_encoding, "chunked") != 0) {
 		/* Transfer encodings not supported */
 		ast_http_error(ser, 501, "Unimplemented", "Unsupported Transfer-Encoding.");
-		goto done;
+		return -1;
 	}
 
-	handle_uri(ser, uri, http_method, headers);
+	if (http_request_tracking_setup(ser, headers)
+		|| handle_uri(ser, uri, http_method, headers)
+		|| ast_test_flag(&request->flags, HTTP_FLAG_CLOSE_ON_COMPLETION)) {
+		res = -1;
+	} else {
+		res = 0;
+	}
+	return res;
+}
+
+static void *httpd_helper_thread(void *data)
+{
+	struct ast_tcptls_session_instance *ser = data;
+	struct protoent *p;
+	int flags;
+	int timeout;
+
+	if (!ser || !ser->f) {
+		ao2_cleanup(ser);
+		return NULL;
+	}
+
+	if (ast_atomic_fetchadd_int(&session_count, +1) >= session_limit) {
+		ast_log(LOG_WARNING, "HTTP session count exceeded %d sessions.\n",
+			session_limit);
+		goto done;
+	}
+	ast_debug(1, "HTTP opening session.  Top level\n");
+
+	/*
+	 * Here we set TCP_NODELAY on the socket to disable Nagle's algorithm.
+	 * This is necessary to prevent delays (caused by buffering) as we
+	 * write to the socket in bits and pieces.
+	 */
+	p = getprotobyname("tcp");
+	if (p) {
+		int arg = 1;
+
+		if (setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *) &arg, sizeof(arg) ) < 0) {
+			ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
+		}
+	} else {
+		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection, getprotobyname(\"tcp\") failed\n");
+		ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
+	}
+
+	/* make sure socket is non-blocking */
+	flags = fcntl(ser->fd, F_GETFL);
+	flags |= O_NONBLOCK;
+	fcntl(ser->fd, F_SETFL, flags);
+
+	/* Setup HTTP worker private data to keep track of request body reading. */
+	ao2_cleanup(ser->private_data);
+	ser->private_data = ao2_alloc_options(sizeof(struct http_worker_private_data), NULL,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!ser->private_data) {
+		ast_http_error(ser, 500, "Server Error", "Out of memory");
+		goto done;
+	}
+	http_request_tracking_init(ser->private_data);
+
+	/* Determine initial HTTP request wait timeout. */
+	timeout = session_keep_alive;
+	if (timeout <= 0) {
+		/* Persistent connections not enabled. */
+		timeout = session_inactivity;
+	}
+	if (timeout < MIN_INITIAL_REQUEST_TIMEOUT) {
+		timeout = MIN_INITIAL_REQUEST_TIMEOUT;
+	}
+
+	/* We can let the stream wait for data to arrive. */
+	ast_tcptls_stream_set_exclusive_input(ser->stream_cookie, 1);
+
+	for (;;) {
+		int ch;
+
+		/* Wait for next potential HTTP request message. */
+		ast_tcptls_stream_set_timeout_inactivity(ser->stream_cookie, timeout);
+		ch = fgetc(ser->f);
+		if (ch == EOF || ungetc(ch, ser->f) == EOF) {
+			/* Between request idle timeout */
+			ast_debug(1, "HTTP idle timeout or peer closed connection.\n");
+			break;
+		}
+
+		ast_tcptls_stream_set_timeout_inactivity(ser->stream_cookie, session_inactivity);
+		if (httpd_process_request(ser) || !ser->f || feof(ser->f)) {
+			/* Break the connection or the connection closed */
+			break;
+		}
+
+		timeout = session_keep_alive;
+		if (timeout <= 0) {
+			/* Persistent connections not enabled. */
+			break;
+		}
+	}
 
 done:
 	ast_atomic_fetchadd_int(&session_count, -1);
 
-	/* clean up all the header information */
-	ast_variables_destroy(headers);
-
 	if (ser->f) {
+		ast_debug(1, "HTTP closing session.  Top level\n");
 		ast_tcptls_close_session_file(ser);
 	}
 	ao2_ref(ser, -1);
-	ser = NULL;
 	return NULL;
 }
 
@@ -1531,7 +2037,7 @@ static int __ast_http_load(int reload)
 	int http_tls_was_enabled = 0;
 
 	cfg = ast_config_load2("http.conf", "http", config_flags);
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+	if (!cfg || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
 	}
 
@@ -1563,65 +2069,72 @@ static int __ast_http_load(int reload)
 
 	session_limit = DEFAULT_SESSION_LIMIT;
 	session_inactivity = DEFAULT_SESSION_INACTIVITY;
+	session_keep_alive = DEFAULT_SESSION_KEEP_ALIVE;
 
-	if (cfg) {
-		v = ast_variable_browse(cfg, "general");
-		for (; v; v = v->next) {
-
-			/* read tls config options while preventing unsupported options from being set */
-			if (strcasecmp(v->name, "tlscafile")
-				&& strcasecmp(v->name, "tlscapath")
-				&& strcasecmp(v->name, "tlscadir")
-				&& strcasecmp(v->name, "tlsverifyclient")
-				&& strcasecmp(v->name, "tlsdontverifyserver")
-				&& strcasecmp(v->name, "tlsclientmethod")
-				&& strcasecmp(v->name, "sslclientmethod")
-				&& strcasecmp(v->name, "tlscipher")
-				&& strcasecmp(v->name, "sslcipher")
-				&& !ast_tls_read_conf(&http_tls_cfg, &https_desc, v->name, v->value)) {
-				continue;
-			}
-
-			if (!strcasecmp(v->name, "enabled")) {
-				enabled = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "enablestatic")) {
-				newenablestatic = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "bindport")) {
-				if (ast_parse_arg(v->value, PARSE_UINT32 | PARSE_IN_RANGE | PARSE_DEFAULT, &bindport, DEFAULT_PORT, 0, 65535)) {
-					ast_log(LOG_WARNING, "Invalid port %s specified. Using default port %"PRId32, v->value, DEFAULT_PORT);
-				}
-			} else if (!strcasecmp(v->name, "bindaddr")) {
-				if (!(num_addrs = ast_sockaddr_resolve(&addrs, v->value, 0, AST_AF_UNSPEC))) {
-					ast_log(LOG_WARNING, "Invalid bind address %s\n", v->value);
-				}
-			} else if (!strcasecmp(v->name, "prefix")) {
-				if (!ast_strlen_zero(v->value)) {
-					newprefix[0] = '/';
-					ast_copy_string(newprefix + 1, v->value, sizeof(newprefix) - 1);
-				} else {
-					newprefix[0] = '\0';
-				}
-			} else if (!strcasecmp(v->name, "redirect")) {
-				add_redirect(v->value);
-			} else if (!strcasecmp(v->name, "sessionlimit")) {
-				if (ast_parse_arg(v->value, PARSE_INT32|PARSE_DEFAULT|PARSE_IN_RANGE,
-							&session_limit, DEFAULT_SESSION_LIMIT, 1, INT_MAX)) {
-					ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
-							v->name, v->value, v->lineno);
-				}
-			} else if (!strcasecmp(v->name, "session_inactivity")) {
-				if (ast_parse_arg(v->value, PARSE_INT32 |PARSE_DEFAULT | PARSE_IN_RANGE,
-					&session_inactivity, DEFAULT_SESSION_INACTIVITY, 1, INT_MAX)) {
-					ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
-						v->name, v->value, v->lineno);
-				}
-			} else {
-				ast_log(LOG_WARNING, "Ignoring unknown option '%s' in http.conf\n", v->name);
-			}
+	v = ast_variable_browse(cfg, "general");
+	for (; v; v = v->next) {
+		/* read tls config options while preventing unsupported options from being set */
+		if (strcasecmp(v->name, "tlscafile")
+			&& strcasecmp(v->name, "tlscapath")
+			&& strcasecmp(v->name, "tlscadir")
+			&& strcasecmp(v->name, "tlsverifyclient")
+			&& strcasecmp(v->name, "tlsdontverifyserver")
+			&& strcasecmp(v->name, "tlsclientmethod")
+			&& strcasecmp(v->name, "sslclientmethod")
+			&& strcasecmp(v->name, "tlscipher")
+			&& strcasecmp(v->name, "sslcipher")
+			&& !ast_tls_read_conf(&http_tls_cfg, &https_desc, v->name, v->value)) {
+			continue;
 		}
 
-		ast_config_destroy(cfg);
+		if (!strcasecmp(v->name, "enabled")) {
+			enabled = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "enablestatic")) {
+			newenablestatic = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "bindport")) {
+			if (ast_parse_arg(v->value, PARSE_UINT32 | PARSE_IN_RANGE | PARSE_DEFAULT,
+				&bindport, DEFAULT_PORT, 0, 65535)) {
+				ast_log(LOG_WARNING, "Invalid port %s specified. Using default port %" PRId32 "\n",
+					v->value, DEFAULT_PORT);
+			}
+		} else if (!strcasecmp(v->name, "bindaddr")) {
+			if (!(num_addrs = ast_sockaddr_resolve(&addrs, v->value, 0, AST_AF_UNSPEC))) {
+				ast_log(LOG_WARNING, "Invalid bind address %s\n", v->value);
+			}
+		} else if (!strcasecmp(v->name, "prefix")) {
+			if (!ast_strlen_zero(v->value)) {
+				newprefix[0] = '/';
+				ast_copy_string(newprefix + 1, v->value, sizeof(newprefix) - 1);
+			} else {
+				newprefix[0] = '\0';
+			}
+		} else if (!strcasecmp(v->name, "redirect")) {
+			add_redirect(v->value);
+		} else if (!strcasecmp(v->name, "sessionlimit")) {
+			if (ast_parse_arg(v->value, PARSE_INT32 | PARSE_DEFAULT | PARSE_IN_RANGE,
+				&session_limit, DEFAULT_SESSION_LIMIT, 1, INT_MAX)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
+					v->name, v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "session_inactivity")) {
+			if (ast_parse_arg(v->value, PARSE_INT32 | PARSE_DEFAULT | PARSE_IN_RANGE,
+				&session_inactivity, DEFAULT_SESSION_INACTIVITY, 1, INT_MAX)) {
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
+					v->name, v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "session_keep_alive")) {
+			if (sscanf(v->value, "%30d", &session_keep_alive) != 1
+				|| session_keep_alive < 0) {
+				session_keep_alive = DEFAULT_SESSION_KEEP_ALIVE;
+				ast_log(LOG_WARNING, "Invalid %s '%s' at line %d of http.conf\n",
+					v->name, v->value, v->lineno);
+			}
+		} else {
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' in http.conf\n", v->name);
+		}
 	}
+
+	ast_config_destroy(cfg);
 
 	if (strcmp(prefix, newprefix)) {
 		ast_copy_string(prefix, newprefix, sizeof(prefix));

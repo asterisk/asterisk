@@ -6848,9 +6848,10 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 {
 	struct mansession s = { .session = NULL, .tcptls_session = ser };
 	struct mansession_session *session = NULL;
-	uint32_t ident = 0;
+	uint32_t ident;
 	int blastaway = 0;
-	struct ast_variable *v, *cookies, *params = get_params;
+	struct ast_variable *v;
+	struct ast_variable *params = get_params;
 	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
 	struct ast_str *http_header = NULL, *out = NULL;
 	struct message m = { 0 };
@@ -6859,19 +6860,10 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD && method != AST_HTTP_POST) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
-		return -1;
+		return 0;
 	}
 
-	cookies = ast_http_get_cookies(headers);
-	for (v = cookies; v; v = v->next) {
-		if (!strcasecmp(v->name, "mansession_id")) {
-			sscanf(v->value, "%30x", &ident);
-			break;
-		}
-	}
-	if (cookies) {
-		ast_variables_destroy(cookies);
-	}
+	ident = ast_http_manid_from_vars(headers);
 
 	if (!(session = find_session(ident, 1))) {
 
@@ -6880,18 +6872,21 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 		 * While it is not in the list we don't need any locking
 		 */
 		if (!(session = build_mansession(remote_address))) {
+			ast_http_request_close_on_completion(ser);
 			ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)\n");
-			return -1;
+			return 0;
 		}
 		ao2_lock(session);
 		session->send_events = 0;
 		session->inuse = 1;
-		/*!\note There is approximately a 1 in 1.8E19 chance that the following
+		/*!
+		 * \note There is approximately a 1 in 1.8E19 chance that the following
 		 * calculation will produce 0, which is an invalid ID, but due to the
 		 * properties of the rand() function (and the constantcy of s), that
 		 * won't happen twice in a row.
 		 */
-		while ((session->managerid = ast_random() ^ (unsigned long) session) == 0);
+		while ((session->managerid = ast_random() ^ (unsigned long) session) == 0) {
+		}
 		session->last_ev = grab_last();
 		AST_LIST_HEAD_INIT_NOLOCK(&session->datastores);
 	}
@@ -6903,6 +6898,7 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	ast_mutex_init(&s.lock);
 
 	if (http_header == NULL || out == NULL) {
+		ast_http_request_close_on_completion(ser);
 		ast_http_error(ser, 500, "Server Error", "Internal Server Error (ast_str_create() out of memory)\n");
 		goto generic_callback_out;
 	}
@@ -6924,19 +6920,22 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 
 	if (method == AST_HTTP_POST) {
 		params = ast_http_get_post_vars(ser, headers);
-	}
-
-	if (!params) {
-		switch (errno) {
-		case EFBIG:
-			ast_http_send(ser, AST_HTTP_POST, 413, "Request Entity Too Large", NULL, NULL, 0, 0);
-			break;
-		case ENOMEM:
-			ast_http_send(ser, AST_HTTP_POST, 500, "Internal Server Error", NULL, NULL, 0, 0);
-			break;
-		case EIO:
-			ast_http_send(ser, AST_HTTP_POST, 400, "Bad Request", NULL, NULL, 0, 0);
-			break;
+		if (!params) {
+			switch (errno) {
+			case EFBIG:
+				ast_http_error(ser, 413, "Request Entity Too Large", "Body too large");
+				close_mansession_file(&s);
+				goto generic_callback_out;
+			case ENOMEM:
+				ast_http_request_close_on_completion(ser);
+				ast_http_error(ser, 500, "Server Error", "Out of memory");
+				close_mansession_file(&s);
+				goto generic_callback_out;
+			case EIO:
+				ast_http_error(ser, 400, "Bad Request", "Error parsing request body");
+				close_mansession_file(&s);
+				goto generic_callback_out;
+			}
 		}
 	}
 
@@ -6973,7 +6972,6 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 
 	ast_str_append(&http_header, 0,
 		"Content-type: text/%s\r\n"
-		"Cache-Control: no-cache;\r\n"
 		"Set-Cookie: mansession_id=\"%08x\"; Version=1; Max-Age=%d\r\n"
 		"Pragma: SuppressEvents\r\n",
 		contenttype[format],
@@ -7038,7 +7036,8 @@ static int generic_http_callback(struct ast_tcptls_session_instance *ser,
 	ao2_unlock(session);
 
 	ast_http_send(ser, method, 200, NULL, http_header, out, 0, 0);
-	http_header = out = NULL;
+	http_header = NULL;
+	out = NULL;
 
 generic_callback_out:
 	ast_mutex_destroy(&s.lock);
@@ -7073,7 +7072,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	struct ast_variable *v, *params = get_params;
 	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
 	struct ast_str *http_header = NULL, *out = NULL;
-	size_t result_size = 512;
+	size_t result_size;
 	struct message m = { 0 };
 	unsigned int idx;
 	size_t hdrlen;
@@ -7093,7 +7092,7 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 
 	if (method != AST_HTTP_GET && method != AST_HTTP_HEAD && method != AST_HTTP_POST) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
-		return -1;
+		return 0;
 	}
 
 	/* Find "Authorization: " header */
@@ -7109,8 +7108,9 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 
 	/* Digest found - parse */
 	if (ast_string_field_init(&d, 128)) {
+		ast_http_request_close_on_completion(ser);
 		ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)\n");
-		return -1;
+		return 0;
 	}
 
 	if (ast_parse_digest(v->value, &d, 0, 1)) {
@@ -7137,8 +7137,9 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	if (user->acl && !ast_apply_acl(user->acl, remote_address, "Manager User ACL:")) {
 		AST_RWLIST_UNLOCK(&users);
 		ast_log(LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", ast_sockaddr_stringify_addr(&session->addr), d.username);
+		ast_http_request_close_on_completion(ser);
 		ast_http_error(ser, 403, "Permission denied", "Permission denied\n");
-		return -1;
+		return 0;
 	}
 
 	/* --- We have auth, so check it */
@@ -7187,8 +7188,9 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		 * While it is not in the list we don't need any locking
 		 */
 		if (!(session = build_mansession(remote_address))) {
+			ast_http_request_close_on_completion(ser);
 			ast_http_error(ser, 500, "Server Error", "Internal Server Error (out of memory)\n");
-			return -1;
+			return 0;
 		}
 		ao2_lock(session);
 
@@ -7268,6 +7270,23 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 
 	if (method == AST_HTTP_POST) {
 		params = ast_http_get_post_vars(ser, headers);
+		if (!params) {
+			switch (errno) {
+			case EFBIG:
+				ast_http_error(ser, 413, "Request Entity Too Large", "Body too large");
+				close_mansession_file(&s);
+				goto auth_callback_out;
+			case ENOMEM:
+				ast_http_request_close_on_completion(ser);
+				ast_http_error(ser, 500, "Server Error", "Out of memory");
+				close_mansession_file(&s);
+				goto auth_callback_out;
+			case EIO:
+				ast_http_error(ser, 400, "Bad Request", "Error parsing request body");
+				close_mansession_file(&s);
+				goto auth_callback_out;
+			}
+		}
 	}
 
 	for (v = params; v && m.hdrcount < ARRAY_LEN(m.headers); v = v->next) {
@@ -7296,15 +7315,14 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 		m.headers[idx] = NULL;
 	}
 
-	if (s.f) {
-		result_size = ftell(s.f); /* Calculate approx. size of result */
-	}
+	result_size = ftell(s.f); /* Calculate approx. size of result */
 
 	http_header = ast_str_create(80);
 	out = ast_str_create(result_size * 2 + 512);
-
 	if (http_header == NULL || out == NULL) {
+		ast_http_request_close_on_completion(ser);
 		ast_http_error(ser, 500, "Server Error", "Internal Server Error (ast_str_create() out of memory)\n");
+		close_mansession_file(&s);
 		goto auth_callback_out;
 	}
 
@@ -7334,7 +7352,8 @@ static int auth_http_callback(struct ast_tcptls_session_instance *ser,
 	}
 
 	ast_http_send(ser, method, 200, NULL, http_header, out, 0, 0);
-	http_header = out = NULL;
+	http_header = NULL;
+	out = NULL;
 
 auth_callback_out:
 	ast_mutex_destroy(&s.lock);

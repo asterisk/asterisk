@@ -45,7 +45,14 @@ bindaddr=127.0.0.1
 ; Default: 30000
 ;session_inactivity=30000
 ;
-; Whether Asterisk should serve static content from http-static
+; session_keep_alive specifies the number of milliseconds to wait for
+; the next HTTP request over a persistent connection.
+;
+; Set to 0 to disable persistent HTTP connections.
+; Default: 15000
+;session_keep_alive=15000
+;
+; Whether Asterisk should serve static content from static-http
 ; Default is no.
 ;
 ;enablestatic=yes
@@ -79,6 +86,9 @@ bindaddr=127.0.0.1
 ; configured directory.
 ;
 ;[post_mappings]
+;
+; NOTE: You need a valid HTTP AMI mansession_id cookie with the manager
+; config permission to POST files.
 ;
 ; In this example, if the prefix option is set to "asterisk", then using the
 ; POST URL: /asterisk/uploads will put files in /var/lib/asterisk/uploads/.
