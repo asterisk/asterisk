@@ -68,7 +68,7 @@ struct ast_ari_channels_originate_args {
 	const char *caller_id;
 	/*! Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
 	int timeout;
-	/*! The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
+	/*! The "variables" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { "endpoint": "SIP/Alice", "variables": { "CALLERID(name)": "Alice" } } */
 	struct ast_json *variables;
 	/*! The unique id to assign the channel on creation. */
 	const char *channel_id;
@@ -129,7 +129,7 @@ struct ast_ari_channels_originate_with_id_args {
 	const char *caller_id;
 	/*! Timeout (in seconds) before giving up dialing, or -1 for no timeout. */
 	int timeout;
-	/*! The 'variables' key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { 'endpoint': 'SIP/Alice', 'variables': { 'CALLERID(name)': 'Alice' } } */
+	/*! The "variables" key in the body object holds variable key/value pairs to set on the channel on creation. Other keys in the body object are interpreted as query parameters. Ex. { "endpoint": "SIP/Alice", "variables": { "CALLERID(name)": "Alice" } } */
 	struct ast_json *variables;
 	/*! The unique id to assign the second channel when using local channels. */
 	const char *other_channel_id;
