@@ -31,6 +31,16 @@ h3. Query parameters
 {{/allow_multiple}}
 {{/query_parameters}}
 {{/has_query_parameters}}
+{{#has_body_parameter}}
+
+h3. Body parameter
+{{#body_parameter}}
+* {{name}}: {{data_type}}{{#default_value}} = {{default_value}}{{/default_value}} -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
+{{#allow_multiple}}
+** Allows comma separated values.
+{{/allow_multiple}}
+{{/body_parameter}}
+{{/has_body_parameter}}
 {{#has_header_parameters}}
 
 h3. Header parameters
