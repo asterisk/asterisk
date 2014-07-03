@@ -21,7 +21,7 @@
 ===
 ===========================================================
 
-From 12.3.0 to 12.4.0:
+From 12.3.2 to 12.4.0:
 
  - The safe_asterisk script was previously not installed on top of an existing
    version. This caused bug-fixes in that script not to be deployed. If your
@@ -40,6 +40,11 @@ From 12.3.0 to 12.4.0:
    writes a substantial amount of data to the connected client, and the connected
    client is slow to process the received data, the socket may be disconnected.
    In such cases, it may be necessary to adjust this value. Default is 100 ms.
+
+ - Added support for persistent HTTP connections.  To enable persistent
+   HTTP connections configure the keep alive time between HTTP requests.  The
+   keep alive time between HTTP requests is configured in http.conf with the
+   session_keep_alive parameter.
 
  - Added a 'force_avp' option to chan_pjsip which will force the usage of
    'RTP/AVP', 'RTP/AVPF', 'RTP/SAVP', or 'RTP/SAVPF' as the media transport type

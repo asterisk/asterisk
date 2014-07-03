@@ -587,6 +587,19 @@ static struct websocket_protocol *one_protocol(
 	return ao2_callback(server->protocols, OBJ_NOLOCK, NULL, NULL);
 }
 
+static void websocket_bad_request(struct ast_tcptls_session_instance *ser)
+{
+	struct ast_str *http_header = ast_str_create(64);
+
+	if (!http_header) {
+		ast_http_request_close_on_completion(ser);
+		ast_http_error(ser, 500, "Server Error", "Out of memory");
+		return;
+	}
+	ast_str_set(&http_header, 0, "Sec-WebSocket-Version: 7, 8, 13\r\n");
+	ast_http_send(ser, AST_HTTP_UNKNOWN, 400, "Bad Request", http_header, NULL, 0, 0);
+}
+
 int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
 	struct ast_variable *v;
@@ -601,7 +614,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	/* Upgrade requests are only permitted on GET methods */
 	if (method != AST_HTTP_GET) {
 		ast_http_error(ser, 501, "Not Implemented", "Attempt to use unimplemented / unsupported method");
-		return -1;
+		return 0;
 	}
 
 	server = urih->data;
@@ -631,7 +644,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - did not request WebSocket\n",
 			ast_sockaddr_stringify(&ser->remote_address));
 		ast_http_error(ser, 426, "Upgrade Required", NULL);
-		return -1;
+		return 0;
 	} else if (ast_strlen_zero(requested_protocols)) {
 		/* If there's only a single protocol registered, and the
 		 * client doesn't specify what protocol it's using, go ahead
@@ -641,17 +654,15 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			/* Multiple registered subprotocols; client must specify */
 			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - no protocols requested\n",
 				ast_sockaddr_stringify(&ser->remote_address));
-			fputs("HTTP/1.1 400 Bad Request\r\n"
-				"Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
-			return -1;
+			websocket_bad_request(ser);
+			return 0;
 		}
 	} else if (key1 && key2) {
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76 and
 		 * http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-00 -- not currently supported*/
 		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - unsupported version '00/76' chosen\n",
 			ast_sockaddr_stringify(&ser->remote_address));
-		fputs("HTTP/1.1 400 Bad Request\r\n"
-		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+		websocket_bad_request(ser);
 		return 0;
 	}
 
@@ -664,8 +675,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	if (!protocol_handler) {
 		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - no protocols out of '%s' supported\n",
 			ast_sockaddr_stringify(&ser->remote_address), protos);
-		fputs("HTTP/1.1 400 Bad Request\r\n"
-		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+		websocket_bad_request(ser);
 		return 0;
 	}
 
@@ -680,8 +690,13 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 
 		combined_length = (key ? strlen(key) : 0) + strlen(WEBSOCKET_GUID) + 1;
 		if (!key || combined_length > 8192) { /* no stack overflows please */
-			fputs("HTTP/1.1 400 Bad Request\r\n"
-			      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+			websocket_bad_request(ser);
+			ao2_ref(protocol_handler, -1);
+			return 0;
+		}
+
+		if (ast_http_body_discard(ser)) {
+			websocket_bad_request(ser);
 			ao2_ref(protocol_handler, -1);
 			return 0;
 		}
@@ -689,8 +704,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		if (!(session = ao2_alloc(sizeof(*session), session_destroy_fn))) {
 			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted\n",
 				ast_sockaddr_stringify(&ser->remote_address));
-			fputs("HTTP/1.1 400 Bad Request\r\n"
-			      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+			websocket_bad_request(ser);
 			ao2_ref(protocol_handler, -1);
 			return 0;
 		}
@@ -729,8 +743,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		/* Specification defined in http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75 or completely unknown */
 		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - unsupported version '%d' chosen\n",
 			ast_sockaddr_stringify(&ser->remote_address), version ? version : 75);
-		fputs("HTTP/1.1 400 Bad Request\r\n"
-		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+		websocket_bad_request(ser);
 		ao2_ref(protocol_handler, -1);
 		return 0;
 	}
@@ -739,8 +752,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	if (setsockopt(ser->fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
 		ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - failed to enable keepalive\n",
 			ast_sockaddr_stringify(&ser->remote_address));
-		fputs("HTTP/1.1 400 Bad Request\r\n"
-		      "Sec-WebSocket-Version: 7, 8, 13\r\n\r\n", ser->f);
+		websocket_bad_request(ser);
 		ao2_ref(session, -1);
 		ao2_ref(protocol_handler, -1);
 		return 0;
@@ -757,6 +769,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	session->secure = ser->ssl ? 1 : 0;
 
 	/* Give up ownership of the socket and pass it to the protocol handler */
+	ast_tcptls_stream_set_exclusive_input(ser->stream_cookie, 0);
 	protocol_handler->callback(session, get_vars, headers);
 	ao2_ref(protocol_handler, -1);
 

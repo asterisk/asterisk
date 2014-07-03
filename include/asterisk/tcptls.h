@@ -210,7 +210,6 @@ struct ast_tcptls_session_instance {
 	FILE *f;    /*!< fopen/funopen result */
 	int fd;     /*!< the socket returned by accept() */
 	SSL *ssl;   /*!< ssl state */
-/*	iint (*ssl_setup)(SSL *); */
 	int client;
 	struct ast_sockaddr remote_address;
 	struct ast_tcptls_session_args *parent;
@@ -222,6 +221,8 @@ struct ast_tcptls_session_instance {
 	struct ast_str *overflow_buf;
 	/*! ao2 FILE stream cookie object associated with f. */
 	struct ast_tcptls_stream *stream_cookie;
+	/*! ao2 object private data of parent->worker_fn */
+	void *private_data;
 };
 
 #if defined(HAVE_FUNOPEN)

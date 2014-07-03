@@ -66,28 +66,34 @@ enum ast_http_method {
 
 struct ast_http_uri;
 
-/*! \brief HTTP Callbacks
+/*!
+ * \brief HTTP Callbacks
  *
- * \note The callback function receives server instance, uri, http method,
- * get method (if present in URI), and http headers as arguments and should
- * use the ast_http_send() function for sending content allocated with ast_str
- * and/or content from an opened file descriptor.
+ * \param ser TCP/TLS session object
+ * \param urih Registered URI handler struct for the URI.
+ * \param uri Remaining request URI path (also with the get_params removed).
+ * \param method enum ast_http_method GET, POST, etc.
+ * \param get_params URI argument list passed with the HTTP request.
+ * \param headers HTTP request header-name/value pair list
+ *
+ * \note Should use the ast_http_send() function for sending content
+ * allocated with ast_str and/or content from an opened file descriptor.
  *
  * Status and status text should be sent as arguments to the ast_http_send()
  * function to reflect the status of the request (200 or 304, for example).
  * Content length is calculated by ast_http_send() automatically.
  *
- * Static content may be indicated to the ast_http_send() function, to indicate
- * that it may be cached.
+ * Static content may be indicated to the ast_http_send() function,
+ * to indicate that it may be cached.
  *
- * \verbatim
- * The return value may include additional headers at the front and MUST
- * include a blank line with \r\n to provide separation between user headers
- * and content (even if no content is specified)
- * \endverbatim
+ * For a need authentication response, the ast_http_auth() function
+ * should be used.
  *
- * For an error response, the ast_http_error() function may be used.
-*/
+ * For an error response, the ast_http_error() function should be used.
+ *
+ * \retval 0 Continue and process the next HTTP request.
+ * \retval -1 Fatal HTTP connection error.  Force the HTTP connection closed.
+ */
 typedef int (*ast_http_callback)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_params, struct ast_variable *headers);
 
 /*! \brief Definition of a URI handler */
@@ -141,26 +147,30 @@ void ast_http_uri_unlink(struct ast_http_uri *urihandler);
 /*! \brief Unregister all handlers with matching key */
 void ast_http_uri_unlink_all_with_key(const char *key);
 
-/*!\brief Return http method name string
+/*!
+ * \brief Return http method name string
  * \since 1.8
  */
 const char *ast_get_http_method(enum ast_http_method method) attribute_pure;
 
-/*!\brief Return mime type based on extension
+/*!
+ * \brief Return mime type based on extension
  * \param ftype filename extension
  * \return String containing associated MIME type
  * \since 1.8
  */
 const char *ast_http_ftype2mtype(const char *ftype) attribute_pure;
 
-/*!\brief Return manager id, if exist, from request headers
+/*!
+ * \brief Return manager id, if exist, from request headers
  * \param headers List of HTTP headers
  * \return 32-bit associated manager session identifier
  * \since 1.8
  */
 uint32_t ast_http_manid_from_vars(struct ast_variable *headers) attribute_pure;
 
-/*! \brief Generic function for sending http/1.1 response.
+/*!
+ * \brief Generic function for sending HTTP/1.1 response.
  * \param ser TCP/TLS session object
  * \param method GET/POST/HEAD
  * \param status_code HTTP response code (200/401/403/404/500)
@@ -186,12 +196,14 @@ uint32_t ast_http_manid_from_vars(struct ast_variable *headers) attribute_pure;
  *
  * \since 1.8
  */
-void ast_http_send(struct ast_tcptls_session_instance *ser, enum ast_http_method method, int status_code, const char *status_title, struct ast_str *http_header, struct ast_str *out, const int fd, unsigned int static_content);
+void ast_http_send(struct ast_tcptls_session_instance *ser, enum ast_http_method method,
+	int status_code, const char *status_title, struct ast_str *http_header,
+	struct ast_str *out, int fd, unsigned int static_content);
 
-/*!\brief Send http "401 Unauthorized" response and close socket */
+/*! \brief Send http "401 Unauthorized" response and close socket */
 void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm, const unsigned long nonce, const unsigned long opaque, int stale, const char *text);
 
-/*!\brief Send HTTP error message and close socket */
+/*! \brief Send HTTP error message and close socket */
 void ast_http_error(struct ast_tcptls_session_instance *ser, int status, const char *title, const char *text);
 
 /*!
@@ -202,8 +214,42 @@ void ast_http_error(struct ast_tcptls_session_instance *ser, int status, const c
  */
 void ast_http_prefix(char *buf, int len);
 
+/*!
+ * \brief Request the HTTP connection be closed after this HTTP request.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ *
+ * \note Call before ast_http_error() to make the connection close.
+ *
+ * \return Nothing
+ */
+void ast_http_request_close_on_completion(struct ast_tcptls_session_instance *ser);
 
-/*!\brief Get post variables from client Request Entity-Body, if content type is application/x-www-form-urlencoded.
+/*!
+ * \brief Update the body read success status.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ * \param read_success TRUE if body was read successfully.
+ *
+ * \return Nothing
+ */
+void ast_http_body_read_status(struct ast_tcptls_session_instance *ser, int read_success);
+
+/*!
+ * \brief Read and discard any unread HTTP request body.
+ * \since 12.4.0
+ *
+ * \param ser HTTP TCP/TLS session object.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_http_body_discard(struct ast_tcptls_session_instance *ser);
+
+/*!
+ * \brief Get post variables from client Request Entity-Body, if content type is application/x-www-form-urlencoded.
  * \param ser TCP/TLS session object
  * \param headers List of HTTP headers
  * \return List of variables within the POST body
@@ -214,7 +260,8 @@ struct ast_variable *ast_http_get_post_vars(struct ast_tcptls_session_instance *
 
 struct ast_json;
 
-/*!\brief Get JSON from client Request Entity-Body, if content type is
+/*!
+ * \brief Get JSON from client Request Entity-Body, if content type is
  *        application/json.
  * \param ser TCP/TLS session object
  * \param headers List of HTTP headers
