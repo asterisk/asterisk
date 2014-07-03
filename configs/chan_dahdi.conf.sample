@@ -196,6 +196,23 @@ context=public
 ;
 ;resetinterval = 3600
 ;
+; Assume inband audio may be present when a SETUP ACK message is received.
+; Q.931 Section 5.1.3 says that in scenarios with overlap dialing, when a
+; dialtone is sent from the network side, progress indicator 8 "Inband info
+; now available" MAY be sent to the CPE if no digits were received with
+; the SETUP.  It is thus implied that the ie is mandatory if digits came
+; with the SETUP and dialtone is needed.
+; This option should be enabled, when the network sends dialtone and you
+; want to hear it, but the network doesn't send the progress indicator when
+; needed.
+;
+; NOTE: For Q.SIG setups this option should be enabled when outgoing overlap
+; dialing is also enabled because Q.SIG does not send the progress indicator
+; with the SETUP ACK.
+; Default no.
+;
+;inband_on_setup_ack=yes
+;
 ; Assume inband audio may be present when a PROCEEDING message is received.
 ; Q.931 Section 5.1.2 says the network cannot assume that the CPE side has
 ; attached to the B channel at this time without explicitly sending the

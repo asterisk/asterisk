@@ -1650,6 +1650,9 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 #if defined(HAVE_PRI_CALL_WAITING)
 		new_chan->is_call_waiting = old_chan->is_call_waiting;
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#if defined(HAVE_PRI_SETUP_ACK_INBAND)
+		new_chan->no_dialed_digits = old_chan->no_dialed_digits;
+#endif	/* defined(HAVE_PRI_SETUP_ACK_INBAND) */
 
 #if defined(HAVE_PRI_AOC_EVENTS)
 		old_chan->aoc_s_request_invoke_id_valid = 0;
@@ -1665,6 +1668,9 @@ static int pri_fixup_principle(struct sig_pri_span *pri, int principle, q931_cal
 #if defined(HAVE_PRI_CALL_WAITING)
 		old_chan->is_call_waiting = 0;
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#if defined(HAVE_PRI_SETUP_ACK_INBAND)
+		old_chan->no_dialed_digits = 0;
+#endif	/* defined(HAVE_PRI_SETUP_ACK_INBAND) */
 
 		/* More stuff to transfer to the new channel. */
 		new_chan->call_level = old_chan->call_level;
@@ -7518,8 +7524,19 @@ static void *pri_dchannel(void *vpri)
 					 * We explicitly DO NOT want to check PRI_PROG_CALL_NOT_E2E_ISDN
 					 * because it will mess up ISDN to SIP interoperability for
 					 * the ALERTING message.
+					 *
+					 * Q.931 Section 5.1.3 says that in scenarios with overlap
+					 * dialing where no called digits are received and the tone
+					 * option requires dialtone, the switch MAY send an inband
+					 * progress indication ie to indicate dialtone presence in
+					 * the SETUP ACKNOWLEDGE.  Therefore, if we did not send any
+					 * digits with the SETUP then we must assume that dialtone
+					 * is present and open the voice path.  Fortunately when
+					 * interoperating with SIP, we should be sending digits.
 					 */
-					&& (e->setup_ack.progressmask & PRI_PROG_INBAND_AVAILABLE)
+					&& ((e->setup_ack.progressmask & PRI_PROG_INBAND_AVAILABLE)
+						|| pri->inband_on_setup_ack
+						|| pri->pvts[chanpos]->no_dialed_digits)
 #endif	/* defined(HAVE_PRI_SETUP_ACK_INBAND) */
 					) {
 					/*
@@ -8149,7 +8166,12 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 	if (!keypad || !ast_strlen_zero(c + p->stripmsd + dp_strip))
 #endif	/* defined(HAVE_PRI_SETUP_KEYPAD) */
 	{
-		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan, s ? 1 : 0);
+		char *called = c + p->stripmsd + dp_strip;
+
+		pri_sr_set_called(sr, called, pridialplan, s ? 1 : 0);
+#if defined(HAVE_PRI_SETUP_ACK_INBAND)
+		p->no_dialed_digits = !called[0];
+#endif	/* defined(HAVE_PRI_SETUP_ACK_INBAND) */
 	}
 
 #if defined(HAVE_PRI_SUBADDR)

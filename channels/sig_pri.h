@@ -347,6 +347,10 @@ struct sig_pri_chan {
 	/*! \brief TRUE if this is a call waiting call */
 	unsigned int is_call_waiting:1;
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
+#if defined(HAVE_PRI_SETUP_ACK_INBAND)
+	/*! TRUE if outgoing SETUP had no called digits */
+	unsigned int no_dialed_digits:1;
+#endif	/* defined(HAVE_PRI_SETUP_ACK_INBAND) */
 
 	struct ast_channel *owner;
 
@@ -485,6 +489,8 @@ struct sig_pri_span {
 	 * appended to the initial_user_tag[].
 	 */
 	unsigned int append_msn_to_user_tag:1;
+	/*! TRUE if a SETUP ACK message needs to open the audio path. */
+	unsigned int inband_on_setup_ack:1;
 	/*! TRUE if a PROCEEDING message needs to unsquelch the received audio. */
 	unsigned int inband_on_proceeding:1;
 #if defined(HAVE_PRI_MCID)

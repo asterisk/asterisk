@@ -120,9 +120,41 @@ CDRs:
 chan_dahdi:
  - SS7 support now requires libss7 v2.0 or later.
 
+ - Added the inband_on_setup_ack compatibility option to chan_dahdi.conf to
+   deal with switches that don't send an inband progress indication in the
+   SETUP ACKNOWLEDGE message.
+   Default is now no.
+
+chan_pjsip:
+ - Added a 'force_avp' option to chan_pjsip which will force the usage of
+   'RTP/AVP', 'RTP/AVPF', 'RTP/SAVP', or 'RTP/SAVPF' as the media transport type
+   in SDP offers depending on settings, even when DTLS is used for media
+   encryption.
+
+ - Added a 'media_use_received_transport' option to chan_pjsip which will
+   cause the SDP answer to use the media transport as received in the SDP
+   offer.
+
 chan_sip:
  - Made set SIPREFERREDBYHDR as inheritable for better chan_pjsip
    interoperability.
+
+ - Added a 'force_avp' option for chan_sip. When enabled this option will
+   cause the media transport in the offer or answer SDP to be 'RTP/AVP',
+   'RTP/AVPF', 'RTP/SAVP', or 'RTP/SAVPF' even if a DTLS stream has been
+   configured. This option can be set to improve interoperability with WebRTC
+   clients that don't use the RFC defined transport for DTLS.
+
+ - The 'dtlsverify' option in chan_sip now has additional values besides
+   'yes' and 'no'. If 'yes' is specified both the certificate and fingerprint
+   will be verified. If 'no' is specified then neither the certificate or
+   fingerprint is verified. If 'certificate' is specified then only the
+   certificate is verified. If 'fingerprint' is specified then only the
+   fingerprint is verified.
+
+ - A 'dtlsfingerprint' option has been added to chan_sip which allows the
+   hash to be specified for the DTLS fingerprint placed in SDP. Supported
+   values are 'sha-1' and 'sha-256' with 'sha-256' being the default.
 
 CLI commands:
  - "core show settings" now lists the current console verbosity in addition
@@ -231,11 +263,12 @@ Utilities:
    in contrib/scripts.
 
 WebSockets:
- - Added a compatibility option for ari, chan_sip, and chan_pjsip
+ - Added a compatibility option to ari.conf, sip.conf, and pjsip.conf
    'websocket_write_timeout'. When a websocket connection exists where Asterisk
    writes a substantial amount of data to the connected client, and the connected
    client is slow to process the received data, the socket may be disconnected.
-   In such cases, it may be necessary to adjust this value. Default is 100 ms.
+   In such cases, it may be necessary to adjust this value.
+   Default is 100 ms.
 
 
 ===========================================================
