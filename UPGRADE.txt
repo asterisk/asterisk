@@ -18,6 +18,11 @@
 ===
 ===========================================================
 
+from 1.8.28.2 to 1.8.29.0:
+* Added the inband_on_setup_ack compatibility option to chan_dahdi.conf to
+  deal with switches that don't send an inband progress indication in the
+  SETUP ACKNOWLEDGE message.
+
 from 1.8.28.0 to 1.8.28.1:
 * Added http.conf session_inactivity timer option to close HTTP connections
   that aren't doing anything.
