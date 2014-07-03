@@ -825,6 +825,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		}
 	}
 
+#ifdef HAVE_OPENSSL_EC
+
 	if (!ast_strlen_zero(cfg->pvtfile)) {
 		BIO *bio = BIO_new_file(cfg->pvtfile, "r");
 		if (bio != NULL) {
@@ -856,6 +858,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			EC_KEY_free(ecdh);
 		}
 	}
+
+#endif /* #ifdef HAVE_OPENSSL_EC */
 
 	ast_verb(2, "TLS/SSL certificate ok\n");	/* We should log which one that is ok. This message doesn't really make sense in production use */
 	return 1;
