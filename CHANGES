@@ -40,6 +40,26 @@ chan_dahdi
  * Added several SS7 config option parameters described in
    chan_dahdi.conf.sample.
 
+Core
+------------------
+ * The TLS core in Asterisk now supports Perfect Forward Secrecy (PFS).
+   Enabling PFS is attempted by default, and is dependent on the configuration
+   of the module using TLS.
+   - Ephemeral ECDH (ECDHE) is enabled by default. To disable it, do not
+     specify a ECDHE cipher suite in sip.conf, for example:
+       tlscipher=AES128-SHA:DES-CBC3-SHA
+   - Ephemeral DH (DHE) is disabled by default. To enable it, add DH parameters
+     into the private key file, e.g., sip.conf tlsprivatekey. For example, the
+     default dh2048.pem - see
+     http://www.opensource.apple.com/source/OpenSSL098/OpenSSL098-35.1/src/apps/dh2048.pem?txt
+   - Because clients expect the server to prefer PFS, and because OpenSSL sorts
+     its cipher suites by bit strength, see "openssl ciphers -v DEFAULT".
+     Consider re-ordering your cipher suites in the respective configuration
+     file. For example:
+       tlscipher=AES128+kEECDH:AES128+kEDH:3DES+kEDH:AES128-SHA:DES-CBC3-SHA:-ADH:-AECDH
+     will use PFS when offered by the client. Clients which do not offer PFS
+     fall-back to AES-128 (or even 3DES, as recommended by RFC 3261).
+
 Features
 ------------------
  * The ast_channel_feature_hooks* functions have been added to allow features
