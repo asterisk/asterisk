@@ -1411,11 +1411,18 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 		}
 	}
 
+	errno = 0;
 	while (fflush(f)) {
 		if (errno == EAGAIN || errno == EINTR) {
+			/* fflush() does not appear to reset errno if it flushes
+			 * and reaches EOF at the same time. It returns EOF with
+			 * the last seen value of errno, causing a possible loop.
+			 * Also usleep() to reduce CPU eating if it does loop */
+			errno = 0;
+			usleep(1);
 			continue;
 		}
-		if (!feof(f)) {
+		if (errno && !feof(f)) {
 			/* Don't spam the logs if it was just that the connection is closed. */
 			ast_log(LOG_ERROR, "fflush() returned error: %s\n", strerror(errno));
 		}
