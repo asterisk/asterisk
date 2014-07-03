@@ -20,6 +20,10 @@ AMI
    res_manager_presence_state.so. If the high frequency of these events is
    problematic for you, do not load these modules.
 
+ * Added DialplanExtensionAdd and DialplanExtensionRemove AMI commands. They
+   work in basically the same way as the 'dialplan add extension' and
+   'dialplan remove extension' CLI commands respectively.
+
  * New AMI action LoggerRotate reloads and rotates logger in the same manner
    as CLI command 'logger rotate'
 

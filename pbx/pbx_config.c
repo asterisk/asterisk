@@ -27,6 +27,59 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<manager name="DialplanExtensionAdd" language="en_US">
+		<synopsis>
+			Add an extension to the dialplan
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>Context where the extension will be created. The context will
+				be created if it does not already exist.</para>
+			</parameter>
+			<parameter name="Extension" required="true">
+				<para>Name of the extension that will be created (may include callerid match by separating
+				with '/')</para>
+			</parameter>
+			<parameter name="Priority" required="true">
+				<para>Priority being added to this extension. Must be either <literal>hint</literal> or a
+				numerical value.</para>
+			</parameter>
+			<parameter name="Application" required="true">
+				<para>The application to use for this extension at the requested priority</para>
+			</parameter>
+			<parameter name="ApplicationData" required="false">
+				<para>Arguments to the application.</para>
+			</parameter>
+			<parameter name="Replace" required="false">
+				<para>If set to 'yes', '1', 'true' or any of the other values we evaluate as true, then
+				if an extension already exists at the requested context, extension, and priority it will
+				be overwritten. Otherwise, the existing extension will remain and the action will fail.
+				</para>
+			</parameter>
+		</syntax>
+	</manager>
+	<manager name="DialplanExtensionRemove" language="en_US">
+		<synopsis>
+			Remove an extension from the dialplan
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Context" required="true">
+				<para>Context of the extension being removed</para>
+			</parameter>
+			<parameter name="Extension" required="true">
+				<para>Name of the extension being removed (may include callerid match by separating with '/')</para>
+			</parameter>
+			<parameter name="Priority" required="false">
+				<para>If provided, only remove this priority from the extension instead of all
+				priorities in the extension.</para>
+			</parameter>
+		</syntax>
+	</manager>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -430,6 +483,54 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 	}
 	free(exten);
 	return ret;
+}
+
+static int manager_dialplan_extension_remove(struct mansession *s, const struct message *m)
+{
+	const char *context = astman_get_header(m, "Context");
+	const char *extension = astman_get_header(m, "Extension");
+	const char *priority = astman_get_header(m, "Priority");
+
+	int ipriority;
+	char *exten;
+	char *cidmatch = NULL;
+
+	if (ast_strlen_zero(context) || ast_strlen_zero(extension)) {
+		astman_send_error(s, m, "Context and Extension must be provided "
+			"for DialplanExtensionRemove");
+		return 0;
+	}
+
+	exten = ast_strdupa(extension);
+
+	if (strchr(exten, '/')) {
+		cidmatch = exten;
+		strsep(&cidmatch, "/");
+	}
+
+	if (ast_strlen_zero(priority)) {
+		ipriority = 0;
+	} else if (!strcmp("hint", priority)) {
+		ipriority = PRIORITY_HINT;
+	} else if ((sscanf(priority, "%30d", &ipriority) != 1) || ipriority <= 0) {
+		astman_send_error(s, m, "The priority specified was invalid.");
+		return 0;
+	}
+
+	if (!ast_context_remove_extension_callerid(context, exten, ipriority,
+			/* Do not substitute S_OR; it is not the same thing */
+			!ast_strlen_zero(cidmatch) ? cidmatch : (ipriority ? "" : NULL),
+			!ast_strlen_zero(cidmatch) ? 1 : 0, registrar)) {
+		if (ipriority) {
+			astman_send_ack(s, m, "Removed the requested priority from the extension");
+		} else {
+			astman_send_ack(s, m, "Removed the requested extension");
+		}
+	} else {
+		astman_send_error(s, m, "Failed to remove requested extension");
+	}
+
+	return 0;
 }
 
 static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
@@ -1055,6 +1156,88 @@ static char *handle_cli_dialplan_add_extension(struct ast_cli_entry *e, int cmd,
 	return CLI_SUCCESS;
 }
 
+static int manager_dialplan_extension_add(struct mansession *s, const struct message *m)
+{
+	const char *context = astman_get_header(m, "Context");
+	const char *extension = astman_get_header(m, "Extension");
+	const char *priority = astman_get_header(m, "Priority");
+	const char *application = astman_get_header(m, "Application");
+	const char *application_data = astman_get_header(m, "ApplicationData");
+	int replace = ast_true(astman_get_header(m, "Replace"));
+	int ipriority;
+	char *exten;
+	char *cidmatch = NULL;
+	struct ast_context *add_context;
+
+	if (ast_strlen_zero(context) || ast_strlen_zero(extension) ||
+			ast_strlen_zero(priority) || ast_strlen_zero(application)) {
+		astman_send_error(s, m, "Context, Extension, Priority, and "
+			"Application must be defined for DialplanExtensionAdd.");
+		return 0;
+	}
+
+	/* Priority conversion/validation */
+	if (!strcmp(priority, "hint")) {
+		ipriority = PRIORITY_HINT;
+	} else if ((sscanf(priority, "%30d", &ipriority) != 1) || (ipriority < 0)) {
+		astman_send_error(s, m, "The priority specified was invalid.");
+		return 0;
+	}
+
+	/* Split extension from cidmatch */
+	exten = ast_strdupa(extension);
+
+	if (strchr(exten, '/')) {
+		cidmatch = exten;
+		strsep(&cidmatch, "/");
+	}
+
+	if (ast_wrlock_contexts()) {
+		astman_send_error(s, m, "Failed to lock contexts list. Try again later.");
+		return 0;
+	}
+
+	add_context = ast_context_find_or_create(NULL, NULL, context, registrar);
+	if (!add_context) {
+		astman_send_error(s, m, "Could not find or create context specified "
+			"for the extension.");
+		ast_unlock_contexts();
+		return 0;
+	}
+
+	if (ast_add_extension2(add_context, replace, exten, ipriority, NULL, cidmatch,
+			application, ast_strdup(application_data), ast_free_ptr, registrar)) {
+		ast_unlock_contexts();
+		switch (errno) {
+		case ENOMEM:
+			astman_send_error(s, m, "Out of Memory");
+			break;
+
+		case EBUSY:
+			astman_send_error(s, m, "Failed to lock context(s) list");
+			break;
+
+		case ENOENT:
+			astman_send_error(s, m, "Context does not exist");
+			break;
+
+		case EEXIST:
+			astman_send_error(s, m, "That extension and priority already exist at that context");
+			break;
+
+		default:
+			astman_send_error(s, m, "Failed to add extension");
+			break;
+		}
+		return 0;
+	}
+	ast_unlock_contexts();
+
+	astman_send_ack(s, m, "Added requested extension");
+
+	return 0;
+}
+
 static char *complete_dialplan_remove_context(struct ast_cli_args *a)
 {
 	struct ast_context *c = NULL;
@@ -1393,6 +1576,9 @@ static struct ast_cli_entry cli_pbx_config[] = {
 static struct ast_cli_entry cli_dialplan_save =
 	AST_CLI_DEFINE(handle_cli_dialplan_save, "Save dialplan");
 
+#define AMI_EXTENSION_ADD "DialplanExtensionAdd"
+#define AMI_EXTENSION_REMOVE "DialplanExtensionRemove"
+
 /*!
  * Standard module functions ...
  */
@@ -1404,6 +1590,8 @@ static int unload_module(void)
 		ast_free(overrideswitch_config);
 	}
 	ast_cli_unregister_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
+	ast_manager_unregister(AMI_EXTENSION_ADD);
+	ast_manager_unregister(AMI_EXTENSION_REMOVE);
 	ast_context_destroy(NULL, registrar);
 	return 0;
 }
@@ -1870,9 +2058,21 @@ static int pbx_load_module(void)
 
 static int load_module(void)
 {
+	int res;
+
 	if (static_config && !write_protect_config)
 		ast_cli_register(&cli_dialplan_save);
 	ast_cli_register_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
+
+	res = ast_manager_register_xml_core(AMI_EXTENSION_ADD,
+		EVENT_FLAG_SYSTEM, manager_dialplan_extension_add);
+	res |= ast_manager_register_xml_core(AMI_EXTENSION_REMOVE,
+		EVENT_FLAG_SYSTEM, manager_dialplan_extension_remove);
+
+	if (res) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	if (pbx_load_module())
 		return AST_MODULE_LOAD_DECLINE;

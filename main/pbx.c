@@ -10046,8 +10046,8 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 			ast_unlock_context(con);
 		}
 		if (res < 0) {
-			errno = EEXIST;	/* XXX do we care ? */
-			return 0; /* XXX should we return -1 maybe ? */
+			errno = EEXIST;
+			return -1;
 		}
 	} else {
 		/*
