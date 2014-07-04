@@ -2366,9 +2366,6 @@ if test "x${PBX_UNIXODBC}" = "x1" -o "x${PBX_IODBC}" = "x1"; then
 	)
 fi
 
-AC_CHECK_HEADER([h323.h], [PBX_H323=1], [PBX_H323=0])
-AC_SUBST(PBX_H323)
-
 AC_CHECK_HEADER([linux/compiler.h],
                 [AC_DEFINE_UNQUOTED([HAVE_LINUX_COMPILER_H], 1, [Define to 1 if your system has linux/compiler.h.])])
 
@@ -2453,6 +2450,7 @@ else
 	touch makeopts.acbak
 fi
 
+AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AST_CHECK_MANDATORY
 
 if test -f build_tools/menuselect-deps; then

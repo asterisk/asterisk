@@ -171,13 +171,6 @@ AST_EMBED_LDFLAGS:=$(foreach dep,$(EMBED_LDFLAGS),$(value $(dep)))
 AST_EMBED_LIBS:=$(foreach dep,$(EMBED_LIBS),$(value $(dep)))
 OBJS:=$(sort $(OBJS))
 
-ifneq ($(wildcard ../channels/h323/Makefile.ast),)
-  include ../channels/h323/Makefile.ast
-else
-  H323LDFLAGS=
-  H323LDLIBS=
-endif
-
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
 MAIN_TGT:=asterisk.dll
 asterisk: cygload
@@ -254,11 +247,6 @@ tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
 $(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)
 	$(ECHO_PREFIX) echo "   [LD] $(OBJS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) -> $@"
-ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
-	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
-else
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
-endif
 
 ifeq ($(GNU_LD),1)
 $(MAIN_TGT): asterisk.exports
