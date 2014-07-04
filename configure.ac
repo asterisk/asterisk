@@ -2453,7 +2453,6 @@ else
 	touch makeopts.acbak
 fi
 
-AC_CONFIG_FILES([build_tools/menuselect-deps makeopts channels/h323/Makefile])
 AST_CHECK_MANDATORY
 
 if test -f build_tools/menuselect-deps; then
