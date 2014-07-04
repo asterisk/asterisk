@@ -303,7 +303,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 	struct ast_variable *var = realtime_common(context, exten, priority, data, MODE_MATCH);
 
 	if (var) {
-		char *tmp="";
+		char *appdata_tmp = "";
 		char *app = NULL;
 		struct ast_variable *v;
 
@@ -311,31 +311,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 			if (!strcasecmp(v->name, "app"))
 				app = ast_strdupa(v->value);
 			else if (!strcasecmp(v->name, "appdata")) {
-				if (ast_compat_pbx_realtime) {
-					char *ptr;
-					int in = 0;
-					tmp = ast_alloca(strlen(v->value) * 2 + 1);
-					for (ptr = tmp; *v->value; v->value++) {
-						if (*v->value == ',') {
-							*ptr++ = '\\';
-							*ptr++ = ',';
-						} else if (*v->value == '|' && !in) {
-							*ptr++ = ',';
-						} else {
-							*ptr++ = *v->value;
-						}
-
-						/* Don't escape '|', meaning 'or', inside expressions ($[ ]) */
-						if (v->value[0] == '[' && v->value[-1] == '$') {
-							in++;
-						} else if (v->value[0] == ']' && in) {
-							in--;
-						}
-					}
-					*ptr = '\0';
-				} else {
-					tmp = ast_strdupa(v->value);
-				}
+				appdata_tmp = ast_strdupa(v->value);
 			}
 		}
 		ast_variables_destroy(var);
@@ -350,8 +326,8 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 				appdata[0] = 0; /* just in case the substitute var func isn't called */
-				if(!ast_strlen_zero(tmp))
-					pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
+				if(!ast_strlen_zero(appdata_tmp))
+					pbx_substitute_variables_helper(chan, appdata_tmp, appdata, sizeof(appdata) - 1);
 				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
 						ast_channel_exten(chan), ast_channel_context(chan), ast_channel_priority(chan),
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),

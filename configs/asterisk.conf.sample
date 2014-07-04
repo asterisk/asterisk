@@ -95,8 +95,3 @@ documentation_language = en_US	; Set the language you want documentation
 ;astctlowner = root
 ;astctlgroup = apache
 ;astctl = asterisk.ctl
-
-[compat]
-pbx_realtime=1.6
-res_agi=1.6
-app_set=1.6

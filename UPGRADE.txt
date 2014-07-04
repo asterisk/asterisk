@@ -43,6 +43,13 @@ From 12 to 13:
    directly. This change also includes a new script, refcounter.py, in the
    contrib folder that will process the refs log file.
 
+ - The asterisk compatibility options in asterisk.conf have been removed.
+   These options enabled certain backwards compatibility features for
+   pbx_realtime, res_agi, and app_set that made their behaviour similar to
+   Asterisk 1.4. Users who used these backwards compatibility settings should
+   update their dialplans to use ',' instead of '|' as a delimiter, and should
+   use the Set dialplan application instead of the MSet dialplan application.
+
 ARI:
  - The ARI version has been changed from 1.0.0 to 1.1.0. This is to reflect
    the backwards compatible changes listed below.
@@ -117,6 +124,9 @@ CDRs:
    handler subroutine). In general, this is not the preferred default: this
    causes extra CDRs to be generated for a channel in many common dialplans.
 
+ - The cdr_sqlite module was deprecated and has been removed. Users of this
+   module should use the cdr_sqlite3_custom module instead.
+
 chan_dahdi:
  - SS7 support now requires libss7 v2.0 or later.
 
@@ -124,6 +134,18 @@ chan_dahdi:
    deal with switches that don't send an inband progress indication in the
    SETUP ACKNOWLEDGE message.
    Default is now no.
+
+chan_gtalk
+ - This module was deprecated and has been removed. Users of chan_gtalk
+   should use chan_motif.
+
+chan_h323
+ - This module was deprecated and has been removed. Users of chan_h323
+   should use chan_ooh323.
+
+chan_jingle
+ - This module was deprecated and has been removed. Users of chan_jingle
+   should use chan_motif.
 
 chan_pjsip:
  - Added a 'force_avp' option to chan_pjsip which will force the usage of
@@ -138,6 +160,13 @@ chan_pjsip:
 chan_sip:
  - Made set SIPREFERREDBYHDR as inheritable for better chan_pjsip
    interoperability.
+
+ - The SIPPEER dialplan function no longer supports using a colon as a
+   delimiter for parameters. The parameters for the function should be
+   delimited using a comma.
+
+ - The SIPCHANINFO dialplan function was deprecated and has been removed. Users
+   of the function should use the CHANNEL function instead.
 
  - Added a 'force_avp' option for chan_sip. When enabled this option will
    cause the media transport in the offer or answer SDP to be 'RTP/AVP',
@@ -195,6 +224,15 @@ HTTP:
    keep alive time between HTTP requests is configured in http.conf with the
    session_keep_alive parameter.
 
+MusicOnHold
+ - The SetMusicOnHold dialplan application was deprecated and has been removed.
+   Users of the application should use the CHANNEL function's musicclass
+   setting instead.
+
+ - The WaitMusicOnHold dialplan application was deprecated and has been
+   removed. Users of the application should use MusicOnHold with a duration
+   parameter instead.
+
 ODBC:
 - The compatibility setting, allow_empty_string_in_nontext, has been removed.
   Empty column values will be stored as empty strings during realtime updates.
@@ -241,6 +279,10 @@ Realtime Configuration:
  - A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
 
+res_jabber:
+ - This module was deprecated and has been removed. Users of this module should
+   use res_xmpp instead.
+
 safe_asterisk:
  - The safe_asterisk script was previously not installed on top of an existing
    version. This caused bug-fixes in that script not to be deployed. If your
@@ -269,7 +311,6 @@ WebSockets:
    client is slow to process the received data, the socket may be disconnected.
    In such cases, it may be necessary to adjust this value.
    Default is 100 ms.
-
 
 ===========================================================
 ===========================================================

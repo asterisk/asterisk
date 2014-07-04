@@ -37,8 +37,6 @@ void ast_register_file_version(const char *file, const char *version) { }
 void ast_unregister_file_version(const char *file) { }
 #endif
 
-struct ast_flags ast_compat = { 7 };
-
 /*** MODULEINFO
   	<depend>res_ael_share</depend>
  ***/

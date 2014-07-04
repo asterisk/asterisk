@@ -111,7 +111,7 @@
  * \todo Fix TCP/TLS handling in dialplan, SRV records, transfers and much more
  * \todo Save TCP/TLS sessions in registry
  *	If someone registers a SIPS uri, this forces us to set up a TLS connection back.
- * \todo Add TCP/TLS information to function SIPPEER and SIPCHANINFO
+ * \todo Add TCP/TLS information to function SIPPEER and CHANNEL function
  * \todo If tcpenable=yes, we must open a TCP socket on the same address as the IP for UDP.
  * 	The tcpbindaddr config option should only be used to open ADDITIONAL ports
  * 	So we should propably go back to
@@ -457,40 +457,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</enum>
 					<enum name="codec[x]">
 						<para>Preferred codec index number <replaceable>x</replaceable> (beginning with zero).</para>
-					</enum>
-				</enumlist>
-			</parameter>
-		</syntax>
-		<description></description>
-	</function>
-	<function name="SIPCHANINFO" language="en_US">
-		<synopsis>
-			Gets the specified SIP parameter from the current channel.
-		</synopsis>
-		<syntax>
-			<parameter name="item" required="true">
-				<enumlist>
-					<enum name="peerip">
-						<para>The IP address of the peer.</para>
-					</enum>
-					<enum name="recvip">
-						<para>The source IP address of the peer.</para>
-					</enum>
-					<enum name="from">
-						<para>The SIP URI from the <literal>From:</literal> header.</para>
-					</enum>
-					<enum name="uri">
-						<para>The SIP URI from the <literal>Contact:</literal> header.</para>
-					</enum>
-					<enum name="useragent">
-						<para>The Useragent header used by the peer.</para>
-					</enum>
-					<enum name="peername">
-						<para>The name of the peer.</para>
-					</enum>
-					<enum name="t38passthrough">
-						<para><literal>1</literal> if T38 is offered or enabled in this channel,
-						otherwise <literal>0</literal>.</para>
 					</enum>
 				</enumlist>
 			</parameter>
@@ -22390,15 +22356,11 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	struct sip_peer *peer;
 	char *colname;
 
-	if ((colname = strchr(data, ':'))) {	/*! \todo Will be deprecated after 1.4 */
-		static int deprecation_warning = 0;
+	if ((colname = strchr(data, ','))) {
 		*colname++ = '\0';
-		if (deprecation_warning++ % 10 == 0)
-			ast_log(LOG_WARNING, "SIPPEER(): usage of ':' to separate arguments is deprecated.  Please use ',' instead.\n");
-	} else if ((colname = strchr(data, ',')))
-		*colname++ = '\0';
-	else
+	} else {
 		colname = "ip";
+	}
 
 	if (!(peer = sip_find_peer(data, NULL, TRUE, FINDPEERS, FALSE, 0)))
 		return -1;
@@ -22493,77 +22455,6 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 static struct ast_custom_function sippeer_function = {
 	.name = "SIPPEER",
 	.read = function_sippeer,
-};
-
-/*! \brief ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
-{
-	struct sip_pvt *p;
-	static int deprecated = 0;
-
-	*buf = 0;
-
-	if (!chan) {
-		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
-		return -1;
-	}
-
-	if (!data) {
-		ast_log(LOG_WARNING, "This function requires a parameter name.\n");
-		return -1;
-	}
-
-	ast_channel_lock(chan);
-	if (!IS_SIP_TECH(ast_channel_tech(chan))) {
-		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
-		ast_channel_unlock(chan);
-		return -1;
-	}
-
-	if (deprecated++ % 20 == 0) {
-		/* Deprecated in 1.6.1 */
-		ast_log(LOG_WARNING, "SIPCHANINFO() is deprecated.  Please transition to using CHANNEL().\n");
-	}
-
-	p = ast_channel_tech_pvt(chan);
-
-	/* If there is no private structure, this channel is no longer alive */
-	if (!p) {
-		ast_channel_unlock(chan);
-		return -1;
-	}
-
-	if (!strcasecmp(data, "peerip")) {
-		ast_copy_string(buf, ast_sockaddr_stringify_addr(&p->sa), len);
-	} else  if (!strcasecmp(data, "recvip")) {
-		ast_copy_string(buf, ast_sockaddr_stringify_addr(&p->recv), len);
-	} else  if (!strcasecmp(data, "from")) {
-		ast_copy_string(buf, p->from, len);
-	} else  if (!strcasecmp(data, "uri")) {
-		ast_copy_string(buf, p->uri, len);
-	} else  if (!strcasecmp(data, "useragent")) {
-		ast_copy_string(buf, p->useragent, len);
-	} else  if (!strcasecmp(data, "peername")) {
-		ast_copy_string(buf, p->peername, len);
-	} else if (!strcasecmp(data, "t38passthrough")) {
-		if ((p->t38.state == T38_DISABLED) || (p->t38.state == T38_REJECTED)) {
-			ast_copy_string(buf, "0", len);
-		} else { /* T38 is offered or enabled in this call */
-			ast_copy_string(buf, "1", len);
-		}
-	} else {
-		ast_channel_unlock(chan);
-		return -1;
-	}
-	ast_channel_unlock(chan);
-
-	return 0;
-}
-
-/*! \brief Structure to declare a dialplan function: SIPCHANINFO */
-static struct ast_custom_function sipchaninfo_function = {
-	.name = "SIPCHANINFO",
-	.read = function_sipchaninfo_read,
 };
 
 /*! \brief update redirecting information for a channel based on headers
@@ -34425,7 +34316,6 @@ static int load_module(void)
 	/* Register dialplan functions */
 	ast_custom_function_register(&sip_header_function);
 	ast_custom_function_register(&sippeer_function);
-	ast_custom_function_register(&sipchaninfo_function);
 	ast_custom_function_register(&checksipdomain_function);
 
 	/* Register manager commands */
@@ -34518,7 +34408,6 @@ static int unload_module(void)
 	ast_msg_tech_unregister(&sip_msg_tech);
 
 	/* Unregister dial plan functions */
-	ast_custom_function_unregister(&sipchaninfo_function);
 	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
 	ast_custom_function_unregister(&checksipdomain_function);

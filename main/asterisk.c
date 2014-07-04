@@ -317,7 +317,6 @@ int daemon(int, int);  /* defined in libresolv of all places */
 /*! @{ */
 
 struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
-struct ast_flags ast_compat = { 0 };
 
 /*! Maximum active system verbosity level. */
 int ast_verb_sys_level;
@@ -3646,20 +3645,7 @@ static void ast_readconfig(void)
 	if (!ast_opt_remote) {
 		pbx_live_dangerously(live_dangerously);
 	}
-	for (v = ast_variable_browse(cfg, "compat"); v; v = v->next) {
-		float version;
-		if (sscanf(v->value, "%30f", &version) != 1) {
-			fprintf(stderr, "Compatibility version for option '%s' is not a number: '%s'\n", v->name, v->value);
-			continue;
-		}
-		if (!strcasecmp(v->name, "app_set")) {
-			ast_set2_flag(&ast_compat, version < 1.5 ? 1 : 0, AST_COMPAT_APP_SET);
-		} else if (!strcasecmp(v->name, "res_agi")) {
-			ast_set2_flag(&ast_compat, version < 1.5 ? 1 : 0, AST_COMPAT_DELIM_RES_AGI);
-		} else if (!strcasecmp(v->name, "pbx_realtime")) {
-			ast_set2_flag(&ast_compat, version < 1.5 ? 1 : 0, AST_COMPAT_DELIM_PBX_REALTIME);
-		}
-	}
+
 	ast_config_destroy(cfg);
 }
 

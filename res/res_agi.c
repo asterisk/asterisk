@@ -2767,24 +2767,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 		if (!(workaround = ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS))) {
 			ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}
-		if (ast_compat_res_agi && argc >= 3 && !ast_strlen_zero(argv[2])) {
-			char *compat = ast_alloca(strlen(argv[2]) * 2 + 1), *cptr;
-			const char *vptr;
-			for (cptr = compat, vptr = argv[2]; *vptr; vptr++) {
-				if (*vptr == ',') {
-					*cptr++ = '\\';
-					*cptr++ = ',';
-				} else if (*vptr == '|') {
-					*cptr++ = ',';
-				} else {
-					*cptr++ = *vptr;
-				}
-			}
-			*cptr = '\0';
-			res = pbx_exec(chan, app_to_exec, compat);
-		} else {
-			res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
-		}
+		res = pbx_exec(chan, app_to_exec, argc == 2 ? "" : argv[2]);
 		if (!workaround) {
 			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}

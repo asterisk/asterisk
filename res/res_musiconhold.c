@@ -98,36 +98,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			an application such as Answer() or Progress().</para>
 		</description>
 	</application>
-	<application name="WaitMusicOnHold" language="en_US">
-		<synopsis>
-			Wait, playing Music On Hold.
-		</synopsis>
-		<syntax>
-			<parameter name="delay" required="true" />
-		</syntax>
-		<description>
-			<para> !!! DEPRECATED. Use MusicOnHold instead !!!</para>
-			<para>Plays hold music specified number of seconds. Returns <literal>0</literal> when done,
-			or <literal>-1</literal> on hangup. If no hold music is available, the delay will still occur
-			with no sound.</para>
-			<para> !!! DEPRECATED. Use MusicOnHold instead !!!</para>
-		</description>
-	</application>
-	<application name="SetMusicOnHold" language="en_US">
-		<synopsis>
-			Set default Music On Hold class.
-		</synopsis>
-		<syntax>
-			<parameter name="class" required="yes" />
-		</syntax>
-		<description>
-			<para>!!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!</para>
-			<para>Sets the default class for music on hold for a given channel.
-			When music on hold is activated, this class will be used to select which
-			music is played.</para>
-			<para>!!! DEPRECATED. USe Set(CHANNEL(musicclass)=...) instead !!!</para>
-		</description>
-	</application>
 	<application name="StartMusicOnHold" language="en_US">
 		<synopsis>
 			Play Music On Hold.
@@ -153,8 +123,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 
 static const char play_moh[] = "MusicOnHold";
-static const char wait_moh[] = "WaitMusicOnHold";
-static const char set_moh[] = "SetMusicOnHold";
 static const char start_moh[] = "StartMusicOnHold";
 static const char stop_moh[] = "StopMusicOnHold";
 
@@ -860,46 +828,6 @@ static int play_moh_exec(struct ast_channel *chan, const char *data)
 	ast_moh_stop(chan);
 
 	return res;
-}
-
-static int wait_moh_exec(struct ast_channel *chan, const char *data)
-{
-	static int deprecation_warning = 0;
-	int res;
-
-	if (!deprecation_warning) {
-		deprecation_warning = 1;
-		ast_log(LOG_WARNING, "WaitMusicOnHold application is deprecated and will be removed. Use MusicOnHold with duration parameter instead\n");
-	}
-
-	if (!data || !atoi(data)) {
-		ast_log(LOG_WARNING, "WaitMusicOnHold requires an argument (number of seconds to wait)\n");
-		return -1;
-	}
-	if (ast_moh_start(chan, NULL, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), ast_channel_name(chan));
-		return 0;
-	}
-	res = ast_safe_sleep(chan, atoi(data) * 1000);
-	ast_moh_stop(chan);
-	return res;
-}
-
-static int set_moh_exec(struct ast_channel *chan, const char *data)
-{
-	static int deprecation_warning = 0;
-
-	if (!deprecation_warning) {
-		deprecation_warning = 1;
-		ast_log(LOG_WARNING, "SetMusicOnHold application is deprecated and will be removed. Use Set(CHANNEL(musicclass)=...) instead\n");
-	}
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
-		return -1;
-	}
-	ast_channel_musicclass_set(chan, data);
-	return 0;
 }
 
 static int start_moh_exec(struct ast_channel *chan, const char *data)
@@ -2009,10 +1937,6 @@ static int load_module(void)
 	ast_register_atexit(ast_moh_destroy);
 	ast_cli_register_multiple(cli_moh, ARRAY_LEN(cli_moh));
 	if (!res)
-		res = ast_register_application_xml(wait_moh, wait_moh_exec);
-	if (!res)
-		res = ast_register_application_xml(set_moh, set_moh_exec);
-	if (!res)
 		res = ast_register_application_xml(start_moh, start_moh_exec);
 	if (!res)
 		res = ast_register_application_xml(stop_moh, stop_moh_exec);
@@ -2058,8 +1982,6 @@ static int unload_module(void)
 
 	ast_moh_destroy();
 	res = ast_unregister_application(play_moh);
-	res |= ast_unregister_application(wait_moh);
-	res |= ast_unregister_application(set_moh);
 	res |= ast_unregister_application(start_moh);
 	res |= ast_unregister_application(stop_moh);
 	ast_cli_unregister_multiple(cli_moh, ARRAY_LEN(cli_moh));

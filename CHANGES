@@ -12,6 +12,21 @@
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------
 
+app_dahdibarge
+------------------
+ * This module was deprecated and has been removed. Users of app_dahdibarge
+   should use ChanSpy instead.
+
+app_readfile
+------------------
+ * This module was deprecated and has been removed. Users of app_readfile
+   should use func_env's FILE function instead.
+
+app_saycountpl
+------------------
+ * This module was deprecated and has been removed. Users of app_saycountpl
+   should use the Say family of applications.
+
 AMI
 ------------------
  * New DeviceStateChanged and PresenceStateChanged AMI events have been added.
@@ -30,6 +45,11 @@ AMI
  * New AMI actions PRIDebugSet, PRIDebugFileSet, and PRIDebugFileUnset
    enable manager control over PRI debugging levels and file output.
 
+cdr_sqlite
+-----------------
+ * This module was deprecated and has been removed. Users of cdr_sqlite
+   should use cdr_sqlite3_custom.
+
 CEL
 ------------------
  * The "bridge_technology" extra field key has been added to BRIDGE_ENTER
@@ -46,6 +66,30 @@ chan_dahdi
 
  * Added several SS7 config option parameters described in
    chan_dahdi.conf.sample.
+
+chan_gtalk
+------------------
+ * This module was deprecated and has been removed. Users of chan_gtalk
+   should use chan_motif.
+
+chan_h323
+------------------
+ * This module was deprecated and has been removed. Users of chan_h323
+   should use chan_ooh323.
+
+chan_jingle
+------------------
+ * This module was deprecated and has been removed. Users of chan_jingle
+   should use chan_motif.
+
+chan_sip
+------------------
+ * The SIPPEER dialplan function no longer supports using a colon as a
+   delimiter for parameters. The parameters for the function should be
+   delimited using a comma.
+
+ * The SIPCHANINFO dialplan function was deprecated and has been removed. Users
+   of the function should use the CHANNEL function instead.
 
 Core
 ------------------
@@ -79,6 +123,16 @@ JACK_HOOK
 ------------------
  * The JACK_HOOK function now supports audio with a sample rate higher than
    8kHz.
+
+MusicOnHold
+------------------
+ * The SetMusicOnHold dialplan application was deprecated and has been removed.
+   Users of the application should use the CHANNEL function's musicclass
+   setting instead.
+
+ * The WaitMusicOnHold dialplan application was deprecated and has been
+   removed. Users of the application should use MusicOnHold with a duration
+   parameter instead.
 
 Say
 ------------------

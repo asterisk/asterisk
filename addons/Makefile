@@ -27,7 +27,6 @@ H323OBJS:=ooCmdChannel.o ooLogChan.o ooUtils.o ooGkClient.o context.o \
 H323CFLAGS:=-Iooh323c/src -Iooh323c/src/h323
 
 ALL_C_MODS:=app_mysql \
-            app_saycountpl \
             cdr_mysql \
             chan_mobile \
             chan_ooh323 \
