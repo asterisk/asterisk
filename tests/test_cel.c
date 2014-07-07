@@ -773,6 +773,40 @@ AST_TEST_DEFINE(test_cel_dial_unanswered)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(test_cel_dial_unanswered_filter)
+{
+	RAII_VAR(struct ast_channel *, chan_caller, NULL, safe_channel_release);
+	RAII_VAR(struct ast_channel *, chan_callee, NULL, safe_channel_release);
+	struct ast_party_caller caller = ALICE_CALLERID;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __func__;
+		info->category = TEST_CATEGORY;
+		info->summary = "Test CEL for a dial that isn't answered";
+		info->description =
+			"Test CEL records for a channel that\n"
+			"performs a dial operation that isn't answered\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	CREATE_ALICE_CHANNEL(chan_caller, &caller);
+
+	EMULATE_DIAL(chan_caller, CHANNEL_TECH_NAME "/Bob");
+
+	START_DIALED(chan_caller, chan_callee);
+
+	ast_channel_state_set(chan_caller, AST_STATE_RINGING);
+	ast_channel_publish_dial(chan_caller, chan_callee, NULL, "NOT A VALID DIAL STATUS");
+	ast_channel_publish_dial(chan_caller, chan_callee, NULL, "NOANSWER");
+
+	HANGUP_CHANNEL(chan_caller, AST_CAUSE_NO_ANSWER, "NOANSWER");
+	HANGUP_CHANNEL(chan_callee, AST_CAUSE_NO_ANSWER, "");
+
+	return AST_TEST_PASS;
+}
 
 AST_TEST_DEFINE(test_cel_dial_busy)
 {
@@ -2040,6 +2074,7 @@ static int unload_module(void)
 #endif
 
 	AST_TEST_UNREGISTER(test_cel_dial_unanswered);
+	AST_TEST_UNREGISTER(test_cel_dial_unanswered_filter);
 	AST_TEST_UNREGISTER(test_cel_dial_congestion);
 	AST_TEST_UNREGISTER(test_cel_dial_busy);
 	AST_TEST_UNREGISTER(test_cel_dial_unavailable);
@@ -2114,6 +2149,7 @@ static int load_module(void)
 #endif
 
 	AST_TEST_REGISTER(test_cel_dial_unanswered);
+	AST_TEST_REGISTER(test_cel_dial_unanswered_filter);
 	AST_TEST_REGISTER(test_cel_dial_congestion);
 	AST_TEST_REGISTER(test_cel_dial_busy);
 	AST_TEST_REGISTER(test_cel_dial_unavailable);

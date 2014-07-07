@@ -1510,6 +1510,7 @@ static int call(void *data)
 	int res = ast_sip_session_create_invite(session, &tdata);
 
 	if (res) {
+		ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
 		ast_queue_hangup(session->channel);
 	} else {
 		update_initial_connected_line(session);
@@ -1945,6 +1946,7 @@ static void chan_pjsip_session_end(struct ast_sip_session *session)
 
 	chan_pjsip_remove_hold(ast_channel_uniqueid(session->channel));
 
+	ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
 	if (!ast_channel_hangupcause(session->channel) && session->inv_session) {
 		int cause = hangup_sip2cause(session->inv_session->cause);
 
@@ -2072,6 +2074,8 @@ static struct ast_sip_session_supplement pbx_start_supplement = {
 static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
+	struct ast_control_pvt_cause_code *cause_code;
+	int data_size = sizeof(*cause_code);
 
 	if (!session->channel) {
 		return;
@@ -2095,6 +2099,21 @@ static void chan_pjsip_incoming_response(struct ast_sip_session *session, struct
 	default:
 		break;
 	}
+
+	/* Build and send the tech-specific cause information */
+	/* size of the string making up the cause code is "SIP " number + " " + reason length */
+	data_size += 4 + 4 + pj_strlen(&status.reason);
+	cause_code = ast_alloca(data_size);
+	memset(cause_code, 0, data_size);
+
+	ast_copy_string(cause_code->chan_name, ast_channel_name(session->channel), AST_CHANNEL_NAME);
+
+	snprintf(cause_code->code, data_size - sizeof(*cause_code) + 1, "SIP %d %.*s", status.code,
+		(int) pj_strlen(&status.reason), pj_strbuf(&status.reason));
+
+	cause_code->ast_cause = hangup_sip2cause(status.code);
+	ast_queue_control_data(session->channel, AST_CONTROL_PVT_CAUSE_CODE, cause_code, data_size);
+	ast_channel_hangupcause_hash_set(session->channel, cause_code, data_size);
 }
 
 static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
