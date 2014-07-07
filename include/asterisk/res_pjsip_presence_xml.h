@@ -72,7 +72,7 @@ pj_xml_attr *ast_sip_presence_xml_create_attr(pj_pool_t *pool,
  * \brief Create XML node
  *
  * \param pool Allocation pool
- * \param parent Node that will be parent to the created node
+ * \param parent Optional node that will be parent to the created node
  * \param name The name for the new node
  * \return The created node
  */
