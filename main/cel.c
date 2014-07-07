@@ -1270,6 +1270,35 @@ static void save_dialstatus(struct ast_multi_channel_blob *blob)
 	}
 }
 
+static int is_valid_dialstatus(struct ast_multi_channel_blob *blob)
+{
+	const char *dialstatus = get_blob_variable(blob, "dialstatus");
+	int res = 0;
+
+	if (ast_strlen_zero(dialstatus)) {
+		res = 0;
+	} else if (!strcasecmp(dialstatus, "CHANUNAVAIL")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "CONGESTION")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "NOANSWER")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "BUSY")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "ANSWER")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "CANCEL")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "DONTCALL")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "TORTURE")) {
+		res = 1;
+	} else if (!strcasecmp(dialstatus, "INVALIDARGS")) {
+		res = 1;
+	}
+	return res;
+}
+
 static void cel_dial_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
@@ -1298,11 +1327,9 @@ static void cel_dial_cb(void *data, struct stasis_subscription *sub,
 		}
 	}
 
-	if (ast_strlen_zero(get_blob_variable(blob, "dialstatus"))) {
-		return;
+	if (is_valid_dialstatus(blob)) {
+		save_dialstatus(blob);
 	}
-
-	save_dialstatus(blob);
 }
 
 static void cel_generic_cb(
