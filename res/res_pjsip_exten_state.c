@@ -66,6 +66,7 @@ struct exten_state_subscription {
 };
 
 #define DEFAULT_PRESENCE_BODY "application/pidf+xml"
+#define DEFAULT_DIALOG_BODY "application/dialog-info+xml"
 
 static void subscription_shutdown(struct ast_sip_subscription *sub);
 static int new_subscribe(struct ast_sip_endpoint *endpoint, const char *resource);
@@ -83,6 +84,14 @@ struct ast_sip_notifier presence_notifier = {
 struct ast_sip_subscription_handler presence_handler = {
 	.event_name = "presence",
 	.accept = { DEFAULT_PRESENCE_BODY, },
+	.subscription_shutdown = subscription_shutdown,
+	.to_ami = to_ami,
+	.notifier = &presence_notifier,
+};
+
+struct ast_sip_subscription_handler dialog_handler = {
+	.event_name = "dialog",
+	.accept = { DEFAULT_DIALOG_BODY, },
 	.subscription_shutdown = subscription_shutdown,
 	.to_ami = to_ami,
 	.notifier = &presence_notifier,
@@ -158,6 +167,7 @@ static void send_notify(struct exten_state_subscription *exten_state_sub)
 							  exten_state_sub->exten, &subtype, &message),
 		.presence_subtype = subtype,
 		.presence_message = message,
+		.sub = exten_state_sub->sip_sub,
 		.user_agent = exten_state_sub->user_agent
 	};
 
@@ -249,6 +259,8 @@ static int notify_task(void *obj)
 	/* Pool allocation has to happen here so that we allocate within a PJLIB thread */
 	task_data->exten_state_data.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
 			"exten_state", 1024, 1024);
+
+	task_data->exten_state_data.sub = task_data->exten_state_sub->sip_sub;
 
 	ast_sip_subscription_notify(task_data->exten_state_sub->sip_sub, &task_data->exten_state_data,
 			task_data->terminate);
@@ -439,11 +451,20 @@ static int load_module(void)
 			presence_handler.event_name);
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	if (ast_sip_register_subscription_handler(&dialog_handler)) {
+		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
+			dialog_handler.event_name);
+		ast_sip_unregister_subscription_handler(&presence_handler);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_sip_unregister_subscription_handler(&dialog_handler);
 	ast_sip_unregister_subscription_handler(&presence_handler);
 	return 0;
 }

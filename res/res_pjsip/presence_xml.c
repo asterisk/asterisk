@@ -152,7 +152,10 @@ pj_xml_node *ast_sip_presence_xml_create_node(pj_pool_t *pool,
 	node->content.ptr = NULL;
 	node->content.slen = 0;
 
-	pj_xml_add_node(parent, node);
+	if (parent) {
+		pj_xml_add_node(parent, node);
+	}
+
 	return node;
 }
 

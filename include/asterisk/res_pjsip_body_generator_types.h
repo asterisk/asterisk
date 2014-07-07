@@ -28,6 +28,7 @@
  * \li application/pidf+xml
  * \li application/xpidf+xml
  * \li application/cpim-pidf+xml
+ * \li application/dialog-info+xml
  */
 struct ast_sip_exten_state_data {
 	/*! The extension of the current state change */
@@ -48,6 +49,8 @@ struct ast_sip_exten_state_data {
 	char local[PJSIP_MAX_URL_SIZE];
 	/*! Remote dialog URI */
 	char remote[PJSIP_MAX_URL_SIZE];
+	/*! Optional subscription */
+	struct ast_sip_subscription *sub;
 	/*! Allocation pool */
 	pj_pool_t *pool;
 };
