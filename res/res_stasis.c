@@ -1225,6 +1225,29 @@ static enum stasis_app_subscribe_res app_handle_subscriptions(
 	return STASIS_ASR_OK;
 }
 
+enum stasis_app_subscribe_res stasis_app_subscribe_channel(const char *app_name,
+	struct ast_channel *chan)
+{
+	RAII_VAR(struct stasis_app *, app, find_app_by_name(app_name), ao2_cleanup);
+	int res;
+
+	if (!app) {
+		return STASIS_ASR_APP_NOT_FOUND;
+	}
+
+	ast_debug(3, "%s: Subscribing to %s\n", app_name, ast_channel_uniqueid(chan));
+
+	res = app_subscribe_channel(app, chan);
+	if (res != 0) {
+		ast_log(LOG_ERROR, "Error subscribing app '%s' to channel '%s'\n",
+			app_name, ast_channel_uniqueid(chan));
+		return STASIS_ASR_INTERNAL_ERROR;
+	}
+
+	return STASIS_ASR_OK;
+}
+
+
 /*!
  * \internal
  * \brief Subscribe an app to an event source.
