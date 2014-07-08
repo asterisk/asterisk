@@ -1,0 +1,853 @@
+                                Release Summary
+
+                              asterisk-12.4.0-rc1
+
+                                Date: 2014-07-08
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-12.3.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   21 mjordan               1 Dennis Guse            7 mjordan                
+   13 kmoore                1 George Joseph          5 coreyfarrell           
+   13 rmudgett              1 gtjoseph               4 wdoekes                
+   9 gtjoseph               1 IA+-aki CAvico         2 igorg                  
+   7 wdoekes                1 uniken1                2 mmichelson             
+   5 coreyfarrell                                    2 rmudgett               
+   5 jcolp                                           2 rnewton                
+   5 jrose                                           1 cervajs                
+   4 mmichelson                                      1 dennis.guse            
+   3 newtonr                                         1 devlap                 
+   2 file                                            1 i2045                  
+   1 Alexander Traud                                 1 icivico                
+   1 igorg                                           1 jbigelow               
+   1 jkister                                         1 jfalcon                
+   1 kharwell                                        1 jideliov               
+   1 may                                             1 jkister                
+   1 one47                                           1 jrose                  
+   1 Pavel Troller                                   1 kenner                 
+   1 sgalarneau                                      1 one47                  
+   1 tm1000                                          1 patrol-cz              
+   1 Torrey Searle                                   1 sgalarneau             
+   1 zvision                                         1 sgriepentrog           
+                                                     1 tootai                 
+                                                     1 traud                  
+                                                     1 tsearle                
+                                                     1 uniken1                
+                                                     1 whiskerp               
+                                                     1 zvision                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/chan_ooh323
+
+   ASTERISK-23814: No call started after peer dialed
+   Revision: 415602
+   Reporter: igorg
+   Coders: may
+
+  Category: Applications/app_agent_pool
+
+   ASTERISK-23499: app_agent_pool: Interval hook prevents channel from being
+   hung up
+   Revision: 414747
+   Reporter: mjordan
+   Coders: rmudgett
+
+  Category: Applications/app_confbridge
+
+   ASTERISK-23035: ConfBridge with name longer than max (32 chars) results in
+   several bridges with same conf_name
+   Revision: 415078
+   Reporter: icivico
+   Testers: IA+-aki CAvico
+   Coders: coreyfarrell
+
+   ASTERISK-23824: ConfBridge: Users cannot be muted via CLI or AMI when
+   waiting to enter a conference
+   Revision: 415207
+   Reporter: mjordan
+   Coders: tm1000
+
+  Category: Applications/app_mixmonitor
+
+   ASTERISK-23609: Security: AMI action MixMonitor allows arbitrary programs
+   to be run
+   Revision: 415832
+   Reporter: coreyfarrell
+   Coders: jrose
+
+  Category: Bridges/bridge_native_rtp
+
+   ASTERISK-23541: Asterisk 12.1.0 Not respecting directmedia=no and issuing
+   REINVITE
+   Revision: 414975
+   Reporter: devlap
+   Coders: jcolp
+
+  Category: CDR/cdr_sqlite3_custom
+
+   ASTERISK-23766: [patch] Specify timeout for database write in SQLite
+   Revision: 416338
+   Reporter: igorg
+   Coders: igorg
+
+  Category: CEL/cel_sqlite3_custom
+
+   ASTERISK-23766: [patch] Specify timeout for database write in SQLite
+   Revision: 416338
+   Reporter: igorg
+   Coders: igorg
+
+  Category: Channels/chan_dahdi
+
+   ASTERISK-23897: [patch]Change in SETUP ACK handling (checking PI) in
+   revision 413765 breaks working environments
+   Revision: 417958
+   Reporter: patrol-cz
+   Coders: Pavel Troller, rmudgett
+
+  Category: Channels/chan_pjsip
+
+   ASTERISK-21443: New SIP Channel Driver - Create a state provider for
+   dialog-info+xml
+   Revision: 418116
+   Reporter: mjordan
+   Coders: jcolp
+
+   ASTERISK-23718: res_pjsip_incoming_blind_request: crash with NULL session
+   channel
+   Revision: 414948
+   Reporter: jrose
+   Coders: kmoore
+
+   ASTERISK-23721: Calls to PJSIP endpoints with video enabled result in
+   leaked RTP ports
+   Revision: 414749
+   Reporter: cervajs
+   Coders: rmudgett
+
+  Category: Channels/chan_sip/CodecHandling
+
+   ASTERISK-23916: [patch]SIP/SDP fmtp line may include whitespace between
+   attributes
+   Revision: 417589
+   Reporter: traud
+   Coders: Alexander Traud
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-22551: Session timer : UAS (Asterisk) starts counting at Invite,
+   UAC starts counting at 200 OK.
+   Revision: 414636
+   Reporter: i2045
+   Coders: wdoekes
+
+   ASTERISK-23541: Asterisk 12.1.0 Not respecting directmedia=no and issuing
+   REINVITE
+   Revision: 414975
+   Reporter: devlap
+   Coders: jcolp
+
+   ASTERISK-23790: [patch] - SIP From headers longer than 256 characters
+   result in dropped call and 'No closing bracket' warnings.
+   Revision: 417250
+   Reporter: uniken1
+   Testers: uniken1
+   Coders: wdoekes
+
+  Category: Channels/chan_sip/SRTP
+
+   ASTERISK-22961: [patch] DTLS-SRTP not working with SHA-256
+   Revision: 417678
+   Reporter: jideliov
+   Coders: jcolp
+
+  Category: Channels/chan_sip/WebSocket
+
+   ASTERISK-22961: [patch] DTLS-SRTP not working with SHA-256
+   Revision: 417678
+   Reporter: jideliov
+   Coders: jcolp
+
+  Category: Channels/chan_unistim
+
+   ASTERISK-23792: Mutex left locked in chan_unistim.c
+   Revision: 414678
+   Reporter: whiskerp
+   Coders: wdoekes
+
+  Category: Contrib/General
+
+   ASTERISK-23492: Add option to safe_asterisk to disable backgrounding
+   Revision: 415172
+   Reporter: wdoekes
+   Coders: wdoekes
+
+   ASTERISK-23492: Add option to safe_asterisk to disable backgrounding
+   Revision: 415523
+   Reporter: wdoekes
+   Coders: wdoekes
+
+   ASTERISK-23921: refcounter.py uses excessive ram for large refs files
+   Revision: 417483
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/AstDB
+
+   ASTERISK-23766: [patch] Specify timeout for database write in SQLite
+   Revision: 416338
+   Reporter: igorg
+   Coders: igorg
+
+  Category: Core/AstMM
+
+   ASTERISK-23922: ao2_container nodes are inconsistent REF_DEBUG
+   Revision: 417212
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+   ASTERISK-23948: REF_DEBUG fails to record ao2_ref against objects that
+   were already freed
+   Revision: 417509
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/Bridging
+
+   ASTERISK-23499: app_agent_pool: Interval hook prevents channel from being
+   hung up
+   Revision: 414747
+   Reporter: mjordan
+   Coders: rmudgett
+
+  Category: Core/Configuration
+
+   ASTERISK-23683: #includes - wildcard character in a path more than one
+   directory deep - results in no config parsing on module reload
+   Revision: 415230
+   Reporter: tootai
+   Coders: rmudgett
+
+   ASTERISK-23803: AMI action UpdateConfig EmptyCat clears all categories but
+   the requested one
+   Revision: 414882
+   Reporter: zvision
+   Coders: zvision
+
+  Category: Core/General
+
+   ASTERISK-23654: Add 'pjsip reload' to default cli_aliases.conf
+   Revision: 415301
+   Reporter: rnewton
+   Coders: newtonr
+
+   ASTERISK-23984: Infinite loop possible in ast_careful_fwrite()
+   Revision: 417799
+   Reporter: one47
+   Coders: one47
+
+  Category: Core/HTTP
+
+   ASTERISK-23552: http: support persistent connections
+   Revision: 417880
+   Reporter: sgriepentrog
+   Coders: rmudgett
+
+   ASTERISK-23673: Security: DOS by consuming the number of allowed HTTP
+   connections.
+   Revision: 415896
+   Reporter: rmudgett
+   Coders: rmudgett
+
+   ASTERISK-23673: Security: DOS by consuming the number of allowed HTTP
+   connections.
+   Revision: 416070
+   Reporter: rmudgett
+   Coders: rmudgett
+
+  Category: Core/ManagerInterface
+
+   ASTERISK-23803: AMI action UpdateConfig EmptyCat clears all categories but
+   the requested one
+   Revision: 414882
+   Reporter: zvision
+   Coders: zvision
+
+  Category: Core/PBX
+
+   ASTERISK-23827: autoservice thread doesn't exit at shutdown
+   Revision: 415465
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/Stasis
+
+   ASTERISK-23811: Improve performance of Asterisk by reducing the number of
+   channel snapshots created
+   Revision: 416211
+   Reporter: mjordan
+   Coders: mjordan
+
+  Category: Core/UDPTL
+
+   ASTERISK-23908: [patch]When using FEC error correction, asterisk tries
+   considers negative sequence numbers as missing
+   Revision: 417324
+   Reporter: tsearle
+   Coders: Torrey Searle
+
+  Category: Documentation
+
+   ASTERISK-23844: Load of pbx_lua fails on sample extensions.lua with Lua
+   5.2 or greater due to addition of goto statement
+   Revision: 416582
+   Reporter: rnewton
+   Testers: gtjoseph
+   Coders: gtjoseph
+
+  Category: Functions/func_odbc
+
+   ASTERISK-23582: [patch]Inconsistent column length in *odbc
+   Revision: 414695
+   Reporter: wdoekes
+   Coders: jcolp
+
+   ASTERISK-23582: [patch]Inconsistent column length in *odbc
+   Revision: 414999
+   Reporter: wdoekes
+   Coders: wdoekes
+
+  Category: General
+
+   ASTERISK-21965: [patch] Bug-fixed version of safe_asterisk not installed
+   over old version
+   Revision: 415748
+   Reporter: jkister
+   Coders: jkister
+
+  Category: PBX/pbx_lua
+
+   ASTERISK-23818: PBX_Lua: after asterisk startup module is loaded, but
+   dialplan not available
+   Revision: 416669
+   Reporter: dennis.guse
+   Testers: Dennis Guse, George Joseph
+   Coders: gtjoseph
+
+   ASTERISK-23844: Load of pbx_lua fails on sample extensions.lua with Lua
+   5.2 or greater due to addition of goto statement
+   Revision: 416582
+   Reporter: rnewton
+   Testers: gtjoseph
+   Coders: gtjoseph
+
+  Category: Resources/res_ari
+
+   ASTERISK-23939: ARI: Allow for channel subscriptions on originate
+   Revision: 418089
+   Reporter: mjordan
+   Coders: mjordan
+
+   ASTERISK-23975: Description of variables field for userEvent operation
+   missing details.
+   Revision: 417878
+   Reporter: sgalarneau
+   Coders: sgalarneau
+
+  Category: Resources/res_config_odbc
+
+   ASTERISK-23582: [patch]Inconsistent column length in *odbc
+   Revision: 414695
+   Reporter: wdoekes
+   Coders: jcolp
+
+   ASTERISK-23582: [patch]Inconsistent column length in *odbc
+   Revision: 414999
+   Reporter: wdoekes
+   Coders: wdoekes
+
+  Category: Resources/res_config_sqlite3
+
+   ASTERISK-23766: [patch] Specify timeout for database write in SQLite
+   Revision: 416338
+   Reporter: igorg
+   Coders: igorg
+
+  Category: Resources/res_http_websocket
+
+   ASTERISK-23917: res_http_websocket: Delay in client processing large
+   streams of data causes disconnect and stuck socket
+   Revision: 417311
+   Reporter: mjordan
+   Coders: mjordan
+
+  Category: Resources/res_pjsip
+
+   ASTERISK-23721: Calls to PJSIP endpoints with video enabled result in
+   leaked RTP ports
+   Revision: 414749
+   Reporter: cervajs
+   Coders: rmudgett
+
+   ASTERISK-23947: ActionID missing from AMI PJSIP events
+   (PJSIPShowEndpoints, etc.)
+   Revision: 417460
+   Reporter: mmichelson
+   Coders: mjordan
+
+  Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-23489: Vulnerability in res_pjsip_pubsub: unauthenticated remote
+   crash in during MWI unsubscribe without being subscribed
+   Revision: 415812
+   Reporter: jbigelow
+   Coders: kharwell
+
+   ASTERISK-23802: Security: Deadlock in res_pjsip_pubsub on transaction
+   timeout
+   Revision: 415794
+   Reporter: mmichelson
+   Coders: mmichelson
+
+  Category: Resources/res_pjsip_refer
+
+   ASTERISK-23718: res_pjsip_incoming_blind_request: crash with NULL session
+   channel
+   Revision: 414948
+   Reporter: jrose
+   Coders: kmoore
+
+  Category: Resources/res_rtp_asterisk
+
+   ASTERISK-23721: Calls to PJSIP endpoints with video enabled result in
+   leaked RTP ports
+   Revision: 414749
+   Reporter: cervajs
+   Coders: rmudgett
+
+   ASTERISK-23834: res_rtp_asterisk debug message gives wrong length if ICE
+   Revision: 417142
+   Reporter: kenner
+   Coders: jcolp
+
+   ASTERISK-24001: res_rtp_asterisk fails to load module
+   Revision: 418172
+   Reporter: jfalcon
+   Coders: mjordan
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   | 414474   | kmoore     | Fix signed/unsigned build         |            |
+   |          |            | warnings                          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | test_cel: Fix unit tests broken   |            |
+   | 414528   | mjordan    | due to event def changes from     |            |
+   |          |            | res_corosync                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 414542   | mjordan    | core_unreal: Prevent double free  |            |
+   |          |            | of core_unreal pvt                |            |
+   |----------+------------+-----------------------------------+------------|
+   | 414566   | wdoekes    | res_config_odbc: Fix old and new  |            |
+   |          |            | ast_string_field memory leaks.    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | ast-db-manage/cdr/env.py: Don't   |            |
+   | 414763   | mjordan    | fail if a config file can't be    |            |
+   |          |            | loaded                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 414765   | mjordan    | AMI/ARI: Update version numbers   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | pjsip.conf: privkey_file should   |            |
+   | 414780   | newtonr    | be priv_key_file,                 |            |
+   |          |            | mediaencryption=yes should be     |            |
+   |          |            | mediaencryption=sdes              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 414860   | kmoore     | PBX: Prevent incorrect hint       |            |
+   |          |            | parsing                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415115   | mjordan    | res_pjsip_session: Add debug      |            |
+   |          |            | statement for session refreshes   |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415117   | mjordan    | chan_pjsip: Add debug in RTP      |            |
+   |          |            | Engine glue callback              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415191   | kmoore     | PJSIP: Send initial connected     |            |
+   |          |            | line information                  |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415317   | gtjoseph   | Split astobj2.c into more         |            |
+   |          |            | maintainable components.          |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Update utils/Makefile so          |            |
+   | 415318   | gtjoseph   | refcounter compiles post astobj2  |            |
+   |          |            | split.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415336   | rmudgett   | utils: Update svn:ignore for the  |            |
+   |          |            | new astobj2 split files. v12 only |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415342   | kmoore     | PJSIP: Remove premature write of  |            |
+   |          |            | raw formats                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415410   | jrose      | chan_sip: Fix order of variables  |            |
+   |          |            | specified in SIPNotify action     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | bridge.h: Remove redundant struct |            |
+   | 415427   | rmudgett   | ast_bridge_channel forward        |            |
+   |          |            | declaration.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | bridges/bridge_native_rtp:        |            |
+   | 415443   | mjordan    | Reconfigure bridge on removal of  |            |
+   |          |            | framehook                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | chan_pjsip: Fix bug where custom  |            |
+   | 415579   | mmichelson | SIP headers could be duplicated   |            |
+   |          |            | on outgoing INVITEs.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | PJSIP: PJSIPNotify - Strip        |            |
+   | 415658   | jrose      | content-length headers and add    |            |
+   |          |            | documentation                     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415678   | kmoore     | Fix build in dev mode due to      |            |
+   |          |            | signed/unsigned mismatch          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415729   | rmudgett   | format.c: Fix misuse of hash      |            |
+   |          |            | container function.               |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | res_pjsip_pubsub: Persist         |            |
+   | 415766   | file       | subscriptions in sorcery so they  |            |
+   |          |            | are recreated on startup.         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415838   | jrose      | Correct UPGRADE.txt notes in      |            |
+   |          |            | r415825                           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 415980   | kmoore     | Fix build in devmode for GCC 4.10 |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | main/pbx - documentation -        |            |
+   | 416001   | newtonr    | enhance 'core show hints' and     |            |
+   |          |            | 'core show hint' help text        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416148   | kmoore     | CEL: Expose parking retreiver in  |            |
+   |          |            | extra field                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416152   | kmoore     | MoH: Don't restart stream on      |            |
+   |          |            | repeated start calls              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416255   | mjordan    | MoH: Undo commit r416150 (1.8)    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416298   | mjordan    | test_stasis_endpoints: Remove     |            |
+   |          |            | expected channel snapshot         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | channel_internal_api: Publish a   |            |
+   | 416300   | mjordan    | snapshot change when linkedids    |            |
+   |          |            | change                            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416318   | mjordan    | channels/chan_sip: Forbid remote  |            |
+   |          |            | bridging if T.38 is negotiated    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416441   | kmoore     | MoH: Don't restart stream on      |            |
+   |          |            | repeated start calls              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416442   | mmichelson | Fix string growth algorithm for   |            |
+   |          |            | XML presence bodies.              |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | Allow the PUSH and UNSHIFT        |            |
+   | 416502   | mmichelson | functions to set inheritable      |            |
+   |          |            | channel variables.                |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | stasis_channels: Update the       |            |
+   | 416557   | mjordan    | stasis cache if manager variables |            |
+   |          |            | are needed                        |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416734   | kmoore     | Fix build warnings with           |            |
+   |          |            | TEST_FRAMEWORK enabled            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | pjsip cli: Change Identify to     |            |
+   | 416737   | gtjoseph   | show CIDR notation instead of     |            |
+   |          |            | netmasks.                         |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | astobj2: Additional refactoring   |            |
+   | 416806   | gtjoseph   | to push impl specific code down   |            |
+   |          |            | into the impls.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | res_parking: Make manager         |            |
+   | 416849   | jrose      | commands register with module     |            |
+   |          |            | information                       |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | build: Allow                      |            |
+   | 416871   | gtjoseph   | autoconf/ast_ext_tool_check to    |            |
+   |          |            | handle cross-compiling better.    |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | build: Allow                      |            |
+   | 416931   | gtjoseph   | autoconf/ast_ext_tool_check to    |            |
+   |          |            | handle cross-compiling better.    |            |
+   |----------+------------+-----------------------------------+------------|
+   | 416995   | gtjoseph   | astobj2: Add an ao2_replace macro |            |
+   |          |            | to astobj2.h                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 417119   | rmudgett   | core_unreal: Fix off by one       |            |
+   |          |            | buffer overwrite error.           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 417399   | mjordan    | chan_pjsip: Add a test event for  |            |
+   |          |            | fast picture updates              |            |
+   |----------+------------+-----------------------------------+------------|
+   | 417420   | mjordan    | res_http_websocket: Export symbol |            |
+   |          |            | for ast_websocket_set_timeout     |            |
+   |----------+------------+-----------------------------------+------------|
+   | 417565   | rmudgett   | event.c: Fix type mismatch errors |            |
+   |          |            | in ie_maps[].                     |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | res_rtp_asterisk: Don't leak      |            |
+   | 417705   | file       | memory or reset state if DTLS     |            |
+   |          |            | configuration is set multiple     |            |
+   |          |            | times.                            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | res_ari: Fix some off-nominal     |            |
+   | 417932   | rmudgett   | paths just dropping the HTTP      |            |
+   |          |            | connection.                       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 418066   | kmoore     | HTTP: Fix build for gcc 4.10      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 418071   | kmoore     | CEL: Fix incorrect/missing extra  |            |
+   |          |            | field information                 |            |
+   |----------+------------+-----------------------------------+------------|
+   | 418182   | mjordan    | manager/ARI: Update version to    |            |
+   |          |            | 2.4.0/1.4.0; Update UPGRADE.txt   |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                                                                     |   31
+ Makefile                                                                                    |    5
+ Makefile.rules                                                                              |    2
+ UPGRADE.txt                                                                                 |  104
+ addons/chan_ooh323.c                                                                        |   37
+ apps/app_agent_pool.c                                                                       |  170
+ apps/app_confbridge.c                                                                       |   24
+ apps/app_meetme.c                                                                           |    4
+ apps/app_mixmonitor.c                                                                       |    6
+ apps/app_queue.c                                                                            |   28
+ apps/confbridge/include/confbridge.h                                                        |    2
+ autoconf/ast_ext_tool_check.m4                                                              |   62
+ bridges/bridge_native_rtp.c                                                                 |   26
+ build_tools/cflags.xml                                                                      |    3
+ cdr/cdr_sqlite3_custom.c                                                                    |   14
+ cel/cel_sqlite3_custom.c                                                                    |   17
+ channels/chan_dahdi.c                                                                       |    4
+ channels/chan_pjsip.c                                                                       |   64
+ channels/chan_sip.c                                                                         |  145
+ channels/chan_unistim.c                                                                     |    2
+ channels/sig_pri.c                                                                          |   26
+ channels/sig_pri.h                                                                          |    6
+ channels/sip/include/sip.h                                                                  |    4
+ channels/sip/reqresp_parser.c                                                               |    4
+ configs/ari.conf.sample                                                                     |   31
+ configs/chan_dahdi.conf.sample                                                              |   17
+ configs/cli_aliases.conf.sample                                                             |   20
+ configs/extensions.lua.sample                                                               |   22
+ configs/http.conf.sample                                                                    |   17
+ configs/pjsip.conf.sample                                                                   |   14
+ configs/sip.conf.sample                                                                     |   16
+ contrib/ast-db-manage/cdr/env.py                                                            |    5
+ contrib/ast-db-manage/config/versions/51f8cb66540e_add_further_dtls_options.py              |   32
+ contrib/ast-db-manage/config/versions/c6d929b23a8_create_pjsip_subscription_persistence_.py |   36
+ contrib/scripts/refcounter.py                                                               |   47
+ contrib/scripts/safe_asterisk                                                               |  138
+ funcs/func_odbc.c                                                                           |  265
+ funcs/func_strings.c                                                                        |   12
+ funcs/func_talkdetect.c                                                                     |  404
+ include/asterisk/acl.h                                                                      |    7
+ include/asterisk/astobj2.h                                                                  |   27
+ include/asterisk/autoconfig.h.in                                                            |    5
+ include/asterisk/bridge.h                                                                   |    2
+ include/asterisk/channel.h                                                                  |   25
+ include/asterisk/config.h                                                                   |   10
+ include/asterisk/http.h                                                                     |   93
+ include/asterisk/http_websocket.h                                                           |   17
+ include/asterisk/manager.h                                                                  |   16
+ include/asterisk/netsock2.h                                                                 |   10
+ include/asterisk/res_pjsip.h                                                                |   25
+ include/asterisk/res_pjsip_body_generator_types.h                                           |    3
+ include/asterisk/res_pjsip_presence_xml.h                                                   |    2
+ include/asterisk/res_pjsip_pubsub.h                                                         |   12
+ include/asterisk/res_pjsip_session.h                                                        |   24
+ include/asterisk/rtp_engine.h                                                               |   27
+ include/asterisk/sdp_srtp.h                                                                 |    4
+ include/asterisk/stasis_app.h                                                               |   15
+ include/asterisk/stasis_channels.h                                                          |   55
+ include/asterisk/tcptls.h                                                                   |   66
+ include/asterisk/utils.h                                                                    |    1
+ main/acl.c                                                                                  |   13
+ main/aoc.c                                                                                  |    2
+ main/astobj2.c                                                                              | 4764 ----------
+ main/astobj2_container.c                                                                    | 1219 ++
+ main/astobj2_container_private.h                                                            |  345
+ main/astobj2_hash.c                                                                         | 1153 ++
+ main/astobj2_private.h                                                                      |   49
+ main/astobj2_rbtree.c                                                                       | 2096 ++++
+ main/audiohook.c                                                                            |    6
+ main/autoservice.c                                                                          |   16
+ main/bridge.c                                                                               |   16
+ main/bridge_after.c                                                                         |    5
+ main/bridge_channel.c                                                                       |   14
+ main/cel.c                                                                                  |   48
+ main/channel.c                                                                              |   55
+ main/channel_internal_api.c                                                                 |   14
+ main/cli.c                                                                                  |  121
+ main/config.c                                                                               |  216
+ main/core_local.c                                                                           |   10
+ main/core_unreal.c                                                                          |   18
+ main/db.c                                                                                   |    6
+ main/dial.c                                                                                 |    2
+ main/endpoints.c                                                                            |    3
+ main/event.c                                                                                |   10
+ main/format.c                                                                               |    6
+ main/framehook.c                                                                            |    4
+ main/http.c                                                                                 | 1068 +-
+ main/logger.c                                                                               |   10
+ main/manager.c                                                                              |  367
+ main/message.c                                                                              |    2
+ main/netsock2.c                                                                             |   34
+ main/pbx.c                                                                                  |   67
+ main/pickup.c                                                                               |    4
+ main/rtp_engine.c                                                                           |   19
+ main/sdp_srtp.c                                                                             |    9
+ main/stasis_bridges.c                                                                       |   12
+ main/stasis_cache.c                                                                         |   21
+ main/stasis_channels.c                                                                      |  167
+ main/tcptls.c                                                                               |  552 -
+ main/test.c                                                                                 |   20
+ main/udptl.c                                                                                |    6
+ main/utils.c                                                                                |   28
+ pbx/pbx_lua.c                                                                               |    6
+ res/ari/ari_model_validators.c                                                              |  186
+ res/ari/ari_model_validators.h                                                              |   47
+ res/ari/ari_websockets.c                                                                    |   10
+ res/ari/config.c                                                                            |    4
+ res/ari/internal.h                                                                          |    2
+ res/ari/resource_channels.c                                                                 |   26
+ res/ari/resource_channels.h                                                                 |    4
+ res/ari/resource_events.h                                                                   |    2
+ res/parking/parking_bridge.c                                                                |    2
+ res/parking/parking_bridge_features.c                                                       |    4
+ res/parking/parking_manager.c                                                               |   10
+ res/parking/parking_tests.c                                                                 |   12
+ res/res_agi.c                                                                               |   24
+ res/res_ari.c                                                                               |   40
+ res/res_config_odbc.c                                                                       |  202
+ res/res_config_sqlite3.c                                                                    |    1
+ res/res_http_post.c                                                                         |  133
+ res/res_http_websocket.c                                                                    |   76
+ res/res_http_websocket.exports.in                                                           |    1
+ res/res_musiconhold.c                                                                       |   12
+ res/res_phoneprov.c                                                                         |    6
+ res/res_pjsip.c                                                                             |   65
+ res/res_pjsip/config_transport.c                                                            |    8
+ res/res_pjsip/pjsip_configuration.c                                                         |   34
+ res/res_pjsip/presence_xml.c                                                                |    5
+ res/res_pjsip_dialog_info_body_generator.c                                                  |  215
+ res/res_pjsip_endpoint_identifier_ip.c                                                      |    2
+ res/res_pjsip_exten_state.c                                                                 |   28
+ res/res_pjsip_header_funcs.c                                                                |    1
+ res/res_pjsip_mwi.c                                                                         |    4
+ res/res_pjsip_notify.c                                                                      |   35
+ res/res_pjsip_outbound_registration.c                                                       |   12
+ res/res_pjsip_pidf_body_generator.c                                                         |    8
+ res/res_pjsip_pubsub.c                                                                      |  514 -
+ res/res_pjsip_pubsub.exports.in                                                             |    1
+ res/res_pjsip_refer.c                                                                       |   11
+ res/res_pjsip_registrar.c                                                                   |   10
+ res/res_pjsip_sdp_rtp.c                                                                     |   68
+ res/res_pjsip_session.c                                                                     |   91
+ res/res_pjsip_t38.c                                                                         |   15
+ res/res_pjsip_transport_websocket.c                                                         |   36
+ res/res_pjsip_xpidf_body_generator.c                                                        |    9
+ res/res_rtp_asterisk.c                                                                      |  504 -
+ res/res_stasis.c                                                                            |   23
+ res/stasis/app.c                                                                            |   46
+ rest-api/api-docs/applications.json                                                         |    2
+ rest-api/api-docs/asterisk.json                                                             |    2
+ rest-api/api-docs/bridges.json                                                              |    2
+ rest-api/api-docs/channels.json                                                             |    6
+ rest-api/api-docs/deviceStates.json                                                         |    2
+ rest-api/api-docs/endpoints.json                                                            |    2
+ rest-api/api-docs/events.json                                                               |   33
+ rest-api/api-docs/mailboxes.json                                                            |    2
+ rest-api/api-docs/playbacks.json                                                            |    2
+ rest-api/api-docs/recordings.json                                                           |    2
+ rest-api/api-docs/sounds.json                                                               |    2
+ rest-api/resources.json                                                                     |    2
+ tests/test_astobj2.c                                                                        |  126
+ tests/test_cel.c                                                                            |   40
+ tests/test_stasis_endpoints.c                                                               |   18
+ utils/Makefile                                                                              |   28
+ 164 files changed, 11118 insertions(+), 6617 deletions(-)
+
+     ----------------------------------------------------------------------
