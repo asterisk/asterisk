@@ -1207,9 +1207,6 @@ static struct ast_rtp_engine asterisk_rtp_engine = {
 #endif
 };
 
-#ifdef HAVE_PJPROJECT
-static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq);
-
 #ifdef HAVE_OPENSSL_SRTP
 static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtls_details *dtls, int rtcp)
 {
@@ -1232,6 +1229,9 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 	dtls_srtp_check_pending(instance, rtp, rtcp);
 }
 #endif
+
+#ifdef HAVE_PJPROJECT
+static void rtp_learning_seq_init(struct rtp_learning_info *info, uint16_t seq);
 
 static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 {
