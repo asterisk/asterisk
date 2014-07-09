@@ -665,8 +665,6 @@ static int bridge_personality_normal_push(struct ast_bridge *self, struct ast_br
 		return -1;
 	}
 
-	ast_bridge_channel_update_accountcodes(bridge_channel, swap);
-	ast_bridge_channel_update_linkedids(bridge_channel, swap);
 	return 0;
 }
 
@@ -676,9 +674,13 @@ static int bridge_basic_push(struct ast_bridge *self, struct ast_bridge_channel 
 
 	ast_assert(personality != NULL);
 
-	if (personality->details[personality->current].v_table->push(self, bridge_channel, swap)) {
+	if (personality->details[personality->current].v_table->push
+		&& personality->details[personality->current].v_table->push(self, bridge_channel, swap)) {
 		return -1;
 	}
+
+	ast_bridge_channel_update_linkedids(bridge_channel, swap);
+	ast_bridge_channel_update_accountcodes(bridge_channel, swap);
 
 	return ast_bridge_base_v_table.push(self, bridge_channel, swap);
 }
@@ -692,6 +694,8 @@ static void bridge_basic_pull(struct ast_bridge *self, struct ast_bridge_channel
 	if (personality->details[personality->current].v_table->pull) {
 		personality->details[personality->current].v_table->pull(self, bridge_channel);
 	}
+
+	ast_bridge_channel_update_accountcodes(NULL, bridge_channel);
 
 	ast_bridge_base_v_table.pull(self, bridge_channel);
 }
@@ -3315,11 +3319,16 @@ void ast_bridging_init_basic(void)
 	ast_bridge_basic_v_table.pull = bridge_basic_pull;
 	ast_bridge_basic_v_table.destroy = bridge_basic_destroy;
 
-	personality_normal_v_table = ast_bridge_base_v_table;
+	/*
+	 * Personality vtables don't have the same rules as
+	 * normal bridge vtables.  These vtable functions are
+	 * used as alterations to the ast_bridge_basic_v_table
+	 * method functionality and are checked for NULL before
+	 * calling.
+	 */
 	personality_normal_v_table.name = "normal";
 	personality_normal_v_table.push = bridge_personality_normal_push;
 
-	personality_atxfer_v_table = ast_bridge_base_v_table;
 	personality_atxfer_v_table.name = "attended transfer";
 	personality_atxfer_v_table.push = bridge_personality_atxfer_push;
 	personality_atxfer_v_table.pull = bridge_personality_atxfer_pull;
