@@ -357,7 +357,7 @@ struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *b
 
 void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
-	struct ast_bridge_channel *other = NULL;
+	struct ast_bridge_channel *other;
 	struct ast_bridge *bridge = bridge_channel->bridge;
 	struct ast_channel *oldest_linkedid_chan = bridge_channel->chan;
 
@@ -370,65 +370,212 @@ void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_chann
 	}
 
 	ast_channel_lock(bridge_channel->chan);
-	ast_channel_internal_copy_linkedid(bridge_channel->chan,
-		oldest_linkedid_chan);
+	ast_channel_internal_copy_linkedid(bridge_channel->chan, oldest_linkedid_chan);
 	ast_channel_unlock(bridge_channel->chan);
 	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
 		if (other == swap) {
 			continue;
 		}
 		ast_channel_lock(other->chan);
-		ast_channel_internal_copy_linkedid(other->chan,
-			oldest_linkedid_chan);
+		ast_channel_internal_copy_linkedid(other->chan, oldest_linkedid_chan);
 		ast_channel_unlock(other->chan);
 	}
 }
 
-void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+/*!
+ * \internal
+ * \brief Set dest's empty peeraccount with the src's non-empty accountcode.
+ * \since 12.5.0
+ *
+ * \param dest Channel to update peeraccount.
+ * \param src Channel to get accountcode from.
+ *
+ * \note Both channels are already locked.
+ *
+ * \return Nothing
+ */
+static void channel_fill_empty_peeraccount(struct ast_channel *dest, struct ast_channel *src)
 {
-	struct ast_bridge *bridge = bridge_channel->bridge;
-	struct ast_bridge_channel *other = NULL;
+	if (ast_strlen_zero(ast_channel_peeraccount(dest))
+		&& !ast_strlen_zero(ast_channel_accountcode(src))) {
+		ast_debug(1, "Setting channel %s peeraccount with channel %s accountcode '%s'.\n",
+			ast_channel_name(dest),
+			ast_channel_name(src), ast_channel_accountcode(src));
+		ast_channel_peeraccount_set(dest, ast_channel_accountcode(src));
+	}
+}
+
+/*!
+ * \internal
+ * \brief Set dest's empty accountcode with the src's non-empty peeraccount.
+ * \since 12.5.0
+ *
+ * \param dest Channel to update accountcode.
+ * \param src Channel to get peeraccount from.
+ *
+ * \note Both channels are already locked.
+ *
+ * \return Nothing
+ */
+static void channel_fill_empty_accountcode(struct ast_channel *dest, struct ast_channel *src)
+{
+	if (ast_strlen_zero(ast_channel_accountcode(dest))
+		&& !ast_strlen_zero(ast_channel_peeraccount(src))) {
+		ast_debug(1, "Setting channel %s accountcode with channel %s peeraccount '%s'.\n",
+			ast_channel_name(dest),
+			ast_channel_name(src), ast_channel_peeraccount(src));
+		ast_channel_accountcode_set(dest, ast_channel_peeraccount(src));
+	}
+}
+
+/*!
+ * \internal
+ * \brief Set empty peeraccount and accountcode in a channel from the other channel.
+ * \since 12.5.0
+ *
+ * \param c0 First bridge channel to update.
+ * \param c1 Second bridge channel to update.
+ *
+ * \note Both channels are already locked.
+ *
+ * \return Nothing
+ */
+static void channel_set_empty_accountcodes(struct ast_channel *c0, struct ast_channel *c1)
+{
+	/* Set empty peeraccount from the other channel's accountcode. */
+	channel_fill_empty_peeraccount(c0, c1);
+	channel_fill_empty_peeraccount(c1, c0);
+
+	/* Set empty accountcode from the other channel's peeraccount. */
+	channel_fill_empty_accountcode(c0, c1);
+	channel_fill_empty_accountcode(c1, c0);
+}
+
+/*!
+ * \internal
+ * \brief Update dest's peeraccount with the src's different accountcode.
+ * \since 12.5.0
+ *
+ * \param dest Channel to update peeraccount.
+ * \param src Channel to get accountcode from.
+ *
+ * \note Both channels are already locked.
+ *
+ * \return Nothing
+ */
+static void channel_update_peeraccount(struct ast_channel *dest, struct ast_channel *src)
+{
+	if (strcmp(ast_channel_accountcode(src), ast_channel_peeraccount(dest))) {
+		ast_debug(1, "Changing channel %s peeraccount '%s' to match channel %s accountcode '%s'.\n",
+			ast_channel_name(dest), ast_channel_peeraccount(dest),
+			ast_channel_name(src), ast_channel_accountcode(src));
+		ast_channel_peeraccount_set(dest, ast_channel_accountcode(src));
+	}
+}
+
+/*!
+ * \internal
+ * \brief Update peeraccounts to match the other channel's accountcode.
+ * \since 12.5.0
+ *
+ * \param c0 First channel to update.
+ * \param c1 Second channel to update.
+ *
+ * \note Both channels are already locked.
+ *
+ * \return Nothing
+ */
+static void channel_update_peeraccounts(struct ast_channel *c0, struct ast_channel *c1)
+{
+	channel_update_peeraccount(c0, c1);
+	channel_update_peeraccount(c1, c0);
+}
+
+/*!
+ * \internal
+ * \brief Update channel accountcodes because a channel is joining a bridge.
+ * \since 12.5.0
+ *
+ * \param joining Channel joining the bridge.
+ * \param swap Channel being replaced by the joining channel.  May be NULL.
+ *
+ * \note The bridge must be locked prior to calling this function.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_update_accountcodes_joining(struct ast_bridge_channel *joining, struct ast_bridge_channel *swap)
+{
+	struct ast_bridge *bridge = joining->bridge;
+	struct ast_bridge_channel *other;
+	unsigned int swap_in_bridge = 0;
+	unsigned int will_be_two_party;
+
+	/*
+	 * Only update the peeraccount to match if the joining channel
+	 * will make it a two party bridge.
+	 */
+	if (bridge->num_channels <= 2 && swap) {
+		AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
+			if (other == swap) {
+				swap_in_bridge = 1;
+				break;
+			}
+		}
+	}
+	will_be_two_party = (1 == bridge->num_channels - swap_in_bridge);
 
 	AST_LIST_TRAVERSE(&bridge->channels, other, entry) {
 		if (other == swap) {
 			continue;
 		}
-		ast_channel_lock_both(bridge_channel->chan, other->chan);
-
-		if (!ast_strlen_zero(ast_channel_accountcode(bridge_channel->chan)) && ast_strlen_zero(ast_channel_peeraccount(other->chan))) {
-			ast_debug(1, "Setting peeraccount to %s for %s from data on channel %s\n",
-					ast_channel_accountcode(bridge_channel->chan), ast_channel_name(other->chan), ast_channel_name(bridge_channel->chan));
-			ast_channel_peeraccount_set(other->chan, ast_channel_accountcode(bridge_channel->chan));
+		ast_assert(joining != other);
+		ast_channel_lock_both(joining->chan, other->chan);
+		channel_set_empty_accountcodes(joining->chan, other->chan);
+		if (will_be_two_party) {
+			channel_update_peeraccounts(joining->chan, other->chan);
 		}
-		if (!ast_strlen_zero(ast_channel_accountcode(other->chan)) && ast_strlen_zero(ast_channel_peeraccount(bridge_channel->chan))) {
-			ast_debug(1, "Setting peeraccount to %s for %s from data on channel %s\n",
-					ast_channel_accountcode(other->chan), ast_channel_name(bridge_channel->chan), ast_channel_name(other->chan));
-			ast_channel_peeraccount_set(bridge_channel->chan, ast_channel_accountcode(other->chan));
-		}
-		if (!ast_strlen_zero(ast_channel_peeraccount(bridge_channel->chan)) && ast_strlen_zero(ast_channel_accountcode(other->chan))) {
-			ast_debug(1, "Setting accountcode to %s for %s from data on channel %s\n",
-					ast_channel_peeraccount(bridge_channel->chan), ast_channel_name(other->chan), ast_channel_name(bridge_channel->chan));
-			ast_channel_accountcode_set(other->chan, ast_channel_peeraccount(bridge_channel->chan));
-		}
-		if (!ast_strlen_zero(ast_channel_peeraccount(other->chan)) && ast_strlen_zero(ast_channel_accountcode(bridge_channel->chan))) {
-			ast_debug(1, "Setting accountcode to %s for %s from data on channel %s\n",
-					ast_channel_peeraccount(other->chan), ast_channel_name(bridge_channel->chan), ast_channel_name(other->chan));
-			ast_channel_accountcode_set(bridge_channel->chan, ast_channel_peeraccount(other->chan));
-		}
-		if (bridge->num_channels == 2) {
-			if (strcmp(ast_channel_accountcode(bridge_channel->chan), ast_channel_peeraccount(other->chan))) {
-				ast_debug(1, "Changing peeraccount from %s to %s on %s to match channel %s\n",
-						ast_channel_peeraccount(other->chan), ast_channel_peeraccount(bridge_channel->chan), ast_channel_name(other->chan), ast_channel_name(bridge_channel->chan));
-				ast_channel_peeraccount_set(other->chan, ast_channel_accountcode(bridge_channel->chan));
-			}
-			if (strcmp(ast_channel_accountcode(other->chan), ast_channel_peeraccount(bridge_channel->chan))) {
-				ast_debug(1, "Changing peeraccount from %s to %s on %s to match channel %s\n",
-						ast_channel_peeraccount(bridge_channel->chan), ast_channel_peeraccount(other->chan), ast_channel_name(bridge_channel->chan), ast_channel_name(other->chan));
-				ast_channel_peeraccount_set(bridge_channel->chan, ast_channel_accountcode(other->chan));
-			}
-		}
-		ast_channel_unlock(bridge_channel->chan);
+		ast_channel_unlock(joining->chan);
 		ast_channel_unlock(other->chan);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Update channel peeraccount codes because a channel has left a bridge.
+ * \since 12.5.0
+ *
+ * \param leaving Channel leaving the bridge. (Has already been removed actually)
+ *
+ * \note The bridge must be locked prior to calling this function.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_update_accountcodes_leaving(struct ast_bridge_channel *leaving)
+{
+	struct ast_bridge *bridge = leaving->bridge;
+	struct ast_bridge_channel *first;
+	struct ast_bridge_channel *second;
+
+	if (bridge->num_channels != 2 || bridge->dissolved) {
+		return;
+	}
+
+	first = AST_LIST_FIRST(&bridge->channels);
+	second = AST_LIST_LAST(&bridge->channels);
+	ast_assert(first && first != second);
+	ast_channel_lock_both(first->chan, second->chan);
+	channel_set_empty_accountcodes(first->chan, second->chan);
+	channel_update_peeraccounts(first->chan, second->chan);
+	ast_channel_unlock(second->chan);
+	ast_channel_unlock(first->chan);
+}
+
+void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *joining, struct ast_bridge_channel *leaving)
+{
+	if (joining) {
+		bridge_channel_update_accountcodes_joining(joining, leaving);
+	} else {
+		bridge_channel_update_accountcodes_leaving(leaving);
 	}
 }
 
@@ -1747,6 +1894,8 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
 	}
 	--bridge->num_channels;
 	AST_LIST_REMOVE(&bridge->channels, bridge_channel, entry);
+
+	bridge_channel_dissolve_check(bridge_channel);
 	bridge->v_table->pull(bridge, bridge_channel);
 
 	ast_bridge_channel_clear_roles(bridge_channel);
@@ -1760,8 +1909,6 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
 		ast_debug(2, "Channel %s will survive this bridge; clearing outgoing (dialed) flag\n", ast_channel_name(bridge_channel->chan));
 		ast_clear_flag(ast_channel_flags(bridge_channel->chan), AST_FLAG_OUTGOING);
 	}
-
-	bridge_channel_dissolve_check(bridge_channel);
 
 	bridge->reconfigured = 1;
 	ast_bridge_publish_leave(bridge, bridge_channel->chan);

@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "stasis/app.h"
 #include "stasis/control.h"
+#include "stasis/stasis_bridge.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/causes.h"
@@ -687,9 +688,7 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
 		requested_type = ast_strip(requested_type);
 
 		if (!strcmp(requested_type, "mixing")) {
-			capabilities |= AST_BRIDGE_CAPABILITY_1TO1MIX |
-				AST_BRIDGE_CAPABILITY_MULTIMIX |
-				AST_BRIDGE_CAPABILITY_NATIVE;
+			capabilities |= STASIS_BRIDGE_MIXING_CAPABILITIES;
 			flags |= AST_BRIDGE_FLAG_SMART;
 		} else if (!strcmp(requested_type, "holding")) {
 			capabilities |= AST_BRIDGE_CAPABILITY_HOLDING;
@@ -699,11 +698,14 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
 		}
 	}
 
-	if (!capabilities) {
+	if (!capabilities
+		/* Holding and mixing capabilities don't mix. */
+		|| ((capabilities & AST_BRIDGE_CAPABILITY_HOLDING)
+			&& (capabilities & (STASIS_BRIDGE_MIXING_CAPABILITIES)))) {
 		return NULL;
 	}
 
-	bridge = ast_bridge_base_new(capabilities, flags, "Stasis", name, id);
+	bridge = bridge_stasis_new(capabilities, flags, name, id);
 	if (bridge) {
 		if (!ao2_link(app_bridges, bridge)) {
 			ast_bridge_destroy(bridge, 0);
@@ -1492,6 +1494,8 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
+
+	bridge_stasis_init();
 
 	stasis_app_register_event_sources();
 

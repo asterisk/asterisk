@@ -326,14 +326,15 @@ struct ast_bridge *ast_bridge_channel_merge_inhibit(struct ast_bridge_channel *b
  * \param bridge_channel The channel joining the bridge
  * \param swap The channel being swapped out of the bridge. May be NULL.
  *
- * \note The bridge must be locked prior to calling this function. This should be called
- * during a \ref bridge_channel_internal_push operation, typically by a sub-class of a bridge
+ * \note The bridge must be locked prior to calling this function.
+ * \note This should be called during a \ref bridge_channel_internal_push
+ * operation, typically by a sub-class of a bridge.
  */
 void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
 
 /*!
  * \internal
- * \brief Update the accountcodes for a channel entering a bridge
+ * \brief Update the accountcodes for channels joining/leaving a bridge
  * \since 12.0.0
  *
  * This function updates the accountcode and peeraccount on channels in two-party
@@ -341,13 +342,17 @@ void ast_bridge_channel_update_linkedids(struct ast_bridge_channel *bridge_chann
  * however accountcode propagation will still occur if the channel joining has an
  * accountcode.
  *
- * \param bridge_channel The channel joining the bridge
- * \param swap The channel being swapped out of the bridge. May be NULL.
+ * \param joining The channel joining the bridge.  May be NULL.
+ * \param leaving The channel leaving or being swapped out of the bridge. May be NULL.
  *
- * \note The bridge must be locked prior to calling this function. This should be called
- * during a \ref bridge_channel_internal_push operation, typically by a sub-class of a bridge
+ * \note The joining and leaving parameters cannot both be NULL.
+ *
+ * \note The bridge must be locked prior to calling this function.
+ * \note This should be called during a \ref bridge_channel_internal_push
+ * or \ref bridge_channel_internal_pull operation, typically by a
+ * sub-class of a bridge.
  */
-void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap);
+void ast_bridge_channel_update_accountcodes(struct ast_bridge_channel *joining, struct ast_bridge_channel *leaving);
 
 /*!
  * \brief Write a frame to the specified bridge_channel.
