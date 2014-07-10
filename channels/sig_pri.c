@@ -940,12 +940,12 @@ static int sig_pri_play_tone(struct sig_pri_chan *p, enum sig_pri_tone tone)
 		return -1;
 }
 
-static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, int ulaw, int transfercapability, char *exten, const struct ast_channel *requestor)
+static struct ast_channel *sig_pri_new_ast_channel(struct sig_pri_chan *p, int state, enum sig_pri_law law, int transfercapability, char *exten, const struct ast_channel *requestor)
 {
 	struct ast_channel *c;
 
 	if (p->calls->new_ast_channel) {
-		c = p->calls->new_ast_channel(p->chan_pvt, state, ulaw, exten, requestor);
+		c = p->calls->new_ast_channel(p->chan_pvt, state, law, exten, requestor);
 	} else {
 		return NULL;
 	}
@@ -4601,7 +4601,7 @@ static void *pri_dchannel(void *vpri)
 	int res;
 	int chanpos = 0;
 	int x;
-	int law;
+	enum sig_pri_law law;
 	struct ast_channel *c;
 	struct timeval tv, lowest, *next;
 	int doidling=0;
@@ -4705,7 +4705,7 @@ static void *pri_dchannel(void *vpri)
 					 */
 					sig_pri_lock_private(pri->pvts[nextidle]);
 					sig_pri_unlock_private(pri->pvts[nextidle]);
-					idle = sig_pri_request(pri->pvts[nextidle], AST_FORMAT_ULAW, NULL, 0);
+					idle = sig_pri_request(pri->pvts[nextidle], SIG_PRI_ULAW, NULL, 0);
 					ast_mutex_lock(&pri->lock);
 					if (idle) {
 						pri->pvts[nextidle]->isidlecall = 1;
