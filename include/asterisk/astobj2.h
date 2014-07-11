@@ -561,13 +561,15 @@ int __ao2_ref(void *o, int delta);
 	{\
 		typeof(dst) *__dst_ ## __LINE__ = &dst; \
 		typeof(src) __src_ ## __LINE__ = src; \
-		if (__src_ ## __LINE__) {\
-			ao2_ref(__src_ ## __LINE__, +1); \
+		if (__src_ ## __LINE__ != *__dst_ ## __LINE__) { \
+			if (__src_ ## __LINE__) {\
+				ao2_ref(__src_ ## __LINE__, +1); \
+			} \
+			if (*__dst_ ## __LINE__) {\
+				ao2_ref(*__dst_ ## __LINE__, -1); \
+			} \
+			*__dst_ ## __LINE__ = __src_ ## __LINE__; \
 		} \
-		if (*__dst_ ## __LINE__) {\
-			ao2_ref(*__dst_ ## __LINE__, -1); \
-		} \
-		*__dst_ ## __LINE__ = __src_ ## __LINE__; \
 	}
 
 /*! @} */
