@@ -538,14 +538,16 @@ unsigned int ao2_options_get(void *obj);
  * \param obj AO2 object to bump the refcount on.
  * \retval The given \a obj pointer.
  */
-#define ao2_bump(obj)						\
+#define ao2_t_bump(obj, tag)						\
 	({							\
 		typeof(obj) __obj_ ## __LINE__ = (obj);		\
 		if (__obj_ ## __LINE__) {			\
-			ao2_ref(__obj_ ## __LINE__, +1);	\
+			ao2_t_ref(__obj_ ## __LINE__, +1, (tag));	\
 		}						\
 		__obj_ ## __LINE__;				\
 	})
+#define ao2_bump(obj) \
+	ao2_t_bump((obj), "")
 
 int __ao2_ref_debug(void *o, int delta, const char *tag, const char *file, int line, const char *func);
 int __ao2_ref(void *o, int delta);
@@ -557,20 +559,22 @@ int __ao2_ref(void *o, int delta);
  * \param dst Pointer to the object that will be cleaned up.
  * \param src Pointer to the object replacing it.
  */
-#define ao2_replace(dst, src) \
+#define ao2_t_replace(dst, src, tag) \
 	{\
 		typeof(dst) *__dst_ ## __LINE__ = &dst; \
 		typeof(src) __src_ ## __LINE__ = src; \
 		if (__src_ ## __LINE__ != *__dst_ ## __LINE__) { \
 			if (__src_ ## __LINE__) {\
-				ao2_ref(__src_ ## __LINE__, +1); \
+				ao2_t_ref(__src_ ## __LINE__, +1, (tag)); \
 			} \
 			if (*__dst_ ## __LINE__) {\
-				ao2_ref(*__dst_ ## __LINE__, -1); \
+				ao2_t_ref(*__dst_ ## __LINE__, -1, (tag)); \
 			} \
 			*__dst_ ## __LINE__ = __src_ ## __LINE__; \
 		} \
 	}
+#define ao2_replace(dst, src) \
+	ao2_t_replace((dst), (src), "")
 
 /*! @} */
 
@@ -1965,11 +1969,13 @@ void ao2_bt(void);	/* backtrace */
  * allocation/find functions can fail and we don't want to try to tear
  * down a NULL */
 void __ao2_cleanup(void *obj);
-void __ao2_cleanup_debug(void *obj, const char *file, int line, const char *function);
+void __ao2_cleanup_debug(void *obj, const char *tag, const char *file, int line, const char *function);
 #ifdef REF_DEBUG
-#define ao2_cleanup(obj) __ao2_cleanup_debug((obj), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_cleanup(obj) __ao2_cleanup_debug((obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_cleanup(obj, tag) __ao2_t_cleanup_debug((obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
 #define ao2_cleanup(obj) __ao2_cleanup(obj)
+#define ao2_t_cleanup(obj, tag) __ao2_cleanup((obj))
 #endif
 void ao2_iterator_cleanup(struct ao2_iterator *iter);
 

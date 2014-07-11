@@ -524,10 +524,10 @@ int __ao2_ref(void *user_data, int delta)
 	return internal_ao2_ref(user_data, delta, __FILE__, __LINE__, __FUNCTION__);
 }
 
-void __ao2_cleanup_debug(void *obj, const char *file, int line, const char *function)
+void __ao2_cleanup_debug(void *obj, const char *tag, const char *file, int line, const char *function)
 {
 	if (obj) {
-		__ao2_ref_debug(obj, -1, "ao2_cleanup", file, line, function);
+		__ao2_ref_debug(obj, -1, tag, file, line, function);
 	}
 }
 
