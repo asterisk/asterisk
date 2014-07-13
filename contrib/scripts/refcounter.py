@@ -79,10 +79,15 @@ def process_file(options):
             obj = parsed_line['addr']
 
             if obj not in current_objects:
-                current_objects[obj] = []
-                if options.skewed and 'constructor' not in parsed_line['state']:
-                    skewed_objects.append((obj, current_objects[obj]))
-            current_objects[obj].append("[%s] %s:%s %s: %s %s - [%s]" % (
+                current_objects[obj] = {'log': [], 'curcount': 1,}
+                if 'constructor' not in parsed_line['state']:
+                    current_objects[obj]['curcount'] = parsed_line['state']
+                    if options.skewed:
+                        skewed_objects.append((obj, current_objects[obj]))
+            else:
+                current_objects[obj]['curcount'] += int(parsed_line['delta'])
+
+            current_objects[obj]['log'].append("[%s] %s:%s %s: %s %s - [%s]" % (
                 parsed_line['thread_id'],
                 parsed_line['file'],
                 parsed_line['line'],
@@ -91,7 +96,7 @@ def process_file(options):
                 parsed_line['tag'],
                 parsed_line['state']))
 
-            if 'destructor' in parsed_line['state']:
+            if current_objects[obj]['curcount'] == 0:
                 if options.normal:
                     finished_objects.append((obj, current_objects[obj]))
                 del current_objects[obj]
@@ -115,7 +120,7 @@ def print_objects(objects, prefix=""):
     print "\n"
     for obj in objects:
         print "==== %s Object %s history ====" % (prefix, obj[0])
-        for line in obj[1]:
+        for line in obj[1]['log']:
             print line
         print "\n"
 
