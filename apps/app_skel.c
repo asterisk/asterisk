@@ -645,6 +645,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(skel_cli, ARRAY_LEN(skel_cli));
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
+	ao2_cleanup(games);
 	return ast_unregister_application(app);
 }
 
