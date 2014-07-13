@@ -1972,7 +1972,7 @@ void __ao2_cleanup(void *obj);
 void __ao2_cleanup_debug(void *obj, const char *tag, const char *file, int line, const char *function);
 #ifdef REF_DEBUG
 #define ao2_cleanup(obj) __ao2_cleanup_debug((obj), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_t_cleanup(obj, tag) __ao2_t_cleanup_debug((obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_t_cleanup(obj, tag) __ao2_cleanup_debug((obj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
 #define ao2_cleanup(obj) __ao2_cleanup(obj)
 #define ao2_t_cleanup(obj, tag) __ao2_cleanup((obj))
