@@ -1150,6 +1150,10 @@ static struct stasis_forward *rtp_topic_forwarder;
 /*! \brief The \ref stasis_subscription for forwarding the Security topic to the AMI topic */
 static struct stasis_forward *security_topic_forwarder;
 
+#ifdef TEST_FRAMEWORK
+struct stasis_subscription *test_suite_sub;
+#endif
+
 #define MGR_SHOW_TERMINAL_WIDTH 80
 
 #define MAX_VARS 128
@@ -7987,6 +7991,10 @@ static void manager_shutdown(void)
 	ao2_t_global_obj_release(event_docs, "Dispose of event_docs");
 #endif
 
+#ifdef TEST_FRAMEWORK
+	stasis_unsubscribe(test_suite_sub);
+#endif
+
 	if (stasis_router) {
 		stasis_message_router_unsubscribe_and_join(stasis_router);
 		stasis_router = NULL;
@@ -8179,7 +8187,7 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("BlindTransfer", EVENT_FLAG_CALL, action_blind_transfer);
 
 #ifdef TEST_FRAMEWORK
-		stasis_subscribe(ast_test_suite_topic(), test_suite_event_cb, NULL);
+		test_suite_sub = stasis_subscribe(ast_test_suite_topic(), test_suite_event_cb, NULL);
 #endif
 
 		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));
