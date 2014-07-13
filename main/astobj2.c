@@ -498,14 +498,19 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 int __ao2_ref_debug(void *user_data, int delta, const char *tag, const char *file, int line, const char *func)
 {
 	struct astobj2 *obj = INTERNAL_OBJ(user_data);
+	int old_refcount = -1;
+
+	if (obj) {
+		old_refcount = internal_ao2_ref(user_data, delta, file, line, func);
+	}
 
 	if (ref_log && user_data) {
-		if (obj && obj->priv_data.ref_counter + delta == 0) {
+		if (obj && old_refcount + delta == 0) {
 			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n", user_data, delta, ast_get_tid(), file, line, func, tag);
 			fflush(ref_log);
 		} else if (delta != 0) {
 			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data, (delta < 0 ? "" : "+"),
-				delta, ast_get_tid(), file, line, func, obj ? obj->priv_data.ref_counter : -1, tag);
+				delta, ast_get_tid(), file, line, func, old_refcount, tag);
 			fflush(ref_log);
 		}
 	}
@@ -513,10 +518,9 @@ int __ao2_ref_debug(void *user_data, int delta, const char *tag, const char *fil
 	if (obj == NULL) {
 		ast_log_backtrace();
 		ast_assert(0);
-		return -1;
 	}
 
-	return internal_ao2_ref(user_data, delta, file, line, func);
+	return old_refcount;
 }
 
 int __ao2_ref(void *user_data, int delta)
