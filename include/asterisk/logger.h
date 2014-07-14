@@ -390,15 +390,21 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *c
 
 #define ast_log_dynamic_level(level, ...) ast_log(level, __FILE__, __LINE__, __PRETTY_FUNCTION__, __VA_ARGS__)
 
+#define DEBUG_ATLEAST(level) \
+	(option_debug >= (level) \
+		|| (ast_opt_dbg_module && ast_debug_get_by_module(AST_MODULE) >= (level)))
+
 /*!
  * \brief Log a DEBUG message
  * \param level The minimum value of option_debug for this message
  *        to get logged
  */
-#define ast_debug(level, ...) do {       \
-	if (option_debug >= (level) || (ast_opt_dbg_module && ast_debug_get_by_module(AST_MODULE) >= (level)) ) \
-		ast_log(AST_LOG_DEBUG, __VA_ARGS__); \
-} while (0)
+#define ast_debug(level, ...) \
+	do { \
+		if (DEBUG_ATLEAST(level)) { \
+			ast_log(AST_LOG_DEBUG, __VA_ARGS__); \
+		} \
+	} while (0)
 
 extern int ast_verb_sys_level;
 
