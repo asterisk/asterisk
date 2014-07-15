@@ -76,8 +76,8 @@ static int uriencode(struct ast_channel *chan, const char *cmd, char *data,
 		     char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: URIENCODE(<data>) - missing argument!\n");
-		return -1;
+		buf[0] = '\0';
+		return 0;
 	}
 
 	ast_uri_encode(data, buf, len, ast_uri_http);
@@ -90,8 +90,8 @@ static int uridecode(struct ast_channel *chan, const char *cmd, char *data,
 		     char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: URIDECODE(<data>) - missing argument!\n");
-		return -1;
+		buf[0] = '\0';
+		return 0;
 	}
 
 	ast_copy_string(buf, data, len);
