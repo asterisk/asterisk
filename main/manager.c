@@ -5032,8 +5032,6 @@ static int action_presencestate(struct mansession *s, const struct message *m)
 	enum ast_presence_state state;
 	char *subtype;
 	char *message;
-	char subtype_header[256] = "";
-	char message_header[256] = "";
 
 	if (ast_strlen_zero(provider)) {
 		astman_send_error(s, m, "No provider specified");
@@ -5046,24 +5044,25 @@ static int action_presencestate(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
+	astman_start_ack(s, m);
+	astman_append(s, "Message: Presence State\r\n"
+	                 "State: %s\r\n", ast_presence_state2str(state));
+
 	if (!ast_strlen_zero(subtype)) {
-		snprintf(subtype_header, sizeof(subtype_header),
-				"Subtype: %s\r\n", subtype);
+		astman_append(s, "Subtype: %s\r\n", subtype);
 	}
 
 	if (!ast_strlen_zero(message)) {
-		snprintf(message_header, sizeof(message_header),
-				"Message: %s\r\n", message);
+		/* XXX The Message header here is deprecated as it
+		 * duplicates the action response header 'Message'.
+		 * Remove it in the next major revision of AMI.
+		 */
+		astman_append(s, "Message: %s\r\n"
+		                 "PresenceMessage: %s\r\n",
+		                 message, message);
 	}
+	astman_append(s, "\r\n");
 
-	astman_append(s, "Message: Presence State\r\n"
-			"State: %s\r\n"
-			"%s"
-			"%s"
-			"\r\n",
-			ast_presence_state2str(state),
-			subtype_header,
-			message_header);
 	return 0;
 }
 

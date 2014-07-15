@@ -117,6 +117,15 @@ AMI:
  - Removed the undocumented manager.conf block-sockets option.  It interferes with
    TCP/TLS inactivity timeouts.
 
+ - The response to the PresenceState AMI action has historically contained two
+   Message keys. The first of these is used as an informative message regarding
+   the success/failure of the action; the second contains a Presence state
+   specific message. Having two keys with the same unique name in an AMI
+   message is cumbersome for some client; hence, the Presence specific Message
+   has been deprecated. The message will now contain a PresenceMessage key
+   for the presence specific information; the Message key containing presence
+   information will be removed in the next major version of AMI.
+
 CDRs:
  - The "endbeforehexten" setting now defaults to "yes", instead of "no".
    When set to "no", yhis setting will cause a new CDR to be generated when a
