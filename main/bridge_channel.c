@@ -1477,10 +1477,15 @@ static void testsuite_notify_feature_success(struct ast_channel *chan, const cha
 			feature = "automixmon";
 		} else if (!strcmp(dtmf, featuremap->parkcall)) {
 			feature = "parkcall";
-		} else if (!strcmp(dtmf, xfer->atxferthreeway)) {
+		}
+	} else if (xfer) {
+		if (!strcmp(dtmf, xfer->atxferthreeway)) {
 			feature = "atxferthreeway";
 		}
 	}
+
+	ao2_cleanup(featuremap);
+	ao2_cleanup(xfer);
 
 	ast_test_suite_event_notify("FEATURE_DETECTION",
 			"Result: success\r\n"
