@@ -4666,6 +4666,7 @@ static int action_presencestate(struct mansession *s, const struct message *m)
 				"Message: %s\r\n", message);
 	}
 
+	astman_start_ack(s, m);
 	astman_append(s, "Message: Presence State\r\n"
 			"State: %s\r\n"
 			"%s"
