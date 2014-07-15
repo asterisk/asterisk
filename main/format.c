@@ -1045,7 +1045,7 @@ static int format_list_init(void)
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0), "ulaw", 8000, "G.711 u-law", 80, 10, 150, 10, 20, 0, 0);     /*!< codec_ulaw.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0), "alaw", 8000, "G.711 A-law", 80, 10, 150, 10, 20, 0, 0);     /*!< codec_alaw.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G726, 0), "g726", 8000, "G.726 RFC3551", 40, 10, 300, 10, 20, 0, 0);   /*!< codec_g726.c */
-	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_ADPCM, 0), "adpcm" , 8000, "ADPCM", 40, 10, 300, 10, 20, 0, 0);        /*!< codec_adpcm.c */
+	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_ADPCM, 0), "adpcm" , 8000, "Dialogic ADPCM", 40, 10, 300, 10, 20, 0, 0);        /*!< codec_adpcm.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0), "slin", 8000, "16 bit Signed Linear PCM", 160, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE, 0); /*!< Signed linear */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_LPC10, 0), "lpc10", 8000, "LPC10", 7, 20, 20, 20, 20, 0, 0);           /*!< codec_lpc10.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G729A, 0), "g729", 8000, "G.729A", 10, 10, 230, 10, 20, AST_SMOOTHER_FLAG_G729, 0);   /*!< Binary commercial distribution */

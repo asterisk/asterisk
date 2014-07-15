@@ -154,7 +154,7 @@ static inline short decode(int encoded, struct adpcm_state *state)
 /*
  * Adpcm
  *  Takes a signed linear signal and encodes it as ADPCM
- *  For more information see http://support.dialogic.com/appnotes/adpcm.pdf
+ *  For more information see http://en.wikipedia.org/wiki/Dialogic_ADPCM
  *
  * Results:
  *  Foo.
