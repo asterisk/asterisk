@@ -40,7 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif	/* defined(HAVE_PRI) */
 #include "../chan_dahdi.h"
 
-#include "asterisk/astobj.h"
 #include "bridge_native_dahdi.h"
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_technology.h"
