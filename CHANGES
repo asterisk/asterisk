@@ -179,6 +179,17 @@ res_config_pgsql
    res_pgsql.conf.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 12.4.0 to Asterisk 12.5.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * The endpoint configuration object now supports 'accountcode'. Any channel
+   created for an endpoint with this setting will have its accountcode set
+   to the specified value.
+
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.3.0 to Asterisk 12.4.0 ------------
 ------------------------------------------------------------------------------
 
