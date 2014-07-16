@@ -715,6 +715,13 @@
 						specified, then the <replaceable>context</replaceable> setting is used.
 					</para></description>
 				</configOption>
+				<configOption name="accountcode">
+					<synopsis>An accountcode to set automatically on any channels created for this endpoint.</synopsis>
+					<description><para>
+						If specified, any channel created for this endpoint will automatically
+						have this accountcode set on it.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

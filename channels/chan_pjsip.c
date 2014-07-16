@@ -364,8 +364,12 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
-	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), "", "", "", assignedids, requestor, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
-		(unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1)))) {
+
+	chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""),
+	                         session->endpoint->accountcode, "", "", assignedids,
+	                         requestor, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
+	                         (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+	if (!chan) {
 		return NULL;
 	}
 
