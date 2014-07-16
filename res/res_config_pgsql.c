@@ -79,6 +79,7 @@ static char dbhost[MAX_DB_OPTION_SIZE] = "";
 static char dbuser[MAX_DB_OPTION_SIZE] = "";
 static char dbpass[MAX_DB_OPTION_SIZE] = "";
 static char dbname[MAX_DB_OPTION_SIZE] = "";
+static char dbappname[MAX_DB_OPTION_SIZE] = "";
 static char dbsock[MAX_DB_OPTION_SIZE] = "";
 static int dbport = 5432;
 static time_t connect_time = 0;
@@ -1436,6 +1437,12 @@ static int parse_config(int is_reload)
 		dbport = atoi(s);
 	}
 
+	if (!(s = ast_variable_retrieve(config, "general", "dbappname"))) {
+		dbappname[0] = '\0';
+	} else {
+		ast_copy_string(dbappname, s, sizeof(dbappname));
+	}
+
 	if (!ast_strlen_zero(dbhost)) {
 		/* No socket needed */
 	} else if (!(s = ast_variable_retrieve(config, "general", "dbsock"))) {
@@ -1499,18 +1506,27 @@ static int pgsql_reconnect(const char *database)
 
 	/* DB password can legitimately be 0-length */
 	if ((!pgsqlConn) && (!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && !ast_strlen_zero(my_database)) {
-		struct ast_str *connInfo = ast_str_create(128);
+		struct ast_str *conn_info = ast_str_create(128);
 
-		ast_str_set(&connInfo, 0, "host=%s port=%d dbname=%s user=%s",
+		if (!conn_info) {
+			ast_log(LOG_ERROR, "PostgreSQL RealTime: Failed to allocate memory for connection string.\n");
+			return 0;
+		}
+
+		ast_str_set(&conn_info, 0, "host=%s port=%d dbname=%s user=%s",
 			S_OR(dbhost, dbsock), dbport, my_database, dbuser);
-		if (!ast_strlen_zero(dbpass))
-			ast_str_append(&connInfo, 0, " password=%s", dbpass);
 
-		ast_debug(1, "%u connInfo=%s\n", (unsigned int)ast_str_size(connInfo), ast_str_buffer(connInfo));
-		pgsqlConn = PQconnectdb(ast_str_buffer(connInfo));
-		ast_debug(1, "%u connInfo=%s\n", (unsigned int)ast_str_size(connInfo), ast_str_buffer(connInfo));
-		ast_free(connInfo);
-		connInfo = NULL;
+		if (!ast_strlen_zero(dbappname)) {
+			ast_str_append(&conn_info, 0, " application_name=%s", dbappname);
+		}
+
+		if (!ast_strlen_zero(dbpass)) {
+			ast_str_append(&conn_info, 0, " password=%s", dbpass);
+		}
+
+		pgsqlConn = PQconnectdb(ast_str_buffer(conn_info));
+		ast_free(conn_info);
+		conn_info = NULL;
 
 		ast_debug(1, "pgsqlConn=%p\n", pgsqlConn);
 		if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {

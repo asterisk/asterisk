@@ -50,6 +50,20 @@ cdr_sqlite
  * This module was deprecated and has been removed. Users of cdr_sqlite
    should use cdr_sqlite3_custom.
 
+cdr_pgsql
+------------------
+ * Added the ability to support PostgreSQL application_name on connections.
+   This allows PostgreSQL to display the configured name in the
+   pg_stat_activity view and CSV log entries. This setting is configurable
+   for cdr_pgsql via the appname configuration setting in cdr_pgsql.conf.
+
+cel_pgsql
+------------------
+ * Added the ability to support PostgreSQL application_name on connections.
+   This allows PostgreSQL to display the configured name in the
+   pg_stat_activity view and CSV log entries. This setting is configurable
+   for cel_pgsql via the appname configuration setting in cel_pgsql.conf.
+
 CEL
 ------------------
  * The "bridge_technology" extra field key has been added to BRIDGE_ENTER
@@ -155,6 +169,14 @@ VoiceMail
    - jb-ga: article ga
    - jb-wa: article wa
    - jb-wo: article wo
+
+res_config_pgsql
+------------------
+ * Added the ability to support PostgreSQL application_name on connections.
+   This allows PostgreSQL to display the configured name in the
+   pg_stat_activity view and CSV log entries. This setting is configurable
+   for res_config_pgsql via the dbappname configuration setting in
+   res_pgsql.conf.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.3.0 to Asterisk 12.4.0 ------------
