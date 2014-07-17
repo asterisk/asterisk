@@ -131,7 +131,7 @@ AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
         [LIBXML_TEST_VERSION])
 
 if test "${PBX_LIBXML2}" != 1; then
-  AC_MSG_ERROR([coult not find required 'Libxml2' development package])
+  AC_MSG_ERROR([Could not find required 'Libxml2' development package])
 fi
 
 PBX_GTK2=0

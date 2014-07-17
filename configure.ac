@@ -550,9 +550,14 @@ if test "x$JANSSON_LIB" == "x"; then
   AC_MSG_ERROR([*** JSON support not found (this typically means the libjansson development package is missing)])
 fi
 
-if test "x$PBX_LIBXML2" == "x"; then
-	AC_MSG_NOTICE(*** The Asterisk menuselect tool requires the 'libxml2' package.)
-	AC_MSG_NOTICE(*** Please install the 'libxml2' package.)
+AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
+        [#include <libxml/tree.h>
+        #include <libxml/parser.h>],
+        [LIBXML_TEST_VERSION])
+
+if test "${PBX_LIBXML2}" != 1; then
+	AC_MSG_NOTICE(*** The Asterisk menuselect tool requires the 'libxml2' development package.)
+	AC_MSG_NOTICE(*** Please install the 'libxml2' development package.)
 	exit 1
 fi
 
@@ -569,10 +574,6 @@ AC_ARG_ENABLE([xmldoc],
 	esac], [disable_xmldoc=no])
 
 if test "${disable_xmldoc}" != "yes"; then
-	AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
-	[#include <libxml/tree.h>
-	#include <libxml/parser.h>],
-	[LIBXML_TEST_VERSION])
         AST_EXT_LIB_CHECK([LIBXSLT], [xslt], [xsltLoadStylesheetPI], [libxslt/xsltInternals.h], [${LIBXML2_LIB}], [${LIBXML2_INCLUDE}])
         AST_EXT_LIB_CHECK([LIBXSLT_CLEANUP], [xslt], [xsltCleanupGlobals], [libxslt/xsltInternals.h], [${LIBXML2_LIB}], [${LIBXML2_INCLUDE}])
 
