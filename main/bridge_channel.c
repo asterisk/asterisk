@@ -1478,7 +1478,8 @@ static void testsuite_notify_feature_success(struct ast_channel *chan, const cha
 		} else if (!strcmp(dtmf, featuremap->parkcall)) {
 			feature = "parkcall";
 		}
-	} else if (xfer) {
+	}
+	if (xfer) {
 		if (!strcmp(dtmf, xfer->atxferthreeway)) {
 			feature = "atxferthreeway";
 		}
