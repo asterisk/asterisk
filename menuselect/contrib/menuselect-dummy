@@ -1,0 +1,741 @@
+#!/usr/bin/perl -w
+
+# menuselect - a simple drop-in replacement of the batch-mode menuselect
+# included with Asterisk.
+#
+# Copyright (C) 2008 by Tzafrir Cohen <tzafrir.cohen@xorcom.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
+# USA
+
+# Installation: copy this script to menuselect/menuselect . Copy the
+# included Makefile as menuselect/Makefile and run:
+#
+#   make -C makefile dummies
+#
+# It takes configuration from build_tools/conf . Sample config file:
+#
+#   By default all modules will be built (except those marked not be
+#   used by default)
+#
+#   # exclude: Don't try to build the following modules. 
+#   #exclude app_test
+#
+#   # You can have multiple items in each line, and multiple lines.
+#   # Each item is a perl regular expression that must match the whole
+#   # module name.
+#   #exclude res_config_.*
+#
+#   # include: syntax is the same as exclude. Overrides exclude and
+#   # modules that are marked as disabled by defualt:
+#   #include res_config_sqlite3 app_skel
+#
+#   # If you want to make sure some modules will be conifgured to build,
+#   # you can require them. If modules that match any of the 'require'
+#   # pattern are not configured to build, menuselect will panic.
+#   # Same pattern rules apply here. Why would you want that? I have no
+#   # idea.
+#   #require chan_h323 app_directory
+#
+#   # random - the value for this keyword is a number between 1 and 
+#   # 100. The higher it is, more chances not to include each module.
+#   # Writes the list of modules that got hit to
+#   # build_tools/mods_removed_random .
+#   # Note that unlike 'make randomconfig' and such the random
+#   # configuration changes each time you run 'make', thus if a build
+#   # failed you should first read build_tools/mods_removed_random
+#   # before re-running make.
+#   #random 10
+#
+#   # Anything after a '#' is ignored, and likewise empty lines.
+#   # Naturally.
+
+use strict;
+use Getopt::Long;
+
+# Holds global dependncy information. Keys are module names.
+my %ModInfo = ();
+
+# extract configuration from kernel modules:
+my $AutoconfDepsFile = "build_tools/menuselect-deps";
+
+my $AutoconfOptsFile = "makeopts";
+my %ConfigureOpts = (); # 
+
+# configuration file to read for some directives:
+my $ConfFile = "build_tools/conf";
+
+my $DumpFile = 'build_tools/dump_deps';
+
+# Modules removed randomely:
+my $RandomeModsFile = "build_tools/mods_removed_random";
+
+my $MakedepsFile = "menuselect.makedeps";
+
+my $MakeoptsFile = "menuselect.makeopts";
+
+# If those modules are not present, the build will fail (PCRE patterns)
+my @RequiredModules = ();
+
+my @Subdirs = qw/addons apps bridges cdr cel channels codecs formats funcs main pbx res tests utils/;
+
+my @XmlCategories = 'cflags';
+
+# Modules should not bother building (PCRE patterns)
+my @ExcludedModules = ();
+
+# Do try building those. Overrides 'exclude' and 'defaultenable: no'
+my @IncludedModules = ();
+
+# A chance to rule-out a module randomely.
+my $RandomKnockoutFactor = 0;
+
+sub warning($) {
+	my $msg = shift;
+	print STDERR "$0: Warning: $msg\n";
+}
+
+# Convert XML syntax to mail-header-like syntax:
+# <var>value</var> --> Var: value
+sub extract_xml_key($) {
+	my %attr = ();
+	my $xml_line = shift;
+	if ($xml_line !~ m{^\s*<([a-z_A-Z0-9]+)(\s+([^>]*))?>([^<]*)</\1>}) {
+		warning "parsed empty value from XML line $xml_line";
+		return ('', ''); # warn?
+	}
+	my ($var, $val) = ($1, $4);
+	$var =~ s{^[a-z]}{\u$&};
+	if (defined $3) {
+		my $attr_text = $3;
+		while ($attr_text =~ /^( *([^=]+)="([^"]+)")/) {
+			my ($var, $val) = ($2, $3);
+			$attr_text =~ s/^$1//;
+			$attr{$var} = $val;
+		}
+	}
+	return ($var, $val, %attr);
+}
+
+# Get information embedded in source files from a subdirectory.
+# First parameter is the subdirectory and further ones are the actual
+# source files.
+sub get_subdir_module_info {
+	my $subdir = shift;
+	my @files = @_;
+
+	my $dir = uc($subdir);
+
+	foreach my $src (@files) {
+		open SRC,$src or die "Can't read from source file $src: $!\n";
+		$src =~ m|.*/([^/]*)\.c|;
+		my $mod_name = $1;
+		my %data = (
+			Type=>'module', 
+			Module=>$mod_name, 
+			Dir=> $dir, 
+			Avail=>1
+		);
+
+		while (<SRC>) {
+			next unless (m|^/\*\*\* MODULEINFO| .. m|^ *[*]+/|);
+			next unless (m|^[A-Z]| || m|^\s*<|);
+
+			# At this point we can assume we're in the module 
+			# info section.
+			chomp;
+			my ($var, $val, %attr) = extract_xml_key($_);
+			foreach (keys %attr) {
+				push @{$data{$_}},($attr{$_});
+			}
+			if ($var =~ /^(Depend|Use)$/i) {
+				# use uppercase for dependency names;
+				$val = uc($val); 
+			}
+			if ( ! exists $data{$var} ) {
+				$data{$var} = [$val];
+			} else {
+				push @{$data{$var}},($val);
+			}
+		}
+		close SRC;
+
+		$ModInfo{uc($mod_name)} = \%data;
+	}
+}
+
+# extract embedded information in all the source tree.
+sub extract_subdirs {
+	for my $subdir(@_) {
+		get_subdir_module_info($subdir, <$subdir/*.c> , <$subdir/*.cc>);
+	}
+}
+
+# parse a partial XML document that is included as an input 
+# for menuselect in a few places. Naturally a full-fledged XML parsing
+# will not be done here. A line-based parsing that happens to work will
+# have to do.
+sub parse_menuselect_xml_file($) {
+	my $file_name = shift;
+	open XML,$file_name or 
+		die "Failed opening XML file $file_name: $!.\n";
+	
+	my $header = <XML>;
+	$header =~ /^\s*<category\s+name="MENUSELECT_([^"]+)"\s/;
+	my $category = $1;
+	my $member;
+
+	while(<XML>){
+		next unless (m{^\s*<(/?[a-z]+)[>\s]});
+		my $tag = $1;
+
+		if ($tag eq 'member') {
+			if (! m{^\s*<member\s+name="([^"]+)" displayname="([^"]+)"\s*>}){
+				warning "Bad XML member line: $_ ($file_name:$.)\n";
+				next;
+			}
+			my ($name, $display_name) = ($1, $2);
+
+			$member = {
+				Type => 'XML',
+				Dir => $category,
+				Module => $1,
+				DisplayName => $2,
+				Defaultenabled => ['no'],
+				Avail => 1, 
+
+			};
+		} elsif ($tag eq '/member') {
+			$ModInfo{$member->{Module}} = $member;
+		} elsif ($tag eq '/category') {
+			last;
+		} else {
+			if (! m/^\s*<([a-z]+)>([^<]+)</) {
+				warning "(1) Unknown XML line $_ ($file_name:$.)\n";
+				next
+			}
+			my ($key, $val) = extract_xml_key($_);
+			if ($key eq '') {
+				warning "Unknown XML line $_ ($file_name:$.)\n";
+				next
+			}
+			if (! exists $member->{$key}) {
+				$member->{$key} = [];
+			}
+			
+			# Make sure dependencies are upper-case.
+			# FIXME: this is not the proper place for such a fix
+			$val = uc($val) if ($key =~ /Depend|Use/);
+
+			# Using "unshift' rather than 'push'.
+			# For a singleton value this makes the action an 
+			# override, as only the first value counts.
+			# For a list value, however, it means a reversed
+			# order.
+			unshift @{$member->{$key}}, ($val);
+		}
+	}
+
+	
+	close XML;
+}
+
+# Dump our data structure to a file.
+sub dump_deps($) {
+	my $file = shift;
+	open OUTPUT,">$file" or 
+	die "cannot open category file $file for writing: $!\n";
+
+	foreach my $mod_name (sort keys %ModInfo) { 
+	print OUTPUT "Key: $mod_name\n";
+		my $data = $ModInfo{$mod_name};
+		foreach my $var (sort keys %{$data} ) {
+			my $val = $$data{$var};
+			if (ref($val) eq 'ARRAY') {
+				print OUTPUT $var.": ". (join ", ", @$val)."\n";
+			} else {
+				print OUTPUT "$var: $val\n";
+			}
+		}
+		print OUTPUT "\n";
+	}
+	close OUTPUT;
+}
+
+# Get the available libraries that autoconf generated.
+sub get_autoconf_deps() {
+	open DEPS, $AutoconfDepsFile or
+		die "Failed to open $AutoconfDepsFile. Aborting: $!\n";
+
+	my @deps_list = (<DEPS>);
+	foreach (@deps_list){
+		chomp;
+		my ($lib, $avail_val) = split(/=/);
+		my ($avail, $avail_old) = split(/:/, $avail_val);
+		my $disabled = 0;
+		if ($avail == -1) { 
+			$disabled = 1;
+			$avail = 0;
+		}
+		$ModInfo{$lib} = {
+			Type=>'lib', Avail=>$avail, Disabled => $disabled
+		};
+		if (defined $avail_old) {
+			$ModInfo{$lib}{AvailOld} = $avail_old;
+		}
+		# FIXME: 
+		if (($avail ne "0") && ($avail ne "1")) {
+			warning "Library $lib has invalid availability ".
+				"value <$avail> (check $AutoconfDepsFile).\n";
+		}
+	}
+	close DEPS;
+}
+
+# Get the available libraries that autoconf generated.
+sub get_autoconf_opts() {
+	open OPTS, $AutoconfOptsFile or
+		die "Failed to open $AutoconfOptsFile. Aborting: $!\n";
+
+	while (<OPTS>) {
+		chomp;
+		next if /^(#|$)/;
+		my ($var, $val) = split /\s*=\s*/, $_, 2;
+		$ConfigureOpts{$var} = $val;
+	}
+	close OPTS;
+	if (not exists $ConfigureOpts{AST_DEVMODE}) {
+		$ConfigureOpts{AST_DEVMODE} = 'no';
+	}
+}
+
+# Read our specific config file.
+#
+# Its format:
+#
+#   keyword  values
+#
+# values are always a spaces-separated list.
+sub read_conf() {
+	open CONF,$ConfFile or return;
+
+	while (<CONF>) {
+		# remove comments and empty lines:
+		chomp;
+		s/#.*$//;
+		next if /^\s*$/;
+
+		my ($keyword, @value) = split;
+
+		if ($keyword eq 'exclude') {
+			push @ExcludedModules, @value;
+		} elsif ($keyword eq 'include') {
+			push @IncludedModules, @value;
+		} elsif ($keyword eq 'require') {
+			push @RequiredModules, @value;
+		} elsif ($keyword eq 'random') {
+			$RandomKnockoutFactor = $value[0] / 100;
+		} else {
+			warning "unknown keyword $keyword in line $. of $ConfFile.";
+		}
+	}
+}
+
+# generate menuselect.makedeps.
+# In this file menuselect writes dependecies of each module. CFLAGS will
+# then automatically include for each module the _INCLUDE and LDFLAGS
+# will include the _LIBS from all the depedencies of the module.
+sub gen_makedeps() {
+	open MAKEDEPSS, ">$MakedepsFile" or
+		die "Failed to open deps file $MakedepsFile for writing. Aborting: $!\n";
+
+	for my $mod_name (sort keys %ModInfo) {
+		next unless ($ModInfo{$mod_name}{Type} eq 'module');
+
+		my $mod = $ModInfo{$mod_name};
+		my @deps = ();
+
+		# if we have Depend or Use, put their values into 
+		# @deps . If we have none, move on.
+		push @deps, @{$mod->{Depend}} if (exists $mod->{Depend});
+		push @deps, @{$mod->{Use}}    if (exists $mod->{Use});
+		next unless @deps; 
+
+		# TODO: don't print dependencies that are not external libs. 
+		# Not done yet until I figure out if this is safe.
+		my $dep = join(' ', @deps);
+		print MAKEDEPSS "MENUSELECT_DEPENDS_".$mod->{Module}."=$dep\n";
+	}
+
+	close MAKEDEPSS;
+}
+
+# Set modules from patterns specified by 'exclude' in the configuration file
+# to exclude modules from building (mark them as unavailable).
+sub apply_excluded_patterns() {
+	foreach my $pattern (@ExcludedModules) {
+		my @excluded = grep {/^$pattern$/i} (keys %ModInfo);
+		foreach (@excluded) {
+			$ModInfo{$_}{Avail} = 0;
+		}
+	}
+}
+
+# Set modules from patterns specified by 'include' in the configuration
+# file to exclude from building (mark them as available).
+sub apply_included_patterns() {
+	foreach my $pattern (@IncludedModules) {
+		my @included = grep {/^$pattern$/i} (keys %ModInfo);
+		foreach (@included) {
+			$ModInfo{$_}{Avail} = 1;
+		}
+	}
+}
+
+# If user set the "random" config to anything > 0, drop some random
+# modules. May help expose wrong dependencies.
+sub apply_random_drop() {
+	return if ($RandomKnockoutFactor <= 0);
+
+	open MODS_LIST, ">$RandomeModsFile" or
+		die "Failed to open modules list file $RandomeModsFile for writing. Aborting: $!\n";
+	for my $mod (keys %ModInfo) {
+		next unless ($ModInfo{$mod}{Type} eq 'module');
+		next unless (rand() < $RandomKnockoutFactor);
+		$ModInfo{$mod}{Avail} = 0;
+		$ModInfo{$mod}{RandomKill} = 1;
+		print MODS_LIST $ModInfo{$mod}{Module}."\n";
+	}
+
+	close MODS_LIST;
+	
+
+}
+
+sub check_required_patterns() {
+	my @failed = ();
+	foreach my $pattern (@RequiredModules) {
+		my @required = grep {/^$pattern$/i} (keys %ModInfo);
+		foreach my $mod (@required) {
+			if ((! exists $ModInfo{$mod}{Checked}) ||
+				(! $ModInfo{$mod}{Checked}) )
+			{
+				push @failed, $mod;
+			}
+		}
+	}
+	return unless (@failed);
+
+	my $failed_str = join ' ',@failed;
+	die("Missing dependencies for the following modules: $failed_str\n");
+}
+
+# Disable building for modules that were marked in the embedded module 
+# information as disabled for building by default.
+sub apply_default_enabled() {
+	foreach my $mod (keys %ModInfo) {
+		if ((exists $ModInfo{$mod}{Defaultenabled}) &&
+				$ModInfo{$mod}{Defaultenabled}[0] eq 'no')
+		{
+			$ModInfo{$mod}{Avail} = 0;
+		}
+	}
+}
+
+# We found a dependency we don't know about. Warn the user, and add
+# information about it:
+sub handle_unknown_dep($$) {
+	my ($dep_mod, $mod) = @_;
+
+	my $mod_info = {
+		Type => 'Unknown',
+		Avail => 0,
+		Checked => 0,
+	};
+	$ModInfo{$dep_mod} = $mod_info;
+
+	warning "Unknown dependency module $dep_mod (for e.g. $mod)\n";
+}
+
+# recursively check dependency for a module.
+#
+# We run a scan for modules. Modules marked as 'Checked' are ones we
+# have already fully verified to have proper dependencies.
+#
+# We can only use a module or library marked as Avail => 1 (library
+# available or module not excluded).
+sub check_module($);
+sub check_module($) {
+	my $mod = shift;
+
+	# we checked it:
+	if (exists $ModInfo{$mod}{Checked}) {
+		return $ModInfo{$mod}{Checked};
+	}
+	# A library has no dependencies of its own.
+	if ($ModInfo{$mod}{Type} eq 'lib') {
+		return ($ModInfo{$mod}{Avail} || 0);
+	}
+	# An excluded module.
+	if ($ModInfo{$mod}{Avail} == 0) {
+		return 0;
+	}
+	if (! exists $ModInfo{$mod}{Depend}) {
+		$ModInfo{$mod}{Checked} = 1;
+		return 1;
+	}
+
+	my $deps_checked = 1; # may be reset below on failures:
+
+	if (exists $ModInfo{$mod}{Tested}) {
+		# this probably means a circular dependency of some sort.
+		warning "Got to module $mod that is already tested.";
+	}
+	$ModInfo{$mod}{Tested} = 1;
+
+	foreach my $dep_mod (@{$ModInfo{$mod}{Depend}} ) {
+		if (!exists ${ModInfo}{$dep_mod}) {
+			handle_unknown_dep($dep_mod, $mod);
+			return 0;
+		}
+		$deps_checked &= check_module($dep_mod);
+		last if(!$deps_checked) # no point testing further if we failed.
+	}
+
+	$ModInfo{$mod}{Checked} = $deps_checked;
+	return $deps_checked;
+}
+
+# The main dependency resolver function.
+sub resolve_deps() {
+	apply_default_enabled();
+	apply_excluded_patterns();
+	apply_included_patterns();
+
+	foreach my $mod (keys %ModInfo) {
+		check_module($mod);
+	}
+}
+
+# generate menuselect.makeopts. 
+# The values in this file obey to different semantics:
+# 1. For modules, a module will be built unles listed here
+# 2. For XML values (sounds, CFLAGS) it will be enabled if listed here
+sub gen_makeopts() {
+	open MAKEDEPS, ">$MakeoptsFile" or
+		die "Failed to open opts file $MakeoptsFile for writing. Aborting: $!\n";
+
+	my %Subdirs;
+	foreach my $mod (sort keys %ModInfo) {
+		next unless ($ModInfo{$mod}{Type} =~ /^(module|XML)$/);
+		if ($ModInfo{$mod}{Type} eq 'XML') {
+			next unless ($ModInfo{$mod}{Checked});
+		} else {
+			next if ($ModInfo{$mod}{Checked});
+		}
+		my $dir = $ModInfo{$mod}{Dir};
+		if (! exists $Subdirs{$dir}) {
+			$Subdirs{$dir} = [];
+		}
+		push @{$Subdirs{$dir}},( $ModInfo{$mod}{Module} );
+	}
+	foreach my $dir (sort keys %Subdirs) {
+		my $deps = join(' ', @{$Subdirs{$dir}});
+		print MAKEDEPS "MENUSELECT_$dir=$deps\n";
+	}
+
+	close MAKEDEPS;
+}
+
+# Main function for --check-deps
+sub check_dependencies() {
+	read_conf();
+
+	extract_subdirs(@Subdirs);
+
+	get_autoconf_opts();
+
+	parse_menuselect_xml_file('build_tools/cflags.xml');
+	if ($ConfigureOpts{AST_DEVMODE} eq 'yes') {
+		parse_menuselect_xml_file('build_tools/cflags-devmode.xml');
+	} 
+	parse_menuselect_xml_file('sounds/sounds.xml');
+
+	apply_random_drop();
+
+	get_autoconf_deps();
+
+	#dump_deps('build_tools/dump_deps_before_resolve');
+	resolve_deps();
+
+	# Handy debugging:
+	dump_deps($DumpFile);
+
+	check_required_patterns();
+
+	gen_makedeps();
+
+	gen_makeopts();
+}
+
+# 
+# The main program start here
+#
+
+sub read_dump() {
+	my %items = ();
+	my $saved_rs = $/;
+	$/ = "\n\n";
+	open DUMP_FILE,$DumpFile or die "Can't read from dump file $DumpFile\n";
+	while (<DUMP_FILE>) {
+		my %item = ();
+		my @item_lines = split /\n\r?/;
+		foreach (@item_lines) {
+			my ($var, $value) = split /: /, $_, 2;
+			$item{$var} = $value;
+		}
+		# FIXME: dependencies are a list. This should not be a 
+		# special case.
+		if (exists $item{Depend}) {
+			$item{Depend} = [split /\s*,\s*/,$item{Depend}];
+		}
+		$items{$item{Key}} = \%item;
+	}
+	close DUMP_FILE;
+	$/ = $saved_rs;
+	return \%items;
+}
+
+# Explain why a module (read from the dump file) was not enabled.
+# (We assume here that $item->{Avail} is 0)
+sub fail_reason($) {
+	my $item = shift;
+	if ($item->{Type} eq 'lib') {
+		return " Not found: system library";
+	} elsif ($item->{Type} eq 'XML') {
+		if ($item->{Defaultenabled} !~ /^y/) {
+			return "Not enabled";
+		} else {
+			return "Missing dependencies";
+		}
+	} elsif ($item->{Type} eq 'module') {
+		if (exists ($item->{Defaultenabled}) && 
+			$item->{Defaultenabled} =~ /^n/) {
+			return "Disabled";
+		} else {
+			return "Missing dependencies";
+		}
+	}
+}
+
+sub item_used($) {
+	my $item = shift;
+	my $type = $item->{Type};
+
+	return $item->{Avail} if ($type eq 'lib');
+	return $item->{Checked};
+}
+
+sub print_module_status {
+	my $flag_verbose = shift;
+	my $items = read_dump();
+	my %items_matched = ();
+
+	foreach my $pattern (@_) {
+		foreach (keys %$items) {
+			if (/$pattern/i) {
+				$items_matched{$_} = 1;
+			}
+		}
+	}
+
+	my @items_list = sort keys %items_matched;
+
+	foreach my $item_name (@items_list) {
+		my $item = $items->{$item_name};
+		if ($flag_verbose) {
+			printf "%s %-8s %-30s\n",
+				(item_used($item)? 'Y':'n'),
+				$item->{Type},
+				$item->{Key};
+			if (!$item->{Avail}) {
+				my $reason = fail_reason($item);
+				print " $reason\n";
+			}
+			foreach (@{$item->{Depend}}) {
+				my $depmod = $items->{$_};
+					printf(" * %-12s ",$_);
+					print (item_used($depmod)? '': "un");
+					print "available\n";
+			}
+		} else {
+			printf "%s %-8s %-30s",
+				(item_used($item)? 'Y':'n'),
+				$item->{Type},
+				$item->{Key};
+			foreach (@{$item->{Depend}}) {
+				my $depmod = $items->{$_};
+				if (item_used($depmod)) {
+					print "$_ ";
+				} else {
+					printf "[%s] ", $_;
+				}
+			}
+			print "\n";
+		}
+	}
+}
+
+sub usage() {
+	print "$0: menuselect reimplementation\n";
+	print "\n";
+	print "Usage:\n";
+	print "$0  # menuselect processing\n";
+	print "$0 -m|--modinfo|--moduls-info PATTERN # Status of modules\n";
+	print "$0 -v|--verbose                       # verbose (modinfo)\n";
+	print "$0 -c|--check-deps                    # Check for dependencies\n";
+	print "\n";
+	print "PATTERN is a partial perl regex. Use '-m .' to list all.\n";
+}
+
+my @module_status = ();
+
+my $flag_verbose = 0;
+
+my $action = '';
+
+my $rc = GetOptions(
+	'modinfo|modules-info|m=s' => \@module_status,
+	'verbose|v' => \$flag_verbose,
+	'check-deps|c:s' => sub { $action = 'check_dependencies'},
+	'help|h' => sub { usage(); exit 0 },
+);
+if (!$rc) {
+	usage();
+	exit $rc;
+}
+
+if (@module_status) {
+	$action = 'module_status';
+}
+
+if ($action eq 'module_status') {
+	print_module_status($flag_verbose, @module_status);
+	exit 0;
+} elsif ( $action eq 'check_dependencies') {
+	check_dependencies();
+} else {
+	usage(); exit(1);
+}

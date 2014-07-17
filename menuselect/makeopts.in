@@ -1,0 +1,22 @@
+# NOTE: Names of _INCLUDE and _LIB entries in this file must be
+#       the exact uppercase equivalents of the names used for
+#       dependencies in menuselect for the same package.
+
+CC=@CC@
+
+OSARCH=@HOST_OS@
+MENUSELECT_DEBUG=@MENUSELECT_DEBUG@
+
+# The frontend can use curses, ncurses, newt or gtk2
+
+CURSES_INCLUDE=@CURSES_INCLUDE@
+CURSES_LIB=@CURSES_LIB@
+
+GTK2_INCLUDE=@GTK2_INCLUDE@
+GTK2_LIB=@GTK2_LIB@
+
+NCURSES_INCLUDE=@NCURSES_INCLUDE@
+NCURSES_LIB=@NCURSES_LIB@
+
+NEWT_INCLUDE=@NEWT_INCLUDE@
+NEWT_LIB=@NEWT_LIB@

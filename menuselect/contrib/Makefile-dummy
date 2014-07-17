@@ -1,0 +1,17 @@
+all:
+
+clean:
+
+dist-clean:
+
+makeopts:
+
+menuselect:
+	./menuselect-dummy
+
+# Generate some dummy files to satifsy dependencies from the main
+# Makefile.
+dummies:
+	touch linkedlists.h menuselect.c menuselect_curses.c \
+		menuselect.h menuselect_stub.c
+

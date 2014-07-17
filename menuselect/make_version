@@ -1,0 +1,56 @@
+#!/bin/sh
+
+if [ -f ${1}/.version ]; then
+	cat ${1}.version
+elif [ -f ${1}/.svnrevision ]; then
+	echo SVN-`cat ${1}/.svnbranch`-r`cat ${1}/.svnrevision`
+elif [ -d .svn ]; then
+    PARTS=`LANG=C svn info ${1} | grep URL | awk '{print $2;}' | sed -e 's:^.*/svn/menuselect/::' | sed -e 's:/: :g'`
+    BRANCH=0
+    TEAM=0
+    
+    REV=`svnversion -c ${1} | cut -d: -f2`
+    
+    if [ "${PARTS}" = "trunk" ]
+	then
+	echo SVN-'trunk'-r${REV}
+	exit 0
+    fi
+    
+    for PART in $PARTS
+      do
+      if [ ${BRANCH} != 0 ]
+	  then
+	  RESULT="${RESULT}-${PART}"
+	  break
+      fi
+      
+      if [ ${TEAM} != 0 ]
+	  then
+	  RESULT="${RESULT}-${PART}"
+	  continue
+      fi
+      
+      if [ "${PART}" = "branches" ]
+	  then
+	  BRANCH=1
+	  RESULT="branch"
+	  continue
+      fi
+      
+      if [ "${PART}" = "tags" ]
+	  then
+	  BRANCH=1
+	  RESULT="tag"
+	  continue
+      fi
+      
+      if [ "${PART}" = "team" ]
+	  then
+	  TEAM=1
+	  continue
+      fi
+    done
+    
+    echo SVN-${RESULT##-}-r${REV}
+fi
