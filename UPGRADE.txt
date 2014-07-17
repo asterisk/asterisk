@@ -23,6 +23,9 @@
 
 From 12 to 13:
 
+ - Sample config files have been moved from configs/ to a subfolder of that
+   directory, 'samples'.
+
  - The menuselect utility has been pulled into the Asterisk repository. As a
    result, the libxml2 development library is now a required dependency for
    Asterisk.

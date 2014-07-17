@@ -435,8 +435,6 @@
 ;  SYNOPSIS: Endpoint
 ;100rel=yes     ; Allow support for RFC3262 provisional ACK tags (default:
                 ; "yes")
-;accountcode=foo        ; Set a default account code for channels created for
-                        ; this endpoint
 ;aggregate_mwi=yes      ;  (default: "yes")
 ;allow= ; Media Codec s to allow (default: "")
 ;aors=  ; AoR s to be used with the endpoint (default: "")

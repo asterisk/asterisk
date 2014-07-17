@@ -660,7 +660,7 @@ upgrade: bininstall
 adsi:
 	@echo Installing adsi config files...
 	$(INSTALL) -d "$(DESTDIR)$(ASTETCDIR)"
-	@for x in configs/*.adsi; do \
+	@for x in configs/samples/*.adsi; do \
 		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
 		if [ -f "$${dst}" ] ; then \
 			echo "Overwriting $$x" ; \
@@ -672,7 +672,7 @@ adsi:
 
 samples: adsi
 	@echo Installing other config files...
-	@for x in configs/*.sample; do \
+	@for x in configs/samples/*.sample; do \
 		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample`" ;	\
 		if [ -f "$${dst}" ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \

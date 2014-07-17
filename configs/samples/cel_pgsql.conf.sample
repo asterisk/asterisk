@@ -64,5 +64,5 @@
 ;dbname=asterisk
 ;password=password
 ;user=postgres
-;table=cel          ; SQL table where CEL's will be inserted
+;table=cel		;SQL table where CEL's will be inserted
 ;appname=asterisk   ; Postgres application_name support (optional). Whitespace not allowed.

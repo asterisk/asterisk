@@ -11,6 +11,6 @@
 ;password=password
 ;user=postgres
 ;appname=asterisk    ; Postgres application_name support (optional). Whitespace not allowed.
-;table=cdr           ; SQL table where CDRs will be inserted
-;encoding=LATIN9     ; Encoding of logged characters in Asterisk
-;timezone=UTC        ; Uncomment if you want datetime fields in UTC/GMT
+;table=cdr		;SQL table where CDRs will be inserted
+;encoding=LATIN9	; Encoding of logged characters in Asterisk
+;timezone=UTC		; Uncomment if you want datetime fields in UTC/GMT
