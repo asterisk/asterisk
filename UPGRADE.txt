@@ -198,6 +198,13 @@ chan_sip:
    hash to be specified for the DTLS fingerprint placed in SDP. Supported
    values are 'sha-1' and 'sha-256' with 'sha-256' being the default.
 
+ - The 'progressinband=never' option is now more zealous in the persecution of
+   progress messages coming from Asterisk. Channels bridged with a SIP channel
+   that has 'progressinband=never' set will not be able to forward their
+   progress indications through to the SIP device. chan_sip will now turn such
+   progress indications into a 180 Ringing (if a 180 has not yet been
+   transmitted) if 'progressinband=never'.
+
 CLI commands:
  - "core show settings" now lists the current console verbosity in addition
    to the root console verbosity.

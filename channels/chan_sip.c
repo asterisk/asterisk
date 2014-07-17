@@ -7428,8 +7428,11 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 						ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 					}
 				}
-				p->lastrtptx = time(NULL);
-				res = ast_rtp_instance_write(p->rtp, frame);
+				if (p->invitestate > INV_EARLY_MEDIA || (p->invitestate == INV_EARLY_MEDIA &&
+									 ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT))) {
+					p->lastrtptx = time(NULL);
+					res = ast_rtp_instance_write(p->rtp, frame);
+				}
 			}
 			sip_pvt_unlock(p);
 		}
@@ -7446,8 +7449,11 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 					transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
 					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 				}
-				p->lastrtptx = time(NULL);
-				res = ast_rtp_instance_write(p->vrtp, frame);
+				if (p->invitestate > INV_EARLY_MEDIA || (p->invitestate == INV_EARLY_MEDIA &&
+									 ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT))) {
+					p->lastrtptx = time(NULL);
+					res = ast_rtp_instance_write(p->vrtp, frame);
+				}
 			}
 			sip_pvt_unlock(p);
 		}
@@ -7467,8 +7473,11 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 						transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
 						ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 					}
-					p->lastrtptx = time(NULL);
-					res = ast_rtp_instance_write(p->trtp, frame);
+					if (p->invitestate > INV_EARLY_MEDIA || (p->invitestate == INV_EARLY_MEDIA &&
+										 ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT))) {
+						p->lastrtptx = time(NULL);
+						res = ast_rtp_instance_write(p->trtp, frame);
+					}
 				}
 			}
 			sip_pvt_unlock(p);
@@ -7896,8 +7905,14 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 		    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 			p->invitestate = INV_EARLY_MEDIA;
-			transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
-			ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
+			/* SIP_PROG_INBAND_NEVER means sending 180 ringing in place of a 183 */
+			if (ast_test_flag(&p->flags[0], SIP_PROG_INBAND) != SIP_PROG_INBAND_NEVER) {
+				transmit_provisional_response(p, "183 Session Progress", &p->initreq, TRUE);
+				ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
+			} else if (ast_channel_state(ast) == AST_STATE_RING && !ast_test_flag(&p->flags[0], SIP_RINGING)) {
+				transmit_provisional_response(p, "180 Ringing", &p->initreq, 0);
+				ast_set_flag(&p->flags[0], SIP_RINGING);
+			}
 			break;
 		}
 		res = -1;
@@ -23002,6 +23017,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 or 182 */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+				/* We have not sent progress, but we have been sent progress so enable early media */
+				ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 			}
 			ast_rtp_instance_activate(p->rtp);
 		}
@@ -23085,6 +23102,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			if (!req->ignore && p->owner) {
 				/* Queue a progress frame */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+				/* We have not sent progress, but we have been sent progress so enable early media */
+				ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
 			}
 			ast_rtp_instance_activate(p->rtp);
 		} else {
