@@ -53,6 +53,8 @@ enum failure_types {
 	HARD_FAILURE = 2,
 };
 
+AST_LIST_HEAD_NOLOCK(reference_list, reference);
+
 struct member {
 	/*! What will be sent to the makeopts file */
 	const char *name;
@@ -87,11 +89,11 @@ struct member {
 	 * be passed over for many of the usual purposes associated with members. */
 	unsigned int is_separator:1;
 	/*! dependencies of this module */
-	AST_LIST_HEAD_NOLOCK(, reference) deps;
+	struct reference_list deps;
 	/*! conflicts of this module */
-	AST_LIST_HEAD_NOLOCK(, reference) conflicts;
+	struct reference_list conflicts;
 	/*! optional packages used by this module */
-	AST_LIST_HEAD_NOLOCK(, reference) uses;
+	struct reference_list uses;
 	/*! for making a list of modules */
 	AST_LIST_ENTRY(member) list;
 };
@@ -104,8 +106,11 @@ enum support_level_values {
 	SUPPORT_COUNT = 4, /* Keep this item at the end of the list. Tracks total number of support levels. */
 };
 
+AST_LIST_HEAD_NOLOCK(support_level_bucket, member);
+
 struct category {
-	struct member *separators[SUPPORT_COUNT];
+	/*! Workspace for building support levels */
+	struct support_level_bucket buckets[SUPPORT_COUNT];
 	/*! the Makefile variable */
 	const char *name;
 	/*! the name displayed in the menu */

@@ -30,11 +30,16 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <getopt.h>
+#include <ctype.h>
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #include "autoconfig.h"
-#include "mxml/mxml.h"
 #include "linkedlists.h"
 #include "menuselect.h"
+
+#define ARRAY_LEN(a) (size_t) (sizeof(a) / sizeof(0[a]))
 
 #ifdef MENUSELECT_DEBUG
 static FILE *debug;
@@ -52,7 +57,7 @@ struct categories categories = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 */
 struct tree {
 	/*! the root of the tree */
-	mxml_node_t *root;
+	xmlDoc *root;
 	/*! for linking */
 	AST_LIST_ENTRY(tree) list;
 };
@@ -157,83 +162,68 @@ static void close_debug(void)
 #endif
 }
 
-/*! \brief Add a category to the category list, ensuring that there are no duplicates */
-static struct category *add_category(struct category *cat)
+/*! \brief Finds a category with the given name or creates it if not found */
+static struct category *category_find_or_create(const char *name)
 {
-	struct category *tmp;
+	struct category *c;
 
-	AST_LIST_TRAVERSE(&categories, tmp, list) {
-		if (!strcmp(tmp->name, cat->name)) {
-			return tmp;
+	AST_LIST_TRAVERSE(&categories, c, list) {
+		if (!strcmp(c->name, name)) {
+			xmlFree((void *) name);
+			return c;
 		}
 	}
-	AST_LIST_INSERT_TAIL(&categories, cat, list);
 
-	return cat;
+	if (!(c = calloc(1, sizeof(*c)))) {
+		return NULL;
+	}
+
+	c->name = name;
+
+	AST_LIST_INSERT_TAIL(&categories, c, list);
+
+	return c;
 }
 
-#if 0
-/*! \brief Add a member to the member list of a category, ensuring that there are no duplicates */
-static int add_member(struct member *mem, struct category *cat)
+static void free_reference(struct reference *ref)
 {
-	struct member *tmp;
-
-	AST_LIST_TRAVERSE(&cat->members, tmp, list) {
-		if (!strcmp(tmp->name, mem->name)) {
-			fprintf(stderr, "Member '%s' already exists in category '%s', ignoring.\n", mem->name, cat->name);
-			return -1;
-		}
+	/* If name and displayname point to the same place, only free one of them */
+	if (ref->name == ref->displayname) {
+		xmlFree((void *) ref->name);
+	} else {
+		xmlFree((void *) ref->name);
+		xmlFree((void *) ref->displayname);
 	}
-	AST_LIST_INSERT_TAIL(&cat->members, mem, list);
 
-	return 0;
-}
-#endif
-
-static int add_member_after(struct member *mem, struct category *cat, struct member *place)
-{
-	struct member *tmp;
-
-	AST_LIST_TRAVERSE(&cat->members, tmp, list) {
-		if (!strcmp(tmp->name, mem->name)) {
-			fprintf(stderr, "Member '%s' already exists in category '%s', ignoring.\n", mem->name, cat->name);
-			return -1;
-		}
-	}
-	AST_LIST_INSERT_AFTER(&cat->members, place, mem, list);
-
-	return 0;
-
-}
-
-static int add_member_head(struct member *mem, struct category *cat)
-{
-	struct member *tmp;
-
-	AST_LIST_TRAVERSE(&cat->members, tmp, list) {
-		if (!strcmp(tmp->name, mem->name)) {
-			fprintf(stderr, "Member '%s' already exists in category '%s', ignoring.\n", mem->name, cat->name);
-			return -1;
-		}
-	}
-	AST_LIST_INSERT_HEAD(&cat->members, mem, list);
-
-	return 0;
+	free(ref);
 }
 
 /*! \brief Free a member structure and all of its members */
 static void free_member(struct member *mem)
 {
-	struct reference *dep;
-	struct reference *cnf;
-	struct reference *use;
+	struct reference *ref;
 
-	while ((dep = AST_LIST_REMOVE_HEAD(&mem->deps, list)))
-		free(dep);
-	while ((cnf = AST_LIST_REMOVE_HEAD(&mem->conflicts, list)))
-		free(cnf);
-	while ((use = AST_LIST_REMOVE_HEAD(&mem->uses, list)))
-		free(use);
+	if (!mem) {
+		return;
+	}
+
+	while ((ref = AST_LIST_REMOVE_HEAD(&mem->deps, list)))
+		free_reference(ref);
+	while ((ref = AST_LIST_REMOVE_HEAD(&mem->conflicts, list)))
+		free_reference(ref);
+	while ((ref = AST_LIST_REMOVE_HEAD(&mem->uses, list)))
+		free_reference(ref);
+
+	if (!mem->is_separator) {
+		xmlFree((void *) mem->name);
+		xmlFree((void *) mem->displayname);
+		xmlFree((void *) mem->touch_on_change);
+		xmlFree((void *) mem->remove_on_change);
+		xmlFree((void *) mem->defaultenabled);
+		xmlFree((void *) mem->support_level);
+		xmlFree((void *) mem->replacement);
+	}
+
 	free(mem);
 }
 
@@ -264,294 +254,358 @@ static const char *support_level_to_string(enum support_level_values support_lev
 {
 	switch (support_level) {
 	case SUPPORT_CORE:
-		return "core";
+		return "Core";
 	case SUPPORT_EXTENDED:
-		return "extended";
+		return "Extended";
 	case SUPPORT_DEPRECATED:
-		return "deprecated";
+		return "Deprecated";
 	default:
-		return "unspecified";
+		return "Unspecified";
+	}
+}
+
+static void categories_flatten()
+{
+	int idx;
+	struct category *c;
+	struct member *m;
+
+	AST_LIST_TRAVERSE(&categories, c, list) {
+		for (idx = 0; idx < SUPPORT_COUNT; idx++) {
+			struct support_level_bucket bucket = c->buckets[idx];
+			while ((m = AST_LIST_REMOVE_HEAD(&bucket, list))) {
+				AST_LIST_INSERT_TAIL(&c->members, m, list);
+			}
+		}
 	}
 }
 
 /*! \sets default values for a given separator */
-static int initialize_separator(struct member *separators[], enum support_level_values level)
+static struct member *create_separator(enum support_level_values level)
 {
-	separators[level] = calloc(1, sizeof(*(separators[level])));
-	separators[level]->name = support_level_to_string(level);
-	separators[level]->displayname = "";
-	separators[level]->is_separator = 1;
-	return 0;
-}
-
-/*! \Iterates through an existing category's members.  If separators are found, they are
-	 added to the provided separator array.  Any separators left unfound will then be
-	 initialized with initialize_separator. */
-static void find_or_initialize_separators(struct member *separators[], struct category *cat, int used[])
-{
-	enum support_level_values level;
-	struct member *tmp;
-	AST_LIST_TRAVERSE(&cat->members, tmp, list) {
-		if (tmp->is_separator) {
-			level = string_to_support_level(tmp->name);
-			separators[level] = tmp;
-			used[level] = 1;
-		}
-	}
-
-	for (level = 0; level < SUPPORT_COUNT; level++) {
-		if (!used[level]) {
-			initialize_separator(separators, level);
-		}
-	}
+	struct member *separator = calloc(1, sizeof(*separator));
+	separator->name = support_level_to_string(level);
+	separator->displayname = "";
+	separator->is_separator = 1;
+	return separator;
 }
 
 /*! \adds a member to a category and attaches it to the last element of a particular support level used */
-static int add_member_list_order(struct member *mem, struct category *cat, struct member *tails[], int used[], struct member *separators[])
+static int add_member_list_order(struct member *mem, struct category *cat)
 {
 	enum support_level_values support_level = string_to_support_level(mem->support_level);
-	int tail_index;
+	struct support_level_bucket *bucket = &cat->buckets[support_level];
 
-	/* Works backwards from support_level to find properly ordered linked list member to insert from */
-	for (tail_index = support_level; ; tail_index--) {
-		if (tail_index == -1) {
-			break;
-		}
-		if (used[tail_index]) {
-			break;
-		}
+	if (AST_LIST_EMPTY(bucket)) {
+		struct member *sep = create_separator(support_level);
+		AST_LIST_INSERT_TAIL(bucket, sep, list);
 	}
 
-	if (tail_index == -1) { /* None of the nodes that should come before the list were in use, so use head. */
-		if (add_member_head(mem, cat)) { /* Failure to insert the node... */
-			return -1;
-		}
+	AST_LIST_INSERT_TAIL(bucket, mem, list);
 
-		/* If we successfully added the member, we need to update its support level pointer info */
-		tails[support_level] = mem;
-		used[support_level] = 1;
-		if (add_member_head(separators[support_level], cat)) {
-			printf("Separator insertion failed.  This should be impossible, report an issue if this occurs.\n");
-			return -1;
-		}
-		return 0;
-
-	} else { /* We found an appropriate node to use to insert before we reached the head. */
-		if (add_member_after(mem, cat, tails[tail_index])) {
-			return -1;
-		}
-
-		tails[support_level] = mem;
-		used[support_level] = 1;
-		if (support_level != tail_index) {
-			if (add_member_after(separators[support_level], cat, tails[tail_index])) {
-				printf("Separator insertion failed.  This should be impossible, report an issue if this occurs.\n");
-				return -1;
-			}
-		}
-
-		return 0;
-
-	}
-
-	return -2; /* failed to place... for whatever reason.  This should be impossible to reach. */
+	return 0;
 }
 
-/*! \brief Parse an input makeopts file */
-static int parse_tree(const char *tree_file)
+static int process_xml_defaultenabled_node(xmlNode *node, struct member *mem)
 {
-	FILE *f;
-	struct tree *tree;
-	struct member *mem;
-	struct reference *dep;
-	struct reference *cnf;
-	struct reference *use;
-	mxml_node_t *cur;
-	mxml_node_t *cur2;
-	mxml_node_t *cur3;
-	mxml_node_t *menu;
+	const char *tmp = (const char *) xmlNodeGetContent(node);
+
+	if (tmp && !strlen_zero(tmp)) {
+		mem->defaultenabled = tmp;
+	}
+
+	return 0;
+}
+
+static int process_xml_supportlevel_node(xmlNode *node, struct member *mem)
+{
+	const char *tmp = (const char *) xmlNodeGetContent(node);
+
+	if (tmp && !strlen_zero(tmp)) {
+		xmlFree((void *) mem->support_level);
+		mem->support_level = tmp;
+		print_debug("Set support_level for %s to %s\n", mem->name, mem->support_level);
+	}
+
+	return 0;
+}
+
+static int process_xml_replacement_node(xmlNode *node, struct member *mem)
+{
+	const char *tmp = (const char *) xmlNodeGetContent(node);
+
+	if (tmp && !strlen_zero(tmp)) {
+		mem->replacement = tmp;
+	}
+
+	return 0;
+}
+
+static int process_xml_ref_node(xmlNode *node, struct member *mem, struct reference_list *refs)
+{
+	struct reference *ref;
 	const char *tmp;
 
-	if (!(f = fopen(tree_file, "r"))) {
-		fprintf(stderr, "Unable to open '%s' for reading!\n", tree_file);
+	if (!(ref = calloc(1, sizeof(*ref)))) {
+		free_member(mem);
 		return -1;
 	}
 
-	if (!(tree = calloc(1, sizeof(*tree)))) {
-		fclose(f);
+	if ((tmp = (const char *) xmlGetProp(node, BAD_CAST "name"))) {
+		if (!strlen_zero(tmp)) {
+			ref->name = tmp;
+		}
+	}
+
+	tmp = (const char *) xmlNodeGetContent(node);
+
+	if (tmp && !strlen_zero(tmp)) {
+		ref->displayname = tmp;
+		if (!ref->name) {
+			ref->name = ref->displayname;
+		}
+
+		AST_LIST_INSERT_TAIL(refs, ref, list);
+	} else {
+		free_reference(ref);
+	}
+
+	return 0;
+}
+
+static int process_xml_depend_node(xmlNode *node, struct member *mem)
+{
+	return process_xml_ref_node(node, mem, &mem->deps);
+}
+
+static int process_xml_conflict_node(xmlNode *node, struct member *mem)
+{
+	return process_xml_ref_node(node, mem, &mem->conflicts);
+}
+
+static int process_xml_use_node(xmlNode *node, struct member *mem)
+{
+	return process_xml_ref_node(node, mem, &mem->uses);
+}
+
+static int process_xml_unknown_node(xmlNode *node, struct member *mem)
+{
+	fprintf(stderr, "Encountered unknown node: %s\n", node->name);
+	return 0;
+}
+
+typedef int (*node_handler)(xmlNode *, struct member *);
+
+static const struct {
+	const char *name;
+	node_handler func;
+} node_handlers[] = {
+	{ "defaultenabled", process_xml_defaultenabled_node },
+	{ "support_level",  process_xml_supportlevel_node   },
+	{ "replacement",    process_xml_replacement_node    },
+	{ "depend",         process_xml_depend_node         },
+	{ "conflict",       process_xml_conflict_node       },
+	{ "use",            process_xml_use_node            },
+};
+
+static node_handler lookup_node_handler(xmlNode *node)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(node_handlers); i++) {
+		if (!strcmp(node_handlers[i].name, (const char *) node->name)) {
+			return node_handlers[i].func;
+		}
+	}
+
+	return process_xml_unknown_node;
+}
+
+static int process_process_xml_category_child_node(xmlNode *node, struct member *mem)
+{
+	node_handler handler = lookup_node_handler(node);
+
+	return handler(node, mem);
+}
+
+static int process_xml_member_node(xmlNode *node, struct category *cat)
+{
+	xmlNode *cur;
+	struct member *mem;
+	xmlChar *tmp;
+
+	if (!(mem = calloc(1, sizeof(*mem)))) {
 		return -1;
 	}
 
-	if (!(tree->root = mxmlLoadFile(NULL, f, MXML_OPAQUE_CALLBACK))) {
-		fclose(f);
-		free(tree);
+	mem->name = (const char *) xmlGetProp(node, BAD_CAST "name");
+	mem->displayname = (const char *) xmlGetProp(node, BAD_CAST "displayname");
+	mem->touch_on_change = (const char *) xmlGetProp(node, BAD_CAST "touch_on_change");
+	mem->remove_on_change = (const char *) xmlGetProp(node, BAD_CAST "remove_on_change");
+	mem->support_level = (const char *) xmlCharStrdup("unspecified");
+
+	if ((tmp = xmlGetProp(node, BAD_CAST "explicitly_enabled_only"))) {
+		mem->explicitly_enabled_only = !xmlStrcasecmp(tmp, BAD_CAST "yes");
+		xmlFree(tmp);
+	}
+
+	for (cur = node->children; cur; cur = cur->next) {
+		if (cur->type != XML_ELEMENT_NODE) {
+			continue;
+		}
+
+		process_process_xml_category_child_node(cur, mem);
+	}
+
+	if (!cat->positive_output) {
+		mem->enabled = 1;
+		if (!(mem->defaultenabled && strcasecmp(mem->defaultenabled, "no"))) {
+			mem->was_enabled = 1;
+			print_debug("Enabled %s because the category does not have positive output\n", mem->name);
+		}
+	}
+
+	if (add_member_list_order(mem, cat)) {
+		free_member(mem);
+	}
+
+	return 0;
+}
+
+static void free_category(struct category *cat)
+{
+	struct member *mem;
+
+	xmlFree((void *) cat->name);
+	xmlFree((void *) cat->displayname);
+	xmlFree((void *) cat->remove_on_change);
+	xmlFree((void *) cat->touch_on_change);
+
+	while ((mem = AST_LIST_REMOVE_HEAD(&cat->members, list))) {
+		free_member(mem);
+	}
+
+	free(cat);
+}
+
+static int process_xml_category_node(xmlNode *node)
+{
+	struct category *cat;
+	const char *tmp;
+	xmlNode *cur;
+
+	if (!(tmp = (const char *) xmlGetProp(node, BAD_CAST "name"))) {
+		fprintf(stderr, "Missing 'name' attribute for 'category' element.  Skipping...\n");
+		/* Return success here so we don't bail on the whole document */
+		return 0;
+	}
+
+	cat = category_find_or_create(tmp);
+
+	if ((tmp = (const char *) xmlGetProp(node, BAD_CAST "displayname"))) {
+		xmlFree((void *) cat->displayname);
+		cat->displayname = tmp;
+	}
+
+	if ((tmp = (const char *) xmlGetProp(node, BAD_CAST "remove_on_change"))) {
+		xmlFree((void *) cat->remove_on_change);
+		cat->remove_on_change = tmp;
+	}
+
+	if ((tmp = (const char *) xmlGetProp(node, BAD_CAST "touch_on_change"))) {
+		xmlFree((void *) cat->touch_on_change);
+		cat->touch_on_change = tmp;
+	}
+
+	if ((tmp = (const char *) xmlGetProp(node, BAD_CAST "positive_output"))) {
+		cat->positive_output = !strcasecmp(tmp, "yes");
+		xmlFree((void *) tmp);
+	}
+
+	if ((tmp = (const char *) xmlGetProp(node, BAD_CAST "exclusive"))) {
+		cat->exclusive = !strcasecmp(tmp, "yes");
+		xmlFree((void *) tmp);
+	}
+
+	for (cur = node->children; cur; cur = cur->next) {
+		if (cur->type != XML_ELEMENT_NODE) {
+			continue;
+		}
+
+		if (xmlStrcmp(cur->name, BAD_CAST "member")) {
+			fprintf(stderr, "Ignoring unknown element: %s\n", cur->name);
+			continue;
+		}
+
+		process_xml_member_node(cur, cat);
+	}
+
+	return 0;
+}
+
+static int process_xml_menu_node(struct tree *tree, xmlNode *node)
+{
+	xmlNode *cur;
+	xmlChar *tmp;
+
+	if (strcmp((const char *) node->name, "menu")) {
+		fprintf(stderr, "Invalid document: Expected \"menu\" element.\n");
 		return -1;
 	}
 
 	AST_LIST_INSERT_HEAD(&trees, tree, list);
 
-	menu = mxmlFindElement(tree->root, tree->root, "menu", NULL, NULL, MXML_DESCEND);
-	if ((tmp = mxmlElementGetAttr(menu, "name")))
-		menu_name = tmp;
-	for (cur = mxmlFindElement(menu, menu, "category", NULL, NULL, MXML_DESCEND_FIRST);
-	     cur;
-	     cur = mxmlFindElement(cur, menu, "category", NULL, NULL, MXML_NO_DESCEND))
-	{
-		struct category *cat;
-		struct category *newcat;
+	if ((tmp = xmlGetProp(node, BAD_CAST "name"))) {
+		menu_name = (const char *) tmp;
+	}
 
-		/* Member seperator definitions */
-		struct member *separators[SUPPORT_COUNT];
-
-		/* link list tails... used to put new elements in in order of support level */
-		struct member *support_tails[SUPPORT_COUNT];
-		int support_tails_placed[SUPPORT_COUNT] = { 0 };
-
-		if (!(cat = calloc(1, sizeof(*cat))))
-			return -1;
-
-		cat->name = mxmlElementGetAttr(cur, "name");
-
-		newcat = add_category(cat);
-
-		if (newcat != cat) {
-			/* want to append members, and potentially update the category. */
-			free(cat);
-			cat = newcat;
+	for (cur = node->children; cur; cur = cur->next) {
+		if (cur->type != XML_ELEMENT_NODE) {
+			continue;
 		}
 
-		find_or_initialize_separators(separators, cat, support_tails_placed);
+		if (xmlStrcmp(cur->name, BAD_CAST "category")) {
+			fprintf(stderr, "Ignoring unknown element: %s\n", cur->name);
+			continue;
+		}
 
-		if ((tmp = mxmlElementGetAttr(cur, "displayname")))
-			cat->displayname = tmp;
-		if ((tmp = mxmlElementGetAttr(cur, "positive_output")))
-			cat->positive_output = !strcasecmp(tmp, "yes");
-		if ((tmp = mxmlElementGetAttr(cur, "exclusive")))
-			cat->exclusive = !strcasecmp(tmp, "yes");
-		if ((tmp = mxmlElementGetAttr(cur, "remove_on_change")))
-			cat->remove_on_change = tmp;
-		if ((tmp = mxmlElementGetAttr(cur, "touch_on_change")))
-			cat->touch_on_change = tmp;
-
-		for (cur2 = mxmlFindElement(cur, cur, "member", NULL, NULL, MXML_DESCEND_FIRST);
-		     cur2;
-		     cur2 = mxmlFindElement(cur2, cur, "member", NULL, NULL, MXML_NO_DESCEND))
-		{
-			if (!(mem = calloc(1, sizeof(*mem))))
-				return -1;
-
-			mem->name = mxmlElementGetAttr(cur2, "name");
-			mem->displayname = mxmlElementGetAttr(cur2, "displayname");
-			mem->touch_on_change = mxmlElementGetAttr(cur2, "touch_on_change");
-			mem->remove_on_change = mxmlElementGetAttr(cur2, "remove_on_change");
-			mem->support_level = "unspecified";
-
-			if ((tmp = mxmlElementGetAttr(cur2, "explicitly_enabled_only"))) {
-				mem->explicitly_enabled_only = !strcasecmp(tmp, "yes");
-			}
-
-			cur3 = mxmlFindElement(cur2, cur2, "defaultenabled", NULL, NULL, MXML_DESCEND);
-			if (cur3 && cur3->child) {
-				mem->defaultenabled = cur3->child->value.opaque;
-			}
-
-			if (!cat->positive_output) {
-				mem->enabled = 1;
-				if (!(mem->defaultenabled && strcasecmp(mem->defaultenabled, "no"))) {
-					mem->was_enabled = 1;
-					print_debug("Enabled %s because the category does not have positive output\n", mem->name);
-				}
-			}
-
-			cur3 = mxmlFindElement(cur2, cur2, "support_level", NULL, NULL, MXML_DESCEND);
-			if (cur3 && cur3->child) {
-				mem->support_level = cur3->child->value.opaque;
-				print_debug("Set support_level for %s to %s\n", mem->name, mem->support_level);
-			}
-
-			cur3 = mxmlFindElement(cur2, cur2, "replacement", NULL, NULL, MXML_DESCEND);
-			if (cur3 && cur3->child) {
-				mem->replacement = cur3->child->value.opaque;
-			}
-
-			for (cur3 = mxmlFindElement(cur2, cur2, "depend", NULL, NULL, MXML_DESCEND_FIRST);
-			     cur3 && cur3->child;
-			     cur3 = mxmlFindElement(cur3, cur2, "depend", NULL, NULL, MXML_NO_DESCEND))
-			{
-				if (!(dep = calloc(1, sizeof(*dep)))) {
-					free_member(mem);
-					return -1;
-				}
-				if ((tmp = mxmlElementGetAttr(cur3, "name"))) {
-					if (!strlen_zero(tmp)) {
-						dep->name = tmp;
-					}
-				}
-				if (!strlen_zero(cur3->child->value.opaque)) {
-					dep->displayname = cur3->child->value.opaque;
-					if (!dep->name) {
-						dep->name = dep->displayname;
-					}
-					AST_LIST_INSERT_TAIL(&mem->deps, dep, list);
-				} else
-					free(dep);
-			}
-
-			for (cur3 = mxmlFindElement(cur2, cur2, "conflict", NULL, NULL, MXML_DESCEND_FIRST);
-			     cur3 && cur3->child;
-			     cur3 = mxmlFindElement(cur3, cur2, "conflict", NULL, NULL, MXML_NO_DESCEND))
-			{
-				if (!(cnf = calloc(1, sizeof(*cnf)))) {
-					free_member(mem);
-					return -1;
-				}
-				if ((tmp = mxmlElementGetAttr(cur3, "name"))) {
-					if (!strlen_zero(tmp)) {
-						cnf->name = tmp;
-					}
-				}
-				if (!strlen_zero(cur3->child->value.opaque)) {
-					cnf->displayname = cur3->child->value.opaque;
-					if (!cnf->name) {
-						cnf->name = cnf->displayname;
-					}
-					AST_LIST_INSERT_TAIL(&mem->conflicts, cnf, list);
-				} else
-					free(cnf);
-			}
-
-			for (cur3 = mxmlFindElement(cur2, cur2, "use", NULL, NULL, MXML_DESCEND_FIRST);
-			     cur3 && cur3->child;
-			     cur3 = mxmlFindElement(cur3, cur2, "use", NULL, NULL, MXML_NO_DESCEND))
-			{
-				if (!(use = calloc(1, sizeof(*use)))) {
-					free_member(mem);
-					return -1;
-				}
-				if ((tmp = mxmlElementGetAttr(cur3, "name"))) {
-					if (!strlen_zero(tmp)) {
-						use->name = tmp;
-					}
-				}
-				if (!strlen_zero(cur3->child->value.opaque)) {
-					use->displayname = cur3->child->value.opaque;
-					if (!use->name) {
-						use->name = use->displayname;
-					}
-
-					AST_LIST_INSERT_TAIL(&mem->uses, use, list);
-				} else {
-					free(use);
-				}
-			}
-
-			if (add_member_list_order(mem, cat, support_tails, support_tails_placed, separators)) {
-				free_member(mem);
-			}
+		if (process_xml_category_node(cur)) {
+			return -1;
 		}
 	}
 
-	fclose(f);
+	categories_flatten();
+
+	return 0;
+}
+
+/*! \brief Parse an input makeopts file */
+static int parse_tree(const char *tree_file)
+{
+	struct tree *tree;
+	xmlNode *menu;
+
+	if (!(tree = calloc(1, sizeof(*tree)))) {
+		return -1;
+	}
+
+	if (!(tree->root = xmlParseFile(tree_file))) {
+		free(tree);
+		return -1;
+	}
+
+	if (!(menu = xmlDocGetRootElement(tree->root))) {
+		fprintf(stderr, "Invalid document: No root element\n");
+		xmlFreeDoc(tree->root);
+		free(tree);
+		return -1;
+	}
+
+	if (process_xml_menu_node(tree, menu)) {
+		xmlFreeDoc(tree->root);
+		free(tree);
+		return -1;
+	}
 
 	return 0;
 }
@@ -1605,22 +1659,9 @@ static void dump_member_list(void)
 static void free_member_list(void)
 {
 	struct category *cat;
-	struct member *mem;
-	struct reference *dep;
-	struct reference *cnf;
-	struct reference *use;
 
 	while ((cat = AST_LIST_REMOVE_HEAD(&categories, list))) {
-		while ((mem = AST_LIST_REMOVE_HEAD(&cat->members, list))) {
-			while ((dep = AST_LIST_REMOVE_HEAD(&mem->deps, list)))
-				free(dep);
-			while ((cnf = AST_LIST_REMOVE_HEAD(&mem->conflicts, list)))
-				free(cnf);
-			while ((use = AST_LIST_REMOVE_HEAD(&mem->uses, list)))
-				free(use);
-			free(mem);
-		}
-		free(cat);
+		free_category(cat);
 	}
 }
 
@@ -1630,7 +1671,7 @@ static void free_trees(void)
 	struct tree *tree;
 
 	while ((tree = AST_LIST_REMOVE_HEAD(&trees, list))) {
-		mxmlDelete(tree->root);
+		xmlFreeDoc(tree->root);
 		free(tree);
 	}
 }
@@ -1923,6 +1964,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	LIBXML_TEST_VERSION;
+
 	/* Parse the input XML files to build the list of available options */
 	if ((res = build_member_list()))
 		exit(res);
@@ -2099,6 +2142,8 @@ int main(int argc, char *argv[])
 	free_member_list();
 
 	close_debug();
+
+	xmlCleanupParser();
 
 	exit(res);
 }

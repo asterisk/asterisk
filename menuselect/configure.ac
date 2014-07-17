@@ -120,10 +120,19 @@ AC_CHECK_FUNCS([asprintf getloadavg setenv strcasestr strndup strnlen strsep uns
 AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
 AST_EXT_LIB_SETUP([NCURSES], [ncurses], [ncurses])
+AST_EXT_LIB_SETUP([LIBXML2], [LibXML2], [libxml2])
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 AST_EXT_LIB_CHECK([CURSES], [curses], [initscr], [curses.h])
 AST_EXT_LIB_CHECK([NCURSES], [ncurses], [initscr], [curses.h])
+AST_EXT_TOOL_CHECK([LIBXML2], [xml2-config], , ,
+        [#include <libxml/tree.h>
+        #include <libxml/parser.h>],
+        [LIBXML_TEST_VERSION])
+
+if test "${PBX_LIBXML2}" != 1; then
+  AC_MSG_ERROR([coult not find required 'Libxml2' development package])
+fi
 
 PBX_GTK2=0
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
@@ -140,7 +149,6 @@ AC_SUBST(GTK2_LIB)
 test "$silent"=yes && ac_sub_configure_args="${ac_sub_configure_args} --silent"
 
 AC_CONFIG_FILES([makeopts])
-AC_CONFIG_SUBDIRS([mxml])
 AC_OUTPUT
 
 AC_MSG_NOTICE(Menuselect build configuration successfully completed)

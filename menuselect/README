@@ -34,10 +34,9 @@ MENUSELECT DEPENDENCIES
 
 libncurses -- This is needed for the curses frontend.
 libnewt -- This is needed for the newt frontend (optional).
-libmxml -- This library, Mini-XML, is used for XML parsing. 
-           (http://www.easysw.com/~mike/mxml/)
-	   (Asterisk uses the code in http://svn.digium.com/svn/mxml/ )
-
+libxml2 -- This library, the XML C parser and toolkit of Gnome, is used for
+           XML parsing. 
+           (http://xmlsoft.org/)
 
 ENVIRONMENT SETUP
 

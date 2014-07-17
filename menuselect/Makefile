@@ -57,6 +57,7 @@ ifdef NEWT_LIB
 endif
 
 M_OBJS += menuselect_stub.o
+M_LIBS += $(LIBXML2_LIB)
 ALL_TGTS += menuselect
 
 all: $(ALL_TGTS)
@@ -65,13 +66,16 @@ $(OBJS) $(C_OBJS) $(N_OBJS) $(G_OBJS) $(M_OBJS): autoconfig.h menuselect.h
 
 makeopts autoconfig.h: autoconfig.h.in makeopts.in
 	@./configure $(CONFIGURE_SILENT)
-
-$(ALL_TGTS): mxml/libmxml.a
+	@echo "****"
+	@echo "**** The configure script was just executed, so 'make' needs to be"
+	@echo "**** restarted."
+	@echo "****"
+	@exit 1
 
 ifdef C_OBJS
 menuselect_curses.o: CFLAGS+=$(C_INCLUDE)
 cmenuselect: $(OBJS) $(C_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(C_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(C_LIBS) $(LIBXML2_LIB)
 else
 cmenuselect:
 endif
@@ -79,7 +83,7 @@ endif
 ifdef G_OBJS
 menuselect_gtk.o: CFLAGS+=$(G_INCLUDE)
 gmenuselect: $(OBJS) $(G_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(G_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(G_LIBS) $(LIBXML2_LIB)
 else
 gmenuselect:
 endif
@@ -87,17 +91,15 @@ endif
 ifdef N_OBJS
 menuselect_newt.o: CFLAGS+=$(N_INCLUDE)
 nmenuselect: $(OBJS) $(N_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^ $(N_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(N_LIBS) $(LIBXML2_LIB)
 else
 nmenuselect:
 endif
 
+menuselect.o: CFLAGS+=$(LIBXML2_INCLUDE)
+
 menuselect: $(OBJS) $(M_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(M_LIBS)
-
-mxml/libmxml.a:
-	@if test ! -f mxml/Makefile ; then cd mxml && ./configure ; fi
-	@$(MAKE) -C mxml libmxml.a
 
 test: menuselect
 	(cd test; ../$< menuselect.makeopts)
@@ -113,11 +115,9 @@ ntest: nmenuselect
 
 clean:
 	rm -f menuselect cmenuselect gmenuselect nmenuselect $(OBJS) $(M_OBJS) $(C_OBJS) $(G_OBJS) $(N_OBJS)
-	@if test -f mxml/Makefile ; then $(MAKE) -C mxml clean ; fi
 
 dist-clean: distclean
 
 distclean: clean
-	@if test -f mxml/Makefile ; then $(MAKE) -C mxml distclean ; fi
 	rm -f autoconfig.h config.status config.log makeopts
 	rm -rf autom4te.cache

@@ -23,6 +23,9 @@
 
 From 12 to 13:
 
+ - The menuselect utility has been pulled into the Asterisk repository. As a
+   result, the libxml2 library is now a required dependency for Asterisk.
+
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
 
