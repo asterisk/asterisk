@@ -76,6 +76,32 @@ struct ast_ari_recordings_delete_stored_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_delete_stored(struct ast_variable *headers, struct ast_ari_recordings_delete_stored_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_recordings_copy_stored() */
+struct ast_ari_recordings_copy_stored_args {
+	/*! The name of the recording to copy */
+	const char *recording_name;
+	/*! The destination name of the recording */
+	const char *destination_recording_name;
+};
+/*!
+ * \brief Body parsing function for /recordings/stored/{recordingName}/copy.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_recordings_copy_stored_parse_body(
+	struct ast_json *body,
+	struct ast_ari_recordings_copy_stored_args *args);
+
+/*!
+ * \brief Copy a stored recording.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_recordings_copy_stored(struct ast_variable *headers, struct ast_ari_recordings_copy_stored_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_recordings_get_live() */
 struct ast_ari_recordings_get_live_args {
 	/*! The name of the recording */

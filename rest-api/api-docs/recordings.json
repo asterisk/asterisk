@@ -70,6 +70,46 @@
 			]
 		},
 		{
+			"path": "/recordings/stored/{recordingName}/copy",
+			"description": "Copy an individual recording",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Copy a stored recording.",
+					"nickname": "copyStored",
+					"responseClass": "StoredRecording",
+					"parameters": [
+						{
+							"name": "recordingName",
+							"description": "The name of the recording to copy",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "destinationRecordingName",
+							"description": "The destination name of the recording",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Recording not found"
+						},
+						{
+							"code": 409,
+							"reason": "A recording with the same name already exists on the system"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/recordings/live/{recordingName}",
 			"description": "A recording that is in progress",
 			"operations": [

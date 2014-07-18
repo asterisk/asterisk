@@ -458,6 +458,56 @@ struct stasis_app_stored_recording *stasis_app_stored_recording_find_by_name(
 	return recording;
 }
 
+int stasis_app_stored_recording_copy(struct stasis_app_stored_recording *src_recording, const char *dst,
+	struct stasis_app_stored_recording **dst_recording)
+{
+	RAII_VAR(char *, full_path, NULL, ast_free);
+	char *dst_file = ast_strdupa(dst);
+	char *format;
+	char *last_slash;
+	int res;
+
+	/* Drop the extension if specified, core will do this for us */
+	format = strrchr(dst_file, '.');
+	if (format) {
+		format = '\0';
+	}
+
+	/* See if any intermediary directories need to be made */
+	last_slash = strrchr(dst_file, '/');
+	if (last_slash) {
+		RAII_VAR(char *, tmp_path, NULL, ast_free);
+
+		*last_slash = '\0';
+		if (ast_asprintf(&tmp_path, "%s/%s", ast_config_AST_RECORDING_DIR, dst_file) < 0) {
+			return -1;
+		}
+		if (ast_safe_mkdir(ast_config_AST_RECORDING_DIR,
+				tmp_path, 0777) != 0) {
+			/* errno set by ast_mkdir */
+			return -1;
+		}
+		*last_slash = '/';
+		if (ast_asprintf(&full_path, "%s/%s", ast_config_AST_RECORDING_DIR, dst_file) < 0) {
+			return -1;
+		}
+	} else {
+		/* There is no directory portion */
+		if (ast_asprintf(&full_path, "%s/%s", ast_config_AST_RECORDING_DIR, dst_file) < 0) {
+			return -1;
+		}
+	}
+
+	ast_verb(4, "Copying recording %s to %s (format %s)\n", src_recording->file,
+		full_path, src_recording->format);
+	res = ast_filecopy(src_recording->file, full_path, src_recording->format);
+	if (!res) {
+		*dst_recording = stasis_app_stored_recording_find_by_name(dst_file);
+	}
+
+	return res;
+}
+
 int stasis_app_stored_recording_delete(
 	struct stasis_app_stored_recording *recording)
 {

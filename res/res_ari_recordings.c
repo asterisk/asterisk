@@ -220,6 +220,104 @@ static void ast_ari_recordings_delete_stored_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_recordings_copy_stored_parse_body(
+	struct ast_json *body,
+	struct ast_ari_recordings_copy_stored_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "destinationRecordingName");
+	if (field) {
+		args->destination_recording_name = ast_json_string_get(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /recordings/stored/{recordingName}/copy.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_recordings_copy_stored_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_ari_recordings_copy_stored_args args = {};
+	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "destinationRecordingName") == 0) {
+			args.destination_recording_name = (i->value);
+		} else
+		{}
+	}
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "recordingName") == 0) {
+			args.recording_name = (i->value);
+		} else
+		{}
+	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	if (ast_ari_recordings_copy_stored_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
+	}
+	ast_ari_recordings_copy_stored(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 404: /* Recording not found */
+	case 409: /* A recording with the same name already exists on the system */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_stored_recording(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /recordings/stored/{recordingName}/copy\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /recordings/stored/{recordingName}/copy\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
 /*!
  * \brief Parameter parsing callback for /recordings/live/{recordingName}.
  * \param get_params GET parameters in the HTTP request.
@@ -639,6 +737,15 @@ fin: __attribute__((unused))
 }
 
 /*! \brief REST handler for /api-docs/recordings.{format} */
+static struct stasis_rest_handlers recordings_stored_recordingName_copy = {
+	.path_segment = "copy",
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_recordings_copy_stored_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/recordings.{format} */
 static struct stasis_rest_handlers recordings_stored_recordingName = {
 	.path_segment = "recordingName",
 	.is_wildcard = 1,
@@ -646,8 +753,8 @@ static struct stasis_rest_handlers recordings_stored_recordingName = {
 		[AST_HTTP_GET] = ast_ari_recordings_get_stored_cb,
 		[AST_HTTP_DELETE] = ast_ari_recordings_delete_stored_cb,
 	},
-	.num_children = 0,
-	.children = {  }
+	.num_children = 1,
+	.children = { &recordings_stored_recordingName_copy, }
 };
 /*! \brief REST handler for /api-docs/recordings.{format} */
 static struct stasis_rest_handlers recordings_stored = {

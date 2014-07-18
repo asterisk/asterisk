@@ -80,6 +80,19 @@ struct stasis_app_stored_recording *stasis_app_stored_recording_find_by_name(
 	const char *name);
 
 /*!
+ * \brief Copy a recording.
+ *
+ * \param src_recording The recording to copy
+ * \param dst The destination of the recording to make
+ * \param dst_recording If successful, the stored recording created as a result of the copy
+ *
+ * \retval 0 on success
+ * \retval Non-zero on error
+ */
+int stasis_app_stored_recording_copy(struct stasis_app_stored_recording *src_recording, const char *dst,
+	struct stasis_app_stored_recording **dst_recording);
+
+/*!
  * \brief Delete a recording from disk.
  *
  * \param recording Recording to delete.
