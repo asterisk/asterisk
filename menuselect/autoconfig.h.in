@@ -35,7 +35,7 @@
 /* Define to 1 if your GCC C compiler supports the 'weakref' attribute. */
 #undef HAVE_ATTRIBUTE_weakref
 
-/* Define to indicate the ${CURSES_DESCRIP} library */
+/* Define to 1 if you have the curses library. */
 #undef HAVE_CURSES
 
 /* Define to 1 if you have the `getloadavg' function. */
@@ -53,10 +53,10 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
-/* Define to indicate the ${NCURSES_DESCRIP} library */
+/* Define to 1 if you have the ncurses library. */
 #undef HAVE_NCURSES
 
-/* Define to indicate the ${NEWT_DESCRIP} library */
+/* Define to 1 if you have the newt library. */
 #undef HAVE_NEWT
 
 /* Define to 1 if you have the `setenv' function. */

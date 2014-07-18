@@ -17,7 +17,7 @@ then
 	check_for_app automake19
 	check_for_app aclocal19
 	echo "Generating the configure script ..."
-	aclocal19 2>/dev/null
+	aclocal19 -I ../autoconf 2>/dev/null
 	autoconf259
 	autoheader259
 	automake19 --add-missing --copy 2>/dev/null
@@ -32,7 +32,7 @@ else
 	check_for_app automake
 	check_for_app aclocal
 	echo "Generating the configure script ..."
-	aclocal 2>/dev/null
+	aclocal -I ../autoconf 2>/dev/null
 	autoconf
 	autoheader
 	automake --add-missing --copy 2>/dev/null
