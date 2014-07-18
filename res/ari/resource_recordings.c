@@ -96,6 +96,79 @@ void ast_ari_recordings_get_stored(struct ast_variable *headers,
 	ast_ari_response_ok(response, json);
 }
 
+void ast_ari_recordings_copy_stored(struct ast_variable *headers,
+	struct ast_ari_recordings_copy_stored_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_stored_recording *, src_recording, NULL,
+		ao2_cleanup);
+	RAII_VAR(struct stasis_app_stored_recording *, dst_recording, NULL,
+		ao2_cleanup);
+	struct ast_json *json;
+	int res;
+
+	src_recording = stasis_app_stored_recording_find_by_name(
+		args->recording_name);
+	if (src_recording == NULL) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Recording not found");
+		return;
+	}
+
+	dst_recording = stasis_app_stored_recording_find_by_name(
+		args->destination_recording_name);
+	if (dst_recording) {
+		ast_ari_response_error(response, 409, "Conflict",
+			"A recording with the same name already exists on the system");
+		return;
+	}
+
+	/* See if we got our name rejected */
+	switch (errno) {
+	case EINVAL:
+		ast_ari_response_error(response, 400, "Bad request",
+			"Invalid destination recording name");
+		return;
+	case EACCES:
+		ast_ari_response_error(response, 403, "Forbidden",
+			"Destination file path is forbidden");
+		return;
+	default:
+		break;
+	}
+
+	res = stasis_app_stored_recording_copy(src_recording,
+		args->destination_recording_name, &dst_recording);
+	if (res) {
+		switch (errno) {
+		case EACCES:
+		case EPERM:
+			ast_ari_response_error(response, 500,
+				"Internal Server Error",
+				"Copy failed");
+			break;
+		default:
+			ast_log(LOG_WARNING,
+				"Unexpected error copying recording %s to %s: %s\n",
+				args->recording_name, args->destination_recording_name, strerror(errno));
+			ast_ari_response_error(response, 500,
+				"Internal Server Error",
+				"Copy failed");
+			break;
+		}
+		return;
+	}
+
+	json = stasis_app_stored_recording_to_json(dst_recording);
+	if (json == NULL) {
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Error building response");
+		return;
+	}
+
+	ast_ari_response_ok(response, json);
+}
+
 void ast_ari_recordings_delete_stored(struct ast_variable *headers,
 	struct ast_ari_recordings_delete_stored_args *args,
 	struct ast_ari_response *response)
