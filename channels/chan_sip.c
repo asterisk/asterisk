@@ -16753,14 +16753,18 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 /*! \brief Receive MWI events that we have subscribed to */
 static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
 {
-	struct sip_peer *peer = userdata;
+	char *peer_name = userdata;
+	struct sip_peer *peer = sip_find_peer(peer_name, NULL, TRUE, FINDALLDEVICES, FALSE, 0);
+
 	if (stasis_subscription_final_message(sub, msg)) {
-		ao2_cleanup(peer);
+		ast_assert(peer == NULL);
+		ast_free(peer_name);
 		return;
 	}
-	if (ast_mwi_state_type() == stasis_message_type(msg)) {
+	if (peer && ast_mwi_state_type() == stasis_message_type(msg)) {
 		sip_send_mwi_to_peer(peer, 0);
 	}
+	ao2_cleanup(peer);
 }
 
 static void network_change_stasis_subscribe(void)
@@ -27293,8 +27297,11 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 
 		mailbox_specific_topic = ast_mwi_topic(mailbox->id);
 		if (mailbox_specific_topic) {
-			ao2_ref(peer, +1);
-			mailbox->event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, peer);
+			char *peer_name = ast_strdup(peer->name);
+			if (!peer_name) {
+				return;
+			}
+			mailbox->event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, peer_name);
 		}
 	}
 }
