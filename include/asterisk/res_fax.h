@@ -181,6 +181,10 @@ struct ast_fax_session_details {
 	int gateway_timeout;
 	/*! the id of the faxdetect framehook for this channel */
 	int faxdetect_id;
+	/*! The timeout for this fax detect in seconds */
+	int faxdetect_timeout;
+	/*! flags used for fax detection */
+	int faxdetect_flags;
 };
 
 struct ast_fax_tech;

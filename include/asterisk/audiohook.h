@@ -197,6 +197,17 @@ void ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list);
  */
 void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source);
 
+/*! \brief Move all audiohooks from one channel to another
+ *
+ * \note It is required that both old_chan and new_chan are locked prior to calling
+ * this function. Besides needing to protect the data within the channels, not locking
+ * these channels can lead to a potential deadlock.
+ *
+ * \param old_chan The source of the audiohooks being moved
+ * \param new_chan The destination channel for the audiohooks to be moved to
+ */
+void ast_audiohook_move_all(struct ast_channel *old_chan, struct ast_channel *new_chan);
+
 /*!
  * \brief Detach specified source audiohook from channel
  *

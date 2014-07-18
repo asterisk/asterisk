@@ -6578,6 +6578,12 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 		AST_LIST_APPEND_LIST(ast_channel_datastores(original), ast_channel_datastores(clonechan), entry);
 	}
 
+	/* Move framehooks over */
+	ast_framehook_list_fixup(clonechan, original);
+
+	/* Move audiohooks over */
+	ast_audiohook_move_all(clonechan, original);
+
 	ast_autochan_new_channel(clonechan, original);
 
 	clone_variables(original, clonechan);
@@ -10295,6 +10301,13 @@ struct suppress_data {
 	int framehook_id;
 };
 
+static void suppress_framehook_fixup_cb(void *data, int framehook_id, struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct suppress_data *suppress = data;
+
+	suppress->framehook_id = framehook_id;
+}
+
 static struct ast_frame *suppress_framehook_event_cb(struct ast_channel *chan, struct ast_frame *frame, enum ast_framehook_event event, void *data)
 {
 	struct suppress_data *suppress = data;
@@ -10346,6 +10359,7 @@ int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum 
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = suppress_framehook_event_cb,
 		.destroy_cb = suppress_framehook_destroy_cb,
+		.chan_fixup_cb = suppress_framehook_fixup_cb,
 	};
 	int framehook_id;
 

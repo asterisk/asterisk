@@ -586,14 +586,9 @@ static struct ast_audiohook *find_audiohook_by_source(struct ast_audiohook_list 
 	return NULL;
 }
 
-void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source)
+static void audiohook_move(struct ast_channel *old_chan, struct ast_channel *new_chan, struct ast_audiohook *audiohook)
 {
-	struct ast_audiohook *audiohook;
 	enum ast_audiohook_status oldstatus;
-
-	if (!ast_channel_audiohooks(old_chan) || !(audiohook = find_audiohook_by_source(ast_channel_audiohooks(old_chan), source))) {
-		return;
-	}
 
 	/* By locking both channels and the audiohook, we can assure that
 	 * another thread will not have a chance to read the audiohook's status
@@ -608,6 +603,48 @@ void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_chann
 
 	audiohook->status = oldstatus;
 	ast_audiohook_unlock(audiohook);
+}
+
+void ast_audiohook_move_by_source(struct ast_channel *old_chan, struct ast_channel *new_chan, const char *source)
+{
+	struct ast_audiohook *audiohook;
+
+	if (!ast_channel_audiohooks(old_chan)) {
+		return;
+	}
+
+	audiohook = find_audiohook_by_source(ast_channel_audiohooks(old_chan), source);
+	if (!audiohook) {
+		return;
+	}
+
+	audiohook_move(old_chan, new_chan, audiohook);
+}
+
+void ast_audiohook_move_all(struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct ast_audiohook *audiohook;
+	struct ast_audiohook_list *audiohook_list;
+
+	audiohook_list = ast_channel_audiohooks(old_chan);
+	if (!audiohook_list) {
+		return;
+	}
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&audiohook_list->spy_list, audiohook, list) {
+		audiohook_move(old_chan, new_chan, audiohook);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&audiohook_list->whisper_list, audiohook, list) {
+		audiohook_move(old_chan, new_chan, audiohook);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&audiohook_list->manipulate_list, audiohook, list) {
+		audiohook_move(old_chan, new_chan, audiohook);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
 }
 
 /*! \brief Detach specified source audiohook from channel

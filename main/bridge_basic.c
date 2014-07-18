@@ -2858,6 +2858,7 @@ static int attach_framehook(struct attended_transfer_properties *props, struct a
 		.event_cb = transfer_target_framehook_cb,
 		.destroy_cb = transfer_target_framehook_destroy_cb,
 		.consume_cb = transfer_target_framehook_consume,
+		.disable_inheritance = 1,
 	};
 
 	ao2_ref(props, +1);

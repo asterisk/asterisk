@@ -192,6 +192,11 @@ res_pjsip
    created for an endpoint with this setting will have its accountcode set
    to the specified value.
 
+Functions
+------------------
+ * Function AUDIOHOOK_INHERIT has been deprecated. Audiohooks are now
+   unconditionally inhereted through masquerades. As a side benefit, more
+   than one audiohook of a given type may persist through a masquerade now.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.3.0 to Asterisk 12.4.0 ------------

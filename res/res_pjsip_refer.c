@@ -508,6 +508,7 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 			.event_cb = refer_progress_framehook,
 			.destroy_cb = refer_progress_framehook_destroy,
 			.data = refer->progress,
+			.disable_inheritance = 1,
 		};
 
 		refer->progress->transferee = ast_strdup(ast_channel_uniqueid(chan));

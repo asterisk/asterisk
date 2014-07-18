@@ -607,10 +607,46 @@ static void destroy_callback(void *data)
 	}
 }
 
+static void fixup_callback(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
+
 static const struct ast_datastore_info fax_datastore = {
 	.type = "res_fax",
 	.destroy = destroy_callback,
+	.chan_fixup = fixup_callback,
 };
+
+static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_details *details);
+static int fax_detect_attach(struct ast_channel *chan, int timeout, int flags);
+static struct ast_fax_session_details *find_or_create_details(struct ast_channel *chan);
+
+/*! \brief Copies fax detection and gateway framehooks during masquerades
+ *
+ * \note must be called with both old_chan and new_chan locked. Since this
+ *       is only called by do_masquerade, that shouldn't be an issue.
+ */
+static void fixup_callback(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct ast_fax_session_details *old_details = data;
+	struct ast_datastore *datastore = ast_channel_datastore_find(old_chan, &fax_datastore, NULL);
+
+	if (old_details->gateway_id >= 0) {
+		struct ast_fax_session_details *new_details = find_or_create_details(new_chan);
+
+		ast_framehook_detach(old_chan, old_details->gateway_id);
+		fax_gateway_attach(new_chan, new_details);
+		ao2_cleanup(new_details);
+	}
+
+	if (old_details->faxdetect_id >= 0) {
+		ast_framehook_detach(old_chan, old_details->faxdetect_id);
+		fax_detect_attach(new_chan, old_details->faxdetect_timeout, old_details->faxdetect_flags);
+	}
+
+	if (datastore) {
+		ast_channel_datastore_remove(old_chan, datastore);
+		ast_datastore_free(datastore);
+	}
+}
 
 /*! \brief returns a reference counted pointer to a fax datastore, if it exists */
 static struct ast_fax_session_details *find_details(struct ast_channel *chan)
@@ -3431,6 +3467,7 @@ static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_d
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = fax_gateway_framehook,
 		.destroy_cb = fax_gateway_framehook_destroy,
+		.disable_inheritance = 1, /* Masquerade inheritance is handled through the datastore fixup */
 	};
 
 	ast_string_field_set(details, result, "SUCCESS");
@@ -3700,6 +3737,8 @@ static int fax_detect_attach(struct ast_channel *chan, int timeout, int flags)
 	faxdetect->details = details;
 	ast_channel_lock(chan);
 	details->faxdetect_id = ast_framehook_attach(chan, &fr_hook);
+	details->faxdetect_timeout = timeout;
+	details->faxdetect_flags = flags;
 	ast_channel_unlock(chan);
 
 	if (details->faxdetect_id < 0) {
