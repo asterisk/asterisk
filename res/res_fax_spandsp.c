@@ -1090,7 +1090,7 @@ static void spandsp_manager_fax_session(struct mansession *s,
 	}
 
 	ao2_lock(session);
-	res = ast_str_append(&message_string, 0, "SessionNumber: %d\r\n", session->id);
+	res = ast_str_append(&message_string, 0, "SessionNumber: %u\r\n", session->id);
 	res |= ast_str_append(&message_string, 0, "Operation: %s\r\n", ast_fax_session_operation_str(session));
 	res |= ast_str_append(&message_string, 0, "State: %s\r\n", ast_fax_state_to_str(session->state));
 
