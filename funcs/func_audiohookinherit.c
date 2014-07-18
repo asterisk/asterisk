@@ -47,11 +47,11 @@
 		</synopsis>
 		<description>
 			<para>Prior to Asterisk 12, masquerades would occur under all sorts of
-			situations which were hard to predict. In Asterisk 12, masquerades now only
-			occur as a result of small set of similar operations for which inheriting
-			all	audiohooks from the original channel is now safe, so in Asterisk 12.5+,
+			situations which were hard to predict.  In Asterisk 12, masquerades only
+			occur as a result of a small set of operations for which inheriting all
+			audiohooks from the original channel is now safe.  So in Asterisk 12.5+,
 			all audiohooks are inherited without needing other controls expressing
-			which audiohooks should	be inherited under which which conditions.</para>
+			which audiohooks should be inherited under which conditions.</para>
 		</description>
 	</function>
  ***/
