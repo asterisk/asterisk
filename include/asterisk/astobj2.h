@@ -1961,9 +1961,6 @@ void *__ao2_iterator_next(struct ao2_iterator *iter) attribute_warn_unused_resul
  */
 void ao2_iterator_restart(struct ao2_iterator *iter);
 
-/* extra functions */
-void ao2_bt(void);	/* backtrace */
-
 /*! gcc __attribute__(cleanup()) functions
  * \note they must be able to handle NULL parameters because most of the
  * allocation/find functions can fail and we don't want to try to tear

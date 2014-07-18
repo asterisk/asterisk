@@ -1759,14 +1759,14 @@ void ast_log_backtrace(void)
 	}
 
 	if ((strings = ast_bt_get_symbols(bt->addresses, bt->num_frames))) {
-		ast_debug(1, "Got %d backtrace record%c\n", bt->num_frames, bt->num_frames != 1 ? 's' : ' ');
+		ast_verbose("Got %d backtrace record%c\n", bt->num_frames, bt->num_frames != 1 ? 's' : ' ');
 		for (i = 3; i < bt->num_frames - 2; i++) {
-			ast_debug(1, "#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
+			ast_verbose("#%d: [%p] %s\n", i - 3, bt->addresses[i], strings[i]);
 		}
 
 		ast_std_free(strings);
 	} else {
-		ast_debug(1, "Could not allocate memory for backtrace\n");
+		ast_verbose("Could not allocate memory for backtrace\n");
 	}
 	ast_bt_destroy(bt);
 #else

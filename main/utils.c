@@ -2544,7 +2544,7 @@ void __ast_assert_failed(int condition, const char *condition_str, const char *f
 		condition_str, condition, line, function, file);
 
 	/* Generate a backtrace for the assert */
-	ao2_bt();
+	ast_log_backtrace();
 
 	/*
 	 * Give the logger a chance to get the message out, just in case

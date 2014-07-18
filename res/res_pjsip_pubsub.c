@@ -992,8 +992,6 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, void *notify_d
 			PJSIP_EVSUB_STATE_ACTIVE : PJSIP_EVSUB_STATE_TERMINATED;
 	}
 
-	ast_log_backtrace();
-
 	if (pjsip_evsub_notify(evsub, state, NULL, NULL, &tdata) != PJ_SUCCESS) {
 		ast_free(body_text);
 		return -1;

@@ -97,29 +97,6 @@ struct astobj2_rwlock {
 struct ao2_stats ao2;
 #endif
 
-#ifdef HAVE_BKTR
-#include <execinfo.h>    /* for backtrace */
-#endif
-
-void ao2_bt(void)
-{
-#ifdef HAVE_BKTR
-	int depth;
-	int idx;
-#define N1	20
-	void *addresses[N1];
-	char **strings;
-
-	depth = backtrace(addresses, N1);
-	strings = ast_bt_get_symbols(addresses, depth);
-	ast_verbose("backtrace returned: %d\n", depth);
-	for (idx = 0; idx < depth; ++idx) {
-		ast_verbose("%d: %p %s\n", idx, addresses[idx], strings[idx]);
-	}
-	ast_std_free(strings);
-#endif
-}
-
 #define INTERNAL_OBJ_MUTEX(user_data) \
 	((struct astobj2_lock *) (((char *) (user_data)) - sizeof(struct astobj2_lock)))
 
@@ -455,6 +432,9 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 	if (current_value < 0) {
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid refcount %d on ao2 object %p\n", current_value, user_data);
+		ast_assert(0);
+		/* stop here even if assert doesn't DO_CRASH */
+		return -1;
 	}
 
 	/* last reference, destroy the object */
@@ -516,7 +496,6 @@ int __ao2_ref_debug(void *user_data, int delta, const char *tag, const char *fil
 	}
 
 	if (obj == NULL) {
-		ast_log_backtrace();
 		ast_assert(0);
 	}
 
