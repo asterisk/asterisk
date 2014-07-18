@@ -235,6 +235,188 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="application">SendFax</ref>
 		</see-also>
 	</function>
+	<manager name="FAXSessions" language="en_US">
+		<synopsis>
+			Lists active FAX sessions
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Will generate a series of FAXSession events with information about each FAXSession. Closes with
+			a FAXSessionsComplete event which includes a count of the included FAX sessions. This action works in
+			the same manner as the CLI command 'fax show sessions'</para>
+		</description>
+	</manager>
+	<managerEvent language="en_US" name="FAXSessionsEntry">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>A single list item for the FAXSessions AMI command</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<parameter name="Channel">
+					<para>Name of the channel responsible for the FAX session</para>
+				</parameter>
+				<parameter name="Technology">
+					<para>The FAX technology that the FAX session is using</para>
+				</parameter>
+				<parameter name="SessionNumber">
+					<para>The numerical identifier for this particular session</para>
+				</parameter>
+				<parameter name="SessionType">
+					<para>FAX session passthru/relay type</para>
+					<enumlist>
+						<enum name="G.711" />
+						<enum name="T.38" />
+					</enumlist>
+				</parameter>
+				<parameter name="Operation">
+					<para>FAX session operation type</para>
+					<enumlist>
+						<enum name="gateway" />
+						<enum name="V.21" />
+						<enum name="send" />
+						<enum name="receive" />
+						<enum name="none" />
+					</enumlist>
+				</parameter>
+				<parameter name="State">
+					<para>Current state of the FAX session</para>
+					<enumlist>
+						<enum name="Uninitialized" />
+						<enum name="Initialized" />
+						<enum name="Open" />
+						<enum name="Active" />
+						<enum name="Complete" />
+						<enum name="Reserved" />
+						<enum name="Inactive" />
+						<enum name="Unknown" />
+					</enumlist>
+				</parameter>
+				<parameter name="Files">
+					<para>File or list of files associated with this FAX session</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="FAXSessionsComplete">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when all FAXSession events are completed for a FAXSessions command</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<parameter name="Total">
+					<para>Count of FAXSession events sent in response to FAXSessions action</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="FAXSession" language="en_US">
+		<synopsis>
+			Responds with a detailed description of a single FAX session
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="SessionNumber" required="true">
+				<para>The session ID of the fax the user is interested in.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Provides details about a specific FAX session. The response will include a common subset of
+			the output from the CLI command 'fax show session &lt;session_number&gt;' for each technology. If the
+			FAX technolgy used by this session does not include a handler for FAXSession, then this action
+			will fail.</para>
+		</description>
+	</manager>
+	<managerEvent language="en_US" name="FAXSession">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised in response to FAXSession manager command</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<parameter name="SessionNumber">
+					<para>The numerical identifier for this particular session</para>
+				</parameter>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FAXSessionsEntry']/managerEventInstance/syntax/parameter[@name='Operation'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='FAXSessionsEntry']/managerEventInstance/syntax/parameter[@name='State'])" />
+				<parameter name="ErrorCorrectionMode" required="false">
+					<para>Whether error correcting mode is enabled for the FAX session. This field is not
+					included when operation is 'V.21 Detect' or if operation is 'gateway' and state is
+					'Uninitialized'
+					</para>
+					<enumlist>
+						<enum name="yes" />
+						<enum name="no" />
+					</enumlist>
+				</parameter>
+				<parameter name="DataRate" required="false">
+					<para>Bit rate of the FAX. This field is not included when operation is 'V.21 Detect' or
+					if operation is 'gateway' and state is 'Uninitialized'.</para>
+				</parameter>
+				<parameter name="ImageResolution" required="false">
+					<para>Resolution of each page of the FAX. Will be in the format of X_RESxY_RES. This field
+					is not included if the operation is anything other than Receive/Transmit.</para>
+				</parameter>
+				<parameter name="PageNumber" required="false">
+					<para>Current number of pages transferred during this FAX session. May change as the FAX
+					progresses. This field is not included when operation is 'V.21 Detect' or if operation is
+					'gateway' and state is 'Uninitialized'.</para>
+				</parameter>
+				<parameter name="FileName" required="false">
+					<para>Filename of the image being sent/recieved for this FAX session. This field is not
+					included if Operation isn't 'send' or 'receive'.</para>
+				</parameter>
+				<parameter name="PagesTransmitted" required="false">
+					<para>Total number of pages sent during this session. This field is not included if
+					Operation isn't 'send' or 'receive'. Will always be 0 for 'receive'.</para>
+				</parameter>
+				<parameter name="PagesReceived" required="false">
+					<para>Total number of pages received during this session. This field is not included if
+					Operation is not 'send' or 'receive'. Will be 0 for 'send'.</para>
+				</parameter>
+				<parameter name="TotalBadLines" required="false">
+					<para>Total number of bad lines sent/recieved during this session. This field is not
+					included if Operation is not 'send' or 'received'.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<manager name="FAXStats" language="en_US">
+		<synopsis>
+			Responds with fax statistics
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>Provides FAX statistics including the number of active sessions, reserved sessions, completed
+			sessions, failed sessions, and the number of receive/transmit attempts. This command provides all
+			of the non-technology specific information provided by the CLI command 'fax show stats'</para>
+		</description>
+	</manager>
+	<managerEvent language="en_US" name="FAXStats">
+		<managerEventInstance class="EVENT_FLAG_REPORTING">
+			<synopsis>Raised in response to FAXStats manager command</synopsis>
+			<syntax>
+				<parameter name="ActionID" required="false"/>
+				<parameter name="CurrentSessions" required="true">
+					<para>Number of active FAX sessions</para>
+				</parameter>
+				<parameter name="ReservedSessions" required="true">
+					<para>Number of reserved FAX sessions</para>
+				</parameter>
+				<parameter name="TransmitAttempts" required="true">
+					<para>Total FAX sessions for which Asterisk is/was the transmitter</para>
+				</parameter>
+				<parameter name="ReceiveAttempts" required="true">
+					<para>Total FAX sessions for which Asterisk is/was the recipient</para>
+				</parameter>
+				<parameter name="CompletedFAXes" required="true">
+					<para>Total FAX sessions which have been completed successfully</para>
+				</parameter>
+				<parameter name="FailedFAXes" required="true">
+					<para>Total FAX sessions which failed to complete successfully</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 ***/
 
 static const char app_receivefax[] = "ReceiveFAX";
@@ -1144,7 +1326,7 @@ static char *generate_filenames_string(struct ast_fax_session_details *details, 
 
 	/* don't process empty lists */
 	if (AST_LIST_EMPTY(&details->documents)) {
-		return NULL;
+		return ast_strdup("");
 	}
 
 	/* Calculate the total length of all of the file names */
@@ -3742,6 +3924,43 @@ static char *cli_fax_show_session(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
+static int manager_fax_session(struct mansession *s, const struct message *m)
+{
+	const char *action_id = astman_get_header(m, "ActionID");
+	const char *session_number = astman_get_header(m, "SessionNumber");
+	char id_text[256] = "";
+	struct ast_fax_session *session;
+	struct ast_fax_session find_session;
+
+	if (sscanf(session_number, "%30u", &find_session.id) != 1) {
+		astman_send_error(s, m, "Invalid session ID");
+		return 0;
+	}
+
+	session = ao2_find(faxregistry.container, &find_session, OBJ_POINTER);
+	if (!session) {
+		astman_send_error(s, m, "Session not found");
+		return 0;
+	}
+
+	if (!session->tech->manager_fax_session) {
+		astman_send_error(s, m, "Fax technology doesn't provide a handler for FAXSession");
+		ao2_ref(session, -1);
+		return 0;
+	}
+
+	if (!ast_strlen_zero(action_id)) {
+		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", action_id);
+	}
+
+	astman_send_ack(s, m, "FAXSession event will follow");
+
+	session->tech->manager_fax_session(s, id_text, session);
+	ao2_ref(session, -1);
+
+	return 0;
+}
+
 /*! \brief display fax stats */
 static char *cli_fax_show_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -3775,7 +3994,36 @@ static char *cli_fax_show_stats(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
-static const char *cli_session_type(struct ast_fax_session *s)
+static int manager_fax_stats(struct mansession *s, const struct message *m)
+{
+	const char *action_id = astman_get_header(m, "ActionID");
+
+	char id_text[256] = "";
+
+	astman_send_ack(s, m, "FAXStats event will follow");
+
+	if (!ast_strlen_zero(action_id)) {
+		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", action_id);
+	}
+
+	astman_append(s, "Event: FAXStats\r\n"
+		"%s"
+		"CurrentSessions: %d\r\n"
+		"ReservedSessions: %d\r\n"
+		"TransmitAttempts: %d\r\n"
+		"ReceiveAttempts: %d\r\n"
+		"CompletedFAXes: %d\r\n"
+		"FailedFAXes: %d\r\n"
+		"\r\n",
+		id_text,
+		faxregistry.active_sessions, faxregistry.reserved_sessions,
+		faxregistry.fax_tx_attempts, faxregistry.fax_rx_attempts,
+		faxregistry.fax_complete, faxregistry.fax_failures);
+
+	return 0;
+}
+
+static const char *fax_session_type(struct ast_fax_session *s)
 {
 	if (s->details->caps & AST_FAX_TECH_AUDIO) {
 		return "G.711";
@@ -3787,7 +4035,7 @@ static const char *cli_session_type(struct ast_fax_session *s)
 	return "none";
 }
 
-static const char *cli_session_operation(struct ast_fax_session *s)
+const char *ast_fax_session_operation_str(struct ast_fax_session *s)
 {
 	if (s->details->caps & AST_FAX_TECH_GATEWAY) {
 		return "gateway";
@@ -3835,8 +4083,8 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 
 		ast_cli(a->fd, "%-20.20s %-10.10s %-10u %-5.5s %-10.10s %-15.15s %-30s\n",
 			s->channame, s->tech->type, s->id,
-			cli_session_type(s),
-			cli_session_operation(s),
+			fax_session_type(s),
+			ast_fax_session_operation_str(s),
 			ast_fax_state_to_str(s->state), S_OR(filenames, ""));
 
 		ast_free(filenames);
@@ -3848,6 +4096,72 @@ static char *cli_fax_show_sessions(struct ast_cli_entry *e, int cmd, struct ast_
 	ast_cli(a->fd, "\n%d FAX sessions\n\n", session_count);
 
 	return CLI_SUCCESS;
+}
+
+static int manager_fax_sessions_entry(struct mansession *s,
+	struct ast_fax_session *session, const char *id_text)
+{
+	char *filenames;
+
+	ao2_lock(session);
+	filenames = generate_filenames_string(session->details, "", ",");
+
+	if (!filenames) {
+		ast_log(LOG_ERROR, "Error generating Files string");
+		ao2_unlock(session);
+		return -1;
+	}
+
+	astman_append(s, "Event: FAXSessionsEntry\r\n"
+		"%s" /* ActionID if present */
+		"Channel: %s\r\n" /* Channel name */
+		"Technology: %s\r\n" /* Fax session technology */
+		"SessionNumber: %u\r\n" /* Session ID */
+		"SessionType: %s\r\n" /* G711 or T38 */
+		"Operation: %s\r\n"
+		"State: %s\r\n"
+		"Files: %s\r\n"
+		"\r\n",
+		id_text, session->channame, session->tech->type, session->id,
+		fax_session_type(session), ast_fax_session_operation_str(session),
+		ast_fax_state_to_str(session->state), S_OR(filenames, ""));
+	ast_free(filenames);
+	ao2_unlock(session);
+	return 0;
+}
+
+static int manager_fax_sessions(struct mansession *s, const struct message *m)
+{
+	const char *action_id = astman_get_header(m, "ActionID");
+	char id_text[256] = "";
+	struct ast_fax_session *session;
+	struct ao2_iterator iter;
+	int session_count = 0;
+
+	astman_send_listack(s, m, "FAXSessionsEntry event list will follow", "Start");
+
+	if (!ast_strlen_zero(action_id)) {
+		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", action_id);
+	}
+
+	iter = ao2_iterator_init(faxregistry.container, 0);
+	while ((session = ao2_iterator_next(&iter))) {
+		if (!manager_fax_sessions_entry(s, session, id_text)) {
+			session_count++;
+		}
+		ao2_ref(session, -1);
+	}
+	ao2_iterator_destroy(&iter);
+
+	astman_append(s, "Event: FAXSessionsComplete\r\n"
+		"%s"
+		"EventList: Complete\r\n"
+		"Total: %d\r\n"
+		"\r\n",
+		id_text,
+		session_count);
+
+	return 0;
 }
 
 static struct ast_cli_entry fax_cli[] = {
@@ -4241,6 +4555,33 @@ static int load_module(void)
 	}
 	if (ast_register_application_xml(app_receivefax, receivefax_exec) < 0) {
 		ast_log(LOG_WARNING, "failed to register '%s'.\n", app_receivefax);
+		ast_unregister_application(app_sendfax);
+		ao2_ref(faxregistry.container, -1);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (ast_manager_register_xml("FAXSessions", EVENT_FLAG_CALL, manager_fax_sessions)) {
+		ast_log(LOG_WARNING, "failed to register 'FAXSessions' AMI command.\n");
+		ast_unregister_application(app_receivefax);
+		ast_unregister_application(app_sendfax);
+		ao2_ref(faxregistry.container, -1);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (ast_manager_register_xml("FAXSession", EVENT_FLAG_CALL, manager_fax_session)) {
+		ast_log(LOG_WARNING, "failed to register 'FAXSession' AMI command.\n");
+		ast_manager_unregister("FAXSession");
+		ast_unregister_application(app_receivefax);
+		ast_unregister_application(app_sendfax);
+		ao2_ref(faxregistry.container, -1);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (ast_manager_register_xml("FAXStats", EVENT_FLAG_REPORTING, manager_fax_stats)) {
+		ast_log(LOG_WARNING, "failed to register 'FAXStats' AMI command.\n");
+		ast_manager_unregister("FAXSession");
+		ast_manager_unregister("FAXSessions");
+		ast_unregister_application(app_receivefax);
 		ast_unregister_application(app_sendfax);
 		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;

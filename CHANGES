@@ -42,6 +42,10 @@ AMI
  * New AMI action LoggerRotate reloads and rotates logger in the same manner
    as CLI command 'logger rotate'
 
+ * New AMI Actions FAXSessions, FAXSession, and FAXStats replicate the
+   functionality of CLI commands 'fax show sessions', 'fax show session',
+   and fax show stats' respectively.
+
  * New AMI actions PRIDebugSet, PRIDebugFileSet, and PRIDebugFileUnset
    enable manager control over PRI debugging levels and file output.
 

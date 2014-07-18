@@ -86,6 +86,8 @@ static void spandsp_v21_tone(void *data, int code, int level, int delay);
 
 static char *spandsp_fax_cli_show_capabilities(int fd);
 static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd);
+static void spandsp_manager_fax_session(struct mansession *s,
+	const char *id_text, struct ast_fax_session *session);
 static char *spandsp_fax_cli_show_stats(int fd);
 static char *spandsp_fax_cli_show_settings(int fd);
 
@@ -113,6 +115,7 @@ static struct ast_fax_tech spandsp_fax_tech = {
 	.switch_to_t38 = spandsp_fax_switch_to_t38,
 	.cli_show_capabilities = spandsp_fax_cli_show_capabilities,
 	.cli_show_session = spandsp_fax_cli_show_session,
+	.manager_fax_session = spandsp_manager_fax_session,
 	.cli_show_stats = spandsp_fax_cli_show_stats,
 	.cli_show_settings = spandsp_fax_cli_show_settings,
 };
@@ -1071,6 +1074,97 @@ static char *spandsp_fax_cli_show_session(struct ast_fax_session *s, int fd)
 	ao2_unlock(s);
 	ast_cli(fd, "\n\n");
 	return CLI_SUCCESS;
+}
+
+static void spandsp_manager_fax_session(struct mansession *s,
+	const char *id_text, struct ast_fax_session *session)
+{
+	struct ast_str *message_string;
+	struct spandsp_pvt *span_pvt = session->tech_pvt;
+	int res;
+
+	message_string = ast_str_create(128);
+
+	if (!message_string) {
+		return;
+	}
+
+	ao2_lock(session);
+	res = ast_str_append(&message_string, 0, "SessionNumber: %d\r\n", session->id);
+	res |= ast_str_append(&message_string, 0, "Operation: %s\r\n", ast_fax_session_operation_str(session));
+	res |= ast_str_append(&message_string, 0, "State: %s\r\n", ast_fax_state_to_str(session->state));
+
+	if (session->details->caps & AST_FAX_TECH_GATEWAY) {
+		t38_stats_t stats;
+
+		if (session->state == AST_FAX_STATE_UNINITIALIZED) {
+			goto skip_cap_additions;
+		}
+
+		t38_gateway_get_transfer_statistics(&span_pvt->t38_gw_state, &stats);
+		res |= ast_str_append(&message_string, 0, "ErrorCorrectionMode: %s\r\n",
+			stats.error_correcting_mode ? "yes" : "no");
+		res |= ast_str_append(&message_string, 0, "DataRate: %d\r\n",
+			stats.bit_rate);
+		res |= ast_str_append(&message_string, 0, "PageNumber: %d\r\n",
+			stats.pages_transferred + 1);
+	} else if (!(session->details->caps & AST_FAX_TECH_V21_DETECT)) { /* caps is SEND/RECEIVE */
+		t30_stats_t stats;
+
+		if (session->state == AST_FAX_STATE_UNINITIALIZED) {
+			goto skip_cap_additions;
+		}
+
+		t30_get_transfer_statistics(span_pvt->t30_state, &stats);
+		res |= ast_str_append(&message_string, 0, "ErrorCorrectionMode: %s\r\n",
+			stats.error_correcting_mode ? "Yes" : "No");
+		res |= ast_str_append(&message_string, 0, "DataRate: %d\r\n",
+			stats.bit_rate);
+		res |= ast_str_append(&message_string, 0, "ImageResolution: %dx%d\r\n",
+			stats.x_resolution, stats.y_resolution);
+#if SPANDSP_RELEASE_DATE >= 20090220
+		res |= ast_str_append(&message_string, 0, "PageNumber: %d\r\n",
+			((session->details->caps & AST_FAX_TECH_RECEIVE) ? stats.pages_rx : stats.pages_tx) + 1);
+#else
+		res |= ast_str_append(&message_string, 0, "PageNumber: %d\r\n",
+			stats.pages_transferred + 1);
+#endif
+		res |= ast_str_append(&message_string, 0, "FileName: %s\r\n",
+			session->details->caps & AST_FAX_TECH_RECEIVE ? span_pvt->t30_state->rx_file :
+			span_pvt->t30_state->tx_file);
+#if SPANDSP_RELEASE_DATE >= 20090220
+		res |= ast_str_append(&message_string, 0, "PagesTransmitted: %d\r\n",
+			stats.pages_tx);
+		res |= ast_str_append(&message_string, 0, "PagesReceived: %d\r\n",
+			stats.pages_rx);
+#else
+		res |= ast_str_append(&message_string, 0, "PagesTransmitted: %d\r\n",
+			(session->details->caps & AST_FAX_TECH_SEND) ? stats.pages_transferred : 0);
+		res |= ast_str_append(&message_string, 0, "PagesReceived: %d\r\n",
+			(session->details->caps & AST_FAX_TECH_RECEIVE) ? stats.pages_transferred : 0);
+#endif
+		res |= ast_str_append(&message_string, 0, "TotalBadLines: %d\r\n",
+			stats.bad_rows);
+	}
+
+skip_cap_additions:
+
+	ao2_unlock(session);
+
+	if (res < 0) {
+		/* One or more of the ast_str_append attempts failed, cancel the message */
+		ast_free(message_string);
+		return;
+	}
+
+	astman_append(s, "Event: FAXSession\r\n"
+		"%s"
+		"%s"
+		"\r\n",
+		id_text,
+		ast_str_buffer(message_string));
+
+	ast_free(message_string);
 }
 
 /*! \brief */
