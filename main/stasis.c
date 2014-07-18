@@ -204,7 +204,7 @@ struct stasis_topic *stasis_topic_create(const char *name)
 	struct stasis_topic *topic;
 	int res = 0;
 
-	topic = ao2_alloc(sizeof(*topic), topic_dtor);
+	topic = ao2_t_alloc(sizeof(*topic), topic_dtor, name);
 	if (!topic) {
 		return NULL;
 	}
@@ -311,7 +311,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 	}
 
 	/* The ao2 lock is used for join_cond. */
-	sub = ao2_alloc(sizeof(*sub), subscription_dtor);
+	sub = ao2_t_alloc(sizeof(*sub), subscription_dtor, topic->name);
 	if (!sub) {
 		return NULL;
 	}

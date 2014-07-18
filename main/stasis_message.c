@@ -55,7 +55,7 @@ struct stasis_message_type *stasis_message_type_create(const char *name,
 {
 	struct stasis_message_type *type;
 
-	type = ao2_alloc(sizeof(*type), message_type_dtor);
+	type = ao2_t_alloc(sizeof(*type), message_type_dtor, name);
 	if (!type) {
 		return NULL;
 	}
@@ -108,7 +108,7 @@ struct stasis_message *stasis_message_create_full(struct stasis_message_type *ty
 		return NULL;
 	}
 
-	message = ao2_alloc(sizeof(*message), stasis_message_dtor);
+	message = ao2_t_alloc(sizeof(*message), stasis_message_dtor, type->name);
 	if (message == NULL) {
 		return NULL;
 	}
