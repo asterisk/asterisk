@@ -212,7 +212,7 @@ struct stasis_message_router *stasis_message_router_create(
 	int res;
 	RAII_VAR(struct stasis_message_router *, router, NULL, ao2_cleanup);
 
-	router = ao2_t_alloc(sizeof(*router), router_dtor, topic->name);
+	router = ao2_t_alloc(sizeof(*router), router_dtor, stasis_topic_name(topic));
 	if (!router) {
 		return NULL;
 	}
