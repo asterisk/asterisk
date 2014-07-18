@@ -5,6 +5,7 @@
 # AST_EXT_TOOL_CHECK([package], [tool name], [--cflags], [--libs], [includes], [expression])
 AC_DEFUN([AST_EXT_TOOL_CHECK],
 [
+	AC_REQUIRE([AST_PROG_SED])dnl
 	if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
 		PBX_$1=0
 		AC_PATH_TOOL(CONFIG_$1, $2, No, [${$1_DIR}/bin:$PATH])
