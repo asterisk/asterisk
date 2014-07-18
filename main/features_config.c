@@ -799,6 +799,7 @@ static void features_copy(struct features_config *dest, const struct features_co
 
 	/* applicationmap and featuregroups are purposely not copied. A channel's applicationmap
 	 * is produced on the fly when ast_get_chan_applicationmap() is called
+	 * NOTE: This does not apply to the global cfg->applicationmap and cfg->featuresgroups
 	 */
 }
 
@@ -1290,6 +1291,9 @@ struct ao2_container *ast_get_chan_applicationmap(struct ast_channel *chan)
 		return NULL;
 	}
 
+	/* global config must be initialized */
+	ast_assert(cfg->featuregroups != NULL);
+	ast_assert(cfg->applicationmap != NULL);
 	while ((name = strsep(&group_names, "#"))) {
 		RAII_VAR(struct featuregroup *, group, ao2_find(cfg->featuregroups, name, OBJ_KEY), ao2_cleanup);
 
@@ -1531,6 +1535,9 @@ static int features_pre_apply_config(void)
 	 * items refer to actual applicationmap items.
 	 */
 
+	/* global config must be initialized */
+	ast_assert(cfg->featuregroups != NULL);
+	ast_assert(cfg->applicationmap != NULL);
 	ao2_callback_data(cfg->featuregroups, 0, check_featuregroup, &err, cfg->applicationmap);
 
 	return err;
@@ -1790,7 +1797,7 @@ static int load_config(void)
 			"", unsupported_handler, 0);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-		RAII_VAR(struct features_config *, features_cfg, __features_config_alloc(0), ao2_cleanup);
+		RAII_VAR(struct features_config *, features_cfg, features_config_alloc(), ao2_cleanup);
 
 		if (aco_set_defaults(&global_option, "general", features_cfg->global) ||
 			aco_set_defaults(&featuremap_option, "featuremap", features_cfg->featuremap)) {
