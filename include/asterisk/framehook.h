@@ -212,7 +212,19 @@ typedef void (*ast_framehook_destroy_callback)(void *data);
  */
 typedef int (*ast_framehook_consume_callback)(void *data, enum ast_frame_type type);
 
-#define AST_FRAMEHOOK_INTERFACE_VERSION 2
+/*!
+ * \brief This callback is called when a masquerade occurs on a channel with a framehook
+ * \since 12
+ *
+ * \param data, The data pointer provided at framehook initialization.
+ * \param framehook_id, The framehook ID where the framehook lives now
+ * \param old_chan, The channel that was masqueraded.
+ * \param new_chan, The channel that the masqueraded channel became.
+ */
+typedef void (*ast_framehook_chan_fixup_callback)(void *data, int framehook_id,
+	struct ast_channel *old_chan, struct ast_channel *new_chan);
+
+#define AST_FRAMEHOOK_INTERFACE_VERSION 3
 /*! This interface is required for attaching a framehook to a channel. */
 struct ast_framehook_interface {
 	/*! framehook interface version number */
@@ -226,6 +238,13 @@ struct ast_framehook_interface {
 	* frames of a specific type at this time. If this callback is not implemented it is assumed that the
 	* framehook will consume frames of all types. */
 	ast_framehook_consume_callback consume_cb;
+	/*! chan_fixup_cb is optional. This function is called when the channel that a framehook is running
+	 * on is masqueraded and should be used to move any essential framehook data onto the channel the
+	 * old channel was masqueraded to. */
+	ast_framehook_chan_fixup_callback chan_fixup_cb;
+	/*! disable_inheritance is optional. If set to non-zero, when a channel using this framehook is
+	 * masqueraded, detach and destroy the framehook instead of moving it to the new channel. */
+	int disable_inheritance;
 	 /*! This pointer can represent any custom data to be stored on the !framehook. This
 	 * data pointer will be provided during each event callback which allows the framehook
 	 * to store any stateful data associated with the application using the hook. */
@@ -280,6 +299,18 @@ int ast_framehook_detach(struct ast_channel *chan, int framehook_id);
  * \retval -1 failure
  */
 int ast_framehook_list_destroy(struct ast_channel *chan);
+
+/*!
+ * \brief This is used by the channel API during a masquerade operation
+ * to move all mobile framehooks from the original channel to the clone channel.
+ * \since 12.5.0
+ *
+ * \pre Both channels must be locked prior to this function call.
+ *
+ * \param old_chan The channel being cloned from
+ * \param new_chan The channel being cloned to
+ */
+void ast_framehook_list_fixup(struct ast_channel *old_chan, struct ast_channel *new_chan);
 
 /*!
  * \brief This is used by the channel API push a frame read event to a channel's framehook list.

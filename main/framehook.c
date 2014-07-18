@@ -56,7 +56,16 @@ struct ast_framehook_list {
 	AST_LIST_HEAD_NOLOCK(, ast_framehook) list;
 };
 
-static void framehook_detach_and_destroy(struct ast_framehook *framehook)
+enum framehook_detachment_mode
+{
+	/*! Destroy the framehook outright. */
+	FRAMEHOOK_DETACH_DESTROY = 0,
+	/*! Remove the framehook from the channel, but don't destroy the data since
+	 *  it will be used by a replacement framehook on another channel. */
+	FRAMEHOOK_DETACH_PRESERVE,
+};
+
+static void framehook_detach(struct ast_framehook *framehook, enum framehook_detachment_mode mode)
 {
 	struct ast_frame *frame;
 	frame = framehook->i.event_cb(framehook->chan, NULL, AST_FRAMEHOOK_EVENT_DETACHED, framehook->i.data);
@@ -67,7 +76,7 @@ static void framehook_detach_and_destroy(struct ast_framehook *framehook)
 	}
 	framehook->chan = NULL;
 
-	if (framehook->i.destroy_cb) {
+	if (mode == FRAMEHOOK_DETACH_DESTROY && framehook->i.destroy_cb) {
 		framehook->i.destroy_cb(framehook->i.data);
 	}
 	ast_free(framehook);
@@ -96,7 +105,7 @@ static struct ast_frame *framehook_list_push_event(struct ast_framehook_list *fr
 			if (framehook->detach_and_destroy_me) {
 				/* this guy is signaled for destruction */
 				AST_LIST_REMOVE_CURRENT(list);
-				framehook_detach_and_destroy(framehook);
+				framehook_detach(framehook, FRAMEHOOK_DETACH_DESTROY);
 				continue;
 			}
 
@@ -205,12 +214,48 @@ int ast_framehook_list_destroy(struct ast_channel *chan)
 	}
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&ast_channel_framehooks(chan)->list, framehook, list) {
 		AST_LIST_REMOVE_CURRENT(list);
-		framehook_detach_and_destroy(framehook);
+		framehook_detach(framehook, FRAMEHOOK_DETACH_DESTROY);
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	ast_free(ast_channel_framehooks(chan));
 	ast_channel_framehooks_set(chan, NULL);
 	return 0;
+}
+
+void ast_framehook_list_fixup(struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct ast_framehook *framehook;
+	int moved_framehook_id;
+
+	if (!ast_channel_framehooks(old_chan)) {
+		return;
+	}
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&ast_channel_framehooks(old_chan)->list, framehook, list) {
+		AST_LIST_REMOVE_CURRENT(list);
+
+		/* If inheritance is not allowed for this framehook, just destroy it. */
+		if (framehook->i.disable_inheritance) {
+			framehook_detach(framehook, FRAMEHOOK_DETACH_DESTROY);
+			continue;
+		}
+
+		/* Otherwise move it to the other channel and perform any fixups set by the framehook interface */
+		moved_framehook_id = ast_framehook_attach(new_chan, &framehook->i);
+
+		if (moved_framehook_id < 0) {
+			ast_log(LOG_WARNING, "Failed framehook copy during masquerade. Expect loss of features.\n");
+			framehook_detach(framehook, FRAMEHOOK_DETACH_DESTROY);
+		} else {
+			if (framehook->i.chan_fixup_cb) {
+				framehook->i.chan_fixup_cb(framehook->i.data, moved_framehook_id,
+					old_chan, new_chan);
+			}
+
+			framehook_detach(framehook, FRAMEHOOK_DETACH_PRESERVE);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
 }
 
 int ast_framehook_list_is_empty(struct ast_framehook_list *framehooks)

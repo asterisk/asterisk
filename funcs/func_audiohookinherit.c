@@ -29,19 +29,17 @@
  */
 
 /*** MODULEINFO
-	<support_level>core</support_level>
+	<support_level>deprecated</support_level>
  ***/
 
 #include "asterisk.h"
-#include "asterisk/datastore.h"
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
-#include "asterisk/audiohook.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 
 /*** DOCUMENTATION
- 	<function name = "AUDIOHOOK_INHERIT" language="en_US">
+	<function name = "AUDIOHOOK_INHERIT" language="en_US">
 		<synopsis>
 			Set whether an audiohook may be inherited to another channel
 		</synopsis>
@@ -90,199 +88,26 @@
 			<para>        transfer to 4000.</para>
 			<para>Result: Since extension 5000 did not set MixMonitor to be inheritable, the</para>
 			<para>        recording will stop once the call has been transferred to 4000.</para>
+			<para>Prior to Asterisk 12, masquerades would occur under all sorts of
+			situations which were hard to predict. In Asterisk, masquerades only occur
+			as a result of small set of similar operations for which inheriting all
+			audiohooks from the original channel is now safe, so in Asterisk 12.5+,
+			all audiohooks are inherited without needing other controls expressing
+			which audiohooks should	be inherited under which which conditions.</para>
 		</description>
 	</function>
  ***/
 
-struct inheritable_audiohook {
-	AST_LIST_ENTRY(inheritable_audiohook) list;
-	char source[1];
-};
-
-struct audiohook_inheritance_datastore {
-	AST_LIST_HEAD (, inheritable_audiohook) allowed_list;
-};
-
-static void audiohook_inheritance_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan);
-static void audiohook_inheritance_destroy (void *data);
-static const struct ast_datastore_info audiohook_inheritance_info = {
-	.type = "audiohook inheritance",
-	.destroy = audiohook_inheritance_destroy,
-	.chan_fixup = audiohook_inheritance_fixup,
-};
-
-/*! \brief Move audiohooks as defined by previous calls to the AUDIOHOOK_INHERIT function
- *
- * Move allowed audiohooks from the old channel to the new channel.
- *
- * \param data The ast_datastore containing audiohook inheritance information that will be moved
- * \param old_chan The "clone" channel from a masquerade. We are moving the audiohook in question off of this channel
- * \param new_chan The "original" channel from a masquerade. We are moving the audiohook in question to this channel
- * \return Void
- */
-static void audiohook_inheritance_fixup(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
-{
-	struct inheritable_audiohook *audiohook = NULL;
-	struct audiohook_inheritance_datastore *datastore = data;
-
-	ast_debug(2, "inheritance fixup occurring for channels %s(%p) and %s(%p)", ast_channel_name(old_chan), old_chan, ast_channel_name(new_chan), new_chan);
-
-	AST_LIST_TRAVERSE(&datastore->allowed_list, audiohook, list) {
-		ast_audiohook_move_by_source(old_chan, new_chan, audiohook->source);
-		ast_debug(3, "Moved audiohook %s from %s(%p) to %s(%p)\n",
-			audiohook->source, ast_channel_name(old_chan), old_chan, ast_channel_name(new_chan), new_chan);
-	}
-	return;
-}
-
-/*! \brief Destroy dynamically allocated data on an audiohook_inheritance_datastore
- *
- * \param data Pointer to the audiohook_inheritance_datastore in question.
- * \return Void
- */
-static void audiohook_inheritance_destroy(void *data)
-{
-	struct audiohook_inheritance_datastore *audiohook_inheritance_datastore = data;
-	struct inheritable_audiohook *inheritable_audiohook = NULL;
-
-	while ((inheritable_audiohook = AST_LIST_REMOVE_HEAD(&audiohook_inheritance_datastore->allowed_list, list))) {
-		ast_free(inheritable_audiohook);
-	}
-
-	ast_free(audiohook_inheritance_datastore);
-}
-
-/*! \brief create an audiohook_inheritance_datastore and attach it to a channel
- *
- * \param chan The channel to which we wish to attach the new datastore
- * \return Returns the newly created audiohook_inheritance_datastore or NULL on error
- */
-static struct audiohook_inheritance_datastore *setup_inheritance_datastore(struct ast_channel *chan)
-{
-	struct ast_datastore *datastore = NULL;
-	struct audiohook_inheritance_datastore *audiohook_inheritance_datastore = NULL;
-
-	if (!(datastore = ast_datastore_alloc(&audiohook_inheritance_info, NULL))) {
-		return NULL;
-	}
-
-	if (!(audiohook_inheritance_datastore = ast_calloc(1, sizeof(*audiohook_inheritance_datastore)))) {
-		ast_datastore_free(datastore);
-		return NULL;
-	}
-
-	datastore->data = audiohook_inheritance_datastore;
-	ast_channel_lock(chan);
-	ast_channel_datastore_add(chan, datastore);
-	ast_channel_unlock(chan);
-	return audiohook_inheritance_datastore;
-}
-
-/*! \brief Create a new inheritable_audiohook structure and add it to an audiohook_inheritance_datastore
- *
- * \param audiohook_inheritance_datastore The audiohook_inheritance_datastore we want to add the new inheritable_audiohook to
- * \param source The audiohook source for the newly created inheritable_audiohook
- * \retval 0 Success
- * \retval non-zero Failure
- */
-static int setup_inheritable_audiohook(struct audiohook_inheritance_datastore *audiohook_inheritance_datastore, const char *source)
-{
-	struct inheritable_audiohook *inheritable_audiohook = NULL;
-
-	inheritable_audiohook = ast_calloc(1, sizeof(*inheritable_audiohook) + strlen(source));
-
-	if (!inheritable_audiohook) {
-		return -1;
-	}
-
-	strcpy(inheritable_audiohook->source, source);
-	AST_LIST_INSERT_TAIL(&audiohook_inheritance_datastore->allowed_list, inheritable_audiohook, list);
-	ast_debug(3, "Set audiohook %s to be inheritable\n", source);
-	return 0;
-}
-
-/*! \brief Set the permissibility of inheritance for a particular audiohook source on a channel
- *
- * For details regarding what happens in the function, see the inline comments
- *
- * \param chan The channel we are operating on
- * \param function The name of the dialplan function (AUDIOHOOK_INHERIT)
- * \param data The audiohook source for which we are setting inheritance permissions
- * \param value The value indicating the permission for audiohook inheritance
- */
 static int func_inheritance_write(struct ast_channel *chan, const char *function, char *data, const char *value)
 {
-	int allow;
-	struct ast_datastore *datastore = NULL;
-	struct audiohook_inheritance_datastore *inheritance_datastore = NULL;
-	struct inheritable_audiohook *inheritable_audiohook;
+	static int warned = 0;
 
-	/* Step 1: Get data from function call */
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "No argument provided to INHERITANCE function.\n");
-		return -1;
+	if (!warned) {
+		ast_log(LOG_NOTICE, "AUDIOHOOK_INHERIT is deprecated and now does nothing.\n");
+		warned++;
 	}
 
-	if (ast_strlen_zero(value)) {
-		ast_log(LOG_WARNING, "No value provided to INHERITANCE function.\n");
-		return -1;
-	}
-
-	if (!chan) {
-		ast_log(LOG_WARNING, "No channel was provided to INHERITANCE function.\n");
-		return -1;
-	}
-
-	allow = ast_true(value);
-
-	/* Step 2: retrieve or set up datastore */
-	ast_channel_lock(chan);
-	if (!(datastore = ast_channel_datastore_find(chan, &audiohook_inheritance_info, NULL))) {
-		ast_channel_unlock(chan);
-		/* In the case where we cannot find the datastore, we can take a few shortcuts */
-		if (!allow) {
-			ast_debug(1, "Audiohook %s is already set to not be inheritable on channel %s\n", data, ast_channel_name(chan));
-			return 0;
-		} else if (!(inheritance_datastore = setup_inheritance_datastore(chan))) {
-			ast_log(LOG_WARNING, "Unable to set up audiohook inheritance datastore on channel %s\n", ast_channel_name(chan));
-			return -1;
-		} else {
-			return setup_inheritable_audiohook(inheritance_datastore, data);
-		}
-	} else {
-		inheritance_datastore = datastore->data;
-	}
-	ast_channel_unlock(chan);
-
-	/* Step 3: Traverse the list to see if we're trying something redundant */
-
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&inheritance_datastore->allowed_list, inheritable_audiohook, list) {
-		if (!strcasecmp(inheritable_audiohook->source, data)) {
-			if (allow) {
-				ast_debug(2, "Audiohook source %s is already set up to be inherited from channel %s\n", data, ast_channel_name(chan));
-				return 0;
-			} else {
-				ast_debug(2, "Removing inheritability of audiohook %s from channel %s\n", data, ast_channel_name(chan));
-				AST_LIST_REMOVE_CURRENT(list);
-				ast_free(inheritable_audiohook);
-				return 0;
-			}
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	/* Step 4: There is no step 4 */
-
-	/* Step 5: This means we are addressing an audiohook source which we have not encountered yet for the channel. Create a new inheritable
-	 * audiohook structure if we're allowing inheritance, or just return if not
-	 */
-
-	if (allow) {
-		return setup_inheritable_audiohook(inheritance_datastore, data);
-	} else {
-		ast_debug(1, "Audiohook %s is already set to not be inheritable on channel %s\n", data, ast_channel_name(chan));
-		return 0;
-	}
+	return 0;
 }
 
 static struct ast_custom_function inheritance_function = {
@@ -303,4 +128,4 @@ static int load_module(void)
 		return AST_MODULE_LOAD_SUCCESS;
 	}
 }
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Audiohook inheritance function");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Audiohook inheritance placeholder function");

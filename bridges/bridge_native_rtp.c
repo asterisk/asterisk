@@ -405,6 +405,7 @@ static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = native_rtp_framehook,
 		.consume_cb = native_rtp_framehook_consume,
+		.disable_inheritance = 1,
 	};
 
 	if (!data) {
