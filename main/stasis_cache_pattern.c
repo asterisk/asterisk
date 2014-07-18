@@ -70,7 +70,7 @@ struct stasis_cp_all *stasis_cp_all_create(const char *name,
 	RAII_VAR(char *, cached_name, NULL, ast_free);
 	RAII_VAR(struct stasis_cp_all *, all, NULL, ao2_cleanup);
 
-	all = ao2_alloc(sizeof(*all), all_dtor);
+	all = ao2_t_alloc(sizeof(*all), all_dtor, name);
 	if (!all) {
 		return NULL;
 	}
@@ -138,7 +138,7 @@ struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
 {
 	RAII_VAR(struct stasis_cp_single *, one, NULL, ao2_cleanup);
 
-	one = ao2_alloc(sizeof(*one), one_dtor);
+	one = ao2_t_alloc(sizeof(*one), one_dtor, name);
 	if (!one) {
 		return NULL;
 	}
