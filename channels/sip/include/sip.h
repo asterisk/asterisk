@@ -1082,7 +1082,6 @@ struct sip_pvt {
 	int timer_b;                      /*!< SIP timer B, ms */
 	unsigned int sipoptions;          /*!< Supported SIP options on the other end */
 	unsigned int reqsipoptions;       /*!< Required SIP options on the other end */
-	struct ast_codec_pref prefs;      /*!< codec prefs */
 	struct ast_format_cap *caps;             /*!< Special capability (codec) */
 	struct ast_format_cap *jointcaps;        /*!< Supported capability at both ends (codecs) */
 	struct ast_format_cap *peercaps;         /*!< Supported peer capability */
@@ -1310,7 +1309,6 @@ struct sip_peer {
 	int busy_level;                 /*!< Level of active channels where we signal busy */
 	int maxforwards;                /*!< SIP Loop prevention */
 	enum transfermodes allowtransfer;   /*! SIP Refer restriction scheme */
-	struct ast_codec_pref prefs;    /*!<  codec prefs */
 	int lastmsgssent;				/*!< The last known VM message counts (new/old) */
 	unsigned int sipoptions;        /*!<  Supported SIP options */
 	struct ast_flags flags[3];      /*!<  SIP_ flags */

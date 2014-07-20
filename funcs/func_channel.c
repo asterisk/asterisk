@@ -427,23 +427,27 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	}
 
 	if (!strcasecmp(data, "audionativeformat")) {
-		char tmp[512];
+		tmpcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (tmpcap) {
+			struct ast_str *codec_buf = ast_str_alloca(64);
 
-		if ((tmpcap = ast_format_cap_get_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_AUDIO))) {
-			ast_copy_string(buf, ast_getformatname_multiple(tmp, sizeof(tmp), tmpcap), len);
-			tmpcap = ast_format_cap_destroy(tmpcap);
+			ast_format_cap_append_from_cap(tmpcap, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_AUDIO);
+			ast_copy_string(buf, ast_format_cap_get_names(tmpcap, &codec_buf), len);
+			ao2_ref(tmpcap, -1);
 		}
 	} else if (!strcasecmp(data, "videonativeformat")) {
-		char tmp[512];
+		tmpcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (tmpcap) {
+			struct ast_str *codec_buf = ast_str_alloca(64);
 
-		if ((tmpcap = ast_format_cap_get_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_VIDEO))) {
-			ast_copy_string(buf, ast_getformatname_multiple(tmp, sizeof(tmp), tmpcap), len);
-			tmpcap = ast_format_cap_destroy(tmpcap);
+			ast_format_cap_append_from_cap(tmpcap, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_VIDEO);
+			ast_copy_string(buf, ast_format_cap_get_names(tmpcap, &codec_buf), len);
+			ao2_ref(tmpcap, -1);
 		}
 	} else if (!strcasecmp(data, "audioreadformat")) {
-		ast_copy_string(buf, ast_getformatname(ast_channel_readformat(chan)), len);
+		ast_copy_string(buf, ast_format_get_name(ast_channel_readformat(chan)), len);
 	} else if (!strcasecmp(data, "audiowriteformat")) {
-		ast_copy_string(buf, ast_getformatname(ast_channel_writeformat(chan)), len);
+		ast_copy_string(buf, ast_format_get_name(ast_channel_writeformat(chan)), len);
 #ifdef CHANNEL_TRACE
 	} else if (!strcasecmp(data, "trace")) {
 		ast_channel_lock(chan);

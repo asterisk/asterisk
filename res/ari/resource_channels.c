@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_app_snoop.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/causes.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/core_local.h"
 #include "resource_channels.h"
 
@@ -772,8 +773,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	char *cid_name = NULL;
 	int timeout = 30000;
 	RAII_VAR(struct ast_format_cap *, cap,
-		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
-	struct ast_format tmp_fmt;
+		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	char *stuff;
 	struct ast_channel *chan;
 	struct ast_channel *local_peer;
@@ -787,7 +787,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
-	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
 		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {

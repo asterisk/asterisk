@@ -208,6 +208,32 @@ chan_sip:
    progress indications into a 180 Ringing (if a 180 has not yet been
    transmitted) if 'progressinband=never'.
 
+  - The codec preference order in an SDP during an offer is slightly different
+    than previous releases. Prior to Asterisk 13, the preference order of
+    codecs used to be:
+    (1) Our preferred codec
+    (2) Our configured codecs
+    (3) Any non-audio joint codecs
+
+    One of the ways the new media format architecture in Asterisk 13 improves
+    performance is by reference counting formats, such that they can be reused
+    in many places without additional allocation. To not require a large
+    amount of locking, an instance of a format is immutable by convention.
+    This works well except for formats with attributes. Since a media format
+    with an attribute is a different object than the same format without an
+    attribute, we have to carry over the formats with attributes from an
+    inbound offer so that the correct attributes are offered in an outgoing
+    INVITE request. This requires some subtle tweaks to the preference order
+    to ensure that the media format with attributes is offered to a remote
+    peer, as opposed to the same media format (but without attributes) that
+    may be stored in the peer object.
+
+    All of this means that our offer offer list will now be:
+    (1) Our preferred codec
+    (2) Any joint codecs offered by the inbound offer
+    (3) All other codecs that are not the preferred codec and not a joint
+        codec offered by the inbound offer
+
 CLI commands:
  - "core show settings" now lists the current console verbosity in addition
    to the root console verbosity.

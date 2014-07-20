@@ -385,7 +385,7 @@ char *ast_format_str_reduce(char *fmts);
  * \retval NULL if not found
  * \retval A pointer to the ast_format associated with this file extension
  */
-const struct ast_format *ast_get_format_for_file_ext(const char *file_ext);
+struct ast_format *ast_get_format_for_file_ext(const char *file_ext);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -25,7 +25,7 @@ static struct ast_frame *lpc10_sample(void)
 		.data.ptr = ex_lpc10,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_LPC10, 0);
+	f.subclass.format = ast_format_lpc10;
 
 	return &f;
 }

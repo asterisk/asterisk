@@ -158,10 +158,10 @@ static int show_sound_info_cb(void *obj, void *arg, int flags)
 {
 	char *language = obj;
 	struct ast_cli_args *a = arg;
-        struct ast_format format;
+	struct ast_format *format;
 	int formats_shown = 0;
 	RAII_VAR(struct ast_media_index *, local_index, ast_sounds_get_index(), ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
+	struct ast_format_cap *cap;
 	const char *description = ast_media_get_description(local_index, a->argv[3], language);
 
 	ast_cli(a->fd, "  Language %s:\n", language);
@@ -171,12 +171,14 @@ static int show_sound_info_cb(void *obj, void *arg, int flags)
 
 	cap = ast_media_get_format_cap(local_index, a->argv[3], language);
 	if (cap) {
-	        ast_format_cap_iter_start(cap);
-	        while (!ast_format_cap_iter_next(cap, &format)) {
-			ast_cli(a->fd, "    Format: %s\n", ast_getformatname(&format));
+		int x;
+		for (x = 0; x < ast_format_cap_count(cap); x++) {
+			format = ast_format_cap_get_format(cap, x);
+			ast_cli(a->fd, "    Format: %s\n", ast_format_get_name(format));
+			ao2_ref(format, -1);
 			formats_shown = 1;
-	        }
-	        ast_format_cap_iter_end(cap);
+		}
+		ao2_ref(cap, -1);
 	}
 
 	if (!formats_shown) {

@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/utils.h"
 #include "asterisk/indications.h"
+#include "asterisk/format_cache.h"
 
 #define ALMRCV_CONFIG "alarmreceiver.conf"
 #define UNKNOWN_FORMAT "UNKNOWN_FORMAT"
@@ -798,19 +799,19 @@ static int alarmreceiver_exec(struct ast_channel *chan, const char *data)
 	char signalling_type[64] = "";
 	event_node_t *event_head = NULL;
 
-	if (ast_channel_writeformat(chan)->id != AST_FORMAT_ALAW
-		&& ast_channel_writeformat(chan)->id != AST_FORMAT_ULAW) {
+	if ((ast_format_cmp(ast_channel_writeformat(chan), ast_format_ulaw) == AST_FORMAT_CMP_NOT_EQUAL) &&
+		(ast_format_cmp(ast_channel_writeformat(chan), ast_format_alaw) == AST_FORMAT_CMP_NOT_EQUAL)) {
 		ast_verb(4, "AlarmReceiver: Setting write format to Mu-law\n");
-		if (ast_set_write_format_by_id(chan,AST_FORMAT_ULAW)) {
+		if (ast_set_write_format(chan, ast_format_ulaw)) {
 			ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",ast_channel_name(chan));
 			return -1;
 		}
 	}
 
-	if (ast_channel_readformat(chan)->id != AST_FORMAT_ALAW
-		&& ast_channel_readformat(chan)->id != AST_FORMAT_ULAW) {
+	if ((ast_format_cmp(ast_channel_readformat(chan), ast_format_ulaw) == AST_FORMAT_CMP_NOT_EQUAL) &&
+		(ast_format_cmp(ast_channel_readformat(chan), ast_format_alaw) == AST_FORMAT_CMP_NOT_EQUAL)) {
 		ast_verb(4, "AlarmReceiver: Setting read format to Mu-law\n");
-		if (ast_set_read_format_by_id(chan,AST_FORMAT_ULAW)) {
+		if (ast_set_read_format(chan, ast_format_ulaw)) {
 			ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",ast_channel_name(chan));
 			return -1;
 		}

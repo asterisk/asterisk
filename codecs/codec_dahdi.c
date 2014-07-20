@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/ulaw.h"
+#include "asterisk/format_compatibility.h"
 
 #define BUFFER_SIZE 8000
 
@@ -58,17 +59,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define G729_SAMPLES 160
 #define ULAW_SAMPLES 160
 
+/* Defines from DAHDI. */
 #ifndef DAHDI_FORMAT_MAX_AUDIO
+/*! G.723.1 compression */
 #define DAHDI_FORMAT_G723_1    (1 << 0)
+/*! GSM compression */
 #define DAHDI_FORMAT_GSM       (1 << 1)
+/*! Raw mu-law data (G.711) */
 #define DAHDI_FORMAT_ULAW      (1 << 2)
+/*! Raw A-law data (G.711) */
 #define DAHDI_FORMAT_ALAW      (1 << 3)
+/*! ADPCM (G.726, 32kbps) */
 #define DAHDI_FORMAT_G726      (1 << 4)
+/*! ADPCM (IMA) */
 #define DAHDI_FORMAT_ADPCM     (1 << 5)
+/*! Raw 16-bit Signed Linear (8000 Hz) PCM */
 #define DAHDI_FORMAT_SLINEAR   (1 << 6)
+/*! LPC10, 180 samples/frame */
 #define DAHDI_FORMAT_LPC10     (1 << 7)
+/*! G.729A audio */
 #define DAHDI_FORMAT_G729A     (1 << 8)
+/*! SpeeX Free Compression */
 #define DAHDI_FORMAT_SPEEX     (1 << 9)
+/*! iLBC Free Compression */
 #define DAHDI_FORMAT_ILBC      (1 << 10)
 #endif
 
@@ -77,6 +90,233 @@ static struct channel_usage {
 	int encoders;
 	int decoders;
 } channels;
+
+#if defined(NOT_NEEDED)
+/*!
+ * \internal
+ * \brief Convert DAHDI format bitfield to old Asterisk format bitfield.
+ * \since 13.0.0
+ *
+ * \param dahdi Bitfield from DAHDI to convert.
+ *
+ * \note They should be the same values but they don't have to be.
+ *
+ * \return Old Asterisk bitfield equivalent.
+ */
+static uint64_t bitfield_dahdi2ast(unsigned dahdi)
+{
+	uint64_t ast;
+
+	switch (dahdi) {
+	case DAHDI_FORMAT_G723_1:
+		ast = AST_FORMAT_G723;
+		break;
+	case DAHDI_FORMAT_GSM:
+		ast = AST_FORMAT_GSM;
+		break;
+	case DAHDI_FORMAT_ULAW:
+		ast = AST_FORMAT_ULAW;
+		break;
+	case DAHDI_FORMAT_ALAW:
+		ast = AST_FORMAT_ALAW;
+		break;
+	case DAHDI_FORMAT_G726:
+		ast = AST_FORMAT_G726_AAL2;
+		break;
+	case DAHDI_FORMAT_ADPCM:
+		ast = AST_FORMAT_ADPCM;
+		break;
+	case DAHDI_FORMAT_SLINEAR:
+		ast = AST_FORMAT_SLIN;
+		break;
+	case DAHDI_FORMAT_LPC10:
+		ast = AST_FORMAT_LPC10;
+		break;
+	case DAHDI_FORMAT_G729A:
+		ast = AST_FORMAT_G729;
+		break;
+	case DAHDI_FORMAT_SPEEX:
+		ast = AST_FORMAT_SPEEX;
+		break;
+	case DAHDI_FORMAT_ILBC:
+		ast = AST_FORMAT_ILBC;
+		break;
+	default:
+		ast = 0;
+		break;
+	}
+
+	return ast;
+}
+#endif	/* defined(NOT_NEEDED) */
+
+/*!
+ * \internal
+ * \brief Convert old Asterisk format bitfield to DAHDI format bitfield.
+ * \since 13.0.0
+ *
+ * \param ast Old Asterisk bitfield to convert.
+ *
+ * \note They should be the same values but they don't have to be.
+ *
+ * \return DAHDI bitfield equivalent.
+ */
+static unsigned bitfield_ast2dahdi(uint64_t ast)
+{
+	unsigned dahdi;
+
+	switch (ast) {
+	case AST_FORMAT_G723:
+		dahdi = DAHDI_FORMAT_G723_1;
+		break;
+	case AST_FORMAT_GSM:
+		dahdi = DAHDI_FORMAT_GSM;
+		break;
+	case AST_FORMAT_ULAW:
+		dahdi = DAHDI_FORMAT_ULAW;
+		break;
+	case AST_FORMAT_ALAW:
+		dahdi = DAHDI_FORMAT_ALAW;
+		break;
+	case AST_FORMAT_G726_AAL2:
+		dahdi = DAHDI_FORMAT_G726;
+		break;
+	case AST_FORMAT_ADPCM:
+		dahdi = DAHDI_FORMAT_ADPCM;
+		break;
+	case AST_FORMAT_SLIN:
+		dahdi = DAHDI_FORMAT_SLINEAR;
+		break;
+	case AST_FORMAT_LPC10:
+		dahdi = DAHDI_FORMAT_LPC10;
+		break;
+	case AST_FORMAT_G729:
+		dahdi = DAHDI_FORMAT_G729A;
+		break;
+	case AST_FORMAT_SPEEX:
+		dahdi = DAHDI_FORMAT_SPEEX;
+		break;
+	case AST_FORMAT_ILBC:
+		dahdi = DAHDI_FORMAT_ILBC;
+		break;
+	default:
+		dahdi = 0;
+		break;
+	}
+
+	return dahdi;
+}
+
+/*!
+ * \internal
+ * \brief Get the DAHDI codec by index.
+ * \since 13.0.0
+ *
+ * \param idx Codex index (0-31).
+ *
+ * \return Specified codec if exists otherwise NULL.
+ */
+static const struct ast_codec *get_dahdi_codec(unsigned idx)
+{
+	const struct ast_codec *codec;
+
+	static const struct ast_codec dahdi_g723_1 = {
+		.name = "g723",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_gsm = {
+		.name = "gsm",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_ulaw = {
+		.name = "ulaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_alaw = {
+		.name = "alaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_g726 = {
+		.name = "g726",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_adpcm = {
+		.name = "adpcm",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_slinear = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_lpc10 = {
+		.name = "lpc10",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_g729a = {
+		.name = "g729",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_speex = {
+		.name = "speex",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+	static const struct ast_codec dahdi_ilbc = {
+		.name = "ilbc",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	};
+
+	switch (1UL << idx) {
+	case DAHDI_FORMAT_G723_1:
+		codec = &dahdi_g723_1;
+		break;
+	case DAHDI_FORMAT_GSM:
+		codec = &dahdi_gsm;
+		break;
+	case DAHDI_FORMAT_ULAW:
+		codec = &dahdi_ulaw;
+		break;
+	case DAHDI_FORMAT_ALAW:
+		codec = &dahdi_alaw;
+		break;
+	case DAHDI_FORMAT_G726:
+		codec = &dahdi_g726;
+		break;
+	case DAHDI_FORMAT_ADPCM:
+		codec = &dahdi_adpcm;
+		break;
+	case DAHDI_FORMAT_SLINEAR:
+		codec = &dahdi_slinear;
+		break;
+	case DAHDI_FORMAT_LPC10:
+		codec = &dahdi_lpc10;
+		break;
+	case DAHDI_FORMAT_G729A:
+		codec = &dahdi_g729a;
+		break;
+	case DAHDI_FORMAT_SPEEX:
+		codec = &dahdi_speex;
+		break;
+	case DAHDI_FORMAT_ILBC:
+		codec = &dahdi_ilbc;
+		break;
+	default:
+		codec = NULL;
+		break;
+	}
+
+	return codec;
+}
 
 static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
@@ -190,7 +430,7 @@ static int dahdi_encoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
-	if (!f->subclass.format.id) {
+	if (!f->subclass.format) {
 		/* We're just faking a return for calculation purposes. */
 		dahdip->fake = 2;
 		pvt->samples = f->samples;
@@ -245,18 +485,16 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 	int res;
 
 	if (2 == dahdip->fake) {
+		struct ast_frame frm = {
+			.frametype = AST_FRAME_VOICE,
+			.samples = dahdip->required_samples,
+			.src = pvt->t->name,
+		};
+
 		dahdip->fake = 1;
-		pvt->f.frametype = AST_FRAME_VOICE;
-		ast_format_clear(&pvt->f.subclass.format);
-		pvt->f.samples = dahdip->required_samples;
-		pvt->f.data.ptr = NULL;
-		pvt->f.offset = 0;
-		pvt->f.datalen = 0;
-		pvt->f.mallocd = 0;
 		pvt->samples = 0;
 
-		return ast_frisolate(&pvt->f);
-
+		return ast_frisolate(&frm);
 	} else if (1 == dahdip->fake) {
 		dahdip->fake = 0;
 		return NULL;
@@ -277,13 +515,7 @@ static struct ast_frame *dahdi_encoder_frameout(struct ast_trans_pvt *pvt)
 		}
 	} else {
 		pvt->f.datalen = res;
-		pvt->f.frametype = AST_FRAME_VOICE;
-		ast_format_copy(&pvt->f.subclass.format, &pvt->t->dst_format);
-		pvt->f.mallocd = 0;
-		pvt->f.offset = AST_FRIENDLY_OFFSET;
-		pvt->f.src = pvt->t->name;
-		pvt->f.data.ptr = pvt->outbuf.c;
-		pvt->f.samples = ast_codec_get_samples(&pvt->f);
+		pvt->f.samples = ast_codec_samples_count(&pvt->f);
 
 		dahdip->samples_written_to_hardware =
 		  (dahdip->samples_written_to_hardware >= pvt->f.samples) ?
@@ -302,7 +534,7 @@ static int dahdi_decoder_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
-	if (!f->subclass.format.id) {
+	if (!f->subclass.format) {
 		/* We're just faking a return for calculation purposes. */
 		dahdip->fake = 2;
 		pvt->samples = f->samples;
@@ -327,16 +559,16 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
 	if (2 == dahdip->fake) {
+		struct ast_frame frm = {
+			.frametype = AST_FRAME_VOICE,
+			.samples = dahdip->required_samples,
+			.src = pvt->t->name,
+		};
+
 		dahdip->fake = 1;
-		pvt->f.frametype = AST_FRAME_VOICE;
-		ast_format_clear(&pvt->f.subclass.format);
-		pvt->f.samples = dahdip->required_samples;
-		pvt->f.data.ptr = NULL;
-		pvt->f.offset = 0;
-		pvt->f.datalen = 0;
-		pvt->f.mallocd = 0;
 		pvt->samples = 0;
-		return ast_frisolate(&pvt->f);
+
+		return ast_frisolate(&frm);
 	} else if (1 == dahdip->fake) {
 		pvt->samples = 0;
 		dahdip->fake = 0;
@@ -370,12 +602,6 @@ static struct ast_frame *dahdi_decoder_frameout(struct ast_trans_pvt *pvt)
 			pvt->f.datalen = res;
 		}
 		pvt->datalen = 0;
-		pvt->f.frametype = AST_FRAME_VOICE;
-		ast_format_copy(&pvt->f.subclass.format, &pvt->t->dst_format);
-		pvt->f.mallocd = 0;
-		pvt->f.offset = AST_FRIENDLY_OFFSET;
-		pvt->f.src = pvt->t->name;
-		pvt->f.data.ptr = pvt->outbuf.c;
 		pvt->f.samples = res;
 		pvt->samples = 0;
 		dahdip->samples_written_to_hardware =
@@ -394,9 +620,9 @@ static void dahdi_destroy(struct ast_trans_pvt *pvt)
 {
 	struct codec_dahdi_pvt *dahdip = pvt->pvt;
 
-	switch (ast_format_id_from_old_bitfield(dahdip->fmts.dstfmt)) {
-	case AST_FORMAT_G729A:
-	case AST_FORMAT_G723_1:
+	switch (dahdip->fmts.dstfmt) {
+	case DAHDI_FORMAT_G729A:
+	case DAHDI_FORMAT_G723_1:
 		ast_atomic_fetchadd_int(&channels.encoders, -1);
 		break;
 	default:
@@ -407,7 +633,39 @@ static void dahdi_destroy(struct ast_trans_pvt *pvt)
 	close(dahdip->fd);
 }
 
-static int dahdi_translate(struct ast_trans_pvt *pvt, struct ast_format *dst_format, struct ast_format *src_format)
+static struct ast_format *dahdi_format_to_cached(int format)
+{
+	switch (format) {
+	case DAHDI_FORMAT_G723_1:
+		return ast_format_g723;
+	case DAHDI_FORMAT_GSM:
+		return ast_format_gsm;
+	case DAHDI_FORMAT_ULAW:
+		return ast_format_ulaw;
+	case DAHDI_FORMAT_ALAW:
+		return ast_format_alaw;
+	case DAHDI_FORMAT_G726:
+		return ast_format_g726;
+	case DAHDI_FORMAT_ADPCM:
+		return ast_format_adpcm;
+	case DAHDI_FORMAT_SLINEAR:
+		return ast_format_slin;
+	case DAHDI_FORMAT_LPC10:
+		return ast_format_lpc10;
+	case DAHDI_FORMAT_G729A:
+		return ast_format_g729;
+	case DAHDI_FORMAT_SPEEX:
+		return ast_format_speex;
+	case DAHDI_FORMAT_ILBC:
+		return ast_format_ilbc;
+	}
+
+	/* This will never be reached */
+	ast_assert(0);
+	return NULL;
+}
+
+static int dahdi_translate(struct ast_trans_pvt *pvt, struct ast_codec *dst_codec, struct ast_codec *src_codec)
 {
 	/* Request translation through zap if possible */
 	int fd;
@@ -421,10 +679,13 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, struct ast_format *dst_for
 		return -1;
 	}
 
-	dahdip->fmts.srcfmt = ast_format_to_old_bitfield(src_format);
-	dahdip->fmts.dstfmt = ast_format_to_old_bitfield(dst_format);
+	dahdip->fmts.srcfmt = bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(src_codec));
+	dahdip->fmts.dstfmt = bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(dst_codec));
 
-	ast_debug(1, "Opening transcoder channel from %s to %s.\n", ast_getformatname(src_format), ast_getformatname(dst_format));
+	ast_assert(pvt->f.subclass.format == NULL);
+	pvt->f.subclass.format = ao2_bump(dahdi_format_to_cached(dahdip->fmts.dstfmt));
+
+	ast_debug(1, "Opening transcoder channel from %s to %s.\n", src_codec->name, dst_codec->name);
 
 retry:
 	if (ioctl(fd, DAHDI_TC_ALLOCATE, &dahdip->fmts)) {
@@ -437,14 +698,14 @@ retry:
 			 * support for ULAW instead of signed linear and then
 			 * we'll just convert from ulaw to signed linear in
 			 * software. */
-			if (AST_FORMAT_SLINEAR == ast_format_id_from_old_bitfield(dahdip->fmts.srcfmt)) {
+			if (dahdip->fmts.srcfmt == DAHDI_FORMAT_SLINEAR) {
 				ast_debug(1, "Using soft_slin support on source\n");
 				dahdip->softslin = 1;
-				dahdip->fmts.srcfmt = ast_format_id_to_old_bitfield(AST_FORMAT_ULAW);
-			} else if (AST_FORMAT_SLINEAR == ast_format_id_from_old_bitfield(dahdip->fmts.dstfmt)) {
+				dahdip->fmts.srcfmt = DAHDI_FORMAT_ULAW;
+			} else if (dahdip->fmts.dstfmt == DAHDI_FORMAT_SLINEAR) {
 				ast_debug(1, "Using soft_slin support on destination\n");
 				dahdip->softslin = 1;
-				dahdip->fmts.dstfmt = ast_format_id_to_old_bitfield(AST_FORMAT_ULAW);
+				dahdip->fmts.dstfmt = DAHDI_FORMAT_ULAW;
 			}
 			tried_once = 1;
 			goto retry;
@@ -463,13 +724,13 @@ retry:
 
 	dahdip->fd = fd;
 
-	dahdip->required_samples = ((dahdip->fmts.dstfmt|dahdip->fmts.srcfmt) & (ast_format_id_to_old_bitfield(AST_FORMAT_G723_1))) ? G723_SAMPLES : G729_SAMPLES;
+	dahdip->required_samples = ((dahdip->fmts.dstfmt|dahdip->fmts.srcfmt) & (DAHDI_FORMAT_G723_1)) ? G723_SAMPLES : G729_SAMPLES;
 
-	switch (ast_format_id_from_old_bitfield(dahdip->fmts.dstfmt)) {
-	case AST_FORMAT_G729A:
+	switch (dahdip->fmts.dstfmt) {
+	case DAHDI_FORMAT_G729A:
 		ast_atomic_fetchadd_int(&channels.encoders, +1);
 		break;
-	case AST_FORMAT_G723_1:
+	case DAHDI_FORMAT_G723_1:
 		ast_atomic_fetchadd_int(&channels.encoders, +1);
 		break;
 	default:
@@ -483,8 +744,8 @@ retry:
 static int dahdi_new(struct ast_trans_pvt *pvt)
 {
 	return dahdi_translate(pvt,
-		&pvt->t->dst_format,
-		&pvt->t->src_format);
+		pvt->t->core_dst_codec,
+		pvt->t->core_src_codec);
 }
 
 static struct ast_frame *fakesrc_sample(void)
@@ -501,33 +762,37 @@ static struct ast_frame *fakesrc_sample(void)
 
 static int is_encoder(struct translator *zt)
 {
-	if ((zt->t.src_format.id == AST_FORMAT_ULAW) ||
-		(zt->t.src_format.id == AST_FORMAT_ALAW) ||
-		(zt->t.src_format.id == AST_FORMAT_SLINEAR)) {
+	if ((zt->t.core_src_codec->id == ast_format_get_codec_id(ast_format_ulaw)) ||
+		(zt->t.core_src_codec->id == ast_format_get_codec_id(ast_format_alaw)) ||
+		(zt->t.core_src_codec->id == ast_format_get_codec_id(ast_format_slin))) {
 		return 1;
 	} else {
 		return 0;
 	}
 }
 
-static int register_translator(int dst, int src)
+static int register_translator(unsigned dst, unsigned src)
 {
+	const struct ast_codec *dst_codec;
+	const struct ast_codec *src_codec;
 	struct translator *zt;
 	int res;
-	struct ast_format dst_format;
-	struct ast_format src_format;
 
-	ast_format_from_old_bitfield(&dst_format, (1 << dst));
-	ast_format_from_old_bitfield(&src_format, (1 << src));
+	dst_codec = get_dahdi_codec(dst);
+	src_codec = get_dahdi_codec(src);
+	if (!dst_codec || !src_codec) {
+		return -1;
+	}
 
 	if (!(zt = ast_calloc(1, sizeof(*zt)))) {
 		return -1;
 	}
 
-	snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s",
-		 ast_getformatname(&src_format), ast_getformatname(&dst_format));
-	ast_format_copy(&zt->t.src_format, &src_format);
-	ast_format_copy(&zt->t.dst_format, &dst_format);
+	snprintf(zt->t.name, sizeof(zt->t.name), "dahdi_%s_to_%s",
+		src_codec->name, dst_codec->name);
+
+	memcpy(&zt->t.src_codec, src_codec, sizeof(*src_codec));
+	memcpy(&zt->t.dst_codec, dst_codec, sizeof(*dst_codec));
 	zt->t.buf_size = BUFFER_SIZE;
 	if (is_encoder(zt)) {
 		zt->t.framein = dahdi_encoder_framein;
@@ -557,17 +822,20 @@ static int register_translator(int dst, int src)
 	return res;
 }
 
-static void drop_translator(int dst, int src)
+static void drop_translator(unsigned dst, unsigned src)
 {
 	struct translator *cur;
 
 	AST_LIST_LOCK(&translators);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, cur, entry) {
-		if (cur->t.src_format.id != ast_format_id_from_old_bitfield((1 << src)))
+		if (bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(cur->t.core_src_codec))
+			!= (1U << src)) {
 			continue;
-
-		if (cur->t.dst_format.id != ast_format_id_from_old_bitfield((1 << dst)))
+		}
+		if (bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(cur->t.core_dst_codec))
+			!= (1U << dst)) {
 			continue;
+		}
 
 		AST_LIST_REMOVE_CURRENT(entry);
 		ast_unregister_translator(&cur->t);
@@ -678,7 +946,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	ast_ulaw_init();
 	find_transcoders();
 	ast_cli_register_multiple(cli, ARRAY_LEN(cli));
 	return AST_MODULE_LOAD_SUCCESS;

@@ -131,8 +131,8 @@ static int respawn_time = 20;
 struct moh_files_state {
 	/*! Holds a reference to the MOH class. */
 	struct mohclass *class;
-	struct ast_format origwfmt;
-	struct ast_format mohwfmt;
+	struct ast_format *origwfmt;
+	struct ast_format *mohwfmt;
 	int announcement;
 	int samples;
 	int sample_queue;
@@ -170,7 +170,7 @@ struct mohclass {
 	int total_files;
 	unsigned int flags;
 	/*! The format from the MOH source, not applicable to "files" mode */
-	struct ast_format format;
+	struct ast_format *format;
 	/*! The pid of the external application delivering MOH */
 	int pid;
 	time_t start;
@@ -188,7 +188,7 @@ struct mohclass {
 
 struct mohdata {
 	int pipe[2];
-	struct ast_format origwfmt;
+	struct ast_format *origwfmt;
 	struct mohclass *parent;
 	struct ast_frame f;
 	AST_LIST_ENTRY(mohdata) list;
@@ -289,10 +289,14 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 
 	moh_post_stop(chan);
 
-	ast_format_clear(&state->mohwfmt); /* make sure to clear this format before restoring the original format. */
-	if (state->origwfmt.id && ast_set_write_format(chan, &state->origwfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%s'\n", ast_channel_name(chan), ast_getformatname(&state->origwfmt));
+	ao2_ref(state->mohwfmt, -1);
+	state->mohwfmt = NULL; /* make sure to clear this format before restoring the original format */
+	if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
+		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%s'\n", ast_channel_name(chan),
+			ast_format_get_name(state->origwfmt));
 	}
+	ao2_cleanup(state->origwfmt);
+	state->origwfmt = NULL;
 
 	state->save_pos = state->pos;
 	state->announcement = 0;
@@ -405,15 +409,15 @@ static void moh_files_write_format_change(struct ast_channel *chan, void *data)
 	/* In order to prevent a recursive call to this function as a result
 	 * of setting the moh write format back on the channel. Clear
 	 * the moh write format before setting the write format on the channel.*/
-	if (&state->origwfmt.id) {
-		struct ast_format tmp;
+	if (state->origwfmt) {
+		struct ast_format *tmp;
 
-		ast_format_copy(&tmp, ast_channel_writeformat(chan));
-		if (state->mohwfmt.id) {
-			ast_format_clear(&state->origwfmt);
-			ast_set_write_format(chan, &state->mohwfmt);
+		tmp = ao2_bump(ast_channel_writeformat(chan));
+		ao2_replace(state->origwfmt, NULL);
+		if (state->mohwfmt) {
+			ast_set_write_format(chan, state->mohwfmt);
 		}
-		ast_format_copy(&state->origwfmt, &tmp);
+		state->origwfmt = tmp;
 	}
 }
 
@@ -442,8 +446,8 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 
 		state->samples += f->samples;
 		state->sample_queue -= f->samples;
-		if (ast_format_cmp(&f->subclass.format, &state->mohwfmt) == AST_FORMAT_CMP_NOT_EQUAL) {
-			ast_format_copy(&state->mohwfmt, &f->subclass.format);
+		if (ast_format_cmp(f->subclass.format, state->mohwfmt) == AST_FORMAT_CMP_NOT_EQUAL) {
+			ao2_replace(state->mohwfmt, f->subclass.format);
 		}
 		res = ast_write(chan, f);
 		ast_frfree(f);
@@ -486,8 +490,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	}
 
 	state->class = mohclass_ref(class, "Reffing music class for channel");
-	ast_format_copy(&state->origwfmt, ast_channel_writeformat(chan));
-	ast_format_copy(&state->mohwfmt, ast_channel_writeformat(chan));
+	/* it's possible state is not a new allocation, don't leak old refs */
+	ao2_replace(state->origwfmt, ast_channel_writeformat(chan));
+	ao2_replace(state->mohwfmt, ast_channel_writeformat(chan));
 
 	moh_post_start(chan, class->name);
 
@@ -733,12 +738,12 @@ static void *monmp3thread(void *data)
 			res = 8 * MOH_MS_INTERVAL; /* 800/100 = 8 samples/ms */
 		}
 		/* For non-8000Hz formats, we need to alter the resolution */
-		res = res * ast_format_rate(&class->format) / 8000;
+		res = res * ast_format_get_sample_rate(class->format) / 8000;
 
 		if ((strncasecmp(class->dir, "http://", 7) && strcasecmp(class->dir, "nodir")) && AST_LIST_EMPTY(&class->members))
 			continue;
 		/* Read mp3 audio */
-		len = ast_codec_get_len(&class->format, res);
+		len = ast_format_determine_length(class->format, res);
 
 		if ((res2 = read(class->srcfd, sbuf, len)) != len) {
 			if (!res2) {
@@ -902,7 +907,7 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	fcntl(moh->pipe[1], F_SETFL, flags | O_NONBLOCK);
 
 	moh->f.frametype = AST_FRAME_VOICE;
-	ast_format_copy(&moh->f.subclass.format, &cl->format);
+	moh->f.subclass.format = cl->format;
 	moh->f.offset = AST_FRIENDLY_OFFSET;
 
 	moh->parent = mohclass_ref(cl, "Reffing music class for mohdata parent");
@@ -918,7 +923,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 {
 	struct mohdata *moh = data;
 	struct mohclass *class = moh->parent;
-	struct ast_format oldwfmt;
+	struct ast_format *oldwfmt;
 
 	ao2_lock(class);
 	AST_LIST_REMOVE(&moh->parent->members, moh, list);	
@@ -927,7 +932,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 
-	ast_format_copy(&oldwfmt, &moh->origwfmt);
+	oldwfmt = moh->origwfmt;
 
 	moh->parent = class = mohclass_unref(class, "unreffing moh->parent upon deactivation of generator");
 
@@ -940,13 +945,15 @@ static void moh_release(struct ast_channel *chan, void *data)
 		if (state && state->class) {
 			state->class = mohclass_unref(state->class, "Unreffing channel's music class upon deactivation of generator");
 		}
-		if (oldwfmt.id && ast_set_write_format(chan, &oldwfmt)) {
+		if (oldwfmt && ast_set_write_format(chan, oldwfmt)) {
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n",
-					ast_channel_name(chan), ast_getformatname(&oldwfmt));
+					ast_channel_name(chan), ast_format_get_name(oldwfmt));
 		}
 
 		moh_post_stop(chan);
 	}
+
+	ao2_cleanup(oldwfmt);
 }
 
 static void *moh_alloc(struct ast_channel *chan, void *params)
@@ -972,9 +979,10 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	}
 
 	if ((res = mohalloc(class))) {
-		ast_format_copy(&res->origwfmt, ast_channel_writeformat(chan));
-		if (ast_set_write_format(chan, &class->format)) {
-			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", ast_channel_name(chan), ast_codec2str(&class->format));
+		res->origwfmt = ao2_bump(ast_channel_writeformat(chan));
+		if (ast_set_write_format(chan, class->format)) {
+			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", ast_channel_name(chan),
+				ast_format_get_name(class->format));
 			moh_release(NULL, res);
 			res = NULL;
 		} else {
@@ -991,7 +999,7 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 	short buf[1280 + AST_FRIENDLY_OFFSET / 2];
 	int res;
 
-	len = ast_codec_get_len(&moh->parent->format, samples);
+	len = ast_format_determine_length(moh->parent->format, samples);
 
 	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
 		ast_log(LOG_WARNING, "Only doing %d of %d requested bytes on %s\n", (int)sizeof(buf), len, ast_channel_name(chan));
@@ -1003,7 +1011,7 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 
 	moh->f.datalen = res;
 	moh->f.data.ptr = buf + AST_FRIENDLY_OFFSET / 2;
-	moh->f.samples = ast_codec_get_samples(&moh->f);
+	moh->f.samples = ast_codec_samples_count(&moh->f);
 
 	if (ast_write(chan, &moh->f) < 0) {
 		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", ast_channel_name(chan), strerror(errno));
@@ -1303,6 +1311,8 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 				mohclass_unref(state->class, "Uh Oh. Cleaning up MOH with an active class");
 			ast_log(LOG_WARNING, "Uh Oh. Cleaning up MOH with an active class\n");
 		}
+		ao2_cleanup(state->origwfmt);
+		ao2_cleanup(state->mohwfmt);
 		ast_free(ast_channel_music_state(chan));
 		ast_channel_music_state_set(chan, NULL);
 		/* Only held a module reference if we had a music state */
@@ -1329,7 +1339,7 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 			ao2_alloc(sizeof(*class), moh_class_destructor)
 #endif
 		)) {
-		ast_format_set(&class->format, AST_FORMAT_SLINEAR, 0);
+		class->format = ao2_bump(ast_format_slin);
 		class->srcfd = -1;
 	}
 
@@ -1407,10 +1417,10 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 				else if (!strcasecmp(tmp->name, "sort") && !strcasecmp(tmp->value, "alpha")) 
 					ast_set_flag(mohclass, MOH_SORTALPHA);
 				else if (!strcasecmp(tmp->name, "format")) {
-					ast_getformatbyname(tmp->value, &mohclass->format);
-					if (!mohclass->format.id) {
+					mohclass->format = ast_format_cache_get(tmp->value);
+					if (!mohclass->format) {
 						ast_log(LOG_WARNING, "Unknown format '%s' -- defaulting to SLIN\n", tmp->value);
-						ast_format_set(&mohclass->format, AST_FORMAT_SLINEAR, 0);
+						mohclass->format = ao2_bump(ast_format_slin);
 					}
 				}
 			}
@@ -1643,6 +1653,8 @@ static void moh_class_destructor(void *obj)
 		class->timer = NULL;
 	}
 
+	ao2_cleanup(class->format);
+
 	/* Finally, collect the exit status of the monitor thread */
 	if (tid > 0) {
 		pthread_join(tid, NULL);
@@ -1737,10 +1749,10 @@ static int load_moh_classes(int reload)
 			} else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "alpha")) {
 				ast_set_flag(class, MOH_SORTALPHA);
 			} else if (!strcasecmp(var->name, "format")) {
-				ast_getformatbyname(var->value, &class->format);
-				if (!class->format.id) {
+				class->format = ast_format_cache_get(var->value);
+				if (!class->format) {
 					ast_log(LOG_WARNING, "Unknown format '%s' -- defaulting to SLIN\n", var->value);
-					ast_format_set(&class->format, AST_FORMAT_SLINEAR, 0);
+					class->format = ao2_bump(ast_format_slin);
 				}
 			}
 		}
@@ -1877,7 +1889,7 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 			ast_cli(a->fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
 		}
 		if (strcasecmp(class->mode, "files")) {
-			ast_cli(a->fd, "\tFormat: %s\n", ast_getformatname(&class->format));
+			ast_cli(a->fd, "\tFormat: %s\n", ast_format_get_name(class->format));
 		}
 	}
 	ao2_iterator_destroy(&i);

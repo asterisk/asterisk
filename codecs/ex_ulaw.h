@@ -32,6 +32,7 @@ static struct ast_frame *ulaw_sample(void)
 		.data.ptr = ex_ulaw,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_ULAW, 0);
+	f.subclass.format = ast_format_ulaw;
+
 	return &f;
 }

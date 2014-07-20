@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/causes.h"
 #include "asterisk/stasis_system.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="CallCompletionRequest" language="en_US">
@@ -2814,8 +2815,7 @@ static void *generic_recall(void *data)
 	const char *callback_macro = ast_get_cc_callback_macro(agent->cc_params);
 	const char *callback_sub = ast_get_cc_callback_sub(agent->cc_params);
 	unsigned int recall_timer = ast_get_cc_recall_timer(agent->cc_params) * 1000;
-	struct ast_format tmp_fmt;
-	struct ast_format_cap *tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 
 	if (!tmp_cap) {
 		return NULL;
@@ -2826,17 +2826,17 @@ static void *generic_recall(void *data)
 		*target++ = '\0';
 	}
 
-	ast_format_cap_add(tmp_cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(tmp_cap, ast_format_slin, 0);
 	if (!(chan = ast_request_and_dial(tech, tmp_cap, NULL, NULL, target, recall_timer, &reason, generic_pvt->cid_num, generic_pvt->cid_name))) {
 		/* Hmm, no channel. Sucks for you, bud.
 		 */
 		ast_log_dynamic_level(cc_logger_level, "Core %u: Failed to call back %s for reason %d\n",
 				agent->core_id, agent->device_name, reason);
 		ast_cc_failed(agent->core_id, "Failed to call back device %s/%s", tech, target);
-		ast_format_cap_destroy(tmp_cap);
+		ao2_ref(tmp_cap, -1);
 		return NULL;
 	}
-	ast_format_cap_destroy(tmp_cap);
+	ao2_ref(tmp_cap, -1);
 	
 	/* We have a channel. It's time now to set up the datastore of recalled CC interfaces.
 	 * This will be a common task for all recall functions. If it were possible, I'd have

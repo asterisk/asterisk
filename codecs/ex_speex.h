@@ -27,7 +27,7 @@ static struct ast_frame *speex_sample(void)
 		.data.ptr = ex_speex,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_SPEEX, 0);
+	f.subclass.format = ast_format_speex;
 
 	return &f;
 }
@@ -58,7 +58,8 @@ static struct ast_frame *speex16_sample(void)
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = ex_speex16,
 	};
-	ast_format_set(&f.subclass.format, AST_FORMAT_SPEEX16, 0);
+
+	f.subclass.format = ast_format_speex16;
 
 	return &f;
 }

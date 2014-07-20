@@ -133,9 +133,9 @@ struct ast_bridge_channel {
 	 *  optimizing based upon talk detection. */
 	struct ast_bridge_tech_optimizations tech_args;
 	/*! Copy of read format used by chan before join */
-	struct ast_format read_format;
+	struct ast_format *read_format;
 	/*! Copy of write format used by chan before join */
-	struct ast_format write_format;
+	struct ast_format *write_format;
 	/*! Call ID associated with bridge channel */
 	struct ast_callid *callid;
 	/*! A clone of the roles living on chan when the bridge channel joins the bridge. This may require some opacification */

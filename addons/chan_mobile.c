@@ -73,15 +73,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/manager.h"
 #include "asterisk/io.h"
+#include "asterisk/smoother.h"
+#include "asterisk/format_cache.h"
 
 #define MBL_CONFIG "chan_mobile.conf"
 #define MBL_CONFIG_OLD "mobile.conf"
 
 #define DEVICE_FRAME_SIZE 48
-#define DEVICE_FRAME_FORMAT AST_FORMAT_SLINEAR
+#define DEVICE_FRAME_FORMAT ast_format_slin
 #define CHANNEL_FRAME_SIZE 320
-
-static struct ast_format prefformat;
 
 static int discovery_interval = 60;			/* The device discovery interval, default 60 seconds. */
 static pthread_t discovery_thread = AST_PTHREADT_NULL;	/* The discovery thread */
@@ -840,7 +840,6 @@ e_return:
 static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num,
 		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
-
 	struct ast_channel *chn;
 
 	pvt->answered = 0;
@@ -862,11 +861,11 @@ static struct ast_channel *mbl_new(int state, struct mbl_pvt *pvt, char *cid_num
 	}
 
 	ast_channel_tech_set(chn, &mbl_tech);
-	ast_format_cap_add(ast_channel_nativeformats(chn), &prefformat);
-	ast_format_copy(ast_channel_rawreadformat(chn), &prefformat);
-	ast_format_copy(ast_channel_rawwriteformat(chn), &prefformat);
-	ast_format_copy(ast_channel_writeformat(chn), &prefformat);
-	ast_format_copy(ast_channel_readformat(chn), &prefformat);
+	ast_channel_nativeformats_set(chn, mbl_tech.capabilities);
+	ast_channel_set_rawreadformat(chn, DEVICE_FRAME_FORMAT);
+	ast_channel_set_rawwriteformat(chn, DEVICE_FRAME_FORMAT);
+	ast_channel_set_writeformat(chn, DEVICE_FRAME_FORMAT);
+	ast_channel_set_readformat(chn, DEVICE_FRAME_FORMAT);
 	ast_channel_tech_pvt_set(chn, pvt);
 
 	if (state == AST_STATE_RING)
@@ -902,9 +901,9 @@ static struct ast_channel *mbl_request(const char *type, struct ast_format_cap *
 		return NULL;
 	}
 
-	if (!(ast_format_cap_iscompatible(cap, &prefformat))) {
-		char tmp[256];
-		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), cap));
+	if (ast_format_cap_iscompatible_format(cap, DEVICE_FRAME_FORMAT) == AST_FORMAT_CMP_NOT_EQUAL) {
+		struct ast_str *codec_buf = ast_str_alloca(64);
+		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n", ast_format_cap_get_names(cap, &codec_buf));
 		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
 		return NULL;
 	}
@@ -1116,7 +1115,7 @@ static struct ast_frame *mbl_read(struct ast_channel *ast)
 
 	memset(&pvt->fr, 0x00, sizeof(struct ast_frame));
 	pvt->fr.frametype = AST_FRAME_VOICE;
-	ast_format_set(&pvt->fr.subclass.format, DEVICE_FRAME_FORMAT, 0);
+	pvt->fr.subclass.format = DEVICE_FRAME_FORMAT;
 	pvt->fr.src = "Mobile";
 	pvt->fr.offset = AST_FRIENDLY_OFFSET;
 	pvt->fr.mallocd = 0;
@@ -4697,7 +4696,8 @@ static int unload_module(void)
 	if (sdp_session)
 		sdp_close(sdp_session);
 
-	mbl_tech.capabilities = ast_format_cap_destroy(mbl_tech.capabilities);
+	ao2_ref(mbl_tech.capabilities, -1);
+	mbl_tech.capabilities = NULL;
 	return 0;
 }
 
@@ -4706,11 +4706,11 @@ static int load_module(void)
 
 	int dev_id, s;
 
-	if (!(mbl_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(mbl_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_set(&prefformat, DEVICE_FRAME_FORMAT, 0);
-	ast_format_cap_add(mbl_tech.capabilities, &prefformat);
+
+	ast_format_cap_append(mbl_tech.capabilities, DEVICE_FRAME_FORMAT, 0);
 	/* Check if we have Bluetooth, no point loading otherwise... */
 	dev_id = hci_get_route(NULL);
 	s = hci_open_dev(dev_id);

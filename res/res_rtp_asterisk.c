@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stun.h"
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/channel.h"
 #include "asterisk/acl.h"
 #include "asterisk/config.h"
@@ -66,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/unaligned.h"
 #include "asterisk/module.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/smoother.h"
 #include "asterisk/test.h"
 
 #define MAX_TIMESTAMP_SKEW	640
@@ -216,8 +218,8 @@ struct ast_rtp {
 	unsigned int cycles;            /*!< Shifted count of sequence number cycles */
 	double rxjitter;                /*!< Interarrival jitter at the moment in seconds */
 	double rxtransit;               /*!< Relative transit time for previous packet */
-	struct ast_format lasttxformat;
-	struct ast_format lastrxformat;
+	struct ast_format *lasttxformat;
+	struct ast_format *lastrxformat;
 
 	int rtptimeout;			/*!< RTP timeout time (negative or zero means disabled, negative value means temporarily disabled) */
 	int rtpholdtimeout;		/*!< RTP timeout when on hold (negative or zero means disabled, negative value means temporarily disabled). */
@@ -1833,7 +1835,11 @@ static int rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size,
 
 static int rtp_get_rate(struct ast_format *format)
 {
-	return (format->id == AST_FORMAT_G722) ? 8000 : ast_format_rate(format);
+	/* For those wondering: due to a fluke in RFC publication, G.722 is advertised
+	 * as having a sample rate of 8kHz, while implementations must know that its
+	 * real rate is 16kHz. Seriously.
+	 */
+	return (ast_format_cmp(format, ast_format_g722) == AST_FORMAT_CMP_EQUAL) ? 8000 : (int)ast_format_get_sample_rate(format);
 }
 
 static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp)
@@ -2184,6 +2190,10 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	rtp->dtlstimerid = -1;
 #endif
 
+	rtp->f.subclass.format = ao2_bump(ast_format_none);
+	rtp->lastrxformat = ao2_bump(ast_format_none);
+	rtp->lasttxformat = ao2_bump(ast_format_none);
+
 	return 0;
 }
 
@@ -2264,6 +2274,10 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 		SSL_free(rtp->dtls.ssl);
 	}
 #endif
+
+	ao2_cleanup(rtp->lasttxformat);
+	ao2_cleanup(rtp->lastrxformat);
+	ao2_cleanup(rtp->f.subclass.format);
 
 	/* Destroy synchronization items */
 	ast_mutex_destroy(&rtp->lock);
@@ -2444,7 +2458,7 @@ static int ast_rtp_dtmf_end_with_duration(struct ast_rtp_instance *instance, cha
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 
-	if (duration > 0 && (measured_samples = duration * rtp_get_rate(&rtp->f.subclass.format) / 1000) > rtp->send_duration) {
+	if (duration > 0 && (measured_samples = duration * rtp_get_rate(rtp->f.subclass.format) / 1000) > rtp->send_duration) {
 		ast_debug(2, "Adjusting final end duration from %d to %u\n", rtp->send_duration, measured_samples);
 		rtp->send_duration = measured_samples;
 	}
@@ -2620,7 +2634,7 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	int fraction_lost;
 	struct timeval dlsr = { 0, };
 	char bdata[512];
-	int rate = rtp_get_rate(&rtp->f.subclass.format);
+	int rate = rtp_get_rate(rtp->f.subclass.format);
 	int ice;
 	int header_offset = 0;
 	struct ast_sockaddr remote_address = { {0,} };
@@ -2791,9 +2805,9 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 	int pred, mark = 0;
 	unsigned int ms = calc_txstamp(rtp, &frame->delivery);
 	struct ast_sockaddr remote_address = { {0,} };
-	int rate = rtp_get_rate(&frame->subclass.format) / 1000;
+	int rate = rtp_get_rate(frame->subclass.format) / 1000;
 
-	if (frame->subclass.format.id == AST_FORMAT_G722) {
+	if (ast_format_cmp(frame->subclass.format, ast_format_g722) == AST_FORMAT_CMP_EQUAL) {
 		frame->samples /= 2;
 	}
 
@@ -2817,7 +2831,7 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 			}
 		}
 	} else if (frame->frametype == AST_FRAME_VIDEO) {
-		mark = ast_format_get_video_mark(&frame->subclass.format);
+		mark = frame->subclass.frame_ending;
 		pred = rtp->lastovidtimestamp + frame->samples;
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 90;
@@ -2959,7 +2973,7 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_sockaddr remote_address = { {0,} };
-	struct ast_format subclass;
+	struct ast_format *format;
 	int codec;
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
@@ -3029,17 +3043,28 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	/* Grab the subclass and look up the payload we are going to use */
-	ast_format_copy(&subclass, &frame->subclass.format);
-	if ((codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 1, &subclass, 0)) < 0) {
-		ast_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n", ast_getformatname(&frame->subclass.format));
+	codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance),
+	                                    1,
+	                                    frame->subclass.format,
+	                                    0);
+	if (codec < 0) {
+		ast_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n",
+			ast_format_get_name(frame->subclass.format));
 		return -1;
 	}
 
-	/* Oh dear, if the format changed we will have to set up a new smoother */
-	if (ast_format_cmp(&rtp->lasttxformat, &subclass) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_debug(1, "Ooh, format changed from %s to %s\n", ast_getformatname(&rtp->lasttxformat), ast_getformatname(&subclass));
-		rtp->lasttxformat = subclass;
-		ast_format_copy(&rtp->lasttxformat, &subclass);
+	/* Note that we do not increase the ref count here as this pointer
+	 * will not be held by any thing explicitly. The format variable is
+	 * merely a convenience reference to frame->subclass.format */
+	format = frame->subclass.format;
+	if (ast_format_cmp(rtp->lasttxformat, format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		/* Oh dear, if the format changed we will have to set up a new smoother */
+		if (option_debug > 0) {
+			ast_debug(1, "Ooh, format changed from %s to %s\n",
+				ast_format_get_name(rtp->lasttxformat),
+				ast_format_get_name(frame->subclass.format));
+		}
+		ao2_replace(rtp->lasttxformat, format);
 		if (rtp->smoother) {
 			ast_smoother_free(rtp->smoother);
 			rtp->smoother = NULL;
@@ -3047,34 +3072,15 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	/* If no smoother is present see if we have to set one up */
-	if (!rtp->smoother) {
-		struct ast_format_list fmt = ast_codec_pref_getsize(&ast_rtp_instance_get_codecs(instance)->pref, &subclass);
+	if (!rtp->smoother && ast_format_can_be_smoothed(format)) {
+		unsigned int framing_ms = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(instance));
 
-		switch (subclass.id) {
-		case AST_FORMAT_SPEEX:
-		case AST_FORMAT_SPEEX16:
-		case AST_FORMAT_SPEEX32:
-		case AST_FORMAT_SILK:
-		case AST_FORMAT_CELT:
-		case AST_FORMAT_G723_1:
-		case AST_FORMAT_SIREN7:
-		case AST_FORMAT_SIREN14:
-		case AST_FORMAT_G719:
-		/* Opus */
-		case AST_FORMAT_OPUS:
-			/* these are all frame-based codecs and cannot be safely run through
-			   a smoother */
-			break;
-		default:
-			if (fmt.inc_ms) {
-				if (!(rtp->smoother = ast_smoother_new((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms))) {
-					ast_log(LOG_WARNING, "Unable to create smoother: format %s ms: %d len: %d\n", ast_getformatname(&subclass), fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
-					return -1;
-				}
-				if (fmt.flags) {
-					ast_smoother_set_flags(rtp->smoother, fmt.flags);
-				}
-				ast_debug(1, "Created smoother: format: %s ms: %d len: %d\n", ast_getformatname(&subclass), fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
+		if (framing_ms) {
+			rtp->smoother = ast_smoother_new((framing_ms * ast_format_get_minimum_bytes(format)) / ast_format_get_minimum_ms(format));
+			if (!rtp->smoother) {
+				ast_log(LOG_WARNING, "Unable to create smoother: format %s ms: %u len: %u\n",
+					ast_format_get_name(format), framing_ms, ast_format_get_minimum_bytes(format));
+				return -1;
 			}
 		}
 	}
@@ -3122,7 +3128,7 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 	double d;
 	double dtv;
 	double prog;
-	int rate = rtp_get_rate(&rtp->f.subclass.format);
+	int rate = rtp_get_rate(rtp->f.subclass.format);
 
 	double normdev_rxjitter_current;
 	if ((!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) || mark) {
@@ -3277,7 +3283,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 				rtp->dtmf_duration = new_duration;
 				rtp->resp = resp;
 				f = ast_frdup(create_dtmf_frame(instance, AST_FRAME_DTMF_END, 0));
-				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(&f->subclass.format)), ast_tv(0, 0));
+				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass.format)), ast_tv(0, 0));
 				rtp->resp = 0;
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
 				AST_LIST_INSERT_TAIL(frames, f, frame_list);
@@ -3308,7 +3314,7 @@ static void process_dtmf_rfc2833(struct ast_rtp_instance *instance, unsigned cha
 			if (rtp->resp && rtp->resp != resp) {
 				/* Another digit already began. End it */
 				f = ast_frdup(create_dtmf_frame(instance, AST_FRAME_DTMF_END, 0));
-				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(&f->subclass.format)), ast_tv(0, 0));
+				f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass.format)), ast_tv(0, 0));
 				rtp->resp = 0;
 				rtp->dtmf_duration = rtp->dtmf_timeout = 0;
 				AST_LIST_INSERT_TAIL(frames, f, frame_list);
@@ -3405,10 +3411,10 @@ static struct ast_frame *process_dtmf_cisco(struct ast_rtp_instance *instance, u
 		}
 	} else if ((rtp->resp == resp) && !power) {
 		f = create_dtmf_frame(instance, AST_FRAME_DTMF_END, ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_DTMF_COMPENSATE));
-		f->samples = rtp->dtmfsamples * (rtp->lastrxformat.id ? (rtp_get_rate(&rtp->lastrxformat) / 1000) : 8);
+		f->samples = rtp->dtmfsamples * (rtp_get_rate(rtp->lastrxformat) / 1000);
 		rtp->resp = 0;
 	} else if (rtp->resp == resp) {
-		rtp->dtmfsamples += 20 * (rtp->lastrxformat.id ? (rtp_get_rate(&rtp->lastrxformat) / 1000) : 8);
+		rtp->dtmfsamples += 20 * (rtp_get_rate(rtp->lastrxformat) / 1000);
 	}
 
 	rtp->dtmf_timeout = 0;
@@ -3424,7 +3430,8 @@ static struct ast_frame *process_cn_rfc3389(struct ast_rtp_instance *instance, u
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
 	if (rtpdebug) {
-		ast_debug(0, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", (int) rtp->lastrxformat.id, len);
+		ast_debug(0, "- RTP 3389 Comfort noise event: Format %s (len = %d)\n",
+			ast_format_get_name(rtp->lastrxformat), len);
 	}
 
 	if (ast_test_flag(rtp, FLAG_3389_WARNING)) {
@@ -3796,7 +3803,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	struct ast_rtp_instance *instance1 = ast_rtp_instance_get_bridged(instance);
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance), *bridged = ast_rtp_instance_get_data(instance1);
 	int res = 0, payload = 0, bridged_payload = 0, mark;
-	struct ast_rtp_payload_type payload_type;
+	RAII_VAR(struct ast_rtp_payload_type *, payload_type, NULL, ao2_cleanup);
 	int reconstruct = ntohl(rtpheader[0]);
 	struct ast_sockaddr remote_address = { {0,} };
 	int ice;
@@ -3806,10 +3813,13 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	mark = (((reconstruct & 0x800000) >> 23) != 0);
 
 	/* Check what the payload value should be */
-	payload_type = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(instance), payload);
+	payload_type = ast_rtp_codecs_get_payload(ast_rtp_instance_get_codecs(instance), payload);
+	if (!payload_type) {
+		return -1;
+	}
 
 	/* Otherwise adjust bridged payload to match */
-	bridged_payload = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance1), payload_type.asterisk_format, &payload_type.format, payload_type.rtp_code);
+	bridged_payload = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance1), payload_type->asterisk_format, payload_type->format, payload_type->rtp_code);
 
 	/* If no codec could be matched between instance and instance1, then somehow things were made incompatible while we were still bridged.  Bail. */
 	if (bridged_payload < 0) {
@@ -3880,7 +3890,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	struct ast_sockaddr addr;
 	int res, hdrlen = 12, version, payloadtype, padding, mark, ext, cc, prev_seqno;
 	unsigned int *rtpheader = (unsigned int*)(rtp->rawdata + AST_FRIENDLY_OFFSET), seqno, ssrc, timestamp;
-	struct ast_rtp_payload_type payload;
+	RAII_VAR(struct ast_rtp_payload_type *, payload, NULL, ao2_cleanup);
 	struct ast_sockaddr remote_address = { {0,} };
 	struct frame_list frames;
 
@@ -4120,20 +4130,20 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 			    payloadtype, seqno, timestamp,res - hdrlen);
 	}
 
-	payload = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(instance), payloadtype);
+	payload = ast_rtp_codecs_get_payload(ast_rtp_instance_get_codecs(instance), payloadtype);
 
 	/* If the payload is not actually an Asterisk one but a special one pass it off to the respective handler */
-	if (!payload.asterisk_format) {
+	if (!payload->asterisk_format) {
 		struct ast_frame *f = NULL;
-		if (payload.rtp_code == AST_RTP_DTMF) {
+		if (payload->rtp_code == AST_RTP_DTMF) {
 			/* process_dtmf_rfc2833 may need to return multiple frames. We do this
 			 * by passing the pointer to the frame list to it so that the method
 			 * can append frames to the list as needed.
 			 */
 			process_dtmf_rfc2833(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &addr, payloadtype, mark, &frames);
-		} else if (payload.rtp_code == AST_RTP_CISCO_DTMF) {
+		} else if (payload->rtp_code == AST_RTP_CISCO_DTMF) {
 			f = process_dtmf_cisco(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &addr, payloadtype, mark);
-		} else if (payload.rtp_code == AST_RTP_CN) {
+		} else if (payload->rtp_code == AST_RTP_CN) {
 			f = process_cn_rfc3389(instance, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp, &addr, payloadtype, mark);
 		} else {
 			ast_log(LOG_NOTICE, "Unknown RTP codec %d received from '%s'\n",
@@ -4153,10 +4163,25 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		return &ast_null_frame;
 	}
 
-	ast_format_copy(&rtp->lastrxformat, &payload.format);
-	ast_format_copy(&rtp->f.subclass.format, &payload.format);
-	rtp->f.frametype = (AST_FORMAT_GET_TYPE(rtp->f.subclass.format.id) == AST_FORMAT_TYPE_AUDIO) ? AST_FRAME_VOICE : (AST_FORMAT_GET_TYPE(rtp->f.subclass.format.id) == AST_FORMAT_TYPE_VIDEO) ? AST_FRAME_VIDEO : AST_FRAME_TEXT;
-
+	ao2_replace(rtp->lastrxformat, payload->format);
+	ao2_replace(rtp->f.subclass.format, payload->format);
+	switch (ast_format_get_type(rtp->f.subclass.format)) {
+	case AST_MEDIA_TYPE_AUDIO:
+		rtp->f.frametype = AST_FRAME_VOICE;
+		break;
+	case AST_MEDIA_TYPE_VIDEO:
+		rtp->f.frametype = AST_FRAME_VIDEO;
+		break;
+	case AST_MEDIA_TYPE_TEXT:
+		rtp->f.frametype = AST_FRAME_TEXT;
+		break;
+	case AST_MEDIA_TYPE_IMAGE:
+		/* Fall through */
+	default:
+		ast_log(LOG_WARNING, "Unknown or unsupported media type: %s\n",
+			ast_codec_media_type2str(ast_format_get_type(rtp->f.subclass.format)));
+		return &ast_null_frame;
+	}
 	rtp->rxseqno = seqno;
 
 	if (rtp->dtmf_timeout && rtp->dtmf_timeout < timestamp) {
@@ -4165,7 +4190,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		if (rtp->resp) {
 			struct ast_frame *f;
 			f = create_dtmf_frame(instance, AST_FRAME_DTMF_END, 0);
-			f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(&f->subclass.format)), ast_tv(0, 0));
+			f->len = ast_tvdiff_ms(ast_samp2tv(rtp->dtmf_duration, rtp_get_rate(f->subclass.format)), ast_tv(0, 0));
 			rtp->resp = 0;
 			rtp->dtmf_timeout = rtp->dtmf_duration = 0;
 			AST_LIST_INSERT_TAIL(&frames, f, frame_list);
@@ -4182,7 +4207,9 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.seqno = seqno;
 
-	if (rtp->f.subclass.format.id == AST_FORMAT_T140 && (int)seqno - (prev_seqno+1) > 0 && (int)seqno - (prev_seqno+1) < 10) {
+	if ((ast_format_cmp(rtp->f.subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL)
+		&& ((int)seqno - (prev_seqno + 1) > 0)
+		&& ((int)seqno - (prev_seqno + 1) < 10)) {
 		unsigned char *data = rtp->f.data.ptr;
 
 		memmove(rtp->f.data.ptr+3, rtp->f.data.ptr, rtp->f.datalen);
@@ -4192,7 +4219,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		*data = 0xBD;
 	}
 
-	if (rtp->f.subclass.format.id == AST_FORMAT_T140RED) {
+	if (ast_format_cmp(rtp->f.subclass.format, ast_format_t140_red) == AST_FORMAT_CMP_EQUAL) {
 		unsigned char *data = rtp->f.data.ptr;
 		unsigned char *header_end;
 		int num_generations;
@@ -4201,7 +4228,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		int diff =(int)seqno - (prev_seqno+1); /* if diff = 0, no drop*/
 		int x;
 
-		ast_format_set(&rtp->f.subclass.format, AST_FORMAT_T140, 0);
+		ao2_replace(rtp->f.subclass.format, ast_format_t140);
 		header_end = memchr(data, ((*data) & 0x7f), rtp->f.datalen);
 		if (header_end == NULL) {
 			return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
@@ -4239,17 +4266,17 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		}
 	}
 
-	if (AST_FORMAT_GET_TYPE(rtp->f.subclass.format.id) == AST_FORMAT_TYPE_AUDIO) {
-		rtp->f.samples = ast_codec_get_samples(&rtp->f);
-		if (ast_format_is_slinear(&rtp->f.subclass.format)) {
+	if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_AUDIO) {
+		rtp->f.samples = ast_codec_samples_count(&rtp->f);
+		if (ast_format_cache_is_slinear(rtp->f.subclass.format)) {
 			ast_frame_byteswap_be(&rtp->f);
 		}
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
 		/* Add timing data to let ast_generic_bridge() put the frame into a jitterbuf */
 		ast_set_flag(&rtp->f, AST_FRFLAG_HAS_TIMING_INFO);
-		rtp->f.ts = timestamp / (rtp_get_rate(&rtp->f.subclass.format) / 1000);
-		rtp->f.len = rtp->f.samples / ((ast_format_rate(&rtp->f.subclass.format) / 1000));
-	} else if (AST_FORMAT_GET_TYPE(rtp->f.subclass.format.id) == AST_FORMAT_TYPE_VIDEO) {
+		rtp->f.ts = timestamp / (rtp_get_rate(rtp->f.subclass.format) / 1000);
+		rtp->f.len = rtp->f.samples / ((ast_format_get_sample_rate(rtp->f.subclass.format) / 1000));
+	} else if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_VIDEO) {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
 			rtp->lastividtimestamp = timestamp;
@@ -4258,10 +4285,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->f.delivery.tv_sec = 0;
 		rtp->f.delivery.tv_usec = 0;
 		/* Pass the RTP marker bit as bit */
-		if (mark) {
-			ast_format_set_video_mark(&rtp->f.subclass.format);
-		}
-	} else {
+		rtp->f.subclass.frame_ending = mark;
+	} else if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_TEXT) {
 		/* TEXT -- samples is # of samples vs. 1000 */
 		if (!rtp->lastitexttimestamp)
 			rtp->lastitexttimestamp = timestamp;
@@ -4269,6 +4294,10 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->lastitexttimestamp = timestamp;
 		rtp->f.delivery.tv_sec = 0;
 		rtp->f.delivery.tv_usec = 0;
+	} else {
+		ast_log(LOG_WARNING, "Unknown or unsupported media type: %s\n",
+			ast_codec_media_type2str(ast_format_get_type(rtp->f.subclass.format)));
+		return &ast_null_frame;;
 	}
 
 	AST_LIST_INSERT_TAIL(&frames, &rtp->f, frame_list);
@@ -4413,7 +4442,7 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 	}
 
 	rtp->red->t140.frametype = AST_FRAME_TEXT;
-	ast_format_set(&rtp->red->t140.subclass.format, AST_FORMAT_T140RED, 0);
+	ao2_replace(rtp->red->t140.subclass.format, ast_format_t140_red);
 	rtp->red->t140.data.ptr = &rtp->red->buf_data;
 
 	rtp->red->t140.ts = 0;

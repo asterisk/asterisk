@@ -70,6 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/json.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="ConfBridge" language="en_US">
@@ -676,7 +677,6 @@ static int conf_stop_record_thread(struct confbridge_conference *conference)
 static int conf_start_record(struct confbridge_conference *conference)
 {
 	struct ast_format_cap *cap;
-	struct ast_format format;
 
 	if (conference->record_state != CONF_RECORD_STOP) {
 		return -1;
@@ -687,16 +687,16 @@ static int conf_start_record(struct confbridge_conference *conference)
 		return -1;
 	}
 
-	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!cap) {
 		return -1;
 	}
 
-	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	conference->record_chan = ast_request("CBRec", cap, NULL, NULL,
 		conference->name, NULL);
-	cap = ast_format_cap_destroy(cap);
+	ao2_ref(cap, -1);
 	if (!conference->record_chan) {
 		return -1;
 	}
@@ -1374,16 +1374,15 @@ static void leave_conference(struct confbridge_user *user)
 static int alloc_playback_chan(struct confbridge_conference *conference)
 {
 	struct ast_format_cap *cap;
-	struct ast_format format;
 
-	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!cap) {
 		return -1;
 	}
-	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 	conference->playback_chan = ast_request("CBAnn", cap, NULL, NULL,
 		conference->name, NULL);
-	cap = ast_format_cap_destroy(cap);
+	ao2_ref(cap, -1);
 	if (!conference->playback_chan) {
 		return -1;
 	}
@@ -3238,7 +3237,7 @@ void conf_remove_user_waiting(struct confbridge_conference *conference, struct c
 static void unregister_channel_tech(struct ast_channel_tech *tech)
 {
 	ast_channel_unregister(tech);
-	tech->capabilities = ast_format_cap_destroy(tech->capabilities);
+	ao2_cleanup(tech->capabilities);
 }
 
 /*!
@@ -3253,11 +3252,11 @@ static void unregister_channel_tech(struct ast_channel_tech *tech)
  */
 static int register_channel_tech(struct ast_channel_tech *tech)
 {
-	tech->capabilities = ast_format_cap_alloc(0);
+	tech->capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!tech->capabilities) {
 		return -1;
 	}
-	ast_format_cap_add_all(tech->capabilities);
+	ast_format_cap_append_by_type(tech->capabilities, AST_MEDIA_TYPE_UNKNOWN);
 	if (ast_channel_register(tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel technology %s(%s).\n",
 			tech->type, tech->description);

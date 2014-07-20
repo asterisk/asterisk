@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<function name="CALENDAR_BUSY" language="en_US">
@@ -730,6 +731,7 @@ static void *do_notify(void *data)
 	struct ast_variable *itervar;
 	char *tech, *dest;
 	char buf[8];
+	struct ast_format_cap *caps;
 
 	tech = ast_strdupa(event->owner->notify_channel);
 
@@ -760,12 +762,19 @@ static void *do_notify(void *data)
 	}
 
 	ast_channel_tech_set(chan, &null_tech);
-	ast_format_set(ast_channel_writeformat(chan), AST_FORMAT_SLINEAR, 0);
-	ast_format_set(ast_channel_readformat(chan), AST_FORMAT_SLINEAR, 0);
-	ast_format_set(ast_channel_rawwriteformat(chan), AST_FORMAT_SLINEAR, 0);
-	ast_format_set(ast_channel_rawreadformat(chan), AST_FORMAT_SLINEAR, 0);
-	/* clear native formats and set to slinear. write format is signlear so just use that to set it */
-	ast_format_cap_set(ast_channel_nativeformats(chan), ast_channel_writeformat(chan));
+	ast_channel_set_writeformat(chan, ast_format_slin);
+	ast_channel_set_readformat(chan, ast_format_slin);
+	ast_channel_set_rawwriteformat(chan, ast_format_slin);
+	ast_channel_set_rawreadformat(chan, ast_format_slin);
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		ast_log(LOG_ERROR, "Could not allocate capabilities, notification not being sent!\n");
+		goto notify_cleanup;
+	}
+	ast_format_cap_append(caps, ast_format_slin, 0);
+	ast_channel_nativeformats_set(chan, caps);
+	ao2_ref(caps, -1);
 
 	ast_channel_unlock(chan);
 

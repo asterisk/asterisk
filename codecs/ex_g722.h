@@ -42,7 +42,7 @@ static struct ast_frame *g722_sample(void)
 		.data.ptr = ex_g722,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_G722, 0);
+	f.subclass.format = ast_format_slin;
 
 	return &f;
 }

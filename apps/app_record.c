@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/channel.h"
 #include "asterisk/dsp.h"	/* use dsp routines for silence detection */
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="Record" language="en_US">
@@ -196,7 +197,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	int maxduration = 0;		/* max duration of recording in milliseconds */
 	int gottimeout = 0;		/* did we timeout for maxduration exceeded? */
 	int terminator = '#';
-	struct ast_format rfmt;
+	RAII_VAR(struct ast_format *, rfmt, NULL, ao2_cleanup);
 	int ioflags;
 	struct ast_silence_generator *silgen = NULL;
 	struct ast_flags flags = { 0, };
@@ -208,8 +209,6 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	);
 	int ms;
 	struct timeval start;
-
-	ast_format_clear(&rfmt);
 
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
@@ -331,8 +330,8 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	/* The end of beep code.  Now the recording starts */
 
 	if (silence > 0) {
-		ast_format_copy(&rfmt, ast_channel_readformat(chan));
-		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
+		rfmt = ao2_bump(ast_channel_readformat(chan));
+		res = ast_set_read_format(chan, ast_format_slin);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			pbx_builtin_setvar_helper(chan, "RECORD_STATUS", "ERROR");
@@ -459,8 +458,8 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		ast_channel_stop_silence_generator(chan, silgen);
 
 out:
-	if ((silence > 0) && rfmt.id) {
-		res = ast_set_read_format(chan, &rfmt);
+	if ((silence > 0) && rfmt) {
+		res = ast_set_read_format(chan, rfmt);
 		if (res) {
 			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", ast_channel_name(chan));
 		}

@@ -61,7 +61,7 @@
 #define AST_VECTOR_INIT(vec, size) ({					\
 	size_t __size = (size);						\
 	size_t alloc_size = __size * sizeof(*((vec)->elems));		\
-	(vec)->elems = alloc_size ? ast_malloc(alloc_size) : NULL;	\
+	(vec)->elems = alloc_size ? ast_calloc(1, alloc_size) : NULL;	\
 	(vec)->current = 0;						\
 	if ((vec)->elems) {						\
 		(vec)->max = __size;					\
@@ -116,6 +116,48 @@
 })
 
 /*!
+ * \brief Insert an element at a specific position in a vector, growing the vector if needed.
+ *
+ * \param vec Vector to insert into.
+ * \param idx Position to insert at.
+ * \param elem Element to insert.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ *
+ * \warning This macro will overwrite anything already present at the position provided.
+ *
+ * \warning Use of this macro with the expectation that the element will remain at the provided
+ * index means you can not use the UNORDERED assortment of macros. These macros alter the ordering
+ * of the vector itself.
+ */
+#define AST_VECTOR_INSERT(vec, idx, elem) ({					\
+ 	int res = 0;												\
+ 	do {														\
+ 		if (((idx) + 1) > (vec)->max) {							\
+ 			size_t new_max = ((idx) + 1) * 2;					\
+			typeof((vec)->elems) new_elems = ast_calloc(1,		\
+				new_max * sizeof(*new_elems));					\
+			if (new_elems) {									\
+				memcpy(new_elems, (vec)->elems,					\
+					(vec)->current * sizeof(*new_elems)); 		\
+				ast_free((vec)->elems);							\
+				(vec)->elems = new_elems;						\
+				(vec)->max = new_max;							\
+			} else {											\
+				res = -1;										\
+				break;											\
+			}													\
+ 		}														\
+ 		(vec)->elems[(idx)] = (elem);							\
+ 		if (((idx) + 1) > (vec)->current) {						\
+ 			(vec)->current = (idx) + 1;							\
+ 		}														\
+ 	} while(0);													\
+ 	res;														\
+})
+
+/*!
  * \brief Remove an element from a vector by index.
  *
  * Note that elements in the vector may be reordered, so that the remove can
@@ -132,6 +174,25 @@
 	res = (vec)->elems[__idx];				\
 	(vec)->elems[__idx] = (vec)->elems[--(vec)->current];	\
 	res;							\
+})
+
+/*!
+ * \brief Remove an element from a vector by index while maintaining order.
+ *
+ * \param vec Vector to remove from.
+ * \param idx Index of the element to remove.
+ * \return The element that was removed.
+ */
+#define AST_VECTOR_REMOVE_ORDERED(vec, idx) ({				\
+      	typeof((vec)->elems[0]) res;					\
+	size_t __idx = (idx);						\
+	size_t __move;							\
+	ast_assert(__idx < (vec)->current);				\
+	res = (vec)->elems[__idx];					\
+	__move = ((vec)->current - (__idx) - 1) * sizeof(typeof((vec)->elems[0])); \
+	memmove(&(vec)->elems[__idx], &(vec)->elems[__idx + 1], __move); \
+	(vec)->current--;						\
+	res;								\
 })
 
 
@@ -154,6 +215,32 @@
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
 			AST_VECTOR_REMOVE_UNORDERED((vec), idx);	\
+			res = 0;					\
+			break;						\
+		}							\
+	}								\
+	res;								\
+})
+
+/*!
+ * \brief Remove an element from a vector that matches the given comparison while maintaining order
+ *
+ * \param vec Vector to remove from.
+ * \param value Value to pass into comparator.
+ * \param cmp Comparator function/macros (called as \c cmp(elem, value))
+ * \param cleanup How to cleanup a removed element macro/function.
+ *
+ * \return 0 if element was removed.
+ * \return Non-zero if element was not in the vector.
+ */
+#define AST_VECTOR_REMOVE_CMP_ORDERED(vec, value, cmp, cleanup) ({	\
+	int res = -1;							\
+	size_t idx;							\
+	typeof(value) __value = (value);				\
+	for (idx = 0; idx < (vec)->current; ++idx) {			\
+		if (cmp((vec)->elems[idx], __value)) {			\
+			cleanup((vec)->elems[idx]);			\
+			AST_VECTOR_REMOVE_ORDERED((vec), idx);	\
 			res = 0;					\
 			break;						\
 		}							\
@@ -193,6 +280,21 @@
  */
 #define AST_VECTOR_REMOVE_ELEM_UNORDERED(vec, elem, cleanup) ({	\
 	AST_VECTOR_REMOVE_CMP_UNORDERED((vec), (elem),		\
+		AST_VECTOR_ELEM_DEFAULT_CMP, cleanup);		\
+})
+
+/*!
+ * \brief Remove an element from a vector while maintaining order.
+ *
+ * \param vec Vector to remove from.
+ * \param elem Element to remove
+ * \param cleanup How to cleanup a removed element macro/function.
+ *
+ * \return 0 if element was removed.
+ * \return Non-zero if element was not in the vector.
+ */
+#define AST_VECTOR_REMOVE_ELEM_ORDERED(vec, elem, cleanup) ({	\
+	AST_VECTOR_REMOVE_CMP_ORDERED((vec), (elem),		\
 		AST_VECTOR_ELEM_DEFAULT_CMP, cleanup);		\
 })
 

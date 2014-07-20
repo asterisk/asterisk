@@ -300,23 +300,23 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	/* Copy device string over */
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
-	if (!ast_format_cap_is_empty(cap)) {
+	if (ast_format_cap_count(cap)) {
 		cap_request = cap;
 	} else if (chan) {
 		cap_request = ast_channel_nativeformats(chan);
 	} else {
-		cap_all_audio = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-		ast_format_cap_add_all_by_type(cap_all_audio, AST_FORMAT_TYPE_AUDIO);
+		cap_all_audio = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		ast_format_cap_append_by_type(cap_all_audio, AST_MEDIA_TYPE_AUDIO);
 		cap_request = cap_all_audio;
 	}
 
 	/* If we fail to create our owner channel bail out */
 	if (!(channel->owner = ast_request(channel->tech, cap_request, &assignedids, chan, numsubst, &channel->cause))) {
-		cap_all_audio = ast_format_cap_destroy(cap_all_audio);
+		ao2_cleanup(cap_all_audio);
 		return -1;
 	}
 	cap_request = NULL;
-	cap_all_audio = ast_format_cap_destroy(cap_all_audio);
+	ao2_cleanup(cap_all_audio);
 
 	ast_channel_lock(channel->owner);
 	ast_channel_stage_snapshot(channel->owner);

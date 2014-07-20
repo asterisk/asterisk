@@ -33,24 +33,26 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/frame.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/slinfactory.h"
 #include "asterisk/translate.h"
+#include "asterisk/astobj2.h"
 
 void ast_slinfactory_init(struct ast_slinfactory *sf)
 {
 	memset(sf, 0, sizeof(*sf));
 	sf->offset = sf->hold;
-	ast_format_set(&sf->output_format, AST_FORMAT_SLINEAR, 0);
+	sf->output_format = ao2_bump(ast_format_slin);
 }
 
-int ast_slinfactory_init_with_format(struct ast_slinfactory *sf, const struct ast_format *slin_out)
+int ast_slinfactory_init_with_format(struct ast_slinfactory *sf, struct ast_format *slin_out)
 {
 	memset(sf, 0, sizeof(*sf));
 	sf->offset = sf->hold;
-	if (!ast_format_is_slinear(slin_out)) {
+	if (!ast_format_cache_is_slinear(slin_out)) {
 		return -1;
 	}
-	ast_format_copy(&sf->output_format, slin_out);
+	sf->output_format = ao2_bump(slin_out);
 
 	return 0;
 }
@@ -64,8 +66,14 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 		sf->trans = NULL;
 	}
 
-	while ((f = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list)))
+	while ((f = AST_LIST_REMOVE_HEAD(&sf->queue, frame_list))) {
 		ast_frfree(f);
+	}
+
+	ao2_cleanup(sf->output_format);
+	sf->output_format = NULL;
+	ao2_cleanup(sf->format);
+	sf->format = NULL;
 }
 
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
@@ -83,22 +91,22 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 		return 0;
 	}
 
-	if (ast_format_cmp(&f->subclass.format, &sf->output_format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		if (sf->trans && (ast_format_cmp(&f->subclass.format, &sf->format) == AST_FORMAT_CMP_NOT_EQUAL)) {
+	if (ast_format_cmp(f->subclass.format, sf->output_format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		if (sf->trans && (ast_format_cmp(f->subclass.format, sf->format) == AST_FORMAT_CMP_NOT_EQUAL)) {
 			ast_translator_free_path(sf->trans);
 			sf->trans = NULL;
 		}
 
 		if (!sf->trans) {
-			if (!(sf->trans = ast_translator_build_path(&sf->output_format, &f->subclass.format))) {
+			if (!(sf->trans = ast_translator_build_path(sf->output_format, f->subclass.format))) {
 				ast_log(LOG_WARNING, "Cannot build a path from %s (%u)to %s (%u)\n",
-					ast_getformatname(&f->subclass.format),
-					f->subclass.format.id,
-					ast_getformatname(&sf->output_format),
-					sf->output_format.id);
+					ast_format_get_name(f->subclass.format),
+					ast_format_get_codec_id(f->subclass.format),
+					ast_format_get_name(sf->output_format),
+					ast_format_get_codec_id(sf->output_format));
 				return 0;
 			}
-			ast_format_copy(&sf->format, &f->subclass.format);
+			ao2_replace(sf->format, f->subclass.format);
 		}
 
 		if (!(begin_frame = ast_translate(sf->trans, f, 0))) {

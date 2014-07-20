@@ -46,8 +46,8 @@ static int add_format_information_cb(void *obj, void *arg, int flags)
 {
 	char *language = obj;
 	struct lang_format_info *args = arg;
-	struct ast_format format;
-	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
+	int idx;
+	RAII_VAR(struct ast_format_cap *, cap, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_media_index *, sounds_index, ast_sounds_get_index(), ao2_cleanup);
 
 	if (!sounds_index) {
@@ -59,27 +59,28 @@ static int add_format_information_cb(void *obj, void *arg, int flags)
 		return CMP_STOP;
 	}
 
-	ast_format_cap_iter_start(cap);
-	while (!ast_format_cap_iter_next(cap, &format)) {
+	for (idx = 0; idx < ast_format_cap_count(cap); idx++) {
+		struct ast_format *format = ast_format_cap_get_format(cap, idx);
 		struct ast_json *lang_format_pair;
-		const char *format_name = ast_getformatname(&format);
 
 		if (!ast_strlen_zero(args->format_filter)
-			&& strcmp(args->format_filter, format_name)) {
+			&& strcmp(args->format_filter, ast_format_get_name(format))) {
+			ao2_ref(format, -1);
 			continue;
 		}
 
 		lang_format_pair = ast_json_pack("{s: s, s: s}",
 			"language", language,
-			"format", format_name);
+			"format", ast_format_get_name(format));
 		if (!lang_format_pair) {
-			ast_format_cap_iter_end(cap);
+			ao2_ref(format, -1);
 			return CMP_STOP;
 		}
 
 		ast_json_array_append(args->format_list, lang_format_pair);
+		ao2_ref(format, -1);
 	}
-	ast_format_cap_iter_end(cap);
+
 	return 0;
 }
 

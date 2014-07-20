@@ -129,6 +129,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/parking.h"
+#include "asterisk/format_cache.h"
 #include "chan_dahdi.h"
 #include "dahdi/bridge_native_dahdi.h"
 
@@ -461,7 +462,7 @@ static struct ast_jb_conf global_jbconf;
 /*! \brief Typically, how many rings before we should send Caller*ID */
 #define DEFAULT_CIDRINGS 1
 
-#define AST_LAW(p) (((p)->law == DAHDI_LAW_ALAW) ? AST_FORMAT_ALAW : AST_FORMAT_ULAW)
+#define AST_LAW(p) (((p)->law == DAHDI_LAW_ALAW) ? ast_format_alaw : ast_format_ulaw)
 
 
 /*! \brief Signaling types that need to use MF detection should be placed in this macro */
@@ -1321,7 +1322,6 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 	int res;
 	unsigned char buf[256];
 	int flags;
-	struct ast_format tmpfmt;
 
 	poller.fd = p->subs[SUB_REAL].dfd;
 	poller.events = POLLPRI | POLLIN;
@@ -1354,9 +1354,9 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 		}
 
 		if (p->cid_signalling == CID_SIG_V23_JP) {
-			res = callerid_feed_jp(p->cs, buf, res, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+			res = callerid_feed_jp(p->cs, buf, res, AST_LAW(p));
 		} else {
-			res = callerid_feed(p->cs, buf, res, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+			res = callerid_feed(p->cs, buf, res, AST_LAW(p));
 		}
 		if (res < 0) {
 			/*
@@ -1525,7 +1525,7 @@ static int restore_conference(struct dahdi_pvt *p);
 static int my_callwait(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
-	struct ast_format tmpfmt;
+
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
 		ast_log(LOG_WARNING, "Spill already exists?!?\n");
@@ -1542,11 +1542,11 @@ static int my_callwait(void *pvt)
 	/* Silence */
 	memset(p->cidspill, 0x7f, 2400 + 600 + READ_SIZE * 4);
 	if (!p->callwaitrings && p->callwaitingcallerid) {
-		ast_gen_cas(p->cidspill, 1, 2400 + 680, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+		ast_gen_cas(p->cidspill, 1, 2400 + 680, AST_LAW(p));
 		p->callwaitcas = 1;
 		p->cidlen = 2400 + 680 + READ_SIZE * 4;
 	} else {
-		ast_gen_cas(p->cidspill, 1, 2400, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+		ast_gen_cas(p->cidspill, 1, 2400, AST_LAW(p));
 		p->callwaitcas = 0;
 		p->cidlen = 2400 + READ_SIZE * 4;
 	}
@@ -1559,7 +1559,6 @@ static int my_callwait(void *pvt)
 static int my_send_callerid(void *pvt, int cwcid, struct ast_party_caller *caller)
 {
 	struct dahdi_pvt *p = pvt;
-	struct ast_format tmpfmt;
 
 	ast_debug(2, "Starting cid spill\n");
 
@@ -1573,7 +1572,7 @@ static int my_send_callerid(void *pvt, int cwcid, struct ast_party_caller *calle
 			p->cidlen = ast_callerid_generate(p->cidspill,
 				caller->id.name.str,
 				caller->id.number.str,
-				ast_format_set(&tmpfmt, AST_LAW(p), 0));
+				AST_LAW(p));
 		} else {
 			ast_verb(3, "CPE supports Call Waiting Caller*ID.  Sending '%s/%s'\n",
 				caller->id.name.str, caller->id.number.str);
@@ -1582,7 +1581,7 @@ static int my_send_callerid(void *pvt, int cwcid, struct ast_party_caller *calle
 			p->cidlen = ast_callerid_callwaiting_generate(p->cidspill,
 				caller->id.name.str,
 				caller->id.number.str,
-				ast_format_set(&tmpfmt, AST_LAW(p), 0));
+				AST_LAW(p));
 			p->cidlen += READ_SIZE * 4;
 		}
 		p->cidpos = 0;
@@ -4965,14 +4964,12 @@ static int restore_conference(struct dahdi_pvt *p)
 
 static int send_cwcidspill(struct dahdi_pvt *p)
 {
-	struct ast_format tmpfmt;
-
 	p->callwaitcas = 0;
 	p->cidcwexpire = 0;
 	p->cid_suppress_expire = 0;
 	if (!(p->cidspill = ast_malloc(MAX_CALLERID_SIZE)))
 		return -1;
-	p->cidlen = ast_callerid_callwaiting_generate(p->cidspill, p->callwait_name, p->callwait_num, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+	p->cidlen = ast_callerid_callwaiting_generate(p->cidspill, p->callwait_name, p->callwait_num, AST_LAW(p));
 	/* Make sure we account for the end */
 	p->cidlen += READ_SIZE * 4;
 	p->cidpos = 0;
@@ -5038,7 +5035,7 @@ static int send_callerid(struct dahdi_pvt *p)
 static int dahdi_callwait(struct ast_channel *ast)
 {
 	struct dahdi_pvt *p = ast_channel_tech_pvt(ast);
-	struct ast_format tmpfmt;
+
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
 		ast_log(LOG_WARNING, "Spill already exists?!?\n");
@@ -5055,11 +5052,11 @@ static int dahdi_callwait(struct ast_channel *ast)
 	/* Silence */
 	memset(p->cidspill, 0x7f, 2400 + 600 + READ_SIZE * 4);
 	if (!p->callwaitrings && p->callwaitingcallerid) {
-		ast_gen_cas(p->cidspill, 1, 2400 + 680, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+		ast_gen_cas(p->cidspill, 1, 2400 + 680, AST_LAW(p));
 		p->callwaitcas = 1;
 		p->cidlen = 2400 + 680 + READ_SIZE * 4;
 	} else {
-		ast_gen_cas(p->cidspill, 1, 2400, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+		ast_gen_cas(p->cidspill, 1, 2400, AST_LAW(p));
 		p->callwaitcas = 0;
 		p->cidlen = 2400 + READ_SIZE * 4;
 	}
@@ -8504,25 +8501,20 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		return f;
 	}
 
-	if (ast_channel_rawreadformat(ast)->id == AST_FORMAT_SLINEAR) {
+	if (ast_format_cmp(ast_channel_rawreadformat(ast), ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 		if (!p->subs[idx].linear) {
 			p->subs[idx].linear = 1;
 			res = dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to linear mode.\n", p->channel, idx);
 		}
-	} else if ((ast_channel_rawreadformat(ast)->id == AST_FORMAT_ULAW) ||
-		(ast_channel_rawreadformat(ast)->id == AST_FORMAT_ALAW)) {
+	} else {
 		if (p->subs[idx].linear) {
 			p->subs[idx].linear = 0;
 			res = dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
 			if (res)
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to companded mode.\n", p->channel, idx);
 		}
-	} else {
-		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(ast_channel_rawreadformat(ast)));
-		ast_mutex_unlock(&p->lock);
-		return NULL;
 	}
 	readbuf = ((unsigned char *)p->subs[idx].buffer) + AST_FRIENDLY_OFFSET;
 	CHECK_BLOCKING(ast);
@@ -8612,7 +8604,7 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 	}
 
 	p->subs[idx].f.frametype = AST_FRAME_VOICE;
-	ast_format_copy(&p->subs[idx].f.subclass.format, ast_channel_rawreadformat(ast));
+	p->subs[idx].f.subclass.format = ast_channel_rawreadformat(ast);
 	p->subs[idx].f.samples = READ_SIZE;
 	p->subs[idx].f.mallocd = 0;
 	p->subs[idx].f.offset = AST_FRIENDLY_OFFSET;
@@ -8795,12 +8787,6 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 			ast_log(LOG_WARNING, "Don't know what to do with frame type '%u'\n", frame->frametype);
 		return 0;
 	}
-	if ((frame->subclass.format.id != AST_FORMAT_SLINEAR) &&
-		(frame->subclass.format.id != AST_FORMAT_ULAW) &&
-		(frame->subclass.format.id != AST_FORMAT_ALAW)) {
-		ast_log(LOG_WARNING, "Cannot handle frames in %s format\n", ast_getformatname(&frame->subclass.format));
-		return -1;
-	}
 	if (p->dialing) {
 		ast_debug(5, "Dropping frame since I'm still dialing on %s...\n",ast_channel_name(ast));
 		return 0;
@@ -8818,7 +8804,7 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 	if (!frame->data.ptr || !frame->datalen)
 		return 0;
 
-	if (frame->subclass.format.id == AST_FORMAT_SLINEAR) {
+	if (ast_format_cmp(frame->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 		if (!p->subs[idx].linear) {
 			p->subs[idx].linear = 1;
 			res = dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
@@ -8826,7 +8812,8 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 				ast_log(LOG_WARNING, "Unable to set linear mode on channel %d\n", p->channel);
 		}
 		res = my_dahdi_write(p, (unsigned char *)frame->data.ptr, frame->datalen, idx, 1);
-	} else {
+	} else if (ast_format_cmp(frame->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL
+		|| ast_format_cmp(frame->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
 		/* x-law already */
 		if (p->subs[idx].linear) {
 			p->subs[idx].linear = 0;
@@ -8835,6 +8822,10 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 				ast_log(LOG_WARNING, "Unable to set companded mode on channel %d\n", p->channel);
 		}
 		res = my_dahdi_write(p, (unsigned char *)frame->data.ptr, frame->datalen, idx, 0);
+	} else {
+		ast_log(LOG_WARNING, "Cannot handle frames in %s format\n",
+			ast_format_get_name(frame->subclass.format));
+		return -1;
 	}
 	if (res < 0) {
 		ast_log(LOG_WARNING, "write failed: %s\n", strerror(errno));
@@ -9024,7 +9015,8 @@ static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state
 static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid)
 {
 	struct ast_channel *tmp;
-	struct ast_format deflaw;
+	struct ast_format_cap *caps;
+	struct ast_format *deflaw;
 	int x;
 	int features;
 	struct ast_str *chan_name;
@@ -9037,7 +9029,6 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		return NULL;
 	}
 
-	ast_format_clear(&deflaw);
 #if defined(HAVE_PRI)
 	/*
 	 * The dnid has been stuffed with the called-number[:subaddress]
@@ -9051,9 +9042,16 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 		return NULL;
 	}
 
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		ast_free(chan_name);
+		return NULL;
+	}
+
 	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "DAHDI/%s", ast_str_buffer(chan_name));
 	ast_free(chan_name);
 	if (!tmp) {
+		ao2_ref(caps, -1);
 		return NULL;
 	}
 
@@ -9073,9 +9071,9 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 	if (law) {
 		i->law = law;
 		if (law == DAHDI_LAW_ALAW) {
-			ast_format_set(&deflaw, AST_FORMAT_ALAW, 0);
+			deflaw = ast_format_alaw;
 		} else {
-			ast_format_set(&deflaw, AST_FORMAT_ULAW, 0);
+			deflaw = ast_format_ulaw;
 		}
 	} else {
 		switch (i->sig) {
@@ -9089,18 +9087,20 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 			break;
 		}
 		if (i->law_default == DAHDI_LAW_ALAW) {
-			ast_format_set(&deflaw, AST_FORMAT_ALAW, 0);
+			deflaw = ast_format_alaw;
 		} else {
-			ast_format_set(&deflaw, AST_FORMAT_ULAW, 0);
+			deflaw = ast_format_ulaw;
 		}
 	}
 	ast_channel_set_fd(tmp, 0, i->subs[idx].dfd);
-	ast_format_cap_add(ast_channel_nativeformats(tmp), &deflaw);
+	ast_format_cap_append(caps, deflaw, 0);
+	ast_channel_nativeformats_set(tmp, caps);
+	ao2_ref(caps, -1);
 	/* Start out assuming ulaw since it's smaller :) */
-	ast_format_copy(ast_channel_rawreadformat(tmp), &deflaw);
-	ast_format_copy(ast_channel_readformat(tmp), &deflaw);
-	ast_format_copy(ast_channel_rawwriteformat(tmp), &deflaw);
-	ast_format_copy(ast_channel_writeformat(tmp), &deflaw);
+	ast_channel_set_rawreadformat(tmp, deflaw);
+	ast_channel_set_readformat(tmp, deflaw);
+	ast_channel_set_rawwriteformat(tmp, deflaw);
+	ast_channel_set_writeformat(tmp, deflaw);
 	i->subs[idx].linear = 0;
 	dahdi_setlinear(i->subs[idx].dfd, i->subs[idx].linear);
 	features = 0;
@@ -9397,7 +9397,6 @@ static void *analog_ss_thread(void *data)
 	int len = 0;
 	int res;
 	int idx;
-	struct ast_format tmpfmt;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
 	const char *pickupexten;
 
@@ -10114,9 +10113,9 @@ static void *analog_ss_thread(void *data)
 							samples += res;
 
 							if (p->cid_signalling == CID_SIG_V23_JP) {
-								res = callerid_feed_jp(cs, buf, res, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+								res = callerid_feed_jp(cs, buf, res, AST_LAW(p));
 							} else {
-								res = callerid_feed(cs, buf, res, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+								res = callerid_feed(cs, buf, res, AST_LAW(p));
 							}
 							if (res < 0) {
 								/*
@@ -10399,7 +10398,7 @@ static void *analog_ss_thread(void *data)
 								}
 							}
 							samples += res;
-							res = callerid_feed(cs, buf, res, ast_format_set(&tmpfmt, AST_LAW(p), 0));
+							res = callerid_feed(cs, buf, res, AST_LAW(p));
 							if (res < 0) {
 								/*
 								 * The previous diagnostic message output likely
@@ -10569,7 +10568,7 @@ struct mwi_thread_data {
 	size_t len;
 };
 
-static int calc_energy(const unsigned char *buf, int len, enum ast_format_id law)
+static int calc_energy(const unsigned char *buf, int len, struct ast_format *law)
 {
 	int x;
 	int sum = 0;
@@ -10578,7 +10577,7 @@ static int calc_energy(const unsigned char *buf, int len, enum ast_format_id law
 		return 0;
 
 	for (x = 0; x < len; x++)
-		sum += abs(law == AST_FORMAT_ULAW ? AST_MULAW(buf[x]) : AST_ALAW(buf[x]));
+		sum += abs(law == ast_format_ulaw ? AST_MULAW(buf[x]) : AST_ALAW(buf[x]));
 
 	return sum / len;
 }
@@ -10594,13 +10593,12 @@ static void *mwi_thread(void *data)
 	int i, res;
 	unsigned int spill_done = 0;
 	int spill_result = -1;
-	struct ast_format tmpfmt;
 
 	if (!(cs = callerid_new(mtd->pvt->cid_signalling))) {
 		goto quit_no_clean;
 	}
 
-	callerid_feed(cs, mtd->buf, mtd->len, ast_format_set(&tmpfmt, AST_LAW(mtd->pvt), 0));
+	callerid_feed(cs, mtd->buf, mtd->len, AST_LAW(mtd->pvt));
 
 	bump_gains(mtd->pvt);
 
@@ -10686,7 +10684,7 @@ static void *mwi_thread(void *data)
 			}
 			samples += res;
 			if (!spill_done) {
-				if ((spill_result = callerid_feed(cs, mtd->buf, res, ast_format_set(&tmpfmt, AST_LAW(mtd->pvt), 0))) < 0) {
+				if ((spill_result = callerid_feed(cs, mtd->buf, res, AST_LAW(mtd->pvt))) < 0) {
 					/*
 					 * The previous diagnostic message output likely
 					 * explains why it failed.
@@ -10744,7 +10742,6 @@ quit_no_clean:
 static int mwi_send_init(struct dahdi_pvt * pvt)
 {
 	int x;
-	struct ast_format tmpfmt;
 
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	/* Determine how this spill is to be sent */
@@ -10786,8 +10783,8 @@ static int mwi_send_init(struct dahdi_pvt * pvt)
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	if (pvt->mwisend_fsk) {
 #endif
-		pvt->cidlen = ast_callerid_vmwi_generate(pvt->cidspill, has_voicemail(pvt), CID_MWI_TYPE_MDMF_FULL,
-							 ast_format_set(&tmpfmt, AST_LAW(pvt), 0), pvt->cid_name, pvt->cid_num, 0);
+		pvt->cidlen = ast_callerid_vmwi_generate(pvt->cidspill, has_voicemail(pvt),
+			CID_MWI_TYPE_MDMF_FULL, AST_LAW(pvt), pvt->cid_name, pvt->cid_num, 0);
 		pvt->cidpos = 0;
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
 	}
@@ -17314,7 +17311,8 @@ static int __unload_module(void)
 
 	dahdi_native_unload();
 
-	dahdi_tech.capabilities = ast_format_cap_destroy(dahdi_tech.capabilities);
+	ao2_cleanup(dahdi_tech.capabilities);
+	dahdi_tech.capabilities = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(dahdichannel_type);
 	return 0;
 }
@@ -19496,7 +19494,6 @@ static const struct ast_data_entry dahdi_data_providers[] = {
 static int load_module(void)
 {
 	int res;
-	struct ast_format tmpfmt;
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int y;
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
@@ -19505,14 +19502,15 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (!(dahdi_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(dahdi_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
-	ast_format_cap_add(dahdi_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-	ast_format_cap_add(dahdi_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
-	ast_format_cap_add(dahdi_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
+	ast_format_cap_append(dahdi_tech.capabilities, ast_format_slin, 0);
+	ast_format_cap_append(dahdi_tech.capabilities, ast_format_ulaw, 0);
+	ast_format_cap_append(dahdi_tech.capabilities, ast_format_alaw, 0);
 
 	if (dahdi_native_load(ast_module_info->self, &dahdi_tech)) {
+		ao2_ref(dahdi_tech.capabilities, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -19558,8 +19556,10 @@ static int load_module(void)
 #endif	/* defined(HAVE_SS7) */
 	res = setup_dahdi(0);
 	/* Make sure we can register our DAHDI channel type */
-	if (res)
+	if (res) {
+		__unload_module();
 		return AST_MODULE_LOAD_DECLINE;
+	}
 	if (ast_channel_register(&dahdi_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'DAHDI'\n");
 		__unload_module();
@@ -19652,10 +19652,9 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 		return -1;
 	mybuf = buf;
 	if (p->mate) {
-		struct ast_format tmp;
 		/* PUT_CLI_MARKMS is a macro and requires a format ptr called codec to be present */
-		struct ast_format *codec = &tmp;
-		ast_format_set(codec, AST_LAW(p), 0);
+		struct ast_format *codec = AST_LAW(p);
+
 		for (x = 0; x < HEADER_MS; x++) {	/* 50 ms of Mark */
 			PUT_CLID_MARKMS;
 		}

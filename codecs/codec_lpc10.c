@@ -196,7 +196,18 @@ static void lpc10_destroy(struct ast_trans_pvt *arg)
 }
 
 static struct ast_translator lpc10tolin = {
-	.name = "lpc10tolin", 
+	.name = "lpc10tolin",
+	.src_codec = {
+		.name = "lpc10",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.newpvt = lpc10_dec_new,
 	.framein = lpc10tolin_framein,
 	.destroy = lpc10_destroy,
@@ -207,7 +218,18 @@ static struct ast_translator lpc10tolin = {
 };
 
 static struct ast_translator lintolpc10 = {
-	.name = "lintolpc10", 
+	.name = "lintolpc10",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "lpc10",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "lpc10",
 	.newpvt = lpc10_enc_new,
 	.framein = lintolpc10_framein,
 	.frameout = lintolpc10_frameout,
@@ -217,12 +239,6 @@ static struct ast_translator lintolpc10 = {
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = LPC10_BYTES_IN_COMPRESSED_FRAME * (1 + BUFFER_SAMPLES / LPC10_SAMPLES_PER_FRAME),
 };
-
-static int reload(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
-
 
 static int unload_module(void)
 {
@@ -238,24 +254,18 @@ static int load_module(void)
 {
 	int res;
 
-	ast_format_set(&lpc10tolin.src_format, AST_FORMAT_LPC10, 0);
-	ast_format_set(&lpc10tolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintolpc10.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintolpc10.dst_format, AST_FORMAT_LPC10, 0);
-
 	res = ast_register_translator(&lpc10tolin);
-	if (!res) 
-		res = ast_register_translator(&lintolpc10);
-	else
-		ast_unregister_translator(&lpc10tolin);
-	if (res)
+	res |= ast_register_translator(&lintolpc10);
+
+	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "LPC10 2.4kbps Coder/Decoder",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );

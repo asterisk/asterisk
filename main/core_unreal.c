@@ -859,7 +859,8 @@ void ast_unreal_destructor(void *vdoomed)
 {
 	struct ast_unreal_pvt *doomed = vdoomed;
 
-	doomed->reqcap = ast_format_cap_destroy(doomed->reqcap);
+	ao2_cleanup(doomed->reqcap);
+	doomed->reqcap = NULL;
 }
 
 struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructor, struct ast_format_cap *cap)
@@ -878,11 +879,13 @@ struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructo
 	if (!unreal) {
 		return NULL;
 	}
-	unreal->reqcap = ast_format_cap_dup(cap);
+
+	unreal->reqcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!unreal->reqcap) {
 		ao2_ref(unreal, -1);
 		return NULL;
 	}
+	ast_format_cap_append_from_cap(unreal->reqcap, cap, AST_MEDIA_TYPE_UNKNOWN);
 
 	memcpy(&unreal->jb_conf, &jb_conf, sizeof(unreal->jb_conf));
 
@@ -896,7 +899,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 {
 	struct ast_channel *owner;
 	struct ast_channel *chan;
-	struct ast_format fmt;
+	RAII_VAR(struct ast_format *, fmt, NULL, ao2_cleanup);
 	struct ast_assigned_ids id1 = {NULL, NULL};
 	struct ast_assigned_ids id2 = {NULL, NULL};
 	int generated_seqno = ast_atomic_fetchadd_int((int *) &name_sequence, +1);
@@ -940,14 +943,22 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ao2_ref(p, +1);
 	ast_channel_tech_pvt_set(owner, p);
 
-	ast_format_cap_copy(ast_channel_nativeformats(owner), p->reqcap);
+	ast_channel_nativeformats_set(owner, p->reqcap);
 
 	/* Determine our read/write format and set it on each channel */
-	ast_best_codec(p->reqcap, &fmt);
-	ast_format_copy(ast_channel_writeformat(owner), &fmt);
-	ast_format_copy(ast_channel_rawwriteformat(owner), &fmt);
-	ast_format_copy(ast_channel_readformat(owner), &fmt);
-	ast_format_copy(ast_channel_rawreadformat(owner), &fmt);
+	fmt = ast_format_cap_get_format(p->reqcap, 0);
+	if (!fmt) {
+		ast_channel_tech_pvt_set(owner, NULL);
+		ao2_ref(p, -1);
+		ast_channel_unlock(owner);
+		ast_channel_release(owner);
+		return NULL;
+	}
+
+	ast_channel_set_writeformat(owner, fmt);
+	ast_channel_set_rawwriteformat(owner, fmt);
+	ast_channel_set_readformat(owner, fmt);
+	ast_channel_set_rawreadformat(owner, fmt);
 
 	ast_set_flag(ast_channel_flags(owner), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 
@@ -955,6 +966,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 
 	if (ast_channel_cc_params_init(owner, requestor
 		? ast_channel_get_cc_config_params((struct ast_channel *) requestor) : NULL)) {
+		ast_channel_tech_pvt_set(owner, NULL);
 		ao2_ref(p, -1);
 		ast_channel_tech_pvt_set(owner, NULL);
 		ast_channel_unlock(owner);
@@ -970,6 +982,7 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 		"%s/%s-%08x;2", tech->type, p->name, (unsigned)generated_seqno);
 	if (!chan) {
 		ast_log(LOG_WARNING, "Unable to allocate chan channel structure\n");
+		ast_channel_tech_pvt_set(owner, NULL);
 		ao2_ref(p, -1);
 		ast_channel_tech_pvt_set(owner, NULL);
 		ast_channel_release(owner);
@@ -984,13 +997,13 @@ struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	ao2_ref(p, +1);
 	ast_channel_tech_pvt_set(chan, p);
 
-	ast_format_cap_copy(ast_channel_nativeformats(chan), p->reqcap);
+	ast_channel_nativeformats_set(chan, p->reqcap);
 
 	/* Format was already determined when setting up owner */
-	ast_format_copy(ast_channel_writeformat(chan), &fmt);
-	ast_format_copy(ast_channel_rawwriteformat(chan), &fmt);
-	ast_format_copy(ast_channel_readformat(chan), &fmt);
-	ast_format_copy(ast_channel_rawreadformat(chan), &fmt);
+	ast_channel_set_writeformat(chan, fmt);
+	ast_channel_set_rawwriteformat(chan, fmt);
+	ast_channel_set_readformat(chan, fmt);
+	ast_channel_set_rawreadformat(chan, fmt);
 
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE);
 

@@ -135,6 +135,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/test.h"
+#include "asterisk/format_cache.h"
 
 #ifdef ODBC_STORAGE
 #include "asterisk/res_odbc.h"
@@ -6112,13 +6113,16 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	if ((recording_fs = ast_readfile(recdata->recording_file, recdata->recording_ext, NULL, 0, 0, VOICEMAIL_DIR_MODE))) {
 		if (!ast_seekstream(recording_fs, 0, SEEK_END)) {
 			long framelength = ast_tellstream(recording_fs);
-			struct ast_format result = {0,};
+			struct ast_format *result;
 			/* XXX This use of ast_getformatbyname seems incorrect here. The file extension does not necessarily correspond
 			 * to the name of the format. For instance, if "raw" were passed in, I don't think ast_getformatbyname would
 			 * find the slinear format
 			 */
-			ast_getformatbyname(recdata->recording_ext, &result);
-			duration = (int) (framelength / ast_format_rate(&result));
+			result = ast_format_cache_get(recdata->recording_ext);
+			if (result) {
+				duration = (int) (framelength / ast_format_get_sample_rate(result));
+				ao2_ref(result, -1);
+			}
 		}
 	}
 
@@ -14026,7 +14030,7 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 
 	struct ast_channel *test_channel1 = NULL;
 	int res = -1;
-	struct ast_format_cap *nativeformats;
+	struct ast_format_cap *capabilities;
 
 	static const struct ast_channel_tech fake_tech = {
 		.write = fake_write,
@@ -14051,12 +14055,17 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 	}
 
 	/* normally this is done in the channel driver */
-	ast_format_set(ast_channel_writeformat(test_channel1), AST_FORMAT_GSM, 0);
-	nativeformats = ast_channel_nativeformats(test_channel1);
-	ast_format_cap_add(nativeformats, ast_channel_writeformat(test_channel1));
-	ast_format_set(ast_channel_rawwriteformat(test_channel1), AST_FORMAT_GSM, 0);
-	ast_format_set(ast_channel_readformat(test_channel1), AST_FORMAT_GSM, 0);
-	ast_format_set(ast_channel_rawreadformat(test_channel1), AST_FORMAT_GSM, 0);
+	capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!capabilities) {
+		goto exit_vmsayname_test;
+	}
+	ast_format_cap_append(capabilities, ast_format_gsm, 0);
+	ast_channel_nativeformats_set(test_channel1, capabilities);
+	ao2_ref(capabilities, -1);
+	ast_channel_set_writeformat(test_channel1, ast_format_gsm);
+	ast_channel_set_rawwriteformat(test_channel1, ast_format_gsm);
+	ast_channel_set_readformat(test_channel1, ast_format_gsm);
+	ast_channel_set_rawreadformat(test_channel1, ast_format_gsm);
 	ast_channel_tech_set(test_channel1, &fake_tech);
 
 	ast_channel_unlock(test_channel1);

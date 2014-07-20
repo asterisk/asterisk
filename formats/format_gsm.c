@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 #include "msgsm.h"
 
@@ -56,10 +57,7 @@ static struct ast_frame *gsm_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
 
-	s->fr.frametype = AST_FRAME_VOICE;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_GSM, 0);
 	AST_FRAME_SET_BUFFER(&(s->fr), s->buf, AST_FRIENDLY_OFFSET, GSM_FRAME_SIZE)
-	s->fr.mallocd = 0;
 	if ((res = fread(s->fr.data.ptr, 1, GSM_FRAME_SIZE, s->f)) != GSM_FRAME_SIZE) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
@@ -74,14 +72,6 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 	int res;
 	unsigned char gsm[2*GSM_FRAME_SIZE];
 
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
-		return -1;
-	}
-	if (f->subclass.format.id != AST_FORMAT_GSM) {
-		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%s)!\n", ast_getformatname(&f->subclass.format));
-		return -1;
-	}
 	if (!(f->datalen % 65)) {
 		/* This is in MSGSM format, need to be converted */
 		int len=0;
@@ -193,7 +183,7 @@ static struct ast_format_def gsm_f = {
 
 static int load_module(void)
 {
-	ast_format_set(&gsm_f.format, AST_FORMAT_GSM, 0);
+	gsm_f.format = ast_format_gsm;
 	if (ast_format_def_register(&gsm_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

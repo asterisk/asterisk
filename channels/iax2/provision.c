@@ -45,6 +45,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/utils.h"
 #include "asterisk/acl.h"
+#include "asterisk/format_cache.h"
+#include "asterisk/format_compatibility.h"
 
 #include "include/iax2.h"
 #include "include/provision.h"
@@ -345,9 +347,10 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 			} else 
 				ast_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "codec")) {
-			struct ast_format tmpfmt;
-			if ((ast_getformatbyname(v->value, &tmpfmt)) > 0) {
-				cur->format = ast_format_to_old_bitfield(&tmpfmt);
+			struct ast_format *tmpfmt;
+			if ((tmpfmt = ast_format_cache_get(v->value))) {
+				cur->format = ast_format_compatibility_format2bitfield(tmpfmt);
+				ao2_ref(tmpfmt, -1);
 			} else
 				ast_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {

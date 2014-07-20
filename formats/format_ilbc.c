@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 /* Some Ideas for this code came from makeg729e.c by Jeffrey Chilton */
 
@@ -48,9 +49,6 @@ static struct ast_frame *ilbc_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
 	/* Send a frame from the file to the appropriate channel */
-	s->fr.frametype = AST_FRAME_VOICE;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_ILBC, 0);
-	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, ILBC_BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
@@ -64,14 +62,6 @@ static struct ast_frame *ilbc_read(struct ast_filestream *s, int *whennext)
 static int ilbc_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
-		return -1;
-	}
-	if (f->subclass.format.id != AST_FORMAT_ILBC) {
-		ast_log(LOG_WARNING, "Asked to write non-iLBC frame (%s)!\n", ast_getformatname(&f->subclass.format));
-		return -1;
-	}
 	if (f->datalen % 50) {
 		ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 50\n", f->datalen);
 		return -1;
@@ -145,7 +135,7 @@ static struct ast_format_def ilbc_f = {
 
 static int load_module(void)
 {
-	ast_format_set(&ilbc_f.format, AST_FORMAT_ILBC, 0);
+	ilbc_f.format = ast_format_ilbc;
 	if (ast_format_def_register(&ilbc_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

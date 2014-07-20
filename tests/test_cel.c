@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/cel.h"
 #include "asterisk/channel.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/utils.h"
@@ -1317,7 +1318,10 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	do_sleep();
 
 	/* Perform attended transfer */
-	ast_bridge_transfer_attended(chan_alice, chan_david);
+	if (ast_bridge_transfer_attended(chan_alice, chan_david)) {
+		ast_test_status_update(test, "Attended transfer failed!\n");
+		return AST_TEST_FAIL;
+	}
 	do_sleep();
 	BRIDGE_ENTER_EVENT_PEER(chan_bob, bridge2, "CELTestChannel/David,CELTestChannel/Charlie");
 
@@ -1397,7 +1401,10 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	BRIDGE_ENTER(chan_david, bridge2);
 
 	/* Perform attended transfer */
-	ast_bridge_transfer_attended(chan_alice, chan_david);
+	if (ast_bridge_transfer_attended(chan_alice, chan_david)) {
+		ast_test_status_update(test, "Attended transfer failed!\n");
+		return AST_TEST_FAIL;
+	}
 	do_sleep();
 	BRIDGE_EXIT_EVENT_PEER(chan_charlie, bridge2, "CELTestChannel/David");
 	BRIDGE_ENTER_EVENT_PEER(chan_charlie, bridge1, "CELTestChannel/Bob,CELTestChannel/Alice");

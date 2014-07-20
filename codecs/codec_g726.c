@@ -785,6 +785,17 @@ static int lintog726_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 static struct ast_translator g726tolin = {
 	.name = "g726tolin",
+	.src_codec = {
+		.name = "g726",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = g726tolin_framein,
 	.sample = g726_sample,
@@ -795,6 +806,17 @@ static struct ast_translator g726tolin = {
 
 static struct ast_translator lintog726 = {
 	.name = "lintog726",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "g726",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "g726",
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = lintog726_framein,
 	.sample = slin8_sample,
@@ -805,6 +827,17 @@ static struct ast_translator lintog726 = {
 
 static struct ast_translator g726aal2tolin = {
 	.name = "g726aal2tolin",
+	.src_codec = {
+		.name = "g726aal2",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = g726aal2tolin_framein,
 	.sample = g726_sample,
@@ -815,6 +848,17 @@ static struct ast_translator g726aal2tolin = {
 
 static struct ast_translator lintog726aal2 = {
 	.name = "lintog726aal2",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "g726aal2",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "g726aal2",
 	.newpvt = lintog726_new,	/* same for both directions */
 	.framein = lintog726aal2_framein,
 	.sample = slin8_sample,
@@ -822,11 +866,6 @@ static struct ast_translator lintog726aal2 = {
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES / 2,
 };
-
-static int reload(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
 
 static int unload_module(void)
 {
@@ -845,18 +884,6 @@ static int load_module(void)
 {
 	int res = 0;
 
-	ast_format_set(&g726tolin.src_format, AST_FORMAT_G726, 0);
-	ast_format_set(&g726tolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintog726.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintog726.dst_format, AST_FORMAT_G726, 0);
-
-	ast_format_set(&g726aal2tolin.src_format, AST_FORMAT_G726_AAL2, 0);
-	ast_format_set(&g726aal2tolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintog726aal2.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintog726aal2.dst_format, AST_FORMAT_G726_AAL2, 0);
-
 	res |= ast_register_translator(&g726tolin);
 	res |= ast_register_translator(&lintog726);
 
@@ -874,5 +901,4 @@ static int load_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ITU G.726-32kbps G726 Transcoder",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );

@@ -114,7 +114,7 @@ struct ast_frame *ast_read_image(const char *filename, const char *preflang, str
 	AST_RWLIST_RDLOCK(&imagers);
 	AST_RWLIST_TRAVERSE(&imagers, i, list) {
 		/* if NULL image format, just pick the first one, otherwise match it. */
-		if (!format || (ast_format_cmp(&i->format, format) == AST_FORMAT_CMP_EQUAL)) {
+		if (!format || (ast_format_cmp(i->format, format) == AST_FORMAT_CMP_EQUAL)) {
 			char *stringp=NULL;
 			ast_copy_string(tmp, i->exts, sizeof(tmp));
 			stringp = tmp;
@@ -194,7 +194,7 @@ static char *handle_core_show_image_formats(struct ast_cli_entry *e, int cmd, st
 	ast_cli(a->fd, FORMAT, "----", "----------", "-----------", "------");
 	AST_RWLIST_RDLOCK(&imagers);
 	AST_RWLIST_TRAVERSE(&imagers, i, list) {
-		ast_cli(a->fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(&i->format));
+		ast_cli(a->fd, FORMAT2, i->name, i->exts, i->desc, ast_format_get_name(i->format));
 		count_fmt++;
 	}
 	AST_RWLIST_UNLOCK(&imagers);

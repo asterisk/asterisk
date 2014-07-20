@@ -56,7 +56,7 @@ static void media_variant_destroy(void *obj)
 	struct media_variant *variant = obj;
 
 	ast_string_field_free_memory(variant);
-	variant->formats = ast_format_cap_destroy(variant->formats);
+	ao2_cleanup(variant->formats);
 }
 
 static struct media_variant *media_variant_alloc(const char *variant_str)
@@ -67,7 +67,7 @@ static struct media_variant *media_variant_alloc(const char *variant_str)
 		return NULL;
 	}
 
-	variant->formats = ast_format_cap_alloc(0);
+	variant->formats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!variant->formats) {
 		return NULL;
 	}
@@ -239,6 +239,7 @@ const char *ast_media_get_description(struct ast_media_index *index, const char 
 
 struct ast_format_cap *ast_media_get_format_cap(struct ast_media_index *index, const char *filename, const char *variant_str)
 {
+	struct ast_format_cap *dupcap;
 	RAII_VAR(struct media_variant *, variant, NULL, ao2_cleanup);
 	if (ast_strlen_zero(filename) || ast_strlen_zero(variant_str)) {
 		return NULL;
@@ -249,7 +250,11 @@ struct ast_format_cap *ast_media_get_format_cap(struct ast_media_index *index, c
 		return NULL;
 	}
 
-	return ast_format_cap_dup(variant->formats);
+	dupcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (dupcap) {
+		ast_format_cap_append_from_cap(dupcap, variant->formats, AST_MEDIA_TYPE_UNKNOWN);
+	}
+	return dupcap;
 }
 
 /*! \brief Add the variant to the list of variants requested */
@@ -317,7 +322,7 @@ struct ao2_container *ast_media_get_media(struct ast_media_index *index)
 }
 
 /*! \brief Update an index with new format/variant information */
-static int update_file_format_info(struct ast_media_index *index, const char *filename, const char *variant_str, const struct ast_format *file_format)
+static int update_file_format_info(struct ast_media_index *index, const char *filename, const char *variant_str, struct ast_format *file_format)
 {
 	RAII_VAR(struct media_variant *, variant, find_variant(index, filename, variant_str), ao2_cleanup);
 	if (!variant) {
@@ -327,14 +332,14 @@ static int update_file_format_info(struct ast_media_index *index, const char *fi
 		}
 	}
 
-	ast_format_cap_add(variant->formats, file_format);
+	ast_format_cap_append(variant->formats, file_format, 0);
 	return 0;
 }
 
 /*! \brief Process a media file into the index */
 static int process_media_file(struct ast_media_index *index, const char *variant, const char *subdir, const char *filename_stripped, const char *ext)
 {
-	const struct ast_format *file_format;
+	struct ast_format *file_format;
 	const char *file_identifier = filename_stripped;
 	RAII_VAR(struct ast_str *, file_id_str, NULL, ast_free);
 

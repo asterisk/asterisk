@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
@@ -143,7 +144,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
-	struct ast_format owriteformat;
+	RAII_VAR(struct ast_format *, owriteformat, NULL, ao2_cleanup);
 	int timeout = 2000;
 	struct timeval next;
 	struct ast_frame *f;
@@ -155,7 +156,6 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 		.f = { 0, },
 	};
 
-	ast_format_clear(&owriteformat);
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MP3 Playback requires an argument (filename)\n");
 		return -1;
@@ -168,12 +168,21 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	
 	ast_stopstream(chan);
 
-	ast_format_copy(&owriteformat, ast_channel_writeformat(chan));
-	res = ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR);
+	owriteformat = ao2_bump(ast_channel_writeformat(chan));
+	res = ast_set_write_format(chan, ast_format_slin);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
 	}
+
+	myf.f.frametype = AST_FRAME_VOICE;
+	myf.f.subclass.format = ast_format_slin;
+	myf.f.mallocd = 0;
+	myf.f.offset = AST_FRIENDLY_OFFSET;
+	myf.f.src = __PRETTY_FUNCTION__;
+	myf.f.delivery.tv_sec = 0;
+	myf.f.delivery.tv_usec = 0;
+	myf.f.data.ptr = myf.frdata;
 	
 	res = mp3play(data, fds[1]);
 	if (!strncasecmp(data, "http://", 7)) {
@@ -191,16 +200,8 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 			if (ms <= 0) {
 				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 				if (res > 0) {
-					myf.f.frametype = AST_FRAME_VOICE;
-					ast_format_set(&myf.f.subclass.format, AST_FORMAT_SLINEAR, 0);
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
-					myf.f.mallocd = 0;
-					myf.f.offset = AST_FRIENDLY_OFFSET;
-					myf.f.src = __PRETTY_FUNCTION__;
-					myf.f.delivery.tv_sec = 0;
-					myf.f.delivery.tv_usec = 0;
-					myf.f.data.ptr = myf.frdata;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;
@@ -241,8 +242,10 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	
 	if (pid > -1)
 		kill(pid, SIGKILL);
-	if (!res && owriteformat.id)
-		ast_set_write_format(chan, &owriteformat);
+	if (!res && owriteformat)
+		ast_set_write_format(chan, owriteformat);
+
+	ast_frfree(&myf.f);
 	
 	return res;
 }

@@ -117,8 +117,10 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 	struct ast_sockaddr control_address;
 	struct ast_sockaddr destination_address;
 	struct ast_channel *chan;
-	struct ast_format fmt;
-	ast_best_codec(cap, &fmt);
+	struct ast_format_cap *caps = NULL;
+	struct ast_format *fmt = NULL;
+
+	fmt = ast_format_cap_get_format(cap, 0);
 
 	ast_sockaddr_setnull(&control_address);
 
@@ -145,6 +147,11 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		goto failure;
 	}
 
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		goto failure;
+	}
+
 	if (!(instance = ast_rtp_instance_new("multicast", NULL, &control_address, multicast_type))) {
 		goto failure;
 	}
@@ -158,19 +165,25 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 
 	ast_channel_tech_set(chan, &multicast_rtp_tech);
 
-	ast_format_cap_add(ast_channel_nativeformats(chan), &fmt);
-	ast_format_copy(ast_channel_writeformat(chan), &fmt);
-	ast_format_copy(ast_channel_rawwriteformat(chan), &fmt);
-	ast_format_copy(ast_channel_readformat(chan), &fmt);
-	ast_format_copy(ast_channel_rawreadformat(chan), &fmt);
+	ast_format_cap_append(caps, fmt, 0);
+	ast_channel_nativeformats_set(chan, caps);
+	ast_channel_set_writeformat(chan, fmt);
+	ast_channel_set_rawwriteformat(chan, fmt);
+	ast_channel_set_readformat(chan, fmt);
+	ast_channel_set_rawreadformat(chan, fmt);
 
 	ast_channel_tech_pvt_set(chan, instance);
 
 	ast_channel_unlock(chan);
 
+	ao2_ref(fmt, -1);
+	ao2_ref(caps, -1);
+
 	return chan;
 
 failure:
+	ao2_cleanup(fmt);
+	ao2_cleanup(caps);
 	*cause = AST_CAUSE_FAILURE;
 	return NULL;
 }
@@ -178,12 +191,14 @@ failure:
 /*! \brief Function called when our module is loaded */
 static int load_module(void)
 {
-	if (!(multicast_rtp_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(multicast_rtp_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add_all(multicast_rtp_tech.capabilities);
+	ast_format_cap_append_by_type(multicast_rtp_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
 	if (ast_channel_register(&multicast_rtp_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'MulticastRTP'\n");
+		ao2_ref(multicast_rtp_tech.capabilities, -1);
+		multicast_rtp_tech.capabilities = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -194,7 +209,8 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_channel_unregister(&multicast_rtp_tech);
-	multicast_rtp_tech.capabilities = ast_format_cap_destroy(multicast_rtp_tech.capabilities);
+	ao2_ref(multicast_rtp_tech.capabilities, -1);
+	multicast_rtp_tech.capabilities = NULL;
 
 	return 0;
 }

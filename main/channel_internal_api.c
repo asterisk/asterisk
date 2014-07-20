@@ -176,7 +176,7 @@ struct ast_channel {
 	int fdno;					/*!< Which fd had an event detected on */
 	int streamid;					/*!< For streaming playback, the schedule ID */
 	int vstreamid;					/*!< For streaming video playback, the schedule ID */
-	struct ast_format oldwriteformat;  /*!< Original writer format */
+	struct ast_format *oldwriteformat;  /*!< Original writer format */
 	int timingfd;					/*!< Timing fd */
 	enum ast_channel_state state;			/*!< State of line -- Don't write directly, use ast_setstate() */
 	int rings;					/*!< Number of rings so far */
@@ -193,10 +193,10 @@ struct ast_channel {
 	struct ast_flags flags;				/*!< channel flags of AST_FLAG_ type */
 	int alertpipe[2];
 	struct ast_format_cap *nativeformats;         /*!< Kinds of data this channel can natively handle */
-	struct ast_format readformat;            /*!< Requested read format (after translation) */
-	struct ast_format writeformat;           /*!< Requested write format (after translation) */
-	struct ast_format rawreadformat;         /*!< Raw read format (before translation) */
-	struct ast_format rawwriteformat;        /*!< Raw write format (before translation) */
+	struct ast_format *readformat;            /*!< Requested read format (after translation) */
+	struct ast_format *writeformat;           /*!< Requested write format (after translation) */
+	struct ast_format *rawreadformat;         /*!< Raw read format (before translation) */
+	struct ast_format *rawwriteformat;        /*!< Raw write format (before translation) */
 	unsigned int emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
 #ifdef HAVE_EPOLL
 	int epfd;
@@ -826,7 +826,8 @@ struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
 }
 void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap *value)
 {
-	chan->nativeformats = value;
+	ao2_cleanup(chan->nativeformats);
+	chan->nativeformats = ao2_bump(value);
 }
 struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan)
 {
@@ -949,25 +950,50 @@ void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state valu
 {
 	chan->state = value;
 }
+void ast_channel_set_oldwriteformat(struct ast_channel *chan, struct ast_format *format)
+{
+	ao2_cleanup(chan->oldwriteformat);
+	chan->oldwriteformat = ao2_bump(format);
+}
+void ast_channel_set_rawreadformat(struct ast_channel *chan, struct ast_format *format)
+{
+	ao2_cleanup(chan->rawreadformat);
+	chan->rawreadformat = ao2_bump(format);
+}
+void ast_channel_set_rawwriteformat(struct ast_channel *chan, struct ast_format *format)
+{
+	ao2_cleanup(chan->rawwriteformat);
+	chan->rawwriteformat = ao2_bump(format);
+}
+void ast_channel_set_readformat(struct ast_channel *chan, struct ast_format *format)
+{
+	ao2_cleanup(chan->readformat);
+	chan->readformat = ao2_bump(format);
+}
+void ast_channel_set_writeformat(struct ast_channel *chan, struct ast_format *format)
+{
+	ao2_cleanup(chan->writeformat);
+	chan->writeformat = ao2_bump(format);
+}
 struct ast_format *ast_channel_oldwriteformat(struct ast_channel *chan)
 {
-	return &chan->oldwriteformat;
+	return chan->oldwriteformat;
 }
 struct ast_format *ast_channel_rawreadformat(struct ast_channel *chan)
 {
-	return &chan->rawreadformat;
+	return chan->rawreadformat;
 }
 struct ast_format *ast_channel_rawwriteformat(struct ast_channel *chan)
 {
-	return &chan->rawwriteformat;
+	return chan->rawwriteformat;
 }
 struct ast_format *ast_channel_readformat(struct ast_channel *chan)
 {
-	return &chan->readformat;
+	return chan->readformat;
 }
 struct ast_format *ast_channel_writeformat(struct ast_channel *chan)
 {
-	return &chan->writeformat;
+	return chan->writeformat;
 }
 struct ast_hangup_handler_list *ast_channel_hangup_handlers(struct ast_channel *chan)
 {

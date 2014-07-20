@@ -31,7 +31,6 @@ extern "C" {
 
 #include <sys/time.h>
 
-#include "asterisk/format_pref.h"
 #include "asterisk/format.h"
 #include "asterisk/endian.h"
 #include "asterisk/linkedlists.h"
@@ -136,9 +135,13 @@ enum {
 	AST_FRFLAG_HAS_TIMING_INFO = (1 << 0),
 };
 
-union ast_frame_subclass {
+struct ast_frame_subclass {
+	/*! A frame specific code */
 	int integer;
-	struct ast_format format;
+	/*! The asterisk media format */
+	struct ast_format *format;
+	/*! For video formats, an indication that a frame ended */
+	unsigned int frame_ending;
 };
 
 /*! \brief Data structure associated with a single frame of data
@@ -147,7 +150,7 @@ struct ast_frame {
 	/*! Kind of frame */
 	enum ast_frame_type frametype;
 	/*! Subclass, frame dependent */
-	union ast_frame_subclass subclass;
+	struct ast_frame_subclass subclass;
 	/*! Length of data */
 	int datalen;
 	/*! Number of samples in this frame */
@@ -384,9 +387,6 @@ struct ast_control_pvt_cause_code {
 	char code[1];				/*!< Tech-specific cause code information, beginning with the name of the tech */
 };
 
-#define AST_SMOOTHER_FLAG_G729		(1 << 0)
-#define AST_SMOOTHER_FLAG_BE		(1 << 1)
-
 /* Option identifiers and flags */
 #define AST_OPTION_FLAG_REQUEST		0
 #define AST_OPTION_FLAG_ACCEPT		1
@@ -565,76 +565,10 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples);
 #define ast_frame_byteswap_be(fr) do { ; } while(0)
 #endif
 
-/*! \brief Parse an "allow" or "deny" line in a channel or device configuration
-	and update the capabilities and pref if provided.
-	Video codecs are not added to codec preference lists, since we can not transcode
-	\return Returns number of errors encountered during parsing
- */
-int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap *cap, const char *list, int allowing);
-
-/*! \name AST_Smoother
-*/
-/*@{ */
-/*! \page ast_smooth The AST Frame Smoother
-The ast_smoother interface was designed specifically
-to take frames of variant sizes and produce frames of a single expected
-size, precisely what you want to do.
-
-The basic interface is:
-
-- Initialize with ast_smoother_new()
-- Queue input frames with ast_smoother_feed()
-- Get output frames with ast_smoother_read()
-- when you're done, free the structure with ast_smoother_free()
-- Also see ast_smoother_test_flag(), ast_smoother_set_flags(), ast_smoother_get_flags(), ast_smoother_reset()
-*/
-struct ast_smoother;
-
-struct ast_smoother *ast_smoother_new(int bytes);
-void ast_smoother_set_flags(struct ast_smoother *smoother, int flags);
-int ast_smoother_get_flags(struct ast_smoother *smoother);
-int ast_smoother_test_flag(struct ast_smoother *s, int flag);
-void ast_smoother_free(struct ast_smoother *s);
-void ast_smoother_reset(struct ast_smoother *s, int bytes);
-
-/*!
- * \brief Reconfigure an existing smoother to output a different number of bytes per frame
- * \param s the smoother to reconfigure
- * \param bytes the desired number of bytes per output frame
- * \return nothing
- *
- */
-void ast_smoother_reconfigure(struct ast_smoother *s, int bytes);
-
-int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap);
-struct ast_frame *ast_smoother_read(struct ast_smoother *s);
-#define ast_smoother_feed(s,f) __ast_smoother_feed(s, f, 0)
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define ast_smoother_feed_be(s,f) __ast_smoother_feed(s, f, 1)
-#define ast_smoother_feed_le(s,f) __ast_smoother_feed(s, f, 0)
-#else
-#define ast_smoother_feed_be(s,f) __ast_smoother_feed(s, f, 0)
-#define ast_smoother_feed_le(s,f) __ast_smoother_feed(s, f, 1)
-#endif
-/*@} Doxygen marker */
-
 void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
-
-/*! \brief Returns the number of samples contained in the frame */
-int ast_codec_get_samples(struct ast_frame *f);
-
-/*! \brief Returns the number of bytes for the number of samples of the given format */
-int ast_codec_get_len(struct ast_format *format, int samples);
 
 /*! \brief Appends a frame to the end of a list of frames, truncating the maximum length of the list */
 struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f, int maxlen, int dupe);
-
-
-/*! \brief Gets duration in ms of interpolation frame for a format */
-static inline int ast_codec_interp_len(struct ast_format *format)
-{
-	return (format->id == AST_FORMAT_ILBC) ? 30 : 20;
-}
 
 /*!
   \brief Adjusts the volume of the audio samples contained in a frame.

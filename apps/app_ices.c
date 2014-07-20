@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="ICES" language="en_US">
@@ -115,12 +116,11 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 	int ms = -1;
 	int pid = -1;
 	int flags;
-	struct ast_format oreadformat;
+	struct ast_format *oreadformat;
 	struct ast_frame *f;
 	char filename[256]="";
 	char *c;
 
-	ast_format_clear(&oreadformat);
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
 		return -1;
@@ -145,12 +145,13 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	ast_format_copy(&oreadformat, ast_channel_readformat(chan));
-	res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
+	oreadformat = ao2_bump(ast_channel_readformat(chan));
+	res = ast_set_read_format(chan, ast_format_slin);
 	if (res < 0) {
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		ao2_cleanup(oreadformat);
 		return -1;
 	}
 	if (((char *)data)[0] == '/')
@@ -197,8 +198,9 @@ static int ices_exec(struct ast_channel *chan, const char *data)
 
 	if (pid > -1)
 		kill(pid, SIGKILL);
-	if (!res && oreadformat.id)
-		ast_set_read_format(chan, &oreadformat);
+	if (!res && oreadformat)
+		ast_set_read_format(chan, oreadformat);
+	ao2_cleanup(oreadformat);
 
 	return res;
 }

@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/frame.h"
 #include "asterisk/utils.h"
 #include "asterisk/logger.h"
+#include "asterisk/format_cap.h"
 
 #define CONFIG_FILE "test_config.conf"
 
@@ -627,7 +628,6 @@ struct test_item {
 	struct ast_sockaddr sockaddropt;
 	int boolopt;
 	struct ast_ha *aclopt;
-	struct ast_codec_pref codecprefopt;
 	struct ast_format_cap *codeccapopt;
 	unsigned int customopt:1;
 };
@@ -653,9 +653,7 @@ static void test_item_destructor(void *obj)
 {
 	struct test_item *item = obj;
 	ast_string_field_free_memory(item);
-	if (item->codeccapopt) {
-		ast_format_cap_destroy(item->codeccapopt);
-	}
+	ao2_cleanup(item->codeccapopt);
 	if (item->aclopt) {
 		ast_free_ha(item->aclopt);
 	}
@@ -671,7 +669,7 @@ static void *test_item_alloc(const char *cat)
 		ao2_ref(item, -1);
 		return NULL;
 	}
-	if (!(item->codeccapopt = ast_format_cap_alloc(0))) {
+	if (!(item->codeccapopt = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ao2_ref(item, -1);
 		return NULL;
 	}
@@ -821,7 +819,7 @@ AST_TEST_DEFINE(config_options_test)
 	aco_option_register(&cfg_info, "boolflag3", ACO_EXACT, config_test_conf.types, BOOLFLAG3_DEFAULT, OPT_BOOLFLAG_T, 1, FLDSET(struct test_item, flags), BOOLFLAG3);
 	aco_option_register(&cfg_info, "aclpermitopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 1, FLDSET(struct test_item, aclopt));
 	aco_option_register(&cfg_info, "acldenyopt", ACO_EXACT, config_test_conf.types, ACL_DEFAULT, OPT_ACL_T, 0, FLDSET(struct test_item, aclopt));
-	aco_option_register(&cfg_info, "codecopt", ACO_EXACT, config_test_conf.types, CODEC_DEFAULT, OPT_CODEC_T, 1, FLDSET(struct test_item, codecprefopt, codeccapopt));
+	aco_option_register(&cfg_info, "codecopt", ACO_EXACT, config_test_conf.types, CODEC_DEFAULT, OPT_CODEC_T, 1, FLDSET(struct test_item, codeccapopt));
 	aco_option_register(&cfg_info, "stropt", ACO_EXACT, config_test_conf.types, STR_DEFAULT, OPT_STRINGFIELD_T, 0, STRFLDSET(struct test_item, stropt));
 	aco_option_register_custom(&cfg_info, "customopt", ACO_EXACT, config_test_conf.types, CUSTOM_DEFAULT, customopt_handler, 0);
 	aco_option_register_deprecated(&cfg_info, "permit", config_test_conf.types, "aclpermitopt");
@@ -855,11 +853,11 @@ AST_TEST_DEFINE(config_options_test)
 	ast_sockaddr_parse(&acl_allow, "1.2.3.4", PARSE_PORT_FORBID);
 	ast_sockaddr_parse(&acl_fail, "1.1.1.1", PARSE_PORT_FORBID);
 
-	defaults.codeccapopt = ast_format_cap_alloc(0);
-	ast_parse_allow_disallow(&defaults.codecprefopt, defaults.codeccapopt, CODEC_DEFAULT, 1);
+	defaults.codeccapopt = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	ast_format_cap_update_by_allow_disallow(defaults.codeccapopt, CODEC_DEFAULT, 1);
 
-	configs.codeccapopt = ast_format_cap_alloc(0);
-	ast_parse_allow_disallow(&configs.codecprefopt, configs.codeccapopt, CODEC_CONFIG, 1);
+	configs.codeccapopt = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	ast_format_cap_update_by_allow_disallow(configs.codeccapopt, CODEC_CONFIG, 1);
 
 	ast_string_field_init(&defaults, 128);
 	ast_string_field_init(&configs, 128);
@@ -907,10 +905,13 @@ AST_TEST_DEFINE(config_options_test)
 			res = AST_TEST_FAIL;
 		}
 		if (!ast_format_cap_identical(arr[x]->codeccapopt, control->codeccapopt)) {
-			char buf1[128], buf2[128];
-			ast_getformatname_multiple(buf1, sizeof(buf1), arr[x]->codeccapopt);
-			ast_getformatname_multiple(buf2, sizeof(buf2), control->codeccapopt);
-			ast_test_status_update(test, "format did not match: '%s' vs '%s' on loop %d\n", buf1, buf2, x);
+			struct ast_str *codec_buf1 = ast_str_alloca(64);
+			struct ast_str *codec_buf2 = ast_str_alloca(64);
+
+			ast_test_status_update(test, "format did not match: '%s' vs '%s' on loop %d\n",
+				ast_format_cap_get_names(arr[x]->codeccapopt, &codec_buf1),
+				ast_format_cap_get_names(control->codeccapopt, &codec_buf2),
+				x);
 			res = AST_TEST_FAIL;
 		}
 		if (strcasecmp(arr[x]->stropt, control->stropt)) {
@@ -925,8 +926,10 @@ AST_TEST_DEFINE(config_options_test)
 	}
 
 	ast_free_ha(configs.aclopt);
-	ast_format_cap_destroy(defaults.codeccapopt);
-	ast_format_cap_destroy(configs.codeccapopt);
+	ao2_cleanup(defaults.codeccapopt);
+	defaults.codeccapopt = NULL;
+	ao2_cleanup(configs.codeccapopt);
+	configs.codeccapopt = NULL;
 	ast_string_field_free_memory(&defaults);
 	ast_string_field_free_memory(&configs);
 	return res;

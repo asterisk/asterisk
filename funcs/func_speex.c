@@ -165,8 +165,8 @@ static int speex_callback(struct ast_audiohook *audiohook, struct ast_channel *c
 		return -1;
 	}
 
-	if ((sdi->samples != frame->samples) || (ast_format_rate(&frame->subclass.format) != si->lastrate)) {
-		si->lastrate = ast_format_rate(&frame->subclass.format);
+	if ((sdi->samples != frame->samples) || (ast_format_get_sample_rate(frame->subclass.format) != si->lastrate)) {
+		si->lastrate = ast_format_get_sample_rate(frame->subclass.format);
 		if (sdi->state) {
 			speex_preprocess_state_destroy(sdi->state);
 		}

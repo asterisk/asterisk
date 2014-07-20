@@ -168,7 +168,18 @@ static void gsm_destroy_stuff(struct ast_trans_pvt *pvt)
 }
 
 static struct ast_translator gsmtolin = {
-	.name = "gsmtolin", 
+	.name = "gsmtolin",
+	.src_codec = {
+		.name = "gsm",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.newpvt = gsm_new,
 	.framein = gsmtolin_framein,
 	.destroy = gsm_destroy_stuff,
@@ -179,7 +190,18 @@ static struct ast_translator gsmtolin = {
 };
 
 static struct ast_translator lintogsm = {
-	.name = "lintogsm", 
+	.name = "lintogsm",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "gsm",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "gsm",
 	.newpvt = gsm_new,
 	.framein = lintogsm_framein,
 	.frameout = lintogsm_frameout,
@@ -189,19 +211,12 @@ static struct ast_translator lintogsm = {
 	.buf_size = (BUFFER_SAMPLES * GSM_FRAME_LEN + GSM_SAMPLES - 1)/GSM_SAMPLES,
 };
 
-/*! \brief standard module glue */
-static int reload(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
-
 static int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_translator(&lintogsm);
-	if (!res)
-		res = ast_unregister_translator(&gsmtolin);
+	res |= ast_unregister_translator(&gsmtolin);
 
 	return res;
 }
@@ -210,24 +225,18 @@ static int load_module(void)
 {
 	int res;
 
-	ast_format_set(&gsmtolin.src_format, AST_FORMAT_GSM, 0);
-	ast_format_set(&gsmtolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintogsm.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintogsm.dst_format, AST_FORMAT_GSM, 0);
-
 	res = ast_register_translator(&gsmtolin);
-	if (!res) 
-		res=ast_register_translator(&lintogsm);
-	else
-		ast_unregister_translator(&gsmtolin);
-	if (res) 
+	res |= ast_register_translator(&lintogsm);
+
+	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "GSM Coder/Decoder",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );

@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="TestServer" language="en_US">
@@ -91,11 +92,12 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 	short *foo;
 	struct timeval start;
 	struct ast_frame *f;
-	struct ast_format rformat;
+	struct ast_format *rformat;
 
-	ast_format_copy(&rformat, ast_channel_readformat(chan));
-	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+	rformat = ao2_bump(ast_channel_readformat(chan));
+	if (ast_set_read_format(chan, ast_format_slin)) {
 		ast_log(LOG_NOTICE, "Unable to set to linear mode!\n");
+		ao2_cleanup(rformat);
 		return -1;
 	}
 	start = ast_tvnow();
@@ -111,7 +113,8 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 			res = -1;
 			break;
 		}
-		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id == AST_FORMAT_SLINEAR)) {
+		if ((f->frametype == AST_FRAME_VOICE) &&
+			(ast_format_cmp(f->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)) {
 			foo = (short *)f->data.ptr;
 			for (x=0;x<f->samples;x++) {
 				noise += abs(foo[x]);
@@ -121,11 +124,13 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 		ast_frfree(f);
 	}
 
-	if (rformat.id) {
-		if (ast_set_read_format(chan, &rformat)) {
+	if (rformat) {
+		if (ast_set_read_format(chan, rformat)) {
 			ast_log(LOG_NOTICE, "Unable to restore original format!\n");
+			ao2_ref(rformat, -1);
 			return -1;
 		}
+		ao2_ref(rformat, -1);
 	}
 	if (res < 0)
 		return res;

@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/features.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/format_cache.h"
 }
 
 #include <sys/socket.h>
@@ -766,11 +767,10 @@ static void get_callerid_ast(struct vpb_pvt *p)
 #endif
 		vpb_record_buf_start(p->handle, VPB_MULAW);
 		while ((rc == 0) && (sam_count < 8000 * 3)) {
-			struct ast_format tmpfmt;
 			vrc = vpb_record_buf_sync(p->handle, (char*)buf, sizeof(buf));
 			if (vrc != VPB_OK)
 				ast_log(LOG_ERROR, "%s: Caller ID couldn't read audio buffer!\n", p->dev);
-			rc = callerid_feed(cs, (unsigned char *)buf, sizeof(buf), ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
+			rc = callerid_feed(cs, (unsigned char *)buf, sizeof(buf), ast_format_ulaw);
 #ifdef ANALYSE_CID
 			vpb_wave_write(ws, (char *)buf, sizeof(buf)); 
 #endif
@@ -2070,46 +2070,41 @@ static struct ast_frame *vpb_read(struct ast_channel *ast)
 
 static inline AudioCompress ast2vpbformat(struct ast_format *format)
 {
-	switch (format->id) {
-	case AST_FORMAT_ALAW:
+	if (ast_format_cmp(format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
 		return VPB_ALAW;
-	case AST_FORMAT_SLINEAR:
+	} else if (ast_format_cmp(format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 		return VPB_LINEAR;
-	case AST_FORMAT_ULAW:
+	} else if (ast_format_cmp(format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
 		return VPB_MULAW;
-	case AST_FORMAT_ADPCM:
+	} else if (ast_format_cmp(format, ast_format_adpcm) == AST_FORMAT_CMP_EQUAL) {
 		return VPB_OKIADPCM;
-	default:
+	} else {
 		return VPB_RAW;
 	}
 }
 
 static inline const char * ast2vpbformatname(struct ast_format *format)
 {
-	switch(format->id) {
-	case AST_FORMAT_ALAW:
+	if (ast_format_cmp(format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
 		return "AST_FORMAT_ALAW:VPB_ALAW";
-	case AST_FORMAT_SLINEAR:
+	} else if (ast_format_cmp(format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 		return "AST_FORMAT_SLINEAR:VPB_LINEAR";
-	case AST_FORMAT_ULAW:
+	} else if (ast_format_cmp(format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
 		return "AST_FORMAT_ULAW:VPB_MULAW";
-	case AST_FORMAT_ADPCM:
+	} else if (ast_format_cmp(format, ast_format_adpcm) == AST_FORMAT_CMP_EQUAL) {
 		return "AST_FORMAT_ADPCM:VPB_OKIADPCM";
-	default:
+	} else {
 		return "UNKN:UNKN";
 	}
 }
 
 static inline int astformatbits(struct ast_format *format)
 {
-	switch (format->id) {
-	case AST_FORMAT_SLINEAR:
+	if (ast_format_cmp(format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 		return 16;
-	case AST_FORMAT_ADPCM:
+	} else if (ast_format_cmp(format, ast_format_adpcm) == AST_FORMAT_CMP_EQUAL) {
 		return 4;
-	case AST_FORMAT_ALAW:
-	case AST_FORMAT_ULAW:
-	default:
+	} else {
 		return 8;
 	}
 }
@@ -2146,7 +2141,8 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
 	} else if (ast_channel_state(ast) != AST_STATE_UP) {
-		ast_verb(4, "%s: vpb_write: Attempt to Write frame type[%d]subclass[%s] on not up chan(state[%d])\n", ast_channel_name(ast), frame->frametype, ast_getformatname(&frame->subclass.format), ast_channel_state(ast));
+		ast_verb(4, "%s: vpb_write: Attempt to Write frame type[%d]subclass[%s] on not up chan(state[%d])\n",
+			ast_channel_name(ast), frame->frametype, ast_format_get_name(frame->subclass.format), ast_channel_state(ast));
 		p->lastoutput = -1;
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
@@ -2154,9 +2150,10 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 /*	ast_debug(1, "%s: vpb_write: Checked frame type..\n", p->dev); */
 
 
-	fmt = ast2vpbformat(&frame->subclass.format);
+	fmt = ast2vpbformat(frame->subclass.format);
 	if (fmt < 0) {
-		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %s format!\n", ast_channel_name(ast), ast_getformatname(&frame->subclass.format));
+		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %s format!\n", ast_channel_name(ast),
+			ast_format_get_name(frame->subclass.format));
 		return -1;
 	}
 
@@ -2180,7 +2177,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	/* Check if we have set up the play_buf */
 	if (p->lastoutput == -1) {
 		vpb_play_buf_start(p->handle, fmt);
-		ast_verb(2, "%s: vpb_write: Starting play mode (codec=%d)[%s]\n", p->dev, fmt, ast2vpbformatname(&frame->subclass.format));
+		ast_verb(2, "%s: vpb_write: Starting play mode (codec=%d)[%s]\n", p->dev, fmt, ast2vpbformatname(frame->subclass.format));
 		p->lastoutput = fmt;
 		ast_mutex_unlock(&p->play_lock);
 		return 0;
@@ -2230,7 +2227,7 @@ static void *do_chanreads(void *pvt)
 	struct ast_frame *fr = &p->fr;
 	char *readbuf = ((char *)p->buf) + AST_FRIENDLY_OFFSET;
 	int bridgerec = 0;
-	struct ast_format tmpfmt;
+	struct ast_format *tmpfmt;
 	int readlen, res, trycnt=0;
 	AudioCompress fmt;
 	int ignore_dtmf;
@@ -2315,22 +2312,22 @@ static void *do_chanreads(void *pvt)
 		ast_mutex_unlock(&p->play_dtmf_lock);
 
 		if (p->owner) {
-			ast_format_copy(&tmpfmt, ast_channel_rawreadformat(p->owner));
+			tmpfmt = ast_channel_rawreadformat(p->owner);
 		} else {
-			ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0);
+			tmpfmt = ast_format_slin;
 		}
-		fmt = ast2vpbformat(&tmpfmt);
+		fmt = ast2vpbformat(tmpfmt);
 		if (fmt < 0) {
-			ast_log(LOG_WARNING, "%s: Record failure (unsupported format %s)\n", p->dev, ast_getformatname(&tmpfmt));
+			ast_log(LOG_WARNING, "%s: Record failure (unsupported format %s)\n", p->dev, ast_format_get_name(tmpfmt));
 			return NULL;
 		}
-		readlen = VPB_SAMPLES * astformatbits(&tmpfmt) / 8;
+		readlen = VPB_SAMPLES * astformatbits(tmpfmt) / 8;
 
 		if (p->lastinput == -1) {
 			vpb_record_buf_start(p->handle, fmt);
 /*			vpb_reset_record_fifo_alarm(p->handle); */
 			p->lastinput = fmt;
-			ast_verb(2, "%s: Starting record mode (codec=%d)[%s]\n", p->dev, fmt, ast2vpbformatname(&tmpfmt));
+			ast_verb(2, "%s: Starting record mode (codec=%d)[%s]\n", p->dev, fmt, ast2vpbformatname(tmpfmt));
 			continue;
 		} else if (p->lastinput != fmt) {
 			vpb_record_buf_finish(p->handle);
@@ -2349,7 +2346,7 @@ static void *do_chanreads(void *pvt)
 				a_gain_vector(p->rxswgain - MAX_VPB_GAIN, (short *)readbuf, readlen / sizeof(short));
 			ast_verb(6, "%s: chanreads: applied gain\n", p->dev);
 
-			ast_format_copy(&fr->subclass.format, &tmpfmt);
+			fr->subclass.format = tmpfmt;
 			fr->data.ptr = readbuf;
 			fr->datalen = readlen;
 			fr->frametype = AST_FRAME_VOICE;
@@ -2429,7 +2426,6 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	struct ast_channel *tmp; 
 	char cid_num[256];
 	char cid_name[256];
-	struct ast_format tmpfmt;
 
 	if (me->owner) {
 	    ast_log(LOG_WARNING, "Called vpb_new on owned channel (%s) ?!\n", me->dev);
@@ -2452,9 +2448,9 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		 * they are all converted to/from linear in the vpb code. Best for us to use
 		 * linear since we can then adjust volume in this modules.
 		 */
-		ast_format_cap_add(ast_channel_nativeformats(tmp), ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-		ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
-		ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
+		ast_channel_nativeformats_set(tmp, vpb_tech.capabilities);
+		ast_channel_set_rawreadformat(tmp, ast_format_slin);
+		ast_channel_set_rawwriteformat(tmp, ast_format_slin);
 		if (state == AST_STATE_RING) {
 			ast_channel_rings_set(tmp, 1);
 			cid_name[0] = '\0';
@@ -2508,13 +2504,17 @@ static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *
 	char *sepstr, *name;
 	const char *s;
 	int group = -1;
-	struct ast_format slin;
 
-	ast_format_set(&slin, AST_FORMAT_SLINEAR, 0);
+	if (!(ast_format_cap_iscompatible_format(cap, ast_format_slin))) {
+		struct ast_str *buf;
 
-	if (!(ast_format_cap_iscompatible(cap, &slin))) {
-		char tmp[256];
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_getformatname_multiple(tmp, sizeof(tmp), cap));
+		buf = ast_str_create(256);
+		if (!buf) {
+			return NULL;
+		}
+		ast_log(LOG_NOTICE, "Asked to create a channel for unsupported formats: %s\n",
+			ast_format_cap_get_names(cap, &buf));
+		ast_free(buf);
 		return NULL;
 	}
 
@@ -2636,8 +2636,10 @@ static int unload_module(void)
 		ast_free(bridges);
 	}
 
-	ast_format_cap_destroy(vpb_tech.capabilities);
-	ast_format_cap_destroy(vpb_tech_indicate.capabilities);
+	ao2_cleanup(vpb_tech.capabilities);
+	vpb_tech.capabilities = NULL;
+	ao2_cleanup(vpb_tech_indicate.capabilities);
+	vpb_tech_indicate.capabilities = NULL;
 	return 0;
 }
 
@@ -2671,19 +2673,18 @@ static enum ast_module_load_result load_module()
 	int bal2 = -1; 
 	int bal3 = -1;
 	char * callerid = NULL;
-	struct ast_format tmpfmt;
 	int num_cards = 0;
 
-	vpb_tech.capabilities = ast_format_cap_alloc((enum ast_format_cap_flags) 0);
+	vpb_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!vpb_tech.capabilities) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	vpb_tech_indicate.capabilities = ast_format_cap_alloc((enum ast_format_cap_flags) 0);
+	vpb_tech_indicate.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!vpb_tech_indicate.capabilities) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add(vpb_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
-	ast_format_cap_add(vpb_tech_indicate.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(vpb_tech.capabilities, ast_format_slin, 0);
+	ast_format_cap_append(vpb_tech_indicate.capabilities, ast_format_slin, 0);
 	try {
 		num_cards = vpb_get_num_cards();
 	} catch (std::exception e) {

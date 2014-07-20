@@ -42,10 +42,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/format_cache.h"
+#include "asterisk/format_compatibility.h"
 
 #include "include/iax2.h"
 #include "include/parser.h"
 #include "include/provision.h"
+#include "include/codec_pref.h"
 
 static int frames = 0;
 static int iframes = 0;
@@ -124,7 +127,7 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 
 static void dump_prefs(char *output, int maxlen, void *value, int len)
 {
-	struct ast_codec_pref pref;
+	struct iax2_codec_pref pref;
 	int total_len = 0;
 
 	maxlen--;
@@ -136,9 +139,9 @@ static void dump_prefs(char *output, int maxlen, void *value, int len)
 	strncpy(output, value, maxlen);
 	output[maxlen] = '\0';
 	
-	ast_codec_pref_convert(&pref, output, total_len, 0);
+	iax2_codec_pref_convert(&pref, output, total_len, 0);
 	memset(output,0,total_len);
-	ast_codec_pref_string(&pref, output, total_len);
+	iax2_codec_pref_string(&pref, output, total_len);
 }
 
 static void dump_int(char *output, int maxlen, void *value, int len)
@@ -1180,7 +1183,8 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 {
 	fr->af.frametype = f->frametype;
-	ast_format_copy(&fr->af.subclass.format, &f->subclass.format);
+	fr->af.subclass.format = f->subclass.format;
+	fr->af.subclass.integer = f->subclass.integer;
 	fr->af.mallocd = 0;				/* Our frame is static relative to the container */
 	fr->af.datalen = f->datalen;
 	fr->af.samples = f->samples;
@@ -1199,7 +1203,8 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 		}
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		/* We need to byte-swap slinear samples from network byte order */
-		if ((fr->af.frametype == AST_FRAME_VOICE) && (fr->af.subclass.format.id == AST_FORMAT_SLINEAR)) {
+		if ((fr->af.frametype == AST_FRAME_VOICE) &&
+			(ast_format_cmp(fr->af.subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)) {
 			/* 2 bytes / sample for SLINEAR */
 			ast_swapcopy_samples(fr->af.data.ptr, f->data.ptr, copy_len / 2);
 		} else

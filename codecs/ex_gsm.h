@@ -27,6 +27,7 @@ static struct ast_frame *gsm_sample(void)
 		.data.ptr = ex_gsm,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_GSM, 0);
+	f.subclass.format = ast_format_gsm;
+
 	return &f;
 }

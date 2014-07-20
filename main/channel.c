@@ -342,7 +342,7 @@ static char *complete_channeltypes(struct ast_cli_args *a)
 static char *handle_cli_core_show_channeltype(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chanlist *cl = NULL;
-	char buf[512];
+	struct ast_str *codec_buf = ast_str_alloca(64);
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -387,7 +387,7 @@ static char *handle_cli_core_show_channeltype(struct ast_cli_entry *e, int cmd, 
 		(cl->tech->devicestate) ? "yes" : "no",
 		(cl->tech->indicate) ? "yes" : "no",
 		(cl->tech->transfer) ? "yes" : "no",
-		ast_getformatname_multiple(buf, sizeof(buf), cl->tech->capabilities),
+		ast_format_cap_get_names(cl->tech->capabilities, &codec_buf),
 		(cl->tech->send_digit_begin) ? "yes" : "no",
 		(cl->tech->send_digit_end) ? "yes" : "no",
 		(cl->tech->send_html) ? "yes" : "no",
@@ -764,78 +764,6 @@ char *ast_transfercapability2str(int transfercapability)
 	}
 }
 
-/*! \brief Pick the best audio codec */
-struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format *result)
-{
-	/* This just our opinion, expressed in code.  We are asked to choose
-	   the best codec to use, given no information */
-	static const enum ast_format_id prefs[] =
-	{
-		/*! Okay, ulaw is used by all telephony equipment, so start with it */
-		AST_FORMAT_ULAW,
-		/*! Unless of course, you're a silly European, so then prefer ALAW */
-		AST_FORMAT_ALAW,
-		AST_FORMAT_G719,
-		AST_FORMAT_SIREN14,
-		AST_FORMAT_SIREN7,
-		AST_FORMAT_TESTLAW,
-		/*! G.722 is better then all below, but not as common as the above... so give ulaw and alaw priority */
-		AST_FORMAT_G722,
-		/*! Okay, well, signed linear is easy to translate into other stuff */
-		AST_FORMAT_SLINEAR192,
-		AST_FORMAT_SLINEAR96,
-		AST_FORMAT_SLINEAR48,
-		AST_FORMAT_SLINEAR44,
-		AST_FORMAT_SLINEAR32,
-		AST_FORMAT_SLINEAR24,
-		AST_FORMAT_SLINEAR16,
-		AST_FORMAT_SLINEAR12,
-		AST_FORMAT_SLINEAR,
-		/*! G.726 is standard ADPCM, in RFC3551 packing order */
-		AST_FORMAT_G726,
-		/*! G.726 is standard ADPCM, in AAL2 packing order */
-		AST_FORMAT_G726_AAL2,
-		/*! ADPCM has great sound quality and is still pretty easy to translate */
-		AST_FORMAT_ADPCM,
-		/*! Okay, we're down to vocoders now, so pick GSM because it's small and easier to
-		    translate and sounds pretty good */
-		AST_FORMAT_GSM,
-		/*! iLBC is not too bad */
-		AST_FORMAT_ILBC,
-		/*! Speex is free, but computationally more expensive than GSM */
-		AST_FORMAT_SPEEX32,
-		AST_FORMAT_SPEEX16,
-		AST_FORMAT_SPEEX,
-		/*! Opus */
-		AST_FORMAT_OPUS,
-		/*! SILK is pretty awesome. */
-		AST_FORMAT_SILK,
-		/*! CELT supports crazy high sample rates */
-		AST_FORMAT_CELT,
-		/*! Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
-		    to use it */
-		AST_FORMAT_LPC10,
-		/*! G.729a is faster than 723 and slightly less expensive */
-		AST_FORMAT_G729A,
-		/*! Down to G.723.1 which is proprietary but at least designed for voice */
-		AST_FORMAT_G723_1,
-	};
-	char buf[512];
-	int x;
-
-	/* Find the first preferred codec in the format given */
-	for (x = 0; x < ARRAY_LEN(prefs); x++) {
-		if (ast_format_cap_best_byid(cap, prefs[x], result)) {
-			return result;
-		}
-	}
-
-	ast_format_clear(result);
-	ast_log(LOG_WARNING, "Don't know any of %s formats\n", ast_getformatname_multiple(buf, sizeof(buf), cap));
-
-	return NULL;
-}
-
 /*! \brief Channel technology used to extract a channel from a running application. The
  * channel created with this technology will be immediately hung up - most external
  * applications won't ever want to see this.
@@ -883,11 +811,18 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	ast_channel_stage_snapshot(tmp);
 
-	if (!(nativeformats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_CACHE_STRINGS))) {
+	if (!(nativeformats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		/* format capabilities structure allocation failure */
 		return ast_channel_unref(tmp);
 	}
+	ast_format_cap_append(nativeformats, ast_format_none, 0);
 	ast_channel_nativeformats_set(tmp, nativeformats);
+	ao2_ref(nativeformats, -1);
+
+	ast_channel_set_rawwriteformat(tmp, ast_format_none);
+	ast_channel_set_rawreadformat(tmp, ast_format_none);
+	ast_channel_set_writeformat(tmp, ast_format_none);
+	ast_channel_set_readformat(tmp, ast_format_none);
 
 	/*
 	 * Init file descriptors to unopened state so
@@ -2317,6 +2252,13 @@ static void ast_channel_destructor(void *obj)
 	if (ast_channel_pbx(chan))
 		ast_log_callid(LOG_WARNING, callid, "PBX may not have been terminated properly on '%s'\n", ast_channel_name(chan));
 
+	/* Free formats */
+	ast_channel_set_oldwriteformat(chan, NULL);
+	ast_channel_set_rawreadformat(chan, NULL);
+	ast_channel_set_rawwriteformat(chan, NULL);
+	ast_channel_set_readformat(chan, NULL);
+	ast_channel_set_writeformat(chan, NULL);
+
 	ast_party_dialed_free(ast_channel_dialed(chan));
 	ast_party_caller_free(ast_channel_caller(chan));
 	ast_party_connected_line_free(ast_channel_connected(chan));
@@ -2373,7 +2315,7 @@ static void ast_channel_destructor(void *obj)
 		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_DEVSTATE_CACHE) ? AST_DEVSTATE_NOT_CACHABLE : AST_DEVSTATE_CACHABLE), device_name);
 	}
 
-	ast_channel_nativeformats_set(chan, ast_format_cap_destroy(ast_channel_nativeformats(chan)));
+	ast_channel_nativeformats_set(chan, NULL);
 	if (callid) {
 		ast_callid_unref(callid);
 	}
@@ -2623,21 +2565,14 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 
 static void free_translation(struct ast_channel *clonechan)
 {
-	if (ast_channel_writetrans(clonechan))
+	if (ast_channel_writetrans(clonechan)) {
 		ast_translator_free_path(ast_channel_writetrans(clonechan));
-	if (ast_channel_readtrans(clonechan))
+	}
+	if (ast_channel_readtrans(clonechan)) {
 		ast_translator_free_path(ast_channel_readtrans(clonechan));
+	}
 	ast_channel_writetrans_set(clonechan, NULL);
 	ast_channel_readtrans_set(clonechan, NULL);
-	if (ast_format_cap_is_empty(ast_channel_nativeformats(clonechan))) {
-		ast_format_clear(ast_channel_rawwriteformat(clonechan));
-		ast_format_clear(ast_channel_rawreadformat(clonechan));
-	} else {
-		struct ast_format tmpfmt;
-		ast_best_codec(ast_channel_nativeformats(clonechan), &tmpfmt);
-		ast_format_copy(ast_channel_rawwriteformat(clonechan), &tmpfmt);
-		ast_format_copy(ast_channel_rawreadformat(clonechan), &tmpfmt);
-	}
 }
 
 void ast_set_hangupsource(struct ast_channel *chan, const char *source, int force)
@@ -2998,10 +2933,11 @@ static int generator_force(const void *data)
 		generate = ast_channel_generator(chan)->generate;
 	ast_channel_unlock(chan);
 
-	if (!tmp || !generate)
+	if (!tmp || !generate) {
 		return 0;
+	}
 
-	res = generate(chan, tmp, 0, ast_format_rate(ast_channel_writeformat(chan)) / 50);
+	res = generate(chan, tmp, 0, ast_format_get_sample_rate(ast_channel_writeformat(chan)) / 50);
 
 	ast_channel_lock(chan);
 	if (ast_channel_generator(chan) && generate == ast_channel_generator(chan)->generate) {
@@ -3677,11 +3613,9 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 	 * We must generate frames in phase locked mode since
 	 * we have no internal timer available.
 	 */
-
-	if (ast_format_cmp(&f->subclass.format, ast_channel_writeformat(chan)) == AST_FORMAT_CMP_NOT_EQUAL) {
+	if (ast_format_cmp(f->subclass.format, ast_channel_writeformat(chan)) == AST_FORMAT_CMP_NOT_EQUAL) {
 		float factor;
-
-		factor = ((float) ast_format_rate(ast_channel_writeformat(chan))) / ((float) ast_format_rate(&f->subclass.format));
+		factor = ((float) ast_format_get_sample_rate(ast_channel_writeformat(chan))) / ((float) ast_format_get_sample_rate(f->subclass.format));
 		samples = (int) (((float) f->samples) * factor);
 	} else {
 		samples = f->samples;
@@ -4186,11 +4120,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_frfree(f);
 					f = &ast_null_frame;
 				}
-			} else if ((f->frametype == AST_FRAME_VOICE) && !ast_format_cap_iscompatible(ast_channel_nativeformats(chan), &f->subclass.format)) {
+			} else if ((f->frametype == AST_FRAME_VOICE) && ast_format_cap_iscompatible_format(ast_channel_nativeformats(chan), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
 				/* This frame is not one of the current native formats -- drop it on the floor */
-				char to[200];
+				struct ast_str *codec_buf = ast_str_alloca(64);
 				ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n",
-					ast_channel_name(chan), ast_getformatname(&f->subclass.format), ast_getformatname_multiple(to, sizeof(to), ast_channel_nativeformats(chan)));
+					ast_channel_name(chan), ast_format_get_name(f->subclass.format), ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf));
 				ast_frfree(f);
 				f = &ast_null_frame;
 			} else if ((f->frametype == AST_FRAME_VOICE)) {
@@ -4206,7 +4140,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 #ifndef MONITOR_CONSTANT_DELAY
 					int jump = ast_channel_outsmpl(chan) - ast_channel_insmpl(chan) - 4 * f->samples;
 					if (jump >= 0) {
-						jump = calc_monitor_jump((ast_channel_outsmpl(chan) - ast_channel_insmpl(chan)), ast_format_rate(&f->subclass.format), ast_format_rate(&ast_channel_monitor(chan)->read_stream->fmt->format));
+						jump = calc_monitor_jump((ast_channel_outsmpl(chan) - ast_channel_insmpl(chan)),
+						                         ast_format_get_sample_rate(f->subclass.format),
+						                         ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
 						if (ast_seekstream(ast_channel_monitor(chan)->read_stream, jump, SEEK_FORCECUR) == -1) {
 							ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
 						}
@@ -4215,7 +4151,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						ast_channel_insmpl_set(chan, ast_channel_insmpl(chan) + f->samples);
 					}
 #else
-					int jump = calc_monitor_jump((ast_channel_outsmpl(chan) - ast_channel_insmpl(chan)), ast_format_rate(f->subclass.codec), ast_format_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
+					int jump = calc_monitor_jump((ast_channel_outsmpl(chan) - ast_channel_insmpl(chan)),
+					                             ast_format_get_sample_rate(f->subclass.codec),
+					                             ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
 					if (jump - MONITOR_DELAY >= 0) {
 						if (ast_seekstream(ast_channel_monitor(chan)->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
 							ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
@@ -4748,7 +4686,7 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 	}
 
 	CHECK_BLOCKING(chan);
-	if (ast_channel_tech(chan)->write_text && (ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_TEXT))) {
+	if (ast_channel_tech(chan)->write_text && (ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_TEXT))) {
 		struct ast_frame f;
 
 		f.frametype = AST_FRAME_TEXT;
@@ -4759,7 +4697,7 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 		f.offset = 0;
 		f.seqno = 0;
 
-		ast_format_set(&f.subclass.format, AST_FORMAT_T140, 0);
+		f.subclass.format = ast_format_t140;
 		res = ast_channel_tech(chan)->write_text(chan, &f);
 	} else if (ast_channel_tech(chan)->send_text) {
 		res = ast_channel_tech(chan)->send_text(chan, text);
@@ -4856,7 +4794,7 @@ int ast_prod(struct ast_channel *chan)
 	/* Send an empty audio frame to get things moving */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_debug(1, "Prodding channel '%s'\n", ast_channel_name(chan));
-		ast_format_copy(&a.subclass.format, ast_channel_rawwriteformat(chan));
+		a.subclass.format = ast_channel_rawwriteformat(chan);
 		a.data.ptr = nothing + AST_FRIENDLY_OFFSET;
 		a.src = "ast_prod"; /* this better match check in ast_write */
 		if (ast_write(chan, &a))
@@ -5068,7 +5006,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_TEXT:
-		if (fr->subclass.integer == AST_FORMAT_T140) {
+		if (ast_format_cmp(fr->subclass.format, ast_format_t140) == AST_FORMAT_CMP_EQUAL) {
 			res = (ast_channel_tech(chan)->write_text == NULL) ? 0 :
 				ast_channel_tech(chan)->write_text(chan, fr);
 		} else {
@@ -5093,17 +5031,17 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		if (ast_channel_tech(chan)->write == NULL)
 			break;	/*! \todo XXX should return 0 maybe ? */
 
-		if (ast_opt_generic_plc && fr->subclass.format.id == AST_FORMAT_SLINEAR) {
+		if (ast_opt_generic_plc && ast_format_cmp(fr->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 			apply_plc(chan, fr);
 		}
 
 		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
-		if (ast_format_cmp(&fr->subclass.format, ast_channel_rawwriteformat(chan)) != AST_FORMAT_CMP_NOT_EQUAL) {
+		if (ast_format_cmp(fr->subclass.format, ast_channel_rawwriteformat(chan)) != AST_FORMAT_CMP_NOT_EQUAL) {
 			f = fr;
 		} else {
-			if ((!ast_format_cap_iscompatible(ast_channel_nativeformats(chan), &fr->subclass.format)) &&
-			    (ast_format_cmp(ast_channel_writeformat(chan), &fr->subclass.format) != AST_FORMAT_CMP_EQUAL)) {
-				char nf[512];
+			if ((ast_format_cap_iscompatible_format(ast_channel_nativeformats(chan), fr->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) &&
+			    (ast_format_cmp(ast_channel_writeformat(chan), fr->subclass.format) != AST_FORMAT_CMP_EQUAL)) {
+				struct ast_str *codec_buf = ast_str_alloca(64);
 
 				/*
 				 * XXX Something is not right.  We are not compatible with this
@@ -5115,9 +5053,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				 * areas.
 				 */
 				ast_log(LOG_WARNING, "Codec mismatch on channel %s setting write format to %s from %s native formats %s\n",
-					ast_channel_name(chan), ast_getformatname(&fr->subclass.format), ast_getformatname(ast_channel_writeformat(chan)),
-					ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(chan)));
-				ast_set_write_format_by_id(chan, fr->subclass.format.id);
+					ast_channel_name(chan), ast_format_get_name(fr->subclass.format), ast_format_get_name(ast_channel_writeformat(chan)),
+					ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf));
+				ast_set_write_format(chan, fr->subclass.format);
 			}
 
 			f = (ast_channel_writetrans(chan)) ? ast_translate(ast_channel_writetrans(chan), fr, 0) : fr;
@@ -5185,7 +5123,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 #ifndef MONITOR_CONSTANT_DELAY
 				int jump = ast_channel_insmpl(chan) - ast_channel_outsmpl(chan) - 4 * cur->samples;
 				if (jump >= 0) {
-					jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)), ast_format_rate(&f->subclass.format), ast_format_rate(&ast_channel_monitor(chan)->read_stream->fmt->format));
+					jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)),
+					                         ast_format_get_sample_rate(f->subclass.format),
+					                         ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
 					if (ast_seekstream(ast_channel_monitor(chan)->write_stream, jump, SEEK_FORCECUR) == -1) {
 						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
 					}
@@ -5194,7 +5134,9 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 					ast_channel_outsmpl_set(chan, ast_channel_outsmpl(chan) + cur->samples);
 				}
 #else
-				int jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)), ast_format_rate(f->subclass.codec), ast_format_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
+				int jump = calc_monitor_jump((ast_channel_insmpl(chan) - ast_channel_outsmpl(chan)),
+				                             ast_format_get_sample_rate(f->subclass.codec),
+				                             ast_format_get_sample_rate(ast_channel_monitor(chan)->read_stream->fmt->format));
 				if (jump - MONITOR_DELAY >= 0) {
 					if (ast_seekstream(ast_channel_monitor(chan)->write_stream, jump - cur->samples, SEEK_FORCECUR) == -1) {
 						ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
@@ -5300,21 +5242,23 @@ static int set_format(struct ast_channel *chan,
 {
 	struct ast_trans_pvt *trans_pvt;
 	struct ast_format_cap *cap_native;
-	struct ast_format best_set_fmt;
-	struct ast_format best_native_fmt;
+	RAII_VAR(struct ast_format *, best_set_fmt, ast_format_cap_get_format(cap_set, 0), ao2_cleanup);
+	RAII_VAR(struct ast_format *, best_native_fmt, NULL, ao2_cleanup);
 	int res;
 
-	ast_best_codec(cap_set, &best_set_fmt);
+	ast_assert(format != NULL);
+	ast_assert(rawformat != NULL);
 
 	/* See if the underlying channel driver is capable of performing transcoding for us */
 	if (!ast_channel_setoption(chan, direction ? AST_OPTION_FORMAT_WRITE : AST_OPTION_FORMAT_READ, &best_set_fmt, sizeof(best_set_fmt), 0)) {
 		ast_debug(1, "Channel driver natively set channel %s to %s format %s\n", ast_channel_name(chan),
-			  direction ? "write" : "read", ast_getformatname(&best_set_fmt));
+			  direction ? "write" : "read", ast_format_get_name(best_set_fmt));
 
 		ast_channel_lock(chan);
-		ast_format_copy(format, &best_set_fmt);
-		ast_format_copy(rawformat, &best_set_fmt);
-		ast_format_cap_set(ast_channel_nativeformats(chan), &best_set_fmt);
+		cap_native = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		ast_format_cap_append(cap_native, best_set_fmt, 0);
+		ast_channel_nativeformats_set(chan, cap_native);
+		ao2_cleanup(cap_native);
 		ast_channel_unlock(chan);
 
 		trans_pvt = trans->get(chan);
@@ -5344,30 +5288,26 @@ static int set_format(struct ast_channel *chan,
 		res = ast_translator_best_choice(cap_native, cap_set, &best_native_fmt, &best_set_fmt);
 	}
 	if (res < 0) {
-		char from[200];
-		char to[200];
+		struct ast_str *codec_from = ast_str_alloca(64);
+		struct ast_str *codec_to = ast_str_alloca(64);
 
-		ast_getformatname_multiple(from, sizeof(from), cap_native);
+		ast_format_cap_get_names(cap_native, &codec_from);
 		ast_channel_unlock(chan);
-		ast_getformatname_multiple(to, sizeof(to), cap_set);
+		ast_format_cap_get_names(cap_set, &codec_to);
 
 		ast_log(LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
-			from, to);
+			ast_str_buffer(codec_from), ast_str_buffer(codec_to));
 		return -1;
 	}
 
 	/* Now we have a good choice for both. */
-	if ((ast_format_cmp(rawformat, &best_native_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
-		(ast_format_cmp(format, &best_set_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
+	if ((ast_format_cmp(rawformat, best_native_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
+		(ast_format_cmp(format, best_set_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		((ast_format_cmp(rawformat, format) != AST_FORMAT_CMP_NOT_EQUAL) || trans->get(chan))) {
 		/* the channel is already in these formats, so nothing to do */
 		ast_channel_unlock(chan);
 		return 0;
 	}
-
-	ast_format_copy(rawformat, &best_native_fmt);
-	/* User perspective is fmt */
-	ast_format_copy(format, &best_set_fmt);
 
 	/* Free any translation we have right now */
 	trans_pvt = trans->get(chan);
@@ -5377,7 +5317,7 @@ static int set_format(struct ast_channel *chan,
 	}
 
 	/* Build a translation path from the raw format to the desired format */
-	if (ast_format_cmp(format, rawformat) != AST_FORMAT_CMP_NOT_EQUAL) {
+	if (ast_format_cmp(best_set_fmt, best_native_fmt) != AST_FORMAT_CMP_NOT_EQUAL) {
 		/*
 		 * If we were able to swap the native format to the format that
 		 * has been requested, then there is no need to try to build
@@ -5387,20 +5327,33 @@ static int set_format(struct ast_channel *chan,
 	} else {
 		if (!direction) {
 			/* reading */
-			trans_pvt = ast_translator_build_path(format, rawformat);
+			trans_pvt = ast_translator_build_path(best_set_fmt, best_native_fmt);
 		} else {
 			/* writing */
-			trans_pvt = ast_translator_build_path(rawformat, format);
+			trans_pvt = ast_translator_build_path(best_native_fmt, best_set_fmt);
 		}
 		trans->set(chan, trans_pvt);
 		res = trans_pvt ? 0 : -1;
 	}
-	ast_channel_unlock(chan);
 
-	ast_debug(1, "Set channel %s to %s format %s\n",
-		ast_channel_name(chan),
-		direction ? "write" : "read",
-		ast_getformatname(&best_set_fmt));
+	if (!res) {
+		if (!direction) {
+			/* reading */
+			ast_channel_set_readformat(chan, best_set_fmt);
+			ast_channel_set_rawreadformat(chan, best_native_fmt);
+		} else {
+			/* writing */
+			ast_channel_set_writeformat(chan, best_set_fmt);
+			ast_channel_set_rawwriteformat(chan, best_native_fmt);
+		}
+
+		ast_debug(1, "Set channel %s to %s format %s\n",
+			ast_channel_name(chan),
+			direction ? "write" : "read",
+			ast_format_get_name(best_set_fmt));
+	}
+
+	ast_channel_unlock(chan);
 
 	/* If there is a generator on the channel, it needs to know about this
 	 * change if it is the write format. */
@@ -5413,13 +5366,15 @@ static int set_format(struct ast_channel *chan,
 
 int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	int res;
+
+	ast_assert(format != NULL);
 
 	if (!cap) {
 		return -1;
 	}
-	ast_format_cap_add(cap, format);
+	ast_format_cap_append(cap, format, 0);
 
 	res = set_format(chan,
 		cap,
@@ -5428,29 +5383,7 @@ int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 		&set_format_readtrans,
 		0);
 
-	ast_format_cap_destroy(cap);
-	return res;
-}
-
-int ast_set_read_format_by_id(struct ast_channel *chan, enum ast_format_id id)
-{
-	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-	struct ast_format tmp_format;
-	int res;
-
-	if (!cap) {
-		return -1;
-	}
-	ast_format_cap_add(cap, ast_format_set(&tmp_format, id, 0));
-
-	res = set_format(chan,
-		cap,
-		ast_channel_rawreadformat(chan),
-		ast_channel_readformat(chan),
-		&set_format_readtrans,
-		0);
-
-	ast_format_cap_destroy(cap);
+	ao2_cleanup(cap);
 	return res;
 }
 
@@ -5466,13 +5399,15 @@ int ast_set_read_format_from_cap(struct ast_channel *chan, struct ast_format_cap
 
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 {
-	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	int res;
+
+	ast_assert(format != NULL);
 
 	if (!cap) {
 		return -1;
 	}
-	ast_format_cap_add(cap, format);
+	ast_format_cap_append(cap, format, 0);
 
 	res = set_format(chan,
 		cap,
@@ -5481,29 +5416,7 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 		&set_format_writetrans,
 		1);
 
-	ast_format_cap_destroy(cap);
-	return res;
-}
-
-int ast_set_write_format_by_id(struct ast_channel *chan, enum ast_format_id id)
-{
-	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-	struct ast_format tmp_format;
-	int res;
-
-	if (!cap) {
-		return -1;
-	}
-	ast_format_cap_add(cap, ast_format_set(&tmp_format, id, 0));
-
-	res = set_format(chan,
-		cap,
-		ast_channel_rawwriteformat(chan),
-		ast_channel_writeformat(chan),
-		&set_format_writetrans,
-		1);
-
-	ast_format_cap_destroy(cap);
+	ao2_cleanup(cap);
 	return res;
 }
 
@@ -5912,26 +5825,29 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 
 	AST_RWLIST_TRAVERSE(&backends, chan, list) {
 		struct ast_format_cap *tmp_cap;
-		struct ast_format tmp_fmt;
-		struct ast_format best_audio_fmt;
+		RAII_VAR(struct ast_format *, tmp_fmt, NULL, ao2_cleanup);
+		RAII_VAR(struct ast_format *, best_audio_fmt, NULL, ao2_cleanup);
 		struct ast_format_cap *joint_cap;
 
 		if (strcasecmp(type, chan->tech->type))
 			continue;
 
-		ast_format_clear(&best_audio_fmt);
 		/* find the best audio format to use */
-		if ((tmp_cap = ast_format_cap_get_type(request_cap, AST_FORMAT_TYPE_AUDIO))) {
+		tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (tmp_cap) {
+			ast_format_cap_append_from_cap(tmp_cap, request_cap, AST_MEDIA_TYPE_AUDIO);
 			/* We have audio - is it possible to connect the various calls to each other?
 				(Avoid this check for calls without audio, like text+video calls)
 			*/
 			res = ast_translator_best_choice(tmp_cap, chan->tech->capabilities, &tmp_fmt, &best_audio_fmt);
-			ast_format_cap_destroy(tmp_cap);
+			ao2_ref(tmp_cap, -1);
 			if (res < 0) {
-				char tmp1[256], tmp2[256];
+				struct ast_str *tech_codecs = ast_str_alloca(64);
+				struct ast_str *request_codecs = ast_str_alloca(64);
+
 				ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %s) to %s\n", type,
-					ast_getformatname_multiple(tmp1, sizeof(tmp1), chan->tech->capabilities),
-					ast_getformatname_multiple(tmp2, sizeof(tmp2), request_cap));
+					ast_format_cap_get_names(chan->tech->capabilities, &tech_codecs),
+					ast_format_cap_get_names(request_cap, &request_codecs));
 				*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
 				AST_RWLIST_UNLOCK(&backends);
 				return NULL;
@@ -5945,14 +5861,16 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		 * purposes is used for the request. This needs to be re-evaluated.  It may be
 		 * a better choice to send all the audio formats capable of being translated
 		 * during the request and allow the channel drivers to pick the best one. */
-		if (!(joint_cap = ast_format_cap_dup(request_cap))) {
+		joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (!joint_cap) {
 			return NULL;
 		}
-		ast_format_cap_remove_bytype(joint_cap, AST_FORMAT_TYPE_AUDIO);
-		ast_format_cap_add(joint_cap, &best_audio_fmt);
+		ast_format_cap_append_from_cap(joint_cap, request_cap, AST_MEDIA_TYPE_UNKNOWN);
+		ast_format_cap_remove_by_type(joint_cap, AST_MEDIA_TYPE_AUDIO);
+		ast_format_cap_append(joint_cap, best_audio_fmt, 0);
 
 		if (!(c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause))) {
-			ast_format_cap_destroy(joint_cap);
+			ao2_ref(joint_cap, -1);
 			return NULL;
 		}
 
@@ -5967,7 +5885,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 			}
 		}
 
-		joint_cap = ast_format_cap_destroy(joint_cap);
+		ao2_ref(joint_cap, -1);
 
 		if (set_security_requirements(requestor, c)) {
 			ast_log(LOG_WARNING, "Setting security requirements failed\n");
@@ -6164,8 +6082,8 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 {
 	struct ast_format_cap *src_cap;
 	struct ast_format_cap *dst_cap;
-	struct ast_format best_src_fmt;
-	struct ast_format best_dst_fmt;
+	RAII_VAR(struct ast_format *, best_src_fmt, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format *, best_dst_fmt, NULL, ao2_cleanup);
 	int no_path;
 
 	ast_channel_lock_both(from, to);
@@ -6182,8 +6100,8 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	dst_cap = ast_channel_nativeformats(to);   /* shallow copy, do not destroy */
 
 	/* If there's no audio in this call, don't bother with trying to find a translation path */
-	if (!ast_format_cap_has_type(src_cap, AST_FORMAT_TYPE_AUDIO)
-		|| !ast_format_cap_has_type(dst_cap, AST_FORMAT_TYPE_AUDIO)) {
+	if (!ast_format_cap_has_type(src_cap, AST_MEDIA_TYPE_AUDIO)
+		|| !ast_format_cap_has_type(dst_cap, AST_MEDIA_TYPE_AUDIO)) {
 		ast_channel_unlock(to);
 		ast_channel_unlock(from);
 		return 0;
@@ -6206,28 +6124,29 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	 * no direct conversion available. If generic PLC is
 	 * desired, then transcoding via SLINEAR is a requirement
 	 */
-	if (ast_format_cmp(&best_dst_fmt, &best_src_fmt) == AST_FORMAT_CMP_NOT_EQUAL
+	if (ast_format_cmp(best_dst_fmt, best_src_fmt) == AST_FORMAT_CMP_NOT_EQUAL
 		&& (ast_opt_generic_plc || ast_opt_transcode_via_slin)) {
-		int use_slin = (ast_format_is_slinear(&best_src_fmt)
-			|| ast_format_is_slinear(&best_dst_fmt)) ? 1 : 0;
+		int use_slin = (ast_format_cache_is_slinear(best_src_fmt)
+			|| ast_format_cache_is_slinear(best_dst_fmt)) ? 1 : 0;
 
-		if (use_slin || ast_translate_path_steps(&best_dst_fmt, &best_src_fmt) != 1) {
-			int best_sample_rate = (ast_format_rate(&best_src_fmt) > ast_format_rate(&best_dst_fmt)) ?
-				ast_format_rate(&best_src_fmt) : ast_format_rate(&best_dst_fmt);
+		if (use_slin || ast_translate_path_steps(best_dst_fmt, best_src_fmt) != 1) {
+			int best_sample_rate = (ast_format_get_sample_rate(best_src_fmt) > ast_format_get_sample_rate(best_dst_fmt)) ?
+				ast_format_get_sample_rate(best_src_fmt) : ast_format_get_sample_rate(best_dst_fmt);
 
 			/* pick the best signed linear format based upon what preserves the sample rate the best. */
-			ast_format_set(&best_src_fmt, ast_format_slin_by_rate(best_sample_rate), 0);
+			ao2_ref(best_src_fmt, -1);
+			best_src_fmt = ao2_bump(ast_format_cache_get_slin_by_rate(best_sample_rate));
 		}
 	}
 
-	if (ast_set_read_format(from, &best_src_fmt)) {
+	if (ast_set_read_format(from, best_src_fmt)) {
 		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %s\n",
-			ast_channel_name(from), ast_getformatname(&best_src_fmt));
+			ast_channel_name(from), ast_format_get_name(best_src_fmt));
 		return -1;
 	}
-	if (ast_set_write_format(to, &best_src_fmt)) {
+	if (ast_set_write_format(to, best_src_fmt)) {
 		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %s\n",
-			ast_channel_name(to), ast_getformatname(&best_src_fmt));
+			ast_channel_name(to), ast_format_get_name(best_src_fmt));
 		return -1;
 	}
 	return 0;
@@ -6387,9 +6306,10 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 		struct ast_party_redirecting redirecting;
 	} exchange;
 	struct ast_channel *bridged;
-	struct ast_format rformat;
-	struct ast_format wformat;
-	struct ast_format tmp_format;
+	struct ast_format *rformat;
+	struct ast_format *wformat;
+	struct ast_format *tmp_format;
+	struct ast_format_cap *tmp_cap;
 	char tmp_name[AST_CHANNEL_NAME];
 	char clone_sending_dtmf_digit;
 	struct timeval clone_sending_dtmf_tv;
@@ -6446,8 +6366,8 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	 * Remember the original read/write formats.  We turn off any
 	 * translation on either one
 	 */
-	ast_format_copy(&rformat, ast_channel_readformat(original));
-	ast_format_copy(&wformat, ast_channel_writeformat(original));
+	rformat = ao2_bump(ast_channel_readformat(original));
+	wformat = ao2_bump(ast_channel_writeformat(original));
 	free_translation(clonechan);
 	free_translation(original);
 
@@ -6508,13 +6428,15 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	}
 
 	/* Swap the raw formats */
-	ast_format_copy(&tmp_format, ast_channel_rawreadformat(original));
-	ast_format_copy(ast_channel_rawreadformat(original), ast_channel_rawreadformat(clonechan));
-	ast_format_copy(ast_channel_rawreadformat(clonechan), &tmp_format);
+	tmp_format = ao2_bump(ast_channel_rawreadformat(original));
+	ast_channel_set_rawreadformat(original, ast_channel_rawreadformat(clonechan));
+	ast_channel_set_rawreadformat(clonechan, tmp_format);
+	ao2_cleanup(tmp_format);
 
-	ast_format_copy(&tmp_format, ast_channel_rawwriteformat(original));
-	ast_format_copy(ast_channel_rawwriteformat(original), ast_channel_rawwriteformat(clonechan));
-	ast_format_copy(ast_channel_rawwriteformat(clonechan), &tmp_format);
+	tmp_format = ao2_bump(ast_channel_rawwriteformat(original));
+	ast_channel_set_rawwriteformat(original, ast_channel_rawwriteformat(clonechan));
+	ast_channel_set_rawwriteformat(clonechan, tmp_format);
+	ao2_cleanup(tmp_format);
 
 	ast_channel_softhangup_internal_flag_set(clonechan, AST_SOFTHANGUP_DEV);
 
@@ -6642,16 +6564,21 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	ast_channel_set_fd(original, AST_TIMING_FD, ast_channel_timingfd(original));
 
 	/* Our native formats are different now */
-	ast_format_cap_copy(ast_channel_nativeformats(original), ast_channel_nativeformats(clonechan));
+	tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (tmp_cap) {
+		ast_format_cap_append_from_cap(tmp_cap, ast_channel_nativeformats(clonechan), AST_MEDIA_TYPE_UNKNOWN);
+		ast_channel_nativeformats_set(original, tmp_cap);
+		ao2_ref(tmp_cap, -1);
+	}
 
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
 
 	/* Set the write format */
-	ast_set_write_format(original, &wformat);
+	ast_set_write_format(original, wformat);
 
 	/* Set the read format */
-	ast_set_read_format(original, &rformat);
+	ast_set_read_format(original, rformat);
 
 	/* Copy the music class */
 	ast_channel_musicclass_set(original, ast_channel_musicclass(clonechan));
@@ -6660,7 +6587,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	ast_channel_accountcode_set(original, S_OR(ast_channel_accountcode(clonechan), ""));
 
 	ast_debug(1, "Putting channel %s in %s/%s formats\n", ast_channel_name(original),
-		ast_getformatname(&wformat), ast_getformatname(&rformat));
+		ast_format_get_name(wformat), ast_format_get_name(rformat));
 
 	/* Fixup the original clonechan's physical side */
 	if (ast_channel_tech(original)->fixup && ast_channel_tech(original)->fixup(clonechan, original)) {
@@ -6773,6 +6700,9 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* Release our held safety references. */
 	ast_channel_unref(original);
 	ast_channel_unref(clonechan);
+
+	ao2_cleanup(rformat);
+	ao2_cleanup(wformat);
 }
 
 void ast_set_callerid(struct ast_channel *chan, const char *cid_num, const char *cid_name, const char *cid_ani)
@@ -6917,7 +6847,7 @@ struct tonepair_state {
 	int v1_2;
 	int v2_2;
 	int v3_2;
-	struct ast_format origwfmt;
+	struct ast_format *origwfmt;
 	int pos;
 	int duration;
 	int modulate;
@@ -6930,8 +6860,10 @@ static void tonepair_release(struct ast_channel *chan, void *params)
 {
 	struct tonepair_state *ts = params;
 
-	if (chan)
-		ast_set_write_format(chan, &ts->origwfmt);
+	if (chan) {
+		ast_set_write_format(chan, ts->origwfmt);
+	}
+	ao2_cleanup(ts->origwfmt);
 	ast_free(ts);
 }
 
@@ -6940,10 +6872,12 @@ static void *tonepair_alloc(struct ast_channel *chan, void *params)
 	struct tonepair_state *ts;
 	struct tonepair_def *td = params;
 
-	if (!(ts = ast_calloc(1, sizeof(*ts))))
+	if (!(ts = ast_calloc(1, sizeof(*ts)))) {
 		return NULL;
-	ast_format_copy(&ts->origwfmt, ast_channel_writeformat(chan));
-	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+	}
+
+	ts->origwfmt = ao2_bump(ast_channel_writeformat(chan));
+	if (ast_set_write_format(chan, ast_format_slin)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", ast_channel_name(chan));
 		tonepair_release(NULL, ts);
 		ts = NULL;
@@ -6997,7 +6931,7 @@ static int tonepair_generator(struct ast_channel *chan, void *data, int len, int
 			ts->data[x] = ts->v3_1 + ts->v3_2;
 	}
 	ts->f.frametype = AST_FRAME_VOICE;
-	ast_format_set(&ts->f.subclass.format, AST_FORMAT_SLINEAR, 0);
+	ts->f.subclass.format = ast_format_slin;
 	ts->f.datalen = len;
 	ts->f.samples = samples;
 	ts->f.offset = AST_FRIENDLY_OFFSET;
@@ -7675,7 +7609,7 @@ static int silence_generator_generate(struct ast_channel *chan, void *data, int 
 		.samples = samples,
 		.datalen = sizeof(buf),
 	};
-	ast_format_set(&frame.subclass.format, AST_FORMAT_SLINEAR, 0);
+	frame.subclass.format = ast_format_slin;
 
 	memset(buf, 0, sizeof(buf));
 
@@ -7692,7 +7626,7 @@ static struct ast_generator silence_generator = {
 };
 
 struct ast_silence_generator {
-	struct ast_format old_write_format;
+	struct ast_format *old_write_format;
 };
 
 struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_channel *chan)
@@ -7703,9 +7637,9 @@ struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_cha
 		return NULL;
 	}
 
-	ast_format_copy(&state->old_write_format, ast_channel_writeformat(chan));
+	state->old_write_format = ao2_bump(ast_channel_writeformat(chan));
 
-	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
+	if (ast_set_write_format(chan, ast_format_slin) < 0) {
 		ast_log(LOG_ERROR, "Could not set write format to SLINEAR\n");
 		ast_free(state);
 		return NULL;
@@ -7749,9 +7683,11 @@ void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_sil
 
 	if (deactivate_silence_generator(chan)) {
 		ast_debug(1, "Stopped silence generator on '%s'\n", ast_channel_name(chan));
-		if (ast_set_write_format(chan, &state->old_write_format) < 0)
+		if (ast_set_write_format(chan, state->old_write_format) < 0) {
 			ast_log(LOG_ERROR, "Could not return write format to its original state\n");
+		}
 	}
+	ao2_cleanup(state->old_write_format);
 	ast_free(state);
 }
 
@@ -10199,8 +10135,8 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 		char *context;
 		char *name;
 		int amaflags;
-		struct ast_format readformat;
-		struct ast_format writeformat;
+		struct ast_format *readformat;
+		struct ast_format *writeformat;
 	} my_vars = { 0, };
 
 	ast_channel_lock(yankee);
@@ -10209,8 +10145,8 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 	my_vars.context = ast_strdupa(ast_channel_context(yankee));
 	my_vars.name = ast_strdupa(ast_channel_name(yankee));
 	my_vars.amaflags = ast_channel_amaflags(yankee);
-	ast_format_copy(&my_vars.writeformat, ast_channel_writeformat(yankee));
-	ast_format_copy(&my_vars.readformat, ast_channel_readformat(yankee));
+	my_vars.writeformat = ao2_bump(ast_channel_writeformat(yankee));
+	my_vars.readformat = ao2_bump(ast_channel_readformat(yankee));
 	ast_channel_unlock(yankee);
 
 	/* Do not hold any channel locks while calling channel_alloc() since the function
@@ -10218,12 +10154,16 @@ struct ast_channel *ast_channel_yank(struct ast_channel *yankee)
 	if (!(yanked_chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, my_vars.accountcode,
 					my_vars.exten, my_vars.context, NULL, yankee, my_vars.amaflags,
 					"Surrogate/%s", my_vars.name))) {
+		ao2_cleanup(my_vars.writeformat);
+		ao2_cleanup(my_vars.readformat);
 		return NULL;
 	}
 
 	/* Make formats okay */
-	ast_format_copy(ast_channel_readformat(yanked_chan), &my_vars.readformat);
-	ast_format_copy(ast_channel_writeformat(yanked_chan), &my_vars.writeformat);
+	ast_channel_set_readformat(yanked_chan, my_vars.readformat);
+	ast_channel_set_writeformat(yanked_chan, my_vars.writeformat);
+	ao2_cleanup(my_vars.readformat);
+	ao2_cleanup(my_vars.writeformat);
 
 	ast_channel_unlock(yanked_chan);
 

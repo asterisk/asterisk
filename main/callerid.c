@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/fskmodem.h"
 #include "asterisk/utils.h"
+#include "asterisk/format_cache.h"
 
 struct callerid_state {
 	fsk_data fskd;

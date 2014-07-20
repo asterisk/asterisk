@@ -35,11 +35,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 /* Some Ideas for this code came from makeh264e.c by Jeffrey Chilton */
 
 /* Portions of the conversion code are by guido@sienanet.it */
 /*! \todo Check this buf size estimate, it may be totally wrong for large frame video */
+
+#define FRAME_ENDED	0x8000
 
 #define BUF_SIZE	4096	/* Two Real h264 Frames */
 struct h264_desc {
@@ -68,15 +71,12 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1)
 		return NULL;
 	len = ntohs(len);
-	mark = (len & 0x8000) ? 1 : 0;
+	mark = (len & FRAME_ENDED) ? 1 : 0;
 	len &= 0x7fff;
 	if (len > BUF_SIZE) {
 		ast_log(LOG_WARNING, "Length %d is too long\n", len);
 		len = BUF_SIZE;	/* XXX truncate */
 	}
-	s->fr.frametype = AST_FRAME_VIDEO;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_H264, 0);
-	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
@@ -85,11 +85,7 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	}
 	s->fr.samples = fs->lastts;
 	s->fr.datalen = len;
-	if (mark) {
-		ast_format_set_video_mark(&s->fr.subclass.format);
-	}
-	s->fr.delivery.tv_sec = 0;
-	s->fr.delivery.tv_usec = 0;
+	s->fr.subclass.frame_ending = mark;
 	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts)) {
 		fs->lastts = ntohl(ts);
 		*whennext = fs->lastts * 4/45;
@@ -105,15 +101,7 @@ static int h264_write(struct ast_filestream *s, struct ast_frame *f)
 	unsigned short len;
 	int mark;
 
-	if (f->frametype != AST_FRAME_VIDEO) {
-		ast_log(LOG_WARNING, "Asked to write non-video frame!\n");
-		return -1;
-	}
-	mark = ast_format_get_video_mark(&f->subclass.format) ? 0x8000 : 0;
-	if (f->subclass.format.id != AST_FORMAT_H264) {
-		ast_log(LOG_WARNING, "Asked to write non-h264 frame (%s)!\n", ast_getformatname(&f->subclass.format));
-		return -1;
-	}
+	mark = f->subclass.frame_ending ? FRAME_ENDED : 0;
 	ts = htonl(f->samples);
 	if ((res = fwrite(&ts, 1, sizeof(ts), s->f)) != sizeof(ts)) {
 		ast_log(LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
@@ -175,7 +163,7 @@ static struct ast_format_def h264_f = {
 
 static int load_module(void)
 {
-	ast_format_set(&h264_f.format, AST_FORMAT_H264, 0);
+	h264_f.format = ast_format_h264;
 	if (ast_format_def_register(&h264_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

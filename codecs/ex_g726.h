@@ -27,7 +27,7 @@ static struct ast_frame *g726_sample(void)
 		.data.ptr = ex_g726,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_G726, 0);
+	f.subclass.format = ast_format_g726;
 
 	return &f;
 }

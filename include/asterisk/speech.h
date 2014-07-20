@@ -58,7 +58,7 @@ struct ast_speech {
 	/*! Current state of structure */
 	int state;
 	/*! Expected write format */
-	struct ast_format format;
+	struct ast_format *format;
 	/*! Data for speech engine */
 	void *data;
 	/*! Cached results */

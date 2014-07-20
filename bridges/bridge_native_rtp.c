@@ -137,8 +137,8 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, tinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, tinstance1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
-	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 
 	if (c0 == c1) {
 		return;
@@ -316,8 +316,8 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
-	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
+	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	int read_ptime0, read_ptime1, write_ptime0, write_ptime1;
 
 	/* We require two channels before even considering native bridging */
@@ -374,19 +374,18 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 	if (glue1->get_codec) {
 		glue1->get_codec(c1->chan, cap1);
 	}
-	if (!ast_format_cap_is_empty(cap0) && !ast_format_cap_is_empty(cap1) && !ast_format_cap_has_joint(cap0, cap1)) {
-		char tmp0[256] = { 0, }, tmp1[256] = { 0, };
-
+	if (ast_format_cap_count(cap0) != 0 && ast_format_cap_count(cap1) != 0 && !ast_format_cap_iscompatible(cap0, cap1)) {
+		struct ast_str *codec_buf0 = ast_str_alloca(64);
+		struct ast_str *codec_buf1 = ast_str_alloca(64);
 		ast_debug(1, "Channel codec0 = %s is not codec1 = %s, cannot native bridge in RTP.\n",
-			ast_getformatname_multiple(tmp0, sizeof(tmp0), cap0),
-			ast_getformatname_multiple(tmp1, sizeof(tmp1), cap1));
+			ast_format_cap_get_names(cap0, &codec_buf0), ast_format_cap_get_names(cap1, &codec_buf1));
 		return 0;
 	}
 
-	read_ptime0 = (ast_codec_pref_getsize(&ast_rtp_instance_get_codecs(instance0)->pref, ast_channel_rawreadformat(c0->chan))).cur_ms;
-	read_ptime1 = (ast_codec_pref_getsize(&ast_rtp_instance_get_codecs(instance1)->pref, ast_channel_rawreadformat(c1->chan))).cur_ms;
-	write_ptime0 = (ast_codec_pref_getsize(&ast_rtp_instance_get_codecs(instance0)->pref, ast_channel_rawwriteformat(c0->chan))).cur_ms;
-	write_ptime1 = (ast_codec_pref_getsize(&ast_rtp_instance_get_codecs(instance1)->pref, ast_channel_rawwriteformat(c1->chan))).cur_ms;
+	read_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawreadformat(c0->chan));
+	read_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawreadformat(c1->chan));
+	write_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawwriteformat(c0->chan));
+	write_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawwriteformat(c1->chan));
 
 	if (read_ptime0 != write_ptime1 || read_ptime1 != write_ptime0) {
 		ast_debug(1, "Packetization differs between RTP streams (%d != %d or %d != %d). Cannot native bridge in RTP\n",
@@ -518,7 +517,7 @@ static struct ast_bridge_technology native_rtp_bridge = {
 
 static int unload_module(void)
 {
-	ast_format_cap_destroy(native_rtp_bridge.format_capabilities);
+	ao2_t_ref(native_rtp_bridge.format_capabilities, -1, "Dispose of capabilities in module unload");
 	return ast_bridge_technology_unregister(&native_rtp_bridge);
 }
 
@@ -527,9 +526,9 @@ static int load_module(void)
 	if (!(native_rtp_bridge.format_capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add_all_by_type(native_rtp_bridge.format_capabilities, AST_FORMAT_TYPE_AUDIO);
-	ast_format_cap_add_all_by_type(native_rtp_bridge.format_capabilities, AST_FORMAT_TYPE_VIDEO);
-	ast_format_cap_add_all_by_type(native_rtp_bridge.format_capabilities, AST_FORMAT_TYPE_TEXT);
+	ast_format_cap_append_by_type(native_rtp_bridge.format_capabilities, AST_MEDIA_TYPE_AUDIO);
+	ast_format_cap_append_by_type(native_rtp_bridge.format_capabilities, AST_MEDIA_TYPE_VIDEO);
+	ast_format_cap_append_by_type(native_rtp_bridge.format_capabilities, AST_MEDIA_TYPE_TEXT);
 
 	return ast_bridge_technology_register(&native_rtp_bridge);
 }

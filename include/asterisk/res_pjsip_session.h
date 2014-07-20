@@ -126,8 +126,6 @@ struct ast_sip_session {
 	struct ast_party_id id;
 	/* Requested capabilities */
 	struct ast_format_cap *req_caps;
-	/* Codecs overriden by dialplan on an outgoing request */
-	struct ast_codec_pref override_prefs;
 	/* Optional DSP, used only for inband DTMF detection if configured */
 	struct ast_dsp *dsp;
 	/* Whether the termination of the session should be deferred */

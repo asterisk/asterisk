@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="SendFAX" language="en_US" module="app_fax">
@@ -332,9 +333,9 @@ static int fax_generator_generate(struct ast_channel *chan, void *data, int len,
     
 	struct ast_frame outf = {
 		.frametype = AST_FRAME_VOICE,
+		.subclass.format = ast_format_slin,
 		.src = __FUNCTION__,
 	};
-	ast_format_set(&outf.subclass.format, AST_FORMAT_SLINEAR, 0);
 
 	if (samples > MAX_SAMPLES) {
 		ast_log(LOG_WARNING, "Only generating %d samples, where %d requested\n", MAX_SAMPLES, samples);
@@ -365,8 +366,8 @@ static struct ast_generator generator = {
 static int transmit_audio(fax_session *s)
 {
 	int res = -1;
-	struct ast_format original_read_fmt;
-	struct ast_format original_write_fmt;
+	struct ast_format *original_read_fmt;
+	struct ast_format *original_write_fmt = NULL;
 	fax_state_t fax;
 	t30_state_t *t30state;
 	struct ast_frame *inf = NULL;
@@ -385,9 +386,6 @@ static int transmit_audio(fax_session *s)
  *							     .transcoding_jbig = 1,
 */
 	};
-
-	ast_format_clear(&original_read_fmt);
-	ast_format_clear(&original_write_fmt);
 
 	/* if in called party mode, try to use T.38 */
 	if (s->caller_mode == FALSE) {
@@ -461,22 +459,18 @@ static int transmit_audio(fax_session *s)
         t30state = &fax.t30_state;
 #endif
 
-	ast_format_copy(&original_read_fmt, ast_channel_readformat(s->chan));
-	if (original_read_fmt.id != AST_FORMAT_SLINEAR) {
-		res = ast_set_read_format_by_id(s->chan, AST_FORMAT_SLINEAR);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
-			goto done;
-		}
+    original_read_fmt = ao2_bump(ast_channel_readformat(s->chan));
+	res = ast_set_read_format(s->chan, ast_format_slin);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set to linear read mode, giving up\n");
+		goto done;
 	}
 
-	ast_format_copy(&original_write_fmt, ast_channel_writeformat(s->chan));
-	if (original_write_fmt.id != AST_FORMAT_SLINEAR) {
-		res = ast_set_write_format_by_id(s->chan, AST_FORMAT_SLINEAR);
-		if (res < 0) {
-			ast_log(LOG_WARNING, "Unable to set to linear write mode, giving up\n");
-			goto done;
-		}
+	original_write_fmt = ao2_bump(ast_channel_writeformat(s->chan));
+	res = ast_set_write_format(s->chan, ast_format_slin);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Unable to set to linear write mode, giving up\n");
+		goto done;
 	}
 
 	/* Initialize T30 terminal */
@@ -529,12 +523,13 @@ static int transmit_audio(fax_session *s)
 			break;
 		}
 
-		ast_debug(10, "frame %d/%u, len=%d\n", inf->frametype, (unsigned int) inf->subclass.format.id, inf->datalen);
+		ast_debug(10, "frame %d/%s, len=%d\n", inf->frametype, ast_format_get_name(inf->subclass.format), inf->datalen);
 
 		/* Check the frame type. Format also must be checked because there is a chance
 		   that a frame in old format was already queued before we set channel format
 		   to slinear so it will still be received by ast_read */
-		if (inf->frametype == AST_FRAME_VOICE && inf->subclass.format.id == AST_FORMAT_SLINEAR) {
+		if (inf->frametype == AST_FRAME_VOICE &&
+			(ast_format_cmp(inf->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)) {
 			if (fax_rx(&fax, inf->data.ptr, inf->samples) < 0) {
 				/* I know fax_rx never returns errors. The check here is for good style only */
 				ast_log(LOG_WARNING, "fax_rx returned error\n");
@@ -588,14 +583,16 @@ static int transmit_audio(fax_session *s)
 	fax_release(&fax);
 
 done:
-	if (original_write_fmt.id != AST_FORMAT_SLINEAR) {
-		if (ast_set_write_format(s->chan, &original_write_fmt) < 0)
+	if (original_write_fmt) {
+		if (ast_set_write_format(s->chan, original_write_fmt) < 0)
 			ast_log(LOG_WARNING, "Unable to restore write format on '%s'\n", ast_channel_name(s->chan));
+		ao2_ref(original_write_fmt, -1);
 	}
 
-	if (original_read_fmt.id != AST_FORMAT_SLINEAR) {
-		if (ast_set_read_format(s->chan, &original_read_fmt) < 0)
+	if (original_read_fmt) {
+		if (ast_set_read_format(s->chan, original_read_fmt) < 0)
 			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", ast_channel_name(s->chan));
+		ao2_ref(original_read_fmt, -1);
 	}
 
 	return res;

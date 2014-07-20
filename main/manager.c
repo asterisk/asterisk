@@ -99,6 +99,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/features_config.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/translate.h"
 
 /*** DOCUMENTATION
@@ -3869,7 +3870,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
 	struct ast_channel *chan;
-	char nativeformats[256];
+	struct ast_str *codec_buf = ast_str_alloca(64);
 	int channels = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 	char id_text[256];
@@ -4007,10 +4008,10 @@ static int action_status(struct mansession *s, const struct message *m)
 			ast_channel_linkedid(chan),
 			ast_channel_appl(chan),
 			ast_channel_data(chan),
-			ast_getformatname_multiple(nativeformats, sizeof(nativeformats), ast_channel_nativeformats(chan)),
-			ast_getformatname(ast_channel_readformat(chan)),
+			ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf),
+			ast_format_get_name(ast_channel_readformat(chan)),
 			ast_translate_path_to_str(ast_channel_readtrans(chan), &read_transpath),
-			ast_getformatname(ast_channel_writeformat(chan)),
+			ast_format_get_name(ast_channel_writeformat(chan)),
 			ast_translate_path_to_str(ast_channel_writetrans(chan), &write_transpath),
 			ast_channel_callgroup(chan),
 			ast_channel_pickupgroup(chan),
@@ -4458,7 +4459,7 @@ struct fast_originate_helper {
  */
 static void destroy_fast_originate_helper(struct fast_originate_helper *doomed)
 {
-	ast_format_cap_destroy(doomed->cap);
+	ao2_cleanup(doomed->cap);
 	ast_variables_destroy(doomed->vars);
 	ast_string_field_free_memory(doomed);
 	ast_free(doomed);
@@ -4781,8 +4782,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	int reason = 0;
 	char tmp[256];
 	char tmp2[256];
-	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-	struct ast_format tmp_fmt;
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	pthread_t th;
 	int bridge_early = 0;
 
@@ -4790,7 +4790,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Internal Error. Memory allocation failure.");
 		return 0;
 	}
-	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
 		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
@@ -4840,8 +4840,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 		}
 	}
 	if (!ast_strlen_zero(codecs)) {
-		ast_format_cap_remove_all(cap);
-		ast_parse_allow_disallow(NULL, cap, codecs, 1);
+		ast_format_cap_remove_by_type(cap, AST_MEDIA_TYPE_UNKNOWN);
+		ast_format_cap_update_by_allow_disallow(cap, codecs, 1);
 	}
 
 	if (!ast_strlen_zero(app) && s->session) {
@@ -4957,7 +4957,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 	}
 
 fast_orig_cleanup:
-	ast_format_cap_destroy(cap);
+	ao2_cleanup(cap);
 	return 0;
 }
 

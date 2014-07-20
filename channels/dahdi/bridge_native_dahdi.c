@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_technology.h"
 #include "asterisk/frame.h"
+#include "asterisk/format_cache.h"
 
 /* ------------------------------------------------------------------- */
 
@@ -892,7 +893,7 @@ static struct ast_bridge_technology native_bridge = {
 void dahdi_native_unload(void)
 {
 	ast_bridge_technology_unregister(&native_bridge);
-	ast_format_cap_destroy(native_bridge.format_capabilities);
+	ao2_cleanup(native_bridge.format_capabilities);
 }
 
 /*!
@@ -905,11 +906,9 @@ void dahdi_native_unload(void)
  */
 int dahdi_native_load(struct ast_module *mod, const struct ast_channel_tech *tech)
 {
-	struct ast_format format;
-
 	dahdi_tech = tech;
 
-	native_bridge.format_capabilities = ast_format_cap_alloc(0);
+	native_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!native_bridge.format_capabilities) {
 		return -1;
 	}
@@ -918,9 +917,9 @@ int dahdi_native_load(struct ast_module *mod, const struct ast_channel_tech *tec
 	 * This is used to make channels compatible with the bridge
 	 * itself not with each other.
 	 */
-	ast_format_cap_add(native_bridge.format_capabilities, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
-	ast_format_cap_add(native_bridge.format_capabilities, ast_format_set(&format, AST_FORMAT_ULAW, 0));
-	ast_format_cap_add(native_bridge.format_capabilities, ast_format_set(&format, AST_FORMAT_ALAW, 0));
+	ast_format_cap_append(native_bridge.format_capabilities, ast_format_slin, 0);
+	ast_format_cap_append(native_bridge.format_capabilities, ast_format_ulaw, 0);
+	ast_format_cap_append(native_bridge.format_capabilities, ast_format_alaw, 0);
 
 	return __ast_bridge_technology_register(&native_bridge, mod);
 }

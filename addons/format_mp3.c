@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/mod_format.h"
 #include "asterisk/logger.h"
+#include "asterisk/format_cache.h"
 
 #define MP3_BUFLEN 320
 #define MP3_SCACHE 16384
@@ -229,10 +230,7 @@ static struct ast_frame *mp3_read(struct ast_filestream *s, int *whennext)
 
 	p->offset += p->buflen;
 	delay = p->buflen / 2;
-	s->fr.frametype = AST_FRAME_VOICE;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_SLINEAR, 0);
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, p->buflen);
-	s->fr.mallocd = 0;
 	s->fr.samples = delay;
 	*whennext = delay;
 	return &s->fr;
@@ -318,7 +316,7 @@ static struct ast_format_def mp3_f = {
 
 static int load_module(void)
 {
-	ast_format_set(&mp3_f.format, AST_FORMAT_SLINEAR, 0);
+	mp3_f.format = ast_format_slin;
 	InitMP3Constants();
 	return ast_format_def_register(&mp3_f);
 }

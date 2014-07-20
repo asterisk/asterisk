@@ -2136,8 +2136,8 @@ static int agent_login_exec(struct ast_channel *chan, const char *data)
 	}
 
 	ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", agent->username,
-		ast_getformatname(ast_channel_readformat(chan)),
-		ast_getformatname(ast_channel_writeformat(chan)));
+		ast_format_get_name(ast_channel_readformat(chan)),
+		ast_format_get_name(ast_channel_writeformat(chan)));
 	ast_channel_lock(chan);
 	send_agent_login(chan, agent->username);
 	ast_channel_unlock(chan);

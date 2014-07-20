@@ -1521,9 +1521,9 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 	struct ast_var_t *var;
-	char nativeformats[256];
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
+	struct ast_str *codec_buf = ast_str_alloca(64);
 	struct ast_bridge *bridge;
 	struct ast_callid *callid;
 	char callid_buf[32];
@@ -1634,9 +1634,9 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_channel_language(chan),
 		ast_state2str(ast_channel_state(chan)),
 		ast_channel_state(chan),
-		ast_getformatname_multiple(nativeformats, sizeof(nativeformats), ast_channel_nativeformats(chan)),
-		ast_getformatname(ast_channel_writeformat(chan)),
-		ast_getformatname(ast_channel_readformat(chan)),
+		ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf),
+		ast_format_get_name(ast_channel_writeformat(chan)),
+		ast_format_get_name(ast_channel_readformat(chan)),
 		ast_str_strlen(write_transpath) ? "Yes" : "No",
 		ast_str_buffer(write_transpath),
 		ast_str_strlen(read_transpath) ? "Yes" : "No",

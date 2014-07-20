@@ -806,35 +806,32 @@ int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char
 }
 
 static int media_offer_read_av(struct ast_sip_session *session, char *buf,
-			       size_t len, enum ast_format_type media_type)
+			       size_t len, enum ast_media_type media_type)
 {
 	int i, size = 0;
-	struct ast_format fmt;
-	const char *name;
 
-	for (i = 0; ast_codec_pref_index(&session->override_prefs, i, &fmt); ++i) {
-		if (AST_FORMAT_GET_TYPE(fmt.id) != media_type) {
-			continue;
-		}
+	for (i = 0; i < ast_format_cap_count(session->req_caps); i++) {
+		struct ast_format *fmt = ast_format_cap_get_format(session->req_caps, i);
 
-		name = ast_getformatname(&fmt);
-
-		if (ast_strlen_zero(name)) {
-			ast_log(LOG_WARNING, "PJSIP_MEDIA_OFFER unrecognized format %s\n", name);
+		if (ast_format_get_type(fmt) != media_type) {
+			ao2_ref(fmt, -1);
 			continue;
 		}
 
 		/* add one since we'll include a comma */
-		size = strlen(name) + 1;
+		size = strlen(ast_format_get_name(fmt)) + 1;
 		len -= size;
 		if ((len) < 0) {
+			ao2_ref(fmt, -1);
 			break;
 		}
 
 		/* no reason to use strncat here since we have already ensured buf has
                    enough space, so strcat can be safely used */
-		strcat(buf, name);
+		strcat(buf, ast_format_get_name(fmt));
 		strcat(buf, ",");
+
+		ao2_ref(fmt, -1);
 	}
 
 	if (size) {
@@ -846,23 +843,16 @@ static int media_offer_read_av(struct ast_sip_session *session, char *buf,
 
 struct media_offer_data {
 	struct ast_sip_session *session;
-	enum ast_format_type media_type;
+	enum ast_media_type media_type;
 	const char *value;
 };
 
 static int media_offer_write_av(void *obj)
 {
 	struct media_offer_data *data = obj;
-	int i;
-	struct ast_format fmt;
-	/* remove all of the given media type first */
-	for (i = 0; ast_codec_pref_index(&data->session->override_prefs, i, &fmt); ++i) {
-		if (AST_FORMAT_GET_TYPE(fmt.id) == data->media_type) {
-			ast_codec_pref_remove(&data->session->override_prefs, &fmt);
-		}
-	}
-	ast_format_cap_remove_bytype(data->session->req_caps, data->media_type);
-	ast_parse_allow_disallow(&data->session->override_prefs, data->session->req_caps, data->value, 1);
+
+	ast_format_cap_remove_by_type(data->session->req_caps, data->media_type);
+	ast_format_cap_update_by_allow_disallow(data->session->req_caps, data->value, 1);
 
 	return 0;
 }
@@ -879,9 +869,9 @@ int pjsip_acf_media_offer_read(struct ast_channel *chan, const char *cmd, char *
 	channel = ast_channel_tech_pvt(chan);
 
 	if (!strcmp(data, "audio")) {
-		return media_offer_read_av(channel->session, buf, len, AST_FORMAT_TYPE_AUDIO);
+		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_AUDIO);
 	} else if (!strcmp(data, "video")) {
-		return media_offer_read_av(channel->session, buf, len, AST_FORMAT_TYPE_VIDEO);
+		return media_offer_read_av(channel->session, buf, len, AST_MEDIA_TYPE_VIDEO);
 	}
 
 	return 0;
@@ -903,9 +893,9 @@ int pjsip_acf_media_offer_write(struct ast_channel *chan, const char *cmd, char 
 	mdata.session = channel->session;
 
 	if (!strcmp(data, "audio")) {
-		mdata.media_type = AST_FORMAT_TYPE_AUDIO;
+		mdata.media_type = AST_MEDIA_TYPE_AUDIO;
 	} else if (!strcmp(data, "video")) {
-		mdata.media_type = AST_FORMAT_TYPE_VIDEO;
+		mdata.media_type = AST_MEDIA_TYPE_VIDEO;
 	}
 
 	return ast_sip_push_task_synchronous(channel->session->serializer, media_offer_write_av, &mdata);

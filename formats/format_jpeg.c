@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/image.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 static struct ast_frame *jpeg_read_image(int fd, int len)
 {
@@ -52,7 +53,7 @@ static struct ast_frame *jpeg_read_image(int fd, int len)
 	}
 	memset(&fr, 0, sizeof(fr));
 	fr.frametype = AST_FRAME_IMAGE;
-	ast_format_set(&fr.subclass.format, AST_FORMAT_JPEG, 0);
+	fr.subclass.format = ast_format_jpeg;
 	fr.data.ptr = buf;
 	fr.src = "JPEG Read";
 	fr.datalen = len;
@@ -74,14 +75,6 @@ static int jpeg_identify(int fd)
 static int jpeg_write_image(int fd, struct ast_frame *fr)
 {
 	int res=0;
-	if (fr->frametype != AST_FRAME_IMAGE) {
-		ast_log(LOG_WARNING, "Not an image\n");
-		return -1;
-	}
-	if (fr->subclass.format.id != AST_FORMAT_JPEG) {
-		ast_log(LOG_WARNING, "Not a jpeg image\n");
-		return -1;
-	}
 	if (fr->datalen) {
 		res = write(fd, fr->data.ptr, fr->datalen);
 		if (res != fr->datalen) {
@@ -103,7 +96,7 @@ static struct ast_imager jpeg_format = {
 
 static int load_module(void)
 {
-	ast_format_set(&jpeg_format.format, AST_FORMAT_JPEG, 0);
+	jpeg_format.format = ast_format_jpeg;
 	if (ast_image_register(&jpeg_format))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

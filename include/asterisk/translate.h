@@ -32,6 +32,8 @@ extern "C" {
 #include "asterisk/frame.h"
 #include "asterisk/plc.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/format_cap.h"
+#include "asterisk/format_cache.h"
 #endif
 
 struct ast_trans_pvt;	/* declared below */
@@ -134,8 +136,11 @@ enum ast_trans_cost_table {
  */
 struct ast_translator {
 	char name[80];                         /*!< Name of translator */
-	struct ast_format src_format;          /*!< Source format */
-	struct ast_format dst_format;          /*!< Destination format */
+	struct ast_codec src_codec;		       /*!< Source codec */
+	struct ast_codec dst_codec;		   	   /*!< Destination codec */
+	struct ast_codec *core_src_codec;	   /*!< Core registered source codec */
+	struct ast_codec *core_dst_codec;      /*!< Core registered destination codec */
+	const char *format;					   /*!< Optional name of a cached format this translator produces */
 
 	int table_cost;                        /*!< Cost value associated with this translator based
 	                                        *   on translation cost table. */
@@ -204,12 +209,6 @@ struct ast_translator {
 struct ast_trans_pvt {
 	struct ast_translator *t;
 	struct ast_frame f;         /*!< used in frameout */
-	/*! If a translation path using a format with attributes requires the output
-	 * to be a specific set of attributes, this variable will be set describing those
-	 * attributes to the translator.  Otherwise, the translator must choose a set
-	 * of format attributes for the destination that preserves the quality of the
-	 * audio in the best way possible. */
-	struct ast_format explicit_dst;
 	int samples;                /*!< samples available in outbuf */
 	/*! \brief actual space used in outbuf */
 	int datalen;
@@ -286,8 +285,8 @@ void ast_translator_deactivate(struct ast_translator *t);
  */
 int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 	struct ast_format_cap *src_cap,
-	struct ast_format *dst_fmt_out,
-	struct ast_format *src_fmt_out);
+	struct ast_format **dst_fmt_out,
+	struct ast_format **src_fmt_out);
 
 /*! 
  * \brief Builds a translator path

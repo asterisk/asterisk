@@ -672,7 +672,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	int res = 0, done = 0, started = 0, quieted = 0, max_dtmf_len = 0;
 	struct ast_speech *speech = find_speech(chan);
 	struct ast_frame *f = NULL;
-	struct ast_format oldreadformat;
+	RAII_VAR(struct ast_format *, oldreadformat, NULL, ao2_cleanup);
 	char dtmf[AST_MAX_EXTENSION] = "";
 	struct timeval start = { 0, 0 }, current;
 	struct ast_datastore *datastore = NULL;
@@ -688,7 +688,6 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_format_clear(&oldreadformat);
 	if (speech == NULL)
 		return -1;
 
@@ -704,10 +703,10 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	}
 
 	/* Record old read format */
-	ast_format_copy(&oldreadformat, ast_channel_readformat(chan));
+	oldreadformat = ao2_bump(ast_channel_readformat(chan));
 
 	/* Change read format to be signed linear */
-	if (ast_set_read_format(chan, &speech->format))
+	if (ast_set_read_format(chan, speech->format))
 		return -1;
 
 	if (!ast_strlen_zero(args.soundfile)) {
@@ -912,7 +911,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 			ast_channel_datastore_remove(chan, datastore);
 	} else {
 		/* Channel is okay so restore read format */
-		ast_set_read_format(chan, &oldreadformat);
+		ast_set_read_format(chan, oldreadformat);
 	}
 
 	return 0;

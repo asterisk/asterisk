@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 #define	RATE_40		0
 #define	RATE_32		1
@@ -122,9 +123,6 @@ static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 	struct g726_desc *fs = (struct g726_desc *)s->_private;
 
 	/* Send a frame from the file to the appropriate channel */
-	s->fr.frametype = AST_FRAME_VOICE;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_G726, 0);
-	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, frame_size[fs->rate]);
 	s->fr.samples = 8 * FRAME_TIME;
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
@@ -141,15 +139,6 @@ static int g726_write(struct ast_filestream *s, struct ast_frame *f)
 	int res;
 	struct g726_desc *fs = (struct g726_desc *)s->_private;
 
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
-		return -1;
-	}
-	if (f->subclass.format.id != AST_FORMAT_G726) {
-		ast_log(LOG_WARNING, "Asked to write non-G726 frame (%s)!\n", 
-						ast_getformatname(&f->subclass.format));
-		return -1;
-	}
 	if (f->datalen % frame_size[fs->rate]) {
 		ast_log(LOG_WARNING, "Invalid data length %d, should be multiple of %d\n", 
 						f->datalen, frame_size[fs->rate]);
@@ -239,7 +228,7 @@ static int load_module(void)
 	int i;
 
 	for (i = 0; f[i].desc_size ; i++) {
-		ast_format_set(&f[i].format, AST_FORMAT_G726, 0);
+		f[i].format = ast_format_g726;
 		if (ast_format_def_register(&f[i])) {	/* errors are fatal */
 			ast_log(LOG_WARNING, "Failed to register format %s.\n", f[i].name);
 			return AST_MODULE_LOAD_FAILURE;

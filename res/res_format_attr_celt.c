@@ -45,152 +45,148 @@ struct celt_attr {
 	unsigned int framesize;
 };
 
-static int celt_sdp_parse(struct ast_format_attr *format_attr, const char *attributes)
+static void celt_destroy(struct ast_format *format)
 {
-	struct celt_attr *attr = (struct celt_attr *) format_attr;
+	struct celt_attr *attr = ast_format_get_attribute_data(format);
+
+	ast_free(attr);
+}
+
+static int celt_clone(const struct ast_format *src, struct ast_format *dst)
+{
+	struct celt_attr *original = ast_format_get_attribute_data(src);
+	struct celt_attr *attr = ast_calloc(1, sizeof(*attr));
+
+	if (!attr) {
+		return -1;
+	}
+
+	if (original) {
+		*attr = *original;
+	}
+
+	ast_format_set_attribute_data(dst, attr);
+
+	return 0;
+}
+
+static struct ast_format *celt_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
+{
+	struct ast_format *cloned;
+	struct celt_attr *attr;
 	unsigned int val;
+
+	cloned = ast_format_clone(format);
+	if (!cloned) {
+		return NULL;
+	}
+	attr = ast_format_get_attribute_data(cloned);
 
 	if (sscanf(attributes, "framesize=%30u", &val) == 1) {
 		attr->framesize = val;
 	}
 
-	return 0;
+	return cloned;
 }
 
-static void celt_sdp_generate(const struct ast_format_attr *format_attr, unsigned int payload, struct ast_str **str)
+static void celt_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
-	struct celt_attr *attr = (struct celt_attr *) format_attr;
+	struct celt_attr *attr = ast_format_get_attribute_data(format);
 
-	if (!attr->framesize) {
+	if (!attr || !attr->framesize) {
 		return;
 	}
 
 	ast_str_append(str, 0, "a=fmtp:%u framesize=%u\r\n", payload, attr->framesize);
 }
 
-static enum ast_format_cmp_res celt_cmp(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2)
+static enum ast_format_cmp_res celt_cmp(const struct ast_format *format1, const struct ast_format *format2)
 {
-	struct celt_attr *attr1 = (struct celt_attr *) fattr1;
-	struct celt_attr *attr2 = (struct celt_attr *) fattr2;
+	struct celt_attr *attr1 = ast_format_get_attribute_data(format1);
+	struct celt_attr *attr2 = ast_format_get_attribute_data(format2);
 
-	if (attr1->samplerate == attr2->samplerate) {
+	if (((!attr1 || !attr1->samplerate) && (!attr2 || !attr2->samplerate)) ||
+		(attr1->samplerate == attr2->samplerate)) {
 		return AST_FORMAT_CMP_EQUAL;
 	}
+
 	return AST_FORMAT_CMP_NOT_EQUAL;
 }
 
-static int celt_get_val(const struct ast_format_attr *fattr, int key, void *result)
+static struct ast_format *celt_getjoint(const struct ast_format *format1, const struct ast_format *format2)
 {
-	const struct celt_attr *attr = (struct celt_attr *) fattr;
-	int *val = result;
+	struct celt_attr *attr1 = ast_format_get_attribute_data(format1);
+	struct celt_attr *attr2 = ast_format_get_attribute_data(format2);
+	struct ast_format *jointformat;
+	struct celt_attr *jointattr;
 
-	switch (key) {
-	case CELT_ATTR_KEY_SAMP_RATE:
-		*val = attr->samplerate;
-		break;
-	case CELT_ATTR_KEY_MAX_BITRATE:
-		*val = attr->maxbitrate;
-		break;
-	case CELT_ATTR_KEY_FRAME_SIZE:
-		*val = attr->framesize;
-		break;
-	default:
-		ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
-		return -1;
+	if (attr1 && attr2 && (attr1->samplerate != attr2->samplerate)) {
+		return NULL;
 	}
-	return 0;
-}
 
-static int celt_isset(const struct ast_format_attr *fattr, va_list ap)
-{
-	enum celt_attr_keys key;
-	const struct celt_attr *attr = (struct celt_attr *) fattr;
-
-	for (key = va_arg(ap, int);
-		key != AST_FORMAT_ATTR_END;
-		key = va_arg(ap, int))
-	{
-		switch (key) {
-		case CELT_ATTR_KEY_SAMP_RATE:
-			if (attr->samplerate != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case CELT_ATTR_KEY_MAX_BITRATE:
-			if (attr->maxbitrate != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case CELT_ATTR_KEY_FRAME_SIZE:
-			if (attr->framesize != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		default:
-			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
-			return -1;
-		}
+	jointformat = ast_format_clone(format1);
+	if (!jointformat) {
+		return NULL;
 	}
-	return 0;
-}
-static int celt_getjoint(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2, struct ast_format_attr *result)
-{
-	struct celt_attr *attr1 = (struct celt_attr *) fattr1;
-	struct celt_attr *attr2 = (struct celt_attr *) fattr2;
-	struct celt_attr *attr_res = (struct celt_attr *) result;
+	jointattr = ast_format_get_attribute_data(jointformat);
 
-	/* sample rate is the only attribute that has any bearing on if joint capabilities exist or not */
-	if (attr1->samplerate != attr2->samplerate) {
-		return -1;
-	}
 	/* either would work, they are guaranteed the same at this point. */
-	attr_res->samplerate = attr1->samplerate;
+	jointattr->samplerate = attr1->samplerate;
 	/* Take the lowest max bitrate */
-	attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
+	jointattr->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
 
-	attr_res->framesize = attr2->framesize; /* TODO figure out what joint framesize means */
-	return 0;
+	jointattr->framesize = attr2->framesize; /* TODO figure out what joint framesize means */
+
+	return jointformat;
 }
 
-static void celt_set(struct ast_format_attr *fattr, va_list ap)
+static struct ast_format *celt_set(const struct ast_format *format, const char *name, const char *value)
 {
-	enum celt_attr_keys key;
-	struct celt_attr *attr = (struct celt_attr *) fattr;
+	struct ast_format *cloned;
+	struct celt_attr *attr;
+	unsigned int val;
 
-	for (key = va_arg(ap, int);
-		key != AST_FORMAT_ATTR_END;
-		key = va_arg(ap, int))
-	{
-		switch (key) {
-		case CELT_ATTR_KEY_SAMP_RATE:
-			attr->samplerate = (va_arg(ap, int));
-			break;
-		case CELT_ATTR_KEY_MAX_BITRATE:
-			attr->maxbitrate = (va_arg(ap, int));
-			break;
-		case CELT_ATTR_KEY_FRAME_SIZE:
-			attr->framesize = (va_arg(ap, int));
-			break;
-		default:
-			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
-		}
+	cloned = ast_format_clone(format);
+	if (!cloned) {
+		return NULL;
 	}
+	attr = ast_format_get_attribute_data(cloned);
+
+	if (sscanf(value, "%30u", &val) != 1) {
+		ast_log(LOG_WARNING, "Unknown value '%s' for attribute type '%s'\n",
+			value, name);
+		ao2_ref(cloned, -1);
+		return NULL;
+	}
+
+	if (!strcasecmp(name, "sample_rate")) {
+		attr->samplerate = val;
+	} else if (!strcasecmp(name, "max_bitrate")) {
+		attr->maxbitrate = val;
+	} else if (!strcasecmp(name, "frame_size")) {
+		attr->framesize = val;
+	} else {
+		ast_log(LOG_WARNING, "Unknown attribute type '%s'\n", name);
+		ao2_ref(cloned, -1);
+		return NULL;
+	}
+
+	return cloned;
 }
 
-static struct ast_format_attr_interface celt_interface = {
-	.id = AST_FORMAT_CELT,
-	.format_attr_cmp = celt_cmp,
-	.format_attr_get_joint = celt_getjoint,
-	.format_attr_set = celt_set,
-	.format_attr_isset = celt_isset,
-	.format_attr_get_val = celt_get_val,
-	.format_attr_sdp_parse = celt_sdp_parse,
-	.format_attr_sdp_generate = celt_sdp_generate,
+static struct ast_format_interface celt_interface = {
+	.format_destroy = celt_destroy,
+	.format_clone = celt_clone,
+	.format_cmp = celt_cmp,
+	.format_get_joint = celt_getjoint,
+	.format_attribute_set = celt_set,
+	.format_parse_sdp_fmtp = celt_parse_sdp_fmtp,
+	.format_generate_sdp_fmtp = celt_generate_sdp_fmtp,
 };
 
 static int load_module(void)
 {
-	if (ast_format_attr_reg_interface(&celt_interface)) {
+	if (ast_format_interface_register("celt", &celt_interface)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -199,7 +195,6 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_format_attr_unreg_interface(&celt_interface);
 	return 0;
 }
 

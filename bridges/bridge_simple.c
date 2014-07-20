@@ -76,18 +76,19 @@ static struct ast_bridge_technology simple_bridge = {
 
 static int unload_module(void)
 {
-	ast_format_cap_destroy(simple_bridge.format_capabilities);
+	ao2_cleanup(simple_bridge.format_capabilities);
+	simple_bridge.format_capabilities = NULL;
 	return ast_bridge_technology_unregister(&simple_bridge);
 }
 
 static int load_module(void)
 {
-	if (!(simple_bridge.format_capabilities = ast_format_cap_alloc(0))) {
+	if (!(simple_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add_all_by_type(simple_bridge.format_capabilities, AST_FORMAT_TYPE_AUDIO);
-	ast_format_cap_add_all_by_type(simple_bridge.format_capabilities, AST_FORMAT_TYPE_VIDEO);
-	ast_format_cap_add_all_by_type(simple_bridge.format_capabilities, AST_FORMAT_TYPE_TEXT);
+	ast_format_cap_append_by_type(simple_bridge.format_capabilities, AST_MEDIA_TYPE_AUDIO);
+	ast_format_cap_append_by_type(simple_bridge.format_capabilities, AST_MEDIA_TYPE_VIDEO);
+	ast_format_cap_append_by_type(simple_bridge.format_capabilities, AST_MEDIA_TYPE_TEXT);
 
 	return ast_bridge_technology_register(&simple_bridge);
 }

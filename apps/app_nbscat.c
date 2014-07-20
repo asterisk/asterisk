@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="NBScat" language="en_US">
@@ -115,7 +116,7 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
-	struct ast_format owriteformat;
+	struct ast_format *owriteformat;
 	struct timeval next;
 	struct ast_frame *f;
 	struct myframe {
@@ -124,7 +125,6 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 		short frdata[160];
 	} myf;
 
-	ast_format_clear(&owriteformat);
 	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fds)) {
 		ast_log(LOG_WARNING, "Unable to create socketpair\n");
 		return -1;
@@ -132,12 +132,22 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	
 	ast_stopstream(chan);
 
-	ast_format_copy(&owriteformat, ast_channel_writeformat(chan));
-	res = ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR);
+	owriteformat = ao2_bump(ast_channel_writeformat(chan));
+	res = ast_set_write_format(chan, ast_format_slin);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		ao2_cleanup(owriteformat);
 		return -1;
 	}
+
+	myf.f.frametype = AST_FRAME_VOICE;
+	myf.f.subclass.format = ast_format_slin;
+	myf.f.mallocd = 0;
+	myf.f.offset = AST_FRIENDLY_OFFSET;
+	myf.f.src = __PRETTY_FUNCTION__;
+	myf.f.delivery.tv_sec = 0;
+	myf.f.delivery.tv_usec = 0;
+	myf.f.data.ptr = myf.frdata;
 	
 	res = NBScatplay(fds[1]);
 	/* Wait 1000 ms first */
@@ -152,16 +162,8 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 			if (ms <= 0) {
 				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata));
 				if (res > 0) {
-					myf.f.frametype = AST_FRAME_VOICE;
-					ast_format_set(&myf.f.subclass.format, AST_FORMAT_SLINEAR, 0);
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
-					myf.f.mallocd = 0;
-					myf.f.offset = AST_FRIENDLY_OFFSET;
-					myf.f.src = __PRETTY_FUNCTION__;
-					myf.f.delivery.tv_sec = 0;
-					myf.f.delivery.tv_usec = 0;
-					myf.f.data.ptr = myf.frdata;
 					if (ast_write(chan, &myf.f) < 0) {
 						res = -1;
 						break;
@@ -199,11 +201,13 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	}
 	close(fds[0]);
 	close(fds[1]);
+	ast_frfree(&myf.f);
 	
 	if (pid > -1)
 		kill(pid, SIGKILL);
-	if (!res && owriteformat.id)
-		ast_set_write_format(chan, &owriteformat);
+	if (!res && owriteformat)
+		ast_set_write_format(chan, owriteformat);
+	ao2_cleanup(owriteformat);
 
 	return res;
 }

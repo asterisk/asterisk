@@ -77,6 +77,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/format_cache.h"
 
 /*! 
  * \brief The sample rate to request from PortAudio 
@@ -270,12 +271,12 @@ static void *stream_monitor(void *data)
 	PaError res;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
+		.subclass.format = ast_format_slin16,
 		.src = "console_stream_monitor",
 		.data.ptr = buf,
 		.datalen = sizeof(buf),
 		.samples = sizeof(buf) / sizeof(int16_t),
 	};
-	ast_format_set(&f.subclass.format, AST_FORMAT_SLINEAR16, 0);
 
 	for (;;) {
 		pthread_testcancel();
@@ -421,19 +422,28 @@ static int stop_stream(struct console_pvt *pvt)
  */
 static struct ast_channel *console_new(struct console_pvt *pvt, const char *ext, const char *ctx, int state, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
+	struct ast_format_cap *caps;
 	struct ast_channel *chan;
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		return NULL;
+	}
 
 	if (!(chan = ast_channel_alloc(1, state, pvt->cid_num, pvt->cid_name, NULL, 
 		ext, ctx, assignedids, requestor, 0, "Console/%s", pvt->name))) {
+		ao2_ref(caps, -1);
 		return NULL;
 	}
 
 	ast_channel_stage_snapshot(chan);
 
 	ast_channel_tech_set(chan, &console_tech);
-	ast_format_set(ast_channel_readformat(chan), AST_FORMAT_SLINEAR16, 0);
-	ast_format_set(ast_channel_writeformat(chan), AST_FORMAT_SLINEAR16, 0);
-	ast_format_cap_add(ast_channel_nativeformats(chan), ast_channel_readformat(chan));
+	ast_channel_set_readformat(chan, ast_format_slin16);
+	ast_channel_set_writeformat(chan, ast_format_slin16);
+	ast_format_cap_append(caps, ast_format_slin16, 0);
+	ast_channel_nativeformats_set(chan, caps);
+	ao2_ref(caps, -1);
 	ast_channel_tech_pvt_set(chan, ref_pvt(pvt));
 
 	pvt->owner = chan;
@@ -462,15 +472,16 @@ static struct ast_channel *console_request(const char *type, struct ast_format_c
 {
 	struct ast_channel *chan = NULL;
 	struct console_pvt *pvt;
-	char buf[512];
 
 	if (!(pvt = find_pvt(data))) {
 		ast_log(LOG_ERROR, "Console device '%s' not found\n", data);
 		return NULL;
 	}
 
-	if (!(ast_format_cap_has_joint(cap, console_tech.capabilities))) {
-		ast_log(LOG_NOTICE, "Channel requested with unsupported format(s): '%s'\n", ast_getformatname_multiple(buf, sizeof(buf), cap));
+	if (!(ast_format_cap_iscompatible(cap, console_tech.capabilities))) {
+		struct ast_str *cap_buf = ast_str_alloca(64);
+		ast_log(LOG_NOTICE, "Channel requested with unsupported format(s): '%s'\n",
+			ast_format_cap_get_names(cap, &cap_buf));
 		goto return_unref;
 	}
 
@@ -1467,7 +1478,8 @@ static void stop_streams(void)
 
 static int unload_module(void)
 {
-	console_tech.capabilities = ast_format_cap_destroy(console_tech.capabilities);
+	ao2_ref(console_tech.capabilities, -1);
+	console_tech.capabilities = NULL;
 	ast_channel_unregister(&console_tech);
 	ast_cli_unregister_multiple(cli_console, ARRAY_LEN(cli_console));
 
@@ -1495,13 +1507,12 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	struct ast_format tmpfmt;
 	PaError res;
 
-	if (!(console_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(console_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add(console_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR16, 0));
+	ast_format_cap_append(console_tech.capabilities, ast_format_slin16, 0);
 
 	init_pvt(&globals, NULL);
 
@@ -1538,6 +1549,8 @@ return_error:
 	if (pvts)
 		ao2_ref(pvts, -1);
 	pvts = NULL;
+	ao2_ref(console_tech.capabilities, -1);
+	console_tech.capabilities = NULL;
 	pvt_destructor(&globals);
 
 	return AST_MODULE_LOAD_DECLINE;

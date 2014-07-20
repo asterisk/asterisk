@@ -68,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/netsock2.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_message_router.h"
+#include "asterisk/format_cache.h"
 
 #define AST_API_MODULE
 #include "asterisk/agi.h"
@@ -2538,8 +2539,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	int silence = 0;                /* amount of silence to allow */
 	int gotsilence = 0;             /* did we timeout for silence? */
 	char *silencestr = NULL;
-	struct ast_format rfmt;
-	ast_format_clear(&rfmt);
+	RAII_VAR(struct ast_format *, rfmt, NULL, ao2_cleanup);
 
 	/* XXX EAGI FIXME XXX */
 
@@ -2569,8 +2569,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	}
 
 	if (silence > 0) {
-		ast_format_copy(&rfmt, ast_channel_readformat(chan));
-		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
+		rfmt = ao2_bump(ast_channel_readformat(chan));
+		res = ast_set_read_format(chan, ast_format_slin);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
 			ast_agi_send(agi->fd, chan, "200 result=%d\n", res);
@@ -2694,7 +2694,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 	}
 
 	if (silence > 0) {
-		res = ast_set_read_format(chan, &rfmt);
+		res = ast_set_read_format(chan, rfmt);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", ast_channel_name(chan));
 		ast_dsp_free(sildet);
@@ -3032,7 +3032,6 @@ static int handle_setmusic(struct ast_channel *chan, AGI *agi, int argc, const c
 static int handle_speechcreate(struct ast_channel *chan, AGI *agi, int argc, const char * const argv[])
 {
 	struct ast_format_cap *cap;
-	struct ast_format tmpfmt;
 
 	/* If a structure already exists, return an error */
 	if (agi->speech) {
@@ -3040,16 +3039,16 @@ static int handle_speechcreate(struct ast_channel *chan, AGI *agi, int argc, con
 		return RESULT_SUCCESS;
 	}
 
-	if (!(cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
+	if (!(cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return RESULT_FAILURE;
 	}
-	ast_format_cap_add(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 	if ((agi->speech = ast_speech_new(argv[2], cap))) {
 		ast_agi_send(agi->fd, chan, "200 result=1\n");
 	} else {
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 	}
-	cap = ast_format_cap_destroy(cap);
+	ao2_ref(cap, -1);
 
 	return RESULT_SUCCESS;
 }
@@ -3182,7 +3181,6 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 	const char *prompt;
 	char dtmf = 0, tmp[4096] = "", *buf = tmp;
 	int timeout = 0, offset = 0, res = 0, i = 0;
-	struct ast_format old_read_format;
 	long current_offset = 0;
 	const char *reason = NULL;
 	struct ast_frame *fr = NULL;
@@ -3206,8 +3204,7 @@ static int handle_speechrecognize(struct ast_channel *chan, AGI *agi, int argc, 
 		offset = atoi(argv[4]);
 
 	/* We want frames coming in signed linear */
-	ast_format_copy(&old_read_format, ast_channel_readformat(chan));
-	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+	if (ast_set_read_format(chan, ast_format_slin)) {
 		ast_agi_send(agi->fd, chan, "200 result=0\n");
 		return RESULT_SUCCESS;
 	}
@@ -4195,23 +4192,26 @@ static int agi_exec(struct ast_channel *chan, const char *data)
 static int eagi_exec(struct ast_channel *chan, const char *data)
 {
 	int res;
-	struct ast_format readformat;
+	struct ast_format *readformat;
 
 	if (ast_check_hangup(chan)) {
 		ast_log(LOG_ERROR, "EAGI cannot be run on a dead/hungup channel, please use AGI.\n");
 		return 0;
 	}
-	ast_format_copy(&readformat, ast_channel_readformat(chan));
-	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+	readformat = ao2_bump(ast_channel_readformat(chan));
+	if (ast_set_read_format(chan, ast_format_slin)) {
 		ast_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", ast_channel_name(chan));
+		ao2_ref(readformat, -1);
 		return -1;
 	}
 	res = agi_exec_full(chan, data, 1, 0);
 	if (!res) {
-		if (ast_set_read_format(chan, &readformat)) {
-			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", ast_channel_name(chan), ast_getformatname(&readformat));
+		if (ast_set_read_format(chan, readformat)) {
+			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", ast_channel_name(chan),
+				ast_format_get_name(readformat));
 		}
 	}
+	ao2_ref(readformat, -1);
 	return res;
 }
 

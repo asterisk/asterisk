@@ -39,8 +39,8 @@ struct ast_slinfactory {
 	short *offset;                           /*!< Offset into the hold where audio begins */
 	size_t holdlen;                          /*!< Number of samples currently in the hold */
 	unsigned int size;                       /*!< Number of samples currently in the factory */
-	struct ast_format format;                /*!< Current format the translation path is converting from */
-	struct ast_format output_format;         /*!< The output format desired */
+	struct ast_format *format;               /*!< Current format the translation path is converting from */
+	struct ast_format *output_format;        /*!< The output format desired */
 };
 
 /*!
@@ -60,7 +60,7 @@ void ast_slinfactory_init(struct ast_slinfactory *sf);
  *
  * \return 0 on success, non-zero on failure
  */
-int ast_slinfactory_init_with_format(struct ast_slinfactory *sf, const struct ast_format *slin_out);
+int ast_slinfactory_init_with_format(struct ast_slinfactory *sf, struct ast_format *slin_out);
 
 /*!
  * \brief Destroy the contents of a slinfactory

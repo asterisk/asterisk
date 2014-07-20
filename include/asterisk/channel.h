@@ -1883,14 +1883,6 @@ int ast_set_read_format_from_cap(struct ast_channel *chan, struct ast_format_cap
 int ast_set_read_format(struct ast_channel *chan, struct ast_format *format);
 
 /*!
- * \brief Sets read format on channel chan by id
- * \param chan channel to change
- * \param id format id to set for reading, only used for formats without attributes
- * \return Returns 0 on success, -1 on failure
- */
-int ast_set_read_format_by_id(struct ast_channel *chan, enum ast_format_id id);
-
-/*!
  * \brief Sets write format on channel chan
  * Set write format for channel to whichever component of "format" is best.
  * \param chan channel to change
@@ -1906,14 +1898,6 @@ int ast_set_write_format_from_cap(struct ast_channel *chan, struct ast_format_ca
  * \return Returns 0 on success, -1 on failure
  */
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format);
-
-/*!
- * \brief Sets write format on channel chan
- * \param chan channel to change
- * \param id format id to set for writing, only used for formats without attributes
- * \return Returns 0 on success, -1 on failure
- */
-int ast_set_write_format_by_id(struct ast_channel *chan, enum ast_format_id id);
 
 /*!
  * \brief Sends text to a channel
@@ -2101,17 +2085,6 @@ char *ast_transfercapability2str(int transfercapability) attribute_const;
  * \return 0 on success and -1 on failure
  */
 int ast_channel_setoption(struct ast_channel *channel, int option, void *data, int datalen, int block);
-
-/*!
- * \brief Pick the best codec
- *
- * \param cap capabilities to pick best codec out of
- * \param result stucture to store the best codec in.
- * \retval on success, pointer to result structure
- * \retval on failure, NULL
- */
-struct ast_format *ast_best_codec(struct ast_format_cap *cap, struct ast_format *result);
-
 
 /*!
  * \brief Checks the value of an option
@@ -4007,6 +3980,13 @@ struct ast_format *ast_channel_rawreadformat(struct ast_channel *chan);
 struct ast_format *ast_channel_rawwriteformat(struct ast_channel *chan);
 struct ast_format *ast_channel_readformat(struct ast_channel *chan);
 struct ast_format *ast_channel_writeformat(struct ast_channel *chan);
+
+/* Format setters - all of these functions will increment the reference count of the format passed in */
+void ast_channel_set_oldwriteformat(struct ast_channel *chan, struct ast_format *format);
+void ast_channel_set_rawreadformat(struct ast_channel *chan, struct ast_format *format);
+void ast_channel_set_rawwriteformat(struct ast_channel *chan, struct ast_format *format);
+void ast_channel_set_readformat(struct ast_channel *chan, struct ast_format *format);
+void ast_channel_set_writeformat(struct ast_channel *chan, struct ast_format *format);
 
 /* Other struct getters */
 struct ast_frame *ast_channel_dtmff(struct ast_channel *chan);

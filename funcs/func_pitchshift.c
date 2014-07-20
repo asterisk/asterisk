@@ -172,9 +172,7 @@ static int pitchshift_cb(struct ast_audiohook *audiohook, struct ast_channel *ch
 	if (!f) {
 		return 0;
 	}
-	if ((audiohook->status == AST_AUDIOHOOK_STATUS_DONE) ||
-		(f->frametype != AST_FRAME_VOICE) ||
-		!(ast_format_is_slinear(&f->subclass.format))) {
+	if (audiohook->status == AST_AUDIOHOOK_STATUS_DONE) {
 		return -1;
 	}
 
@@ -489,7 +487,7 @@ static int pitch_shift(struct ast_frame *f, float amount, struct fft_data *fft)
 		return 0;
 	}
 	for (samples = 0; samples < f->samples; samples += 32) {
-		smb_pitch_shift(amount, 32, MAX_FRAME_LENGTH, 32, ast_format_rate(&f->subclass.format), fun+samples, fun+samples, fft);
+		smb_pitch_shift(amount, 32, MAX_FRAME_LENGTH, 32, ast_format_get_sample_rate(f->subclass.format), fun+samples, fun+samples, fft);
 	}
 
 	return 0;

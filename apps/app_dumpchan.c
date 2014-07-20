@@ -72,7 +72,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 {
 	long elapsed_seconds = 0;
 	int hour = 0, min = 0, sec = 0;
-	char nf[256];
+	struct ast_str *format_buf = ast_str_alloca(64);
 	char cgrp[256];
 	char pgrp[256];
 	struct ast_str *write_transpath = ast_str_alloca(256);
@@ -143,11 +143,11 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 		ast_state2str(ast_channel_state(c)),
 		ast_channel_state(c),
 		ast_channel_rings(c),
-		ast_getformatname_multiple(nf, sizeof(nf), ast_channel_nativeformats(c)),
-		ast_getformatname(ast_channel_writeformat(c)),
-		ast_getformatname(ast_channel_readformat(c)),
-		ast_getformatname(ast_channel_rawwriteformat(c)),
-		ast_getformatname(ast_channel_rawreadformat(c)),
+		ast_format_cap_get_names(ast_channel_nativeformats(c), &format_buf),
+		ast_format_get_name(ast_channel_writeformat(c)),
+		ast_format_get_name(ast_channel_readformat(c)),
+		ast_format_get_name(ast_channel_rawwriteformat(c)),
+		ast_format_get_name(ast_channel_rawreadformat(c)),
 		ast_channel_writetrans(c) ? "Yes" : "No",
 		ast_translate_path_to_str(ast_channel_writetrans(c), &write_transpath),
 		ast_channel_readtrans(c) ? "Yes" : "No",

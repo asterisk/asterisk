@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/res_fax.h"
 #include "asterisk/channel.h"
+#include "asterisk/format_cache.h"
 
 #define SPANDSP_FAX_SAMPLES 160
 #define SPANDSP_FAX_TIMER_RATE 8000 / SPANDSP_FAX_SAMPLES	/* 50 ticks per second, 20ms, 160 samples per second */
@@ -609,9 +610,9 @@ static struct ast_frame *spandsp_fax_read(struct ast_fax_session *s)
 	struct ast_frame fax_frame = {
 		.frametype = AST_FRAME_VOICE,
 		.src = "res_fax_spandsp_g711",
+		.subclass.format = ast_format_slin,
 	};
 	struct ast_frame *f = &fax_frame;
-	ast_format_set(&fax_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 
 	if (ast_timer_ack(p->timer, 1) < 0) {
 		ast_log(LOG_ERROR, "Failed to acknowledge timer for FAX session '%u'\n", s->id);
@@ -664,20 +665,21 @@ static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame 
 		return -1;
 	}
 
-	ast_debug(5, "frame={ datalen=%d, samples=%d, mallocd=%d, src=%s, flags=%u, ts=%ld, len=%ld, seqno=%d, data.ptr=%p, subclass.format.id=%u  }\n", f->datalen, f->samples, f->mallocd, f->src, f->flags, f->ts, f->len, f->seqno, f->data.ptr, f->subclass.format.id);
+	ast_debug(5, "frame={ datalen=%d, samples=%d, mallocd=%d, src=%s, flags=%u, ts=%ld, len=%ld, seqno=%d, data.ptr=%p, subclass.format=%s  }\n", f->datalen, f->samples, f->mallocd, f->src, f->flags, f->ts, f->len, f->seqno, f->data.ptr, ast_format_get_name(f->subclass.format));
 
 	/* slinear frame can be passed to spandsp */
-	if (f->subclass.format.id == AST_FORMAT_SLINEAR) {
+	if (ast_format_cmp(f->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 		modem_connect_tones_rx(p->tone_state, f->data.ptr, f->samples);
 
 	/* alaw/ulaw frame must be converted to slinear before passing to spandsp */
-	} else if (f->subclass.format.id == AST_FORMAT_ALAW || f->subclass.format.id == AST_FORMAT_ULAW) {
+	} else if (ast_format_cmp(f->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL ||
+	           ast_format_cmp(f->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
 		if (!(slndata = ast_malloc(sizeof(*slndata) * f->samples))) {
 			return -1;
 		}
-		decoder = g711_init(NULL, (f->subclass.format.id == AST_FORMAT_ALAW ? G711_ALAW : G711_ULAW));
+		decoder = g711_init(NULL, (ast_format_cmp(f->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL ? G711_ALAW : G711_ULAW));
 		g711_decode(decoder, slndata, f->data.ptr, f->samples);
-		ast_debug(5, "spandsp transcoding frame from %s to slinear for v21 detection\n", (f->subclass.format.id == AST_FORMAT_ALAW ? "G711_ALAW" : "G711_ULAW"));
+		ast_debug(5, "spandsp transcoding frame from %s to slinear for v21 detection\n", ast_format_get_name(f->subclass.format));
 		modem_connect_tones_rx(p->tone_state, slndata, f->samples);
 		g711_release(decoder);
 #if SPANDSP_RELEASE_DATE >= 20090220
@@ -687,7 +689,7 @@ static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame 
 
 	/* frame in other formats cannot be passed to spandsp, it could cause segfault */
 	} else {
-		ast_log(LOG_WARNING, "Unknown frame format %u, v.21 detection skipped\n", f->subclass.format.id);
+		ast_log(LOG_WARNING, "Frame format %s not supported, v.21 detection skipped\n", ast_format_get_name(f->subclass.format));
 		return -1;
 	}
 
@@ -749,6 +751,7 @@ static int spandsp_fax_gw_t30_gen(struct ast_channel *chan, void *data, int len,
 	struct ast_frame *f;
 	struct ast_frame t30_frame = {
 		.frametype = AST_FRAME_VOICE,
+		.subclass.format = ast_format_slin,
 		.src = "res_fax_spandsp_g711",
 		.samples = samples,
 		.flags = AST_FAX_FRFLAG_GATEWAY,
@@ -756,7 +759,6 @@ static int spandsp_fax_gw_t30_gen(struct ast_channel *chan, void *data, int len,
 
 	AST_FRAME_SET_BUFFER(&t30_frame, buffer, AST_FRIENDLY_OFFSET, t30_frame.samples * sizeof(int16_t));
 
-	ast_format_set(&t30_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 	if (!(f = ast_frisolate(&t30_frame))) {
 		return p->isdone ? -1 : res;
 	}
@@ -878,7 +880,8 @@ static int spandsp_fax_gateway_process(struct ast_fax_session *s, const struct a
 	/* Process a IFP packet */
 	if ((f->frametype == AST_FRAME_MODEM) && (f->subclass.integer == AST_MODEM_T38)) {
 		return t38_core_rx_ifp_packet(p->t38_core_state, f->data.ptr, f->datalen, f->seqno);
-	} else if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id == AST_FORMAT_SLINEAR)) {
+	} else if ((f->frametype == AST_FRAME_VOICE) &&
+		(ast_format_cmp(f->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)) {
 		return t38_gateway_rx(&p->t38_gw_state, f->data.ptr, f->samples);
 	}
 

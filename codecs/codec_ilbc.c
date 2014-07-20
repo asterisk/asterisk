@@ -178,7 +178,18 @@ static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 }
 
 static struct ast_translator ilbctolin = {
-	.name = "ilbctolin", 
+	.name = "ilbctolin",
+	.src_codec = {
+		.name = "ilbc",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.newpvt = ilbctolin_new,
 	.framein = ilbctolin_framein,
 	.sample = ilbc_sample,
@@ -188,7 +199,18 @@ static struct ast_translator ilbctolin = {
 };
 
 static struct ast_translator lintoilbc = {
-	.name = "lintoilbc", 
+	.name = "lintoilbc",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "ilbc",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "ilbc",
 	.newpvt = lintoilbc_new,
 	.framein = lintoilbc_framein,
 	.frameout = lintoilbc_frameout,
@@ -211,20 +233,14 @@ static int load_module(void)
 {
 	int res;
 
-	ast_format_set(&ilbctolin.src_format, AST_FORMAT_ILBC, 0);
-	ast_format_set(&ilbctolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintoilbc.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintoilbc.dst_format, AST_FORMAT_ILBC, 0);
-
-
 	res = ast_register_translator(&ilbctolin);
-	if (!res) 
-		res=ast_register_translator(&lintoilbc);
-	else
-		ast_unregister_translator(&ilbctolin);
-	if (res)
+	res |= ast_register_translator(&lintoilbc);
+
+	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

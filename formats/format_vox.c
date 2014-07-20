@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 #define BUF_SIZE	80		/* 80 bytes, 160 samples */
 #define VOX_SAMPLES	160
@@ -44,9 +45,6 @@ static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 	int res;
 
 	/* Send a frame from the file to the appropriate channel */
-	s->fr.frametype = AST_FRAME_VOICE;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_ADPCM, 0);
-	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
@@ -61,14 +59,6 @@ static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 static int vox_write(struct ast_filestream *s, struct ast_frame *f)
 {
 	int res;
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
-		return -1;
-	}
-	if (f->subclass.format.id != AST_FORMAT_ADPCM) {
-		ast_log(LOG_WARNING, "Asked to write non-ADPCM frame (%s)!\n", ast_getformatname(&f->subclass.format));
-		return -1;
-	}
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, s->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
@@ -147,7 +137,7 @@ static struct ast_format_def vox_f = {
 
 static int load_module(void)
 {
-	ast_format_set(&vox_f.format, AST_FORMAT_ADPCM, 0);
+	vox_f.format = ast_format_adpcm;
 	if (ast_format_def_register(&vox_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

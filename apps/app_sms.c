@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="SMS" language="en_US">
@@ -140,11 +141,11 @@ static const signed short wave[] = {
 static unsigned char wavea[80];
 typedef unsigned char output_t;
 static const output_t *wave_out = wavea;    /* outgoing samples */
-#define __OUT_FMT AST_FORMAT_ALAW;
+#define __OUT_FMT ast_format_alaw
 #else
 typedef signed short output_t;
 static const output_t *wave_out = wave;     /* outgoing samples */
-#define __OUT_FMT AST_FORMAT_SLINEAR
+#define __OUT_FMT ast_format_slin
 #endif
 
 #define OSYNC_BITS	80                      /* initial sync bits */
@@ -1599,7 +1600,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 #define MAXSAMPLES (800)
 	output_t *buf;
 	sms_t *h = data;
-	int i;
+	int i, res;
 
 	if (samples > MAXSAMPLES) {
 		ast_log(LOG_WARNING, "Only doing %d samples (%d requested)\n",
@@ -1610,7 +1611,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 	buf = ast_alloca(len);
 
 	f.frametype = AST_FRAME_VOICE;
-	ast_format_set(&f.subclass.format, __OUT_FMT, 0);
+	f.subclass.format = __OUT_FMT;
 	f.datalen = samples * sizeof(*buf);
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;
@@ -1660,7 +1661,9 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 			}
 		}
 	}
-	if (ast_write(chan, &f) < 0) {
+	res = ast_write(chan, &f);
+	ast_frfree(&f);
+	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", ast_channel_name(chan), strerror(errno));
 		return -1;
 	}
@@ -2012,9 +2015,9 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 		sms_messagetx(&h);
 	}
 
-	res = ast_set_write_format_by_id(chan, __OUT_FMT);
+	res = ast_set_write_format(chan, __OUT_FMT);
 	if (res >= 0) {
-		res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
+		res = ast_set_read_format(chan, ast_format_slin);
 	}
 	if (res < 0) {
 		ast_log(LOG_ERROR, "Unable to set to linear mode, giving up\n");

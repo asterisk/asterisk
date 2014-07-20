@@ -1,9 +1,9 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2010, Digium, Inc.
+ * Copyright (C) 2014, Digium, Inc.
  *
- * David Vossel <dvossel@digium.com>
+ * Joshua Colp <jcolp@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -18,228 +18,190 @@
 
 /*!
  * \file
- * \brief Format API
+ * \brief Media Format API
  *
- * \author David Vossel <dvossel@digium.com>
+ * \author Joshua Colp <jcolp@digium.com>
  */
+
+#include "asterisk/codec.h"
 
 #ifndef _AST_FORMAT_H_
 #define _AST_FORMAT_H_
 
-#include "asterisk/astobj2.h"
-#include "asterisk/silk.h"
-#include "asterisk/celt.h"
-#include "asterisk/opus.h"
-#define AST_FORMAT_ATTR_SIZE 64
-#define AST_FORMAT_INC 100000
+struct ast_format;
 
-/*! This is the value that ends a var list of format attribute
- * key value pairs. */
-#define AST_FORMAT_ATTR_END -1
-
-/* \brief Format Categories*/
-enum ast_format_type {
-	AST_FORMAT_TYPE_AUDIO = 1 * AST_FORMAT_INC,
-	AST_FORMAT_TYPE_VIDEO = 2 * AST_FORMAT_INC,
-	AST_FORMAT_TYPE_IMAGE = 3 * AST_FORMAT_INC,
-	AST_FORMAT_TYPE_TEXT  = 4 * AST_FORMAT_INC,
-};
-
-enum ast_format_id {
-	/*! G.723.1 compression */
-	AST_FORMAT_G723_1           = 1 + AST_FORMAT_TYPE_AUDIO,
-	/*! GSM compression */
-	AST_FORMAT_GSM              = 2 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw mu-law data (G.711) */
-	AST_FORMAT_ULAW             = 3 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw A-law data (G.711) */
-	AST_FORMAT_ALAW             = 4 + AST_FORMAT_TYPE_AUDIO,
-	/*! ADPCM (G.726, 32kbps, AAL2 codeword packing) */
-	AST_FORMAT_G726_AAL2        = 5 + AST_FORMAT_TYPE_AUDIO,
-	/*! ADPCM (IMA) */
-	AST_FORMAT_ADPCM            = 6 + AST_FORMAT_TYPE_AUDIO,
-	/*! LPC10, 180 samples/frame */
-	AST_FORMAT_LPC10            = 7 + AST_FORMAT_TYPE_AUDIO,
-	/*! G.729A audio */
-	AST_FORMAT_G729A            = 8 + AST_FORMAT_TYPE_AUDIO,
-	/*! SpeeX Free Compression */
-	AST_FORMAT_SPEEX            = 9 + AST_FORMAT_TYPE_AUDIO,
-	/*! iLBC Free Compression */
-	AST_FORMAT_ILBC             = 10 + AST_FORMAT_TYPE_AUDIO,
-	/*! ADPCM (G.726, 32kbps, RFC3551 codeword packing) */
-	AST_FORMAT_G726             = 11 + AST_FORMAT_TYPE_AUDIO,
-	/*! G.722 */
-	AST_FORMAT_G722             = 12 + AST_FORMAT_TYPE_AUDIO,
-	/*! G.722.1 (also known as Siren7, 32kbps assumed) */
-	AST_FORMAT_SIREN7           = 13 + AST_FORMAT_TYPE_AUDIO,
-	/*! G.722.1 Annex C (also known as Siren14, 48kbps assumed) */
-	AST_FORMAT_SIREN14          = 14 + AST_FORMAT_TYPE_AUDIO,
-	/*! G.719 (64 kbps assumed) */
-	AST_FORMAT_G719             = 15 + AST_FORMAT_TYPE_AUDIO,
-	/*! SpeeX Wideband (16kHz) Free Compression */
-	AST_FORMAT_SPEEX16          = 16 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw mu-law data (G.711) */
-	AST_FORMAT_TESTLAW          = 17 + AST_FORMAT_TYPE_AUDIO,
-	/*! SILK format */
-	AST_FORMAT_SILK             = 18 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (8000 Hz) PCM */
-	AST_FORMAT_SLINEAR          = 19 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (12000 Hz) PCM */
-	AST_FORMAT_SLINEAR12        = 20 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (16000 Hz) PCM */
-	AST_FORMAT_SLINEAR16        = 21 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (24000 Hz) PCM */
-	AST_FORMAT_SLINEAR24        = 22 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (32000 Hz) PCM */
-	AST_FORMAT_SLINEAR32        = 23 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (44100 Hz) PCM just because we can. */
-	AST_FORMAT_SLINEAR44        = 24 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (48000 Hz) PCM */
-	AST_FORMAT_SLINEAR48        = 25 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (96000 Hz) PCM */
-	AST_FORMAT_SLINEAR96        = 26 + AST_FORMAT_TYPE_AUDIO,
-	/*! Raw 16-bit Signed Linear (192000 Hz) PCM.  maybe we're taking this too far. */
-	AST_FORMAT_SLINEAR192       = 27 + AST_FORMAT_TYPE_AUDIO,
-	AST_FORMAT_SPEEX32          = 28 + AST_FORMAT_TYPE_AUDIO,
-	AST_FORMAT_CELT             = 29 + AST_FORMAT_TYPE_AUDIO,
-	/*! Opus */
-	AST_FORMAT_OPUS             = 30 + AST_FORMAT_TYPE_AUDIO,
-
-	/*! H.261 Video */
-	AST_FORMAT_H261             = 1 + AST_FORMAT_TYPE_VIDEO,
-	/*! H.263 Video */
-	AST_FORMAT_H263             = 2 + AST_FORMAT_TYPE_VIDEO,
-	/*! H.263+ Video */
-	AST_FORMAT_H263_PLUS        = 3 + AST_FORMAT_TYPE_VIDEO,
-	/*! H.264 Video */
-	AST_FORMAT_H264             = 4 + AST_FORMAT_TYPE_VIDEO,
-	/*! MPEG4 Video */
-	AST_FORMAT_MP4_VIDEO        = 5 + AST_FORMAT_TYPE_VIDEO,
-	/*! VP8 */
-	AST_FORMAT_VP8              = 6 + AST_FORMAT_TYPE_VIDEO,
-
-	/*! JPEG Images */
-	AST_FORMAT_JPEG             = 1 + AST_FORMAT_TYPE_IMAGE,
-	/*! PNG Images */
-	AST_FORMAT_PNG              = 2 + AST_FORMAT_TYPE_IMAGE,
-
-	/*! T.140 RED Text format RFC 4103 */
-	AST_FORMAT_T140RED          = 1 + AST_FORMAT_TYPE_TEXT,
-	/*! T.140 Text format - ITU T.140, RFC 4103 */
-	AST_FORMAT_T140             = 2 + AST_FORMAT_TYPE_TEXT,
-};
-
-/*! Determine what type of media a ast_format_id is. */
-#define AST_FORMAT_GET_TYPE(id) (((int) (id / AST_FORMAT_INC)) * AST_FORMAT_INC)
-
-
-/*! \brief This structure contains the buffer used for format attributes */
-struct ast_format_attr {
-	/*! The buffer formats can use to represent attributes */
-	uint32_t format_attr[AST_FORMAT_ATTR_SIZE];
-	/*! If a format's payload needs to pass through that a new marker is required
-	 * for RTP, this variable will be set. */
-	uint8_t rtp_marker_bit;
-};
-
-/*! \brief Represents a media format within Asterisk. */
-struct ast_format {
-	/*! The unique id representing this format from all the other formats. */
-	enum ast_format_id id;
-	/*!  Attribute structure used to associate attributes with a format. */
-	struct ast_format_attr fattr;
-};
-
+/*! \brief Format comparison results */
 enum ast_format_cmp_res {
-	/*! structure 1 is identical to structure 2. */
+	/*! Both formats are equivalent to eachother */
 	AST_FORMAT_CMP_EQUAL = 0,
-	/*! structure 1 contains elements not in structure 2. */
+	/*! Both formats are completely different and not the same in any way */
 	AST_FORMAT_CMP_NOT_EQUAL,
-	/*! structure 1 is a proper subset of the elements in structure 2.*/
+	/*! Both formats are similar but not equivalent */
 	AST_FORMAT_CMP_SUBSET,
 };
 
-/*! \brief Definition of supported media formats (codecs) */
-struct ast_format_list {
-	struct ast_format format; /*!< The unique format. */
-	char name[64];	/*!< short name */
-	unsigned int samplespersecond; /*!< Number of samples per second (8000/16000) */
-	char desc[128];	/*!< Description */
-	int fr_len;	/*!< Single frame length in bytes */
-	int min_ms;	/*!< Min value */
-	int max_ms;	/*!< Max value */
-	int inc_ms;	/*!< Increment */
-	int def_ms;	/*!< Default value */
-	unsigned int flags;	/*!< Smoother flags */
-	int cur_ms;	/*!< Current value */
-	int custom_entry;
-};
-
-/*! \brief A format must register an attribute interface if it requires the use of the format attributes void pointer */
-struct ast_format_attr_interface {
-	/*! format type */
-	enum ast_format_id id;
-
-	/*! \brief Determine if format_attr 1 is a subset of format_attr 2.
+/*! \brief Optional format interface to extend format operations */
+struct ast_format_interface {
+	/*!
+	 * \brief Callback for when the format is destroyed, used to release attribute resources
 	 *
-	 * \retval ast_format_cmp_res representing the result of comparing fattr1 and fattr2.
+	 * \param format The format structure to destroy
 	 */
-	enum ast_format_cmp_res (* const format_attr_cmp)(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2);
-
-	/*! \brief Get joint attributes of same format type if they exist.
-	 *
-	 * \retval 0 if joint attributes exist
-	 * \retval -1 if no joint attributes are present
-	 */
-	int (* const format_attr_get_joint)(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2, struct ast_format_attr *result);
-
-	/*! \brief Set format capabilities from a list of key value pairs ending with AST_FORMAT_ATTR_END.
-	 * \note This function does not need to call va_end of the va_list. */
-	void (* const format_attr_set)(struct ast_format_attr *format_attr, va_list ap);
+	void (*const format_destroy)(struct ast_format *format);
 
 	/*!
-	 * \brief Find out if format capabilities in va_list are in format.
-	 * \note This function does not need to call va_end of the va_list.
+	 * \brief Callback for when the format is cloned, used to clone attributes
 	 *
-	 * \note This function is optional.  In many cases the format_attr_cmp
-	 * function can be used to derive these results.  If it is possible
-	 * that some format attributes have no bearing on the equality of two formats, this
-	 * function must exist.
+	 * \param src Source format of attributes
+	 * \param dst Destination format for attributes
 	 *
-	 * \retval 0 if all attributes exist
-	 * \retval -1 if any of the attributes not present
+	 * \retval 0 success
+	 * \retval -1 failure
 	 */
-	int (* const format_attr_isset)(const struct ast_format_attr *format_attr, va_list ap);
+	int (*const format_clone)(const struct ast_format *src, struct ast_format *dst);
 
-	/*
-	 * \brief Return a value for a specific format key.   Return that value in the void pointer.
+	/*!
+	 * \brief Determine if format 1 is a subset of format 2.
 	 *
-	 * \note It is not expected that all key value pairs can be returned, but those that can should
-	 * be documented as such.
+	 * \param format1 First format to compare
+	 * \param format2 Second format which the first is compared against
 	 *
-	 * \note This function is optional if key value pairs are not allowed to be accessed.  This
-	 * will result in -1 always being returned.
-	 *
-	 * \retval 0 Success, value was found and copied into void pointer.
-	 * \retval -1 failure, Value was either not found, or not allowed to be accessed.
+	 * \retval ast_format_cmp_res representing the result of comparing format1 and format2.
 	 */
-	int (* const format_attr_get_val)(const struct ast_format_attr *format_attr, int key, void *val);
+	enum ast_format_cmp_res (* const format_cmp)(const struct ast_format *format1,
+		const struct ast_format *format2);
 
-	/*
-	 * \brief Parse SDP attribute information, interpret it, and store it in ast_format_attr structure.
+	/*! 
+	 * \brief Get a format with the joint compatible attributes of both provided formats.
 	 *
-	 * \retval 0 Success, values were valid
-	 * \retval -1 Failure, some values were not acceptable
+	 * \param format1 The first format
+	 * \param format2 The second format
+	 *
+	 * \retval non-NULL if joint format
+	 * \retval NULL if no joint format
+	 *
+	 * \note The returned format has its reference count incremented and must be released using
+	 * ao2_ref or ao2_cleanup.
 	 */
-	int (* const format_attr_sdp_parse)(struct ast_format_attr *format_attr, const char *attributes);
+	struct ast_format *(* const format_get_joint)(const struct ast_format *format1,
+		const struct ast_format *format2);
+
+	/*!
+	 * \brief Set an attribute on a format
+	 *
+	 * \param name The name of the attribute
+	 * \param value The value of the attribute
+	 *
+	 * \retval non-NULL success
+	 * \retval NULL failure
+	 */
+	struct ast_format *(* const format_attribute_set)(const struct ast_format *format,
+		const char *name, const char *value);
+
+	/*!
+	 * \brief Parse SDP attribute information, interpret it, and store it in the format structure.
+	 *
+	 * \param format Format to set attributes on
+	 * \param attributes A string containing only the attributes from the fmtp line
+	 *
+	 * \retval non-NULL Success, values were valid
+	 * \retval NULL Failure, some values were not acceptable
+	 */
+	struct ast_format *(* const format_parse_sdp_fmtp)(const struct ast_format *format, const char *attributes);
 
 	/*!
 	 * \brief Generate SDP attribute information from an ast_format_attr structure.
 	 *
+	 * \param format The format containing attributes
+	 * \param payload The payload number to place into the fmtp line
+	 * \param str The generated fmtp line
+	 *
 	 * \note This callback should generate a full fmtp line using the provided payload number.
 	 */
-	void (* const format_attr_sdp_generate)(const struct ast_format_attr *format_attr, unsigned int payload, struct ast_str **str);
+	void (* const format_generate_sdp_fmtp)(const struct ast_format *format, unsigned int payload,
+		struct ast_str **str);
 };
+
+/*!
+ * \brief Initialize media format support
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_format_init(void);
+
+/*!
+ * \brief Create a new media format
+ *
+ * \param codec The codec to use
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note The format is returned with reference count incremented. It must be released using
+ * ao2_ref or ao2_cleanup.
+ */
+struct ast_format *ast_format_create(struct ast_codec *codec);
+
+/*!
+ * \brief Create a new media format with a specific name
+ *
+ * \param format_name The name to use for the format
+ * \param codec The codec to use
+ *
+ * \note This creation function should be used when the name of the \c codec
+ * cannot be explicitly used for the name of the format. This is the case for
+ * codecs with multiple sample rates
+ *
+ * \note The format is returned with reference count incremented. It must be released using
+ * ao2_ref or ao2_cleanup.
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_format *ast_format_create_named(const char *format_name, struct ast_codec *codec);
+
+/*!
+ * \brief Clone an existing media format so it can be modified
+ *
+ * \param format The existing media format
+ *
+ * \note The returned format is a new ao2 object. It must be released using ao2_cleanup.
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_format *ast_format_clone(const struct ast_format *format);
+
+/*!
+ * \brief Compare two formats
+ *
+ * \retval ast_format_cmp_res representing the result of comparing format1 and format2.
+ */
+enum ast_format_cmp_res ast_format_cmp(const struct ast_format *format1, const struct ast_format *format2);
+
+/*!
+ * \brief Get a common joint capability between two formats
+ *
+ * \retval non-NULL if joint capability exists
+ * \retval NULL if no joint capability exists
+ *
+ * \note The returned format must be treated as immutable.
+ */
+struct ast_format *ast_format_joint(const struct ast_format *format1, const struct ast_format *format2);
+
+/*!
+ * \brief Set an attribute on a format to a specific value
+ *
+ * \param format The format to set the attribute on
+ * \param name Attribute name
+ * \param value Attribute value
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_format *ast_format_attribute_set(const struct ast_format *format, const char *name,
+	const char *value);
 
 /*!
  * \brief This function is used to have a media format aware module parse and interpret
@@ -249,10 +211,10 @@ struct ast_format_attr_interface {
  * \param format to set
  * \param attributes string containing the fmtp line from the SDP
  *
- * \retval 0 success, attribute values were valid
- * \retval -1 failure, values were not acceptable
+ * \retval non-NULL success, attribute values were valid
+ * \retval NULL failure, values were not acceptable
  */
-int ast_format_sdp_parse(struct ast_format *format, const char *attributes);
+struct ast_format *ast_format_parse_sdp_fmtp(const struct ast_format *format, const char *attributes);
 
 /*!
  * \brief This function is used to produce an fmtp SDP line for an Asterisk format. The
@@ -262,220 +224,148 @@ int ast_format_sdp_parse(struct ast_format *format, const char *attributes);
  * \param payload numerical payload for the fmtp line
  * \param str structure that the fmtp line will be appended to
  */
-void ast_format_sdp_generate(const struct ast_format *format, unsigned int payload, struct ast_str **str);
+void ast_format_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str);
 
 /*!
- * \brief This function is used to set an ast_format object to represent a media format
- * with optional format attributes represented by format specific key value pairs.
+ * \brief Register a format interface for use with the provided codec
  *
- * \param format to set
- * \param id format id to set on format
- * \param set_attributes are there attributes to set on this format. 0 == false, 1 == True.
- * \param ... var list of attribute key value pairs, must end with AST_FORMAT_ATTR_END;
- *
- * \details Example usage.
- * ast_format_set(format, AST_FORMAT_ULAW, 0); // no capability attributes are needed for ULAW
- *
- * ast_format_set(format, AST_FORMAT_SILK, 1, // SILK has capability attributes.
- *	  AST_FORMAT_SILK_ATTR_RATE, 24000,
- *	  AST_FORMAT_SILK_ATTR_RATE, 16000,
- *	  AST_FORMAT_SILK_ATTR_RATE, 12000,
- *	  AST_FORMAT_SILK_ATTR_RATE, 8000,
- *	  AST_FORMAT_ATTR_END);
- *
- * \note This function will initialize the ast_format structure.
- *
- * \return Pointer to ast_format object, same pointer that is passed in
- * by the first argument.
- */
-struct ast_format *ast_format_set(struct ast_format *format, enum ast_format_id id, int set_attributes, ... );
-
-/*!
- * \brief After ast_format_set has been used on a function, this function can be used to
- * set additional format attributes to the structure.
- *
- * \param format to set
- * \param ... var list of attribute key value pairs, must end with AST_FORMAT_ATTR_END;
- *
- * \details Example usage.
- * ast_format_set(format, AST_FORMAT_SILK, 0);
- * ast_format_append(format, // SILK has capability attributes.
- *	  AST_FORMAT_SILK_ATTR_RATE, 24000,
- *	  AST_FORMAT_SILK_ATTR_RATE, 16000,
- *	  AST_FORMAT_SILK_ATTR_RATE, 12000,
- *	  AST_FORMAT_SILK_ATTR_RATE, 8000,
- *	  AST_FORMAT_ATTR_END);
- *
- * \return Pointer to ast_format object, same pointer that is passed in
- * by the first argument.
- */
-struct ast_format *ast_format_append(struct ast_format *format, ... );
-
-/*!
- * \brief Clears the format stucture.
- */
-void ast_format_clear(struct ast_format *format);
-
-/*!
- * \brief This function is used to set an ast_format object to represent a media format
- * with optional capability attributes represented by format specific key value pairs.
- *
- * \details Example usage. Is this SILK format capable of 8khz
- * is_8khz = ast_format_isset(format, AST_FORMAT_SILK_CAP_RATE, 8000);
- *
- * \return 0, The format key value pairs are within the capabilities defined in this structure.
- * \return -1, The format key value pairs are _NOT_ within the capabilities of this structure.
- */
-int ast_format_isset(const struct ast_format *format, ... );
-
-/*!
- * \brief Get a value from a format containing attributes.
- * \note The key represents the format attribute to be retrieved, and the void pointer
- * is to the structure that value will be stored in.  It must be known what structure a
- * key represents.
- *
- * \retval 0, success
- * \retval -1, failure
- */
-int ast_format_get_value(const struct ast_format *format, int key, void *value);
-
-/*!
- * \brief Compare ast_formats structures
- *
- * \retval ast_format_cmp_res representing the result of comparing format1 and format2.
- */
-enum ast_format_cmp_res ast_format_cmp(const struct ast_format *format1, const struct ast_format *format2);
-
-/*!
- * \brief Find joint format attributes of two ast_format
- * structures containing the same uid and return the intersection in the
- * result structure.
- *
- * retval 0, joint attribute capabilities exist.
- * retval -1, no joint attribute capabilities exist.
- */
-int ast_format_joint(const struct ast_format *format1, const struct ast_format *format2, struct ast_format *result);
-
-/*!
- * \brief copy format src into format dst.
- */
-void ast_format_copy(struct ast_format *dst, const struct ast_format *src);
-
-/*!
- * \brief Set the rtp mark value on the format to indicate to the interface
- * writing this format's payload that a new RTP marker is necessary.
- */
-void ast_format_set_video_mark(struct ast_format *format);
-
-/*!
- * \brief Determine of the marker bit is set or not on this format.
- *
- * \retval 1, true
- * \retval 0, false
- */
-int ast_format_get_video_mark(const struct ast_format *format);
-
-/*!
- * \brief ast_format to old bitfield format represenatation
- *
- * \note This is only to be used for IAX2 compatibility 
- *
- * \retval iax2 representation of ast_format
- * \retval 0, if no representation existis for iax2
- */
-uint64_t ast_format_to_old_bitfield(const struct ast_format *format);
-
-/*!
- * \brief ast_format_id to old bitfield format represenatation
- *
- */
-uint64_t ast_format_id_to_old_bitfield(enum ast_format_id id);
-
-/*!
- * \brief convert old bitfield format to ast_format represenatation
- * \note This is only to be used for IAX2 compatibility 
- *
- * \retval on success, pointer to the dst format in the input parameters
- * \retval on failure, NULL
- */
-struct ast_format *ast_format_from_old_bitfield(struct ast_format *dst, uint64_t src);
-
-/*!
- * \brief convert old bitfield format to ast_format_id value
- */
-enum ast_format_id ast_format_id_from_old_bitfield(uint64_t src);
-
-/*!
- * \brief Retrieve the global format list in a read only array.
- * \note ast_format_list_destroy must be called on every format
- * list retrieved from this function.
- */
-const struct ast_format_list *ast_format_list_get(size_t *size);
-
-/*!
- * \brief Destroy an ast_format_list gotten from ast_format_list_get()
- */
-const struct ast_format_list *ast_format_list_destroy(const struct ast_format_list *list);
-
-/*! \brief Get the name of a format
- * \param format id of format
- * \return A static string containing the name of the format or "unknown" if unknown.
- */
-const char* ast_getformatname(const struct ast_format *format);
-
-/*! \brief Returns a string containing all formats pertaining to an format id.
- * \param buf a buffer for the output string
- * \param size size of buf (bytes)
- * \param id format id.
- * \return The return value is buf.
- */
-char* ast_getformatname_multiple_byid(char *buf, size_t size, enum ast_format_id id);
-
-/*!
- * \brief Gets a format from a name.
- * \param name string of format
- * \param format structure to return the format in.
- * \return This returns the format pointer given to it on success and NULL on failure
- */
-struct ast_format *ast_getformatbyname(const char *name, struct ast_format *format);
-
-/*!
- * \brief Get a name from a format 
- * \param format to get name of
- * \return This returns a static string identifying the format on success, 0 on error.
- */
-const char *ast_codec2str(struct ast_format *format);
-
-/*!
- * \brief Get the sample rate for a given format.
- */
-int ast_format_rate(const struct ast_format *format);
-
-/*!
- * \brief register ast_format_attr_interface with core.
+ * \param codec The name of codec the interface is applicable to
+ * \param interface A pointer to the interface implementation
+ * \param mod The module this format interface is provided by
  *
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_format_attr_reg_interface(const struct ast_format_attr_interface *interface);
+int __ast_format_interface_register(const char *codec, const struct ast_format_interface *interface, struct ast_module *mod);
 
 /*!
- * \brief unregister format_attr interface with core.
+ * \brief Register a format interface for use with the provided codec
+ *
+ * \param codec The name of codec the interface is applicable to
+ * \param interface A pointer to the interface implementation
  *
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_format_attr_unreg_interface(const struct ast_format_attr_interface *interface);
+#define ast_format_interface_register(codec, interface) __ast_format_interface_register(codec, interface, ast_module_info->self)
 
 /*!
- * \brief Determine if a format is 16bit signed linear of any sample rate. 
+ * \brief Get the attribute data on a format
+ *
+ * \param format The media format
+ *
+ * \return Currently set attribute data
  */
-int ast_format_is_slinear(const struct ast_format *format);
+void *ast_format_get_attribute_data(const struct ast_format *format);
 
 /*!
- * \brief Get the best slinear format id for a given sample rate
+ * \brief Set the attribute data on a format
+ *
+ * \param format The media format
+ * \param attribute_data The attribute data
  */
-enum ast_format_id ast_format_slin_by_rate(unsigned int rate);
+void ast_format_set_attribute_data(struct ast_format *format, void *attribute_data);
+
+/*!
+ * \brief Get the name associated with a format
+ *
+ * \param format The media format
+ *
+ * \return The name of the format
+ */
+const char *ast_format_get_name(const struct ast_format *format);
+
+/*!
+ * \brief Get the codec identifier associated with a format
+ *
+ * \param format The media format
+ *
+ * \return codec identifier
+ */
+unsigned int ast_format_get_codec_id(const struct ast_format *format);
+
+/*!
+ * \brief Get the codec name associated with a format
+ *
+ * \param format The media format
+ *
+ * \return The codec name
+ */
+const char *ast_format_get_codec_name(const struct ast_format *format);
+
+/*!
+ * \brief Get whether or not the format can be smoothed
+ *
+ * \param format The media format
+ *
+ * \retval 0 the format cannot be smoothed
+ * \retval 1 the format can be smoothed
+ */
+int ast_format_can_be_smoothed(const struct ast_format *format);
+
+/*!
+ * \brief Get the media type of a format
+ *
+ * \param format The media format
+ *
+ * \return the media type
+ */
+enum ast_media_type ast_format_get_type(const struct ast_format *format);
+
+/*!
+ * \brief Get the default framing size (in milliseconds) for a format
+ *
+ * \param format The media format
+ *
+ * \return default framing size in milliseconds
+ */
+unsigned int ast_format_get_default_ms(const struct ast_format *format);
+
+/*!
+ * \brief Get the minimum amount of media carried in this format
+ *
+ * \param format The media format
+ *
+ * \return minimum framing size in milliseconds
+ */
+unsigned int ast_format_get_minimum_ms(const struct ast_format *format);
+
+/*!
+ * \brief Get the maximum amount of media carried in this format
+ *
+ * \param format The media format
+ *
+ * \return maximum framing size in milliseconds
+ */
+unsigned int ast_format_get_maximum_ms(const struct ast_format *format);
+
+/*!
+ * \brief Get the minimum number of bytes expected in a frame for this format
+ *
+ * \param format The media format
+ *
+ * \return minimum expected bytes in a frame for this format
+ */
+unsigned int ast_format_get_minimum_bytes(const struct ast_format *format);
+
+/*!
+ * \brief Get the sample rate of a media format
+ *
+ * \param format The media format
+ *
+ * \return sample rate
+ */
+unsigned int ast_format_get_sample_rate(const struct ast_format *format);
+
+/*!
+ * \brief Get the length (in milliseconds) for the format with a given number of samples
+ *
+ * \param format The media format
+ * \param samples The number of samples
+ *
+ * \return length of media (in milliseconds)
+ */
+unsigned int ast_format_determine_length(const struct ast_format *format, unsigned int samples);
 
 /*!
  * \since 12
@@ -494,4 +384,5 @@ struct stasis_message_type *ast_format_register_type(void);
  * \retval NULL on error
  */
 struct stasis_message_type *ast_format_unregister_type(void);
+
 #endif /* _AST_FORMAT_H */

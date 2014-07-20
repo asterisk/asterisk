@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/dsp.h"
 #include "asterisk/module.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="WaitForSilence" language="en_US">
@@ -129,7 +130,7 @@ static char *app_noise = "WaitForNoise";
 static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, int timeout, int wait_for_silence) {
 	struct ast_frame *f = NULL;
 	int dsptime = 0;
-	struct ast_format rfmt;
+	RAII_VAR(struct ast_format *, rfmt, NULL, ao2_cleanup);
 	int res = 0;
 	struct ast_dsp *sildet;	 /* silence detector dsp */
  	time_t now;
@@ -138,8 +139,8 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 	int (*ast_dsp_func)(struct ast_dsp*, struct ast_frame*, int*) =
 				wait_for_silence ? ast_dsp_silence : ast_dsp_noise;
 
-	ast_format_copy(&rfmt, ast_channel_readformat(chan)); /* Set to linear mode */
-	if ((res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) < 0) {
+	rfmt = ao2_bump(ast_channel_readformat(chan));
+	if ((res = ast_set_read_format(chan, ast_format_slin)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set channel to linear mode, giving up\n");
 		return -1;
 	}
@@ -199,8 +200,8 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 	}
 
 
-	if (rfmt.id && ast_set_read_format(chan, &rfmt)) {
-		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(&rfmt), ast_channel_name(chan));
+	if (rfmt && ast_set_read_format(chan, rfmt)) {
+		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_format_get_name(rfmt), ast_channel_name(chan));
 	}
 	ast_dsp_free(sildet);
 	return res;

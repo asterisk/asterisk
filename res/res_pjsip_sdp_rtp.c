@@ -41,6 +41,8 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
+#include "asterisk/format.h"
+#include "asterisk/format_cap.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/channel.h"
@@ -68,38 +70,39 @@ static const char STR_VIDEO[] = "video";
 static const int FD_VIDEO = 2;
 
 /*! \brief Retrieves an ast_format_type based on the given stream_type */
-static enum ast_format_type stream_to_media_type(const char *stream_type)
+static enum ast_media_type stream_to_media_type(const char *stream_type)
 {
 	if (!strcasecmp(stream_type, STR_AUDIO)) {
-		return AST_FORMAT_TYPE_AUDIO;
+		return AST_MEDIA_TYPE_AUDIO;
 	} else if (!strcasecmp(stream_type, STR_VIDEO)) {
-		return AST_FORMAT_TYPE_VIDEO;
+		return AST_MEDIA_TYPE_VIDEO;
 	}
 
 	return 0;
 }
 
 /*! \brief Get the starting descriptor for a media type */
-static int media_type_to_fdno(enum ast_format_type media_type)
+static int media_type_to_fdno(enum ast_media_type media_type)
 {
 	switch (media_type) {
-	case AST_FORMAT_TYPE_AUDIO: return FD_AUDIO;
-	case AST_FORMAT_TYPE_VIDEO: return FD_VIDEO;
-	case AST_FORMAT_TYPE_TEXT:
-	case AST_FORMAT_TYPE_IMAGE: break;
+	case AST_MEDIA_TYPE_AUDIO: return FD_AUDIO;
+	case AST_MEDIA_TYPE_VIDEO: return FD_VIDEO;
+	case AST_MEDIA_TYPE_TEXT:
+	case AST_MEDIA_TYPE_UNKNOWN:
+	case AST_MEDIA_TYPE_IMAGE: break;
 	}
 	return -1;
 }
 
 /*! \brief Remove all other cap types but the one given */
-static void format_cap_only_type(struct ast_format_cap *caps, enum ast_format_type media_type)
+static void format_cap_only_type(struct ast_format_cap *caps, enum ast_media_type media_type)
 {
-	int i = AST_FORMAT_INC;
-	while (i <= AST_FORMAT_TYPE_TEXT) {
-		if (i != media_type) {
-			ast_format_cap_remove_bytype(caps, i);
+	int i = 0;
+	while (i <= AST_MEDIA_TYPE_TEXT) {
+		if (i != media_type && i != AST_MEDIA_TYPE_UNKNOWN) {
+			ast_format_cap_remove_by_type(caps, i);
 		}
-		i += AST_FORMAT_INC;
+		i += 1;
 	}
 }
 
@@ -115,9 +118,6 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RTCP, 1);
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->media.rtp.symmetric);
-
-	ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(session_media->rtp),
-					 session_media->rtp, &session->endpoint->media.prefs);
 
 	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
@@ -185,9 +185,26 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 		if ((pjmedia_sdp_attr_get_fmtp(attr, &fmtp)) == PJ_SUCCESS) {
 			sscanf(pj_strbuf(&fmtp.fmt), "%d", &num);
 			if ((format = ast_rtp_codecs_get_payload_format(codecs, num))) {
+				struct ast_format *format_parsed;
+
 				ast_copy_pj_str(fmt_param, &fmtp.fmt_param, sizeof(fmt_param));
-				ast_format_sdp_parse(format, fmt_param);
+
+				format_parsed = ast_format_parse_sdp_fmtp(format, fmt_param);
+				if (format_parsed) {
+					ast_rtp_codecs_payload_replace_format(codecs, num, format_parsed);
+					ao2_ref(format_parsed, -1);
+				}
+
+				ao2_ref(format, -1);
 			}
+		}
+	}
+
+	/* Get the packetization, if it exists */
+	if ((attr = pjmedia_sdp_media_find_attr2(stream, "ptime", NULL))) {
+		unsigned long framing = pj_strtoul(pj_strltrim(&attr->value));
+		if (framing && session->endpoint->media.rtp.use_ptime) {
+			ast_rtp_codecs_set_framing(codecs, framing);
 		}
 	}
 }
@@ -195,64 +212,70 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 static int set_caps(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 		    const struct pjmedia_sdp_media *stream)
 {
-	RAII_VAR(struct ast_format_cap *, caps, NULL, ast_format_cap_destroy);
-	RAII_VAR(struct ast_format_cap *, peer, NULL, ast_format_cap_destroy);
-	RAII_VAR(struct ast_format_cap *, joint, NULL, ast_format_cap_destroy);
-	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
-	struct ast_rtp_codecs codecs;
-	struct ast_format fmt;
+	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, peer, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, joint, NULL, ao2_cleanup);
+	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
+	struct ast_rtp_codecs codecs = AST_RTP_CODECS_NULL_INIT;
 	int fmts = 0;
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
-		!ast_format_cap_is_empty(session->direct_media_cap);
+		ast_format_cap_count(session->direct_media_cap);
 
-	if (!(caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK)) ||
-	    !(peer = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
+	if (!(caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT)) ||
+	    !(peer = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT)) ||
+	    !(joint = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ast_log(LOG_ERROR, "Failed to allocate %s capabilities\n", session_media->stream_type);
 		return -1;
 	}
 
 	/* get the endpoint capabilities */
 	if (direct_media_enabled) {
-		ast_format_cap_joint_copy(session->endpoint->media.codecs, session->direct_media_cap, caps);
+		ast_format_cap_get_compatible(session->endpoint->media.codecs, session->direct_media_cap, caps);
+		format_cap_only_type(caps, media_type);
 	} else {
-		ast_format_cap_copy(caps, session->endpoint->media.codecs);
+		ast_format_cap_append_from_cap(caps, session->endpoint->media.codecs, media_type);
 	}
-	format_cap_only_type(caps, media_type);
 
 	/* get the capabilities on the peer */
 	get_codecs(session, stream, &codecs);
 	ast_rtp_codecs_payload_formats(&codecs, peer, &fmts);
 
 	/* get the joint capabilities between peer and endpoint */
-	if (!(joint = ast_format_cap_joint(caps, peer))) {
-		char usbuf[64], thembuf[64];
+	ast_format_cap_get_compatible(caps, peer, joint);
+	if (!ast_format_cap_count(joint)) {
+		struct ast_str *usbuf = ast_str_alloca(64);
+		struct ast_str *thembuf = ast_str_alloca(64);
 
 		ast_rtp_codecs_payloads_destroy(&codecs);
-
-		ast_getformatname_multiple(usbuf, sizeof(usbuf), caps);
-		ast_getformatname_multiple(thembuf, sizeof(thembuf), peer);
-		ast_log(LOG_WARNING, "No joint capabilities between our configuration(%s) and incoming SDP(%s)\n", usbuf, thembuf);
+		ast_log(LOG_WARNING, "No joint capabilities between our configuration(%s) and incoming SDP(%s)\n",
+			ast_format_cap_get_names(peer, &usbuf),
+			ast_format_cap_get_names(caps, &thembuf));
 		return -1;
 	}
 
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
 				     session_media->rtp);
 
-	ast_format_cap_copy(caps, session->req_caps);
-	ast_format_cap_remove_bytype(caps, media_type);
-	ast_format_cap_append(caps, joint);
-	ast_format_cap_append(session->req_caps, caps);
+	ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
+	ast_format_cap_append_from_cap(caps, session->req_caps, AST_MEDIA_TYPE_UNKNOWN);
+	ast_format_cap_remove_by_type(caps, media_type);
+	ast_format_cap_append_from_cap(caps, joint, AST_MEDIA_TYPE_UNKNOWN);
+	ast_format_cap_append_from_cap(session->req_caps, caps, AST_MEDIA_TYPE_UNKNOWN);
 
 	if (session->channel) {
-		ast_format_cap_copy(caps, ast_channel_nativeformats(session->channel));
-		ast_format_cap_remove_bytype(caps, media_type);
-		ast_codec_choose(&session->endpoint->media.prefs, joint, 1, &fmt);
-		ast_format_cap_add(caps, &fmt);
+		struct ast_format *fmt;
+
+		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel), AST_MEDIA_TYPE_UNKNOWN);
+		ast_format_cap_remove_by_type(caps, media_type);
+		fmt = ast_format_cap_get_format(joint, 0);
+		ast_format_cap_append(caps, fmt, 0);
 
 		/* Apply the new formats to the channel, potentially changing read/write formats while doing so */
-		ast_format_cap_copy(ast_channel_nativeformats(session->channel), caps);
-		ast_set_read_format(session->channel, ast_channel_readformat(session->channel));
-		ast_set_write_format(session->channel, ast_channel_writeformat(session->channel));
+		ast_channel_nativeformats_set(session->channel, caps);
+		ast_channel_set_rawwriteformat(session->channel, fmt);
+		ast_channel_set_rawreadformat(session->channel, fmt);
+
+		ao2_ref(fmt, -1);
 	}
 
 	ast_rtp_codecs_payloads_destroy(&codecs);
@@ -286,7 +309,7 @@ static pjmedia_sdp_attr* generate_fmtp_attr(pj_pool_t *pool, struct ast_format *
 	pjmedia_sdp_attr *attr = NULL;
 	char *tmp;
 
-	ast_format_sdp_generate(format, rtp_code, &fmtp0);
+	ast_format_generate_sdp_fmtp(format, rtp_code, &fmtp0);
 	if (ast_str_strlen(fmtp0)) {
 		tmp = ast_str_buffer(fmtp0) + ast_str_strlen(fmtp0) - 1;
 		/* remove any carriage return line feeds */
@@ -302,18 +325,6 @@ static pjmedia_sdp_attr* generate_fmtp_attr(pj_pool_t *pool, struct ast_format *
 		attr = pjmedia_sdp_attr_create(pool, "fmtp", &fmtp1);
 	}
 	return attr;
-}
-
-static int codec_pref_has_type(struct ast_codec_pref *prefs, enum ast_format_type media_type)
-{
-	int i;
-	struct ast_format fmt;
-	for (i = 0; ast_codec_pref_index(prefs, i, &fmt); ++i) {
-		if (AST_FORMAT_GET_TYPE(fmt.id) == media_type) {
-			return 1;
-		}
-	}
-	return 0;
 }
 
 /*! \brief Function which adds ICE attributes to a media stream */
@@ -467,38 +478,6 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 	ice->set_role(session_media->rtp, pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_TRUE ?
 		AST_RTP_ICE_ROLE_CONTROLLING : AST_RTP_ICE_ROLE_CONTROLLED);
 	ice->start(session_media->rtp);
-}
-
-static void apply_packetization(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
-			 const struct pjmedia_sdp_media *remote_stream)
-{
-	pjmedia_sdp_attr *attr;
-	pj_str_t value;
-	unsigned long framing;
-	int codec;
-	struct ast_codec_pref *pref = &ast_rtp_instance_get_codecs(session_media->rtp)->pref;
-
-	/* Apply packetization if available and configured to do so */
-	if (!session->endpoint->media.rtp.use_ptime || !(attr = pjmedia_sdp_media_find_attr2(remote_stream, "ptime", NULL))) {
-		return;
-	}
-
-	value = attr->value;
-	framing = pj_strtoul(pj_strltrim(&value));
-
-	for (codec = 0; codec < AST_RTP_MAX_PT; codec++) {
-		struct ast_rtp_payload_type format = ast_rtp_codecs_payload_lookup(ast_rtp_instance_get_codecs(
-											   session_media->rtp), codec);
-
-		if (!format.asterisk_format) {
-			continue;
-		}
-
-		ast_codec_pref_setsize(pref, &format.format, framing);
-	}
-
-	ast_rtp_codecs_packetization_set(ast_rtp_instance_get_codecs(session_media->rtp),
-					 session_media->rtp, pref);
 }
 
 /*! \brief figure out media transport encryption type from the media transport string */
@@ -722,7 +701,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 {
 	char host[NI_MAXHOST];
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
-	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
+	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
 
 	/* If no type formats have been configured reject this stream */
 	if (!ast_format_cap_has_type(session->endpoint->media.codecs, media_type)) {
@@ -759,11 +738,6 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	if (set_caps(session, session_media, stream)) {
 		return -1;
 	}
-
-	if (media_type == AST_FORMAT_TYPE_AUDIO) {
-		apply_packetization(session, session_media, stream);
-	}
-
 	return 1;
 }
 
@@ -892,18 +866,14 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	int noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) ? AST_RTP_DTMF : 0;
 	int min_packet_size = 0, max_packet_size = 0;
 	int rtp_code;
-	struct ast_format format;
-	RAII_VAR(struct ast_format_cap *, caps, NULL, ast_format_cap_destroy);
-	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
+	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
+	int use_override_prefs = ast_format_cap_count(session->req_caps);
 
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
-		!ast_format_cap_is_empty(session->direct_media_cap);
+		ast_format_cap_count(session->direct_media_cap);
 
-	int use_override_prefs = session->override_prefs.formats[0].id;
-	struct ast_codec_pref *prefs = use_override_prefs ?
-		&session->override_prefs : &session->endpoint->media.prefs;
-
-	if ((use_override_prefs && !codec_pref_has_type(&session->override_prefs, media_type)) ||
+	if ((use_override_prefs && !ast_format_cap_has_type(session->req_caps, media_type)) ||
 	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->media.codecs, media_type))) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
@@ -954,59 +924,53 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	/* Add ICE attributes and candidates */
 	add_ice_to_stream(session, session_media, pool, media);
 
-	if (!(caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
+	if (!(caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ast_log(LOG_ERROR, "Failed to allocate %s capabilities\n", session_media->stream_type);
 		return -1;
 	}
 
 	if (direct_media_enabled) {
-		ast_format_cap_joint_copy(session->endpoint->media.codecs, session->direct_media_cap, caps);
-	} else if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->media.codecs)) {
-		ast_format_cap_copy(caps, session->endpoint->media.codecs);
+		ast_format_cap_get_compatible(session->endpoint->media.codecs, session->direct_media_cap, caps);
+	} else if (!ast_format_cap_count(session->req_caps) ||
+		!ast_format_cap_iscompatible(session->req_caps, session->endpoint->media.codecs)) {
+		ast_format_cap_append_from_cap(caps, session->endpoint->media.codecs, media_type);
 	} else {
-		ast_format_cap_copy(caps, session->req_caps);
+		ast_format_cap_append_from_cap(caps, session->req_caps, media_type);
 	}
 
-	for (index = 0; ast_codec_pref_index(prefs, index, &format); ++index) {
-		struct ast_codec_pref *pref = &ast_rtp_instance_get_codecs(session_media->rtp)->pref;
+	for (index = 0; index < ast_format_cap_count(caps); ++index) {
+		struct ast_format *format = ast_format_cap_get_format(caps, index);
 
-		if (AST_FORMAT_GET_TYPE(format.id) != media_type) {
+		if (ast_format_get_type(format) != media_type) {
+			ao2_ref(format, -1);
 			continue;
 		}
 
-		if (!use_override_prefs && !ast_format_cap_get_compatible_format(caps, &format, &format)) {
+		if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, format, 0)) == -1) {
+			ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n", ast_format_get_name(format));
+			ao2_ref(format, -1);
 			continue;
 		}
 
-		if ((rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp), 1, &format, 0)) == -1) {
-			ast_log(LOG_WARNING,"Unable to get rtp codec payload code for %s\n",ast_getformatname(&format));
+		if (!(attr = generate_rtpmap_attr(media, pool, rtp_code, 1, format, 0))) {
+			ao2_ref(format, -1);
 			continue;
 		}
-
-		if (!(attr = generate_rtpmap_attr(media, pool, rtp_code, 1, &format, 0))) {
-			continue;
-		}
-
 		media->attr[media->attr_count++] = attr;
 
-		if ((attr = generate_fmtp_attr(pool, &format, rtp_code))) {
+		if ((attr = generate_fmtp_attr(pool, format, rtp_code))) {
 			media->attr[media->attr_count++] = attr;
 		}
 
-		if (pref && media_type != AST_FORMAT_TYPE_VIDEO) {
-			struct ast_format_list fmt = ast_codec_pref_getsize(pref, &format);
-			if (fmt.cur_ms && ((fmt.cur_ms < min_packet_size) || !min_packet_size)) {
-				min_packet_size = fmt.cur_ms;
-			}
-
-			if (fmt.max_ms && ((fmt.max_ms < max_packet_size) || !max_packet_size)) {
-				max_packet_size = fmt.max_ms;
-			}
+		if (ast_format_get_maximum_ms(format) &&
+			((ast_format_get_maximum_ms(format) < max_packet_size) || !max_packet_size)) {
+			max_packet_size = ast_format_get_maximum_ms(format);
 		}
+		ao2_ref(format, -1);
 	}
 
 	/* Add non-codec formats */
-	if (media_type != AST_FORMAT_TYPE_VIDEO) {
+	if (media_type != AST_MEDIA_TYPE_VIDEO) {
 		for (index = 1LL; index <= AST_RTP_MAX; index <<= 1) {
 			if (!(noncodec & index) || (rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp),
 											   0, NULL, index)) == -1) {
@@ -1033,6 +997,10 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	/* If ptime is set add it as an attribute */
+	min_packet_size = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(session_media->rtp));
+	if (!min_packet_size) {
+		min_packet_size = ast_format_cap_get_framing(caps);
+	}
 	if (min_packet_size) {
 		snprintf(tmp, sizeof(tmp), "%d", min_packet_size);
 		attr = pjmedia_sdp_attr_create(pool, "ptime", pj_cstr(&stmp, tmp));
@@ -1061,7 +1029,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 				       const struct pjmedia_sdp_session *remote, const struct pjmedia_sdp_media *remote_stream)
 {
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
-	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
+	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
 	char host[NI_MAXHOST];
 	int fdno;
 
@@ -1095,13 +1063,8 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	/* Apply connection information to the RTP instance */
 	ast_sockaddr_set_port(addrs, remote_stream->desc.port);
 	ast_rtp_instance_set_remote_address(session_media->rtp, addrs);
-
 	if (set_caps(session, session_media, local_stream)) {
 		return -1;
-	}
-
-	if (media_type == AST_FORMAT_TYPE_AUDIO) {
-		apply_packetization(session, session_media, remote_stream);
 	}
 
 	if ((fdno = media_type_to_fdno(media_type)) < 0) {
@@ -1117,7 +1080,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	ast_rtp_instance_activate(session_media->rtp);
 
 	/* audio stream handles music on hold */
-	if (media_type != AST_FORMAT_TYPE_AUDIO) {
+	if (media_type != AST_MEDIA_TYPE_AUDIO) {
 		return 1;
 	}
 

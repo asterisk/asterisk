@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 /*!
  * \internal
@@ -825,12 +826,12 @@ static struct ast_channel *test_vm_api_create_mock_channel(void)
 		return NULL;
 	}
 
-	ast_format_set(ast_channel_writeformat(mock_channel), AST_FORMAT_GSM, 0);
+	ast_channel_set_writeformat(mock_channel, ast_format_gsm);
 	native_formats = ast_channel_nativeformats(mock_channel);
-	ast_format_cap_add(native_formats, ast_channel_writeformat(mock_channel));
-	ast_format_set(ast_channel_rawwriteformat(mock_channel), AST_FORMAT_GSM, 0);
-	ast_format_set(ast_channel_readformat(mock_channel), AST_FORMAT_GSM, 0);
-	ast_format_set(ast_channel_rawreadformat(mock_channel), AST_FORMAT_GSM, 0);
+	ast_format_cap_append(native_formats, ast_channel_writeformat(mock_channel), 0);
+	ast_channel_set_rawwriteformat(mock_channel, ast_format_gsm);
+	ast_channel_set_readformat(mock_channel, ast_format_gsm);
+	ast_channel_set_rawreadformat(mock_channel, ast_format_gsm);
 	ast_channel_tech_set(mock_channel, &mock_channel_tech);
 
 	ast_channel_unlock(mock_channel);

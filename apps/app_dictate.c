@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/say.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="Dictate" language="en_US">
@@ -108,8 +109,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 		len = 0,
 		maxlen = 0,
 		mode = 0;
-	struct ast_format oldr;
-	ast_format_clear(&oldr);
+	struct ast_format *oldr;
 
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", ast_config_AST_SPOOL_DIR);
 	if (!ast_strlen_zero(data)) {
@@ -126,9 +126,10 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 1 && args.filename) {
 		filename = args.filename;
 	}
-	ast_format_copy(&oldr, ast_channel_readformat(chan));
-	if ((res = ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) < 0) {
+	oldr = ao2_bump(ast_channel_readformat(chan));
+	if ((res = ast_set_read_format(chan, ast_format_slin)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode.\n");
+		ao2_cleanup(oldr);
 		return -1;
 	}
 
@@ -335,8 +336,9 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 			ast_frfree(f);
 		}
 	}
-	if (oldr.id) {
-		ast_set_read_format(chan, &oldr);
+	if (oldr) {
+		ast_set_read_format(chan, oldr);
+		ao2_ref(oldr, -1);
 	}
 	return 0;
 }

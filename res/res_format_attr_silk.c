@@ -47,10 +47,42 @@ struct silk_attr {
 	unsigned int packetloss_percentage;
 };
 
-static int silk_sdp_parse(struct ast_format_attr *format_attr, const char *attributes)
+static void silk_destroy(struct ast_format *format)
 {
-	struct silk_attr *attr = (struct silk_attr *) format_attr;
+	struct silk_attr *attr = ast_format_get_attribute_data(format);
+
+	ast_free(attr);
+}
+
+static int silk_clone(const struct ast_format *src, struct ast_format *dst)
+{
+	struct silk_attr *original = ast_format_get_attribute_data(src);
+	struct silk_attr *attr = ast_calloc(1, sizeof(*attr));
+
+	if (!attr) {
+		return -1;
+	}
+
+	if (original) {
+		*attr = *original;
+	}
+
+	ast_format_set_attribute_data(dst, attr);
+
+	return 0;
+}
+
+static struct ast_format *silk_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
+{
+	struct ast_format *cloned;
+	struct silk_attr *attr;
 	unsigned int val;
+
+	cloned = ast_format_clone(format);
+	if (!cloned) {
+		return NULL;
+	}
+	attr = ast_format_get_attribute_data(cloned);
 
 	if (sscanf(attributes, "maxaveragebitrate=%30u", &val) == 1) {
 		attr->maxbitrate = val;
@@ -65,9 +97,13 @@ static int silk_sdp_parse(struct ast_format_attr *format_attr, const char *attri
 	return 0;
 }
 
-static void silk_sdp_generate(const struct ast_format_attr *format_attr, unsigned int payload, struct ast_str **str)
+static void silk_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
-	struct silk_attr *attr = (struct silk_attr *) format_attr;
+	struct silk_attr *attr = ast_format_get_attribute_data(format);
+
+	if (!attr) {
+		return;
+	}
 
 	if ((attr->maxbitrate > 5000) && (attr->maxbitrate < 40000)) { 
 		ast_str_append(str, 0, "a=fmtp:%u maxaveragebitrate=%u\r\n", payload, attr->maxbitrate);
@@ -77,99 +113,40 @@ static void silk_sdp_generate(const struct ast_format_attr *format_attr, unsigne
 	ast_str_append(str, 0, "a=fmtp:%u useinbandfec=%u\r\n", payload, attr->fec);
 }
 
-static enum ast_format_cmp_res silk_cmp(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2)
+static enum ast_format_cmp_res silk_cmp(const struct ast_format *format1, const struct ast_format *format2)
 {
-	struct silk_attr *attr1 = (struct silk_attr *) fattr1;
-	struct silk_attr *attr2 = (struct silk_attr *) fattr2;
+	struct silk_attr *attr1 = ast_format_get_attribute_data(format1);
+	struct silk_attr *attr2 = ast_format_get_attribute_data(format2);
 
-	if (attr1->samplerate == attr2->samplerate) {
+	if (((!attr1 || !attr1->samplerate) && (!attr2 || !attr2->samplerate)) ||
+		(attr1->samplerate == attr2->samplerate)) {
 		return AST_FORMAT_CMP_EQUAL;
 	}
+
 	return AST_FORMAT_CMP_NOT_EQUAL;
 }
 
-static int silk_get_val(const struct ast_format_attr *fattr, int key, void *result)
+static struct ast_format *silk_getjoint(const struct ast_format *format1, const struct ast_format *format2)
 {
-	const struct silk_attr *attr = (struct silk_attr *) fattr;
-	int *val = result;
+	struct silk_attr *attr1 = ast_format_get_attribute_data(format1);
+	struct silk_attr *attr2 = ast_format_get_attribute_data(format2);
+	unsigned int samplerate;
+	struct ast_format *jointformat;
+	struct silk_attr *attr_res;
 
-	switch (key) {
-	case SILK_ATTR_KEY_SAMP_RATE:
-		*val = attr->samplerate;
-		break;
-	case SILK_ATTR_KEY_MAX_BITRATE:
-		*val = attr->maxbitrate;
-		break;
-	case SILK_ATTR_KEY_DTX:
-		*val = attr->dtx;
-		break;
-	case SILK_ATTR_KEY_FEC:
-		*val = attr->fec;
-		break;
-	case SILK_ATTR_KEY_PACKETLOSS_PERCENTAGE:
-		*val = attr->packetloss_percentage;
-		break;
-	default:
-		ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
-		return -1;
-	}
-	return 0;
-}
-
-static int silk_isset(const struct ast_format_attr *fattr, va_list ap)
-{
-	enum silk_attr_keys key;
-	const struct silk_attr *attr = (struct silk_attr *) fattr;
-
-	for (key = va_arg(ap, int);
-		key != AST_FORMAT_ATTR_END;
-		key = va_arg(ap, int))
-	{
-		switch (key) {
-		case SILK_ATTR_KEY_SAMP_RATE:
-			if (attr->samplerate != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case SILK_ATTR_KEY_MAX_BITRATE:
-			if (attr->maxbitrate != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case SILK_ATTR_KEY_DTX:
-			if (attr->dtx != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case SILK_ATTR_KEY_FEC:
-			if (attr->fec != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case SILK_ATTR_KEY_PACKETLOSS_PERCENTAGE:
-			if (attr->packetloss_percentage != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		default:
-			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
-			return -1;
-		}
-	}
-	return 0;
-}
-static int silk_getjoint(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2, struct ast_format_attr *result)
-{
-	struct silk_attr *attr1 = (struct silk_attr *) fattr1;
-	struct silk_attr *attr2 = (struct silk_attr *) fattr2;
-	struct silk_attr *attr_res = (struct silk_attr *) result;
-	int joint = -1;
-
-	attr_res->samplerate = attr1->samplerate & attr2->samplerate;
+	samplerate = attr1->samplerate & attr2->samplerate;
 	/* sample rate is the only attribute that has any bearing on if joint capabilities exist or not */
-	if (attr_res->samplerate) {
-		joint = 0;
+	if (samplerate) {
+		return NULL;
 	}
+
+	jointformat = ast_format_clone(format1);
+	if (!jointformat) {
+		return NULL;
+	}
+	attr_res = ast_format_get_attribute_data(jointformat);
+	attr_res->samplerate = samplerate;
+
 	/* Take the lowest max bitrate */
 	attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
 
@@ -184,54 +161,58 @@ static int silk_getjoint(const struct ast_format_attr *fattr1, const struct ast_
 	/* Use the maximum packetloss percentage between the two attributes. This affects how
 	 * much redundancy is used in the FEC. */
 	attr_res->packetloss_percentage = MAX(attr1->packetloss_percentage, attr2->packetloss_percentage);
-	return joint;
+
+	return jointformat;
 }
 
-static void silk_set(struct ast_format_attr *fattr, va_list ap)
+static struct ast_format *silk_set(const struct ast_format *format, const char *name, const char *value)
 {
-	enum silk_attr_keys key;
-	struct silk_attr *attr = (struct silk_attr *) fattr;
+	struct ast_format *cloned;
+	struct silk_attr *attr;
+	unsigned int val;
 
-	for (key = va_arg(ap, int);
-		key != AST_FORMAT_ATTR_END;
-		key = va_arg(ap, int))
-	{
-		switch (key) {
-		case SILK_ATTR_KEY_SAMP_RATE:
-			attr->samplerate = (va_arg(ap, int));
-			break;
-		case SILK_ATTR_KEY_MAX_BITRATE:
-			attr->maxbitrate = (va_arg(ap, int));
-			break;
-		case SILK_ATTR_KEY_DTX:
-			attr->dtx = (va_arg(ap, int));
-			break;
-		case SILK_ATTR_KEY_FEC:
-			attr->fec = (va_arg(ap, int));
-			break;
-		case SILK_ATTR_KEY_PACKETLOSS_PERCENTAGE:
-			attr->packetloss_percentage = (va_arg(ap, int));
-			break;
-		default:
-			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
-		}
+	if (sscanf(value, "%30u", &val) != 1) {
+		ast_log(LOG_WARNING, "Unknown value '%s' for attribute type '%s'\n",
+			value, name);
+		return NULL;
 	}
+
+	cloned = ast_format_clone(format);
+	if (!cloned) {
+		return NULL;
+	}
+	attr = ast_format_get_attribute_data(cloned);
+
+	if (!strcasecmp(name, "sample_rate")) {
+		attr->samplerate = val;
+	} else if (!strcasecmp(name, "max_bitrate")) {
+		attr->maxbitrate = val;
+	} else if (!strcasecmp(name, "dtx")) {
+		attr->dtx = val;
+	} else if (!strcasecmp(name, "fec")) {
+		attr->fec = val;
+	} else if (!strcasecmp(name, "packetloss_percentage")) {
+		attr->packetloss_percentage = val;
+	} else {
+		ast_log(LOG_WARNING, "unknown attribute type %s\n", name);
+	}
+
+	return cloned;
 }
 
-static struct ast_format_attr_interface silk_interface = {
-	.id = AST_FORMAT_SILK,
-	.format_attr_cmp = silk_cmp,
-	.format_attr_get_joint = silk_getjoint,
-	.format_attr_set = silk_set,
-	.format_attr_isset = silk_isset,
-	.format_attr_get_val = silk_get_val,
-	.format_attr_sdp_parse = silk_sdp_parse,
-	.format_attr_sdp_generate = silk_sdp_generate,
+static struct ast_format_interface silk_interface = {
+	.format_destroy = silk_destroy,
+	.format_clone = silk_clone,
+	.format_cmp = silk_cmp,
+	.format_get_joint = silk_getjoint,
+	.format_attribute_set = silk_set,
+	.format_parse_sdp_fmtp = silk_parse_sdp_fmtp,
+	.format_generate_sdp_fmtp = silk_generate_sdp_fmtp,
 };
 
 static int load_module(void)
 {
-	if (ast_format_attr_reg_interface(&silk_interface)) {
+	if (ast_format_interface_register("silk", &silk_interface)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -240,7 +221,6 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_format_attr_unreg_interface(&silk_interface);
 	return 0;
 }
 

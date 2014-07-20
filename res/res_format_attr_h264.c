@@ -50,266 +50,284 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *   H264_MAX_SPS_PPS_SIZE */
 #define H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "15"
 
-enum h264_attr_keys {
-	H264_ATTR_KEY_PROFILE_IDC,
-	H264_ATTR_KEY_PROFILE_IOP,
-	H264_ATTR_KEY_LEVEL,
-	H264_ATTR_KEY_MAX_MBPS,
-	H264_ATTR_KEY_MAX_FS,
-	H264_ATTR_KEY_MAX_CPB,
-	H264_ATTR_KEY_MAX_DPB,
-	H264_ATTR_KEY_MAX_BR,
-	H264_ATTR_KEY_MAX_SMBPS,
-	H264_ATTR_KEY_MAX_FPS,
-	H264_ATTR_KEY_REDUNDANT_PIC_CAP,
-	H264_ATTR_KEY_PARAMETER_ADD,
-	H264_ATTR_KEY_PACKETIZATION_MODE,
-	H264_ATTR_KEY_SPROP_INTERLEAVING_DEPTH,
-	H264_ATTR_KEY_SPROP_DEINT_BUF_REQ,
-	H264_ATTR_KEY_DEINT_BUF_CAP,
-	H264_ATTR_KEY_SPROP_INIT_BUF_TIME,
-	H264_ATTR_KEY_SPROP_MAX_DON_DIFF,
-	H264_ATTR_KEY_MAX_RCMD_NALU_SIZE,
-	H264_ATTR_KEY_LEVEL_ASYMMETRY_ALLOWED,
-	H264_ATTR_KEY_SPS_LEN,
-	H264_ATTR_KEY_PPS_LEN,
-	H264_ATTR_KEY_SPS,
-	H264_ATTR_KEY_PPS = H264_ATTR_KEY_SPS + H264_MAX_SPS_PPS_SIZE,
-	H264_ATTR_KEY_END = H264_ATTR_KEY_PPS + H264_MAX_SPS_PPS_SIZE,
+struct h264_attr {
+	unsigned int PROFILE_IDC;
+	unsigned int PROFILE_IOP;
+	unsigned int LEVEL;
+	unsigned int MAX_MBPS;
+	unsigned int MAX_FS;
+	unsigned int MAX_CPB;
+	unsigned int MAX_DPB;
+	unsigned int MAX_BR;
+	unsigned int MAX_SMBPS;
+	unsigned int MAX_FPS;
+	unsigned int REDUNDANT_PIC_CAP;
+	unsigned int PARAMETER_ADD;
+	unsigned int PACKETIZATION_MODE;
+	unsigned int SPROP_INTERLEAVING_DEPTH;
+	unsigned int SPROP_DEINT_BUF_REQ;
+	unsigned int DEINT_BUF_CAP;
+	unsigned int SPROP_INIT_BUF_TIME;
+	unsigned int SPROP_MAX_DON_DIFF;
+	unsigned int MAX_RCMD_NALU_SIZE;
+	unsigned int LEVEL_ASYMMETRY_ALLOWED;
+	char SPS[H264_MAX_SPS_PPS_SIZE];
+	char PPS[H264_MAX_SPS_PPS_SIZE];
 };
 
-static enum ast_format_cmp_res h264_format_attr_cmp(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2)
+static void h264_destroy(struct ast_format *format)
 {
-	if (!fattr1->format_attr[H264_ATTR_KEY_PROFILE_IDC] || !fattr2->format_attr[H264_ATTR_KEY_PROFILE_IDC] ||
-	    (fattr1->format_attr[H264_ATTR_KEY_PROFILE_IDC] == fattr2->format_attr[H264_ATTR_KEY_PROFILE_IDC])) {
+	struct h264_attr *attr = ast_format_get_attribute_data(format);
+
+	ast_free(attr);
+}
+
+static int h264_clone(const struct ast_format *src, struct ast_format *dst)
+{
+	struct h264_attr *original = ast_format_get_attribute_data(src);
+	struct h264_attr *attr = ast_calloc(1, sizeof(*attr));
+
+	if (!attr) {
+		return -1;
+	}
+
+	if (original) {
+		*attr = *original;
+	}
+
+	ast_format_set_attribute_data(dst, attr);
+
+	return 0;
+}
+
+static enum ast_format_cmp_res h264_cmp(const struct ast_format *format1, const struct ast_format *format2)
+{
+	struct h264_attr *attr1 = ast_format_get_attribute_data(format1);
+	struct h264_attr *attr2 = ast_format_get_attribute_data(format2);
+
+	if (!attr1 || !attr1->PROFILE_IDC || !attr2 || !attr2->PROFILE_IDC ||
+		(attr1->PROFILE_IDC == attr2->PROFILE_IDC)) {
 		return AST_FORMAT_CMP_EQUAL;
 	}
 
 	return AST_FORMAT_CMP_NOT_EQUAL;
 }
 
-static int h264_format_attr_get_joint(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2, struct ast_format_attr *result)
-{
-	int i;
+#define DETERMINE_JOINT(joint, attr1, attr2, field) (joint->field = (attr1 && attr1->field) ? attr1->field : (attr2 && attr2->field) ? attr2->field : 0)
 
-	for (i = H264_ATTR_KEY_PROFILE_IDC; i < H264_ATTR_KEY_END; i++) {
-		result->format_attr[i] = fattr1->format_attr[i] ? fattr1->format_attr[i] : fattr2->format_attr[i];
+static struct ast_format *h264_getjoint(const struct ast_format *format1, const struct ast_format *format2)
+{
+	struct ast_format *cloned;
+	struct h264_attr *attr, *attr1, *attr2;
+
+	cloned = ast_format_clone(format1);
+	if (!cloned) {
+		return NULL;
+	}
+	attr = ast_format_get_attribute_data(cloned);
+
+	attr1 = ast_format_get_attribute_data(format1);
+	attr2 = ast_format_get_attribute_data(format2);
+
+	DETERMINE_JOINT(attr, attr1, attr2, PROFILE_IDC);
+	DETERMINE_JOINT(attr, attr1, attr2, PROFILE_IOP);
+	DETERMINE_JOINT(attr, attr1, attr2, LEVEL);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_MBPS);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_FS);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_CPB);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_DPB);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_BR);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_SMBPS);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_FPS);
+	DETERMINE_JOINT(attr, attr1, attr2, REDUNDANT_PIC_CAP);
+	DETERMINE_JOINT(attr, attr1, attr2, PARAMETER_ADD);
+	DETERMINE_JOINT(attr, attr1, attr2, SPROP_INTERLEAVING_DEPTH);
+	DETERMINE_JOINT(attr, attr1, attr2, SPROP_DEINT_BUF_REQ);
+	DETERMINE_JOINT(attr, attr1, attr2, DEINT_BUF_CAP);
+	DETERMINE_JOINT(attr, attr1, attr2, SPROP_INIT_BUF_TIME);
+	DETERMINE_JOINT(attr, attr1, attr2, SPROP_MAX_DON_DIFF);
+	DETERMINE_JOINT(attr, attr1, attr2, MAX_RCMD_NALU_SIZE);
+	DETERMINE_JOINT(attr, attr1, attr2, LEVEL_ASYMMETRY_ALLOWED);
+	DETERMINE_JOINT(attr, attr1, attr2, PACKETIZATION_MODE);
+
+	if (attr1 && !ast_strlen_zero(attr1->SPS)) {
+		ast_copy_string(attr->SPS, attr1->SPS, sizeof(attr->SPS));
+	} else if (attr2 && !ast_strlen_zero(attr2->SPS)) {
+		ast_copy_string(attr->SPS, attr1->SPS, sizeof(attr->SPS));
 	}
 
-	return 0;
+	if (attr1 && !ast_strlen_zero(attr1->PPS)) {
+		ast_copy_string(attr->PPS, attr1->PPS, sizeof(attr->PPS));
+	} else if (attr2 && !ast_strlen_zero(attr2->PPS)) {
+		ast_copy_string(attr->PPS, attr1->PPS, sizeof(attr->PPS));
+	}
+
+	return cloned;
 }
 
-static int h264_format_attr_sdp_parse(struct ast_format_attr *format_attr, const char *attributes)
+static struct ast_format *h264_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
 	char *attribs = ast_strdupa(attributes), *attrib;
+	struct ast_format *cloned;
+	struct h264_attr *attr;
 
-	format_attr->format_attr[H264_ATTR_KEY_REDUNDANT_PIC_CAP] = H264_ATTR_KEY_UNSET;
-	format_attr->format_attr[H264_ATTR_KEY_PARAMETER_ADD] = H264_ATTR_KEY_UNSET;
-	format_attr->format_attr[H264_ATTR_KEY_PACKETIZATION_MODE] = H264_ATTR_KEY_UNSET;
-	format_attr->format_attr[H264_ATTR_KEY_LEVEL_ASYMMETRY_ALLOWED] = H264_ATTR_KEY_UNSET;
+	cloned = ast_format_clone(format);
+	if (!cloned) {
+		return NULL;
+	}
+	attr = ast_format_get_attribute_data(cloned);
+
+	attr->REDUNDANT_PIC_CAP = H264_ATTR_KEY_UNSET;
+	attr->PARAMETER_ADD = H264_ATTR_KEY_UNSET;
+	attr->PACKETIZATION_MODE = H264_ATTR_KEY_UNSET;
+	attr->LEVEL_ASYMMETRY_ALLOWED = H264_ATTR_KEY_UNSET;
 
 	while ((attrib = strsep(&attribs, ";"))) {
 		unsigned int val;
 		unsigned long int val2;
-		char sps[H264_MAX_SPS_PPS_SIZE], pps[H264_MAX_SPS_PPS_SIZE];
 
 		if (sscanf(attrib, "profile-level-id=%lx", &val2) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC] = ((val2 >> 16) & 0xFF);
-			format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP] = ((val2 >> 8) & 0xFF);
-			format_attr->format_attr[H264_ATTR_KEY_LEVEL] = (val2 & 0xFF);
-		} else if (sscanf(attrib, "sprop-parameter-sets=%" H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "[^','],%" H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "s", sps, pps) == 2) {
+			attr->PROFILE_IDC = ((val2 >> 16) & 0xFF);
+			attr->PROFILE_IOP = ((val2 >> 8) & 0xFF);
+			attr->LEVEL = (val2 & 0xFF);
+		} else if (sscanf(attrib, "sprop-parameter-sets=%" H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "[^','],%" H264_MAX_SPS_PPS_SIZE_SCAN_LIMIT "s", attr->SPS, attr->PPS) == 2) {
 			/* XXX sprop-parameter-sets can actually be of unlimited length. This may need to be addressed later. */
-			unsigned char spsdecoded[H264_MAX_SPS_PPS_SIZE] = { 0, }, ppsdecoded[H264_MAX_SPS_PPS_SIZE] = { 0, };
-			int i;
-
-			ast_base64decode(spsdecoded, sps, sizeof(spsdecoded));
-			ast_base64decode(ppsdecoded, pps, sizeof(ppsdecoded));
-
-			format_attr->format_attr[H264_ATTR_KEY_SPS_LEN] = 0;
-			format_attr->format_attr[H264_ATTR_KEY_PPS_LEN] = 0;
-
-			for (i = 0; i < H264_MAX_SPS_PPS_SIZE; i++) {
-				if (spsdecoded[i]) {
-					format_attr->format_attr[H264_ATTR_KEY_SPS + i] = spsdecoded[i];
-					format_attr->format_attr[H264_ATTR_KEY_SPS_LEN]++;
-				}
-				if (ppsdecoded[i]) {
-					format_attr->format_attr[H264_ATTR_KEY_PPS + i] = ppsdecoded[i];
-					format_attr->format_attr[H264_ATTR_KEY_PPS_LEN]++;
-				}
-			}
 		} else if (sscanf(attrib, "max-mbps=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_MBPS] = val;
+			attr->MAX_MBPS = val;
 		} else if (sscanf(attrib, "max-fs=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_FS] = val;
+			attr->MAX_FS = val;
 		} else if (sscanf(attrib, "max-cpb=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_CPB] = val;
+			attr->MAX_CPB = val;
 		} else if (sscanf(attrib, "max-dpb=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_DPB] = val;
+			attr->MAX_DPB = val;
 		} else if (sscanf(attrib, "max-br=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_BR] = val;
+			attr->MAX_BR = val;
 		} else if (sscanf(attrib, "max-smbps=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_SMBPS] = val;
+			attr->MAX_SMBPS = val;
 		} else if (sscanf(attrib, "max-fps=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_FPS] = val;
+			attr->MAX_FPS = val;
 		} else if (sscanf(attrib, "redundant-pic-cap=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_REDUNDANT_PIC_CAP] = val;
+			attr->REDUNDANT_PIC_CAP = val;
 		} else if (sscanf(attrib, "parameter-add=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_PARAMETER_ADD] = val;
+			attr->PARAMETER_ADD = val;
 		} else if (sscanf(attrib, "packetization-mode=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_PACKETIZATION_MODE] = val;
+			attr->PACKETIZATION_MODE = val;
 		} else if (sscanf(attrib, "sprop-interleaving-depth=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_SPROP_INTERLEAVING_DEPTH] = val;
+			attr->SPROP_INTERLEAVING_DEPTH = val;
 		} else if (sscanf(attrib, "sprop-deint-buf-req=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_SPROP_DEINT_BUF_REQ] = val;
+			attr->SPROP_DEINT_BUF_REQ = val;
 		} else if (sscanf(attrib, "deint-buf-cap=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_DEINT_BUF_CAP] = val;
+			attr->DEINT_BUF_CAP = val;
 		} else if (sscanf(attrib, "sprop-init-buf-time=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_SPROP_INIT_BUF_TIME] = val;
+			attr->SPROP_INIT_BUF_TIME = val;
 		} else if (sscanf(attrib, "sprop-max-don-diff=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_SPROP_MAX_DON_DIFF] = val;
+			attr->SPROP_MAX_DON_DIFF = val;
 		} else if (sscanf(attrib, "max-rcmd-nalu-size=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_MAX_RCMD_NALU_SIZE] = val;
+			attr->MAX_RCMD_NALU_SIZE = val;
 		} else if (sscanf(attrib, "level-asymmetry-allowed=%30u", &val) == 1) {
-			format_attr->format_attr[H264_ATTR_KEY_LEVEL_ASYMMETRY_ALLOWED] = val;
+			attr->LEVEL_ASYMMETRY_ALLOWED = val;
 		}
 	}
 
-	return 0;
+	return cloned;
 }
 
-/*! \brief Helper function which converts a key enum into a string value for SDP */
-static const char *h264_attr_key_to_str(enum h264_attr_keys key)
+#define APPEND_IF_NOT_H264_UNSET(field, str, name) do {		\
+	if (field != H264_ATTR_KEY_UNSET) {	\
+		if (added) {	\
+			ast_str_append(str, 0, ";");	\
+		} else {	\
+			added = 1;	\
+		}	\
+		ast_str_append(str, 0, "%s=%u", name, field);	\
+	}	\
+} while (0)
+
+#define APPEND_IF_NONZERO(field, str, name) do {		\
+	if (field) {	\
+		if (added) {	\
+			ast_str_append(str, 0, ";");	\
+		} else {	\
+			added = 1;	\
+		}	\
+		ast_str_append(str, 0, "%s=%u", name, field);	\
+	}	\
+} while (0)
+
+static void h264_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
-	switch (key) {
-	case H264_ATTR_KEY_MAX_MBPS:
-		return "max-mbps";
-	case H264_ATTR_KEY_MAX_FS:
-		return "max-fs";
-	case H264_ATTR_KEY_MAX_CPB:
-		return "max-cpb";
-	case H264_ATTR_KEY_MAX_DPB:
-		return "max-dpb";
-	case H264_ATTR_KEY_MAX_BR:
-		return "max-br";
-	case H264_ATTR_KEY_MAX_SMBPS:
-		return "max-smbps";
-	case H264_ATTR_KEY_MAX_FPS:
-		return "max-fps";
-	case H264_ATTR_KEY_REDUNDANT_PIC_CAP:
-		return "redundant-pic-cap";
-	case H264_ATTR_KEY_PARAMETER_ADD:
-		return "parameter-add";
-	case H264_ATTR_KEY_PACKETIZATION_MODE:
-		return "packetization-mode";
-	case H264_ATTR_KEY_SPROP_INTERLEAVING_DEPTH:
-		return "sprop-interleaving-depth";
-	case H264_ATTR_KEY_SPROP_DEINT_BUF_REQ:
-		return "sprop-deint-buf-req";
-	case H264_ATTR_KEY_DEINT_BUF_CAP:
-		return "deint-buf-cap";
-	case H264_ATTR_KEY_SPROP_INIT_BUF_TIME:
-		return "sprop-init-buf-time";
-	case H264_ATTR_KEY_SPROP_MAX_DON_DIFF:
-		return "sprop-max-don-diff";
-	case H264_ATTR_KEY_MAX_RCMD_NALU_SIZE:
-		return "max-rcmd-nalu-size";
-	case H264_ATTR_KEY_LEVEL_ASYMMETRY_ALLOWED:
-		return "level-asymmetry-allowed";
-	default:
-		return NULL;
+	struct h264_attr *attr = ast_format_get_attribute_data(format);
+	int added = 0;
+
+	if (!attr) {
+		return;
 	}
 
-	return NULL;
-}
+	ast_str_append(str, 0, "a=fmtp:%u ", payload);
 
-/*! \brief Helper function which determines if the value of an attribute can be placed into the SDP */
-static int h264_attr_key_addable(const struct ast_format_attr *format_attr, enum h264_attr_keys key)
-{
-	switch (key) {
-	case H264_ATTR_KEY_REDUNDANT_PIC_CAP:
-	case H264_ATTR_KEY_PARAMETER_ADD:
-	case H264_ATTR_KEY_PACKETIZATION_MODE:
-	case H264_ATTR_KEY_LEVEL_ASYMMETRY_ALLOWED:
-		return (format_attr->format_attr[key] != H264_ATTR_KEY_UNSET) ? 1 : 0;
-	default:
-		return format_attr->format_attr[key] ? 1 : 0;
-	}
+	APPEND_IF_NONZERO(attr->MAX_MBPS, str, "max-mbps");
+	APPEND_IF_NONZERO(attr->MAX_FS, str, "max-fs");
+	APPEND_IF_NONZERO(attr->MAX_CPB, str, "max-cpb");
+	APPEND_IF_NONZERO(attr->MAX_DPB, str, "max-dpb");
+	APPEND_IF_NONZERO(attr->MAX_BR, str, "max-br");
+	APPEND_IF_NONZERO(attr->MAX_SMBPS, str, "max-smbps");
+	APPEND_IF_NONZERO(attr->MAX_FPS, str, "max-fps");
+	APPEND_IF_NONZERO(attr->SPROP_INTERLEAVING_DEPTH, str, "sprop-interleaving-depth");
+	APPEND_IF_NONZERO(attr->SPROP_DEINT_BUF_REQ, str, "sprop-deint-buf-req");
+	APPEND_IF_NONZERO(attr->DEINT_BUF_CAP, str, "deint-buf-cap");
+	APPEND_IF_NONZERO(attr->SPROP_INIT_BUF_TIME, str, "sprop-init-buf-time");
+	APPEND_IF_NONZERO(attr->SPROP_MAX_DON_DIFF, str, "sprop-max-don-diff");
+	APPEND_IF_NONZERO(attr->MAX_RCMD_NALU_SIZE, str, "max-rcmd-nalu-size");
 
-	return 1;
-}
+	APPEND_IF_NOT_H264_UNSET(attr->REDUNDANT_PIC_CAP, str, "redundant-pic-cap");
+	APPEND_IF_NOT_H264_UNSET(attr->PARAMETER_ADD, str, "parameter-add");
+	APPEND_IF_NOT_H264_UNSET(attr->PACKETIZATION_MODE, str, "packetization-mode");
+	APPEND_IF_NOT_H264_UNSET(attr->LEVEL_ASYMMETRY_ALLOWED, str, "level-asymmetry-allowed");
 
-static void h264_format_attr_sdp_generate(const struct ast_format_attr *format_attr, unsigned int payload, struct ast_str **str)
-{
-	int i, added = 0;
-
-        for (i = H264_ATTR_KEY_PROFILE_IDC; i < H264_ATTR_KEY_END; i++) {
-                const char *name;
-
-		if (i == H264_ATTR_KEY_SPS && format_attr->format_attr[H264_ATTR_KEY_SPS] && format_attr->format_attr[H264_ATTR_KEY_PPS]) {
-			unsigned char spsdecoded[H264_MAX_SPS_PPS_SIZE] = { 0, }, ppsdecoded[H264_MAX_SPS_PPS_SIZE] = { 0, };
-			int pos;
-			char sps[H264_MAX_SPS_PPS_SIZE], pps[H264_MAX_SPS_PPS_SIZE];
-
-			for (pos = 0; pos < H264_MAX_SPS_PPS_SIZE; pos++) {
-				spsdecoded[pos] = format_attr->format_attr[H264_ATTR_KEY_SPS + pos];
-				ppsdecoded[pos] = format_attr->format_attr[H264_ATTR_KEY_PPS + pos];
-			}
-
-			ast_base64encode(sps, spsdecoded, format_attr->format_attr[H264_ATTR_KEY_SPS_LEN], H264_MAX_SPS_PPS_SIZE);
-			ast_base64encode(pps, ppsdecoded, format_attr->format_attr[H264_ATTR_KEY_PPS_LEN], H264_MAX_SPS_PPS_SIZE);
-
-			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%u sprop-parameter-sets=%s,%s", payload, sps, pps);
-				added = 1;
-			} else {
-				ast_str_append(str, 0, ";sprop-parameter-sets=%s,%s", sps, pps);
-			}
-		} else if (i == H264_ATTR_KEY_PROFILE_IDC && format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC] &&
-		    format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP] && format_attr->format_attr[H264_ATTR_KEY_LEVEL]) {
-			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%u profile-level-id=%02X%02X%02X", payload, format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
-					       format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP], format_attr->format_attr[H264_ATTR_KEY_LEVEL]);
-				added = 1;
-			} else {
-				ast_str_append(str, 0, ";profile-level-id=%02X%02X%02X", format_attr->format_attr[H264_ATTR_KEY_PROFILE_IDC],
-					       format_attr->format_attr[H264_ATTR_KEY_PROFILE_IOP], format_attr->format_attr[H264_ATTR_KEY_LEVEL]);
-			}
-		} else if ((name = h264_attr_key_to_str(i)) && h264_attr_key_addable(format_attr, i)) {
-			if (!added) {
-				ast_str_append(str, 0, "a=fmtp:%u %s=%u", payload, name, format_attr->format_attr[i]);
-				added = 1;
-			} else {
-				ast_str_append(str, 0, ";%s=%u", name, format_attr->format_attr[i]);
-			}
+	if (attr->PROFILE_IDC && attr->PROFILE_IOP && attr->LEVEL) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else {
+			added = 1;
 		}
+		ast_str_append(str, 0, "profile-level-id=%02X%02X%02X", attr->PROFILE_IDC, attr->PROFILE_IOP, attr->LEVEL);
 	}
-	
-	if (added) {
+
+	if (!ast_strlen_zero(attr->SPS) && !ast_strlen_zero(attr->PPS)) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else {
+			added = 1;
+		}
+		ast_str_append(str, 0, ";sprop-parameter-sets=%s,%s", attr->SPS, attr->PPS);
+	}
+
+	if (!added) {
+		ast_str_reset(*str);
+	} else {
 		ast_str_append(str, 0, "\r\n");
 	}
 
 	return;
 }
 
-static struct ast_format_attr_interface h264_format_attr_interface = {
-	.id = AST_FORMAT_H264,
-	.format_attr_cmp = h264_format_attr_cmp,
-	.format_attr_get_joint = h264_format_attr_get_joint,
-	.format_attr_sdp_parse = h264_format_attr_sdp_parse,
-	.format_attr_sdp_generate = h264_format_attr_sdp_generate,
+static struct ast_format_interface h264_interface = {
+	.format_destroy = h264_destroy,
+	.format_clone = h264_clone,
+	.format_cmp = h264_cmp,
+	.format_get_joint = h264_getjoint,
+	.format_parse_sdp_fmtp = h264_parse_sdp_fmtp,
+	.format_generate_sdp_fmtp = h264_generate_sdp_fmtp,
 };
 
 static int unload_module(void)
 {
-	ast_format_attr_unreg_interface(&h264_format_attr_interface);
-
 	return 0;
 }
 
 static int load_module(void)
 {
-	if (ast_format_attr_reg_interface(&h264_format_attr_interface)) {
+	if (ast_format_interface_register("h264", &h264_interface)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

@@ -51,11 +51,43 @@ struct opus_attr {
 	unsigned int spropstereo;	        /* Default 0 */
 };
 
-static int opus_sdp_parse(struct ast_format_attr *format_attr, const char *attributes)
+static void opus_destroy(struct ast_format *format)
 {
-	struct opus_attr *attr = (struct opus_attr *) format_attr;
+	struct opus_attr *attr = ast_format_get_attribute_data(format);
+
+	ast_free(attr);
+}
+
+static int opus_clone(const struct ast_format *src, struct ast_format *dst)
+{
+	struct opus_attr *original = ast_format_get_attribute_data(src);
+	struct opus_attr *attr = ast_calloc(1, sizeof(*attr));
+
+	if (!attr) {
+		return -1;
+	}
+
+	if (original) {
+		*attr = *original;
+	}
+
+	ast_format_set_attribute_data(dst, attr);
+
+	return 0;
+}
+
+static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
+{
+	struct ast_format *cloned;
+	struct opus_attr *attr;
 	const char *kvp;
 	unsigned int val;
+
+	cloned = ast_format_clone(format);
+	if (!cloned) {
+		return NULL;
+	}
+	attr = ast_format_get_attribute_data(cloned);
 
 	if ((kvp = strstr(attributes, "maxplaybackrate")) && sscanf(kvp, "maxplaybackrate=%30u", &val) == 1) {
 		attr->maxplayrate = val;
@@ -91,9 +123,13 @@ static int opus_sdp_parse(struct ast_format_attr *format_attr, const char *attri
 	return 0;
 }
 
-static void opus_sdp_generate(const struct ast_format_attr *format_attr, unsigned int payload, struct ast_str **str)
+static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
-	struct opus_attr *attr = (struct opus_attr *) format_attr;
+	struct opus_attr *attr = ast_format_get_attribute_data(format);
+
+	if (!attr) {
+		return;
+	}
 
 	/* FIXME should we only generate attributes that were explicitly set? */
 	ast_str_append(str, 0,
@@ -120,114 +156,18 @@ static void opus_sdp_generate(const struct ast_format_attr *format_attr, unsigne
 	);
 }
 
-static int opus_get_val(const struct ast_format_attr *fattr, int key, void *result)
+static struct ast_format *opus_getjoint(const struct ast_format *format1, const struct ast_format *format2)
 {
-	const struct opus_attr *attr = (struct opus_attr *) fattr;
-	int *val = result;
+	struct opus_attr *attr1 = ast_format_get_attribute_data(format1);
+	struct opus_attr *attr2 = ast_format_get_attribute_data(format2);
+	struct ast_format *jointformat;
+	struct opus_attr *attr_res;
 
-	switch (key) {
-	case OPUS_ATTR_KEY_MAX_BITRATE:
-		*val = attr->maxbitrate;
-		break;
-	case OPUS_ATTR_KEY_MAX_PLAYRATE:
-		*val = attr->maxplayrate;
-		break;
-	case OPUS_ATTR_KEY_MINPTIME:
-		*val = attr->minptime;
-		break;
-	case OPUS_ATTR_KEY_STEREO:
-		*val = attr->stereo;
-		break;
-	case OPUS_ATTR_KEY_CBR:
-		*val = attr->cbr;
-		break;
-	case OPUS_ATTR_KEY_FEC:
-		*val = attr->fec;
-		break;
-	case OPUS_ATTR_KEY_DTX:
-		*val = attr->dtx;
-		break;
-	case OPUS_ATTR_KEY_SPROP_CAPTURE_RATE:
-		*val = attr->spropmaxcapturerate;
-		break;
-	case OPUS_ATTR_KEY_SPROP_STEREO:
-		*val = attr->spropstereo;
-		break;
-	default:
-		ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
-		return -1;
+	jointformat = ast_format_clone(format1);
+	if (!jointformat) {
+		return NULL;
 	}
-	return 0;
-}
-
-static int opus_isset(const struct ast_format_attr *fattr, va_list ap)
-{
-	enum opus_attr_keys key;
-	const struct opus_attr *attr = (struct opus_attr *) fattr;
-
-	for (key = va_arg(ap, int);
-		key != AST_FORMAT_ATTR_END;
-		key = va_arg(ap, int))
-	{
-		switch (key) {
-		case OPUS_ATTR_KEY_MAX_BITRATE:
-			if (attr->maxbitrate != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_MAX_PLAYRATE:
-			if (attr->maxplayrate != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_MINPTIME:
-			if (attr->minptime != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_STEREO:
-			if (attr->stereo != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_CBR:
-			if (attr->cbr != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_FEC:
-			if (attr->fec != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_DTX:
-			if (attr->dtx != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_SPROP_CAPTURE_RATE:
-			if (attr->spropmaxcapturerate != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		case OPUS_ATTR_KEY_SPROP_STEREO:
-			if (attr->spropstereo != (va_arg(ap, int))) {
-				return -1;
-			}
-			break;
-		default:
-			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
-			return -1;
-		}
-	}
-	return 0;
-}
-static int opus_getjoint(const struct ast_format_attr *fattr1, const struct ast_format_attr *fattr2, struct ast_format_attr *result)
-{
-	struct opus_attr *attr1 = (struct opus_attr *) fattr1;
-	struct opus_attr *attr2 = (struct opus_attr *) fattr2;
-	struct opus_attr *attr_res = (struct opus_attr *) result;
-	int joint = 0;
+	attr_res = ast_format_get_attribute_data(jointformat);
 
 	/* Only do dtx if both sides want it. DTX is a trade off between
 	 * computational complexity and bandwidth. */
@@ -243,65 +183,64 @@ static int opus_getjoint(const struct ast_format_attr *fattr1, const struct ast_
 
 	/* FIXME: do we need to join other attributes as well, e.g., minptime, cbr, etc.? */
 
-	return joint;
+	return jointformat;
 }
 
-static void opus_set(struct ast_format_attr *fattr, va_list ap)
+static struct ast_format *opus_set(const struct ast_format *format, const char *name, const char *value)
 {
-	enum opus_attr_keys key;
-	struct opus_attr *attr = (struct opus_attr *) fattr;
+	struct ast_format *cloned;
+	struct opus_attr *attr;
+	unsigned int val;
 
-	for (key = va_arg(ap, int);
-		key != AST_FORMAT_ATTR_END;
-		key = va_arg(ap, int))
-	{
-		switch (key) {
-		case OPUS_ATTR_KEY_MAX_BITRATE:
-			attr->maxbitrate = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_MAX_PLAYRATE:
-			attr->maxplayrate = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_MINPTIME:
-			attr->minptime = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_STEREO:
-			attr->stereo = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_CBR:
-			attr->cbr = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_FEC:
-			attr->fec = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_DTX:
-			attr->dtx = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_SPROP_CAPTURE_RATE:
-			attr->spropmaxcapturerate = (va_arg(ap, int));
-			break;
-		case OPUS_ATTR_KEY_SPROP_STEREO:
-			attr->spropstereo = (va_arg(ap, int));
-			break;
-		default:
-			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
-		}
+	if (sscanf(value, "%30u", &val) != 1) {
+		ast_log(LOG_WARNING, "Unknown value '%s' for attribute type '%s'\n",
+			value, name);
+		return NULL;
 	}
+
+	cloned = ast_format_clone(format);
+	if (!cloned) {
+		return NULL;
+	}
+	attr = ast_format_get_attribute_data(cloned);
+
+	if (!strcasecmp(name, "max_bitrate")) {
+		attr->maxbitrate = val;
+	} else if (!strcasecmp(name, "max_playrate")) {
+		attr->maxplayrate = val;
+	} else if (!strcasecmp(name, "minptime")) {
+		attr->minptime = val;
+	} else if (!strcasecmp(name, "stereo")) {
+		attr->stereo = val;
+	} else if (!strcasecmp(name, "cbr")) {
+		attr->cbr = val;
+	} else if (!strcasecmp(name, "fec")) {
+		attr->fec = val;
+	} else if (!strcasecmp(name, "dtx")) {
+		attr->dtx = val;
+	} else if (!strcasecmp(name, "sprop_capture_rate")) {
+		attr->spropmaxcapturerate = val;
+	} else if (!strcasecmp(name, "sprop_stereo")) {
+		attr->spropstereo = val;
+	} else {
+		ast_log(LOG_WARNING, "unknown attribute type %s\n", name);
+	}
+
+	return cloned;
 }
 
-static struct ast_format_attr_interface opus_interface = {
-	.id = AST_FORMAT_OPUS,
-	.format_attr_get_joint = opus_getjoint,
-	.format_attr_set = opus_set,
-	.format_attr_isset = opus_isset,
-	.format_attr_get_val = opus_get_val,
-	.format_attr_sdp_parse = opus_sdp_parse,
-	.format_attr_sdp_generate = opus_sdp_generate,
+static struct ast_format_interface opus_interface = {
+	.format_destroy = opus_destroy,
+	.format_clone = opus_clone,
+	.format_get_joint = opus_getjoint,
+	.format_attribute_set = opus_set,
+	.format_parse_sdp_fmtp = opus_parse_sdp_fmtp,
+	.format_generate_sdp_fmtp = opus_generate_sdp_fmtp,
 };
 
 static int load_module(void)
 {
-	if (ast_format_attr_reg_interface(&opus_interface)) {
+	if (ast_format_interface_register("opus", &opus_interface)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -310,7 +249,6 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_format_attr_unreg_interface(&opus_interface);
 	return 0;
 }
 

@@ -1,4 +1,4 @@
-/*
+ /*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2009, Digium, Inc.
@@ -71,10 +71,12 @@ extern "C" {
 
 #include "asterisk/astobj2.h"
 #include "asterisk/frame.h"
+#include "asterisk/format_cap.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/sched.h"
 #include "asterisk/res_srtp.h"
 #include "asterisk/stasis.h"
+#include "asterisk/vector.h"
 
 /* Maximum number of payloads supported */
 #if defined(LOW_MEMORY)
@@ -245,7 +247,7 @@ struct ast_rtp_payload_type {
 	int asterisk_format;
 	/*! If asterisk_format is set, this is the internal
 	 * asterisk format represented by the payload */
-	struct ast_format format;
+	struct ast_format *format;
 	/*! Actual internal RTP specific value of the payload */
 	int rtp_code;
 	/*! Actual payload number */
@@ -526,8 +528,6 @@ struct ast_rtp_engine {
 	void (*prop_set)(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
 	/*! Callback for setting a payload.  If asterisk  is to be used, asterisk_format will be set, otherwise value in code is used. */
 	void (*payload_set)(struct ast_rtp_instance *instance, int payload, int asterisk_format, struct ast_format *format, int code);
-	/*! Callback for setting packetization preferences */
-	void (*packetization_set)(struct ast_rtp_instance *instance, struct ast_codec_pref *pref);
 	/*! Callback for setting the remote address that RTP is to be sent to */
 	void (*remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
 	/*! Callback for changing DTMF mode */
@@ -575,10 +575,15 @@ struct ast_rtp_engine {
 /*! Structure that represents codec and packetization information */
 struct ast_rtp_codecs {
 	/*! Payloads present */
-	struct ao2_container *payloads;
-	/*! Codec packetization preferences */
-	struct ast_codec_pref pref;
+	AST_VECTOR(, struct ast_rtp_payload_type *) payloads;
+	/*! The framing for this media session */
+	unsigned int framing;
+	/*! RW lock that protects elements in this structure */
+	ast_rwlock_t codecs_lock;
 };
+
+#define AST_RTP_CODECS_NULL_INIT \
+    { .payloads = { 0, }, .framing = 0, .codecs_lock = AST_RWLOCK_INIT_VALUE, }
 
 /*! Structure that represents the glue that binds an RTP instance to a channel */
 struct ast_rtp_glue {
@@ -621,6 +626,18 @@ struct ast_rtp_glue {
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_glue) entry;
 };
+
+/*!
+ * \brief Allocation routine for \ref ast_rtp_payload_type
+ *
+ * \retval NULL on error
+ * \retval An ao2 ref counted \c ast_rtp_payload_type on success.
+ *
+ * \note The \c ast_rtp_payload_type returned by this function is an
+ *       ao2 ref counted object.
+ *
+ */
+struct ast_rtp_payload_type *ast_rtp_engine_alloc_payload_type(void);
 
 #define ast_rtp_engine_register(engine) ast_rtp_engine_register2(engine, ast_module_info->self)
 
@@ -1117,25 +1134,6 @@ void ast_rtp_codecs_payloads_destroy(struct ast_rtp_codecs *codecs);
 void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance);
 
 /*!
- * \brief Set payload information on an RTP instance to the default
- *
- * \param codecs The codecs structure to set defaults on
- * \param instance Optionally the instance that the codecs structure belongs to
- *
- * Example usage:
- *
- * \code
- * struct ast_rtp_codecs codecs;
- * ast_rtp_codecs_payloads_default(&codecs, NULL);
- * \endcode
- *
- * This sets the default payloads on the codecs structure.
- *
- * \since 1.8
- */
-void ast_rtp_codecs_payloads_default(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance);
-
-/*!
  * \brief Copy payload information from one RTP instance to another
  *
  * \param src The source codecs structure
@@ -1249,20 +1247,36 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
  * \param codecs Codecs structure to look in
  * \param payload Numerical payload to look up
  *
- * \retval Payload information
+ * \retval Payload information.
+ * \retval NULL if payload does not exist.
+ *
+ * \note The payload returned by this function has its reference count increased.
+ *       Callers are responsible for decrementing the reference count.
  *
  * Example usage:
  *
  * \code
- * struct ast_rtp_payload_type payload_type;
- * payload_type = ast_rtp_codecs_payload_lookup(&codecs, 0);
+ * struct ast_rtp_payload_type *payload_type;
+ * payload_type = ast_rtp_codecs_get_payload(&codecs, 0);
  * \endcode
  *
  * This looks up the information for payload '0' from the codecs structure.
- *
- * \since 1.8
  */
-struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs *codecs, int payload);
+struct ast_rtp_payload_type *ast_rtp_codecs_get_payload(struct ast_rtp_codecs *codecs, int payload);
+
+/*!
+ * \brief Update the format associated with a payload in a codecs structure
+ *
+ * \param codecs Codecs structure to operate on
+ * \param payload Numerical payload to look up
+ * \param format The format to replace the existing one
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \since 13
+ */
+int ast_rtp_codecs_payload_replace_format(struct ast_rtp_codecs *codecs, int payload, struct ast_format *format);
 
 /*!
  * \brief Retrieve the actual ast_format stored on the codecs structure for a specific payload
@@ -1273,9 +1287,33 @@ struct ast_rtp_payload_type ast_rtp_codecs_payload_lookup(struct ast_rtp_codecs 
  * \retval pointer to format structure on success
  * \retval NULL on failure
  *
+ * \note The format returned by this function has its reference count increased.
+ *       Callers are responsible for decrementing the reference count.
+ *
  * \since 10.0
  */
 struct ast_format *ast_rtp_codecs_get_payload_format(struct ast_rtp_codecs *codecs, int payload);
+
+/*!
+ * \brief Set the framing used for a set of codecs
+ *
+ * \param codecs Codecs structure to set framing on
+ * \param framing The framing value to set on the codecs
+ *
+ * \since 13.0.0
+ */
+void ast_rtp_codecs_set_framing(struct ast_rtp_codecs *codecs, unsigned int framing);
+
+/*!
+ * \brief Get the framing used for a set of codecs
+ *
+ * \param codecs Codecs structure to get the framing from
+ *
+ * \retval The framing to be used for the media stream associated with these codecs
+ *
+ * \since 13.0.0
+ */
+unsigned int ast_rtp_codecs_get_framing(struct ast_rtp_codecs *codecs);
 
 /*!
  * \brief Get the sample rate associated with known RTP payload types
@@ -1393,8 +1431,8 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, struct ast_f
  * char buf[256] = "";
  * struct ast_format tmp_fmt;
  * struct ast_format_cap *cap = ast_format_cap_alloc_nolock();
- * ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
- * ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_GSM, 0));
+ * ast_format_cap_append(cap, ast_format_set(&tmp_fmt, AST_FORMAT_ULAW, 0));
+ * ast_format_cap_append(cap, ast_format_set(&tmp_fmt, AST_FORMAT_GSM, 0));
  * char *mime = ast_rtp_lookup_mime_multiple2(&buf, sizeof(buf), cap, 0, 1, 0);
  * ast_format_cap_destroy(cap);
  * \endcode
@@ -1404,25 +1442,6 @@ const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, struct ast_f
  * \since 1.8
  */
 char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, struct ast_format_cap *ast_format_capability, int rtp_capability, const int asterisk_format, enum ast_rtp_options options);
-
-/*!
- * \brief Set codec packetization preferences
- *
- * \param codecs Codecs structure to muck with
- * \param instance Optionally the instance that the codecs structure belongs to
- * \param prefs Codec packetization preferences
- *
- * Example usage:
- *
- * \code
- * ast_rtp_codecs_packetization_set(&codecs, NULL, &prefs);
- * \endcode
- *
- * This sets the packetization preferences pointed to by prefs on the codecs structure pointed to by codecs.
- *
- * \since 1.8
- */
-void ast_rtp_codecs_packetization_set(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance, struct ast_codec_pref *prefs);
 
 /*!
  * \brief Begin sending a DTMF digit
@@ -2111,12 +2130,12 @@ struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance);
 
 /*! \brief Custom formats declared in codecs.conf at startup must be communicated to the rtp_engine
  * so their mime type can payload number can be initialized. */
-int ast_rtp_engine_load_format(const struct ast_format *format);
+int ast_rtp_engine_load_format(struct ast_format *format);
 
 /*! \brief Formats requiring the use of a format attribute interface must have that
  * interface registered in order for the rtp engine to handle it correctly.  If an
  * attribute interface is unloaded, this function must be called to notify the rtp_engine. */
-int ast_rtp_engine_unload_format(const struct ast_format *format);
+int ast_rtp_engine_unload_format(struct ast_format *format);
 
 /*!
  * \brief Obtain a pointer to the ICE support present on an RTP instance

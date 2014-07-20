@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/xmldoc.h"
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
+#include "asterisk/format_cap.h"
 
 #ifdef LOW_MEMORY
 #define CONFIG_OPT_BUCKETS 5
@@ -1377,9 +1378,8 @@ static int acl_handler_fn(const struct aco_option *opt, struct ast_variable *var
  * enum aco_option_type in config_options.h
  */
 static int codec_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj) {
-	struct ast_codec_pref *pref = (struct ast_codec_pref *)(obj + opt->args[0]);
-	struct ast_format_cap **cap = (struct ast_format_cap **)(obj + opt->args[1]);
-	return ast_parse_allow_disallow(pref, *cap, var->value, opt->flags);
+	struct ast_format_cap **cap = (struct ast_format_cap **)(obj + opt->args[0]);
+	return ast_format_cap_update_by_allow_disallow(*cap, var->value, opt->flags);
 }
 
 /*! \brief Default option handler for stringfields

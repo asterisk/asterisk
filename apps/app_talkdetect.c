@@ -42,6 +42,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/dsp.h"
 #include "asterisk/app.h"
+#include "asterisk/format.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="BackgroundDetect" language="en_US">
@@ -91,7 +93,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 	int analysistime = -1;
 	int continue_analysis = 1;
 	int x;
-	struct ast_format origrformat;
+	RAII_VAR(struct ast_format *, origrformat, NULL, ao2_cleanup);
 	struct ast_dsp *dsp = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
@@ -101,7 +103,6 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(analysistime);
 	);
 
-	ast_format_clear(&origrformat);
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
 		return -1;
@@ -131,8 +132,8 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 			}
 		}
 
-		ast_format_copy(&origrformat, ast_channel_readformat(chan));
-		if ((ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR))) {
+		origrformat = ao2_bump(ast_channel_readformat(chan));
+		if ((ast_set_read_format(chan, ast_format_slin))) {
 			ast_log(LOG_WARNING, "Unable to set read format to linear!\n");
 			res = -1;
 			break;
@@ -187,7 +188,8 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 						ast_frfree(fr);
 						break;
 					}
-				} else if ((fr->frametype == AST_FRAME_VOICE) && (fr->subclass.format.id == AST_FORMAT_SLINEAR) && continue_analysis) {
+				} else if ((fr->frametype == AST_FRAME_VOICE) &&
+				(ast_format_cmp(fr->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) && continue_analysis) {
 					int totalsilence;
 					int ms;
 					res = ast_dsp_silence(dsp, fr, &totalsilence);
@@ -233,9 +235,9 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 	} while (0);
 
 	if (res > -1) {
-		if (origrformat.id && ast_set_read_format(chan, &origrformat)) {
+		if (origrformat && ast_set_read_format(chan, origrformat)) {
 			ast_log(LOG_WARNING, "Failed to restore read format for %s to %s\n", 
-				ast_channel_name(chan), ast_getformatname(&origrformat));
+				ast_channel_name(chan), ast_format_get_name(origrformat));
 		}
 	}
 	if (dsp) {

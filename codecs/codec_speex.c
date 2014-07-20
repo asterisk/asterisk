@@ -308,10 +308,14 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 		} else {
 			tmp->silent_state = 1;
 			speex_bits_reset(&tmp->bits);
+
+/* BUGBUG need to setup a new static frame to prevent destroying the translators normal static frame. */
+			ao2_cleanup(pvt->f.subclass.format);
 			memset(&pvt->f, 0, sizeof(pvt->f));
 			pvt->f.frametype = AST_FRAME_CNG;
 			pvt->f.samples = samples;
 			/* XXX what now ? format etc... */
+/* BUGBUG should return ast_frisolate(setup local static frame) here */
 		}
 	}
 
@@ -341,7 +345,18 @@ static void lintospeex_destroy(struct ast_trans_pvt *arg)
 }
 
 static struct ast_translator speextolin = {
-	.name = "speextolin", 
+	.name = "speextolin",
+	.src_codec = {
+		.name = "speex",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.newpvt = speextolin_new,
 	.framein = speextolin_framein,
 	.destroy = speextolin_destroy,
@@ -354,6 +369,17 @@ static struct ast_translator speextolin = {
 
 static struct ast_translator lintospeex = {
 	.name = "lintospeex", 
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "speex",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "speex",
 	.newpvt = lintospeex_new,
 	.framein = lintospeex_framein,
 	.frameout = lintospeex_frameout,
@@ -365,7 +391,18 @@ static struct ast_translator lintospeex = {
 };
 
 static struct ast_translator speexwbtolin16 = {
-	.name = "speexwbtolin16", 
+	.name = "speexwbtolin16",
+	.src_codec = {
+		.name = "speex",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	}, 
+	.format = "slin16",
 	.newpvt = speexwbtolin16_new,
 	.framein = speextolin_framein,
 	.destroy = speextolin_destroy,
@@ -377,7 +414,18 @@ static struct ast_translator speexwbtolin16 = {
 };
 
 static struct ast_translator lin16tospeexwb = {
-	.name = "lin16tospeexwb", 
+	.name = "lin16tospeexwb",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.dst_codec = {
+		.name = "speex",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.format = "speex16",
 	.newpvt = lin16tospeexwb_new,
 	.framein = lintospeex_framein,
 	.frameout = lintospeex_frameout,
@@ -389,7 +437,18 @@ static struct ast_translator lin16tospeexwb = {
 };
 
 static struct ast_translator speexuwbtolin32 = {
-	.name = "speexuwbtolin32", 
+	.name = "speexuwbtolin32",
+	.src_codec = {
+		.name = "speex",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 32000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 32000,
+	},
+	.format = "slin32",
 	.newpvt = speexuwbtolin32_new,
 	.framein = speextolin_framein,
 	.destroy = speextolin_destroy,
@@ -400,7 +459,18 @@ static struct ast_translator speexuwbtolin32 = {
 };
 
 static struct ast_translator lin32tospeexuwb = {
-	.name = "lin32tospeexuwb", 
+	.name = "lin32tospeexuwb",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 32000,
+	},
+	.dst_codec = {
+		.name = "speex",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 32000,
+	},
+	.format = "speex32",
 	.newpvt = lin32tospeexuwb_new,
 	.framein = lintospeex_framein,
 	.frameout = lintospeex_frameout,
@@ -534,25 +604,6 @@ static int load_module(void)
 	if (parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 
-
-	ast_format_set(&speextolin.src_format, AST_FORMAT_SPEEX, 0);
-	ast_format_set(&speextolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintospeex.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintospeex.dst_format, AST_FORMAT_SPEEX, 0);
-
-	ast_format_set(&speexwbtolin16.src_format, AST_FORMAT_SPEEX16, 0);
-	ast_format_set(&speexwbtolin16.dst_format, AST_FORMAT_SLINEAR16, 0);
-
-	ast_format_set(&lin16tospeexwb.src_format, AST_FORMAT_SLINEAR16, 0);
-	ast_format_set(&lin16tospeexwb.dst_format, AST_FORMAT_SPEEX16, 0);
-
-	ast_format_set(&speexuwbtolin32.src_format, AST_FORMAT_SPEEX32, 0);
-	ast_format_set(&speexuwbtolin32.dst_format, AST_FORMAT_SLINEAR32, 0);
-
-	ast_format_set(&lin32tospeexuwb.src_format, AST_FORMAT_SLINEAR32, 0);
-	ast_format_set(&lin32tospeexuwb.dst_format, AST_FORMAT_SPEEX32, 0);
-
 	res |= ast_register_translator(&speextolin);
 	res |= ast_register_translator(&lintospeex);
 	res |= ast_register_translator(&speexwbtolin16);
@@ -560,6 +611,10 @@ static int load_module(void)
 	res |= ast_register_translator(&speexuwbtolin32);
 	res |= ast_register_translator(&lin32tospeexuwb);
 
+	if (res) {
+		unload_module();
+		return res;
+	}
 
 	return res;
 }

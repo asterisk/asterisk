@@ -57,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/test.h"
 #include "asterisk/mixmonitor.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/beep.h"
 
 /*** DOCUMENTATION
@@ -616,7 +617,7 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 				*errflag = 1;
 			} else {
 				struct ast_filestream *tmp = *fs;
-				mixmonitor->mixmonitor_ds->samp_rate = MAX(mixmonitor->mixmonitor_ds->samp_rate, ast_format_rate(&tmp->fmt->format));
+				mixmonitor->mixmonitor_ds->samp_rate = MAX(mixmonitor->mixmonitor_ds->samp_rate, ast_format_get_sample_rate(tmp->fmt->format));
 			}
 		}
 	}
@@ -635,7 +636,7 @@ static void *mixmonitor_thread(void *obj)
 
 	unsigned int oflags;
 	int errflag = 0;
-	struct ast_format format_slin;
+	struct ast_format *format_slin;
 
 	/* Keep callid association before any log messages */
 	if (mixmonitor->callid) {
@@ -653,10 +654,9 @@ static void *mixmonitor_thread(void *obj)
 	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_read, fs_read, &oflags, &errflag, &fs_read_ext);
 	mixmonitor_save_prep(mixmonitor, mixmonitor->filename_write, fs_write, &oflags, &errflag, &fs_write_ext);
 
-	ast_format_set(&format_slin, ast_format_slin_by_rate(mixmonitor->mixmonitor_ds->samp_rate), 0);
+	format_slin = ast_format_cache_get_slin_by_rate(mixmonitor->mixmonitor_ds->samp_rate);
 
 	ast_mutex_unlock(&mixmonitor->mixmonitor_ds->lock);
-
 
 	/* The audiohook must enter and exit the loop locked */
 	ast_audiohook_lock(&mixmonitor->audiohook);
@@ -665,7 +665,7 @@ static void *mixmonitor_thread(void *obj)
 		struct ast_frame *fr_read = NULL;
 		struct ast_frame *fr_write = NULL;
 
-		if (!(fr = ast_audiohook_read_frame_all(&mixmonitor->audiohook, SAMPLES_PER_FRAME, &format_slin,
+		if (!(fr = ast_audiohook_read_frame_all(&mixmonitor->audiohook, SAMPLES_PER_FRAME, format_slin,
 						&fr_read, &fr_write))) {
 			ast_audiohook_trigger_wait(&mixmonitor->audiohook);
 

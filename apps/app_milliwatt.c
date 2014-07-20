@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/indications.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="Milliwatt" language="en_US">
@@ -79,13 +80,14 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 {
 	unsigned char buf[AST_FRIENDLY_OFFSET + 640];
 	const int maxsamples = ARRAY_LEN(buf) - (AST_FRIENDLY_OFFSET / sizeof(buf[0]));
-	int i, *indexp = (int *) data;
+	int i, *indexp = (int *) data, res;
 	struct ast_frame wf = {
 		.frametype = AST_FRAME_VOICE,
 		.offset = AST_FRIENDLY_OFFSET,
 		.src = __FUNCTION__,
 	};
-	ast_format_set(&wf.subclass.format, AST_FORMAT_ULAW, 0);
+
+	wf.subclass.format = ast_format_ulaw;
 	wf.data.ptr = buf + AST_FRIENDLY_OFFSET;
 
 	/* Instead of len, use samples, because channel.c generator_force
@@ -108,7 +110,10 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 		*indexp &= 7;
 	}
 
-	if (ast_write(chan,&wf) < 0) {
+	res = ast_write(chan, &wf);
+	ast_frfree(&wf);
+
+	if (res < 0) {
 		ast_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",ast_channel_name(chan),strerror(errno));
 		return -1;
 	}
@@ -124,8 +129,8 @@ static struct ast_generator milliwattgen = {
 
 static int old_milliwatt_exec(struct ast_channel *chan)
 {
-	ast_set_write_format_by_id(chan, AST_FORMAT_ULAW);
-	ast_set_read_format_by_id(chan, AST_FORMAT_ULAW);
+	ast_set_write_format(chan, ast_format_ulaw);
+	ast_set_read_format(chan, ast_format_ulaw);
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		ast_answer(chan);

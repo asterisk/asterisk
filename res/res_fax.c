@@ -89,6 +89,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/smoother.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="ReceiveFAX" language="en_US" module="res_fax">
@@ -453,10 +455,10 @@ struct fax_gateway {
 	/*! \brief a flag to track the state of our negotiation */
 	enum ast_t38_state t38_state;
 	/*! \brief original audio formats */
-	struct ast_format chan_read_format;
-	struct ast_format chan_write_format;
-	struct ast_format peer_read_format;
-	struct ast_format peer_write_format;
+	struct ast_format *chan_read_format;
+	struct ast_format *chan_write_format;
+	struct ast_format *peer_read_format;
+	struct ast_format *peer_write_format;
 };
 
 /*! \brief used for fax detect framehook */
@@ -468,7 +470,7 @@ struct fax_detect {
 	/*! \brief DSP Processor */
 	struct ast_dsp *dsp;
 	/*! \brief original audio formats */
-	struct ast_format orig_format;
+	struct ast_format *orig_format;
 	/*! \brief fax session details */
 	struct ast_fax_session_details *details;
 	/*! \brief mode */
@@ -1570,20 +1572,18 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	int timeout = RES_FAX_TIMEOUT;
 	int chancount;
 	unsigned int expected_frametype = -1;
-	union ast_frame_subclass expected_framesubclass = { .integer = -1 };
+	struct ast_frame_subclass expected_framesubclass = { .integer = 0, };
 	unsigned int t38negotiated = (ast_channel_get_t38_state(chan) == T38_STATE_NEGOTIATED);
 	struct ast_control_t38_parameters t38_parameters;
 	const char *tempvar;
 	struct ast_fax_session *fax = NULL;
 	struct ast_frame *frame = NULL;
 	struct ast_channel *c = chan;
-	struct ast_format orig_write_format;
-	struct ast_format orig_read_format;
+	RAII_VAR(struct ast_format *, orig_write_format, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format *, orig_read_format, NULL, ao2_cleanup);
 	int remaining_time;
 	struct timeval start;
 
-	ast_format_clear(&orig_write_format);
-	ast_format_clear(&orig_read_format);
 	chancount = 1;
 
 	/* create the FAX session */
@@ -1607,10 +1607,10 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	report_fax_status(chan, details, "Allocating Resources");
 
 	if (details->caps & AST_FAX_TECH_AUDIO) {
-		expected_frametype = AST_FRAME_VOICE;;
-		ast_format_set(&expected_framesubclass.format, AST_FORMAT_SLINEAR, 0);
-		ast_format_copy(&orig_write_format, ast_channel_writeformat(chan));
-		if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
+		expected_frametype = AST_FRAME_VOICE;
+		expected_framesubclass.format = ast_format_slin;
+		orig_write_format = ao2_bump(ast_channel_writeformat(chan));
+		if (ast_set_write_format(chan, ast_format_slin) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set write format to signed linear'.\n", ast_channel_name(chan));
  			ao2_lock(faxregistry.container);
  			ao2_unlink(faxregistry.container, fax);
@@ -1619,8 +1619,8 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 			ast_channel_unlock(chan);
 			return -1;
 		}
-		ast_format_copy(&orig_read_format, ast_channel_readformat(chan));
-		if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
+		orig_read_format = ao2_bump(ast_channel_readformat(chan));
+		if (ast_set_read_format(chan, ast_format_slin) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set read format to signed linear.\n", ast_channel_name(chan));
  			ao2_lock(faxregistry.container);
  			ao2_unlink(faxregistry.container, fax);
@@ -1724,8 +1724,10 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 
 					ast_verb(3, "Channel '%s' switched to T.38 FAX session '%u'.\n", ast_channel_name(chan), fax->id);
 				}
-			} else if ((frame->frametype == expected_frametype) &&
-				   (!memcmp(&frame->subclass, &expected_framesubclass, sizeof(frame->subclass)))) {
+			} else if ((frame->frametype == expected_frametype) && (expected_framesubclass.integer == frame->subclass.integer) &&
+				((!frame->subclass.format && !expected_framesubclass.format) ||
+				(frame->subclass.format && expected_framesubclass.format &&
+					(ast_format_cmp(frame->subclass.format, expected_framesubclass.format) != AST_FORMAT_CMP_NOT_EQUAL)))) {
 				struct ast_frame *f;
 
 				if (fax->smoother) {
@@ -1809,11 +1811,11 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	 * restore them now
 	 */
 	if (chancount) {
-		if (orig_read_format.id) {
-			ast_set_read_format(chan, &orig_read_format);
+		if (orig_read_format) {
+			ast_set_read_format(chan, orig_read_format);
 		}
-		if (orig_write_format.id) {
-			ast_set_write_format(chan, &orig_write_format);
+		if (orig_write_format) {
+			ast_set_write_format(chan, orig_write_format);
 		}
 	}
 
@@ -2823,6 +2825,11 @@ static void destroy_gateway(void *data)
 		ao2_ref(gateway->s, -1);
 		gateway->s = NULL;
 	}
+
+	ao2_cleanup(gateway->chan_read_format);
+	ao2_cleanup(gateway->chan_write_format);
+	ao2_cleanup(gateway->peer_read_format);
+	ao2_cleanup(gateway->peer_write_format);
 }
 
 /*! \brief Create a new fax gateway object.
@@ -3274,14 +3281,14 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		set_channel_variables(chan, details);
 
 		if (gateway->bridged) {
-			ast_set_read_format(chan, &gateway->chan_read_format);
-			ast_set_read_format(chan, &gateway->chan_write_format);
+			ast_set_read_format(chan, gateway->chan_read_format);
+			ast_set_read_format(chan, gateway->chan_write_format);
 
 			ast_channel_unlock(chan);
 			peer = ast_channel_bridge_peer(chan);
 			if (peer) {
-				ast_set_read_format(peer, &gateway->peer_read_format);
-				ast_set_read_format(peer, &gateway->peer_write_format);
+				ast_set_read_format(peer, gateway->peer_read_format);
+				ast_set_read_format(peer, gateway->peer_write_format);
 				ast_channel_make_compatible(chan, peer);
 			}
 			ast_channel_lock(chan);
@@ -3326,18 +3333,18 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 		/* we are bridged, change r/w formats to SLIN for v21 preamble
 		 * detection and T.30 */
-		ast_format_copy(&gateway->chan_read_format, ast_channel_readformat(chan));
-		ast_format_copy(&gateway->chan_write_format, ast_channel_readformat(chan));
+		ao2_replace(gateway->chan_read_format, ast_channel_readformat(chan));
+		ao2_replace(gateway->chan_write_format, ast_channel_readformat(chan));
 
-		ast_format_copy(&gateway->peer_read_format, ast_channel_readformat(peer));
-		ast_format_copy(&gateway->peer_write_format, ast_channel_readformat(peer));
+		ao2_replace(gateway->peer_read_format, ast_channel_readformat(peer));
+		ao2_replace(gateway->peer_write_format, ast_channel_readformat(peer));
 
-		ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR);
-		ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR);
+		ast_set_read_format(chan, ast_format_slin);
+		ast_set_write_format(chan, ast_format_slin);
 
 		ast_channel_unlock(chan);
-		ast_set_read_format_by_id(peer, AST_FORMAT_SLINEAR);
-		ast_set_write_format_by_id(peer, AST_FORMAT_SLINEAR);
+		ast_set_read_format(peer, ast_format_slin);
+		ast_set_write_format(peer, ast_format_slin);
 
 		ast_channel_make_compatible(chan, peer);
 		ast_channel_lock(chan);
@@ -3361,12 +3368,9 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	/* only handle VOICE, MODEM, and CONTROL frames*/
 	switch (f->frametype) {
 	case AST_FRAME_VOICE:
-		switch (f->subclass.format.id) {
-		case AST_FORMAT_SLINEAR:
-		case AST_FORMAT_ALAW:
-		case AST_FORMAT_ULAW:
-			break;
-		default:
+		if ((ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL) &&
+			(ast_format_cmp(f->subclass.format, ast_format_alaw) != AST_FORMAT_CMP_EQUAL) &&
+			(ast_format_cmp(f->subclass.format, ast_format_ulaw) != AST_FORMAT_CMP_EQUAL)) {
 			return f;
 		}
 		break;
@@ -3412,7 +3416,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	if (gateway->t38_state == T38_STATE_NEGOTIATED) {
 		/* framehooks are called in __ast_read() before frame format
 		 * translation is done, so we need to translate here */
-		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id != AST_FORMAT_SLINEAR)) {
+		if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL)) {
 			if (ast_channel_readtrans(active) && (f = ast_translate(ast_channel_readtrans(active), f, 1)) == NULL) {
 				f = &ast_null_frame;
 				return f;
@@ -3424,7 +3428,8 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 		 * write would fail, or even if a failure would be fatal so for
 		 * now we'll just ignore the return value. */
 		gateway->s->tech->write(gateway->s, f);
-		if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id != AST_FORMAT_SLINEAR) && ast_channel_readtrans(active)) {
+		if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL) &&
+			ast_channel_readtrans(active)) {
 			/* Only free the frame if we translated / duplicated it - otherwise,
 			 * let whatever is outside the frame hook do it */
 			ast_frfree(f);
@@ -3435,15 +3440,16 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 	/* force silence on the line if T.38 negotiation might be taking place */
 	if (gateway->t38_state != T38_STATE_UNAVAILABLE && gateway->t38_state != T38_STATE_REJECTED) {
-		if (f->frametype == AST_FRAME_VOICE && f->subclass.format.id == AST_FORMAT_SLINEAR) {
+		if (f->frametype == AST_FRAME_VOICE &&
+			(ast_format_cmp(f->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)) {
 			short silence_buf[f->samples];
 			struct ast_frame silence_frame = {
 				.frametype = AST_FRAME_VOICE,
+				.subclass.format = ast_format_slin,
 				.data.ptr = silence_buf,
 				.samples = f->samples,
 				.datalen = sizeof(silence_buf),
 			};
-			ast_format_set(&silence_frame.subclass.format, AST_FORMAT_SLINEAR, 0);
 			memset(silence_buf, 0, sizeof(silence_buf));
 			return ast_frisolate(&silence_frame);
 		} else {
@@ -3513,6 +3519,7 @@ static void destroy_faxdetect(void *data)
 		faxdetect->dsp = NULL;
 	}
 	ao2_ref(faxdetect->details, -1);
+	ao2_cleanup(faxdetect->orig_format);
 }
 
 /*! \brief Create a new fax detect object.
@@ -3587,23 +3594,22 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	switch (event) {
 	case AST_FRAMEHOOK_EVENT_ATTACHED:
 		/* Setup format for DSP on ATTACH*/
-		ast_format_copy(&faxdetect->orig_format, ast_channel_readformat(chan));
-		switch (ast_channel_readformat(chan)->id) {
-			case AST_FORMAT_SLINEAR:
-			case AST_FORMAT_ALAW:
-			case AST_FORMAT_ULAW:
-				break;
-			default:
-				if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR)) {
-					ast_framehook_detach(chan, details->faxdetect_id);
-					details->faxdetect_id = -1;
-					return f;
-				}
+		ao2_replace(faxdetect->orig_format, ast_channel_readformat(chan));
+
+		if ((ast_format_cmp(ast_channel_readformat(chan), ast_format_slin) != AST_FORMAT_CMP_EQUAL) &&
+			(ast_format_cmp(ast_channel_readformat(chan), ast_format_alaw) != AST_FORMAT_CMP_EQUAL) &&
+			(ast_format_cmp(ast_channel_readformat(chan), ast_format_ulaw) != AST_FORMAT_CMP_EQUAL)) {
+			if (ast_set_read_format(chan, ast_format_slin)) {
+				ast_framehook_detach(chan, details->faxdetect_id);
+				details->faxdetect_id = -1;
+				return f;
+			}
 		}
+
 		return NULL;
 	case AST_FRAMEHOOK_EVENT_DETACHED:
 		/* restore audio formats when we are detached */
-		ast_set_read_format(chan, &faxdetect->orig_format);
+		ast_set_read_format(chan, faxdetect->orig_format);
 		ast_channel_unlock(chan);
 		peer = ast_channel_bridge_peer(chan);
 		if (peer) {
@@ -3638,13 +3644,10 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 			return f;
 		}
 		/* We can only process some formats*/
-		switch (f->subclass.format.id) {
-			case AST_FORMAT_SLINEAR:
-			case AST_FORMAT_ALAW:
-			case AST_FORMAT_ULAW:
-				break;
-			default:
-				return f;
+		if ((ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL) &&
+			(ast_format_cmp(f->subclass.format, ast_format_alaw) != AST_FORMAT_CMP_EQUAL) &&
+			(ast_format_cmp(f->subclass.format, ast_format_ulaw) != AST_FORMAT_CMP_EQUAL)) {
+			return f;
 		}
 		break;
 	case AST_FRAME_CONTROL:

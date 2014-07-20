@@ -1054,10 +1054,10 @@ struct ast_str *ast_dump_locks(void)
 			if (!header_printed) {
 				if (lock_info->lwp != -1) {
 					ast_str_append(&str, 0, "=== Thread ID: 0x%lx LWP:%d (%s)\n",
-						(long) lock_info->thread_id, lock_info->lwp, lock_info->thread_name);
+						(long unsigned) lock_info->thread_id, lock_info->lwp, lock_info->thread_name);
 				} else {
 					ast_str_append(&str, 0, "=== Thread ID: 0x%lx (%s)\n",
-						(long) lock_info->thread_id, lock_info->thread_name);
+						(long unsigned) lock_info->thread_id, lock_info->thread_name);
 				}
 				header_printed = 1;
 			}

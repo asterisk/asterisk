@@ -26,6 +26,7 @@
 #define ASTERISK_DATA_H
 
 #include "asterisk/frame.h"
+#include "asterisk/format_cap.h"
 
 /*!
  * \page AstDataRetrieval The Asterisk DATA retrieval API.

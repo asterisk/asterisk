@@ -138,6 +138,17 @@ static int lintog722_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 static struct ast_translator g722tolin = {
 	.name = "g722tolin",
+	.src_codec = {
+		.name = "g722",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.newpvt = g722tolin_new,	/* same for both directions */
 	.framein = g722tolin_framein,
 	.sample = g722_sample,
@@ -148,6 +159,17 @@ static struct ast_translator g722tolin = {
 
 static struct ast_translator lintog722 = {
 	.name = "lintog722",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "g722",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.format = "g722",
 	.newpvt = lintog722_new,	/* same for both directions */
 	.framein = lintog722_framein,
 	.sample = slin8_sample,
@@ -158,6 +180,17 @@ static struct ast_translator lintog722 = {
 
 static struct ast_translator g722tolin16 = {
 	.name = "g722tolin16",
+	.src_codec = {
+		.name = "g722",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.format = "slin16",
 	.newpvt = g722tolin16_new,	/* same for both directions */
 	.framein = g722tolin_framein,
 	.sample = g722_sample,
@@ -168,6 +201,17 @@ static struct ast_translator g722tolin16 = {
 
 static struct ast_translator lin16tog722 = {
 	.name = "lin16tog722",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.dst_codec = {
+		.name = "g722",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	.format = "g722",
 	.newpvt = lin16tog722_new,	/* same for both directions */
 	.framein = lintog722_framein,
 	.sample = slin16_sample,
@@ -175,11 +219,6 @@ static struct ast_translator lin16tog722 = {
 	.buffer_samples = BUFFER_SAMPLES * 2,
 	.buf_size = BUFFER_SAMPLES,
 };
-
-static int reload(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
 
 static int unload_module(void)
 {
@@ -197,18 +236,6 @@ static int load_module(void)
 {
 	int res = 0;
 
-	ast_format_set(&g722tolin.src_format, AST_FORMAT_G722, 0);
-	ast_format_set(&g722tolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintog722.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintog722.dst_format, AST_FORMAT_G722, 0);
-
-	ast_format_set(&g722tolin16.src_format, AST_FORMAT_G722, 0);
-	ast_format_set(&g722tolin16.dst_format, AST_FORMAT_SLINEAR16, 0);
-
-	ast_format_set(&lin16tog722.src_format, AST_FORMAT_SLINEAR16, 0);
-	ast_format_set(&lin16tog722.dst_format, AST_FORMAT_G722, 0);
-
 	res |= ast_register_translator(&g722tolin);
 	res |= ast_register_translator(&lintog722);
 	res |= ast_register_translator(&g722tolin16);
@@ -225,5 +252,4 @@ static int load_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ITU G.722-64kbps G722 Transcoder",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );

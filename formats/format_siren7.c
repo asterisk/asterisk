@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 #define BUF_SIZE	80		/* 20 milliseconds == 80 bytes, 320 samples */
 #define SAMPLES_TO_BYTES(x)	x / (320 / 80)
@@ -44,9 +45,6 @@ static struct ast_frame *siren7read(struct ast_filestream *s, int *whennext)
 	int res;
 	/* Send a frame from the file to the appropriate channel */
 
-	s->fr.frametype = AST_FRAME_VOICE;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_SIREN7, 0);
-	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
@@ -61,14 +59,6 @@ static int siren7write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
 
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
-		return -1;
-	}
-	if (f->subclass.format.id != AST_FORMAT_SIREN7) {
-		ast_log(LOG_WARNING, "Asked to write non-Siren7 frame (%s)!\n", ast_getformatname(&f->subclass.format));
-		return -1;
-	}
 	if ((res = fwrite(f->data.ptr, 1, f->datalen, fs->f)) != f->datalen) {
 		ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 		return -1;
@@ -148,7 +138,7 @@ static struct ast_format_def siren7_f = {
 
 static int load_module(void)
 {
-	ast_format_set(&siren7_f.format, AST_FORMAT_SIREN7, 0);
+	siren7_f.format = ast_format_siren7;
 	if (ast_format_def_register(&siren7_f))
 		return AST_MODULE_LOAD_DECLINE;
 

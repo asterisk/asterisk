@@ -530,8 +530,6 @@ struct ast_sip_endpoint_media_configuration {
 	struct ast_sip_direct_media_configuration direct_media;
 	/*! T.38 (FoIP) options */
 	struct ast_sip_t38_configuration t38;
-	/*! Codec preferences */
-	struct ast_codec_pref prefs;
 	/*! Configured codecs */
 	struct ast_format_cap *codecs;
 	/*! DSCP TOS bits for audio streams */

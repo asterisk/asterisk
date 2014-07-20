@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/channel.h"
 #include "asterisk/bridge.h"
+#include "asterisk/format_cache.h"
 #include "include/confbridge.h"
 
 /* ------------------------------------------------------------------- */
@@ -56,8 +57,14 @@ static int rec_write(struct ast_channel *ast, struct ast_frame *f)
 static struct ast_channel *rec_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
 	struct ast_channel *chan;
-	struct ast_format format;
 	const char *conf_name = data;
+	RAII_VAR(struct ast_format_cap *, capabilities, NULL, ao2_cleanup);
+
+	capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!capabilities) {
+		return NULL;
+	}
+	ast_format_cap_append_by_type(capabilities, AST_MEDIA_TYPE_UNKNOWN);
 
 	chan = ast_channel_alloc(1, AST_STATE_UP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
 		"CBRec/conf-%s-uid-%d",
@@ -70,13 +77,13 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 		ast_channel_release(chan);
 		return NULL;
 	}
-	ast_format_set(&format, AST_FORMAT_SLINEAR, 0);
+
 	ast_channel_tech_set(chan, conf_record_get_tech());
-	ast_format_cap_add_all(ast_channel_nativeformats(chan));
-	ast_format_copy(ast_channel_writeformat(chan), &format);
-	ast_format_copy(ast_channel_rawwriteformat(chan), &format);
-	ast_format_copy(ast_channel_readformat(chan), &format);
-	ast_format_copy(ast_channel_rawreadformat(chan), &format);
+	ast_channel_nativeformats_set(chan, capabilities);
+	ast_channel_set_writeformat(chan, ast_format_slin);
+	ast_channel_set_rawwriteformat(chan, ast_format_slin);
+	ast_channel_set_readformat(chan, ast_format_slin);
+	ast_channel_set_rawreadformat(chan, ast_format_slin);
 	ast_channel_unlock(chan);
 	return chan;
 }

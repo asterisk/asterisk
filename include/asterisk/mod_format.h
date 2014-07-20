@@ -43,10 +43,10 @@ extern "C" {
 struct ast_format_def {
 	char name[80];		/*!< Name of format */
 	char exts[80];		/*!< Extensions (separated by | if more than one) 
-	    			this format can read.  First is assumed for writing (e.g. .mp3) */
-	struct ast_format format;	/*!< Format of frames it uses/provides (one only) */
-	/*! 
-	 * \brief Prepare an input stream for playback. 
+						 * this format can read.  First is assumed for writing (e.g. .mp3) */
+	struct ast_format *format;	/*!< Format of frames it uses/provides (one only) */
+	/*!
+	 * \brief Prepare an input stream for playback.
 	 * \return 0 on success, -1 on error.
 	 * The FILE is already open (in s->f) so this function only needs to perform
 	 * any applicable validity checks on the file. If none is required, the
@@ -110,7 +110,7 @@ struct ast_filestream {
 	/*! Transparently translate from another format -- just once */
 	struct ast_trans_pvt *trans;
 	struct ast_tranlator_pvt *tr;
-	struct ast_format lastwriteformat;
+	struct ast_format *lastwriteformat;
 	int lasttimeout;
 	struct ast_channel *owner;
 	FILE *f;

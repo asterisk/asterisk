@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/test.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/frame.h"
+#include "asterisk/format_cache.h"
 
 #define DEFAULT_FRAME_MS 160
 #define DEFAULT_CONFIG_FLAGS 0
@@ -85,7 +86,7 @@ static struct ast_frame *create_test_frame(long timestamp,
 {
 	struct ast_frame f = {0};
 
-	f.subclass.format.id = AST_FORMAT_SLINEAR;
+	f.subclass.format = ast_format_slin;
 	f.frametype = AST_FRAME_VOICE;
 	f.src = "TEST";
 	f.ts = timestamp;

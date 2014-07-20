@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/format_cap.h"
 #include "asterisk/file.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/format_cache.h"
 
 /*!
  * \brief Finds a bridge, filling the response with an error, if appropriate.
@@ -303,19 +304,14 @@ static void *bridge_channel_control_thread(void *data)
 
 static struct ast_channel *prepare_bridge_media_channel(const char *type)
 {
-	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
-	struct ast_format format;
+	RAII_VAR(struct ast_format_cap *, cap, NULL, ao2_cleanup);
 
-	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!cap) {
 		return NULL;
 	}
 
-	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
-
-	if (!cap) {
-		return NULL;
-	}
+	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	return ast_request(type, cap, NULL, NULL, "ARI", NULL);
 }

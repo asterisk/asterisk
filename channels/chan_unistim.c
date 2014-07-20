@@ -78,6 +78,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/features_config.h"
 #include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/format_cache.h"
 
 #define DEFAULTCONTEXT	  "default"
 #define DEFAULTCALLERID	 "Unknown"
@@ -1933,7 +1934,7 @@ static void unistim_line_copy(struct unistim_line *dst, struct unistim_line *src
 	struct ast_format_cap *tmp = src->cap;
 	memcpy(dst, src, sizeof(*dst)); /* this over writes the cap ptr, so we have to reset it */
 	src->cap = tmp;
-	ast_format_cap_copy(src->cap, dst->cap);
+	ast_format_cap_append_from_cap(src->cap, dst->cap, AST_MEDIA_TYPE_UNKNOWN);
 }
 
 static struct unistim_line *unistim_line_destroy(struct unistim_line *l)
@@ -1941,7 +1942,7 @@ static struct unistim_line *unistim_line_destroy(struct unistim_line *l)
 	if (!l) {
 		return NULL;
 	}
-	l->cap = ast_format_cap_destroy(l->cap);
+	ao2_ref(l->cap, -1);
 	ast_free(l);
 	return NULL;
 }
@@ -1953,7 +1954,7 @@ static struct unistim_line *unistim_line_alloc(void)
 		return NULL;
 	}
 
-	if (!(l->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK))) {
+	if (!(l->cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ast_free(l);
 		return NULL;
 	}
@@ -2699,15 +2700,15 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 	if (unistimdebug) {
 		ast_verb(0, "RTP started : Our IP/port is : %s:%hd with codec %s\n",
 			 ast_inet_ntoa(us.sin_addr),
-			 htons(us.sin_port), ast_getformatname(ast_channel_readformat(sub->owner)));
+			 htons(us.sin_port), ast_format_get_name(ast_channel_readformat(sub->owner)));
 		ast_verb(0, "Starting phone RTP stack. Our public IP is %s\n",
 					ast_inet_ntoa(public.sin_addr));
 	}
 
 	pte = sub->parent->parent->session;
 	codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 1, ast_channel_readformat(sub->owner), 0);
-	if ((ast_channel_readformat(sub->owner)->id == AST_FORMAT_ULAW) ||
-		(ast_channel_readformat(sub->owner)->id == AST_FORMAT_ALAW)) {
+	if ((ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) ||
+		(ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_alaw) == AST_FORMAT_CMP_EQUAL)) {
 		if (unistimdebug) {
 			ast_verb(0, "Sending packet_send_rtp_packet_size for codec %d\n", codec);
 		}
@@ -2804,17 +2805,17 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 		/* Codec */
 		buffsend[40] = codec;
 		buffsend[41] = codec;
-		if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_ULAW) {
+		if (ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
 			buffsend[42] = 1;       /* 1 = 20ms (160 bytes), 2 = 40ms (320 bytes) */
-		} else if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_ALAW) {
+		} else if (ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
 			buffsend[42] = 1;       /* 1 = 20ms (160 bytes), 2 = 40ms (320 bytes) */
-		} else if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_G723_1) {
+		} else if (ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_g723) == AST_FORMAT_CMP_EQUAL) {
 			buffsend[42] = 2;       /* 1 = 30ms (24 bytes), 2 = 60 ms (48 bytes) */
-		} else if (ast_channel_readformat(sub->owner)->id == AST_FORMAT_G729A) {
+		} else if (ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_g729) == AST_FORMAT_CMP_EQUAL) {
 			buffsend[42] = 2;       /* 1 = 10ms (10 bytes), 2 = 20ms (20 bytes) */
 		} else {
 			ast_log(LOG_WARNING, "Unsupported codec %s!\n",
-					ast_getformatname(ast_channel_readformat(sub->owner)));
+				ast_format_get_name(ast_channel_readformat(sub->owner)));
 		}
 		/* Source port for transmit RTP and Destination port for receiving RTP */
 		buffsend[45] = (htons(sin.sin_port) & 0xff00) >> 8;
@@ -2883,18 +2884,20 @@ static void start_rtp(struct unistim_subchannel *sub)
 	sin.sin_port = htons(find_rtp_port(sub));
 	ast_sockaddr_from_sin(&sin_tmp, &sin);
 	ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
-	if (!ast_format_cap_iscompatible(ast_channel_nativeformats(sub->owner), ast_channel_readformat(sub->owner))) {
-		struct ast_format tmpfmt;
-		char tmp[256];
-		ast_best_codec(ast_channel_nativeformats(sub->owner), &tmpfmt);
+	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(sub->owner), ast_channel_readformat(sub->owner)) == AST_FORMAT_CMP_NOT_EQUAL) {
+		struct ast_format *tmpfmt;
+		struct ast_str *cap_buf = ast_str_alloca(64);
+
+		tmpfmt = ast_format_cap_get_format(ast_channel_nativeformats(sub->owner), 0);
 		ast_log(LOG_WARNING,
 				"Our read/writeformat has been changed to something incompatible: %s, using %s best codec from %s\n",
-				ast_getformatname(ast_channel_readformat(sub->owner)),
-				ast_getformatname(&tmpfmt),
-				ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(sub->owner)));
+				ast_format_get_name(ast_channel_readformat(sub->owner)),
+				ast_format_get_name(tmpfmt),
+				ast_format_cap_get_names(ast_channel_nativeformats(sub->owner), &cap_buf));
 
-                ast_format_copy(ast_channel_readformat(sub->owner), &tmpfmt);
-                ast_format_copy(ast_channel_writeformat(sub->owner), &tmpfmt);
+		ast_channel_set_readformat(sub->owner, tmpfmt);
+		ast_channel_set_writeformat(sub->owner, tmpfmt);
+        ao2_ref(tmpfmt, -1);
 	}
 	send_start_rtp(sub);
 	ast_mutex_unlock(&sub->lock);
@@ -5132,14 +5135,21 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 	if (sub->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(sub->owner), &f->subclass.format))) {
-				char tmp[256];
+			if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(sub->owner), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+				struct ast_str *cap_buf = ast_str_alloca(64);
+				struct ast_format_cap *caps;
+
 				ast_debug(1,
 						"Oooh, format changed from %s to %s\n",
-						ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(sub->owner)),
-						ast_getformatname(&f->subclass.format));
+						ast_format_cap_get_names(ast_channel_nativeformats(sub->owner), &cap_buf),
+						ast_format_get_name(f->subclass.format));
 
-				ast_format_cap_set(ast_channel_nativeformats(sub->owner), &f->subclass.format);
+				caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+				if (caps) {
+					ast_format_cap_append(caps, f->subclass.format, 0);
+					ast_channel_nativeformats_set(sub->owner, caps);
+					ao2_ref(caps, -1);
+				}
 				ast_set_read_format(sub->owner, ast_channel_readformat(sub->owner));
 				ast_set_write_format(sub->owner, ast_channel_writeformat(sub->owner));
 			}
@@ -5175,14 +5185,15 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 			return 0;
 		}
 	} else {
-		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &frame->subclass.format))) {
-			char tmp[256];
+		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+			struct ast_str *cap_buf = ast_str_alloca(64);
+
 			ast_log(LOG_WARNING,
 					"Asked to transmit frame type %s, while native formats is %s (read/write = (%s/%s)\n",
-					ast_getformatname(&frame->subclass.format),
-					ast_getformatname_multiple(tmp, sizeof(tmp), ast_channel_nativeformats(ast)),
-					ast_getformatname(ast_channel_readformat(ast)),
-					ast_getformatname(ast_channel_writeformat(ast)));
+					ast_format_get_name(frame->subclass.format),
+					ast_format_cap_get_names(ast_channel_nativeformats(ast), &cap_buf),
+					ast_format_get_name(ast_channel_readformat(ast)),
+					ast_format_get_name(ast_channel_writeformat(ast)));
 			return -1;
 		}
 	}
@@ -5661,9 +5672,10 @@ static int unistim_send_mwi_to_peer(struct unistim_line *peer, unsigned int tick
 /*      called from unistim_request (calls from the pbx ) */
 static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor)
 {
+	struct ast_format_cap *caps;
 	struct ast_channel *tmp;
 	struct unistim_line *l;
-	struct ast_format tmpfmt;
+	struct ast_format *tmpfmt;
 
 	if (!sub) {
 		ast_log(LOG_WARNING, "subchannel null in unistim_new\n");
@@ -5673,6 +5685,12 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		ast_log(LOG_WARNING, "no line for subchannel %p\n", sub);
 		return NULL;
 	}
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		return NULL;
+	}
+
 	l = sub->parent;
 	tmp = ast_channel_alloc(1, state, l->cid_num, NULL, l->accountcode, l->exten,
 		l->parent->context, assignedids, requestor, l->amaflags, "USTM/%s@%s-%p", l->name, l->parent->name, sub);
@@ -5681,24 +5699,32 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	}
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
+		ao2_ref(caps, -1);
 		return NULL;
 	}
 
 	ast_channel_stage_snapshot(tmp);
 
-	ast_format_cap_copy(ast_channel_nativeformats(tmp), l->cap);
-	if (ast_format_cap_is_empty(ast_channel_nativeformats(tmp))) {
-		ast_format_cap_copy(ast_channel_nativeformats(tmp), global_cap);
+	if (ast_format_cap_count(l->cap)) {
+		ast_format_cap_append_from_cap(caps, l->cap, AST_MEDIA_TYPE_UNKNOWN);
+	} else {
+		ast_format_cap_append_from_cap(caps, global_cap, AST_MEDIA_TYPE_UNKNOWN);
 	}
-	ast_best_codec(ast_channel_nativeformats(tmp), &tmpfmt);
+	ast_channel_nativeformats_set(tmp, caps);
+	ao2_ref(caps, -1);
+
+	tmpfmt = ast_format_cap_get_format(ast_channel_nativeformats(tmp), 0);
 
 	if (unistimdebug) {
-		char tmp1[256], tmp2[256], tmp3[256];
+		struct ast_str *native_buf = ast_str_alloca(64);
+		struct ast_str *cap_buf = ast_str_alloca(64);
+		struct ast_str *global_buf = ast_str_alloca(64);
+
 		ast_verb(0, "Best codec = %s from nativeformats %s (line cap=%s global=%s)\n",
-			ast_getformatname(&tmpfmt),
-			ast_getformatname_multiple(tmp1, sizeof(tmp1), ast_channel_nativeformats(tmp)),
-			ast_getformatname_multiple(tmp2, sizeof(tmp2), l->cap),
-			ast_getformatname_multiple(tmp3, sizeof(tmp3), global_cap));
+			ast_format_get_name(tmpfmt),
+			ast_format_cap_get_names(ast_channel_nativeformats(tmp), &native_buf),
+			ast_format_cap_get_names(l->cap, &cap_buf),
+			ast_format_cap_get_names(global_cap, &global_buf));
 	}
 	if ((sub->rtp) && (sub->subtype == 0)) {
 		if (unistimdebug) {
@@ -5716,10 +5742,13 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		ast_channel_rings_set(tmp, 1);
 	}
 	ast_channel_adsicpe_set(tmp, AST_ADSI_UNAVAILABLE);
-	ast_format_copy(ast_channel_writeformat(tmp), &tmpfmt);
-	ast_format_copy(ast_channel_rawwriteformat(tmp), &tmpfmt);
-	ast_format_copy(ast_channel_readformat(tmp), &tmpfmt);
-	ast_format_copy(ast_channel_rawreadformat(tmp), &tmpfmt);
+
+	ast_channel_set_writeformat(tmp, tmpfmt);
+	ast_channel_set_rawwriteformat(tmp, tmpfmt);
+	ast_channel_set_readformat(tmp, tmpfmt);
+	ast_channel_set_rawreadformat(tmp, tmpfmt);
+	ao2_ref(tmpfmt, -1);
+
 	ast_channel_tech_pvt_set(tmp, sub);
 	ast_channel_tech_set(tmp, &unistim_tech);
 
@@ -5900,12 +5929,14 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 	struct unistim_device *d;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
-	char tmp2[256];
 
-	if (!(ast_format_cap_has_joint(cap, global_cap))) {
+	if (!(ast_format_cap_iscompatible(cap, global_cap))) {
+		struct ast_str *cap_buf = ast_str_alloca(64);
+		struct ast_str *global_buf = ast_str_alloca(64);
 		ast_log(LOG_NOTICE,
 				"Asked to get a channel of unsupported format %s while capability is %s\n",
-				ast_getformatname_multiple(tmp2, sizeof(tmp2), cap), ast_getformatname_multiple(tmp, sizeof(tmp), global_cap));
+				ast_format_cap_get_names(cap, &cap_buf),
+				ast_format_cap_get_names(global_cap, &global_buf));
 		return NULL;
 	}
 
@@ -5956,7 +5987,8 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 	}
 	sub->subtype = SUB_RING;
 	sub->softkey = -1;
-	ast_format_cap_copy(sub->parent->cap, cap);
+
+	ast_format_cap_append_from_cap(sub->parent->cap, cap, AST_MEDIA_TYPE_UNKNOWN);
 	tmpc = unistim_new(sub, AST_STATE_DOWN, assignedids, requestor);
 	if (!tmpc) {
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
@@ -5975,6 +6007,7 @@ static char *unistim_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	struct unistim_line *line;
 	struct unistim_subchannel *sub;
 	struct unistimsession *s;
+	struct ast_str *cap_buf = ast_str_alloca(64);
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -6005,11 +6038,10 @@ static char *unistim_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_
 				device, device->selected, device->height);
 		AST_LIST_LOCK(&device->lines);
 		AST_LIST_TRAVERSE(&device->lines,line,list) {
-			char tmp2[256];
 			ast_cli(a->fd,
 					"->name=%s fullname=%s exten=%s callid=%s cap=%s line=%p\n",
 					line->name, line->fullname, line->exten, line->cid_num,
-					ast_getformatname_multiple(tmp2, sizeof(tmp2), line->cap), line);
+					ast_format_cap_get_names(line->cap, &cap_buf), line);
 		}
 		AST_LIST_UNLOCK(&device->lines);
 
@@ -6595,7 +6627,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", l->mailbox, d->name, l->name);
 					}
 				}
-				ast_format_cap_copy(l->cap, global_cap);
+				ast_format_cap_append_from_cap(l->cap, global_cap, AST_MEDIA_TYPE_UNKNOWN);
 				l->parent = d;
 				linecnt++;
 				AST_LIST_LOCK(&d->lines);
@@ -7011,17 +7043,18 @@ static struct ast_rtp_glue unistim_rtp_glue = {
 int load_module(void)
 {
 	int res;
-	struct ast_format tmpfmt;
-	if (!(global_cap = ast_format_cap_alloc(0))) {
+
+	if (!(global_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		goto buff_failed;
 	}
-	if (!(unistim_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(unistim_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		goto buff_failed;
 	}
 
-	ast_format_cap_add(global_cap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
-	ast_format_cap_add(global_cap, ast_format_set(&tmpfmt, AST_FORMAT_ALAW, 0));
-	ast_format_cap_copy(unistim_tech.capabilities, global_cap);
+	ast_format_cap_append(global_cap, ast_format_ulaw, 0);
+	ast_format_cap_append(global_cap, ast_format_alaw, 0);
+	ast_format_cap_append_from_cap(unistim_tech.capabilities, global_cap, AST_MEDIA_TYPE_AUDIO);
+
 	if (!(buff = ast_malloc(SIZE_PAGE))) {
 		goto buff_failed;
 	}
@@ -7040,6 +7073,10 @@ int load_module(void)
 
 	res = reload_config();
 	if (res) {
+		ao2_ref(unistim_tech.capabilities, -1);
+		ao2_ref(global_cap, -1);
+		ast_sched_context_destroy(sched);
+		io_context_destroy(io);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	/* Make sure we can register our unistim channel type */
@@ -7066,9 +7103,11 @@ sched_failed:
 io_failed:
 	ast_free(buff);
 	buff = NULL;
-	global_cap = ast_format_cap_destroy(global_cap);
-	unistim_tech.capabilities = ast_format_cap_destroy(unistim_tech.capabilities);
 buff_failed:
+	ao2_cleanup(global_cap);
+	global_cap = NULL;
+	ao2_cleanup(unistim_tech.capabilities);
+	unistim_tech.capabilities = NULL;
 	return AST_MODULE_LOAD_FAILURE;
 }
 
@@ -7082,6 +7121,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(unistim_cli, ARRAY_LEN(unistim_cli));
 
 	ast_channel_unregister(&unistim_tech);
+	ao2_cleanup(unistim_tech.capabilities);
 	ast_rtp_glue_unregister(&unistim_rtp_glue);
 
 	ast_mutex_lock(&monlock);
@@ -7099,8 +7139,7 @@ static int unload_module(void)
 	if (unistimsock > -1) {
 		close(unistimsock);
 	}
-	global_cap = ast_format_cap_destroy(global_cap);
-	unistim_tech.capabilities = ast_format_cap_destroy(unistim_tech.capabilities);
+	ao2_ref(global_cap, -1);
 
 	return 0;
 }

@@ -360,7 +360,7 @@ static void jb_get_and_deliver(struct ast_channel *chan)
 	}
 
 	while (now >= jb->next) {
-		interpolation_len = ast_codec_interp_len(&jb->last_format);
+		interpolation_len = ast_format_get_default_ms(jb->last_format);
 
 		res = jbimpl->get(jbobj, &f, now, interpolation_len);
 
@@ -371,13 +371,13 @@ static void jb_get_and_deliver(struct ast_channel *chan)
 		case AST_JB_IMPL_DROP:
 			jb_framelog("\tJB_GET {now=%ld}: %s frame with ts=%ld and len=%ld\n",
 				now, jb_get_actions[res], f->ts, f->len);
-			ast_format_copy(&jb->last_format, &f->subclass.format);
+			ao2_replace(jb->last_format, f->subclass.format);
 			ast_frfree(f);
 			break;
 		case AST_JB_IMPL_INTERP:
 			/* interpolate a frame */
 			f = &finterp;
-			ast_format_copy(&f->subclass.format, &jb->last_format);
+			f->subclass.format = jb->last_format;
 			f->samples  = interpolation_len * 8;
 			f->src  = "JB interpolation";
 			f->delivery = ast_tvadd(jb->timebase, ast_samp2tv(jb->next, 1000));
@@ -437,7 +437,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 	jb->next = jbimpl->next(jbobj);
 
 	/* Init last format for a first time. */
-	ast_format_copy(&jb->last_format, &frr->subclass.format);
+	jb->last_format = ao2_bump(frr->subclass.format);
 
 	/* Create a frame log file */
 	if (ast_test_flag(jbconf, AST_JB_LOG)) {
@@ -501,6 +501,8 @@ void ast_jb_destroy(struct ast_channel *chan)
 		fclose(jb->logfile);
 		jb->logfile = NULL;
 	}
+
+	ao2_cleanup(jb->last_format);
 
 	if (ast_test_flag(jb, JB_CREATED)) {
 		/* Remove and free all frames still queued in jb */
@@ -820,7 +822,7 @@ struct jb_framedata {
 	const struct ast_jb_impl *jb_impl;
 	struct ast_jb_conf jb_conf;
 	struct timeval start_tv;
-	struct ast_format last_format;
+	struct ast_format *last_format;
 	struct ast_timer *timer;
 	int timer_interval; /* ms between deliveries */
 	int timer_fd;
@@ -842,6 +844,7 @@ static void jb_framedata_destroy(struct jb_framedata *framedata)
 		framedata->jb_impl->destroy(framedata->jb_obj);
 		framedata->jb_obj = NULL;
 	}
+	ao2_cleanup(framedata->last_format);
 	ast_free(framedata);
 }
 
@@ -909,7 +912,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		}
 
 		jbframe = ast_frisolate(frame);
-		ast_format_copy(&framedata->last_format, &frame->subclass.format);
+		ao2_replace(framedata->last_format, frame->subclass.format);
 
 		if (frame->len && (frame->len != framedata->timer_interval)) {
 			framedata->timer_interval = frame->len;
@@ -959,12 +962,12 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 			frame = &ast_null_frame;
 			break;
 		case AST_JB_IMPL_INTERP:
-			if (framedata->last_format.id) {
+			if (framedata->last_format) {
 				struct ast_frame tmp = { 0, };
 				tmp.frametype = AST_FRAME_VOICE;
-				ast_format_copy(&tmp.subclass.format, &framedata->last_format);
+				tmp.subclass.format = framedata->last_format;
 				/* example: 8000hz / (1000 / 20ms) = 160 samples */
-				tmp.samples = ast_format_rate(&framedata->last_format) / (1000 / framedata->timer_interval);
+				tmp.samples = ast_format_get_sample_rate(framedata->last_format) / (1000 / framedata->timer_interval);
 				tmp.delivery = ast_tvadd(framedata->start_tv, ast_samp2tv(next, 1000));
 				tmp.offset = AST_FRIENDLY_OFFSET;
 				tmp.src  = "func_jitterbuffer interpolation";

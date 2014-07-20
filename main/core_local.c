@@ -1008,7 +1008,8 @@ static void local_shutdown(void)
 	ao2_ref(locals, -1);
 	locals = NULL;
 
-	ast_format_cap_destroy(local_tech.capabilities);
+	ao2_cleanup(local_tech.capabilities);
+	local_tech.capabilities = NULL;
 
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_local_optimization_begin_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_local_optimization_end_type);
@@ -1030,14 +1031,15 @@ int ast_local_init(void)
 		return -1;
 	}
 
-	if (!(local_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(local_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return -1;
 	}
-	ast_format_cap_add_all(local_tech.capabilities);
+	ast_format_cap_append_by_type(local_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
 
 	locals = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, locals_cmp_cb);
 	if (!locals) {
-		ast_format_cap_destroy(local_tech.capabilities);
+		ao2_cleanup(local_tech.capabilities);
+		local_tech.capabilities = NULL;
 		return -1;
 	}
 
@@ -1045,7 +1047,8 @@ int ast_local_init(void)
 	if (ast_channel_register(&local_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Local'\n");
 		ao2_ref(locals, -1);
-		ast_format_cap_destroy(local_tech.capabilities);
+		ao2_cleanup(local_tech.capabilities);
+		local_tech.capabilities = NULL;
 		return -1;
 	}
 	ast_cli_register_multiple(cli_local, ARRAY_LEN(cli_local));

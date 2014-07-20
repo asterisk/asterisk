@@ -41,13 +41,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/slinfactory.h"
 #include "asterisk/frame.h"
 #include "asterisk/translate.h"
+#include "asterisk/format_cache.h"
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*!< Tolerance in milliseconds for audiohooks synchronization */
 #define AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE 100 /*!< When small queue is enabled, this is the maximum amount of audio that can remain queued at a time. */
 
 struct ast_audiohook_translate {
 	struct ast_trans_pvt *trans_pvt;
-	struct ast_format format;
+	struct ast_format *format;
 };
 
 struct ast_audiohook_list {
@@ -67,7 +68,7 @@ struct ast_audiohook_list {
 
 static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate, int reset)
 {
-	struct ast_format slin;
+	struct ast_format *slin;
 
 	if (audiohook->hook_internal_samp_rate == rate) {
 		return 0;
@@ -75,7 +76,8 @@ static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate
 
 	audiohook->hook_internal_samp_rate = rate;
 
-	ast_format_set(&slin, ast_format_slin_by_rate(rate), 0);
+	slin = ast_format_cache_get_slin_by_rate(rate);
+
 	/* Setup the factories that are needed for this audiohook type */
 	switch (audiohook->type) {
 	case AST_AUDIOHOOK_TYPE_SPY:
@@ -84,12 +86,13 @@ static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate
 			ast_slinfactory_destroy(&audiohook->read_factory);
 			ast_slinfactory_destroy(&audiohook->write_factory);
 		}
-		ast_slinfactory_init_with_format(&audiohook->read_factory, &slin);
-		ast_slinfactory_init_with_format(&audiohook->write_factory, &slin);
+		ast_slinfactory_init_with_format(&audiohook->read_factory, slin);
+		ast_slinfactory_init_with_format(&audiohook->write_factory, slin);
 		break;
 	default:
 		break;
 	}
+
 	return 0;
 }
 
@@ -142,6 +145,8 @@ int ast_audiohook_destroy(struct ast_audiohook *audiohook)
 	/* Destroy translation path if present */
 	if (audiohook->trans_pvt)
 		ast_translator_free_path(audiohook->trans_pvt);
+
+	ao2_cleanup(audiohook->format);
 
 	/* Lock and trigger be gone! */
 	ast_cond_destroy(&audiohook->trigger);
@@ -220,11 +225,11 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 	short buf[samples];
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
+		.subclass.format = ast_format_cache_get_slin_by_rate(audiohook->hook_internal_samp_rate),
 		.data.ptr = buf,
 		.datalen = sizeof(buf),
 		.samples = samples,
 	};
-	ast_format_set(&frame.subclass.format, ast_format_slin_by_rate(audiohook->hook_internal_samp_rate), 0);
 
 	/* Ensure the factory is able to give us the samples we want */
 	if (samples > ast_slinfactory_available(factory)) {
@@ -254,7 +259,6 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		.datalen = sizeof(buf1),
 		.samples = samples,
 	};
-	ast_format_set(&frame.subclass.format, ast_format_slin_by_rate(audiohook->hook_internal_samp_rate), 0);
 
 	/* Make sure both factories have the required samples */
 	usable_read = (ast_slinfactory_available(&audiohook->read_factory) >= samples ? 1 : 0);
@@ -346,6 +350,8 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	/* Make the final buffer part of the frame, so it gets duplicated fine */
 	frame.data.ptr = final_buf;
 
+	frame.subclass.format = ast_format_cache_get_slin_by_rate(audiohook->hook_internal_samp_rate);
+
 	/* Yahoo, a combined copy of the audio! */
 	return ast_frdup(&frame);
 }
@@ -353,17 +359,17 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audiohook, size_t samples, enum ast_audiohook_direction direction, struct ast_format *format, struct ast_frame **read_reference, struct ast_frame **write_reference)
 {
 	struct ast_frame *read_frame = NULL, *final_frame = NULL;
-	struct ast_format tmp_fmt;
+	struct ast_format *slin;
 	int samples_converted;
 
 	/* the number of samples requested is based on the format they are requesting.  Inorder
 	 * to process this correctly samples must be converted to our internal sample rate */
-	if (audiohook->hook_internal_samp_rate == ast_format_rate(format)) {
+	if (audiohook->hook_internal_samp_rate == ast_format_get_sample_rate(format)) {
 		samples_converted = samples;
-	} else if (audiohook->hook_internal_samp_rate > ast_format_rate(format)) {
-		samples_converted = samples * (audiohook->hook_internal_samp_rate / (float) ast_format_rate(format));
+	} else if (audiohook->hook_internal_samp_rate > ast_format_get_sample_rate(format)) {
+		samples_converted = samples * (audiohook->hook_internal_samp_rate / (float) ast_format_get_sample_rate(format));
 	} else {
-		samples_converted = samples * (ast_format_rate(format) / (float) audiohook->hook_internal_samp_rate);
+		samples_converted = samples * (ast_format_get_sample_rate(format) / (float) audiohook->hook_internal_samp_rate);
 	}
 
 	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
@@ -372,21 +378,23 @@ static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audio
 		return NULL;
 	}
 
+	slin = ast_format_cache_get_slin_by_rate(audiohook->hook_internal_samp_rate);
+
 	/* If they don't want signed linear back out, we'll have to send it through the translation path */
-	if (format->id != ast_format_slin_by_rate(audiohook->hook_internal_samp_rate)) {
+	if (ast_format_cmp(format, slin) != AST_FORMAT_CMP_EQUAL) {
 		/* Rebuild translation path if different format then previously */
-		if (ast_format_cmp(format, &audiohook->format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		if (ast_format_cmp(format, audiohook->format) == AST_FORMAT_CMP_NOT_EQUAL) {
 			if (audiohook->trans_pvt) {
 				ast_translator_free_path(audiohook->trans_pvt);
 				audiohook->trans_pvt = NULL;
 			}
 
 			/* Setup new translation path for this format... if we fail we can't very well return signed linear so free the frame and return nothing */
-			if (!(audiohook->trans_pvt = ast_translator_build_path(format, ast_format_set(&tmp_fmt, ast_format_slin_by_rate(audiohook->hook_internal_samp_rate), 0)))) {
+			if (!(audiohook->trans_pvt = ast_translator_build_path(format, slin))) {
 				ast_frfree(read_frame);
 				return NULL;
 			}
-			ast_format_copy(&audiohook->format, format);
+			ao2_replace(audiohook->format, format);
 		}
 		/* Convert to requested format, and allow the read in frame to be freed */
 		final_frame = ast_translate(audiohook->trans_pvt, read_frame, 1);
@@ -752,8 +760,7 @@ static struct ast_frame *audiohook_list_translate_to_slin(struct ast_audiohook_l
 	struct ast_audiohook_translate *in_translate = (direction == AST_AUDIOHOOK_DIRECTION_READ ?
 		&audiohook_list->in_translate[0] : &audiohook_list->in_translate[1]);
 	struct ast_frame *new_frame = frame;
-	struct ast_format tmp_fmt;
-	enum ast_format_id slin_id;
+	struct ast_format *slin;
 
 	/* If we are capable of maintaining doing samplerates other that 8khz, update
 	 * the internal audiohook_list's rate and higher samplerate audio arrives. By
@@ -761,24 +768,24 @@ static struct ast_frame *audiohook_list_translate_to_slin(struct ast_audiohook_l
 	 * as the are written and read from. */
 	if (audiohook_list->native_slin_compatible) {
 		audiohook_list->list_internal_samp_rate =
-			MAX(ast_format_rate(&frame->subclass.format), audiohook_list->list_internal_samp_rate);
+			MAX(ast_format_get_sample_rate(frame->subclass.format), audiohook_list->list_internal_samp_rate);
 	}
 
-	slin_id = ast_format_slin_by_rate(audiohook_list->list_internal_samp_rate);
-
-	if (frame->subclass.format.id == slin_id) {
+	slin = ast_format_cache_get_slin_by_rate(audiohook_list->list_internal_samp_rate);
+	if (ast_format_cmp(frame->subclass.format, slin) == AST_FORMAT_CMP_EQUAL) {
 		return new_frame;
 	}
 
-	if (ast_format_cmp(&frame->subclass.format, &in_translate->format) == AST_FORMAT_CMP_NOT_EQUAL) {
+	if (ast_format_cmp(frame->subclass.format, in_translate->format) == AST_FORMAT_CMP_NOT_EQUAL) {
 		if (in_translate->trans_pvt) {
 			ast_translator_free_path(in_translate->trans_pvt);
 		}
-		if (!(in_translate->trans_pvt = ast_translator_build_path(ast_format_set(&tmp_fmt, slin_id, 0), &frame->subclass.format))) {
+		if (!(in_translate->trans_pvt = ast_translator_build_path(slin, frame->subclass.format))) {
 			return NULL;
 		}
-		ast_format_copy(&in_translate->format, &frame->subclass.format);
+		ao2_replace(in_translate->format, frame->subclass.format);
 	}
+
 	if (!(new_frame = ast_translate(in_translate->trans_pvt, frame, 0))) {
 		return NULL;
 	}
@@ -791,16 +798,16 @@ static struct ast_frame *audiohook_list_translate_to_native(struct ast_audiohook
 {
 	struct ast_audiohook_translate *out_translate = (direction == AST_AUDIOHOOK_DIRECTION_READ ? &audiohook_list->out_translate[0] : &audiohook_list->out_translate[1]);
 	struct ast_frame *outframe = NULL;
-	if (ast_format_cmp(&slin_frame->subclass.format, outformat) == AST_FORMAT_CMP_NOT_EQUAL) {
+	if (ast_format_cmp(slin_frame->subclass.format, outformat) == AST_FORMAT_CMP_NOT_EQUAL) {
 		/* rebuild translators if necessary */
-		if (ast_format_cmp(&out_translate->format, outformat) == AST_FORMAT_CMP_NOT_EQUAL) {
+		if (ast_format_cmp(out_translate->format, outformat) == AST_FORMAT_CMP_NOT_EQUAL) {
 			if (out_translate->trans_pvt) {
 				ast_translator_free_path(out_translate->trans_pvt);
 			}
-			if (!(out_translate->trans_pvt = ast_translator_build_path(outformat, &slin_frame->subclass.format))) {
+			if (!(out_translate->trans_pvt = ast_translator_build_path(outformat, slin_frame->subclass.format))) {
 				return NULL;
 			}
-			ast_format_copy(&out_translate->format, outformat);
+			ao2_replace(out_translate->format, outformat);
 		}
 		/* translate back to the format the frame came in as. */
 		if (!(outframe = ast_translate(out_translate->trans_pvt, slin_frame, 0))) {
@@ -924,7 +931,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 
 	/* ---Part_3: Decide what to do with the end_frame (whether to transcode or not) */
 	if (middle_frame_manipulated) {
-		if (!(end_frame = audiohook_list_translate_to_native(audiohook_list, direction, middle_frame, &start_frame->subclass.format))) {
+		if (!(end_frame = audiohook_list_translate_to_native(audiohook_list, direction, middle_frame, start_frame->subclass.format))) {
 			/* translation failed, so just pass back the input frame */
 			end_frame = start_frame;
 		}

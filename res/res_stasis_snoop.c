@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/timing.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/json.h"
+#include "asterisk/format_cache.h"
 
 /*! \brief The interval (in milliseconds) that the Snoop timer is triggered, also controls length of audio within frames */
 #define SNOOP_INTERVAL 20
@@ -58,7 +59,7 @@ struct stasis_app_snoop {
 	/*! \brief Number of samples to be read in when spying */
 	unsigned int spy_samples;
 	/*! \brief Format in use by the spy audiohook */
-	struct ast_format spy_format;
+	struct ast_format *spy_format;
 	/*! \brief Audiohook used to whisper on the channel */
 	struct ast_audiohook whisper;
 	/*! \brief Direction for whispering */
@@ -179,7 +180,7 @@ static struct ast_frame *snoop_read(struct ast_channel *chan)
 	/* Only get audio from the spy audiohook if it is active */
 	if (snoop->spy_active) {
 		ast_audiohook_lock(&snoop->spy);
-		frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples, snoop->spy_direction, &snoop->spy_format);
+		frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples, snoop->spy_direction, snoop->spy_format);
 		ast_audiohook_unlock(&snoop->spy);
 	}
 
@@ -278,10 +279,10 @@ static int snoop_setup_audiohook(struct ast_channel *chan, enum ast_audiohook_ty
 static void snoop_determine_format(struct ast_channel *chan, struct stasis_app_snoop *snoop)
 {
 	SCOPED_CHANNELLOCK(lock, chan);
-	unsigned int rate = MAX(ast_format_rate(ast_channel_rawwriteformat(chan)),
-		ast_format_rate(ast_channel_rawreadformat(chan)));
+	unsigned int rate = MAX(ast_format_get_sample_rate(ast_channel_rawwriteformat(chan)),
+		ast_format_get_sample_rate(ast_channel_rawreadformat(chan)));
 
-	ast_format_set(&snoop->spy_format, ast_format_slin_by_rate(rate), 0);
+	snoop->spy_format = ast_format_cache_get_slin_by_rate(rate);
 }
 
 struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
@@ -289,6 +290,7 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	const char *app, const char *app_args, const char *snoop_id)
 {
 	RAII_VAR(struct stasis_app_snoop *, snoop, NULL, ao2_cleanup);
+	struct ast_format_cap *caps;
 	pthread_t thread;
 	struct ast_assigned_ids assignedids = {
 		.uniqueid = snoop_id,
@@ -343,11 +345,18 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	ast_channel_set_fd(snoop->chan, 0, ast_timer_fd(snoop->timer));
 
 	/* The format on the Snoop channel will be this signed linear format, and it will never change */
-	ast_format_cap_set(ast_channel_nativeformats(snoop->chan), &snoop->spy_format);
-	ast_format_copy(ast_channel_writeformat(snoop->chan), &snoop->spy_format);
-	ast_format_copy(ast_channel_rawwriteformat(snoop->chan), &snoop->spy_format);
-	ast_format_copy(ast_channel_readformat(snoop->chan), &snoop->spy_format);
-	ast_format_copy(ast_channel_rawreadformat(snoop->chan), &snoop->spy_format);
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		return NULL;
+	}
+	ast_format_cap_append(caps, snoop->spy_format, 0);
+	ast_channel_nativeformats_set(snoop->chan, caps);
+	ao2_ref(caps, -1);
+
+	ast_channel_set_writeformat(snoop->chan, snoop->spy_format);
+	ast_channel_set_rawwriteformat(snoop->chan, snoop->spy_format);
+	ast_channel_set_readformat(snoop->chan, snoop->spy_format);
+	ast_channel_set_rawreadformat(snoop->chan, snoop->spy_format);
 
 	ast_channel_unlock(snoop->chan);
 
@@ -357,7 +366,7 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 			return NULL;
 		}
 
-		snoop->spy_samples = ast_format_rate(&snoop->spy_format) / (1000 / SNOOP_INTERVAL);
+		snoop->spy_samples = ast_format_get_sample_rate(snoop->spy_format) / (1000 / SNOOP_INTERVAL);
 		snoop->spy_active = 1;
 	}
 

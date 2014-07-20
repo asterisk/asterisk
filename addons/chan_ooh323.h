@@ -65,6 +65,7 @@
 #include "asterisk/format_cap.h"
 #include "asterisk/udptl.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/format_cache.h"
 
 #include "ootypes.h"
 #include "ooUtils.h"
@@ -103,9 +104,6 @@ struct ast_frame *ooh323_rtp_read
 
 void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txframes);
 void ooh323_set_read_format(ooCallData *call, struct ast_format *fmt);
-
-int ooh323_update_capPrefsOrderForCall
-   (ooCallData *call, struct ast_codec_pref *prefs);
 
 int ooh323_convertAsteriskCapToH323Cap(struct ast_format *format);
 

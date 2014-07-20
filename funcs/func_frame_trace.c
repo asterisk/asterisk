@@ -219,14 +219,14 @@ static void print_frame(struct ast_frame *frame)
 		break;
 	case AST_FRAME_VOICE:
 		ast_verbose("FrameType: VOICE\n");
-		ast_verbose("Codec: %s\n", ast_getformatname(&frame->subclass.format));
+		ast_verbose("Codec: %s\n", ast_format_get_name(frame->subclass.format));
 		ast_verbose("MS: %ld\n", frame->len);
 		ast_verbose("Samples: %d\n", frame->samples);
 		ast_verbose("Bytes: %d\n", frame->datalen);
 		break;
 	case AST_FRAME_VIDEO:
 		ast_verbose("FrameType: VIDEO\n");
-		ast_verbose("Codec: %s\n", ast_getformatname(&frame->subclass.format));
+		ast_verbose("Codec: %s\n", ast_format_get_name(frame->subclass.format));
 		ast_verbose("MS: %ld\n", frame->len);
 		ast_verbose("Samples: %d\n", frame->samples);
 		ast_verbose("Bytes: %d\n", frame->datalen);

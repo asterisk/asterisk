@@ -31,6 +31,6 @@ static struct ast_frame *alaw_sample(void)
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = ex_alaw,
 	};
-	ast_format_set(&f.subclass.format, AST_FORMAT_ALAW, 0);
+	f.subclass.format = ast_format_alaw;
 	return &f;
 }

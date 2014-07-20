@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/poll-compat.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/format_cache.h"
 
 /*! Global jitterbuffer configuration - by default, jb is disabled
  *  \note Values shown here match the defaults shown in alsa.conf.sample */
@@ -511,7 +512,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		}
 
 		f.frametype = AST_FRAME_VOICE;
-		ast_format_set(&f.subclass.format, AST_FORMAT_SLINEAR, 0);
+		f.subclass.format = ast_format_slin;
 		f.samples = FRAME_SIZE;
 		f.datalen = FRAME_SIZE * 2;
 		f.data.ptr = buf;
@@ -585,9 +586,9 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const st
 
 	ast_channel_tech_set(tmp, &alsa_tech);
 	ast_channel_set_fd(tmp, 0, readdev);
-	ast_format_set(ast_channel_readformat(tmp), AST_FORMAT_SLINEAR, 0);
-	ast_format_set(ast_channel_writeformat(tmp), AST_FORMAT_SLINEAR, 0);
-	ast_format_cap_add(ast_channel_nativeformats(tmp), ast_channel_writeformat(tmp));
+	ast_channel_set_readformat(tmp, ast_format_slin);
+	ast_channel_set_writeformat(tmp, ast_format_slin);
+	ast_channel_nativeformats_set(tmp, alsa_tech.capabilities);
 
 	ast_channel_tech_pvt_set(tmp, p);
 	if (!ast_strlen_zero(p->context))
@@ -616,14 +617,11 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const st
 
 static struct ast_channel *alsa_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
-	struct ast_format tmpfmt;
-	char buf[256];
 	struct ast_channel *tmp = NULL;
 
-	ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0);
-
-	if (!(ast_format_cap_iscompatible(cap, &tmpfmt))) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of format '%s'\n", ast_getformatname_multiple(buf, sizeof(buf), cap));
+	if (ast_format_cap_iscompatible_format(cap, ast_format_slin) == AST_FORMAT_CMP_NOT_EQUAL) {
+		struct ast_str *codec_buf = ast_str_alloca(64);
+		ast_log(LOG_NOTICE, "Asked to get a channel of format '%s'\n", ast_format_cap_get_names(cap, &codec_buf));
 		return NULL;
 	}
 
@@ -959,12 +957,11 @@ static int load_module(void)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { 0 };
-	struct ast_format tmpfmt;
 
-	if (!(alsa_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(alsa_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add(alsa_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(alsa_tech.capabilities, ast_format_slin, 0);
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
@@ -1042,7 +1039,9 @@ static int unload_module(void)
 	if (alsa.owner)
 		return -1;
 
-	alsa_tech.capabilities = ast_format_cap_destroy(alsa_tech.capabilities);
+	ao2_cleanup(alsa_tech.capabilities);
+	alsa_tech.capabilities = NULL;
+
 	return 0;
 }
 

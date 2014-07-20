@@ -77,6 +77,17 @@ static int lintoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 static struct ast_translator alawtolin = {
 	.name = "alawtolin",
+	.src_codec = {
+		.name = "alaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.framein = alawtolin_framein,
 	.sample = alaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -84,19 +95,23 @@ static struct ast_translator alawtolin = {
 };
 
 static struct ast_translator lintoalaw = {
-	"lintoalaw",
+	.name = "lintoalaw",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "alaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "alaw",
 	.framein = lintoalaw_framein,
 	.sample = slin8_sample,
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES,
 };
-
-/*! \brief standard module stuff */
-
-static int reload(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
 
 static int unload_module(void)
 {
@@ -112,24 +127,18 @@ static int load_module(void)
 {
 	int res;
 
-	ast_format_set(&lintoalaw.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintoalaw.dst_format, AST_FORMAT_ALAW, 0);
-
-	ast_format_set(&alawtolin.src_format, AST_FORMAT_ALAW, 0);
-	ast_format_set(&alawtolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
 	res = ast_register_translator(&alawtolin);
-	if (!res)
-		res = ast_register_translator(&lintoalaw);
-	else
-		ast_unregister_translator(&alawtolin);
-	if (res)
+	res |= ast_register_translator(&lintoalaw);
+
+	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "A-law Coder/Decoder",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );

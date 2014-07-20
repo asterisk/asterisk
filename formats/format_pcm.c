@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/endian.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
+#include "asterisk/format_cache.h"
 
 #define BUF_SIZE 160		/* 160 bytes, and same number of samples */
 
@@ -66,7 +67,7 @@ static unsigned long get_time(void)
 
 static int pcma_open(struct ast_filestream *s)
 {
-	if (s->fmt->format == AST_FORMAT_ALAW)
+	if (ast_format_cmp(s->fmt->format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL)
 		pd->starttime = get_time();
 	return 0;
 }
@@ -83,9 +84,6 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 	
 	/* Send a frame from the file to the appropriate channel */
 
-	s->fr.frametype = AST_FRAME_VOICE;
-	ast_format_copy(&s->fr.subclass.format, &s->fmt->format);
-	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, BUF_SIZE);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) < 1) {
 		if (res)
@@ -93,7 +91,7 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 		return NULL;
 	}
 	s->fr.datalen = res;
-	if (s->fmt->format.id == AST_FORMAT_G722)
+	if (ast_format_cmp(s->fmt->format, ast_format_g722) == AST_FORMAT_CMP_EQUAL)
 		*whennext = s->fr.samples = res * 2;
 	else
 		*whennext = s->fr.samples = res;
@@ -141,7 +139,7 @@ static int pcm_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	}
 	if (whence == SEEK_FORCECUR && offset > max) { /* extend the file */
 		size_t left = offset - max;
-		const char *src = (fs->fmt->format.id == AST_FORMAT_ALAW) ? alaw_silence : ulaw_silence;
+		const char *src = (ast_format_cmp(fs->fmt->format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) ? alaw_silence : ulaw_silence;
 
 		while (left) {
 			size_t written = fwrite(src, 1, (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
@@ -185,17 +183,8 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
 
-	if (f->frametype != AST_FRAME_VOICE) {
-		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
-		return -1;
-	}
-	if (ast_format_cmp(&f->subclass.format, &fs->fmt->format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_log(LOG_WARNING, "Asked to write incompatible format frame (%s)!\n", ast_getformatname(&f->subclass.format));
-		return -1;
-	}
-
 #ifdef REALTIME_WRITE
-	if (s->fmt->format == AST_FORMAT_ALAW) {
+	if (ast_format_cmp(s->fmt->format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
 		struct pcm_desc *pd = (struct pcm_desc *)fs->_private;
 		struct stat stat_buf;
 		unsigned long cur_time = get_time();
@@ -399,7 +388,7 @@ static int au_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 	off_t min = AU_HEADER_SIZE, max, cur;
 	long offset = 0, bytes;
 
-	if (fs->fmt->format.id == AST_FORMAT_G722)
+	if (ast_format_cmp(fs->fmt->format, ast_format_g722) == AST_FORMAT_CMP_EQUAL)
 		bytes = sample_offset / 2;
 	else
 		bytes = sample_offset;
@@ -523,10 +512,10 @@ static int load_module(void)
 	for (i = 0; i < ARRAY_LEN(alaw_silence); i++)
 		alaw_silence[i] = AST_LIN2A(0);
 
-	ast_format_set(&pcm_f.format, AST_FORMAT_ULAW, 0);
-	ast_format_set(&alaw_f.format, AST_FORMAT_ALAW, 0);
-	ast_format_set(&au_f.format, AST_FORMAT_ULAW, 0);
-	ast_format_set(&g722_f.format, AST_FORMAT_G722, 0);
+	pcm_f.format = ast_format_ulaw;
+	alaw_f.format = ast_format_alaw;
+	au_f.format = ast_format_ulaw;
+	g722_f.format = ast_format_g722;
 	if ( ast_format_def_register(&pcm_f)
 		|| ast_format_def_register(&alaw_f)
 		|| ast_format_def_register(&au_f)

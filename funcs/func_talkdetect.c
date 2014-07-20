@@ -284,7 +284,7 @@ static int set_talk_detect(struct ast_channel *chan, int dsp_silence_threshold, 
 		td_params->audiohook.manipulate_callback = talk_detect_audiohook_cb;
 		ast_set_flag(&td_params->audiohook, AST_AUDIOHOOK_TRIGGER_READ);
 
-		td_params->dsp = ast_dsp_new_with_rate(ast_format_rate(ast_channel_rawreadformat(chan)));
+		td_params->dsp = ast_dsp_new_with_rate(ast_format_get_sample_rate(ast_channel_rawreadformat(chan)));
 		if (!td_params->dsp) {
 			ast_datastore_free(datastore);
 			ast_free(td_params);

@@ -290,6 +290,17 @@ static struct ast_frame *lintoadpcm_frameout(struct ast_trans_pvt *pvt)
 
 static struct ast_translator adpcmtolin = {
 	.name = "adpcmtolin",
+	.src_codec = {
+		.name = "adpcm",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.framein = adpcmtolin_framein,
 	.sample = adpcm_sample,
 	.desc_size = sizeof(struct adpcm_decoder_pvt),
@@ -299,6 +310,17 @@ static struct ast_translator adpcmtolin = {
 
 static struct ast_translator lintoadpcm = {
 	.name = "lintoadpcm",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "adpcm",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "adpcm",
 	.framein = lintoadpcm_framein,
 	.frameout = lintoadpcm_frameout,
 	.sample = slin8_sample,
@@ -306,12 +328,6 @@ static struct ast_translator lintoadpcm = {
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES/ 2,	/* 2 samples per byte */
 };
-
-/*! \brief standard module glue */
-static int reload(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
 
 static int unload_module(void)
 {
@@ -325,26 +341,20 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	int res;
-
-	ast_format_set(&adpcmtolin.src_format, AST_FORMAT_ADPCM, 0);
-	ast_format_set(&adpcmtolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&lintoadpcm.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintoadpcm.dst_format, AST_FORMAT_ADPCM, 0);
+	int res = 0;
 
 	res = ast_register_translator(&adpcmtolin);
-	if (!res)
-		res = ast_register_translator(&lintoadpcm);
-	else
-		ast_unregister_translator(&adpcmtolin);
-	if (res)
+	res |= ast_register_translator(&lintoadpcm);
+
+	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Adaptive Differential PCM Coder/Decoder",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );

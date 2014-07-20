@@ -26,7 +26,8 @@ static struct ast_frame *adpcm_sample(void)
 		.src = __PRETTY_FUNCTION__,
 		.data.ptr = ex_adpcm,
 	};
-	ast_format_set(&f.subclass.format, AST_FORMAT_ADPCM, 0);
+
+	f.subclass.format = ast_format_adpcm;
 
 	return &f;
 }

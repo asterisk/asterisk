@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dial.h"
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/features.h"
+#include "asterisk/format_cache.h"
 
 #define NORMAL_FLAGS	(AST_BRIDGE_FLAG_DISSOLVE_HANGUP | AST_BRIDGE_FLAG_DISSOLVE_EMPTY \
 			| AST_BRIDGE_FLAG_SMART)
@@ -2267,14 +2268,13 @@ static void recall_callback(struct ast_dial *dial)
 
 static int recalling_enter(struct attended_transfer_properties *props)
 {
-	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
-	struct ast_format fmt;
+	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 
 	if (!cap) {
 		return -1;
 	}
 
-	ast_format_cap_add(cap, ast_format_set(&fmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	/* When we dial the transfer target, since we are communicating
 	 * with a local channel, we can place the local channel in a bridge
@@ -2395,8 +2395,7 @@ static int attach_framehook(struct attended_transfer_properties *props, struct a
 
 static int retransfer_enter(struct attended_transfer_properties *props)
 {
-	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK), ast_format_cap_destroy);
-	struct ast_format fmt;
+	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	char destination[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
 	int cause;
 
@@ -2406,7 +2405,7 @@ static int retransfer_enter(struct attended_transfer_properties *props)
 
 	snprintf(destination, sizeof(destination), "%s@%s", props->exten, props->context);
 
-	ast_format_cap_add(cap, ast_format_set(&fmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	/* Get a channel that is the destination we wish to call */
 	props->recall_target = ast_request("Local", cap, NULL, NULL, destination, &cause);

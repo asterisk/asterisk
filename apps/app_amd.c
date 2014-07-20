@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"
 #include "asterisk/app.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="AMD" language="en_US">
@@ -163,7 +164,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	struct ast_frame *f = NULL;
 	struct ast_dsp *silenceDetector = NULL;
 	int dspsilence = 0, framelength = 0;
-	struct ast_format readFormat;
+	RAII_VAR(struct ast_format *, readFormat, NULL, ao2_cleanup);
 	int inInitialSilence = 1;
 	int inGreeting = 0;
 	int voiceDuration = 0;
@@ -202,11 +203,10 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(argMaximumWordLength);
 	);
 
-	ast_format_clear(&readFormat);
 	ast_verb(3, "AMD: %s %s %s (Fmt: %s)\n", ast_channel_name(chan),
 		S_COR(ast_channel_caller(chan)->ani.number.valid, ast_channel_caller(chan)->ani.number.str, "(N/A)"),
 		S_COR(ast_channel_redirecting(chan)->from.number.valid, ast_channel_redirecting(chan)->from.number.str, "(N/A)"),
-		ast_getformatname(ast_channel_readformat(chan)));
+		ast_format_get_name(ast_channel_readformat(chan)));
 
 	/* Lets parse the arguments. */
 	if (!ast_strlen_zero(parse)) {
@@ -255,8 +255,8 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 				minimumWordLength, betweenWordsSilence, maximumNumberOfWords, silenceThreshold, maximumWordLength);
 
 	/* Set read format to signed linear so we get signed linear frames in */
-	ast_format_copy(&readFormat, ast_channel_readformat(chan));
-	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0 ) {
+	readFormat = ao2_bump(ast_channel_readformat(chan));
+	if (ast_set_read_format(chan, ast_format_slin) < 0 ) {
 		ast_log(LOG_WARNING, "AMD: Channel [%s]. Unable to set to linear mode, giving up\n", ast_channel_name(chan));
 		pbx_builtin_setvar_helper(chan , "AMDSTATUS", "");
 		pbx_builtin_setvar_helper(chan , "AMDCAUSE", "");
@@ -289,7 +289,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 		if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_NULL || f->frametype == AST_FRAME_CNG) {
 			/* If the total time exceeds the analysis time then give up as we are not too sure */
 			if (f->frametype == AST_FRAME_VOICE) {
-				framelength = (ast_codec_get_samples(f) / DEFAULT_SAMPLES_PER_MS);
+				framelength = (ast_codec_samples_count(f) / DEFAULT_SAMPLES_PER_MS);
 			} else {
 				framelength = 2 * maxWaitTimeForFrame;
 			}
@@ -412,7 +412,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 	pbx_builtin_setvar_helper(chan , "AMDCAUSE" , amdCause);
 
 	/* Restore channel read format */
-	if (readFormat.id && ast_set_read_format(chan, &readFormat))
+	if (readFormat && ast_set_read_format(chan, readFormat))
 		ast_log(LOG_WARNING, "AMD: Unable to restore read format on '%s'\n", ast_channel_name(chan));
 
 	/* Free the DSP used to detect silence */
@@ -510,10 +510,10 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	if (load_config(0))
+	if (load_config(0) || ast_register_application_xml(app, amd_exec)) {
 		return AST_MODULE_LOAD_DECLINE;
-	if (ast_register_application_xml(app, amd_exec))
-		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

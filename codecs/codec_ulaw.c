@@ -82,6 +82,17 @@ static int lintoulaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 static struct ast_translator ulawtolin = {
 	.name = "ulawtolin",
+	.src_codec = {
+		.name = "ulaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.framein = ulawtolin_framein,
 	.sample = ulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -90,6 +101,17 @@ static struct ast_translator ulawtolin = {
 
 static struct ast_translator testlawtolin = {
 	.name = "testlawtolin",
+	.src_codec = {
+		.name = "testlaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "slin",
 	.framein = ulawtolin_framein,
 	.sample = ulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -102,6 +124,17 @@ static struct ast_translator testlawtolin = {
 
 static struct ast_translator lintoulaw = {
 	.name = "lintoulaw",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "ulaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "ulaw",
 	.framein = lintoulaw_framein,
 	.sample = slin8_sample,
 	.buf_size = BUFFER_SAMPLES,
@@ -110,16 +143,22 @@ static struct ast_translator lintoulaw = {
 
 static struct ast_translator lintotestlaw = {
 	.name = "lintotestlaw",
+	.src_codec = {
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "testlaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "testlaw",
 	.framein = lintoulaw_framein,
 	.sample = slin8_sample,
 	.buf_size = BUFFER_SAMPLES,
 	.buffer_samples = BUFFER_SAMPLES,
 };
-
-static int reload(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
 
 static int unload_module(void)
 {
@@ -137,32 +176,20 @@ static int load_module(void)
 {
 	int res;
 
-	ast_format_set(&lintoulaw.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintoulaw.dst_format, AST_FORMAT_ULAW, 0);
-
-	ast_format_set(&lintotestlaw.src_format, AST_FORMAT_SLINEAR, 0);
-	ast_format_set(&lintotestlaw.dst_format, AST_FORMAT_TESTLAW, 0);
-
-	ast_format_set(&ulawtolin.src_format, AST_FORMAT_ULAW, 0);
-	ast_format_set(&ulawtolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
-	ast_format_set(&testlawtolin.src_format, AST_FORMAT_TESTLAW, 0);
-	ast_format_set(&testlawtolin.dst_format, AST_FORMAT_SLINEAR, 0);
-
 	res = ast_register_translator(&ulawtolin);
-	if (!res) {
-		res = ast_register_translator(&lintoulaw);
-		res |= ast_register_translator(&lintotestlaw);
-		res |= ast_register_translator(&testlawtolin);
-	} else
-		ast_unregister_translator(&ulawtolin);
-	if (res)
+	res |= ast_register_translator(&lintoulaw);
+	res |= ast_register_translator(&lintotestlaw);
+	res |= ast_register_translator(&testlawtolin);
+
+	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "mu-Law Coder/Decoder",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 	       );

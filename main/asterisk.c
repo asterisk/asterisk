@@ -248,6 +248,8 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/stasis_system.h"
 #include "asterisk/security_events.h"
 #include "asterisk/endpoints.h"
+#include "asterisk/codec.h"
+#include "asterisk/format_cache.h"
 
 #include "../defaults.h"
 
@@ -4316,6 +4318,26 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_codec_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_format_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_format_cache_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
+	if (ast_codec_builtin_init()) {
+		printf("%s", term_quit());
+		exit(1);
+	}
+
 #ifdef AST_XML_DOCS
 	/* Load XML documentation. */
 	ast_xmldoc_load_documentation();
@@ -4370,8 +4392,6 @@ int main(int argc, char *argv[])
 
 	threadstorage_init();
 
-	ast_format_attr_init();
-	ast_format_list_init();
 	if (ast_rtp_engine_init()) {
 		printf("%s", term_quit());
 		exit(1);

@@ -70,7 +70,8 @@ static inline struct ast_frame *slin8_sample(void)
 		.data.ptr = ex_slin8,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_SLINEAR, 0);
+	f.subclass.format = ast_format_slin;
+
 	return &f;
 }
 
@@ -86,6 +87,7 @@ static inline struct ast_frame *slin16_sample(void)
 		.data.ptr = ex_slin16,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_SLINEAR16, 0);
+	f.subclass.format = ast_format_slin16;
+
 	return &f;
 }

@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/bridge_after.h"
+#include "asterisk/format_cache.h"
 
 /*! Time to wait for a frame in the application */
 #define MAX_WAIT_MS 200
@@ -435,15 +436,14 @@ static void moh_after_bridge_cb(struct ast_channel *chan, void *data)
 /*! Request a bridge MOH channel */
 static struct ast_channel *prepare_bridge_moh_channel(void)
 {
-	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
-	struct ast_format format;
+	RAII_VAR(struct ast_format_cap *, cap, NULL, ao2_cleanup);
 
-	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!cap) {
 		return NULL;
 	}
 
-	ast_format_cap_add(cap, ast_format_set(&format, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	return ast_request("Announcer", cap, NULL, NULL, "ARI_MOH", NULL);
 }

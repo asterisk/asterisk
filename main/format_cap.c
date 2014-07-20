@@ -1,9 +1,9 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2010, Digium, Inc.
+ * Copyright (C) 2014, Digium, Inc.
  *
- * David Vossel <dvossel@digium.com>
+ * Joshua Colp <jcolp@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -16,11 +16,11 @@
  * at the top of the source tree.
  */
 
-/*!
- * \file
- * \brief Format Capability API
+/*! \file
  *
- * \author David Vossel <dvossel@digium.com>
+ * \brief Format Capabilities API
+ *
+ * \author Joshua Colp <jcolp@digium.com>
  */
 
 /*** MODULEINFO
@@ -29,653 +29,674 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/_private.h"
+#include "asterisk/logger.h"
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
-#include "asterisk/frame.h"
+#include "asterisk/format_cache.h"
+#include "asterisk/codec.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/strings.h"
+#include "asterisk/vector.h"
+#include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
 
-#define FORMAT_STR_BUFSIZE 256
-
-struct ast_format_cap {
-	/* The capabilities structure is just an ao2 container of ast_formats */
-	struct ao2_container *formats;
-	struct ao2_iterator it;
-	/*! TRUE if the formats container created without a lock. */
-	struct ast_flags flags;
-	unsigned int string_cache_valid;
-	char format_strs[0];
+/*! \brief Structure used for capability formats, adds framing */
+struct format_cap_framed {
+	/*! \brief A pointer to the format */
+	struct ast_format *format;
+	/*! \brief The format framing size */
+	unsigned int framing;
+	/*! \brief Linked list information */
+	AST_LIST_ENTRY(format_cap_framed) entry;
 };
 
-/*! format exists within capabilities structure if it is identical to
- * another format, or if the format is a proper subset of another format. */
-static int cmp_cb(void *obj, void *arg, int flags)
-{
-	struct ast_format *format1 = arg;
-	struct ast_format *format2 = obj;
-	enum ast_format_cmp_res res = ast_format_cmp(format1, format2);
+/*! \brief Format capabilities structure, holds formats + preference order + etc */
+struct ast_format_cap {
+	/*! \brief Vector of formats, indexed using the codec identifier */
+	AST_VECTOR(, struct format_cap_framed_list) formats;
+	/*! \brief Vector of formats, added in preference order */
+	AST_VECTOR(, struct format_cap_framed *) preference_order;
+	/*! \brief Global framing size, applies to all formats if no framing present on format */
+	unsigned int framing;
+};
 
-	return ((res == AST_FORMAT_CMP_EQUAL) ||
-			(res == AST_FORMAT_CMP_SUBSET)) ?
-				CMP_MATCH | CMP_STOP :
-				0;
+/*! \brief Linked list for formats */
+AST_LIST_HEAD_NOLOCK(format_cap_framed_list, format_cap_framed);
+
+/*! \brief Dummy empty list for when we are inserting a new list */
+static const struct format_cap_framed_list format_cap_framed_list_empty = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+
+/*! \brief Destructor for format capabilities structure */
+static void format_cap_destroy(void *obj)
+{
+	struct ast_format_cap *cap = obj;
+	int idx;
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&cap->formats); idx++) {
+		struct format_cap_framed_list *list = AST_VECTOR_GET_ADDR(&cap->formats, idx);
+		struct format_cap_framed *framed;
+
+		while ((framed = AST_LIST_REMOVE_HEAD(list, entry))) {
+			ao2_ref(framed, -1);
+		}
+	}
+	AST_VECTOR_FREE(&cap->formats);
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&cap->preference_order); idx++) {
+		struct format_cap_framed *framed = AST_VECTOR_GET(&cap->preference_order, idx);
+
+		/* This will always be non-null, unlike formats */
+		ao2_ref(framed, -1);
+	}
+	AST_VECTOR_FREE(&cap->preference_order);
 }
 
-static int hash_cb(const void *obj, const int flags)
+static inline void format_cap_init(struct ast_format_cap *cap, enum ast_format_cap_flags flags)
 {
-	const struct ast_format *format = obj;
-	return format->id;
+	AST_VECTOR_INIT(&cap->formats, 0);
+
+	/* TODO: Look at common usage of this and determine a good starting point */
+	AST_VECTOR_INIT(&cap->preference_order, 5);
+
+	cap->framing = UINT_MAX;
 }
 
-struct ast_format_cap *ast_format_cap_alloc(enum ast_format_cap_flags flags)
+struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags)
 {
 	struct ast_format_cap *cap;
-	unsigned int alloc_size;
-	
-	alloc_size = sizeof(*cap);
-	if (flags & AST_FORMAT_CAP_FLAG_CACHE_STRINGS) {
-		alloc_size += FORMAT_STR_BUFSIZE;
-	}
 
-	cap = ast_calloc(1, alloc_size);
+	cap = ao2_alloc_options(sizeof(*cap), format_cap_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!cap) {
 		return NULL;
 	}
 
-	ast_set_flag(&cap->flags, flags);
-	cap->formats = ao2_container_alloc_options(
-		(flags & AST_FORMAT_CAP_FLAG_NOLOCK) ?
-		AO2_ALLOC_OPT_LOCK_NOLOCK :
-		AO2_ALLOC_OPT_LOCK_MUTEX,
-		11, hash_cb, cmp_cb);
-	if (!cap->formats) {
-		ast_free(cap);
-		return NULL;
-	}
+	format_cap_init(cap, flags);
 
 	return cap;
 }
 
-void *ast_format_cap_destroy(struct ast_format_cap *cap)
+struct ast_format_cap *__ast_format_cap_alloc_debug(enum ast_format_cap_flags flags, const char *tag, const char *file, int line, const char *func)
 {
+	struct ast_format_cap *cap;
+
+	cap = __ao2_alloc_debug(sizeof(*cap), format_cap_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK, S_OR(tag, "ast_format_cap_alloc"), file, line, func, 1);
 	if (!cap) {
 		return NULL;
 	}
-	ao2_ref(cap->formats, -1);
-	ast_free(cap);
-	return NULL;
+
+	format_cap_init(cap, flags);
+
+	return cap;
 }
 
-static void format_cap_add(struct ast_format_cap *cap, const struct ast_format *format)
+void ast_format_cap_set_framing(struct ast_format_cap *cap, unsigned int framing)
 {
-	struct ast_format *fnew;
-
-	if (!format || !format->id) {
-		return;
-	}
-	if (!(fnew = ao2_alloc(sizeof(struct ast_format), NULL))) {
-		return;
-	}
-	ast_format_copy(fnew, format);
-	ao2_link(cap->formats, fnew);
-
-	ao2_ref(fnew, -1);
+	cap->framing = framing;
 }
 
-void ast_format_cap_add(struct ast_format_cap *cap, const struct ast_format *format)
+/*! \brief Destructor for format capabilities framed structure */
+static void format_cap_framed_destroy(void *obj)
 {
-	format_cap_add(cap, format);
-	cap->string_cache_valid = 0;
+	struct format_cap_framed *framed = obj;
+
+	ao2_cleanup(framed->format);
 }
 
-void ast_format_cap_add_all_by_type(struct ast_format_cap *cap, enum ast_format_type type)
+static inline int format_cap_framed_init(struct format_cap_framed *framed, struct ast_format_cap *cap, struct ast_format *format, unsigned int framing)
 {
-	int x;
-	size_t f_len = 0;
-	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
+	struct format_cap_framed_list *list;
 
-	for (x = 0; x < f_len; x++) {
-		if (AST_FORMAT_GET_TYPE(f_list[x].format.id) == type) {
-			format_cap_add(cap, &f_list[x].format);
+	framed->framing = framing;
+
+	if (ast_format_get_codec_id(format) >= AST_VECTOR_SIZE(&cap->formats)) {
+		if (AST_VECTOR_INSERT(&cap->formats, ast_format_get_codec_id(format), format_cap_framed_list_empty)) {
+			ao2_ref(framed, -1);
+			return -1;
 		}
 	}
-	cap->string_cache_valid = 0;
-	ast_format_list_destroy(f_list);
+	list = AST_VECTOR_GET_ADDR(&cap->formats, ast_format_get_codec_id(format));
+
+	/* Order doesn't matter for formats, so insert at the head for performance reasons */
+	ao2_ref(framed, +1);
+	AST_LIST_INSERT_HEAD(list, framed, entry);
+
+	/* This takes the allocation reference */
+	AST_VECTOR_APPEND(&cap->preference_order, framed);
+
+	cap->framing = MIN(cap->framing, framing ? framing : ast_format_get_default_ms(format));
+
+	return 0;
 }
 
-void ast_format_cap_add_all(struct ast_format_cap *cap)
+/*! \internal \brief Determine if \c format is in \c cap */
+static int format_in_format_cap(struct ast_format_cap *cap, struct ast_format *format)
 {
-	int x;
-	size_t f_len = 0;
-	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
+	struct format_cap_framed *framed;
+	int i;
 
-	for (x = 0; x < f_len; x++) {
-		format_cap_add(cap, &f_list[x].format);
-	}
-	cap->string_cache_valid = 0;
-	ast_format_list_destroy(f_list);
-}
+	for (i = 0; i < AST_VECTOR_SIZE(&cap->preference_order); i++) {
+		framed = AST_VECTOR_GET(&cap->preference_order, i);
 
-static int append_cb(void *obj, void *arg, int flag)
-{
-	struct ast_format_cap *result = (struct ast_format_cap *) arg;
-	struct ast_format *format = (struct ast_format *) obj;
-
-	if (!ast_format_cap_iscompatible(result, format)) {
-		format_cap_add(result, format);
+		if (ast_format_get_codec_id(format) == ast_format_get_codec_id(framed->format)) {
+			return 1;
+		}
 	}
 
 	return 0;
 }
 
-void ast_format_cap_append(struct ast_format_cap *dst, const struct ast_format_cap *src)
+int __ast_format_cap_append(struct ast_format_cap *cap, struct ast_format *format, unsigned int framing)
 {
-	ao2_callback(src->formats, OBJ_NODATA, append_cb, dst);
-	dst->string_cache_valid = 0;
-}
+	struct format_cap_framed *framed;
 
-static int copy_cb(void *obj, void *arg, int flag)
-{
-	struct ast_format_cap *result = (struct ast_format_cap *) arg;
-	struct ast_format *format = (struct ast_format *) obj;
+	ast_assert(format != NULL);
 
-	format_cap_add(result, format);
-	return 0;
-}
-
-static void format_cap_remove_all(struct ast_format_cap *cap)
-{
-	ao2_callback(cap->formats, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, NULL, NULL);
-}
-
-void ast_format_cap_copy(struct ast_format_cap *dst, const struct ast_format_cap *src)
-{
-	format_cap_remove_all(dst);
-	ao2_callback(src->formats, OBJ_NODATA, copy_cb, dst);
-	dst->string_cache_valid = 0;
-}
-
-struct ast_format_cap *ast_format_cap_dup(const struct ast_format_cap *cap)
-{
-	struct ast_format_cap *dst;
-
-	dst = ast_format_cap_alloc(ast_test_flag(&cap->flags, AST_FLAGS_ALL));
-	if (!dst) {
-		return NULL;
-	}
-	ao2_callback(cap->formats, OBJ_NODATA, copy_cb, dst);
-	dst->string_cache_valid = 0;
-	return dst;
-}
-
-int ast_format_cap_is_empty(const struct ast_format_cap *cap)
-{
-	if (!cap) {
-		return 1;
-	}
-	return ao2_container_count(cap->formats) == 0 ? 1 : 0;
-}
-
-static int find_exact_cb(void *obj, void *arg, int flag)
-{
-	struct ast_format *format1 = (struct ast_format *) arg;
-	struct ast_format *format2 = (struct ast_format *) obj;
-
-	return (ast_format_cmp(format1, format2) == AST_FORMAT_CMP_EQUAL) ? CMP_MATCH : 0;
-}
-
-int ast_format_cap_remove(struct ast_format_cap *cap, struct ast_format *format)
-{
-	struct ast_format *fremove;
-
-	fremove = ao2_callback(cap->formats, OBJ_POINTER | OBJ_UNLINK, find_exact_cb, format);
-	if (fremove) {
-		ao2_ref(fremove, -1);
-		cap->string_cache_valid = 0;
+	if (format_in_format_cap(cap, format)) {
 		return 0;
 	}
 
-	return -1;
+	framed = ao2_alloc_options(sizeof(*framed), format_cap_framed_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!framed) {
+		return -1;
+	}
+	framed->format = ao2_bump(format);
+
+	return format_cap_framed_init(framed, cap, format, framing);
 }
 
-struct multiple_by_id_data {
-	struct ast_format *format;
-	int match_found;
-};
-
-static int multiple_by_id_cb(void *obj, void *arg, int flag)
+int __ast_format_cap_append_debug(struct ast_format_cap *cap, struct ast_format *format, unsigned int framing, const char *tag, const char *file, int line, const char *func)
 {
-	struct multiple_by_id_data *data = arg;
-	struct ast_format *format = obj;
-	int res;
+	struct format_cap_framed *framed;
 
-	res = (format->id == data->format->id) ? CMP_MATCH : 0;
-	if (res) {
-		data->match_found = 1;
+	ast_assert(format != NULL);
+
+	if (format_in_format_cap(cap, format)) {
+		return 0;
+	}
+
+	framed = ao2_alloc_options(sizeof(*framed), format_cap_framed_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!framed) {
+		return -1;
+	}
+
+	__ao2_ref_debug(format, +1, S_OR(tag, "ast_format_cap_append"), file, line, func);
+	framed->format = format;
+
+	return format_cap_framed_init(framed, cap, format, framing);
+}
+
+int ast_format_cap_append_by_type(struct ast_format_cap *cap, enum ast_media_type type)
+{
+	int id;
+
+	for (id = 1; id < ast_codec_get_max(); ++id) {
+		struct ast_codec *codec = ast_codec_get_by_id(id);
+		struct ast_format *format;
+		int res;
+
+		if (!codec) {
+			continue;
+		}
+
+		if ((type != AST_MEDIA_TYPE_UNKNOWN) && codec->type != type) {
+			ao2_ref(codec, -1);
+			continue;
+		}
+
+		format = ast_format_create(codec);
+		ao2_ref(codec, -1);
+
+		if (!format) {
+			return -1;
+		}
+
+		/* Use the global framing or default framing of the codec */
+		res = ast_format_cap_append(cap, format, 0);
+		ao2_ref(format, -1);
+
+		if (res) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+int ast_format_cap_append_from_cap(struct ast_format_cap *dst, const struct ast_format_cap *src,
+	enum ast_media_type type)
+{
+	int idx, res = 0;
+
+	for (idx = 0; (idx < AST_VECTOR_SIZE(&src->preference_order)) && !res; ++idx) {
+		struct format_cap_framed *framed = AST_VECTOR_GET(&src->preference_order, idx);
+
+		if (type == AST_MEDIA_TYPE_UNKNOWN || ast_format_get_type(framed->format) == type) {
+			res = ast_format_cap_append(dst, framed->format, framed->framing);
+		}
 	}
 
 	return res;
 }
 
-int ast_format_cap_remove_byid(struct ast_format_cap *cap, enum ast_format_id id)
+static int format_cap_replace(struct ast_format_cap *cap, struct ast_format *format, unsigned int framing)
 {
-	struct ast_format format = {
-		.id = id,
-	};
-	struct multiple_by_id_data data = {
-		.format = &format,
-		.match_found = 0,
-	};
+	struct format_cap_framed *framed;
+	int i;
 
-	ao2_callback(cap->formats,
-		OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK,
-		multiple_by_id_cb,
-		&data);
+	ast_assert(format != NULL);
 
-	/* match_found will be set if at least one item was removed */
-	if (data.match_found) {
-		cap->string_cache_valid = 0;
-		return 0;
+	for (i = 0; i < AST_VECTOR_SIZE(&cap->preference_order); i++) {
+		framed = AST_VECTOR_GET(&cap->preference_order, i);
+
+		if (ast_format_get_codec_id(format) == ast_format_get_codec_id(framed->format)) {
+			ao2_t_replace(framed->format, format, "replacing with new format");
+			framed->framing = framing;
+			return 0;
+		}
 	}
 
 	return -1;
 }
 
-static int multiple_by_type_cb(void *obj, void *arg, int flag)
+void ast_format_cap_replace_from_cap(struct ast_format_cap *dst, const struct ast_format_cap *src,
+	enum ast_media_type type)
 {
-	int *type = arg;
-	struct ast_format *format = obj;
-	return ((AST_FORMAT_GET_TYPE(format->id)) == *type) ? CMP_MATCH : 0;
-}
+	int idx;
 
-void ast_format_cap_remove_bytype(struct ast_format_cap *cap, enum ast_format_type type)
-{
-	ao2_callback(cap->formats,
-		OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
-		multiple_by_type_cb,
-		&type);
-	cap->string_cache_valid = 0;
-}
+	for (idx = 0; (idx < AST_VECTOR_SIZE(&src->preference_order)); ++idx) {
+		struct format_cap_framed *framed = AST_VECTOR_GET(&src->preference_order, idx);
 
-void ast_format_cap_remove_all(struct ast_format_cap *cap)
-{
-	format_cap_remove_all(cap);
-	cap->string_cache_valid = 0;
-}
-
-void ast_format_cap_set(struct ast_format_cap *cap, struct ast_format *format)
-{
-	format_cap_remove_all(cap);
-	format_cap_add(cap, format);
-	cap->string_cache_valid = 0;
-}
-
-int ast_format_cap_get_compatible_format(const struct ast_format_cap *cap, const struct ast_format *format, struct ast_format *result)
-{
-	struct ast_format *f;
-	struct ast_format_cap *tmp_cap = (struct ast_format_cap *) cap;
-
-	f = ao2_find(tmp_cap->formats, format, OBJ_POINTER);
-	if (f) {
-		ast_format_copy(result, f);
-		ao2_ref(f, -1);
-		return 1;
-	}
-	ast_format_clear(result);
-	return 0;
-}
-
-int ast_format_cap_iscompatible(const struct ast_format_cap *cap, const struct ast_format *format)
-{
-	struct ast_format *f;
-	struct ast_format_cap *tmp_cap = (struct ast_format_cap *) cap;
-
-	if (!tmp_cap) {
-		return 0;
-	}
-
-	f = ao2_find(tmp_cap->formats, format, OBJ_POINTER);
-	if (f) {
-		ao2_ref(f, -1);
-		return 1;
-	}
-
-	return 0;
-}
-
-struct byid_data {
-	struct ast_format *result;
-	enum ast_format_id id;
-};
-static int find_best_byid_cb(void *obj, void *arg, int flag)
-{
-	struct ast_format *format = obj;
-	struct byid_data *data = arg;
-
-	if (data->id != format->id) {
-		return 0;
-	}
-	if (!data->result->id || (ast_format_rate(data->result) < ast_format_rate(format))) {
-		ast_format_copy(data->result, format);
-	}
-	return 0;
-}
-
-int ast_format_cap_best_byid(const struct ast_format_cap *cap, enum ast_format_id id, struct ast_format *result)
-{
-	struct byid_data data;
-	data.result = result;
-	data.id = id;
-
-	ast_format_clear(result);
-	ao2_callback(cap->formats,
-		OBJ_MULTIPLE | OBJ_NODATA,
-		find_best_byid_cb,
-		&data);
-	return result->id ? 1 : 0;
-}
-
-/*! \internal
- * \brief this struct is just used for the ast_format_cap_joint function so we can provide
- * both a format and a result ast_format_cap structure as arguments to the find_joint_cb
- * ao2 callback function.
- */
-struct find_joint_data {
-	/*! format to compare to for joint capabilities */
-	struct ast_format *format;
-	/*! if joint formmat exists with above format, add it to the result container */
-	struct ast_format_cap *joint_cap;
-	int joint_found;
-};
-
-static int find_joint_cb(void *obj, void *arg, int flag)
-{
-	struct ast_format *format = obj;
-	struct find_joint_data *data = arg;
-
-	struct ast_format tmp = { 0, };
-	if (!ast_format_joint(format, data->format, &tmp)) {
-		if (data->joint_cap) {
-			ast_format_cap_add(data->joint_cap, &tmp);
+		if (type == AST_MEDIA_TYPE_UNKNOWN || ast_format_get_type(framed->format) == type) {
+			format_cap_replace(dst, framed->format, framed->framing);
 		}
-		data->joint_found++;
+	}
+}
+
+int ast_format_cap_update_by_allow_disallow(struct ast_format_cap *cap, const char *list, int allowing)
+{
+	int res = 0, all = 0, iter_allowing;
+	char *parse = NULL, *this = NULL, *psize = NULL;
+
+	parse = ast_strdupa(list);
+	while ((this = strsep(&parse, ","))) {
+		int framems = 0;
+		struct ast_format *format = NULL;
+
+		iter_allowing = allowing;
+		if (*this == '!') {
+			this++;
+			iter_allowing = !allowing;
+		}
+		if ((psize = strrchr(this, ':'))) {
+			*psize++ = '\0';
+			ast_debug(1, "Packetization for codec: %s is %s\n", this, psize);
+			if (!sscanf(psize, "%30d", &framems) || (framems < 0)) {
+				framems = 0;
+				res = -1;
+				ast_log(LOG_WARNING, "Bad packetization value for codec %s\n", this);
+				continue;
+			}
+		}
+		all = strcasecmp(this, "all") ? 0 : 1;
+
+		if (!all && !(format = ast_format_cache_get(this))) {
+			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", iter_allowing ? "allow" : "disallow", this);
+			res = -1;
+			continue;
+		}
+
+		if (cap) {
+			if (iter_allowing) {
+				if (all) {
+					ast_format_cap_append_by_type(cap, AST_MEDIA_TYPE_UNKNOWN);
+				} else {
+					ast_format_cap_append(cap, format, framems);
+				}
+			} else {
+				if (all) {
+					ast_format_cap_remove_by_type(cap, AST_MEDIA_TYPE_UNKNOWN);
+				} else {
+					ast_format_cap_remove(cap, format);
+				}
+			}
+		}
+
+		ao2_cleanup(format);
+	}
+	return res;
+}
+
+size_t ast_format_cap_count(const struct ast_format_cap *cap)
+{
+	return AST_VECTOR_SIZE(&cap->preference_order);
+}
+
+struct ast_format *ast_format_cap_get_format(const struct ast_format_cap *cap, int position)
+{
+	struct format_cap_framed *framed;
+
+	ast_assert(position < AST_VECTOR_SIZE(&cap->preference_order));
+
+	if (position >= AST_VECTOR_SIZE(&cap->preference_order)) {
+		return NULL;
+	}
+
+	framed = AST_VECTOR_GET(&cap->preference_order, position);
+
+	ast_assert(framed->format != ast_format_none);
+	ao2_ref(framed->format, +1);
+	return framed->format;
+}
+
+struct ast_format *ast_format_cap_get_best_by_type(const struct ast_format_cap *cap, enum ast_media_type type)
+{
+	int i;
+
+	if (type == AST_MEDIA_TYPE_UNKNOWN) {
+		return ast_format_cap_get_format(cap, 0);
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&cap->preference_order); i++) {
+		struct format_cap_framed *framed = AST_VECTOR_GET(&cap->preference_order, i);
+
+		if (ast_format_get_type(framed->format) == type) {
+			ao2_ref(framed->format, +1);
+			ast_assert(framed->format != ast_format_none);
+			return framed->format;
+		}
+	}
+
+	return NULL;
+}
+
+unsigned int ast_format_cap_get_framing(const struct ast_format_cap *cap)
+{
+	return (cap->framing != UINT_MAX) ? cap->framing : 0;
+}
+
+unsigned int ast_format_cap_get_format_framing(const struct ast_format_cap *cap, const struct ast_format *format)
+{
+	unsigned int framing;
+	struct format_cap_framed_list *list;
+	struct format_cap_framed *framed, *result = NULL;
+
+	if (ast_format_get_codec_id(format) >= AST_VECTOR_SIZE(&cap->formats)) {
+		return 0;
+	}
+
+	framing = cap->framing != UINT_MAX ? cap->framing : ast_format_get_default_ms(format);
+	list = AST_VECTOR_GET_ADDR(&cap->formats, ast_format_get_codec_id(format));
+
+	AST_LIST_TRAVERSE(list, framed, entry) {
+		enum ast_format_cmp_res res = ast_format_cmp(format, framed->format);
+
+		if (res == AST_FORMAT_CMP_NOT_EQUAL) {
+			continue;
+		}
+
+		result = framed;
+
+		if (res == AST_FORMAT_CMP_EQUAL) {
+			break;
+		}
+	}
+
+	if (result && result->framing) {
+		framing = result->framing;
+	}
+
+	return framing;
+}
+
+/*!
+ * \brief format_cap_framed comparator for AST_VECTOR_REMOVE_CMP_ORDERED()
+ *
+ * \param elem Element to compare against
+ * \param value Value to compare with the vector element.
+ *
+ * \return 0 if element does not match.
+ * \return Non-zero if element matches.
+ */
+#define FORMAT_CAP_FRAMED_ELEM_CMP(elem, value) ((elem)->format == (value))
+
+/*!
+ * \brief format_cap_framed vector element cleanup.
+ *
+ * \param elem Element to cleanup
+ *
+ * \return Nothing
+ */
+#define FORMAT_CAP_FRAMED_ELEM_CLEANUP(elem)  ao2_cleanup((elem))
+
+int ast_format_cap_remove(struct ast_format_cap *cap, struct ast_format *format)
+{
+	struct format_cap_framed_list *list;
+	struct format_cap_framed *framed;
+
+	ast_assert(format != NULL);
+
+	if (ast_format_get_codec_id(format) >= AST_VECTOR_SIZE(&cap->formats)) {
+		return -1;
+	}
+
+	list = AST_VECTOR_GET_ADDR(&cap->formats, ast_format_get_codec_id(format));
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(list, framed, entry) {
+		if (!FORMAT_CAP_FRAMED_ELEM_CMP(framed, format)) {
+			continue;
+		}
+
+		AST_LIST_REMOVE_CURRENT(entry);
+		FORMAT_CAP_FRAMED_ELEM_CLEANUP(framed);
+		break;
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	return AST_VECTOR_REMOVE_CMP_ORDERED(&cap->preference_order, format,
+		FORMAT_CAP_FRAMED_ELEM_CMP, FORMAT_CAP_FRAMED_ELEM_CLEANUP);
+}
+
+void ast_format_cap_remove_by_type(struct ast_format_cap *cap, enum ast_media_type type)
+{
+	int idx;
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&cap->formats); ++idx) {
+		struct format_cap_framed_list *list = AST_VECTOR_GET_ADDR(&cap->formats, idx);
+		struct format_cap_framed *framed;
+
+		AST_LIST_TRAVERSE_SAFE_BEGIN(list, framed, entry) {
+			if ((type != AST_MEDIA_TYPE_UNKNOWN) &&
+				ast_format_get_type(framed->format) != type) {
+				continue;
+			}
+
+			AST_LIST_REMOVE_CURRENT(entry);
+			AST_VECTOR_REMOVE_CMP_ORDERED(&cap->preference_order, framed->format,
+				FORMAT_CAP_FRAMED_ELEM_CMP, FORMAT_CAP_FRAMED_ELEM_CLEANUP);
+			ao2_ref(framed, -1);
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	}
+}
+
+struct ast_format *ast_format_cap_get_compatible_format(const struct ast_format_cap *cap, const struct ast_format *format)
+{
+	struct format_cap_framed_list *list;
+	struct format_cap_framed *framed;
+	struct ast_format *result = NULL;
+
+	ast_assert(format != NULL);
+
+	if (ast_format_get_codec_id(format) >= AST_VECTOR_SIZE(&cap->formats)) {
+		return NULL;
+	}
+
+	list = AST_VECTOR_GET_ADDR(&cap->formats, ast_format_get_codec_id(format));
+
+	AST_LIST_TRAVERSE(list, framed, entry) {
+		enum ast_format_cmp_res res = ast_format_cmp(format, framed->format);
+
+		if (res == AST_FORMAT_CMP_NOT_EQUAL) {
+			continue;
+		}
+
+		/* Replace any current result, this one will also be a subset OR an exact match */
+		ao2_cleanup(result);
+
+		result = ast_format_joint(format, framed->format);
+
+		/* If it's a match we can do no better so return asap */
+		if (res == AST_FORMAT_CMP_EQUAL) {
+			break;
+		}
+	}
+
+	return result;
+}
+
+enum ast_format_cmp_res ast_format_cap_iscompatible_format(const struct ast_format_cap *cap,
+	const struct ast_format *format)
+{
+	enum ast_format_cmp_res res = AST_FORMAT_CMP_NOT_EQUAL;
+	struct format_cap_framed_list *list;
+	struct format_cap_framed *framed;
+
+	ast_assert(format != NULL);
+
+	if (ast_format_get_codec_id(format) >= AST_VECTOR_SIZE(&cap->formats)) {
+		return AST_FORMAT_CMP_NOT_EQUAL;
+	}
+
+	list = AST_VECTOR_GET_ADDR(&cap->formats, ast_format_get_codec_id(format));
+
+	AST_LIST_TRAVERSE(list, framed, entry) {
+		enum ast_format_cmp_res cmp = ast_format_cmp(format, framed->format);
+
+		if (cmp == AST_FORMAT_CMP_NOT_EQUAL) {
+			continue;
+		}
+
+		res = cmp;
+
+		if (res == AST_FORMAT_CMP_EQUAL) {
+			break;
+		}
+	}
+
+	return res;
+}
+
+int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_media_type type)
+{
+	int idx;
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&cap->preference_order); ++idx) {
+		struct format_cap_framed *framed = AST_VECTOR_GET(&cap->preference_order, idx);
+
+		if (ast_format_get_type(framed->format) == type) {
+			return 1;
+		}
 	}
 
 	return 0;
 }
 
-int ast_format_cap_has_joint(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2)
+int ast_format_cap_get_compatible(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2,
+	struct ast_format_cap *result)
 {
-	struct ao2_iterator it;
-	struct ast_format *tmp;
-	struct find_joint_data data = {
-		.joint_found = 0,
-		.joint_cap = NULL,
-	};
+	int idx, res = 0;
 
-	it = ao2_iterator_init(cap1->formats, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		data.format = tmp;
-		ao2_callback(cap2->formats,
-			OBJ_MULTIPLE | OBJ_NODATA,
-			find_joint_cb,
-			&data);
-		ao2_ref(tmp, -1);
+	for (idx = 0; idx < AST_VECTOR_SIZE(&cap1->preference_order); ++idx) {
+		struct format_cap_framed *framed = AST_VECTOR_GET(&cap1->preference_order, idx);
+		struct ast_format *format;
+
+		format = ast_format_cap_get_compatible_format(cap2, framed->format);
+		if (!format) {
+			continue;
+		}
+
+		res = ast_format_cap_append(result, format, framed->framing);
+		ao2_ref(format, -1);
+
+		if (res) {
+			break;
+		}
 	}
-	ao2_iterator_destroy(&it);
 
-	return data.joint_found ? 1 : 0;
+	return res;
 }
 
-int ast_format_cap_identical(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2)
+int ast_format_cap_iscompatible(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2)
 {
-	struct ao2_iterator it;
-	struct ast_format *tmp;
+	int idx;
 
-	if (ao2_container_count(cap1->formats) != ao2_container_count(cap2->formats)) {
-		return 0; /* if they are not the same size, they are not identical */
+	for (idx = 0; idx < AST_VECTOR_SIZE(&cap1->preference_order); ++idx) {
+		struct format_cap_framed *framed = AST_VECTOR_GET(&cap1->preference_order, idx);
+
+		if (ast_format_cap_iscompatible_format(cap2, framed->format) != AST_FORMAT_CMP_NOT_EQUAL) {
+			return 1;
+		}
 	}
 
-	it = ao2_iterator_init(cap1->formats, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		if (!ast_format_cap_iscompatible(cap2, tmp)) {
+	return 0;
+}
+
+static int internal_format_cap_identical(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2)
+{
+	int idx;
+	struct ast_format *tmp;
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&cap1->preference_order); ++idx) {
+		tmp = ast_format_cap_get_format(cap1, idx);
+
+		if (ast_format_cap_iscompatible_format(cap2, tmp) != AST_FORMAT_CMP_EQUAL) {
 			ao2_ref(tmp, -1);
-			ao2_iterator_destroy(&it);
 			return 0;
 		}
+
 		ao2_ref(tmp, -1);
 	}
-	ao2_iterator_destroy(&it);
 
 	return 1;
 }
 
-struct ast_format_cap *ast_format_cap_joint(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2)
+int ast_format_cap_identical(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2)
 {
-	struct ao2_iterator it;
-	struct ast_format_cap *result = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-	struct ast_format *tmp;
-	struct find_joint_data data = {
-		.joint_found = 0,
-		.joint_cap = result,
-	};
-	if (!result) {
-		return NULL;
+	if (AST_VECTOR_SIZE(&cap1->preference_order) != AST_VECTOR_SIZE(&cap2->preference_order)) {
+		return 0; /* if they are not the same size, they are not identical */
 	}
 
-	it = ao2_iterator_init(cap1->formats, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		data.format = tmp;
-		ao2_callback(cap2->formats,
-			OBJ_MULTIPLE | OBJ_NODATA,
-			find_joint_cb,
-			&data);
-		ao2_ref(tmp, -1);
-	}
-	ao2_iterator_destroy(&it);
-
-	if (ao2_container_count(result->formats)) {
-		return result;
+	if (!internal_format_cap_identical(cap1, cap2)) {
+		return 0;
 	}
 
-	result = ast_format_cap_destroy(result);
-	return NULL;
+	return internal_format_cap_identical(cap2, cap1);
 }
 
-static int joint_copy_helper(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result, int append)
+const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str **buf)
 {
-	struct ao2_iterator it;
-	struct ast_format *tmp;
-	struct find_joint_data data = {
-		.joint_cap = result,
-		.joint_found = 0,
-	};
-	if (!append) {
-		format_cap_remove_all(result);
-	}
-	it = ao2_iterator_init(cap1->formats, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		data.format = tmp;
-		ao2_callback(cap2->formats,
-			OBJ_MULTIPLE | OBJ_NODATA,
-			find_joint_cb,
-			&data);
-		ao2_ref(tmp, -1);
-	}
-	ao2_iterator_destroy(&it);
+	int i;
 
-	result->string_cache_valid = 0;
+	ast_str_set(buf, 0, "(");
 
-	return ao2_container_count(result->formats) ? 1 : 0;
-}
-
-int ast_format_cap_joint_append(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result)
-{
-	return joint_copy_helper(cap1, cap2, result, 1);
-}
-
-int ast_format_cap_joint_copy(const struct ast_format_cap *cap1, const struct ast_format_cap *cap2, struct ast_format_cap *result)
-{
-	return joint_copy_helper(cap1, cap2, result, 0);
-}
-
-struct ast_format_cap *ast_format_cap_get_type(const struct ast_format_cap *cap, enum ast_format_type ftype)
-{
-	struct ao2_iterator it;
-	struct ast_format_cap *result = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-	struct ast_format *tmp;
-
-	if (!result) {
-		return NULL;
+	if (!AST_VECTOR_SIZE(&cap->preference_order)) {
+		ast_str_append(buf, 0, "nothing)");
+		return ast_str_buffer(*buf);
 	}
 
-	/* for each format in cap1, see if that format is
-	 * compatible with cap2. If so copy it to the result */
-	it = ao2_iterator_init(cap->formats, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		if (AST_FORMAT_GET_TYPE(tmp->id) == ftype) {
-			/* copy format */
-			ast_format_cap_add(result, tmp);
-		}
-		ao2_ref(tmp, -1);
-	}
-	ao2_iterator_destroy(&it);
+	for (i = 0; i < AST_VECTOR_SIZE(&cap->preference_order); ++i) {
+		int res;
+		struct format_cap_framed *framed = AST_VECTOR_GET(&cap->preference_order, i);
 
-	if (ao2_container_count(result->formats)) {
-		return result;
-	}
-	result = ast_format_cap_destroy(result);
-
-	return NULL;
-}
-
-
-int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_format_type type)
-{
-	struct ao2_iterator it;
-	struct ast_format *tmp;
-
-	it = ao2_iterator_init(cap->formats, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		if (AST_FORMAT_GET_TYPE(tmp->id) == type) {
-			ao2_ref(tmp, -1);
-			ao2_iterator_destroy(&it);
-			return 1;
-		}
-		ao2_ref(tmp, -1);
-	}
-	ao2_iterator_destroy(&it);
-
-	return 0;
-}
-
-void ast_format_cap_iter_start(struct ast_format_cap *cap)
-{
-	/* We can unconditionally lock even if the container has no lock. */
-	ao2_lock(cap->formats);
-	cap->it = ao2_iterator_init(cap->formats, AO2_ITERATOR_DONTLOCK);
-}
-
-void ast_format_cap_iter_end(struct ast_format_cap *cap)
-{
-	ao2_iterator_destroy(&cap->it);
-	/* We can unconditionally unlock even if the container has no lock. */
-	ao2_unlock(cap->formats);
-}
-
-int ast_format_cap_iter_next(struct ast_format_cap *cap, struct ast_format *format)
-{
-	struct ast_format *tmp = ao2_iterator_next(&cap->it);
-
-	if (!tmp) {
-		return -1;
-	}
-	ast_format_copy(format, tmp);
-	ao2_ref(tmp, -1);
-
-	return 0;
-}
-
-static char *getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap)
-{
-	int x;
-	unsigned len;
-	char *start, *end = buf;
-	struct ast_format tmp_fmt;
-	size_t f_len;
-	const struct ast_format_list *f_list = ast_format_list_get(&f_len);
-
-	if (!size) {
-		f_list = ast_format_list_destroy(f_list);
-		return buf;
-	}
-	snprintf(end, size, "(");
-	len = strlen(end);
-	end += len;
-	size -= len;
-	start = end;
-	for (x = 0; x < f_len; x++) {
-		ast_format_copy(&tmp_fmt, &f_list[x].format);
-		if (ast_format_cap_iscompatible(cap, &tmp_fmt)) {
-			snprintf(end, size, "%s|", f_list[x].name);
-			len = strlen(end);
-			end += len;
-			size -= len;
+		res = ast_str_append(buf, 0, "%s%s", ast_format_get_name(framed->format),
+			i < AST_VECTOR_SIZE(&cap->preference_order) - 1 ? "|" : "");
+		if (res < 0) {
+			break;
 		}
 	}
-	if (start == end) {
-		ast_copy_string(start, "nothing)", size);
-	} else if (size > 1) {
-		*(end - 1) = ')';
-	}
-	f_list = ast_format_list_destroy(f_list);
-	return buf;
-}
+	ast_str_append(buf, 0, ")");
 
-char *ast_getformatname_multiple(char *buf, size_t size, struct ast_format_cap *cap)
-{
-	if (ast_test_flag(&cap->flags, AST_FORMAT_CAP_FLAG_CACHE_STRINGS)) {
-		if (!cap->string_cache_valid) {
-			getformatname_multiple(cap->format_strs, FORMAT_STR_BUFSIZE, cap);
-			cap->string_cache_valid = 1;
-		}
-		ast_copy_string(buf, cap->format_strs, size);
-		return buf;
-	}
-
-	return getformatname_multiple(buf, size, cap);
-}
-
-uint64_t ast_format_cap_to_old_bitfield(const struct ast_format_cap *cap)
-{
-	uint64_t res = 0;
-	struct ao2_iterator it;
-	struct ast_format *tmp;
-
-	it = ao2_iterator_init(cap->formats, 0);
-	while ((tmp = ao2_iterator_next(&it))) {
-		res |= ast_format_to_old_bitfield(tmp);
-		ao2_ref(tmp, -1);
-	}
-	ao2_iterator_destroy(&it);
-	return res;
-}
-
-void ast_format_cap_from_old_bitfield(struct ast_format_cap *dst, uint64_t src)
-{
-	uint64_t tmp = 0;
-	int x;
-	struct ast_format tmp_format = { 0, };
-
-	format_cap_remove_all(dst);
-	for (x = 0; x < 64; x++) {
-		tmp = (1ULL << x);
-		if (tmp & src) {
-			format_cap_add(dst, ast_format_from_old_bitfield(&tmp_format, tmp));
-		}
-	}
-	dst->string_cache_valid = 0;
+	return ast_str_buffer(*buf);
 }

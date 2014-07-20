@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/say.h"
 #include "asterisk/bridge_basic.h"
+#include "asterisk/format_cache.h"
 
 /*** DOCUMENTATION
 	<application name="Park" language="en_US">
@@ -688,11 +689,10 @@ static void announce_to_dial(char *dial_string, char *announce_string, int parki
 	struct ast_channel *dchan;
 	struct outgoing_helper oh = { 0, };
 	int outstate;
-	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	char buf[13];
 	char *dial_tech;
 	char *cur_announce;
-	struct ast_format tmpfmt;
 
 	dial_tech = strsep(&dial_string, "/");
 	ast_verb(3, "Dial Tech,String: (%s,%s)\n", dial_tech, dial_string);
@@ -701,7 +701,7 @@ static void announce_to_dial(char *dial_string, char *announce_string, int parki
 		ast_log(LOG_WARNING, "PARK: Failed to announce park.\n");
 		goto announce_cleanup;
 	}
-	ast_format_cap_add(cap_slin, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap_slin, ast_format_slin, 0);
 
 	snprintf(buf, sizeof(buf), "%d", parkingspace);
 	oh.vars = ast_variable_new("_PARKEDAT", buf, "");
@@ -737,7 +737,7 @@ static void announce_to_dial(char *dial_string, char *announce_string, int parki
 	ast_hangup(dchan);
 
 announce_cleanup:
-	cap_slin = ast_format_cap_destroy(cap_slin);
+	ao2_cleanup(cap_slin);
 }
 
 static void park_announce_update_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)

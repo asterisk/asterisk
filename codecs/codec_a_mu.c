@@ -80,6 +80,17 @@ static int ulawtoalaw_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 
 static struct ast_translator alawtoulaw = {
 	.name = "alawtoulaw",
+	.src_codec = {
+		.name = "alaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "ulaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "ulaw",
 	.framein = alawtoulaw_framein,
 	.sample = alaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -88,6 +99,17 @@ static struct ast_translator alawtoulaw = {
 
 static struct ast_translator ulawtoalaw = {
 	.name = "ulawtoalaw",
+	.src_codec = {
+		.name = "ulaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.dst_codec = {
+		.name = "alaw",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	.format = "alaw",
 	.framein = ulawtoalaw_framein,
 	.sample = ulaw_sample,
 	.buffer_samples = BUFFER_SAMPLES,
@@ -111,23 +133,19 @@ static int load_module(void)
 	int res;
 	int x;
 
-	ast_format_set(&alawtoulaw.src_format, AST_FORMAT_ALAW, 0);
-	ast_format_set(&alawtoulaw.dst_format, AST_FORMAT_ULAW, 0);
-
-	ast_format_set(&ulawtoalaw.src_format, AST_FORMAT_ULAW, 0);
-	ast_format_set(&ulawtoalaw.dst_format, AST_FORMAT_ALAW, 0);
-
 	for (x=0;x<256;x++) {
 		mu2a[x] = AST_LIN2A(AST_MULAW(x));
 		a2mu[x] = AST_LIN2MU(AST_ALAW(x));
 	}
+
 	res = ast_register_translator(&alawtoulaw);
-	if (!res)
-		res = ast_register_translator(&ulawtoalaw);
-	else
-		ast_unregister_translator(&alawtoulaw);
-	if (res)
+	res |= ast_register_translator(&ulawtoalaw);
+
+	if (res) {
+		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

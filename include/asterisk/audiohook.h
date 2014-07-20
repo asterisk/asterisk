@@ -109,7 +109,7 @@ struct ast_audiohook {
 	struct ast_slinfactory write_factory;                  /*!< Factory where frames written to the channel will go through */
 	struct timeval read_time;                              /*!< Last time read factory was fed */
 	struct timeval write_time;                             /*!< Last time write factory was fed */
-	struct ast_format format;                              /*!< Format translation path is setup as */
+	struct ast_format *format;                             /*!< Format translation path is setup as */
 	struct ast_trans_pvt *trans_pvt;                       /*!< Translation path for reading frames */
 	ast_audiohook_manipulate_callback manipulate_callback; /*!< Manipulation callback */
 	struct ast_audiohook_options options;                  /*!< Applicable options */

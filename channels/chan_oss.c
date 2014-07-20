@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
 #include "asterisk/bridge.h"
+#include "asterisk/format_cache.h"
 
 #include "console_video.h"
 
@@ -726,7 +727,7 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 		return f;
 	/* ok we can build and deliver the frame to the caller */
 	f->frametype = AST_FRAME_VOICE;
-	ast_format_set(&f->subclass.format, AST_FORMAT_SLINEAR, 0);
+	f->subclass.format = ao2_bump(ast_format_slin);
 	f->samples = FRAME_SIZE;
 	f->datalen = FRAME_SIZE * 2;
 	f->data.ptr = o->oss_read_buf + AST_FRIENDLY_OFFSET;
@@ -804,9 +805,9 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 		setformat(o, O_RDWR);
 	ast_channel_set_fd(c, 0, o->sounddev); /* -1 if device closed, override later */
 
-	ast_format_set(ast_channel_readformat(c), AST_FORMAT_SLINEAR, 0);
-	ast_format_set(ast_channel_writeformat(c), AST_FORMAT_SLINEAR, 0);
-	ast_format_cap_add(ast_channel_nativeformats(c), ast_channel_readformat(c));
+	ast_channel_set_readformat(c, ast_format_slin);
+	ast_channel_set_writeformat(c, ast_format_slin);
+	ast_channel_nativeformats_set(c, oss_tech.capabilities);
 
 	/* if the console makes the call, add video to the offer */
 	/* if (state == AST_STATE_RINGING) TODO XXX CONSOLE VIDEO IS DISABLED UNTIL IT GETS A MAINTAINER
@@ -851,8 +852,6 @@ static struct ast_channel *oss_request(const char *type, struct ast_format_cap *
 		AST_APP_ARG(flags);
 	);
 	char *parse = ast_strdupa(data);
-	char buf[256];
-	struct ast_format tmpfmt;
 
 	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
 	o = find_desc(args.name);
@@ -863,8 +862,9 @@ static struct ast_channel *oss_request(const char *type, struct ast_format_cap *
 		/* XXX we could default to 'dsp' perhaps ? */
 		return NULL;
 	}
-	if (!(ast_format_cap_iscompatible(cap, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0)))) {
-		ast_log(LOG_NOTICE, "Format %s unsupported\n", ast_getformatname_multiple(buf, sizeof(buf), cap));
+	if (ast_format_cap_iscompatible_format(cap, ast_format_slin) == AST_FORMAT_CMP_NOT_EQUAL) {
+		struct ast_str *codec_buf = ast_str_alloca(64);
+		ast_log(LOG_NOTICE, "Format %s unsupported\n", ast_format_cap_get_names(cap, &codec_buf));
 		return NULL;
 	}
 	if (o->owner) {
@@ -1452,7 +1452,6 @@ static int load_module(void)
 	struct ast_config *cfg = NULL;
 	char *ctg = NULL;
 	struct ast_flags config_flags = { 0 };
-	struct ast_format tmpfmt;
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
@@ -1482,7 +1481,7 @@ static int load_module(void)
 	if (!(oss_tech.capabilities = ast_format_cap_alloc(0))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
-	ast_format_cap_add(oss_tech.capabilities, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(oss_tech.capabilities, ast_format_slin, 0);
 
 	/* TODO XXX CONSOLE VIDEO IS DISABLE UNTIL IT HAS A MAINTAINER
 	 * add console_video_formats to oss_tech.capabilities once this occurs. */
@@ -1517,7 +1516,9 @@ static int unload_module(void)
 		ast_free(o);
 		o = next;
 	}
-	oss_tech.capabilities = ast_format_cap_destroy(oss_tech.capabilities);
+	ao2_cleanup(oss_tech.capabilities);
+	oss_tech.capabilities = NULL;
+
 	return 0;
 }
 

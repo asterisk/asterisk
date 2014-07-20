@@ -35,6 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mod_format.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/format_cache.h"
 
 /* Some Ideas for this code came from makeh263e.c by Jeffrey Chilton */
 
@@ -47,6 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * size to ensure we don't corrupt frames sent to us (unless they're
  * ridiculously large). */
 #define	BUF_SIZE	32768	/* Four real h.263 Frames */
+
+#define FRAME_ENDED 0x8000
 
 struct h263_desc {
 	unsigned int lastts;
@@ -76,15 +79,12 @@ static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 	if ((res = fread(&len, 1, sizeof(len), s->f)) < 1)
 		return NULL;
 	len = ntohs(len);
-	mark = (len & 0x8000) ? 1 : 0;
+	mark = (len & FRAME_ENDED) ? 1 : 0;
 	len &= 0x7fff;
 	if (len > BUF_SIZE) {
 		ast_log(LOG_WARNING, "Length %d is too long\n", len);
 		return NULL;
 	}
-	s->fr.frametype = AST_FRAME_VIDEO;
-	ast_format_set(&s->fr.subclass.format, AST_FORMAT_H263, 0);
-	s->fr.mallocd = 0;
 	AST_FRAME_SET_BUFFER(&s->fr, s->buf, AST_FRIENDLY_OFFSET, len);
 	if ((res = fread(s->fr.data.ptr, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
@@ -93,11 +93,7 @@ static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 	}
 	s->fr.samples = fs->lastts;	/* XXX what ? */
 	s->fr.datalen = len;
-	if (mark) {
-		ast_format_set_video_mark(&s->fr.subclass.format);
-	}
-	s->fr.delivery.tv_sec = 0;
-	s->fr.delivery.tv_usec = 0;
+	s->fr.subclass.frame_ending = mark;
 	if ((res = fread(&ts, 1, sizeof(ts), s->f)) == sizeof(ts)) {
 		fs->lastts = ntohl(ts);
 		*whennext = fs->lastts * 4/45;
@@ -112,15 +108,7 @@ static int h263_write(struct ast_filestream *fs, struct ast_frame *f)
 	unsigned int ts;
 	unsigned short len;
 	uint32_t mark = 0;
-	if (f->frametype != AST_FRAME_VIDEO) {
-		ast_log(LOG_WARNING, "Asked to write non-video frame!\n");
-		return -1;
-	}
-	mark = ast_format_get_video_mark(&f->subclass.format) ? 0x8000 : 0;
-	if (f->subclass.format.id != AST_FORMAT_H263) {
-		ast_log(LOG_WARNING, "Asked to write non-h263 frame (%s)!\n", ast_getformatname(&f->subclass.format));
-		return -1;
-	}
+	mark = f->subclass.frame_ending ? FRAME_ENDED : 0;
 	ts = htonl(f->samples);
 	if ((res = fwrite(&ts, 1, sizeof(ts), fs->f)) != sizeof(ts)) {
 			ast_log(LOG_WARNING, "Bad write (%d/4): %s\n", res, strerror(errno));
@@ -182,7 +170,7 @@ static struct ast_format_def h263_f = {
 
 static int load_module(void)
 {
-	ast_format_set(&h263_f.format, AST_FORMAT_H263, 0);
+	h263_f.format = ast_format_h263;
 	if (ast_format_def_register(&h263_f))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;

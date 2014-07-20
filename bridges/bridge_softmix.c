@@ -163,14 +163,14 @@ struct softmix_mixing_array {
 struct softmix_translate_helper_entry {
 	int num_times_requested; /*!< Once this entry is no longer requested, free the trans_pvt
 	                              and re-init if it was usable. */
-	struct ast_format dst_format; /*!< The destination format for this helper */
+	struct ast_format *dst_format; /*!< The destination format for this helper */
 	struct ast_trans_pvt *trans_pvt; /*!< the translator for this slot. */
 	struct ast_frame *out_frame; /*!< The output frame from the last translation */
 	AST_LIST_ENTRY(softmix_translate_helper_entry) entry;
 };
 
 struct softmix_translate_helper {
-	struct ast_format slin_src; /*!< the source format expected for all the translators */
+	struct ast_format *slin_src; /*!< the source format expected for all the translators */
 	AST_LIST_HEAD_NOLOCK(, softmix_translate_helper_entry) entries;
 };
 
@@ -180,12 +180,14 @@ static struct softmix_translate_helper_entry *softmix_translate_helper_entry_all
 	if (!(entry = ast_calloc(1, sizeof(*entry)))) {
 		return NULL;
 	}
-	ast_format_copy(&entry->dst_format, dst);
+	entry->dst_format = ao2_bump(dst);
 	return entry;
 }
 
 static void *softmix_translate_helper_free_entry(struct softmix_translate_helper_entry *entry)
 {
+	ao2_cleanup(entry->dst_format);
+
 	if (entry->trans_pvt) {
 		ast_translator_free_path(entry->trans_pvt);
 	}
@@ -199,7 +201,7 @@ static void *softmix_translate_helper_free_entry(struct softmix_translate_helper
 static void softmix_translate_helper_init(struct softmix_translate_helper *trans_helper, unsigned int sample_rate)
 {
 	memset(trans_helper, 0, sizeof(*trans_helper));
-	ast_format_set(&trans_helper->slin_src, ast_format_slin_by_rate(sample_rate), 0);
+	trans_helper->slin_src = ast_format_cache_get_slin_by_rate(sample_rate);
 }
 
 static void softmix_translate_helper_destroy(struct softmix_translate_helper *trans_helper)
@@ -215,11 +217,11 @@ static void softmix_translate_helper_change_rate(struct softmix_translate_helper
 {
 	struct softmix_translate_helper_entry *entry;
 
-	ast_format_set(&trans_helper->slin_src, ast_format_slin_by_rate(sample_rate), 0);
+	trans_helper->slin_src = ast_format_cache_get_slin_by_rate(sample_rate);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&trans_helper->entries, entry, entry) {
 		if (entry->trans_pvt) {
 			ast_translator_free_path(entry->trans_pvt);
-			if (!(entry->trans_pvt = ast_translator_build_path(&entry->dst_format, &trans_helper->slin_src))) {
+			if (!(entry->trans_pvt = ast_translator_build_path(entry->dst_format, trans_helper->slin_src))) {
 				AST_LIST_REMOVE_CURRENT(entry);
 				entry = softmix_translate_helper_free_entry(entry);
 			}
@@ -274,19 +276,19 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 	}
 
 	AST_LIST_TRAVERSE(&trans_helper->entries, entry, entry) {
-		if (ast_format_cmp(&entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
+		if (ast_format_cmp(entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
 			entry->num_times_requested++;
 		} else {
 			continue;
 		}
 		if (!entry->trans_pvt && (entry->num_times_requested > 1)) {
-			entry->trans_pvt = ast_translator_build_path(&entry->dst_format, &trans_helper->slin_src);
+			entry->trans_pvt = ast_translator_build_path(entry->dst_format, trans_helper->slin_src);
 		}
 		if (entry->trans_pvt && !entry->out_frame) {
 			entry->out_frame = ast_translate(entry->trans_pvt, &sc->write_frame, 0);
 		}
 		if (entry->out_frame && (entry->out_frame->datalen < MAX_DATALEN)) {
-			ast_format_copy(&sc->write_frame.subclass.format, &entry->out_frame->subclass.format);
+			ao2_replace(sc->write_frame.subclass.format, entry->out_frame->subclass.format);
 			memcpy(sc->final_buf, entry->out_frame->data.ptr, entry->out_frame->datalen);
 			sc->write_frame.datalen = entry->out_frame->datalen;
 			sc->write_frame.samples = entry->out_frame->samples;
@@ -316,32 +318,45 @@ static void softmix_translate_helper_cleanup(struct softmix_translate_helper *tr
 static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_channel *bridge_channel, int reset)
 {
 	struct softmix_channel *sc = bridge_channel->tech_pvt;
-	unsigned int channel_read_rate = ast_format_rate(ast_channel_rawreadformat(bridge_channel->chan));
+	unsigned int channel_read_rate = ast_format_get_sample_rate(ast_channel_rawreadformat(bridge_channel->chan));
 
 	ast_mutex_lock(&sc->lock);
 	if (reset) {
 		ast_slinfactory_destroy(&sc->factory);
 		ast_dsp_free(sc->dsp);
 	}
-	/* Setup read/write frame parameters */
+
+	/* Setup write frame parameters */
 	sc->write_frame.frametype = AST_FRAME_VOICE;
-	ast_format_set(&sc->write_frame.subclass.format, ast_format_slin_by_rate(rate), 0);
+	ao2_cleanup(sc->write_frame.subclass.format);
+	/*
+	 * NOTE: The format is bumped here because translation could
+	 * be needed and the format changed to the translated format
+	 * for the channel.  The translated format may not be a
+	 * static cached format.
+	 */
+	sc->write_frame.subclass.format = ao2_bump(ast_format_cache_get_slin_by_rate(rate));
 	sc->write_frame.data.ptr = sc->final_buf;
 	sc->write_frame.datalen = SOFTMIX_DATALEN(rate, interval);
 	sc->write_frame.samples = SOFTMIX_SAMPLES(rate, interval);
 
+	/* Setup read frame parameters */
 	sc->read_frame.frametype = AST_FRAME_VOICE;
-	ast_format_set(&sc->read_frame.subclass.format, ast_format_slin_by_rate(channel_read_rate), 0);
+	/*
+	 * NOTE: The format is not bumbed here because it will always
+	 * be a signed linear format.
+	 */
+	sc->read_frame.subclass.format = ast_format_cache_get_slin_by_rate(channel_read_rate);
 	sc->read_frame.data.ptr = sc->our_buf;
 	sc->read_frame.datalen = SOFTMIX_DATALEN(channel_read_rate, interval);
 	sc->read_frame.samples = SOFTMIX_SAMPLES(channel_read_rate, interval);
 
 	/* Setup smoother */
-	ast_slinfactory_init_with_format(&sc->factory, &sc->write_frame.subclass.format);
+	ast_slinfactory_init_with_format(&sc->factory, sc->write_frame.subclass.format);
 
 	/* set new read and write formats on channel. */
-	ast_set_read_format(bridge_channel->chan, &sc->read_frame.subclass.format);
-	ast_set_write_format(bridge_channel->chan, &sc->write_frame.subclass.format);
+	ast_set_read_format(bridge_channel->chan, sc->read_frame.subclass.format);
+	ast_set_write_format(bridge_channel->chan, sc->write_frame.subclass.format);
 
 	/* set up new DSP.  This is on the read side only right before the read frame enters the smoother.  */
 	sc->dsp = ast_dsp_new_with_rate(channel_read_rate);
@@ -446,6 +461,9 @@ static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 	/* Drop the factory */
 	ast_slinfactory_destroy(&sc->factory);
 
+	/* Drop any formats on the frames */
+	ao2_cleanup(sc->write_frame.subclass.format);
+
 	/* Drop the DSP */
 	ast_dsp_free(sc->dsp);
 
@@ -500,7 +518,7 @@ static void softmix_bridge_write_video(struct ast_bridge *bridge, struct ast_bri
 		ast_mutex_lock(&sc->lock);
 		ast_bridge_update_talker_src_video_mode(bridge, bridge_channel->chan,
 			sc->video_talker.energy_average,
-			ast_format_get_video_mark(&frame->subclass.format));
+			frame->subclass.frame_ending);
 		ast_mutex_unlock(&sc->lock);
 		video_src_priority = ast_bridge_is_video_src(bridge, bridge_channel->chan);
 		if (video_src_priority == 1) {
@@ -575,8 +593,7 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 
 	/* If a frame was provided add it to the smoother, unless drop silence is enabled and this frame
 	 * is not determined to be talking. */
-	if (!(bridge_channel->tech_args.drop_silence && !sc->talking) &&
-		(frame->frametype == AST_FRAME_VOICE && ast_format_is_slinear(&frame->subclass.format))) {
+	if (!(bridge_channel->tech_args.drop_silence && !sc->talking)) {
 		ast_slinfactory_feed(&sc->factory, frame);
 	}
 
@@ -680,8 +697,8 @@ static void gather_softmix_stats(struct softmix_stats *stats,
 	int channel_native_rate;
 	int i;
 	/* Gather stats about channel sample rates. */
-	channel_native_rate = MAX(ast_format_rate(ast_channel_rawwriteformat(bridge_channel->chan)),
-		ast_format_rate(ast_channel_rawreadformat(bridge_channel->chan)));
+	channel_native_rate = MAX(ast_format_get_sample_rate(ast_channel_rawwriteformat(bridge_channel->chan)),
+		ast_format_get_sample_rate(ast_channel_rawreadformat(bridge_channel->chan)));
 
 	if (channel_native_rate > stats->highest_supported_rate) {
 		stats->highest_supported_rate = channel_native_rate;
@@ -845,7 +862,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 	while (!softmix_data->stop && bridge->num_active) {
 		struct ast_bridge_channel *bridge_channel;
 		int timeout = -1;
-		enum ast_format_id cur_slin_id = ast_format_slin_by_rate(softmix_data->internal_rate);
+		struct ast_format *cur_slin = ast_format_cache_get_slin_by_rate(softmix_data->internal_rate);
 		unsigned int softmix_samples = SOFTMIX_SAMPLES(softmix_data->internal_rate, softmix_data->internal_mixing_interval);
 		unsigned int softmix_datalen = SOFTMIX_DATALEN(softmix_data->internal_rate, softmix_data->internal_mixing_interval);
 
@@ -927,9 +944,8 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 			ast_mutex_lock(&sc->lock);
 
 			/* Make SLINEAR write frame from local buffer */
-			if (sc->write_frame.subclass.format.id != cur_slin_id) {
-				ast_format_set(&sc->write_frame.subclass.format, cur_slin_id, 0);
-			}
+			ao2_t_replace(sc->write_frame.subclass.format, cur_slin,
+				"Replace softmix channel slin format");
 			sc->write_frame.datalen = softmix_datalen;
 			sc->write_frame.samples = softmix_samples;
 			memcpy(sc->final_buf, buf, softmix_datalen);
@@ -1144,17 +1160,17 @@ static struct ast_bridge_technology softmix_bridge = {
 
 static int unload_module(void)
 {
-	ast_format_cap_destroy(softmix_bridge.format_capabilities);
+	ao2_cleanup(softmix_bridge.format_capabilities);
+	softmix_bridge.format_capabilities = NULL;
 	return ast_bridge_technology_unregister(&softmix_bridge);
 }
 
 static int load_module(void)
 {
-	struct ast_format tmp;
-	if (!(softmix_bridge.format_capabilities = ast_format_cap_alloc(0))) {
+	if (!(softmix_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add(softmix_bridge.format_capabilities, ast_format_set(&tmp, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(softmix_bridge.format_capabilities, ast_format_slin, 0);
 	return ast_bridge_technology_register(&softmix_bridge);
 }
 

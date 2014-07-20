@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/audiohook.h"
+#include "asterisk/format_cache.h"
 
 #define RESAMPLE_QUALITY 1
 
@@ -129,7 +130,7 @@ struct jack_data {
 	jack_port_t *output_port;
 	jack_ringbuffer_t *input_rb;
 	jack_ringbuffer_t *output_rb;
-	enum ast_format_id audiohook_format_id;
+	struct ast_format *audiohook_format;
 	unsigned int audiohook_rate;
 	unsigned int frame_datalen;
 	void *output_resampler;
@@ -394,7 +395,6 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 	jack_status_t status = 0;
 	jack_options_t jack_options = JackNullOption;
 
-	struct ast_format format_slin;
 	unsigned int channel_rate;
 
 	unsigned int ringbuffer_size;
@@ -402,19 +402,17 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 	/* Deducing audiohook sample rate from channel format
 	   ATTENTION: Might be problematic, if channel has different sampling than used by audiohook!
 	*/
-	channel_rate = ast_format_rate(ast_channel_readformat(chan));
-	jack_data->audiohook_format_id = ast_format_slin_by_rate(channel_rate);
-
-	ast_format_set(&format_slin, jack_data->audiohook_format_id, 0);
-	jack_data->audiohook_rate = ast_format_rate(&format_slin);
+	channel_rate = ast_format_get_sample_rate(ast_channel_readformat(chan));
+	jack_data->audiohook_format = ast_format_cache_get_slin_by_rate(channel_rate);
+	jack_data->audiohook_rate = ast_format_get_sample_rate(jack_data->audiohook_format);
 
 	/* Guessing frame->datalen assuming a ptime of 20ms */
 	jack_data->frame_datalen = jack_data->audiohook_rate / 50;
 
 	ringbuffer_size = jack_data->frame_datalen * RINGBUFFER_FRAME_CAPACITY;
 
-	ast_debug(1, "Audiohook parameters: slin-format:%d, rate:%d, frame-len:%d, ringbuffer_size: %d\n",
-	    jack_data->audiohook_format_id, jack_data->audiohook_rate, jack_data->frame_datalen, ringbuffer_size);
+	ast_debug(1, "Audiohook parameters: slin-format:%s, rate:%d, frame-len:%d, ringbuffer_size: %d\n",
+	    ast_format_get_name(jack_data->audiohook_format), jack_data->audiohook_rate, jack_data->frame_datalen, ringbuffer_size);
 
 	if (!ast_strlen_zero(jack_data->client_name)) {
 		client_name = jack_data->client_name;
@@ -628,12 +626,12 @@ static void handle_jack_audio(struct ast_channel *chan, struct jack_data *jack_d
 	short buf[jack_data->frame_datalen];
 	struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
+		.subclass.format = jack_data->audiohook_format,
 		.src = "JACK",
 		.data.ptr = buf,
 		.datalen = sizeof(buf),
 		.samples = ARRAY_LEN(buf),
 	};
-	ast_format_set(&f.subclass.format, jack_data->audiohook_format_id, 0);
 
 	for (;;) {
 		size_t res, read_len;
@@ -778,12 +776,12 @@ static int jack_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (ast_set_read_format_by_id(chan, jack_data->audiohook_format_id)) {
+	if (ast_set_read_format(chan, jack_data->audiohook_format)) {
 		destroy_jack_data(jack_data);
 		return -1;
 	}
 
-	if (ast_set_write_format_by_id(chan, jack_data->audiohook_format_id)) {
+	if (ast_set_write_format(chan, jack_data->audiohook_format)) {
 		destroy_jack_data(jack_data);
 		return -1;
 	}
@@ -859,9 +857,10 @@ static int jack_hook_callback(struct ast_audiohook *audiohook, struct ast_channe
 
 	jack_data = datastore->data;
 
-	if (frame->subclass.format.id != jack_data->audiohook_format_id) {
-		ast_log(LOG_WARNING, "Expected frame in SLINEAR with id %d for the audiohook, but got format %s\n",
-		    jack_data->audiohook_format_id, ast_getformatname(&frame->subclass.format));
+	if (ast_format_cmp(frame->subclass.format, jack_data->audiohook_format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_log(LOG_WARNING, "Expected frame in %s for the audiohook, but got format %s\n",
+			ast_format_get_name(jack_data->audiohook_format),
+			ast_format_get_name(frame->subclass.format));
 		ast_channel_unlock(chan);
 		return 0;
 	}

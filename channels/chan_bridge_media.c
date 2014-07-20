@@ -164,11 +164,13 @@ static struct ast_channel *record_request(const char *type, struct ast_format_ca
 static void cleanup_capabilities(void)
 {
 	if (announce_tech.capabilities) {
-		announce_tech.capabilities = ast_format_cap_destroy(announce_tech.capabilities);
+		ao2_ref(announce_tech.capabilities, -1);
+		announce_tech.capabilities = NULL;
 	}
 
 	if (record_tech.capabilities) {
-		record_tech.capabilities = ast_format_cap_destroy(record_tech.capabilities);
+		ao2_ref(record_tech.capabilities, -1);
+		record_tech.capabilities = NULL;
 	}
 }
 
@@ -182,18 +184,18 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	announce_tech.capabilities = ast_format_cap_alloc(0);
+	announce_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!announce_tech.capabilities) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	record_tech.capabilities = ast_format_cap_alloc(0);
+	record_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!record_tech.capabilities) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_format_cap_add_all(announce_tech.capabilities);
-	ast_format_cap_add_all(record_tech.capabilities);
+	ast_format_cap_append_by_type(announce_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
+	ast_format_cap_append_by_type(record_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
 
 	if (ast_channel_register(&announce_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel technology %s(%s).\n",

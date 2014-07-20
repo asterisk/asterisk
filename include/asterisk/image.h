@@ -28,7 +28,7 @@ struct ast_imager {
 	char *name;			/*!< Name */
 	char *desc;			/*!< Description */
 	char *exts;			/*!< Extension(s) (separated by '|' ) */
-	struct ast_format format; /*!< Image format */
+	struct ast_format *format; /*!< Image format */
 	struct ast_frame *(*read_image)(int fd, int len);	/*!< Read an image from a file descriptor */
 	int (*identify)(int fd);				/*!< Identify if this is that type of file */
 	int (*write_image)(int fd, struct ast_frame *frame);	/*!< Returns length written */

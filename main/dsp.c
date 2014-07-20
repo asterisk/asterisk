@@ -60,6 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <math.h>
 
 #include "asterisk/frame.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/channel.h"
 #include "asterisk/dsp.h"
 #include "asterisk/ulaw.h"
@@ -1183,7 +1184,7 @@ int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf)
 		ast_log(LOG_WARNING, "Can't check call progress of non-voice frames\n");
 		return 0;
 	}
-	if (!ast_format_is_slinear(&inf->subclass.format)) {
+	if (!ast_format_cache_is_slinear(inf->subclass.format)) {
 		ast_log(LOG_WARNING, "Can only check call progress in signed-linear frames\n");
 		return 0;
 	}
@@ -1408,30 +1409,29 @@ static int ast_dsp_silence_noise_with_energy(struct ast_dsp *dsp, struct ast_fra
 		ast_log(LOG_WARNING, "Can't calculate silence on a non-voice frame\n");
 		return 0;
 	}
-	if (!ast_format_is_slinear(&f->subclass.format)) {
-		odata = f->data.ptr;
-		len = f->datalen;
-		switch (f->subclass.format.id) {
-			case AST_FORMAT_ULAW:
-				s = ast_alloca(len * 2);
-				for (x = 0; x < len; x++) {
-					s[x] = AST_MULAW(odata[x]);
-				}
-				break;
-			case AST_FORMAT_ALAW:
-				s = ast_alloca(len * 2);
-				for (x = 0; x < len; x++) {
-					s[x] = AST_ALAW(odata[x]);
-				}
-				break;
-			default:
-				ast_log(LOG_WARNING, "Can only calculate silence on signed-linear, alaw or ulaw frames :(\n");
-			return 0;
-		}
-	} else {
+
+	if (ast_format_cache_is_slinear(f->subclass.format)) {
 		s = f->data.ptr;
 		len = f->datalen/2;
+	} else {
+		odata = f->data.ptr;
+		len = f->datalen;
+		if (ast_format_cmp(f->subclass.format, ast_format_ulaw)) {
+			s = ast_alloca(len * 2);
+			for (x = 0; x < len; x++) {
+				s[x] = AST_MULAW(odata[x]);
+			}
+		} else if (ast_format_cmp(f->subclass.format, ast_format_alaw)) {
+			s = ast_alloca(len * 2);
+			for (x = 0; x < len; x++) {
+				s[x] = AST_ALAW(odata[x]);
+			}
+		} else {
+			ast_log(LOG_WARNING, "Can only calculate silence on signed-linear, alaw or ulaw frames :(\n");
+			return 0;
+		}
 	}
+
 	if (noise) {
 		return __ast_dsp_silence_noise(dsp, s, len, NULL, total, frames_energy);
 	} else {
@@ -1476,31 +1476,26 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	odata = af->data.ptr;
 	len = af->datalen;
 	/* Make sure we have short data */
-	if (ast_format_is_slinear(&af->subclass.format)) {
+	if (ast_format_cache_is_slinear(af->subclass.format)) {
 		shortdata = af->data.ptr;
 		len = af->datalen / 2;
-	} else {
-		switch (af->subclass.format.id) {
-		case AST_FORMAT_ULAW:
-		case AST_FORMAT_TESTLAW:
-			shortdata = ast_alloca(af->datalen * 2);
-			for (x = 0; x < len; x++) {
-				shortdata[x] = AST_MULAW(odata[x]);
-			}
-			break;
-		case AST_FORMAT_ALAW:
-			shortdata = ast_alloca(af->datalen * 2);
-			for (x = 0; x < len; x++) {
-				shortdata[x] = AST_ALAW(odata[x]);
-			}
-			break;
-		default:
-			/*Display warning only once. Otherwise you would get hundreds of warnings every second */
-			if (dsp->display_inband_dtmf_warning)
-				ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(&af->subclass.format));
-			dsp->display_inband_dtmf_warning = 0;
-			return af;
+	} else if (ast_format_cmp(af->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
+		shortdata = ast_alloca(af->datalen * 2);
+		for (x = 0; x < len; x++) {
+			shortdata[x] = AST_MULAW(odata[x]);
 		}
+	} else if (ast_format_cmp(af->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
+		shortdata = ast_alloca(af->datalen * 2);
+		for (x = 0; x < len; x++) {
+			shortdata[x] = AST_ALAW(odata[x]);
+		}
+	} else {
+		/*Display warning only once. Otherwise you would get hundreds of warnings every second */
+		if (dsp->display_inband_dtmf_warning) {
+			ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_format_get_name(af->subclass.format));
+		}
+		dsp->display_inband_dtmf_warning = 0;
+		return af;
 	}
 
 	/* Initially we do not want to mute anything */
@@ -1629,19 +1624,14 @@ done:
 		memset(shortdata + dsp->mute_data[x].start, 0, sizeof(int16_t) * (dsp->mute_data[x].end - dsp->mute_data[x].start));
 	}
 
-	switch (af->subclass.format.id) {
-	case AST_FORMAT_ULAW:
+	if (ast_format_cmp(af->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
 		for (x = 0; x < len; x++) {
 			odata[x] = AST_LIN2MU((unsigned short) shortdata[x]);
 		}
-		break;
-	case AST_FORMAT_ALAW:
+	} else if (ast_format_cmp(af->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
 		for (x = 0; x < len; x++) {
 			odata[x] = AST_LIN2A((unsigned short) shortdata[x]);
 		}
-		/* fall through */
-	default:
-		break;
 	}
 
 	if (outf) {

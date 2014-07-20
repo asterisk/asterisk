@@ -37,9 +37,9 @@ int ooh323c_stop_stack_thread(void);
 int ooh323c_start_call_thread(ooCallData *call);
 int ooh323c_stop_call_thread(ooCallData *call);
 int ooh323c_set_capability
-   (struct ast_codec_pref *prefs, struct ast_format_cap *cap, int dtmf, int dtmfcodec);
-struct ast_format *convertH323CapToAsteriskCap(int cap, struct ast_format *format);
+   (struct ast_format_cap *cap, int dtmf, int dtmfcodec);
+struct ast_format *convertH323CapToAsteriskCap(int cap);
 int ooh323c_set_capability_for_call
-   (ooCallData *call, struct ast_codec_pref *prefs, struct ast_format_cap *cap, int dtmf, int dtmfcodec,
+   (ooCallData *call, struct ast_format_cap *cap, int dtmf, int dtmfcodec,
 	int t38support, int g729onlyA);
 #endif

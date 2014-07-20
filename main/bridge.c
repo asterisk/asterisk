@@ -934,61 +934,65 @@ int ast_bridge_destroy(struct ast_bridge *bridge, int cause)
 
 static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_format read_format;
-	struct ast_format write_format;
-	struct ast_format best_format;
-	char codec_buf[512];
+	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_format *read_format;
+	struct ast_format *write_format;
+	struct ast_format *best_format;
 
-	ast_format_copy(&read_format, ast_channel_readformat(bridge_channel->chan));
-	ast_format_copy(&write_format, ast_channel_writeformat(bridge_channel->chan));
+	read_format = ast_channel_readformat(bridge_channel->chan);
+	write_format = ast_channel_writeformat(bridge_channel->chan);
 
 	/* Are the formats currently in use something this bridge can handle? */
-	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, ast_channel_readformat(bridge_channel->chan))) {
-		ast_best_codec(bridge->technology->format_capabilities, &best_format);
+	if (ast_format_cap_iscompatible_format(bridge->technology->format_capabilities, read_format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		best_format = ast_format_cap_get_format(bridge->technology->format_capabilities, 0);
 
 		/* Read format is a no go... */
 		ast_debug(1, "Bridge technology %s wants to read any of formats %s but channel has %s\n",
 			bridge->technology->name,
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf), bridge->technology->format_capabilities),
-			ast_getformatname(&read_format));
+			ast_format_cap_get_names(bridge->technology->format_capabilities, &codec_buf),
+			ast_format_get_name(read_format));
 
 		/* Switch read format to the best one chosen */
-		if (ast_set_read_format(bridge_channel->chan, &best_format)) {
+		if (ast_set_read_format(bridge_channel->chan, best_format)) {
 			ast_log(LOG_WARNING, "Failed to set channel %s to read format %s\n",
-				ast_channel_name(bridge_channel->chan), ast_getformatname(&best_format));
+				ast_channel_name(bridge_channel->chan), ast_format_get_name(best_format));
+			ao2_cleanup(best_format);
 			return -1;
 		}
 		ast_debug(1, "Bridge %s put channel %s into read format %s\n",
 			bridge->uniqueid, ast_channel_name(bridge_channel->chan),
-			ast_getformatname(&best_format));
+			ast_format_get_name(best_format));
+		ao2_cleanup(best_format);
 	} else {
 		ast_debug(1, "Bridge %s is happy that channel %s already has read format %s\n",
 			bridge->uniqueid, ast_channel_name(bridge_channel->chan),
-			ast_getformatname(&read_format));
+			ast_format_get_name(read_format));
 	}
 
-	if (!ast_format_cap_iscompatible(bridge->technology->format_capabilities, &write_format)) {
-		ast_best_codec(bridge->technology->format_capabilities, &best_format);
+	if (ast_format_cap_iscompatible_format(bridge->technology->format_capabilities, write_format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		best_format = ast_format_cap_get_format(bridge->technology->format_capabilities, 0);
 
 		/* Write format is a no go... */
 		ast_debug(1, "Bridge technology %s wants to write any of formats %s but channel has %s\n",
 			bridge->technology->name,
-			ast_getformatname_multiple(codec_buf, sizeof(codec_buf), bridge->technology->format_capabilities),
-			ast_getformatname(&write_format));
+			ast_format_cap_get_names(bridge->technology->format_capabilities, &codec_buf),
+			ast_format_get_name(write_format));
 
 		/* Switch write format to the best one chosen */
-		if (ast_set_write_format(bridge_channel->chan, &best_format)) {
+		if (ast_set_write_format(bridge_channel->chan, best_format)) {
 			ast_log(LOG_WARNING, "Failed to set channel %s to write format %s\n",
-				ast_channel_name(bridge_channel->chan), ast_getformatname(&best_format));
+				ast_channel_name(bridge_channel->chan), ast_format_get_name(best_format));
+			ao2_cleanup(best_format);
 			return -1;
 		}
 		ast_debug(1, "Bridge %s put channel %s into write format %s\n",
 			bridge->uniqueid, ast_channel_name(bridge_channel->chan),
-			ast_getformatname(&best_format));
+			ast_format_get_name(best_format));
+		ao2_cleanup(best_format);
 	} else {
 		ast_debug(1, "Bridge %s is happy that channel %s already has write format %s\n",
 			bridge->uniqueid, ast_channel_name(bridge_channel->chan),
-			ast_getformatname(&write_format));
+			ast_format_get_name(write_format));
 	}
 
 	return 0;
@@ -3525,7 +3529,7 @@ void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct a
 	struct ast_bridge_video_talker_src_data *data;
 
 	/* If the channel doesn't support video, we don't care about it */
-	if (!ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_FORMAT_TYPE_VIDEO)) {
+	if (!ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_VIDEO)) {
 		return;
 	}
 

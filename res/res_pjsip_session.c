@@ -1069,8 +1069,8 @@ static void session_destructor(void *obj)
 	ast_party_id_free(&session->id);
 	ao2_cleanup(session->endpoint);
 	ao2_cleanup(session->contact);
-	ast_format_cap_destroy(session->req_caps);
-	ast_format_cap_destroy(session->direct_media_cap);
+	ao2_cleanup(session->req_caps);
+	ao2_cleanup(session->direct_media_cap);
 
 	if (session->dsp) {
 		ast_dsp_free(session->dsp);
@@ -1169,7 +1169,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	session->endpoint = ao2_bump(endpoint);
 	session->contact = ao2_bump(contact);
 	session->inv_session = inv_session;
-	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 
 	if (endpoint->dtmf == AST_SIP_DTMF_INBAND) {
 		dsp_features |= DSP_FEATURE_DIGIT_DETECT;
@@ -1197,7 +1197,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 			iter->session_begin(session);
 		}
 	}
-	session->direct_media_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
+	session->direct_media_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	AST_LIST_HEAD_INIT_NOLOCK(&session->delayed_requests);
 	ast_party_id_init(&session->id);
 	ao2_ref(session, +1);
@@ -1273,9 +1273,19 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 
-	if (!ast_format_cap_is_empty(req_caps)) {
-		ast_format_cap_copy(session->req_caps, session->endpoint->media.codecs);
-		ast_format_cap_append(session->req_caps, req_caps);
+	if (ast_format_cap_count(req_caps)) {
+		/* get joint caps between req_caps and endpoint caps */
+		struct ast_format_cap *joint_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		ast_format_cap_get_compatible(req_caps, session->endpoint->media.codecs, joint_caps);
+
+		/* if joint caps */
+		if (ast_format_cap_count(joint_caps)) {
+			/* copy endpoint caps into session->req_caps */
+			ast_format_cap_append_from_cap(session->req_caps, session->endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
+			/* replace instances of joint caps equivalents in session->req_caps */
+			ast_format_cap_replace_from_cap(session->req_caps, joint_caps, AST_MEDIA_TYPE_UNKNOWN);
+		}
+		ao2_cleanup(joint_caps);
 	}
 
 	if ((pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS)) {

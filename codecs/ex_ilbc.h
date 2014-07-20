@@ -28,6 +28,7 @@ static struct ast_frame *ilbc_sample(void)
 		.data.ptr = ex_ilbc,
 	};
 
-	ast_format_set(&f.subclass.format, AST_FORMAT_ILBC, 0);
+	f.subclass.format = ast_format_ilbc;
+
 	return &f;
 }

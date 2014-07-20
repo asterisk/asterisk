@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge_technology.h"
 #include "asterisk/frame.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/format_cache.h"
 
 enum holding_roles {
 	HOLDING_ROLE_PARTICIPANT,
@@ -180,7 +181,7 @@ static void participant_reaction_announcer_join(struct ast_bridge_channel *bridg
 
 	chan = bridge_channel->chan;
 	participant_entertainment_stop(bridge_channel);
-	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR)) {
+	if (ast_set_write_format(chan, ast_format_slin)) {
 		ast_log(LOG_WARNING, "Could not make participant %s compatible.\n", ast_channel_name(chan));
 	}
 }
@@ -233,7 +234,7 @@ static void handle_participant_join(struct ast_bridge_channel *bridge_channel, s
 	}
 
 	/* We need to get compatible with the announcer. */
-	if (ast_set_write_format_by_id(us, AST_FORMAT_SLINEAR)) {
+	if (ast_set_write_format(us, ast_format_slin)) {
 		ast_log(LOG_WARNING, "Could not make participant %s compatible.\n", ast_channel_name(us));
 	}
 }
@@ -270,7 +271,7 @@ static int holding_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 		hc->role = HOLDING_ROLE_ANNOUNCER;
 
 		/* The announcer should always be made compatible with signed linear */
-		if (ast_set_read_format_by_id(us, AST_FORMAT_SLINEAR)) {
+		if (ast_set_read_format(us, ast_format_slin)) {
 			ast_log(LOG_ERROR, "Could not make announcer %s compatible.\n", ast_channel_name(us));
 		}
 
@@ -427,18 +428,19 @@ static void deferred_action(struct ast_bridge_channel *bridge_channel, const voi
 
 static int unload_module(void)
 {
-	ast_format_cap_destroy(holding_bridge.format_capabilities);
+	ao2_cleanup(holding_bridge.format_capabilities);
+	holding_bridge.format_capabilities = NULL;
 	return ast_bridge_technology_unregister(&holding_bridge);
 }
 
 static int load_module(void)
 {
-	if (!(holding_bridge.format_capabilities = ast_format_cap_alloc(0))) {
+	if (!(holding_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_add_all_by_type(holding_bridge.format_capabilities, AST_FORMAT_TYPE_AUDIO);
-	ast_format_cap_add_all_by_type(holding_bridge.format_capabilities, AST_FORMAT_TYPE_VIDEO);
-	ast_format_cap_add_all_by_type(holding_bridge.format_capabilities, AST_FORMAT_TYPE_TEXT);
+	ast_format_cap_append_by_type(holding_bridge.format_capabilities, AST_MEDIA_TYPE_AUDIO);
+	ast_format_cap_append_by_type(holding_bridge.format_capabilities, AST_MEDIA_TYPE_VIDEO);
+	ast_format_cap_append_by_type(holding_bridge.format_capabilities, AST_MEDIA_TYPE_TEXT);
 
 	return ast_bridge_technology_register(&holding_bridge);
 }

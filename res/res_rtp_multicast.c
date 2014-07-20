@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/unaligned.h"
 #include "asterisk/module.h"
 #include "asterisk/rtp_engine.h"
+#include "asterisk/format_cache.h"
 
 /*! Command value used for Linksys paging to indicate we are starting */
 #define LINKSYS_MCAST_STARTCMD 6
@@ -144,7 +145,8 @@ static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched
 
 static int rtp_get_rate(struct ast_format *format)
 {
-        return (format->id == AST_FORMAT_G722) ? 8000 : ast_format_rate(format);
+	return ast_format_cmp(format, ast_format_g722) == AST_FORMAT_CMP_EQUAL ?
+		8000 : ast_format_get_sample_rate(format);
 }
 
 static unsigned int calc_txstamp(struct multicast_rtp *rtp, struct timeval *delivery)
@@ -237,7 +239,7 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 	int hdrlen = 12, res = 0, codec;
 	unsigned char *rtpheader;
 	unsigned int ms = calc_txstamp(multicast, &frame->delivery);
-	int rate = rtp_get_rate(&frame->subclass.format) / 1000;
+	int rate = rtp_get_rate(frame->subclass.format) / 1000;
 
 	/* We only accept audio, nothing else */
 	if (frame->frametype != AST_FRAME_VOICE) {
@@ -245,7 +247,7 @@ static int multicast_rtp_write(struct ast_rtp_instance *instance, struct ast_fra
 	}
 
 	/* Grab the actual payload number for when we create the RTP packet */
-	if ((codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 1, &frame->subclass.format, 0)) < 0) {
+	if ((codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 1, frame->subclass.format, 0)) < 0) {
 		return -1;
 	}
 

@@ -42,25 +42,64 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static struct ast_translator *translators;
 static int trans_size;
-static int id_list[] = {
-	AST_FORMAT_SLINEAR,
-	AST_FORMAT_SLINEAR12,
-	AST_FORMAT_SLINEAR16,
-	AST_FORMAT_SLINEAR24,
-	AST_FORMAT_SLINEAR32,
-	AST_FORMAT_SLINEAR44,
-	AST_FORMAT_SLINEAR48,
-	AST_FORMAT_SLINEAR96,
-	AST_FORMAT_SLINEAR192,
+static struct ast_codec codec_list[] = {
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 8000,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 12000,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 16000,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 24000,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 32000,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 44100,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 48000,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 96000,
+	},
+	{
+		.name = "slin",
+		.type = AST_MEDIA_TYPE_AUDIO,
+		.sample_rate = 192000,
+	},
 };
 
 static int resamp_new(struct ast_trans_pvt *pvt)
 {
 	int err;
 
-	if (!(pvt->pvt = speex_resampler_init(1, ast_format_rate(&pvt->t->src_format), ast_format_rate(&pvt->t->dst_format), 5, &err))) {
+	if (!(pvt->pvt = speex_resampler_init(1, pvt->t->src_codec.sample_rate, pvt->t->dst_codec.sample_rate, 5, &err))) {
 		return -1;
 	}
+
+	ast_assert(pvt->f.subclass.format == NULL);
+	pvt->f.subclass.format = ao2_bump(ast_format_cache_get_slin_by_rate(pvt->t->dst_codec.sample_rate));
 
 	return 0;
 }
@@ -68,6 +107,7 @@ static int resamp_new(struct ast_trans_pvt *pvt)
 static void resamp_destroy(struct ast_trans_pvt *pvt)
 {
 	SpeexResamplerState *resamp_pvt = pvt->pvt;
+
 	speex_resampler_destroy(resamp_pvt);
 }
 
@@ -113,13 +153,13 @@ static int load_module(void)
 	int res = 0;
 	int x, y, idx = 0;
 
-	trans_size = ARRAY_LEN(id_list) * (ARRAY_LEN(id_list) - 1);
+	trans_size = ARRAY_LEN(codec_list) * (ARRAY_LEN(codec_list) - 1);
 	if (!(translators = ast_calloc(1, sizeof(struct ast_translator) * trans_size))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	for (x = 0; x < ARRAY_LEN(id_list); x++) {
-		for (y = 0; y < ARRAY_LEN(id_list); y++) {
+	for (x = 0; x < ARRAY_LEN(codec_list); x++) {
+		for (y = 0; y < ARRAY_LEN(codec_list); y++) {
 			if (x == y) {
 				continue;
 			}
@@ -129,10 +169,10 @@ static int load_module(void)
 			translators[idx].desc_size = 0;
 			translators[idx].buffer_samples = (OUTBUF_SIZE / sizeof(int16_t));
 			translators[idx].buf_size = OUTBUF_SIZE;
-			ast_format_set(&translators[idx].src_format, id_list[x], 0);
-			ast_format_set(&translators[idx].dst_format, id_list[y], 0);
-			snprintf(translators[idx].name, sizeof(translators[idx].name), "slin %dkhz -> %dkhz",
-				ast_format_rate(&translators[idx].src_format), ast_format_rate(&translators[idx].dst_format));
+			memcpy(&translators[idx].src_codec, &codec_list[x], sizeof(struct ast_codec));
+			memcpy(&translators[idx].dst_codec, &codec_list[y], sizeof(struct ast_codec));
+			snprintf(translators[idx].name, sizeof(translators[idx].name), "slin %ukhz -> %ukhz",
+				translators[idx].src_codec.sample_rate, translators[idx].dst_codec.sample_rate);
 			res |= ast_register_translator(&translators[idx]);
 			idx++;
 		}

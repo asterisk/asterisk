@@ -77,6 +77,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/json.h"
+#include "asterisk/format_compatibility.h"
 
 #include "enter.h"
 #include "leave.h"
@@ -1606,8 +1607,7 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 	struct ast_conference *cnf;
 	struct dahdi_confinfo dahdic = { 0, };
 	int confno_int = 0;
-	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-	struct ast_format tmp_fmt;
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 
 	AST_LIST_LOCK(&confs);
 
@@ -1619,7 +1619,7 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 	if (cnf || (!make && !dynamic) || !cap_slin)
 		goto cnfout;
 
-	ast_format_cap_add(cap_slin, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap_slin, ast_format_slin, 0);
 	/* Make a new one */
 	if (!(cnf = ast_calloc(1, sizeof(*cnf))) ||
 		!(cnf->usercontainer = ao2_container_alloc(1, NULL, user_no_cmp))) {
@@ -1667,8 +1667,8 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 	/* Setup a new channel for playback of audio files */
 	cnf->chan = ast_request("DAHDI", cap_slin, NULL, chan, "pseudo", NULL);
 	if (cnf->chan) {
-		ast_set_read_format_by_id(cnf->chan, AST_FORMAT_SLINEAR);
-		ast_set_write_format_by_id(cnf->chan, AST_FORMAT_SLINEAR);
+		ast_set_read_format(cnf->chan, ast_format_slin);
+		ast_set_write_format(cnf->chan, ast_format_slin);
 		dahdic.chan = 0;
 		dahdic.confno = cnf->dahdiconf;
 		dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
@@ -1704,7 +1704,7 @@ static struct ast_conference *build_conf(const char *confno, const char *pin,
 		conf_map[confno_int] = 1;
 	
 cnfout:
-	cap_slin = ast_format_cap_destroy(cap_slin);
+	ao2_cleanup(cap_slin);
 	if (cnf)
 		ast_atomic_fetchadd_int(&cnf->refcount, refcount);
 
@@ -3089,8 +3089,8 @@ static void meetme_menu_admin_extended(enum menu_modes *menu_mode, int *dtmf,
 			if ((conf->recordthread == AST_PTHREADT_NULL) && ast_test_flag64(confflags, CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("DAHDI", cap_slin, NULL, chan, "pseudo", NULL)))) {
 				struct dahdi_confinfo dahdic;
 
-				ast_set_read_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
-				ast_set_write_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
+				ast_set_read_format(conf->lchan, ast_format_slin);
+				ast_set_write_format(conf->lchan, ast_format_slin);
 				dahdic.chan = 0;
 				dahdic.confno = conf->dahdiconf;
 				dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
@@ -3217,13 +3217,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	int setusercount = 0;
 	int confsilence = 0, totalsilence = 0;
 	char *mailbox, *context;
-	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
-	struct ast_format tmpfmt;
+	struct ast_format_cap *cap_slin = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 
 	if (!cap_slin) {
 		goto conf_run_cleanup;
 	}
-	ast_format_cap_add(cap_slin, ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR, 0));
+	ast_format_cap_append(cap_slin, ast_format_slin, 0);
 
 	if (!(user = ao2_alloc(sizeof(*user), NULL))) {
 		goto conf_run_cleanup;
@@ -3345,8 +3344,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	ast_mutex_lock(&conf->recordthreadlock);
 	if ((conf->recordthread == AST_PTHREADT_NULL) && ast_test_flag64(confflags, CONFFLAG_RECORDCONF) &&
 		((conf->lchan = ast_request("DAHDI", cap_slin, NULL, chan, "pseudo", NULL)))) {
-		ast_set_read_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
-		ast_set_write_format_by_id(conf->lchan, AST_FORMAT_SLINEAR);
+		ast_set_read_format(conf->lchan, ast_format_slin);
+		ast_set_write_format(conf->lchan, ast_format_slin);
 		dahdic.chan = 0;
 		dahdic.confno = conf->dahdiconf;
 		dahdic.confmode = DAHDI_CONF_CONFANN | DAHDI_CONF_CONFANNMON;
@@ -3572,12 +3571,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		ast_indicate(chan, -1);
 	}
 
-	if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
+	if (ast_set_write_format(chan, ast_format_slin) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", ast_channel_name(chan));
 		goto outrun;
 	}
 
-	if (ast_set_read_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
+	if (ast_set_read_format(chan, ast_format_slin) < 0) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", ast_channel_name(chan));
 		goto outrun;
 	}
@@ -4131,7 +4130,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 					dtmfstr[1] = '\0';
 				}
 
-				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass.format.id == AST_FORMAT_SLINEAR)) {
+				if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)) {
 					if (user->talk.actual) {
 						ast_frame_adjust_volume(f, user->talk.actual);
 					}
@@ -4289,7 +4288,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 				if (res > 0) {
 					memset(&fr, 0, sizeof(fr));
 					fr.frametype = AST_FRAME_VOICE;
-					ast_format_set(&fr.subclass.format, AST_FORMAT_SLINEAR, 0);
+					fr.subclass.format = ast_format_slin;
 					fr.datalen = res;
 					fr.samples = res / 2;
 					fr.data.ptr = buf;
@@ -4301,7 +4300,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						 )) {
 						int idx;
 						for (idx = 0; idx < AST_FRAME_BITS; idx++) {
-							if (ast_format_to_old_bitfield(ast_channel_rawwriteformat(chan)) & (1 << idx)) {
+							if (ast_format_compatibility_format2bitfield(ast_channel_rawwriteformat(chan)) & (1 << idx)) {
 								break;
 							}
 						}
@@ -4319,11 +4318,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 									mohtempstopped = 1;
 								}
 								if (!conf->transpath[idx]) {
-									struct ast_format src;
-									struct ast_format dst;
-									ast_format_set(&src, AST_FORMAT_SLINEAR, 0);
-									ast_format_from_old_bitfield(&dst, (1 << idx));
-									conf->transpath[idx] = ast_translator_build_path(&dst, &src);
+									conf->transpath[idx] = ast_translator_build_path(ast_channel_rawwriteformat(chan), ast_format_slin);
 								}
 								if (conf->transpath[idx]) {
 									conf->transframe[idx] = ast_translate(conf->transpath[idx], conf->origframe, 0);
@@ -4485,7 +4480,7 @@ bailoutandtrynormal:
 
 
 conf_run_cleanup:
-	cap_slin = ast_format_cap_destroy(cap_slin);
+	ao2_cleanup(cap_slin);
 
 	return ret;
 }

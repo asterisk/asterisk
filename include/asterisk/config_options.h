@@ -317,21 +317,20 @@ enum aco_option_type {
 	 */
 	OPT_CHAR_ARRAY_T,
 
-	/*! \brief Type for default option handler for codec preferences/capabilities
+	/*! \brief Type for default option handler for format capabilities
 	 * \note aco_option_register flags:
 	 *   non-zero : This is an "allow" style option
 	 *   0        : This is a "disallow" style option
 	 * aco_option_register varargs:
-	 *   FLDSET macro with fields representing a struct ast_codec_pref and a struct ast_format_cap *
+	 *   FLDSET macro with field representing a struct ast_format_cap *
 	 *
 	 * Example:
 	 * {code}
 	 * struct test_item {
-	 *     struct ast_codec_pref pref;
 	 *     struct ast_format cap *cap;
 	 * };
-	 * aco_option_register(&cfg_info, "allow", ACO_EXACT, my_types, "ulaw,alaw", OPT_CODEC_T, 1, FLDSET(struct test_item, pref, cap));
-	 * aco_option_register(&cfg_info, "disallow", ACO_EXACT, my_types, "all", OPT_CODEC_T, 0, FLDSET(struct test_item, pref, cap));
+	 * aco_option_register(&cfg_info, "allow", ACO_EXACT, my_types, "ulaw,alaw", OPT_CODEC_T, 1, FLDSET(struct test_item, cap));
+	 * aco_option_register(&cfg_info, "disallow", ACO_EXACT, my_types, "all", OPT_CODEC_T, 0, FLDSET(struct test_item, cap));
 	 * {endcode}
 	 */
 	OPT_CODEC_T,

@@ -57,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/indications.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/features_config.h"
 #include "asterisk/pickup.h"
@@ -210,7 +211,7 @@ static void chan_pjsip_get_codec(struct ast_channel *chan, struct ast_format_cap
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 
-	ast_format_cap_copy(result, channel->session->endpoint->media.codecs);
+	ast_format_cap_append_from_cap(result, channel->session->endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
 }
 
 static int send_direct_media_request(void *data)
@@ -325,8 +326,9 @@ static int chan_pjsip_set_rtp_peer(struct ast_channel *chan,
 		return 0;
 	}
 
-	if (cap && !ast_format_cap_is_empty(cap) && !ast_format_cap_identical(session->direct_media_cap, cap)) {
-		ast_format_cap_copy(session->direct_media_cap, cap);
+	if (cap && ast_format_cap_count(cap) && !ast_format_cap_identical(session->direct_media_cap, cap)) {
+		ast_format_cap_remove_by_type(session->direct_media_cap, AST_MEDIA_TYPE_UNKNOWN);
+		ast_format_cap_append_from_cap(session->direct_media_cap, cap, AST_MEDIA_TYPE_UNKNOWN);
 		changed = 1;
 	}
 
@@ -355,7 +357,8 @@ static struct ast_rtp_glue chan_pjsip_rtp_glue = {
 static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int state, const char *exten, const char *title, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *cid_name)
 {
 	struct ast_channel *chan;
-	struct ast_format fmt;
+	struct ast_format_cap *caps;
+	struct ast_format *fmt;
 	RAII_VAR(struct chan_pjsip_pvt *, pvt, NULL, ao2_cleanup);
 	struct ast_sip_channel_pvt *channel;
 	struct ast_variable *var;
@@ -363,19 +366,21 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	if (!(pvt = ao2_alloc(sizeof(*pvt), chan_pjsip_pvt_dtor))) {
 		return NULL;
 	}
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		return NULL;
+	}
 
-
-	chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""),
-	                         session->endpoint->accountcode, "", "", assignedids,
-	                         requestor, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
-	                         (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
-	if (!chan) {
+	if (!(chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""), session->endpoint->accountcode, "", "", assignedids, requestor, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
+		(unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1)))) {
+		ao2_ref(caps, -1);
 		return NULL;
 	}
 
 	ast_channel_tech_set(chan, &chan_pjsip_tech);
 
 	if (!(channel = ast_sip_channel_pvt_alloc(pvt, session))) {
+		ao2_ref(caps, -1);
 		ast_channel_unlock(chan);
 		ast_hangup(chan);
 		return NULL;
@@ -391,17 +396,21 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 
 	ast_channel_tech_pvt_set(chan, channel);
 
-	if (ast_format_cap_is_empty(session->req_caps) || !ast_format_cap_has_joint(session->req_caps, session->endpoint->media.codecs)) {
-		ast_format_cap_copy(ast_channel_nativeformats(chan), session->endpoint->media.codecs);
+	if (!ast_format_cap_count(session->req_caps) ||
+		!ast_format_cap_iscompatible(session->req_caps, session->endpoint->media.codecs)) {
+		ast_format_cap_append_from_cap(caps, session->endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
 	} else {
-		ast_format_cap_copy(ast_channel_nativeformats(chan), session->req_caps);
+		ast_format_cap_append_from_cap(caps, session->req_caps, AST_MEDIA_TYPE_UNKNOWN);
 	}
 
-	ast_codec_choose(&session->endpoint->media.prefs, ast_channel_nativeformats(chan), 1, &fmt);
-	ast_format_copy(ast_channel_writeformat(chan), &fmt);
-	ast_format_copy(ast_channel_rawwriteformat(chan), &fmt);
-	ast_format_copy(ast_channel_readformat(chan), &fmt);
-	ast_format_copy(ast_channel_rawreadformat(chan), &fmt);
+	ast_channel_nativeformats_set(chan, caps);
+	fmt = ast_format_cap_get_format(caps, 0);
+	ast_channel_set_writeformat(chan, fmt);
+	ast_channel_set_rawwriteformat(chan, fmt);
+	ast_channel_set_readformat(chan, fmt);
+	ast_channel_set_rawreadformat(chan, fmt);
+	ao2_ref(fmt, -1);
+	ao2_ref(caps, -1);
 
 	if (state == AST_STATE_RING) {
 		ast_channel_rings_set(chan, 1);
@@ -584,9 +593,18 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 		return f;
 	}
 
-	if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &f->subclass.format))) {
-		ast_debug(1, "Oooh, format changed to %s\n", ast_getformatname(&f->subclass.format));
-		ast_format_cap_set(ast_channel_nativeformats(ast), &f->subclass.format);
+	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		struct ast_format_cap *caps;
+
+		ast_debug(1, "Oooh, format changed to %s\n", ast_format_get_name(f->subclass.format));
+
+		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		if (caps) {
+			ast_format_cap_append(caps, f->subclass.format, 0);
+			ast_channel_nativeformats_set(ast, caps);
+			ao2_ref(caps, -1);
+		}
+
 		ast_set_read_format(ast, ast_channel_readformat(ast));
 		ast_set_write_format(ast, ast_channel_writeformat(ast));
 	}
@@ -623,15 +641,15 @@ static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (!media) {
 			return 0;
 		}
-		if (!(ast_format_cap_iscompatible(ast_channel_nativeformats(ast), &frame->subclass.format))) {
-			char buf[256];
+		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+			struct ast_str *cap_buf = ast_str_alloca(64);
 
 			ast_log(LOG_WARNING,
 				"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
-				ast_getformatname(&frame->subclass.format),
-				ast_getformatname_multiple(buf, sizeof(buf), ast_channel_nativeformats(ast)),
-				ast_getformatname(ast_channel_readformat(ast)),
-				ast_getformatname(ast_channel_writeformat(ast)));
+				ast_format_get_name(frame->subclass.format),
+				ast_format_cap_get_names(ast_channel_nativeformats(ast), &cap_buf),
+				ast_format_get_name(ast_channel_readformat(ast)),
+				ast_format_get_name(ast_channel_writeformat(ast)));
 			return 0;
 		}
 		if (media->rtp) {
@@ -1127,10 +1145,8 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		if (media && media->rtp) {
 			/* FIXME: Only use this for VP8. Additional work would have to be done to
 			 * fully support other video codecs */
-			struct ast_format_cap *fcap = ast_channel_nativeformats(ast);
-			struct ast_format vp8;
-			ast_format_set(&vp8, AST_FORMAT_VP8, 0);
-			if (ast_format_cap_iscompatible(fcap, &vp8)) {
+
+			if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), ast_format_vp8) != AST_FORMAT_CMP_NOT_EQUAL) {
 				/* FIXME Fake RTP write, this will be sent as an RTCP packet. Ideally the
 				 * RTP engine would provide a way to externally write/schedule RTCP
 				 * packets */
@@ -2162,11 +2178,11 @@ static int load_module(void)
 {
 	struct ao2_container *endpoints;
 
-	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc(0))) {
+	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_format_cap_add_all_by_type(chan_pjsip_tech.capabilities, AST_FORMAT_TYPE_AUDIO);
+	ast_format_cap_append_by_type(chan_pjsip_tech.capabilities, AST_MEDIA_TYPE_AUDIO);
 
 	ast_rtp_glue_register(&chan_pjsip_rtp_glue);
 
@@ -2259,6 +2275,7 @@ static int unload_module(void)
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
 
 	ast_channel_unregister(&chan_pjsip_tech);
+	ao2_ref(chan_pjsip_tech.capabilities, -1);
 	ast_rtp_glue_unregister(&chan_pjsip_rtp_glue);
 
 	return 0;
