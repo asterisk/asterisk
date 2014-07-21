@@ -2638,9 +2638,7 @@ static void *__analog_ss_thread(void *data)
 	}
 	ast_hangup(chan);
 quit:
-	if (smdi_msg) {
-		ASTOBJ_UNREF(smdi_msg, ast_smdi_md_message_destroy);
-	}
+	ao2_cleanup(smdi_msg);
 	analog_decrease_ss_count();
 	return NULL;
 }

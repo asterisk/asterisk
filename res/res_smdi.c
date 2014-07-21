@@ -59,7 +59,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_API_MODULE
 #include "asterisk/smdi.h"
 #include "asterisk/config.h"
-#include "asterisk/astobj.h"
 #include "asterisk/io.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
@@ -167,22 +166,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char config_file[] = "smdi.conf";
 static int smdi_loaded;
 
-/*! \brief SMDI message desk message queue. */
-struct ast_smdi_md_queue {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_smdi_md_message);
-};
-
-/*! \brief SMDI message waiting indicator message queue. */
-struct ast_smdi_mwi_queue {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_smdi_mwi_message);
-};
-
 struct ast_smdi_interface {
-	ASTOBJ_COMPONENTS_FULL(struct ast_smdi_interface, SMDI_MAX_FILENAME_LEN, 1);
-	struct ast_smdi_md_queue md_q;
+	char name[SMDI_MAX_FILENAME_LEN];
+	struct ao2_container *md_q;
 	ast_mutex_t md_q_lock;
 	ast_cond_t md_q_cond;
-	struct ast_smdi_mwi_queue mwi_q;
+	struct ao2_container *mwi_q;
 	ast_mutex_t mwi_q_lock;
 	ast_cond_t mwi_q_cond;
 	FILE *file;
@@ -193,10 +182,7 @@ struct ast_smdi_interface {
 	long msg_expiry;
 };
 
-/*! \brief SMDI interface container. */
-static struct ast_smdi_interface_container {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_smdi_interface);
-} smdi_ifaces;
+static AO2_GLOBAL_OBJ_STATIC(smdi_ifaces);
 
 /*! \brief A mapping between an SMDI mailbox ID and an Asterisk mailbox */
 struct mailbox_mapping {
@@ -237,37 +223,32 @@ static struct {
 	.thread = AST_PTHREADT_NULL,
 };
 
-static void ast_smdi_interface_destroy(struct ast_smdi_interface *iface)
+static void smdi_interface_destroy(void *obj)
 {
+	struct ast_smdi_interface *iface = obj;
+
 	if (iface->thread != AST_PTHREADT_NULL && iface->thread != AST_PTHREADT_STOP) {
 		pthread_cancel(iface->thread);
 		pthread_join(iface->thread, NULL);
 	}
-	
-	iface->thread = AST_PTHREADT_STOP;
-	
-	if (iface->file) 
-		fclose(iface->file);
-	
-	ASTOBJ_CONTAINER_DESTROYALL(&iface->md_q, ast_smdi_md_message_destroy);
-	ASTOBJ_CONTAINER_DESTROYALL(&iface->mwi_q, ast_smdi_mwi_message_destroy);
-	ASTOBJ_CONTAINER_DESTROY(&iface->md_q);
-	ASTOBJ_CONTAINER_DESTROY(&iface->mwi_q);
 
+	iface->thread = AST_PTHREADT_STOP;
+
+	if (iface->file) {
+		fclose(iface->file);
+	}
+
+	ao2_cleanup(iface->md_q);
 	ast_mutex_destroy(&iface->md_q_lock);
 	ast_cond_destroy(&iface->md_q_cond);
 
+	ao2_cleanup(iface->mwi_q);
 	ast_mutex_destroy(&iface->mwi_q_lock);
 	ast_cond_destroy(&iface->mwi_q_cond);
 
 	free(iface);
 
 	ast_module_unref(ast_module_info->self);
-}
-
-void AST_OPTIONAL_API_NAME(ast_smdi_interface_unref)(struct ast_smdi_interface *iface)
-{
-	ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 }
 
 /*! 
@@ -279,7 +260,7 @@ void AST_OPTIONAL_API_NAME(ast_smdi_interface_unref)(struct ast_smdi_interface *
 static void ast_smdi_md_message_push(struct ast_smdi_interface *iface, struct ast_smdi_md_message *md_msg)
 {
 	ast_mutex_lock(&iface->md_q_lock);
-	ASTOBJ_CONTAINER_LINK_END(&iface->md_q, md_msg);
+	ao2_link(iface->md_q, md_msg);
 	ast_cond_broadcast(&iface->md_q_cond);
 	ast_mutex_unlock(&iface->md_q_lock);
 }
@@ -293,7 +274,7 @@ static void ast_smdi_md_message_push(struct ast_smdi_interface *iface, struct as
 static void ast_smdi_mwi_message_push(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *mwi_msg)
 {
 	ast_mutex_lock(&iface->mwi_q_lock);
-	ASTOBJ_CONTAINER_LINK_END(&iface->mwi_q, mwi_msg);
+	ao2_link(iface->mwi_q, mwi_msg);
 	ast_cond_broadcast(&iface->mwi_q_cond);
 	ast_mutex_unlock(&iface->mwi_q_lock);
 }
@@ -308,7 +289,7 @@ static int smdi_toggle_mwi(struct ast_smdi_interface *iface, const char *mailbox
 		return 1;
 	}
 
-	ASTOBJ_WRLOCK(iface);
+	ao2_wrlock(iface);
 
 	fprintf(file, "%s:MWI ", on ? "OP" : "RMV");
 
@@ -319,7 +300,7 @@ static int smdi_toggle_mwi(struct ast_smdi_interface *iface, const char *mailbox
 
 	fclose(file);
 
-	ASTOBJ_UNLOCK(iface);
+	ao2_unlock(iface);
 	ast_debug(1, "Sent MWI set message for %s on %s\n", mailbox, iface->name);
 
 	return 0;
@@ -333,22 +314,6 @@ int AST_OPTIONAL_API_NAME(ast_smdi_mwi_set)(struct ast_smdi_interface *iface, co
 int AST_OPTIONAL_API_NAME(ast_smdi_mwi_unset)(struct ast_smdi_interface *iface, const char *mailbox)
 {
 	return smdi_toggle_mwi(iface, mailbox, 0);
-}
-
-void AST_OPTIONAL_API_NAME(ast_smdi_md_message_putback)(struct ast_smdi_interface *iface, struct ast_smdi_md_message *md_msg)
-{
-	ast_mutex_lock(&iface->md_q_lock);
-	ASTOBJ_CONTAINER_LINK_START(&iface->md_q, md_msg);
-	ast_cond_broadcast(&iface->md_q_cond);
-	ast_mutex_unlock(&iface->md_q_lock);
-}
-
-void AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_putback)(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *mwi_msg)
-{
-	ast_mutex_lock(&iface->mwi_q_lock);
-	ASTOBJ_CONTAINER_LINK_START(&iface->mwi_q, mwi_msg);
-	ast_cond_broadcast(&iface->mwi_q_cond);
-	ast_mutex_unlock(&iface->mwi_q_lock);
 }
 
 enum smdi_message_type {
@@ -384,10 +349,11 @@ static inline void *unlink_from_msg_q(struct ast_smdi_interface *iface, enum smd
 {
 	switch (type) {
 	case SMDI_MWI:
-		return ASTOBJ_CONTAINER_UNLINK_START(&iface->mwi_q);
+		return ao2_callback(iface->mwi_q, OBJ_UNLINK, NULL, NULL);
 	case SMDI_MD:
-		return ASTOBJ_CONTAINER_UNLINK_START(&iface->md_q);
+		return ao2_callback(iface->md_q, OBJ_UNLINK, NULL, NULL);
 	}
+
 	return NULL;
 }
 
@@ -406,21 +372,6 @@ static inline struct timeval msg_timestamp(void *msg, enum smdi_message_type typ
 	return ast_tv(0, 0);
 }
 
-static inline void unref_msg(void *msg, enum smdi_message_type type)
-{
-	struct ast_smdi_md_message *md_msg = msg;
-	struct ast_smdi_mwi_message *mwi_msg = msg;
-
-	switch (type) {
-	case SMDI_MWI:
-		ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
-		break;
-	case SMDI_MD:
-		ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
-		break;
-	}
-}
-
 static void purge_old_messages(struct ast_smdi_interface *iface, enum smdi_message_type type)
 {
 	struct timeval now = ast_tvnow();
@@ -437,7 +388,7 @@ static void purge_old_messages(struct ast_smdi_interface *iface, enum smdi_messa
 
 		if (elapsed > iface->msg_expiry) {
 			/* found an expired message */
-			unref_msg(msg, type);
+			ao2_ref(msg, -1);
 			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI %s message queue.  "
 				"Message was %ld milliseconds too old.\n",
 				iface->name, (type == SMDI_MD) ? "MD" : "MWI", 
@@ -456,7 +407,7 @@ static void purge_old_messages(struct ast_smdi_interface *iface, enum smdi_messa
 				ast_smdi_mwi_message_push(iface, msg);
 				break;
 			}
-			unref_msg(msg, type);
+			ao2_ref(msg, -1);
 			break;
 		}
 	}
@@ -490,57 +441,33 @@ static void *smdi_msg_find(struct ast_smdi_interface *iface,
 	switch (type) {
 	case SMDI_MD:
 		if (ast_strlen_zero(search_key)) {
-			struct ast_smdi_md_message *md_msg = NULL;
-
 			/* No search key provided (the code from chan_dahdi does this).
 			 * Just pop the top message off of the queue. */
 
-			ASTOBJ_CONTAINER_TRAVERSE(&iface->md_q, !md_msg, do {
-				md_msg = ASTOBJ_REF(iterator);
-			} while (0); );
-
-			msg = md_msg;
+			msg = ao2_callback(iface->md_q, 0, NULL, NULL);
 		} else if (ast_test_flag(&options, OPT_SEARCH_TERMINAL)) {
-			struct ast_smdi_md_message *md_msg = NULL;
-
 			/* Searching by the message desk terminal */
-
-			ASTOBJ_CONTAINER_TRAVERSE(&iface->md_q, !md_msg, do {
-				if (!strcasecmp(iterator->mesg_desk_term, search_key))
-					md_msg = ASTOBJ_REF(iterator);
-			} while (0); );
-
-			msg = md_msg;
+			struct ast_smdi_md_message md_msg = { .name = "" };
+			strncpy(md_msg.mesg_desk_term, search_key, SMDI_MESG_DESK_TERM_LEN);
+			msg = ao2_find(iface->md_q, &md_msg, OBJ_SEARCH_OBJECT);
 		} else if (ast_test_flag(&options, OPT_SEARCH_NUMBER)) {
-			struct ast_smdi_md_message *md_msg = NULL;
-
 			/* Searching by the message desk number */
-
-			ASTOBJ_CONTAINER_TRAVERSE(&iface->md_q, !md_msg, do {
-				if (!strcasecmp(iterator->mesg_desk_num, search_key))
-					md_msg = ASTOBJ_REF(iterator);
-			} while (0); );
-
-			msg = md_msg;
+			struct ast_smdi_md_message md_msg = { .name = "" };
+			strncpy(md_msg.mesg_desk_num, search_key, SMDI_MESG_DESK_NUM_LEN);
+			msg = ao2_find(iface->md_q, &md_msg, OBJ_SEARCH_OBJECT);
 		} else {
 			/* Searching by the forwarding station */
-			msg = ASTOBJ_CONTAINER_FIND(&iface->md_q, search_key);
+			msg = ao2_find(iface->md_q, search_key, OBJ_SEARCH_KEY);
 		}
 		break;
 	case SMDI_MWI:
 		if (ast_strlen_zero(search_key)) {
-			struct ast_smdi_mwi_message *mwi_msg = NULL;
-
 			/* No search key provided (the code from chan_dahdi does this).
 			 * Just pop the top message off of the queue. */
 
-			ASTOBJ_CONTAINER_TRAVERSE(&iface->mwi_q, !mwi_msg, do {
-				mwi_msg = ASTOBJ_REF(iterator);
-			} while (0); );
-
-			msg = mwi_msg;
+			msg = ao2_callback(iface->mwi_q, 0, NULL, NULL);
 		} else {
-			msg = ASTOBJ_CONTAINER_FIND(&iface->mwi_q, search_key);
+			msg = ao2_find(iface->mwi_q, search_key, OBJ_SEARCH_KEY);
 		}
 		break;
 	}
@@ -635,7 +562,16 @@ struct ast_smdi_mwi_message * AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_wait_st
 
 struct ast_smdi_interface * AST_OPTIONAL_API_NAME(ast_smdi_interface_find)(const char *iface_name)
 {
-	return (ASTOBJ_CONTAINER_FIND(&smdi_ifaces, iface_name));
+	struct ao2_container *c;
+	struct ast_smdi_interface *iface = NULL;
+
+	c = ao2_global_obj_ref(smdi_ifaces);
+	if (c) {
+		iface = ao2_find(c, iface_name, OBJ_SEARCH_KEY);
+		ao2_ref(c, -1);
+	}
+
+	return iface;
 }
 
 /*! 
@@ -675,11 +611,11 @@ static void *smdi_read(void *iface_p)
 			ast_debug(1, "Read a 'D' ... it's an MD message.\n");
 
 			if (!(md_msg = ast_calloc(1, sizeof(*md_msg)))) {
-				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
+				ao2_ref(iface, -1);
 				return NULL;
 			}
 
-			ASTOBJ_INIT(md_msg);
+			md_msg = ao2_alloc(sizeof(*md_msg), NULL);
 
 			/* read the message desk number */
 			for (i = 0; i < sizeof(md_msg->mesg_desk_num) - 1; i++) {
@@ -730,7 +666,7 @@ static void *smdi_read(void *iface_p)
 
 			ast_debug(1, "The forwarding station is '%s'\n", md_msg->fwd_st);
 
-			/* Put the fwd_st in the name field so that we can use ASTOBJ_FIND to look
+			/* Put the fwd_st in the name field so that we can use ao2_find to look
 			 * up a message on this field */
 			ast_copy_string(md_msg->name, md_msg->fwd_st, sizeof(md_msg->name));
 
@@ -769,7 +705,7 @@ static void *smdi_read(void *iface_p)
 			ast_smdi_md_message_push(iface, md_msg);
 			ast_debug(1, "Received SMDI MD message on %s\n", iface->name);
 
-			ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
+			ao2_ref(md_msg, -1);
 
 		} else if (c == 'W') { /* MWI message */
 			start = 0;
@@ -777,11 +713,11 @@ static void *smdi_read(void *iface_p)
 			ast_debug(1, "Read a 'W', it's an MWI message. (No more debug coming for MWI messages)\n");
 
 			if (!(mwi_msg = ast_calloc(1, sizeof(*mwi_msg)))) {
-				ASTOBJ_UNREF(iface,ast_smdi_interface_destroy);
+				ao2_ref(iface, -1);
 				return NULL;
 			}
 
-			ASTOBJ_INIT(mwi_msg);
+			mwi_msg = ao2_alloc(sizeof(*mwi_msg), NULL);
 
 			/* discard the 'I' (from 'MWI') */
 			fgetc(iface->file);
@@ -803,7 +739,7 @@ static void *smdi_read(void *iface_p)
 			mwi_msg->fwd_st[sizeof(mwi_msg->fwd_st) - 1] = '\0';
 			cp = NULL;
 
-			/* Put the fwd_st in the name field so that we can use ASTOBJ_FIND to look
+			/* Put the fwd_st in the name field so that we can use ao2_find to look
 			 * up a message on this field */
 			ast_copy_string(mwi_msg->name, mwi_msg->fwd_st, sizeof(mwi_msg->name));
 
@@ -818,7 +754,7 @@ static void *smdi_read(void *iface_p)
 			ast_smdi_mwi_message_push(iface, mwi_msg);
 			ast_debug(1, "Received SMDI MWI message on %s\n", iface->name);
 
-			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
+			ao2_ref(mwi_msg, -1);
 		} else {
 			ast_log(LOG_ERROR, "Unknown SMDI message type received on %s (M%c).\n", iface->name, c);
 			start = 0;
@@ -826,24 +762,14 @@ static void *smdi_read(void *iface_p)
 	}
 
 	ast_log(LOG_ERROR, "Error reading from SMDI interface %s, stopping listener thread\n", iface->name);
-	ASTOBJ_UNREF(iface,ast_smdi_interface_destroy);
+	ao2_ref(iface, -1);
 	return NULL;
-}
-
-void AST_OPTIONAL_API_NAME(ast_smdi_md_message_destroy)(struct ast_smdi_md_message *msg)
-{
-	ast_free(msg);
-}
-
-void AST_OPTIONAL_API_NAME(ast_smdi_mwi_message_destroy)(struct ast_smdi_mwi_message *msg)
-{
-	ast_free(msg);
 }
 
 static void destroy_mailbox_mapping(struct mailbox_mapping *mm)
 {
 	ast_string_field_free_memory(mm);
-	ASTOBJ_UNREF(mm->iface, ast_smdi_interface_destroy);
+	ao2_ref(mm->iface, -1);
 	free(mm);
 }
 
@@ -875,7 +801,7 @@ static void append_mailbox_mapping(struct ast_variable *var, struct ast_smdi_int
 	ast_string_field_set(mm, mailbox, mailbox);
 	ast_string_field_set(mm, context, context);
 
-	mm->iface = ASTOBJ_REF(iface);
+	mm->iface = ao2_bump(iface);
 
 	ast_mutex_lock(&mwi_monitor.lock);
 	AST_LIST_INSERT_TAIL(&mwi_monitor.mailbox_mappings, mm, entry);
@@ -931,16 +857,51 @@ static void *mwi_monitor_handler(void *data)
 	return NULL;
 }
 
+static int smdi_mwi_q_cmp_fn(void *obj, void *data, int flags)
+{
+	struct ast_smdi_mwi_message *msg = obj;
+	char *str = data;
+	return !strcmp(msg->name, str) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+static int smdi_md_q_cmp_fn(void *obj, void *arg, int flags)
+{
+	const struct ast_smdi_md_message *msg = obj;
+	const struct ast_smdi_md_message *search_msg = arg;
+	const char *search_key = arg;
+	int cmp = 0;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		if (search_msg->mesg_desk_num) {
+			cmp = strcmp(msg->mesg_desk_num, search_msg->mesg_desk_num);
+		}
+		if (search_msg->mesg_desk_term) {
+			cmp |= strcmp(msg->mesg_desk_term, search_msg->mesg_desk_term);
+		}
+		break;
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(msg->name, search_key);
+		break;
+	}
+
+	if (cmp) {
+		return 0;
+	}
+
+	return CMP_MATCH;
+}
+
 static struct ast_smdi_interface *alloc_smdi_interface(void)
 {
 	struct ast_smdi_interface *iface;
 
-	if (!(iface = ast_calloc(1, sizeof(*iface))))
+	if (!(iface = ao2_alloc(sizeof(*iface), smdi_interface_destroy))) {
 		return NULL;
+	}
 
-	ASTOBJ_INIT(iface);
-	ASTOBJ_CONTAINER_INIT(&iface->md_q);
-	ASTOBJ_CONTAINER_INIT(&iface->mwi_q);
+	iface->md_q = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, smdi_md_q_cmp_fn);
+	iface->mwi_q = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, smdi_mwi_q_cmp_fn);
 
 	ast_mutex_init(&iface->md_q_lock);
 	ast_cond_init(&iface->md_q_cond, NULL);
@@ -949,6 +910,14 @@ static struct ast_smdi_interface *alloc_smdi_interface(void)
 	ast_cond_init(&iface->mwi_q_cond, NULL);
 
 	return iface;
+}
+
+static int smdi_ifaces_cmp_fn(void *obj, void *data, int flags)
+{
+	struct ast_smdi_interface *iface = obj;
+
+	char *str = data;
+	return !strcmp(iface->name, str) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*!
@@ -965,9 +934,11 @@ static int smdi_load(int reload)
 {
 	struct ast_config *conf;
 	struct ast_variable *v;
-	struct ast_smdi_interface *iface = NULL;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int res = 0;
+	RAII_VAR(struct ao2_container *, new_ifaces, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, old_ifaces, ao2_global_obj_ref(smdi_ifaces), ao2_cleanup);
+	struct ast_smdi_interface *mailbox_iface = NULL;
 
 	/* Config options */
 	speed_t baud_rate = B9600;     /* 9600 baud rate */
@@ -987,15 +958,10 @@ static int smdi_load(int reload)
 	} else if (conf == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
-	/* Mark all interfaces that we are listening on.  We will unmark them
-	 * as we find them in the config file, this way we know any interfaces
-	 * still marked after we have finished parsing the config file should
-	 * be stopped.
-	 */
-	if (reload)
-		ASTOBJ_CONTAINER_MARKALL(&smdi_ifaces);
-
+	new_ifaces = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, smdi_ifaces_cmp_fn);
 	for (v = ast_variable_browse(conf, "interfaces"); v; v = v->next) {
+		RAII_VAR(struct ast_smdi_interface *, iface, NULL, ao2_cleanup);
+
 		if (!strcasecmp(v->name, "baudrate")) {
 			if (!strcasecmp(v->value, "9600"))
 				baud_rate = B9600;
@@ -1056,10 +1022,9 @@ static int smdi_load(int reload)
 				 * restarting the interface.  Or the interface
 				 * could be restarted with out emptying the
 				 * queue. */
-				if ((iface = ASTOBJ_CONTAINER_FIND(&smdi_ifaces, v->value))) {
+				if ((iface = ao2_find(old_ifaces, v->value, OBJ_SEARCH_KEY))) {
 					ast_log(LOG_NOTICE, "SMDI interface %s already running, not restarting\n", iface->name);
-					ASTOBJ_UNMARK(iface);
-					ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
+					ao2_link(new_ifaces, iface);
 					continue;
 				}
 			}
@@ -1073,7 +1038,6 @@ static int smdi_load(int reload)
 
 			if (!(iface->file = fopen(iface->name, "r"))) {
 				ast_log(LOG_ERROR, "Error opening SMDI interface %s (%s)\n", iface->name, strerror(errno));
-				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 				continue;
 			}
 
@@ -1084,14 +1048,12 @@ static int smdi_load(int reload)
 			/* get the current attributes from the port */
 			if (tcgetattr(iface->fd, &iface->mode)) {
 				ast_log(LOG_ERROR, "Error getting atributes of %s (%s)\n", iface->name, strerror(errno));
-				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 				continue;
 			}
 
 			/* set the desired speed */
 			if (cfsetispeed(&iface->mode, baud_rate) || cfsetospeed(&iface->mode, baud_rate)) {
 				ast_log(LOG_ERROR, "Error setting baud rate on %s (%s)\n", iface->name, strerror(errno));
-				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 				continue;
 			}
 			
@@ -1110,7 +1072,6 @@ static int smdi_load(int reload)
 			/* commit the desired attributes */
 			if (tcsetattr(iface->fd, TCSAFLUSH, &iface->mode)) {
 				ast_log(LOG_ERROR, "Error setting attributes on %s (%s)\n", iface->name, strerror(errno));
-				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 				continue;
 			}
 
@@ -1124,12 +1085,10 @@ static int smdi_load(int reload)
 			ast_verb(3, "Starting SMDI monitor thread for %s\n", iface->name);
 			if (ast_pthread_create_background(&iface->thread, NULL, smdi_read, iface)) {
 				ast_log(LOG_ERROR, "Error starting SMDI monitor thread for %s\n", iface->name);
-				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 				continue;
 			}
 
-			ASTOBJ_CONTAINER_LINK(&smdi_ifaces, iface);
-			ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
+			ao2_link(new_ifaces, iface);
 			ast_module_ref(ast_module_info->self);
 		} else {
 			ast_log(LOG_NOTICE, "Ignoring unknown option %s in %s\n", v->name, config_file);
@@ -1138,15 +1097,12 @@ static int smdi_load(int reload)
 
 	destroy_all_mailbox_mappings();
 	mwi_monitor.polling_interval = DEFAULT_POLLING_INTERVAL;
-	
-	iface = NULL;
 
 	for (v = ast_variable_browse(conf, "mailboxes"); v; v = v->next) {
 		if (!strcasecmp(v->name, "smdiport")) {
-			if (iface)
-				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
+			ao2_cleanup(mailbox_iface);
 
-			if (!(iface = ASTOBJ_CONTAINER_FIND(&smdi_ifaces, v->value))) {
+			if (!(mailbox_iface = ao2_find(new_ifaces, v->value, OBJ_SEARCH_KEY))) {
 				ast_log(LOG_NOTICE, "SMDI interface %s not found\n", v->value);
 				continue;
 			}
@@ -1156,34 +1112,28 @@ static int smdi_load(int reload)
 				mwi_monitor.polling_interval = DEFAULT_POLLING_INTERVAL;
 			}
 		} else {
-			if (!iface) {
+			if (!mailbox_iface) {
 				ast_log(LOG_ERROR, "Mailbox mapping ignored, no valid SMDI interface specified in mailboxes section\n");
 				continue;
 			}
-			append_mailbox_mapping(v, iface);
+			append_mailbox_mapping(v, mailbox_iface);
 		}
 	}
-
-	if (iface)
-		ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
+	ao2_cleanup(mailbox_iface);
 
 	ast_config_destroy(conf);
-	
+
+	ao2_global_obj_replace_unref(smdi_ifaces, new_ifaces);
+
 	if (!AST_LIST_EMPTY(&mwi_monitor.mailbox_mappings) && mwi_monitor.thread == AST_PTHREADT_NULL
 		&& ast_pthread_create_background(&mwi_monitor.thread, NULL, mwi_monitor_handler, NULL)) {
 		ast_log(LOG_ERROR, "Failed to start MWI monitoring thread.  This module will not operate.\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	/* Prune any interfaces we should no longer monitor. */
-	if (reload)
-		ASTOBJ_CONTAINER_PRUNE_MARKED(&smdi_ifaces, ast_smdi_interface_destroy);
-	
-	ASTOBJ_CONTAINER_RDLOCK(&smdi_ifaces);
-	/* TODO: this is bad, we need an ASTOBJ method for this! */
-	if (!smdi_ifaces.head)
+	if (ao2_container_count(new_ifaces)) {
 		res = 1;
-	ASTOBJ_CONTAINER_UNLOCK(&smdi_ifaces);
+	}
 	
 	return res;
 }
@@ -1198,11 +1148,8 @@ static void smdi_msg_datastore_destroy(void *data)
 {
 	struct smdi_msg_datastore *smd = data;
 
-	if (smd->iface)
-		ASTOBJ_UNREF(smd->iface, ast_smdi_interface_destroy);
-
-	if (smd->md_msg)
-		ASTOBJ_UNREF(smd->md_msg, ast_smdi_md_message_destroy);
+	ao2_cleanup(smd->iface);
+	ao2_cleanup(smd->md_msg);
 
 	free(smd);
 }
@@ -1287,8 +1234,8 @@ static int smdi_msg_retrieve_read(struct ast_channel *chan, const char *cmd, cha
 	if (!(smd = ast_calloc(1, sizeof(*smd))))
 		goto return_error;
 
-	smd->iface = ASTOBJ_REF(iface);
-	smd->md_msg = ASTOBJ_REF(md_msg);
+	smd->iface = ao2_bump(iface);
+	smd->md_msg = ao2_bump(md_msg);
 	smd->id = ast_atomic_fetchadd_int((int *) &smdi_msg_id, 1);
 	snprintf(buf, len, "%u", smd->id);
 
@@ -1304,11 +1251,8 @@ static int smdi_msg_retrieve_read(struct ast_channel *chan, const char *cmd, cha
 	res = 0;
 
 return_error:
-	if (iface)
-		ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-
-	if (md_msg)
-		ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
+	ao2_cleanup(iface);
+	ao2_cleanup(md_msg);
 
 	if (smd && !datastore)
 		smdi_msg_datastore_destroy(smd);
@@ -1420,10 +1364,6 @@ static int load_module(void)
 	int res;
 	smdi_loaded = 1;
 
-	/* initialize our containers */
-	memset(&smdi_ifaces, 0, sizeof(smdi_ifaces));
-	ASTOBJ_CONTAINER_INIT(&smdi_ifaces);
-
 	ast_mutex_init(&mwi_monitor.lock);
 	ast_cond_init(&mwi_monitor.cond, NULL);
 
@@ -1450,9 +1390,7 @@ static int _unload_module(int fromload)
 		return 0;
 	}
 
-	/* this destructor stops any running smdi_read threads */
-	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
-	ASTOBJ_CONTAINER_DESTROY(&smdi_ifaces);
+	ao2_global_obj_release(smdi_ifaces);
 
 	destroy_all_mailbox_mappings();
 

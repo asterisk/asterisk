@@ -73,7 +73,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
-#include "asterisk/astobj.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/xmpp.h"
 #include "asterisk/stasis_channels.h"

@@ -24,10 +24,6 @@
  * \author Russell Bryant <russell@digium.com>
  */
 
-
-/* C is simply a ego booster for those who want to do objects the hard way. */
-
-
 #ifndef ASTERISK_SMDI_H
 #define ASTERISK_SMDI_H
 
@@ -36,9 +32,9 @@
 
 #include "asterisk/config.h"
 #include "asterisk/module.h"
-#include "asterisk/astobj.h"
 #include "asterisk/optional_api.h"
 
+#define SMDI_MESG_NAME_LEN 80
 #define SMDI_MESG_DESK_NUM_LEN 3
 #define SMDI_MESG_DESK_TERM_LEN 4
 #define SMDI_MWI_FAIL_CAUSE_LEN 3
@@ -53,7 +49,7 @@
  * ast_smdi_mwi_message structures. 
  */
 struct ast_smdi_mwi_message {
-	ASTOBJ_COMPONENTS(struct ast_smdi_mwi_message);
+	char name[SMDI_MESG_NAME_LEN];
 	char fwd_st[SMDI_MAX_STATION_NUM_LEN + 1];		/* forwarding station number */
 	char cause[SMDI_MWI_FAIL_CAUSE_LEN + 1];		/* the type of failure */
 	struct timeval timestamp;				/* a timestamp for the message */
@@ -67,7 +63,7 @@ struct ast_smdi_mwi_message {
  * ast_smdi_md_message structures. 
  */
 struct ast_smdi_md_message {
-	ASTOBJ_COMPONENTS(struct ast_smdi_md_message);
+	char name[SMDI_MESG_NAME_LEN];
 	char mesg_desk_num[SMDI_MESG_DESK_NUM_LEN + 1];		/* message desk number */
 	char mesg_desk_term[SMDI_MESG_DESK_TERM_LEN + 1];	/* message desk terminal */
 	char fwd_st[SMDI_MAX_STATION_NUM_LEN + 1];		/* forwarding station number */
@@ -84,10 +80,6 @@ struct ast_smdi_md_message {
  * queue of messages that have been received on the interface.
  */
 struct ast_smdi_interface;
-
-AST_OPTIONAL_API(void, ast_smdi_interface_unref,
-		 (struct ast_smdi_interface *iface),
-		 { return; });
 
 /*! 
  * \brief Get the next SMDI message from the queue.
@@ -118,19 +110,6 @@ AST_OPTIONAL_API(struct ast_smdi_md_message *, ast_smdi_md_message_pop,
 AST_OPTIONAL_API(struct ast_smdi_md_message *, ast_smdi_md_message_wait,
 		 (struct ast_smdi_interface *iface, int timeout),
 		 { return NULL; });
-
-/*!
- * \brief Put an SMDI message back in the front of the queue.
- * \param iface a pointer to the interface to use.
- * \param msg a pointer to the message to use.
- *
- * This function puts a message back in the front of the specified queue.  It
- * should be used if a message was popped but is not going to be processed for
- * some reason, and the message needs to be returned to the queue.
- */
-AST_OPTIONAL_API(void, ast_smdi_md_message_putback,
-		 (struct ast_smdi_interface *iface, struct ast_smdi_md_message *msg),
-		 { return; });
 
 /*!
  * \brief Get the next SMDI message from the queue.
@@ -167,25 +146,10 @@ AST_OPTIONAL_API(struct ast_smdi_mwi_message *, ast_smdi_mwi_message_wait_statio
 		 { return NULL; });
 
 /*!
- * \brief Put an SMDI message back in the front of the queue.
- * \param iface a pointer to the interface to use.
- * \param msg a pointer to the message to use.
- *
- * This function puts a message back in the front of the specified queue.  It
- * should be used if a message was popped but is not going to be processed for
- * some reason, and the message needs to be returned to the queue.
- */
-AST_OPTIONAL_API(void, ast_smdi_mwi_message_putback,
-		 (struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *msg),
-		 { return; });
-
-/*!
  * \brief Find an SMDI interface with the specified name.
  * \param iface_name the name/port of the interface to search for.
  *
- * \return a pointer to the interface located or NULL if none was found.  This
- * actually returns an ASTOBJ reference and should be released using
- * #ASTOBJ_UNREF(iface, ast_smdi_interface_destroy).
+ * \return an ao2 reference to the interface located or NULL if none was found.
  */
 AST_OPTIONAL_API(struct ast_smdi_interface *, ast_smdi_interface_find,
 		 (const char *iface_name),
@@ -208,15 +172,5 @@ AST_OPTIONAL_API(int, ast_smdi_mwi_set,
 AST_OPTIONAL_API(int, ast_smdi_mwi_unset,
 		 (struct ast_smdi_interface *iface, const char *mailbox),
 		 { return -1; });
-
-/*! \brief ast_smdi_md_message destructor. */
-AST_OPTIONAL_API(void, ast_smdi_md_message_destroy,
-		 (struct ast_smdi_md_message *msg),
-		 { return; });
-
-/*! \brief ast_smdi_mwi_message destructor. */
-AST_OPTIONAL_API(void, ast_smdi_mwi_message_destroy,
-		 (struct ast_smdi_mwi_message *msg),
-		 { return; });
 
 #endif /* !ASTERISK_SMDI_H */

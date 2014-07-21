@@ -120,7 +120,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/smdi.h"
-#include "asterisk/astobj.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/paths.h"
 #include "asterisk/ccss.h"
@@ -5525,7 +5524,7 @@ static void destroy_dahdi_pvt(struct dahdi_pvt *pvt)
 	}
 	ast_free(p->cidspill);
 	if (p->use_smdi) {
-		ast_smdi_interface_unref(p->smdi_iface);
+		ao2_cleanup(p->smdi_iface);
 	}
 	if (p->mwi_event_sub) {
 		p->mwi_event_sub = stasis_unsubscribe(p->mwi_event_sub);
@@ -10525,8 +10524,7 @@ static void *analog_ss_thread(void *data)
 			ast_shrink_phone_number(number);
 		ast_set_callerid(chan, number, name, number);
 
-		if (smdi_msg)
-			ASTOBJ_UNREF(smdi_msg, ast_smdi_md_message_destroy);
+		ao2_cleanup(smdi_msg);
 
 		if (cs)
 			callerid_free(cs);

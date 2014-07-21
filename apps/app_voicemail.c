@@ -6006,7 +6006,7 @@ static void run_externnotify(char *context, char *extension, const char *flag)
 			else if (!strncmp(mwi_msg->cause, "BLK", 3))
 				ast_log(AST_LOG_WARNING, "MWI light was already on or off for %s\n", mwi_msg->fwd_st);
 			ast_log(AST_LOG_WARNING, "The switch reported '%s'\n", mwi_msg->cause);
-			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
+			ao2_ref(mwi_msg, -1);
 		} else {
 			ast_debug(1, "Successfully executed SMDI MWI change for %s\n", extension);
 		}
