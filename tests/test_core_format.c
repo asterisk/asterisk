@@ -232,7 +232,7 @@ static void test_core_format_generate_sdp_fmtp(const struct ast_format *format, 
 		return;
 	}
 
-	ast_str_append(str, 0, "a=fmtp:%d one=%d;two=%d\r\n", payload, pvt->field_one, pvt->field_two);
+	ast_str_append(str, 0, "a=fmtp:%u one=%d;two=%d\r\n", payload, pvt->field_one, pvt->field_two);
 
 	++test_callbacks_called.format_generate_sdp_fmtp;
 }

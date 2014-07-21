@@ -2660,7 +2660,7 @@ static void transmit_connect(struct skinny_device *d, struct skinny_subchannel *
 	req->data.openreceivechannel.echo = htolel(0);
 	req->data.openreceivechannel.bitrate = htolel(0);
 
-	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting OPEN_RECEIVE_CHANNEL_MESSAGE to %s, confid %u, partyid %u, ms %d, fmt %d, echo %d, brate %d\n",
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting OPEN_RECEIVE_CHANNEL_MESSAGE to %s, confid %u, partyid %u, ms %u, fmt %d, echo %d, brate %d\n",
 		d->name, sub->callid, sub->callid, framing, codec_ast2skinny(tmpfmt), 0, 0);
 
 	ao2_ref(tmpfmt, -1);
@@ -3058,7 +3058,7 @@ static void transmit_startmediatransmission(struct skinny_device *d, struct skin
 		req->data.startmedia_ip6.qualifier.bitRate = htolel(0);
 	}
 
-	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting START_MEDIA_TRANSMISSION_MESSAGE to %s, callid %u, passthrupartyid %u, ip %s:%d, ms %d, fmt %d, prec 127\n",
+	SKINNY_DEBUG(DEBUG_PACKET, 3, "Transmitting START_MEDIA_TRANSMISSION_MESSAGE to %s, callid %u, passthrupartyid %u, ip %s:%d, ms %u, fmt %d, prec 127\n",
 		d->name, sub->callid, sub->callid, ast_inet_ntoa(dest.sin_addr), dest.sin_port, framing, codec_ast2skinny(format));
 	transmit_response(d, req);
 }
@@ -3667,7 +3667,7 @@ static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp_instance *r
 		tmpfmt = ast_format_cap_get_format(l->cap, 0);
 		framing = ast_format_cap_get_format_framing(l->cap, tmpfmt);
 
-		SKINNY_DEBUG(DEBUG_AUDIO, 4, "Setting payloadType to '%s' (%d ms)\n", ast_format_get_name(tmpfmt), framing);
+		SKINNY_DEBUG(DEBUG_AUDIO, 4, "Setting payloadType to '%s' (%u ms)\n", ast_format_get_name(tmpfmt), framing);
 
 		if (!(l->directmedia) || (l->nat)){
 			ast_rtp_instance_get_local_address(rtp, &us_tmp);
@@ -6909,7 +6909,7 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 	tmpfmt = ast_format_cap_get_format(l->cap, 0);
 	framing = ast_format_cap_get_format_framing(l->cap, tmpfmt);
 
-	SKINNY_DEBUG(DEBUG_PACKET, 4, "Setting payloadType to '%s' (%d ms)\n", ast_format_get_name(tmpfmt), framing);
+	SKINNY_DEBUG(DEBUG_PACKET, 4, "Setting payloadType to '%s' (%u ms)\n", ast_format_get_name(tmpfmt), framing);
 
 	transmit_startmediatransmission(d, sub, us, tmpfmt, framing);
 
