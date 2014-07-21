@@ -2041,9 +2041,15 @@ fi
 
 AST_PKG_CONFIG_CHECK([PJPROJECT], [libpjproject])
 
-AST_EXT_LIB_CHECK([PJ_TRANSACTION_GRP_LOCK], [pjsip], [pjsip_tsx_create_uac2], [pjsip.h])
+AST_EXT_LIB_CHECK([PJ_TRANSACTION_GRP_LOCK], [pjsip], [pjsip_tsx_create_uac2], [pjsip.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])
 
+saved_cppflags="${CPPFLAGS}"
+saved_libs="${LIBS}"
+CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+LIBS="${LIBS} ${PJPROJECT_LIBS}"
 AST_C_COMPILE_CHECK([PJSIP_REPLACE_MEDIA_STREAM], [pjmedia_mod_offer_flag flag = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE], [pjmedia.h])
+LIBS="${saved_libs}"
+CPPFLAGS="${saved_cppflags}"
 
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
