@@ -1815,7 +1815,37 @@ static iax2_format uncompress_subclass(unsigned char csub)
 		return csub;
 }
 
-static iax2_format iax2_codec_choose(struct iax2_codec_pref *pref, iax2_format formats, int find_best)
+static struct ast_format *codec_choose_from_prefs(struct iax2_codec_pref *pref, struct ast_format_cap *cap)
+{
+	int x;
+	struct ast_format *found_format = NULL;
+
+	for (x = 0; x < IAX2_CODEC_PREF_SIZE; x++) {
+		struct ast_format *pref_format;
+		uint64_t pref_as_bitfield = iax2_codec_pref_order_value_to_format_bitfield(pref->order[x]);
+
+		if (!pref_as_bitfield) {
+			break;
+		}
+
+		pref_format = ast_format_compatibility_bitfield2format(pref_as_bitfield);
+
+		found_format = ast_format_cap_get_compatible_format(cap, pref_format);
+		if (found_format) {
+			break;
+		}
+	}
+
+	if (found_format && (ast_format_get_type(found_format) == AST_MEDIA_TYPE_AUDIO)) {
+		return found_format;
+	}
+
+	ast_debug(4, "Could not find preferred codec - Returning zero codec.\n");
+	ao2_cleanup(found_format);
+	return NULL;
+}
+
+static iax2_format iax2_codec_choose(struct iax2_codec_pref *pref, iax2_format formats)
 {
 	struct ast_format_cap *cap;
 	struct ast_format *tmpfmt;
@@ -1823,7 +1853,12 @@ static iax2_format iax2_codec_choose(struct iax2_codec_pref *pref, iax2_format f
 
 	if ((cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		iax2_format_compatibility_bitfield2cap(formats, cap);
-		tmpfmt = ast_format_cap_get_format(cap, 0);
+		tmpfmt = codec_choose_from_prefs(pref, cap);
+		if (!tmpfmt) {
+			ao2_ref(cap, -1);
+			return 0;
+		}
+
 		format = ast_format_compatibility_format2bitfield(tmpfmt);
 		ao2_ref(tmpfmt, -1);
 		ao2_ref(cap, -1);
@@ -10760,7 +10795,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 							} else
 								pref = iaxs[fr->callno]->prefs;
 
-							format = iax2_codec_choose(&pref, iaxs[fr->callno]->capability & iaxs[fr->callno]->peercapability, 0);
+							format = iax2_codec_choose(&pref, iaxs[fr->callno]->capability & iaxs[fr->callno]->peercapability);
 							iax2_codec_pref_string(&iaxs[fr->callno]->rprefs, caller_pref_buf, sizeof(caller_pref_buf) - 1);
 							iax2_codec_pref_string(&iaxs[fr->callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
 						}
@@ -10816,7 +10851,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 												pref = iaxs[fr->callno]->rprefs;
 												using_prefs = "caller";
 											}
-											format = iax2_codec_choose(&pref, iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability, 1);
+											format = iax2_codec_choose(&pref, iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 										} else /* if no codec_prefs IE do it the old way */
 											format = iax2_best_codec(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 									}
@@ -11214,7 +11249,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 							}
 						} else /* if no codec_prefs IE do it the old way */
 							pref = iaxs[fr->callno]->prefs;
-						format = iax2_codec_choose(&pref, iaxs[fr->callno]->capability & iaxs[fr->callno]->peercapability, 0);
+						format = iax2_codec_choose(&pref, iaxs[fr->callno]->capability & iaxs[fr->callno]->peercapability);
 						iax2_codec_pref_string(&iaxs[fr->callno]->rprefs, caller_pref_buf, sizeof(caller_pref_buf) - 1);
 						iax2_codec_pref_string(&iaxs[fr->callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
 					}
@@ -11275,7 +11310,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 											pref = iaxs[fr->callno]->rprefs;
 											using_prefs = "caller";
 										}
-										format = iax2_codec_choose(&pref, iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability, 1);
+										format = iax2_codec_choose(&pref, iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 									} else /* if no codec_prefs IE do it the old way */
 										format = iax2_best_codec(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 								}
