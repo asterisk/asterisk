@@ -6533,7 +6533,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		/* High two bytes are the same on timestamp, or sending on a trunk */ &&
 	    (f->frametype == AST_FRAME_VOICE)
 		/* is a voice frame */ &&
-		(ast_format_cmp(f->subclass.format, ast_format_compatibility_bitfield2format(pvt->svoiceformat)))
+		(ast_format_cmp(f->subclass.format, ast_format_compatibility_bitfield2format(pvt->svoiceformat)) ==
+			AST_FORMAT_CMP_EQUAL)
 		/* is the same type */ ) {
 			/* Force immediate rather than delayed transmission */
 			now = 1;
@@ -6547,7 +6548,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		 * Otherwise send a mini video frame
 		 */
 		if (((fts & 0xFFFF8000L) == (pvt->lastvsent & 0xFFFF8000L)) &&
-		(ast_format_cmp(f->subclass.format, ast_format_compatibility_bitfield2format(pvt->svideoformat)))
+		(ast_format_cmp(f->subclass.format, ast_format_compatibility_bitfield2format(pvt->svideoformat)) ==
+			AST_FORMAT_CMP_EQUAL)
 		   ) {
 			now = 1;
 			sendmini = 1;
