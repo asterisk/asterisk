@@ -300,7 +300,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	/* Copy device string over */
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
-	if (ast_format_cap_count(cap)) {
+	if (cap && ast_format_cap_count(cap)) {
 		cap_request = cap;
 	} else if (chan) {
 		cap_request = ast_channel_nativeformats(chan);
