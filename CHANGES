@@ -137,6 +137,9 @@ Features
    features were provided exclusively by the caller of ast_bridge_join()
    outside of "basic" type bridges.
 
+ * Channel variables are now substituted in arguments passed to applications
+   run by using dynamic features.
+
 JACK_HOOK
 ------------------
  * The JACK_HOOK function now supports audio with a sample rate higher than

@@ -1020,7 +1020,16 @@ static int run_app_helper(struct ast_channel *chan, const char *app_name, const 
 		if (!app) {
 			ast_log(LOG_WARNING, "Could not find application (%s)\n", app_name);
 		} else {
-			res = pbx_exec(chan, app, app_args);
+			struct ast_str *substituted_args = ast_str_create(16);
+
+			if (substituted_args) {
+				ast_str_substitute_variables(&substituted_args, 0, chan, app_args);
+				res = pbx_exec(chan, app, ast_str_buffer(substituted_args));
+				ast_free(substituted_args);
+			} else {
+				ast_log(LOG_WARNING, "Could not substitute application argument variables for %s\n", app_name);
+				res = pbx_exec(chan, app, app_args);
+			}
 		}
 	}
 	return res;
