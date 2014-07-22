@@ -790,11 +790,11 @@ AST_TEST_DEFINE(object_allocate_on_retrieval)
 	}
 
 	if (obj->bob != 42) {
-		ast_test_status_update(test, "Object's 'bob' field does not have expected value: %d != 42\n",
+		ast_test_status_update(test, "Object's 'bob' field does not have expected value: %u != 42\n",
 				obj->bob);
 		return AST_TEST_FAIL;
 	} else if (obj->joe != 93) {
-		ast_test_status_update(test, "Object's 'joe' field does not have expected value: %d != 93\n",
+		ast_test_status_update(test, "Object's 'joe' field does not have expected value: %u != 93\n",
 				obj->joe);
 		return AST_TEST_FAIL;
 	}
@@ -844,11 +844,11 @@ AST_TEST_DEFINE(object_filter)
 	}
 
 	if (obj->bob != 42) {
-		ast_test_status_update(test, "Object's 'bob' field does not have expected value: %d != 42\n",
+		ast_test_status_update(test, "Object's 'bob' field does not have expected value: %u != 42\n",
 				obj->bob);
 		return AST_TEST_FAIL;
 	} else if (obj->joe != 93) {
-		ast_test_status_update(test, "Object's 'joe' field does not have expected value: %d != 93\n",
+		ast_test_status_update(test, "Object's 'joe' field does not have expected value: %u != 93\n",
 				obj->joe);
 		return AST_TEST_FAIL;
 	}

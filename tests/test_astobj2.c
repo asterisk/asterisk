@@ -489,7 +489,7 @@ static int astobj2_test_1_helper(int tst_num, enum test_container_type type, int
 		}
 	}
 
-	ast_test_status_update(test, "%s container created: buckets: %d, items: %d\n",
+	ast_test_status_update(test, "%s container created: buckets: %d, items: %u\n",
 		c_type, n_buckets, lim);
 
 	/* Testing ao2_container_clone */

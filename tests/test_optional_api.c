@@ -99,7 +99,7 @@ AST_TEST_DEFINE(test_provide_first)
 	test_optional();
 
 	if (was_called_result != IMPL) {
-		ast_test_status_update(test, "Expected %d, was %d",
+		ast_test_status_update(test, "Expected %d, was %u",
 			IMPL, was_called_result);
 		goto done;
 	}
@@ -135,7 +135,7 @@ AST_TEST_DEFINE(test_provide_last)
 
 	test_optional();
 	if (was_called_result != STUB) {
-		ast_test_status_update(test, "Expected %d, was %d",
+		ast_test_status_update(test, "Expected %d, was %u",
 			STUB, was_called_result);
 		goto done;
 	}
@@ -144,7 +144,7 @@ AST_TEST_DEFINE(test_provide_last)
 
 	test_optional();
 	if (was_called_result != IMPL) {
-		ast_test_status_update(test, "Expected %d, was %d",
+		ast_test_status_update(test, "Expected %d, was %u",
 			IMPL, was_called_result);
 		ast_optional_api_unprovide(SYMNAME, test_optional_impl);
 		goto done;
@@ -154,7 +154,7 @@ AST_TEST_DEFINE(test_provide_last)
 
 	test_optional();
 	if (was_called_result != STUB) {
-		ast_test_status_update(test, "Expected %d, was %d",
+		ast_test_status_update(test, "Expected %d, was %u",
 			STUB, was_called_result);
 		ast_optional_api_unprovide(SYMNAME, test_optional_impl);
 		goto done;

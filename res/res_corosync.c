@@ -333,7 +333,7 @@ static void cpg_deliver_cb(cpg_handle_t handle, const struct cpg_name *group_nam
 		ast_eid_to_str(buf, sizeof(buf), (struct ast_eid *) eid);
 		ast_log(LOG_NOTICE, "Got event PING from server with EID: '%s'\n", buf);
 	}
-	ast_debug(5, "Publishing event %s (%d) to stasis\n",
+	ast_debug(5, "Publishing event %s (%u) to stasis\n",
 		ast_event_get_type_name(event), event_type);
 	publish_handler(event);
 }
@@ -367,13 +367,13 @@ static void publish_to_corosync(struct stasis_message *message)
 	iov.iov_base = (void *)event;
 	iov.iov_len = ast_event_get_size(event);
 
-	ast_debug(5, "Publishing event %s (%d) to corosync\n",
+	ast_debug(5, "Publishing event %s (%u) to corosync\n",
 		ast_event_get_type_name(event), ast_event_get_type(event));
 
 	/* The stasis subscription will only exist if we are configured to publish
 	 * these events, so just send away. */
 	if ((cs_err = cpg_mcast_joined(cpg_handle, CPG_TYPE_FIFO, &iov, 1)) != CS_OK) {
-		ast_log(LOG_WARNING, "CPG mcast failed (%d)\n", cs_err);
+		ast_log(LOG_WARNING, "CPG mcast failed (%u)\n", cs_err);
 	}
 }
 
@@ -476,13 +476,13 @@ static void *dispatch_thread_handler(void *data)
 
 		if (pfd[0].revents & POLLIN) {
 			if ((cs_err = cpg_dispatch(cpg_handle, CS_DISPATCH_ALL)) != CS_OK) {
-				ast_log(LOG_WARNING, "Failed CPG dispatch: %d\n", cs_err);
+				ast_log(LOG_WARNING, "Failed CPG dispatch: %u\n", cs_err);
 			}
 		}
 
 		if (pfd[1].revents & POLLIN) {
 			if ((cs_err = corosync_cfg_dispatch(cfg_handle, CS_DISPATCH_ALL)) != CS_OK) {
-				ast_log(LOG_WARNING, "Failed CFG dispatch: %d\n", cs_err);
+				ast_log(LOG_WARNING, "Failed CFG dispatch: %u\n", cs_err);
 			}
 		}
 
@@ -582,7 +582,7 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 			continue;
 		}
 
-		ast_cli(a->fd, "=== Node %d\n", i);
+		ast_cli(a->fd, "=== Node %u\n", i);
 		ast_cli(a->fd, "=== --> Group: %s\n", cpg_desc.group.value);
 
 		for (j = 0; j < num_addrs; j++) {
@@ -592,7 +592,7 @@ static char *corosync_show_members(struct ast_cli_entry *e, int cmd, struct ast_
 
 			getnameinfo(sa, sa_len, buf, sizeof(buf), NULL, 0, NI_NUMERICHOST);
 
-			ast_cli(a->fd, "=== --> Address %d: %s\n", j + 1, buf);
+			ast_cli(a->fd, "=== --> Address %u: %s\n", j + 1, buf);
 		}
 
 	}

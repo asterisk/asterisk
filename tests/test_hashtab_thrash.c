@@ -83,7 +83,7 @@ static char *ht_new(int i)
 	if (keybuf == NULL) {
 		return NULL;
 	}
-	needed = snprintf(keybuf, buflen, "key%08x", i);
+	needed = snprintf(keybuf, buflen, "key%08x", (unsigned)i);
 	ast_assert(needed + 1 <= buflen);
 	return keybuf;
 }

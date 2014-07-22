@@ -115,6 +115,15 @@ static struct ast_frame *create_test_frame(long timestamp,
 	} } while (0)
 
 /*! \internal
+ * \brief Test two numeric (unsigned int) values.
+*/
+#define UINT_TEST(actual, expected) do { \
+	if ((actual) != (expected)) { \
+		ast_test_status_update(test, #actual ": expected [%u]; actual [%u]\n", (expected), (actual)); \
+		return AST_TEST_FAIL; \
+	} } while (0)
+
+/*! \internal
  * \brief Test two string values
 */
 #define STRING_TEST(actual, expected) do { \
@@ -127,7 +136,7 @@ static struct ast_frame *create_test_frame(long timestamp,
  * \brief Verify that two frames have the same properties
  */
 #define VERIFY_FRAME(actual, expected) do { \
-	INT_TEST((actual)->frametype, (expected)->frametype); \
+	UINT_TEST((actual)->frametype, (expected)->frametype); \
 	INT_TEST((actual)->seqno, (expected)->seqno); \
 	LONG_INT_TEST((actual)->ts, (expected)->ts); \
 	LONG_INT_TEST((actual)->len, (expected)->len); \

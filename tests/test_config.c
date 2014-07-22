@@ -883,19 +883,19 @@ AST_TEST_DEFINE(config_options_test)
 	arr[3] = item_defaults;
 	/* Test global and item against configs, global_defaults and item_defaults against defaults */
 
-#define NOT_EQUAL_FAIL(field)  \
+#define NOT_EQUAL_FAIL(field, format)  \
 	if (arr[x]->field != control->field) { \
-		ast_test_status_update(test, "%s did not match: %d != %d with x = %d\n", #field, arr[x]->field, control->field, x); \
+		ast_test_status_update(test, "%s did not match: " format " != " format " with x = %d\n", #field, arr[x]->field, control->field, x); \
 		res = AST_TEST_FAIL; \
 	}
 	for (x = 0; x < 4; x++) {
 		struct test_item *control = x < 2 ? &configs : &defaults;
 
-		NOT_EQUAL_FAIL(intopt);
-		NOT_EQUAL_FAIL(uintopt);
-		NOT_EQUAL_FAIL(boolopt);
-		NOT_EQUAL_FAIL(flags);
-		NOT_EQUAL_FAIL(customopt);
+		NOT_EQUAL_FAIL(intopt, "%d");
+		NOT_EQUAL_FAIL(uintopt, "%u");
+		NOT_EQUAL_FAIL(boolopt, "%d");
+		NOT_EQUAL_FAIL(flags, "%u");
+		NOT_EQUAL_FAIL(customopt, "%d");
 		if (fabs(arr[x]->doubleopt - control->doubleopt) > 0.001) {
 			ast_test_status_update(test, "doubleopt did not match: %f vs %f on loop %d\n", arr[x]->doubleopt, control->doubleopt, x);
 			res = AST_TEST_FAIL;
