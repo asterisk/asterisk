@@ -1158,11 +1158,12 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
  *       and "default" context.
  * \note Since 12.0.0 this function returns with the newly created channel locked.
  */
-struct ast_channel * attribute_malloc __attribute__((format(printf, 14, 15)))
+struct ast_channel * attribute_malloc __attribute__((format(printf, 15, 16)))
 	__ast_channel_alloc(int needqueue, int state, const char *cid_num,
 		const char *cid_name, const char *acctcode,
 		const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
 		const struct ast_channel *requestor, enum ama_flags amaflag,
+		struct ast_endpoint *endpoint,
 		const char *file, int line, const char *function,
 		const char *name_fmt, ...);
 
@@ -1178,8 +1179,13 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 14, 15)))
  * \note Since 12.0.0 this function returns with the newly created channel locked.
  */
 #define ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, ...) \
-	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, \
+	__ast_channel_alloc(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, NULL, \
 		__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+
+#define ast_channel_alloc_with_endpoint(needqueue, state, cid_num, cid_name, acctcode, exten, context, assignedids, requestor, amaflag, endpoint, ...) \
+	__ast_channel_alloc((needqueue), (state), (cid_num), (cid_name), (acctcode), (exten), (context), (assignedids), (requestor), (amaflag), (endpoint), \
+		__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+
 
 #if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
 /*!

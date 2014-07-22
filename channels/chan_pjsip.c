@@ -364,10 +364,10 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
-
-	chan = ast_channel_alloc(1, state, S_OR(session->id.number.str, ""), S_OR(session->id.name.str, ""),
-	                         session->endpoint->accountcode, "", "", assignedids,
-	                         requestor, 0, "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
+	chan = ast_channel_alloc_with_endpoint(1, state, S_OR(session->id.number.str, ""),
+	                         S_OR(session->id.name.str, ""), session->endpoint->accountcode, "",
+	                         "", assignedids, requestor, 0, session->endpoint->persistent,
+	                         "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
 	                         (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
 	if (!chan) {
 		return NULL;
@@ -445,8 +445,6 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
 		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(chan));
 	}
-
-	ast_endpoint_add_channel(session->endpoint->persistent, chan);
 
 	return chan;
 }

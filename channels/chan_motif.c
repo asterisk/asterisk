@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/xmpp.h"
+#include "asterisk/endpoints.h"
 #include "asterisk/stasis_channels.h"
 
 /*** DOCUMENTATION
@@ -782,7 +783,7 @@ static struct ast_channel *jingle_new(struct jingle_endpoint *endpoint, struct j
 		return NULL;
 	}
 
-	if (!(chan = ast_channel_alloc(1, state, S_OR(title, ""), S_OR(cid_name, ""), "", "", "", assignedids, requestor, 0, "Motif/%s-%04lx", str, (unsigned long)(ast_random() & 0xffff)))) {
+	if (!(chan = ast_channel_alloc_with_endpoint(1, state, S_OR(title, ""), S_OR(cid_name, ""), "", "", "", assignedids, requestor, 0, endpoint->connection->endpoint, "Motif/%s-%04lx", str, (unsigned long)(ast_random() & 0xffff)))) {
 		return NULL;
 	}
 

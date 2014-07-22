@@ -77,11 +77,17 @@ const char *ast_endpoint_state_to_string(enum ast_endpoint_state state);
 struct ast_endpoint;
 
 /*!
- * \brief Finds the endpoint with the given tech/resource id.
+ * \brief Finds the endpoint with the given tech[/resource] id.
  *
  * Endpoints are refcounted, so ao2_cleanup() when you're done.
  *
- * \param id Tech/resource id to look for.
+ * \note The resource portion of an ID is optional. If not provided,
+ *       an aggregate endpoint for the entire technology is returned.
+ *       These endpoints must not be modified, but can be subscribed
+ *       to in order to receive updates for all endpoints of a given
+ *       technology.
+ *
+ * \param id Tech[/resource] id to look for.
  * \return Associated endpoint.
  * \return \c NULL if not found.
  *
@@ -130,6 +136,9 @@ const char *ast_endpoint_get_tech(const struct ast_endpoint *endpoint);
  * \brief Gets the resource name of the given endpoint.
  *
  * This is unique for the endpoint's technology, and immutable.
+ *
+ * \note If the endpoint being queried is a technology aggregate
+ *       endpoint, this will be an empty string.
  *
  * \param endpoint The endpoint.
  * \return Resource name of the endpoint.
