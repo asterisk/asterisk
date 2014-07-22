@@ -58,7 +58,7 @@ static int check_event(struct ast_event *event, struct ast_test *test,
 	/* Check #1: Ensure event type is set properly. */
 	type = ast_event_get_type(event);
 	if (ast_event_get_type(event) != type) {
-		ast_test_status_update(test, "Expected event type: '%d', got '%d'\n",
+		ast_test_status_update(test, "Expected event type: '%u', got '%u'\n",
 				expected_type, type);
 		return -1;
 	}

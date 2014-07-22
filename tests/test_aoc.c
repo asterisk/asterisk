@@ -411,7 +411,7 @@ AST_TEST_DEFINE(aoc_encode_decode_test)
 			if (!(unit = ast_aoc_get_unit_info(decoded, i)) ||
 				((unit->valid_amount) && (unit->amount != (i+1))) ||
 				((unit->valid_type) && (unit->type != (i+2)))) {
-				ast_test_status_update(test, "TEST 2, invalid unit entry result, got %d,%d, expected %d,%d\n",
+				ast_test_status_update(test, "TEST 2, invalid unit entry result, got %u,%u, expected %d,%d\n",
 					unit->amount,
 					unit->type,
 					i+1,

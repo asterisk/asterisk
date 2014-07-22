@@ -229,7 +229,7 @@ static int mwi_mailbox_get(struct mansession *s, const struct message *m)
 	astman_append(s,
 		"Event: MWIGetComplete\r\n"
 		"EventList: Complete\r\n"
-		"ListItems: %d\r\n"
+		"ListItems: %u\r\n"
 		"%s"
 		"\r\n", count, id_text);
 

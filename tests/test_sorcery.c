@@ -2906,7 +2906,7 @@ AST_TEST_DEFINE(dialplan_function)
 	}
 	if (strcmp(ast_str_buffer(buf), "5")) {
 		ast_free(buf);
-		ast_test_status_update(test, "Failed retrieve field.  Got '%d', should be '5'\n", obj->bob);
+		ast_test_status_update(test, "Failed retrieve field.  Got '%u', should be '5'\n", obj->bob);
 		return AST_TEST_FAIL;
 	}
 
@@ -2919,7 +2919,7 @@ AST_TEST_DEFINE(dialplan_function)
 	}
 	if (strcmp(ast_str_buffer(buf), "5")) {
 		ast_free(buf);
-		ast_test_status_update(test, "Failed retrieve field.  Got '%d', should be '5'\n", obj->bob);
+		ast_test_status_update(test, "Failed retrieve field.  Got '%u', should be '5'\n", obj->bob);
 		return AST_TEST_FAIL;
 	}
 

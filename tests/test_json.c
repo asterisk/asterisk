@@ -85,7 +85,7 @@ static int json_test_cleanup(struct ast_test_info *info, struct ast_test *test)
 	ast_json_reset_alloc_funcs();
 	if (0 != alloc_count) {
 		ast_test_status_update(test,
-			"JSON test leaked %zd allocations!\n", alloc_count);
+			"JSON test leaked %zu allocations!\n", alloc_count);
 		return -1;
 	}
 	return 0;

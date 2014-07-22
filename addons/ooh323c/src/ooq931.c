@@ -319,7 +319,7 @@ char* ooQ931GetMessageTypeName(int messageType, char* buf) {
          strcpy(buf, "Escape");
          break;
       default:
-         sprintf(buf, "<%u>", messageType);
+         sprintf(buf, "<%d>", messageType);
    }
    return buf;
 }
@@ -360,7 +360,7 @@ char* ooQ931GetIEName(int number, char* buf) {
          strcpy(buf, "User-User");
          break;
       default:
-         sprintf(buf, "0x%02x", number);
+         sprintf(buf, "0x%02x", (unsigned)number);
    }
    return buf;
 }
@@ -371,8 +371,8 @@ EXTERN void ooQ931Print (const Q931Message* q931msg) {
    unsigned int i;
 
    printf("Q.931 Message:\n");
-   printf("   protocolDiscriminator: %i\n", q931msg->protocolDiscriminator);
-   printf("   callReference: %i\n", q931msg->callReference);
+   printf("   protocolDiscriminator: %u\n", q931msg->protocolDiscriminator);
+   printf("   callReference: %u\n", q931msg->callReference);
    printf("   from: %s\n", (q931msg->fromDestination ? 
                                        "destination" : "originator"));
    printf("   messageType: %s (0x%X)\n\n", 
@@ -382,9 +382,9 @@ EXTERN void ooQ931Print (const Q931Message* q931msg) {
    for(i = 0, curNode = q931msg->ies.head; i < q931msg->ies.count; i++) {
       Q931InformationElement *ie = (Q931InformationElement*) curNode->data;
       int length = (ie->length >= 0) ? ie->length : -ie->length;
-      printf("   IE[%i] (offset 0x%X):\n", i, ie->offset);
+      printf("   IE[%u] (offset 0x%X):\n", i, (unsigned)ie->offset);
       printf("      discriminator: %s (0x%X)\n", 
-               ooQ931GetIEName(ie->discriminator, buf), ie->discriminator);
+               ooQ931GetIEName(ie->discriminator, buf), (unsigned)ie->discriminator);
       printf("      data length: %i\n", length);
  
       curNode = curNode->next;
