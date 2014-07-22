@@ -182,6 +182,13 @@ res_config_pgsql
    for res_config_pgsql via the dbappname configuration setting in
    res_pgsql.conf.
 
+MixMonitor
+------------------
+ * New options to play a beep when starting a recording and stopping a recording
+   have been added.  The option "p" will play a beep to the channel that starts
+   the recording.  The option "P" will play a beep to the channel that stops the
+   recording.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.4.0 to Asterisk 12.5.0 ------------
 ------------------------------------------------------------------------------
@@ -366,7 +373,6 @@ MixMonitor
    instances of MixMonitor on a channel.
  * A new option, B(), has been added that will turn on a periodic beep while the
    call is being recorded.
-
 
 Channel Drivers
 -------------------------

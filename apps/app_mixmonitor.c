@@ -120,6 +120,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<argument name="chanvar" required="true" />
 						<para>Stores the MixMonitor's ID on this channel variable.</para>
 					</option>
+					<option name="p">
+						<para>Play a beep on the channel that starts the recording.</para>
+					</option>
+					<option name="P">
+						<para>Play a beep on the channel that stops the recording.</para>
+					</option>
 					<option name="m">
 						<argument name="mailbox" required="true" />
 						<para>Create a copy of the recording as a voicemail in the indicated <emphasis>mailbox</emphasis>(es)
@@ -326,6 +332,8 @@ enum mixmonitor_flags {
 	MUXFLAG_UID = (1 << 9),
 	MUXFLAG_VMRECIPIENTS = (1 << 10),
 	MUXFLAG_BEEP = (1 << 11),
+	MUXFLAG_BEEP_START = (1 << 12),
+	MUXFLAG_BEEP_STOP = (1 << 13)
 };
 
 enum mixmonitor_args {
@@ -344,6 +352,8 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION('a', MUXFLAG_APPEND),
 	AST_APP_OPTION('b', MUXFLAG_BRIDGED),
 	AST_APP_OPTION_ARG('B', MUXFLAG_BEEP, OPT_ARG_BEEP_INTERVAL),
+	AST_APP_OPTION('p', MUXFLAG_BEEP_START),
+	AST_APP_OPTION('P', MUXFLAG_BEEP_STOP),
 	AST_APP_OPTION_ARG('v', MUXFLAG_READVOLUME, OPT_ARG_READVOLUME),
 	AST_APP_OPTION_ARG('V', MUXFLAG_WRITEVOLUME, OPT_ARG_WRITEVOLUME),
 	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
@@ -733,6 +743,11 @@ static void *mixmonitor_thread(void *obj)
 									"File: %s\r\n",
 									ast_channel_name(mixmonitor->autochan->chan),
 									mixmonitor->filename);
+	ast_channel_lock(mixmonitor->autochan->chan);
+	if (ast_test_flag(mixmonitor, MUXFLAG_BEEP_STOP)) {
+		ast_stream_and_wait(mixmonitor->autochan->chan, "beep", "");
+	}
+	ast_channel_unlock(mixmonitor->autochan->chan);
 
 	ast_audiohook_unlock(&mixmonitor->audiohook);
 
@@ -805,6 +820,11 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 		return -1;
 	}
 
+	ast_channel_lock(mixmonitor->autochan->chan);
+	if (ast_test_flag(mixmonitor, MUXFLAG_BEEP_START)) {
+		ast_stream_and_wait(mixmonitor->autochan->chan, "beep", "");
+	}
+	ast_channel_unlock(mixmonitor->autochan->chan);
 
 	mixmonitor_ds->samp_rate = 8000;
 	mixmonitor_ds->audiohook = &mixmonitor->audiohook;
@@ -1164,6 +1184,7 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 	if (!ast_channel_datastore_remove(chan, datastore)) {
 		ast_datastore_free(datastore);
 	}
+
 	ast_channel_unlock(chan);
 
 	if (!ast_strlen_zero(beep_id)) {
