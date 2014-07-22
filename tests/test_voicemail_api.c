@@ -87,7 +87,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * object is test_mbox_snapshot
  */
 #define VM_API_STRING_FIELD_VERIFY(expected, actual) do { \
-	if (strncmp((expected), (actual), sizeof((expected)))) { \
+	if (strncmp((expected), (actual), strlen((expected)))) { \
 		ast_test_status_update(test, "Test failed for parameter %s: Expected [%s], Actual [%s]\n", #actual, expected, actual); \
 		VM_API_SNAPSHOT_TEST_CLEANUP; \
 		return AST_TEST_FAIL; \
@@ -97,7 +97,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * that it assumes the mailbox snapshot object is test_mbox_snapshot */
 #define VM_API_INT_VERIFY(expected, actual) do { \
 	if ((expected) != (actual)) { \
-		ast_test_status_update(test, "Test failed for parameter %s: Expected [%d], Actual [%d]\n", #actual, expected, actual); \
+		ast_test_status_update(test, "Test failed for parameter %s: Expected [%d], Actual [%d]\n", #actual, (int)expected, (int)actual); \
 		VM_API_SNAPSHOT_TEST_CLEANUP; \
 		return AST_TEST_FAIL; \
 	} } while (0)
@@ -365,9 +365,9 @@ static int test_vm_api_create_voicemail_files(const char *context, const char *m
 	 */
 	snprintf(folder_path, sizeof(folder_path), "%s/voicemail/%s/%s/%s",
 		ast_config_AST_SPOOL_DIR, context, mailbox, snapshot->folder_name);
-	snprintf(msg_path, sizeof(msg_path), "%s/msg%04d.txt",
+	snprintf(msg_path, sizeof(msg_path), "%s/msg%04u.txt",
 		folder_path, snapshot->msg_number);
-	snprintf(snd_path, sizeof(snd_path), "%s/msg%04d.gsm",
+	snprintf(snd_path, sizeof(snd_path), "%s/msg%04u.gsm",
 		folder_path, snapshot->msg_number);
 	snprintf(beep_path, sizeof(beep_path), "%s/sounds/en/beep.gsm", ast_config_AST_VAR_DIR);
 
@@ -453,9 +453,9 @@ static void test_vm_api_remove_voicemail(struct ast_vm_msg_snapshot *snapshot)
 	snprintf(folder_path, sizeof(folder_path), "%s/voicemail/%s/%s/%s",
 		ast_config_AST_SPOOL_DIR, "default", snapshot->exten, snapshot->folder_name);
 
-	snprintf(msg_path, sizeof(msg_path), "%s/msg%04d.txt",
+	snprintf(msg_path, sizeof(msg_path), "%s/msg%04u.txt",
 			folder_path, snapshot->msg_number);
-	snprintf(snd_path, sizeof(snd_path), "%s/msg%04d.gsm",
+	snprintf(snd_path, sizeof(snd_path), "%s/msg%04u.gsm",
 			folder_path, snapshot->msg_number);
 	unlink(msg_path);
 	unlink(snd_path);

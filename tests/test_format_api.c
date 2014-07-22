@@ -120,7 +120,7 @@ static void test_set(struct ast_format_attr *fattr, va_list ap)
 			}
 			break;
 		default:
-			ast_log(LOG_WARNING, "unknown attribute type %d\n", key);
+			ast_log(LOG_WARNING, "unknown attribute type %u\n", key);
 		}
 	}
 }

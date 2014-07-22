@@ -154,7 +154,7 @@ static int astobj2_test_helper(int use_hash, int use_cmp, unsigned int lim, stru
 		}
 	}
 
-	ast_test_status_update(test, "Container created: random bucket size %d: number of items: %d\n", bucket_size, lim);
+	ast_test_status_update(test, "Container created: random bucket size %d: number of items: %u\n", bucket_size, lim);
 
 	/* Testing ao2_container_clone */
 	c3 = ao2_container_clone(c1, 0);
