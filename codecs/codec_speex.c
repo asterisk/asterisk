@@ -306,16 +306,21 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 		if (tmp->silent_state) {
 			return NULL;
 		} else {
-			tmp->silent_state = 1;
-			speex_bits_reset(&tmp->bits);
+			struct ast_frame frm = {
+				.frametype = AST_FRAME_CNG,
+				.src = pvt->t->name,
+			};
 
-/* BUGBUG need to setup a new static frame to prevent destroying the translators normal static frame. */
-			ao2_cleanup(pvt->f.subclass.format);
-			memset(&pvt->f, 0, sizeof(pvt->f));
-			pvt->f.frametype = AST_FRAME_CNG;
-			pvt->f.samples = samples;
+			/*
+			 * XXX I don't think the AST_FRAME_CNG code has ever
+			 * really worked for speex.  There doesn't seem to be
+			 * any consumers of the frame type.  Everyone that
+			 * references the type seems to pass the frame on.
+			 */
+			tmp->silent_state = 1;
+
 			/* XXX what now ? format etc... */
-/* BUGBUG should return ast_frisolate(setup local static frame) here */
+			return ast_frisolate(&frm);
 		}
 	}
 
