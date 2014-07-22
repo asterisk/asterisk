@@ -783,10 +783,11 @@ static void ast_channel_destructor(void *obj);
 static void ast_dummy_channel_destructor(void *obj);
 
 /*! \brief Create a new channel structure */
-static struct ast_channel * attribute_malloc __attribute__((format(printf, 13, 0)))
+static struct ast_channel * attribute_malloc __attribute__((format(printf, 15, 0)))
 __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
 		       const char *acctcode, const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
-		       const struct ast_channel *requestor, enum ama_flags amaflag, const char *file, int line,
+		       const struct ast_channel *requestor, enum ama_flags amaflag, struct ast_endpoint *endpoint,
+		       const char *file, int line,
 		       const char *function, const char *name_fmt, va_list ap)
 {
 	struct ast_channel *tmp;
@@ -963,6 +964,10 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	ao2_link(channels, tmp);
 
+	if (endpoint) {
+		ast_endpoint_add_channel(endpoint, tmp);
+	}
+
 	/*
 	 * And now, since the channel structure is built, and has its name, let
 	 * the world know of its existance
@@ -975,6 +980,7 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 					const char *cid_name, const char *acctcode,
 					const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
 					const struct ast_channel *requestor, enum ama_flags amaflag,
+					struct ast_endpoint *endpoint,
 					const char *file, int line, const char *function,
 					const char *name_fmt, ...)
 {
@@ -983,7 +989,7 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 
 	va_start(ap, name_fmt);
 	result = __ast_channel_alloc_ap(needqueue, state, cid_num, cid_name, acctcode, exten, context,
-					assignedids, requestor, amaflag, file, line, function, name_fmt, ap);
+					assignedids, requestor, amaflag, endpoint, file, line, function, name_fmt, ap);
 	va_end(ap);
 
 	return result;

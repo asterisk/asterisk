@@ -106,6 +106,8 @@ struct ast_xmpp_message {
 	AST_LIST_ENTRY(ast_xmpp_message) list; /*!< Linked list information */
 };
 
+struct ast_endpoint;
+
 /*! \brief XMPP Buddy */
 struct ast_xmpp_buddy {
 	char id[XMPP_MAX_JIDLEN];        /*!< JID of the buddy */
@@ -116,9 +118,11 @@ struct ast_xmpp_buddy {
 /*! \brief XMPP Client Connection */
 struct ast_xmpp_client {
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(name); /*!< Name of the client configuration */
+		/*! Name of the client configuration */
+		AST_STRING_FIELD(name);
 		);
-	char mid[6]; /* Message ID */
+	/*! Message ID */
+	char mid[6];
 	iksid *jid;
 	iksparser *parser;
 	iksfilter *filter;
@@ -134,9 +138,14 @@ struct ast_xmpp_client {
 	AST_LIST_HEAD(, ast_xmpp_message) messages;
 	pthread_t thread;
 	int timeout;
-	unsigned int reconnect:1; /*!< Reconnect this client */
-	struct stasis_subscription *mwi_sub; /*!< If distributing event information the MWI subscription */
-	struct stasis_subscription *device_state_sub; /*!< If distributing event information the device state subscription */
+	/*! Reconnect this client */
+	unsigned int reconnect:1;
+	/*! If distributing event information the MWI subscription */
+	struct stasis_subscription *mwi_sub;
+	/*! If distributing event information the device state subscription */
+	struct stasis_subscription *device_state_sub;
+	/*! The endpoint associated with this client */
+	struct ast_endpoint *endpoint;
 };
 
 /*!

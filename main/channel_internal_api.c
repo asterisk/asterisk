@@ -219,6 +219,7 @@ struct ast_channel {
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
 	struct stasis_cp_single *topics;		/*!< Topic for all channel's events */
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
+	struct stasis_forward *endpoint_cache_forward; /*!< Subscription for cache updates to endpoint's topic */
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
@@ -1528,6 +1529,7 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 	ast_string_field_free_memory(chan);
 
 	chan->endpoint_forward = stasis_forward_cancel(chan->endpoint_forward);
+	chan->endpoint_cache_forward = stasis_forward_cancel(chan->endpoint_cache_forward);
 
 	stasis_cp_single_unsubscribe(chan->topics);
 	chan->topics = NULL;
@@ -1570,8 +1572,14 @@ int ast_channel_forward_endpoint(struct ast_channel *chan,
 	chan->endpoint_forward =
 		stasis_forward_all(ast_channel_topic(chan),
 			ast_endpoint_topic(endpoint));
+	if (!chan->endpoint_forward) {
+		return -1;
+	}
 
-	if (chan->endpoint_forward == NULL) {
+	chan->endpoint_cache_forward = stasis_forward_all(ast_channel_topic_cached(chan),
+		ast_endpoint_topic(endpoint));
+	if (!chan->endpoint_cache_forward) {
+		chan->endpoint_forward = stasis_forward_cancel(chan->endpoint_forward);
 		return -1;
 	}
 

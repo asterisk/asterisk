@@ -68,7 +68,7 @@
 						},
 						{
 							"name": "eventSource",
-							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName}",
+							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}[/{resource}], deviceState:{deviceName}",
 							"paramType": "query",
 							"required": true,
 							"allowMultiple": true,
@@ -107,7 +107,7 @@
 						},
 						{
 							"name": "eventSource",
-							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName}",
+							"description": "URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}[/{resource}], deviceState:{deviceName}",
 							"paramType": "query",
 							"required": true,
 							"allowMultiple": true,

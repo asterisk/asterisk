@@ -559,6 +559,10 @@ static void xmpp_client_destructor(void *obj)
 
 	ast_xmpp_client_disconnect(client);
 
+	ast_endpoint_shutdown(client->endpoint);
+	ao2_cleanup(client->endpoint);
+	client->endpoint = NULL;
+
 	if (client->filter) {
 		iks_filter_delete(client->filter);
 	}
@@ -593,6 +597,20 @@ static int xmpp_buddy_cmp(void *obj, void *arg, int flags)
 	return !strcmp(buddy1->id, flags & OBJ_KEY ? id : buddy2->id) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+/*! \brief Internal function which changes the XMPP client state */
+static void xmpp_client_change_state(struct ast_xmpp_client *client, int state)
+{
+	if (state == client->state) {
+		return;
+	}
+	client->state = state;
+	if (client->state == XMPP_STATE_DISCONNECTED) {
+		ast_endpoint_set_state(client->endpoint, AST_ENDPOINT_OFFLINE);
+	} else if (client->state == XMPP_STATE_CONNECTED) {
+		ast_endpoint_set_state(client->endpoint, AST_ENDPOINT_ONLINE);
+	}
+}
+
 /*! \brief Allocator function for ast_xmpp_client */
 static struct ast_xmpp_client *xmpp_client_alloc(const char *name)
 {
@@ -604,6 +622,12 @@ static struct ast_xmpp_client *xmpp_client_alloc(const char *name)
 
 	AST_LIST_HEAD_INIT(&client->messages);
 	client->thread = AST_PTHREADT_NULL;
+
+	client->endpoint = ast_endpoint_create("XMPP", name);
+	if (!client->endpoint) {
+		ao2_ref(client, -1);
+		return NULL;
+	}
 
 	if (!(client->buddies = ao2_container_alloc(BUDDY_BUCKETS, xmpp_buddy_hash, xmpp_buddy_cmp))) {
 		ast_log(LOG_ERROR, "Could not initialize buddy container for '%s'\n", name);
@@ -626,7 +650,7 @@ static struct ast_xmpp_client *xmpp_client_alloc(const char *name)
 	ast_string_field_set(client, name, name);
 
 	client->timeout = 50;
-	client->state = XMPP_STATE_DISCONNECTED;
+	xmpp_client_change_state(client, XMPP_STATE_DISCONNECTED);
 	ast_copy_string(client->mid, "aaaaa", sizeof(client->mid));
 
 	return client;
@@ -2213,12 +2237,6 @@ static const struct ast_msg_tech msg_tech = {
 	.msg_send = xmpp_send_cb,
 };
 
-/*! \brief Internal function which changes the XMPP client state */
-static void xmpp_client_change_state(struct ast_xmpp_client *client, int state)
-{
-	client->state = state;
-}
-
 /*! \brief Internal function which creates a buddy on a client */
 static struct ast_xmpp_buddy *xmpp_client_create_buddy(struct ao2_container *container, const char *id)
 {
@@ -3530,7 +3548,7 @@ static int xmpp_action_hook(void *data, int type, iks *node)
 int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 {
 	if ((client->thread != AST_PTHREADT_NULL) && !pthread_equal(pthread_self(), client->thread)) {
-		client->state = XMPP_STATE_DISCONNECTING;
+		xmpp_client_change_state(client, XMPP_STATE_DISCONNECTING);
 		pthread_join(client->thread, NULL);
 		client->thread = AST_PTHREADT_NULL;
 	}
@@ -3559,7 +3577,7 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 		iks_disconnect(client->parser);
 	}
 
-	client->state = XMPP_STATE_DISCONNECTED;
+	xmpp_client_change_state(client, XMPP_STATE_DISCONNECTED);
 
 	return 0;
 }
@@ -3774,7 +3792,7 @@ static void *xmpp_client_thread(void *data)
 			ast_log(LOG_WARNING, "JABBER: Not Supported\n");
 		} else if (res == IKS_NET_DROPPED) {
 			ast_log(LOG_WARNING, "JABBER: Dropped?\n");
-		} else {
+		} else if (res == IKS_NET_UNKNOWN) {
 			ast_debug(5, "JABBER: Unknown\n");
 		}
 

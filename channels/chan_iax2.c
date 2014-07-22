@@ -5879,12 +5879,14 @@ static int iax2_getpeertrunk(struct ast_sockaddr addr)
 /*! \brief  Create new call, interface with the PBX core */
 static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capability, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, unsigned int cachable)
 {
-	struct ast_channel *tmp;
+	struct ast_channel *tmp = NULL;
 	struct chan_iax2_pvt *i;
+	struct iax2_peer *peer;
 	struct ast_variable *v = NULL;
 	struct ast_format_cap *native;
 	struct ast_format *tmpfmt;
 	struct ast_callid *callid;
+	char *peer_name = NULL;
 
 	if (!(i = iaxs[callno])) {
 		ast_log(LOG_WARNING, "No IAX2 pvt found for callno '%d' !\n", callno);
@@ -5896,9 +5898,27 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		return NULL;
 	}
 
-	/* Don't hold call lock */
+	if (!ast_strlen_zero(i->peer)) {
+		peer_name = ast_strdupa(i->peer);
+	} else if (!ast_strlen_zero(i->host)) {
+		peer_name = ast_strdupa(i->host);
+	}
+
+	/* Don't hold call lock while making a channel or looking up a peer */
 	ast_mutex_unlock(&iaxsl[callno]);
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
+
+	if (!ast_strlen_zero(peer_name)) {
+		peer = find_peer(peer_name, 1);
+		if (peer && peer->endpoint) {
+			tmp = ast_channel_alloc_with_endpoint(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, peer->endpoint, "IAX2/%s-%d", i->host, i->callno);
+		}
+		ao2_cleanup(peer);
+	}
+
+	if (!tmp) {
+		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
+	}
+
 	ast_mutex_lock(&iaxsl[callno]);
 	if (i != iaxs[callno]) {
 		if (tmp) {

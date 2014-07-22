@@ -67,7 +67,7 @@ void ast_ari_applications_get(struct ast_variable *headers, struct ast_ari_appli
 struct ast_ari_applications_subscribe_args {
 	/*! Application's name */
 	const char *application_name;
-	/*! Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
+	/*! Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}[/{resource}], deviceState:{deviceName} */
 	const char **event_source;
 	/*! Length of event_source array. */
 	size_t event_source_count;
@@ -99,7 +99,7 @@ void ast_ari_applications_subscribe(struct ast_variable *headers, struct ast_ari
 struct ast_ari_applications_unsubscribe_args {
 	/*! Application's name */
 	const char *application_name;
-	/*! Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}/{resource}, deviceState:{deviceName} */
+	/*! Array of URI for event source (channel:{channelId}, bridge:{bridgeId}, endpoint:{tech}[/{resource}], deviceState:{deviceName} */
 	const char **event_source;
 	/*! Length of event_source array. */
 	size_t event_source_count;

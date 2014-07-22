@@ -46,7 +46,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! Buckets for endpoint hash. Keep it prime! */
 #define ENDPOINT_BUCKETS 127
 
+/*! Buckets for technology endpoints. */
+#define TECH_ENDPOINT_BUCKETS 11
+
 static struct ao2_container *endpoints;
+
+static struct ao2_container *tech_endpoints;
 
 struct ast_endpoint {
 	AST_DECLARE_STRING_FIELDS(
@@ -69,6 +74,8 @@ struct ast_endpoint {
 	struct stasis_message_router *router;
 	/*! ast_str_container of channels associated with this endpoint */
 	struct ao2_container *channel_ids;
+	/*! Forwarding subscription from an endpoint to its tech endpoint */
+	struct stasis_forward *tech_forward;
 };
 
 static int endpoint_hash(const void *obj, int flags)
@@ -121,7 +128,13 @@ static int endpoint_cmp(void *obj, void *arg, int flags)
 
 struct ast_endpoint *ast_endpoint_find_by_id(const char *id)
 {
-	return ao2_find(endpoints, id, OBJ_KEY);
+	struct ast_endpoint *endpoint = ao2_find(endpoints, id, OBJ_KEY);
+
+	if (!endpoint) {
+		endpoint = ao2_find(tech_endpoints, id, OBJ_KEY);
+	}
+
+	return endpoint;
 }
 
 struct stasis_topic *ast_endpoint_topic(struct ast_endpoint *endpoint)
@@ -181,6 +194,8 @@ static void endpoint_dtor(void *obj)
 	ao2_cleanup(endpoint->router);
 	endpoint->router = NULL;
 
+	endpoint->tech_forward = stasis_forward_cancel(endpoint->tech_forward);
+
 	stasis_cp_single_unsubscribe(endpoint->topics);
 	endpoint->topics = NULL;
 
@@ -196,6 +211,7 @@ int ast_endpoint_add_channel(struct ast_endpoint *endpoint,
 {
 	ast_assert(chan != NULL);
 	ast_assert(endpoint != NULL);
+	ast_assert(!ast_strlen_zero(endpoint->resource));
 
 	ast_channel_forward_endpoint(chan, endpoint);
 
@@ -242,19 +258,21 @@ static void endpoint_default(void *data,
 	}
 }
 
-struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
+static struct ast_endpoint *endpoint_internal_create(const char *tech, const char *resource)
 {
 	RAII_VAR(struct ast_endpoint *, endpoint, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_endpoint *, tech_endpoint, NULL, ao2_cleanup);
 	int r = 0;
 
-	if (ast_strlen_zero(tech)) {
-		ast_log(LOG_ERROR, "Endpoint tech cannot be empty\n");
-		return NULL;
-	}
-
-	if (ast_strlen_zero(resource)) {
-		ast_log(LOG_ERROR, "Endpoint resource cannot be empty\n");
-		return NULL;
+	/* Get/create the technology endpoint */
+	if (!ast_strlen_zero(resource)) {
+		tech_endpoint = ao2_find(tech_endpoints, tech, OBJ_KEY);
+		if (!tech_endpoint) {
+			tech_endpoint = endpoint_internal_create(tech, NULL);
+			if (!tech_endpoint) {
+				return NULL;
+			}
+		}
 	}
 
 	endpoint = ao2_alloc(sizeof(*endpoint), endpoint_dtor);
@@ -268,10 +286,12 @@ struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
 	if (ast_string_field_init(endpoint, 80) != 0) {
 		return NULL;
 	}
-
 	ast_string_field_set(endpoint, tech, tech);
-	ast_string_field_set(endpoint, resource, resource);
-	ast_string_field_build(endpoint, id, "%s/%s", tech, resource);
+	ast_string_field_set(endpoint, resource, S_OR(resource, ""));
+	ast_string_field_build(endpoint, id, "%s%s%s",
+		tech,
+		!ast_strlen_zero(resource) ? "/" : "",
+		S_OR(resource, ""));
 
 	/* All access to channel_ids should be covered by the endpoint's
 	 * lock; no extra lock needed. */
@@ -287,22 +307,45 @@ struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
 		return NULL;
 	}
 
-	endpoint->router = stasis_message_router_create(ast_endpoint_topic(endpoint));
-	if (!endpoint->router) {
-		return NULL;
+	if (!ast_strlen_zero(resource)) {
+		endpoint->router = stasis_message_router_create(ast_endpoint_topic(endpoint));
+		if (!endpoint->router) {
+			return NULL;
+		}
+		r |= stasis_message_router_add(endpoint->router,
+			stasis_cache_clear_type(), endpoint_cache_clear,
+			endpoint);
+		r |= stasis_message_router_set_default(endpoint->router,
+			endpoint_default, endpoint);
+		if (r) {
+			return NULL;
+		}
+
+		endpoint->tech_forward = stasis_forward_all(stasis_cp_single_topic(endpoint->topics),
+			stasis_cp_single_topic(tech_endpoint->topics));
+		endpoint_publish_snapshot(endpoint);
+		ao2_link(endpoints, endpoint);
+	} else {
+		ao2_link(tech_endpoints, endpoint);
 	}
-	r |= stasis_message_router_add(endpoint->router,
-		stasis_cache_clear_type(), endpoint_cache_clear,
-		endpoint);
-	r |= stasis_message_router_set_default(endpoint->router,
-		endpoint_default, endpoint);
-
-	endpoint_publish_snapshot(endpoint);
-
-	ao2_link(endpoints, endpoint);
 
 	ao2_ref(endpoint, +1);
 	return endpoint;
+}
+
+struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
+{
+	if (ast_strlen_zero(tech)) {
+		ast_log(LOG_ERROR, "Endpoint tech cannot be empty\n");
+		return NULL;
+	}
+
+	if (ast_strlen_zero(resource)) {
+		ast_log(LOG_ERROR, "Endpoint resource cannot be empty\n");
+		return NULL;
+	}
+
+	return endpoint_internal_create(tech, resource);
 }
 
 static struct stasis_message *create_endpoint_snapshot_message(struct ast_endpoint *endpoint)
@@ -368,6 +411,8 @@ void ast_endpoint_set_state(struct ast_endpoint *endpoint,
 	enum ast_endpoint_state state)
 {
 	ast_assert(endpoint != NULL);
+	ast_assert(!ast_strlen_zero(endpoint->resource));
+
 	ao2_lock(endpoint);
 	endpoint->state = state;
 	ao2_unlock(endpoint);
@@ -378,6 +423,8 @@ void ast_endpoint_set_max_channels(struct ast_endpoint *endpoint,
 	int max_channels)
 {
 	ast_assert(endpoint != NULL);
+	ast_assert(!ast_strlen_zero(endpoint->resource));
+
 	ao2_lock(endpoint);
 	endpoint->max_channels = max_channels;
 	ao2_unlock(endpoint);
@@ -406,6 +453,9 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 	struct ao2_iterator i;
 	void *obj;
 	SCOPED_AO2LOCK(lock, endpoint);
+
+	ast_assert(endpoint != NULL);
+	ast_assert(!ast_strlen_zero(endpoint->resource));
 
 	channel_count = ao2_container_count(endpoint->channel_ids);
 
@@ -440,6 +490,9 @@ static void endpoint_cleanup(void)
 {
 	ao2_cleanup(endpoints);
 	endpoints = NULL;
+
+	ao2_cleanup(tech_endpoints);
+	tech_endpoints = NULL;
 }
 
 int ast_endpoint_init(void)
@@ -448,8 +501,13 @@ int ast_endpoint_init(void)
 
 	endpoints = ao2_container_alloc(ENDPOINT_BUCKETS, endpoint_hash,
 		endpoint_cmp);
-
 	if (!endpoints) {
+		return -1;
+	}
+
+	tech_endpoints = ao2_container_alloc(TECH_ENDPOINT_BUCKETS, endpoint_hash,
+		endpoint_cmp);
+	if (!tech_endpoints) {
 		return -1;
 	}
 

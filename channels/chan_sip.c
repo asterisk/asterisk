@@ -8071,25 +8071,20 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 			my_name = ast_strdupa(i->fromdomain);
 		}
 
-		sip_pvt_unlock(i);
 		/* Don't hold a sip pvt lock while we allocate a channel */
-		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "SIP/%s-%08x", my_name, (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+		sip_pvt_unlock(i);
+
+		if (i->relatedpeer && i->relatedpeer->endpoint) {
+			tmp = ast_channel_alloc_with_endpoint(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, i->relatedpeer->endpoint, "SIP/%s-%08x", my_name, (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+		} else {
+			tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, assignedids, requestor, i->amaflags, "SIP/%s-%08x", my_name, (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+		}
 	}
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
 		ao2_ref(caps, -1);
 		sip_pvt_lock(i);
 		return NULL;
-	}
-
-	if (i->relatedpeer && i->relatedpeer->endpoint) {
-		if (ast_endpoint_add_channel(i->relatedpeer->endpoint, tmp)) {
-			ast_channel_unlock(tmp);
-			ast_channel_unref(tmp);
-			ao2_ref(caps, -1);
-			sip_pvt_lock(i);
-			return NULL;
-		}
 	}
 
 	ast_channel_stage_snapshot(tmp);
