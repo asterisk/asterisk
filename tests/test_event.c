@@ -66,7 +66,7 @@ static int check_event(struct ast_event *event, struct ast_test *test,
 	/* Check #1: Ensure event type is set properly. */
 	type = ast_event_get_type(event);
 	if (ast_event_get_type(event) != type) {
-		ast_test_status_update(test, "Expected event type: '%d', got '%d'\n",
+		ast_test_status_update(test, "Expected event type: '%u', got '%u'\n",
 				expected_type, type);
 		return -1;
 	}
@@ -349,7 +349,7 @@ AST_TEST_DEFINE(event_sub_test)
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "CUSTOM subscriptions should not exist! (%d)\n",
+		ast_test_status_update(test, "CUSTOM subscriptions should not exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -382,7 +382,7 @@ AST_TEST_DEFINE(event_sub_test)
 	sub_res = ast_event_check_subscriber(AST_EVENT_CUSTOM,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_EXISTS) {
-		ast_test_status_update(test, "A CUSTOM subscription should exist! (%d)\n",
+		ast_test_status_update(test, "A CUSTOM subscription should exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -629,7 +629,7 @@ AST_TEST_DEFINE(event_sub_test)
 		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, "Money",
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "Str Money subscription should not exist! (%d)\n",
+		ast_test_status_update(test, "Str Money subscription should not exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -647,7 +647,7 @@ AST_TEST_DEFINE(event_sub_test)
 		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "FOO/bar", sizeof("FOO/bar") - 1,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "Raw FOO/bar-1 subscription should not exist! (%d)\n",
+		ast_test_status_update(test, "Raw FOO/bar-1 subscription should not exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -656,7 +656,7 @@ AST_TEST_DEFINE(event_sub_test)
 		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_RAW, "Monkeys", sizeof("Monkeys"),
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "Raw Monkeys subscription should not exist! (%d)\n",
+		ast_test_status_update(test, "Raw Monkeys subscription should not exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -674,7 +674,7 @@ AST_TEST_DEFINE(event_sub_test)
 		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 1,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "UINT=1 subscription should not exist! (%d)\n",
+		ast_test_status_update(test, "UINT=1 subscription should not exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -692,7 +692,7 @@ AST_TEST_DEFINE(event_sub_test)
 		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_BITFLAGS, 8,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "BITFLAGS=8 subscription should not exist! (%d)\n",
+		ast_test_status_update(test, "BITFLAGS=8 subscription should not exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}
@@ -711,7 +711,7 @@ AST_TEST_DEFINE(event_sub_test)
 		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, 4,
 		AST_EVENT_IE_END);
 	if (sub_res != AST_EVENT_SUB_NONE) {
-		ast_test_status_update(test, "EXISTS subscription should not exist! (%d)\n",
+		ast_test_status_update(test, "EXISTS subscription should not exist! (%u)\n",
 			sub_res);
 		res = AST_TEST_FAIL;
 	}

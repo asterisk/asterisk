@@ -55,12 +55,12 @@ static void output_tests(struct test *tests, size_t num_tests, int fd)
 	unsigned int x;
 
 	for (x = 0; x < num_tests; x++) {
-		ast_cli(fd, "Test %d: %s\n", x + 1, tests[x].name);
-		ast_cli(fd, "\tExpected Successes: %d\n", tests[x].x_success);
-		ast_cli(fd, "\tExpected Failures: %d\n", tests[x].x_failure);
-		ast_cli(fd, "\tUnexpected Successes: %d\n", tests[x].u_success);
-		ast_cli(fd, "\tUnexpected Failures: %d\n", tests[x].u_failure);
-		ast_cli(fd, "Test %d Result: %s\n", x + 1, (tests[x].u_success + tests[x].u_failure) ? "FAIL" : "PASS");
+		ast_cli(fd, "Test %u: %s\n", x + 1, tests[x].name);
+		ast_cli(fd, "\tExpected Successes: %u\n", tests[x].x_success);
+		ast_cli(fd, "\tExpected Failures: %u\n", tests[x].x_failure);
+		ast_cli(fd, "\tUnexpected Successes: %u\n", tests[x].u_success);
+		ast_cli(fd, "\tUnexpected Failures: %u\n", tests[x].u_failure);
+		ast_cli(fd, "Test %u Result: %s\n", x + 1, (tests[x].u_success + tests[x].u_failure) ? "FAIL" : "PASS");
 	}
 }
 
@@ -88,11 +88,11 @@ static char *handle_cli_dynamic_level_test(struct ast_cli_entry *e, int cmd, str
 	}
 
 	for (test = 0; test < ARRAY_LEN(tests); test++) {
-		ast_cli(a->fd, "Test %d: %s.\n", test + 1, tests[test].name);
+		ast_cli(a->fd, "Test %u: %s.\n", test + 1, tests[test].name);
 		switch (test) {
 		case 0:
 			if ((level = ast_logger_register_level("test")) != -1) {
-				ast_cli(a->fd, "Test: got level %d\n", level);
+				ast_cli(a->fd, "Test: got level %u\n", level);
 				ast_log_dynamic_level(level, "Logger Dynamic Test: Test 1\n");
 				ast_logger_unregister_level("test");
 				tests[test].x_success++;
@@ -106,7 +106,7 @@ static char *handle_cli_dynamic_level_test(struct ast_cli_entry *e, int cmd, str
 			char level_name[18][8];
 
 			for (x = 0; x < ARRAY_LEN(level_name); x++) {
-				sprintf(level_name[x], "level%02d", x);
+				sprintf(level_name[x], "level%02u", x);
 				if ((level = ast_logger_register_level(level_name[x])) == -1) {
 					if (x < 16) {
 						tests[test].u_failure++;
@@ -115,7 +115,7 @@ static char *handle_cli_dynamic_level_test(struct ast_cli_entry *e, int cmd, str
 					}
 					level_name[x][0] = '\0';
 				} else {
-					ast_cli(a->fd, "Test: registered '%s', got level %d\n", level_name[x], level);
+					ast_cli(a->fd, "Test: registered '%s', got level %u\n", level_name[x], level);
 					if (x < 16) {
 						tests[test].x_success++;
 					} else {
@@ -159,7 +159,7 @@ static char *handle_cli_performance_test(struct ast_cli_entry *e, int cmd, struc
 	}
 
 	for (test = 0; test < ARRAY_LEN(tests); test++) {
-		ast_cli(a->fd, "Test %d: %s.\n", test + 1, tests[test].name);
+		ast_cli(a->fd, "Test %u: %s.\n", test + 1, tests[test].name);
 		switch (test) {
 		case 0:
 			if ((level = ast_logger_register_level("perftest")) != -1) {
@@ -167,7 +167,7 @@ static char *handle_cli_performance_test(struct ast_cli_entry *e, int cmd, struc
 				struct timeval start, end;
 				int elapsed;
 
-				ast_cli(a->fd, "Test: got level %d\n", level);
+				ast_cli(a->fd, "Test: got level %u\n", level);
 				start = ast_tvnow();
 				for (x = 0; x < 10000; x++) {
 					ast_log_dynamic_level(level, "Performance test log message\n");

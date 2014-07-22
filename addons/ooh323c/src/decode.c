@@ -425,7 +425,7 @@ int decodeDynBitString (OOCTXT* pctxt, ASN1DynBitStr* pBitStr)
    if (pctxt->flags & ASN1FASTCOPY) {
       /* check is it possible to do optimized decoding */
 
-      ASN1OCTET bit;
+      ASN1OCTET bit = 0;
       ASN1UINT byteIndex = pctxt->buffer.byteIndex;  /* save byte index */
       ASN1USINT bitOffset = pctxt->buffer.bitOffset; /* save bit offset */
 
@@ -499,7 +499,7 @@ int decodeDynOctetString (OOCTXT* pctxt, ASN1DynOctStr* pOctStr)
    if (pctxt->flags & ASN1FASTCOPY) {
       /* check if it is possible to do optimized decoding */
 
-      ASN1OCTET bit;
+      ASN1OCTET bit = 0;
       ASN1UINT byteIndex = pctxt->buffer.byteIndex;  /* save byte index */
       ASN1USINT bitOffset = pctxt->buffer.bitOffset; /* save bit offset */
 
