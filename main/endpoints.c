@@ -194,8 +194,6 @@ static void endpoint_dtor(void *obj)
 	ao2_cleanup(endpoint->router);
 	endpoint->router = NULL;
 
-	endpoint->tech_forward = stasis_forward_cancel(endpoint->tech_forward);
-
 	stasis_cp_single_unsubscribe(endpoint->topics);
 	endpoint->topics = NULL;
 
@@ -368,6 +366,7 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 	}
 
 	ao2_unlink(endpoints, endpoint);
+	endpoint->tech_forward = stasis_forward_cancel(endpoint->tech_forward);
 
 	clear_msg = create_endpoint_snapshot_message(endpoint);
 	if (clear_msg) {
