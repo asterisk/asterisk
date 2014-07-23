@@ -168,7 +168,7 @@ AST_TEST_DEFINE(cache_clear)
 		cache_update, __func__, STASIS_SINK_DEFAULT_WAIT);
 	ast_test_validate(test, 0 <= message_index);
 
-	/* First message should be a cache creation entry for our endpont */
+	/* First message should be a cache creation entry for our endpoint */
 	msg = sink->messages[message_index];
 	type = stasis_message_type(msg);
 	ast_test_validate(test, stasis_cache_update_type() == type);
@@ -182,7 +182,10 @@ AST_TEST_DEFINE(cache_clear)
 
 	ast_endpoint_shutdown(uut);
 	uut = NULL;
-	message_index = stasis_message_sink_wait_for(sink, message_index + 1,
+
+	/* Note: there's a few messages between the creation and the clear.
+	 * Wait for all of them... */
+	message_index = stasis_message_sink_wait_for(sink, message_index + 4,
 		cache_update, __func__, STASIS_SINK_DEFAULT_WAIT);
 	ast_test_validate(test, 0 <= message_index);
 	/* Now we should have a cache removal entry */
@@ -252,20 +255,28 @@ AST_TEST_DEFINE(channel_messages)
 	ast_hangup(chan);
 	chan = NULL;
 
-	actual_count = stasis_message_sink_wait_for_count(sink, 4,
+	actual_count = stasis_message_sink_wait_for_count(sink, 6,
 		STASIS_SINK_DEFAULT_WAIT);
-	ast_test_validate(test, 4 == actual_count);
+	ast_test_validate(test, 6 == actual_count);
 
 	msg = sink->messages[1];
 	type = stasis_message_type(msg);
+	ast_test_validate(test, stasis_cache_update_type() == type);
+
+	msg = sink->messages[2];
+	type = stasis_message_type(msg);
 	ast_test_validate(test, ast_channel_snapshot_type() == type);
+
+	msg = sink->messages[3];
+	type = stasis_message_type(msg);
+	ast_test_validate(test, stasis_cache_update_type() == type);
 
 	/* The ordering of the cache clear and endpoint snapshot are
 	 * unspecified */
-	msg = sink->messages[2];
+	msg = sink->messages[4];
 	if (stasis_message_type(msg) == stasis_cache_clear_type()) {
 		/* Okay; the next message should be the endpoint snapshot */
-		msg = sink->messages[3];
+		msg = sink->messages[5];
 	}
 
 	type = stasis_message_type(msg);
