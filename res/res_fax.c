@@ -4553,6 +4553,10 @@ static int unload_module(void)
 		ast_log(LOG_WARNING, "failed to unregister '%s'\n", app_receivefax);
 	}
 
+	ast_manager_unregister("FAXSessions");
+	ast_manager_unregister("FAXSession");
+	ast_manager_unregister("FAXStats");
+
 	if (fax_logger_level != -1) {
 		ast_logger_unregister_level("FAX");
 	}

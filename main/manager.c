@@ -6317,7 +6317,7 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 {
 	struct manager_action *cur;
 
-	cur = ao2_alloc(sizeof(*cur), action_destroy);
+	cur = ao2_t_alloc(sizeof(*cur), action_destroy, action);
 	if (!cur) {
 		return -1;
 	}
