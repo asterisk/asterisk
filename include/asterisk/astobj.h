@@ -16,8 +16,10 @@
  * at the top of the source tree.
  */
 
-/*
- * Object Model for Asterisk
+/*! \file
+ * \brief Object Model for Asterisk
+ *
+ * \deprecated Use astobj2.h instead
  */
 
 #ifndef _ASTERISK_ASTOBJ_H
