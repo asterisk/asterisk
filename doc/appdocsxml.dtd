@@ -26,10 +26,14 @@
   <!ATTLIST agi language CDATA #REQUIRED>
   <!ATTLIST agi module CDATA #IMPLIED>
 
-  <!ELEMENT manager (synopsis?,syntax?,description?,see-also?)>
+  <!ELEMENT manager (synopsis?,syntax?,description?,see-also?,responses?)>
   <!ATTLIST manager name CDATA #REQUIRED>
   <!ATTLIST manager language CDATA #REQUIRED>
   <!ATTLIST manager module CDATA #IMPLIED>
+
+  <!ELEMENT responses (list-elements?,(managerEvent|xi:include))>
+
+  <!ELEMENT list-elements (managerEvent+|xi:include+)>
 
   <!ELEMENT managerEvent (managerEventInstance+)>
   <!ATTLIST managerEvent name CDATA #REQUIRED>

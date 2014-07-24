@@ -37,6 +37,13 @@ enum ast_doc_src {
 struct ao2_container;
 struct ast_xml_node;
 
+/*!
+ * \brief The struct to be used as the head of an ast_xml_doc_item list
+ *        when being manipulated
+ * \since 13.0.0
+ */
+AST_LIST_HEAD(ast_xml_doc_item_list, ast_xml_doc_item);
+
 /*! \brief Struct that contains the XML documentation for a particular item.  Note
  * that this is an ao2 ref counted object.
  *
@@ -70,7 +77,7 @@ struct ast_xml_doc_item {
 	 */
 	struct ast_xml_node *node;
 	/*! The next XML documentation item that matches the same name/item type */
-	struct ast_xml_doc_item *next;
+	AST_LIST_ENTRY(ast_xml_doc_item) next;
 };
 
 /*! \brief Execute an XPath query on the loaded XML documentation
@@ -113,6 +120,34 @@ char *ast_xmldoc_build_seealso(const char *type, const char *name, const char *m
  *  \retval Output buffer with the [arguments] tag content.
  */
 char *ast_xmldoc_build_arguments(const char *type, const char *name, const char *module);
+
+/*!
+ * \brief Generate the [final response] tag based on type of node ('application',
+ *        'function' or 'agi') and name.
+ *
+ * \param type 'application', 'function' or 'agi'
+ * \param name Name of the application or function to build the 'responses' tag.
+ * \param module The module the item is in (optional, can be NULL)
+ *
+ * \return An XMLDoc item list with the [final response] tag content.
+ *
+ * \since 13.0.0
+ */
+struct ast_xml_doc_item *ast_xmldoc_build_final_response(const char *type, const char *name, const char *module);
+
+/*!
+ * \brief Generate the [list responses] tag based on type of node ('application',
+ *        'function' or 'agi') and name.
+ *
+ * \param type 'application', 'function' or 'agi'
+ * \param name Name of the application or function to build the 'responses' tag.
+ * \param module The module the item is in (optional, can be NULL)
+ *
+ * \return An XMLDoc item list with the [list responses] tag content.
+ *
+ * \since 13.0.0
+ */
+struct ast_xml_doc_item *ast_xmldoc_build_list_responses(const char *type, const char *name, const char *module);
 
 /*!
  *  \brief Colorize and put delimiters (instead of tags) to the xmldoc output.

@@ -1912,6 +1912,8 @@ static int manager_displayconnects(struct mansession_session *session)
 	return ret;
 }
 
+static void print_event_instance(struct ast_cli_args *a, struct ast_xml_doc_item *instance);
+
 static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct manager_action *cur;
@@ -1919,7 +1921,8 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	int num, l, which;
 	char *ret = NULL;
 #ifdef AST_XML_DOCS
-	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64], privilege_title[64];
+	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64];
+	char arguments_title[64], privilege_title[64], final_response_title[64], list_responses_title[64];
 #endif
 
 	switch (cmd) {
@@ -1955,6 +1958,8 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
 	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
 	term_color(privilege_title, "[Privilege]\n", COLOR_MAGENTA, 0, 40);
+	term_color(final_response_title, "[Final Response]\n", COLOR_MAGENTA, 0, 40);
+	term_color(list_responses_title, "[List Responses]\n", COLOR_MAGENTA, 0, 40);
 #endif
 
 	AST_RWLIST_RDLOCK(&actions);
@@ -1971,13 +1976,34 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 					char *arguments = ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1);
 					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
 					char *privilege = ast_xmldoc_printable(S_OR(authority->str, "Not available"), 1);
-					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n",
+					char *responses = ast_xmldoc_printable("None", 1);
+					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s",
 						syntax_title, syntax,
 						synopsis_title, synopsis,
 						description_title, description,
 						arguments_title, arguments,
 						seealso_title, seealso,
-						privilege_title, privilege);
+						privilege_title, privilege,
+						list_responses_title);
+
+					if (!cur->list_responses) {
+						ast_cli(a->fd, "%s\n\n", responses);
+					} else {
+						struct ast_xml_doc_item *temp;
+						for (temp = cur->list_responses; temp; temp = AST_LIST_NEXT(temp, next)) {
+							ast_cli(a->fd, "Event: %s\n", temp->name);
+							print_event_instance(a, temp);
+						}
+					}
+
+					ast_cli(a->fd, "%s", final_response_title);
+
+					if (!cur->final_response) {
+						ast_cli(a->fd, "%s\n\n", responses);
+					} else {
+						ast_cli(a->fd, "Event: %s\n", cur->final_response->name);
+						print_event_instance(a, cur->final_response);
+					}
 				} else
 #endif
 				{
@@ -6309,6 +6335,8 @@ static void action_destroy(void *obj)
 		/* The string fields were initialized. */
 		ast_string_field_free_memory(doomed);
 	}
+	ao2_cleanup(doomed->final_response);
+	ao2_cleanup(doomed->list_responses);
 }
 
 /*! \brief register a new command with manager, including online help. This is
@@ -6353,6 +6381,9 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 		tmpxml = ast_xmldoc_build_arguments("manager", action, NULL);
 		ast_string_field_set(cur, arguments, tmpxml);
 		ast_free(tmpxml);
+
+		cur->final_response = ast_xmldoc_build_final_response("manager", action, NULL);
+		cur->list_responses = ast_xmldoc_build_list_responses("manager", action, NULL);
 
 		cur->docsrc = AST_XML_DOC;
 	} else
@@ -7745,6 +7776,43 @@ static char *handle_manager_show_events(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+static void print_event_instance(struct ast_cli_args *a, struct ast_xml_doc_item *instance)
+{
+	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64];
+
+	term_color(synopsis_title, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+	term_color(description_title, "[Description]\n", COLOR_MAGENTA, 0, 40);
+	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
+	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+
+	if (!ast_strlen_zero(ast_str_buffer(instance->synopsis))) {
+		char *synopsis = ast_xmldoc_printable(ast_str_buffer(instance->synopsis), 1);
+		ast_cli(a->fd, "%s%s\n\n", synopsis_title, synopsis);
+		ast_free(synopsis);
+	}
+	if (!ast_strlen_zero(ast_str_buffer(instance->syntax))) {
+		char *syntax = ast_xmldoc_printable(ast_str_buffer(instance->syntax), 1);
+		ast_cli(a->fd, "%s%s\n\n", syntax_title, syntax);
+		ast_free(syntax);
+	}
+	if (!ast_strlen_zero(ast_str_buffer(instance->description))) {
+		char *description = ast_xmldoc_printable(ast_str_buffer(instance->description), 1);
+		ast_cli(a->fd, "%s%s\n\n", description_title, description);
+		ast_free(description);
+	}
+	if (!ast_strlen_zero(ast_str_buffer(instance->arguments))) {
+		char *arguments = ast_xmldoc_printable(ast_str_buffer(instance->arguments), 1);
+		ast_cli(a->fd, "%s%s\n\n", arguments_title, arguments);
+		ast_free(arguments);
+	}
+	if (!ast_strlen_zero(ast_str_buffer(instance->seealso))) {
+		char *seealso = ast_xmldoc_printable(ast_str_buffer(instance->seealso), 1);
+		ast_cli(a->fd, "%s%s\n\n", seealso_title, seealso);
+		ast_free(seealso);
+	}
+}
+
 static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	RAII_VAR(struct ao2_container *, events, NULL, ao2_cleanup);
@@ -7753,7 +7821,6 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 	int length;
 	int which;
 	char *match = NULL;
-	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64], arguments_title[64];
 
 	if (cmd == CLI_INIT) {
 		e->command = "manager show event";
@@ -7794,39 +7861,9 @@ static char *handle_manager_show_event(struct ast_cli_entry *e, int cmd, struct 
 		return CLI_SUCCESS;
 	}
 
-	term_color(synopsis_title, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(description_title, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntax_title, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	term_color(seealso_title, "[See Also]\n", COLOR_MAGENTA, 0, 40);
-	term_color(arguments_title, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
-
 	ast_cli(a->fd, "Event: %s\n", a->argv[3]);
-	for (temp = item; temp; temp = temp->next) {
-		if (!ast_strlen_zero(ast_str_buffer(temp->synopsis))) {
-			char *synopsis = ast_xmldoc_printable(ast_str_buffer(temp->synopsis), 1);
-			ast_cli(a->fd, "%s%s\n\n", synopsis_title, synopsis);
-			ast_free(synopsis);
-		}
-		if (!ast_strlen_zero(ast_str_buffer(temp->syntax))) {
-			char *syntax = ast_xmldoc_printable(ast_str_buffer(temp->syntax), 1);
-			ast_cli(a->fd, "%s%s\n\n", syntax_title, syntax);
-			ast_free(syntax);
-		}
-		if (!ast_strlen_zero(ast_str_buffer(temp->description))) {
-			char *description = ast_xmldoc_printable(ast_str_buffer(temp->description), 1);
-			ast_cli(a->fd, "%s%s\n\n", description_title, description);
-			ast_free(description);
-		}
-		if (!ast_strlen_zero(ast_str_buffer(temp->arguments))) {
-			char *arguments = ast_xmldoc_printable(ast_str_buffer(temp->arguments), 1);
-			ast_cli(a->fd, "%s%s\n\n", arguments_title, arguments);
-			ast_free(arguments);
-		}
-		if (!ast_strlen_zero(ast_str_buffer(temp->seealso))) {
-			char *seealso = ast_xmldoc_printable(ast_str_buffer(temp->seealso), 1);
-			ast_cli(a->fd, "%s%s\n\n", seealso_title, seealso);
-			ast_free(seealso);
-		}
+	for (temp = item; temp; temp = AST_LIST_NEXT(temp, next)) {
+		print_event_instance(a, temp);
 	}
 
 	ao2_ref(item, -1);

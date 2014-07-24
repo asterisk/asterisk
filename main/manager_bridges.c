@@ -100,6 +100,26 @@ static struct stasis_message_router *bridge_state_router;
 		<description>
 			<para>Returns detailed information about a bridge and the channels in it.</para>
 		</description>
+		<responses>
+			<list-elements>
+				<managerEvent language="en_US" name="BridgeInfoChannel">
+					<managerEventInstance class="EVENT_FLAG_COMMAND">
+						<synopsis>Information about a channel in a bridge.</synopsis>
+						<syntax>
+							<channel_snapshot/>
+						</syntax>
+					</managerEventInstance>
+				</managerEvent>
+			</list-elements>
+			<managerEvent language="en_US" name="BridgeInfoComplete">
+				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<synopsis>Information about a bridge.</synopsis>
+					<syntax>
+						<bridge_snapshot/>
+					</syntax>
+				</managerEventInstance>
+			</managerEvent>
+		</responses>
 	</manager>
 	<manager name="BridgeDestroy" language="en_US">
 		<synopsis>

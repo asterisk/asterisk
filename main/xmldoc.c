@@ -2300,9 +2300,9 @@ static void ast_xml_doc_item_destructor(void *obj)
 	ast_free(doc->description);
 	ast_string_field_free_memory(doc);
 
-	if (doc->next) {
-		ao2_ref(doc->next, -1);
-		doc->next = NULL;
+	if (AST_LIST_NEXT(doc, next)) {
+		ao2_ref(AST_LIST_NEXT(doc, next), -1);
+		AST_LIST_NEXT(doc, next) = NULL;
 	}
 }
 
@@ -2428,6 +2428,139 @@ static struct ast_xml_doc_item *xmldoc_build_documentation_item(struct ast_xml_n
 	return item;
 }
 
+/*!
+ * \internal
+ * \brief Build the list responses for an item
+ *
+ * \param manager_action The action node to parse
+ *
+ * \note This method exists for when you already have the node.  This
+ * prevents having to lock the documentation tree twice
+ *
+ * \retval A list of ast_xml_doc_items
+ * \retval NULL on failure
+ *
+ * \since 13.0.0
+ */
+static struct ast_xml_doc_item *xmldoc_build_list_responses(struct ast_xml_node *manager_action)
+{
+	struct ast_xml_node *event;
+	struct ast_xml_node *responses;
+	struct ast_xml_node *list_elements;
+	struct ast_xml_doc_item_list root;
+
+	AST_LIST_HEAD_INIT(&root);
+
+	responses = ast_xml_find_element(ast_xml_node_get_children(manager_action), "responses", NULL, NULL);
+	if (!responses) {
+		return NULL;
+	}
+
+	list_elements = ast_xml_find_element(ast_xml_node_get_children(responses), "list-elements", NULL, NULL);
+	if (!list_elements) {
+		return NULL;
+	}
+
+	/* Iterate over managerEvent nodes */
+	for (event = ast_xml_node_get_children(list_elements); event; event = ast_xml_node_get_next(event)) {
+		struct ast_xml_node *event_instance;
+		const char *name = ast_xml_get_attribute(event, "name");
+		struct ast_xml_doc_item *new_item;
+
+		if (!name || strcmp(ast_xml_node_get_name(event), "managerEvent")) {
+			continue;
+		}
+
+		event_instance = ast_xml_find_element(ast_xml_node_get_children(event),
+			"managerEventInstance", NULL, NULL);
+		new_item = xmldoc_build_documentation_item(event_instance, name, "managerEvent");
+		if (!new_item) {
+			ao2_cleanup(AST_LIST_FIRST(&root));
+			return NULL;
+		}
+
+		AST_LIST_INSERT_TAIL(&root, new_item, next);
+	}
+
+	return AST_LIST_FIRST(&root);
+}
+
+struct ast_xml_doc_item *ast_xmldoc_build_list_responses(const char *type, const char *name, const char *module)
+{
+	struct ast_xml_node *node;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	node = xmldoc_get_node(type, name, module, documentation_language);
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return NULL;
+	}
+
+	return xmldoc_build_list_responses(node);
+}
+
+/*!
+ * \internal
+ * \brief Build the final response for an item
+ *
+ * \param manager_action The action node to parse
+ *
+ * \note This method exists for when you already have the node.  This
+ * prevents having to lock the documentation tree twice
+ *
+ * \retval An ast_xml_doc_item
+ * \retval NULL on failure
+ *
+ * \since 13.0.0
+ */
+static struct ast_xml_doc_item *xmldoc_build_final_response(struct ast_xml_node *manager_action)
+{
+	struct ast_xml_node *responses;
+	struct ast_xml_node *final_response_event;
+	struct ast_xml_node *event_instance;
+
+	responses = ast_xml_find_element(ast_xml_node_get_children(manager_action),
+		"responses", NULL, NULL);
+	if (!responses) {
+		return NULL;
+	}
+
+	final_response_event = ast_xml_find_element(ast_xml_node_get_children(responses),
+		"managerEvent", NULL, NULL);
+	if (!final_response_event) {
+		return NULL;
+	}
+
+	event_instance = ast_xml_find_element(ast_xml_node_get_children(final_response_event),
+		"managerEventInstance", NULL, NULL);
+	if (!event_instance) {
+		return NULL;
+	}
+
+	return xmldoc_build_documentation_item(event_instance,
+		ast_xml_get_attribute(final_response_event, "name"), "managerEvent");
+}
+
+struct ast_xml_doc_item *ast_xmldoc_build_final_response(const char *type, const char *name, const char *module)
+{
+	struct ast_xml_node *node;
+
+	if (ast_strlen_zero(type) || ast_strlen_zero(name)) {
+		return NULL;
+	}
+
+	node = xmldoc_get_node(type, name, module, documentation_language);
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return NULL;
+	}
+
+	return xmldoc_build_final_response(node);
+}
+
 struct ast_xml_xpath_results *__attribute__((format(printf, 1, 2))) ast_xmldoc_query(const char *fmt, ...)
 {
 	struct ast_xml_xpath_results *results = NULL;
@@ -2455,7 +2588,7 @@ struct ast_xml_xpath_results *__attribute__((format(printf, 1, 2))) ast_xmldoc_q
 	return results;
 }
 
-static void build_config_docs(struct ast_xml_node *cur, struct ast_xml_doc_item **tail)
+static void build_config_docs(struct ast_xml_node *cur, struct ast_xml_doc_item_list *root)
 {
 	struct ast_xml_node *iter;
 	struct ast_xml_doc_item *item;
@@ -2478,9 +2611,8 @@ static void build_config_docs(struct ast_xml_node *cur, struct ast_xml_doc_item 
 			ast_string_field_set(item, ref, name);
 			ast_xml_free_attr(name);
 		}
-		(*tail)->next = item;
-		*tail = (*tail)->next;
-		build_config_docs(iter, tail);
+		AST_LIST_INSERT_TAIL(root, item, next);
+		build_config_docs(iter, root);
 	}
 }
 
@@ -2536,7 +2668,6 @@ int ast_xmldoc_regenerate_doc_item(struct ast_xml_doc_item *item)
 struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 {
 	struct ao2_container *docs;
-	struct ast_xml_doc_item *item = NULL, *root = NULL;
 	struct ast_xml_node *node = NULL, *instance = NULL;
 	struct documentation_tree *doctree;
 	const char *name;
@@ -2555,6 +2686,8 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 		}
 
 		for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+			struct ast_xml_doc_item *item = NULL;
+
 			/* Ignore empty nodes or nodes that aren't of the type requested */
 			if (!ast_xml_node_get_children(node) || strcasecmp(ast_xml_node_get_name(node), type)) {
 				continue;
@@ -2566,6 +2699,10 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 
 			switch (xmldoc_get_syntax_type(type)) {
 			case MANAGER_EVENT_SYNTAX:
+			{
+				struct ast_xml_doc_item_list root;
+
+				AST_LIST_HEAD_INIT(&root);
 				for (instance = ast_xml_node_get_children(node); instance; instance = ast_xml_node_get_next(instance)) {
 					struct ast_xml_doc_item *temp;
 					if (!ast_xml_node_get_children(instance) || strcasecmp(ast_xml_node_get_name(instance), "managerEventInstance")) {
@@ -2575,28 +2712,27 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 					if (!temp) {
 						break;
 					}
-					if (!item) {
-						item = temp;
-						root = item;
-					} else {
-						item->next = temp;
-						item = temp;
-					}
+					AST_LIST_INSERT_TAIL(&root, temp, next);
 				}
-				item = root;
+				item = AST_LIST_FIRST(&root);
 				break;
+			}
 			case CONFIG_INFO_SYNTAX:
 			{
-				struct ast_xml_doc_item *tail;
 				RAII_VAR(const char *, name, ast_xml_get_attribute(node, "name"), ast_xml_free_attr);
-				if (item || !ast_xml_node_get_children(node) || strcasecmp(ast_xml_node_get_name(node), "configInfo")) {
+
+				if (!ast_xml_node_get_children(node) || strcasecmp(ast_xml_node_get_name(node), "configInfo")) {
 					break;
 				}
-				if (!(item = xmldoc_build_documentation_item(node, name, "configInfo"))) {
-					break;
+
+				item = xmldoc_build_documentation_item(node, name, "configInfo");
+				if (item) {
+					struct ast_xml_doc_item_list root;
+
+					AST_LIST_HEAD_INIT(&root);
+					AST_LIST_INSERT_TAIL(&root, item, next);
+					build_config_docs(node, &root);
 				}
-				tail = item;
-				build_config_docs(node, &tail);
 				break;
 			}
 			default:
@@ -2607,7 +2743,6 @@ struct ao2_container *ast_xmldoc_build_documentation(const char *type)
 			if (item) {
 				ao2_link(docs, item);
 				ao2_t_ref(item, -1, "Dispose of creation ref");
-				item = NULL;
 			}
 		}
 	}

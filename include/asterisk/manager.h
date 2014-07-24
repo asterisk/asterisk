@@ -148,6 +148,10 @@ struct manager_action {
 		AST_STRING_FIELD(arguments);	/*!< Description of each argument. */
 		AST_STRING_FIELD(seealso);	/*!< See also */
 	);
+	/*! Possible list element response events. */
+	struct ast_xml_doc_item *list_responses;
+	/*! Final response event. */
+	struct ast_xml_doc_item *final_response;
 	/*! Permission required for action.  EVENT_FLAG_* */
 	int authority;
 	/*! Function to be called */

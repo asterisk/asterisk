@@ -249,7 +249,7 @@ static struct ast_xml_doc_item *find_xmldoc_option(struct ast_xml_doc_item *conf
 		return NULL;
 	}
 	/* First is just the configInfo, we can skip it */
-	while ((iter = iter->next)) {
+	while ((iter = AST_LIST_NEXT(iter, next))) {
 		size_t x;
 		if (strcasecmp(iter->name, name)) {
 			continue;
@@ -274,7 +274,7 @@ static struct ast_xml_doc_item *find_xmldoc_type(struct ast_xml_doc_item *config
 		return NULL;
 	}
 	/* First is just the config Info, skip it */
-	while ((iter = iter->next)) {
+	while ((iter = AST_LIST_NEXT(iter, next))) {
 		if (!strcasecmp(iter->type, "configObject") && !strcasecmp(iter->name, name)) {
 			break;
 		}
@@ -915,7 +915,7 @@ static char *complete_config_type(const char *module, const char *word, int pos,
 	}
 
 	cur = info;
-	while ((cur = cur->next)) {
+	while ((cur = AST_LIST_NEXT(cur, next))) {
 		if (!strcasecmp(cur->type, "configObject") && !strncasecmp(word, cur->name, wordlen) && ++which > state) {
 			c = ast_strdup(cur->name);
 			break;
@@ -944,7 +944,7 @@ static char *complete_config_option(const char *module, const char *option, cons
 	}
 
 	cur = info;
-	while ((cur = cur->next)) {
+	while ((cur = AST_LIST_NEXT(cur, next))) {
 		if (!strcasecmp(cur->type, "configOption") && !strcasecmp(cur->ref, option) && !strncasecmp(word, cur->name, wordlen) && ++which > state) {
 			c = ast_strdup(cur->name);
 			break;
@@ -1109,7 +1109,7 @@ static void cli_show_module_types(struct ast_cli_args *a)
 
 	tmp = item;
 	ast_cli(a->fd, "Configuration option types for %s:\n", tmp->name);
-	while ((tmp = tmp->next)) {
+	while ((tmp = AST_LIST_NEXT(tmp, next))) {
 		if (!strcasecmp(tmp->type, "configObject")) {
 			ast_cli(a->fd, "%-25s -- %-65.65s\n", tmp->name,
 				ast_str_buffer(tmp->synopsis));
@@ -1135,7 +1135,7 @@ static void cli_show_module_type(struct ast_cli_args *a)
 	}
 
 	tmp = item;
-	while ((tmp = tmp->next)) {
+	while ((tmp = AST_LIST_NEXT(tmp, next))) {
 		if (!strcasecmp(tmp->type, "configObject") && !strcasecmp(tmp->name, a->argv[4])) {
 			match = 1;
 			term_color(option_type, tmp->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(option_type));
@@ -1161,7 +1161,7 @@ static void cli_show_module_type(struct ast_cli_args *a)
 
 	/* Now iterate over the options for the type */
 	tmp = item;
-	while ((tmp = tmp->next)) {
+	while ((tmp = AST_LIST_NEXT(tmp, next))) {
 		if (!strcasecmp(tmp->type, "configOption") && !strcasecmp(tmp->ref, a->argv[4])) {
 			ast_cli(a->fd, "%-25s -- %-65.65s\n", tmp->name,
 					ast_str_buffer(tmp->synopsis));
@@ -1186,7 +1186,7 @@ static void cli_show_module_options(struct ast_cli_args *a)
 		return;
 	}
 	tmp = item;
-	while ((tmp = tmp->next)) {
+	while ((tmp = AST_LIST_NEXT(tmp, next))) {
 		if (!strcasecmp(tmp->type, "configOption") && !strcasecmp(tmp->ref, a->argv[4]) && !strcasecmp(tmp->name, a->argv[5])) {
 			if (match) {
 				ast_cli(a->fd, "\n");
