@@ -3752,10 +3752,10 @@ static int load_module(void)
 		.onMediaChanged = (cb_OnMediaChanged) setup_rtp_remote,
 	};
 	if (!(gCap = ast_format_cap_alloc())) {
-		return AST_MODULE_LOAD_FAILURE; 
+		return AST_MODULE_LOAD_DECLINE; 
 	}
 	if (!(ooh323_tech.capabilities = ast_format_cap_alloc())) {
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_add(gCap, ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0));
 	ast_format_cap_add_all(ooh323_tech.capabilities);
@@ -3787,13 +3787,13 @@ static int load_module(void)
 		if (OO_OK != ooH323EpInitialize(OO_CALLMODE_AUDIOCALL, gLogFile)) {
          		ast_log(LOG_ERROR, "Failed to initialize OOH323 endpoint-"
                             "OOH323 Disabled\n");
-			return AST_MODULE_LOAD_FAILURE;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 
 		/* Make sure we can register our OOH323 channel type */
 		if (ast_channel_register(&ooh323_tech)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-			return AST_MODULE_LOAD_FAILURE;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 		ast_rtp_glue_register(&ooh323_rtp);
 		ast_udptl_proto_register(&ooh323_udptl);
@@ -3899,7 +3899,7 @@ static int load_module(void)
 		restart_monitor();
 	} else {
 		ast_log(LOG_ERROR, "Can't load ooh323 config file, OOH323 Disabled\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return 0;
