@@ -119,7 +119,7 @@ static void db_sync(void);
 #define DEFINE_SQL_STATEMENT(stmt,sql) static sqlite3_stmt *stmt; \
 	const char stmt##_sql[] = sql;
 
-DEFINE_SQL_STATEMENT(put_stmt, "INSERT OR IGNORE INTO astdb (key, value) VALUES (?1, ?2); UPDATE astdb SET value=?2 WHERE changes()=0 AND key=?1")
+DEFINE_SQL_STATEMENT(put_stmt, "INSERT OR REPLACE INTO astdb (key, value) VALUES (?, ?)")
 DEFINE_SQL_STATEMENT(get_stmt, "SELECT value FROM astdb WHERE key=?")
 DEFINE_SQL_STATEMENT(del_stmt, "DELETE FROM astdb WHERE key=?")
 DEFINE_SQL_STATEMENT(deltree_stmt, "DELETE FROM astdb WHERE key || '/' LIKE ? || '/' || '%'")

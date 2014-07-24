@@ -50,14 +50,7 @@ int ast_db_get(const char *family, const char *key, char *value, int valuelen);
  */
 int ast_db_get_allocated(const char *family, const char *key, char **out);
 
-/*! \brief Store value addressed by family/key
- *
- *  Try to insert a row first.  If a row already exists with the given key
- *  we will then perform an update on this row.
- *
- *  The attempt here is to increase disk I/O performance by not deleting an existing
- *  row and then inserting a new row when one already exists.
- */
+/*! \brief Store value addressed by family/key */
 int ast_db_put(const char *family, const char *key, const char *value);
 
 /*! \brief Delete entry in astdb */
