@@ -872,17 +872,14 @@ static int chan_pjsip_devicestate(const char *data)
 
 		snapshot = stasis_message_data(msg);
 
-		if (snapshot->state == AST_STATE_DOWN) {
-			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_NOT_INUSE);
-		} else if (snapshot->state == AST_STATE_RINGING) {
-			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_RINGING);
-		} else if ((snapshot->state == AST_STATE_UP) || (snapshot->state == AST_STATE_RING) ||
+		if (chan_pjsip_get_hold(snapshot->uniqueid)) {
+			ast_devstate_aggregate_add(&aggregate, AST_DEVICE_ONHOLD);
+		} else {
+			ast_devstate_aggregate_add(&aggregate, ast_state_chan2dev(snapshot->state));
+		}
+
+		if ((snapshot->state == AST_STATE_UP) || (snapshot->state == AST_STATE_RING) ||
 			(snapshot->state == AST_STATE_BUSY)) {
-			if (chan_pjsip_get_hold(snapshot->uniqueid)) {
-				ast_devstate_aggregate_add(&aggregate, AST_DEVICE_ONHOLD);
-			} else {
-				ast_devstate_aggregate_add(&aggregate, AST_DEVICE_INUSE);
-			}
 			inuse++;
 		}
 	}
