@@ -6450,9 +6450,9 @@ static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi)
 {
 	if (mwi->call) {
 		mwi->call->mwi = NULL;
-		sip_destroy(mwi->call);
+		mwi->call = dialog_unref(mwi->call, "sip_subscription_mwi destruction");
 	}
-	
+
 	AST_SCHED_DEL(sched, mwi->resub);
 	ast_string_field_free_memory(mwi);
 	ast_free(mwi);
