@@ -3793,7 +3793,11 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
+	ast_channel_lock_both(local, transferer);
+	ast_channel_req_accountcodes(local, transferer, AST_CHANNEL_REQUESTOR_REPLACEMENT);
 	pbx_builtin_setvar_helper(local, BLINDTRANSFER, ast_channel_name(transferer));
+	ast_channel_unlock(local);
+	ast_channel_unlock(transferer);
 
 	if (new_channel_cb) {
 		new_channel_cb(local, user_data_wrapper, AST_BRIDGE_TRANSFER_MULTI_PARTY);
@@ -3952,12 +3956,15 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 
 	local_chan = ast_request("Local", ast_channel_nativeformats(chan1), NULL, chan1,
 			dest, &cause);
-
 	if (!local_chan) {
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
+	ast_channel_lock_both(local_chan, chan1);
+	ast_channel_req_accountcodes(local_chan, chan1, AST_CHANNEL_REQUESTOR_REPLACEMENT);
 	pbx_builtin_setvar_helper(local_chan, ATTENDEDTRANSFER, ast_channel_name(chan1));
+	ast_channel_unlock(local_chan);
+	ast_channel_unlock(chan1);
 
 	if (bridge2) {
 		res = ast_local_setup_bridge(local_chan, bridge2, chan2, NULL);

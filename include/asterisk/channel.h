@@ -1387,6 +1387,45 @@ struct ast_channel *ast_channel_release(struct ast_channel *chan);
  */
 struct ast_channel *ast_request(const char *type, struct ast_format_cap *request_cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
 
+enum ast_channel_requestor_relationship {
+	/*! The requestor is the future bridge peer of the channel. */
+	AST_CHANNEL_REQUESTOR_BRIDGE_PEER,
+	/*! The requestor is to be replaced by the channel. */
+	AST_CHANNEL_REQUESTOR_REPLACEMENT,
+};
+
+/*!
+ * \brief Setup new channel accountcodes from the requestor channel after ast_request().
+ * \since 13.0.0
+ *
+ * \param chan New channel to get accountcodes setup.
+ * \param requestor Requesting channel to get accountcodes from.
+ * \param relationship What the new channel was created for.
+ *
+ * \pre The chan and requestor channels are already locked.
+ *
+ * \note Pre-existing accountcodes on chan will be overwritten.
+ *
+ * \return Nothing
+ */
+void ast_channel_req_accountcodes(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship);
+
+/*!
+ * \brief Setup new channel accountcodes from the requestor channel after ast_request().
+ * \since 13.0.0
+ *
+ * \param chan New channel to get accountcodes setup.
+ * \param requestor Requesting channel to get accountcodes from.
+ * \param relationship What the new channel was created for.
+ *
+ * \pre The chan and requestor channels are already locked.
+ *
+ * \note Pre-existing accountcodes on chan will not be overwritten.
+ *
+ * \return Nothing
+ */
+void ast_channel_req_accountcodes_precious(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship);
+
 /*!
  * \brief Request a channel of a given type, with data as optional information used
  *        by the low level module and attempt to place a call on it

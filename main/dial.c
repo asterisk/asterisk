@@ -318,7 +318,12 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	cap_request = NULL;
 	ao2_cleanup(cap_all_audio);
 
-	ast_channel_lock(channel->owner);
+	if (chan) {
+		ast_channel_lock_both(chan, channel->owner);
+	} else {
+		ast_channel_lock(channel->owner);
+	}
+
 	ast_channel_stage_snapshot(channel->owner);
 
 	ast_channel_appl_set(channel->owner, "AppDial2");
@@ -339,12 +344,13 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 		ast_connected_line_copy_from_caller(ast_channel_connected(channel->owner), ast_channel_caller(chan));
 
 		ast_channel_language_set(channel->owner, ast_channel_language(chan));
-		ast_channel_accountcode_set(channel->owner, ast_channel_accountcode(chan));
+		ast_channel_req_accountcodes(channel->owner, chan, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 		if (ast_strlen_zero(ast_channel_musicclass(channel->owner)))
 			ast_channel_musicclass_set(channel->owner, ast_channel_musicclass(chan));
 
 		ast_channel_adsicpe_set(channel->owner, ast_channel_adsicpe(chan));
 		ast_channel_transfercapability_set(channel->owner, ast_channel_transfercapability(chan));
+		ast_channel_unlock(chan);
 	}
 
 	ast_channel_stage_snapshot_done(channel->owner);

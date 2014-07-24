@@ -1070,7 +1070,7 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 			ast_channel_inherit_variables(caller, outbound);
 			ast_channel_datastore_inherit(caller, outbound);
 			ast_channel_language_set(outbound, ast_channel_language(caller));
-			ast_channel_accountcode_set(outbound, ast_channel_accountcode(caller));
+			ast_channel_req_accountcodes(outbound, caller, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 			ast_channel_musicclass_set(outbound, ast_channel_musicclass(caller));
 			ast_channel_unlock(outbound);
 			ast_channel_unlock(caller);

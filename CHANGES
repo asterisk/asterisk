@@ -12,6 +12,32 @@
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------
 
+accountcode
+------------------
+ - Added functional peeraccount support.  Except for Queue, the
+   accountcode propagation is now consistently propagated to outgoing
+   channels before dialing.  The channel accountcode can change from its
+   original non-empty value on channel creation for the following specific
+   reasons.  One, dialplan sets it using CHANNEL(accountcode).  Two, an
+   originate method that can specify an accountcode value.  Three, the
+   calling channel propagates its peeraccount or accountcode to the
+   outgoing channel's accountcode before dialing.  The change has two
+   visible effects.  One, local channels now cross accountcode and
+   peeraccount across the special bridge between the ;1 and ;2 channels
+   just like channels between normal bridges.  Two, the
+   CHANNEL(peeraccount) value can now be set before Dial and FollowMe to
+   set the accountcode on the outgoing channel(s).
+
+   For Queue, an outgoing channel's non-empty accountcode will not change
+   unless explicitly set by CHANNEL(accountcode).  The change has three
+   visible effects.  One, local channels now cross accountcode and
+   peeraccount across the special bridge between the ;1 and ;2 channels
+   just like channels between normal bridges.  Two, the queue member will
+   get an accountcode if it doesn't have one and one is available from the
+   calling channel's peeraccount.  Three, accountcode propagation includes
+   local channel members where the accountcodes are propagated early
+   enough to be available on the ;2 channel.
+
 app_dahdibarge
 ------------------
  * This module was deprecated and has been removed. Users of app_dahdibarge

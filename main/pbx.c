@@ -10347,8 +10347,11 @@ static int pbx_outgoing_attempt(const char *type, struct ast_format_cap *cap,
 	if (vars) {
 		ast_set_variables(dialed, vars);
 	}
-	if (account) {
+	if (!ast_strlen_zero(account)) {
+		ast_channel_stage_snapshot(dialed);
 		ast_channel_accountcode_set(dialed, account);
+		ast_channel_peeraccount_set(dialed, account);
+		ast_channel_stage_snapshot_done(dialed);
 	}
 	ast_set_flag(ast_channel_flags(dialed), AST_FLAG_ORIGINATED);
 	ast_channel_unlock(dialed);

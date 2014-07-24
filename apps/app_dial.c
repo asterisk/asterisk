@@ -956,7 +956,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			ast_connected_line_copy_from_caller(ast_channel_connected(c), ast_channel_caller(in));
 		}
 
-		ast_channel_accountcode_set(c, ast_channel_accountcode(in));
+		ast_channel_req_accountcodes(c, in, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 
 		ast_channel_appl_set(c, "AppDial");
 		ast_channel_data_set(c, "(Outgoing Line)");
@@ -2524,9 +2524,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		ast_channel_dialed(tc)->transit_network_select = ast_channel_dialed(chan)->transit_network_select;
 
-		if (!ast_strlen_zero(ast_channel_accountcode(chan))) {
-			ast_channel_accountcode_set(tc, ast_channel_accountcode(chan));
-		}
+		ast_channel_req_accountcodes(tc, chan, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 		if (ast_strlen_zero(ast_channel_musicclass(tc))) {
 			ast_channel_musicclass_set(tc, ast_channel_musicclass(chan));
 		}

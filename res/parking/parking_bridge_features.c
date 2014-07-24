@@ -235,6 +235,7 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 
 	/* Before we actually dial out let's inherit appropriate information. */
 	ast_channel_lock_both(parker, parkee);
+	ast_channel_req_accountcodes(parkee, parker, AST_CHANNEL_REQUESTOR_REPLACEMENT);
 	ast_connected_line_copy_from_caller(ast_channel_connected(parkee), ast_channel_caller(parker));
 	ast_channel_inherit_variables(parker, parkee);
 	ast_channel_datastore_inherit(parker, parkee);

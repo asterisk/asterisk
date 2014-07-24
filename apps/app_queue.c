@@ -4125,6 +4125,8 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 	ast_channel_lock_both(tmp->chan, qe->chan);
 
+	ast_channel_req_accountcodes_precious(tmp->chan, qe->chan,
+		AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 	if (qe->cancel_answered_elsewhere) {
 		ast_channel_hangupcause_set(tmp->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 	}
@@ -4663,7 +4665,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							ast_party_connected_line_copy(&o->connected, ast_channel_connected(in));
 						}
 
-						ast_channel_accountcode_set(o->chan, ast_channel_accountcode(in));
+						ast_channel_req_accountcodes(o->chan, in, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 
 						if (!ast_channel_redirecting(o->chan)->from.number.valid
 							|| ast_strlen_zero(ast_channel_redirecting(o->chan)->from.number.str)) {

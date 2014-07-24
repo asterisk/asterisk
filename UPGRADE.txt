@@ -57,6 +57,13 @@ From 12 to 13:
    update their dialplans to use ',' instead of '|' as a delimiter, and should
    use the Set dialplan application instead of the MSet dialplan application.
 
+accountcode:
+ - Accountcode behavior changed somewhat to add functional peeraccount
+   support.  The main change is that local channels now cross accountcode
+   and peeraccount across the special bridge between the ;1 and ;2 channels
+   just like channels between normal bridges.  See the CHANGES file for
+   more information.
+
 ARI:
  - The ARI version has been changed from 1.0.0 to 1.1.0. This is to reflect
    the backwards compatible changes listed below.

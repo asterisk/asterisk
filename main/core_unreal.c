@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/causes.h"
 #include "asterisk/channel.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/pbx.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/astobj2.h"
@@ -100,6 +101,7 @@ int ast_unreal_setoption(struct ast_channel *ast, int option, void *data, int da
 	struct ast_unreal_pvt *p;
 	struct ast_channel *otherchan = NULL;
 	ast_chan_write_info_t *write_info;
+	char *info_data;
 
 	if (option != AST_OPTION_CHANNEL_WRITE) {
 		return -1;
@@ -112,10 +114,19 @@ int ast_unreal_setoption(struct ast_channel *ast, int option, void *data, int da
 		return -1;
 	}
 
-	if (!strcmp(write_info->function, "CHANNEL")
-		&& !strncasecmp(write_info->data, "hangup_handler_", 15)) {
-		/* Block CHANNEL(hangup_handler_xxx) writes to the other unreal channel. */
-		return 0;
+	info_data = write_info->data;
+	if (!strcmp(write_info->function, "CHANNEL")) {
+		if (!strncasecmp(info_data, "hangup_handler_", 15)) {
+			/* Block CHANNEL(hangup_handler_xxx) writes to the other unreal channel. */
+			return 0;
+		}
+
+		/* Crossover the accountcode and peeraccount to cross the unreal bridge. */
+		if (!strcasecmp(info_data, "accountcode")) {
+			info_data = "peeraccount";
+		} else if (!strcasecmp(info_data, "peeraccount")) {
+			info_data = "accountcode";
+		}
 	}
 
 	/* get the tech pvt */
@@ -140,7 +151,7 @@ int ast_unreal_setoption(struct ast_channel *ast, int option, void *data, int da
 	ao2_unlock(p);
 
 	ast_channel_lock(otherchan);
-	res = write_info->write_fn(otherchan, write_info->function, write_info->data, write_info->value);
+	res = write_info->write_fn(otherchan, write_info->function, info_data, write_info->value);
 	ast_channel_unlock(otherchan);
 
 setoption_cleanup:
@@ -642,6 +653,8 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
 	struct ast_var_t *varptr;
 	struct ast_var_t *clone_var;
 
+	ast_channel_stage_snapshot(semi2);
+
 	/*
 	 * Note that cid_num and cid_name aren't passed in the
 	 * ast_channel_alloc calls in ast_unreal_new_channels().  It's
@@ -651,11 +664,16 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
 
 	ast_party_dialed_copy(ast_channel_dialed(semi2), ast_channel_dialed(semi1));
 
+	/* Crossover the CallerID and conected-line to cross the unreal bridge. */
 	ast_connected_line_copy_to_caller(ast_channel_caller(semi2), ast_channel_connected(semi1));
 	ast_connected_line_copy_from_caller(ast_channel_connected(semi2), ast_channel_caller(semi1));
 
 	ast_channel_language_set(semi2, ast_channel_language(semi1));
-	ast_channel_accountcode_set(semi2, ast_channel_accountcode(semi1));
+
+	/* Crossover the accountcode and peeraccount to cross the unreal bridge. */
+	ast_channel_accountcode_set(semi2, ast_channel_peeraccount(semi1));
+	ast_channel_peeraccount_set(semi2, ast_channel_accountcode(semi1));
+
 	ast_channel_musicclass_set(semi2, ast_channel_musicclass(semi1));
 
 	ast_channel_cc_params_init(semi2, ast_channel_get_cc_config_params(semi1));
@@ -682,6 +700,8 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
 		}
 	}
 	ast_channel_datastore_inherit(semi1, semi2);
+
+	ast_channel_stage_snapshot_done(semi2);
 }
 
 int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge *bridge, unsigned int flags)

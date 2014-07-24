@@ -2982,10 +2982,17 @@ static struct ast_channel *dial_transfer(struct ast_channel *caller, const char 
 		return NULL;
 	}
 
+	ast_channel_lock_both(chan, caller);
+
+	ast_channel_req_accountcodes(chan, caller, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
+
 	/* Who is transferring the call. */
 	pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", ast_channel_name(caller));
 
 	ast_bridge_set_transfer_variables(chan, ast_channel_name(caller), 1);
+
+	ast_channel_unlock(chan);
+	ast_channel_unlock(caller);
 
 	/* Before we actually dial out let's inherit appropriate information. */
 	copy_caller_data(chan, caller);

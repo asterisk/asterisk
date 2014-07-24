@@ -5549,9 +5549,12 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 		if (oh->parent_channel) {
 			call_forward_inherit(new_chan, oh->parent_channel, orig);
 		}
-		if (oh->account) {
+		if (!ast_strlen_zero(oh->account)) {
 			ast_channel_lock(new_chan);
+			ast_channel_stage_snapshot(new_chan);
 			ast_channel_accountcode_set(new_chan, oh->account);
+			ast_channel_peeraccount_set(new_chan, oh->account);
+			ast_channel_stage_snapshot_done(new_chan);
 			ast_channel_unlock(new_chan);
 		}
 	} else if (caller) { /* no outgoing helper so use caller if available */
@@ -5560,9 +5563,9 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	ast_set_flag(ast_channel_flags(new_chan), AST_FLAG_ORIGINATED);
 
 	ast_channel_lock_both(orig, new_chan);
-	ast_channel_accountcode_set(new_chan, ast_channel_accountcode(orig));
 	ast_party_connected_line_copy(ast_channel_connected(new_chan), ast_channel_connected(orig));
 	ast_party_redirecting_copy(ast_channel_redirecting(new_chan), ast_channel_redirecting(orig));
+	ast_channel_req_accountcodes(new_chan, orig, AST_CHANNEL_REQUESTOR_REPLACEMENT);
 	ast_channel_unlock(new_chan);
 	ast_channel_unlock(orig);
 
@@ -5625,9 +5628,12 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 			ast_channel_unlock(oh->parent_channel);
 			ast_channel_unlock(chan);
 		}
-		if (oh->account) {
+		if (!ast_strlen_zero(oh->account)) {
 			ast_channel_lock(chan);
+			ast_channel_stage_snapshot(chan);
 			ast_channel_accountcode_set(chan, oh->account);
+			ast_channel_peeraccount_set(chan, oh->account);
+			ast_channel_stage_snapshot_done(chan);
 			ast_channel_unlock(chan);
 		}
 	}
@@ -5655,6 +5661,12 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 		connected.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 	}
 	ast_channel_set_connected_line(chan, &connected, NULL);
+	if (requestor) {
+		ast_channel_lock_both(chan, (struct ast_channel *) requestor);
+		ast_channel_req_accountcodes(chan, requestor, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
+		ast_channel_unlock(chan);
+		ast_channel_unlock((struct ast_channel *) requestor);
+	}
 
 	if (ast_call(chan, addr, 0)) {	/* ast_call failed... */
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, addr);
@@ -5880,15 +5892,20 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 			return NULL;
 		}
 
-		/* Set newly created channel callid to same as the requestor */
 		if (requestor) {
-			struct ast_callid *callid = ast_channel_callid(requestor);
+			struct ast_callid *callid;
+
+			ast_channel_lock_both(c, (struct ast_channel *) requestor);
+
+			/* Set the newly created channel's callid to the same as the requestor. */
+			callid = ast_channel_callid(requestor);
 			if (callid) {
-				ast_channel_lock(c);
 				ast_channel_callid_set(c, callid);
-				ast_channel_unlock(c);
 				callid = ast_callid_unref(callid);
 			}
+
+			ast_channel_unlock(c);
+			ast_channel_unlock((struct ast_channel *) requestor);
 		}
 
 		ao2_ref(joint_cap, -1);
@@ -5909,6 +5926,88 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 	AST_RWLIST_UNLOCK(&backends);
 
 	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Setup new channel accountcodes from the requestor channel after ast_request().
+ * \since 13.0.0
+ *
+ * \param chan New channel to get accountcodes setup.
+ * \param requestor Requesting channel to get accountcodes from.
+ * \param relationship What the new channel was created for.
+ * \param precious TRUE if pre-existing accountcodes on chan will not be overwritten.
+ *
+ * \pre The chan and requestor channels are already locked.
+ *
+ * \return Nothing
+ */
+static void channel_req_accountcodes(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship, int precious)
+{
+	/*
+	 * The primary reason for the existence of this function is
+	 * so local channels can propagate accountcodes to the ;2
+	 * channel before ast_call().
+	 *
+	 * The secondary reason is to propagate the CHANNEL(peeraccount)
+	 * value set before Dial, FollowMe, and Queue while maintaining
+	 * the historic straight across accountcode propagation as a
+	 * fallback.
+	 */
+	switch (relationship) {
+	case AST_CHANNEL_REQUESTOR_BRIDGE_PEER:
+		/* Crossover the requestor's accountcode and peeraccount */
+		if (!precious || ast_strlen_zero(ast_channel_accountcode(chan))) {
+			/*
+			 * The newly created channel does not have an accountcode
+			 * or we don't care.
+			 */
+			if (!ast_strlen_zero(ast_channel_peeraccount(requestor))) {
+				/*
+				 * Set it to the requestor's peeraccount.  This allows the
+				 * dialplan to indicate the accountcode to use when dialing
+				 * by setting CHANNEL(peeraccount).
+				 */
+				ast_channel_accountcode_set(chan, ast_channel_peeraccount(requestor));
+			} else if (!precious
+				&& !ast_strlen_zero(ast_channel_accountcode(requestor))) {
+				/*
+				 * Fallback to the historic propagation and set it to the
+				 * requestor's accountcode.
+				 */
+				ast_channel_accountcode_set(chan, ast_channel_accountcode(requestor));
+			}
+		}
+		if (!ast_strlen_zero(ast_channel_accountcode(requestor))) {
+			ast_channel_peeraccount_set(chan, ast_channel_accountcode(requestor));
+		}
+		break;
+	case AST_CHANNEL_REQUESTOR_REPLACEMENT:
+		/* Pass the requestor's accountcode and peeraccount straight. */
+		if (!precious || ast_strlen_zero(ast_channel_accountcode(chan))) {
+			/*
+			 * The newly created channel does not have an accountcode
+			 * or we don't care.
+			 */
+			if (!ast_strlen_zero(ast_channel_accountcode(requestor))) {
+				ast_channel_accountcode_set(chan, ast_channel_accountcode(requestor));
+			}
+		}
+		if (!ast_strlen_zero(ast_channel_peeraccount(requestor))) {
+			ast_channel_peeraccount_set(chan, ast_channel_peeraccount(requestor));
+		}
+		break;
+	}
+}
+
+void ast_channel_req_accountcodes(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship)
+{
+	channel_req_accountcodes(chan, requestor, relationship, 0);
+}
+
+void ast_channel_req_accountcodes_precious(struct ast_channel *chan, const struct ast_channel *requestor, enum ast_channel_requestor_relationship relationship)
+{
+	channel_req_accountcodes(chan, requestor, relationship, 1);
 }
 
 int ast_pre_call(struct ast_channel *chan, const char *sub_args)
