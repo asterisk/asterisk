@@ -3749,12 +3749,12 @@ static int load_module(void)
 		.onMediaChanged = (cb_OnMediaChanged) setup_rtp_remote,
 	};
 	if (!(gCap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		return AST_MODULE_LOAD_FAILURE; 
+		return AST_MODULE_LOAD_DECLINE; 
 	}
 	if (!(ooh323_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		ao2_ref(gCap, -1);
 		gCap = NULL;
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_append(gCap, ast_format_ulaw, 0);
 	ast_format_cap_append_by_type(ooh323_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
@@ -3790,7 +3790,7 @@ static int load_module(void)
 			gCap = NULL;
 			ao2_ref(ooh323_tech.capabilities, -1);
 			ooh323_tech.capabilities = NULL;
-			return AST_MODULE_LOAD_FAILURE;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 
 		/* Make sure we can register our OOH323 channel type */
@@ -3800,7 +3800,7 @@ static int load_module(void)
 			gCap = NULL;
 			ao2_ref(ooh323_tech.capabilities, -1);
 			ooh323_tech.capabilities = NULL;
-			return AST_MODULE_LOAD_FAILURE;
+			return AST_MODULE_LOAD_DECLINE;
 		}
 		ast_rtp_glue_register(&ooh323_rtp);
 		ast_cli_register_multiple(cli_ooh323, sizeof(cli_ooh323) / sizeof(struct ast_cli_entry));
@@ -3917,7 +3917,7 @@ static int load_module(void)
 		restart_monitor();
 	} else {
 		ast_log(LOG_ERROR, "Can't load ooh323 config file, OOH323 Disabled\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return 0;
