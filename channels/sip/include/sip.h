@@ -31,7 +31,6 @@
 #include "asterisk/test.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
-#include "asterisk/astobj.h"
 #include "asterisk/indications.h"
 #include "asterisk/security_events.h"
 #include "asterisk/features.h"
@@ -1292,7 +1291,7 @@ struct sip_peer {
 	unsigned short rt_fromcontact:1;/*!< copy fromcontact from realtime */
 	unsigned short host_dynamic:1;  /*!< Dynamic Peers register with Asterisk */
 	unsigned short selfdestruct:1;  /*!< Automatic peers need to destruct themselves */
-	unsigned short the_mark:1;      /*!< moved out of ASTOBJ into struct proper; That which bears the_mark should be deleted! */
+	unsigned short the_mark:1;      /*!< That which bears the_mark should be deleted! */
 	unsigned short autoframing:1;   /*!< Whether to use our local configuration for frame sizes (off)
 	                                 *   or respect the other endpoint's request for frame sizes (on)
 	                                 *   for incoming calls
@@ -1371,12 +1370,10 @@ struct sip_peer {
  * or once the previously completed registration one expires).
  * The registration can be in one of many states, though at the moment
  * the handling is a bit mixed.
- *
- * \todo Convert this to astobj2
  */
 struct sip_registry {
-	ASTOBJ_COMPONENTS_FULL(struct sip_registry, 80, 1);
 	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(configvalue);/*!< register string from config */
 		AST_STRING_FIELD(callid);     /*!< Global Call-ID */
 		AST_STRING_FIELD(realm);      /*!< Authorization realm */
 		AST_STRING_FIELD(nonce);      /*!< Authorization nonce */
@@ -1431,11 +1428,8 @@ struct sip_threadinfo {
 
 /*!
  * \brief Definition of an MWI subscription to another server
- *
- * \todo Convert this to astobj2.
  */
 struct sip_subscription_mwi {
-	ASTOBJ_COMPONENTS_FULL(struct sip_subscription_mwi,1,1);
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(username);     /*!< Who we are sending the subscription as */
 		AST_STRING_FIELD(authuser);     /*!< Who we *authenticate* as */

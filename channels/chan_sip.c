@@ -825,7 +825,6 @@ static int can_parse_xml;
 static int speerobjs = 0;     /*!< Static peers */
 static int rpeerobjs = 0;     /*!< Realtime peers */
 static int apeerobjs = 0;     /*!< Autocreated peer objects */
-static int regobjs = 0;       /*!< Registry objects */
 /*! @} */
 
 static struct ast_flags global_flags[3] = {{0}};  /*!< global SIP_ flags */
@@ -885,9 +884,11 @@ static const struct _map_x_s referstatusstrings[] = {
 #ifdef LOW_MEMORY
 static const int HASH_PEER_SIZE = 17;
 static const int HASH_DIALOG_SIZE = 17;
+static const int HASH_REGISTRY_SIZE = 17;
 #else
 static const int HASH_PEER_SIZE = 563;	/*!< Size of peer hash table, prime number preferred! */
 static const int HASH_DIALOG_SIZE = 563;
+static const int HASH_REGISTRY_SIZE = 563;
 #endif
 
 static const struct {
@@ -1003,15 +1004,11 @@ static struct sip_peer *bogus_peer;
 #define BOGUS_PEER_MD5SECRET "intentionally_invalid_md5_string"
 
 /*! \brief  The register list: Other SIP proxies we register with and receive calls from */
-static struct ast_register_list {
-	ASTOBJ_CONTAINER_COMPONENTS(struct sip_registry);
-	int recheck;
-} regl;
+static struct ao2_container *registry_list;
 
 /*! \brief  The MWI subscription list */
-static struct ast_subscription_mwi_list {
-	ASTOBJ_CONTAINER_COMPONENTS(struct sip_subscription_mwi);
-} submwil;
+static struct ao2_container *subscription_mwi_list;
+
 static int temp_pvt_init(void *);
 static void temp_pvt_cleanup(void *);
 
@@ -1181,7 +1178,6 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only);
 
 /* Misc dialog routines */
 static int __sip_autodestruct(const void *data);
-static void *registry_unref(struct sip_registry *reg, char *tag);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static int auto_congest(const void *arg);
 static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method);
@@ -1369,7 +1365,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 /*--- Internal UA client handling (outbound registrations) */
 static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us, struct sip_pvt *p);
-static void sip_registry_destroy(struct sip_registry *reg);
+static void sip_registry_destroy(void *reg);
 static int sip_register(const char *value, int lineno);
 static const char *regstate2str(enum sipregistrystate regstate) attribute_const;
 static int sip_reregister(const void *data);
@@ -1503,7 +1499,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 
 /*!--- SIP MWI Subscription support */
 static int sip_subscribe_mwi(const char *value, int lineno);
-static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi);
+static void sip_subscribe_mwi_destroy(void *data);
 static void sip_send_all_mwi_subscriptions(void);
 static int sip_subscribe_mwi_do(const void *data);
 static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi);
@@ -3466,7 +3462,7 @@ void dialog_unlink_all(struct sip_pvt *dialog)
 		if (dialog->registry->call == dialog) {
 			dialog->registry->call = dialog_unref(dialog->registry->call, "nulling out the registry's call dialog field in unlink_all");
 		}
-		dialog->registry = registry_unref(dialog->registry, "delete dialog->registry");
+		ao2_t_replace(dialog->registry, NULL, "delete dialog->registry");
 	}
 	if (dialog->stateid != -1) {
 		ast_extension_state_del(dialog->stateid, cb_extensionstate);
@@ -3514,20 +3510,6 @@ void dialog_unlink_all(struct sip_pvt *dialog)
 	}
 
 	dialog_unref(dialog, "Let's unbump the count in the unlink so the poor pvt can disappear if it is time");
-}
-
-void *registry_unref(struct sip_registry *reg, char *tag)
-{
-	ast_debug(3, "SIP Registry %s: refcount now %u\n", reg->hostname, reg->refcount - 1);
-	ASTOBJ_UNREF(reg, sip_registry_destroy);
-	return NULL;
-}
-
-/*! \brief Add object reference to SIP registry */
-static struct sip_registry *registry_addref(struct sip_registry *reg, char *tag)
-{
-	ast_debug(3, "SIP Registry %s: refcount now %u\n", reg->hostname, reg->refcount + 1);
-	return ASTOBJ_REF(reg);	/* Add pointer to registry in packet */
 }
 
 static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
@@ -6513,15 +6495,16 @@ static int sip_call(struct ast_channel *ast, const char *dest, int timeout)
 
 /*! \brief Destroy registry object
 	Objects created with the register= statement in static configuration */
-static void sip_registry_destroy(struct sip_registry *reg)
+static void sip_registry_destroy(void *obj)
 {
+	struct sip_registry *reg = obj;
 	/* Really delete */
 	ast_debug(3, "Destroying registry entry for %s@%s\n", reg->username, reg->hostname);
 
 	if (reg->call) {
 		/* Clear registry before destroying to ensure
 		   we don't get reentered trying to grab the registry lock */
-		reg->call->registry = registry_unref(reg->call->registry, "destroy reg->call->registry");
+		ao2_t_replace(reg->call->registry, NULL, "destroy reg->call->registry");
 		ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
 		dialog_unlink_all(reg->call);
 		reg->call = dialog_unref(reg->call, "unref reg->call");
@@ -6531,21 +6514,19 @@ static void sip_registry_destroy(struct sip_registry *reg)
 	AST_SCHED_DEL(sched, reg->timeout);
 
 	ast_string_field_free_memory(reg);
-	ast_atomic_fetchadd_int(&regobjs, -1);
-	ast_free(reg);
 }
 
 /*! \brief Destroy MWI subscription object */
-static void sip_subscribe_mwi_destroy(struct sip_subscription_mwi *mwi)
+static void sip_subscribe_mwi_destroy(void *data)
 {
+	struct sip_subscription_mwi *mwi = data;
 	if (mwi->call) {
 		mwi->call->mwi = NULL;
-		sip_destroy(mwi->call);
+		mwi->call = dialog_unref(mwi->call, "sip_subscription_mwi destruction");
 	}
 
 	AST_SCHED_DEL(sched, mwi->resub);
 	ast_string_field_free_memory(mwi);
-	ast_free(mwi);
 }
 
 /*! \brief Destroy SDP media offer list */
@@ -6605,7 +6586,7 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->registry) {
 		if (p->registry->call == p)
 			p->registry->call = dialog_unref(p->registry->call, "nulling out the registry's call dialog field in unlink_all");
-		p->registry = registry_unref(p->registry, "delete p->registry");
+		ao2_t_replace(p->registry, NULL, "delete p->registry");
 	}
 
 	if (p->mwi) {
@@ -9541,18 +9522,27 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 /*! \brief create sip_registry object from register=> line in sip.conf and link into reg container */
 static int sip_register(const char *value, int lineno)
 {
-	struct sip_registry *reg, *tmp;
+	struct sip_registry *reg;
 
-	if (!(reg = ast_calloc_with_stringfields(1, struct sip_registry, 256))) {
+	reg = ao2_t_find(registry_list, value, OBJ_SEARCH_KEY, "check for existing registry");
+	if (reg) {
+		ao2_t_ref(reg, -1, "throw away found registry");
+		return 0;
+	}
+
+	if (!(reg = ao2_t_alloc(sizeof(*reg), sip_registry_destroy, "allocate a registry struct"))) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
 		return -1;
 	}
 
-	ASTOBJ_INIT(reg);
+	if (ast_string_field_init(reg, 256)) {
+		ao2_t_ref(reg, -1, "failed to string_field_init, drop reg");
+		return -1;
+	}
 
-	ast_copy_string(reg->name, value, sizeof(reg->name));
+	ast_string_field_set(reg, configvalue, value);
 	if (sip_parse_register_line(reg, default_expiry, value, lineno)) {
-		registry_unref(reg, "failure to parse, unref the reg pointer");
+		ao2_t_ref(reg, -1, "failure to parse, unref the reg pointer");
 		return -1;
 	}
 
@@ -9561,16 +9551,8 @@ static int sip_register(const char *value, int lineno)
 		reg->refresh = reg->expiry = reg->configured_expiry = default_expiry;
 	}
 
-	/* Add the new registry entry to the list, but only if it isn't already there */
-	if ((tmp = ASTOBJ_CONTAINER_FIND(&regl, reg->name))) {
-		registry_unref(tmp, "throw away found registry");
-	} else {
-		ast_atomic_fetchadd_int(&regobjs, 1);
-		ASTOBJ_CONTAINER_LINK(&regl, reg);
-	}
-
-	/* release the reference given by ASTOBJ_INIT. The container has another reference */
-	registry_unref(reg, "unref the reg pointer");
+	ao2_t_link(registry_list, reg, "link reg to registry_list");
+	ao2_t_ref(reg, -1, "unref the reg pointer");
 
 	return 0;
 }
@@ -9622,11 +9604,15 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 		}
 	}
 
-	if (!(mwi = ast_calloc_with_stringfields(1, struct sip_subscription_mwi, 256))) {
+	if (!(mwi = ao2_t_alloc(sizeof(*mwi), sip_subscribe_mwi_destroy, "allocate an mwi struct"))) {
 		return -1;
 	}
 
-	ASTOBJ_INIT(mwi);
+	if (ast_string_field_init(mwi, 256)) {
+		ao2_t_ref(mwi, -1, "failed to string_field_init, drop mwi");
+		return -1;
+	}
+
 	ast_string_field_set(mwi, username, username);
 	if (secret) {
 		ast_string_field_set(mwi, secret, secret);
@@ -9640,8 +9626,8 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 	mwi->portno = portnum;
 	mwi->transport = transport;
 
-	ASTOBJ_CONTAINER_LINK(&submwil, mwi);
-	ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy);
+	ao2_t_link(subscription_mwi_list, mwi, "link new mwi object");
+	ao2_t_ref(mwi, -1, "unref to match ao2_t_alloc");
 
 	return 0;
 }
@@ -14498,7 +14484,7 @@ static int sip_subscribe_mwi_do(const void *data)
 
 	mwi->resub = -1;
 	__sip_subscribe_mwi_do(mwi);
-	ASTOBJ_UNREF(mwi, sip_subscribe_mwi_destroy);
+	ao2_t_ref(mwi, -1, "unref mwi to balance ast_sched_add");
 
 	return 0;
 }
@@ -14575,14 +14561,13 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	/* If we have no DNS manager let's do a lookup */
 	if (!mwi->dnsmgr) {
 		char transport[MAXHOSTNAMELEN];
-		struct sip_subscription_mwi *saved;
 		snprintf(transport, sizeof(transport), "_%s._%s", get_srv_service(mwi->transport), get_srv_protocol(mwi->transport));
 
 		mwi->us.ss.ss_family = get_address_family_filter(mwi->transport); /* Filter address family */
-		saved = ASTOBJ_REF(mwi);
-		ast_dnsmgr_lookup_cb(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_mwi, saved);
+		ao2_t_ref(mwi, +1, "dnsmgr reference to mwi");
+		ast_dnsmgr_lookup_cb(mwi->hostname, &mwi->us, &mwi->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_mwi, mwi);
 		if (!mwi->dnsmgr) {
-			ASTOBJ_UNREF(saved, sip_subscribe_mwi_destroy); /* dnsmgr disabled, remove reference */
+			ao2_t_ref(mwi, -1, "dnsmgr disabled, remove reference");
 		}
 	}
 
@@ -14645,7 +14630,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	ast_set_flag(&mwi->call->flags[0], SIP_OUTGOING);
 
 	/* Associate the call with us */
-	mwi->call->mwi = ASTOBJ_REF(mwi);
+	mwi->call->mwi = ao2_t_bump(mwi, "Reference mwi from it's call");
 
 	mwi->call->subscribed = MWI_NOTIFICATION;
 
@@ -15348,7 +15333,7 @@ static int sip_reregister(const void *data)
 	r->expire = -1;
 	r->expiry = r->configured_expiry;
 	__sip_do_register(r);
-	registry_unref(r, "unref the re-register scheduled event");
+	ao2_t_ref(r, -1, "unref the re-register scheduled event");
 	return 0;
 }
 
@@ -15402,9 +15387,7 @@ static int sip_reg_timeout(const void *data)
 
 		/* decouple the two objects */
 		/* p->registry == r, so r has 2 refs, and the unref won't take the object away */
-		if (p->registry) {
-			p->registry = registry_unref(p->registry, "p->registry unreffed");
-		}
+		ao2_t_replace(p->registry, NULL, "p->registry unreffed");
 		r->call = dialog_unref(r->call, "unrefing r->call");
 	}
 	/* If we have a limit, stop registration and give up */
@@ -15421,7 +15404,7 @@ static int sip_reg_timeout(const void *data)
 		ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts);
 	}
 	sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
-	registry_unref(r, "unreffing registry_unref r");
+	ao2_t_ref(r, -1, "unreffing registry_unref r");
 	return 0;
 }
 
@@ -15472,11 +15455,11 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		 * or peer NULL. Since we're only concerned with its existence, we're not going to
 		 * bother getting a ref to the proxy*/
 		if (!obproxy_get(r->call, peer)) {
-			registry_addref(r, "add reg ref for dnsmgr");
+			ao2_t_ref(r, +1, "add reg ref for dnsmgr");
 			ast_dnsmgr_lookup_cb(peer ? peer->tohost : r->hostname, &r->us, &r->dnsmgr, sip_cfg.srvlookup ? transport : NULL, on_dns_update_registry, r);
 			if (!r->dnsmgr) {
 				/*dnsmgr refresh disabled, no reference added! */
-				registry_unref(r, "remove reg ref, dnsmgr disabled");
+				ao2_t_ref(r, -1, "remove reg ref, dnsmgr disabled");
 			}
 		}
 		if (peer) {
@@ -15540,12 +15523,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			p = dialog_unref(p, "unref dialog after unlink_all");
 			if (r->timeout > -1) {
 				AST_SCHED_REPLACE_UNREF(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r,
-										registry_unref(_data, "del for REPLACE of registry ptr"),
-										registry_unref(r, "object ptr dec when SCHED_REPLACE add failed"),
-										registry_addref(r,"add for REPLACE registry ptr"));
+										ao2_t_ref(_data, -1, "del for REPLACE of registry ptr"),
+										ao2_t_ref(r, -1, "object ptr dec when SCHED_REPLACE add failed"),
+										ao2_t_ref(r, +1, "add for REPLACE registry ptr"));
 				ast_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
 			} else {
-				r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, registry_addref(r, "add for REPLACE registry ptr"));
+				r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, ao2_t_bump(r, "add for REPLACE registry ptr"));
 				ast_log(LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
 			}
 			r->regattempts++;
@@ -15569,7 +15552,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call = dialog_ref(p, "copying dialog into registry r->call");		/* Save pointer to SIP dialog */
-		p->registry = registry_addref(r, "transmit_register: addref to p->registry in transmit_register");	/* Add pointer to registry in packet */
+		p->registry = ao2_t_bump(r, "transmit_register: addref to p->registry in transmit_register");	/* Add pointer to registry in packet */
 		if (!ast_strlen_zero(r->secret)) {	/* Secret (password) */
 			ast_string_field_set(p, peersecret, r->secret);
 		}
@@ -15615,9 +15598,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			ast_log(LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
 		}
 		AST_SCHED_REPLACE_UNREF(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r,
-								registry_unref(_data,"reg ptr unrefed from del in SCHED_REPLACE"),
-								registry_unref(r,"reg ptr unrefed from add failure in SCHED_REPLACE"),
-								registry_addref(r,"reg ptr reffed from add in SCHED_REPLACE"));
+								ao2_t_ref(_data, -1, "reg ptr unrefed from del in SCHED_REPLACE"),
+								ao2_t_ref(r, -1, "reg ptr unrefed from add failure in SCHED_REPLACE"),
+								ao2_t_ref(r, +1, "reg ptr reffed from add in SCHED_REPLACE"));
 		ast_debug(1, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
 	}
 
@@ -18837,7 +18820,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 }
 
 /*! \brief  Find user
-	If we get a match, this will add a reference pointer to the user object in ASTOBJ, that needs to be unreferenced
+	If we get a match, this will add a reference pointer to the user object, that needs to be unreferenced
 */
 static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, const char *uri, enum xmittype reliable, struct ast_sockaddr *addr)
 {
@@ -19329,14 +19312,18 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	char idtext[256] = "";
 	int total = 0;
+	struct ao2_iterator iter;
+	struct sip_registry *iterator;
 
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
 	astman_send_listack(s, m, "Registrations will follow", "start");
 
-	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
-		ASTOBJ_RDLOCK(iterator);
+	iter = ao2_iterator_init(registry_list, 0);
+	while ((iterator = ao2_t_iterator_next(&iter, "manager_show_registry iter"))) {
+		ao2_lock(iterator);
+
 		astman_append(s,
 			"Event: RegistryEntry\r\n"
 			"%s"
@@ -19358,9 +19345,12 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 			iterator->refresh,
 			regstate2str(iterator->regstate),
 			(long) iterator->regtime.tv_sec);
-		ASTOBJ_UNLOCK(iterator);
+
+		ao2_unlock(iterator);
+		ao2_t_ref(iterator, -1, "manager_show_registry iter");
 		total++;
-	} while(0));
+	}
+	ao2_iterator_destroy(&iter);
 
 	astman_append(s,
 		"Event: RegistrationsComplete\r\n"
@@ -19677,7 +19667,8 @@ static int dialog_dump_func(void *userobj, void *arg, int flags)
 /*! \brief List all allocated SIP Objects (realtime or static) */
 static char *sip_show_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char tmp[256];
+	struct sip_registry *reg;
+	struct ao2_iterator iter;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -19696,8 +19687,17 @@ static char *sip_show_objects(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	ao2_t_callback(peers, OBJ_NODATA, peer_dump_func, a, "initiate ao2_callback to dump peers");
 	ast_cli(a->fd, "-= Peer objects by IP =-\n\n");
 	ao2_t_callback(peers_by_ip, OBJ_NODATA, peer_dump_func, a, "initiate ao2_callback to dump peers_by_ip");
-	ast_cli(a->fd, "-= Registry objects: %d =-\n\n", regobjs);
-	ASTOBJ_CONTAINER_DUMP(a->fd, tmp, sizeof(tmp), &regl);
+
+	iter = ao2_iterator_init(registry_list, 0);
+	ast_cli(a->fd, "-= Registry objects: %d =-\n\n", ao2_container_count(registry_list));
+	while ((reg = ao2_t_iterator_next(&iter, "sip_show_objects iter"))) {
+		ao2_lock(reg);
+		ast_cli(a->fd, "name: %s\n", reg->configvalue);
+		ao2_unlock(reg);
+		ao2_t_ref(reg, -1, "sip_show_objects iter");
+	}
+	ao2_iterator_destroy(&iter);
+
 	ast_cli(a->fd, "-= Dialog objects:\n\n");
 	ao2_t_callback(dialogs, OBJ_NODATA, dialog_dump_func, a, "initiate ao2_callback to dump dialogs");
 	return CLI_SUCCESS;
@@ -20757,6 +20757,8 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	char tmpdat[256];
 	struct ast_tm tm;
 	int counter = 0;
+	struct ao2_iterator iter;
+	struct sip_registry *iterator;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -20773,8 +20775,10 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	ast_cli(a->fd, FORMAT2, "Host", "dnsmgr", "Username", "Refresh", "State", "Reg.Time");
 
-	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
-		ASTOBJ_RDLOCK(iterator);
+	iter = ao2_iterator_init(registry_list, 0);
+	while ((iterator = ao2_t_iterator_next(&iter, "sip_show_registry iter"))) {
+		ao2_lock(iterator);
+
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
 		snprintf(user, sizeof(user), "%s", iterator->username);
 		if (!ast_strlen_zero(iterator->regdomain)) {
@@ -20789,9 +20793,13 @@ static char *sip_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		} else
 			tmpdat[0] = '\0';
 		ast_cli(a->fd, FORMAT, host, (iterator->dnsmgr) ? "Y" : "N", user, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
-		ASTOBJ_UNLOCK(iterator);
+
+		ao2_unlock(iterator);
+		ao2_t_ref(iterator, -1, "sip_show_registry iter");
 		counter++;
-	} while(0));
+	}
+	ao2_iterator_destroy(&iter);
+
 	ast_cli(a->fd, "%d SIP registrations.\n", counter);
 	return CLI_SUCCESS;
 #undef FORMAT
@@ -21171,6 +21179,8 @@ static char *sip_show_mwi(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 {
 #define FORMAT  "%-30.30s  %-12.12s  %-10.10s  %-10.10s\n"
 	char host[80];
+	struct ao2_iterator iter;
+	struct sip_subscription_mwi *iterator;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -21185,12 +21195,15 @@ static char *sip_show_mwi(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 
 	ast_cli(a->fd, FORMAT, "Host", "Username", "Mailbox", "Subscribed");
 
-	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-		ASTOBJ_RDLOCK(iterator);
+	iter = ao2_iterator_init(subscription_mwi_list, 0);
+	while ((iterator = ao2_t_iterator_next(&iter, "sip_show_mwi iter"))) {
+		ao2_lock(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
 		ast_cli(a->fd, FORMAT, host, iterator->username, iterator->mailbox, AST_CLI_YESNO(iterator->subscribed));
-		ASTOBJ_UNLOCK(iterator);
-	} while(0));
+		ao2_unlock(iterator);
+		ao2_t_ref(iterator, -1, "sip_show_mwi iter");
+	}
+	ao2_iterator_destroy(&iter);
 
 	return CLI_SUCCESS;
 #undef FORMAT
@@ -23546,8 +23559,8 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 			p->options = NULL;
 		}
 		p->mwi->subscribed = 1;
-		if ((p->mwi->resub = ast_sched_add(sched, mwi_expiry * 1000, sip_subscribe_mwi_do, ASTOBJ_REF(p->mwi))) < 0) {
-			ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		if ((p->mwi->resub = ast_sched_add(sched, mwi_expiry * 1000, sip_subscribe_mwi_do, ao2_t_bump(p->mwi, "mwi ast_sched_add"))) < 0) {
+			ao2_t_ref(p->mwi, -1, "mwi ast_sched_add < 0");
 		}
 		break;
 	case 401:
@@ -23556,7 +23569,7 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 		if (p->authtries > 1 || do_proxy_auth(p, req, resp, SIP_SUBSCRIBE, 0)) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on SUBSCRIBE to '%s'\n", sip_get_header(&p->initreq, "From"));
 			p->mwi->call = NULL;
-			ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+			ao2_t_ref(p->mwi, -1, "failed to authenticate SUBSCRIBE");
 			pvt_set_needdestroy(p, "failed to authenticate SUBSCRIBE");
 		}
 		break;
@@ -23564,27 +23577,27 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 		transmit_response_with_date(p, "200 OK", req);
 		ast_log(LOG_WARNING, "Authentication failed while trying to subscribe for MWI.\n");
 		p->mwi->call = NULL;
-		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		ao2_t_ref(p->mwi, -1, "received 403 response");
 		pvt_set_needdestroy(p, "received 403 response");
 		sip_alreadygone(p);
 		break;
 	case 404:
 		ast_log(LOG_WARNING, "Subscription failed for MWI. The remote side said that a mailbox may not have been configured.\n");
 		p->mwi->call = NULL;
-		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		ao2_t_ref(p->mwi, -1, "received 404 response");
 		pvt_set_needdestroy(p, "received 404 response");
 		break;
 	case 481:
 		ast_log(LOG_WARNING, "Subscription failed for MWI. The remote side said that our dialog did not exist.\n");
 		p->mwi->call = NULL;
-		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		ao2_t_ref(p->mwi, -1, "received 481 response");
 		pvt_set_needdestroy(p, "received 481 response");
 		break;
 	case 500:
 	case 501:
 		ast_log(LOG_WARNING, "Subscription failed for MWI. The remote side may have suffered a heart attack.\n");
 		p->mwi->call = NULL;
-		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
+		ao2_t_ref(p->mwi, -1, "received 500/501 response");
 		pvt_set_needdestroy(p, "received 500/501 response");
 		break;
 	}
@@ -23715,7 +23728,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			break;
 		}
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
-		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 403"));
+		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 403"));
 		r->regstate = REG_STATE_NOAUTH;
 		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 		pvt_set_needdestroy(p, "received 403 response");
@@ -23727,7 +23740,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 404");
 		r->regstate = REG_STATE_REJECTED;
 		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
-		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 404"));
+		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 404"));
 		break;
 	case 407:	/* Proxy auth */
 		if (p->authtries == MAX_AUTHTRIES || do_register_auth(p, req, resp)) {
@@ -23746,7 +23759,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 	case 423:	/* Interval too brief */
 		r->expiry = atoi(sip_get_header(req, "Min-Expires"));
 		ast_log(LOG_WARNING, "Got 423 Interval too brief for service %s@%s, minimum is %d seconds\n", p->registry->username, p->registry->hostname, r->expiry);
-		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 423"));
+		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 423"));
 		if (r->call) {
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 423");
 			pvt_set_needdestroy(p, "received 423 response");
@@ -23768,7 +23781,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 479");
 		r->regstate = REG_STATE_REJECTED;
 		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
-		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 479"));
+		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 479"));
 		break;
 	case 200:	/* 200 OK */
 		if (!r) {
@@ -23785,10 +23798,10 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->timeout > -1) {
 			ast_debug(1, "Cancelling timeout %d\n", r->timeout);
 		}
-		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 200"));
+		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 200"));
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 200");
-		p->registry = registry_unref(p->registry, "unref registry entry p->registry");
+		ao2_t_replace(p->registry, NULL, "unref registry entry p->registry");
 
 		/* destroy dialog now to avoid interference with next register */
 		pvt_set_needdestroy(p, "Registration successfull");
@@ -23840,9 +23853,9 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 
 		/* Schedule re-registration before we expire */
 		AST_SCHED_REPLACE_UNREF(r->expire, sched, expires_ms, sip_reregister, r,
-								registry_unref(_data,"unref in REPLACE del fail"),
-								registry_unref(r,"unref in REPLACE add fail"),
-								registry_addref(r,"The Addition side of REPLACE"));
+								ao2_t_ref(_data, -1, "unref in REPLACE del fail"),
+								ao2_t_ref(r, -1, "unref in REPLACE add fail"),
+								ao2_t_ref(r, +1, "The Addition side of REPLACE"));
 	}
 	return 1;
 }
@@ -31147,29 +31160,36 @@ static void display_nat_warning(const char *cat, int reason, struct ast_flags *f
 
 static void cleanup_all_regs(void)
 {
-		/* First, destroy all outstanding registry calls */
-		/* This is needed, since otherwise active registry entries will not be destroyed */
-		ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {  /* regl is locked */
-				ASTOBJ_WRLOCK(iterator); /* now regl is locked, and the object is also locked */
-				if (iterator->call) {
-					ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
-					/* This will also remove references to the registry */
-					dialog_unlink_all(iterator->call);
-					iterator->call = dialog_unref(iterator->call, "remove iterator->call from registry traversal");
-				}
-				if (iterator->expire > -1) {
-					AST_SCHED_DEL_UNREF(sched, iterator->expire, registry_unref(iterator, "reg ptr unref from reload config"));
-				}
-				if (iterator->timeout > -1) {
-					AST_SCHED_DEL_UNREF(sched, iterator->timeout, registry_unref(iterator, "reg ptr unref from reload config"));
-				}
-				if (iterator->dnsmgr) {
-					ast_dnsmgr_release(iterator->dnsmgr);
-					iterator->dnsmgr = NULL;
-					registry_unref(iterator, "reg ptr unref from dnsmgr");
-				}
-				ASTOBJ_UNLOCK(iterator);
-		} while(0));
+	struct ao2_iterator iter;
+	struct sip_registry *iterator;
+	/* First, destroy all outstanding registry calls */
+	/* This is needed, since otherwise active registry entries will not be destroyed */
+	iter = ao2_iterator_init(registry_list, 0);
+	while ((iterator = ao2_t_iterator_next(&iter, "cleanup_all_regs iter"))) {
+		ao2_lock(iterator);
+
+		if (iterator->call) {
+			ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
+			/* This will also remove references to the registry */
+			dialog_unlink_all(iterator->call);
+			iterator->call = dialog_unref(iterator->call, "remove iterator->call from registry traversal");
+		}
+		if (iterator->expire > -1) {
+			AST_SCHED_DEL_UNREF(sched, iterator->expire, ao2_t_ref(iterator, -1, "reg ptr unref from reload config"));
+		}
+		if (iterator->timeout > -1) {
+			AST_SCHED_DEL_UNREF(sched, iterator->timeout, ao2_t_ref(iterator, -1, "reg ptr unref from reload config"));
+		}
+		if (iterator->dnsmgr) {
+			ast_dnsmgr_release(iterator->dnsmgr);
+			iterator->dnsmgr = NULL;
+			ao2_t_ref(iterator, -1, "reg ptr unref from dnsmgr");
+		}
+
+		ao2_unlock(iterator);
+		ao2_t_ref(iterator, -1, "cleanup_all_regs iter");
+	}
+	ao2_iterator_destroy(&iter);
 }
 
 /*! \brief Re-read SIP.conf config file
@@ -31253,10 +31273,8 @@ static int reload_config(enum channelreloadreason reason)
 		}
 		ast_mutex_unlock(&authl_lock);
 
-		cleanup_all_regs();
-
 		/* Then, actually destroy users and registry */
-		ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+		cleanup_all_regs();
 		ast_debug(4, "--------------- Done destroying registry list\n");
 		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
 	}
@@ -32923,39 +32941,50 @@ static void sip_send_all_registers(void)
 {
 	int ms;
 	int regspacing;
-	if (!regobjs) {
+	struct ao2_iterator iter;
+	struct sip_registry *iterator;
+
+	if (!ao2_container_count(registry_list)) {
 		return;
 	}
-	regspacing = default_expiry * 1000/regobjs;
+	regspacing = default_expiry * 1000 / ao2_container_count(registry_list);
 	if (regspacing > 100) {
 		regspacing = 100;
 	}
 	ms = regspacing;
-	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
-		ASTOBJ_WRLOCK(iterator);
+
+	iter = ao2_iterator_init(registry_list, 0);
+	while ((iterator = ao2_t_iterator_next(&iter, "sip_send_all_registers iter"))) {
+		ao2_lock(iterator);
 		ms += regspacing;
 		AST_SCHED_REPLACE_UNREF(iterator->expire, sched, ms, sip_reregister, iterator,
-								registry_unref(_data, "REPLACE sched del decs the refcount"),
-								registry_unref(iterator, "REPLACE sched add failure decs the refcount"),
-								registry_addref(iterator, "REPLACE sched add incs the refcount"));
-		ASTOBJ_UNLOCK(iterator);
-	} while (0)
-	);
+								ao2_t_ref(_data, -1, "REPLACE sched del decs the refcount"),
+								ao2_t_ref(iterator, -1, "REPLACE sched add failure decs the refcount"),
+								ao2_t_ref(iterator, +1, "REPLACE sched add incs the refcount"));
+		ao2_unlock(iterator);
+		ao2_t_ref(iterator, -1, "sip_send_all_registers iter");
+	}
+	ao2_iterator_destroy(&iter);
 }
 
 /*! \brief Send all MWI subscriptions */
 static void sip_send_all_mwi_subscriptions(void)
 {
-	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-		struct sip_subscription_mwi *saved;
-		ASTOBJ_WRLOCK(iterator);
+	struct ao2_iterator iter;
+	struct sip_subscription_mwi *iterator;
+
+	iter = ao2_iterator_init(subscription_mwi_list, 0);
+	while ((iterator = ao2_t_iterator_next(&iter, "sip_send_all_mwi_subscriptions iter"))) {
+		ao2_lock(iterator);
 		AST_SCHED_DEL(sched, iterator->resub);
-		saved = ASTOBJ_REF(iterator);
-		if ((iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, saved)) < 0) {
-			ASTOBJ_UNREF(saved, sip_subscribe_mwi_destroy);
+		ao2_t_ref(iterator, +1, "mwi added to schedule");
+		if ((iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, iterator)) < 0) {
+			ao2_t_ref(iterator, -1, "mwi failed to schedule");
 		}
-		ASTOBJ_UNLOCK(iterator);
-	} while (0));
+		ao2_unlock(iterator);
+		ao2_t_ref(iterator, -1, "sip_send_all_mwi_subscriptions iter");
+	}
+	ao2_iterator_destroy(&iter);
 }
 
 static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct ast_sdp_srtp **srtp, const char *a)
@@ -33272,6 +33301,53 @@ static int dialog_cmp_cb(void *obj, void *arg, int flags)
 	return !strcasecmp(pvt->callid, pvt2->callid) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+
+static int registry_hash_cb(const void *obj, const int flags)
+{
+	const struct sip_registry *object;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->configvalue;
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
+}
+
+static int registry_cmp_cb(void *obj, void *arg, int flags)
+{
+	const struct sip_registry *object_left = obj;
+	const struct sip_registry *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->configvalue;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->configvalue, right_key);
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
+
 /*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {
 	AST_CLI_DEFINE(sip_show_channels, "List active SIP channels or subscriptions"),
@@ -33318,6 +33394,8 @@ static void sip_unregister_tests(void)
 #ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 {
+	struct ao2_iterator iter;
+	struct sip_subscription_mwi *iterator;
 	int found = 0;
 	enum ast_test_result_state res = AST_TEST_PASS;
 	const char *mwi1 = "1234@mysipprovider.com/1234";
@@ -33344,8 +33422,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 	} else {
 		found = 0;
 		res = AST_TEST_FAIL;
-		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-			ASTOBJ_WRLOCK(iterator);
+
+		iter = ao2_iterator_init(subscription_mwi_list, 0);
+		while ((iterator = ao2_t_iterator_next(&iter, "test_sip_mwi_subscribe_parse mwi1"))) {
+			ao2_lock(iterator);
 			if (
 				!strcmp(iterator->hostname, "mysipprovider.com") &&
 				!strcmp(iterator->username, "1234") &&
@@ -33356,8 +33436,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 				found = 1;
 				res = AST_TEST_PASS;
 			}
-			ASTOBJ_UNLOCK(iterator);
-		} while(0));
+			ao2_unlock(iterator);
+			ao2_t_ref(iterator, -1, "test_sip_mwi_subscribe_parse mwi1");
+		}
+		ao2_iterator_destroy(&iter);
 		if (!found) {
 			ast_test_status_update(test, "sip_subscribe_mwi test 1 failed\n");
 		}
@@ -33368,8 +33450,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 	} else {
 		found = 0;
 		res = AST_TEST_FAIL;
-		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-			ASTOBJ_WRLOCK(iterator);
+
+		iter = ao2_iterator_init(subscription_mwi_list, 0);
+		while ((iterator = ao2_t_iterator_next(&iter, "test_sip_mwi_subscribe_parse mwi2"))) {
+			ao2_lock(iterator);
 			if (
 				!strcmp(iterator->hostname, "mysipprovider.com") &&
 				!strcmp(iterator->username, "1234") &&
@@ -33380,8 +33464,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 				found = 1;
 				res = AST_TEST_PASS;
 			}
-			ASTOBJ_UNLOCK(iterator);
-		} while(0));
+			ao2_unlock(iterator);
+			ao2_t_ref(iterator, -1, "test_sip_mwi_subscribe_parse mwi2");
+		}
+		ao2_iterator_destroy(&iter);
 		if (!found) {
 			ast_test_status_update(test, "sip_subscribe_mwi test 2 failed\n");
 		}
@@ -33392,8 +33478,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 	} else {
 		found = 0;
 		res = AST_TEST_FAIL;
-		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-			ASTOBJ_WRLOCK(iterator);
+
+		iter = ao2_iterator_init(subscription_mwi_list, 0);
+		while ((iterator = ao2_t_iterator_next(&iter, "test_sip_mwi_subscribe_parse mwi3"))) {
+			ao2_lock(iterator);
 			if (
 				!strcmp(iterator->hostname, "mysipprovider.com") &&
 				!strcmp(iterator->username, "1234") &&
@@ -33404,8 +33492,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 				found = 1;
 				res = AST_TEST_PASS;
 			}
-			ASTOBJ_UNLOCK(iterator);
-		} while(0));
+			ao2_unlock(iterator);
+			ao2_t_ref(iterator, -1, "test_sip_mwi_subscribe_parse mwi3");
+		}
+		ao2_iterator_destroy(&iter);
 		if (!found) {
 			ast_test_status_update(test, "sip_subscribe_mwi test 3 failed\n");
 		}
@@ -33416,8 +33506,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 	} else {
 		found = 0;
 		res = AST_TEST_FAIL;
-		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-			ASTOBJ_WRLOCK(iterator);
+
+		iter = ao2_iterator_init(subscription_mwi_list, 0);
+		while ((iterator = ao2_t_iterator_next(&iter, "test_sip_mwi_subscribe_parse mwi4"))) {
+			ao2_lock(iterator);
 			if (
 				!strcmp(iterator->hostname, "mysipprovider.com") &&
 				!strcmp(iterator->username, "1234") &&
@@ -33428,8 +33520,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 				found = 1;
 				res = AST_TEST_PASS;
 			}
-			ASTOBJ_UNLOCK(iterator);
-		} while(0));
+			ao2_unlock(iterator);
+			ao2_t_ref(iterator, -1, "test_sip_mwi_subscribe_parse mwi4");
+		}
+		ao2_iterator_destroy(&iter);
 		if (!found) {
 			ast_test_status_update(test, "sip_subscribe_mwi test 4 failed\n");
 		}
@@ -33440,8 +33534,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 	} else {
 		found = 0;
 		res = AST_TEST_FAIL;
-		ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-			ASTOBJ_WRLOCK(iterator);
+
+		iter = ao2_iterator_init(subscription_mwi_list, 0);
+		while ((iterator = ao2_t_iterator_next(&iter, "test_sip_mwi_subscribe_parse mwi4"))) {
+			ao2_lock(iterator);
 			if (
 				!strcmp(iterator->hostname, "mysipprovider.com") &&
 				!strcmp(iterator->username, "1234") &&
@@ -33452,8 +33548,10 @@ AST_TEST_DEFINE(test_sip_mwi_subscribe_parse)
 				found = 1;
 				res = AST_TEST_PASS;
 			}
-			ASTOBJ_UNLOCK(iterator);
-		} while(0));
+			ao2_unlock(iterator);
+			ao2_t_ref(iterator, -1, "test_sip_mwi_subscribe_parse mwi4");
+		}
+		ao2_iterator_destroy(&iter);
 		if (!found) {
 			ast_test_status_update(test, "sip_subscribe_mwi test 5 failed\n");
 		}
@@ -34289,8 +34387,9 @@ static int load_module(void)
 	}
 	ast_format_cap_append_by_type(sip_tech.capabilities, AST_MEDIA_TYPE_AUDIO);
 
-	ASTOBJ_CONTAINER_INIT(&regl); /* Registry object list -- not searched for anything */
-	ASTOBJ_CONTAINER_INIT(&submwil); /* MWI subscription object list */
+	registry_list = ao2_t_container_alloc(HASH_REGISTRY_SIZE, registry_hash_cb, registry_cmp_cb, "allocate registry_list");
+	subscription_mwi_list = ao2_t_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX,
+		AO2_CONTAINER_ALLOC_OPT_INSERT_BEGIN, NULL, NULL, "allocate subscription_mwi_list");
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context\n");
@@ -34564,20 +34663,26 @@ static int unload_module(void)
 	ast_free(default_tls_cfg.capath);
 
 	cleanup_all_regs();
-	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
-	ASTOBJ_CONTAINER_DESTROY(&regl);
+	ao2_cleanup(registry_list);
 
-	ASTOBJ_CONTAINER_TRAVERSE(&submwil, 1, do {
-		ASTOBJ_WRLOCK(iterator);
-		if (iterator->dnsmgr) {
-			ast_dnsmgr_release(iterator->dnsmgr);
-			iterator->dnsmgr = NULL;
-			ASTOBJ_UNREF(iterator, sip_subscribe_mwi_destroy);
+	{
+		struct ao2_iterator iter;
+		struct sip_subscription_mwi *iterator;
+
+		iter = ao2_iterator_init(subscription_mwi_list, 0);
+		while ((iterator = ao2_t_iterator_next(&iter, "unload_module iter"))) {
+			ao2_lock(iterator);
+			if (iterator->dnsmgr) {
+				ast_dnsmgr_release(iterator->dnsmgr);
+				iterator->dnsmgr = NULL;
+				ao2_t_ref(iterator, -1, "dnsmgr release");
+			}
+			ao2_unlock(iterator);
+			ao2_t_ref(iterator, -1, "unload_module iter");
 		}
-		ASTOBJ_UNLOCK(iterator);
-	} while(0));
-	ASTOBJ_CONTAINER_DESTROYALL(&submwil, sip_subscribe_mwi_destroy);
-	ASTOBJ_CONTAINER_DESTROY(&submwil);
+		ao2_iterator_destroy(&iter);
+	}
+	ao2_cleanup(subscription_mwi_list);
 
 	/*
 	 * Wait awhile for the TCP/TLS thread container to become empty.
