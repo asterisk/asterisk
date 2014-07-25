@@ -228,6 +228,17 @@ ARI
    existing stored recording and copy it to a new location in the recordings
    directory.
 
+ * LiveRecording objects now have three additional fields that can be reported
+   in a RecordingFinished ARI event:
+   - total_duration: the duration of the recording
+   - talking_duration: optional. The duration of talking detected in the
+     recording. This is only available if max_silence_seconds was specified
+     when the recording was started.
+   - silence_duration: optional. The duration of silence detected in the
+     recording. This is only available if max_silence_seconds was specified
+     when the recording was started.
+   Note that all duration values are reported in seconds.
+
 res_pjsip
 ------------------
  * The endpoint configuration object now supports 'accountcode'. Any channel
