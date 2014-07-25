@@ -1368,7 +1368,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 		AST_LIST_INSERT_SORTALPHA(&alpha_module_list, cur, list_entry, resource);
 	}
 
-	AST_LIST_TRAVERSE(&alpha_module_list, cur, list_entry) {
+	while ((cur = AST_LIST_REMOVE_HEAD(&alpha_module_list, list_entry))) {
 		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
 						cur->flags.running ? "Running" : "Not Running", like, cur->info->support_level);
 	}
