@@ -1580,6 +1580,7 @@ reload_out:
 /* XXX need to revise usecount - set if query_lock is set */
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC lookups",
+		.support_level = AST_MODULE_SUPPORT_CORE,
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,

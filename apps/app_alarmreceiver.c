@@ -995,6 +995,7 @@ static int reload(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Alarm Receiver for Asterisk",
+		.support_level = AST_MODULE_SUPPORT_EXTENDED,
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,

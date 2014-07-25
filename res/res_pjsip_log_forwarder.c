@@ -118,6 +118,7 @@ static int unload_module(void)
 /* While we don't really export global symbols, we want to load before other
  * modules that do */
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJSIP Log Forwarder",
+	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 6,

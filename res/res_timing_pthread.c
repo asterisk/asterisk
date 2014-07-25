@@ -476,6 +476,7 @@ static int unload_module(void)
 	return res;
 }
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "pthread Timing Interface",
+		.support_level = AST_MODULE_SUPPORT_EXTENDED,
 		.load = load_module,
 		.unload = unload_module,
 		.load_pri = AST_MODPRI_TIMING,

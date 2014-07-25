@@ -772,17 +772,20 @@ static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	return CLI_SUCCESS;
 }
 
-#define MODLIST_FORMAT  "%-30s %-40.40s %-10d %s\n"
-#define MODLIST_FORMAT2 "%-30s %-40.40s %-10s %s\n"
+#define MODLIST_FORMAT  "%-30s %-40.40s %-10d %-11s %13s\n"
+#define MODLIST_FORMAT2 "%-30s %-40.40s %-10s %-11s %13s\n"
 
 AST_MUTEX_DEFINE_STATIC(climodentrylock);
 static int climodentryfd = -1;
 
-static int modlist_modentry(const char *module, const char *description, int usecnt, const char *status, const char *like)
+static int modlist_modentry(const char *module, const char *description,
+		int usecnt, const char *status, const char *like,
+		enum ast_module_support_level support_level)
 {
 	/* Comparing the like with the module */
 	if (strcasestr(module, like) ) {
-		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt, status);
+		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt,
+				status, ast_module_support_level_to_string(support_level));
 		return 1;
 	}
 	return 0;
@@ -909,7 +912,7 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	ast_mutex_lock(&climodentrylock);
 	climodentryfd = a->fd; /* global, protected by climodentrylock */
-	ast_cli(a->fd, MODLIST_FORMAT2, "Module", "Description", "Use Count", "Status");
+	ast_cli(a->fd, MODLIST_FORMAT2, "Module", "Description", "Use Count", "Status", "Support Level");
 	ast_cli(a->fd,"%d modules loaded\n", ast_update_module_list(modlist_modentry, like));
 	climodentryfd = -1;
 	ast_mutex_unlock(&climodentrylock);

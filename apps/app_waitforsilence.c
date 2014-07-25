@@ -274,5 +274,6 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Wait For Silence");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Wait For Silence");
+
 

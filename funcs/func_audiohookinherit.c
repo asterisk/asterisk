@@ -86,4 +86,5 @@ static int load_module(void)
 		return AST_MODULE_LOAD_SUCCESS;
 	}
 }
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Audiohook inheritance placeholder function");
+AST_MODULE_INFO_STANDARD_DEPRECATED(ASTERISK_GPL_KEY, "Audiohook inheritance placeholder function");
+

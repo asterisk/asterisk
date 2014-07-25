@@ -1748,6 +1748,7 @@ static char *handle_cli_realtime_mysql_status(struct ast_cli_entry *e, int cmd, 
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "MySQL RealTime Configuration Driver",
+		.support_level = AST_MODULE_SUPPORT_EXTENDED,
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,

@@ -256,4 +256,5 @@ static int load_module(void)
 	return ast_register_application_xml(app, background_detect_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Playback with Talk Detection");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Playback with Talk Detection");
+

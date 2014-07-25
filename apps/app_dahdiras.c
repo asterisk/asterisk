@@ -233,5 +233,6 @@ static int load_module(void)
 	return ((ast_register_application_xml(app, dahdiras_exec)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DAHDI ISDN Remote Access Server");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "DAHDI ISDN Remote Access Server");
+
 

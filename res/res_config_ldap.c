@@ -1887,6 +1887,7 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
  *
  */
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "LDAP realtime interface",
+	.support_level = AST_MODULE_SUPPORT_EXTENDED,
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,

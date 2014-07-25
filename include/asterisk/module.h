@@ -73,6 +73,13 @@ enum ast_module_load_result {
 	AST_MODULE_LOAD_FAILURE = -1,   /*!< Module could not be loaded properly */
 };
 
+enum ast_module_support_level {
+	AST_MODULE_SUPPORT_UNKNOWN,
+	AST_MODULE_SUPPORT_CORE,
+	AST_MODULE_SUPPORT_EXTENDED,
+	AST_MODULE_SUPPORT_DEPRECATED,
+};
+
 /*! 
  * \brief Load a module.
  * \param resource_name The name of the module to load.
@@ -120,8 +127,10 @@ void ast_update_use_count(void);
  *
  * \return the number of modules loaded
  */
-int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *status, const char *like),
-			   const char *like);
+int ast_update_module_list(int (*modentry)(const char *module, const char *description,
+                                           int usecnt, const char *status, const char *like,
+                                           enum ast_module_support_level support_level),
+                           const char *like);
 
 /*!
  * \brief Check if module with the name given is loaded
@@ -264,6 +273,8 @@ struct ast_module_info {
 	 * These are only required for loading, when the optional_api header file
 	 * detects that the compiler does not support the optional API featureset. */
 	const char *nonoptreq;
+	/*! The support level for the given module */
+	enum ast_module_support_level support_level;
 };
 
 void ast_module_register(const struct ast_module_info *);
@@ -281,38 +292,59 @@ struct ast_module *ast_module_ref(struct ast_module *);
 void ast_module_unref(struct ast_module *);
 
 #if defined(__cplusplus) || defined(c_plusplus)
-#define AST_MODULE_INFO(keystr, flags_to_set, desc, load_func, unload_func, reload_func, load_pri)	\
+#define AST_MODULE_INFO(keystr, flags_to_set, desc, load_func, unload_func, reload_func, load_pri, support_level)	\
 	static struct ast_module_info __mod_info = {	\
-		NULL,					\
-		load_func,				\
-		reload_func,				\
-		unload_func,				\
-		NULL,					\
-		NULL,					\
-		AST_MODULE,				\
-		desc,					\
-		keystr,					\
-		flags_to_set,				\
-		AST_BUILDOPT_SUM,			\
-		load_pri,           \
-	};						\
-	static void  __attribute__((constructor)) __reg_module(void) \
-	{ \
-		ast_module_register(&__mod_info); \
-	} \
-	static void  __attribute__((destructor)) __unreg_module(void) \
-	{ \
-		ast_module_unregister(&__mod_info); \
-	} \
+		NULL,                                                          \
+		load_func,                                                     \
+		reload_func,                                                   \
+		unload_func,                                                   \
+		NULL,                                                          \
+		NULL,                                                          \
+		AST_MODULE,                                                    \
+		desc,                                                          \
+		keystr,                                                        \
+		flags_to_set,                                                  \
+		AST_BUILDOPT_SUM,                                              \
+		load_pri,                                                      \
+		NULL,                                                          \
+		support_level,                                                 \
+	};                                                                 \
+	static void  __attribute__((constructor)) __reg_module(void)       \
+	{                                                                  \
+		ast_module_register(&__mod_info);                              \
+	}                                                                  \
+	static void  __attribute__((destructor)) __unreg_module(void)      \
+	{                                                                  \
+		ast_module_unregister(&__mod_info);                            \
+	}                                                                  \
 	static const __attribute__((unused)) struct ast_module_info *ast_module_info = &__mod_info
 
-#define AST_MODULE_INFO_STANDARD(keystr, desc)		\
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,	\
-			load_module,			\
-			unload_module,		\
-			NULL,			\
-			AST_MODPRI_DEFAULT \
+#define AST_MODULE_INFO_STANDARD(keystr, desc)              \
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
+			load_module,                                    \
+			unload_module,                                  \
+			NULL,                                           \
+			AST_MODPRI_DEFAULT,                             \
+			AST_MODULE_SUPPORT_CORE                         \
 		       )
+
+#define AST_MODULE_INFO_STANDARD_EXTENDED(keystr, desc)     \
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
+			load_module,                                    \
+			unload_module,                                  \
+			NULL,                                           \
+			AST_MODPRI_DEFAULT,                             \
+			AST_MODULE_SUPPORT_EXTENDED                     \
+		       )
+#define AST_MODULE_INFO_STANDARD_DEPRECATED(keystr, desc)   \
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
+			load_module,                                    \
+			unload_module,                                  \
+			NULL,                                           \
+			AST_MODPRI_DEFAULT,                             \
+			AST_MODULE_SUPPORT_DEPRECATED                   \
+		       )
+
 #else /* plain C */
 
 /* forward declare this pointer in modules, so that macro/function
@@ -401,12 +433,30 @@ static void __restore_globals(void)
 	} \
 	static const struct ast_module_info *ast_module_info = &__mod_info
 
-#define AST_MODULE_INFO_STANDARD(keystr, desc)		\
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,	\
-			.load = load_module,			\
-			.unload = unload_module,		\
-			.load_pri = AST_MODPRI_DEFAULT, \
+#define AST_MODULE_INFO_STANDARD(keystr, desc)              \
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
+			.load = load_module,                            \
+			.unload = unload_module,                        \
+			.load_pri = AST_MODPRI_DEFAULT,                 \
+			.support_level = AST_MODULE_SUPPORT_CORE,       \
 		       )
+
+#define AST_MODULE_INFO_STANDARD_EXTENDED(keystr, desc)     \
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
+			.load = load_module,                            \
+			.unload = unload_module,                        \
+			.load_pri = AST_MODPRI_DEFAULT,                 \
+			.support_level = AST_MODULE_SUPPORT_EXTENDED,   \
+		       )
+
+#define AST_MODULE_INFO_STANDARD_DEPRECATED(keystr, desc)   \
+	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
+			.load = load_module,                            \
+			.unload = unload_module,                        \
+			.load_pri = AST_MODPRI_DEFAULT,                 \
+			.support_level = AST_MODULE_SUPPORT_DEPRECATED, \
+		       )
+
 #endif	/* plain C */
 
 /*! 
@@ -477,6 +527,8 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
  * \retval -1 failure
  */
 int ast_unregister_application(const char *app);
+
+const char *ast_module_support_level_to_string(enum ast_module_support_level support_level);
 
 /*! Macro to safely ref and unref the self module for the current scope */
 #define SCOPED_MODULE_USE(module) \

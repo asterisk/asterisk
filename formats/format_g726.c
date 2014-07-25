@@ -249,6 +249,7 @@ static int unload_module(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Raw G.726 (16/24/32/40kbps) data",
+	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_APP_DEPEND

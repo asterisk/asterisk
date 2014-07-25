@@ -1522,4 +1522,5 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "OSS Console Channel Driver");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "OSS Console Channel Driver");
+

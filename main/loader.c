@@ -1350,8 +1350,10 @@ void ast_update_use_count(void)
 	AST_LIST_UNLOCK(&updaters);
 }
 
-int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *status, const char *like),
-			   const char *like)
+int ast_update_module_list(int (*modentry)(const char *module, const char *description,
+                                           int usecnt, const char *status, const char *like,
+										   enum ast_module_support_level support_level),
+                           const char *like)
 {
 	struct ast_module *cur;
 	int unlock = -1;
@@ -1368,7 +1370,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 
 	AST_LIST_TRAVERSE(&alpha_module_list, cur, list_entry) {
 		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
-						cur->flags.running ? "Running" : "Not Running", like);
+						cur->flags.running ? "Running" : "Not Running", like, cur->info->support_level);
 	}
 
 	if (unlock) {
@@ -1444,4 +1446,16 @@ void ast_module_unref(struct ast_module *mod)
 
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
 	ast_update_use_count();
+}
+
+const char *support_level_map [] = {
+	[AST_MODULE_SUPPORT_UNKNOWN] = "unknown",
+	[AST_MODULE_SUPPORT_CORE] = "core",
+	[AST_MODULE_SUPPORT_EXTENDED] = "extended",
+	[AST_MODULE_SUPPORT_DEPRECATED] = "deprecated",
+};
+
+const char *ast_module_support_level_to_string(enum ast_module_support_level support_level)
+{
+	return support_level_map[support_level];
 }

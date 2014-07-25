@@ -664,4 +664,5 @@ static int load_module(void)
 	return ast_register_application(app, MYSQL_exec, synopsis, descrip);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Simple Mysql Interface");
+AST_MODULE_INFO_STANDARD_DEPRECATED(ASTERISK_GPL_KEY, "Simple Mysql Interface");
+

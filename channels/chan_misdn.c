@@ -12830,6 +12830,7 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Channel driver for mISDN Support (BRI/PRI)",
+	.support_level = AST_MODULE_SUPPORT_EXTENDED,
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,

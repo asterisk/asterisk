@@ -19735,6 +19735,7 @@ static int reload(void)
  */
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, tdesc,
+	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
 	.reload = reload,

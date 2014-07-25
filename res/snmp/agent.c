@@ -761,7 +761,8 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 	return NULL;
 }
 
-static int countmodule(const char *mod, const char *desc, int use, const char *status, const char *like)
+static int countmodule(const char *mod, const char *desc, int use, const char *status,
+		const char *like, enum ast_module_support_level support_level)
 {
 	return 1;
 }

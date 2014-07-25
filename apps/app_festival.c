@@ -575,4 +575,5 @@ static int load_module(void)
 	return ast_register_application_xml(app, festival_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Simple Festival Interface");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Simple Festival Interface");
+

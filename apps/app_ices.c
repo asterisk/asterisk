@@ -215,4 +215,5 @@ static int load_module(void)
 	return ast_register_application_xml(app, ices_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Encode and Stream via icecast and ices");
+AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Encode and Stream via icecast and ices");
+
