@@ -538,6 +538,11 @@ int ast_calendar_register(struct ast_calendar_tech *tech)
 {
 	struct ast_calendar_tech *iter;
 
+	if (!calendar_config) {
+		ast_log(LOG_WARNING, "Calendar support disabled, not loading %s calendar module\n", tech->type);
+		return -1;
+	}
+
 	AST_LIST_LOCK(&techs);
 	AST_LIST_TRAVERSE(&techs, iter, list) {
 		if(!strcasecmp(tech->type, iter->type)) {
