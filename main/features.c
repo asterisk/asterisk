@@ -3222,7 +3222,13 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 	if (!ast_strlen_zero(feature->moh_class))
 		ast_moh_start(idle, feature->moh_class, NULL);
 
-	res = pbx_exec(work, app, feature->app_args);
+	if (!strcasecmp("Gosub", feature->app)) {
+		res = ast_app_exec_sub(NULL, work, feature->app_args, 0);
+	} else if (!strcasecmp("Macro", feature->app)) {
+		res = ast_app_exec_macro(NULL, work, feature->app_args);
+	} else {
+		res = pbx_exec(work, app, feature->app_args);
+	}
 
 	if (!ast_strlen_zero(feature->moh_class))
 		ast_moh_stop(idle);
