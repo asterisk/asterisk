@@ -4882,6 +4882,7 @@ static char *handle_bridge_show_specific(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+#ifdef AST_DEVMODE
 static char *handle_bridge_destroy_specific(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_bridge *bridge;
@@ -4915,10 +4916,11 @@ static char *handle_bridge_destroy_specific(struct ast_cli_entry *e, int cmd, st
 
 	return CLI_SUCCESS;
 }
+#endif
 
 static char *complete_bridge_participant(const char *bridge_name, const char *line, const char *word, int pos, int state)
 {
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	struct ast_bridge *bridge;
 	struct ast_bridge_channel *bridge_channel;
 	int which;
 	int wordlen;
@@ -4928,6 +4930,12 @@ static char *complete_bridge_participant(const char *bridge_name, const char *li
 		return NULL;
 	}
 
+	if (!state) {
+		ao2_ref(bridge, -1);
+		return ast_strdup("all");
+	}
+	state--;
+
 	{
 		SCOPED_LOCK(bridge_lock, bridge, ast_bridge_lock, ast_bridge_unlock);
 
@@ -4936,25 +4944,29 @@ static char *complete_bridge_participant(const char *bridge_name, const char *li
 		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 			if (!strncasecmp(ast_channel_name(bridge_channel->chan), word, wordlen)
 				&& ++which > state) {
+				ao2_ref(bridge, -1);
 				return ast_strdup(ast_channel_name(bridge_channel->chan));
 			}
 		}
 	}
+
+	ao2_ref(bridge, -1);
 
 	return NULL;
 }
 
 static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
+	struct ast_bridge *bridge;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "bridge kick";
 		e->usage =
-			"Usage: bridge kick <bridge-id> <channel-name>\n"
-			"       Kick the <channel-name> channel out of the <bridge-id> bridge\n";
+			"Usage: bridge kick <bridge-id> <channel-name | all>\n"
+			"       Kick the <channel-name> channel out of the <bridge-id> bridge\n"
+			"       If all is specified as the channel name then all channels will be\n"
+			"       kicked out of the bridge.\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
@@ -4976,16 +4988,33 @@ static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct
 		return CLI_SUCCESS;
 	}
 
-	chan = ast_channel_get_by_name_prefix(a->argv[3], strlen(a->argv[3]));
-	if (!chan) {
-		ast_cli(a->fd, "Channel '%s' not found\n", a->argv[3]);
-		return CLI_SUCCESS;
+	if (!strcasecmp(a->argv[3], "all")) {
+		struct ast_bridge_channel *bridge_channel;
+
+		ast_cli(a->fd, "Kicking all channels from bridge '%s'\n", a->argv[2]);
+
+		ast_bridge_lock(bridge);
+		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
+			ast_bridge_channel_queue_callback(bridge_channel, 0, kick_it, NULL, 0);
+		}
+		ast_bridge_unlock(bridge);
+	} else {
+		struct ast_channel *chan;
+
+		chan = ast_channel_get_by_name_prefix(a->argv[3], strlen(a->argv[3]));
+		if (!chan) {
+			ast_cli(a->fd, "Channel '%s' not found\n", a->argv[3]);
+			ao2_ref(bridge, -1);
+			return CLI_SUCCESS;
+		}
+
+		ast_cli(a->fd, "Kicking channel '%s' from bridge '%s'\n",
+			ast_channel_name(chan), a->argv[2]);
+		ast_bridge_kick(bridge, chan);
+		ast_channel_unref(chan);
 	}
 
-	ast_cli(a->fd, "Kicking channel '%s' from bridge '%s'\n",
-		ast_channel_name(chan), a->argv[2]);
-	ast_bridge_kick(bridge, chan);
-
+	ao2_ref(bridge, -1);
 	return CLI_SUCCESS;
 }
 
@@ -5122,7 +5151,9 @@ static char *handle_bridge_technology_suspend(struct ast_cli_entry *e, int cmd, 
 static struct ast_cli_entry bridge_cli[] = {
 	AST_CLI_DEFINE(handle_bridge_show_all, "List all bridges"),
 	AST_CLI_DEFINE(handle_bridge_show_specific, "Show information about a bridge"),
+#ifdef AST_DEVMODE
 	AST_CLI_DEFINE(handle_bridge_destroy_specific, "Destroy a bridge"),
+#endif
 	AST_CLI_DEFINE(handle_bridge_kick_channel, "Kick a channel from a bridge"),
 	AST_CLI_DEFINE(handle_bridge_technology_show, "List registered bridge technologies"),
 	AST_CLI_DEFINE(handle_bridge_technology_suspend, "Suspend/unsuspend a bridge technology"),
