@@ -360,8 +360,7 @@ static struct wait_bridge_wrapper *get_wait_bridge_wrapper(const char *bridge_na
 	bridge = ast_bridge_base_new(AST_BRIDGE_CAPABILITY_HOLDING,
 		AST_BRIDGE_FLAG_MERGE_INHIBIT_TO | AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_TO | AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM
-		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED | AST_BRIDGE_FLAG_DISSOLVE_EMPTY,
-		APP_NAME, bridge_name, NULL);
+		| AST_BRIDGE_FLAG_TRANSFER_PROHIBITED, APP_NAME, bridge_name, NULL);
 
 	if (!bridge) {
 		return NULL;
@@ -422,9 +421,10 @@ static int bridgewait_exec(struct ast_channel *chan, const char *data)
 	struct ast_bridge_features chan_features;
 	struct ast_flags flags = { 0 };
 	char *parse;
-	int bridge_join_failed = 0;
 	enum wait_bridge_roles role = ROLE_PARTICIPANT;
 	char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
+	struct wait_bridge_wrapper *bridge_wrapper;
+	int res;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(name);
@@ -469,36 +469,26 @@ static int bridgewait_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	for (;;) {
-		RAII_VAR(struct wait_bridge_wrapper *, bridge_wrapper, get_wait_bridge_wrapper(bridge_name), wait_wrapper_removal);
-
-		if (!bridge_wrapper) {
-			ast_log(LOG_WARNING, "Failed to find or create waiting bridge '%s' for '%s'.\n", bridge_name, ast_channel_name(chan));
-			bridge_join_failed = 1;
-			break;
-		}
-
-		ast_verb(3, "%s is entering waiting bridge %s:%s\n", ast_channel_name(chan), bridge_name, bridge_wrapper->bridge->uniqueid);
-
-		if (ast_bridge_join(bridge_wrapper->bridge, chan, NULL, &chan_features, NULL, 0)) {
-			/* It's possible for a holding bridge to vanish out from under us since we can't lock it.
-			 * Unlink the wrapper and then loop if the bridge we try to enter is dissolved. */
-			ast_verb(3, "Waiting bridge '%s:%s' is no longer joinable. Creating new bridge and trying again.\n",
-				bridge_name, bridge_wrapper->bridge->uniqueid);
-			ao2_unlink(wait_bridge_wrappers, bridge_wrapper);
-			continue;
-		}
-
-		break;
-	}
-
-	ast_bridge_features_cleanup(&chan_features);
-
-	if (bridge_join_failed) {
+	bridge_wrapper = get_wait_bridge_wrapper(bridge_name);
+	if (!bridge_wrapper) {
+		ast_log(LOG_WARNING, "Failed to find or create waiting bridge '%s' for '%s'.\n", bridge_name, ast_channel_name(chan));
+		ast_bridge_features_cleanup(&chan_features);
 		return -1;
 	}
 
-	return ast_check_hangup_locked(chan) ? -1 : 0;
+	ast_verb(3, "%s is entering waiting bridge %s:%s\n", ast_channel_name(chan), bridge_name, bridge_wrapper->bridge->uniqueid);
+	res = ast_bridge_join(bridge_wrapper->bridge, chan, NULL, &chan_features, NULL, 0);
+	wait_wrapper_removal(bridge_wrapper);
+	ast_bridge_features_cleanup(&chan_features);
+
+	if (res) {
+		/* For the lifetime of the bridge wrapper the bridge itself will be valid, if an error occurs it is because
+		 * of extreme situations.
+		 */
+		ast_log(LOG_WARNING, "Failed to join waiting bridge '%s' for '%s'.\n", bridge_name, ast_channel_name(chan));
+	}
+
+	return (res || ast_check_hangup_locked(chan)) ? -1 : 0;
 }
 
 static int unload_module(void)
