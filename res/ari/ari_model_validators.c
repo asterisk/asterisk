@@ -1038,6 +1038,15 @@ int ast_ari_validate_live_recording(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("duration", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LiveRecording field duration failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("format", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_format = 1;
@@ -1058,6 +1067,15 @@ int ast_ari_validate_live_recording(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("silence_duration", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LiveRecording field silence_duration failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("state", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_state = 1;
@@ -1065,6 +1083,15 @@ int ast_ari_validate_live_recording(struct ast_json *json)
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI LiveRecording field state failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("talking_duration", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LiveRecording field talking_duration failed validation\n");
 				res = 0;
 			}
 		} else

@@ -1179,9 +1179,12 @@ ari_validator ast_ari_validate_application_fn(void);
  * - technology: string (required)
  * LiveRecording
  * - cause: string
+ * - duration: int
  * - format: string (required)
  * - name: string (required)
+ * - silence_duration: int
  * - state: string (required)
+ * - talking_duration: int
  * - target_uri: string (required)
  * StoredRecording
  * - format: string (required)

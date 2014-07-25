@@ -61,6 +61,13 @@ struct stasis_app_recording {
 	struct stasis_app_control *control;
 	/*! Current state of the recording. */
 	enum stasis_app_recording_state state;
+	/*! Duration calculations */
+	struct {
+		/*! Total duration */
+		int total;
+		/*! Duration minus any silence */
+		int energy_only;
+	} duration;
 	/*! Indicates whether the recording is currently muted */
 	int muted:1;
 };
@@ -285,7 +292,6 @@ static int record_file(struct stasis_app_control *control,
 		NULL, recording_cleanup);
 	char *acceptdtmf;
 	int res;
-	int duration = 0;
 
 	recording = data;
 	ast_assert(recording != NULL);
@@ -325,8 +331,8 @@ static int record_file(struct stasis_app_control *control,
 		recording->absolute_name,
 		recording->options->max_duration_seconds,
 		recording->options->format,
-		&duration,
-		NULL, /* sound_duration */
+		&recording->duration.total,
+		recording->options->max_silence_seconds ? &recording->duration.energy_only : NULL,
 		recording->options->beep,
 		-1, /* silencethreshold */
 		recording->options->max_silence_seconds * 1000,
@@ -381,6 +387,8 @@ struct stasis_app_recording *stasis_app_control_record(
 		errno = ENOMEM;
 		return NULL;
 	}
+	recording->duration.total = -1;
+	recording->duration.energy_only = -1;
 
 	ast_asprintf(&recording->absolute_name, "%s/%s",
 		ast_config_AST_RECORDING_DIR, options->name);
@@ -480,6 +488,16 @@ struct ast_json *stasis_app_recording_to_json(
 		"format", recording->options->format,
 		"state", state_to_string(recording->state),
 		"target_uri", recording->options->target);
+	if (json && recording->duration.total > -1) {
+		ast_json_object_set(json, "duration",
+			ast_json_integer_create(recording->duration.total));
+	}
+	if (json && recording->duration.energy_only > -1) {
+		ast_json_object_set(json, "talking_duration",
+			ast_json_integer_create(recording->duration.energy_only));
+		ast_json_object_set(json, "silence_duration",
+			ast_json_integer_create(recording->duration.total - recording->duration.energy_only));
+	}
 
 	return ast_json_ref(json);
 }

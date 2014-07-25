@@ -338,7 +338,7 @@
 					"description": "URI for the channel or bridge being recorded"
 				},
 				"state": {
-					"required": false,
+					"required": true,
 					"type": "string",
 					"allowableValues": {
 						"valueType": "LIST",
@@ -352,18 +352,25 @@
 						]
 					}
 				},
+				"duration": {
+					"required": false,
+					"type": "int",
+					"description": "Duration in seconds of the recording"
+				},
+				"talking_duration": {
+					"required": false,
+					"type": "int",
+					"description": "Duration of talking, in seconds, detected in the recording. This is only available if the recording was initiated with a non-zero maxSilenceSeconds."
+				},
+				"silence_duration": {
+					"required": false,
+					"type": "int",
+					"description": "Duration of silence, in seconds, detected in the recording. This is only available if the recording was initiated with a non-zero maxSilenceSeconds."
+				},
 				"cause": {
 					"required": false,
 					"type": "string",
 					"description": "Cause for recording failure if failed"
-				},
-				"state": {
-					"required": true,
-					"type": "string"
-				},
-				"format": {
-					"required": true,
-					"type": "string"
 				}
 			}
 		}
