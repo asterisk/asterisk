@@ -139,24 +139,161 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 /*!
- * \since 1.8
- * \brief Run a macro on a channel, placing a second channel into autoservice.
+ * \brief Run a macro on a channel, placing an optional second channel into autoservice.
+ * \since 1.8.30.0
+ * \since 11.0
  *
- * This is a shorthand method that makes it very easy to run a macro on any given 
- * channel. It is perfectly reasonable to supply a NULL autoservice_chan here in case
- * there is no channel to place into autoservice. It is very important that the 
- * autoservice_chan parameter is not locked prior to calling ast_app_run_macro. A 
- * deadlock could result, otherwise.
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * macro on any given channel.  It is perfectly reasonable to
+ * supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
  *
  * \param autoservice_chan A channel to place into autoservice while the macro is run
- * \param macro_chan The channel to run the macro on
- * \param macro_name The name of the macro to run
- * \param macro_args The arguments to pass to the macro
+ * \param macro_chan Channel to execute macro on.
+ * \param macro_args Macro application argument string.
+ *
  * \retval 0 success
- * \retval -1 failure
+ * \retval -1 on error
  */
-int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel 
-		*macro_chan, const char * const macro_name, const char * const macro_args);
+int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *macro_args);
+
+/*!
+ * \since 1.8
+ * \brief Run a macro on a channel, placing an optional second channel into autoservice.
+ *
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * macro on any given channel.  It is perfectly reasonable to
+ * supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
+ * \param autoservice_chan A channel to place into autoservice while the macro is run
+ * \param macro_chan Channel to execute macro on.
+ * \param macro_name The name of the macro to run.
+ * \param macro_args The arguments to pass to the macro.
+ *
+ * \retval 0 success
+ * \retval -1 on error
+ */
+int ast_app_run_macro(struct ast_channel *autoservice_chan,
+	struct ast_channel *macro_chan, const char *macro_name, const char *macro_args);
+
+/*!
+ * \brief Stack applications callback functions.
+ */
+struct ast_app_stack_funcs {
+	/*!
+	 * Module reference pointer so the module will stick around
+	 * while a callback is active.
+	 */
+	void *module;
+
+	/*!
+	 * \brief Callback for the routine to run a subroutine on a channel.
+	 *
+	 * \note Absolutely _NO_ channel locks should be held before calling this function.
+	 *
+	 * \param chan Channel to execute subroutine on.
+	 * \param args Gosub application argument string.
+	 * \param ignore_hangup TRUE if a hangup does not stop execution of the routine.
+	 *
+	 * \retval 0 success
+	 * \retval -1 on error
+	 */
+	int (*run_sub)(struct ast_channel *chan, const char *args, int ignore_hangup);
+
+	/*!
+	 * \brief Add missing context/exten to Gosub application argument string.
+	 *
+	 * \param chan Channel to obtain context/exten.
+	 * \param args Gosub application argument string.
+	 *
+	 * \details
+	 * Fills in the optional context and exten from the given channel.
+	 *
+	 * \retval New-args Gosub argument string on success.  Must be freed.
+	 * \retval NULL on error.
+	 */
+	const char *(*expand_sub_args)(struct ast_channel *chan, const char *args);
+
+	/* Add new API calls to the end here. */
+};
+
+/*!
+ * \since 1.8.30.0
+ * \since 11
+ * \brief Set stack application function callbacks
+ * \param funcs Stack applications callback functions.
+ */
+void ast_install_stack_functions(const struct ast_app_stack_funcs *funcs);
+
+/*!
+ * \brief Add missing context/exten to subroutine argument string.
+ * \since 1.8.30.0
+ *
+ * \param chan Channel to obtain context/exten.
+ * \param args Gosub application argument string.
+ *
+ * \details
+ * Fills in the optional context and exten from the given channel.
+ *
+ * \retval New-args Gosub argument string on success.  Must be freed.
+ * \retval NULL on error.
+ */
+const char *ast_app_expand_sub_args(struct ast_channel *chan, const char *args);
+
+/*!
+ * \since 1.8.30.0
+ * \since 11
+ * \brief Run a subroutine on a channel, placing an optional second channel into autoservice.
+ *
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * subroutine on any given channel.  It is perfectly reasonable
+ * to supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
+ * \param autoservice_chan A channel to place into autoservice while the subroutine is run
+ * \param sub_chan Channel to execute subroutine on.
+ * \param sub_args Gosub application argument string.
+ * \param ignore_hangup TRUE if a hangup does not stop execution of the routine.
+ *
+ * \retval 0 success
+ * \retval -1 on error
+ */
+int ast_app_exec_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *sub_args, int ignore_hangup);
+
+/*!
+ * \since 1.8.30.0
+ * \since 11
+ * \brief Run a subroutine on a channel, placing an optional second channel into autoservice.
+ *
+ * \details
+ * This is a shorthand method that makes it very easy to run a
+ * subroutine on any given channel.  It is perfectly reasonable
+ * to supply a NULL autoservice_chan here in case there is no
+ * channel to place into autoservice.
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ *
+ * \param autoservice_chan A channel to place into autoservice while the subroutine is run
+ * \param sub_chan Channel to execute subroutine on.
+ * \param sub_location The location of the subroutine to run.
+ * \param sub_args The arguments to pass to the subroutine.
+ * \param ignore_hangup TRUE if a hangup does not stop execution of the routine.
+ *
+ * \retval 0 success
+ * \retval -1 on error
+ */
+int ast_app_run_sub(struct ast_channel *autoservice_chan,
+	struct ast_channel *sub_chan, const char *sub_location, const char *sub_args, int ignore_hangup);
 
 enum ast_vm_snapshot_sort_val {
 	AST_VM_SNAPSHOT_SORT_BY_ID = 0,
