@@ -1055,6 +1055,7 @@ void ast_jb_create_framehook(struct ast_channel *chan, struct ast_jb_conf *jb_co
 			id = datastore->data;
 			ast_framehook_detach(chan, *id);
 			ast_channel_datastore_remove(chan, datastore);
+			ast_datastore_free(datastore);
 		}
 		ast_channel_unlock(chan);
 		return;
@@ -1087,6 +1088,7 @@ void ast_jb_create_framehook(struct ast_channel *chan, struct ast_jb_conf *jb_co
 			id = datastore->data;
 			ast_framehook_detach(chan, *id);
 			ast_channel_datastore_remove(chan, datastore);
+			ast_datastore_free(datastore);
 		}
 
 		if (!(datastore = ast_datastore_alloc(&jb_datastore, NULL))) {
@@ -1112,6 +1114,4 @@ void ast_jb_create_framehook(struct ast_channel *chan, struct ast_jb_conf *jb_co
 		framedata = NULL;
 	}
 	ast_channel_unlock(chan);
-
-	return;
 }

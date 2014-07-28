@@ -290,13 +290,44 @@ static struct ast_speech *find_speech(struct ast_channel *chan)
 		return NULL;
 	}
 
+	ast_channel_lock(chan);
 	datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
+	ast_channel_unlock(chan);
 	if (datastore == NULL) {
 		return NULL;
 	}
 	speech = datastore->data;
 
 	return speech;
+}
+
+/*!
+ * \internal
+ * \brief Destroy the speech datastore on the given channel.
+ *
+ * \param chan Channel to destroy speech datastore.
+ *
+ * \retval 0 on success.
+ * \retval -1 not found.
+ */
+static int speech_datastore_destroy(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore;
+	int res;
+
+	ast_channel_lock(chan);
+	datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
+	if (datastore) {
+		ast_channel_datastore_remove(chan, datastore);
+	}
+	ast_channel_unlock(chan);
+	if (datastore) {
+		ast_datastore_free(datastore);
+		res = 0;
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 /* Helper function to find a specific speech recognition result by number and nbest alternative */
@@ -532,7 +563,9 @@ static int speech_create(struct ast_channel *chan, const char *data)
 	}
 	pbx_builtin_setvar_helper(chan, "ERROR", NULL);
 	datastore->data = speech;
+	ast_channel_lock(chan);
 	ast_channel_datastore_add(chan, datastore);
+	ast_channel_unlock(chan);
 
 	return 0;
 }
@@ -675,7 +708,6 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	RAII_VAR(struct ast_format *, oldreadformat, NULL, ao2_cleanup);
 	char dtmf[AST_MAX_EXTENSION] = "";
 	struct timeval start = { 0, 0 }, current;
-	struct ast_datastore *datastore = NULL;
 	char *parse, *filename_tmp = NULL, *filename = NULL, tmp[2] = "", dtmf_terminator = '#';
 	const char *tmp2 = NULL;
 	struct ast_flags options = { 0 };
@@ -904,11 +936,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 
 	/* See if it was because they hung up */
 	if (done == 3) {
-		/* Destroy speech structure */
-		ast_speech_destroy(speech);
-		datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
-		if (datastore != NULL)
-			ast_channel_datastore_remove(chan, datastore);
+		speech_datastore_destroy(chan);
 	} else {
 		/* Channel is okay so restore read format */
 		ast_set_read_format(chan, oldreadformat);
@@ -921,22 +949,10 @@ static int speech_background(struct ast_channel *chan, const char *data)
 /*! \brief SpeechDestroy() Dialplan Application */
 static int speech_destroy(struct ast_channel *chan, const char *data)
 {
-	int res = 0;
-	struct ast_speech *speech = find_speech(chan);
-	struct ast_datastore *datastore = NULL;
-
-	if (speech == NULL)
+	if (!chan) {
 		return -1;
-
-	/* Destroy speech structure */
-	ast_speech_destroy(speech);
-
-	datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
-	if (datastore != NULL) {
-		ast_channel_datastore_remove(chan, datastore);
 	}
-
-	return res;
+	return speech_datastore_destroy(chan);
 }
 
 static int unload_module(void)

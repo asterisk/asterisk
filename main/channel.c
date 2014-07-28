@@ -10415,10 +10415,7 @@ int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum 
 
 	if ((datastore = ast_channel_datastore_find(chan, datastore_info, NULL))) {
 		suppress = datastore->data;
-		ao2_ref(suppress, +1);
-
 		suppress->direction |= direction;
-
 		return 0;
 	}
 
@@ -10450,12 +10447,11 @@ int ast_channel_suppress(struct ast_channel *chan, unsigned int direction, enum 
 		return -1;
 	}
 
+	/* and another ref for the datastore */
+	ao2_ref(suppress, +1);
 	datastore->data = suppress;
 
 	ast_channel_datastore_add(chan, datastore);
-
-	/* and another ref for the datastore */
-	ao2_ref(suppress, +1);
 
 	return 0;
 }
@@ -10484,6 +10480,7 @@ int ast_channel_unsuppress(struct ast_channel *chan, unsigned int direction, enu
 		/* Nothing left to suppress.  Bye! */
 		ast_framehook_detach(chan, suppress->framehook_id);
 		ast_channel_datastore_remove(chan, datastore);
+		ast_datastore_free(datastore);
 	}
 
 	return 0;
