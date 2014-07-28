@@ -4573,6 +4573,7 @@ static void queue_transfer_fixup(void *data, struct ast_channel *old_chan, struc
 	/* No need to lock the channels because they are already locked in ast_do_masquerade */
 	if ((datastore = ast_channel_datastore_find(old_chan, &queue_transfer_info, NULL))) {
 		ast_channel_datastore_remove(old_chan, datastore);
+		/* Datastore is freed in try_calling() */
 	} else {
 		ast_log(LOG_WARNING, "Can't find the queue_transfer datastore.\n");
 	}
@@ -5445,6 +5446,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			}
 			if ((tds = ast_channel_datastore_find(qe->chan, &queue_transfer_info, NULL))) {	
 				ast_channel_datastore_remove(qe->chan, tds);
+				/* tds was added by setup_transfer_datastore() and is freed below. */
 			}
 			ast_channel_unlock(qe->chan);
 			update_queue(qe->parent, member, callcompletedinsl, (time(NULL) - callstart));
