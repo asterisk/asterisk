@@ -185,6 +185,7 @@ static int frame_trace_helper(struct ast_channel *chan, const char *cmd, char *d
 			id = datastore->data;
 			ast_framehook_detach(chan, *id);
 			ast_channel_datastore_remove(chan, datastore);
+			ast_datastore_free(datastore);
 		}
 
 		if (!(datastore = ast_datastore_alloc(&frame_trace_datastore, NULL))) {
