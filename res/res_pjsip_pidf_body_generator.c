@@ -38,10 +38,11 @@
 static void *pidf_allocate_body(void *data)
 {
 	struct ast_sip_exten_state_data *state_data = data;
+	char *local = ast_strdupa(state_data->local);
 	pjpidf_pres *pres;
 	pj_str_t entity;
 
-	pres = pjpidf_create(state_data->pool, pj_cstr(&entity, state_data->local));
+	pres = pjpidf_create(state_data->pool, pj_cstr(&entity, ast_strip_quoted(local, "<", ">")));
 
 	return pres;
 }
