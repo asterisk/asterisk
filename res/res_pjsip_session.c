@@ -55,9 +55,9 @@
 static const pj_str_t *hostname;
 
 /* Some forward declarations */
-static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata);
-static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata);
-static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata);
+static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
+static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
+static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
 static void handle_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata);
 static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_data *tdata);
 static void handle_outgoing(struct ast_sip_session *session, pjsip_tx_data *tdata);
@@ -1571,7 +1571,7 @@ static int new_invite(void *data)
 	}
 	ast_sip_session_send_response(invite->session, tdata);
 
-	handle_incoming_request(invite->session, invite->rdata);
+	handle_incoming_request(invite->session, invite->rdata, PJSIP_EVENT_RX_MSG);
 
 	return 0;
 }
@@ -1782,7 +1782,7 @@ static void __print_debug_details(const char *function, pjsip_inv_session *inv, 
 
 #define print_debug_details(inv, tsx, e) __print_debug_details(__PRETTY_FUNCTION__, (inv), (tsx), (e))
 
-static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
+static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type)
 {
 	struct ast_sip_session_supplement *supplement;
 	struct pjsip_request_line req = rdata->msg_info.msg->line.req;
@@ -1797,10 +1797,15 @@ static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_da
 	}
 }
 
-static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata)
+static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type)
 {
 	struct ast_sip_session_supplement *supplement;
 	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
+
+	/* Squash all redirect transaction related responses as the supplements have already been invoked */
+	if (type == PJSIP_EVENT_TSX_STATE && PJSIP_IS_STATUS_IN_CLASS(status.code, 300)) {
+		return;
+	}
 
 	ast_debug(3, "Response is %d %.*s\n", status.code, (int) pj_strlen(&status.reason),
 			pj_strbuf(&status.reason));
@@ -1812,15 +1817,15 @@ static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_d
 	}
 }
 
-static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata)
+static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type)
 {
 	ast_debug(3, "Received %s\n", rdata->msg_info.msg->type == PJSIP_REQUEST_MSG ?
 			"request" : "response");
 
 	if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
-		handle_incoming_request(session, rdata);
+		handle_incoming_request(session, rdata, type);
 	} else {
-		handle_incoming_response(session, rdata);
+		handle_incoming_response(session, rdata, type);
 	}
 
 	return 0;
@@ -1910,7 +1915,7 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 		handle_outgoing(session, e->body.tx_msg.tdata);
 		break;
 	case PJSIP_EVENT_RX_MSG:
-		handle_incoming(session, e->body.rx_msg.rdata);
+		handle_incoming(session, e->body.rx_msg.rdata, type);
 		break;
 	case PJSIP_EVENT_TSX_STATE:
 		ast_debug(3, "Source of transaction state change is %s\n", pjsip_event_str(e->body.tsx_state.type));
@@ -1920,7 +1925,7 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 			handle_outgoing(session, e->body.tsx_state.src.tdata);
 			break;
 		case PJSIP_EVENT_RX_MSG:
-			handle_incoming(session, e->body.tsx_state.src.rdata);
+			handle_incoming(session, e->body.tsx_state.src.rdata, type);
 			break;
 		case PJSIP_EVENT_TRANSPORT_ERROR:
 		case PJSIP_EVENT_TIMER:
@@ -2003,7 +2008,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 			}
 		} else {
 			if (tsx->role == PJSIP_ROLE_UAS && tsx->state == PJSIP_TSX_STATE_TRYING) {
-				handle_incoming_request(session, e->body.tsx_state.src.rdata);
+				handle_incoming_request(session, e->body.tsx_state.src.rdata, PJSIP_EVENT_TSX_STATE);
 			}
 		}
 		if ((cb = ast_sip_mod_data_get(tsx->mod_data, session_module.id,
@@ -2164,6 +2169,8 @@ static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const
 	if (!PJSIP_URI_SCHEME_IS_SIP(target) && !PJSIP_URI_SCHEME_IS_SIPS(target)) {
 		return PJSIP_REDIRECT_STOP;
 	}
+
+	handle_incoming(session, e->body.rx_msg.rdata, PJSIP_EVENT_RX_MSG);
 
 	uri = pjsip_uri_get_uri(target);
 
