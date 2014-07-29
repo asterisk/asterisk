@@ -39,10 +39,11 @@
 static void *xpidf_allocate_body(void *data)
 {
 	struct ast_sip_exten_state_data *state_data = data;
+	char *local = ast_strdupa(state_data->local);
 	pjxpidf_pres *pres;
 	pj_str_t name;
 
-	pres = pjxpidf_create(state_data->pool, pj_cstr(&name, state_data->local));
+	pres = pjxpidf_create(state_data->pool, pj_cstr(&name, ast_strip_quoted(local, "<", ">")));
 	return pres;
 }
 
