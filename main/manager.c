@@ -1063,6 +1063,31 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="manager">Redirect</ref>
 		</see-also>
 	</manager>
+	<managerEvent name="ExtensionStatus" language="en_US">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a hint changes due to a device state change.</synopsis>
+			<syntax>
+				<parameter name="Exten" />
+				<parameter name="Context" />
+				<parameter name="Hint" />
+				<parameter name="Status" />
+				<parameter name="StatusText" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent name="PresenceStatus" language="en_US">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a hint changes due to a presence state change.</synopsis>
+			<syntax>
+				<parameter name="Exten" />
+				<parameter name="Context" />
+				<parameter name="Hint" />
+				<parameter name="Status" />
+				<parameter name="Subtype" />
+				<parameter name="Message" />
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 /*! \addtogroup Group_AMI AMI functions
@@ -6244,11 +6269,6 @@ static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info
 
 	switch(info->reason) {
 	case AST_HINT_UPDATE_DEVICE:
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when an extension state has changed.</synopsis>
-			</managerEventInstance>
-		***/
 		manager_event(EVENT_FLAG_CALL, "ExtensionStatus",
 			"Exten: %s\r\n"
 			"Context: %s\r\n"
@@ -6262,11 +6282,6 @@ static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info
 			ast_extension_state2str(info->exten_state));
 		break;
 	case AST_HINT_UPDATE_PRESENCE:
-		/*** DOCUMENTATION
-			<managerEventInstance>
-				<synopsis>Raised when a presence state has changed.</synopsis>
-			</managerEventInstance>
-		***/
 		manager_event(EVENT_FLAG_CALL, "PresenceStatus",
 			"Exten: %s\r\n"
 			"Context: %s\r\n"

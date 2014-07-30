@@ -800,6 +800,45 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			may take a lot of capacity.</para>
 		</description>
 	</manager>
+	<manager name="ExtensionStateList" language="en_US">
+		<synopsis>
+			List the current known extension states.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+		</syntax>
+		<description>
+			<para>This will list out all known extension states in a
+			sequence of <replaceable>ExtensionStatus</replaceable> events.
+			When finished, a <replaceable>ExtensionStateListComplete</replaceable> event
+			will be emitted.</para>
+		</description>
+		<see-also>
+			<ref type="manager">ExtensionState</ref>
+			<ref type="function">HINT</ref>
+			<ref type="function">EXTENSION_STATE</ref>
+		</see-also>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ExtensionStatus'])" />
+			</list-elements>
+			<managerEvent name="ExtensionStateListComplete" language="en_US">
+				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<synopsis>
+						Indicates the end of the list the current known extension states.
+					</synopsis>
+					<syntax>
+						<parameter name="EventList">
+							<para>Conveys the status of the event list.</para>
+						</parameter>
+						<parameter name="ListItems">
+							<para>Conveys the number of statuses reported.</para>
+						</parameter>
+					</syntax>
+				</managerEventInstance>
+			</managerEvent>
+		</responses>
+	</manager>
  ***/
 
 #ifdef LOW_MEMORY
@@ -11931,6 +11970,55 @@ static const struct ast_data_entry pbx_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/core/hints", &hints_data_provider),
 };
 
+static int action_extensionstatelist(struct mansession *s, const struct message *m)
+{
+	const char *action_id = astman_get_header(m, "ActionID");
+	struct ast_hint *hint;
+	struct ao2_iterator it_hints;
+
+	if (!hints) {
+		astman_send_error(s, m, "No dialplan hints are available");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Extension Statuses will follow", "start");
+
+	ao2_lock(hints);
+	it_hints = ao2_iterator_init(hints, 0);
+	for (; (hint = ao2_iterator_next(&it_hints)); ao2_ref(hint, -1)) {
+
+		ao2_lock(hint);
+		astman_append(s, "Event: ExtensionStatus\r\n");
+		if (!ast_strlen_zero(action_id)) {
+			astman_append(s, "ActionID: %s\r\n", action_id);
+		}
+		astman_append(s,
+		   "Exten: %s\r\n"
+		   "Context: %s\r\n"
+		   "Hint: %s\r\n"
+		   "Status: %d\r\n"
+		   "StatusText: %s\r\n\r\n",
+		   hint->exten->exten,
+		   hint->exten->parent->name,
+		   hint->exten->app,
+		   hint->laststate,
+		   ast_extension_state2str(hint->laststate));
+		ao2_unlock(hint);
+	}
+	astman_append(s, "Event: ExtensionStateListComplete\r\n");
+	if (!ast_strlen_zero(action_id)) {
+		astman_append(s, "ActionID: %s\r\n", action_id);
+	}
+	astman_append(s, "EventList: Complete\r\n"
+		"ListItems: %d\r\n\r\n", ao2_container_count(hints));
+
+	ao2_iterator_destroy(&it_hints);
+	ao2_unlock(hints);
+
+	return 0;
+}
+
+
 /*!
  * \internal
  * \brief Clean up resources on Asterisk shutdown.
@@ -11949,6 +12037,7 @@ static void unload_pbx(void)
 		ast_unregister_application(builtins[x].name);
 	}
 	ast_manager_unregister("ShowDialPlan");
+	ast_manager_unregister("ExtensionStateList");
 	ast_cli_unregister_multiple(pbx_cli, ARRAY_LEN(pbx_cli));
 	ast_custom_function_unregister(&exception_function);
 	ast_custom_function_unregister(&testtime_function);
@@ -11957,6 +12046,7 @@ static void unload_pbx(void)
 
 int load_pbx(void)
 {
+	int res = 0;
 	int x;
 
 	ast_register_atexit(unload_pbx);
@@ -11979,7 +12069,12 @@ int load_pbx(void)
 	}
 
 	/* Register manager application */
-	ast_manager_register_xml_core("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan);
+	res |= ast_manager_register_xml_core("ShowDialPlan", EVENT_FLAG_CONFIG | EVENT_FLAG_REPORTING, manager_show_dialplan);
+	res |= ast_manager_register_xml_core("ExtensionStateList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, action_extensionstatelist);
+
+	if (res) {
+		return -1;
+	}
 
 	if (!(device_state_sub = stasis_subscribe(ast_device_state_topic_all(), device_state_cb, NULL))) {
 		return -1;
