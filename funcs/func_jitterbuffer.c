@@ -66,13 +66,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>target_extra: Defaults to 40ms</para>
 			<para>This option only affects the adaptive jitterbuffer. It represents the amount time in milliseconds by which the new jitter buffer will pad its size.</para>
 			<para> </para>
-			<para>Examples:</para>
-			<para>exten => 1,1,Set(JITTERBUFFER(fixed)=default);Fixed with defaults. </para>
-			<para>exten => 1,1,Set(JITTERBUFFER(fixed)=200);Fixed with max size 200ms, default resync threshold and target extra. </para>
-			<para>exten => 1,1,Set(JITTERBUFFER(fixed)=200,1500);Fixed with max size 200ms resync threshold 1500. </para>
-			<para>exten => 1,1,Set(JITTERBUFFER(adaptive)=default);Adaptive with defaults. </para>
-			<para>exten => 1,1,Set(JITTERBUFFER(adaptive)=200,,60);Adaptive with max size 200ms, default resync threshold and 40ms target extra. </para>
-			<para>exten => 1,n,Set(JITTERBUFFER(disabled)=);Remove previously applied jitterbuffer </para>
+			<example title="Fixed with defaults" language="text">
+			exten => 1,1,Set(JITTERBUFFER(fixed)=default)
+			</example>
+			<example title="Fixed with 200ms max size" language="text">
+			exten => 1,1,Set(JITTERBUFFER(fixed)=200)
+			</example>
+			<example title="Fixed with 200ms max size, resync threshold 1500" language="text">
+			exten => 1,1,Set(JITTERBUFFER(fixed)=200,1500)
+			</example>
+			<example title="Adaptive with defaults" language="text">
+			exten => 1,1,Set(JITTERBUFFER(adaptive)=default)
+			</example>
+			<example title="Adaptive with 200ms max size, 60ms target extra" language="text">
+			exten => 1,1,Set(JITTERBUFFER(adaptive)=200,,60)
+			</example>
+			<example title="Set a fixed jitterbuffer with defaults; then remove it" language="text">
+			exten => 1,1,Set(JITTERBUFFER(fixed)=default)
+			exten => 1,n,Set(JITTERBUFFER(disabled)=)
+			</example>
 			<note><para>If a channel specifies a jitterbuffer due to channel driver configuration and
 			the JITTERBUFFER function has set a jitterbuffer for that channel, the jitterbuffer set by
 			the JITTERBUFFER function will take priority and the jitterbuffer set by the channel

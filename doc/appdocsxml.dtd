@@ -92,7 +92,7 @@
   <!ELEMENT configOptionToEnum (configOption|xi:include)*>
   <!ATTLIST configOptionToEnum prefix CDATA "">
 
-  <!ELEMENT description (para|note|warning|variablelist|enumlist|info|xi:include)*>
+  <!ELEMENT description (para|note|warning|variablelist|enumlist|info|example|xi:include)*>
 
   <!ELEMENT parameter (optionlist|enumlist|argument|para|note|warning|parameter|info|xi:include)*>
   <!ATTLIST parameter name CDATA "">
@@ -128,6 +128,10 @@
   <!ELEMENT replaceable (#PCDATA)>
   <!ELEMENT directory (#PCDATA)>
   <!ELEMENT astcli (#PCDATA)>
+
+  <!ELEMENT example (#PCDATA|xi:include)*>
+  <!ATTLIST example title CDATA "">
+  <!ATTLIST example language CDATA "" >
 
   <!ELEMENT note (para+|xi:include*)>
   <!ELEMENT warning (para+|xi:include*)>

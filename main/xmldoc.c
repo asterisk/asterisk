@@ -104,7 +104,9 @@ static const struct strcolorized_tags {
 
 	/* Special tags */
 	{ "", "", COLOR_YELLOW, "<note>",   "</note>" },
-	{ "", "", COLOR_RED,   "<warning>", "</warning>" }
+	{ "", "", COLOR_RED,   "<warning>", "</warning>" },
+	{ "", "", COLOR_WHITE, "<example>", "</example>" },
+	{ "", "", COLOR_GRAY, "<exampletext>", "</exampletext>"},
 };
 
 static const struct strspecial_tags {
@@ -113,7 +115,8 @@ static const struct strspecial_tags {
 	const char *end;		/*!< Print this at the end. */
 } special_tags[] = {
 	{ "note",    "<note>NOTE:</note> ",             "" },
-	{ "warning", "<warning>WARNING!!!:</warning> ", "" }
+	{ "warning", "<warning>WARNING!!!:</warning> ", "" },
+	{ "example", "<example>Example:</example> ", "" },
 };
 
 /*!
@@ -453,8 +456,9 @@ char *ast_xmldoc_printable(const char *bwinput, int withcolors)
  * \param text String to be cleaned up.
  * \param output buffer (not already allocated).
  * \param lastspaces Remove last spaces in the string.
+ * \param maintain_newlines Preserve new line characters (\n \r) discovered in the string
  */
-static void xmldoc_string_cleanup(const char *text, struct ast_str **output, int lastspaces)
+static void xmldoc_string_cleanup(const char *text, struct ast_str **output, int lastspaces, int maintain_newlines)
 {
 	int i;
 	size_t textlen;
@@ -474,6 +478,9 @@ static void xmldoc_string_cleanup(const char *text, struct ast_str **output, int
 
 	for (i = 0; i < textlen; i++) {
 		if (text[i] == '\n' || text[i] == '\r') {
+			if (maintain_newlines) {
+				ast_str_append(output, 0, "%c", text[i]);
+			}
 			/* remove spaces/tabs/\n after a \n. */
 			while (text[i + 1] == '\t' || text[i + 1] == '\r' || text[i + 1] == '\n') {
 				i++;
@@ -1417,7 +1424,7 @@ static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const 
 		tmptext = ast_xml_get_text(tmp);
 		if (tmptext) {
 			/* Strip \n etc. */
-			xmldoc_string_cleanup(tmptext, &tmpstr, 0);
+			xmldoc_string_cleanup(tmptext, &tmpstr, 0, 0);
 			ast_xml_free_text(tmptext);
 			if (tmpstr) {
 				if (strcasecmp(ast_xml_node_get_name(tmp), "text")) {
@@ -1433,6 +1440,57 @@ static int xmldoc_parse_para(struct ast_xml_node *node, const char *tabs, const 
 	}
 
 	ast_str_append(buffer, 0, "%s", posttabs);
+
+	return ret;
+}
+
+/*!
+ * \internal
+ * \brief Parse an <example> node.
+ * \since 13.0.0
+ *
+ * \param fixnode An ast xml pointer to the <example> node.
+ * \param buffer The output buffer.
+ *
+ * \retval 0 if no example node is parsed.
+ * \retval 1 if an example node is parsed.
+ */
+static int xmldoc_parse_example(struct ast_xml_node *fixnode, struct ast_str **buffer)
+{
+	struct ast_xml_node *node = fixnode;
+	const char *tmptext;
+	const char *title;
+	struct ast_str *stripped_text;
+	int ret = 0;
+
+	if (!node || !ast_xml_node_get_children(node)) {
+		return ret;
+	}
+
+	if (strcasecmp(ast_xml_node_get_name(node), "example")) {
+		return ret;
+	}
+
+	ret = 1;
+
+	title = ast_xml_get_attribute(node, "title");
+	if (title) {
+		ast_str_append(buffer, 0, "%s", title);
+		ast_xml_free_attr(title);
+	}
+	ast_str_append(buffer, 0, "\n");
+
+	for (node = ast_xml_node_get_children(node); node; node = ast_xml_node_get_next(node)) {
+		tmptext = ast_xml_get_text(node);
+		if (tmptext) {
+			xmldoc_string_cleanup(tmptext, &stripped_text, 0, 1);
+			if (stripped_text) {
+				ast_str_append(buffer, 0, "<exampletext>%s</exampletext>\n", ast_str_buffer(stripped_text));
+				ast_xml_free_text(tmptext);
+				ast_free(stripped_text);
+			}
+		}
+	}
 
 	return ret;
 }
@@ -1470,6 +1528,11 @@ static int xmldoc_parse_specialtags(struct ast_xml_node *fixnode, const char *ta
 		/* concat data */
 		if (!ast_strlen_zero(special_tags[i].init)) {
 			ast_str_append(buffer, 0, "%s%s", tabs, special_tags[i].init);
+		}
+
+		if (xmldoc_parse_example(node, buffer)) {
+			ret = 1;
+			break;
 		}
 
 		/* parse <para> elements inside special tags. */
@@ -1585,7 +1648,7 @@ static int xmldoc_parse_variable(struct ast_xml_node *node, const char *tabs, st
 		/* Check inside this node for any explanation about its meaning. */
 		if (tmptext) {
 			/* Cleanup text. */
-			xmldoc_string_cleanup(tmptext, &cleanstr, 1);
+			xmldoc_string_cleanup(tmptext, &cleanstr, 1, 0);
 			ast_xml_free_text(tmptext);
 			if (cleanstr && ast_str_strlen(cleanstr) > 0) {
 				ast_str_append(buffer, 0, ":%s", ast_str_buffer(cleanstr));
@@ -2147,18 +2210,24 @@ static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_o
 		/* xmldoc_string_cleanup will allocate the ret object */
 		notcleanret = ast_xml_get_text(node);
 		tmpstr = notcleanret;
-		xmldoc_string_cleanup(ast_skip_blanks(notcleanret), &ret, 0);
+		xmldoc_string_cleanup(ast_skip_blanks(notcleanret), &ret, 0, 0);
 		ast_xml_free_text(tmpstr);
 	} else {
 		ret = ast_str_create(128);
 		for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
-			/* if found, parse a <para> element. */
+			/* if found, parse children elements. */
 			if (xmldoc_parse_common_elements(tmp, "", "\n", &ret)) {
 				continue;
 			}
-			/* if found, parse a <variablelist> element. */
-			xmldoc_parse_variablelist(tmp, "", &ret);
-			xmldoc_parse_enumlist(tmp, "    ", &ret);
+			if (xmldoc_parse_variablelist(tmp, "", &ret)) {
+				continue;
+			}
+			if (xmldoc_parse_enumlist(tmp, "    ", &ret)) {
+				continue;
+			}
+			if (xmldoc_parse_specialtags(tmp, "", "", &ret)) {
+				continue;
+			}
 		}
 		/* remove last '\n' */
 		/* XXX Don't modify ast_str internals manually */
