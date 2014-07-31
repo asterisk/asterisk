@@ -37,12 +37,15 @@
 /*** DOCUMENTATION
 	<manager name="PJSIPNotify" language="en_US">
 		<synopsis>
-			Send a NOTIFY to an endpoint.
+			Send a NOTIFY to either an endpoint or an arbitrary URI.
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Endpoint" required="true">
+			<parameter name="Endpoint" required="false">
 				<para>The endpoint to which to send the NOTIFY.</para>
+			</parameter>
+			<parameter name="URI" required="false">
+				<para>Abritrary URI to which to send the NOTIFY.</para>
 			</parameter>
 			<parameter name="Variable" required="true">
 				<para>Appends variables as headers/content to the NOTIFY. If the variable is
@@ -52,9 +55,14 @@
 			</parameter>
 		</syntax>
 		<description>
-			<para>Sends a NOTIFY to an endpoint.</para>
-			<para>All parameters for this event must be specified in the body of this request
-			via multiple <literal>Variable: name=value</literal> sequences.</para>
+			<para>Sends a NOTIFY to an endpoint or an arbitrary URI.</para>
+			<para>All parameters for this event must be specified in the body of this
+			request	via multiple <literal>Variable: name=value</literal> sequences.</para>
+			<note><para>One (and only one) of <literal>Endpoint</literal> or
+			<literal>URI</literal> must be specified. If <literal>URI</literal> is used,
+			the	default outbound endpoint will be used to send the message. If the default
+			outbound endpoint isn't configured, this command can not send to an arbitrary
+			URI.</para></note>
 		</description>
 	</manager>
 	<configInfo name="res_pjsip_notify" language="en_US">
@@ -271,6 +279,28 @@ static void notify_cli_data_destroy(void *obj)
 	ao2_cleanup(data->info);
 }
 
+/*!
+ * \internal
+ * \brief Structure to hold task data for notifications (URI variant)
+ */
+struct notify_uri_data {
+	char *uri;
+	void *info;
+	void (*build_notify)(pjsip_tx_data *, void *);
+};
+
+static void notify_cli_uri_data_destroy(void *obj)
+{
+	struct notify_uri_data *data = obj;
+
+	ast_free(data->uri);
+	ao2_cleanup(data->info);
+}
+
+/*!
+ * \internal
+ * \brief Destroy the notify CLI data releasing any resources (URI variant)
+ */
 static void build_cli_notify(pjsip_tx_data *tdata, void *info);
 
 /*!
@@ -299,6 +329,34 @@ static struct notify_data* notify_cli_data_create(
 
 /*!
  * \internal
+ * \brief Construct a notify URI data object for CLI.
+ */
+static struct notify_uri_data* notify_cli_uri_data_create(
+	const char *uri, void *info)
+{
+	struct notify_uri_data *data = ao2_alloc(sizeof(*data),
+		notify_cli_uri_data_destroy);
+
+	if (!data) {
+		return NULL;
+	}
+
+	data->uri = ast_strdup(uri);
+	if (!data->uri) {
+		ao2_ref(data, -1);
+		return NULL;
+	}
+
+	data->info = info;
+	ao2_ref(data->info, +1);
+
+	data->build_notify = build_cli_notify;
+
+	return data;
+}
+
+/*!
+ * \internal
  * \brief Destroy the notify AMI data releasing any resources.
  */
 static void notify_ami_data_destroy(void *obj)
@@ -307,6 +365,19 @@ static void notify_ami_data_destroy(void *obj)
 	struct ast_variable *info = data->info;
 
 	ao2_cleanup(data->endpoint);
+	ast_variables_destroy(info);
+}
+
+/*!
+ * \internal
+ * \brief Destroy the notify AMI URI data releasing any resources.
+ */
+static void notify_ami_uri_data_destroy(void *obj)
+{
+	struct notify_uri_data *data = obj;
+	struct ast_variable *info = data->info;
+
+	ast_free(data->uri);
 	ast_variables_destroy(info);
 }
 
@@ -327,6 +398,31 @@ static struct notify_data* notify_ami_data_create(
 
 	data->endpoint = endpoint;
 	ao2_ref(data->endpoint, +1);
+
+	data->info = info;
+	data->build_notify = build_ami_notify;
+
+	return data;
+}
+
+/*!
+ * \internal
+ * \brief Construct a notify URI data object for AMI.
+ */
+static struct notify_uri_data* notify_ami_uri_data_create(
+	const char *uri, void *info)
+{
+	struct notify_uri_data *data = ao2_alloc(sizeof(*data),
+							notify_ami_uri_data_destroy);
+	if (!data) {
+		return NULL;
+	}
+
+	data->uri = ast_strdup(uri);
+	if (!data->uri) {
+		ao2_ref(data, -1);
+		return NULL;
+	}
 
 	data->info = info;
 	data->build_notify = build_ami_notify;
@@ -534,6 +630,48 @@ static int notify_endpoint(void *obj)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Send a notify request to the URI.
+ */
+static int notify_uri(void *obj)
+{
+	RAII_VAR(struct notify_uri_data *, data, obj, ao2_cleanup);
+	RAII_VAR(struct ast_sip_endpoint *, endpoint,
+		ast_sip_default_outbound_endpoint(), ao2_cleanup);
+	pjsip_tx_data *tdata;
+
+	if (!endpoint) {
+		ast_log(LOG_WARNING, "No default outbound endpoint set, can not send "
+			"NOTIFY requests to arbitrary URIs.\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(data->uri)) {
+		ast_log(LOG_WARNING, "Unable to NOTIFY - URI is blank.\n");
+		return -1;
+	}
+
+	if (ast_sip_create_request("NOTIFY", NULL, endpoint,
+				   data->uri, NULL, &tdata)) {
+		ast_log(LOG_WARNING, "SIP NOTIFY - Unable to create request for "
+			"uri %s\n",	data->uri);
+		return -1;
+	}
+
+	ast_sip_add_header(tdata, "Subscription-State", "terminated");
+
+	data->build_notify(tdata, data->info);
+
+	if (ast_sip_send_request(tdata, NULL, endpoint, NULL, NULL)) {
+		ast_log(LOG_ERROR, "SIP NOTIFY - Unable to send request for "
+			"uri %s\n",	data->uri);
+		return -1;
+	}
+
+	return 0;
+}
+
 enum notify_result {
 	SUCCESS,
 	INVALID_ENDPOINT,
@@ -543,6 +681,9 @@ enum notify_result {
 
 typedef struct notify_data *(*task_data_create)(
 	struct ast_sip_endpoint *, void *info);
+
+typedef struct notify_uri_data *(*task_uri_data_create)(
+	const char *uri, void *info);
 /*!
  * \internal
  * \brief Send a NOTIFY request to the endpoint within a threaded task.
@@ -563,6 +704,27 @@ static enum notify_result push_notify(const char *endpoint_name, void *info,
 	}
 
 	if (ast_sip_push_task(NULL, notify_endpoint, data)) {
+		ao2_cleanup(data);
+		return TASK_PUSH_ERROR;
+	}
+
+	return SUCCESS;
+}
+
+/*!
+ * \internal
+ * \brief Send a NOTIFY request to the URI within an threaded task.
+ */
+static enum notify_result push_notify_uri(const char *uri, void *info,
+	task_uri_data_create data_create)
+{
+	struct notify_uri_data *data;
+
+	if (!(data = data_create(uri, info))) {
+		return ALLOC_ERROR;
+	}
+
+	if (ast_sip_push_task(NULL, notify_uri, data)) {
 		ao2_cleanup(data);
 		return TASK_PUSH_ERROR;
 	}
@@ -605,7 +767,7 @@ static char *cli_complete_endpoint(const char *word, int state)
  * \brief Do completion on the notify CLI command.
  */
 static char *cli_complete_notify(const char *line, const char *word,
-				 int pos, int state)
+				 int pos, int state, int using_uri)
 {
 	char *c = NULL;
 
@@ -632,7 +794,28 @@ static char *cli_complete_notify(const char *line, const char *word,
 		ao2_iterator_destroy(&i);
 		return c;
 	}
-	return pos > 3 ? cli_complete_endpoint(word, state) : NULL;
+
+	if (pos == 4) {
+		int wordlen = strlen(word);
+
+		if (ast_strlen_zero(word)) {
+		    if (state == 0) {
+		        c = ast_strdup("endpoint");
+		    } else if (state == 1) {
+		        c = ast_strdup("uri");
+		    }
+		} else if (state == 0) {
+		    if (!strncasecmp(word, "endpoint", wordlen)) {
+		        c = ast_strdup("endpoint");
+		    } else if (!strncasecmp(word, "uri", wordlen)) {
+		        c = ast_strdup("uri");
+		    }
+		}
+
+		return c;
+	}
+
+	return pos > 4 && !using_uri ? cli_complete_endpoint(word, state) : NULL;
 }
 
 /*!
@@ -649,20 +832,31 @@ static char *cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	RAII_VAR(struct notify_option *, option, NULL, ao2_cleanup);
 
 	int i;
+	int using_uri = 0;
 
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "pjsip send notify";
 		e->usage =
-			"Usage: pjsip send notify <type> <peer> [<peer>...]\n"
+			"Usage: pjsip send notify <type> {endpoint|uri} <peer> [<peer>...]\n"
 			"       Send a NOTIFY request to an endpoint\n"
 			"       Message types are defined in sip_notify.conf\n";
 		return NULL;
 	case CLI_GENERATE:
-		return cli_complete_notify(a->line, a->word, a->pos, a->n);
+		if (a->argc > 4 && (!strcasecmp(a->argv[4], "uri"))) {
+			using_uri = 1;
+		}
+
+		return cli_complete_notify(a->line, a->word, a->pos, a->n, using_uri);
 	}
 
-	if (a->argc < 5) {
+	if (a->argc < 6) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (!strcasecmp(a->argv[4], "uri")) {
+		using_uri = 1;
+	} else if (strcasecmp(a->argv[4], "endpoint")) {
 		return CLI_SHOWUSAGE;
 	}
 
@@ -675,12 +869,12 @@ static char *cli_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		return CLI_FAILURE;
 	}
 
-	for (i = 4; i < a->argc; ++i) {
+	for (i = 5; i < a->argc; ++i) {
 		ast_cli(a->fd, "Sending NOTIFY of type '%s' to '%s'\n",
 			a->argv[3], a->argv[i]);
 
-		switch (push_notify(a->argv[i], option,
-				    notify_cli_data_create)) {
+		switch (using_uri ? push_notify_uri(a->argv[i], option, notify_cli_uri_data_create) :
+		                    push_notify(a->argv[i], option, notify_cli_data_create)) {
 		case INVALID_ENDPOINT:
 			ast_cli(a->fd, "Unable to retrieve endpoint %s\n",
 				a->argv[i]);
@@ -704,19 +898,13 @@ static struct ast_cli_entry cli_options[] = {
 };
 
 /*!
- * \internal
- * \brief AMI entry point to send a SIP notify to an endpoint.
+ * \interanl
+ * \brief Completes SIPNotify AMI command in Endpoint mode.
  */
-static int manager_notify(struct mansession *s, const struct message *m)
+static void manager_notify_endpoint(struct mansession *s,
+	const struct message *m, const char *endpoint_name)
 {
-	const char *endpoint_name = astman_get_header(m, "Endpoint");
 	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
-
-	if (ast_strlen_zero(endpoint_name)) {
-		astman_send_error(s, m, "PJSIPNotify requires an endpoint name");
-		ast_variables_destroy(vars);
-		return 0;
-	}
 
 	if (!strncasecmp(endpoint_name, "sip/", 4)) {
 		endpoint_name += 4;
@@ -729,20 +917,69 @@ static int manager_notify(struct mansession *s, const struct message *m)
 	switch (push_notify(endpoint_name, vars, notify_ami_data_create)) {
 	case INVALID_ENDPOINT:
 		ast_variables_destroy(vars);
-		astman_send_error_va(s, m, "Unable to retrieve endpoint %s\n",
+		astman_send_error_va(s, m, "Unable to retrieve endpoint %s",
 			endpoint_name);
 		break;
 	case ALLOC_ERROR:
 		ast_variables_destroy(vars);
-		astman_send_error(s, m, "Unable to allocate NOTIFY task data\n");
+		astman_send_error(s, m, "Unable to allocate NOTIFY task data");
 		break;
 	case TASK_PUSH_ERROR:
 		/* Don't need to destroy vars since it is handled by cleanup in push_notify */
-		astman_send_error(s, m, "Unable to push NOTIFY task\n");
+		astman_send_error(s, m, "Unable to push NOTIFY task");
 		break;
 	case SUCCESS:
 		astman_send_ack(s, m, "NOTIFY sent");
 		break;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Completes SIPNotify AMI command in URI mode.
+ */
+static void manager_notify_uri(struct mansession *s,
+	const struct message *m, const char *uri)
+{
+	struct ast_variable *vars = astman_get_variables_order(m, ORDER_NATURAL);
+
+	switch (push_notify_uri(uri, vars, notify_ami_uri_data_create)) {
+	case INVALID_ENDPOINT:
+		/* Shouldn't be possible. */
+		ast_assert(0);
+		break;
+	case ALLOC_ERROR:
+		ast_variables_destroy(vars);
+		astman_send_error(s, m, "Unable to allocate NOTIFY task data");
+		break;
+	case TASK_PUSH_ERROR:
+		/* Don't need to destroy vars since it is handled by cleanup in push_notify_uri */
+		astman_send_error(s, m, "Unable to push Notify task");
+		break;
+	case SUCCESS:
+		astman_send_ack(s, m, "NOTIFY sent");
+		break;
+	}
+}
+
+/*!
+ * \internal
+ * \brief AMI entry point to send a SIP notify to an endpoint.
+ */
+static int manager_notify(struct mansession *s, const struct message *m)
+{
+	const char *endpoint_name = astman_get_header(m, "Endpoint");
+	const char *uri = astman_get_header(m, "URI");
+
+	if (!ast_strlen_zero(endpoint_name) && !ast_strlen_zero(uri)) {
+		astman_send_error(s, m, "PJSIPNotify action can not handle a request specifying "
+			"both 'URI' and 'Endpoint'. You must use only one of the two.\n");
+	} else if (!ast_strlen_zero(endpoint_name)) {
+		manager_notify_endpoint(s, m, endpoint_name);
+	} else if (!ast_strlen_zero(uri)) {
+		manager_notify_uri(s, m, uri);
+	} else {
+		astman_send_error(s, m, "PJSIPNotify requires either an endpoint name or a SIP URI.");
 	}
 
 	return 0;
