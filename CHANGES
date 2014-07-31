@@ -245,6 +245,11 @@ res_pjsip
    created for an endpoint with this setting will have its accountcode set
    to the specified value.
 
+res_hep_rtcp
+------------------
+ * A new module, res_hep_rtcp, has been added that will forward RTCP call
+   statistics to a HEP capture server. See res_hep for more information.
+
 Functions
 ------------------
  * Function AUDIOHOOK_INHERIT has been deprecated. Audiohooks are now

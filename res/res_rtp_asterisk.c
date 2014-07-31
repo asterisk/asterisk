@@ -2637,10 +2637,15 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	int rate = rtp_get_rate(rtp->f.subclass.format);
 	int ice;
 	int header_offset = 0;
-	struct ast_sockaddr remote_address = { {0,} };
-	struct ast_rtp_rtcp_report_block *report_block;
+	char *str_remote_address;
+	char *str_local_address;
+	struct ast_sockaddr remote_address = { { 0, } };
+	struct ast_sockaddr local_address = { { 0, } };
+	struct ast_sockaddr real_remote_address = { { 0, } };
+	struct ast_sockaddr real_local_address = { { 0, } };
+	struct ast_rtp_rtcp_report_block *report_block = NULL;
 	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
-			ast_rtp_rtcp_report_alloc(1),
+			ast_rtp_rtcp_report_alloc(rtp->themssrc ? 1 : 0),
 			ao2_cleanup);
 
 	if (!rtp || !rtp->rtcp) {
@@ -2656,16 +2661,11 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 		return 1;
 	}
 
-	report_block = ast_calloc(1, sizeof(*report_block));
-	if (!report_block) {
-		return 1;
-	}
-
 	/* Compute statistics */
 	calculate_lost_packet_statistics(rtp, &lost_packets, &fraction_lost);
 
 	gettimeofday(&now, NULL);
-	rtcp_report->reception_report_count = 1;
+	rtcp_report->reception_report_count = rtp->themssrc ? 1 : 0;
 	rtcp_report->ssrc = rtp->ssrc;
 	rtcp_report->type = sr ? RTCP_PT_SR : RTCP_PT_RR;
 	if (sr) {
@@ -2674,17 +2674,25 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 		rtcp_report->sender_information.packet_count = rtp->txcount;
 		rtcp_report->sender_information.octet_count = rtp->txoctetcount;
 	}
-	rtcp_report->report_block[0] = report_block;
-	report_block->source_ssrc = rtp->themssrc;
-	report_block->lost_count.fraction = (fraction_lost & 0xff);
-	report_block->lost_count.packets = (lost_packets & 0xffffff);
-	report_block->highest_seq_no = (rtp->cycles | (rtp->lastrxseqno & 0xffff));
-	report_block->ia_jitter = (unsigned int)(rtp->rxjitter * rate);
-	report_block->lsr = rtp->rtcp->themrxlsr;
-	/* If we haven't received an SR report, DLSR should be 0 */
-	if (!ast_tvzero(rtp->rtcp->rxlsr)) {
-		timersub(&now, &rtp->rtcp->rxlsr, &dlsr);
-		report_block->dlsr = (((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000;
+
+	if (rtp->themssrc) {
+		report_block = ast_calloc(1, sizeof(*report_block));
+		if (!report_block) {
+			return 1;
+		}
+
+		rtcp_report->report_block[0] = report_block;
+		report_block->source_ssrc = rtp->themssrc;
+		report_block->lost_count.fraction = (fraction_lost & 0xff);
+		report_block->lost_count.packets = (lost_packets & 0xffffff);
+		report_block->highest_seq_no = (rtp->cycles | (rtp->lastrxseqno & 0xffff));
+		report_block->ia_jitter = (unsigned int)(rtp->rxjitter * rate);
+		report_block->lsr = rtp->rtcp->themrxlsr;
+		/* If we haven't received an SR report, DLSR should be 0 */
+		if (!ast_tvzero(rtp->rtcp->rxlsr)) {
+			timersub(&now, &rtp->rtcp->rxlsr, &dlsr);
+			report_block->dlsr = (((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000;
+		}
 	}
 	timeval2ntp(rtcp_report->sender_information.ntp_timestamp, &now_msw, &now_lsw);
 	rtcpheader = (unsigned int *)bdata;
@@ -2699,14 +2707,17 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 		rtcpheader[6] = htonl(rtcp_report->sender_information.octet_count);
 		len += 20;
 	}
-	rtcpheader[2 + header_offset] = htonl(report_block->source_ssrc);     /* Their SSRC */
-	rtcpheader[3 + header_offset] = htonl((report_block->lost_count.fraction << 24) | report_block->lost_count.packets);
-	rtcpheader[4 + header_offset] = htonl(report_block->highest_seq_no);
-	rtcpheader[5 + header_offset] = htonl(report_block->ia_jitter);
-	rtcpheader[6 + header_offset] = htonl(report_block->lsr);
-	rtcpheader[7 + header_offset] = htonl(report_block->dlsr);
-	len += 24;
-	rtcpheader[0] = htonl((2 << 30) | (1 << 24) | ((sr ? RTCP_PT_SR : RTCP_PT_RR) << 16) | ((len/4)-1));
+	if (report_block) {
+		rtcpheader[2 + header_offset] = htonl(report_block->source_ssrc);     /* Their SSRC */
+		rtcpheader[3 + header_offset] = htonl((report_block->lost_count.fraction << 24) | report_block->lost_count.packets);
+		rtcpheader[4 + header_offset] = htonl(report_block->highest_seq_no);
+		rtcpheader[5 + header_offset] = htonl(report_block->ia_jitter);
+		rtcpheader[6 + header_offset] = htonl(report_block->lsr);
+		rtcpheader[7 + header_offset] = htonl(report_block->dlsr);
+		len += 24;
+	}
+	rtcpheader[0] = htonl((2 << 30) | (rtcp_report->reception_report_count << 24)
+					| ((sr ? RTCP_PT_SR : RTCP_PT_RR) << 16) | ((len/4)-1));
 
 	/* Insert SDES here. Probably should make SDES text equal to mimetypes[code].type (not subtype 'cos */
 	/* it can change mid call, and SDES can't) */
@@ -2758,8 +2769,22 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 		ast_verbose("    DLSR: %4.4f (sec)\n\n", (double)(report_block->dlsr / 65536.0));
 	}
 
-	message_blob = ast_json_pack("{s: s}",
-			"to", ast_sockaddr_stringify(&remote_address));
+	ast_rtp_instance_get_local_address(instance, &local_address);
+	if (!ast_find_ourip(&real_local_address, &local_address, 0)) {
+		str_local_address = ast_strdupa(ast_sockaddr_stringify(&real_local_address));
+	} else {
+		str_local_address = ast_strdupa(ast_sockaddr_stringify(&local_address));
+	}
+
+	if (!ast_find_ourip(&real_remote_address, &remote_address, 0)) {
+		str_remote_address = ast_strdupa(ast_sockaddr_stringify(&real_remote_address));
+	} else {
+		str_remote_address = ast_strdupa(ast_sockaddr_stringify(&remote_address));
+	}
+
+	message_blob = ast_json_pack("{s: s, s: s}",
+			"to", str_remote_address,
+			"from", str_local_address);
 	ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_sent_type(),
 			rtcp_report,
 			message_blob);
@@ -3574,6 +3599,11 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 	int report_counter = 0;
 	struct ast_rtp_rtcp_report_block *report_block;
 	struct ast_frame *f = &ast_null_frame;
+	char *str_local_address;
+	char *str_remote_address;
+	struct ast_sockaddr local_address = { { 0,} };
+	struct ast_sockaddr real_local_address = { { 0, } };
+	struct ast_sockaddr real_remote_address = { { 0, } };
 
 	/* Read in RTCP data from the socket */
 	if ((res = rtcp_recvfrom(instance, rtcpdata + AST_FRIENDLY_OFFSET,
@@ -3630,6 +3660,8 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 
 	ast_debug(1, "Got RTCP report of %d bytes\n", res);
 
+	ast_rtp_instance_get_local_address(instance, &local_address);
+
 	while (position < packetwords) {
 		int i, pt, rc;
 		unsigned int length;
@@ -3667,11 +3699,6 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		}
 
 		i += 2; /* Advance past header and ssrc */
-		if (rc == 0 && pt == RTCP_PT_RR) {
-			/* We're receiving a receiver report with no reports, which is ok */
-			position += (length + 1);
-			continue;
-		}
 		switch (pt) {
 		case RTCP_PT_SR:
 			gettimeofday(&rtp->rtcp->rxlsr, NULL);
@@ -3696,64 +3723,75 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 						rtcp_report->sender_information.octet_count);
 			}
 			i += 5;
-			if (rc < 1) {
-				break;
-			}
 			/* Intentional fall through */
 		case RTCP_PT_RR:
 			if (rtcp_report->type != RTCP_PT_SR) {
 				rtcp_report->type = RTCP_PT_RR;
 			}
 
-			/* Don't handle multiple reception reports (rc > 1) yet */
-			report_block = ast_calloc(1, sizeof(*report_block));
-			if (!report_block) {
-				return &ast_null_frame;
-			}
-			rtcp_report->report_block[report_counter] = report_block;
-			report_block->source_ssrc = ntohl(rtcpheader[i]);
-			report_block->lost_count.packets = ntohl(rtcpheader[i + 1]) & 0x00ffffff;
-			report_block->lost_count.fraction = ((ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24);
-			report_block->highest_seq_no = ntohl(rtcpheader[i + 2]);
-			report_block->ia_jitter =  ntohl(rtcpheader[i + 3]);
-			report_block->lsr = ntohl(rtcpheader[i + 4]);
-			report_block->dlsr = ntohl(rtcpheader[i + 5]);
-			if (report_block->lsr
-				&& update_rtt_stats(rtp, report_block->lsr, report_block->dlsr)
-				&& rtcp_debug_test_addr(&addr)) {
-				struct timeval now;
-				unsigned int lsr_now, lsw, msw;
-				gettimeofday(&now, NULL);
-				timeval2ntp(now, &msw, &lsw);
-				lsr_now = (((msw & 0xffff) << 16) | ((lsw & 0xffff0000) >> 16));
-				ast_verbose("Internal RTCP NTP clock skew detected: "
-						   "lsr=%u, now=%u, dlsr=%u (%u:%03ums), "
-						"diff=%u\n",
-						report_block->lsr, lsr_now, report_block->dlsr, report_block->dlsr / 65536,
-						(report_block->dlsr % 65536) * 1000 / 65536,
-						report_block->dlsr - (lsr_now - report_block->lsr));
-			}
-			update_jitter_stats(rtp, report_block->ia_jitter);
-			update_lost_stats(rtp, report_block->lost_count.packets);
-			rtp->rtcp->reported_jitter_count++;
+			if (rc > 0) {
+				/* Don't handle multiple reception reports (rc > 1) yet */
+				report_block = ast_calloc(1, sizeof(*report_block));
+				if (!report_block) {
+					return &ast_null_frame;
+				}
+				rtcp_report->report_block[report_counter] = report_block;
+				report_block->source_ssrc = ntohl(rtcpheader[i]);
+				report_block->lost_count.packets = ntohl(rtcpheader[i + 1]) & 0x00ffffff;
+				report_block->lost_count.fraction = ((ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24);
+				report_block->highest_seq_no = ntohl(rtcpheader[i + 2]);
+				report_block->ia_jitter =  ntohl(rtcpheader[i + 3]);
+				report_block->lsr = ntohl(rtcpheader[i + 4]);
+				report_block->dlsr = ntohl(rtcpheader[i + 5]);
+				if (report_block->lsr
+					&& update_rtt_stats(rtp, report_block->lsr, report_block->dlsr)
+					&& rtcp_debug_test_addr(&addr)) {
+					struct timeval now;
+					unsigned int lsr_now, lsw, msw;
+					gettimeofday(&now, NULL);
+					timeval2ntp(now, &msw, &lsw);
+					lsr_now = (((msw & 0xffff) << 16) | ((lsw & 0xffff0000) >> 16));
+					ast_verbose("Internal RTCP NTP clock skew detected: "
+							   "lsr=%u, now=%u, dlsr=%u (%u:%03ums), "
+							"diff=%u\n",
+							report_block->lsr, lsr_now, report_block->dlsr, report_block->dlsr / 65536,
+							(report_block->dlsr % 65536) * 1000 / 65536,
+							report_block->dlsr - (lsr_now - report_block->lsr));
+				}
+				update_jitter_stats(rtp, report_block->ia_jitter);
+				update_lost_stats(rtp, report_block->lost_count.packets);
+				rtp->rtcp->reported_jitter_count++;
 
-			if (rtcp_debug_test_addr(&addr)) {
-			ast_verbose("  Fraction lost: %d\n", report_block->lost_count.fraction);
-				ast_verbose("  Packets lost so far: %u\n", report_block->lost_count.packets);
-				ast_verbose("  Highest sequence number: %u\n", report_block->highest_seq_no & 0x0000ffff);
-				ast_verbose("  Sequence number cycles: %u\n", report_block->highest_seq_no >> 16);
-				ast_verbose("  Interarrival jitter: %u\n", report_block->ia_jitter);
-				ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long)(report_block->lsr) >> 16,((unsigned long)(report_block->lsr) << 16) * 4096);
-				ast_verbose("  DLSR: %4.4f (sec)\n",(double)report_block->dlsr / 65536.0);
-				ast_verbose("  RTT: %4.4f(sec)\n", rtp->rtcp->rtt);
+				if (rtcp_debug_test_addr(&addr)) {
+					ast_verbose("  Fraction lost: %d\n", report_block->lost_count.fraction);
+					ast_verbose("  Packets lost so far: %u\n", report_block->lost_count.packets);
+					ast_verbose("  Highest sequence number: %u\n", report_block->highest_seq_no & 0x0000ffff);
+					ast_verbose("  Sequence number cycles: %u\n", report_block->highest_seq_no >> 16);
+					ast_verbose("  Interarrival jitter: %u\n", report_block->ia_jitter);
+					ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long)(report_block->lsr) >> 16,((unsigned long)(report_block->lsr) << 16) * 4096);
+					ast_verbose("  DLSR: %4.4f (sec)\n",(double)report_block->dlsr / 65536.0);
+					ast_verbose("  RTT: %4.4f(sec)\n", rtp->rtcp->rtt);
+				}
+				report_counter++;
 			}
-			report_counter++;
-
 			/* If and when we handle more than one report block, this should occur outside
 			 * this loop.
 			 */
-			message_blob = ast_json_pack("{s: s, s: f}",
-					"from", ast_sockaddr_stringify(&addr),
+			if (!ast_find_ourip(&real_local_address, &local_address, 0)) {
+				str_local_address = ast_strdupa(ast_sockaddr_stringify(&real_local_address));
+			} else {
+				str_local_address = ast_strdupa(ast_sockaddr_stringify(&local_address));
+			}
+
+			if (!ast_find_ourip(&real_remote_address, &addr, 0)) {
+				str_remote_address = ast_strdupa(ast_sockaddr_stringify(&real_remote_address));
+			} else {
+				str_remote_address = ast_strdupa(ast_sockaddr_stringify(&addr));
+			}
+
+			message_blob = ast_json_pack("{s: s, s: s, s: f}",
+					"from", str_remote_address,
+					"to", str_local_address,
 					"rtt", rtp->rtcp->rtt);
 			ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_received_type(),
 					rtcp_report,

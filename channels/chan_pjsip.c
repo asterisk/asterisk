@@ -353,6 +353,16 @@ static struct ast_rtp_glue chan_pjsip_rtp_glue = {
 	.update_peer = chan_pjsip_set_rtp_peer,
 };
 
+static void set_channel_on_rtp_instance(struct chan_pjsip_pvt *pvt, const char *channel_id)
+{
+	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, channel_id);
+	}
+	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
+		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, channel_id);
+	}
+}
+
 /*! \brief Function called to create a new PJSIP Asterisk channel */
 static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int state, const char *exten, const char *title, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *cid_name)
 {
@@ -452,12 +462,7 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	 * these will need to be recaptured as well */
 	pvt->media[SIP_MEDIA_AUDIO] = ao2_find(session->media, "audio", OBJ_KEY);
 	pvt->media[SIP_MEDIA_VIDEO] = ao2_find(session->media, "video", OBJ_KEY);
-	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(chan));
-	}
-	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(chan));
-	}
+	set_channel_on_rtp_instance(pvt, ast_channel_uniqueid(chan));
 
 	return chan;
 }
@@ -685,12 +690,7 @@ static int fixup(void *data)
 	struct chan_pjsip_pvt *pvt = channel->pvt;
 
 	channel->session->channel = fix_data->chan;
-	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, ast_channel_uniqueid(fix_data->chan));
-	}
-	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, ast_channel_uniqueid(fix_data->chan));
-	}
+	set_channel_on_rtp_instance(pvt, ast_channel_uniqueid(fix_data->chan));
 
 	return 0;
 }
@@ -1523,7 +1523,9 @@ static void update_initial_connected_line(struct ast_sip_session *session)
 
 static int call(void *data)
 {
-	struct ast_sip_session *session = data;
+	struct ast_sip_channel_pvt *channel = data;
+	struct ast_sip_session *session = channel->session;
+	struct chan_pjsip_pvt *pvt = channel->pvt;
 	pjsip_tx_data *tdata;
 
 	int res = ast_sip_session_create_invite(session, &tdata);
@@ -1532,10 +1534,11 @@ static int call(void *data)
 		ast_set_hangupsource(session->channel, ast_channel_name(session->channel), 0);
 		ast_queue_hangup(session->channel);
 	} else {
+		set_channel_on_rtp_instance(pvt, ast_channel_uniqueid(session->channel));
 		update_initial_connected_line(session);
 		ast_sip_session_send_request(session, tdata);
 	}
-	ao2_ref(session, -1);
+	ao2_ref(channel, -1);
 	return res;
 }
 
@@ -1544,10 +1547,10 @@ static int chan_pjsip_call(struct ast_channel *ast, const char *dest, int timeou
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 
-	ao2_ref(channel->session, +1);
-	if (ast_sip_push_task(channel->session->serializer, call, channel->session)) {
+	ao2_ref(channel, +1);
+	if (ast_sip_push_task(channel->session->serializer, call, channel)) {
 		ast_log(LOG_WARNING, "Error attempting to place outbound call to call '%s'\n", dest);
-		ao2_cleanup(channel->session);
+		ao2_cleanup(channel);
 		return -1;
 	}
 
@@ -1632,12 +1635,7 @@ static struct hangup_data *hangup_data_alloc(int cause, struct ast_channel *chan
 static void clear_session_and_channel(struct ast_sip_session *session, struct ast_channel *ast, struct chan_pjsip_pvt *pvt)
 {
 	session->channel = NULL;
-	if (pvt->media[SIP_MEDIA_AUDIO] && pvt->media[SIP_MEDIA_AUDIO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_AUDIO]->rtp, "");
-	}
-	if (pvt->media[SIP_MEDIA_VIDEO] && pvt->media[SIP_MEDIA_VIDEO]->rtp) {
-		ast_rtp_instance_set_channel_id(pvt->media[SIP_MEDIA_VIDEO]->rtp, "");
-	}
+	set_channel_on_rtp_instance(pvt, "");
 	ast_channel_tech_pvt_set(ast, NULL);
 }
 

@@ -1909,13 +1909,15 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 
 	for (i = 0; i < payload->report->reception_report_count; i++) {
 		struct ast_json *json_report_block;
-		json_report_block = ast_json_pack("{s: i, s: i, s: i, s: i, s: i, s: i, s: i}",
+		char str_lsr[32];
+		snprintf(str_lsr, sizeof(str_lsr), "%u", payload->report->report_block[i]->lsr);
+		json_report_block = ast_json_pack("{s: i, s: i, s: i, s: i, s: i, s: s, s: i}",
 				"source_ssrc", payload->report->report_block[i]->source_ssrc,
 				"fraction_lost", payload->report->report_block[i]->lost_count.fraction,
 				"packets_lost", payload->report->report_block[i]->lost_count.packets,
 				"highest_seq_no", payload->report->report_block[i]->highest_seq_no,
 				"ia_jitter", payload->report->report_block[i]->ia_jitter,
-				"lsr", payload->report->report_block[i]->lsr,
+				"lsr", str_lsr,
 				"dlsr", payload->report->report_block[i]->dlsr);
 		if (!json_report_block) {
 			return NULL;
@@ -1927,9 +1929,13 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 	}
 
 	if (payload->report->type == AST_RTP_RTCP_SR) {
-		json_rtcp_sender_info = ast_json_pack("{s: i, s: i, s: i, s: i, s: i}",
-				"ntp_timestamp_sec", payload->report->sender_information.ntp_timestamp.tv_sec,
-				"ntp_timestamp_usec", payload->report->sender_information.ntp_timestamp.tv_usec,
+		char sec[32];
+		char usec[32];
+		snprintf(sec, sizeof(sec), "%ld", payload->report->sender_information.ntp_timestamp.tv_sec);
+		snprintf(usec, sizeof(usec), "%ld", payload->report->sender_information.ntp_timestamp.tv_usec);
+		json_rtcp_sender_info = ast_json_pack("{s: s, s: s, s: i, s: i, s: i}",
+				"ntp_timestamp_sec", sec,
+				"ntp_timestamp_usec", usec,
 				"rtp_timestamp", payload->report->sender_information.rtp_timestamp,
 				"packets", payload->report->sender_information.packet_count,
 				"octets", payload->report->sender_information.octet_count);
