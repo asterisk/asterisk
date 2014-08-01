@@ -916,6 +916,65 @@ static void qualify_and_schedule_all(void)
 	ao2_ref(endpoints, -1);
 }
 
+static const char *status_map [] = {
+	[UNAVAILABLE] = "Unreachable",
+	[AVAILABLE] = "Reachable",
+};
+
+static int format_contact_status(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact_wrapper *wrapper = obj;
+	struct ast_sip_contact *contact = wrapper->contact;
+	struct ast_sip_ami *ami = arg;
+	struct ast_sip_contact_status *status;
+	struct ast_str *buf;
+	const struct ast_sip_endpoint *endpoint = ami->arg;
+
+	buf = ast_sip_create_ami_event("ContactStatusDetail", ami);
+	if (!buf) {
+		return -1;
+	}
+
+	status = ast_sorcery_retrieve_by_id(
+		ast_sip_get_sorcery(), CONTACT_STATUS,
+		ast_sorcery_object_get_id(contact));
+
+	ast_str_append(&buf, 0, "AOR: %s\r\n", wrapper->aor_id);
+	ast_str_append(&buf, 0, "URI: %s\r\n", contact->uri);
+	if (status) {
+		ast_str_append(&buf, 0, "Status: %s\r\n", status_map[status->status]);
+		ast_str_append(&buf, 0, "RoundtripUsec: %" PRId64 "\r\n", status->rtt);
+	} else {
+		ast_str_append(&buf, 0, "Status: Unknown\r\n");
+		ast_str_append(&buf, 0, "RoundtripUsec: N/A\r\n");
+	}
+	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
+			ast_sorcery_object_get_id(endpoint));
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+
+	ast_free(buf);
+	ao2_cleanup(status);
+	return 0;
+}
+
+static int format_contact_status_for_aor(void *obj, void *arg, int flags)
+{
+	struct ast_sip_aor *aor = obj;
+
+	return ast_sip_for_each_contact(aor, format_contact_status, arg);
+}
+
+static int format_ami_contact_status(const struct ast_sip_endpoint *endpoint,
+		struct ast_sip_ami *ami)
+{
+	ami->arg = (void *)endpoint;
+	return ast_sip_for_each_aor(endpoint->aors, format_contact_status_for_aor, ami);
+}
+
+static struct ast_sip_endpoint_formatter contact_status_formatter = {
+	.format_ami = format_ami_contact_status
+};
+
 int ast_res_pjsip_init_options_handling(int reload)
 {
 	const pj_str_t STR_OPTIONS = { "OPTIONS", 7 };
@@ -946,6 +1005,8 @@ int ast_res_pjsip_init_options_handling(int reload)
 		return -1;
 	}
 
+	ast_sip_register_endpoint_formatter(&contact_status_formatter);
+
 	qualify_and_schedule_all();
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
 	ast_manager_register2("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify, NULL, NULL, NULL);
@@ -957,4 +1018,5 @@ void ast_res_pjsip_cleanup_options_handling(void)
 {
 	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
 	ast_manager_unregister("PJSIPQualify");
+	ast_sip_unregister_endpoint_formatter(&contact_status_formatter);
 }
