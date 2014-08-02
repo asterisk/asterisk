@@ -80,7 +80,7 @@
 					</description>
 				</configOption>
 				<configOption name="aggregate_mwi" default="yes">
-					<synopsis></synopsis>
+					<synopsis>Condense MWI notifications into a single NOTIFY.</synopsis>
 					<description><para>When enabled, <replaceable>aggregate_mwi</replaceable> condenses message
 					waiting notifications from multiple mailboxes into a single NOTIFY. If it is disabled,
 					individual NOTIFYs are sent for each mailbox.</para></description>
@@ -1155,6 +1155,518 @@
 			<para>Qualify a chan_pjsip endpoint.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="IdentifyDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about an identify section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'identify'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="Endpoint">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_endpoint_identifier_ip']/configFile[@name='pjsip.conf']/configObject[@name='identify']/configOption[@name='endpoint']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Match">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip_endpoint_identifier_ip']/configFile[@name='pjsip.conf']/configObject[@name='identify']/configOption[@name='match']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="EndpointName">
+					<para>The name of the endpoint associated with this information.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AorDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about an Address of Record (AoR) section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'aor'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="MinimumExpiration">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='minimum_expiration']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MaximumExpiration">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='maximum_expiration']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DefaultExpiration">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='default_expiration']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="QualifyFrequency">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='qualify_frequency']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AuthenticateQualify">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='authenticate_qualify']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MaxContacts">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='max_contacts']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RemoveExisting">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='remove_existing']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Mailboxes">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='mailboxes']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OutboundProxy">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='outbound_proxy']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SupportPath">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='aor']/configOption[@name='support_path']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TotalContacts">
+					<para>The total number of contacts associated with this AoR.</para>
+				</parameter>
+				<parameter name="ContactsRegistered">
+					<para>The number of non-permanent contacts associated with this AoR.</para>
+				</parameter>
+				<parameter name="EndpointName">
+					<para>The name of the endpoint associated with this information.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="AuthDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about an authentication section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'auth'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="Username">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='username']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Password">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='username']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Md5Cred">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='md5_cred']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Realm">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='realm']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="NonceLifetime">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='nonce_lifetime']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AuthType">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='auth']/configOption[@name='auth_type']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="EndpointName">
+					<para>The name of the endpoint associated with this information.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="TransportDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about an authentication section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'transport'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="Protocol">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='protocol']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Bind">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='bind']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AsycOperations">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='async_operations']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CaListFile">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='ca_list_file']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CertFile">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='cert_file']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="PrivKeyFile">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='priv_key_file']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Password">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='password']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ExternalSignalingAddress">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='external_signaling_address']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ExternalSignalingPort">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='external_signaling_port']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ExternalMediaAddress">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='external_media_address']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Domain">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='domain']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="VerifyServer">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='verify_server']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="VerifyClient">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='verify_client']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RequireClientCert">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='require_client_cert']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Method">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='method']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Cipher">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='cipher']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="LocalNet">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='local_net']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Tos">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='tos']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Cos">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='cos']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="WebsocketWriteTimeout">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='websocket_write_timeout']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="EndpointName">
+					<para>The name of the endpoint associated with this information.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="EndpointDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about an endpoint section.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'endpoint'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="Context">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='context']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Disallow">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='disallow']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Allow">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='allow']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtmfMode">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtmf_mode']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RtpIpv6">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='rtp_ipv6']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RtpSymmetric">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='rtp_symmetric']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="IceSupport">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='ice_support']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="UsePtime">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='use_ptime']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ForceRport">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='force_rport']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RewriteContact">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='rewrite_contact']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Transport">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='transport']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OutboundProxy">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='outbound_proxy']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MohSuggest">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='moh_suggest']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="100rel">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='100rel']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Timers">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='timers']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TimersMinSe">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='timers_min_se']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TimersSessExpires">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='timers_sess_expires']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Auth">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='auth']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OutboundAuth">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='outbound_auth']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Aors">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='aors']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MediaAddress">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='media_address']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="IdentifyBy">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='identify_by']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DirectMedia">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='direct_media']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DirectMediaMethod">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='direct_media_method']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ConnectedLineMethod">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='connected_line_method']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DirectMediaGlareMitigation">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='direct_media_glare_mitigation']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DisableDirectMediaOnNat">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='disable_direct_media_on_nat']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Callerid">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='callerid']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CalleridPrivacy">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='callerid_privacy']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CalleridTag">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='callerid_tag']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TrustIdInbound">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='trust_id_inbound']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TrustIdOutbound">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='trust_id_outbound']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SendPai">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='send_pai']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SendRpid">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='send_rpid']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SendDiversion">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='send_diversion']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Mailboxes">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='mailboxes']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AggregateMwi">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='aggregate_mwi']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MediaEncryption">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='media_encryption']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="UseAvpf">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='use_avpf']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ForceAvp">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='force_avp']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MediaUseReceivedTransport">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='media_use_received_transport']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="OneTouchRecording">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='one_touch_recording']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="InbandProgress">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='inband_progress']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CallGroup">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='call_group']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="PickupGroup">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='pickup_group']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="NamedCallGroup">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='named_call_group']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="NamedPickupGroup">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='named_pickup_group']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DeviceStateBusyAt">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='device_state_busy_at']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="T38Udptl">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_udptl']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="T38UdptlEc">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_udptl_ec']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="T38UdptlMaxdatagram">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_udptl_maxdatagram']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="FaxDetect">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='fax_detect']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="T38UdptlNat">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_udptl_nat']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="T38UdptlIpv6">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='t38_udptl_ipv6']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="ToneZone">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='tone_zone']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Language">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='language']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RecordOnFeature">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='record_on_feature']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RecordOffFeature">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='record_off_feature']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AllowTransfer">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='allow_transfer']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SdpOwner">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='sdp_owner']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SdpSession">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='sdp_session']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TosAudio">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='tos_audio']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="TosVideo">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='tos_video']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CosAudio">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='cos_audio']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CosVideo">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='cos_video']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="AllowSubscribe">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='allow_subscribe']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SubMinExpiry">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='sub_min_expiry']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="FromUser">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='from_user']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="FromDomain">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='from_domain']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MwiFromUser">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='mwi_from_user']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RtpEngine">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='rtp_engine']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsVerify">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_verify']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsRekey">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_rekey']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsCertFile">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_cert_file']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsPrivateKey">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_private_key']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsCipher">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_cipher']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsCaFile">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_ca_file']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsCaPath">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_ca_path']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DtlsSetup">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='dtls_setup']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SrtpTag32">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='srtp_tag_32']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="RedirectMethod">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='redirect_method']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="SetVar">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='set_var']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MessageContext">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='message_context']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Accountcode">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='accountcode']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="DeviceState">
+					<para>The aggregate device state for this endpoint.</para>
+				</parameter>
+				<parameter name="ActiveChannels">
+					<para>The number of active channels associated with this endpoint.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="ContactStatusDetail">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about a contact's status.</synopsis>
+			<syntax>
+				<parameter name="AOR">
+					<para>The AoR that owns this contact.</para>
+				</parameter>
+				<parameter name="URI">
+					<para>This contact's URI.</para>
+				</parameter>
+				<parameter name="Status">
+					<para>This contact's status.</para>
+					<enumlist>
+						<enum name="Reachable"/>
+						<enum name="Unreachable"/>
+					</enumlist>
+				</parameter>
+				<parameter name="RoundtripUsec">
+					<para>The round trip time in microseconds.</para>
+				</parameter>
+				<parameter name="EndpointName">
+					<para>The name of the endpoint associated with this information.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="EndpointList">
+		<managerEventInstance class="EVENT_FLAG_COMMAND">
+			<synopsis>Provide details about a contact's status.</synopsis>
+			<syntax>
+				<parameter name="ObjectType">
+					<para>The object's type. This will always be 'endpoint'.</para>
+				</parameter>
+				<parameter name="ObjectName">
+					<para>The name of this object.</para>
+				</parameter>
+				<parameter name="Transport">
+					<para>The transport configurations associated with this endpoint.</para>
+				</parameter>
+				<parameter name="Aor">
+					<para>The aor configurations associated with this endpoint.</para>
+				</parameter>
+				<parameter name="Auths">
+					<para>The inbound authentication configurations associated with this endpoint.</para>
+				</parameter>
+				<parameter name="OutboundAuths">
+					<para>The outbound authentication configurations associated with this endpoint.</para>
+				</parameter>
+				<parameter name="DeviceState">
+					<para>The aggregate device state for this endpoint.</para>
+				</parameter>
+				<parameter name="ActiveChannels">
+					<para>The number of active channels associated with this endpoint.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="PJSIPShowEndpoints" language="en_US">
 		<synopsis>
 			Lists PJSIP endpoints.
@@ -1167,6 +1679,20 @@
 			endpoints have been listed an <literal>EndpointListComplete</literal> event is issued.
                         </para>
 		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='EndpointList'])" />
+			</list-elements>
+			<managerEvent language="en_US" name="EndpointListComplete">
+				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<synopsis>Provide final information about an endpoint list.</synopsis>
+					<syntax>
+						<parameter name="EventList"/>
+						<parameter name="ListItems"/>
+					</syntax>
+				</managerEventInstance>
+			</managerEvent>
+		</responses>
 	</manager>
 	<manager name="PJSIPShowEndpoint" language="en_US">
 		<synopsis>
@@ -1189,6 +1715,25 @@
 			<literal>EndpointDetailComplete</literal> event is issued.
                         </para>
 		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='EndpointDetail'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='IdentifyDetail'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ContactStatusDetail'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AuthDetail'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='TransportDetail'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AorDetail'])" />
+			</list-elements>
+			<managerEvent language="en_US" name="EndpointDetailComplete">
+				<managerEventInstance class="EVENT_FLAG_COMMAND">
+					<synopsis>Provide final information about endpoint details.</synopsis>
+					<syntax>
+						<parameter name="EventList"/>
+						<parameter name="ListItems"/>
+					</syntax>
+				</managerEventInstance>
+			</managerEvent>
+		</responses>
 	</manager>
  ***/
 
