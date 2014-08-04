@@ -281,7 +281,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</managerEvent>
 	<manager name="Setvar" language="en_US">
 		<synopsis>
-			Set a channel variable.
+			Sets a channel variable or function value.
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
@@ -289,22 +289,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Channel to set variable for.</para>
 			</parameter>
 			<parameter name="Variable" required="true">
-				<para>Variable name.</para>
+				<para>Variable name, function or expression.</para>
 			</parameter>
 			<parameter name="Value" required="true">
-				<para>Variable value.</para>
+				<para>Variable or function value.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>Set a global or local channel variable.</para>
+			<para>This command can be used to set the value of channel variables or dialplan
+			functions.</para>
 			<note>
-				<para>If a channel name is not provided then the variable is global.</para>
+				<para>If a channel name is not provided then the variable is considered global.</para>
 			</note>
 		</description>
 	</manager>
 	<manager name="Getvar" language="en_US">
 		<synopsis>
-			Gets a channel variable.
+			Gets a channel variable or function value.
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
@@ -312,13 +313,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>Channel to read variable from.</para>
 			</parameter>
 			<parameter name="Variable" required="true">
-				<para>Variable name.</para>
+				<para>Variable name, function or expression.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>Get the value of a global or local channel variable.</para>
+			<para>Get the value of a channel variable or function return.</para>
 			<note>
-				<para>If a channel name is not provided then the variable is global.</para>
+				<para>If a channel name is not provided then the variable is considered global.</para>
 			</note>
 		</description>
 	</manager>
