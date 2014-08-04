@@ -76,6 +76,8 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
 		ast_copy_string(buf, ast_sockaddr_isnull(&p->sa) ? "" : ast_sockaddr_stringify_addr(&p->sa), buflen);
 	} else if (!strcasecmp(args.param, "recvip")) {
 		ast_copy_string(buf, ast_sockaddr_isnull(&p->recv) ? "" : ast_sockaddr_stringify_addr(&p->recv), buflen);
+	} else if (!strcasecmp(args.param, "recvport")) {
+		ast_copy_string(buf, ast_sockaddr_isnull(&p->recv) ? "" : ast_sockaddr_stringify_port(&p->recv), buflen);
 	} else if (!strcasecmp(args.param, "from")) {
 		ast_copy_string(buf, p->from, buflen);
 	} else if (!strcasecmp(args.param, "uri")) {
