@@ -228,11 +228,6 @@ struct ast_format *ast_format_t140;
 struct ast_format *ast_format_t140_red;
 
 /*!
- * \brief Built-in cached vp8 format.
- */
-struct ast_format *ast_format_vp8;
-
-/*!
  * \brief Built-in "null" format.
  */
 struct ast_format *ast_format_none;

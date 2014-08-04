@@ -219,11 +219,6 @@ extern struct ast_format *ast_format_t140;
 extern struct ast_format *ast_format_t140_red;
 
 /*!
- * \brief Built-in cached vp8 format.
- */
-extern struct ast_format *ast_format_vp8;
-
-/*!
  * \brief Built-in "null" format.
  */
 extern struct ast_format *ast_format_none;
