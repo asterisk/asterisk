@@ -247,7 +247,7 @@ enum ast_format_cmp_res ast_format_cmp(const struct ast_format *format1, const s
 
 	interface = format1->interface ? format1->interface : format2->interface;
 
-	if (interface) {
+	if (interface && interface->format_cmp) {
 		return interface->format_cmp(format1, format2);
 	}
 
