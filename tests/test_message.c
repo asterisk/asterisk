@@ -788,31 +788,27 @@ static int test_init_cb(struct ast_test_info *info, struct ast_test *test)
 	return 0;
 }
 
-static void free_variable_vector(struct var_vector *vector)
-{
-	int i;
+#define FREE_VARIABLE_VECTOR(vector) do { \
+	int i; \
+	for (i = 0; i < AST_VECTOR_SIZE(&(vector)); i++) { \
+		struct ast_variable *headers; \
+		headers = AST_VECTOR_GET(&(vector), i); \
+		if (!headers) { \
+			continue; \
+		} \
+		ast_variables_destroy(headers); \
+	} \
+	AST_VECTOR_FREE(&(vector)); \
+	} while (0)
 
-	for (i = 0; i < AST_VECTOR_SIZE(vector); i++) {
-		struct ast_variable *headers;
-
-		headers = AST_VECTOR_GET(vector, i);
-		if (!headers) {
-			continue;
-		}
-		ast_variables_destroy(headers);
-	}
-
-	AST_VECTOR_FREE(vector);
-}
 
 static int test_cleanup_cb(struct ast_test_info *info, struct ast_test *test)
 {
-	free_variable_vector((struct var_vector *)&expected_user_event_fields);
-	free_variable_vector((struct var_vector *)&bad_headers);
+	FREE_VARIABLE_VECTOR(expected_user_event_fields);
+	FREE_VARIABLE_VECTOR(bad_headers);
 
 	return 0;
 }
-
 
 static int unload_module(void)
 {
