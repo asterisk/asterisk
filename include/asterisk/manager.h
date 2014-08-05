@@ -94,8 +94,16 @@
 /*! \brief Export manager structures */
 #define AST_MAX_MANHEADERS 128
 
-/*! \brief Manager Helper Function */
-typedef int (*manager_hook_t)(int, const char *, char *);
+/*! \brief Manager Helper Function
+ *
+ * \param category The class authorization category of the event
+ * \param event The name of the event being raised
+ * \param body The body of the event
+ *
+ * \retval 0 Success
+ * \retval non-zero Error
+ */
+typedef int (*manager_hook_t)(int category, const char *event, char *body);
 
 struct manager_custom_hook {
 	/*! Identifier */

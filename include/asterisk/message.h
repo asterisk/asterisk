@@ -25,8 +25,9 @@
  *
  * The purpose of this API is to provide support for text messages that
  * are not session based.  The messages are passed into the Asterisk core
- * to be routed through the dialplan and potentially sent back out through
- * a message technology that has been registered through this API.
+ * to be routed through the dialplan or another interface and potentially
+ * sent back out through a message technology that has been registered
+ * through this API.
  */
 
 #ifndef __AST_MESSAGE_H__
@@ -89,6 +90,64 @@ int ast_msg_tech_register(const struct ast_msg_tech *tech);
  * \retval non-zero failure
  */
 int ast_msg_tech_unregister(const struct ast_msg_tech *tech);
+
+/*!
+ * \brief An external processor of received messages
+ * \since 12.5.0
+ */
+struct ast_msg_handler {
+	/*!
+	 * \brief Name of the message handler
+	 */
+	const char *name;
+
+	/*!
+	 * \brief The function callback that will handle the message
+	 *
+	 * \param msg The message to handle
+	 *
+	 * \retval 0 The handler processed the message successfull
+	 * \retval non-zero The handler passed or could not process the message
+	 */
+	int (* const handle_msg)(struct ast_msg *msg);
+
+	/*!
+	 * \brief Return whether or not the message has a valid destination
+	 *
+	 * A message may be delivered to the dialplan and/or other locations,
+	 * depending on whether or not other handlers have been registered. This
+	 * function is called by the message core to determine if any handler can
+	 * process a message.
+	 *
+	 * \param msg The message to inspect
+	 *
+	 * \retval 0 The message does not have a valid destination
+	 * \retval 1 The message has a valid destination
+	 */
+	int (* const has_destination)(const struct ast_msg *msg);
+};
+
+/*!
+ * \brief Register a \c ast_msg_handler
+ * \since 12.5.0
+ *
+ * \param handler The handler to register
+ *
+ * \retval 0 Success
+ * \retval non-zero Error
+ */
+int ast_msg_handler_register(const struct ast_msg_handler *handler);
+
+/*!
+ * \brief Unregister a \c ast_msg_handler
+ * \since 12.5.0
+ *
+ * \param handler The handler to unregister
+ *
+ * \retval 0 Success
+ * \retval non-zero Error
+ */
+int ast_msg_handler_unregister(const struct ast_msg_handler *handler);
 
 /*!
  * \brief Allocate a message.
@@ -162,7 +221,29 @@ int __attribute__((format(printf, 2, 3)))
  */
 int __attribute__((format(printf, 2, 3)))
 		ast_msg_set_exten(struct ast_msg *msg, const char *fmt, ...);
-	
+
+/*!
+ * \brief Set the technology associated with this message
+ *
+ * \since 12.5.0
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int __attribute__((format(printf, 2, 3)))
+		ast_msg_set_tech(struct ast_msg *msg, const char *fmt, ...);
+
+/*!
+ * \brief Set the technology's endpoint associated with this message
+ *
+ * \since 12.5.0
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int __attribute__((format(printf, 2, 3)))
+		ast_msg_set_endpoint(struct ast_msg *msg, const char *fmt, ...);
+
 /*!
  * \brief Set a variable on the message going to the dialplan.
  * \note Setting a variable that already exists overwrites the existing variable value
@@ -207,6 +288,66 @@ const char *ast_msg_get_var(struct ast_msg *msg, const char *name);
  * \return The body of the messsage, encoded in UTF-8.
  */
 const char *ast_msg_get_body(const struct ast_msg *msg);
+
+/*!
+ * \brief Retrieve the source of this message
+ *
+ * \since 12.5.0
+ *
+ * \param msg The message to get the soure from
+ *
+ * \retval The source of the message
+ * \retval NULL or empty string if the message has no source
+ */
+const char *ast_msg_get_from(const struct ast_msg *msg);
+
+/*!
+ * \brief Retrieve the destination of this message
+ *
+ * \since 12.5.0
+ *
+ * \param msg The message to get the destination from
+ *
+ * \retval The destination of the message
+ * \retval NULL or empty string if the message has no destination
+ */
+const char *ast_msg_get_to(const struct ast_msg *msg);
+
+/*!
+ * \brief Retrieve the technology associated with this message
+ *
+ * \since 12.5.0
+ *
+ * \param msg The message to get the technology from
+ *
+ * \retval The technology of the message
+ * \retval NULL or empty string if the message has no associated technology
+ */
+const char *ast_msg_get_tech(const struct ast_msg *msg);
+
+/*!
+ * \brief Retrieve the endpoint associated with this message
+ *
+ * \since 12.5.0
+ *
+ * \param msg The message to get the endpoint from
+ *
+ * \retval The endpoint associated with the message
+ * \retval NULL or empty string if the message has no associated endpoint
+ */
+const char *ast_msg_get_endpoint(const struct ast_msg *msg);
+
+/*!
+ * \brief Determine if a particular message has a destination via some handler
+ *
+ * \since 12.5.0
+ *
+ * \param msg The message to check
+ *
+ * \retval 0 if the message has no handler that can find a destination
+ * \retval 1 if the message has a handler that can find a destination
+ */
+int ast_msg_has_destination(const struct ast_msg *msg);
 
 /*!
  * \brief Queue a message for routing through the dialplan.

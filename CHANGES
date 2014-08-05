@@ -246,6 +246,17 @@ ARI
      when the recording was started.
    Note that all duration values are reported in seconds.
 
+ * Users of ARI can now send and receive out of call text messages. Messages
+   can be sent directly to a particular endpoint, or can be sent to the
+   endpoints resource directly and inferred from the URI scheme. Text
+   messages are passed to ARI clients as TextMessageReceived events. ARI
+   clients can choose to receive text messages by subscribing to the particular
+   endpoint technology or endpoints that they are interested in.
+
+ * The applications resource now supports subscriptions to all endpoints of
+   a particular channel technology. For example, subscribing to an eventSource
+   of 'endpoint:PJSIP' will subscribe to all PJSIP endpoints.
+
 res_pjsip
 ------------------
  * The endpoint configuration object now supports 'accountcode'. Any channel

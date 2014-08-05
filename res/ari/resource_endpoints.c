@@ -174,3 +174,108 @@ void ast_ari_endpoints_get(struct ast_variable *headers,
 
 	ast_ari_response_ok(response, json);
 }
+
+static void send_message(const char *to, const char *from, const char *body, struct ast_variable *variables, struct ast_ari_response *response)
+{
+	struct ast_variable *current;
+	struct ast_msg *msg;
+	int res = 0;
+
+	if (ast_strlen_zero(to)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"To must be specified");
+		return;
+	}
+
+	msg = ast_msg_alloc();
+	if (!msg) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	res |= ast_msg_set_from(msg, "%s", from);
+	res |= ast_msg_set_to(msg, "%s", to);
+
+	if (!ast_strlen_zero(body)) {
+		res |= ast_msg_set_body(msg, "%s", body);
+	}
+
+	for (current = variables; current; current = current->next) {
+		res |= ast_msg_set_var_outbound(msg, current->name, current->value);
+	}
+
+	if (res) {
+		ast_ari_response_alloc_failed(response);
+		ast_msg_destroy(msg);
+		return;
+	}
+
+	if (ast_msg_send(msg, to, from)) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Endpoint not found");
+	}
+
+	response->message = ast_json_null();
+	response->response_code = 202;
+	response->response_text = "Accepted";
+}
+
+void ast_ari_endpoints_send_message(struct ast_variable *headers,
+	struct ast_ari_endpoints_send_message_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
+
+	if (args->variables) {
+		struct ast_json *json_variables;
+
+		ast_ari_endpoints_send_message_parse_body(args->variables, args);
+		json_variables = ast_json_object_get(args->variables, "variables");
+		if (json_variables) {
+			if (ast_json_to_ast_variables(json_variables, &variables)) {
+				ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to Asterisk variables\n");
+				ast_ari_response_alloc_failed(response);
+				return;
+			}
+		}
+	}
+
+	send_message(args->to, args->from, args->body, variables, response);
+}
+
+void ast_ari_endpoints_send_message_to_endpoint(struct ast_variable *headers,
+	struct ast_ari_endpoints_send_message_to_endpoint_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
+	char msg_to[128];
+	char *tech = ast_strdupa(args->tech);
+
+	/* Really, we just want to know if this thing exists */
+	snapshot = ast_endpoint_latest_snapshot(args->tech, args->resource);
+	if (!snapshot) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Endpoint not found");
+		return;
+	}
+
+	if (args->variables) {
+		struct ast_json *json_variables;
+
+		ast_ari_endpoints_send_message_to_endpoint_parse_body(args->variables, args);
+		json_variables = ast_json_object_get(args->variables, "variables");
+
+		if (json_variables) {
+			if (ast_json_to_ast_variables(json_variables, &variables)) {
+				ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to Asterisk variables\n");
+				ast_ari_response_alloc_failed(response);
+				return;
+			}
+		}
+	}
+
+	snprintf(msg_to, sizeof(msg_to), "%s:%s", ast_str_to_lower(tech), args->resource);
+
+	send_message(msg_to, args->from, args->body, variables, response);
+}

@@ -18871,6 +18871,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	char *to;
 	char from_name[50];
 	char stripped[SIPBUFSIZE];
+	enum sip_get_dest_result dest_result;
 
 	if (strncmp(content_type, "text/plain", strlen("text/plain"))) { /* No text/plain attachment */
 		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
@@ -18980,7 +18981,8 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		ast_string_field_set(p, context, sip_cfg.messagecontext);
 	}
 
-	switch (get_destination(p, NULL, NULL)) {
+	dest_result = get_destination(p, NULL, NULL);
+	switch (dest_result) {
 	case SIP_GET_DEST_REFUSED:
 		/* Okay to send 403 since this is after auth processing */
 		transmit_response(p, "403 Forbidden", req);
@@ -18990,12 +18992,9 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 		transmit_response(p, "416 Unsupported URI Scheme", req);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
-	case SIP_GET_DEST_EXTEN_NOT_FOUND:
-	case SIP_GET_DEST_EXTEN_MATCHMORE:
-		transmit_response(p, "404 Not Found", req);
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-		return;
-	case SIP_GET_DEST_EXTEN_FOUND:
+	default:
+		/* We may have something other than dialplan who wants
+		 * the message, so defer further error handling for now */
 		break;
 	}
 
@@ -19023,7 +19022,9 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	res |= ast_msg_set_context(msg, "%s", p->context);
 
 	res |= ast_msg_set_var(msg, "SIP_RECVADDR", ast_sockaddr_stringify(&p->recv));
+	res |= ast_msg_set_tech(msg, "%s", "SIP");
 	if (!ast_strlen_zero(p->peername)) {
+		res |= ast_msg_set_endpoint(msg, "%s", p->peername);
 		res |= ast_msg_set_var(msg, "SIP_PEERNAME", p->peername);
 	}
 
@@ -19036,12 +19037,32 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	if (res) {
 		ast_msg_destroy(msg);
 		transmit_response(p, "500 Internal Server Error", req);
-	} else {
-		ast_msg_queue(msg);
-		transmit_response(p, "202 Accepted", req);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
 	}
 
+	if (ast_msg_has_destination(msg)) {
+		ast_msg_queue(msg);
+		transmit_response(p, "202 Accepted", req);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		return;
+	}
+
+	/* Find a specific error cause to send */
+	switch (dest_result) {
+	case SIP_GET_DEST_EXTEN_NOT_FOUND:
+	case SIP_GET_DEST_EXTEN_MATCHMORE:
+		transmit_response(p, "404 Not Found", req);
+		break;
+	case SIP_GET_DEST_EXTEN_FOUND:
+	default:
+		/* We should have sent the message already! */
+		ast_assert(0);
+		transmit_response(p, "500 Internal Server Error", req);
+		break;
+	}
 	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+	ast_msg_destroy(msg);
 }
 
 /*! \brief  CLI Command to show calls within limits set by call_limit */

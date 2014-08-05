@@ -299,6 +299,42 @@ int ast_ari_validate_endpoint(struct ast_json *json);
 ari_validator ast_ari_validate_endpoint_fn(void);
 
 /*!
+ * \brief Validator for TextMessage.
+ *
+ * A text message.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_text_message(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_text_message().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_text_message_fn(void);
+
+/*!
+ * \brief Validator for TextMessageVariable.
+ *
+ * A key/value pair variable in a text message.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_text_message_variable(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_text_message_variable().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_text_message_variable_fn(void);
+
+/*!
  * \brief Validator for CallerID.
  *
  * Caller identification
@@ -1097,6 +1133,24 @@ int ast_ari_validate_stasis_start(struct ast_json *json);
 ari_validator ast_ari_validate_stasis_start_fn(void);
 
 /*!
+ * \brief Validator for TextMessageReceived.
+ *
+ * A text message was received from an endpoint.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_text_message_received(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_text_message_received().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_text_message_received_fn(void);
+
+/*!
  * \brief Validator for Application.
  *
  * Details of a Stasis application
@@ -1152,6 +1206,14 @@ ari_validator ast_ari_validate_application_fn(void);
  * - resource: string (required)
  * - state: string
  * - technology: string (required)
+ * TextMessage
+ * - body: string (required)
+ * - from: string (required)
+ * - to: string (required)
+ * - variables: List[TextMessageVariable]
+ * TextMessageVariable
+ * - key: string (required)
+ * - value: string (required)
  * CallerID
  * - name: string (required)
  * - number: string (required)
@@ -1405,6 +1467,12 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date
  * - args: List[string] (required)
  * - channel: Channel (required)
+ * TextMessageReceived
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - endpoint: Endpoint
+ * - message: TextMessage (required)
  * Application
  * - bridge_ids: List[string] (required)
  * - channel_ids: List[string] (required)

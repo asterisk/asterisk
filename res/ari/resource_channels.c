@@ -723,36 +723,6 @@ void ast_ari_channels_list(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
-static int json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables)
-{
-	struct ast_variable *current = NULL;
-	struct ast_json_iter *it_json_var;
-
-	for (it_json_var = ast_json_object_iter(json_variables); it_json_var;
-		 it_json_var = ast_json_object_iter_next(json_variables, it_json_var)) {
-		struct ast_variable *new_var;
-
-		new_var = ast_variable_new(ast_json_object_iter_key(it_json_var),
-								   ast_json_string_get(ast_json_object_iter_value(it_json_var)),
-								   "");
-		if (!new_var) {
-			ast_variables_destroy(*variables);
-			*variables = NULL;
-			return 1;
-		}
-
-		if (!current) {
-			*variables = new_var;
-			current = *variables;
-		} else {
-			current->next = new_var;
-			current = new_var;
-		}
-	}
-
-	return 0;
-}
-
 static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	const char *args_extension,
 	const char *args_context,
@@ -894,7 +864,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		ast_ari_channels_originate_with_id_parse_body(args->variables, args);
 		json_variables = ast_json_object_get(args->variables, "variables");
 		if (json_variables) {
-			if (json_to_ast_variables(json_variables, &variables)) {
+			if (ast_json_to_ast_variables(json_variables, &variables)) {
 				ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to channel variables\n");
 				ast_ari_response_alloc_failed(response);
 				return;
@@ -930,7 +900,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		ast_ari_channels_originate_parse_body(args->variables, args);
 		json_variables = ast_json_object_get(args->variables, "variables");
 		if (json_variables) {
-			if (json_to_ast_variables(json_variables, &variables)) {
+			if (ast_json_to_ast_variables(json_variables, &variables)) {
 				ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to channel variables\n");
 				ast_ari_response_alloc_failed(response);
 				return;

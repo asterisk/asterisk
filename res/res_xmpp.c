@@ -3174,16 +3174,27 @@ static int xmpp_pak_message(struct ast_xmpp_client *client, struct ast_xmpp_clie
 
 	if (ast_test_flag(&cfg->flags, XMPP_SEND_TO_DIALPLAN)) {
 		struct ast_msg *msg;
+		struct ast_xmpp_buddy *buddy;
 
 		if ((msg = ast_msg_alloc())) {
 			int res;
 
 			ast_xmpp_client_lock(client);
 
+			buddy = ao2_find(client->buddies, pak->from->partial, OBJ_KEY | OBJ_NOLOCK);
+
 			res = ast_msg_set_to(msg, "xmpp:%s", cfg->user);
 			res |= ast_msg_set_from(msg, "xmpp:%s", message->from);
 			res |= ast_msg_set_body(msg, "%s", message->message);
 			res |= ast_msg_set_context(msg, "%s", cfg->context);
+			res |= ast_msg_set_tech(msg, "%s", "XMPP");
+			res |= ast_msg_set_endpoint(msg, "%s", client->name);
+
+			if (buddy) {
+				res |= ast_msg_set_var(msg, "XMPP_BUDDY", buddy->id);
+			}
+
+			ao2_cleanup(buddy);
 
 			ast_xmpp_client_unlock(client);
 

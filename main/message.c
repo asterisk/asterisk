@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/strings.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/vector.h"
 #include "asterisk/app.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/message.h"
@@ -201,37 +202,46 @@ struct msg_data {
 		AST_STRING_FIELD(name);
 		AST_STRING_FIELD(value);
 	);
-	unsigned int send:1; /* Whether to send out on outbound messages */
+	unsigned int send; /* Whether to send out on outbound messages */
 };
 
 AST_LIST_HEAD_NOLOCK(outhead, msg_data);
 
 /*!
  * \brief A message.
- *
- * \todo Consider whether stringfields would be an appropriate optimization here.
  */
 struct ast_msg {
-	struct ast_str *to;
-	struct ast_str *from;
-	struct ast_str *body;
-	struct ast_str *context;
-	struct ast_str *exten;
+	AST_DECLARE_STRING_FIELDS(
+		/*! Where the message is going */
+		AST_STRING_FIELD(to);
+		/*! Where we "say" the message came from */
+		AST_STRING_FIELD(from);
+		/*! The text to send */
+		AST_STRING_FIELD(body);
+		/*! The dialplan context for the message */
+		AST_STRING_FIELD(context);
+		/*! The dialplan extension for the message */
+		AST_STRING_FIELD(exten);
+		/*! An endpoint associated with this message */
+		AST_STRING_FIELD(endpoint);
+		/*! The technology of the endpoint associated with this message */
+		AST_STRING_FIELD(tech);
+	);
+	/*! Technology/dialplan specific variables associated with the message */
 	struct ao2_container *vars;
 };
 
-struct ast_msg_tech_holder {
-	const struct ast_msg_tech *tech;
-	/*!
-	 * \brief A rwlock for this object
-	 *
-	 * a read/write lock must be used to protect the wrapper instead
-	 * of the ao2 lock. A rdlock must be held to read tech_holder->tech.
-	 */
-	ast_rwlock_t tech_lock;
-};
+/*! \brief Lock for \c msg_techs vector */
+static ast_rwlock_t msg_techs_lock;
 
-static struct ao2_container *msg_techs;
+/*! \brief Vector of message technologies */
+AST_VECTOR(, const struct ast_msg_tech *) msg_techs;
+
+/*! \brief Lock for \c msg_handlers vector */
+static ast_rwlock_t msg_handlers_lock;
+
+/*! \brief Vector of received message handlers */
+AST_VECTOR(, const struct ast_msg_handler *) msg_handlers;
 
 static struct ast_taskprocessor *msg_q_tp;
 
@@ -387,21 +397,7 @@ static void msg_destructor(void *obj)
 {
 	struct ast_msg *msg = obj;
 
-	ast_free(msg->to);
-	msg->to = NULL;
-
-	ast_free(msg->from);
-	msg->from = NULL;
-
-	ast_free(msg->body);
-	msg->body = NULL;
-
-	ast_free(msg->context);
-	msg->context = NULL;
-
-	ast_free(msg->exten);
-	msg->exten = NULL;
-
+	ast_string_field_free_memory(msg);
 	ao2_ref(msg->vars, -1);
 }
 
@@ -413,27 +409,7 @@ struct ast_msg *ast_msg_alloc(void)
 		return NULL;
 	}
 
-	if (!(msg->to = ast_str_create(32))) {
-		ao2_ref(msg, -1);
-		return NULL;
-	}
-
-	if (!(msg->from = ast_str_create(32))) {
-		ao2_ref(msg, -1);
-		return NULL;
-	}
-
-	if (!(msg->body = ast_str_create(128))) {
-		ao2_ref(msg, -1);
-		return NULL;
-	}
-
-	if (!(msg->context = ast_str_create(16))) {
-		ao2_ref(msg, -1);
-		return NULL;
-	}
-
-	if (!(msg->exten = ast_str_create(16))) {
+	if (ast_string_field_init(msg, 128)) {
 		ao2_ref(msg, -1);
 		return NULL;
 	}
@@ -442,8 +418,7 @@ struct ast_msg *ast_msg_alloc(void)
 		ao2_ref(msg, -1);
 		return NULL;
 	}
-
-	ast_str_set(&msg->context, 0, "default");
+	ast_string_field_set(msg, context, "default");
 
 	return msg;
 }
@@ -457,73 +432,109 @@ struct ast_msg *ast_msg_ref(struct ast_msg *msg)
 struct ast_msg *ast_msg_destroy(struct ast_msg *msg)
 {
 	ao2_ref(msg, -1);
-
 	return NULL;
 }
 
 int ast_msg_set_to(struct ast_msg *msg, const char *fmt, ...)
 {
 	va_list ap;
-	int res;
 
 	va_start(ap, fmt);
-	res = ast_str_set_va(&msg->to, 0, fmt, ap);
+	ast_string_field_build_va(msg, to, fmt, ap);
 	va_end(ap);
 
-	return res < 0 ? -1 : 0;
+	return 0;
 }
 
 int ast_msg_set_from(struct ast_msg *msg, const char *fmt, ...)
 {
 	va_list ap;
-	int res;
 
 	va_start(ap, fmt);
-	res = ast_str_set_va(&msg->from, 0, fmt, ap);
+	ast_string_field_build_va(msg, from, fmt, ap);
 	va_end(ap);
 
-	return res < 0 ? -1 : 0;
+	return 0;
 }
 
 int ast_msg_set_body(struct ast_msg *msg, const char *fmt, ...)
 {
 	va_list ap;
-	int res;
 
 	va_start(ap, fmt);
-	res = ast_str_set_va(&msg->body, 0, fmt, ap);
+	ast_string_field_build_va(msg, body, fmt, ap);
 	va_end(ap);
 
-	return res < 0 ? -1 : 0;
+	return 0;
 }
 
 int ast_msg_set_context(struct ast_msg *msg, const char *fmt, ...)
 {
 	va_list ap;
-	int res;
 
 	va_start(ap, fmt);
-	res = ast_str_set_va(&msg->context, 0, fmt, ap);
+	ast_string_field_build_va(msg, context, fmt, ap);
 	va_end(ap);
 
-	return res < 0 ? -1 : 0;
+	return 0;
 }
 
 int ast_msg_set_exten(struct ast_msg *msg, const char *fmt, ...)
 {
 	va_list ap;
-	int res;
 
 	va_start(ap, fmt);
-	res = ast_str_set_va(&msg->exten, 0, fmt, ap);
+	ast_string_field_build_va(msg, exten, fmt, ap);
 	va_end(ap);
 
-	return res < 0 ? -1 : 0;
+	return 0;
+}
+
+int ast_msg_set_tech(struct ast_msg *msg, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	ast_string_field_build_va(msg, tech, fmt, ap);
+	va_end(ap);
+
+	return 0;
+}
+
+int ast_msg_set_endpoint(struct ast_msg *msg, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	ast_string_field_build_va(msg, endpoint, fmt, ap);
+	va_end(ap);
+
+	return 0;
 }
 
 const char *ast_msg_get_body(const struct ast_msg *msg)
 {
-	return ast_str_buffer(msg->body);
+	return msg->body;
+}
+
+const char *ast_msg_get_from(const struct ast_msg *msg)
+{
+	return msg->from;
+}
+
+const char *ast_msg_get_to(const struct ast_msg *msg)
+{
+	return msg->to;
+}
+
+const char *ast_msg_get_tech(const struct ast_msg *msg)
+{
+	return msg->tech;
+}
+
+const char *ast_msg_get_endpoint(const struct ast_msg *msg)
+{
+	return msg->endpoint;
 }
 
 static struct msg_data *msg_data_alloc(void)
@@ -713,7 +724,7 @@ static void msg_route(struct ast_channel *chan, struct ast_msg *msg)
 {
 	struct ast_pbx_args pbx_args;
 
-	ast_explicit_goto(chan, ast_str_buffer(msg->context), AS_OR(msg->exten, "s"), 1);
+	ast_explicit_goto(chan, msg->context, S_OR(msg->exten, "s"), 1);
 
 	memset(&pbx_args, 0, sizeof(pbx_args));
 	pbx_args.no_hangup_chan = 1,
@@ -787,18 +798,9 @@ static void destroy_msg_q_chan(void *data)
 
 AST_THREADSTORAGE_CUSTOM(msg_q_chan, NULL, destroy_msg_q_chan);
 
-/*!
- * \internal
- * \brief Message queue task processor callback
- *
- * \retval 0 success
- * \retval -1 failure
- *
- * \note Even though this returns a value, the taskprocessor code ignores the value.
- */
-static int msg_q_cb(void *data)
+/*! \internal \brief Handle a message bound for the dialplan */
+static int dialplan_handle_msg_cb(struct ast_msg *msg)
 {
-	struct ast_msg *msg = data;
 	struct ast_channel **chan_p, *chan;
 	struct ast_datastore *ds;
 
@@ -824,15 +826,90 @@ static int msg_q_cb(void *data)
 	msg_route(chan, msg);
 	chan_cleanup(chan);
 
+	return 0;
+}
+
+/*! \internal \brief Determine if a message has a destination in the dialplan */
+static int dialplan_has_destination_cb(const struct ast_msg *msg)
+{
+	if (ast_strlen_zero(msg->context)) {
+		return 0;
+	}
+
+	return ast_exists_extension(NULL, msg->context, S_OR(msg->exten, "s"), 1, NULL);
+}
+
+static struct ast_msg_handler dialplan_msg_handler = {
+	.name = "dialplan",
+	.handle_msg = dialplan_handle_msg_cb,
+	.has_destination = dialplan_has_destination_cb,
+};
+
+/*!
+ * \internal
+ * \brief Message queue task processor callback
+ *
+ * \retval 0 success
+ * \retval non-zero failure
+ *
+ * \note Even though this returns a value, the taskprocessor code ignores the value.
+ */
+static int msg_q_cb(void *data)
+{
+	struct ast_msg *msg = data;
+	int res = 1;
+	int i;
+
+	ast_rwlock_rdlock(&msg_handlers_lock);
+	for (i = 0; i < AST_VECTOR_SIZE(&msg_handlers); i++) {
+		const struct ast_msg_handler *handler = AST_VECTOR_GET(&msg_handlers, i);
+
+		if (!handler->has_destination(msg)) {
+			ast_debug(5, "Handler %s doesn't want message, moving on\n", handler->name);
+			continue;
+		}
+
+		ast_debug(5, "Dispatching message to %s handler", handler->name);
+		res &= handler->handle_msg(msg);
+	}
+	ast_rwlock_unlock(&msg_handlers_lock);
+
+	if (res != 0) {
+		ast_log(LOG_WARNING, "No handler processed message from %s to %s\n",
+			S_OR(msg->from, "<unknown>"), S_OR(msg->to, "<unknown>"));
+	}
+
 	ao2_ref(msg, -1);
 
-	return 0;
+	return res;
+}
+
+int ast_msg_has_destination(const struct ast_msg *msg)
+{
+	int i;
+	int result = 0;
+
+	ast_rwlock_rdlock(&msg_handlers_lock);
+	for (i = 0; i < AST_VECTOR_SIZE(&msg_handlers); i++) {
+		const struct ast_msg_handler *handler = AST_VECTOR_GET(&msg_handlers, i);
+
+		ast_debug(5, "Seeing if %s can handle message\n", handler->name);
+		if (handler->has_destination(msg)) {
+			ast_debug(5, "%s can handle message\n", handler->name);
+			result = 1;
+			break;
+		}
+	}
+	ast_rwlock_unlock(&msg_handlers_lock);
+
+	return result;
 }
 
 int ast_msg_queue(struct ast_msg *msg)
 {
 	int res;
-
+	ast_log(LOG_ERROR, "@@@@@ to: %s from: %s exten: %s context: %s\n",
+		msg->to, msg->from, msg->exten, msg->context);
 	res = ast_taskprocessor_push(msg_q_tp, msg_q_cb, msg);
 	if (res == -1) {
 		ao2_ref(msg, -1);
@@ -899,11 +976,11 @@ static int msg_func_read(struct ast_channel *chan, const char *function,
 	ao2_lock(msg);
 
 	if (!strcasecmp(data, "to")) {
-		ast_copy_string(buf, ast_str_buffer(msg->to), len);
+		ast_copy_string(buf, msg->to, len);
 	} else if (!strcasecmp(data, "from")) {
-		ast_copy_string(buf, ast_str_buffer(msg->from), len);
+		ast_copy_string(buf, msg->from, len);
 	} else if (!strcasecmp(data, "body")) {
-		ast_copy_string(buf, ast_msg_get_body(msg), len);
+		ast_copy_string(buf, msg->body, len);
 	} else {
 		ast_log(LOG_WARNING, "Invalid argument to MESSAGE(): '%s'\n", data);
 	}
@@ -1041,57 +1118,57 @@ static int msg_data_func_write(struct ast_channel *chan, const char *function,
 
 	return 0;
 }
-static int msg_tech_hash(const void *obj, const int flags)
-{
-	struct ast_msg_tech_holder *tech_holder = (struct ast_msg_tech_holder *) obj;
-	int res = 0;
 
-	ast_rwlock_rdlock(&tech_holder->tech_lock);
-	if (tech_holder->tech) {
-		res = ast_str_case_hash(tech_holder->tech->name);
+/*!
+ * \internal \brief Find a \c ast_msg_tech by its technology name
+ *
+ * \param tech_name The name of the message technology
+ *
+ * \note \c msg_techs should be locked via \c msg_techs_lock prior to
+ *       calling this function
+ *
+ * \retval NULL if no \c ast_msg_tech has been registered
+ * \retval \c ast_msg_tech if registered
+ */
+static const struct ast_msg_tech *msg_find_by_tech_name(const char *tech_name)
+{
+	const struct ast_msg_tech *current;
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(&msg_techs); i++) {
+		current = AST_VECTOR_GET(&msg_techs, i);
+		if (!strcmp(current->name, tech_name)) {
+			return current;
+		}
 	}
-	ast_rwlock_unlock(&tech_holder->tech_lock);
 
-	return res;
+	return NULL;
 }
 
-static int msg_tech_cmp(void *obj, void *arg, int flags)
+/*!
+ * \internal \brief Find a \c ast_msg_handler by its technology name
+ *
+ * \param tech_name The name of the message technology
+ *
+ * \note \c msg_handlers should be locked via \c msg_handlers_lock
+ *       prior to calling this function
+ *
+ * \retval NULL if no \c ast_msg_handler has been registered
+ * \retval \c ast_msg_handler if registered
+ */
+static const struct ast_msg_handler *msg_handler_find_by_tech_name(const char *tech_name)
 {
-	struct ast_msg_tech_holder *tech_holder = obj;
-	const struct ast_msg_tech_holder *tech_holder2 = arg;
-	int res = 1;
+	const struct ast_msg_handler *current;
+	int i;
 
-	ast_rwlock_rdlock(&tech_holder->tech_lock);
-	/*
-	 * tech_holder2 is a temporary fake tech_holder.
-	 */
-	if (tech_holder->tech) {
-		res = strcasecmp(tech_holder->tech->name, tech_holder2->tech->name) ? 0 : CMP_MATCH | CMP_STOP;
+	for (i = 0; i < AST_VECTOR_SIZE(&msg_handlers); i++) {
+		current = AST_VECTOR_GET(&msg_handlers, i);
+		if (!strcmp(current->name, tech_name)) {
+			return current;
+		}
 	}
-	ast_rwlock_unlock(&tech_holder->tech_lock);
 
-	return res;
-}
-
-static struct ast_msg_tech_holder *msg_find_by_tech(const struct ast_msg_tech *msg_tech, int ao2_flags)
-{
-	struct ast_msg_tech_holder *tech_holder;
-	struct ast_msg_tech_holder tmp_tech_holder = {
-		.tech = msg_tech,
-	};
-
-	ast_rwlock_init(&tmp_tech_holder.tech_lock);
-	tech_holder = ao2_find(msg_techs, &tmp_tech_holder, ao2_flags);
-	ast_rwlock_destroy(&tmp_tech_holder.tech_lock);
-	return tech_holder;
-}
-
-static struct ast_msg_tech_holder *msg_find_by_tech_name(const char *tech_name, int ao2_flags)
-{
-	struct ast_msg_tech tmp_msg_tech = {
-		.name = tech_name,
-	};
-	return msg_find_by_tech(&tmp_msg_tech, ao2_flags);
+	return NULL;
 }
 
 /*!
@@ -1103,7 +1180,7 @@ static int msg_send_exec(struct ast_channel *chan, const char *data)
 	struct ast_datastore *ds;
 	struct ast_msg *msg;
 	char *tech_name;
-	struct ast_msg_tech_holder *tech_holder = NULL;
+	const struct ast_msg_tech *msg_tech;
 	char *parse;
 	int res = -1;
 	AST_DECLARE_APP_ARGS(args,
@@ -1142,9 +1219,10 @@ static int msg_send_exec(struct ast_channel *chan, const char *data)
 	tech_name = ast_strdupa(args.to);
 	tech_name = strsep(&tech_name, ":");
 
-	tech_holder = msg_find_by_tech_name(tech_name, OBJ_POINTER);
+	ast_rwlock_rdlock(&msg_techs_lock);
+	msg_tech = msg_find_by_tech_name(tech_name);
 
-	if (!tech_holder) {
+	if (!msg_tech) {
 		ast_log(LOG_WARNING, "No message technology '%s' found.\n", tech_name);
 		pbx_builtin_setvar_helper(chan, "MESSAGE_SEND_STATUS", "INVALID_PROTOCOL");
 		goto exit_cleanup;
@@ -1156,22 +1234,13 @@ static int msg_send_exec(struct ast_channel *chan, const char *data)
 	 * that they could change.
 	 */
 	ao2_lock(msg);
-	ast_rwlock_rdlock(&tech_holder->tech_lock);
-	if (tech_holder->tech) {
-		res = tech_holder->tech->msg_send(msg, S_OR(args.to, ""),
-							S_OR(args.from, ""));
-	}
-	ast_rwlock_unlock(&tech_holder->tech_lock);
+	res = msg_tech->msg_send(msg, S_OR(args.to, ""), S_OR(args.from, ""));
 	ao2_unlock(msg);
 
 	pbx_builtin_setvar_helper(chan, "MESSAGE_SEND_STATUS", res ? "FAILURE" : "SUCCESS");
 
 exit_cleanup:
-	if (tech_holder) {
-		ao2_ref(tech_holder, -1);
-		tech_holder = NULL;
-	}
-
+	ast_rwlock_unlock(&msg_techs_lock);
 	ao2_ref(msg, -1);
 
 	return 0;
@@ -1187,7 +1256,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	char *tech_name = NULL;
 	struct ast_variable *vars = NULL;
 	struct ast_variable *data = NULL;
-	struct ast_msg_tech_holder *tech_holder = NULL;
+	const struct ast_msg_tech *msg_tech;
 	struct ast_msg *msg;
 	int res = -1;
 
@@ -1204,15 +1273,16 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	tech_name = ast_strdupa(to);
 	tech_name = strsep(&tech_name, ":");
 
-	tech_holder = msg_find_by_tech_name(tech_name, OBJ_POINTER);
-
-	if (!tech_holder) {
+	ast_rwlock_rdlock(&msg_techs_lock);
+	msg_tech = msg_find_by_tech_name(tech_name);
+	if (!msg_tech) {
+		ast_rwlock_unlock(&msg_techs_lock);
 		astman_send_error(s, m, "Message technology not found.");
-		return -1;
+		return 0;
 	}
 
 	if (!(msg = ast_msg_alloc())) {
-		ao2_ref(tech_holder, -1);
+		ast_rwlock_unlock(&msg_techs_lock);
 		astman_send_error(s, m, "Internal failure\n");
 		return -1;
 	}
@@ -1224,14 +1294,11 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 
 	ast_msg_set_body(msg, "%s", body);
 
-	ast_rwlock_rdlock(&tech_holder->tech_lock);
-	if (tech_holder->tech) {
-		res = tech_holder->tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
-	}
-	ast_rwlock_unlock(&tech_holder->tech_lock);
+	res = msg_tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
+
+	ast_rwlock_unlock(&msg_techs_lock);
 
 	ast_variables_destroy(vars);
-	ao2_ref(tech_holder, -1);
 	ao2_ref(msg, -1);
 
 	if (res) {
@@ -1245,7 +1312,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
 {
 	char *tech_name = NULL;
-	struct ast_msg_tech_holder *tech_holder = NULL;
+	const struct ast_msg_tech *msg_tech;
 	int res = -1;
 
 	if (ast_strlen_zero(to)) {
@@ -1256,20 +1323,19 @@ int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
 	tech_name = ast_strdupa(to);
 	tech_name = strsep(&tech_name, ":");
 
-	tech_holder = msg_find_by_tech_name(tech_name, OBJ_POINTER);
+	ast_rwlock_rdlock(&msg_techs_lock);
+	msg_tech = msg_find_by_tech_name(tech_name);
 
-	if (!tech_holder) {
-		ao2_ref(msg, -1);
+	if (!msg_tech) {
+		ast_log(LOG_ERROR, "Unknown message tech: %s\n", tech_name);
+		ast_rwlock_unlock(&msg_techs_lock);
 		return -1;
 	}
 
-	ast_rwlock_rdlock(&tech_holder->tech_lock);
-	if (tech_holder->tech) {
-		res = tech_holder->tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
-	}
-	ast_rwlock_unlock(&tech_holder->tech_lock);
+	res = msg_tech->msg_send(msg, S_OR(to, ""), S_OR(from, ""));
 
-	ao2_ref(tech_holder, -1);
+	ast_rwlock_unlock(&msg_techs_lock);
+
 	ao2_ref(msg, -1);
 
 	return res;
@@ -1277,52 +1343,111 @@ int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
 
 int ast_msg_tech_register(const struct ast_msg_tech *tech)
 {
-	struct ast_msg_tech_holder *tech_holder;
+	const struct ast_msg_tech *match;
 
-	if ((tech_holder = msg_find_by_tech(tech, OBJ_POINTER))) {
-		ao2_ref(tech_holder, -1);
+	ast_rwlock_wrlock(&msg_techs_lock);
+
+	match = msg_find_by_tech_name(tech->name);
+	if (match) {
 		ast_log(LOG_ERROR, "Message technology already registered for '%s'\n",
-				tech->name);
+		        tech->name);
+		ast_rwlock_unlock(&msg_techs_lock);
 		return -1;
 	}
 
-	if (!(tech_holder = ao2_alloc(sizeof(*tech_holder), NULL))) {
-		return -1;
-	}
+	AST_VECTOR_APPEND(&msg_techs, tech);
+	ast_verb(3, "Message technology '%s' registered.\n", tech->name);
 
-	ast_rwlock_init(&tech_holder->tech_lock);
-	tech_holder->tech = tech;
-
-	ao2_link(msg_techs, tech_holder);
-
-	ao2_ref(tech_holder, -1);
-	tech_holder = NULL;
-
-	ast_verb(3, "Message technology handler '%s' registered.\n", tech->name);
+	ast_rwlock_unlock(&msg_techs_lock);
 
 	return 0;
 }
 
+/*!
+ * \brief Comparison callback for \c ast_msg_tech vector removal
+ *
+ * \param vec_elem The element in the vector being compared
+ * \param srch The element being looked up
+ *
+ * \retval non-zero The items are equal
+ * \retval 0 The items are not equal
+ */
+static int msg_tech_cmp(const struct ast_msg_tech *vec_elem, const struct ast_msg_tech *srch)
+{
+	return !strcmp(vec_elem->name, srch->name);
+}
+
 int ast_msg_tech_unregister(const struct ast_msg_tech *tech)
 {
-	struct ast_msg_tech_holder *tech_holder;
+	int match;
 
-	tech_holder = msg_find_by_tech(tech, OBJ_POINTER | OBJ_UNLINK);
+	ast_rwlock_wrlock(&msg_techs_lock);
+	match = AST_VECTOR_REMOVE_CMP_UNORDERED(&msg_techs, tech, msg_tech_cmp,
+	                                        AST_VECTOR_ELEM_CLEANUP_NOOP);
+	ast_rwlock_unlock(&msg_techs_lock);
 
-	if (!tech_holder) {
+	if (match) {
 		ast_log(LOG_ERROR, "No '%s' message technology found.\n", tech->name);
 		return -1;
 	}
 
-	ast_rwlock_wrlock(&tech_holder->tech_lock);
-	tech_holder->tech = NULL;
-	ast_rwlock_unlock(&tech_holder->tech_lock);
+	ast_verb(2, "Message technology '%s' unregistered.\n", tech->name);
 
-	ao2_ref(tech_holder, -1);
-	tech_holder = NULL;
+	return 0;
+}
 
-	ast_verb(3, "Message technology handler '%s' unregistered.\n", tech->name);
+int ast_msg_handler_register(const struct ast_msg_handler *handler)
+{
+	const struct ast_msg_handler *match;
 
+	ast_rwlock_wrlock(&msg_handlers_lock);
+
+	match = msg_handler_find_by_tech_name(handler->name);
+	if (match) {
+		ast_log(LOG_ERROR, "Message handler already registered for '%s'\n",
+		        handler->name);
+		ast_rwlock_unlock(&msg_handlers_lock);
+		return -1;
+	}
+
+	AST_VECTOR_APPEND(&msg_handlers, handler);
+	ast_verb(2, "Message handler '%s' registered.\n", handler->name);
+
+	ast_rwlock_unlock(&msg_handlers_lock);
+
+	return 0;
+
+}
+
+/*!
+ * \brief Comparison callback for \c ast_msg_handler vector removal
+ *
+ * \param vec_elem The element in the vector being compared
+ * \param srch The element being looked up
+ *
+ * \retval non-zero The items are equal
+ * \retval 0 The items are not equal
+ */
+static int msg_handler_cmp(const struct ast_msg_handler *vec_elem, const struct ast_msg_handler *srch)
+{
+	return !strcmp(vec_elem->name, srch->name);
+}
+
+int ast_msg_handler_unregister(const struct ast_msg_handler *handler)
+{
+	int match;
+
+	ast_rwlock_wrlock(&msg_handlers_lock);
+	match = AST_VECTOR_REMOVE_CMP_UNORDERED(&msg_handlers, handler, msg_handler_cmp,
+	                                        AST_VECTOR_ELEM_CLEANUP_NOOP);
+	ast_rwlock_unlock(&msg_handlers_lock);
+
+	if (match) {
+		ast_log(LOG_ERROR, "No '%s' message handler found.\n", handler->name);
+		return -1;
+	}
+
+	ast_verb(3, "Message handler '%s' unregistered.\n", handler->name);
 	return 0;
 }
 
@@ -1343,15 +1468,18 @@ void ast_msg_shutdown(void)
  */
 static void message_shutdown(void)
 {
+	ast_msg_handler_unregister(&dialplan_msg_handler);
+
 	ast_custom_function_unregister(&msg_function);
 	ast_custom_function_unregister(&msg_data_function);
 	ast_unregister_application(app_msg_send);
 	ast_manager_unregister("MessageSend");
 
-	if (msg_techs) {
-		ao2_ref(msg_techs, -1);
-		msg_techs = NULL;
-	}
+	AST_VECTOR_FREE(&msg_techs);
+	ast_rwlock_destroy(&msg_techs_lock);
+
+	AST_VECTOR_FREE(&msg_handlers);
+	ast_rwlock_destroy(&msg_handlers_lock);
 }
 
 /*
@@ -1373,12 +1501,19 @@ int ast_msg_init(void)
 		return -1;
 	}
 
-	msg_techs = ao2_container_alloc(17, msg_tech_hash, msg_tech_cmp);
-	if (!msg_techs) {
+	ast_rwlock_init(&msg_techs_lock);
+	if (AST_VECTOR_INIT(&msg_techs, 8)) {
 		return -1;
 	}
 
-	res = __ast_custom_function_register(&msg_function, NULL);
+	ast_rwlock_init(&msg_handlers_lock);
+	if (AST_VECTOR_INIT(&msg_handlers, 4)) {
+		return -1;
+	}
+
+	res = ast_msg_handler_register(&dialplan_msg_handler);
+
+	res |= __ast_custom_function_register(&msg_function, NULL);
 	res |= __ast_custom_function_register(&msg_data_function, NULL);
 	res |= ast_register_application2(app_msg_send, msg_send_exec, NULL, NULL, NULL);
 	res |= ast_manager_register_xml_core("MessageSend", EVENT_FLAG_MESSAGE, action_messagesend);

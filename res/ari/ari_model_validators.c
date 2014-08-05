@@ -588,6 +588,140 @@ ari_validator ast_ari_validate_endpoint_fn(void)
 	return ast_ari_validate_endpoint;
 }
 
+int ast_ari_validate_text_message(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_body = 0;
+	int has_from = 0;
+	int has_to = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("body", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_body = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessage field body failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("from", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_from = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessage field from failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("to", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_to = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessage field to failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("variables", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_text_message_variable);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessage field variables failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI TextMessage has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_body) {
+		ast_log(LOG_ERROR, "ARI TextMessage missing required field body\n");
+		res = 0;
+	}
+
+	if (!has_from) {
+		ast_log(LOG_ERROR, "ARI TextMessage missing required field from\n");
+		res = 0;
+	}
+
+	if (!has_to) {
+		ast_log(LOG_ERROR, "ARI TextMessage missing required field to\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_text_message_fn(void)
+{
+	return ast_ari_validate_text_message;
+}
+
+int ast_ari_validate_text_message_variable(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_key = 0;
+	int has_value = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("key", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_key = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageVariable field key failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("value", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_value = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageVariable field value failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI TextMessageVariable has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_key) {
+		ast_log(LOG_ERROR, "ARI TextMessageVariable missing required field key\n");
+		res = 0;
+	}
+
+	if (!has_value) {
+		ast_log(LOG_ERROR, "ARI TextMessageVariable missing required field value\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_text_message_variable_fn(void)
+{
+	return ast_ari_validate_text_message_variable;
+}
+
 int ast_ari_validate_caller_id(struct ast_json *json)
 {
 	int res = 1;
@@ -3890,6 +4024,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("StasisStart", discriminator) == 0) {
 		return ast_ari_validate_stasis_start(json);
 	} else
+	if (strcmp("TextMessageReceived", discriminator) == 0) {
+		return ast_ari_validate_text_message_received(json);
+	} else
 	{
 		ast_log(LOG_ERROR, "ARI Event has undocumented subtype %s\n",
 			discriminator);
@@ -4060,6 +4197,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("StasisStart", discriminator) == 0) {
 		return ast_ari_validate_stasis_start(json);
+	} else
+	if (strcmp("TextMessageReceived", discriminator) == 0) {
+		return ast_ari_validate_text_message_received(json);
 	} else
 	{
 		ast_log(LOG_ERROR, "ARI Message has undocumented subtype %s\n",
@@ -4722,6 +4862,94 @@ int ast_ari_validate_stasis_start(struct ast_json *json)
 ari_validator ast_ari_validate_stasis_start_fn(void)
 {
 	return ast_ari_validate_stasis_start;
+}
+
+int ast_ari_validate_text_message_received(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_message = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageReceived field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageReceived field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageReceived field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("endpoint", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_endpoint(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageReceived field endpoint failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("message", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_message = 1;
+			prop_is_valid = ast_ari_validate_text_message(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI TextMessageReceived field message failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI TextMessageReceived has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI TextMessageReceived missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI TextMessageReceived missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_message) {
+		ast_log(LOG_ERROR, "ARI TextMessageReceived missing required field message\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_text_message_received_fn(void)
+{
+	return ast_ari_validate_text_message_received;
 }
 
 int ast_ari_validate_application(struct ast_json *json)

@@ -1010,6 +1010,27 @@ struct ast_party_id;
  */
 struct ast_json *ast_json_party_id(struct ast_party_id *party);
 
+/*!
+ * \brief Convert a \c ast_json list of key/value pair tuples into a \c ast_variable list
+ * \since 12.5.0
+ *
+ * \param json_variables The JSON blob containing the variable
+ * \param variables An out reference to the variables to populate.
+ *        The pointer to the variables should be NULL when calling this.
+ *
+ * \code
+ * struct ast_json *json_variables = ast_json_pack("[ { s: s } ]", "foo", "bar");
+ * struct ast_variable *variables = NULL;
+ * int res;
+ *
+ * res = ast_json_to_ast_variables(json_variables, &variables);
+ * \endcode
+ *
+ * \retval 0 success
+ * \retval -1 error
+ */
+int ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables);
+
 /*!@}*/
 
 #endif /* _ASTERISK_JSON_H */
