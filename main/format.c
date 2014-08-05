@@ -1028,7 +1028,16 @@ static int format_list_init(void)
 	if (!(format_list = ao2_container_alloc(1, NULL, list_cmp_cb))) {
 		return -1;
 	}
-	/* initiate static entries XXX DO NOT CHANGE THIS ORDER! */
+	/*
+	 * initiate static entries XXX DO NOT CHANGE THIS ORDER!
+	 *
+	 * Reason:
+	 * The order is requried by chan_iax2 to send out the IAX_IE_CODEC_PREFS
+	 * list over the wire.  The following order is historical to how v1.8
+	 * and earlier listed the formats in format.c:AST_FORMAT_LIST[].  These
+	 * formats have format compatibility bits assigned which makes chan_iax2
+	 * in particular and other legacy modules aware of them.
+	 */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G723_1, 0), "g723", 8000, "G.723.1", 20, 30, 300, 30, 30, 0, 0);       /*!< G723.1 */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_GSM, 0), "gsm",  8000, "GSM", 33, 20, 300, 20, 20, 0, 0);              /*!< codec_gsm.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_ULAW, 0), "ulaw", 8000, "G.711 u-law", 80, 10, 150, 10, 20, 0, 0);     /*!< codec_ulaw.c */
@@ -1058,7 +1067,14 @@ static int format_list_init(void)
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_TESTLAW, 0), "testlaw", 8000, "G.711 test-law", 80, 10, 150, 10, 20, 0, 0);    /*!< codec_ulaw.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G719, 0), "g719", 48000, "ITU G.719", 160, 20, 80, 20, 20, 0, 0);
 
-	/* ORDER MAY CHANGE AFTER THIS POINT IN THE LIST */
+	/*
+	 * ORDER MAY CHANGE AFTER THIS POINT IN THE LIST
+	 *
+	 * Reason:
+	 * These formats and any that follow do NOT have format compatibility
+	 * bits assigned so chan_iax2 in particular and other legacy modules
+	 * that use compatibility bits will not be aware of them.
+	 */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SPEEX32, 0), "speex32", 32000, "SpeeX 32khz", 10, 10, 60, 10, 20, 0, 0);   /*!< codec_speex.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR12, 0), "slin12", 12000, "16 bit Signed Linear PCM (12kHz)", 240, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE, 0);/*!< Signed linear (12kHz) */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR24, 0), "slin24", 24000, "16 bit Signed Linear PCM (24kHz)", 480, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE, 0);/*!< Signed linear (24kHz) */
