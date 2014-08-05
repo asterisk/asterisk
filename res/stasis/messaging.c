@@ -90,7 +90,7 @@ static struct application_tuple *application_tuple_alloc(const char *app_name, m
 
 	ast_assert(callback != NULL);
 
-	tuple = ao2_t_alloc(size, application_tuple_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	tuple = ao2_alloc_options(size, application_tuple_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!tuple) {
 		return NULL;
 	}
@@ -122,7 +122,7 @@ static struct message_subscription *message_subscription_alloc(const char *token
 	struct message_subscription *sub;
 	size_t size = sizeof(*sub) + strlen(token) + 1;
 
-	sub = ao2_t_alloc(size, message_subscription_dtor, AO2_ALLOC_OPT_LOCK_RWLOCK);
+	sub = ao2_alloc_options(size, message_subscription_dtor, AO2_ALLOC_OPT_LOCK_RWLOCK);
 	if (!sub) {
 		return NULL;
 	}
