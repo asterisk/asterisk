@@ -164,7 +164,8 @@
 				"EndpointStateChange",
 				"Dial",
 				"StasisEnd",
-				"StasisStart"
+				"StasisStart",
+				"TextMessageReceived"
 			]
 		},
 		"DeviceStateChanged": {
@@ -669,6 +670,20 @@
 				"channel": {
 					"required": true,
 					"type": "Channel"
+				}
+			}
+		},
+		"TextMessageReceived": {
+			"id": "TextMessageReceived",
+			"description": "A text message was received from an endpoint.",
+			"properties": {
+				"message": {
+					"required": true,
+					"type": "TextMessage"
+				},
+				"endpoint": {
+					"required": false,
+					"type": "Endpoint"
 				}
 			}
 		}

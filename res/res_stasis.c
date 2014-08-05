@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "stasis/app.h"
 #include "stasis/control.h"
+#include "stasis/messaging.h"
 #include "stasis/stasis_bridge.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/musiconhold.h"
@@ -1433,6 +1434,8 @@ static int unload_module(void)
 {
 	stasis_app_unregister_event_sources();
 
+	messaging_cleanup();
+
 	ao2_cleanup(apps_registry);
 	apps_registry = NULL;
 
@@ -1491,6 +1494,11 @@ static int load_module(void)
 		AO2_ALLOC_OPT_LOCK_MUTEX, AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT,
 		37, bridges_channel_hash_fn, bridges_channel_sort_fn, NULL);
 	if (!apps_registry || !app_controls || !app_bridges || !app_bridges_moh || !app_bridges_playback) {
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (messaging_init()) {
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}

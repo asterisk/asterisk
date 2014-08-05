@@ -20,6 +20,58 @@
 			]
 		},
 		{
+			"path": "/endpoints/sendMessage",
+			"description": "Send a message to some technology URI or endpoint.",
+			"operations": [
+				{
+					"httpMethod": "PUT",
+					"summary": "Send a message to some technology URI or endpoint.",
+					"nickname": "sendMessage",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "to",
+							"description": "The endpoint resource or technology specific URI to send the message to. Valid resources are sip, pjsip, and xmpp.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "from",
+							"description": "The endpoint resource or technology specific identity to send this message from. Valid resources are sip, pjsip, and xmpp.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "body",
+							"description": "The body of the message",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "variables",
+							"descriptioni": "The \"variables\" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, pjsip and sip resource types will add the key/value pairs as SIP headers,",
+							"paramType": "body",
+							"required": false,
+							"dataType": "containers",
+							"allowMultiple": false
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Endpoint not found"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/endpoints/{tech}",
 			"description": "Asterisk endpoints",
 			"operations": [
@@ -70,8 +122,72 @@
 					],
 					"errorResponses": [
 						{
+							"code": 400,
+							"reason": "Invalid parameters for sending a message."
+						},
+						{
 							"code": 404,
 							"reason": "Endpoints not found"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/endpoints/{tech}/{resource}/sendMessage",
+			"description": "Send a message to some endpoint in a technology.",
+			"operations": [
+				{
+					"httpMethod": "PUT",
+					"summary": "Send a message to some endpoint in a technology.",
+					"nickname": "sendMessageToEndpoint",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "tech",
+							"description": "Technology of the endpoint",
+							"paramType": "path",
+							"dataType": "string"
+						},
+						{
+							"name": "resource",
+							"description": "ID of the endpoint",
+							"paramType": "path",
+							"dataType": "string"
+						},
+						{
+							"name": "from",
+							"description": "The endpoint resource or technology specific identity to send this message from. Valid resources are sip, pjsip, and xmpp.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "body",
+							"description": "The body of the message",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "variables",
+							"descriptioni": "The \"variables\" key in the body object holds technology specific key/value pairs to append to the message. These can be interpreted and used by the various resource types; for example, pjsip and sip resource types will add the key/value pairs as SIP headers,",
+							"paramType": "body",
+							"required": false,
+							"dataType": "containers",
+							"allowMultiple": false
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Invalid parameters for sending a message."
+						},
+						{
+							"code": 404,
+							"reason": "Endpoint not found"
 						}
 					]
 				}
@@ -110,6 +226,48 @@
 					"type": "List[string]",
 					"description": "Id's of channels associated with this endpoint",
 					"required": true
+				}
+			}
+		},
+		"TextMessageVariable": {
+			"id": "TextMessageVariable",
+			"description": "A key/value pair variable in a text message.",
+			"properties": {
+				"key": {
+					"type": "string",
+					"description": "A unique key identifying the variable.",
+					"required": true
+				},
+				"value": {
+					"type": "string",
+					"description": "The value of the variable.",
+					"required": true
+				}
+			}
+		},
+		"TextMessage": {
+			"id": "TextMessage",
+			"description": "A text message.",
+			"properties": {
+				"from": {
+					"type": "string",
+					"description": "A technology specific URI specifying the source of the message. For sip and pjsip technologies, any SIP URI can be specified. For xmpp, the URI must correspond to the client connection being used to send the message.",
+					"required": true
+				},
+				"to": {
+					"type": "string",
+					"description": "A technology specific URI specifying the destination of the message. Valid technologies include sip, pjsip, and xmp. The destination of a message should be an endpoint.",
+					"required": true
+				},
+				"body": {
+					"type": "string",
+					"description": "The text of the message.",
+					"required": true
+				},
+				"variables": {
+					"type": "List[TextMessageVariable]",
+					"description": "Technology specific key/value pairs associated with the message.",
+					"required": false
 				}
 			}
 		}

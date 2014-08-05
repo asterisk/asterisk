@@ -28,6 +28,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "app.h"
+#include "messaging.h"
 
 #include "asterisk/callerid.h"
 #include "asterisk/stasis_app.h"
@@ -509,6 +510,44 @@ static struct ast_json *simple_endpoint_event(
 		"type", type,
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"endpoint", json_endpoint);
+}
+
+static int message_received_handler(const char *endpoint_id, struct ast_json *json_msg, void *pvt)
+{
+	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
+	struct ast_json *json_endpoint;
+	struct stasis_app *app = pvt;
+	char *tech;
+	char *resource;
+
+	tech = ast_strdupa(endpoint_id);
+	resource = strchr(tech, '/');
+	if (resource) {
+		resource[0] = '\0';
+		resource++;
+	}
+
+	if (ast_strlen_zero(tech) || ast_strlen_zero(resource)) {
+		return -1;
+	}
+
+	snapshot = ast_endpoint_latest_snapshot(tech, resource);
+	if (!snapshot) {
+		return -1;
+	}
+
+	json_endpoint = ast_endpoint_snapshot_to_json(snapshot, stasis_app_get_sanitizer());
+	if (!json_endpoint) {
+		return -1;
+	}
+
+	app_send(app, ast_json_pack("{s: s, s: o, s: o, s: O}",
+		"type", "TextMessageReceived",
+		"timestamp", ast_json_timeval(ast_tvnow(), NULL),
+		"endpoint", json_endpoint,
+		"message", json_msg));
+
+	return 0;
 }
 
 static void sub_endpoint_update_handler(void *data,
@@ -1018,6 +1057,10 @@ static int unsubscribe(struct stasis_app *app, const char *kind, const char *id,
 		ao2_find(app->forwards, forwards,
 			OBJ_POINTER | OBJ_NOLOCK | OBJ_UNLINK |
 			OBJ_NODATA);
+
+		if (!strcmp(kind, "endpoint")) {
+			messaging_app_unsubscribe_endpoint(app->name, id);
+		}
 	}
 
 	return 0;
@@ -1148,6 +1191,9 @@ int app_subscribe_endpoint(struct stasis_app *app, struct ast_endpoint *endpoint
 				return -1;
 			}
 			ao2_link_flags(app->forwards, forwards, OBJ_NOLOCK);
+
+			/* Subscribe for messages */
+			messaging_app_subscribe_endpoint(app->name, endpoint, &message_received_handler, app);
 		}
 
 		++forwards->interested;

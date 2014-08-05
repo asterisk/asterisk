@@ -881,3 +881,33 @@ struct ast_json *ast_json_party_id(struct ast_party_id *party)
 
 	return ast_json_ref(json_party_id);
 }
+
+int ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables)
+{
+	struct ast_json_iter *it_json_var;
+
+	*variables = NULL;
+
+	for (it_json_var = ast_json_object_iter(json_variables); it_json_var;
+		 it_json_var = ast_json_object_iter_next(json_variables, it_json_var)) {
+		struct ast_variable *new_var;
+		const char *key = ast_json_object_iter_key(it_json_var);
+
+		if (ast_strlen_zero(key)) {
+			continue;
+		}
+
+		new_var = ast_variable_new(key,
+		                           ast_json_string_get(ast_json_object_iter_value(it_json_var)),
+		                           "");
+		if (!new_var) {
+			ast_variables_destroy(*variables);
+			*variables = NULL;
+			return -1;
+		}
+
+		ast_variable_list_append(variables, new_var);
+	}
+
+	return 0;
+}

@@ -47,37 +47,7 @@ const pjsip_method pjsip_message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };
 
 #define MAX_HDR_SIZE 512
 #define MAX_BODY_SIZE 1024
-#define MAX_EXTEN_SIZE 256
 #define MAX_USER_SIZE 128
-
-/*!
- * \internal
- * \brief Determine where in the dialplan a call should go
- *
- * \details This uses the username in the request URI to try to match
- * an extension in an endpoint's context in order to route the call.
- *
- * \param rdata The SIP request
- * \param context The context to use
- * \param exten The extension to use
- */
-static enum pjsip_status_code get_destination(const pjsip_rx_data *rdata, const char *context, char *exten)
-{
-	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
-	pjsip_sip_uri *sip_ruri;
-
-	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
-		return PJSIP_SC_UNSUPPORTED_URI_SCHEME;
-	}
-
-	sip_ruri = pjsip_uri_get_uri(ruri);
-	ast_copy_pj_str(exten, &sip_ruri->user, MAX_EXTEN_SIZE);
-
-	if (ast_exists_extension(NULL, context, exten, 1, NULL)) {
-		return PJSIP_SC_OK;
-	}
-	return PJSIP_SC_NOT_FOUND;
-}
 
 /*!
  * \internal
@@ -244,7 +214,6 @@ static void update_from(pjsip_tx_data *tdata, char *from)
 				      PJSIP_PARSE_URI_AS_NAMEADDR))) {
 		pjsip_name_addr *parsed_name_addr = (pjsip_name_addr *)parsed;
 		pjsip_sip_uri *parsed_uri = pjsip_uri_get_uri(parsed_name_addr->uri);
-
 		if (pj_strlen(&parsed_name_addr->display)) {
 			pj_strdup(tdata->pool, &name_addr->display,
 				  &parsed_name_addr->display);
@@ -458,58 +427,62 @@ static char *sip_to_pjsip(char *buf, int size, int capacity)
  */
 static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct ast_msg *msg)
 {
-
-#define CHECK_RES(z_) do { if (z_) { ast_msg_destroy(msg); \
-		return PJSIP_SC_INTERNAL_SERVER_ERROR; } } while (0)
-
-	int size;
-	char buf[MAX_BODY_SIZE];
-	pjsip_name_addr *name_addr;
-	const char *field;
-	pjsip_status_code code;
 	struct ast_sip_endpoint *endpt = ast_pjsip_rdata_get_endpoint(rdata);
+	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
+	pjsip_sip_uri *sip_ruri;
+	pjsip_name_addr *name_addr;
+	char buf[MAX_BODY_SIZE];
+	const char *field;
 	const char *context = S_OR(endpt->message_context, endpt->context);
+	char exten[AST_MAX_EXTENSION];
+	int res = 0;
+	int size;
 
-	/* make sure there is an appropriate context and extension*/
-	if ((code = get_destination(rdata, context, buf)) != PJSIP_SC_OK) {
-		return code;
+	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
+		return PJSIP_SC_UNSUPPORTED_URI_SCHEME;
 	}
 
-	CHECK_RES(ast_msg_set_context(msg, "%s", context));
-	CHECK_RES(ast_msg_set_exten(msg, "%s", buf));
+	sip_ruri = pjsip_uri_get_uri(ruri);
+	ast_copy_pj_str(exten, &sip_ruri->user, AST_MAX_EXTENSION);
+
+	res |= ast_msg_set_context(msg, "%s", context);
+	res |= ast_msg_set_exten(msg, "%s", exten);
 
 	/* to header */
 	name_addr = (pjsip_name_addr *)rdata->msg_info.to->uri;
-	if ((size = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, name_addr, buf, sizeof(buf)-1)) > 0) {
-		buf[size] = '\0';
-		/* prepend the tech */
-		CHECK_RES(ast_msg_set_to(msg, "%s", sip_to_pjsip(buf, ++size, sizeof(buf)-1)));
+	size = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, name_addr, buf, sizeof(buf) - 1);
+	if (size <= 0) {
+		return PJSIP_SC_INTERNAL_SERVER_ERROR;
 	}
+	buf[size] = '\0';
+	res |= ast_msg_set_to(msg, "%s", sip_to_pjsip(buf, ++size, sizeof(buf) - 1));
 
 	/* from header */
 	name_addr = (pjsip_name_addr *)rdata->msg_info.from->uri;
-	if ((size = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, name_addr, buf, sizeof(buf)-1)) > 0) {
-		buf[size] = '\0';
-		CHECK_RES(ast_msg_set_from(msg, "%s", buf));
+	size = pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, name_addr, buf, sizeof(buf) - 1);
+	if (size <= 0) {
+		return PJSIP_SC_INTERNAL_SERVER_ERROR;
 	}
+	buf[size] = '\0';
+	res |= ast_msg_set_from(msg, "%s", buf);
 
-	/* receive address */
-	field = pj_sockaddr_print(&rdata->pkt_info.src_addr, buf, sizeof(buf)-1, 1);
-	CHECK_RES(ast_msg_set_var(msg, "PJSIP_RECVADDR", field));
+	field = pj_sockaddr_print(&rdata->pkt_info.src_addr, buf, sizeof(buf) - 1, 1);
+	res |= ast_msg_set_var(msg, "PJSIP_RECVADDR", field);
 
-	/* body */
 	if (print_body(rdata, buf, sizeof(buf) - 1) > 0) {
-		CHECK_RES(ast_msg_set_body(msg, "%s", buf));
+		res |= ast_msg_set_body(msg, "%s", buf);
 	}
 
 	/* endpoint name */
+	res |= ast_msg_set_tech(msg, "%s", "PJSIP");
+	res |= ast_msg_set_endpoint(msg, "%s", ast_sorcery_object_get_id(endpt));
 	if (endpt->id.self.name.valid) {
-		CHECK_RES(ast_msg_set_var(msg, "PJSIP_PEERNAME", endpt->id.self.name.str));
+		res |= ast_msg_set_var(msg, "PJSIP_ENDPOINT", endpt->id.self.name.str);
 	}
 
-	CHECK_RES(headers_to_vars(rdata, msg));
+	res |= headers_to_vars(rdata, msg);
 
-	return PJSIP_SC_OK;
+	return !res ? PJSIP_SC_OK : PJSIP_SC_INTERNAL_SERVER_ERROR;
 }
 
 struct msg_data {
@@ -547,17 +520,14 @@ static struct msg_data* msg_data_create(const struct ast_msg *msg, const char *t
 		return NULL;
 	}
 
-	/* if there is another sip in the uri then we are good,
-	   otherwise it needs a sip: in front */
-	mdata->to = to == skip_sip(to) ? ast_strdup(to - 3) :
-		ast_strdup(++to);
+	/* Make sure we start with sip: */
+	mdata->to = ast_begins_with(to, "sip:") ? ast_strdup(++to) : ast_strdup(to - 3);
 	mdata->from = ast_strdup(from);
 
 	/* sometimes from can still contain the tag at this point, so remove it */
 	if ((tag = strchr(mdata->from, ';'))) {
 		*tag = '\0';
 	}
-
 	return mdata;
 }
 
@@ -577,8 +547,8 @@ static int msg_send(void *data)
 			 mdata->to, &uri), ao2_cleanup);
 
 	if (!endpoint) {
-		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not find endpoint and "
-			"no default outbound endpoint configured\n");
+		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not find endpoint '%s' and "
+			"no default outbound endpoint configured\n", mdata->to);
 		return -1;
 	}
 
@@ -597,6 +567,9 @@ static int msg_send(void *data)
 	}
 
 	vars_to_headers(mdata->msg, tdata);
+
+	ast_debug(1, "Sending message to '%s' (via endpoint %s) from '%s'\n",
+		mdata->to, ast_sorcery_object_get_id(endpoint), mdata->from);
 
 	if (ast_sip_send_request(tdata, NULL, endpoint, NULL, NULL)) {
 		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not send request\n");
@@ -670,24 +643,36 @@ static pj_bool_t module_on_rx_request(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
+	code = check_content_type(rdata);
+	if (code != PJSIP_SC_OK) {
+		send_response(rdata, code, NULL, NULL);
+		return PJ_TRUE;
+	}
+
 	msg = ast_msg_alloc();
 	if (!msg) {
 		send_response(rdata, PJSIP_SC_INTERNAL_SERVER_ERROR, NULL, NULL);
 		return PJ_TRUE;
 	}
 
-	if ((code = check_content_type(rdata)) != PJSIP_SC_OK) {
+	code = rx_data_to_ast_msg(rdata, msg);
+	if (code != PJSIP_SC_OK) {
 		send_response(rdata, code, NULL, NULL);
+		ast_msg_destroy(msg);
 		return PJ_TRUE;
 	}
 
-	if ((code = rx_data_to_ast_msg(rdata, msg)) == PJSIP_SC_OK) {
-		/* send it to the dialplan */
-		ast_msg_queue(msg);
-		code = PJSIP_SC_ACCEPTED;
+	if (!ast_msg_has_destination(msg)) {
+		ast_debug(1, "MESSAGE request received, but no handler wanted it\n");
+		send_response(rdata, PJSIP_SC_NOT_FOUND, NULL, NULL);
+		ast_msg_destroy(msg);
+		return PJ_TRUE;
 	}
 
-	send_response(rdata, code, NULL, NULL);
+	/* send it to the messaging core */
+	ast_msg_queue(msg);
+	send_response(rdata, PJSIP_SC_ACCEPTED, NULL, NULL);
+
 	return PJ_TRUE;
 }
 

@@ -61,7 +61,7 @@
 #define AST_VECTOR_INIT(vec, size) ({					\
 	size_t __size = (size);						\
 	size_t alloc_size = __size * sizeof(*((vec)->elems));		\
-	(vec)->elems = alloc_size ? ast_malloc(alloc_size) : NULL;	\
+	(vec)->elems = alloc_size ? ast_calloc(1, alloc_size) : NULL;	\
 	(vec)->current = 0;						\
 	if ((vec)->elems) {						\
 		(vec)->max = __size;					\
@@ -113,6 +113,48 @@
 		(vec)->elems[(vec)->current++] = (elem);			\
 	} while (0);								\
 	res;									\
+})
+
+/*!
+ * \brief Insert an element at a specific position in a vector, growing the vector if needed.
+ *
+ * \param vec Vector to insert into.
+ * \param idx Position to insert at.
+ * \param elem Element to insert.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ *
+ * \warning This macro will overwrite anything already present at the position provided.
+ *
+ * \warning Use of this macro with the expectation that the element will remain at the provided
+ * index means you can not use the UNORDERED assortment of macros. These macros alter the ordering
+ * of the vector itself.
+ */
+#define AST_VECTOR_INSERT(vec, idx, elem) ({					\
+	int res = 0;												\
+	do {														\
+		if (((idx) + 1) > (vec)->max) {							\
+			size_t new_max = ((idx) + 1) * 2;					\
+			typeof((vec)->elems) new_elems = ast_calloc(1,		\
+				new_max * sizeof(*new_elems));					\
+			if (new_elems) {									\
+				memcpy(new_elems, (vec)->elems,					\
+					(vec)->current * sizeof(*new_elems));		\
+				ast_free((vec)->elems);							\
+				(vec)->elems = new_elems;						\
+				(vec)->max = new_max;							\
+			} else {											\
+				res = -1;										\
+				break;											\
+			}													\
+		}														\
+		(vec)->elems[(idx)] = (elem);							\
+		if (((idx) + 1) > (vec)->current) {						\
+			(vec)->current = (idx) + 1;							\
+		}														\
+	} while(0);													\
+	res;														\
 })
 
 /*!
