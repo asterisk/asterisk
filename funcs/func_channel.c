@@ -213,6 +213,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="recvip">
 						<para>R/O Get the source IP address of the peer.</para>
 					</enum>
+					<enum name="recvport">
+						<para>R/O Get the source port of the peer.</para>
+					</enum>
 					<enum name="from">
 						<para>R/O Get the URI from the From: header.</para>
 					</enum>
