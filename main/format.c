@@ -1079,12 +1079,12 @@ static int format_list_init(void)
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G719, 0), "g719", 48000, "ITU G.719", 160, 20, 80, 20, 20, 0, 0);
 
 	/*
-	 * XXX Because of a coding blunder, Opus and VP8 have assigned
-	 * format compatibility bits and were placed after eight
-	 * formats that do NOT have format compatibility bits.  This
-	 * means that chan_iax2 now has a gap of eight between G.719
-	 * and Opus for the IAX_IE_CODEC_PREFS list sent out over the
-	 * wire.
+	 * XXX Because of an unexpected chan_iax2 dependency, Opus
+	 * and VP8 have assigned format compatibility bits and were
+	 * placed after eight formats that do NOT have format
+	 * compatibility bits.  This means that chan_iax2 now has a
+	 * gap of eight between G.719 and Opus for the
+	 * IAX_IE_CODEC_PREFS list sent out over the wire.
 	 *
 	 * Eight formats now must stay between G.719 and Opus.  If more
 	 * formats are added with assigned format compatibility bits,
