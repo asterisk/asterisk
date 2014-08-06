@@ -1015,15 +1015,22 @@ struct ast_json *ast_test_suite_get_blob(struct ast_test_suite_message_payload *
 void __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
 {
 	RAII_VAR(struct ast_test_suite_message_payload *, payload,
-			ao2_alloc(sizeof(*payload), test_suite_message_payload_dtor),
+			NULL,
 			ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_str *, buf, ast_str_create(128), ast_free);
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
 	va_list ap;
 
+	if (!ast_test_suite_message_type()) {
+		return;
+	}
+
+	buf = ast_str_create(128);
 	if (!buf) {
 		return;
 	}
+
+	payload = ao2_alloc(sizeof(*payload), test_suite_message_payload_dtor);
 	if (!payload) {
 		return;
 	}

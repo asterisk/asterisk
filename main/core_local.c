@@ -357,6 +357,10 @@ static void local_optimization_started_cb(struct ast_unreal_pvt *base, struct as
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct local_pvt *p = (struct local_pvt *)base;
 
+	if (!ast_local_optimization_begin_type()) {
+		return;
+	}
+
 	json_object = ast_json_pack("{s: i, s: i}",
 			"dest", dest, "id", id);
 
@@ -394,6 +398,10 @@ static void local_optimization_finished_cb(struct ast_unreal_pvt *base, int succ
 	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct local_pvt *p = (struct local_pvt *)base;
+
+	if (!ast_local_optimization_end_type()) {
+		return;
+	}
 
 	json_object = ast_json_pack("{s: i, s: i}", "success", success, "id", id);
 
@@ -500,6 +508,10 @@ static void publish_local_bridge_message(struct local_pvt *p)
 	RAII_VAR(struct ast_channel_snapshot *, two_snapshot, NULL, ao2_cleanup);
 	struct ast_channel *owner;
 	struct ast_channel *chan;
+
+	if (!ast_local_bridge_type()) {
+		return;
+	}
 
 	ast_unreal_lock_all(&p->base, &chan, &owner);
 

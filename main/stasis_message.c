@@ -50,14 +50,20 @@ static void message_type_dtor(void *obj)
 	type->name = NULL;
 }
 
-struct stasis_message_type *stasis_message_type_create(const char *name,
-	struct stasis_message_vtable *vtable)
+int stasis_message_type_create(const char *name,
+	struct stasis_message_vtable *vtable,
+	struct stasis_message_type **result)
 {
 	struct stasis_message_type *type;
 
+	/* Check for declination */
+	if (name && stasis_message_type_declined(name)) {
+		return STASIS_MESSAGE_TYPE_DECLINED;
+	}
+
 	type = ao2_t_alloc(sizeof(*type), message_type_dtor, name);
 	if (!type) {
-		return NULL;
+		return STASIS_MESSAGE_TYPE_ERROR;
 	}
 	if (!vtable) {
 		/* Null object pattern, FTW! */
@@ -67,11 +73,12 @@ struct stasis_message_type *stasis_message_type_create(const char *name,
 	type->name = ast_strdup(name);
 	if (!type->name) {
 		ao2_cleanup(type);
-		return NULL;
+		return STASIS_MESSAGE_TYPE_ERROR;
 	}
 	type->vtable = vtable;
+	*result = type;
 
-	return type;
+	return STASIS_MESSAGE_TYPE_SUCCESS;
 }
 
 const char *stasis_message_type_name(const struct stasis_message_type *type)

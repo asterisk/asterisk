@@ -1032,8 +1032,15 @@ static int cc_publish(struct stasis_message_type *message_type, int core_id, str
 	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
+	if (!message_type) {
+		return -1;
+	}
+
 	blob = ast_json_pack("{s: i}",
 		"core_id", core_id);
+	if (!blob) {
+		return -1;
+	}
 
 	if (extras) {
 		ast_json_object_update(blob, extras);

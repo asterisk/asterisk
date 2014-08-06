@@ -678,6 +678,11 @@ int ast_str2cause(const char *name)
 static struct stasis_message *create_channel_snapshot_message(struct ast_channel *channel)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	if (!ast_channel_snapshot_type()) {
+		return NULL;
+	}
+
 	ast_channel_lock(channel);
 	snapshot = ast_channel_snapshot_create(channel);
 	ast_channel_unlock(channel);

@@ -282,6 +282,10 @@ static int send_call_pickup_stasis_message(struct ast_channel *picking_up, struc
 	RAII_VAR(struct ast_multi_channel_blob *, pickup_payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!ast_call_pickup_type()) {
+		return -1;
+	}
+
 	if (!(pickup_payload = ast_multi_channel_blob_create(ast_json_null()))) {
 		return -1;
 	}

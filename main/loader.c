@@ -803,6 +803,10 @@ static void publish_reload_message(const char *name, enum ast_module_reload_resu
 	RAII_VAR(struct ast_json *, event_object, NULL, ast_json_unref);
 	char res_buffer[8];
 
+	if (!ast_manager_get_generic_type()) {
+		return;
+	}
+
 	snprintf(res_buffer, sizeof(res_buffer), "%u", result);
 	event_object = ast_json_pack("{s: s, s: s}",
 			"Module", S_OR(name, "All"),

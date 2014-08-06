@@ -721,6 +721,10 @@ int ast_publish_device_state_full(
 
 	ast_assert(!ast_strlen_zero(device));
 
+	if (!ast_device_state_message_type()) {
+		return -1;
+	}
+
 	device_state = device_state_alloc(device, state, cachable, eid);
 	if (!device_state) {
 		return -1;
@@ -806,6 +810,10 @@ static struct stasis_message *device_state_aggregate_calc(struct stasis_cache_en
 	const char *device = NULL;
 	struct ast_devstate_aggregate aggregate;
 	int idx;
+
+	if (!ast_device_state_message_type()) {
+		return NULL;
+	}
 
 	/* Determine the new aggregate device state. */
 	ast_devstate_aggregate_init(&aggregate);

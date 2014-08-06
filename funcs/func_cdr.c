@@ -437,8 +437,7 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		    char *buf, size_t len)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct cdr_func_payload *, payload,
-		ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
+	RAII_VAR(struct cdr_func_payload *, payload, NULL, ao2_cleanup);
 	struct cdr_func_data output = { 0, };
 
 	if (!chan) {
@@ -446,6 +445,13 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		return -1;
 	}
 
+	if (!cdr_read_message_type()) {
+		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: message type not available\n",
+			ast_channel_name(chan));
+		return -1;
+	}
+
+	payload = ao2_alloc(sizeof(*payload), NULL);
 	if (!payload) {
 		return -1;
 	}
@@ -489,8 +495,7 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 		     const char *value)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct cdr_func_payload *, payload,
-		     ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
+	RAII_VAR(struct cdr_func_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message_router *, router,
 		     ast_cdr_message_router(), ao2_cleanup);
 
@@ -505,6 +510,13 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 		return -1;
 	}
 
+	if (!cdr_write_message_type()) {
+		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: message type not available\n",
+			ast_channel_name(chan));
+		return -1;
+	}
+
+	payload = ao2_alloc(sizeof(*payload), NULL);
 	if (!payload) {
 		return -1;
 	}
@@ -543,6 +555,13 @@ static int cdr_prop_write(struct ast_channel *chan, const char *cmd, char *parse
 		return -1;
 	}
 
+	if (!cdr_write_message_type()) {
+		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: message type not available\n",
+			ast_channel_name(chan));
+		return -1;
+	}
+
+	payload = ao2_alloc(sizeof(*payload), NULL);
 	if (!payload) {
 		return -1;
 	}

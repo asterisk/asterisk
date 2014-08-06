@@ -2066,6 +2066,10 @@ static void queue_publish_multi_channel_snapshot_blob(struct stasis_topic *topic
 	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!type) {
+		return;
+	}
+
 	payload = ast_multi_channel_blob_create(blob);
 	if (!payload) {
 		return;
@@ -2122,7 +2126,7 @@ static void queue_publish_member_blob(struct stasis_message_type *type, struct a
 	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
-	if (!blob) {
+	if (!blob || !type) {
 		return;
 	}
 

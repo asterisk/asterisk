@@ -3104,6 +3104,10 @@ static struct stasis_message *mwi_state_create_message(
 	struct ast_mwi_state *mwi_state;
 	struct stasis_message *message;
 
+	if (!ast_mwi_state_type()) {
+		return NULL;
+	}
+
 	mwi_state = ast_mwi_create(mailbox, context);
 	if (!mwi_state) {
 		return NULL;
@@ -3246,6 +3250,10 @@ struct stasis_message *ast_mwi_blob_create(struct ast_mwi_state *mwi_state,
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
 	ast_assert(blob != NULL);
+
+	if (!message_type) {
+		return NULL;
+	}
 
 	obj = ao2_alloc(sizeof(*obj), mwi_blob_dtor);
 	if (!obj) {

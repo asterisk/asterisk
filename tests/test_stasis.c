@@ -84,8 +84,8 @@ AST_TEST_DEFINE(message_type)
 		break;
 	}
 
-	ast_test_validate(test, NULL == stasis_message_type_create(NULL, NULL));
-	uut = stasis_message_type_create("SomeMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create(NULL, NULL, NULL) == STASIS_MESSAGE_TYPE_ERROR);
+	ast_test_validate(test, stasis_message_type_create("SomeMessage", NULL, &uut) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, 0 == strcmp(stasis_message_type_name(uut), "SomeMessage"));
 
 	return AST_TEST_PASS;
@@ -116,7 +116,7 @@ AST_TEST_DEFINE(message)
 
 	memset(&foreign_eid, 0xFF, sizeof(foreign_eid));
 
-	type = stasis_message_type_create("SomeMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("SomeMessage", NULL, &type) == STASIS_MESSAGE_TYPE_SUCCESS);
 
 	ast_test_validate(test, NULL == stasis_message_create_full(NULL, NULL, NULL));
 	ast_test_validate(test, NULL == stasis_message_create_full(type, NULL, NULL));
@@ -395,7 +395,7 @@ AST_TEST_DEFINE(publish)
 
 	test_data = ao2_alloc(1, NULL);
 	ast_test_validate(test, NULL != test_data);
-	test_message_type = stasis_message_type_create("TestMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage", NULL, &test_message_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	test_message = stasis_message_create(test_message_type, test_data);
 
 	stasis_publish(topic, test_message);
@@ -442,7 +442,7 @@ AST_TEST_DEFINE(publish_sync)
 
 	test_data = ao2_alloc(1, NULL);
 	ast_test_validate(test, NULL != test_data);
-	test_message_type = stasis_message_type_create("TestMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage", NULL, &test_message_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	test_message = stasis_message_create(test_message_type, test_data);
 
 	stasis_publish_sync(uut, test_message);
@@ -490,7 +490,7 @@ AST_TEST_DEFINE(unsubscribe_stops_messages)
 
 	test_data = ao2_alloc(1, NULL);
 	ast_test_validate(test, NULL != test_data);
-	test_message_type = stasis_message_type_create("TestMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage", NULL, &test_message_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	test_message = stasis_message_create(test_message_type, test_data);
 
 	stasis_publish(topic, test_message);
@@ -554,7 +554,7 @@ AST_TEST_DEFINE(forward)
 
 	test_data = ao2_alloc(1, NULL);
 	ast_test_validate(test, NULL != test_data);
-	test_message_type = stasis_message_type_create("TestMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage", NULL, &test_message_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	test_message = stasis_message_create(test_message_type, test_data);
 
 	stasis_publish(topic, test_message);
@@ -604,7 +604,7 @@ AST_TEST_DEFINE(interleaving)
 		break;
 	}
 
-	test_message_type = stasis_message_type_create("test", NULL);
+	ast_test_validate(test, stasis_message_type_create("test", NULL, &test_message_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type);
 
 	test_data = ao2_alloc(1, NULL);
@@ -796,7 +796,7 @@ AST_TEST_DEFINE(cache_filter)
 		break;
 	}
 
-	non_cache_type = stasis_message_type_create("NonCacheable", NULL);
+	ast_test_validate(test, stasis_message_type_create("NonCacheable", NULL, &non_cache_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != non_cache_type);
 	topic = stasis_topic_create("SomeTopic");
 	ast_test_validate(test, NULL != topic);
@@ -847,7 +847,7 @@ AST_TEST_DEFINE(cache)
 		break;
 	}
 
-	cache_type = stasis_message_type_create("Cacheable", NULL);
+	ast_test_validate(test, stasis_message_type_create("Cacheable", NULL, &cache_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != cache_type);
 	topic = stasis_topic_create("SomeTopic");
 	ast_test_validate(test, NULL != topic);
@@ -948,7 +948,7 @@ AST_TEST_DEFINE(cache_dump)
 		break;
 	}
 
-	cache_type = stasis_message_type_create("Cacheable", NULL);
+	ast_test_validate(test, stasis_message_type_create("Cacheable", NULL, &cache_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != cache_type);
 	topic = stasis_topic_create("SomeTopic");
 	ast_test_validate(test, NULL != topic);
@@ -1071,7 +1071,7 @@ AST_TEST_DEFINE(cache_eid_aggregate)
 	memset(&foreign_eid1, 0xAA, sizeof(foreign_eid1));
 	memset(&foreign_eid2, 0xBB, sizeof(foreign_eid2));
 
-	cache_type = stasis_message_type_create("Cacheable", NULL);
+	ast_test_validate(test, stasis_message_type_create("Cacheable", NULL, &cache_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != cache_type);
 
 	topic = stasis_topic_create("SomeTopic");
@@ -1331,11 +1331,11 @@ AST_TEST_DEFINE(router)
 	consumer3 = consumer_create(1);
 	ast_test_validate(test, NULL != consumer3);
 
-	test_message_type1 = stasis_message_type_create("TestMessage1", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage1", NULL, &test_message_type1) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type1);
-	test_message_type2 = stasis_message_type_create("TestMessage2", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage2", NULL, &test_message_type2) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type2);
-	test_message_type3 = stasis_message_type_create("TestMessage3", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage3", NULL, &test_message_type3) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type3);
 
 	uut = stasis_message_router_create(topic);
@@ -1448,11 +1448,11 @@ AST_TEST_DEFINE(router_cache_updates)
 	consumer3 = consumer_create(1);
 	ast_test_validate(test, NULL != consumer3);
 
-	test_message_type1 = stasis_message_type_create("Cache1", NULL);
+	ast_test_validate(test, stasis_message_type_create("Cache1", NULL, &test_message_type1) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type1);
-	test_message_type2 = stasis_message_type_create("Cache2", NULL);
+	ast_test_validate(test, stasis_message_type_create("Cache2", NULL, &test_message_type2) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type2);
-	test_message_type3 = stasis_message_type_create("NonCache", NULL);
+	ast_test_validate(test, stasis_message_type_create("NonCache", NULL, &test_message_type3) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type3);
 
 	uut = stasis_message_router_create(
@@ -1535,7 +1535,7 @@ AST_TEST_DEFINE(no_to_json)
 	ast_test_validate(test, NULL == actual);
 
 	/* Test message with NULL to_json function */
-	type = stasis_message_type_create("SomeMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("SomeMessage", NULL, &type) == STASIS_MESSAGE_TYPE_SUCCESS);
 
 	data = ao2_alloc(strlen(expected) + 1, NULL);
 	strcpy(data, expected);
@@ -1568,7 +1568,7 @@ AST_TEST_DEFINE(to_json)
 		break;
 	}
 
-	type = stasis_message_type_create("SomeMessage", &fake_vtable);
+	ast_test_validate(test, stasis_message_type_create("SomeMessage", &fake_vtable, &type) == STASIS_MESSAGE_TYPE_SUCCESS);
 
 	data = ao2_alloc(strlen(expected_text) + 1, NULL);
 	strcpy(data, expected_text);
@@ -1606,7 +1606,7 @@ AST_TEST_DEFINE(no_to_ami)
 	ast_test_validate(test, NULL == actual);
 
 	/* Test message with NULL to_ami function */
-	type = stasis_message_type_create("SomeMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("SomeMessage", NULL, &type) == STASIS_MESSAGE_TYPE_SUCCESS);
 
 	data = ao2_alloc(strlen(expected) + 1, NULL);
 	strcpy(data, expected);
@@ -1639,7 +1639,7 @@ AST_TEST_DEFINE(to_ami)
 		break;
 	}
 
-	type = stasis_message_type_create("SomeMessage", &fake_vtable);
+	ast_test_validate(test, stasis_message_type_create("SomeMessage", &fake_vtable, &type) == STASIS_MESSAGE_TYPE_SUCCESS);
 
 	data = ao2_alloc(strlen(expected_text) + 1, NULL);
 	strcpy(data, expected_text);

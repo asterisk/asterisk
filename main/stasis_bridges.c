@@ -267,6 +267,10 @@ void ast_bridge_publish_state(struct ast_bridge *bridge)
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!ast_bridge_snapshot_type()) {
+		return;
+	}
+
 	ast_assert(bridge != NULL);
 
 	snapshot = ast_bridge_snapshot_create(bridge);
@@ -358,6 +362,10 @@ void ast_bridge_publish_merge(struct ast_bridge *to, struct ast_bridge *from)
 	RAII_VAR(struct ast_bridge_merge_message *, merge_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!ast_bridge_merge_message_type()) {
+		return;
+	}
+
 	ast_assert(to != NULL);
 	ast_assert(from != NULL);
 
@@ -393,6 +401,10 @@ struct stasis_message *ast_bridge_blob_create(
 {
 	RAII_VAR(struct ast_bridge_blob *, obj, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!message_type) {
+		return NULL;
+	}
 
 	obj = ao2_alloc(sizeof(*obj), bridge_blob_dtor);
 	if (!obj) {
@@ -958,6 +970,10 @@ void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfe
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!ast_attended_transfer_type()) {
+		return;
+	}
+
 	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
 	if (!transfer_msg) {
 		return;
@@ -979,6 +995,10 @@ void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast
 {
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!ast_attended_transfer_type()) {
+		return;
+	}
 
 	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
 	if (!transfer_msg) {
@@ -1003,6 +1023,10 @@ void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_tra
 {
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!ast_attended_transfer_type()) {
+		return;
+	}
 
 	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
 	if (!transfer_msg) {
@@ -1037,6 +1061,10 @@ void ast_bridge_publish_attended_transfer_app(int is_external, enum ast_transfer
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!ast_attended_transfer_type()) {
+		return;
+	}
+
 	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
 	if (!transfer_msg) {
 		return;
@@ -1060,6 +1088,10 @@ void ast_bridge_publish_attended_transfer_link(int is_external, enum ast_transfe
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	int i;
+
+	if (!ast_attended_transfer_type()) {
+		return;
+	}
 
 	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
 	if (!transfer_msg) {

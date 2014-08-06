@@ -579,6 +579,10 @@ void publish_parked_call_failure(struct ast_channel *parkee)
 	RAII_VAR(struct ast_parked_call_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!ast_parked_call_type()) {
+		return;
+	}
+
 	payload = parked_call_payload_from_failure(parkee);
 	if (!payload) {
 		return;
@@ -596,6 +600,10 @@ void publish_parked_call(struct parked_user *pu, enum ast_parked_call_event_type
 {
 	RAII_VAR(struct ast_parked_call_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+
+	if (!ast_parked_call_type()) {
+		return;
+	}
 
 	payload = parked_call_payload_from_parked_user(pu, event_type);
 	if (!payload) {

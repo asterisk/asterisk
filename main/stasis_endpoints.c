@@ -150,6 +150,9 @@ struct stasis_message *ast_endpoint_blob_create(struct ast_endpoint *endpoint,
 	RAII_VAR(struct ast_endpoint_blob *, obj, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (!type) {
+		return NULL;
+	}
 	if (!blob) {
 		blob = ast_json_null();
 	}

@@ -380,7 +380,7 @@ static int publish_acl_change(const char *name)
 	RAII_VAR(struct ast_json_payload *, json_payload, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json_object, ast_json_object_create(), ast_json_unref);
 
-	if (!json_object) {
+	if (!json_object || !ast_named_acl_change_type()) {
 		goto publish_failure;
 	}
 

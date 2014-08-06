@@ -304,6 +304,10 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 	RAII_VAR(struct ast_channel_snapshot *, peer_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, forwarded_snapshot, NULL, ao2_cleanup);
 
+	if (!ast_channel_dial_type()) {
+		return;
+	}
+
 	ast_assert(peer != NULL);
 	blob = ast_json_pack("{s: s, s: s, s: s}",
 			     "dialstatus", S_OR(dialstatus, ""),
@@ -405,8 +409,14 @@ struct stasis_message *ast_channel_blob_create_from_cache(const char *channel_id
 					       struct ast_json *blob)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot,
-			ast_channel_snapshot_get_latest(channel_id),
+			NULL,
 			ao2_cleanup);
+
+	if (!type) {
+		return NULL;
+	}
+
+	snapshot = ast_channel_snapshot_get_latest(channel_id);
 
 	return create_channel_blob_message(snapshot, type, blob);
 }
@@ -415,6 +425,10 @@ struct stasis_message *ast_channel_blob_create(struct ast_channel *chan,
 	struct stasis_message_type *type, struct ast_json *blob)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	if (!type) {
+		return NULL;
+	}
 
 	if (chan) {
 		snapshot = ast_channel_snapshot_create(chan);
@@ -644,6 +658,10 @@ void ast_channel_publish_snapshot(struct ast_channel *chan)
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
+	if (!ast_channel_snapshot_type()) {
+		return;
+	}
+
 	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_SNAPSHOT_STAGE)) {
 		return;
 	}
@@ -792,6 +810,10 @@ void ast_publish_channel_state(struct ast_channel *chan)
 {
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+
+	if (!ast_channel_snapshot_type()) {
+		return;
+	}
 
 	ast_assert(chan != NULL);
 	if (!chan) {

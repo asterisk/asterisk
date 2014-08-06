@@ -274,6 +274,15 @@ struct stasis_message_vtable {
 };
 
 /*!
+ * \brief Return code for Stasis message type creation attempts
+ */
+enum stasis_message_type_result {
+	STASIS_MESSAGE_TYPE_ERROR = -1,	/*!< Message type was not created due to allocation failure */
+	STASIS_MESSAGE_TYPE_SUCCESS,	/*!< Message type was created successfully */
+	STASIS_MESSAGE_TYPE_DECLINED,	/*!< Message type was not created due to configuration */
+};
+
+/*!
  * \brief Create a new message type.
  *
  * \ref stasis_message_type is an AO2 object, so ao2_cleanup() when you're done
@@ -281,12 +290,15 @@ struct stasis_message_vtable {
  *
  * \param name Name of the new type.
  * \param vtable Virtual table of message methods. May be \c NULL.
- * \return Pointer to the new type.
- * \return \c NULL on error.
+ * \param[out] result The location where the new message type will be placed
+ *
+ * \note Stasis message type creation may be declined if the message type is disabled
+ *
+ * \returns A stasis_message_type_result enum
  * \since 12
  */
-struct stasis_message_type *stasis_message_type_create(const char *name,
-	struct stasis_message_vtable *vtable);
+enum stasis_message_type_result stasis_message_type_create(const char *name,
+	struct stasis_message_vtable *vtable, struct stasis_message_type **result);
 
 /*!
  * \brief Gets the name of a given message type
@@ -296,6 +308,16 @@ struct stasis_message_type *stasis_message_type_create(const char *name,
  * \since 12
  */
 const char *stasis_message_type_name(const struct stasis_message_type *type);
+
+/*!
+ * \brief Check whether a message type is declined
+ *
+ * \param name The name of the message type to check
+ *
+ * \retval zero The message type is not declined
+ * \retval non-zero The message type is declined
+ */
+int stasis_message_type_declined(const char *name);
 
 /*!
  * \brief Create a new message.
@@ -1184,9 +1206,8 @@ void stasis_log_bad_type_access(const char *name);
 #define STASIS_MESSAGE_TYPE_INIT(name)					\
 	({								\
 		ast_assert(_priv_ ## name == NULL);			\
-		_priv_ ## name = stasis_message_type_create(#name,	\
-			&_priv_ ## name ## _v);				\
-		_priv_ ## name ? 0 : -1;				\
+		stasis_message_type_create(#name,	\
+			&_priv_ ## name ## _v, &_priv_ ## name) == STASIS_MESSAGE_TYPE_ERROR ? 1 : 0;	\
 	})
 
 /*!

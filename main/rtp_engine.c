@@ -1996,6 +1996,10 @@ void ast_rtp_publish_rtcp_message(struct ast_rtp_instance *rtp,
 	RAII_VAR(struct rtcp_message_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
+	if (!message_type) {
+		return;
+	}
+
 	payload = ao2_alloc(sizeof(*payload), rtcp_message_payload_dtor);
 	if (!payload || !report) {
 		return;

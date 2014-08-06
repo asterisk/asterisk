@@ -4198,7 +4198,7 @@ int ast_cdr_engine_init(void)
 void ast_cdr_engine_term(void)
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-	RAII_VAR(void *, payload, ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
+	RAII_VAR(void *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
 	/* Since this is called explicitly during process shutdown, we might not have ever
@@ -4208,16 +4208,19 @@ void ast_cdr_engine_term(void)
 		return;
 	}
 
-	/* Make sure we have the needed items */
-	if (!stasis_router || !payload) {
-		return;
-	}
+	if (cdr_sync_message_type()) {
+		/* Make sure we have the needed items */
+		payload = ao2_alloc(sizeof(*payload), NULL);
+		if (!stasis_router || !payload) {
+			return;
+		}
 
-	ast_debug(1, "CDR Engine termination request received; waiting on messages...\n");
+		ast_debug(1, "CDR Engine termination request received; waiting on messages...\n");
 
-	message = stasis_message_create(cdr_sync_message_type(), payload);
-	if (message) {
-		stasis_message_router_publish_sync(stasis_router, message);
+		message = stasis_message_create(cdr_sync_message_type(), payload);
+		if (message) {
+			stasis_message_router_publish_sync(stasis_router, message);
+		}
 	}
 
 	if (ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE)) {

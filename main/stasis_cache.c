@@ -185,9 +185,12 @@ static struct stasis_cache_entry *cache_entry_create(struct stasis_message_type 
 	struct stasis_cache_entry *entry;
 	int is_remote;
 
-	ast_assert(type != NULL);
 	ast_assert(id != NULL);
 	ast_assert(snapshot != NULL);
+
+	if (!type) {
+		return NULL;
+	}
 
 	entry = ao2_alloc_options(sizeof(*entry), cache_entry_dtor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
@@ -550,8 +553,11 @@ struct ao2_container *stasis_cache_get_all(struct stasis_cache *cache, struct st
 
 	ast_assert(cache != NULL);
 	ast_assert(cache->entries != NULL);
-	ast_assert(type != NULL);
 	ast_assert(id != NULL);
+
+	if (!type) {
+		return NULL;
+	}
 
 	found = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL);
 	if (!found) {
@@ -619,8 +625,11 @@ struct stasis_message *stasis_cache_get_by_eid(struct stasis_cache *cache, struc
 
 	ast_assert(cache != NULL);
 	ast_assert(cache->entries != NULL);
-	ast_assert(type != NULL);
 	ast_assert(id != NULL);
+
+	if (!type) {
+		return NULL;
+	}
 
 	ao2_rdlock(cache->entries);
 
@@ -751,6 +760,10 @@ static struct stasis_message *update_create(struct stasis_message *old_snapshot,
 	struct stasis_message *msg;
 
 	ast_assert(old_snapshot != NULL || new_snapshot != NULL);
+
+	if (!stasis_cache_update_type()) {
+		return NULL;
+	}
 
 	update = ao2_alloc_options(sizeof(*update), stasis_cache_update_dtor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);

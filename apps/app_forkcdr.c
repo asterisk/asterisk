@@ -136,7 +136,7 @@ static void forkcdr_callback(void *data, struct stasis_subscription *sub, struct
 static int forkcdr_exec(struct ast_channel *chan, const char *data)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct fork_cdr_message_payload *, payload, ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
+	RAII_VAR(struct fork_cdr_message_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
 
 	char *parse;
@@ -153,6 +153,13 @@ static int forkcdr_exec(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(forkcdr_exec_options, &flags, NULL, args.options);
 	}
 
+	if (!forkcdr_message_type()) {
+		ast_log(AST_LOG_WARNING, "Failed to manipulate CDR for channel %s: no message type\n",
+			ast_channel_name(chan));
+		return -1;
+	}
+
+	payload = ao2_alloc(sizeof(*payload), NULL);
 	if (!payload) {
 		return -1;
 	}

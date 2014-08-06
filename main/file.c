@@ -97,6 +97,10 @@ static int publish_format_update(const struct ast_format_def *f, struct stasis_m
 	RAII_VAR(struct ast_json_payload *, json_payload, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
 
+	if (!type) {
+		return -1;
+	}
+
 	json_object = ast_json_pack("{s: s, s: o}",
 		"format", f->name,
 		"extensions", json_array_from_list(f->exts, "|"));

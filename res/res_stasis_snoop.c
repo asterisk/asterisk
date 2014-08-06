@@ -111,9 +111,10 @@ static void publish_chanspy_message(struct stasis_app_snoop *snoop, int start)
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, snoop_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, spyee_snapshot, NULL, ao2_cleanup);
+	struct stasis_message_type *type = start ? ast_channel_chanspy_start_type(): ast_channel_chanspy_stop_type();
 
 	blob = ast_json_null();
-	if (!blob) {
+	if (!blob || !type) {
 		return;
 	}
 
@@ -133,9 +134,7 @@ static void publish_chanspy_message(struct stasis_app_snoop *snoop, int start)
 		ast_multi_channel_blob_add_channel(payload, "spyee_channel", spyee_snapshot);
 	}
 
-	message = stasis_message_create(
-			start ? ast_channel_chanspy_start_type(): ast_channel_chanspy_stop_type(),
-					payload);
+	message = stasis_message_create(type, payload);
 	if (!message) {
 		return;
 	}

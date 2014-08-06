@@ -251,6 +251,10 @@ struct stasis_message *stasis_test_message_create(void)
 {
 	RAII_VAR(void *, data, NULL, ao2_cleanup);
 
+	if (!stasis_test_message_type()) {
+		return NULL;
+	}
+
 	/* We just need the unique pointer; don't care what's in it */
 	data = ao2_alloc(1, NULL);
 	if (!data) {

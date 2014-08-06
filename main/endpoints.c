@@ -174,6 +174,10 @@ static void endpoint_publish_snapshot(struct ast_endpoint *endpoint)
 	ast_assert(endpoint != NULL);
 	ast_assert(endpoint->topics != NULL);
 
+	if (!ast_endpoint_snapshot_type()) {
+		return;
+	}
+
 	snapshot = ast_endpoint_snapshot_create(endpoint);
 	if (!snapshot) {
 		return;
@@ -349,6 +353,11 @@ struct ast_endpoint *ast_endpoint_create(const char *tech, const char *resource)
 static struct stasis_message *create_endpoint_snapshot_message(struct ast_endpoint *endpoint)
 {
 	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
+
+	if (!ast_endpoint_snapshot_type()) {
+		return NULL;
+	}
+
 	snapshot = ast_endpoint_snapshot_create(endpoint);
 	if (!snapshot) {
 		return NULL;

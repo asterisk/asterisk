@@ -333,9 +333,11 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
 						 term_color(tmp2, ast_channel_name(chan), COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
-				ast_channel_lock(chan);
-				snapshot = ast_channel_snapshot_create(chan);
-				ast_channel_unlock(chan);
+				if (ast_channel_snapshot_type()) {
+					ast_channel_lock(chan);
+					snapshot = ast_channel_snapshot_create(chan);
+					ast_channel_unlock(chan);
+				}
 				if (snapshot) {
 					/* pbx_exec sets application name and data, but we don't want to log
 					 * every exec. Just update the snapshot here instead.

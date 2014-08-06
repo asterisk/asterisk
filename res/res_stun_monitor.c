@@ -157,10 +157,15 @@ static int stun_monitor_request(const void *blarg)
 			if (args.external_addr_known) {
 				RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 				RAII_VAR(struct ast_json_payload *, json_payload, NULL, ao2_cleanup);
-				RAII_VAR(struct ast_json *, json_object, ast_json_object_create(), ast_json_unref);
+				RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+
+				if (!ast_network_change_type()) {
+					goto publish_failure;
+				}
 
 				/* This json_object doesn't actually contain anything yet. We have to reference something
 				 * for stasis, and this is useful for if we want to ever add data for any reason. */
+				json_object = ast_json_object_create();
 				if (!json_object) {
 					goto publish_failure;
 				}

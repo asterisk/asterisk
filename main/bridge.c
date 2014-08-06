@@ -615,6 +615,10 @@ static struct stasis_message *create_bridge_snapshot_message(struct ast_bridge *
 {
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
 
+	if (!ast_bridge_snapshot_type()) {
+		return NULL;
+	}
+
 	ast_bridge_lock(bridge);
 	snapshot = ast_bridge_snapshot_create(bridge);
 	ast_bridge_unlock(bridge);

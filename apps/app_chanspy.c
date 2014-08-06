@@ -557,13 +557,14 @@ static void publish_chanspy_message(struct ast_channel *spyer,
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	RAII_VAR(struct ast_multi_channel_blob *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
+	struct stasis_message_type *type = start ? ast_channel_chanspy_start_type(): ast_channel_chanspy_stop_type();
 
 	if (!spyer) {
 		ast_log(AST_LOG_WARNING, "Attempt to publish ChanSpy message for NULL spyer channel\n");
 		return;
 	}
 	blob = ast_json_null();
-	if (!blob) {
+	if (!blob || !type) {
 		return;
 	}
 
@@ -582,9 +583,7 @@ static void publish_chanspy_message(struct ast_channel *spyer,
 		}
 	}
 
-	message = stasis_message_create(
-			start ? ast_channel_chanspy_start_type(): ast_channel_chanspy_stop_type(),
-					payload);
+	message = stasis_message_create(type, payload);
 	if (!message) {
 		return;
 	}

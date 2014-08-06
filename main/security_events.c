@@ -1127,8 +1127,11 @@ static int handle_security_event(const struct ast_security_event_common *sec)
 	const struct ast_security_event_ie_type *ies;
 	unsigned int i;
 
-	json_object = alloc_security_event_json_object(sec);
+	if (!ast_security_event_type()) {
+		return -1;
+	}
 
+	json_object = alloc_security_event_json_object(sec);
 	if (!json_object) {
 		return -1;
 	}

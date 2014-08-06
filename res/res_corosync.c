@@ -117,6 +117,10 @@ static void publish_corosync_ping_to_stasis(struct ast_event *event)
 	ast_assert(ast_event_get_type(event) == AST_EVENT_PING);
 	ast_assert(event != NULL);
 
+	if (!corosync_ping_message_type()) {
+		return;
+	}
+
 	payload = ao2_t_alloc(sizeof(*payload), corosync_ping_payload_dtor, "Create ping payload");
 	if (!payload) {
 		return;

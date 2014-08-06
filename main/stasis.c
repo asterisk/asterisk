@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/config_options.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="UserEvent">
@@ -60,6 +61,135 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<configInfo name="stasis" language="en_US">
+		<configFile name="stasis.conf">
+			<configObject name="declined_message_types">
+				<synopsis>Stasis message types for which to decline creation.</synopsis>
+				<configOption name="decline">
+					<synopsis>The message type to decline.</synopsis>
+					<description>
+						<para>This configuration option defines the name of the Stasis
+						message type that Asterisk is forbidden from creating and can be
+						specified as many times as necessary to achieve the desired result.</para>
+						<enumlist>
+							<enum name="stasis_app_recording_snapshot_type" />
+							<enum name="stasis_app_playback_snapshot_type" />
+							<enum name="stasis_test_message_type" />
+							<enum name="confbridge_start_type" />
+							<enum name="confbridge_end_type" />
+							<enum name="confbridge_join_type" />
+							<enum name="confbridge_leave_type" />
+							<enum name="confbridge_start_record_type" />
+							<enum name="confbridge_stop_record_type" />
+							<enum name="confbridge_mute_type" />
+							<enum name="confbridge_unmute_type" />
+							<enum name="confbridge_talking_type" />
+							<enum name="cel_generic_type" />
+							<enum name="ast_bridge_snapshot_type" />
+							<enum name="ast_bridge_merge_message_type" />
+							<enum name="ast_channel_entered_bridge_type" />
+							<enum name="ast_channel_left_bridge_type" />
+							<enum name="ast_blind_transfer_type" />
+							<enum name="ast_attended_transfer_type" />
+							<enum name="ast_endpoint_snapshot_type" />
+							<enum name="ast_endpoint_state_type" />
+							<enum name="ast_device_state_message_type" />
+							<enum name="ast_test_suite_message_type" />
+							<enum name="ast_mwi_state_type" />
+							<enum name="ast_mwi_vm_app_type" />
+							<enum name="ast_format_register_type" />
+							<enum name="ast_format_unregister_type" />
+							<enum name="ast_manager_get_generic_type" />
+							<enum name="ast_parked_call_type" />
+							<enum name="ast_channel_snapshot_type" />
+							<enum name="ast_channel_dial_type" />
+							<enum name="ast_channel_varset_type" />
+							<enum name="ast_channel_hangup_request_type" />
+							<enum name="ast_channel_dtmf_begin_type" />
+							<enum name="ast_channel_dtmf_end_type" />
+							<enum name="ast_channel_hold_type" />
+							<enum name="ast_channel_unhold_type" />
+							<enum name="ast_channel_chanspy_start_type" />
+							<enum name="ast_channel_chanspy_stop_type" />
+							<enum name="ast_channel_fax_type" />
+							<enum name="ast_channel_hangup_handler_type" />
+							<enum name="ast_channel_moh_start_type" />
+							<enum name="ast_channel_moh_stop_type" />
+							<enum name="ast_channel_monitor_start_type" />
+							<enum name="ast_channel_monitor_stop_type" />
+							<enum name="ast_channel_agent_login_type" />
+							<enum name="ast_channel_agent_logoff_type" />
+							<enum name="ast_channel_talking_start" />
+							<enum name="ast_channel_talking_stop" />
+							<enum name="ast_security_event_type" />
+							<enum name="ast_named_acl_change_type" />
+							<enum name="ast_local_bridge_type" />
+							<enum name="ast_local_optimization_begin_type" />
+							<enum name="ast_local_optimization_end_type" />
+							<enum name="stasis_subscription_change_type" />
+							<enum name="ast_multi_user_event_type" />
+							<enum name="stasis_cache_clear_type" />
+							<enum name="stasis_cache_update_type" />
+							<enum name="ast_network_change_type" />
+							<enum name="ast_system_registry_type" />
+							<enum name="ast_cc_available_type" />
+							<enum name="ast_cc_offertimerstart_type" />
+							<enum name="ast_cc_requested_type" />
+							<enum name="ast_cc_requestacknowledged_type" />
+							<enum name="ast_cc_callerstopmonitoring_type" />
+							<enum name="ast_cc_callerstartmonitoring_type" />
+							<enum name="ast_cc_callerrecalling_type" />
+							<enum name="ast_cc_recallcomplete_type" />
+							<enum name="ast_cc_failure_type" />
+							<enum name="ast_cc_monitorfailed_type" />
+							<enum name="ast_presence_state_message_type" />
+							<enum name="ast_rtp_rtcp_sent_type" />
+							<enum name="ast_rtp_rtcp_received_type" />
+							<enum name="ast_call_pickup_type" />
+							<enum name="aoc_s_type" />
+							<enum name="aoc_d_type" />
+							<enum name="aoc_e_type" />
+							<enum name="dahdichannel_type" />
+							<enum name="mcid_type" />
+							<enum name="session_timeout_type" />
+							<enum name="cdr_read_message_type" />
+							<enum name="cdr_write_message_type" />
+							<enum name="cdr_prop_write_message_type" />
+							<enum name="corosync_ping_message_type" />
+							<enum name="agi_exec_start_type" />
+							<enum name="agi_exec_end_type" />
+							<enum name="agi_async_start_type" />
+							<enum name="agi_async_exec_type" />
+							<enum name="agi_async_end_type" />
+							<enum name="queue_caller_join_type" />
+							<enum name="queue_caller_leave_type" />
+							<enum name="queue_caller_abandon_type" />
+							<enum name="queue_member_status_type" />
+							<enum name="queue_member_added_type" />
+							<enum name="queue_member_removed_type" />
+							<enum name="queue_member_pause_type" />
+							<enum name="queue_member_penalty_type" />
+							<enum name="queue_member_ringinuse_type" />
+							<enum name="queue_agent_called_type" />
+							<enum name="queue_agent_connect_type" />
+							<enum name="queue_agent_complete_type" />
+							<enum name="queue_agent_dump_type" />
+							<enum name="queue_agent_ringnoanswer_type" />
+							<enum name="meetme_join_type" />
+							<enum name="meetme_leave_type" />
+							<enum name="meetme_end_type" />
+							<enum name="meetme_mute_type" />
+							<enum name="meetme_talking_type" />
+							<enum name="meetme_talk_request_type" />
+							<enum name="appcdr_message_type" />
+							<enum name="forkcdr_message_type" />
+							<enum name="cdr_sync_message_type" />
+						</enumlist>
+					</description>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
 ***/
 
 /*!
@@ -801,6 +931,10 @@ static void send_subscription_subscribe(struct stasis_topic *topic, struct stasi
 	/* This assumes that we have already unsubscribed */
 	ast_assert(stasis_subscription_is_subscribed(sub));
 
+	if (!stasis_subscription_change_type()) {
+		return;
+	}
+
 	change = subscription_change_alloc(topic, sub->uniqueid, "Subscribe");
 	if (!change) {
 		return;
@@ -825,6 +959,10 @@ static void send_subscription_unsubscribe(struct stasis_topic *topic,
 
 	/* This assumes that we have already unsubscribed */
 	ast_assert(!stasis_subscription_is_subscribed(sub));
+
+	if (!stasis_subscription_change_type()) {
+		return;
+	}
 
 	change = subscription_change_alloc(topic, sub->uniqueid, "Unsubscribe");
 	if (!change) {
@@ -1066,6 +1204,10 @@ void ast_multi_object_blob_single_channel_publish(struct ast_channel *chan,
 	RAII_VAR(struct ast_channel_snapshot *, channel_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_multi_object_blob *, multi, NULL, ao2_cleanup);
 
+	if (!type) {
+		return;
+	}
+
 	multi = ast_multi_object_blob_create(blob);
 	if (!multi) {
 		return;
@@ -1215,6 +1357,113 @@ static struct ast_manager_event_blob *multi_user_event_to_ami(
 		ast_str_buffer(body));
 }
 
+/*! \brief A structure to hold global configuration-related options */
+struct stasis_declined_config {
+	/*! The list of message types to decline */
+	struct ao2_container *declined;
+};
+
+
+struct stasis_config {
+	struct stasis_declined_config *declined_message_types;
+};
+
+/*! \brief An aco_type structure to link the "declined_message_types" category to the stasis_declined_config type */
+static struct aco_type declined_option = {
+	.type = ACO_GLOBAL,
+	.name = "declined_message_types",
+	.item_offset = offsetof(struct stasis_config, declined_message_types),
+	.category_match = ACO_WHITELIST,
+	.category = "^declined_message_types$",
+};
+
+struct aco_type *declined_options[] = ACO_TYPES(&declined_option);
+
+struct aco_file stasis_conf = {
+        .filename = "stasis.conf",
+	.types = ACO_TYPES(&declined_option),
+};
+
+/*! \brief A global object container that will contain the stasis_config that gets swapped out on reloads */
+static AO2_GLOBAL_OBJ_STATIC(globals);
+
+static void *stasis_config_alloc(void);
+
+/*! \brief Register information about the configs being processed by this module */
+CONFIG_INFO_CORE("stasis", cfg_info, globals, stasis_config_alloc,
+        .files = ACO_FILES(&stasis_conf),
+);
+
+static void stasis_declined_config_destructor(void *obj)
+{
+	struct stasis_declined_config *declined = obj;
+	ao2_cleanup(declined->declined);
+}
+
+static void stasis_config_destructor(void *obj)
+{
+	struct stasis_config *cfg = obj;
+	ao2_cleanup(cfg->declined_message_types);
+}
+
+static void *stasis_config_alloc(void)
+{
+	struct stasis_config *cfg;
+
+	if (!(cfg = ao2_alloc(sizeof(*cfg), stasis_config_destructor))) {
+		return NULL;
+	}
+
+	/* Allocate/initialize memory */
+	cfg->declined_message_types = ao2_alloc(sizeof(*cfg->declined_message_types), stasis_declined_config_destructor);
+	if (!cfg->declined_message_types) {
+		goto error;
+	}
+
+	cfg->declined_message_types->declined = ast_str_container_alloc(13);
+	if (!cfg->declined_message_types->declined) {
+		goto error;
+	}
+
+	return cfg;
+error:
+	ao2_ref(cfg, -1);
+	return NULL;
+}
+
+int stasis_message_type_declined(const char *name)
+{
+	RAII_VAR(struct stasis_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
+	char *name_in_declined;
+	int res;
+
+	if (!cfg || !cfg->declined_message_types) {
+		return 0;
+	}
+
+	name_in_declined = ao2_find(cfg->declined_message_types->declined, name, OBJ_SEARCH_KEY);
+	res = name_in_declined ? 1 : 0;
+	ao2_cleanup(name_in_declined);
+	if (res) {
+		ast_log(LOG_NOTICE, "Declining to allocate Stasis message type '%s' due to configuration\n", name);
+	}
+	return res;
+}
+
+static int declined_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct stasis_declined_config *declined = obj;
+
+	if (ast_strlen_zero(var->value)) {
+		return 0;
+	}
+
+	if (ast_str_container_add(declined->declined, var->value)) {
+		return -1;
+	}
+
+	return 0;
+}
 
 /*!
  * @{ \brief Define multi user event message type(s).
@@ -1232,6 +1481,8 @@ static void stasis_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_multi_user_event_type);
+	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(globals);
 }
 
 int stasis_init(void)
@@ -1240,6 +1491,24 @@ int stasis_init(void)
 
 	/* Be sure the types are cleaned up after the message bus */
 	ast_register_cleanup(stasis_cleanup);
+
+	if (aco_info_init(&cfg_info)) {
+		return -1;
+	}
+
+	aco_option_register_custom(&cfg_info, "decline", ACO_EXACT, declined_options, "", declined_handler, 0);
+
+	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
+		RAII_VAR(struct stasis_config *, stasis_cfg, stasis_config_alloc(), ao2_cleanup);
+
+		if (aco_set_defaults(&declined_option, "declined_message_types", stasis_cfg->declined_message_types)) {
+			ast_log(LOG_ERROR, "Failed to load stasis.conf and failed to initialize defaults.\n");
+			return -1;
+		}
+
+		ast_log(LOG_NOTICE, "Could not load stasis config; using defaults\n");
+		ao2_global_obj_replace_unref(globals, stasis_cfg);
+	}
 
 	cache_init = stasis_cache_init();
 	if (cache_init != 0) {

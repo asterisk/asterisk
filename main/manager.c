@@ -1519,7 +1519,7 @@ void ast_manager_publish_event(const char *type, int class_type, struct ast_json
 	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
-	if (!obj) {
+	if (!obj || !ast_manager_get_generic_type()) {
 		return;
 	}
 

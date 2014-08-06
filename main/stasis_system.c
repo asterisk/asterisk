@@ -122,6 +122,10 @@ void ast_system_publish_registry(const char *channeltype, const char *username, 
 	RAII_VAR(struct ast_json_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
+	if (!ast_system_registry_type()) {
+		return;
+	}
+
 	registry = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s}",
 		"type", "registry",
 		"channeltype", channeltype,

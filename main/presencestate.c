@@ -263,8 +263,13 @@ static void presence_state_event(const char *provider,
 		const char *message)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_presence_state_message *, presence_state, presence_state_alloc(provider, state, subtype, message), ao2_cleanup);
+	RAII_VAR(struct ast_presence_state_message *, presence_state, NULL, ao2_cleanup);
 
+	if (!ast_presence_state_message_type()) {
+		return;
+	}
+
+	presence_state = presence_state_alloc(provider, state, subtype, message);
 	if (!presence_state) {
 		return;
 	}
