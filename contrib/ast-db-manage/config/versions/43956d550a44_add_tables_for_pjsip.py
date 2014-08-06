@@ -184,5 +184,6 @@ def downgrade():
     op.drop_table('ps_endpoints')
     op.drop_table('ps_auths')
     op.drop_table('ps_aors')
+    op.drop_table('ps_contacts')
     op.drop_table('ps_domain_aliases')
     op.drop_table('ps_endpoint_id_ips')
