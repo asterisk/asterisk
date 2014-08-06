@@ -15,7 +15,10 @@ script_location = cdr
 # the 'revision' command, regardless of autogenerate
 # revision_environment = false
 
-sqlalchemy.url = mysql://user:pass@localhost/voicemail
+#sqlalchemy.url = driver://user:pass@localhost/dbname
+
+#sqlalchemy.url = postgresql://user:pass@localhost/cdr
+sqlalchemy.url = mysql://user:pass@localhost/cdr
 
 
 # Logging configuration
