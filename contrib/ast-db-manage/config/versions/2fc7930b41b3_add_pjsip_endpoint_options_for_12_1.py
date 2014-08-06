@@ -11,6 +11,7 @@ revision = '2fc7930b41b3'
 down_revision = '581a4264e537'
 
 from alembic import op
+from alembic import context
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ENUM
 
@@ -38,7 +39,8 @@ def upgrade():
     # first it will think it already exists and fail
     pjsip_redirect_method_values = sa.Enum(
         *PJSIP_REDIRECT_METHOD_VALUES, name=PJSIP_REDIRECT_METHOD_NAME)
-    pjsip_redirect_method_values.create(op.get_bind(), checkfirst=True)
+    check = False if context.is_offline_mode() else True
+    pjsip_redirect_method_values.create(op.get_bind(), checkfirst=check)
 
     pjsip_transport_method_values = sa.Enum(
         *PJSIP_TRANSPORT_METHOD_VALUES, name=PJSIP_TRANSPORT_METHOD_NAME)
