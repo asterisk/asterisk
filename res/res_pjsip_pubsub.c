@@ -3499,7 +3499,7 @@ static int check_node(struct ast_test *test, struct tree_node *node,
 	int i;
 
 	if (AST_VECTOR_SIZE(&node->children) != num_resources) {
-		ast_test_status_update(test, "Unexpected number of resources in tree. Expected %d, got %d\n",
+		ast_test_status_update(test, "Unexpected number of resources in tree. Expected %zu, got %zu\n",
 				num_resources, AST_VECTOR_SIZE(&node->children));
 		return -1;
 	}
