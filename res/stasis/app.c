@@ -28,6 +28,7 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "app.h"
+#include "control.h"
 #include "messaging.h"
 
 #include "asterisk/callerid.h"
@@ -699,12 +700,30 @@ static void bridge_blind_transfer_handler(void *data, struct stasis_subscription
 	struct stasis_message *message)
 {
 	struct stasis_app *app = data;
-	struct ast_bridge_blob *blob = stasis_message_data(message);
+	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(message);
+	struct ast_bridge_snapshot *bridge = transfer_msg->to_transferee.bridge_snapshot;
 
-	if (bridge_app_subscribed(app, blob->channel->uniqueid) ||
-		(blob->bridge && bridge_app_subscribed_involved(app, blob->bridge))) {
+	if (bridge_app_subscribed(app, transfer_msg->to_transferee.channel_snapshot->uniqueid) ||
+		(bridge && bridge_app_subscribed_involved(app, bridge))) {
 		stasis_publish(app->topic, message);
 	}
+}
+
+static void set_replacement_channel(struct ast_channel_snapshot *to_be_replaced,
+		struct ast_channel_snapshot *replacing)
+{
+	struct stasis_app_control *control = stasis_app_control_find_by_channel_id(
+		to_be_replaced->uniqueid);
+	struct ast_channel *chan = ast_channel_get_by_name(replacing->uniqueid);
+
+	if (control && chan) {
+		ast_channel_lock(chan);
+		app_set_replace_channel_app(chan, app_name(control_app(control)));
+		app_set_replace_channel_snapshot(chan, to_be_replaced);
+		ast_channel_unlock(chan);
+	}
+	ast_channel_cleanup(chan);
+	ao2_cleanup(control);
 }
 
 static void bridge_attended_transfer_handler(void *data, struct stasis_subscription *sub,
@@ -750,6 +769,18 @@ static void bridge_attended_transfer_handler(void *data, struct stasis_subscript
 
 	if (subscribed) {
 		stasis_publish(app->topic, message);
+	}
+
+	if (transfer_msg->replace_channel) {
+		set_replacement_channel(transfer_msg->to_transferee.channel_snapshot,
+				transfer_msg->replace_channel);
+	}
+
+	if (transfer_msg->dest_type == AST_ATTENDED_TRANSFER_DEST_LINK) {
+		set_replacement_channel(transfer_msg->to_transferee.channel_snapshot,
+				transfer_msg->dest.links[0]);
+		set_replacement_channel(transfer_msg->to_transfer_target.channel_snapshot,
+				transfer_msg->dest.links[1]);
 	}
 }
 
@@ -1089,6 +1120,30 @@ int app_is_subscribed_channel_id(struct stasis_app *app, const char *channel_id)
 	RAII_VAR(struct app_forwards *, forwards, NULL, ao2_cleanup);
 	forwards = ao2_find(app->forwards, channel_id, OBJ_SEARCH_KEY);
 	return forwards != NULL;
+}
+
+int app_replace_channel_forwards(struct stasis_app *app, const char *old_id, struct ast_channel *new_chan)
+{
+	RAII_VAR(struct app_forwards *, old_forwards, NULL, ao2_cleanup);
+	struct app_forwards *new_forwards;
+
+	old_forwards = ao2_find(app->forwards, old_id, OBJ_SEARCH_KEY | OBJ_UNLINK);
+	if (!old_forwards) {
+		return -1;
+	}
+
+	new_forwards = forwards_create_channel(app, new_chan);
+	if (!new_forwards) {
+		return -1;
+	}
+
+	new_forwards->interested = old_forwards->interested;
+	ao2_link_flags(app->forwards, new_forwards, 0);
+	ao2_cleanup(new_forwards);
+
+	/* Clean up old forwards */
+	forwards_unsubscribe(old_forwards);
+	return 0;
 }
 
 static void *channel_find(const struct stasis_app *app, const char *id)

@@ -41,4 +41,31 @@ void command_invoke(struct stasis_app_command *command,
 
 int command_join(struct stasis_app_command *command);
 
+/*!
+ * \brief Queue a Stasis() prestart command for a channel
+ *
+ * \pre chan must be locked
+ *
+ * \param chan The channel on which to queue the prestart command
+ * \param command_fn The callback to call for the command
+ * \param data The data to pass to the command callback
+ *
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int command_prestart_queue_command(struct ast_channel *chan,
+	stasis_app_command_cb command_fn, void *data);
+
+/*!
+ * \brief Get the Stasis() prestart commands for a channel
+ *
+ * \pre chan must be locked
+ *
+ * \param chan The channel from which to get prestart commands
+ *
+ * \return The command prestart container for chan (must be ao2_cleanup()'d)
+ */
+struct ao2_container *command_prestart_get_container(struct ast_channel *chan);
+
+
 #endif /* _ASTERISK_RES_STASIS_CONTROL_H */

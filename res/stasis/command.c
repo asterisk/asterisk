@@ -93,3 +93,61 @@ void command_invoke(struct stasis_app_command *command,
 	command_complete(command, retval);
 }
 
+static void command_queue_prestart_destroy(void *obj)
+{
+	/* Clean up the container */
+	ao2_cleanup(obj);
+}
+
+static const struct ast_datastore_info command_queue_prestart = {
+        .type = "stasis-command-prestart-queue",
+        .destroy = command_queue_prestart_destroy,
+};
+
+int command_prestart_queue_command(struct ast_channel *chan,
+	stasis_app_command_cb command_fn, void *data)
+{
+	struct ast_datastore *datastore;
+	struct ao2_container *command_queue;
+	RAII_VAR(struct stasis_app_command *, command,
+		command_create(command_fn, data), ao2_cleanup);
+
+	if (!command) {
+		return -1;
+	}
+
+        datastore = ast_channel_datastore_find(chan, &command_queue_prestart, NULL);
+        if (datastore) {
+		command_queue = datastore->data;
+		ao2_link(command_queue, command);
+                return 0;
+        }
+
+	command_queue = ao2_container_alloc_list(
+                AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	if (!command_queue) {
+		return -1;
+	}
+
+	datastore = ast_datastore_alloc(&command_queue_prestart, NULL);
+	if (!datastore) {
+		ao2_cleanup(command_queue);
+		return -1;
+	}
+	ast_channel_datastore_add(chan, datastore);
+
+	datastore->data = command_queue;
+	ao2_link(command_queue, command);
+
+	return 0;
+}
+
+struct ao2_container *command_prestart_get_container(struct ast_channel *chan)
+{
+        struct ast_datastore *datastore = ast_channel_datastore_find(chan, &command_queue_prestart, NULL);
+	if (!datastore) {
+		return NULL;
+	}
+
+	return ao2_bump(datastore->data);
+}

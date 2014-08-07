@@ -276,10 +276,6 @@ struct stasis_app_control_dial_data {
 	int timeout;
 };
 
-static int app_control_add_channel_to_bridge(
-        struct stasis_app_control *control,
-        struct ast_channel *chan, void *data);
-
 static int app_control_dial(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
@@ -322,7 +318,7 @@ static int app_control_dial(struct stasis_app_control *control,
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(new_chan);
 	} else {
-		app_control_add_channel_to_bridge(control, chan, bridge);
+		control_add_channel_to_bridge(control, chan, bridge);
 	}
 
 	return 0;
@@ -855,7 +851,7 @@ static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
 		ast_bridge_after_cb_reason_string(reason));
 }
 
-static int app_control_add_channel_to_bridge(
+int control_add_channel_to_bridge(
 	struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
@@ -935,7 +931,7 @@ int stasis_app_control_add_channel_to_bridge(
 			stasis_app_control_get_channel_id(control));
 
 	return app_send_command_on_condition(
-		control, app_control_add_channel_to_bridge, bridge,
+		control, control_add_channel_to_bridge, bridge,
 		app_control_can_add_channel_to_bridge);
 }
 
@@ -1035,4 +1031,37 @@ void control_wait(struct stasis_app_control *control)
 		}
 	}
 	ao2_unlock(control->command_queue);
+}
+
+int control_prestart_dispatch_all(struct stasis_app_control *control,
+	struct ast_channel *chan)
+{
+	struct ao2_container *command_queue;
+	int count = 0;
+	struct ao2_iterator iter;
+	struct stasis_app_command *command;
+
+	ast_channel_lock(chan);
+	command_queue = command_prestart_get_container(chan);
+	ast_channel_unlock(chan);
+	if (!command_queue) {
+		return 0;
+	}
+
+	iter = ao2_iterator_init(command_queue, AO2_ITERATOR_UNLINK);
+
+	while ((command = ao2_iterator_next(&iter))) {
+		command_invoke(command, control, chan);
+		ao2_cleanup(command);
+		++count;
+	}
+
+	ao2_iterator_destroy(&iter);
+	ao2_cleanup(command_queue);
+	return count;
+}
+
+struct stasis_app *control_app(struct stasis_app_control *control)
+{
+	return control->app;
 }
