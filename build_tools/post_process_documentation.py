@@ -59,7 +59,10 @@ def collapse_event_pair(managerEventOne, managerEventTwo):
 def collapse_manager_events(rootNode, managerEvents):
     events = {}
     for managerEvent in managerEvents:
-        rootNode.removeChild(managerEvent)
+        if (managerEvent.parentNode.nodeName == 'list-elements'
+            or managerEvent.parentNode.nodeName == 'responses'):
+            continue
+        managerEvent.parentNode.removeChild(managerEvent)
         attr = managerEvent.getAttribute('name')
         if attr in events:
             # match, collapse the two managerEvents
