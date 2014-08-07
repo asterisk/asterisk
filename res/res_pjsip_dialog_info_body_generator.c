@@ -156,11 +156,6 @@ static int dialog_info_generate_body_content(void *body, void *data)
  */
 #define MAX_STRING_GROWTHS 3
 
-/* When having pj_xml_print add the XML prolog to the output body the function will return 39
- * instead of -1 if the rest of the document can not be printed into the body.
- */
-#define XML_PROLOG 39
-
 static void dialog_info_to_string(void *body, struct ast_str **str)
 {
 	pj_xml_node *dialog_info = body;
@@ -169,13 +164,13 @@ static void dialog_info_to_string(void *body, struct ast_str **str)
 
 	do {
 		size = pj_xml_print(dialog_info, ast_str_buffer(*str), ast_str_size(*str), PJ_TRUE);
-		if (size == XML_PROLOG) {
+		if (size == AST_PJSIP_XML_PROLOG_LEN) {
 			ast_str_make_space(str, ast_str_size(*str) * 2);
 			++growths;
 		}
-	} while (size == XML_PROLOG && growths < MAX_STRING_GROWTHS);
+	} while (size == AST_PJSIP_XML_PROLOG_LEN && growths < MAX_STRING_GROWTHS);
 
-	if (size == XML_PROLOG) {
+	if (size == AST_PJSIP_XML_PROLOG_LEN) {
 		ast_log(LOG_WARNING, "dialog-info+xml body text too large\n");
 		return;
 	}

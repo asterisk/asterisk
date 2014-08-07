@@ -1196,4 +1196,20 @@ int ast_str_container_add(struct ao2_container *str_container, const char *add);
  */
 void ast_str_container_remove(struct ao2_container *str_container, const char *remove);
 
+/*!
+ * \brief Create a pseudo-random string of a fixed length.
+ *
+ * This function is useful for generating a string whose randomness
+ * does not need to be across all time and space, does not need to
+ * be cryptographically secure, and needs to fit in a limited space.
+ *
+ * This function will write a null byte at the final position
+ * in the buffer (buf[size - 1]). So if you pass in a size of
+ * 10, then this will generate a random 9-character string.
+ *
+ * \param buf Buffer to write random string into.
+ * \param size The size of the buffer.
+ * \return A pointer to buf
+ */
+char *ast_generate_random_string(char *buf, size_t size);
 #endif /* _ASTERISK_STRINGS_H */

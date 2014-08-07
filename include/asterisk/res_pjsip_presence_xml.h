@@ -17,6 +17,21 @@
  */
 
 /*!
+ * \brief The length of the XML prolog when printing
+ * presence or other XML in PJSIP.
+ *
+ * When calling any variant of pj_xml_print(), the documentation
+ * claims that it will return -1 if the provided buffer is not
+ * large enough. However, if the XML prolog is requested to be
+ * printed, then the length of the XML prolog is returned upon
+ * failure instead of -1.
+ *
+ * This constant is useful to check against when trying to determine
+ * if printing XML succeeded or failed.
+ */
+#define AST_PJSIP_XML_PROLOG_LEN 39
+
+/*!
  * PIDF state
  */
 enum ast_sip_pidf_state {

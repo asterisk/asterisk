@@ -70,15 +70,23 @@ struct exten_state_subscription {
 
 static void subscription_shutdown(struct ast_sip_subscription *sub);
 static int new_subscribe(struct ast_sip_endpoint *endpoint, const char *resource);
-static int notify_required(struct ast_sip_subscription *sub,
-		enum ast_sip_subscription_notify_reason reason);
+static int subscription_established(struct ast_sip_subscription *sub);
+static void *get_notify_data(struct ast_sip_subscription *sub);
 static void to_ami(struct ast_sip_subscription *sub,
 		   struct ast_str **buf);
 
 struct ast_sip_notifier presence_notifier = {
 	.default_accept = DEFAULT_PRESENCE_BODY,
 	.new_subscribe = new_subscribe,
-	.notify_required = notify_required,
+	.subscription_established = subscription_established,
+	.get_notify_data = get_notify_data,
+};
+
+struct ast_sip_notifier dialog_notifier = {
+	.default_accept = DEFAULT_DIALOG_BODY,
+	.new_subscribe = new_subscribe,
+	.subscription_established = subscription_established,
+	.get_notify_data = get_notify_data,
 };
 
 struct ast_sip_subscription_handler presence_handler = {
@@ -94,7 +102,7 @@ struct ast_sip_subscription_handler dialog_handler = {
 	.accept = { DEFAULT_DIALOG_BODY, },
 	.subscription_shutdown = subscription_shutdown,
 	.to_ami = to_ami,
-	.notifier = &presence_notifier,
+	.notifier = &dialog_notifier,
 };
 
 static void exten_state_subscription_destructor(void *obj)
@@ -153,45 +161,6 @@ static struct exten_state_subscription *exten_state_subscription_alloc(
 	return exten_state_sub;
 }
 
-/*!
- * \internal
- * \brief Get device state information and send notification to the subscriber.
- */
-static void send_notify(struct exten_state_subscription *exten_state_sub)
-{
-	RAII_VAR(struct ao2_container*, info, NULL, ao2_cleanup);
-	char *subtype = NULL, *message = NULL;
-	struct ast_sip_exten_state_data exten_state_data = {
-		.exten = exten_state_sub->exten,
-		.presence_state = ast_hint_presence_state(NULL, exten_state_sub->context,
-							  exten_state_sub->exten, &subtype, &message),
-		.presence_subtype = subtype,
-		.presence_message = message,
-		.sub = exten_state_sub->sip_sub,
-		.user_agent = exten_state_sub->user_agent
-	};
-
-	ast_sip_subscription_get_local_uri(exten_state_sub->sip_sub,
-			exten_state_data.local, sizeof(exten_state_data.local));
-	ast_sip_subscription_get_remote_uri(exten_state_sub->sip_sub,
-			exten_state_data.remote, sizeof(exten_state_data.remote));
-
-	if ((exten_state_data.exten_state = ast_extension_state_extended(
-		     NULL, exten_state_sub->context, exten_state_sub->exten, &info)) < 0) {
-
-		ast_log(LOG_WARNING, "Unable to get device hint/info for extension %s\n",
-			exten_state_sub->exten);
-		return;
-	}
-
-	exten_state_data.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
-			"exten_state", 1024, 1024);
-
-	exten_state_data.device_state_info = info;
-	ast_sip_subscription_notify(exten_state_sub->sip_sub, &exten_state_data, 0);
-	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), exten_state_data.pool);
-}
-
 struct notify_task_data {
 	struct ast_sip_exten_state_data exten_state_data;
 	struct exten_state_subscription *exten_state_sub;
@@ -231,11 +200,8 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 	task_data->exten_state_data.presence_subtype = ast_strdup(info->presence_subtype);
 	task_data->exten_state_data.presence_message = ast_strdup(info->presence_message);
 	task_data->exten_state_data.user_agent = ast_strdup(exten_state_sub->user_agent);
-	task_data->exten_state_data.device_state_info = info->device_state_info;
-
-	if (task_data->exten_state_data.device_state_info) {
-		ao2_ref(task_data->exten_state_data.device_state_info, +1);
-	}
+	task_data->exten_state_data.device_state_info = ao2_bump(info->device_state_info);
+	task_data->exten_state_data.sub = exten_state_sub->sip_sub;
 
 	ast_sip_subscription_get_local_uri(exten_state_sub->sip_sub,
 			task_data->exten_state_data.local, sizeof(task_data->exten_state_data.local));
@@ -259,6 +225,9 @@ static int notify_task(void *obj)
 	/* Pool allocation has to happen here so that we allocate within a PJLIB thread */
 	task_data->exten_state_data.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
 			"exten_state", 1024, 1024);
+	if (!task_data->exten_state_data.pool) {
+		return -1;
+	}
 
 	task_data->exten_state_data.sub = task_data->exten_state_sub->sip_sub;
 
@@ -366,7 +335,7 @@ static int new_subscribe(struct ast_sip_endpoint *endpoint,
 	return 200;
 }
 
-static int initial_subscribe(struct ast_sip_subscription *sip_sub)
+static int subscription_established(struct ast_sip_subscription *sip_sub)
 {
 	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sip_sub);
 	const char *resource = ast_sip_subscription_get_resource_name(sip_sub);
@@ -403,33 +372,77 @@ static int initial_subscribe(struct ast_sip_subscription *sip_sub)
 		return -1;
 	}
 
-	send_notify(exten_state_sub);
 	ao2_cleanup(exten_state_sub);
 	return 0;
 }
 
-static int notify_required(struct ast_sip_subscription *sub,
-		enum ast_sip_subscription_notify_reason reason)
+static void exten_state_data_destructor(void *obj)
+{
+	struct ast_sip_exten_state_data *exten_state_data = obj;
+
+	ao2_cleanup(exten_state_data->device_state_info);
+	ast_free(exten_state_data->presence_subtype);
+	ast_free(exten_state_data->presence_message);
+	if (exten_state_data->pool) {
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), exten_state_data->pool);
+	}
+}
+
+static struct ast_sip_exten_state_data *exten_state_data_alloc(struct ast_sip_subscription *sip_sub,
+		struct exten_state_subscription *exten_state_sub)
+{
+	struct ast_sip_exten_state_data *exten_state_data;
+	char *subtype = NULL;
+	char *message = NULL;
+
+	exten_state_data = ao2_alloc(sizeof(*exten_state_data), exten_state_data_destructor);
+	if (!exten_state_data) {
+		return NULL;
+	}
+
+	exten_state_data->exten = exten_state_sub->exten;
+	if ((exten_state_data->presence_state = ast_hint_presence_state(NULL, exten_state_sub->context,
+			exten_state_sub->exten, &subtype, &message)) == -1) {
+		ao2_cleanup(exten_state_data);
+		return NULL;
+	}
+	exten_state_data->presence_subtype = subtype;
+	exten_state_data->presence_message = message;
+	exten_state_data->user_agent = exten_state_sub->user_agent;
+	ast_sip_subscription_get_local_uri(sip_sub, exten_state_data->local,
+			sizeof(exten_state_data->local));
+	ast_sip_subscription_get_remote_uri(sip_sub, exten_state_data->remote,
+			sizeof(exten_state_data->remote));
+	exten_state_data->sub = sip_sub;
+
+	exten_state_data->exten_state = ast_extension_state_extended(
+			NULL, exten_state_sub->context, exten_state_sub->exten,
+			&exten_state_data->device_state_info);
+	if (exten_state_data->exten_state < 0) {
+		ao2_cleanup(exten_state_data);
+		return NULL;
+	}
+
+	exten_state_data->pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
+			"exten_state", 1024, 1024);
+	if (!exten_state_data->pool) {
+		ao2_cleanup(exten_state_data);
+		return NULL;
+	}
+
+	return exten_state_data;
+}
+
+static void *get_notify_data(struct ast_sip_subscription *sub)
 {
 	struct exten_state_subscription *exten_state_sub;
 
-	switch (reason) {
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_STARTED:
-		return initial_subscribe(sub);
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_RENEWED:
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_TERMINATED:
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_OTHER:
-		exten_state_sub = get_exten_state_sub(sub);
-
-		if (!exten_state_sub) {
-			return -1;
-		}
-
-		send_notify(exten_state_sub);
-		break;
+	exten_state_sub = get_exten_state_sub(sub);
+	if (!exten_state_sub) {
+		return NULL;
 	}
 
-	return 0;
+	return exten_state_data_alloc(sub, exten_state_sub);
 }
 
 static void to_ami(struct ast_sip_subscription *sub,

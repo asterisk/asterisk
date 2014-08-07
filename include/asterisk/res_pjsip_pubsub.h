@@ -240,23 +240,29 @@ struct ast_sip_notifier {
 	 */
 	int (*new_subscribe)(struct ast_sip_endpoint *endpoint, const char *resource);
 	/*!
-	 * \brief The subscription is in need of a NOTIFY request.
+	 * \brief Called when an inbound subscription has been accepted.
 	 *
-	 * A reason of AST_SIP_SUBSCRIPTION_NOTIFY_REASON_STARTED is given immediately
-	 * after a SUBSCRIBE is accepted. This is a good opportunity for the notifier to
-	 * perform setup duties such as establishing Stasis subscriptions or adding
-	 * datastores to the subscription.
+	 * This is a prime opportunity for notifiers to add any notifier-specific
+	 * data to the subscription (such as datastores) that it needs to.
 	 *
-	 * A reason of AST_SIP_SUBSCRIPTION_NOTIFY_REASON_TERMINATED is given when the
-	 * subscriber has terminated the subscription. If there are any duties that the
+	 * \note There is no need to send a NOTIFY request when this callback
+	 * is called
 	 *
-	 *
-	 * \param sub The subscription to send the NOTIFY on.
-	 * \param reason The reason why the NOTIFY is being sent.
+	 * \param sub The new subscription
 	 * \retval 0 Success
 	 * \retval -1 Failure
 	 */
-	int (*notify_required)(struct ast_sip_subscription *sub, enum ast_sip_subscription_notify_reason reason);
+	int (*subscription_established)(struct ast_sip_subscription *sub);
+	/*!
+	 * \brief Supply data needed to create a NOTIFY body.
+	 *
+	 * The returned data must be an ao2 object. The caller of this function
+	 * will be responsible for decrementing the refcount of the returned object
+	 *
+	 * \param sub The subscription
+	 * \return An ao2 object that can be used to create a NOTIFY body.
+	 */
+	void *(*get_notify_data)(struct ast_sip_subscription *sub);
 };
 
 struct ast_sip_subscriber {
@@ -343,10 +349,9 @@ struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_sub
 /*!
  * \brief Notify a SIP subscription of a state change.
  *
- * This will create a NOTIFY body to be sent out for the subscribed resource.
- * On real subscriptions, a NOTIFY request will be generated and sent.
- * On virtual subscriptions, the NOTIFY is saved on the virtual subscription and the
- * parent subscription is alerted.
+ * This tells the pubsub core that the state of a subscribed resource has changed.
+ * The pubsub core will generate an appropriate NOTIFY request to send to the
+ * subscriber.
  *
  * \param sub The subscription on which a state change is occurring.
  * \param notify_data Event package-specific data used to create the NOTIFY body.
@@ -359,7 +364,7 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, void *notify_d
 /*!
  * \brief Retrieve the local URI for this subscription
  *
- * This is the local URI as determined by the underlying SIP dialog.
+ * This is the local URI of the subscribed resource.
  *
  * \param sub The subscription
  * \param[out] buf The buffer into which to store the URI.

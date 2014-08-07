@@ -195,3 +195,15 @@ void ast_str_container_remove(struct ao2_container *str_container, const char *r
 {
 	ao2_find(str_container, remove, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
 }
+
+char *ast_generate_random_string(char *buf, size_t size)
+{
+	int i;
+
+	for (i = 0; i < size - 1; ++i) {
+		buf[i] = 'a' + (ast_random() % 26);
+	}
+	buf[i] = '\0';
+
+	return buf;
+}

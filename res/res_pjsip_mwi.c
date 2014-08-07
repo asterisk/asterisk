@@ -48,17 +48,20 @@ AO2_GLOBAL_OBJ_STATIC(unsolicited_mwi);
 #define MWI_TYPE "application"
 #define MWI_SUBTYPE "simple-message-summary"
 
+#define MWI_DATASTORE "MWI datastore"
+
 static void mwi_subscription_shutdown(struct ast_sip_subscription *sub);
 static void mwi_to_ami(struct ast_sip_subscription *sub, struct ast_str **buf);
 static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 		const char *resource);
-static int mwi_notify_required(struct ast_sip_subscription *sip_sub,
-		enum ast_sip_subscription_notify_reason reason);
+static int mwi_subscription_established(struct ast_sip_subscription *sub);
+static void *mwi_get_notify_data(struct ast_sip_subscription *sub);
 
 static struct ast_sip_notifier mwi_notifier = {
 	.default_accept = MWI_TYPE"/"MWI_SUBTYPE,
 	.new_subscribe = mwi_new_subscribe,
-	.notify_required = mwi_notify_required,
+	.subscription_established = mwi_subscription_established,
+	.get_notify_data = mwi_get_notify_data,
 };
 
 static struct ast_sip_subscription_handler mwi_handler = {
@@ -457,7 +460,7 @@ static void mwi_subscription_shutdown(struct ast_sip_subscription *sub)
 {
 	struct mwi_subscription *mwi_sub;
 	RAII_VAR(struct ast_datastore *, mwi_datastore,
-			ast_sip_subscription_get_datastore(sub, "MWI datastore"), ao2_cleanup);
+			ast_sip_subscription_get_datastore(sub, MWI_DATASTORE), ao2_cleanup);
 
 	if (!mwi_datastore) {
 		return;
@@ -473,7 +476,7 @@ static int add_mwi_datastore(struct mwi_subscription *sub)
 {
 	RAII_VAR(struct ast_datastore *, mwi_datastore, NULL, ao2_cleanup);
 
-	mwi_datastore = ast_sip_subscription_alloc_datastore(&mwi_ds_info, "MWI datastore");
+	mwi_datastore = ast_sip_subscription_alloc_datastore(&mwi_ds_info, MWI_DATASTORE);
 	if (!mwi_datastore) {
 		return -1;
 	}
@@ -676,7 +679,7 @@ static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 	return 200;
 }
 
-static int mwi_initial_subscription(struct ast_sip_subscription *sip_sub)
+static int mwi_subscription_established(struct ast_sip_subscription *sip_sub)
 {
 	const char *resource = ast_sip_subscription_get_resource_name(sip_sub);
 	struct mwi_subscription *sub;
@@ -694,39 +697,32 @@ static int mwi_initial_subscription(struct ast_sip_subscription *sip_sub)
 		return -1;
 	}
 
-	send_mwi_notify(sub);
-
 	ao2_cleanup(sub);
 	ao2_cleanup(endpoint);
 	return 0;
 }
 
-static int mwi_notify_required(struct ast_sip_subscription *sip_sub,
-		enum ast_sip_subscription_notify_reason reason)
+static void *mwi_get_notify_data(struct ast_sip_subscription *sub)
 {
+	struct ast_sip_message_accumulator *counter;
 	struct mwi_subscription *mwi_sub;
 	struct ast_datastore *mwi_datastore;
 
-	switch (reason) {
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_STARTED:
-		return mwi_initial_subscription(sip_sub);
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_RENEWED:
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_TERMINATED:
-	case AST_SIP_SUBSCRIPTION_NOTIFY_REASON_OTHER:
-		mwi_datastore = ast_sip_subscription_get_datastore(sip_sub, "MWI datastore");
+	mwi_datastore = ast_sip_subscription_get_datastore(sub, MWI_DATASTORE);
+	if (!mwi_datastore) {
+		return NULL;
+	}
+	mwi_sub = mwi_datastore->data;
 
-		if (!mwi_datastore) {
-			return -1;
-		}
-
-		mwi_sub = mwi_datastore->data;
-
-		send_mwi_notify(mwi_sub);
+	counter = ao2_alloc(sizeof(*counter), NULL);
+	if (!counter) {
 		ao2_cleanup(mwi_datastore);
-		break;
+		return NULL;
 	}
 
-	return 0;
+	ao2_callback(mwi_sub->stasis_subs, OBJ_NODATA, get_message_count, counter);
+	ao2_cleanup(mwi_datastore);
+	return counter;
 }
 
 static void mwi_subscription_mailboxes_str(struct ao2_container *stasis_subs,
@@ -753,7 +749,7 @@ static void mwi_to_ami(struct ast_sip_subscription *sub,
 {
 	struct mwi_subscription *mwi_sub;
 	RAII_VAR(struct ast_datastore *, mwi_datastore,
-			ast_sip_subscription_get_datastore(sub, "MWI datastore"), ao2_cleanup);
+			ast_sip_subscription_get_datastore(sub, MWI_DATASTORE), ao2_cleanup);
 
 	if (!mwi_datastore) {
 		return;

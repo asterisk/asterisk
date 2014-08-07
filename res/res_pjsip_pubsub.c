@@ -44,6 +44,7 @@
 #include "asterisk/manager.h"
 #include "asterisk/test.h"
 #include "res_pjsip/include/res_pjsip_private.h"
+#include "asterisk/res_pjsip_presence_xml.h"
 
 /*** DOCUMENTATION
 	<manager name="PJSIPShowSubscriptionsInbound" language="en_US">
@@ -72,6 +73,20 @@
                         </para>
 		</description>
 	</manager>
+	<manager name="PJSIPShowResourceLists" language="en_US">
+		<synopsis>
+			Displays settings for configured resource lists.
+		</synopsis>
+		<syntax />
+		<description>
+			<para>
+			Provides a listing of all resource lists.  An event <literal>ResourceListDetail</literal>
+			is issued for each resource list object.  Once all detail events are completed a
+			<literal>ResourceListDetailComplete</literal> event is issued.
+                        </para>
+		</description>
+	</manager>
+
 	<configInfo name="res_pjsip_pubsub" language="en_US">
 		<synopsis>Module that implements publish and subscribe support.</synopsis>
 		<configFile name="pjsip.conf">
@@ -108,6 +123,66 @@
 					<synopsis>The time at which the subscription expires</synopsis>
 				</configOption>
 			</configObject>
+			<configObject name="resource_list">
+				<synopsis>Resource list configuration parameters.</synopsis>
+				<configOption name="type">
+					<synopsis>Must be of type 'resource_list'</synopsis>
+				</configOption>
+				<configOption name="event">
+					<synopsis>The SIP event package that the list resource belong to.</synopsis>
+					<description><para>
+						The SIP event package describes the types of resources that Asterisk reports
+						the state of.
+					</para>
+						<enumlist>
+							<enum name="presence"><para>
+								Device state and presence reporting.
+							</para></enum>
+							<enum name="message-summary"><para>
+								Message-waiting indication (MWI) reporting.
+							</para></enum>
+						</enumlist>
+					</description>
+				</configOption>
+				<configOption name="list_item">
+					<synopsis>The name of a resource to report state on</synopsis>
+					<description>
+						<para>In general Asterisk looks up list items in the following way:</para>
+						<para>1. Check if the list item refers to another configured resource list.</para>
+						<para>2. Pass the name of the resource off to event-package-specific handlers
+						   to find the specified resource.</para>
+						<para>The second part means that the way the list item is specified depends
+						on what type of list this is. For instance, if you have the <replaceable>event</replaceable>
+						set to <literal>presence</literal>, then list items should be in the form of
+						dialplan_extension@dialplan_context. For <literal>message-summary</literal> mailbox
+						names should be listed.</para>
+					</description>
+				</configOption>
+				<configOption name="full_state" default="no">
+					<synopsis>Indicates if the entire list's state should be sent out.</synopsis>
+					<description>
+						<para>If this option is enabled, and a resource changes state, then Asterisk will construct
+						a notification that contains the state of all resources in the list. If the option is
+						disabled, Asterisk will construct a notification that only contains the states of
+						resources that have changed.</para>
+						<note>
+							<para>Even with this option disabled, there are certain situations where Asterisk is forced
+							to send a notification with the states of all resources in the list. When a subscriber
+							renews or terminates its subscription to the list, Asterisk MUST send a full state
+							notification.</para>
+						</note>
+					</description>
+				</configOption>
+				<configOption name="notification_batch_interval" default="0">
+					<synopsis>Time Asterisk should wait, in milliseconds, before sending notifications.</synopsis>
+					<description>
+						<para>When a resource's state changes, it may be desired to wait a certain amount before Asterisk
+						sends a notification to subscribers. This allows for other state changes to accumulate, so that
+						Asterisk can communicate multiple state changes in a single notification instead of rapidly sending
+						many notifications.</para>
+					</description>
+				</configOption>
+			</configObject>
 			<configObject name="inbound-publication">
 				<synopsis>The configuration for inbound publications</synopsis>
 				<configOption name="endpoint" default="">
@@ -142,6 +217,12 @@ static struct ast_sched_context *sched;
 
 /*! \brief Default expiration time for PUBLISH if one is not specified */
 #define DEFAULT_PUBLISH_EXPIRES 3600
+
+/*! \brief Number of buckets for subscription datastore */
+#define DATASTORE_BUCKETS 53
+
+/*! \brief Default expiration for subscriptions */
+#define DEFAULT_EXPIRES 3600
 
 /*! \brief Defined method for PUBLISH */
 const pjsip_method pjsip_publish_method =
@@ -206,6 +287,26 @@ enum sip_publish_type {
 };
 
 /*!
+ * \brief A vector of strings commonly used throughout this module
+ */
+AST_VECTOR(resources, const char *);
+
+/*!
+ * \brief Resource list configuration item
+ */
+struct resource_list {
+	SORCERY_OBJECT(details);
+	/*! SIP event package the list uses. */
+	char event[32];
+	/*! Strings representing resources in the list. */
+	struct resources items;
+	/*! Indicates if Asterisk sends full or partial state on notifications. */
+	unsigned int full_state;
+	/*! Time, in milliseconds Asterisk waits before sending a batched notification.*/
+	unsigned int notification_batch_interval;
+};
+
+/*!
  * Used to create new entity IDs by ESCs.
  */
 static int esc_etag_counter;
@@ -264,83 +365,72 @@ struct subscription_persistence {
 };
 
 /*!
- * \brief Real subscription details
+ * \brief A tree of SIP subscriptions
  *
- * A real subscription is one that has a direct link to a
- * PJSIP subscription and dialog.
+ * Because of the ability to subscribe to resource lists, a SIP
+ * subscription can result in a tree of subscriptions being created.
+ * This structure represents the information relevant to the subscription
+ * as a whole, to include the underlying PJSIP structure for the
+ * subscription.
  */
-struct ast_sip_real_subscription {
-	/*! The underlying PJSIP event subscription structure */
-	pjsip_evsub *evsub;
-	/*! The underlying PJSIP dialog */
-	pjsip_dialog *dlg;
-};
-
-/*!
- * \brief Virtual subscription details
- *
- * A virtual subscription is one that does not have a direct
- * link to a PJSIP subscription. Instead, it is a descendent
- * of an ast_sip_subscription. Following the ancestry will
- * eventually lead to a real subscription.
- */
-struct ast_sip_virtual_subscription {
-	struct ast_sip_subscription *parent;
-};
-
-/*!
- * \brief Discriminator between real and virtual subscriptions
- */
-enum sip_subscription_type {
-	/*!
-	 * \brief a "real" subscription.
-	 *
-	 * Real subscriptions are at the root of a tree of subscriptions.
-	 * A real subscription has a corresponding SIP subscription in the
-	 * PJSIP stack.
-	 */
-	SIP_SUBSCRIPTION_REAL,
-	/*!
-	 * \brief a "virtual" subscription.
-	 *
-	 * Virtual subscriptions are the descendents of real subscriptions
-	 * in a tree of subscriptions. Virtual subscriptions do not have
-	 * a corresponding SIP subscription in the PJSIP stack. Instead,
-	 * when a state change happens on a virtual subscription, the
-	 * state change is indicated to the virtual subscription's parent.
-	 */
-	SIP_SUBSCRIPTION_VIRTUAL,
-};
-
-/*!
- * \brief Structure representing a SIP subscription
- */
-struct ast_sip_subscription {
-	/*! Subscription datastores set up by handlers */
-	struct ao2_container *datastores;
+struct sip_subscription_tree {
 	/*! The endpoint with which the subscription is communicating */
 	struct ast_sip_endpoint *endpoint;
 	/*! Serializer on which to place operations for this subscription */
 	struct ast_taskprocessor *serializer;
-	/*! The handler for this subscription */
-	const struct ast_sip_subscription_handler *handler;
 	/*! The role for this subscription */
 	enum ast_sip_subscription_role role;
-	/*! Indicator of real or virtual subscription */
-	enum sip_subscription_type type;
-	/*! Real and virtual components of the subscription */
-	union {
-		struct ast_sip_real_subscription real;
-		struct ast_sip_virtual_subscription virtual;
-	} reality;
-	/*! Body generaator for NOTIFYs */
-	struct ast_sip_pubsub_body_generator *body_generator;
 	/*! Persistence information */
 	struct subscription_persistence *persistence;
+	/*! The underlying PJSIP event subscription structure */
+	pjsip_evsub *evsub;
+	/*! The underlying PJSIP dialog */
+	pjsip_dialog *dlg;
+	/*! Interval to use for batching notifications */
+	unsigned int notification_batch_interval;
+	/*! Scheduler ID for batched notification */
+	int notify_sched_id;
+	/*! Indicator if scheduled batched notification should be sent */
+	unsigned int send_scheduled_notify;
+	/*! The root of the subscription tree */
+	struct ast_sip_subscription *root;
+	/*! Is this subscription to a list? */
+	int is_list;
 	/*! Next item in the list */
-	AST_LIST_ENTRY(ast_sip_subscription) next;
-	/*! List of child subscriptions */
-	AST_LIST_HEAD_NOLOCK(,ast_sip_subscription) children;
+	AST_LIST_ENTRY(sip_subscription_tree) next;
+};
+
+/*!
+ * \brief Structure representing a "virtual" SIP subscription.
+ *
+ * This structure serves a dual purpose. Structurally, it is
+ * the constructed tree of subscriptions based on the resources
+ * being subscribed to. API-wise, this serves as the handle that
+ * subscription handlers use in order to interact with the pubsub API.
+ */
+struct ast_sip_subscription {
+	/*! Subscription datastores set up by handlers */
+	struct ao2_container *datastores;
+	/*! The handler for this subscription */
+	const struct ast_sip_subscription_handler *handler;
+	/*! Pointer to the base of the tree */
+	struct sip_subscription_tree *tree;
+	/*! Body generaator for NOTIFYs */
+	struct ast_sip_pubsub_body_generator *body_generator;
+	/*! Vector of child subscriptions */
+	AST_VECTOR(, struct ast_sip_subscription *) children;
+	/*! Saved NOTIFY body text for this subscription */
+	struct ast_str *body_text;
+	/*! Indicator that the body text has changed since the last notification */
+	int body_changed;
+	/*! The current state of the subscription */
+	pjsip_evsub_state subscription_state;
+	/*! For lists, the current version to place in the RLMI body */
+	unsigned int version;
+	/*! For lists, indicates if full state should always be communicated. */
+	unsigned int full_state;
+	/*! URI associated with the subscription */
+	pjsip_sip_uri *uri;
 	/*! Name of resource being subscribed to */
 	char resource[0];
 };
@@ -362,20 +452,26 @@ static const char *sip_subscription_roles_map[] = {
 	[AST_SIP_NOTIFIER] = "Notifier"
 };
 
-AST_RWLIST_HEAD_STATIC(subscriptions, ast_sip_subscription);
+AST_RWLIST_HEAD_STATIC(subscriptions, sip_subscription_tree);
 
 AST_RWLIST_HEAD_STATIC(body_generators, ast_sip_pubsub_body_generator);
 AST_RWLIST_HEAD_STATIC(body_supplements, ast_sip_pubsub_body_supplement);
 
-static pjsip_evsub *sip_subscription_get_evsub(const struct ast_sip_subscription *sub)
-{
-	return sub->reality.real.evsub;
-}
-
-static pjsip_dialog *sip_subscription_get_dlg(const struct ast_sip_subscription *sub)
-{
-	return sub->reality.real.dlg;
-}
+static void pubsub_on_evsub_state(pjsip_evsub *sub, pjsip_event *event);
+static void pubsub_on_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata,
+		int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body);
+static void pubsub_on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+		pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body);
+static void pubsub_on_client_refresh(pjsip_evsub *sub);
+static void pubsub_on_server_timeout(pjsip_evsub *sub);
+ 
+static pjsip_evsub_user pubsub_cb = {
+	.on_evsub_state = pubsub_on_evsub_state,
+	.on_rx_refresh = pubsub_on_rx_refresh,
+	.on_rx_notify = pubsub_on_rx_notify,
+	.on_client_refresh = pubsub_on_client_refresh,
+	.on_server_timeout = pubsub_on_server_timeout,
+};
 
 /*! \brief Destructor for publication resource */
 static void publication_resource_destroy(void *obj)
@@ -408,7 +504,7 @@ static void *subscription_persistence_alloc(const char *name)
 }
 
 /*! \brief Function which creates initial persistence information of a subscription in sorcery */
-static struct subscription_persistence *subscription_persistence_create(struct ast_sip_subscription *sub)
+static struct subscription_persistence *subscription_persistence_create(struct sip_subscription_tree *sub_tree)
 {
 	char tag[PJ_GUID_STRING_LENGTH + 1];
 
@@ -418,13 +514,13 @@ static struct subscription_persistence *subscription_persistence_create(struct a
 	struct subscription_persistence *persistence = ast_sorcery_alloc(ast_sip_get_sorcery(),
 		"subscription_persistence", NULL);
 
-	pjsip_dialog *dlg = sip_subscription_get_dlg(sub);
+	pjsip_dialog *dlg = sub_tree->dlg;
 
 	if (!persistence) {
 		return NULL;
 	}
 
-	persistence->endpoint = ast_strdup(ast_sorcery_object_get_id(sub->endpoint));
+	persistence->endpoint = ast_strdup(ast_sorcery_object_get_id(sub_tree->endpoint));
 	ast_copy_pj_str(tag, &dlg->local.info->tag, sizeof(tag));
 	persistence->tag = ast_strdup(tag);
 
@@ -433,47 +529,49 @@ static struct subscription_persistence *subscription_persistence_create(struct a
 }
 
 /*! \brief Function which updates persistence information of a subscription in sorcery */
-static void subscription_persistence_update(struct ast_sip_subscription *sub,
+static void subscription_persistence_update(struct sip_subscription_tree *sub_tree,
 	pjsip_rx_data *rdata)
 {
 	pjsip_dialog *dlg;
 
-	if (!sub->persistence) {
+	if (!sub_tree->persistence) {
 		return;
 	}
 
-	dlg = sip_subscription_get_dlg(sub);
-	sub->persistence->cseq = dlg->local.cseq;
+	dlg = sub_tree->dlg;
+	sub_tree->persistence->cseq = dlg->local.cseq;
 
 	if (rdata) {
 		int expires;
 		pjsip_expires_hdr *expires_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL);
 
 		expires = expires_hdr ? expires_hdr->ivalue : DEFAULT_PUBLISH_EXPIRES;
-		sub->persistence->expires = ast_tvadd(ast_tvnow(), ast_samp2tv(expires, 1));
+		sub_tree->persistence->expires = ast_tvadd(ast_tvnow(), ast_samp2tv(expires, 1));
 
-		ast_copy_string(sub->persistence->packet, rdata->pkt_info.packet, sizeof(sub->persistence->packet));
-		ast_copy_string(sub->persistence->src_name, rdata->pkt_info.src_name, sizeof(sub->persistence->src_name));
-		sub->persistence->src_port = rdata->pkt_info.src_port;
-		ast_copy_string(sub->persistence->transport_key, rdata->tp_info.transport->type_name,
-			sizeof(sub->persistence->transport_key));
-		ast_copy_pj_str(sub->persistence->local_name, &rdata->tp_info.transport->local_name.host,
-			sizeof(sub->persistence->local_name));
-		sub->persistence->local_port = rdata->tp_info.transport->local_name.port;
+		ast_copy_string(sub_tree->persistence->packet, rdata->pkt_info.packet,
+				sizeof(sub_tree->persistence->packet));
+		ast_copy_string(sub_tree->persistence->src_name, rdata->pkt_info.src_name,
+				sizeof(sub_tree->persistence->src_name));
+		sub_tree->persistence->src_port = rdata->pkt_info.src_port;
+		ast_copy_string(sub_tree->persistence->transport_key, rdata->tp_info.transport->type_name,
+			sizeof(sub_tree->persistence->transport_key));
+		ast_copy_pj_str(sub_tree->persistence->local_name, &rdata->tp_info.transport->local_name.host,
+			sizeof(sub_tree->persistence->local_name));
+		sub_tree->persistence->local_port = rdata->tp_info.transport->local_name.port;
 	}
 
-	ast_sorcery_update(ast_sip_get_sorcery(), sub->persistence);
+	ast_sorcery_update(ast_sip_get_sorcery(), sub_tree->persistence);
 }
 
 /*! \brief Function which removes persistence of a subscription from sorcery */
-static void subscription_persistence_remove(struct ast_sip_subscription *sub)
+static void subscription_persistence_remove(struct sip_subscription_tree *sub_tree)
 {
-	if (!sub->persistence) {
+	if (!sub_tree->persistence) {
 		return;
 	}
 
-	ast_sorcery_delete(ast_sip_get_sorcery(), sub->persistence);
-	ao2_ref(sub->persistence, -1);
+	ast_sorcery_delete(ast_sip_get_sorcery(), sub_tree->persistence);
+	ao2_ref(sub_tree->persistence, -1);
 }
 
 
@@ -503,23 +601,62 @@ static struct ast_sip_subscription_handler *subscription_get_handler_from_rdata(
 	return handler;
 }
 
+/*!
+ * \brief Accept headers that are exceptions to the rule
+ *
+ * Typically, when a SUBSCRIBE arrives, we attempt to find a
+ * body generator that matches one of the Accept headers in
+ * the request. When subscribing to a single resource, this works
+ * great. However, when subscribing to a list, things work
+ * differently. Most Accept header values are fine, but there
+ * are a couple that are endemic to resource lists that need
+ * to be ignored when searching for a body generator to use
+ * for the individual resources of the subscription.
+ */
+const char *accept_exceptions[] =  {
+	"multipart/related",
+	"application/rlmi+xml",
+};
+
+/*!
+ * \brief Is the Accept header from the SUBSCRIBE in the list of exceptions?
+ *
+ * \retval 1 This Accept header value is an exception to the rule.
+ * \retval 0 This Accept header is not an exception to the rule.
+ */
+static int exceptional_accept(const pj_str_t *accept)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(accept_exceptions); ++i) {
+		if (!pj_strcmp2(accept, accept_exceptions[i])) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief Retrieve a body generator using the Accept header of an rdata message */
 static struct ast_sip_pubsub_body_generator *subscription_get_generator_from_rdata(pjsip_rx_data *rdata,
 	const struct ast_sip_subscription_handler *handler)
 {
-	pjsip_accept_hdr *accept_header;
+	pjsip_accept_hdr *accept_header = (pjsip_accept_hdr *) &rdata->msg_info.msg->hdr;
 	char accept[AST_SIP_MAX_ACCEPT][64];
-	size_t num_accept_headers;
+	size_t num_accept_headers = 0;
 
-	accept_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_ACCEPT, rdata->msg_info.msg->hdr.next);
-	if (accept_header) {
+	while ((accept_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_ACCEPT, accept_header->next))) {
 		int i;
 
 		for (i = 0; i < accept_header->count; ++i) {
-			ast_copy_pj_str(accept[i], &accept_header->values[i], sizeof(accept[i]));
+			if (!exceptional_accept(&accept_header->values[i])) {
+				ast_copy_pj_str(accept[num_accept_headers], &accept_header->values[i], sizeof(accept[num_accept_headers]));
+				++num_accept_headers;
+			}
 		}
-		num_accept_headers = accept_header->count;
-	} else {
+	}
+
+	if (num_accept_headers == 0) {
 		/* If a SUBSCRIBE contains no Accept headers, then we must assume that
 		 * the default accept type for the event package is to be used.
 		 */
@@ -530,9 +667,583 @@ static struct ast_sip_pubsub_body_generator *subscription_get_generator_from_rda
 	return find_body_generator(accept, num_accept_headers);
 }
 
-static struct ast_sip_subscription *notifier_create_subscription(const struct ast_sip_subscription_handler *handler,
+struct resource_tree;
+
+/*!
+ * \brief A node for a resource tree.
+ */
+struct tree_node {
+	AST_VECTOR(, struct tree_node *) children;
+	unsigned int full_state;
+	char resource[0];
+};
+
+/*!
+ * \brief Helper function for retrieving a resource list for a given event.
+ *
+ * This will retrieve a resource list that corresponds to the resource and event provided.
+ *
+ * \param resource The name of the resource list to retrieve
+ * \param event The expected event name on the resource list
+ */
+static struct resource_list *retrieve_resource_list(const char *resource, const char *event)
+{
+	struct resource_list *list;
+
+	list = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "resource_list", resource);
+	if (!list) {
+		return NULL;
+	}
+
+	if (strcmp(list->event, event)) {
+		ast_log(LOG_WARNING, "Found resource list %s, but its event type (%s) does not match SUBSCRIBE's (%s)\n",
+				resource, list->event, event);
+		ao2_cleanup(list);
+		return NULL;
+	}
+
+	return list;
+}
+
+/*!
+ * \brief Allocate a tree node
+ *
+ * In addition to allocating and initializing the tree node, the node is also added
+ * to the vector of visited resources. See \ref build_resource_tree for more information
+ * on the visited resources.
+ *
+ * \param resource The name of the resource for this tree node.
+ * \param visited The vector of resources that have been visited.
+ * \param if allocating a list, indicate whether full state is requested in notifications.
+ * \retval NULL Allocation failure.
+ * \retval non-NULL The newly-allocated tree_node
+ */
+static struct tree_node *tree_node_alloc(const char *resource, struct resources *visited, unsigned int full_state)
+{
+	struct tree_node *node;
+
+	node = ast_calloc(1, sizeof(*node) + strlen(resource) + 1);
+	if (!node) {
+		return NULL;
+	}
+
+	strcpy(node->resource, resource);
+	if (AST_VECTOR_INIT(&node->children, 4)) {
+		ast_free(node);
+		return NULL;
+	}
+	node->full_state = full_state;
+
+	if (visited) {
+		AST_VECTOR_APPEND(visited, resource);
+	}
+	return node;
+}
+
+/*!
+ * \brief Destructor for a tree node
+ *
+ * This function calls recursively in order to destroy
+ * all nodes lower in the tree from the given node in
+ * addition to the node itself.
+ *
+ * \param node The node to destroy.
+ */
+static void tree_node_destroy(struct tree_node *node)
+{
+	int i;
+	if (!node) {
+		return;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&node->children); ++i) {
+		tree_node_destroy(AST_VECTOR_GET(&node->children, i));
+	}
+	AST_VECTOR_FREE(&node->children);
+	ast_free(node);
+}
+
+/*!
+ * \brief Determine if this resource has been visited already
+ *
+ * See \ref build_resource_tree for more information
+ *
+ * \param resource The resource currently being visited
+ * \param visited The resources that have previously been visited
+ */
+static int have_visited(const char *resource, struct resources *visited)
+{
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(visited); ++i) {
+		if (!strcmp(resource, AST_VECTOR_GET(visited, i))) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Build child nodes for a given parent.
+ *
+ * This iterates through the items on a resource list and creates tree nodes for each one. The
+ * tree nodes created are children of the supplied parent node. If an item in the resource
+ * list is itself a list, then this function is called recursively to provide children for
+ * the the new node.
+ *
+ * If an item in a resource list is not a list, then the supplied subscription handler is
+ * called into as if a new SUBSCRIBE for the list item were presented. The handler's response
+ * is used to determine if the node can be added to the tree or not.
+ *
+ * If a parent node ends up having no child nodes added under it, then the parent node is
+ * pruned from the tree.
+ *
+ * \param endpoint The endpoint that sent the inbound SUBSCRIBE.
+ * \param handler The subscription handler for leaf nodes in the tree.
+ * \param list The configured resource list from which the child node is being built.
+ * \param parent The parent node for these children.
+ * \param visited The resources that have already been visited.
+ */
+static void build_node_children(struct ast_sip_endpoint *endpoint, const struct ast_sip_subscription_handler *handler,
+		struct resource_list *list, struct tree_node *parent, struct resources *visited)
+{
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(&list->items); ++i) {
+		struct tree_node *current;
+		struct resource_list *child_list;
+		const char *resource = AST_VECTOR_GET(&list->items, i);
+
+		if (have_visited(resource, visited)) {
+			ast_debug(1, "Already visited resource %s. Avoiding duplicate resource or potential loop.\n", resource);
+			continue;
+		}
+
+		child_list = retrieve_resource_list(resource, list->event);
+		if (!child_list) {
+			int resp = handler->notifier->new_subscribe(endpoint, resource);
+			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
+				current = tree_node_alloc(resource, visited, 0);
+				if (!current) {
+					ast_debug(1, "Subscription to leaf resource %s was successful, but encountered"
+							"allocation error afterwards\n", resource);
+					continue;
+				}
+				ast_debug(1, "Subscription to leaf resource %s resulted in success. Adding to parent %s\n",
+						resource, parent->resource);
+				AST_VECTOR_APPEND(&parent->children, current);
+			} else {
+				ast_debug(1, "Subscription to leaf resource %s resulted in error response %d\n",
+						resource, resp);
+			}
+		} else {
+			ast_debug(1, "Resource %s (child of %s) is a list\n", resource, parent->resource);
+			current = tree_node_alloc(resource, visited, child_list->full_state);
+			if (!current) {
+				ast_debug(1, "Cannot build children of resource %s due to allocation failure\n", resource);
+				continue;
+			}
+			build_node_children(endpoint, handler, child_list, current, visited);
+			if (AST_VECTOR_SIZE(&current->children) > 0) {
+				ast_debug(1, "List %s had no successful children.\n", resource);
+				AST_VECTOR_APPEND(&parent->children, current);
+			} else {
+				ast_debug(1, "List %s had successful children. Adding to parent %s\n",
+						resource, parent->resource);
+				tree_node_destroy(current);
+			}
+			ao2_cleanup(child_list);
+		}
+	}
+}
+
+/*!
+ * \brief A resource tree
+ *
+ * When an inbound SUBSCRIBE arrives, the resource being subscribed to may
+ * be a resource list. If this is the case, the resource list may contain resources
+ * that are themselves lists. The structure needed to hold the resources is
+ * a tree.
+ *
+ * Upon receipt of the SUBSCRIBE, the tree is built by determining if subscriptions
+ * to the individual resources in the tree would be successful or not. Any successful
+ * subscriptions result in a node in the tree being created. Any unsuccessful subscriptions
+ * result in no node being created.
+ *
+ * This tree can be seen as a bare-bones analog of the tree of ast_sip_subscriptions that
+ * will end up being created to actually carry out the duties of a SIP SUBSCRIBE dialog.
+ */
+struct resource_tree {
+	struct tree_node *root;
+	unsigned int notification_batch_interval;
+};
+
+/*!
+ * \brief Destroy a resource tree.
+ *
+ * This function makes no assumptions about how the tree itself was
+ * allocated and does not attempt to free the tree itself. Callers
+ * of this function are responsible for freeing the tree.
+ *
+ * \param tree The tree to destroy.
+ */
+static void resource_tree_destroy(struct resource_tree *tree)
+{
+	if (tree) {
+		tree_node_destroy(tree->root);
+	}
+}
+
+/*!
+ * \brief Build a resource tree
+ *
+ * This function builds a resource tree based on the requested resource in a SUBSCRIBE request.
+ *
+ * This function also creates a container that has all resources that have been visited during
+ * creation of the tree, whether those resources resulted in a tree node being created or not.
+ * Keeping this container of visited resources allows for misconfigurations such as loops in
+ * the tree or duplicated resources to be detected.
+ *
+ * \param endpoint The endpoint that sent the SUBSCRIBE request.
+ * \param handler The subscription handler for leaf nodes in the tree.
+ * \param resource The resource requested in the SUBSCRIBE request.
+ * \param tree The tree that is to be built.
+ *
+ * \retval 200-299 Successfully subscribed to at least one resource.
+ * \retval 300-699 Failure to subscribe to requested resource.
+ */
+static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct ast_sip_subscription_handler *handler,
+		const char *resource, struct resource_tree *tree)
+{
+	struct resource_list *list;
+	struct resources visited;
+
+	list = retrieve_resource_list(resource, handler->event_name);
+	if (!list) {
+		ast_debug(1, "Subscription to resource %s is not to a list\n", resource);
+		tree->root = tree_node_alloc(resource, NULL, 0);
+		if (!tree->root) {
+			return 500;
+		}
+		return handler->notifier->new_subscribe(endpoint, resource);
+	}
+
+	ast_debug(1, "Subscription to resource %s is a list\n", resource);
+	if (AST_VECTOR_INIT(&visited, AST_VECTOR_SIZE(&list->items))) {
+		return 500;
+	}
+
+	tree->root = tree_node_alloc(resource, &visited, list->full_state);
+	if (!tree->root) {
+		return 500;
+	}
+
+	tree->notification_batch_interval = list->notification_batch_interval;
+
+	build_node_children(endpoint, handler, list, tree->root, &visited);
+	AST_VECTOR_FREE(&visited);
+	ao2_cleanup(list);
+
+	if (AST_VECTOR_SIZE(&tree->root->children) > 0) {
+		return 200;
+	} else {
+		return 500;
+	}
+}
+
+static int datastore_hash(const void *obj, int flags)
+{
+	const struct ast_datastore *datastore = obj;
+	const char *uid = flags & OBJ_KEY ? obj : datastore->uid;
+
+	ast_assert(uid != NULL);
+
+	return ast_str_hash(uid);
+}
+
+static int datastore_cmp(void *obj, void *arg, int flags)
+{
+	const struct ast_datastore *datastore1 = obj;
+	const struct ast_datastore *datastore2 = arg;
+	const char *uid2 = flags & OBJ_KEY ? arg : datastore2->uid;
+
+	ast_assert(datastore1->uid != NULL);
+	ast_assert(uid2 != NULL);
+
+	return strcmp(datastore1->uid, uid2) ? 0 : CMP_MATCH | CMP_STOP;
+}
+
+static int subscription_remove_serializer(void *obj)
+{
+	struct sip_subscription_tree *sub_tree = obj;
+
+	/* This is why we keep the dialog on the subscription. When the subscription
+	 * is destroyed, there is no guarantee that the underlying dialog is ready
+	 * to be destroyed. Furthermore, there's no guarantee in the opposite direction
+	 * either. The dialog could be destroyed before our subscription is. We fix
+	 * this problem by keeping a reference to the dialog until it is time to
+	 * destroy the subscription. We need to have the dialog available when the
+	 * subscription is destroyed so that we can guarantee that our attempt to
+	 * remove the serializer will be successful.
+	 */
+	ast_sip_dialog_set_serializer(sub_tree->dlg, NULL);
+	pjsip_dlg_dec_session(sub_tree->dlg, &pubsub_module);
+
+	return 0;
+}
+
+static void add_subscription(struct sip_subscription_tree *obj)
+{
+	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_INSERT_TAIL(&subscriptions, obj, next);
+}
+
+static void remove_subscription(struct sip_subscription_tree *obj)
+{
+	struct sip_subscription_tree *i;
+	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscriptions, i, next) {
+		if (i == obj) {
+			AST_RWLIST_REMOVE_CURRENT(next);
+			ast_debug(1, "Removing subscription to resource %s from list of subscriptions\n",
+					ast_sip_subscription_get_resource_name(i->root));
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+}
+
+static void subscription_destructor(void *obj)
+{
+	struct ast_sip_subscription *sub = obj;
+
+	ast_debug(3, "Destroying SIP subscription to resource %s\n", sub->resource);
+	ast_free(sub->body_text);
+
+	ao2_cleanup(sub->datastores);
+}
+
+static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_subscription_handler *handler,
+		const char *resource, struct sip_subscription_tree *tree)
+{
+	struct ast_sip_subscription *sub;
+	pjsip_sip_uri *contact_uri;
+
+	sub = ao2_alloc(sizeof(*sub) + strlen(resource) + 1, subscription_destructor);
+	if (!sub) {
+		return NULL;
+	}
+	strcpy(sub->resource, resource); /* Safe */
+
+	sub->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
+	if (!sub->datastores) {
+		ao2_ref(sub, -1);
+		return NULL;
+	}
+
+	sub->body_text = ast_str_create(128);
+	if (!sub->body_text) {
+		ao2_ref(sub, -1);
+		return NULL;
+	}
+
+	sub->uri = pjsip_sip_uri_create(tree->dlg->pool, PJ_FALSE);
+	contact_uri = pjsip_uri_get_uri(tree->dlg->local.contact->uri);
+	pjsip_sip_uri_assign(tree->dlg->pool, sub->uri, contact_uri);
+	pj_strdup2(tree->dlg->pool, &sub->uri->user, resource);
+
+	sub->handler = handler;
+	sub->subscription_state = PJSIP_EVSUB_STATE_ACTIVE;
+	sub->tree = tree;
+
+	return sub;
+}
+
+/*!
+ * \brief Create a tree of virtual subscriptions based on a resource tree node.
+ *
+ * \param handler The handler to supply to leaf subscriptions.
+ * \param resource The requested resource for this subscription.
+ * \param generator Body generator to use for leaf subscriptions.
+ * \param tree The root of the subscription tree.
+ * \param current The tree node that corresponds to the subscription being created.
+ */
+static struct ast_sip_subscription *create_virtual_subscriptions(const struct ast_sip_subscription_handler *handler,
+		const char *resource, struct ast_sip_pubsub_body_generator *generator,
+		struct sip_subscription_tree *tree, struct tree_node *current)
+{
+	int i;
+	struct ast_sip_subscription *sub;
+
+	sub = allocate_subscription(handler, resource, tree);
+	if (!sub) {
+		return NULL;
+	}
+
+	sub->full_state = current->full_state;
+	sub->body_generator = generator;
+
+	for (i = 0; i < AST_VECTOR_SIZE(&current->children); ++i) {
+		struct ast_sip_subscription *child;
+		struct tree_node *child_node = AST_VECTOR_GET(&current->children, i);
+
+		child = create_virtual_subscriptions(handler, child_node->resource, generator,
+				tree, child_node);
+
+		if (!child) {
+			ast_debug(1, "Child subscription to resource %s could not be created\n",
+					child_node->resource);
+			continue;
+		}
+
+		if (AST_VECTOR_APPEND(&sub->children, child)) {
+			ast_debug(1, "Child subscription to resource %s could not be appended\n",
+					child_node->resource);
+		}
+	}
+
+	return sub;
+}
+
+static void shutdown_subscriptions(struct ast_sip_subscription *sub)
+{
+	int i;
+
+	if (AST_VECTOR_SIZE(&sub->children) > 0) {
+		for (i = 0; i < AST_VECTOR_SIZE(&sub->children); ++i) {
+			shutdown_subscriptions(AST_VECTOR_GET(&sub->children, i));
+			ao2_cleanup(AST_VECTOR_GET(&sub->children, i));
+		}
+		return;
+	}
+
+	if (sub->handler->subscription_shutdown) {
+		sub->handler->subscription_shutdown(sub);
+	}
+}
+
+static void subscription_tree_destructor(void *obj)
+{
+	struct sip_subscription_tree *sub_tree = obj;
+
+	remove_subscription(sub_tree);
+
+	subscription_persistence_remove(sub_tree);
+	ao2_cleanup(sub_tree->endpoint);
+
+	if (sub_tree->dlg) {
+		ast_sip_push_task_synchronous(NULL, subscription_remove_serializer, sub_tree);
+	}
+
+	shutdown_subscriptions(sub_tree->root);
+	ao2_cleanup(sub_tree->root);
+
+	ast_taskprocessor_unreference(sub_tree->serializer);
+	ast_module_unref(ast_module_info->self);
+}
+
+static void subscription_setup_dialog(struct sip_subscription_tree *sub_tree, pjsip_dialog *dlg)
+{
+	/* We keep a reference to the dialog until our subscription is destroyed. See
+	 * the subscription_destructor for more details
+	 */
+	pjsip_dlg_inc_session(dlg, &pubsub_module);
+	sub_tree->dlg = dlg;
+	ast_sip_dialog_set_serializer(dlg, sub_tree->serializer);
+	pjsip_evsub_set_mod_data(sub_tree->evsub, pubsub_module.id, sub_tree);
+}
+
+static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_endpoint *endpoint)
+{
+	struct sip_subscription_tree *sub_tree;
+
+	sub_tree = ao2_alloc(sizeof *sub_tree, subscription_tree_destructor);
+	if (!sub_tree) {
+		return NULL;
+	}
+
+	ast_module_ref(ast_module_info->self);
+
+	sub_tree->serializer = ast_sip_create_serializer();
+	if (!sub_tree->serializer) {
+		ao2_ref(sub_tree, -1);
+		return NULL;
+	}
+
+	sub_tree->endpoint = ao2_bump(endpoint);
+	sub_tree->notify_sched_id = -1;
+
+	add_subscription(sub_tree);
+	return sub_tree;
+}
+
+/*!
+ * \brief Create a subscription tree based on a resource tree.
+ *
+ * Using the previously-determined valid resources in the provided resource tree,
+ * a corresponding tree of ast_sip_subscriptions are created. The root of the
+ * subscription tree is a real subscription, and the rest in the tree are
+ * virtual subscriptions.
+ *
+ * \param handler The handler to use for leaf subscriptions
+ * \param endpoint The endpoint that sent the SUBSCRIBE request
+ * \param rdata The SUBSCRIBE content
+ * \param resource The requested resource in the SUBSCRIBE request
+ * \param generator The body generator to use in leaf subscriptions
+ * \param tree The resource tree on which the subscription tree is based
+ *
+ * \retval NULL Could not create the subscription tree
+ * \retval non-NULL The root of the created subscription tree
+ */
+
+static struct sip_subscription_tree *create_subscription_tree(const struct ast_sip_subscription_handler *handler,
 		struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, const char *resource,
-		struct ast_sip_pubsub_body_generator *generator);
+		struct ast_sip_pubsub_body_generator *generator, struct resource_tree *tree)
+{
+	struct sip_subscription_tree *sub_tree;
+	pjsip_dialog *dlg;
+	struct subscription_persistence *persistence;
+
+	sub_tree = allocate_subscription_tree(endpoint);
+	if (!sub_tree) {
+		return NULL;
+	}
+
+	dlg = ast_sip_create_dialog_uas(endpoint, rdata);
+	if (!dlg) {
+		ast_log(LOG_WARNING, "Unable to create dialog for SIP subscription\n");
+		ao2_ref(sub_tree, -1);
+		return NULL;
+	}
+
+	persistence = ast_sip_mod_data_get(rdata->endpt_info.mod_data,
+			pubsub_module.id, MOD_DATA_PERSISTENCE);
+	if (persistence) {
+		/* Update the created dialog with the persisted information */
+		pjsip_ua_unregister_dlg(pjsip_ua_instance(), dlg);
+		pj_strdup2(dlg->pool, &dlg->local.info->tag, persistence->tag);
+		dlg->local.tag_hval = pj_hash_calc_tolower(0, NULL, &dlg->local.info->tag);
+		pjsip_ua_register_dlg(pjsip_ua_instance(), dlg);
+		dlg->local.cseq = persistence->cseq;
+		dlg->remote.cseq = persistence->cseq;
+	}
+
+	pjsip_evsub_create_uas(dlg, &pubsub_cb, rdata, 0, &sub_tree->evsub);
+	subscription_setup_dialog(sub_tree, dlg);
+
+	ast_sip_mod_data_set(dlg->pool, dlg->mod_data, pubsub_module.id, MOD_DATA_MSG,
+			pjsip_msg_clone(dlg->pool, rdata->msg_info.msg));
+
+	sub_tree->notification_batch_interval = tree->notification_batch_interval;
+
+	sub_tree->root = create_virtual_subscriptions(handler, resource, generator, sub_tree, tree->root);
+	if (AST_VECTOR_SIZE(&sub_tree->root->children) > 0) {
+		sub_tree->is_list = 1;
+	}
+
+	return sub_tree;
+}
 
 /*! \brief Callback function to perform the actual recreation of a subscription */
 static int subscription_persistence_recreate(void *obj, void *arg, int flags)
@@ -540,15 +1251,16 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 	struct subscription_persistence *persistence = obj;
 	pj_pool_t *pool = arg;
 	pjsip_rx_data rdata = { { 0, }, };
-	pjsip_expires_hdr *expires_header;
-	struct ast_sip_subscription_handler *handler;
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-	struct ast_sip_subscription *sub;
+	struct sip_subscription_tree *sub_tree;
 	struct ast_sip_pubsub_body_generator *generator;
 	int resp;
 	char *resource;
 	size_t resource_size;
 	pjsip_sip_uri *request_uri;
+	struct resource_tree tree;
+	pjsip_expires_hdr *expires_header;
+	struct ast_sip_subscription_handler *handler;
 
 	/* If this subscription has already expired remove it */
 	if (ast_tvdiff_ms(persistence->expires, ast_tvnow()) <= 0) {
@@ -607,14 +1319,16 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 	ast_sip_mod_data_set(rdata.tp_info.pool, rdata.endpt_info.mod_data,
 			pubsub_module.id, MOD_DATA_PERSISTENCE, persistence);
 
-	resp = handler->notifier->new_subscribe(endpoint, resource);
+	memset(&tree, 0, sizeof(tree));
+	resp = build_resource_tree(endpoint, handler, resource, &tree);
 	if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
-		sub = notifier_create_subscription(handler, endpoint, &rdata, resource, generator);
-		sub->persistence = ao2_bump(persistence);
-		subscription_persistence_update(sub, &rdata);
+		sub_tree = create_subscription_tree(handler, endpoint, &rdata, resource, generator, &tree);
+		sub_tree->persistence = ao2_bump(persistence);
+		subscription_persistence_update(sub_tree, &rdata);
 	} else {
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 	}
+	resource_tree_destroy(&tree);
 
 	return 0;
 }
@@ -668,33 +1382,12 @@ static void subscription_persistence_event_cb(void *data, struct stasis_subscrip
 	stasis_unsubscribe(sub);
 }
 
-static void add_subscription(struct ast_sip_subscription *obj)
-{
-	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
-	AST_RWLIST_INSERT_TAIL(&subscriptions, obj, next);
-	ast_module_ref(ast_module_info->self);
-}
-
-static void remove_subscription(struct ast_sip_subscription *obj)
-{
-	struct ast_sip_subscription *i;
-	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscriptions, i, next) {
-		if (i == obj) {
-			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-}
-
-typedef int (*on_subscription_t)(struct ast_sip_subscription *sub, void *arg);
+typedef int (*on_subscription_t)(struct sip_subscription_tree *sub, void *arg);
 
 static int for_each_subscription(on_subscription_t on_subscription, void *arg)
 {
 	int num = 0;
-	struct ast_sip_subscription *i;
+	struct sip_subscription_tree *i;
 	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
 
 	if (!on_subscription) {
@@ -710,22 +1403,21 @@ static int for_each_subscription(on_subscription_t on_subscription, void *arg)
 	return num;
 }
 
-static void sip_subscription_to_ami(struct ast_sip_subscription *sub,
+static void sip_subscription_to_ami(struct sip_subscription_tree *sub_tree,
 				    struct ast_str **buf)
 {
 	char str[256];
-	struct ast_sip_endpoint_id_configuration *id = &sub->endpoint->id;
+	struct ast_sip_endpoint_id_configuration *id = &sub_tree->endpoint->id;
 
 	ast_str_append(buf, 0, "Role: %s\r\n",
-		       sip_subscription_roles_map[sub->role]);
+		       sip_subscription_roles_map[sub_tree->role]);
 	ast_str_append(buf, 0, "Endpoint: %s\r\n",
-		       ast_sorcery_object_get_id(sub->endpoint));
+		       ast_sorcery_object_get_id(sub_tree->endpoint));
 
-	ast_copy_pj_str(str, &sip_subscription_get_dlg(sub)->call_id->id, sizeof(str));
+	ast_copy_pj_str(str, &sub_tree->dlg->call_id->id, sizeof(str));
 	ast_str_append(buf, 0, "Callid: %s\r\n", str);
 
-	ast_str_append(buf, 0, "State: %s\r\n", pjsip_evsub_get_state_name(
-			       sip_subscription_get_evsub(sub)));
+	ast_str_append(buf, 0, "State: %s\r\n", pjsip_evsub_get_state_name(sub_tree->evsub));
 
 	ast_callerid_merge(str, sizeof(str),
 			   S_COR(id->self.name.valid, id->self.name.str, NULL),
@@ -734,179 +1426,16 @@ static void sip_subscription_to_ami(struct ast_sip_subscription *sub,
 
 	ast_str_append(buf, 0, "Callerid: %s\r\n", str);
 
-	if (sub->handler->to_ami) {
-		sub->handler->to_ami(sub, buf);
+	/* XXX This needs to be done recursively for lists */
+	if (sub_tree->root->handler->to_ami) {
+		sub_tree->root->handler->to_ami(sub_tree->root, buf);
 	}
 }
 
-#define DATASTORE_BUCKETS 53
-
-#define DEFAULT_EXPIRES 3600
-
-static int datastore_hash(const void *obj, int flags)
-{
-	const struct ast_datastore *datastore = obj;
-	const char *uid = flags & OBJ_KEY ? obj : datastore->uid;
-
-	ast_assert(uid != NULL);
-
-	return ast_str_hash(uid);
-}
-
-static int datastore_cmp(void *obj, void *arg, int flags)
-{
-	const struct ast_datastore *datastore1 = obj;
-	const struct ast_datastore *datastore2 = arg;
-	const char *uid2 = flags & OBJ_KEY ? arg : datastore2->uid;
-
-	ast_assert(datastore1->uid != NULL);
-	ast_assert(uid2 != NULL);
-
-	return strcmp(datastore1->uid, uid2) ? 0 : CMP_MATCH | CMP_STOP;
-}
-
-static int subscription_remove_serializer(void *obj)
-{
-	struct ast_sip_subscription *sub = obj;
-
-	/* This is why we keep the dialog on the subscription. When the subscription
-	 * is destroyed, there is no guarantee that the underlying dialog is ready
-	 * to be destroyed. Furthermore, there's no guarantee in the opposite direction
-	 * either. The dialog could be destroyed before our subscription is. We fix
-	 * this problem by keeping a reference to the dialog until it is time to
-	 * destroy the subscription. We need to have the dialog available when the
-	 * subscription is destroyed so that we can guarantee that our attempt to
-	 * remove the serializer will be successful.
-	 */
-	ast_sip_dialog_set_serializer(sip_subscription_get_dlg(sub), NULL);
-	pjsip_dlg_dec_session(sip_subscription_get_dlg(sub), &pubsub_module);
-
-	return 0;
-}
-
-static void subscription_destructor(void *obj)
-{
-	struct ast_sip_subscription *sub = obj;
-
-	ast_debug(3, "Destroying SIP subscription\n");
-
-	subscription_persistence_remove(sub);
-
-	remove_subscription(sub);
-
-	ao2_cleanup(sub->datastores);
-	ao2_cleanup(sub->endpoint);
-
-	if (sip_subscription_get_dlg(sub)) {
-		ast_sip_push_task_synchronous(NULL, subscription_remove_serializer, sub);
-	}
-	ast_taskprocessor_unreference(sub->serializer);
-}
-
-
-static void pubsub_on_evsub_state(pjsip_evsub *sub, pjsip_event *event);
-static void pubsub_on_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata,
-		int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body);
-static void pubsub_on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
-		pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body);
-static void pubsub_on_client_refresh(pjsip_evsub *sub);
-static void pubsub_on_server_timeout(pjsip_evsub *sub);
-
-
-static pjsip_evsub_user pubsub_cb = {
-	.on_evsub_state = pubsub_on_evsub_state,
-	.on_rx_refresh = pubsub_on_rx_refresh,
-	.on_rx_notify = pubsub_on_rx_notify,
-	.on_client_refresh = pubsub_on_client_refresh,
-	.on_server_timeout = pubsub_on_server_timeout,
-};
-
-static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_subscription_handler *handler,
-		struct ast_sip_endpoint *endpoint, const char *resource, enum ast_sip_subscription_role role)
-{
-	struct ast_sip_subscription *sub;
-
-	sub = ao2_alloc(sizeof(*sub) + strlen(resource) + 1, subscription_destructor);
-	if (!sub) {
-		return NULL;
-	}
-	strcpy(sub->resource, resource); /* Safe */
-
-	sub->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
-	if (!sub->datastores) {
-		ao2_ref(sub, -1);
-		return NULL;
-	}
-	sub->serializer = ast_sip_create_serializer();
-	if (!sub->serializer) {
-		ao2_ref(sub, -1);
-		return NULL;
-	}
-	sub->role = role;
-	sub->type = SIP_SUBSCRIPTION_REAL;
-	sub->endpoint = ao2_bump(endpoint);
-	sub->handler = handler;
-
-	return sub;
-}
-
-static void subscription_setup_dialog(struct ast_sip_subscription *sub, pjsip_dialog *dlg)
-{
-	/* We keep a reference to the dialog until our subscription is destroyed. See
-	 * the subscription_destructor for more details
-	 */
-	pjsip_dlg_inc_session(dlg, &pubsub_module);
-	sub->reality.real.dlg = dlg;
-	ast_sip_dialog_set_serializer(dlg, sub->serializer);
-	pjsip_evsub_set_mod_data(sip_subscription_get_evsub(sub), pubsub_module.id, sub);
-}
-
-static struct ast_sip_subscription *notifier_create_subscription(const struct ast_sip_subscription_handler *handler,
-		struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, const char *resource,
-		struct ast_sip_pubsub_body_generator *generator)
-{
-	struct ast_sip_subscription *sub;
-	pjsip_dialog *dlg;
-	struct subscription_persistence *persistence;
-
-	sub = allocate_subscription(handler, endpoint, resource, AST_SIP_NOTIFIER);
-	if (!sub) {
-		return NULL;
-	}
-
-	sub->body_generator = generator;
-	dlg = ast_sip_create_dialog_uas(endpoint, rdata);
-	if (!dlg) {
-		ast_log(LOG_WARNING, "Unable to create dialog for SIP subscription\n");
-		ao2_ref(sub, -1);
-		return NULL;
-	}
-
-	persistence = ast_sip_mod_data_get(rdata->endpt_info.mod_data,
-			pubsub_module.id, MOD_DATA_PERSISTENCE);
-	if (persistence) {
-		/* Update the created dialog with the persisted information */
-		pjsip_ua_unregister_dlg(pjsip_ua_instance(), dlg);
-		pj_strdup2(dlg->pool, &dlg->local.info->tag, persistence->tag);
-		dlg->local.tag_hval = pj_hash_calc_tolower(0, NULL, &dlg->local.info->tag);
-		pjsip_ua_register_dlg(pjsip_ua_instance(), dlg);
-		dlg->local.cseq = persistence->cseq;
-		dlg->remote.cseq = persistence->cseq;
-	}
-
-	pjsip_evsub_create_uas(dlg, &pubsub_cb, rdata, 0, &sub->reality.real.evsub);
-	subscription_setup_dialog(sub, dlg);
-
-	ast_sip_mod_data_set(dlg->pool, dlg->mod_data, pubsub_module.id, MOD_DATA_MSG,
-			pjsip_msg_clone(dlg->pool, rdata->msg_info.msg));
-
-	add_subscription(sub);
-	return sub;
-}
 
 void *ast_sip_subscription_get_header(const struct ast_sip_subscription *sub, const char *header)
 {
-	pjsip_dialog *dlg = sip_subscription_get_dlg(sub);
+	pjsip_dialog *dlg = sub->tree->dlg;
 	pjsip_msg *msg = ast_sip_mod_data_get(dlg->mod_data, pubsub_module.id, MOD_DATA_MSG);
 	pj_str_t name;
 
@@ -918,15 +1447,22 @@ void *ast_sip_subscription_get_header(const struct ast_sip_subscription *sub, co
 struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_subscription_handler *handler,
 		struct ast_sip_endpoint *endpoint, const char *resource)
 {
-	struct ast_sip_subscription *sub = ao2_alloc(sizeof(*sub) + strlen(resource) + 1, subscription_destructor);
+	struct ast_sip_subscription *sub;
 	pjsip_dialog *dlg;
 	struct ast_sip_contact *contact;
 	pj_str_t event;
 	pjsip_tx_data *tdata;
 	pjsip_evsub *evsub;
+	struct sip_subscription_tree *sub_tree = NULL;
 
-	sub = allocate_subscription(handler, endpoint, resource, AST_SIP_SUBSCRIBER);
+	sub_tree = allocate_subscription_tree(endpoint);
+	if (!sub_tree) {
+		return NULL;
+	}
+
+	sub = allocate_subscription(handler, resource, sub_tree);
 	if (!sub) {
+		ao2_cleanup(sub_tree);
 		return NULL;
 	}
 
@@ -934,7 +1470,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	if (!contact || ast_strlen_zero(contact->uri)) {
 		ast_log(LOG_WARNING, "No contacts configured for endpoint %s. Unable to create SIP subsription\n",
 				ast_sorcery_object_get_id(endpoint));
-		ao2_ref(sub, -1);
+		ao2_ref(sub_tree, -1);
 		ao2_cleanup(contact);
 		return NULL;
 	}
@@ -943,17 +1479,15 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	ao2_cleanup(contact);
 	if (!dlg) {
 		ast_log(LOG_WARNING, "Unable to create dialog for SIP subscription\n");
-		ao2_ref(sub, -1);
+		ao2_ref(sub_tree, -1);
 		return NULL;
 	}
 
 	pj_cstr(&event, handler->event_name);
-	pjsip_evsub_create_uac(dlg, &pubsub_cb, &event, 0, &sub->reality.real.evsub);
-	subscription_setup_dialog(sub, dlg);
+	pjsip_evsub_create_uac(dlg, &pubsub_cb, &event, 0, &sub_tree->evsub);
+	subscription_setup_dialog(sub_tree, dlg);
 
-	add_subscription(sub);
-
-	evsub = sip_subscription_get_evsub(sub);
+	evsub = sub_tree->evsub;
 
 	if (pjsip_evsub_initiate(evsub, NULL, -1, &tdata) == PJ_SUCCESS) {
 		pjsip_evsub_send_request(evsub, tdata);
@@ -963,6 +1497,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 		 * need to decrease the reference count of sub here.
 		 */
 		pjsip_evsub_terminate(evsub, PJ_TRUE);
+		ao2_ref(sub_tree, -1);
 		return NULL;
 	}
 
@@ -971,96 +1506,544 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 
 struct ast_sip_endpoint *ast_sip_subscription_get_endpoint(struct ast_sip_subscription *sub)
 {
-	ast_assert(sub->endpoint != NULL);
-	ao2_ref(sub->endpoint, +1);
-	return sub->endpoint;
+	ast_assert(sub->tree->endpoint != NULL);
+	return ao2_bump(sub->tree->endpoint);
 }
 
 struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_subscription *sub)
 {
-	ast_assert(sub->serializer != NULL);
-	return sub->serializer;
+	ast_assert(sub->tree->serializer != NULL);
+	return sub->tree->serializer;
 }
 
-static int sip_subscription_send_request(struct ast_sip_subscription *sub, pjsip_tx_data *tdata)
+static int sip_subscription_send_request(struct sip_subscription_tree *sub_tree, pjsip_tx_data *tdata)
 {
-	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sub);
+#ifdef TEST_FRAMEWORK
+	struct ast_sip_endpoint *endpoint = sub_tree->endpoint;
+#endif
 	int res;
 
-	ao2_ref(sub, +1);
-	res = pjsip_evsub_send_request(sip_subscription_get_evsub(sub),
-			tdata) == PJ_SUCCESS ? 0 : -1;
-
-	subscription_persistence_update(sub, NULL);
+	res = pjsip_evsub_send_request(sub_tree->evsub, tdata) == PJ_SUCCESS ? 0 : -1;
+	subscription_persistence_update(sub_tree, NULL);
 
 	ast_test_suite_event_notify("SUBSCRIPTION_STATE_SET",
 		"StateText: %s\r\n"
 		"Endpoint: %s\r\n",
-		pjsip_evsub_get_state_name(sip_subscription_get_evsub(sub)),
+		pjsip_evsub_get_state_name(sub_tree->evsub),
 		ast_sorcery_object_get_id(endpoint));
-	ao2_cleanup(sub);
-	ao2_cleanup(endpoint);
 
 	return res;
+}
+
+/*!
+ * \brief Add a resource XML element to an RLMI body
+ *
+ * Each resource element represents a subscribed resource in the list. This function currently
+ * will unconditionally add an instance element to each created resource element. Instance
+ * elements refer to later parts in the multipart body.
+ *
+ * \param pool PJLIB allocation pool
+ * \param cid Content-ID header of the resource
+ * \param resource_name Name of the resource
+ * \param resource_uri URI of the resource
+ * \param state State of the subscribed resource
+ */
+static void add_rlmi_resource(pj_pool_t *pool, pj_xml_node *rlmi, const pjsip_generic_string_hdr *cid,
+		const char *resource_name, const pjsip_sip_uri *resource_uri, pjsip_evsub_state state)
+{
+	static pj_str_t cid_name = { "cid", 3 };
+	pj_xml_node *resource;
+	pj_xml_node *name;
+	pj_xml_node *instance;
+	pj_xml_attr *cid_attr;
+	char id[6];
+	char uri[PJSIP_MAX_URL_SIZE];
+
+	/* This creates a string representing the Content-ID without the enclosing < > */
+	const pj_str_t cid_stripped = {
+		.ptr = cid->hvalue.ptr + 1,
+		.slen = cid->hvalue.slen - 2,
+	};
+
+	resource = ast_sip_presence_xml_create_node(pool, rlmi, "resource");
+	name = ast_sip_presence_xml_create_node(pool, resource, "name");
+	instance = ast_sip_presence_xml_create_node(pool, resource, "instance");
+
+	pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, resource_uri, uri, sizeof(uri));
+	ast_sip_presence_xml_create_attr(pool, resource, "uri", uri);
+
+	pj_strdup2(pool, &name->content, resource_name);
+
+	ast_generate_random_string(id, sizeof(id));
+
+	ast_sip_presence_xml_create_attr(pool, instance, "id", id);
+	ast_sip_presence_xml_create_attr(pool, instance, "state",
+			state == PJSIP_EVSUB_STATE_TERMINATED ? "terminated" : "active");
+
+	/* Use the PJLIB-util XML library directly here since we are using a
+	 * pj_str_t
+	 */
+
+	cid_attr = pj_xml_attr_new(pool, &cid_name, &cid_stripped);
+	pj_xml_add_attr(instance, cid_attr);
+}
+
+/*!
+ * \brief A multipart body part and meta-information
+ *
+ * When creating a multipart body part, the end result (the
+ * pjsip_multipart_part) is hard to inspect without undoing
+ * a lot of what was done to create it. Therefore, we use this
+ * structure to store meta-information about the body part.
+ *
+ * The main consumer of this is the creator of the RLMI body
+ * part of a multipart resource list body.
+ */
+struct body_part {
+	/*! Content-ID header for the body part */
+	pjsip_generic_string_hdr *cid;
+	/*! Subscribed resource represented in the body part */
+	const char *resource;
+	/*! URI for the subscribed body part */
+	pjsip_sip_uri *uri;
+	/*! Subscription state of the resource represented in the body part */
+	pjsip_evsub_state state;
+	/*! The actual body part that will be present in the multipart body */
+	pjsip_multipart_part *part;
+};
+
+/*!
+ * \brief Type declaration for container of body part structures
+ */
+AST_VECTOR(body_part_list, struct body_part *);
+
+/*!
+ * \brief Create a Content-ID header
+ *
+ * Content-ID headers are required by RFC2387 for multipart/related
+ * bodies. They serve as identifiers for each part of the multipart body.
+ *
+ * \param pool PJLIB allocation pool
+ * \param sub Subscription to a resource
+ */
+static pjsip_generic_string_hdr *generate_content_id_hdr(pj_pool_t *pool,
+		const struct ast_sip_subscription *sub)
+{
+	static const pj_str_t cid_name = { "Content-ID", 10 };
+	pjsip_generic_string_hdr *cid;
+	char id[6];
+	size_t alloc_size;
+	pj_str_t cid_value;
+
+	/* '<' + '@' + '>' = 3. pj_str_t does not require a null-terminator */
+	alloc_size = sizeof(id) + pj_strlen(&sub->uri->host) + 3;
+	cid_value.ptr = pj_pool_alloc(pool, alloc_size);
+	cid_value.slen = sprintf(cid_value.ptr, "<%s@%.*s>",
+			ast_generate_random_string(id, sizeof(id)),
+			(int) pj_strlen(&sub->uri->host), pj_strbuf(&sub->uri->host));
+	cid = pjsip_generic_string_hdr_create(pool, &cid_name, &cid_value);
+
+	return cid;
+}
+
+static int rlmi_print_body(struct pjsip_msg_body *msg_body, char *buf, pj_size_t size)
+{
+	int num_printed;
+	pj_xml_node *rlmi = msg_body->data;
+
+	num_printed = pj_xml_print(rlmi, buf, size, PJ_TRUE);
+	if (num_printed == AST_PJSIP_XML_PROLOG_LEN) {
+		return -1;
+	}
+
+	return num_printed;
+}
+
+static void *rlmi_clone_data(pj_pool_t *pool, const void *data, unsigned len)
+{
+	const pj_xml_node *rlmi = data;
+
+	return pj_xml_clone(pool, rlmi);
+}
+
+/*!
+ * \brief Create an RLMI body part for a multipart resource list body
+ *
+ * RLMI (Resource list meta information) is a special body type that lists
+ * the subscribed resources and tells subscribers the number of subscribed
+ * resources and what other body parts are in the multipart body. The
+ * RLMI body also has a version number that a subscriber can use to ensure
+ * that the locally-stored state corresponds to server state.
+ *
+ * \param pool The allocation pool
+ * \param sub The subscription representing the subscribed resource list
+ * \param body_parts A container of body parts that RLMI will refer to
+ * \param full_state Indicates whether this is a full or partial state notification
+ * \return The multipart part representing the RLMI body
+ */
+static pjsip_multipart_part *build_rlmi_body(pj_pool_t *pool, struct ast_sip_subscription *sub,
+		struct body_part_list *body_parts, unsigned int full_state)
+{
+	static const pj_str_t rlmi_type = { "application", 11 };
+	static const pj_str_t rlmi_subtype = { "rlmi+xml", 8 };
+	pj_xml_node *rlmi;
+	pj_xml_node *name;
+	pjsip_multipart_part *rlmi_part;
+	char version_str[32];
+	char uri[PJSIP_MAX_URL_SIZE];
+	pjsip_generic_string_hdr *cid;
+	int i;
+
+	rlmi = ast_sip_presence_xml_create_node(pool, NULL, "list");
+	ast_sip_presence_xml_create_attr(pool, rlmi, "xmlns", "urn:ietf:params:xml:ns:rlmi");
+
+	ast_sip_subscription_get_local_uri(sub, uri, sizeof(uri));
+	ast_sip_presence_xml_create_attr(pool, rlmi, "uri", uri);
+
+	snprintf(version_str, sizeof(version_str), "%u", sub->version++);
+	ast_sip_presence_xml_create_attr(pool, rlmi, "version", version_str);
+	ast_sip_presence_xml_create_attr(pool, rlmi, "fullState", full_state ? "true" : "false");
+
+	name = ast_sip_presence_xml_create_node(pool, rlmi, "name");
+	pj_strdup2(pool, &name->content, ast_sip_subscription_get_resource_name(sub));
+
+	for (i = 0; i < AST_VECTOR_SIZE(body_parts); ++i) {
+		const struct body_part *part = AST_VECTOR_GET(body_parts, i);
+
+		add_rlmi_resource(pool, rlmi, part->cid, part->resource, part->uri, part->state);
+	}
+
+	rlmi_part = pjsip_multipart_create_part(pool);
+
+	rlmi_part->body = PJ_POOL_ZALLOC_T(pool, pjsip_msg_body);
+	pj_strdup(pool, &rlmi_part->body->content_type.type, &rlmi_type);
+	pj_strdup(pool, &rlmi_part->body->content_type.subtype, &rlmi_subtype);
+	pj_list_init(&rlmi_part->body->content_type.param);
+
+	rlmi_part->body->data = pj_xml_clone(pool, rlmi);
+	rlmi_part->body->clone_data = rlmi_clone_data;
+	rlmi_part->body->print_body = rlmi_print_body;
+
+	cid = generate_content_id_hdr(pool, sub);
+	pj_list_insert_before(&rlmi_part->hdr, cid);
+
+	return rlmi_part;
+}
+
+static pjsip_msg_body *generate_notify_body(pj_pool_t *pool, struct ast_sip_subscription *root,
+		unsigned int force_full_state);
+
+/*!
+ * \brief Destroy a list of body parts
+ *
+ * \param parts The container of parts to destroy
+ */
+static void free_body_parts(struct body_part_list *parts)
+{
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(parts); ++i) {
+		struct body_part *part = AST_VECTOR_GET(parts, i);
+		ast_free(part);
+	}
+
+	AST_VECTOR_FREE(parts);
+}
+
+/*!
+ * \brief Allocate and initialize a body part structure
+ *
+ * \param pool PJLIB allocation pool
+ * \param sub Subscription representing a subscribed resource
+ */
+static struct body_part *allocate_body_part(pj_pool_t *pool, const struct ast_sip_subscription *sub)
+{
+	struct body_part *bp;
+
+	bp = ast_calloc(1, sizeof(*bp));
+	if (!bp) {
+		return NULL;
+	}
+
+	bp->cid = generate_content_id_hdr(pool, sub);
+	bp->resource = sub->resource;
+	bp->state = sub->subscription_state;
+	bp->uri = sub->uri;
+
+	return bp;
+}
+
+/*!
+ * \brief Create a multipart body part for a subscribed resource
+ *
+ * \param pool PJLIB allocation pool
+ * \param sub The subscription representing a subscribed resource
+ * \param parts A vector of parts to append the created part to.
+ * \param use_full_state Unused locally, but may be passed to other functions
+ */
+static void build_body_part(pj_pool_t *pool, struct ast_sip_subscription *sub,
+		struct body_part_list *parts, unsigned int use_full_state)
+{
+	struct body_part *bp;
+	pjsip_msg_body *body;
+
+	bp = allocate_body_part(pool, sub);
+	if (!bp) {
+		return;
+	}
+
+	body = generate_notify_body(pool, sub, use_full_state);
+	if (!body) {
+		/* Partial state was requested and the resource has not changed state */
+		ast_free(bp);
+		return;
+	}
+
+	bp->part = pjsip_multipart_create_part(pool);
+	bp->part->body = body;
+	pj_list_insert_before(&bp->part->hdr, bp->cid);
+
+	AST_VECTOR_APPEND(parts, bp);
+}
+
+/*!
+ * \brief Create and initialize the PJSIP multipart body structure for a resource list subscription
+ *
+ * \param pool
+ * \return The multipart message body
+ */
+static pjsip_msg_body *create_multipart_body(pj_pool_t *pool)
+{
+	pjsip_media_type media_type;
+	pjsip_param *media_type_param;
+	char boundary[6];
+	pj_str_t pj_boundary;
+
+	pjsip_media_type_init2(&media_type, "multipart", "related");
+
+	media_type_param = pj_pool_alloc(pool, sizeof(*media_type_param));
+	pj_list_init(media_type_param);
+
+	pj_strdup2(pool, &media_type_param->name, "type");
+	pj_strdup2(pool, &media_type_param->value, "\"application/rlmi+xml\"");
+
+	pj_list_insert_before(&media_type.param, media_type_param);
+
+	pj_cstr(&pj_boundary, ast_generate_random_string(boundary, sizeof(boundary)));
+	return pjsip_multipart_create(pool, &media_type, &pj_boundary);
+}
+
+/*!
+ * \brief Create a resource list body for NOTIFY requests
+ *
+ * Resource list bodies are multipart/related bodies. The first part of the multipart body
+ * is an RLMI body that describes the rest of the parts to come. The other parts of the body
+ * convey state of individual subscribed resources.
+ *
+ * \param pool PJLIB allocation pool
+ * \param sub Subscription details from which to generate body
+ * \param force_full_state If true, ignore resource list settings and send a full state notification
+ * \return The generated multipart/related body
+ */
+static pjsip_msg_body *generate_list_body(pj_pool_t *pool, struct ast_sip_subscription *sub,
+		unsigned int force_full_state)
+{
+	int i;
+	pjsip_multipart_part *rlmi_part;
+	pjsip_msg_body *multipart;
+	struct body_part_list body_parts;
+	unsigned int use_full_state = force_full_state ? 1 : sub->full_state;
+
+	if (AST_VECTOR_INIT(&body_parts, AST_VECTOR_SIZE(&sub->children))) {
+		return NULL;
+	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&sub->children); ++i) {
+		build_body_part(pool, AST_VECTOR_GET(&sub->children, i), &body_parts, use_full_state);
+	}
+
+	/* This can happen if issuing partial state and no children of the list have changed state */
+	if (AST_VECTOR_SIZE(&body_parts) == 0) {
+		return NULL;
+	}
+
+	multipart = create_multipart_body(pool);
+
+	rlmi_part = build_rlmi_body(pool, sub, &body_parts, use_full_state);
+	if (!rlmi_part) {
+		return NULL;
+	}
+	pjsip_multipart_add_part(pool, multipart, rlmi_part);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&body_parts); ++i) {
+		pjsip_multipart_add_part(pool, multipart, AST_VECTOR_GET(&body_parts, i)->part);
+	}
+
+	free_body_parts(&body_parts);
+	return multipart;
+}
+
+/*!
+ * \brief Create the body for a NOTIFY request.
+ *
+ * \param pool The pool used for allocations
+ * \param root The root of the subscription tree
+ * \param force_full_state If true, ignore resource list settings and send a full state notification
+ */
+static pjsip_msg_body *generate_notify_body(pj_pool_t *pool, struct ast_sip_subscription *root,
+		unsigned int force_full_state)
+{
+	pjsip_msg_body *body;
+
+	if (AST_VECTOR_SIZE(&root->children) == 0) {
+		if (force_full_state || root->body_changed) {
+			/* Not a list. We've already generated the body and saved it on the subscription.
+			 * Use that directly.
+			 */
+			pj_str_t type;
+			pj_str_t subtype;
+			pj_str_t text;
+
+			pj_cstr(&type, ast_sip_subscription_get_body_type(root));
+			pj_cstr(&subtype, ast_sip_subscription_get_body_subtype(root));
+			pj_cstr(&text, ast_str_buffer(root->body_text));
+
+			body = pjsip_msg_body_create(pool, &type, &subtype, &text);
+			root->body_changed = 0;
+		} else {
+			body = NULL;
+		}
+	} else {
+		body = generate_list_body(pool, root, force_full_state);
+	}
+
+	return body;
+}
+
+/*!
+ * \brief Shortcut method to create a Require: eventlist header
+ */
+static pjsip_require_hdr *create_require_eventlist(pj_pool_t *pool)
+{
+	pjsip_require_hdr *require;
+
+	require = pjsip_require_hdr_create(pool);
+	pj_strdup2(pool, &require->values[0], "eventlist");
+	require->count = 1;
+
+	return require;
+}
+
+/*!
+ * \brief Send a NOTIFY request to a subscriber
+ *
+ * \param sub_tree The subscription tree representing the subscription
+ * \param force_full_state If true, ignore resource list settings and send full resource list state.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int force_full_state)
+{
+	pjsip_evsub *evsub = sub_tree->evsub;
+	pjsip_tx_data *tdata;
+
+	if (pjsip_evsub_notify(evsub, sub_tree->root->subscription_state,
+				NULL, NULL, &tdata) != PJ_SUCCESS) {
+		return -1;
+	}
+
+	tdata->msg->body = generate_notify_body(tdata->pool, sub_tree->root, force_full_state);
+	if (!tdata->msg->body) {
+		pjsip_tx_data_dec_ref(tdata);
+		return -1;
+	}
+
+	if (sub_tree->is_list) {
+		pjsip_require_hdr *require = create_require_eventlist(tdata->pool);
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) require);
+	}
+
+	if (sip_subscription_send_request(sub_tree, tdata)) {
+		return -1;
+	}
+
+	sub_tree->send_scheduled_notify = 0;
+
+	return 0;
+}
+
+static int serialized_send_notify(void *userdata)
+{
+	struct sip_subscription_tree *sub_tree = userdata;
+
+	/* It's possible that between when the notification was scheduled
+	 * and now, that a new SUBSCRIBE arrived, requiring full state to be
+	 * sent out in an immediate NOTIFY. If that has happened, we need to
+	 * bail out here instead of sending the batched NOTIFY.
+	 */
+	if (!sub_tree->send_scheduled_notify) {
+		ao2_cleanup(sub_tree);
+		return 0;
+	}
+
+	send_notify(sub_tree, 0);
+	ao2_cleanup(sub_tree);
+	return 0;
+}
+
+static int sched_cb(const void *data)
+{
+	struct sip_subscription_tree *sub_tree = (struct sip_subscription_tree *) data;
+
+	/* We don't need to bump the refcount of sub_tree since we bumped it when scheduling this task */
+	ast_sip_push_task(sub_tree->serializer, serialized_send_notify, sub_tree);
+	return 0;
+}
+
+static int schedule_notification(struct sip_subscription_tree *sub_tree)
+{
+	/* There's already a notification scheduled */
+	if (sub_tree->notify_sched_id > -1) {
+		return 0;
+	}
+
+	sub_tree->notify_sched_id = ast_sched_add(sched, sub_tree->notification_batch_interval, sched_cb, ao2_bump(sub_tree));
+	if (sub_tree->notify_sched_id < 0) {
+		return -1;
+	}
+
+	sub_tree->send_scheduled_notify = 1;
+	return 0;
 }
 
 int ast_sip_subscription_notify(struct ast_sip_subscription *sub, void *notify_data,
 		int terminate)
 {
-	struct ast_sip_body body = {
-		.type = ast_sip_subscription_get_body_type(sub),
-		.subtype = ast_sip_subscription_get_body_subtype(sub),
-	};
-	struct ast_str *body_text = ast_str_create(64);
-	pjsip_evsub *evsub = sip_subscription_get_evsub(sub);
-	pjsip_tx_data *tdata;
-	pjsip_evsub_state state;
-
-	if (!body_text) {
+	if (ast_sip_pubsub_generate_body_content(ast_sip_subscription_get_body_type(sub),
+				ast_sip_subscription_get_body_subtype(sub), notify_data, &sub->body_text)) {
 		return -1;
 	}
 
-	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, notify_data, &body_text)) {
-		ast_free(body_text);
-		return -1;
-	}
-
-	body.body_text = ast_str_buffer(body_text);
-
+	sub->body_changed = 1;
 	if (terminate) {
-		state = PJSIP_EVSUB_STATE_TERMINATED;
+		sub->subscription_state = PJSIP_EVSUB_STATE_TERMINATED;
+	}
+
+	if (sub->tree->notification_batch_interval) {
+		return schedule_notification(sub->tree);
 	} else {
-		state = pjsip_evsub_get_state(evsub) <= PJSIP_EVSUB_STATE_ACTIVE ?
-			PJSIP_EVSUB_STATE_ACTIVE : PJSIP_EVSUB_STATE_TERMINATED;
+		return send_notify(sub->tree, 0);
 	}
-
-	if (pjsip_evsub_notify(evsub, state, NULL, NULL, &tdata) != PJ_SUCCESS) {
-		ast_free(body_text);
-		return -1;
-	}
-	if (ast_sip_add_body(tdata, &body)) {
-		ast_free(body_text);
-		pjsip_tx_data_dec_ref(tdata);
-		return -1;
-	}
-	if (sip_subscription_send_request(sub, tdata)) {
-		ast_free(body_text);
-		pjsip_tx_data_dec_ref(tdata);
-		return -1;
-	}
-
-	return 0;
 }
 
 void ast_sip_subscription_get_local_uri(struct ast_sip_subscription *sub, char *buf, size_t size)
 {
-	pjsip_dialog *dlg = sip_subscription_get_dlg(sub);
-	ast_copy_pj_str(buf, &dlg->local.info_str, size);
+	pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, sub->uri, buf, size);
 }
 
 void ast_sip_subscription_get_remote_uri(struct ast_sip_subscription *sub, char *buf, size_t size)
 {
-	pjsip_dialog *dlg = sip_subscription_get_dlg(sub);
+	pjsip_dialog *dlg = sub->tree->dlg;
 	ast_copy_pj_str(buf, &dlg->remote.info_str, size);
 }
 
@@ -1069,14 +2052,22 @@ const char *ast_sip_subscription_get_resource_name(struct ast_sip_subscription *
 	return sub->resource;
 }
 
-static int sip_subscription_accept(struct ast_sip_subscription *sub, pjsip_rx_data *rdata, int response)
+static int sip_subscription_accept(struct sip_subscription_tree *sub_tree, pjsip_rx_data *rdata, int response)
 {
+	pjsip_hdr res_hdr;
+
 	/* If this is a persistence recreation the subscription has already been accepted */
 	if (ast_sip_mod_data_get(rdata->endpt_info.mod_data, pubsub_module.id, MOD_DATA_PERSISTENCE)) {
 		return 0;
 	}
 
-	return pjsip_evsub_accept(sip_subscription_get_evsub(sub), rdata, response, NULL) == PJ_SUCCESS ? 0 : -1;
+	pj_list_init(&res_hdr);
+	if (sub_tree->is_list) {
+		/* If subscribing to a list, our response has to have a Require: eventlist header in it */
+		pj_list_insert_before(&res_hdr, create_require_eventlist(rdata->tp_info.pool));
+	}
+
+	return pjsip_evsub_accept(sub_tree->evsub, rdata, response, &res_hdr) == PJ_SUCCESS ? 0 : -1;
 }
 
 static void subscription_datastore_destroy(void *obj)
@@ -1350,18 +2341,53 @@ static struct ast_sip_pubsub_body_generator *find_body_generator(char accept[AST
 	return generator;
 }
 
+static int generate_initial_notify(struct ast_sip_subscription *sub)
+{
+	void *notify_data;
+	int res;
+
+	if (AST_VECTOR_SIZE(&sub->children) > 0) {
+		int i;
+
+		for (i = 0; i < AST_VECTOR_SIZE(&sub->children); ++i) {
+			if (generate_initial_notify(AST_VECTOR_GET(&sub->children, i))) {
+				return -1;
+			}
+		}
+
+		return 0;
+	}
+
+	if (sub->handler->notifier->subscription_established(sub)) {
+		return -1;
+	}
+
+	notify_data = sub->handler->notifier->get_notify_data(sub);
+	if (!notify_data) {
+		return -1;
+	}
+
+	res = ast_sip_pubsub_generate_body_content(ast_sip_subscription_get_body_type(sub),
+			ast_sip_subscription_get_body_subtype(sub), notify_data, &sub->body_text);
+
+	ao2_cleanup(notify_data);
+
+	return res;
+}
+
 static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 {
 	pjsip_expires_hdr *expires_header;
 	struct ast_sip_subscription_handler *handler;
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-	struct ast_sip_subscription *sub;
+	struct sip_subscription_tree *sub_tree;
 	struct ast_sip_pubsub_body_generator *generator;
 	char *resource;
 	pjsip_uri *request_uri;
 	pjsip_sip_uri *request_uri_sip;
 	size_t resource_size;
 	int resp;
+	struct resource_tree tree;
 
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpoint != NULL);
@@ -1417,24 +2443,28 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 		return PJ_TRUE;
 	}
 
-	resp = handler->notifier->new_subscribe(endpoint, resource);
+	memset(&tree, 0, sizeof(tree));
+	resp = build_resource_tree(endpoint, handler, resource, &tree);
 	if (!PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, resp, NULL, NULL, NULL);
+		resource_tree_destroy(&tree);
 		return PJ_TRUE;
 	}
 
-	sub = notifier_create_subscription(handler, endpoint, rdata, resource, generator);
-	if (!sub) {
+	sub_tree = create_subscription_tree(handler, endpoint, rdata, resource, generator, &tree);
+	if (!sub_tree) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 	} else {
-		sub->persistence = subscription_persistence_create(sub);
-		subscription_persistence_update(sub, rdata);
-		sip_subscription_accept(sub, rdata, resp);
-		if (handler->notifier->notify_required(sub, AST_SIP_SUBSCRIPTION_NOTIFY_REASON_STARTED)) {
-			pjsip_evsub_terminate(sip_subscription_get_evsub(sub), PJ_TRUE);
+		sub_tree->persistence = subscription_persistence_create(sub_tree);
+		subscription_persistence_update(sub_tree, rdata);
+		sip_subscription_accept(sub_tree, rdata, resp);
+		if (generate_initial_notify(sub_tree->root)) {
+			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
 		}
+		send_notify(sub_tree, 1);
 	}
 
+	resource_tree_destroy(&tree);
 	return PJ_TRUE;
 }
 
@@ -1918,40 +2948,63 @@ static pj_bool_t pubsub_on_rx_request(pjsip_rx_data *rdata)
 
 static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 {
-	struct ast_sip_subscription *sub;
+	struct sip_subscription_tree *sub_tree;
+
 	if (pjsip_evsub_get_state(evsub) != PJSIP_EVSUB_STATE_TERMINATED) {
 		return;
 	}
 
-	sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub) {
+	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+	if (!sub_tree) {
 		return;
 	}
 
-	if (sub->handler->subscription_shutdown) {
-		sub->handler->subscription_shutdown(sub);
-	}
+	ao2_cleanup(sub_tree);
+
 	pjsip_evsub_set_mod_data(evsub, pubsub_module.id, NULL);
+}
+
+static void set_state_terminated(struct ast_sip_subscription *sub)
+{
+	int i;
+
+	sub->subscription_state = PJSIP_EVSUB_STATE_TERMINATED;
+	for (i = 0; i < AST_VECTOR_SIZE(&sub->children); ++i) {
+		set_state_terminated(AST_VECTOR_GET(&sub->children, i));
+	}
 }
 
 static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 		int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body)
 {
-	struct ast_sip_subscription *sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	enum ast_sip_subscription_notify_reason reason;
+	struct sip_subscription_tree *sub_tree;
 
-	if (!sub) {
+	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+	if (!sub_tree) {
 		return;
 	}
 
-	if (pjsip_evsub_get_state(sip_subscription_get_evsub(sub)) == PJSIP_EVSUB_STATE_TERMINATED) {
-		reason = AST_SIP_SUBSCRIPTION_NOTIFY_REASON_TERMINATED;
-	} else {
-		reason = AST_SIP_SUBSCRIPTION_NOTIFY_REASON_RENEWED;
+	/* If sending a NOTIFY to terminate a subscription, then pubsub_on_evsub_state()
+	 * will be called when we send the NOTIFY, and that will result in dropping the
+	 * refcount of sub_tree by one, and possibly destroying the sub_tree. We need to
+	 * hold a reference to the sub_tree until this function returns so that we don't
+	 * try to read from or write to freed memory by accident
+	 */
+	ao2_ref(sub_tree, +1);
+
+	if (pjsip_evsub_get_state(evsub) == PJSIP_EVSUB_STATE_TERMINATED) {
+		set_state_terminated(sub_tree->root);
 	}
-	if (sub->handler->notifier->notify_required(sub, reason)) {
+
+	if (send_notify(sub_tree, 1)) {
 		*p_st_code = 500;
 	}
+
+	if (sub_tree->is_list) {
+		pj_list_insert_before(res_hdr, create_require_eventlist(rdata->tp_info.pool));
+	}
+
+	ao2_ref(sub_tree, -1);
 }
 
 static void pubsub_on_rx_notify(pjsip_evsub *evsub, pjsip_rx_data *rdata, int *p_st_code,
@@ -1969,46 +3022,43 @@ static void pubsub_on_rx_notify(pjsip_evsub *evsub, pjsip_rx_data *rdata, int *p
 
 static int serialized_pubsub_on_client_refresh(void *userdata)
 {
-	struct ast_sip_subscription *sub = userdata;
-	pjsip_evsub *evsub;
+	struct sip_subscription_tree *sub_tree = userdata;
 	pjsip_tx_data *tdata;
 
-	evsub = sip_subscription_get_evsub(sub);
-
-	if (pjsip_evsub_initiate(evsub, NULL, -1, &tdata) == PJ_SUCCESS) {
-		pjsip_evsub_send_request(evsub, tdata);
+	if (pjsip_evsub_initiate(sub_tree->evsub, NULL, -1, &tdata) == PJ_SUCCESS) {
+		pjsip_evsub_send_request(sub_tree->evsub, tdata);
 	} else {
-		pjsip_evsub_terminate(evsub, PJ_TRUE);
+		pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
 		return 0;
 	}
-	ao2_cleanup(sub);
+	ao2_cleanup(sub_tree);
 	return 0;
 }
 
 static void pubsub_on_client_refresh(pjsip_evsub *evsub)
 {
-	struct ast_sip_subscription *sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+	struct sip_subscription_tree *sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 
-	ao2_ref(sub, +1);
-	ast_sip_push_task(sub->serializer, serialized_pubsub_on_client_refresh, sub);
+	ao2_ref(sub_tree, +1);
+	ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_client_refresh, sub_tree);
 }
 
 static int serialized_pubsub_on_server_timeout(void *userdata)
 {
-	struct ast_sip_subscription *sub = userdata;
+	struct sip_subscription_tree *sub_tree = userdata;
 
-	sub->handler->notifier->notify_required(sub,
-			AST_SIP_SUBSCRIPTION_NOTIFY_REASON_TERMINATED);
+	set_state_terminated(sub_tree->root);
+	send_notify(sub_tree, 1);
 
-	ao2_cleanup(sub);
+	ao2_cleanup(sub_tree);
 	return 0;
 }
 
 static void pubsub_on_server_timeout(pjsip_evsub *evsub)
 {
-	struct ast_sip_subscription *sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+	struct sip_subscription_tree *sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 
-	if (!sub) {
+	if (!sub_tree) {
 		/* if a subscription has been terminated and the subscription
 		   timeout/expires is less than the time it takes for all pending
 		   transactions to end then the subscription timer will not have
@@ -2017,11 +3067,11 @@ static void pubsub_on_server_timeout(pjsip_evsub *evsub)
 		return;
 	}
 
-	ao2_ref(sub, +1);
-	ast_sip_push_task(sub->serializer, serialized_pubsub_on_server_timeout, sub);
+	ao2_ref(sub_tree, +1);
+	ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, sub_tree);
 }
 
-static int ami_subscription_detail(struct ast_sip_subscription *sub,
+static int ami_subscription_detail(struct sip_subscription_tree *sub_tree,
 				   struct ast_sip_ami *ami,
 				   const char *event)
 {
@@ -2032,21 +3082,21 @@ static int ami_subscription_detail(struct ast_sip_subscription *sub,
 		return -1;
 	}
 
-	sip_subscription_to_ami(sub, &buf);
+	sip_subscription_to_ami(sub_tree, &buf);
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
 	return 0;
 }
 
-static int ami_subscription_detail_inbound(struct ast_sip_subscription *sub, void *arg)
+static int ami_subscription_detail_inbound(struct sip_subscription_tree *sub_tree, void *arg)
 {
-	return sub->role == AST_SIP_NOTIFIER ? ami_subscription_detail(
-		sub, arg, "InboundSubscriptionDetail") : 0;
+	return sub_tree->role == AST_SIP_NOTIFIER ? ami_subscription_detail(
+		sub_tree, arg, "InboundSubscriptionDetail") : 0;
 }
 
-static int ami_subscription_detail_outbound(struct ast_sip_subscription *sub, void *arg)
+static int ami_subscription_detail_outbound(struct sip_subscription_tree *sub_tree, void *arg)
 {
-	return sub->role == AST_SIP_SUBSCRIBER ? ami_subscription_detail(
-		sub, arg, "OutboundSubscriptionDetail") : 0;
+	return sub_tree->role == AST_SIP_SUBSCRIBER ? ami_subscription_detail(
+		sub_tree, arg, "OutboundSubscriptionDetail") : 0;
 }
 
 static int ami_show_subscriptions_inbound(struct mansession *s, const struct message *m)
@@ -2083,6 +3133,53 @@ static int ami_show_subscriptions_outbound(struct mansession *s, const struct me
 		astman_append(s, "ActionID: %s\r\n", ami.action_id);
 	}
 	astman_append(s, "EventList: Complete\r\n"
+		      "ListItems: %d\r\n\r\n", num);
+	return 0;
+}
+
+static int format_ami_resource_lists(void *obj, void *arg, int flags)
+{
+	struct resource_list *list = obj;
+	struct ast_sip_ami *ami = arg;
+	struct ast_str *buf;
+
+	buf = ast_sip_create_ami_event("ResourceListDetail", ami);
+	if (!buf) {
+		return CMP_STOP;
+	}
+
+	if (ast_sip_sorcery_object_to_ami(list, &buf)) {
+		ast_free(buf);
+		return CMP_STOP;
+	}
+	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+
+	ast_free(buf);
+	return 0;
+}
+
+static int ami_show_resource_lists(struct mansession *s, const struct message *m)
+{
+	struct ast_sip_ami ami = { .s = s, .m = m };
+	int num;
+	struct ao2_container *lists;
+
+	lists = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "resource_list",
+			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+
+	if (!lists || !(num = ao2_container_count(lists))) {
+		astman_send_error(s, m, "No resource lists found\n");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "A listing of resource lists follows, "
+			    "presented as ResourceListDetail events", "start");
+
+	ao2_callback(lists, OBJ_NODATA, format_ami_resource_lists, &ami);
+
+	astman_append(s,
+		      "Event: ResourceListDetailComplete\r\n"
+		      "EventList: Complete\r\n"
 		      "ListItems: %d\r\n\r\n", num);
 	return 0;
 }
@@ -2133,6 +3230,705 @@ static int persistence_expires_struct2str(const void *obj, const intptr_t *args,
 	const struct subscription_persistence *persistence = obj;
 	return (ast_asprintf(buf, "%ld", persistence->expires.tv_sec) < 0) ? -1 : 0;
 }
+
+#define RESOURCE_LIST_INIT_SIZE 4
+
+static void resource_list_destructor(void *obj)
+{
+	struct resource_list *list = obj;
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(&list->items); ++i) {
+		ast_free((char *) AST_VECTOR_GET(&list->items, i));
+	}
+
+	AST_VECTOR_FREE(&list->items);
+}
+
+static void *resource_list_alloc(const char *name)
+{
+	struct resource_list *list;
+
+	list = ast_sorcery_generic_alloc(sizeof(*list), resource_list_destructor);
+	if (!list) {
+		return NULL;
+	}
+
+	if (AST_VECTOR_INIT(&list->items, RESOURCE_LIST_INIT_SIZE)) {
+		ao2_cleanup(list);
+		return NULL;
+	}
+
+	return list;
+}
+
+static int item_in_vector(const struct resource_list *list, const char *item)
+{
+	int i;
+
+	for (i = 0; i < AST_VECTOR_SIZE(&list->items); ++i) {
+		if (!strcmp(item, AST_VECTOR_GET(&list->items, i))) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int list_item_handler(const struct aco_option *opt,
+		struct ast_variable *var, void *obj)
+{
+	struct resource_list *list = obj;
+	char *items = ast_strdupa(var->value);
+	char *item;
+
+	while ((item = strsep(&items, ","))) {
+		if (item_in_vector(list, item)) {
+			ast_log(LOG_WARNING, "Ignoring duplicated list item '%s'\n", item);
+			continue;
+		}
+		if (AST_VECTOR_APPEND(&list->items, ast_strdup(item))) {
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int list_item_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct resource_list *list = obj;
+	int i;
+	struct ast_str *str = ast_str_create(32);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&list->items); ++i) {
+		ast_str_append(&str, 0, "%s,", AST_VECTOR_GET(&list->items, i));
+	}
+
+	/* Chop off trailing comma */
+	ast_str_truncate(str, -1);
+	*buf = ast_strdup(ast_str_buffer(str));
+	ast_free(str);
+	return 0;
+}
+
+static int resource_list_apply_handler(const struct ast_sorcery *sorcery, void *obj)
+{
+	struct resource_list *list = obj;
+
+	if (ast_strlen_zero(list->event)) {
+		ast_log(LOG_WARNING, "Resource list '%s' has no event set\n",
+				ast_sorcery_object_get_id(list));
+		return -1;
+	}
+
+	if (AST_VECTOR_SIZE(&list->items) == 0) {
+		ast_log(LOG_WARNING, "Resource list '%s' has no list items\n",
+				ast_sorcery_object_get_id(list));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int apply_list_configuration(struct ast_sorcery *sorcery)
+{
+	ast_sorcery_apply_default(sorcery, "resource_list", "config",
+			"pjsip.conf,criteria=type=resource_list");
+	if (ast_sorcery_object_register(sorcery, "resource_list", resource_list_alloc,
+				NULL, resource_list_apply_handler)) {
+		return -1;
+	}
+
+	ast_sorcery_object_field_register(sorcery, "resource_list", "type", "",
+			OPT_NOOP_T, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "resource_list", "event", "",
+			OPT_CHAR_ARRAY_T, 1, CHARFLDSET(struct resource_list, event));
+	ast_sorcery_object_field_register(sorcery, "resource_list", "full_state", "no",
+			OPT_BOOL_T, 1, FLDSET(struct resource_list, full_state));
+	ast_sorcery_object_field_register(sorcery, "resource_list", "notification_batch_interval",
+			"0", OPT_UINT_T, 0, FLDSET(struct resource_list, notification_batch_interval));
+	ast_sorcery_object_field_register_custom(sorcery, "resource_list", "list_item",
+			"", list_item_handler, list_item_to_str, NULL, 0, 0);
+
+	ast_sorcery_reload_object(sorcery, "resource_list");
+
+	return 0;
+}
+
+#ifdef TEST_FRAMEWORK
+
+/*!
+ * \brief "bad" resources
+ *
+ * These are resources that the test handler will reject subscriptions to.
+ */
+const char *bad_resources[] = {
+	"coconut",
+	"cilantro",
+	"olive",
+	"cheese",
+};
+
+/*!
+ * \brief new_subscribe callback for unit tests
+ *
+ * Will give a 200 OK response to any resource except the "bad" ones.
+ */
+static int test_new_subscribe(struct ast_sip_endpoint *endpoint, const char *resource)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_LEN(bad_resources); ++i) {
+		if (!strcmp(resource, bad_resources[i])) {
+			return 400;
+		}
+	}
+
+	return 200;
+}
+
+/*!
+ * \brief Subscription notifier for unit tests.
+ *
+ * Since unit tests are only concerned with building a resource tree,
+ * only the new_subscribe callback needs to be defined.
+ */
+struct ast_sip_notifier test_notifier = {
+	.new_subscribe = test_new_subscribe,
+};
+
+/*!
+ * \brief Subscription handler for unit tests.
+ */
+struct ast_sip_subscription_handler test_handler = {
+	.event_name = "test",
+	.notifier = &test_notifier,
+};
+
+/*!
+ * \brief Set properties on an allocated resource list
+ *
+ * \param list The list to set details on.
+ * \param event The list's event.
+ * \param resources Array of resources to add to the list.
+ * \param num_resources Number of resources in the array.
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+static int populate_list(struct resource_list *list, const char *event, const char **resources, size_t num_resources)
+{
+	int i;
+
+	ast_copy_string(list->event, event, sizeof(list->event));
+
+	for (i = 0; i < num_resources; ++i) {
+		if (AST_VECTOR_APPEND(&list->items, ast_strdup(resources[i]))) {
+			return -1;
+		}
+	}
+	return 0;
+}
+
+/*!
+ * \brief RAII callback to destroy a resource list
+ */
+static void cleanup_resource_list(struct resource_list *list)
+{
+	if (!list) {
+		return;
+	}
+
+	ast_sorcery_delete(ast_sip_get_sorcery(), list);
+	ao2_cleanup(list);
+}
+
+/*!
+ * \brief allocate a resource list, store it in sorcery, and set its details
+ *
+ * \param test The unit test. Used for logging status messages.
+ * \param list_name The name of the list to create.
+ * \param event The event the list services
+ * \param resources Array of resources to apply to the list
+ * \param num_resources The number of resources in the array
+ * \retval NULL Failed to allocate or populate list
+ * \retval non-NULL The created list
+ */
+static struct resource_list *create_resource_list(struct ast_test *test,
+		const char *list_name, const char *event, const char **resources, size_t num_resources)
+{
+	struct resource_list *list;
+
+	list = ast_sorcery_alloc(ast_sip_get_sorcery(), "resource_list", list_name);
+	if (!list) {
+		ast_test_status_update(test, "Could not allocate resource list in sorcery\n");
+		return NULL;
+	}
+
+	if (ast_sorcery_create(ast_sip_get_sorcery(), list)) {
+		ast_test_status_update(test, "Could not store the resource list in sorcery\n");
+		ao2_cleanup(list);
+		return NULL;
+	}
+
+	if (populate_list(list, event, resources, num_resources)) {
+		ast_test_status_update(test, "Could not add resources to the resource list\n");
+		cleanup_resource_list(list);
+		return NULL;
+	}
+
+	return list;
+}
+
+/*!
+ * \brief Check the integrity of a tree node against a set of resources.
+ *
+ * The tree node's resources must be in the same order as the resources in
+ * the supplied resources array. Because of this constraint, tests can misrepresent
+ * the size of the resources array as being smaller than it really is if resources
+ * at the end of the array should not be present in the tree node.
+ *
+ * \param test The unit test. Used for printing status messages.
+ * \param node The constructed tree node whose integrity is under question.
+ * \param resources Array of expected resource values
+ * \param num_resources The number of resources to check in the array.
+ */
+static int check_node(struct ast_test *test, struct tree_node *node,
+		const char **resources, size_t num_resources)
+{
+	int i;
+
+	if (AST_VECTOR_SIZE(&node->children) != num_resources) {
+		ast_test_status_update(test, "Unexpected number of resources in tree. Expected %d, got %d\n",
+				num_resources, AST_VECTOR_SIZE(&node->children));
+		return -1;
+	}
+
+	for (i = 0; i < num_resources; ++i) {
+		if (strcmp(resources[i], AST_VECTOR_GET(&node->children, i)->resource)) {
+			ast_test_status_update(test, "Mismatched resources. Expected '%s' but got '%s'\n",
+					resources[i], AST_VECTOR_GET(&node->children, i)->resource);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief RAII_VAR callback to destroy an allocated resource tree
+ */
+static void test_resource_tree_destroy(struct resource_tree *tree)
+{
+	resource_tree_destroy(tree);
+	ast_free(tree);
+}
+
+AST_TEST_DEFINE(resource_tree)
+{
+	RAII_VAR(struct resource_list *, list, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_tree *, tree, NULL, test_resource_tree_destroy);
+	const char *resources[] = {
+		"huey",
+		"dewey",
+		"louie",
+	};
+	int resp;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "resource_tree";
+		info->category = "/res/res_pjsip_pubsub/";
+		info->summary = "Basic resource tree integrity check";
+		info->description =
+			"Create a resource list and ensure that our attempt to build a tree works as expected.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list = create_resource_list(test, "foo", "test", resources, ARRAY_LEN(resources));
+	if (!list) {
+		return AST_TEST_FAIL;
+	}
+
+	tree = ast_calloc(1, sizeof(*tree));
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	if (resp != 200) {
+		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
+		return AST_TEST_FAIL;
+	}
+
+	if (!tree->root) {
+		ast_test_status_update(test, "Resource tree has no root\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (check_node(test, tree->root, resources, ARRAY_LEN(resources))) {
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(complex_resource_tree)
+{
+	RAII_VAR(struct resource_list *, list_1, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_list *, list_2, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_tree *, tree, NULL, test_resource_tree_destroy);
+	const char *resources_1[] = {
+		"huey",
+		"dewey",
+		"louie",
+		"dwarves",
+	};
+	const char *resources_2[] = {
+		"happy",
+		"grumpy",
+		"doc",
+		"bashful",
+		"dopey",
+		"sneezy",
+		"sleepy",
+	};
+	int resp;
+	struct tree_node *node;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "complex_resource_tree";
+		info->category = "/res/res_pjsip_pubsub/";
+		info->summary = "Complex resource tree integrity check";
+		info->description =
+			"Create a complex resource list and ensure that our attempt to build a tree works as expected.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list_1 = create_resource_list(test, "foo", "test", resources_1, ARRAY_LEN(resources_1));
+	if (!list_1) {
+		return AST_TEST_FAIL;
+	}
+
+	list_2 = create_resource_list(test, "dwarves", "test", resources_2, ARRAY_LEN(resources_2));
+	if (!list_2) {
+		return AST_TEST_FAIL;
+	}
+
+	tree = ast_calloc(1, sizeof(*tree));
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	if (resp != 200) {
+		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
+		return AST_TEST_FAIL;
+	}
+
+	if (!tree->root) {
+		ast_test_status_update(test, "Resource tree has no root\n");
+		return AST_TEST_FAIL;
+	}
+
+	node = tree->root;
+	if (check_node(test, node, resources_1, ARRAY_LEN(resources_1))) {
+		return AST_TEST_FAIL;
+	}
+
+	/* The embedded list is at index 3 in the root node's children */
+	node = AST_VECTOR_GET(&node->children, 3);
+	if (check_node(test, node, resources_2, ARRAY_LEN(resources_2))) {
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(bad_resource)
+{
+	RAII_VAR(struct resource_list *, list, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_tree *, tree, NULL, test_resource_tree_destroy);
+	const char *resources[] = {
+		"huey",
+		"dewey",
+		"louie",
+		"coconut", /* A "bad" resource */
+	};
+	int resp;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bad_resource";
+		info->category = "/res/res_pjsip_pubsub/";
+		info->summary = "Ensure bad resources do not end up in the tree";
+		info->description =
+			"Create a resource list with a single bad resource. Ensure the bad resource does not end up in the tree.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list = create_resource_list(test, "foo", "test", resources, ARRAY_LEN(resources));
+	if (!list) {
+		return AST_TEST_FAIL;
+	}
+
+	tree = ast_calloc(1, sizeof(*tree));
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	if (resp != 200) {
+		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
+		return AST_TEST_FAIL;
+	}
+
+	if (!tree->root) {
+		ast_test_status_update(test, "Resource tree has no root\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* We check against all but the final resource since we expect it not to be in the tree */
+	if (check_node(test, tree->root, resources, ARRAY_LEN(resources) - 1)) {
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+
+}
+
+AST_TEST_DEFINE(bad_branch)
+{
+	RAII_VAR(struct resource_list *, list_1, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_list *, list_2, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_tree *, tree, NULL, test_resource_tree_destroy);
+	const char *resources_1[] = {
+		"huey",
+		"dewey",
+		"louie",
+		"gross",
+	};
+	/* This list has nothing but bad resources */
+	const char *resources_2[] = {
+		"coconut",
+		"cilantro",
+		"olive",
+		"cheese",
+	};
+	int resp;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bad_branch";
+		info->category = "/res/res_pjsip_pubsub/";
+		info->summary = "Ensure bad branches are pruned from the tree";
+		info->description =
+			"Create a resource list that makes a tree with an entire branch of bad resources.\n"
+			"Ensure the bad branch is pruned from the tree.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list_1 = create_resource_list(test, "foo", "test", resources_1, ARRAY_LEN(resources_1));
+	if (!list_1) {
+		return AST_TEST_FAIL;
+	}
+	list_2 = create_resource_list(test, "gross", "test", resources_2, ARRAY_LEN(resources_2));
+	if (!list_2) {
+		return AST_TEST_FAIL;
+	}
+
+	tree = ast_calloc(1, sizeof(*tree));
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	if (resp != 200) {
+		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
+		return AST_TEST_FAIL;
+	}
+
+	if (!tree->root) {
+		ast_test_status_update(test, "Resource tree has no root\n");
+		return AST_TEST_FAIL;
+	}
+
+	/* We check against all but the final resource of the list since the entire branch should
+	 * be pruned from the tree
+	 */
+	if (check_node(test, tree->root, resources_1, ARRAY_LEN(resources_1) - 1)) {
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+
+}
+
+AST_TEST_DEFINE(duplicate_resource)
+{
+	RAII_VAR(struct resource_list *, list_1, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_list *, list_2, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_tree *, tree, NULL, test_resource_tree_destroy);
+	const char *resources_1[] = {
+		"huey",
+		"ducks",
+		"dewey",
+		"louie",
+	};
+	const char *resources_2[] = {
+		"donald",
+		"daisy",
+		"scrooge",
+		"dewey",
+		"louie",
+		"huey",
+	};
+	int resp;
+	struct tree_node *node;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "duplicate_resource";
+		info->category = "/res/res_pjsip_pubsub/";
+		info->summary = "Ensure duplicated resources do not end up in the tree";
+		info->description =
+			"Create a resource list with a single duplicated resource. Ensure the duplicated resource does not end up in the tree.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list_1 = create_resource_list(test, "foo", "test", resources_1, ARRAY_LEN(resources_1));
+	if (!list_1) {
+		return AST_TEST_FAIL;
+	}
+
+	list_2 = create_resource_list(test, "ducks", "test", resources_2, ARRAY_LEN(resources_2));
+	if (!list_2) {
+		return AST_TEST_FAIL;
+	}
+
+	tree = ast_calloc(1, sizeof(*tree));
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	if (resp != 200) {
+		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
+		return AST_TEST_FAIL;
+	}
+
+	if (!tree->root) {
+		ast_test_status_update(test, "Resource tree has no root\n");
+		return AST_TEST_FAIL;
+	}
+
+	node = tree->root;
+	/* This node should have "huey" and "ducks". "dewey" and "louie" should not
+	 * be present since they were found in the "ducks" list.
+	 */
+	if (check_node(test, node, resources_1, ARRAY_LEN(resources_1) - 2)) {
+		return AST_TEST_FAIL;
+	}
+
+	/* This node should have "donald", "daisy", "scrooge", "dewey", and "louie".
+	 * "huey" is not here since that was already encountered in the parent list
+	 */
+	node = AST_VECTOR_GET(&node->children, 1);
+	if (check_node(test, node, resources_2, ARRAY_LEN(resources_2) - 1)) {
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(loop)
+{
+	RAII_VAR(struct resource_list *, list_1, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_list *, list_2, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_tree *, tree, NULL, test_resource_tree_destroy);
+	const char *resources_1[] = {
+		"derp",
+	};
+	const char *resources_2[] = {
+		"herp",
+	};
+	int resp;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "loop";
+		info->category = "/res/res_pjsip_pubsub/";
+		info->summary = "Test that loops are properly detected.";
+		info->description =
+			"Create two resource lists that refer to each other. Ensure that attempting to build a tree\n"
+			"results in an empty tree.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list_1 = create_resource_list(test, "herp", "test", resources_1, ARRAY_LEN(resources_1));
+	if (!list_1) {
+		return AST_TEST_FAIL;
+	}
+	list_2 = create_resource_list(test, "derp", "test", resources_2, ARRAY_LEN(resources_2));
+	if (!list_2) {
+		return AST_TEST_FAIL;
+	}
+
+	tree = ast_calloc(1, sizeof(*tree));
+	resp = build_resource_tree(NULL, &test_handler, "herp", tree);
+	if (resp == 200) {
+		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(bad_event)
+{
+	RAII_VAR(struct resource_list *, list, NULL, cleanup_resource_list);
+	RAII_VAR(struct resource_tree *, tree, NULL, test_resource_tree_destroy);
+	const char *resources[] = {
+		"huey",
+		"dewey",
+		"louie",
+	};
+	int resp;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bad_event";
+		info->category = "/res/res_pjsip_pubsub/";
+		info->summary = "Ensure that list with wrong event specified is not retrieved";
+		info->description =
+			"Create a simple resource list for event 'tsetse'. Ensure that trying to retrieve the list for event 'test' fails.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	list = create_resource_list(test, "foo", "tsetse", resources, ARRAY_LEN(resources));
+	if (!list) {
+		return AST_TEST_FAIL;
+	}
+
+	tree = ast_calloc(1, sizeof(*tree));
+	/* Since the test_handler is for event "test", this should not build a list, but
+	 * instead result in a single resource being created, called "foo"
+	 */
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	if (resp != 200) {
+		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
+		return AST_TEST_FAIL;
+	}
+
+	if (!tree->root) {
+		ast_test_status_update(test, "Resource tree has no root\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (strcmp(tree->root->resource, "foo")) {
+		ast_test_status_update(test, "Unexpected resource %s found in tree\n", tree->root->resource);
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+#endif
 
 static int resource_endpoint_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -2224,6 +4020,11 @@ static int load_module(void)
 	ast_sorcery_object_field_register_custom(sorcery, "subscription_persistence", "expires", "",
 		persistence_expires_str2struct, persistence_expires_struct2str, NULL, 0, 0);
 
+	if (apply_list_configuration(sorcery)) {
+		ast_sip_unregister_service(&pubsub_module);
+		ast_sched_context_destroy(sched);
+	}
+
 	ast_sorcery_apply_default(sorcery, "inbound-publication", "config", "pjsip.conf,criteria=type=inbound-publication");
 	if (ast_sorcery_object_register(sorcery, "inbound-publication", publication_resource_alloc,
 		NULL, NULL)) {
@@ -2248,6 +4049,16 @@ static int load_module(void)
 				 ami_show_subscriptions_inbound);
 	ast_manager_register_xml(AMI_SHOW_SUBSCRIPTIONS_OUTBOUND, EVENT_FLAG_SYSTEM,
 				 ami_show_subscriptions_outbound);
+	ast_manager_register_xml("PJSIPShowResourceLists", EVENT_FLAG_SYSTEM,
+			ami_show_resource_lists);
+
+	AST_TEST_REGISTER(resource_tree);
+	AST_TEST_REGISTER(complex_resource_tree);
+	AST_TEST_REGISTER(bad_resource);
+	AST_TEST_REGISTER(bad_branch);
+	AST_TEST_REGISTER(duplicate_resource);
+	AST_TEST_REGISTER(loop);
+	AST_TEST_REGISTER(bad_event);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -2256,10 +4067,19 @@ static int unload_module(void)
 {
 	ast_manager_unregister(AMI_SHOW_SUBSCRIPTIONS_OUTBOUND);
 	ast_manager_unregister(AMI_SHOW_SUBSCRIPTIONS_INBOUND);
+	ast_manager_unregister("PJSIPShowResourceLists");
 
 	if (sched) {
 		ast_sched_context_destroy(sched);
 	}
+
+	AST_TEST_UNREGISTER(resource_tree);
+	AST_TEST_UNREGISTER(complex_resource_tree);
+	AST_TEST_UNREGISTER(bad_resource);
+	AST_TEST_UNREGISTER(bad_branch);
+	AST_TEST_UNREGISTER(duplicate_resource);
+	AST_TEST_UNREGISTER(loop);
+	AST_TEST_UNREGISTER(bad_event);
 
 	return 0;
 }
