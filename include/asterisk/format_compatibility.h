@@ -120,7 +120,7 @@ uint64_t ast_format_compatibility_codec2bitfield(const struct ast_codec *codec);
  * \param bitfield The bitfield for the media format
  *
  * \retval non-NULL success
- * \retval NULL failure
+ * \retval NULL failure (The format bitfield value is not supported)
  *
  * \note The reference count of the returned format is NOT incremented
  */

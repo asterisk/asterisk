@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/format_compatibility.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/format_cap.h"
+#include "asterisk/utils.h"
 
 #include "include/codec_pref.h"
 #include "include/format_compatibility.h"
@@ -48,7 +49,8 @@ void iax2_codec_pref_convert(struct iax2_codec_pref *pref, char *buf, size_t siz
 	int x;
 
 	if (right) {
-		for (x = 0; x < IAX2_CODEC_PREF_SIZE && x < size; x++) {
+		--size;/* Save room for the nul string terminator. */
+		for (x = 0; x < ARRAY_LEN(pref->order) && x < size; ++x) {
 			if (!pref->order[x]) {
 				break;
 			}
@@ -58,24 +60,29 @@ void iax2_codec_pref_convert(struct iax2_codec_pref *pref, char *buf, size_t siz
 
 		buf[x] = '\0';
 	} else {
-		for (x = 0; x < IAX2_CODEC_PREF_SIZE && x < size; x++) {
+		for (x = 0; x < ARRAY_LEN(pref->order) && x < size; ++x) {
 			if (buf[x] == '\0') {
 				break;
 			}
 
 			pref->order[x] = buf[x] - differential;
+			pref->framing[x] = 0;
 		}
 
-		if (x < size) {
+		if (x < ARRAY_LEN(pref->order)) {
 			pref->order[x] = 0;
+			pref->framing[x] = 0;
 		}
 	}
 }
 
 struct ast_format *iax2_codec_pref_index(struct iax2_codec_pref *pref, int idx, struct ast_format **result)
 {
-	if ((idx >= 0) && (idx < sizeof(pref->order)) && pref->order[idx]) {
-		*result = ast_format_compatibility_bitfield2format(pref->order[idx]);
+	if (0 <= idx && idx < ARRAY_LEN(pref->order) && pref->order[idx]) {
+		uint64_t pref_bitfield;
+
+		pref_bitfield = iax2_codec_pref_order_value_to_format_bitfield(pref->order[idx]);
+		*result = ast_format_compatibility_bitfield2format(pref_bitfield);
 	} else {
 		*result = NULL;
 	}
@@ -83,28 +90,99 @@ struct ast_format *iax2_codec_pref_index(struct iax2_codec_pref *pref, int idx, 
 	return *result;
 }
 
-void iax2_codec_pref_to_cap(struct iax2_codec_pref *pref, struct ast_format_cap *cap)
+int iax2_codec_pref_to_cap(struct iax2_codec_pref *pref, struct ast_format_cap *cap)
 {
 	int idx;
 
-	for (idx = 0; idx < sizeof(pref->order); idx++) {
-		if (!pref->order[idx]) {
+	for (idx = 0; idx < ARRAY_LEN(pref->order); ++idx) {
+		uint64_t pref_bitfield;
+		struct ast_format *pref_format;
+
+		pref_bitfield = iax2_codec_pref_order_value_to_format_bitfield(pref->order[idx]);
+		if (!pref_bitfield) {
 			break;
 		}
-		ast_format_cap_append(cap, ast_format_compatibility_bitfield2format(pref->order[idx]), pref->framing[idx]);
+
+		pref_format = ast_format_compatibility_bitfield2format(pref_bitfield);
+		if (pref_format && ast_format_cap_append(cap, pref_format, pref->framing[idx])) {
+			return -1;
+		}
 	}
+	return 0;
+}
+
+int iax2_codec_pref_best_bitfield2cap(uint64_t bitfield, struct iax2_codec_pref *prefs, struct ast_format_cap *cap)
+{
+	uint64_t best_bitfield;
+	struct ast_format *format;
+
+	/* Add any user preferred codecs first. */
+	if (prefs) {
+		int idx;
+
+		for (idx = 0; bitfield && idx < ARRAY_LEN(prefs->order); ++idx) {
+			best_bitfield = iax2_codec_pref_order_value_to_format_bitfield(prefs->order[idx]);
+			if (!best_bitfield) {
+				break;
+			}
+
+			if (best_bitfield & bitfield) {
+				format = ast_format_compatibility_bitfield2format(best_bitfield);
+				if (format && ast_format_cap_append(cap, format, prefs->framing[idx])) {
+					return -1;
+				}
+
+				/* Remove just added codec. */
+				bitfield &= ~best_bitfield;
+			}
+		}
+	}
+
+	/* Add the hard coded "best" codecs. */
+	while (bitfield) {
+		best_bitfield = iax2_format_compatibility_best(bitfield);
+		if (!best_bitfield) {
+			/* No more codecs considered best. */
+			break;
+		}
+
+		format = ast_format_compatibility_bitfield2format(best_bitfield);
+		/* The best_bitfield should always be convertible to a format. */
+		ast_assert(format != NULL);
+
+		if (ast_format_cap_append(cap, format, 0)) {
+			return -1;
+		}
+
+		/* Remove just added "best" codec to find the next "best". */
+		bitfield &= ~best_bitfield;
+	}
+
+	/* Add any remaining codecs. */
+	if (bitfield) {
+		int bit;
+
+		for (bit = 0; bit < 64; ++bit) {
+			uint64_t mask = (1ULL << bit);
+
+			if (mask & bitfield) {
+				format = ast_format_compatibility_bitfield2format(mask);
+				if (format && ast_format_cap_append(cap, format, 0)) {
+					return -1;
+				}
+			}
+		}
+	}
+
+	return 0;
 }
 
 int iax2_codec_pref_string(struct iax2_codec_pref *pref, char *buf, size_t size)
 {
 	int x;
-	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	struct ast_format_cap *cap;
 	size_t total_len;
 	char *cur;
-
-	if (!cap) {
-		return -1;
-	}
 
 	/* This function is useless if you have less than a 6 character buffer.
 	 * '(...)' is six characters. */
@@ -112,20 +190,16 @@ int iax2_codec_pref_string(struct iax2_codec_pref *pref, char *buf, size_t size)
 		return -1;
 	}
 
-	/* Convert the preferences into a format cap so that we can read the formst names */
-	for (x = 0; x < IAX2_CODEC_PREF_SIZE; x++) {
-		uint64_t bitfield = iax2_codec_pref_order_value_to_format_bitfield(pref->order[x]);
-		if (!bitfield) {
-			break;
-		}
-
-		iax2_format_compatibility_bitfield2cap(bitfield, cap);
+	/* Convert the preferences into a format cap so that we can read the format names */
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!cap || iax2_codec_pref_to_cap(pref, cap)) {
+		strcpy(buf, "(...)"); /* Safe */
+		ao2_cleanup(cap);
+		return -1;
 	}
 
 	/* We know that at a minimum, 3 characters are used - (, ), and \0 */
 	total_len = size - 3;
-
-	memset(buf, 0, size);
 
 	/* This character has already been accounted for total_len purposes */
 	buf[0] = '(';
@@ -173,12 +247,20 @@ int iax2_codec_pref_string(struct iax2_codec_pref *pref, char *buf, size_t size)
 
 static void codec_pref_remove_index(struct iax2_codec_pref *pref, int codec_pref_index)
 {
-	int x;
+	int idx;
 
-	for (x = codec_pref_index; x < IAX2_CODEC_PREF_SIZE; x++) {
-		pref->order[x] = pref->order[x + 1];
-		pref->framing[x] = pref->framing[x + 1];
-		if (!pref->order[x]) {
+	idx = codec_pref_index;
+	if (idx == ARRAY_LEN(pref->order) - 1) {
+		/* Remove from last array entry. */
+		pref->order[idx] = 0;
+		pref->framing[idx] = 0;
+		return;
+	}
+
+	for (; idx < ARRAY_LEN(pref->order); ++idx) {
+		pref->order[idx] = pref->order[idx + 1];
+		pref->framing[idx] = pref->framing[idx + 1];
+		if (!pref->order[idx]) {
 			return;
 		}
 	}
@@ -193,7 +275,7 @@ static void codec_pref_remove(struct iax2_codec_pref *pref, int format_index)
 		return;
 	}
 
-	for (x = 0; x < IAX2_CODEC_PREF_SIZE; x++) {
+	for (x = 0; x < ARRAY_LEN(pref->order); ++x) {
 		if (!pref->order[x]) {
 			break;
 		}
@@ -207,86 +289,181 @@ static void codec_pref_remove(struct iax2_codec_pref *pref, int format_index)
 
 void iax2_codec_pref_remove_missing(struct iax2_codec_pref *pref, uint64_t bitfield)
 {
-	int x;
+	int idx;
 
 	if (!pref->order[0]) {
 		return;
 	}
 
-	for (x = 0; x < IAX2_CODEC_PREF_SIZE; x++) {
-		uint64_t format_as_bitfield = iax2_codec_pref_order_value_to_format_bitfield(pref->order[x]);
-		if (!pref->order[x]) {
-			break;
+	/*
+	 * Work from the end of the list so we always deal with
+	 * unmodified entries in case we have to remove a pref.
+	 */
+	for (idx = ARRAY_LEN(pref->order); idx--;) {
+		uint64_t pref_bitfield;
+
+		pref_bitfield = iax2_codec_pref_order_value_to_format_bitfield(pref->order[idx]);
+		if (!pref_bitfield) {
+			continue;
 		}
 
 		/* If this format isn't in the bitfield, remove it from the prefs. */
-		if (!(format_as_bitfield & bitfield)) {
-			codec_pref_remove_index(pref, x);
+		if (!(pref_bitfield & bitfield)) {
+			codec_pref_remove_index(pref, idx);
 		}
 	}
 }
 
-uint64_t iax2_codec_pref_order_value_to_format_bitfield(uint64_t order_value)
+/*!
+ * \brief Formats supported by IAX2.
+ *
+ * \note All AST_FORMAT_xxx compatibility bit defines must be
+ *  represented here.
+ *
+ * \note The order is important because the array index+1 values
+ * go out over the wire.
+ */
+static const uint64_t iax2_supported_formats[] = {
+	AST_FORMAT_G723,
+	AST_FORMAT_GSM,
+	AST_FORMAT_ULAW,
+	AST_FORMAT_ALAW,
+	AST_FORMAT_G726,
+	AST_FORMAT_ADPCM,
+	AST_FORMAT_SLIN,
+	AST_FORMAT_LPC10,
+	AST_FORMAT_G729,
+	AST_FORMAT_SPEEX,
+	AST_FORMAT_SPEEX16,
+	AST_FORMAT_ILBC,
+	AST_FORMAT_G726_AAL2,
+	AST_FORMAT_G722,
+	AST_FORMAT_SLIN16,
+	AST_FORMAT_JPEG,
+	AST_FORMAT_PNG,
+	AST_FORMAT_H261,
+	AST_FORMAT_H263,
+	AST_FORMAT_H263P,
+	AST_FORMAT_H264,
+	AST_FORMAT_MP4,
+	AST_FORMAT_T140_RED,
+	AST_FORMAT_T140,
+	AST_FORMAT_SIREN7,
+	AST_FORMAT_SIREN14,
+	AST_FORMAT_TESTLAW,
+	AST_FORMAT_G719,
+	0, /* Place holder */
+	0, /* Place holder */
+	0, /* Place holder */
+	0, /* Place holder */
+	0, /* Place holder */
+	0, /* Place holder */
+	0, /* Place holder */
+	0, /* Place holder */
+	AST_FORMAT_OPUS,
+	AST_FORMAT_VP8,
+	/* ONLY ADD TO THE END OF THIS LIST */
+	/* XXX Use up the place holder slots first. */
+};
+
+uint64_t iax2_codec_pref_order_value_to_format_bitfield(int order_value)
 {
-	if (!order_value) {
+	if (order_value < 1 || ARRAY_LEN(iax2_supported_formats) < order_value) {
 		return 0;
 	}
 
-	return 1 << (order_value - 1);
+	return iax2_supported_formats[order_value - 1];
 }
 
-uint64_t iax2_codec_pref_format_bitfield_to_order_value(uint64_t bitfield)
+int iax2_codec_pref_format_bitfield_to_order_value(uint64_t bitfield)
 {
-	int format_index = 1;
+	int idx;
 
-	if (!bitfield) {
-		return 0;
+	if (bitfield) {
+		for (idx = 0; idx < ARRAY_LEN(iax2_supported_formats); ++idx) {
+			if (iax2_supported_formats[idx] == bitfield) {
+				return idx + 1;
+			}
+		}
 	}
-
-	while (bitfield > 1) {
-		bitfield = bitfield >> 1;
-		format_index++;
-	}
-
-	return format_index;
+	return 0;
 }
 
-/*! \brief Append codec to list */
-int iax2_codec_pref_append(struct iax2_codec_pref *pref, struct ast_format *format, unsigned int framing)
+/*!
+ * \internal
+ * \brief Append the bitfield format to the codec preference list.
+ * \since 13.0.0
+ *
+ * \param pref Codec preference list to append the given bitfield.
+ * \param bitfield Format bitfield to append.
+ * \param framing Framing size of the codec.
+ *
+ * \return Nothing
+ */
+static void iax2_codec_pref_append_bitfield(struct iax2_codec_pref *pref, uint64_t bitfield, unsigned int framing)
 {
-	uint64_t bitfield = ast_format_compatibility_format2bitfield(format);
-	int format_index = iax2_codec_pref_format_bitfield_to_order_value(bitfield);
+	int format_index;
 	int x;
+
+	format_index = iax2_codec_pref_format_bitfield_to_order_value(bitfield);
+	if (!format_index) {
+		return;
+	}
 
 	codec_pref_remove(pref, format_index);
 
-	for (x = 0; x < IAX2_CODEC_PREF_SIZE; x++) {
+	for (x = 0; x < ARRAY_LEN(pref->order); ++x) {
 		if (!pref->order[x]) {
 			pref->order[x] = format_index;
 			pref->framing[x] = framing;
 			break;
 		}
 	}
-
-	return x;
 }
 
-/*! \brief Prepend codec to list */
+void iax2_codec_pref_append(struct iax2_codec_pref *pref, struct ast_format *format, unsigned int framing)
+{
+	uint64_t bitfield;
+
+	bitfield = ast_format_compatibility_format2bitfield(format);
+	if (!bitfield) {
+		return;
+	}
+
+	iax2_codec_pref_append_bitfield(pref, bitfield, framing);
+}
+
 void iax2_codec_pref_prepend(struct iax2_codec_pref *pref, struct ast_format *format, unsigned int framing,
 	int only_if_existing)
 {
-	uint64_t bitfield = ast_format_compatibility_format2bitfield(format);
+	uint64_t bitfield;
+	int format_index;
 	int x;
 
+	bitfield = ast_format_compatibility_format2bitfield(format);
+	if (!bitfield) {
+		return;
+	}
+	format_index = iax2_codec_pref_format_bitfield_to_order_value(bitfield);
+	if (!format_index) {
+		return;
+	}
+
 	/* Now find any existing occurrence, or the end */
-	for (x = 0; x < IAX2_CODEC_PREF_SIZE; x++) {
-		if (!pref->order[x] || pref->order[x] == bitfield)
+	for (x = 0; x < ARRAY_LEN(pref->order); ++x) {
+		if (!pref->order[x] || pref->order[x] == format_index)
 			break;
 	}
 
-	/* If we failed to find any occurrence, set to the end */
-	if (x == IAX2_CODEC_PREF_SIZE) {
-		--x;
+	/*
+	 * The array can never be full without format_index
+	 * also being in the array.
+	 */
+	ast_assert(x < ARRAY_LEN(pref->order));
+
+	/* If we failed to find any occurrence, set to the end for safety. */
+	if (ARRAY_LEN(pref->order) <= x) {
+		x = ARRAY_LEN(pref->order) - 1;
 	}
 
 	if (only_if_existing && !pref->order[x]) {
@@ -295,39 +472,63 @@ void iax2_codec_pref_prepend(struct iax2_codec_pref *pref, struct ast_format *fo
 
 	/* Move down to make space to insert - either all the way to the end,
 	   or as far as the existing location (which will be overwritten) */
-	for (; x > 0; x--) {
+	for (; x > 0; --x) {
 		pref->order[x] = pref->order[x - 1];
 		pref->framing[x] = pref->framing[x - 1];
 	}
 
 	/* And insert the new entry */
-	pref->order[0] = bitfield;
+	pref->order[0] = format_index;
 	pref->framing[0] = framing;
 }
 
-unsigned int iax2_codec_pref_getsize(struct iax2_codec_pref *pref, int idx)
+uint64_t iax2_codec_pref_from_bitfield(struct iax2_codec_pref *pref, uint64_t bitfield)
 {
-	if ((idx >= 0) && (idx < sizeof(pref->order)) && pref->order[idx]) {
-		return pref->framing[idx];
-	} else {
-		return 0;
-	}
-}
+	int bit;
+	uint64_t working_bitfield;
+	uint64_t best_bitfield;
+	struct ast_format *format;
 
-int iax2_codec_pref_setsize(struct iax2_codec_pref *pref, struct ast_format *format, int framems)
-{
-	int idx;
+	/* Init the preference list. */
+	memset(pref, 0, sizeof(*pref));
 
-	for (idx = 0; idx < sizeof(pref->order); idx++) {
-		if (!pref->order[idx]) {
+	working_bitfield = bitfield;
+
+	/* Add the "best" codecs first. */
+	while (working_bitfield) {
+		best_bitfield = iax2_format_compatibility_best(working_bitfield);
+		if (!best_bitfield) {
+			/* No more codecs considered best. */
 			break;
-		} else if (ast_format_cmp(ast_format_compatibility_bitfield2format(pref->order[idx]),
-			format) != AST_FORMAT_CMP_EQUAL) {
-			continue;
 		}
-		pref->framing[idx] = framems;
-		return 0;
+
+		/* Remove current "best" codec to find the next "best". */
+		working_bitfield &= ~best_bitfield;
+
+		format = ast_format_compatibility_bitfield2format(best_bitfield);
+		/* The best_bitfield should always be convertible to a format. */
+		ast_assert(format != NULL);
+
+		iax2_codec_pref_append_bitfield(pref, best_bitfield, 0);
 	}
 
-	return -1;
+	/* Add any remaining codecs. */
+	if (working_bitfield) {
+		for (bit = 0; bit < 64; ++bit) {
+			uint64_t mask = (1ULL << bit);
+
+			if (mask & working_bitfield) {
+				format = ast_format_compatibility_bitfield2format(mask);
+				if (!format) {
+					/* The bit is not associated with any format. */
+					bitfield &= ~mask;
+					continue;
+				}
+
+				iax2_codec_pref_append_bitfield(pref, mask, 0);
+			}
+		}
+	}
+
+	return bitfield;
 }

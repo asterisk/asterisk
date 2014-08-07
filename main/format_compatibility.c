@@ -269,6 +269,6 @@ struct ast_format *ast_format_compatibility_bitfield2format(uint64_t bitfield)
 	case AST_FORMAT_T140:
 		return ast_format_t140_red;
 	}
-	return 0;
+	return NULL;
 }
 
