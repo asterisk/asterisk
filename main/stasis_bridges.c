@@ -651,10 +651,10 @@ static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 		}
 	}
 
-	out = ast_json_pack("{s: s, s: o, s: o, s: o, s: s, s: s, s: s, s: o}",
+	out = ast_json_pack("{s: s, s: o, s: o, s: s, s: s, s: s, s: o}",
 		"type", "BridgeBlindTransfer",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"transferer", json_transferer,
+		"channel", json_transferer,
 		"exten", transfer_msg->exten,
 		"context", transfer_msg->context,
 		"result", result_strs[transfer_msg->result],
