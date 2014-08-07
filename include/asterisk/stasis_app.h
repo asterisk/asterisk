@@ -799,6 +799,28 @@ void stasis_app_unref(void);
  */
 struct stasis_message_sanitizer *stasis_app_get_sanitizer(void);
 
+/*!
+ * \brief Stasis message type for a StasisEnd event
+ */
+struct stasis_message_type *ast_stasis_end_message_type(void);
+
+/*!
+ * \brief Indicate that this channel has had a StasisEnd published for it
+ *
+ * \param The channel that is exiting Stasis.
+ */
+void stasis_app_channel_set_stasis_end_published(struct ast_channel *chan);
+
+/*!
+ * \brief Has this channel had a StasisEnd published on it?
+ *
+ * \param chan The channel upon which the query rests.
+ *
+ * \retval 0 No
+ * \retval 1 Yes
+ */
+int stasis_app_channel_is_stasis_end_published(struct ast_channel *chan);
+
 /*! @} */
 
 #endif /* _ASTERISK_STASIS_APP_H */

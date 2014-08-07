@@ -1358,44 +1358,20 @@ static void cel_blind_transfer_cb(
 	void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
-	struct ast_bridge_blob *obj = stasis_message_data(message);
-	struct ast_channel_snapshot *chan_snapshot = obj->channel;
-	struct ast_bridge_snapshot *bridge_snapshot = obj->bridge;
-	struct ast_json *blob = obj->blob;
-	struct ast_json *json_result = ast_json_object_get(blob, "result");
-	struct ast_json *json_exten;
-	struct ast_json *json_context;
+	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(message);
+	struct ast_channel_snapshot *chan_snapshot = transfer_msg->to_transferee.channel_snapshot;
+	struct ast_bridge_snapshot *bridge_snapshot = transfer_msg->to_transferee.bridge_snapshot;
 	struct ast_json *extra;
-	const char *exten;
-	const char *context;
-	enum ast_transfer_result result;
 
-	if (!json_result) {
-		return;
-	}
-
-	result = ast_json_integer_get(json_result);
-	if (result != AST_BRIDGE_TRANSFER_SUCCESS) {
-		return;
-	}
-
-	json_exten = ast_json_object_get(blob, "exten");
-	json_context = ast_json_object_get(blob, "context");
-
-	if (!json_exten || !json_context) {
-		return;
-	}
-
-	exten = ast_json_string_get(json_exten);
-	context = ast_json_string_get(json_context);
-	if (!exten || !context) {
+	if (transfer_msg->result != AST_BRIDGE_TRANSFER_SUCCESS) {
 		return;
 	}
 
 	extra = ast_json_pack("{s: s, s: s, s: s}",
-		"extension", exten,
-		"context", context,
-		"bridge_id", bridge_snapshot->uniqueid);
+		"extension", transfer_msg->exten,
+		"context", transfer_msg->context,
+		"bridge_id", bridge_snapshot->uniqueid,
+		"transferee_channel_name", transfer_msg->transferee ? transfer_msg->transferee->name: "N/A");
 	if (extra) {
 		cel_report_event(chan_snapshot, AST_CEL_BLINDTRANSFER, NULL, extra, NULL);
 		ast_json_unref(extra);
@@ -1431,19 +1407,24 @@ static void cel_attended_transfer_cb(
 	case AST_ATTENDED_TRANSFER_DEST_BRIDGE_MERGE:
 	case AST_ATTENDED_TRANSFER_DEST_LINK:
 	case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
-		extra = ast_json_pack("{s: s, s: s, s: s}",
+		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
 			"bridge1_id", bridge1->uniqueid,
 			"channel2_name", channel2->name,
-			"bridge2_id", bridge2->uniqueid);
+			"bridge2_id", bridge2->uniqueid,
+			"transferee_channel_name", xfer->transferee ? xfer->transferee->name : "N/A",
+			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A");
 		if (!extra) {
 			return;
 		}
 		break;
 	case AST_ATTENDED_TRANSFER_DEST_APP:
-		extra = ast_json_pack("{s: s, s: s, s: s}",
+	case AST_ATTENDED_TRANSFER_DEST_LOCAL_APP:
+		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
 			"bridge1_id", bridge1->uniqueid,
 			"channel2_name", channel2->name,
-			"app", xfer->dest.app);
+			"app", xfer->dest.app,
+			"transferee_channel_name", xfer->transferee ? xfer->transferee->name : "N/A",
+			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A");
 		if (!extra) {
 			return;
 		}

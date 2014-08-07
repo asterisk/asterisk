@@ -6596,17 +6596,36 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	*ast_channel_hangup_handlers(original) = *ast_channel_hangup_handlers(clonechan);
 	*ast_channel_hangup_handlers(clonechan) = exchange.handlers;
 
-	/* Move data stores over */
+	/* Call fixup handlers for the clone chan */
 	if (AST_LIST_FIRST(ast_channel_datastores(clonechan))) {
 		struct ast_datastore *ds;
 		/* We use a safe traversal here because some fixup routines actually
 		 * remove the datastore from the list and free them.
 		 */
 		AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_datastores(clonechan), ds, entry) {
-			if (ds->info->chan_fixup)
+			if (ds->info->chan_fixup) {
 				ds->info->chan_fixup(ds->data, clonechan, original);
+			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
+	}
+
+	/* Call breakdown handlers for the original chan */
+	if (AST_LIST_FIRST(ast_channel_datastores(original))) {
+		struct ast_datastore *ds;
+		/* We use a safe traversal here because some breakdown routines may
+		 * remove the datastore from the list and free them.
+		 */
+		AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_datastores(original), ds, entry) {
+			if (ds->info->chan_breakdown) {
+				ds->info->chan_breakdown(ds->data, clonechan, original);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	}
+
+	/* Move data stores over */
+	if (AST_LIST_FIRST(ast_channel_datastores(clonechan))) {
 		AST_LIST_APPEND_LIST(ast_channel_datastores(original), ast_channel_datastores(clonechan), entry);
 	}
 

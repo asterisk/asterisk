@@ -1287,7 +1287,10 @@ ari_validator ast_ari_validate_application_fn(void);
  * - destination_threeway_channel: Channel
  * - destination_type: string (required)
  * - is_external: boolean (required)
+ * - replace_channel: Channel
  * - result: string (required)
+ * - transfer_target: Channel
+ * - transferee: Channel
  * - transferer_first_leg: Channel (required)
  * - transferer_first_leg_bridge: Bridge
  * - transferer_second_leg: Channel (required)
@@ -1302,6 +1305,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - exten: string (required)
  * - is_external: boolean (required)
  * - result: string (required)
+ * - transferee: Channel
  * BridgeCreated
  * - type: string (required)
  * - application: string (required)
@@ -1467,6 +1471,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date
  * - args: List[string] (required)
  * - channel: Channel (required)
+ * - replace_channel: Channel
  * TextMessageReceived
  * - type: string (required)
  * - application: string (required)

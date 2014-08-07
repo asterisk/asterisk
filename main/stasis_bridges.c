@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					contacted. It means that a party was succesfully placed into the dialplan at the expected location.</para></note>
 				</parameter>
 				<channel_snapshot prefix="Transferer"/>
+				<channel_snapshot prefix="Transferee"/>
 				<bridge_snapshot/>
 				<parameter name="IsExternal">
 					<para>Indicates if the transfer was performed outside of Asterisk. For instance,
@@ -113,6 +114,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>The name of the surviving transferer channel when a transfer results in a threeway call</para>
 					<note><para>This header is only present when <replaceable>DestType</replaceable> is <literal>Threeway</literal></para></note>
 				</parameter>
+				<channel_snapshot prefix="Transferee" />
 			</syntax>
 			<description>
 				<para>The headers in this event attempt to describe all the major details of the attended transfer. The two transferer channels
@@ -633,30 +635,41 @@ static const char *result_strs[] = {
 static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 	const struct stasis_message_sanitizer *sanitize)
 {
-	struct ast_bridge_blob *blob = stasis_message_data(msg);
-	struct ast_json *json_channel, *out;
+	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(msg);
+	struct ast_json *json_transferer, *json_transferee, *out;
 	const struct timeval *tv = stasis_message_timestamp(msg);
 
-	json_channel = ast_channel_snapshot_to_json(blob->channel, sanitize);
-	if (!json_channel) {
+	json_transferer = ast_channel_snapshot_to_json(transfer_msg->to_transferee.channel_snapshot, sanitize);
+	if (!json_transferer) {
 		return NULL;
 	}
 
-	out = ast_json_pack("{s: s, s: o, s: o, s: O, s: O, s: s, s: o}",
+	if (transfer_msg->transferee) {
+		json_transferee = ast_channel_snapshot_to_json(transfer_msg->transferee, sanitize);
+		if (!json_transferee) {
+			return NULL;
+		}
+	} else {
+		json_transferee = ast_json_null();
+	}
+
+	out = ast_json_pack("{s: s, s: o, s: o, s: o, s: s, s: s, s: s, s: o}",
 		"type", "BridgeBlindTransfer",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"channel", json_channel,
-		"exten", ast_json_object_get(blob->blob, "exten"),
-		"context", ast_json_object_get(blob->blob, "context"),
-		"result", result_strs[ast_json_integer_get(ast_json_object_get(blob->blob, "result"))],
-		"is_external", ast_json_boolean(ast_json_integer_get(ast_json_object_get(blob->blob, "is_external"))));
+		"transferer", json_transferer,
+		"transferee", json_transferee,
+		"exten", transfer_msg->exten,
+		"context", transfer_msg->context,
+		"result", result_strs[transfer_msg->result],
+		"is_external", ast_json_boolean(transfer_msg->is_external));
 
 	if (!out) {
 		return NULL;
 	}
 
-	if (blob->bridge) {
-		struct ast_json *json_bridge = ast_bridge_snapshot_to_json(blob->bridge, sanitize);
+	if (transfer_msg->to_transferee.bridge_snapshot) {
+		struct ast_json *json_bridge = ast_bridge_snapshot_to_json(
+				transfer_msg->to_transferee.bridge_snapshot, sanitize);
 
 		if (!json_bridge || ast_json_object_set(out, "bridge", json_bridge)) {
 			ast_json_unref(out);
@@ -669,73 +682,96 @@ static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 
 static struct ast_manager_event_blob *blind_transfer_to_ami(struct stasis_message *msg)
 {
-	RAII_VAR(struct ast_str *, channel_state, NULL, ast_free_ptr);
+	RAII_VAR(struct ast_str *, transferer_state, NULL, ast_free_ptr);
 	RAII_VAR(struct ast_str *, bridge_state, NULL, ast_free_ptr);
-	struct ast_bridge_blob *blob = stasis_message_data(msg);
-	const char *exten;
-	const char *context;
-	enum ast_transfer_result result;
-	int is_external;
+	RAII_VAR(struct ast_str *, transferee_state, NULL, ast_free_ptr);
+	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(msg);
 
-	if (!blob) {
+	if (!transfer_msg) {
 		return NULL;
 	}
 
-	channel_state = ast_manager_build_channel_state_string_prefix(blob->channel, "Transferer");
-	if (!channel_state) {
+	transferer_state = ast_manager_build_channel_state_string_prefix(
+			transfer_msg->to_transferee.channel_snapshot, "Transferer");
+	if (!transferer_state) {
 		return NULL;
 	}
 
-	if (blob->bridge) {
-		bridge_state = ast_manager_build_bridge_state_string(blob->bridge);
+	if (transfer_msg->to_transferee.bridge_snapshot) {
+		bridge_state = ast_manager_build_bridge_state_string(transfer_msg->to_transferee.bridge_snapshot);
 		if (!bridge_state) {
 			return NULL;
 		}
 	}
 
-	exten = ast_json_string_get(ast_json_object_get(blob->blob, "exten"));
-	context = ast_json_string_get(ast_json_object_get(blob->blob, "context"));
-	result = ast_json_integer_get(ast_json_object_get(blob->blob, "result"));
-	is_external = ast_json_integer_get(ast_json_object_get(blob->blob, "is_external"));
+	if (transfer_msg->transferee) {
+		transferee_state = ast_manager_build_channel_state_string_prefix(
+				transfer_msg->transferee, "Transferee");
+		if (!transferee_state) {
+			return NULL;
+		}
+	}
 
 	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "BlindTransfer",
 			"Result: %s\r\n"
 			"%s"
 			"%s"
+			"%s"
 			"IsExternal: %s\r\n"
 			"Context: %s\r\n"
 			"Extension: %s\r\n",
-			result_strs[result],
-			ast_str_buffer(channel_state),
+			result_strs[transfer_msg->result],
+			ast_str_buffer(transferer_state),
+			transferee_state ? ast_str_buffer(transferee_state) : "",
 			bridge_state ? ast_str_buffer(bridge_state) : "",
-			is_external ? "Yes" : "No",
-			context,
-			exten);
+			transfer_msg->is_external ? "Yes" : "No",
+			transfer_msg->context,
+			transfer_msg->exten);
+}
+
+static void blind_transfer_dtor(void *obj)
+{
+	struct ast_blind_transfer_message *msg = obj;
+
+	bridge_channel_snapshot_pair_cleanup(&msg->to_transferee);
+	ao2_cleanup(msg->transferee);
 }
 
 void ast_bridge_publish_blind_transfer(int is_external, enum ast_transfer_result result,
-		struct ast_bridge_channel_pair *transferer, const char *context, const char *exten)
+		struct ast_bridge_channel_pair *transferer, const char *context, const char *exten,
+		struct ast_channel *transferee_channel)
 {
-	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
-	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
+	struct ast_blind_transfer_message *msg;
+	struct stasis_message *stasis;
 
-	json_object = ast_json_pack("{s: s, s: s, s: i, s: i}",
-			"context", context, "exten", exten, "result", result, "is_external", is_external);
-
-	if (!json_object) {
-		ast_log(LOG_NOTICE, "Failed to create json bridge blob\n");
-		return;
-	}
-
-	msg = ast_bridge_blob_create(ast_blind_transfer_type(),
-			transferer->bridge, transferer->channel, json_object);
-
+	msg = ao2_alloc(sizeof(*msg), blind_transfer_dtor);
 	if (!msg) {
-		ast_log(LOG_NOTICE, "Failed to create blob msg\n");
 		return;
 	}
 
-	stasis_publish(ast_bridge_topic_all(), msg);
+	if (bridge_channel_snapshot_pair_init(transferer, &msg->to_transferee)) {
+		ao2_cleanup(msg);
+		return;
+	}
+
+	if (transferee_channel) {
+		msg->transferee = ast_channel_snapshot_get_latest(ast_channel_uniqueid(transferee_channel));
+	}
+	msg->is_external = is_external;
+	msg->result = result;
+	ast_copy_string(msg->context, context, sizeof(msg->context));
+	ast_copy_string(msg->exten, exten, sizeof(msg->exten));
+
+	stasis = stasis_message_create(ast_blind_transfer_type(), msg);
+	if (!stasis) {
+		ao2_cleanup(msg);
+		return;
+	}
+
+	stasis_publish(ast_bridge_topic_all(), stasis);
+
+	ao2_cleanup(stasis);
+	ao2_cleanup(msg);
 }
 
 static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
@@ -743,7 +779,7 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 {
 	struct ast_attended_transfer_message *transfer_msg = stasis_message_data(msg);
 	RAII_VAR(struct ast_json *, out, NULL, ast_json_unref);
-	struct ast_json *json_transferer1, *json_transferer2, *json_bridge, *json_channel;
+	struct ast_json *json_transferer1, *json_transferer2, *json_bridge, *json_channel, *json_transferee, *json_target;
 	const struct timeval *tv = stasis_message_timestamp(msg);
 	int res = 0;
 
@@ -758,11 +794,25 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 		return NULL;
 	}
 
-	out = ast_json_pack("{s: s, s: o, s: o, s: o, s: s, s: o}",
+	if (transfer_msg->transferee) {
+		json_transferee = ast_channel_snapshot_to_json(transfer_msg->transferee, sanitize);
+	} else {
+		json_transferee = ast_json_null();
+	}
+
+	if (transfer_msg->target) {
+		json_target = ast_channel_snapshot_to_json(transfer_msg->target, sanitize);
+	} else {
+		json_target = ast_json_null();
+	}
+
+	out = ast_json_pack("{s: s, s: o, s: o, s: o, s: o, s: o, s: s, s: o}",
 		"type", "BridgeAttendedTransfer",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"transferer_first_leg", json_transferer1,
 		"transferer_second_leg", json_transferer2,
+		"transferee", json_transferee,
+		"transfer_target", json_target,
 		"result", result_strs[transfer_msg->result],
 		"is_external", ast_json_boolean(transfer_msg->is_external));
 	if (!out) {
@@ -794,6 +844,9 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 		res |= ast_json_object_set(out, "destination_type", ast_json_string_create("bridge"));
 		res |= ast_json_object_set(out, "destination_bridge", ast_json_string_create(transfer_msg->dest.bridge));
 		break;
+	case AST_ATTENDED_TRANSFER_DEST_LOCAL_APP:
+		res |= ast_json_object_set(out, "replace_channel", ast_channel_snapshot_to_json(transfer_msg->replace_channel, sanitize));
+		/* fallthrough */
 	case AST_ATTENDED_TRANSFER_DEST_APP:
 		res |= ast_json_object_set(out, "destination_type", ast_json_string_create("application"));
 		res |= ast_json_object_set(out, "destination_application", ast_json_string_create(transfer_msg->dest.app));
@@ -851,6 +904,8 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 	RAII_VAR(struct ast_str *, bridge2_state, NULL, ast_free_ptr);
 	RAII_VAR(struct ast_str *, local1_state, NULL, ast_free_ptr);
 	RAII_VAR(struct ast_str *, local2_state, NULL, ast_free_ptr);
+	RAII_VAR(struct ast_str *, transferee_state, NULL, ast_free_ptr);
+	RAII_VAR(struct ast_str *, target_state, NULL, ast_free_ptr);
 	struct ast_attended_transfer_message *transfer_msg = stasis_message_data(msg);
 
 	if (!variable_data) {
@@ -861,6 +916,19 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 	transferer2_state = ast_manager_build_channel_state_string_prefix(transfer_msg->to_transfer_target.channel_snapshot, "SecondTransferer");
 	if (!transferer1_state || !transferer2_state) {
 		return NULL;
+	}
+	if (transfer_msg->transferee) {
+		transferee_state = ast_manager_build_channel_state_string_prefix(transfer_msg->transferee, "Transferee");
+		if (!transferee_state) {
+			return NULL;
+		}
+	}
+
+	if (transfer_msg->target) {
+		target_state = ast_manager_build_channel_state_string_prefix(transfer_msg->target, "TransferTarget");
+		if (!target_state) {
+			return NULL;
+		}
 	}
 
 	if (transfer_msg->to_transferee.bridge_snapshot) {
@@ -885,6 +953,7 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 		ast_str_append(&variable_data, 0, "DestBridgeUniqueid: %s\r\n", transfer_msg->dest.bridge);
 		break;
 	case AST_ATTENDED_TRANSFER_DEST_APP:
+	case AST_ATTENDED_TRANSFER_DEST_LOCAL_APP:
 		ast_str_append(&variable_data, 0, "DestType: App\r\n");
 		ast_str_append(&variable_data, 0, "DestApp: %s\r\n", transfer_msg->dest.app);
 		break;
@@ -914,6 +983,8 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 			"%s"
 			"%s"
 			"%s"
+			"%s"
+			"%s"
 			"IsExternal: %s\r\n"
 			"%s",
 			result_strs[transfer_msg->result],
@@ -921,6 +992,8 @@ static struct ast_manager_event_blob *attended_transfer_to_ami(struct stasis_mes
 			bridge1_state ? ast_str_buffer(bridge1_state) : "",
 			ast_str_buffer(transferer2_state),
 			bridge2_state ? ast_str_buffer(bridge2_state) : "",
+			transferee_state ? ast_str_buffer(transferee_state) : "",
+			target_state ? ast_str_buffer(target_state) : "",
 			transfer_msg->is_external ? "Yes" : "No",
 			ast_str_buffer(variable_data));
 }
@@ -932,6 +1005,9 @@ static void attended_transfer_dtor(void *obj)
 
 	bridge_channel_snapshot_pair_cleanup(&msg->to_transferee);
 	bridge_channel_snapshot_pair_cleanup(&msg->to_transfer_target);
+	ao2_cleanup(msg->replace_channel);
+	ao2_cleanup(msg->transferee);
+	ao2_cleanup(msg->target);
 
 	if (msg->dest_type != AST_ATTENDED_TRANSFER_DEST_LINK) {
 		return;
@@ -942,8 +1018,10 @@ static void attended_transfer_dtor(void *obj)
 	}
 }
 
-static struct ast_attended_transfer_message *attended_transfer_message_create(int is_external, enum ast_transfer_result result,
-		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target)
+static struct ast_attended_transfer_message *attended_transfer_message_create(int is_external,
+		enum ast_transfer_result result, struct ast_bridge_channel_pair *transferee,
+		struct ast_bridge_channel_pair *target, struct ast_channel *replace_channel,
+		struct ast_channel *transferee_channel, struct ast_channel *target_channel)
 {
 	RAII_VAR(struct ast_attended_transfer_message *, msg, NULL, ao2_cleanup);
 
@@ -957,6 +1035,19 @@ static struct ast_attended_transfer_message *attended_transfer_message_create(in
 		return NULL;
 	}
 
+	if (replace_channel) {
+		msg->replace_channel = ast_channel_snapshot_get_latest(ast_channel_uniqueid(replace_channel));
+		if (!msg->replace_channel) {
+			return NULL;
+		}
+	}
+
+	if (transferee_channel) {
+		msg->transferee = ast_channel_snapshot_get_latest(ast_channel_uniqueid(transferee_channel));
+	}
+	if (target_channel) {
+		msg->target = ast_channel_snapshot_get_latest(ast_channel_uniqueid(target_channel));
+	}
 	msg->is_external = is_external;
 	msg->result = result;
 
@@ -965,7 +1056,8 @@ static struct ast_attended_transfer_message *attended_transfer_message_create(in
 }
 
 void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfer_result result,
-		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target)
+		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
+		struct ast_channel *transferee_channel, struct ast_channel *target_channel)
 {
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -974,7 +1066,8 @@ void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfe
 		return;
 	}
 
-	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
+	transfer_msg = attended_transfer_message_create(is_external, result,
+			transferee, target, NULL, transferee_channel, target_channel);
 	if (!transfer_msg) {
 		return;
 	}
@@ -991,7 +1084,8 @@ void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfe
 
 void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		struct ast_bridge *final_bridge)
+		struct ast_bridge *final_bridge, struct ast_channel *transferee_channel,
+		struct ast_channel *target_channel)
 {
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -1000,7 +1094,8 @@ void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast
 		return;
 	}
 
-	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
+	transfer_msg = attended_transfer_message_create(is_external, result,
+			transferee, target, NULL, transferee_channel, target_channel);
 	if (!transfer_msg) {
 		return;
 	}
@@ -1019,7 +1114,8 @@ void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast
 
 void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		struct ast_bridge_channel_pair *final_pair)
+		struct ast_bridge_channel_pair *final_pair, struct ast_channel *transferee_channel,
+		struct ast_channel *target_channel)
 {
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -1028,7 +1124,8 @@ void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_tra
 		return;
 	}
 
-	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
+	transfer_msg = attended_transfer_message_create(is_external, result,
+			transferee, target, NULL, transferee_channel, target_channel);
 	if (!transfer_msg) {
 		return;
 	}
@@ -1056,7 +1153,8 @@ void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_tra
 
 void ast_bridge_publish_attended_transfer_app(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		const char *dest_app)
+		struct ast_channel *replace_channel, const char *dest_app,
+		struct ast_channel *transferee_channel, struct ast_channel *target_channel)
 {
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -1065,12 +1163,13 @@ void ast_bridge_publish_attended_transfer_app(int is_external, enum ast_transfer
 		return;
 	}
 
-	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
+	transfer_msg = attended_transfer_message_create(is_external, result,
+			transferee, target, replace_channel, transferee_channel, target_channel);
 	if (!transfer_msg) {
 		return;
 	}
 
-	transfer_msg->dest_type = AST_ATTENDED_TRANSFER_DEST_APP;
+	transfer_msg->dest_type = replace_channel ? AST_ATTENDED_TRANSFER_DEST_LOCAL_APP : AST_ATTENDED_TRANSFER_DEST_APP;
 	ast_copy_string(transfer_msg->dest.app, dest_app, sizeof(transfer_msg->dest.app));
 
 	msg = stasis_message_create(ast_attended_transfer_type(), transfer_msg);
@@ -1083,7 +1182,8 @@ void ast_bridge_publish_attended_transfer_app(int is_external, enum ast_transfer
 
 void ast_bridge_publish_attended_transfer_link(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		struct ast_channel *locals[2])
+		struct ast_channel *locals[2], struct ast_channel *transferee_channel,
+		struct ast_channel *target_channel)
 {
 	RAII_VAR(struct ast_attended_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
@@ -1093,7 +1193,8 @@ void ast_bridge_publish_attended_transfer_link(int is_external, enum ast_transfe
 		return;
 	}
 
-	transfer_msg = attended_transfer_message_create(is_external, result, transferee, target);
+	transfer_msg = attended_transfer_message_create(is_external, result,
+			transferee, target, NULL, transferee_channel, target_channel);
 	if (!transfer_msg) {
 		return;
 	}

@@ -32,10 +32,72 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/bridge.h"
+#include "asterisk/bridge_after.h"
 #include "asterisk/bridge_internal.h"
+#include "asterisk/bridge_features.h"
+#include "asterisk/stasis_app.h"
+#include "asterisk/stasis_channels.h"
 #include "stasis_bridge.h"
+#include "control.h"
+#include "command.h"
+#include "app.h"
+#include "asterisk/stasis_app.h"
+#include "asterisk/pbx.h"
 
 /* ------------------------------------------------------------------- */
+
+static struct ast_bridge_methods bridge_stasis_v_table;
+
+static void bridge_stasis_run_cb(struct ast_channel *chan, void *data)
+{
+	RAII_VAR(char *, app_name, NULL, ast_free);
+	struct ast_app *app_stasis;
+
+	/* Take ownership of the swap_app memory from the datastore */
+	app_name = app_get_replace_channel_app(chan);
+	if (!app_name) {
+		ast_log(LOG_ERROR, "Failed to get app name for %s (%p)\n", ast_channel_name(chan), chan);
+		return;
+	}
+
+	/* find Stasis() */
+	app_stasis = pbx_findapp("Stasis");
+	if (!app_stasis) {
+		ast_log(LOG_WARNING, "Could not find application (Stasis)\n");
+		return;
+	}
+
+	if (ast_check_hangup_locked(chan)) {
+		/* channel hungup, don't run Stasis() */
+		return;
+	}
+
+	/* run Stasis() */
+	pbx_exec(chan, app_stasis, app_name);
+}
+
+static int add_channel_to_bridge(
+	struct stasis_app_control *control,
+	struct ast_channel *chan, void *obj)
+{
+	struct ast_bridge *bridge = obj;
+	int res;
+
+	res = control_add_channel_to_bridge(control,
+		chan, bridge);
+	ao2_cleanup(bridge);
+	return res;
+}
+
+static void bridge_stasis_queue_join_action(struct ast_bridge *self,
+	struct ast_bridge_channel *bridge_channel)
+{
+	ast_channel_lock(bridge_channel->chan);
+	if (command_prestart_queue_command(bridge_channel->chan, add_channel_to_bridge, ao2_bump(self))) {
+		ao2_cleanup(self);
+	}
+	ast_channel_unlock(bridge_channel->chan);
+}
 
 /*!
  * \internal
@@ -53,6 +115,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
+	struct stasis_app_control *control = stasis_app_control_find_by_channel(bridge_channel->chan);
+
+	if (!control) {
+		/* channel not in Stasis(), get it there */
+		/* Attach after-bridge callback and pass ownership of swap_app to it */
+		if (ast_bridge_set_after_callback(bridge_channel->chan,
+			bridge_stasis_run_cb, NULL, NULL)) {
+			ast_log(LOG_ERROR, "Failed to set after bridge callback\n");
+			return -1;
+		}
+
+		bridge_stasis_queue_join_action(self, bridge_channel);
+
+		/* Return -1 so the push fails and the after-bridge callback gets called */
+		return -1;
+	}
+
+	ao2_cleanup(control);
 	if (self->allowed_capabilities & STASIS_BRIDGE_MIXING_CAPABILITIES) {
 		ast_bridge_channel_update_linkedids(bridge_channel, swap);
 		if (ast_test_flag(&self->feature_flags, AST_BRIDGE_FLAG_SMART)) {
@@ -61,6 +141,33 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 	}
 
 	return ast_bridge_base_v_table.push(self, bridge_channel, swap);
+}
+
+static int bridge_stasis_moving(struct ast_bridge_channel *bridge_channel, void *hook_pvt,
+		struct ast_bridge *src, struct ast_bridge *dst)
+{
+	if (src->v_table == &bridge_stasis_v_table &&
+			dst->v_table != &bridge_stasis_v_table) {
+		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+		RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+		struct ast_channel *chan;
+
+		chan = bridge_channel->chan;
+		ast_assert(chan != NULL);
+
+		control = stasis_app_control_find_by_channel(chan);
+		if (!control) {
+			return -1;
+		}
+
+		blob = ast_json_pack("{s: s}", "app", app_name(control_app(control)));
+
+		stasis_app_channel_set_stasis_end_published(chan);
+
+		ast_channel_publish_blob(chan, ast_stasis_end_message_type(), blob);
+	}
+
+	return -1;
 }
 
 /*!
@@ -82,10 +189,10 @@ static void bridge_stasis_pull(struct ast_bridge *self, struct ast_bridge_channe
 		ast_bridge_channel_update_accountcodes(NULL, bridge_channel);
 	}
 
+	ast_bridge_move_hook(bridge_channel->features, bridge_stasis_moving, NULL, NULL, 0);
+
 	ast_bridge_base_v_table.pull(self, bridge_channel);
 }
-
-static struct ast_bridge_methods bridge_stasis_v_table;
 
 struct ast_bridge *bridge_stasis_new(uint32_t capabilities, unsigned int flags, const char *name, const char *id)
 {

@@ -285,6 +285,11 @@
 					"required": true,
 					"type": "Channel"
 				},
+				"transferee": {
+					"description": "The channel that is being transferred",
+					"required": false,
+					"type": "Channel"
+				},
 				"exten": {
 					"description": "The extension transferred to",
 					"required": true,
@@ -323,6 +328,21 @@
 				"transferer_second_leg": {
 					"description": "Second leg of the transferer",
 					"required": true,
+					"type": "Channel"
+				},
+				"replace_channel": {
+					"description": "The channel that is replacing transferer_first_leg in the swap",
+					"required": false,
+					"type": "Channel"
+				},
+				"transferee": {
+					"description": "The channel that is being transferred",
+					"required": false,
+					"type": "Channel"
+				},
+				"transfer_target": {
+					"description": "The channel that is being transferred to",
+					"required": false,
 					"type": "Channel"
 				},
 				"result": {
@@ -669,6 +689,10 @@
 				},
 				"channel": {
 					"required": true,
+					"type": "Channel"
+				},
+				"replace_channel": {
+					"required": false,
 					"type": "Channel"
 				}
 			}

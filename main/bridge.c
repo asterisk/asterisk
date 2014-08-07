@@ -1825,6 +1825,32 @@ static void bridge_channel_change_bridge(struct ast_bridge_channel *bridge_chann
 	ao2_ref(old_bridge, -1);
 }
 
+static void bridge_channel_moving(struct ast_bridge_channel *bridge_channel, struct ast_bridge *src, struct ast_bridge *dst)
+{
+	struct ast_bridge_features *features = bridge_channel->features;
+	struct ast_bridge_hook *hook;
+	struct ao2_iterator iter;
+
+	/* Run any moving hooks. */
+	iter = ao2_iterator_init(features->other_hooks, 0);
+	for (; (hook = ao2_iterator_next(&iter)); ao2_ref(hook, -1)) {
+		int remove_me;
+		ast_bridge_move_indicate_callback move_cb;
+
+		if (hook->type != AST_BRIDGE_HOOK_TYPE_MOVE) {
+			continue;
+		}
+		move_cb = (ast_bridge_move_indicate_callback) hook->callback;
+		remove_me = move_cb(bridge_channel, hook->hook_pvt, src, dst);
+		if (remove_me) {
+			ast_debug(1, "Move detection hook %p is being removed from %p(%s)\n",
+				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
+			ao2_unlink(features->other_hooks, hook);
+		}
+	}
+	ao2_iterator_destroy(&iter);
+}
+
 void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridge, struct ast_bridge_channel **kick_me, unsigned int num_kick,
 	unsigned int optimized)
 {
@@ -1872,6 +1898,8 @@ void bridge_do_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 			 */
 			continue;
 		}
+
+		bridge_channel_moving(bridge_channel, bridge_channel->bridge, dst_bridge);
 
 		/* Point to new bridge.*/
 		bridge_channel_change_bridge(bridge_channel, dst_bridge);
@@ -2121,6 +2149,8 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 	/* Point to new bridge.*/
 	ao2_ref(orig_bridge, +1);/* Keep a ref in case the push fails. */
 	bridge_channel_change_bridge(bridge_channel, dst_bridge);
+
+	bridge_channel_moving(bridge_channel, orig_bridge, dst_bridge);
 
 	if (bridge_channel_internal_push(bridge_channel)) {
 		/* Try to put the channel back into the original bridge. */
@@ -3089,6 +3119,18 @@ int ast_bridge_talk_detector_hook(struct ast_bridge_features *features,
 		AST_BRIDGE_HOOK_TYPE_TALK);
 }
 
+int ast_bridge_move_hook(struct ast_bridge_features *features,
+	ast_bridge_move_indicate_callback callback,
+	void *hook_pvt,
+	ast_bridge_hook_pvt_destructor destructor,
+	enum ast_bridge_hook_remove_flags remove_flags)
+{
+	ast_bridge_hook_callback hook_cb = (ast_bridge_hook_callback) callback;
+
+	return bridge_other_hook(features, hook_cb, hook_pvt, destructor, remove_flags,
+		AST_BRIDGE_HOOK_TYPE_MOVE);
+}
+
 int ast_bridge_interval_hook(struct ast_bridge_features *features,
 	enum ast_bridge_hook_timer_option flags,
 	unsigned int interval,
@@ -3828,14 +3870,55 @@ struct stasis_attended_transfer_publish_data {
 	struct ast_bridge_channel_pair to_transferee;
 	/* The bridge between the transferer and transfer target, and the transferer channel in this bridge */
 	struct ast_bridge_channel_pair to_transfer_target;
+	/* The Local;1 that will replace the transferee bridge transferer channel */
+	struct ast_channel *replace_channel;
+	/* The transferee channel. NULL if there is no transferee channel or if multiple parties are transferred */
+	struct ast_channel *transferee_channel;
+	/* The transfer target channel. NULL if there is no transfer target channel or if multiple parties are transferred */
+	struct ast_channel *target_channel;
 };
+
+/*!
+ * \internal
+ * \brief Get the transferee channel
+ *
+ * This is only applicable to cases where a transfer is occurring on a
+ * two-party bridge. The channels container passed in is expected to only
+ * contain two channels, the transferer and the transferee. The transferer
+ * channel is passed in as a parameter to ensure we don't return it as
+ * the transferee channel.
+ *
+ * \param channels A two-channel container containing the transferer and transferee
+ * \param transferer The party that is transfering the call
+ * \return The party that is being transferred
+ */
+static struct ast_channel *get_transferee(struct ao2_container *channels, struct ast_channel *transferer)
+{
+	struct ao2_iterator channel_iter;
+	struct ast_channel *transferee;
+
+	for (channel_iter = ao2_iterator_init(channels, 0);
+			(transferee = ao2_iterator_next(&channel_iter));
+			ao2_cleanup(transferee)) {
+		if (transferee != transferer) {
+			break;
+		}
+	}
+
+	ao2_iterator_destroy(&channel_iter);
+	return transferee;
+}
+
 
 static void stasis_publish_data_cleanup(struct stasis_attended_transfer_publish_data *publication)
 {
 	ast_channel_unref(publication->to_transferee.channel);
 	ast_channel_unref(publication->to_transfer_target.channel);
+	ast_channel_cleanup(publication->transferee_channel);
+	ast_channel_cleanup(publication->target_channel);
 	ao2_cleanup(publication->to_transferee.bridge);
 	ao2_cleanup(publication->to_transfer_target.bridge);
+	ao2_cleanup(publication->replace_channel);
 }
 
 /*!
@@ -3865,6 +3948,9 @@ static void stasis_publish_data_init(struct ast_channel *to_transferee,
 		ao2_ref(to_target_bridge, +1);
 		publication->to_transfer_target.bridge = to_target_bridge;
 	}
+
+	publication->transferee_channel = ast_bridge_peer(to_transferee_bridge, to_transferee);
+	publication->target_channel = ast_bridge_peer(to_target_bridge, to_transfer_target);
 }
 
 /*
@@ -3878,7 +3964,8 @@ static void publish_attended_transfer_bridge_merge(struct stasis_attended_transf
 		struct ast_bridge *final_bridge)
 {
 	ast_bridge_publish_attended_transfer_bridge_merge(1, AST_BRIDGE_TRANSFER_SUCCESS,
-			&publication->to_transferee, &publication->to_transfer_target, final_bridge);
+			&publication->to_transferee, &publication->to_transfer_target, final_bridge,
+			publication->transferee_channel, publication->target_channel);
 }
 
 /*
@@ -3892,7 +3979,9 @@ static void publish_attended_transfer_app(struct stasis_attended_transfer_publis
 		const char *app)
 {
 	ast_bridge_publish_attended_transfer_app(1, AST_BRIDGE_TRANSFER_SUCCESS,
-			&publication->to_transferee, &publication->to_transfer_target, app);
+			&publication->to_transferee, &publication->to_transfer_target,
+			publication->replace_channel, app,
+			publication->transferee_channel, publication->target_channel);
 }
 
 /*
@@ -3909,7 +3998,8 @@ static void publish_attended_transfer_link(struct stasis_attended_transfer_publi
 	struct ast_channel *locals[2] = { local_channel1, local_channel2 };
 
 	ast_bridge_publish_attended_transfer_link(1, AST_BRIDGE_TRANSFER_SUCCESS,
-			&publication->to_transferee, &publication->to_transfer_target, locals);
+			&publication->to_transferee, &publication->to_transfer_target, locals,
+			publication->transferee_channel, publication->target_channel);
 }
 
 /*
@@ -3923,7 +4013,8 @@ static void publish_attended_transfer_fail(struct stasis_attended_transfer_publi
 		enum ast_transfer_result result)
 {
 	ast_bridge_publish_attended_transfer_fail(1, result, &publication->to_transferee,
-			&publication->to_transfer_target);
+			&publication->to_transfer_target, publication->transferee_channel,
+			publication->target_channel);
 }
 
 /*!
@@ -3987,9 +4078,12 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
+	/* Get a ref for use later since this one is being stolen */
+	ao2_ref(local_chan, +1);
 	if (ast_bridge_impart(bridge1, local_chan, chan1, NULL,
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(local_chan);
+		ao2_cleanup(local_chan);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
@@ -4005,40 +4099,12 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		publish_attended_transfer_link(publication,
 				local_chan, local_chan2);
 	} else {
+		publication->replace_channel = ao2_bump(local_chan);
 		publish_attended_transfer_app(publication, app);
 	}
+
+	ao2_cleanup(local_chan);
 	return AST_BRIDGE_TRANSFER_SUCCESS;
-}
-
-/*!
- * \internal
- * \brief Get the transferee channel
- *
- * This is only applicable to cases where a transfer is occurring on a
- * two-party bridge. The channels container passed in is expected to only
- * contain two channels, the transferer and the transferee. The transferer
- * channel is passed in as a parameter to ensure we don't return it as
- * the transferee channel.
- *
- * \param channels A two-channel container containing the transferer and transferee
- * \param transferer The party that is transfering the call
- * \return The party that is being transferred
- */
-static struct ast_channel *get_transferee(struct ao2_container *channels, struct ast_channel *transferer)
-{
-	struct ao2_iterator channel_iter;
-	struct ast_channel *transferee;
-
-	for (channel_iter = ao2_iterator_init(channels, 0);
-			(transferee = ao2_iterator_next(&channel_iter));
-			ao2_cleanup(transferee)) {
-		if (transferee != transferer) {
-			break;
-		}
-	}
-
-	ao2_iterator_destroy(&channel_iter);
-	return transferee;
 }
 
 static enum ast_transfer_result try_parking(struct ast_channel *transferer,
@@ -4142,7 +4208,7 @@ static struct ast_bridge *acquire_bridge(struct ast_channel *chan)
 
 static void publish_blind_transfer(int is_external, enum ast_transfer_result result,
 		struct ast_channel *transferer, struct ast_bridge *bridge,
-		const char *context, const char *exten)
+		const char *context, const char *exten, struct ast_channel *transferee_channel)
 {
 	struct ast_bridge_channel_pair pair;
 	pair.channel = transferer;
@@ -4150,7 +4216,7 @@ static void publish_blind_transfer(int is_external, enum ast_transfer_result res
 	if (bridge) {
 		ast_bridge_lock(bridge);
 	}
-	ast_bridge_publish_blind_transfer(is_external, result, &pair, context, exten);
+	ast_bridge_publish_blind_transfer(is_external, result, &pair, context, exten, transferee_channel);
 	if (bridge) {
 		ast_bridge_unlock(bridge);
 	}
@@ -4174,6 +4240,9 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 		transfer_result = AST_BRIDGE_TRANSFER_INVALID;
 		goto publish;
 	}
+
+	transferee = ast_bridge_peer(bridge, transferer);
+
 	ast_channel_lock(transferer);
 	bridge_channel = ast_channel_get_bridge_channel(transferer);
 	ast_channel_unlock(transferer);
@@ -4235,7 +4304,6 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 
 	/* Reaching this portion means that we're dealing with a two-party bridge */
 
-	transferee = get_transferee(channels, transferer);
 	if (!transferee) {
 		transfer_result = AST_BRIDGE_TRANSFER_FAIL;
 		goto publish;
@@ -4251,7 +4319,7 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	transfer_result = AST_BRIDGE_TRANSFER_SUCCESS;
 
 publish:
-	publish_blind_transfer(is_external, transfer_result, transferer, bridge, context, exten);
+	publish_blind_transfer(is_external, transfer_result, transferer, bridge, context, exten, transferee);
 	return transfer_result;
 }
 

@@ -226,4 +226,48 @@ int app_unsubscribe_endpoint_id(struct stasis_app *app, const char *endpoint_id)
  */
 int app_is_subscribed_endpoint_id(struct stasis_app *app, const char *endpoint_id);
 
+/*!
+ * \brief Set the snapshot of the channel that this channel will replace
+ *
+ * \param channel The channel on which this will be set
+ * \param replace_snapshot The snapshot of the channel that is being replaced
+ *
+ * \retval zero success
+ * \retval non-zero failure
+ */
+int app_set_replace_channel_snapshot(struct ast_channel *chan, struct ast_channel_snapshot *replace_snapshot);
+
+/*!
+ * \brief Set the app that the replacement channel will be controlled by
+ *
+ * \param channel The channel on which this will be set
+ * \param replace_app The app that will be controlling this channel
+ *
+ * \retval zero success
+ * \retval non-zero failure
+ */
+int app_set_replace_channel_app(struct ast_channel *chan, const char *replace_app);
+
+/*!
+ * \brief Get the app that the replacement channel will be controlled by
+ *
+ * \param channel The channel on which this will be set
+ *
+ * \retval NULL on error
+ * \return the name of the controlling app (must be ast_free()d)
+ */
+char *app_get_replace_channel_app(struct ast_channel *chan);
+
+/*!
+ * \brief Replace channel topic forwards for the old channel with forwards for the new channel
+ *
+ * \param app The app that owns the channel
+ * \param old_id The unique ID of the channel to be replaced
+ * \param new_chan The channel that is replacing the old one
+ *
+ * \retval zero on success
+ * \return non-zero on failure
+ */
+int app_replace_channel_forwards(struct stasis_app *app, const char *old_id, struct ast_channel *new_chan);
+
 #endif /* _ASTERISK_RES_STASIS_APP_H */

@@ -77,5 +77,36 @@ int control_is_done(struct stasis_app_control *control);
 
 void control_mark_done(struct stasis_app_control *control);
 
+/*!
+ * \brief Dispatch all queued prestart commands
+ *
+ * \param control The control for chan
+ * \param channel The channel on which commands should be executed
+ *
+ * \return The number of commands executed
+ */
+int control_prestart_dispatch_all(struct stasis_app_control *control,
+	struct ast_channel *chan);
+
+/*!
+ * \brief Returns the pointer (non-reffed) to the app associated with this control
+ *
+ * \param control Control to query.
+ *
+ * \returns A pointer to the associated stasis_app
+ */
+struct stasis_app *control_app(struct stasis_app_control *control);
+
+/*!
+ * \brief Command callback for adding a channel to a bridge
+ *
+ * \param control The control for chan
+ * \param channel The channel on which commands should be executed
+ * \param bridge Data to be passed to the callback
+ */
+int control_add_channel_to_bridge(
+	struct stasis_app_control *control,
+	struct ast_channel *chan, void *obj);
+
 
 #endif /* _ASTERISK_RES_STASIS_CONTROL_H */

@@ -285,6 +285,24 @@ struct ast_bridge_channel_pair {
 struct stasis_message_type *ast_blind_transfer_type(void);
 
 /*!
+ * \brief Message published during a blind transfer
+ */
+struct ast_blind_transfer_message {
+	/*! Result of the transfer */
+	enum ast_transfer_result result;
+	/*! True if the transfer was initiated by an external source (i.e. not DTMF-initiated) */
+	int is_external;
+	/*! Transferer and its bridge */
+	struct ast_bridge_channel_snapshot_pair to_transferee;
+	/*! Destination context */
+	char context[AST_MAX_CONTEXT];
+	/*! Destination extension */
+	char exten[AST_MAX_EXTENSION];
+	/*! Transferee channel. NULL if there were multiple transferee channels */
+	struct ast_channel_snapshot *transferee;
+};
+
+/*!
  * \brief Publish a blind transfer event
  *
  * \pre Bridges involved are locked. Channels involved are not locked.
@@ -294,9 +312,11 @@ struct stasis_message_type *ast_blind_transfer_type(void);
  * \param to_transferee The bridge between the transferer and transferee plus the transferer channel
  * \param context The destination context for the blind transfer
  * \param exten The destination extension for the blind transfer
+ * \param transferee_channel If a single channel is being transferred, this is it. If multiple parties are being transferred, this is NULL.
  */
 void ast_bridge_publish_blind_transfer(int is_external, enum ast_transfer_result result,
-		struct ast_bridge_channel_pair *to_transferee, const char *context, const char *exten);
+		struct ast_bridge_channel_pair *to_transferee, const char *context, const char *exten,
+		struct ast_channel *transferee_channel);
 
 enum ast_attended_transfer_dest_type {
 	/*! The transfer failed, so there is no appropriate final state */
@@ -305,6 +325,8 @@ enum ast_attended_transfer_dest_type {
 	AST_ATTENDED_TRANSFER_DEST_BRIDGE_MERGE,
 	/*! The transfer results in a channel or bridge running an application */
 	AST_ATTENDED_TRANSFER_DEST_APP,
+	/*! The transfer results in a channel or bridge running an application via a local channel */
+	AST_ATTENDED_TRANSFER_DEST_LOCAL_APP,
 	/*! The transfer results in both bridges remaining with a local channel linking them */
 	AST_ATTENDED_TRANSFER_DEST_LINK,
 	/*! The transfer results in a threeway call between transferer, transferee, and transfer target */
@@ -323,6 +345,12 @@ struct ast_attended_transfer_message {
 	struct ast_bridge_channel_snapshot_pair to_transferee;
 	/*! Bridge between transferer <-> transfer target and the transferer channel in that bridge. May be NULL */
 	struct ast_bridge_channel_snapshot_pair to_transfer_target;
+	/*! Local channel connecting transferee bridge to application */
+	struct ast_channel_snapshot *replace_channel;
+	/*! Transferee channel. Will be NULL if there were multiple channels transferred. */
+	struct ast_channel_snapshot *transferee;
+	/*! Transfer target channel. Will be NULL if there were multiple channels targeted. */
+	struct ast_channel_snapshot *target;
 	/*! Indicates the final state of the transfer */
 	enum ast_attended_transfer_dest_type dest_type;
 	union {
@@ -358,9 +386,12 @@ struct stasis_message_type *ast_attended_transfer_type(void);
  * \param result The result of the transfer. Will always be a type of failure.
  * \param transferee The bridge between the transferer and transferees as well as the transferer channel from that bridge
  * \param target The bridge between the transferer and transfer targets as well as the transferer channel from that bridge
+ * \param transferee_channel If a single channel is being transferred, this is it. If multiple parties are being transferred, this is NULL.
+ * \param target_channel If a single channel is being transferred to, this is it. If multiple parties are being transferred to, this is NULL.
  */
 void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfer_result result,
-		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target);
+		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
+		struct ast_channel *transferee_channel, struct ast_channel *target_channel);
 
 /*!
  * \since 12
@@ -382,10 +413,13 @@ void ast_bridge_publish_attended_transfer_fail(int is_external, enum ast_transfe
  * \param transferee The bridge between the transferer and transferees as well as the transferer channel from that bridge
  * \param target The bridge between the transferer and transfer targets as well as the transferer channel from that bridge
  * \param final_bridge The bridge that the parties end up in. Will be a bridge from the transferee or target pair.
+ * \param transferee_channel If a single channel is being transferred, this is it. If multiple parties are being transferred, this is NULL.
+ * \param target_channel If a single channel is being transferred to, this is it. If multiple parties are being transferred to, this is NULL.
  */
 void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		struct ast_bridge *final_bridge);
+		struct ast_bridge *final_bridge, struct ast_channel *transferee_channel,
+		struct ast_channel *target_channel);
 
 /*!
  * \since 12
@@ -403,10 +437,13 @@ void ast_bridge_publish_attended_transfer_bridge_merge(int is_external, enum ast
  * \param transferee The bridge between the transferer and transferees as well as the transferer channel from that bridge
  * \param target The bridge between the transferer and transfer targets as well as the transferer channel from that bridge
  * \param final_pair The bridge that the parties end up in, and the transferer channel that is in this bridge.
+ * \param transferee_channel If a single channel is being transferred, this is it. If multiple parties are being transferred, this is NULL.
+ * \param target_channel If a single channel is being transferred to, this is it. If multiple parties are being transferred to, this is NULL.
  */
 void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		struct ast_bridge_channel_pair *final_pair);
+		struct ast_bridge_channel_pair *final_pair, struct ast_channel *transferee_channel,
+		struct ast_channel *target_channel);
 
 /*!
  * \since 12
@@ -423,13 +460,23 @@ void ast_bridge_publish_attended_transfer_threeway(int is_external, enum ast_tra
  *
  * \param is_external Indicates if the transfer was initiated externally
  * \param result The result of the transfer.
- * \param transferee The bridge between the transferer and transferees as well as the transferer channel from that bridge
- * \param target The bridge between the transferer and transfer targets as well as the transferer channel from that bridge
- * \param dest_app The application that the channel or bridge is running upon transfer completion.
+ * \param transferee The bridge between the transferer and transferees as well as the
+ *        transferer channel from that bridge
+ * \param target The bridge between the transferer and transfer targets as well as the
+ *        transferer channel from that bridge
+ * \param replace_channel The channel that will be replacing the transferee bridge
+ *        transferer channel when a local channel is involved
+ * \param dest_app The application that the channel or bridge is running upon transfer
+ *        completion.
+ * \param transferee_channel If a single channel is being transferred, this is it.
+ *        If multiple parties are being transferred, this is NULL.
+ * \param target_channel If a single channel is being transferred to, this is it.
+ *        If multiple parties are being transferred to, this is NULL.
  */
 void ast_bridge_publish_attended_transfer_app(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		const char *dest_app);
+		struct ast_channel *replace_channel, const char *dest_app,
+		struct ast_channel *transferee_channel, struct ast_channel *target_channel);
 
 /*!
  * \since 12
@@ -451,10 +498,13 @@ void ast_bridge_publish_attended_transfer_app(int is_external, enum ast_transfer
  * \param transferee The bridge between the transferer and transferees as well as the transferer channel from that bridge
  * \param target The bridge between the transferer and transfer targets as well as the transferer channel from that bridge
  * \param locals The local channels linking the bridges together.
+ * \param transferee_channel If a single channel is being transferred, this is it. If multiple parties are being transferred, this is NULL.
+ * \param target_channel If a single channel is being transferred to, this is it. If multiple parties are being transferred to, this is NULL.
  */
 void ast_bridge_publish_attended_transfer_link(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferee, struct ast_bridge_channel_pair *target,
-		struct ast_channel *locals[2]);
+		struct ast_channel *locals[2], struct ast_channel *transferee_channel,
+		struct ast_channel *target_channel);
 
 /*!
  * \brief Returns the most recent snapshot for the bridge.

@@ -5551,6 +5551,7 @@ static void log_attended_transfer(struct queue_stasis_data *queue_data, struct a
 		ast_str_set(&transfer_str, 0, "BRIDGE|%s", atxfer_msg->dest.bridge);
 		break;
 	case AST_ATTENDED_TRANSFER_DEST_APP:
+	case AST_ATTENDED_TRANSFER_DEST_LOCAL_APP:
 		ast_str_set(&transfer_str, 0, "APP|%s", atxfer_msg->dest.app);
 		break;
 	case AST_ATTENDED_TRANSFER_DEST_LINK:
@@ -5619,10 +5620,7 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
 		struct stasis_message *msg)
 {
 	struct queue_stasis_data *queue_data = userdata;
-	struct ast_bridge_blob *blind_blob = stasis_message_data(msg);
-	struct ast_json *result_blob;
-	struct ast_json *exten_blob;
-	struct ast_json *context_blob;
+	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(msg);
 	const char *exten;
 	const char *context;
 	RAII_VAR(struct ast_channel_snapshot *, caller_snapshot, NULL, ao2_cleanup);
@@ -5632,19 +5630,14 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
 		return;
 	}
 
-	result_blob = ast_json_object_get(blind_blob->blob, "result");
-	if (!result_blob) {
-		return;
-	}
-
-	if (ast_json_integer_get(result_blob) != AST_BRIDGE_TRANSFER_SUCCESS) {
+	if (transfer_msg->result != AST_BRIDGE_TRANSFER_SUCCESS) {
 		return;
 	}
 
 	ao2_lock(queue_data);
 
 	if (ast_strlen_zero(queue_data->bridge_uniqueid) ||
-			strcmp(queue_data->bridge_uniqueid, blind_blob->bridge->uniqueid)) {
+			strcmp(queue_data->bridge_uniqueid, transfer_msg->to_transferee.bridge_snapshot->uniqueid)) {
 		ao2_unlock(queue_data);
 		return;
 	}
@@ -5654,10 +5647,8 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
 
 	ao2_unlock(queue_data);
 
-	exten_blob = ast_json_object_get(blind_blob->blob, "exten");
-	exten = exten_blob ? ast_json_string_get(exten_blob) : "<unknown>";
-	context_blob = ast_json_object_get(blind_blob->blob, "context");
-	context = context_blob ? ast_json_string_get(context_blob) : "<unknown>";
+	exten = transfer_msg->exten;
+	context = transfer_msg->context;
 
 	ast_debug(3, "Detected blind transfer in queue %s\n", queue_data->queue->name);
 	ast_queue_log(queue_data->queue->name, caller_snapshot->uniqueid, queue_data->member->membername,

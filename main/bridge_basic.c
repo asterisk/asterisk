@@ -1526,9 +1526,85 @@ static void stimulate_attended_transfer(struct attended_transfer_properties *pro
 }
 
 /*!
+ * \brief Get a desired transfer party for a bridge the transferer is not in.
+ *
+ * \param bridge The bridge to get the party from. May be NULL.
+ * \param[out] party The lone channel in the bridge. Will be set NULL if bridge is NULL or multiple parties are present.
+ */
+static void get_transfer_party_non_transferer_bridge(struct ast_bridge *bridge,
+		struct ast_channel **party)
+{
+	if (bridge && bridge->num_channels == 1) {
+		*party = ast_channel_ref(AST_LIST_FIRST(&bridge->channels)->chan);
+	} else {
+		*party = NULL;
+	}
+}
+
+/*!
+ * \brief Get the transferee and transfer target when the transferer is in a bridge with
+ * one of the desired parties.
+ *
+ * \param transferer_bridge The bridge the transferer is in
+ * \param other_bridge The bridge the transferer is not in. May be NULL.
+ * \param transferer The transferer party
+ * \param[out] transferer_peer The party that is in the bridge with the transferer
+ * \param[out] other_party The party that is in the other_bridge
+ */
+static void get_transfer_parties_transferer_bridge(struct ast_bridge *transferer_bridge,
+		struct ast_bridge *other_bridge, struct ast_channel *transferer,
+		struct ast_channel **transferer_peer, struct ast_channel **other_party)
+{
+	*transferer_peer = ast_bridge_peer(transferer_bridge, transferer);
+	get_transfer_party_non_transferer_bridge(other_bridge, other_party);
+}
+
+/*!
+ * \brief determine transferee and transfer target for an attended transfer
+ *
+ * In builtin attended transfers, there is a single transferer channel that jumps between
+ * the two bridges involved. At the time the attended transfer occurs, the transferer could
+ * be in either bridge, so determining the parties is a bit more complex than normal.
+ *
+ * The method used here is to determine which of the two bridges the transferer is in, and
+ * grabbing the peer from that bridge. The other bridge, if it only has a single channel in it,
+ * has the other desired channel.
+ *
+ * \param transferer The channel performing the transfer
+ * \param transferee_bridge The bridge that the transferee is in
+ * \param target_bridge The bridge that the transfer target is in
+ * \param[out] transferee The transferee channel
+ * \param[out] transfer_target The transfer target channel
+ */
+static void get_transfer_parties(struct ast_channel *transferer, struct ast_bridge *transferee_bridge,
+		struct ast_bridge *target_bridge, struct ast_channel **transferee,
+		struct ast_channel **transfer_target)
+{
+	struct ast_bridge *transferer_bridge;
+
+	ast_channel_lock(transferer);
+	transferer_bridge = ast_channel_get_bridge(transferer);
+	ast_channel_unlock(transferer);
+
+	if (transferer_bridge == transferee_bridge) {
+		get_transfer_parties_transferer_bridge(transferee_bridge, target_bridge,
+				transferer, transferee, transfer_target);
+	} else if (transferer_bridge == target_bridge) {
+		get_transfer_parties_transferer_bridge(target_bridge, transferee_bridge,
+				transferer, transfer_target, transferee);
+	} else {
+		get_transfer_party_non_transferer_bridge(transferee_bridge, transferee);
+		get_transfer_party_non_transferer_bridge(target_bridge, transfer_target);
+	}
+
+	ao2_cleanup(transferer_bridge);
+}
+
+/*!
  * \brief Send a stasis publication for a successful attended transfer
  */
-static void publish_transfer_success(struct attended_transfer_properties *props)
+static void publish_transfer_success(struct attended_transfer_properties *props,
+		struct ast_channel *transferee_channel, struct ast_channel *target_channel)
 {
 	struct ast_bridge_channel_pair transferee = {
 		.channel = props->transferer,
@@ -1548,7 +1624,8 @@ static void publish_transfer_success(struct attended_transfer_properties *props)
 	}
 
 	ast_bridge_publish_attended_transfer_bridge_merge(0, AST_BRIDGE_TRANSFER_SUCCESS,
-			&transferee, &transfer_target, props->transferee_bridge);
+			&transferee, &transfer_target, props->transferee_bridge, transferee_channel,
+			target_channel);
 
 	if (transferee.bridge) {
 		ast_bridge_unlock(transferee.bridge);
@@ -1561,7 +1638,8 @@ static void publish_transfer_success(struct attended_transfer_properties *props)
 /*!
  * \brief Send a stasis publication for an attended transfer that ends in a threeway call
  */
-static void publish_transfer_threeway(struct attended_transfer_properties *props)
+static void publish_transfer_threeway(struct attended_transfer_properties *props,
+		struct ast_channel *transferee_channel, struct ast_channel *target_channel)
 {
 	struct ast_bridge_channel_pair transferee = {
 		.channel = props->transferer,
@@ -1585,7 +1663,8 @@ static void publish_transfer_threeway(struct attended_transfer_properties *props
 	}
 
 	ast_bridge_publish_attended_transfer_threeway(0, AST_BRIDGE_TRANSFER_SUCCESS,
-			&transferee, &transfer_target, &threeway);
+			&transferee, &transfer_target, &threeway, transferee_channel,
+			target_channel);
 
 	if (transferee.bridge) {
 		ast_bridge_unlock(transferee.bridge);
@@ -1608,6 +1687,8 @@ static void publish_transfer_fail(struct attended_transfer_properties *props)
 		.channel = props->transferer,
 		.bridge = props->target_bridge,
 	};
+	struct ast_channel *transferee_channel;
+	struct ast_channel *target_channel;
 
 	if (transferee.bridge && transfer_target.bridge) {
 		ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
@@ -1617,8 +1698,12 @@ static void publish_transfer_fail(struct attended_transfer_properties *props)
 		ast_bridge_lock(transfer_target.bridge);
 	}
 
+	get_transfer_parties(props->transferer, props->transferee_bridge, props->target_bridge,
+			&transferee_channel, &target_channel);
 	ast_bridge_publish_attended_transfer_fail(0, AST_BRIDGE_TRANSFER_FAIL,
-			&transferee, &transfer_target);
+			&transferee, &transfer_target, transferee_channel, target_channel);
+	ast_channel_cleanup(transferee_channel);
+	ast_channel_cleanup(target_channel);
 
 	if (transferee.bridge) {
 		ast_bridge_unlock(transferee.bridge);
@@ -2072,11 +2157,18 @@ static int resume_enter(struct attended_transfer_properties *props)
 
 static int threeway_enter(struct attended_transfer_properties *props)
 {
+	struct ast_channel *transferee_channel;
+	struct ast_channel *target_channel;
+
+	get_transfer_parties(props->transferer, props->transferee_bridge, props->target_bridge,
+			&transferee_channel, &target_channel);
 	bridge_merge(props->transferee_bridge, props->target_bridge, NULL, 0);
 	play_sound(props->transfer_target, props->xfersound);
 	play_sound(props->transferer, props->xfersound);
-	publish_transfer_threeway(props);
+	publish_transfer_threeway(props, transferee_channel, target_channel);
 
+	ast_channel_cleanup(transferee_channel);
+	ast_channel_cleanup(target_channel);
 	return 0;
 }
 
@@ -2178,17 +2270,33 @@ static enum attended_transfer_state double_checking_exit(struct attended_transfe
 
 static int complete_enter(struct attended_transfer_properties *props)
 {
+	struct ast_channel *transferee_channel;
+	struct ast_channel *target_channel;
+
+	get_transfer_parties(props->transferer, props->transferee_bridge, props->target_bridge,
+			&transferee_channel, &target_channel);
 	bridge_merge(props->transferee_bridge, props->target_bridge, &props->transferer, 1);
 	play_sound(props->transfer_target, props->xfersound);
-	publish_transfer_success(props);
+	publish_transfer_success(props, transferee_channel, target_channel);
+
+	ast_channel_cleanup(transferee_channel);
+	ast_channel_cleanup(target_channel);
 	return 0;
 }
 
 static int blond_enter(struct attended_transfer_properties *props)
 {
+	struct ast_channel *transferee_channel;
+	struct ast_channel *target_channel;
+
+	get_transfer_parties(props->transferer, props->transferee_bridge, props->target_bridge,
+			&transferee_channel, &target_channel);
 	bridge_merge(props->transferee_bridge, props->target_bridge, &props->transferer, 1);
 	ringing(props->transfer_target);
-	publish_transfer_success(props);
+	publish_transfer_success(props, transferee_channel, target_channel);
+
+	ast_channel_cleanup(transferee_channel);
+	ast_channel_cleanup(target_channel);
 	return 0;
 }
 

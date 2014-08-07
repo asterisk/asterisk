@@ -157,6 +157,25 @@ typedef void (*ast_bridge_hook_pvt_destructor)(void *hook_pvt);
  */
 typedef int (*ast_bridge_talking_indicate_callback)(struct ast_bridge_channel *bridge_channel, void *hook_pvt, int talking);
 
+/*!
+ * \brief Move indicator callback
+ *
+ * \details
+ * This callback can be registered with the bridge channel in order
+ * to be notified when the bridge channel is being moved from one
+ * bridge to another.
+ *
+ * \param bridge_channel The channel executing the feature
+ * \param hook_pvt Private data passed in when the hook was created
+ * \param src The bridge from which the bridge channel is moving
+ * \param dst The bridge into which the bridge channel is moving
+ *
+ * \retval 0 Keep the callback hook.
+ * \retval -1 Remove the callback hook.
+ */
+typedef int (*ast_bridge_move_indicate_callback)(struct ast_bridge_channel *bridge_channel,
+		void *hook_pvt, struct ast_bridge *src, struct ast_bridge *dst);
+
 enum ast_bridge_hook_remove_flags {
 	/*! The hook is removed when the channel is pulled from the bridge. */
 	AST_BRIDGE_HOOK_REMOVE_ON_PULL = (1 << 0),
@@ -173,6 +192,7 @@ enum ast_bridge_hook_type {
 	AST_BRIDGE_HOOK_TYPE_JOIN,
 	AST_BRIDGE_HOOK_TYPE_LEAVE,
 	AST_BRIDGE_HOOK_TYPE_TALK,
+	AST_BRIDGE_HOOK_TYPE_MOVE,
 };
 
 /*! \brief Structure that is the essence of a feature hook. */
@@ -616,6 +636,37 @@ int ast_bridge_interval_hook(struct ast_bridge_features *features,
  */
 int ast_bridge_talk_detector_hook(struct ast_bridge_features *features,
 	ast_bridge_talking_indicate_callback callback,
+	void *hook_pvt,
+	ast_bridge_hook_pvt_destructor destructor,
+	enum ast_bridge_hook_remove_flags remove_flags);
+
+/*!
+ * \brief Attach a bridge channel move detection hook to a bridge features structure
+ *
+ * \param features Bridge features structure
+ * \param callback Function to execute upon activation
+ * \param hook_pvt Unique data
+ * \param destructor Optional destructor callback for hook_pvt data
+ * \param remove_flags Dictates what situations the hook should be removed.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure (The caller must cleanup any hook_pvt resources.)
+ *
+ * Example usage:
+ *
+ * \code
+ * struct ast_bridge_features features;
+ * ast_bridge_features_init(&features);
+ * ast_bridge_move_hook(&features, move_callback, NULL, NULL, 0);
+ * \endcode
+ *
+ * This makes the bridging core call \ref callback when a
+ * channel is moved from one bridge to another.  A
+ * pointer to useful data may be provided to the hook_pvt
+ * parameter.
+ */
+int ast_bridge_move_hook(struct ast_bridge_features *features,
+	ast_bridge_move_indicate_callback callback,
 	void *hook_pvt,
 	ast_bridge_hook_pvt_destructor destructor,
 	enum ast_bridge_hook_remove_flags remove_flags);
