@@ -58,9 +58,10 @@ struct ast_sip_publish_handler {
 	 *
 	 * \param endpoint The endpoint from whom the PUBLISH arrived.
 	 * \param resource The resource whose state is being published.
+	 * \param event_configuration The name of the event type configuration to use for this resource.
 	 * \return Response code for the incoming PUBLISH
 	 */
-	int (*new_publication)(struct ast_sip_endpoint *endpoint, const char *resource);
+	int (*new_publication)(struct ast_sip_endpoint *endpoint, const char *resource, const char *event_configuration);
 	/*!
 	 * \brief Called when a publication has reached its expiration.
 	 */
@@ -97,6 +98,22 @@ struct ast_sip_publish_handler {
  * \retval non-NULL The associated endpoint
  */
 struct ast_sip_endpoint *ast_sip_publication_get_endpoint(struct ast_sip_publication *pub);
+
+/*!
+ * \brief Given a publication, get the resource the publication is to
+ *
+ * \param pub The publication
+ * \return The resource
+ */
+const char *ast_sip_publication_get_resource(const struct ast_sip_publication *pub);
+
+/*!
+ * \brief Given a publication, get the configuration name for the event type in use
+ *
+ * \param pub The publication
+ * \return The configuration name
+ */
+const char *ast_sip_publication_get_event_configuration(const struct ast_sip_publication *pub);
 
 /*!
  * \brief Register a publish handler

@@ -15,6 +15,8 @@
 		LINKER_SYMBOL_PREFIXast_sip_unregister_subscription_handler;
 		LINKER_SYMBOL_PREFIXast_sip_create_publication;
 		LINKER_SYMBOL_PREFIXast_sip_publication_get_endpoint;
+		LINKER_SYMBOL_PREFIXast_sip_publication_get_resource;
+		LINKER_SYMBOL_PREFIXast_sip_publication_get_event_configuration;
 		LINKER_SYMBOL_PREFIXast_sip_publication_create_response;
 		LINKER_SYMBOL_PREFIXast_sip_publication_send_response;
 		LINKER_SYMBOL_PREFIXast_sip_register_publish_handler;

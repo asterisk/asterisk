@@ -108,6 +108,15 @@
 					<synopsis>The time at which the subscription expires</synopsis>
 				</configOption>
 			</configObject>
+			<configObject name="inbound-publication">
+				<synopsis>The configuration for inbound publications</synopsis>
+				<configOption name="endpoint" default="">
+					<synopsis>Optional name of an endpoint that is only allowed to publish to this resource</synopsis>
+				</configOption>
+				<configOption name="type">
+					<synopsis>Must be of type 'inbound-publication'.</synopsis>
+				</configOption>
+			</configObject>
 		</configFile>
 	</configInfo>
  ***/
@@ -217,6 +226,12 @@ struct ast_sip_publication {
 	int expires;
 	/*! \brief Scheduled item for expiration of publication */
 	int sched_id;
+	/*! \brief The resource the publication is to */
+	char *resource;
+	/*! \brief The name of the event type configuration */
+	char *event_configuration_name;
+	/*! \brief Data containing the above */
+	char data[0];
 };
 
 
@@ -330,6 +345,18 @@ struct ast_sip_subscription {
 	char resource[0];
 };
 
+/*!
+ * \brief Structure representing a publication resource
+ */
+struct ast_sip_publication_resource {
+	/*! \brief Sorcery object details */
+	SORCERY_OBJECT(details);
+	/*! \brief Optional name of an endpoint that is only allowed to publish to this resource */
+	char *endpoint;
+	/*! \brief Mapping for event types to configuration */
+	struct ast_variable *events;
+};
+
 static const char *sip_subscription_roles_map[] = {
 	[AST_SIP_SUBSCRIBER] = "Subscriber",
 	[AST_SIP_NOTIFIER] = "Notifier"
@@ -348,6 +375,21 @@ static pjsip_evsub *sip_subscription_get_evsub(const struct ast_sip_subscription
 static pjsip_dialog *sip_subscription_get_dlg(const struct ast_sip_subscription *sub)
 {
 	return sub->reality.real.dlg;
+}
+
+/*! \brief Destructor for publication resource */
+static void publication_resource_destroy(void *obj)
+{
+	struct ast_sip_publication_resource *resource = obj;
+
+	ast_free(resource->endpoint);
+	ast_variables_destroy(resource->events);
+}
+
+/*! \brief Allocator for publication resource */
+static void *publication_resource_alloc(const char *name)
+{
+	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_publication_resource), publication_resource_destroy);
 }
 
 /*! \brief Destructor for subscription persistence */
@@ -1105,7 +1147,7 @@ struct ast_datastore *ast_sip_subscription_get_datastore(struct ast_sip_subscrip
 
 void ast_sip_subscription_remove_datastore(struct ast_sip_subscription *subscription, const char *name)
 {
-	ao2_callback(subscription->datastores, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, NULL, (void *) name);
+	ao2_find(subscription->datastores, name, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
 }
 
 int ast_sip_publication_add_datastore(struct ast_sip_publication *publication, struct ast_datastore *datastore)
@@ -1454,14 +1496,17 @@ static void publication_destroy_fn(void *obj)
 	ao2_cleanup(publication->endpoint);
 }
 
-static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata,
+	const char *resource, const char *event_configuration_name)
 {
 	struct ast_sip_publication *publication;
 	pjsip_expires_hdr *expires_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL);
+	size_t resource_len = strlen(resource) + 1, event_configuration_name_len = strlen(event_configuration_name) + 1;
+	char *dst;
 
 	ast_assert(endpoint != NULL);
 
-	if (!(publication = ao2_alloc(sizeof(*publication), publication_destroy_fn))) {
+	if (!(publication = ao2_alloc(sizeof(*publication) + resource_len + event_configuration_name_len, publication_destroy_fn))) {
 		return NULL;
 	}
 
@@ -1475,6 +1520,10 @@ static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoin
 	publication->endpoint = endpoint;
 	publication->expires = expires_hdr ? expires_hdr->ivalue : DEFAULT_PUBLISH_EXPIRES;
 	publication->sched_id = -1;
+	dst = publication->data;
+	publication->resource = strcpy(dst, resource);
+	dst += resource_len;
+	publication->event_configuration_name = strcpy(dst, event_configuration_name);
 
 	return publication;
 }
@@ -1521,8 +1570,10 @@ static struct ast_sip_publication *publish_request_initial(struct ast_sip_endpoi
 	struct ast_sip_publish_handler *handler)
 {
 	struct ast_sip_publication *publication;
-	char *resource;
+	char *resource_name;
 	size_t resource_size;
+	RAII_VAR(struct ast_sip_publication_resource *, resource, NULL, ao2_cleanup);
+	struct ast_variable *event_configuration_name = NULL;
 	pjsip_uri *request_uri;
 	pjsip_sip_uri *request_uri_sip;
 	int resp;
@@ -1540,17 +1591,39 @@ static struct ast_sip_publication *publish_request_initial(struct ast_sip_endpoi
 
 	request_uri_sip = pjsip_uri_get_uri(request_uri);
 	resource_size = pj_strlen(&request_uri_sip->user) + 1;
-	resource = alloca(resource_size);
-	ast_copy_pj_str(resource, &request_uri_sip->user, resource_size);
+	resource_name = alloca(resource_size);
+	ast_copy_pj_str(resource_name, &request_uri_sip->user, resource_size);
 
-	resp = handler->new_publication(endpoint, resource);
+	resource = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "inbound-publication", resource_name);
+	if (!resource) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
+		return NULL;
+	}
 
-	if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
+	if (!ast_strlen_zero(resource->endpoint) && strcmp(resource->endpoint, ast_sorcery_object_get_id(endpoint))) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		return NULL;
+	}
+
+	for (event_configuration_name = resource->events; event_configuration_name; event_configuration_name = event_configuration_name->next) {
+		if (!strcmp(event_configuration_name->name, handler->event_name)) {
+			break;
+		}
+	}
+
+	if (!event_configuration_name) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
+		return NULL;
+	}
+
+	resp = handler->new_publication(endpoint, resource_name, event_configuration_name->value);
+
+	if (!PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, resp, NULL, NULL, NULL);
 		return NULL;
 	}
 
-	publication = sip_create_publication(endpoint, rdata);
+	publication = sip_create_publication(endpoint, rdata, S_OR(resource_name, ""), event_configuration_name->value);
 
 	if (!publication) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 503, NULL, NULL, NULL);
@@ -1574,7 +1647,9 @@ static int publish_expire_callback(void *data)
 {
 	RAII_VAR(struct ast_sip_publication *, publication, data, ao2_cleanup);
 
-	publication->handler->publish_expire(publication);
+	if (publication->handler->publish_expire) {
+		publication->handler->publish_expire(publication);
+	}
 
 	return 0;
 }
@@ -1603,7 +1678,7 @@ static pj_bool_t pubsub_on_rx_publish_request(pjsip_rx_data *rdata)
 	pjsip_generic_string_hdr *etag_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_sip_if_match, NULL);
 	enum sip_publish_type publish_type;
 	RAII_VAR(struct ast_sip_publication *, publication, NULL, ao2_cleanup);
-	int expires = 0, entity_id;
+	int expires = 0, entity_id, response = 0;
 
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpoint != NULL);
@@ -1647,19 +1722,18 @@ static pj_bool_t pubsub_on_rx_publish_request(pjsip_rx_data *rdata)
 			publication = publish_request_initial(endpoint, rdata, handler);
 			break;
 		case SIP_PUBLISH_REFRESH:
-			sip_publication_respond(publication, 200, rdata);
 		case SIP_PUBLISH_MODIFY:
 			if (handler->publication_state_change(publication, rdata->msg_info.msg->body,
 						AST_SIP_PUBLISH_STATE_ACTIVE)) {
 				/* If an error occurs we want to terminate the publication */
 				expires = 0;
 			}
-			sip_publication_respond(publication, 200, rdata);
+			response = 200;
 			break;
 		case SIP_PUBLISH_REMOVE:
 			handler->publication_state_change(publication, rdata->msg_info.msg->body,
 					AST_SIP_PUBLISH_STATE_TERMINATED);
-			sip_publication_respond(publication, 200, rdata);
+			response = 200;
 			break;
 		case SIP_PUBLISH_UNKNOWN:
 		default:
@@ -1678,6 +1752,10 @@ static pj_bool_t pubsub_on_rx_publish_request(pjsip_rx_data *rdata)
 		}
 	}
 
+	if (response) {
+		sip_publication_respond(publication, response, rdata);
+	}
+
 	return PJ_TRUE;
 }
 
@@ -1686,6 +1764,15 @@ struct ast_sip_endpoint *ast_sip_publication_get_endpoint(struct ast_sip_publica
 	return pub->endpoint;
 }
 
+const char *ast_sip_publication_get_resource(const struct ast_sip_publication *pub)
+{
+	return pub->resource;
+}
+
+const char *ast_sip_publication_get_event_configuration(const struct ast_sip_publication *pub)
+{
+	return pub->event_configuration_name;
+}
 
 int ast_sip_pubsub_register_body_generator(struct ast_sip_pubsub_body_generator *generator)
 {
@@ -2047,6 +2134,40 @@ static int persistence_expires_struct2str(const void *obj, const intptr_t *args,
 	return (ast_asprintf(buf, "%ld", persistence->expires.tv_sec) < 0) ? -1 : 0;
 }
 
+static int resource_endpoint_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_publication_resource *resource = obj;
+
+	ast_free(resource->endpoint);
+	resource->endpoint = ast_strdup(var->value);
+
+	return 0;
+}
+
+static int resource_event_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_publication_resource *resource = obj;
+	/* The event configuration name starts with 'event_' so skip past it to get the real name */
+	const char *event = var->name + 6;
+	struct ast_variable *item;
+
+	if (ast_strlen_zero(event) || ast_strlen_zero(var->value)) {
+		return -1;
+	}
+
+	item = ast_variable_new(event, var->value, "");
+	if (!item) {
+		return -1;
+	}
+
+	if (resource->events) {
+		item->next = resource->events;
+	}
+	resource->events = item;
+
+	return 0;
+}
+
 static int load_module(void)
 {
 	static const pj_str_t str_PUBLISH = { "PUBLISH", 7 };
@@ -2102,6 +2223,20 @@ static int load_module(void)
 		persistence_tag_str2struct, persistence_tag_struct2str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "subscription_persistence", "expires", "",
 		persistence_expires_str2struct, persistence_expires_struct2str, NULL, 0, 0);
+
+	ast_sorcery_apply_default(sorcery, "inbound-publication", "config", "pjsip.conf,criteria=type=inbound-publication");
+	if (ast_sorcery_object_register(sorcery, "inbound-publication", publication_resource_alloc,
+		NULL, NULL)) {
+		ast_log(LOG_ERROR, "Could not register subscription persistence object support\n");
+		ast_sip_unregister_service(&pubsub_module);
+		ast_sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	ast_sorcery_object_field_register(sorcery, "inbound-publication", "type", "", OPT_NOOP_T, 0, 0);
+	ast_sorcery_object_field_register_custom(sorcery, "inbound-publication", "endpoint", "",
+		resource_endpoint_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_fields_register(sorcery, "inbound-publication", "^event_", resource_event_handler, NULL);
+	ast_sorcery_reload_object(sorcery, "inbound-publication");
 
 	if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
 		ast_sip_push_task(NULL, subscription_persistence_load, NULL);
