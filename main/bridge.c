@@ -3879,12 +3879,8 @@ static void stasis_publish_data_init(struct ast_channel *to_transferee,
 		publication->to_transfer_target.bridge = to_target_bridge;
 	}
 
-	if (to_transferee_bridge) {
-		publication->transferee_channel = ast_bridge_peer(to_transferee_bridge, to_transferee);
-	}
-	if (to_target_bridge) {
-		publication->target_channel = ast_bridge_peer(to_target_bridge, to_transfer_target);
-	}
+	publication->transferee_channel = ast_bridge_peer(to_transferee_bridge, to_transferee);
+	publication->target_channel = ast_bridge_peer(to_target_bridge, to_transfer_target);
 }
 
 /*

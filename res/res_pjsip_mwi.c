@@ -63,7 +63,6 @@ static void mwi_to_ami(struct ast_sip_subscription *sub, struct ast_str **buf);
 
 static struct ast_sip_subscription_handler mwi_handler = {
 	.event_name = "message-summary",
-	.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
 	.accept = { MWI_TYPE"/"MWI_SUBTYPE, },
 	.default_accept =  MWI_TYPE"/"MWI_SUBTYPE,
 	.subscription_shutdown = mwi_subscription_shutdown,
@@ -433,10 +432,6 @@ static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state stat
 	pjsip_tx_data *tdata;
 	pj_str_t reason_str;
 	struct ast_sip_body body;
-	struct ast_sip_body_data body_data = {
-		.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
-		.body_data = &counter,
-	};
 
 	body.type = sub->is_solicited ?
 		ast_sip_subscription_get_body_type(sub->sip_sub) :
@@ -453,7 +448,7 @@ static void send_mwi_notify(struct mwi_subscription *sub, pjsip_evsub_state stat
 		reason_str_ptr = &reason_str;
 	}
 
-	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, &body_data, &body_text)) {
+	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, &counter, &body_text)) {
 		ast_log(LOG_WARNING, "Unable to generate SIP MWI NOTIFY body.\n");
 		return;
 	}
