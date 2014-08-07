@@ -636,7 +636,7 @@ static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 	const struct stasis_message_sanitizer *sanitize)
 {
 	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(msg);
-	struct ast_json *json_transferer, *json_transferee, *out;
+	struct ast_json *json_transferer, *json_transferee = NULL, *out;
 	const struct timeval *tv = stasis_message_timestamp(msg);
 
 	json_transferer = ast_channel_snapshot_to_json(transfer_msg->to_transferee.channel_snapshot, sanitize);
@@ -649,21 +649,23 @@ static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 		if (!json_transferee) {
 			return NULL;
 		}
-	} else {
-		json_transferee = ast_json_null();
 	}
 
 	out = ast_json_pack("{s: s, s: o, s: o, s: o, s: s, s: s, s: s, s: o}",
 		"type", "BridgeBlindTransfer",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"transferer", json_transferer,
-		"transferee", json_transferee,
 		"exten", transfer_msg->exten,
 		"context", transfer_msg->context,
 		"result", result_strs[transfer_msg->result],
 		"is_external", ast_json_boolean(transfer_msg->is_external));
 
 	if (!out) {
+		return NULL;
+	}
+
+	if (json_transferee && ast_json_object_set(out, "transferee", json_transferee)) {
+		ast_json_unref(out);
 		return NULL;
 	}
 
@@ -779,7 +781,8 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 {
 	struct ast_attended_transfer_message *transfer_msg = stasis_message_data(msg);
 	RAII_VAR(struct ast_json *, out, NULL, ast_json_unref);
-	struct ast_json *json_transferer1, *json_transferer2, *json_bridge, *json_channel, *json_transferee, *json_target;
+	struct ast_json *json_transferer1, *json_transferer2, *json_bridge, *json_channel;
+	struct ast_json *json_transferee = NULL, *json_target = NULL;
 	const struct timeval *tv = stasis_message_timestamp(msg);
 	int res = 0;
 
@@ -796,26 +799,32 @@ static struct ast_json *attended_transfer_to_json(struct stasis_message *msg,
 
 	if (transfer_msg->transferee) {
 		json_transferee = ast_channel_snapshot_to_json(transfer_msg->transferee, sanitize);
-	} else {
-		json_transferee = ast_json_null();
+		if (!json_transferee) {
+			return NULL;
+		}
 	}
 
 	if (transfer_msg->target) {
 		json_target = ast_channel_snapshot_to_json(transfer_msg->target, sanitize);
-	} else {
-		json_target = ast_json_null();
+		if (!json_target) {
+			return NULL;
+		}
 	}
 
-	out = ast_json_pack("{s: s, s: o, s: o, s: o, s: o, s: o, s: s, s: o}",
+	out = ast_json_pack("{s: s, s: o, s: o, s: o, s: s, s: o}",
 		"type", "BridgeAttendedTransfer",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"transferer_first_leg", json_transferer1,
 		"transferer_second_leg", json_transferer2,
-		"transferee", json_transferee,
-		"transfer_target", json_target,
 		"result", result_strs[transfer_msg->result],
 		"is_external", ast_json_boolean(transfer_msg->is_external));
 	if (!out) {
+		return NULL;
+	}
+	if (json_transferee && ast_json_object_set(out, "transferee", json_transferee)) {
+		return NULL;
+	}
+	if (json_target && ast_json_object_set(out, "transfer_target", json_target)) {
 		return NULL;
 	}
 
