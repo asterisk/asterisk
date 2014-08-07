@@ -11980,6 +11980,7 @@ static int action_extensionstatelist(struct mansession *s, const struct message 
 	const char *action_id = astman_get_header(m, "ActionID");
 	struct ast_hint *hint;
 	struct ao2_iterator it_hints;
+	int hint_count = 0;
 
 	if (!hints) {
 		astman_send_error(s, m, "No dialplan hints are available");
@@ -11993,6 +11994,18 @@ static int action_extensionstatelist(struct mansession *s, const struct message 
 	for (; (hint = ao2_iterator_next(&it_hints)); ao2_ref(hint, -1)) {
 
 		ao2_lock(hint);
+
+		/* Ignore pattern matching hints; they are stored in the
+		 * hints container but aren't real from the perspective of
+		 * an AMI user
+		 */
+		if (hint->exten->exten[0] == '_') {
+			ao2_unlock(hint);
+			continue;
+		}
+
+		++hint_count;
+
 		astman_append(s, "Event: ExtensionStatus\r\n");
 		if (!ast_strlen_zero(action_id)) {
 			astman_append(s, "ActionID: %s\r\n", action_id);
@@ -12015,7 +12028,7 @@ static int action_extensionstatelist(struct mansession *s, const struct message 
 		astman_append(s, "ActionID: %s\r\n", action_id);
 	}
 	astman_append(s, "EventList: Complete\r\n"
-		"ListItems: %d\r\n\r\n", ao2_container_count(hints));
+		"ListItems: %d\r\n\r\n", hint_count);
 
 	ao2_iterator_destroy(&it_hints);
 	ao2_unlock(hints);
