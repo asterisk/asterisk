@@ -81,6 +81,7 @@ static void to_ami(struct ast_sip_subscription *sub,
 
 struct ast_sip_subscription_handler presence_handler = {
 	.event_name = "presence",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.accept = { DEFAULT_PRESENCE_BODY, },
 	.default_accept = DEFAULT_PRESENCE_BODY,
 	.subscription_shutdown = subscription_shutdown,
@@ -93,6 +94,7 @@ struct ast_sip_subscription_handler presence_handler = {
 
 struct ast_sip_subscription_handler dialog_handler = {
 	.event_name = "dialog",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.accept = { DEFAULT_DIALOG_BODY, },
 	.default_accept = DEFAULT_DIALOG_BODY,
 	.subscription_shutdown = subscription_shutdown,
@@ -180,12 +182,16 @@ static void create_send_notify(struct exten_state_subscription *exten_state_sub,
 	const pj_str_t *reason_str_ptr = NULL;
 	pjsip_tx_data *tdata;
 	struct ast_sip_body body;
+	struct ast_sip_body_data body_data = {
+		.body_type = AST_SIP_EXTEN_STATE_DATA,
+		.body_data = exten_state_data,
+	};
 
 	body.type = ast_sip_subscription_get_body_type(exten_state_sub->sip_sub);
 	body.subtype = ast_sip_subscription_get_body_subtype(exten_state_sub->sip_sub);
 
 	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype,
-				exten_state_data, &body_text)) {
+				&body_data, &body_text)) {
 		ast_log(LOG_ERROR, "Unable to create body on NOTIFY request\n");
 		return;
 	}

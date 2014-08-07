@@ -221,11 +221,18 @@ struct ast_sip_subscription_response_data {
 	struct ast_sip_body *body;
 };
 
+/*!
+ * \brief Type information for NOTIFY/PUBLISH body data
+ */
+#define AST_SIP_EXTEN_STATE_DATA "ast_sip_exten_state_data"
+#define AST_SIP_MESSAGE_ACCUMULATOR "ast_sip_message_accumulator"
+
 #define AST_SIP_MAX_ACCEPT 32
 
 struct ast_sip_subscription_handler {
 	/*! The name of the event this handler deals with */
 	const char *event_name;
+	const char *body_type;
 	/*! The types of body this handler accepts.
 	 *
 	 * \note This option has no bearing when the handler is used in the
@@ -566,6 +573,8 @@ struct ast_sip_pubsub_body_generator {
 	 * In "plain/text", "text" is the subtype
 	 */
 	const char *subtype;
+	/*! The type of body that the body generator takes as input */
+	const char *body_type;
 	/*!
 	 * \brief allocate body structure.
 	 *
@@ -646,6 +655,16 @@ struct ast_sip_pubsub_body_supplement {
 };
 
 /*!
+ * \brief Data used to create bodies for NOTIFY/PUBLISH requests.
+ */
+struct ast_sip_body_data {
+	/*! The type of the data */
+	const char *body_type;
+	/*! The actual data from which the body is generated */
+	void *body_data;
+};
+
+/*!
  * \since 13.0.0
  * \brief Generate body content for a PUBLISH or NOTIFY
  *
@@ -662,7 +681,7 @@ struct ast_sip_pubsub_body_supplement {
  * \retval non-zero Failure
  */
 int ast_sip_pubsub_generate_body_content(const char *content_type,
-		const char *content_subtype, void *data, struct ast_str **str);
+		const char *content_subtype, struct ast_sip_body_data *data, struct ast_str **str);
 
 /*!
  * \since 13.0.0

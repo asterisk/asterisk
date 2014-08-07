@@ -85,6 +85,7 @@ static void mwi_destroy_body(void *body)
 static struct ast_sip_pubsub_body_generator mwi_generator = {
 	.type = MWI_TYPE,
 	.subtype = MWI_SUBTYPE,
+	.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
 	.allocate_body = mwi_allocate_body,
 	.generate_body_content = mwi_generate_body_content,
 	.to_string = mwi_to_string,
