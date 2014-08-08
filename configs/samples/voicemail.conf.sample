@@ -232,10 +232,10 @@ pagerdateformat=%A, %B %d, %Y at %r
 ;
 
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
-; if the e-mail is specified, a message will be sent when a message is
-; received, to the given mailbox. If pager is specified, a message will be
-; sent there as well. If the password is prefixed by '-', then it is
-; considered to be unchangeable.
+; If email is specified, a message will be sent when a voicemail is received, to
+; the given mailbox, for each address listed (separated by |, ex. alice@foo.com|bob@foo.com).
+; If pager is specified, a message will be sent there as well. If the password
+; is prefixed by '-', then it is considered to be unchangeable.
 ;
 ; Advanced options example is extension 4069
 ; NOTE: All options can be expressed globally in the general section, and
