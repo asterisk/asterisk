@@ -908,8 +908,6 @@ int ast_msg_has_destination(const struct ast_msg *msg)
 int ast_msg_queue(struct ast_msg *msg)
 {
 	int res;
-	ast_log(LOG_ERROR, "@@@@@ to: %s from: %s exten: %s context: %s\n",
-		msg->to, msg->from, msg->exten, msg->context);
 	res = ast_taskprocessor_push(msg_q_tp, msg_q_cb, msg);
 	if (res == -1) {
 		ao2_ref(msg, -1);
