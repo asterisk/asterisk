@@ -795,7 +795,7 @@ struct ast_vm_user {
 	char mailbox[AST_MAX_EXTENSION]; /*!< Mailbox id, unique within vm context */
 	char password[80];               /*!< Secret pin code, numbers only */
 	char fullname[80];               /*!< Full name, for directory app */
-	char email[80];                  /*!< E-mail address */
+	char *email;                     /*!< E-mail address */
 	char *emailsubject;              /*!< E-mail subject */
 	char *emailbody;                 /*!< E-mail body */
 	char pager[80];                  /*!< E-mail address to pager (no attachment) */
@@ -1269,6 +1269,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		vmu->maxdeletedmsg = maxdeletedmsg;
 	}
 	vmu->volgain = volgain;
+	ast_free(vmu->email);
+	vmu->email = NULL;
 	ast_free(vmu->emailsubject);
 	vmu->emailsubject = NULL;
 	ast_free(vmu->emailbody);
@@ -1580,7 +1582,8 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 		} else if (!strcasecmp(var->name, "pager")) {
 			ast_copy_string(retval->pager, var->value, sizeof(retval->pager));
 		} else if (!strcasecmp(var->name, "email")) {
-			ast_copy_string(retval->email, var->value, sizeof(retval->email));
+			ast_free(retval->email);
+			retval->email = ast_strdup(var->value);
 		} else if (!strcasecmp(var->name, "fullname")) {
 			ast_copy_string(retval->fullname, var->value, sizeof(retval->fullname));
 		} else if (!strcasecmp(var->name, "context")) {
@@ -1717,6 +1720,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 		if ((vmu = (ivm ? ivm : ast_malloc(sizeof(*vmu))))) {
 			*vmu = *cur;
 			if (!ivm) {
+				vmu->email = ast_strdup(cur->email);
 				vmu->emailbody = ast_strdup(cur->emailbody);
 				vmu->emailsubject = ast_strdup(cur->emailsubject);
 			}
@@ -1998,6 +2002,9 @@ static int get_folder_by_name(const char *name)
 static void free_user(struct ast_vm_user *vmu)
 {
 	if (ast_test_flag(vmu, VM_ALLOCED)) {
+
+		ast_free(vmu->email);
+		vmu->email = NULL;
 
 		ast_free(vmu->emailbody);
 		vmu->emailbody = NULL;
@@ -2629,7 +2636,7 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 		 * of this function, we will revert back to an empty string if tempcopy
 		 * is 1.
 		 */
-		ast_copy_string(vmu->email, vmu->imapuser, sizeof(vmu->email));
+		vmu->email = ast_strdup(vmu->imapuser);
 		tempcopy = 1;
 	}
 
@@ -2641,8 +2648,10 @@ static int imap_store_file(const char *dir, const char *mailboxuser, const char 
 	   command hangs. */
 	if (!(p = vm_mkftemp(tmp))) {
 		ast_log(AST_LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
-		if (tempcopy)
-			*(vmu->email) = '\0';
+		if (tempcopy) {
+			ast_free(vmu->email);
+			vmu->email = NULL;
+		}
 		return -1;
 	}
 
@@ -4964,6 +4973,9 @@ static void make_email_file(FILE *p,
 	struct ast_str *str1 = ast_str_create(16), *str2 = ast_str_create(16);
 	char *greeting_attachment; 
 	char filename[256];
+	int first_line;
+	char *emailsbuf;
+	char *email;
 
 	if (!str1 || !str2) {
 		ast_free(str1);
@@ -5005,7 +5017,7 @@ static void make_email_file(FILE *p,
 			ast_str_substitute_variables(&str1, 0, ast, fromstring);
 
 			if (check_mime(ast_str_buffer(str1))) {
-				int first_line = 1;
+				first_line = 1;
 				ast_str_encode_mime(&str2, 0, ast_str_buffer(str1), strlen("From: "), strlen(who) + 3);
 				while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
 					*ptr = '\0';
@@ -5026,20 +5038,25 @@ static void make_email_file(FILE *p,
 		fprintf(p, "From: Asterisk PBX <%s>" ENDL, who);
 	}
 
-	if (check_mime(vmu->fullname)) {
-		int first_line = 1;
-		char *ptr;
-		ast_str_encode_mime(&str2, 0, vmu->fullname, strlen("To: "), strlen(vmu->email) + 3);
-		while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
-			*ptr = '\0';
-			fprintf(p, "%s %s" ENDL, first_line ? "To:" : "", ast_str_buffer(str2));
-			first_line = 0;
-			/* Substring is smaller, so this will never grow */
-			ast_str_set(&str2, 0, "%s", ptr + 1);
+	emailsbuf = ast_strdupa(vmu->email);
+	fprintf(p, "To:");
+	first_line = 1;
+	while ((email = strsep(&emailsbuf, "|"))) {
+		char *next = strchr(S_OR(emailsbuf, ""), '|');
+		if (check_mime(vmu->fullname)) {
+			char *ptr;
+			ast_str_encode_mime(&str2, 0, vmu->fullname, first_line ? strlen("To: ") : 0, strlen(email) + 3 + (next ? strlen(",") : 0));
+			while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
+				*ptr = '\0';
+				fprintf(p, " %s" ENDL, ast_str_buffer(str2));
+				/* Substring is smaller, so this will never grow */
+				ast_str_set(&str2, 0, "%s", ptr + 1);
+			}
+			fprintf(p, " %s <%s>%s" ENDL, ast_str_buffer(str2), email, next ? "," : "");
+		} else {
+			fprintf(p, " %s <%s>%s" ENDL, ast_str_quote(&str2, 0, vmu->fullname), email, next ? "," : "");
 		}
-		fprintf(p, "%s %s <%s>" ENDL, first_line ? "To:" : "", ast_str_buffer(str2), vmu->email);
-	} else {
-		fprintf(p, "To: %s <%s>" ENDL, ast_str_quote(&str2, 0, vmu->fullname), vmu->email);
+		first_line = 0;
 	}
 
 	if (!ast_strlen_zero(emailsubject) || !ast_strlen_zero(vmu->emailsubject)) {
@@ -5049,7 +5066,7 @@ static void make_email_file(FILE *p,
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
 			ast_str_substitute_variables(&str1, 0, ast, e_subj);
 			if (check_mime(ast_str_buffer(str1))) {
-				int first_line = 1;
+				first_line = 1;
 				char *ptr;
 				ast_str_encode_mime(&str2, 0, ast_str_buffer(str1), strlen("Subject: "), 0);
 				while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
@@ -12011,7 +12028,7 @@ static int append_mailbox(const char *context, const char *box, const char *data
 		ast_copy_string(vmu->fullname, s, sizeof(vmu->fullname));
 	}
 	if (stringp && (s = strsep(&stringp, ","))) {
-		ast_copy_string(vmu->email, s, sizeof(vmu->email));
+		vmu->email = ast_strdup(s);
 	}
 	if (stringp && (s = strsep(&stringp, ","))) {
 		ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
@@ -14342,7 +14359,7 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 	}
 
 	populate_defaults(vmu);
-	ast_copy_string(vmu->email, "test2@example.net", sizeof(vmu->email));
+	vmu->email = ast_strdup("test2@example.net");
 #ifdef IMAP_STORAGE
 	/* TODO When we set up the IMAP server test, we'll need to have credentials for the VMU structure added here */
 #endif

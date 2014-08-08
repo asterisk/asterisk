@@ -210,6 +210,9 @@ VoiceMail
    - jb-wa: article wa
    - jb-wo: article wo
 
+ * Add the ability to specify multiple email addresses in configuration,
+   separated by a |.
+
 res_config_pgsql
 ------------------
  * Added the ability to support PostgreSQL application_name on connections.
