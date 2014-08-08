@@ -177,12 +177,14 @@ static void do_sleep(void)
 	APPEND_EVENT(channel, AST_CEL_BLINDTRANSFER, NULL, extra); \
 	} while (0)
 
-#define ATTENDEDTRANSFER_BRIDGE(channel1, bridge1, channel2, bridge2) do { \
+#define ATTENDEDTRANSFER_BRIDGE(channel1, bridge1, channel2, bridge2, channel3, channel4) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
-	extra = ast_json_pack("{s: s, s: s, s: s}", \
+	extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}", \
 		"bridge1_id", bridge1->uniqueid, \
 		"channel2_name", ast_channel_name(channel2), \
-		"bridge2_id", bridge2->uniqueid); \
+		"bridge2_id", bridge2->uniqueid, \
+		"transferee_channel_name", ast_channel_name(channel4), \
+		"transfer_target_channel_name", ast_channel_name(channel3)); \
 	ast_test_validate(test, extra != NULL); \
 	APPEND_EVENT(channel1, AST_CEL_ATTENDEDTRANSFER, NULL, extra); \
 	} while (0)
@@ -1326,7 +1328,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	BRIDGE_ENTER_EVENT_PEER(chan_bob, bridge2, "CELTestChannel/David,CELTestChannel/Charlie");
 
 	BRIDGE_EXIT_EVENT(chan_david, bridge2);
-	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
+	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2, chan_charlie, chan_bob);
 	BRIDGE_EXIT_EVENT(chan_alice, bridge1);
 
 	do_sleep();
@@ -1411,7 +1413,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	BRIDGE_EXIT_EVENT(chan_david, bridge2);
 	BRIDGE_EXIT_EVENT(chan_alice, bridge1);
 
-	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
+	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2, chan_charlie, chan_bob);
 
 	do_sleep();
 	BRIDGE_EXIT(chan_bob, bridge1);
@@ -1496,7 +1498,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	APPEND_DUMMY_EVENT();
 	APPEND_DUMMY_EVENT();
 
-	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2);
+	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2, chan_charlie, chan_bob);
 
 	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
