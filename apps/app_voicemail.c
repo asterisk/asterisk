@@ -5066,8 +5066,8 @@ static void make_email_file(FILE *p,
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, cidnum, cidname, dur, date, category, flag);
 			ast_str_substitute_variables(&str1, 0, ast, e_subj);
 			if (check_mime(ast_str_buffer(str1))) {
-				first_line = 1;
 				char *ptr;
+				first_line = 1;
 				ast_str_encode_mime(&str2, 0, ast_str_buffer(str1), strlen("Subject: "), 0);
 				while ((ptr = strchr(ast_str_buffer(str2), ' '))) {
 					*ptr = '\0';
