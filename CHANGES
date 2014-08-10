@@ -12,75 +12,132 @@
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
 ------------------------------------------------------------------------------
 
-accountcode
+Overview
 ------------------
- - Added functional peeraccount support.  Except for Queue, the
-   accountcode propagation is now consistently propagated to outgoing
-   channels before dialing.  The channel accountcode can change from its
-   original non-empty value on channel creation for the following specific
-   reasons.  One, dialplan sets it using CHANNEL(accountcode).  Two, an
-   originate method that can specify an accountcode value.  Three, the
-   calling channel propagates its peeraccount or accountcode to the
-   outgoing channel's accountcode before dialing.  The change has two
-   visible effects.  One, local channels now cross accountcode and
-   peeraccount across the special bridge between the ;1 and ;2 channels
-   just like channels between normal bridges.  Two, the
-   CHANNEL(peeraccount) value can now be set before Dial and FollowMe to
-   set the accountcode on the outgoing channel(s).
 
-   For Queue, an outgoing channel's non-empty accountcode will not change
-   unless explicitly set by CHANNEL(accountcode).  The change has three
-   visible effects.  One, local channels now cross accountcode and
-   peeraccount across the special bridge between the ;1 and ;2 channels
-   just like channels between normal bridges.  Two, the queue member will
-   get an accountcode if it doesn't have one and one is available from the
-   calling channel's peeraccount.  Three, accountcode propagation includes
-   local channel members where the accountcodes are propagated early
-   enough to be available on the ;2 channel.
+Asterisk 13 is the next Long Term Support (LTS) release of Asterisk. As such,
+the focus of development for this release of Asterisk was on improving the
+usability and features developed in the previous Standard release, Asterisk 12.
+Beyond a general refinement of end user features, development focussed heavily
+on the Asterisk APIs - the Asterisk Manager Interface (AMI) and the Asterisk
+REST Interface (ARI) - and the PJSIP stack in Asterisk. Some highlights of the
+new features include:
 
-app_dahdibarge
+* Asterisk security events are now provided via AMI, allowing end users to
+  monitor their Asterisk system in real time for security related issues.
+* External control of Message Waiting Indicators (MWI) through both AMI and ARI.
+* Reception/transmission of out of call text messages using any supported
+  channel driver/protocol stack through ARI.
+* Resource List Server support in the PJSIP stack, providing subscriptions to
+  lists of resources and batched delivery of NOTIFY requests.
+* Inter-Asterisk distributed device state and mailbox state using the PJSIP
+  stack.
+
+It is important to note that Asterisk 13 is built on the architecture developed
+during the previous Standard release, Asterisk 12. Users upgrading to
+Asterisk 13 should read about the new features in Asterisk 12 later in this file
+(see Functionality changes from Asterisk 11 to Asterisk 12), as well as the
+UPGRADE-12.txt delivered with this release. In particular, users upgrading to
+Asterisk 13 from a release prior to Asterisk 12 should read the specifications
+on AMI, CDRs, and CEL on the Asterisk wiki:
+ * AMI - https://wiki.asterisk.org/wiki/x/dAFRAQ
+ * CEL - https://wiki.asterisk.org/wiki/x/4ICLAQ
+ * CDRs - https://wiki.asterisk.org/wiki/x/pwpRAQ
+
+Many new featuers in Asterisk 13 were introduced in point releases of
+Asterisk 12. Following this section - which documents the changes from all
+versions of Asterisk 12 to Asterisk 13 - users should examine the new features
+that were introduced in the point releases of Asterisk 12, as they are also
+included in Asterisk 13.
+
+Finally, all users upgrading to Asterisk 13 should read the UPGRADE.txt file
+delivered with this release.
+
+
+Build System
+------------------
+ * Sample config files have been moved from configs/ to a sub-folder of that
+   directory, samples.
+
+ * The menuselect utility has been pulled into the Asterisk repository. As a
+   result, the libxml2 development library is now a required dependency for
+   Asterisk.
+
+ * A new Compiler Flag, REF_DEBUG, has been added. When enabled, reference
+   counted objects will emit additional debug information to the refs log file
+   located in the standard Asterisk log file directory. This log file is useful
+   in tracking down object leaks and other reference counting issues. Prior to
+   this version, this option was only available by modifying the source code
+   directly. This change also includes a new script, refcounter.py, in the
+   contrib folder that will process the refs log file. Note that this replaces
+   the refcounter utility that could be built from the utils directory.
+
+
+Applications
+------------------
+
+DahdiBarge
 ------------------
  * This module was deprecated and has been removed. Users of app_dahdibarge
    should use ChanSpy instead.
 
-app_readfile
+MixMonitor
+------------------
+ * New options to play a beep when starting a recording and stopping a recording
+   have been added.  The option "p" will play a beep to the channel that starts
+   the recording.  The option "P" will play a beep to the channel that stops the
+   recording.
+
+ReadFile
 ------------------
  * This module was deprecated and has been removed. Users of app_readfile
    should use func_env's FILE function instead.
 
-app_saycountpl
+Say
+------------------
+ * The 'say' family of dialplan applications now support the Japanese
+   language. The 'language' parameter in say.conf now recognizes a setting of
+   'ja', which will enable Japanese language specific mechanisms for playing
+   back numbers, dates, and other items.
+
+SayCountPL
 ------------------
  * This module was deprecated and has been removed. Users of app_saycountpl
    should use the Say family of applications.
 
-AMI
+SetMusicOnHold
 ------------------
- * New DeviceStateChanged and PresenceStateChanged AMI events have been added.
-   These events are emitted whenever a device state or presence state change
-   occurs. The events are controlled by res_manager_device_state.so and
-   res_manager_presence_state.so. If the high frequency of these events is
-   problematic for you, do not load these modules.
+ * The SetMusicOnHold dialplan application was deprecated and has been removed.
+   Users of the application should use the CHANNEL function's musicclass
+   setting instead.
 
- * Added DialplanExtensionAdd and DialplanExtensionRemove AMI commands. They
-   work in basically the same way as the 'dialplan add extension' and
-   'dialplan remove extension' CLI commands respectively.
+WaitMusicOnHold
+------------------
+ * The WaitMusicOnHold dialplan application was deprecated and has been
+   removed. Users of the application should use MusicOnHold with a duration
+   parameter instead.
 
- * New AMI action LoggerRotate reloads and rotates logger in the same manner
-   as CLI command 'logger rotate'
+VoiceMail
+------------------
+ * VoiceMail and VoiceMailMain now support the Japanese language. The
+   'language' parameter in voicemail.conf now recognizes a setting of 'ja',
+   which will enable prompts to be played back using a Japanese grammatical
+   structure. Additional prompts are necessary for this functionality,
+   including:
+   - jb-arimasu: there is
+   - jb-arimasen: there is not
+   - jb-oshitekudasai: please press
+   - jb-ni: article ni
+   - jb-ga: article ga
+   - jb-wa: article wa
+   - jb-wo: article wo
 
- * New AMI Actions FAXSessions, FAXSession, and FAXStats replicate the
-   functionality of CLI commands 'fax show sessions', 'fax show session',
-   and fax show stats' respectively.
+ * Add the ability to specify multiple email addresses in configuration,
+   separated by a |.
 
- * New AMI actions PRIDebugSet, PRIDebugFileSet, and PRIDebugFileUnset
-   enable manager control over PRI debugging levels and file output.
 
- * AMI action PJSIPNotify may now send to a URI instead of only to a PJSIP
-   endpoint as long as a default outbound endpoint is set. This also applies
-   to the equivalent CLI command (pjsip send notify)
- 
- * The AMI action PJSIPShowEndpoint now includes ContactStatusDetail sections
-   that give information on Asterisk's attempts to qualify the endpoint.
+CDR Backends
+------------------
 
 cdr_sqlite
 -----------------
@@ -94,6 +151,10 @@ cdr_pgsql
    pg_stat_activity view and CSV log entries. This setting is configurable
    for cdr_pgsql via the appname configuration setting in cdr_pgsql.conf.
 
+
+CEL Backends
+------------------
+
 cel_pgsql
 ------------------
  * Added the ability to support PostgreSQL application_name on connections.
@@ -101,10 +162,9 @@ cel_pgsql
    pg_stat_activity view and CSV log entries. This setting is configurable
    for cel_pgsql via the appname configuration setting in cel_pgsql.conf.
 
-CEL
+
+Channel Drivers
 ------------------
- * The "bridge_technology" extra field key has been added to BRIDGE_ENTER
-   and BRIDGE_EXIT events.
 
 chan_dahdi
 ------------------
@@ -142,7 +202,76 @@ chan_sip
  * The SIPCHANINFO dialplan function was deprecated and has been removed. Users
    of the function should use the CHANNEL function instead.
 
+
 Core
+------------------
+
+Account Codes
+------------------
+ * Added functional peeraccount support.  Except for Queue, the
+   accountcode propagation is now consistently propagated to outgoing
+   channels before dialing.  The channel accountcode can change from its
+   original non-empty value on channel creation for the following specific
+   reasons.  One, dialplan sets it using CHANNEL(accountcode).  Two, an
+   originate method that can specify an accountcode value.  Three, the
+   calling channel propagates its peeraccount or accountcode to the
+   outgoing channel's accountcode before dialing.  The change has two
+   visible effects.  One, local channels now cross accountcode and
+   peeraccount across the special bridge between the ;1 and ;2 channels
+   just like channels between normal bridges.  Two, the
+   CHANNEL(peeraccount) value can now be set before Dial and FollowMe to
+   set the accountcode on the outgoing channel(s).
+
+   For Queue, an outgoing channel's non-empty accountcode will not change
+   unless explicitly set by CHANNEL(accountcode).  The change has three
+   visible effects.  One, local channels now cross accountcode and
+   peeraccount across the special bridge between the ;1 and ;2 channels
+   just like channels between normal bridges.  Two, the queue member will
+   get an accountcode if it doesn't have one and one is available from the
+   calling channel's peeraccount.  Three, accountcode propagation includes
+   local channel members where the accountcodes are propagated early
+   enough to be available on the ;2 channel.
+
+AMI
+------------------
+ * New DeviceStateChanged and PresenceStateChanged AMI events have been added.
+   These events are emitted whenever a device state or presence state change
+   occurs. The events are controlled by res_manager_device_state.so and
+   res_manager_presence_state.so. If the high frequency of these events is
+   problematic for you, do not load these modules.
+
+ * Added DialplanExtensionAdd and DialplanExtensionRemove AMI commands. They
+   work in basically the same way as the 'dialplan add extension' and
+   'dialplan remove extension' CLI commands respectively.
+
+ * New AMI action LoggerRotate reloads and rotates logger in the same manner
+   as CLI command 'logger rotate'
+
+ * New AMI Actions FAXSessions, FAXSession, and FAXStats replicate the
+   functionality of CLI commands 'fax show sessions', 'fax show session',
+   and fax show stats' respectively.
+
+ * New AMI actions PRIDebugSet, PRIDebugFileSet, and PRIDebugFileUnset
+   enable manager control over PRI debugging levels and file output.
+
+ * AMI action PJSIPNotify may now send to a URI instead of only to a PJSIP
+   endpoint as long as a default outbound endpoint is set. This also applies
+   to the equivalent CLI command (pjsip send notify)
+ 
+ * The AMI action PJSIPShowEndpoint now includes ContactStatusDetail sections
+   that give information on Asterisk's attempts to qualify the endpoint.
+
+CEL
+------------------
+ * The "bridge_technology" extra field key has been added to BRIDGE_ENTER
+   and BRIDGE_EXIT events.
+
+Features
+------------------
+ * Channel variables are now substituted in arguments passed to applications
+   run by using dynamic features.
+
+TLS
 ------------------
  * The TLS core in Asterisk now supports Perfect Forward Secrecy (PFS).
    Enabling PFS is attempted by default, and is dependent on the configuration
@@ -162,56 +291,18 @@ Core
      will use PFS when offered by the client. Clients which do not offer PFS
      fall-back to AES-128 (or even 3DES, as recommended by RFC 3261).
 
-Features
-------------------
- * The ast_channel_feature_hooks* functions have been added to allow features
-   such as DTMF hooks, interval hooks, and bridge event hooks to be made
-   available to a channel when the channel is bridged. Previously, these
-   features were provided exclusively by the caller of ast_bridge_join()
-   outside of "basic" type bridges.
 
- * Channel variables are now substituted in arguments passed to applications
-   run by using dynamic features.
+Functions
+------------------
 
 JACK_HOOK
 ------------------
  * The JACK_HOOK function now supports audio with a sample rate higher than
    8kHz.
 
-MusicOnHold
+
+Resources
 ------------------
- * The SetMusicOnHold dialplan application was deprecated and has been removed.
-   Users of the application should use the CHANNEL function's musicclass
-   setting instead.
-
- * The WaitMusicOnHold dialplan application was deprecated and has been
-   removed. Users of the application should use MusicOnHold with a duration
-   parameter instead.
-
-Say
-------------------
- * The 'say' family of dialplan applications now support the Japanese
-   language. The 'language' parameter in say.conf now recognizes a setting of
-   'ja', which will enable Japanese language specific mechanisms for playing
-   back numbers, dates, and other items.
-
-VoiceMail
-------------------
- * VoiceMail and VoiceMailMain now support the Japanese language. The
-   'language' parameter in voicemail.conf now recognizes a setting of 'ja',
-   which will enable prompts to be played back using a Japanese grammatical
-   structure. Additional prompts are necessary for this functionality,
-   including:
-   - jb-arimasu: there is
-   - jb-arimasen: there is not
-   - jb-oshitekudasai: please press
-   - jb-ni: article ni
-   - jb-ga: article ga
-   - jb-wa: article wa
-   - jb-wo: article wo
-
- * Add the ability to specify multiple email addresses in configuration,
-   separated by a |.
 
 res_config_pgsql
 ------------------
@@ -221,12 +312,32 @@ res_config_pgsql
    for res_config_pgsql via the dbappname configuration setting in
    res_pgsql.conf.
 
-MixMonitor
+res_pjsip_outbound_publish
 ------------------
- * New options to play a beep when starting a recording and stopping a recording
-   have been added.  The option "p" will play a beep to the channel that starts
-   the recording.  The option "P" will play a beep to the channel that stops the
-   recording.
+ * A new module, res_pjsip_outbound_publish provides the mechanisms for sending
+   PUBLISH requests for specific event packages to another SIP User Agent.
+
+res_pjsip_pubsub
+------------------
+ * The publish/subscribe core module has been updated to support RFC 4662
+   Resource Lists, allowing Asterisk to act as a Resource List Server (RLS).
+   Resource lists are configured in pjsip.conf under a new object type,
+   resource_list. Resource lists can contain either message-summary or presence
+   events, and can be composed of specific resources that provide the event or
+   other resource lists.
+
+ * Inbound publication support is provided by a new object, inbound-publication.
+   This configures res_pjsip_pubsub to accept PUBLISH requests from a particular
+   resource. Which events are accepted is constructed dynamically; see
+   res_pjsip_publish_asterisk for more information.
+
+res_pjsip_publish_asterisk
+------------------
+ * A new module, res_pjsip_publish_asterisk adds support for PUBLISH requests of
+   Asterisk information to other Asterisk servers. This module is intended only
+   for Asterisk to Asterisk exchanges of information. Currently, this includes
+   both mailbox state and device state information.
+
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.4.0 to Asterisk 12.5.0 ------------
@@ -362,18 +473,10 @@ res_parking
 --- Functionality changes from Asterisk 12.1.0 to Asterisk 12.2.0 ------------
 ------------------------------------------------------------------------------
 
-Applications
---------------------------
+Record
+------------------
  * Record application now has an option 'o' which allows 0 to act as an exit
    key setting the RECORD_STATUS variable to 'OPERATOR' instead of 'DTMF'
- * Monitor() - A new option, B(), has been added that will turn on a periodic
-   beep while the call is being recorded.
-
-Functions
---------------------------
- * A new function was added: PERIODIC_HOOK.  This allows running a periodic
-   dialplan hook on a channel.  Any audio generated by this hook will be
-   injected into the call.
 
 ChanSpy
 --------------------------
@@ -410,6 +513,11 @@ Directory
      USEREXIT    user pressed '#' from the selection prompt to exit
      FAILED      directory failed in a way that wasn't accounted for. Dang.
 
+Monitor
+------------------
+ * Monitor() - A new option, B(), has been added that will turn on a periodic
+   beep while the call is being recorded.
+
 MusicOnHold
 --------------------------
  * MusicOnHold streams (all modes other than "files") now support wide band
@@ -437,8 +545,10 @@ MixMonitor
 -------------------------
  * A new function, MIXMONITOR, has been added to allow access to individual
    instances of MixMonitor on a channel.
+
  * A new option, B(), has been added that will turn on a periodic beep while the
    call is being recorded.
+
 
 Channel Drivers
 -------------------------
@@ -450,19 +560,18 @@ chan_sip
    the Request URI will be stored in the SIPURIPHONECONTEXT channel variable on
    the inbound channel.
 
-Debugging
--------------------------
- * Core Show Locks output now includes Thread/LWP ID if the platform
-   supports this feature.
- * New "logger add channel" and "logger remove channel" CLI commands have
-   been added to allow creation and deletion of dynamic logger channels
-   without configuration changes. These dynamic logger channels will only
-   exist until the next restart of asterisk.
-
 Core
 ------------------
  * Exposed sorcery-based configuration files like pjsip.conf to dialplans via
    the new AST_SORCERY diaplan function.
+
+ * Core Show Locks output now includes Thread/LWP ID if the platform
+   supports this feature.
+
+ * New "logger add channel" and "logger remove channel" CLI commands have
+   been added to allow creation and deletion of dynamic logger channels
+   without configuration changes. These dynamic logger channels will only
+   exist until the next restart of asterisk.
 
 ARI
 ------------------
@@ -501,6 +610,17 @@ RealTime
 ------------------
  * A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
+
+
+Functions
+------------------
+ * A new function was added: PERIODIC_HOOK.  This allows running a periodic
+   dialplan hook on a channel.  Any audio generated by this hook will be
+   injected into the call.
+
+
+Resources
+------------------
 
 res_hep
 ------------------
@@ -2213,7 +2333,7 @@ chan_unistim
    as per the UNISTIM protocol.
 
  * Fixed issues with dialtone not matching indications.conf and mute stopping rx
-   as well as tx. Also fixed issue with call "Timer" displaying as French "Durée"
+   as well as tx. Also fixed issue with call "Timer" displaying as French "Dur\E9e"
 
  * Added ability to use multiple lines for a single phone.  This allows multiple
    calls to occur on a single phone, using callwaiting and switching between calls.
