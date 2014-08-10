@@ -21,15 +21,7 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
-From 12 to 13:
-
- - Sample config files have been moved from configs/ to a subfolder of that
-   directory, 'samples'.
-
- - The menuselect utility has been pulled into the Asterisk repository. As a
-   result, the libxml2 development library is now a required dependency for
-   Asterisk.
-
+General Asterisk Changes:
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
 
@@ -42,6 +34,21 @@ From 12 to 13:
    an older version of rasterisk connects to the new version then the
    "core set verbose" command will have no effect.
 
+ - The asterisk compatibility options in asterisk.conf have been removed.
+   These options enabled certain backwards compatibility features for
+   pbx_realtime, res_agi, and app_set that made their behaviour similar to
+   Asterisk 1.4. Users who used these backwards compatibility settings should
+   update their dialplans to use ',' instead of '|' as a delimiter, and should
+   use the Set dialplan application instead of the MSet dialplan application.
+
+Build System:
+ - Sample config files have been moved from configs/ to a subfolder of that
+   directory, 'samples'.
+
+ - The menuselect utility has been pulled into the Asterisk repository. As a
+   result, the libxml2 development library is now a required dependency for
+   Asterisk.
+
  - Added a new Compiler Flag, REF_DEBUG. When enabled, reference counted
    objects will emit additional debug information to the refs log file located
    in the standard Asterisk log file directory. This log file is useful in
@@ -50,105 +57,30 @@ From 12 to 13:
    directly. This change also includes a new script, refcounter.py, in the
    contrib folder that will process the refs log file.
 
- - The asterisk compatibility options in asterisk.conf have been removed.
-   These options enabled certain backwards compatibility features for
-   pbx_realtime, res_agi, and app_set that made their behaviour similar to
-   Asterisk 1.4. Users who used these backwards compatibility settings should
-   update their dialplans to use ',' instead of '|' as a delimiter, and should
-   use the Set dialplan application instead of the MSet dialplan application.
+Applications:
 
-accountcode:
- - Accountcode behavior changed somewhat to add functional peeraccount
-   support.  The main change is that local channels now cross accountcode
-   and peeraccount across the special bridge between the ;1 and ;2 channels
-   just like channels between normal bridges.  See the CHANGES file for
-   more information.
+ConfBridge:
+- The sound_place_into_conference sound used in Confbridge is now deprecated
+  and is no longer functional since it has been broken since its inception
+  and the fix involved using a different method to achieve the same goal. The
+  new method to achieve this functionality is by using sound_begin to play
+  a sound to the conference when waitmarked users are moved into the conference.
 
-ARI:
- - The ARI version has been changed from 1.0.0 to 1.1.0. This is to reflect
-   the backwards compatible changes listed below.
+SetMusicOnHold:
+ - The SetMusicOnHold dialplan application was deprecated and has been removed.
+   Users of the application should use the CHANNEL function's musicclass
+   setting instead.
 
- - Added a new ARI resource 'mailboxes' which allows the creation and
-   modification of mailboxes managed by external MWI. Modules res_mwi_external
-   and res_stasis_mailbox must be enabled to use this resource.
+WaitMusicOnHold:
+ - The WaitMusicOnHold dialplan application was deprecated and has been
+   removed. Users of the application should use MusicOnHold with a duration
+   parameter instead.
 
- - Added new events for externally initiated transfers. The event
-   BridgeBlindTransfer is now raised when a channel initiates a blind transfer
-   of a bridge in the ARI controlled application to the dialplan; the
-   BridgeAttendedTransfer event is raised when a channel initiates an
-   attended transfer of a bridge in the ARI controlled application to the
-   dialplan.
-
- - Channel variables may now be specified as a body parameter to the
-   POST /channels operation. The 'variables' key in the JSON is interpreted
-   as a sequence of key/value pairs that will be added to the created channel
-   as channel variables. Other parameters in the JSON body are treated as
-   query parameters of the same name.
-
- - A bug fix in bridge creation has caused a behavioural change in how
-   subscriptions are created for bridges. A bridge created through ARI, does
-   not, by itself, have a subscription created for any particular Stasis
-   application. When a channel in a Stasis application joins a bridge, an
-   implicit event subscription is created for that bridge as well. Previously,
-   when a channel left such a bridge, the subscription was leaked; this allowed
-   for later bridge events to continue to be pushed to the subscribed
-   applications. That leak has been fixed; as a result, bridge events that were
-   delivered after a channel left the bridge are no longer delivered. An
-   application must subscribe to a bridge through the applications resource if
-   it wishes to receive all events related to a bridge.
-
-AMI:
- - The AMI version has been changed from 2.0.0 to 2.1.0. This is to reflect
-   the backwards compatible changes listed below.
-
- - The DialStatus field in the DialEnd event can now have additional values.
-   This includes ABORT, CONTINUE, and GOTO.
-
- - The res_mwi_external_ami module can, if loaded, provide additional AMI
-   actions and events that convey MWI state within Asterisk. This includes
-   the MWIGet, MWIUpdate, and MWIDelete actions, as well as the MWIGet and
-   MWIGetComplete events that occur in response to an MWIGet action.
-
- - AMI now contains a new class authorization, 'security'. This is used with
-   the following new events: FailedACL, InvalidAccountID, SessionLimit,
-   MemoryLimit, LoadAverageLimit, RequestNotAllowed, AuthMethodNotAllowed,
-   RequestBadFormat, SuccessfulAuth, UnexpectedAddress, ChallengeResponseFailed,
-   InvalidPassword, ChallengeSent, and InvalidTransport.
-
- - Bridge related events now have two additional fields: BridgeName and
-   BridgeCreator. BridgeName is a descriptive name for the bridge;
-   BridgeCreator is the name of the entity that created the bridge. This
-   affects the following events: ConfbridgeStart, ConfbridgeEnd,
-   ConfbridgeJoin, ConfbridgeLeave, ConfbridgeRecord, ConfbridgeStopRecord,
-   ConfbridgeMute, ConfbridgeUnmute, ConfbridgeTalking, BlindTransfer,
-   AttendedTransfer, BridgeCreate, BridgeDestroy, BridgeEnter, BridgeLeave
-
- - MixMonitor AMI actions now require users to have authorization classes.
-   * MixMonitor - system
-   * MixMonitorMute - call or system
-   * StopMixMonitor - call or system
-
- - Removed the undocumented manager.conf block-sockets option.  It interferes with
-   TCP/TLS inactivity timeouts.
-
- - The response to the PresenceState AMI action has historically contained two
-   Message keys. The first of these is used as an informative message regarding
-   the success/failure of the action; the second contains a Presence state
-   specific message. Having two keys with the same unique name in an AMI
-   message is cumbersome for some client; hence, the Presence specific Message
-   has been deprecated. The message will now contain a PresenceMessage key
-   for the presence specific information; the Message key containing presence
-   information will be removed in the next major version of AMI.
-
-CDRs:
- - The "endbeforehexten" setting now defaults to "yes", instead of "no".
-   When set to "no", yhis setting will cause a new CDR to be generated when a
-   channel enters into hangup logic (either the 'h' extension or a hangup
-   handler subroutine). In general, this is not the preferred default: this
-   causes extra CDRs to be generated for a channel in many common dialplans.
-
+CDR Backends:
  - The cdr_sqlite module was deprecated and has been removed. Users of this
    module should use the cdr_sqlite3_custom module instead.
+
+Channel Drivers:
 
 chan_dahdi:
  - SS7 support now requires libss7 v2.0 or later.
@@ -241,6 +173,108 @@ chan_sip:
     (3) All other codecs that are not the preferred codec and not a joint
         codec offered by the inbound offer
 
+chan_unistim:
+ - The unistim.conf 'dateformat' has changed meaning of options values to conform
+   values used inside Unistim protocol
+
+ - Added 'dtmf_duration' option with changing default operation to disable
+   receivied dtmf playback on unistim phone
+
+Core:
+
+Account Codes:
+ - accountcode behavior changed somewhat to add functional peeraccount
+   support.  The main change is that local channels now cross accountcode
+   and peeraccount across the special bridge between the ;1 and ;2 channels
+   just like channels between normal bridges.  See the CHANGES file for
+   more information.
+
+ARI:
+ - The ARI version has been changed to 1.5.0. This is to reflect backwards
+   compatible changes made since 12.0.0 was released.
+
+ - Added a new ARI resource 'mailboxes' which allows the creation and
+   modification of mailboxes managed by external MWI. Modules res_mwi_external
+   and res_stasis_mailbox must be enabled to use this resource.
+
+ - Added new events for externally initiated transfers. The event
+   BridgeBlindTransfer is now raised when a channel initiates a blind transfer
+   of a bridge in the ARI controlled application to the dialplan; the
+   BridgeAttendedTransfer event is raised when a channel initiates an
+   attended transfer of a bridge in the ARI controlled application to the
+   dialplan.
+
+ - Channel variables may now be specified as a body parameter to the
+   POST /channels operation. The 'variables' key in the JSON is interpreted
+   as a sequence of key/value pairs that will be added to the created channel
+   as channel variables. Other parameters in the JSON body are treated as
+   query parameters of the same name.
+
+ - A bug fix in bridge creation has caused a behavioural change in how
+   subscriptions are created for bridges. A bridge created through ARI, does
+   not, by itself, have a subscription created for any particular Stasis
+   application. When a channel in a Stasis application joins a bridge, an
+   implicit event subscription is created for that bridge as well. Previously,
+   when a channel left such a bridge, the subscription was leaked; this allowed
+   for later bridge events to continue to be pushed to the subscribed
+   applications. That leak has been fixed; as a result, bridge events that were
+   delivered after a channel left the bridge are no longer delivered. An
+   application must subscribe to a bridge through the applications resource if
+   it wishes to receive all events related to a bridge.
+
+AMI:
+ - The AMI version has been changed to 2.5.0. This is to reflect backwards
+   compatible changes made since 12.0.0 was released.
+
+ - The DialStatus field in the DialEnd event can now have additional values.
+   This includes ABORT, CONTINUE, and GOTO.
+
+ - The res_mwi_external_ami module can, if loaded, provide additional AMI
+   actions and events that convey MWI state within Asterisk. This includes
+   the MWIGet, MWIUpdate, and MWIDelete actions, as well as the MWIGet and
+   MWIGetComplete events that occur in response to an MWIGet action.
+
+ - AMI now contains a new class authorization, 'security'. This is used with
+   the following new events: FailedACL, InvalidAccountID, SessionLimit,
+   MemoryLimit, LoadAverageLimit, RequestNotAllowed, AuthMethodNotAllowed,
+   RequestBadFormat, SuccessfulAuth, UnexpectedAddress, ChallengeResponseFailed,
+   InvalidPassword, ChallengeSent, and InvalidTransport.
+
+ - Bridge related events now have two additional fields: BridgeName and
+   BridgeCreator. BridgeName is a descriptive name for the bridge;
+   BridgeCreator is the name of the entity that created the bridge. This
+   affects the following events: ConfbridgeStart, ConfbridgeEnd,
+   ConfbridgeJoin, ConfbridgeLeave, ConfbridgeRecord, ConfbridgeStopRecord,
+   ConfbridgeMute, ConfbridgeUnmute, ConfbridgeTalking, BlindTransfer,
+   AttendedTransfer, BridgeCreate, BridgeDestroy, BridgeEnter, BridgeLeave
+
+ - MixMonitor AMI actions now require users to have authorization classes.
+   * MixMonitor - system
+   * MixMonitorMute - call or system
+   * StopMixMonitor - call or system
+
+ - Removed the undocumented manager.conf block-sockets option.  It interferes with
+   TCP/TLS inactivity timeouts.
+
+ - The response to the PresenceState AMI action has historically contained two
+   Message keys. The first of these is used as an informative message regarding
+   the success/failure of the action; the second contains a Presence state
+   specific message. Having two keys with the same unique name in an AMI
+   message is cumbersome for some client; hence, the Presence specific Message
+   has been deprecated. The message will now contain a PresenceMessage key
+   for the presence specific information; the Message key containing presence
+   information will be removed in the next major version of AMI.
+
+ - The manager.conf 'eventfilter' now takes an "extended" regular expression
+   instead of a "basic" one.
+
+CDRs:
+ - The "endbeforehexten" setting now defaults to "yes", instead of "no".
+   When set to "no", yhis setting will cause a new CDR to be generated when a
+   channel enters into hangup logic (either the 'h' extension or a hangup
+   handler subroutine). In general, this is not the preferred default: this
+   causes extra CDRs to be generated for a channel in many common dialplans.
+
 CLI commands:
  - "core show settings" now lists the current console verbosity in addition
    to the root console verbosity.
@@ -249,27 +283,13 @@ CLI commands:
    logging levels since verbose logging levels were made per console.  That
    syntax is now removed and a silence option added in its place.
 
-ConfBridge:
-- The sound_place_into_conference sound used in Confbridge is now deprecated
-  and is no longer functional since it has been broken since its inception
-  and the fix involved using a different method to achieve the same goal. The
-  new method to achieve this functionality is by using sound_begin to play
-  a sound to the conference when waitmarked users are moved into the conference.
-
-
-Configuration Files:
+Logging:
  - The 'verbose' setting in logger.conf still takes an optional argument,
    specifying the verbosity level for each logging destination.  However,
    the default is now to once again follow the current root console level.
    As a result, using the AMI Command action with "core set verbose" could
    again set the root console verbose level and affect the verbose level
    logged.
-
- - The manager.conf 'eventfilter' now takes an "extended" regular expression
-   instead of a "basic" one.
-
- - The unistim.conf 'dateformat' has changed meaning of options values to conform
-   values used inside Unistim protocol
 
 HTTP:
  - Added http.conf session_inactivity timer option to close HTTP connections
@@ -279,19 +299,6 @@ HTTP:
    HTTP connections configure the keep alive time between HTTP requests.  The
    keep alive time between HTTP requests is configured in http.conf with the
    session_keep_alive parameter.
-
-MusicOnHold
- - The SetMusicOnHold dialplan application was deprecated and has been removed.
-   Users of the application should use the CHANNEL function's musicclass
-   setting instead.
-
- - The WaitMusicOnHold dialplan application was deprecated and has been
-   removed. Users of the application should use MusicOnHold with a duration
-   parameter instead.
-
-ODBC:
-- The compatibility setting, allow_empty_string_in_nontext, has been removed.
-  Empty column values will be stored as empty strings during realtime updates.
 
 Realtime Configuration:
  - WARNING: The database migration script that adds the 'extensions' table for
@@ -335,9 +342,24 @@ Realtime Configuration:
  - A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
 
+Resources:
+
+res_odbc:
+- The compatibility setting, allow_empty_string_in_nontext, has been removed.
+  Empty column values will be stored as empty strings during realtime updates.
+
 res_jabber:
  - This module was deprecated and has been removed. Users of this module should
    use res_xmpp instead.
+
+res_http_websocket:
+ - Added a compatibility option to ari.conf, sip.conf, and pjsip.conf
+   'websocket_write_timeout'. When a websocket connection exists where Asterisk
+   writes a substantial amount of data to the connected client, and the connected
+   client is slow to process the received data, the socket may be disconnected.
+   In such cases, it may be necessary to adjust this value.
+   Default is 100 ms.
+Scripts:
 
 safe_asterisk:
  - The safe_asterisk script was previously not installed on top of an existing
@@ -352,21 +374,9 @@ safe_asterisk:
    - "Exited on signal $EXITSIGNAL" => "Asterisk exited on signal $EXITSIGNAL."
    - "Asterisk Died" => "Asterisk on $MACHINE died (sig $EXITSIGNAL)"
 
-Unistim:
- - Added 'dtmf_duration' option with changing default operation to disable
-   receivied dtmf playback on unistim phone
-
 Utilities:
  - The refcounter program has been removed in favor of the refcounter.py script
    in contrib/scripts.
-
-WebSockets:
- - Added a compatibility option to ari.conf, sip.conf, and pjsip.conf
-   'websocket_write_timeout'. When a websocket connection exists where Asterisk
-   writes a substantial amount of data to the connected client, and the connected
-   client is slow to process the received data, the socket may be disconnected.
-   In such cases, it may be necessary to adjust this value.
-   Default is 100 ms.
 
 ===========================================================
 ===========================================================
