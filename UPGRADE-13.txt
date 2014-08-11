@@ -66,6 +66,9 @@ ConfBridge:
   new method to achieve this functionality is by using sound_begin to play
   a sound to the conference when waitmarked users are moved into the conference.
 
+Queue:
+ - Queue rules provided in queuerules.conf can no longer be named "general".
+
 SetMusicOnHold:
  - The SetMusicOnHold dialplan application was deprecated and has been removed.
    Users of the application should use the CHANNEL function's musicclass
@@ -341,6 +344,11 @@ Realtime Configuration:
 
  - A new set of Alembic scripts has been added for CDR tables. This will create
    a 'cdr' table with the default schema that Asterisk expects.
+
+ - A new upgrade script has been added that adds a 'queue_rules' table for
+   app_queue. Users of app_queue can store queue rules in a database. It is
+   important to note that app_queue only looks for this table on module load or
+   module reload; for more information, see the CHANGES file.
 
 Resources:
 

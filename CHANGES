@@ -94,6 +94,19 @@ MixMonitor
    the recording.  The option "P" will play a beep to the channel that stops the
    recording.
 
+Queue
+------------------
+ * Queue rules can now be stored in a database table, queue_rules. Unlike other
+   RealTime tables, the queue_rules table is only examined on module load or
+   module reload. A new general setting has been added to queuerules.conf,
+   'realtime_rules', which, when set to 'yes', will cause app_queue to look in
+   RealTime for additional queue rules to parse. Note that both the file and
+   the database can be used as a provide of queue rules when 'realtime_rules'
+   is set to 'yes'.
+
+   When app_queue is reloaded, all rules are re-parsed and loaded into memory.
+   There is no caching of RealTime queue rules.
+
 ReadFile
 ------------------
  * This module was deprecated and has been removed. Users of app_readfile
