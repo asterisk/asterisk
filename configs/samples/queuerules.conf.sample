@@ -1,3 +1,14 @@
+
+[general]
+
+; Look for queue rules in the queue_rules database table through RealTime. Note
+; that this option is not strictly "RealTime", in the sense that the queue
+; rules are only loaded and parsed during module load/reload. Queue rules
+; must have a unique rule name and support relative min/max penalties.
+;
+; realtime_rules = yes
+;
+
 ; It is possible to change the value of the QUEUE_MAX_PENALTY and QUEUE_MIN_PENALTY
 ; channel variables in mid-call by defining rules in the queue for when to do so. This can allow for
 ; a call to be opened to more members or potentially a different set of members.

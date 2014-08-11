@@ -1362,6 +1362,9 @@ static int montype_default = 0;
 /*! \brief queues.conf [general] option */
 static int shared_lastcall = 1;
 
+/*! \brief queuesrules.conf [general] option */
+static int realtime_rules = 0;
+
 /*! \brief Subscription to device state change messages */
 static struct stasis_subscription *device_state_sub;
 
@@ -2730,6 +2733,99 @@ static int insert_penaltychange(const char *list_name, const char *content, cons
 		ast_free(rule);
 		return -1;
 	}
+	return 0;
+}
+
+/*!
+ * \brief Load queue rules from realtime.
+ *
+ * Check rule for errors with time or fomatting, see if rule is relative to rest
+ * of queue, iterate list of rules to find correct insertion point, insert and return.
+ * \retval -1 on failure
+ * \retval 0 on success
+ * \note Call this with the rule_lists locked
+*/
+static int load_realtime_rules(void)
+{
+	struct ast_config *cfg;
+        struct rule_list *rl_iter, *new_rl;
+        struct penalty_rule *pr_iter;
+        char *rulecat = NULL;
+
+	if (!ast_check_realtime("queue_rules")) {
+		ast_log(LOG_WARNING, "Missing \"queue_rules\" in extconfig.conf\n");
+		return 0;
+	}
+	if (!(cfg = ast_load_realtime_multientry("queue_rules", "rule_name LIKE", "%", SENTINEL))) {
+		ast_log(LOG_WARNING, "Failed to load queue rules from realtime\n");
+		return 0;
+	}
+	while ((rulecat = ast_category_browse(cfg, rulecat)) && !ast_strlen_zero(rulecat)) {
+		const char *timestr, *maxstr, *minstr;
+		int penaltychangetime, rule_exists = 0, inserted = 0;
+		int max_penalty = 0, min_penalty = 0, min_relative = 0, max_relative = 0;
+		struct penalty_rule *new_penalty_rule = NULL;
+		AST_LIST_TRAVERSE(&rule_lists, rl_iter, list) {
+			if (!(strcasecmp(rl_iter->name, rulecat))) {
+				rule_exists = 1;
+				new_rl = rl_iter;
+				break;
+			}
+		}
+		if (!rule_exists) {
+			if (!(new_rl = ast_calloc(1, sizeof(*new_rl)))) {
+				ast_config_destroy(cfg);
+				return -1;
+			}
+			ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
+			AST_LIST_INSERT_TAIL(&rule_lists, new_rl, list);
+		}
+		timestr = ast_variable_retrieve(cfg, rulecat, "time");
+		if (!(timestr) || sscanf(timestr, "%30d", &penaltychangetime) != 1) {
+			ast_log(LOG_NOTICE, "Failed to parse time (%s) for one of the %s rules,	skipping it\n",
+				(ast_strlen_zero(timestr) ? "invalid value" : timestr), rulecat);
+			continue;
+		}
+		if (!(new_penalty_rule = ast_calloc(1, sizeof(*new_penalty_rule)))) {
+			ast_config_destroy(cfg);
+			return -1;
+		}
+		if (!(maxstr = ast_variable_retrieve(cfg, rulecat, "max_penalty")) ||
+			ast_strlen_zero(maxstr) || sscanf(maxstr, "%30d", &max_penalty) != 1) {
+			max_penalty = 0;
+			max_relative = 1;
+		} else {
+			if (*maxstr == '+' || *maxstr == '-') {
+				max_relative = 1;
+			}
+		}
+		if (!(minstr = ast_variable_retrieve(cfg, rulecat, "min_penalty")) ||
+			ast_strlen_zero(minstr) || sscanf(minstr, "%30d", &min_penalty) != 1) {
+			min_penalty = 0;
+			min_relative = 1;
+		} else {
+			if (*minstr == '+' || *minstr == '-') {
+				min_relative = 1;
+			}
+		}
+		new_penalty_rule->time = penaltychangetime;
+		new_penalty_rule->max_relative = max_relative;
+		new_penalty_rule->max_value = max_penalty;
+		new_penalty_rule->min_relative = min_relative;
+		new_penalty_rule->min_value = min_penalty;
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&new_rl->rules, pr_iter, list) {
+			if (new_penalty_rule->time < pr_iter->time) {
+				AST_LIST_INSERT_BEFORE_CURRENT(new_penalty_rule, list);
+				inserted = 1;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+		if (!inserted) {
+			AST_LIST_INSERT_TAIL(&new_rl->rules, new_penalty_rule, list);
+		}
+	}
+
+	ast_config_destroy(cfg);
 	return 0;
 }
 
@@ -8384,6 +8480,16 @@ static struct ast_custom_function queuememberpenalty_function = {
 	.write = queue_function_memberpenalty_write,
 };
 
+/*! Set the global queue rules parameters as defined in the "general" section of queuerules.conf */
+static void queue_rules_set_global_params(struct ast_config *cfg)
+{
+        const char *general_val = NULL;
+        realtime_rules = 0;
+        if ((general_val = ast_variable_retrieve(cfg, "general", "realtime_rules"))) {
+                realtime_rules = ast_true(general_val);
+        }
+}
+
 /*! \brief Reload the rules defined in queuerules.conf
  *
  * \param reload If 1, then only process queuerules.conf if the file
@@ -8397,7 +8503,7 @@ static int reload_queue_rules(int reload)
 	struct penalty_rule *pr_iter;
 	char *rulecat = NULL;
 	struct ast_variable *rulevar = NULL;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { (reload && !realtime_rules) ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	if (!(cfg = ast_config_load("queuerules.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No queuerules.conf file found, queues will not follow penalty rules\n");
@@ -8417,6 +8523,10 @@ static int reload_queue_rules(int reload)
 		ast_free(rl_iter);
 	}
 	while ((rulecat = ast_category_browse(cfg, rulecat))) {
+		if (!strcasecmp(rulecat, "general")) {
+			queue_rules_set_global_params(cfg);
+			continue;
+		}
 		if (!(new_rl = ast_calloc(1, sizeof(*new_rl)))) {
 			AST_LIST_UNLOCK(&rule_lists);
 			ast_config_destroy(cfg);
@@ -8431,10 +8541,15 @@ static int reload_queue_rules(int reload)
 					ast_log(LOG_WARNING, "Don't know how to handle rule type '%s' on line %d\n", rulevar->name, rulevar->lineno);
 		}
 	}
-	AST_LIST_UNLOCK(&rule_lists);
 
 	ast_config_destroy(cfg);
 
+	if (realtime_rules && load_realtime_rules()) {
+		AST_LIST_UNLOCK(&rule_lists);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	AST_LIST_UNLOCK(&rule_lists);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

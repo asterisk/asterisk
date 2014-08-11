@@ -15,7 +15,7 @@
 ; database driver, database and table (or uses the
 ; name of the file as the table if not specified)
 ;
-;uncomment to load queues.conf via the odbc engine.
+; Uncomment to load queues.conf via the odbc engine.
 ;
 ;queues.conf => odbc,asterisk,ast_config
 ;extensions.conf => sqlite,asterisk,ast_config
@@ -89,6 +89,7 @@
 ;meetme => mysql,general
 ;queues => odbc,asterisk
 ;queue_members => odbc,asterisk
+;queue_rules => odbc,asterisk
 ;acls => odbc,asterisk
 ;musiconhold => mysql,general
 ;queue_log => mysql,general
