@@ -1936,7 +1936,7 @@ int stasis_app_channel_unreal_set_internal(struct ast_channel *chan)
 	}
 	ao2_unlock(unreal_pvt);
 	ao2_ref(unreal_pvt, -1);
-	return 0;
+	return res;
 }
 
 int stasis_app_channel_set_internal(struct ast_channel *chan)
