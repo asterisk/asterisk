@@ -305,6 +305,7 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
 {
 	RAII_VAR(struct ast_format_cap *, cap, NULL, ast_format_cap_destroy);
 	struct ast_format format;
+	struct ast_channel *chan;
 
 	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_NOLOCK);
 	if (!cap) {
@@ -317,7 +318,16 @@ static struct ast_channel *prepare_bridge_media_channel(const char *type)
 		return NULL;
 	}
 
-	return ast_request(type, cap, NULL, NULL, "ARI", NULL);
+	chan = ast_request(type, cap, NULL, NULL, "ARI", NULL);
+	if (!chan) {
+		return NULL;
+	}
+
+	if (stasis_app_channel_unreal_set_internal(chan)) {
+		ast_channel_cleanup(chan);
+		return NULL;
+	}
+	return chan;
 }
 
 /*!

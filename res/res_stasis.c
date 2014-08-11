@@ -1897,6 +1897,74 @@ static void check_for_stasis_end(void *data, struct stasis_subscription *sub,
 	remove_masquerade_store_by_name(snapshot->name);
 }
 
+static const struct ast_datastore_info stasis_internal_channel_info = {
+	.type = "stasis-internal-channel",
+};
+
+static int set_internal_datastore(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore;
+
+	datastore = ast_channel_datastore_find(chan, &stasis_internal_channel_info, NULL);
+	if (!datastore) {
+		datastore = ast_datastore_alloc(&stasis_internal_channel_info, NULL);
+		if (!datastore) {
+			return -1;
+		}
+		ast_channel_datastore_add(chan, datastore);
+	}
+	return 0;
+}
+
+int stasis_app_channel_unreal_set_internal(struct ast_channel *chan)
+{
+	struct ast_channel *outchan = NULL, *outowner = NULL;
+	int res = 0;
+	struct ast_unreal_pvt *unreal_pvt = ast_channel_tech_pvt(chan);
+
+	ao2_ref(unreal_pvt, +1);
+	ast_unreal_lock_all(unreal_pvt, &outowner, &outchan);
+	if (outowner) {
+		res |= set_internal_datastore(outowner);
+		ast_channel_unlock(outowner);
+		ast_channel_unref(outowner);
+	}
+	if (outchan) {
+		res |= set_internal_datastore(outchan);
+		ast_channel_unlock(outchan);
+		ast_channel_unref(outchan);
+	}
+	ao2_unlock(unreal_pvt);
+	ao2_ref(unreal_pvt, -1);
+	return 0;
+}
+
+int stasis_app_channel_set_internal(struct ast_channel *chan)
+{
+	int res;
+
+	ast_channel_lock(chan);
+	res = set_internal_datastore(chan);
+	ast_channel_unlock(chan);
+
+	return res;
+}
+
+int stasis_app_channel_is_internal(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore;
+	int res = 0;
+
+	ast_channel_lock(chan);
+	datastore = ast_channel_datastore_find(chan, &stasis_internal_channel_info, NULL);
+	if (datastore) {
+		res = 1;
+	}
+	ast_channel_unlock(chan);
+
+	return res;
+}
+
 static int load_module(void)
 {
 	if (STASIS_MESSAGE_TYPE_INIT(ast_stasis_end_message_type) != 0) {
