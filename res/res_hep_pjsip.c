@@ -29,7 +29,6 @@
 	<depend>res_pjsip</depend>
 	<depend>res_pjsip_session</depend>
 	<depend>res_hep</depend>
-	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
