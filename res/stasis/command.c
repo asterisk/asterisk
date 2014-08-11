@@ -100,8 +100,8 @@ static void command_queue_prestart_destroy(void *obj)
 }
 
 static const struct ast_datastore_info command_queue_prestart = {
-        .type = "stasis-command-prestart-queue",
-        .destroy = command_queue_prestart_destroy,
+	.type = "stasis-command-prestart-queue",
+	.destroy = command_queue_prestart_destroy,
 };
 
 int command_prestart_queue_command(struct ast_channel *chan,
@@ -116,15 +116,14 @@ int command_prestart_queue_command(struct ast_channel *chan,
 		return -1;
 	}
 
-        datastore = ast_channel_datastore_find(chan, &command_queue_prestart, NULL);
-        if (datastore) {
+	datastore = ast_channel_datastore_find(chan, &command_queue_prestart, NULL);
+	if (datastore) {
 		command_queue = datastore->data;
 		ao2_link(command_queue, command);
-                return 0;
-        }
+		return 0;
+	}
 
-	command_queue = ao2_container_alloc_list(
-                AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
+	command_queue = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
 	if (!command_queue) {
 		return -1;
 	}
@@ -144,7 +143,8 @@ int command_prestart_queue_command(struct ast_channel *chan,
 
 struct ao2_container *command_prestart_get_container(struct ast_channel *chan)
 {
-        struct ast_datastore *datastore = ast_channel_datastore_find(chan, &command_queue_prestart, NULL);
+	struct ast_datastore *datastore = ast_channel_datastore_find(chan, &command_queue_prestart, NULL);
+
 	if (!datastore) {
 		return NULL;
 	}
