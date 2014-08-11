@@ -812,6 +812,36 @@ void stasis_app_channel_set_stasis_end_published(struct ast_channel *chan);
  */
 int stasis_app_channel_is_stasis_end_published(struct ast_channel *chan);
 
+/*!
+ * \brief Is this channel internal to Stasis?
+ *
+ * \param chan The channel to check.
+ *
+ * \retval 0 No
+ * \retval 1 Yes
+ */
+int stasis_app_channel_is_internal(struct ast_channel *chan);
+
+/*!
+ * \brief Mark this unreal channel and it's other half as being internal to Stasis.
+ *
+ * \param chan The channel to mark.
+ *
+ * \retval zero Success
+ * \retval non-zero Failure
+ */
+int stasis_app_channel_unreal_set_internal(struct ast_channel *chan);
+
+/*!
+ * \brief Mark this channel as being internal to Stasis.
+ *
+ * \param chan The channel to mark.
+ *
+ * \retval zero Success
+ * \retval non-zero Failure
+ */
+int stasis_app_channel_set_internal(struct ast_channel *chan);
+
 /*! @} */
 
 #endif /* _ASTERISK_STASIS_APP_H */

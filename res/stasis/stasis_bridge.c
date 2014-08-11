@@ -117,7 +117,7 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 {
 	struct stasis_app_control *control = stasis_app_control_find_by_channel(bridge_channel->chan);
 
-	if (!control) {
+	if (!control && !stasis_app_channel_is_internal(bridge_channel->chan)) {
 		/* channel not in Stasis(), get it there */
 		/* Attach after-bridge callback and pass ownership of swap_app to it */
 		if (ast_bridge_set_after_callback(bridge_channel->chan,
