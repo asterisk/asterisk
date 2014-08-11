@@ -2001,6 +2001,7 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 	size_t needed;
 	size_t available;
 	size_t space = (*pool_head)->size - (*pool_head)->used;
+	int res;
 	ssize_t grow;
 	char *target;
 	va_list ap2;
@@ -2020,12 +2021,22 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 		 * so we don't need to re-align anything here.
 		 */
 		target = (*pool_head)->base + (*pool_head)->used + ast_alignof(ast_string_field_allocation);
-		available = space - ast_alignof(ast_string_field_allocation);
+		if (space > ast_alignof(ast_string_field_allocation)) {
+			available = space - ast_alignof(ast_string_field_allocation);
+		} else {
+			available = 0;
+		}
 	}
 
 	va_copy(ap2, ap);
-	needed = vsnprintf(target, available, format, ap2) + 1;
+	res = vsnprintf(target, available, format, ap2);
 	va_end(ap2);
+
+	if (res < 0) {
+		/* Are we out of memory? */
+		return;
+	}
+	needed = (size_t)res + 1; /* NUL byte */
 
 	if (needed > available) {
 		/* the allocation could not be satisfied using the field's current allocation
@@ -2045,7 +2056,8 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 		*/
 		__ast_string_field_release_active(*pool_head, *ptr);
 		mgr->last_alloc = *ptr = target;
-		AST_STRING_FIELD_ALLOCATION(target) = needed;
+	        ast_assert(needed < (ast_string_field_allocation)-1);
+		AST_STRING_FIELD_ALLOCATION(target) = (ast_string_field_allocation)needed;
 		(*pool_head)->used += ast_make_room_for(needed, ast_string_field_allocation);
 		(*pool_head)->active += needed;
 	} else if ((grow = (needed - AST_STRING_FIELD_ALLOCATION(*ptr))) > 0) {
