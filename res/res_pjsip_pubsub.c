@@ -3527,6 +3527,31 @@ static void test_resource_tree_destroy(struct resource_tree *tree)
 	ast_free(tree);
 }
 
+static int ineligible_configuration(void)
+{
+	struct ast_config *config;
+	struct ast_flags flags = {0,};
+	const char *value;
+
+	config = ast_config_load("sorcery.conf", flags);
+	if (!config) {
+		return 1;
+	}
+
+	value = ast_variable_retrieve(config, "res_pjsip_pubsub", "resource_list");
+	if (ast_strlen_zero(value)) {
+		ast_config_destroy(config);
+		return 1;
+	}
+
+	if (strcasecmp(value, "memory") && strcasecmp(value, "astdb")) {
+		ast_config_destroy(config);
+		return 1;
+	}
+
+	return 0;
+}
+
 AST_TEST_DEFINE(resource_tree)
 {
 	RAII_VAR(struct resource_list *, list, NULL, cleanup_resource_list);
@@ -3548,6 +3573,12 @@ AST_TEST_DEFINE(resource_tree)
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
+	}
+
+	if (ineligible_configuration()) {
+		ast_test_status_update(test, "Ineligible configuration for this test. Please add a "
+				"'res_pjsip_pubsub' section to sorcery.conf, and set 'resource_list=memory'\n");
+		return AST_TEST_NOT_RUN;
 	}
 
 	list = create_resource_list(test, "foo", "test", resources, ARRAY_LEN(resources));
@@ -3607,6 +3638,12 @@ AST_TEST_DEFINE(complex_resource_tree)
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
+	}
+
+	if (ineligible_configuration()) {
+		ast_test_status_update(test, "Ineligible configuration for this test. Please add a "
+				"'res_pjsip_pubsub' section to sorcery.conf, and set 'resource_list=memory'\n");
+		return AST_TEST_NOT_RUN;
 	}
 
 	list_1 = create_resource_list(test, "foo", "test", resources_1, ARRAY_LEN(resources_1));
@@ -3669,6 +3706,12 @@ AST_TEST_DEFINE(bad_resource)
 		break;
 	}
 
+	if (ineligible_configuration()) {
+		ast_test_status_update(test, "Ineligible configuration for this test. Please add a "
+				"'res_pjsip_pubsub' section to sorcery.conf, and set 'resource_list=memory'\n");
+		return AST_TEST_NOT_RUN;
+	}
+
 	list = create_resource_list(test, "foo", "test", resources, ARRAY_LEN(resources));
 	if (!list) {
 		return AST_TEST_FAIL;
@@ -3726,6 +3769,12 @@ AST_TEST_DEFINE(bad_branch)
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
+	}
+
+	if (ineligible_configuration()) {
+		ast_test_status_update(test, "Ineligible configuration for this test. Please add a "
+				"'res_pjsip_pubsub' section to sorcery.conf, and set 'resource_list=memory'\n");
+		return AST_TEST_NOT_RUN;
 	}
 
 	list_1 = create_resource_list(test, "foo", "test", resources_1, ARRAY_LEN(resources_1));
@@ -3792,6 +3841,12 @@ AST_TEST_DEFINE(duplicate_resource)
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
+	}
+
+	if (ineligible_configuration()) {
+		ast_test_status_update(test, "Ineligible configuration for this test. Please add a "
+				"'res_pjsip_pubsub' section to sorcery.conf, and set 'resource_list=memory'\n");
+		return AST_TEST_NOT_RUN;
 	}
 
 	list_1 = create_resource_list(test, "foo", "test", resources_1, ARRAY_LEN(resources_1));
@@ -3861,6 +3916,12 @@ AST_TEST_DEFINE(loop)
 		break;
 	}
 
+	if (ineligible_configuration()) {
+		ast_test_status_update(test, "Ineligible configuration for this test. Please add a "
+				"'res_pjsip_pubsub' section to sorcery.conf, and set 'resource_list=memory'\n");
+		return AST_TEST_NOT_RUN;
+	}
+
 	list_1 = create_resource_list(test, "herp", "test", resources_1, ARRAY_LEN(resources_1));
 	if (!list_1) {
 		return AST_TEST_FAIL;
@@ -3901,6 +3962,12 @@ AST_TEST_DEFINE(bad_event)
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
+	}
+
+	if (ineligible_configuration()) {
+		ast_test_status_update(test, "Ineligible configuration for this test. Please add a "
+				"'res_pjsip_pubsub' section to sorcery.conf, and set 'resource_list=memory'\n");
+		return AST_TEST_NOT_RUN;
 	}
 
 	list = create_resource_list(test, "foo", "tsetse", resources, ARRAY_LEN(resources));
