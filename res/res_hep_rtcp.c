@@ -26,7 +26,6 @@
 
 /*** MODULEINFO
 	<depend>res_hep</depend>
-	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
