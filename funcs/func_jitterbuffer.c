@@ -45,27 +45,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*** DOCUMENTATION
 	<function name="JITTERBUFFER" language="en_US">
 		<synopsis>
-			Add a Jitterbuffer to the Read side of the channel.  This dejitters the audio stream before it reaches the Asterisk core. This is a write only function.
+			Add a Jitterbuffer to the Read side of the channel. This dejitters the audio stream before it reaches the Asterisk core. This is a write only function.
 		</synopsis>
 		<syntax>
 			<parameter name="jitterbuffer type" required="true">
-				<para>Jitterbuffer type can be <literal>fixed</literal>, <literal>adaptive</literal>, or
-					<literal>disabled</literal>.</para>
-				<para>Used as follows. </para>
-				<para>Set(JITTERBUFFER(type)=max_size[,resync_threshold[,target_extra]])</para>
-				<para>Set(JITTERBUFFER(type)=default) </para>
+				<optionlist>
+					<option name="fixed">
+						<para>Set a fixed jitterbuffer on the channel.</para>
+					</option>
+					<option name="adaptive">
+						<para>Set an adaptive jitterbuffer on the channel.</para>
+					</option>
+					<option name="disabled">
+						<para>Remove a previously set jitterbuffer from the channel.</para>
+					</option>
+				</optionlist>
 			</parameter>
 		</syntax>
 		<description>
-			<para>max_size: Defaults to 200 ms</para>
-			<para>Length in milliseconds of buffer.</para>
-			<para> </para>
-			<para>resync_threshold: Defaults to 1000ms </para>
-			<para>The length in milliseconds over which a timestamp difference will result in resyncing the jitterbuffer. </para>
-			<para> </para>
-			<para>target_extra: Defaults to 40ms</para>
-			<para>This option only affects the adaptive jitterbuffer. It represents the amount time in milliseconds by which the new jitter buffer will pad its size.</para>
-			<para> </para>
+			<para>Jitterbuffers are constructed in two different ways.
+			The first always take three arguments: <replaceable>max_size</replaceable>,
+			<replaceable>resync_threshold</replaceable>, and <replaceable>target_extra</replaceable>.
+			Alternatively, a single argument of <literal>default</literal> can be provided,
+			which will construct the default jitterbuffer for the given
+			<replaceable>jitterbuffer type</replaceable>.</para>
+			<para>The arguments are:</para>
+			<para><replaceable>max_size</replaceable>: Length in milliseconds of the buffer.
+			Defaults to 200 ms.</para>
+			<para><replaceable>resync_threshold</replaceable>: The length in milliseconds over
+			which a timestamp difference will result in resyncing the jitterbuffer.
+			Defaults to 1000ms.</para>
+			<para>target_extra: This option only affects the adaptive jitterbuffer. It represents
+			the amount time in milliseconds by which the new jitter buffer will pad its size.
+			Defaults to 40ms.</para>
 			<example title="Fixed with defaults" language="text">
 			exten => 1,1,Set(JITTERBUFFER(fixed)=default)
 			</example>
