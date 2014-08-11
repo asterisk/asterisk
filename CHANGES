@@ -274,6 +274,10 @@ AMI
  * The AMI action PJSIPShowEndpoint now includes ContactStatusDetail sections
    that give information on Asterisk's attempts to qualify the endpoint.
 
+ * The DialEnd event will now contain a Forward header if the dial is ending
+   due to the call being forwarded. The contents of the Forward header is the
+   extension in the number to which the call is being forwarded.
+
 CEL
 ------------------
  * The "bridge_technology" extra field key has been added to BRIDGE_ENTER

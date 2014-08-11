@@ -1073,9 +1073,7 @@ static int unsubscribe(struct stasis_app *app, const char *kind, const char *id,
 
 	forwards = ao2_find(app->forwards, id, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (!forwards) {
-		ast_log(LOG_WARNING,
-			"App '%s' not subscribed to %s '%s'\n",
-			app->name, kind, id);
+		ast_debug(3, "App '%s' not subscribed to %s '%s'\n", app->name, kind, id);
 		return -1;
 	}
 	forwards->interested--;
