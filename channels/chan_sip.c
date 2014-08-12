@@ -4736,12 +4736,12 @@ static int sip_setoption(struct ast_channel *chan, int option, void *data, int d
 	switch (option) {
 	case AST_OPTION_FORMAT_READ:
 		if (p->rtp) {
-			res = ast_rtp_instance_set_read_format(p->rtp, (struct ast_format *) data);
+			res = ast_rtp_instance_set_read_format(p->rtp, *(struct ast_format **) data);
 		}
 		break;
 	case AST_OPTION_FORMAT_WRITE:
 		if (p->rtp) {
-			res = ast_rtp_instance_set_write_format(p->rtp, (struct ast_format *) data);
+			res = ast_rtp_instance_set_write_format(p->rtp, *(struct ast_format **) data);
 		}
 		break;
 	case AST_OPTION_DIGIT_DETECT:
