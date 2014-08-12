@@ -333,7 +333,7 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 		return NULL;
 	}
 
-	strcpy(snoop->uniqueid, ast_channel_uniqueid(chan));
+	ast_copy_string(snoop->uniqueid, ast_channel_uniqueid(chan), sizeof(snoop->uniqueid));
 
 	/* To keep the channel valid on the Snoop structure until it is destroyed we bump the ref up here */
 	ast_channel_ref(snoop->chan);
@@ -346,6 +346,8 @@ struct ast_channel *stasis_app_control_snoop(struct ast_channel *chan,
 	/* The format on the Snoop channel will be this signed linear format, and it will never change */
 	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!caps) {
+		ast_channel_unlock(snoop->chan);
+		ast_hangup(snoop->chan);
 		return NULL;
 	}
 	ast_format_cap_append(caps, snoop->spy_format, 0);
