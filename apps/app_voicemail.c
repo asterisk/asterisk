@@ -14542,7 +14542,7 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 
 	populate_defaults(vmu);
 
-	ast_copy_string(vmu->email, "vm-info-test@example.net", sizeof(vmu->email));
+	vmu->email = ast_strdup("vm-info-test@example.net");
 	ast_copy_string(vmu->fullname, "Test Framework Mailbox", sizeof(vmu->fullname));
 	ast_copy_string(vmu->pager, "vm-info-pager-test@example.net", sizeof(vmu->pager));
 	ast_copy_string(vmu->language, "en", sizeof(vmu->language));
