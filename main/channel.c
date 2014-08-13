@@ -10182,11 +10182,11 @@ int ast_channel_is_bridged(const struct ast_channel *chan)
 int ast_channel_is_leaving_bridge(struct ast_channel *chan)
 {
 	int hangup_flags = ast_channel_softhangup_internal_flag(chan);
-	int hangup_test = hangup_flags & (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE);
+	int hangup_test = hangup_flags & AST_SOFTHANGUP_ASYNCGOTO;
 
-	/* This function should only return true if either ASYNCGOTO
-	 * or UNBRIDGE is set, or both flags are set. It should return
-	 * false if any other flag is set.
+	/* This function should only return true if only the ASYNCGOTO
+	 * is set. It should false if any other flag is set or if the
+	 * ASYNCGOTO flag is not set.
 	 */
 	return (hangup_test && (hangup_test == hangup_flags));
 }
@@ -10479,7 +10479,7 @@ void ast_channel_end_dtmf(struct ast_channel *chan, char digit, struct timeval s
 	ast_channel_lock(chan);
 	dead = ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)
 		|| (ast_channel_softhangup_internal_flag(chan)
-			& ~(AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE));
+			& ~AST_SOFTHANGUP_ASYNCGOTO);
 	ast_channel_unlock(chan);
 	if (dead) {
 		/* Channel is a zombie or a real hangup. */

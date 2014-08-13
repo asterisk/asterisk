@@ -976,10 +976,9 @@ static int gosub_run(struct ast_channel *chan, const char *sub_args, int ignore_
 
 	/* Save non-hangup softhangup flags. */
 	saved_hangup_flags = ast_channel_softhangup_internal_flag(chan)
-		& (AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE);
+		& AST_SOFTHANGUP_ASYNCGOTO;
 	if (saved_hangup_flags) {
-		ast_channel_clear_softhangup(chan,
-			AST_SOFTHANGUP_ASYNCGOTO | AST_SOFTHANGUP_UNBRIDGE);
+		ast_channel_clear_softhangup(chan, AST_SOFTHANGUP_ASYNCGOTO);
 	}
 
 	/* Save autoloop flag */
@@ -1028,10 +1027,6 @@ static int gosub_run(struct ast_channel *chan, const char *sub_args, int ignore_
 		 */
 		do {
 			/* Check for hangup. */
-			if (ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_UNBRIDGE) {
-				saved_hangup_flags |= AST_SOFTHANGUP_UNBRIDGE;
-				ast_channel_clear_softhangup(chan, AST_SOFTHANGUP_UNBRIDGE);
-			}
 			if (ast_check_hangup(chan)) {
 				if (ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO) {
 					ast_log(LOG_ERROR, "%s An async goto just messed up our execution location.\n",

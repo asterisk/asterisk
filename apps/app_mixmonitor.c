@@ -421,7 +421,7 @@ static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
 	if (!res) {
 		ast_channel_lock(chan);
 		if (ast_channel_is_bridged(chan)) {
-			ast_softhangup_nolock(chan, AST_SOFTHANGUP_UNBRIDGE);
+			ast_channel_set_unbridged_nolock(chan, 1);
 		}
 		ast_channel_unlock(chan);
 	}

@@ -173,6 +173,8 @@ struct ast_channel {
 							 *   See \arg \ref AstFileDesc */
 	int softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
 							 *   directly, use ast_softhangup() */
+	int unbridged;              /*!< If non-zero, the bridge core needs to re-evaluate the current
+	                                 bridging technology which is in use by this channel's bridge. */
 	int fdno;					/*!< Which fd had an event detected on */
 	int streamid;					/*!< For streaming playback, the schedule ID */
 	int vstreamid;					/*!< For streaming video playback, the schedule ID */
@@ -377,7 +379,6 @@ int ast_channel_data_add_structure(struct ast_data *tree,
 	ast_data_add_bool(data_softhangup, "timeout", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_TIMEOUT);
 	ast_data_add_bool(data_softhangup, "appunload", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_APPUNLOAD);
 	ast_data_add_bool(data_softhangup, "explicit", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_EXPLICIT);
-	ast_data_add_bool(data_softhangup, "unbridge", ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_UNBRIDGE);
 
 	/* channel flags */
 	data_flags = ast_data_add_node(tree, "flags");
@@ -1113,6 +1114,33 @@ void ast_channel_softhangup_internal_flag_add(struct ast_channel *chan, int valu
 void ast_channel_softhangup_internal_flag_clear(struct ast_channel *chan, int value)
 {
 	chan ->softhangup &= ~value;
+}
+
+int ast_channel_unbridged_nolock(struct ast_channel *chan)
+{
+	return chan->unbridged;
+}
+
+int ast_channel_unbridged(struct ast_channel *chan)
+{
+	int res;
+	ast_channel_lock(chan);
+	res = ast_channel_unbridged_nolock(chan);
+	ast_channel_unlock(chan);
+	return res;
+}
+
+void ast_channel_set_unbridged_nolock(struct ast_channel *chan, int value)
+{
+	chan->unbridged = value;
+	ast_queue_frame(chan, &ast_null_frame);
+}
+
+void ast_channel_set_unbridged(struct ast_channel *chan, int value)
+{
+	ast_channel_lock(chan);
+	ast_channel_set_unbridged_nolock(chan, value);
+	ast_channel_unlock(chan);
 }
 
 void ast_channel_callid_cleanup(struct ast_channel *chan)
