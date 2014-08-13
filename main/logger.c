@@ -86,7 +86,7 @@ static int display_callids;
 static void unique_callid_cleanup(void *data);
 
 struct ast_callid {
-    int call_identifier; /* Numerical value of the call displayed in the logs */
+	int call_identifier; /* Numerical value of the call displayed in the logs */
 };
 
 AST_THREADSTORAGE_CUSTOM(unique_callid, NULL, unique_callid_cleanup);
@@ -1044,25 +1044,58 @@ static void ast_log_vsyslog(struct logmsg *msg)
 	syslog(syslog_level, "%s", buf);
 }
 
+static char *logger_strip_verbose_magic(const char *message, int level)
+{
+	const char *begin, *end;
+	char *stripped_message, *dst;
+	char magic = -(level + 1);
+
+	if (!(stripped_message = ast_malloc(strlen(message) + 1))) {
+		return NULL;
+	}
+
+	begin = message;
+	dst = stripped_message;
+	do {
+		end = strchr(begin, magic);
+		if (end) {
+			size_t len = end - begin;
+			memcpy(dst, begin, len);
+			begin = end + 1;
+			dst += len;
+		} else {
+			strcpy(dst, begin); /* safe */
+			break;
+		}
+	} while (1);
+
+	return stripped_message;
+}
+
 /*! \brief Print a normal log message to the channels */
 static void logger_print_normal(struct logmsg *logmsg)
 {
 	struct logchannel *chan = NULL;
 	char buf[BUFSIZ];
 	struct verb *v = NULL;
+	char *tmpmsg;
 	int level = 0;
 
 	if (logmsg->level == __LOG_VERBOSE) {
-		char *tmpmsg = ast_strdupa(logmsg->message + 1);
-
-		level = VERBOSE_MAGIC2LEVEL(logmsg->message);
 
 		/* Iterate through the list of verbosers and pass them the log message string */
 		AST_RWLIST_RDLOCK(&verbosers);
 		AST_RWLIST_TRAVERSE(&verbosers, v, list)
 			v->verboser(logmsg->message);
 		AST_RWLIST_UNLOCK(&verbosers);
-		ast_string_field_set(logmsg, message, tmpmsg);
+
+		level = VERBOSE_MAGIC2LEVEL(logmsg->message);
+
+		tmpmsg = logger_strip_verbose_magic(logmsg->message, level);
+		if (tmpmsg) {
+			ast_string_field_set(logmsg, message, tmpmsg);
+			ast_free(tmpmsg);
+		}
 	}
 
 	AST_RWLIST_RDLOCK(&logchannels);
