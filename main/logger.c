@@ -87,7 +87,7 @@ static int display_callids;
 static void unique_callid_cleanup(void *data);
 
 struct ast_callid {
-    int call_identifier; /* Numerical value of the call displayed in the logs */
+	int call_identifier; /* Numerical value of the call displayed in the logs */
 };
 
 AST_THREADSTORAGE_CUSTOM(unique_callid, NULL, unique_callid_cleanup);
@@ -1179,20 +1179,28 @@ static void ast_log_vsyslog(struct logmsg *msg)
 
 static char *logger_strip_verbose_magic(const char *message, int level)
 {
-	char *p;
-	char *stripped_message = ast_strdup(message);
+	const char *begin, *end;
+	char *stripped_message, *dst;
 	char magic = -(level + 1);
 
-	if (!stripped_message) {
+	if (!(stripped_message = ast_malloc(strlen(message) + 1))) {
 		return NULL;
 	}
 
+	begin = message;
+	dst = stripped_message;
 	do {
-		p = strchr(stripped_message, (char)magic);
-		if (p) {
-			*p++ = ' ';
+		end = strchr(begin, magic);
+		if (end) {
+			size_t len = end - begin;
+			memcpy(dst, begin, len);
+			begin = end + 1;
+			dst += len;
+		} else {
+			strcpy(dst, begin); /* safe */
+			break;
 		}
-	} while (p && *p);
+	} while (1);
 
 	return stripped_message;
 }
