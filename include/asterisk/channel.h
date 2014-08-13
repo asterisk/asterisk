@@ -1049,11 +1049,6 @@ enum {
 	 */
 	AST_SOFTHANGUP_EXPLICIT =  (1 << 5),
 	/*!
-	 * Used to request that the bridge core re-evaluate the current
-	 * bridging technology in use by the bridge this channel is in.
-	 */
-	AST_SOFTHANGUP_UNBRIDGE =  (1 << 6),
-	/*!
 	 * Used to indicate that the channel is currently executing hangup
 	 * logic in the dialplan. The channel has been hungup when this is
 	 * set.
@@ -1573,6 +1568,40 @@ void ast_set_hangupsource(struct ast_channel *chan, const char *source, int forc
 int ast_check_hangup(struct ast_channel *chan);
 
 int ast_check_hangup_locked(struct ast_channel *chan);
+
+/*! \brief This function will check if the bridge needs to be re-evaluated due to
+ *         external changes.
+ *
+ *  \param chan Channel on which to check the unbridge_eval flag
+ *
+ *  \return Returns 0 if the flag is down or 1 if the flag is up.
+ */
+int ast_channel_unbridged(struct ast_channel *chan);
+
+/*! \brief ast_channel_unbridged variant. Use this if the channel
+ *         is already locked prior to calling.
+ *
+ *  \param chan Channel on which to check the unbridge flag
+ *
+ *  \return Returns 0 if the flag is down or 1 if the flag is up.
+ */
+int ast_channel_unbridged_nolock(struct ast_channel *chan);
+
+/*! \brief Sets the unbridged flag and queues a NULL frame on the channel to trigger
+ *         a check by bridge_channel_wait
+ *
+ *  \param chan Which channel is having its unbridged value set
+ *  \param value What the unbridge value is being set to
+ */
+void ast_channel_set_unbridged(struct ast_channel *chan, int value);
+
+/*! \brief Variant of ast_channel_set_unbridged. Use this if the channel
+ *         is already locked prior to calling.
+ *
+ *  \param chan Which channel is having its unbridged value set
+ *  \param value What the unbridge value is being set to
+ */
+void ast_channel_set_unbridged_nolock(struct ast_channel *chan, int value);
 
 /*!
  * \brief Lock the given channel, then request softhangup on the channel with the given causecode

@@ -508,7 +508,7 @@ static int start_spying(struct ast_autochan *autochan, const char *spychan_name,
 	if (!res) {
 		ast_channel_lock(autochan->chan);
 		if (ast_channel_is_bridged(autochan->chan)) {
-			ast_softhangup_nolock(autochan->chan, AST_SOFTHANGUP_UNBRIDGE);
+			ast_channel_set_unbridged_nolock(autochan->chan, 1);
 		}
 		ast_channel_unlock(autochan->chan);
 	}

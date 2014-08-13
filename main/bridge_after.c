@@ -452,9 +452,9 @@ int ast_bridge_setup_after_goto(struct ast_channel *chan)
 	int goto_failed = -1;
 
 	/* We are going to be leaving the bridging system now;
-	 * clear any pending UNBRIDGE flags
+	 * clear any pending unbridge flags
 	 */
-	ast_channel_clear_softhangup(chan, AST_SOFTHANGUP_UNBRIDGE);
+	ast_channel_set_unbridged(chan, 0);
 
 	/* Determine if we are going to setup a dialplan location and where. */
 	if (ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO) {
