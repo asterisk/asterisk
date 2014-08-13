@@ -222,6 +222,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>Will return the status information of each channel along with the
 			value for the specified channel variables.</para>
 		</description>
+		<responses>
+			<list-elements>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Status'])" />
+			</list-elements>
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='StatusComplete'])" />
+		</responses>
 	</manager>
 	<managerEvent language="en_US" name="Status">
 		<managerEventInstance class="EVENT_FLAG_CALL">
@@ -272,6 +278,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<parameter name="Seconds">
 					<para>Number of seconds the channel has been active</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">Status</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="StatusComplete">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a Status command.</synopsis>
+			<syntax>
+				<parameter name="Items">
+					<para>Number of Status events returned</para>
 				</parameter>
 			</syntax>
 			<see-also>
