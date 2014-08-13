@@ -6363,11 +6363,6 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			S_COR(ast_channel_caller(c)->id.number.valid, ast_channel_caller(c)->id.number.str, NULL),
 			&found, 1))) {
 
-			/* Defensively clear the UNBRIDGE flag in case it leaked
-			 * out of the bridging framework. UNBRIDE never implies
-			 * that a channel is hung up.
-			 */
-			ast_channel_clear_softhangup(c, AST_SOFTHANGUP_UNBRIDGE);
 			if (!ast_check_hangup(c)) {
 				ast_channel_priority_set(c, ast_channel_priority(c) + 1);
 				continue;
