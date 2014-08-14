@@ -70,7 +70,7 @@ static char *extconfig_conf = "extconfig.conf";
 
 
 static struct ao2_container *cfg_hooks;
-static void config_hook_exec(const char *filename, const char *module, struct ast_config *cfg);
+static void config_hook_exec(const char *filename, const char *module, const struct ast_config *cfg);
 
 /*! \brief Structure to keep comments for rewriting configuration files */
 struct ast_comment {
@@ -2157,6 +2157,9 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 	}
 	ao2_ref(fileset, -1); /* this should destroy the hash container */
 
+	/* pass new configuration to any config hooks */
+	config_hook_exec(configfile, generator, cfg);
+
 	return 0;
 }
 
@@ -3134,7 +3137,7 @@ void ast_config_hook_unregister(const char *name)
 	ao2_find(cfg_hooks, &tmp, OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
 }
 
-static void config_hook_exec(const char *filename, const char *module, struct ast_config *cfg)
+static void config_hook_exec(const char *filename, const char *module, const struct ast_config *cfg)
 {
 	struct ao2_iterator it;
 	struct cfg_hook *hook;
