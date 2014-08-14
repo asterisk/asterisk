@@ -196,9 +196,9 @@ struct ast_channel {
 	int alertpipe[2];
 	struct ast_format_cap *nativeformats;         /*!< Kinds of data this channel can natively handle */
 	struct ast_format *readformat;            /*!< Requested read format (after translation) */
-	struct ast_format *writeformat;           /*!< Requested write format (after translation) */
+	struct ast_format *writeformat;           /*!< Requested write format (before translation) */
 	struct ast_format *rawreadformat;         /*!< Raw read format (before translation) */
-	struct ast_format *rawwriteformat;        /*!< Raw write format (before translation) */
+	struct ast_format *rawwriteformat;        /*!< Raw write format (after translation) */
 	unsigned int emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
 #ifdef HAVE_EPOLL
 	int epfd;
@@ -828,8 +828,7 @@ struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
 }
 void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap *value)
 {
-	ao2_cleanup(chan->nativeformats);
-	chan->nativeformats = ao2_bump(value);
+	ao2_replace(chan->nativeformats, value);
 }
 struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan)
 {
@@ -954,28 +953,23 @@ void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state valu
 }
 void ast_channel_set_oldwriteformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_cleanup(chan->oldwriteformat);
-	chan->oldwriteformat = ao2_bump(format);
+	ao2_replace(chan->oldwriteformat, format);
 }
 void ast_channel_set_rawreadformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_cleanup(chan->rawreadformat);
-	chan->rawreadformat = ao2_bump(format);
+	ao2_replace(chan->rawreadformat, format);
 }
 void ast_channel_set_rawwriteformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_cleanup(chan->rawwriteformat);
-	chan->rawwriteformat = ao2_bump(format);
+	ao2_replace(chan->rawwriteformat, format);
 }
 void ast_channel_set_readformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_cleanup(chan->readformat);
-	chan->readformat = ao2_bump(format);
+	ao2_replace(chan->readformat, format);
 }
 void ast_channel_set_writeformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_cleanup(chan->writeformat);
-	chan->writeformat = ao2_bump(format);
+	ao2_replace(chan->writeformat, format);
 }
 struct ast_format *ast_channel_oldwriteformat(struct ast_channel *chan)
 {
