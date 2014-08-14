@@ -256,7 +256,6 @@ enum ast_getdata_result ast_app_getdata(struct ast_channel *c, const char *promp
 
 	filename = ast_strdupa(prompt);
 	while ((front = strsep(&filename, "&"))) {
-		ast_test_suite_event_notify("PLAYBACK", "Message: %s\r\nChannel: %s", front, ast_channel_name(c));
 		if (!ast_strlen_zero(front)) {
 			res = ast_streamfile(c, front, ast_channel_language(c));
 			if (res)
