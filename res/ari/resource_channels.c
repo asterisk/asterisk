@@ -746,7 +746,6 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	char *stuff;
 	struct ast_channel *chan;
-	struct ast_channel *local_peer;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	struct ast_assigned_ids assignedids = {
 		.uniqueid = args_channel_id,
@@ -831,13 +830,16 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		return;
 	}
 
-	/* See if this is a Local channel and if so, get the peer */
-	local_peer = ast_local_get_peer(chan);
-
 	if (!ast_strlen_zero(args_app)) {
+		struct ast_channel *local_peer;
+
 		stasis_app_subscribe_channel(args_app, chan);
+
+		/* Subscribe to the Local channel peer also. */
+		local_peer = ast_local_get_peer(chan);
 		if (local_peer) {
 			stasis_app_subscribe_channel(args_app, local_peer);
+			ast_channel_unref(local_peer);
 		}
 	}
 
@@ -846,9 +848,6 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 
 	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
 	ast_channel_unref(chan);
-	if (local_peer) {
-		ast_channel_unref(local_peer);
-	}
 }
 
 void ast_ari_channels_originate_with_id(struct ast_variable *headers,
