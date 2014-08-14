@@ -6244,8 +6244,7 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 				ast_format_get_sample_rate(best_src_fmt) : ast_format_get_sample_rate(best_dst_fmt);
 
 			/* pick the best signed linear format based upon what preserves the sample rate the best. */
-			ao2_ref(best_src_fmt, -1);
-			best_src_fmt = ao2_bump(ast_format_cache_get_slin_by_rate(best_sample_rate));
+			ao2_replace(best_src_fmt, ast_format_cache_get_slin_by_rate(best_sample_rate));
 		}
 	}
 
