@@ -168,22 +168,27 @@ static void do_sleep(void)
 
 #define BLINDTRANSFER_EVENT(channel, bridge, extension, context) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
-	extra = ast_json_pack("{s: s, s: s, s: s}", \
+	extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}", \
 		"extension", extension, \
 		"context", context, \
-		"bridge_id", bridge->uniqueid); \
+		"bridge_id", bridge->uniqueid, \
+		"transferee_channel_name", "N/A", \
+		"transferee_channel_uniqueid", "N/A"); \
 	ast_test_validate(test, extra != NULL); \
 	APPEND_EVENT(channel, AST_CEL_BLINDTRANSFER, NULL, extra); \
 	} while (0)
 
 #define ATTENDEDTRANSFER_BRIDGE(channel1, bridge1, channel2, bridge2, channel3, channel4) do { \
 	RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref); \
-	extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}", \
+	extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: s}", \
 		"bridge1_id", bridge1->uniqueid, \
 		"channel2_name", ast_channel_name(channel2), \
+		"channel2_uniqueid", ast_channel_uniqueid(channel2), \
 		"bridge2_id", bridge2->uniqueid, \
 		"transferee_channel_name", ast_channel_name(channel4), \
-		"transfer_target_channel_name", ast_channel_name(channel3)); \
+		"transferee_channel_uniqueid", ast_channel_uniqueid(channel4), \
+		"transfer_target_channel_name", ast_channel_name(channel3), \
+		"transfer_target_channel_uniqueid", ast_channel_uniqueid(channel3)); \
 	ast_test_validate(test, extra != NULL); \
 	APPEND_EVENT(channel1, AST_CEL_ATTENDEDTRANSFER, NULL, extra); \
 	} while (0)
@@ -1565,7 +1570,8 @@ AST_TEST_DEFINE(test_cel_dial_pickup)
 		RAII_VAR(struct ast_json *, extra, NULL, ast_json_unref);
 		SCOPED_CHANNELLOCK(lock, chan_callee);
 
-		extra = ast_json_pack("{s: s}", "pickup_channel", ast_channel_name(chan_charlie));
+		extra = ast_json_pack("{s: s, s: s}", "pickup_channel", ast_channel_name(chan_charlie),
+			"pickup_channel_uniqueid", ast_channel_uniqueid(chan_charlie));
 		ast_test_validate(test, extra != NULL);
 
 		APPEND_EVENT(chan_callee, AST_CEL_PICKUP, NULL, extra);
@@ -1638,7 +1644,8 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 	stasis_publish(ast_channel_topic(chan_alice), local_opt_begin);
 	stasis_publish(ast_channel_topic(chan_alice), local_opt_end);
 
-	extra = ast_json_pack("{s: s}", "local_two", bob_snapshot->name);
+	extra = ast_json_pack("{s: s, s: s}", "local_two", bob_snapshot->name,
+		"local_two_uniqueid", bob_snapshot->uniqueid);
 	ast_test_validate(test, extra != NULL);
 
 	APPEND_EVENT_SNAPSHOT(alice_snapshot, AST_CEL_LOCAL_OPTIMIZE, NULL, extra, NULL);

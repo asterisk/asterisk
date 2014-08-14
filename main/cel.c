@@ -1363,11 +1363,12 @@ static void cel_blind_transfer_cb(
 		return;
 	}
 
-	extra = ast_json_pack("{s: s, s: s, s: s}",
+	extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
 		"extension", transfer_msg->exten,
 		"context", transfer_msg->context,
 		"bridge_id", bridge_snapshot->uniqueid,
-		"transferee_channel_name", transfer_msg->transferee ? transfer_msg->transferee->name: "N/A");
+		"transferee_channel_name", transfer_msg->transferee ? transfer_msg->transferee->name : "N/A",
+		"transferee_channel_uniqueid", transfer_msg->transferee ? transfer_msg->transferee->uniqueid  : "N/A");
 	if (extra) {
 		cel_report_event(chan_snapshot, AST_CEL_BLINDTRANSFER, NULL, extra, NULL);
 		ast_json_unref(extra);
@@ -1403,24 +1404,30 @@ static void cel_attended_transfer_cb(
 	case AST_ATTENDED_TRANSFER_DEST_BRIDGE_MERGE:
 	case AST_ATTENDED_TRANSFER_DEST_LINK:
 	case AST_ATTENDED_TRANSFER_DEST_THREEWAY:
-		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
+		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: s}",
 			"bridge1_id", bridge1->uniqueid,
 			"channel2_name", channel2->name,
+			"channel2_uniqueid", channel2->uniqueid,
 			"bridge2_id", bridge2->uniqueid,
 			"transferee_channel_name", xfer->transferee ? xfer->transferee->name : "N/A",
-			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A");
+			"transferee_channel_uniqueid", xfer->transferee ? xfer->transferee->uniqueid : "N/A",
+			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A",
+			"transfer_target_channel_uniqueid", xfer->target ? xfer->target->uniqueid : "N/A");
 		if (!extra) {
 			return;
 		}
 		break;
 	case AST_ATTENDED_TRANSFER_DEST_APP:
 	case AST_ATTENDED_TRANSFER_DEST_LOCAL_APP:
-		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
+		extra = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: s, s: s}",
 			"bridge1_id", bridge1->uniqueid,
 			"channel2_name", channel2->name,
+			"channel2_uniqueid", channel2->uniqueid,
 			"app", xfer->dest.app,
 			"transferee_channel_name", xfer->transferee ? xfer->transferee->name : "N/A",
-			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A");
+			"transferee_channel_uniqueid", xfer->transferee ? xfer->transferee->uniqueid : "N/A",
+			"transfer_target_channel_name", xfer->target ? xfer->target->name : "N/A",
+			"transfer_target_channel_uniqueid", xfer->target ? xfer->target->uniqueid : "N/A");
 		if (!extra) {
 			return;
 		}
@@ -1443,7 +1450,9 @@ static void cel_pickup_cb(
 		return;
 	}
 
-	extra = ast_json_pack("{s: s}", "pickup_channel", channel->name);
+	extra = ast_json_pack("{s: s, s: s}",
+		"pickup_channel", channel->name,
+		"pickup_channel_uniqueid", channel->uniqueid);
 	if (!extra) {
 		return;
 	}
@@ -1465,7 +1474,9 @@ static void cel_local_cb(
 		return;
 	}
 
-	extra = ast_json_pack("{s: s}", "local_two", localtwo->name);
+	extra = ast_json_pack("{s: s, s: s}",
+		"local_two", localtwo->name,
+		"local_two_uniqueid", localtwo->uniqueid);
 	if (!extra) {
 		return;
 	}
