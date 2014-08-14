@@ -34,8 +34,6 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include <pjsip.h>
-
 #include "asterisk/res_hep.h"
 #include "asterisk/module.h"
 #include "asterisk/netsock2.h"
