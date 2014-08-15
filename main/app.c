@@ -823,7 +823,6 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 {
 	int d = 0;
 
-	ast_test_suite_event_notify("PLAYBACK", "Message: %s", fn);
 	if ((d = ast_streamfile(chan, fn, chan->language))) {
 		return d;
 	}
