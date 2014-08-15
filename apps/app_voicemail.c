@@ -7981,7 +7981,6 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			}
 		} else {
 			/* Ask for an extension */
-			ast_test_suite_event_notify("PLAYBACK", "Message: vm-extension");
 			res = ast_streamfile(chan, "vm-extension", ast_channel_language(chan));	/* "extension" */
 			prompt_played++;
 			if (res || prompt_played > 4)
@@ -10533,7 +10532,6 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 	adsi_begin(chan, &useadsi);
 	if (!skipuser && useadsi)
 		adsi_login(chan);
-	ast_test_suite_event_notify("PLAYBACK", "Message: vm-login");
 	if (!silent && !skipuser && ast_streamfile(chan, "vm-login", ast_channel_language(chan))) {
 		ast_log(AST_LOG_WARNING, "Couldn't stream login file\n");
 		return -1;
@@ -10581,7 +10579,6 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			/* saved password is blank, so don't bother asking */
 			password[0] = '\0';
 		} else {
-			ast_test_suite_event_notify("PLAYBACK", "Message: %s", vm_password);
 			if (ast_streamfile(chan, vm_password, ast_channel_language(chan))) {
 				ast_log(AST_LOG_WARNING, "Unable to stream password file\n");
 				return -1;
@@ -10618,13 +10615,11 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		logretries++;
 		if (!valid) {
 			if (skipuser || logretries >= max_logins) {
-				ast_test_suite_event_notify("PLAYBACK", "Message: vm-incorrect");
 				if (ast_streamfile(chan, "vm-incorrect", ast_channel_language(chan))) {
 					ast_log(AST_LOG_WARNING, "Unable to stream incorrect message\n");
 					return -1;
 				}
 			} else {
-				ast_test_suite_event_notify("PLAYBACK", "Message: vm-incorrect-mailbox");
 				if (useadsi)
 					adsi_login(chan);
 				if (ast_streamfile(chan, "vm-incorrect-mailbox", ast_channel_language(chan))) {
