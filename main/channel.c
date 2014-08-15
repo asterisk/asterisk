@@ -10183,12 +10183,14 @@ int ast_channel_is_leaving_bridge(struct ast_channel *chan)
 {
 	int hangup_flags = ast_channel_softhangup_internal_flag(chan);
 	int hangup_test = hangup_flags & AST_SOFTHANGUP_ASYNCGOTO;
+	int unbridge = ast_channel_unbridged(chan);
 
-	/* This function should only return true if only the ASYNCGOTO
-	 * is set. It should false if any other flag is set or if the
-	 * ASYNCGOTO flag is not set.
+	/* This function should only return true if either the unbridged flag or
+	 * the ASYNCGOTO soft hangup flag is set and when no other soft hangup
+	 * flags are set. Any other soft hangup flags being set should make it
+	 * return false.
 	 */
-	return (hangup_test && (hangup_test == hangup_flags));
+	return ((hangup_test || unbridge) && (hangup_test == hangup_flags));
 }
 
 struct ast_channel *ast_channel_bridge_peer(struct ast_channel *chan)
