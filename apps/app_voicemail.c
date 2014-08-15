@@ -14263,8 +14263,8 @@ static int vm_test_destroy_user(const char *context, const char *mailbox)
 
 	AST_LIST_LOCK(&users);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, vmu, list) {
-		if (!strncmp(context, vmu->context, sizeof(context))
-			&& !strncmp(mailbox, vmu->mailbox, sizeof(mailbox))) {
+		if (!strcmp(context, vmu->context)
+			&& !strcmp(mailbox, vmu->mailbox)) {
 			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(vmu);
 			break;
