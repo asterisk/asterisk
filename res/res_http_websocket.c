@@ -174,7 +174,8 @@ static void session_destroy_fn(void *obj)
 	if (session->f) {
 		ast_websocket_close(session, 0);
 		fclose(session->f);
-		ast_verb(2, "WebSocket connection from '%s' closed\n", ast_sockaddr_stringify(&session->address));
+		ast_verb(2, "WebSocket connection %s '%s' closed\n", session->client ? "to" : "from",
+			ast_sockaddr_stringify(&session->address));
 	}
 
 	ao2_cleanup(session->client);
@@ -885,7 +886,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_w
  * The returned host will contain the address and optional port while
  * path will contain everything after the address/port if included.
  */
-static int websocket_client_parse_uri(const char *uri, char **host, char **path)
+static int websocket_client_parse_uri(const char *uri, char **host, struct ast_str **path)
 {
 	struct ast_uri *parsed_uri = ast_uri_parse_websocket(uri);
 
@@ -895,9 +896,20 @@ static int websocket_client_parse_uri(const char *uri, char **host, char **path)
 
 	*host = ast_uri_make_host_with_port(parsed_uri);
 
-	if (ast_uri_path(parsed_uri) && !(*path = ast_strdup(ast_uri_path(parsed_uri)))) {
-		ao2_ref(parsed_uri, -1);
-		return -1;
+	if (ast_uri_path(parsed_uri) || ast_uri_query(parsed_uri)) {
+		*path = ast_str_create(64);
+		if (!*path) {
+			ao2_ref(parsed_uri, -1);
+			return -1;
+		}
+
+		if (ast_uri_path(parsed_uri)) {
+			ast_str_set(path, 0, "%s", ast_uri_path(parsed_uri));
+		}
+
+		if (ast_uri_query(parsed_uri)) {
+			ast_str_append(path, 0, "?%s", ast_uri_query(parsed_uri));
+		}
 	}
 
 	ao2_ref(parsed_uri, -1);
@@ -976,7 +988,7 @@ struct websocket_client {
 	/*! host portion of client uri */
 	char *host;
 	/*! path for logical websocket connection */
-	char *resource_name;
+	struct ast_str *resource_name;
 	/*! unique key used during server handshaking */
 	char *key;
 	/*! container for registered protocols */
@@ -1166,7 +1178,7 @@ static enum ast_websocket_result websocket_client_handshake(
 		    "Host: %s\r\n"
 		    "Sec-WebSocket-Key: %s\r\n"
 		    "%s\r\n",
-		    client->resource_name,
+		    client->resource_name ? ast_str_buffer(client->resource_name) : "",
 		    client->version,
 		    client->host,
 		    client->key,
