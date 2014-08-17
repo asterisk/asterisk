@@ -25,6 +25,7 @@
 	<depend>zlib</depend>
 	<use type="external">crypto</use>
 	<support_level>extended</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
