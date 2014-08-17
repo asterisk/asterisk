@@ -1267,7 +1267,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_channel_unlock(in);
 				}
 
-				do_forward(o, &num, peerflags, single, caller_entertained, to,
+				do_forward(o, &num, peerflags, single, caller_entertained, &orig,
 					forced_clid, stored_clid);
 
 				if (single && o->chan
