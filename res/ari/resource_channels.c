@@ -965,7 +965,8 @@ void ast_ari_channels_get_channel_var(struct ast_variable *headers,
 	if (args->variable[strlen(args->variable) - 1] == ')') {
 		if (ast_func_read2(channel, args->variable, &value, 0)) {
 			ast_ari_response_error(
-				response, 500, "Unable to read provided function");
+				response, 500, "Error With Function",
+				"Unable to read provided function");
 			return;
 		}
 	} else {
