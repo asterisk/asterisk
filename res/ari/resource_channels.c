@@ -928,7 +928,8 @@ void ast_ari_channels_get_channel_var(struct ast_variable *headers,
 {
 	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
-	RAII_VAR(char *, value, NULL, ast_free);
+	RAII_VAR(struct ast_str *, value, ast_str_create(32), ast_free);
+	RAII_VAR(struct ast_channel *, channel, NULL, ast_channel_cleanup);
 
 	ast_assert(response != NULL);
 
@@ -939,15 +940,41 @@ void ast_ari_channels_get_channel_var(struct ast_variable *headers,
 		return;
 	}
 
-	control = find_control(response, args->channel_id);
-	if (control == NULL) {
-		/* response filled in by find_control */
+	if (ast_strlen_zero(args->channel_id)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Channel ID is required");
 		return;
 	}
 
-	value = stasis_app_control_get_channel_var(control, args->variable);
+	channel = ast_channel_get_by_name(args->channel_id);
+	if (!channel) {
+		ast_ari_response_error(
+			response, 404, "Channel Not Found",
+			"Provided channel was not found");
+		return;
+	}
 
-	if (!(json = ast_json_pack("{s: s}", "value", S_OR(value, "")))) {
+	/* You may be tempted to lock the channel you're about to read from. You
+	 * would be wrong. Some dialplan functions put the channel into
+	 * autoservice, which deadlocks if the channel is already locked.
+	 * ast_str_retrieve_variable() does its own locking, and the dialplan
+	 * functions need to as well. We should be fine without the lock.
+	 */
+
+	if (args->variable[strlen(args->variable) - 1] == ')') {
+		if (ast_func_read2(channel, args->variable, &value, 0)) {
+			ast_ari_response_alloc_failed(response);
+			return;
+		}
+	} else {
+		if (!ast_str_retrieve_variable(&value, 0, channel, NULL, args->variable)) {
+			ast_ari_response_alloc_failed(response);
+			return;
+		}
+	}
+
+	if (!(json = ast_json_pack("{s: s}", "value", S_OR(ast_str_buffer(value), "")))) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}

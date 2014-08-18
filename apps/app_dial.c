@@ -895,6 +895,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 				tech, stuff, cause);
 	}
 	if (!c) {
+		ast_channel_publish_dial(in, original, stuff, "BUSY");
 		ast_clear_flag64(o, DIAL_STILLGOING);
 		handle_cause(cause, num);
 		ast_hangup(original);
@@ -995,15 +996,17 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 		if (ast_call(c, stuff, 0)) {
 			ast_log(LOG_NOTICE, "Forwarding failed to dial '%s/%s'\n",
 				tech, stuff);
+			ast_channel_publish_dial(in, original, stuff, "CONGESTION");
 			ast_clear_flag64(o, DIAL_STILLGOING);
 			ast_hangup(original);
 			ast_hangup(c);
 			c = o->chan = NULL;
 			num->nochan++;
 		} else {
-			ast_channel_publish_dial(in, c, stuff, NULL);
 			ast_channel_publish_dial_forward(in, original, c, NULL, "CANCEL",
 				ast_channel_call_forward(original));
+
+			ast_channel_publish_dial(in, c, stuff, NULL);
 
 			/* Hangup the original channel now, in case we needed it */
 			ast_hangup(original);

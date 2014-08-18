@@ -2032,10 +2032,13 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, void *notify_d
 	if (sub->tree->notification_batch_interval) {
 		return schedule_notification(sub->tree);
 	} else {
+		int res;
 		/* See the note in pubsub_on_rx_refresh() for why sub->tree is refbumped here */
 		ao2_ref(sub->tree, +1);
-		return send_notify(sub->tree, 0);
+		res = send_notify(sub->tree, 0);
 		ao2_ref(sub->tree, -1);
+		
+		return res;
 	}
 }
 

@@ -185,6 +185,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						</enum>
 					</enumlist>
 				</parameter>
+				<parameter name="Forward" required="false">
+					<para>If the call was forwarded, where the call was
+					forwarded to.</para>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="application">Dial</ref>
@@ -986,6 +990,7 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 	struct ast_multi_channel_blob *obj = stasis_message_data(message);
 	const char *dialstatus;
 	const char *dialstring;
+	const char *forward;
 	struct ast_channel_snapshot *caller;
 	struct ast_channel_snapshot *peer;
 	RAII_VAR(struct ast_str *, caller_event_string, NULL, ast_free);
@@ -1007,6 +1012,7 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 
 	dialstatus = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstatus"));
 	dialstring = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "dialstring"));
+	forward = ast_json_string_get(ast_json_object_get(ast_multi_channel_blob_get_json(obj), "forward"));
 	if (ast_strlen_zero(dialstatus)) {
 		manager_event(EVENT_FLAG_CALL, "DialBegin",
 				"%s"
@@ -1016,12 +1022,16 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 				ast_str_buffer(peer_event_string),
 				S_OR(dialstring, "unknown"));
 	} else {
+		int forwarded = !ast_strlen_zero(forward);
+
 		manager_event(EVENT_FLAG_CALL, "DialEnd",
 				"%s"
 				"%s"
+				"%s%s%s"
 				"DialStatus: %s\r\n",
 				caller_event_string ? ast_str_buffer(caller_event_string) : "",
 				ast_str_buffer(peer_event_string),
+				forwarded ? "Forward: " : "", S_OR(forward, ""), forwarded ? "\r\n" : "",
 				S_OR(dialstatus, "unknown"));
 	}
 

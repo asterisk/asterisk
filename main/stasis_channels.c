@@ -288,11 +288,6 @@ static void channel_blob_dtor(void *obj)
 	ast_json_unref(event->blob);
 }
 
-/*! \brief Dummy callback for receiving events */
-static void dummy_event_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
-{
-}
-
 void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_channel *peer,
 	struct ast_channel *forwarded, const char *dialstring, const char *dialstatus,
 	const char *forward)
@@ -362,14 +357,7 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 		return;
 	}
 
-	if (forwarded) {
-		struct stasis_subscription *subscription = stasis_subscribe(ast_channel_topic(peer), dummy_event_cb, NULL);
-
-		stasis_publish(ast_channel_topic(peer), msg);
-		stasis_unsubscribe_and_join(subscription);
-	} else {
-		publish_message_for_channel_topics(msg, caller);
-	}
+	publish_message_for_channel_topics(msg, caller);
 }
 
 void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *peer,
