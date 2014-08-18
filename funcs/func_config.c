@@ -165,7 +165,7 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 	}
 
 	if (!(val = ast_variable_retrieve(cfg, args.category, args.variable))) {
-		ast_log(LOG_ERROR, "'%s' not found in [%s] of '%s'\n", args.variable, 
+		ast_debug(1, "'%s' not found in [%s] of '%s'\n", args.variable,
 			args.category, args.filename);
 		AST_RWLIST_UNLOCK(&configs);
 		return -1;
