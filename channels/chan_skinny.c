@@ -5360,6 +5360,9 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 	struct ast_variable *v = NULL;
 	struct ast_format *tmpfmt;
 	struct ast_format_cap *caps;
+#ifdef AST_DEVMODE
+	struct ast_str *codec_buf = ast_str_alloca(64);
+#endif
 
 	if (!l->device || !l->device->session) {
 		ast_log(LOG_WARNING, "Device for line %s is not registered.\n", l->name);
@@ -5377,8 +5380,6 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		ao2_ref(caps, -1);
 		return NULL;
 	} else {
-		struct ast_str *codec_buf = ast_str_alloca(64);
-
 		sub = ast_calloc(1, sizeof(*sub));
 		if (!sub) {
 			ast_log(LOG_WARNING, "Unable to allocate Skinny subchannel\n");
@@ -6645,8 +6646,11 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 	struct skinny_line *l;
 	uint32_t count = 0;
 	struct ast_format_cap *codecs = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	struct ast_str *codec_buf = ast_str_alloca(64);
 	int i;
+#ifdef AST_DEVMODE
+	struct ast_str *codec_buf = ast_str_alloca(64);
+#endif
+	
 
 	if (!codecs) {
 		return 0;
