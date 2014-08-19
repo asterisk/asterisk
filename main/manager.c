@@ -211,7 +211,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
-			<parameter name="Channel" required="true">
+			<parameter name="Channel" required="false">
 				<para>The name of the channel to query for status.</para>
 			</parameter>
 			<parameter name="Variables">
