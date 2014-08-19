@@ -381,11 +381,13 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
-	chan = ast_channel_alloc_with_endpoint(1, state, S_OR(session->id.number.str, ""),
-	                         S_OR(session->id.name.str, ""), session->endpoint->accountcode, "",
-	                         "", assignedids, requestor, 0, session->endpoint->persistent,
-	                         "PJSIP/%s-%08x", ast_sorcery_object_get_id(session->endpoint),
-	                         (unsigned)ast_atomic_fetchadd_int((int *)&chan_idx, +1));
+	chan = ast_channel_alloc_with_endpoint(1, state,
+		S_COR(session->id.number.valid, session->id.number.str, ""),
+		S_COR(session->id.name.valid, session->id.name.str, ""),
+		session->endpoint->accountcode, "", "", assignedids, requestor, 0,
+		session->endpoint->persistent, "PJSIP/%s-%08x",
+		ast_sorcery_object_get_id(session->endpoint),
+		(unsigned) ast_atomic_fetchadd_int((int *) &chan_idx, +1));
 	if (!chan) {
 		ao2_ref(caps, -1);
 		return NULL;
@@ -431,6 +433,9 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	}
 
 	ast_channel_adsicpe_set(chan, AST_ADSI_UNAVAILABLE);
+
+	ast_party_id_copy(&ast_channel_caller(chan)->id, &session->id);
+	ast_party_id_copy(&ast_channel_caller(chan)->ani, &session->id);
 
 	ast_channel_context_set(chan, session->endpoint->context);
 	ast_channel_exten_set(chan, S_OR(exten, "s"));
@@ -1042,7 +1047,6 @@ static int transmit_info_with_vidupdate(void *data)
 static int update_connected_line_information(void *data)
 {
 	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
-	struct ast_party_id connected_id;
 
 	if ((ast_channel_state(session->channel) != AST_STATE_UP) && (session->inv_session->role == PJSIP_UAS_ROLE)) {
 		int response_code = 0;
@@ -1062,12 +1066,20 @@ static int update_connected_line_information(void *data)
 		}
 	} else {
 		enum ast_sip_session_refresh_method method = session->endpoint->id.refresh_method;
+		struct ast_party_id connected_id;
 
 		if (session->inv_session->invite_tsx && (session->inv_session->options & PJSIP_INV_SUPPORT_UPDATE)) {
 			method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
 		}
 
+		/*
+		 * We can get away with a shallow copy here because we are
+		 * not looking at strings.
+		 */
+		ast_channel_lock(session->channel);
 		connected_id = ast_channel_connected_effective_id(session->channel);
+		ast_channel_unlock(session->channel);
+
 		if ((session->endpoint->id.send_pai || session->endpoint->id.send_rpid) &&
 		    (session->endpoint->id.trust_outbound ||
 		     ((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
@@ -1492,33 +1504,26 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 static void update_initial_connected_line(struct ast_sip_session *session)
 {
 	struct ast_party_connected_line connected;
-	struct ast_set_party_connected_line update_connected;
-	struct ast_sip_endpoint_id_configuration *id = &session->endpoint->id;
 
-	if (!id->self.number.valid && !id->self.name.valid) {
+	/*
+	 * Use the channel CALLERID() as the initial connected line data.
+	 * The core or a predial handler may have supplied missing values
+	 * from the session->endpoint->id.self about who we are calling.
+	 */
+	ast_channel_lock(session->channel);
+	ast_party_id_copy(&session->id, &ast_channel_caller(session->channel)->id);
+	ast_channel_unlock(session->channel);
+
+	/* Supply initial connected line information if available. */
+	if (!session->id.number.valid && !session->id.name.valid) {
 		return;
 	}
 
-	/* Supply initial connected line information if available. */
-	memset(&update_connected, 0, sizeof(update_connected));
 	ast_party_connected_line_init(&connected);
-	connected.id.number = id->self.number;
-	connected.id.name = id->self.name;
-	connected.id.tag = id->self.tag;
+	connected.id = session->id;
 	connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
 
-	if (connected.id.number.valid) {
-		update_connected.id.number = 1;
-	}
-
-	if (connected.id.name.valid) {
-		update_connected.id.name = 1;
-	}
-
-	/* Invalidate any earlier private connected id representation */
-	ast_set_party_id_all(&update_connected.priv);
-
-	ast_channel_queue_connected_line_update(session->channel, &connected, &update_connected);
+	ast_channel_queue_connected_line_update(session->channel, &connected, NULL);
 }
 
 static int call(void *data)
@@ -1549,7 +1554,7 @@ static int chan_pjsip_call(struct ast_channel *ast, const char *dest, int timeou
 
 	ao2_ref(channel, +1);
 	if (ast_sip_push_task(channel->session->serializer, call, channel)) {
-		ast_log(LOG_WARNING, "Error attempting to place outbound call to call '%s'\n", dest);
+		ast_log(LOG_WARNING, "Error attempting to place outbound call to '%s'\n", dest);
 		ao2_cleanup(channel);
 		return -1;
 	}

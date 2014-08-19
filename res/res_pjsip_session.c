@@ -1272,6 +1272,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		return NULL;
 	}
+	ast_party_id_copy(&session->id, &endpoint->id.self);
 
 	if (ast_format_cap_count(req_caps)) {
 		/* get joint caps between req_caps and endpoint caps */
