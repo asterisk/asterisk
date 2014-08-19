@@ -281,21 +281,26 @@ static int should_queue_connected_line_update(const struct ast_sip_session *sess
 static void queue_connected_line_update(struct ast_sip_session *session, const struct ast_party_id *id)
 {
 	struct ast_party_connected_line connected;
-	struct ast_set_party_connected_line update_connected;
+	struct ast_party_caller caller;
 
+	/* Fill connected line information */
 	ast_party_connected_line_init(&connected);
-	ast_party_id_copy(&connected.id, id);
-
-	memset(&update_connected, 0, sizeof(update_connected));
-	update_connected.id.number = 1;
-	update_connected.id.name = 1;
-
-	ast_set_party_id_all(&update_connected.priv);
+	connected.id = *id;
+	connected.id.tag = session->endpoint->id.self.tag;
 	connected.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-	ast_party_id_copy(&session->id, &connected.id);
-	ast_channel_queue_connected_line_update(session->channel, &connected, &update_connected);
 
-	ast_party_connected_line_free(&connected);
+	/* Save to channel driver copy */
+	ast_party_id_copy(&session->id, &connected.id);
+
+	/* Update our channel CALLERID() */
+	ast_party_caller_init(&caller);
+	caller.id = connected.id;
+	caller.ani = connected.id;
+	caller.ani2 = ast_channel_caller(session->channel)->ani2;
+	ast_channel_set_caller_event(session->channel, &caller, NULL);
+
+	/* Tell peer about the new connected line information. */
+	ast_channel_queue_connected_line_update(session->channel, &connected, NULL);
 }
 
 /*!
@@ -318,13 +323,11 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
 	}
 
 	ast_party_id_init(&id);
-	if (set_id_from_pai(rdata, &id) && set_id_from_rpid(rdata, &id)) {
-		return;
+	if (!set_id_from_pai(rdata, &id) || !set_id_from_rpid(rdata, &id)) {
+		if (should_queue_connected_line_update(session, &id)) {
+			queue_connected_line_update(session, &id);
+		}
 	}
-	if (should_queue_connected_line_update(session, &id)) {
-		queue_connected_line_update(session, &id);
-	}
-
 	ast_party_id_free(&id);
 }
 
@@ -343,9 +346,15 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
 static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED) {
-		/* Initial inbound INVITE. Set the session ID directly */
-		if (session->endpoint->id.trust_inbound &&
-				(!set_id_from_pai(rdata, &session->id) || !set_id_from_rpid(rdata, &session->id))) {
+		/*
+		 * Initial inbound INVITE.  Set the session ID directly
+		 * because the channel has not been created yet.
+		 */
+		if (session->endpoint->id.trust_inbound
+			&& (!set_id_from_pai(rdata, &session->id)
+				|| !set_id_from_rpid(rdata, &session->id))) {
+			ast_free(session->id.tag);
+			session->id.tag = ast_strdup(session->endpoint->id.self.tag);
 			return 0;
 		}
 		ast_party_id_copy(&session->id, &session->endpoint->id.self);
@@ -640,13 +649,20 @@ static void add_id_headers(const struct ast_sip_session *session, pjsip_tx_data 
  */
 static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
+	struct ast_party_id effective_id;
 	struct ast_party_id connected_id;
 
 	if (!session->channel) {
 		return;
 	}
 
-	connected_id = ast_channel_connected_effective_id(session->channel);
+	/* Must do a deep copy unless we hold the channel lock the entire time. */
+	ast_party_id_init(&connected_id);
+	ast_channel_lock(session->channel);
+	effective_id = ast_channel_connected_effective_id(session->channel);
+	ast_party_id_copy(&connected_id, &effective_id);
+	ast_channel_unlock(session->channel);
+
 	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED &&
 			ast_strlen_zero(session->endpoint->fromuser) &&
 			(session->endpoint->id.trust_outbound ||
@@ -665,6 +681,7 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 		modify_id_header(dlg->pool, dlg->local.info, &connected_id);
 	}
 	add_id_headers(session, tdata, &connected_id);
+	ast_party_id_free(&connected_id);
 }
 
 /*!
@@ -678,13 +695,22 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
  */
 static void caller_id_outgoing_response(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
+	struct ast_party_id effective_id;
 	struct ast_party_id connected_id;
 
 	if (!session->channel) {
 		return;
 	}
-	connected_id = ast_channel_connected_effective_id(session->channel);
+
+	/* Must do a deep copy unless we hold the channel lock the entire time. */
+	ast_party_id_init(&connected_id);
+	ast_channel_lock(session->channel);
+	effective_id = ast_channel_connected_effective_id(session->channel);
+	ast_party_id_copy(&connected_id, &effective_id);
+	ast_channel_unlock(session->channel);
+
 	add_id_headers(session, tdata, &connected_id);
+	ast_party_id_free(&connected_id);
 }
 
 static struct ast_sip_session_supplement caller_id_supplement = {
