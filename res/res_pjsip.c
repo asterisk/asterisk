@@ -116,12 +116,12 @@
 					<description>
 						<enumlist>
 							<enum name="allowed_not_screened" />
-							<enum name="allowed_passed_screened" />
-							<enum name="allowed_failed_screened" />
+							<enum name="allowed_passed_screen" />
+							<enum name="allowed_failed_screen" />
 							<enum name="allowed" />
 							<enum name="prohib_not_screened" />
-							<enum name="prohib_passed_screened" />
-							<enum name="prohib_failed_screened" />
+							<enum name="prohib_passed_screen" />
+							<enum name="prohib_failed_screen" />
 							<enum name="prohib" />
 							<enum name="unavailable" />
 						</enumlist>
