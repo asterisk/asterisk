@@ -1327,6 +1327,22 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	 */
 	cleanup();
 
+	/* The control needs to be removed from the controls container in
+	 * case a new PBX is started and ends up coming back into Stasis.
+	 */
+	ao2_cleanup(app);
+	app = NULL;
+	control_unlink(control);
+	control = NULL;
+
+	if (!ast_check_hangup_locked(chan) && !ast_channel_pbx(chan)) {
+		struct ast_pbx_args pbx_args = {
+			.no_hangup_chan = 1,
+		};
+
+		res = ast_pbx_run_args(chan, &pbx_args);
+	}
+
 	return res;
 }
 
