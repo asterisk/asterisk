@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #include "asterisk/indications.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/translate.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/features_config.h"
 #include "asterisk/pickup.h"
@@ -654,14 +655,21 @@ static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 			return 0;
 		}
 		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			struct ast_str *cap_buf = ast_str_alloca(64);
+			struct ast_str *cap_buf = ast_str_alloca(128);
+			struct ast_str *write_transpath = ast_str_alloca(256);
+			struct ast_str *read_transpath = ast_str_alloca(256);
 
 			ast_log(LOG_WARNING,
-				"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
+				"Channel %s asked to send %s frame when native formats are %s (rd:%s->%s;%s wr:%s->%s;%s)\n",
+				ast_channel_name(ast),
 				ast_format_get_name(frame->subclass.format),
 				ast_format_cap_get_names(ast_channel_nativeformats(ast), &cap_buf),
+				ast_format_get_name(ast_channel_rawreadformat(ast)),
 				ast_format_get_name(ast_channel_readformat(ast)),
-				ast_format_get_name(ast_channel_writeformat(ast)));
+				ast_translate_path_to_str(ast_channel_readtrans(ast), &read_transpath),
+				ast_format_get_name(ast_channel_writeformat(ast)),
+				ast_format_get_name(ast_channel_rawwriteformat(ast)),
+				ast_translate_path_to_str(ast_channel_writetrans(ast), &write_transpath));
 			return 0;
 		}
 		if (media->rtp) {
