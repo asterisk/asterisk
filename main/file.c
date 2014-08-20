@@ -777,9 +777,11 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	}
 
 	/* Set the channel to a format we can work with and save off the previous format. */
+	ast_channel_lock(chan);
 	ast_channel_set_oldwriteformat(chan, ast_channel_writeformat(chan));
 	/* Set the channel to the best format that exists for the file. */
 	res = ast_set_write_format_from_cap(chan, file_fmt_cap);
+	ast_channel_unlock(chan);
 	/* don't need this anymore now that the channel's write format is set. */
 	ao2_ref(file_fmt_cap, -1);
 

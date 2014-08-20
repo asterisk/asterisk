@@ -939,12 +939,14 @@ int ast_bridge_destroy(struct ast_bridge *bridge, int cause)
 static int bridge_make_compatible(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_str *codec_buf = ast_str_alloca(64);
-	struct ast_format *read_format;
-	struct ast_format *write_format;
 	struct ast_format *best_format;
+	RAII_VAR(struct ast_format *, read_format, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format *, write_format, NULL, ao2_cleanup);
 
-	read_format = ast_channel_readformat(bridge_channel->chan);
-	write_format = ast_channel_writeformat(bridge_channel->chan);
+	ast_channel_lock(bridge_channel->chan);
+	read_format = ao2_bump(ast_channel_readformat(bridge_channel->chan));
+	write_format = ao2_bump(ast_channel_writeformat(bridge_channel->chan));
+	ast_channel_unlock(bridge_channel->chan);
 
 	/* Are the formats currently in use something this bridge can handle? */
 	if (ast_format_cap_iscompatible_format(bridge->technology->format_capabilities, read_format) == AST_FORMAT_CMP_NOT_EQUAL) {

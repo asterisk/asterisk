@@ -265,15 +265,20 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	if (session->channel) {
 		struct ast_format *fmt;
 
+		ast_channel_lock(session->channel);
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel), AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(caps, media_type);
 		fmt = ast_format_cap_get_format(joint, 0);
 		ast_format_cap_append(caps, fmt, 0);
 
-		/* Apply the new formats to the channel, potentially changing read/write formats while doing so */
+		/*
+		 * Apply the new formats to the channel, potentially changing
+		 * raw read/write formats and translation path while doing so.
+		 */
 		ast_channel_nativeformats_set(session->channel, caps);
-		ast_channel_set_rawwriteformat(session->channel, fmt);
-		ast_channel_set_rawreadformat(session->channel, fmt);
+		ast_set_read_format(session->channel, ast_channel_readformat(session->channel));
+		ast_set_write_format(session->channel, ast_channel_writeformat(session->channel));
+		ast_channel_unlock(session->channel);
 
 		ao2_ref(fmt, -1);
 	}
