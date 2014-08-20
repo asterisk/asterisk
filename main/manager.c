@@ -217,6 +217,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Variables">
 				<para>Comma <literal>,</literal> separated list of variable to include.</para>
 			</parameter>
+			<parameter name="AllVariables">
+				<para>If set to "true", the Status event will include all channel variables for
+				the requested channel(s).</para>
+				<enumlist>
+					<enum name="true"/>
+					<enum name="false"/>
+				</enumlist>
+			</parameter>
 		</syntax>
 		<description>
 			<para>Will return the status information of each channel along with the
@@ -3929,19 +3937,132 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static void generate_status(struct mansession *s, struct ast_channel *chan, char **vars, int varc, int all_variables, char *id_text)
+{
+	struct timeval now;
+	long elapsed_seconds;
+	struct ast_bridge *bridge;
+	RAII_VAR(struct ast_str *, variable_str, NULL, ast_free);
+	struct ast_str *write_transpath = ast_str_alloca(256);
+	struct ast_str *read_transpath = ast_str_alloca(256);
+	struct ast_str *codec_buf = ast_str_alloca(128);
+	struct ast_party_id effective_id;
+	int i;
+	RAII_VAR(struct ast_channel_snapshot *, snapshot,
+		ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan)),
+		ao2_cleanup);
+	RAII_VAR(struct ast_str *, snapshot_str, NULL, ast_free);
+
+	if (!snapshot) {
+		return;
+	}
+
+	snapshot_str = ast_manager_build_channel_state_string(snapshot);
+	if (!snapshot_str) {
+		return;
+	}
+
+	if (all_variables) {
+		variable_str = ast_str_create(2048);
+	} else {
+		variable_str = ast_str_create(1024);
+	}
+
+	if (!variable_str) {
+		return;
+	}
+
+	now = ast_tvnow();
+	elapsed_seconds = ast_tvdiff_sec(now, ast_channel_creationtime(chan));
+
+	/* Even if all_variables has been specified, explicitly requested variables
+	 * may be global variables or dialplan functions */
+	for (i = 0; i < varc; i++) {
+		char valbuf[512], *ret = NULL;
+
+		if (vars[i][strlen(vars[i]) - 1] == ')') {
+			if (ast_func_read(chan, vars[i], valbuf, sizeof(valbuf)) < 0) {
+				valbuf[0] = '\0';
+			}
+			ret = valbuf;
+		} else {
+			pbx_retrieve_variable(chan, vars[i], &ret, valbuf, sizeof(valbuf), NULL);
+		}
+
+		ast_str_append(&variable_str, 0, "Variable: %s=%s\r\n", vars[i], ret);
+	}
+
+	/* Walk all channel variables and add them */
+	if (all_variables) {
+		struct ast_var_t *variables;
+
+		AST_LIST_TRAVERSE(ast_channel_varshead(chan), variables, entries) {
+			ast_str_append(&variable_str, 0, "Variable: %s=%s\r\n",
+				ast_var_name(variables), ast_var_value(variables));
+		}
+	}
+
+	bridge = ast_channel_get_bridge(chan);
+	effective_id = ast_channel_connected_effective_id(chan);
+
+	astman_append(s,
+		"Event: Status\r\n"
+		"Privilege: Call\r\n"
+		"%s"
+		"Type: %s\r\n"
+		"DNID: %s\r\n"
+		"EffectiveConnectedLineNum: %s\r\n"
+		"EffectiveConnectedLineName: %s\r\n"
+		"TimeToHangup: %ld\r\n"
+		"BridgeID: %s\r\n"
+		"Linkedid: %s\r\n"
+		"Application: %s\r\n"
+		"Data: %s\r\n"
+		"Nativeformats: %s\r\n"
+		"Readformat: %s\r\n"
+		"Readtrans: %s\r\n"
+		"Writeformat: %s\r\n"
+		"Writetrans: %s\r\n"
+		"Callgroup: %llu\r\n"
+		"Pickupgroup: %llu\r\n"
+		"Seconds: %ld\r\n"
+		"%s"
+		"%s"
+		"\r\n",
+		ast_str_buffer(snapshot_str),
+		ast_channel_tech(chan)->type,
+		S_OR(ast_channel_dialed(chan)->number.str, ""),
+		S_COR(effective_id.number.valid, effective_id.number.str, "<unknown>"),
+		S_COR(effective_id.name.valid, effective_id.name.str, "<unknown>"),
+		ast_channel_whentohangup(chan)->tv_sec,
+		bridge ? bridge->uniqueid : "",
+		ast_channel_linkedid(chan),
+		ast_channel_appl(chan),
+		ast_channel_data(chan),
+		ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf),
+		ast_format_get_name(ast_channel_readformat(chan)),
+		ast_translate_path_to_str(ast_channel_readtrans(chan), &read_transpath),
+		ast_format_get_name(ast_channel_writeformat(chan)),
+		ast_translate_path_to_str(ast_channel_writetrans(chan), &write_transpath),
+		ast_channel_callgroup(chan),
+		ast_channel_pickupgroup(chan),
+		(long)elapsed_seconds,
+		ast_str_buffer(variable_str),
+		id_text);
+
+	ao2_cleanup(bridge);
+}
+
 /*! \brief Manager "status" command to show channels */
-/* Needs documentation... */
 static int action_status(struct mansession *s, const struct message *m)
 {
 	const char *name = astman_get_header(m, "Channel");
 	const char *chan_variables = astman_get_header(m, "Variables");
+	const char *all_chan_variables = astman_get_header(m, "AllVariables");
+	int all_variables = 0;
 	const char *id = astman_get_header(m, "ActionID");
 	char *variables = ast_strdupa(S_OR(chan_variables, ""));
-	struct ast_str *variable_str = ast_str_create(1024);
-	struct ast_str *write_transpath = ast_str_alloca(256);
-	struct ast_str *read_transpath = ast_str_alloca(256);
 	struct ast_channel *chan;
-	struct ast_str *codec_buf = ast_str_alloca(64);
 	int channels = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 	char id_text[256];
@@ -3950,20 +4071,17 @@ static int action_status(struct mansession *s, const struct message *m)
 		AST_APP_ARG(name)[100];
 	);
 
-	if (!variable_str) {
-		astman_send_error(s, m, "Memory Allocation Failure");
-		return 1;
+	if (!ast_strlen_zero(all_chan_variables)) {
+		all_variables = ast_true(all_chan_variables);
 	}
 
 	if (!(function_capable_string_allowed_with_auths(variables, s->session->writeperm))) {
-		ast_free(variable_str);
 		astman_send_error(s, m, "Status Access Forbidden: Variables");
 		return 0;
 	}
 
 	if (all) {
 		if (!(it_chans = ast_channel_iterator_all_new())) {
-			ast_free(variable_str);
 			astman_send_error(s, m, "Memory Allocation Failure");
 			return 1;
 		}
@@ -3972,7 +4090,6 @@ static int action_status(struct mansession *s, const struct message *m)
 		chan = ast_channel_get_by_name(name);
 		if (!chan) {
 			astman_send_error(s, m, "No such channel");
-			ast_free(variable_str);
 			return 0;
 		}
 	}
@@ -3991,106 +4108,10 @@ static int action_status(struct mansession *s, const struct message *m)
 
 	/* if we look by name, we break after the first iteration */
 	for (; chan; all ? chan = ast_channel_iterator_next(it_chans) : 0) {
-		struct timeval now;
-		long elapsed_seconds;
-		struct ast_bridge *bridge;
-
 		ast_channel_lock(chan);
 
-		now = ast_tvnow();
-		elapsed_seconds = ast_tvdiff_sec(now, ast_channel_creationtime(chan));
-
-		if (!ast_strlen_zero(chan_variables)) {
-			int i;
-			ast_str_reset(variable_str);
-			for (i = 0; i < vars.argc; i++) {
-				char valbuf[512], *ret = NULL;
-
-				if (vars.name[i][strlen(vars.name[i]) - 1] == ')') {
-					if (ast_func_read(chan, vars.name[i], valbuf, sizeof(valbuf)) < 0) {
-						valbuf[0] = '\0';
-					}
-					ret = valbuf;
-				} else {
-					pbx_retrieve_variable(chan, vars.name[i], &ret, valbuf, sizeof(valbuf), NULL);
-				}
-
-				ast_str_append(&variable_str, 0, "Variable: %s=%s\r\n", vars.name[i], ret);
-			}
-		}
-
+		generate_status(s, chan, vars.name, vars.argc, all_variables, id_text);
 		channels++;
-
-		bridge = ast_channel_get_bridge(chan);
-
-		astman_append(s,
-			"Event: Status\r\n"
-			"Privilege: Call\r\n"
-			"Channel: %s\r\n"
-			"ChannelState: %u\r\n"
-			"ChannelStateDesc: %s\r\n"
-			"CallerIDNum: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"ConnectedLineNum: %s\r\n"
-			"ConnectedLineName: %s\r\n"
-			"Accountcode: %s\r\n"
-			"Context: %s\r\n"
-			"Exten: %s\r\n"
-			"Priority: %d\r\n"
-			"Uniqueid: %s\r\n"
-			"Type: %s\r\n"
-			"DNID: %s\r\n"
-			"EffectiveConnectedLineNum: %s\r\n"
-			"EffectiveConnectedLineName: %s\r\n"
-			"TimeToHangup: %ld\r\n"
-			"BridgeID: %s\r\n"
-			"Linkedid: %s\r\n"
-			"Application: %s\r\n"
-			"Data: %s\r\n"
-			"Nativeformats: %s\r\n"
-			"Readformat: %s\r\n"
-			"Readtrans: %s\r\n"
-			"Writeformat: %s\r\n"
-			"Writetrans: %s\r\n"
-			"Callgroup: %llu\r\n"
-			"Pickupgroup: %llu\r\n"
-			"Seconds: %ld\r\n"
-			"%s"
-			"%s"
-			"\r\n",
-			ast_channel_name(chan),
-			ast_channel_state(chan),
-			ast_state2str(ast_channel_state(chan)),
-			S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, "<unknown>"),
-			S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, "<unknown>"),
-			S_COR(ast_channel_connected(chan)->id.number.valid, ast_channel_connected(chan)->id.number.str, "<unknown>"),
-			S_COR(ast_channel_connected(chan)->id.name.valid, ast_channel_connected(chan)->id.name.str, "<unknown>"),
-			ast_channel_accountcode(chan),
-			ast_channel_context(chan),
-			ast_channel_exten(chan),
-			ast_channel_priority(chan),
-			ast_channel_uniqueid(chan),
-			ast_channel_tech(chan)->type,
-			S_OR(ast_channel_dialed(chan)->number.str, ""),
-			S_COR(ast_channel_connected_effective_id(chan).number.valid, ast_channel_connected_effective_id(chan).number.str, "<unknown>"),
-			S_COR(ast_channel_connected_effective_id(chan).name.valid, ast_channel_connected_effective_id(chan).name.str, "<unknown>"),
-			ast_channel_whentohangup(chan)->tv_sec,
-			bridge ? bridge->uniqueid : "",
-			ast_channel_linkedid(chan),
-			ast_channel_appl(chan),
-			ast_channel_data(chan),
-			ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf),
-			ast_format_get_name(ast_channel_readformat(chan)),
-			ast_translate_path_to_str(ast_channel_readtrans(chan), &read_transpath),
-			ast_format_get_name(ast_channel_writeformat(chan)),
-			ast_translate_path_to_str(ast_channel_writetrans(chan), &write_transpath),
-			ast_channel_callgroup(chan),
-			ast_channel_pickupgroup(chan),
-			(long)elapsed_seconds,
-			ast_str_buffer(variable_str),
-			id_text);
-
-		ao2_cleanup(bridge);
 
 		ast_channel_unlock(chan);
 		chan = ast_channel_unref(chan);
@@ -4105,8 +4126,6 @@ static int action_status(struct mansession *s, const struct message *m)
 		"%s"
 		"Items: %d\r\n"
 		"\r\n", id_text, channels);
-
-	ast_free(variable_str);
 
 	return 0;
 }
