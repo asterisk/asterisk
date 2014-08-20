@@ -1256,7 +1256,7 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	pair.channel = chan_alice;
 	ast_bridge_lock(bridge);
 	ast_bridge_publish_blind_transfer(1, AST_BRIDGE_TRANSFER_SUCCESS,
-		&pair, "transfer_context", "transfer_extension", NULL);
+		&pair, "transfer_context", "transfer_extension", NULL, NULL);
 	ast_bridge_unlock(bridge);
 	BLINDTRANSFER_EVENT(chan_alice, bridge, "transfer_extension", "transfer_context");
 

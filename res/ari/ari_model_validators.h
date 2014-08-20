@@ -1304,6 +1304,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - context: string (required)
  * - exten: string (required)
  * - is_external: boolean (required)
+ * - replace_channel: Channel
  * - result: string (required)
  * - transferee: Channel
  * BridgeCreated
