@@ -1209,6 +1209,7 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	if (!sub_tree) {
 		return NULL;
 	}
+	sub_tree->role = AST_SIP_NOTIFIER;
 
 	dlg = ast_sip_create_dialog_uas(endpoint, rdata);
 	if (!dlg) {
