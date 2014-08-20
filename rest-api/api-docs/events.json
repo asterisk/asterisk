@@ -285,6 +285,11 @@
 					"required": true,
 					"type": "Channel"
 				},
+				"replace_channel": {
+					"description": "The channel that is replacing transferer when the transferee(s) can not be transferred directly",
+					"required": false,
+					"type": "Channel"
+				},
 				"transferee": {
 					"description": "The channel that is being transferred",
 					"required": false,

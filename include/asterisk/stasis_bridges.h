@@ -300,6 +300,8 @@ struct ast_blind_transfer_message {
 	char exten[AST_MAX_EXTENSION];
 	/*! Transferee channel. NULL if there were multiple transferee channels */
 	struct ast_channel_snapshot *transferee;
+	/*! The channel replacing the transferer when multiple parties are being transferred */
+	struct ast_channel_snapshot *replace_channel;
 };
 
 /*!
@@ -312,11 +314,15 @@ struct ast_blind_transfer_message {
  * \param to_transferee The bridge between the transferer and transferee plus the transferer channel
  * \param context The destination context for the blind transfer
  * \param exten The destination extension for the blind transfer
- * \param transferee_channel If a single channel is being transferred, this is it. If multiple parties are being transferred, this is NULL.
+ * \param transferee_channel If a single channel is being transferred, this is it. If
+ *                           multiple parties are being transferred, this is NULL.
+ * \param replace_channel If multiple parties are being transferred or the transfer
+ *                        cannot reach across the bridge due to bridge flags, this is
+ *                        the channel connecting their bridge to the destination.
  */
 void ast_bridge_publish_blind_transfer(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *to_transferee, const char *context, const char *exten,
-		struct ast_channel *transferee_channel);
+		struct ast_channel *transferee_channel, struct ast_channel *replace_channel);
 
 enum ast_attended_transfer_dest_type {
 	/*! The transfer failed, so there is no appropriate final state */

@@ -2062,6 +2062,15 @@ int ast_ari_validate_bridge_blind_transfer(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("replace_channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeBlindTransfer field replace_channel failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("result", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_result = 1;

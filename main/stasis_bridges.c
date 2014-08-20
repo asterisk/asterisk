@@ -636,7 +636,10 @@ static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 	const struct stasis_message_sanitizer *sanitize)
 {
 	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(msg);
-	struct ast_json *json_transferer, *json_transferee = NULL, *out;
+	struct ast_json *json_transferer;
+	struct ast_json *json_transferee = NULL;
+	struct ast_json *out;
+	struct ast_json *json_replace = NULL;
 	const struct timeval *tv = stasis_message_timestamp(msg);
 
 	json_transferer = ast_channel_snapshot_to_json(transfer_msg->to_transferee.channel_snapshot, sanitize);
@@ -647,6 +650,16 @@ static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 	if (transfer_msg->transferee) {
 		json_transferee = ast_channel_snapshot_to_json(transfer_msg->transferee, sanitize);
 		if (!json_transferee) {
+			ast_json_unref(json_transferer);
+			return NULL;
+		}
+	}
+
+	if (transfer_msg->replace_channel) {
+		json_replace = ast_channel_snapshot_to_json(transfer_msg->replace_channel, sanitize);
+		if (!json_replace) {
+			ast_json_unref(json_transferee);
+			ast_json_unref(json_transferer);
 			return NULL;
 		}
 	}
@@ -661,10 +674,18 @@ static struct ast_json *blind_transfer_to_json(struct stasis_message *msg,
 		"is_external", ast_json_boolean(transfer_msg->is_external));
 
 	if (!out) {
+		ast_json_unref(json_transferee);
+		ast_json_unref(json_replace);
 		return NULL;
 	}
 
 	if (json_transferee && ast_json_object_set(out, "transferee", json_transferee)) {
+		ast_json_unref(out);
+		ast_json_unref(json_replace);
+		return NULL;
+	}
+
+	if (json_replace && ast_json_object_set(out, "replace_channel", json_replace)) {
 		ast_json_unref(out);
 		return NULL;
 	}
@@ -741,7 +762,7 @@ static void blind_transfer_dtor(void *obj)
 
 void ast_bridge_publish_blind_transfer(int is_external, enum ast_transfer_result result,
 		struct ast_bridge_channel_pair *transferer, const char *context, const char *exten,
-		struct ast_channel *transferee_channel)
+		struct ast_channel *transferee_channel, struct ast_channel *replace_channel)
 {
 	struct ast_blind_transfer_message *msg;
 	struct stasis_message *stasis;
@@ -758,6 +779,9 @@ void ast_bridge_publish_blind_transfer(int is_external, enum ast_transfer_result
 
 	if (transferee_channel) {
 		msg->transferee = ast_channel_snapshot_get_latest(ast_channel_uniqueid(transferee_channel));
+	}
+	if (replace_channel) {
+		msg->replace_channel = ast_channel_snapshot_get_latest(ast_channel_uniqueid(replace_channel));
 	}
 	msg->is_external = is_external;
 	msg->result = result;

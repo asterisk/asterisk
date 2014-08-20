@@ -3805,6 +3805,26 @@ struct ast_channel *ast_bridge_peer(struct ast_bridge *bridge, struct ast_channe
 	return peer;
 }
 
+static void publish_blind_transfer_full(int is_external, enum ast_transfer_result result,
+		struct ast_channel *transferer, struct ast_bridge *bridge,
+		const char *context, const char *exten, struct ast_channel *transferee_channel,
+		struct ast_channel *replace_channel)
+{
+	struct ast_bridge_channel_pair pair;
+
+	pair.channel = transferer;
+	pair.bridge = bridge;
+
+	if (bridge) {
+		ast_bridge_lock(bridge);
+	}
+	ast_bridge_publish_blind_transfer(is_external, result, &pair, context, exten,
+		transferee_channel, replace_channel);
+	if (bridge) {
+		ast_bridge_unlock(bridge);
+	}
+}
+
 /*!
  * \internal
  * \brief Transfer an entire bridge to a specific destination.
@@ -3817,16 +3837,21 @@ struct ast_channel *ast_bridge_peer(struct ast_bridge *bridge, struct ast_channe
  * bridges, this method is only used for multi-party bridges since this method would
  * be less efficient for two-party bridges.
  *
+ * \param is_external Whether the transfer is externally initiated
  * \param transferer The channel performing a transfer
  * \param bridge The bridge where the transfer is being performed
  * \param exten The destination extension for the blind transfer
+ * \param transferee The party being transferred if there is only one
  * \param context The destination context for the blind transfer
  * \param hook Framehook to attach to local channel
+ *
  * \return The success or failure of the operation
  */
-static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transferer,
-		struct ast_bridge *bridge, const char *exten, const char *context,
-		transfer_channel_cb new_channel_cb, struct transfer_channel_data *user_data_wrapper)
+static enum ast_transfer_result blind_transfer_bridge(int is_external,
+		struct ast_channel *transferer, struct ast_bridge *bridge,
+		const char *exten, const char *context, struct ast_channel *transferee,
+		transfer_channel_cb new_channel_cb,
+		struct transfer_channel_data *user_data_wrapper)
 {
 	struct ast_channel *local;
 	char chan_name[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 2];
@@ -3858,6 +3883,8 @@ static enum ast_transfer_result blind_transfer_bridge(struct ast_channel *transf
 		ast_hangup(local);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
+	publish_blind_transfer_full(is_external, AST_BRIDGE_TRANSFER_SUCCESS, transferer, bridge,
+		context, exten, transferee, local);
 	return AST_BRIDGE_TRANSFER_SUCCESS;
 }
 
@@ -4214,16 +4241,8 @@ static void publish_blind_transfer(int is_external, enum ast_transfer_result res
 		struct ast_channel *transferer, struct ast_bridge *bridge,
 		const char *context, const char *exten, struct ast_channel *transferee_channel)
 {
-	struct ast_bridge_channel_pair pair;
-	pair.channel = transferer;
-	pair.bridge = bridge;
-	if (bridge) {
-		ast_bridge_lock(bridge);
-	}
-	ast_bridge_publish_blind_transfer(is_external, result, &pair, context, exten, transferee_channel);
-	if (bridge) {
-		ast_bridge_unlock(bridge);
-	}
+	publish_blind_transfer_full(is_external, result, transferer, bridge, context,
+		exten, transferee_channel, NULL);
 }
 
 enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
@@ -4301,8 +4320,12 @@ enum ast_transfer_result ast_bridge_transfer_blind(int is_external,
 	set_transfer_variables_all(transferer, channels, 0);
 
 	if (do_bridge_transfer) {
-		transfer_result = blind_transfer_bridge(transferer, bridge, exten, context,
-				new_channel_cb, user_data_wrapper);
+		/* if blind_transfer_bridge succeeds, it publishes its own message */
+		transfer_result = blind_transfer_bridge(is_external, transferer, bridge,
+			exten, context, transferee, new_channel_cb, user_data_wrapper);
+		if (transfer_result == AST_BRIDGE_TRANSFER_SUCCESS)  {
+			return transfer_result;
+		}
 		goto publish;
 	}
 
