@@ -239,7 +239,7 @@ static char *complete_fn(const char *word, int state)
 	if (c)
 		c = ast_strdup(c);
 
-	free(d);
+	ast_std_free(d);
 
 	return c;
 }
