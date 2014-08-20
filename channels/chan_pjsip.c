@@ -402,12 +402,6 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 		return NULL;
 	}
 
-	for (var = session->endpoint->channel_vars; var; var = var->next) {
-		char buf[512];
-		pbx_builtin_setvar_helper(chan, var->name, ast_get_encoded_str(
-						  var->value, buf, sizeof(buf)));
-	}
-
 	ast_channel_stage_snapshot(chan);
 
 	ast_channel_tech_pvt_set(chan, channel);
@@ -457,6 +451,12 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", session->endpoint->zone);
 		}
 		ast_channel_zone_set(chan, zone);
+	}
+
+	for (var = session->endpoint->channel_vars; var; var = var->next) {
+		char buf[512];
+		pbx_builtin_setvar_helper(chan, var->name, ast_get_encoded_str(
+						  var->value, buf, sizeof(buf)));
 	}
 
 	ast_channel_stage_snapshot_done(chan);
