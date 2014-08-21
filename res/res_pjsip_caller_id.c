@@ -468,7 +468,7 @@ static void add_privacy_header(pjsip_tx_data *tdata, const struct ast_party_id *
 	old_privacy = pjsip_msg_find_hdr_by_name(tdata->msg, &pj_privacy_name, NULL);
 
 	if ((id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
-			(id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			(id->number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 		if (old_privacy) {
 			pj_list_erase(old_privacy);
 		}
