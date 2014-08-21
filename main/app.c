@@ -960,9 +960,6 @@ static int control_streamfile(struct ast_channel *chan,
 			strcat(breaks, restart);
 		}
 	}
-	if (ast_channel_state(chan) != AST_STATE_UP) {
-		res = ast_answer(chan);
-	}
 
 	if ((end = strchr(file, ':'))) {
 		if (!strcasecmp(end, ":end")) {

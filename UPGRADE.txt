@@ -21,6 +21,14 @@
 ===
 ===========================================================
 
+From 12.5.0 to 12.6.0:
+
+ControlPlayback:
+ - The ControlPlayback and 'control stream file' AGI command will no longer
+   implicitly answer the channel. If you do not answer the channel prior to
+   using either this application or AGI command, you must send Progress
+   first.
+
 From 12.4.0 to 12.5.0:
 
 ARI:
