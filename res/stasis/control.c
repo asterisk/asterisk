@@ -810,6 +810,21 @@ static void bridge_after_cb(struct ast_channel *chan, void *data)
 	if (stasis_app_send_command_async(control, bridge_channel_depart, bridge_channel)) {
 		ao2_cleanup(bridge_channel);
 	}
+	if (stasis_app_channel_is_stasis_end_published(chan)) {
+		/* The channel has had a StasisEnd published on it, but until now had remained in
+		 * the bridging system. This means that the channel moved from a Stasis bridge to a
+		 * non-Stasis bridge and is now exiting the bridging system. Because of this, the
+		 * channel needs to exit the Stasis application and go to wherever the non-Stasis
+		 * bridge has directed it to go. If the non-Stasis bridge has not set up an after
+		 * bridge destination, then the channel should be hung up.
+		 */
+		int hangup_flag;
+
+		hangup_flag = ast_bridge_setup_after_goto(chan) ? AST_SOFTHANGUP_DEV : AST_SOFTHANGUP_ASYNCGOTO;
+		ast_channel_lock(chan);
+		ast_softhangup_nolock(chan, hangup_flag);
+		ast_channel_unlock(chan);
+	}
 }
 
 static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
