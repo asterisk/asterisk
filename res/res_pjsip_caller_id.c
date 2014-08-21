@@ -467,17 +467,15 @@ static void add_privacy_header(pjsip_tx_data *tdata, const struct ast_party_id *
 
 	old_privacy = pjsip_msg_find_hdr_by_name(tdata->msg, &pj_privacy_name, NULL);
 
-	if ((id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED ||
-			(id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED) {
-		if (!old_privacy) {
-			pjsip_generic_string_hdr *privacy_hdr = pjsip_generic_string_hdr_create(
-					tdata->pool, &pj_privacy_name, &pj_privacy_value);
-			pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)privacy_hdr);
-		}
-	} else {
+	if ((id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
+			(id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 		if (old_privacy) {
 			pj_list_erase(old_privacy);
 		}
+	} else if (!old_privacy) {
+		pjsip_generic_string_hdr *privacy_hdr = pjsip_generic_string_hdr_create(
+				tdata->pool, &pj_privacy_name, &pj_privacy_value);
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)privacy_hdr);
 	}
 }
 
