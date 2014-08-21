@@ -246,11 +246,6 @@ static struct mohclass *_mohclass_unref(struct mohclass *class, const char *tag,
 
 	if (dup) {
 		if (__ao2_ref_debug(dup, -1, (char *) tag, (char *) file, line, funcname) == 2) {
-			FILE *ref = fopen("/tmp/refs", "a");
-			if (ref) {
-				fprintf(ref, "%p =1   %s:%d:%s (%s) BAD ATTEMPT!\n", class, file, line, funcname, tag);
-				fclose(ref);
-			}
 			ast_log(LOG_WARNING, "Attempt to unref mohclass %p (%s) when only 1 ref remained, and class is still in a container! (at %s:%d (%s))\n",
 				class, class->name, file, line, funcname);
 		} else {
