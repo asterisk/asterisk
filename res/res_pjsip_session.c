@@ -51,9 +51,6 @@
 #define MOD_DATA_ON_RESPONSE "on_response"
 #define MOD_DATA_NAT_HOOK "nat_hook"
 
-/* Hostname used for origin line within SDP */
-static const pj_str_t *hostname;
-
 /* Some forward declarations */
 static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
 static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
@@ -2084,9 +2081,6 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 	}
 
 	pj_strdup2(inv->pool, &local->origin.user, session->endpoint->media.sdpowner);
-	local->origin.net_type = STR_IN;
-	local->origin.addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
-	local->origin.addr = *hostname;
 	pj_strdup2(inv->pool, &local->name, session->endpoint->media.sdpsession);
 
 	/* Now let the handlers add streams of various types, pjmedia will automatically reorder the media streams for us */
@@ -2099,6 +2093,23 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 	/* Use the connection details of the first media stream if possible for SDP level */
 	if (local->media_count) {
 		local->conn = local->media[0]->conn;
+		pj_strassign(&local->origin.net_type, &local->conn->net_type);
+		pj_strassign(&local->origin.addr_type, &local->conn->addr_type);
+		pj_strassign(&local->origin.addr, &local->conn->addr);
+	} else {
+		local->origin.net_type = STR_IN;
+		local->origin.addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
+
+		if (!ast_strlen_zero(session->endpoint->media.address)) {
+			pj_strdup2(inv->pool, &local->origin.addr, session->endpoint->media.address);
+		} else {
+			pj_sockaddr localaddr;
+			char our_ip[PJ_INET6_ADDRSTRLEN];
+
+			pj_gethostip(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr);
+			pj_sockaddr_print(&localaddr, our_ip, sizeof(our_ip), 0);
+			pj_strdup2(inv->pool, &local->origin.addr, our_ip);
+		}
 	}
 
 	return local;
@@ -2248,6 +2259,7 @@ static void session_outgoing_nat_hook(pjsip_tx_data *tdata, struct ast_sip_trans
 static int load_module(void)
 {
 	pjsip_endpoint *endpt;
+
 	if (!ast_sip_get_sorcery() || !ast_sip_get_pjsip_endpoint()) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -2265,7 +2277,6 @@ static int load_module(void)
 	pjsip_inv_usage_init(endpt, &inv_callback);
 	pjsip_100rel_init_module(endpt);
 	pjsip_timer_init_module(endpt);
-	hostname = pj_gethostname();
 	if (ast_sip_register_service(&session_module)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
