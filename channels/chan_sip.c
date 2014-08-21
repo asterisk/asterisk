@@ -12430,7 +12430,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		ast_uri_encode(l, tmp_l, sizeof(tmp_l), 0);
 	}
 
-	ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
+	ourport = (p->fromdomainport && (p->fromdomainport != STANDARD_SIP_PORT)) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
 	if (!sip_standard_port(p->socket.type, ourport)) {
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, tmp_l, d, ourport, p->tag);
 	} else {
@@ -13327,7 +13327,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 {
 	struct sip_request req;
 	struct ast_str *out = ast_str_alloca(500);
-	int ourport = (p->fromdomainport) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
+	int ourport = (p->fromdomainport && (p->fromdomainport != STANDARD_SIP_PORT)) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
 	const char *domain;
 	const char *exten = S_OR(vmexten, default_vmexten);
 
