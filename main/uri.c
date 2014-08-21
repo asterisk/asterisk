@@ -142,7 +142,7 @@ const char *ast_uri_query(const struct ast_uri *uri)
 	return uri->query;
 }
 
-const int ast_uri_is_secure(const struct ast_uri *uri)
+int ast_uri_is_secure(const struct ast_uri *uri)
 {
 	return ast_strlen_zero(uri->scheme) ? 0 :
 		*(uri->scheme + strlen(uri->scheme) - 1) == 's';

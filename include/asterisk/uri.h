@@ -115,7 +115,7 @@ const char *ast_uri_query(const struct ast_uri *uri);
  * \return True if secure, False otherwise.
  * \since 13
  */
-const int ast_uri_is_secure(const struct ast_uri *uri);
+int attribute_pure ast_uri_is_secure(const struct ast_uri *uri);
 
 /*!
  * \brief Parse the given uri into a structure.
