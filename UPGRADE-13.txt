@@ -66,6 +66,12 @@ ConfBridge:
   new method to achieve this functionality is by using sound_begin to play
   a sound to the conference when waitmarked users are moved into the conference.
 
+ControlPlayback:
+ - The ControlPlayback and 'control stream file' AGI command will no longer
+   implicitly answer the channel. If you do not answer the channel prior to
+   using either this application or AGI command, you must send Progress
+   first.
+
 Queue:
  - Queue rules provided in queuerules.conf can no longer be named "general".
 
