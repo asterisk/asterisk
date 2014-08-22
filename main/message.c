@@ -869,7 +869,7 @@ static int msg_q_cb(void *data)
 			continue;
 		}
 
-		ast_debug(5, "Dispatching message to %s handler", handler->name);
+		ast_debug(5, "Dispatching message to %s handler\n", handler->name);
 		res &= handler->handle_msg(msg);
 	}
 	ast_rwlock_unlock(&msg_handlers_lock);
