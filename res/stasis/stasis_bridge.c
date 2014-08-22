@@ -85,7 +85,6 @@ static int add_channel_to_bridge(
 
 	res = control_add_channel_to_bridge(control,
 		chan, bridge);
-	ao2_cleanup(bridge);
 	return res;
 }
 
@@ -93,9 +92,8 @@ static void bridge_stasis_queue_join_action(struct ast_bridge *self,
 	struct ast_bridge_channel *bridge_channel)
 {
 	ast_channel_lock(bridge_channel->chan);
-	if (command_prestart_queue_command(bridge_channel->chan, add_channel_to_bridge, ao2_bump(self))) {
-		ao2_cleanup(self);
-	}
+	command_prestart_queue_command(bridge_channel->chan, add_channel_to_bridge,
+		ao2_bump(self), __ao2_cleanup);
 	ast_channel_unlock(bridge_channel->chan);
 }
 

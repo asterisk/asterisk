@@ -366,20 +366,20 @@ static void play_on_channel_in_bridge(struct ast_bridge_channel *bridge_channel,
  * \brief \ref RAII_VAR function to remove a playback from the global list when
  * leaving scope.
  */
-static void remove_from_playbacks(struct stasis_app_playback *playback)
+static void remove_from_playbacks(void *data)
 {
+	struct stasis_app_playback *playback = data;
+
 	ao2_unlink_flags(playbacks, playback,
 		OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
+	ao2_ref(playback, -1);
 }
 
 static int play_uri(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	RAII_VAR(struct stasis_app_playback *, playback, NULL,
-		remove_from_playbacks);
+	struct stasis_app_playback *playback = data;
 	struct ast_bridge *bridge;
-
-	playback = data;
 
 	if (!control) {
 		return -1;
@@ -434,7 +434,7 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 	enum stasis_app_playback_target_type target_type,
 	int skipms, long offsetms, const char *id)
 {
-	RAII_VAR(struct stasis_app_playback *, playback, NULL, ao2_cleanup);
+	struct stasis_app_playback *playback;
 
 	if (skipms < 0 || offsetms < 0) {
 		return NULL;
@@ -444,6 +444,9 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 		stasis_app_control_get_channel_id(control), uri);
 
 	playback = playback_create(control, id);
+	if (!playback) {
+		return NULL;
+	}
 
 	if (skipms == 0) {
 		skipms = PLAYBACK_DEFAULT_SKIPMS;
@@ -459,11 +462,8 @@ struct stasis_app_playback *stasis_app_control_play_uri(
 	playback->state = STASIS_PLAYBACK_STATE_QUEUED;
 	playback_publish(playback);
 
-	/* A ref is kept in the playbacks container; no need to bump */
-	stasis_app_send_command_async(control, play_uri, playback);
+	stasis_app_send_command_async(control, play_uri, ao2_bump(playback), remove_from_playbacks);
 
-	/* Although this should be bumped for the caller */
-	ao2_ref(playback, +1);
 	return playback;
 }
 
