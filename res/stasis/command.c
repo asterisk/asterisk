@@ -37,6 +37,7 @@ struct stasis_app_command {
 	ast_cond_t condition;
 	stasis_app_command_cb callback;
 	void *data;
+	command_data_destructor_fn data_destructor;
 	int retval;
 	int is_done:1;
 };
@@ -44,17 +45,25 @@ struct stasis_app_command {
 static void command_dtor(void *obj)
 {
 	struct stasis_app_command *command = obj;
+
+	if (command->data_destructor) {
+		command->data_destructor(command->data);
+	}
+
 	ast_mutex_destroy(&command->lock);
 	ast_cond_destroy(&command->condition);
 }
 
 struct stasis_app_command *command_create(
-	stasis_app_command_cb callback, void *data)
+	stasis_app_command_cb callback, void *data, command_data_destructor_fn data_destructor)
 {
-	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
+	struct stasis_app_command *command;
 
 	command = ao2_alloc(sizeof(*command), command_dtor);
 	if (!command) {
+		if (data_destructor) {
+			data_destructor(data);
+		}
 		return NULL;
 	}
 
@@ -62,8 +71,8 @@ struct stasis_app_command *command_create(
 	ast_cond_init(&command->condition, 0);
 	command->callback = callback;
 	command->data = data;
+	command->data_destructor = data_destructor;
 
-	ao2_ref(command, +1);
 	return command;
 }
 
@@ -90,6 +99,10 @@ void command_invoke(struct stasis_app_command *command,
 	struct stasis_app_control *control, struct ast_channel *chan)
 {
 	int retval = command->callback(control, chan, command->data);
+	if (command->data_destructor) {
+		command->data_destructor(command->data);
+		command->data_destructor = NULL;
+	}
 	command_complete(command, retval);
 }
 
@@ -105,12 +118,12 @@ static const struct ast_datastore_info command_queue_prestart = {
 };
 
 int command_prestart_queue_command(struct ast_channel *chan,
-	stasis_app_command_cb command_fn, void *data)
+	stasis_app_command_cb command_fn, void *data, command_data_destructor_fn data_destructor)
 {
 	struct ast_datastore *datastore;
 	struct ao2_container *command_queue;
 	RAII_VAR(struct stasis_app_command *, command,
-		command_create(command_fn, data), ao2_cleanup);
+		command_create(command_fn, data, data_destructor), ao2_cleanup);
 
 	if (!command) {
 		return -1;

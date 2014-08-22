@@ -32,7 +32,8 @@
 struct stasis_app_command;
 
 struct stasis_app_command *command_create(
-	stasis_app_command_cb callback, void *data);
+	stasis_app_command_cb callback, void *data,
+	command_data_destructor_fn data_destructor);
 
 void command_complete(struct stasis_app_command *command, int retval);
 
@@ -49,12 +50,16 @@ int command_join(struct stasis_app_command *command);
  * \param chan The channel on which to queue the prestart command
  * \param command_fn The callback to call for the command
  * \param data The data to pass to the command callback
+ * \param data_destructor Optional function which will be called on
+ *        the data in either the event of command completion or failure
+ *        to schedule or complete the command
  *
  * \retval zero on success
  * \retval non-zero on failure
  */
 int command_prestart_queue_command(struct ast_channel *chan,
-	stasis_app_command_cb command_fn, void *data);
+	stasis_app_command_cb command_fn, void *data,
+	command_data_destructor_fn data_destructor);
 
 /*!
  * \brief Get the Stasis() prestart commands for a channel

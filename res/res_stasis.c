@@ -1190,6 +1190,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	RAII_VAR(struct stasis_app_control *, control, NULL, control_unlink);
 	struct ast_bridge *bridge = NULL;
 	int res = 0;
+	int needs_depart;
 
 	ast_assert(chan != NULL);
 
@@ -1303,6 +1304,13 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 				break;
 			}
 		}
+	}
+
+	ast_channel_lock(chan);
+	needs_depart = ast_channel_is_bridged(chan);
+	ast_channel_unlock(chan);
+	if (needs_depart) {
+		ast_bridge_depart(chan);
 	}
 
 	app_unsubscribe_bridge(app, stasis_app_get_bridge(control));
