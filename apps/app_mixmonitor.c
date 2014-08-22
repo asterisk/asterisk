@@ -743,13 +743,14 @@ static void *mixmonitor_thread(void *obj)
 									"File: %s\r\n",
 									ast_channel_name(mixmonitor->autochan->chan),
 									mixmonitor->filename);
+
+	ast_audiohook_unlock(&mixmonitor->audiohook);
+
 	ast_channel_lock(mixmonitor->autochan->chan);
 	if (ast_test_flag(mixmonitor, MUXFLAG_BEEP_STOP)) {
 		ast_stream_and_wait(mixmonitor->autochan->chan, "beep", "");
 	}
 	ast_channel_unlock(mixmonitor->autochan->chan);
-
-	ast_audiohook_unlock(&mixmonitor->audiohook);
 
 	ast_autochan_destroy(mixmonitor->autochan);
 
