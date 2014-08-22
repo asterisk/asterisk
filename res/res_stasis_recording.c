@@ -279,21 +279,22 @@ static void recording_fail(struct stasis_app_control *control,
 		recording, STASIS_APP_RECORDING_STATE_FAILED, cause);
 }
 
-static void recording_cleanup(struct stasis_app_recording *recording)
+static void recording_cleanup(void *data)
 {
+	struct stasis_app_recording *recording = data;
+
 	ao2_unlink_flags(recordings, recording,
 		OBJ_POINTER | OBJ_UNLINK | OBJ_NODATA);
+	ao2_ref(recording, -1);
 }
 
 static int record_file(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	RAII_VAR(struct stasis_app_recording *, recording,
-		NULL, recording_cleanup);
+	struct stasis_app_recording *recording = data;
 	char *acceptdtmf;
 	int res;
 
-	recording = data;
 	ast_assert(recording != NULL);
 
 	if (stasis_app_get_bridge(control)) {
@@ -364,7 +365,7 @@ struct stasis_app_recording *stasis_app_control_record(
 	struct stasis_app_control *control,
 	struct stasis_app_recording_options *options)
 {
-	RAII_VAR(struct stasis_app_recording *, recording, NULL, ao2_cleanup);
+	struct stasis_app_recording *recording;
 	char *last_slash;
 
 	errno = 0;
@@ -395,6 +396,7 @@ struct stasis_app_recording *stasis_app_control_record(
 
 	if (recording->absolute_name == NULL) {
 		errno = ENOMEM;
+		ao2_ref(recording, -1);
 		return NULL;
 	}
 
@@ -403,6 +405,7 @@ struct stasis_app_recording *stasis_app_control_record(
 		if (ast_safe_mkdir(ast_config_AST_RECORDING_DIR,
 				recording->absolute_name, 0777) != 0) {
 			/* errno set by ast_mkdir */
+			ao2_ref(recording, -1);
 			return NULL;
 		}
 		*last_slash = '/';
@@ -418,6 +421,7 @@ struct stasis_app_recording *stasis_app_control_record(
 		ast_log(LOG_WARNING, "Recording file '%s' already exists and ifExists option is failure.\n",
 			recording->absolute_name);
 		errno = EEXIST;
+		ao2_ref(recording, -1);
 		return NULL;
 	}
 
@@ -434,6 +438,7 @@ struct stasis_app_recording *stasis_app_control_record(
 				"Recording %s already in progress\n",
 				recording->options->name);
 			errno = EEXIST;
+			ao2_ref(recording, -1);
 			return NULL;
 		}
 		ao2_link(recordings, recording);
@@ -441,11 +446,8 @@ struct stasis_app_recording *stasis_app_control_record(
 
 	stasis_app_control_register_add_rule(control, &rule_recording);
 
-	/* A ref is kept in the recordings container; no need to bump */
-	stasis_app_send_command_async(control, record_file, recording);
+	stasis_app_send_command_async(control, record_file, ao2_bump(recording), recording_cleanup);
 
-	/* Although this should be bumped for the caller */
-	ao2_ref(recording, +1);
 	return recording;
 }
 
