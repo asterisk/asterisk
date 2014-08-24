@@ -341,6 +341,22 @@ static pjsip_module websocket_module = {
 	.id = -1,
 	.priority = PJSIP_MOD_PRIORITY_TRANSPORT_LAYER,
 	.on_rx_request = websocket_on_rx_msg,
+	.on_rx_response = websocket_on_rx_msg,
+};
+
+/*! \brief Function called when an INVITE goes out */
+static void websocket_outgoing_invite_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
+{
+	if (session->inv_session->state == PJSIP_INV_STATE_NULL) {
+		pjsip_dlg_add_usage(session->inv_session->dlg, &websocket_module, NULL);
+	}
+}
+
+/*! \brief Supplement for adding Websocket functionality to dialog */
+static struct ast_sip_session_supplement websocket_supplement = {
+	.method = "INVITE",
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_FIRST + 1,
+	.outgoing_request = websocket_outgoing_invite_request,
 };
 
 static int load_module(void)
@@ -352,7 +368,13 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	if (ast_sip_session_register_supplement(&websocket_supplement)) {
+		ast_sip_unregister_service(&websocket_module);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	if (ast_websocket_add_protocol("sip", websocket_cb)) {
+		ast_sip_session_unregister_supplement(&websocket_supplement);
 		ast_sip_unregister_service(&websocket_module);
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -363,6 +385,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_sip_unregister_service(&websocket_module);
+	ast_sip_session_unregister_supplement(&websocket_supplement);
 	ast_websocket_remove_protocol("sip", websocket_cb);
 
 	return 0;
