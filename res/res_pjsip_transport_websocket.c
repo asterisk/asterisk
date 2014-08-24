@@ -300,6 +300,8 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
  */
 static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 {
+	static const pj_str_t STR_WS = { "ws", 2 };
+	static const pj_str_t STR_WSS = { "wss", 3 };
 	pjsip_contact_hdr *contact;
 
 	long type = rdata->tp_info.transport->key.type;
@@ -314,6 +316,7 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 
 		pj_cstr(&uri->host, rdata->pkt_info.src_name);
 		uri->port = rdata->pkt_info.src_port;
+		pj_strdup(rdata->tp_info.pool, &uri->transport_param, (type == (long)transport_type_ws) ? &STR_WS : &STR_WSS);
 	}
 
 	rdata->msg_info.via->rport_param = 0;
