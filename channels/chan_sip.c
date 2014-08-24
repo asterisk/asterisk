@@ -12691,12 +12691,7 @@ static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a
 		ast_str_append(a_buf, 0, "a=candidate:%s %u %s %d ", candidate->foundation, candidate->id, candidate->transport, candidate->priority);
 		ast_str_append(a_buf, 0, "%s ", ast_sockaddr_stringify_host(&candidate->address));
 
-		if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_SRFLX
-			&& candidate->id == AST_RTP_ICE_COMPONENT_RTCP) {
-			ast_str_append(a_buf, 0, "%d typ ", ast_sockaddr_port(&candidate->address) + 1);
-		} else {
-			ast_str_append(a_buf, 0, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
-		}
+		ast_str_append(a_buf, 0, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
 
 		if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_HOST) {
 			ast_str_append(a_buf, 0, "host");
