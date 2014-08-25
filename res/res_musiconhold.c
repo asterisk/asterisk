@@ -155,11 +155,13 @@ static int respawn_time = 20;
 struct moh_files_state {
 	/*! Holds a reference to the MOH class. */
 	struct mohclass *class;
+	char name[MAX_MUSICCLASS];
 	format_t origwfmt;
 	int samples;
 	int sample_queue;
 	int pos;
 	int save_pos;
+	int save_total;
 	char save_pos_filename[PATH_MAX];
 };
 
@@ -416,11 +418,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 		}
 	}
 
-	/* class is reffed, so we can safely compare it against the (possibly
-	 * recently unreffed) state->class. The unref was done after the ref
-	 * of class, so we're sure that they won't point to the same memory
-	 * by accident. */
-	if (state->class != class) {
+	/* Resume MOH from where we left off last time or start from scratch? */
+	if (state->save_total != class->total_files || strcmp(state->name, class->name) != 0) {
+		/* Start MOH from scratch. */
 		memset(state, 0, sizeof(*state));
 		if (ast_test_flag(class, MOH_RANDOMIZE) && class->total_files) {
 			state->pos = ast_random() % class->total_files;
@@ -429,6 +429,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 	state->class = mohclass_ref(class, "Reffing music class for channel");
 	state->origwfmt = chan->writeformat;
+	/* For comparison on restart of MOH (see above) */
+	ast_copy_string(state->name, class->name, sizeof(state->name));
+	state->save_total = class->total_files;
 
 	ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, chan->name);
 	
