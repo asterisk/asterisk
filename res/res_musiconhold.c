@@ -479,6 +479,8 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	/* Resume MOH from where we left off last time or start from scratch? */
 	if (state->save_total != class->total_files || strcmp(state->name, class->name) != 0) {
 		/* Start MOH from scratch. */
+		ao2_cleanup(state->origwfmt);
+		ao2_cleanup(state->mohwfmt);
 		memset(state, 0, sizeof(*state));
 		if (ast_test_flag(class, MOH_RANDOMIZE) && class->total_files) {
 			state->pos = ast_random() % class->total_files;
@@ -974,6 +976,8 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 			mohclass_unref(state->class, "Uh Oh. Restarting MOH with an active class");
 			ast_log(LOG_WARNING, "Uh Oh. Restarting MOH with an active class\n");
 		}
+		ao2_cleanup(state->origwfmt);
+		ao2_cleanup(state->mohwfmt);
 		memset(state, 0, sizeof(*state));
 	}
 
@@ -1304,6 +1308,7 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 	struct moh_files_state *state = ast_channel_music_state(chan);
 
 	if (state) {
+		ast_channel_music_state_set(chan, NULL);
 		if (state->class) {
 			/* This should never happen.  We likely just leaked some resource. */
 			state->class =
@@ -1312,8 +1317,7 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 		}
 		ao2_cleanup(state->origwfmt);
 		ao2_cleanup(state->mohwfmt);
-		ast_free(ast_channel_music_state(chan));
-		ast_channel_music_state_set(chan, NULL);
+		ast_free(state);
 		/* Only held a module reference if we had a music state */
 		ast_module_unref(ast_module_info->self);
 	}
