@@ -170,6 +170,8 @@ struct moh_files_state {
 	int sample_queue;
 	int pos;
 	int save_pos;
+	int save_total;
+	char name[MAX_MUSICCLASS];
 	char save_pos_filename[PATH_MAX];
 };
 
@@ -502,11 +504,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 		}
 	}
 
-	/* class is reffed, so we can safely compare it against the (possibly
-	 * recently unreffed) state->class. The unref was done after the ref
-	 * of class, so we're sure that they won't point to the same memory
-	 * by accident. */
-	if (state->class != class) {
+	/* Resume MOH from where we left off last time or start from scratch? */
+	if (state->save_total != class->total_files || strcmp(state->name, class->name) != 0) {
+		/* Start MOH from scratch. */
 		memset(state, 0, sizeof(*state));
 		if (ast_test_flag(class, MOH_RANDOMIZE) && class->total_files) {
 			state->pos = ast_random() % class->total_files;
@@ -516,6 +516,9 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	state->class = mohclass_ref(class, "Reffing music class for channel");
 	ast_format_copy(&state->origwfmt, ast_channel_writeformat(chan));
 	ast_format_copy(&state->mohwfmt, ast_channel_writeformat(chan));
+	/* For comparison on restart of MOH (see above) */
+	ast_copy_string(state->name, class->name, sizeof(state->name));
+	state->save_total = class->total_files;
 
 	moh_post_start(chan, class->name);
 
