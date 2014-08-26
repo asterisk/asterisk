@@ -211,6 +211,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Conference" required="true" />
 			<parameter name="Channel" required="true">
 				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+				<para>If this parameter is "all", all channels will be muted.</para>
+				<para>If this parameter is "participants", all non-admin channels will be muted.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -225,6 +227,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Conference" required="true" />
 			<parameter name="Channel" required="true">
 				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+				<para>If this parameter is "all", all channels will be unmuted.</para>
+				<para>If this parameter is "participants", all non-admin channels will be unmuted.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -238,8 +242,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="Conference" required="true" />
 			<parameter name="Channel" required="true" >
-				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
 				<para>If this parameter is "all", all channels will be kicked from the conference.</para>
+				<para>If this parameter is "participants", all non-admin channels will be kicked from the conference.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -2189,37 +2193,47 @@ int conf_handle_dtmf(struct ast_bridge_channel *bridge_channel,
 	return 0;
 }
 
-static int kick_conference_participant(struct confbridge_conference *conference, const char *channel)
+static int kick_conference_participant(struct confbridge_conference *conference,
+	const char *channel)
 {
 	int res = -1;
+	int match;
 	struct confbridge_user *user = NULL;
+	int all = !strcasecmp("all", channel);
+	int participants = !strcasecmp("participants", channel);
 
 	SCOPED_AO2LOCK(bridge_lock, conference);
 
 	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
-		if (!strcasecmp(ast_channel_name(user->chan), channel) && !user->kicked) {
-			user->kicked = 1;
-			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
-			ast_bridge_remove(conference->bridge, user->chan);
-			return 0;
-		} else if (!strcasecmp("all", channel)) {
+		if (user->kicked) {
+			continue;
+		}
+		match = !strcasecmp(channel, ast_channel_name(user->chan));
+		if (match || all
+				|| (participants && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN))) {
 			user->kicked = 1;
 			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
 			ast_bridge_remove(conference->bridge, user->chan);
 			res = 0;
+			if (match) {
+				return res;
+			}
 		}
 	}
 	AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
-		if (!strcasecmp(ast_channel_name(user->chan), channel) && !user->kicked) {
-			user->kicked = 1;
-			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
-			ast_bridge_remove(conference->bridge, user->chan);
-			return 0;
-		} else if (!strcasecmp("all", channel)) {
+		if (user->kicked) {
+			continue;
+		}
+		match = !strcasecmp(channel, ast_channel_name(user->chan));
+		if (match || all
+				|| (participants && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN))) {
 			user->kicked = 1;
 			pbx_builtin_setvar_helper(user->chan, "CONFBRIDGE_RESULT", "KICKED");
 			ast_bridge_remove(conference->bridge, user->chan);
 			res = 0;
+			if (match) {
+				return res;
+			}
 		}
 	}
 
@@ -2261,10 +2275,13 @@ static char *complete_confbridge_participant(const char *conference_name, const 
 		return NULL;
 	}
 
-	if (!state) {
+	if (!strncasecmp("all", word, wordlen) && ++which > state) {
 		return ast_strdup("all");
 	}
-	state--;
+
+	if (!strncasecmp("participants", word, wordlen) && ++which > state) {
+		return ast_strdup("participants");
+	}
 
 	{
 		SCOPED_AO2LOCK(bridge_lock, conference);
@@ -2295,7 +2312,8 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 		e->command = "confbridge kick";
 		e->usage =
 			"Usage: confbridge kick <conference> <channel>\n"
-			"       Kicks a channel out of the conference bridge (all to kick everyone).\n";
+			"       Kicks a channel out of the conference bridge.\n"
+			"             (all to kick everyone, participants to kick non-admins).\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 2) {
@@ -2319,10 +2337,14 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 	not_found = kick_conference_participant(conference, a->argv[3]);
 	ao2_ref(conference, -1);
 	if (not_found) {
-		ast_cli(a->fd, "No participant named '%s' found!\n", a->argv[3]);
+		if (!strcasecmp("all", a->argv[3]) || !strcasecmp("participants", a->argv[3])) {
+			ast_cli(a->fd, "No participants found!\n");
+		} else {
+			ast_cli(a->fd, "No participant named '%s' found!\n", a->argv[3]);
+		}
 		return CLI_SUCCESS;
 	}
-	ast_cli(a->fd, "Participant '%s' kicked out of conference '%s'\n", a->argv[3], a->argv[2]);
+	ast_cli(a->fd, "Kicked '%s' out of conference '%s'\n", a->argv[3], a->argv[2]);
 	return CLI_SUCCESS;
 }
 
@@ -2455,59 +2477,78 @@ static int generic_lock_unlock_helper(int lock, const char *conference_name)
 }
 
 /* \internal
+ * \brief Mute/unmute a single user.
+ */
+static void generic_mute_unmute_user(struct confbridge_conference *conference, struct confbridge_user *user, int mute)
+{
+	/* Set user level mute request. */
+	user->muted = mute ? 1 : 0;
+
+	conf_update_user_mute(user);
+	ast_test_suite_event_notify("CONF_MUTE",
+		"Message: participant %s %s\r\n"
+		"Conference: %s\r\n"
+		"Channel: %s",
+		ast_channel_name(user->chan),
+		mute ? "muted" : "unmuted",
+		conference->b_profile.name,
+		ast_channel_name(user->chan));
+	if (mute) {
+		send_mute_event(user->chan, conference);
+	} else {
+		send_unmute_event(user->chan, conference);
+	}
+}
+
+/* \internal
  * \brief finds a conference user by channel name and mutes/unmutes them.
  *
  * \retval 0 success
  * \retval -1 conference not found
  * \retval -2 user not found
  */
-static int generic_mute_unmute_helper(int mute, const char *conference_name, const char *chan_name)
+static int generic_mute_unmute_helper(int mute, const char *conference_name,
+	const char *chan_name)
 {
-	struct confbridge_conference *conference;
+	RAII_VAR(struct confbridge_conference *, conference, NULL, ao2_cleanup);
 	struct confbridge_user *user;
-	int res = 0;
+	int all = !strcasecmp("all", chan_name);
+	int participants = !strcasecmp("participants", chan_name);
+	int res = -2;
 
 	conference = ao2_find(conference_bridges, conference_name, OBJ_KEY);
 	if (!conference) {
 		return -1;
 	}
-	ao2_lock(conference);
-	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
-		if (!strncmp(chan_name, ast_channel_name(user->chan), strlen(chan_name))) {
-			break;
+
+	{
+		SCOPED_AO2LOCK(bridge_lock, conference);
+		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
+			int match = !strncasecmp(chan_name, ast_channel_name(user->chan),
+				strlen(chan_name));
+			if (match || all
+				|| (participants && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN))) {
+				generic_mute_unmute_user(conference, user, mute);
+				res = 0;
+				if (match) {
+					return res;
+				}
+			}
 		}
-	}
-	if (!user) {
-		/* user is not in the active list so check the waiting list as well */
+
 		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
-			if (!strncmp(chan_name, ast_channel_name(user->chan), strlen(chan_name))) {
-				break;
+			int match = !strncasecmp(chan_name, ast_channel_name(user->chan),
+				strlen(chan_name));
+			if (match || all
+				|| (participants && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN))) {
+				generic_mute_unmute_user(conference, user, mute);
+				res = 0;
+				if (match) {
+					return res;
+				}
 			}
 		}
 	}
-	if (user) {
-		/* Set user level mute request. */
-		user->muted = mute ? 1 : 0;
-
-		conf_update_user_mute(user);
-		ast_test_suite_event_notify("CONF_MUTE",
-			"Message: participant %s %s\r\n"
-			"Conference: %s\r\n"
-			"Channel: %s",
-			ast_channel_name(user->chan),
-			mute ? "muted" : "unmuted",
-			conference->b_profile.name,
-			ast_channel_name(user->chan));
-		if (mute) {
-			send_mute_event(user->chan, conference);
-		} else {
-			send_unmute_event(user->chan, conference);
-		}
-	} else {
-		res = -2;;
-	}
-	ao2_unlock(conference);
-	ao2_ref(conference, -1);
 
 	return res;
 }
@@ -2520,7 +2561,11 @@ static int cli_mute_unmute_helper(int mute, struct ast_cli_args *a)
 		ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 		return -1;
 	} else if (res == -2) {
-		ast_cli(a->fd, "No channel named '%s' found in conference %s\n", a->argv[3], a->argv[2]);
+		if (!strcasecmp("all", a->argv[3]) || !strcasecmp("participants", a->argv[3])) {
+			ast_cli(a->fd, "No participants found in conference %s\n", a->argv[2]);
+		} else {
+			ast_cli(a->fd, "No channel named '%s' found in conference %s\n", a->argv[3], a->argv[2]);
+		}
 		return -1;
 	}
 	ast_cli(a->fd, "%s %s from confbridge %s\n", mute ? "Muting" : "Unmuting", a->argv[3], a->argv[2]);
@@ -2535,6 +2580,7 @@ static char *handle_cli_confbridge_mute(struct ast_cli_entry *e, int cmd, struct
 		e->usage =
 			"Usage: confbridge mute <conference> <channel>\n"
 			"       Mute a channel in a conference.\n"
+			"              (all to mute everyone, participants to mute non-admins)\n"
 			"       If the specified channel is a prefix,\n"
 			"       the action will be taken on the first\n"
 			"       matching channel.\n";
@@ -2565,6 +2611,7 @@ static char *handle_cli_confbridge_unmute(struct ast_cli_entry *e, int cmd, stru
 		e->usage =
 			"Usage: confbridge unmute <conference> <channel>\n"
 			"       Unmute a channel in a conference.\n"
+			"              (all to unmute everyone, participants to unmute non-admins)\n"
 			"       If the specified channel is a prefix,\n"
 			"       the action will be taken on the first\n"
 			"       matching channel.\n";
@@ -2735,8 +2782,8 @@ static char *handle_cli_confbridge_stop_record(struct ast_cli_entry *e, int cmd,
 static struct ast_cli_entry cli_confbridge[] = {
 	AST_CLI_DEFINE(handle_cli_confbridge_list, "List conference bridges and participants."),
 	AST_CLI_DEFINE(handle_cli_confbridge_kick, "Kick participants out of conference bridges."),
-	AST_CLI_DEFINE(handle_cli_confbridge_mute, "Mute a participant."),
-	AST_CLI_DEFINE(handle_cli_confbridge_unmute, "Unmute a participant."),
+	AST_CLI_DEFINE(handle_cli_confbridge_mute, "Mute participants."),
+	AST_CLI_DEFINE(handle_cli_confbridge_unmute, "Unmute participants."),
 	AST_CLI_DEFINE(handle_cli_confbridge_lock, "Lock a conference."),
 	AST_CLI_DEFINE(handle_cli_confbridge_unlock, "Unlock a conference."),
 	AST_CLI_DEFINE(handle_cli_confbridge_start_record, "Start recording a conference"),
