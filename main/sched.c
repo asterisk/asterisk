@@ -71,6 +71,13 @@ struct sched {
 	const void *data;             /*!< Data */
 	ast_sched_cb callback;        /*!< Callback */
 	ssize_t __heap_index;
+	/*!
+	 * Used to synchronize between thread running a task and thread
+	 * attempting to delete a task
+	 */
+	ast_cond_t cond;
+	/*! Indication that a running task was deleted. */
+	unsigned int deleted:1;
 };
 
 struct sched_thread {
@@ -85,6 +92,8 @@ struct ast_sched_context {
 	unsigned int highwater;					/*!< highest count so far */
 	struct ast_heap *sched_heap;
 	struct sched_thread *sched_thread;
+	/*! The scheduled task that is currently executing */
+	struct sched *currently_executing;
 
 #ifdef SCHED_MAX_CACHE
 	AST_LIST_HEAD_NOLOCK(, sched) schedc;   /*!< Cache of unused schedule structures and how many */
@@ -208,6 +217,12 @@ struct ast_sched_context *ast_sched_context_create(void)
 	return tmp;
 }
 
+static void sched_free(struct sched *task)
+{
+	ast_cond_destroy(&task->cond);
+	ast_free(task);
+}
+
 void ast_sched_context_destroy(struct ast_sched_context *con)
 {
 	struct sched *s;
@@ -219,13 +234,13 @@ void ast_sched_context_destroy(struct ast_sched_context *con)
 
 #ifdef SCHED_MAX_CACHE
 	while ((s = AST_LIST_REMOVE_HEAD(&con->schedc, list))) {
-		ast_free(s);
+		sched_free(s);
 	}
 #endif
 
 	if (con->sched_heap) {
 		while ((s = ast_heap_pop(con->sched_heap))) {
-			ast_free(s);
+			sched_free(s);
 		}
 		ast_heap_destroy(con->sched_heap);
 		con->sched_heap = NULL;
@@ -246,11 +261,14 @@ static struct sched *sched_alloc(struct ast_sched_context *con)
 	 * to minimize the number of necessary malloc()'s
 	 */
 #ifdef SCHED_MAX_CACHE
-	if ((tmp = AST_LIST_REMOVE_HEAD(&con->schedc, list)))
+	if ((tmp = AST_LIST_REMOVE_HEAD(&con->schedc, list))) {
 		con->schedccnt--;
-	else
+	} else 
 #endif
+	{
 		tmp = ast_calloc(1, sizeof(*tmp));
+		ast_cond_init(&tmp->cond, NULL);
+	}
 
 	return tmp;
 }
@@ -268,7 +286,7 @@ static void sched_release(struct ast_sched_context *con, struct sched *tmp)
 		con->schedccnt++;
 	} else
 #endif
-		ast_free(tmp);
+		sched_free(tmp);
 }
 
 /*! \brief
@@ -451,8 +469,15 @@ int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int 
 		if (!ast_heap_remove(con->sched_heap, s)) {
 			ast_log(LOG_WARNING,"sched entry %d not in the sched heap?\n", s->id);
 		}
-
 		sched_release(con, s);
+	} else if (con->currently_executing && (id == con->currently_executing->id)) {
+		s = con->currently_executing;
+		s->deleted = 1;
+		/* Wait for executing task to complete so that caller of ast_sched_del() does not
+		 * free memory out from under the task.
+		 */
+		ast_cond_wait(&s->cond, &con->lock);
+		/* Do not sched_release() here because ast_sched_runq() will do it */
 	}
 
 #ifdef DUMP_SCHEDULER
@@ -591,11 +616,14 @@ int ast_sched_runq(struct ast_sched_context *con)
 		 * should return 0.
 		 */
 
+		con->currently_executing = current;
 		ast_mutex_unlock(&con->lock);
 		res = current->callback(current->data);
 		ast_mutex_lock(&con->lock);
+		con->currently_executing = NULL;
+		ast_cond_signal(&current->cond);
 
-		if (res) {
+		if (res && !current->deleted) {
 			/*
 			 * If they return non-zero, we should schedule them to be
 			 * run again.
