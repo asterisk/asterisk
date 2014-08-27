@@ -76,6 +76,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<bridge_snapshot/>
 				<channel_snapshot/>
+				<parameter name="Admin">
+					<para>Identifies this user as an admin user.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeLeave</ref>
@@ -92,6 +99,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<bridge_snapshot/>
 				<channel_snapshot/>
+				<parameter name="Admin">
+					<para>Identifies this user as an admin user.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeJoin</ref>
@@ -138,6 +152,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<bridge_snapshot/>
 				<channel_snapshot/>
+				<parameter name="Admin">
+					<para>Identifies this user as an admin user.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeUnmute</ref>
@@ -154,6 +175,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<bridge_snapshot/>
 				<channel_snapshot/>
+				<parameter name="Admin">
+					<para>Identifies this user as an admin user.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
+					</enumlist>
+				</parameter>
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">ConfbridgeMute</ref>
@@ -174,6 +202,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enumlist>
 						<enum name="on"/>
 						<enum name="off"/>
+					</enumlist>
+				</parameter>
+				<parameter name="Admin">
+					<para>Identifies this user as an admin user.</para>
+					<enumlist>
+						<enum name="Yes"/>
+						<enum name="No"/>
 					</enumlist>
 				</parameter>
 			</syntax>
@@ -223,6 +258,18 @@ static void confbridge_publish_manager_event(
 		S_COR(extra_text, ast_str_buffer(extra_text), ""));
 }
 
+static int get_admin_header(struct ast_str **extra_text, struct stasis_message *message)
+{
+	const struct ast_bridge_blob *blob = stasis_message_data(message);
+	const struct ast_json *admin = ast_json_object_get(blob->blob, "admin");
+	if (!admin) {
+		return -1;
+	}
+
+	return ast_str_append_event_header(extra_text, "Admin",
+		S_COR(ast_json_is_true(admin), "Yes", "No"));
+}
+
 static void confbridge_start_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
@@ -238,13 +285,23 @@ static void confbridge_end_cb(void *data, struct stasis_subscription *sub,
 static void confbridge_leave_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
-	confbridge_publish_manager_event(message, "ConfbridgeLeave", NULL);
+	struct ast_str *extra_text = NULL;
+
+	if (!get_admin_header(&extra_text, message)) {
+		confbridge_publish_manager_event(message, "ConfbridgeLeave", extra_text);
+	}
+	ast_free(extra_text);
 }
 
 static void confbridge_join_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
-	confbridge_publish_manager_event(message, "ConfbridgeJoin", NULL);
+	struct ast_str *extra_text = NULL;
+
+	if (!get_admin_header(&extra_text, message)) {
+		confbridge_publish_manager_event(message, "ConfbridgeJoin", extra_text);
+	}
+	ast_free(extra_text);
 }
 
 static void confbridge_start_record_cb(void *data, struct stasis_subscription *sub,
@@ -262,20 +319,30 @@ static void confbridge_stop_record_cb(void *data, struct stasis_subscription *su
 static void confbridge_mute_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
-	confbridge_publish_manager_event(message, "ConfbridgeMute", NULL);
+	struct ast_str *extra_text = NULL;
+
+	if (!get_admin_header(&extra_text, message)) {
+		confbridge_publish_manager_event(message, "ConfbridgeMute", extra_text);
+	}
+	ast_free(extra_text);
 }
 
 static void confbridge_unmute_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
-	confbridge_publish_manager_event(message, "ConfbridgeUnmute", NULL);
+	struct ast_str *extra_text = NULL;
+
+	if (!get_admin_header(&extra_text, message)) {
+		confbridge_publish_manager_event(message, "ConfbridgeUnmute", extra_text);
+	}
+	ast_free(extra_text);
 }
 
 static void confbridge_talking_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	RAII_VAR(struct ast_str *, extra_text, NULL, ast_free);
-	struct ast_bridge_blob *blob = stasis_message_data(message);
+	const struct ast_bridge_blob *blob = stasis_message_data(message);
 	const char *talking_status = ast_json_string_get(ast_json_object_get(blob->blob, "talking_status"));
 	if (!talking_status) {
 		return;
@@ -286,7 +353,9 @@ static void confbridge_talking_cb(void *data, struct stasis_subscription *sub,
 		return;
 	}
 
-	confbridge_publish_manager_event(message, "ConfbridgeTalking", extra_text);
+	if (!get_admin_header(&extra_text, message)) {
+		confbridge_publish_manager_event(message, "ConfbridgeTalking", extra_text);
+	}
 }
 
 STASIS_MESSAGE_TYPE_DEFN(confbridge_start_type);
