@@ -12538,6 +12538,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 {
 	struct ast_str *tmp = ast_str_alloca(256);
 	char tmp2[256];
+	char lid_name_buf[128];
 	char *lid_num;
 	char *lid_name;
 	int lid_pres;
@@ -12563,6 +12564,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 	if (!lid_name) {
 		lid_name = lid_num;
 	}
+	ast_escape_quoted(lid_name, lid_name_buf, sizeof(lid_name_buf));
 	lid_pres = ast_party_id_presentation(&connected_id);
 
 	if (((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) &&
@@ -12586,7 +12588,7 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_TRUST_ID_OUTBOUND) != SIP_PAGE2_TRUST_ID_OUTBOUND_LEGACY) {
 			/* trust_id_outbound = yes - Always give full information even if it's private, but append a privacy header
 			 * When private data is included */
-			ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name, lid_num, fromdomain);
+			ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name_buf, lid_num, fromdomain);
 			if ((lid_pres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
 				add_header(req, "Privacy", "id");
 			}
@@ -12594,14 +12596,14 @@ static int add_rpid(struct sip_request *req, struct sip_pvt *p)
 			/* trust_id_outbound = legacy - behave in a non RFC-3325 compliant manner and send anonymized data when
 			 * when handling private data. */
 			if ((lid_pres & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
-				ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name, lid_num, fromdomain);
+				ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>", lid_name_buf, lid_num, fromdomain);
 			} else {
 				ast_str_set(&tmp, -1, "%s", anonymous_string);
 			}
 		}
 		add_header(req, "P-Asserted-Identity", ast_str_buffer(tmp));
 	} else {
-		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>;party=%s", lid_name, lid_num, fromdomain, p->outgoing_call ? "calling" : "called");
+		ast_str_set(&tmp, -1, "\"%s\" <sip:%s@%s>;party=%s", lid_name_buf, lid_num, fromdomain, p->outgoing_call ? "calling" : "called");
 
 		switch (lid_pres) {
 		case AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
@@ -18857,7 +18859,10 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req, struct a
 	from = (char *) get_calleridname(from, from_name, sizeof(from_name));
 	from = get_in_brackets(from);
 	if (from_name[0]) {
-		res |= ast_msg_set_from(msg, "\"%s\" <%s>", from_name, from);
+		char from_buf[128];
+
+		ast_escape_quoted(from_name, from_buf, sizeof(from_buf));
+		res |= ast_msg_set_from(msg, "\"%s\" <%s>", from_buf, from);
 	} else {
 		res |= ast_msg_set_from(msg, "<%s>", from);
 	}
