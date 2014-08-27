@@ -458,6 +458,28 @@ char *ast_escape_quoted(const char *string, char *outbuf, int buflen)
 	return outbuf;
 }
 
+void ast_unescape_quoted(char *quote_str)
+{
+	int esc_pos;
+	int unesc_pos;
+	int quote_str_len = strlen(quote_str);
+
+	for (esc_pos = 0, unesc_pos = 0;
+		esc_pos < quote_str_len;
+		esc_pos++, unesc_pos++) {
+		if (quote_str[esc_pos] == '\\') {
+			/* at least one more char and current is \\ */
+			esc_pos++;
+			if (esc_pos >= quote_str_len) {
+				break;
+			}
+		}
+
+		quote_str[unesc_pos] = quote_str[esc_pos];
+	}
+	quote_str[unesc_pos] = '\0';
+}
+
 /*! \brief  ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  */
 void ast_uri_decode(char *s) 
 {

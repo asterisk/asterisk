@@ -300,6 +300,15 @@ int ast_xml_escape(const char *string, char *outbuf, size_t buflen);
  */
 char *ast_escape_quoted(const char *string, char *outbuf, int buflen);
 
+/*!
+ * \brief Unescape quotes in a string
+ *
+ * \param quote_str The string with quotes to be unescaped
+ *
+ * \note This function mutates the passed-in string.
+ */
+void ast_unescape_quoted(char *quote_str);
+
 static force_inline void ast_slinear_saturated_add(short *input, short *value)
 {
 	int res;

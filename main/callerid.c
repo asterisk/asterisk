@@ -1008,50 +1008,39 @@ int ast_is_shrinkable_phonenumber(const char *exten)
 
 int ast_callerid_parse(char *instr, char **name, char **location)
 {
-	char *ns, *ne, *ls, *le;
+	char *ls, *le, *name_start;
 
-	/* Try "name" <location> format or name <location> format */
-	if ((ls = strrchr(instr, '<')) && (le = strrchr(ls, '>'))) {
-		*ls = *le = '\0';	/* location found, trim off the brackets */
-		*location = ls + 1;	/* and this is the result */
-		if ((ns = strchr(instr, '"')) && (ne = strchr(ns + 1, '"'))) {
-			*ns = *ne = '\0';	/* trim off the quotes */
-			*name = ns + 1;		/* and this is the name */
-		} else if (ns) {
-			/* An opening quote was found but no closing quote was. The closing
-			 * quote may actually be after the end of the bracketed number
-			 */
-			if (strchr(le + 1, '\"')) {
-				*ns = '\0';
-				*name = ns + 1;
-				ast_trim_blanks(*name);
-			} else {
-				*name = NULL;
-			}
-		} else { /* no quotes, trim off leading and trailing spaces */
-			*name = ast_skip_blanks(instr);
-			ast_trim_blanks(*name);
+	/* Handle surrounding quotes */
+	instr = ast_strip_quoted(instr, "\"", "\"");
+
+	/* Try "name" <location> format or name <location> format or with a missing > */
+	if ((ls = strrchr(instr, '<'))) {
+		if ((le = strrchr(ls, '>'))) {
+			*le = '\0';	/* location found, trim off the brackets */
 		}
+		*ls = '\0';
+		*location = ls + 1;	/* and this is the result */
+
+		name_start = ast_strip_quoted(instr, "\"", "\"");
 	} else {	/* no valid brackets */
 		char tmp[256];
 
 		ast_copy_string(tmp, instr, sizeof(tmp));
 		ast_shrink_phone_number(tmp);
 		if (ast_isphonenumber(tmp)) {	/* Assume it's just a location */
-			*name = NULL;
+			name_start = NULL;
 			strcpy(instr, tmp); /* safe, because tmp will always be the same size or smaller than instr */
 			*location = instr;
 		} else { /* Assume it's just a name. */
 			*location = NULL;
-			if ((ns = strchr(instr, '"')) && (ne = strchr(ns + 1, '"'))) {
-				*ns = *ne = '\0';	/* trim off the quotes */
-				*name = ns + 1;		/* and this is the name */
-			} else { /* no quotes, trim off leading and trailing spaces */
-				*name = ast_skip_blanks(instr);
-				ast_trim_blanks(*name);
-			}
+			name_start = ast_strip_quoted(instr, "\"", "\"");
 		}
 	}
+
+	if (name_start) {
+		ast_unescape_quoted(name_start);
+	}
+	*name = name_start;
 	return 0;
 }
 
@@ -1078,14 +1067,18 @@ char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *nu
 {
 	if (!unknown)
 		unknown = "<unknown>";
-	if (name && num)
-		snprintf(buf, bufsiz, "\"%s\" <%s>", name, num);
-	else if (name) 
+	if (name && num) {
+		char name_buf[128];
+
+		ast_escape_quoted(name, name_buf, sizeof(name_buf));
+		snprintf(buf, bufsiz, "\"%s\" <%s>", name_buf, num);
+	} else if (name) {
 		ast_copy_string(buf, name, bufsiz);
-	else if (num)
+	} else if (num) {
 		ast_copy_string(buf, num, bufsiz);
-	else
+	} else {
 		ast_copy_string(buf, unknown, bufsiz);
+	}
 	return buf;
 }
 
