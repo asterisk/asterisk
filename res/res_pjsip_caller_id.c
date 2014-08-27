@@ -404,7 +404,11 @@ static void modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr, const st
 	id_uri = pjsip_uri_get_uri(id_name_addr->uri);
 
 	if (id->name.valid) {
-		pj_strdup2(pool, &id_name_addr->display, id->name.str);
+		int name_buf_len = strlen(id->name.str) * 2 + 1;
+		char *name_buf = ast_alloca(name_buf_len);
+
+		ast_escape_quoted(id->name.str, name_buf, name_buf_len);
+		pj_strdup2(pool, &id_name_addr->display, name_buf);
 	}
 
 	if (id->number.valid) {
@@ -438,7 +442,11 @@ static pjsip_fromto_hdr *create_new_id_hdr(const pj_str_t *hdr_name, pjsip_tx_da
 	id_uri = pjsip_uri_get_uri(id_name_addr->uri);
 
 	if (id->name.valid) {
-		pj_strdup2(tdata->pool, &id_name_addr->display, id->name.str);
+		int name_buf_len = strlen(id->name.str) * 2 + 1;
+		char *name_buf = ast_alloca(name_buf_len);
+
+		ast_escape_quoted(id->name.str, name_buf, name_buf_len);
+		pj_strdup2(tdata->pool, &id_name_addr->display, name_buf);
 	}
 
 	pj_strdup2(tdata->pool, &id_uri->user, id->number.str);
