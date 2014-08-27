@@ -421,6 +421,100 @@ AST_TEST_DEFINE(agi_loaded_test)
 	return res;
 }
 
+struct quote_set {
+	char *input;
+	char *output;
+};
+
+AST_TEST_DEFINE(quote_mutation)
+{
+	char escaped[64];
+	static const struct quote_set escape_sets[] = {
+		{"\"string\"", "\\\"string\\\""},
+		{"\"string", "\\\"string"},
+		{"string\"", "string\\\""},
+		{"string", "string"},
+		{"str\"ing", "str\\\"ing"},
+		{"\"", "\\\""},
+		{"\\\"", "\\\\\\\""},
+	};
+	int i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "quote_mutation";
+		info->category = "/main/utils/";
+		info->summary = "Test mutation of quotes in strings";
+		info->description =
+			"This tests escaping and unescaping of quotes in strings to "
+			"verify that the original string is recovered.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(escape_sets); i++) {
+		ast_escape_quoted(escape_sets[i].input, escaped, sizeof(escaped));
+
+		if (strcmp(escaped, escape_sets[i].output)) {
+			ast_test_status_update(test,
+				"Expected escaped string '%s' instead of '%s'\n",
+				escape_sets[i].output, escaped);
+			return AST_TEST_FAIL;
+		}
+
+		ast_unescape_quoted(escaped);
+		if (strcmp(escaped, escape_sets[i].input)) {
+			ast_test_status_update(test,
+				"Expected unescaped string '%s' instead of '%s'\n",
+				escape_sets[i].input, escaped);
+			return AST_TEST_FAIL;
+		}
+	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(quote_unescaping)
+{
+	static const struct quote_set escape_sets[] = {
+		{"\"string\"", "\"string\""},
+		{"\\\"string\"", "\"string\""},
+		{"\"string\\\"", "\"string\""},
+		{"str\\ing", "string"},
+		{"string\\", "string"},
+		{"\\string", "string"},
+	};
+	int i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "quote_unescaping";
+		info->category = "/main/utils/";
+		info->summary = "Test unescaping of off-nominal strings";
+		info->description =
+			"This tests unescaping of strings which contain a mix of "
+			"escaped and unescaped sequences.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(escape_sets); i++) {
+		RAII_VAR(char *, escaped, ast_strdup(escape_sets[i].input), ast_free);
+
+		ast_unescape_quoted(escaped);
+		if (strcmp(escaped, escape_sets[i].output)) {
+			ast_test_status_update(test,
+				"Expected unescaped string '%s' instead of '%s'\n",
+				escape_sets[i].output, escaped);
+			return AST_TEST_FAIL;
+		}
+	}
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(uri_encode_decode_test);
@@ -431,6 +525,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(crypto_loaded_test);
 	AST_TEST_UNREGISTER(adsi_loaded_test);
 	AST_TEST_UNREGISTER(agi_loaded_test);
+	AST_TEST_UNREGISTER(quote_mutation);
+	AST_TEST_UNREGISTER(quote_unescaping);
 	return 0;
 }
 
@@ -444,6 +540,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(crypto_loaded_test);
 	AST_TEST_REGISTER(adsi_loaded_test);
 	AST_TEST_REGISTER(agi_loaded_test);
+	AST_TEST_REGISTER(quote_mutation);
+	AST_TEST_REGISTER(quote_unescaping);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
