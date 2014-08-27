@@ -430,7 +430,8 @@ const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds 
 	return "";
 }
 
-static void send_conf_stasis(struct confbridge_conference *conference, struct ast_channel *chan, struct stasis_message_type *type, struct ast_json *extras, int channel_topic)
+static void send_conf_stasis(struct confbridge_conference *conference, struct ast_channel *chan,
+	struct stasis_message_type *type, struct ast_json *extras, int channel_topic)
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
@@ -472,14 +473,32 @@ static void send_conf_end_event(struct confbridge_conference *conference)
 	send_conf_stasis(conference, NULL, confbridge_end_type(), NULL, 0);
 }
 
-static void send_join_event(struct ast_channel *chan, struct confbridge_conference *conference)
+static void send_join_event(struct confbridge_user *user, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, confbridge_join_type(), NULL, 0);
+	struct ast_json *json_object;
+
+	json_object = ast_json_pack("{s: b}",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN)
+	);
+	if (!json_object) {
+		return;
+	}
+	send_conf_stasis(conference, user->chan, confbridge_join_type(), json_object, 0);
+	ast_json_unref(json_object);
 }
 
-static void send_leave_event(struct ast_channel *chan, struct confbridge_conference *conference)
+static void send_leave_event(struct confbridge_user *user, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, confbridge_leave_type(), NULL, 0);
+	struct ast_json *json_object;
+
+	json_object = ast_json_pack("{s: b}",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN)
+	);
+	if (!json_object) {
+		return;
+	}
+	send_conf_stasis(conference, user->chan, confbridge_leave_type(), json_object, 0);
+	ast_json_unref(json_object);
 }
 
 static void send_start_record_event(struct confbridge_conference *conference)
@@ -492,14 +511,32 @@ static void send_stop_record_event(struct confbridge_conference *conference)
 	send_conf_stasis(conference, NULL, confbridge_stop_record_type(), NULL, 0);
 }
 
-static void send_mute_event(struct ast_channel *chan, struct confbridge_conference *conference)
+static void send_mute_event(struct confbridge_user *user, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, confbridge_mute_type(), NULL, 1);
+	struct ast_json *json_object;
+
+	json_object = ast_json_pack("{s: b}",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN)
+	);
+	if (!json_object) {
+		return;
+	}
+	send_conf_stasis(conference, user->chan, confbridge_mute_type(), json_object, 1);
+	ast_json_unref(json_object);
 }
 
-static void send_unmute_event(struct ast_channel *chan, struct confbridge_conference *conference)
+static void send_unmute_event(struct confbridge_user *user, struct confbridge_conference *conference)
 {
-	send_conf_stasis(conference, chan, confbridge_unmute_type(), NULL, 1);
+	struct ast_json *json_object;
+
+	json_object = ast_json_pack("{s: b}",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN)
+	);
+	if (!json_object) {
+		return;
+	}
+	send_conf_stasis(conference, user->chan, confbridge_unmute_type(), json_object, 1);
+	ast_json_unref(json_object);
 }
 
 static void set_rec_filename(struct confbridge_conference *conference, struct ast_str **filename, int is_new)
@@ -1441,25 +1478,21 @@ static int play_sound_number(struct confbridge_conference *conference, int say_n
 	return play_sound_helper(conference, NULL, say_number);
 }
 
-static void conf_handle_talker_destructor(void *pvt_data)
-{
-	ast_free(pvt_data);
-}
-
 static int conf_handle_talker_cb(struct ast_bridge_channel *bridge_channel, void *hook_pvt, int talking)
 {
-	const char *conf_name = hook_pvt;
+	const struct confbridge_user *user = hook_pvt;
 	RAII_VAR(struct confbridge_conference *, conference, NULL, ao2_cleanup);
 	struct ast_json *talking_extras;
 
-	conference = ao2_find(conference_bridges, conf_name, OBJ_KEY);
+	conference = ao2_find(conference_bridges, user->conference->name, OBJ_KEY);
 	if (!conference) {
 		/* Remove the hook since the conference does not exist. */
 		return -1;
 	}
 
-	talking_extras = ast_json_pack("{s: s}",
-		"talking_status", talking ? "on" : "off");
+	talking_extras = ast_json_pack("{s: s, s: b}",
+		"talking_status", talking ? "on" : "off",
+		"admin", ast_test_flag(&user->u_profile, USER_OPT_ADMIN));
 	if (!talking_extras) {
 		return 0;
 	}
@@ -1652,15 +1685,8 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* Set a talker indicate call back if talking detection is requested */
 	if (ast_test_flag(&user.u_profile, USER_OPT_TALKER_DETECT)) {
-		char *conf_name = ast_strdup(args.conf_name); /* this is freed during feature cleanup */
-
-		if (!conf_name) {
-			res = -1;
-			goto confbridge_cleanup;
-		}
 		if (ast_bridge_talk_detector_hook(&user.features, conf_handle_talker_cb,
-			conf_name, conf_handle_talker_destructor, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
-			ast_free(conf_name);
+			&user, NULL, AST_BRIDGE_HOOK_REMOVE_ON_PULL)) {
 			res = -1;
 			goto confbridge_cleanup;
 		}
@@ -1728,14 +1754,14 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	conf_moh_unsuspend(&user);
 
 	/* Join our conference bridge for real */
-	send_join_event(user.chan, conference);
+	send_join_event(&user, conference);
 	ast_bridge_join(conference->bridge,
 		chan,
 		NULL,
 		&user.features,
 		&user.tech_args,
 		0);
-	send_leave_event(user.chan, conference);
+	send_leave_event(&user, conference);
 
 	/* if we're shutting down, don't attempt to do further processing */
 	if (ast_shutting_down()) {
@@ -1794,8 +1820,7 @@ confbridge_cleanup:
 }
 
 static int action_toggle_mute(struct confbridge_conference *conference,
-	struct confbridge_user *user,
-	struct ast_channel *chan)
+	struct confbridge_user *user)
 {
 	int mute;
 
@@ -1808,17 +1833,17 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 		"Message: participant %s %s\r\n"
 		"Conference: %s\r\n"
 		"Channel: %s",
-		ast_channel_name(chan),
+		ast_channel_name(user->chan),
 		mute ? "muted" : "unmuted",
 		user->b_profile.name,
-		ast_channel_name(chan));
+		ast_channel_name(user->chan));
 	if (mute) {
-		send_mute_event(chan, conference);
+		send_mute_event(user, conference);
 	} else {
-		send_unmute_event(chan, conference);
+		send_unmute_event(user, conference);
 	}
 
-	return ast_stream_and_wait(chan, (mute ?
+	return ast_stream_and_wait(user->chan, (mute ?
 		conf_get_sound(CONF_SOUND_MUTED, user->b_profile.sounds) :
 		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds)),
 		"");
@@ -2035,9 +2060,7 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 	AST_LIST_TRAVERSE(&menu_entry->actions, menu_action, action) {
 		switch (menu_action->id) {
 		case MENU_ACTION_TOGGLE_MUTE:
-			res |= action_toggle_mute(conference,
-				user,
-				bridge_channel->chan);
+			res |= action_toggle_mute(conference, user);
 			break;
 		case MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS:
 			if (!isadmin) {
@@ -2440,9 +2463,9 @@ static void generic_mute_unmute_user(struct confbridge_conference *conference, s
 		conference->b_profile.name,
 		ast_channel_name(user->chan));
 	if (mute) {
-		send_mute_event(user->chan, conference);
+		send_mute_event(user, conference);
 	} else {
-		send_unmute_event(user->chan, conference);
+		send_unmute_event(user, conference);
 	}
 }
 
