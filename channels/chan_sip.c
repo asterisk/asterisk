@@ -1076,6 +1076,7 @@ static struct ast_sockaddr internip;
  */
 static struct ast_sockaddr externaddr;      /*!< External IP address if we are behind NAT */
 static struct ast_sockaddr media_address; /*!< External RTP IP address if we are behind NAT */
+static struct ast_sockaddr rtpbindaddr;   /*!< RTP: The address we bind to */
 
 static char externhost[MAXHOSTNAMELEN];   /*!< External host name */
 static time_t externexpire;             /*!< Expiration counter for re-resolving external host name in dynamic DNS */
@@ -5783,7 +5784,12 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 		return 0;
 	}
 
-	ast_sockaddr_copy(&bindaddr_tmp, &bindaddr);
+	if (!ast_sockaddr_isnull(&rtpbindaddr)) {
+		ast_sockaddr_copy(&bindaddr_tmp, &rtpbindaddr);
+	} else {
+		ast_sockaddr_copy(&bindaddr_tmp, &bindaddr);
+	}
+
 	if (!(dialog->rtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 		return -1;
 	}
@@ -20858,6 +20864,10 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		default_tls_cfg.enabled != FALSE ?
 				ast_sockaddr_stringify(&sip_tls_desc.local_address) :
 				"Disabled");
+	ast_cli(a->fd, "  RTP Bindaddress:        %s\n",
+		!ast_sockaddr_isnull(&rtpbindaddr) ?
+				ast_sockaddr_stringify_addr(&rtpbindaddr) :
+				"Disabled");
 	ast_cli(a->fd, "  Videosupport:           %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT)));
 	ast_cli(a->fd, "  Textsupport:            %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT)));
 	ast_cli(a->fd, "  Ignore SDP sess. ver.:  %s\n", AST_CLI_YESNO(ast_test_flag(&global_flags[1], SIP_PAGE2_IGNORESDPVERSION)));
@@ -31183,6 +31193,7 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externaddr, 0, sizeof(externaddr));
 	memset(&media_address, 0, sizeof(media_address));
+	memset(&rtpbindaddr, 0, sizeof(rtpbindaddr));
 	memset(&sip_cfg.outboundproxy, 0, sizeof(struct sip_proxy));
 	sip_cfg.outboundproxy.force = FALSE;		/*!< Don't force proxy usage, use route: headers */
 	default_transports = AST_TRANSPORT_UDP;
@@ -31646,6 +31657,10 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "media_address")) {
 			if (ast_parse_arg(v->value, PARSE_ADDR, &media_address))
 				ast_log(LOG_WARNING, "Invalid address for media_address keyword: %s\n", v->value);
+		} else if (!strcasecmp(v->name, "rtpbindaddr")) {
+			if (ast_parse_arg(v->value, PARSE_ADDR, &rtpbindaddr)) {
+				ast_log(LOG_WARNING, "Invalid address for rtpbindaddr keyword: %s\n", v->value);
+			}
 		} else if (!strcasecmp(v->name, "externaddr") || !strcasecmp(v->name, "externip")) {
 			if (ast_parse_arg(v->value, PARSE_ADDR, &externaddr)) {
 				ast_log(LOG_WARNING,

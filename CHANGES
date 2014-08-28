@@ -12,7 +12,14 @@
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
 
+Channel Drivers
+------------------
 
+chan_sip
+------------------
+ * New 'rtpbindaddr' global setting. This allows a user to define which
+   ipaddress to bind the rtpengine too.  For example, chan_sip might bind
+   to eth0 (10.0.0.2) but rtpengine to eth1 (192.168.1.10).
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------

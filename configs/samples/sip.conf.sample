@@ -180,6 +180,9 @@ allowoverlap=no                 ; Disable overlap dialing support. (Default is y
 udpbindaddr=0.0.0.0             ; IP address to bind UDP listen socket to (0.0.0.0 binds to all)
                                 ; Optionally add a port number, 192.168.1.1:5062 (default is port 5060)
 
+;rtpbindaddr=172.16.42.1        ; IP address to bind RTP listen sock to (default is disabled). When
+                                ; disabled the udpbindaddr is used.
+
 ; When a dialog is started with another SIP endpoint, the other endpoint
 ; should include an Allow header telling us what SIP methods the endpoint
 ; implements. However, some endpoints either do not include an Allow header
