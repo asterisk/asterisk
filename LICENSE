@@ -25,7 +25,7 @@ GPL'd products (although if you've written a module for Asterisk we
 would strongly encourage you to make the same exception that we do).
 
 Specific permission is also granted to link Asterisk with OpenSSL, OpenH323
-and/or the UW IMAP Toolkit and distribute the resulting binary files.
+UniMRCP, and/or the UW IMAP Toolkit and distribute the resulting binary files.
 
 In addition, Asterisk implements several management/control protocols.
 This includes the Asterisk Manager Interface (AMI), the Asterisk Gateway
