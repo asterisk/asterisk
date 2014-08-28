@@ -496,9 +496,10 @@ int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int 
 		ast_assert(s != NULL);
 #else
 		{
-		char buf[100];
-		snprintf(buf, sizeof(buf), "s != NULL, id=%d", id);
-		_ast_assert(0, buf, file, line, function);
+			char buf[100];
+
+			snprintf(buf, sizeof(buf), "s != NULL, id=%d", id);
+			_ast_assert(0, buf, file, line, function);
 		}
 #endif
 		*last_id = id;
