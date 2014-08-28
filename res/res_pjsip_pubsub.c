@@ -1988,6 +1988,7 @@ static int serialized_send_notify(void *userdata)
 	}
 
 	send_notify(sub_tree, 0);
+	sub_tree->notify_sched_id = -1;
 	ao2_cleanup(sub_tree);
 	return 0;
 }
