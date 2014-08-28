@@ -165,7 +165,7 @@ void ast_sched_context_destroy(struct ast_sched_context *c);
  * A scheduler callback takes a pointer with callback data and
  *
  * \retval 0 if the callback should not be rescheduled
- * \retval non-zero if the callback should be scheduled agai
+ * \retval non-zero if the callback should be scheduled again
  */
 typedef int (*ast_sched_cb)(const void *data);
 #define AST_SCHED_CB(a) ((ast_sched_cb)(a))
