@@ -59,18 +59,17 @@ static void *contact_status_alloc(const char *name)
  */
 static struct ast_sip_contact_status *find_or_create_contact_status(const struct ast_sip_contact *contact)
 {
-	struct ast_sip_contact_status *status = ast_sorcery_retrieve_by_id(
-		ast_sip_get_sorcery(), CONTACT_STATUS,
-		ast_sorcery_object_get_id(contact));
+	struct ast_sip_contact_status *status;
 
+	status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS,
+		ast_sorcery_object_get_id(contact));
 	if (status) {
 		return status;
 	}
 
-	if (!(status = ast_sorcery_alloc(
-		      ast_sip_get_sorcery(), CONTACT_STATUS,
-		      ast_sorcery_object_get_id(contact)))) {
-
+	status = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
+		ast_sorcery_object_get_id(contact));
+	if (!status) {
 		ast_log(LOG_ERROR, "Unable to create ast_sip_contact_status for contact %s\n",
 			contact->uri);
 		return NULL;
@@ -79,6 +78,7 @@ static struct ast_sip_contact_status *find_or_create_contact_status(const struct
 	if (ast_sorcery_create(ast_sip_get_sorcery(), status)) {
 		ast_log(LOG_ERROR, "Unable to persist ast_sip_contact_status for contact %s\n",
 			contact->uri);
+		ao2_ref(status, -1);
 		return NULL;
 	}
 
@@ -90,18 +90,22 @@ static struct ast_sip_contact_status *find_or_create_contact_status(const struct
  * \brief Update an ast_sip_contact_status's elements.
  */
 static void update_contact_status(const struct ast_sip_contact *contact,
-				  enum ast_sip_contact_status_type value)
+	enum ast_sip_contact_status_type value)
 {
-	RAII_VAR(struct ast_sip_contact_status *, status,
-		 find_or_create_contact_status(contact), ao2_cleanup);
+	struct ast_sip_contact_status *status;
+	struct ast_sip_contact_status *update;
 
-	RAII_VAR(struct ast_sip_contact_status *, update, ast_sorcery_alloc(
-		      ast_sip_get_sorcery(), CONTACT_STATUS,
-		      ast_sorcery_object_get_id(status)), ao2_cleanup);
+	status = find_or_create_contact_status(contact);
+	if (!status) {
+		return;
+	}
 
+	update = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
+		ast_sorcery_object_get_id(status));
 	if (!update) {
 		ast_log(LOG_ERROR, "Unable to create update ast_sip_contact_status for contact %s\n",
 			contact->uri);
+		ao2_ref(status, -1);
 		return;
 	}
 
@@ -118,6 +122,9 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 		ast_log(LOG_ERROR, "Unable to update ast_sip_contact_status for contact %s\n",
 			contact->uri);
 	}
+
+	ao2_ref(update, -1);
+	ao2_ref(status, -1);
 }
 
 /*!
@@ -127,16 +134,20 @@ static void update_contact_status(const struct ast_sip_contact *contact,
  */
 static void init_start_time(const struct ast_sip_contact *contact)
 {
-	RAII_VAR(struct ast_sip_contact_status *, status,
-		 find_or_create_contact_status(contact), ao2_cleanup);
+	struct ast_sip_contact_status *status;
+	struct ast_sip_contact_status *update;
 
-	RAII_VAR(struct ast_sip_contact_status *, update, ast_sorcery_alloc(
-		      ast_sip_get_sorcery(), CONTACT_STATUS,
-		      ast_sorcery_object_get_id(status)), ao2_cleanup);
+	status = find_or_create_contact_status(contact);
+	if (!status) {
+		return;
+	}
 
+	update = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
+		ast_sorcery_object_get_id(status));
 	if (!update) {
 		ast_log(LOG_ERROR, "Unable to create update ast_sip_contact_status for contact %s\n",
 			contact->uri);
+		ao2_ref(status, -1);
 		return;
 	}
 
@@ -146,6 +157,9 @@ static void init_start_time(const struct ast_sip_contact *contact)
 		ast_log(LOG_ERROR, "Unable to update ast_sip_contact_status for contact %s\n",
 			contact->uri);
 	}
+
+	ao2_ref(update, -1);
+	ao2_ref(status, -1);
 }
 
 /*!
@@ -183,19 +197,25 @@ static int on_endpoint(void *obj, void *arg, int flags)
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-
 	while ((aor_name = strsep(&aors, ","))) {
-		RAII_VAR(struct ast_sip_aor *, aor,
-			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
-		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+		struct ast_sip_aor *aor;
+		struct ao2_container *contacts;
 
-		if (!aor || !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+		aor = ast_sip_location_retrieve_aor(aor_name);
+		if (!aor) {
+			continue;
+		}
+
+		contacts = ast_sip_location_retrieve_aor_contacts(aor);
+		ao2_ref(aor, -1);
+		if (!contacts) {
 			continue;
 		}
 
 		contact = ao2_callback(contacts, 0, match_contact_id, looking_for);
+		ao2_ref(contacts, -1);
 		if (contact) {
-			ao2_ref(contact,  -1);
+			ao2_ref(contact, -1);
 			return CMP_MATCH;
 		}
 	}
@@ -209,10 +229,13 @@ static int on_endpoint(void *obj, void *arg, int flags)
  */
 static struct ast_sip_endpoint *find_an_endpoint(struct ast_sip_contact *contact)
 {
-	RAII_VAR(struct ao2_container *, endpoints, ast_sip_get_endpoints(), ao2_cleanup);
 	char *looking_for = (char *) ast_sorcery_object_get_id(contact);
+	struct ao2_container *endpoints = ast_sip_get_endpoints();
+	struct ast_sip_endpoint *endpoint;
 
-	return ao2_callback(endpoints, 0, on_endpoint, looking_for);
+	endpoint = ao2_callback(endpoints, 0, on_endpoint, looking_for);
+	ao2_ref(endpoints, -1);
+	return endpoint;
 }
 
 /*!
@@ -322,6 +345,7 @@ struct sched_data {
 static void sched_data_destructor(void *obj)
 {
 	struct sched_data *data = obj;
+
 	ao2_cleanup(data->contact);
 }
 /*!
@@ -349,8 +373,12 @@ static struct sched_data *sched_data_create(struct ast_sip_contact *contact)
  */
 static int qualify_contact_task(void *obj)
 {
-	RAII_VAR(struct ast_sip_contact *, contact, obj, ao2_cleanup);
-	return qualify_contact(NULL, contact);
+	struct ast_sip_contact *contact = obj;
+	int res;
+
+	res = qualify_contact(NULL, contact);
+	ao2_ref(contact, -1);
+	return res;
 }
 
 /*!
@@ -359,7 +387,7 @@ static int qualify_contact_task(void *obj)
  */
 static int qualify_contact_sched(const void *obj)
 {
-	struct sched_data *data = (struct sched_data *)obj;
+	struct sched_data *data = (struct sched_data *) obj;
 
 	ao2_ref(data->contact, +1);
 	if (ast_sip_push_task(NULL, qualify_contact_task, data->contact)) {
@@ -436,7 +464,7 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
  */
 static void contact_created(const void *obj)
 {
-	qualify_and_schedule((struct ast_sip_contact *)obj);
+	qualify_and_schedule((struct ast_sip_contact *) obj);
 }
 
 /*!
@@ -445,14 +473,14 @@ static void contact_created(const void *obj)
  */
 static void contact_deleted(const void *obj)
 {
-	struct ast_sip_contact *contact = (struct ast_sip_contact *)obj;
-	RAII_VAR(struct ast_sip_contact_status *, status, NULL, ao2_cleanup);
+	struct ast_sip_contact *contact = (struct ast_sip_contact *) obj;
+	struct ast_sip_contact_status *status;
 
 	unschedule_qualify(contact);
 
-	if (!(status = ast_sorcery_retrieve_by_id(
-		      ast_sip_get_sorcery(), CONTACT_STATUS,
-		      ast_sorcery_object_get_id(contact)))) {
+	status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS,
+		ast_sorcery_object_get_id(contact));
+	if (!status) {
 		return;
 	}
 
@@ -460,6 +488,7 @@ static void contact_deleted(const void *obj)
 		ast_log(LOG_ERROR, "Unable to delete ast_sip_contact_status for contact %s\n",
 			contact->uri);
 	}
+	ao2_ref(status, -1);
 }
 
 static const struct ast_sorcery_observer contact_observer = {
@@ -644,7 +673,8 @@ static void qualify_data_destroy(struct qualify_data *qual_data)
  */
 static int cli_qualify_contacts(void *data)
 {
-	char *aor_name, *aors;
+	char *aors;
+	char *aor_name;
 	RAII_VAR(struct qualify_data *, qual_data, data, qualify_data_destroy);
 	struct ast_sip_endpoint *endpoint = qual_data->endpoint;
 	int cli_fd = qual_data->cli_fd;
@@ -657,18 +687,23 @@ static int cli_qualify_contacts(void *data)
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-
 	while ((aor_name = strsep(&aors, ","))) {
-		RAII_VAR(struct ast_sip_aor *, aor,
-			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
-		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+		struct ast_sip_aor *aor;
+		struct ao2_container *contacts;
 
-		if (!aor || !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+		aor = ast_sip_location_retrieve_aor(aor_name);
+		if (!aor) {
 			continue;
 		}
 
-		ast_cli(cli_fd, "Sending qualify to endpoint %s\n", endpoint_name);
-		ao2_callback_data(contacts, OBJ_NODATA, cli_on_contact, &cli_fd, endpoint);
+		contacts = ast_sip_location_retrieve_aor_contacts(aor);
+		if (contacts) {
+			ast_cli(cli_fd, "Sending qualify to endpoint %s\n", endpoint_name);
+			ao2_callback_data(contacts, OBJ_NODATA, cli_on_contact, &cli_fd, endpoint);
+			ao2_ref(contacts, -1);
+		}
+
+		ao2_ref(aor, -1);
 	}
 	return 0;
 }
@@ -722,9 +757,10 @@ static char *cli_qualify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 static int ami_contact_cb(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
+
 	ao2_ref(contact, +1);
 	if (ast_sip_push_task(NULL, qualify_contact_task, contact)) {
-		ao2_cleanup(contact);
+		ao2_ref(contact, -1);
 	}
 	return 0;
 }
@@ -733,16 +769,15 @@ static int ami_sip_qualify(struct mansession *s, const struct message *m)
 {
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-	char *aor_name, *aors;
+	char *aors;
+	char *aor_name;
 
 	if (ast_strlen_zero(endpoint_name)) {
 		astman_send_error(s, m, "Endpoint parameter missing.");
 		return 0;
 	}
 
-	endpoint = ast_sorcery_retrieve_by_id(
-		ast_sip_get_sorcery(),
-		"endpoint",
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
 		endpoint_name);
 	if (!endpoint) {
 		astman_send_error(s, m, "Unable to retrieve endpoint\n");
@@ -756,17 +791,22 @@ static int ami_sip_qualify(struct mansession *s, const struct message *m)
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-
 	while ((aor_name = strsep(&aors, ","))) {
-		RAII_VAR(struct ast_sip_aor *, aor,
-			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
-		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+		struct ast_sip_aor *aor;
+		struct ao2_container *contacts;
 
-		if (!aor || !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+		aor = ast_sip_location_retrieve_aor(aor_name);
+		if (!aor) {
 			continue;
 		}
 
-		ao2_callback(contacts, OBJ_NODATA, ami_contact_cb, NULL);
+		contacts = ast_sip_location_retrieve_aor_contacts(aor);
+		if (contacts) {
+			ao2_callback(contacts, OBJ_NODATA, ami_contact_cb, NULL);
+			ao2_ref(contacts, -1);
+		}
+
+		ao2_ref(aor, -1);
 	}
 
 	astman_send_ack(s, m, "Endpoint found, will qualify");
@@ -879,25 +919,30 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 {
 	struct ast_sip_endpoint *endpoint = obj;
-	char *aor_name, *aors;
+	char *aors;
+	char *aor_name;
 
 	if (ast_strlen_zero(endpoint->aors)) {
 		return 0;
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-
 	while ((aor_name = strsep(&aors, ","))) {
-		RAII_VAR(struct ast_sip_aor *, aor,
-			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
+		struct ast_sip_aor *aor;
 		struct ao2_container *contacts;
 
-		if (!aor || !(contacts = ast_sip_location_retrieve_aor_contacts(aor))) {
+		aor = ast_sip_location_retrieve_aor(aor_name);
+		if (!aor) {
 			continue;
 		}
 
-		ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
-		ao2_ref(contacts, -1);
+		contacts = ast_sip_location_retrieve_aor_contacts(aor);
+		if (contacts) {
+			ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
+			ao2_ref(contacts, -1);
+		}
+
+		ao2_ref(aor, -1);
 	}
 
 	return 0;
@@ -911,8 +956,7 @@ static void qualify_and_schedule_all(void)
 		return;
 	}
 
-	ao2_callback(endpoints, OBJ_NODATA,
-		     qualify_and_schedule_all_cb, NULL);
+	ao2_callback(endpoints, OBJ_NODATA, qualify_and_schedule_all_cb, NULL);
 	ao2_ref(endpoints, -1);
 }
 
