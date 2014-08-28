@@ -60,11 +60,14 @@ Build System:
 Applications:
 
 ConfBridge:
-- The sound_place_into_conference sound used in Confbridge is now deprecated
-  and is no longer functional since it has been broken since its inception
-  and the fix involved using a different method to achieve the same goal. The
-  new method to achieve this functionality is by using sound_begin to play
-  a sound to the conference when waitmarked users are moved into the conference.
+ - The sound_place_into_conference sound used in Confbridge is now deprecated
+   and is no longer functional since it has been broken since its inception
+   and the fix involved using a different method to achieve the same goal. The
+   new method to achieve this functionality is by using sound_begin to play
+   a sound to the conference when waitmarked users are moved into the conference.
+
+ - Added 'Admin' header to ConfbridgeJoin, ConfbridgeLeave, ConfbridgeMute,
+   ConfbridgeUnmute, and ConfbridgeTalking AMI events.
 
 ControlPlayback:
  - The ControlPlayback and 'control stream file' AGI command will no longer
