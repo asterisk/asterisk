@@ -23,6 +23,10 @@
 
 From 12.5.0 to 12.6.0:
 
+ConfBridge:
+ - Added 'Admin' header to ConfbridgeJoin, ConfbridgeLeave, ConfbridgeMute,
+   ConfbridgeUnmute, and ConfbridgeTalking AMI events.
+
 ControlPlayback:
  - The ControlPlayback and 'control stream file' AGI command will no longer
    implicitly answer the channel. If you do not answer the channel prior to
