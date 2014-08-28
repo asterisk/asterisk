@@ -629,6 +629,8 @@ struct iax2_registry {
 	struct ast_sockaddr us;			/*!< Who the server thinks we are */
 	struct ast_dnsmgr_entry *dnsmgr;	/*!< DNS refresh manager */
 	AST_LIST_ENTRY(iax2_registry) entry;
+	int port;
+	char hostname[];
 };
 
 static AST_LIST_HEAD_STATIC(registrations, iax2_registry);
@@ -8480,6 +8482,17 @@ static int iax2_do_register(struct iax2_registry *reg);
 static void __iax2_do_register_s(const void *data)
 {
 	struct iax2_registry *reg = (struct iax2_registry *)data;
+
+	if (ast_sockaddr_isnull(&reg->addr)) {
+		reg->addr.ss.ss_family = AST_AF_UNSPEC;
+		ast_dnsmgr_lookup(reg->hostname, &reg->addr, &reg->dnsmgr, srvlookup ? "_iax._udp" : NULL);
+		if (!ast_sockaddr_port(&reg->addr)) {
+			ast_sockaddr_set_port(&reg->addr, reg->port);
+		} else {
+			reg->port = ast_sockaddr_port(&reg->addr);
+		}
+	}
+
 	reg->expire = -1;
 	iax2_do_register(reg);
 }
@@ -8712,8 +8725,9 @@ static int iax2_append_register(const char *hostname, const char *username,
 {
 	struct iax2_registry *reg;
 
-	if (!(reg = ast_calloc(1, sizeof(*reg))))
+	if (!(reg = ast_calloc(1, sizeof(*reg) + strlen(hostname) + 1))) {
 		return -1;
+	}
 
 	reg->addr.ss.ss_family = AST_AF_UNSPEC;
 	if (ast_dnsmgr_lookup(hostname, &reg->addr, &reg->dnsmgr, srvlookup ? "_iax._udp" : NULL) < 0) {
@@ -8722,13 +8736,24 @@ static int iax2_append_register(const char *hostname, const char *username,
 	}
 
 	ast_copy_string(reg->username, username, sizeof(reg->username));
+	strcpy(reg->hostname, hostname); /* Note: This is safe */
 
-	if (secret)
+	if (secret) {
 		ast_copy_string(reg->secret, secret, sizeof(reg->secret));
+	}
 
 	reg->expire = -1;
 	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
-	ast_sockaddr_set_port(&reg->addr, porta ? atoi(porta) : IAX_DEFAULT_PORTNO);
+
+	reg->port = ast_sockaddr_port(&reg->addr);
+
+	if (!porta && !reg->port) {
+		reg->port = IAX_DEFAULT_PORTNO;
+	} else if (porta) {
+		sscanf(porta, "%5d", &reg->port);
+	}
+
+	ast_sockaddr_set_port(&reg->addr, reg->port);
 
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_INSERT_HEAD(&registrations, reg, entry);
@@ -12054,6 +12079,9 @@ static int iax2_do_register(struct iax2_registry *reg)
 		reg->expire = iax2_sched_replace(reg->expire, sched,
 			(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 		return -1;
+	}
+	if (!ast_sockaddr_port(&reg->addr) && reg->port) {
+		ast_sockaddr_set_port(&reg->addr, reg->port);
 	}
 
 	if (!reg->callno) {
