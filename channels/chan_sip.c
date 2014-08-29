@@ -16650,7 +16650,10 @@ static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct
 	struct sip_peer *peer = sip_find_peer(peer_name, NULL, TRUE, FINDALLDEVICES, FALSE, 0);
 
 	if (stasis_subscription_final_message(sub, msg)) {
-		ast_assert(peer == NULL);
+		if (peer) {
+			/* configuration reloaded */
+			return;
+		}
 		ast_free(peer_name);
 		return;
 	}
