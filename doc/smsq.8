@@ -1,0 +1,146 @@
+.TH SMSQ "8" "May 2014" "Asterisk trunk" ""
+.SH NAME
+smsq \- helper to send SMS messages
+.SH SYNOPSIS
+.B smsq
+\fI\,<oa/da> <message>\/\fR
+.SH DESCRIPTION
+smsq is a simple helper application designed to make it easy to send messages
+from a command line. it is intended to run on the Asterisk box and have direct
+access to the queue directories for SMS and for Asterisk.
+.SH OPTIONS
+.TP
+\fB\-q\fR, \fB\-\-queue\fR=\fI\,number[\-X]\/\fR
+Queue [inc sub address] (default: "")
+.TP
+\fB\-d\fR, \fB\-\-da\fR=\fI\,number\/\fR
+Destination address
+.TP
+\fB\-o\fR, \fB\-\-oa\fR=\fI\,number\/\fR
+Origination address
+.TP
+\fB\-m\fR, \fB\-\-ud\fR=\fI\,text\/\fR
+Message
+.TP
+\fB\-f\fR, \fB\-\-ud\-file\fR=\fI\,filename\/\fR
+Message file
+.TP
+\fB\-\-UTF\-8\fR
+File treated as null terminated UTF\-8
+(default)
+.TP
+\fB\-\-UCS\-1\fR
+File treated as UCS\-1
+.TP
+\fB\-\-UCS\-2\fR
+File treated as UCS\-2
+.TP
+\fB\-t\fR, \fB\-\-mt\fR
+Mobile Terminated
+.TP
+\fB\-\-mo\fR
+Mobile Originated
+.TP
+\fB\-\-tx\fR
+Send message
+.TP
+\fB\-r\fR, \fB\-\-rx\fR
+Queue for receipt
+.TP
+\fB\-e\fR, \fB\-\-process\fR=\fI\,command\/\fR
+Rx queue process command
+.TP
+\fB\-x\fR, \fB\-\-no\-dial\fR
+Do not dial
+.TP
+\fB\-\-no\-wait\fR
+Do not wait if already calling
+.TP
+\fB\-\-concurrent\fR=\fI\,n\/\fR
+Number of concurrent calls to allow
+(default: 1)
+.TP
+\fB\-\-motx\-channel\fR=\fI\,channel\/\fR
+Channel for motx calls (default:
+"Local/1709400X")
+.TP
+\fB\-\-motx\-callerid\fR=\fI\,number\/\fR
+Caller ID for motx calls (default is
+queue name without sub address)
+.TP
+\fB\-\-motx\-wait\fR=\fI\,seconds\/\fR
+Time to wait for motx call to answer
+(default: 10)
+.TP
+\fB\-\-motx\-delay\fR=\fI\,seconds\/\fR
+Time between motx call retries (default:
+1)
+.TP
+\fB\-\-motx\-retries\fR=\fI\,n\/\fR
+Number of retries for motx call (default:
+10)
+.TP
+\fB\-\-mttx\-channel\fR=\fI\,channel\/\fR
+Channel for mttx calls (default is Local/
+and queue name without sub address)
+.TP
+\fB\-\-mttx\-callerid\fR=\fI\,number\/\fR
+Caller ID for mttx calls (default is
+queue name without sub address) (default:
+"080058752X0")
+.TP
+\fB\-\-mttx\-wait\fR=\fI\,seconds\/\fR
+Time to wait for mttx call to answer
+(default: 10)
+.TP
+\fB\-\-mttx\-delay\fR=\fI\,seconds\/\fR
+Time between mttx call retries (default:
+30)
+.TP
+\fB\-\-mttx\-retries\fR=\fI\,n\/\fR
+Number of retries for mttx call (default:
+100)
+.TP
+\fB\-n\fR, \fB\-\-mr\fR=\fI\,n\/\fR
+Message reference
+.TP
+\fB\-p\fR, \fB\-\-pid\fR=\fI\,n\/\fR
+Protocol ID
+.TP
+\fB\-c\fR, \fB\-\-dcs\fR=\fI\,n\/\fR
+Data Coding Scheme
+.TP
+\fB\-\-udh\fR=\fI\,hex\/\fR
+User data header
+.TP
+\fB\-\-srr\fR
+Status Report Request
+.TP
+\fB\-\-rp\fR
+Return Path request
+.TP
+\fB\-\-v\fR=\fI\,seconds\/\fR
+Validity Period
+.TP
+\fB\-\-scts\fR=\fI\,YYYY\-MM\-SSTHH\/\fR:MM:SS
+Timestamp
+.TP
+\fB\-\-default\-sub\-address\fR=\fI\,X\/\fR
+Default sub address (default: "9")
+.TP
+\fB\-\-spool\-dir\fR=\fI\,dirname\/\fR
+Asterisk spool dir (default:
+"/var/spool/asterisk")
+.SS "Help options:"
+.TP
+\-?, \fB\-\-help\fR
+Show this help message
+.TP
+\fB\-\-usage\fR
+Display brief usage message
+
+.SH SEE ALSO
+.B asterisk(8)
+
+.SH AUTHOR
+This manual page was written by Jeremy Lainé <jeremy.laine@m4x.org>.
