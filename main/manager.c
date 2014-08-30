@@ -1062,6 +1062,8 @@ static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
 static void free_channelvars(void);
 
+static int match_filter(struct mansession *s, char *eventdata);
+
 /*!
  * \internal
  * \brief Find a registered action object.
@@ -3019,8 +3021,9 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		struct eventqent *eqe = s->session->last_ev;
 		astman_send_response(s, m, "Success", "Waiting for Event completed.");
 		while ((eqe = advance_event(eqe))) {
-			if (((s->session->readperm & eqe->category) == eqe->category) &&
-			    ((s->session->send_events & eqe->category) == eqe->category)) {
+			if (((s->session->readperm & eqe->category) == eqe->category)
+				&& ((s->session->send_events & eqe->category) == eqe->category)
+				&& match_filter(s, eqe->eventdata)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
 			s->session->last_ev = eqe;
