@@ -1200,6 +1200,8 @@ static void free_channelvars(void);
 
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
+static int match_filter(struct mansession *s, char *eventdata);
+
 /*!
  * \internal
  * \brief Find a registered action object.
@@ -3205,8 +3207,9 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 		struct eventqent *eqe = s->session->last_ev;
 		astman_send_response(s, m, "Success", "Waiting for Event completed.");
 		while ((eqe = advance_event(eqe))) {
-			if (((s->session->readperm & eqe->category) == eqe->category) &&
-			    ((s->session->send_events & eqe->category) == eqe->category)) {
+			if (((s->session->readperm & eqe->category) == eqe->category)
+				&& ((s->session->send_events & eqe->category) == eqe->category)
+				&& match_filter(s, eqe->eventdata)) {
 				astman_append(s, "%s", eqe->eventdata);
 			}
 			s->session->last_ev = eqe;
