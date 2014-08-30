@@ -2837,6 +2837,7 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		"EndMarked: %s\r\n"
 		"Waiting: %s\r\n"
 		"Muted: %s\r\n"
+		"AnsweredTime: %d\r\n"
 		"\r\n",
 		id_text,
 		conference->name,
@@ -2848,7 +2849,8 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		ast_test_flag(&user->u_profile, USER_OPT_WAITMARKED) ? "Yes" : "No",
 		ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED) ? "Yes" : "No",
 		waiting ? "Yes" : "No",
-		user->muted ? "Yes" : "No");
+		user->muted ? "Yes" : "No",
+		ast_channel_get_up_time(user->chan));
 }
 
 static int action_confbridgelist(struct mansession *s, const struct message *m)
