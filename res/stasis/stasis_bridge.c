@@ -130,6 +130,24 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 		return -1;
 	}
 
+	/*
+	 * If going into a holding bridge, default the role to participant, if
+	 * it has no compatible role currently
+	 */
+	if ((self->technology->capabilities & AST_BRIDGE_CAPABILITY_HOLDING)
+	    && !ast_channel_has_role(bridge_channel->chan, "announcer")
+	    && !ast_channel_has_role(bridge_channel->chan, "holding_participant")) {
+		if (ast_channel_add_bridge_role(bridge_channel->chan, "holding_participant")) {
+			ast_log(LOG_ERROR, "Failed to set holding participant on %s\n", ast_channel_name(bridge_channel->chan));
+			return -1;
+		}
+
+		if (ast_channel_set_bridge_role_option(bridge_channel->chan, "holding_participant", "idle_mode", "none")) {
+			ast_log(LOG_ERROR, "Failed to set holding participant mode on %s\n", ast_channel_name(bridge_channel->chan));
+			return -1;
+		}
+	}
+
 	ao2_cleanup(control);
 	if (self->allowed_capabilities & STASIS_BRIDGE_MIXING_CAPABILITIES) {
 		ast_bridge_channel_update_linkedids(bridge_channel, swap);
@@ -185,6 +203,10 @@ static void bridge_stasis_pull(struct ast_bridge *self, struct ast_bridge_channe
 	if ((self->allowed_capabilities & STASIS_BRIDGE_MIXING_CAPABILITIES)
 		&& ast_test_flag(&self->feature_flags, AST_BRIDGE_FLAG_SMART)) {
 		ast_bridge_channel_update_accountcodes(NULL, bridge_channel);
+	}
+
+	if (self->technology->capabilities & AST_BRIDGE_CAPABILITY_HOLDING) {
+		ast_channel_clear_bridge_roles(bridge_channel->chan);
 	}
 
 	ast_bridge_move_hook(bridge_channel->features, bridge_stasis_moving, NULL, NULL, 0);

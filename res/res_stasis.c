@@ -513,6 +513,11 @@ static struct ast_channel *bridge_moh_create(struct ast_bridge *bridge)
 		return NULL;
 	}
 
+	if (stasis_app_channel_unreal_set_internal(chan)) {
+		ast_hangup(chan);
+		return NULL;
+	}
+
 	/* The after bridge callback assumes responsibility of the bridge_id. */
 	if (ast_bridge_set_after_callback(chan,
 		moh_after_bridge_cb, moh_after_bridge_cb_failed, bridge_id)) {
