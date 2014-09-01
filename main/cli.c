@@ -1659,7 +1659,8 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_str_append(&output, 0, "%s=%s\n", ast_var_name(var), ast_var_value(var));
 	}
 
-	if (ast_cdr_serialize_variables(ast_channel_name(chan), &obuf, '=', '\n')) {
+	if (!(ast_channel_tech(chan)->properties & AST_CHAN_TP_INTERNAL)
+		&& ast_cdr_serialize_variables(ast_channel_name(chan), &obuf, '=', '\n')) {
 		ast_str_append(&output, 0, "  CDR Variables:\n%s\n", ast_str_buffer(obuf));
 	}
 
