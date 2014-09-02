@@ -143,6 +143,36 @@ typedef int (*ast_sip_session_response_cb)(struct ast_sip_session *session, pjsi
 typedef int (*ast_sip_session_sdp_creation_cb)(struct ast_sip_session *session, pjmedia_sdp_session *sdp);
 
 /*!
+ * \brief Describes when a supplement should be called into on incoming responses.
+ *
+ * In most cases, session supplements will not need to worry about this because in most cases,
+ * the correct value will be automatically applied. However, there are rare circumstances
+ * when a supplement will want to specify when it should be called.
+ *
+ * The values below are listed in chronological order.
+ */
+enum ast_sip_session_response_priority {
+	/*!
+	 * When processing 3XX responses, the supplement is called into before
+	 * the redirecting information is processed.
+	 */
+	AST_SIP_SESSION_BEFORE_REDIRECTING = (1 << 0),
+	/*!
+	 * For responses to INVITE transactions, the supplement is called into
+	 * before media is negotiated.
+	 *
+	 * This priority is applied by default to any session supplement that
+	 * does not specify a response priority.
+	 */
+	AST_SIP_SESSION_BEFORE_MEDIA = (1 << 1),
+	/*!
+	 * For INVITE transactions, the supplement is called into after media
+	 * is negotiated.
+	 */
+	AST_SIP_SESSION_AFTER_MEDIA = (1 << 2),
+};
+
+/*!
  * \brief A supplement to SIP message processing
  *
  * These can be registered by any module in order to add
@@ -216,6 +246,11 @@ struct ast_sip_session_supplement {
 	void (*outgoing_response)(struct ast_sip_session *session, struct pjsip_tx_data *tdata);
 	/*! Next item in the list */
 	AST_LIST_ENTRY(ast_sip_session_supplement) next;
+	/*!
+	 * Determines when the supplement is processed when handling a response.
+	 * Defaults to AST_SIP_SESSION_BEFORE_MEDIA
+	 */
+	enum ast_sip_session_response_priority response_priority;
 };
 
 enum ast_sip_session_sdp_stream_defer {
