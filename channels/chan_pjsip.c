@@ -145,6 +145,8 @@ static struct ast_sip_session_supplement chan_pjsip_supplement = {
 	.session_end = chan_pjsip_session_end,
 	.incoming_request = chan_pjsip_incoming_request,
 	.incoming_response = chan_pjsip_incoming_response,
+	/* It is important that this supplement runs after media has been negotiated */
+	.response_priority = AST_SIP_SESSION_AFTER_MEDIA,
 };
 
 static int chan_pjsip_incoming_ack(struct ast_sip_session *session, struct pjsip_rx_data *rdata);
@@ -2029,6 +2031,11 @@ static int call_pickup_incoming_request(struct ast_sip_session *session, pjsip_r
 	struct ast_features_pickup_config *pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
 	struct ast_channel *chan;
 
+	/* We don't care about reinvites */
+	if (session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED) {
+		return 0;
+	}
+
 	if (!pickup_cfg) {
 		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension.\n");
 		return 0;
@@ -2070,6 +2077,11 @@ static struct ast_sip_session_supplement call_pickup_supplement = {
 static int pbx_start_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	int res;
+
+	/* We don't care about reinvites */
+	if (session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED) {
+		return 0;
+	}
 
 	res = ast_pbx_start(session->channel);
 

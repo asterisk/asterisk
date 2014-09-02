@@ -53,8 +53,10 @@
 
 /* Some forward declarations */
 static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
-static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
-static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type);
+static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type,
+		enum ast_sip_session_response_priority response_priority);
+static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type,
+		enum ast_sip_session_response_priority response_priority);
 static void handle_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata);
 static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_data *tdata);
 static void handle_outgoing(struct ast_sip_session *session, pjsip_tx_data *tdata);
@@ -482,6 +484,10 @@ int ast_sip_session_register_supplement(struct ast_sip_session_supplement *suppl
 	struct ast_sip_session_supplement *iter;
 	int inserted = 0;
 	SCOPED_LOCK(lock, &session_supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
+	if (!supplement->response_priority) {
+		supplement->response_priority = AST_SIP_SESSION_BEFORE_MEDIA;
+	}
 
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&session_supplements, iter, next) {
 		if (iter->priority > supplement->priority) {
@@ -1795,27 +1801,27 @@ static void handle_incoming_request(struct ast_sip_session *session, pjsip_rx_da
 	}
 }
 
-static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type)
+static void handle_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type,
+		enum ast_sip_session_response_priority response_priority)
 {
 	struct ast_sip_session_supplement *supplement;
 	struct pjsip_status_line status = rdata->msg_info.msg->line.status;
-
-	/* Squash all redirect transaction related responses as the supplements have already been invoked */
-	if (type == PJSIP_EVENT_TSX_STATE && PJSIP_IS_STATUS_IN_CLASS(status.code, 300)) {
-		return;
-	}
 
 	ast_debug(3, "Response is %d %.*s\n", status.code, (int) pj_strlen(&status.reason),
 			pj_strbuf(&status.reason));
 
 	AST_LIST_TRAVERSE(&session->supplements, supplement, next) {
+		if (!(supplement->response_priority & response_priority)) {
+			continue;
+		}
 		if (supplement->incoming_response && does_method_match(&rdata->msg_info.cseq->method.name, supplement->method)) {
 			supplement->incoming_response(session, rdata);
 		}
 	}
 }
 
-static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type)
+static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_event_id_e type,
+		enum ast_sip_session_response_priority response_priority)
 {
 	ast_debug(3, "Received %s\n", rdata->msg_info.msg->type == PJSIP_REQUEST_MSG ?
 			"request" : "response");
@@ -1823,7 +1829,7 @@ static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata
 	if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
 		handle_incoming_request(session, rdata, type);
 	} else {
-		handle_incoming_response(session, rdata, type);
+		handle_incoming_response(session, rdata, type, response_priority);
 	}
 
 	return 0;
@@ -1913,7 +1919,8 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 		handle_outgoing(session, e->body.tx_msg.tdata);
 		break;
 	case PJSIP_EVENT_RX_MSG:
-		handle_incoming(session, e->body.rx_msg.rdata, type);
+		handle_incoming(session, e->body.rx_msg.rdata, type,
+				AST_SIP_SESSION_BEFORE_MEDIA);
 		break;
 	case PJSIP_EVENT_TSX_STATE:
 		ast_debug(3, "Source of transaction state change is %s\n", pjsip_event_str(e->body.tsx_state.type));
@@ -1923,7 +1930,8 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 			handle_outgoing(session, e->body.tsx_state.src.tdata);
 			break;
 		case PJSIP_EVENT_RX_MSG:
-			handle_incoming(session, e->body.tsx_state.src.rdata, type);
+			handle_incoming(session, e->body.tsx_state.src.rdata, type,
+					AST_SIP_SESSION_BEFORE_MEDIA);
 			break;
 		case PJSIP_EVENT_TRANSPORT_ERROR:
 		case PJSIP_EVENT_TIMER:
@@ -1965,6 +1973,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 	}
 	switch (e->body.tsx_state.type) {
 	case PJSIP_EVENT_TX_MSG:
+		handle_outgoing(session, e->body.tsx_state.src.tdata);
 		/* When we create an outgoing request, we do not have access to the transaction that
 		 * is created. Instead, We have to place transaction-specific data in the tdata. Here,
 		 * we transfer the data into the transaction. This way, when we receive a response, we
@@ -1973,6 +1982,8 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		tsx->mod_data[session_module.id] = e->body.tsx_state.src.tdata->mod_data[session_module.id];
 		break;
 	case PJSIP_EVENT_RX_MSG:
+		handle_incoming(session, e->body.tsx_state.src.rdata, e->type,
+				AST_SIP_SESSION_AFTER_MEDIA);
 		if (tsx->method.id == PJSIP_INVITE_METHOD) {
 			if (tsx->role == PJSIP_ROLE_UAC) {
 				if (tsx->state == PJSIP_TSX_STATE_COMPLETED) {
@@ -2003,10 +2014,6 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						}
 					}
 				}
-			}
-		} else {
-			if (tsx->role == PJSIP_ROLE_UAS && tsx->state == PJSIP_TSX_STATE_TRYING) {
-				handle_incoming_request(session, e->body.tsx_state.src.rdata, PJSIP_EVENT_TSX_STATE);
 			}
 		}
 		if ((cb = ast_sip_mod_data_get(tsx->mod_data, session_module.id,
@@ -2182,7 +2189,8 @@ static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const
 		return PJSIP_REDIRECT_STOP;
 	}
 
-	handle_incoming(session, e->body.rx_msg.rdata, PJSIP_EVENT_RX_MSG);
+	handle_incoming(session, e->body.rx_msg.rdata, PJSIP_EVENT_RX_MSG,
+			AST_SIP_SESSION_BEFORE_REDIRECTING);
 
 	uri = pjsip_uri_get_uri(target);
 
