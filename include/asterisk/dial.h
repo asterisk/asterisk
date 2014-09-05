@@ -45,6 +45,7 @@ enum ast_dial_option {
 	AST_DIAL_OPTION_MUSIC,                   /*!< Play music on hold instead of ringing to the calling channel */
 	AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, /*!< Disable call forwarding on channels */
 	AST_DIAL_OPTION_PREDIAL,                 /*!< Execute a predial subroutine before dialing */
+	AST_DIAL_OPTION_DIAL_REPLACES_SELF,      /*!< The dial operation is a replacement for the requester */
 	AST_DIAL_OPTION_MAX,                     /*!< End terminator -- must always remain last */
 };
 

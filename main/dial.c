@@ -205,6 +205,7 @@ static const struct ast_option_types option_types[] = {
 	{ AST_DIAL_OPTION_MUSIC, music_enable, music_disable },                   /*!< Play music to the caller instead of ringing */
 	{ AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, NULL, NULL },                  /*!< Disable call forwarding on channels */
 	{ AST_DIAL_OPTION_PREDIAL, predial_enable, predial_disable },             /*!< Execute a subroutine on the outbound channels prior to dialing */
+	{ AST_DIAL_OPTION_DIAL_REPLACES_SELF, NULL, NULL },                       /*!< The dial operation is a replacement for the requester */
 	{ AST_DIAL_OPTION_MAX, NULL, NULL },                                      /*!< Terminator of list */
 };
 
@@ -344,7 +345,11 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 		ast_connected_line_copy_from_caller(ast_channel_connected(channel->owner), ast_channel_caller(chan));
 
 		ast_channel_language_set(channel->owner, ast_channel_language(chan));
-		ast_channel_req_accountcodes(channel->owner, chan, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
+		if (channel->options[AST_DIAL_OPTION_DIAL_REPLACES_SELF]) {
+			ast_channel_req_accountcodes(channel->owner, chan, AST_CHANNEL_REQUESTOR_REPLACEMENT);
+		} else {
+			ast_channel_req_accountcodes(channel->owner, chan, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
+		}
 		if (ast_strlen_zero(ast_channel_musicclass(channel->owner)))
 			ast_channel_musicclass_set(channel->owner, ast_channel_musicclass(chan));
 
