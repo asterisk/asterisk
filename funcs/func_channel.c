@@ -172,13 +172,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>R/W set rxgain level on channel drivers that support it.</para>
 					</enum>
 					<enum name="secure_bridge_signaling">
-						<para>Whether or not channels bridged to this channel require secure signaling</para>
+						<para>Whether or not channels bridged to this channel require secure signaling (1/0)</para>
 					</enum>
 					<enum name="secure_bridge_media">
-						<para>Whether or not channels bridged to this channel require secure media</para>
+						<para>Whether or not channels bridged to this channel require secure media (1/0)</para>
 					</enum>
 					<enum name="state">
-						<para>R/O state for channel</para>
+						<para>R/O state of the channel</para>
 					</enum>
 					<enum name="tonezone">
 						<para>R/W zone for indications played</para>
@@ -432,30 +432,32 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	if (!strcasecmp(data, "audionativeformat")) {
 		tmpcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (tmpcap) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(128);
 
+			ast_channel_lock(chan);
 			ast_format_cap_append_from_cap(tmpcap, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_AUDIO);
+			ast_channel_unlock(chan);
 			ast_copy_string(buf, ast_format_cap_get_names(tmpcap, &codec_buf), len);
 			ao2_ref(tmpcap, -1);
 		}
 	} else if (!strcasecmp(data, "videonativeformat")) {
 		tmpcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (tmpcap) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(128);
 
+			ast_channel_lock(chan);
 			ast_format_cap_append_from_cap(tmpcap, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_VIDEO);
+			ast_channel_unlock(chan);
 			ast_copy_string(buf, ast_format_cap_get_names(tmpcap, &codec_buf), len);
 			ao2_ref(tmpcap, -1);
 		}
 	} else if (!strcasecmp(data, "audioreadformat")) {
-		ast_copy_string(buf, ast_format_get_name(ast_channel_readformat(chan)), len);
+		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_readformat(chan)), len);
 	} else if (!strcasecmp(data, "audiowriteformat")) {
-		ast_copy_string(buf, ast_format_get_name(ast_channel_writeformat(chan)), len);
+		locked_copy_string(chan, buf, ast_format_get_name(ast_channel_writeformat(chan)), len);
 #ifdef CHANNEL_TRACE
 	} else if (!strcasecmp(data, "trace")) {
-		ast_channel_lock(chan);
-		ast_copy_string(buf, ast_channel_trace_is_enabled(chan) ? "1" : "0", len);
-		ast_channel_unlock(chan);
+		locked_copy_string(chan, buf, ast_channel_trace_is_enabled(chan) ? "1" : "0", len);
 #endif
 	} else if (!strcasecmp(data, "tonezone") && ast_channel_zone(chan)) {
 		locked_copy_string(chan, buf, ast_channel_zone(chan)->country, len);
@@ -478,9 +480,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	else if (!strcasecmp(data, "accountcode"))
 		locked_copy_string(chan, buf, ast_channel_accountcode(chan), len);
 	else if (!strcasecmp(data, "checkhangup")) {
-		ast_channel_lock(chan);
-		ast_copy_string(buf, ast_check_hangup(chan) ? "1" : "0", len);
-		ast_channel_unlock(chan);
+		locked_copy_string(chan, buf, ast_check_hangup(chan) ? "1" : "0", len);
 	} else if (!strcasecmp(data, "peeraccount"))
 		locked_copy_string(chan, buf, ast_channel_peeraccount(chan), len);
 	else if (!strcasecmp(data, "hangupsource"))
@@ -553,9 +553,11 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	} else if (!strncasecmp(data, "secure_bridge_", 14)) {
 		struct ast_datastore *ds;
 
+		buf[0] = '\0';
 		ast_channel_lock(chan);
 		if ((ds = ast_channel_datastore_find(chan, &secure_call_info, NULL))) {
 			struct ast_secure_call_store *encrypt = ds->data;
+
 			if (!strcasecmp(data, "secure_bridge_signaling")) {
 				snprintf(buf, len, "%s", encrypt->signaling ? "1" : "");
 			} else if (!strcasecmp(data, "secure_bridge_media")) {
