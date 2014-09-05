@@ -169,7 +169,7 @@ static const char * const devstatestring[][2] = {
 	{ /* 5 AST_DEVICE_UNAVAILABLE */ "Unavailable", "UNAVAILABLE" }, /*!< Unavailable (not registered) */
 	{ /* 6 AST_DEVICE_RINGING */     "Ringing",     "RINGING"     }, /*!< Ring, ring, ring */
 	{ /* 7 AST_DEVICE_RINGINUSE */   "Ring+Inuse",  "RINGINUSE"   }, /*!< Ring and in use */
-	{ /* 8 AST_DEVICE_ONHOLD */      "On Hold",      "ONHOLD"      }, /*!< On Hold */
+	{ /* 8 AST_DEVICE_ONHOLD */      "On Hold",     "ONHOLD"      }, /*!< On Hold */
 };
 
 /*!\brief Mapping for channel states to device states */
@@ -187,7 +187,6 @@ static const struct chan2dev {
 	{ AST_STATE_BUSY,            AST_DEVICE_BUSY },
 	{ AST_STATE_DIALING_OFFHOOK, AST_DEVICE_INUSE },
 	{ AST_STATE_PRERING,         AST_DEVICE_RINGING },
-	{ -100,                      -100 },
 };
 
 /*! \brief  A device state provider (not a channel) */
@@ -251,7 +250,7 @@ enum ast_device_state ast_state_chan2dev(enum ast_channel_state chanstate)
 {
 	int i;
 	chanstate &= 0xFFFF;
-	for (i = 0; chan2dev[i].chan != -100; i++) {
+	for (i = 0; i < ARRAY_LEN(chan2dev); i++) {
 		if (chan2dev[i].chan == chanstate) {
 			return chan2dev[i].dev;
 		}

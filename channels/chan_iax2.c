@@ -5036,7 +5036,7 @@ reject:
  * password field will be set to NULL.
  *
  * \note The dial string format is:
- *       [username[:password]@]peer[:port][/exten[@@context]][/options]
+ *       [username[:password]@]peer[:port][/exten[@context]][/options]
  */
 static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 {
@@ -5069,9 +5069,10 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	pds->peer = strsep(&data, ":");
 	pds->port = data;
 
-	/* check for a key name wrapped in [] in the secret position, if found,
-	   move it to the key field instead
-	*/
+	/*
+	 * Check for a key name wrapped in [] in the password position.
+	 * If found, move it to the key field instead.
+	 */
 	if (pds->password && (pds->password[0] == '[')) {
 		pds->key = ast_strip_quoted(pds->password, "[", "]");
 		pds->password = NULL;
