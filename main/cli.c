@@ -1576,6 +1576,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	ast_translate_path_to_str(ast_channel_readtrans(chan), &read_transpath);
 
 	bridge = ast_channel_get_bridge(chan);
+	callid_buf[0] = '\0';
 	callid = ast_channel_callid(chan);
 	if (callid) {
 		ast_callid_strnprint(callid_buf, sizeof(callid_buf), callid);
