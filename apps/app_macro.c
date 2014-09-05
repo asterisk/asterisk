@@ -248,6 +248,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	char *save_macro_context;
 	char *save_macro_priority;
 	char *save_macro_offset;
+	int save_in_subroutine;
 	struct ast_datastore *macro_store = ast_channel_datastore_find(chan, &macro_ds_info, NULL);
 
 	if (ast_strlen_zero(data)) {
@@ -329,6 +330,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	}
 
 	/* Save old info */
+	ast_channel_lock(chan);
 	oldpriority = ast_channel_priority(chan);
 	ast_copy_string(oldexten, ast_channel_exten(chan), sizeof(oldexten));
 	ast_copy_string(oldcontext, ast_channel_context(chan), sizeof(oldcontext));
@@ -355,12 +357,14 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 
 	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
+	save_in_subroutine = ast_test_flag(ast_channel_flags(chan), AST_FLAG_SUBROUTINE_EXEC);
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_SUBROUTINE_EXEC);
+
 	/* Setup environment for new run */
 	ast_channel_exten_set(chan, "s");
 	ast_channel_context_set(chan, fullmacro);
 	ast_channel_priority_set(chan, 1);
 
-	ast_channel_lock(chan);
 	while((cur = strsep(&rest, ",")) && (argc < MAX_ARGS)) {
 		const char *argp;
   		/* Save copy of old arguments if we're overwriting some, otherwise
@@ -513,6 +517,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	snprintf(depthc, sizeof(depthc), "%d", depth);
 	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 	ast_set2_flag(ast_channel_flags(chan), autoloopflag, AST_FLAG_IN_AUTOLOOP);
+	ast_set2_flag(ast_channel_flags(chan), save_in_subroutine, AST_FLAG_SUBROUTINE_EXEC);
 
   	for (x = 1; x < argc; x++) {
   		/* Restore old arguments and delete ours */

@@ -251,6 +251,8 @@ struct gosub_stack_frame {
 	int priority;
 	/*! TRUE if the return location marks the end of a special routine. */
 	unsigned int is_special:1;
+	/*! Whether or not we were in a subroutine when this one was created */
+	unsigned int in_subroutine:1;
 	char *context;
 	char extension[0];
 };
@@ -310,7 +312,7 @@ static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_fra
 	ast_free(frame);
 }
 
-static struct gosub_stack_frame *gosub_allocate_frame(const char *context, const char *extension, int priority, unsigned char arguments)
+static struct gosub_stack_frame *gosub_allocate_frame(const char *context, const char *extension, int priority, int in_subroutine, unsigned char arguments)
 {
 	struct gosub_stack_frame *new = NULL;
 	int len_extension = strlen(extension), len_context = strlen(context);
@@ -321,6 +323,7 @@ static struct gosub_stack_frame *gosub_allocate_frame(const char *context, const
 		new->context = new->extension + len_extension + 1;
 		strcpy(new->context, context);
 		new->priority = priority;
+		new->in_subroutine = in_subroutine ? 1 : 0;
 		new->arguments = arguments;
 	}
 	return new;
@@ -416,6 +419,7 @@ static int return_exec(struct ast_channel *chan, const char *data)
 		--oldframe->priority;
 	}
 	ast_channel_priority_set(chan, oldframe->priority);
+	ast_set2_flag(ast_channel_flags(chan), oldframe->in_subroutine, AST_FLAG_SUBROUTINE_EXEC);
 
 	gosub_release_frame(chan, oldframe);
 
@@ -524,6 +528,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	char *orig_exten;
 	char *dest_context;
 	char *dest_exten;
+	int orig_in_subroutine;
 	int orig_priority;
 	int dest_priority;
 	int i;
@@ -563,6 +568,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	orig_context = ast_strdupa(ast_channel_context(chan));
 	orig_exten = ast_strdupa(ast_channel_exten(chan));
 	orig_priority = ast_channel_priority(chan);
+	orig_in_subroutine = ast_test_flag(ast_channel_flags(chan), AST_FLAG_SUBROUTINE_EXEC);
 	ast_channel_unlock(chan);
 
 	if (ast_parseable_goto(chan, label)) {
@@ -630,7 +636,7 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* Create the return address */
-	newframe = gosub_allocate_frame(orig_context, orig_exten, orig_priority + 1, max_argc);
+	newframe = gosub_allocate_frame(orig_context, orig_exten, orig_priority + 1, orig_in_subroutine, max_argc);
 	if (!newframe) {
 		goto error_exit_locked;
 	}
@@ -643,6 +649,8 @@ static int gosub_exec(struct ast_channel *chan, const char *data)
 	}
 	snprintf(argname, sizeof(argname), "%u", args2.argc);
 	frame_set_var(chan, newframe, "ARGC", argname);
+
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_SUBROUTINE_EXEC);
 
 	/* And finally, save our return address */
 	AST_LIST_LOCK(oldlist);
@@ -967,6 +975,7 @@ static int gosub_run(struct ast_channel *chan, const char *sub_args, int ignore_
 	int saved_priority;
 	int saved_hangup_flags;
 	int saved_autoloopflag;
+	int saved_in_subroutine;
 	int res;
 
 	ast_channel_lock(chan);
@@ -989,6 +998,9 @@ static int gosub_run(struct ast_channel *chan, const char *sub_args, int ignore_
 	saved_context = ast_strdupa(ast_channel_context(chan));
 	saved_exten = ast_strdupa(ast_channel_exten(chan));
 	saved_priority = ast_channel_priority(chan);
+
+	/* Save whether or not we are in a subroutine */
+	saved_in_subroutine = ast_test_flag(ast_channel_flags(chan), AST_FLAG_SUBROUTINE_EXEC);
 
 	ast_debug(4, "%s Original location: %s,%s,%d\n", ast_channel_name(chan),
 		saved_context, saved_exten, saved_priority);
@@ -1091,6 +1103,9 @@ static int gosub_run(struct ast_channel *chan, const char *sub_args, int ignore_
 	/* Restore autoloop flag */
 	ast_set2_flag(ast_channel_flags(chan), saved_autoloopflag, AST_FLAG_IN_AUTOLOOP);
 
+	/* Restore subroutine flag */
+	ast_set2_flag(ast_channel_flags(chan), saved_in_subroutine, AST_FLAG_SUBROUTINE_EXEC);
+
 	/* Restore non-hangup softhangup flags. */
 	if (saved_hangup_flags) {
 		ast_softhangup_nolock(chan, saved_hangup_flags);
@@ -1106,6 +1121,7 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	int res;
 	int priority;
 	int old_autoloopflag;
+	int old_in_subroutine;
 	int old_priority;
 	const char *old_context;
 	const char *old_extension;
@@ -1153,6 +1169,9 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 	/* Save autoloop flag */
 	old_autoloopflag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
+
+	/* Save subroutine flag */
+	old_in_subroutine = ast_test_flag(ast_channel_flags(chan), AST_FLAG_SUBROUTINE_EXEC);
 
 	/* Save previous location, since we're going to change it */
 	old_context = ast_strdupa(ast_channel_context(chan));
@@ -1246,6 +1265,9 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 
 	/* Restore autoloop flag */
 	ast_set2_flag(ast_channel_flags(chan), old_autoloopflag, AST_FLAG_IN_AUTOLOOP);
+
+	/* Restore subroutine flag */
+	ast_set2_flag(ast_channel_flags(chan), old_in_subroutine, AST_FLAG_SUBROUTINE_EXEC);
 	ast_channel_unlock(chan);
 
 	return RESULT_SUCCESS;
