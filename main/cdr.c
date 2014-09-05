@@ -692,6 +692,8 @@ struct cdr_object {
 		AST_STRING_FIELD(bridge);           /*!< The bridge the party A happens to be in. */
 		AST_STRING_FIELD(appl);             /*!< The last accepted application party A was in */
 		AST_STRING_FIELD(data);             /*!< The data for the last accepted application party A was in */
+		AST_STRING_FIELD(context);          /*!< The accepted context for Party A */
+		AST_STRING_FIELD(exten);            /*!< The accepted extension for Party A */
 	);
 	struct cdr_object *next;                /*!< The next CDR object in the chain */
 	struct cdr_object *last;                /*!< The last CDR object in the chain */
@@ -1115,8 +1117,8 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
 		ast_copy_string(cdr_copy->uniqueid, party_a->uniqueid, sizeof(cdr_copy->uniqueid));
 		ast_copy_string(cdr_copy->lastapp, it_cdr->appl, sizeof(cdr_copy->lastapp));
 		ast_copy_string(cdr_copy->lastdata, it_cdr->data, sizeof(cdr_copy->lastdata));
-		ast_copy_string(cdr_copy->dst, party_a->exten, sizeof(cdr_copy->dst));
-		ast_copy_string(cdr_copy->dcontext, party_a->context, sizeof(cdr_copy->dcontext));
+		ast_copy_string(cdr_copy->dst, it_cdr->exten, sizeof(cdr_copy->dst));
+		ast_copy_string(cdr_copy->dcontext, it_cdr->context, sizeof(cdr_copy->dcontext));
 
 		/* Party B */
 		if (party_b) {
@@ -1353,6 +1355,17 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 		cdr_object_check_party_a_hangup(cdr);
 		return 0;
 	}
+
+	/*
+	 * Only record the context and extension if we aren't in a subroutine, or if
+	 * we are executing hangup logic.
+	 */
+	if (!ast_test_flag(&snapshot->flags, AST_FLAG_SUBROUTINE_EXEC)
+		|| ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)) {
+		ast_string_field_set(cdr, context, snapshot->context);
+		ast_string_field_set(cdr, exten, snapshot->exten);
+	}
+
 	cdr_object_swap_snapshot(&cdr->party_a, snapshot);
 
 	/* When Party A is originated to an application and the application exits, the stack
