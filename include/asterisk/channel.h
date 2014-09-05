@@ -962,6 +962,10 @@ enum {
 	 * The data on chan->timingdata is an astobj2 object.
 	 */
 	AST_FLAG_TIMINGDATA_IS_AO2_OBJ = (1 << 26),
+	/*!
+	 * The channel is executing a subroutine or macro
+	 */
+	AST_FLAG_SUBROUTINE_EXEC = (1 << 27),
 };
 
 /*! \brief ast_bridge_config flags */
