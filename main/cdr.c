@@ -2322,6 +2322,7 @@ static int bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *b
 			 */
 			memset(&cand_cdr->end, 0, sizeof(cand_cdr->end));
 		}
+		return 0;
 	}
 	return 0;
 }
