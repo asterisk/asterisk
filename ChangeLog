@@ -1,3 +1,164 @@
+2014-09-05  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 1.8.28-cert1 Released.
+
+2014-09-05 17:37 +0000 [r422662]  Kinsey Moore <kmoore@digium.com>
+
+	* funcs/func_presence_state.c: Add missing support level to
+	  func_presence_state
+
+2014-09-04 14:41 +0000 [r422582]  Kinsey Moore <kmoore@digium.com>
+
+	* channels/chan_vpb.cc: Set chan_vpb to be disabled by default
+
+2014-08-15 19:39 +0000 [r421208]  Kinsey Moore <kmoore@digium.com>
+
+	* apps/app_voicemail.c, apps/app_meetme.c,
+	  channels/sip/reqresp_parser.c, main/test.c: Fix build in
+	  dev/TEST_FRAMEWORK mode
+
+2014-08-14 17:29 +0000 [r421032-421033]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* /, main/config.c: config: inform config hook of change when
+	  writing file When updated configuration is written back to the
+	  conf file - for example when a user changes their voicemail pin,
+	  make sure that any config hook that wants to know of changes is
+	  informed. Review: https://reviewboard.asterisk.org/r/3708/
+
+	* apps/app_voicemail.c: app_voicemail: use a consistent generator
+	  string When updating voicemail.conf when a user changes their
+	  pin, change the generator string to be the same as the module
+	  name when reading so that the same config_hook will be called.
+	  Review: https://reviewboard.asterisk.org/r/3837/
+
+2014-08-08 17:29 +0000 [r420560]  Richard Mudgett <rmudgett@digium.com>
+
+	* /, channels/chan_sip.c: chan_sip: Replace sip_tls_read() and
+	  resolve the large SDP poll issue. Replace sip_tls_read() and
+	  sip_tcp_read() with a single function and resolve the poll/wait
+	  issue with large SDP payloads. ASTERISK-18345 #close Reported by:
+	  Stephane Chazelas Patches: tcptls_pollv4.diff (license #5835)
+	  patch uploaded by Elazar Broad Review:
+	  https://reviewboard.asterisk.org/r/3882/ ........ Merged
+	  revisions 420434 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+2014-07-25 23:47 +0000 [r419678]  Richard Mudgett <rmudgett@digium.com>
+
+	* /, main/features.c, main/app.c, apps/app_stack.c,
+	  include/asterisk/app.h: features.c: Allow appliationmap to use
+	  Gosub. Using DYNAMIC_FEATURES with a Gosub application as the
+	  mapped application does not work. It does not work because Gosub
+	  just pushes the current dialplan context, exten, and priority
+	  onto a stack and sets the specified Gosub location. Gosub does
+	  not have a dialplan execution loop to run dialplan like Macro. *
+	  Made the DYNAMIC_FEATURES application mapping feature call
+	  ast_app_exec_macro() and ast_app_exec_sub() for the Macro and
+	  Gosub applications respectively. * Backported
+	  ast_app_exec_macro() and ast_app_exec_sub() from v11 to execute
+	  dialplan routines from the DYNAMIC_FEATURES application mapping
+	  feature. NOTE: This issue does not affect v12+ because it already
+	  does what this patch implements. AST-1391 #close Reported by:
+	  Guenther Kelleter Review:
+	  https://reviewboard.asterisk.org/r/3844/ ........ Merged
+	  revisions 419630 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+2014-06-13 05:25 +0000 [r415975-416095]  Richard Mudgett <rmudgett@digium.com>
+
+	* include/asterisk/tcptls.h, main/tcptls.c, main/manager.c, /,
+	  channels/chan_sip.c, main/http.c: AST-2014-007: Fix of fix to
+	  allow AMI and SIP TCP to send messages. ASTERISK-23673 #close
+	  Reported by: Richard Mudgett Review:
+	  https://reviewboard.asterisk.org/r/3617/ ........ Merged
+	  revisions 416066 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+	* configs/http.conf.sample, include/asterisk/utils.h,
+	  main/tcptls.c, main/manager.c, /, channels/chan_sip.c,
+	  main/http.c, UPGRADE.txt, main/utils.c,
+	  include/asterisk/tcptls.h: AST-2014-007: Fix DOS by consuming the
+	  number of allowed HTTP connections. Simply establishing a TCP
+	  connection and never sending anything to the configured HTTP port
+	  in http.conf will tie up a HTTP connection. Since there is a
+	  maximum number of open HTTP sessions allowed at a time you can
+	  block legitimate connections. A similar problem exists if a HTTP
+	  request is started but never finished. * Added http.conf
+	  session_inactivity timer option to close HTTP connections that
+	  aren't doing anything. Defaults to 30000 ms. * Removed the
+	  undocumented manager.conf block-sockets option. It interferes
+	  with TCP/TLS inactivity timeouts. * AMI and SIP TLS connections
+	  now have better authentication timeout protection. Though I
+	  didn't remove the bizzare TLS timeout polling code from chan_sip.
+	  * chan_sip can now handle SSL certificate renegotiations in the
+	  middle of a session. It couldn't do that before because the
+	  socket was non-blocking and the SSL calls were not restarted as
+	  documented by the OpenSSL documentation. * Fixed an off nominal
+	  leak of the ssl struct in handle_tcptls_connection() if the FILE
+	  stream failed to open and the SSL certificate negotiations
+	  failed. The patch creates a custom FILE stream handler to give
+	  the created FILE streams inactivity timeout and timeout after a
+	  specific moment in time capability. This approach eliminates the
+	  need for code using the FILE stream to be redesigned to deal with
+	  the timeouts. This patch indirectly fixes most of ASTERISK-18345
+	  by fixing the usage of the SSL_read/SSL_write operations.
+	  ASTERISK-23673 #close Reported by: Richard Mudgett ........
+	  Merged revisions 415841 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+2014-06-05 19:17 +0000 [r415246-415290]  Matthew Jordan <mjordan@digium.com>
+
+	* apps/app_ices.c, channels/chan_gtalk.c, cdr/cdr_csv.c,
+	  channels/chan_jingle.c, channels/chan_phone.c,
+	  funcs/func_pitchshift.c, include/asterisk/custom_control_frame.h
+	  (added), apps/app_minivm.c, main/features.c,
+	  apps/app_confbridge.c, apps/app_sms.c, configs/sip.conf.sample,
+	  include/asterisk/pbx.h, res/res_config_ldap.c,
+	  apps/app_voicemail.c, cel/cel_radius.c, apps/app_nbscat.c,
+	  apps/app_waitforsilence.c, include/asterisk/config.h,
+	  apps/app_dahdiras.c, pbx/pbx_lua.c, res/res_ael_share.c,
+	  apps/app_chanisavail.c, cdr/cdr_radius.c, res/res_jabber.c,
+	  main/presencestate.c (added), cdr/cdr_tds.c,
+	  apps/app_osplookup.c, channels/chan_skinny.c,
+	  funcs/func_frame_trace.c, cdr/cdr_sqlite.c, apps/app_amd.c,
+	  pbx/pbx_realtime.c, apps/app_url.c, apps/app_externalivr.c,
+	  tests/test_config.c, cdr/cdr_odbc.c, include/asterisk/frame.h,
+	  res/res_timing_kqueue.c, main/custom_control_frame.c (added),
+	  channels/sip/include/sip.h, main/asterisk.c,
+	  channels/chan_mgcp.c, tests/test_custom_control.c (added),
+	  channels/chan_unistim.c, apps/app_dahdibarge.c, main/pbx.c,
+	  res/res_phoneprov.c, include/asterisk/channel.h, cdr/cdr_pgsql.c,
+	  include/asterisk/manager.h, apps/app_queue.c,
+	  res/res_config_sqlite.c, main/config.c,
+	  include/asterisk/callerid.h, include/asterisk/file.h,
+	  include/asterisk/app.h, apps/app_waitforring.c,
+	  include/asterisk/event_defs.h, formats/format_vox.c, configure,
+	  configs/jabber.conf.sample, res/res_timing_pthread.c,
+	  include/asterisk/message.h (added), pbx/pbx_ael.c,
+	  channels/chan_h323.c, cel/cel_sqlite3_custom.c, main/event.c,
+	  formats/format_jpeg.c, apps/app_adsiprog.c, apps/app_jack.c,
+	  res/res_ais.c, cdr/cdr_sqlite3_custom.c, res/res_snmp.c,
+	  channels/chan_sip.c, apps/app_dictate.c, apps/app_festival.c,
+	  cel/cel_tds.c, apps/app_alarmreceiver.c,
+	  configs/manager.conf.sample, apps/app_image.c,
+	  channels/chan_console.c, include/asterisk/_private.h,
+	  apps/app_getcpeid.c, apps/app_talkdetect.c, channels/chan_iax2.c,
+	  channels/chan_oss.c, main/channel.c, funcs/func_presence_state.c
+	  (added), main/manager.c, apps/app_setcallerid.c,
+	  channels/chan_misdn.c, tests/test_voicemail_api.c (added),
+	  apps/app_mp3.c, include/asterisk/jabber.h, main/file.c,
+	  main/callerid.c, channels/chan_alsa.c, main/app.c,
+	  pbx/pbx_dundi.c, channels/chan_nbs.c, apps/app_zapateller.c,
+	  main/message.c (added), apps/app_mixmonitor.c,
+	  res/res_fax_spandsp.c, cel/cel_pgsql.c, res/res_config_pgsql.c,
+	  apps/app_readfile.c, /, apps/app_test.c,
+	  include/asterisk/presencestate.h (added), apps/app_morsecode.c:
+	  Merge changes for Digium phone support, and default module
+	  building. All of these changes were merged from
+	  certified/branches/1.8.15/
+
+	* / (added): Create branch for Certified Asterisk 1.8.28
+
 2014-05-29  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 1.8.28.0 Released.
