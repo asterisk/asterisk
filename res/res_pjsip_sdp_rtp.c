@@ -403,7 +403,7 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 
 	attr = pjmedia_sdp_media_find_attr2(remote_stream, "ice-pwd", NULL);
 	if (!attr) {
-		pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-pwd", NULL);
+		attr = pjmedia_sdp_attr_find2(remote->attr_count, remote->attr, "ice-pwd", NULL);
 	}
 	if (attr) {
 		ast_copy_pj_str(attr_value, (pj_str_t*)&attr->value, sizeof(attr_value));
