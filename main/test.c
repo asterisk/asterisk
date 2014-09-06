@@ -185,7 +185,7 @@ static void test_xml_entry(struct ast_test *test, FILE *f)
 		return;
 	}
 
-	fprintf(f, "\t<testcase time=\"%d.%d\" name=\"%s%s\"%s>\n",
+	fprintf(f, "\t<testcase time=\"%u.%u\" name=\"%s%s\"%s>\n",
 			test->time / 1000, test->time % 1000,
 			test->info.category, test->info.name,
 			test->state == AST_TEST_PASS ? "/" : "");
@@ -210,7 +210,7 @@ static void test_txt_entry(struct ast_test *test, FILE *f)
 	fprintf(f,   "Description:       %s\n", test->info.description);
 	fprintf(f,   "Result:            %s\n", test_result2str[test->state]);
 	if (test->state != AST_TEST_NOT_RUN) {
-		fprintf(f,   "Time:              %d\n", test->time);
+		fprintf(f,   "Time:              %u\n", test->time);
 	}
 	if (test->state == AST_TEST_FAIL) {
 		fprintf(f,   "Error Description: %s\n\n", S_OR(ast_str_buffer(test->status_str), "NA"));
@@ -296,7 +296,7 @@ static int test_execute_multiple(const char *name, const char *category, struct 
 					(test->state == AST_TEST_FAIL) ? COLOR_RED : COLOR_GREEN,
 					0,
 					sizeof(result_buf));
-				ast_cli(cli->fd, "END    %s - %s Time: %s%dms Result: %s\n",
+				ast_cli(cli->fd, "END    %s - %s Time: %s%ums Result: %s\n",
 					test->info.category,
 					test->info.name,
 					test->time ? "" : "<",
@@ -385,7 +385,7 @@ static int test_generate_results(const char *name, const char *category, const c
 		 * http://confluence.atlassian.com/display/BAMBOO/JUnit+parsing+in+Bamboo
 		 */
 		fprintf(f_xml, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-		fprintf(f_xml, "<testsuite errors=\"0\" time=\"%d.%d\" tests=\"%d\" "
+		fprintf(f_xml, "<testsuite errors=\"0\" time=\"%u.%u\" tests=\"%u\" "
 				"name=\"AsteriskUnitTests\">\n",
 				last_results.total_time / 1000, last_results.total_time % 1000,
 				last_results.total_tests);
@@ -398,11 +398,11 @@ static int test_generate_results(const char *name, const char *category, const c
 	if (f_txt) {
 		fprintf(f_txt, "Asterisk Version:         %s\n", ast_get_version());
 		fprintf(f_txt, "Asterisk Version Number:  %s\n", ast_get_version_num());
-		fprintf(f_txt, "Number of Tests:          %d\n", last_results.total_tests);
-		fprintf(f_txt, "Number of Tests Executed: %d\n", (last_results.total_passed + last_results.total_failed));
-		fprintf(f_txt, "Passed Tests:             %d\n", last_results.total_passed);
-		fprintf(f_txt, "Failed Tests:             %d\n", last_results.total_failed);
-		fprintf(f_txt, "Total Execution Time:     %d\n", last_results.total_time);
+		fprintf(f_txt, "Number of Tests:          %u\n", last_results.total_tests);
+		fprintf(f_txt, "Number of Tests Executed: %u\n", (last_results.total_passed + last_results.total_failed));
+		fprintf(f_txt, "Passed Tests:             %u\n", last_results.total_passed);
+		fprintf(f_txt, "Failed Tests:             %u\n", last_results.total_failed);
+		fprintf(f_txt, "Total Execution Time:     %u\n", last_results.total_time);
 	}
 
 	/* export each individual test */
@@ -728,7 +728,7 @@ static char *test_cli_execute_registered(struct ast_cli_entry *e, int cmd, struc
 		if (!(last_results.last_passed + last_results.last_failed)) {
 			ast_cli(a->fd, "--- No Tests Found! ---\n");
 		}
-		ast_cli(a->fd, "\n%d Test(s) Executed  %d Passed  %d Failed\n",
+		ast_cli(a->fd, "\n%u Test(s) Executed  %u Passed  %u Failed\n",
 			(last_results.last_passed + last_results.last_failed),
 			last_results.last_passed,
 			last_results.last_failed);

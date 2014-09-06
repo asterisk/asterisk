@@ -59,6 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/test.h"
+#include "asterisk/module.h"
 
 AST_THREADSTORAGE_PUBLIC(ast_str_thread_global_buf);
 
@@ -250,25 +251,142 @@ int ast_app_getdata_full(struct ast_channel *c, const char *prompt, char *s, int
 	return res;
 }
 
-int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char * const macro_name, const char * const macro_args)
+int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *macro_args)
 {
 	struct ast_app *macro_app;
 	int res;
-	char buf[1024];
 
 	macro_app = pbx_findapp("Macro");
 	if (!macro_app) {
-		ast_log(LOG_WARNING, "Cannot run macro '%s' because the 'Macro' application in not available\n", macro_name);
+		ast_log(LOG_WARNING,
+			"Cannot run 'Macro(%s)'.  The application is not available.\n", macro_args);
 		return -1;
 	}
-	snprintf(buf, sizeof(buf), "%s%s%s", macro_name, ast_strlen_zero(macro_args) ? "" : ",", S_OR(macro_args, ""));
 	if (autoservice_chan) {
 		ast_autoservice_start(autoservice_chan);
 	}
-	res = pbx_exec(macro_chan, macro_app, buf);
+
+	ast_debug(4, "%s Original location: %s,%s,%d\n", macro_chan->name,
+		macro_chan->context, macro_chan->exten, macro_chan->priority);
+
+	res = pbx_exec(macro_chan, macro_app, macro_args);
+	ast_debug(4, "Macro exited with status %d\n", res);
+
+	/*
+	 * Assume anything negative from Macro is an error.
+	 * Anything else is success.
+	 */
+	if (res < 0) {
+		res = -1;
+	} else {
+		res = 0;
+	}
+
+	ast_debug(4, "%s Ending location: %s,%s,%d\n", macro_chan->name,
+		macro_chan->context, macro_chan->exten, macro_chan->priority);
+
 	if (autoservice_chan) {
 		ast_autoservice_stop(autoservice_chan);
 	}
+	return res;
+}
+
+int ast_app_run_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const char *macro_name, const char *macro_args)
+{
+	int res;
+	char *args_str;
+	size_t args_len;
+
+	if (ast_strlen_zero(macro_args)) {
+		return ast_app_exec_macro(autoservice_chan, macro_chan, macro_name);
+	}
+
+	/* Create the Macro application argument string. */
+	args_len = strlen(macro_name) + strlen(macro_args) + 2;
+	args_str = ast_malloc(args_len);
+	if (!args_str) {
+		return -1;
+	}
+	snprintf(args_str, args_len, "%s,%s", macro_name, macro_args);
+
+	res = ast_app_exec_macro(autoservice_chan, macro_chan, args_str);
+	ast_free(args_str);
+	return res;
+}
+
+static const struct ast_app_stack_funcs *app_stack_callbacks;
+
+void ast_install_stack_functions(const struct ast_app_stack_funcs *funcs)
+{
+	app_stack_callbacks = funcs;
+}
+
+const char *ast_app_expand_sub_args(struct ast_channel *chan, const char *args)
+{
+	const struct ast_app_stack_funcs *funcs;
+	const char *new_args;
+
+	funcs = app_stack_callbacks;
+	if (!funcs || !funcs->expand_sub_args) {
+		ast_log(LOG_WARNING,
+			"Cannot expand 'Gosub(%s)' arguments.  The app_stack module is not available.\n",
+			args);
+		return NULL;
+	}
+	ast_module_ref(funcs->module);
+
+	new_args = funcs->expand_sub_args(chan, args);
+	ast_module_unref(funcs->module);
+	return new_args;
+}
+
+int ast_app_exec_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *sub_args, int ignore_hangup)
+{
+	const struct ast_app_stack_funcs *funcs;
+	int res;
+
+	funcs = app_stack_callbacks;
+	if (!funcs || !funcs->run_sub) {
+		ast_log(LOG_WARNING,
+			"Cannot run 'Gosub(%s)'.  The app_stack module is not available.\n",
+			sub_args);
+		return -1;
+	}
+	ast_module_ref(funcs->module);
+
+	if (autoservice_chan) {
+		ast_autoservice_start(autoservice_chan);
+	}
+
+	res = funcs->run_sub(sub_chan, sub_args, ignore_hangup);
+	ast_module_unref(funcs->module);
+
+	if (autoservice_chan) {
+		ast_autoservice_stop(autoservice_chan);
+	}
+	return res;
+}
+
+int ast_app_run_sub(struct ast_channel *autoservice_chan, struct ast_channel *sub_chan, const char *sub_location, const char *sub_args, int ignore_hangup)
+{
+	int res;
+	char *args_str;
+	size_t args_len;
+
+	if (ast_strlen_zero(sub_args)) {
+		return ast_app_exec_sub(autoservice_chan, sub_chan, sub_location, ignore_hangup);
+	}
+
+	/* Create the Gosub application argument string. */
+	args_len = strlen(sub_location) + strlen(sub_args) + 3;
+	args_str = ast_malloc(args_len);
+	if (!args_str) {
+		return -1;
+	}
+	snprintf(args_str, args_len, "%s(%s)", sub_location, sub_args);
+
+	res = ast_app_exec_sub(autoservice_chan, sub_chan, args_str, ignore_hangup);
+	ast_free(args_str);
 	return res;
 }
 

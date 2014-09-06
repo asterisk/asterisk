@@ -2825,7 +2825,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 	 	
  	if (ast_test_flag64(confflags, CONFFLAG_DURATION_STOP) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_STOP])) {
  		calldurationlimit = atoi(optargs[OPT_ARG_DURATION_STOP]);
- 		ast_verb(3, "Setting call duration limit to %d seconds.\n", calldurationlimit);
+ 		ast_verb(3, "Setting call duration limit to %u seconds.\n", calldurationlimit);
  	}
  	
  	if (ast_test_flag64(confflags, CONFFLAG_DURATION_LIMIT) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_LIMIT])) {
@@ -3863,12 +3863,12 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 						break;
 					default:
 						ast_debug(1, 
-							"Got ignored control frame on channel %s, f->frametype=%d,f->subclass=%d\n",
+							"Got ignored control frame on channel %s, f->frametype=%u,f->subclass=%d\n",
 							chan->name, f->frametype, f->subclass.integer);
 					}
 				} else {
 					ast_debug(1, 
-						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
+						"Got unrecognized frame on channel %s, f->frametype=%u,f->subclass=%d\n",
 						chan->name, f->frametype, f->subclass.integer);
 				}
 				ast_frfree(f);
@@ -6639,7 +6639,7 @@ static int sla_station_exec(struct ast_channel *chan, const char *data)
 		ast_cond_destroy(&cond);
 		ast_autoservice_stop(chan);
 		if (!trunk_ref->trunk->chan) {
-			ast_debug(1, "Trunk didn't get created. chan: %lx\n", (long) trunk_ref->trunk->chan);
+			ast_debug(1, "Trunk didn't get created. chan: %lx\n", (unsigned long) trunk_ref->trunk->chan);
 			pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
 			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 			trunk_ref->chan = NULL;

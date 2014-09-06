@@ -1637,7 +1637,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 				ast_test_suite_event_notify("PASSWORDCHANGED", "Message: voicemail.conf updated with new password\r\nPasswordSource: voicemail.conf");
 				reset_user_pw(vmu->context, vmu->mailbox, newpassword);
 				ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
-				ast_config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
+				ast_config_text_file_save(VOICEMAIL_CONFIG, cfg, "app_voicemail");
 				ast_config_destroy(cfg);
 				break;
 			}
@@ -1680,7 +1680,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 				ast_test_suite_event_notify("PASSWORDCHANGED", "Message: users.conf updated with new password\r\nPasswordSource: users.conf");
 				reset_user_pw(vmu->context, vmu->mailbox, newpassword);
 				ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
-				ast_config_text_file_save("users.conf", cfg, "AppVoicemail");
+				ast_config_text_file_save("users.conf", cfg, "app_voicemail");
 			}
 
 			ast_config_destroy(cfg);
@@ -14263,8 +14263,8 @@ static int vm_test_destroy_user(const char *context, const char *mailbox)
 
 	AST_LIST_LOCK(&users);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, vmu, list) {
-		if (!strncmp(context, vmu->context, sizeof(context))
-			&& !strncmp(mailbox, vmu->mailbox, sizeof(mailbox))) {
+		if (!strcmp(context, vmu->context)
+			&& !strcmp(mailbox, vmu->mailbox)) {
 			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(vmu);
 			break;
