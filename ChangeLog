@@ -1,3 +1,657 @@
+2014-09-05  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 11.6-cert5 Released.
+
+2014-08-17 01:54 +0000 [r421209]  Kinsey Moore <kmoore@digium.com>
+
+	* res/res_snmp.c, apps/app_dictate.c, apps/app_test.c,
+	  apps/app_ices.c, res/res_http_websocket.c, cdr/cdr_radius.c,
+	  build_tools/cflags.xml, funcs/func_pitchshift.c,
+	  apps/app_osplookup.c, funcs/func_frame_trace.c,
+	  channels/console_gui.c, apps/app_mp3.c, pbx/pbx_ael.c,
+	  channels/console_board.c, formats/format_jpeg.c,
+	  channels/chan_mgcp.c, res/res_config_pgsql.c, cel/cel_tds.c,
+	  apps/app_dahdiras.c, res/res_ael_share.c, apps/app_talkdetect.c,
+	  utils/conf2ael.c, channels/chan_jingle.c, channels/chan_misdn.c,
+	  formats/format_vox.c, res/res_timing_pthread.c,
+	  res/res_corosync.c, cel/cel_sqlite3_custom.c, apps/app_sms.c,
+	  apps/app_zapateller.c, res/res_fax_spandsp.c,
+	  res/res_timing_kqueue.c, utils/check_expr.c,
+	  channels/chan_unistim.c, build_tools/cflags-devmode.xml,
+	  utils/muted.c, cdr/cdr_sqlite3_custom.c, res/res_phoneprov.c,
+	  channels/console_video.c, apps/app_alarmreceiver.c,
+	  apps/app_chanisavail.c, apps/app_image.c, channels/chan_gtalk.c,
+	  cdr/cdr_pgsql.c, res/res_config_sqlite.c, res/res_pktccops.c,
+	  cdr/cdr_csv.c, utils/stereorize.c, channels/chan_phone.c,
+	  channels/chan_skinny.c, build_tools/embed_modules.xml,
+	  apps/app_minivm.c, pbx/pbx_realtime.c, apps/app_amd.c,
+	  channels/chan_alsa.c, apps/app_url.c, apps/app_externalivr.c,
+	  cdr/cdr_odbc.c, res/res_config_ldap.c, apps/app_jack.c,
+	  apps/app_adsiprog.c, utils/refcounter.c, apps/app_nbscat.c,
+	  apps/app_festival.c, apps/app_waitforsilence.c, utils/astman.c,
+	  apps/app_morsecode.c, utils/smsq.c, pbx/pbx_lua.c,
+	  channels/chan_console.c, apps/app_getcpeid.c,
+	  channels/chan_oss.c, cdr/cdr_tds.c, apps/app_waitforring.c,
+	  pbx/pbx_dundi.c, utils/ael_main.c, utils/extconf.c,
+	  channels/chan_nbs.c, utils/streamplayer.c, cel/cel_pgsql.c,
+	  cel/cel_radius.c: Add missing commit from 11.2-cert This disables
+	  building by default for all extended modules for Certified
+	  Asterisk 11.6. This commit was missed from 11.2-cert when
+	  creating the 11.6-cert branch. ASTERISK-24104 #close Reported by:
+	  Rusty Newton
+
+2014-08-08 17:18 +0000 [r420559]  Richard Mudgett <rmudgett@digium.com>
+
+	* /, channels/chan_sip.c: chan_sip: Replace sip_tls_read() and
+	  resolve the large SDP poll issue. Replace sip_tls_read() and
+	  sip_tcp_read() with a single function and resolve the poll/wait
+	  issue with large SDP payloads. ASTERISK-18345 #close Reported by:
+	  Stephane Chazelas Patches: tcptls_pollv4.diff (license #5835)
+	  patch uploaded by Elazar Broad Review:
+	  https://reviewboard.asterisk.org/r/3882/ ........ Merged
+	  revisions 420434 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 420435 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-07-25 23:27 +0000 [r419662]  Richard Mudgett <rmudgett@digium.com>
+
+	* main/features.c, /: features.c: Allow appliationmap to use Gosub.
+	  Using DYNAMIC_FEATURES with a Gosub application as the mapped
+	  application does not work. It does not work because Gosub just
+	  pushes the current dialplan context, exten, and priority onto a
+	  stack and sets the specified Gosub location. Gosub does not have
+	  a dialplan execution loop to run dialplan like Macro. * Made the
+	  DYNAMIC_FEATURES application mapping feature call
+	  ast_app_exec_macro() and ast_app_exec_sub() for the Macro and
+	  Gosub applications respectively. * Backported
+	  ast_app_exec_macro() and ast_app_exec_sub() from v11 to execute
+	  dialplan routines from the DYNAMIC_FEATURES application mapping
+	  feature. NOTE: This issue does not affect v12+ because it already
+	  does what this patch implements. AST-1391 #close Reported by:
+	  Guenther Kelleter Review:
+	  https://reviewboard.asterisk.org/r/3844/ ........ Merged
+	  revisions 419630 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 419631 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-07-23 14:34 +0000 [r419308]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* /, apps/app_voicemail.c: app_voicemail: use a consistent
+	  generator string When updating voicemail.conf when a user changes
+	  their pin, change the generator string to be the same as the
+	  module name when reading so that the same config_hook will be
+	  called. Review: https://reviewboard.asterisk.org/r/3837/ ........
+	  Merged revisions 419284 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-07-11 16:39 +0000 [r418368]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* /, main/config.c: config: inform config hook of change when
+	  writing file When updated configuration is written back to the
+	  conf file - for example when a user changes their voicemail pin,
+	  make sure that any config hook that wants to know of changes is
+	  informed. Review: https://reviewboard.asterisk.org/r/3708/
+	  ........ Merged revisions 418366 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-07-01 15:37 +0000 [r417724]  Joshua Colp <jcolp@digium.com>
+
+	* res/res_rtp_asterisk.c, main/rtp_engine.c, /,
+	  channels/chan_sip.c, UPGRADE.txt, configs/sip.conf.sample,
+	  include/asterisk/rtp_engine.h, channels/sip/include/sip.h:
+	  Multiple revisions
+	  402345,405234,409129-409130,409565,413008,417141,417677 ........
+	  r402345 | kmoore | 2013-11-01 05:31:49 -0700 (Fri, 01 Nov 2013) |
+	  11 lines chan_sip: Fix RTCP port for SRFLX ICE candidates This
+	  corrects one-way audio between Asterisk and Chrome/jssip as a
+	  result of Asterisk inserting the incorrect RTCP port into RTCP
+	  SRFLX ICE candidates. This also exposes an ICE component
+	  enumeration to extract further details from candidates. (closes
+	  issue ASTERISK-21383) Reported by: Shaun Clark Review:
+	  https://reviewboard.asterisk.org/r/2967/ ........ r405234 |
+	  kharwell | 2014-01-09 08:49:55 -0800 (Thu, 09 Jan 2014) | 19
+	  lines res_rtp_asterisk: Fails to resume WebRTC call from hold In
+	  ast_rtp_ice_start if the ice session create check list failed,
+	  start check was never initiated and ice_started was never set to
+	  true. Upon re-entering the function (for instance, [un]hold) it
+	  would try to create the check list again with duplicate remote
+	  candidates. Fixed so that if the create check list fails the
+	  necessary data structures are properly re-initialized for any
+	  subsequent retries. Note, it was decided to not stop ice support
+	  (by calling ast_rtp_ice_stop) on a check list failure because it
+	  possible things might still work. However, a debug message was
+	  added to help with any future troubleshooting. (closes issue
+	  ASTERISK-22911) Reported by: Vytis Valentinavičius Patches:
+	  works_on_my_machine.patch uploaded by xytis (license 6558)
+	  ........ r409129 | jrose | 2014-02-27 11:19:02 -0800 (Thu, 27 Feb
+	  2014) | 15 lines res_rtp_asterisk: Fix checklist creating
+	  problems in ICE sessions Prior to this patch, local candidate
+	  lists including SRFLX would fail to start properly when building
+	  ICE candidate check lists. This patch fixes that problem by
+	  making sure that each SRFLX candidate is associated with the
+	  proper base address so that the check list can create matches
+	  properly. This patch was written by jcolp. The issue will be left
+	  open to await testing by the issue participants. (issue
+	  ASTERISK-23213) Reported by: Andrea Suisani Review:
+	  https://reviewboard.asterisk.org/r/3256/ ........ r409130 | jrose
+	  | 2014-02-27 11:38:10 -0800 (Thu, 27 Feb 2014) | 8 lines
+	  res_rtp_asterisk: correct build error from r409129 Accidentally
+	  placed a declaration below functional code (issue ASTERISK-23213)
+	  Reported by: Andrea Suisani Review:
+	  https://reviewboard.asterisk.org/r/3256/ ........ r409565 | jrose
+	  | 2014-03-04 08:40:39 -0800 (Tue, 04 Mar 2014) | 9 lines
+	  res_rtp_asterisk: Fix one way audio problems with hold/unhold
+	  when using ICE ICE sessions will now be restarted if sessions are
+	  changed to use new sets of remote candidates. (closes issue
+	  ASTERISK-22911) Reported by: Vytis Valentinavičius Review:
+	  https://reviewboard.asterisk.org/r/3275/ ........ r413008 |
+	  mjordan | 2014-04-25 10:47:21 -0700 (Fri, 25 Apr 2014) | 14 lines
+	  res_rtp_asterisk: Add support for DTLS handshake retransmissions
+	  On congested networks, it is possible for the DTLS handshake
+	  messages to get lost. This patch adds a timer to res_rtp_asterisk
+	  that will periodically check to see if the handshake has
+	  succeeded. If not, it will retransmit the DTLS handshake. Review:
+	  https://reviewboard.asterisk.org/r/3337 ASTERISK-23649 #close
+	  Reported by: Nitesh Bansal patches: dtls_retransmission.patch
+	  uploaded by Nitesh Bansal (License 6418) ........ r417141 | file
+	  | 2014-06-23 11:49:14 -0700 (Mon, 23 Jun 2014) | 5 lines
+	  res_rtp_asterisk: Return the length of data written when sending
+	  via ICE instead of 0. ASTERISK-23834 #close Reported by: Richard
+	  Kenner ........ r417677 | file | 2014-06-30 12:42:18 -0700 (Mon,
+	  30 Jun 2014) | 12 lines res_rtp_asterisk: Add SHA-256 support for
+	  DTLS and perform DTLS negotiation on RTCP. This change fixes up
+	  DTLS support in res_rtp_asterisk so it can accept and provide a
+	  SHA-256 fingerprint, so it occurs on RTCP, and so it occurs after
+	  ICE negotiation completes. Configuration options to chan_sip have
+	  also been added to allow behavior to be tweaked (such as forcing
+	  the AVP type media transports in SDP). ASTERISK-22961 #close
+	  Reported by: Jay Jideliov Review:
+	  https://reviewboard.asterisk.org/r/3679/ ........ Merged
+	  revisions 402345,405234,409129-409130,409565,413008,417141,417677
+	  from http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-06-13 05:29 +0000 [r415977-416106]  Richard Mudgett <rmudgett@digium.com>
+
+	* main/tcptls.c, main/manager.c, /, channels/chan_sip.c,
+	  main/http.c, include/asterisk/tcptls.h: AST-2014-007: Fix of fix
+	  to allow AMI and SIP TCP to send messages. ASTERISK-23673 #close
+	  Reported by: Richard Mudgett Review:
+	  https://reviewboard.asterisk.org/r/3617/ ........ Merged
+	  revisions 416066 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 416067 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* main/http.c, UPGRADE.txt, main/utils.c,
+	  include/asterisk/tcptls.h, res/res_http_websocket.c,
+	  configs/http.conf.sample, include/asterisk/utils.h,
+	  main/tcptls.c, main/manager.c, /, channels/chan_sip.c:
+	  AST-2014-007: Fix DOS by consuming the number of allowed HTTP
+	  connections. Simply establishing a TCP connection and never
+	  sending anything to the configured HTTP port in http.conf will
+	  tie up a HTTP connection. Since there is a maximum number of open
+	  HTTP sessions allowed at a time you can block legitimate
+	  connections. A similar problem exists if a HTTP request is
+	  started but never finished. * Added http.conf session_inactivity
+	  timer option to close HTTP connections that aren't doing
+	  anything. Defaults to 30000 ms. * Removed the undocumented
+	  manager.conf block-sockets option. It interferes with TCP/TLS
+	  inactivity timeouts. * AMI and SIP TLS connections now have
+	  better authentication timeout protection. Though I didn't remove
+	  the bizzare TLS timeout polling code from chan_sip. * chan_sip
+	  can now handle SSL certificate renegotiations in the middle of a
+	  session. It couldn't do that before because the socket was
+	  non-blocking and the SSL calls were not restarted as documented
+	  by the OpenSSL documentation. * Fixed an off nominal leak of the
+	  ssl struct in handle_tcptls_connection() if the FILE stream
+	  failed to open and the SSL certificate negotiations failed. The
+	  patch creates a custom FILE stream handler to give the created
+	  FILE streams inactivity timeout and timeout after a specific
+	  moment in time capability. This approach eliminates the need for
+	  code using the FILE stream to be redesigned to deal with the
+	  timeouts. This patch indirectly fixes most of ASTERISK-18345 by
+	  fixing the usage of the SSL_read/SSL_write operations.
+	  ASTERISK-23673 #close Reported by: Richard Mudgett ........
+	  Merged revisions 415841 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 415854 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-06-12 16:27 +0000 [r415867]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* /, apps/app_queue.c: app_queue: delayed state can cause early
+	  leavewhenempty ringing In app_queue, device state changes arrive
+	  in event messages and update the queue member status value. That
+	  value is checked in get_member_status() to decide that the caller
+	  should leave when there are no available members. Although event
+	  messages can be delayed by other activity, there is no adverse
+	  affect by lagged status except in one specific case: there is
+	  only one available member, it was just rung, and leavewhenempty
+	  is enabled set for ringing members. This change adds a direct
+	  check of the device state only under this condition where the
+	  caller may be dropped incorrectly, resolving this issue without
+	  affecting performance of app_queue normally. AST-1248 #close
+	  Review: https://reviewboard.asterisk.org/r/3595/ Reported by:
+	  Thomas Arimont ........ Merged revisions 415833 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+2014-06-12 16:06 +0000 [r415842]  Jonathan Rose <jrose@digium.com>
+
+	* /, UPGRADE.txt, apps/app_mixmonitor.c: MixMonitor: Add class
+	  authorization requirements to MixMonitor AMI commands MixMonitor
+	  AMI commands StartMixMonitor and StopMixMonitor lacked class
+	  authorization. StopMixMonitor now requires that the manager user
+	  either have the call or system class authorization.
+	  StartMixMonitor is a slightly larger issue since it can execute
+	  shell commands if the right arguments are passed into it, and we
+	  consider this a permission escalation. A security release will be
+	  issued for problem this shortly. ASTERISK-23609 #close Reported
+	  by: Corey Farrell ........ Merged revisions 415837 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-05-13 00:48 +0000 [r413773]  Richard Mudgett <rmudgett@digium.com>
+
+	* /, configure, include/asterisk/autoconfig.h.in, configure.ac,
+	  channels/sig_pri.c: chan_dahdi/sig_pri: Prevent unnecessary
+	  PROGRESS events when overlap dialing is enabled. When overlap
+	  dialing is enabled, the lack of inband audio available
+	  information in the SETUP_ACKNOWLEDGE events causes an
+	  interoperability problem with SIP. sig_pri doesn't know if there
+	  is dialtone present when a SETUP_ACKNOWLEDGE is received so it
+	  assumes it is there and posts an AST_CONTROL_PROGRESS frame. The
+	  SIP channel driver then sends out a 183 Session Progress and
+	  blocks the desired 180 Ringing message when the ALERTING message
+	  comes in. * Made the configure script detect if the installed
+	  version of libpri supports the SETUP_ACKNOWLEDGE enhancements. *
+	  Using the new API, made generate an AST_CONTROL_PROGRESS frame on
+	  an incoming SETUP_ACKNOWLEDGE message when the message indicates
+	  inband audio is present instead of assuming that dialtone is
+	  present. * Using the new API, made SETUP_ACKNOWLEDGE send out an
+	  inband audio available indication only if dialtone is expected.
+	  The change also makes the fallback behaviour of sending the
+	  PROGRESS message better by sending it only if dialtone is
+	  expected. * Changed receiving a PROCEEDING message to not
+	  generate an AST_CONTROL_PROGRESS frame if the progress indication
+	  ie indicates non-end-to-end-ISDN. This helps interoperability
+	  with SIP. * Changed sending a PROCEEDING message in response to
+	  an AST_CONTROL_PROCEEDING frame to not indicate inband audio
+	  available. It was silly to do so anyway because the channel
+	  driver doesn't know if inband audio is even available. This helps
+	  interoperability with SIP. This patch and a corresponding change
+	  in libpri work together to allow Asterisk to control the inband
+	  audio available progress indication ie on the SETUP_ACKNOWLEDGE
+	  message when dialtone is present. AST-1338 #close Reported by:
+	  Tyler Stewart Review: https://reviewboard.asterisk.org/r/3521/
+	  ........ Merged revisions 413714 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 413765 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-04-11 17:27 +0000 [r412212]  Kevin Harwell <kharwell@digium.com>
+
+	* main/asterisk.c, /: asterisk.c: suppress live_dangerously warning
+	  on rasterisk Even since the fixes of AST-2013-007, Asterisk
+	  prints the following warning on startup if the user decided to
+	  live dangerously: Privilege escalation protection disabled! See
+	  https://wiki.asterisk.org/wiki/x/1gKfAQ for more details. This
+	  message is intended for the logs and interactive startup. No need
+	  for it to appear on a remote console. This commit removes it from
+	  there. (closes issue ASTERISK-23084) Review:
+	  https://reviewboard.asterisk.org/r/3101/ ........ Merged
+	  revisions 404861 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 404888 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-03-10 17:34 +0000 [r410429]  Richard Mudgett <rmudgett@digium.com>
+
+	* /, main/http.c: AST-2014-001: Stack overflow in HTTP processing
+	  of Cookie headers. Sending a HTTP request that is handled by
+	  Asterisk with a large number of Cookie headers could overflow the
+	  stack. Another vulnerability along similar lines is any HTTP
+	  request with a ridiculous number of headers in the request could
+	  exhaust system memory. (closes issue ASTERISK-23340) Reported by:
+	  Lucas Molas, researcher at Programa STIC, Fundacion; and Dr.
+	  Manuel Sadosky, Buenos Aires, Argentina ........ Merged revisions
+	  410380 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+	  ........ Merged revisions 410381 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-03-10 14:04 +0000 [r410359]  Kinsey Moore <kmoore@digium.com>
+
+	* /, channels/chan_sip.c: AST-2014-002: chan_sip: Exit early on bad
+	  session timers request This change allows chan_sip to avoid
+	  creation of the channel and consumption of associated file
+	  descriptors altogether if the inbound request is going to be
+	  rejected anyway. (closes issue ASTERISK-23373) Reported by: Corey
+	  Farrell Patches: chan_sip-earlier-st-1.8.patch uploaded by Corey
+	  Farrell (license 5909) chan_sip-earlier-st-11.patch uploaded by
+	  Corey Farrell (license 5909) ........ Merged revisions 410308
+	  from http://svn.asterisk.org/svn/asterisk/branches/1.8 ........
+	  Merged revisions 410311 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-02-19 19:17 +0000 [r408392]  Richard Mudgett <rmudgett@digium.com>
+
+	* main/config.c, /: config: Add file size and nanosecond resolution
+	  fields to the cached modified config file information. Repeatedly
+	  modifying config files and reloading too fast sometimes fails to
+	  reload the configuration because the cached modification
+	  timestamp has one second resolution. * Added file size and
+	  nanosecond resolution fields to the cached config file
+	  modification timestamp information. Now if the file size changes
+	  or the file system supports nanosecond resolution the modified
+	  file has a better chance of being detected for reload. * Added a
+	  missing unlock in an off-nominal code path. (closes issue
+	  AST-1303) Review: https://reviewboard.asterisk.org/r/3235/
+	  ........ Merged revisions 408387 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 408388 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-02-07 19:30 +0000 [r407746]  Richard Mudgett <rmudgett@digium.com>
+
+	* channels/chan_iax2.c, include/asterisk/frame.h,
+	  configs/iax.conf.sample, /: chan_iax2: Block unnecessary control
+	  frames to/from the wire. Establishing an IAX2 call between
+	  Asterisk v1.4 and v1.8 (or later) results in an unexpected call
+	  disconnect. The problem happens because newer values in the enum
+	  ast_control_frame_type are not consistent between the branch
+	  versions of Asterisk. For example: 1) v1.4 calls v1.8 (or later)
+	  using IAX2 2) v1.8 answers and sends a connected line update
+	  control frame. (on v1.8 AST_CONTROL_CONNECTED_LINE = 22) 3) v1.4
+	  receives the control frame as an end-of-q (on v1.4
+	  AST_CONTROL_END_OF_Q = 22) 4) v1.4 disconnects the call once the
+	  receive queue becomes empty. Several things are done by this
+	  patch to fix the problem and attempt to prevent it from happening
+	  again in the future: * Added a warning at the definition of enum
+	  ast_control_frame_type about how to add new control frame values.
+	  * Made block sending and receiving control frames that have no
+	  reason to go over the wire. * Extended the connectedline iax.conf
+	  parameter to also include the redirecting information updates. *
+	  Updated the connectedline iax.conf parameter documentation to
+	  include a notice that the parameter must be "no" when the peer is
+	  an Asterisk v1.4 instance. (closes issue AST-1302) Review:
+	  https://reviewboard.asterisk.org/r/3174/ ........ Merged
+	  revisions 407678 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 407727 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-01-25 00:13 +0000 [r406358-406469]  Richard Mudgett <rmudgett@digium.com>
+
+	* /, main/cel.c: CEL: Protect data structures during reload and
+	  shutdown. The CEL data structures need to be protected during a
+	  configuration reload and shutdown. Asterisk crashed during a
+	  shutdown because CEL events were still in flight and the CEL data
+	  structures were already destroyed. * Protected the appset and
+	  linkedids ao2 containers using the reload_lock. As a result
+	  appset, linkedids, and held objects don't need a lock. * Added
+	  NULL checks before use of the appset and linkedids ao2 containers
+	  in case the CEL module is already shutdown. * Fixed overloading
+	  of the linkedids held objects reference count. During shutdown
+	  any held objects would be leaked. * Fixed memory leak of
+	  linkedids held objects if the LINKEDID_END is not being tracked.
+	  The objects in the linkedids container were not removed if the
+	  LINKEDID_END event is not used. * Added access protection to the
+	  appset container during the CLI "cel show status" command. * Made
+	  CEL config reload not set defaults if the cel.conf file is
+	  invalid. (closes issue AST-1253) Reported by: Guenther Kelleter
+	  Review: https://reviewboard.asterisk.org/r/3127/ ........ Merged
+	  revisions 406417 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 406418 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* main/manager.c, /: manager: Protect data structures during
+	  shutdown. Occasionally, the manager module would get an
+	  "INTERNAL_OBJ: bad magic number" error on a "core restart
+	  gracefully" command if an AMI connection is established. * Added
+	  ao2_global_obj protection to the sessions global container. *
+	  Fixed the order of unreferencing a session object in
+	  session_destroy(). * Removed unnecessary container traversals of
+	  the white/black filters during session_destructor(). (closes
+	  issue AST-1242) Reported by: Guenther Kelleter Review:
+	  https://reviewboard.asterisk.org/r/3144/ ........ Merged
+	  revisions 406341 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-01-15 15:27 +0000 [r405536-405578]  Matthew Jordan <mjordan@digium.com>
+
+	* main/pbx.c, /: pbx.c: put copy of ast_exten.data on stack to
+	  prevent memory corruption During dialplan execution in
+	  pbx_extension_helper(), the contexts global read lock prevents
+	  link list corruption, but was released with a pointer to the
+	  ast_exten and data later used in variable substitution. Instead,
+	  this patch removes pbx_substitute_variables() and locates a copy
+	  of the ast_exten data on the stack before releasing the lock,
+	  where ast_exten could get free'd by another thread performing a
+	  module reload. (issue AST-1179) Reported by: Thomas Arimont
+	  (issue AST-1246) Reported by: Alexander Hömig Review:
+	  https://reviewboard.asterisk.org/r/3055/ ........ Merged
+	  revisions 403862 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 403863 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /, channels/chan_sip.c: chan_sip: Hangup transferer/transferee
+	  when transfer to Parking fails When performing a SIP transfer to
+	  a Park extension, if the Park fails, chan_sip will currently not
+	  hang up either the transferer or the transfer target. This
+	  results in the channels being orphaned with no thread to service
+	  frames, resulting in stuck channels. This patch immediately hangs
+	  up the two channels if a Park fails. (closes issue
+	  ASTERISK-22834) Reported by: rsw686 Tested by: rsw686 (closes
+	  issue ASTERISK-23047) Reported by: Tommy Thompson Tested by:
+	  Tommy Thomspon Review: https://reviewboard.asterisk.org/r/3107
+	  ........ Merged revisions 405380 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-01-14 18:50 +0000 [r405488]  Richard Mudgett <rmudgett@digium.com>
+
+	* apps/app_verbose.c, main/asterisk.c, configs/logger.conf.sample,
+	  main/cli.c, include/asterisk/logger.h, main/pbx.c,
+	  main/manager.c, /, funcs/func_timeout.c, apps/app_dumpchan.c,
+	  main/logger.c, UPGRADE.txt: verbosity: Fix performance of console
+	  verbose messages. The per console verbose level feature as
+	  previously implemented caused a large performance penalty. The
+	  fix required some minor incompatibilities if the new rasterisk is
+	  used to connect to an earlier version. If the new rasterisk
+	  connects to an older Asterisk version then the root console
+	  verbose level is always affected by the "core set verbose"
+	  command of the remote console even though it may appear to only
+	  affect the current console. If an older version of rasterisk
+	  connects to the new version then the "core set verbose" command
+	  will have no effect. * Fixed the verbose performance by not
+	  generating a verbose message if nothing is going to use it and
+	  then filtered any generated verbose messages before actually
+	  sending them to the remote consoles. * Split the "core set debug"
+	  and "core set verbose" CLI commands to remove the per module
+	  verbose support that cannot work with the per console verbose
+	  level. * Added a silent option to the "core set verbose" command.
+	  * Fixed "core set debug off" tab completion. * Made "core show
+	  settings" list the current console verbosity in addition to the
+	  root console verbosity. * Changed the default verbose level of
+	  the 'verbose' setting in the logger.conf [logfiles] section. The
+	  default is now to once again follow the current root console
+	  level. As a result, using the AMI Command action with "core set
+	  verbose" could again set the root console verbose level and
+	  affect the verbose level logged. (closes issue AST-1252) Reported
+	  by: Guenther Kelleter Review:
+	  https://reviewboard.asterisk.org/r/3114/ ........ Merged
+	  revisions 405431 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2014-01-09 16:34 +0000 [r405233]  Matthew Jordan <mjordan@digium.com>
+
+	* /, apps/app_confbridge.c,
+	  apps/confbridge/conf_state_multi_marked.c: app_confbridge: Fix
+	  crash caused when waitmarked/marked users leave together When
+	  waitmarked users join a ConfBridge, the conference state is
+	  transitioned from EMPTY -> INACTIVE. In this state, the users are
+	  maintined in a waiting users list. When a marked user joins, the
+	  ConfBridge conference transitions from INACTIVE -> MULTI_MARKED,
+	  and all users are put onto the active list of users. This process
+	  works correctly. When the marked user leaves, if they are the
+	  last marked user, the MULTI_MARKED state does the following: (1)
+	  It plays back a message to the bridge stating that the leader has
+	  left the conference. This requires an unlocking of the bridge.
+	  (2) It moves waitmarked users back to the waiting list (3) It
+	  transitions to the appropriate state: in this case, INACTIVE
+	  However, because it plays the prompt back to the bridge before
+	  moving the users and before finishing the state transition, this
+	  creates a race condition: with the bridge unlocked, waitmarked
+	  users who leave the conference (or are kicked from it) can cause
+	  a state transition of the bridge to another state before the
+	  conference is transitioned to the INACTIVE state. This causes the
+	  state machine to get a bit wonky, often leading to a crash when
+	  the MULTI_MARKED state attempts to conclude its processing. This
+	  patch fixes this problem: (1) It prevents kicked users from being
+	  kicked again. That's just a nicety. (2) More importantly, it
+	  fixes the race condition by only playing the prompt once the
+	  state has transitioned correctly to INACTIVE. If waitmarked users
+	  sneak out during the prompt being played, no harm no foul.
+	  Review: https://reviewboard.asterisk.org/r/3108/ (closes issue
+	  AST-1258) Reported by: Steve Pitts ........ Merged revisions
+	  405215 from http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-12-19 16:38 +0000 [r404349]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* main/db.c, /: astdb: crash in sqlite3 during shutdown When
+	  Asterisk is shut down, the astdb_atexit() function releases
+	  (finalize) the previously initiated (prepared) SQL statements in
+	  sqlite3. Another thread making a subsequent request can cause a
+	  crash in sqlite3. This patch eliminates that issue by resetting
+	  the statement pointer after it is released/cleared. The sqlite3
+	  code detects the null pointer, and aborts the operation cleanly.
+	  (closes issue AST-1265) Reported by: Alexander Hömig (closes
+	  issue ASTERISK-22350) Reported by: Birger "WIMPy" Harzenetter
+	  Review: https://reviewboard.asterisk.org/r/3078/ ........ Merged
+	  revisions 404344 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-12-16 17:29 +0000 [r403956]  David M. Lee <dlee@digium.com>
+
+	* funcs/func_realtime.c, main/pbx.c, main/tcptls.c,
+	  funcs/func_db.c, /, README-SERIOUSLY.bestpractices.txt,
+	  configs/asterisk.conf.sample, funcs/func_shell.c,
+	  funcs/func_env.c, funcs/func_lock.c, UPGRADE.txt,
+	  include/asterisk/pbx.h, main/asterisk.c: security: Inhibit
+	  execution of privilege escalating functions This patch allows
+	  individual dialplan functions to be marked as 'dangerous', to
+	  inhibit their execution from external sources. A 'dangerous'
+	  function is one which results in a privilege escalation. For
+	  example, if one were to read the channel variable SHELL(rm -rf /)
+	  Bad Things(TM) could happen; even if the external source has only
+	  read permissions. Execution from external sources may be enabled
+	  by setting 'live_dangerously' to 'yes' in the [options] section
+	  of asterisk.conf. Although doing so is not recommended. (closes
+	  issue ASTERISK-22905) Review:
+	  http://reviewboard.digium.internal/r/432/ ........ Merged
+	  revisions 403913 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 403917 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-12-16 15:38 +0000 [r403860]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* apps/app_sms.c: app_sms: BufferOverflow when receiving odd length
+	  16 bit message This patch prevents an infinite loop overwriting
+	  memory when a message is received into the unpacksms16()
+	  function, where the length of the message is an odd number of
+	  bytes. (closes issue ASTERISK-22590) Reported by: Jan Juergens
+	  Tested by: Jan Juergens
+
+2013-11-04 21:20 +0000 [r402463]  Kevin Harwell <kharwell@digium.com>
+
+	* /, channels/chan_sip.c: chan_sip: notify dialog info ignores
+	  presentation indicator in callerid The presentation indicator in
+	  a callerid (e.g. set by dialplan function
+	  Set(CALLERID(name-pres)= ...)) is not checked when SIP Dialog
+	  Info Notifies are generated during extension monitoring. Added a
+	  check to make sure the name and/or number presentations on the
+	  callee (remote identity) are set to allow. If they are restricted
+	  then "anonymous" is used instead. (closes issue AST-1175)
+	  Reported by: Thomas Arimont Review:
+	  https://reviewboard.asterisk.org/r/2976/ ........ Merged
+	  revisions 402450 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+2013-11-01 20:39 +0000 [r402377-402383]  Matthew Jordan <mjordan@digium.com>
+
+	* asterisk-11.6.0-summary.html (removed),
+	  asterisk-11.6.0-summary.txt (removed): Remove old summaries
+
+	* include/asterisk/pbx.h, res/res_rtp_asterisk.c, main/pbx.c, /,
+	  configure, configure.ac: Multiple revisions
+	  396884,400075,400093,401446,401960 ........ r396884 | jbigelow |
+	  2013-08-16 17:45:10 -0500 (Fri, 16 Aug 2013) | 8 lines Add test
+	  suite events to indicate when a feature is detected or not These
+	  are needed by the bridge test suite tests for them to be able to
+	  run against Asterisk 11. Review:
+	  https://reviewboard.asterisk.org/r/2751/ ........ r400075 |
+	  mjordan | 2013-09-28 16:59:12 -0500 (Sat, 28 Sep 2013) | 16 lines
+	  Add check for openSUSE when detecting bfd library In
+	  ASTERISK-17842, some additional library checks were added to the
+	  configure script so that the bfd library could be found on CentOS
+	  and Fedora systems. As it turns out, openSUSE requires an
+	  additional library. This patch adds another check to the
+	  configure script for openSUSE that will add that library. Review:
+	  https://reviewboard.asterisk.org/r/2885/ (closes issue AST-1169)
+	  Reported by: Guenther Kelleter ........ Merged revisions 400073
+	  from http://svn.asterisk.org/svn/asterisk/branches/1.8 ........
+	  r400093 | mjordan | 2013-09-28 17:21:37 -0500 (Sat, 28 Sep 2013)
+	  | 23 lines res_rtp_asterisk: Correct erroneous lost packet
+	  information in RTCP reports RTCP's calculation of the number of
+	  lost packets in an RTP stream is based on that stream's sequence
+	  number count, the number of received packets, and how many
+	  packets we expect to receive. When the SSRC for an RTP stream
+	  changes, there can - and almost always will be - a large jump in
+	  the next packet's timestamp and sequence number. If we don't
+	  reset the number of received packets, sequence number count, and
+	  other metrics used by RTCP, the next RR/SR report will use the
+	  previous SSRC's values to calculate the lost packet count for the
+	  new SSRC - resulting in a very large number of lost packets. This
+	  patch modifies res_rtp_asterisk such that, if it detects a SSRC
+	  change, it will reset the various values used by the RTCP
+	  calculations. From the perspective of RTCP, this appears as a new
+	  media stream - which is what it is. Review:
+	  https://reviewboard.asterisk.org/r/2886/ (closes issue AST-1174)
+	  Reported by: Thomas Arimont ........ Merged revisions 400089 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........
+	  r401446 | mjordan | 2013-10-22 17:42:24 -0500 (Tue, 22 Oct 2013)
+	  | 15 lines res_rtp_asterisk: Fix crash when RTCP is not available
+	  during SSRC change In r400089, a patch was put in to correct
+	  erroneous RTCP statistic resets. Unfortunately, ast_rtp_read can
+	  be called on an RTP instance that does not have RTCP information.
+	  This patch prevents that crash by only resetting the statistics
+	  if we do actually have an RTCP instance. (issue AST-1174) (closes
+	  issue ASTERISK-22667) Reported by: John Bigelow ........ Merged
+	  revisions 401445 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........
+	  r401960 | sgriepentrog | 2013-10-25 15:44:40 -0500 (Fri, 25 Oct
+	  2013) | 15 lines pbx.c: fix confused match caller id that deleted
+	  exten still in hash This fixes a bug where a zero length callerid
+	  match adjacent to a no match callerid extension entry would be
+	  deleted together, which then resulted in hashtable references to
+	  free'd memory. A third state of the matchcid value has been added
+	  to indicate match to any extension which allows enforcing
+	  comparison of matchcid on/off without errors. (closes issue
+	  AST-1235) Reported by: Guenther Kelleter Review:
+	  https://reviewboard.asterisk.org/r/2930/ ........ Merged
+	  revisions 401959 from
+	  http://svn.asterisk.org/svn/asterisk/branches/1.8 ........ Merged
+	  revisions 396884,400075,400093,401446,401960 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11
+
+	* /: SVN properties: Add svnmerge properties for 11
+
+2013-10-22 16:10 +0000 [r401416]  bebuild <bebuild@localhost>:
+
+	* / (added): Create branch for Certified Asterisk 11.6.
+
 2013-10-21  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.6.0 Released.
