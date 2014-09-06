@@ -3386,6 +3386,10 @@ int ast_cdr_fork(const char *channel_name, struct ast_flags *options)
 		}
 		new_cdr->fn_table = cdr_obj->fn_table;
 		ast_string_field_set(new_cdr, bridge, cdr->bridge);
+		ast_string_field_set(new_cdr, appl, cdr->appl);
+		ast_string_field_set(new_cdr, data, cdr->data);
+		ast_string_field_set(new_cdr, context, cdr->context);
+		ast_string_field_set(new_cdr, exten, cdr->exten);
 		new_cdr->flags = cdr->flags;
 		/* Explicitly clear the AST_CDR_LOCK_APP flag - we want
 		 * the application to be changed on the new CDR if the
