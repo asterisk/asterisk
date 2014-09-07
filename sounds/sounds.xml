@@ -189,6 +189,33 @@
 		<member name="CORE-SOUNDS-RU-SIREN14" displayname="Russian, G.722.1C (Siren14) format">
 			<support_level>core</support_level>
 		</member>
+		<member name="CORE-SOUNDS-JA-WAV" displayname="Japanese, WAV format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-ULAW" displayname="Japanese, mu-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-ALAW" displayname="Japanese, a-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-GSM" displayname="Japanese, GSM format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-G729" displayname="Japanese, G.729 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-G722" displayname="Japanese, G.722 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-SLN16" displayname="Japanese, Signed-linear 16kHz format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-SIREN7" displayname="Japanese, G.722.1 (Siren7) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-JA-SIREN14" displayname="Japanese, G.722.1C (Siren14) format">
+			<support_level>core</support_level>
+		</member>
 	</category>
 	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
 		<member name="MOH-OPSOUND-WAV" displayname="opsound.org Music On Hold Files, WAV format" >
