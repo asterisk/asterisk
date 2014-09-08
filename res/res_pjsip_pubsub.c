@@ -125,6 +125,16 @@
 			</configObject>
 			<configObject name="resource_list">
 				<synopsis>Resource list configuration parameters.</synopsis>
+				<description>
+					<para>This configuration object allows for RFC 4662 resource list subscriptions
+					to be specified. This can be useful to decrease the amount of subscription traffic
+					that a server has to process.</para>
+					<note>
+						<para>Current limitations limit the size of SIP NOTIFY requests that Asterisk sends
+						to 64000 bytes. If your resource list notifications are larger than this maximum, you
+						will need to make adjustments.</para>
+					</note>
+				</description>
 				<configOption name="type">
 					<synopsis>Must be of type 'resource_list'</synopsis>
 				</configOption>
@@ -1540,12 +1550,66 @@ struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_sub
 	return sub->tree->serializer;
 }
 
+/*!
+ * \brief Pre-allocate a buffer for the transmission
+ *
+ * Typically, we let PJSIP do this step for us when we send a request. PJSIP's buffer
+ * allocation algorithm is to allocate a buffer of PJSIP_MAX_PKT_LEN bytes and attempt
+ * to write the packet to the allocated buffer. If the buffer is too small to hold the
+ * packet, then we get told the message is too long to be sent.
+ *
+ * When dealing with SIP NOTIFY, especially with RLS, it is possible to exceed
+ * PJSIP_MAX_PKT_LEN. Rather than accepting the limitation imposed on us by default,
+ * we instead take the strategy of pre-allocating the buffer, testing for ourselves
+ * if the message will fit, and resizing the buffer as required.
+ *
+ * RFC 3261 says that a SIP UDP request can be up to 65535 bytes long. We're capping
+ * it at 64000 for a couple of reasons:
+ * 1) Allocating more than 64K at a time is hard to justify
+ * 2) If the message goes through proxies, those proxies will want to add Via and
+ *    Record-Route headers, making the message even larger. Giving some space for
+ *    those headers is a nice thing to do.
+ *
+ * RFC 3261 does not place an upper limit on the size of TCP requests, but we are
+ * going to impose the same 64K limit as a memory savings.
+ *
+ * \param tdata The tdata onto which to allocate a buffer
+ * \retval 0 Success
+ * \retval -1 The message is too large
+ */
+static int allocate_tdata_buffer(pjsip_tx_data *tdata)
+{
+	int buf_size;
+	int size = -1;
+	char *buf;
+
+	for (buf_size = PJSIP_MAX_PKT_LEN; size == -1 && buf_size < 64000; buf_size *= 2) {
+		buf = pj_pool_alloc(tdata->pool, buf_size);
+		size = pjsip_msg_print(tdata->msg, buf, buf_size);
+	}
+
+	if (size == -1) {
+		return -1;
+	}
+
+	tdata->buf.start = buf;
+	tdata->buf.cur = tdata->buf.start;
+	tdata->buf.end = tdata->buf.start + buf_size;
+
+	return 0;
+}
+
 static int sip_subscription_send_request(struct sip_subscription_tree *sub_tree, pjsip_tx_data *tdata)
 {
 #ifdef TEST_FRAMEWORK
 	struct ast_sip_endpoint *endpoint = sub_tree->endpoint;
 #endif
 	int res;
+
+	if (allocate_tdata_buffer(tdata)) {
+		ast_log(LOG_ERROR, "SIP request %s is too large to send.\n", tdata->info);
+		return -1;
+	}
 
 	res = pjsip_evsub_send_request(sub_tree->evsub, tdata) == PJ_SUCCESS ? 0 : -1;
 	subscription_persistence_update(sub_tree, NULL);
