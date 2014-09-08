@@ -667,6 +667,28 @@ static struct ast_sip_pubsub_body_generator *subscription_get_generator_from_rda
 	return find_body_generator(accept, num_accept_headers);
 }
 
+/*! \brief Check if the rdata has a Supported header containing 'eventlist'
+ *
+ *  \retval 1 rdata has an eventlist containing supported header
+ *  \retval 0 rdata doesn't have an eventlist containing supported header
+ */
+static int ast_sip_pubsub_has_eventlist_support(pjsip_rx_data *rdata)
+{
+	pjsip_supported_hdr *supported_header = (pjsip_supported_hdr *) &rdata->msg_info.msg->hdr;
+
+	while ((supported_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_SUPPORTED, supported_header->next))) {
+		int i;
+
+		for (i = 0; i < supported_header->count; i++) {
+			if (!pj_stricmp2(&supported_header->values[i], "eventlist")) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 struct resource_tree;
 
 /*!
@@ -909,18 +931,18 @@ static void resource_tree_destroy(struct resource_tree *tree)
  * \param handler The subscription handler for leaf nodes in the tree.
  * \param resource The resource requested in the SUBSCRIBE request.
  * \param tree The tree that is to be built.
+ * \param has_eventlist_support
  *
  * \retval 200-299 Successfully subscribed to at least one resource.
  * \retval 300-699 Failure to subscribe to requested resource.
  */
 static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct ast_sip_subscription_handler *handler,
-		const char *resource, struct resource_tree *tree)
+		const char *resource, struct resource_tree *tree, int has_eventlist_support)
 {
 	struct resource_list *list;
 	struct resources visited;
 
-	list = retrieve_resource_list(resource, handler->event_name);
-	if (!list) {
+	if (!has_eventlist_support || !(list = retrieve_resource_list(resource, handler->event_name))) {
 		ast_debug(1, "Subscription to resource %s is not to a list\n", resource);
 		tree->root = tree_node_alloc(resource, NULL, 0);
 		if (!tree->root) {
@@ -1321,7 +1343,8 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 			pubsub_module.id, MOD_DATA_PERSISTENCE, persistence);
 
 	memset(&tree, 0, sizeof(tree));
-	resp = build_resource_tree(endpoint, handler, resource, &tree);
+	resp = build_resource_tree(endpoint, handler, resource, &tree,
+		ast_sip_pubsub_has_eventlist_support(&rdata));
 	if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		sub_tree = create_subscription_tree(handler, endpoint, &rdata, resource, generator, &tree);
 		sub_tree->persistence = ao2_bump(persistence);
@@ -2452,7 +2475,8 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	}
 
 	memset(&tree, 0, sizeof(tree));
-	resp = build_resource_tree(endpoint, handler, resource, &tree);
+	resp = build_resource_tree(endpoint, handler, resource, &tree,
+		ast_sip_pubsub_has_eventlist_support(rdata));
 	if (!PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, resp, NULL, NULL, NULL);
 		resource_tree_destroy(&tree);
@@ -3592,7 +3616,7 @@ AST_TEST_DEFINE(resource_tree)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -3662,7 +3686,7 @@ AST_TEST_DEFINE(complex_resource_tree)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -3723,7 +3747,7 @@ AST_TEST_DEFINE(bad_resource)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -3792,7 +3816,7 @@ AST_TEST_DEFINE(bad_branch)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -3865,7 +3889,7 @@ AST_TEST_DEFINE(duplicate_resource)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -3937,7 +3961,7 @@ AST_TEST_DEFINE(loop)
 	}
 
 	tree = ast_calloc(1, sizeof(*tree));
-	resp = build_resource_tree(NULL, &test_handler, "herp", tree);
+	resp = build_resource_tree(NULL, &test_handler, "herp", tree, 1);
 	if (resp == 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
@@ -3984,7 +4008,7 @@ AST_TEST_DEFINE(bad_event)
 	/* Since the test_handler is for event "test", this should not build a list, but
 	 * instead result in a single resource being created, called "foo"
 	 */
-	resp = build_resource_tree(NULL, &test_handler, "foo", tree);
+	resp = build_resource_tree(NULL, &test_handler, "foo", tree, 1);
 	if (resp != 200) {
 		ast_test_status_update(test, "Unexpected response %d when building resource tree\n", resp);
 		return AST_TEST_FAIL;
