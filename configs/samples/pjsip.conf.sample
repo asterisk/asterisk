@@ -456,7 +456,9 @@
 ;way these are interpreted is event-package specific. For instance, with presence
 ;list_items, hints in the dialplan are looked up. With message-summary list_items,
 ;mailboxes are looked up using your installed voicemail provider (app_voicemail
-;by default).
+;by default). Note that in the above example, the list_item options were given
+;one per line. However, it is also permissible to provide multiple list_item
+;options on a single line (e.g. list_item = alice,bob,carol).
 
 ;In addition to the options presented in the above configuration, there are two
 ;more configuration options that can be set.
