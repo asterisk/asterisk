@@ -428,6 +428,54 @@
 ;permit=209.16.236.0/24, !209.16.236.12/32
 
 
+;============EXAMPLE RLS CONFIGURATION==========================================
+;
+;Asterisk provides support for RFC 4662 Resource List Subscriptions. This allows
+;for an endpoint to, through a single subscription, subscribe to the states of
+;multiple resources. Resource lists are configured in pjsip.conf using the
+;resource_list configuration object. Below is an example of a resource list that
+;allows an endpoint to subscribe to the presence of alice, bob, and carol.
+
+;[my_list]
+;type=resource_list
+;list_item=alice
+;list_item=bob
+;list_item=carol
+;event=presence
+
+;The "event" option in the resource list corresponds to the SIP event-package
+;that the subscribed resources belong to. A resource list can only provide states
+;for resources that belong to the same event-package. This means that you cannot
+;create a list that is a combination of presence and message-summary resources,
+;for instance. Any event-package that Asterisk supports can be used in a resource
+;list (presence, dialog, and message-summary). Whenever support for a new event-
+;package is added to Asterisk, support for that event-package in resource lists
+;will automatically be supported.
+
+;The "list_item" options indicate the names of resources to subscribe to. The
+;way these are interpreted is event-package specific. For instance, with presence
+;list_items, hints in the dialplan are looked up. With message-summary list_items,
+;mailboxes are looked up using your installed voicemail provider (app_voicemail
+;by default).
+
+;In addition to the options presented in the above configuration, there are two
+;more configuration options that can be set.
+; * full_state: dictates whether Asterisk should always send the states of
+;   all resources in the list at once. Defaults to "no". You should only set
+;   this to "yes" if you are interoperating with an endpoint that does not
+;   behave correctly when partial state notifications are sent to it.
+; * notification_batch_interval: By default, Asterisk will send a NOTIFY request
+;   immediately when a resource changes state. This option causes Asterisk to
+;   start batching resource state changes for the specified number of milliseconds
+;   after a resource changes states. This way, if multiple resources change state
+;   within a brief interval, Asterisk can send a single NOTIFY request with all
+;   of the state changes reflected in it.
+
+;There is a limitation to the size of resource lists in Asterisk. If a constructed
+;notification from Asterisk will exceed 64000 bytes, then the message is deemed
+;too large to send. If you find that you are seeing error messages about SIP
+;NOTIFY requests being too large to send, consider breaking your lists into
+;sub-lists.
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip
 ;==========================ENDPOINT SECTION OPTIONS=========================
