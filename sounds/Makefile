@@ -19,8 +19,8 @@ CMD_PREFIX?=@
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 SOUNDS_CACHE_DIR?=
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.25
-EXTRA_SOUNDS_VERSION:=1.4.14
+CORE_SOUNDS_VERSION:=1.4.26
+EXTRA_SOUNDS_VERSION:=1.4.15
 MOH_VERSION:=2.03
 SOUNDS_URL:=http://downloads.asterisk.org/pub/telephony/sounds/releases
 MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
@@ -30,6 +30,7 @@ MCS:=$(subst -FR-,-fr-,$(MCS))
 MCS:=$(subst -ES-,-es-,$(MCS))
 MCS:=$(subst -RU-,-ru-,$(MCS))
 MCS:=$(subst -IT-,-it-,$(MCS))
+MCS:=$(subst -JA-,-ja-,$(MCS))
 MCS:=$(subst -WAV,-wav,$(MCS))
 MCS:=$(subst -ULAW,-ulaw,$(MCS))
 MCS:=$(subst -ALAW,-alaw,$(MCS))
@@ -149,6 +150,8 @@ $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,fr,$(CORE_SOUNDS_
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,it,$(CORE_SOUNDS_VERSION)))
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,ru,$(CORE_SOUNDS_VERSION)))
+
+$(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),core-sounds,ja,$(CORE_SOUNDS_VERSION)))
 
 $(eval $(call sound_format_lang_rule,$(SOUNDS_DIR),extra-sounds,en,$(EXTRA_SOUNDS_VERSION)))
 
