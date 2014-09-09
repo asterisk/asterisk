@@ -156,6 +156,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						and exten are supplied by the channel pushing the handler
 						before it is pushed.</para>
 					</enum>
+					<enum name="onhold">
+						<para>R/O Whether or not the channel is onhold. (1/0)</para>
+					</enum>
 					<enum name="language">
 						<para>R/W language for sounds played.</para>
 					</enum>
@@ -475,7 +478,10 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		locked_copy_string(chan, buf, ast_channel_parkinglot(chan), len);
 	else if (!strcasecmp(data, "state"))
 		locked_copy_string(chan, buf, ast_state2str(ast_channel_state(chan)), len);
-	else if (!strcasecmp(data, "channeltype"))
+	else if (!strcasecmp(data, "onhold")) {
+		locked_copy_string(chan, buf,
+			ast_channel_hold_state(chan) == AST_CONTROL_HOLD ? "1" : "0", len);
+	} else if (!strcasecmp(data, "channeltype"))
 		locked_copy_string(chan, buf, ast_channel_tech(chan)->type, len);
 	else if (!strcasecmp(data, "accountcode"))
 		locked_copy_string(chan, buf, ast_channel_accountcode(chan), len);
