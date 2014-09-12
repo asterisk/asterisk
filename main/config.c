@@ -2764,9 +2764,22 @@ struct ast_config *ast_config_load2(const char *filename, const char *who_asked,
 	return result;
 }
 
-#define realtime_arguments_to_fields(ap) realtime_arguments_to_fields2(ap, 0)
+#define realtime_arguments_to_fields(ap, result) realtime_arguments_to_fields2(ap, 0, result)
 
-static struct ast_variable *realtime_arguments_to_fields2(va_list ap, int skip)
+/*!
+ * \internal
+ * \brief
+ *
+ * \param ap list of variable arguments
+ * \param skip Skip argument pairs for this number of variables
+ * \param result Address of a variables pointer to store the results
+ *               May be NULL if no arguments are parsed
+ *               Will be NULL on failure.
+ *
+ * \retval 0 on success or empty ap list
+ * \retval -1 on failure
+ */
+static int realtime_arguments_to_fields2(va_list ap, int skip, struct ast_variable **result)
 {
 	struct ast_variable *first, *fields = NULL;
 	const char *newparam;
@@ -2793,10 +2806,14 @@ static struct ast_variable *realtime_arguments_to_fields2(va_list ap, int skip)
 	 * using the skip parameter:
 	 *
 	 *     va_start(ap, last);
-	 *     x = realtime_arguments_to_fields(ap);
+	 *     if (realtime_arguments_to_fields(ap, &x)) {
+	 *         // FAILURE CONDITIONS
+	 *     }
 	 *     va_end(ap);
 	 *     va_start(ap, last);
-	 *     y = realtime_arguments_to_fields2(ap, 1);
+	 *     if (realtime_arguments_to_fields2(ap, 1, &y)) {
+	 *         // FAILURE CONDITIONS
+	 *     }
 	 *     va_end(ap);
 	 */
 	while (skip--) {
@@ -2810,10 +2827,15 @@ static struct ast_variable *realtime_arguments_to_fields2(va_list ap, int skip)
 
 	/* Load up the first vars. */
 	newparam = va_arg(ap, const char *);
+	if (!newparam) {
+		*result = NULL;
+		return 0;
+	}
 	newval = va_arg(ap, const char *);
 
 	if (!(first = ast_variable_new(newparam, newval, ""))) {
-		return NULL;
+		*result = NULL;
+		return -1;
 	}
 
 	while ((newparam = va_arg(ap, const char *))) {
@@ -2823,7 +2845,8 @@ static struct ast_variable *realtime_arguments_to_fields2(va_list ap, int skip)
 		if (!(field = ast_variable_new(newparam, newval, ""))) {
 			ast_variables_destroy(fields);
 			ast_variables_destroy(first);
-			return NULL;
+			*result = NULL;
+			return -1;
 		}
 
 		field->next = fields;
@@ -2833,7 +2856,8 @@ static struct ast_variable *realtime_arguments_to_fields2(va_list ap, int skip)
 	first->next = fields;
 	fields = first;
 
-	return fields;
+	*result = fields;
+	return 0;
 }
 
 struct ast_variable *ast_load_realtime_all_fields(const char *family, const struct ast_variable *fields)
@@ -2864,7 +2888,7 @@ struct ast_variable *ast_load_realtime_all(const char *family, ...)
 	va_list ap;
 
 	va_start(ap, family);
-	fields = realtime_arguments_to_fields(ap);
+	realtime_arguments_to_fields(ap, &fields);
 	va_end(ap);
 
 	if (fields) {
@@ -2912,11 +2936,18 @@ struct ast_variable *ast_load_realtime_fields(const char *family, const struct a
 struct ast_variable *ast_load_realtime(const char *family, ...)
 {
 	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+	int field_res = 0;
 	va_list ap;
 
 	va_start(ap, family);
-	fields = realtime_arguments_to_fields(ap);
+	if (realtime_arguments_to_fields(ap, &fields)) {
+		field_res = -1;
+	}
 	va_end(ap);
+
+	if (field_res) {
+		return NULL;
+	}
 
 	if (!fields) {
 		return NULL;
@@ -3021,7 +3052,7 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 	va_list ap;
 
 	va_start(ap, family);
-	fields = realtime_arguments_to_fields(ap);
+	realtime_arguments_to_fields(ap, &fields);
 	va_end(ap);
 
 	if (!fields) {
@@ -3058,7 +3089,7 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 	va_list ap;
 
 	va_start(ap, lookup);
-	fields = realtime_arguments_to_fields(ap);
+	realtime_arguments_to_fields(ap, &fields);
 	va_end(ap);
 
 	if (!fields) {
@@ -3098,11 +3129,11 @@ int ast_update2_realtime(const char *family, ...)
 	/* XXX: If we wanted to pass no lookup fields (select all), we'd be
 	 * out of luck. realtime_arguments_to_fields expects at least one key
 	 * value pair. */
-	lookup_fields = realtime_arguments_to_fields(ap);
+	realtime_arguments_to_fields(ap, &lookup_fields);
 	va_end(ap);
 
 	va_start(ap, family);
-	update_fields = realtime_arguments_to_fields2(ap, 1);
+	realtime_arguments_to_fields2(ap, 1, &lookup_fields);
 	va_end(ap);
 
 	if (!lookup_fields || !update_fields) {
@@ -3139,7 +3170,7 @@ int ast_store_realtime(const char *family, ...)
 	va_list ap;
 
 	va_start(ap, family);
-	fields = realtime_arguments_to_fields(ap);
+	realtime_arguments_to_fields(ap, &fields);
 	va_end(ap);
 
 	if (!fields) {
@@ -3172,13 +3203,16 @@ int ast_destroy_realtime_fields(const char *family, const char *keyfield, const 
 int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...)
 {
 	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
+	int res = 0;
 	va_list ap;
 
 	va_start(ap, lookup);
-	fields = realtime_arguments_to_fields(ap);
+	if (realtime_arguments_to_fields(ap, &fields)) {
+		res = -1;
+	}
 	va_end(ap);
 
-	if (!fields) {
+	if (res) {
 		return -1;
 	}
 
