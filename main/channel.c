@@ -7605,8 +7605,13 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 		if (config->timelimit) {
 			time_left_ms = config->timelimit - ast_tvdiff_ms(now, config->start_time);
-			if (time_left_ms < to)
+			if (time_left_ms < 0) {
+				time_left_ms = 0;
+			}
+
+			if (time_left_ms < to) {
 				to = time_left_ms;
+			}
 
 			if (time_left_ms <= 0) {
 				if (caller_warning && config->end_sound)
@@ -7614,7 +7619,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				if (callee_warning && config->end_sound)
 					bridge_playfile(c1, c0, config->end_sound, 0);
 				*fo = NULL;
-				res = 0;
+				res = AST_BRIDGE_COMPLETE;
 				ast_test_suite_event_notify("BRIDGE_TIMELIMIT", "Channel1: %s\r\nChannel2: %s", c0->name, c1->name);
 				break;
 			}
@@ -7657,7 +7662,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
 		    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
-			res = 0;
+			res = AST_BRIDGE_COMPLETE;
 			ast_debug(1, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",
 				c0->name, c1->name,
 				ast_test_flag(c0, AST_FLAG_ZOMBIE) ? "Yes" : "No",
@@ -7673,7 +7678,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 
 		if (c0->tech->bridge &&
 			/* if < 1 ms remains use generic bridging for accurate timing */
-			(!config->timelimit || to > 1000 || to == 0) &&
+			(!config->timelimit || to > 1000 || to == -1) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !c0->monitor && !c1->monitor &&
 		    !c0->audiohooks && !c1->audiohooks &&
