@@ -654,7 +654,9 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;--------------------------- SIP DEBUGGING ---------------------------------------------------
 ;sipdebug = yes                 ; Turn on SIP debugging by default, from
-                                ; the moment the channel loads this configuration
+                                ; the moment the channel loads this configuration.
+                                ; NOTE: You cannot use the CLI to turn it off. You'll
+                                ; need to edit this and reload the config.
 ;recordhistory=yes              ; Record SIP history by default
                                 ; (see sip history / sip no history)
 ;dumphistory=yes                ; Dump SIP history at end of SIP dialogue
