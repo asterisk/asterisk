@@ -57,13 +57,16 @@ directory=moh
 ;               ; be played to them. Also, if using modes that Asterisk
 ;               ; controls the playlist for (files, mp3, etc), the same
 ;               ; sound will also be played between MOH songs.
-;sort=random    ; Sort the files in random order
+;sort=random    ; Sort the files in random order. Other sort options are:
+;               ; 'alpha' and 'randstart'. If 'alpha', the files are sorted
+;               ; in alphabetical order. If 'randstart', the files are sorted
+;               ; in alphabetical order as well, but the first file is chosen
+;               ; at random. If unspecified, the sort order is undefined.
 
 ;[native-alphabetical]
 ;mode=files
 ;directory=moh
-;sort=alpha     ; Sort the files in alphabetical order.  If this option is
-;               ; not specified, the sort order is undefined.
+;sort=alpha     ; Sort the files in alphabetical order.
 
 ; =========
 ; Other (non-native) playback methods

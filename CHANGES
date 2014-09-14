@@ -21,6 +21,7 @@ chan_sip
    ipaddress to bind the rtpengine too.  For example, chan_sip might bind
    to eth0 (10.0.0.2) but rtpengine to eth1 (192.168.1.10).
 
+
 Functions
 ------------------
 
@@ -28,6 +29,16 @@ CHANNEL
 ------------------
  * Added CHANNEL(onhold) item that returns 1 (onhold) and 0 (not-onhold) for
    the hold status of a channel.
+
+
+Resources
+------------------
+
+res_musiconhold
+------------------
+ * Added sort=randstart to the sort options. It sorts the files by name and
+   then chooses the first file to play at random.
+
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------
