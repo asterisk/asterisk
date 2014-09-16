@@ -429,6 +429,10 @@ struct ast_rtp_engine_ice {
 	void (*ice_lite)(struct ast_rtp_instance *instance);
 	/*! Callback for changing our role in negotiation */
 	void (*set_role)(struct ast_rtp_instance *instance, enum ast_rtp_ice_role role);
+	/*! Callback for requesting a TURN session */
+	void (*turn_request)(struct ast_rtp_instance *instance, enum ast_rtp_ice_component_type component,
+		enum ast_transport transport, const char *server, unsigned int port,
+		const char *username, const char *password);
 };
 
 /*! \brief DTLS setup types */
