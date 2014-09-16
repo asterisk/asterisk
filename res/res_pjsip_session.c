@@ -2087,8 +2087,8 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 		local->origin.id = offer->origin.id;
 	}
 
-	pj_strdup2(inv->pool, &local->origin.user, session->endpoint->media.sdpowner);
-	pj_strdup2(inv->pool, &local->name, session->endpoint->media.sdpsession);
+	pj_strdup2(inv->pool_prov, &local->origin.user, session->endpoint->media.sdpowner);
+	pj_strdup2(inv->pool_prov, &local->name, session->endpoint->media.sdpsession);
 
 	/* Now let the handlers add streams of various types, pjmedia will automatically reorder the media streams for us */
 	successful = ao2_callback_data(session->media, OBJ_MULTIPLE, add_sdp_streams, local, session);
@@ -2108,14 +2108,14 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 		local->origin.addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
 
 		if (!ast_strlen_zero(session->endpoint->media.address)) {
-			pj_strdup2(inv->pool, &local->origin.addr, session->endpoint->media.address);
+			pj_strdup2(inv->pool_prov, &local->origin.addr, session->endpoint->media.address);
 		} else {
 			pj_sockaddr localaddr;
 			char our_ip[PJ_INET6_ADDRSTRLEN];
 
 			pj_gethostip(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr);
 			pj_sockaddr_print(&localaddr, our_ip, sizeof(our_ip), 0);
-			pj_strdup2(inv->pool, &local->origin.addr, our_ip);
+			pj_strdup2(inv->pool_prov, &local->origin.addr, our_ip);
 		}
 	}
 
