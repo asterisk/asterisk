@@ -6130,15 +6130,11 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 	if ((recording_fs = ast_readfile(recdata->recording_file, recdata->recording_ext, NULL, 0, 0, VOICEMAIL_DIR_MODE))) {
 		if (!ast_seekstream(recording_fs, 0, SEEK_END)) {
 			long framelength = ast_tellstream(recording_fs);
-			struct ast_format *result;
-			/* XXX This use of ast_getformatbyname seems incorrect here. The file extension does not necessarily correspond
-			 * to the name of the format. For instance, if "raw" were passed in, I don't think ast_getformatbyname would
-			 * find the slinear format
-			 */
-			result = ast_format_cache_get(recdata->recording_ext);
-			if (result) {
-				duration = (int) (framelength / ast_format_get_sample_rate(result));
-				ao2_ref(result, -1);
+			int sample_rate = ast_ratestream(recording_fs);
+			if (sample_rate) {
+				duration = (int) (framelength / sample_rate);
+			} else {
+				ast_log(LOG_ERROR,"Unable to determine sample rate of recording %s\n", recdata->recording_file);
 			}
 		}
 	}

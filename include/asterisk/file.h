@@ -350,6 +350,13 @@ int ast_stream_rewind(struct ast_filestream *fs, off_t ms);
  */
 off_t ast_tellstream(struct ast_filestream *fs);
 
+/*!
+ * \brief Return the sample rate of the stream's format
+ * \param fs fs to act on
+ * \return sample rate in Hz
+ */
+int ast_ratestream(struct ast_filestream *fs);
+
 /*! 
  * \brief Read a frame from a filestream 
  * \param s ast_filestream to act on
