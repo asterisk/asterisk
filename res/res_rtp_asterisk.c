@@ -2476,8 +2476,10 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+#ifdef HAVE_PJPROJECT
 	struct timeval wait = ast_tvadd(ast_tvnow(), ast_samp2tv(TURN_STATE_WAIT_TIME, 1000));
 	struct timespec ts = { .tv_sec = wait.tv_sec, .tv_nsec = wait.tv_usec * 1000, };
+#endif
 
 	/* Destroy the smoother that was smoothing out audio if present */
 	if (rtp->smoother) {
