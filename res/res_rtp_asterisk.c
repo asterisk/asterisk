@@ -1031,7 +1031,7 @@ static struct ast_rtp_ioqueue_thread *rtp_ioqueue_thread_get_or_create(void)
 
 	pj_timer_heap_set_lock(ioqueue->timerheap, lock, PJ_TRUE);
 
-	if (pj_ioqueue_create(ioqueue->pool, 16, &ioqueue->ioqueue) != PJ_SUCCESS) {
+	if (pj_ioqueue_create(ioqueue->pool, PJ_IOQUEUE_MAX_HANDLES, &ioqueue->ioqueue) != PJ_SUCCESS) {
 		goto fatal;
 	}
 
@@ -1700,8 +1700,17 @@ static pj_ice_sess_cb ast_rtp_ice_sess_cb = {
 /*! \brief Worker thread for timerheap */
 static int timer_worker_thread(void *data)
 {
+	pj_ioqueue_t *ioqueue;
+
+	if (pj_ioqueue_create(pool, 1, &ioqueue) != PJ_SUCCESS) {
+		return -1;
+	}
+
 	while (!timer_terminate) {
+		const pj_time_val delay = {0, 10};
+
 		pj_timer_heap_poll(timer_heap, NULL);
+		pj_ioqueue_poll(ioqueue, &delay);
 	}
 
 	return 0;
