@@ -1026,6 +1026,11 @@ off_t ast_tellstream(struct ast_filestream *fs)
 	return fs->fmt->tell(fs);
 }
 
+int ast_ratestream(struct ast_filestream *fs)
+{
+	return ast_format_get_sample_rate(fs->fmt->format);
+}
+
 int ast_stream_fastforward(struct ast_filestream *fs, off_t ms)
 {
 	return ast_seekstream(fs, ms * DEFAULT_SAMPLES_PER_MS, SEEK_CUR);
