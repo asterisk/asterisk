@@ -5148,6 +5148,8 @@ static int reload_module(void)
 #ifdef USE_PJPROJECT
 static void rtp_terminate_pjproject(void)
 {
+	pj_thread_register_check();
+
 	if (timer_thread) {
 		timer_terminate = 1;
 		pj_thread_join(timer_thread);
