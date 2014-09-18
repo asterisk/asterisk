@@ -236,6 +236,66 @@ char *ast_strip(char *s),
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 
 /*!
+  \brief Flags for ast_strsep
+ */
+enum ast_strsep_flags {
+	AST_STRSEP_STRIP =    0x01, /*!< Trim, then strip quotes.  You may want to trim again */
+	AST_STRSEP_TRIM =     0x02, /*!< Trim leading and trailing whitespace */
+	AST_STRSEP_UNESCAPE = 0x04, /*!< Unescape '\' */
+	AST_STRSEP_ALL =      0x07, /*!< Trim, strip, unescape */
+};
+
+/*!
+  \brief Act like strsep but ignore separators inside quotes.
+  \param s Pointer to address of the the string to be processed.
+  Will be modified and can't be constant.
+  \param sep A single character delimiter.
+  \param flags Controls post-processing of the result.
+  AST_STRSEP_TRIM trims all leading and trailing whitespace from the result.
+  AST_STRSEP_STRIP does a trim then strips the outermost quotes.  You may want
+  to trim again after the strip.  Just OR both the TRIM and STRIP flags.
+  AST_STRSEP_UNESCAPE unescapes '\' sequences.
+  AST_STRSEP_ALL does all of the above processing.
+  \return The next token or NULL if done or if there are more than 8 levels of
+  nested quotes.
+
+  This function acts like strsep with three exceptions...
+  The separator is a single character instead of a string.
+  Separators inside quotes are treated literally instead of like separators.
+  You can elect to have leading and trailing whitespace and quotes
+  stripped from the result and have '\' sequences unescaped.
+
+  Like strsep, ast_strsep maintains no internal state and you can call it
+  recursively using different separators on the same storage.
+
+  Also like strsep, for consistent results, consecutive separators are not
+  collapsed so you may get an empty string as a valid result.
+
+  Examples:
+  \code
+	char *mystr = ast_strdupa("abc=def,ghi='zzz=yyy,456',jkl");
+	char *token, *token2, *token3;
+
+	while((token = ast_strsep(&mystr, ',', AST_SEP_STRIP))) {
+		// 1st token will be aaa=def
+		// 2nd token will be ghi='zzz=yyy,456'
+		while((token2 = ast_strsep(&token, '=', AST_SEP_STRIP))) {
+			// 1st token2 will be ghi
+			// 2nd token2 will be zzz=yyy,456
+			while((token3 = ast_strsep(&token2, ',', AST_SEP_STRIP))) {
+				// 1st token3 will be zzz=yyy
+				// 2nd token3 will be 456
+				// and so on
+			}
+		}
+		// 3rd token will be jkl
+	}
+
+  \endcode
+ */
+char *ast_strsep(char **s, const char sep, uint32_t flags);
+
+/*!
   \brief Strip backslash for "escaped" semicolons, 
 	the string to be stripped (will be modified).
   \return The stripped string.
