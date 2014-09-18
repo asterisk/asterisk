@@ -60,11 +60,17 @@ def process_file(options):
     Returns:
     A tuple containing:
         - A list of objects whose lifetimes were completed
+            (i.e., finished objects)
+        - A list of objects referenced after destruction
+            (i.e., invalid objects)
         - A list of objects whose lifetimes were not completed
+            (i.e., leaked objects)
         - A list of objects whose lifetimes are skewed
+            (i.e., Object history starting with an unusual ref count)
     """
 
     finished_objects = []
+    invalid_objects = []
     leaked_objects = []
     skewed_objects = []
     current_objects = {}
@@ -76,35 +82,69 @@ def process_file(options):
             if not parsed_line:
                 continue
 
+            invalid = False
             obj = parsed_line['addr']
 
             if obj not in current_objects:
-                current_objects[obj] = {'log': [], 'curcount': 1,}
-                if 'constructor' not in parsed_line['state']:
-                    current_objects[obj]['curcount'] = parsed_line['state']
+                current_objects[obj] = {'log': [], 'curcount': 1}
+                if 'constructor' in parsed_line['state']:
+                    # This is the normal expected case
+                    pass
+                elif 'invalid' in parsed_line['state']:
+                    invalid = True
+                    current_objects[obj]['curcount'] = 0
+                    if options.invalid:
+                        invalid_objects.append((obj, current_objects[obj]))
+                elif 'destructor' in parsed_line['state']:
+                    current_objects[obj]['curcount'] = 0
+                    if options.skewed:
+                        skewed_objects.append((obj, current_objects[obj]))
+                else:
+                    current_objects[obj]['curcount'] = int(
+                        parsed_line['state'])
                     if options.skewed:
                         skewed_objects.append((obj, current_objects[obj]))
             else:
                 current_objects[obj]['curcount'] += int(parsed_line['delta'])
 
-            current_objects[obj]['log'].append("[%s] %s:%s %s: %s %s - [%s]" % (
-                parsed_line['thread_id'],
-                parsed_line['file'],
-                parsed_line['line'],
-                parsed_line['function'],
-                parsed_line['delta'],
-                parsed_line['tag'],
-                parsed_line['state']))
+            current_objects[obj]['log'].append(
+                "[%s] %s:%s %s: %s %s - [%s]" % (
+                    parsed_line['thread_id'],
+                    parsed_line['file'],
+                    parsed_line['line'],
+                    parsed_line['function'],
+                    parsed_line['delta'],
+                    parsed_line['tag'],
+                    parsed_line['state']))
 
-            if current_objects[obj]['curcount'] == 0:
-                if options.normal:
+            # It is possible for curcount to go below zero if someone
+            # unrefs an object by two or more when there aren't that
+            # many refs remaining.  This condition abnormally finishes
+            # the object.
+            if current_objects[obj]['curcount'] <= 0:
+                if current_objects[obj]['curcount'] < 0:
+                    current_objects[obj]['log'].append(
+                        "[%s] %s:%s %s: %s %s - [%s]" % (
+                            parsed_line['thread_id'],
+                            parsed_line['file'],
+                            parsed_line['line'],
+                            parsed_line['function'],
+                            "+0",
+                            "Object abnormally finalized",
+                            "**implied destructor**"))
+                    # Highlight the abnormally finished object in the
+                    # invalid section as well as reporting it in the normal
+                    # finished section.
+                    if options.invalid:
+                        invalid_objects.append((obj, current_objects[obj]))
+                if not invalid and options.normal:
                     finished_objects.append((obj, current_objects[obj]))
                 del current_objects[obj]
 
     if options.leaks:
         for key, lines in current_objects.iteritems():
             leaked_objects.append((key, lines))
-    return (finished_objects, leaked_objects, skewed_objects)
+    return (finished_objects, invalid_objects, leaked_objects, skewed_objects)
 
 
 def print_objects(objects, prefix=""):
@@ -138,6 +178,10 @@ def main(argv=None):
     parser.add_option("-f", "--file", action="store", type="string",
                       dest="filepath", default="/var/log/asterisk/refs",
                       help="The full path to the refs file to process")
+    parser.add_option("-i", "--suppress-invalid", action="store_false",
+                      dest="invalid", default=True,
+                      help="If specified, don't output invalid object "
+                           "references")
     parser.add_option("-l", "--suppress-leaks", action="store_false",
                       dest="leaks", default=True,
                       help="If specified, don't output leaked objects")
@@ -152,7 +196,8 @@ def main(argv=None):
 
     (options, args) = parser.parse_args(argv)
 
-    if not options.leaks and not options.skewed and not options.normal:
+    if not options.invalid and not options.leaks and not options.normal \
+            and not options.skewed:
         print >>sys.stderr, "All options disabled"
         return -1
 
@@ -162,8 +207,13 @@ def main(argv=None):
 
     try:
         (finished_objects,
+         invalid_objects,
          leaked_objects,
          skewed_objects) = process_file(options)
+
+        if options.invalid and len(invalid_objects):
+            print_objects(invalid_objects, "Invalid Referenced")
+            ret_code |= 4
 
         if options.leaks and len(leaked_objects):
             print_objects(leaked_objects, "Leaked")

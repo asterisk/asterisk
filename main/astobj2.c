@@ -226,8 +226,14 @@ int __ao2_ref_debug(void *user_data, const int delta, const char *tag, const cha
 	}
 
 	if (ref_log && user_data) {
-		if (obj && old_refcount + delta == 0) {
-			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n", user_data, delta, ast_get_tid(), file, line, funcname, tag);
+		if (!obj) {
+			/* Invalid object: Bad magic number. */
+			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
+				user_data, delta, ast_get_tid(), file, line, funcname, tag);
+			fflush(ref_log);
+		} else if (old_refcount + delta == 0) {
+			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n",
+				user_data, delta, ast_get_tid(), file, line, funcname, tag);
 			fflush(ref_log);
 		} else if (delta != 0) {
 			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data, (delta < 0 ? "" : "+"),
