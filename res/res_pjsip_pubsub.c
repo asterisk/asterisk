@@ -587,7 +587,7 @@ static void subscription_persistence_remove(struct sip_subscription_tree *sub_tr
 
 static struct ast_sip_subscription_handler *find_sub_handler_for_event_name(const char *event_name);
 static struct ast_sip_pubsub_body_generator *find_body_generator(char accept[AST_SIP_MAX_ACCEPT][64],
-		size_t num_accept);
+		size_t num_accept, const char *body_type);
 
 /*! \brief Retrieve a handler using the Event header of an rdata message */
 static struct ast_sip_subscription_handler *subscription_get_handler_from_rdata(pjsip_rx_data *rdata)
@@ -674,7 +674,7 @@ static struct ast_sip_pubsub_body_generator *subscription_get_generator_from_rda
 		num_accept_headers = 1;
 	}
 
-	return find_body_generator(accept, num_accept_headers);
+	return find_body_generator(accept, num_accept_headers, handler->body_type);
 }
 
 /*! \brief Check if the rdata has a Supported header containing 'eventlist'
@@ -2105,7 +2105,7 @@ static int schedule_notification(struct sip_subscription_tree *sub_tree)
 	return 0;
 }
 
-int ast_sip_subscription_notify(struct ast_sip_subscription *sub, void *notify_data,
+int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip_body_data *notify_data,
 		int terminate)
 {
 	if (ast_sip_pubsub_generate_body_content(ast_sip_subscription_get_body_type(sub),
@@ -2418,7 +2418,7 @@ static struct ast_sip_pubsub_body_generator *find_body_generator_accept(const ch
 }
 
 static struct ast_sip_pubsub_body_generator *find_body_generator(char accept[AST_SIP_MAX_ACCEPT][64],
-		size_t num_accept)
+		size_t num_accept, const char *body_type)
 {
 	int i;
 	struct ast_sip_pubsub_body_generator *generator = NULL;
@@ -2427,6 +2427,12 @@ static struct ast_sip_pubsub_body_generator *find_body_generator(char accept[AST
 		generator = find_body_generator_accept(accept[i]);
 		if (generator) {
 			ast_debug(3, "Body generator %p found for accept type %s\n", generator, accept[i]);
+			if (strcmp(generator->body_type, body_type)) {
+				ast_log(LOG_WARNING, "Body generator '%s/%s'(%p) does not accept the type of data this event generates\n",
+						generator->type, generator->subtype, generator);
+				generator = NULL;
+				continue;
+			}
 			break;
 		} else {
 			ast_debug(3, "No body generator found for accept type %s\n", accept[i]);
@@ -2440,6 +2446,9 @@ static int generate_initial_notify(struct ast_sip_subscription *sub)
 {
 	void *notify_data;
 	int res;
+	struct ast_sip_body_data data = {
+		.body_type = sub->handler->body_type,
+	};
 
 	if (AST_VECTOR_SIZE(&sub->children) > 0) {
 		int i;
@@ -2462,8 +2471,10 @@ static int generate_initial_notify(struct ast_sip_subscription *sub)
 		return -1;
 	}
 
+	data.body_data = notify_data;
+
 	res = ast_sip_pubsub_generate_body_content(ast_sip_subscription_get_body_type(sub),
-			ast_sip_subscription_get_body_subtype(sub), notify_data, &sub->body_text);
+			ast_sip_subscription_get_body_subtype(sub), &data, &sub->body_text);
 
 	ao2_cleanup(notify_data);
 
@@ -2981,7 +2992,7 @@ const char *ast_sip_subscription_get_body_subtype(struct ast_sip_subscription *s
 }
 
 int ast_sip_pubsub_generate_body_content(const char *type, const char *subtype,
-		void *data, struct ast_str **str)
+		struct ast_sip_body_data *data, struct ast_str **str)
 {
 	struct ast_sip_pubsub_body_supplement *supplement;
 	struct ast_sip_pubsub_body_generator *generator;
@@ -2995,14 +3006,19 @@ int ast_sip_pubsub_generate_body_content(const char *type, const char *subtype,
 		return -1;
 	}
 
-	body = generator->allocate_body(data);
+	if (strcmp(data->body_type, generator->body_type)) {
+		ast_log(LOG_WARNING, "Body generator does not accept the type of data provided\n");
+		return -1;
+	}
+
+	body = generator->allocate_body(data->body_data);
 	if (!body) {
 		ast_log(LOG_WARNING, "Unable to allocate a NOTIFY body of type %s/%s\n",
 				type, subtype);
 		return -1;
 	}
 
-	if (generator->generate_body_content(body, data)) {
+	if (generator->generate_body_content(body, data->body_data)) {
 		res = -1;
 		goto end;
 	}
@@ -3011,7 +3027,7 @@ int ast_sip_pubsub_generate_body_content(const char *type, const char *subtype,
 	AST_RWLIST_TRAVERSE(&body_supplements, supplement, list) {
 		if (!strcmp(generator->type, supplement->type) &&
 				!strcmp(generator->subtype, supplement->subtype)) {
-			res = supplement->supplement_body(body, data);
+			res = supplement->supplement_body(body, data->body_data);
 			if (res) {
 				break;
 			}

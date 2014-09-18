@@ -66,6 +66,7 @@ static struct ast_sip_notifier mwi_notifier = {
 
 static struct ast_sip_subscription_handler mwi_handler = {
 	.event_name = "message-summary",
+	.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
 	.accept = { MWI_TYPE"/"MWI_SUBTYPE, },
 	.subscription_shutdown = mwi_subscription_shutdown,
 	.to_ami = mwi_to_ami,
@@ -369,6 +370,10 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub,
 	char *aor_name;
 	struct ast_sip_body body;
 	struct ast_str *body_text;
+	struct ast_sip_body_data body_data = {
+		.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
+		.body_data = counter,
+	};
 
 	if (!endpoint) {
 		ast_log(LOG_WARNING, "Unable to send unsolicited MWI to %s because endpoint does not exist\n",
@@ -390,7 +395,7 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub,
 		return;
 	}
 
-	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, counter, &body_text)) {
+	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, &body_data, &body_text)) {
 		ast_log(LOG_WARNING, "Unable to generate SIP MWI NOTIFY body.\n");
 		ast_free(body_text);
 		return;
@@ -435,11 +440,15 @@ static void send_mwi_notify(struct mwi_subscription *sub)
 		.old_msgs = 0,
 		.new_msgs = 0,
 	};
+	struct ast_sip_body_data data = {
+		.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
+		.body_data = &counter,
+	};
 
 	ao2_callback(sub->stasis_subs, OBJ_NODATA, get_message_count, &counter);
 
 	if (sub->is_solicited) {
-		ast_sip_subscription_notify(sub->sip_sub, &counter, 0);
+		ast_sip_subscription_notify(sub->sip_sub, &data, 0);
 		return;
 	}
 

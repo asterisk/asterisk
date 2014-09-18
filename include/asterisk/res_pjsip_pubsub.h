@@ -214,6 +214,21 @@ enum ast_sip_subscription_notify_reason {
 	AST_SIP_SUBSCRIPTION_NOTIFY_REASON_OTHER
 };
 
+/*! Type used for conveying mailbox state */
+#define AST_SIP_EXTEN_STATE_DATA "ast_sip_exten_state_data"
+/*! Type used for extension state/presence */
+#define AST_SIP_MESSAGE_ACCUMULATOR "ast_sip_message_accumulator"
+
+/*!
+ * \brief Data used to create bodies for NOTIFY/PUBLISH requests.
+ */
+struct ast_sip_body_data {
+	/*! The type of the data */
+	const char *body_type;
+	/*! The actual data from which the body is generated */
+	void *body_data;
+};
+
 struct ast_sip_notifier {
 	/*!
 	 * \brief Default body type defined for the event package this notifier handles.
@@ -285,6 +300,8 @@ struct ast_sip_subscriber {
 struct ast_sip_subscription_handler {
 	/*! The name of the event this subscriber deals with */
 	const char *event_name;
+	/*! Type of data used to generate NOTIFY bodies */
+	const char *body_type;
 	/*! The types of body this subscriber accepts. */
 	const char *accept[AST_SIP_MAX_ACCEPT];
 	/*!
@@ -359,7 +376,7 @@ struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_sub
  * \retval 0 Success
  * \retval non-zero Failure
  */
-int ast_sip_subscription_notify(struct ast_sip_subscription *sub, void *notify_data, int terminate);
+int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip_body_data *notify_data, int terminate);
 
 /*!
  * \brief Retrieve the local URI for this subscription
@@ -501,6 +518,8 @@ struct ast_sip_pubsub_body_generator {
 	 * In "plain/text", "text" is the subtype
 	 */
 	const char *subtype;
+	/*! Type of data the body generator takes as input */
+	const char *body_type;
 	/*!
 	 * \brief allocate body structure.
 	 *
@@ -597,7 +616,7 @@ struct ast_sip_pubsub_body_supplement {
  * \retval non-zero Failure
  */
 int ast_sip_pubsub_generate_body_content(const char *content_type,
-		const char *content_subtype, void *data, struct ast_str **str);
+		const char *content_subtype, struct ast_sip_body_data *data, struct ast_str **str);
 
 /*!
  * \since 13.0.0
