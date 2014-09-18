@@ -2075,6 +2075,9 @@ static int serialized_send_notify(void *userdata)
 	}
 
 	send_notify(sub_tree, 0);
+	ast_test_suite_event_notify("SUBSCRIPTION_STATE_CHANGED",
+			"Resource: %s",
+			sub_tree->root->resource);
 	sub_tree->notify_sched_id = -1;
 	ao2_cleanup(sub_tree);
 	return 0;
@@ -2125,8 +2128,11 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 		/* See the note in pubsub_on_rx_refresh() for why sub->tree is refbumped here */
 		ao2_ref(sub->tree, +1);
 		res = send_notify(sub->tree, 0);
+		ast_test_suite_event_notify(terminate ? "SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_STATE_CHANGED",
+				"Resource: %s",
+				sub->tree->root->resource);
 		ao2_ref(sub->tree, -1);
-		
+
 		return res;
 	}
 }
@@ -2569,6 +2575,9 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
 		}
 		send_notify(sub_tree, 1);
+		ast_test_suite_event_notify("SUBSCRIPTION_ESTABLISHED",
+				"Resource: %s",
+				sub_tree->root->resource);
 	}
 
 	resource_tree_destroy(&tree);
@@ -3112,6 +3121,10 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 		*p_st_code = 500;
 	}
 
+	ast_test_suite_event_notify(sub_tree->root->subscription_state == PJSIP_EVSUB_STATE_TERMINATED ?
+			"SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_REFRESHED",
+			"Resource: %s", sub_tree->root->resource);
+
 	if (sub_tree->is_list) {
 		pj_list_insert_before(res_hdr, create_require_eventlist(rdata->tp_info.pool));
 	}
@@ -3161,6 +3174,9 @@ static int serialized_pubsub_on_server_timeout(void *userdata)
 
 	set_state_terminated(sub_tree->root);
 	send_notify(sub_tree, 1);
+	ast_test_suite_event_notify("SUBSCRIPTION_TERMINATED",
+			"Resource: %s",
+			sub_tree->root->resource);
 
 	ao2_cleanup(sub_tree);
 	return 0;
