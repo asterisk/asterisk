@@ -1,3 +1,47 @@
+2014-09-18  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.5.1 Released.
+
+	* AST-2014-010: Resolve crash when the Message channel technology
+	  enters into the ReceiveFax application using res_fax_spandsp
+
+	  If faxing fails at a very early stage, then it is possible for
+	  us to pass a NULL t30 state pointer to spandsp, which spandsp
+	  is none too pleased with.
+
+	  This patch ensures that we pass the correct pointer to spandsp
+	  in the situation where we have not yet set our local t30 state
+	  pointer.
+
+	  An advisory was made for this issue due to the likelihood of
+	  it occurring in some Asterisk configurations.
+
+	  ASTERISK-24301 #close
+	  Reported by Matt Jordan, Philippe Lindheimer
+
+	* AST-2014-009: Fix crash caused by SUBSCRIBE messages with unexpected
+	  combination of Event and Accept headers
+	  
+	  res_pjsip_pubsub has two separate checks that it makes when a
+	  SUBSCRIBE arrives.
+	  * It checks that there is a subscription handler for the Event
+	  * It checks that there are body generators for the types in the
+	    Accept header
+
+	  The problem is, there's nothing that ensures that these two things
+	  will actually mesh with each other. For instance, Asterisk will
+	  accept a subscription to MWI that accepts pidf+xml bodies. That
+	  doesn't make sense.
+
+	  With this commit, we add some type information to the mix.
+	  Subscription handlers state they generate data of type X, and body
+	  generators state that they consume data of type X. This way,
+	  Asterisk doesn't end up in some hilariously mismatched situation
+	  like the one in the previous paragraph.
+
+	  ASTERISK-24136 #close
+	  Reported by Mark Michelson
+
 2014-08-19  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.5.0 Released.
