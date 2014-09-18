@@ -94,13 +94,6 @@ static int auth_apply(const struct ast_sorcery *sorcery, void *obj)
 	}
 
 	switch (auth->type) {
-	case AST_SIP_AUTH_TYPE_USER_PASS:
-		if (ast_strlen_zero(auth->auth_pass)) {
-			ast_log(LOG_ERROR, "'userpass' authentication specified but no "
-					"password specified for auth '%s'\n", ast_sorcery_object_get_id(auth));
-			res = -1;
-		}
-		break;
 	case AST_SIP_AUTH_TYPE_MD5:
 		if (ast_strlen_zero(auth->md5_creds)) {
 			ast_log(LOG_ERROR, "'md5' authentication specified but no md5_cred "
@@ -113,6 +106,7 @@ static int auth_apply(const struct ast_sorcery *sorcery, void *obj)
 			res = -1;
 		}
 		break;
+	case AST_SIP_AUTH_TYPE_USER_PASS:
 	case AST_SIP_AUTH_TYPE_ARTIFICIAL:
 		break;
 	}
