@@ -39,16 +39,20 @@ static int sip_transport_to_ami(const struct ast_sip_transport *transport,
 static int format_ami_endpoint_transport(const struct ast_sip_endpoint *endpoint,
 					 struct ast_sip_ami *ami)
 {
-	RAII_VAR(struct ast_str *, buf,
-		 ast_sip_create_ami_event("TransportDetail", ami), ast_free);
-	RAII_VAR(struct ast_sip_transport *,
-		 transport, ast_sorcery_retrieve_by_id(
-			 ast_sip_get_sorcery(), "transport",
-			 endpoint->transport), ao2_cleanup);
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
+	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(endpoint->transport)) {
+		return 0;
+	}
+
+	buf = ast_sip_create_ami_event("TransportDetail", ami);
 	if (!buf) {
 		return -1;
 	}
 
+	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport",
+		endpoint->transport);
 	if (!transport) {
 		astman_send_error_va(ami->s, ami->m, "Unable to retrieve "
 				     "transport %s\n", endpoint->transport);
@@ -61,6 +65,8 @@ static int format_ami_endpoint_transport(const struct ast_sip_endpoint *endpoint
 		       ast_sorcery_object_get_id(endpoint));
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	ami->count++;
+
 	return 0;
 }
 

@@ -995,7 +995,8 @@ static int format_contact_status(void *obj, void *arg, int flags)
 	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
 			ast_sorcery_object_get_id(endpoint));
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
-
+	ami->count++;
+	
 	ast_free(buf);
 	ao2_cleanup(status);
 	return 0;
