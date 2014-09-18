@@ -91,6 +91,7 @@ struct ast_sip_notifier dialog_notifier = {
 
 struct ast_sip_subscription_handler presence_handler = {
 	.event_name = "presence",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.accept = { DEFAULT_PRESENCE_BODY, },
 	.subscription_shutdown = subscription_shutdown,
 	.to_ami = to_ami,
@@ -99,6 +100,7 @@ struct ast_sip_subscription_handler presence_handler = {
 
 struct ast_sip_subscription_handler dialog_handler = {
 	.event_name = "dialog",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.accept = { DEFAULT_DIALOG_BODY, },
 	.subscription_shutdown = subscription_shutdown,
 	.to_ami = to_ami,
@@ -221,6 +223,10 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 static int notify_task(void *obj)
 {
 	RAII_VAR(struct notify_task_data *, task_data, obj, ao2_cleanup);
+	struct ast_sip_body_data data = {
+		.body_type = AST_SIP_EXTEN_STATE_DATA,
+		.body_data = &task_data->exten_state_data,
+	};
 
 	/* Pool allocation has to happen here so that we allocate within a PJLIB thread */
 	task_data->exten_state_data.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(),
@@ -231,7 +237,7 @@ static int notify_task(void *obj)
 
 	task_data->exten_state_data.sub = task_data->exten_state_sub->sip_sub;
 
-	ast_sip_subscription_notify(task_data->exten_state_sub->sip_sub, &task_data->exten_state_data,
+	ast_sip_subscription_notify(task_data->exten_state_sub->sip_sub, &data,
 			task_data->terminate);
 
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(),

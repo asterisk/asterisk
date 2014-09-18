@@ -108,6 +108,7 @@ static void pidf_to_string(void *body, struct ast_str **str)
 static struct ast_sip_pubsub_body_generator pidf_body_generator = {
 	.type = "application",
 	.subtype = "pidf+xml",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.allocate_body = pidf_allocate_body,
 	.generate_body_content = pidf_generate_body_content,
 	.to_string = pidf_to_string,

@@ -182,6 +182,7 @@ static void dialog_info_to_string(void *body, struct ast_str **str)
 static struct ast_sip_pubsub_body_generator dialog_info_body_generator = {
 	.type = "application",
 	.subtype = "dialog-info+xml",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.allocate_body = dialog_info_allocate_body,
 	.generate_body_content = dialog_info_generate_body_content,
 	.to_string = dialog_info_to_string,
