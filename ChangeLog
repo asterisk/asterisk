@@ -1,3 +1,24 @@
+2014-09-18  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.12.1 Released.
+
+	* AST-2014-010: Resolve crash when the Message channel technology
+	  enters into the ReceiveFax application using res_fax_spandsp
+
+	  If faxing fails at a very early stage, then it is possible for
+	  us to pass a NULL t30 state pointer to spandsp, which spandsp
+	  is none too pleased with.
+
+	  This patch ensures that we pass the correct pointer to spandsp
+	  in the situation where we have not yet set our local t30 state
+	  pointer.
+
+	  An advisory was made for this issue due to the likelihood of
+	  it occurring in some Asterisk configurations.
+
+	  ASTERISK-24301 #close
+	  Reported by Matt Jordan, Philippe Lindheimer
+
 2014-08-19  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.12.0 Released.
