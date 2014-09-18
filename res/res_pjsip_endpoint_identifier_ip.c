@@ -157,31 +157,53 @@ static struct ast_sip_endpoint_identifier ip_identifier = {
 static int ip_identify_match_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ip_identify_match *identify = obj;
-	int num_addrs = 0, error = 0, i;
-	struct ast_sockaddr *addrs;
+	char *input_string = ast_strdupa(var->value);
+	char *current_string;
 
-	num_addrs = ast_sockaddr_resolve(&addrs, var->value, PARSE_PORT_FORBID, AST_AF_UNSPEC);
-	if (!num_addrs) {
-		ast_log(LOG_ERROR, "Address '%s' provided on ip endpoint identifier '%s' did not resolve to any address\n",
-			var->value, ast_sorcery_object_get_id(obj));
-		return -1;
-	}
+	while ((current_string = strsep(&input_string, ","))) {
+		struct ast_sockaddr *addrs;
+		int num_addrs = 0, error = 0, i;
+		char *mask = strrchr(current_string, '/');
 
-	for (i = 0; i < num_addrs; ++i) {
-		/* We deny what we actually want to match because there is an implicit permit all rule for ACLs */
-		identify->matches = ast_append_ha("d", ast_sockaddr_stringify_addr(&addrs[i]), identify->matches, &error);
+		if (mask) {
+			identify->matches = ast_append_ha("d", current_string, identify->matches, &error);
 
-		if (!identify->matches || error) {
-			ast_log(LOG_ERROR, "Failed to add address '%s' to ip endpoint identifier '%s'\n",
-				ast_sockaddr_stringify_addr(&addrs[i]), ast_sorcery_object_get_id(obj));
-			error = -1;
-			break;
+			if (!identify->matches || error) {
+				ast_log(LOG_ERROR, "Failed to add address '%s' to ip endpoint identifier '%s'\n",
+					current_string, ast_sorcery_object_get_id(obj));
+				return -1;
+			}
+
+			continue;
+		}
+
+		num_addrs = ast_sockaddr_resolve(&addrs, current_string, PARSE_PORT_FORBID, AST_AF_UNSPEC);
+		if (!num_addrs) {
+			ast_log(LOG_ERROR, "Address '%s' provided on ip endpoint identifier '%s' did not resolve to any address\n",
+				var->value, ast_sorcery_object_get_id(obj));
+			return -1;
+		}
+
+		for (i = 0; i < num_addrs; ++i) {
+			/* We deny what we actually want to match because there is an implicit permit all rule for ACLs */
+			identify->matches = ast_append_ha("d", ast_sockaddr_stringify_addr(&addrs[i]), identify->matches, &error);
+
+			if (!identify->matches || error) {
+				ast_log(LOG_ERROR, "Failed to add address '%s' to ip endpoint identifier '%s'\n",
+					ast_sockaddr_stringify_addr(&addrs[i]), ast_sorcery_object_get_id(obj));
+				error = -1;
+				break;
+			}
+		}
+
+		ast_free(addrs);
+
+		if (error) {
+			return -1;
 		}
 	}
 
-	ast_free(addrs);
-
-	return error;
+	return 0;
 }
 
 
