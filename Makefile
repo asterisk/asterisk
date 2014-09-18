@@ -151,13 +151,14 @@ LINKER_SYMBOL_PREFIX=
 # Uncomment this to use the older DSP routines
 #_ASTCFLAGS+=-DOLD_DSP_ROUTINES
 
+# Default install directory for DAHDI hooks.
+DAHDI_UDEV_HOOK_DIR = /usr/share/dahdi/span_config.d
+
 # If the file .asterisk.makeopts is present in your home directory, you can
 # include all of your favorite menuselect options so that every time you download
 # a new version of Asterisk, you don't have to run menuselect to set them.
 # The file /etc/asterisk.makeopts will also be included but can be overridden
 # by the file in your home directory.
-
-DAHDI_UDEV_HOOK_DIR = /usr/share/dahdi/span_config.d
 
 GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
 USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
@@ -591,8 +592,10 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL) main-bininstall
 	if [ -f contrib/firmware/iax/iaxy.bin ] ; then \
 		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin "$(DESTDIR)$(ASTDATADIR)/firmware/iax/iaxy.bin"; \
 	fi
+ifeq ($(HAVE_DAHDI),1)
 	$(INSTALL) -d $(DESTDIR)/$(DAHDI_UDEV_HOOK_DIR)
 	$(INSTALL) -m 644 contrib/scripts/dahdi_span_config_hook $(DESTDIR)$(DAHDI_UDEV_HOOK_DIR)/40-asterisk
+endif
 
 $(SUBDIRS_INSTALL):
 	+@DESTDIR="$(DESTDIR)" ASTSBINDIR="$(ASTSBINDIR)" $(SUBMAKE) -C $(@:-install=) install
@@ -870,6 +873,9 @@ _uninstall: $(SUBDIRS_UNINSTALL) main-binuninstall
 	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/astgenkey.8"
 	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/autosupport.8"
 	rm -f "$(DESTDIR)$(ASTMANDIR)/man8/safe_asterisk.8"
+ifeq ($(HAVE_DAHDI),1)
+	rm -f $(DESTDIR)$(DAHDI_UDEV_HOOK_DIR)/40-asterisk
+endif
 	$(MAKE) -C sounds uninstall
 
 uninstall: _uninstall
