@@ -126,6 +126,7 @@ static void xpidf_to_string(void *body, struct ast_str **str)
 static struct ast_sip_pubsub_body_generator xpidf_body_generator = {
 	.type = "application",
 	.subtype = "xpidf+xml",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.allocate_body = xpidf_allocate_body,
 	.generate_body_content = xpidf_generate_body_content,
 	.to_string = xpidf_to_string,
@@ -135,6 +136,7 @@ static struct ast_sip_pubsub_body_generator xpidf_body_generator = {
 static struct ast_sip_pubsub_body_generator cpim_pidf_body_generator = {
 	.type = "application",
 	.subtype = "cpim-pidf+xml",
+	.body_type = AST_SIP_EXTEN_STATE_DATA,
 	.allocate_body = xpidf_allocate_body,
 	.generate_body_content = xpidf_generate_body_content,
 	.to_string = xpidf_to_string,
