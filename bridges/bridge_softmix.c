@@ -328,14 +328,13 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 
 	/* Setup write frame parameters */
 	sc->write_frame.frametype = AST_FRAME_VOICE;
-	ao2_cleanup(sc->write_frame.subclass.format);
 	/*
-	 * NOTE: The format is bumped here because translation could
-	 * be needed and the format changed to the translated format
+	 * NOTE: The write_frame format holds a reference because translation
+	 * could be needed and the format changed to the translated format
 	 * for the channel.  The translated format may not be a
 	 * static cached format.
 	 */
-	sc->write_frame.subclass.format = ao2_bump(ast_format_cache_get_slin_by_rate(rate));
+	ao2_replace(sc->write_frame.subclass.format, ast_format_cache_get_slin_by_rate(rate));
 	sc->write_frame.data.ptr = sc->final_buf;
 	sc->write_frame.datalen = SOFTMIX_DATALEN(rate, interval);
 	sc->write_frame.samples = SOFTMIX_SAMPLES(rate, interval);
@@ -343,8 +342,8 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 	/* Setup read frame parameters */
 	sc->read_frame.frametype = AST_FRAME_VOICE;
 	/*
-	 * NOTE: The format is not bumbed here because it will always
-	 * be a signed linear format.
+	 * NOTE: The read_frame format does not hold a reference because it
+	 * will always be a signed linear format.
 	 */
 	sc->read_frame.subclass.format = ast_format_cache_get_slin_by_rate(channel_read_rate);
 	sc->read_frame.data.ptr = sc->our_buf;
@@ -725,7 +724,7 @@ static void gather_softmix_stats(struct softmix_stats *stats,
  * if necessary.
  *
  * \retval 0, no changes to internal rate
- * \ratval 1, internal rate was changed, update all the channels on the next mixing iteration.
+ * \retval 1, internal rate was changed, update all the channels on the next mixing iteration.
  */
 static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct softmix_bridge_data *softmix_data)
 {
