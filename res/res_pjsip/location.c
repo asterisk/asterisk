@@ -506,6 +506,8 @@ static int format_ami_aor_handler(void *obj, void *arg, int flags)
 		       ast_sorcery_object_get_id(endpoint));
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	ami->count++;
+
 	return 0;
 }
 

@@ -1112,7 +1112,8 @@ static int format_ami_endpoint(const struct ast_sip_endpoint *endpoint,
 
 static int ami_show_endpoint(struct mansession *s, const struct message *m)
 {
-	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"),
+		.count = 0, };
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 	const char *endpoint_name = astman_get_header(m, "Endpoint");
 	int count = 0;
@@ -1149,7 +1150,8 @@ static int ami_show_endpoint(struct mansession *s, const struct message *m)
 		astman_append(s, "ActionID: %s\r\n", ami.action_id);
 	}
 	astman_append(s, "EventList: Complete\r\n"
-		      "ListItems: %d\r\n\r\n", count + 1);
+		      "ListItems: %d\r\n\r\n", ami.count + 1);
+
 	return 0;
 }
 

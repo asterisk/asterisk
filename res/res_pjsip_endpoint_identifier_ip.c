@@ -263,6 +263,8 @@ static int format_ami_endpoint_identify(const struct ast_sip_endpoint *endpoint,
 		ast_sorcery_object_get_id(endpoint));
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	ami->count++;
+
 	return 0;
 }
 

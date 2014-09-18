@@ -174,6 +174,8 @@ static int format_ami_auth_handler(void *obj, void *arg, int flags)
 	}
 
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	ami->count++;
+
 	return 0;
 }
 

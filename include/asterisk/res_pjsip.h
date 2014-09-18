@@ -1732,6 +1732,8 @@ struct ast_sip_ami {
 	const char *action_id;
 	/*! user specified argument data */
 	void *arg;
+	/*! count of objects */
+	int count;
 };
 
 /*!
