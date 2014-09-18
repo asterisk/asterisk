@@ -1276,6 +1276,11 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 	int i;
 	int j;
 
+	if (ast_format_cap_empty(dst_cap) || ast_format_cap_empty(src_cap)) {
+		ast_log(LOG_ERROR, "Cannot determine best translation path since one capability supports no formats\n");
+		return -1;
+	}
+
 	if (!(joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return -1;
 	}

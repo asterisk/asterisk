@@ -700,3 +700,18 @@ const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str 
 
 	return ast_str_buffer(*buf);
 }
+
+int ast_format_cap_empty(struct ast_format_cap *cap)
+{
+	int count = ast_format_cap_count(cap);
+
+	if (count > 1) {
+		return 0;
+	}
+
+	if (count == 0 || AST_VECTOR_GET(&cap->preference_order, 0)->format == ast_format_none) {
+		return 1;
+	}
+
+	return 0;
+}

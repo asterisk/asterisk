@@ -321,4 +321,13 @@ int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_media_typ
  */
 const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str **buf);
 
+/*!
+ * \brief Determine if a format cap has no formats in it.
+ *
+ * \param cap The format cap to check for emptiness
+ * \retval 1 The format cap has zero formats or only ast_format_none
+ * \retval 0 The format cap has at least one format
+ */
+int ast_format_cap_empty(struct ast_format_cap *cap);
+
 #endif /* _AST_FORMAT_CAP_H */
