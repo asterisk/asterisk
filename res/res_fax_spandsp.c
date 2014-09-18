@@ -180,8 +180,25 @@ static void set_ecm(t30_state_t *t30_state, struct ast_fax_session_details *deta
 static void session_destroy(struct spandsp_pvt *p)
 {
 	struct ast_frame *f;
+	t30_state_t *t30_to_terminate;
 
-	t30_terminate(p->t30_state);
+	if (p->t30_state) {
+		t30_to_terminate = p->t30_state;
+	} else if (p->ist38) {
+#if SPANDSP_RELEASE_DATE >= 20080725
+		t30_to_terminate = &p->t38_state.t30;
+#else
+		t30_to_terminate = &p->t38_state.t30_state;
+#endif
+	} else {
+#if SPANDSP_RELEASE_DATE >= 20080725
+		t30_to_terminate = &p->fax_state.t30;
+#else
+		t30_to_terminate = &p->fax_state.t30_state;
+#endif
+	}
+
+	t30_terminate(t30_to_terminate);
 	p->isdone = 1;
 
 	ast_timer_close(p->timer);
