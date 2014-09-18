@@ -1465,6 +1465,66 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 	return s;
 }
 
+char *ast_strsep(char **iss, const char sep, uint32_t flags)
+{
+	char *st = *iss;
+	char *is;
+	int inquote = 0;
+	int found = 0;
+	char stack[8];
+
+	if (iss == NULL || *iss == '\0') {
+		return NULL;
+	}
+
+	memset(stack, 0, sizeof(stack));
+
+	for(is = st; *is; is++) {
+		if (*is == '\\') {
+			if (*++is != '\0') {
+				is++;
+			} else {
+				break;
+			}
+		}
+
+		if (*is == '\'' || *is == '"') {
+			if (*is == stack[inquote]) {
+				stack[inquote--] = '\0';
+			} else {
+				if (++inquote >= sizeof(stack)) {
+					return NULL;
+				}
+				stack[inquote] = *is;
+			}
+		}
+
+		if (*is == sep && !inquote) {
+			*is = '\0';
+			found = 1;
+			*iss = is + 1;
+			break;
+		}
+	}
+	if (!found) {
+		*iss = NULL;
+	}
+
+	if (flags & AST_STRSEP_STRIP) {
+		st = ast_strip_quoted(st, "'\"", "'\"");
+	}
+
+	if (flags & AST_STRSEP_TRIM) {
+		st = ast_strip(st);
+	}
+
+	if (flags & AST_STRSEP_UNESCAPE) {
+		ast_unescape_quoted(st);
+	}
+
+	return st;
+}
+
 char *ast_unescape_semicolon(char *s)
 {
 	char *e;
