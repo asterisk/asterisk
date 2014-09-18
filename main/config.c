@@ -729,24 +729,28 @@ void ast_category_append(struct ast_config *config, struct ast_category *categor
 	config->current = category;
 }
 
-void ast_category_insert(struct ast_config *config, struct ast_category *cat, const char *match)
+int ast_category_insert(struct ast_config *config, struct ast_category *cat, const char *match)
 {
 	struct ast_category *cur_category;
 
-	if (!cat || !match)
-		return;
+	if (!config || !cat || !match) {
+		return -1;
+	}
 	if (!strcasecmp(config->root->name, match)) {
 		cat->next = config->root;
 		config->root = cat;
-		return;
+		return 0;
 	}
-	for (cur_category = config->root; cur_category; cur_category = cur_category->next) {
+	for (cur_category = config->root; cur_category && cur_category->next;
+		cur_category = cur_category->next) {
 		if (!strcasecmp(cur_category->next->name, match)) {
 			cat->next = cur_category->next;
 			cur_category->next = cat;
-			break;
+			return 0;
 		}
 	}
+
+	return -1;
 }
 
 static void ast_destroy_template_list(struct ast_category *cat)

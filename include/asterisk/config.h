@@ -576,8 +576,11 @@ void ast_category_append(struct ast_config *config, struct ast_category *cat);
  * \details
  * This function is used to insert a new category above another category
  * matching the match parameter.
+ *
+ * \retval 0 if succeeded
+ * \retval -1 if NULL parameters or match category was not found
  */
-void ast_category_insert(struct ast_config *config, struct ast_category *cat, const char *match);
+int ast_category_insert(struct ast_config *config, struct ast_category *cat, const char *match);
 int ast_category_delete(struct ast_config *cfg, const char *category);
 
 /*!

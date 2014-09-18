@@ -2933,7 +2933,11 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 			if (ast_strlen_zero(match)) {
 				ast_category_append(cfg, category);
 			} else {
-				ast_category_insert(cfg, category, match);
+				if (ast_category_insert(cfg, category, match)) {
+					result = FAILURE_NEWCAT;
+					ast_category_destroy(category);
+					break;
+				}
 			}
 		} else if (!strcasecmp(action, "renamecat")) {
 			if (ast_strlen_zero(value)) {
