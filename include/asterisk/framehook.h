@@ -224,7 +224,7 @@ typedef int (*ast_framehook_consume_callback)(void *data, enum ast_frame_type ty
 typedef void (*ast_framehook_chan_fixup_callback)(void *data, int framehook_id,
 	struct ast_channel *old_chan, struct ast_channel *new_chan);
 
-#define AST_FRAMEHOOK_INTERFACE_VERSION 3
+#define AST_FRAMEHOOK_INTERFACE_VERSION 4
 /*! This interface is required for attaching a framehook to a channel. */
 struct ast_framehook_interface {
 	/*! framehook interface version number */
@@ -242,6 +242,10 @@ struct ast_framehook_interface {
 	 * on is masqueraded and should be used to move any essential framehook data onto the channel the
 	 * old channel was masqueraded to. */
 	ast_framehook_chan_fixup_callback chan_fixup_cb;
+	/*! chan_breakdown_cb is optional. This function is called when another channel is masqueraded into
+	 * the channel that a framehook is running on and should be used to evaluate whether the framehook
+	 * should remain on the channel. */
+	ast_framehook_chan_fixup_callback chan_breakdown_cb;
 	/*! disable_inheritance is optional. If set to non-zero, when a channel using this framehook is
 	 * masqueraded, detach and destroy the framehook instead of moving it to the new channel. */
 	int disable_inheritance;
