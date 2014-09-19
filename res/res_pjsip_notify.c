@@ -1007,13 +1007,17 @@ static int load_module(void)
 
 static int reload_module(void)
 {
-	return aco_process_config(&notify_cfg, 1) ?
-		AST_MODULE_LOAD_DECLINE : 0;
+	if (aco_process_config(&notify_cfg, 1) == ACO_PROCESS_ERROR) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	return 0;
 }
 
 static int unload_module(void)
 {
 	ast_manager_unregister("PJSIPNotify");
+	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
 	aco_info_destroy(&notify_cfg);
 
 	return 0;
