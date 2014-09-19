@@ -4123,7 +4123,7 @@ static void __get_from_jb(const void *p)
 	if(ms >= (next = jb_next(pvt->jb))) {
 		struct ast_format *voicefmt;
 		voicefmt = ast_format_compatibility_bitfield2format(pvt->voiceformat);
-		ret = jb_get(pvt->jb, &frame, ms, ast_format_get_default_ms(voicefmt));
+		ret = jb_get(pvt->jb, &frame, ms, voicefmt ? ast_format_get_default_ms(voicefmt) : 20);
 		switch(ret) {
 		case JB_OK:
 			fr = frame.data;
