@@ -40,6 +40,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_cache_pattern.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/dial.h"
+#include "asterisk/linkedlists.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="VarSet">
@@ -368,10 +370,29 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 	}
 }
 
+static void remove_dial_masquerade(struct ast_channel *caller,
+	struct ast_channel *peer);
+static int set_dial_masquerade(struct ast_channel *caller,
+	struct ast_channel *peer, const char *dialstring);
+
 void ast_channel_publish_dial(struct ast_channel *caller, struct ast_channel *peer,
 	const char *dialstring, const char *dialstatus)
 {
+	if (caller) {
+		ast_channel_lock_both(caller, peer);
+		if (!ast_strlen_zero(dialstatus)) {
+			remove_dial_masquerade(caller, peer);
+		} else {
+			set_dial_masquerade(caller, peer, dialstring);
+		}
+	}
+
 	ast_channel_publish_dial_forward(caller, peer, NULL, dialstring, dialstatus, NULL);
+
+	if (caller) {
+		ast_channel_unlock(peer);
+		ast_channel_unlock(caller);
+	}
 }
 
 static struct stasis_message *create_channel_blob_message(struct ast_channel_snapshot *snapshot,
@@ -1188,3 +1209,201 @@ int ast_stasis_channels_init(void)
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief A list element for the dial_masquerade_datastore -- stores data about a dialed peer
+ */
+struct dial_target {
+	struct ast_channel *peer;
+	char *dialstring;
+	AST_LIST_ENTRY(dial_target) list;
+};
+
+/*!
+ * \internal
+ * \brief Datastore used for advancing dial state in the case of a masquerade
+ *        against a channel in the process of dialing.
+ */
+struct dial_masquerade_datastore {
+	AST_LIST_HEAD(,dial_target) dialed_peers;
+};
+
+/*!
+ * \internal
+ * \brief Destructor for dial_masquerade_datastore
+ */
+static void dial_masquerade_datastore_destroy(void *data)
+{
+	struct dial_masquerade_datastore *ds = data;
+	struct dial_target *cur;
+
+	while ((cur = AST_LIST_REMOVE_HEAD(&ds->dialed_peers, list))) {
+		ast_channel_cleanup(cur->peer);
+		ast_free(cur->dialstring);
+		ast_free(cur);
+	}
+}
+
+static void disable_dial_masquerade(struct ast_channel *caller);
+
+/*!
+ * \internal
+ * \brief Primary purpose for dial_masquerade_datastore, publishes
+ *        the channel dial event needed to set the incoming channel into the
+ *        dial state during a masquerade.
+ * \param data pointer to the dial_masquerade_datastore
+ * \param old_chan Channel being replaced (not used)
+ * \param new_chan Channel being pushed to dial mode
+ */
+static void dial_masquerade(void *data, struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	struct dial_masquerade_datastore *masq_data = data;
+	struct dial_target *cur;
+
+	AST_LIST_TRAVERSE(&masq_data->dialed_peers, cur, list) {
+		ast_channel_publish_dial_forward(old_chan, cur->peer, NULL, cur->dialstring, "NOANSWER", NULL);
+		ast_channel_publish_dial_forward(new_chan, cur->peer, NULL, cur->dialstring, NULL, NULL);
+	}
+
+	disable_dial_masquerade(old_chan);
+}
+
+static const struct ast_datastore_info dial_masquerade_info = {
+	.type = "stasis-chan-dial-masq",
+	.destroy = dial_masquerade_datastore_destroy,
+	.chan_breakdown = dial_masquerade,
+};
+
+/*!
+ * \internal
+ * \brief Retrieves the dial_masquerade_datastore from a channel if
+ *        it has one.
+ * \param chan Channel a datastore data is wanted from
+ *
+ * \returns the datastore data if it exists
+ * \returns NULL if no dial_masquerade_datastore has been set for
+ *          chan
+ */
+static struct dial_masquerade_datastore *fetch_dial_masquerade_datastore(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore = NULL;
+
+	datastore = ast_channel_datastore_find(chan, &dial_masquerade_info, NULL);
+	if (!datastore) {
+		return NULL;
+	}
+
+	return datastore->data;
+}
+
+/*!
+ * \internal
+ * \brief Create a fresh dial_masquerade_datastore on a channel
+ * \param chan Channel we want to create a dial_masquerade_datastore
+ *        for.
+ * \returns pointer to the datastore data if successful
+ * \returns NULL on allocation error
+ */
+static struct dial_masquerade_datastore *setup_dial_masquerade_datastore(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore = NULL;
+	struct dial_masquerade_datastore *masq_datastore;
+
+	datastore = ast_datastore_alloc(&dial_masquerade_info, NULL);
+	if (!datastore) {
+		return NULL;
+	}
+
+	masq_datastore = ast_calloc(1, sizeof(*masq_datastore));
+	if (!masq_datastore) {
+		ast_datastore_free(datastore);
+		return NULL;
+	}
+
+	datastore->data = masq_datastore;
+	ast_channel_datastore_add(chan, datastore);
+	return masq_datastore;
+}
+
+/*!
+ * \internal
+ * \brief Get existing dial_masquerade_datastore if it exists. If
+ *        not, create a new one and return a pointer to that data.
+ * \param chan Which channel the datastore is wanted for.
+ * \returns pointer to the datastore if successful
+ * \returns NULL on allocation failure.
+ */
+static struct dial_masquerade_datastore *fetch_or_create_dial_masquerade_datastore(struct ast_channel *chan)
+{
+	struct dial_masquerade_datastore *ds;
+
+	ds = fetch_dial_masquerade_datastore(chan);
+	if (!ds) {
+		ds = setup_dial_masquerade_datastore(chan);
+	}
+
+	return ds;
+}
+
+static int set_dial_masquerade(struct ast_channel *chan, struct ast_channel *peer_chan, const char *dialstring)
+{
+	struct dial_masquerade_datastore *ds = fetch_or_create_dial_masquerade_datastore(chan);
+	struct dial_target *target = ast_calloc(1, sizeof(*target));
+
+	if (!target) {
+		return -1;
+	}
+
+	if (!ds) {
+		ast_free(target);
+		return -1;
+	}
+
+	if (dialstring) {
+		target->dialstring = ast_strdup(dialstring);
+		if (!target->dialstring) {
+			ast_free(target);
+			return -1;
+		}
+	}
+
+	ast_channel_ref(peer_chan);
+	target->peer = peer_chan;
+
+	AST_LIST_INSERT_HEAD(&ds->dialed_peers, target, list);
+
+	return 0;
+}
+
+static void remove_dial_masquerade(struct ast_channel *chan, struct ast_channel *peer_chan)
+{
+	struct dial_masquerade_datastore *ds = fetch_dial_masquerade_datastore(chan);
+	struct dial_target *cur;
+
+	if (!ds) {
+		return;
+	}
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&ds->dialed_peers, cur, list) {
+		if (cur->peer == peer_chan) {
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_channel_cleanup(cur->peer);
+			ast_free(cur->dialstring);
+			ast_free(cur);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+
+static void disable_dial_masquerade(struct ast_channel *chan)
+{
+	struct ast_datastore *ds = ast_channel_datastore_find(chan,
+		&dial_masquerade_info, NULL);
+
+	if (!ds) {
+		return;
+	}
+
+	ast_channel_datastore_remove(chan, ds);
+}
