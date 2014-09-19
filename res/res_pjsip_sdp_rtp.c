@@ -256,18 +256,26 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
 				     session_media->rtp);
 
-	ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
-	ast_format_cap_append_from_cap(caps, session->req_caps, AST_MEDIA_TYPE_UNKNOWN);
-	ast_format_cap_remove_by_type(caps, media_type);
-	ast_format_cap_append_from_cap(caps, joint, AST_MEDIA_TYPE_UNKNOWN);
-	ast_format_cap_append_from_cap(session->req_caps, caps, AST_MEDIA_TYPE_UNKNOWN);
+	ast_format_cap_append_from_cap(session->req_caps, joint, AST_MEDIA_TYPE_UNKNOWN);
 
 	if (session->channel) {
 		struct ast_format *fmt;
 
 		ast_channel_lock(session->channel);
+		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel), AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(caps, media_type);
+
+		/*
+		 * XXX Historically we picked the "best" joint format to use
+		 * and stuck with it.  It would be nice to just append the
+		 * determined joint media capabilities to give translation
+		 * more formats to choose from when necessary.  Unfortunately,
+		 * there are some areas of the system where this doesn't work
+		 * very well. (The softmix bridge in particular is reluctant
+		 * to pick higher fidelity formats and has a problem with
+		 * asymmetric sample rates.)
+		 */
 		fmt = ast_format_cap_get_format(joint, 0);
 		ast_format_cap_append(caps, fmt, 0);
 

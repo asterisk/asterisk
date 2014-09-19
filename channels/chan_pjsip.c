@@ -417,6 +417,11 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	}
 
 	ast_channel_nativeformats_set(chan, caps);
+
+	/*
+	 * XXX Probably should pick the first audio codec instead
+	 * of simply the first codec.  The first codec may be video.
+	 */
 	fmt = ast_format_cap_get_format(caps, 0);
 	ast_channel_set_writeformat(chan, fmt);
 	ast_channel_set_rawwriteformat(chan, fmt);
