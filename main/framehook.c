@@ -227,6 +227,21 @@ void ast_framehook_list_fixup(struct ast_channel *old_chan, struct ast_channel *
 	struct ast_framehook *framehook;
 	int moved_framehook_id;
 
+	if (ast_channel_framehooks(new_chan)) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&ast_channel_framehooks(new_chan)->list, framehook, list) {
+			if (framehook->i.disable_inheritance) {
+				ast_framehook_detach(new_chan, framehook->id);
+				continue;
+			}
+
+			if (framehook->i.chan_breakdown_cb) {
+				framehook->i.chan_breakdown_cb(framehook->i.data, framehook->id,
+					old_chan, new_chan);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	}
+
 	if (!ast_channel_framehooks(old_chan)) {
 		return;
 	}

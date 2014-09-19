@@ -440,12 +440,25 @@ static struct ast_frame *t38_framehook(struct ast_channel *chan, struct ast_fram
 	return f;
 }
 
+static void t38_masq(void *data, int framehook_id,
+        struct ast_channel *old_chan, struct ast_channel *new_chan)
+{
+	if (ast_channel_tech(old_chan) == ast_channel_tech(new_chan)) {
+		return;
+	}
+
+	/* This framehook is only applicable to PJSIP channels */
+	ast_framehook_detach(new_chan, framehook_id);
+}
+
 /*! \brief Function called to attach T.38 framehook to channel when appropriate */
 static void t38_attach_framehook(struct ast_sip_session *session)
 {
 	static struct ast_framehook_interface hook = {
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = t38_framehook,
+		.chan_fixup_cb = t38_masq,
+		.chan_breakdown_cb = t38_masq,
 	};
 
 	/* Only attach the framehook on the first outgoing INVITE or the first incoming INVITE */
