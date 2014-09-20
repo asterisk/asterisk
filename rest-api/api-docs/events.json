@@ -203,7 +203,6 @@
 		},
 		"RecordingStarted": {
 			"id": "RecordingStarted",
-			"extends": "Event",
 			"description": "Event showing the start of a recording operation.",
 			"properties": {
 				"recording": {
@@ -215,7 +214,6 @@
 		},
 		"RecordingFinished": {
 			"id": "RecordingFinished",
-			"extends": "Event",
 			"description": "Event showing the completion of a recording operation.",
 			"properties": {
 				"recording": {
@@ -227,7 +225,6 @@
 		},
 		"RecordingFailed": {
 			"id": "RecordingFailed",
-			"extends": "Event",
 			"description": "Event showing failure of a recording operation.",
 			"properties": {
 				"recording": {
