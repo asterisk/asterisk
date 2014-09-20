@@ -4,7 +4,7 @@
 	"_svn_revision": "$Revision$",
 	"apiVersion": "1.5.0",
 	"swaggerVersion": "1.1",
-	"basePath": "http://localhost:8088/stasis",
+	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/deviceStates.{format}",
 	"apis": [
 		{
