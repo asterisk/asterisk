@@ -5328,6 +5328,7 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 
 	cap_native = ast_channel_nativeformats(chan);
 	if (ast_format_cap_empty(cap_native)) {
+		ast_channel_unlock(chan);
 		ast_log(LOG_ERROR, "Unable to set format because channel %s supports no formats\n",
 				ast_channel_name(chan));
 		return -1;
