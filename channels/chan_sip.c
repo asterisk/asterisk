@@ -23830,7 +23830,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			break;
 		}
 	} else {
-		if (p && (p->autokillid == -1)) {
+		if (!req->ignore && p && (p->autokillid == -1)) {
 			const char *msg;
 
 			if (!p->jointcapability)
