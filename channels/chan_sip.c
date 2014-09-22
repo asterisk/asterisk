@@ -25771,7 +25771,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			break;
 		}
 	} else {
-		if (p && (p->autokillid == -1)) {
+		if (!req->ignore && p && (p->autokillid == -1)) {
 			const char *msg;
 
 			if ((!ast_format_cap_count(p->jointcaps)))
