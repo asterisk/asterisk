@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge_basic.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridges.h"
+#include "asterisk/format_cache.h"
 
 #define EPSILON 0.001
 
@@ -231,10 +232,24 @@ static void clear_mock_cdr_backend(void)
 	ast_copy_string((expected_record)->linkedid, ast_channel_linkedid((channel_var)), sizeof((expected_record)->linkedid)); \
 	} while (0)
 
+/*! \brief Set ulaw format on channel */
+#define SET_FORMATS(chan) do {\
+	struct ast_format_cap *caps;\
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);\
+	ast_format_cap_append(caps, ast_format_ulaw, 0);\
+	ast_channel_nativeformats_set((chan), caps);\
+	ast_channel_set_writeformat((chan), ast_format_ulaw);\
+	ast_channel_set_rawwriteformat((chan), ast_format_ulaw);\
+	ast_channel_set_readformat((chan), ast_format_ulaw);\
+	ast_channel_set_rawreadformat((chan), ast_format_ulaw);\
+	ao2_ref(caps, -1);\
+} while (0)
+
 /*! \brief Create a \ref test_cdr_chan_tech for Alice, and set the expected
  * CDR records' linkedid and uniqueid. */
 #define CREATE_ALICE_CHANNEL(channel_var, caller_id, expected_record) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, "100", "Alice", "100", "100", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/Alice"); \
+	SET_FORMATS((channel_var));\
 	ast_channel_set_caller((channel_var), (caller_id), NULL); \
 	ast_copy_string((expected_record)->uniqueid, ast_channel_uniqueid((channel_var)), sizeof((expected_record)->uniqueid)); \
 	ast_copy_string((expected_record)->linkedid, ast_channel_linkedid((channel_var)), sizeof((expected_record)->linkedid)); \
@@ -245,6 +260,7 @@ static void clear_mock_cdr_backend(void)
  * CDR records' linkedid and uniqueid. */
 #define CREATE_BOB_CHANNEL(channel_var, caller_id, expected_record) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, "200", "Bob", "200", "200", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/Bob"); \
+	SET_FORMATS((channel_var));\
 	ast_channel_set_caller((channel_var), (caller_id), NULL); \
 	ast_copy_string((expected_record)->uniqueid, ast_channel_uniqueid((channel_var)), sizeof((expected_record)->uniqueid)); \
 	ast_copy_string((expected_record)->linkedid, ast_channel_linkedid((channel_var)), sizeof((expected_record)->linkedid)); \
@@ -255,6 +271,7 @@ static void clear_mock_cdr_backend(void)
  * CDR records' linkedid and uniqueid. */
 #define CREATE_CHARLIE_CHANNEL(channel_var, caller_id, expected_record) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, "300", "Charlie", "300", "300", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/Charlie"); \
+	SET_FORMATS((channel_var));\
 	ast_channel_set_caller((channel_var), (caller_id), NULL); \
 	ast_copy_string((expected_record)->uniqueid, ast_channel_uniqueid((channel_var)), sizeof((expected_record)->uniqueid)); \
 	ast_copy_string((expected_record)->linkedid, ast_channel_linkedid((channel_var)), sizeof((expected_record)->linkedid)); \
@@ -265,6 +282,7 @@ static void clear_mock_cdr_backend(void)
  * CDR records' linkedid and uniqueid. */
 #define CREATE_DAVID_CHANNEL(channel_var, caller_id, expected_record) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, "400", "David", "400", "400", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/David"); \
+	SET_FORMATS((channel_var));\
 	ast_channel_set_caller((channel_var), (caller_id), NULL); \
 	ast_copy_string((expected_record)->uniqueid, ast_channel_uniqueid((channel_var)), sizeof((expected_record)->uniqueid)); \
 	ast_copy_string((expected_record)->linkedid, ast_channel_linkedid((channel_var)), sizeof((expected_record)->linkedid)); \
@@ -583,6 +601,7 @@ AST_TEST_DEFINE(test_cdr_outbound_bridged_call)
 	ast_test_validate(test, !ast_bridge_impart(bridge, chan_alice, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE));
 
 	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_alice, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_bob);
 	ast_channel_unlock(chan_bob);
 	ast_copy_string(bob_expected.linkedid, ast_channel_linkedid(chan_bob), sizeof(bob_expected.linkedid));
 	ast_copy_string(bob_expected.uniqueid, ast_channel_uniqueid(chan_bob), sizeof(bob_expected.uniqueid));
@@ -1173,6 +1192,7 @@ AST_TEST_DEFINE(test_cdr_dial_unanswered)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", "CDRTestChannel/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_callee, 0, "AppDial", "(Outgoing Line)");
@@ -1235,6 +1255,7 @@ AST_TEST_DEFINE(test_cdr_dial_busy)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_callee, 0, "AppDial", "(Outgoing Line)");
@@ -1296,6 +1317,7 @@ AST_TEST_DEFINE(test_cdr_dial_congestion)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_callee, 0, "AppDial", "(Outgoing Line)");
@@ -1357,6 +1379,7 @@ AST_TEST_DEFINE(test_cdr_dial_unavailable)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_callee, 0, "AppDial", "(Outgoing Line)");
@@ -1419,6 +1442,7 @@ AST_TEST_DEFINE(test_cdr_dial_caller_cancel)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_callee, 0, "AppDial", "(Outgoing Line)");
@@ -1521,16 +1545,19 @@ AST_TEST_DEFINE(test_cdr_dial_parallel_failed)
 
 	/* Outbound channels are created */
 	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_bob);
 	ast_channel_unlock(chan_bob);
 	ast_set_flag(ast_channel_flags(chan_bob), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_bob, 0, "AppDial", "(Outgoing Line)");
 
 	chan_charlie = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "300", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Charlie");
+	SET_FORMATS(chan_charlie);
 	ast_channel_unlock(chan_charlie);
 	ast_set_flag(ast_channel_flags(chan_charlie), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_charlie, 0, "AppDial", "(Outgoing Line)");
 
 	chan_david = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "400", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/David");
+	SET_FORMATS(chan_charlie);
 	ast_channel_unlock(chan_david);
 	ast_set_flag(ast_channel_flags(chan_david), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_david, 0, "AppDial", "(Outgoing Line)");
@@ -1637,6 +1664,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_no_bridge)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	COPY_IDS(chan_callee, &bob_expected_one);
@@ -1705,6 +1733,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_twoparty_bridge_a)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_callee, 0, "AppDial", "(Outgoing Line)");
@@ -1781,6 +1810,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_twoparty_bridge_b)
 	EMULATE_APP_DATA(chan_caller, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, "200", NULL, NULL, NULL, chan_caller, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_callee);
 	ast_channel_unlock(chan_callee);
 	ast_set_flag(ast_channel_flags(chan_callee), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_callee, 0, "AppDial", "(Outgoing Line)");
@@ -1940,6 +1970,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 	EMULATE_APP_DATA(chan_alice, 1, "Dial", CHANNEL_TECH_NAME "/Bob");
 
 	chan_bob = ast_channel_alloc(0, AST_STATE_DOWN, "200", "Bob", "200", "200", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/Bob");
+	SET_FORMATS(chan_bob);
 	ast_channel_unlock(chan_bob);
 	ast_set_flag(ast_channel_flags(chan_bob), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_bob, 0, "AppDial", "(Outgoing Line)");
@@ -1954,6 +1985,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 	ast_copy_string(charlie_expected_two.linkedid, ast_channel_linkedid(chan_alice), sizeof(charlie_expected_two.linkedid));
 
 	chan_david = ast_channel_alloc(0, AST_STATE_DOWN, "400", "David", "400", "400", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/David");
+	SET_FORMATS(chan_david);
 	ast_channel_unlock(chan_david);
 	ast_set_flag(ast_channel_flags(chan_david), AST_FLAG_OUTGOING);
 	EMULATE_APP_DATA(chan_david, 0, "AppDial", "(Outgoing Line)");
