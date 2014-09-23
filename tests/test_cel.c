@@ -206,9 +206,23 @@ static void do_sleep(void)
 /*! \brief David's Caller ID */
 #define DAVID_CALLERID { .id.name.str = "David", .id.name.valid = 1, .id.number.str = "400", .id.number.valid = 1, }
 
+/*! \brief Set ulaw format on channel */
+#define SET_FORMATS(chan) do {\
+	struct ast_format_cap *caps;\
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);\
+	ast_format_cap_append(caps, ast_format_ulaw, 0);\
+	ast_channel_nativeformats_set((chan), caps);\
+	ast_channel_set_writeformat((chan), ast_format_ulaw);\
+	ast_channel_set_rawwriteformat((chan), ast_format_ulaw);\
+	ast_channel_set_readformat((chan), ast_format_ulaw);\
+	ast_channel_set_rawreadformat((chan), ast_format_ulaw);\
+	ao2_ref(caps, -1);\
+} while (0)
+
 /*! \brief Create a \ref test_cel_chan_tech for Alice. */
 #define CREATE_ALICE_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "100", "100", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/Alice"); \
+	SET_FORMATS((channel_var));\
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	ast_channel_unlock((channel_var)); \
 	} while (0)
@@ -216,6 +230,7 @@ static void do_sleep(void)
 /*! \brief Create a \ref test_cel_chan_tech for Bob. */
 #define CREATE_BOB_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "200", "200", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/Bob"); \
+	SET_FORMATS((channel_var));\
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	ast_channel_unlock((channel_var)); \
 	} while (0)
@@ -223,6 +238,7 @@ static void do_sleep(void)
 /*! \brief Create a \ref test_cel_chan_tech for Charlie. */
 #define CREATE_CHARLIE_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "300", "300", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/Charlie"); \
+	SET_FORMATS((channel_var));\
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	ast_channel_unlock((channel_var)); \
 	} while (0)
@@ -230,6 +246,7 @@ static void do_sleep(void)
 /*! \brief Create a \ref test_cel_chan_tech for David. */
 #define CREATE_DAVID_CHANNEL(channel_var, caller_id) do { \
 	(channel_var) = ast_channel_alloc(0, AST_STATE_DOWN, (caller_id)->id.number.str, (caller_id)->id.name.str, "400", "400", "default", NULL, NULL, 0, CHANNEL_TECH_NAME "/David"); \
+	SET_FORMATS((channel_var));\
 	APPEND_EVENT(channel_var, AST_CEL_CHANNEL_START, NULL, NULL); \
 	ast_channel_unlock((channel_var)); \
 	} while (0)
@@ -738,6 +755,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 
 #define START_DIALED_FULL(caller, callee, number, name) do { \
 	callee = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, number, NULL, NULL, NULL, caller, 0, CHANNEL_TECH_NAME "/" name); \
+	SET_FORMATS(callee);\
 	ast_channel_unlock(callee); \
 	if (append_expected_event(callee, AST_CEL_CHANNEL_START, NULL, NULL, NULL)) { \
 		return AST_TEST_FAIL; \
