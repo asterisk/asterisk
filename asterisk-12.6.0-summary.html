@@ -1,0 +1,518 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-12.6.0</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-12.6.0</h3>
+<h3 align="center">Date: 2014-09-24</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-12.5.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+14 mjordan<br/>
+12 mmichelson<br/>
+11 rmudgett<br/>
+10 gtjoseph<br/>
+10 jrose<br/>
+8 file<br/>
+5 kmoore<br/>
+4 jcolp<br/>
+3 wdoekes<br/>
+2 Jeremy Laine<br/>
+2 seanbright<br/>
+1 cloos<br/>
+1 Elazar Broad<br/>
+1 elguero<br/>
+1 newtonr<br/>
+1 sruffell<br/>
+</td>
+<td>
+2 George Joseph<br/>
+1 Damien Wedhorn<br/>
+1 David Herselman<br/>
+1 Deepak Singh Rawat<br/>
+1 dimitripietro<br/>
+1 elguero<br/>
+1 Kilburn<br/>
+1 Samuel Galarneau<br/>
+1 sruffell<br/>
+1 Tony Lewis<br/>
+1 wdoekes<br/>
+</td>
+<td>
+7 mjordan<br/>
+2 mmichelson<br/>
+2 sharky<br/>
+2 sruffell<br/>
+1 amohod<br/>
+1 ateks<br/>
+1 bbs2web<br/>
+1 dimitripietro<br/>
+1 dsr<br/>
+1 Each<br/>
+1 ebroad<br/>
+1 edvinv<br/>
+1 falves11<br/>
+1 jideliov<br/>
+1 krandonbruse<br/>
+1 maddog<br/>
+1 pnlarsson<br/>
+1 proftech<br/>
+1 rmudgett<br/>
+1 RomanSk<br/>
+1 sgalarneau<br/>
+1 slavon<br/>
+1 wdoekes<br/>
+1 xrobau<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: . I did not set the category correctly.</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24147">ASTERISK-24147</a>: ARI: channel hangup crashes asterisk process<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421879">421879</a><br/>
+Reporter: edvinv<br/>
+Coders: jrose<br/>
+<br/>
+<h3>Category: Applications/app_controlplayback</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24229">ASTERISK-24229</a>: ARI: playback of sounds implicitly answers channel, preventing early media playback<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421695">421695</a><br/>
+Reporter: mjordan<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Applications/app_dial</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24225">ASTERISK-24225</a>: Dial option z is broken<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421234">421234</a><br/>
+Reporter: dimitripietro<br/>
+Testers: dimitripietro<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Applications/app_meetme</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24234">ASTERISK-24234</a>: app_meetme: Crash on conference shutdown due to NULL channel passed to meetme_stasis_generate_msg()<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421270">421270</a><br/>
+Reporter: sruffell<br/>
+Testers: sruffell<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Applications/app_mixmonitor</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24027">ASTERISK-24027</a>: MixMonitor AMI action called during AGI execution from bridge feature causes channel to leave AGI has hung up<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=420934">420934</a><br/>
+Reporter: mjordan<br/>
+Coders: jrose<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24027">ASTERISK-24027</a>: MixMonitor AMI action called during AGI execution from bridge feature causes channel to leave AGI has hung up<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421186">421186</a><br/>
+Reporter: mjordan<br/>
+Coders: jrose<br/>
+<br/>
+<h3>Category: CDR/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24237">ASTERISK-24237</a>: CDR: FRACK With PJSIP blonde transfer.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423525">423525</a><br/>
+Reporter: rmudgett<br/>
+Coders: jrose<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24241">ASTERISK-24241</a>: crash: CDRs recursively attempt to update Party B information in a multi-party bridge, overrunning the stack<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422715">422715</a><br/>
+Reporter: dsr<br/>
+Testers: Deepak Singh Rawat<br/>
+Coders: mjordan<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24254">ASTERISK-24254</a>: CDRs: Application/args/dialplan CEP updated during dial operation<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422718">422718</a><br/>
+Reporter: mjordan<br/>
+Testers: Tony Lewis<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Channels/chan_iax2</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23767">ASTERISK-23767</a>: [patch] Dynamic IAX2 registration stops trying if ever not able to resolve<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422275">422275</a><br/>
+Reporter: bbs2web<br/>
+Testers: David Herselman, elguero<br/>
+Coders: elguero<br/>
+<br/>
+<h3>Category: Channels/chan_pjsip</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24143">ASTERISK-24143</a>: pjsip: Outbound call to WebRTC UA fails to transmit ACK on received 200 OK<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421955">421955</a><br/>
+Reporter: Each<br/>
+Coders: jcolp<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24212">ASTERISK-24212</a>: testsuite: Sporadic crash due to assert on stopping RTP engine<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422536">422536</a><br/>
+Reporter: mjordan<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24178">ASTERISK-24178</a>: [patch]fromdomainport used even if not set<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421719">421719</a><br/>
+Reporter: ebroad<br/>
+Coders: Elazar Broad<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Messaging</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24301">ASTERISK-24301</a>: Security: Out of call MESSAGE requests processed via Message channel driver can crash Asterisk<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423365">423365</a><br/>
+Reporter: mjordan<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Channels/chan_sip/WebSocket</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23997">ASTERISK-23997</a>: chan_sip: port incorrectly incremented for RTCP ICE candidates in SDP answer<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421910">421910</a><br/>
+Reporter: slavon<br/>
+Coders: jcolp<br/>
+<br/>
+<h3>Category: Core/Configuration</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24231">ASTERISK-24231</a>: crash: CLI execution of realtime destroy sippeers id 1 causes crash due to NULL name provided to ast_variable<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422984">422984</a><br/>
+Reporter: pnlarsson<br/>
+Coders: jrose<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24331">ASTERISK-24331</a>: Unexpected Errors in Asterisk Manager Interface Output<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423282">423282</a><br/>
+Reporter: xrobau<br/>
+Testers: George Joseph<br/>
+Coders: gtjoseph<br/>
+<br/>
+<h3>Category: Core/PBX</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24249">ASTERISK-24249</a>: SIP debugs do not stop<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423068">423068</a><br/>
+Reporter: amohod<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: Documentation</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24171">ASTERISK-24171</a>: [patch] Provide a manpage for the aelparse utility<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422373">422373</a><br/>
+Reporter: sharky<br/>
+Coders: Jeremy Laine<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24171">ASTERISK-24171</a>: [patch] Provide a manpage for the aelparse utility<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422378">422378</a><br/>
+Reporter: sharky<br/>
+Coders: Jeremy Laine<br/>
+<br/>
+<h3>Category: General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24032">ASTERISK-24032</a>: Gentoo compilation emits warning: "_FORTIFY_SOURCE" redefined<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421229">421229</a><br/>
+Reporter: maddog<br/>
+Testers: Kilburn, wdoekes<br/>
+Coders: cloos<br/>
+<br/>
+<h3>Category: Resources/res_agi</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24027">ASTERISK-24027</a>: MixMonitor AMI action called during AGI execution from bridge feature causes channel to leave AGI has hung up<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=420934">420934</a><br/>
+Reporter: mjordan<br/>
+Coders: jrose<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24027">ASTERISK-24027</a>: MixMonitor AMI action called during AGI execution from bridge feature causes channel to leave AGI has hung up<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421186">421186</a><br/>
+Reporter: mjordan<br/>
+Coders: jrose<br/>
+<br/>
+<h3>Category: Resources/res_ari</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24043">ASTERISK-24043</a>: ARI /continue fails to actually continue into the dialplan<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421416">421416</a><br/>
+Reporter: krandonbruse<br/>
+Coders: jrose<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24229">ASTERISK-24229</a>: ARI: playback of sounds implicitly answers channel, preventing early media playback<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421695">421695</a><br/>
+Reporter: mjordan<br/>
+Coders: mjordan<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24264">ASTERISK-24264</a>: ARI: Adding a channel to a holding bridge automatically starts MOH<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422503">422503</a><br/>
+Reporter: sgalarneau<br/>
+Testers: Samuel Galarneau<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Resources/res_ari_bridges</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24264">ASTERISK-24264</a>: ARI: Adding a channel to a holding bridge automatically starts MOH<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422503">422503</a><br/>
+Reporter: sgalarneau<br/>
+Testers: Samuel Galarneau<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Resources/res_ari_playbacks</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24229">ASTERISK-24229</a>: ARI: playback of sounds implicitly answers channel, preventing early media playback<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421695">421695</a><br/>
+Reporter: mjordan<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Resources/res_fax</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24301">ASTERISK-24301</a>: Security: Out of call MESSAGE requests processed via Message channel driver can crash Asterisk<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423365">423365</a><br/>
+Reporter: mjordan<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Resources/res_hep_rtcp</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24236">ASTERISK-24236</a>: res_hep_rtcp: Module incorrectly depends on pjsip<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421064">421064</a><br/>
+Reporter: mjordan<br/>
+Testers: Damien Wedhorn<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Resources/res_musiconhold</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22252">ASTERISK-22252</a>: res_musiconhold cleanup - REF_DEBUG reload warnings and ref leaks<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421779">421779</a><br/>
+Reporter: wdoekes<br/>
+Coders: jrose<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24019">ASTERISK-24019</a>: When a Music On Hold stream starts it restarts at beginning of file.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421978">421978</a><br/>
+Reporter: ateks<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Resources/res_pjsip</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24161">ASTERISK-24161</a>: PJSIPShowEndpoint gives inaccurate count of list items<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423282">423282</a><br/>
+Reporter: mmichelson<br/>
+Testers: George Joseph<br/>
+Coders: gtjoseph<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_endpoint_identifier_ip</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24290">ASTERISK-24290</a>: Endpoint identifier match value fails to parse when CIDR network format is specified<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423417">423417</a><br/>
+Reporter: proftech<br/>
+Coders: jrose<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_nat</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23634">ASTERISK-23634</a>: With TURN Asterisk crashes on multiple (7-10) concurrent WebRTC (avpg/encryption/icesupport) calls<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423151">423151</a><br/>
+Reporter: RomanSk<br/>
+Coders: jcolp<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_pubsub</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24136">ASTERISK-24136</a>: Security: Crash in Asterisk's PJSIP code when subscribing to an event with an unexpected body type<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423344">423344</a><br/>
+Reporter: mmichelson<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_sdp_rtp</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23994">ASTERISK-23994</a>: res_pjsip_sdp_rtp: owner address in SDP may not be fully qualified domainname<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421796">421796</a><br/>
+Reporter: falves11<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_transport_websocket</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24143">ASTERISK-24143</a>: pjsip: Outbound call to WebRTC UA fails to transmit ACK on received 200 OK<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421955">421955</a><br/>
+Reporter: Each<br/>
+Coders: jcolp<br/>
+<br/>
+<h3>Category: Resources/res_rtp_asterisk</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23577">ASTERISK-23577</a>: res_rtp_asterisk: Crash in ast_rtp_on_turn_rtp_state when RTP instance is NULL<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423151">423151</a><br/>
+Reporter: jideliov<br/>
+Coders: jcolp<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24212">ASTERISK-24212</a>: testsuite: Sporadic crash due to assert on stopping RTP engine<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422536">422536</a><br/>
+Reporter: mjordan<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Tests/testsuite</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24212">ASTERISK-24212</a>: testsuite: Sporadic crash due to assert on stopping RTP engine<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422536">422536</a><br/>
+Reporter: mjordan<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Utilities/aelparse</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24171">ASTERISK-24171</a>: [patch] Provide a manpage for the aelparse utility<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422373">422373</a><br/>
+Reporter: sharky<br/>
+Coders: Jeremy Laine<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24171">ASTERISK-24171</a>: [patch] Provide a manpage for the aelparse utility<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422378">422378</a><br/>
+Reporter: sharky<br/>
+Coders: Jeremy Laine<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=420836">420836</a></td><td>rmudgett</td><td>res/stasis/command.c: Fix recent commit using spaces instead of tabs.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=420898">420898</a></td><td>wdoekes</td><td>logger: Don't store verbose-magic in the log files.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=420949">420949</a></td><td>kmoore</td><td>PJSIP: Prevent crash no-URI contacts</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=420956">420956</a></td><td>rmudgett</td><td>res_pjsip_send_to_voicemail.c: Fix svn file properties.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421009">421009</a></td><td>rmudgett</td><td>ARI: Originate to app local channel subscription code optimization.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421037">421037</a></td><td>mjordan</td><td>cel: Make sure channels in extra fields include their unique IDs as well</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421061">421061</a></td><td>mjordan</td><td>main/file: Move test event to emit PLAYBACK event more consistently</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421165">421165</a></td><td>mjordan</td><td>app_voicemail/app: Remove test events that were duplicated by r421059</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421329">421329</a></td><td>gtjoseph</td><td>func_config: Change 'Not Found' message from ERROR to DEBUG</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421400">421400</a></td><td>rmudgett</td><td>chan_pjsip: Fix attended transfer connected line name update.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421444">421444</a></td><td>kmoore</td><td>AMI Docs: Fix Status channel parameter optionality</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421447">421447</a></td><td>mmichelson</td><td>Fix compilation error on certain versions of GCC.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421485">421485</a></td><td>mmichelson</td><td>Alter documentation for callerid_privacy to use correct values.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421537">421537</a></td><td>kmoore</td><td>Stasis: Add information to blind transfer event</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421565">421565</a></td><td>mmichelson</td><td>Move evaluation of set_var options in pjsip to the end of channel initialization.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421608">421608</a></td><td>rmudgett</td><td>cli.c: Fix tab completion of "module load" when MALLOC_DEBUG is enabled.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421778">421778</a></td><td>mmichelson</td><td>Improve consistency of party ID privacy usage.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421789">421789</a></td><td>mmichelson</td><td>Let's try checking the name and number, instead of the name twice.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421792">421792</a></td><td>mmichelson</td><td>Ensure after-bridge behavior is correct when moving from Stasis to a non-Stasis bridge.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421801">421801</a></td><td>rmudgett</td><td>res_musiconhold.c: Remove obsolete REF_DEBUG code.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421859">421859</a></td><td>mjordan</td><td>main/message: Add a new-line to a DEBUG message</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421931">421931</a></td><td>file</td><td>res_pjsip_transport_websocket: Ensure secure Websocket clients can be called.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=421939">421939</a></td><td>file</td><td>res_pjsip_transport_websocket: Fix a progressive memory growth.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422070">422070</a></td><td>mmichelson</td><td>Fix race condition in the scheduler when deleting a running entry.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422090">422090</a></td><td>gtjoseph</td><td>confbridge: Make kick, mute and unmute handle channel targets consistently.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422114">422114</a></td><td>kmoore</td><td>CallerID: Fix parsing of malformed callerid</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422176">422176</a></td><td>gtjoseph</td><td>confbridge: Add 'Admin' param to join, leave, mute, unmute and talking events</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422214">422214</a></td><td>rmudgett</td><td>res/res_pjsip/pjsip_options.c: Eliminate excessive RAII_VAR usage.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422255">422255</a></td><td>rmudgett</td><td>Added ConfBridge AMI event note to UPGRADE.txt.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422295">422295</a></td><td>mjordan</td><td>LICENSE: Clarify language in Asterisk's LICENSE to allow for linking to UniMRCP</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422441">422441</a></td><td>gtjoseph</td><td>manager: Make WaitEvent action respect eventfilters</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422444">422444</a></td><td>gtjoseph</td><td>confbridge: Add Duration to ConfbridgeList event</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422506">422506</a></td><td>mjordan</td><td>main/cli: Do not attempt to show CDR data for internal channels</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422557">422557</a></td><td>file</td><td>res_pjsip_transport_websocket: Fix crash when the Contact header is not a URI.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422626">422626</a></td><td>jrose</td><td>Manager: Require read permission for SYSTEM in order to send FullyBooted</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422664">422664</a></td><td>jrose</td><td>Call IDs: Fix appearance of call ID in core show channels when NULL</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422746">422746</a></td><td>file</td><td>res_pjsip_sdp_rtp: Fix retrieval of "ice-pwd" attribute if in session and not media stream.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422766">422766</a></td><td>mjordan</td><td>main/rtp_engine: Format NTP timestamps as unsigned ints</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422769">422769</a></td><td>mjordan</td><td>main/cdr: Copy over location information during a fork</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422791">422791</a></td><td>newtonr</td><td>Sounds/BuildSystem: Modifications to include new releases and Japanese language.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422899">422899</a></td><td>seanbright</td><td>pjsip/config_auth.c: Add missing whitespace to log messages.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422904">422904</a></td><td>gtjoseph</td><td>config: bug: fix truncation of included config files on permissions error</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=422964">422964</a></td><td>mmichelson</td><td>Remove undocumented default behavior of ast_play_and_record_full acceptdtmf.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423128">423128</a></td><td>wdoekes</td><td>contrib: Fix verifyi typo in alembic DB script ps_transport table.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423172">423172</a></td><td>file</td><td>res_pjsip_session: Fix usage of wrong memory pool when creating local SDP.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423208">423208</a></td><td>file</td><td>res_rtp_asterisk: Fix building when pjproject is not used.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423211">423211</a></td><td>file</td><td>res_rtp_asterisk: Fix 100% CPU usage due to timer heap thread spinning.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423254">423254</a></td><td>file</td><td>res_rtp_asterisk: Ensure that the thread terminating pj stuff is registered.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423278">423278</a></td><td>gtjoseph</td><td>config: bug: Fix SEGV in ast_category_insert when matching category isn't found</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423416">423416</a></td><td>rmudgett</td><td>astobj2.c/refcounter.py: Fix to deal with invalid object refs.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423476">423476</a></td><td>gtjoseph</td><td>utils: Create ast_strsep function that ignores separators inside quotes</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423481">423481</a></td><td>seanbright</td><td>res_pjsip: Don't require a password when doing userpass authentication.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/12?view=revision&revision=423503">423503</a></td><td>kmoore</td><td>PJSIP: Prevent T38 framehook being put on wrong channel</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+LICENSE                                                                      |    2
+UPGRADE.txt                                                                  |   12
+apps/app_chanspy.c                                                           |    2
+apps/app_confbridge.c                                                        |  262 ++-
+apps/app_dial.c                                                              |    2
+apps/app_macro.c                                                             |    7
+apps/app_meetme.c                                                            |    8
+apps/app_mixmonitor.c                                                        |    2
+apps/app_stack.c                                                             |   35
+apps/app_voicemail.c                                                         |    5
+apps/confbridge/confbridge_manager.c                                         |   81 +
+channels/chan_iax2.c                                                         |   34
+channels/chan_pjsip.c                                                        |   83 -
+channels/chan_sip.c                                                          |   24
+configs/sip.conf.sample                                                      |    4
+configure.ac                                                                 |    4
+contrib/ast-db-manage/config/versions/5950038a6ead_fix_pjsip_verifiy_typo.py |   29
+contrib/scripts/refcounter.py                                                |   80 -
+doc/aelparse.8                                                               |   28
+doc/smsq.8                                                                   |  146 ++
+funcs/func_config.c                                                          |    2
+include/asterisk/channel.h                                                   |   43
+include/asterisk/config.h                                                    |    5
+include/asterisk/framehook.h                                                 |    6
+include/asterisk/res_pjsip.h                                                 |    2
+include/asterisk/res_pjsip_pubsub.h                                          |   21
+include/asterisk/res_pjsip_session.h                                         |   35
+include/asterisk/stasis_app_impl.h                                           |   25
+include/asterisk/stasis_bridges.h                                            |   10
+include/asterisk/strings.h                                                   |   60
+include/asterisk/utils.h                                                     |    9
+main/app.c                                                                   |    7
+main/astobj2.c                                                               |   10
+main/bridge.c                                                                |   53
+main/bridge_after.c                                                          |    4
+main/bridge_channel.c                                                        |    4
+main/callerid.c                                                              |   63
+main/cdr.c                                                                   |   22
+main/cel.c                                                                   |   27
+main/channel.c                                                               |   14
+main/channel_internal_api.c                                                  |   30
+main/cli.c                                                                   |    6
+main/config.c                                                                |  132 +
+main/dns.c                                                                   |    3
+main/file.c                                                                  |    2
+main/framehook.c                                                             |   19
+main/logger.c                                                                |   43
+main/manager.c                                                               |   16
+main/message.c                                                               |    2
+main/pbx.c                                                                   |    5
+main/rtp_engine.c                                                            |    4
+main/sched.c                                                                 |   43
+main/stasis_bridges.c                                                        |   28
+main/stasis_channels.c                                                       |  219 +++
+main/utils.c                                                                 |   83 +
+res/ari/ari_model_validators.c                                               |    9
+res/ari/ari_model_validators.h                                               |    1
+res/ari/resource_channels.c                                                  |   13
+res/res_fax_spandsp.c                                                        |   19
+res/res_hep_rtcp.c                                                           |    2
+res/res_musiconhold.c                                                        |   25
+res/res_pjsip.c                                                              |   10
+res/res_pjsip/config_auth.c                                                  |   14
+res/res_pjsip/config_transport.c                                             |   18
+res/res_pjsip/location.c                                                     |    2
+res/res_pjsip/pjsip_configuration.c                                          |    6
+res/res_pjsip/pjsip_options.c                                                |  170 +-
+res/res_pjsip_caller_id.c                                                    |   94 -
+res/res_pjsip_dialog_info_body_generator.c                                   |    1
+res/res_pjsip_diversion.c                                                    |    1
+res/res_pjsip_endpoint_identifier_ip.c                                       |   62
+res/res_pjsip_exten_state.c                                                  |    8
+res/res_pjsip_mwi.c                                                          |    7
+res/res_pjsip_mwi_body_generator.c                                           |    1
+res/res_pjsip_notify.c                                                       |    8
+res/res_pjsip_pidf_body_generator.c                                          |    1
+res/res_pjsip_pubsub.c                                                       |   25
+res/res_pjsip_sdp_rtp.c                                                      |    2
+res/res_pjsip_session.c                                                      |   72 -
+res/res_pjsip_t38.c                                                          |   13
+res/res_pjsip_transport_websocket.c                                          |   46
+res/res_pjsip_xpidf_body_generator.c                                         |    2
+res/res_rtp_asterisk.c                                                       |  703 ++++++----
+res/res_stasis.c                                                             |   30
+res/res_stasis_answer.c                                                      |    2
+res/res_stasis_playback.c                                                    |   20
+res/res_stasis_recording.c                                                   |   20
+res/stasis/app.c                                                             |   31
+res/stasis/command.c                                                         |   41
+res/stasis/command.h                                                         |    9
+res/stasis/control.c                                                         |   81 -
+res/stasis/messaging.h                                                       |    2
+res/stasis/stasis_bridge.c                                                   |   28
+rest-api/api-docs/events.json                                                |    5
+sounds/Makefile                                                              |    7
+sounds/sounds.xml                                                            |   27
+tests/test_callerid.c                                                        |  165 ++
+tests/test_cel.c                                                             |   21
+tests/test_strings.c                                                         |   80 +
+tests/test_utils.c                                                           |   98 +
+100 files changed, 3053 insertions(+), 856 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
