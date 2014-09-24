@@ -2431,24 +2431,35 @@ static pj_bool_t does_method_match(const pj_str_t *message_method, const char *s
 	return pj_stristr(&method, message_method) ? PJ_TRUE : PJ_FALSE;
 }
 
+/*! Maximum number of challenges before assuming that we are in a loop */
+#define MAX_RX_CHALLENGES	10
+
 /*! \brief Structure to hold information about an outbound request */
 struct send_request_data {
-	struct ast_sip_endpoint *endpoint;		/*! The endpoint associated with this request */
-	void *token;					/*! Information to be provided to the callback upon receipt of a response */
-	void (*callback)(void *token, pjsip_event *e);	/*! The callback to be called upon receipt of a response */
+	/*! The endpoint associated with this request */
+	struct ast_sip_endpoint *endpoint;
+	/*! Information to be provided to the callback upon receipt of a response */
+	void *token;
+	/*! The callback to be called upon receipt of a response */
+	void (*callback)(void *token, pjsip_event *e);
+	/*! Number of challenges received. */
+	unsigned int challenge_count;
 };
 
 static void send_request_data_destroy(void *obj)
 {
 	struct send_request_data *req_data = obj;
+
 	ao2_cleanup(req_data->endpoint);
 }
 
 static struct send_request_data *send_request_data_alloc(struct ast_sip_endpoint *endpoint,
 	void *token, void (*callback)(void *token, pjsip_event *e))
 {
-	struct send_request_data *req_data = ao2_alloc(sizeof(*req_data), send_request_data_destroy);
+	struct send_request_data *req_data;
 
+	req_data = ao2_alloc_options(sizeof(*req_data), send_request_data_destroy,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!req_data) {
 		return NULL;
 	}
@@ -2460,50 +2471,152 @@ static struct send_request_data *send_request_data_alloc(struct ast_sip_endpoint
 	return req_data;
 }
 
-static void send_request_cb(void *token, pjsip_event *e)
-{
-	RAII_VAR(struct send_request_data *, req_data, token, ao2_cleanup);
-	pjsip_transaction *tsx = e->body.tsx_state.tsx;
-	pjsip_rx_data *challenge = e->body.tsx_state.src.rdata;
-	pjsip_tx_data *tdata;
-	struct ast_sip_supplement *supplement;
+struct send_request_wrapper {
+	/*! Information to be provided to the callback upon receipt of a response */
+	void *token;
+	/*! The callback to be called upon receipt of a response */
+	void (*callback)(void *token, pjsip_event *e);
+	/*! Non-zero when the callback is called. */
+	unsigned int cb_called;
+};
 
-	AST_RWLIST_RDLOCK(&supplements);
-	AST_LIST_TRAVERSE(&supplements, supplement, next) {
-		if (supplement->incoming_response && does_method_match(&challenge->msg_info.cseq->method.name, supplement->method)) {
-			supplement->incoming_response(req_data->endpoint, challenge);
+static void endpt_send_request_wrapper(void *token, pjsip_event *e)
+{
+	struct send_request_wrapper *req_wrapper = token;
+
+	req_wrapper->cb_called = 1;
+	if (req_wrapper->callback) {
+		req_wrapper->callback(req_wrapper->token, e);
+	}
+	ao2_ref(req_wrapper, -1);
+}
+
+static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
+	pjsip_tx_data *tdata, pj_int32_t timeout, void *token, pjsip_endpt_send_callback cb)
+{
+	struct send_request_wrapper *req_wrapper;
+	pj_status_t ret_val;
+
+	/* Create wrapper to detect if the callback was actually called on an error. */
+	req_wrapper = ao2_alloc_options(sizeof(*req_wrapper), NULL,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!req_wrapper) {
+		pjsip_tx_data_dec_ref(tdata);
+		return PJ_ENOMEM;
+	}
+	req_wrapper->token = token;
+	req_wrapper->callback = cb;
+
+	ao2_ref(req_wrapper, +1);
+	ret_val = pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, timeout,
+		req_wrapper, endpt_send_request_wrapper);
+	if (ret_val != PJ_SUCCESS) {
+		char errmsg[PJ_ERR_MSG_SIZE];
+
+		/* Complain of failure to send the request. */
+		pj_strerror(ret_val, errmsg, sizeof(errmsg));
+		ast_log(LOG_ERROR, "Error %d '%s' sending %.*s request to endpoint %s\n",
+			(int) ret_val, errmsg, (int) pj_strlen(&tdata->msg->line.req.method.name),
+			pj_strbuf(&tdata->msg->line.req.method.name),
+			endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
+
+		/* Was the callback called? */
+		if (req_wrapper->cb_called) {
+			/*
+			 * Yes so we cannot report any error.  The callback
+			 * has already freed any resources associated with
+			 * token.
+			 */
+			ret_val = PJ_SUCCESS;
+		} else {
+			/* No and it is not expected to ever be called. */
+			ao2_ref(req_wrapper, -1);
 		}
 	}
-	AST_RWLIST_UNLOCK(&supplements);
+	ao2_ref(req_wrapper, -1);
+	return ret_val;
+}
 
-	if ((tsx->status_code == 401 || tsx->status_code == 407)
-		&& req_data->endpoint
-		&& !ast_sip_create_request_with_auth(&req_data->endpoint->outbound_auths, challenge, tsx, &tdata)
-		&& pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, req_data->token, req_data->callback)
-			== PJ_SUCCESS) {
-		return;
+static void send_request_cb(void *token, pjsip_event *e)
+{
+	struct send_request_data *req_data = token;
+	pjsip_transaction *tsx;
+	pjsip_rx_data *challenge;
+	pjsip_tx_data *tdata;
+	struct ast_sip_supplement *supplement;
+	struct ast_sip_endpoint *endpoint;
+	int res;
+
+	switch(e->body.tsx_state.type) {
+	case PJSIP_EVENT_TRANSPORT_ERROR:
+	case PJSIP_EVENT_TIMER:
+		break;
+	case PJSIP_EVENT_RX_MSG:
+		challenge = e->body.tsx_state.src.rdata;
+
+		/*
+		 * Call any supplements that want to know about a response
+		 * with any received data.
+		 */
+		AST_RWLIST_RDLOCK(&supplements);
+		AST_LIST_TRAVERSE(&supplements, supplement, next) {
+			if (supplement->incoming_response
+				&& does_method_match(&challenge->msg_info.cseq->method.name,
+					supplement->method)) {
+				supplement->incoming_response(req_data->endpoint, challenge);
+			}
+		}
+		AST_RWLIST_UNLOCK(&supplements);
+
+		/* Resend the request with a challenge response if we are challenged. */
+		tsx = e->body.tsx_state.tsx;
+		endpoint = ao2_bump(req_data->endpoint);
+		res = (tsx->status_code == 401 || tsx->status_code == 407)
+			&& endpoint
+			&& ++req_data->challenge_count < MAX_RX_CHALLENGES /* Not in a challenge loop */
+			&& !ast_sip_create_request_with_auth(&endpoint->outbound_auths,
+				challenge, tsx, &tdata)
+			&& endpt_send_request(endpoint, tdata, -1, req_data, send_request_cb)
+				== PJ_SUCCESS;
+		ao2_cleanup(endpoint);
+		if (res) {
+			/*
+			 * Request with challenge response sent.
+			 * Passed our req_data ref to the new request.
+			 */
+			return;
+		}
+		break;
+	default:
+		ast_log(LOG_ERROR, "Unexpected PJSIP event %d\n", e->body.tsx_state.type);
+		break;
 	}
 
 	if (req_data->callback) {
 		req_data->callback(req_data->token, e);
 	}
+	ao2_ref(req_data, -1);
 }
 
 static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpoint *endpoint,
 	void *token, void (*callback)(void *token, pjsip_event *e))
 {
 	struct ast_sip_supplement *supplement;
-	struct send_request_data *req_data = send_request_data_alloc(endpoint, token, callback);
-	struct ast_sip_contact *contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
+	struct send_request_data *req_data;
+	struct ast_sip_contact *contact;
 
+	req_data = send_request_data_alloc(endpoint, token, callback);
 	if (!req_data) {
 		pjsip_tx_data_dec_ref(tdata);
 		return -1;
 	}
 
+	contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
+
 	AST_RWLIST_RDLOCK(&supplements);
 	AST_LIST_TRAVERSE(&supplements, supplement, next) {
-		if (supplement->outgoing_request && does_method_match(&tdata->msg->line.req.method.name, supplement->method)) {
+		if (supplement->outgoing_request
+			&& does_method_match(&tdata->msg->line.req.method.name, supplement->method)) {
 			supplement->outgoing_request(endpoint, contact, tdata);
 		}
 	}
@@ -2512,11 +2625,8 @@ static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpo
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
 	ao2_cleanup(contact);
 
-	if (pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, -1, req_data, send_request_cb) != PJ_SUCCESS) {
-		ast_log(LOG_ERROR, "Error attempting to send outbound %.*s request to endpoint %s\n",
-				(int) pj_strlen(&tdata->msg->line.req.method.name),
-				pj_strbuf(&tdata->msg->line.req.method.name),
-				endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
+	if (endpt_send_request(endpoint, tdata, -1, req_data, send_request_cb)
+		!= PJ_SUCCESS) {
 		ao2_cleanup(req_data);
 		return -1;
 	}
