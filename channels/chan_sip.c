@@ -4446,7 +4446,7 @@ int __sip_ack(struct sip_pvt *p, uint32_t seqno, int resp, int sipmethod)
 	  If obforcing is set, we will keep the outbound proxy during the whole
 	  dialog, regardless of what the SIP rfc says
 	*/
-	if (p->outboundproxy && !p->outboundproxy->force){
+	if (p->outboundproxy && !p->outboundproxy->force) {
 		ref_proxy(p, NULL);
 	}
 
@@ -6506,6 +6506,10 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		}
 		ast_free(p->options);
 		p->options = NULL;
+	}
+
+	if (p->outboundproxy) {
+		ref_proxy(p, NULL);
 	}
 
 	if (p->notify) {
