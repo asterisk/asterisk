@@ -113,7 +113,7 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 
 	/* if the contact is available calculate the rtt as
 	   the diff between the last start time and "now" */
-	update->rtt = update->status ?
+	update->rtt = update->status == AVAILABLE ?
 		ast_tvdiff_us(ast_tvnow(), status->rtt_start) : 0;
 
 	update->rtt_start = ast_tv(0, 0);
@@ -240,18 +240,21 @@ static struct ast_sip_endpoint *find_an_endpoint(struct ast_sip_contact *contact
 
 /*!
  * \internal
- * \brief Receive an response to the qualify contact request.
+ * \brief Receive a response to the qualify contact request.
  */
 static void qualify_contact_cb(void *token, pjsip_event *e)
 {
 	struct ast_sip_contact *contact = token;
 
 	switch(e->body.tsx_state.type) {
+	default:
+		ast_log(LOG_ERROR, "Unexpected PJSIP event %d\n", e->body.tsx_state.type);
+		/* Fall through */
 	case PJSIP_EVENT_TRANSPORT_ERROR:
 	case PJSIP_EVENT_TIMER:
 		update_contact_status(contact, UNAVAILABLE);
 		break;
-	default:
+	case PJSIP_EVENT_RX_MSG:
 		update_contact_status(contact, AVAILABLE);
 		break;
 	}
@@ -308,6 +311,7 @@ static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_con
 		!= PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Unable to send request to qualify contact %s\n",
 			contact->uri);
+		update_contact_status(contact, UNAVAILABLE);
 		ao2_ref(contact, -1);
 		return -1;
 	}
@@ -354,10 +358,12 @@ static void sched_data_destructor(void *obj)
  */
 static struct sched_data *sched_data_create(struct ast_sip_contact *contact)
 {
-	struct sched_data *data = ao2_alloc(sizeof(*data), sched_data_destructor);
+	struct sched_data *data;
 
+	data = ao2_t_alloc(sizeof(*data), sched_data_destructor, contact->uri);
 	if (!data) {
-		ast_log(LOG_ERROR, "Unable to create schedule qualify data\n");
+		ast_log(LOG_ERROR, "Unable to create schedule qualify data for contact %s\n",
+			contact->uri);
 		return NULL;
 	}
 
@@ -392,11 +398,14 @@ static int qualify_contact_sched(const void *obj)
 	ao2_ref(data->contact, +1);
 	if (ast_sip_push_task(NULL, qualify_contact_task, data->contact)) {
 		ao2_ref(data->contact, -1);
-		ao2_cleanup(data);
-		return 0;
 	}
 
-	return data->contact->qualify_frequency * 1000;
+	/*
+	 * Always reschedule rather than have a potential race cleaning
+	 * up the data object ref between self deletion and an external
+	 * deletion.
+	 */
+	return 1;
 }
 
 /*!
@@ -405,24 +414,27 @@ static int qualify_contact_sched(const void *obj)
  */
 static void schedule_qualify(struct ast_sip_contact *contact)
 {
-	RAII_VAR(struct sched_data *, data, sched_data_create(contact), ao2_cleanup);
+	struct sched_data *data;
 
+	data = sched_data_create(contact);
 	if (!data) {
 		return;
 	}
 
-	ao2_ref(data, +1);
-	if ((data->id = ast_sched_add_variable(
-		    sched, contact->qualify_frequency * 1000,
-		    qualify_contact_sched, data, 1)) < 0) {
+	ast_assert(contact->qualify_frequency != 0);
 
-		ao2_ref(data, -1);
+	ao2_t_ref(data, +1, "Ref for qualify_contact_sched() scheduler entry");
+	data->id = ast_sched_add_variable(sched, contact->qualify_frequency * 1000,
+		qualify_contact_sched, data, 0);
+	if (data->id < 0) {
+		ao2_t_ref(data, -1, "Cleanup failed scheduler add");
 		ast_log(LOG_ERROR, "Unable to schedule qualify for contact %s\n",
 			contact->uri);
-		return;
+	} else if (!ao2_link(sched_qualifies, data)) {
+		AST_SCHED_DEL_UNREF(sched, data->id,
+			ao2_t_ref(data, -1, "Cleanup scheduler for failed ao2_link"));
 	}
-
-	ao2_link(sched_qualifies, data);
+	ao2_t_ref(data, -1, "Done setting up scheduler entry");
 }
 
 /*!
@@ -438,8 +450,9 @@ static void unschedule_qualify(struct ast_sip_contact *contact)
 		return;
 	}
 
-	AST_SCHED_DEL_UNREF(sched, data->id, ao2_cleanup(data));
-	ao2_ref(data, -1);
+	AST_SCHED_DEL_UNREF(sched, data->id,
+		ao2_t_ref(data, -1, "Delete scheduler entry ref"));
+	ao2_t_ref(data, -1, "Done with ao2_find ref");
 }
 
 /*!
@@ -452,7 +465,9 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
 
 	if (contact->qualify_frequency) {
 		ao2_ref(contact, +1);
-		ast_sip_push_task(NULL, qualify_contact_task, contact);
+		if (ast_sip_push_task(NULL, qualify_contact_task, contact)) {
+			ao2_ref(contact, -1);
+		}
 
 		schedule_qualify(contact);
 	}
@@ -498,23 +513,44 @@ static const struct ast_sorcery_observer contact_observer = {
 
 static pj_bool_t options_start(void)
 {
-	if (!(sched = ast_sched_context_create()) ||
-	    ast_sched_start_thread(sched)) {
+	sched = ast_sched_context_create();
+	if (!sched) {
+		return -1;
+	}
+	if (ast_sched_start_thread(sched)) {
+		ast_sched_context_destroy(sched);
+		sched = NULL;
+		return -1;
+	}
+
+	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &contact_observer)) {
+		ast_log(LOG_WARNING, "Unable to add contact observer\n");
+		ast_sched_context_destroy(sched);
+		sched = NULL;
 		return -1;
 	}
 
 	return PJ_SUCCESS;
 }
 
+static int sched_qualifies_empty(void *obj, void *arg, int flags)
+{
+	ao2_t_ref(obj, -1, "Release ref held by destroyed scheduler context.");
+	return CMP_MATCH;
+}
+
 static pj_bool_t options_stop(void)
 {
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &contact_observer);
 
-	ao2_t_ref(sched_qualifies, -1, "Remove scheduled qualifies on module stop");
-
 	if (sched) {
 		ast_sched_context_destroy(sched);
+		sched = NULL;
 	}
+
+	/* Empty the container of scheduling data refs. */
+	ao2_callback(sched_qualifies, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE,
+		sched_qualifies_empty, NULL);
 
 	return PJ_SUCCESS;
 }
@@ -962,37 +998,38 @@ static void qualify_and_schedule_all(void)
 
 int ast_res_pjsip_init_options_handling(int reload)
 {
-	const pj_str_t STR_OPTIONS = { "OPTIONS", 7 };
+	static const pj_str_t STR_OPTIONS = { "OPTIONS", 7 };
 
 	if (reload) {
 		qualify_and_schedule_all();
 		return 0;
 	}
 
-	if (!(sched_qualifies = ao2_t_container_alloc(
-		QUALIFIED_BUCKETS, sched_qualifies_hash_fn, sched_qualifies_cmp_fn,
-		"Create container for scheduled qualifies"))) {
+	sched_qualifies = ao2_t_container_alloc(QUALIFIED_BUCKETS,
+		sched_qualifies_hash_fn, sched_qualifies_cmp_fn,
+		"Create container for scheduled qualifies");
+	if (!sched_qualifies) {
 		return -1;
 	}
 
 	if (pjsip_endpt_register_module(ast_sip_get_pjsip_endpoint(), &options_module) != PJ_SUCCESS) {
-		options_stop();
+		ao2_cleanup(sched_qualifies);
+		sched_qualifies = NULL;
 		return -1;
 	}
 
-	if (pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW, NULL, 1, &STR_OPTIONS) != PJ_SUCCESS) {
+	if (pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW,
+		NULL, 1, &STR_OPTIONS) != PJ_SUCCESS) {
 		pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);
+		ao2_cleanup(sched_qualifies);
+		sched_qualifies = NULL;
 		return -1;
 	}
 
-	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &contact_observer)) {
-		ast_log(LOG_WARNING, "Unable to add contact observer\n");
-		return -1;
-	}
+	ast_manager_register2("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify, NULL, NULL, NULL);
+	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
 
 	qualify_and_schedule_all();
-	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
-	ast_manager_register2("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify, NULL, NULL, NULL);
 
 	return 0;
 }
@@ -1001,4 +1038,8 @@ void ast_res_pjsip_cleanup_options_handling(void)
 {
 	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
 	ast_manager_unregister("PJSIPQualify");
+
+	pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);
+	ao2_cleanup(sched_qualifies);
+	sched_qualifies = NULL;
 }
