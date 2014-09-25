@@ -2,10 +2,13 @@
 ; Music on Hold -- Sample Configuration
 ;
 [general]
-;cachertclasses=yes ; use 1 instance of moh class for all users who are using it,
-                    ; decrease consumable cpu cycles and memory
-                    ; disabled by default
+;cachertclasses=yes     ; use 1 instance of moh class for all users who are using it,
+                        ; decrease consumable cpu cycles and memory
+                        ; disabled by default
 
+;preferchannelclass=yes ; Prefer the musicclass as defined by CHANNEL(musicclass),
+                        ; over a class set by an application (e.g. a musicclass set on a queue).
+                        ; Defaults to yes.
 
 ; valid mode options:
 ; files		-- read files from a directory in any Asterisk supported

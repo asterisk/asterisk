@@ -18,7 +18,7 @@ Channel Drivers
 chan_sip
 ------------------
  * New 'rtpbindaddr' global setting. This allows a user to define which
-   ipaddress to bind the rtpengine too.  For example, chan_sip might bind
+   ipaddress to bind the rtpengine to. For example, chan_sip might bind
    to eth0 (10.0.0.2) but rtpengine to eth1 (192.168.1.10).
 
 
@@ -38,6 +38,9 @@ res_musiconhold
 ------------------
  * Added sort=randstart to the sort options. It sorts the files by name and
    then chooses the first file to play at random.
+ * Added preferchannelclass=no option to prefer the application-passed class
+   over the channel-set musicclass. This allows separate hold-music from
+   application (e.g. Queue or Dial) specified music.
 
 
 ------------------------------------------------------------------------------

@@ -151,8 +151,9 @@ struct moh_files_state {
 #define MOH_RANDSTART		(MOH_RANDOMIZE | MOH_SORTALPHA) /*!< Sorted but start at random position */
 #define MOH_SORTMODE		(3 << 3)
 
-#define MOH_CACHERTCLASSES      (1 << 5)        /*!< Should we use a separate instance of MOH for each user or not */
-#define MOH_ANNOUNCEMENT	(1 << 6)			/*!< Do we play announcement files between songs on this channel? */
+#define MOH_CACHERTCLASSES	(1 << 5)	/*!< Should we use a separate instance of MOH for each user or not */
+#define MOH_ANNOUNCEMENT	(1 << 6)	/*!< Do we play announcement files between songs on this channel? */
+#define MOH_PREFERCHANNELCLASS	(1 << 7)	/*!< Should queue moh override channel moh */
 
 /* Custom astobj2 flag */
 #define MOH_NOTDELETED          (1 << 30)       /*!< Find only records that aren't deleted? */
@@ -1396,42 +1397,42 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	struct moh_files_state *state = ast_channel_music_state(chan);
 	struct ast_variable *var = NULL;
 	int res = 0;
+	int i;
 	int realtime_possible = ast_check_realtime("musiconhold");
+	const char *classes[] = {NULL, NULL, interpclass, "default"};
+
+	if (ast_test_flag(global_flags, MOH_PREFERCHANNELCLASS)) {
+		classes[0] = ast_channel_musicclass(chan);
+		classes[1] = mclass;
+	} else {
+		classes[0] = mclass;
+		classes[1] = ast_channel_musicclass(chan);
+	}
 
 	/* The following is the order of preference for which class to use:
 	 * 1) The channels explicitly set musicclass, which should *only* be
 	 *    set by a call to Set(CHANNEL(musicclass)=whatever) in the dialplan.
+	 *    Unless preferchannelclass in musiconhold.conf is false
 	 * 2) The mclass argument. If a channel is calling ast_moh_start() as the
 	 *    result of receiving a HOLD control frame, this should be the
 	 *    payload that came with the frame.
-	 * 3) The interpclass argument. This would be from the mohinterpret
+	 * 3) The channels explicitly set musicclass, which should *only* be
+	 *    set by a call to Set(CHANNEL(musicclass)=whatever) in the dialplan.
+	 * 4) The interpclass argument. This would be from the mohinterpret
 	 *    option from channel drivers. This is the same as the old musicclass
 	 *    option.
-	 * 4) The default class.
+	 * 5) The default class.
 	 */
-	if (!ast_strlen_zero(ast_channel_musicclass(chan))) {
-		mohclass = get_mohbyname(ast_channel_musicclass(chan), 1, 0);
-		if (!mohclass && realtime_possible) {
-			var = ast_load_realtime("musiconhold", "name", ast_channel_musicclass(chan), SENTINEL);
-		}
-	}
-	if (!mohclass && !var && !ast_strlen_zero(mclass)) {
-		mohclass = get_mohbyname(mclass, 1, 0);
-		if (!mohclass && realtime_possible) {
-			var = ast_load_realtime("musiconhold", "name", mclass, SENTINEL);
-		}
-	}
-	if (!mohclass && !var && !ast_strlen_zero(interpclass)) {
-		mohclass = get_mohbyname(interpclass, 1, 0);
-		if (!mohclass && realtime_possible) {
-			var = ast_load_realtime("musiconhold", "name", interpclass, SENTINEL);
-		}
-	}
 
-	if (!mohclass && !var) {
-		mohclass = get_mohbyname("default", 1, 0);
-		if (!mohclass && realtime_possible) {
-			var = ast_load_realtime("musiconhold", "name", "default", SENTINEL);
+	for (i = 0; i < ARRAY_LEN(classes); ++i) {
+		if (!ast_strlen_zero(classes[i])) {
+			mohclass = get_mohbyname(classes[i], 1, 0);
+			if (!mohclass && realtime_possible) {
+				var = ast_load_realtime("musiconhold", "name", classes[i], SENTINEL);
+			}
+			if (mohclass || var) {
+				break;
+			}
 		}
 	}
 
@@ -1732,6 +1733,7 @@ static int load_moh_classes(int reload)
 	}
 
 	ast_clear_flag(global_flags, AST_FLAGS_ALL);
+	ast_set2_flag(global_flags, 1, MOH_PREFERCHANNELCLASS);
 
 	cat = ast_category_browse(cfg, NULL);
 	for (; cat; cat = ast_category_browse(cfg, cat)) {
@@ -1740,6 +1742,8 @@ static int load_moh_classes(int reload)
 			for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
 				if (!strcasecmp(var->name, "cachertclasses")) {
 					ast_set2_flag(global_flags, ast_true(var->value), MOH_CACHERTCLASSES);
+				} else if (!strcasecmp(var->name, "preferchannelclass")) {
+					ast_set2_flag(global_flags, ast_true(var->value), MOH_PREFERCHANNELCLASS);
 				} else {
 					ast_log(LOG_WARNING, "Unknown option '%s' in [general] section of musiconhold.conf\n", var->name);
 				}
