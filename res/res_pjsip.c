@@ -2786,18 +2786,22 @@ int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*si
 		return sip_task(task_data);
 	}
 
+	memset(&std, 0, sizeof(std));
 	ast_mutex_init(&std.lock);
 	ast_cond_init(&std.cond, NULL);
-	std.fail = std.complete = 0;
 	std.task = sip_task;
 	std.task_data = task_data;
 
 	if (serializer) {
 		if (ast_taskprocessor_push(serializer, sync_task, &std)) {
+			ast_mutex_destroy(&std.lock);
+			ast_cond_destroy(&std.cond);
 			return -1;
 		}
 	} else {
 		if (ast_threadpool_push(sip_threadpool, sync_task, &std)) {
+			ast_mutex_destroy(&std.lock);
+			ast_cond_destroy(&std.cond);
 			return -1;
 		}
 	}
