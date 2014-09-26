@@ -467,7 +467,7 @@ static int update_modem_bits(enum ast_fax_modems *bits, const char *value)
 		m[i] = NULL;
 	} else {
 		tok = strtok(v, ", ");
-		while (tok && (i < 5)) {
+		while (tok && i < ARRAY_LEN(m) - 1) {
 			m[i++] = tok;
 			tok = strtok(NULL, ", ");
 		}
