@@ -17,8 +17,10 @@ fi
 
 svn export http://svn.digium.com/svn/thirdparty/mp3/trunk addons/mp3 $@
 
-# Manually patch interface.c.
-sed -i -e '/#include "asterisk.h"/i#define WRAP_LIBC_MALLOC' \
-    addons/mp3/interface.c
+# Manually patch interface.c if not done yet.
+if ! grep -q WRAP_LIBC_MALLOC addons/mp3/interface.c; then
+    sed -i -e '/#include "asterisk.h"/i#define WRAP_LIBC_MALLOC' \
+        addons/mp3/interface.c
+fi
 
 exit 0
