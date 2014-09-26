@@ -43,6 +43,7 @@
 	<support_level>extended</support_level>
  ***/
 
+#define WRAP_LIBC_MALLOC
 #include "asterisk.h"
 
 #undef DEBUG_THREADS

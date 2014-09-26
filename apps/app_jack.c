@@ -497,7 +497,7 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 				jack_port_name(jack_data->output_port));
 		}
 
-		free((void *) ports);
+		jack_free(ports);
 
 		break;
 	}
@@ -528,7 +528,7 @@ static int init_jack_data(struct ast_channel *chan, struct jack_data *jack_data)
 				jack_port_name(jack_data->input_port));
 		}
 
-		free((void *) ports);
+		jack_free(ports);
 
 		break;
 	}

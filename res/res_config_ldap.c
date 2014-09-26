@@ -124,7 +124,7 @@ static struct ldap_table_config *table_config_new(const char *table_name)
 
 	if (table_name) {
 		if (!(p->table_name = ast_strdup(table_name))) {
-			free(p);
+			ast_free(p);
 			return NULL;
 		}
 	}
@@ -238,7 +238,7 @@ static void table_configs_free(void)
 		if (c->attributes) {
 			ast_variables_destroy(c->attributes);
 		}
-		free(c);
+		ast_free(c);
 	}
 
 	base_table_config = NULL;
@@ -516,14 +516,14 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 									is_delimited = 0;
 									pos = 0;
 								}
-								free(delim_value);
+								ast_free(delim_value);
 								delim_value = NULL;
 
 								ast_debug(4, "LINE(%d) DELIM pos: %d i: %d\n", __LINE__, pos, i);
 							} else {
 								/* not delimited */
 								if (delim_value) {
-									free(delim_value);
+									ast_free(delim_value);
 									delim_value = NULL;
 								}
 								ast_debug(2, "LINE(%d) attribute_name: %s value: %s\n", __LINE__, attribute_name, valptr);
@@ -1007,7 +1007,7 @@ static struct ast_variable *realtime_ldap(const char *basedn,
 			}
 			p++;
 		}
-		free(vars);
+		ast_free(vars);
 	}
 	return var;
 }
@@ -1066,7 +1066,7 @@ static struct ast_config *realtime_multi_ldap(const char *basedn,
 				p++;
 			}
 		}
-		free(vars);
+		ast_free(vars);
 	}
 	return cfg;
 
@@ -1365,8 +1365,8 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		ast_log(LOG_WARNING, "Query: %s\n", ast_str_buffer(filter));
 
 		ast_mutex_unlock(&ldap_lock);
-		free(filter);
-		free(clean_basedn);
+		ast_free(filter);
+		ast_free(clean_basedn);
 		ldap_msgfree(ldap_result_msg);
 		ldap_mods_free(ldap_mods, 0);
 		return -1;

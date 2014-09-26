@@ -4914,7 +4914,7 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 
 	if (rtp->red) {
 		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
-		free(rtp->red);
+		ast_free(rtp->red);
 		rtp->red = NULL;
 	}
 

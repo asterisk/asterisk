@@ -195,7 +195,7 @@ static void curlds_free(void *data)
 		return;
 	}
 	while ((setting = AST_LIST_REMOVE_HEAD(list, list))) {
-		free(setting);
+		ast_free(setting);
 	}
 	AST_LIST_HEAD_DESTROY(list);
 }
@@ -393,7 +393,7 @@ yuck:
 	AST_LIST_TRAVERSE_SAFE_BEGIN(list, cur, list) {
 		if (cur->key == new->key) {
 			AST_LIST_REMOVE_CURRENT(list);
-			free(cur);
+			ast_free(cur);
 			break;
 		}
 	}

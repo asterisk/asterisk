@@ -246,7 +246,7 @@ static void smdi_interface_destroy(void *obj)
 	ast_mutex_destroy(&iface->mwi_q_lock);
 	ast_cond_destroy(&iface->mwi_q_cond);
 
-	free(iface);
+	ast_free(iface);
 
 	ast_module_unref(ast_module_info->self);
 }
@@ -770,7 +770,7 @@ static void destroy_mailbox_mapping(struct mailbox_mapping *mm)
 {
 	ast_string_field_free_memory(mm);
 	ao2_ref(mm->iface, -1);
-	free(mm);
+	ast_free(mm);
 }
 
 static void destroy_all_mailbox_mappings(void)
@@ -1151,7 +1151,7 @@ static void smdi_msg_datastore_destroy(void *data)
 	ao2_cleanup(smd->iface);
 	ao2_cleanup(smd->md_msg);
 
-	free(smd);
+	ast_free(smd);
 }
 
 static const struct ast_datastore_info smdi_msg_datastore_info = {

@@ -16,6 +16,7 @@
 
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/utils.h"
 
 #include "ootrace.h"
 #include "ootypes.h"
@@ -366,13 +367,13 @@ int ooCleanCall(OOH323CallData *call)
 	if ((call->rtpMask->inuse) == 0) {
 		regfree(&call->rtpMask->regex);
 		ast_mutex_destroy(&call->rtpMask->lock);
-		free(call->rtpMask);
+		ast_free(call->rtpMask);
 	}
    }
 
    if ((pctxt = call->msgctxt) != NULL) {
    	freeContext(pctxt);
-   	free(pctxt);
+   	ast_free(pctxt);
    	call->msgctxt = NULL;
    }
 /* May !!!! Fix it !! */

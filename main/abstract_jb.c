@@ -857,7 +857,7 @@ void ast_jb_conf_default(struct ast_jb_conf *conf)
 }
 
 static void datastore_destroy_cb(void *data) {
-	ast_free(data);
+	free(data);
 	ast_debug(1, "JITTERBUFFER datastore destroyed\n");
 }
 

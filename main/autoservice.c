@@ -236,7 +236,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 			/* There will only be a single member in the list at this point,
 			   the one we just added. */
 			AST_LIST_REMOVE(&aslist, as, list);
-			free(as);
+			ast_free(as);
 			asthread = AST_PTHREADT_NULL;
 			res = -1;
 		} else {
@@ -313,7 +313,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	}
 	ast_channel_unlock(chan);
 
-	free(as);
+	ast_free(as);
 
 	return res;
 }

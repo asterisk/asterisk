@@ -412,17 +412,12 @@ static void filestream_destructor(void *arg)
 		}
 	}
 
-	if (f->filename)
-		free(f->filename);
-	if (f->realfilename)
-		free(f->realfilename);
+	ast_free(f->filename);
+	ast_free(f->realfilename);
 	if (f->vfs)
 		ast_closestream(f->vfs);
-	if (f->write_buffer) {
-		ast_free(f->write_buffer);
-	}
-	if (f->orig_chan_name)
-		free((void *) f->orig_chan_name);
+	ast_free(f->write_buffer);
+	ast_free((void *)f->orig_chan_name);
 	ao2_cleanup(f->lastwriteformat);
 	ao2_cleanup(f->fr.subclass.format);
 	ast_module_unref(f->fmt->module);

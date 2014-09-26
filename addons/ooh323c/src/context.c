@@ -15,6 +15,7 @@
  *****************************************************************************/
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/utils.h"
 
 #include "ooasn1.h"
 #include <stdlib.h>
@@ -157,11 +158,11 @@ int setPERBuffer (OOCTXT* pctxt,
 OOCTXT* newContext () 
 {
    /* OOCTXT* pctxt = (OOCTXT*) ASN1CRTMALLOC0 (sizeof(OOCTXT)); */
-   OOCTXT* pctxt = (OOCTXT*) malloc (sizeof(OOCTXT));
+   OOCTXT* pctxt = ast_malloc(sizeof(OOCTXT));
    if (pctxt) {
       if (initContext(pctxt) != ASN_OK) {
          /* ASN1CRTFREE0 (pctxt); */
-	 free(pctxt);
+	 ast_free(pctxt);
          pctxt = 0;
       }
       pctxt->flags |= ASN1DYNCTXT;

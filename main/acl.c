@@ -174,7 +174,7 @@ static int get_local_address(struct ast_sockaddr *ourip)
 		}
 
 		bufsz = ifn.lifn_count * sizeof(struct lifreq);
-		if (!(buf = malloc(bufsz))) {
+		if (!(buf = ast_malloc(bufsz))) {
 			close(s);
 			return -1;
 		}
@@ -187,7 +187,7 @@ static int get_local_address(struct ast_sockaddr *ourip)
 		ifc.lifc_flags = 0;
 		if (ioctl(s, SIOCGLIFCONF, &ifc) < 0) {
 			close(s);
-			free(buf);
+			ast_free(buf);
 			return -1;
 		}
 
@@ -201,7 +201,7 @@ static int get_local_address(struct ast_sockaddr *ourip)
 			}
 		}
 
-		free(buf);
+		ast_free(buf);
 #endif /* SOLARIS */
 
 		close(s);

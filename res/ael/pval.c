@@ -27,6 +27,7 @@
 	<support_level>extended</support_level>
  ***/
 
+#define WRAP_LIBC_MALLOC
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

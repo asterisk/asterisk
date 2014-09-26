@@ -218,7 +218,7 @@ static int add_identifier(struct ast_channel *chan, int identifier_type, void *d
 		ast_log(LOG_WARNING, "Unable to lock identifiers list\n");
 		return -1;
 	} else {
-		i = malloc(sizeof(*i));
+		i = ast_malloc(sizeof(*i));
 		AST_LIST_TRAVERSE(headp, j, entries) {
 			if (j->identifier > maxidentifier) {
 				maxidentifier = j->identifier;
@@ -247,7 +247,7 @@ static int del_identifier(int identifier, int identifier_type)
 			if ((i->identifier == identifier) &&
 			    (i->identifier_type == identifier_type)) {
 				AST_LIST_REMOVE(headp, i, entries);
-				free(i);
+				ast_free(i);
 				found = 1;
 				break;
 			}

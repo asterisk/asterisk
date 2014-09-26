@@ -260,7 +260,7 @@ static int split_ec(const char *src, char **ext, char ** const ctx, char ** cons
 		*c++ = '\0';
 		*ctx = c;
 		if (strchr(c, '@')) { /* two @, not allowed */
-			free(e);
+			ast_free(e);
 			return -1;
 		}
 	}
@@ -311,7 +311,7 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 					already_served = lookup_ci(nc, i_name);
 
 				if (!already_served && ++which > a->n)
-					res = strdup(i_name);
+					res = ast_strdup(i_name);
 			}
 			ast_unlock_context(c);
 		}
@@ -328,7 +328,7 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 
 		if (a->n > 0)
 			return NULL;
-		context = dupline = strdup(s);
+		context = dupline = ast_strdup(s);
 		if (!dupline) {
 			ast_log(LOG_ERROR, "Out of free memory\n");
 			return NULL;
@@ -337,18 +337,18 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 
 		if (ast_rdlock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock contexts list\n");
-			free(context);
+			ast_free(context);
 			return NULL;
 		}
 
 		/* go through all contexts and check if is included ... */
 		while (!res && (c = ast_walk_contexts(c)))
 			if (lookup_ci(c, context)) /* context is really included, complete "from" command */
-				res = strdup("from");
+				res = ast_strdup("from");
 		ast_unlock_contexts();
 		if (!res)
 			ast_log(LOG_WARNING, "%s not included anywhere\n", context);
-		free(context);
+		ast_free(context);
 		return res;
 	} else if (a->pos == 5) { /* "dialplan remove include CTX from _X_" */
 		/*
@@ -356,7 +356,7 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 		 */
 		char *context, *dupline, *from;
 		const char *s = skip_words(a->line, 3); /* skip 'dialplan' 'remove' 'include' */
-		context = dupline = strdup(s);
+		context = dupline = ast_strdup(s);
 		if (!dupline) {
 			ast_log(LOG_ERROR, "Out of free memory\n");
 			return NULL;
@@ -367,13 +367,13 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 		/* fourth word must be 'from' */
 		from = strsep(&dupline, " ");
 		if (!from || strcmp(from, "from")) {
-			free(context);
+			ast_free(context);
 			return NULL;
 		}
 
 		if (ast_rdlock_contexts()) {
 			ast_log(LOG_ERROR, "Failed to lock context list\n");
-			free(context);
+			ast_free(context);
 			return NULL;
 		}
 
@@ -385,10 +385,10 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 				continue;
 			/* walk through all includes and check if it is our context */	
 			if (lookup_ci(c, context) && ++which > a->n)
-				res = strdup(c_name);
+				res = ast_strdup(c_name);
 		}
 		ast_unlock_contexts();
-		free(context);
+		ast_free(context);
 		return res;
 	}
 
@@ -458,7 +458,7 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 	if ((!strlen(exten)) || (!(strlen(context)))) {
 		ast_cli(a->fd, "Missing extension or context name in third argument '%s'\n",
 			a->argv[3]);
-		free(exten);
+		ast_free(exten);
 		return CLI_FAILURE;
 	}
 
@@ -481,7 +481,7 @@ static char *handle_cli_dialplan_remove_extension(struct ast_cli_entry *e, int c
 		}
 		ret = CLI_FAILURE;
 	}
-	free(exten);
+	ast_free(exten);
 	return ret;
 }
 
@@ -593,7 +593,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 
 		ast_unlock_contexts();
 	error2:
-		free(exten);
+		ast_free(exten);
 	} else if (a->pos == 4) { /* 'dialplan remove extension EXT _X_' (priority) */
 		char *exten = NULL, *context, *cid, *p;
 		struct ast_context *c;
@@ -641,7 +641,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 				while ( !ret && (priority = ast_walk_extension_priorities(e, priority)) ) {
 					snprintf(buffer, sizeof(buffer), "%d", ast_get_extension_priority(priority));
 					if (partial_match(buffer, a->word, len) && ++which > a->n) /* n-th match */
-						ret = strdup(buffer);
+						ret = ast_strdup(buffer);
 				}
 				break;
 			}
@@ -649,7 +649,7 @@ static char *complete_dialplan_remove_extension(struct ast_cli_args *a)
 		}
 		ast_unlock_contexts();
 	error3:
-		free(exten);
+		ast_free(exten);
 	}
 	return ret; 
 }
@@ -741,16 +741,16 @@ static char *complete_dialplan_add_include(struct ast_cli_args *a)
 		}
 		for (c = NULL; !ret && (c = ast_walk_contexts(c)); )
 			if (partial_match(ast_get_context_name(c), a->word, len) && ++which > a->n)
-				ret = strdup(ast_get_context_name(c));
+				ret = ast_strdup(ast_get_context_name(c));
 		ast_unlock_contexts();
 		return ret;
 	} else if (a->pos == 4) { /* dialplan add include CTX _X_ */
 		/* always complete  as 'into' */
-		return (a->n == 0) ? strdup("into") : NULL;
+		return (a->n == 0) ? ast_strdup("into") : NULL;
 	} else if (a->pos == 5) { /* 'dialplan add include CTX into _X_' (dst context) */
 		char *context, *dupline, *into;
 		const char *s = skip_words(a->line, 3); /* should not fail */
-		context = dupline = strdup(s);
+		context = dupline = ast_strdup(s);
 
 		if (!dupline) {
 			ast_log(LOG_ERROR, "Out of free memory\n");
@@ -777,12 +777,12 @@ static char *complete_dialplan_add_include(struct ast_cli_args *a)
 			if (partial_match(ast_get_context_name(c), a->word, len) &&
 					!lookup_ci(c, context) /* not included yet */ &&
 					++which > a->n) {
-				ret = strdup(ast_get_context_name(c));
+				ret = ast_strdup(ast_get_context_name(c));
 			}
 		}
 		ast_unlock_contexts();
 	error3:
-		free(context);
+		ast_free(context);
 		return ret;
 	}
 
@@ -1259,7 +1259,7 @@ static char *complete_dialplan_remove_context(struct ast_cli_args *a)
 	/* walk through all contexts */
 	while ( !res && (c = ast_walk_contexts(c)) ) {
 		if (partial_match(ast_get_context_name(c), a->word, len) && ++which > a->n) {
-			res = strdup(ast_get_context_name(c));
+			res = ast_strdup(ast_get_context_name(c));
 		}
 	}
 	ast_unlock_contexts();
@@ -1272,7 +1272,7 @@ static char *complete_dialplan_add_extension(struct ast_cli_args *a)
 	int which = 0;
 
 	if (a->pos == 4) {		/* complete 'into' word ... */
-		return (a->n == 0) ? strdup("into") : NULL;
+		return (a->n == 0) ? ast_strdup("into") : NULL;
 	} else if (a->pos == 5) { /* complete context */
 		struct ast_context *c = NULL;
 		int len = strlen(a->word);
@@ -1287,11 +1287,11 @@ static char *complete_dialplan_add_extension(struct ast_cli_args *a)
 		/* walk through all contexts */
 		while ( !res && (c = ast_walk_contexts(c)) )
 			if (partial_match(ast_get_context_name(c), a->word, len) && ++which > a->n)
-				res = strdup(ast_get_context_name(c));
+				res = ast_strdup(ast_get_context_name(c));
 		ast_unlock_contexts();
 		return res;
 	} else if (a->pos == 6) {
-		return a->n == 0 ? strdup("replace") : NULL;
+		return a->n == 0 ? ast_strdup("replace") : NULL;
 	}
 	return NULL;
 }
@@ -1356,7 +1356,7 @@ static char *handle_cli_dialplan_add_ignorepat(struct ast_cli_entry *e, int cmd,
 static char *complete_dialplan_add_ignorepat(struct ast_cli_args *a)
 {
 	if (a->pos == 4)
-		return a->n == 0 ? strdup("into") : NULL;
+		return a->n == 0 ? ast_strdup("into") : NULL;
 	else if (a->pos == 5) {
 		struct ast_context *c;
 		int which = 0;
@@ -1369,7 +1369,7 @@ static char *complete_dialplan_add_ignorepat(struct ast_cli_args *a)
 		s = skip_words(a->line, 3);
 		if (s == NULL)
 			return NULL;
-		dupline = strdup(s);
+		dupline = ast_strdup(s);
 		if (!dupline) {
 			ast_log(LOG_ERROR, "Malloc failure\n");
 			return NULL;
@@ -1389,10 +1389,10 @@ static char *complete_dialplan_add_ignorepat(struct ast_cli_args *a)
 			if (ignorepat) /* there must be one, right ? */
 				found = lookup_c_ip(c, ignorepat);
 			if (!found && ++which > a->n)
-				ret = strdup(ast_get_context_name(c));
+				ret = ast_strdup(ast_get_context_name(c));
 		}
 
-		free(ignorepat);
+		ast_free(ignorepat);
 		ast_unlock_contexts();
 		return ret;
 	}
@@ -1478,7 +1478,7 @@ static char *complete_dialplan_remove_ignorepat(struct ast_cli_args *a)
 						found = lookup_c_ip(cw, ast_get_ignorepat_name(ip));
 					}
 					if (!found)
-						ret = strdup(ast_get_ignorepat_name(ip));
+						ret = ast_strdup(ast_get_ignorepat_name(ip));
 				}
 			}
 			ast_unlock_context(c);
@@ -1486,12 +1486,12 @@ static char *complete_dialplan_remove_ignorepat(struct ast_cli_args *a)
 		ast_unlock_contexts();
 		return ret;
 	} else if (a->pos == 4) {
-		 return a->n == 0 ? strdup("from") : NULL;
+		 return a->n == 0 ? ast_strdup("from") : NULL;
 	} else if (a->pos == 5) { /* XXX check this */
 		char *dupline, *duplinet, *ignorepat;
 		int len = strlen(a->word);
 
-		dupline = strdup(a->line);
+		dupline = ast_strdup(a->line);
 		if (!dupline) {
 			ast_log(LOG_WARNING, "Out of free memory\n");
 			return NULL;
@@ -1503,13 +1503,13 @@ static char *complete_dialplan_remove_ignorepat(struct ast_cli_args *a)
 		ignorepat = strsep(&duplinet, " ");
 
 		if (!ignorepat) {
-			free(dupline);
+			ast_free(dupline);
 			return NULL;
 		}
 
 		if (ast_rdlock_contexts()) {
 			ast_log(LOG_WARNING, "Failed to lock contexts list\n");
-			free(dupline);
+			ast_free(dupline);
 			return NULL;
 		}
 
@@ -1519,11 +1519,11 @@ static char *complete_dialplan_remove_ignorepat(struct ast_cli_args *a)
 			if (!partial_match(ast_get_context_name(c), a->word, len))
 				continue;
 			if (lookup_c_ip(c, ignorepat) && ++which > a->n)
-				ret = strdup(ast_get_context_name(c));
+				ret = ast_strdup(ast_get_context_name(c));
 			ast_unlock_context(c);
 		}
 		ast_unlock_contexts();
-		free(dupline);
+		ast_free(dupline);
 		return NULL;
 	}
 

@@ -610,7 +610,7 @@ void ast_module_shutdown(void)
 				mod->info->unload();
 			}
 			AST_LIST_HEAD_DESTROY(&mod->users);
-			free(mod);
+			ast_free(mod);
 			somethingchanged = 1;
 		}
 		AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_END;

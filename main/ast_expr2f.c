@@ -1,3 +1,4 @@
+#define WRAP_LIBC_MALLOC
 #include "asterisk.h"
 
 #line 2 "ast_expr2f.c"

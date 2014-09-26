@@ -74,10 +74,45 @@ int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *fil
 void __ast_mm_init_phase_1(void);
 void __ast_mm_init_phase_2(void);
 
+/* Redefine libc malloc to our own versions */
 
-/* Provide our own definitions */
+#ifdef WRAP_LIBC_MALLOC
 #define calloc(a,b) \
 	__ast_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define malloc(a) \
+	__ast_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define free(a) \
+	__ast_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define realloc(a,b) \
+	__ast_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define strdup(a) \
+	__ast_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define strndup(a,b) \
+	__ast_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define asprintf(a, b, c...) \
+	__ast_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
+#define vasprintf(a,b,c) \
+	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+#else
+#define calloc(a,b) \
+	Do_not_use_calloc__use_ast_calloc(a,b)
+#define malloc(a) \
+	Do_not_use_malloc__use_ast_malloc(a)
+#define free(a) \
+	Do_not_use_free__use_ast_free_or_ast_std_free_for_remotely_allocated_memory(a)
+#define realloc(a,b) \
+	Do_not_use_realloc__use_ast_realloc(a,b)
+#define strdup(a) \
+	Do_not_use_strdup__use_ast_strdup(a)
+#define strndup(a,b) \
+	Do_not_use_strndup__use_ast_strndup(a,b)
+#define asprintf(a, b, c...) \
+	Do_not_use_asprintf__use_ast_asprintf(a,b,c)
+#define vasprintf(a,b,c) \
+	Do_not_use_vasprintf__use_ast_vasprintf(a,b,c)
+#endif
+
+/* Provide our own definitions */
 
 #define ast_calloc(a,b) \
 	__ast_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -85,44 +120,23 @@ void __ast_mm_init_phase_2(void);
 #define ast_calloc_cache(a,b) \
 	__ast_calloc_cache(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define malloc(a) \
-	__ast_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
 #define ast_malloc(a) \
 	__ast_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define free(a) \
-	__ast_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ast_free(a) \
 	__ast_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define realloc(a,b) \
-	__ast_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
 #define ast_realloc(a,b) \
 	__ast_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define strdup(a) \
-	__ast_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ast_strdup(a) \
 	__ast_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define strndup(a,b) \
-	__ast_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
 #define ast_strndup(a,b) \
 	__ast_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#define asprintf(a, b, c...) \
-	__ast_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
-
 #define ast_asprintf(a, b, c...) \
 	__ast_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
-
-#define vasprintf(a,b,c) \
-	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ast_vasprintf(a,b,c) \
 	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)

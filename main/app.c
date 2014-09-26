@@ -1892,7 +1892,7 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, group_list) {
 		if ((gi->chan == chan) && ((ast_strlen_zero(category) && ast_strlen_zero(gi->category)) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
 			AST_RWLIST_REMOVE_CURRENT(group_list);
-			free(gi);
+			ast_free(gi);
 			break;
 		}
 	}
@@ -1900,7 +1900,7 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 
 	if (ast_strlen_zero(group)) {
 		/* Enable unsetting the group */
-	} else if ((gi = calloc(1, len))) {
+	} else if ((gi = ast_calloc(1, len))) {
 		gi->chan = chan;
 		gi->group = (char *) gi + sizeof(*gi);
 		strcpy(gi->group, group);
@@ -2176,9 +2176,9 @@ static void path_lock_destroy(struct path_lock *obj)
 		close(obj->fd);
 	}
 	if (obj->path) {
-		free(obj->path);
+		ast_free(obj->path);
 	}
-	free(obj);
+	ast_free(obj);
 }
 
 static enum AST_LOCK_RESULT ast_lock_path_flock(const char *path)
@@ -2222,7 +2222,7 @@ static enum AST_LOCK_RESULT ast_lock_path_flock(const char *path)
 		return AST_LOCK_FAILURE;
 	}
 	pl->fd = fd;
-	pl->path = strdup(path);
+	pl->path = ast_strdup(path);
 
 	time(&start);
 	while (

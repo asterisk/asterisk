@@ -961,7 +961,7 @@ int ooMonitorCallChannels(OOH323CallData *call)
    ast_cond_destroy(&call->gkWait);
    pctxt = call->pctxt;
    freeContext(pctxt);
-   free(pctxt);
+   ast_free(pctxt);
 
    return OO_OK;
 }

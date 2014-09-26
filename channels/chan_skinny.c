@@ -8540,16 +8540,16 @@ static void delete_devices(void)
 		}
 		/* Delete all speeddials for this device */
 		while ((sd = AST_LIST_REMOVE_HEAD(&d->speeddials, list))) {
-			free(sd->container);
-			free(sd);
+			ast_free(sd->container);
+			ast_free(sd);
 		}
 		/* Delete all serviceurls for this device */
 		while ((surl = AST_LIST_REMOVE_HEAD(&d->serviceurls, list))) {
-			free(surl);
+			ast_free(surl);
 		}
 		/* Delete all addons for this device */
 		while ((a = AST_LIST_REMOVE_HEAD(&d->addons, list))) {
-			free(a);
+			ast_free(a);
 		}
 		d = skinny_device_destroy(d);
 	}
@@ -8603,11 +8603,11 @@ int skinny_reload(void)
 		}
 		/* Delete all speeddials for this device */
 		while ((sd = AST_LIST_REMOVE_HEAD(&d->speeddials, list))) {
-			free(sd);
+			ast_free(sd);
 		}
 		/* Delete all addons for this device */
 		while ((a = AST_LIST_REMOVE_HEAD(&d->addons, list))) {
-			free(a);
+			ast_free(a);
 		}
 		AST_LIST_REMOVE_CURRENT(list);
 		d = skinny_device_destroy(d);

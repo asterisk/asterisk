@@ -26,6 +26,7 @@
 	<support_level>core</support_level>
  ***/
 
+#define WRAP_LIBC_MALLOC
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -255,7 +256,7 @@ ast_hashtab_create
 #else
 	if (!(ht->array = ast_calloc(initial_buckets, sizeof(*(ht->array))))) {
 #endif
-		free(ht);
+		ast_free(ht);
 		return NULL;
 	}
 

@@ -121,7 +121,7 @@ void* ooh323c_call_thread(void* dummy)
 
  close(mycthread->thePipe[0]);
  close(mycthread->thePipe[1]);
- free(mycthread);
+ ast_free(mycthread);
  ast_module_unref(myself);
  ast_update_use_count();
  return NULL;
@@ -155,7 +155,7 @@ int ooh323c_start_call_thread(ooCallData *call) {
 	ast_module_ref(myself);
 	if ((socketpair(PF_LOCAL, SOCK_STREAM, 0, cur->thePipe)) == -1) {
 		ast_log(LOG_ERROR, "Can't create thread pipe for call %s\n", call->callToken);
-		free(cur);
+		ast_free(cur);
 		return -1;
 	}
 	cur->inUse = TRUE;
@@ -173,7 +173,7 @@ int ooh323c_start_call_thread(ooCallData *call) {
 		ast_mutex_destroy(&cur->lock);
 		close(cur->thePipe[0]);
 		close(cur->thePipe[1]);
-		free(cur);
+		ast_free(cur);
   		return -1;
  	}
 

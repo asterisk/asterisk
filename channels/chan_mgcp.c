@@ -3812,7 +3812,7 @@ static int mgcp_prune_realtime_gateway(struct mgcp_gateway *g)
 			if (prune) {
 				ast_mutex_destroy(&s->lock);
 				ast_mutex_destroy(&s->cx_queue_lock);
-				free(s);
+				ast_free(s);
 			}
 		}
 		ast_mutex_unlock(&e->lock);
@@ -3822,7 +3822,7 @@ static int mgcp_prune_realtime_gateway(struct mgcp_gateway *g)
 			ast_mutex_destroy(&e->lock);
 			ast_mutex_destroy(&e->rqnt_queue_lock);
 			ast_mutex_destroy(&e->cmd_queue_lock);
-			free(e);
+			ast_free(e);
 		}
 	}
 	if (prune) {
@@ -3914,7 +3914,7 @@ static void *do_monitor(void *data)
 						}
 						ast_mutex_unlock(&g->msgs_lock);
 						ast_mutex_destroy(&g->msgs_lock);
-						free(g);
+						ast_free(g);
 					} else {
 						ast_mutex_unlock(&g->msgs_lock);
 						gprev = g;

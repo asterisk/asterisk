@@ -15,6 +15,7 @@
  *****************************************************************************/
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/utils.h"
 #include <stdlib.h>
 #include "memheap.h"
 
@@ -176,13 +177,13 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
 
       /* allocate raw block */
 
-      data = malloc (nbytes);
+      data = ast_malloc(nbytes);
       if (data == NULL) {
          return NULL;
       }
       pMemLink = memHeapAddBlock (ppMemLink, data, RTMEMMALLOC | RTMEMRAW);
       if (pMemLink == 0) {
-         free (data);
+         ast_free(data);
          return NULL;
       }
       /* save size of the RAW memory block behind the pMemLink */
@@ -333,7 +334,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
             ((((ASN1UINT)dataUnits) * 8u) + sizeof (OSMemBlk));
       }  
 
-      pmem = (ASN1OCTET*) malloc (allocSize + sizeof (OSMemLink));
+      pmem = (ASN1OCTET*) ast_malloc(allocSize + sizeof (OSMemLink));
       if (0 != pmem) {
          OSMemElemDescr* pElem;
 
@@ -357,7 +358,7 @@ void* memHeapAlloc (void** ppvMemHeap, int nbytes)
 
          if (memHeapAddBlock (ppMemLink, pMemBlk, RTMEMSTD | RTMEMLINK) == 0) 
          {
-            free (pmem);
+            ast_free(pmem);
 	    ast_mutex_unlock(&pMemHeap->pLock);
             return NULL;
          }
@@ -437,12 +438,12 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
          if ((pMemLink->blockType & RTMEMLINK) && 
              (pMemLink->blockType & RTMEMMALLOC))
          {
-            free (pMemLink);
+            ast_free(pMemLink);
          }
          else {
             if (pMemLink->blockType & RTMEMMALLOC)
-               free (pMemLink->pMemBlk);
-            free (pMemLink);
+               ast_free(pMemLink->pMemBlk);
+            ast_free(pMemLink);
          }
 	 ast_mutex_unlock(&pMemHeap->pLock);
          return;
@@ -553,11 +554,11 @@ void memHeapFreePtr (void** ppvMemHeap, void* mem_p)
             FILLFREEMEM (pMemBlk->plink, sizeof (*pMemBlk->plink));
             FILLFREEMEM (pMemBlk->data, (pMemBlk->nunits * 8u));
          
-            free (pMemBlk->plink);
+            ast_free(pMemBlk->plink);
             
             if (!(blockType & RTMEMLINK)) {
                FILLFREEMEM (pMemBlk, sizeof (*pMemBlk));
-               free (pMemBlk);
+               ast_free(pMemBlk);
             }
             RTMEMDIAG2 ("memHeapFreePtr: pMemBlk = 0x%x was freed\n", 
                              pMemBlk);
@@ -748,7 +749,7 @@ void* memHeapRealloc (void** ppvMemHeap, void* mem_p, int nbytes_)
            pMemLink->pMemBlk == mem_p) 
       {
          if (pMemLink->blockType & RTMEMMALLOC) {
-             void *newMemBlk = realloc (pMemLink->pMemBlk, nbytes_);
+             void *newMemBlk = ast_realloc(pMemLink->pMemBlk, nbytes_);
              if (newMemBlk == 0) 
                 return 0;
              pMemLink->pMemBlk = newMemBlk;
@@ -1038,8 +1039,8 @@ void memHeapFreeAll (void** ppvMemHeap)
          if (((pMemLink2->blockType & RTMEMSTD) || 
               (pMemLink2->blockType & RTMEMMALLOC)) &&
               !(pMemLink2->blockType & RTMEMLINK)) 
-            free (pMemLink2->pMemBlk);
-         free (pMemLink2);
+            ast_free(pMemLink2->pMemBlk);
+         ast_free(pMemLink2);
       }
    }
    ast_mutex_unlock(&pMemHeap->pLock);
@@ -1075,12 +1076,12 @@ void memHeapRelease (void** ppvMemHeap)
          pMemLink2 = pMemLink;
          pMemLink  = pMemLink2->pnext;
 
-         free (pMemLink2);
+         ast_free(pMemLink2);
       }
 
       if ((*ppMemHeap)->flags & RT_MH_FREEHEAPDESC) {
          ast_mutex_destroy(&pMemHeap->pLock);
-         free (*ppMemHeap);
+         ast_free(*ppMemHeap);
       }
       *ppMemHeap = 0;
    }
@@ -1215,8 +1216,7 @@ static OSMemLink* memHeapAddBlock (OSMemLink** ppMemLink,
    if (blockType & RTMEMLINK) 
       pMemLink = (OSMemLink*) (((ASN1OCTET*)pMemBlk) - sizeof (OSMemLink));
    else {
-      pMemLink = (OSMemLink*) malloc (
-         sizeof(OSMemLink) + sizeof (int));
+      pMemLink = ast_malloc(sizeof(OSMemLink) + sizeof(int));
       if (pMemLink == 0) return 0;
       /* An extra integer is necessary to save a size of a RAW memory block
          to perform rtMemRealloc through malloc/memcpy/free */
@@ -1339,7 +1339,7 @@ int memHeapCreate (void** ppvMemHeap)
    OSMemHeap* pMemHeap;
    if (ppvMemHeap == 0) return ASN_E_INVPARAM;
 
-   pMemHeap = (OSMemHeap*) malloc (sizeof (OSMemHeap));
+   pMemHeap = ast_malloc(sizeof (OSMemHeap));
    if (pMemHeap == NULL) return ASN_E_NOMEM;
    memset (pMemHeap, 0, sizeof (OSMemHeap));
    pMemHeap->defBlkSize = g_defBlkSize;

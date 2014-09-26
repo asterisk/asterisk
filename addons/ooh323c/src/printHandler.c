@@ -19,6 +19,7 @@
 */
 #include "asterisk.h"
 #include "asterisk/lock.h"
+#include "asterisk/utils.h"
 
 #include <stdlib.h>
 /* #ifdef HAVE_MALLOC_H
@@ -126,10 +127,10 @@ void printBitStrValue (ASN1UINT numbits, const ASN1OCTET* data)
    indent ();
    OOTRACEDBGB2("%s\n", bitStrToString (numbits, data, s, numbits+8));
 #else
-   char* s = (char*)malloc(numbits + 8);
+   char* s = ast_malloc(numbits + 8);
    indent ();
    OOTRACEDBGB2("%s\n", bitStrToString (numbits, data, s, numbits+8));
-   free(s);
+   ast_free(s);
 #endif
 }
 
@@ -141,10 +142,10 @@ void printOctStrValue (ASN1UINT numocts, const ASN1OCTET* data)
    indent ();
    OOTRACEDBGB2 ("%s\n", octStrToString (numocts, data, s, bufsiz));
 #else
-   char* s = (char*)malloc(bufsiz);
+   char* s = ast_malloc(bufsiz);
    indent ();
    OOTRACEDBGB2 ("%s\n", octStrToString (numocts, data, s, bufsiz));
-   free(s);
+   ast_free(s);
 #endif
 }
 

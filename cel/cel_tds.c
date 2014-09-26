@@ -240,21 +240,21 @@ retry:
 done:
 	ast_mutex_unlock(&tds_lock);
 
-	free(accountcode_ai);
-	free(clidnum_ai);
-	free(clid_ai);
-	free(cidani_ai);
-	free(cidrdnis_ai);
-	free(ciddnid_ai);
-	free(exten_ai);
-	free(context_ai);
-	free(channel_ai);
-	free(app_ai);
-	free(appdata_ai);
-	free(uniqueid_ai);
-	free(linkedid_ai);
-	free(userfield_ai);
-	free(peer_ai);
+	ast_free(accountcode_ai);
+	ast_free(clidnum_ai);
+	ast_free(clid_ai);
+	ast_free(cidani_ai);
+	ast_free(cidrdnis_ai);
+	ast_free(ciddnid_ai);
+	ast_free(exten_ai);
+	ast_free(context_ai);
+	ast_free(channel_ai);
+	ast_free(app_ai);
+	ast_free(appdata_ai);
+	ast_free(uniqueid_ai);
+	ast_free(linkedid_ai);
+	ast_free(userfield_ai);
+	ast_free(peer_ai);
 
 	return;
 }
@@ -317,11 +317,11 @@ static int execute_and_consume(DBPROCESS *dbproc, const char *fmt, ...)
 	va_end(ap);
 
 	if (dbfcmd(dbproc, buffer) == FAIL) {
-		free(buffer);
+		ast_free(buffer);
 		return 1;
 	}
 
-	free(buffer);
+	ast_free(buffer);
 
 	if (dbsqlexec(dbproc) == FAIL) {
 		return 1;

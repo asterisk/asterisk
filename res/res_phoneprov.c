@@ -272,7 +272,7 @@ static int profile_cmp_fn(void *obj, void *arg, int flags)
 static void delete_file(struct phoneprov_file *file)
 {
 	ast_string_field_free_memory(file);
-	free(file);
+	ast_free(file);
 }
 
 static void profile_destructor(void *obj)
@@ -340,7 +340,7 @@ static int load_file(const char *filename, char **ret)
 		return -2;
 
 	if (len != fread(*ret, sizeof(char), len, f)) {
-		free(*ret);
+		ast_free(*ret);
 		*ret = NULL;
 		return -3;
 	}
