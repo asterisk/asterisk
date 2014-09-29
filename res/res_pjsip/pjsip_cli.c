@@ -198,21 +198,21 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 
 	if (is_container) {
 		if (!ao2_container_count(container)) {
-			dump_str_and_free(a->fd, context.output_buffer);
+			ast_free(context.output_buffer);
 			ast_cli(a->fd, "No objects found.\n\n");
 			return CLI_SUCCESS;
 		}
 		ao2_callback(container, OBJ_NODATA, formatter_entry->print_body, &context);
 	} else {
 		if (ast_strlen_zero(object_id)) {
-			dump_str_and_free(a->fd, context.output_buffer);
+			ast_free(context.output_buffer);
 			ast_cli(a->fd, "No object specified.\n");
 			return CLI_FAILURE;
 		}
 
 		object = formatter_entry->retrieve_by_id(object_id);
 		if (!object) {
-			dump_str_and_free(a->fd, context.output_buffer);
+			ast_free(context.output_buffer);
 			ast_cli(a->fd, "Unable to find object %s.\n\n", object_id);
 			return CLI_SUCCESS;
 		}
