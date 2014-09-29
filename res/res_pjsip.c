@@ -1433,11 +1433,7 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	char uuid_str[AST_UUID_STR_LEN];
 
 	if (ast_strlen_zero(user)) {
-		RAII_VAR(struct ast_uuid *, uuid, ast_uuid_generate(), ast_free_ptr);
-		if (!uuid) {
-			return -1;
-		}
-		user = ast_uuid_to_str(uuid, uuid_str, sizeof(uuid_str));
+		user = ast_uuid_generate_str(uuid_str, sizeof(uuid_str));
 	}
 
 	/* Parse the provided target URI so we can determine what transport it will end up using */
@@ -2186,14 +2182,9 @@ int ast_sip_append_body(pjsip_tx_data *tdata, const char *body_text)
 struct ast_taskprocessor *ast_sip_create_serializer(void)
 {
 	struct ast_taskprocessor *serializer;
-	RAII_VAR(struct ast_uuid *, uuid, ast_uuid_generate(), ast_free_ptr);
 	char name[AST_UUID_STR_LEN];
 
-	if (!uuid) {
-		return NULL;
-	}
-
-	ast_uuid_to_str(uuid, name, sizeof(name));
+	ast_uuid_generate_str(name, sizeof(name));
 
 	serializer = ast_threadpool_serializer(name, sip_threadpool);
 	if (!serializer) {

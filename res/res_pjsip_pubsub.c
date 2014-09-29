@@ -856,6 +856,7 @@ static void subscription_datastore_destroy(void *obj)
 struct ast_datastore *ast_sip_subscription_alloc_datastore(const struct ast_datastore_info *info, const char *uid)
 {
 	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
+	char uuid_buf[AST_UUID_STR_LEN];
 	const char *uid_ptr = uid;
 
 	if (!info) {
@@ -870,13 +871,7 @@ struct ast_datastore *ast_sip_subscription_alloc_datastore(const struct ast_data
 	datastore->info = info;
 	if (ast_strlen_zero(uid)) {
 		/* They didn't provide an ID so we'll provide one ourself */
-		struct ast_uuid *uuid = ast_uuid_generate();
-		char uuid_buf[AST_UUID_STR_LEN];
-		if (!uuid) {
-			return NULL;
-		}
-		uid_ptr = ast_uuid_to_str(uuid, uuid_buf, sizeof(uuid_buf));
-		ast_free(uuid);
+		uid_ptr = ast_uuid_generate_str(uuid_buf, sizeof(uuid_buf));
 	}
 
 	datastore->uid = ast_strdup(uid_ptr);

@@ -438,15 +438,16 @@ static struct ast_sip_authenticator digest_authenticator = {
 
 static int build_entity_id(void)
 {
-	RAII_VAR(struct ast_uuid *, uu, ast_uuid_generate(), ast_free_ptr);
-	RAII_VAR(char *, eid, ao2_alloc(AST_UUID_STR_LEN, NULL), ao2_cleanup);
+	char *eid;
 
-	if (!uu || !eid) {
+	eid = ao2_alloc(AST_UUID_STR_LEN, NULL);
+	if (!eid) {
 		return -1;
 	}
 
-	ast_uuid_to_str(uu, eid, AST_UUID_STR_LEN);
+	ast_uuid_generate_str(eid, AST_UUID_STR_LEN);
 	ao2_global_obj_replace_unref(entity_id, eid);
+	ao2_ref(eid, -1);
 	return 0;
 }
 
