@@ -385,13 +385,15 @@ static void threadpool_destructor(void *obj)
  * \retval NULL Could not initialize threadpool properly
  * \retval non-NULL The newly-allocated threadpool
  */
-static void *threadpool_alloc(const char *name, const struct ast_threadpool_options *options)
+static struct ast_threadpool *threadpool_alloc(const char *name, const struct ast_threadpool_options *options)
 {
-	RAII_VAR(struct ast_threadpool *, pool,
-			ao2_alloc(sizeof(*pool), threadpool_destructor), ao2_cleanup);
-	struct ast_str *control_tps_name = ast_str_create(64);
+	RAII_VAR(struct ast_threadpool *, pool, NULL, ao2_cleanup);
+	struct ast_str *control_tps_name;
 
-	if (!control_tps_name) {
+	pool = ao2_alloc(sizeof(*pool), threadpool_destructor);
+	control_tps_name = ast_str_create(64);
+	if (!pool || !control_tps_name) {
+		ast_free(control_tps_name);
 		return NULL;
 	}
 
@@ -859,8 +861,9 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 {
 	struct ast_taskprocessor *tps;
 	RAII_VAR(struct ast_taskprocessor_listener *, tps_listener, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_threadpool *, pool, threadpool_alloc(name, options), ao2_cleanup);
+	RAII_VAR(struct ast_threadpool *, pool, NULL, ao2_cleanup);
 
+	pool = threadpool_alloc(name, options);
 	if (!pool) {
 		return NULL;
 	}
@@ -1136,7 +1139,9 @@ static void serializer_dtor(void *obj)
 
 static struct serializer *serializer_create(struct ast_threadpool *pool)
 {
-	struct serializer *ser = ao2_alloc(sizeof(*ser), serializer_dtor);
+	struct serializer *ser;
+
+	ser = ao2_alloc_options(sizeof(*ser), serializer_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!ser) {
 		return NULL;
 	}
