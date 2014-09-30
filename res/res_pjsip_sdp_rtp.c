@@ -371,7 +371,7 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 		struct ast_str *attr_candidate = ast_str_create(128);
 
 		ast_str_set(&attr_candidate, -1, "%s %u %s %d %s ", candidate->foundation, candidate->id, candidate->transport,
-					candidate->priority, ast_sockaddr_stringify_host(&candidate->address));
+					candidate->priority, ast_sockaddr_stringify_addr_remote(&candidate->address));
 		ast_str_append(&attr_candidate, -1, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
 
 		switch (candidate->type) {
@@ -387,7 +387,7 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 		}
 
 		if (!ast_sockaddr_isnull(&candidate->relay_address)) {
-			ast_str_append(&attr_candidate, -1, " raddr %s rport ", ast_sockaddr_stringify_host(&candidate->relay_address));
+			ast_str_append(&attr_candidate, -1, " raddr %s rport", ast_sockaddr_stringify_addr_remote(&candidate->relay_address));
 			ast_str_append(&attr_candidate, -1, " %s", ast_sockaddr_stringify_port(&candidate->relay_address));
 		}
 
