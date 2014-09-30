@@ -1139,7 +1139,7 @@ static void ast_rtp_ice_turn_request(struct ast_rtp_instance *instance, enum ast
 	pj_turn_sock_get_info(*turn_sock, &info);
 
 	ast_rtp_ice_add_cand(rtp, component, conn_transport, PJ_ICE_CAND_TYPE_RELAYED, 65535, &info.relay_addr,
-		&info.relay_addr, NULL, pj_sockaddr_get_len(&info.relay_addr));
+		&info.relay_addr, &info.mapped_addr, pj_sockaddr_get_len(&info.relay_addr));
 
 	if (component == AST_RTP_ICE_COMPONENT_RTP) {
 		ast_sockaddr_copy(&rtp->rtp_loop, &loop);
@@ -2269,7 +2269,7 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 			pj_sockaddr_init(pj_AF_INET(), &address[0], &mapped, ntohs(answer.sin_port));
 
 			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_SRFLX, 65535, &address[0], &base,
-					     NULL, pj_sockaddr_get_len(&address[0]));
+					     &base, pj_sockaddr_get_len(&address[0]));
 		}
 	}
 
