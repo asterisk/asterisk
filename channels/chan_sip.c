@@ -31204,7 +31204,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		/* Startup regular pokes */
 		if (!devstate_only && enablepoke) {
-			sip_ref_peer(peer, "schedule qualify");
 			sip_poke_peer(peer, 0);
 		}
 	}
