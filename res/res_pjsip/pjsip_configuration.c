@@ -564,13 +564,9 @@ static int group_handler(const struct aco_option *opt,
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strncmp(var->name, "call_group", 10)) {
-		if (!(endpoint->pickup.callgroup = ast_get_group(var->value))) {
-			return -1;
-		}
+		endpoint->pickup.callgroup = ast_get_group(var->value);
 	} else if (!strncmp(var->name, "pickup_group", 12)) {
-		if (!(endpoint->pickup.pickupgroup = ast_get_group(var->value))) {
-			return -1;
-		}
+		endpoint->pickup.pickupgroup = ast_get_group(var->value);
 	} else {
 		return -1;
 	}
@@ -608,12 +604,18 @@ static int named_groups_handler(const struct aco_option *opt,
 	struct ast_sip_endpoint *endpoint = obj;
 
 	if (!strncmp(var->name, "named_call_group", 16)) {
-		if (!(endpoint->pickup.named_callgroups =
+		if (ast_strlen_zero(var->value)) {
+			endpoint->pickup.named_callgroups =
+				ast_unref_namedgroups(endpoint->pickup.named_callgroups);
+		} else if (!(endpoint->pickup.named_callgroups =
 		      ast_get_namedgroups(var->value))) {
 			return -1;
 		}
 	} else if (!strncmp(var->name, "named_pickup_group", 18)) {
-		if (!(endpoint->pickup.named_pickupgroups =
+		if (ast_strlen_zero(var->value)) {
+			endpoint->pickup.named_pickupgroups =
+				ast_unref_namedgroups(endpoint->pickup.named_pickupgroups);
+		} else if (!(endpoint->pickup.named_pickupgroups =
 		      ast_get_namedgroups(var->value))) {
 			return -1;
 		}
@@ -813,7 +815,15 @@ static int set_var_handler(const struct aco_option *opt,
 {
 	struct ast_sip_endpoint *endpoint = obj;
 	struct ast_variable *new_var;
-	char *name = ast_strdupa(var->value), *val = strchr(name, '=');
+	char *name;
+	char *val;
+
+	if (ast_strlen_zero(var->value)) {
+		return 0;
+	}
+
+	name = ast_strdupa(var->value);
+	val = strchr(name, '=');
 
 	if (!val) {
 		return -1;
@@ -1682,7 +1692,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "direct_media_glare_mitigation", "none", direct_media_glare_mitigation_handler, direct_media_glare_mitigation_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "disable_direct_media_on_nat", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.direct_media.disable_on_nat));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid", "", caller_id_handler, caller_id_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid_privacy", "", caller_id_privacy_handler, caller_id_privacy_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid_privacy", "allowed", caller_id_privacy_handler, caller_id_privacy_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "callerid_tag", "", caller_id_tag_handler, caller_id_tag_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "trust_id_inbound", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, id.trust_inbound));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "trust_id_outbound", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, id.trust_outbound));
@@ -1725,8 +1735,8 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "from_domain", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, fromdomain));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "mwi_from_user", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, subscription.mwi.fromuser));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "rtp_engine", "asterisk", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, media.rtp.engine));
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_verify", "", dtls_handler, dtlsverify_to_str, NULL, 0, 0);
-	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_rekey", "", dtls_handler, dtlsrekey_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_verify", "no", dtls_handler, dtlsverify_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_rekey", "0", dtls_handler, dtlsrekey_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_cert_file", "", dtls_handler, dtlscertfile_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_private_key", "", dtls_handler, dtlsprivatekey_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_cipher", "", dtls_handler, dtlscipher_to_str, NULL, 0, 0);

@@ -290,9 +290,14 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 {
 	struct ast_sip_aor *aor = obj;
 	const char *aor_id = ast_sorcery_object_get_id(aor);
-	char *contacts = ast_strdupa(var->value);
+	char *contacts;
 	char *contact_uri;
 
+	if (ast_strlen_zero(var->value)) {
+		return 0;
+	}
+
+	contacts = ast_strdupa(var->value);
 	while ((contact_uri = strsep(&contacts, ","))) {
 		struct ast_sip_contact *contact;
 		char contact_id[strlen(aor_id) + strlen(contact_uri) + 2 + 1];
