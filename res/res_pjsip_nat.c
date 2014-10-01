@@ -46,6 +46,11 @@ static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_d
 		pjsip_dialog *dlg = pjsip_rdata_get_dlg(rdata);
 
 		pj_cstr(&uri->host, rdata->pkt_info.src_name);
+		if (strcasecmp("udp", rdata->tp_info.transport->type_name)) {
+			uri->transport_param = pj_str(rdata->tp_info.transport->type_name);
+		} else {
+			uri->transport_param.slen = 0;
+		}
 		uri->port = rdata->pkt_info.src_port;
 
 		/* rewrite the session target since it may have already been pulled from the contact header */
