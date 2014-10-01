@@ -3044,15 +3044,6 @@ static void unlink_all_peers_from_tables(void)
 	unlink_peers_from_tables(SIP_PEERS_ALL);
 }
 
-/* \brief Unlink single peer from all ao2 containers */
-static void unlink_peer_from_tables(struct sip_peer *peer)
-{
-	ao2_t_unlink(peers, peer, "ao2_unlink of peer from peers table");
-	if (!ast_sockaddr_isnull(&peer->addr)) {
-		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
-	}
-}
-
 /*! \brief maintain proper refcounts for a sip_pvt's outboundproxy
  *
  * This function sets pvt's outboundproxy pointer to the one referenced
@@ -14249,11 +14240,12 @@ static int expire_register(const void *data)
 
 	if (peer->selfdestruct ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
-		unlink_peer_from_tables(peer);
-	} else if (!ast_sockaddr_isnull(&peer->addr)) {
-		/* If we aren't self-destructing a temp_peer, we still need to unlink the peer
-		 * from the peers_by_ip table, otherwise we end up with multiple copies hanging
-		 * around each time a registration expires and the peer re-registers. */
+		ao2_t_unlink(peers, peer, "ao2_unlink of peer from peers table");
+	}
+	if (!ast_sockaddr_isnull(&peer->addr)) {
+		/* We still need to unlink the peer from the peers_by_ip table,
+		 * otherwise we end up with multiple copies hanging around each
+		 * time a registration expires and the peer re-registers. */
 		ao2_t_unlink(peers_by_ip, peer, "ao2_unlink of peer from peers_by_ip table");
 	}
 
