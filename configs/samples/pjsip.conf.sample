@@ -490,7 +490,7 @@
 ;aors=  ; AoR s to be used with the endpoint (default: "")
 ;auth=  ; Authentication Object s associated with the endpoint (default: "")
 ;callerid=      ; CallerID information for the endpoint (default: "")
-;callerid_privacy=      ; Default privacy level (default: "")
+;callerid_privacy=allowed      ; Default privacy level (default: "allowed")
 ;callerid_tag=  ; Internal id_tag for the endpoint (default: "")
 ;context=default        ; Dialplan context for inbound sessions (default:
                         ; "default")
@@ -596,10 +596,10 @@
                 ; this endpoint (default: "")
 ;from_domain=   ; Domain to user in From header for requests to this endpoint
                 ; (default: "")
-;dtls_verify=   ; Verify that the provided peer certificate is valid (default:
-                ; "")
-;dtls_rekey=    ; Interval at which to renegotiate the TLS session and rekey
-                ; the SRTP session (default: "")
+;dtls_verify=no ; Verify that the provided peer certificate is valid (default:
+                ; "no")
+;dtls_rekey=0   ; Interval at which to renegotiate the TLS session and rekey
+                ; the SRTP session (default: "0")
 ;dtls_cert_file=        ; Path to certificate file to present to peer (default:
                         ; "")
 ;dtls_private_key=      ; Path to private key for certificate file (default:
