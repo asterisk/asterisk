@@ -596,59 +596,69 @@ static int setup_dtls_srtp(struct ast_sip_session *session,
 	return 0;
 }
 
-static int parse_dtls_attrib(struct ast_sip_session_media *session_media,
-	const struct pjmedia_sdp_media *stream)
+static void apply_dtls_attrib(struct ast_sip_session_media *session_media,
+	pjmedia_sdp_attr *attr)
 {
-	int i;
 	struct ast_rtp_engine_dtls *dtls = ast_rtp_instance_get_dtls(session_media->rtp);
+	pj_str_t *value;
 
-	for (i = 0; i < stream->attr_count; i++) {
-		pjmedia_sdp_attr *attr = stream->attr[i];
-		pj_str_t *value;
+	if (!attr->value.ptr) {
+		return;
+	}
 
-		if (!attr->value.ptr) {
-			continue;
+	value = pj_strtrim(&attr->value);
+
+	if (!pj_strcmp2(&attr->name, "setup")) {
+		if (!pj_stricmp2(value, "active")) {
+			dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_ACTIVE);
+		} else if (!pj_stricmp2(value, "passive")) {
+			dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_PASSIVE);
+		} else if (!pj_stricmp2(value, "actpass")) {
+			dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_ACTPASS);
+		} else if (!pj_stricmp2(value, "holdconn")) {
+			dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_HOLDCONN);
+		} else {
+			ast_log(LOG_WARNING, "Unsupported setup attribute value '%*s'\n", (int)value->slen, value->ptr);
 		}
-
-		value = pj_strtrim(&attr->value);
-
-		if (!pj_strcmp2(&attr->name, "setup")) {
-			if (!pj_stricmp2(value, "active")) {
-				dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_ACTIVE);
-			} else if (!pj_stricmp2(value, "passive")) {
-				dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_PASSIVE);
-			} else if (!pj_stricmp2(value, "actpass")) {
-				dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_ACTPASS);
-			} else if (!pj_stricmp2(value, "holdconn")) {
-				dtls->set_setup(session_media->rtp, AST_RTP_DTLS_SETUP_HOLDCONN);
-			} else {
-				ast_log(LOG_WARNING, "Unsupported setup attribute value '%*s'\n", (int)value->slen, value->ptr);
-			}
-		} else if (!pj_strcmp2(&attr->name, "connection")) {
-			if (!pj_stricmp2(value, "new")) {
-				dtls->reset(session_media->rtp);
-			} else if (!pj_stricmp2(value, "existing")) {
-				/* Do nothing */
-			} else {
-				ast_log(LOG_WARNING, "Unsupported connection attribute value '%*s'\n", (int)value->slen, value->ptr);
-			}
-		} else if (!pj_strcmp2(&attr->name, "fingerprint")) {
-			char hash_value[256], hash[32];
-			char fingerprint_text[value->slen + 1];
-			ast_copy_pj_str(fingerprint_text, value, sizeof(fingerprint_text));
-
+	} else if (!pj_strcmp2(&attr->name, "connection")) {
+		if (!pj_stricmp2(value, "new")) {
+			dtls->reset(session_media->rtp);
+		} else if (!pj_stricmp2(value, "existing")) {
+			/* Do nothing */
+		} else {
+			ast_log(LOG_WARNING, "Unsupported connection attribute value '%*s'\n", (int)value->slen, value->ptr);
+		}
+	} else if (!pj_strcmp2(&attr->name, "fingerprint")) {
+		char hash_value[256], hash[32];
+		char fingerprint_text[value->slen + 1];
+		ast_copy_pj_str(fingerprint_text, value, sizeof(fingerprint_text));
 			if (sscanf(fingerprint_text, "%31s %255s", hash, hash_value) == 2) {
-				if (!strcasecmp(hash, "sha-1")) {
-					dtls->set_fingerprint(session_media->rtp, AST_RTP_DTLS_HASH_SHA1, hash_value);
-				} else if (!strcasecmp(hash, "sha-256")) {
-					dtls->set_fingerprint(session_media->rtp, AST_RTP_DTLS_HASH_SHA256, hash_value);
-				} else {
-					ast_log(LOG_WARNING, "Unsupported fingerprint hash type '%s'\n",
-					hash);
-				}
+			if (!strcasecmp(hash, "sha-1")) {
+				dtls->set_fingerprint(session_media->rtp, AST_RTP_DTLS_HASH_SHA1, hash_value);
+			} else if (!strcasecmp(hash, "sha-256")) {
+				dtls->set_fingerprint(session_media->rtp, AST_RTP_DTLS_HASH_SHA256, hash_value);
+			} else {
+				ast_log(LOG_WARNING, "Unsupported fingerprint hash type '%s'\n",
+				hash);
 			}
 		}
 	}
+}
+
+static int parse_dtls_attrib(struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_session *sdp,
+	const struct pjmedia_sdp_media *stream)
+{
+	int i;
+
+	for (i = 0; i < sdp->attr_count; i++) {
+		apply_dtls_attrib(session_media, sdp->attr[i]);
+	}
+
+	for (i = 0; i < stream->attr_count; i++) {
+		apply_dtls_attrib(session_media, stream->attr[i]);
+	}
+
 	ast_set_flag(session_media->srtp, AST_SRTP_CRYPTO_OFFER_OK);
 
 	return 0;
@@ -692,6 +702,7 @@ static int setup_sdes_srtp(struct ast_sip_session_media *session_media,
 
 static int setup_media_encryption(struct ast_sip_session *session,
 	struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_session *sdp,
 	const struct pjmedia_sdp_media *stream)
 {
 	switch (session->endpoint->media.rtp.encryption) {
@@ -704,7 +715,7 @@ static int setup_media_encryption(struct ast_sip_session *session,
 		if (setup_dtls_srtp(session, session_media)) {
 			return -1;
 		}
-		if (parse_dtls_attrib(session_media, stream)) {
+		if (parse_dtls_attrib(session_media, sdp, stream)) {
 			return -1;
 		}
 		break;
@@ -752,7 +763,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 		pj_strdup(session->inv_session->pool, &session_media->transport, &stream->desc.transport);
 	}
 
-	if (setup_media_encryption(session, session_media, stream)) {
+	if (setup_media_encryption(session, session_media, sdp, stream)) {
 		return -1;
 	}
 
@@ -1080,7 +1091,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		return -1;
 	}
 
-	if (setup_media_encryption(session, session_media, remote_stream)) {
+	if (setup_media_encryption(session, session_media, remote, remote_stream)) {
 		return -1;
 	}
 
