@@ -160,6 +160,10 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 	char *input_string = ast_strdupa(var->value);
 	char *current_string;
 
+	if (ast_strlen_zero(var->value)) {
+		return 0;
+	}
+
 	while ((current_string = strsep(&input_string, ","))) {
 		struct ast_sockaddr *addrs;
 		int num_addrs = 0, error = 0, i;

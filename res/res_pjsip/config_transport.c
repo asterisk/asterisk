@@ -349,7 +349,7 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 {
 	struct ast_sip_transport *transport = obj;
 
-	if (!strcasecmp(var->value, "default")) {
+	if (ast_strlen_zero(var->value) || !strcasecmp(var->value, "default")) {
 		transport->tls.method = PJSIP_SSL_DEFAULT_METHOD;
 	} else if (!strcasecmp(var->value, "unspecified")) {
 		transport->tls.method = PJSIP_SSL_UNSPECIFIED_METHOD;
@@ -416,6 +416,10 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 	struct ast_sip_transport *transport = obj;
 	pj_ssl_cipher cipher;
 
+	if (ast_strlen_zero(var->value)) {
+		return 0;
+	}
+
 	if (transport->tls.ciphers_num == (SIP_TLS_MAX_CIPHERS - 1)) {
 		return -1;
 	}
@@ -467,6 +471,12 @@ static int transport_localnet_handler(const struct aco_option *opt, struct ast_v
 {
 	struct ast_sip_transport *transport = obj;
 	int error = 0;
+
+	if (ast_strlen_zero(var->value)) {
+		ast_free_ha(transport->localnet);
+		transport->localnet = NULL;
+		return 0;
+	}
 
 	if (!(transport->localnet = ast_append_ha("d", var->value, transport->localnet, &error))) {
 		return -1;
