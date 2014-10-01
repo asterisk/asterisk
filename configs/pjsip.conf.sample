@@ -562,6 +562,8 @@
                 ; certificates (default: "")
 ;dtls_setup=    ; Whether we are willing to accept connections connect to the
                 ; other party or both (default: "")
+;dtls_fingerprint= ; Hash to use for the fingerprint placed into SDP
+                   ; (default: "SHA-256")
 ;srtp_tag_32=no ; Determines whether 32 byte tags should be used instead of 80
                 ; byte tags (default: "no")
 ;set_var=       ; Variable set on a channel involving the endpoint. For multiple

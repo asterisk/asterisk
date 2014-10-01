@@ -731,6 +731,20 @@ static int dtlssetup_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
+static const char *ast_rtp_dtls_fingerprint_map[] = {
+	[AST_RTP_DTLS_HASH_SHA256] = "SHA-256",
+	[AST_RTP_DTLS_HASH_SHA1] = "SHA-1",
+};
+
+static int dtlsfingerprint_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	if (ARRAY_IN_BOUNDS(endpoint->media.rtp.dtls_cfg.hash, ast_rtp_dtls_fingerprint_map)) {
+		*buf = ast_strdup(ast_rtp_dtls_fingerprint_map[endpoint->media.rtp.dtls_cfg.hash]);
+	}
+	return 0;
+}
+
 static int t38udptl_ec_handler(const struct aco_option *opt,
 	struct ast_variable *var, void *obj)
 {
@@ -1743,6 +1757,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_ca_file", "", dtls_handler, dtlscafile_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_ca_path", "", dtls_handler, dtlscapath_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_setup", "", dtls_handler, dtlssetup_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "dtls_fingerprint", "", dtls_handler, dtlsfingerprint_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "srtp_tag_32", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.rtp.srtp_tag_32));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "redirect_method", "user", redirect_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "set_var", "", set_var_handler, set_var_to_str, set_var_to_vl, 0, 0);
