@@ -560,6 +560,7 @@ static void hepv3_config_post_apply(void)
 	}
 
 	ao2_global_obj_replace_unref(global_data, data);
+	ao2_ref(data, -1);
 }
 
 /*!
