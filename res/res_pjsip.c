@@ -692,6 +692,19 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="dtls_fingerprint">
+					<synopsis>Type of hash to use for the DTLS fingerprint in the SDP.</synopsis>
+					<description>
+						<para>
+							This option only applies if <replaceable>media_encryption</replaceable> is
+							set to <literal>dtls</literal>.
+						</para>
+						<enumlist>
+							<enum name="SHA-256"></enum>
+							<enum name="SHA-1"></enum>
+						</enumlist>
+					</description>
+				</configOption>
 				<configOption name="srtp_tag_32">
 					<synopsis>Determines whether 32 byte tags should be used instead of 80 byte tags.</synopsis>
 					<description><para>
