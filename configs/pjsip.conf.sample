@@ -361,6 +361,7 @@
 ;direct_media=no
 ;rtp_symmetric=yes
 ;force_rport=yes
+;rewrite_contact=yes  ; necessary if endpoint does not know/register public ip:port
 ;ice_support=yes   ;This is specific to clients that support NAT traversal
                    ;for media via ICE,STUN,TURN. See the wiki at:
                    ;https://wiki.asterisk.org/wiki/x/D4FHAQ
