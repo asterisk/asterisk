@@ -148,7 +148,7 @@
 ;bind=0.0.0.0
 ;cert_file=/path/mycert.crt
 ;priv_key_file=/path/mykey.key
-;cipher=ALL
+;cipher=ADH-AES256-SHA,ADH-AES128-SHA
 ;method=tlsv1
 
 
@@ -600,7 +600,7 @@
 ;ca_list_file=  ; File containing a list of certificates to read TLS ONLY
                 ; (default: "")
 ;cert_file=     ; Certificate file for endpoint TLS ONLY (default: "")
-;cipher=        ; Preferred Cryptography Cipher TLS ONLY (default: "")
+;cipher=        ; Preferred cryptography cipher names TLS ONLY (default: "")
 ;domain=        ; Domain the transport comes from (default: "")
 ;external_media_address=        ; External IP address to use in RTP handling
                                 ; (default: "")
