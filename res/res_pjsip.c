@@ -653,9 +653,9 @@
 					<description><para>
 						This option only applies if <replaceable>media_encryption</replaceable> is
 						set to <literal>dtls</literal>.
-					</para><para>
-						Many options for acceptable ciphers. See link for more:
-						http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
+					</para>
+					<para>Many options for acceptable ciphers. See link for more:</para>
+					<para>http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
 					</para></description>
 				</configOption>
 				<configOption name="dtls_ca_file">
@@ -820,11 +820,17 @@
 					<synopsis>Certificate file for endpoint (TLS ONLY)</synopsis>
 				</configOption>
 				<configOption name="cipher">
-					<synopsis>Preferred Cryptography Cipher (TLS ONLY)</synopsis>
-					<description><para>
-						Many options for acceptable ciphers see link for more:
-						http://www.openssl.org/docs/apps/ciphers.html#CIPHER_STRINGS
-					</para></description>
+					<synopsis>Preferred cryptography cipher names (TLS ONLY)</synopsis>
+					<description>
+					<para>Comma separated list of cipher names or numeric equivalents.
+						Numeric quivalents can be either decimal or hexadecimal (0xX).
+					</para>
+					<para>There are many cipher names.  Use the CLI command
+						<literal>pjsip list ciphers</literal> to see a list of cipher
+						names available for your installation.  See link for more:</para>
+					<para>http://www.openssl.org/docs/apps/ciphers.html#CIPHER_SUITE_NAMES
+					</para>
+					</description>
 				</configOption>
 				<configOption name="domain">
 					<synopsis>Domain the transport comes from</synopsis>
