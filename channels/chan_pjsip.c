@@ -371,7 +371,6 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 {
 	struct ast_channel *chan;
 	struct ast_format_cap *caps;
-	struct ast_format *fmt;
 	RAII_VAR(struct chan_pjsip_pvt *, pvt, NULL, ao2_cleanup);
 	struct ast_sip_channel_pvt *channel;
 	struct ast_variable *var;
@@ -418,16 +417,20 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 
 	ast_channel_nativeformats_set(chan, caps);
 
-	/*
-	 * XXX Probably should pick the first audio codec instead
-	 * of simply the first codec.  The first codec may be video.
-	 */
-	fmt = ast_format_cap_get_format(caps, 0);
-	ast_channel_set_writeformat(chan, fmt);
-	ast_channel_set_rawwriteformat(chan, fmt);
-	ast_channel_set_readformat(chan, fmt);
-	ast_channel_set_rawreadformat(chan, fmt);
-	ao2_ref(fmt, -1);
+	if (!ast_format_cap_empty(caps)) {
+		/*
+		 * XXX Probably should pick the first audio codec instead
+		 * of simply the first codec.  The first codec may be video.
+		 */
+		struct ast_format *fmt = ast_format_cap_get_format(caps, 0);
+
+		ast_channel_set_writeformat(chan, fmt);
+		ast_channel_set_rawwriteformat(chan, fmt);
+		ast_channel_set_readformat(chan, fmt);
+		ast_channel_set_rawreadformat(chan, fmt);
+		ao2_ref(fmt, -1);
+	}
+
 	ao2_ref(caps, -1);
 
 	if (state == AST_STATE_RING) {
