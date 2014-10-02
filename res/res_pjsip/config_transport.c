@@ -389,17 +389,19 @@ static int tls_method_to_str(const void *obj, const intptr_t *args, char **buf)
 /*! \brief Helper function which turns a cipher name into an identifier */
 static pj_ssl_cipher cipher_name_to_id(const char *name)
 {
-	pj_ssl_cipher ciphers[100], id = 0;
+	pj_ssl_cipher ciphers[100];
+	pj_ssl_cipher id = 0;
 	unsigned int cipher_num = PJ_ARRAY_SIZE(ciphers);
 	int pos;
+	const char *pos_name;
 
 	if (pj_ssl_cipher_get_availables(ciphers, &cipher_num)) {
 		return 0;
 	}
 
 	for (pos = 0; pos < cipher_num; ++pos) {
-		if (!pj_ssl_cipher_name(ciphers[pos]) ||
-			strcmp(pj_ssl_cipher_name(ciphers[pos]), name)) {
+		pos_name = pj_ssl_cipher_name(ciphers[pos]);
+		if (!pos_name || strcmp(pos_name, name)) {
 			continue;
 		}
 
@@ -410,60 +412,130 @@ static pj_ssl_cipher cipher_name_to_id(const char *name)
 	return id;
 }
 
-/*! \brief Custom handler for TLS cipher setting */
-static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+/*!
+ * \internal
+ * \brief Add a new cipher to the transport's cipher list array.
+ *
+ * \param transport Which transport to add the cipher to.
+ * \param name Cipher identifier name.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int transport_cipher_add(struct ast_sip_transport *transport, const char *name)
 {
-	struct ast_sip_transport *transport = obj;
 	pj_ssl_cipher cipher;
+	int idx;
 
-	if (ast_strlen_zero(var->value)) {
-		return 0;
-	}
-
-	if (transport->tls.ciphers_num == (SIP_TLS_MAX_CIPHERS - 1)) {
-		return -1;
-	}
-
-	cipher = cipher_name_to_id(var->value);
-
+	cipher = cipher_name_to_id(name);
 	if (!cipher) {
 		/* TODO: Check this over/tweak - it's taken from pjsua for now */
-		if (!strnicmp(var->value, "0x", 2)) {
-			pj_str_t cipher_st = pj_str((char*)var->value + 2);
+		if (!strnicmp(name, "0x", 2)) {
+			pj_str_t cipher_st = pj_str((char *) name + 2);
 			cipher = pj_strtoul2(&cipher_st, NULL, 16);
 		} else {
-			cipher = atoi(var->value);
+			cipher = atoi(name);
 		}
 	}
 
 	if (pj_ssl_cipher_is_supported(cipher)) {
+		for (idx = transport->tls.ciphers_num; idx--;) {
+			if (transport->ciphers[idx] == cipher) {
+				/* The cipher is already in the list. */
+				return 0;
+			}
+		}
 		transport->ciphers[transport->tls.ciphers_num++] = cipher;
 		return 0;
 	} else {
-		ast_log(LOG_ERROR, "Cipher '%s' is unsupported\n", var->value);
+		ast_log(LOG_ERROR, "Cipher '%s' is unsupported\n", name);
 		return -1;
 	}
 }
 
-static int transport_tls_cipher_to_str(const void *obj, const intptr_t *args, char **buf)
+/*! \brief Custom handler for TLS cipher setting */
+static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
-	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
-	const struct ast_sip_transport *transport = obj;
-	int i;
+	struct ast_sip_transport *transport = obj;
+	char *parse;
+	char *name;
+	int res = 0;
 
+	parse = ast_strdupa(S_OR(var->value, ""));
+	while ((name = strsep(&parse, ","))) {
+		name = ast_strip(name);
+		if (ast_strlen_zero(name)) {
+			continue;
+		}
+		if (ARRAY_LEN(transport->ciphers) <= transport->tls.ciphers_num) {
+			ast_log(LOG_ERROR, "Too many ciphers specified\n");
+			res = -1;
+			break;
+		}
+		res |= transport_cipher_add(transport, name);
+	}
+	return res ? -1 : 0;
+}
+
+static void cipher_to_str(char **buf, const pj_ssl_cipher *ciphers, unsigned int cipher_num)
+{
+	struct ast_str *str;
+	int idx;
+
+	str = ast_str_create(128);
 	if (!str) {
-		return -1;
+		*buf = NULL;
+		return;
 	}
 
-	for (i = 0; i < transport->tls.ciphers_num; ++i) {
-		ast_str_append(&str, 0, "%s", pj_ssl_cipher_name(transport->ciphers[i]));
-		if (i < transport->tls.ciphers_num - 1) {
-			ast_str_append(&str, 0, ",");
+	for (idx = 0; idx < cipher_num; ++idx) {
+		ast_str_append(&str, 0, "%s", pj_ssl_cipher_name(ciphers[idx]));
+		if (idx < cipher_num - 1) {
+			ast_str_append(&str, 0, ", ");
 		}
 	}
 
 	*buf = ast_strdup(ast_str_buffer(str));
-	return 0;
+	ast_free(str);
+}
+
+static int transport_tls_cipher_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_transport *transport = obj;
+
+	cipher_to_str(buf, transport->ciphers, transport->tls.ciphers_num);
+	return *buf ? 0 : -1;
+}
+
+static char *handle_pjsip_list_ciphers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	pj_ssl_cipher ciphers[100];
+	unsigned int cipher_num = PJ_ARRAY_SIZE(ciphers);
+	char *buf;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip list ciphers";
+		e->usage = "Usage: pjsip list ciphers\n"
+			"       List available OpenSSL cipher names.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (pj_ssl_cipher_get_availables(ciphers, &cipher_num) || !cipher_num) {
+		buf = NULL;
+	} else {
+		cipher_to_str(&buf, ciphers, cipher_num);
+	}
+
+	if (!ast_strlen_zero(buf)) {
+		ast_cli(a->fd, "Available ciphers: '%s'\n", buf);
+	} else {
+		ast_cli(a->fd, "No available ciphers\n");
+	}
+	ast_free(buf);
+	return CLI_SUCCESS;
 }
 
 /*! \brief Custom handler for localnet setting */
@@ -638,6 +710,7 @@ static int cli_print_body(void *obj, void *arg, int flags)
 }
 
 static struct ast_cli_entry cli_commands[] = {
+	AST_CLI_DEFINE(handle_pjsip_list_ciphers, "List available OpenSSL cipher names"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Transports",
 		.command = "pjsip list transports",
 		.usage = "Usage: pjsip list transports\n"
