@@ -7847,6 +7847,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		res = -1;
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE: /* these should be handled by the code in channel.c */
+	case AST_CONTROL_MASQUERADE_NOTIFY:
 	case -1:
 		res = -1;
 		break;
