@@ -491,7 +491,7 @@
 ;aors=  ; AoR s to be used with the endpoint (default: "")
 ;auth=  ; Authentication Object s associated with the endpoint (default: "")
 ;callerid=      ; CallerID information for the endpoint (default: "")
-;callerid_privacy=allowed      ; Default privacy level (default: "allowed")
+;callerid_privacy=allowed_not_screened      ; Default privacy level (default: "allowed_not_screened")
 ;callerid_tag=  ; Internal id_tag for the endpoint (default: "")
 ;context=default        ; Dialplan context for inbound sessions (default:
                         ; "default")
