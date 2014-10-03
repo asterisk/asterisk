@@ -483,6 +483,10 @@ int ast_audiohook_attach(struct ast_channel *chan, struct ast_audiohook *audioho
 	/* Change status over to running since it is now attached */
 	ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_RUNNING);
 
+	if (ast_channel_is_bridged(chan)) {
+		ast_channel_set_unbridged_nolock(chan, 1);
+	}
+
 	ast_channel_unlock(chan);
 
 	return 0;
@@ -713,6 +717,10 @@ int ast_audiohook_remove(struct ast_channel *chan, struct ast_audiohook *audioho
 	audiohook_list_set_samplerate_compatibility(ast_channel_audiohooks(chan));
 	ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 
+	if (ast_channel_is_bridged(chan)) {
+		ast_channel_set_unbridged_nolock(chan, 1);
+	}
+
 	ast_channel_unlock(chan);
 
 	return 0;
@@ -738,6 +746,9 @@ static struct ast_frame *dtmf_audiohook_write_list(struct ast_channel *chan, str
 			ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 			ast_audiohook_unlock(audiohook);
 			audiohook->manipulate_callback(audiohook, NULL, NULL, 0);
+			if (ast_channel_is_bridged(chan)) {
+				ast_channel_set_unbridged_nolock(chan, 1);
+			}
 			continue;
 		}
 		if (ast_test_flag(audiohook, AST_AUDIOHOOK_WANTS_DTMF)) {
@@ -863,6 +874,9 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			removed = 1;
 			ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 			ast_audiohook_unlock(audiohook);
+			if (ast_channel_is_bridged(chan)) {
+				ast_channel_set_unbridged_nolock(chan, 1);
+			}
 			continue;
 		}
 		audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
@@ -884,6 +898,9 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				removed = 1;
 				ast_audiohook_update_status(audiohook, AST_AUDIOHOOK_STATUS_DONE);
 				ast_audiohook_unlock(audiohook);
+				if (ast_channel_is_bridged(chan)) {
+					ast_channel_set_unbridged_nolock(chan, 1);
+				}
 				continue;
 			}
 			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
@@ -914,6 +931,9 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				ast_audiohook_unlock(audiohook);
 				/* We basically drop all of our links to the manipulate audiohook and prod it to do it's own destructive things */
 				audiohook->manipulate_callback(audiohook, chan, NULL, direction);
+				if (ast_channel_is_bridged(chan)) {
+					ast_channel_set_unbridged_nolock(chan, 1);
+				}
 				continue;
 			}
 			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);

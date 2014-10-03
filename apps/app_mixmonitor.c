@@ -451,22 +451,11 @@ static void destroy_monitor_audiohook(struct mixmonitor *mixmonitor)
 
 static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook)
 {
-	int res = 0;
-
-	if (!chan)
+	if (!chan) {
 		return -1;
-
-	ast_audiohook_attach(chan, audiohook);
-
-	if (!res) {
-		ast_channel_lock(chan);
-		if (ast_channel_is_bridged(chan)) {
-			ast_channel_set_unbridged_nolock(chan, 1);
-		}
-		ast_channel_unlock(chan);
 	}
 
-	return res;
+	return ast_audiohook_attach(chan, audiohook);
 }
 
 /*!
@@ -1149,7 +1138,8 @@ static int stop_mixmonitor_full(struct ast_channel *chan, const char *data)
 
 	ast_channel_lock(chan);
 
-	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info, args.mixmonid);
+	datastore = ast_channel_datastore_find(chan, &mixmonitor_ds_info,
+		S_OR(args.mixmonid, NULL));
 	if (!datastore) {
 		ast_channel_unlock(chan);
 		return -1;
