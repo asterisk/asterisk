@@ -4347,6 +4347,7 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_MCID:
 	case AST_CONTROL_UPDATE_RTP_PEER:
 	case AST_CONTROL_PVT_CAUSE_CODE:
+	case AST_CONTROL_MASQUERADE_NOTIFY:
 	case AST_CONTROL_STREAM_STOP:
 	case AST_CONTROL_STREAM_SUSPEND:
 	case AST_CONTROL_STREAM_REVERSE:
@@ -4513,7 +4514,9 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	ast_channel_lock(chan);
 
 	/* Don't bother if the channel is about to go away, anyway. */
-	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+	if ((ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)
+			|| ast_check_hangup(chan))
+		&& condition != AST_CONTROL_MASQUERADE_NOTIFY) {
 		res = -1;
 		goto indicate_cleanup;
 	}
@@ -4661,6 +4664,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 	case AST_CONTROL_AOC:
 	case AST_CONTROL_END_OF_Q:
 	case AST_CONTROL_MCID:
+	case AST_CONTROL_MASQUERADE_NOTIFY:
 	case AST_CONTROL_UPDATE_RTP_PEER:
 	case AST_CONTROL_STREAM_STOP:
 	case AST_CONTROL_STREAM_SUSPEND:
@@ -6410,6 +6414,11 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	 * original channel's backend.  While the features are nice, which is the
 	 * reason we're keeping it, it's still awesomely weird. XXX */
 
+	/* Indicate to each channel that a masquerade is about to begin. */
+	x = 1;
+	ast_indicate_data(original, AST_CONTROL_MASQUERADE_NOTIFY, &x, sizeof(x));
+	ast_indicate_data(clonechan, AST_CONTROL_MASQUERADE_NOTIFY, &x, sizeof(x));
+
 	/*
 	 * The container lock is necessary for proper locking order
 	 * because the channels must be unlinked to change their
@@ -6450,8 +6459,9 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* Start the masquerade channel contents rearangement. */
 	ast_channel_lock_both(original, clonechan);
 
-	ast_debug(4, "Actually Masquerading %s(%u) into the structure of %s(%u)\n",
-		ast_channel_name(clonechan), ast_channel_state(clonechan), ast_channel_name(original), ast_channel_state(original));
+	ast_debug(1, "Actually Masquerading %s(%u) into the structure of %s(%u)\n",
+		ast_channel_name(clonechan), ast_channel_state(clonechan),
+		ast_channel_name(original), ast_channel_state(original));
 
 	/*
 	 * Remember the original read/write formats.  We turn off any
@@ -6716,6 +6726,19 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 
 	ast_channel_unlock(original);
 	ast_channel_unlock(clonechan);
+
+	/*
+	 * Indicate to each channel that a masquerade is complete.
+	 *
+	 * We can still do this to clonechan even though it is a
+	 * zombie because ast_indicate_data() will explicitly pass
+	 * this control and ast_hangup() is held off until the
+	 * ast_channel_masq() and ast_channel_masqr() pointers are
+	 * cleared.
+	 */
+	x = 0;
+	ast_indicate_data(original, AST_CONTROL_MASQUERADE_NOTIFY, &x, sizeof(x));
+	ast_indicate_data(clonechan, AST_CONTROL_MASQUERADE_NOTIFY, &x, sizeof(x));
 
 	ast_bridge_notify_masquerade(original);
 

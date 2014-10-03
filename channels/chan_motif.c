@@ -1795,6 +1795,7 @@ static int jingle_indicate(struct ast_channel *ast, int condition, const void *d
 	case AST_CONTROL_CONNECTED_LINE:
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
+	case AST_CONTROL_MASQUERADE_NOTIFY:
 	case -1:
 		res = -1;
 		break;

@@ -287,6 +287,7 @@ enum ast_control_frame_type {
 	AST_CONTROL_MCID = 31,			/*!< Indicate that the caller is being malicious. */
 	AST_CONTROL_UPDATE_RTP_PEER = 32, /*!< Interrupt the bridge and have it update the peer */
 	AST_CONTROL_PVT_CAUSE_CODE = 33, /*!< Contains an update to the protocol-specific cause-code stored for branching dials */
+	AST_CONTROL_MASQUERADE_NOTIFY = 34,	/*!< A masquerade is about to begin/end. (Never sent as a frame but directly with ast_indicate_data().) */
 
 	/*
 	 * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING

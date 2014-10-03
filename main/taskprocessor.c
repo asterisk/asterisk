@@ -78,9 +78,9 @@ struct ast_taskprocessor {
 	long tps_queue_size;
 	/*! \brief Taskprocessor queue */
 	AST_LIST_HEAD_NOLOCK(tps_queue, tps_task) tps_queue;
-	/*! \brief Taskprocessor singleton list entry */
-	AST_LIST_ENTRY(ast_taskprocessor) list;
 	struct ast_taskprocessor_listener *listener;
+	/*! Current thread executing the tasks */
+	pthread_t thread;
 	/*! Indicates if the taskprocessor is currently executing a task */
 	unsigned int executing:1;
 };
@@ -600,6 +600,8 @@ static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, stru
 	ao2_ref(listener, +1);
 	p->listener = listener;
 
+	p->thread = AST_PTHREADT_NULL;
+
 	ao2_ref(p, +1);
 	listener->tps = p;
 
@@ -752,6 +754,7 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 		return 0;
 	}
 
+	tps->thread = pthread_self();
 	tps->executing = 1;
 
 	if (t->wants_local) {
@@ -768,6 +771,7 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 	tps_task_free(t);
 
 	ao2_lock(tps);
+	tps->thread = AST_PTHREADT_NULL;
 	/* We need to check size in the same critical section where we reset the
 	 * executing bit. Avoids a race condition where a task is pushed right
 	 * after we pop an empty stack.
@@ -788,4 +792,14 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 		tps->listener->callbacks->emptied(tps->listener);
 	}
 	return size > 0;
+}
+
+int ast_taskprocessor_is_task(struct ast_taskprocessor *tps)
+{
+	int is_task;
+
+	ao2_lock(tps);
+	is_task = pthread_equal(tps->thread, pthread_self());
+	ao2_unlock(tps);
+	return is_task;
 }

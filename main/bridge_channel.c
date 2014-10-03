@@ -2049,6 +2049,10 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 			ast_indicate(chan, -1);
 		}
 		break;
+	case AST_CONTROL_MASQUERADE_NOTIFY:
+		/* Should never happen. */
+		ast_assert(0);
+		break;
 	default:
 		ast_indicate_data(chan, fr->subclass.integer, fr->data.ptr, fr->datalen);
 		break;

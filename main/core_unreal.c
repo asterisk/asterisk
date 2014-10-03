@@ -519,6 +519,12 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 	ao2_ref(p, 1); /* ref for unreal_queue_frame */
 
 	switch (condition) {
+	case AST_CONTROL_MASQUERADE_NOTIFY:
+		/*
+		 * Always block this because this is the channel being
+		 * masqueraded; not anything down the chain.
+		 */
+		break;
 	case AST_CONTROL_CONNECTED_LINE:
 	case AST_CONTROL_REDIRECTING:
 		res = unreal_colp_redirect_indicate(p, ast, condition);

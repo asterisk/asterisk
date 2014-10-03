@@ -1415,6 +1415,8 @@ static int iax2_is_control_frame_allowed(int subtype)
 		/* Only meaningful across a bridge on this machine for direct-media exchange. */
 	case AST_CONTROL_PVT_CAUSE_CODE:
 		/* Intended only for the sending machine's local channel structure. */
+	case AST_CONTROL_MASQUERADE_NOTIFY:
+		/* Intended only for masquerades when calling ast_indicate_data(). */
 	case AST_CONTROL_STREAM_STOP:
 	case AST_CONTROL_STREAM_SUSPEND:
 	case AST_CONTROL_STREAM_RESTART:
@@ -5723,6 +5725,7 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 		}
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
+	case AST_CONTROL_MASQUERADE_NOTIFY:
 		res = -1;
 		goto done;
 	}

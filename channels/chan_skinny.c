@@ -5381,6 +5381,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
 		/* fallthrough */
 	case AST_CONTROL_PVT_CAUSE_CODE:
+	case AST_CONTROL_MASQUERADE_NOTIFY:
 		return -1; /* Tell asterisk to provide inband signalling */
 	}
 	return 0;
