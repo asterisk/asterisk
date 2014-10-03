@@ -803,6 +803,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>List currently defined channels and some information about them.</para>
 		</description>
 	</manager>
+	<managerEvent language="en_US" name="CoreShowChannel">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised in response to a CoreShowChannels command.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+				<channel_snapshot/>
+				<parameter name="BridgeId">
+					<para>Identifier of the bridge the channel is in, may be empty if not in one</para>
+				</parameter>
+				<parameter name="Application">
+					<para>Application currently executing on the channel</para>
+				</parameter>
+				<parameter name="ApplicationData">
+					<para>Data given to the currently executing application</para>
+				</parameter>
+				<parameter name="Duration">
+					<para>The amount of time the channel has existed</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="manager">CoreShowChannels</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="ModuleLoad" language="en_US">
 		<synopsis>
 			Module management.
@@ -5427,18 +5451,37 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {
 		struct ast_channel_snapshot *cs = stasis_message_data(msg);
 		struct ast_str *built = ast_manager_build_channel_state_string_prefix(cs, "");
+		char durbuf[10] = "";
 
 		if (!built) {
 			continue;
+		}
+
+		if (!ast_tvzero(cs->creationtime)) {
+			int duration, durh, durm, durs;
+
+			duration = (int)(ast_tvdiff_ms(ast_tvnow(), cs->creationtime) / 1000);
+			durh = duration / 3600;
+			durm = (duration % 3600) / 60;
+			durs = duration % 60;
+			snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
 		}
 
 		astman_append(s,
 			"Event: CoreShowChannel\r\n"
 			"%s"
 			"%s"
+			"Application: %s\r\n"
+			"ApplicationData: %s\r\n"
+			"Duration: %s\r\n"
+			"BridgeId: %s\r\n"
 			"\r\n",
 			idText,
-			ast_str_buffer(built));
+			ast_str_buffer(built),
+			cs->appl,
+			cs->data,
+			durbuf,
+			cs->bridgeid);
 
 		numchans++;
 
