@@ -823,7 +823,7 @@
 					<synopsis>Preferred cryptography cipher names (TLS ONLY)</synopsis>
 					<description>
 					<para>Comma separated list of cipher names or numeric equivalents.
-						Numeric quivalents can be either decimal or hexadecimal (0xX).
+						Numeric equivalents can be either decimal or hexadecimal (0xX).
 					</para>
 					<para>There are many cipher names.  Use the CLI command
 						<literal>pjsip list ciphers</literal> to see a list of cipher
