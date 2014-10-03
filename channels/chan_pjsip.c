@@ -701,40 +701,24 @@ static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 	return res;
 }
 
-struct fixup_data {
-	struct ast_sip_session *session;
-	struct ast_channel *chan;
-};
-
-static int fixup(void *data)
-{
-	struct fixup_data *fix_data = data;
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(fix_data->chan);
-	struct chan_pjsip_pvt *pvt = channel->pvt;
-
-	channel->session->channel = fix_data->chan;
-	set_channel_on_rtp_instance(pvt, ast_channel_uniqueid(fix_data->chan));
-
-	return 0;
-}
-
 /*! \brief Function called by core to change the underlying owner channel */
 static int chan_pjsip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(newchan);
-	struct fixup_data fix_data;
-
-	fix_data.session = channel->session;
-	fix_data.chan = newchan;
+	struct chan_pjsip_pvt *pvt = channel->pvt;
 
 	if (channel->session->channel != oldchan) {
 		return -1;
 	}
 
-	if (ast_sip_push_task_synchronous(channel->session->serializer, fixup, &fix_data)) {
-		ast_log(LOG_WARNING, "Unable to perform channel fixup\n");
-		return -1;
-	}
+	/*
+	 * The masquerade has suspended the channel's session
+	 * serializer so we can safely change it outside of
+	 * the serializer thread.
+	 */
+	channel->session->channel = newchan;
+
+	set_channel_on_rtp_instance(pvt, ast_channel_uniqueid(newchan));
 
 	return 0;
 }
@@ -1210,6 +1194,24 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		break;
 	case AST_CONTROL_PVT_CAUSE_CODE:
 		res = -1;
+		break;
+	case AST_CONTROL_MASQUERADE_NOTIFY:
+		ast_assert(datalen == sizeof(int));
+		if (*(int *) data) {
+			/*
+			 * Masquerade is beginning:
+			 * Wait for session serializer to get suspended.
+			 */
+			ast_channel_unlock(ast);
+			ast_sip_session_suspend(channel->session);
+			ast_channel_lock(ast);
+		} else {
+			/*
+			 * Masquerade is complete:
+			 * Unsuspend the session serializer.
+			 */
+			ast_sip_session_unsuspend(channel->session);
+		}
 		break;
 	case AST_CONTROL_HOLD:
 		chan_pjsip_add_hold(ast_channel_uniqueid(ast));

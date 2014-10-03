@@ -87,6 +87,9 @@ struct ast_sip_session_media {
  */
 struct ast_sip_session_delayed_request;
 
+/*! \brief Opaque struct controlling the suspension of the session's serializer. */
+struct ast_sip_session_suspender;
+
 /*!
  * \brief A structure describing a SIP session
  *
@@ -96,43 +99,45 @@ struct ast_sip_session_delayed_request;
  * to use the term "SIP session" to refer to the INVITE dialog itself.
  */
 struct ast_sip_session {
-	/* Dialplan extension where incoming call is destined */
+	/*! Dialplan extension where incoming call is destined */
 	char exten[AST_MAX_EXTENSION];
-	/* The endpoint with which Asterisk is communicating */
+	/*! The endpoint with which Asterisk is communicating */
 	struct ast_sip_endpoint *endpoint;
-	/* The contact associated with this session */
+	/*! The contact associated with this session */
 	struct ast_sip_contact *contact;
-	/* The PJSIP details of the session, which includes the dialog */
+	/*! The PJSIP details of the session, which includes the dialog */
 	struct pjsip_inv_session *inv_session;
-	/* The Asterisk channel associated with the session */
+	/*! The Asterisk channel associated with the session */
 	struct ast_channel *channel;
-	/* Registered session supplements */
+	/*! Registered session supplements */
 	AST_LIST_HEAD(, ast_sip_session_supplement) supplements;
-	/* Datastores added to the session by supplements to the session */
+	/*! Datastores added to the session by supplements to the session */
 	struct ao2_container *datastores;
-	/* Media streams */
+	/*! Media streams */
 	struct ao2_container *media;
-	/* Serializer for tasks relating to this SIP session */
+	/*! Serializer for tasks relating to this SIP session */
 	struct ast_taskprocessor *serializer;
-	/* Requests that could not be sent due to current inv_session state */
+	/*! Non-null if the session serializer is suspended or being suspended. */
+	struct ast_sip_session_suspender *suspended;
+	/*! Requests that could not be sent due to current inv_session state */
 	AST_LIST_HEAD_NOLOCK(, ast_sip_session_delayed_request) delayed_requests;
-	/* When we need to reschedule a reinvite, we use this structure to do it */
+	/*! When we need to reschedule a reinvite, we use this structure to do it */
 	pj_timer_entry rescheduled_reinvite;
-	/* Format capabilities pertaining to direct media */
+	/*! Format capabilities pertaining to direct media */
 	struct ast_format_cap *direct_media_cap;
-	/* When we need to forcefully end the session */
+	/*! When we need to forcefully end the session */
 	pj_timer_entry scheduled_termination;
-	/* Identity of endpoint this session deals with */
+	/*! Identity of endpoint this session deals with */
 	struct ast_party_id id;
-	/* Requested capabilities */
+	/*! Requested capabilities */
 	struct ast_format_cap *req_caps;
-	/* Optional DSP, used only for inband DTMF detection if configured */
+	/*! Optional DSP, used only for inband DTMF detection if configured */
 	struct ast_dsp *dsp;
-	/* Whether the termination of the session should be deferred */
+	/*! Whether the termination of the session should be deferred */
 	unsigned int defer_terminate:1;
-	/* Deferred incoming re-invite */
+	/*! Deferred incoming re-invite */
 	pjsip_rx_data *deferred_reinvite;
-	/* Current T.38 state */
+	/*! Current T.38 state */
 	enum ast_sip_session_t38state t38state;
 };
 
@@ -386,6 +391,28 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
  */
 struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	struct ast_sip_contact *contact, pjsip_inv_session *inv);
+
+/*!
+ * \brief Request and wait for the session serializer to be suspended.
+ * \since 12.7.0
+ *
+ * \param session Which session to suspend the serializer.
+ *
+ * \note No channel locks can be held while calling without risk of deadlock.
+ *
+ * \return Nothing
+ */
+void ast_sip_session_suspend(struct ast_sip_session *session);
+
+/*!
+ * \brief Request the session serializer be unsuspended.
+ * \since 12.7.0
+ *
+ * \param session Which session to unsuspend the serializer.
+ *
+ * \return Nothing
+ */
+void ast_sip_session_unsuspend(struct ast_sip_session *session);
 
 /*!
  * \brief Create a new outgoing SIP session

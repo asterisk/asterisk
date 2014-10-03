@@ -334,6 +334,10 @@ static void print_frame(struct ast_frame *frame)
 		case AST_CONTROL_PVT_CAUSE_CODE:
 			ast_verbose("SubClass: PVT_CAUSE_CODE\n");
 			break;
+		case AST_CONTROL_MASQUERADE_NOTIFY:
+			/* Should never happen. */
+			ast_assert(0);
+			break;
 		case AST_CONTROL_STREAM_STOP:
 			ast_verbose("SubClass: STREAM_STOP\n");
 			break;

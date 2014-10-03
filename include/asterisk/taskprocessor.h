@@ -247,6 +247,16 @@ int ast_taskprocessor_push_local(struct ast_taskprocessor *tps,
 int ast_taskprocessor_execute(struct ast_taskprocessor *tps);
 
 /*!
+ * \brief Am I the given taskprocessor's current task.
+ * \since 12.7.0
+ *
+ * \param tps Taskprocessor to check.
+ *
+ * \retval non-zero if current thread is the taskprocessor thread.
+ */
+int ast_taskprocessor_is_task(struct ast_taskprocessor *tps);
+
+/*!
  * \brief Return the name of the taskprocessor singleton
  * \since 1.6.1
  */

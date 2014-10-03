@@ -5369,6 +5369,7 @@ static int unistim_indicate(struct ast_channel *ast, int ind, const void *data, 
 		ast_log(LOG_WARNING, "Don't know how to indicate condition %d\n", ind);
 		/* fallthrough */
 	case AST_CONTROL_PVT_CAUSE_CODE:
+	case AST_CONTROL_MASQUERADE_NOTIFY:
 		return -1;
 	}
 
