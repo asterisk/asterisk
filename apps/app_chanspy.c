@@ -494,21 +494,10 @@ static struct ast_generator spygen = {
 
 static int start_spying(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook)
 {
-	int res = 0;
-
 	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, ast_channel_name(autochan->chan));
 
 	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC | AST_AUDIOHOOK_SMALL_QUEUE);
-	res = ast_audiohook_attach(autochan->chan, audiohook);
-
-	if (!res) {
-		ast_channel_lock(autochan->chan);
-		if (ast_channel_is_bridged(autochan->chan)) {
-			ast_channel_set_unbridged_nolock(autochan->chan, 1);
-		}
-		ast_channel_unlock(autochan->chan);
-	}
-	return res;
+	return ast_audiohook_attach(autochan->chan, audiohook);
 }
 
 static void change_spy_mode(const char digit, struct ast_flags *flags)
