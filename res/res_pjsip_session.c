@@ -2127,10 +2127,27 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 
 	/* Use the connection details of the first media stream if possible for SDP level */
 	if (local->media_count) {
+		int stream;
+
+		/* Since we are using the first media stream as the SDP level we can get rid of it
+		 * from the stream itself
+		 */
 		local->conn = local->media[0]->conn;
+		local->media[0]->conn = NULL;
 		pj_strassign(&local->origin.net_type, &local->conn->net_type);
 		pj_strassign(&local->origin.addr_type, &local->conn->addr_type);
 		pj_strassign(&local->origin.addr, &local->conn->addr);
+
+		/* Go through each media stream seeing if the connection details actually differ,
+		 * if not just use SDP level and reduce the SDP size
+		 */
+		for (stream = 1; stream < local->media_count; stream++) {
+			if (!pj_strcmp(&local->conn->net_type, &local->media[stream]->conn->net_type) &&
+				!pj_strcmp(&local->conn->addr_type, &local->media[stream]->conn->addr_type) &&
+				!pj_strcmp(&local->conn->addr, &local->media[stream]->conn->addr)) {
+				local->media[stream]->conn = NULL;
+			}
+		}
 	} else {
 		local->origin.net_type = STR_IN;
 		local->origin.addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
