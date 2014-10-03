@@ -1574,6 +1574,12 @@ static int sorcery_wizard_create(void *obj, void *arg, int flags)
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
 	const struct sorcery_details *details = arg;
 
+	if (!object_wizard->wizard->create) {
+		ast_assert(0);
+		ast_log(LOG_ERROR, "Sorcery wizard '%s' doesn't contain a 'create' virtual function.\n",
+			object_wizard->wizard->name);
+		return 0;
+	}
 	return (!object_wizard->caching && !object_wizard->wizard->create(details->sorcery, object_wizard->data, details->obj)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
