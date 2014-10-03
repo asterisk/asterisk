@@ -287,6 +287,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -328,6 +329,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -365,6 +367,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -409,6 +412,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -450,6 +454,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -481,6 +486,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -535,6 +541,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -591,6 +598,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -618,6 +626,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -632,6 +641,35 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Returns 1 if the specified queue exists, 0 if it does not</para>
+		</description>
+		<see-also>
+			<ref type="application">Queue</ref>
+			<ref type="application">QueueLog</ref>
+			<ref type="application">AddQueueMember</ref>
+			<ref type="application">RemoveQueueMember</ref>
+			<ref type="application">PauseQueueMember</ref>
+			<ref type="application">UnpauseQueueMember</ref>
+			<ref type="function">QUEUE_VARIABLES</ref>
+			<ref type="function">QUEUE_MEMBER</ref>
+			<ref type="function">QUEUE_MEMBER_COUNT</ref>
+			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
+			<ref type="function">QUEUE_WAITING_COUNT</ref>
+			<ref type="function">QUEUE_MEMBER_LIST</ref>
+			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
+		</see-also>
+	</function>
+	<function name="QUEUE_GET_CHANNEL" language="en_US">
+		<synopsis>
+			Return caller at the specified position in a queue.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="position" />
+		</syntax>
+		<description>
+			<para>Returns the caller channel at <replaceable>position</replaceable> in the specified <replaceable>queuename</replaceable>.</para>
+			<para>If <replaceable>position</replaceable> is unspecified the first channel is returned.</para>
 		</description>
 		<see-also>
 			<ref type="application">Queue</ref>
@@ -670,6 +708,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -696,6 +735,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -724,6 +764,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER</ref>
 			<ref type="function">QUEUE_MEMBER_COUNT</ref>
 			<ref type="function">QUEUE_EXISTS</ref>
+			<ref type="function">QUEUE_GET_CHANNEL</ref>
 			<ref type="function">QUEUE_WAITING_COUNT</ref>
 			<ref type="function">QUEUE_MEMBER_LIST</ref>
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
@@ -8287,6 +8328,85 @@ static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, cha
 	return 0;
 }
 
+/*! \brief Dialplan function QUEUE_GET_CHANNEL() Get caller channel waiting at specified position in the queue */
+static int queue_function_queuegetchannel(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	int position;
+	char *parse;
+	struct call_queue *q;
+	struct ast_variable *var;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(queuename);
+		AST_APP_ARG(position);
+	);
+
+	buf[0] = '\0';
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "Missing argument. QUEUE_GET_CHANNEL(<queuename>,<position>)\n");
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.queuename)) {
+		ast_log (LOG_ERROR, "The <queuename> parameter is required.\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.position)) {
+		position = 1;
+	} else {
+		if (sscanf(args.position, "%30d", &position) != 1) {
+			ast_log (LOG_ERROR, "<position> parameter must be an integer.\n");
+			return -1;
+		}
+		if (position < 1) {
+			ast_log (LOG_ERROR, "<position> parameter must be an integer greater than zero.\n");
+			return -1;
+		}
+	}
+
+	{
+		struct call_queue tmpq = {
+			.name = args.queuename,
+		};
+
+		q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Find for QUEUE_GET_CHANNEL()");
+	}
+	if (q) {
+		ao2_lock(q);
+		if (q->count >= position) {
+			struct queue_ent *qe;
+
+			for (qe = q->head; qe; qe = qe->next) {
+				if (qe->pos == position) {
+					ast_copy_string(buf, ast_channel_name(qe->chan), len);
+					break;
+				}
+			}
+		}
+		ao2_unlock(q);
+		queue_t_unref(q, "Done with reference in QUEUE_GET_CHANNEL()");
+		return 0;
+	}
+
+	var = ast_load_realtime("queues", "name", args.queuename, SENTINEL);
+	if (var) {
+		/* if the queue is realtime but was not found in memory, this
+		 * means that the queue had been deleted from memory since it was
+		 * "dead."
+		 */
+		ast_variables_destroy(var);
+		return 0;
+	}
+
+	ast_log(LOG_WARNING, "queue %s was not found\n", args.queuename);
+	return 0;
+}
+
 /*! \brief Dialplan function QUEUE_WAITING_COUNT() Get number callers waiting in a specific queue */
 static int queue_function_queuewaitingcount(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
@@ -8462,6 +8582,11 @@ static struct ast_custom_function queuemembercount_function = {
 static struct ast_custom_function queuemembercount_dep = {
 	.name = "QUEUE_MEMBER_COUNT",
 	.read = queue_function_qac_dep,
+};
+
+static struct ast_custom_function queuegetchannel_function = {
+	.name = "QUEUE_GET_CHANNEL",
+	.read = queue_function_queuegetchannel,
 };
 
 static struct ast_custom_function queuewaitingcount_function = {
@@ -10679,6 +10804,7 @@ static int unload_module(void)
 	ast_custom_function_unregister(&queuemembercount_function);
 	ast_custom_function_unregister(&queuemembercount_dep);
 	ast_custom_function_unregister(&queuememberlist_function);
+	ast_custom_function_unregister(&queuegetchannel_function);
 	ast_custom_function_unregister(&queuewaitingcount_function);
 	ast_custom_function_unregister(&queuememberpenalty_function);
 
@@ -10779,6 +10905,7 @@ static int load_module(void)
 	err |= ast_custom_function_register(&queuemembercount_function);
 	err |= ast_custom_function_register(&queuemembercount_dep);
 	err |= ast_custom_function_register(&queuememberlist_function);
+	err |= ast_custom_function_register(&queuegetchannel_function);
 	err |= ast_custom_function_register(&queuewaitingcount_function);
 	err |= ast_custom_function_register(&queuememberpenalty_function);
 
