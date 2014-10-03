@@ -241,6 +241,12 @@ chan_jingle
  * This module was deprecated and has been removed. Users of chan_jingle
    should use chan_motif.
 
+chan_pjsip
+------------------
+ * Added the CLI command 'pjsip list ciphers' so a user can know what
+   OpenSSL names are available on their system for the pjsip.conf cipher
+   option.
+
 chan_sip
 ------------------
  * The SIPPEER dialplan function no longer supports using a colon as a
