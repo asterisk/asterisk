@@ -2564,6 +2564,8 @@ static int load_module(void)
 	if (aco_process_config(&cfg_info, 0)) {
 		ast_log(LOG_ERROR, "Unable to read config file motif.conf. Not loading module.\n");
 		aco_info_destroy(&cfg_info);
+		ast_format_cap_destroy(jingle_tech.capabilities);
+		jingle_tech.capabilities = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -2594,6 +2596,10 @@ end:
 	}
 
 	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(globals);
+
+	ast_format_cap_destroy(jingle_tech.capabilities);
+	jingle_tech.capabilities = NULL;
 
 	return AST_MODULE_LOAD_FAILURE;
 }
