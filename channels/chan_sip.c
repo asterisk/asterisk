@@ -10488,10 +10488,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		/* Ensure crypto lines are provided where necessary */
 		if (audio && secure_audio && !processed_crypto) {
 			ast_log(LOG_WARNING, "Rejecting secure audio stream without encryption details: %s\n", m);
-			return -1;
+			res = -1;
+			goto process_sdp_cleanup_b;
 		} else if (video && secure_video && !processed_crypto) {
 			ast_log(LOG_WARNING, "Rejecting secure video stream without encryption details: %s\n", m);
-			return -1;
+			res = -1;
+			goto process_sdp_cleanup_b;
 		}
 	}
 
@@ -10802,6 +10804,8 @@ process_sdp_cleanup:
 	if (res) {
 		offered_media_list_destroy(p);
 	}
+
+process_sdp_cleanup_b:
 	ast_rtp_codecs_payloads_destroy(&newtextrtp);
 	ast_rtp_codecs_payloads_destroy(&newvideortp);
 	ast_rtp_codecs_payloads_destroy(&newaudiortp);
