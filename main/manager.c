@@ -1172,6 +1172,9 @@ struct stasis_subscription *test_suite_sub;
 
 #define MAX_VARS 128
 
+/*! \brief Fake event class used to end sessions at shutdown */
+#define EVENT_FLAG_SHUTDOWN -1
+
 /*! \brief
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
  *
@@ -5276,6 +5279,10 @@ static int process_events(struct mansession *s)
 		struct eventqent *eqe = s->session->last_ev;
 
 		while ((eqe = advance_event(eqe))) {
+			if (eqe->category == EVENT_FLAG_SHUTDOWN) {
+				ast_debug(3, "Received CloseSession event\n");
+				ret = -1;
+			}
 			if (!ret && s->session->authenticated &&
 			    (s->session->readperm & eqe->category) == eqe->category &&
 			    (s->session->send_events & eqe->category) == eqe->category) {
@@ -6192,7 +6199,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 		ao2_iterator_destroy(&i);
 	}
 
-	if (!AST_RWLIST_EMPTY(&manager_hooks)) {
+	if (category != EVENT_FLAG_SHUTDOWN && !AST_RWLIST_EMPTY(&manager_hooks)) {
 		AST_RWLIST_RDLOCK(&manager_hooks);
 		AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
 			hook->helper(category, event, ast_str_buffer(buf));
@@ -7971,6 +7978,9 @@ static void manager_free_user(struct ast_manager_user *user)
 static void manager_shutdown(void)
 {
 	struct ast_manager_user *user;
+
+	/* This event is not actually transmitted, but causes all TCP sessions to be closed */
+	manager_event(EVENT_FLAG_SHUTDOWN, "CloseSession", "CloseSession: true\r\n");
 
 	ast_manager_unregister("Ping");
 	ast_manager_unregister("Events");
