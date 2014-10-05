@@ -2759,7 +2759,7 @@ static int load_module(void)
 		ao2_ref(jingle_tech.capabilities, -1);
 		ast_log(LOG_ERROR, "Unable to read config file motif.conf. Module loaded but not running.\n");
 		aco_info_destroy(&cfg_info);
-		ast_format_cap_destroy(jingle_tech.capabilities);
+		ao2_cleanup(jingle_tech.capabilities);
 		jingle_tech.capabilities = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -2794,7 +2794,7 @@ end:
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
 
-	ast_format_cap_destroy(jingle_tech.capabilities);
+	ao2_cleanup(jingle_tech.capabilities);
 	jingle_tech.capabilities = NULL;
 
 	return AST_MODULE_LOAD_FAILURE;
