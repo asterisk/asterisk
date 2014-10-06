@@ -1013,7 +1013,7 @@ int ast_bridge_timelimit(struct ast_channel *chan, struct ast_bridge_config *con
  */
 static int bridge_exec(struct ast_channel *chan, const char *data)
 {
-	RAII_VAR(struct ast_channel *, current_dest_chan, NULL, ao2_cleanup);
+	struct ast_channel *current_dest_chan;
 	char *tmp_data  = NULL;
 	struct ast_flags opts = { 0, };
 	struct ast_bridge_config bconfig = { { 0, }, };
@@ -1022,10 +1022,11 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	const char *context;
 	const char *extension;
 	int priority;
+	int bridge_add_failed;
 	struct ast_bridge_features chan_features;
 	struct ast_bridge_features *peer_features;
 	struct ast_bridge *bridge;
-	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+	struct ast_features_xfer_config *xfer_cfg;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dest_chan);
@@ -1043,8 +1044,9 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		ast_app_parse_options(bridge_exec_options, &opts, opt_args, args.options);
 
 	/* make sure we have a valid end point */
-	if (!(current_dest_chan = ast_channel_get_by_name_prefix(args.dest_chan,
-			strlen(args.dest_chan)))) {
+	current_dest_chan = ast_channel_get_by_name_prefix(args.dest_chan,
+		strlen(args.dest_chan));
+	if (!current_dest_chan) {
 		ast_log(LOG_WARNING, "Bridge failed because channel %s does not exist\n",
 			args.dest_chan);
 		return 0;
@@ -1052,6 +1054,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 
 	/* avoid bridge with ourselves */
 	if (chan == current_dest_chan) {
+		ast_channel_unref(current_dest_chan);
 		ast_log(LOG_WARNING, "Unable to bridge channel %s with itself\n", ast_channel_name(chan));
 		return 0;
 	}
@@ -1123,13 +1126,19 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	xfer_cfg = ast_get_chan_features_xfer_config(current_dest_chan);
-	if (ast_bridge_add_channel(bridge, current_dest_chan, peer_features,
-		ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE), xfer_cfg ? xfer_cfg->xfersound : NULL)) {
+	bridge_add_failed = ast_bridge_add_channel(bridge, current_dest_chan, peer_features,
+		ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE),
+		xfer_cfg ? xfer_cfg->xfersound : NULL);
+	ao2_cleanup(xfer_cfg);
+	if (bridge_add_failed) {
 		ast_bridge_features_destroy(peer_features);
 		ast_bridge_features_cleanup(&chan_features);
 		ast_bridge_destroy(bridge, 0);
 		goto done;
 	}
+
+	/* Don't keep the channel ref in case it was not already in a bridge. */
+	current_dest_chan = ast_channel_unref(current_dest_chan);
 
 	ast_bridge_join(bridge, chan, NULL, &chan_features, NULL,
 		AST_BRIDGE_JOIN_PASS_REFERENCE);
@@ -1143,6 +1152,7 @@ done:
 	ast_free((char *) bconfig.end_sound);
 	ast_free((char *) bconfig.start_sound);
 
+	ast_channel_cleanup(current_dest_chan);
 	return 0;
 }
 
